@@ -540,13 +540,7 @@ services:
       # oauth-mcp), never for this gateway's own audience, so the Node gateway must
       # accept it directly. tokenValidator.ts's ID-JAG filter verifies these tokens
       # against oauth-mcp's own JWKS (not PingOne's) before this aud check ever runs.
-      # "Super Banking A2A MCP Gateway" is the resource NAME — PingOne drifted
-      # (resource audience attr = its name), so exchange2 tokens carry that aud.
-      # Accept it alongside the URIs until the PingOne resource is re-provisioned.
-      # PingOne drift: the A2A gateway resource audience attr = its NAME, so
-      # exchange2 tokens carry aud "Super Banking A2A MCP Gateway" — accept it
-      # until the resource is re-provisioned.
-      MCP_GW_RESOURCE_URI: "mcpgateway.ping.demo,https://api.ping.demo:3036/mcp,mcpgateway-a2a.ping.demo,Super Banking A2A MCP Gateway,mcpserver.ping.demo"
+      MCP_GW_RESOURCE_URI: "mcpgateway.ping.demo,https://api.ping.demo:3036/mcp,mcpgateway-a2a.ping.demo,mcpserver.ping.demo"
       DEMO_API_BASE_URL: "https://demo-api-server:3001"
       # Agent frameworks (langchain et al) call back into the BFF at this origin
       # to execute tools with RFC 8693 exchange — agentRun.js appends
@@ -1241,9 +1235,7 @@ services:
       # oauth-mcp), never for this gateway's own audience, so the Node gateway must
       # accept it directly. tokenValidator.ts's ID-JAG filter verifies these tokens
       # against oauth-mcp's own JWKS (not PingOne's) before this aud check ever runs.
-      # "Super Banking A2A MCP Gateway" is the resource NAME — PingOne drift (see
-      # the demo-api-server entry); exchange2 tokens carry that aud until re-provisioned.
-      MCP_GW_RESOURCE_URI: "mcpgateway.ping.demo,https://api.ping.demo:3036/mcp,mcpgateway-a2a.ping.demo,Super Banking A2A MCP Gateway,mcpserver.ping.demo"
+      MCP_GW_RESOURCE_URI: "mcpgateway.ping.demo,https://api.ping.demo:3036/mcp,mcpgateway-a2a.ping.demo,mcpserver.ping.demo"
       # Native ID-JAG: tokens redeemed at oauth-mcp are signed by ITS OWN key, not
       # PingOne's, so tokenValidator only reaches for oauth-mcp's JWKS when the
       # token's `iss` matches this value exactly. Its built-in default is
@@ -1746,8 +1738,7 @@ services:
       # oauth-mcp), never for this gateway's own audience, so the Node gateway must
       # accept it directly. tokenValidator.ts's ID-JAG filter verifies these tokens
       # against oauth-mcp's own JWKS (not PingOne's) before this aud check ever runs.
-      # PingOne drift: A2A gateway resource audience attr = its NAME; see demo-api-server.
-      MCP_GW_RESOURCE_URI: "mcpgateway.ping.demo,https://api.ping.demo:3036/mcp,mcpgateway-a2a.ping.demo,Super Banking A2A MCP Gateway,mcpserver.ping.demo"
+      MCP_GW_RESOURCE_URI: "mcpgateway.ping.demo,https://api.ping.demo:3036/mcp,mcpgateway-a2a.ping.demo,mcpserver.ping.demo"
       BFF_TRANSACTION_HOP_URL: "https://demo-api-server:3001/internal/transaction-hop"
       # mkcert CA so the emitter's HTTPS POST to the BFF can verify its leaf cert.
       # Without it every hop fails UNABLE_TO_VERIFY_LEAF_SIGNATURE and is silently

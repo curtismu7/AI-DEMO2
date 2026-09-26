@@ -307,11 +307,8 @@ async function runMcpToolPipeline(ctx) {
         // audience (other agent's live repro at mcpToolPipeline.js:307), and
         // restricting the check to ctx.suppliedToken left that path unrouted.
         if (useGateway && mcpAccessToken) {
-            // PingOne may emit the aud as the resource URI or its display NAME
-            // (seen live: aud=["Super Banking A2A MCP Gateway"]). Match either.
             const a2aGwAuds = [
                 process.env.A2A_GATEWAY_AUDIENCE || routingConfig.getEffective('a2a_gateway_audience') || 'mcpgateway-a2a.ping.demo',
-                'Super Banking A2A MCP Gateway',
             ].map((v) => String(v).trim());
             const claims = require('../utils/tokenUtils').decodeJwt(mcpAccessToken)?.claims || null;
             const aud = Array.isArray(claims?.aud) ? claims.aud.map(String) : (claims?.aud != null ? [String(claims.aud)] : []);

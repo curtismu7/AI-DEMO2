@@ -190,11 +190,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
             const claims = decodeJwt(bearerToken)?.claims;
             const audList = Array.isArray(claims?.aud) ? claims.aud.map(String)
                 : (claims?.aud != null ? [String(claims.aud)] : []);
-            // PingOne drift (2026-09-26): the A2A gateway resource's audience
-            // attribute is its NAME, so exchange2 tokens carry
-            // aud=["Super Banking A2A MCP Gateway"] instead of the URI. Match
-            // either form so the pin still fires until the resource is fixed.
-            const a2aAuds = [a2aAud, 'Super Banking A2A MCP Gateway'].map((v) => String(v).trim());
+            const a2aAuds = [a2aAud].map((v) => String(v).trim());
             if (audList.some((a) => a2aAuds.includes(a))) {
                 const nodeUrl = (process.env.MCP_DEMO_GATEWAY_URL
                     || configStore.getEffective('mcp_demo_gateway_url') || '').replace(/\/$/, '');
