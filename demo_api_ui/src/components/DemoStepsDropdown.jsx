@@ -5,6 +5,7 @@
  * Testing + Attacks are separate collapsed groups on the Actions popout.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   ADMIN_PRIMARY_USE_CASE_IDS,
   CIAM_AGENT_TYPE_USE_CASE_IDS,
@@ -439,7 +440,7 @@ export default function DemoStepsDropdown({
           data-testid="demo-steps-scrim"
         />
       )}
-      {open && (
+      {open && createPortal(
         <aside
           className="ba-demo-steps-drawer"
           style={{ width: `${drawerWidth}px` }}
@@ -719,7 +720,12 @@ export default function DemoStepsDropdown({
               </section>
             )}
           </div>
-        </aside>
+        </aside>,
+        // Portal to the main window's body: the drawer is position:fixed, so
+        // when the dock panel is popped out into its own window this would
+        // otherwise open inside that small pop-out — the presenter needs the
+        // steps drawer on the main window (2026-09-26).
+        document.body
       )}
       {/* Rendered outside the popout so the explanation survives the
           outside-pointerdown close. */}

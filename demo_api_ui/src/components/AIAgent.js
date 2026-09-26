@@ -1047,6 +1047,13 @@ export default function BankingAgent({
     window.addEventListener("agent-filmstrip-toggle", handler);
     return () => window.removeEventListener("agent-filmstrip-toggle", handler);
   }, []);
+  // Side-nav "Demo Controls" shortcut — opens the Command Dock from outside
+  // the agent surface (AdminSideNav quick links).
+  useEffect(() => {
+    const open = () => setCommandDockOpen(true);
+    window.addEventListener("agent-command-dock-open", open);
+    return () => window.removeEventListener("agent-command-dock-open", open);
+  }, []);
   const [quickConfigView, setQuickConfigView] = useState(() => {
     try {
       return EVIDENCE_VIEW_OPTIONS.some((option) => option.value === localStorage.getItem("ba_quick_config_view"))
@@ -10208,67 +10215,8 @@ export default function BankingAgent({
                   questions may not be understood.
                 </div>
               )}
-              {splitChrome &&
-                isLoggedIn &&
-                (effectiveUser?.id || effectiveUser?.username) && (
-                  <div className="ba-header-session">
-                    <div title="PingOne user id">
-                      {effectiveUser?.id || effectiveUser?.username}
-                    </div>
-                    <SessionExpiryTimer
-                      sessionInfo={effectiveUser}
-                      className="ba-header-session-timer"
-                    />
-                  </div>
-                )}
-              {splitChrome && (
-                <div className="ba-textsize" role="group" aria-label="Response text size">
-                <button
-                  type="button"
-                  className="ba-textsize-btn"
-                  onClick={() =>
-                    setChatZoom((z) => Math.max(CHAT_ZOOM_MIN, +(z - CHAT_ZOOM_STEP).toFixed(2)))
-                  }
-                  disabled={chatZoom <= CHAT_ZOOM_MIN}
-                  title="Smaller response text"
-                  aria-label="Decrease response text size"
-                >
-                  A−
-                </button>
-                <button
-                  type="button"
-                  className="ba-textsize-pct"
-                  onClick={() => setChatZoom(CHAT_ZOOM_DEFAULT)}
-                  disabled={chatZoom === CHAT_ZOOM_DEFAULT}
-                  title="Reset response text size"
-                >
-                  {Math.round(chatZoom * 100)}%
-                </button>
-                <button
-                  type="button"
-                  className="ba-textsize-btn"
-                  onClick={() =>
-                    setChatZoom((z) => Math.min(CHAT_ZOOM_MAX, +(z + CHAT_ZOOM_STEP).toFixed(2)))
-                  }
-                  disabled={chatZoom >= CHAT_ZOOM_MAX}
-                  title="Bigger response text"
-                  aria-label="Increase response text size"
-                >
-                  A+
-                </button>
-                </div>
-              )}
-              {/* Split-column sign-out — moved next to the title so it's never lost in the
-                  tools row below (inline split-column mode only, unchanged D-02 behavior) */}
-              {splitChrome && isLoggedIn && (
-                <button
-                  type="button"
-                  className="ba-header-signout-btn"
-                  onClick={() => onLogout?.()}
-                >
-                  Sign out
-                </button>
-              )}
+              {/* Split-column header keeps only the title row — session id,
+                  text-size and sign-out live in the Command Dock (decluttering, 2026-09-26) */}
               <MaybePortal target={toolbarHostEl}>
               {useCommandDock ? (
                 /* Float mode: the secondary controls live in the Command Dock —

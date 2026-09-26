@@ -9,7 +9,7 @@
   align-items: center;
   gap: 8px;
   padding: 7px 14px;
-  border: 1px solid var(--th-border);
+  border: 3px solid #e5484d;
   border-radius: 999px;
   background: var(--th-bg-card);
   color: var(--th-text);

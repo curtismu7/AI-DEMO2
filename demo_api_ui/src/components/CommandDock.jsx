@@ -133,11 +133,13 @@ export default function CommandDock({
 
   return (
     <>
+      {/* The pill is the dock's collapsed icon — hidden while the panel is
+          open, back the moment it closes (closing always returns the icon). */}
       {!open && (
         <button
           type="button"
           className="cmd-dock-pill"
-          aria-expanded="false"
+          aria-expanded={open}
           onPointerDown={onPillPointerDown}
           onPointerMove={onPillPointerMove}
           onPointerUp={onPillPointerUp}

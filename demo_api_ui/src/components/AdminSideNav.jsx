@@ -1976,6 +1976,17 @@ export default function AdminSideNav({
             <MdShield size={16} aria-hidden="true" />
             {!collapsed && <span>Console</span>}
           </Link>
+          <button
+            type="button"
+            className="admin-side-nav__quick-link admin-side-nav__quick-link--demo-controls"
+            title="Open the agent's Demo Controls dock"
+            onClick={() => {
+              window.dispatchEvent(new CustomEvent("agent-command-dock-open"));
+            }}
+          >
+            🎛
+            {!collapsed && <span>Demo Controls</span>}
+          </button>
           {collapsed && (
             <button
               type="button"
