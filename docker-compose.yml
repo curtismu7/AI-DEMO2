@@ -1205,7 +1205,7 @@ services:
       # validateInboundToken verifies PF-issued tokens against the PF JWKS.
       # Unset/empty = PingOne-only.
       PF_ISSUER_URI: "https://local.ping-devops.com:9031"
-      PF_JWKS_URI: "https://pf-client-migration-admin:9031/pf/JWKS"
+      PF_JWKS_URI: "https://pingfederate:9031/pf/JWKS"
       # Weather/Brave showcase backends — mirrors ping-gateway's PG_WEATHER_BACKEND_URL /
       # PG_BRAVE_BACKEND_URL (~L1100 below). Streamable HTTP, no RFC 8693 exchange
       # (see src/scopePolicies.ts) — the Node gateway forwards the caller's original
