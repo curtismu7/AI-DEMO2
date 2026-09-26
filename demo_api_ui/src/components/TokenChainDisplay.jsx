@@ -2936,6 +2936,10 @@ function fmtActNode(act, hints) {
   }
   if (act.sub) {
     const s = String(act.sub);
+    if (s.startsWith("spiffe://")) {
+      // SPIFFE workload identity (SPIRE JWT-SVID actor) — show the full URI.
+      return s;
+    }
     if (
       hints?.currentUser?.sub &&
       s === hints.currentUser.sub &&
