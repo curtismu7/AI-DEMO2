@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
+import { classifyFailure } from '../services/tokenChainTrace/tokenChainTraceStore';
 import { productsForUseCase } from '../utils/pingProducts';
 
 const ProofContext = createContext(null);
@@ -120,12 +121,18 @@ export function computeVerdict(trace, catalogEntry) {
     // call died downstream, yet the strip read "Waiting on authorize-decision" —
     // pointing at the one component that had actually answered.
     const ended = trace.outcome === 'error';
+    // classifyFailure re-runs here (not only in completeTrace) so any producer
+    // that stamps trace.failureDetail directly — or a replayed trace — still
+    // gets the human-readable cause, not the raw error blob.
+    const detail = ended && trace.failureDetail
+      ? ` — ${classifyFailure(trace.failureDetail) || String(trace.failureDetail).slice(0, 160)}`
+      : '';
     return {
       useCaseId, id: catalogEntry.id, title: catalogEntry.title,
       expectedOutcome: catalogEntry.expectedOutcome || null,
       state: 'incomplete', matchedSteps, missingSteps, vertical,
       intent, tool, mechanism,
-      resultText: `${ended ? 'Run failed before' : 'Waiting on'} ${missingSteps.join(', ')}`,
+      resultText: `${ended ? 'Run failed before' : 'Waiting on'} ${missingSteps.join(', ')}${detail}`,
     };
   }
 
