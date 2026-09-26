@@ -14,6 +14,11 @@
 
 import { PALETTES, darken, tint, luminance } from './designSystems';
 
+/** Text color readable over `hex` — dark ink on light grounds, white otherwise. */
+export function onColor(hex) {
+  return luminance(hex) > 0.55 ? '#1e293b' : '#ffffff';
+}
+
 /**
  * Each zone maps one-or-more brand CSS vars to named palette tokens.
  * `vars[i]` is filled from `from[i]` (same length). `group` controls UI grouping.
@@ -44,8 +49,8 @@ export const THEME_ZONES = [
     vars: ['--brand-agent-request-bg'],
     from: ['primary'] },
   { key: 'agentResponse', group: 'Agent',     label: 'Agent response bubble',
-    vars: ['--brand-agent-response-bg'],
-    from: ['card'] },
+    vars: ['--brand-agent-response-bg', '--brand-agent-response-text'],
+    from: ['card', 'onCard'] },
   { key: 'agentDock',     group: 'Agent',     label: 'Agent dock background',
     vars: ['--brand-agent-dock-bg'],
     from: ['foreground'] },

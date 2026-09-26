@@ -188,6 +188,36 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-26 — Theme-zone picker produced unreadable dark-on-dark / white-on-white text
+
+**Files changed:** `demo_api_ui/src/components/SessionExpiryTimer.css`,
+`demo_api_ui/src/components/AIAgent.css`,
+`demo_api_ui/src/config/designSystems.js`, `demo_api_ui/src/config/themeZones.js`,
+`REGRESSION_PLAN.md`.
+
+**What was broken:** the per-zone theme picker could create contrast failures:
+(1) `SessionExpiryTimer.css` fell back to `#000000` for header logo/title text
+on the dark header gradient (all other consumers of
+`--brand-dashboard-header-text` default to `#ffffff`), so palettes with dark
+gradients got black-on-black header text; (2) the agent response bubble's text
+was forced white (`--ba-agent-txt: var(--app-primary-btn-text, #ffffff)`) while
+the picker sets the bubble background from the palette `card` token, which is
+`#FFFFFF` for 14 of 20 palettes — white-on-white.
+
+**What was fixed:** (1) the two `#000000` fallbacks became `#ffffff`, matching
+the other six consumers; (2) a new `--brand-agent-response-text` token pairs
+with `--brand-agent-response-bg`, computed by the picker (new `onCard` palette
+token = dark ink on light cards, white on saturated) so bubble text always
+tracks its background.
+
+**Do not break:** every text element that sits on a themed background must
+derive its ink from the same themed token family as that background — never a
+hardcoded `#fff`/`#000` over a `--brand-*` gradient or picker-set var.
+
+**Verify:** `cd demo_api_ui && npm run test:unit && npm run build`; visually,
+dark-gradient palettes show white header text and light `card` palettes show
+dark agent-bubble text.
+
 ### 2026-09-25 — Runtime provider toggle could CrashLoop the SE BFF via dead PF endpoints
 
 **Files changed:** `demo_api_server/routes/adminConfig.js`,

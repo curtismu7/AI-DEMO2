@@ -77,6 +77,7 @@ function makePalette([id, name, primary, onPrimary, secondary, accent, foregroun
       secondary,
       accent,
       onPrimary,
+      onCard: luminance(card) > 0.55 ? '#1e293b' : '#ffffff',
       card,
       foreground,
     },

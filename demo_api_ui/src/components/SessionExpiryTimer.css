@@ -42,7 +42,7 @@
   gap: 0.75rem;
   font-size: 1.375rem;
   font-weight: 700;
-  color: var(--brand-dashboard-header-text, #000000);
+  color: var(--brand-dashboard-header-text, #ffffff);
   letter-spacing: -0.3px;
   cursor: pointer;
   transition: opacity 0.2s ease;
@@ -66,7 +66,7 @@
 }
 
 .banking-header__logo-text {
-  color: var(--brand-dashboard-header-text, #000000);
+  color: var(--brand-dashboard-header-text, #ffffff);
   font-weight: 700;
   letter-spacing: -0.5px;
 }
