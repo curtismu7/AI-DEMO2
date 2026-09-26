@@ -250,10 +250,11 @@ async function sendA2aProtocolHandoff(opts = {}) {
         'A2A Protocol — wire bearer · delegated token (rejected)',
         'failed',
         null,
-        `The A2A hop was refused before anything ran: ${err.message}`,
+        `The A2A hop was refused before anything ran: ${err.logDetail || err.message}`,
         { a2aRole: 'protocol-bearer', vertical, error: err.message },
       ),
     );
+    console.error('[a2aProtocolClient] bearer gate REJECTED:', JSON.stringify({name:err.name,code:err.code,msg:err.message,logDetail:err.logDetail,stack:(err.stack||'').split('\n').slice(0,4)}));
     return { ok: false, tokenEvents, error: err.message, code: 'a2a_unauthorized' };
   }
 

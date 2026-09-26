@@ -624,6 +624,14 @@ services:
       # env_file (demo_api_server/.env); without it the BFF fails fast (exit 1),
       # so run-docker.sh's vault preflight verifies the password decrypts first.
       - ./secrets.vault:/secrets.vault:ro
+      # Static UI build. server.js resolves the React build at
+      # path.join(__dirname, '..', 'demo_api_ui', 'build') = /demo_api_ui/build,
+      # but nothing in the image or the mounts above puts the build there —
+      # the repo root lands at /repo and /app is the BFF checkout. Without this
+      # mount every non-/api route 503s with "Frontend not built". :ro — the
+      # server never writes to it; rebuild on the host (npm run build in
+      # demo_api_ui/) and the directory mount re-resolves the new inode.
+      - ./demo_api_ui/build:/demo_api_ui/build:ro
       # One-click "Restart gateway" button hits the Docker Engine API over this socket
       # (no docker CLI/dep in the image). Admin-gated; only restarts the two allowlisted
       # containers. This grants host container control — keep the endpoint locked down.
