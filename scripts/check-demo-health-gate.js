@@ -582,12 +582,25 @@ async function checkPingOneA2aResourceAudience() {
   );
 }
 
-/** (C) Container code drift — today a correctly-patched file sat inert in a
- *  stale node process for ~40 minutes while every debug signal said "fixed".
- *  deploy-live.sh warns on this; the gate double-checks so a demo never starts
- *  against code the operator thinks is deployed. */
+/** (C) Stale BFF process — today a correctly-patched file sat inert in a
+ *  running node process for ~40 minutes while every debug signal said "fixed".
+ *  The BFF's /app is now BIND-MOUNTED (PR #295), so the container always sees
+ *  the working tree — but node does not hot-reload, so the PROCESS can still
+ *  be older than the code. Compare the node process's start time against the
+ *  newest mtime among the A2A-critical files. */
 function checkBffCodeDrift() {
   if (!sh("docker ps --format '{{.Names}}' | grep -qx ai-demo-api-server && echo yes").out.trim()) return;
+  const procEtimeRaw = sh(`docker exec ai-demo-api-server sh -c 'ps -o pid,etime | awk "NR==2{print \\$2}"' 2>/dev/null`).out.trim();
+  if (!procEtimeRaw) {
+    row('bff:code-drift', true, 'could not read BFF process uptime (skipped)');
+    return;
+  }
+  // etime = [[dd-]hh:]mm:ss → seconds
+  const parts = procEtimeRaw.split(':').map((n) => parseInt(n, 10) || 0);
+  const procAgeSec = parts.length === 3
+    ? parts[0] * 86400 + parts[1] * 3600 + parts[2]
+    : parts[0] * 60 + parts[1];
+  const nowSec = Math.floor(Date.now() / 1000);
   const files = [
     'services/mcpToolPipeline.js',
     'services/mcpGatewayClient.js',
@@ -595,18 +608,23 @@ function checkBffCodeDrift() {
     'services/a2aDelegationService.js',
     'middleware/a2aPingOneBearer.js',
   ];
-  const drift = [];
+  let newestMtime = 0;
+  let newestFile = '';
   for (const f of files) {
-    if (!fs.existsSync(path.join(REPO, 'demo_api_server', f))) continue;
-    const host = sh(`md5 -q demo_api_server/${f} 2>/dev/null || md5sum demo_api_server/${f} | cut -d' ' -f1`).out.trim();
-    const ctr = sh(`docker exec ai-demo-api-server md5sum /app/${f} 2>/dev/null | cut -d' ' -f1`).out.trim();
-    if (host && ctr && host !== ctr) drift.push(f);
+    const p = path.join(REPO, 'demo_api_server', f);
+    if (!fs.existsSync(p)) continue;
+    const m = Math.floor(fs.statSync(p).mtimeMs / 1000);
+    if (m > newestMtime) { newestMtime = m; newestFile = f; }
   }
+  const procStartedAt = nowSec - procAgeSec;
+  const stale = newestMtime > procStartedAt + 5; // 5s grace for docker-start ordering
   row(
     'bff:code-drift',
-    drift.length === 0,
-    drift.length === 0 ? 'container serves the working tree' : `stale process: ${drift.join(', ')}`,
-    drift.length ? `docker restart ai-demo-api-server (node does not hot-reload; a baked file change without restart is invisible at runtime)` : '',
+    !stale,
+    stale
+      ? `STALE PROCESS: ${newestFile} modified ${Math.floor((procStartedAt === 0 ? 0 : (newestMtime - procStartedAt) / 60))} min after the BFF started — the running node does NOT have this code`
+      : `BFF process started after the newest watched file (${newestFile || 'n/a'})`,
+    stale ? `docker restart ai-demo-api-server — node does not hot-reload; the bind-mounted file changed after process start` : '',
   );
 }
 
