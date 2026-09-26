@@ -1,0 +1,34 @@
+{
+  "id": "aiDemoSpiffeTePolicy",
+  "name": "AI Demo SPIRE Workload Delegation Exchange",
+  "attributeContract": {
+    "coreAttributes": [ { "name": "subject" } ],
+    "extendedAttributes": [
+      { "name": "scope" },
+      { "name": "client_id" },
+      { "name": "spiffeId" }
+    ]
+  },
+  "processorMappings": [
+    {
+      "attributeSources": [],
+      "attributeContractFulfillment": {
+        "subject": { "source": { "type": "SUBJECT_TOKEN" }, "value": "sub" },
+        "scope": { "source": { "type": "SUBJECT_TOKEN" }, "value": "scope" },
+        "client_id": { "source": { "type": "SUBJECT_TOKEN" }, "value": "client_id" },
+        "spiffeId": { "source": { "type": "ACTOR_TOKEN" }, "value": "sub" }
+      },
+      "issuanceCriteria": { "conditionalCriteria": [] },
+      "subjectTokenType": "urn:ietf:params:oauth:token-type:access_token",
+      "subjectTokenProcessor": {
+        "id": "aiDemoPfAccessSubjectProcessor",
+        "location": "https://local.ping-devops.com:9999/pf-admin-api/v1/idp/tokenProcessors/aiDemoPfAccessSubjectProcessor"
+      },
+      "actorTokenType": "urn:ietf:params:oauth:token-type:jwt",
+      "actorTokenProcessor": {
+        "id": "aiDemoSpiffeJwtProcessor",
+        "location": "https://local.ping-devops.com:9999/pf-admin-api/v1/idp/tokenProcessors/aiDemoSpiffeJwtProcessor"
+      }
+    }
+  ]
+}

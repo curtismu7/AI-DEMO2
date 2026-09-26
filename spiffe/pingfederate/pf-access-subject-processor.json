@@ -1,0 +1,46 @@
+{
+  "id": "aiDemoPfAccessSubjectProcessor",
+  "name": "AI Demo PF Access Token Subject Processor",
+  "pluginDescriptorRef": {
+    "id": "com.pingidentity.pf.tokenprocessors.jwt.JwtTokenProcessor",
+    "location": "https://local.ping-devops.com:9999/pf-admin-api/v1/idp/tokenProcessors/descriptors/com.pingidentity.pf.tokenprocessors.jwt.JwtTokenProcessor"
+  },
+  "configuration": {
+    "tables": [
+      {
+        "name": "Allowed Issuers",
+        "rows": [
+          {
+            "fields": [
+              { "name": "Issuer", "value": "https://localhost:9031" },
+              { "name": "JWKS URL", "value": "https://local.ping-devops.com:9031/pf/JWKS" },
+              { "name": "JWKS", "value": "" }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Allowed Audiences",
+        "rows": []
+      }
+    ],
+    "fields": [
+      { "name": "Require Audience", "value": "false" },
+      { "name": "Require Expiration Time", "value": "true" },
+      { "name": "Require Issued At Time", "value": "false" },
+      { "name": "Require Not Before Time", "value": "false" },
+      { "name": "Default Cache Duration", "value": "5" },
+      { "name": "Allowed Clock Skew", "value": "60" },
+      { "name": "Max Future Validity", "value": "60" }
+    ]
+  },
+  "attributeContract": {
+    "coreAttributes": [ { "name": "sub" } ],
+    "extendedAttributes": [
+      { "name": "scope" },
+      { "name": "client_id" },
+      { "name": "aud" },
+      { "name": "iss" }
+    ]
+  }
+}
