@@ -1,0 +1,23 @@
+{
+  "clientId": "ai-demo-spiffe-te",
+  "enabled": true,
+  "grantTypes": ["TOKEN_EXCHANGE"],
+  "name": "AI Demo SPIRE Workload Token Exchange",
+  "description": "RFC 8693 exchange with SPIRE JWT-SVID as actor token (PF JWT Token Processor 2.0)",
+  "refreshRolling": "SERVER_DEFAULT",
+  "bypassApprovalPage": true,
+  "restrictScopes": true,
+  "restrictedScopes": ["mcp:invoke"],
+  "exclusiveScopes": [],
+  "restrictToDefaultAccessTokenManager": false,
+  "validateUsingAllEligibleAtms": false,
+  "requireSignedRequests": false,
+  "clientAuth": {
+    "type": "SECRET",
+    "secret": "SpiffeTe-2026-local-demo-only"
+  },
+  "tokenExchangeProcessorPolicyRef": {
+    "id": "aiDemoSpiffeTePolicy",
+    "location": "https://local.ping-devops.com:9999/pf-admin-api/v1/oauth/tokenExchange/processor/policies/aiDemoSpiffeTePolicy"
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "id": "aiDemoSpiffeJwtProcessor",
+  "name": "AI Demo SPIRE JWT-SVID Processor",
+  "pluginDescriptorRef": {
+    "id": "com.pingidentity.pf.tokenprocessors.jwt.JwtTokenProcessor",
+    "location": "https://local.ping-devops.com:9999/pf-admin-api/v1/idp/tokenProcessors/descriptors/com.pingidentity.pf.tokenprocessors.jwt.JwtTokenProcessor"
+  },
+  "configuration": {
+    "tables": [
+      {
+        "name": "Allowed Issuers",
+        "rows": [
+          {
+            "fields": [
+              {
+                "name": "Issuer",
+                "value": "https://local.ping-devops.com:8443"
+              },
+              {
+                "name": "JWKS URL",
+                "value": ""
+              },
+              {
+                "name": "JWKS",
+                "value": "{\"keys\": [{\"kty\": \"RSA\", \"kid\": \"0o7S1hWWV1mMMQHFsFhrPIRoecLViIK6\", \"alg\": \"RS256\", \"n\": \"zv3-BitNMq4zBBb4aIJy1j53V8V_zaO4qCPkTFxOrceSOaJ1hAprovARn48Qoyv7pncEYUZ6aFSp3r7LdaNIBSeq4o6_NIlx42Mg1o8mN9d1xSw08KGA1X1pRnfdtXkJSlBBrvtC2VA0JgC-SwA7ovKz0_-y-HZ4UHIg8AVqjDQ_-Gl1MCCIg7x86A6fEbr4DGMAG4KF9IVT3gaWTx-O1vVLIy4ymHMC5jcSzjm4B-R_scJJOn5G7oB1N2F96YtW86IZJa5UiM7Fj3cEadjY8_HLN5SRhaxq1qPKrPsGzRf3Gn1_R_O0h2ug8zqChY9loUjjEKyH7HBts256CMXESQ\", \"e\": \"AQAB\"}]}"
+              }
+            ],
+            "defaultRow": false
+          }
+        ]
+      },
+      {
+        "name": "Allowed Audiences",
+        "rows": [
+          {
+            "fields": [
+              {
+                "name": "Audience",
+                "value": "https://local.ping-devops.com:9031"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "fields": [
+      {
+        "name": "Require Audience",
+        "value": "true"
+      },
+      {
+        "name": "Require Expiration Time",
+        "value": "true"
+      },
+      {
+        "name": "Require Issued At Time",
+        "value": "false"
+      },
+      {
+        "name": "Require Not Before Time",
+        "value": "false"
+      },
+      {
+        "name": "Default Cache Duration",
+        "value": "0"
+      },
+      {
+        "name": "Allowed Clock Skew",
+        "value": "60"
+      },
+      {
+        "name": "Max Future Validity",
+        "value": "60"
+      }
+    ]
+  },
+  "lastModified": "2026-09-26T02:05:43.897Z",
+  "attributeContract": {
+    "coreAttributes": [
+      {
+        "name": "sub",
+        "masked": false
+      }
+    ],
+    "extendedAttributes": [
+      {
+        "name": "spiffeId",
+        "masked": false
+      }
+    ],
+    "maskOgnlValues": false
+  }
+}

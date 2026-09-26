@@ -1,8 +1,9 @@
 # SPIFFE / SPIRE — Implementation Plan (AI Demo)
 
 **Status:** P1 parity mode is implemented with a local mock issuer. The real-SPIRE runtime
-described below is planned separately and is not part of P1.
-**Last corrected:** 2026-09-21.
+below is **partially live (2026-09-26)**: Phases A, B, and the PingFederate actor-token
+path are implemented and verified end-to-end; Phase D (X.509 mTLS) remains planned.
+**Last corrected:** 2026-09-26.
 
 > **This document was rewritten because the previous version was wrong.** Its Phase 2
 > instructed the reader to "Create a JWT Issuer in PingOne → Security → JWT Issuers" so
@@ -252,13 +253,39 @@ PingOne is not involved here, so full SPIFFE fidelity is achievable.
 
 | Ambition | Why it is out |
 |---|---|
-| JWT-SVID as the RFC 8693 `actor_token` at PingOne | PingOne validates that both exchange tokens were issued by its own environment. Requires PingFederate. |
+| JWT-SVID as the RFC 8693 `actor_token` at PingOne | PingOne validates that both exchange tokens were issued by its own environment. **Delivered via PingFederate instead — see the live-status note below.** |
 | `cnf` / certificate-bound access tokens from PingOne | No RFC 8705, no DPoP, no `cnf` mechanism of any kind. |
 | SPIFFE ID as the authenticated client identity | The client assertion's `iss`/`sub` must equal the PingOne `client_id`. |
 
+### Live status (2026-09-26)
+
+The following are implemented and verified against the local stack (opt-in
+`spiffe` compose profile + local PingFederate 13):
+
+- **Phase A** — SPIRE 1.15.2 server/agent (join_token node attestation, docker
+  label workload attestation, RSA keys), `spiffe-helper` SVID delivery for the
+  BFF workload, OIDC Discovery Provider serving the JWKS over mkcert TLS at
+  `https://local.ping-devops.com:8443/keys` (PF trusts the mkcert root).
+- **PingFederate actor-token path** — PF 13 JWT Token Processor 2.0 validates
+  SPIRE JWT-SVIDs (`jwt_issuer` added to the SPIRE server config so SVIDs carry
+  `iss`); RFC 8693 exchange with `actor_token_type=jwt` returns 200 and the
+  workload identity lands as the `spiffeId` claim. PF admin artifacts:
+  `spiffe/pingfederate/`. Restart-safety (durable volumes, JVM truststore) is
+  documented in `spiffe/README.md`.
+- **BFF surface** — `POST /api/demo/spiffe/pingfederate/exchange`
+  (`services/spiffePingfederateService.js`), gated by
+  `ff_spiffe_pf_exchange` (default off). Mints the SVID via the agent Workload
+  API, exchanges it at PF, redacts client secrets from every error.
+
+**Still planned:** Phase D (X.509-SVID mTLS on BFF↔MCP hops — blocked by the
+`MCP_MTLS_ON` Privilege backend constraint in SPIFFE_PLAN Phase D item 3), and
+the `fmtActNode` claim rendering for a PF `act` chain carrying `spiffe://`
+(PF's exchange emits `spiffeId` as a top-level claim, not `act.sub`, until a
+generator policy adds the act mapping).
+
 If cryptographic workload attestation must reach the `act` chain for a customer story,
-**PingFederate is the component that does it** and PingOne is not — that is a separate
-plan, not a variation of this one.
+**PingFederate is the component that does it** and PingOne is not — the PF generator
+policy would map the actor token's `sub` into `act.sub` in a follow-up.
 
 ---
 

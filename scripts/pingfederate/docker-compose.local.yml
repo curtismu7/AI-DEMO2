@@ -30,6 +30,11 @@ services:
       - ${PINGFEDERATE_PROFILE_PATH:?set PINGFEDERATE_PROFILE_PATH outside Git}:/opt/in:ro
     tmpfs:
       - /run/secrets
+    extra_hosts:
+      # PF's JVM fetches the SPIRE JWKS (JWT Token Processor 2.0) from this
+      # origin; map it to the host gateway so the JVM resolves it inside the
+      # container (OrbStack's 127.0.0.1 magic only applies to some resolvers).
+      - "local.ping-devops.com:host-gateway"
     networks:
       ai-demo:
         aliases:

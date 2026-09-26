@@ -1,0 +1,21 @@
+{
+  "id": "spiffe-te|aiDemoSpiffeTePolicy|aiDemoPfJwtAtm",
+  "context": {
+    "type": "TOKEN_EXCHANGE_PROCESSOR_POLICY",
+    "contextRef": {
+      "id": "aiDemoSpiffeTePolicy",
+      "location": "https://local.ping-devops.com:9999/pf-admin-api/v1/oauth/tokenExchange/processor/policies/aiDemoSpiffeTePolicy"
+    }
+  },
+  "accessTokenManagerRef": {
+    "id": "aiDemoPfJwtAtm",
+    "location": "https://local.ping-devops.com:9999/pf-admin-api/v1/oauth/accessTokenManagers/aiDemoPfJwtAtm"
+  },
+  "attributeSources": [],
+  "attributeContractFulfillment": {
+    "Username": { "source": { "type": "TOKEN_EXCHANGE_PROCESSOR_POLICY" }, "value": "subject" },
+    "scope": { "source": { "type": "TOKEN_EXCHANGE_PROCESSOR_POLICY" }, "value": "scope" },
+    "client_id": { "source": { "type": "TOKEN_EXCHANGE_PROCESSOR_POLICY" }, "value": "client_id" }
+  },
+  "issuanceCriteria": { "conditionalCriteria": [] }
+}

@@ -209,12 +209,21 @@ export default function SpiffePanel({ isOpen, onClose, initialTabId }) {
 
           <h4>What is missing for real SPIFFE</h4>
           <ul style={{ paddingLeft: 20, lineHeight: 1.7, fontSize: '0.85rem', color: '#374151' }}>
-            <li>No SPIRE Server or Agent deployment.</li>
             <li>No runtime workload registration or attestation; P1 matches supplied mock selectors.</li>
-            <li>No <code>spiffe-helper</code> or Workload API integration for fetching SVIDs.</li>
-            <li>No SPIRE trust-bundle or OIDC discovery integration.</li>
             <li>No X.509-SVID mTLS on service hops owned by this project.</li>
           </ul>
+
+          <h4>Live PingFederate integration (real SPIRE)</h4>
+          <EduImplIntro repoPath="spiffe/README.md">
+            The opt-in <code>spiffe</code> Docker profile runs SPIRE 1.15.2 (server, agent,
+            <code>spiffe-helper</code>, OIDC Discovery Provider) with trust domain
+            <code>bxfinance.demo</code>. The discovery provider terminates the mkcert TLS pair on
+            <code>https://local.ping-devops.com:8443/keys</code>, and PingFederate&apos;s JWT Token
+            Processor 2.0 validates SPIRE-signed JWT-SVIDs as the RFC 8693 <code>actor_token</code>:
+            the workload identity (<code>spiffe://bxfinance.demo/bff</code>) rides into the issued
+            token as the <code>spiffeId</code> claim. See{' '}
+            <code>spiffe/pingfederate/</code> for the PF admin API artifacts.
+          </EduImplIntro>
         </>
       ),
     },
