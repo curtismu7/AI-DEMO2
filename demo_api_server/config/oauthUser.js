@@ -60,6 +60,12 @@ const config = {
    * "May not request scopes for multiple resources" when * lives on a Resource Server.
    */
   get scopes() {
+    // PingFederate user client is an OIDC-only app: requesting the PingOne
+    // banking scopes makes PF reject the authorize request with invalid_scope
+    // before the login page ever renders.
+    if (isPingFederate()) {
+      return ['openid', 'profile', 'email', 'offline_access'];
+    }
     const oidcOnly =
       configStore.getEffective('ff_oidc_only_authorize') === true ||
       configStore.getEffective('ff_oidc_only_authorize') === 'true';

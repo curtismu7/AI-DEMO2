@@ -218,6 +218,35 @@ hardcoded `#fff`/`#000` over a `--brand-*` gradient or picker-set var.
 dark-gradient palettes show white header text and light `card` palettes show
 dark agent-bubble text.
 
+### 2026-09-26 — PF-mode user login rejected with invalid_scope (no PF login page)
+
+**Files changed:** `demo_api_server/config/oauthUser.js`.
+
+**What was broken:** with `oauth_provider=pingfederate`, the end-user authorize
+request still carried the PingOne banking scope set (`read`, `accounts:read`,
+`write`, `transfer`, `ai:agent:read`, plus the vertical feature scope). The PF
+user client (`ai-demo-pf-user`) is an OIDC-only app, so PingFederate rejected
+the authorize request outright with `invalid_scope` and the browser bounced
+back with an error instead of ever rendering the PF sign-in page. UC38 (PF
+ID-JAG) handoff therefore could not start.
+
+**What was fixed:** `config/oauthUser.js`'s `scopes` getter returns
+`openid profile email offline_access` when the resolved provider is
+`pingfederate`; PingOne mode is untouched (ENDUSER_AUDIENCE single-resource
+list, `transfer`, and the feature scope all preserved).
+
+**Do not break:** the PingOne branch of the scopes getter — `transfer` must
+stay in the ENDUSER_AUDIENCE list (create_transfer 403s without it) and the
+≥5-distinct-scopes requirement for the RFC 8693 MCP exchange must hold.
+PF mode intentionally returns ONLY OIDC scopes: do not "restore" banking
+scopes there, PF rejects them.
+
+**Verify:** `cd demo_api_server && CI=true npx jest
+src/__tests__/oauthUserScopes.regression.test.js
+src/__tests__/oauthUserService.pingfederate.test.js
+src/__tests__/oauth-scope-integration.test.js --forceExit` (44 pass); live:
+PF login renders the PF sign-on page and UC38 handoff completes.
+
 ### 2026-09-25 — Runtime provider toggle could CrashLoop the SE BFF via dead PF endpoints
 
 **Files changed:** `demo_api_server/routes/adminConfig.js`,
