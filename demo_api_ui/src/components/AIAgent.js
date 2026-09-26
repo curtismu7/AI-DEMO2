@@ -102,6 +102,7 @@ import DemoAuthzFallbackModal from "./DemoAuthzFallbackModal";
 import TransactionConsentModal from "./TransactionConsentModal";
 import DraggableModal from "./DraggableModal";
 import DemoTrackAgentControl from "./DemoTrackAgentControl";
+import CommandDock from "./CommandDock";
 import ElicitationDialog from "./ElicitationDialog";
 import UseCaseExplainModal from "./UseCaseExplainModal";
 import { shouldAutoOpenA2a, buildA2aExplainUc } from "./a2aAutoOpen";
@@ -536,6 +537,12 @@ export default function BankingAgent({
   // steps, agent scope, close. A popout rather than an inline expansion so the
   // header's height never changes when it opens.
   const [headerMoreOpen, setHeaderMoreOpen] = useState(false);
+  // Command Dock — float mode relocates the secondary header controls into a
+  // draggable, pop-out-able tray fixed top-right (clear of the agent FAB at
+  // bottom-right). Collapsed hides it visually; the controls stay mounted so
+  // the header-contract tests (role/name queries) keep passing. Inline and
+  // split-chrome surfaces keep the classic header (float-only feature).
+  const [commandDockOpen, setCommandDockOpen] = useState(false);
   const [openSurfaceSelector, setOpenSurfaceSelector] = useState(null);
   const headerMoreRef = useRef(null);
   const [headerMorePosition, setHeaderMorePosition] = useState(null);
@@ -1736,6 +1743,12 @@ export default function BankingAgent({
   // header is unchanged — which is also what keeps the 2026-07-24
   // Actions-dropdown-removal contract test (float mode, banking route) green.
   const pageOwnsAgentChrome = isPingOneAdminAgentRoute(location.pathname);
+  // Command Dock hosts the secondary header controls in float mode only.
+  // Inline/split-chrome surfaces and the popped-out agent window keep the
+  // classic header: the dock's FloatingPanel portal is meaningless inside a
+  // pop-out window's own chrome, and the column layouts have no header to
+  // declutter.
+  const useCommandDock = !isInline && !poppedOutWin;
   // On the /agent route the inline/full-page instance is shown — hide duplicate float
   const isAgentPage = location.pathname === "/agent";
   /** Landing `/`: agent success/info/error toasts use longer autoClose (readable for guests). */
@@ -10207,7 +10220,8 @@ export default function BankingAgent({
                     />
                   </div>
                 )}
-              <div className="ba-textsize" role="group" aria-label="Response text size">
+              {splitChrome && (
+                <div className="ba-textsize" role="group" aria-label="Response text size">
                 <button
                   type="button"
                   className="ba-textsize-btn"
@@ -10241,7 +10255,8 @@ export default function BankingAgent({
                 >
                   A+
                 </button>
-              </div>
+                </div>
+              )}
               {/* Split-column sign-out — moved next to the title so it's never lost in the
                   tools row below (inline split-column mode only, unchanged D-02 behavior) */}
               {splitChrome && isLoggedIn && (
@@ -10254,6 +10269,615 @@ export default function BankingAgent({
                 </button>
               )}
               <MaybePortal target={toolbarHostEl}>
+              {useCommandDock ? (
+                /* Float mode: the secondary controls live in the Command Dock —
+                   a draggable / pop-out-able tray fixed top-right. The header
+                   keeps only the title row and the agent window buttons, so the
+                   demo page stays uncluttered. Controls stay mounted while the
+                   dock is collapsed (hidden via CSS) so the contract tests that
+                   query them by role/name keep passing. */
+                <CommandDock
+                  open={commandDockOpen}
+                  onOpenChange={setCommandDockOpen}
+                >
+                  <div className="ba-header-tools cmd-dock-tools">
+                    {!pageOwnsAgentChrome && (
+                    <DemoTrackAgentControl onPickStep={handleTrackStepPick} onStepComplete={handleTrackStepComplete} />
+                    )}
+                    <AgentModeSelector
+                      heuristicFallback={heuristicEnabled}
+                      onHeuristicFallbackChange={setHeuristicEnabled}
+                    />
+                    {/* Session + text-size — relocated from the float header top
+                        row (same handlers, unchanged behavior). */}
+                    {isLoggedIn && (effectiveUser?.id || effectiveUser?.username) && (
+                      <span className="cmd-dock-session" title="PingOne user id">
+                        {effectiveUser?.id || effectiveUser?.username}
+                        <SessionExpiryTimer
+                          sessionInfo={effectiveUser}
+                          className="ba-header-session-timer"
+                        />
+                      </span>
+                    )}
+                    <div className="ba-textsize" role="group" aria-label="Response text size">
+                      <button
+                        type="button"
+                        className="ba-textsize-btn"
+                        onClick={() =>
+                          setChatZoom((z) => Math.max(CHAT_ZOOM_MIN, +(z - CHAT_ZOOM_STEP).toFixed(2)))
+                        }
+                        disabled={chatZoom <= CHAT_ZOOM_MIN}
+                        title="Smaller response text"
+                        aria-label="Decrease response text size"
+                      >
+                        A−
+                      </button>
+                      <button
+                        type="button"
+                        className="ba-textsize-pct"
+                        onClick={() => setChatZoom(CHAT_ZOOM_DEFAULT)}
+                        disabled={chatZoom === CHAT_ZOOM_DEFAULT}
+                        title="Reset response text size"
+                      >
+                        {Math.round(chatZoom * 100)}%
+                      </button>
+                      <button
+                        type="button"
+                        className="ba-textsize-btn"
+                        onClick={() =>
+                          setChatZoom((z) => Math.min(CHAT_ZOOM_MAX, +(z + CHAT_ZOOM_STEP).toFixed(2)))
+                        }
+                        disabled={chatZoom >= CHAT_ZOOM_MAX}
+                        title="Bigger response text"
+                        aria-label="Increase response text size"
+                      >
+                        A+
+                      </button>
+                    </div>
+                    {isLoggedIn && (
+                      <button
+                        type="button"
+                        className="ba-header-signout-btn"
+                        onClick={() => onLogout?.()}
+                      >
+                        Sign out
+                      </button>
+                    )}
+                    {modelAdvisory && (
+                      <span
+                        className="ams-degraded-chip ba-model-advisory-chip"
+                        role="note"
+                        title={modelAdvisory}
+                      >
+                        {modelAdvisory}
+                        <button
+                          type="button"
+                          aria-label="Dismiss"
+                          className="ba-model-advisory-dismiss"
+                          onClick={() => setModelAdvisory(null)}
+                        >×</button>
+                      </span>
+                    )}
+                    {pendingLlmFallback && (
+                      <span className="ams-degraded-chip ba-model-advisory-chip" role="note">
+                        Provider unavailable
+                        <button
+                          type="button"
+                          className="ba-model-advisory-dismiss"
+                          style={{ width: "auto", padding: "0 8px", borderRadius: 10 }}
+                          onClick={async () => {
+                            const pend = pendingLlmFallback;
+                            setPendingLlmFallback(null);
+                            await dispatchNlResult(pend.result, "heuristic", pend.text, pend.useCaseId, pend.mode);
+                          }}
+                        >Use Heuristics</button>
+                        <button
+                          type="button"
+                          aria-label="Dismiss"
+                          className="ba-model-advisory-dismiss"
+                          onClick={() => {
+                            if (pendingLlmFallback.mode === 'live-id-jag') tokenChainTraceStore.completeTrace(false);
+                            setPendingLlmFallback(null);
+                          }}
+                        >×</button>
+                      </span>
+                    )}
+                    {!pageOwnsAgentChrome && (
+                    <button
+                      type="button"
+                      className={`ba-actions-trigger${demoApprovalOpen ? " active" : ""}`}
+                      title={hitlPendingIntent ? "An approval request is already open" : "Open a safe demo approval drawer"}
+                      onClick={() => setDemoApprovalOpen(true)}
+                      disabled={Boolean(hitlPendingIntent)}
+                    >
+                      Approval
+                    </button>
+                    )}
+                    {!pageOwnsAgentChrome && (
+                    <button
+                      type="button"
+                      className={`ba-actions-trigger${showTokenChain ? " active" : ""}`}
+                      title="View token exchange and authorization decisions (RFC 8693)"
+                      onClick={() => setShowTokenChain(v => !v)}
+                    >
+                      Flow Detail
+                    </button>
+                    )}
+                    <div className="ba-header-more" ref={headerMoreRef}>
+                      <button
+                        type="button"
+                        className={`ba-actions-trigger${headerMoreOpen ? " active" : ""}`}
+                        aria-haspopup="true"
+                        aria-expanded={headerMoreOpen}
+                        aria-label="Quick Config"
+                        title="Quick Config — display preferences and the demo feature flags"
+                        onClick={(event) => {
+                          const rect = event.currentTarget.getBoundingClientRect();
+                          setHeaderMorePosition({
+                            top: rect.bottom + 6,
+                            right: Math.max(8, window.innerWidth - rect.right),
+                          });
+                          setOpenSurfaceSelector(null);
+                          setHeaderMoreOpen((v) => !v);
+                        }}
+                      >
+                        <span>Quick Config</span><span className="ba-surface-badge" aria-hidden="true">02</span>
+                      </button>
+                      {headerMoreOpen && (
+                        <FloatingPanel
+                          title="Quick Config"
+                          className={`ba-header-more-pop ba-header-more-pop--${headerMoreTheme} ba-header-more-pop--font-${headerMoreFontScale}${openSurfaceSelector ? " ba-header-more-pop--surface-open" : ""}`}
+                          defaultWidth={Math.min(760, Math.max(560, window.innerWidth - 24))}
+                          defaultHeight={Math.min(760, Math.max(420, window.innerHeight - 24))}
+                          defaultX={headerMorePosition ? Math.max(8, window.innerWidth - headerMorePosition.right - Math.min(760, Math.max(560, window.innerWidth - 24))) : null}
+                          defaultY={headerMorePosition?.top ?? null}
+                          minWidth={Math.min(560, window.innerWidth - 16)}
+                          minHeight={Math.min(420, window.innerHeight - 16)}
+                          zIndex={100061}
+                          onClose={() => {
+                            setHeaderMoreOpen(false);
+                            setOpenSurfaceSelector(null);
+                          }}
+                        >
+                          <div className="ba-header-more-toolbar">
+                            <div className="ba-header-more-intro">
+                              <strong>Demo controls</strong>
+                              <span>Choose one view, then tune only that view.</span>
+                            </div>
+                            <div className="ba-header-more-toolbar-actions" onPointerDown={(event) => event.stopPropagation()}>
+                              <button type="button" aria-label="Use black controls" className={headerMoreTheme === "dark" ? "selected" : ""} onClick={() => setHeaderMoreTheme("dark")}>Black</button>
+                              <button type="button" aria-label="Use white controls" className={headerMoreTheme === "light" ? "selected" : ""} onClick={() => setHeaderMoreTheme("light")}>White</button>
+                              <button type="button" aria-label="Decrease controls font size" onClick={() => setHeaderMoreFontScale("90")}>A−</button>
+                              <button type="button" aria-label="Increase controls font size" onClick={() => setHeaderMoreFontScale("115")}>A+</button>
+                            </div>
+                          </div>
+                          {hasEmbeddedSurfaceConflict ? (
+                            <div className="ba-header-more-view-picker" role="alert" aria-live="assertive">
+                              <div className="ba-header-more-heading">Choose one embedded trace view</div>
+                              <div className="ba-header-more-intro">
+                                <strong>Several views are set to embed.</strong>
+                                <span>Pick the one to keep here. Other embedded views turn off, while “Both” becomes Pop-out.</span>
+                              </div>
+                              <div className="ba-header-more-view-grid" role="group" aria-label="Choose one embedded trace view">
+                                {surfaceChoiceCandidates.map((candidate) => (
+                                  <button
+                                    key={candidate.id}
+                                    type="button"
+                                    className="ba-header-more-view-option"
+                                    aria-label={`Keep ${candidate.label} embedded`}
+                                    onClick={() => resolveEmbeddedSurfaceConflict(candidate.id)}
+                                  >
+                                    <strong>{candidate.label}</strong>
+                                    <span>{candidate.value === "both" ? "Keep embedded and keep its pop-out." : "Keep this view embedded."}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="ba-header-more-intro">
+                                <strong>Choose a trace evidence view surface</strong>
+                                <span>Embedded views stay on this page. Pop-outs open a separate window.</span>
+                              </div>
+                              <div className="ba-header-more-view-picker" role="group" aria-label="Trace evidence views">
+                                <div className="ba-header-more-heading">Trace evidence views</div>
+                                <div className="ba-header-more-view-grid">
+                                  {EVIDENCE_VIEW_OPTIONS.map((option) => (
+                                    <button
+                                      key={option.value}
+                                      type="button"
+                                      className={`ba-header-more-view-option${quickConfigView === option.value ? " selected" : ""}`}
+                                      aria-pressed={quickConfigView === option.value}
+                                      onClick={() => chooseEvidenceView(option.value)}
+                                    >
+                                      <strong>{option.label}</strong>
+                                      <span>{option.description}</span>
+                                    </button>
+                                  ))}
+                                  {/* Not an evidence view — it opens the unattended-runs
+                                      picker directly, but the grid is where demo users
+                                      look for it. Styled as a view option on purpose. */}
+                                  <button
+                                    type="button"
+                                    className="ba-header-more-view-option"
+                                    onClick={() => setUnattendedPanelOpen(true)}
+                                  >
+                                    <strong>Unattended</strong>
+                                    <span>Runs with nobody signed in</span>
+                                  </button>
+                                </div>
+                              </div>
+                              <div className="ba-header-more-context" aria-live="polite">
+                                <div className="ba-header-more-heading">{EVIDENCE_VIEW_OPTIONS.find((option) => option.value === quickConfigView)?.label} controls</div>
+                                {quickConfigView === "movie-reel" && (
+                                  <>
+                                    <Check variant="switch" className="ba-header-toggle-label" checked={showRfcInfo} onChange={(e) => chooseRfcInfo(e.target.checked)}>RFC info</Check>
+                                    <SurfaceSelector
+                                      id="movie-reel-surface-select"
+                                      label="Movie reel"
+                                      value={movieReelSurface}
+                                      onChange={(e) => chooseEvidenceSurface("movie-reel", e.target.value)}
+                                      open={openSurfaceSelector === "movie-reel-surface-select"}
+                                      onToggle={setOpenSurfaceSelector}
+                                    />
+                                  </>
+                                )}
+                                {quickConfigView === "simple-stepper" && <SurfaceSelector id="simple-step-surface-select" label="Simple stepper" value={simpleStepperSurface} onChange={(e) => chooseEvidenceSurface("simple-stepper", e.target.value)} open={openSurfaceSelector === "simple-step-surface-select"} onToggle={setOpenSurfaceSelector} />}
+                                {quickConfigView === "sequence-view" && (
+                                  <>
+                                    <SurfaceSelector id="sequence-view-surface-select" label="Sequence view" value={sequenceSurface} onChange={(e) => chooseEvidenceSurface("sequence-view", e.target.value)} open={openSurfaceSelector === "sequence-view-surface-select"} onToggle={setOpenSurfaceSelector} />
+                                    <Check variant="switch" className="ba-header-toggle-label" checked={followSequenceFlow} onChange={(e) => chooseFollowSequenceFlow(e.target.checked)}>Follow flow</Check>
+                                    <Check variant="switch" className="ba-header-toggle-label" checked={slowMode} onChange={(e) => { setSlowMode(e.target.checked); window.dispatchEvent(new CustomEvent("agent-slow-mode-toggle", { detail: { on: e.target.checked } })); }}>Slow mode</Check>
+                                  </>
+                                )}
+                                {quickConfigView === "token-topology" && <SurfaceSelector id="topology-surface-select" label="Token topology" value={topologySurface} onChange={(e) => chooseEvidenceSurface("token-topology", e.target.value)} open={openSurfaceSelector === "topology-surface-select"} onToggle={setOpenSurfaceSelector} />}
+                                {quickConfigView === "oauth-visualizer" && <SurfaceSelector id="oauth-visualizer-surface-select" label="OAuth visualizer" value={oauthVisualizerSurface} onChange={(e) => chooseEvidenceSurface("oauth-visualizer", e.target.value)} open={openSurfaceSelector === "oauth-visualizer-surface-select"} onToggle={setOpenSurfaceSelector} />}
+                              </div>
+                            </>
+                          )}
+                      <div className="ba-header-more-legacy" aria-hidden="true">
+                      <div className="ba-header-more-heading">Display preferences</div>
+                      <Check
+                        variant="switch"
+                        className="ba-header-toggle-label"
+                        checked={showRfcInfo}
+                        onChange={(e) => chooseRfcInfo(e.target.checked)}
+                        title="Show RFC references in the selected movie-reel or sequence step detail"
+                      >
+                        RFC info
+                      </Check>
+                      <SurfaceSelector
+                        id="agent-flow-surface-select"
+                        label="Agent flow diagram"
+                        value={agentFlowSurface}
+                        onChange={(e) => chooseAgentFlowSurface(e.target.value)}
+                        disabledValues={isEmbeddedSurfaceDisabled("embedded", sequenceSurface) ? ["embedded", "both"] : []}
+                        open={openSurfaceSelector === "agent-flow-surface-select"}
+                        onToggle={setOpenSurfaceSelector}
+                      />
+                      {/* Dark mode switch — drives data-theme on the document root, which the
+                          dark-capable panels (Token Chain rail) key off. */}
+                      <Check
+                        variant="switch"
+                        className="ba-header-toggle-label"
+                        checked={darkMode}
+                        onChange={(e) => setDarkMode(e.target.checked)}
+                        title="Switch the dashboard between light and dark"
+                      >
+                        Dark mode
+                      </Check>
+                      {/* Compliance 12-step toggle */}
+                      <Check
+                        variant="switch"
+                        className="ba-header-toggle-label"
+                        checked={showCompliancePanel}
+                        onChange={(e) => {
+                          const newVal = e.target.checked;
+                          if (newVal) setComplianceSlideout(true);
+                          setShowCompliancePanel(newVal);
+                        }}
+                        title="Show or hide the 12-step compliance status"
+                      >
+                        Compliance
+                      </Check>
+                      {showCompliancePanel && (
+                        <Check
+                          variant="switch"
+                          className="ba-header-toggle-label"
+                          checked={complianceSlideout}
+                          onChange={(e) => {
+                            setComplianceSlideout(e.target.checked);
+                          }}
+                          title="Show compliance as side-panel overlay"
+                        >
+                          Side panel
+                        </Check>
+                      )}
+                      <div className="ba-header-more-heading">Trace evidence views</div>
+                      <SurfaceSelector
+                        id="topology-surface-select"
+                        label="Token topology"
+                        value={topologySurface}
+                        onChange={(e) => chooseEvidenceSurface("token-topology", e.target.value)}
+                        disabledValues={isEmbeddedSurfaceDisabled("embedded", sequenceSurface) ? ["embedded", "both"] : []}
+                        open={openSurfaceSelector === "topology-surface-select"}
+                        onToggle={setOpenSurfaceSelector}
+                      />
+                      <SurfaceSelector
+                        id="simple-step-surface-select"
+                        label="Simple step"
+                        value={simpleStepperSurface}
+                        onChange={(e) => chooseEvidenceSurface("simple-stepper", e.target.value)}
+                        disabledValues={isEmbeddedSurfaceDisabled("embedded", sequenceSurface) ? ["embedded", "both"] : []}
+                        open={openSurfaceSelector === "simple-step-surface-select"}
+                        onToggle={setOpenSurfaceSelector}
+                      />
+                      <Check
+                        variant="switch"
+                        className="ba-header-toggle-label"
+                        checked={showFilmstrip}
+                        onChange={(e) => {
+                          const newVal = e.target.checked;
+                          chooseEvidenceSurface("movie-reel", newVal ? "embedded" : "none");
+                        }}
+                        title="Show or hide the token chain movie reel; this choice is saved across reloads"
+                      >
+                        <>Movie reel <span className="ba-surface-badge" aria-hidden="true">Embedded</span></>
+                      </Check>
+                      <SurfaceSelector
+                        id="sequence-view-surface-select"
+                        label="Sequence view"
+                        value={sequenceSurface}
+                        onChange={(e) => {
+                          chooseEvidenceSurface("sequence-view", e.target.value);
+                          const embedded = e.target.value === "embedded" || e.target.value === "both";
+                          window.dispatchEvent(new CustomEvent("admin-sidenav-collapse-toggle", { detail: { collapsed: embedded } }));
+                          if (!embedded && slowMode) {
+                            setSlowMode(false);
+                            window.dispatchEvent(new CustomEvent("agent-slow-mode-toggle", { detail: { on: false } }));
+                          }
+                        }}
+                        open={openSurfaceSelector === "sequence-view-surface-select"}
+                        onToggle={setOpenSurfaceSelector}
+                      />
+                      {(showSequenceDiagram || showSequencePopout) && (
+                        <Check
+                          variant="switch"
+                          className="ba-header-toggle-label"
+                          checked={followSequenceFlow}
+                          onChange={(e) => chooseFollowSequenceFlow(e.target.checked)}
+                          title="Keep the active sequence step in view as the flow runs"
+                        >
+                          Follow flow
+                        </Check>
+                      )}
+                      <SurfaceSelector
+                        id="oauth-visualizer-surface-select"
+                        label="OAuth Visualizer"
+                        value={oauthVisualizerSurface}
+                        onChange={(e) => chooseEvidenceSurface("oauth-visualizer", e.target.value)}
+                        disabledValues={isEmbeddedSurfaceDisabled("embedded", sequenceSurface) ? ["embedded", "both"] : []}
+                        open={openSurfaceSelector === "oauth-visualizer-surface-select"}
+                        onToggle={setOpenSurfaceSelector}
+                      />
+                      {showSequenceDiagram && (
+                        <Check
+                          variant="switch"
+                          className="ba-header-toggle-label"
+                          checked={slowMode}
+                          onChange={(e) => {
+                            const newVal = e.target.checked;
+                            setSlowMode(newVal);
+                            window.dispatchEvent(new CustomEvent("agent-slow-mode-toggle", { detail: { on: newVal } }));
+                          }}
+                          title="Reveal sequence diagram steps slowly, for narrating the flow to a live audience"
+                        >
+                          Slow mode
+                        </Check>
+                      )}
+                      <Check
+                        variant="switch"
+                        className="ba-header-toggle-label"
+                        checked={davinciMode}
+                        onChange={(e) => {
+                          const newVal = e.target.checked;
+                          try {
+                            localStorage.setItem("ba_davinci_mode", newVal ? "1" : "0");
+                          } catch {}
+                          setDavinciMode(newVal);
+                          window.dispatchEvent(new CustomEvent("agent-davinci-mode-toggle", { detail: { on: newVal } }));
+                        }}
+                        title="Switch this demo between the standard hand-coded flows and PingOne DaVinci-orchestrated flows"
+                      >
+                        DaVinci Mode
+                      </Check>
+                      {/* Server feature flags — global, unlike the local
+                          preferences above. Pinned flags render locked because
+                          getEffective() is env-first and the write would be
+                          silently inert. */}
+                      <div className="ba-header-more-sep" role="separator" />
+                      {MORE_MENU_FLAG_IDS.map((id) => {
+                        const def = QUICK_FLAGS.find((d) => d.id === id);
+                        const f = moreFlags.flagsById?.[id];
+                        if (!def) return null;
+                        const locked = !!f?.pinned;
+                        return (
+                          <Check
+                            key={id}
+                            variant="switch"
+                            className="ba-header-toggle-label"
+                            checked={!!f?.value}
+                            disabled={!f || locked || !moreFlags.canEdit || moreFlags.savingId === id}
+                            onChange={(e) => moreFlags.save(id, e.target.checked)}
+                            title={
+                              !f
+                                ? "Flag unavailable — could not read /api/admin/feature-flags"
+                                : locked
+                                  ? `Pinned by ${f.pinnedBy} in the server environment — change that env var to flip`
+                                  : `${f.description || def.label} — applies to every session, not just yours`
+                            }
+                          >
+                            {locked ? `${def.label} 🔐` : def.label}
+                          </Check>
+                        );
+                      })}
+                      <div className="ba-header-more-sep" role="separator" />
+                      <div className="ba-header-more-heading">Pop-out tools</div>
+                      <button
+                        type="button"
+                        className={`ba-actions-trigger${showTokenTopology ? " active" : ""}`}
+                        aria-label="Topology"
+                        title="Real-time token topology — RFC 8693 delegation chain"
+                        onClick={() => {
+                          if (showTokenTopology) {
+                            chooseEvidenceSurface("token-topology", showInlineTokenTopology ? "embedded" : "none");
+                          } else {
+                            chooseEvidenceSurface("token-topology", showInlineTokenTopology ? "both" : "popout");
+                          }
+                        }}
+                      >
+                        <><span>Token topology</span><span className="ba-surface-badge" aria-hidden="true">Pop-out</span></>
+                      </button>
+                      {/* The other half of the same run: Topology answers "what
+                          happened, in what order", this answers "which boxes,
+                          and where the decision was taken". Both read
+                          tokenChainTraceStore, and the panel lives in App.js.
+                          Reachable before only via the trace rail's view menu. */}
+                      <button
+                        type="button"
+                        className="ba-actions-trigger"
+                        title="System flow — the run on the deployment map, and where the decision was taken"
+                        onClick={() => window.dispatchEvent(new CustomEvent('system-flow-open'))}
+                      >
+                        <><span>System flow</span><span className="ba-surface-badge" aria-hidden="true">Pop-out</span></>
+                      </button>
+                      <button
+                        type="button"
+                        className={`ba-actions-trigger${showFloatingTokenChain ? " active" : ""}`}
+                        title="Floating token chain — RFC 8693 delegation trace rail"
+                        onClick={() => { setShowFloatingTokenChain(v => !v); window.dispatchEvent(new CustomEvent('floating-token-chain-open')); }}
+                      >
+                        <><span>Floating token chain</span><span className="ba-surface-badge" aria-hidden="true">Pop-out</span></>
+                      </button>
+                      {/* OAuth Visualizer — same embedded/pop-out/both cycling as
+                          Token topology above; the panel pair lives at the bottom
+                          of this component alongside the other evidence surfaces. */}
+                      <button
+                        type="button"
+                        className={`ba-actions-trigger${oauthVisualizerSurface !== "none" ? " active" : ""}`}
+                        aria-label="OAuth Visualizer"
+                        title="OAuth Visualizer — explore grant types and token exchange step by step"
+                        onClick={() => {
+                          if (oauthVisualizerSurface === "none") chooseEvidenceSurface("oauth-visualizer", "popout");
+                          else if (oauthVisualizerSurface === "popout") chooseEvidenceSurface("oauth-visualizer", "embedded");
+                          else if (oauthVisualizerSurface === "embedded") chooseEvidenceSurface("oauth-visualizer", "both");
+                          else chooseEvidenceSurface("oauth-visualizer", "none");
+                        }}
+                      >
+                        <><span>OAuth Visualizer</span><span className="ba-surface-badge" aria-hidden="true">{oauthVisualizerSurface === "none" ? "Off" : oauthVisualizerSurface === "embedded" ? "Embedded" : oauthVisualizerSurface === "both" ? "Both" : "Pop-out"}</span></>
+                      </button>
+                      {/* Unattended runs — same panel the Token Chain rail opens;
+                          reachable here without opening the rail first. */}
+                      <button
+                        type="button"
+                        className="ba-actions-trigger"
+                        aria-label="Unattended runs"
+                        title="Unattended runs — replay a scheduled run that happened with nobody signed in"
+                        onClick={() => setUnattendedPanelOpen(true)}
+                      >
+                        <><span>Unattended runs</span><span className="ba-surface-badge" aria-hidden="true">Pop-out</span></>
+                      </button>
+                      {/* Demo Script shortcut — opens the 15-min teleprompter without requiring sidebar nav */}
+                      <button
+                        type="button"
+                        className="ba-actions-trigger"
+                        title="Open 15-Min Security Demo Script (teleprompter)"
+                        onClick={() => window.dispatchEvent(new CustomEvent("demo-script-toggle"))}
+                      >
+                        <><span>Script</span><span className="ba-surface-badge" aria-hidden="true">Pop-out</span></>
+                      </button>
+                      {davinciMode && (
+                        <button
+                          type="button"
+                          className="ba-actions-trigger"
+                          title="Why PingOne DaVinci orchestration — value walkthrough, no live flow required"
+                          onClick={() => { window.location.href = "/davinci-orchestration"; }}
+                        >
+                          DaVinci Orchestration
+                        </button>
+                      )}
+                      </div>
+                        </FloatingPanel>
+                      )}
+                    </div>
+                    {!pageOwnsAgentChrome && (
+                    <button
+                      type="button"
+                      className={`ba-actions-trigger${showDemoGuide ? " active" : ""}`}
+                      title="Open Agent Demo Guide"
+                      onClick={() => setShowDemoGuide(true)}
+                    >
+                      Guide
+                    </button>
+                    )}
+                  </div>
+                  <div className="ba-header-tools cmd-dock-tools">
+                    <DemoStepsDropdown
+                      vertical={effectiveVerticalId || "banking"}
+                      disabled={consentBlocked}
+                      onStopAgentClick={onStopAgentClick}
+                      open={showDemoSteps}
+                      onOpenChange={(next) => {
+                        setShowDemoSteps(next);
+                        if (next) setShowDiscovery(false);
+                      }}
+                      onSelect={(uc, stepNumber, opts) => {
+                        window.dispatchEvent(new CustomEvent("agent-demo-step-select", {
+                          detail: { uc, stepNumber, opts },
+                        }));
+                      }}
+                    />
+                    {effectiveUser?.role === "admin" && (
+                      <AdminToolsDropdown
+                        open={showAdminTools}
+                        onOpenChange={(next) => {
+                          setShowAdminTools(next);
+                          if (next) setShowDemoSteps(false);
+                        }}
+                        onSelect={handleAdminToolSelect}
+                      />
+                    )}
+                    {isLoggedIn && !pageOwnsAgentChrome && (
+                      <ScopePicker
+                        allowWrite={agentAllowWrite}
+                        disabled={agentToolsLoading}
+                        onChange={setAgentAllowWrite}
+                      />
+                    )}
+                    <button
+                      type="button"
+                      className="ba-actions-trigger ba-header-toggle-label"
+                      onClick={() => clearCompletedUseCases()}
+                      title="Clear checkmarks for a fresh demo pass"
+                      data-testid="header-clear-progress"
+                    >
+                      Clear progress
+                    </button>
+                    {/* Dark/light toggle — shared app theme (ThemeProvider), same
+                        control the "Dark mode" switch in Quick Config drives. */}
+                    <button
+                      type="button"
+                      className="ba-icon-btn"
+                      onClick={toggleDarkMode}
+                      aria-label="Toggle dark mode"
+                      aria-pressed={darkMode}
+                      title="Switch this agent between light and dark"
+                    >
+                      {darkMode ? "☀️" : "🌙"}
+                    </button>
+                  </div>
+                </CommandDock>
+              ) : (
               <div className="ba-header-tools">
                 {/* Hidden on /admin: its most prominent control launching the
                     CUSTOMER-act catalog next to the admin agent read as "admin
@@ -10961,6 +11585,7 @@ export default function BankingAgent({
                   </button>
                 )}
               </div>
+              )}
               </MaybePortal>
             </div>
           </div>
