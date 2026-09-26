@@ -2959,6 +2959,11 @@ function fmtActNode(act, hints) {
  */
 function fmtAct(act, hints) {
   if (!act) return null;
+  if (typeof act === "string") {
+    // PingFederate emits act as a plain string when server-wide OGNL
+    // expressions are disabled — a SPIFFE workload id lands here verbatim.
+    return act.startsWith("spiffe://") ? act : String(act).slice(0, 40);
+  }
   if (typeof act !== "object") return String(act).slice(0, 40);
   const parts = [];
   let node = act;

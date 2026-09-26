@@ -279,9 +279,11 @@ The following are implemented and verified against the local stack (opt-in
 
 **Still planned:** Phase D (X.509-SVID mTLS on BFF↔MCP hops — blocked by the
 `MCP_MTLS_ON` Privilege backend constraint in SPIFFE_PLAN Phase D item 3), and
-the `fmtActNode` claim rendering for a PF `act` chain carrying `spiffe://`
-(PF's exchange emits `spiffeId` as a top-level claim, not `act.sub`, until a
-generator policy adds the act mapping).
+a *nested* `act` object: this demo's PF has server-wide OGNL expressions
+disabled, so the exchanged token carries `act` as a **string** claim
+(`"act": "spiffe://bxfinance.demo/bff"`, verified 2026-09-26) plus the
+top-level `spiffeId` claim. RFC 8693-shaped `act.sub` objects need the OGNL
+expression policy enabled in PF (server-wide blast radius — separate decision).
 
 If cryptographic workload attestation must reach the `act` chain for a customer story,
 **PingFederate is the component that does it** and PingOne is not — the PF generator
