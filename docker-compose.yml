@@ -297,6 +297,12 @@ services:
       # key is actually set. See demo_api_server/.env.example for the values.
     environment:
       NODE_ENV: development
+      # UC40 local-demo pin (2026-09-26): the PingFederate provider toggle kept
+      # being flipped back to pingone by concurrent sessions editing
+      # demo_api_server/.env. `environment:` overrides env_file, so this holds
+      # the local stack on pingfederate regardless of .env churn. Remove when
+      # the local UC40 testing window ends.
+      OAUTH_PROVIDER: pingfederate
       MCP_DISCOVERY_AGENT_URL: "http://mcp-discovery-agent:3910"
       # Allow self-signed TLS (host.docker.internal MCP server)
       NODE_TLS_REJECT_UNAUTHORIZED: "0"
