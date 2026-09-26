@@ -163,6 +163,52 @@ kill_all() {
   bash "$K8S_DIR/deploy.sh" stop-forward >/dev/null 2>&1 || true
   pkill -f "kubectl port-forward -n ai-demo" 2>/dev/null || true
 
+  # Stop auto-restarting Docker containers (llm-proxy, librechat stack). Both
+  # are `restart: unless-stopped`, so they resurrect whenever the Docker daemon
+  # (OrbStack) restarts and squat demo ports / the ai-demo_ai-demo network.
+  # Disable the policy so they stay down. Also remove leftover ai-demo compose
+  # networks. Never touches volumes, images, worktrees, or any user data.
+  if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+    local containers
+    containers="$(docker ps -aq --filter "name=^ai-demo-" --filter "name=^librechat" 2>/dev/null || true)"
+    if [[ -n "${containers}" ]]; then
+      # shellcheck disable=SC2086
+      docker update --restart=no ${containers} >/dev/null 2>&1 || true
+      # shellcheck disable=SC2086
+      docker stop ${containers} >/dev/null 2>&1 || true
+      info "Stopped auto-restart Docker containers (ai-demo-*, librechat*)."
+    fi
+    local net
+    for net in $(docker network ls -q --filter "name=ai-demo" 2>/dev/null || true); do
+      docker network rm "$net" >/dev/null 2>&1 || true
+    done
+  fi
+
+  # Stop the host LLM backend (llama.cpp tiers :8091/:8096, tier-manager
+  # :8097, llama-proxy :8090) — multi-GB RAM/CPU hogs that outlive a stop
+  # otherwise. Only stops listeners; never deletes model caches. The
+  # com.ai-demo.llama-models LaunchAgent resurrects the backend every 5
+  # minutes, so boot it out BEFORE killing the servers. A later explicit
+  # start or the next login re-loads the agent.
+  if launchctl print "gui/$(id -u)/com.ai-demo.llama-models" >/dev/null 2>&1; then
+    launchctl bootout "gui/$(id -u)/com.ai-demo.llama-models" 2>/dev/null || true
+    info "Booted out launchd keep-alive agent com.ai-demo.llama-models."
+  fi
+  pkill -f "demo_llm_proxy/supervise-swap.sh" 2>/dev/null || true
+  if curl -sf --max-time 2 http://127.0.0.1:8097/health >/dev/null 2>&1; then
+    bash "$BASEDIR/demo_llm_proxy/start-local-models.sh" stop >/dev/null 2>&1 || true
+  fi
+  if [[ -f /tmp/demo-tier-manager.pid ]]; then
+    kill "$(cat /tmp/demo-tier-manager.pid)" 2>/dev/null || true
+    rm -f /tmp/demo-tier-manager.pid
+  fi
+  local llm_port llm_pid
+  for llm_port in 8090 8091 8096 8097; do
+    for llm_pid in $(lsof -nP -tiTCP:"$llm_port" -sTCP:LISTEN 2>/dev/null || true); do
+      kill "$llm_pid" 2>/dev/null || true
+    done
+  done
+
   # Docker Compose (./run-docker.sh) publishes the same host ports as K8s
   # port-forwards (3001/4000/…). Leaving those containers up makes OrbStack
   # keep *:PORT while kubectl also binds 127.0.0.1:PORT — clients then see

@@ -75,5 +75,64 @@ done
 
 set -euo pipefail
 
+# ── Host LLM backend (llama.cpp tiers / tier-manager / mlx / oMLX) ────────────
+# Multi-GB model servers on :8090/:8091/:8096/:8097 — pure RAM/CPU consumers.
+# Only stop what is actually listening; never delete model caches or logs.
+#
+# The com.ai-demo.llama-models LaunchAgent re-runs supervise-swap.sh every
+# 5 minutes and resurrects the backend — so boot it out BEFORE killing the
+# servers, or the kill is undone within 5 minutes. A later explicit start
+# (./run-docker.sh llamacpp start) or the next login re-loads the agent.
+if launchctl print "gui/$(id -u)/com.ai-demo.llama-models" >/dev/null 2>&1; then
+  launchctl bootout "gui/$(id -u)/com.ai-demo.llama-models" 2>/dev/null || true
+  echo "   Booted out launchd keep-alive agent com.ai-demo.llama-models."
+fi
+# Kill a lingering supervise-swap supervisor from a previous agent run.
+pkill -f "demo_llm_proxy/supervise-swap.sh" 2>/dev/null || true
+if curl -sf --max-time 2 http://127.0.0.1:8097/health >/dev/null 2>&1; then
+  bash "${BASEDIR}/demo_llm_proxy/start-local-models.sh" stop >/dev/null 2>&1 || true
+fi
+if [[ -f /tmp/demo-tier-manager.pid ]]; then
+  kill "$(cat /tmp/demo-tier-manager.pid)" 2>/dev/null || true
+  rm -f /tmp/demo-tier-manager.pid
+  echo "   Stopped tier-manager (:8097)."
+fi
+for pid_file in /tmp/demo-llamacpp.pid /tmp/demo-mlx.pid /tmp/demo-omlx.pid; do
+  if [[ -f "$pid_file" ]]; then
+    kill_process_tree "$(cat "$pid_file" 2>/dev/null || true)"
+    rm -f "$pid_file"
+  fi
+done
+for port in 8090 8091 8096 8097; do
+  pids=$(lsof -nP -iTCP:"$port" -sTCP:LISTEN -t 2>/dev/null || true)
+  for pid in $pids; do
+    [[ -z "$pid" ]] && continue
+    kill_process_tree "$pid"
+    echo "   Stopped LLM backend listener on :${port} (PID ${pid})"
+  done
+done
+
+# ── Compose networks left behind by stopped/removed containers ────────────────
+# A down but not removed container or a crashed `up` can leave networks alive.
+# Only removes ai-demo-owned networks; never touches volumes or images.
+if docker info >/dev/null 2>&1; then
+  # Stop auto-restarting containers (llm-proxy, librechat stack). Both are
+  # `restart: unless-stopped`, so they resurrect whenever the Docker daemon
+  # (OrbStack) restarts. Disable the policy so they stay down.
+  containers="$(docker ps -aq --filter "name=^ai-demo-" --filter "name=^librechat" 2>/dev/null || true)"
+  if [[ -n "${containers}" ]]; then
+    # shellcheck disable=SC2086
+    docker update --restart=no ${containers} >/dev/null 2>&1 || true
+    # shellcheck disable=SC2086
+    docker stop ${containers} >/dev/null 2>&1 || true
+    echo "   Stopped Docker containers (ai-demo-*, librechat*) and disabled auto-restart."
+  fi
+  for net in $(docker network ls -q --filter "name=ai-demo" 2>/dev/null || true); do
+    docker network rm "$net" >/dev/null 2>&1 && echo "   Removed compose network (${net})."
+  done
+else
+  echo "   Docker daemon not running — skipping container stop."
+fi
+
 echo ""
 echo -e "${GREEN}✅ All services stopped.${NC}"
