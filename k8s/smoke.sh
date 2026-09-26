@@ -119,10 +119,10 @@ curl -skS --max-time 15 -D "$ANON_HEADERS" -o /dev/null "$APP_URL/" || true
 ANON_CODE=$(awk 'toupper($1) ~ /^HTTP\// { code=$2 } END { print code }' "$ANON_HEADERS")
 ANON_LOCATION=$(awk 'BEGIN{IGNORECASE=1} /^location:/ { sub(/\r$/, ""); print substr($0, 11) }' "$ANON_HEADERS" | tail -1)
 rm -f "$ANON_HEADERS"
-if [ "$ANON_CODE" = "302" ] && echo "$ANON_LOCATION" | grep -q '/api/auth/oauth/user/login'; then
-  pass "anonymous app request redirects to PingOne user login"
+if [ "$ANON_CODE" = "302" ] && echo "$ANON_LOCATION" | grep -qE '/api/auth/(oauth/user/login|hosted-access/login)'; then
+  pass "anonymous app request redirects to the hosted-access/PingOne login flow"
 else
-  fail "anonymous app request was HTTP ${ANON_CODE:-unknown} location=${ANON_LOCATION:-missing}; expected PingOne login redirect"
+  fail "anonymous app request was HTTP ${ANON_CODE:-unknown} location=${ANON_LOCATION:-missing}; expected hosted-access or PingOne login redirect"
 fi
 
 if [ -n "${HOSTED_SMOKE_COOKIE:-}" ]; then
