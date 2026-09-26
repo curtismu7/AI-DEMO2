@@ -91,7 +91,6 @@ const REQUIRED_CONTAINERS = [
   'ai-demo-mcp-server',
   'ai-demo-mcp-gateway',
   'ai-demo-llm-proxy',
-  'ai-demo-pingfederate',
   'ai-demo-authz-server',
   'ai-demo-api-resource-server',
   'ai-demo-mcp-resource-server',
@@ -121,6 +120,17 @@ function checkContainers() {
     missing.length === 0,
     missing.length ? missing.join('; ') : `${REQUIRED_CONTAINERS.length} required, all up`,
     missing.length ? `docker compose up -d   # then wait for healthchecks` : '',
+  );
+  // PingFederate is NOT in this compose project — it runs from
+  // scripts/pingfederate/docker-compose.local.yml with operator-supplied env
+  // (PINGFEDERATE_ADMIN_PASSWORD, PINGFEDERATE_PROFILE_PATH set outside Git),
+  // so a missing container needs a different instruction than `compose up`.
+  const pf = running.get('ai-demo-pingfederate');
+  row(
+    'pingfederate',
+    !!pf,
+    pf ? (pf.match(/healthy/i) ? 'healthy' : pf.trim()) : 'not running',
+    pf ? '' : `Start it: cd scripts/pingfederate && docker compose -f docker-compose.local.yml up -d  (requires PINGFEDERATE_ADMIN_PASSWORD + PINGFEDERATE_PROFILE_PATH in the shell env — operator-supplied, outside Git). PF demos will fail without it.`,
   );
   return running;
 }
