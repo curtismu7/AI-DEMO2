@@ -413,6 +413,94 @@ async function checkStep9Gate() {
   );
 }
 
+// ── 9b. A2A delegation chain (UC2) ───────────────────────────────────────────
+
+/** UC2 pre-demo checks. Each of these failed SILENTLY during the 2026-09-26
+ *  incident (a2a_unauthorized), invisible to every other gate row:
+ *   1. a2a_gateway_audience unset in the BFF → exchange2 mints to a fallback
+ *      audience the gateways reject (wrong-aud 401).
+ *   2. The demo user's PingOne attribute a2aTenantId missing → the bearer gate
+ *      (a2aPingOneBearer tenant check) rejects with a generic `unauthorized`.
+ *   3. The A2A gateway resource's PingOne audience drifted to its NAME
+ *      ("Super Banking A2A MCP Gateway"), so exchange2 tokens carry that aud.
+ *      We probe the node gateway's accepted list for a match. */
+async function checkA2aChain() {
+  const running = sh("docker ps --format '{{.Names}}' | grep -qx ai-demo-api-server && echo yes").out.trim() === 'yes';
+  if (!running) {
+    row('a2a:config', false, 'BFF container not running', 'docker compose up -d demo-api-server');
+    return;
+  }
+
+  // 1. BFF a2a_gateway_audience resolves.
+  const cfg = inContainerProbe('ai-demo-api-server', [
+    `const cs = require('/app/services/configStore');`,
+    `(async () => { await cs.ensureInitialized();`,
+    `  console.log('A2A_AUD', cs.getEffective('a2a_gateway_audience') || 'UNSET');`,
+    `  process.exit(0); })().catch((e) => { console.log('A2A_AUD_ERR', e.message); process.exit(0); });`,
+  ]);
+  const aud = (cfg.find((l) => l.indexOf('A2A_AUD ') === 0) || '').split(' ')[1];
+  row(
+    'a2a:gateway-audience',
+    !!aud && aud !== 'UNSET' && !cfg.some((l) => l.indexOf('A2A_AUD_ERR') === 0),
+    aud === 'UNSET' ? 'a2a_gateway_audience unset in BFF config' : (aud || 'no output'),
+    aud === 'UNSET' || !aud ? `Set A2A_GATEWAY_AUDIENCE=mcpgateway-a2a.ping.demo in demo_api_server/.env, then bash scripts/deploy-live.sh` : '',
+  );
+
+  // 2. Demo user's a2aTenantId attribute (bearer-gate tenant check).
+  const tenant = inContainerProbe('ai-demo-api-server', [
+    `process.env.NODE_TLS_REJECT_UNAUTHORIZED='0';`,
+    `const cs = require('/app/services/configStore');`,
+    `(async () => { await cs.ensureInitialized();`,
+    `  const envId = cs.getEffective('pingone_environment_id');`,
+    `  const cid = cs.getEffective('pingone_worker_client_id');`,
+    `  const sec = cs.getEffective('pingone_worker_client_secret');`,
+    `  const auth = Buffer.from(cid + ':' + sec).toString('base64');`,
+    `  const t = await (await fetch('https://auth.pingone.com/' + envId + '/as/token', { method: 'POST',`,
+    `    headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: 'Basic ' + auth },`,
+    `    body: 'grant_type=client_credentials&scope=' + encodeURIComponent('p1:read:users') })).json();`,
+    `  if (!t.access_token) { console.log('A2A_TENANT_ERR token: ' + JSON.stringify(t).slice(0, 120)); process.exit(0); }`,
+    `  const un = cs.getEffective('demo_user_username') || cs.getEffective('pingone_test_user') || '';`,
+    `  const filter = encodeURIComponent('username eq "' + un + '"');`,
+    `  const users = await (await fetch('https://api.pingone.com/v1/environments/' + envId + '/users?filter=' + filter,`,
+    `    { headers: { Authorization: 'Bearer ' + t.access_token } })).json();`,
+    `  const u = users._embedded && users._embedded.users && users._embedded.users[0];`,
+    `  const attr = u && u.a2aTenantId;`,
+    `  if (!u) { console.log('A2A_TENANT_ERR user not found: ' + un); }`,
+    `  else if (attr === envId) { console.log('A2A_TENANT_OK ' + attr); }`,
+    `  else { console.log('A2A_TENANT_MISMATCH ' + (attr || '(missing)') + ' expected ' + envId); }`,
+    `  process.exit(0); })().catch((e) => { console.log('A2A_TENANT_ERR ' + e.message); process.exit(0); });`,
+  ]);
+  // indexOf, not regex — the regex form misbehaved here (returned a non-matching
+  // line); indexOf against the exact marker prefix is unambiguous.
+  const tLine = tenant.find((l) => String(l).indexOf('A2A_TENANT_') === 0) || 'A2A_TENANT_ERR no output';
+  if (tLine.indexOf('A2A_TENANT_OK') === 0) {
+    row('a2a:tenant-attribute', true, 'demo user a2aTenantId matches env id');
+  } else if (tLine.indexOf('A2A_TENANT_MISMATCH') === 0) {
+    row('a2a:tenant-attribute', false, tLine.replace('A2A_TENANT_MISMATCH ', ''),
+      `PATCH the demo user's a2aTenantId attribute to the environment id (see a2aTenantService.js)`);
+  } else {
+    row('a2a:tenant-attribute', false, tLine.replace('A2A_TENANT_ERR ', ''),
+      `Verify worker client scopes (p1:read:users) and the demo user exists in the PingOne env`);
+  }
+
+  // 3. Node gateway accepts the A2A audience (PingOne drift tolerates the NAME).
+  if (aud && aud !== 'UNSET') {
+    const gwAudList = sh(`docker exec ai-demo-mcp-gateway printenv MCP_GW_RESOURCE_URI 2>/dev/null || true`).out.trim();
+    const accepts = gwAudList.split(',').map((s) => s.trim()).filter(Boolean);
+    const gwRunning = !!gwAudList;
+    row(
+      'a2a:gateway-accepts-audience',
+      gwRunning && accepts.includes(aud),
+      gwRunning
+        ? (accepts.includes(aud) ? `node gateway accepts ${aud}` : `node gateway list lacks ${aud}`)
+        : 'ai-demo-mcp-gateway not running (demo-auth profile off — by design)',
+      gwRunning && !accepts.includes(aud)
+        ? `Add ${aud} to MCP_GW_RESOURCE_URI for mcp-gateway in docker-compose.yml (comma list), then docker compose up -d mcp-gateway`
+        : '',
+    );
+  }
+}
+
 // ── 10. mcp-gateway (Node, demo_mcp_gateway — demo-auth profile) ────────────
 
 /** Runtime health + P1AZ decision-endpoint reachability for the Node gateway.
@@ -665,6 +753,7 @@ async function checkLlmTier() {
   checkGatewayScopeParity();
   await checkStep9Exchanger();
   await checkStep9Gate();
+  await checkA2aChain();
   await checkMcpGateway();
   await checkDataPlaneServers();
   await checkLlmTier();

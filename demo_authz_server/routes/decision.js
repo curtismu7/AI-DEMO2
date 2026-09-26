@@ -451,7 +451,18 @@ module.exports = async function decisionHandler(req, res) {
     const parsed = JSON.parse(rawAud);
     audList = Array.isArray(parsed) ? parsed : [String(parsed)];
   } catch {
-    audList = rawAud.split(/[\s,]+/).filter(Boolean);
+    // Comma-split only — whitespace is NOT a separator. The gateway now sends
+    // TokenAudActual comma-joined, but a space-join from an older gateway would
+    // otherwise shatter an aud value containing spaces (PingOne drift: the A2A
+    // gateway resource's aud is its NAME "Super Banking A2A MCP Gateway").
+    audList = rawAud.split(',').map((s) => s.trim()).filter(Boolean);
+  }
+  // Legacy space-joined multi-aud (older gateway): a single comma-token
+  // containing whitespace is re-split so the gateway aud inside it is still
+  // recognized (fail open ONLY to the gateway check; the D-05 anti-bypass
+  // re-splits the same way and stays fail closed).
+  if (audList.length === 1 && /\s/.test(audList[0])) {
+    audList = audList[0].split(/\s+/).filter(Boolean);
   }
   if (!EXPECTED_AUDS.some((a) => audList.includes(a))) {
     warn(`[AuthzServer/decision] DENY — aud mismatch: [${audList.join(',')}] expected ${EXPECTED_AUDS.join(' | ')}`);
@@ -482,7 +493,14 @@ module.exports = async function decisionHandler(req, res) {
       const parsed = JSON.parse(TokenAudActual);
       actualList = Array.isArray(parsed) ? parsed : [String(parsed)];
     } catch {
-      actualList = TokenAudActual.split(/[\s,]+/).filter(Boolean);
+      actualList = TokenAudActual.split(',').map((s) => s.trim()).filter(Boolean);
+    }
+    // Fail closed on legacy space-joined multi-aud: an older gateway joined the
+    // aud array with spaces, which a comma-split collapses into one bogus value.
+    // A whitespace re-split can only WIDEN the check — safe for an anti-bypass
+    // rule — and can never manufacture an upstream hit that the token lacks.
+    if (actualList.length === 1 && /\s/.test(actualList[0])) {
+      actualList = actualList[0].split(/\s+/).filter(Boolean);
     }
     const upstreamHit = scopeTopology.upstreamAudiences().find((u) => actualList.includes(u));
     if (upstreamHit) {

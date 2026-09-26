@@ -174,6 +174,26 @@ describe('expected audience follows the pin, not the routing mode', () => {
     expect(err.message).not.toContain(PINGGATEWAY_AUD);
   });
 
+  // 2026-09-26 PingOne drift: the A2A gateway resource's audience attribute
+  // was its NAME, so PingOne minted exchange2 tokens with
+  // aud=["Super Banking A2A MCP Gateway"] and the A2A pin (which matches only
+  // the URI) never fired — every specialist call routed to PingGateway and
+  // 401'd wrong-aud. The pin must also match the drifted NAME form.
+  it('pins an A2A bearer audienced to the drifted resource NAME to the Node gateway', async () => {
+    const DRIFTED_NAME_AUD = 'Super Banking A2A MCP Gateway';
+    const err = await callWith(jwtWithAud(DRIFTED_NAME_AUD)).catch((e) => e);
+    expect(axios.post).toHaveBeenCalled();
+    expect(axios.post.mock.calls[0][0]).toBe(`${NODE_URL}/mcp`);
+    expect(err.code).not.toBe('GATEWAY_AUDIENCE_MISMATCH');
+  });
+
+  it('routes an A2A bearer whose aud is the drifted NAME even when PingGateway is the selected base', async () => {
+    const DRIFTED_NAME_AUD = 'Super Banking A2A MCP Gateway';
+    const err = await callToolViaGateway(NODE_URL, jwtWithAud(DRIFTED_NAME_AUD), 'sensitive_passenger_record', {}, { pinNodeGateway: true }).catch((e) => e);
+    expect(axios.post.mock.calls[0][0]).toBe(`${NODE_URL}/mcp`);
+    expect(err.code).not.toBe('GATEWAY_AUDIENCE_MISMATCH');
+  });
+
   it('fails closed for A2A when the required Node gateway URL is absent', async () => {
     delete process.env.MCP_DEMO_GATEWAY_URL;
     const err = await callWith(jwtWithAud(A2A_AUD)).catch((e) => e);

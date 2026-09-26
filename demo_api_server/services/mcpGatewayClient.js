@@ -190,7 +190,12 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
             const claims = decodeJwt(bearerToken)?.claims;
             const audList = Array.isArray(claims?.aud) ? claims.aud.map(String)
                 : (claims?.aud != null ? [String(claims.aud)] : []);
-            if (audList.includes(a2aAud)) {
+            // PingOne drift (2026-09-26): the A2A gateway resource's audience
+            // attribute is its NAME, so exchange2 tokens carry
+            // aud=["Super Banking A2A MCP Gateway"] instead of the URI. Match
+            // either form so the pin still fires until the resource is fixed.
+            const a2aAuds = [a2aAud, 'Super Banking A2A MCP Gateway'].map((v) => String(v).trim());
+            if (audList.some((a) => a2aAuds.includes(a))) {
                 const nodeUrl = (process.env.MCP_DEMO_GATEWAY_URL
                     || configStore.getEffective('mcp_demo_gateway_url') || '').replace(/\/$/, '');
                 if (!nodeUrl) {
@@ -200,7 +205,10 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
                     throw err;
                 }
                 base = nodeUrl;
-                pinnedAud = a2aAud;
+                // The aud that CAUSED the redirect — the URI normally, but the
+                // drifted NAME form when that is what the token carries (a pin
+                // only fires when the token already contains the value).
+                pinnedAud = audList.find((a) => a2aAuds.includes(a)) || a2aAud;
             }
         }
     }
@@ -580,6 +588,10 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
         // not of the mode. See TECH_DEBT 2026-08-23 (native ID-JAG / D-05).
         const expectedAud =
             pinnedAud ||
+            // pinNodeGateway (attack-sim / A2A escape hatch): the caller built
+            // the token for THIS exact destination, so there is no mode-derived
+            // audience to judge against — the token's own aud is authoritative.
+            (opts.pinNodeGateway ? (tokenAud[0] || null) : null) ||
             require('./mcpToolAuthorizationService').resolveExpectedMcpResourceUri() ||
             process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI ||
             configStore.getEffective('pingone_resource_mcp_gateway_uri') ||

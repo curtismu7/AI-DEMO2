@@ -523,4 +523,27 @@ fi
 # remain behind without causing this service to rebuild on the next run.
 stamp_successful_services
 assert_stack_health || exit 1
+
+# Content verification — the 2026-09-26 UC2 incident: deploy-live baked the
+# changed file into the image, but the running node process kept serving the
+# OLD module for ~40 minutes (docker restart skipped; node does not hot-reload,
+# and a file-diff alone cannot catch a stale process). Compare the md5 of every
+# bind-mounted/baked BFF service file against the container's copy; a mismatch
+# means the container is not serving this tree.
+if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx ai-demo-api-server; then
+  DRIFT=""
+  for f in services/mcpToolPipeline.js services/mcpGatewayClient.js services/a2aProtocolClient.js; do
+    [ -f "demo_api_server/$f" ] || continue
+    HOST_MD5="$(md5 -q "demo_api_server/$f" 2>/dev/null || md5sum "demo_api_server/$f" | cut -d' ' -f1)"
+    CTR_MD5="$(docker exec ai-demo-api-server md5sum "/app/$f" 2>/dev/null | cut -d' ' -f1)"
+    if [ -n "$HOST_MD5" ] && [ -n "$CTR_MD5" ] && [ "$HOST_MD5" != "$CTR_MD5" ]; then
+      DRIFT="$DRIFT $f"
+    fi
+  done
+  if [ -n "${DRIFT// /}" ]; then
+    echo "[deploy-live] WARNING — container code drift detected (container is NOT serving this tree):$DRIFT"
+    echo "[deploy-live] Fix: docker restart ai-demo-api-server, then re-run this script."
+  fi
+fi
+
 echo "[deploy-live] done — live stack serves ${NEW:0:12}"

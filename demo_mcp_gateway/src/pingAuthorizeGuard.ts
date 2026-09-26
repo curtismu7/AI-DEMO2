@@ -154,13 +154,16 @@ export async function guardToolsList(
 
   try {
     const tokenScopes = (decoded.scope ?? '').split(' ').filter(Boolean).join(' ');
-    // C1 rule 1 — the token's ACTUAL audience (array ⇒ FULL space-joined list,
-    // matching the Groovy gateway, so mock Rule 0b-2's D-05 anti-bypass still
-    // catches a multi-aud [gateway, upstream] token; truncating to aud[0] defeated
-    // it). Setting this to config.gatewayResourceUri, as this path used to, made
-    // the cloud rule HasValidMcpAudience compare McpResourceUri to itself — a
-    // tautology that could never deny. Omitted (not fabricated) when no aud.
-    const tokenAud = Array.isArray(decoded.aud) ? decoded.aud.join(' ') : (decoded.aud ?? '');
+    // C1 rule 1 — the token's ACTUAL audience (array ⇒ FULL comma-joined list,
+    // so the decision endpoint can split it back losslessly; the earlier
+    // space-join shattered any aud value containing spaces — e.g. the PingOne
+    // drift where the A2A gateway resource's aud is its NAME
+    // "Super Banking A2A MCP Gateway"). Truncating to aud[0] used to defeat
+    // the D-05 anti-bypass for multi-aud [gateway, upstream] tokens; setting
+    // this to config.gatewayResourceUri, as this path once did, made the cloud
+    // rule compare McpResourceUri to itself — a tautology that could never deny.
+    // Omitted (not fabricated) when no aud.
+    const tokenAud = Array.isArray(decoded.aud) ? decoded.aud.join(', ') : (decoded.aud ?? '');
     const body = {
       parameters: {
         DecisionContext: 'McpToolsList',
