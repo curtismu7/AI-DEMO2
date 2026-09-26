@@ -280,6 +280,12 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
+        env:
+          # setup-python@v7 assumes the hosted-runner layout and mkdirs
+          # /Users/runner (Permission denied on this self-hosted Mac). Point
+          # its tool cache at a writable path in the workspace instead.
+          RUNNER_TOOL_CACHE: ${{ github.workspace }}/.tool-cache
+          AGENT_TOOLSDIRECTORY: ${{ github.workspace }}/.tool-cache
       - name: langchain_agent (blocking — 834 passing)
         run: |
           cd langchain_agent
