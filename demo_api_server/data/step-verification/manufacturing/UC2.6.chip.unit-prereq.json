@@ -6,7 +6,7 @@
   "status": "UNPROVEN",
   "errorClass": null,
   "primaryTool": "sensitive_supplier_contract",
-  "checkedAt": "2026-08-29",
+  "checkedAt": "2026-09-26",
   "requiredFlags": [
     "ff_mcp_gateway_pinggateway"
   ],
