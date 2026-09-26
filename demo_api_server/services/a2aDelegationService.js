@@ -272,6 +272,15 @@ function resolveA2aConfig(cfgArg, specialist, scopeTopo) {
     agent1Secret,
     agent2ClientId,
     agent2Secret,
+    // PingFederate mode: Exchange #1's exchanger must be a PF client — the
+    // PingOne UUID app does not exist in PF and its exchange 401s
+    // (invalid_client, 2026-09-26). PingOne mode: unchanged.
+    pfExchangeClientId: pfAud
+      ? (cfg.getEffective('pf_standard_agent_exchange_client_id') || agent1ClientId)
+      : agent1ClientId,
+    pfExchangeClientSecret: pfAud
+      ? (cfg.getEffective('pf_standard_agent_exchange_client_secret') || agent1Secret)
+      : agent1Secret,
     intermediateAud: pfAud ? 'https://' + intermediateAud : intermediateAud,
     // PF only accepts audiences matching a registered SP resourceUri; the A2A
     // gateway SP (mcpgateway-a2a.ping.demo) is that registered audience. The
@@ -397,7 +406,24 @@ async function exchangeAsGeneralist(req, opts = {}) {
   let stage = 'agent1_actor';
   try {
     // ── Exchange #1: user → Agent 1 delegated token (act:{agent1}) ───────────────
-    const agent1Actor = await oauth.getAiAgentClientCredentialsToken();
+    // PingFederate mode: the actor CC must go to the PF token endpoint with the
+    // PF actor client (ai-demo-pf-standard-actor) — the PingOne UUID client does
+    // not exist in PF and 401s (invalid_client → client lockout storm, 2026-09-26).
+    // Runtime overrides keep the mint inside the injected oauthService so unit
+    // tests that stub getAiAgentClientCredentialsToken keep working.
+    // PingOne mode: unchanged path.
+    let agent1Actor;
+    if (activeProvider === 'pingfederate') {
+      agent1Actor = await oauth.getAiAgentClientCredentialsToken({
+        clientId: cfg.getEffective('pf_ai_agent_actor_client_id'),
+        clientSecret: cfg.getEffective('pf_ai_agent_actor_client_secret'),
+        authMethod: (cfg.getEffective('pf_ai_agent_actor_token_endpoint_auth_method') || 'basic').toLowerCase(),
+        actorScope: cfg.getEffective('pf_standard_token_exchange_actor_scope') || 'agent:invoke',
+        tokenEndpoint: cfg.getEffective('pf_token_endpoint') || undefined,
+      });
+    } else {
+      agent1Actor = await oauth.getAiAgentClientCredentialsToken();
+    }
     tokenEvents.push(buildA2aEvent(
       'a2a-agent1-actor',
       'A2A — Agent 1 (generalist) Actor Token · client_credentials',
@@ -412,8 +438,8 @@ async function exchangeAsGeneralist(req, opts = {}) {
       () => oauth.performTokenExchangeAs(
         userToken,
         agent1Actor,
-        c.agent1ClientId,
-        c.agent1Secret,
+        c.pfExchange ? c.pfExchangeClientId : c.agent1ClientId,
+        c.pfExchange ? c.pfExchangeClientSecret : c.agent1Secret,
         c.intermediateAud,
         [c.intermediateScope],
         c.exchangeAuthMethod,
