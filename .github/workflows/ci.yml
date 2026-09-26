@@ -34,11 +34,13 @@ jobs:
         if: github.event_name != 'pull_request'
         id: all
         run: |
-          echo "api-server=true" >> "$GITHUB_OUTPUT"
-          echo "decision-services=true" >> "$GITHUB_OUTPUT"
-          echo "ui=true" >> "$GITHUB_OUTPUT"
-          echo "unwired-services=true" >> "$GITHUB_OUTPUT"
-          echo "python-agents=true" >> "$GITHUB_OUTPUT"
+          {
+            echo "api-server=true"
+            echo "decision-services=true"
+            echo "ui=true"
+            echo "unwired-services=true"
+            echo "python-agents=true"
+          } >> "$GITHUB_OUTPUT"
       - name: Select suites affected by this PR
         if: github.event_name == 'pull_request'
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
@@ -128,6 +130,17 @@ jobs:
         run: node --test scripts/check-auth-requirements.test.js
       - name: Topology no-drift gate
         run: npm run topology:verify
+      # PR #313 put `runner.temp` in job-level env, which 422s EVERY dispatch —
+      # CI was silently dead again until someone noticed. Workflow YAML is not
+      # validated at PR time by GitHub, so validate it here. actionlint must be
+      # preinstalled on the self-hosted runner (brew install actionlint).
+      - name: Workflow YAML gate (actionlint)
+        run: |
+          if ! command -v actionlint >/dev/null 2>&1; then
+            echo "::warning::actionlint not installed on this runner — skipping. Install: brew install actionlint"
+            exit 0
+          fi
+          actionlint
       # se-undeploy wipes a SHARED cluster namespace, so its confirmation and
       # the `stop` refusal are worth a gate: a future edit that drops either
       # would be silent otherwise. kubectl is stubbed inside the test, so this

@@ -23,6 +23,7 @@ import { type DecodedGatewayToken, isJwksVerificationEnabled } from '../tokenVal
 import { evaluateScopeDecisionLocally, validateActClaim } from './toolScopes'; // evaluateScopeDecisionLocally kept for tests that import it directly
 import { classifyStatements, type ObligationKind } from './authorizeObligations';
 import { getToolAnnotations } from '../utils/toolAnnotations';
+import { formatTokenAudience } from './tokenAudience';
 
 export type AuthzDecisionOutcome = 'PERMIT' | 'DENY' | 'INDETERMINATE';
 
@@ -228,7 +229,7 @@ export function buildAuthorizeParameters(
   // splits TokenAudActual on whitespace, so a multi-aud [gateway, upstream]
   // confused-deputy token is only caught if every aud entry survives. Truncating
   // to the first entry silently defeated that control on this transport.
-  const tokenAud = Array.isArray(decoded.aud) ? decoded.aud.join(' ') : (decoded.aud ?? '');
+  const tokenAud = formatTokenAudience(decoded.aud);
   const base: Record<string, string> = {
     DecisionContext: decisionContext,
     McpMethod: method,

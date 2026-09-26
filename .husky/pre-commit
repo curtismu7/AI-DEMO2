@@ -42,6 +42,46 @@ elif [ -n "$TOPO_TOUCHED" ]; then
   echo "[pre-commit] ✅ Snapshot updated + topology:verify passed."
 fi
 
+# ─── Derived-data "count/shape" gate ──────────────────────────────────────────
+# Two drift classes escaped CI while it was down (2026-09): serverInventory
+# entries removed without bumping healthInventoryRoute's hardcoded length, and
+# a new P1AZ snapshot attribute added without bumping the delta test's total.
+# Both checks are fast (<2s) and run whenever their source OR the asserting
+# test is staged — so the mismatch is caught at commit time, not by CI later.
+SNAPSHOT_TEST=snapshots/authorizeSnapshotCloudDelta.test.js
+INVENTORY_TEST=demo_api_server/tests/healthInventoryRoute.test.js
+DERIVED_TOUCHED=$(git diff --cached --name-only --diff-filter=ACM | grep -E "^(snapshots/AI_Demo_Transaction_Authorization_P1AZ\.snapshot\.json|snapshots/sot|demo_api_server/data/serverInventory\.js|$(echo "$SNAPSHOT_TEST" | sed 's/\//\\\//g')|$(echo "$INVENTORY_TEST" | sed 's/\//\\\//g'))$" || true)
+if [ -n "$DERIVED_TOUCHED" ] && [ -f "$SNAPSHOT_TEST" ]; then
+  echo "[pre-commit] snapshot/inventory or their asserting tests changed — running the derived-data checks..."
+  if ! node --test "$SNAPSHOT_TEST" >/dev/null 2>&1; then
+    echo "[pre-commit] ❌ $SNAPSHOT_TEST failed — the committed snapshot and its delta test disagree (count bump missing?)."
+    echo "[pre-commit]    Regenerate: node snapshots/gen-authorize-snapshot.js --check, then update the test's expected total."
+    exit 1
+  fi
+  if ! node --test demo_api_server/tests/serverInventory.test.js >/dev/null 2>&1; then
+    echo "[pre-commit] ❌ demo_api_server/tests/serverInventory.test.js failed — serverInventory.js drifted from its test."
+    exit 1
+  fi
+  echo "[pre-commit] ✅ Derived-data checks passed."
+fi
+
+# ─── Workflow YAML gate ───────────────────────────────────────────────────────
+# A workflow with a context error (e.g. runner.temp in job-level env, PR #313)
+# 422s EVERY dispatch until fixed, silently disabling CI. actionlint catches
+# that class at commit time. Skipped when the binary is absent.
+WF_TOUCHED=$(git diff --cached --name-only --diff-filter=ACM | grep -E '^\.github/workflows/.*\.ya?ml$' || true)
+if [ -n "$WF_TOUCHED" ]; then
+  if command -v actionlint >/dev/null 2>&1; then
+    if ! actionlint; then
+      echo "[pre-commit] ❌ actionlint failed on the staged workflow changes — fix above, then re-commit."
+      exit 1
+    fi
+    echo "[pre-commit] ✅ actionlint passed."
+  else
+    echo "[pre-commit] ⚠️  .github/workflows changed but actionlint is not installed — skipping (brew install actionlint)."
+  fi
+fi
+
 # ─── Worktree guard: no SOURCE commits from the shared main checkout ──────────
 # CLAUDE.md: "Edit -> test -> commit only in an isolated git worktree." Concurrent
 # sessions share one index, and this has silently clobbered work twice:

@@ -10,6 +10,10 @@ jest.mock('../services/serverSizes', () => ({
 const axios = require('axios');
 const request = require('supertest');
 const express = require('express');
+// Derive the expected service count from the same SSOT the route reads — a
+// hardcoded length here drifted twice (24→21 when the alt-agent frameworks
+// were removed) because the count lives in data/serverInventory.js.
+const { SERVER_INVENTORY } = require('../data/serverInventory');
 
 const healthRoutes = require('../routes/health');
 
@@ -22,11 +26,11 @@ function buildApp() {
 describe('GET /api/health/inventory', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  test('returns 200 with all 21 services even when every probe fails', async () => {
+  test('returns 200 with every inventory service even when every probe fails', async () => {
     axios.get.mockRejectedValue(Object.assign(new Error('conn refused'), { code: 'ECONNREFUSED' }));
     const res = await request(buildApp()).get('/api/health/inventory');
     expect(res.status).toBe(200);
-    expect(res.body.services).toHaveLength(21);
+    expect(res.body.services).toHaveLength(SERVER_INVENTORY.length);
     const bff = res.body.services.find((s) => s.key === 'api-server');
     expect(bff.up).toBe(true); // self — this endpoint responding proves it
     const unprobed = res.body.services.find((s) => s.key === 'ungoverned-agent');
