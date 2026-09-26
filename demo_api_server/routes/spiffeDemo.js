@@ -141,4 +141,35 @@ router.post('/verify', express.json(), (req, res) => {
   });
 });
 
+/**
+ * LIVE PingFederate exchange with a real SPIRE JWT-SVID as actor_token.
+ *
+ * Distinct from the mock playground above: this requires the opt-in
+ * `spiffe` Docker compose profile (real SPIRE server + agent + helper) and
+ * PingFederate 13 with the SPIRE JWT Token Processor 2.0 configured
+ * (see spiffe/pingfederate/). Gated by ff_spiffe_pf_exchange; off by default
+ * so the demo stack behaves exactly as before.
+ */
+router.post('/pingfederate/exchange', express.json(), async (req, res) => {
+  try {
+    const result = await require('../services/spiffePingfederateService').exchangeWithPingFederate({
+      audience: req.body?.audience,
+      scopes: req.body?.scopes,
+    });
+    // The access token itself is returned for inspection in the playground;
+    // it is short-lived and minted for the demo audience.
+    res.json({
+      exchange: 'pingfederate-spiffe-actor',
+      spiffe_id: result.spiffeId,
+      actor_issuer: result.issuer,
+      access_token: result.accessToken,
+    });
+  } catch (err) {
+    if (err.isConfigError) {
+      return res.status(err.httpStatus || 503).json({ error: 'spiffe_pf_unavailable', error_description: err.message, details: err.details });
+    }
+    return res.status(502).json({ error: 'spiffe_pf_exchange_failed', error_description: err.message });
+  }
+});
+
 module.exports = router;
