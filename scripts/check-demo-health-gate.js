@@ -473,6 +473,90 @@ async function checkMcpGateway() {
   );
 }
 
+// ── 11. Data-plane servers: api-resource-server + mcp-resource-server ───────
+
+/** The Demo API (:8082) is Step 9's final destination — mortgage/invest/gear
+ *  reads terminate here behind X-API-Key. The census's "backend rejected the
+ *  service API key" failure is a key-parity break between the BFF's vault key
+ *  (DEMO_API_RESOURCE_SERVER_KEY) and the container's baked
+ *  API_RESOURCE_SERVER_API_KEY. Probing a data route with a key fetched on the
+ *  HOST is shell-truncation-prone (a vault warning line prepends to output);
+ *  the parity check runs INSIDE each container instead. */
+async function checkDataPlaneServers() {
+  // 1. Demo API health (published :8082)
+  try {
+    const { status, body } = await fetchJson('http://localhost:8082/health');
+    row(
+      'data-plane:api-resource-server',
+      status === 200 && body?.status === 'ok',
+      `HTTP ${status} ${body?.status || ''}`,
+      status === 200 ? '' : `docker logs ai-demo-api-resource-server; docker compose up -d api-resource-server`,
+    );
+  } catch (e) {
+    row('data-plane:api-resource-server', false, e.cause?.code || e.message, `docker compose up -d api-resource-server`);
+  }
+
+  // 2. Key parity from the BFF's side: the BFF dispatches with its own env key;
+  //    verify that EXACT key authenticates against :8082 from inside the BFF
+  //    container (same network path apikey-dispatch uses). Probe JS is docker
+  //    cp'd in — nested sh/node -e quoting through execSync has broken twice.
+  const probeJs = [
+    'const k = process.env.DEMO_API_RESOURCE_SERVER_KEY;',
+    'if (!k) { console.log("DP_KEY missing"); process.exit(0); }',
+    'fetch("http://api-resource-server:8082/mortgage", {',
+    '  headers: { "X-API-Key": k }, signal: AbortSignal.timeout(8000),',
+    '}).then((r) => console.log("DP_KEY", r.status))',
+    '  .catch((e) => console.log("DP_KEY_NET", (e.cause && e.cause.code) || e.message || "err"));',
+  ].join('\n');
+  const tmp = `/tmp/health-gate-dataplane-${process.pid}.js`;
+  fs.writeFileSync(tmp, probeJs);
+  try {
+    sh(`docker cp ${tmp} ai-demo-api-server:/tmp/health-gate-dataplane.js`);
+    fs.unlinkSync(tmp);
+    var probe = sh(
+      `docker exec ai-demo-api-server sh -c 'node /tmp/health-gate-dataplane.js 2>&1 | grep DP_KEY; rm -f /tmp/health-gate-dataplane.js'`,
+    );
+  } catch (e) {
+    var probe = { ok: false, out: `probe setup failed: ${e.message}` };
+  }
+  const okRow = probe.out.includes('DP_KEY 200') || probe.out.includes('DP_KEY 404');
+  row(
+    'data-plane:service-key-parity',
+    okRow,
+    (probe.out.match(/DP_KEY (\d+)/) || [])[1] ? `BFF key → Demo API HTTP ${(probe.out.match(/DP_KEY (\d+)/) || [])[1]}` : (probe.out.trim().split('\n')[0] || 'no output').slice(0, 120),
+    probe.out.includes('DP_KEY 401')
+      ? `Service-key MISMATCH: the BFF's DEMO_API_RESOURCE_SERVER_KEY is rejected by api-resource-server — the 'apikey-dispatch: backend rejected the service API key' failure. Fix: node demo_api_server/scripts/ensure-service-keys.js then docker compose up -d api-resource-server api-server (recreate bakes the key).`
+      : (!okRow ? `Unexpected data-plane probe response (${probe.out.trim().slice(0, 140)}). Check DEMO_API_RESOURCE_SERVER_KEY (BFF .env + vault) vs API_RESOURCE_SERVER_API_KEY (root .env → container).` : ''),
+  );
+
+  // 3. mcp-resource-server (airlines/invest data) — internal-only, probe via compose DNS from the BFF. Temp-file pattern again.
+  const probe2Js = [
+    'fetch("http://mcp-resource-server:8081/health", { signal: AbortSignal.timeout(8000) })',
+    '  .then((r) => r.json())',
+    '  .then((j) => console.log("MRS", j.status || "?"))',
+    '  .catch((e) => console.log("MRS", "FAIL", (e.cause && e.cause.code) || e.message || "err"));',
+  ].join('\n');
+  const tmp2 = `/tmp/health-gate-mrs-${process.pid}.js`;
+  fs.writeFileSync(tmp2, probe2Js);
+  try {
+    sh(`docker cp ${tmp2} ai-demo-api-server:/tmp/health-gate-mrs.js`);
+    fs.unlinkSync(tmp2);
+    var probe2 = sh(
+      `docker exec ai-demo-api-server sh -c 'node /tmp/health-gate-mrs.js 2>&1 | grep MRS; rm -f /tmp/health-gate-mrs.js'`,
+    );
+  } catch (e) {
+    var probe2 = { ok: false, out: `probe setup failed: ${e.message}` };
+  }
+  const m2 = probe2.out.match(/MRS (\S+)/);
+  const f2 = probe2.out.match(/MRS (\S+) (\S+)/);
+  row(
+    'data-plane:mcp-resource-server',
+    !!m2 && m2[1] === 'ok',
+    m2 ? m2[1] : (f2 ? f2[1] : 'no output'),
+    m2 && m2[1] === 'ok' ? '' : `docker logs ai-demo-mcp-resource-server; docker compose up -d mcp-resource-server — airlines/invest chips fail without it.`,
+  );
+}
+
 // ── main ─────────────────────────────────────────────────────────────────────
 
 (async () => {
@@ -489,6 +573,7 @@ async function checkMcpGateway() {
   await checkStep9Exchanger();
   await checkStep9Gate();
   await checkMcpGateway();
+  await checkDataPlaneServers();
 
   let failed = 0;
   for (const r of rows) {
