@@ -82,4 +82,48 @@ describe('lokiForwarder', () => {
       forwarder.forwardAppEvent({ category: 'auth', message: 'm' })
     ).resolves.toBeUndefined();
   });
+
+  // Mute-after-repeated-failures: with the observability profile off, LOKI_URL's
+  // default fails DNS on every push (86 warns in 3 min, 2026-09-26). After 3
+  // consecutive failures further pushes are skipped and no more warns are
+  // logged, until a push succeeds again.
+  describe('self-muting', () => {
+    beforeEach(() => {
+      process.env.LOKI_ALLOW_TEST_FORWARD = 'true';
+      process.env.LOKI_PROBE_EVERY = '1'; // probe on every muted call in tests
+      forwarder.__resetMuteStateForTests();
+      axios.post.mockRejectedValue(new Error('getaddrinfo ENOTFOUND loki'));
+    });
+    afterEach(() => { delete process.env.LOKI_PROBE_EVERY; });
+
+    it('warns on each of the first failures, then emits exactly one mute notice', async () => {
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      for (let i = 0; i < 10; i += 1) {
+        await forwarder.forwardAppEvent({ category: 'auth', message: 'm' });
+      }
+      // 2 plain warns (attempts 1-2) + 1 mute notice (attempt 3); attempts 4+
+      // are skipped silently.
+      expect(warn).toHaveBeenCalledTimes(3);
+      expect(warn.mock.calls[2][0]).toMatch(/muting further warns/);
+      warn.mockRestore();
+    });
+
+    it('stops POSTing while muted and resumes after a probe success', async () => {
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      const log = jest.spyOn(console, 'log').mockImplementation(() => {});
+      for (let i = 0; i < 5; i += 1) {
+        await forwarder.forwardAppEvent({ category: 'auth', message: 'm' });
+      }
+      // With PROBE_EVERY=1 the first 3 posts mute; muted calls 4-5 still probe.
+      expect(axios.post.mock.calls.length).toBe(5);
+      // Recovery: a probe push that SUCCEEDS un-mutes.
+      axios.post.mockResolvedValueOnce({ data: {} });
+      await forwarder.forwardAppEvent({ category: 'auth', message: 'ok' });
+      expect(log).toHaveBeenCalledWith('[lokiForwarder] recovered — Loki push OK again');
+      await forwarder.forwardAppEvent({ category: 'auth', message: 'ok2' });
+      expect(axios.post.mock.calls.length).toBe(7);
+      warn.mockRestore();
+      log.mockRestore();
+    });
+  });
 });

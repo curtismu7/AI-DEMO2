@@ -15,6 +15,15 @@ const axios = require('axios');
  * PingOne-specific function — it would duplicate every line.
  */
 
+const MUTE_AFTER = 3; // consecutive failures before muting warns
+// While muted, probe with a real push every N calls (env-overridable, read
+// lazily so tests can set it after require).
+function probeEvery() { return Number(process.env.LOKI_PROBE_EVERY) || 100; }
+
+let _consecutiveFailures = 0;
+let _muted = false;
+let _muteSkips = 0;
+
 /**
  * True when this process is a test runner.
  *
@@ -33,6 +42,12 @@ function _isTestRun() {
 /**
  * Forward an appEventService event. No-op when LOKI_URL is absent. Never throws.
  *
+ * Self-muting: with the observability profile off, LOKI_URL's default
+ * (http://loki:3100) fails DNS on EVERY push — 86 warns in 3 minutes during the
+ * 2026-09-26 session. After 3 consecutive failures the forwarder stops warning
+ * (and stops pushing) until a push succeeds again, so a Loki that comes back
+ * online is picked up on the next event without a BFF restart.
+ *
  * Loki indexes every label VALUE as its own stream, so a high-cardinality label
  * (eventId, actorId, correlationId, username) creates one stream per event and
  * degrades the store until queries time out. Labels are therefore a fixed, tiny
@@ -47,6 +62,13 @@ async function forwardAppEvent(event) {
   if (_isTestRun()) return Promise.resolve();
   const url = process.env.LOKI_URL;
   if (!url) return Promise.resolve();
+  if (_muted) {
+    // Muted: skip the push, but probe with ONE real attempt every PROBE_EVERY
+    // muted calls so a Loki that comes back online is detected without a
+    // restart and without per-event DNS churn.
+    _muteSkips += 1;
+    if (_muteSkips % probeEvery() !== 0) return Promise.resolve();
+  }
   // Loki wants nanoseconds since epoch, as a STRING. A JSON number loses
   // precision past 2^53 and Loki rejects the entry outright.
   const ms = event.timestamp ? new Date(event.timestamp).getTime() : Date.now();
@@ -68,9 +90,26 @@ async function forwardAppEvent(event) {
       },
       { headers: { 'Content-Type': 'application/json' }, timeout: 5000 }
     )
+    .then(() => {
+      if (_muted) {
+        console.log('[lokiForwarder] recovered — Loki push OK again');
+        _muted = false;
+        _consecutiveFailures = 0;
+        _muteSkips = 0;
+      }
+    })
     .catch((err) => {
-      console.warn('[lokiForwarder] push failed:', err?.message);
+      _consecutiveFailures += 1;
+      if (!_muted && _consecutiveFailures >= MUTE_AFTER) {
+        _muted = true;
+        _muteSkips = 0;
+        console.warn(
+          `[lokiForwarder] ${_consecutiveFailures} consecutive push failures (${err?.message}) — muting further warns until a push succeeds`,
+        );
+        return;
+      }
+      if (!_muted) console.warn('[lokiForwarder] push failed:', err?.message);
     });
 }
 
-module.exports = { forwardAppEvent };
+module.exports = { forwardAppEvent, __resetMuteStateForTests: () => { _consecutiveFailures = 0; _muted = false; _muteSkips = 0; } };
