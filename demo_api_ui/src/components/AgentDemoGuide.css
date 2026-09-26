@@ -703,6 +703,93 @@
   background: #9ca3af;
 }
 
+/* ---- Dark mode ----
+   The --adg-* tokens have no definition anywhere, so the guide always renders
+   its light fallbacks (#1a202c ink, #f7fafc/#fafbfc surfaces). In dark mode the
+   modal shell is --th-bg-card (dark) and --th-text-* flip to white, producing
+   white-on-white and dark-on-dark. Define the adg palette for dark and give the
+   hardcoded light surfaces themed equivalents. Light mode is untouched. */
+:root[data-theme="dark"] {
+  --adg-text: var(--th-text);
+  --adg-muted: #cbd5e1;
+  --adg-border: var(--th-border);
+  --adg-bg-alt: var(--th-bg-inset);
+  --adg-accent: #60a5fa;
+}
+
+:root[data-theme="dark"] .adg-sidebar,
+:root[data-theme="dark"] .adg-step-content {
+  background: var(--th-bg-page);
+}
+
+:root[data-theme="dark"] .adg-drag-header {
+  background: linear-gradient(135deg, #1e3a5f 0%, #16213e 100%);
+  border-bottom-color: var(--th-border-strong);
+}
+
+:root[data-theme="dark"] .adg-applicable-steps {
+  background: var(--th-status-info-bg);
+  border-color: var(--th-status-info-border);
+}
+
+:root[data-theme="dark"] .adg-steps-label,
+:root[data-theme="dark"] .adg-step-badge {
+  color: var(--th-status-info-text);
+}
+
+:root[data-theme="dark"] .adg-step-badge {
+  border-color: var(--th-status-info-border);
+}
+
+:root[data-theme="dark"] .adg-prompt-box,
+:root[data-theme="dark"] .adg-prompt-code {
+  background: var(--th-status-success-bg);
+  border-color: var(--th-status-success-border);
+}
+
+:root[data-theme="dark"] .adg-prompt-preview,
+:root[data-theme="dark"] .adg-prompt-code,
+:root[data-theme="dark"] .adg-copy-checkmark {
+  color: var(--th-status-success-text);
+}
+
+:root[data-theme="dark"] .adg-watch-box {
+  background: var(--th-status-warning-bg);
+  border-color: var(--th-status-warning-border);
+}
+
+:root[data-theme="dark"] .adg-watch-list {
+  color: var(--th-status-warning-text);
+}
+
+:root[data-theme="dark"] .adg-presenter-audience {
+  background: var(--th-status-success-bg);
+}
+
+:root[data-theme="dark"] .adg-presenter-audience strong,
+:root[data-theme="dark"] .adg-presenter-audience li {
+  color: var(--th-status-success-text);
+}
+
+:root[data-theme="dark"] .adg-scenario-btn.active {
+  color: var(--th-status-info-text);
+}
+
+:root[data-theme="dark"] .adg-reset-flags-btn:hover:not(:disabled) {
+  color: var(--th-status-error-text);
+  background: var(--th-status-error-bg);
+}
+
+:root[data-theme="dark"] .adg-sidebar::-webkit-scrollbar-thumb,
+:root[data-theme="dark"] .adg-main::-webkit-scrollbar-thumb {
+  background: var(--th-border-strong);
+}
+
+:root[data-theme="dark"] .adg-sidebar::-webkit-scrollbar-thumb:hover,
+:root[data-theme="dark"] .adg-main::-webkit-scrollbar-thumb:hover {
+  background: var(--th-text-faint);
+}
+
 /* Responsive */
 @media (max-width: 1024px) {
   .agent-demo-guide-modal {

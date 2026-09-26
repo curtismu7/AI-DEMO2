@@ -194,6 +194,19 @@
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.07);
 }
 
+/* Dark mode: the DraggableModal body surface flips to a dark ground, but the
+   checkbox row and legal box keep hardcoded light gradients while their ink
+   tokens (--brand-dark-gray / muted) flip to white — white on white. Give
+   both a themed dark surface so the white ink stays legible. */
+:root[data-theme="dark"] .transaction-consent-card__legal {
+  color: var(--th-text-muted);
+  background: var(--th-bg-inset);
+}
+
+:root[data-theme="dark"] .transaction-consent-card__check {
+  background: var(--th-bg-inset);
+}
+
 /* Specificity must beat `body input[type="checkbox"]:not(.ctl-raw) { margin: 0 }` */
 body .transaction-consent-card__check input[type="checkbox"] {
   flex-shrink: 0;
