@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Idea 1 — Command Dock</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161c26; --panel2:#1d2432; --border:#2b3446;
+    --text:#e8edf4; --muted:#8b96ab; --accent:#3b82f6; --accent2:#60a5fa;
+    --violet:#8b5cf6; --green:#34d399; --amber:#fbbf24; --red:#f87171;
+    --shadow:0 12px 40px rgba(0,0,0,.55);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Avenir Next","Segoe UI",sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden}
+
+  /* ===== Simulated busy dashboard (what the page looks like WITHOUT the clutter) ===== */
+  .dashboard{height:100vh;padding:28px 36px;display:flex;flex-direction:column;gap:16px}
+  .dash-top{display:flex;align-items:center;gap:14px}
+  .logo{font-weight:700;font-size:18px;letter-spacing:.5px}
+  .logo b{color:var(--accent2)}
+  .clean-note{margin-left:auto;font-size:12px;color:var(--green);border:1px solid rgba(52,211,153,.35);background:rgba(52,211,153,.08);padding:6px 12px;border-radius:999px}
+  .ghost{color:var(--muted);font-size:12px;border:1px dashed var(--border);border-radius:8px;padding:4px 10px;opacity:.7}
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;flex:1}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:10px}
+  .card h3{font-size:14px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:1px}
+  .card .big{font-size:32px;font-weight:700}
+  .card .spark{margin-top:auto;height:60px;border-radius:8px;background:linear-gradient(180deg,rgba(59,130,246,.25),rgba(59,130,246,0));position:relative;overflow:hidden}
+  .card .spark::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 38px,rgba(255,255,255,.05) 38px 39px)}
+  .chat{background:var(--panel);border:1px solid var(--border);border-radius:14px;height:280px;padding:18px;display:flex;flex-direction:column;gap:12px}
+  .bubble{max-width:60%;padding:10px 14px;border-radius:12px;font-size:13px;line-height:1.5}
+  .bubble.user{align-self:flex-end;background:var(--accent);color:#fff;border-bottom-right-radius:4px}
+  .bubble.agent{align-self:flex-start;background:var(--panel2);border:1px solid var(--border);border-bottom-left-radius:4px}
+  .chat-input{margin-top:auto;background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--muted)}
+
+  /* ===== THE IDEA: Command Dock (bottom-right) ===== */
+  .dock{position:fixed;right:24px;top:64px;z-index:900;display:flex;flex-direction:column;align-items:flex-end;gap:12px;user-select:none}
+  .dock.popout{left:24px;right:auto;bottom:24px;top:auto}
+  .dock-head{cursor:grab}
+  .dock-head.dragging{cursor:grabbing}
+  .popout-btn{margin-left:auto;background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-size:11px;padding:3px 8px;cursor:pointer}
+  .popout-btn:hover{border-color:var(--accent);color:var(--accent2)}
+  .popout-banner{position:fixed;left:50%;top:18px;transform:translateX(-50%);z-index:950;font-size:12px;color:var(--amber);
+    border:1px solid rgba(251,191,36,.4);background:rgba(251,191,36,.08);padding:7px 14px;border-radius:999px;display:none}
+  .popout-banner.on{display:block}
+  .dock-panel{width:340px;background:var(--panel);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);overflow:hidden;
+    transform-origin:bottom right;transition:transform .28s cubic-bezier(.34,1.4,.5,1),opacity .2s;}
+  .dock.closed .dock-panel{transform:scale(.9) translateY(14px);opacity:0;pointer-events:none}
+  .dock-head{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border);background:linear-gradient(90deg,rgba(59,130,246,.12),transparent)}
+  .dock-head .dot{width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green)}
+  .dock-head h2{font-size:13px;font-weight:700;letter-spacing:.4px}
+  .dock-head .close{margin-left:auto;cursor:pointer;color:var(--muted);font-size:16px;background:none;border:none}
+  .dock-body{padding:6px 0 10px;max-height:60vh;overflow:auto}
+  .grp{padding:10px 16px 4px}
+  .grp-label{font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+  .grp-label::after{content:"";flex:1;height:1px;background:var(--border)}
+  .btn-row{display:flex;flex-wrap:wrap;gap:8px}
+  .dbtn{font-size:12px;padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:var(--panel2);color:var(--text);cursor:pointer;transition:.15s}
+  .dbtn:hover{border-color:var(--accent);color:var(--accent2);transform:translateY(-1px)}
+  .dbtn.active{background:rgba(59,130,246,.18);border-color:var(--accent);color:var(--accent2);font-weight:600}
+  .dbtn.warn:hover{border-color:var(--amber);color:var(--amber)}
+  .fab{display:flex;align-items:center;gap:10px;padding:12px 20px;border-radius:999px;border:none;cursor:pointer;
+    background:linear-gradient(135deg,var(--accent),var(--violet));color:#fff;font-size:13px;font-weight:700;letter-spacing:.3px;
+    box-shadow:0 8px 28px rgba(99,102,241,.45),0 2px 8px rgba(0,0,0,.4);transition:transform .2s}
+  .fab:hover{transform:translateY(-2px) scale(1.03)}
+  .fab .gear{display:inline-block;transition:transform .4s}
+  .fab:hover .gear{transform:rotate(90deg)}
+  .badge{background:rgba(255,255,255,.22);border-radius:999px;padding:1px 8px;font-size:11px;font-weight:600}
+  .hint{position:fixed;left:24px;bottom:24px;font-size:12px;color:var(--muted);max-width:280px;line-height:1.6}
+  .hint b{color:var(--text)}
+</style>
+</head>
+<body>
+
+<div class="dashboard">
+  <div class="dash-top">
+    <div class="logo">Meridian <b>Bank</b> · Agent Console</div>
+    <span class="ghost">session timer → dock</span>
+    <span class="ghost">A− 100% A+ → dock</span>
+    <span class="ghost">sign out → dock</span>
+    <span class="clean-note">✓ Header decluttered — top-right chrome lives in the Command Dock</span>
+  </div>
+  <div class="cards">
+    <div class="card"><h3>Accounts</h3><div class="big">$412,880</div><div class="spark"></div></div>
+    <div class="card"><h3>Transfers today</h3><div class="big">27</div><div class="spark"></div></div>
+    <div class="card"><h3>Agent actions</h3><div class="big">142</div><div class="spark"></div></div>
+  </div>
+  <div class="chat">
+    <div class="bubble user">What's my checking balance?</div>
+    <div class="bubble agent">Your Premium Checking (••4821) balance is <b>$12,480.22</b>. Would you like a recent-transactions breakdown?</div>
+    <div class="chat-input">Ask the agent anything…</div>
+  </div>
+</div>
+
+<!-- ===== Command Dock ===== -->
+<div class="dock" id="dock">
+  <div class="dock-panel">
+    <div class="dock-head" id="dockHead">
+      <span class="dot"></span>
+      <h2>DEMO COMMAND DOCK</h2>
+      <button class="popout-btn" id="popoutBtn" title="Pop out into its own window">⧉ Pop out</button>
+      <button class="close" onclick="toggleDock()" title="Collapse to the pill">▲</button>
+    </div>
+    <div class="dock-body">
+      <div class="grp">
+        <div class="grp-label">Identity</div>
+        <div class="btn-row">
+          <button class="dbtn active">🔐 PF/P1 Login — Admin1</button>
+          <button class="dbtn">Sign out</button>
+        </div>
+      </div>
+      <div class="grp">
+        <div class="grp-label">Session</div>
+        <div class="btn-row">
+          <button class="dbtn active">⏱ Session · 08:42</button>
+          <button class="dbtn">A−</button>
+          <button class="dbtn active">100%</button>
+          <button class="dbtn">A+</button>
+        </div>
+      </div>
+      <div class="grp">
+        <div class="grp-label">Agent</div>
+        <div class="btn-row">
+          <button class="dbtn active">Agent mode: Anthropic ▾</button>
+          <button class="dbtn">Routing ▾</button>
+          <button class="dbtn">Wiring ▾</button>
+          <button class="dbtn">Approval</button>
+        </div>
+      </div>
+      <div class="grp">
+        <div class="grp-label">Surfaces</div>
+        <div class="btn-row">
+          <button class="dbtn">Flow details</button>
+          <button class="dbtn">Quick Config</button>
+          <button class="dbtn">Guide</button>
+          <button class="dbtn warn">Live Use Cases</button>
+          <button class="dbtn">Topology</button>
+          <button class="dbtn">Script</button>
+          <button class="dbtn">Graph</button>
+          <button class="dbtn">Academy</button>
+        </div>
+      </div>
+      <div class="grp">
+        <div class="grp-label">Inspectors</div>
+        <div class="btn-row">
+          <button class="dbtn">MCP Inspector</button>
+          <button class="dbtn">P1AZ Inspector</button>
+          <button class="dbtn">Gateway Inspector</button>
+        </div>
+      </div>
+      <div class="grp">
+        <div class="grp-label">Toggles</div>
+        <div class="btn-row">
+          <button class="dbtn active">RFC info</button>
+          <button class="dbtn active">🌙 Dark</button>
+          <button class="dbtn">Clear checkmarks</button>
+        </div>
+      </div>
+      <div class="grp">
+        <div class="grp-label">Demo scope</div>
+        <div class="btn-row">
+          <button class="dbtn">Controls</button>
+          <button class="dbtn">Configuration</button>
+          <button class="dbtn">Verticals ▾</button>
+          <button class="dbtn">Demo steps ▾</button>
+          <button class="dbtn">Admin Tools ▾</button>
+          <button class="dbtn">Unattended</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <button class="fab" onclick="toggleDock()">
+    <span class="gear">⚙</span> Demo Controls <span class="badge">12</span>
+  </button>
+</div>
+
+<div class="popout-banner" id="popoutBanner">⧉ Dock is popped out — it opened in its own window. Close that window to return it here.</div>
+
+<div class="hint"><b>Idea 1 — Command Dock (top-right, full takeover).</b> The dock now owns everything the real header's top-right had: session timer, text-size (A−/100%/A+), sign-out, PF/P1 login — plus all 12 demo controls. The dashboard header is left with just the title. Drag the header bar to move; drop near top-right to re-dock. ⧉ Pop out launches it as its own window.</div>
+
+<script>
+  function toggleDock(){document.getElementById("dock").classList.toggle("closed")}
+
+  /* ---- drag to move ---- */
+  const dock=document.getElementById("dock"),head=document.getElementById("dockHead");
+  let dx=0,dy=0,dragging=false;
+  head.addEventListener("mousedown",e=>{
+    if(e.target.closest("button"))return;
+    dragging=true;head.classList.add("dragging");
+    const r=dock.getBoundingClientRect();
+    dx=e.clientX-r.left;dy=e.clientY-r.top;
+    dock.style.right="auto";dock.style.bottom="auto";
+    dock.style.left=r.left+"px";dock.style.top=r.top+"px";
+    e.preventDefault();
+  });
+  window.addEventListener("mousemove",e=>{
+    if(!dragging)return;
+    dock.style.left=(e.clientX-dx)+"px";
+    dock.style.top=(e.clientY-dy)+"px";
+  });
+  window.addEventListener("mouseup",()=>{dragging=false;head.classList.remove("dragging")});
+
+  /* ---- pop out into a real browser window ---- */
+  const POP_KEY="dock1-state";
+  document.getElementById("popoutBtn").addEventListener("click",()=>{
+    const openDock=document.getElementById("dock").classList.contains("closed")?"closed":"open";
+    localStorage.setItem(POP_KEY,openDock);
+    const w=window.open("","commanddock","width=380,height=560,left=200,top=120");
+    if(!w){alert("Allow pop-ups to use this feature.");return}
+    document.getElementById("dock").style.display="none";
+    document.getElementById("popoutBanner").classList.add("on");
+    w.document.write(document.documentElement.outerHTML
+      .replace(/<\/body>/,
+        `<script>
+          document.getElementById("hint").style.display="none";
+          document.getElementById("popoutBanner").style.display="none";
+          document.getElementById("popoutBtn").outerHTML='<span style="font-size:10px;color:#8b96ab;margin-left:auto;border:1px solid #2b3446;border-radius:6px;padding:3px 8px">popped out</span>';
+          const st=localStorage.getItem(${JSON.stringify(POP_KEY)})||"open";
+          if(st==="open")document.getElementById("dock").classList.remove("closed");
+          document.title="Command Dock (popped out)";
+        <\/script></body>`));
+    w.document.close();
+    const check=setInterval(()=>{
+      if(w.closed){clearInterval(check);
+        document.getElementById("dock").style.display="";
+        document.getElementById("popoutBanner").classList.remove("on");
+      }
+    },300);
+  });
+  document.getElementById("dock").classList.add("closed");
+</script>
+</body>
+</html>

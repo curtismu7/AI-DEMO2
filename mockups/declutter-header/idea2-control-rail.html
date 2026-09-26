@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Idea 2 — Control Rail</title>
+<style>
+  :root{
+    --bg:#0f0e14; --panel:#18161f; --panel2:#211e2c; --border:#332e44;
+    --text:#ece9f4; --muted:#9a92b0; --violet:#a78bfa; --violet2:#c4b5fd;
+    --green:#4ade80; --amber:#fbbf24; --shadow:-16px 0 50px rgba(0,0,0,.6);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Futura","Century Gothic",sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden}
+
+  .dashboard{height:100vh;padding:32px 40px;display:flex;flex-direction:column;gap:18px;transition:padding-right .35s}
+  body.open .dashboard{padding-right:340px}
+  .dash-top{display:flex;align-items:center;gap:14px}
+  .logo{font-weight:700;font-size:19px;letter-spacing:1px;text-transform:uppercase}
+  .logo span{color:var(--violet)}
+  .clean-note{margin-left:auto;font-size:12px;color:var(--green);border:1px solid rgba(74,222,128,.35);background:rgba(74,222,128,.07);padding:6px 12px;border-radius:999px}
+  .grid{display:grid;grid-template-columns:1.6fr 1fr;gap:18px;flex:1;min-height:0}
+  .stage{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:14px}
+  .stage h2{font-size:15px;color:var(--muted);font-weight:600;letter-spacing:1px}
+  .diagram{flex:1;border:1px dashed var(--border);border-radius:12px;position:relative;background:
+    radial-gradient(circle at 30% 40%,rgba(167,139,250,.08),transparent 50%),
+    radial-gradient(circle at 75% 65%,rgba(74,222,128,.06),transparent 50%)}
+  .node{position:absolute;padding:8px 14px;border:1px solid var(--border);border-radius:10px;background:var(--panel2);font-size:12px}
+  .side{display:flex;flex-direction:column;gap:18px}
+  .mini{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:20px;flex:1}
+  .mini h3{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px}
+  .row{display:flex;justify-content:space-between;font-size:13px;padding:8px 0;border-bottom:1px solid var(--border)}
+  .row:last-child{border:none}
+  .row b{color:var(--violet2)}
+
+  /* ===== THE IDEA: Control Rail — right-edge backstage drawer ===== */
+  .rail-tab{position:fixed;right:0;top:50%;transform:translateY(-50%);z-index:950;
+    writing-mode:vertical-rl;padding:20px 8px;border:1px solid var(--border);border-right:none;
+    border-radius:10px 0 0 10px;background:linear-gradient(180deg,var(--panel2),var(--panel));
+    color:var(--violet2);font-size:11px;letter-spacing:2.5px;text-transform:uppercase;cursor:pointer;transition:.25s}
+  .rail-tab:hover{padding-right:14px;color:#fff}
+  body.open .rail-tab{opacity:0;pointer-events:none}
+
+  .rail{position:fixed;top:0;right:0;height:100vh;width:320px;background:var(--panel);border-left:1px solid var(--border);
+    box-shadow:var(--shadow);z-index:900;display:flex;flex-direction:column;
+    transform:translateX(100%);transition:transform .35s cubic-bezier(.4,0,.2,1)}
+  body.open .rail{transform:translateX(0)}
+  .rail-head{padding:22px 22px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+  .rail-head h2{font-size:13px;letter-spacing:2px;text-transform:uppercase;color:var(--violet2)}
+  .rail-head button{background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer}
+  .rail-body{flex:1;overflow:auto;padding:14px 18px 22px}
+  .sec{margin-bottom:18px}
+  .sec-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin:12px 4px 8px}
+  .rbtn{display:flex;align-items:center;gap:10px;width:100%;text-align:left;font-size:13px;padding:10px 12px;margin-bottom:6px;
+    border:1px solid transparent;border-radius:10px;background:none;color:var(--text);cursor:pointer;transition:.15s}
+  .rbtn:hover{background:var(--panel2);border-color:var(--border)}
+  .rbtn.on{background:rgba(167,139,250,.12);border-color:rgba(167,139,250,.4);color:var(--violet2)}
+  .rbtn .ic{width:22px;text-align:center}
+  .rbtn .val{margin-left:auto;font-size:11px;color:var(--muted)}
+  .rbtn.on .val{color:var(--violet2)}
+  .rail-foot{padding:14px 22px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);display:flex;gap:8px;align-items:center}
+  .rail-foot .dot{width:7px;height:7px;border-radius:50%;background:var(--green)}
+
+  /* --- dockable rail: it can detach and float anywhere --- */
+  body.floating .rail{transform:none;top:auto;right:auto;height:auto;width:320px;border-radius:16px;
+    box-shadow:var(--shadow),0 0 0 1px var(--border);position:fixed}
+  body.floating{padding-right:0 !important}
+  body.floating .dashboard{padding-right:40px}
+  .rail-head{cursor:grab}
+  body.floating .rail-head{cursor:grab}
+  .rail-head.dragging{cursor:grabbing}
+  .popout-btn{background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-size:11px;padding:3px 8px;cursor:pointer}
+  .popout-btn:hover{border-color:var(--violet);color:var(--violet2)}
+  .popout-banner{position:fixed;left:50%;top:18px;transform:translateX(-50%);z-index:950;font-size:12px;color:var(--amber);
+    border:1px solid rgba(251,191,36,.4);background:rgba(251,191,36,.08);padding:7px 14px;border-radius:999px;display:none}
+  .popout-banner.on{display:block}
+  body.floating .popout-banner{display:none}
+  .hint{position:fixed;left:40px;bottom:24px;font-size:12px;color:var(--muted);max-width:300px;line-height:1.6}
+  .hint b{color:var(--text)}
+</style>
+</head>
+<body class="open">
+
+<div class="dashboard">
+  <div class="dash-top">
+    <div class="logo">Meridian <span>Bank</span></div>
+    <span class="clean-note">✓ Zero header chrome — controls live backstage</span>
+  </div>
+  <div class="grid">
+    <div class="stage">
+      <h2>Token Exchange Flow</h2>
+      <div class="diagram">
+        <div class="node" style="left:6%;top:12%">👤 Admin1</div>
+        <div class="node" style="left:32%;top:32%">🖥 BFF</div>
+        <div class="node" style="left:60%;top:52%">🔀 RFC 8693</div>
+        <div class="node" style="left:70%;top:78%">🏦 Core Banking</div>
+      </div>
+    </div>
+    <div class="side">
+      <div class="mini">
+        <h3>Session</h3>
+        <div class="row">Actor <b>Admin1</b></div>
+        <div class="row">Scopes <b>read accounts</b></div>
+        <div class="row">Expires <b>08:42</b></div>
+      </div>
+      <div class="mini">
+        <h3>Live Use Cases</h3>
+        <div class="row">UC1 Balance <b>●</b></div>
+        <div class="row">UC2 Transfer + HITL <b>●</b></div>
+        <div class="row">UC4 Delegation <b>○</b></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Control Rail ===== -->
+<div class="rail-tab" onclick="toggle()">◧ Control Rail</div>
+<aside class="rail">
+  <div class="rail-head" id="railHead">
+    <h2>Control Rail</h2>
+    <button class="popout-btn" id="popoutBtn" title="Pop out into its own window">⧉ Pop out</button>
+    <button onclick="toggle()">✕</button>
+  </div>
+  <div class="rail-body">
+    <div class="sec">
+      <div class="sec-label">Identity</div>
+      <button class="rbtn on"><span class="ic">🔐</span> PF/P1 Login <span class="val">Admin1</span></button>
+      <button class="rbtn"><span class="ic">⎋</span> Sign out</button>
+    </div>
+    <div class="sec">
+      <div class="sec-label">Agent</div>
+      <button class="rbtn"><span class="ic">🧠</span> Agent mode <span class="val">Anthropic ▾</span></button>
+      <button class="rbtn"><span class="ic">🧭</span> Routing <span class="val">Smart ▾</span></button>
+      <button class="rbtn"><span class="ic">🔌</span> Wiring <span class="val">Direct ▾</span></button>
+      <button class="rbtn"><span class="ic">✅</span> Approval <span class="val">HITL on</span></button>
+    </div>
+    <div class="sec">
+      <div class="sec-label">Views</div>
+      <button class="rbtn"><span class="ic">🌊</span> Flow details</button>
+      <button class="rbtn"><span class="ic">🎛</span> Quick Config</button>
+      <button class="rbtn"><span class="ic">📖</span> Guide</button>
+      <button class="rbtn"><span class="ic">🎯</span> Live Use Cases</button>
+    </div>
+    <div class="sec">
+      <div class="sec-label">Demo scope</div>
+      <button class="rbtn"><span class="ic">🕹</span> Controls</button>
+      <button class="rbtn"><span class="ic">⚙️</span> Configuration</button>
+      <button class="rbtn"><span class="ic">🏗</span> Verticals <span class="val">Banking ▾</span></button>
+    </div>
+  </div>
+  <div class="rail-foot"><span class="dot"></span> Demo session · local.ping-devops.com:4000</div>
+</aside>
+
+<div class="popout-banner" id="popoutBanner">⧉ Rail is popped out — it opened in its own window. Close that window to return it here.</div>
+
+<div class="hint"><b>Idea 2 — Control Rail.</b> A slim vertical tab fused to the right screen edge. Click it and a full-height "backstage" drawer slides in. <b>Drag the drawer's header</b> to tear it off the edge and float it anywhere. Click <b>⧉ Pop out</b> to launch it as its own floating browser window; close that window to return it.</div>
+
+<script>
+  function toggle(){document.body.classList.toggle("open")}
+
+  /* ---- tear off: drag the rail header while open detaches it into a floating window-like card ---- */
+  const rail=document.querySelector(".rail"),head=document.getElementById("railHead");
+  let dx=0,dy=0,dragging=false,armed=false;
+  head.addEventListener("mousedown",e=>{
+    if(e.target.closest("button"))return;
+    armed=true;
+  });
+  window.addEventListener("mousemove",e=>{
+    if(armed&&!dragging&&!document.body.classList.contains("open"))return;
+    if(armed&&!dragging&&document.body.classList.contains("open")&&!document.body.classList.contains("floating")){
+      // first real drag tears it off the edge
+      dragging=true;armed=false;head.classList.add("dragging");
+      document.body.classList.add("floating");
+      const r=rail.getBoundingClientRect();
+      dx=e.clientX-r.left;dy=e.clientY-r.top;
+      rail.style.left=r.left+"px";rail.style.top=r.top+"px";
+    }else if(dragging){
+      rail.style.left=(e.clientX-dx)+"px";
+      rail.style.top=(e.clientY-dy)+"px";
+    }
+  });
+  window.addEventListener("mouseup",()=>{dragging=false;armed=false;head.classList.remove("dragging")});
+  // double-click header re-docks to the right edge
+  head.addEventListener("dblclick",e=>{
+    if(e.target.closest("button"))return;
+    document.body.classList.remove("floating");
+    rail.style.left="";rail.style.top="";
+    document.body.classList.add("open");
+  });
+
+  /* ---- pop out into a real browser window ---- */
+  const POP_KEY="rail2-open";
+  document.getElementById("popoutBtn").addEventListener("click",()=>{
+    localStorage.setItem(POP_KEY,document.body.classList.contains("open")?"open":"closed");
+    const w=window.open("","controlrail","width=360,height=620,left=180,top=100");
+    if(!w){alert("Allow pop-ups to use this feature.");return}
+    document.querySelector(".rail").style.display="none";
+    document.querySelector(".rail-tab").style.display="none";
+    document.body.classList.remove("open");
+    document.getElementById("popoutBanner").classList.add("on");
+    w.document.write(document.documentElement.outerHTML
+      .replace(/<\/body>/,
+        `<script>
+          document.getElementById("hint").style.display="none";
+          document.getElementById("popoutBanner").style.display="none";
+          document.getElementById("popoutBtn").outerHTML='<span style="font-size:10px;color:#9a92b0;border:1px solid #332e44;border-radius:6px;padding:3px 8px">popped out</span>';
+          document.body.classList.add("floating","open");
+          const r=document.querySelector(".rail").getBoundingClientRect();
+          document.querySelector(".rail").style.left="16px";document.querySelector(".rail").style.top="16px";
+          document.title="Control Rail (popped out)";
+        <\/script></body>`));
+    w.document.close();
+    const check=setInterval(()=>{
+      if(w.closed){clearInterval(check);
+        document.querySelector(".rail").style.display="";
+        document.querySelector(".rail-tab").style.display="";
+        document.getElementById("popoutBanner").classList.remove("on");
+      }
+    },300);
+  });
+</script>
+</body>
+</html>

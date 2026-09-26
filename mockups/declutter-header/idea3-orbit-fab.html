@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Idea 3 — Orbit FAB</title>
+<style>
+  :root{
+    --bg:#0a0f0d; --panel:#101a16; --panel2:#16231d; --border:#244034;
+    --text:#e6f2ec; --muted:#7fa393; --teal:#2dd4bf; --teal2:#5eead4;
+    --green:#4ade80; --amber:#fbbf24; --red:#fb7185;
+    --shadow:0 20px 60px rgba(0,0,0,.6);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Optima","Candara",sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden}
+
+  .dashboard{height:100vh;padding:32px 40px;display:flex;flex-direction:column;gap:18px}
+  .dash-top{display:flex;align-items:center;gap:14px}
+  .logo{font-weight:700;font-size:19px;letter-spacing:.5px}
+  .logo em{font-style:normal;color:var(--teal2)}
+  .clean-note{margin-left:auto;font-size:12px;color:var(--green);border:1px solid rgba(74,222,128,.3);background:rgba(74,222,128,.06);padding:6px 12px;border-radius:999px}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:18px;flex:1;min-height:0}
+  .col{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:22px;display:flex;flex-direction:column;gap:12px}
+  .col h2{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px}
+  .bar-row{display:flex;align-items:flex-end;gap:10px;flex:1;padding-top:10px}
+  .bar{flex:1;border-radius:6px 6px 0 0;background:linear-gradient(180deg,var(--teal),rgba(45,212,191,.15))}
+  .feed{display:flex;flex-direction:column;gap:10px}
+  .feed-item{display:flex;gap:12px;align-items:center;font-size:13px;padding:10px 12px;background:var(--panel2);border:1px solid var(--border);border-radius:10px}
+  .feed-item .t{margin-left:auto;font-size:11px;color:var(--muted)}
+  .pill-ok{color:var(--green);font-size:11px;border:1px solid rgba(74,222,128,.35);padding:2px 8px;border-radius:999px}
+  .pill-warn{color:var(--amber);font-size:11px;border:1px solid rgba(251,191,36,.35);padding:2px 8px;border-radius:999px}
+
+  /* ===== THE IDEA: Orbit FAB — expanding segmented card ===== */
+  .orbit{position:fixed;right:26px;bottom:26px;z-index:900;display:flex;flex-direction:column-reverse;align-items:flex-end;gap:12px}
+  .sheet{width:360px;background:var(--panel);border:1px solid var(--border);border-radius:18px;box-shadow:var(--shadow);overflow:hidden;
+    opacity:0;transform:translateY(12px) scale(.96);pointer-events:none;transition:.25s cubic-bezier(.3,1.2,.5,1)}
+  .orbit.open .sheet{opacity:1;transform:none;pointer-events:auto}
+  .seg{display:flex;border-bottom:1px solid var(--border)}
+  .seg button{flex:1;padding:12px 0;font-size:11.5px;letter-spacing:.8px;text-transform:uppercase;background:none;border:none;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:.15s}
+  .seg button.on{color:var(--teal2);border-bottom-color:var(--teal)}
+  .seg button:hover{color:var(--text)}
+  .pane{display:none;padding:14px 16px 16px;max-height:52vh;overflow:auto}
+  .pane.on{display:block}
+  .ctrl{display:flex;align-items:center;justify-content:space-between;padding:11px 10px;border-radius:10px;font-size:13px;cursor:pointer;transition:.15s;border:1px solid transparent}
+  .ctrl:hover{background:var(--panel2)}
+  .ctrl .val{font-size:12px;color:var(--teal2);font-weight:600}
+  .ctrl .sub{font-size:11px;color:var(--muted);margin-top:2px}
+  .toggle{width:34px;height:19px;border-radius:999px;background:var(--border);position:relative;transition:.2s;flex-shrink:0}
+  .toggle::after{content:"";position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:var(--muted);transition:.2s}
+  .toggle.on{background:rgba(45,212,191,.4)}
+  .toggle.on::after{left:17px;background:var(--teal2)}
+  .fab{width:60px;height:60px;border-radius:50%;border:none;cursor:pointer;
+    background:radial-gradient(circle at 30% 30%,#14b8a6,#0f766e);color:#fff;font-size:22px;
+    box-shadow:0 10px 30px rgba(20,184,166,.45),0 2px 8px rgba(0,0,0,.5);transition:transform .25s;position:relative}
+  .fab:hover{transform:scale(1.08)}
+  .orbit.open .fab{transform:rotate(45deg)}
+  .fab::before{content:"";position:absolute;inset:-6px;border-radius:50%;border:1px solid rgba(45,212,191,.3);animation:pulse 2.4s infinite}
+  @keyframes pulse{0%{transform:scale(.9);opacity:.8}70%{transform:scale(1.25);opacity:0}100%{opacity:0}}
+  .sat{position:absolute;right:66px;bottom:8px;display:flex;gap:8px;opacity:0;transform:translateX(8px);transition:.25s;pointer-events:none}
+  .orbit.open .sat{opacity:1;transform:none;pointer-events:auto}
+  .sat span{font-size:10.5px;color:var(--teal2);background:var(--panel2);border:1px solid var(--border);border-radius:999px;padding:4px 10px}
+  .hint{position:fixed;left:40px;bottom:24px;font-size:12px;color:var(--muted);max-width:300px;line-height:1.6}
+  .hint b{color:var(--text)}
+</style>
+</head>
+<body>
+
+<div class="dashboard">
+  <div class="dash-top">
+    <div class="logo">Meridian <em>Bank</em> · Agent Ops</div>
+    <span class="clean-note">✓ One FAB replaces all header buttons</span>
+  </div>
+  <div class="cols">
+    <div class="col">
+      <h2>Agent action volume</h2>
+      <div class="bar-row">
+        <div class="bar" style="height:40%"></div><div class="bar" style="height:65%"></div>
+        <div class="bar" style="height:52%"></div><div class="bar" style="height:88%"></div>
+        <div class="bar" style="height:70%"></div><div class="bar" style="height:95%"></div>
+      </div>
+    </div>
+    <div class="col">
+      <h2>Activity feed</h2>
+      <div class="feed">
+        <div class="feed-item">⚡ Token exchanged (RFC 8693) <span class="pill-ok">ok</span><span class="t">2m</span></div>
+        <div class="feed-item">✋ HITL approval — $2,400 transfer <span class="pill-warn">pending</span><span class="t">5m</span></div>
+        <div class="feed-item">🔁 Scope narrowed: accounts.read <span class="pill-ok">ok</span><span class="t">9m</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Orbit FAB ===== -->
+<div class="orbit open" id="orbit">
+  <button class="fab" onclick="toggleOrbit()" title="Demo controls">＋</button>
+  <div class="sheet">
+    <div class="seg">
+      <button class="on" data-pane="mode" onclick="show(this,'mode')">Mode</button>
+      <button data-pane="view" onclick="show(this,'view')">View</button>
+      <button data-pane="cfg" onclick="show(this,'cfg')">Config</button>
+    </div>
+    <div class="pane on" id="p-mode">
+      <div class="ctrl"><div><div>Agent mode</div><div class="sub">Frontier LLM · ~2s latency</div></div><span class="val">Anthropic ▾</span></div>
+      <div class="ctrl"><div><div>Routing</div><div class="sub">How queries reach tools</div></div><span class="val">Smart ▾</span></div>
+      <div class="ctrl"><div><div>Wiring</div><div class="sub">MCP gateway path</div></div><span class="val">Direct ▾</span></div>
+      <div class="ctrl"><div><div>Human approval</div><div class="sub">HITL on transfers</div></div><span class="toggle on" onclick="this.classList.toggle('on')"></span></div>
+    </div>
+    <div class="pane" id="p-view">
+      <div class="ctrl"><div>Flow details</div><span class="val">Open →</span></div>
+      <div class="ctrl"><div>Guide</div><span class="val">Open →</span></div>
+      <div class="ctrl"><div>Live Use Cases</div><span class="val">Open →</span></div>
+      <div class="ctrl"><div>Quick Config</div><span class="val">Open →</span></div>
+    </div>
+    <div class="pane" id="p-cfg">
+      <div class="ctrl"><div>PF/P1 Login</div><span class="val">Admin1 ✓</span></div>
+      <div class="ctrl"><div>Controls</div><span class="val">Open →</span></div>
+      <div class="ctrl"><div>Configuration</div><span class="val">Open →</span></div>
+      <div class="ctrl"><div>Verticals</div><span class="val">Banking ▾</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="hint"><b>Idea 3 — Orbit FAB.</b> A single pulsing floating button. Tap and it grows into a compact card with three segmented tabs — Mode / View / Config — so 12 controls cost zero header space and one tap to reach.</div>
+
+<script>
+  function toggleOrbit(){document.getElementById("orbit").classList.toggle("open")}
+  function show(btn,id){
+    document.querySelectorAll(".seg button").forEach(b=>b.classList.remove("on"));
+    document.querySelectorAll(".pane").forEach(p=>p.classList.remove("on"));
+    btn.classList.add("on");
+    document.getElementById("p-"+id).classList.add("on");
+  }
+</script>
+</body>
+</html>
