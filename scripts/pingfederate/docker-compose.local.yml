@@ -51,6 +51,10 @@ networks:
 
 volumes:
   pingfederate-out:
-    name: ${PINGFEDERATE_VOLUME_NAME:-ai-demo-pingfederate-out}
+    # MUST match the live configured instance volume (Federation-Info base URL
+    # https://local.ping-devops.com:9031, admin user, clients/policies). The
+    # older ai-demo-pingfederate-out volume still has the localhost base URL
+    # baked in and silently reverts the styling fix if a recreate picks it.
+    name: ${PINGFEDERATE_VOLUME_NAME:-ai-demo-pingfederate-out-classic}
   pingfederate-jvm-security:
     name: ${PINGFEDERATE_JVM_VOLUME_NAME:-ai-demo-pingfederate-jvm-security}
