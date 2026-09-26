@@ -247,6 +247,31 @@ src/__tests__/oauthUserService.pingfederate.test.js
 src/__tests__/oauth-scope-integration.test.js --forceExit` (44 pass); live:
 PF login renders the PF sign-on page and UC38 handoff completes.
 
+### 2026-09-26 — PF-mode admin login rejected with invalid_scope (same bug, admin client)
+
+**Files changed:** `demo_api_server/config/oauth.js`.
+
+**What was broken:** the admin client's `scopes` getter had no
+provider awareness, so with `oauth_provider=pingfederate` the admin authorize
+request carried `admin:read read write sensitive:read ai:agent:read` on top of
+the OIDC scopes. PingFederate's `ai-demo-pf-admin` client is OIDC-only and
+rejected the request with `invalid_scope` — no PF sign-in page for admin
+login. Live evidence: BFF log showed repeated
+`/api/auth/oauth/callback?error=invalid_scope` with
+`client_id=ai-demo-pf-admin`.
+
+**What was fixed:** same provider-aware guard as the user client — PF mode
+returns only `openid profile email offline_access`; PingOne mode unchanged.
+
+**Do not break:** the PingOne branch (`getScopesForUserType('admin')`) and the
+≥5-distinct-scopes requirement for RFC 8693 MCP narrowing in PingOne mode.
+PF mode stays OIDC-only by design.
+
+**Verify:** `cd demo_api_server && CI=true npx jest
+src/__tests__/oauthUserScopes.regression.test.js
+src/__tests__/oauthUserService.pingfederate.test.js --forceExit`; live:
+PF admin login renders the PF sign-on page.
+
 ### 2026-09-25 — Runtime provider toggle could CrashLoop the SE BFF via dead PF endpoints
 
 **Files changed:** `demo_api_server/routes/adminConfig.js`,
