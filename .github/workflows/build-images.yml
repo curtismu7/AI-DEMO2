@@ -28,7 +28,7 @@ jobs:
     # land. workflow_dispatch is someone deciding to rebuild on purpose, which is
     # a different thing from a PR building itself.
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, macOS]
     permissions:
       contents: read
       packages: write
@@ -93,7 +93,7 @@ jobs:
     name: ${{ matrix.key }}
     needs: build-images
     if: needs.build-images.outputs.any == 'true'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, macOS]
     permissions:
       contents: read
       packages: write

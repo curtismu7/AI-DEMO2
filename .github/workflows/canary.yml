@@ -24,7 +24,7 @@ concurrency:
 
 jobs:
   uc1:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, macOS]
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
