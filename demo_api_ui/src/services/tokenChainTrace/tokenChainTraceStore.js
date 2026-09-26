@@ -19,11 +19,44 @@ const EMPTY_TRACE = () => ({
   startedAt: null, finishedAt: null, prompt: null, provenance: "live", mode: null, routingMode: null, routingDetail: null,
   llmDetail: null, llmReply: null,
   phases: [], tokenEvents: [], mcpResult: null, authorize: null, authorizeEvaluations: null, outcome: null,
+  // Human-readable cause when outcome === 'error'. Without it the ProofStrip
+  // can only say "Run failed before <missing steps>" — the backend's actual
+  // error (gateway_policy_denied, mcp_authorize_unavailable, an ENOTFOUND…)
+  // never reached the verdict and diagnosis meant reading container logs.
+  failureDetail: null,
   // 'declined' once the human refuses a step-up / HITL approval gate. Without
   // it the trace ends at authorize.outcome === 'STEP_UP' and the Proof verdict
   // cannot tell "gate fired, human approved" from "gate fired, human refused".
   approvalOutcome: null,
 });
+
+// Maps a raw failure blob (error code, message, HTTP status) to a short
+// human-readable cause. Mirrors the server-side classification in
+// demo_api_server/services/stepVerificationExpectations.js:330-338 — keep the
+// two regex sets in sync when adding causes.
+export function classifyFailure(blob) {
+  const s = String(blob || '');
+  if (!s) return null;
+  if (/gateway_policy_denied|access_denied|authorization_denied|mcp_authorization_denied/i.test(s)) {
+    return 'PingOne Authorize denied the request';
+  }
+  if (/mcp_authorize_unavailable|invalid_client|authorize_worker|failing closed/i.test(s)) {
+    return 'Authorize backend unreachable — gateway failed closed';
+  }
+  if (/GATEWAY_AUDIENCE_MISMATCH|Wrong audience|audience_mismatch/i.test(s)) {
+    return 'Token audience mismatch with the gateway (config drift)';
+  }
+  if (/Insufficient scope|insufficient_scope/i.test(s)) {
+    return 'Token lacks the scope this tool requires';
+  }
+  if (/ENOTFOUND|ECONNREFUSED|ECONNRESET|fetch failed|network|getaddrinfo/i.test(s)) {
+    return 'A downstream service is unreachable (network/DNS)';
+  }
+  if (/session_not_hydrated|token_inactive|session_restore_required|sign in/i.test(s)) {
+    return 'Session token expired — sign in again';
+  }
+  return null;
+}
 
 // Session-scoped evidence (the sign-in token) outlives any single tool call —
 // beginTrace carries it forward and ingestTokenEvents must not wipe it when a
@@ -351,9 +384,15 @@ export const tokenChainTraceStore = {
     trace.approvalOutcome = "declined";
     emit();
   },
-  completeTrace(ok, flowTraceId = null) {
+  completeTrace(ok, flowTraceId = null, failureDetail = null) {
     if (isForeignRun(flowTraceId)) return;
     trace.outcome = ok ? "ok" : "error";
+    if (!ok) {
+      trace.failureDetail = classifyFailure(failureDetail)
+        || (failureDetail ? String(failureDetail).slice(0, 160) : null);
+    } else {
+      trace.failureDetail = null;
+    }
     // Stamped so a settled run can report its own wall-clock duration.
     // startedAt alone only gives an elapsed time while the run is still live.
     trace.finishedAt = Date.now();

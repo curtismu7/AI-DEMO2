@@ -300,7 +300,7 @@ export function useAgentRun({
           } else if (event.type === 'RUN_ERROR') {
             settled = true;
             try { agentFlowDiagram.completeReply(false); } catch (_) { /* display-only */ }
-            try { tokenChainTraceStore.completeTrace(false, flowTraceId); } catch (_) { /* display-only */ }
+            try { tokenChainTraceStore.completeTrace(false, flowTraceId, event.message || 'Agent error'); } catch (_) { /* display-only */ }
             setError(event.message || 'Agent error');
             callbacksRef.current.onError && callbacksRef.current.onError(event.message || 'Agent error');
           }
@@ -313,6 +313,7 @@ export function useAgentRun({
         const msg = 'Stream interrupted: ' + err.message;
         setError(msg);
         callbacksRef.current.onError && callbacksRef.current.onError(msg);
+        try { tokenChainTraceStore.completeTrace(false, null, msg); } catch (_) { /* display-only */ }
       }
     } finally {
       closeSse();

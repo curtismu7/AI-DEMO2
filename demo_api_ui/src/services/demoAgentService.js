@@ -780,7 +780,7 @@ export async function callMcpTool(tool, params = {}, { signal, useCaseId, vertic
       try {
         const partialEvents = [...tokenEventsFromSse, ...(Array.isArray(e.tokenEvents) ? e.tokenEvents : [])];
         if (partialEvents.length) tokenChainTraceStore.ingestTokenEvents(partialEvents);
-        tokenChainTraceStore.completeTrace(false, flowTraceId);
+        tokenChainTraceStore.completeTrace(false, flowTraceId, e.message);
       } catch { /* display-only */ }
     }
     // Phase 194: mark milestone error
@@ -1149,7 +1149,7 @@ export function ingestLegacyRunTrace(data, { forceHeuristic = false, flowTraceId
       && data.needsParams?.missing?.length && !data.toolsCalled?.length;
     if (!awaitingNativeClarification) {
       const failed = data.success === false || Boolean(data.error);
-      tokenChainTraceStore.completeTrace(!failed, flowTraceId);
+      tokenChainTraceStore.completeTrace(!failed, flowTraceId, failed ? `${data.error || ''} ${data.message || ''} ${data.reply || ''}` : null);
     }
   } catch { /* display-only */ }
 }
@@ -1346,7 +1346,7 @@ export async function sendAgentMessage(message, consentId = null, { signal, forc
     if (useCaseId === 'enterprise-managed-mcp-authorization' && mode === 'live-id-jag') {
       try {
         if (Array.isArray(error.tokenEvents) && error.tokenEvents.length) tokenChainTraceStore.ingestTokenEvents(error.tokenEvents);
-        tokenChainTraceStore.completeTrace(false, flowTraceId);
+        tokenChainTraceStore.completeTrace(false, flowTraceId, error.message);
       } catch { /* display-only */ }
     }
     throw error;
