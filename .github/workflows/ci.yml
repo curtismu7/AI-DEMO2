@@ -275,12 +275,6 @@ jobs:
     if: needs.changes.outputs['python-agents'] == 'true'
     runs-on: [self-hosted, macOS]
     timeout-minutes: 30
-    env:
-      # setup-python@v7 assumes the hosted-runner layout and mkdirs /Users/runner
-      # (Permission denied on this self-hosted Mac). Point its tool cache at a
-      # writable location under the runner work dir instead.
-      RUNNER_TOOL_CACHE: ${{ runner.temp }}/.tool-cache
-      AGENT_TOOLSDIRECTORY: ${{ runner.temp }}/.tool-cache
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
