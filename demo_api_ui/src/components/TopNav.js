@@ -8,6 +8,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useSessionToken } from "../context/SessionTokenContext";
 import { useTheme } from "../context/ThemeContext";
 import { useRoleSwitch } from "../hooks/useRoleSwitch";
+import { useAgentUiMode } from "../context/AgentUiModeContext";
 import { useVertical } from "../vertical/useVertical";
 import { navigateToCustomerOAuthLogin } from "../utils/authUi";
 import {
@@ -36,6 +37,13 @@ export default function TopNav({ user, onLogout }) {
   const identity = pageManifest?.identity;
   const { tokenSecondsLeft, tokenLoading, sessionType, staleSession, hasRefreshToken, hasActiveToken, openTokenModal } = useSessionToken();
   const { darkMode, toggleDarkMode } = useTheme();
+  // Dashboard split-column mode: the Command Dock owns these demo controls
+  // (vertical switcher, Configuration, thresholds, Reset Demo, P1/PF), so the
+  // top bar drops them to keep one home per control. Any other route or
+  // agent placement keeps the classic top-bar controls.
+  const { placement: agentPlacement } = useAgentUiMode();
+  const dockOwnsDashboardControls =
+    location.pathname === "/dashboard" && agentPlacement === "middle";
   const brandName = (identity && (identity.headerTitle || identity.displayName)) || 'AI Demo';
   // Per-vertical brand icon (manifest identity.icon); unknown/absent → bank icon.
   const BrandIcon = (identity && BRAND_ICONS[identity.icon]) || MdAccountBalance;
@@ -160,12 +168,14 @@ export default function TopNav({ user, onLogout }) {
 
         {/* Vertical switcher — visible to everyone (guests too) so the
             demo flow can be tailored before sign-in. The switcher hides
-            itself when fewer than 2 verticals exist. */}
-        <VerticalSwitcher variant="nav" />
+            itself when fewer than 2 verticals exist. Hidden on the dashboard
+            split-column layout, where the Command Dock hosts it instead. */}
+        {!dockOwnsDashboardControls && <VerticalSwitcher variant="nav" />}
 
         {/* Quick Flags — live validation-mode pill + curated demo switches.
-            Visible to everyone (read-only without an admin session). */}
-        <QuickFlagsPill user={user} />
+            Visible to everyone (read-only without an admin session). Hidden
+            on the dashboard split-column layout (Command Dock hosts it). */}
+        {!dockOwnsDashboardControls && <QuickFlagsPill user={user} />}
 
         {/* 3-tab nav — admin gets all three; customer gets nothing here (chip is enough) */}
         {user?.role === 'admin' && (
@@ -217,8 +227,10 @@ export default function TopNav({ user, onLogout }) {
               These can overflow on narrow screens; they scroll behind the UserMenu. */}
           <div className="topnav-right-scroll">
 
-            {/* Dashboard controls — only when viewing /dashboard. */}
-            {location.pathname === '/dashboard' && (
+            {/* Dashboard controls — only when viewing /dashboard. Hidden in
+                split-column mode: the Command Dock hosts thresholds + Reset
+                Demo there. */}
+            {location.pathname === '/dashboard' && !dockOwnsDashboardControls && (
               <div className="topnav-dashboard-controls" role="toolbar" aria-label="Dashboard actions">
                 <ThresholdControls />
                 <button
@@ -341,8 +353,9 @@ export default function TopNav({ user, onLogout }) {
               needed because every OAuth config getter reads the provider
               lazily. Changing provider invalidates the current token chain,
               so the user is signed out after the switch. The component hides
-              itself if the BFF config endpoint is unreachable. */}
-          <OAuthProviderToggle />
+              itself if the BFF config endpoint is unreachable. Hidden on the
+              dashboard split-column layout (Command Dock hosts it). */}
+          {!dockOwnsDashboardControls && <OAuthProviderToggle />}
 
           {/* Theme toggle — always visible (outside the scroll area) so it never
               scrolls off, and available to every page since TopNav is app-wide. */}
