@@ -172,7 +172,11 @@ async function validateToken(token, opts = {}) {
     }
 
     if (!introspectionUrl || !clientId || !clientSecret) {
-      logger.warn('Token introspection credentials missing', {
+      // Expected and permanent for a PKCE-only public client (the User Login app
+      // has no client_secret since 2026-08-24) — debug, not warn, so a normal
+      // tool-call stream doesn't log a warn on every single call. Callers treat
+      // INTROSPECTION_NOT_CONFIGURED as "skipped", not a failure.
+      logger.debug('Token introspection credentials missing', {
         hasEndpoint: !!introspectionUrl,
         hasClientId: !!clientId,
         hasClientSecret: !!clientSecret,
