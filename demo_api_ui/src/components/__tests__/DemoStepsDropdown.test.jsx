@@ -286,17 +286,38 @@ describe('DemoStepsDropdown', () => {
   });
 
   it.each([
-    ['UC38', 'sporting-goods', '/workload-agents?useCase=UC38', '/workload-agents?useCase=UC38&vertical=sporting-goods'],
-    ['UC44', 'healthcare', '/workload-agents?vertical=banking&useCase=UC44', '/workload-agents?vertical=healthcare&useCase=UC44'],
-  ])('opens %s with the active vertical and canonical use case', async (id, vertical, path, expectedPath) => {
+    ['UC38', 'sporting-goods', '/workload-agents?useCase=UC38'],
+    ['UC44', 'healthcare', '/workload-agents?vertical=banking&useCase=UC44'],
+  ])('runs %s as a chip prompt and its secondary button opens the workload page with the active vertical', async (id, vertical, path) => {
     const onSelect = vi.fn();
-    const catalog = CATALOG.map((uc) => uc.id === id ? { ...uc, trigger: { type: 'link', path } } : uc);
-    if (id === 'UC44') catalog.push({ id, title: 'UC44', trigger: { type: 'link', path } });
+    const onOpenChange = vi.fn();
+    const catalog = CATALOG.map((uc) => uc.id === id ? { ...uc, trigger: { type: 'link', path }, runPrompt: `pay a $600 change fee` } : uc);
+    if (id === 'UC44') catalog.push({ id, title: 'UC44', trigger: { type: 'link', path }, runPrompt: 'pay a $600 change fee' });
     apiClient.get.mockResolvedValue({ data: { useCases: catalog } });
-    render(<DemoStepsDropdown vertical={vertical} open onOpenChange={() => {}} onSelect={onSelect} />);
+    render(<DemoStepsDropdown vertical={vertical} open onOpenChange={onOpenChange} onSelect={onSelect} />);
     const step = await screen.findByTestId(id === 'UC44' ? 'demo-step-ciam-UC44' : 'demo-step-UC38');
+
+    // Main click: runs in the dashboard agent as a chip prompt (no navigation).
     fireEvent.click(step);
-    expect(onSelect.mock.calls[0][0].trigger.path).toBe(expectedPath);
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(onSelect.mock.calls[0][0].trigger).toMatchObject({ type: 'chip', text: 'pay a $600 change fee' });
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+
+    // Secondary click: opens the dedicated /workload-agents page. jsdom's
+    // location.assign is non-configurable — swap the whole location object
+    // (same pattern authUi.test.js uses).
+    const originalLocation = window.location;
+    let assignedUrl = null;
+    delete window.location;
+    window.location = { ...originalLocation, assign: (u) => { assignedUrl = u; } };
+    try {
+      fireEvent.click(screen.getByTestId(`workload-page-${id}`));
+      expect(assignedUrl).toBeTruthy();
+      expect(assignedUrl).toContain(`useCase=${id}`);
+      expect(assignedUrl).toContain(`vertical=${vertical}`);
+    } finally {
+      window.location = originalLocation;
+    }
   });
 
   it('shows Clear progress even with nothing completed, and clears checkmarks on click', async () => {

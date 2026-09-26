@@ -227,12 +227,12 @@ export default function DemoStepsDropdown({
       });
       return;
     }
-    let selectedUc = uc;
-    if (['UC38', 'UC44'].includes(uc.id) && uc.trigger?.type === 'link' && uc.trigger.path) {
-      const url = new URL(uc.trigger.path, window.location.origin);
-      url.searchParams.set('vertical', vertical);
-      selectedUc = { ...uc, trigger: { ...uc.trigger, path: `${url.pathname}${url.search}${url.hash}` } };
-    }
+    // UC38/UC44 run in the dashboard agent as a chip prompt (their dedicated
+    // /workload-agents page is opened via the secondary workload button below),
+    // so the presenter stays on this page and the result lands in the agent.
+    const selectedUc = ['UC38', 'UC44'].includes(uc.id) && uc.trigger?.type === 'link'
+      ? { ...uc, trigger: { type: 'chip', text: uc.runPrompt || uc.trigger?.label } }
+      : uc;
     onSelect(selectedUc, stepNumber, uc.id === 'UC14b' ? { quickResult: rarQuickResult } : undefined);
     setTick((n) => n + 1);
   }
@@ -249,6 +249,13 @@ export default function DemoStepsDropdown({
   /** Open the explanation for a step without interrupting the presenter script. */
   function handleExplain(uc) {
     setExplainUc(uc);
+  }
+
+  /** UC38/UC44's dedicated page, with the active vertical carried in the query. */
+  function handleWorkloadAgentsOpen(uc) {
+    const url = new URL(uc.trigger?.path || `/workload-agents?useCase=${uc.id}`, window.location.origin);
+    url.searchParams.set('vertical', vertical);
+    window.location.assign(`${url.pathname}${url.search}${url.hash}`);
   }
 
   /** Reset demo check-offs for a fresh presenter pass. */
@@ -388,6 +395,18 @@ export default function DemoStepsDropdown({
             </span>
           )}
         </button>
+        {['UC38', 'UC44'].includes(uc.id) && (
+          <button
+            type="button"
+            className="ba-demo-steps-popout__workload-link"
+            onClick={(e) => { e.stopPropagation(); onOpenChange(false); handleWorkloadAgentsOpen(uc); }}
+            aria-label={`Open the ${uc.id} workload-agents page`}
+            title="Open the dedicated workload-agents page for this demo (delegated identity walkthrough, security rail, and client window)"
+            data-testid={`workload-page-${uc.id}`}
+          >
+            🪟
+          </button>
+        )}
         {uc.id === 'UC14b' && (
           <button
             type="button"
