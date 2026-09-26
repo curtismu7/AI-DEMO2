@@ -7055,6 +7055,31 @@ body > .banking-agent-float-root .banking-agent-panel {
   outline: none;
 }
 
+/* UC38/UC44-only: open the dedicated /workload-agents page. Same shape as the
+   rar-toggle — sits between the title and the "i" explain button. */
+.ba-demo-steps-popout__workload-link {
+  flex: 0 0 auto;
+  width: 26px;
+  height: auto;
+  align-self: stretch;
+  border: 1.5px solid #0e7490;
+  border-left: none;
+  background: transparent;
+  color: #0e7490;
+  font: 700 11px/1 ui-sans-serif, system-ui, sans-serif;
+  cursor: pointer;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ba-demo-steps-popout__workload-link:hover,
+.ba-demo-steps-popout__workload-link:focus-visible {
+  background: #0e7490;
+  color: #fff;
+  outline: none;
+}
+
 /* Done card — match explain border to the green done border */
 .ba-demo-steps-popout__card-item:has(.banking-chips-dropdown__button--done) .ba-demo-steps-popout__explain {
   border-color: #16a34a;
