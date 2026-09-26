@@ -423,6 +423,9 @@ services:
       SSL_KEY_FILE:  "/certs/api.ping.demo+2-key.pem"
       # Container-to-container MCP (plain HTTP — internal network only)
       MCP_SERVER_URL: "ws://mcp-server:8080"
+      # SPIFFE Phase D: when mTLS is on, present the BFF workload's X.509-SVID
+      # on the mcp-server hop (mcpWebSocketClient reads cert/key per connection).
+      SPIFFE_MTLS_SVID_DIR: "${MCP_MTLS_ON:+/run/spiffe}"
       # Derived from the single MCP_MTLS_ON switch (see mcp-server, ~L343). When on,
       # the server serves TLS on MCP_SERVER_PORT, so the BFF's direct WS client has
       # to dial wss:// — plaintext ws:// into that listener dies with "socket hang
@@ -743,6 +746,7 @@ services:
       spire-server:
         condition: service_healthy
     volumes:
+      - ./spiffe/docker-compose/entries.sh:/etc/spire/entries.sh:ro
       - spiffe-server-api-socket:/run/spire/server/private
       - spiffe-bootstrap:/run/spire-bootstrap
     networks:
@@ -764,6 +768,28 @@ services:
       - ./spiffe/docker-compose/helper-bff.conf:/etc/spiffe-helper/helper.conf:ro
       - spiffe-agent-socket:/run/spire-agent/sockets
       - spiffe-bff-output:/run/spiffe
+    networks:
+      - ai-demo
+    restart: unless-stopped
+
+  # SPIFFE Phase D: the Node MCP gateway presents its own X.509-SVID on the
+  # mcp-server hop. Same conf as the BFF helper — cert_dir + JWT SVID.
+  spiffe-helper-gateway:
+    profiles: ["spiffe"]
+    labels:
+      com.ai-demo.spiffe-workload: mcp-gateway
+    image: ghcr.io/spiffe/spiffe-helper:0.11.0
+    container_name: ai-demo-spiffe-helper-gateway
+    command: ["-config", "/etc/spiffe-helper/helper.conf"]
+    depends_on:
+      spire-agent:
+        condition: service_started
+      spire-registration:
+        condition: service_completed_successfully
+    volumes:
+      - ./spiffe/docker-compose/helper-bff.conf:/etc/spiffe-helper/helper.conf:ro
+      - spiffe-agent-socket:/run/spire-agent/sockets
+      - spiffe-gateway-output:/run/spiffe
     networks:
       - ai-demo
     restart: unless-stopped
@@ -932,6 +958,12 @@ services:
       # listener; MCP_MTLS_ON can now be enabled without breaking Privilege.
       MCP_MTLS_ENABLED: "${MCP_MTLS_ON:+true}"
       MCP_MTLS_GATEWAY_CERT_PATH: "/certs/gw-mtls/gw-client.crt"
+      # SPIFFE Phase D: accept the gateway + BFF workload SVIDs (URI SAN, and
+      # chain-verify against the SPIRE trust bundle). PingGateway keeps
+      # authenticating with its static p12 pin (MCP_MTLS_GATEWAY_CERT_PATH
+      # stays set as the pin source) — the verifier accepts EITHER.
+      MCP_MTLS_ALLOWED_SPIFFE_ID: "${MCP_MTLS_ON:+spiffe://bxfinance.demo/mcp-gateway,spiffe://bxfinance.demo/bff}"
+      MCP_MTLS_SPIFFE_BUNDLE_PATH: "${MCP_MTLS_ON:+/run/spiffe/bundle.pem}"
       # MCP_MTLS_ALLOWED_SPIFFE_ID is supplied by oauth-mcp/.env when needed;
       # do not shadow that env_file value with an empty Compose default.
       # Step 9 (RFC 8693): the MCP server exchanges the gateway-scoped token for a
@@ -1160,6 +1192,12 @@ services:
       MCP_GW_OLB_WS_URL: "ws${MCP_MTLS_ON:+s}://mcp-server:8080"
       MCP_GW_UPSTREAM_CLIENT_CERT_PATH: "${MCP_MTLS_ON:+/certs/gw-mtls/gw-client.crt}"
       MCP_GW_UPSTREAM_CLIENT_KEY_PATH: "${MCP_MTLS_ON:+/certs/gw-mtls/gw-client.key}"
+      # SPIFFE Phase D: when present, re-reads svid.pem/svid.key per connection
+      # (loadUpstreamCerts in src/index.ts) — attested identity replacing the
+      # pinned static pair. mcp-server accepts either (fingerprint pin OR
+      # bundle-verified spiffe://bxfinance.demo/mcp-gateway).
+      SPIFFE_MTLS_UPSTREAM_SVID_DIR: "${MCP_MTLS_ON:+/run/spiffe}"
+      SPIFFE_MTLS_SVID_DIR_NOTE: "gateway presents its own X.509-SVID on the mcp-server hop"
       MCP_GW_RESOURCE_SERVER_WS_URL: "ws://mcp-resource-server:8081"
       MCP_GW_JWTVERIFIER_HTTP_URL: "http://mcp-jwt-verifier:8083"
       MCP_JWTVERIFIER_RESOURCE_URI: "mcp-jwt-verifier.ping.demo"
@@ -1310,6 +1348,9 @@ services:
     volumes:
       - ./scripts:/otel:ro  # dir mount: survives git pull replacing the file (a single-file bind mount pins the old inode and crash-loops node -r)
       - ./certs:/certs:ro  # dir mount, not a single file -- a single-file bind pins the inode
+      # SPIFFE Phase D: gateway workload SVID (opt-in spiffe profile). In core
+      # mode the volume is empty and SPIFFE_MTLS_UPSTREAM_SVID_DIR is unset.
+      - spiffe-gateway-output:/run/spiffe
     networks:
       - ai-demo
     depends_on:
@@ -2414,6 +2455,8 @@ volumes:
   spiffe-agent-data:
   spiffe-agent-socket:
   spiffe-bff-output:
+  # SPIFFE Phase D — Node MCP gateway workload SVID (opt-in spiffe profile).
+  spiffe-gateway-output:
   # MCP discovery inventory — candidate metadata only, never credentials.
   mcp-discovery-data:
   # BFF persistent LMDB store — survives `docker compose up --force-recreate`.

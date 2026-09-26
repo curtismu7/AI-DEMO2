@@ -25,4 +25,36 @@ describe('createMtlsVerifier', () => {
     const fakeSocket = { getPeerCertificate: () => ({}) } as any;
     expect(() => verifier(fakeSocket)).toThrow('mTLS: no client certificate presented');
   });
+
+  // ── SPIFFE Phase D: comma-separated SPIFFE ID list + trust-bundle chaining ──
+
+  it('accepts a comma-separated allowedSpiffeId list on a URI-SAN match (no bundle configured)', () => {
+    const verifier = createMtlsVerifier({
+      enabled: true,
+      allowedSpiffeId: 'spiffe://bxfinance.demo/mcp-gateway,spiffe://bxfinance.demo/bff',
+    }) as MtlsVerifier;
+    const fakeSocket = {
+      getPeerCertificate: () => ({
+        raw: Buffer.from('irrelevant'),
+        subjectaltname: 'URI:spiffe://bxfinance.demo/bff',
+      }),
+    } as any;
+    expect(() => verifier(fakeSocket)).not.toThrow();
+  });
+
+  it('rejects a cert whose URI SAN is not in the allowed list', () => {
+    const verifier = createMtlsVerifier({
+      enabled: true,
+      allowedSpiffeId: 'spiffe://bxfinance.demo/mcp-gateway,spiffe://bxfinance.demo/bff',
+    }) as MtlsVerifier;
+    const fakeSocket = {
+      getPeerCertificate: () => ({
+        raw: Buffer.from('irrelevant'),
+        subjectaltname: 'URI:spiffe://other.domain/rogue',
+      }),
+    } as any;
+    expect(() => verifier(fakeSocket)).toThrow('not for spiffe://');
+  });
+
+
 });

@@ -17,6 +17,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import { readFileSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
 import * as crypto from 'node:crypto';
 import WebSocket from 'ws';
 import { loadConfig, GatewayConfig, assertProductionSecrets, checkInternalSecret } from './config';
@@ -123,6 +124,25 @@ if (!gatewayCerts && upstreamClientCertPath && upstreamClientKeyPath) {
       `(${upstreamClientCertPath}, ${upstreamClientKeyPath}) — upstream mTLS hop will fail if mcp-server enforces it`,
     );
   }
+}
+
+// SPIFFE Phase D: when the upstream cert paths point at a spiffe-helper SVID
+// directory (SPIFFE_MTLS_UPSTREAM_SVID_DIR), re-read the pair per connection —
+// SVIDs rotate (~hourly) and a cert loaded at startup goes stale. Falls back
+// to the statically loaded pair when the dynamic read fails.
+const upstreamSvidDir = process.env.SPIFFE_MTLS_UPSTREAM_SVID_DIR;
+function loadUpstreamCerts(): GatewayCerts | null {
+  if (upstreamSvidDir) {
+    try {
+      return {
+        clientCert: readFileSync(join(upstreamSvidDir, 'svid.pem'), 'utf-8'),
+        clientKey: readFileSync(join(upstreamSvidDir, 'svid.key'), 'utf-8'),
+      };
+    } catch (err) {
+      console.warn(`[GW] SPIFFE upstream SVID unreadable (${err instanceof Error ? err.message : String(err)}), using static pair if loaded`);
+    }
+  }
+  return gatewayCerts;
 }
 
 // BL-02: single introspection client shared between the HTTP middleware
@@ -464,8 +484,9 @@ async function handleMessage(
     if (!(await runWsAuthorizationPipeline(token, id, send))) return;
 
     const wsUrl = backendWsUrl('invest', config);
-    const tlsOpts: MtlsOptions | undefined = gatewayCerts
-      ? { cert: gatewayCerts.clientCert, key: gatewayCerts.clientKey }
+    const certs = loadUpstreamCerts();
+    const tlsOpts: MtlsOptions | undefined = certs
+      ? { cert: certs.clientCert, key: certs.clientKey }
       : undefined;
     try {
       const { token: backendToken } = await mcpExchangeClient.exchangeForBackend(token, 'invest', {
@@ -969,8 +990,9 @@ async function handleMessage(
       return;
     }
 
-    const tlsOpts: MtlsOptions | undefined = gatewayCerts
-      ? { cert: gatewayCerts.clientCert, key: gatewayCerts.clientKey }
+    const certs = loadUpstreamCerts();
+    const tlsOpts: MtlsOptions | undefined = certs
+      ? { cert: certs.clientCert, key: certs.clientKey }
       : undefined;
 
     // MCP spec: notifications/cancelled — register this call so a later
@@ -1111,8 +1133,9 @@ async function handleMessage(
 
 async function proxyToolsList(target: 'olb' | 'invest', inboundToken: string): Promise<JsonRpcResponse> {
   const wsUrl = backendWsUrl(target, config);
-  const tlsOpts: MtlsOptions | undefined = gatewayCerts
-    ? { cert: gatewayCerts.clientCert, key: gatewayCerts.clientKey }
+  const certs = loadUpstreamCerts();
+  const tlsOpts: MtlsOptions | undefined = certs
+    ? { cert: certs.clientCert, key: certs.clientKey }
     : undefined;
   // Spec §4: tools/list also crosses the trust boundary with a backend-audience token.
   // Caveat: a subject token lacking invest:read will be silently retargeted by
@@ -1154,7 +1177,9 @@ async function proxyToolsListJwtVerifier(inboundToken: string): Promise<JsonRpcR
 const gatewayServer = new GatewayServer({
   config,
   requestMiddleware: buildAuthorizeMcpRequest(config),
-  mtlsCerts: gatewayCerts ?? undefined,
+  // SPIFFE Phase D: loadUpstreamCerts() re-reads the SVID pair per use when
+  // SPIFFE_MTLS_UPSTREAM_SVID_DIR is set; the static pair is the fallback.
+  mtlsCerts: loadUpstreamCerts() ?? undefined,
 });
 const httpServer = gatewayServer.httpServer;
 

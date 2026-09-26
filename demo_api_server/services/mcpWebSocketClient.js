@@ -6,6 +6,8 @@
  * Lifecycle: initialize → notifications/initialized → tools/list | tools/call (per MCP spec).
  */
 const WebSocket = require('ws');
+const fs = require('fs');
+const path = require('path');
 const configStore = require('./configStore');
 const { writeMcpTrafficEntry } = require('./mcpTrafficLogger');
 const { getCorrelationId } = require('../utils/correlationContext');
@@ -265,6 +267,22 @@ function mcpRpc(agentToken, followMethod, followParams, userSub, correlationId, 
               process.env.NODE_ENV !== 'production'))
             ? { rejectUnauthorized: false }
             : {};
+        // SPIFFE Phase D: present the workload's X.509-SVID on the mTLS hop so
+        // mcp-server can validate an attested SPIFFE ID instead of a pinned
+        // static cert. SVID files are delivered/rotated by spiffe-helper into
+        // SPIFFE_MTLS_SVID_DIR (cert/key PEM). Read per-connection so rotation
+        // is picked up. Only attached for the mTLS mcp-server listener — other
+        // hops (PingGateway) authenticate with bearer tokens, not client certs.
+        if (isMcpMtlsListener && process.env.SPIFFE_MTLS_SVID_DIR) {
+          try {
+            const certPem = fs.readFileSync(path.join(process.env.SPIFFE_MTLS_SVID_DIR, 'svid.pem'), 'utf-8');
+            const keyPem = fs.readFileSync(path.join(process.env.SPIFFE_MTLS_SVID_DIR, 'svid.key'), 'utf-8');
+            wsTlsOpts.cert = certPem;
+            wsTlsOpts.key = keyPem;
+          } catch (err) {
+            console.warn('[mcp-ws] SPIFFE_MTLS_SVID_DIR set but SVID unreadable — presenting no client cert:', err.message);
+          }
+        }
         // X-Active-Vertical: server-to-server hint so the gateway can scope
         // tools/list to the active vertical (AllowedVertical advice, spec §8).
         // Sourced from the BFF's configStore — never user-controlled. Harmless

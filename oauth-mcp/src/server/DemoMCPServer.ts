@@ -171,7 +171,20 @@ export class DemoMCPServer extends EventEmitter {
         const gatewayCertPem = fs.existsSync(gatewayCertPath)
           ? fs.readFileSync(gatewayCertPath, 'utf-8')
           : '';
-        const mtlsVerifier = createMtlsVerifier({ enabled: true, gatewayCertPem: spiffeGatewayId ? '' : gatewayCertPem, allowedSpiffeId: spiffeGatewayId });
+        // MCP_MTLS_SPIFFE_BUNDLE_PATH (SPIRE trust bundle) upgrades the SPIFFE
+        // check from "self-asserted URI SAN" to "chains to the attested trust
+        // domain" — Phase D of docs/SPIFFE_PLAN.md.
+        const spiffeBundlePem = process.env.MCP_MTLS_SPIFFE_BUNDLE_PATH
+          ? (fs.existsSync(process.env.MCP_MTLS_SPIFFE_BUNDLE_PATH)
+              ? fs.readFileSync(process.env.MCP_MTLS_SPIFFE_BUNDLE_PATH, 'utf-8')
+              : '')
+          : '';
+        // Keep the static pin ACTIVE alongside the SPIFFE check: PingGateway
+        // (Java IG) presents its statically generated p12 — no URI SAN, not
+        // bundle-chained — and would otherwise be locked out of the OLB hop
+        // once the bundle path is configured. The verifier tries the pin
+        // fingerprint first, then the SPIFFE list.
+        const mtlsVerifier = createMtlsVerifier({ enabled: true, gatewayCertPem: gatewayCertPem, allowedSpiffeId: spiffeGatewayId, spiffeBundlePem: spiffeBundlePem || undefined });
 
         const notAfterDate = new Date();
         notAfterDate.setDate(notAfterDate.getDate() + 1);
