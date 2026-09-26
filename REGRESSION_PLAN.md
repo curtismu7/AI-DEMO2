@@ -188,6 +188,44 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-26 — A2A provider-flip incident: three compounding failure layers, now guarded
+
+**What was broken (the 40-minute `a2a_unauthorized` outage class):**
+1. `OAUTH_PROVIDER=pingfederate` set inside `demo_api_server/.env` —
+   `getEffective()` ranks env above the LMDB configStore, so every
+   `configStore.setRaw({oauth_provider:'pingone'})` repair was silently
+   shadowed on each BFF restart. PF-issued tokens carry no `act` claim, so
+   the A2A bearer gate rejected every hop with
+   `act chain depth 0, expected exactly 1` → `a2a_unauthorized`.
+2. The provider also flipped repeatedly at runtime via
+   `POST /api/admin/config` (OAuthProviderToggle) from a concurrent
+   PingFederate work session — legitimate traffic, but any flip mid-demo
+   poisons newly minted sessions the same way.
+3. The vault file-bind (`./secrets.vault:/secrets.vault:ro`) went
+   permanently stale (ENOENT) the first time the vault was saved — vault
+   saves use tmp+rename, which replaces the inode the file bind points at.
+
+**What was fixed / hardened:**
+- `demo_api_server/.env`: `OAUTH_PROVIDER=pingone` (the PF toggle still
+  works at runtime; it persists to LMDB and survives restarts).
+- `bff:oauth-provider` gate row now reports the CONTAINER ENV value too and,
+  when env says `pingfederate`, names `.env` as the cause and the exact fix
+  instead of pointing at LMDB surgery that cannot work.
+- `docker-compose.yml`: the BFF vault mount is now the directory bind
+  (`/:/repo` + `VAULT_PATH=/repo/secrets.vault`) instead of the file bind;
+  vault saves no longer break the mount.
+- New `A2A_AUTHORIZE_SOT` vault entry (audiences, act-chain depths, exchanger
+  client IDs, auth methods, bearer-gate contract) + new `a2a:sot` gate row
+  verifying it. Regenerate with `node scripts/pingone/write-a2a-sot.js`.
+- New e2e `demo_api_ui/tests/e2e/a2a-failure-modes.real.spec.js` proves the
+  failure surfaces (allowlist refusal, act-less bearer refusal, happy path
+  intact) instead of leaving the incident class untested.
+
+**Do not:** set `OAUTH_PROVIDER` in `demo_api_server/.env` to anything but
+`pingone`; treat a `bff:oauth-provider` gate failure as a demo blocker (it
+is — that is what the row is for); save the vault from a container that
+mounts it as a file bind.
+
 ### 2026-09-26 — Theme-zone picker produced unreadable dark-on-dark / white-on-white text
 
 **Files changed:** `demo_api_ui/src/components/SessionExpiryTimer.css`,

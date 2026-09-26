@@ -163,7 +163,11 @@ test('switching provider clears ID-JAG mode before leaving the page', async ({ p
   await page.keyboard.press('Escape');
   await toggle.evaluate((element) => element.click());
   await expect.poll(() => configPosts.length).toBe(1);
-  await expect(page).toHaveURL(/\/logout$/);
+  // The toggle's contract (OAuthProviderToggle.jsx): POST config, clear the
+  // BFF session, then window.location.reload() — the browser stays on the
+  // same URL rather than navigating to /logout. The reload re-runs the
+  // dashboard boot; wait for it, then assert mode cleared.
+  await expect(page).toHaveURL(/\/dashboard$/);
   expect(configPosts).toEqual([{ oauth_provider: 'pingfederate' }]);
   await expectModeCleared(page);
 });

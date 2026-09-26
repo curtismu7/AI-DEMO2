@@ -504,28 +504,35 @@ async function checkA2aChain() {
 // ── 9c. Cross-cutting config/process checks (all bit us on 2026-09-26) ──────
 
 /** (A) The BFF's persisted oauth_provider. It silently flipped to
- *  'pingfederate' in the LMDB config store during today's debugging — every
- *  login then redirected to local PingFederate, whose OAuth client list was
- *  empty, so ALL logins died with PF's generic "Oops" page while the health
- *  gate stayed green. The fix took an LMDB surgery session to even find. */
+ *  'pingfederate' during the 2026-09-26 debugging session — TWICE via the
+ *  /config admin page and ONCE via OAUTH_PROVIDER=pingfederate inside
+ *  demo_api_server/.env. The .env case is the worst: getEffective() ranks
+ *  env above LMDB, so configStore.setRaw fixes were silently shadowed on
+ *  every restart. This row reports BOTH the effective provider and whether
+ *  the .env/env layer is the source, so the flip can never hide again. */
 async function checkBffOAuthProvider() {
   if (!sh("docker ps --format '{{.Names}}' | grep -qx ai-demo-api-server && echo yes").out.trim()) return;
   const probe = inContainerProbe('ai-demo-api-server', [
     `const cs = require('/app/services/configStore');`,
     `(async () => { await cs.ensureInitialized();`,
     `  console.log('OAUPROV ' + cs.getOAuthProvider());`,
+    `  console.log('OAUENV ' + (process.env.OAUTH_PROVIDER || '(unset)'));`,
     `  process.exit(0); })().catch((e) => { console.log('OAUPROV_ERR ' + e.message); process.exit(0); });`,
   ]);
   const line = probe.find((l) => String(l).indexOf('OAUPROV') === 0) || 'OAUPROV_ERR no output';
+  const envLine = (probe.find((l) => String(l).indexOf('OAUENV') === 0) || 'OAUENV (unset)').replace(/^OAUENV\s*/, '');
   const provider = line.replace(/^OAUPROV\s*/, '').trim();
-  if (provider === 'pingone') {
-    row('bff:oauth-provider', true, 'pingone');
-  } else {
-    row('bff:oauth-provider', false, `provider=${provider} — logins will hit ${provider === 'pingfederate' ? 'local PingFederate instead of PingOne' : 'an unsupported provider'}`,
-      provider === 'pingfederate'
-        ? `Either switch back on the /config admin page, or surgically: docker exec ai-demo-api-server node -e "require('./services/configStore').setRaw({ oauth_provider: 'pingone' })" (ensureInitialized first), then docker restart ai-demo-api-server. Check PingFederate still has its OAuth clients if PF mode is intentional.`
-        : `Set oauth_provider=pingone via the /config admin page, then restart the BFF.`);
+  if (provider === 'pingone' && envLine !== 'pingfederate') {
+    row('bff:oauth-provider', true, 'pingone' + (envLine !== '(unset)' ? ` (env=${envLine})` : ''));
+    return;
   }
+  const envNote = envLine === 'pingfederate'
+    ? ` — CAUSE FOUND: OAUTH_PROVIDER=pingfederate is set in the container env (demo_api_server/.env line: OAUTH_PROVIDER=...). env OVERRIDES the LMDB configStore, so config-page/setRaw fixes are silently undone on every restart. Edit demo_api_server/.env to OAUTH_PROVIDER=pingone and recreate the BFF.`
+    : '';
+  row('bff:oauth-provider', false, `provider=${provider}` + (envLine !== '(unset)' ? ` env=${envLine}` : '') + ` — logins will hit ${provider === 'pingfederate' ? 'local PingFederate instead of PingOne' : 'an unsupported provider'}`,
+    envNote || (provider === 'pingfederate'
+      ? `Either switch back on the /config admin page, or surgically: docker exec ai-demo-api-server node -e "require('./services/configStore').setRaw({ oauth_provider: 'pingone' })" (ensureInitialized first), then docker restart ai-demo-api-server. Check PingFederate still has its OAuth clients if PF mode is intentional.`
+      : `Set oauth_provider=pingone via the /config admin page, then restart the BFF.`));
 }
 
 /** (B) The PingOne A2A gateway resource's audience attribute — the ROOT CAUSE
@@ -580,6 +587,48 @@ async function checkPingOneA2aResourceAudience() {
       ? `Fix at the source when convenient: PATCH the resource's audience to ${parsed && parsed.want} in the PingOne console (Admin → Resources). Do NOT remove the NAME from MCP_GW_RESOURCE_URI until this is fixed.`
       : '',
   );
+}
+
+/** (B4) A2A/authorize SOT integrity — the vault must carry a current
+ *  A2A_AUTHORIZE_SOT entry describing audiences, act-chain depths, exchanger
+ *  client IDs, and auth methods. Refresh it with
+ *  scripts/pingone/write-a2a-sot.js when the contract changes. */
+async function checkA2aSot() {
+  if (!sh("docker ps --format '{{.Names}}' | grep -qx ai-demo-api-server && echo yes").out.trim()) return;
+  const probe = inContainerProbe('ai-demo-api-server', [
+    `const { openVault } = require('/app/lib/vault');`,
+    `(async () => {`,
+    `  const vp = process.env.VAULT_PATH || '/repo/secrets.vault';`,
+    `  const vault = await openVault(vp, process.env.VAULT_PASSWORD, { caller: 'health-gate-sot' });`,
+    `  let raw;`,
+    `  try { raw = vault.read('A2A_AUTHORIZE_SOT'); } catch (e) { console.log('SOT_ERR ' + e.message); process.exit(0); }`,
+    `  const sot = JSON.parse(raw);`,
+    `  const ok = sot.version >= 1 && sot.audiences && sot.audiences.a2aGateway && sot.generalist && sot.generalist.clientId`,
+    `    && sot.bearerGate && sot.bearerGate.requiredActDepth === 1 && Object.keys(sot.audiences.intermediates || {}).length >= 10;`,
+    `  console.log('SOT ' + JSON.stringify({`,
+    `    ver: sot.version, updated: sot.updatedAt,`,
+    `    a2aGateway: sot.audiences && sot.audiences.a2aGateway,`,
+    `    generalist: sot.generalist && sot.generalist.clientId,`,
+    `    intermediates: sot.audiences && sot.audiences.intermediates ? Object.keys(sot.audiences.intermediates).length : 0,`,
+    `    actDepth: sot.bearerGate && sot.bearerGate.requiredActDepth,`,
+    `    ok`,
+    `  }));`,
+    `  vault.close(); process.exit(0);`,
+    `})().catch((e) => { console.log('SOT_ERR ' + e.message); process.exit(0); });`,
+  ]);
+  const line = (probe.find((l) => { const t = String(l); return t.indexOf('SOT ') === 0 || t.indexOf('SOT_ERR') === 0; }) || 'SOT_ERR no output');
+  if (line.indexOf('SOT_ERR') === 0) {
+    row('a2a:sot', false, line.replace('SOT_ERR ', ''),
+      'Refresh the SOT: node scripts/pingone/write-a2a-sot.js (host-side; the container cannot save — / is not writable by appuser)');
+    return;
+  }
+  let parsed = null;
+  try { parsed = JSON.parse(line.replace(/^SOT\s*/, '')); } catch (e) { /* fallthrough */ }
+  row('a2a:sot', !!(parsed && parsed.ok),
+    parsed && parsed.ok
+      ? `SOT v${parsed.ver} in vault — a2aGateway=${parsed.a2aGateway}, generalist=${String(parsed.generalist).slice(0, 8)}…, ${parsed.intermediates} intermediates, actDepth=${parsed.actDepth}`
+      : `SOT invalid: ${line.replace(/^SOT\s*/, '').slice(0, 140)}`,
+    parsed && parsed.ok ? '' : 'Regenerate: node scripts/pingone/write-a2a-sot.js');
 }
 
 /** (B2) Live exchange aud-form assertion — mints a REAL RFC 8693 exchange
@@ -977,6 +1026,7 @@ async function checkLlmTier() {
   await checkA2aChain();
   await checkBffOAuthProvider();
   await checkPingOneA2aResourceAudience();
+  await checkA2aSot();
   await checkPingOneA2aAudForm();
   checkBffCodeDrift();
   checkUc2DeepProbe();

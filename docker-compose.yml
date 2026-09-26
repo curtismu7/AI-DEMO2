@@ -417,6 +417,10 @@ services:
       # writability check at open threw EACCES and the BFF refused to start
       # entirely. Point the trail at the persistent volume instead — same
       # enforcement, writable location.
+      # Vault file now lives at /repo/secrets.vault (directory bind — see the
+      # mounts block). The audit log goes to the persistent volume — same
+      # fail-closed enforcement, writable location.
+      VAULT_PATH: "/repo/secrets.vault"
       VAULT_AUDIT_LOG_PATH: "/app/data/persistent/secrets.vault.audit.log"
       # TLS cert paths — BFF auto-detects these and serves HTTPS when they exist
       SSL_CRT_FILE: "/certs/api.ping.demo+2.pem"
@@ -622,11 +626,15 @@ services:
       # save into a 500 (EROFS).
       - ./:/repo
       # Encrypted secrets vault (Phase 269). vaultLoader's default path is
-      # REPO_ROOT/secrets.vault, which resolves to /secrets.vault inside /app —
-      # mount the committed encrypted file there. VAULT_PASSWORD arrives via the
-      # env_file (demo_api_server/.env); without it the BFF fails fast (exit 1),
-      # so run-docker.sh's vault preflight verifies the password decrypts first.
-      - ./secrets.vault:/secrets.vault:ro
+      # REPO_ROOT/secrets.vault. Mounted as the DIRECTORY (/:/repo covers it),
+      # NOT as a file bind: vault saves use tmp+rename, which replaces the file
+      # inode — a file bind goes permanently stale (ENOENT) after the first
+      # save and only a container recreate fixes it (2026-09-26 incident).
+      # A directory bind always reflects the current file. VAULT_PASSWORD
+      # arrives via the env_file (demo_api_server/.env); without it the BFF
+      # fails fast (exit 1), so run-docker.sh's vault preflight verifies the
+      # password decrypts first.
+      - ./:/repo
       # Static UI build. server.js resolves the React build at
       # path.join(__dirname, '..', 'demo_api_ui', 'build') = /demo_api_ui/build,
       # but nothing in the image or the mounts above puts the build there —

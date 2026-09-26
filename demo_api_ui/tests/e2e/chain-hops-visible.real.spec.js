@@ -55,6 +55,17 @@ async function dismissDialogs(page) {
     }
     await page.waitForTimeout(700);
   }
+  // Demo-steps drawer scrim also intercepts clicks if it opened after load.
+  const scrim = page.locator('[data-testid="demo-steps-scrim"]');
+  for (let i = 0; i < 3; i++) {
+    if (!(await scrim.isVisible().catch(() => false))) return;
+    await page.keyboard.press('Escape').catch(() => {});
+    await page.waitForTimeout(500);
+    if (await scrim.isVisible().catch(() => false)) {
+      await scrim.click({ position: { x: 10, y: 10 } }).catch(() => {});
+      await page.waitForTimeout(500);
+    }
+  }
 }
 
 /** Every chain node's text, for assertions and for failure messages. */
@@ -67,6 +78,11 @@ test.describe('token-chain hops are visible on screen after a live run', () => {
   test('a real run renders its hops in focus mode', async ({ page }) => {
     test.skip(!requireRealLoginEnv(), 'Skipped: E2E_CUSTOMER_USERNAME/PASSWORD not set');
     await loginAsCustomer(page);
+    // The demo-steps drawer DEFAULTS OPEN when the localStorage key is absent
+    // (readStoredDemoStepsOpen returns true for null), and its scrim eats the
+    // agent-input clicks (2026-09-26 flake). Set it closed before the page
+    // loads so the input is clickable.
+    await page.evaluate(() => window.localStorage.setItem('demo_steps_drawer_open_v1', 'false'));
     await page.goto('/dashboard');
 
     const panel = page.locator('.banking-agent-panel');
