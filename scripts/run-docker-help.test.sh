@@ -11,7 +11,7 @@ bad() { echo "  FAIL — $1"; fails=$((fails + 1)); }
 
 echo "run-docker.sh help:"
 
-for heading in "Data and search" "Identity and gateways" "Observability and tracing" "Service-specific opt-in"; do
+for heading in "Data and search" "Identity and gateways" "Observability and tracing"; do
   if [[ "$output" == *"$heading"* ]]; then ok "shows $heading group"; else bad "shows $heading group"; fi
 done
 

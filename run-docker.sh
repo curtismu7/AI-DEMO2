@@ -1065,6 +1065,28 @@ _verify_core_running() {
   return 0
 }
 
+# Post-start health gate: run scripts/check-demo-health-gate.js against the
+# freshly started stack. Fires only when the gate exists and node is available;
+# a red result WARNS loudly (start does not hard-fail — the stack IS up, the
+# demo quality is what is at risk) and points at the full report command.
+# Skip with DEMO_HEALTH_GATE=0 for scripted/fast restarts.
+_run_demo_health_gate() {
+  [[ "${DEMO_HEALTH_GATE:-1}" == "1" ]] || return 0
+  [[ -f "${BASEDIR}/scripts/check-demo-health-gate.js" ]] || return 0
+  command -v node >/dev/null 2>&1 || return 0
+
+  echo ""
+  ok "Running pre-demo health gate (DEMO_HEALTH_GATE=0 to skip)..."
+  # The gate takes ~30-60s (real PingOne probes). Give it room, don't kill start.
+  if node "${BASEDIR}/scripts/check-demo-health-gate.js"; then
+    ok "Health gate PASSED — clear to demo."
+  else
+    warn "Health gate FAILED — the stack is up but the demo WILL hit failures. Full report:"
+    warn "  npm run demo:health-gate"
+  fi
+  return 0
+}
+
 _compose_down() {
   if ! _docker_daemon_ready; then
     warn "Docker daemon not running — skipping compose down (start OrbStack or Docker Desktop)"
@@ -1753,6 +1775,7 @@ cmd_start() {
   # real end state is known.
   echo ""
   _verify_core_running || true
+  _run_demo_health_gate
 
   echo ""
   echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
@@ -1789,6 +1812,7 @@ cmd_start() {
   echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh optional stop rag${RESET}   stop Code Search / RAG (free RAM)"
   echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh optional start observability${RESET}  Grafana / Prometheus / Loki (off by default)"
   echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh optional status${RESET}     show optional group state"
+  echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}npm run demo:health-gate${RESET}       full pre-demo report (auto-runs after start)"
   echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh restart${RESET}           restart core + rag"
   echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh restart${RESET} <svc>     restart specific service(s)"
   echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh build${RESET}             rebuild all images"
