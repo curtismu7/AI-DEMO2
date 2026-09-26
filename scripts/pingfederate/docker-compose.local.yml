@@ -27,6 +27,10 @@ services:
       PING_IDENTITY_PASSWORD: ${PINGFEDERATE_ADMIN_PASSWORD:?set PINGFEDERATE_ADMIN_PASSWORD outside Git}
     volumes:
       - pingfederate-out:/opt/out
+      # JVM truststore (mkcert root import) survives redeploys — without this,
+      # every recreate loses the SPIRE JWKS trust and the JWT Token Processor
+      # 2.0 cannot validate SVIDs until the CA is re-imported by hand.
+      - pingfederate-jvm-security:/opt/java/lib/security
       - ${PINGFEDERATE_PROFILE_PATH:?set PINGFEDERATE_PROFILE_PATH outside Git}:/opt/in:ro
     tmpfs:
       - /run/secrets
@@ -48,3 +52,5 @@ networks:
 volumes:
   pingfederate-out:
     name: ${PINGFEDERATE_VOLUME_NAME:-ai-demo-pingfederate-out}
+  pingfederate-jvm-security:
+    name: ${PINGFEDERATE_JVM_VOLUME_NAME:-ai-demo-pingfederate-jvm-security}
