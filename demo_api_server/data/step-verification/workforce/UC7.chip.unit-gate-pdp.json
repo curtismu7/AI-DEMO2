@@ -6,6 +6,6 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "submit_expense",
-  "checkedAt": "2026-08-29",
+  "checkedAt": "2026-09-26",
   "verifiedBy": "mcpToolAuthorizationService._applyTransactionPolicy — PingOne Authorize Transaction obligation"
 }
