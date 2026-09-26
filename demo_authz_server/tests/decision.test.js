@@ -62,7 +62,8 @@ function writeParams(extra) {
   }, extra || {});
 }
 
-// get_my_accounts is read-only (requiredScopes:["read"]), no challengeType.
+// get_my_accounts is read-only (requiredScopes:["accounts:read"] since the
+// 2026-09-18 scope rename, d07f83afc), no challengeType.
 function readParams(extra) {
   return Object.assign({
     DecisionContext: 'McpToolCall',
@@ -70,7 +71,7 @@ function readParams(extra) {
     ClientId: 'user-1',
     ActClientId: 'agent-1',
     MayActSub: 'agent-1',
-    TokenScopes: 'read',
+    TokenScopes: 'read accounts:read',
     TokenAudience: 'test-aud',
     TokenAudActual: 'test-aud',
     TransactionAmount: '',

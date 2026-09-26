@@ -118,7 +118,7 @@ test('non-a2a tool is unaffected by the act-chain rule (regression)', async () =
     DecisionContext: 'McpToolCall',
     ToolName: 'get_my_accounts',
     ClientId: 'user-1',
-    TokenScopes: 'read',
+    TokenScopes: 'read accounts:read',
     TokenAudience: 'test-aud',
     TransactionAmount: '',
   });

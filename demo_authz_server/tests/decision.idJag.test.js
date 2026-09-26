@@ -61,7 +61,10 @@ function readParams(extra) {
     ClientId: 'user-1',
     ActClientId: 'agent-1',
     MayActSub: 'agent-1',
-    TokenScopes: 'read',
+    // 'read accounts:read' mirrors the real exchange grant: the BFF asks for
+    // both since d07f83afc made accounts:read the declared scope for
+    // get_my_accounts while keeping 'read' as the backward-compatible broad scope.
+    TokenScopes: 'read accounts:read',
     TokenAudience: 'test-aud',
     TokenAudActual: 'test-aud',
     TransactionAmount: '',

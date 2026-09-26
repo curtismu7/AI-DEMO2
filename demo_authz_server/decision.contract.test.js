@@ -79,7 +79,9 @@ function baseParams(extra = {}) {
     ToolName: 'get_my_accounts',
     ClientId: 'user-1',
     ActClientId: ACTOR,
-    TokenScopes: 'read',
+    // 'read accounts:read' mirrors the real exchange grant (d07f83afc made
+    // accounts:read the declared scope; 'read' rides along for back-compat).
+    TokenScopes: 'read accounts:read',
     TokenAudience: GATEWAY_AUD,
     TokenAudActual: GATEWAY_AUD,
     McpResourceUri: GATEWAY_AUD,
@@ -267,7 +269,8 @@ test('F11 — gateway scope PLUS real per-tool scopes now ENFORCES them (the bug
 });
 
 test('F11 — gateway scope plus the CORRECT per-tool scope permits', async () => {
-  const body = await decide({ ToolName: 'get_my_accounts', TokenScopes: 'gateway:mcp:invoke read' });
+  // accounts:read is the declared scope for get_my_accounts since d07f83afc.
+  const body = await decide({ ToolName: 'get_my_accounts', TokenScopes: 'gateway:mcp:invoke accounts:read' });
   assert.strictEqual(body.decision, 'PERMIT', `reason: ${body.reason}`);
 });
 

@@ -39,7 +39,7 @@ async function decide(extra) {
     DecisionContext: 'McpToolCall',
     ToolName: 'get_my_accounts',
     ClientId: 'user-1',
-    TokenScopes: 'read',
+    TokenScopes: 'read accounts:read',
     TokenAudience: 'test-aud',
     TransactionAmount: '',
     ...extra,
