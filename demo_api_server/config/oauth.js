@@ -43,6 +43,12 @@ const config = {
 
   /** OIDC + banking scopes — enough distinct scopes for RFC 8693 MCP token narrowing. */
   get scopes() {
+    // PingFederate admin client is an OIDC-only app: requesting the PingOne
+    // banking scopes makes PF reject the authorize request with invalid_scope
+    // before the login page ever renders (same bug as the user client).
+    if (isPingFederate()) {
+      return ['openid', 'profile', 'email', 'offline_access'];
+    }
     const banking = getScopesForUserType('admin');
     const base = ['openid', 'profile', 'email', 'offline_access'];
     return [...new Set([...base, ...banking])];
