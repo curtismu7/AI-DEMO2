@@ -1,0 +1,35 @@
+/* CommandDock — floating demo-controls tray.
+   Ink and ground both come from --th-* (H1: never mix literal + token). */
+.cmd-dock-pill {
+  position: fixed;
+  top: 12px;
+  right: 16px;
+  z-index: 100062;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border: 1px solid var(--th-border);
+  border-radius: 999px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: var(--font-size-xs, 12px);
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+}
+.cmd-dock-pill:hover {
+  background: var(--th-bg-hover);
+}
+
+/* The panel mounts only while open — no hidden-state CSS needed. */
+
+.cmd-dock-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  overflow-y: auto;
+  height: 100%;
+  box-sizing: border-box;
+}

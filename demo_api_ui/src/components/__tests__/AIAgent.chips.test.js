@@ -566,12 +566,36 @@ describe("Discovery popout — '⊞ All actions' button (inline, non-popout fall
 });
 
 describe("Header controls after the Actions dropdown removal", () => {
-  it("always offers an Approval button that opens the safe demo drawer", async () => {
-    renderThemedAgent({ user: customerUser, mode: "float" });
+  // Float mode keeps only the title row and window buttons in the agent
+  // header; the secondary controls live in the Command Dock tray. Tests in
+  // this block open the dock first, exactly like a presenter would.
+  async function openFloatAgentWithDock(renderFn, props = {}, opts = {}) {
+    renderFn(props, opts);
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
     });
     await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
+    await openDock();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Demo Controls/i }));
+    });
+    await waitFor(() =>
+      expect(document.querySelector(".cmd-dock-body")).not.toBeNull(),
+    );
+  }
+  async function openDock() {
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("button", { name: /Demo Controls/i, expanded: false }),
+      );
+    });
+    await waitFor(() =>
+      expect(document.querySelector(".cmd-dock-body")).not.toBeNull(),
+    );
+  }
+
+  it("always offers an Approval button that opens the safe demo drawer", async () => {
+    await openFloatAgentWithDock(renderThemedAgent, { user: customerUser, mode: "float" });
 
     fireEvent.click(screen.getByRole("button", { name: /^Approval$/i }));
 
@@ -582,12 +606,7 @@ describe("Header controls after the Actions dropdown removal", () => {
   });
 
   it("float mode: no 'Actions' trigger, but Guide/Demo steps/scope picker/Clear progress still render", async () => {
-    renderThemedAgent({ user: customerUser, mode: "float" });
-    const fab = screen.getByRole("button", { name: /Open.*AI Agent/i });
-    await act(async () => {
-      fireEvent.click(fab);
-    });
-    await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
+    await openFloatAgentWithDock(renderThemedAgent, { user: customerUser, mode: "float" });
     expect(
       screen.queryByRole("button", { name: /^Actions/i }),
     ).not.toBeInTheDocument();
@@ -605,6 +624,7 @@ describe("Header controls after the Actions dropdown removal", () => {
       fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
     });
     await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
+    await openDock();
 
     expect(screen.queryByRole("button", { name: /^Topology$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Script$/i })).not.toBeInTheDocument();
@@ -631,6 +651,7 @@ describe("Header controls after the Actions dropdown removal", () => {
       fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
     });
     await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
+    await openDock();
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /^Quick Config$/i }));
     });
@@ -670,6 +691,7 @@ describe("Header controls after the Actions dropdown removal", () => {
       fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
     });
     await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
+    await openDock();
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /^Quick Config$/i }));
     });
@@ -695,6 +717,7 @@ describe("Header controls after the Actions dropdown removal", () => {
       fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
     });
     await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
+    await openDock();
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /^Quick Config$/i }));
     });
@@ -713,6 +736,7 @@ describe("Header controls after the Actions dropdown removal", () => {
       fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
     });
     await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
+    await openDock();
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /^Quick Config$/i }));
     });
@@ -735,6 +759,7 @@ describe("Header controls after the Actions dropdown removal", () => {
       fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
     });
     await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
+    await openDock();
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /^Quick Config$/i }));
     });
@@ -760,6 +785,7 @@ describe("Header controls after the Actions dropdown removal", () => {
       fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
     });
     await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
+    await openDock();
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /^Quick Config$/i }));
     });
@@ -773,6 +799,7 @@ describe("Header controls after the Actions dropdown removal", () => {
       fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
     });
     await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
+    await openDock();
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /^Quick Config$/i }));
     });
@@ -824,6 +851,7 @@ describe("Header controls after the Actions dropdown removal", () => {
         fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
       });
       await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
+    await openDock();
       await act(async () => {
         fireEvent.click(screen.getByRole("button", { name: /^Quick Config$/i }));
       });
@@ -856,6 +884,7 @@ describe("Header controls after the Actions dropdown removal", () => {
       fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
     });
     await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
+    await openDock();
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /^Quick Config$/i }));
     });
@@ -880,6 +909,7 @@ describe("Header controls after the Actions dropdown removal", () => {
       fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
     });
     await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
+    await openDock();
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /^Quick Config$/i }));
     });
@@ -908,6 +938,7 @@ describe("Header controls after the Actions dropdown removal", () => {
       fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
     });
     await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
+    await openDock();
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /^Quick Config$/i }));
     });
@@ -932,6 +963,7 @@ describe("Header controls after the Actions dropdown removal", () => {
       fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
     });
     await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
+    await openDock();
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /^Quick Config$/i }));
     });
@@ -954,6 +986,7 @@ describe("Header controls after the Actions dropdown removal", () => {
       fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
     });
     await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
+    await openDock();
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /^Quick Config$/i }));
     });
