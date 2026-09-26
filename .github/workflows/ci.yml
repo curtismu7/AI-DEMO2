@@ -1,12 +1,10 @@
 name: CI
 
-# Automatic triggers are intentionally disabled while this repository has no
-# available GitHub-hosted or self-hosted runner. Keeping the workflow manually
-# dispatchable preserves the checks for the day runners are enabled again.
-#
-#   workflow_dispatch — run main on demand once a runner is available.
 on:
   workflow_dispatch:
+  pull_request:
+  push:
+    branches: [main]
 
 concurrency:
   group: ci-${{ github.ref }}
