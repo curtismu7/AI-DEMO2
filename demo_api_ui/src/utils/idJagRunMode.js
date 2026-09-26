@@ -12,6 +12,12 @@ export const ID_JAG_REPLAYED_KEY = 'bx_id_jag_replayed';
 export const ID_JAG_VALIDATED_CALLBACK_KEY = 'bx_id_jag_validated_callback';
 // Shared with the agent's existing use-case run-context hook.
 export const USE_CASE_RUN_CONTEXT_KEY = 'bx_run_context';
+// Pre-run login provider (2026-09-26): a live ID-JAG run requires the
+// PingFederate provider, and the demo leaves the user on it afterwards —
+// silently losing whatever they had selected before. Capture the provider at
+// launch and auto-restore it once the run completes so "what I chose before
+// the demo" survives the demo.
+export const ID_JAG_PRE_RUN_PROVIDER_KEY = 'bx_id_jag_pre_run_provider';
 
 let liveLaunchPending = false;
 
@@ -96,6 +102,7 @@ export function requestLiveIdJagRun(detail) {
       return null;
     }
     sessionStorage.setItem(ID_JAG_PENDING_INTENT_KEY, JSON.stringify({ ...intent, createdAt: Date.now() }));
+    capturePreRunProvider();
   } catch {
     // The in-memory guard still prevents duplicate launches in this page.
   }
@@ -108,6 +115,54 @@ export function requestLiveIdJagRun(detail) {
 export function completeIdJagRunHandoff() {
   liveLaunchPending = false;
   try { sessionStorage.removeItem(ID_JAG_PENDING_INTENT_KEY); } catch { /* storage unavailable */ }
+  void restorePreRunProvider();
+}
+
+/**
+ * Remember the login provider in effect before a live ID-JAG run started, so
+ * it can be put back when the run is over. Reads the same admin config the
+ * provider toggle uses; a failed read simply means nothing to restore.
+ */
+async function capturePreRunProvider() {
+  try {
+    const res = await fetch('/api/admin/config', { credentials: 'same-origin' });
+    if (!res.ok) return;
+    const body = await res.json();
+    const provider = body?.config?.oauth_provider;
+    if (provider === 'pingone' || provider === 'pingfederate') {
+      sessionStorage.setItem(ID_JAG_PRE_RUN_PROVIDER_KEY, provider);
+    }
+  } catch { /* capture is best-effort — the run proceeds regardless */ }
+}
+
+/**
+ * Put the pre-run provider back. Returns true when a restore was issued (the
+ * caller should expect a reload). Silent no-ops: nothing captured, provider
+ * already matches, config write rejected (non-admin), or storage unavailable.
+ */
+async function restorePreRunProvider() {
+  let previous = null;
+  try { previous = sessionStorage.getItem(ID_JAG_PRE_RUN_PROVIDER_KEY); } catch { return false; }
+  if (previous !== 'pingone' && previous !== 'pingfederate') return false;
+  try { sessionStorage.removeItem(ID_JAG_PRE_RUN_PROVIDER_KEY); } catch { /* leave it; restore is one-shot */ }
+  try {
+    const res = await fetch('/api/admin/config', { credentials: 'same-origin' });
+    if (!res.ok) return false;
+    const body = await res.json();
+    const current = body?.config?.oauth_provider;
+    if (!current || current === previous) return false;
+    const write = await fetch('/api/admin/config', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ oauth_provider: previous }),
+    });
+    if (!write.ok) return false;
+    await fetch('/api/auth/clear-session', { method: 'POST', credentials: 'same-origin' });
+    window.dispatchEvent(new CustomEvent('userLoggedOut'));
+    window.location.reload();
+    return true;
+  } catch { return false; }
 }
 
 export function requestMockIdJagReplay() {

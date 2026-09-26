@@ -611,6 +611,44 @@ async function checkPingOneA2aResourceAudience() {
   let parsed = null;
   try { parsed = JSON.parse(line.replace(/^A2ARES\s*/, '')); } catch (e) { /* fallthrough */ }
   const drifted = !!(parsed && parsed.audience !== parsed.want);
+  // AUTO-REPAIR (2026-09-26): the drift class is fixed one PUT away — the
+  // worker principal CAN write /resources (PATCH is what lies with a 403).
+  // When drifted, attempt the repair in-line and re-read. Sets
+  // DEMO_HEALTH_GATE_NO_AUTOREPAIR=1 to opt out (e.g. auditing the drift).
+  if (drifted && !process.env.DEMO_HEALTH_GATE_NO_AUTOREPAIR) {
+    const repair = sh(`node scripts/pingone/fix-a2a-resource-audience.js 2>&1 || true`);
+    const repaired = /PATCHED — audience is now|OK — resource .* Nothing to do/.test(repair.out);
+    if (repaired) {
+      // Re-probe so this run's verdict reflects the repaired state.
+      const reprobe = inContainerProbe('ai-demo-api-server', [
+        `process.env.NODE_TLS_REJECT_UNAUTHORIZED='0';`,
+        `const cs = require('/app/services/configStore');`,
+        `(async () => { await cs.ensureInitialized();`,
+        `  const envId = cs.getEffective('pingone_environment_id');`,
+        `  const cid = cs.getEffective('pingone_worker_client_id');`,
+        `  const sec = cs.getEffective('pingone_worker_client_secret');`,
+        `  const auth = Buffer.from(cid + ':' + sec).toString('base64');`,
+        `  const want = cs.getEffective('a2a_gateway_audience') || 'mcpgateway-a2a.ping.demo';`,
+        `  const t = await (await fetch('https://auth.pingone.com/' + envId + '/as/token', { method: 'POST',`,
+        `    headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: 'Basic ' + auth },`,
+        `    body: 'grant_type=client_credentials&scope=' + encodeURIComponent('p1:read:resource') })).json();`,
+        `  const list = await (await fetch('https://api.pingone.com/v1/environments/' + envId + '/resources?limit=100',`,
+        `    { headers: { Authorization: 'Bearer ' + t.access_token } })).json();`,
+        `  const rs = ((list._embedded && list._embedded.resources) || []).find((r) => r.audience === want || (r.name || '').indexOf('A2A MCP Gateway') >= 0);`,
+        `  console.log('A2ARES ' + JSON.stringify({ name: rs && rs.name, audience: rs && rs.audience, want }));`,
+        `  process.exit(0); })().catch((e) => { console.log('A2ARES_ERR ' + e.message); process.exit(0); });`,
+      ]);
+      const reline = reprobe.find((l) => String(l).indexOf('A2ARES') === 0) || line;
+      try { parsed = JSON.parse(reline.replace(/^A2ARES\s*/, '')); } catch (e) { /* keep old */ }
+      const stillDrifted = !!(parsed && parsed.audience !== parsed.want);
+      row('a2a:resource-audience', !stillDrifted,
+        stillDrifted
+          ? `AUTO-REPAIR attempted but drift persists: audience=${JSON.stringify(parsed && parsed.audience)}`
+          : `AUTO-REPAIRED: audience restored to ${parsed.want}`,
+        stillDrifted ? `Manual: node scripts/pingone/fix-a2a-resource-audience.js` : '');
+      return;
+    }
+  }
   // The drift is TOLERATED client-side (mcpGatewayClient/mcpToolPipeline pin
   // the NAME-form aud to the node gateway, whose MCP_GW_RESOURCE_URI accepts
   // it), so it does not block the demo — but it must stay visible: it is the

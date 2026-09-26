@@ -103,6 +103,10 @@ import TransactionConsentModal from "./TransactionConsentModal";
 import DraggableModal from "./DraggableModal";
 import DemoTrackAgentControl from "./DemoTrackAgentControl";
 import CommandDock from "./CommandDock";
+import VerticalSwitcher from "./VerticalSwitcher";
+import QuickFlagsPill from "./QuickFlagsPill";
+import ThresholdControls from "./ThresholdControls";
+import OAuthProviderToggle from "./OAuthProviderToggle";
 import ElicitationDialog from "./ElicitationDialog";
 import UseCaseExplainModal from "./UseCaseExplainModal";
 import { shouldAutoOpenA2a, buildA2aExplainUc } from "./a2aAutoOpen";
@@ -10230,6 +10234,28 @@ export default function BankingAgent({
                   onOpenChange={setCommandDockOpen}
                 >
                   <div className="ba-header-tools cmd-dock-tools">
+                    {/* Dashboard top-bar controls — relocated into the dock on
+                        split-column. TopNav hides its copies on /dashboard +
+                        middle placement, so the gate must mirror that (splitChrome,
+                        NOT plain float mode) or the controls would appear twice. */}
+                    {splitChrome && (
+                      <>
+                        <VerticalSwitcher variant="nav" />
+                        <QuickFlagsPill user={user} />
+                        <div className="topnav-dashboard-controls" role="toolbar" aria-label="Dashboard actions">
+                          <ThresholdControls />
+                          <button
+                            type="button"
+                            className="topnav-reset-demo-btn"
+                            title="Reset demo: clear agent history and token chain"
+                            onClick={() => window.dispatchEvent(new CustomEvent("dashboard:open-reset-modal"))}
+                          >
+                            Reset Demo
+                          </button>
+                        </div>
+                        <OAuthProviderToggle />
+                      </>
+                    )}
                     {!pageOwnsAgentChrome && (
                     <DemoTrackAgentControl onPickStep={handleTrackStepPick} onStepComplete={handleTrackStepComplete} />
                     )}
