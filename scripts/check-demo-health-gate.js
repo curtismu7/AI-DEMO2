@@ -535,6 +535,45 @@ async function checkBffOAuthProvider() {
       : `Set oauth_provider=pingone via the /config admin page, then restart the BFF.`));
 }
 
+/** (A2) Provider INTENT lock — the committed .demo-provider-intent.json is
+ *  the SSOT for which provider the local stack should run. Drift between the
+ *  intent and .env / docker-compose env is how the 2026-09-26 flip-flop war
+ *  stayed invisible: each session's fix was silently undone by the other's
+ *  restart. This row names the loser layer explicitly. */
+function checkProviderLock() {
+  const fs = require('fs');
+  const path = require('path');
+  const repo = path.resolve(__dirname, '..');
+  let intent = null;
+  try { intent = JSON.parse(fs.readFileSync(path.join(repo, '.demo-provider-intent.json'), 'utf8')); } catch (e) { /* fallthrough */ }
+  if (!intent || !intent.provider) {
+    row('provider-lock', false, 'no .demo-provider-intent.json — run: node scripts/pingone/demo-provider-lock.js set <provider> "<reason>"');
+    return;
+  }
+  const readEnv = () => {
+    try {
+      const m = fs.readFileSync(path.join(repo, 'demo_api_server', '.env'), 'utf8').match(/^OAUTH_PROVIDER=(.*)$/m);
+      return m ? m[1].trim() : '(unset)';
+    } catch (e) { return '(no .env)'; }
+  };
+  const readCompose = () => {
+    try {
+      const m = fs.readFileSync(path.join(repo, 'docker-compose.yml'), 'utf8').match(/^\s*OAUTH_PROVIDER:\s*(\S+)/m);
+      return m ? m[1].trim() : '(unset)';
+    } catch (e) { return '(no compose)'; }
+  };
+  const envP = readEnv();
+  const composeP = readCompose();
+  const drift = [];
+  if (envP !== intent.provider && envP !== '(unset)') drift.push(`.env=${envP}`);
+  if (composeP !== intent.provider && composeP !== '(unset)') drift.push(`compose=${composeP}`);
+  row('provider-lock', drift.length === 0,
+    drift.length === 0
+      ? `intent=${intent.provider} honored (.env=${envP}, compose=${composeP})`
+      : `intent=${intent.provider} but ${drift.join(', ')} — deliberate? node scripts/pingone/demo-provider-lock.js set ${intent.provider === 'pingone' ? 'pingone' : 'pingfederate'} "<reason>" then recreate the BFF`,
+    drift.length === 0 ? '' : `env values outrank the LMDB configStore; A2A breaks under pingfederate (no act claim). Align the layers or update the intent file.`);
+}
+
 /** (B) The PingOne A2A gateway resource's audience attribute — the ROOT CAUSE
  *  of today's wrong-aud outage. When PingOne's resource has audience=NAME,
  *  every exchange2 token mints with that aud and no gateway accepts it. The
@@ -1025,6 +1064,7 @@ async function checkLlmTier() {
   await checkStep9Gate();
   await checkA2aChain();
   await checkBffOAuthProvider();
+  checkProviderLock();
   await checkPingOneA2aResourceAudience();
   await checkA2aSot();
   await checkPingOneA2aAudForm();

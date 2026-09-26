@@ -149,3 +149,25 @@ else
     exit 1
   fi
 fi
+
+# ─── OAuth provider intent guard (2026-09-26 provider flip-flop incident) ────
+# OAUTH_PROVIDER in demo_api_server/.env or docker-compose.yml must match the
+# committed intent (.demo-provider-intent.json). A mismatch is only allowed
+# when the SAME commit updates the intent file — i.e. the flip is explicit,
+# reasoned, and attributable. env outranks LMDB in getEffective, so a stray
+# env value silently undoes every admin-toggle/setRaw repair on restart.
+PROVIDER_TOUCHED=$(git diff --cached --name-only --diff-filter=ACM | grep -E '^(demo_api_server/\.env|docker-compose\.yml)$' || true)
+INTENT_TOUCHED=$(git diff --cached --name-only | grep -q '^\.demo-provider-intent\.json$' && echo yes || echo no)
+if [ -n "$PROVIDER_TOUCHED" ] && [ "$INTENT_TOUCHED" != "yes" ]; then
+  STAGED_ENV=$(git diff --cached -- demo_api_server/.env | grep -E '^[+-]OAUTH_PROVIDER=' || true)
+  STAGED_COMPOSE=$(git diff --cached -- docker-compose.yml | grep -E '^[+-]\s*OAUTH_PROVIDER:' || true)
+  if [ -n "$STAGED_ENV" ] || [ -n "$STAGED_COMPOSE" ]; then
+    echo "[pre-commit] ❌ OAUTH_PROVIDER changed without updating the provider intent."
+    echo "[pre-commit]    env values outrank the LMDB configStore; a stray flip silently"
+    echo "[pre-commit]    breaks A2A (no act claim) and all banking logins."
+    echo "[pre-commit]    If deliberate, run:"
+    echo "[pre-commit]      node scripts/pingone/demo-provider-lock.js set <pingone|pingfederate> \"<reason>\""
+    echo "[pre-commit]    and stage .demo-provider-intent.json in the same commit."
+    exit 1
+  fi
+fi
