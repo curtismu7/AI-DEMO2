@@ -459,10 +459,13 @@ module.exports = async function decisionHandler(req, res) {
   }
   // Legacy space-joined multi-aud (older gateway): a single comma-token
   // containing whitespace is re-split so the gateway aud inside it is still
-  // recognized (fail open ONLY to the gateway check; the D-05 anti-bypass
-  // re-splits the same way and stays fail closed).
+  // recognized — BUT only if the re-split actually yields an expected aud.
+  // A single multi-word aud value (the PingOne drift NAME
+  // "Super Banking A2A MCP Gateway") must survive as ONE token: blindly
+  // re-splitting it shattered the value into 5 words and DENYed the call.
   if (audList.length === 1 && /\s/.test(audList[0])) {
-    audList = audList[0].split(/\s+/).filter(Boolean);
+    const resplit = audList[0].split(/\s+/).filter(Boolean);
+    if (EXPECTED_AUDS.some((a) => resplit.includes(a))) audList = resplit;
   }
   if (!EXPECTED_AUDS.some((a) => audList.includes(a))) {
     warn(`[AuthzServer/decision] DENY — aud mismatch: [${audList.join(',')}] expected ${EXPECTED_AUDS.join(' | ')}`);
