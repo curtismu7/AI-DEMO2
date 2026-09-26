@@ -132,6 +132,13 @@ const BRAVE_TOOLS = new Set([
  */
 async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, opts = {}) {
     let base = (gatewayUrl || getMcpGatewayHttpUrl()).replace(/\/$/, '');
+    // Attack-sim escape hatch: the caller has deliberately constructed a token
+    // and headers for the EXACT gateway named by gatewayUrl (e.g. the DPoP
+    // replay sim's cnf.jkt-bound token only makes sense at the Node gateway,
+    // whose middleware owns the jti replay cache). Honor the caller's base and
+    // skip every aud-based reroute below — a routing "correction" would point
+    // the attack at a gateway that cannot exercise the control under test.
+    const pinNodeGateway = opts.pinNodeGateway === true;
     // PingGateway (IG) base — when the gateway IS IG, api-key-disposition tools go
     // to the dedicated /mcp/apikey route (vault-key credential mediation); every
     // other tool (and the Node gateway) uses /mcp.
@@ -176,7 +183,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     // bearers to the Node gateway, same Node-only routing as Path B/C above and
     // the RAR sims (#603). mcp_demo_gateway_url, not MCP_GATEWAY_HTTP_URL — the
     // latter is baked per-container and may point at IG (#375).
-    if (pgUrl && base === pgUrl) {
+    if (pgUrl && base === pgUrl && !pinNodeGateway) {
         const a2aAud = process.env.A2A_GATEWAY_AUDIENCE
             || configStore.getEffective('a2a_gateway_audience') || '';
         if (a2aAud) {
@@ -207,7 +214,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     // (verifies against oauth-mcp's own signing key, not PingOne's) both cover
     // it — so pin these bearers there, same Node-only routing as Path B/C and
     // A2A above.
-    if (pgUrl && base === pgUrl) {
+    if (pgUrl && base === pgUrl && !pinNodeGateway) {
         const olbAud = process.env.PINGONE_RESOURCE_MCP_SERVER_URI
             || configStore.getEffective('pingone_resource_mcp_server_uri') || '';
         if (olbAud) {
@@ -232,7 +239,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     // matching token before dispatch; this final guard prevents a stale
     // Node-audienced token from being sent to the local mock gateway. A2A and
     // ID-JAG pins above and explicitly Node-only tools remain exceptions.
-    if (!pinnedAud && !isNodeGatewayOnlyTool(tool)) {
+    if (!pinnedAud && !isNodeGatewayOnlyTool(tool) && !pinNodeGateway) {
         const claims = decodeJwt(bearerToken)?.claims;
         const audList = Array.isArray(claims?.aud) ? claims.aud.map(String)
             : (claims?.aud != null ? [String(claims.aud)] : []);

@@ -391,7 +391,15 @@ async function _pushGatewayFlags(flags, gatewayUrl) {
  * @param {string[]} toolScopes - scopes the sim wants when NOT behind PingGateway
  * @returns {{ audience: string|string[], scopes: string[], viaPingGateway: boolean }}
  */
-function _gatewayExchangeTarget(toolScopes) {
+function _gatewayExchangeTarget(toolScopes, { forceNodeGateway = false } = {}) {
+  // DPoP (and any other cnf.jkt-binding control) lives in the NODE gateway's
+  // middleware — PingGateway (IG) has no DPoP jti replay cache, so a
+  // pinggateway-audienced token would route the attack to a PEP that cannot
+  // exercise the control and the sim would "permit" spuriously (#292 follow-up).
+  // forceNodeGateway mints for the node audience with the requested tool scopes.
+  if (forceNodeGateway) {
+    return { audience: _gatewayAud(), scopes: toolScopes, viaPingGateway: false, forceNodeGateway };
+  }
   const viaPingGateway = configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true';
   if (!viaPingGateway) {
     return { audience: _gatewayAud(), scopes: toolScopes, viaPingGateway };
@@ -434,7 +442,7 @@ function _nodeGatewayUrl() {
  * Exchange the session token to the gateway audience and record token-chain events.
  * @returns {Promise<{ ok: true, token: string } | { ok: false, result: object }>}
  */
-async function _exchangeGatewayToken(subjectToken, scopes, useCaseId, tokenChainEvents, label) {
+async function _exchangeGatewayToken(subjectToken, scopes, useCaseId, tokenChainEvents, label, opts = {}) {
   const gatewayAud = _gatewayAud();
   if (!gatewayAud) {
     return {
@@ -450,7 +458,7 @@ async function _exchangeGatewayToken(subjectToken, scopes, useCaseId, tokenChain
     };
   }
 
-  const target = _gatewayExchangeTarget(scopes);
+  const target = _gatewayExchangeTarget(scopes, opts);
   const audDisplay = Array.isArray(target.audience) ? target.audience.join(', ') : target.audience;
 
   tokenChainEvents.push(buildTokenEvent(
@@ -1426,7 +1434,7 @@ function _dpopReplayVerdict(first, replay) {
  */
 async function _runDpopReplay(subjectToken, useCaseId, tokenChainEvents) {
   const sim = 'dpop-replay';
-  const exchange = await _exchangeGatewayToken(subjectToken, ['read'], useCaseId, tokenChainEvents, sim);
+  const exchange = await _exchangeGatewayToken(subjectToken, ['read'], useCaseId, tokenChainEvents, sim, { forceNodeGateway: true });
   if (!exchange.ok) return exchange.result;
   const boundToken = exchange.token;
 
@@ -1446,6 +1454,19 @@ async function _runDpopReplay(subjectToken, useCaseId, tokenChainEvents) {
   // DPoP-bound and a bad or reused proof fails closed.
   const tratContextHeader = JSON.stringify({ cnf: { jkt: key.jkt }, trat_sim: true });
 
+  // UC12's declared evidence chain starts at 'sim-replay-start' (useCases.js:
+  // the replayed user token rides this event). Emit it here, before the bound
+  // token — without it the Proof strip waits on a step that never exists.
+  tokenChainEvents.push(buildTokenEvent(
+    'sim-replay-start',
+    'Replay attempt — stolen bearer + captured proof',
+    'active',
+    null,
+    'An attacker replays the session token with the SAME DPoP proof (same jti). '
+    + 'The bearer alone is worthless: the proof is bound to cnf.jkt and its jti is single-use.',
+    { rfc: 'RFC 9449' },
+  ));
+
   tokenChainEvents.push(buildTokenEvent(
     'sim-dpop-bound',
     'DPoP-bound token (cnf.jkt) + fresh proof',
@@ -1460,6 +1481,7 @@ async function _runDpopReplay(subjectToken, useCaseId, tokenChainEvents) {
     simulatedAttack: true,
     useCaseId,
     tratContextHeader,
+    pinNodeGateway: true,
     extraHeaders: { DPoP: proof },
   };
 
