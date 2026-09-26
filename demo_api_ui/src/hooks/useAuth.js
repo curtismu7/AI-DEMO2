@@ -125,6 +125,22 @@ export function useAuth() {
     return () => window.removeEventListener('id-jag-run-requested', onLiveRun);
   }, []);
 
+  // A launch click that hits the pending-launch guard must never be a silent
+  // no-op (that read as "the button is broken" during a demo). Tell the user
+  // what happened and how to recover.
+  useEffect(() => {
+    const onBlocked = (event) => {
+      const reason = event.detail?.reason;
+      if (reason === 'launch_in_progress') {
+        notifyError('A PingFederate ID-JAG login is already in progress — finish or cancel it first.');
+      } else {
+        notifyError('A previous PingFederate ID-JAG launch is still pending. Complete the PingFederate login or clear it in a new tab, then retry.');
+      }
+    };
+    window.addEventListener('id-jag-launch-blocked', onBlocked);
+    return () => window.removeEventListener('id-jag-launch-blocked', onBlocked);
+  }, []);
+
   useEffect(() => tokenChainTraceStore.subscribe(({ trace }) => {
     if (!isNativeIdJagTrace(trace) || !trace.outcome || trace.runId == null
       || completedIdJagRunRef.current === trace.runId) return;

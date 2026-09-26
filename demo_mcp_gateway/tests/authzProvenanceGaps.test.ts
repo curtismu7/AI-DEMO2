@@ -1,3 +1,5 @@
+process.env.GW_TLS_CERT = '/nonexistent/gw-cert.pem';
+process.env.GW_TLS_KEY = '/nonexistent/gw-key.pem';
 'use strict';
 
 /**
@@ -226,7 +228,10 @@ describe('C2 — authorize_config_error is labelled on BOTH transports', () => {
  * `p1az-mock`.
  */
 describe('the health block and the decision path report the SAME policy source', () => {
-  const decoded: any = { sub: 'u1', scope: 'read transfer', act: { sub: 'agent' } };
+  // accounts:read is get_my_accounts' topology-required scope — without it the
+  // unconditional scope backstop denies before the PDP and every label reads
+  // local-fallback, defeating the pairing invariant under test.
+  const decoded: any = { sub: 'u1', scope: 'read transfer accounts:read', act: { sub: 'agent' } };
 
   const scenarios: Array<{ name: string; config: any; expected: PolicySource }> = [
     {

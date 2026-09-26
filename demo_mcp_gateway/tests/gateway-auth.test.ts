@@ -32,7 +32,7 @@ function makeToken(sub: string, aud: string | string[], extra: Record<string, un
   const header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');
   const payload = Buffer.from(JSON.stringify({
     sub, aud, exp: Math.floor(Date.now() / 1000) + 3600,
-    iss: 'https://auth.example.com', scope: 'read write transfer', act: { sub: 'agent-id' }, ...extra,
+    iss: 'https://auth.example.com', scope: 'read write transfer accounts:read', act: { sub: 'agent-id' }, ...extra,
   })).toString('base64url');
   return `${header}.${payload}.fakesig`;
 }

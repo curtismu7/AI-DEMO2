@@ -15,6 +15,44 @@ export const USE_CASE_RUN_CONTEXT_KEY = 'bx_run_context';
 
 let liveLaunchPending = false;
 
+/**
+ * Mirrors the BFF's ID_JAG_RUN_TTL_MS (routes/oauthUser.js) — a pending intent
+ * older than this cannot be redeemed server-side, so keeping its guard up only
+ * deadlocks future launches (the silent "clicked the button and nothing
+ * happened" failure mode).
+ */
+const PENDING_INTENT_TTL_MS = 5 * 60 * 1000;
+
+function readStoredIntent() {
+  try {
+    const raw = sessionStorage.getItem(ID_JAG_PENDING_INTENT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return (parsed && typeof parsed === 'object') ? parsed : null;
+  } catch {
+    // Unparseable garbage can never be redeemed — treat as stale.
+    try { sessionStorage.removeItem(ID_JAG_PENDING_INTENT_KEY); } catch { /* ignore */ }
+    return null;
+  }
+}
+
+/** True when a stored intent has outlived the server-side redemption window. */
+function isIntentStale(intent) {
+  const createdAt = Number(intent?.createdAt);
+  if (!Number.isFinite(createdAt) || createdAt <= 0) return true;
+  return Date.now() - createdAt >= PENDING_INTENT_TTL_MS;
+}
+
+/**
+ * Tells subscribers a previous launch attempt is still considered pending and
+ * was NOT started by this click — never a silent no-op.
+ */
+function notifyLaunchBlocked(reason) {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('id-jag-launch-blocked', { detail: { reason } }));
+  }
+}
+
 export function isIdJagRunMode(mode) {
   return mode === RUN_MODES.LIVE_ID_JAG || mode === RUN_MODES.MOCK_ID_JAG;
 }
@@ -38,10 +76,26 @@ export function createIdJagLaunchIntent({ mode, message, returnTo } = {}) {
 export function requestLiveIdJagRun(detail) {
   const intent = createIdJagLaunchIntent(detail);
   if (intent.mode !== RUN_MODES.LIVE_ID_JAG) throw new Error('Live ID-JAG mode required');
-  if (liveLaunchPending) return null;
+  // Recovery path: a stale pending intent (crashed launch, TTL exceeded,
+  // pre-fix page) can never be redeemed server-side — drop it and proceed
+  // instead of deadlocking every future click.
   try {
-    if (sessionStorage.getItem(ID_JAG_PENDING_INTENT_KEY)) return null;
-    sessionStorage.setItem(ID_JAG_PENDING_INTENT_KEY, JSON.stringify(intent));
+    const stored = readStoredIntent();
+    if (stored && isIntentStale(stored)) {
+      sessionStorage.removeItem(ID_JAG_PENDING_INTENT_KEY);
+      liveLaunchPending = false;
+    }
+  } catch { /* storage unavailable — in-memory guard still applies */ }
+  if (liveLaunchPending) {
+    notifyLaunchBlocked('launch_in_progress');
+    return null;
+  }
+  try {
+    if (sessionStorage.getItem(ID_JAG_PENDING_INTENT_KEY)) {
+      notifyLaunchBlocked('intent_pending');
+      return null;
+    }
+    sessionStorage.setItem(ID_JAG_PENDING_INTENT_KEY, JSON.stringify({ ...intent, createdAt: Date.now() }));
   } catch {
     // The in-memory guard still prevents duplicate launches in this page.
   }

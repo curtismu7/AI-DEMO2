@@ -38,7 +38,7 @@ describe('authorizeMcpRequest — native ID-JAG skips backend re-exchange', () =
     const forwarded: string[] = [];
     const exchange = jest.fn();
     const middleware = buildAuthorizeMcpRequest(stubConfig, {
-      introspect: async () => ({ active: true, sub: 'u1', exp: 9999999999, scope: 'read', aud: 'mcpserver.ping.demo', iss: ID_JAG_ISSUER }),
+      introspect: async () => ({ active: true, sub: 'u1', exp: 9999999999, scope: 'accounts:read', aud: 'mcpserver.ping.demo', iss: ID_JAG_ISSUER }),
       authorize: async () => ({ decision: 'PERMIT' as const }),
       exchange,
     });
@@ -52,7 +52,7 @@ describe('authorizeMcpRequest — native ID-JAG skips backend re-exchange', () =
     const forwarded: string[] = [];
     const exchange = jest.fn(async () => ({ token: 'exchanged-tok', targetAud: 'mcpserver.ping.demo', cached: false }));
     const middleware = buildAuthorizeMcpRequest(stubConfig, {
-      introspect: async () => ({ active: true, sub: 'u1', exp: 9999999999, scope: 'read', aud: 'https://gateway.ping.demo', iss: 'https://auth.pingone.com/env/as' }),
+      introspect: async () => ({ active: true, sub: 'u1', exp: 9999999999, scope: 'accounts:read', aud: 'https://gateway.ping.demo', iss: 'https://auth.pingone.com/env/as' }),
       authorize: async () => ({ decision: 'PERMIT' as const }),
       exchange,
     });
@@ -66,7 +66,7 @@ describe('authorizeMcpRequest — native ID-JAG skips backend re-exchange', () =
     const forwarded: string[] = [];
     const exchange = jest.fn(async () => ({ token: 'exchanged-tok', targetAud: 'mcpserver.ping.demo', cached: false }));
     const middleware = buildAuthorizeMcpRequest(stubConfig, {
-      introspect: async () => ({ active: true, sub: 'u1', exp: 9999999999, scope: 'read', aud: 'https://gateway.ping.demo', iss: ID_JAG_ISSUER }),
+      introspect: async () => ({ active: true, sub: 'u1', exp: 9999999999, scope: 'accounts:read', aud: 'https://gateway.ping.demo', iss: ID_JAG_ISSUER }),
       authorize: async () => ({ decision: 'PERMIT' as const }),
       exchange,
     });
@@ -79,7 +79,7 @@ describe('authorizeMcpRequest — native ID-JAG skips backend re-exchange', () =
   it('records exchanged:false in the audit trail when the ID-JAG shortcut fires', async () => {
     const fakeRes = { writeHead: jest.fn(), end: jest.fn(), setHeader: jest.fn() } as any;
     const middleware = buildAuthorizeMcpRequest(stubConfig, {
-      introspect: async () => ({ active: true, sub: 'u1', exp: 9999999999, scope: 'read', aud: 'mcpserver.ping.demo', iss: ID_JAG_ISSUER }),
+      introspect: async () => ({ active: true, sub: 'u1', exp: 9999999999, scope: 'accounts:read', aud: 'mcpserver.ping.demo', iss: ID_JAG_ISSUER }),
       authorize: async () => ({ decision: 'PERMIT' as const }),
       exchange: jest.fn(),
     });

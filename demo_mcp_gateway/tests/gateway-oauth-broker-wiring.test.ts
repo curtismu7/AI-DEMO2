@@ -1,3 +1,5 @@
+process.env.GW_TLS_CERT = '/nonexistent/gw-cert.pem';
+process.env.GW_TLS_KEY = '/nonexistent/gw-key.pem';
 import supertest from 'supertest';
 import { GatewayServer } from '../src/server/GatewayServer';
 import type { GatewayConfig } from '../src/config';
