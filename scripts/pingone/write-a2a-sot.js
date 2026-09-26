@@ -3,10 +3,10 @@
  * Reads live config from demo_api_server/.env + scope-topology.json.
  * Usage: node .claude/tmp/host-sot-write.js
  */
-const { openVault } = require('/Users/cmuir/Development/AI-DEMO2/demo_api_server/lib/vault/index.js');
+const path = require('path');
+const REPO = path.resolve(__dirname, '..', '..');
+const { openVault } = require(path.join(REPO, 'demo_api_server', 'lib', 'vault', 'index.js'));
 const fs = require('fs');
-
-const REPO = '/Users/cmuir/Development/AI-DEMO2';
 
 function envOf(name) {
   const m = fs.readFileSync(REPO + '/demo_api_server/.env', 'utf8').match(new RegExp('^' + name + '=(.*)$', 'm'));
