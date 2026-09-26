@@ -382,6 +382,14 @@ kubectl scale deployment/weaviate deployment/embeddings deployment/mcp-code-sear
   -n "$NS" --replicas=1
 
 info "Waiting for rollouts (timeout 3m each)..."
+# llm-proxy's /readyz returns 503 until a model tier is loaded, so its rollout
+# wait hangs until tier-manager is asked to ensure one (observed 2026-09-25/26:
+# both SE deploys timed out on llm-proxy until /ensure?port=8091 was called by
+# hand). Ask tier-manager directly once it is up.
+kubectl rollout status "deployment/tier-manager" -n "$NS" --timeout=180s
+kubectl exec -n "$NS" deploy/tier-manager -- wget -qO- --post-data='' \
+  "http://127.0.0.1:8097/ensure?port=8091" 2>/dev/null \
+  || info "tier-manager /ensure?port=8091 failed — llm-proxy may sit unready; check tier-manager logs"
 for dep in jaeger mcp-server mcp-resource-server api-resource-server mcp-weather mcp-brave hitl-service \
            llm-proxy tier-manager demo-api-server mcp-gateway agent-service langchain-agent \
            frontend weaviate embeddings \
