@@ -126,16 +126,29 @@ export function useAuth() {
   }, []);
 
   // A launch click that hits the pending-launch guard must never be a silent
-  // no-op (that read as "the button is broken" during a demo). Tell the user
-  // what happened and how to recover.
+  // no-op (that read as "the button is broken" during a demo). An orphaned
+  // fresh intent (the flow died mid-handoff, e.g. stuck on PF's SLO page) is
+  // cancelled server-side AND locally so the NEXT click just works — the user
+  // never has to open a new tab or wait out the TTL.
+  const idJagCancelInFlight = useRef(false);
   useEffect(() => {
-    const onBlocked = (event) => {
+    const onBlocked = async (event) => {
       const reason = event.detail?.reason;
       if (reason === 'launch_in_progress') {
         notifyError('A PingFederate ID-JAG login is already in progress — finish or cancel it first.');
-      } else {
-        notifyError('A previous PingFederate ID-JAG launch is still pending. Complete the PingFederate login or clear it in a new tab, then retry.');
+        return;
       }
+      // intent_pending: the stored intent cannot be redeemed (its handoff
+      // chain died before the login claimed it). Cancel it server-side and
+      // locally, then tell the user to click again.
+      if (idJagCancelInFlight.current) return;
+      idJagCancelInFlight.current = true;
+      try {
+        await bffAxios.post('/api/auth/oauth/user/id-jag/cancel');
+      } catch { /* the 5-minute TTL also clears server state */ }
+      clearIdJagRunState();
+      idJagCancelInFlight.current = false;
+      notifyError('A previous PingFederate ID-JAG launch was still pending — it has been cancelled. Click Run again.');
     };
     window.addEventListener('id-jag-launch-blocked', onBlocked);
     return () => window.removeEventListener('id-jag-launch-blocked', onBlocked);
