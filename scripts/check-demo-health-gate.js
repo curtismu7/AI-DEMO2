@@ -279,6 +279,130 @@ async function checkExchangeClient() {
   );
 }
 
+// ── 8. gateway-side hardening (Agent Gateway / ping-gateway) ────────────────
+
+/** MCP initialize round-trip: a 401 with an RFC 9728 resource_metadata pointer
+ *  proves the route is mounted and the protection filter is active. Any other
+ *  shape (connection refused, no WWW-Authenticate) is a broken gateway path. */
+async function checkGatewayMcpRoute() {
+  const probe = sh(
+    `docker exec ai-demo-api-server sh -c 'cd /app && node -e "fetch(\\"http://ping-gateway:8080/mcp\\",{method:\\"POST\\",headers:{\\"Content-Type\\":\\"application/json\\",\\"Accept\\":\\"application/json, text/event-stream\\"},body:JSON.stringify({jsonrpc:\\"2.0\\",id:1,method:\\"initialize\\",params:{protocolVersion:\\"2025-06-18\\",capabilities:{},clientInfo:{name:\\"health-gate\\",version:\\"0\\"}}}),signal:AbortSignal.timeout(8000)}).then(async r=>{console.log(\\"MCP_INIT\\",r.status,(r.headers.get(\\"www-authenticate\\")||\\"\\").includes(\\"resource_metadata\\")?\\"rfc9728\\":\\"no-pointer\\")}).catch(e=>console.log(\\"MCP_INIT_FAIL\\",(e.cause&&e.cause.code)||e.message||\\"err\\"))" 2>&1 | tail -1'`,
+  );
+  const m = probe.out.match(/MCP_INIT (401|200) (rfc9728|no-pointer)/);
+  const f = probe.out.match(/MCP_INIT_FAIL (\S+)/);
+  row(
+    'gateway:mcp-initialize',
+    !!m,
+    m ? `HTTP ${m[1]} + ${m[2] === 'rfc9728' ? 'RFC 9728 pointer' : 'no pointer'}` : (f ? f[1] : 'no output'),
+    !m ? `Gateway /mcp route not answering. If ENOTFOUND: docker compose up -d ping-gateway. If 500/502: docker logs ai-demo-ping-gateway — check route config load errors at startup.` : '',
+  );
+}
+
+/** Scope-backstop parity: p1az-decision.groovy reads the gateway's OWN
+ *  scope-topology.json copy (mounted live). A tool in the ROOT topology marked
+ *  surface=gateway but missing from the gateway copy silently SKIPS the scope
+ *  backstop — fail-open on that layer. Tools with no scopes in root are
+ *  exempt (the backstop is a no-op for them) — those surface as a warning
+ *  detail, not a failure. */
+function checkGatewayScopeParity() {
+  let rootTools, gwTools;
+  try {
+    rootTools = JSON.parse(fs.readFileSync(path.join(REPO, 'scope-topology.json'), 'utf8')).tools || {};
+    gwTools = JSON.parse(fs.readFileSync(path.join(REPO, 'ping-gateway', 'config', 'scope-topology.json'), 'utf8')).tools || {};
+  } catch (e) {
+    row('gateway:scope-parity', false, `could not read topology files: ${e.message}`, '');
+    return;
+  }
+  // The Groovy backstop reads toolEntry.requiredScopes (NOT 'scopes') — a tool
+  // missing from the copy with requiredScopes silently SKIPS the backstop.
+  const gwSurface = Object.entries(rootTools)
+    .filter(([, v]) => v && v.surface === 'gateway')
+    .map(([name, v]) => ({ name, scopes: v.requiredScopes || null }));
+  const missingScoped = gwSurface.filter((t) => !(t.name in gwTools) && t.scopes);
+  const missingUnscoped = gwSurface.filter((t) => !(t.name in gwTools) && !t.scopes);
+  row(
+    'gateway:scope-parity',
+    missingScoped.length === 0,
+    missingScoped.length
+      ? `fail-open drift: ${missingScoped.map((t) => t.name).join(', ')}`
+      : (missingUnscoped.length ? `ok (${missingUnscoped.length} scope-less tools absent — backstop no-op for them)` : `ok (${gwSurface.length} gateway tools covered)`),
+    missingScoped.length ? `Copy the missing tool entries into ping-gateway/config/scope-topology.json (it is a hand-maintained copy, NOT regenerated) and restart ping-gateway. Missing tools silently skip the Groovy scope backstop.` : '',
+  );
+}
+
+// ── 9. oauth-mcp (mcp-server) hardening — Step 9 exchange app ───────────────
+
+/** Step-9 exchanger credential probe. The app is exchange-ONLY: client_credentials
+ *  returns 400 unauthorized_client (normal — proves nothing). The discriminating
+ *  probe is a token-exchange with a DUMMY subject:
+ *    400 "Cannot parse token claims" → creds VALID, grant allowed (subject parse fails, which is fine)
+ *    401 invalid_client             → creds STALE (the 2026-09-25 live failure)
+ *  Fix: npm run pingone:refresh-envs && docker compose up -d mcp-server */
+async function checkStep9Exchanger() {
+  // Write the probe JS to a temp file and docker cp it in — nested sh/node
+  // quoting through execSync mangled the inline version into a silent
+  // S9_NOT_CONFIGURED false negative (found 2026-09-26).
+  const probeJs = [
+    'const cid = process.env.PINGONE_MCP_EXCHANGER_CLIENT_ID;',
+    'const cs = process.env.PINGONE_MCP_EXCHANGER_CLIENT_SECRET;',
+    'if (!cid || !cs) { console.log("S9_NOT_CONFIGURED"); process.exit(0); }',
+    'const b = new URLSearchParams({',
+    '  grant_type: "urn:ietf:params:oauth:grant-type:token-exchange",',
+    '  subject_token: "health-gate-dummy",',
+    '  subject_token_type: "urn:ietf:params:oauth:token-type:access_token",',
+    '  client_id: cid, client_secret: cs,',
+    '  resource: process.env.BANKING_API_RESOURCE_URI || "enduser.ping.demo",',
+    '  scope: "read",',
+    '});',
+    'fetch(process.env.PINGONE_TOKEN_ENDPOINT, {',
+    '  method: "POST",',
+    '  headers: { "Content-Type": "application/x-www-form-urlencoded" },',
+    '  body: b,',
+    '}).then(async (r) => {',
+    '  const j = await r.json().catch(() => ({}));',
+    '  console.log("S9", r.status, j.error, String(j.error_description || "").slice(0, 160));',
+    '}).catch((e) => console.log("S9_NET", e.message || "err"));',
+  ].join('\n');
+  const tmp = `/tmp/health-gate-step9-${process.pid}.js`;
+  fs.writeFileSync(tmp, probeJs);
+  try {
+    sh(`docker cp ${tmp} ai-demo-mcp-server:/tmp/health-gate-step9.js`);
+    fs.unlinkSync(tmp);
+    var probe = sh(
+      `docker exec ai-demo-mcp-server sh -c 'node /tmp/health-gate-step9.js 2>&1 | tail -1; rm -f /tmp/health-gate-step9.js'`,
+    );
+  } catch (e) {
+    var probe = { ok: false, out: `probe setup failed: ${e.message}` };
+  }
+  const m = probe.out.match(/S9 (\d+) (\S+) (.*)/);
+  const net = probe.out.match(/S9_NET (\S+)/);
+  const notConfigured = /S9_NOT_CONFIGURED/.test(probe.out);
+  const ok = m && m[1] === '400' && /Cannot parse token/i.test(m[3] || '');
+  const stale = m && m[1] === '401';
+  row(
+    'oauth-mcp:step9-exchanger',
+    !!ok || notConfigured,
+    notConfigured ? 'not configured (Step 9 disabled — agent-passthrough fallback)' : (m ? `HTTP ${m[1]} ${m[2]}` : (net ? net[1] : 'no output')),
+    stale ? `Step-9 exchanger secret is STALE (invalid_client — the 2026-09-25 live failure). Fix: npm run pingone:refresh-envs && docker compose up -d mcp-server` : (!ok && !notConfigured ? `Unexpected Step-9 probe response (${probe.out.trim().slice(0, 120)}). Check PINGONE_MCP_EXCHANGER_* in oauth-mcp/.env and the app's grant config in PingOne.` : ''),
+  );
+}
+
+/** BANKING_API_RESOURCE_URI gate: when set, Step 9 is ACTIVE and a stale
+ *  exchanger breaks every banking data read. When unset the server falls back
+ *  to agent-passthrough silently — worth knowing, not a failure. */
+async function checkStep9Gate() {
+  const probe = sh(
+    `docker exec ai-demo-mcp-server sh -c 'node -e "console.log(\\"S9_GATE\\",process.env.BANKING_API_RESOURCE_URI||\\"UNSET\\")" 2>&1 | tail -1'`,
+  );
+  const m = probe.out.match(/S9_GATE (\S+)/);
+  row(
+    'oauth-mcp:step9-gate',
+    !!m && !!m[1] && m[1] !== 'UNSET',
+    m ? m[1] : 'no output',
+    m && m[1] === 'UNSET' ? `BANKING_API_RESOURCE_URI unset — Step 9 is OFF, banking tools get the un-narrowed gateway token (fine for local dev, misconfig under STRICT_AUTH). Set it in oauth-mcp/.env to enable the RFC 8693 narrowing hop.` : '',
+  );
+}
+
 // ── main ─────────────────────────────────────────────────────────────────────
 
 (async () => {
@@ -290,6 +414,10 @@ async function checkExchangeClient() {
   await checkPingOne();
   await checkGateway();
   await checkExchangeClient();
+  await checkGatewayMcpRoute();
+  checkGatewayScopeParity();
+  await checkStep9Exchanger();
+  await checkStep9Gate();
 
   let failed = 0;
   for (const r of rows) {
