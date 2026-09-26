@@ -85,7 +85,7 @@ function assertSkillAllowed(specialist, tool) {
  * the caller (a2aProtocolClient.js#finishHop reads it off this metadata).
  */
 function publishReply(eventBus, requestContext, fields) {
-  const { specialist, vertical, result, toolError, actChainDepth = null, scopes = [], tokenEvents } = fields;
+  const { specialist, vertical, result, toolError, diagnostic, actChainDepth = null, scopes = [], tokenEvents } = fields;
   const safeResult = redactValue(result);
   eventBus.publish(
     AgentEvent.message({
@@ -95,7 +95,7 @@ function publishReply(eventBus, requestContext, fields) {
       role: Role.ROLE_AGENT,
       parts: [
         {
-          content: { $case: 'text', value: JSON.stringify({ result: safeResult, toolError }) },
+          content: { $case: 'text', value: JSON.stringify({ result: safeResult, toolError, diagnostic }) },
           metadata: undefined,
           filename: '',
           mediaType: 'text/plain',
@@ -108,6 +108,7 @@ function publishReply(eventBus, requestContext, fields) {
         actChainDepth,
         scopes,
         toolError,
+        ...(diagnostic ? { diagnostic } : {}),
         demoLayer: 'a2a-protocol-wire',
         ...(tokenEvents ? { tokenEvents: redactValue(tokenEvents) } : {}),
       },
@@ -217,6 +218,10 @@ function makeSpecialistExecutor(specialist, vertical = specialist.appKey, opts =
       const ctx = opts.ctx || {};
       const tokenEvents = ctx.tokenEvents || [];
       const meta = requestContext.userMessage?.metadata || {};
+      // `diagnostic` travels to the caller with the reply so a refusal is never
+      // a dead-end: the wire client surfaces it as a failed token event (the
+      // 2026-09-26 mid-restart demo showed an unexplained a2a_unauthorized
+      // chain because these refusals were console.warn-only).
       const reply = (fields) =>
         publishReply(eventBus, requestContext, {
           specialist,
@@ -226,21 +231,22 @@ function makeSpecialistExecutor(specialist, vertical = specialist.appKey, opts =
         });
 
       if (ctx.claims?.tenantHandle && !tenantMatches(ctx.claims.tenantHandle, meta.tenant)) {
-        return reply({ result: null, toolError: 'a2a_tenant_mismatch' });
+        console.warn('[a2a-wire] tenant mismatch: claims=%s meta=%s', ctx.claims.tenantHandle, meta.tenant);
+        return reply({ result: null, toolError: 'a2a_tenant_mismatch', diagnostic: `tenant ${ctx.claims.tenantHandle} does not match the requested ${meta.tenant || '(none)'}` });
       }
 
       let tool;
       try {
         tool = assertSkillAllowed(specialist, meta.tool);
       } catch (err) {
-        console.warn('[a2a-wire] %s refused a skill: %s', specialist.specialistName, err.message);
-        return reply({ result: null, toolError: 'not_authorized_for_skill' });
+        console.warn('[a2a-wire] %s refused a skill: %s (requested=%s allowed=%s)', specialist.specialistName, err.message, meta.tool, (specialist.tools || []).join(','));
+        return reply({ result: null, toolError: 'not_authorized_for_skill', diagnostic: `tool "${meta.tool || '(none)'}" is not in ${specialist.specialistName}'s skills [${(specialist.tools || []).join(', ')}]` });
       }
 
       const subjectToken = opts.subjectToken || null;
       if (!subjectToken) {
         console.warn('[a2a-wire] no subject token for %s on %s', tool, vertical);
-        return reply({ result: null, toolError: 'a2a_no_subject_token' });
+        return reply({ result: null, toolError: 'a2a_no_subject_token', diagnostic: 'the wire hop arrived with no delegated user token — the generalist exchange chain failed upstream' });
       }
 
       try {
@@ -249,7 +255,7 @@ function makeSpecialistExecutor(specialist, vertical = specialist.appKey, opts =
         const ex = await exchangeAsSpecialist(subjectToken, { vertical, tool, tokenEvents });
         if (!ex?.token) {
           console.warn('[a2a-wire] Exchange #2 failed for %s: %s', tool, ex?.error);
-          return reply({ result: null, toolError: 'a2a_exchange_failed' });
+          return reply({ result: null, toolError: 'a2a_exchange_failed', diagnostic: `Exchange #2 failed: ${ex?.error || 'unknown'}` });
         }
 
         // In-process the generalist supplies the args directly; an external HTTP
@@ -285,7 +291,7 @@ function makeSpecialistExecutor(specialist, vertical = specialist.appKey, opts =
         });
       } catch (err) {
         console.warn('[a2a-wire] %s failed on %s: %s', tool, vertical, err?.message);
-        return reply({ result: null, toolError: 'a2a_specialist_error' });
+        return reply({ result: null, toolError: 'a2a_specialist_error', diagnostic: `specialist execution failed: ${err?.message || 'unknown'}` });
       }
     },
     async cancelTask() {},

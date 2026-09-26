@@ -1526,6 +1526,14 @@ services:
     ports:
       - "8897:8897"
     env_file:
+      # Single-source BRAVE_SEARCH_API_KEY from the BFF's .env — it was ALSO
+      # duplicated in ./demo_mcp_brave/.env, and rotating one copy silently
+      # broke brave_news_search (empty key degrades the tool instead of
+      # failing). Compose applies env_file list in order: later entries
+      # override earlier, so an operator override in ./demo_mcp_brave/.env
+      # still wins.
+      - path: ./demo_api_server/.env
+        required: false
       - path: ./demo_mcp_brave/.env
         required: false
     environment:

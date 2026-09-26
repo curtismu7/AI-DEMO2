@@ -582,6 +582,75 @@ async function checkPingOneA2aResourceAudience() {
   );
 }
 
+/** (B2) Live exchange aud-form assertion — mints a REAL RFC 8693 exchange
+ *  against the A2A resources and asserts the returned aud is URI-form, i.e.
+ *  NO aud value is a resource display NAME. The static row above reads the
+ *  resource's configured audience attr; this proves what PingOne ACTUALLY
+ *  mints (the two can diverge via resource policies/scope bindings).
+ *  Locks in detection for the whole drift class. */
+async function checkPingOneA2aAudForm() {
+  if (!sh("docker ps --format '{{.Names}}' | grep -qx ai-demo-api-server && echo yes").out.trim()) return;
+  const probe = inContainerProbe('ai-demo-api-server', [
+    `process.env.NODE_TLS_REJECT_UNAUTHORIZED='0';`,
+    `const cs = require('/app/services/configStore');`,
+    `(async () => { await cs.ensureInitialized();`,
+    `  const envId = cs.getEffective('pingone_environment_id');`,
+    `  const want = cs.getEffective('a2a_gateway_audience') || 'mcpgateway-a2a.ping.demo';`,
+    `  const wcid = cs.getEffective('pingone_worker_client_id');`,
+    `  const wsec = cs.getEffective('pingone_worker_client_secret');`,
+    `  const wauth = Buffer.from(wcid + ':' + wsec).toString('base64');`,
+    `  const wt = await (await fetch('https://auth.pingone.com/' + envId + '/as/token', { method: 'POST',`,
+    `    headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: 'Basic ' + wauth },`,
+    `    body: 'grant_type=client_credentials' })).json();`,
+    `  if (!wt.access_token) { console.log('AUDFORM_ERR subject token: ' + JSON.stringify(wt).slice(0, 150)); process.exit(0); }`,
+    `  const cid = cs.getEffective('pingone_records_agent_client_id');`,
+    `  const sec = cs.getEffective('pingone_records_agent_client_secret');`,
+    `  if (!cid || !sec) { console.log('AUDFORM_SOFT missing records agent creds'); process.exit(0); }`,
+    `  const body = new URLSearchParams({`,
+    `    grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',`,
+    `    subject_token: wt.access_token,`,
+    `    subject_token_type: 'urn:ietf:params:oauth:token-type:access_token',`,
+    `    audience: want,`,
+    `    scope: 'agent:invoke:records',`,
+    `    client_id: cid, client_secret: sec });`,
+    `  const ex = await (await fetch('https://auth.pingone.com/' + envId + '/as/token', { method: 'POST',`,
+    `    headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString() })).json();`,
+    `  if (!ex.access_token) { console.log('AUDFORM_SOFT exchange failed: ' + JSON.stringify(ex).slice(0, 200)); process.exit(0); }`,
+    `  const claims = JSON.parse(Buffer.from(ex.access_token.split('.')[1], 'base64url').toString());`,
+    `  const aud = Array.isArray(claims.aud) ? claims.aud : [claims.aud];`,
+    `  console.log('AUDFORM ' + JSON.stringify({ aud, want }));`,
+    `  process.exit(0); })().catch((e) => { console.log('AUDFORM_ERR ' + e.message); process.exit(0); });`,
+  ]);
+  const line = probe.find((l) => String(l).indexOf('AUDFORM') === 0) || 'AUDFORM_ERR no output';
+  if (line.indexOf('AUDFORM_SOFT') === 0) {
+    // Exchange refused (creds/scope drift) — not itself a demo blocker (the
+    // deep probe catches real chain failures) but must stay visible.
+    row('a2a:aud-form', false, line.replace('AUDFORM_SOFT ', ''),
+      `Check pingone_records_agent_client_* creds and the agent:invoke:records scope grant on the records specialist app`);
+    return;
+  }
+  if (line.indexOf('AUDFORM_ERR') === 0) {
+    row('a2a:aud-form', false, line.replace('AUDFORM_ERR ', ''),
+      `Verify worker + records agent client credentials in the BFF config`);
+    return;
+  }
+  let parsed = null;
+  try { parsed = JSON.parse(line.replace(/^AUDFORM\s*/, '')); } catch (e) { /* fallthrough */ }
+  const aud = (parsed && parsed.aud) || [];
+  const nameForm = aud.some((a) => !/^https?:\/\//.test(a) && !/^[a-z0-9.-]+\.[a-z]{2,}(\/|$)/i.test(a));
+  const uriForm = !nameForm && aud.length > 0;
+  row(
+    'a2a:aud-form',
+    uriForm,
+    uriForm
+      ? `exchange minted URI-form aud: ${aud.join(', ')}`
+      : `NAME-form aud minted: ${JSON.stringify(aud)} — the PingOne drift class is live; tokens will be rejected by URI-only aud validators`,
+    uriForm
+      ? ''
+      : `Fix the PingOne resource audience (see a2a:resource-audience row). Client-side NAME-form pins tolerate this, but fix the source.`,
+  );
+}
+
 /** (C) Stale BFF process — today a correctly-patched file sat inert in a
  *  running node process for ~40 minutes while every debug signal said "fixed".
  *  The BFF's /app is now BIND-MOUNTED (PR #295), so the container always sees
@@ -908,6 +977,7 @@ async function checkLlmTier() {
   await checkA2aChain();
   await checkBffOAuthProvider();
   await checkPingOneA2aResourceAudience();
+  await checkPingOneA2aAudForm();
   checkBffCodeDrift();
   checkUc2DeepProbe();
   await checkMcpGateway();

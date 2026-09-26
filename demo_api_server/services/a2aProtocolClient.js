@@ -160,6 +160,7 @@ function finishHop({ sent, tokenEvents, vertical, card, mode, protocolRequest })
   }
 
   const toolError = payload?.toolError || metadata.toolError || null;
+  const diagnostic = payload?.diagnostic || metadata.diagnostic || null;
   const chainFailure = toolError ? CHAIN_FAILURES[toolError] || null : null;
   const agentName = card?.name || vertical;
   const actChainDepth = metadata.actChainDepth ?? null;
@@ -167,9 +168,11 @@ function finishHop({ sent, tokenEvents, vertical, card, mode, protocolRequest })
 
   let explanation;
   if (chainFailure) {
-    explanation = `${agentName} refused the handoff (${toolError}) — no nested act chain was minted, so nothing ran.`;
+    // The specialist's `diagnostic` (a2aProtocolServer wire refusals) says WHY
+    // — without it the UI shows a dead-end chain with a bare a2a_unauthorized.
+    explanation = `${agentName} refused the handoff (${toolError}) — no nested act chain was minted, so nothing ran.${diagnostic ? ` Why: ${diagnostic}` : ''}`;
   } else if (toolError) {
-    explanation = `${agentName} accepted the handoff and minted its nested act chain, but the tool call did not succeed (${toolError}).`;
+    explanation = `${agentName} accepted the handoff and minted its nested act chain, but the tool call did not succeed (${toolError}).${diagnostic ? ` Why: ${diagnostic}` : ''}`;
   } else {
     explanation = `${agentName} ran the delegated skill under its OWN Exchange #2 nested-act token (act depth ${actChainDepth ?? 'n/a'}) and returned data only — no token crossed the wire.`;
   }
@@ -190,7 +193,7 @@ function finishHop({ sent, tokenEvents, vertical, card, mode, protocolRequest })
         protocolRequest,
         // Facts, not the payload: the specialist's data is rendered by the
         // caller's result card, and the token chain is not the place for it.
-        protocolResponse: { ok: !toolError, toolError, actChainDepth, scopes },
+        protocolResponse: { ok: !toolError, toolError, diagnostic, actChainDepth, scopes },
       },
     ),
   );
