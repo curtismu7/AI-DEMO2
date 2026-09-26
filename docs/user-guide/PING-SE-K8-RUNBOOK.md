@@ -14,7 +14,7 @@ This runbook does **not** cover OrbStack, local `./run-k8.sh`, or Docker Compose
 | Item | Notes |
 |------|--------|
 | Mac with Docker Desktop | Builds and pushes images |
-| `gh` CLI | Logged in as `curtismu7` |
+| `gh` CLI | Logged in as `cmuir_pingcorp` |
 | DEVHELP namespace | `ping-devops-cmuir` (from `cmuir@pingidentity.com`) |
 | SE kubeconfig | From Ping Secret Server |
 | Repo checkout | `~/Development/AI-DEMO2` |
@@ -80,7 +80,7 @@ Expected: namespace listed with status `Active`.
 
 ```bash
 gh auth refresh -h github.com -s write:packages
-gh auth token | docker login ghcr.io -u curtismu7 --password-stdin
+gh auth token | docker login ghcr.io -u cmuir_pingcorp --password-stdin
 ```
 
 Re-run GHCR login before **every** deploy (token expires).
@@ -113,7 +113,7 @@ mv ~/.docker/cli-plugins/docker-ai ~/.docker/cli-plugins/docker-ai.disabled 2>/d
 
 # GHCR (required each deploy)
 gh auth refresh -h github.com -s write:packages
-gh auth token | docker login ghcr.io -u curtismu7 --password-stdin
+gh auth token | docker login ghcr.io -u cmuir_pingcorp --password-stdin
 
 # SE cluster auth (browser popup if session expired)
 kubectl config use-context us
@@ -130,7 +130,7 @@ export COMPOSE_PROFILES=demo-auth,agents
 ### Split deploy (push succeeded, deploy failed)
 
 ```bash
-gh auth token | docker login ghcr.io -u curtismu7 --password-stdin
+gh auth token | docker login ghcr.io -u cmuir_pingcorp --password-stdin
 ./run-pingaws.sh build
 kubectl config use-context us && kubens ping-devops-cmuir
 export SE_NAMESPACE=ping-devops-cmuir
@@ -274,7 +274,7 @@ mv ~/.docker/cli-plugins/docker-ai ~/.docker/cli-plugins/docker-ai.disabled
 
 ```bash
 gh auth refresh -h github.com -s write:packages
-gh auth token | docker login ghcr.io -u curtismu7 --password-stdin
+gh auth token | docker login ghcr.io -u cmuir_pingcorp --password-stdin
 ./run-pingaws.sh build
 ```
 

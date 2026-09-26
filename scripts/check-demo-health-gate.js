@@ -46,9 +46,9 @@ function row(name, ok, detail, fix) {
   rows.push({ name, ok: !!ok, detail: detail || '', fix: fix || '' });
 }
 
-function sh(cmd) {
+function sh(cmd, { timeoutMs = 15000 } = {}) {
   try {
-    return { ok: true, out: execSync(cmd, { cwd: REPO, encoding: 'utf8', timeout: 15000, stdio: ['ignore', 'pipe', 'ignore'] }) };
+    return { ok: true, out: execSync(cmd, { cwd: REPO, encoding: 'utf8', timeout: timeoutMs, stdio: ['ignore', 'pipe', 'ignore'] }) };
   } catch (e) {
     return { ok: false, out: (e.stdout || '') + (e.stderr || e.message || '') };
   }
@@ -501,6 +501,140 @@ async function checkA2aChain() {
   }
 }
 
+// ── 9c. Cross-cutting config/process checks (all bit us on 2026-09-26) ──────
+
+/** (A) The BFF's persisted oauth_provider. It silently flipped to
+ *  'pingfederate' in the LMDB config store during today's debugging — every
+ *  login then redirected to local PingFederate, whose OAuth client list was
+ *  empty, so ALL logins died with PF's generic "Oops" page while the health
+ *  gate stayed green. The fix took an LMDB surgery session to even find. */
+async function checkBffOAuthProvider() {
+  if (!sh("docker ps --format '{{.Names}}' | grep -qx ai-demo-api-server && echo yes").out.trim()) return;
+  const probe = inContainerProbe('ai-demo-api-server', [
+    `const cs = require('/app/services/configStore');`,
+    `(async () => { await cs.ensureInitialized();`,
+    `  console.log('OAUPROV ' + cs.getOAuthProvider());`,
+    `  process.exit(0); })().catch((e) => { console.log('OAUPROV_ERR ' + e.message); process.exit(0); });`,
+  ]);
+  const line = probe.find((l) => String(l).indexOf('OAUPROV') === 0) || 'OAUPROV_ERR no output';
+  const provider = line.replace(/^OAUPROV\s*/, '').trim();
+  if (provider === 'pingone') {
+    row('bff:oauth-provider', true, 'pingone');
+  } else {
+    row('bff:oauth-provider', false, `provider=${provider} — logins will hit ${provider === 'pingfederate' ? 'local PingFederate instead of PingOne' : 'an unsupported provider'}`,
+      provider === 'pingfederate'
+        ? `Either switch back on the /config admin page, or surgically: docker exec ai-demo-api-server node -e "require('./services/configStore').setRaw({ oauth_provider: 'pingone' })" (ensureInitialized first), then docker restart ai-demo-api-server. Check PingFederate still has its OAuth clients if PF mode is intentional.`
+        : `Set oauth_provider=pingone via the /config admin page, then restart the BFF.`);
+  }
+}
+
+/** (B) The PingOne A2A gateway resource's audience attribute — the ROOT CAUSE
+ *  of today's wrong-aud outage. When PingOne's resource has audience=NAME,
+ *  every exchange2 token mints with that aud and no gateway accepts it. The
+ *  other a2a rows only see the downstream symptoms; this reads the resource
+ *  itself so the drift is named at the source. */
+async function checkPingOneA2aResourceAudience() {
+  if (!sh("docker ps --format '{{.Names}}' | grep -qx ai-demo-api-server && echo yes").out.trim()) return;
+  const probe = inContainerProbe('ai-demo-api-server', [
+    `process.env.NODE_TLS_REJECT_UNAUTHORIZED='0';`,
+    `const cs = require('/app/services/configStore');`,
+    `(async () => { await cs.ensureInitialized();`,
+    `  const envId = cs.getEffective('pingone_environment_id');`,
+    `  const cid = cs.getEffective('pingone_worker_client_id');`,
+    `  const sec = cs.getEffective('pingone_worker_client_secret');`,
+    `  const auth = Buffer.from(cid + ':' + sec).toString('base64');`,
+    `  const want = cs.getEffective('a2a_gateway_audience') || 'mcpgateway-a2a.ping.demo';`,
+    `  const t = await (await fetch('https://auth.pingone.com/' + envId + '/as/token', { method: 'POST',`,
+    `    headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: 'Basic ' + auth },`,
+    `    body: 'grant_type=client_credentials&scope=' + encodeURIComponent('p1:read:resource') })).json();`,
+    `  if (!t.access_token) { console.log('A2ARES_ERR token: ' + JSON.stringify(t).slice(0, 120)); process.exit(0); }`,
+    `  const list = await (await fetch('https://api.pingone.com/v1/environments/' + envId + '/resources?limit=100',`,
+    `    { headers: { Authorization: 'Bearer ' + t.access_token } })).json();`,
+    `  const all = (list._embedded && list._embedded.resources) || [];`,
+    `  const rs = all.find((r) => r.audience === want || (r.name || '').indexOf('A2A MCP Gateway') >= 0);`,
+    `  if (!rs) { console.log('A2ARES_ERR resource not found for audience ' + want); process.exit(0); }`,
+    `  console.log('A2ARES ' + JSON.stringify({ name: rs.name, audience: rs.audience, want }));`,
+    `  process.exit(0); })().catch((e) => { console.log('A2ARES_ERR ' + e.message); process.exit(0); });`,
+  ]);
+  const line = probe.find((l) => String(l).indexOf('A2ARES') === 0) || 'A2ARES_ERR no output';
+  if (line.indexOf('A2ARES_ERR') === 0) {
+    row('a2a:resource-audience', false, line.replace('A2ARES_ERR ', ''),
+      `Verify the worker client has p1:read:resource and the A2A MCP Gateway resource exists in the PingOne env`);
+    return;
+  }
+  let parsed = null;
+  try { parsed = JSON.parse(line.replace(/^A2ARES\s*/, '')); } catch (e) { /* fallthrough */ }
+  const drifted = !!(parsed && parsed.audience !== parsed.want);
+  // The drift is TOLERATED client-side (mcpGatewayClient/mcpToolPipeline pin
+  // the NAME-form aud to the node gateway, whose MCP_GW_RESOURCE_URI accepts
+  // it), so it does not block the demo — but it must stay visible: it is the
+  // root cause, and a gateway env change can silently revoke the tolerance.
+  const detail = drifted
+    ? `DRIFT (tolerated): PingOne resource "${parsed && parsed.name}" audience=${JSON.stringify(parsed && parsed.audience)} — tokens mint with this aud; client-side pins route them to the node gateway`
+    : `resource audience matches ${parsed.want}`;
+  row(
+    'a2a:resource-audience',
+    !!(parsed && (parsed.audience === parsed.want || drifted)),
+    detail,
+    drifted
+      ? `Fix at the source when convenient: PATCH the resource's audience to ${parsed && parsed.want} in the PingOne console (Admin → Resources). Do NOT remove the NAME from MCP_GW_RESOURCE_URI until this is fixed.`
+      : '',
+  );
+}
+
+/** (C) Container code drift — today a correctly-patched file sat inert in a
+ *  stale node process for ~40 minutes while every debug signal said "fixed".
+ *  deploy-live.sh warns on this; the gate double-checks so a demo never starts
+ *  against code the operator thinks is deployed. */
+function checkBffCodeDrift() {
+  if (!sh("docker ps --format '{{.Names}}' | grep -qx ai-demo-api-server && echo yes").out.trim()) return;
+  const files = [
+    'services/mcpToolPipeline.js',
+    'services/mcpGatewayClient.js',
+    'services/a2aProtocolClient.js',
+    'services/a2aDelegationService.js',
+    'middleware/a2aPingOneBearer.js',
+  ];
+  const drift = [];
+  for (const f of files) {
+    if (!fs.existsSync(path.join(REPO, 'demo_api_server', f))) continue;
+    const host = sh(`md5 -q demo_api_server/${f} 2>/dev/null || md5sum demo_api_server/${f} | cut -d' ' -f1`).out.trim();
+    const ctr = sh(`docker exec ai-demo-api-server md5sum /app/${f} 2>/dev/null | cut -d' ' -f1`).out.trim();
+    if (host && ctr && host !== ctr) drift.push(f);
+  }
+  row(
+    'bff:code-drift',
+    drift.length === 0,
+    drift.length === 0 ? 'container serves the working tree' : `stale process: ${drift.join(', ')}`,
+    drift.length ? `docker restart ai-demo-api-server (node does not hot-reload; a baked file change without restart is invisible at runtime)` : '',
+  );
+}
+
+/** (D) Deep probe — the only check that proves the WHOLE chain executes: real
+ *  headless login → invoke → evidence chain scored. Static rows above can all
+ *  be green while a rotated secret, a stripped token-policy claim, or a
+ *  missing scope grant still kills UC2 at runtime. Opt-in because it costs
+ *  20-60s and mints real tokens. */
+function checkUc2DeepProbe() {
+  if (String(process.env.DEMO_HEALTH_GATE_FULL || '') !== '1') {
+    row('a2a:deep-probe', true, 'skipped (set DEMO_HEALTH_GATE_FULL=1 to run the real UC2 invoke)');
+    return;
+  }
+  // Note: this runs the spec WITHOUT the pipe-to-tail (a pipe would swallow the
+  // exit status) and with a generous timeout — login + invoke takes 20-60s.
+  const probe = sh(
+    `cd demo_api_ui && npx playwright test tests/e2e/uc2-a2a-delegation.real.spec.js --config=playwright.real.config.js --reporter=line`,
+    { timeoutMs: 300000 },
+  );
+  const passed = /passed/.test(probe.out) && !/failed|did not run/.test(probe.out);
+  row(
+    'a2a:deep-probe',
+    passed,
+    passed ? 'real UC2 invoke completed with the full evidence chain' : probe.out.trim().slice(0, 200) || 'no output',
+    passed ? '' : `Run cd demo_api_ui && npx playwright test tests/e2e/uc2-a2a-delegation.real.spec.js --config=playwright.real.config.js and read the failure; then check docker logs ai-demo-api-server for the failing hop.`,
+  );
+}
+
 // ── 10. mcp-gateway (Node, demo_mcp_gateway — demo-auth profile) ────────────
 
 /** Runtime health + P1AZ decision-endpoint reachability for the Node gateway.
@@ -754,6 +888,10 @@ async function checkLlmTier() {
   await checkStep9Exchanger();
   await checkStep9Gate();
   await checkA2aChain();
+  await checkBffOAuthProvider();
+  await checkPingOneA2aResourceAudience();
+  checkBffCodeDrift();
+  checkUc2DeepProbe();
   await checkMcpGateway();
   await checkDataPlaneServers();
   await checkLlmTier();

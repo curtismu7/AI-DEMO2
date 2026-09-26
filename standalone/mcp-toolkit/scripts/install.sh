@@ -18,7 +18,7 @@ for name in "${REPOS[@]}"; do
     git -C "$dir" pull --ff-only
   else
     echo "== $name: cloning =="
-    git clone "https://github.com/curtismu7/$name.git" "$dir"
+    git clone "https://github.com/cmuir_pingcorp/$name.git" "$dir"
   fi
 done
 

@@ -108,7 +108,7 @@ opensearchMcpServer:
 #
 # extraContainers:
 #   - name: mcp-brave
-#     image: ghcr.io/curtismu7/ai-demo-mcp-brave:latest
+#     image: ghcr.io/cmuir_pingcorp/ai-demo-mcp-brave:latest
 #     env:
 #       - name: PORT
 #         value: "8080"

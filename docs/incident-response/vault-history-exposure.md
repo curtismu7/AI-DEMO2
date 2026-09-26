@@ -11,7 +11,7 @@ leaked *value*. This one covers the *whole vault* being decryptable by anyone.
 
 ## 1. What is exposed
 
-`curtismu7/AI-DEMO2` is a **public** repository. Two things are reachable from
+`cmuir_pingcorp/AI-DEMO2` is a **public** repository. Two things are reachable from
 `origin/main` today, and together they are sufficient to decrypt the vault:
 
 | Artifact | Blob / commit | Note |

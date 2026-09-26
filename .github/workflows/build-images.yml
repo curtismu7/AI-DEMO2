@@ -113,7 +113,7 @@ jobs:
       #
       #   1. LABEL org.opencontainers.image.source in the service's Dockerfile.
       #      Links the package to this repo on push (#2545: repository NONE ->
-      #      curtismu7/AI-DEMO2). In-repo, applies on the next push.
+      #      cmuir_pingcorp/AI-DEMO2). In-repo, applies on the next push.
       #   2. The package's "Manage Actions access" list must contain this repo
       #      with the Write role. UI-only, cannot be set or read through any API,
       #      and it starts EMPTY.

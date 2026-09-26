@@ -90,7 +90,7 @@ cd ~/Development/AI-DEMO2
 
 # 1. GHCR auth (token expires — run before every deploy)
 gh auth refresh -h github.com -s write:packages
-gh auth token | docker login ghcr.io -u curtismu7 --password-stdin
+gh auth token | docker login ghcr.io -u cmuir_pingcorp --password-stdin
 
 # 2. Disable Docker AI hook (hangs after docker compose build on some Macs)
 mv ~/.docker/cli-plugins/docker-ai ~/.docker/cli-plugins/docker-ai.disabled 2>/dev/null || true
@@ -111,7 +111,7 @@ export COMPOSE_PROFILES=demo-auth,agents
 Use when push succeeded but deploy failed, or GHCR token expired mid-push:
 
 ```bash
-gh auth token | docker login ghcr.io -u curtismu7 --password-stdin
+gh auth token | docker login ghcr.io -u cmuir_pingcorp --password-stdin
 ./run-pingaws.sh build     # build + push only
 ./run-pingaws.sh deploy    # kubectl apply only
 ```

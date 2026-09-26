@@ -7,7 +7,7 @@
 # BUILD FOR arm64 — the SE cluster nodes are Graviton (arm64). An amd64 image
 # fails to pull ("no match for platform") or crashes ("exec format error"):
 #   docker buildx build --platform linux/arm64 --provenance=false \
-#     -t ghcr.io/curtismu7/hostile-mcp-server:latest --push .
+#     -t ghcr.io/cmuir_pingcorp/hostile-mcp-server:latest --push .
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -36,7 +36,7 @@ spec:
       - name: ghcr-pull-secret
       containers:
       - name: hostile-mcp-server
-        image: ghcr.io/curtismu7/hostile-mcp-server:latest
+        image: ghcr.io/cmuir_pingcorp/hostile-mcp-server:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 8899

@@ -936,7 +936,7 @@ A ready-to-import Postman collection is included in this repo. It covers the ful
 
 | File | Purpose |
 |------|--------|
-| [⬇ Download collection](https://raw.githubusercontent.com/curtismu7/banking-demo/main/docs/PingOne%20Authorization%20Code%20%E2%80%94%20pi.flow.postman_collection.json) | Steps 1–7 + Utility A (introspect) + Utility B (set mayAct) |
+| [⬇ Download collection](https://raw.githubusercontent.com/cmuir_pingcorp/banking-demo/main/docs/PingOne%20Authorization%20Code%20%E2%80%94%20pi.flow.postman_collection.json) | Steps 1–7 + Utility A (introspect) + Utility B (set mayAct) |
 
 > **pi.flow** means the authorize request returns JSON instead of redirecting to a browser. Postman can complete the full PKCE flow headlessly in 4 steps, then exchange, then call the PingOne API — all without any browser interaction.
 

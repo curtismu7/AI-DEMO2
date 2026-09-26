@@ -300,9 +300,13 @@ async function runMcpToolPipeline(ctx) {
         // (comma-list MCP_GW_RESOURCE_URI). With ff_mcp_gateway_pinggateway the
         // gateway pick below would otherwise send the nested-act token to IG,
         // whose McpProtectionFilter demands its own resource URI — every A2A
-        // tool call 401'd wrong-aud. Pin to the node gateway when the supplied
-        // token's aud is the A2A gateway resource.
-        if (ctx.suppliedToken && useGateway) {
+        // tool call 401'd wrong-aud. Pin to the node gateway when the token's
+        // aud is the A2A gateway resource — REGARDLESS of how the token was
+        // obtained. The pin keys on the token's aud, not the code path: a
+        // normal resolveMcpAccessTokenWithEvents token can also carry the A2A
+        // audience (other agent's live repro at mcpToolPipeline.js:307), and
+        // restricting the check to ctx.suppliedToken left that path unrouted.
+        if (useGateway && mcpAccessToken) {
             // PingOne may emit the aud as the resource URI or its display NAME
             // (seen live: aud=["Super Banking A2A MCP Gateway"]). Match either.
             const a2aGwAuds = [

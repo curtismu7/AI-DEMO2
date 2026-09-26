@@ -2,16 +2,16 @@
 
 Installs and runs three standalone tools together:
 
-- [**llm-gateway**](https://github.com/curtismu7/llm-gateway) — smart routing proxy for local LLMs (:8090)
-- [**mcp-inspector**](https://github.com/curtismu7/mcp-inspector) — local, no-login MCP tool tester (:3900)
-- [**ai-gateway-client**](https://github.com/curtismu7/ai-gateway-client) — OAuth PKCE + DCR test client for an OAuth-protected MCP gateway (:3910)
+- [**llm-gateway**](https://github.com/cmuir_pingcorp/llm-gateway) — smart routing proxy for local LLMs (:8090)
+- [**mcp-inspector**](https://github.com/cmuir_pingcorp/mcp-inspector) — local, no-login MCP tool tester (:3900)
+- [**ai-gateway-client**](https://github.com/cmuir_pingcorp/ai-gateway-client) — OAuth PKCE + DCR test client for an OAuth-protected MCP gateway (:3910)
 
 This repo doesn't contain their source — it clones/builds the three repos above. Each is independently maintained; see its own README for what it does and how to configure it.
 
 ## Option 1: Docker (fastest, no Node needed)
 
 ```bash
-git clone https://github.com/curtismu7/mcp-toolkit.git
+git clone https://github.com/cmuir_pingcorp/mcp-toolkit.git
 cd mcp-toolkit
 docker compose up -d --build
 ```
@@ -29,7 +29,7 @@ Stop with `docker compose down`. Saved config/profiles for mcp-inspector and ai-
 **Prerequisites:** Node.js 22+, npm, git.
 
 ```bash
-git clone https://github.com/curtismu7/mcp-toolkit.git
+git clone https://github.com/cmuir_pingcorp/mcp-toolkit.git
 cd mcp-toolkit
 npm run install:all   # clones the three repos into repos/, installs each
 npm start              # starts all three in the background

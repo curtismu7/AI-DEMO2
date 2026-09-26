@@ -210,8 +210,8 @@ section is written so a fresh agent can resume in under a minute.
    ```
    cd oauth-mcp && npm run build   # already passes, just confirming
    cd .. && COMPOSE_PARALLEL_LIMIT=1 docker compose -p ai-demo-k8 -f docker-compose.yml build mcp-server
-   docker tag ai-demo-k8-mcp-server:latest ghcr.io/curtismu7/ai-demo-mcp-server:latest
-   docker push ghcr.io/curtismu7/ai-demo-mcp-server:latest
+   docker tag ai-demo-k8-mcp-server:latest ghcr.io/cmuir_pingcorp/ai-demo-mcp-server:latest
+   docker push ghcr.io/cmuir_pingcorp/ai-demo-mcp-server:latest
    kubectl rollout restart deployment/mcp-server -n ping-devops-cmuir
    kubectl rollout status deployment/mcp-server -n ping-devops-cmuir --timeout=120s
    ```

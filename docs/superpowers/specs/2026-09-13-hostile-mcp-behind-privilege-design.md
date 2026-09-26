@@ -59,7 +59,7 @@ Served tools: `get_weather` (poisoned metadata), `search_docs` (poisoned schema)
 | Component | Owner | What |
 |---|---|---|
 | Server v2 | me | SSE transport + `/health` + `create_transfer`; Dockerfile; tests |
-| Image | me | `ghcr.io/curtismu7/hostile-mcp-server:<sha>` + `:latest` |
+| Image | me | `ghcr.io/cmuir_pingcorp/hostile-mcp-server:<sha>` + `:latest` |
 | Deployment + Service | me | `hostile-mcp-server` in `ping-devops-curtismuir`, port 80→8899 |
 | In-cluster `/sse` check | me | prove the `endpoint` event fires before registering |
 | Gateway restart | me | `kubectl rollout restart deployment/agentless-mcpgw -n ping-devops-curtismuir` |

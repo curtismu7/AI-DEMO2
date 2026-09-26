@@ -7,14 +7,14 @@
 #   3) Rebuild/redeploy llamaindex-agent with single-shot + long LLM timeout
 #
 # Example:
-#   GITHUB_OWNER=curtismu7 K8S_NAMESPACE=ping-devops-cmuir ./k8s/aws/repair-rag-ask.sh
+#   GITHUB_OWNER=cmuir_pingcorp K8S_NAMESPACE=ping-devops-cmuir ./k8s/aws/repair-rag-ask.sh
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-GITHUB_OWNER="${GITHUB_OWNER:?Set GITHUB_OWNER (e.g. curtismu7)}"
+GITHUB_OWNER="${GITHUB_OWNER:?Set GITHUB_OWNER (e.g. cmuir_pingcorp)}"
 NS="${K8S_NAMESPACE:?Set K8S_NAMESPACE (e.g. ping-devops-cmuir)}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 OWNER_LC="$(echo "$GITHUB_OWNER" | tr '[:upper:]' '[:lower:]')"

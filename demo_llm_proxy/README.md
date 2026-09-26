@@ -7,7 +7,7 @@ Smart routing proxy for managing 2 local language models through a single endpoi
 **Prerequisites:** Node.js 22+ and npm. The proxy itself has no model-serving code — it only routes requests to local `llama-server` processes (Linux/any platform) or [oMLX](https://github.com/jundot/omlx) (Apple Silicon), so you'll also need one of those. Docker is optional (a `Dockerfile` is included).
 
 ```bash
-git clone https://github.com/curtismu7/llm-gateway.git
+git clone https://github.com/cmuir_pingcorp/llm-gateway.git
 cd llm-gateway
 npm install
 ```

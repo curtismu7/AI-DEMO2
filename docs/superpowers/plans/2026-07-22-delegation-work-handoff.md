@@ -3,8 +3,8 @@
 **Purpose:** resume this work on a different machine or in a fresh session with zero context loss. Everything below is git-tracked (this file), so `git fetch` + checkout the branch is all a new machine needs — no reliance on this machine's local memory or scratch files.
 
 **Branch:** `worktree-delegation-cleanup` — pushed to `origin`, all commits below are on `origin/worktree-delegation-cleanup`.
-**PR:** [#709](https://github.com/curtismu7/AI-DEMO2/pull/709) — open, carries everything in this doc.
-**Repo:** `curtismu7/AI-DEMO2`.
+**PR:** [#709](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/709) — open, carries everything in this doc.
+**Repo:** `cmuir_pingcorp/AI-DEMO2`.
 
 ## To resume on a new machine
 

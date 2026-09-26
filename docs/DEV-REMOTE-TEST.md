@@ -10,7 +10,7 @@ Develop on your daily Mac; push or sync to a larger test Mac (64GB) on the same 
 | Test Mac (64GB) | `mac-Y4JYJ03X.local` |
 | Dev repo | `~/Development/AI-DEMO2` |
 | Test repo | `~/AI-demo-test` |
-| GitHub | `https://github.com/curtismu7/AI-demo` |
+| GitHub | `https://github.com/cmuir_pingcorp/AI-demo` |
 | SSH alias | `testmac` → test Mac |
 | User | `curtismuir` |
 

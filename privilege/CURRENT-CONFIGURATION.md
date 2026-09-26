@@ -126,7 +126,7 @@ had no working PingOne MCP, went looking for one in `ping-devops-cmuir` and
 that already existed.
 
 The demo's PingOne MCP is the **`mcp-pingone`** sidecar
-(`ghcr.io/curtismu7/ai-demo-mcp-pingone`), which wraps PingOne's own MCP server
+(`ghcr.io/cmuir_pingcorp/ai-demo-mcp-pingone`), which wraps PingOne's own MCP server
 behind a stdio-to-HTTP bridge. It arrives with PR #2913 and is absent from the
 table above only because that PR is unmerged — add its row when it lands.
 
@@ -168,7 +168,7 @@ bug. Fixed by editing the app in the console to `http://localhost:8082`.
 `demo_mcp_resource_server` runs as the `mcp-resource-server` service in
 **`ping-devops-cmuir`** (part of the full app stack) and is the one with the
 banking-rest OpenAPI feature (PR #2861). A separate, unrelated handoff project
-(`curtismu7/mcp-resource-server`, a different GitHub repo entirely, config-driven
+(`cmuir_pingcorp/mcp-resource-server`, a different GitHub repo entirely, config-driven
 verticals, only 3 PRs) runs as `mcp-config-standalone-mcp-resource-server` in
 **`ping-devops-curtismuir`** — same-looking name, same port (8081), zero
 banking-rest code. `mcp-banking-rest`'s `BANKING_UPSTREAM_URL` must point at

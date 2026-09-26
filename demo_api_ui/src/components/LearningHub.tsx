@@ -615,7 +615,7 @@ export default function LearningHub() {
 
         <a
           className="learning-hub__weblink"
-          href="https://curtismu7.github.io/llama-vscode-setup-guide/learning/"
+          href="https://cmuir_pingcorp.github.io/llama-vscode-setup-guide/learning/"
           target="_blank"
           rel="noopener noreferrer"
         >

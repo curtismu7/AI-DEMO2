@@ -171,10 +171,10 @@ private handleMetadata(_req: IncomingMessage, res: ServerResponse): void {
     bearer_methods_supported: ['header'],
     scopes_supported: BANKING_SCOPES,
     resource_name: 'Super Banking MCP Server',
-    resource_documentation: 'https://github.com/curtismu7/banking-demo/docs/MCP_SERVER_EDUCATION.md',
+    resource_documentation: 'https://github.com/cmuir_pingcorp/banking-demo/docs/MCP_SERVER_EDUCATION.md',
     introspection_endpoint: `${base}/.well-known/oauth-protected-resource/introspect`,
     revocation_endpoint: `${base}/.well-known/oauth-protected-resource/revoke`,
-    resource_documentation: 'https://github.com/curtismu7/banking-demo/docs/MCP_SERVER_EDUCATION.md',
+    resource_documentation: 'https://github.com/cmuir_pingcorp/banking-demo/docs/MCP_SERVER_EDUCATION.md',
   };
 }
 ```

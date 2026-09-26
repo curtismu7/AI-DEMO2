@@ -253,7 +253,7 @@ export default function AgentOnboardingFlowDiagram() {
         </p>
         <a
           className="learning-hub__weblink aof-share-link"
-          href="https://curtismu7.github.io/llama-vscode-setup-guide/learning/agent-onboarding-flow.html"
+          href="https://cmuir_pingcorp.github.io/llama-vscode-setup-guide/learning/agent-onboarding-flow.html"
           target="_blank"
           rel="noopener noreferrer"
         >
