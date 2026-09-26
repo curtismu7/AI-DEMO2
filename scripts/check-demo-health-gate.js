@@ -399,7 +399,7 @@ async function checkStep9Exchanger() {
 
 /** BANKING_API_RESOURCE_URI gate: when set, Step 9 is ACTIVE and a stale
  *  exchanger breaks every banking data read. When unset the server falls back
- *  to agent-passthrough silently — worth knowing, not a failure. */
+  *  to agent-passthrough silently — worth knowing, not a failure. */
 async function checkStep9Gate() {
   const probe = sh(
     `docker exec ai-demo-mcp-server sh -c 'node -e "console.log(\\"S9_GATE\\",process.env.BANKING_API_RESOURCE_URI||\\"UNSET\\")" 2>&1 | tail -1'`,
@@ -410,6 +410,66 @@ async function checkStep9Gate() {
     !!m && !!m[1] && m[1] !== 'UNSET',
     m ? m[1] : 'no output',
     m && m[1] === 'UNSET' ? `BANKING_API_RESOURCE_URI unset — Step 9 is OFF, banking tools get the un-narrowed gateway token (fine for local dev, misconfig under STRICT_AUTH). Set it in oauth-mcp/.env to enable the RFC 8693 narrowing hop.` : '',
+  );
+}
+
+// ── 10. mcp-gateway (Node, demo_mcp_gateway — demo-auth profile) ────────────
+
+/** Runtime health + P1AZ decision-endpoint reachability for the Node gateway.
+ *  Only meaningful when the container is running (demo-auth profile); skipped
+ *  with an explicit note otherwise. Tool-schema parity is NOT re-checked here —
+ *  demo_mcp_gateway's own toolSchemaDrift.test.ts already gates the committed
+ *  artifact against a fresh build. */
+async function checkMcpGateway() {
+  // /health is unauthenticated and reports authz posture.
+  let health = null;
+  try {
+    const r = await fetchJson('http://localhost:3005/health');
+    health = r.body;
+  } catch (e) {
+    const running = sh("docker ps --format '{{.Names}}' | grep -qx ai-demo-mcp-gateway && echo yes").out.trim() === 'yes';
+    row(
+      'mcp-gateway:health',
+      false,
+      running ? `container up but :3005 unreachable (${e.cause?.code || e.message})` : 'container not running (demo-auth profile off — by design)',
+      running ? `docker logs ai-demo-mcp-gateway — /health should answer 200 on :3005` : `Start with: docker compose --profile demo-auth up -d mcp-gateway`,
+    );
+    return;
+  }
+  row(
+    'mcp-gateway:health',
+    health?.status === 'ok',
+    `status=${health?.status} policySource=${health?.authz?.policySource || '?'}`,
+    health?.status === 'ok' ? '' : `docker logs ai-demo-mcp-gateway`,
+  );
+
+  // P1AZ endpoint reachability — only when the gateway's P1AZ enforcement is on.
+  const p1azEnabled = String(process.env.MCP_GW_P1AZ_ENABLED || '') === 'true'
+    || health?.authz?.policySource?.startsWith('p1az');
+  if (!p1azEnabled) return;
+  const probeJs = [
+    'fetch(process.env.PINGAUTHORIZE_ENDPOINT + "/health", { signal: AbortSignal.timeout(5000) })',
+    '  .then((r) => console.log("PG_P1AZ", r.status))',
+    '  .catch((e) => console.log("PG_P1AZ_FAIL", (e.cause && e.cause.code) || e.message || "err"));',
+  ].join('\n');
+  const tmp = `/tmp/health-gate-mcpgw-${process.pid}.js`;
+  fs.writeFileSync(tmp, probeJs);
+  try {
+    sh(`docker cp ${tmp} ai-demo-mcp-gateway:/tmp/health-gate-mcpgw.js`);
+    fs.unlinkSync(tmp);
+    var probe = sh(
+      `docker exec ai-demo-mcp-gateway sh -c 'node /tmp/health-gate-mcpgw.js 2>&1 | tail -1; rm -f /tmp/health-gate-mcpgw.js'`,
+    );
+  } catch (e) {
+    var probe = { ok: false, out: `probe setup failed: ${e.message}` };
+  }
+  const m = probe.out.match(/PG_P1AZ (\d+)/);
+  const f = probe.out.match(/PG_P1AZ_FAIL (\S+)/);
+  row(
+    'mcp-gateway:authorize-endpoint',
+    !!m && m[1] === '200',
+    m ? `PINGAUTHORIZE_ENDPOINT HTTP ${m[1]}` : (f ? f[1] : 'no output'),
+    m && m[1] === '200' ? '' : `PINGAUTHORIZE_ENDPOINT (${probe.out.match(/PG_P1AZ/) ? 'unreachable' : 'no probe output'}) — the Node gateway's policy engine cannot answer. Check authz-server is up (docker compose --profile demo-auth up -d authz-server) or the endpoint value in demo_mcp_gateway/.env.`,
   );
 }
 
@@ -428,6 +488,7 @@ async function checkStep9Gate() {
   checkGatewayScopeParity();
   await checkStep9Exchanger();
   await checkStep9Gate();
+  await checkMcpGateway();
 
   let failed = 0;
   for (const r of rows) {
