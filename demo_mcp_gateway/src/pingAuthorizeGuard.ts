@@ -28,6 +28,7 @@ import { getCorrelationId } from './correlationContext';
 import { enforceRarSubset, rarDetailsFromEnvelope, type RarToolArgs } from './rarEnforce';
 import { DecodedGatewayToken } from './tokenValidator';
 import { classifyStatements, type ObligationKind } from './auth/authorizeObligations';
+import { formatTokenAudience } from './auth/tokenAudience';
 
 // Forward the request's correlation id to the Authorization Server so its
 // decision logs line up with the gateway + BFF logs for the same request.
@@ -163,7 +164,7 @@ export async function guardToolsList(
     // this to config.gatewayResourceUri, as this path once did, made the cloud
     // rule compare McpResourceUri to itself — a tautology that could never deny.
     // Omitted (not fabricated) when no aud.
-    const tokenAud = Array.isArray(decoded.aud) ? decoded.aud.join(' ') : (decoded.aud ?? '');
+    const tokenAud = formatTokenAudience(decoded.aud);
     const body = {
       parameters: {
         DecisionContext: 'McpToolsList',

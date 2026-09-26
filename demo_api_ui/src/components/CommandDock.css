@@ -15,8 +15,10 @@
   color: var(--th-text);
   font-size: var(--font-size-xs, 12px);
   font-weight: 600;
-  cursor: pointer;
+  cursor: grab;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+  touch-action: none;
+  user-select: none;
 }
 .cmd-dock-pill:hover {
   background: var(--th-bg-hover);

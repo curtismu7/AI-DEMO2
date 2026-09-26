@@ -1743,12 +1743,13 @@ export default function BankingAgent({
   // header is unchanged — which is also what keeps the 2026-07-24
   // Actions-dropdown-removal contract test (float mode, banking route) green.
   const pageOwnsAgentChrome = isPingOneAdminAgentRoute(location.pathname);
-  // Command Dock hosts the secondary header controls in float mode only.
-  // Inline/split-chrome surfaces and the popped-out agent window keep the
-  // classic header: the dock's FloatingPanel portal is meaningless inside a
-  // pop-out window's own chrome, and the column layouts have no header to
-  // declutter.
-  const useCommandDock = !isInline && !poppedOutWin;
+  // Command Dock hosts the secondary header controls in float mode AND in the
+  // dashboard's inline split-column chrome (decluttering the tools rows above
+  // the chat column — 2026-09-26 follow-up to the original float-only dock).
+  // Bare inline surfaces (test mounts, non-split embeds) and the popped-out
+  // agent window keep the classic header: the dock's FloatingPanel portal is
+  // meaningless inside a pop-out window's own chrome.
+  const useCommandDock = (!isInline || splitChrome) && !poppedOutWin;
   // On the /agent route the inline/full-page instance is shown — hide duplicate float
   const isAgentPage = location.pathname === "/agent";
   /** Landing `/`: agent success/info/error toasts use longer autoClose (readable for guests). */
@@ -10837,6 +10838,68 @@ export default function BankingAgent({
                         }));
                       }}
                     />
+                    {/* Split-column (dashboard) controls that live outside the dock
+                        children in float mode — same handlers as the classic header. */}
+                    {splitChrome && (
+                      <button
+                        type="button"
+                        className="ba-cta-live"
+                        onClick={() => navigate("/use-cases/live")}
+                        title="Open the Live Use-Case Workbench"
+                      >
+                        Live Use Cases
+                      </button>
+                    )}
+                    {splitChrome && (
+                      <span
+                        className={`ba-hg-sub${inspectorsOpen ? "" : " ba-hg-sub--collapsed"}`}
+                      >
+                        <button
+                          type="button"
+                          className="ba-hg-label ba-hg-label--toggle"
+                          aria-expanded={inspectorsOpen}
+                          title={inspectorsOpen ? "Hide inspectors" : "Show inspectors"}
+                          onClick={() => setInspectorsOpen((open) => !open)}
+                        >
+                          <span className="ba-hg-label__chev" aria-hidden>
+                            {inspectorsOpen ? "▾" : "▸"}
+                          </span>
+                          Inspectors
+                        </button>
+                        <div className="ba-hg-body">
+                          <button
+                            type="button"
+                            className="ba-insp-btn ba-insp-btn--mcp"
+                            onClick={() => {
+                              if (!effectiveVerticalId) {
+                                setTxErrorModal({ title: 'MCP Inspector', message: 'No active vertical — cannot determine inspector source.' });
+                                return;
+                              }
+                              navigate(`/pingone-mcp-inspector?source=${effectiveVerticalId}`);
+                            }}
+                            title="Open the MCP Inspector"
+                          >
+                            MCP Inspector
+                          </button>
+                          <button
+                            type="button"
+                            className="ba-insp-btn ba-insp-btn--p1az"
+                            onClick={() => navigate("/policy-decision-trace")}
+                            title="Open the P1AZ (PingOne Authorize) decision trace"
+                          >
+                            P1AZ Inspector
+                          </button>
+                          <button
+                            type="button"
+                            className="ba-insp-btn ba-insp-btn--gateway"
+                            onClick={() => navigate("/agent-gateway-inspector?subtab=tester")}
+                            title="Open the Agent Gateway Inspector"
+                          >
+                            Agent Gateway Inspector
+                          </button>
+                        </div>
+                      </span>
+                    )}
                     {effectiveUser?.role === "admin" && (
                       <AdminToolsDropdown
                         open={showAdminTools}

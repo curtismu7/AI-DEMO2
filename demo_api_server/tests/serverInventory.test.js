@@ -2,12 +2,13 @@
 
 const { SERVER_INVENTORY } = require('../data/serverInventory');
 
-// 20 compose services + 2 host llama tiers + the external Privilege AI Gateway
-// (probe:false, SE-only — plan Task 9) — see docs/server-inventory-sot.md
-const EXPECTED_INVENTORY_COUNT = 24;
+// 17 compose services (1f9c035c5 removed openai/mastra/pydantic agents) + 2
+// host llama tiers + the external Privilege AI Gateway (probe:false, SE-only
+// — plan Task 9) — see docs/server-inventory-sot.md
+const EXPECTED_INVENTORY_COUNT = 21;
 
 describe('serverInventory', () => {
-  test('has 24 entries with unique keys', () => {
+  test('has 21 entries with unique keys', () => {
     expect(SERVER_INVENTORY).toHaveLength(EXPECTED_INVENTORY_COUNT);
     const keys = SERVER_INVENTORY.map((s) => s.key);
     expect(new Set(keys).size).toBe(EXPECTED_INVENTORY_COUNT);
