@@ -1,6 +1,6 @@
+# (npm run root:allowlist:check), wired into .github/workflows/ci.yml `gates`.
 # Top-level entries allowed at repo root. Update in the SAME PR that adds a
 # genuine new top-level dir/file. Enforced by scripts/check-root-allowlist.js
-# (npm run root:allowlist:check), wired into .github/workflows/ci.yml `gates`.
 .agents
 .aidlc
 .aidlc-rule-details
@@ -17,6 +17,7 @@
 .idea
 .local
 .nvmrc
+.superpowers
 AGENTS.md
 AGENTS_ECOSYSTEM.md
 BOARD-BACKLOG.md
@@ -90,6 +91,7 @@ llamaindex_agent
 llm-timeouts.json
 lmstudio
 mcp-tool-schemas.json
+mockups
 monitoring
 neural-spinner-mock.html
 oauth-mcp
@@ -102,6 +104,7 @@ ping_agent_guardrails_diagram.html
 ping_agent_onboarding_flow_diagram.html
 ping_agent_onboarding_flow_diagram_compact.html
 ping_agent_onboarding_flow_diagram_subway.html
+pingfederate-skill
 pingone
 pingone-privgateway-helm-main
 pingone-privgateway-helm-main.zip
@@ -127,10 +130,11 @@ security
 service-topology.json
 snap2.yml
 snapshots
+spiffe
 standalone
 start.sh
 stop.sh
+terraform
 test-use-cases-api.sh
 tests
-terraform
 uninstall.sh
