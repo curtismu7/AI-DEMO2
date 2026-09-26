@@ -825,7 +825,7 @@ This is the linchpin of "promote is seconds, not minutes". Prove it with an imag
 
 ```bash
 gh auth token | docker login ghcr.io -u "$(gh api user --jq .login)" --password-stdin
-docker buildx imagetools inspect ghcr.io/curtismu7/ai-demo-llm-proxy:latest > /tmp/it.txt 2>&1
+docker buildx imagetools inspect ghcr.io/cmuir_pingcorp/ai-demo-llm-proxy:latest > /tmp/it.txt 2>&1
 echo "exit: $?"; head -4 /tmp/it.txt
 ```
 
@@ -954,9 +954,9 @@ Expected: exactly one `push-image` matrix job, named `llm`.
 
 ```bash
 SHA="$(git rev-parse origin/main)"
-docker buildx imagetools inspect "ghcr.io/curtismu7/ai-demo-llm-proxy:sha-${SHA}" | head -3
+docker buildx imagetools inspect "ghcr.io/cmuir_pingcorp/ai-demo-llm-proxy:sha-${SHA}" | head -3
 echo "--- latest digest (must be UNCHANGED) ---"
-docker buildx imagetools inspect ghcr.io/curtismu7/ai-demo-llm-proxy:latest | grep -i digest | head -1
+docker buildx imagetools inspect ghcr.io/cmuir_pingcorp/ai-demo-llm-proxy:latest | grep -i digest | head -1
 ```
 
 Expected: the SHA tag resolves; `:latest` still points at whatever it did before the merge. **This is the property the whole design rests on** — if `:latest` moved, stop and report.

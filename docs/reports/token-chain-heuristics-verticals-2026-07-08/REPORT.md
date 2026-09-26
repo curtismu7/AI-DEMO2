@@ -1,7 +1,7 @@
 # Token Chain Heuristics — Vertical Chip Report
 
 **Date:** 2026-07-08  
-**PR:** [#231](https://github.com/curtismu7/AI-DEMO2/pull/231) (merged `5aa1191`)  
+**PR:** [#231](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/231) (merged `5aa1191`)  
 **UI under test:** local Vite on `https://api.ping.demo:4000` serving the merged Heuristics Token Chain fix (K8s frontend image was older and did not include the change)  
 **Agent mode:** Heuristics only  
 **Verdict:** Steps 4 and 11 show **HEURISTICS** labels with checks for CareConnect, CivicPermit, and Super Banking Actions chips

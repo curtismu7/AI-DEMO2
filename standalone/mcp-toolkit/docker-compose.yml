@@ -1,7 +1,7 @@
 services:
   llm-gateway:
     build:
-      context: https://github.com/curtismu7/llm-gateway.git
+      context: https://github.com/cmuir_pingcorp/llm-gateway.git # NOTE: repo does not exist under cmuir_pingcorp (was curtismu7) — rename/re-add before building
     ports:
       - "8090:8090"
     environment:
@@ -10,7 +10,7 @@ services:
 
   mcp-inspector:
     build:
-      context: https://github.com/curtismu7/mcp-inspector.git
+      context: https://github.com/cmuir_pingcorp/mcp-inspector.git # NOTE: repo does not exist under cmuir_pingcorp (was curtismu7) — rename/re-add before building
     ports:
       - "3900:3900"
     volumes:
@@ -19,7 +19,7 @@ services:
 
   ai-gateway-client:
     build:
-      context: https://github.com/curtismu7/ai-gateway-client.git
+      context: https://github.com/cmuir_pingcorp/cmuir-ai-gateway-client.git
     ports:
       - "3910:3910"
     volumes:

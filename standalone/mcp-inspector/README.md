@@ -9,7 +9,7 @@ No account, no cloud service: it runs on your machine, talks directly to the MCP
 **Prerequisites:** Node.js 22+ and npm. Docker is optional (a `Dockerfile` is included).
 
 ```bash
-git clone https://github.com/curtismu7/mcp-inspector.git
+git clone https://github.com/cmuir_pingcorp/mcp-inspector.git
 cd mcp-inspector
 npm run install:all   # installs both server/ and web/
 npm start              # builds the UI, then starts the server on :3900

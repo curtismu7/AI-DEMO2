@@ -1,6 +1,6 @@
 # DaVinci Orchestration Showcase — Status
 
-Branch: `worktree-agent-framework-orchestrator` · PR: [#1924](https://github.com/curtismu7/AI-DEMO2/pull/1924)
+Branch: `worktree-agent-framework-orchestrator` · PR: [#1924](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1924)
 Spec: `docs/superpowers/specs/2026-08-17-davinci-orchestration-showcase-design.md`
 Plan: `docs/superpowers/plans/2026-08-17-davinci-orchestration-showcase.md`
 

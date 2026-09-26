@@ -7,7 +7,7 @@
 
 When the in-app education panels change in the local main checkout, automatically
 regenerate and push the public GitHub Pages mirror
-(`curtismu7/llama-vscode-setup-guide` → `learning/*.html`), so the public site
+(`cmuir_pingcorp/llama-vscode-setup-guide` → `learning/*.html`), so the public site
 stops drifting from the app.
 
 ## Decisions (from brainstorming)

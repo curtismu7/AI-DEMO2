@@ -4,7 +4,7 @@ Working branch chain (each stacked on the last): `worktree-dead-code-stage1` →
 
 **Stage 3 is DONE as of the second update to this file.** Everything below the "Done — merged/open PRs" section was written mid-stage-3 and is kept for the lessons learned, but treat the file list / "not yet applied" language as historical — it all landed. Skip to "Not started at all" for what's actually still open.
 
-Worktree: `.claude/worktrees/dead-code-stage1` in `curtismu7/AI-DEMO2`.
+Worktree: `.claude/worktrees/dead-code-stage1` in `cmuir_pingcorp/AI-DEMO2`.
 
 ## Done — merged/open PRs
 

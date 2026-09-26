@@ -31,7 +31,7 @@ await dataStore.updateAccountBalance(from_account_id, -rounded);
 `store.js`'s `applyTransfer()` (used by the real `POST /api/transactions` route) exists specifically to close this hole — its own doc comment names this exact race. `updateAccountBalance()` does no funds check and no locking.
 **Trigger:** two concurrent agent tool calls transferring/withdrawing from the same account (retried assistant turn, overlapping chat turns) both pass the balance check before either mutates → negative balance / money created from nothing.
 **Fix:** route both tools through `dataStore.applyTransfer()` instead of `updateAccountBalance()`.
-**Fixed:** PR [#1808](https://github.com/curtismu7/AI-DEMO2/pull/1808) — rewired both handlers through `applyTransfer()`, same locked path the REST route uses. Verified: full suite 9476/9476 passed.
+**Fixed:** PR [#1808](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1808) — rewired both handlers through `applyTransfer()`, same locked path the REST route uses. Verified: full suite 9476/9476 passed.
 
 ### 2. Agent-restriction gate trusts unauthenticated header — High
 Mounted on `/api/accounts` and `/api/transactions` **before** `authenticateToken` (`server.js:1303-1304`):
@@ -42,7 +42,7 @@ if (!agentSub) return next();
 Every other failure mode in this file is fail-closed (worker-token fetch fails → restrict, PingOne lookup errors → restrict, exception → restrict) except the entry condition itself, which trusts a raw client-supplied header never cross-checked against the verified token's RFC 8693 `act` claim (`req.user.actor`).
 **Trigger:** a request that simply omits `X-Agent-Sub` skips the entire restriction-tier check — a "restricted" agent gets full write access.
 **Fix:** derive agent-originated status from the verified token's `act` claim post-auth, not a pre-auth header.
-**Fixed:** PR [#1810](https://github.com/curtismu7/AI-DEMO2/pull/1810) — `agentSub` now derived from `req.user?.actor`; middleware mount order fixed so `authenticateToken` runs first. Verified: full suite 9474/9474 passed, regression test added for forged header.
+**Fixed:** PR [#1810](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1810) — `agentSub` now derived from `req.user?.actor`; middleware mount order fixed so `authenticateToken` runs first. Verified: full suite 9474/9474 passed, regression test added for forged header.
 
 ### 3. Cross-caller tool-list leak via unkeyed global cache — High
 ```js
@@ -57,7 +57,7 @@ return send(res, 200, { tools: _toolCache });
 Single process-wide cache, no key on caller identity. Upstream `tools/list` (`demo_mcp_gateway/src/index.ts:437-521`) is scope/vertical-dependent — different bearer tokens legitimately get different lists.
 **Trigger:** user A (broad scopes) calls `GET /tools` first; user B (restricted scopes/vertical) gets A's cached list back until an error clears it — over- or under-exposes available tools.
 **Fix:** key the cache by bearer token / vertical, or drop caching on this endpoint.
-**Fixed:** PR [#1805](https://github.com/curtismu7/AI-DEMO2/pull/1805) — cache replaced with a `Map` keyed by SHA-256 of the bearer token. Verified manually against a stub upstream (no existing automated tests for this file).
+**Fixed:** PR [#1805](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1805) — cache replaced with a `Map` keyed by SHA-256 of the bearer token. Verified manually against a stub upstream (no existing automated tests for this file).
 
 ### 4. Admin "$0 transaction limit" silently ignored — Medium
 `admin.js` allows and persists `0` as a valid hard limit:
@@ -71,7 +71,7 @@ const MAX_TRANSACTION_AMOUNT = parseFloat(configStore.getEffective('max_transact
 `parseFloat('0')` is `0`, falsy → `0 || 1000` evaluates to `1000`.
 **Trigger:** admin sets limit to `0` (demo "freeze all transactions" control) → default $1000 silently reinstated instead of a hard block.
 **Fix:** `Number.isFinite(x) ? x : 1000` instead of `||`.
-**Fixed:** PR [#1816](https://github.com/curtismu7/AI-DEMO2/pull/1816). Verified: 24/24 scoped tests pass (new test proves `0` now blocks transactions), full suite 9475/9598 pass (0 failed).
+**Fixed:** PR [#1816](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1816). Verified: 24/24 scoped tests pass (new test proves `0` now blocks transactions), full suite 9475/9598 pass (0 failed).
 
 ### 5. UC18 rate limiter race — Groovy port not thread-safe — Medium
 ```groovy
@@ -84,7 +84,7 @@ globals._uc18Windows[rlKey] = timestamps
 Check-then-act on shared mutable `globals` map, unsynchronized. PingGateway/IG is multi-threaded, unlike the Node counterpart (`demo_mcp_gateway/src/rateLimit.ts:8-9`, single-threaded event loop — its "safe for single-process gateways" comment doesn't carry over to this Groovy port).
 **Trigger:** concurrent `tools/call` bursts for the same agent+tool within one window (fan-out call or abuse script) → more than `maxRequests` (default 20/60s) get through.
 **Fix:** synchronize the compound read-check-write per `rlKey`, or use an atomic/concurrent structure instead of a bare Groovy map.
-**Fixed:** PR [#1813](https://github.com/curtismu7/AI-DEMO2/pull/1813) — wrapped read-check-append-write in `synchronized (globals)`, 429 response built outside the lock. No test infra exists for `ping-gateway/scripts/groovy/*`; verified by manual review (lock scope, no conflicting lock order with sibling scripts, single-threaded semantics unchanged).
+**Fixed:** PR [#1813](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1813) — wrapped read-check-append-write in `synchronized (globals)`, 429 response built outside the lock. No test infra exists for `ping-gateway/scripts/groovy/*`; verified by manual review (lock scope, no conflicting lock order with sibling scripts, single-threaded semantics unchanged).
 
 ---
 
@@ -109,7 +109,7 @@ if (grant.tool && grant.tool !== toolName && !(grant.actions ?? []).includes(too
 When no grant matches, it silently falls back to `details[0]` — the first grant, regardless of relevance. The mismatch guard only fires `if (grant.tool && ...)`, but standard RFC 9396 grants carry `actions`, not `tool` (that field is this demo's own BFF addition). Any spec-shaped grant with only `type`/`actions` skips the guard entirely, falling through to amount/payee checks against the *wrong* grant. Shared by both HTTP (`middleware/authorizeMcpRequest.ts:794`) and WebSocket (`pingAuthorizeGuard.ts:276`) transports.
 **Trigger:** caller holds a standard-shaped `{actions:['transfer'], amount:100, payee:'acct_456'}` grant, calls an unrelated tool whose args happen to satisfy the leftover amount/payee checks → `enforceRarSubset` returns `ok:true` for a tool action never granted.
 **Fix:** deny outright when `details.find(...)` returns nothing; don't fall back to `details[0]`.
-**Fixed:** PR [#1806](https://github.com/curtismu7/AI-DEMO2/pull/1806). Verified: `rarEnforce.test.ts` 9/9 passed (1 new case), `authzPosture.test.ts` 30/30 passed.
+**Fixed:** PR [#1806](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1806). Verified: `rarEnforce.test.ts` 9/9 passed (1 new case), `authzPosture.test.ts` 30/30 passed.
 
 ### 7. Non-numeric `TransactionAmount` bypasses PDP dollar gates — High
 ```js
@@ -119,7 +119,7 @@ const hasAmount = TransactionAmount !== '';
 `hasAmount` is true for any non-empty string, but `amount` collapses to `0` for any non-numeric value. The ceiling check (`:779`) and tier check (`:849`) both skip on `isNaN`, and step-up/HITL checks (`:874-875`) evaluate `0 >= threshold` → false. Net effect: a malformed `TransactionAmount` sails through PERMIT with no ceiling, tier, step-up, or HITL consent applied — opposite of this PDP's stated fail-closed design elsewhere in the same file.
 **Trigger:** a write-tool call reaches `decision.js` (the authoritative PDP, callable directly) with `TransactionAmount: "abc"` → every dollar-based gate is silently skipped.
 **Fix:** treat non-empty-but-unparseable amount as invalid input → DENY, not `0`.
-**Fixed:** PR [#1809](https://github.com/curtismu7/AI-DEMO2/pull/1809) — guard added returning `invalid_transaction_amount` DENY for write tools before ceiling/tier/step-up checks. Verified: 222/223 pass (1 pre-existing unrelated failure confirmed via `git stash` on unmodified code), 2 new tests added.
+**Fixed:** PR [#1809](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1809) — guard added returning `invalid_transaction_amount` DENY for write tools before ceiling/tier/step-up checks. Verified: 222/223 pass (1 pre-existing unrelated failure confirmed via `git stash` on unmodified code), 2 new tests added.
 
 ### 8. Dead AG-UI tool-call hooks mask completed transfers as failures — High
 `on_tool_start`/`on_tool_args`/`on_tool_end` exist in `pydantic_agent/src/agui_emitter.py` but have zero call sites in `run_handler.py`/`bff_tool_adapter.py` (unlike `openai_agent`'s equivalents, which are wired and set `_any_tool_call = True`). `_any_visible_output` is only set by non-empty text deltas:
@@ -130,7 +130,7 @@ async def on_run_end(self) -> None:
 ```
 **Trigger:** model executes a money-moving tool (e.g. `create_transfer`, side effect already applied) but emits no trailing narration text this turn (common with small local models on this repo's LLM proxy) → client is told the run *failed* even though the transfer already happened, risking a user retry / double-transfer.
 **Fix:** wire the tool-call hooks into the pydantic_ai tool path, or set `_any_visible_output` from tool execution the way `openai_agent` sets `_any_tool_call`.
-**Fixed:** PR [#1811](https://github.com/curtismu7/AI-DEMO2/pull/1811) — `bff_tool_adapter.py` now emits `TOOL_CALL_START`/`TOOL_CALL_END` around each BFF tool call, reusing existing `_any_visible_output` wiring in `agui_emitter.py`. Verified red-green: 20/20 new+existing tests pass; 8 unrelated pre-existing `test_run_handler.py` failures confirmed present with or without this change via `git stash`.
+**Fixed:** PR [#1811](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1811) — `bff_tool_adapter.py` now emits `TOOL_CALL_START`/`TOOL_CALL_END` around each BFF tool call, reusing existing `_any_visible_output` wiring in `agui_emitter.py`. Verified red-green: 20/20 new+existing tests pass; 8 unrelated pre-existing `test_run_handler.py` failures confirmed present with or without this change via `git stash`.
 
 ### 9. XSS via unescaped `dangerouslySetInnerHTML` in JSON viewer — High
 ```js
@@ -142,7 +142,7 @@ return <div key={line} dangerouslySetInnerHTML={{ __html: html }} />;
 The regex tokenizer wraps JSON tokens in `<span>` markup but never HTML-escapes `<`, `>`, `&` in the underlying values first. Rendered via `ActivityPanel.jsx:96` for every raw HTTP response in Protocol Playground (PAR/authorize/token calls).
 **Trigger:** any response field (e.g. `error_description`) containing `<img src=x onerror=alert(1)>` renders as live HTML/JS instead of text.
 **Fix:** HTML-escape line content before running the highlighting regexes, or switch to a token-array render like the sibling `components/shared/JsonHighlight.jsx` (which deliberately avoids `dangerouslySetInnerHTML` for this exact reason).
-**Fixed:** PR [#1807](https://github.com/curtismu7/AI-DEMO2/pull/1807) — rewritten as a token-array React render (no `dangerouslySetInnerHTML`), same CSS classes/prop contract preserved. Verified: 6/6 tests passed (new XSS regression test asserting escaped output), `npm run build` clean.
+**Fixed:** PR [#1807](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1807) — rewritten as a token-array React render (no `dangerouslySetInnerHTML`), same CSS classes/prop contract preserved. Verified: 6/6 tests passed (new XSS regression test asserting escaped output), `npm run build` clean.
 
 ### 10. Admin audit logger drops all event data — Medium
 Five functions in `adminAuditService.js` (`logAdminTokenExchange`, `logAdminUserManagement`, etc.) call:
@@ -152,7 +152,7 @@ writeExchangeEvent('admin_token_exchange', auditEvent);   // two args
 but `exchangeAuditStore.js` declares `writeExchangeEvent(event)` — **one** param. The leading type-string becomes `event`; `{...event}` on a string spreads its characters into numeric keys, and the real object (adminSub, targetUserSub, action, result, IP) is dropped.
 **Confirmed live call site:** `routes/adminAgentTools.js:178-185` — `DELETE /users/:userId` deletes a user + accounts/transactions, then logs via this broken path. The persisted compliance audit trail for that destructive action ends up empty/garbage; only an ephemeral `console.log` has the real fields.
 **Fix:** drop the leading type-string argument (or fold `type` into the `auditEvent` object) so calls match the single-param signature.
-**Fixed:** PR [#1815](https://github.com/curtismu7/AI-DEMO2/pull/1815) — leading type-string arg dropped from all 5 call sites; `type` field was already set on each `auditEvent`, matching the convention every other `writeExchangeEvent` caller uses. Verified red-green (new test fails pre-fix with spread-string garbage, passes post-fix); full suite 9476/9602 pass (6 pre-existing unrelated flakes).
+**Fixed:** PR [#1815](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1815) — leading type-string arg dropped from all 5 call sites; `type` field was already set on each `auditEvent`, matching the convention every other `writeExchangeEvent` caller uses. Verified red-green (new test fails pre-fix with spread-string garbage, passes post-fix); full suite 9476/9602 pass (6 pre-existing unrelated flakes).
 
 ### Also found in pass 2, not in top 5 (verified, logged for awareness — not yet tracked with a number)
 - `demo_api_ui/src/components/AIAgent.js:1856-1911` — no staleness guard on `fetchLiveAccounts`; rapid vertical-switching can apply an older vertical's accounts last (Medium).
@@ -181,7 +181,7 @@ args = raw.get("arguments", "{}") if isinstance(raw, dict) else "{}"
 `item.raw_item` for a real function-tool call is a pydantic `ResponseFunctionToolCall`/`FunctionCallOutput` model, never a plain dict — confirmed against the installed `openai-agents` SDK internals. `isinstance(raw, dict)` is always `False` in practice, so every BFF tool call gets `toolCallName="unknown"`, empty args, and a random UUID as `toolCallId` on start, but empty string `""` on end.
 **Trigger:** any turn where the model calls a BFF tool (e.g. `transfer_funds`). Start/end IDs never match → `AGUIEmitter._pending_tool_calls.pop()` returns `None` → call dropped from `_turn_tool_calls`, blinding the commitment-grounding guardrail → UI tool-call entry stuck at `status: 'running'` forever, labeled "unknown", no visible arguments. Happens on every single tool call in `openai_agent` mode.
 **Fix:** extract `call_id`/`name`/`arguments` via `getattr(raw, "call_id", None)` with a dict fallback, mirroring the SDK's own `_extract_call_id` pattern.
-**Fixed:** PR [#1824](https://github.com/curtismu7/AI-DEMO2/pull/1824) — verified against the real pinned `openai-agents` SDK internals, not mocked. 38/39 pass (1 pre-existing unrelated failure).
+**Fixed:** PR [#1824](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1824) — verified against the real pinned `openai-agents` SDK internals, not mocked. 38/39 pass (1 pre-existing unrelated failure).
 
 ### 12. `/api/admin/scope-audit` missing `requireAdmin` — High
 ```js
@@ -191,19 +191,19 @@ app.use('/api/admin/scope-audit', authenticateToken, require('./routes/scopeAudi
 Every other `/api/admin/*` route pairs `authenticateToken` with `requireAdmin` (confirmed in `admin.js`, `adminAgentTools.js`, `groupMembership.js`). This route is the outlier.
 **Trigger:** any logged-in customer (not just an admin) can call `GET /api/admin/scope-audit/resources` (dumps every PingOne resource server + scopes via the Management API worker token) and `POST /api/admin/scope-audit/scopes` (creates a new OAuth scope on any PingOne resource — a live tenant write).
 **Fix:** add `requireAdmin` at the mount point or per-route, matching the pattern used everywhere else under `/api/admin`.
-**Fixed:** PR [#1826](https://github.com/curtismu7/AI-DEMO2/pull/1826). Verified: full suite 9505/9505 pass (1 pre-existing unrelated flake in isolation).
+**Fixed:** PR [#1826](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1826). Verified: full suite 9505/9505 pass (1 pre-existing unrelated flake in isolation).
 
 ### 13. UC18 rate limiting bypassed entirely over WebSocket — High
 The HTTP middleware's `tools/call` path checks `config.rateLimitEnabled` and calls the `SlidingWindowLimiter`, returning 429 on burst. The WS `tools/call` handler in `index.ts` (the gateway's documented primary ingress — "Accepts JSON-RPC over WebSocket from agent") runs straight from token validation into tool dispatch with zero rate-limit references anywhere in the file.
 **Trigger:** an agent connects over WebSocket and sends `tools/call` bursts. The same calls over HTTP get throttled at `GATEWAY_RATE_LIMIT_MAX_REQUESTS`; over WS they're never throttled — full UC18 resource-exhaustion/cost-runaway protection is void for the primary channel.
 **Fix:** add the same `SlidingWindowLimiter` check (keyed `sub:toolName`) to the WS `tools/call` branch, before `guardToolCall`.
-**Fixed:** PR [#1825](https://github.com/curtismu7/AI-DEMO2/pull/1825) — HTTP and WS now share one `SlidingWindowLimiter` singleton. 23/23 scoped pass, `tsc --noEmit` clean. No harness exists to spin up the real WS server in a unit test; verified the load-bearing shared-singleton mechanism instead (noted in PR).
+**Fixed:** PR [#1825](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1825) — HTTP and WS now share one `SlidingWindowLimiter` singleton. 23/23 scoped pass, `tsc --noEmit` clean. No harness exists to spin up the real WS server in a unit test; verified the load-bearing shared-singleton mechanism instead (noted in PR).
 
 ### 14. `tool-error` stream chunk unhandled in mastra_agent — High
 `runHandler.ts`'s `fullStream` switch only handles `'text-delta' | 'tool-call' | 'tool-result' | 'error'`. A failed tool `execute()` (BFF timeout/non-2xx/abort) emits a distinct `'tool-error'` chunk per the underlying `ai` SDK — never `'tool-result'` — which this switch silently drops.
 **Trigger:** a BFF tool call fails mid-run. `onToolStart` already set `anyVisibleOutput = true`; the dropped `tool-error` chunk means `onToolEnd` never fires for that call, so the UI entry (`useAgentState.js`) hangs at `status: 'running'` forever, AND `onRunEnd()` still emits `RUN_FINISHED` (not an error) since `anyVisibleOutput` is already true — a failed tool call (potentially a transfer) is reported as a successful run.
 **Fix:** add an `else if (part.type === 'tool-error')` branch that calls `emitter.onToolEnd()` with an error so the UI entry resolves instead of hanging.
-**Fixed:** PR [#1828](https://github.com/curtismu7/AI-DEMO2/pull/1828). Also found and logged (in TECH_DEBT.md, not fixed — out of scope) a pre-existing unrelated flake in the request-abort test harness. 29/32 pass on touched files (3 pre-existing unrelated), `tsc --noEmit` clean.
+**Fixed:** PR [#1828](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1828). Also found and logged (in TECH_DEBT.md, not fixed — out of scope) a pre-existing unrelated flake in the request-abort test harness. 29/32 pass on touched files (3 pre-existing unrelated), `tsc --noEmit` clean.
 
 ### 15. JWT decode crashes on base64url characters — High
 ```js
@@ -213,7 +213,7 @@ payload: JSON.parse(atob(parts[1])),
 `atob()` only accepts standard base64 (`+`/`/`); JWTs use base64url (`-`/`_`). Verified directly: `atob('YWJjZGVmZ2hpams-_')` throws `Invalid character`.
 **Trigger:** any real PingOne-issued token whose header/payload segment contains `-` or `_` (near-certain at typical token length) throws inside `decodeJWT`'s try block, returning `{isValid:false}` for a perfectly valid token — silently hiding the decoded-token panel in Protocol Playground's `TokenInspector.jsx` and `ExecutionEngine.executeStep`. The existing test suite only uses a hand-crafted token that happens to avoid `-`/`_`, masking the bug. Same pattern also exists in `Dashboard.js`, `UserDashboard.js`, `UserDashboardPing2026.js`, `TokenInspectModal.jsx`, `TokenExchangePanel.js` (flagged for awareness, not filed separately).
 **Fix:** replace `-`/`_` with `+`/`/` (and pad) before calling `atob`, or use a base64url-safe decode helper.
-**Fixed:** PR [#1827](https://github.com/curtismu7/AI-DEMO2/pull/1827) — open, not yet merged.
+**Fixed:** PR [#1827](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1827) — open, not yet merged.
 
 ### Also found in pass 3, not in top 5 (verified, logged for awareness)
 - `demo_api_server/services/rfc9728ComplianceAuditService.js:366,405,462,500,704` — server-side `fetch('/.well-known/...')` with a relative URL throws immediately under Node's `fetch`; every RFC 9728 compliance audit run reports false-negative non-compliance regardless of real endpoint health (Medium).
@@ -239,7 +239,7 @@ Previously logged as "found but not in top 5" (see full detail in the pass 2 / p
 | 22 | Medium | 🟢 Fixed | Auth-bypass dev-mode warning uses raw `console.warn` instead of `teachLog`, skips correlation-id logging | `demo_hitl_service/src/routes/challenges.js:30` |
 | 23 | Medium | 🟢 Fixed | `respondedBy` documented and store-supported but never captured on HITL approval | `demo_hitl_service/src/routes/challenges.js:127-139` |
 
-**Fixed:** #16 PR [#1836](https://github.com/curtismu7/AI-DEMO2/pull/1836) (full suite 3053/3053 pass) · #17 PR [#1834](https://github.com/curtismu7/AI-DEMO2/pull/1834) (105+ pass) · #18 PR [#1832](https://github.com/curtismu7/AI-DEMO2/pull/1832) (wired to HITL_CONSENT tier only, STEP_UP left untouched; red-green verified) · #19 PR [#1837](https://github.com/curtismu7/AI-DEMO2/pull/1837) (71/71 scoped, 9510/9636 full) · #20 PR [#1833](https://github.com/curtismu7/AI-DEMO2/pull/1833) (6/6, red-green, build clean) · #21 PR [#1830](https://github.com/curtismu7/AI-DEMO2/pull/1830) (32/32, red-green, tsc clean) · #22+#23 PR [#1831](https://github.com/curtismu7/AI-DEMO2/pull/1831) (46/46 full `demo_hitl_service` suite).
+**Fixed:** #16 PR [#1836](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1836) (full suite 3053/3053 pass) · #17 PR [#1834](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1834) (105+ pass) · #18 PR [#1832](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1832) (wired to HITL_CONSENT tier only, STEP_UP left untouched; red-green verified) · #19 PR [#1837](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1837) (71/71 scoped, 9510/9636 full) · #20 PR [#1833](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1833) (6/6, red-green, build clean) · #21 PR [#1830](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1830) (32/32, red-green, tsc clean) · #22+#23 PR [#1831](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1831) (46/46 full `demo_hitl_service` suite).
 
 ---
 
@@ -275,7 +275,7 @@ try { payload = JSON.parse(atob(parts[1])); } catch (_) {}
 Feeds `live.userToken.payload` in the Learning Hub's "Live Session Token" tab, gated by `live.userToken?.payload &&`.
 **Trigger:** payload with base64url chars → `payload` stays `null` → the entire decoded-token block (including the `may_act` delegation sub-view) silently vanishes from the panel, no error, no fallback.
 **Fix:** same base64url conversion.
-**Fixed:** #24+#25 PR [#1840](https://github.com/curtismu7/AI-DEMO2/pull/1840) — noted `tokenInspector.js`'s earlier PR #1192 fixed a different bug (return shape), not base64url; PR #1827 (bug #15) covers that separately. 2/2 scoped pass, full suite 3055/3055 pass, build clean.
+**Fixed:** #24+#25 PR [#1840](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1840) — noted `tokenInspector.js`'s earlier PR #1192 fixed a different bug (return shape), not base64url; PR #1827 (bug #15) covers that separately. 2/2 scoped pass, full suite 3055/3055 pass, build clean.
 
 ### 26. `useNewItems` stops detecting new items after any array reset — High
 ```js
@@ -290,13 +290,13 @@ useEffect(() => {
 `prevLenRef` only advances on growth; never resets when the array is replaced by a shorter one. `demo_api_server/routes/agentRun.js` injects a fresh `STATE_SNAPSHOT` with empty `mcpTraffic`/`authorizeDecisions` arrays at the start of every new run, and `useAgentState.onStateSnapshot` does a full replace.
 **Trigger:** run 1 accumulates 5 mcpTraffic entries (`prevLenRef=5`). Run 2 resets the array to `[]` then grows to 3 by the time it finishes → `newCount = 3-5 = -2` every tick → `onNew` never fires. MCP Traffic panel, Authorize Decision panel, and activity narration silently stop updating for run 2 (or any later run whose peak stays below the prior run's peak) — looks like the agent made no tool calls even though it did.
 **Fix:** detect a shrink (`items.length < prevLenRef.current`) and treat it as a reset (`prevLenRef.current = 0`) before computing `newCount`, or compare array identity instead of length.
-**Fixed:** PR [#1835](https://github.com/curtismu7/AI-DEMO2/pull/1835) — red-green verified (new test fails on pre-fix code with "Number of calls: 0"). 68 hook tests + 38 consumer tests pass, build clean.
+**Fixed:** PR [#1835](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1835) — red-green verified (new test fails on pre-fix code with "Number of calls: 0"). 68 hook tests + 38 consumer tests pass, build clean.
 
 ### 27. `useAgentCCTokenPrefetch` re-fetches on every poll/SSE tick — Medium
 Effect depends on `[tokenChain]`, but `tokenChain` (from `TokenChainContext`'s `useMemo`) gets a new identity on nearly every provider state change (15s poll, SSE events, history writes). The duplicate-prevention check runs only after fetch completes, not before.
 **Trigger:** on any token-chain route, each poll/SSE tick re-renders the provider, giving `tokenChain` a new reference, re-running the effect and firing another `GET /api/tokens/agent-cc-preview` — indefinitely, contradicting the hook's own doc comment ("prefetch ... once on component mount").
 **Fix:** depend on a stable reference (e.g. `tokenChain?.setTokenEvents`) instead of the whole context object, matching the pattern already used in `useCurrentUserTokenEvent.js`.
-**Fixed:** PR [#1838](https://github.com/curtismu7/AI-DEMO2/pull/1838) — red-green verified (new test fails on pre-fix code). 11/11 pass, full suite 3052/3078 pass (2 pre-existing unrelated, confirmed via stash), build clean.
+**Fixed:** PR [#1838](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1838) — red-green verified (new test fails on pre-fix code). 11/11 pass, full suite 3052/3078 pass (2 pre-existing unrelated, confirmed via stash), build clean.
 
 ### 28. Dead `tokenData` state in Dashboard.js — Medium
 ```js
@@ -307,7 +307,7 @@ setTokenData({ accessToken: decodeToken(response.data.accessToken), ... });
 `tokenData` (the state value) is destructured away — only the setter kept — and never read anywhere else in the file. `fetchTokenData()` still does a real network round-trip and JWT decode on every dashboard mount and every token-modal open, thrown into the void; the modal actually shown fetches its own data independently.
 **Trigger:** no current visible break (output is discarded), but wasted API calls + decode work on every mount, and the same unconverted-base64url `atob` bug exists here too — currently harmless only because its output is discarded; becomes a live landmine the moment someone wires `tokenData` back into the render (e.g. "fixing" the unused-state lint warning).
 **Fix:** either delete the dead `fetchTokenData`/`decodeToken`/`setTokenData` plumbing, or wire `tokenData` into the modal it was clearly meant to feed.
-**Fixed:** PR [#1839](https://github.com/curtismu7/AI-DEMO2/pull/1839) — deleted the dead plumbing; found and confirmed server-side that the fetched endpoints never return `accessToken` anyway (BFF pattern), so `decodeToken`'s branch was unreachable even before this fix. Full suite 3051/3075 pass, build clean.
+**Fixed:** PR [#1839](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1839) — deleted the dead plumbing; found and confirmed server-side that the fetched endpoints never return `accessToken` anyway (BFF pattern), so `decodeToken`'s branch was unreachable even before this fix. Full suite 3051/3075 pass, build clean.
 
 ---
 
@@ -329,7 +329,7 @@ app.use('/api/self-service/users', authenticateToken, selfServiceUsersRoutes);
 Sibling handlers in the same file (`DELETE /:userId`, `GET /`) both explicitly gate on `req.user.role !== 'admin'`. The `POST /` handler doesn't, and forwards `role` straight into `pingOneUserService.createPingOneUser(...)` + `ensureAdminRoleAssignments(user.id)`.
 **Trigger:** any logged-in customer POSTs `{email, username, ..., role: "admin"}` → gets back a new PingOne user with admin role assignments granted, no admin session involved.
 **Fix:** add the same `req.user.role !== 'admin'` gate used by the sibling DELETE/GET handlers, or drop `role`/`ensureAdminRoleAssignments` from the self-service path entirely.
-**Fixed:** PR [#1849](https://github.com/curtismu7/AI-DEMO2/pull/1849) — targeted gate (only blocks non-admin callers requesting `role:"admin"`; admin callers and normal customer signup unaffected). 5/5 scoped pass, full suite 9524/9650 pass (4 pre-existing unrelated, confirmed via isolation rerun).
+**Fixed:** PR [#1849](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1849) — targeted gate (only blocks non-admin callers requesting `role:"admin"`; admin callers and normal customer signup unaffected). 5/5 scoped pass, full suite 9524/9650 pass (4 pre-existing unrelated, confirmed via isolation rerun).
 
 ### 30. A2A auth accepts unsigned/forged JWTs — Critical
 ```js
@@ -340,7 +340,7 @@ req.a2aPingOne = { token, claims, clientId: String(clientId) };
 This is the sole auth gate on the live A2A JSON-RPC route (mounted without session `authenticateToken`). `decodeJwt` never verifies against PingOne's JWKS, unlike `middleware/auth.js`'s `authenticateToken`.
 **Trigger:** anyone crafts `header.payload.signature` with an arbitrary `client_id`/`sub` in the payload (signature bytes can be garbage), POSTs it as `Authorization: Bearer <forged>` → marked `isAuthenticated: true` under that identity. Full identity spoofing on A2A specialist endpoints.
 **Fix:** verify the JWT signature/issuer (JWKS or PingOne introspection) before trusting any claim, matching `authenticateToken`'s pattern.
-**Fixed:** PR [#1845](https://github.com/curtismu7/AI-DEMO2/pull/1845) — now verifies RS256 signature/issuer/expiry via the same JWKS helper `authenticateToken` uses; no new JWKS logic written. Logged in REGRESSION_PLAN.md §4. 10/10 scoped pass, full suite 756/760 pass (4 pre-existing unrelated, confirmed via isolation rerun).
+**Fixed:** PR [#1845](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1845) — now verifies RS256 signature/issuer/expiry via the same JWKS helper `authenticateToken` uses; no new JWKS logic written. Logged in REGRESSION_PLAN.md §4. 10/10 scoped pass, full suite 756/760 pass (4 pre-existing unrelated, confirmed via isolation rerun).
 
 ### 31. JWT algorithm confusion (RS256→HS256 forgery) — Critical
 ```js
@@ -350,7 +350,7 @@ const verifyOptions = { algorithms: [alg || 'RS256'] };
 Classic CWE-347: the verification algorithm allow-list is derived from attacker-controlled token content instead of being server-fixed. Backs `validatePingOneCoreToken` in JWT-signature-verification mode (an alt to introspection mode).
 **Trigger:** attacker knows a valid `kid` (public via JWKS by design), crafts a token `{alg:"HS256", kid:"<real-kid>"}`, HMAC-signs it using the RSA public key's PEM string (also public) as the HMAC secret. `algorithms` becomes `['HS256']` from the forged header, and the "key" passed to `jwt.verify` is that same PEM — `jsonwebtoken` HMAC-verifies successfully. Full auth bypass with a self-forged token for any subject/claims.
 **Fix:** hard-code `algorithms: ['RS256']` (or an explicit server-controlled allow-list of asymmetric algorithms only) — never read `alg` from the token header.
-**Fixed:** PR [#1847](https://github.com/curtismu7/AI-DEMO2/pull/1847). Honest finding: `jsonwebtoken@9.0.3` already type-checks key material against algorithm family, so the literal RSA-PEM-as-HMAC-secret exploit was already blocked by the library in this version — the attacker-controlled allow-list was still a real CWE-347 defect fixed as defense-in-depth regardless. 3/3 scoped pass (regression-proof spy assertion confirmed failing on pre-fix code), full suite 759/763 pass (2 pre-existing unrelated).
+**Fixed:** PR [#1847](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1847). Honest finding: `jsonwebtoken@9.0.3` already type-checks key material against algorithm family, so the literal RSA-PEM-as-HMAC-secret exploit was already blocked by the library in this version — the attacker-controlled allow-list was still a real CWE-347 defect fixed as defense-in-depth regardless. 3/3 scoped pass (regression-proof spy assertion confirmed failing on pre-fix code), full suite 759/763 pass (2 pre-existing unrelated).
 
 ### 32. Plaintext passwords in activity log — High
 ```js
@@ -359,7 +359,7 @@ requestBody: method === 'POST' || method === 'PUT' ? req.body : null,
 Globally mounted. `Authorization` header is explicitly redacted two lines above — showing password exposure wasn't intended — but the request body isn't.
 **Trigger:** user logs in / registers / changes password → activity log entry persists the plaintext password field, later viewable via the admin activity-log surface.
 **Fix:** redact known sensitive fields (`password`, `newPassword`, etc.) from `requestBody` before storing, same treatment as the auth header.
-**Fixed:** PR [#1844](https://github.com/curtismu7/AI-DEMO2/pull/1844) — redacts `password`/`currentPassword`/`newPassword`/`clientSecret`/`client_secret`/`workerClientSecret` (verified real field names via grep of auth/vault/setup routes, not guessed). 3/3 scoped pass, full suite also green.
+**Fixed:** PR [#1844](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1844) — redacts `password`/`currentPassword`/`newPassword`/`clientSecret`/`client_secret`/`workerClientSecret` (verified real field names via grep of auth/vault/setup routes, not guessed). 3/3 scoped pass, full suite also green.
 
 ### 33. RFC 8707 resource validator rejects every real resource — High
 ```js
@@ -372,7 +372,7 @@ const validPatterns = [
 `RESOURCE_DEFINITIONS` defines the actual resource URIs on domain `ping.demo` (`enduser.ping.demo/`, `mcpserver.ping.demo/`, `https://admin-api.ping.demo/`, `https://config-api.ping.demo/`). None of the three regexes match any of them (wrong domain, two aren't even `https://`).
 **Trigger:** `oauthService.exchangeCodeForToken` filters caller-supplied `resources` through this validator before appending RFC 8707 `resource` params — the filter always empties the list, silently dropping resource indicators from every code-exchange request. `routes/oauth.js`'s `validateResourceSelection` likewise rejects every legitimate resource.
 **Fix:** correct the regex allow-list to match the actual `*.ping.demo` domains, and normalize the bare-hostname entries to include a scheme or drop the hard `https://` requirement for them.
-**Fixed:** PR [#1843](https://github.com/curtismu7/AI-DEMO2/pull/1843) — no prior test coverage existed for this function, added 9 new tests. 9/9 pass, full suite 9529/9654 pass (2 pre-existing unrelated).
+**Fixed:** PR [#1843](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1843) — no prior test coverage existed for this function, added 9 new tests. 9/9 pass, full suite 9529/9654 pass (2 pre-existing unrelated).
 
 ### Also found in pass 5, not in top 5 (verified, logged for awareness)
 - `demo_api_server/routes/complianceAgentRoutes.js:16-42`, `routes/supportAgentRoutes.js:16-45` — identity taken from `req.body.userId` instead of the authenticated `req.agentContext.userId`; an authenticated user can act under a spoofed identity on the compliance/support agent init/message endpoints (Medium).
@@ -407,13 +407,13 @@ function guardOk(req) {
 The no-op fallback is justified by a comment assuming the server "binds 127.0.0.1 as a sidecar" — true for the k8s deployment, but `docker-compose.yml` explicitly sets `HOST: "0.0.0.0"` and publishes `9001:9001` to the host, and `AUTHZ_ADMIN_TOKEN` is never set anywhere in the repo (`.env`, compose, k8s — verified via full-repo grep). The `demo-auth` compose profile (which includes `authz-server`) is part of the normal always-up flow, not opt-in.
 **Trigger:** with the stack running normally (`./run-docker.sh`), anyone reaching `localhost:9001` can `PUT /rules` with zero credentials, e.g. setting `create_transfer`'s `requiredScopes` to `[]` and it no longer being classified as a write tool — `decision.js` then skips scope enforcement AND the HITL/step-up gates entirely, persisted live to `rules-overlay.json` until someone notices or calls `/rules/reset` (also unauthenticated).
 **Fix:** require `AUTHZ_ADMIN_TOKEN` whenever `HOST` isn't loopback (fail closed with a startup error), or default one in docker-compose the way other admin-facing services in this repo do.
-**Fixed:** PR [#1859](https://github.com/curtismu7/AI-DEMO2/pull/1859) — `guardOk()` now fails closed (401) on any non-loopback bind with no token; k8s sidecar loopback case unaffected. Real dev-only default `AUTHZ_ADMIN_TOKEN` added to docker-compose.yml on both authz-server and BFF proxy. 6/6 scoped pass, 226/227 full (1 pre-existing unrelated).
+**Fixed:** PR [#1859](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1859) — `guardOk()` now fails closed (401) on any non-loopback bind with no token; k8s sidecar loopback case unaffected. Real dev-only default `AUTHZ_ADMIN_TOKEN` added to docker-compose.yml on both authz-server and BFF proxy. 6/6 scoped pass, 226/227 full (1 pre-existing unrelated).
 
 ### 35. HITL approval receipts not single-use — High
 Once approved, a challenge stays `status:'approved'` until its 10-minute TTL or the 1-hour GC sweep. `verifyReceipt()` only checks status/expiry, never marks the challenge consumed — no equivalent to the codebase's own established "one-time use: consumed here" pattern used for pending-elicitation checks one block above in the same gateway file.
 **Trigger:** agent gets a transfer challenge approved once by a human, then retries (or replays) the same `tools/call` with the identical `_hitl_challenge_id` before the TTL expires — verification passes again, discharging a second transfer from one approval. The repo's own replay test suite (`challenges.verify.test.js`) covers every cross-user/agent/tool/amount vector except this one.
 **Fix:** transition the challenge to a terminal `consumed`/`spent` status on first successful `/verify`, and reject non-`'approved'` status the same way `'denied'`/`'expired'` are already rejected.
-**Fixed:** PR [#1858](https://github.com/curtismu7/AI-DEMO2/pull/1858) — `store.consume()` added, called on first successful verify. 47/47 pass. Important finding: the *default* Node gateway path (`ff_mcp_gateway_pinggateway` OFF) never calls `/verify` at all and has an even bigger unpatched version of this hole — logged as a scoped follow-up in TECH_DEBT.md rather than expanding this PR's blast radius.
+**Fixed:** PR [#1858](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1858) — `store.consume()` added, called on first successful verify. 47/47 pass. Important finding: the *default* Node gateway path (`ff_mcp_gateway_pinggateway` OFF) never calls `/verify` at all and has an even bigger unpatched version of this hole — logged as a scoped follow-up in TECH_DEBT.md rather than expanding this PR's blast radius.
 
 ### 36. Workforce PTO negative-days inflation — High
 ```js
@@ -423,7 +423,7 @@ data.pto.balance -= days;
 `days` comes straight from tool-call params with no server-side range check.
 **Trigger:** `days: -5` passes `balance < days` (false), then `balance -= (-5)` INCREASES the balance instead of being rejected. Non-numeric `days` also passes (`balance < NaN` is always false) and corrupts `balance` to `NaN`.
 **Fix:** validate `days > 0` and finite before the balance check/mutation.
-**Fixed:** PR [#1855](https://github.com/curtismu7/AI-DEMO2/pull/1855) — red-green verified. Full suite 9578/9578 pass.
+**Fixed:** PR [#1855](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1855) — red-green verified. Full suite 9578/9578 pass.
 
 ### 37. P1AZ tier ceiling backstop effectively dead — High
 ```groovy
@@ -433,7 +433,7 @@ if (txAmountLocal != null && isWriteToolLocal && txAmountLocal > maxAmountLocal)
 This is documented as the SOLE enforcement of the tier-based transfer ceiling (the script's own comment: "real P1AZ cannot map a PingOne group array to a tier"). It checks the caller's granted TOKEN scopes, but the standard inbound token on this route only ever carries the gateway-hop scope — never the literal `'write'` scope, which is a TOOL-level classification in `scope-topology.json` (88 write tools declare `requiredScopes:['write']` at the tool level, not token level).
 **Trigger:** `isWriteToolLocal` is false for essentially all standard traffic, so `tier_amount_exceeded` never fires — a tier-restricted user's transfer/withdraw ceiling is silently unenforced.
 **Fix:** derive `isWriteToolLocal` from the tool's own `requiredScopes` (already loaded as `toolEntry.requiredScopes` earlier in the same block), not from `tokenScopes`.
-**Fixed:** PR [#1854](https://github.com/curtismu7/AI-DEMO2/pull/1854) — no test infra exists for this file; verified by cross-checking real tool classifications against `scope-topology.json` (write tools correctly flagged, read tools correctly excluded) and diff-scoped brace/paren balance.
+**Fixed:** PR [#1854](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1854) — no test infra exists for this file; verified by cross-checking real tool classifications against `scope-topology.json` (write tools correctly flagged, read tools correctly excluded) and diff-scoped brace/paren balance.
 
 ### 38. Investment deposit/withdraw invert on negative amounts — Medium
 ```js
@@ -444,7 +444,7 @@ portfolio.value = Math.max(0, Number((portfolio.value - amt).toFixed(2)));  // w
 No sign constraint on `amount`.
 **Trigger:** `deposit` with `amount: -50000` reduces the portfolio (an inverted withdrawal mislabeled as a deposit); `withdraw` with a negative amount increases the value with no ceiling (`deposit` also has no matching ceiling guard).
 **Fix:** reject non-positive `amount` in both mutators before applying the delta.
-**Fixed:** PR [#1856](https://github.com/curtismu7/AI-DEMO2/pull/1856). Full suite 9583/9583 pass.
+**Fixed:** PR [#1856](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1856). Full suite 9583/9583 pass.
 
 ### 39. CivicPermit pays wrong fee on bad permitId — Medium
 ```js
@@ -463,7 +463,7 @@ def trustedCaller = internalSecret && request.headers.getFirst('X-BFF-Internal')
 Every equivalent trust gate elsewhere in this codebase uses constant-time comparison (`p1az-decision.groovy` uses `MessageDigest.isEqual`; the Node BFF's own internal-secret helper explicitly documents why). Groovy `==` on strings short-circuits on first mismatched byte.
 **Trigger:** anyone reaching the IG host port directly can time-probe `X-BFF-Internal` byte-by-byte to recover the shared secret and force AAM decisions to the permissive mock backend.
 **Fix:** use `MessageDigest.isEqual` on UTF-8 bytes, matching `p1az-decision.groovy`'s existing pattern.
-**Fixed:** PR [#1852](https://github.com/curtismu7/AI-DEMO2/pull/1852) — no test infra exists for this file; verified by code review, byte-for-byte pattern match against `p1az-decision.groovy`'s working implementation.
+**Fixed:** PR [#1852](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1852) — no test infra exists for this file; verified by code review, byte-for-byte pattern match against `p1az-decision.groovy`'s working implementation.
 
 ### 41. JWKS forced-refetch throttle has a TOCTOU race — Medium
 ```groovy
@@ -472,7 +472,7 @@ if (nowMs - lastForced > 60_000L) { globals._jwksForcedFetchAt = nowMs; jwk = fi
 Unsynchronized shared `globals` on a multi-threaded IG runtime; the check-then-set isn't atomic.
 **Trigger:** a burst of concurrent requests with an unknown `kid` can all read `lastForced` before any writes it back — all N threads pass the throttle and each issues a forced HTTPS fetch to the JWKS endpoint, the exact amplification the throttle exists to prevent (just needs concurrency instead of sequential requests).
 **Fix:** guard the check-and-set with `synchronized` or an `AtomicLong`/CAS so only one thread per 60s window wins the forced refetch.
-**Fixed:** PR [#1853](https://github.com/curtismu7/AI-DEMO2/pull/1853) — wrapped in `synchronized (globals)`, matching the identical pattern already used for `uc18-rate-limit.groovy`'s analogous TOCTOU fix. Verified by code review (no test infra exists for this file).
+**Fixed:** PR [#1853](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1853) — wrapped in `synchronized (globals)`, matching the identical pattern already used for `uc18-rate-limit.groovy`'s analogous TOCTOU fix. Verified by code review (no test infra exists for this file).
 
 ### 42. pydantic_agent aborts run on policy denial instead of reporting it — Medium
 ```python
@@ -483,13 +483,13 @@ raise RuntimeError(msg)   # includes 403 policy denials
 The class docstring says recoverable failures should let the model "recover or report the error," but any other 4xx (e.g. a 403 P1AZ-blocked transfer) raises a bare `RuntimeError`, which `pydantic_ai` doesn't special-case — it propagates uncaught to the top-level generic error handler, discarding the real denial reason. The other three agents (openai, langchain, mastra) all surface the real error to the model instead.
 **Trigger:** user asks pydantic_agent to make a transfer that trips a policy limit; instead of the model explaining the denial, the user sees a generic "internal error" message and the run terminates.
 **Fix:** raise `ModelRetry(msg)` for 4xx denial responses too (or return an error string like the sibling agents).
-**Fixed:** PR [#1860](https://github.com/curtismu7/AI-DEMO2/pull/1860) — verified `ModelRetry` semantics against real pydantic_ai docs first (hands the message to the model as a `RetryPromptPart`, doesn't blindly re-invoke the tool). 7/7 pass.
+**Fixed:** PR [#1860](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1860) — verified `ModelRetry` semantics against real pydantic_ai docs first (hands the message to the model as a `RetryPromptPart`, doesn't blindly re-invoke the tool). 7/7 pass.
 
 ### 43. openai_agent doesn't close text bubble before tool call — Medium
 The `tool_call_item` branch calls `emitter.on_tool_start(...)` with no check of `_current_message_id`, unlike `mastra_agent`/`langchain_agent`'s equivalents, which both explicitly close the open text message before emitting `TOOL_CALL_START`.
 **Trigger:** model streams lead-in text, then emits a tool call in the same turn while a text bubble is still open — `TEXT_MESSAGE_END` never fires at the tool-call boundary, and when text resumes after the tool result, `on_llm_start` is skipped since the stale message id is still set — pre- and post-tool text silently merge into one bubble with the tool-call event racing in the middle.
 **Fix:** close the current message (`on_llm_end()`) before `on_tool_start` when `_current_message_id` is set, mirroring the other agents.
-**Fixed:** PR [#1857](https://github.com/curtismu7/AI-DEMO2/pull/1857). 4/5 pass (1 pre-existing unrelated, confirmed via git stash).
+**Fixed:** PR [#1857](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1857). 4/5 pass (1 pre-existing unrelated, confirmed via git stash).
 
 ### Also found in pass 6, not in top 10 (verified, logged for awareness)
 - `demo_api_ui/src/components/UnifiedTokenFlowInspector.jsx:606-610` — token-expiry badge only recomputes `isExpired` when the `exp` claim value changes, not on wall-clock passage; stays "✓ Active" indefinitely after real expiry if the token isn't refreshed. Display-only, contrast with the correct inline-computed pattern in `TokenCard.jsx` (Medium).
@@ -519,7 +519,7 @@ if (msg.method === 'elicitation/create') {
 `emit` is never declared, imported, or destructured anywhere in this file. Elicitation is a real, wired feature (client declares `elicitation: {}` capability; `server.js` has a live `/resolve-elicitation`-style endpoint), not dead code.
 **Trigger:** any MCP tool call that causes the server to send a server-initiated `elicitation/create` JSON-RPC message over the WebSocket hits this line → `ReferenceError: emit is not defined` inside the `ws.on('message')` handler → `server.js`'s `process.on('uncaughtException', ...)` unconditionally calls `process.exit(1)` → the entire `demo_api_server` process crashes for every user, not just the triggering request.
 **Fix:** wire this to the actual SSE/event publisher used elsewhere for MCP flow events (`mcpFlowSseHub.publish`/`mcpSsePublisher`), or pass an `emit` callback into the caller.
-**Fixed:** PR [#1869](https://github.com/curtismu7/AI-DEMO2/pull/1869) — red-green verified (reproduced the exact `ReferenceError` crash before fixing). Threaded `deps.emit` (already used by `mcpToolPipeline.js` for every other phase event) down as an optional `opts.emit`. 18 suites, 117 tests, 0 failures.
+**Fixed:** PR [#1869](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1869) — red-green verified (reproduced the exact `ReferenceError` crash before fixing). Threaded `deps.emit` (already used by `mcpToolPipeline.js` for every other phase event) down as an optional `opts.emit`. 18 suites, 117 tests, 0 failures.
 
 ### 45. Banking accounts IDOR — no per-user scoping — High
 ```ts
@@ -533,7 +533,7 @@ getAccount(id)  // SELECT * FROM accounts WHERE id = ? — no userId filter
 `Account` has an explicit `userId` column and the tool descriptions promise "for the authenticated user," but identity is never checked — `index.ts` already resolves `decoded.sub` and passes it into `dispatch()`, `registry.ts` just drops it before calling `dispatchBankingTool`. Banking is the only vertical in the resource server with per-user ownership modeled (confirmed: none of the other 7 verticals' DB files have a `userId` column).
 **Trigger:** any caller with `banking:read` scope can call `get_banking_account` with a guessed/enumerated `account_id` and get another user's balance, or call `list_banking_accounts` and get every account in the database. Masked today only because seed data has exactly one user.
 **Fix:** thread `subject` through `registry.ts` → `dispatchBankingTool` → `listAccounts(userId)`/`getAccount(id, userId)`, filter both queries by `userId`.
-**Fixed:** PR [#1863](https://github.com/curtismu7/AI-DEMO2/pull/1863) — tests seed a 2nd user, prove cross-user isolation. 156/159 pass (3 pre-existing unrelated, confirmed via stash). Note: no live UI consumer calls these tools today, but real PingOne `sub` claims are UUIDs — flagged for whoever wires this up next that seed data won't match unless updated.
+**Fixed:** PR [#1863](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1863) — tests seed a 2nd user, prove cross-user isolation. 156/159 pass (3 pre-existing unrelated, confirmed via stash). Note: no live UI consumer calls these tools today, but real PingOne `sub` claims are UUIDs — flagged for whoever wires this up next that seed data won't match unless updated.
 
 ### 46. Agent-route refresh reintroduces concurrent refresh-token race — High
 ```js
@@ -545,7 +545,7 @@ const refreshOAuthSession = async (req) => {
 Comment claims this "mirrors" `middleware/tokenRefresh.js`'s `refreshIfExpiring`, but omits its `_refreshInFlight` dedup Set and `_refreshBlacklist` Map, which exist specifically to stop concurrent refreshes from reusing an already-rotated refresh token. Mounted on `/api/agent`, `/api/admin-agent`, `/api/ops-agent`, `/api/a2a`, `/api/support-agent`, `/api/compliance-agent` — none covered by the global proactive-refresh path (`/api/demo-agent` is, `/api/agent` is not).
 **Trigger:** two concurrent requests on any of these routes with an expired token (chat send + background poll, or a double-click) both call `refreshOAuthSession` with the same still-current refresh token. PingOne rotates on use, so the second call gets `invalid_grant` → bare 401 `session_expired`, forcing full re-auth even though the first refresh succeeded moments earlier.
 **Fix:** reuse the in-flight/blacklist guard from `middleware/tokenRefresh.js` (or call `refreshIfExpiring` directly) instead of a standalone unguarded refresh.
-**Fixed:** PR [#1870](https://github.com/curtismu7/AI-DEMO2/pull/1870) — added in-flight Map + blacklist Map, concurrent callers await the in-flight refresh. 9/9 scoped pass, 9575/9700 full (2 pre-existing unrelated).
+**Fixed:** PR [#1870](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1870) — added in-flight Map + blacklist Map, concurrent callers await the in-flight refresh. 9/9 scoped pass, 9575/9700 full (2 pre-existing unrelated).
 
 ### 47. `approve_purchase_order` approves the wrong PO, ignores amount — High
 ```js
@@ -554,7 +554,7 @@ if (!_item && !_id) _item = _arr.find((r) => r.status === 'Pending') || _arr[0];
 Seed statuses are `"Pending Approval"`/`"Approved"`/`"Delivered"`, never `"Pending"` — the status match is dead code, so the fallback silently degrades to `_arr[0]` regardless of that PO's actual state. The schema marks `amount` required (comment: "approve a $300 purchase order") but the handler never reads it — no validation against the found PO's total, and no guard against approving an already-`Delivered`/`Rejected` PO on either path.
 **Trigger:** "approve a $300 purchase order" with no id → always approves `purchaseOrders[0]` regardless of stated amount or actual PO state.
 **Fix:** match the literal `Pending Approval` status (or drop the dead branch), add a status guard before mutating on every path, validate `params.amount` against the found PO's total or drop it from the schema.
-**Fixed:** PR [#1866](https://github.com/curtismu7/AI-DEMO2/pull/1866) — fixed dead status match, added status guard on the explicit-id path only (a discovered cross-vertical test invariant requires the no-id amount-driven fallback to always complete, never error — scoped accordingly). `amount` left deliberately unvalidated against total, documented in the PR. 302/302 + 192/192 pass.
+**Fixed:** PR [#1866](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1866) — fixed dead status match, added status guard on the explicit-id path only (a discovered cross-vertical test invariant requires the no-id amount-driven fallback to always complete, never error — scoped accordingly). `amount` left deliberately unvalidated against total, documented in the PR. 302/302 + 192/192 pass.
 
 ### 48. `pay_bill` defaults to an already-paid bill — High
 ```js
@@ -563,7 +563,7 @@ if (!_billId) { const _bills = store.get(userId).billingHistory || []; _billId =
 Comment says "first outstanding bill" but the code takes literal index `[0]` with no status filter — seed `billingHistory[0]` is already `status: "Paid"`; the real outstanding bills are elsewhere in the array.
 **Trigger:** "pay my bill" with no id → re-marks the already-paid $20 bill as paid and reports success, while actual overdue balances go untouched.
 **Fix:** filter for `status !== 'Paid'` before taking `[0]`.
-**Fixed:** PR [#1865](https://github.com/curtismu7/AI-DEMO2/pull/1865) — also added a 4th Due bill to seed data since an existing chip-completion test needed 4 outstanding bills. 9/9 scoped, 191/191 wider pass.
+**Fixed:** PR [#1865](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1865) — also added a 4th Due bill to seed data since an existing chip-completion test needed 4 outstanding bills. 9/9 scoped, 191/191 wider pass.
 
 ### 49. CIBA misconfiguration silently drops HITL notification — Medium
 ```js
@@ -575,7 +575,7 @@ if (!CIBA_ENDPOINT || !CIBA_CLIENT_ID) {
 The caller only logs on rejection (`.catch`), but this resolves normally, so no error signal fires either.
 **Trigger:** `HITL_NOTIFY_MODE=ciba` set but `PINGONE_CIBA_ENDPOINT`/`HITL_CLIENT_ID` missing (partially-configured env) → a money-transfer HITL challenge is created, no CIBA push sent, no fallback log-mode notification with `approvalUrl` emitted, no error logged anywhere — looks like a hung transfer with no diagnostic trail pointing at the real cause.
 **Fix:** in the missing-config branch, actually call through to the log-mode notification path instead of only warning and returning.
-**Fixed:** PR [#1862](https://github.com/curtismu7/AI-DEMO2/pull/1862) — extracted a `_notifyViaLog()` helper shared by both the default log-mode branch and the CIBA-fallback branch. 48/48 pass.
+**Fixed:** PR [#1862](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1862) — extracted a `_notifyViaLog()` helper shared by both the default log-mode branch and the CIBA-fallback branch. 48/48 pass.
 
 ### 50. `cash_out_store_credit` has no balance cap — Medium
 ```js
@@ -585,7 +585,7 @@ return { result: { cashedOut: _amt, ..., status: 'pending step-up' }, render: 't
 Never checks `_amt` against the real `storeCredit` balance (150 in seed data) and never decrements it.
 **Trigger:** "cash out $50,000 of my store credit" reports `cashedOut: 50000` as pending-step-up success with no rejection, repeatably, balance never depleted.
 **Fix:** clamp/reject `_amt` against the actual balance and decrement it on success.
-**Fixed:** PR [#1867](https://github.com/curtismu7/AI-DEMO2/pull/1867). 3/3 scoped, 561/561 wider pass.
+**Fixed:** PR [#1867](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1867). 3/3 scoped, 561/561 wider pass.
 
 ### 51. Shared `abortRef` breaks logout/unmount cancellation — Medium
 ```js
@@ -598,13 +598,13 @@ Never checks `_amt` against the real `storeCredit` balance (150 in seed data) an
 `useAgentRun` is instantiated once and shared across every send path (typed message, chip, HITL resume). An aborted run's `finally` unwinds asynchronously and unconditionally nulls `abortRef.current` with no check that it still belongs to that invocation.
 **Trigger:** run A gets aborted by run B (e.g. sending a new message while a HITL modal's approve triggers a third run C); when A's aborted stream loop unwinds, it nulls out C's controller. `aguiAbort()` (called on logout/unmount) becomes a silent no-op — the actually-active stream keeps running past logout/navigation, still dispatching events into reset state.
 **Fix:** `if (abortRef.current === controller) { abortRef.current = null; }` (and guard `setIsRunning(false)` the same way) instead of unconditional clearing.
-**Fixed:** PR [#1864](https://github.com/curtismu7/AI-DEMO2/pull/1864) — red-green verified with a race-simulating test. Full suite 3070/3070 pass, build clean.
+**Fixed:** PR [#1864](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1864) — red-green verified with a race-simulating test. Full suite 3070/3070 pass, build clean.
 
 ### 52. `p1azEnabled` skips the admin-config strict-boolean gate — Medium
 `boolKeys` lists `requireActForAgentTools`/`intentTokenRequired`/`requireRarIntent`/`introspectionSimDown`; `devBypass`/`rateLimitEnabled` get their own dedicated 400-rejection. `p1azEnabled` is allowed as an admin-config key but isn't in any of these lists, so it falls through to a generic assignment with no type check or coercion.
 **Trigger:** `POST /admin/config {"p1azEnabled": 0}` (a JSON number, not boolean) silently sets `config.p1azEnabled = 0` → `isP1AZActive()` evaluates falsy → disables the live PDP, routing every `guardToolCall`/`guardToolsList` into the local-scope-fallback path — exactly the malformed-payload case the strict-boolean gate exists to reject with 400 for its sibling keys.
 **Fix:** add `p1azEnabled` to the strict-boolean validation/coercion list, matching `rateLimitEnabled`/`devBypass`.
-**Fixed:** PR [#1861](https://github.com/curtismu7/AI-DEMO2/pull/1861). 31/31 scoped pass.
+**Fixed:** PR [#1861](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1861). 31/31 scoped pass.
 
 ---
 
@@ -621,13 +621,13 @@ Surfaced by the major-components code review (CODE_REVIEW.md), not the correctne
 DPoP (RFC 9449) proof verification, Web Bot Auth (`wbaMode=enforce`), and posture recording (`noteBindingHeaderSeen`) are implemented only in the HTTP path (`authorizeMcpRequest.ts:717-830`) — zero equivalent in the WS `handleMessage` handler in `index.ts`.
 **Trigger:** with `REQUIRE_DPOP_PROOF=true` / `wbaMode=enforce`, a caller connects over WebSocket instead of HTTP and skips these checks entirely; `/health` posture is also blind to WS traffic. Same transport-bypass class as the already-fixed #13 (WS rate-limit bypass).
 **Fix:** move the DPoP/WBA/posture checks into the shared pipeline (`auth/authorizeMcpRequestCore.ts` already proves the one-shared-core pattern) so both transports enforce them, or add the equivalent checks to the WS handler before dispatch.
-**Fixed:** PR [#1875](https://github.com/curtismu7/AI-DEMO2/pull/1875) — verified real but narrower than the review claimed: RAR was NOT bypassed (already enforced via `guardToolCall`), only DPoP+WBA. Since both are HTTP-request-bound proofs a long-lived WebSocket can't carry, the fix **fails closed** — refuses WS `tools/call` when either control is enforced (steering to `POST /mcp`), via a new unit-tested `wsBindingGuard.ts`. No-op when controls are off. 68 scoped tests pass, tsc clean.
+**Fixed:** PR [#1875](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1875) — verified real but narrower than the review claimed: RAR was NOT bypassed (already enforced via `guardToolCall`), only DPoP+WBA. Since both are HTTP-request-bound proofs a long-lived WebSocket can't carry, the fix **fails closed** — refuses WS `tools/call` when either control is enforced (steering to `POST /mcp`), via a new unit-tested `wsBindingGuard.ts`. No-op when controls are off. 68 scoped tests pass, tsc clean.
 
 ### 54. Dead `handleHttp` holds the only clear-token-cache route — logout flush never runs — High
 `handleHttp` (`index.ts:181-323`) is dead code (the real listener is `GatewayServer.handleRequest`, confirmed by its own comment), but it contains the only implementation of `POST /admin/clear-token-cache`. `demo_api_server/server.js` still calls that endpoint on logout.
 **Trigger:** user logs out → BFF POSTs `/admin/clear-token-cache` → `GatewayServer` never ported the route → silent 404 → the gateway's exchanged-token cache is never flushed, leaving a token-replay window open until natural TTL expiry.
 **Fix:** port `POST /admin/clear-token-cache` (and check `/openapi/*` + reconcile the two drifting RFC 9728 metadata copies) into `GatewayServer`, then delete `handleHttp` and its duplicate `requireInternalSecret`.
-**Fixed:** PR [#1876](https://github.com/curtismu7/AI-DEMO2/pull/1876) — verified real. Ported `POST /admin/clear-token-cache` (same `requireInternalSecret` gate) + `GET /openapi/*` into `GatewayServer`, flushing both the RFC 8693 exchange cache and RFC 7662 introspection cache; deleted dead `handleHttp` + duplicate helper + the drifting second RFC 9728 metadata copy. 20/20 tests (route now 200, was 404), tsc clean.
+**Fixed:** PR [#1876](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1876) — verified real. Ported `POST /admin/clear-token-cache` (same `requireInternalSecret` gate) + `GET /openapi/*` into `GatewayServer`, flushing both the RFC 8693 exchange cache and RFC 7662 introspection cache; deleted dead `handleHttp` + duplicate helper + the drifting second RFC 9728 metadata copy. 20/20 tests (route now 200, was 404), tsc clean.
 
 ---
 
@@ -656,7 +656,7 @@ sufficient: registration.status === 'active' && !expired &&
 `scope-topology.json` declares tool scopes as namespaced strings (`sensitive:read`, `airlines:write`, `transfer`). The filter keeps only literal `read`/`write`, so any tool lacking those bare tokens yields `requiredScopes = []` → `[].every()` is vacuously `true` → `sufficient:true` regardless of what the customer consented to. `evaluateMcpFirstToolGate` (`mcpToolAuthorizationService.js:947`) then never raises `delegated_consent_scope_denied`.
 **Trigger:** customer consents to `['read']` only; the delegated agent calls `get_sensitive_account_details` (`["read","sensitive:read"]`→`["read"]`) or `create_wire_transfer` (`["read","transfer"]`→`["read"]`) and passes; vertical write tools with no secondary challenge (`redeem_miles`/`pay_airline_fee`, `["airlines:read","airlines:write"]`→`[]`) have this as their SOLE consent control and it's fully silent — a read-only-consented agent performs writes. (Banking `create_transfer`=`["write","transfer"]`→`["write"]` is correctly gated, which masked the bug.)
 **Fix:** classify each namespaced scope into an access class (any `*:write`/`transfer` ⇒ needs write consent, any `sensitive:*` ⇒ elevated) before `every()`, or compare consent against the tool's FULL `requiredScopes`. Filtering must never turn "requires write" into "requires nothing."
-**Fixed:** PR [#1882](https://github.com/curtismu7/AI-DEMO2/pull/1882) — classifies each namespaced scope into the customer's `read`/`write` consent vocabulary (any `*:write`/`write`/`transfer`/`sensitive:*` ⇒ write consent, unreachable by read-only). Read-only agents now denied on sensitive/wire/airline-write tools; banking gating unchanged. 40/40 tests across 8 suites.
+**Fixed:** PR [#1882](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1882) — classifies each namespaced scope into the customer's `read`/`write` consent vocabulary (any `*:write`/`write`/`transfer`/`sensitive:*` ⇒ write consent, unreachable by read-only). Read-only agents now denied on sensitive/wire/airline-write tools; banking gating unchanged. 40/40 tests across 8 suites.
 
 ### 56. Node gateway multi-aud truncation defeats D-05 anti-bypass — High
 ```ts
@@ -689,13 +689,13 @@ window.open(url, '_blank', 'secure');   // 'secure' is not a real feature; no no
 Both siblings close it (openai `run_handler.py:259`, langchain `message_processor.py:1240`); mastra only closes in its `tool-error` branch, not the success `tool-call` path. Same defect class as the fixed #43, distinct instance.
 **Trigger:** model streams lead-in text then calls a tool → `TEXT_MESSAGE_START` with no matching `END` before `TOOL_CALL_START`; post-tool narration merges into the still-open bubble (every text msg reuses `messageId: this.runId`) → tool card renders interleaved inside an unterminated assistant message.
 **Fix:** `if (streaming) { await emitter.onLlmEnd(); streaming = false; }` in the `tool-call` branch.
-**Fixed:** PR [#1880](https://github.com/curtismu7/AI-DEMO2/pull/1880) (with #60). 6/6 tests, tsc clean.
+**Fixed:** PR [#1880](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1880) (with #60). 6/6 tests, tsc clean.
 
 ### 60. mastra no empty-messages fallback — Low
 `coreMessages` filters to string-content messages; if empty/all-filtered, `agent.stream([])` is called with no user turn (the openai sibling guards with `... or [{"role":"user","content":""}]`).
 **Trigger:** malformed/empty `messages` in the `/run` payload → the AI SDK errors or yields an empty stream → generic run failure instead of graceful handling.
 **Fix:** fall back to a single placeholder user message when `coreMessages.length === 0`.
-**Fixed:** PR [#1880](https://github.com/curtismu7/AI-DEMO2/pull/1880) (with #59) — placeholder `{role:'user',content:''}` when empty, mirroring openai sibling.
+**Fixed:** PR [#1880](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1880) (with #59) — placeholder `{role:'user',content:''}` when empty, mirroring openai sibling.
 
 ### 61. Invest tool unencoded query params — Low
 ```ts
@@ -734,7 +734,7 @@ return callBff(`.../transactions?limit=${limit}`, token);
 | 75 | Low | 🟢 Fixed | `delegation-validate.groovy` `.add`s identity headers instead of replacing — a pre-set `X-Delegation-User` survives, downstream `getFirst()` reads the forged value | `ping-gateway/scripts/groovy/delegation-validate.groovy:76-78` |
 
 **Pass-10 fix status (all resolved — verified against `main` 2026-08-28):**
-- **MERGED:** #62,#63,#64 (PR [#1891](https://github.com/curtismu7/AI-DEMO2/pull/1891)) · #65,#66,#71 (PR [#1892](https://github.com/curtismu7/AI-DEMO2/pull/1892)) · #67,#68,#69 (PR [#1894](https://github.com/curtismu7/AI-DEMO2/pull/1894)) · #70,#72 (PR [#1890](https://github.com/curtismu7/AI-DEMO2/pull/1890)) · #73,#75 (PR [#1893](https://github.com/curtismu7/AI-DEMO2/pull/1893)).
+- **MERGED:** #62,#63,#64 (PR [#1891](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1891)) · #65,#66,#71 (PR [#1892](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1892)) · #67,#68,#69 (PR [#1894](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1894)) · #70,#72 (PR [#1890](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1890)) · #73,#75 (PR [#1893](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1893)).
 - **#74 is not a bug** — the brave/weather IG routes DO chain `rsFilter`; the hunter's premise was stale.
 - The #70 duplicate-fix reconcile is settled: PR #1851 and PR #1890 both merged.
 - The handoff note that used to sit here asked a future agent to chase #67/#68/#69, which were still in flight when it was written. They landed in PR #1894 ("stop gateway-unreachable failing open to unauthorized local execution"); `mcpToolPipeline.js` now emits `gateway_unreachable_no_fallback` and refuses the ungated local path. Nothing from pass 10 is outstanding.

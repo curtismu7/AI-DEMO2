@@ -4,7 +4,7 @@
 
 **Goal:** Surface the Gartner Machine IAM Survey findings (mapped to this demo's features) as an in-app Learning Hub education modal, a Google Doc, and a public GitHub Pages topic page.
 
-**Architecture:** Deliverable A creates a Google Doc via the claude.ai Google Drive connector (main session only — subagents cannot reach it reliably). Deliverable B adds one new education panel component plus three one-line wirings, following the existing `EducationDrawer` + `tabs` pattern. Deliverable C hand-authors a static HTML page matching the snapshot-page pattern in the separate `curtismu7/llama-vscode-setup-guide` repo and pushes it via the GitHub API after user review.
+**Architecture:** Deliverable A creates a Google Doc via the claude.ai Google Drive connector (main session only — subagents cannot reach it reliably). Deliverable B adds one new education panel component plus three one-line wirings, following the existing `EducationDrawer` + `tabs` pattern. Deliverable C hand-authors a static HTML page matching the snapshot-page pattern in the separate `cmuir_pingcorp/llama-vscode-setup-guide` repo and pushes it via the GitHub API after user review.
 
 **Tech Stack:** React (CRA, JSX inline styles), existing `EducationDrawer` shared component, GitHub REST API via `gh`, claude.ai Google Drive MCP connector.
 
@@ -478,12 +478,12 @@ git commit -m "feat: add Gartner Machine IAM Survey education panel to Learning 
 ### Task 3: Public GitHub Pages topic page (Deliverable C)
 
 **Files:**
-- Create (in scratchpad, pushed to the `curtismu7/llama-vscode-setup-guide` repo, NOT this repo): `learning/machine-iam-for-agentic-ai.html`
+- Create (in scratchpad, pushed to the `cmuir_pingcorp/llama-vscode-setup-guide` repo, NOT this repo): `learning/machine-iam-for-agentic-ai.html`
 - Modify (same external repo): `learning/index.html` (one card + pill text)
 
 **Interfaces:**
 - Consumes: existing `assets/app.css` + `assets/snapshot.css` classes (`snap-top`, `snap-drawer`, `snap-title`, `snap-toc`, `snap-tab`, `snap-tab-h`, `edu-drawer`, `edu-drawer-body`, `edu-code`, `snap-foot`).
-- Produces: live page at `https://curtismu7.github.io/llama-vscode-setup-guide/learning/machine-iam-for-agentic-ai.html`.
+- Produces: live page at `https://cmuir_pingcorp.github.io/llama-vscode-setup-guide/learning/machine-iam-for-agentic-ai.html`.
 
 **REMINDER: zero Gartner content on this page. No stats, no survey references, no doc link.**
 
@@ -551,7 +551,7 @@ Write to the scratchpad as `machine-iam-for-agentic-ai.html`:
 Download the current `learning/index.html` from the repo (fresh copy — it may have changed):
 
 ```bash
-gh api repos/curtismu7/llama-vscode-setup-guide/contents/learning/index.html --jq .content | base64 -d > index.html
+gh api repos/cmuir_pingcorp/llama-vscode-setup-guide/contents/learning/index.html --jq .content | base64 -d > index.html
 ```
 
 Two edits:
@@ -570,13 +570,13 @@ STOP. Present the authored page (and the index diff) to the user and get explici
 
 ```bash
 # new page (no sha needed — file doesn't exist yet)
-gh api -X PUT repos/curtismu7/llama-vscode-setup-guide/contents/learning/machine-iam-for-agentic-ai.html \
+gh api -X PUT repos/cmuir_pingcorp/llama-vscode-setup-guide/contents/learning/machine-iam-for-agentic-ai.html \
   -f message="feat: add Machine IAM for Agentic AI topic page" \
   -f content="$(base64 -i machine-iam-for-agentic-ai.html)"
 
 # index update (needs current sha)
-SHA=$(gh api repos/curtismu7/llama-vscode-setup-guide/contents/learning/index.html --jq .sha)
-gh api -X PUT repos/curtismu7/llama-vscode-setup-guide/contents/learning/index.html \
+SHA=$(gh api repos/cmuir_pingcorp/llama-vscode-setup-guide/contents/learning/index.html --jq .sha)
+gh api -X PUT repos/cmuir_pingcorp/llama-vscode-setup-guide/contents/learning/index.html \
   -f message="feat: add Machine IAM for Agentic AI card to learning index" \
   -f content="$(base64 -i index.html)" \
   -f sha="$SHA"
@@ -589,8 +589,8 @@ Expected: each call returns JSON with a `commit.sha`.
 Wait ~1–2 minutes for Pages to deploy, then fetch:
 
 ```bash
-curl -s https://curtismu7.github.io/llama-vscode-setup-guide/learning/machine-iam-for-agentic-ai.html | grep -c snap-tab
-curl -s https://curtismu7.github.io/llama-vscode-setup-guide/learning/ | grep -c "machine-iam-for-agentic-ai"
+curl -s https://cmuir_pingcorp.github.io/llama-vscode-setup-guide/learning/machine-iam-for-agentic-ai.html | grep -c snap-tab
+curl -s https://cmuir_pingcorp.github.io/llama-vscode-setup-guide/learning/ | grep -c "machine-iam-for-agentic-ai"
 ```
 
 Expected: first ≥ 6, second ≥ 1. Also confirm the page contains no occurrence of "Gartner": `curl -s <page url> | grep -ci gartner` → `0`.

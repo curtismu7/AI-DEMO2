@@ -23,11 +23,11 @@ This directory contains architecture and flow diagrams for the AI Demo project.
 
 | File | Description | Download |
 | ---- | ----------- | -------- |
-| `Banking-Architecture.drawio` | Banking architecture overview | [Download](https://raw.githubusercontent.com/curtismu7/AI-demo/main/docs/diagrams/Banking-Architecture.drawio) |
-| `LUCIDCHART_DIAGRAMS.drawio` | Lucidchart export | [Download](https://raw.githubusercontent.com/curtismu7/AI-demo/main/docs/diagrams/LUCIDCHART_DIAGRAMS.drawio) |
-| `agent-request-flow.drawio` | Agent request flow with token exchange | [Download](https://raw.githubusercontent.com/curtismu7/AI-demo/main/docs/diagrams/agent-request-flow.drawio) |
-| `mfa-flow.drawio` | MFA authentication flow with deviceAuthentications API and RFC annotations | [Download](https://raw.githubusercontent.com/curtismu7/AI-demo/main/docs/diagrams/mfa-flow.drawio) |
-| `user-consent-flow.drawio` | User consent and transaction approval flow | [Download](https://raw.githubusercontent.com/curtismu7/AI-demo/main/docs/diagrams/user-consent-flow.drawio) |
+| `Banking-Architecture.drawio` | Banking architecture overview | [Download](https://raw.githubusercontent.com/cmuir_pingcorp/AI-demo/main/docs/diagrams/Banking-Architecture.drawio) |
+| `LUCIDCHART_DIAGRAMS.drawio` | Lucidchart export | [Download](https://raw.githubusercontent.com/cmuir_pingcorp/AI-demo/main/docs/diagrams/LUCIDCHART_DIAGRAMS.drawio) |
+| `agent-request-flow.drawio` | Agent request flow with token exchange | [Download](https://raw.githubusercontent.com/cmuir_pingcorp/AI-demo/main/docs/diagrams/agent-request-flow.drawio) |
+| `mfa-flow.drawio` | MFA authentication flow with deviceAuthentications API and RFC annotations | [Download](https://raw.githubusercontent.com/cmuir_pingcorp/AI-demo/main/docs/diagrams/mfa-flow.drawio) |
+| `user-consent-flow.drawio` | User consent and transaction approval flow | [Download](https://raw.githubusercontent.com/cmuir_pingcorp/AI-demo/main/docs/diagrams/user-consent-flow.drawio) |
 
 ## Exporting to Other Tools (Lucidchart, draw.io, mermaid.live)
 
@@ -121,5 +121,5 @@ All diagrams include comprehensive RFC annotations for:
 - Added `PingOne Agent Gateway (IG, :3036)` as the default MCP gateway (ff_mcp_gateway_pinggateway) with real→mock Authorize failover
 - Added AG-UI SSE streaming (agentRun.js, ff_agui_enabled, decoded token-chain events)
 - Updated `mcp-security-gateway.mmd` title from "Potential Architecture" to "Live Architecture"; added UserId + McpResourceUri Authorize params and mock failover node
-- Fixed all GitHub download URLs to point at `curtismu7/AI-demo` (previously stale `curtismu7/banking-demo`)
+- Fixed all GitHub download URLs to point at `cmuir_pingcorp/AI-demo` (previously stale `cmuir_pingcorp/banking-demo`)
 - Replaced non-existent `architecture-overview.drawio` entry with the actual files present in this directory

@@ -2,7 +2,7 @@
 // scripts/publish-agent-onboarding-flow-page.mjs
 //
 // Publishes ping_agent_onboarding_flow_diagram.html to the public GitHub Pages
-// mirror (curtismu7/llama-vscode-setup-guide -> learning/agent-onboarding-flow.html).
+// mirror (cmuir_pingcorp/llama-vscode-setup-guide -> learning/agent-onboarding-flow.html).
 //
 // Usage:
 //   node scripts/publish-agent-onboarding-flow-page.mjs [--dry-run]
@@ -21,11 +21,11 @@ const REPO_ROOT = path.resolve(__dirname, "..");
 const SOURCE_HTML = path.join(REPO_ROOT, "ping_agent_onboarding_flow_diagram.html");
 const OUTPUT_FILE = "agent-onboarding-flow.html";
 const PUBLIC_URL =
-  "https://curtismu7.github.io/llama-vscode-setup-guide/learning/agent-onboarding-flow.html";
+  "https://cmuir_pingcorp.github.io/llama-vscode-setup-guide/learning/agent-onboarding-flow.html";
 const MIRROR_DIR =
   process.env.LEARNING_HUB_MIRROR_DIR ||
   path.join(os.homedir(), ".cache", "learning-hub-mirror");
-const MIRROR_REMOTE = "https://github.com/curtismu7/llama-vscode-setup-guide.git";
+const MIRROR_REMOTE = "https://github.com/cmuir_pingcorp/llama-vscode-setup-guide.git";
 
 const argv = process.argv.slice(2);
 const DRY_RUN = argv.includes("--dry-run");

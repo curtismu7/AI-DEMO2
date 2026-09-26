@@ -2808,7 +2808,7 @@ Every `push-image` job fails at its final step with
 matrix selection all succeed first — only the push is refused.
 
 The 14 `ai-demo-*` container packages were created by hand-pushes from a laptop,
-so GHCR records them as owned by the **user account** `curtismu7`. GitHub Actions
+so GHCR records them as owned by the **user account** `cmuir_pingcorp`. GitHub Actions
 authenticates as the **repository** via `GITHUB_TOKEN`, and a user-owned package
 grants no repository write access by default. All 14 report `repository: None` —
 they are linked to nothing. Confirmed empirically: `docker buildx imagetools
@@ -2831,7 +2831,7 @@ but SE still only moves by hand-built image, which is the gap this whole feature
 was built to close.
 
 **What the real fix looks like:** per package —
-`https://github.com/users/curtismu7/packages/container/<pkg>/settings` → Manage
+`https://github.com/users/cmuir_pingcorp/packages/container/<pkg>/settings` → Manage
 Actions access → Add Repository → `AI-DEMO2` → change role from the default
 **Read** to **Write**. Read alone fails with the identical message, which is the
 step most likely to be missed. Alternative if per-package clicking is untenable:

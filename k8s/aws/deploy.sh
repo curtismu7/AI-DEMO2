@@ -24,7 +24,7 @@
 #                      overrides the configmap's local api.ping.demo:4000 URLs
 #
 # Usage (SE DevOps cluster):
-#   GITHUB_OWNER=curtismu7 K8S_NAMESPACE=ping-devops-cmuir \
+#   GITHUB_OWNER=cmuir_pingcorp K8S_NAMESPACE=ping-devops-cmuir \
 #   PUBLIC_APP_URL=https://ai-demo.ping-devops.com ./k8s/aws/deploy.sh
 #
 # Usage (AWS EKS):

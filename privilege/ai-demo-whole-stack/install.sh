@@ -11,7 +11,7 @@
 # --install` against ai-demo-stack/, run from this script.
 #
 # Usage:
-#   GITHUB_OWNER=curtismu7 ./install.sh
+#   GITHUB_OWNER=cmuir_pingcorp ./install.sh
 #
 # Env vars:
 #   GITHUB_OWNER    — GHCR owner (required, images at ghcr.io/OWNER/...)

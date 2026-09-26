@@ -3,7 +3,7 @@
 //
 // Captures the in-app Learning Hub education panels (via Playwright, from the
 // running local stack) and mirrors them as static pages into the public
-// GitHub Pages repo (curtismu7/llama-vscode-setup-guide -> learning/*.html).
+// GitHub Pages repo (cmuir_pingcorp/llama-vscode-setup-guide -> learning/*.html).
 //
 // Usage:
 //   node scripts/export-learning-hub.mjs [--dry-run] [--only <file.html>]
@@ -29,7 +29,7 @@ const MANIFEST_PATH = path.join(__dirname, "learning-hub-manifest.json");
 const MIRROR_DIR =
   process.env.LEARNING_HUB_MIRROR_DIR ||
   path.join(os.homedir(), ".cache", "learning-hub-mirror");
-const MIRROR_REMOTE = "https://github.com/curtismu7/llama-vscode-setup-guide.git";
+const MIRROR_REMOTE = "https://github.com/cmuir_pingcorp/llama-vscode-setup-guide.git";
 
 // Pages/dirs in the mirror that this exporter must NEVER touch, even
 // defensively (belt-and-suspenders on top of the manifest never listing them).

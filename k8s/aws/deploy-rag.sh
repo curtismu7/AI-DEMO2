@@ -2,7 +2,7 @@
 # k8s/aws/deploy-rag.sh — Build, push, apply, and start the Code Search RAG stack.
 #
 # Required:
-#   GITHUB_OWNER     — GHCR owner (e.g. curtismu7)
+#   GITHUB_OWNER     — GHCR owner (e.g. cmuir_pingcorp)
 #   K8S_NAMESPACE    — target namespace (e.g. ping-devops-cmuir)
 #
 # Optional:
@@ -11,7 +11,7 @@
 #   RAG_ACTION       — on|off (default: on)
 #
 # Example:
-#   GITHUB_OWNER=curtismu7 K8S_NAMESPACE=ping-devops-cmuir ./k8s/aws/deploy-rag.sh
+#   GITHUB_OWNER=cmuir_pingcorp K8S_NAMESPACE=ping-devops-cmuir ./k8s/aws/deploy-rag.sh
 
 set -euo pipefail
 
@@ -19,7 +19,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 K8S_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-GITHUB_OWNER="${GITHUB_OWNER:?Set GITHUB_OWNER (e.g. curtismu7)}"
+GITHUB_OWNER="${GITHUB_OWNER:?Set GITHUB_OWNER (e.g. cmuir_pingcorp)}"
 NS="${K8S_NAMESPACE:?Set K8S_NAMESPACE (e.g. ping-devops-cmuir)}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 SKIP_BUILD="${SKIP_BUILD:-0}"

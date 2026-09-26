@@ -120,8 +120,8 @@ but for the `frontend` compose service —
 ```bash
 cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/external-door-well-known-suffix-routing
 COMPOSE_PARALLEL_LIMIT=1 docker compose -p ai-demo-k8 -f docker-compose.yml build frontend
-docker tag ai-demo-k8-frontend:latest ghcr.io/curtismu7/ai-demo-frontend:latest   # confirm the actual GHCR image name first — check `kubectl get deployment frontend -n ping-devops-cmuir -o jsonpath='{.spec.template.spec.containers[0].image}'`
-docker push ghcr.io/curtismu7/ai-demo-frontend:latest
+docker tag ai-demo-k8-frontend:latest ghcr.io/cmuir_pingcorp/ai-demo-frontend:latest   # confirm the actual GHCR image name first — check `kubectl get deployment frontend -n ping-devops-cmuir -o jsonpath='{.spec.template.spec.containers[0].image}'`
+docker push ghcr.io/cmuir_pingcorp/ai-demo-frontend:latest
 kubectl rollout restart deployment/frontend -n ping-devops-cmuir
 kubectl rollout status deployment/frontend -n ping-devops-cmuir --timeout=120s
 ```

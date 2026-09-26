@@ -244,7 +244,12 @@ if (
       if (attempt < 30) {
         setTimeout(() => tryStart(attempt + 1), 10000); // retry until embedder is up
       } else {
-        console.error('[default-index] gave up after retries:', st.error);
+        // After 30 fast retries (5 min) stop burning the loop, but keep a slow
+        // heartbeat so a dependency that recovers LATER (code-search/embeddings
+        // restarted mid-boot, 2026-09-26) still self-heals instead of leaving
+        // the index dead until a manual re-run or BFF restart.
+        console.error('[default-index] gave up after retries — switching to 5-min heartbeat:', st.error);
+        setTimeout(() => tryStart(0), 5 * 60 * 1000);
       }
     }
   };

@@ -159,5 +159,5 @@ The LLM called `loyalty_balance` to answer a tier-proximity question and returne
 
 | PR | Description | Status |
 |---|---|---|
-| [#156](https://github.com/curtismu7/AI-demo/pull/156) | fix(agent): vertical-aware LLM pipeline + k8s AGENT_SERVICE_URL | Open — merge + redeploy |
-| [#151](https://github.com/curtismu7/AI-demo/pull/151) | fix(authz): add ruleStore.js to Dockerfile COPY | Open — merge independently |
+| [#156](https://github.com/cmuir_pingcorp/AI-demo/pull/156) | fix(agent): vertical-aware LLM pipeline + k8s AGENT_SERVICE_URL | Open — merge + redeploy |
+| [#151](https://github.com/cmuir_pingcorp/AI-demo/pull/151) | fix(authz): add ruleStore.js to Dockerfile COPY | Open — merge independently |

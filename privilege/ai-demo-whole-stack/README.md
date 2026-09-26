@@ -35,7 +35,7 @@ Helm hook can't reach either. `install.sh` does both, then one
 `helm upgrade --install` for everything else:
 
 ```bash
-GITHUB_OWNER=curtismu7 SE_NAMESPACE=ping-devops-cmuir ./install.sh
+GITHUB_OWNER=cmuir_pingcorp SE_NAMESPACE=ping-devops-cmuir ./install.sh
 ```
 
 Optional env vars: `IMAGE_TAG` (default `latest`), `PUBLIC_APP_URL` (default

@@ -12,7 +12,7 @@ answers each finding. Three deliverables:
 - **A.** A Google Doc version of the deck's content in the user's Drive
   (curtis@coachcurtis.org), linked from the in-app modal.
 - **B.** An in-app **education modal** wired into the Learning Hub (`/learning`).
-- **C.** A **public GitHub Pages topic page** in `curtismu7/llama-vscode-setup-guide`
+- **C.** A **public GitHub Pages topic page** in `cmuir_pingcorp/llama-vscode-setup-guide`
   containing only our own narrative (no Gartner content).
 
 ## Licensing constraint (drives the split between B and C)
@@ -88,7 +88,7 @@ array, inline styles, small sub-components (stat callout card, mapping row with
 
 ## Deliverable C — Public GitHub Pages topic page
 
-Repo `curtismu7/llama-vscode-setup-guide` (no local clone; author locally, commit via
+Repo `cmuir_pingcorp/llama-vscode-setup-guide` (no local clone; author locally, commit via
 GitHub API to `main`, which publishes to GitHub Pages immediately).
 
 - New `learning/machine-iam-for-agentic-ai.html`, hand-authored to match the existing

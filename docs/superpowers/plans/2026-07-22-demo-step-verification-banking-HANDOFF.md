@@ -19,7 +19,7 @@ A test harness that runs every banking demo step (chip + free-text prompts, heur
 ## How to resume on a new machine
 
 ```bash
-git clone https://github.com/curtismu7/AI-DEMO2.git   # or cd into an existing clone
+git clone https://github.com/cmuir_pingcorp/AI-DEMO2.git   # or cd into an existing clone
 cd AI-DEMO2
 git fetch origin
 git checkout feat/demo-step-verification-impl          # or: git worktree add .claude/worktrees/<name> feat/demo-step-verification-impl

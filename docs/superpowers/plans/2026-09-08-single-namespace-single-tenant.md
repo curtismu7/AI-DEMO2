@@ -116,7 +116,7 @@ console action with no API available from the CLI.
 re-applies all manifests. During the incident it reset `langchain-agent`'s image
 to the unqualified local name `ai-demo-k8-langchain-agent:latest`, which
 resolves to Docker Hub and `ImagePullBackOff`; all 22 prior ReplicaSets used
-`ghcr.io/curtismu7/ai-demo-langchain-agent:latest`. The GHCR rewrite map in
+`ghcr.io/cmuir_pingcorp/ai-demo-langchain-agent:latest`. The GHCR rewrite map in
 `k8s/aws/deploy.sh:86` has the right entry, but the manifest is misnamed —
 **`k8s/40-agent-service-deployment.yaml` actually defines `langchain-agent`,
 not `agent-service`** — and the rewrite misses it.

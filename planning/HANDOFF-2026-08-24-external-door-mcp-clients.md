@@ -15,11 +15,11 @@ That grew into: a survey report → two design specs (extend our own `langchain_
 
 | PR | Title | State as of this doc | What it is |
 |---|---|---|---|
-| [#2330](https://github.com/curtismu7/AI-DEMO2/pull/2330) | docs: Mac MCP client report for external-door use case | OPEN | The original survey report, `docs/mcp/MAC_MCP_CLIENTS_EXTERNAL_DOOR_REPORT.md` |
-| [#2332](https://github.com/curtismu7/AI-DEMO2/pull/2332) | docs: design specs for dual-front-door external MCP clients | **MERGED** | The two original design specs (before the LibreChat correction) |
-| [#2335](https://github.com/curtismu7/AI-DEMO2/pull/2335) | docs: correct LibreChat spec to Privilege-only after source verification | OPEN | Corrects the LibreChat spec — see "The LibreChat correction" below |
-| [#2336](https://github.com/curtismu7/AI-DEMO2/pull/2336) | feat(langchain_agent): external MCP client for both front doors | OPEN | The actual implementation — `external_client.py`, `privilege_auth.py`, `PrivilegeConfig`. Full suite green (855 passed). Contains the "Rulings made during execution" writeup in its PR description. |
-| [#2338](https://github.com/curtismu7/AI-DEMO2/pull/2338) | fix(langchain_agent): remove dead test_encryption.py from stable pytest subset | OPEN | Unrelated one-line fix, found while verifying #2336 — `bash scripts/run-pytest.sh` (no args) was broken on `main` itself before this |
+| [#2330](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/2330) | docs: Mac MCP client report for external-door use case | OPEN | The original survey report, `docs/mcp/MAC_MCP_CLIENTS_EXTERNAL_DOOR_REPORT.md` |
+| [#2332](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/2332) | docs: design specs for dual-front-door external MCP clients | **MERGED** | The two original design specs (before the LibreChat correction) |
+| [#2335](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/2335) | docs: correct LibreChat spec to Privilege-only after source verification | OPEN | Corrects the LibreChat spec — see "The LibreChat correction" below |
+| [#2336](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/2336) | feat(langchain_agent): external MCP client for both front doors | OPEN | The actual implementation — `external_client.py`, `privilege_auth.py`, `PrivilegeConfig`. Full suite green (855 passed). Contains the "Rulings made during execution" writeup in its PR description. |
+| [#2338](https://github.com/cmuir_pingcorp/AI-DEMO2/pull/2338) | fix(langchain_agent): remove dead test_encryption.py from stable pytest subset | OPEN | Unrelated one-line fix, found while verifying #2336 — `bash scripts/run-pytest.sh` (no args) was broken on `main` itself before this |
 
 **None of these are merged except #2332.** Whoever picks this up should review and merge #2330, #2335, #2336, #2338 in roughly that order (later ones build conceptually on earlier ones, though there's no hard git dependency).
 

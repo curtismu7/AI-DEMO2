@@ -84,7 +84,7 @@ supersede this.
 | REST API Endpoint | `http://localhost:8082` |
 | OpenAPI Spec URL | `http://localhost:8082/openapi/banking-rest.json` |
 | Auth Mode | None — the sidecar attaches the real `X-API-Key` itself, Privilege never sees it |
-| Server | `demo_mcp_banking_rest/`, image `ghcr.io/curtismu7/ai-demo-mcp-banking-rest:latest` |
+| Server | `demo_mcp_banking_rest/`, image `ghcr.io/cmuir_pingcorp/ai-demo-mcp-banking-rest:latest` |
 | Runs as | `extraContainers` sidecar `mcp-banking-rest` in the `agentless-mcpgw` pod (`ping-devops-curtismuir`), port 8082 (8080=mcp-brave, 8081=mcp-grafana) |
 | Upstream | `http://mcp-resource-server.ping-devops-cmuir.svc.cluster.local:8081` — the real `demo_mcp_resource_server`'s `GET /banking`, `/banking/:id`, `/openapi/banking-rest.json` (see `demo_mcp_resource_server/src/index.ts`, PR #2861) |
 | Key | k8s Secret `banking-rest-secrets` / key `BANKING_API_KEY`, in the **gateway's** namespace — must equal `MCP_RESOURCE_SERVER_API_KEY` set directly on the `mcp-resource-server` Deployment in `ping-devops-cmuir` (that service has no dedicated `.env`-backed k8s Secret, so this is a plain `kubectl set env`, not the create-secrets.sh pipeline) |
@@ -161,7 +161,7 @@ Secret from the same newline-free source.
 | AI Gateway | `ai-demo-cmuir — https://mcpgw.ai-demo.ping-devops.com` |
 | Backend Name | `http://localhost:8081/mcp` — edited off the 8080 default, see below |
 | Auth Mode | None |
-| Server | `demo_mcp_grafana/`, image `ghcr.io/curtismu7/ai-demo-mcp-grafana:latest` |
+| Server | `demo_mcp_grafana/`, image `ghcr.io/cmuir_pingcorp/ai-demo-mcp-grafana:latest` |
 | Runs as | `extraContainers` sidecar `mcp-grafana` in the `agentless-mcpgw` pod (`ping-devops-curtismuir`) |
 | Upstream Grafana | `http://grafana.ping-devops-cmuir.svc.cluster.local:3000` |
 | Token | k8s Secret `grafana-secrets` / key `GRAFANA_SERVICE_ACCOUNT_TOKEN`, in the **gateway's** namespace |
@@ -230,7 +230,7 @@ All 27 cluster nodes are Graviton, so the image is `linux/arm64` (as is
 
 ```bash
 docker buildx build --platform linux/arm64 --build-arg GIT_SHA=$(git rev-parse --short HEAD) \
-  -t ghcr.io/curtismu7/ai-demo-mcp-grafana:latest --push demo_mcp_grafana
+  -t ghcr.io/cmuir_pingcorp/ai-demo-mcp-grafana:latest --push demo_mcp_grafana
 ```
 
 Deliberately **not** wired into `se-update-code.sh`: that path needs matching

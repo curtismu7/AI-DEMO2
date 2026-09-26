@@ -275,7 +275,7 @@ A draw.io diagram of the full 2-exchange token chain is included in this repo:
 
 | File | Download link |
 |------|---------------|
-| `docs/Super-Banking-2-Exchange-Delegated-Chain.drawio` | [⬇ Download](https://raw.githubusercontent.com/curtismu7/banking-demo/fix/dashboard-fab-positioning/docs/Super-Banking-2-Exchange-Delegated-Chain.drawio) |
+| `docs/Super-Banking-2-Exchange-Delegated-Chain.drawio` | [⬇ Download](https://raw.githubusercontent.com/cmuir_pingcorp/banking-demo/fix/dashboard-fab-positioning/docs/Super-Banking-2-Exchange-Delegated-Chain.drawio) |
 
 > **To download:** Right-click the link above → **Save Link As** → save as `Super-Banking-2-Exchange-Delegated-Chain.drawio`.
 > (Clicking opens the raw XML in the browser — right-click is required to save the file.)
@@ -902,8 +902,8 @@ Two ready-to-import files are included in this repo. They cover the full 5-call 
 
 | File | Purpose |
 |------|---------|
-| [⬇ Download collection](https://raw.githubusercontent.com/curtismu7/banking-demo/fix/dashboard-fab-positioning/docs/BX%20Finance%20%E2%80%94%202-Exchange%20Delegated%20Chain%20%E2%80%94%20pi.flow.postman_collection.json) | Steps 1–8 + Utility A (introspect) + Utility B (set mayAct — AI Agent Client ID) |
-| [⬇ Download environment](https://raw.githubusercontent.com/curtismu7/banking-demo/fix/dashboard-fab-positioning/docs/BX%20Finance%20%E2%80%94%202-Exchange%20Delegated%20Chain.postman_environment.json) | Environment file — fill in your credentials here |
+| [⬇ Download collection](https://raw.githubusercontent.com/cmuir_pingcorp/banking-demo/fix/dashboard-fab-positioning/docs/BX%20Finance%20%E2%80%94%202-Exchange%20Delegated%20Chain%20%E2%80%94%20pi.flow.postman_collection.json) | Steps 1–8 + Utility A (introspect) + Utility B (set mayAct — AI Agent Client ID) |
+| [⬇ Download environment](https://raw.githubusercontent.com/cmuir_pingcorp/banking-demo/fix/dashboard-fab-positioning/docs/BX%20Finance%20%E2%80%94%202-Exchange%20Delegated%20Chain.postman_environment.json) | Environment file — fill in your credentials here |
 
 > **pi.flow** means the authorize request returns JSON instead of redirecting to a browser. Postman completes the full PKCE login headlessly in Steps 1–4, then runs both exchanges (Steps 5a/5b and 6a/6b), the PingOne API CC call (Step 7), and the final user lookup (Step 8) — all without any browser interaction.
 

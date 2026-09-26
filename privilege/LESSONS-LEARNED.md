@@ -214,7 +214,7 @@ sitting on the operator's own machine.
 Everything above was learned authoring policy and running the gateway. This
 section is the mirror image: what a brand-new, previously-unseen client
 discovers hitting the AI Gateway cold, extracted while building
-[`ai-gateway-client`](https://github.com/curtismu7/ai-gateway-client) — a
+[`ai-gateway-client`](https://github.com/cmuir_pingcorp/ai-gateway-client) — a
 standalone OAuth PKCE + DCR test client with no BFF, no session, no worker
 credentials, verified against the real public gateway
 (`mcpgw.ai-demo.ping-devops.com`).
@@ -775,7 +775,7 @@ kubectl get ingress -n <ns> --context us -o custom-columns='NAME:.metadata.name,
   values and build command behind the "Catalog apps are sidecars" section above
 - `privilege/CURRENT-CONFIGURATION.md` — the as-built record; cross-check it
   against a live `helm list` before relying on it (see the last section above)
-- [`ai-gateway-client`](https://github.com/curtismu7/ai-gateway-client) —
+- [`ai-gateway-client`](https://github.com/cmuir_pingcorp/ai-gateway-client) —
   standalone client behind the "Building a client from zero" section above;
   `server/lib/relay.js` is the ~700-line essential core (discovery, DCR,
   liveness probe, relay) with the this-demo-specific plumbing already
