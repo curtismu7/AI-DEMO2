@@ -557,6 +557,99 @@ async function checkDataPlaneServers() {
   );
 }
 
+// ── 12. LLM/agent tier: llm-proxy, agent-service, hitl, langchain-agent ─────
+
+/** In-container HTTP probe helper. langchain-agent's :8890 listener binds
+ *  loopback inside its own container, and api-resource-server is HTTP on the
+ *  compose network — so tier probes exec INSIDE their target container.
+ *  interpreter: 'node' (default) or 'python' (langchain-agent is a python
+ *  container with no node and a read-only /tmp). Code ships base64-encoded
+ *  through `interpreter -c` — no temp file, no quoting hazards at any layer. */
+function inContainerProbe(container, lines, { interpreter = 'node' } = {}) {
+  const b64 = Buffer.from(lines.join('\n')).toString('base64');
+  const runner = interpreter === 'python'
+    ? `python3 -c "import base64;exec(base64.b64decode('${b64}').decode())"`
+    : `node -e "eval(Buffer.from('${b64}','base64').toString())"`;
+  const out = sh(`docker exec ${container} ${runner} 2>&1`);
+  return out.out.trim().split('\n').filter(Boolean);
+}
+
+async function checkLlmTier() {
+  // 1. llm-proxy (host llama.cpp front) — /health reports per-model health.
+  //    A model with healthy:false or a swapped/pending mode kills LLM-mode demos.
+  try {
+    const { status, body } = await fetchJson('http://localhost:8090/health');
+    const models = Array.isArray(body?.models) ? body.models : [];
+    // pinOnly tiers (e.g. llama-3-groq-8b-tool-use, experimental) are never
+    // substitution targets and only reachable via an explicit pin — an
+    // unhealthy pinOnly model is a note, not a demo blocker (router.js ~L122).
+    const PIN_ONLY = new Set(['llama-3-groq-8b-tool-use']);
+    const unhealthy = models.filter((m) => m.healthy === false && !PIN_ONLY.has(m.name)).map((m) => m.name);
+    const unhealthyPinned = models.filter((m) => m.healthy === false && PIN_ONLY.has(m.name)).map((m) => m.name);
+    row(
+      'llm:proxy',
+      status === 200 && body?.status === 'healthy' && unhealthy.length === 0,
+      unhealthy.length
+        ? `unhealthy models: ${unhealthy.join(', ')}`
+        : `mode=${body?.mode || '?'} models=${models.length} all healthy${unhealthyPinned.length ? ` (pinOnly ${unhealthyPinned.join(', ')} down — note only)` : ''}`,
+      unhealthy.length ? `Restart host llama.cpp: ./run-docker.sh llamacpp restart — LLM-mode demos fail or fall back to heuristics with an unhealthy model.` : '',
+    );
+  } catch (e) {
+    row('llm:proxy', false, e.cause?.code || e.message, `Host llama.cpp down: ./run-docker.sh llamacpp restart`);
+  }
+
+  // 2. agent-service /health (has its own checks subobject).
+  try {
+    const { status, body } = await fetchJson('http://localhost:3016/health');
+    const checks = body?.checks || {};
+    // checks.prompts is a PromptSource enum — 'primary' is the BEST state
+    // (SOURCE_RANK 0: primary > src_fallback > inline_fallback), not 'ok'.
+    const bad = Object.entries(checks).filter(([k, v]) =>
+      k === 'prompts' ? v !== 'primary' : v !== 'ok',
+    ).map(([k, v]) => `${k}=${v}`);
+    row(
+      'llm:agent-service',
+      status === 200 && body?.status === 'ok' && bad.length === 0,
+      bad.length ? bad.join(', ') : `status=ok (${Object.keys(checks).length} checks, prompts=primary)`,
+      bad.length ? `docker logs ai-demo-agent-service — 'prompts' below primary (src_fallback/inline_fallback) means the image is stale or its prompt mount broke (see image: rows above).` : '',
+    );
+  } catch (e) {
+    row('llm:agent-service', false, e.cause?.code || e.message, `docker logs ai-demo-agent-server; docker compose up -d agent-service`);
+  }
+
+  // 3. hitl-service /health.
+  try {
+    const { status, body } = await fetchJson('http://localhost:3009/health');
+    const bad = Object.entries(body?.checks || {}).filter(([, v]) => v !== 'ok');
+    row(
+      'llm:hitl-service',
+      status === 200 && body?.status === 'ok' && bad.length === 0,
+      bad.length ? bad.map(([k, v]) => `${k}=${v}`).join(', ') : 'status=ok',
+      bad.length || status !== 200 ? `docker logs ai-demo-hitl-service — HITL consent/approval demos fail without it.` : '',
+    );
+  } catch (e) {
+    row('llm:hitl-service', false, e.cause?.code || e.message, `docker compose up -d hitl-service — HITL consent demos fail without it.`);
+  }
+
+  // 4. langchain-agent :8890 — listener binds loopback inside the container AND
+  //    it is a PYTHON container (no node), so probe with python urllib in-exec.
+  const lc = inContainerProbe('ai-demo-langchain-agent', [
+    'import urllib.request, json',
+    'try:',
+    '    r = urllib.request.urlopen("http://localhost:8890/health", timeout=5)',
+    '    print("LC", json.loads(r.read()).get("status", "?"))',
+    'except Exception as e:',
+    '    print("LC FAIL", getattr(e, "reason", e))',
+  ], { interpreter: 'python' });
+  const lcLine = (lc.find((l) => l.startsWith('LC')) || 'LC no output').replace(/^LC /, '');
+  row(
+    'llm:langchain-agent',
+    lcLine === 'healthy',
+    lcLine,
+    lcLine !== 'healthy' ? `docker logs ai-demo-langchain-agent — the LLM agent brain (8888 SSE) is backed by this process. Start: docker compose up -d langchain-agent` : '',
+  );
+}
+
 // ── main ─────────────────────────────────────────────────────────────────────
 
 (async () => {
@@ -574,6 +667,7 @@ async function checkDataPlaneServers() {
   await checkStep9Gate();
   await checkMcpGateway();
   await checkDataPlaneServers();
+  await checkLlmTier();
 
   let failed = 0;
   for (const r of rows) {
