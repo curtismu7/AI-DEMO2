@@ -1116,6 +1116,24 @@ _compose_down() {
     _compose_with_timeout 30 "${TEARDOWN_PROFILE_ARGS[@]}" rm -f 2>/dev/null || true
   fi
   _purge_leftover_stack
+  _stop_autostart_containers
+}
+
+# `restart: unless-stopped` services (llm-proxy, librechat stack, ...) auto-start
+# whenever the Docker daemon comes up, so a "stopped" stack resurrects after an
+# OrbStack restart and squats container names / the ai-demo_ai-demo network.
+# Disable their restart policy before stopping so they stay down.
+_stop_autostart_containers() {
+  local names running name
+  names="$(docker ps -aq --filter "name=^ai-demo-" --filter "name=^librechat" 2>/dev/null || true)"
+  [[ -n "${names}" ]] || return 0
+  # shellcheck disable=SC2086
+  docker update --restart=no ${names} >/dev/null 2>&1 || true
+  running="$(docker ps -q --filter "name=^ai-demo-" --filter "name=^librechat" 2>/dev/null || true)"
+  [[ -n "${running}" ]] || return 0
+  # shellcheck disable=SC2086
+  docker stop ${running} >/dev/null 2>&1 || true
+  ok "Stopped auto-restart containers and disabled their restart policy."
 }
 
 # ── Commands ──────────────────────────────────────────────────────────────────
