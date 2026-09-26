@@ -23,6 +23,14 @@ function dependencies(provider, issuer) {
       pingone_investment_agent_client_secret: 'agent2-secret',
       oauth_issuer: provider === 'pingone' ? issuer : '',
       pf_issuer: 'https://local.ping-devops.com:9031',
+      // PF-mode agent1 actor mint + exchange exchanger (see a2aDelegationService).
+      pf_ai_agent_actor_client_id: 'pf-actor',
+      pf_ai_agent_actor_client_secret: 'pf-actor-secret',
+      pf_ai_agent_actor_token_endpoint_auth_method: 'post',
+      pf_standard_token_exchange_actor_scope: 'agent:invoke',
+      pf_standard_agent_exchange_client_id: 'pf-agent-exchanger',
+      pf_standard_agent_exchange_client_secret: 'pf-agent-exchanger-secret',
+      pf_token_endpoint: 'https://local.ping-devops.com:9031/as/token.oauth2',
     })[key] || '',
   };
   return {
@@ -48,6 +56,18 @@ describe('A2A token provider follows the authenticated session issuer', () => {
 
     expect(result.error).toBeUndefined();
     expect(deps.oauthService.getAiAgentClientCredentialsToken).toHaveBeenCalledTimes(1);
+    if (provider === 'pingfederate') {
+      // PF mode mints the agent1 actor and runs Exchange #1 with PF clients,
+      // not the PingOne UUID app (which does not exist in PF).
+      expect(deps.oauthService.getAiAgentClientCredentialsToken)
+        .toHaveBeenCalledWith(expect.objectContaining({ clientId: 'pf-actor' }));
+      expect(deps.oauthService.performTokenExchangeAs)
+        .toHaveBeenCalledWith(
+          expect.anything(), expect.anything(),
+          'pf-agent-exchanger', 'pf-agent-exchanger-secret',
+          expect.anything(), expect.anything(), expect.anything(), expect.anything(),
+        );
+    }
     expect(deps.oauthService.performTokenExchangeAs).toHaveBeenCalledTimes(1);
   });
 
