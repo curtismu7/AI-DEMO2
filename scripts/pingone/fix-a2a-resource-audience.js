@@ -115,8 +115,7 @@ async function main() {
     console.error('Do it in the PingOne console instead:');
     console.error('  Admin → Resources → "' + rs.name + '" → audience → set to ' + WANT);
     process.exit(5);
-  }
-  if (!patch.ok) {
+  }  if (!patch.ok) {
     console.error('PATCH failed:', patch.status, (await patch.text()).slice(0, 300));
     process.exit(6);
   }

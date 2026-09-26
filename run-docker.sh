@@ -285,6 +285,36 @@ ensure_bind_mounts() {
 # When no vault file exists this is a transparent no-op (env-only dev machines).
 # Mirrors run.sh's preflight. VAULT_PASSWORD is only ever passed via the subshell
 # environment, never as a CLI arg, and is never echoed.
+# ── provider-lock preflight ───────────────────────────────────────────────────
+# 2026-09-26 incident: .env, docker-compose environment:, the admin toggle, and
+# setRaw repairs fought over oauth_provider; every pingfederate flip broke A2A
+# (no act claim) and all banking logins. Surface drift LOUDLY at stack start.
+# Soft — warns, does not abort (the admin toggle makes flips legitimate).
+provider_lock_preflight() {
+  local intent_file="$BASEDIR/.demo-provider-intent.json"
+  [[ -f "$intent_file" ]] || return 0
+  local intent
+  intent=$(node -e "try{console.log(JSON.parse(require('fs').readFileSync('$intent_file','utf8')).provider||'')}catch(e){}" 2>/dev/null || true)
+  [[ -n "$intent" ]] || return 0
+  local env_p="(unset)" compose_p="(unset)"
+  if [[ -f "$BASEDIR/demo_api_server/.env" ]]; then
+    env_p=$(grep -E '^OAUTH_PROVIDER=' "$BASEDIR/demo_api_server/.env" 2>/dev/null | head -1 | cut -d= -f2 | tr -d '"' || echo "(unset)")
+    [[ -n "$env_p" ]] || env_p="(unset)"
+  fi
+  compose_p=$(grep -E '^\s*OAUTH_PROVIDER:' "$BASEDIR/docker-compose.yml" 2>/dev/null | head -1 | sed 's/.*OAUTH_PROVIDER:\s*//' | tr -d '"' || echo "(unset)")
+  [[ -n "$compose_p" ]] || compose_p="(unset)"
+  local drift=""
+  [[ "$env_p" != "$intent" && "$env_p" != "(unset)" ]] && drift=".env($env_p)"
+  [[ "$compose_p" != "$intent" && "$compose_p" != "(unset)" ]] && drift="$drift docker-compose($compose_p)"
+  if [[ -n "$drift" ]]; then
+    warn "OAuth provider drift: intent=$intent but$drift overrides it."
+    warn "env values outrank the LMDB configStore - A2A breaks under pingfederate (no act claim)."
+    warn "Deliberate? node scripts/pingone/demo-provider-lock.js set $intent \"<reason>\" and commit the intent file."
+  else
+    ok "OAuth provider lock verified (intent=$intent)."
+  fi
+}
+
 vault_preflight() {
   local vault_file="${VAULT_PATH:-$BASEDIR/secrets.vault}"
   [[ -f "$vault_file" ]] || { ok "No secrets.vault — BFF uses .env / process.env values."; return 0; }
@@ -1242,7 +1272,7 @@ cmd_restart_one() {
   echo ""
   git_sync_check; echo ""
   _needs_tls_bind_mounts "$@" && { ensure_bind_mounts; echo ""; }
-  _includes_bff "$@" && { vault_preflight; dotenvx_preflight; echo ""; }
+  _includes_bff "$@" && { vault_preflight; provider_lock_preflight; dotenvx_preflight; echo ""; }
   _purge_foreign_container_names
   _export_llamacpp_base_url
   _export_loki_url
