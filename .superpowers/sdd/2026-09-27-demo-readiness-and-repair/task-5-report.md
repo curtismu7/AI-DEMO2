@@ -55,3 +55,42 @@ separate provider-configured worker BFF/runtime is supplied, provider setup
 blocks and live lanes cannot be reported as passing. The dedicated integration
 test was not run because the two explicitly named readiness identities are not
 configured.
+
+## Fix round 1
+
+The execution loop now consumes every derived category: core rows, UC14b
+full-page variants, ordinary feature probes, and Attack Lab probes. Each
+derived row produces one sanitized result and one `demoReadinessReport` check,
+including sticky lane blocks and deadline `not-run` rows. The runner returns
+the exact category counts, applies the 12-minute target and 15-minute hard
+limit, and never drops later rows to make the timing result look green.
+
+Worker isolation now requires distinct worker-owned `runtimeId`, `cookieJarId`,
+and `sessionStoreId`; a collision or provider setup failure blocks the whole
+target/provider lane. Execution no longer supplies missing evidence from the
+requested provider. Required observations include user-session and agent
+identity providers, issuer, subject, actor chain, exchange service and
+provenance, resource server, role applicability, audiences/scopes, tool,
+Gateway and Authorize evidence. PF rows additionally validate HTTPS
+issuer/endpoint authority, PF-only credential reference, fail-closed
+configuration, subject-token type, and registered-tool result. Case-specific
+paths distinguish ordinary exchange, A2A’s internal ID-JAG hop, native UC40,
+and UC38/44’s actor-bound standard flow.
+
+The feature manifest now registers PingOne Agent IAM Core, PF CIMD
+valid/rejected, third-party AS allow/deny, native ID-JAG invalid/expired/wrong
+audience, RAR valid/invalid, UC2 passenger `invalid_target`, and the
+UC-LEARN11 prefill/send/deny/provider-not-reached probe. Together with the
+existing entries, the derived full matrix is 800 rows. These remain strict
+mocked contracts until a safe isolated provider runtime and named readiness
+identities are available.
+
+Fix-round focused evidence:
+
+`CI=true npx jest tests/demoReadinessCatalog.test.js
+tests/demoReadinessExecutionService.test.js
+tests/demoReadinessProviderIsolation.test.js --forceExit`
+
+Result: 3 suites passed, 37 tests passed, 1 named-identity integration test
+skipped. No hosted services, Docker Compose, deployment, or provider login was
+used.

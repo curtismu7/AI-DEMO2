@@ -107,6 +107,10 @@ describe('demo readiness catalog', () => {
       'A2A-FM1', 'A2A-FM2', 'A2A-FM3', 'PF-DAVINCI-IK',
       'PRIV-TOOL-ABUSE', 'PRIV-TOOL-POISONING', 'PRIV-SCHEMA-VIOLATION',
       'PRIV-INTER-AGENT-ABUSE', 'PRIV-MALICIOUS-CONTENT',
+      'PINGONE-AGENT-IAM-CORE', 'PF-CIMD-VALID', 'PF-CIMD-REJECTED',
+      'PF-THIRD-PARTY-AS-ALLOW', 'PF-THIRD-PARTY-AS-DENY', 'PF-ID-JAG-INVALID',
+      'PF-ID-JAG-EXPIRED', 'PF-ID-JAG-WRONG-AUDIENCE', 'PF-RAR-VALID',
+      'PF-RAR-INVALID', 'UC2-PASSENGER-INVALID-TARGET', 'UC-LEARN11-PROMPT-INJECTION',
     ]);
     expect(sources.featureChecks.checks.slice(0, 3).every((check) =>
       check.providers.includes('pingone')

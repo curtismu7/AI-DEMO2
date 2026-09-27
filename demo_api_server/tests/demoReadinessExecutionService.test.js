@@ -1,6 +1,6 @@
 'use strict';
 
-const { createReadinessExecutionService } = require('../services/demoReadinessExecutionService');
+const { createReadinessExecutionService, expectedExchangePath } = require('../services/demoReadinessExecutionService');
 
 const CASE = {
   id: 'UC6',
@@ -24,14 +24,16 @@ const CASE = {
 function worker(overrides = {}) {
   return {
     provider: 'pingone',
-    isolated: true,
+    runtimeId: 'runtime-pingone', cookieJarId: 'cookies-pingone', sessionStoreId: 'sessions-pingone',
     async verifyPrerequisites() { return { status: 'pass' }; },
     async executeReadinessCase() {
       return {
         observed: 'DENY',
         evidence: {
-          subject: 'user-1', actor: 'agent-1', audiences: ['https://gateway.example'], scopes: ['read'],
-          selectedTool: 'get_account_balance', exchangeProvenance: 'pingone-standard',
+          userSessionProvider: 'pingone', agentIdentityProvider: 'pingone', tokenIssuer: 'pingone',
+          subject: 'user-1', actor: 'agent-1', actorChain: ['agent-1'], roleApplicability: { user: 'required' },
+          resourceServer: 'gateway', exchangeService: 'token-exchange', exchangePath: 'standard-access-token', subjectTokenType: 'access_token',
+          audiences: ['https://gateway.example'], scopes: ['read'], selectedTool: 'get_account_balance', exchangeProvenance: 'pingone-standard',
           gateway: { route: 'gateway', verdict: 'DENY' }, authorize: { decision: 'DENY', reference: 'p1az-1' },
         },
       };
@@ -93,13 +95,76 @@ describe('demo readiness execution service', () => {
     expect(service.deriveExecutionManifest({ targets: ['local', 'hosted'] }).counts).toEqual({ core: 6, variants: 0, feature: 6, attackLab: 4, total: 16 });
   });
 
-  test('derives the full current inventory: 182 unexpanded, 184 groups, and 772 rows with attack probes', () => {
+  test('derives the full current inventory: 182 unexpanded, 184 groups, and 800 rows with required feature probes', () => {
     const { buildDemoReadinessCatalog } = require('../services/demoReadinessCatalog');
     const catalog = buildDemoReadinessCatalog();
     const unexpanded = catalog.reduce((count, row) => count + (row.providerFlows.pingone ? 2 : 0) + (row.providerFlows.pingfederate ? 2 : 0), 0);
     expect(unexpanded).toBe(182);
     expect(catalog.reduce((count, row) => count + row.runtimeVerticalGroups.length, 0)).toBe(184);
     expect(createReadinessExecutionService({ catalog }).deriveExecutionManifest().counts)
-      .toEqual({ core: 734, variants: 4, feature: 14, attackLab: 20, total: 772 });
+      .toEqual({ core: 734, variants: 4, feature: 42, attackLab: 20, total: 800 });
+  });
+
+  test('executes every manifest category, preserves UC14b full-page behavior, and records report rows', async () => {
+    const variantCase = {
+      ...CASE,
+      id: 'UC14b',
+      runtimeVerticalGroups: [{ vertical: 'banking', verticals: ['banking'] }],
+      alternateBehaviors: [{ kind: 'page-load', pathname: '/intent-binding', path: '/intent-binding', variant: 'full-page-live-par' }],
+    };
+    const seen = [];
+    const service = createReadinessExecutionService({
+      catalog: [variantCase],
+      featureChecks: [{ id: 'FEATURE', providers: ['pingone'], expectedOutcome: 'FEATURE_PASS', executionMode: 'feature' }],
+      createWorker: async () => worker({
+        async executeReadinessCase(input) { seen.push(input.behavior); return { observed: input.behavior.kind === 'page-load' ? 'page-load' : 'DENY', evidence: worker().executeReadinessCase ? (await worker().executeReadinessCase()).evidence : {} }; },
+        async executeReadinessFeature() { return { observed: 'FEATURE_PASS', evidence: { userSessionProvider: 'pingone', agentIdentityProvider: 'pingone', tokenIssuer: 'pingone', subject: 'user-1', actorChain: ['agent-1'], exchangeService: 'feature', exchangeProvenance: 'feature', exchangePath: 'standard-access-token', subjectTokenType: 'access_token', resourceServer: 'feature', roleApplicability: { user: 'required' }, gateway: { applicable: false }, authorize: { applicable: false } } }; },
+      }),
+    });
+    const run = await service.runManifest({ targets: ['local'] });
+    expect(run.results).toHaveLength(run.manifest.counts.total);
+    expect(seen).toEqual(expect.arrayContaining([expect.objectContaining({ kind: 'page-load', variant: 'full-page-live-par' })]));
+    expect(run.report.checks).toHaveLength(run.manifest.counts.total);
+    expect(run.categoryCounts).toEqual(run.manifest.counts);
+  });
+
+  test('requires observed provider roles, subject/actor chain, exchange, resource, and authorization evidence', async () => {
+    const service = createReadinessExecutionService({ createWorker: async () => worker({
+      async executeReadinessCase() { return { observed: 'DENY', evidence: { audiences: ['https://gateway.example'], scopes: ['read'], selectedTool: 'get_account_balance', gateway: { route: 'gateway', verdict: 'DENY' }, authorize: { decision: 'DENY', reference: 'p1az' } } }; },
+    }) });
+    const context = await service.createWorkerContext({ targetId: 'local', provider: 'pingone', identityRef: 'p1' });
+    const result = await service.executeReadinessCase({ context, caseRow: CASE, vertical: 'banking' });
+    expect(result.status).toBe('fail');
+    expect(result.evidence.contractFailures).toEqual(expect.arrayContaining([expect.stringMatching(/user-session provider|subject|actor chain|exchange service|role applicability/i)]));
+  });
+
+  test('marks every unstarted row not-run when the hard deadline expires and reports the timing gate', async () => {
+    const now = jest.fn().mockReturnValueOnce(0).mockReturnValue(900001);
+    const service = createReadinessExecutionService({ catalog: [{ ...CASE, runtimeVerticalGroups: [{ vertical: 'banking', verticals: ['banking'] }], alternateBehaviors: [] }], featureChecks: [], createWorker: jest.fn(), now });
+    const run = await service.runManifest({ targets: ['local'], startedAt: 0, deadlineAt: 900000 });
+    expect(run.results).toHaveLength(run.manifest.counts.total);
+    expect(run.results.filter((row) => row.status === 'not-run')).toHaveLength(run.manifest.counts.total - 1);
+    expect(run.results[0].status).toBe('blocked');
+    expect(run.timing).toMatchObject({ deadlineExceeded: true, targetMet: false, hardLimitMs: 900000, targetMs: 720000 });
+  });
+
+  test('keeps ordinary, A2A, native ID-JAG, and actor-bound PF provenance distinct', () => {
+    expect(expectedExchangePath({ id: 'UC6' }, 'pingfederate')).toBe('standard-access-token');
+    expect(expectedExchangePath({ id: 'UC2.5' }, 'pingfederate')).toBe('a2a-id-jag-then-access');
+    expect(expectedExchangePath({ id: 'UC40' }, 'pingfederate')).toBe('native-id-jag');
+    expect(expectedExchangePath({ id: 'UC38' }, 'pingfederate')).toBe('actor-bound-standard-two-exchange');
+    expect(expectedExchangePath({ id: 'UC44' }, 'pingone')).toBe('actor-bound-standard-two-exchange');
+  });
+
+  test('fails a PF exchange with an incomplete endpoint, wrong token type, or no registered tool result', async () => {
+    const pfCase = { ...CASE, providerFlows: { pingone: null, pingfederate: 'pingfederate-standard' } };
+    const service = createReadinessExecutionService({ createWorker: async () => ({
+      ...worker(), provider: 'pingfederate', runtimeId: 'pf-runtime', cookieJarId: 'pf-cookies', sessionStoreId: 'pf-sessions',
+      async executeReadinessCase() { return { observed: 'DENY', evidence: { ...(await worker().executeReadinessCase()).evidence, userSessionProvider: 'pingfederate', tokenIssuer: 'pingfederate', agentIdentityProvider: 'pingfederate', exchangeProvenance: 'pingfederate-standard', pfExchange: { issuer: 'http://pf.example', endpoint: 'https://other.example/token', credentialRef: '', configurationComplete: false, subjectTokenType: 'id-jag', registeredToolResult: 'fail' } } }; },
+    }) });
+    const context = await service.createWorkerContext({ targetId: 'local', provider: 'pingfederate', identityRef: 'pf' });
+    const result = await service.executeReadinessCase({ context, caseRow: pfCase, vertical: 'banking' });
+    expect(result.status).toBe('fail');
+    expect(result.evidence.contractFailures).toEqual(expect.arrayContaining([expect.stringMatching(/PF endpoint|credential|configuration|subject-token|registered-tool/i)]));
   });
 });

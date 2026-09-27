@@ -13,15 +13,21 @@ const CASE = {
 function providerWorker(provider) {
   return {
     provider,
-    isolated: true,
-    cookieJar: {},
-    sessionStore: {},
+    runtimeId: 'runtime-' + provider,
+    cookieJarId: 'cookies-' + provider,
+    sessionStoreId: 'sessions-' + provider,
     async verifyPrerequisites() { return { status: 'pass' }; },
-    async executeReadinessCase() {
+    async executeReadinessCase({ caseRow }) {
       return {
         observed: 'PERMIT',
         evidence: {
-          subject: provider + '-subject', actor: provider + '-agent',
+          userSessionProvider: provider, agentIdentityProvider: provider, tokenIssuer: provider,
+          subject: provider + '-subject', actor: provider + '-agent', actorChain: [provider + '-agent'],
+          exchangeService: 'token-exchange', exchangeProvenance: caseRow.providerFlows[provider],
+          exchangePath: caseRow.id === 'UC40' ? 'native-id-jag' : 'standard-access-token',
+          subjectTokenType: provider === 'pingfederate' && caseRow.id === 'UC40' ? 'id-jag' : 'access_token',
+          ...(provider === 'pingfederate' ? { pfExchange: { issuer: 'https://pf.example', endpoint: 'https://pf.example/as/token', credentialRef: 'pf-worker', configurationComplete: true, subjectTokenType: caseRow.id === 'UC40' ? 'id-jag' : 'access_token' } } : {}),
+          resourceServer: 'olb', roleApplicability: { user: 'required' },
           gateway: { applicable: false }, authorize: { applicable: false },
         },
       };
@@ -46,15 +52,15 @@ describe('demo readiness provider isolation', () => {
     ]);
 
     expect(pingone).not.toEqual(pingfederate);
-    expect(workers[0].cookieJar).not.toBe(workers[1].cookieJar);
-    expect(workers[0].sessionStore).not.toBe(workers[1].sessionStore);
+    expect(workers[0].cookieJarId).not.toBe(workers[1].cookieJarId);
+    expect(workers[0].sessionStoreId).not.toBe(workers[1].sessionStoreId);
     expect(activeProvider).toBe('pingone');
   });
 
   test('one provider setup failure is reported while the other lane remains usable', async () => {
     const service = createReadinessExecutionService({
       createWorker: async ({ provider }) => provider === 'pingfederate'
-        ? { provider, isolated: false }
+        ? { provider, runtimeId: 'shared', cookieJarId: 'shared', sessionStoreId: 'shared' }
         : providerWorker(provider),
     });
     await expect(service.createWorkerContext({ targetId: 'local', provider: 'pingfederate', identityRef: 'readiness-pf' }))
@@ -68,7 +74,7 @@ describe('demo readiness provider isolation', () => {
     const service = createReadinessExecutionService({
       catalog: [caseRow],
       featureChecks: [],
-      createWorker: async ({ provider }) => provider === 'pingfederate' ? { provider, isolated: false } : providerWorker(provider),
+      createWorker: async ({ provider }) => provider === 'pingfederate' ? { provider, runtimeId: 'shared', cookieJarId: 'shared', sessionStoreId: 'shared' } : providerWorker(provider),
     });
     const run = await service.runManifest({ targets: ['local'] });
     expect(run.results).toEqual(expect.arrayContaining([
@@ -82,7 +88,19 @@ describe('demo readiness provider isolation', () => {
     const service = createReadinessExecutionService({ createWorker, catalog: [CASE] });
     const run = await service.runManifest({ targets: ['local'], deadlineAt: Date.now() - 1 });
     expect(createWorker).not.toHaveBeenCalled();
-    expect(run.results).toEqual([]);
+    expect(run.results).toHaveLength(run.manifest.counts.total);
+    expect(run.results.every((result) => result.status === 'not-run')).toBe(true);
+  });
+
+  test('a failed target/provider setup blocks the rest of that lane without retrying it', async () => {
+    const createWorker = jest.fn(async ({ provider }) => provider === 'pingfederate'
+      ? { provider, runtimeId: 'bad', cookieJarId: 'bad', sessionStoreId: 'bad' }
+      : providerWorker(provider));
+    const row = { ...CASE, id: 'UC6', providerFlows: { pingone: 'pingone-standard', pingfederate: 'pingfederate-standard' }, runtimeVerticalGroups: [{ vertical: 'banking', verticals: ['banking'] }, { vertical: 'banking', verticals: ['banking'] }] };
+    const service = createReadinessExecutionService({ catalog: [row], featureChecks: [], createWorker });
+    const run = await service.runManifest({ targets: ['local'] });
+    expect(createWorker.mock.calls.filter(([args]) => args.provider === 'pingfederate')).toHaveLength(1);
+    expect(run.results.filter((result) => result.evidence?.provider === 'pingfederate')).toHaveLength(2);
   });
 
   test('UC40 remains PF-only and reports its PingOne session lane as not applicable', () => {

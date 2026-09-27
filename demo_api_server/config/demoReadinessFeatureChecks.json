@@ -125,6 +125,138 @@
       "providerRoleApplicability": { "userSession": "required", "agentIdentity": "provider-bound", "modelBackend": "record_observed_reachability" },
       "configurationDependencies": ["agent-gateway-runtime-config"],
       "sourceCodeChanges": "never"
+    },
+    {
+      "id": "PINGONE-AGENT-IAM-CORE",
+      "sourceRef": "demo_api_server/services/agentRegistryService.js",
+      "testTitle": "PingOne Agent IAM Core records identity, lifecycle, and delegated exchange evidence",
+      "providers": ["pingone"],
+      "executionMode": "agent-iam-core",
+      "expectedOutcome": "agent_identity_lifecycle_and_delegated_exchange_verified",
+      "providerRoleApplicability": { "userSession": "pingone-required", "agentIdentity": "pingone-required" },
+      "configurationDependencies": ["pingone-scope-addition", "authorize-policy-definition"],
+      "sourceCodeChanges": "never"
+    },
+    {
+      "id": "PF-CIMD-VALID",
+      "sourceRef": "demo_api_server/services/oauthClientRegistry.js#registerCimdClient",
+      "testTitle": "PingFederate CIMD valid metadata is accepted with declared provenance",
+      "providers": ["pingfederate"],
+      "executionMode": "pf-cimd",
+      "expectedOutcome": "cimd_valid_metadata_accepted",
+      "providerRoleApplicability": { "userSession": "pingfederate-required", "agentIdentity": "provider-bound" },
+      "configurationDependencies": ["pingfederate-standard-exchange"],
+      "sourceCodeChanges": "never"
+    },
+    {
+      "id": "PF-CIMD-REJECTED",
+      "sourceRef": "demo_api_server/services/oauthClientRegistry.js#validateCimdDocument",
+      "testTitle": "PingFederate CIMD rejected metadata does not reach registration",
+      "providers": ["pingfederate"],
+      "executionMode": "pf-cimd",
+      "expectedOutcome": "cimd_invalid_metadata_rejected_before_registration",
+      "providerRoleApplicability": { "userSession": "pingfederate-required", "agentIdentity": "provider-bound" },
+      "configurationDependencies": ["pingfederate-standard-exchange"],
+      "sourceCodeChanges": "never"
+    },
+    {
+      "id": "PF-THIRD-PARTY-AS-ALLOW",
+      "sourceRef": "demo_api_server/config/demoReadinessPingFederateProfiles.json#third-party-authorization-server",
+      "testTitle": "third-party authorization-server exchange permit retains provider evidence",
+      "providers": ["pingfederate"],
+      "executionMode": "pf-third-party-as",
+      "expectedOutcome": "third_party_as_exchange_permitted",
+      "providerRoleApplicability": { "userSession": "pingfederate-required", "agentIdentity": "provider-bound" },
+      "configurationDependencies": ["pingfederate-standard-exchange", "authorize-policy-definition"],
+      "sourceCodeChanges": "never"
+    },
+    {
+      "id": "PF-THIRD-PARTY-AS-DENY",
+      "sourceRef": "demo_api_server/config/demoReadinessPingFederateProfiles.json#third-party-authorization-server",
+      "testTitle": "third-party authorization-server denied exchange returns declared denial",
+      "providers": ["pingfederate"],
+      "executionMode": "pf-third-party-as",
+      "expectedOutcome": "third_party_as_exchange_denied",
+      "providerRoleApplicability": { "userSession": "pingfederate-required", "agentIdentity": "provider-bound" },
+      "configurationDependencies": ["pingfederate-standard-exchange", "authorize-policy-definition"],
+      "sourceCodeChanges": "never"
+    },
+    {
+      "id": "PF-ID-JAG-INVALID",
+      "sourceRef": "demo_api_server/services/agentMcpTokenService.js#assertPfIdJagRunAllowed",
+      "testTitle": "invalid native ID-JAG is rejected before resource access",
+      "providers": ["pingfederate"],
+      "executionMode": "pf-native-id-jag-negative",
+      "expectedOutcome": "invalid_id_jag_rejected",
+      "providerRoleApplicability": { "userSession": "pingfederate-required", "agentIdentity": "provider-bound" },
+      "configurationDependencies": ["pingfederate-native-id-jag"],
+      "sourceCodeChanges": "never"
+    },
+    {
+      "id": "PF-ID-JAG-EXPIRED",
+      "sourceRef": "demo_api_server/services/agentMcpTokenService.js#assertPfIdJagRunAllowed",
+      "testTitle": "expired native ID-JAG is rejected before resource access",
+      "providers": ["pingfederate"],
+      "executionMode": "pf-native-id-jag-negative",
+      "expectedOutcome": "expired_id_jag_rejected",
+      "providerRoleApplicability": { "userSession": "pingfederate-required", "agentIdentity": "provider-bound" },
+      "configurationDependencies": ["pingfederate-native-id-jag"],
+      "sourceCodeChanges": "never"
+    },
+    {
+      "id": "PF-ID-JAG-WRONG-AUDIENCE",
+      "sourceRef": "demo_api_server/services/agentMcpTokenService.js#assertPfIdJagRunAllowed",
+      "testTitle": "wrong-audience native ID-JAG is rejected before resource access",
+      "providers": ["pingfederate"],
+      "executionMode": "pf-native-id-jag-negative",
+      "expectedOutcome": "wrong_audience_id_jag_rejected",
+      "providerRoleApplicability": { "userSession": "pingfederate-required", "agentIdentity": "provider-bound" },
+      "configurationDependencies": ["pingfederate-native-id-jag"],
+      "sourceCodeChanges": "never"
+    },
+    {
+      "id": "PF-RAR-VALID",
+      "sourceRef": "demo_api_server/routes/intentBinding.js",
+      "testTitle": "valid RAR authorization_details reaches the declared decision",
+      "providers": ["pingfederate"],
+      "executionMode": "pf-rar",
+      "expectedOutcome": "rar_valid_details_permitted",
+      "providerRoleApplicability": { "userSession": "pingfederate-required", "agentIdentity": "provider-bound" },
+      "configurationDependencies": ["pingfederate-standard-exchange", "pingone-par-runtime", "authorize-policy-definition"],
+      "sourceCodeChanges": "never"
+    },
+    {
+      "id": "PF-RAR-INVALID",
+      "sourceRef": "demo_api_server/routes/intentBinding.js",
+      "testTitle": "invalid RAR authorization_details are denied with the declared reason",
+      "providers": ["pingfederate"],
+      "executionMode": "pf-rar",
+      "expectedOutcome": "rar_invalid_details_denied",
+      "providerRoleApplicability": { "userSession": "pingfederate-required", "agentIdentity": "provider-bound" },
+      "configurationDependencies": ["pingfederate-standard-exchange", "pingone-par-runtime", "authorize-policy-definition"],
+      "sourceCodeChanges": "never"
+    },
+    {
+      "id": "UC2-PASSENGER-INVALID-TARGET",
+      "sourceRef": "demo_api_server/services/rfcCompliantErrorHandler.js#invalid_target",
+      "testTitle": "UC2 passenger invalid_target stays separate from Exchange #3 and UC40 evidence",
+      "providers": ["pingone", "pingfederate"],
+      "executionMode": "a2a-passenger-negative",
+      "expectedOutcome": "passenger_invalid_target_before_exchange3",
+      "providerRoleApplicability": { "userSession": "required", "agentIdentity": "provider-bound" },
+      "configurationDependencies": ["pingfederate-a2a-runtime", "authorize-policy-definition"],
+      "sourceCodeChanges": "never"
+    },
+    {
+      "id": "UC-LEARN11-PROMPT-INJECTION",
+      "sourceRef": "demo_api_server/config/useCases.js#UC-LEARN11",
+      "testTitle": "UC-LEARN11 opens with the selected payload then sends it to a denial without provider reach",
+      "providers": ["pingone", "pingfederate"],
+      "executionMode": "prompt-injection-probe",
+      "expectedOutcome": "prefilled_attack_selected_then_denied_provider_not_reached",
+      "providerRoleApplicability": { "userSession": "required", "agentIdentity": "provider-bound", "modelBackend": "provider-not-reached" },
+      "configurationDependencies": ["agent-gateway-runtime-config", "authorize-policy-definition"],
+      "sourceCodeChanges": "never"
     }
   ]
 }
