@@ -183,7 +183,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     // bearers to the Node gateway, same Node-only routing as Path B/C above and
     // the RAR sims (#603). mcp_demo_gateway_url, not MCP_GATEWAY_HTTP_URL — the
     // latter is baked per-container and may point at IG (#375).
-    if (pgUrl && base === pgUrl && !pinNodeGateway) {
+    if (pgUrl && !pinNodeGateway) {
         const a2aAud = process.env.A2A_GATEWAY_AUDIENCE
             || configStore.getEffective('a2a_gateway_audience') || '';
         if (a2aAud) {
@@ -218,7 +218,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     // (verifies against oauth-mcp's own signing key, not PingOne's) both cover
     // it — so pin these bearers there, same Node-only routing as Path B/C and
     // A2A above.
-    if (pgUrl && base === pgUrl && !pinNodeGateway) {
+    if (pgUrl && !pinNodeGateway) {
         const olbAud = process.env.PINGONE_RESOURCE_MCP_SERVER_URI
             || configStore.getEffective('pingone_resource_mcp_server_uri') || '';
         if (olbAud) {

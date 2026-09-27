@@ -191,6 +191,7 @@ read the configured host. A new browser origin must be added to ALL of:
 ### 2026-09-27 — MCP gateway audience routing failed before dispatch
 
 **Files:** `demo_api_server/services/mcpToolPipeline.js`,
+`demo_api_server/services/mcpGatewayClient.js`,
 `demo_api_server/src/__tests__/a2aDelegationService.test.js`,
 `demo_api_server/src/__tests__/mcpGatewayClient.pinnedAudience.test.js`.
 
@@ -201,6 +202,10 @@ required by the existing provider-drift guard, and an audience test still
 expected the retired resource-name fallback after PingOne was corrected to issue
 the configured URI.
 
+The A2A and native ID-JAG audience pins also depended on the caller initially
+passing PingGateway's URL. When callers already passed the Node gateway URL, the
+later regular-call guard rerouted those tokens back to PingGateway.
+
 **What was fixed:** read the existing config store at the pin check; provide a
 valid PingOne issuer in A2A fixtures; assert that the retired audience name does
 not activate the Node-gateway pin.
@@ -208,11 +213,13 @@ not activate the Node-gateway pin.
 **Do not break:** keep strict issuer/provider matching, route gateway calls by
 the signed token audience, and do not restore the retired resource-name
 audience tolerance.
+Keep A2A and ID-JAG token pins effective even when the requested base is already
+the Node gateway; regular calls must not reroute those tokens to PingGateway.
 
 **Verify:** focused A2A delegation tests pass 25/25, MCP pipeline
 characterization tests pass 54/54, and gateway audience-pin tests pass 15/15.
-The full API suite still has unrelated failures; see the CI job for current
-status.
+The A2A and ID-JAG pin plus delegation regression set passes 46/46. The local
+full API suite still has unrelated failures; see the latest CI job for status.
 
 ### 2026-09-26 — Hosted BFF logs, sessions, CodeGraph abuse budget, and MCP ingress hardening
 
