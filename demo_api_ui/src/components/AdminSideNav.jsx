@@ -1410,6 +1410,7 @@ export default function AdminSideNav({
       "Grafana",
     ], "log"),
     productGroup("Architecture & Learning", [
+      "Server Topology (Interactive)",
       "PingFederate ID-JAG (Node)",
       "System Diagram (Node)",
       "Overview Diagram (Node)",
