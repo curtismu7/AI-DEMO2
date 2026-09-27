@@ -324,6 +324,30 @@ authorization checks.
 `CI=true npx jest tests/routes/privilegeMcpClient.silentAuth.test.js
 --runInBand --forceExit` — 10 passed.
 
+### 2026-09-27 — Privilege door switch waited for a manual sign-in click
+
+**Files:** `demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`,
+`demo_api_ui/src/pages/__tests__/PrivilegeMcpClientPage.doorSwitchReauth.test.jsx`.
+
+**What was broken:** Switching to an unconnected Privilege door cleared its
+token, then waited for a tools/list 401 and a manual Sign in click before
+starting the existing `prompt=none` flow. The modal claimed silent sign-in had
+failed before it had even been attempted. After a successful OAuth return, the
+page also waited for another manual tools discovery.
+
+**What was fixed:** When the current P1 or Privilege session can be reused, a
+door switch now starts authorization only if the BFF prepared `prompt=none`.
+After a successful callback it discovers tools for the selected door. If silent
+auth is unavailable or returns `login_required`, the page keeps the interactive
+Sign in fallback.
+
+**Do not break:** Never reuse another door's access or refresh token as this
+door's grant. Do not run a tool automatically; only discover the selected
+door's tools. Preserve gateway policy denials and the interactive fallback.
+
+**Verify:** Seven focused Privilege page test files — 40 passed;
+`npm run build` — passed.
+
 ### 2026-09-27 — Switching Privilege doors repeated interactive login
 
 **Files changed:** `demo_api_server/routes/privilegeMcpClient.js`,
