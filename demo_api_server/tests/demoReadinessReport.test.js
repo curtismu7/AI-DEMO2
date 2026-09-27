@@ -78,6 +78,14 @@ describe('demo readiness report', () => {
     expect(report.status).toBe('not-ready');
   });
 
+  test.each(['fail', 'blocked', 'not-run'])('a required %s row keeps the report not ready', (status) => {
+    const report = makeReport();
+    recordCheck(report, { id: `required-${status}`, status });
+
+    expect(report.ready).toBe(false);
+    expect(report.status).toBe('not-ready');
+  });
+
   test('redacts nested bearer, JWT, password, cookie, authorization, and session values before serialization', () => {
     const bearer = 'Bearer raw-bearer-token';
     const jwt = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhbGljZSJ9.c2lnbmF0dXJl';
@@ -115,6 +123,31 @@ describe('demo readiness report', () => {
     expect(JSON.stringify(report)).not.toContain('secret-value');
   });
 
+  test('redacts nested secret fixtures inserted into repairs and unfinished rows before report serialization', () => {
+    const report = makeReport();
+    const bearer = 'Bearer repair-bearer-token';
+    const jwt = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJyZXBhaXIifQ.c2lnbmF0dXJl';
+    const password = 'repair-password';
+    const cookie = 'sid=repair-cookie';
+    const authorization = 'Basic repair-authorization';
+    const session = 'repair-session-id';
+
+    report.repairs.push({
+      before: { authorization, nested: [{ password, jwt }] },
+      after: { cookie, sessionId: session },
+    });
+    report.unfinished.push({
+      id: 'queued-secret-row',
+      status: 'queued',
+      evidence: { bearer, headers: { authorization, cookie }, sessionId: session },
+    });
+
+    const serialized = JSON.stringify(report);
+    for (const secret of [bearer, jwt, password, cookie, authorization, session]) {
+      expect(serialized).not.toContain(secret);
+    }
+  });
+
   test('updates elapsed time and target warning without expiring before the exact deadline', () => {
     const report = makeReport();
 
@@ -130,7 +163,7 @@ describe('demo readiness report', () => {
   test('expires queued and active rows at the hard deadline', () => {
     const report = makeReport();
     report.unfinished.push(
-      { id: 'queued-row', status: 'queued' },
+      { id: 'queued-row', status: 'queued', evidence: { sessionId: 'queued-session-secret' } },
       { id: 'active-row', status: 'active' },
     );
 
@@ -138,8 +171,24 @@ describe('demo readiness report', () => {
     expect(report.elapsedMs).toBe(HARD_DEADLINE_MS);
     expect(report.status).toBe('deadline_exceeded');
     expect(report.unfinished).toEqual([
-      { id: 'queued-row', status: 'not-run', reason: 'deadline_exceeded' },
+      {
+        id: 'queued-row',
+        status: 'not-run',
+        reason: 'deadline_exceeded',
+        evidence: { sessionId: '[REDACTED]' },
+      },
       { id: 'active-row', status: 'blocked', reason: 'deadline_exceeded' },
     ]);
+    expect(JSON.stringify(report)).not.toContain('queued-session-secret');
+  });
+
+  test('keeps deadline expiry terminal when later checks pass', () => {
+    const report = makeReport();
+    remainingBudget(report, DEADLINE_AT);
+
+    recordCheck(report, { id: 'late-pass', status: 'pass' });
+
+    expect(report.ready).toBe(false);
+    expect(report.status).toBe('deadline_exceeded');
   });
 });

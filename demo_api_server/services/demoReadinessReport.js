@@ -21,6 +21,47 @@ function redactReadinessValue(value) {
   return redactValue(out);
 }
 
+function sanitizedCollection(values = []) {
+  const collection = [];
+  const safeCollection = new Proxy(collection, {
+    set(target, property, value) {
+      target[property] = property === 'length' ? value : redactReadinessValue(value);
+      return true;
+    },
+  });
+  safeCollection.push(...values);
+  return safeCollection;
+}
+
+function addSanitizedCollection(report, key) {
+  let collection = sanitizedCollection();
+  Object.defineProperty(report, key, {
+    enumerable: true,
+    get: () => collection,
+    set: (values) => {
+      collection = sanitizedCollection(Array.isArray(values) ? values : []);
+    },
+  });
+}
+
+function safeReportSnapshot(report) {
+  return redactReadinessValue({
+    runId: report.runId,
+    commit: report.commit,
+    targets: report.targets,
+    startedAt: report.startedAt,
+    deadlineAt: report.deadlineAt,
+    status: report.status,
+    ready: report.ready,
+    elapsedMs: report.elapsedMs,
+    targetWarning: report.targetWarning,
+    inventory: report.inventory,
+    checks: report.checks,
+    repairs: report.repairs,
+    unfinished: report.unfinished,
+  });
+}
+
 function emptyInventory() {
   return { total: 0, pass: 0, fail: 0, blocked: 0, 'not-run': 0 };
 }
@@ -32,6 +73,11 @@ function refreshReport(report) {
     inventory[check.status] += 1;
   }
   report.inventory = inventory;
+
+  if (report.status === 'deadline_exceeded') {
+    report.ready = false;
+    return;
+  }
 
   const requiredChecks = report.checks.filter((check) => check.required !== false);
   const hasUnfinished = report.unfinished.length > 0;
@@ -55,9 +101,10 @@ function createReadinessReport({ runId, commit, targets, startedAt, deadlineAt }
     targetWarning: false,
     inventory: emptyInventory(),
     checks: [],
-    repairs: [],
-    unfinished: [],
   };
+  addSanitizedCollection(report, 'repairs');
+  addSanitizedCollection(report, 'unfinished');
+  Object.defineProperty(report, 'toJSON', { value: () => safeReportSnapshot(report) });
   return report;
 }
 
@@ -93,9 +140,10 @@ function remainingBudget(report, now) {
     report.status = 'deadline_exceeded';
     report.ready = false;
     report.unfinished = report.unfinished.map((row) => {
-      if (row.status === 'queued') return { ...row, status: 'not-run', reason: 'deadline_exceeded' };
-      if (row.status === 'active') return { ...row, status: 'blocked', reason: 'deadline_exceeded' };
-      return row;
+      const safeRow = redactReadinessValue(row);
+      if (safeRow.status === 'queued') return { ...safeRow, status: 'not-run', reason: 'deadline_exceeded' };
+      if (safeRow.status === 'active') return { ...safeRow, status: 'blocked', reason: 'deadline_exceeded' };
+      return safeRow;
     });
   }
   return budget;
