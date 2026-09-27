@@ -1660,11 +1660,20 @@ async function beginOAuthFlow(session, req, { callbackPath, callbackOrigin } = {
   const loginHint = process.env.PRIVILEGE_LOGIN_HINT || req.session?.user?.email;
   if (loginHint) authUrl.searchParams.set('login_hint', loginHint);
 
-  // Reuse the active PingOne browser session when the main app is already logged in.
-  // prompt=none tells PingOne to complete the flow silently using the existing session
-  // cookie — no login page shown. Falls back to interactive on login_required.
+  // Reuse an existing IdP browser session when either the main app or a prior
+  // Privilege door has completed OAuth. Door tokens are audience-bound, so a
+  // new door still needs its own authorization code; prompt=none asks the IdP
+  // to mint that token from its existing SSO cookie without another login.
+  // External bearer tokens are not persisted with tokenUri metadata and must
+  // not be treated as evidence of an IdP session.
+  const hasSavedPrivilegeOauthSession = Object.entries(session.savedOauthByDoor || {}).some(([key, saved]) => (
+    key.startsWith('privilege::')
+    && saved?.tokenUri
+    && (saved.refreshToken || (saved.accessToken && (!saved.expiresAt || saved.expiresAt > Date.now())))
+  ));
   const promptNoneAttempted = Boolean(
-    req.session?.oauthTokens?.accessToken && !req.session?.privilegePromptNoneFailed,
+    (req.session?.oauthTokens?.accessToken || hasSavedPrivilegeOauthSession)
+      && !req.session?.privilegePromptNoneFailed,
   );
   if (promptNoneAttempted) authUrl.searchParams.set('prompt', 'none');
 
