@@ -112,6 +112,7 @@ test('Mission Control UC40 uses the same live handoff', async ({ page }) => {
   }));
   const calls = await installHandoffBoundary(page);
   await page.goto('/dashboard');
+  await page.getByRole('button', { name: '🎛 Demo Controls', exact: true }).click();
   await expect(page.getByTestId('demo-steps-trigger').first()).toBeVisible();
   const stepsTrigger = page.getByTestId('demo-steps-trigger').first();
   if (await stepsTrigger.getAttribute('aria-expanded') !== 'true') await stepsTrigger.click();
@@ -146,6 +147,11 @@ for (const provider of ['pingone', 'pingfederate']) {
 test('switching provider clears ID-JAG mode before leaving the page', async ({ page }) => {
   await mockCustomerDashboard(page);
   const configPosts = [];
+  await page.route('**/api/auth/clear-session', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ ok: true }),
+  }));
   await page.route('**/api/admin/config', (route) => {
     if (route.request().method() === 'POST') {
       configPosts.push(route.request().postDataJSON());
@@ -157,16 +163,19 @@ test('switching provider clears ID-JAG mode before leaving the page', async ({ p
     contentType: 'text/html', body: '<!doctype html><title>Logout boundary</title>',
   }));
   await page.goto('/dashboard');
+  await page.getByRole('button', { name: '🎛 Demo Controls', exact: true }).click();
   const toggle = page.getByRole('button', { name: 'Toggle OAuth login provider' });
   await expect(toggle).toBeVisible();
   await seedStaleMode(page);
   await page.keyboard.press('Escape');
+  const dashboardReload = page.waitForNavigation({ waitUntil: 'domcontentloaded' });
   await toggle.evaluate((element) => element.click());
   await expect.poll(() => configPosts.length).toBe(1);
   // The toggle's contract (OAuthProviderToggle.jsx): POST config, clear the
   // BFF session, then window.location.reload() — the browser stays on the
   // same URL rather than navigating to /logout. The reload re-runs the
   // dashboard boot; wait for it, then assert mode cleared.
+  await dashboardReload;
   await expect(page).toHaveURL(/\/dashboard$/);
   expect(configPosts).toEqual([{ oauth_provider: 'pingfederate' }]);
   await expectModeCleared(page);
