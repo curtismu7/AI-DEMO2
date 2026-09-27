@@ -147,12 +147,28 @@ digest as its idempotency key and requires source-API readback. A post-timeout
 retry can finish without a second write when that pre-write reread already
 matches the expected value.
 
+The route that invokes apply must pass an authenticated administrator assertion
+to the repair service's trusted confirmation verifier. A display name, email,
+or other caller string is never confirmation. Automatic source classes select a
+fixed `contractReader` from `demoReadinessRepairability.json`; that trusted
+reader supplies the target object, expected value, source reference, and
+operation from the declared configuration. Candidate fields must match that
+contract, so an audit result cannot redirect a repair to another object or
+source. The future route must construct these readers from checked-in target
+configuration after its existing admin auth and scope checks.
+
 Supported automatic repair classes are deliberately narrow:
 
 - uniquely mapped missing PingOne resource scopes;
 - uniquely mapped missing PingOne application grants; and
 - required feature flags only through an isolated readiness worker that restores
   the prior worker value in `finally`.
+
+Feature-flag adapters create opaque worker contexts themselves. The repair
+service never accepts a worker label from a finding, restores the original
+worker value after success, retry, or failure, and rereads that worker to prove
+the restore before it reports success. Presenter runtime configuration is never
+an eligible adapter target.
 
 `manual` and `release-only` classes remain displayed as blocked rows with their
 operator action. This includes PingOne Authorize policies, every PingFederate

@@ -129,6 +129,27 @@ describe('demo readiness audit service', () => {
     }));
   });
 
+  test('blocks a paginated scope read instead of proposing an incomplete repair', async () => {
+    const fetch = jest.fn(async (url) => ({ ok: true, status: 200, json: async () => {
+      if (url.includes('/resources/resource-1/scopes')) return {
+        _embedded: { scopes: [{ name: 'read' }] }, _links: { next: { href: 'next-page' } },
+      };
+      if (url.includes('/resources')) return { _embedded: { resources: [{ id: 'resource-1' }] } };
+      if (url.includes('/applications')) return { _embedded: { applications: [] } };
+      if (url.includes('/groups')) return { _embedded: { groups: [] } };
+      return { _embedded: { decisionEndpoints: [] } };
+    } }));
+    const audit = createAuditService({ fetch, pfProfiles: { roles: {} } });
+
+    const checks = await audit.auditPingOneConfiguration({
+      targetId: 'local', environmentId: 'env-1', credentials: { accessToken: 'secret-token' },
+      expected: { resourceScopes: { 'resource-1': ['read', 'write'] } },
+    });
+    expect(checks.find((row) => row.id === 'pingone:scope')).toEqual(expect.objectContaining({
+      status: 'blocked', repairCandidates: [], evidence: expect.stringMatching(/complete scope list/i),
+    }));
+  });
+
   test('blocks unavailable PingFederate Admin API readback and undocumented roles', async () => {
     const adapters = passingAdapters({ pingFederate: {} });
     const checks = await createAuditService({ adapters, pfProfiles: { roles: { undocumented: { unresolved: true } } } }).auditPingFederateConfiguration({ baseUrl: 'https://pf.local' });

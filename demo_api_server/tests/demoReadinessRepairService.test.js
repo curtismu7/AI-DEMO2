@@ -4,6 +4,7 @@ const { createRepairService } = require('../services/demoReadinessRepairService'
 
 const NOW = 1_790_000_000_000;
 const TARGETS = [{ id: 'local', kind: 'local' }];
+const ADMIN_ASSERTION = { token: 'verified-admin-assertion' };
 
 function finding(overrides = {}) {
   return {
@@ -35,7 +36,12 @@ function repairService(overrides = {}) {
     service: createRepairService({
       now: () => NOW,
       adapters: { 'pingone-scope-addition': adapter },
+      verifyAdminConfirmation: jest.fn(async (assertion) => assertion === ADMIN_ASSERTION ? { subject: 'admin-1' } : null),
       ...overrides.service,
+      sourceReaders: { pingoneScopeTopology: jest.fn(() => ({
+        target: 'local', object: { id: 'resource-1', kind: 'resource-scope' }, expected: ['read', 'write'],
+        sourceRef: 'scope-topology.json#resources/resource-1/scopes', operation: 'Create the uniquely mapped missing scope write',
+      })), ...overrides.service?.sourceReaders },
     }),
   };
 }
@@ -56,8 +62,8 @@ describe('demo readiness repair service', () => {
   });
 
   test.each([
-    ['changed target set', ({ plan }) => ({ digest: plan.digest, confirmedBy: 'admin', targets: [{ id: 'se', kind: 'se' }], now: NOW })],
-    ['expired plan', ({ plan }) => ({ digest: plan.digest, confirmedBy: 'admin', targets: TARGETS, now: plan.expiresAt })],
+    ['changed target set', ({ plan }) => ({ digest: plan.digest, confirmedBy: ADMIN_ASSERTION, targets: [{ id: 'se', kind: 'se' }], now: NOW })],
+    ['expired plan', ({ plan }) => ({ digest: plan.digest, confirmedBy: ADMIN_ASSERTION, targets: TARGETS, now: plan.expiresAt })],
   ])('%s stops before the first write', async (_name, applyArgs) => {
     const { service, adapter } = repairService();
     const plan = service.planRepairs({ findings: [finding()], targets: TARGETS, now: NOW });
@@ -69,7 +75,7 @@ describe('demo readiness repair service', () => {
   test('an altered current value or ambiguous object stops before the first write', async () => {
     const changed = repairService({ current: ['admin'] });
     const changedPlan = changed.service.planRepairs({ findings: [finding()], targets: TARGETS, now: NOW });
-    await expect(changed.service.applyRepairs({ digest: changedPlan.digest, confirmedBy: 'admin', targets: TARGETS, now: NOW }))
+    await expect(changed.service.applyRepairs({ digest: changedPlan.digest, confirmedBy: ADMIN_ASSERTION, targets: TARGETS, now: NOW }))
       .rejects.toThrow(/current value changed/i);
     expect(changed.adapter.write).not.toHaveBeenCalled();
 
@@ -84,12 +90,12 @@ describe('demo readiness repair service', () => {
     const { service, adapter } = repairService();
     const plan = service.planRepairs({ findings: [finding()], targets: TARGETS, now: NOW });
 
-    const result = await service.applyRepairs({ digest: plan.digest, confirmedBy: 'admin@example.test', targets: TARGETS, now: NOW });
+    const result = await service.applyRepairs({ digest: plan.digest, confirmedBy: ADMIN_ASSERTION, targets: TARGETS, now: NOW });
 
     expect(result.evidence).toEqual([expect.objectContaining({ before: ['read'], after: ['read', 'write'] })]);
     expect(adapter.write).toHaveBeenCalledTimes(1);
     expect(adapter.readback).toHaveBeenCalledTimes(1);
-    await expect(service.applyRepairs({ digest: plan.digest, confirmedBy: 'admin@example.test', targets: TARGETS, now: NOW }))
+    await expect(service.applyRepairs({ digest: plan.digest, confirmedBy: ADMIN_ASSERTION, targets: TARGETS, now: NOW }))
       .rejects.toThrow(/already confirmed/i);
     expect(adapter.write).toHaveBeenCalledTimes(1);
   });
@@ -104,48 +110,64 @@ describe('demo readiness repair service', () => {
     };
     const { service } = repairService({ adapter });
     const plan = service.planRepairs({ findings: [finding()], targets: TARGETS, now: NOW });
-    await expect(service.applyRepairs({ digest: plan.digest, confirmedBy: 'admin', targets: TARGETS, now: NOW })).rejects.toThrow(/timed out/i);
+    await expect(service.applyRepairs({ digest: plan.digest, confirmedBy: ADMIN_ASSERTION, targets: TARGETS, now: NOW })).rejects.toThrow(/timed out/i);
 
-    const retried = await service.applyRepairs({ digest: plan.digest, confirmedBy: 'admin', targets: TARGETS, now: NOW });
+    const retried = await service.applyRepairs({ digest: plan.digest, confirmedBy: ADMIN_ASSERTION, targets: TARGETS, now: NOW });
     expect(retried.evidence).toEqual([expect.objectContaining({ outcome: 'already-applied' })]);
     expect(adapter.write).toHaveBeenCalledTimes(1);
   });
 
   test('keeps feature flags in the isolated worker and restores them after the case', async () => {
+    const worker = {};
     const adapter = {
-      read: jest.fn(async () => false),
+      createIsolatedWorker: jest.fn(async () => worker),
+      read: jest.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(false),
       write: jest.fn(async () => undefined),
       readback: jest.fn(async () => true),
       restore: jest.fn(async () => undefined),
     };
-    const service = createRepairService({ now: () => NOW, adapters: { 'demo-feature-flag': adapter } });
+    const service = createRepairService({
+      now: () => NOW, verifyAdminConfirmation: jest.fn(async () => ({ subject: 'admin-1' })),
+      sourceReaders: { readinessWorkerFlag: jest.fn(() => ({
+        target: 'local', object: { id: 'ff_demo' }, expected: true,
+        sourceRef: 'demo_api_server/config/useCases.js#UC1', operation: 'Enable only for the isolated readiness worker',
+      })) }, adapters: { 'demo-feature-flag': adapter },
+    });
     const plan = service.planRepairs({ findings: [finding({ repairCandidates: [{
       repairClass: 'demo-feature-flag', target: 'local', object: { id: 'ff_demo' },
       current: false, expected: true, sourceRef: 'demo_api_server/config/useCases.js#UC1',
-      operation: 'Enable only for the isolated readiness worker', worker: 'isolated-readiness-worker',
+      operation: 'Enable only for the isolated readiness worker',
     }] })], targets: TARGETS, now: NOW });
 
-    await service.applyRepairs({ digest: plan.digest, confirmedBy: 'admin', targets: TARGETS, now: NOW });
-    expect(adapter.write).toHaveBeenCalledWith(expect.objectContaining({ worker: 'isolated-readiness-worker' }));
-    expect(adapter.restore).toHaveBeenCalledWith(expect.objectContaining({ current: false, worker: 'isolated-readiness-worker' }));
+    await service.applyRepairs({ digest: plan.digest, confirmedBy: ADMIN_ASSERTION, targets: TARGETS, now: NOW });
+    expect(adapter.write).toHaveBeenCalledWith(expect.objectContaining({ workerContext: worker }));
+    expect(adapter.restore).toHaveBeenCalledWith(expect.objectContaining({ expected: false, workerContext: worker }));
   });
 
   test('restores an isolated feature flag after a write error without touching presenter state', async () => {
+    const worker = {};
     const adapter = {
-      read: jest.fn(async () => false),
+      createIsolatedWorker: jest.fn(async () => worker),
+      read: jest.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(false),
       write: jest.fn(async () => { throw new Error('worker stopped'); }),
       readback: jest.fn(), restore: jest.fn(async () => undefined),
     };
     const presenter = { ff_demo: false };
-    const service = createRepairService({ now: () => NOW, adapters: { 'demo-feature-flag': adapter } });
+    const service = createRepairService({
+      now: () => NOW, verifyAdminConfirmation: jest.fn(async () => ({ subject: 'admin-1' })),
+      sourceReaders: { readinessWorkerFlag: jest.fn(() => ({
+        target: 'local', object: { id: 'ff_demo' }, expected: true,
+        sourceRef: 'demo_api_server/config/useCases.js#UC1', operation: 'Enable only for the isolated readiness worker',
+      })) }, adapters: { 'demo-feature-flag': adapter },
+    });
     const plan = service.planRepairs({ findings: [finding({ repairCandidates: [{
       repairClass: 'demo-feature-flag', target: 'local', object: { id: 'ff_demo' },
       current: false, expected: true, sourceRef: 'demo_api_server/config/useCases.js#UC1',
-      operation: 'Enable only for the isolated readiness worker', worker: 'isolated-readiness-worker',
+      operation: 'Enable only for the isolated readiness worker',
     }] })], targets: TARGETS, now: NOW });
 
-    await expect(service.applyRepairs({ digest: plan.digest, confirmedBy: 'admin', targets: TARGETS, now: NOW })).rejects.toThrow(/worker stopped/i);
-    expect(adapter.restore).toHaveBeenCalledWith(expect.objectContaining({ current: false, worker: 'isolated-readiness-worker' }));
+    await expect(service.applyRepairs({ digest: plan.digest, confirmedBy: ADMIN_ASSERTION, targets: TARGETS, now: NOW })).rejects.toThrow(/worker stopped/i);
+    expect(adapter.restore).toHaveBeenCalledWith(expect.objectContaining({ expected: false, workerContext: worker }));
     expect(presenter.ff_demo).toBe(false);
   });
 
@@ -159,5 +181,113 @@ describe('demo readiness repair service', () => {
     expect(plan.changes).toEqual([]);
     expect(plan.blocked).toEqual([expect.objectContaining({ repairMode: 'manual' })]);
     expect(write).not.toHaveBeenCalled();
+  });
+
+  test('rejects caller text that has not been verified as an administrator assertion', async () => {
+    const { service, adapter } = repairService({
+      service: { verifyAdminConfirmation: jest.fn(async () => null) },
+    });
+    const plan = service.planRepairs({ findings: [finding()], targets: TARGETS, now: NOW });
+
+    await expect(service.applyRepairs({ digest: plan.digest, confirmedBy: 'admin@example.test', targets: TARGETS, now: NOW }))
+      .rejects.toThrow(/verified administrator/i);
+    expect(adapter.write).not.toHaveBeenCalled();
+  });
+
+  test('derives automatic preview values from the trusted declared source contract', () => {
+    const contract = {
+      target: 'local', object: { id: 'resource-1', kind: 'pingone-resource-scopes' },
+      expected: ['read', 'write'], sourceRef: 'scope-topology.json#resources/resource-1/scopes',
+      operation: 'Create only the declared missing PingOne resource scope',
+    };
+    const { service } = repairService({ service: {
+      sourceReaders: { pingoneScopeTopology: jest.fn(() => contract) },
+    } });
+    const malicious = finding({ repairCandidates: [{
+      ...finding().repairCandidates[0], sourceRef: 'attacker-controlled-source',
+      object: { id: 'different-resource', kind: 'pingone-resource-scopes' }, expected: ['admin:delete'],
+    }] });
+
+    const plan = service.planRepairs({ findings: [malicious], targets: TARGETS, now: NOW });
+    expect(plan.changes).toEqual([]);
+    expect(plan.blocked).toEqual([expect.objectContaining({ reason: expect.stringMatching(/declared source/i) })]);
+  });
+
+  test('does not accept a caller label as an isolated feature-flag worker', () => {
+    const adapter = { read: jest.fn(), write: jest.fn(), readback: jest.fn(), restore: jest.fn() };
+    const service = createRepairService({
+      now: () => NOW,
+      sourceReaders: { readinessWorkerFlag: jest.fn(() => ({
+        target: 'local', object: { id: 'ff_demo' }, expected: true,
+        sourceRef: 'demo_api_server/config/useCases.js#UC1', operation: 'Enable only for the isolated readiness worker',
+      })) },
+      adapters: { 'demo-feature-flag': adapter },
+    });
+    const plan = service.planRepairs({ findings: [finding({ repairCandidates: [{
+      repairClass: 'demo-feature-flag', target: 'local', object: { id: 'ff_demo' }, current: false, expected: true,
+      sourceRef: 'demo_api_server/config/useCases.js#UC1', operation: 'Enable only for the isolated readiness worker', worker: 'isolated-readiness-worker',
+    }] })], targets: TARGETS, now: NOW });
+
+    expect(plan.changes).toEqual([]);
+    expect(plan.blocked).toEqual([expect.objectContaining({ reason: expect.stringMatching(/trusted isolated worker/i) })]);
+    expect(adapter.write).not.toHaveBeenCalled();
+  });
+
+  test('restores and verifies an already-armed isolated feature flag on retry', async () => {
+    const worker = {};
+    const adapter = {
+      createIsolatedWorker: jest.fn(async () => worker),
+      read: jest.fn().mockResolvedValueOnce(true).mockResolvedValueOnce(false),
+      write: jest.fn(), readback: jest.fn(), restore: jest.fn(async () => undefined),
+    };
+    const service = createRepairService({
+      now: () => NOW,
+      verifyAdminConfirmation: jest.fn(async () => ({ subject: 'admin-1' })),
+      sourceReaders: { readinessWorkerFlag: jest.fn(() => ({
+        target: 'local', object: { id: 'ff_demo' }, expected: true,
+        sourceRef: 'demo_api_server/config/useCases.js#UC1', operation: 'Enable only for the isolated readiness worker',
+      })) },
+      adapters: { 'demo-feature-flag': adapter },
+    });
+    const plan = service.planRepairs({ findings: [finding({ repairCandidates: [{
+      repairClass: 'demo-feature-flag', target: 'local', object: { id: 'ff_demo' }, current: false, expected: true,
+    }] })], targets: TARGETS, now: NOW });
+
+    const result = await service.applyRepairs({ digest: plan.digest, confirmedBy: { assertion: 'trusted' }, targets: TARGETS, now: NOW });
+    expect(result.evidence).toEqual([expect.objectContaining({ outcome: 'already-applied', restored: false })]);
+    expect(adapter.restore).toHaveBeenCalledWith(expect.objectContaining({ workerContext: worker, expected: false }));
+    expect(adapter.write).not.toHaveBeenCalled();
+  });
+
+  test('restores an isolated feature flag when its initial worker read fails', async () => {
+    const worker = {};
+    const adapter = {
+      createIsolatedWorker: jest.fn(async () => worker),
+      read: jest.fn().mockRejectedValueOnce(new Error('worker read failed')).mockResolvedValueOnce(false),
+      write: jest.fn(), readback: jest.fn(), restore: jest.fn(async () => undefined),
+    };
+    const service = createRepairService({
+      now: () => NOW, verifyAdminConfirmation: jest.fn(async () => ({ subject: 'admin-1' })),
+      sourceReaders: { readinessWorkerFlag: jest.fn(() => ({
+        target: 'local', object: { id: 'ff_demo' }, expected: true,
+        sourceRef: 'demo_api_server/config/useCases.js#UC1', operation: 'Enable only for the isolated readiness worker',
+      })) }, adapters: { 'demo-feature-flag': adapter },
+    });
+    const plan = service.planRepairs({ findings: [finding({ repairCandidates: [{
+      repairClass: 'demo-feature-flag', target: 'local', object: { id: 'ff_demo' }, current: false, expected: true,
+    }] })], targets: TARGETS, now: NOW });
+
+    await expect(service.applyRepairs({ digest: plan.digest, confirmedBy: ADMIN_ASSERTION, targets: TARGETS, now: NOW })).rejects.toThrow(/worker read failed/i);
+    expect(adapter.restore).toHaveBeenCalledWith(expect.objectContaining({ expected: false, workerContext: worker }));
+    expect(adapter.write).not.toHaveBeenCalled();
+  });
+
+  test('attaches an actionable operator instruction to malformed manual candidates', () => {
+    const { service } = repairService();
+    const plan = service.planRepairs({ findings: [finding({ repairCandidates: [{
+      repairClass: 'authorize-policy-definition', target: 'local', object: { ambiguous: true }, current: 'old', expected: 'new',
+    }] })], targets: TARGETS, now: NOW });
+
+    expect(plan.blocked).toEqual([expect.objectContaining({ repairMode: 'manual', operatorAction: expect.stringMatching(/block READY/i) })]);
   });
 });

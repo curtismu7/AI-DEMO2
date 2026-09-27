@@ -196,12 +196,12 @@ async function pingOneRead({ environmentId, credentials = {}, expected = {}, fet
     const scopeReads = await Promise.all(Object.entries(expected.resourceScopes || {}).map(async ([resourceId, scopeNames]) => {
       const body = await get(fetchImpl, base + '/resources/' + encodeURIComponent(resourceId) + '/scopes?limit=100', options);
       const actual = (body._embedded?.scopes || []).map((scope) => scope.name || scope.value);
-      return { resourceId, actual, expected: scopeNames };
+      return { resourceId, actual, expected: scopeNames, complete: !body._links?.next && !body.next };
     }));
-    const scopeCandidates = scopeReads.flatMap(({ resourceId, actual, expected: scopeNames }) => {
+    const scopeCandidates = scopeReads.flatMap(({ resourceId, actual, expected: scopeNames, complete }) => {
       const missing = scopeNames.filter((scope) => !actual.includes(scope));
       const unexpected = actual.filter((scope) => !scopeNames.includes(scope));
-      return missing.length && !unexpected.length ? [{
+      return complete && missing.length && !unexpected.length ? [{
         repairClass: 'pingone-scope-addition', target: targetId,
         object: { id: resourceId, kind: 'pingone-resource-scopes', missingScopes: missing },
         current: actual, expected: scopeNames,
@@ -242,7 +242,8 @@ async function pingOneRead({ environmentId, credentials = {}, expected = {}, fet
     return {
       audience: compare('audiences', audiences, 'audiences'),
       scope: Object.keys(expected.resourceScopes || {}).length ? {
-        status: scopeReads.every(({ actual, expected: scopeNames }) => exactArray(actual, scopeNames)) ? 'pass' : 'fail',
+        status: !scopeReads.every(({ complete }) => complete) ? 'blocked' : scopeReads.every(({ actual, expected: scopeNames }) => exactArray(actual, scopeNames)) ? 'pass' : 'fail',
+        reason: !scopeReads.every(({ complete }) => complete) ? 'PingOne Management API did not return a complete scope list' : undefined,
         repairCandidates: scopeCandidates,
       } : { status: 'blocked', reason: 'resource scope readback requires declared resource IDs' },
       mirror: { status: 'blocked', reason: 'scope mirror readback has no supported Management API contract' },

@@ -54,3 +54,37 @@ No route, CLI, or Admin UI calls the repair service in this task. That later
 integration must preserve the preview-before-confirmation boundary and provide
 real PingOne adapter implementations with the same reread/write/readback
 contract.
+
+## Fix round 1
+
+- Apply now requires `verifyAdminConfirmation` to validate a trusted assertion
+  and return an administrator subject. A nonempty caller string cannot reach a
+  mutation adapter.
+- Each automatic class now names a fixed `contractReader` in repairability
+  configuration. The reader supplies the target, exact object identity,
+  expected value, source reference, and operation. Candidate values must match
+  the contract; malformed or unsupported candidates stay blocked with a safe
+  operator instruction.
+- Feature flags no longer accept a caller-supplied worker label. Their adapter
+  must create an opaque isolated worker context. Every observed flag path,
+  including already-applied retry and write failure, restores the original
+  worker value and performs worker readback before completion.
+- A paginated PingOne scope response now blocks the scope finding and produces
+  no automatic candidate.
+
+Focused red regressions were run before implementation and failed for all five
+review findings. After the fix:
+
+```text
+CI=true npx jest tests/demoReadinessRepairService.test.js --forceExit
+PASS tests/demoReadinessRepairService.test.js
+Tests: 15 passed, 15 total
+
+CI=true npx jest tests/demoReadinessAuditService.test.js --forceExit
+PASS tests/demoReadinessAuditService.test.js
+Tests: 46 passed, 46 total
+```
+
+The final feature-flag regression also covers a failure while reading the
+isolated worker: the service restores the planned original value and verifies
+that restore before propagating the read failure.

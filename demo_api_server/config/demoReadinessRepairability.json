@@ -4,6 +4,7 @@
   "driftClasses": {
     "pingone-scope-addition": {
       "sourceOfTruth": "scope-topology.json",
+      "contractReader": "pingoneScopeTopology",
       "readback": "PingOne Management API resource-scope list",
       "repairMode": "automatic",
       "configurationOnly": true,
@@ -11,6 +12,7 @@
     },
     "pingone-app-scope-grant": {
       "sourceOfTruth": "scope-topology.json and named app mapping",
+      "contractReader": "pingoneApplicationGrants",
       "readback": "PingOne Management API application grant list",
       "repairMode": "automatic",
       "configurationOnly": true,
@@ -95,6 +97,7 @@
     },
     "demo-feature-flag": {
       "sourceOfTruth": "Resolved use-case maturity and UI/BFF prerequisite contract",
+      "contractReader": "readinessWorkerFlag",
       "readback": "Effective worker-runtime flag value before and after the case",
       "repairMode": "automatic",
       "requiresIsolatedWorker": true,
