@@ -67,7 +67,7 @@
 
 - [x] Create a static hosted workload/image/effect inventory in `docs/security/HOSTED_WORKLOAD_READINESS_2026-09-26.md`.
 - [ ] Keep warning/audit mode until every hosted workload's violations and required writable paths are inventoried.
-- [ ] Add or refine a read-only hosted preflight that reports whether the target namespace is externally enforcing Restricted, without patching a shared namespace.
+- [x] Add a read-only hosted evidence collector for namespace Pod Security labels, runtime images/imageIDs, and NetworkPolicies without patching a shared namespace; external enforcement still requires operator confirmation.
 - [ ] Derive per-workload egress needs and DNS endpoints before replacing broad HTTP(S)/DNS egress; preserve required PingOne/model-provider access and metadata exclusions.
 - [ ] Mark Restricted enforcement and egress narrowing as promotion blockers until cluster/CNI behavior and required destinations are verified.
 

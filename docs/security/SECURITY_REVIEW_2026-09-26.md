@@ -70,7 +70,7 @@ The app has meaningful controls: the hosted admission gate is separate from appl
 
 **Confidence / false-positive notes:** high confidence for the cited references. Whether each optional RAG or seed manifest is applied in a given hosted profile varies; the cited Ping Gateway manifest is part of the hosted deployment path.
 
-**Status:** open. The hosted image inventory is in `docs/security/HOSTED_WORKLOAD_READINESS_2026-09-26.md`, but the configured cluster could not be queried to capture running image IDs. Pinning an unverified version could change demo behavior, so immutable references remain a promotion prerequisite rather than being guessed here.
+**Status:** awaiting runtime image evidence. The hosted image inventory is in `docs/security/HOSTED_WORKLOAD_READINESS_2026-09-26.md`; `k8s/aws/security-preflight.sh` now reports runtime image IDs without reading secrets. The configured cluster could not be queried to capture them. Pinning an unverified version could change demo behavior, so immutable references remain a promotion prerequisite rather than being guessed here.
 
 ## Low
 
@@ -84,7 +84,7 @@ The app has meaningful controls: the hosted admission gate is separate from appl
 
 **Confidence / false-positive notes:** high confidence that this manifest alone does not enforce restricted PSS. Cluster-level admission policies could provide equivalent enforcement and were not inspected.
 
-**Status:** open. Static workload inventory is in `docs/security/HOSTED_WORKLOAD_READINESS_2026-09-26.md`. No namespace policy was changed. Runtime workload audit and namespace-admin confirmation are still required before enforcement.
+**Status:** partially addressed; enforcement remains open. Static workload inventory is in `docs/security/HOSTED_WORKLOAD_READINESS_2026-09-26.md`. `k8s/aws/security-preflight.sh` reports namespace-scoped Pod Security labels and workload images. No namespace policy was changed. Runtime workload audit and namespace-admin confirmation are still required before enforcement.
 
 ### L-02 — Namespace network policy permits broad outbound HTTP(S) and DNS
 
@@ -96,7 +96,7 @@ The app has meaningful controls: the hosted admission gate is separate from appl
 
 **Confidence / false-positive notes:** high confidence in the policy's scope. Whether the cluster CNI enforces NetworkPolicy and whether additional cloud firewall rules restrict egress were not inspected.
 
-**Status:** open. The new MCP ingress restriction preserves the existing egress rules. Destination narrowing requires a verified provider/DNS inventory and CNI confirmation; the configured cluster could not be reached to inspect either.
+**Status:** open. The new MCP ingress restriction preserves the existing egress rules. `k8s/aws/security-preflight.sh` reports present NetworkPolicy objects, but cannot establish CNI enforcement. Destination narrowing requires a verified provider/DNS inventory and CNI confirmation; the configured cluster could not be reached to inspect either.
 
 ## Positive controls observed
 
@@ -109,3 +109,5 @@ The app has meaningful controls: the hosted admission gate is separate from appl
 ## Review limitations
 
 This report is based on source and deployment configuration only. It does not assert live exploitability, inspect cloud IAM, cluster RBAC/admission configuration, ingress-controller settings outside repository manifests, secret values, registry policy, runtime image digests, or dependency vulnerability databases. One read-only Kubernetes request was attempted and failed at DNS resolution for the configured API endpoint. No tests, scans, or deployments were run as part of this review or remediation.
+
+Run the read-only evidence collector with `K8S_NAMESPACE=<hosted-namespace> KUBE_CONTEXT=<context> ./k8s/aws/security-preflight.sh`. It prints Pod Security labels, pod image/imageID data, and NetworkPolicy metadata; it never fetches Secret objects or changes resources. A namespace administrator or cluster operator must still confirm cluster-level admission and CNI enforcement.

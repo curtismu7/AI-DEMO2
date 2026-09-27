@@ -61,6 +61,14 @@ Manifest/configuration sources show in-cluster calls plus outbound HTTPS for Pin
 
 ## Read-only cluster evidence needed to finish
 
+Collect namespace and runtime evidence with:
+
+```sh
+K8S_NAMESPACE=<hosted-namespace> KUBE_CONTEXT=<context> ./k8s/aws/security-preflight.sh
+```
+
+The script is read-only and does not fetch Secret objects or secret values. It reports namespace Pod Security labels, pod image and imageID values, and present NetworkPolicies. It cannot establish whether a cluster-level admission policy or the CNI enforces those objects; ask the namespace or cluster operator to confirm those separately.
+
 From the intended hosted namespace, capture only non-secret operational data:
 
 - Namespace Pod Security Admission labels and namespace-owner confirmation of enforcement policy.
