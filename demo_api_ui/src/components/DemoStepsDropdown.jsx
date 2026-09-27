@@ -451,13 +451,16 @@ export default function DemoStepsDropdown({
       >
         Demo steps
       </button>
-      {open && (
+      {open && createPortal(
+        // Keep the scrim outside FloatingPanel's stacking context so it can
+        // cover the Command Dock while remaining below the body-portaled drawer.
         <div
           className="ba-demo-steps-drawer__scrim"
           aria-hidden="true"
           onMouseDown={() => onOpenChange(false)}
           data-testid="demo-steps-scrim"
-        />
+        />,
+        document.body,
       )}
       {open && createPortal(
         <aside

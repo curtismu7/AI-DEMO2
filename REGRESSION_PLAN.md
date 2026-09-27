@@ -188,6 +188,30 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-27 — Demo Steps scrim escaped the Command Dock stacking context
+
+**Files:** `demo_api_ui/src/components/DemoStepsDropdown.jsx`,
+`demo_api_ui/src/components/__tests__/DemoStepsDropdown.test.jsx`,
+`demo_api_ui/tests/e2e/pf-idjag-run-mode.spec.js`.
+
+**What was broken:** PR #349 raised the scrim's z-index to 100062, but the
+scrim was still rendered inside the Command Dock's `FloatingPanel` stacking
+context at 100061. A child z-index cannot escape that parent context, so the
+scrim could not cover the Dock.
+
+**What was fixed:** Portal the scrim to `document.body`, alongside the drawer.
+The Dock panel, scrim, and drawer now participate in the same root stacking
+order at 100061, 100062, and 100063 respectively.
+
+**Do not break:** Keep the scrim body-portaled and below the body-portaled
+drawer; preserve its close-on-mousedown behavior and modal layers at 100070+.
+
+**Verify:** Focused component unit test, the UC40 browser flow with a DOM
+stack-order and `elementFromPoint` assertion, and `cd demo_api_ui && npm run build`
+pass. The contrast audit was run in both themes; it also surfaced
+existing dashboard and drawer text contrast findings outside this layering
+change.
+
 ### 2026-09-27 — PingFederate standard exchanges preserve subject and nested actor chain
 
 **Files:** `demo_api_server/services/agentMcpTokenService.js`,
@@ -266,13 +290,71 @@ above were applied.
 - `demo_api_ui/src/components/AIAgent.css` — raise the Demo Steps scrim and drawer above the Command Dock panel.
 - `demo_api_ui/tests/e2e/pf-idjag-run-mode.spec.js` — open the collapsed Demo Controls pill before locating dashboard controls.
 
-**What was broken:** Mission Control UC40 and provider-switch browser flows queried controls before opening the collapsed Command Dock. Once open, the dock panel and drawer portal were both at z-index 100061, allowing the drawer scrim at z-index 100060 to intercept clicks on the visible UC40 chip. The provider-switch spec also depended on a live session-clear endpoint and checked storage before the reload completed.
+**What was broken:** Mission Control UC40 and provider-switch browser flows queried controls before opening the collapsed Command Dock. The scrim was nested inside the Dock's `FloatingPanel`, so changing its child z-index could not put it above the Dock. The provider-switch spec also depended on a live session-clear endpoint and checked storage before the reload completed.
 
-**What was fixed:** The focused flows now open the dock by its exact accessible name. The scrim is at z-index 100062 and the drawer at 100063, above the dock (100061); the drawer content receives pointer events while the rest of the page stays dimmed. The provider-switch spec mocks session clearing and waits for the reload before checking session storage.
+**What was fixed:** The focused flows now open the dock by its exact accessible name, and the provider-switch spec mocks session clearing and waits for the reload before checking session storage. The scrim and drawer z-index values were raised, but the scrim still needed the follow-up body portal recorded above to escape the Dock's stacking context.
 
-**Do not break:** Keep the scrim below the drawer and both above Command Dock. Preserve higher modal layers (100070+).
+**Do not break:** Keep the scrim below the drawer and preserve higher modal layers (100070+).
 
 **Verify:** Focused `pf-idjag-run-mode.spec.js` → 8 passed against the isolated worktree Vite server using system Chrome (the shared Playwright headless-shell cache was being reinstalled); `npm run build` exits 0.
+
+### 2026-09-27 — Cookie-restored P1 session skipped silent Privilege sign-in
+
+**Files:** `demo_api_server/routes/privilegeMcpClient.js`,
+`demo_api_server/tests/routes/privilegeMcpClient.silentAuth.test.js`.
+
+**What was broken:** `/state` treated the dashboard's signed-cookie-restored
+identity as authenticated when the OAuth token field was absent, but
+`/auth/start` only looked for an access token or a saved Privilege grant. The
+UI therefore showed the user as signed in while door authorization triggered
+another interactive PingOne login.
+
+**What was fixed:** Both endpoints now share the same main-app session check.
+The BFF requests `prompt=none` for a recognized dashboard identity, allowing
+PingOne SSO to issue the selected door's own grant. `login_required` still
+falls back to interactive login, and each door's authorization remains
+independent.
+
+**Do not break:** Keep the signed dashboard identity as the SSO signal; do not
+reuse one door's access or refresh token as another door's grant. Preserve the
+interactive fallback after a silent-auth failure and the per-door gateway
+authorization checks.
+
+**Verify:** Added test failed before the fix and passed after it;
+`CI=true npx jest tests/routes/privilegeMcpClient.silentAuth.test.js
+--runInBand --forceExit` — 10 passed.
+
+### 2026-09-27 — Switching Privilege doors repeated interactive login
+
+**Files changed:** `demo_api_server/routes/privilegeMcpClient.js`,
+`demo_api_server/tests/routes/privilegeMcpClient.silentAuth.test.js`,
+`demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`.
+
+**What was broken:** silent authorization was attempted only when the main
+application session had an access token. A user authenticated through one
+Privilege door could switch to another door with no saved grant and be sent
+through another interactive login. The modal also described a missing
+per-door saved token as “sign-in needed,” which confused door-token status
+with the user's existing gateway SSO session.
+
+**What was fixed:** a valid saved Privilege OAuth grant now enables
+`prompt=none` for the next door's authorization flow. If the identity provider
+still has the user's SSO session, it can issue that door's grant without
+repeating interactive login. The modal now says “no saved token” and explains
+that each selected door may need its own grant while existing gateway SSO can
+be reused.
+
+**Do not break:** keep each OAuth response server-side and preserve the
+gateway's per-app authorization decision; a silent-login failure must still
+fall back to the explicit interactive flow. Do not describe refresh tokens as
+universally door-bound: OAuth refresh behavior depends on the issuer, client,
+grant and the issuer's supported resource model. In the current gateway
+metadata, each app advertises its own issuer and token endpoint.
+
+**Verify:** `CI=true npx jest tests/routes/privilegeMcpClient.silentAuth.test.js
+--forceExit` — 10 passed; focused UI tests for door switching and denial
+diagnostics — 4 passed; `cd demo_api_ui && npm run build` — passed. The full UI
+suite reported a separate undefined CSS-token failure and did not complete.
 
 ### 2026-09-26 — A2A provider-flip incident: three compounding failure layers, now guarded
 
