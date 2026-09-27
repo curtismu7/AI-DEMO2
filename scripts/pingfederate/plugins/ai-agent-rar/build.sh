@@ -20,5 +20,9 @@ CLASSPATH="$PF_HOME/server/default/lib/*:$PF_HOME/lib/*:$PF_HOME/sdk/lib/*"
 javac --release 17 -cp "$CLASSPATH" -d "$OUT" \
   "$ROOT/java/com/pingidentity/demo/rar/AiAgentAuthorizationDetailPolicy.java" \
   "$ROOT/java/com/pingidentity/demo/rar/AiAgentAuthorizationDetailProcessor.java"
-jar --create --file "$JAR_FILE" -C "$OUT" . -C "$ROOT/PF-INF" .
+jar --create --file "$JAR_FILE" -C "$OUT" . -C "$ROOT" PF-INF
+if ! jar --list --file "$JAR_FILE" | grep -Fx 'PF-INF/authorization-detail-processors' >/dev/null; then
+  echo "Built JAR is missing PF-INF/authorization-detail-processors" >&2
+  exit 1
+fi
 printf 'Built %s\n' "$JAR_FILE"
