@@ -29,7 +29,6 @@ PF_API_BASE = os.environ.get(
 PF_LINK_BASE = "https://localhost:9999/pf-admin-api/v1"
 POLICY_ID = "aiDemoPfStep9TePolicy"
 ATM_ID = "aiDemoPfJwtAtm"
-ACTOR_CLIENT_ID = "ai-demo-pf-standard-mcp-actor"
 
 
 def resource_link(path: str, identity: str) -> dict[str, str]:
@@ -56,6 +55,59 @@ def get_password() -> str:
         raise RuntimeError(
             "Set PINGFEDERATE_ADMIN_PASSWORD or start ai-demo-pingfederate"
         ) from exc
+
+
+def _worktree_roots() -> list[Path]:
+    roots = [ROOT]
+    try:
+        listing = subprocess.check_output(
+            ["git", "worktree", "list", "--porcelain"],
+            cwd=ROOT,
+            text=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return roots
+
+    current: dict[str, str] = {}
+    entries: list[dict[str, str]] = []
+    for line in [*listing.splitlines(), ""]:
+        if not line:
+            if current:
+                entries.append(current)
+                current = {}
+            continue
+        key, _, value = line.partition(" ")
+        current[key] = value
+
+    for entry in entries:
+        if entry.get("branch") == "refs/heads/main" and entry.get("worktree"):
+            main_root = Path(entry["worktree"])
+            if main_root not in roots:
+                roots.append(main_root)
+    return roots
+
+
+def get_actor_client_id() -> str:
+    configured = os.environ.get("PF_MCP_SERVICE_ACTOR_CLIENT_ID", "").strip()
+    if configured:
+        return configured
+
+    # The runtime source of truth is demo_api_server/.env. When this script is
+    # run from a feature worktree, read it from the main checkout's ignored env.
+    for root in _worktree_roots():
+        env_path = root / "demo_api_server" / ".env"
+        if not env_path.is_file():
+            continue
+        for line in env_path.read_text().splitlines():
+            key, separator, value = line.partition("=")
+            if separator and key.strip() == "PF_MCP_SERVICE_ACTOR_CLIENT_ID":
+                client_id = value.strip().strip("'\"")
+                if client_id:
+                    return client_id
+    raise RuntimeError(
+        "PF_MCP_SERVICE_ACTOR_CLIENT_ID is missing from the environment and "
+        "demo_api_server/.env"
+    )
 
 
 def api_request(
@@ -142,20 +194,22 @@ def ensure_resource(
         raise RuntimeError(f"PF Admin API {method} {path} returned HTTP {result}")
 
 
-def ensure_actor_client(auth_header: str, apply: bool) -> None:
-    path = resource_path("/oauth/clients", ACTOR_CLIENT_ID)
+def ensure_actor_client(client_id: str, auth_header: str, apply: bool) -> None:
+    path = resource_path("/oauth/clients", client_id)
     status, client = api_request("GET", path, auth_header)
     if status != 200 or not isinstance(client, dict):
         raise RuntimeError(f"PF Admin API GET {path} returned HTTP {status}")
+    if client.get("clientId") != client_id:
+        raise RuntimeError("PF actor client readback does not match configured client ID")
 
     grant_types = client.get("grantTypes")
     if not isinstance(grant_types, list) or "CLIENT_CREDENTIALS" not in grant_types:
         raise RuntimeError(
-            f"{ACTOR_CLIENT_ID} must retain its CLIENT_CREDENTIALS grant"
+            f"{client_id} must retain its CLIENT_CREDENTIALS grant"
         )
     atm = client.get("defaultAccessTokenManagerRef")
     if not isinstance(atm, dict) or atm.get("id") != ATM_ID:
-        raise RuntimeError(f"{ACTOR_CLIENT_ID} is not bound to {ATM_ID}")
+        raise RuntimeError(f"{client_id} is not bound to {ATM_ID}")
 
     policy_ref = resource_link(
         "/oauth/tokenExchange/processor/policies", POLICY_ID
@@ -168,13 +222,13 @@ def ensure_actor_client(auth_header: str, apply: bool) -> None:
         and current_policy_ref.get("id") == POLICY_ID
     )
     if matches:
-        print(f"OK {ACTOR_CLIENT_ID} already has TOKEN_EXCHANGE and {POLICY_ID}")
+        print(f"OK configured actor client already has TOKEN_EXCHANGE and {POLICY_ID}")
         return
 
     client["grantTypes"] = target_grants
     client["tokenExchangeProcessorPolicyRef"] = policy_ref
     print(
-        f"UPDATE {ACTOR_CLIENT_ID} (retain CLIENT_CREDENTIALS, add TOKEN_EXCHANGE, "
+        f"UPDATE configured actor client {client_id} (retain CLIENT_CREDENTIALS, add TOKEN_EXCHANGE, "
         f"attach {POLICY_ID}; existing secret is preserved)"
     )
     if not apply:
@@ -184,11 +238,33 @@ def ensure_actor_client(auth_header: str, apply: bool) -> None:
         raise RuntimeError(f"PF Admin API PUT {path} returned HTTP {result}")
 
 
-def verify_readback(auth_header: str) -> None:
+def is_expected_subset(actual: Any, expected: Any) -> bool:
+    if isinstance(expected, dict):
+        return isinstance(actual, dict) and all(
+            key in actual and is_expected_subset(actual[key], value)
+            for key, value in expected.items()
+        )
+    if isinstance(expected, list):
+        return (
+            isinstance(actual, list)
+            and len(actual) == len(expected)
+            and all(is_expected_subset(got, want) for got, want in zip(actual, expected))
+        )
+    return actual == expected
+
+
+def verify_readback(
+    client_id: str,
+    expected_policy: dict[str, Any],
+    expected_mapping: dict[str, Any],
+    auth_header: str,
+) -> None:
     policy_path = resource_path("/oauth/tokenExchange/processor/policies", POLICY_ID)
     status, policy = api_request("GET", policy_path, auth_header)
     if status != 200 or not isinstance(policy, dict):
         raise RuntimeError(f"PF readback failed for {POLICY_ID}: HTTP {status}")
+    if not is_expected_subset(policy, expected_policy):
+        raise RuntimeError(f"PF readback: {POLICY_ID} does not match the committed exchange contract")
     if not policy.get("actorTokenRequired"):
         raise RuntimeError(f"PF readback: {POLICY_ID} does not require actor_token")
     mappings = policy.get("processorMappings", [])
@@ -205,14 +281,23 @@ def verify_readback(auth_header: str) -> None:
     status, mapping = api_request("GET", mapping_path, auth_header)
     if status != 200 or not isinstance(mapping, dict):
         raise RuntimeError(f"PF readback failed for Step 9 ATM mapping: HTTP {status}")
+    if not is_expected_subset(mapping, expected_mapping):
+        raise RuntimeError(
+            "PF readback: Step 9 mapping lost its subject, scope, nested act, or ATM contract"
+        )
+    atm_ref = mapping.get("accessTokenManagerRef")
+    if not isinstance(atm_ref, dict) or atm_ref.get("id") != ATM_ID:
+        raise RuntimeError(f"PF readback: Step 9 mapping is not bound to {ATM_ID}")
     act = mapping.get("attributeContractFulfillment", {}).get("act", {})
     if act.get("source", {}).get("type") != "EXPRESSION" or "tepp.priorAct" not in act.get("value", ""):
         raise RuntimeError("PF readback: Step 9 mapping does not preserve prior act")
 
-    client_path = resource_path("/oauth/clients", ACTOR_CLIENT_ID)
+    client_path = resource_path("/oauth/clients", client_id)
     status, client = api_request("GET", client_path, auth_header)
     if status != 200 or not isinstance(client, dict):
-        raise RuntimeError(f"PF readback failed for {ACTOR_CLIENT_ID}: HTTP {status}")
+        raise RuntimeError(f"PF readback failed for configured actor client: HTTP {status}")
+    if client.get("clientId") != client_id:
+        raise RuntimeError("PF readback: actor client does not match configured runtime client ID")
     if not {"CLIENT_CREDENTIALS", "TOKEN_EXCHANGE"}.issubset(
         set(client.get("grantTypes", []))
     ):
@@ -225,7 +310,7 @@ def verify_readback(auth_header: str) -> None:
         raise RuntimeError("PF readback: actor client policy reference is missing")
     print(
         "READBACK OK: dedicated access-token Step 9 policy, nested act mapping, "
-        "and actor-client grants/ATM/policy reference"
+        "and configured actor-client grants/ATM/policy reference"
     )
 
 
@@ -251,6 +336,7 @@ def main() -> int:
         mapping = json.loads(
             (ROOT / "spiffe/pingfederate/pf-step9-atm-mapping.json").read_text()
         )
+        actor_client_id = get_actor_client_id()
 
         ensure_resource(
             "dedicated PF Step 9 policy",
@@ -268,9 +354,9 @@ def main() -> int:
             auth_header,
             args.apply,
         )
-        ensure_actor_client(auth_header, args.apply)
+        ensure_actor_client(actor_client_id, auth_header, args.apply)
         if args.apply:
-            verify_readback(auth_header)
+            verify_readback(actor_client_id, policy, mapping, auth_header)
         else:
             print("Dry-run only. Pass --apply to write these three scoped changes.")
     except (OSError, RuntimeError, json.JSONDecodeError) as exc:

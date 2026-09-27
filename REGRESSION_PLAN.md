@@ -236,6 +236,13 @@ actor chain; the local provisioner extends the existing actor client while
 leaving `aiDemoStandardTePolicy` and its mapping unchanged. PF settings and the
 protected actor secret are generated only into `oauth-mcp/.env`.
 
+Inbound signature validation now selects the configured issuer's JWKS before
+Step 9 routing. A PF `iss` uses `PF_JWKS_URI`; missing or invalid PF JWKS
+configuration fails closed and cannot fall back to PingOne keys. The
+provisioner reads the actor client ID from the same BFF configuration used by
+runtime and verifies the subject, scope, nested `act`, ATM, and grant contract
+on readback.
+
 This is a documented PF-specific Step 9 difference. The UC38 passenger A2A
 `invalid_target` remains a separate UC2 issue and is not part of the UC40 or
 Banking API Step 9 chain.

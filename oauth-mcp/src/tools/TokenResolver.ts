@@ -192,6 +192,9 @@ export class TokenResolver {
                 grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
                 subject_token: agentToken,
                 subject_token_type: 'urn:ietf:params:oauth:token-type:access_token',
+                ...(provider === 'pingfederate' && {
+                  requested_token_type: 'urn:ietf:params:oauth:token-type:access_token',
+                }),
                 scope: toolScopes.join(' '),
                 // PingOne uses RFC 8707 `resource`, NOT `audience`; it silently
                 // ignores audience=. PF's dedicated policy selects the Banking API

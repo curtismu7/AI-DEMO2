@@ -169,6 +169,7 @@ describe('TokenResolver', () => {
     expect(res.token).toBe('resource-tok');
     expect(res.source).toBe('agent-step9-exchange');
     expect(tokenExchangeService.exchangeToken).toHaveBeenCalledTimes(1);
+    expect(tokenExchangeService.exchangeToken.mock.calls[0][0]).not.toHaveProperty('requested_token_type');
   });
 
   it('agent-step9-exchange: routes a PF-issued agent token to the PF exchange service without a resource selector', async () => {
@@ -197,6 +198,7 @@ describe('TokenResolver', () => {
     expect(pfExchangeService.exchangeToken).toHaveBeenCalledWith(expect.objectContaining({
       subject_token: pfAgentToken,
       subject_token_type: 'urn:ietf:params:oauth:token-type:access_token',
+      requested_token_type: 'urn:ietf:params:oauth:token-type:access_token',
       scope: 'read',
     }));
     expect(pfExchangeService.exchangeToken.mock.calls[0][0]).not.toHaveProperty('resource');

@@ -68,6 +68,7 @@ describe('PfStep9TokenExchangeService', () => {
       grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
       subject_token: subjectToken,
       subject_token_type: 'urn:ietf:params:oauth:token-type:access_token',
+      requested_token_type: 'urn:ietf:params:oauth:token-type:access_token',
       scope: 'read',
     };
 
@@ -86,6 +87,7 @@ describe('PfStep9TokenExchangeService', () => {
     expect(exchangeBody.get('subject_token')).toBe(subjectToken);
     expect(exchangeBody.get('actor_token')).toBe(actorToken);
     expect(exchangeBody.get('actor_token_type')).toBe('urn:ietf:params:oauth:token-type:access_token');
+    expect(exchangeBody.get('requested_token_type')).toBe('urn:ietf:params:oauth:token-type:access_token');
     expect(exchangeBody.get('scope')).toBe('read');
     expect(exchangeBody.has('resource')).toBe(false);
     expect(exchangeBody.has('audience')).toBe(false);
