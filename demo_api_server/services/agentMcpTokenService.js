@@ -2805,7 +2805,7 @@ async function _performTwoExchangeDelegation(
     if (isSubjectRejection) {
       console.error(
         `[TwoExchange] Subject token REJECTED by the tenant token-exchange policy` +
-        ` (subject client=${subjectClient || 'unknown'}, tool=${tool || 'discovery'}).\n` +
+        ` (subject client=${subjectClient || 'unknown'}, tool=${opts.tool || toolTrigger || 'discovery'}).\n` +
         `  Sessions signed in through this client cannot delegate tools — add this client to the` +
         ` tenant's token-exchange policy (PingOne Authorize console) or sign in via the standard user login app.`);
     }
