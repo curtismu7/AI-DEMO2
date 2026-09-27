@@ -144,7 +144,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     const pgUrl = (process.env.MCP_PINGGATEWAY_URL || configStore.getEffective('mcp_pinggateway_url') || '').replace(/\/$/, '');
     const nodeUrl = (process.env.MCP_DEMO_GATEWAY_URL || configStore.getEffective('mcp_demo_gateway_url') || '').replace(/\/$/, '');
     if (pinNodeGateway && !gatewayUrl && !nodeUrl) {
-        const err = new Error('A2A MCP calls require the Node gateway, but its HTTP URL is not configured.');
+        const err = new Error('Pinned MCP calls require the Node gateway, but its HTTP URL is not configured.');
         err.code = 'GATEWAY_UNREACHABLE';
         err.httpStatus = 503;
         throw err;
