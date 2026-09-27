@@ -219,6 +219,42 @@ describe('demo readiness report', () => {
     expect(report.targets.authorization).toBeUndefined();
   });
 
+  test('rejects __proto__ assignments that could expose inherited readiness secrets', () => {
+    const report = makeReport();
+    report.repairs.push({ before: {} });
+
+    expect(Reflect.set(report.repairs[0].before, '__proto__', {
+      authorization: 'Bearer proto-assignment-secret',
+    })).toBe(false);
+    expect(report.repairs[0].before.authorization).toBeUndefined();
+  });
+
+  test('redacts compound cookie, authorization, and password field names recursively', () => {
+    const report = makeReport();
+    report.repairs.push({
+      evidence: {
+        cookieHeader: 'compound-cookie-secret',
+        authorizationHeader: 'Basic compound-authorization-secret',
+        passwordValue: 'compound-password-secret',
+      },
+    });
+
+    const serialized = JSON.stringify(report);
+    for (const secret of ['compound-cookie-secret', 'compound-authorization-secret', 'compound-password-secret']) {
+      expect(serialized).not.toContain(secret);
+    }
+  });
+
+  test('redacts function-valued report payloads before direct reads', () => {
+    const report = makeReport();
+    const evidence = () => {};
+    evidence.authorization = 'Bearer function-property-secret';
+    report.repairs.push({ evidence });
+
+    expect(report.repairs[0].evidence).toBe('[REDACTED]');
+    expect(JSON.stringify(report)).not.toContain('function-property-secret');
+  });
+
   test('redacts direct root, target, and inventory mutations before callers can read them', () => {
     const report = makeReport();
 

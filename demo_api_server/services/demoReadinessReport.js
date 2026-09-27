@@ -8,21 +8,31 @@ const CHECK_STATUSES = new Set(['pass', 'fail', 'blocked', 'not-run']);
 const SESSION_KEY_RE = /session|^sid$/i;
 const BEARER_RE = /(bearer\s+)[^\s,;]+/gi;
 const TOKEN_VALUE_KEY_RE = /(?:^|_)token(?:$|_(?:value|secret|raw|jwt|credential|bearer))$/i;
+const COMPOUND_SECRET_KEY_RE = /(?:^|_)(authorization|password|passwd|cookie)(?:_|$)/i;
+
+function normalizeKey(key) {
+  return key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').replace(/-/g, '_').toLowerCase();
+}
 
 function isTokenValueKey(key) {
-  const normalized = key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
-  return TOKEN_VALUE_KEY_RE.test(normalized);
+  return TOKEN_VALUE_KEY_RE.test(normalizeKey(key));
+}
+
+function isReadinessSecretKey(key) {
+  const normalized = normalizeKey(key);
+  return SESSION_KEY_RE.test(key) || isTokenValueKey(key) || COMPOUND_SECRET_KEY_RE.test(normalized);
 }
 
 function redactReadinessValue(value) {
   if (value == null) return value;
+  if (typeof value === 'function') return '[REDACTED]';
   if (typeof value === 'string') return redactValue(value).replace(BEARER_RE, '$1[REDACTED]');
   if (Array.isArray(value)) return value.map(redactReadinessValue);
   if (typeof value !== 'object') return value;
 
   const out = {};
   for (const [key, item] of Object.entries(value)) {
-    out[key] = SESSION_KEY_RE.test(key) || isTokenValueKey(key) ? '[REDACTED]' : redactReadinessValue(item);
+    out[key] = isReadinessSecretKey(key) ? '[REDACTED]' : redactReadinessValue(item);
   }
   return redactValue(out);
 }
@@ -35,10 +45,12 @@ function guardedReadinessValue(value) {
   };
   const guardedHandler = {
     set(target, property, nextValue) {
+      if (property === '__proto__') return false;
       target[property] = property === 'length' ? nextValue : guardedPropertyValue(property, nextValue);
       return true;
     },
     defineProperty(target, property, descriptor) {
+      if (property === '__proto__') return false;
       if ('get' in descriptor || 'set' in descriptor) {
         throw new TypeError('Readiness report values cannot define accessor properties');
       }
