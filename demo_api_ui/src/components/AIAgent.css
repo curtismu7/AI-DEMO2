@@ -6484,7 +6484,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   background: var(--th-bg-inset);
 }
 
-.ba-demo-steps-float .ba-demo-steps-popout__header {
+.ba-demo-steps-float__content .ba-demo-steps-popout__header {
   flex: 0 0 auto;
   gap: 14px;
   padding: 18px 20px 14px;
