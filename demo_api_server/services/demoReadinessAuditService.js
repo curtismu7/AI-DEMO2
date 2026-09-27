@@ -41,6 +41,8 @@ function auditRow(id, value, options = {}) {
     observed: value && typeof value === 'object' && !Array.isArray(value) ? value.observed : Boolean(value),
     sourceRef: options.sourceRef,
     evidence: value && typeof value === 'object' && !Array.isArray(value) ? value.reason : undefined,
+    repairCandidate: value && typeof value === 'object' && !Array.isArray(value) ? value.repairCandidate : undefined,
+    repairCandidates: value && typeof value === 'object' && !Array.isArray(value) ? value.repairCandidates : undefined,
   });
 }
 function afterRead(rows, deadlineAt, signal) {
@@ -173,7 +175,7 @@ function repositoryValues() {
   return values;
 }
 
-async function pingOneRead({ environmentId, credentials = {}, expected = {}, fetchImpl, deadlineAt, signal }) {
+async function pingOneRead({ environmentId, credentials = {}, expected = {}, fetchImpl, deadlineAt, signal, targetId }) {
   if (!environmentId || !credentials.accessToken) return blocked(P1, 'PingOne Management API credentials are unavailable');
   const base = 'https://api.pingone.' + (credentials.region || 'com') + '/v1/environments/' + encodeURIComponent(environmentId);
   const options = { headers: { Authorization: 'Bearer ' + credentials.accessToken }, deadlineAt, signal };
@@ -191,20 +193,42 @@ async function pingOneRead({ environmentId, credentials = {}, expected = {}, fet
     const completeApplicationList = Array.isArray(applicationList) && !applications._links?.next && !applications.next;
     const groupIds = (groups._embedded?.groups || []).map((item) => item.id);
     const endpointIds = (endpoints._embedded?.decisionEndpoints || []).map((item) => item.id);
-    const scopeChecks = await Promise.all(Object.entries(expected.resourceScopes || {}).map(async ([resourceId, scopeNames]) => {
+    const scopeReads = await Promise.all(Object.entries(expected.resourceScopes || {}).map(async ([resourceId, scopeNames]) => {
       const body = await get(fetchImpl, base + '/resources/' + encodeURIComponent(resourceId) + '/scopes?limit=100', options);
       const actual = (body._embedded?.scopes || []).map((scope) => scope.name || scope.value);
-      return exactArray(actual, scopeNames);
+      return { resourceId, actual, expected: scopeNames };
     }));
+    const scopeCandidates = scopeReads.flatMap(({ resourceId, actual, expected: scopeNames }) => {
+      const missing = scopeNames.filter((scope) => !actual.includes(scope));
+      const unexpected = actual.filter((scope) => !scopeNames.includes(scope));
+      return missing.length && !unexpected.length ? [{
+        repairClass: 'pingone-scope-addition', target: targetId,
+        object: { id: resourceId, kind: 'pingone-resource-scopes', missingScopes: missing },
+        current: actual, expected: scopeNames,
+        sourceRef: 'scope-topology.json#resources/' + resourceId + '/scopes',
+        operation: 'Create only the uniquely mapped missing PingOne resource scopes: ' + missing.join(', '),
+      }] : [];
+    });
     const expectedGrants = expected.applicationGrants || {};
     const declaredGrantAppIds = Object.keys(expectedGrants);
-    const grantChecks = await Promise.all((completeApplicationList ? appIds : []).map(async (applicationId) => {
+    const grantReads = await Promise.all((completeApplicationList ? appIds : []).map(async (applicationId) => {
       const body = await get(fetchImpl, base + '/applications/' + encodeURIComponent(applicationId) + '/grants?limit=100', options);
       const grants = body._embedded?.grants;
-      if (!Array.isArray(grants) || body._links?.next || body.next) return 'blocked';
+      if (!Array.isArray(grants) || body._links?.next || body.next) return { applicationId, status: 'blocked' };
       const actual = grants.flatMap((grant) => (grant.scopes || []).map((scope) => scope.name || scope.value || scope.id));
-      return exactArray(actual, expectedGrants[applicationId]) ? 'pass' : 'fail';
+      return { applicationId, actual, expected: expectedGrants[applicationId] || [], status: exactArray(actual, expectedGrants[applicationId]) ? 'pass' : 'fail' };
     }));
+    const grantCandidates = grantReads.flatMap(({ applicationId, actual, expected: scopeNames, status: grantStatus }) => {
+      const missing = (scopeNames || []).filter((scope) => !(actual || []).includes(scope));
+      const unexpected = (actual || []).filter((scope) => !(scopeNames || []).includes(scope));
+      return grantStatus === 'fail' && missing.length && !unexpected.length ? [{
+        repairClass: 'pingone-app-scope-grant', target: targetId,
+        object: { id: applicationId, kind: 'pingone-application-grants', missingScopes: missing },
+        current: actual, expected: scopeNames,
+        sourceRef: 'scope-topology.json#applications/' + applicationId + '/grants',
+        operation: 'Add only the uniquely mapped required PingOne application grants: ' + missing.join(', '),
+      }] : [];
+    });
     const memberships = expected.groupMemberships || expected.subjectGroupMemberships || {};
     const membershipChecks = await Promise.all(Object.entries(memberships).map(async ([userId, expectedGroups]) => {
       const body = await get(fetchImpl, base + '/users/' + encodeURIComponent(userId) + '/memberOfGroups?limit=100', options);
@@ -217,7 +241,10 @@ async function pingOneRead({ environmentId, credentials = {}, expected = {}, fet
       : { status: 'blocked', reason: 'no declared expected ' + evidenceName };
     return {
       audience: compare('audiences', audiences, 'audiences'),
-      scope: Object.keys(expected.resourceScopes || {}).length ? { status: scopeChecks.every(Boolean) ? 'pass' : 'fail' } : { status: 'blocked', reason: 'resource scope readback requires declared resource IDs' },
+      scope: Object.keys(expected.resourceScopes || {}).length ? {
+        status: scopeReads.every(({ actual, expected: scopeNames }) => exactArray(actual, scopeNames)) ? 'pass' : 'fail',
+        repairCandidates: scopeCandidates,
+      } : { status: 'blocked', reason: 'resource scope readback requires declared resource IDs' },
       mirror: { status: 'blocked', reason: 'scope mirror readback has no supported Management API contract' },
       appGrant: !declaredGrantAppIds.length
         ? { status: 'blocked', reason: 'application grant readback requires a complete declared application grant contract' }
@@ -225,9 +252,9 @@ async function pingOneRead({ environmentId, credentials = {}, expected = {}, fet
           ? { status: 'blocked', reason: 'PingOne application readback cannot enumerate the complete application set' }
           : !exactArray(appIds, declaredGrantAppIds)
             ? { status: 'fail', observed: { applicationIds: appIds, declaredApplicationIds: declaredGrantAppIds } }
-            : grantChecks.includes('blocked')
+            : grantReads.some((result) => result.status === 'blocked')
               ? { status: 'blocked', reason: 'PingOne application grant readback cannot enumerate the complete grant set' }
-              : { status: grantChecks.every((result) => result === 'pass') ? 'pass' : 'fail', observed: { applicationIds: appIds } },
+              : { status: grantReads.every((result) => result.status === 'pass') ? 'pass' : 'fail', observed: { applicationIds: appIds }, repairCandidates: grantCandidates },
       requiredFlag: { status: 'blocked', reason: 'effective flag readback requires authenticated BFF configuration access' },
       a2aCredential: { status: 'blocked', reason: 'credential presence is not returned by PingOne Management API' },
       parSetting: { status: 'blocked', reason: 'PAR setting readback requires declared application configuration' },
@@ -347,7 +374,7 @@ function createAuditService({ adapters = {}, pfProfiles = PF_PROFILES, fetch = g
     } catch (error) {
       values = blocked(P1, error.message);
     }
-    return afterRead(P1.map((name) => auditRow('pingone:' + name, values[name] || false, { sourceRef: name === 'policyReadback' ? 'PingOne Authorize policy API' : 'PingOne Management API' })), args.deadlineAt, args.signal);
+    return afterRead(P1.map((name) => auditRow('pingone:' + name, values[name] || false, { target: args.targetId, sourceRef: name === 'policyReadback' ? 'PingOne Authorize policy API' : 'PingOne Management API' })), args.deadlineAt, args.signal);
   }
   async function auditPingFederateConfiguration(args = {}) {
     let live;
@@ -429,7 +456,7 @@ function createAuditService({ adapters = {}, pfProfiles = PF_PROFILES, fetch = g
     if (expired(deadlineAt, signal)) return [auditRow('target:' + targetId + ':deadline', { status: 'not-run', reason: 'deadline exceeded or aborted' }, { target: targetId })];
     const common = { deadlineAt, signal };
     const batches = await Promise.all([
-      auditRepositoryContracts(common), auditPingOneConfiguration({ ...targetConfig.pingOne, ...common }),
+      auditRepositoryContracts(common), auditPingOneConfiguration({ ...targetConfig.pingOne, targetId, ...common }),
       auditPingFederateConfiguration({ ...targetConfig.pingFederate, ...common }),
       auditRuntimeTarget({ ...targetConfig.runtime, ...common }),
       auditLocalDockerConfiguration({ targetId, targetKind: targetConfig.kind, hostedConfig: targetConfig.gateway, ...common }),

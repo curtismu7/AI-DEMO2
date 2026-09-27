@@ -19,6 +19,7 @@ Keep this record current in the same commit as each task that changes a check, r
 | 1 — inventory and contract | Captures all 46 unique runnable Demo Steps, validates inventory/build parity, and records source-backed configuration-only repairability. | Focused contract checks passed in the task commits; no live audit or scenario execution exists yet. |
 | 2 — report model | Adds stable readiness status/count/timing/report contracts and redaction for direct reads and serialized output. Provider and service roles are recorded independently (`userSessionProvider`, `agentIdentityProvider`, `tokenIssuer`, `exchangeService`, `resourceServer`) with explicit role applicability. | Focused report suite passed 31/31; this proves report behavior only, not integration with live audit or execution. |
 | 2A — PF Exchange #3 source prerequisite | Adds issuer-selected PF exchange with dedicated credentials and configured Basic/Post client auth, fail-closed PF configuration, policy-derived PF audience, exact native ID-JAG typing, PF variables in generated Gateway env, and sanitized failures. Review follow-up preserves only the sanitized JSON-RPC `-32005` scope-denial signal and bounded scope lists, then maps HTTP 200 and HTTP 403 forms into the BFF's existing scope-recovery path. Local and hosted PF Gateway environment drift is explicitly `release-only` until safe readback/repair exists. | Focused static Groovy source-contract and generator tests pass 18/18; BFF mapping tests pass 2/2. No Groovy runtime or live PF/SE exchange is available. The existing `mcpToolPipeline` characterization Jest process exits 134 without output under Node 22 and 26, so its end-to-end mapping assertion could not be rerun; a registered backend tool is checked in source metadata. |
+| 4 — preview-bound configuration repair | Builds a digest-bound preview from structured audit candidates. A single administrator confirmation may apply only uniquely identified, source-backed PingOne scope additions and app-scope grants. Apply rereads every object before the first write, passes a digest idempotency key, reads back each write, and records sanitized before/after evidence. | Focused mocked repair and audit suites prove stale targets, expiry, changed values, repeat confirmation, ambiguous IDs, readback, timeout retry, isolated feature-flag cleanup, and blocked Authorize writes. No live services are called. |
 
 ## Coverage inventory
 
@@ -135,6 +136,30 @@ Keep these regressions explicit:
 | Source-code defect | Separate build-time helper may produce an uncommitted patch in an isolated worktree, limited to declared code refs. Require focused tests/build and review. Never call it from readiness or Reset Demo. |
 
 Every automatic change is bound to one digest of the displayed preview. Before writing, reread each object and reject changed, ambiguous, stale, or repeated plans. Record sanitized before/after evidence and verify through the source API. The live reset flow does not fix application code.
+
+Task 4 represents repair candidates as `repairClass`, `target`, exact `object`,
+`current`, `expected`, `sourceRef`, and `operation`. The plan digest includes the
+selected target set plus every preview and blocked row, so an altered before/after
+value or repair instruction requires a new preview and confirmation. A plan
+expires after fifteen minutes. The apply path performs all candidate rereads
+before calling any mutation adapter, then gives every automatic mutation the
+digest as its idempotency key and requires source-API readback. A post-timeout
+retry can finish without a second write when that pre-write reread already
+matches the expected value.
+
+Supported automatic repair classes are deliberately narrow:
+
+- uniquely mapped missing PingOne resource scopes;
+- uniquely mapped missing PingOne application grants; and
+- required feature flags only through an isolated readiness worker that restores
+  the prior worker value in `finally`.
+
+`manual` and `release-only` classes remain displayed as blocked rows with their
+operator action. This includes PingOne Authorize policies, every PingFederate
+profile, the local generated Gateway environment, application source defects,
+and hosted SE Gateway configuration. Readiness does not create a local Gateway
+adapter until an in-process regenerate, safe restart, and loaded-config readback
+implementation exists. Hosted SE is read-only in every repair path.
 
 ## Report, deadline, and operator flow
 

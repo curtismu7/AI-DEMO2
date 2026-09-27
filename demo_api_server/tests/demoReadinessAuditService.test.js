@@ -106,6 +106,29 @@ describe('demo readiness audit service', () => {
     expect(checks.find((check) => check.id.endsWith(':policyReadback'))).toEqual(expect.objectContaining({ status: 'blocked', required: true }));
   });
 
+  test('emits structured, source-backed repair candidates without making a write', async () => {
+    const adapters = passingAdapters();
+    adapters.pingOne.readConfiguration.mockResolvedValue({
+      scope: {
+        status: 'fail',
+        repairCandidates: [{
+          repairClass: 'pingone-scope-addition', target: 'local',
+          object: { id: 'resource-1', kind: 'pingone-resource-scopes' },
+          current: ['read'], expected: ['read', 'write'],
+          sourceRef: 'scope-topology.json#resources/resource-1/scopes',
+          operation: 'Create only the uniquely mapped missing PingOne resource scopes: write',
+        }],
+      },
+    });
+
+    const checks = await createAuditService({ adapters, pfProfiles: { roles: {} } }).auditPingOneConfiguration({ targetId: 'local' });
+    expect(checks.find((row) => row.id === 'pingone:scope')).toEqual(expect.objectContaining({
+      status: 'fail', target: 'local', repairCandidates: [expect.objectContaining({
+        current: ['read'], expected: ['read', 'write'], sourceRef: 'scope-topology.json#resources/resource-1/scopes',
+      })],
+    }));
+  });
+
   test('blocks unavailable PingFederate Admin API readback and undocumented roles', async () => {
     const adapters = passingAdapters({ pingFederate: {} });
     const checks = await createAuditService({ adapters, pfProfiles: { roles: { undocumented: { unresolved: true } } } }).auditPingFederateConfiguration({ baseUrl: 'https://pf.local' });

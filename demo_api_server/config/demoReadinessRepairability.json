@@ -97,6 +97,7 @@
       "sourceOfTruth": "Resolved use-case maturity and UI/BFF prerequisite contract",
       "readback": "Effective worker-runtime flag value before and after the case",
       "repairMode": "automatic",
+      "requiresIsolatedWorker": true,
       "configurationOnly": true,
       "operation": "Arm only the required flag in an isolated readiness worker and restore it after the case"
     },
