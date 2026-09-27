@@ -6,7 +6,7 @@ This is a static, repository-based review of the hosted Kubernetes demo deployme
 
 The app has meaningful controls: the hosted admission gate is separate from application login, the BFF holds browser tokens, internal agent routes require a shared secret, and hosted deployment rewrites first-party images to commit-tagged registry references. The remaining issues are primarily at the network boundary and in demo-mode configuration.
 
-**Disposition:** the repository now contains mitigations for H-01 and M-01 through M-03. They have not been deployed or exercised against a live cluster. M-04 and the Low findings remain open; immutable image selection and Restricted/egress enforcement need compatibility or external-cluster evidence before promotion.
+**Disposition:** the repository now contains mitigations for H-01 and M-01 through M-03. They have not been deployed or exercised against a live cluster. M-04 and the Low findings remain open; immutable image selection and Restricted/egress enforcement need compatibility or external-cluster evidence before promotion. A read-only query of the configured Kubernetes context failed because the EKS API hostname did not resolve.
 
 ## High
 
@@ -62,7 +62,7 @@ The app has meaningful controls: the hosted admission gate is separate from appl
 
 ### M-04 — Some hosted workloads still use mutable third-party image tags
 
-**Evidence:** `k8s/aws/deploy.sh:95-108` rewrites first-party image names in `IMAGE_MAP` to a commit-derived tag and changes pull policy. The map does not rewrite third-party references. For example, `k8s/71-ping-gateway-deployment.yaml:33-34` uses `ig:latest`; `k8s/72-rag-stack.yaml:121-123` uses `weaviate:latest`; and `k8s/54-seed-llm-models.yaml:73` uses `curlimages/curl:latest`.
+**Evidence:** `k8s/aws/deploy.sh:95-108` rewrites first-party image names in `IMAGE_MAP` to a commit-derived tag and changes pull policy. The map does not rewrite third-party references. For example, `k8s/71-ping-gateway-deployment.yaml:33-34` uses `ig:latest`; `k8s/72-rag-stack.yaml:121-123` uses `weaviate:latest`; `k8s/54-seed-llm-models.yaml:73` uses `curlimages/curl:latest`; and llama.cpp workloads use the mutable `ghcr.io/ggml-org/llama.cpp:server` tag.
 
 **Impact:** a rebuild or restart can resolve a different upstream image under the same tag, making releases non-reproducible and allowing upstream tag changes to alter the deployed code without a repository change. Image provenance and rollback become harder to establish.
 
@@ -70,7 +70,7 @@ The app has meaningful controls: the hosted admission gate is separate from appl
 
 **Confidence / false-positive notes:** high confidence for the cited references. Whether each optional RAG or seed manifest is applied in a given hosted profile varies; the cited Ping Gateway manifest is part of the hosted deployment path.
 
-**Status:** open. Registry digests and deployed image versions were not available from the repository. Pinning to an unverified version could change demo behavior, so immutable references remain a promotion prerequisite rather than being guessed here.
+**Status:** open. The hosted image inventory is in `docs/security/HOSTED_WORKLOAD_READINESS_2026-09-26.md`, but the configured cluster could not be queried to capture running image IDs. Pinning an unverified version could change demo behavior, so immutable references remain a promotion prerequisite rather than being guessed here.
 
 ## Low
 
@@ -84,7 +84,7 @@ The app has meaningful controls: the hosted admission gate is separate from appl
 
 **Confidence / false-positive notes:** high confidence that this manifest alone does not enforce restricted PSS. Cluster-level admission policies could provide equivalent enforcement and were not inspected.
 
-**Status:** open. No namespace policy was changed. Workload audit and namespace-admin confirmation are still required before enforcement.
+**Status:** open. Static workload inventory is in `docs/security/HOSTED_WORKLOAD_READINESS_2026-09-26.md`. No namespace policy was changed. Runtime workload audit and namespace-admin confirmation are still required before enforcement.
 
 ### L-02 — Namespace network policy permits broad outbound HTTP(S) and DNS
 
@@ -96,7 +96,7 @@ The app has meaningful controls: the hosted admission gate is separate from appl
 
 **Confidence / false-positive notes:** high confidence in the policy's scope. Whether the cluster CNI enforces NetworkPolicy and whether additional cloud firewall rules restrict egress were not inspected.
 
-**Status:** open. The new MCP ingress restriction preserves the existing egress rules. Destination narrowing requires a verified provider/DNS inventory and CNI confirmation.
+**Status:** open. The new MCP ingress restriction preserves the existing egress rules. Destination narrowing requires a verified provider/DNS inventory and CNI confirmation; the configured cluster could not be reached to inspect either.
 
 ## Positive controls observed
 
@@ -108,4 +108,4 @@ The app has meaningful controls: the hosted admission gate is separate from appl
 
 ## Review limitations
 
-This report is based on source and deployment configuration only. It does not assert live exploitability, inspect cloud IAM, cluster RBAC/admission configuration, ingress-controller settings outside repository manifests, secret values, registry policy, runtime image digests, or dependency vulnerability databases. No tests, scans, live requests, or deployments were run as part of this review or remediation.
+This report is based on source and deployment configuration only. It does not assert live exploitability, inspect cloud IAM, cluster RBAC/admission configuration, ingress-controller settings outside repository manifests, secret values, registry policy, runtime image digests, or dependency vulnerability databases. One read-only Kubernetes request was attempted and failed at DNS resolution for the configured API endpoint. No tests, scans, or deployments were run as part of this review or remediation.
