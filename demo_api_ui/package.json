@@ -36,6 +36,7 @@
   },
   "scripts": {
     "start": "vite",
+    "prebuild": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON ../scripts/check-demo-readiness-contract.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest --reporter=verbose",

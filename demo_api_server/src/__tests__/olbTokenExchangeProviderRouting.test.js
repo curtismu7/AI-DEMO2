@@ -29,4 +29,14 @@ describe('PingGateway Exchange #3 provider routing', () => {
     expect(SOURCE).toMatch(/isPfSubject && tokenTyp == 'oauth-id-jag\+jwt'/);
     expect(SOURCE).toContain("'subject_token_type'   : subjectTokenType");
   });
+
+  test('uses PF default ATM for PF subjects while retaining PingOne resource targeting', () => {
+    const paramsBlock = SOURCE.slice(
+      SOURCE.indexOf('def params = ['),
+      SOURCE.indexOf('if (olbScope?.trim())'),
+    );
+
+    expect(paramsBlock).toMatch(/if \(!isPfSubject\) \{[\s\S]*params\['resource'\]\s*=\s*olbAudience/);
+    expect(paramsBlock).not.toMatch(/'resource'\s*:\s*olbAudience/);
+  });
 });

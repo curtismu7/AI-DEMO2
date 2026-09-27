@@ -109,27 +109,39 @@ function parseEnv(filePath) {
 }
 
 /**
- * PingGateway's Exchange #3 can exchange a PF-issued subject only at PF. Reuse
- * the PF standard MCP exchanger used for the BFF's final standard exchange.
- * PF_TOKEN_ENDPOINT in the BFF env may use Docker's `pingfederate` DNS alias,
- * whose hostname is not on PF's TLS certificate; PingGateway must dial the
- * issuer hostname instead while preserving the configured endpoint path.
+ * PingGateway must validate PF-issued subjects with PF's JWKS and exchange
+ * them only at PF. Reuse the PF standard MCP exchanger used for the BFF's
+ * final standard exchange. PF_TOKEN_ENDPOINT and PF_JWKS_URI may use Docker's
+ * `pingfederate` DNS alias, whose hostname is not on PF's TLS certificate;
+ * PingGateway must dial the issuer hostname instead while preserving the
+ * configured endpoint path.
  */
 function buildPingGatewayPfExchangeEnv(apiVars = {}) {
   const issuerUri = apiVars.PF_ISSUER_URI || apiVars.PF_ISSUER || '';
   const configuredEndpoint = apiVars.PF_TOKEN_ENDPOINT || '';
   let tokenEndpoint = configuredEndpoint;
+  let jwksUri = apiVars.PF_JWKS_URI || '';
 
-  if (issuerUri && configuredEndpoint) {
+  if (issuerUri) {
     const issuer = new URL(issuerUri);
-    const endpoint = new URL(configuredEndpoint);
-    endpoint.protocol = issuer.protocol;
-    endpoint.host = issuer.host;
-    tokenEndpoint = endpoint.toString();
+    if (configuredEndpoint) {
+      const endpoint = new URL(configuredEndpoint);
+      endpoint.protocol = issuer.protocol;
+      endpoint.host = issuer.host;
+      tokenEndpoint = endpoint.toString();
+    }
+
+    // PingGateway must use the PF issuer hostname for TLS verification, and
+    // this local PF exposes its signing keys at /pf/JWKS (not /JWKS).
+    const jwks = jwksUri ? new URL(jwksUri) : new URL('/pf/JWKS', issuer);
+    jwks.protocol = issuer.protocol;
+    jwks.host = issuer.host;
+    jwksUri = jwks.toString();
   }
 
   return {
     PF_ISSUER_URI: issuerUri,
+    PF_JWKS_URI: jwksUri,
     PF_TOKEN_ENDPOINT: tokenEndpoint,
     PF_TE_CLIENT_ID: apiVars.PF_STANDARD_TOKEN_EXCHANGE_CLIENT_ID || '',
     PF_TE_CLIENT_SECRET: apiVars.PF_STANDARD_TOKEN_EXCHANGE_CLIENT_SECRET || '',

@@ -1,5 +1,6 @@
 const dataStore = require('../data/store');
 const { emitHop } = require('../services/transactionHop');
+const safeRequestLogUrl = require('../utils/safeRequestLogUrl');
 
 // Known sensitive field names (case-insensitive) redacted from requestBody
 // before it's persisted — mirrors the Authorization header redaction below.
@@ -11,6 +12,7 @@ const SENSITIVE_BODY_FIELDS = new Set([
   'clientsecret',
   'client_secret',
   'workerclientsecret',
+  'userkey',
 ]);
 
 const redactSensitiveFields = (body) => {
@@ -66,7 +68,7 @@ const logActivity = (req, res, next) => {
 
       // Determine action based on HTTP method and endpoint
       const method = req.method;
-      const fullPath = req.originalUrl;
+      const fullPath = safeRequestLogUrl(req);
 
       if ((fullPath.includes('/auth/login') || fullPath === '/login') && method === 'POST') {
         action = 'LOGIN';
