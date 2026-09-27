@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Demo server topology — review mock</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #080b10;
+      --panel: #0d1117;
+      --panel-raised: #161b22;
+      --panel-hover: #1c222b;
+      --border: #303844;
+      --border-soft: #222a35;
+      --text: #e6edf3;
+      --muted: #9da7b3;
+      --subtle: #717d8a;
+      --blue: #388bfd;
+      --green: #3fb950;
+      --purple: #bc8cff;
+      --orange: #f0883e;
+      --yellow: #d29922;
+      --red: #f85149;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --mono: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); font-family: var(--font); }
+    button { color: inherit; font: inherit; }
+    button:focus-visible, a:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+    .page { max-width: 1740px; margin: 0 auto; padding: 14px 24px 28px; }
+    .run-summary {
+      min-height: 76px; display: grid; grid-template-columns: minmax(280px, 1fr) 120px 120px 120px;
+      align-items: center; gap: 16px; padding: 14px 20px; background: var(--panel); border: 1px solid var(--border);
+      border-radius: 7px; box-shadow: 0 5px 18px #0004;
+    }
+    .summary-label { display: block; margin-bottom: 5px; color: var(--muted); font-size: 12px; }
+    .project-name { font-size: 14px; font-weight: 650; letter-spacing: -.01em; }
+    .branch-tag { display: inline-block; margin-left: 5px; padding: 2px 6px; color: #79c0ff; background: #1f3858; border-radius: 4px; font: 11px var(--mono); }
+    .summary-value { font-size: 14px; font-weight: 650; }
+    .summary-value--green { color: var(--green); }
+    .summary-value--blue { color: #79c0ff; }
+    .page-title { display: flex; align-items: flex-end; gap: 12px; margin: 22px 0 14px; }
+    .page-title h1 { margin: 0; font-size: 22px; line-height: 1.25; font-weight: 650; }
+    .mock-label { padding: 4px 7px; border: 1px solid #6e5b20; border-radius: 999px; color: #eac54f; font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
+    .subtitle { max-width: 880px; margin: 0 0 16px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+
+    .toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; margin-bottom: 11px; }
+    .toolbar-spacer { flex: 1 1 auto; }
+    .segmented { display: inline-flex; padding: 3px; gap: 2px; border: 1px solid var(--border); border-radius: 7px; background: var(--panel); }
+    .segmented button, .tool-button, .filter-button {
+      min-height: 31px; padding: 5px 10px; border: 1px solid transparent; border-radius: 5px;
+      background: transparent; color: var(--muted); font-size: 12px; cursor: pointer;
+    }
+    .segmented button[aria-pressed="true"] { background: #202938; border-color: #34445a; color: var(--text); box-shadow: 0 1px 2px #0005; }
+    .tool-button { border-color: var(--border); background: var(--panel); }
+    .tool-button:hover, .filter-button:hover { border-color: #566273; color: var(--text); }
+    .tool-button[aria-pressed="true"] { border-color: #315f9a; background: #142437; color: #9ecbff; }
+    .filter-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+    .filter-label { margin-right: 3px; color: var(--subtle); font-size: 11px; }
+    .filter-button { min-height: 27px; padding: 4px 9px; border-color: var(--border-soft); font-size: 11px; }
+    .filter-button[aria-pressed="true"] { border-color: #365b84; color: var(--text); background: #151f2c; }
+
+    .workspace { display: grid; grid-template-columns: minmax(0, 1fr) 315px; align-items: stretch; gap: 12px; }
+    .graph-card, .details-card, .annotations { border: 1px solid var(--border); border-radius: 7px; background: var(--panel); }
+    .graph-card { min-width: 0; overflow: hidden; }
+    .graph-heading { display: flex; align-items: center; gap: 9px; min-height: 44px; padding: 9px 13px; border-bottom: 1px solid var(--border-soft); }
+    .graph-heading strong { font-size: 13px; }
+    .graph-caption { color: var(--muted); font-size: 11px; }
+    .graph-caption b { color: var(--text); font-weight: 550; }
+    .scroll-hint { margin-left: auto; color: var(--subtle); font-size: 10px; }
+    .canvas-scroll { height: 660px; overflow: auto; background: #070a0e; scrollbar-color: #3b4654 #10151c; }
+    .world {
+      position: relative; width: 1920px; height: 955px; overflow: hidden;
+      background-color: #070a0e;
+      background-image: radial-gradient(#26303c 1px, transparent 1px);
+      background-size: 22px 22px;
+    }
+    .zones, .edges, .nodes { position: absolute; inset: 0; }
+    .zones { z-index: 0; }
+    .edges { z-index: 1; overflow: visible; }
+    .nodes { z-index: 2; }
+    .zone {
+      position: absolute; border: 1px solid #343c48; border-radius: 9px; background: #171d2680;
+    }
+    .zone::before {
+      content: attr(data-label); position: absolute; left: 12px; top: -9px; padding: 0 7px;
+      background: #0b0f14; color: #aab4c0; font-size: 10px; font-weight: 650; letter-spacing: .055em; text-transform: uppercase;
+    }
+    .zone--external { border-color: #38527a; background: #14223762; }
+    .zone--identity { border-color: #554777; background: #241c3760; }
+    .zone--optional { border-style: dashed; border-color: #55505a; background: #201e2560; }
+    .zone--observability { border-color: #385b4a; background: #15241d65; }
+    .zone--trust { border-color: #6b552d; background: #2a21145e; }
+
+    .node {
+      position: absolute; width: 174px; min-height: 72px; padding: 10px 11px 9px; border: 1px solid #39424e;
+      border-radius: 7px; background: #171c24; box-shadow: 0 2px 6px #0006; color: var(--text); text-align: left;
+      cursor: pointer; transition: border-color .16s ease, background .16s ease, opacity .16s ease, box-shadow .16s ease;
+    }
+    .node:hover { border-color: #69798b; background: #1c232d; }
+    .node[aria-pressed="true"] { border-color: var(--blue); box-shadow: 0 0 0 1px #388bfd44, 0 2px 10px #0008; }
+    .node.is-muted { opacity: .25; pointer-events: none; }
+    .node-top { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .node-dot { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: #8792a0; box-shadow: 0 0 0 2px #8792a022; }
+    .node[data-kind="identity"] .node-dot { background: var(--purple); }
+    .node[data-kind="gateway"] .node-dot { background: var(--blue); }
+    .node[data-kind="data"] .node-dot { background: var(--orange); }
+    .node[data-kind="agent"] .node-dot { background: var(--yellow); }
+    .node[data-kind="telemetry"] .node-dot { background: var(--green); }
+    .node-name { overflow: hidden; color: #f0f4f8; font-size: 12px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+    .node-address { display: block; margin: 6px 0 0 16px; color: #a9b3be; font: 10px var(--mono); }
+    .node-meta { display: flex; flex-wrap: wrap; gap: 4px; margin: 7px 0 0 16px; }
+    .tag { padding: 2px 5px; border: 1px solid #3a4552; border-radius: 4px; color: #aab6c2; font-size: 9px; line-height: 1.1; white-space: nowrap; }
+    .tag--optional { border-color: #69542d; color: #eac879; }
+    .tag--tls { border-color: #315d88; color: #8cc8ff; }
+    .tag--plain { border-color: #555e69; color: #b1b9c3; }
+    .tag--ref { border-color: #624b7e; color: #d4baff; }
+
+    .edge { fill: none; stroke: #566171; stroke-width: 1.7; opacity: .88; marker-end: url(#arrow); pointer-events: stroke; cursor: pointer; }
+    .edge.is-selected { stroke-width: 3.4; opacity: 1; filter: drop-shadow(0 0 4px #388bfd88); }
+    .edge[data-kind="oauth"] { stroke: #a371f7; }
+    .edge[data-kind="mcp"] { stroke: #388bfd; stroke-width: 2; }
+    .edge[data-kind="agent"] { stroke: #d29922; }
+    .edge[data-kind="data"] { stroke: #f0883e; }
+    .edge[data-kind="telemetry"] { stroke: #3fb950; stroke-dasharray: 5 5; }
+    .edge[data-kind="optional"] { stroke: #73808d; stroke-dasharray: 6 5; opacity: .75; }
+    .edge.is-hidden { display: none; }
+    .edge-label-group { pointer-events: none; }
+    .edge-label-bg { fill: #0d1117; stroke: #2f3946; stroke-width: 1; rx: 4; }
+    .edge-label { fill: #c4ccd5; font: 10px var(--mono); text-anchor: middle; }
+    .edge-label-group.is-hidden { display: none; }
+    .security-mark { stroke: #3fb950; stroke-width: 4; stroke-dasharray: 2 4; opacity: .85; }
+    .security-mark.is-hidden { display: none; }
+
+    .details-card { display: flex; flex-direction: column; min-height: 660px; }
+    .details-head { display: flex; align-items: flex-start; gap: 9px; padding: 15px 15px 13px; border-bottom: 1px solid var(--border-soft); }
+    .details-head .node-dot { margin-top: 4px; }
+    .details-head h2 { margin: 0; font-size: 14px; line-height: 1.25; }
+    .details-kicker { margin-top: 4px; color: var(--muted); font: 10px var(--mono); }
+    .details-body { overflow: auto; padding: 13px 15px 17px; }
+    .details-section + .details-section { margin-top: 16px; padding-top: 13px; border-top: 1px solid var(--border-soft); }
+    .details-section h3 { margin: 0 0 8px; color: #b8c1cc; font-size: 10px; letter-spacing: .07em; text-transform: uppercase; }
+    .detail-row { display: grid; grid-template-columns: 76px 1fr; gap: 8px; margin: 7px 0; font-size: 11px; line-height: 1.45; }
+    .detail-key { color: var(--subtle); }
+    .detail-value { color: #d8dee6; overflow-wrap: anywhere; }
+    .detail-value code { color: #9ecbff; font: 10px var(--mono); }
+    .standard-list { display: grid; gap: 8px; }
+    .standard { display: block; padding: 8px 9px; border: 1px solid #343a45; border-radius: 6px; background: #11161e; color: #dce4ed; text-decoration: none; }
+    .standard:hover { border-color: #6c5787; background: #181520; }
+    .standard strong { display: block; color: #d2b4ff; font: 600 10px var(--mono); }
+    .standard span { display: block; margin-top: 3px; color: #aeb8c4; font-size: 10px; line-height: 1.35; }
+    .evidence-note { padding: 9px; border-left: 2px solid var(--yellow); background: #211d14; color: #c8bc9b; font-size: 10px; line-height: 1.45; }
+
+    .legend { display: flex; flex-wrap: wrap; gap: 11px 18px; padding: 12px 14px; border-top: 1px solid var(--border-soft); color: #aeb8c4; font-size: 10px; }
+    .legend-item { display: inline-flex; align-items: center; gap: 6px; }
+    .line-key { width: 20px; height: 0; border-top: 2px solid #566171; }
+    .line-key--mcp { border-color: var(--blue); }
+    .line-key--oauth { border-color: var(--purple); }
+    .line-key--agent { border-color: var(--yellow); }
+    .line-key--telemetry { border-color: var(--green); border-top-style: dashed; }
+    .legend-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+    .annotations { margin-top: 12px; padding: 13px 15px; }
+    .annotations h2 { margin: 0 0 8px; font-size: 12px; }
+    .annotation { display: flex; align-items: flex-start; gap: 8px; margin: 7px 0; color: #aeb8c4; font-size: 11px; line-height: 1.45; }
+    .annotation-mark { width: 7px; height: 7px; flex: 0 0 7px; margin-top: 4px; border-radius: 50%; background: var(--yellow); }
+    .annotation-mark--blue { background: var(--blue); }
+    .footer-note { margin: 13px 2px 0; color: var(--subtle); font-size: 10px; line-height: 1.5; }
+
+    @media (max-width: 1080px) {
+      .workspace { grid-template-columns: minmax(0, 1fr); }
+      .details-card { min-height: auto; }
+      .details-body { max-height: 380px; }
+    }
+    @media (max-width: 700px) {
+      .page { padding: 9px 9px 20px; }
+      .run-summary { grid-template-columns: 1fr 1fr; gap: 11px; padding: 12px; }
+      .run-summary > :first-child { grid-column: 1 / -1; }
+      .page-title { align-items: center; flex-wrap: wrap; margin-top: 16px; }
+      .page-title h1 { font-size: 19px; }
+      .toolbar { align-items: stretch; }
+      .toolbar-spacer { display: none; }
+      .segmented { flex: 1 1 100%; }
+      .segmented button { flex: 1; }
+      .canvas-scroll { height: 540px; }
+      .scroll-hint { display: none; }
+      .legend { gap: 9px 12px; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; } }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="run-summary" aria-label="Topology summary">
+      <div>
+        <span class="summary-label">Source-defined topology · static preview</span>
+        <div class="project-name">AI-DEMO2 server map <span class="branch-tag">system topology</span></div>
+      </div>
+      <div><span class="summary-label">Service cards</span><span class="summary-value summary-value--green" id="service-count">34 visible</span></div>
+      <div><span class="summary-label">Deployment</span><span class="summary-value summary-value--blue" id="deployment-label">Local Docker</span></div>
+      <div><span class="summary-label">Health checks</span><span class="summary-value">Not live</span></div>
+    </header>
+
+    <div class="page-title"><h1>Server topology</h1><span class="mock-label">HTML mock</span></div>
+    <p class="subtitle">How the browser, application services, gateways, MCP servers, identity providers, and supporting systems connect. Switch deployment views and select a service or connection for protocol, network, security, and standards details.</p>
+
+    <section class="toolbar" aria-label="Diagram controls">
+      <div class="segmented" role="group" aria-label="Deployment view">
+        <button type="button" data-deployment="local" aria-pressed="true">Local Docker</button>
+        <button type="button" data-deployment="k8s" aria-pressed="false">Hosted Kubernetes</button>
+      </div>
+      <div class="toolbar-spacer"></div>
+      <button class="tool-button" type="button" data-layer="protocol" aria-pressed="true">Protocols</button>
+      <button class="tool-button" type="button" data-layer="network" aria-pressed="false">Network</button>
+      <button class="tool-button" type="button" data-layer="security" aria-pressed="false">Security</button>
+      <button class="tool-button" type="button" data-layer="standards" aria-pressed="false">RFCs & specs</button>
+    </section>
+
+    <nav class="filter-row" aria-label="Service filters">
+      <span class="filter-label">Show:</span>
+      <button class="filter-button" type="button" data-filter="all" aria-pressed="true">All services</button>
+      <button class="filter-button" type="button" data-filter="core" aria-pressed="false">App & MCP</button>
+      <button class="filter-button" type="button" data-filter="identity" aria-pressed="false">Identity & policy</button>
+      <button class="filter-button" type="button" data-filter="ai" aria-pressed="false">AI & data</button>
+      <button class="filter-button" type="button" data-filter="telemetry" aria-pressed="false">Observability</button>
+      <button class="filter-button" type="button" data-filter="optional" aria-pressed="false">Optional profiles</button>
+    </nav>
+
+    <section class="workspace" aria-label="System diagram and details">
+      <div class="graph-card">
+        <div class="graph-heading">
+          <strong>ci.yml</strong>
+          <span class="graph-caption">view: <b id="canvas-deployment">Local Docker network</b></span>
+          <span class="scroll-hint">Scroll to explore the full service map</span>
+        </div>
+        <div class="canvas-scroll" id="canvas-scroll" tabindex="0" aria-label="Scrollable server topology canvas">
+          <div class="world" id="world">
+            <div class="zones" aria-hidden="true">
+              <div class="zone zone--external" style="left:24px;top:165px;width:205px;height:475px" data-label="Client & edge"></div>
+              <div class="zone zone--identity" style="left:250px;top:24px;width:1260px;height:125px" data-label="External identity & model services"></div>
+              <div class="zone" style="left:250px;top:165px;width:1370px;height:475px" data-label="AI demo service network"></div>
+              <div class="zone zone--observability" style="left:1640px;top:165px;width:250px;height:750px" data-label="Telemetry"></div>
+              <div class="zone zone--optional" style="left:250px;top:675px;width:1370px;height:240px" data-label="Optional profiles & supporting services"></div>
+              <div class="zone zone--trust" style="left:1640px;top:675px;width:250px;height:240px" data-label="Workload identity"></div>
+            </div>
+
+            <svg class="edges" id="edges" viewBox="0 0 1920 955" role="img" aria-label="Connections between servers">
+              <defs>
+                <marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L8 4 L0 8 z" fill="#778493"></path></marker>
+              </defs>
+              <g id="edge-layer"></g>
+              <g id="edge-label-layer"></g>
+              <g id="security-layer"></g>
+            </svg>
+            <div class="nodes" id="nodes"></div>
+          </div>
+        </div>
+        <div class="legend" aria-label="Connection legend">
+          <span class="legend-item"><i class="line-key line-key--mcp"></i>MCP / HTTP</span>
+          <span class="legend-item"><i class="line-key line-key--oauth"></i>OAuth / identity</span>
+          <span class="legend-item"><i class="line-key line-key--agent"></i>Agent / model</span>
+          <span class="legend-item"><i class="line-key line-key--telemetry"></i>Telemetry</span>
+          <span class="legend-item"><i class="legend-dot"></i>Configured service</span>
+          <span class="legend-item"><span class="tag tag--optional">profile</span>Optional service</span>
+        </div>
+      </div>
+
+      <aside class="details-card" aria-live="polite" aria-label="Selected service details">
+        <div class="details-head">
+          <span class="node-dot" id="detail-dot"></span>
+          <div><h2 id="detail-title">MCP Gateway</h2><div class="details-kicker" id="detail-kicker">demo_mcp_gateway · gateway</div></div>
+        </div>
+        <div class="details-body" id="detail-body"></div>
+      </aside>
+    </section>
+
+    <section class="annotations" aria-label="Diagram notes">
+      <h2>Annotations</h2>
+      <div class="annotation"><i class="annotation-mark"></i><span><strong>Configured topology, not live health.</strong> The map is derived from repo declarations. It does not inspect the cluster or assert that a pod is running.</span></div>
+      <div class="annotation"><i class="annotation-mark annotation-mark--blue"></i><span><strong>mTLS varies by deployment.</strong> Local MCP mTLS is opt-in. The checked-in Kubernetes manifests do not declare a workload mTLS setting for these service hops.</span></div>
+      <div class="annotation"><i class="annotation-mark annotation-mark--blue"></i><span><strong>NetworkPolicy scope.</strong> The checked-in <code>ai-demo-internal</code> policy permits ingress from pods in <code>ai-demo</code> and <code>ingress-nginx</code>; egress allows the namespace, DNS, and public TCP 80/443, with AWS metadata addresses excluded.</span></div>
+      <div class="annotation"><i class="annotation-mark annotation-mark--blue"></i><span><strong>Standards badges are references.</strong> A link describes the standard relevant to a flow; it is not a conformance result. RFC 8705 covers OAuth client mTLS and certificate-bound tokens; it does not define generic workload mTLS or SPIFFE.</span></div>
+    </section>
+    <p class="footer-note">Review mock only. Planned implementation will use React Flow and the repository network topology, Compose services, Kubernetes services, ingress, and network policy as its evidence sources.</p>
+  </main>
+
+  <script>
+    const RFC = {
+      oauth: { id: "RFC 6749", title: "The OAuth 2.0 Authorization Framework", url: "https://www.rfc-editor.org/rfc/rfc6749" },
+      pkce: { id: "RFC 7636", title: "Proof Key for Code Exchange (PKCE)", url: "https://www.rfc-editor.org/rfc/rfc7636" },
+      exchange: { id: "RFC 8693", title: "OAuth 2.0 Token Exchange", url: "https://www.rfc-editor.org/rfc/rfc8693" },
+      resource: { id: "RFC 8707", title: "Resource Indicators for OAuth 2.0", url: "https://www.rfc-editor.org/rfc/rfc8707" },
+      metadata: { id: "RFC 9728", title: "OAuth 2.0 Protected Resource Metadata", url: "https://www.rfc-editor.org/rfc/rfc9728" },
+      introspection: { id: "RFC 7662", title: "OAuth 2.0 Token Introspection", url: "https://www.rfc-editor.org/rfc/rfc7662" },
+      dpop: { id: "RFC 9449", title: "OAuth 2.0 Demonstrating Proof of Possession", url: "https://www.rfc-editor.org/rfc/rfc9449" },
+      rar: { id: "RFC 9396", title: "OAuth 2.0 Rich Authorization Requests", url: "https://www.rfc-editor.org/rfc/rfc9396" },
+      tls: { id: "RFC 9846", title: "The Transport Layer Security (TLS) Protocol Version 1.3", url: "https://www.rfc-editor.org/rfc/rfc9846" },
+      mtls: { id: "RFC 8705", title: "OAuth 2.0 Mutual-TLS Client Authentication and Certificate-Bound Access Tokens", url: "https://www.rfc-editor.org/rfc/rfc8705" },
+      bcp: { id: "RFC 9700", title: "Best Current Practice for OAuth 2.0 Security", url: "https://www.rfc-editor.org/rfc/rfc9700" },
+      http: { id: "RFC 9110", title: "HTTP Semantics", url: "https://www.rfc-editor.org/rfc/rfc9110" },
+      http2: { id: "RFC 9113", title: "HTTP/2", url: "https://www.rfc-editor.org/rfc/rfc9113" }
+    };
+    const SPECS = {
+      mcp: { id: "MCP specification", title: "Model Context Protocol · 2025-11-25 reference", url: "https://modelcontextprotocol.io/specification/2025-11-25" },
+      jsonrpc: { id: "JSON-RPC 2.0", title: "JSON-RPC 2.0 specification", url: "https://www.jsonrpc.org/specification" },
+      websocket: { id: "WebSocket", title: "The WebSocket Protocol · RFC 6455", url: "https://www.rfc-editor.org/rfc/rfc6455" },
+      spiffe: { id: "SPIFFE", title: "SPIFFE specifications", url: "https://spiffe.io/docs/latest/spiffe-about/overview/" }
+    };
+
+    const nodes = [
+      { id:"browser", title:"Browser / MCP client", service:"external client", x:40,y:355,group:"core",kind:"client",role:"User agent and external MCP clients enter through the public app or gateway endpoint.",local:"local.ping-devops.com:4000",k8s:"Public ingress :443",protocol:"HTTPS · browser session · OAuth redirects",network:"User device → local TLS origin or Kubernetes ingress",security:"TLS at public edge; browser session cookie at the BFF.",rfcs:["oauth","pkce","bcp","tls"] },
+      { id:"ingress", title:"Ingress / reverse proxy", service:"nginx ingress", x:270,y:355,group:"core",kind:"gateway",role:"Terminates public TLS and routes requests to the frontend, BFF, and selected public services.",local:"host reverse proxy :4000",k8s:"ingress-nginx → frontend / BFF",protocol:"HTTPS → HTTP(S) service routes",network:"Public edge → cluster ingress → ai-demo namespace",security:"TLS is configured at the edge. Internal upstream encryption depends on the target service configuration.",rfcs:["http","tls"] },
+      { id:"frontend", title:"Frontend", service:"demo_api_ui", x:510,y:355,group:"core",kind:"app",role:"React application; owns browser presentation and sends API requests to the BFF.",local:"frontend:4000 · HTTPS",k8s:"frontend.ai-demo.svc:4000",protocol:"HTTPS · JSON/HTTP API · SSE where enabled",network:"Docker bridge or Kubernetes ClusterIP; public path through ingress",security:"Browser TLS ends at the configured frontend/ingress boundary.",rfcs:["http","tls","oauth","pkce"] },
+      { id:"bff", title:"BFF / API server", service:"demo_api_server", x:750,y:355,group:"core",kind:"app",role:"Sole browser-token custodian. Coordinates sessions, OAuth, agents, gateways, and API calls.",local:"demo-api-server:3001 · HTTPS",k8s:"demo-api-server.ai-demo.svc:3001",protocol:"HTTPS · JSON/HTTP · WebSocket clients · SSE",network:"Internal Docker network or ai-demo namespace",security:"Session cookies secure at browser edge. MCP client certificate is conditional in local mTLS profile.",rfcs:["oauth","pkce","exchange","resource","dpop","rar","bcp","tls"] },
+      { id:"pingone", title:"PingOne", service:"Authorization server / policy", x:520,y:55,group:"identity",kind:"identity",role:"External identity provider for sign-in, token issuance/exchange, and configured authorization services.",local:"auth.pingone.com · HTTPS :443",k8s:"auth.pingone.com · HTTPS :443",protocol:"OAuth 2.0 / OIDC · token endpoint · introspection",network:"Outbound HTTPS from application services",security:"External TLS. Token validation and policy behavior depend on enabled flow and environment configuration.",rfcs:["oauth","pkce","exchange","resource","introspection","bcp","tls"] },
+      { id:"pinggw", title:"PingGateway", service:"ping-gateway", x:1010,y:260,group:"core",kind:"gateway",role:"Identity Gateway route for MCP requests and policy enforcement. This is one selectable MCP route, not a hop before the Node gateway.",local:"ping-gateway:8080 · HTTP",k8s:"ping-gateway.ai-demo.svc:8080 · HTTP",protocol:"HTTP · MCP JSON-RPC · introspection / Authorize",network:"Internal service network; external authorization calls use outbound HTTPS",security:"Internal HTTP in the declared service topology. Public TLS, if exposed, terminates upstream.",rfcs:["metadata","introspection","exchange","resource","http","tls"] },
+      { id:"authz", title:"AuthZ / PDP", service:"authz-server", x:1270,y:195,group:"identity",kind:"identity",profile:"demo-auth",role:"Mock authorization and introspection service. Compose runs a separate demo-auth service; Kubernetes runs it beside PingGateway.",local:"http://authz-server:9001",k8s:"http://127.0.0.1:9001 · PingGateway pod",protocol:"HTTP · policy decision / introspection",network:"Compose service network or same-pod Kubernetes loopback",security:"Internal HTTP; gateway fails closed if its selected authorization endpoint is unavailable.",rfcs:["introspection","oauth"] },
+      { id:"nodegw", title:"Demo MCP Gateway", service:"demo_mcp_gateway", x:1010,y:445,group:"core",kind:"gateway",role:"Node gateway route. Applies MCP routing and policy, then forwards to configured MCP services.",local:"mcp-gateway:3005 · HTTP",k8s:"mcp-gateway.ai-demo.svc:3005 · HTTP",protocol:"MCP Streamable HTTP · JSON-RPC · WebSocket upstream",network:"Docker network or ai-demo namespace",security:"Internal HTTP by default. SPIFFE workload mTLS is optional; inspect deployment settings before treating it as active.",rfcs:["oauth","exchange","resource","metadata","introspection","http","http2"] },
+      { id:"mcpmcp", title:"OAuth MCP server", service:"oauth-mcp / mcp-server", x:1270,y:355,group:"core",kind:"data",role:"Protected MCP server that owns banking tools and resource access.",local:"mcp-server:8080 · HTTP / WebSocket",k8s:"mcp-server.ai-demo.svc:8080",protocol:"MCP · JSON-RPC · WebSocket / HTTP endpoints",network:"Reached through an allowed gateway or BFF path; cluster-local service",security:"Local mTLS is opt-in via MCP_MTLS_ON. The receiving server is configured to verify allowed gateway/BFF certificates when enabled.",rfcs:["metadata","resource","oauth","tls","mtls"] },
+      { id:"mcpresource", title:"MCP resource server", service:"demo_mcp_resource_server", x:1510,y:300,group:"core",kind:"data",role:"Investing and read-path MCP tools, backed by service data.",local:"mcp-resource-server:8081",k8s:"mcp-resource-server.ai-demo.svc:8081",protocol:"MCP · JSON-RPC · WebSocket",network:"Internal service network / namespace",security:"Internal HTTP in declared topology; no Kubernetes workload mTLS setting found in checked-in manifests.",rfcs:["metadata","resource","http"] },
+      { id:"apiresource", title:"API resource server", service:"api-resource-server", x:1510,y:455,group:"core",kind:"data",role:"Banking and vertical API backends used by protected tools.",local:"api-resource-server:8082",k8s:"api-resource-server.ai-demo.svc:8082",protocol:"HTTP · JSON REST",network:"Internal service network / namespace",security:"Internal HTTP in declared topology; bearer authorization is enforced by API routes.",rfcs:["http","oauth"] },
+      { id:"langchain", title:"LangChain agent", service:"langchain_agent", x:750,y:525,group:"ai",kind:"agent",profile:"agents",role:"Agent runtime called by the BFF; may call LLM proxy and MCP tools.",local:"langchain-agent:8888 · HTTP",k8s:"langchain-agent.ai-demo.svc:8888",protocol:"HTTP · AG-UI / SSE · tool calls",network:"Internal service network / namespace",security:"Workload-to-workload HTTP unless separately configured for TLS.",rfcs:["http"] },
+      { id:"agentservice", title:"Agent service", service:"agent-service", x:510,y:525,group:"ai",kind:"agent",profile:"agents",role:"Additional agent API and execution service.",local:"agent-service:3006 · HTTP",k8s:"agent-service.ai-demo.svc:3006",protocol:"HTTP · JSON API",network:"Internal service network / namespace",security:"Internal HTTP in declared topology.",rfcs:["http"] },
+      { id:"llmproxy", title:"LLM proxy", service:"demo_llm_proxy", x:990,y:610,group:"ai",kind:"agent",profile:"llm",role:"Centralized model routing, limits, and provider selection for local and hosted models.",local:"llm-proxy:8090 · HTTP",k8s:"llm-proxy service / profile dependent",protocol:"HTTP · OpenAI-compatible APIs",network:"Internal request from agent services; external provider egress where enabled",security:"Provider TLS and credentials are environment-specific.",rfcs:["http","tls"] },
+      { id:"model", title:"Model providers", service:"OpenAI / Anthropic / Gemini / local", x:1020,y:55,group:"ai",kind:"identity",role:"External or local inference backends selected through model configuration.",local:"provider HTTPS :443 or local model host",k8s:"provider HTTPS :443 or model service",protocol:"HTTPS · provider API",network:"External egress or internal model-service network",security:"External TLS; provider API credentials from secret/config sources.",rfcs:["http","tls"] },
+      { id:"hitl", title:"HITL service", service:"demo_hitl_service", x:1270,y:545,group:"ai",kind:"app",profile:"hitl",role:"Human approval and challenge service for agent and MCP flows.",local:"hitl-service:3009 · HTTP",k8s:"hitl-service.ai-demo.svc:3009",protocol:"HTTP · JSON API · SSE/events",network:"Internal service network / namespace",security:"Internal HTTP in declared topology.",rfcs:["http"] },
+      { id:"weather", title:"Weather MCP", service:"mcp-weather", x:270,y:725,group:"optional",kind:"data",profile:"mcp-extras",role:"Optional weather tool backend.",local:"mcp-weather:8896",k8s:"mcp-weather.ai-demo.svc:8896",protocol:"HTTP · tool backend",network:"Optional service profile / namespace",security:"Internal HTTP in declared topology.",rfcs:["http"] },
+      { id:"brave", title:"Brave MCP", service:"mcp-brave", x:470,y:725,group:"optional",kind:"data",profile:"mcp-extras",role:"Optional web search tool backend.",local:"mcp-brave:8897",k8s:"mcp-brave.ai-demo.svc:8897",protocol:"HTTP · tool backend",network:"Optional service profile / namespace",security:"Internal HTTP in declared topology.",rfcs:["http"] },
+      { id:"mcpproxy", title:"MCP proxy", service:"mcp-proxy", x:670,y:725,group:"optional",kind:"gateway",profile:"mcp-extras",role:"Optional MCP proxy and protocol adapter.",local:"mcp-proxy:8895",k8s:"mcp-proxy.ai-demo.svc:8895",protocol:"MCP · HTTP",network:"Optional service profile / namespace",security:"Internal HTTP in declared topology.",rfcs:["http"] },
+      { id:"search", title:"Code search / RAG", service:"demo-mcp-code-search · OpenSearch · Weaviate · embeddings · Tika", x:870,y:725,group:"optional",kind:"data",profile:"rag",role:"Search, document extraction, vector storage, and retrieval support services.",local:"service ports vary by profile",k8s:"RAG services · optional manifests",protocol:"HTTP APIs · embeddings",network:"Optional RAG profile / namespace",security:"Internal HTTP in declared topology; model/provider egress may be enabled.",rfcs:["http"] },
+      { id:"llamaindex", title:"LlamaIndex agent", service:"llamaindex_agent", x:1070,y:725,group:"optional",kind:"agent",profile:"agents",role:"Optional alternate agent implementation.",local:"llamaindex-agent · HTTP",k8s:"llamaindex-agent · optional manifest",protocol:"HTTP · agent API",network:"Optional agent profile / namespace",security:"Internal HTTP in declared topology.",rfcs:["http"] },
+      { id:"mcpjwt", title:"JWT verifier", service:"mcp-jwt-verifier", x:1270,y:725,group:"optional",kind:"identity",profile:"gateway-support",role:"Optional gateway-side token/JWKS verification helper.",local:"mcp-jwt-verifier:8083",k8s:"mcp-jwt-verifier.ai-demo.svc:8083",protocol:"HTTP · JWKS / verification API",network:"Gateway support service",security:"Internal HTTP in declared topology.",rfcs:["oauth","http"] },
+      { id:"mcpaudit", title:"MCP audit", service:"mcp-audit", x:270,y:825,group:"optional",kind:"telemetry",profile:"audit",role:"Optional MCP audit event service.",local:"mcp-audit · internal HTTP",k8s:"mcp-audit · optional service",protocol:"HTTP · audit events",network:"Internal service network / namespace",security:"Internal HTTP in declared topology.",rfcs:["http"] },
+      { id:"discovery", title:"MCP discovery", service:"mcp-discovery-agent", x:460,y:825,group:"optional",kind:"gateway",profile:"discovery",role:"Optional registry and discovery agent for remote MCP services.",local:"mcp-discovery-agent:3910",k8s:"mcp-discovery-agent · optional service",protocol:"HTTP · discovery registry",network:"Internal service network / namespace",security:"Internal HTTP in declared topology.",rfcs:["http"] },
+      { id:"opensearchmcp", title:"OpenSearch MCP", service:"opensearch-mcp-server", x:650,y:825,group:"optional",kind:"data",profile:"rag",role:"Optional MCP adapter for OpenSearch-backed tools.",local:"opensearch-mcp-server:9900",k8s:"opensearch-mcp-server · optional manifest",protocol:"MCP · Streamable HTTP",network:"Optional RAG profile / namespace",security:"Internal HTTP in declared topology.",rfcs:["metadata","http"] },
+      { id:"privgw", title:"Privilege MCP Gateway", service:"ping-mcpgw · mcpgw-nginx", x:840,y:825,group:"optional",kind:"gateway",profile:"privilege",role:"Optional PingOne Privilege MCP gateway and Nginx ingress services.",local:"profile endpoints vary",k8s:"public ingress → gateway service",protocol:"MCP · Streamable HTTP / SSE compatibility",network:"Optional public ingress and gateway path",security:"TLS behavior depends on ingress mode; passthrough and TLS termination are distinct.",rfcs:["metadata","http","tls"] },
+      { id:"auxagents", title:"Auxiliary agents", service:"tier-manager-k8 · ungoverned-agent · promptfoo-step-narration", x:1030,y:825,group:"optional",kind:"agent",profile:"agent-extras",role:"Optional demonstrations and helper agents.",local:"profile-specific endpoints",k8s:"optional / profile-specific services",protocol:"HTTP · agent APIs",network:"Optional agent profiles",security:"Internal HTTP in declared topology unless deployment config says otherwise.",rfcs:["http"] },
+      { id:"alertmanager", title:"Alertmanager", service:"alertmanager", x:1660,y:670,group:"telemetry",kind:"telemetry",role:"Receives and groups Prometheus alerts; default receiver is intentionally a no-op until configured.",local:"alertmanager:9093",k8s:"alertmanager.ai-demo.svc:9093",protocol:"HTTP · Prometheus alert API",network:"Internal telemetry network",security:"Internal service network.",rfcs:["http"] },
+      { id:"alloy", title:"Alloy", service:"Grafana Alloy", x:1660,y:230,group:"telemetry",kind:"telemetry",role:"Collects and forwards logs and telemetry from application services.",local:"alloy · OTLP / log shipper",k8s:"alloy.ai-demo.svc",protocol:"OTLP · gRPC/HTTP · logs",network:"In-cluster telemetry collection and egress to observability services",security:"Internal telemetry network; provider-specific TLS is configured separately.",rfcs:["http","http2"] },
+      { id:"prometheus", title:"Prometheus", service:"prometheus", x:1660,y:340,group:"telemetry",kind:"telemetry",role:"Scrapes metrics endpoints and stores time-series data.",local:"prometheus:9090",k8s:"prometheus.ai-demo.svc:9090",protocol:"HTTP scrape · Prometheus exposition",network:"Internal telemetry network",security:"Internal service network.",rfcs:["http"] },
+      { id:"loki", title:"Loki", service:"loki", x:1660,y:450,group:"telemetry",kind:"telemetry",role:"Central log storage for Alloy and application logs.",local:"loki:3100",k8s:"loki.ai-demo.svc:3100",protocol:"HTTP · log ingestion/query",network:"Internal telemetry network",security:"Internal service network.",rfcs:["http"] },
+      { id:"jaeger", title:"Jaeger", service:"jaeger", x:1660,y:560,group:"telemetry",kind:"telemetry",role:"Distributed tracing backend and UI.",local:"jaeger · OTLP / query ports",k8s:"jaeger.ai-demo.svc",protocol:"OTLP · gRPC/HTTP · trace query",network:"Internal telemetry network",security:"Internal service network.",rfcs:["http","http2"] },
+      { id:"grafana", title:"Grafana", service:"grafana", x:1660,y:770,group:"telemetry",kind:"telemetry",role:"Dashboards for Prometheus, Loki, and Jaeger data sources.",local:"grafana:3000",k8s:"grafana.ai-demo.svc:3000",protocol:"HTTPS ingress / HTTP service · dashboards",network:"Operator access through configured ingress",security:"Operator authentication; external TLS at ingress.",rfcs:["http","tls"] },
+      { id:"spire", title:"SPIRE workload identity", service:"spire-server · spire-agent · registration · SVID helpers · OIDC provider", x:1660,y:825,group:"trust",kind:"identity",profile:"spiffe",role:"Optional SPIFFE/SPIRE services for workload identity, SVID delivery, and trust bundle distribution.",local:"Compose profile: spiffe",k8s:"No corresponding workload mTLS setting in checked-in app manifests",protocol:"SPIFFE Workload API · Unix socket · X.509-SVID",network:"Optional workload identity profile",security:"Enables configured SPIFFE mTLS only for services that consume and verify SVIDs.",rfcs:["tls"],specs:["spiffe"] }
+    ];
+
+    const edges = [
+      {from:"browser",to:"ingress",label:"HTTPS :443",kind:"mcp",protocol:"HTTPS · public edge",network:"User device → reverse proxy",security:"TLS",rfcs:["http","tls"]},
+      {from:"ingress",to:"frontend",label:"HTTP(S) :4000",kind:"mcp",protocol:"HTTP(S) · frontend route",network:"Edge → app network",security:"TLS boundary depends on deployment",rfcs:["http","tls"]},
+      {from:"frontend",to:"bff",label:"HTTPS / JSON API",kind:"mcp",protocol:"HTTPS · JSON/HTTP",network:"Frontend → BFF",security:"TLS",rfcs:["http","tls"]},
+      {from:"bff",to:"pingone",label:"OAuth / OIDC",kind:"oauth",protocol:"OAuth 2.0 · OIDC",network:"Outbound HTTPS :443",security:"TLS · user and client credentials",rfcs:["oauth","pkce","bcp"]},
+      {from:"bff",to:"pinggw",label:"MCP route A",kind:"mcp",protocol:"MCP · HTTP / JSON-RPC",network:"Internal service network",security:"Bearer token; internal HTTP by declared topology",rfcs:["metadata","resource","exchange"],specs:["mcp","jsonrpc"]},
+      {from:"bff",to:"nodegw",label:"MCP route B",kind:"mcp",protocol:"MCP Streamable HTTP",network:"Internal service network",security:"Bearer token; optional workload mTLS on downstream MCP hop",rfcs:["metadata","resource","exchange"],specs:["mcp","jsonrpc"]},
+      {from:"pinggw",to:"authz",label:"policy / introspection",kind:"oauth",profile:"demo-auth",protocol:"HTTP · PDP / introspection",network:"Loopback or same-pod sidecar",security:"Internal sidecar connection",rfcs:["oauth","introspection"]},
+      {from:"pinggw",to:"mcpmcp",label:"MCP / HTTP or WS",kind:"mcp",protocol:"MCP · JSON-RPC · HTTP/WebSocket",network:"Gateway → MCP server",security:"Local mTLS is opt-in; K8s workload mTLS not declared",rfcs:["metadata","resource","introspection"],specs:["mcp","jsonrpc","websocket"]},
+      {from:"nodegw",to:"mcpmcp",label:"MCP / Streamable HTTP",kind:"mcp",protocol:"MCP · JSON-RPC · Streamable HTTP",network:"Gateway → MCP server",security:"Local mTLS is opt-in; SPIFFE identity is optional",rfcs:["metadata","resource","exchange"],specs:["mcp","jsonrpc","spiffe"]},
+      {from:"mcpmcp",to:"mcpresource",label:"tool / data API",kind:"data",protocol:"HTTP · protected service call",network:"Internal service network",security:"Service authorization; internal HTTP in topology",rfcs:["http","oauth"]},
+      {from:"mcpmcp",to:"apiresource",label:"REST / JSON",kind:"data",protocol:"HTTP · REST/JSON",network:"Internal service network",security:"Bearer authorization at protected API",rfcs:["http","oauth"]},
+      {from:"bff",to:"langchain",label:"agent request",kind:"agent",protocol:"HTTP · AG-UI/SSE",network:"BFF → agent service",security:"Internal HTTP in topology",rfcs:["http"]},
+      {from:"langchain",to:"llmproxy",label:"model request",kind:"agent",protocol:"HTTP · model API",network:"Agent → LLM proxy",security:"Credentials handled by provider configuration",rfcs:["http"]},
+      {from:"llmproxy",to:"model",label:"HTTPS :443",kind:"agent",protocol:"HTTPS · provider API",network:"Outbound egress",security:"TLS",rfcs:["http","tls"]},
+      {from:"bff",to:"hitl",label:"approval / challenge",kind:"optional",protocol:"HTTP · JSON/events",network:"BFF → HITL service",security:"Internal service network",rfcs:["http"]},
+      {from:"nodegw",to:"mcpjwt",label:"JWKS / verify",kind:"optional",protocol:"HTTP · verification",network:"Gateway support service",security:"Internal service network",rfcs:["http"]},
+      {from:"alloy",to:"loki",label:"logs",kind:"telemetry",protocol:"HTTP · log push",network:"Telemetry network",security:"Internal telemetry connection",rfcs:["http"]},
+      {from:"grafana",to:"prometheus",label:"metrics query",kind:"telemetry",protocol:"HTTP · PromQL",network:"Telemetry network",security:"Dashboard data-source connection",rfcs:["http"]},
+      {from:"grafana",to:"jaeger",label:"trace query",kind:"telemetry",protocol:"HTTP · trace query",network:"Telemetry network",security:"Dashboard data-source connection",rfcs:["http"]},
+      {from:"prometheus",to:"alertmanager",label:"alert events",kind:"telemetry",protocol:"HTTP · Prometheus alert API",network:"Telemetry network",security:"Internal telemetry connection",rfcs:["http"]},
+      {from:"spire",to:"mcpmcp",label:"SVID / trust bundle",kind:"optional",profile:"spiffe",protocol:"SPIFFE Workload API · X.509-SVID",network:"Optional Unix socket and workload identity path",security:"Only active in configured SPIFFE profile",rfcs:["tls"]},
+      {from:"agentservice",to:"llmproxy",label:"agent / model",kind:"agent",profile:"agents",protocol:"HTTP · model API",network:"Agent → proxy",security:"Internal HTTP in topology",rfcs:["http"]},
+      {from:"mcpmcp",to:"weather",label:"tool backend",kind:"optional",profile:"mcp-extras",protocol:"HTTP · weather tool",network:"Optional service network",security:"Internal HTTP in topology",rfcs:["http"]},
+      {from:"mcpmcp",to:"brave",label:"tool backend",kind:"optional",profile:"mcp-extras",protocol:"HTTP · search tool",network:"Optional service network",security:"Internal HTTP in topology",rfcs:["http"]},
+      {from:"search",to:"llamaindex",label:"retrieval / agent",kind:"optional",profile:"rag",protocol:"HTTP · RAG APIs",network:"Optional profile network",security:"Internal HTTP in topology",rfcs:["http"]}
+    ];
+
+    const groupLabels = { core:"App & MCP", identity:"Identity & policy", ai:"AI & data", optional:"Optional profiles", telemetry:"Observability", trust:"Identity & mTLS" };
+    const state = { deployment:"local", filter:"all", activeLayer:"protocol", selected:"nodegw", selectedEdge:null };
+    const nodeById = Object.fromEntries(nodes.map(n => [n.id,n]));
+    const nodeRoot = document.getElementById("nodes");
+    const edgeLayer = document.getElementById("edge-layer");
+    const labelLayer = document.getElementById("edge-label-layer");
+    const securityLayer = document.getElementById("security-layer");
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
+    }
+    function renderNodes() {
+      nodeRoot.innerHTML = nodes.map(n => {
+        const address = state.deployment === "local" ? n.local : n.k8s;
+        const selected = state.selected === n.id ? "true" : "false";
+        const profile = n.profile ? `<span class="tag tag--optional">${escapeHtml(n.profile)}</span>` : "";
+        const kindTag = n.kind === "identity" && n.group === "trust" ? `<span class="tag tag--tls">SPIFFE</span>` : "";
+        return `<button class="node${n.profile ? " is-optional" : ""}" type="button" data-id="${n.id}" data-kind="${n.kind}" data-group="${n.group}" style="left:${n.x}px;top:${n.y}px" aria-pressed="${selected}" aria-label="${escapeHtml(n.title)} details">
+          <span class="node-top"><i class="node-dot"></i><span class="node-name">${escapeHtml(n.title)}</span></span>
+          <span class="node-address">${escapeHtml(address)}</span>
+          <span class="node-meta"><span class="tag">${escapeHtml(groupLabels[n.group])}</span>${profile}${kindTag}</span>
+        </button>`;
+      }).join("");
+      nodeRoot.querySelectorAll(".node").forEach(button => button.addEventListener("click", () => selectNode(button.dataset.id)));
+      applyFilter();
+    }
+    function point(node, side) {
+      const width = 174, height = 72;
+      if (side === "right") return {x:node.x + width,y:node.y + height / 2};
+      if (side === "left") return {x:node.x,y:node.y + height / 2};
+      if (side === "bottom") return {x:node.x + width / 2,y:node.y + height};
+      return {x:node.x + width / 2,y:node.y};
+    }
+    function route(edge) {
+      const a = nodeById[edge.from], b = nodeById[edge.to];
+      const dx = (b.x + 87) - (a.x + 87), dy = (b.y + 36) - (a.y + 36);
+      let startSide, endSide;
+      if (Math.abs(dx) > Math.abs(dy)) { startSide = dx >= 0 ? "right" : "left"; endSide = dx >= 0 ? "left" : "right"; }
+      else { startSide = dy >= 0 ? "bottom" : "top"; endSide = dy >= 0 ? "top" : "bottom"; }
+      const s = point(a,startSide), t = point(b,endSide);
+      const bend = Math.max(34, Math.min(125, Math.abs((startSide === "left" || startSide === "right") ? t.x - s.x : t.y - s.y) * .48));
+      let c1, c2;
+      if (startSide === "right") { c1={x:s.x+bend,y:s.y}; c2={x:t.x-bend,y:t.y}; }
+      else if (startSide === "left") { c1={x:s.x-bend,y:s.y}; c2={x:t.x+bend,y:t.y}; }
+      else if (startSide === "bottom") { c1={x:s.x,y:s.y+bend}; c2={x:t.x,y:t.y-bend}; }
+      else { c1={x:s.x,y:s.y-bend}; c2={x:t.x,y:t.y+bend}; }
+      return {s,t,d:`M ${s.x} ${s.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${t.x} ${t.y}`,mid:{x:(s.x+t.x)/2,y:(s.y+t.y)/2}};
+    }
+    function renderEdges() {
+      edgeLayer.innerHTML = edges.map((e,i) => {
+        const r = route(e);
+        const optional = e.profile ? "is-optional" : "";
+        const selected = state.selectedEdge === i ? "is-selected" : "";
+        return `<path id="edge-${i}" class="edge ${optional} ${selected}" data-edge="${i}" data-kind="${e.kind}" data-profile="${e.profile || ""}" d="${r.d}" tabindex="0" role="button" aria-label="${escapeHtml(nodeById[e.from].title)} to ${escapeHtml(nodeById[e.to].title)} connection" />`;
+      }).join("");
+      edgeLayer.querySelectorAll(".edge").forEach(path => {
+        path.addEventListener("click", () => selectEdge(Number(path.dataset.edge)));
+        path.addEventListener("keydown", event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); selectEdge(Number(path.dataset.edge)); } });
+      });
+      labelLayer.innerHTML = edges.map((e,i) => {
+        const r = route(e), w = Math.max(74, e.label.length * 6.2 + 14), x = r.mid.x - w/2, y = r.mid.y - 11;
+        return `<g class="edge-label-group" data-edge="${i}"><rect class="edge-label-bg" x="${x}" y="${y}" width="${w}" height="20"></rect><text class="edge-label" x="${r.mid.x}" y="${r.mid.y+3}">${escapeHtml(e.label)}</text></g>`;
+      }).join("");
+      securityLayer.innerHTML = edges.map((e,i) => {
+        if (!/mTLS|SVID/i.test(e.security || "")) return "";
+        return `<path class="security-mark" data-edge="${i}" d="${route(e).d}" />`;
+      }).join("");
+      updateLayers();
+    }
+    function selectNode(id) {
+      state.selected = id;
+      state.selectedEdge = null;
+      edgeLayer.querySelectorAll(".edge").forEach(path => path.classList.remove("is-selected"));
+      nodeRoot.querySelectorAll(".node").forEach(button => button.setAttribute("aria-pressed", String(button.dataset.id === id)));
+      renderDetails(nodeById[id]);
+    }
+    function selectEdge(index) {
+      state.selectedEdge = index;
+      state.selected = null;
+      nodeRoot.querySelectorAll(".node").forEach(button => button.setAttribute("aria-pressed", "false"));
+      edgeLayer.querySelectorAll(".edge").forEach(path => path.classList.toggle("is-selected", Number(path.dataset.edge) === index));
+      renderEdgeDetails(edges[index]);
+    }
+    function standardsHtml(rfcs = [], specs = []) {
+      return [...rfcs.map(key => RFC[key]), ...specs.map(key => SPECS[key])].filter(Boolean)
+        .map(item => `<a class="standard" href="${item.url}" target="_blank" rel="noreferrer"><strong>${item.id}</strong><span>${item.title}</span></a>`).join("");
+    }
+    function renderEdgeDetails(edge) {
+      const from = nodeById[edge.from], to = nodeById[edge.to];
+      document.getElementById("detail-title").textContent = `${from.title} → ${to.title}`;
+      document.getElementById("detail-kicker").textContent = "Connection · configured topology";
+      document.getElementById("detail-body").innerHTML = `
+        <section class="details-section"><h3>Protocol</h3><div class="detail-value">${escapeHtml(edge.protocol)}</div></section>
+        <section class="details-section"><h3>Network path</h3><div class="detail-value">${escapeHtml(edge.network)}</div></section>
+        <section class="details-section"><h3>TLS / authentication</h3><div class="detail-value">${escapeHtml(edge.security)}</div></section>
+        <section class="details-section"><h3>Related RFCs & specs</h3><div class="standard-list">${standardsHtml(edge.rfcs, edge.specs) || '<span class="detail-value">No references mapped in this mock.</span>'}</div><p class="footer-note">References describe relevant standards; they do not assert conformance.</p></section>
+        <section class="details-section"><div class="evidence-note">${escapeHtml(state.deployment === "local" ? `${from.local} → ${to.local}` : `${from.k8s} → ${to.k8s}`)} · static source-defined view, not live health.</div></section>`;
+    }
+    function renderDetails(n) {
+      if (!n) return;
+      document.getElementById("detail-title").textContent = n.title;
+      document.getElementById("detail-kicker").textContent = `${n.service} · ${groupLabels[n.group]}`;
+      const address = state.deployment === "local" ? n.local : n.k8s;
+      const specs = n.specs || (n.protocol.includes("MCP") ? ["mcp", "jsonrpc"] : []);
+      const rfcHtml = standardsHtml(n.rfcs, specs);
+      const profileHtml = n.profile ? `<div class="detail-row"><span class="detail-key">Profile</span><span class="detail-value"><span class="tag tag--optional">${escapeHtml(n.profile)} · optional</span></span></div>` : "";
+      document.getElementById("detail-body").innerHTML = `
+        <section class="details-section"><h3>Role</h3><div class="detail-value">${escapeHtml(n.role)}</div></section>
+        <section class="details-section"><h3>Endpoint</h3>
+          <div class="detail-row"><span class="detail-key">${state.deployment === "local" ? "Local" : "Kubernetes"}</span><span class="detail-value"><code>${escapeHtml(address)}</code></span></div>
+          ${profileHtml}
+        </section>
+        <section class="details-section" data-detail-layer="protocol"><h3>Protocol</h3><div class="detail-value">${escapeHtml(n.protocol)}</div></section>
+        <section class="details-section" data-detail-layer="network"><h3>Network path</h3><div class="detail-value">${escapeHtml(n.network)}</div></section>
+        <section class="details-section" data-detail-layer="security"><h3>TLS / authentication</h3><div class="detail-value">${escapeHtml(n.security)}</div></section>
+        <section class="details-section" data-detail-layer="standards"><h3>Related RFCs & specs</h3><div class="standard-list">${rfcHtml || '<span class="detail-value">No references mapped in this mock.</span>'}</div><p class="footer-note">References describe relevant standards; they do not assert conformance. RFC 8705 is specific to OAuth mTLS, not generic workload mTLS.</p></section>
+        <section class="details-section"><div class="evidence-note">Mock evidence: service-topology.json, docker-compose.yml, and checked-in Kubernetes configuration. Runtime state is not queried.</div></section>`;
+      updateLayers();
+    }
+    function applyFilter() {
+      const buttons = nodeRoot.querySelectorAll(".node");
+      let shown = 0;
+      buttons.forEach(button => {
+        const visible = state.filter === "all" || button.dataset.group === state.filter || (state.filter === "identity" && button.dataset.group === "trust") || (state.filter === "optional" && button.classList.contains("is-optional"));
+        button.classList.toggle("is-muted", !visible);
+        if (visible) shown++;
+      });
+      document.getElementById("service-count").textContent = `${shown} visible`;
+      document.querySelectorAll(".filter-button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.filter === state.filter)));
+      edges.forEach((e,i) => {
+        const from = nodeById[e.from], to = nodeById[e.to];
+        const visible = state.filter === "all" || from.group === state.filter || to.group === state.filter || (state.filter === "core" && (from.group === "core" || to.group === "core")) || (state.filter === "optional" && !!e.profile);
+        document.getElementById(`edge-${i}`)?.classList.toggle("is-hidden", !visible);
+        labelLayer.querySelector(`[data-edge="${i}"]`)?.classList.toggle("is-hidden", !visible);
+        securityLayer.querySelector(`[data-edge="${i}"]`)?.classList.toggle("is-hidden", !visible);
+      });
+    }
+    function updateLayers() {
+      document.querySelectorAll(".edge-label-group").forEach(el => {
+        const edge = edges[Number(el.dataset.edge)];
+        const text = state.activeLayer === "protocol" ? edge.protocol : state.activeLayer === "network" ? edge.network : state.activeLayer === "security" ? edge.security : [...(edge.rfcs || []).map(key=>RFC[key]?.id), ...(edge.specs || []).map(key=>SPECS[key]?.id)].filter(Boolean).join(" · ");
+        const textEl = el.querySelector("text");
+        const bg = el.querySelector("rect");
+        const label = text || edge.label;
+        const width = Math.max(74, Math.min(230, label.length * 5.7 + 14));
+        const x = Number(textEl.getAttribute("x"));
+        textEl.textContent = label.length > 36 ? `${label.slice(0, 33)}…` : label;
+        textEl.setAttribute("font-size", String(label.length > 30 ? 8 : 10));
+        bg.setAttribute("x", String(x-width/2)); bg.setAttribute("width",String(width));
+      });
+      securityLayer.querySelectorAll(".security-mark").forEach(el => el.classList.toggle("is-hidden", state.activeLayer !== "security"));
+      document.querySelectorAll("[data-layer]").forEach(button => button.setAttribute("aria-pressed", String(button.dataset.layer === state.activeLayer)));
+    }
+
+    document.querySelectorAll("[data-deployment]").forEach(button => button.addEventListener("click", () => {
+      state.deployment = button.dataset.deployment;
+      document.querySelectorAll("[data-deployment]").forEach(b => b.setAttribute("aria-pressed",String(b===button)));
+      const label = state.deployment === "local" ? "Local Docker" : "Hosted Kubernetes";
+      document.getElementById("deployment-label").textContent = label;
+      document.getElementById("canvas-deployment").textContent = state.deployment === "local" ? "Local Docker network" : "Kubernetes · ai-demo namespace";
+      renderNodes();
+      if (state.selectedEdge !== null) renderEdgeDetails(edges[state.selectedEdge]);
+      else selectNode(state.selected || "nodegw");
+    }));
+    document.querySelectorAll("[data-layer]").forEach(button => button.addEventListener("click", () => {
+      state.activeLayer = button.dataset.layer;
+      updateLayers();
+    }));
+    document.querySelectorAll("[data-filter]").forEach(button => button.addEventListener("click", () => {
+      state.filter = button.dataset.filter;
+      applyFilter();
+    }));
+
+    renderNodes();
+    renderEdges();
+    selectNode(state.selected);
+  </script>
+</body>
+</html>

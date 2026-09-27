@@ -21,6 +21,7 @@ import UnattendedRunsPanel from "./UnattendedRunsPanel";
 import SimpleStepperPanel from "./SimpleStepperPanel";
 import AgentFlowDiagramPanel from "./AgentFlowDiagramPanel";
 import SequenceReelDiagram from "./SequenceReelDiagram";
+import ServerTopologyStory from "./ServerTopologyStory";
 import CollapsibleStepDetail from "./CollapsibleStepDetail";
 import OAuthVisualizerPanel from "./OAuthVisualizerPanel";
 import ReasoningPanel from './ReasoningPanel';
@@ -151,6 +152,7 @@ const EVIDENCE_VIEW_OPTIONS = [
   { value: "simple-stepper", label: "Simple stepper", description: "Compact current step" },
   { value: "sequence-view", label: "Sequence view", description: "Actor-to-actor flow" },
   { value: "token-topology", label: "Token topology", description: "Delegation map" },
+  { value: "server-topology", label: "Server flow", description: "Sequence diagram and movie reel" },
   { value: "oauth-visualizer", label: "OAuth visualizer", description: "Protocol walkthrough" },
 ];
 
@@ -1243,6 +1245,16 @@ export default function BankingAgent({
   const [showTokenTopology, setShowTokenTopology] = useState(false); // dispatches token-topology-open; panel lives in App.js
   const [showInlineTokenTopology, setShowInlineTokenTopology] = useState(false);
   const [topologySurface, setTopologySurface] = useState(() => readStoredSurface("ba_token_topology_surface"));
+  const [serverTopologySurface, setServerTopologySurface] = useState(() => readStoredSurface("ba_server_topology_surface"));
+  const chooseServerTopologySurface = useCallback((surface) => {
+    const embedded = surface === "embedded" || surface === "both";
+    const popout = surface === "popout" || surface === "both";
+    setServerTopologySurface(surface);
+    try { localStorage.setItem("ba_server_topology_surface", surface); } catch {}
+    window.dispatchEvent(new CustomEvent("agent-server-topology-toggle", { detail: { on: embedded, surface } }));
+    if (popout) window.dispatchEvent(new CustomEvent("agent-server-topology-popout-open"));
+    else window.dispatchEvent(new CustomEvent("agent-server-topology-popout-close"));
+  }, []);
   const chooseTopologySurface = useCallback((surface) => {
     const embedded = surface === "embedded" || surface === "both";
     const popout = surface === "popout" || surface === "both";
@@ -1366,8 +1378,9 @@ export default function BankingAgent({
     { id: "simple-stepper", label: "Simple stepper", value: simpleStepperSurface, choose: chooseSimpleStepperSurface },
     { id: "sequence-view", label: "Sequence view", value: sequenceSurface, choose: chooseSequenceSurface },
     { id: "token-topology", label: "Token topology", value: topologySurface, choose: chooseTopologySurface },
+    { id: "server-topology", label: "Server flow", value: serverTopologySurface, choose: chooseServerTopologySurface },
     { id: "oauth-visualizer", label: "OAuth visualizer", value: oauthVisualizerSurface, choose: chooseOauthVisualizerSurface },
-  ]), [movieReelSurface, simpleStepperSurface, sequenceSurface, topologySurface, oauthVisualizerSurface, chooseMovieReelSurface, chooseSimpleStepperSurface, chooseSequenceSurface, chooseTopologySurface, chooseOauthVisualizerSurface]);
+  ]), [movieReelSurface, simpleStepperSurface, sequenceSurface, topologySurface, serverTopologySurface, oauthVisualizerSurface, chooseMovieReelSurface, chooseSimpleStepperSurface, chooseSequenceSurface, chooseTopologySurface, chooseServerTopologySurface, chooseOauthVisualizerSurface]);
   const embeddedEvidenceSurfaces = useMemo(
     () => evidenceSurfaceRows.filter((row) => surfaceHasEmbedded(row.value)),
     [evidenceSurfaceRows],
@@ -1452,6 +1465,13 @@ export default function BankingAgent({
       chooseSequenceSurface(withoutEmbeddedSurface(sequenceSurface));
       chooseOauthVisualizerSurface(withoutEmbeddedSurface(oauthVisualizerSurface));
       chooseTopologySurface(topologySurface === "none" ? "embedded" : topologySurface);
+    } else if (view === "server-topology") {
+      chooseMovieReelSurface(withoutEmbeddedSurface(movieReelSurface));
+      chooseSimpleStepperSurface(withoutEmbeddedSurface(simpleStepperSurface));
+      chooseSequenceSurface(withoutEmbeddedSurface(sequenceSurface));
+      chooseTopologySurface(withoutEmbeddedSurface(topologySurface));
+      chooseOauthVisualizerSurface(withoutEmbeddedSurface(oauthVisualizerSurface));
+      chooseServerTopologySurface(serverTopologySurface === "none" ? "embedded" : serverTopologySurface);
     } else if (view === "oauth-visualizer") {
       chooseMovieReelSurface(withoutEmbeddedSurface(movieReelSurface));
       chooseSimpleStepperSurface(withoutEmbeddedSurface(simpleStepperSurface));
@@ -1459,7 +1479,7 @@ export default function BankingAgent({
       chooseTopologySurface(withoutEmbeddedSurface(topologySurface));
       chooseOauthVisualizerSurface(oauthVisualizerSurface === "none" ? "embedded" : oauthVisualizerSurface);
     }
-  }, [chooseMovieReelSurface, chooseOauthVisualizerSurface, chooseSequenceSurface, chooseSimpleStepperSurface, chooseTopologySurface, movieReelSurface, oauthVisualizerSurface, sequenceSurface, simpleStepperSurface, topologySurface]);
+  }, [chooseMovieReelSurface, chooseOauthVisualizerSurface, chooseSequenceSurface, chooseSimpleStepperSurface, chooseTopologySurface, chooseServerTopologySurface, movieReelSurface, oauthVisualizerSurface, sequenceSurface, simpleStepperSurface, topologySurface, serverTopologySurface]);
 
   const [followSequenceFlow, setFollowSequenceFlow] = useState(() => {
     try {
@@ -10506,6 +10526,7 @@ export default function BankingAgent({
                                   </>
                                 )}
                                 {quickConfigView === "token-topology" && <SurfaceSelector id="topology-surface-select" label="Token topology" value={topologySurface} onChange={(e) => chooseEvidenceSurface("token-topology", e.target.value)} open={openSurfaceSelector === "topology-surface-select"} onToggle={setOpenSurfaceSelector} />}
+                                {quickConfigView === "server-topology" && <SurfaceSelector id="server-topology-surface-select" label="Server flow" value={serverTopologySurface} onChange={(e) => chooseEvidenceSurface("server-topology", e.target.value)} open={openSurfaceSelector === "server-topology-surface-select"} onToggle={setOpenSurfaceSelector} />}
                                 {quickConfigView === "oauth-visualizer" && <SurfaceSelector id="oauth-visualizer-surface-select" label="OAuth visualizer" value={oauthVisualizerSurface} onChange={(e) => chooseEvidenceSurface("oauth-visualizer", e.target.value)} open={openSurfaceSelector === "oauth-visualizer-surface-select"} onToggle={setOpenSurfaceSelector} />}
                               </div>
                             </>
@@ -11133,6 +11154,7 @@ export default function BankingAgent({
                           </>
                         )}
                         {quickConfigView === "token-topology" && <SurfaceSelector id="topology-surface-select" label="Token topology" value={topologySurface} onChange={(e) => chooseEvidenceSurface("token-topology", e.target.value)} open={openSurfaceSelector === "topology-surface-select"} onToggle={setOpenSurfaceSelector} />}
+                        {quickConfigView === "server-topology" && <SurfaceSelector id="server-topology-surface-select" label="Server flow" value={serverTopologySurface} onChange={(e) => chooseEvidenceSurface("server-topology", e.target.value)} open={openSurfaceSelector === "server-topology-surface-select"} onToggle={setOpenSurfaceSelector} />}
                         {quickConfigView === "oauth-visualizer" && <SurfaceSelector id="oauth-visualizer-surface-select" label="OAuth visualizer" value={oauthVisualizerSurface} onChange={(e) => chooseEvidenceSurface("oauth-visualizer", e.target.value)} open={openSurfaceSelector === "oauth-visualizer-surface-select"} onToggle={setOpenSurfaceSelector} />}
                           </div>
                         </>
@@ -13954,6 +13976,18 @@ export default function BankingAgent({
             <CollapsibleStepDetail step={selectedSequencePopoutStep} />
           </div>
         )}
+      </DraggableModal>
+      <DraggableModal
+        isOpen={serverTopologySurface === "popout" || serverTopologySurface === "both"}
+        onClose={() => chooseEvidenceSurface("server-topology", serverTopologySurface === "both" ? "embedded" : "none")}
+        title="Server flow"
+        defaultWidth={Math.min(1120, Math.max(680, window.innerWidth - 48))}
+        defaultHeight={Math.min(720, Math.max(440, window.innerHeight - 80))}
+        minWidth={560}
+        minHeight={360}
+        storageKey="server-topology-flow-popout"
+      >
+        <ServerTopologyStory />
       </DraggableModal>
       {(() => {
         // Copy + builder per modal kind. 'tool' filters are case-insensitive
