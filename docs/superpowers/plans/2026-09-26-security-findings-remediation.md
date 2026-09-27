@@ -48,7 +48,7 @@
 
 **Files:** `k8s/01-namespace.yaml` and/or a dedicated network-policy manifest applied by `k8s/aws/deploy.sh`.
 
-- [x] Map active MCP server callers from the hosted manifests and service topology: PingGateway, the in-cluster MCP gateway, and ingress-nginx for resource metadata.
+- [x] Map active MCP server callers from the hosted manifests and live shared-cluster labels: PingGateway, the in-cluster MCP gateway, and ingress-nginx-public for resource metadata (while retaining the local ingress-nginx peer).
 - [x] Retain legacy same-namespace traffic for other workloads while excluding `mcp-server` from the broad ingress policy.
 - [x] Apply a dedicated `mcp-server` policy allowing only the mapped callers on port 8080; preserve existing egress rules.
 - [x] Optional manual gateway `demo-mcpgw` is not installed by the hosted deploy script; document that it must be added if that changes.

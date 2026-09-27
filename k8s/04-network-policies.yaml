@@ -17,17 +17,21 @@ spec:
   - Egress
   ingress:
   - from:
-    - namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: ai-demo
+    # A podSelector without a namespaceSelector is scoped to this policy's
+    # namespace, including when the manifest is rewritten for shared SE.
+    - podSelector: {}
     - namespaceSelector:
         matchLabels:
           kubernetes.io/metadata.name: ingress-nginx
-  egress:
-  - to:
     - namespaceSelector:
         matchLabels:
-          kubernetes.io/metadata.name: ai-demo
+          kubernetes.io/metadata.name: ingress-nginx-public
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/role: ingress-nginx-public
+  egress:
+  - to:
+    - podSelector: {}
   # Preserve configured PingOne/provider access and the existing metadata exclusions.
   - to:
     - ipBlock:
@@ -63,6 +67,12 @@ spec:
     - namespaceSelector:
         matchLabels:
           kubernetes.io/metadata.name: ingress-nginx
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: ingress-nginx-public
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/role: ingress-nginx-public
     ports:
     - protocol: TCP
       port: 8080
@@ -80,9 +90,7 @@ spec:
       port: 8080
   egress:
   - to:
-    - namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: ai-demo
+    - podSelector: {}
   - to:
     - ipBlock:
         cidr: 0.0.0.0/0

@@ -20,7 +20,7 @@ The app has meaningful controls: the hosted admission gate is separate from appl
 
 **Confidence / false-positive notes:** high confidence in the manifest-level path. Impact depends on what MCP tools and credentials are enabled at runtime; this review did not exercise the deployed server.
 
-**Repository remediation:** `k8s/04-network-policies.yaml` excludes `mcp-server` from the namespace-wide same-namespace ingress rule and permits ingress only from PingGateway, the in-cluster MCP gateway, and the ingress controller needed for the protected-resource metadata endpoint. Both Kubernetes deploy scripts apply the policy. Existing broad network egress is retained. **Live observation 2026-09-27:** neither reviewed namespace has a namespaced NetworkPolicy, so this MCP protection is not currently active there. The shared cluster was not changed; CNI enforcement and MCP smoke behavior remain unverified.
+**Repository remediation:** `k8s/04-network-policies.yaml` uses same-namespace pod selectors so the policy also works in pre-created namespaces, excludes `mcp-server` from legacy same-namespace ingress, and permits MCP ingress only from PingGateway, the in-cluster MCP gateway, and the selected ingress controllers. The shared target's `ingress-nginx-public` controller is selected by its observed role label; the `ingress-nginx` peer remains for local deployments. Both Kubernetes deploy scripts apply the policy. Existing broad network egress is retained. **Live observation 2026-09-27:** neither reviewed namespace has a namespaced NetworkPolicy, so this MCP protection is not currently active there. The shared cluster was not changed; CNI enforcement and MCP smoke behavior remain unverified.
 
 ## Medium
 
