@@ -13,6 +13,7 @@ jest.mock('../../services/cibaService', () => ({
 jest.mock('../../services/cibaSimulatedService', () => ({
   initiateSimulated: jest.fn(),
   isSimulatedApproved: jest.fn(),
+  isLocalSimulationEnabled: jest.fn(() => true),
   SIMULATED_APPROVE_DELAY_MS: 7000,
 }));
 
