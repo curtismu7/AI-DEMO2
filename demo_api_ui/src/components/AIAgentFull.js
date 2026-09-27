@@ -74,7 +74,7 @@ import JsonField from "./shared/JsonField";
 import AgentGreetingHero from "./AgentGreetingHero";
 import AgentConsentModal from "./AgentConsentModal";
 import AgentDemoGuide from "./AgentDemoGuide";
-import DemoStepsDropdown, { readStoredDemoStepsOpen } from "./DemoStepsDropdown";
+import DemoStepsDropdown, { DemoStepsTrigger, readStoredDemoStepsOpen } from "./DemoStepsDropdown";
 import AdminToolsDropdown from "./AdminToolsDropdown";
 import { markUseCaseCompleted, clearCompletedUseCases } from "../utils/useCaseDemoProgress";
 import { requiredFlagsForUseCase } from "../utils/requiredDemoFlags";
@@ -479,6 +479,7 @@ export default function BankingAgentFull({
   const [showDiscovery, setShowDiscovery] = useState(false);
   /** Demo steps popout — same list as /use-cases Demo section. */
   const [showDemoSteps, setShowDemoSteps] = useState(readStoredDemoStepsOpen);
+  const [floatingDemoStepsOpen, setFloatingDemoStepsOpen] = useState(false);
   /** "direct" (today's BFF pipeline) or "privilege" (standalone Privilege AI
    * Gateway — no banking consent/HITL/kill-switch on this path). Shadows the
    * module-level `callMcpTool` import below for the rest of this component;
@@ -7933,6 +7934,7 @@ export default function BankingAgentFull({
   async function handleDemoStepSelect(uc, stepNumber, opts) {
     if (!uc) return;
     setShowDemoSteps(false);
+    setFloatingDemoStepsOpen(false);
     setShowDiscovery(false);
     if (launchIdJagDemoStep(uc)) return;
     if (isAgentBlockedByConsentDecline()) {
@@ -9684,6 +9686,29 @@ export default function BankingAgentFull({
       className={`banking-agent-float-root${distinctFloatingChrome && !isInline ? " banking-agent-float-root--distinct" : ""}`}
       data-agent-ui="floating"
     >
+      <DemoStepsDropdown
+        vertical={effectiveVerticalId || "banking"}
+        disabled={consentBlocked}
+        onStopAgentClick={onStopAgentClick}
+        open={showDemoSteps && (effectiveIsOpen || floatingDemoStepsOpen)}
+        persistOpenState={showDemoSteps}
+        showTrigger={false}
+        showFloatingButton={!isInline}
+        onOpenChange={(next) => {
+          setShowDemoSteps(next);
+          if (!next) setFloatingDemoStepsOpen(false);
+          if (next) setShowDiscovery(false);
+        }}
+        onFloatingOpen={() => {
+          setShowDemoSteps(true);
+          setFloatingDemoStepsOpen(true);
+          setShowDiscovery(false);
+        }}
+        onSelect={(uc, stepNumber, opts) => {
+          setIsOpen(true);
+          handleDemoStepSelect(uc, stepNumber, opts);
+        }}
+      />
       {/* FAB - only shown when floating agent is collapsed (not in inline mode) */}
       {!isInline && !isOpen && (
         <button
@@ -10209,17 +10234,13 @@ export default function BankingAgentFull({
                     shows ADMIN1-7 (forceVertical pingone-admin), which belongs
                     WITH the admin agent — the page strip carries the guided
                     Demo Track instead (2026-08-10 layout decision). */}
-                <DemoStepsDropdown
-                  vertical={effectiveVerticalId || "banking"}
+                <DemoStepsTrigger
+                  open={showDemoSteps && (effectiveIsOpen || floatingDemoStepsOpen)}
                   disabled={consentBlocked}
-                  onStopAgentClick={onStopAgentClick}
-                  open={showDemoSteps}
                   onOpenChange={(next) => {
                     setShowDemoSteps(next);
+                    if (!next) setFloatingDemoStepsOpen(false);
                     if (next) setShowDiscovery(false);
-                  }}
-                  onSelect={(uc, stepNumber, opts) => {
-                    handleDemoStepSelect(uc, stepNumber, opts);
                   }}
                 />
                 {/* Live Use-Case Workbench — same catalog, live/interactive mode */}
@@ -10291,7 +10312,10 @@ export default function BankingAgentFull({
                     open={showAdminTools}
                     onOpenChange={(next) => {
                       setShowAdminTools(next);
-                      if (next) setShowDemoSteps(false);
+                      if (next) {
+                        setShowDemoSteps(false);
+                        setFloatingDemoStepsOpen(false);
+                      }
                     }}
                     onSelect={handleAdminToolSelect}
                   />

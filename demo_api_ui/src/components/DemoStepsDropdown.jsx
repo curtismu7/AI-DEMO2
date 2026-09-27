@@ -1,11 +1,10 @@
 /**
- * DemoStepsDropdown — presenter script picker next to the agent Actions menu.
- * Primary trust-ladder steps are always listed; advanced demos sit in a
- * collapsed "More demos" group (CIBA, A2A, attack deep-dives).
- * Testing + Attacks are separate collapsed groups on the Actions popout.
+ * DemoStepsDropdown — presenter Mission Control list and floating launcher.
+ * The agent toolbar trigger is kept separate so the list can stay open while
+ * the agent panel is collapsed.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import FloatingPanel from './FloatingPanel';
 import {
   ADMIN_PRIMARY_USE_CASE_IDS,
   CIAM_AGENT_TYPE_USE_CASE_IDS,
@@ -29,7 +28,7 @@ import {
 
 const RAR_QUICK_RESULT_KEY = 'rar_intent_quick_result';
 const DEMO_STEPS_DRAWER_OPEN_KEY = 'demo_steps_drawer_open_v1';
-const DEMO_STEPS_DRAWER_WIDTH_KEY = 'demo_steps_drawer_width_v1';
+const DEMO_STEPS_FLOATING_BUTTON_POS_KEY = 'demo_steps_floating_button_pos_v1';
 const AGENT_TYPE_GROUP_ID = 'agent-types';
 const PRIVILEGE_GROUP_ID = 'privilege';
 
@@ -42,13 +41,123 @@ export function readStoredDemoStepsOpen() {
   }
 }
 
-function readStoredDrawerWidth() {
+function clampFloatingButtonPosition(x, y, width = 150, height = 48) {
+  const pad = 8;
+  return {
+    x: Math.min(Math.max(x, pad), Math.max(pad, window.innerWidth - width - pad)),
+    y: Math.min(Math.max(y, pad), Math.max(pad, window.innerHeight - height - pad)),
+  };
+}
+
+function readStoredFloatingButtonPosition() {
   try {
-    const width = Number(window.localStorage.getItem(DEMO_STEPS_DRAWER_WIDTH_KEY));
-    return Number.isFinite(width) ? Math.min(900, Math.max(360, width)) : 470;
+    const value = window.localStorage.getItem(DEMO_STEPS_FLOATING_BUTTON_POS_KEY);
+    const position = value ? JSON.parse(value) : null;
+    if (typeof position?.x !== 'number' || typeof position?.y !== 'number') return null;
+    return clampFloatingButtonPosition(position.x, position.y);
   } catch {
-    return 470;
+    return null;
   }
+}
+
+export function DemoStepsTrigger({ open = false, disabled = false, onOpenChange }) {
+  return (
+    <button
+      type="button"
+      className={`ba-demo-steps-trigger${open ? ' active' : ''}`}
+      title="Demo steps — same script as /use-cases Demo section"
+      onClick={() => { if (!disabled) onOpenChange(!open); }}
+      disabled={disabled}
+      aria-expanded={open}
+      aria-haspopup="dialog"
+      data-testid="demo-steps-trigger"
+    >
+      Demo steps
+    </button>
+  );
+}
+
+export function DemoStepsFloatingButton({ open = false, disabled = false, onOpen }) {
+  const [position, setPosition] = useState(readStoredFloatingButtonPosition);
+  const dragRef = useRef(null);
+  const justDraggedRef = useRef(false);
+
+  useEffect(() => {
+    if (!position) return undefined;
+    const onResize = () => setPosition((current) => current
+      ? clampFloatingButtonPosition(current.x, current.y)
+      : current);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [position]);
+
+  const handlePointerDown = useCallback((event) => {
+    if (event.button !== 0) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    dragRef.current = {
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: rect.left,
+      originY: rect.top,
+      moved: false,
+    };
+    try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* browser/jsdom edge */ }
+  }, []);
+
+  const handlePointerMove = useCallback((event) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    const dx = event.clientX - drag.startX;
+    const dy = event.clientY - drag.startY;
+    if (!drag.moved && Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
+    drag.moved = true;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const next = clampFloatingButtonPosition(drag.originX + dx, drag.originY + dy, rect.width, rect.height);
+    drag.originX += next.x - (drag.originX + dx);
+    drag.originY += next.y - (drag.originY + dy);
+    setPosition(next);
+    event.currentTarget.style.left = `${next.x}px`;
+    event.currentTarget.style.top = `${next.y}px`;
+    event.currentTarget.style.right = 'auto';
+    event.currentTarget.style.bottom = 'auto';
+  }, []);
+
+  const handlePointerUp = useCallback((event) => {
+    const drag = dragRef.current;
+    dragRef.current = null;
+    const rect = event.currentTarget.getBoundingClientRect();
+    try { event.currentTarget.releasePointerCapture?.(event.pointerId); } catch { /* browser/jsdom edge */ }
+    if (!drag?.moved) return;
+    justDraggedRef.current = true;
+    setTimeout(() => { justDraggedRef.current = false; }, 0);
+    const clamped = clampFloatingButtonPosition(rect.left, rect.top, rect.width, rect.height);
+    setPosition(clamped);
+    try {
+      window.localStorage.setItem(DEMO_STEPS_FLOATING_BUTTON_POS_KEY, JSON.stringify(clamped));
+    } catch { /* storage unavailable — position just won't persist */ }
+  }, []);
+
+  if (open) return null;
+
+  return (
+    <button
+      type="button"
+      className="ba-demo-steps-floating-trigger"
+      style={position ? { left: position.x, top: position.y, right: 'auto', bottom: 'auto' } : undefined}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onClick={() => { if (!disabled && !justDraggedRef.current) onOpen?.(); }}
+      disabled={disabled}
+      aria-expanded={open}
+      aria-haspopup="dialog"
+      aria-label="Open Demo steps"
+      title="Demo steps — drag to move; click to open"
+      data-testid="demo-steps-floating-trigger"
+    >
+      Demo steps
+    </button>
+  );
 }
 
 /** UC14b's toggle: quick chat result (default) vs. the full /intent-binding-learning page. */
@@ -68,6 +177,10 @@ function readRarQuickResult() {
  * @param {boolean} [props.open]
  * @param {(open: boolean) => void} props.onOpenChange
  * @param {(uc: object, stepNumber: number, opts?: {quickResult?: boolean}) => void} props.onSelect
+ * @param {boolean} [props.showTrigger]
+ * @param {boolean} [props.showFloatingButton]
+ * @param {boolean} [props.persistOpenState]
+ * @param {() => void} [props.onFloatingOpen]
  */
 export default function DemoStepsDropdown({
   vertical = 'banking',
@@ -76,8 +189,11 @@ export default function DemoStepsDropdown({
   onOpenChange,
   onSelect,
   onStopAgentClick,
+  showTrigger = true,
+  showFloatingButton = false,
+  persistOpenState = open,
+  onFloatingOpen,
 }) {
-  const triggerRef = useRef(null);
   const [primarySteps, setPrimarySteps] = useState([]);
   const [advancedSteps, setAdvancedSteps] = useState([]);
   const [ciamSteps, setCiamSteps] = useState([]);
@@ -90,8 +206,6 @@ export default function DemoStepsDropdown({
   const [tick, setTick] = useState(0);
   const [explainUc, setExplainUc] = useState(null);
   const [query, setQuery] = useState('');
-  const [drawerWidth, setDrawerWidth] = useState(readStoredDrawerWidth);
-  const resizeRef = useRef(null);
 
   // finding #77: a vertical switch while the panel is open re-issues this
   // fetch before the previous vertical's request resolves — a monotonic
@@ -168,53 +282,11 @@ export default function DemoStepsDropdown({
 
   useEffect(() => {
     try {
-      window.localStorage.setItem(DEMO_STEPS_DRAWER_OPEN_KEY, String(open));
-      window.localStorage.setItem(DEMO_STEPS_DRAWER_WIDTH_KEY, String(drawerWidth));
+      window.localStorage.setItem(DEMO_STEPS_DRAWER_OPEN_KEY, String(persistOpenState));
     } catch {
-      // Private browsing can reject storage; the drawer still works in memory.
+      // Private browsing can reject storage; the panel still works in memory.
     }
-  }, [drawerWidth, open]);
-
-  /** Toggle the right-side drawer from the existing agent toolbar. */
-  function handleToggle() {
-    if (disabled) return;
-    onOpenChange(!open);
-  }
-
-  /** Resize from the drawer's left edge and remember the presenter's width. */
-  function handleResizeStart(event) {
-    event.preventDefault();
-    event.stopPropagation();
-    const target = event.currentTarget;
-    const startWidth = drawerWidth;
-    const startX = event.clientX;
-    resizeRef.current = { startWidth, startX };
-    document.body.style.userSelect = 'none';
-    document.body.style.cursor = 'ew-resize';
-    if (target.setPointerCapture && event.pointerId != null) {
-      try { target.setPointerCapture(event.pointerId); } catch { /* jsdom/browser edge */ }
-    }
-    const onMove = (moveEvent) => {
-      const { startWidth: initialWidth, startX: initialX } = resizeRef.current || {};
-      if (!initialWidth) return;
-      const nextWidth = Math.min(
-        900,
-        Math.max(360, initialWidth + (initialX - moveEvent.clientX)),
-      );
-      setDrawerWidth(nextWidth);
-    };
-    const onEnd = () => {
-      resizeRef.current = null;
-      document.body.style.userSelect = '';
-      document.body.style.cursor = '';
-      target.removeEventListener('pointermove', onMove);
-      target.removeEventListener('pointerup', onEnd);
-      target.removeEventListener('pointercancel', onEnd);
-    };
-    target.addEventListener('pointermove', onMove);
-    target.addEventListener('pointerup', onEnd);
-    target.addEventListener('pointercancel', onEnd);
-  }
+  }, [persistOpenState]);
 
   /** Run a demo step and refresh checkmarks. */
   function handleSelect(uc, stepNumber) {
@@ -332,6 +404,9 @@ export default function DemoStepsDropdown({
   const showAdvanced = q ? filteredAdvanced.length > 0 : advancedOpen;
   const noMatches =
     q && filteredPrimary.length === 0 && filteredAdvanced.length === 0 && filteredCiam.length === 0 && filteredPrivilege.length === 0;
+  const panelWidth = Math.min(900, Math.max(320, window.innerWidth - 32));
+  const panelHeight = Math.min(820, Math.max(280, window.innerHeight - 72));
+  const panelX = Math.max(8, window.innerWidth - panelWidth - 24);
 
   /**
    * Render one demo-step card (box style matching Actions grid).
@@ -438,67 +513,57 @@ export default function DemoStepsDropdown({
 
   return (
     <>
-      <button
-        ref={triggerRef}
-        type="button"
-        className={`ba-demo-steps-trigger${open ? ' active' : ''}`}
-        title="Demo steps — same script as /use-cases Demo section"
-        onClick={handleToggle}
-        disabled={disabled}
-        aria-expanded={open}
-        aria-haspopup="dialog"
-        data-testid="demo-steps-trigger"
-      >
-        Demo steps
-      </button>
-      {open && createPortal(
-        // Keep the scrim outside FloatingPanel's stacking context so it can
-        // cover the Command Dock while remaining below the body-portaled drawer.
-        <div
-          className="ba-demo-steps-drawer__scrim"
-          aria-hidden="true"
-          onMouseDown={() => onOpenChange(false)}
-          data-testid="demo-steps-scrim"
-        />,
-        document.body,
+      {showTrigger && (
+        <DemoStepsTrigger
+          open={open}
+          disabled={disabled}
+          onOpenChange={onOpenChange}
+        />
       )}
-      {open && createPortal(
-        <aside
-          className="ba-demo-steps-drawer"
-          style={{ width: `${drawerWidth}px` }}
+      {showFloatingButton && (
+        <DemoStepsFloatingButton
+          open={open}
+          disabled={disabled}
+          onOpen={onFloatingOpen || (() => onOpenChange(true))}
+        />
+      )}
+      {open && (
+        <FloatingPanel
+          title="Demo Steps"
+          className="ba-demo-steps-float"
+          defaultWidth={panelWidth}
+          defaultHeight={panelHeight}
+          defaultX={panelX}
+          defaultY={64}
+          minWidth={320}
+          minHeight={240}
+          zIndex={100061}
           role="dialog"
           aria-label="Demo steps"
           aria-modal="false"
           data-testid="demo-steps-popout"
-          data-placement="right-overlay"
+          data-placement="floating"
         >
-          <button
-            type="button"
-            className="ba-demo-steps-drawer__resize"
-            onPointerDown={handleResizeStart}
-            aria-label="Resize Demo steps drawer"
-            title="Drag to resize"
-            data-testid="demo-steps-resize-handle"
-          />
+          <div className="ba-demo-steps-float__content">
           <div className="ba-demo-steps-popout__header">
             <div className="ba-demo-steps-popout__header-top">
               <div>
-                <div className="ba-demo-steps-drawer__kicker">Presenter mode</div>
-                <h2 className="ba-demo-steps-drawer__title">Mission Control</h2>
-                <p className="ba-demo-steps-drawer__subtitle">Run the trust story one proof at a time.</p>
+                <div className="ba-demo-steps-float__kicker">Presenter mode</div>
+                <h2 className="ba-demo-steps-float__title">Mission Control</h2>
+                <p className="ba-demo-steps-float__subtitle">Run the trust story one proof at a time.</p>
               </div>
               <button
                 type="button"
-                className="ba-demo-steps-drawer__close"
+                className="ba-demo-steps-float__close"
                 onClick={() => onOpenChange(false)}
                 aria-label="Close Demo steps"
                 data-testid="demo-steps-close"
               >
                 ✕
               </button>
-            </div>
-            {primarySteps.length > 0 && (
-              <div className="ba-demo-steps-drawer__progress-row">
+          </div>
+          {primarySteps.length > 0 && (
+              <div className="ba-demo-steps-float__progress-row">
                 <span
                   className={`ba-demo-steps-popout__progress${
                     completedCount === primarySteps.length
@@ -512,7 +577,7 @@ export default function DemoStepsDropdown({
                 <div className="ba-demo-steps-popout__track" aria-hidden="true">
                   <i style={{ width: `${progressPct}%` }} />
                 </div>
-                <span className="ba-demo-steps-drawer__time">12 min</span>
+                <span className="ba-demo-steps-float__time">12 min</span>
               </div>
             )}
             <div className="ba-demo-steps-popout__header-actions">
@@ -602,7 +667,7 @@ export default function DemoStepsDropdown({
               No steps match “{query.trim()}”.
             </p>
           )}
-          <div className="ba-demo-steps-drawer__body">
+          <div className="ba-demo-steps-float__body">
             <div className="ba-demo-steps-popout__group-filter" role="group" aria-label="Demo step groups">
               <button
                 type="button"
@@ -676,7 +741,7 @@ export default function DemoStepsDropdown({
                 </div>
               </section>
             )}
-            <div className="ba-demo-steps-drawer__act-heading">
+            <div className="ba-demo-steps-float__act-heading">
               <span>Act 1 / Establish the agent</span>
               <span>1 / 5</span>
             </div>
@@ -742,12 +807,8 @@ export default function DemoStepsDropdown({
               </section>
             )}
           </div>
-        </aside>,
-        // Portal to the main window's body: the drawer is position:fixed, so
-        // when the dock panel is popped out into its own window this would
-        // otherwise open inside that small pop-out — the presenter needs the
-        // steps drawer on the main window (2026-09-26).
-        document.body
+          </div>
+        </FloatingPanel>
       )}
       {/* Rendered outside the popout so the explanation survives the
           outside-pointerdown close. */}
