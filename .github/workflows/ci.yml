@@ -99,8 +99,8 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: demo_api_server/package.json
+          # Skip restoring the >1 GiB npm cache on this shared-runner gate.
+          package-manager-cache: false
       # Deps install FIRST. hygiene:check used to run against a bare checkout,
       # which worked only while every command in the chain was dependency-free.
       # 04487cdf appended `gen-intent-topology.js check`, and that one loads
@@ -156,8 +156,8 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: demo_api_server/package.json
+          # Shares the oversized npm cache with the gates job.
+          package-manager-cache: false
       - name: Install deps
         run: npm install --prefix demo_api_server --no-audit --no-fund
       - name: Run Jest suite
