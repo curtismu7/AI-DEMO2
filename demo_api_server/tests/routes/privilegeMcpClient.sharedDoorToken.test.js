@@ -87,7 +87,10 @@ describe('one sign-in covers every door on our own origin', () => {
     await signIn(DOOR_A);
 
     const res = await setDoor(app, GATEWAY_DOOR, 'privilege');
-    expect(res.body.oauth.authenticated).toBe(false);
+    // The Direct token remains in the shared slot for the gateway to reject if
+    // used, but the selected Privilege door has no matching grant.
+    expect(res.body.oauth.authenticated).toBe(true);
+    expect(res.body.oauth.destinationAuthenticated).toBe(false);
   });
 
   // The banking door was once excluded from the shared slot: it forwards the
