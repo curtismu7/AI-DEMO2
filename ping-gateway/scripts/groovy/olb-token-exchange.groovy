@@ -2,13 +2,14 @@
  * olb-token-exchange.groovy
  *
  * Exchange #3: exchanges the inbound gateway-scoped token (gateway:mcp:invoke)
- * for a backend OLB token (mcpserver.ping.demo / read) using client_secret_post.
+ * for a backend OLB token (mcpserver.ping.demo / read). PingOne credentials use
+ * client_secret_post; PF follows its configured standard-exchange auth method.
  *
  * MCP HTTP session lifecycle (per MCP spec):
  *   1. POST /mcp {"method":"initialize"} → receive Mcp-Session-Id
  *   2. Forward actual request with Mcp-Session-Id header
  *
- * On exchange failure: returns 401 {"error":"token_exchange_failed","pingone_error":"..."}.
+ * On exchange failure: returns a stable error category and HTTP status only.
  */
 
 import groovy.json.JsonSlurper
@@ -29,13 +30,27 @@ def pfIssuer        = System.getenv('PF_ISSUER_URI') ?: ''
 def pfTokenEndpoint = System.getenv('PF_TOKEN_ENDPOINT') ?: ''
 def pfTeClientId    = System.getenv('PF_TE_CLIENT_ID') ?: ''
 def pfTeClientSecret= System.getenv('PF_TE_CLIENT_SECRET') ?: ''
+def pfTeAuthMethod  = (System.getenv('PF_TE_AUTH_METHOD') ?: 'basic').toLowerCase()
+def pfExchangeConfigValid = {
+    if (!pfIssuer || !pfTokenEndpoint || !pfTeClientId || !pfTeClientSecret) return false
+    if (!(pfTeAuthMethod in ['basic', 'client_secret_basic', 'post', 'client_secret_post'])) return false
+    try {
+        def issuerUri = new java.net.URI(pfIssuer)
+        def endpointUri = new java.net.URI(pfTokenEndpoint)
+        return issuerUri.scheme?.equalsIgnoreCase('https') && endpointUri.scheme?.equalsIgnoreCase('https') &&
+            issuerUri.authority && issuerUri.authority == endpointUri.authority &&
+            !issuerUri.userInfo && !endpointUri.userInfo && endpointUri.path
+    } catch (Exception ignored) {
+        return false
+    }
+}
 def olbAudience     = System.getenv('PG_OLB_RESOURCE_URI') ?: ''
 def olbScope        = System.getenv('PG_OLB_SCOPE') ?: ''
 def mcpBaseUrl      = System.getenv('PG_OLB_BACKEND_URL') ?: 'http://mcp-server:8080'
 def mcpUrl          = mcpBaseUrl.replaceAll('/+$', '') + '/mcp'
 
 // ── Blocking HTTP helper (form-encoded) ──────────────────────────────────────
-def httpPostForm = { String url, String reqBody ->
+def httpPostForm = { String url, String reqBody, Map hdrs ->
     try {
         def conn = new URL(url).openConnection() as java.net.HttpURLConnection
         conn.requestMethod = 'POST'
@@ -43,6 +58,7 @@ def httpPostForm = { String url, String reqBody ->
         conn.connectTimeout = 5000
         conn.readTimeout = 10000
         conn.setRequestProperty('Content-Type', 'application/x-www-form-urlencoded')
+        hdrs.each { k, v -> conn.setRequestProperty(k as String, v as String) }
         conn.outputStream.withWriter('UTF-8') { it.write(reqBody) }
         def code = conn.responseCode
         def body = ''
@@ -179,54 +195,81 @@ def issuedToken
 // Forcing scope=mcp:invoke is WRONG — that name is also on mcpgateway.ping.demo,
 // so PingOne may return 200 with the WRONG aud (gateway) even with resource=
 // set. Node omits scope when subject∩mcpserver is empty; do the same here.
-// PF branch: subject_token_type must be id-jag when the subject is a PF id-jag
-// (access_token typing is rejected), and PF forbids id-jag→id-jag so the
-// requested type stays access_token.
+// PF access tokens and native ID-JAGs have different subject-token types. Read
+// the signed-token header only to identify the exact ID-JAG typ; the original
+// subject token is sent unchanged to the selected authorization server.
 def tokenIss = ''
+def subjectTyp = ''
 try {
     def h = authHeader.startsWith('Bearer ') ? authHeader.substring(7) : ''
     def p = h.split('\\.', -1)
-    if (p.length == 3) tokenIss = new JsonSlurper().parseText(new String(java.util.Base64.getUrlDecoder().decode(p[1]), 'UTF-8'))['iss'] ?: ''
+    if (p.length == 3) {
+        tokenIss = new JsonSlurper().parseText(new String(java.util.Base64.getUrlDecoder().decode(p[1]), 'UTF-8'))['iss'] ?: ''
+        subjectTyp = new JsonSlurper().parseText(new String(java.util.Base64.getUrlDecoder().decode(p[0]), 'UTF-8'))['typ'] ?: ''
+    }
 } catch (Exception ignored) {}
-def isPfSubject = pfIssuer && pfTokenEndpoint && tokenIss == pfIssuer
+def isPfSubject = pfIssuer && tokenIss == pfIssuer
+if (isPfSubject && !pfExchangeConfigValid()) {
+    logger.warn('[OlbExchange] PF Exchange #3 is not configured')
+    def errResp = new Response(Status.SERVICE_UNAVAILABLE)
+    errResp.headers.put('Content-Type', ['application/json'])
+    errResp.entity.setString('{"error":"pf_exchange_not_configured"}')
+    return Promises.newResultPromise(errResp)
+}
 def exEndpoint  = isPfSubject ? pfTokenEndpoint : tokenEndpoint
-def exClientId  = isPfSubject ? (pfTeClientId ?: teClientId) : teClientId
-def exClientSecret = isPfSubject ? (pfTeClientSecret ?: teClientSecret) : teClientSecret
+def exClientId  = isPfSubject ? pfTeClientId : teClientId
+def exClientSecret = isPfSubject ? pfTeClientSecret : teClientSecret
+def subjectType = (isPfSubject && subjectTyp == 'oauth-id-jag+jwt')
+    ? 'urn:ietf:params:oauth:token-type:id-jag'
+    : 'urn:ietf:params:oauth:token-type:access_token'
 def params = [
     'grant_type'           : 'urn:ietf:params:oauth:grant-type:token-exchange',
     'subject_token'        : subjectToken,
-    'subject_token_type'   : (isPfSubject ? 'urn:ietf:params:oauth:token-type:id-jag' : 'urn:ietf:params:oauth:token-type:access_token'),
+    'subject_token_type'   : subjectType,
     'requested_token_type' : 'urn:ietf:params:oauth:token-type:access_token',
-    'resource'             : olbAudience,
     'client_id'            : exClientId,
     'client_secret'        : exClientSecret,
 ]
+// PingOne uses RFC 8707 resource selection. PF derives output audiences from
+// its configured processor policy; the readiness runner verifies that audience.
+if (!isPfSubject) params['resource'] = olbAudience
 if (olbScope?.trim()) {
     params['scope'] = olbScope.trim()
+}
+def exchangeHeaders = [:]
+if (isPfSubject && pfTeAuthMethod in ['basic', 'client_secret_basic']) {
+    params.remove('client_id')
+    params.remove('client_secret')
+    def basic = java.util.Base64.getEncoder().encodeToString((exClientId + ':' + exClientSecret).getBytes('UTF-8'))
+    exchangeHeaders['Authorization'] = 'Basic ' + basic
 }
 def formBody = params.collect { k, v ->
     java.net.URLEncoder.encode(k, 'UTF-8') + '=' + java.net.URLEncoder.encode(v as String, 'UTF-8')
 }.join('&')
 
-logger.info('[OlbExchange] REQUEST → ' + exEndpoint + ' resource=' + olbAudience + ' scope=' + (olbScope?.trim() ?: '(omit)'))
-def exchangeResp = httpPostForm(exEndpoint, formBody)
+logger.info('[OlbExchange] REQUEST → ' + exEndpoint + ' resource=' + (isPfSubject ? '(policy-derived)' : olbAudience) + ' scope=' + (olbScope?.trim() ?: '(omit)'))
+def exchangeResp = httpPostForm(exEndpoint, formBody, exchangeHeaders)
 logger.info('[OlbExchange] RESPONSE HTTP ' + exchangeResp.code)
 
 if (exchangeResp.code != 200) {
-    logger.warn('[OlbExchange] Exchange FAILED HTTP ' + exchangeResp.code + ' body=' + exchangeResp.body)
+    logger.warn('[OlbExchange] Exchange failed HTTP ' + exchangeResp.code + ' provider=' + (isPfSubject ? 'pingfederate' : 'pingone'))
     def errResp = new Response(Status.UNAUTHORIZED)
     errResp.headers.put('Content-Type', ['application/json'])
-    def pingOneError = [:]
-    try { pingOneError = new JsonSlurper().parseText(exchangeResp.body ?: '{}') } catch (Exception ignored) {}
     errResp.entity.setString(JsonOutput.toJson([
-        error         : 'token_exchange_failed',
-        http_status   : exchangeResp.code,
-        pingone_error : pingOneError,
+        error       : 'token_exchange_failed',
+        http_status : exchangeResp.code,
     ]))
     return Promises.newResultPromise(errResp)
 }
 
-def exchangeParsed = new JsonSlurper().parseText(exchangeResp.body ?: '{}')
+def exchangeParsed = [:]
+try { exchangeParsed = new JsonSlurper().parseText(exchangeResp.body ?: '{}') } catch (Exception ignored) {
+    logger.warn('[OlbExchange] Exchange returned an invalid response HTTP ' + exchangeResp.code)
+    def errResp = new Response(Status.BAD_GATEWAY)
+    errResp.headers.put('Content-Type', ['application/json'])
+    errResp.entity.setString(JsonOutput.toJson([error: 'invalid_token_exchange_response', http_status: exchangeResp.code]))
+    return Promises.newResultPromise(errResp)
+}
 issuedToken = exchangeParsed?.access_token as String
 
 if (!issuedToken) {
@@ -259,10 +302,10 @@ def initResp = httpPostJson(mcpUrl, initBody, initHdrs)
 logger.info('[OlbExchange] MCP initialize response HTTP ' + initResp.code)
 
 if (initResp.code != 200) {
-    logger.warn('[OlbExchange] MCP initialize FAILED: ' + initResp.body)
+    logger.warn('[OlbExchange] MCP initialize failed HTTP ' + initResp.code)
     def errResp = new Response(Status.BAD_GATEWAY)
     errResp.headers.put('Content-Type', ['application/json'])
-    errResp.entity.setString(JsonOutput.toJson([error: 'mcp_initialize_failed', http_status: initResp.code, detail: initResp.body]))
+    errResp.entity.setString(JsonOutput.toJson([error: 'mcp_initialize_failed', http_status: initResp.code]))
     return Promises.newResultPromise(errResp)
 }
 
@@ -276,7 +319,6 @@ if (!sessionId) {
     errResp.entity.setString('{"error":"no_mcp_session_id"}')
     return Promises.newResultPromise(errResp)
 }
-logger.info('[OlbExchange] MCP session established: ' + sessionId)
 
 // ── Forward tool call directly via httpPostJson (bypasses ReverseProxyHandler) ─
 // reason: request.entity can be consumed by upstream filters (McpValidation,
@@ -284,7 +326,7 @@ logger.info('[OlbExchange] MCP session established: ' + sessionId)
 // empty body, causing the MCP server to return a parse error wrapped as 403.
 def rawBody = ''
 try { rawBody = request.entity.string ?: '' } catch (Exception ignored) {}
-logger.info('[OlbExchange] Forwarding tool call directly session=' + sessionId + ' body_len=' + rawBody.length())
+logger.info('[OlbExchange] Forwarding MCP tool request body_len=' + rawBody.length())
 
 def toolHdrs = [
     'Content-Type'        : 'application/json',
@@ -294,8 +336,7 @@ def toolHdrs = [
     'mcp-session-id'      : sessionId,
 ]
 def toolResp = httpPostJson(mcpUrl, rawBody, toolHdrs)
-logger.info('[OlbExchange] MCP direct response HTTP ' + toolResp.code
-    + ' body_preview=' + (toolResp.body?.take(200) ?: '(empty)'))
+logger.info('[OlbExchange] MCP direct response HTTP ' + toolResp.code)
 
 // Build IG response from MCP server result. Forward the MCP server's own status so
 // 4xx semantics (e.g. a 403 auth/HITL challenge) reach the BFF intact rather than
@@ -304,5 +345,22 @@ logger.info('[OlbExchange] MCP direct response HTTP ' + toolResp.code
 def igStatus = (toolResp.code > 0) ? Status.valueOf(toolResp.code) : Status.BAD_GATEWAY
 def finalResp = new Response(igStatus)
 finalResp.headers.put('Content-Type', ['application/json'])
-if (toolResp.body) finalResp.entity.setString(toolResp.body)
+if (toolResp.code == 200 && toolResp.body) {
+    def safeBody = toolResp.body
+    try {
+        def parsedBody = new JsonSlurper().parseText(toolResp.body)
+        if (parsedBody?.error) {
+            safeBody = JsonOutput.toJson([
+                jsonrpc: parsedBody.jsonrpc ?: '2.0',
+                id: parsedBody.id,
+                error: [code: -32603, message: 'mcp_tool_call_failed'],
+            ])
+        }
+    } catch (Exception ignored) {
+        safeBody = JsonOutput.toJson([error: 'mcp_tool_call_failed'])
+    }
+    finalResp.entity.setString(safeBody)
+} else if (toolResp.code != 200) {
+    finalResp.entity.setString(JsonOutput.toJson([error: 'mcp_tool_call_failed', http_status: toolResp.code]))
+}
 return Promises.newResultPromise(finalResp)

@@ -44,6 +44,20 @@
       "configurationOnly": true,
       "operation": "Use the approved local or hosted release process"
     },
+    "pinggateway-local-pf-exchange3-environment": {
+      "sourceOfTruth": "demo_api_server PF environment, including standard exchanger auth method, and scripts/refresh-service-envs.js",
+      "readback": "Generated ping-gateway/.env presence/auth-method checks and loaded Gateway config fingerprint; never record secret values",
+      "repairMode": "release-only",
+      "configurationOnly": true,
+      "operation": "Regenerate through the approved local release workflow; readiness may not write the generated file or restart Gateway until a safe in-process adapter is proven"
+    },
+    "pinggateway-hosted-pf-exchange3-environment": {
+      "sourceOfTruth": "Committed PF environment/auth mapping and hosted Gateway profile",
+      "readback": "Read-only hosted Gateway runtime config/auth fingerprint and PF route checks",
+      "repairMode": "release-only",
+      "configurationOnly": true,
+      "operation": "Audit only; never mutate or deploy hosted SE configuration from readiness"
+    },
     "pingfederate-standard-exchange": {
       "sourceOfTruth": "Committed PingFederate profile/provisioning contract and REGRESSION_PLAN.md",
       "readback": "Provider-specific login, token exchange, issuer/JWKS validation, audience, and scope evidence",
@@ -140,11 +154,11 @@
     },
     "pingfederate-standard": {
       "sourceCodeChanges": "never",
-      "configurationDependencies": ["pingfederate-standard-exchange", "authorize-policy-definition", "agent-gateway-runtime-config"]
+      "configurationDependencies": ["pingfederate-standard-exchange", "authorize-policy-definition", "agent-gateway-runtime-config", "pinggateway-local-pf-exchange3-environment", "pinggateway-hosted-pf-exchange3-environment"]
     },
     "pingfederate-a2a": {
       "sourceCodeChanges": "never",
-      "configurationDependencies": ["pingfederate-a2a-runtime", "pingone-scope-addition", "authorize-policy-definition", "agent-gateway-runtime-config"]
+      "configurationDependencies": ["pingfederate-a2a-runtime", "pingone-scope-addition", "authorize-policy-definition", "agent-gateway-runtime-config", "pinggateway-local-pf-exchange3-environment", "pinggateway-hosted-pf-exchange3-environment"]
     },
     "pingfederate-native-id-jag": {
       "sourceCodeChanges": "never",

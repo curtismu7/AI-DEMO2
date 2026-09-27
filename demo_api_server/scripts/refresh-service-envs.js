@@ -991,6 +991,13 @@ async function main(deps = {}) {
     PINGONE_INTROSPECTION_ENDPOINT: `${asBase}/introspect`,
     PINGONE_ISSUER_URI:             `${asBase}`,
     PINGONE_TOKEN_ENDPOINT:         `${asBase}/token`,
+    // PingFederate Exchange #3 is a separate issuer, endpoint, and exchanger.
+    // Do not fall back to the PingOne TE credentials when any PF value is empty.
+    PF_ISSUER_URI:                  fb('PF_ISSUER') || fb('PF_ISSUER_URI'),
+    PF_TOKEN_ENDPOINT:              fb('PF_TOKEN_ENDPOINT'),
+    PF_TE_CLIENT_ID:                fb('PF_STANDARD_TOKEN_EXCHANGE_CLIENT_ID'),
+    PF_TE_CLIENT_SECRET:            fb('PF_STANDARD_TOKEN_EXCHANGE_CLIENT_SECRET'),
+    PF_TE_AUTH_METHOD:              fb('PF_STANDARD_TOKEN_EXCHANGE_TOKEN_ENDPOINT_AUTH_METHOD') || 'basic',
     INTROSPECT_CLIENT_ID:           creds.mcpExchangerClientId,
     INTROSPECT_CLIENT_SECRET:       creds.mcpExchangerSecret,
     // McpProtectionFilter.resourceId — the aud the inbound MCP token must carry.
