@@ -87,6 +87,10 @@ For each target:
 - For chip and attack steps, assert the catalog outcome and evidence; for Admin1–Admin12, assert the expected PingOne MCP operation and response; for page/panel steps, assert the declared route or panel loads with its required configuration; and for UC2.5, verify the A2A orchestration path.
 - Execute UC40 through the native PingFederate ID-JAG path.
 - For PingFederate steps that perform an exchange, assert the expected standard exchange path and absence of native ID-JAG provenance except UC40.
+- For local PingGateway MCP calls under a PingFederate session, assert that the
+  token issuer selects PF JWKS validation at the configured PF JWKS URL and that
+  Exchange #3 completes at PF; PingOne-session rows retain the existing PingOne
+  validation path.
 
 A row passes when the observed behavior matches the catalog's declared expectation. Expected denials, consent or HITL pauses, step-up results, and other intentional outcomes count as passes when the correct outcome and evidence are observed; success does not mean every call must be permitted.
 
