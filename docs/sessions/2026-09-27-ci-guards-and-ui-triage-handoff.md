@@ -8,6 +8,9 @@ handoffs left open, what was done, and what remains.
 Privilege demo work on top of mine; no overlap). Working tree: only
 step-verification ledger churn + session scratch — nothing of mine outstanding.
 
+This is a point-in-time handoff. The later 2026-09-27 CI revival updates are
+summarized in §9; use those notes for the current disposition of open items.
+
 ---
 
 ## 1. What was merged this session (my PRs)
@@ -102,7 +105,7 @@ hook only guards `git commit`; direct `git push` of an already-made commit
 slips past it. **When working here: verify `git branch --show-current` before
 every commit AND push.**
 
-## 6. Remaining work (ordered)
+## 6. Remaining work at handoff time (ordered; see §9 for later status)
 
 1. **`OAuthProviderToggle.idJagReset.test.jsx`** — fix the known failure
    (dock work broke it 09-26; likely a selector/mock update).
@@ -168,3 +171,34 @@ launchctl start actions.runner.cmuir_pingcorp-AI-DEMO2.cmuir-dev-mac
   `npm install` in the service before assuming a toolchain problem.
 - `npm run build` must be run from `demo_api_ui/`, not repo root (root has no
   build script; a bare `npm run build` error at root is cwd, not breakage).
+
+## 9. Follow-up from later 2026-09-27 sessions
+
+This section updates the operational status in §6 and the full-suite snapshot
+in §7. See [CI Revival — Final Status](2026-09-27-ci-revival-final-status.md)
+and [CI Revival — Status Handoff](2026-09-27-ci-green-status.md) for the run
+IDs, timestamps, and supporting detail.
+
+- **Main CI completion remains unverified.** The later status notes record no
+  completed, uncancelled main run. Cancelled or checkout-failed jobs did not
+  reach test steps, so they prove neither a test failure nor a pass. Let queued
+  PR runs drain, then watch one main run through completion and record its
+  required-check results. Keep image-build and scheduled live-canary outcomes
+  separate from the CI test workflow.
+- **The UI failure count in §7 is historical.** PR #353 fixed four real
+  failures from that run. Later notes still report an intermittent
+  `createCitationResolver` timeout and a full-suite hang from stray Vitest
+  workers. They do not record a resolution for
+  `OAuthProviderToggle.idJagReset.test.jsx`; the single-fork DOM bleed also
+  remains test-infrastructure debt. Rerun these surfaces before treating the
+  older failure list as current.
+- **The UC40 key-resolution blocker is resolved in the later handoff.**
+  [UC40-PF-IDJAG-SESSION-HANDOFF.md](../../UC40-PF-IDJAG-SESSION-HANDOFF.md)
+  records a live two-exchange/API run with 13 token-chain events and explains
+  that the `UnresolvableKeyException` came from using an ID token in test data.
+  A browser-level UC40 run remains unverified; the downstream
+  `gw-backend-exchange: deny` hop is listed there as non-blocking.
+- **Provider state still needs a live check.** The later UC40 handoff reports
+  local PingFederate config while `.demo-provider-intent.json` specifies
+  `pingone`. Run `npm run demo:provider-verify` before relying on the active
+  provider value.

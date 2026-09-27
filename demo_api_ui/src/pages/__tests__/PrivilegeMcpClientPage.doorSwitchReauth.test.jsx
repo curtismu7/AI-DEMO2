@@ -19,10 +19,10 @@
 // POST /config already answers `oauth: { authenticated }` for the DESTINATION
 // key. These tests pin that both switchers act on it.
 //
-// A Privilege door has its own OAuth grant. When the current door has a valid
-// Gateway session, switching to an unconnected door should silently authorize
-// that destination and fetch its tools after the callback. Direct/Façade keep
-// their explicit Sign in affordance because their broker flow is different.
+// A Privilege door has its own OAuth grant. When the current app or Gateway
+// session is valid, switching to an unconnected door or path should silently
+// authorize that destination and fetch its tools after the callback. Every path
+// still receives its own grant from its own authorization server.
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import PrivilegeMcpClientPage from "../PrivilegeMcpClientPage";
@@ -47,9 +47,11 @@ function mockGateway({
   gatewayMode = "direct",
   mcpUrl = DOOR_A,
   configAuthenticated = false,
+  configDestinationAuthenticated = configAuthenticated,
   initialOAuthAuthenticated = true,
   mainAppAuthenticated = true,
   silentPromptAvailable = true,
+  authStartError = null,
   listedTools = [],
 }) {
   global.fetch = vi.fn((url, opts) => {
@@ -89,10 +91,14 @@ function mockGateway({
           privilege: { mcpUrl: PRIV_DOOR },
           facade: { mcpUrl: DOOR_A },
         },
-        oauth: { authenticated: configAuthenticated },
+        oauth: {
+          authenticated: configAuthenticated,
+          destinationAuthenticated: configDestinationAuthenticated,
+        },
       });
     }
     if (u.endsWith("/api/privilege-mcp/auth/start") && opts?.method === "POST") {
+      if (authStartError) return Promise.reject(new Error(authStartError));
       return json({ authUrl: silentPromptAvailable ? `${AUTH_URL}&prompt=none` : AUTH_URL });
     }
     if (u.endsWith("/api/privilege-mcp/tools/list") && opts?.method === "POST") {
@@ -145,7 +151,8 @@ describe("Privilege client — re-auth on switch", () => {
     mockGateway({
       gatewayMode: "privilege",
       mcpUrl: PRIV_DOOR,
-      configAuthenticated: false,
+      configAuthenticated: true,
+      configDestinationAuthenticated: false,
       initialOAuthAuthenticated: true,
       mainAppAuthenticated: false,
     });
@@ -234,19 +241,62 @@ describe("Privilege client — re-auth on switch", () => {
     expect(window.location.href).toBe("");
   });
 
-  // Direct is not exempt: every direct door is a façade door with requireBearer
-  // (mcpFacade.js DOORS), so a path switch into Direct really does need its own
-  // credential — it just asks for one instead of taking the browser there.
-  it("offers Sign in — and does NOT navigate — after switching the path to Direct", async () => {
-    mockGateway({ gatewayMode: "privilege", mcpUrl: PRIV_DOOR, configAuthenticated: false });
+  // Direct needs its own broker token, but the existing app session can satisfy
+  // the authorization silently. Selecting a path is the user's explicit action
+  // that permits the OAuth round trip.
+  it("silently authorizes Direct from the active app session after a path switch", async () => {
+    mockGateway({
+      gatewayMode: "privilege",
+      mcpUrl: PRIV_DOOR,
+      configAuthenticated: true,
+      configDestinationAuthenticated: false,
+    });
     renderPage();
 
     const path = await screen.findByLabelText("Connection path");
     fireEvent.change(path, { target: { value: "direct" } });
 
     await waitFor(() => expect(callsTo("config")).toHaveLength(1));
-    await waitFor(() => expect(screen.getByRole("button", { name: /sign in/i })).toBeTruthy());
+    await waitFor(() => expect(callsTo("auth/start")).toHaveLength(1));
+    expect(window.location.href).toBe(`${AUTH_URL}&prompt=none`);
+    expect(sessionStorage.getItem(SILENT_DOOR_SWITCH_KEY)).toBe("1");
+  });
+
+  it("keeps manual sign-in for Direct when there is no reusable session", async () => {
+    mockGateway({
+      gatewayMode: "privilege",
+      mcpUrl: PRIV_DOOR,
+      configAuthenticated: false,
+      initialOAuthAuthenticated: false,
+      mainAppAuthenticated: false,
+    });
+    renderPage();
+
+    const path = await screen.findByLabelText("Connection path");
+    fireEvent.change(path, { target: { value: "direct" } });
+
+    await waitFor(() => expect(callsTo("config")).toHaveLength(1));
     expect(callsTo("auth/start")).toHaveLength(0);
     expect(window.location.href).toBe("");
+    expect(await screen.findByRole("button", { name: /sign in/i })).toBeTruthy();
+  });
+
+  it("keeps the selected path and offers manual retry if silent auth cannot start", async () => {
+    mockGateway({
+      gatewayMode: "privilege",
+      mcpUrl: PRIV_DOOR,
+      configAuthenticated: true,
+      configDestinationAuthenticated: false,
+      authStartError: "authorization server unavailable",
+    });
+    renderPage();
+
+    const path = await screen.findByLabelText("Connection path");
+    fireEvent.change(path, { target: { value: "direct" } });
+
+    await waitFor(() => expect(callsTo("auth/start")).toHaveLength(1));
+    await waitFor(() => expect(path.value).toBe("direct"));
+    expect(callsTo("config")).toHaveLength(1);
+    expect(await screen.findByRole("heading", { name: "Sign in to the gateway" })).toBeTruthy();
   });
 });
