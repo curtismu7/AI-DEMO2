@@ -126,16 +126,38 @@ function authorizationContractFor(step, sources, issues, useCaseId, vertical) {
   const scopeResources = requiredScopes.map((scope) => {
     const canonicalScope = topology.aliases?.[scope] || scope;
     const definition = topology.scopes?.[canonicalScope];
+    const gatewayCanonicalScope = gatewayTopology.aliases?.[scope] || scope;
+    const gatewayDefinition = gatewayTopology.scopes?.[gatewayCanonicalScope];
     if (!definition) {
       pushIssue(issues, `${useCaseId} ${vertical} tool ${toolName} requires undeclared scope ${scope}`);
-      return { scope, canonicalScope, resource: null, audience: null };
     }
-    const resourceName = definition.resource || null;
+    if (!gatewayDefinition) {
+      pushIssue(issues, `${useCaseId} ${vertical} tool ${toolName} requires undeclared scope ${scope} in Agent Gateway topology`);
+    }
+
+    const resourceName = definition?.resource || null;
     const resource = resourceName ? topology.resources?.[resourceName] : null;
     if (!resource || !resource.uri) {
       pushIssue(issues, `${useCaseId} ${vertical} scope ${scope} has no resource audience in scope-topology.json`);
     } else if (!Array.isArray(resource.scopes) || !resource.scopes.includes(canonicalScope)) {
       pushIssue(issues, `${useCaseId} ${vertical} resource ${resourceName} does not register scope ${canonicalScope}`);
+    }
+    const gatewayResourceName = gatewayDefinition?.resource || null;
+    const gatewayResource = gatewayResourceName ? gatewayTopology.resources?.[gatewayResourceName] : null;
+    if (!gatewayResource || !gatewayResource.uri) {
+      pushIssue(issues, `${useCaseId} ${vertical} scope ${scope} has no resource audience in Agent Gateway topology`);
+    } else if (!Array.isArray(gatewayResource.scopes) || !gatewayResource.scopes.includes(gatewayCanonicalScope)) {
+      pushIssue(issues, `${useCaseId} ${vertical} Agent Gateway resource ${gatewayResourceName} does not register scope ${gatewayCanonicalScope}`);
+    }
+
+    if (definition && gatewayDefinition && canonicalScope !== gatewayCanonicalScope) {
+      pushIssue(issues, `${useCaseId} ${vertical} scope ${scope} resolves to different canonical scopes in Agent Gateway topology`);
+    }
+    if (definition && gatewayDefinition && resourceName !== gatewayResourceName) {
+      pushIssue(issues, `${useCaseId} ${vertical} scope ${scope} has different resource names in Agent Gateway topology`);
+    }
+    if (resource?.uri && gatewayResource?.uri && resource.uri !== gatewayResource.uri) {
+      pushIssue(issues, `${useCaseId} ${vertical} scope ${scope} has different resource audience in Agent Gateway topology`);
     }
     return {
       scope,

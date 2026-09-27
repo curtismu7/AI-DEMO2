@@ -175,6 +175,29 @@ describe('demo readiness catalog', () => {
     expect(uc25.runtimeVerticalGroups).toHaveLength(11);
   });
 
+  test('keeps UC2.6 vertical groups separate when their tool or Authorize-group contract differs', () => {
+    const uc26 = buildDemoReadinessCatalog().find((row) => row.id === 'UC2.6');
+    const groupByVertical = new Map(uc26.runtimeVerticalGroups.flatMap((group) =>
+      group.verticals.map((vertical) => [vertical, group]),
+    ));
+
+    expect([...groupByVertical.keys()]).toEqual(uc26.verticals);
+    for (const vertical of uc26.verticals) {
+      const group = groupByVertical.get(vertical);
+      expect(group.verticals).toEqual([vertical]);
+      expect(group.expectedBehavior).toEqual(uc26.expectedBehaviorByVertical[vertical]);
+      expect(group.authorizationContract).toEqual(uc26.authorizationContractByVertical[vertical]);
+    }
+
+    expect(uc26.expectedBehaviorByVertical.retail.primaryTool)
+      .toBe(uc26.expectedBehaviorByVertical['abercrombie-fitch'].primaryTool);
+    expect(groupByVertical.get('retail').authorizationContract.authorizeToolGroup.groupName)
+      .toBe('Retail_PremiumTier');
+    expect(groupByVertical.get('abercrombie-fitch').authorizationContract.authorizeToolGroup.groupName)
+      .toBe('AbercrombieFitch_PremiumTier');
+    expect(groupByVertical.get('retail')).not.toBe(groupByVertical.get('abercrombie-fitch'));
+  });
+
   test('keeps required flags, A2A credentials, and PAR prerequisites with each vertical case', () => {
     const rows = new Map(buildDemoReadinessCatalog().map((row) => [row.id, row]));
 
@@ -193,6 +216,13 @@ describe('demo readiness catalog', () => {
     changed.gatewayScopeTopology.tools.get_account_balance.requiredScopes = ['write'];
 
     expect(() => validateDemoReadinessCatalog(changed)).toThrow(/UC1 banking tool get_account_balance has different required scopes/);
+  });
+
+  test('rejects Gateway resource audience drift for a scope used by a Demo Steps tool', () => {
+    const changed = structuredClone(loadDemoReadinessSources());
+    changed.gatewayScopeTopology.resources['Super Banking API'].uri = 'gateway-drift.ping.demo';
+
+    expect(() => validateDemoReadinessCatalog(changed)).toThrow(/UC1 banking scope read has different resource audience in Agent Gateway topology/);
   });
 
   test('maps Admin1–12 to their expected PingOne MCP actions', () => {
