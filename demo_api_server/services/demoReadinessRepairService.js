@@ -76,7 +76,7 @@ function sourceContractFor(change, classification, sourceReaders) {
   if (typeof reader !== 'function') return { error: 'declared source contract reader is unavailable' };
   const contract = reader({ target: change.target, objectId: change.object?.id, repairClass: change.repairClass });
   if (!contract || typeof contract.then === 'function') return { error: 'declared source contract reader did not return a synchronous contract' };
-  if (!contract.object || typeof contract.object.id !== 'string' || !contract.expected || !contract.sourceRef || !contract.operation) {
+  if (!contract.object || typeof contract.object.id !== 'string' || typeof contract.expected === 'undefined' || !contract.sourceRef || !contract.operation) {
     return { error: 'declared source contract is incomplete' };
   }
   if (contract.target !== change.target || contract.object.id !== change.object.id
@@ -160,6 +160,7 @@ function createRepairService({ adapters = {}, sourceReaders = {}, verifyAdminCon
     if (!sameValue(canonicalTargets(targets), plan.targets)) throw new Error('repair plan target set changed after preview');
 
     const prewrites = [];
+    let applyError;
     try {
       for (const change of plan.changes) {
         const adapter = adapters[change.repairClass];
@@ -184,13 +185,31 @@ function createRepairService({ adapters = {}, sourceReaders = {}, verifyAdminCon
         item.after = after;
         item.outcome = 'applied';
       }
-    } finally {
-      for (const item of prewrites.filter((entry) => entry.needsWorker).reverse()) {
+    } catch (error) {
+      applyError = error;
+    }
+
+    const cleanupFailures = [];
+    for (const item of prewrites.filter((entry) => entry.needsWorker).reverse()) {
+      try {
         await item.adapter.restore({ target: item.change.target, object: item.change.object, expected: item.change.current, workerContext: item.workerContext, digest: plan.digest });
         const restored = await item.adapter.read({ target: item.change.target, object: item.change.object, sourceRef: item.change.sourceRef, workerContext: item.workerContext });
         if (!sameValue(restored, item.change.current)) throw new Error('isolated feature-flag restore readback does not match the original value');
         item.restored = restored;
+      } catch (error) {
+        cleanupFailures.push(error);
       }
+    }
+    if (applyError) {
+      if (cleanupFailures.length) {
+        const failure = new AggregateError([applyError, ...cleanupFailures], 'repair apply and isolated worker cleanup failed', { cause: applyError });
+        failure.applyError = applyError;
+        throw failure;
+      }
+      throw applyError;
+    }
+    if (cleanupFailures.length) {
+      throw new AggregateError(cleanupFailures, 'isolated worker cleanup failed');
     }
     const evidence = prewrites.map((item) => redactReadinessValue({ target: item.change.target, object: item.change.object, before: item.current, after: item.after, restored: item.restored, sourceRef: item.change.sourceRef, operation: item.change.operation, outcome: item.outcome }));
     plan.confirmed = true;

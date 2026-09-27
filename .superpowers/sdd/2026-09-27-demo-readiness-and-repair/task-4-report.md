@@ -88,3 +88,26 @@ Tests: 46 passed, 46 total
 The final feature-flag regression also covers a failure while reading the
 isolated worker: the service restores the planned original value and verifies
 that restore before propagating the read failure.
+
+## Fix round 2
+
+- Isolated-worker cleanup now catches each restore and restore-readback failure,
+  continues through every created worker, and throws an `AggregateError` only
+  after all cleanup attempts. If apply and cleanup both fail, the aggregate
+  retains the original apply error as its first error and `applyError` property.
+- Source-contract validation now accepts any defined expected value, including a
+  legitimate boolean `false` feature-flag expectation.
+
+Focused red regressions first demonstrated that one failing restore stopped the
+next worker cleanup and that `expected: false` produced no plan. After the
+change:
+
+```text
+CI=true npx jest tests/demoReadinessRepairService.test.js --forceExit
+PASS tests/demoReadinessRepairService.test.js
+Tests: 18 passed, 18 total
+```
+
+The suite includes two worker contexts where the first cleanup fails and the
+later context is still restored/read back, plus a combined apply-and-cleanup
+failure that retains both errors.

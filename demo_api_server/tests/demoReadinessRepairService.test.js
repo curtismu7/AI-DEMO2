@@ -290,4 +290,89 @@ describe('demo readiness repair service', () => {
 
     expect(plan.blocked).toEqual([expect.objectContaining({ repairMode: 'manual', operatorAction: expect.stringMatching(/block READY/i) })]);
   });
+
+  test('continues isolated-worker cleanup after an earlier cleanup failure', async () => {
+    const firstWorker = {}; const secondWorker = {};
+    const adapter = {
+      createIsolatedWorker: jest.fn().mockResolvedValueOnce(firstWorker).mockResolvedValueOnce(secondWorker),
+      read: jest.fn().mockResolvedValueOnce(true).mockResolvedValueOnce(true).mockResolvedValueOnce(false),
+      write: jest.fn(), readback: jest.fn(),
+      restore: jest.fn().mockRejectedValueOnce(new Error('second worker restore failed')).mockResolvedValueOnce(undefined),
+    };
+    const service = createRepairService({
+      now: () => NOW, verifyAdminConfirmation: jest.fn(async () => ({ subject: 'admin-1' })),
+      sourceReaders: { readinessWorkerFlag: jest.fn(({ objectId }) => ({
+        target: 'local', object: { id: objectId }, expected: true,
+        sourceRef: 'demo_api_server/config/useCases.js#' + objectId, operation: 'Enable only for the isolated readiness worker',
+      })) }, adapters: { 'demo-feature-flag': adapter },
+    });
+    const plan = service.planRepairs({ findings: [finding({ repairCandidates: ['ff_one', 'ff_two'].map((id) => ({
+      repairClass: 'demo-feature-flag', target: 'local', object: { id }, current: false, expected: true,
+    })) })], targets: TARGETS, now: NOW });
+
+    await expect(service.applyRepairs({ digest: plan.digest, confirmedBy: ADMIN_ASSERTION, targets: TARGETS, now: NOW }))
+      .rejects.toThrow(/isolated worker cleanup failed/i);
+    expect(adapter.restore).toHaveBeenCalledTimes(2);
+    expect(adapter.restore).toHaveBeenLastCalledWith(expect.objectContaining({ workerContext: firstWorker, expected: false }));
+    expect(adapter.read).toHaveBeenLastCalledWith(expect.objectContaining({ workerContext: firstWorker }));
+  });
+
+  test('plans a legitimate false source-contract expectation', () => {
+    const adapter = { createIsolatedWorker: jest.fn(), read: jest.fn(), write: jest.fn(), readback: jest.fn(), restore: jest.fn() };
+    const service = createRepairService({
+      now: () => NOW,
+      sourceReaders: { readinessWorkerFlag: jest.fn(() => ({
+        target: 'local', object: { id: 'ff_disabled' }, expected: false,
+        sourceRef: 'demo_api_server/config/useCases.js#UC1', operation: 'Disable only for the isolated readiness worker',
+      })) },
+      adapters: { 'demo-feature-flag': adapter },
+    });
+    const plan = service.planRepairs({ findings: [finding({ repairCandidates: [{
+      repairClass: 'demo-feature-flag', target: 'local', object: { id: 'ff_disabled' }, current: true, expected: false,
+    }] })], targets: TARGETS, now: NOW });
+
+    expect(plan.changes).toEqual([expect.objectContaining({ expected: false, object: { id: 'ff_disabled' } })]);
+  });
+
+  test('aggregates cleanup failures without hiding the original apply error', async () => {
+    const firstWorker = {}; const secondWorker = {};
+    const flagAdapter = {
+      createIsolatedWorker: jest.fn().mockResolvedValueOnce(firstWorker).mockResolvedValueOnce(secondWorker),
+      read: jest.fn().mockResolvedValueOnce(true).mockResolvedValueOnce(true).mockResolvedValueOnce(false),
+      write: jest.fn(), readback: jest.fn(),
+      restore: jest.fn().mockRejectedValueOnce(new Error('second cleanup failed')).mockResolvedValueOnce(undefined),
+    };
+    const service = createRepairService({
+      now: () => NOW, verifyAdminConfirmation: jest.fn(async () => ({ subject: 'admin-1' })),
+      sourceReaders: {
+        pingoneScopeTopology: jest.fn(() => ({
+          target: 'local', object: { id: 'resource-1', kind: 'resource-scope' }, expected: ['read', 'write'],
+          sourceRef: 'scope-topology.json#resources/resource-1/scopes', operation: 'Create the uniquely mapped missing scope write',
+        })),
+        readinessWorkerFlag: jest.fn(({ objectId }) => ({
+          target: 'local', object: { id: objectId }, expected: true,
+          sourceRef: 'demo_api_server/config/useCases.js#' + objectId, operation: 'Enable only for the isolated readiness worker',
+        })),
+      },
+      adapters: {
+        'pingone-scope-addition': { read: jest.fn(async () => ['read']), write: jest.fn(async () => { throw new Error('provider write failed'); }), readback: jest.fn() },
+        'demo-feature-flag': flagAdapter,
+      },
+    });
+    const plan = service.planRepairs({ findings: [finding({ repairCandidates: [
+      finding().repairCandidates[0],
+      ...['ff_one', 'ff_two'].map((id) => ({ repairClass: 'demo-feature-flag', target: 'local', object: { id }, current: false, expected: true })),
+    ] })], targets: TARGETS, now: NOW });
+
+    let failure;
+    try {
+      await service.applyRepairs({ digest: plan.digest, confirmedBy: ADMIN_ASSERTION, targets: TARGETS, now: NOW });
+    } catch (error) { failure = error; }
+    expect(failure).toBeInstanceOf(AggregateError);
+    expect(failure.applyError.message).toMatch(/provider write failed/i);
+    expect(failure.errors.map((error) => error.message)).toEqual(expect.arrayContaining([
+      expect.stringMatching(/provider write failed/i), expect.stringMatching(/second cleanup failed/i),
+    ]));
+    expect(flagAdapter.restore).toHaveBeenCalledTimes(2);
+  });
 });
