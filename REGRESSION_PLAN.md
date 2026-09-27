@@ -212,7 +212,10 @@ authz:verify`.
 
 **Files:** `oauth-mcp/src/tools/TokenResolver.ts`,
 `oauth-mcp/src/auth/PfStep9TokenExchangeService.ts`,
+`oauth-mcp/src/auth/TokenIntrospector.ts`, `oauth-mcp/src/auth/jwks.ts`,
 `demo_api_server/scripts/refresh-service-envs.js`,
+`demo_api_server/tests/refreshServiceEnvsPfGateway.test.js`,
+`oauth-mcp/.env.example`,
 `spiffe/pingfederate/pf-step9-te-policy.json`,
 `spiffe/pingfederate/pf-step9-atm-mapping.json`,
 `scripts/pingfederate/provision-pf-step9.sh`,

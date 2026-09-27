@@ -165,6 +165,7 @@ function buildOauthMcpPfStep9Env(apiVars = {}, vaultSecrets = {}) {
   const gatewayPfEnv = buildPingGatewayPfExchangeEnv(apiVars);
   return {
     PF_ISSUER_URI: gatewayPfEnv.PF_ISSUER_URI,
+    PF_JWKS_URI: gatewayPfEnv.PF_JWKS_URI,
     PF_TOKEN_ENDPOINT: gatewayPfEnv.PF_TOKEN_ENDPOINT,
     PF_MCP_SERVICE_ACTOR_CLIENT_ID: apiVars.PF_MCP_SERVICE_ACTOR_CLIENT_ID || '',
     PF_MCP_SERVICE_ACTOR_CLIENT_SECRET:

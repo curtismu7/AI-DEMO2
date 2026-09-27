@@ -53,6 +53,7 @@ test('oauth-mcp receives issuer-host PF Step 9 configuration and reuses the prot
   expect(buildOauthMcpPfStep9Env({
     PF_ISSUER: issuer,
     PF_TOKEN_ENDPOINT: 'https://pingfederate:9999/as/token.oauth2',
+    PF_JWKS_URI: 'https://pingfederate:9999/pf/JWKS',
     PF_MCP_SERVICE_ACTOR_CLIENT_ID: 'ai-demo-pf-standard-mcp-actor',
     PF_MCP_SERVICE_ACTOR_TOKEN_ENDPOINT_AUTH_METHOD: 'basic',
     PF_STANDARD_MCP_ACTOR_SCOPE: 'mcp:invoke',
@@ -60,6 +61,7 @@ test('oauth-mcp receives issuer-host PF Step 9 configuration and reuses the prot
     PF_MCP_SERVICE_ACTOR_CLIENT_SECRET: 'vault-managed-pf-actor-secret',
   })).toEqual({
     PF_ISSUER_URI: issuer,
+    PF_JWKS_URI: `${issuer}/pf/JWKS`,
     PF_TOKEN_ENDPOINT: `${issuer}/as/token.oauth2`,
     PF_MCP_SERVICE_ACTOR_CLIENT_ID: 'ai-demo-pf-standard-mcp-actor',
     PF_MCP_SERVICE_ACTOR_CLIENT_SECRET: 'vault-managed-pf-actor-secret',
