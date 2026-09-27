@@ -291,6 +291,22 @@ describe('demo readiness audit service', () => {
     expect(admins.every((row) => row.status === 'pass')).toBe(true);
   });
 
+  test('blocks Admin cases whose declared action or hosted tool is not registered', async () => {
+    const inventory = require('../config/demoReadinessInventory.json');
+    const originalAction = inventory.adminExpectations.ADMIN7;
+    const originalTool = inventory.adminExpectations.ADMIN1;
+    try {
+      inventory.adminExpectations.ADMIN7 = { ...originalAction, expectedAction: 'list_pingone_toolz' };
+      inventory.adminExpectations.ADMIN1 = { ...originalTool, expectedTool: 'listApplicatoins' };
+      const checks = await createAuditService({ pfProfiles: { roles: {} } }).auditRepositoryContracts();
+      expect(checks.find((row) => row.id === 'repository:case:ADMIN7')).toEqual(expect.objectContaining({ status: 'fail' }));
+      expect(checks.find((row) => row.id === 'repository:case:ADMIN1')).toEqual(expect.objectContaining({ status: 'fail' }));
+    } finally {
+      inventory.adminExpectations.ADMIN7 = originalAction;
+      inventory.adminExpectations.ADMIN1 = originalTool;
+    }
+  });
+
   test('reads declared subject group membership and rejects exact PingOne scope, grant, and audience extras', async () => {
     const fetch = jest.fn(async (url) => ({ ok: true, status: 200, json: async () => {
       if (url.includes('/memberOfGroups')) return { _embedded: { memberOfGroups: [{ group: { id: 'group-1' } }] } };
@@ -310,6 +326,52 @@ describe('demo readiness audit service', () => {
     expect(checks.find((row) => row.id === 'pingone:scope')).toEqual(expect.objectContaining({ status: 'fail' }));
     expect(checks.find((row) => row.id === 'pingone:appGrant')).toEqual(expect.objectContaining({ status: 'fail' }));
     expect(checks.find((row) => row.id === 'pingone:groupMembership')).toEqual(expect.objectContaining({ status: 'pass' }));
+  });
+
+  test('rejects grants on an application absent from the declared grant contract', async () => {
+    const fetch = jest.fn(async (url) => ({ ok: true, status: 200, json: async () => {
+      if (url.includes('/applications/app-1/grants')) return { _embedded: { grants: [{ scopes: [{ name: 'read' }] }] } };
+      if (url.includes('/applications/app-2/grants')) return { _embedded: { grants: [{ scopes: [{ name: 'admin:write' }] }] } };
+      if (url.includes('/resources')) return { _embedded: { resources: [] } };
+      if (url.includes('/applications')) return { _embedded: { applications: [{ id: 'app-1' }, { id: 'app-2' }] } };
+      if (url.includes('/groups')) return { _embedded: { groups: [] } };
+      return { _embedded: { decisionEndpoints: [] } };
+    } }));
+    const checks = await createAuditService({ fetch, pfProfiles: { roles: {} } }).auditPingOneConfiguration({
+      environmentId: 'env-1', credentials: { accessToken: 'secret-token' },
+      expected: { applicationGrants: { 'app-1': ['read'] } },
+    });
+    expect(checks.find((row) => row.id === 'pingone:appGrant')).toEqual(expect.objectContaining({ status: 'fail' }));
+  });
+
+  test('blocks application-grant parity when PingOne reports another application page', async () => {
+    const fetch = jest.fn(async (url) => ({ ok: true, status: 200, json: async () => {
+      if (url.includes('/applications/app-1/grants')) return { _embedded: { grants: [{ scopes: [{ name: 'read' }] }] } };
+      if (url.includes('/resources')) return { _embedded: { resources: [] } };
+      if (url.includes('/applications')) return { _embedded: { applications: [{ id: 'app-1' }] }, _links: { next: { href: 'https://api.pingone.example.test/next' } } };
+      if (url.includes('/groups')) return { _embedded: { groups: [] } };
+      return { _embedded: { decisionEndpoints: [] } };
+    } }));
+    const checks = await createAuditService({ fetch, pfProfiles: { roles: {} } }).auditPingOneConfiguration({
+      environmentId: 'env-1', credentials: { accessToken: 'secret-token' },
+      expected: { applicationGrants: { 'app-1': ['read'] } },
+    });
+    expect(checks.find((row) => row.id === 'pingone:appGrant')).toEqual(expect.objectContaining({ status: 'blocked' }));
+  });
+
+  test('blocks application-grant parity when an application grant page is incomplete', async () => {
+    const fetch = jest.fn(async (url) => ({ ok: true, status: 200, json: async () => {
+      if (url.includes('/applications/app-1/grants')) return { _embedded: { grants: [{ scopes: [{ name: 'read' }] }] }, _links: { next: { href: 'https://api.pingone.example.test/next' } } };
+      if (url.includes('/resources')) return { _embedded: { resources: [] } };
+      if (url.includes('/applications')) return { _embedded: { applications: [{ id: 'app-1' }] } };
+      if (url.includes('/groups')) return { _embedded: { groups: [] } };
+      return { _embedded: { decisionEndpoints: [] } };
+    } }));
+    const checks = await createAuditService({ fetch, pfProfiles: { roles: {} } }).auditPingOneConfiguration({
+      environmentId: 'env-1', credentials: { accessToken: 'secret-token' },
+      expected: { applicationGrants: { 'app-1': ['read'] } },
+    });
+    expect(checks.find((row) => row.id === 'pingone:appGrant')).toEqual(expect.objectContaining({ status: 'blocked' }));
   });
 
   test('bounds an adapter that ignores the deadline and passes it an abortable signal', async () => {

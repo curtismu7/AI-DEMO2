@@ -6,6 +6,7 @@ const { execFile } = require('child_process');
 const { promisify } = require('util');
 const { redactReadinessValue } = require('./demoReadinessReport');
 const PF_PROFILES = require('../config/demoReadinessPingFederateProfiles.json');
+const { getReadinessToolMetadata } = require('../config/verticals/pingone-admin/tools');
 const healthGate = require('../../scripts/check-demo-health-gate');
 const mcpPreflight = require('../../scripts/check-mcp-preflight');
 
@@ -105,6 +106,7 @@ function repositoryValues() {
   const { requiredFlagsForUseCase, needsA2aCredentials, needsParConfig } = require('./demoStepPrerequisites');
   const sources = loadDemoReadinessSources();
   const catalog = buildDemoReadinessCatalog();
+  const adminToolMetadata = getReadinessToolMetadata();
   const useCases = sources.useCases;
   const requirements = catalog.map((entry) => {
     const useCase = useCases.find((candidate) => candidate.id === entry.id) || {};
@@ -121,6 +123,7 @@ function repositoryValues() {
       expectedBehavior: entry.expectedBehavior,
       providerFlows: entry.providerFlows,
       sourceRef: entry.sourceRef,
+      adminExpectation: sources.inventory?.adminExpectations?.[entry.id] || null,
     };
   });
   const toolNames = Object.keys(topology.tools || {});
@@ -146,16 +149,26 @@ function repositoryValues() {
       exactArray(contract.requiredFlags, item.flags)
       && contract.a2aCredentials === item.a2a && contract.parConfig === item.par
     )));
+    const actionMetadata = adminToolMetadata[item.expectedBehavior?.expectedAction];
+    const adminSourceContract = item.adminExpectation && semanticEqual(
+      { expectedAction: item.expectedBehavior?.expectedAction, expectedTool: item.expectedBehavior?.expectedTool },
+      { expectedAction: item.adminExpectation.expectedAction, expectedTool: item.adminExpectation.expectedTool },
+    );
+    const registeredAdminOperation = Boolean(actionMetadata && (
+      actionMetadata.expectsHostedTool
+        ? typeof item.expectedBehavior?.expectedTool === 'string' && actionMetadata.hostedTools.includes(item.expectedBehavior.expectedTool)
+        : item.expectedBehavior?.expectedTool === null
+    ));
     const adminContract = !isAdmin || Boolean(item.auth === 'admin'
       && item.expectedBehavior?.kind === 'admin-mcp'
-      && item.expectedBehavior.expectedAction && Object.hasOwn(item.expectedBehavior, 'expectedTool')
+      && adminSourceContract && registeredAdminOperation
       && item.providerFlows?.pingone === 'pingone-admin-mcp'
       && item.providerFlows?.pingfederate === 'pingfederate-admin-mcp');
     const staticContract = Boolean(item.auth && toolContract && prerequisiteParity && adminContract && (!item.tool || toolNames.includes(item.tool)));
     const deferred = item.a2a || item.par;
     values['case:' + item.id] = deferred
-      ? { status: staticContract ? 'blocked' : 'fail', reason: staticContract ? (item.a2a ? 'A2A credential/profile parity requires live target readback' : 'PAR application configuration requires live target readback') : 'checked-in UI/backend prerequisite or authorization contract disagrees', observed: { flags: item.flags, a2a: item.a2a, par: item.par, tool: item.tool, prerequisiteParity, toolContract, adminContract, verticalContracts: prerequisiteContracts.length }, sourceRef: item.sourceRef }
-      : { status: staticContract ? 'pass' : 'fail', observed: { flags: item.flags, a2a: item.a2a, par: item.par, tool: item.tool, prerequisiteParity, toolContract, adminContract, verticalContracts: prerequisiteContracts.length }, sourceRef: item.sourceRef };
+      ? { status: staticContract ? 'blocked' : 'fail', reason: staticContract ? (item.a2a ? 'A2A credential/profile parity requires live target readback' : 'PAR application configuration requires live target readback') : 'checked-in UI/backend prerequisite or authorization contract disagrees', observed: { flags: item.flags, a2a: item.a2a, par: item.par, tool: item.tool, prerequisiteParity, toolContract, adminContract, adminSourceContract, registeredAdminOperation, verticalContracts: prerequisiteContracts.length }, sourceRef: item.sourceRef }
+      : { status: staticContract ? 'pass' : 'fail', observed: { flags: item.flags, a2a: item.a2a, par: item.par, tool: item.tool, prerequisiteParity, toolContract, adminContract, adminSourceContract, registeredAdminOperation, verticalContracts: prerequisiteContracts.length }, sourceRef: item.sourceRef };
   }
   return values;
 }
@@ -173,7 +186,9 @@ async function pingOneRead({ environmentId, credentials = {}, expected = {}, fet
     ]);
     const resourceList = resources._embedded?.resources || [];
     const audiences = resourceList.flatMap((resource) => Array.isArray(resource.audience) ? resource.audience : [resource.audience]).filter(Boolean);
-    const appIds = (applications._embedded?.applications || []).map((item) => item.id);
+    const applicationList = applications._embedded?.applications;
+    const appIds = Array.isArray(applicationList) ? applicationList.map((item) => item.id).filter(Boolean) : [];
+    const completeApplicationList = Array.isArray(applicationList) && !applications._links?.next && !applications.next;
     const groupIds = (groups._embedded?.groups || []).map((item) => item.id);
     const endpointIds = (endpoints._embedded?.decisionEndpoints || []).map((item) => item.id);
     const scopeChecks = await Promise.all(Object.entries(expected.resourceScopes || {}).map(async ([resourceId, scopeNames]) => {
@@ -181,10 +196,14 @@ async function pingOneRead({ environmentId, credentials = {}, expected = {}, fet
       const actual = (body._embedded?.scopes || []).map((scope) => scope.name || scope.value);
       return exactArray(actual, scopeNames);
     }));
-    const grantChecks = await Promise.all(Object.entries(expected.applicationGrants || {}).map(async ([applicationId, scopeNames]) => {
+    const expectedGrants = expected.applicationGrants || {};
+    const declaredGrantAppIds = Object.keys(expectedGrants);
+    const grantChecks = await Promise.all((completeApplicationList ? appIds : []).map(async (applicationId) => {
       const body = await get(fetchImpl, base + '/applications/' + encodeURIComponent(applicationId) + '/grants?limit=100', options);
-      const actual = (body._embedded?.grants || []).flatMap((grant) => (grant.scopes || []).map((scope) => scope.name || scope.value || scope.id));
-      return exactArray(actual, scopeNames);
+      const grants = body._embedded?.grants;
+      if (!Array.isArray(grants) || body._links?.next || body.next) return 'blocked';
+      const actual = grants.flatMap((grant) => (grant.scopes || []).map((scope) => scope.name || scope.value || scope.id));
+      return exactArray(actual, expectedGrants[applicationId]) ? 'pass' : 'fail';
     }));
     const memberships = expected.groupMemberships || expected.subjectGroupMemberships || {};
     const membershipChecks = await Promise.all(Object.entries(memberships).map(async ([userId, expectedGroups]) => {
@@ -200,7 +219,15 @@ async function pingOneRead({ environmentId, credentials = {}, expected = {}, fet
       audience: compare('audiences', audiences, 'audiences'),
       scope: Object.keys(expected.resourceScopes || {}).length ? { status: scopeChecks.every(Boolean) ? 'pass' : 'fail' } : { status: 'blocked', reason: 'resource scope readback requires declared resource IDs' },
       mirror: { status: 'blocked', reason: 'scope mirror readback has no supported Management API contract' },
-      appGrant: Object.keys(expected.applicationGrants || {}).length ? { status: grantChecks.every(Boolean) ? 'pass' : 'fail' } : { status: 'blocked', reason: 'application grant readback requires declared application grant scopes' },
+      appGrant: !declaredGrantAppIds.length
+        ? { status: 'blocked', reason: 'application grant readback requires a complete declared application grant contract' }
+        : !completeApplicationList
+          ? { status: 'blocked', reason: 'PingOne application readback cannot enumerate the complete application set' }
+          : !exactArray(appIds, declaredGrantAppIds)
+            ? { status: 'fail', observed: { applicationIds: appIds, declaredApplicationIds: declaredGrantAppIds } }
+            : grantChecks.includes('blocked')
+              ? { status: 'blocked', reason: 'PingOne application grant readback cannot enumerate the complete grant set' }
+              : { status: grantChecks.every((result) => result === 'pass') ? 'pass' : 'fail', observed: { applicationIds: appIds } },
       requiredFlag: { status: 'blocked', reason: 'effective flag readback requires authenticated BFF configuration access' },
       a2aCredential: { status: 'blocked', reason: 'credential presence is not returned by PingOne Management API' },
       parSetting: { status: 'blocked', reason: 'PAR setting readback requires declared application configuration' },
