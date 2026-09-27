@@ -1794,6 +1794,7 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
   // the PF adapter. The PF ID-JAG lane is selected only by UC40 above.
   if (pfExchangeMode === 'standard') {
     const pfConfig = pfStandardTokenExchangeService.resolveConfig();
+    const pfUserSub = pfStandardTokenExchangeService.resolveUserSubject(_rawUserClaims);
     let expectedFinalAudience = mcpResourceUri;
     if (opts.forcePingGatewayAudience && !opts.forceDirectMcpAudience) {
       expectedFinalAudience = configuredPingGatewayAudience(tool);
@@ -1815,7 +1816,7 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
     }
 
     return await _performTwoExchangeDelegation(
-      tokenEvents, userToken, finalScopes, userSub, toolTrigger, mcpResourceUri, req,
+      tokenEvents, userToken, finalScopes, pfUserSub, toolTrigger, mcpResourceUri, req,
       { ...opts, tool, exchangeProvider: pfStandardTokenExchangeService, providerConfig: pfConfig, expectedFinalAudience }
     );
   }
