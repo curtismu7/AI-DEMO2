@@ -29,15 +29,15 @@ The two settings may intentionally differ.
 
 `verifyIdJag()` pins `RS256`, so an unsigned assertion or an algorithm change
 is rejected. `jose.jwtVerify` enforces the configured issuer and audience and
-checks `exp`; the handler also requires `typ: oauth-id-jag+jwt`. It permits five
-seconds of clock tolerance and returns no partial claims on failure. `iat` is
-carried into the returned claims, while this handler's explicit timestamp
-enforcement is expiration; do not claim a separate `iat` or `nbf` policy unless
-one is added. The assertion must contain an accepted `resource` and `jti`; the
-router uses `sub`, with `email` only as an account-linking fallback. Compare
-this limited redemption time policy with the gateway's `iat` policy and the
-downstream backend's lack of one; implement any profile-required missing check
-at the hop that receives the credential.
+checks `exp` and `nbf` when present; the handler also requires
+`typ: oauth-id-jag+jwt`. It applies five seconds of clock tolerance and returns
+no partial claims on failure. `iat` is carried into the returned claims, but
+the handler has no independent future-time or maximum-age `iat` policy. The
+assertion must contain an accepted `resource` and `jti`; the router uses `sub`,
+with `email` only as an account-linking fallback. Compare this redemption time
+policy with the gateway's `iat` policy and the downstream backend's lack of
+one; implement any profile-required missing check at the hop that receives the
+credential.
 
 Each `jti` is single-use. The replay cache is an in-memory, process-local map
 whose entries expire at the assertion expiration time. It rejects a replay in
