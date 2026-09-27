@@ -1,7 +1,7 @@
 # Privilege Across Three MCP Clients — Demo Design
 
-**Date:** 2026-09-26  
-**Status:** Approved in conversation; awaiting spec review  
+**Date:** 2026-09-26
+**Status:** Approved in conversation; code reviewed
 **Scope:** Rehearsable Privilege MCP demo across the in-repo app, LM Studio, and LibreChat, followed by the app's AI Guard Attack Lab.
 
 ## Goal
@@ -204,4 +204,3 @@ design decision before changing the auth model or live gateway policy.
 - Rebuilding LibreChat or LM Studio, or creating a generic MCP setup wizard.
 - Claiming an AI Guard decision when another component produced the result.
 - Publishing secrets, tokens, private user data, or unsanitized screenshots.
-

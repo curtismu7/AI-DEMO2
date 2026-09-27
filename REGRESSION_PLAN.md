@@ -263,7 +263,7 @@ grant and the issuer's supported resource model. In the current gateway
 metadata, each app advertises its own issuer and token endpoint.
 
 **Verify:** `CI=true npx jest tests/routes/privilegeMcpClient.silentAuth.test.js
---forceExit` — 9 passed; focused UI tests for door switching and denial
+--forceExit` — 10 passed; focused UI tests for door switching and denial
 diagnostics — 4 passed; `cd demo_api_ui && npm run build` — passed. The full UI
 suite reported a separate undefined CSS-token failure and did not complete.
 

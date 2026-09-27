@@ -102,6 +102,28 @@ describe('privilege silent auth — prompt=none', () => {
       expect(authUrl.searchParams.get('prompt')).toBe('none');
     });
 
+    test('uses a saved Privilege refresh token when its access token is absent', async () => {
+      const app = buildApp({
+        privilegeMcpClientOAuth: {
+          oauth: { accessToken: null },
+          savedOauthByDoor: {
+            'privilege::https://mcpgw.example.com/opensearch22/mcp': {
+              accessToken: null,
+              refreshToken: 'previous-door-refresh-token',
+              tokenUri: 'https://mcpgw.example.com/opensearch22/token',
+              expiresAt: null,
+              dcrClientId: 'previous-door-client',
+            },
+          },
+        },
+      });
+      await configure(app);
+
+      const authUrl = await startAuth(app);
+
+      expect(authUrl.searchParams.get('prompt')).toBe('none');
+    });
+
     test('uses a cookie-restored dashboard session for prompt=none', async () => {
       const app = buildApp({
         user: { id: 'customer-1', role: 'customer' },
