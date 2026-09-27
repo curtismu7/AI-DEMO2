@@ -274,6 +274,11 @@ export default defineConfig(({ mode }) => {
       poolOptions: {
         forks: { execArgv: ['--max-old-space-size=12288'] },
       },
+      // Two self-hosted runner services share one 16-core Mac. Keep the UI
+      // suite from treating the host's full CPU count as its private pool.
+      // This leaves capacity for the other runner while retaining parallel
+      // test execution within the UI job.
+      maxWorkers: process.env.CI === 'true' ? 2 : undefined,
       exclude: [
         '**/node_modules/**',
         '**/dist/**',

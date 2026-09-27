@@ -20,7 +20,8 @@ permissions:
 jobs:
   changes:
     name: Select affected test suites
-    runs-on: [self-hosted, macOS]
+    # Dedicated runner has only the ci-gates label; it cannot take heavy jobs.
+    runs-on: [ci-gates]
     outputs:
       api-server: ${{ steps.all.outputs['api-server'] || steps.filter.outputs['api-server'] }}
       decision-services: ${{ steps.all.outputs['decision-services'] || steps.filter.outputs['decision-services'] }}
@@ -90,7 +91,8 @@ jobs:
 
   gates:
     name: Hygiene + topology gates
-    runs-on: [self-hosted, macOS]
+    # Keep the third Mac slot dedicated to the selector and repo gates.
+    runs-on: [ci-gates]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
