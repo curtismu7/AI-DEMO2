@@ -1569,6 +1569,16 @@ async function getOrRegisterDcrClient(authorizationUri, redirectUri, tokenEndpoi
   return client;
 }
 
+// Keep the auth-start decision aligned with /state: the dashboard can restore
+// identity from its signed cookie without restoring the OAuth access token.
+function hasMainAppSession(req) {
+  const mainAppToken = req.session?.oauthTokens?.accessToken;
+  return Boolean(
+    (mainAppToken && mainAppToken !== '_cookie_session')
+    || (req.session?.user && (!mainAppToken || req.session?._restoredFromCookie)),
+  );
+}
+
 // Shared by /auth/start and /chat's inline re-auth path — discovers the auth
 // endpoints, registers a DCR client if the gateway is self-advertising, and
 // builds the PKCE authorization URL. Does not set pendingAuth.returnTo —
@@ -1672,7 +1682,7 @@ async function beginOAuthFlow(session, req, { callbackPath, callbackOrigin } = {
     && (saved.refreshToken || (saved.accessToken && (!saved.expiresAt || saved.expiresAt > Date.now())))
   ));
   const promptNoneAttempted = Boolean(
-    (req.session?.oauthTokens?.accessToken || hasSavedPrivilegeOauthSession)
+    (hasMainAppSession(req) || hasSavedPrivilegeOauthSession)
       && !req.session?.privilegePromptNoneFailed,
   );
   if (promptNoneAttempted) authUrl.searchParams.set('prompt', 'none');
@@ -1739,11 +1749,7 @@ router.get('/state', (req, res) => {
   // `_cookie_session` token stub, so checking only for a real OAuth access
   // token made the Privilege client incorrectly report the dashboard user as
   // signed out and skip prompt=none silent sign-in.
-  const mainAppToken = req.session?.oauthTokens?.accessToken;
-  const mainAppAuth = Boolean(
-    (mainAppToken && mainAppToken !== '_cookie_session')
-    || (req.session?.user && (!mainAppToken || req.session?._restoredFromCookie)),
-  );
+  const mainAppAuth = hasMainAppSession(req);
   // Sibling Agentic Apps — everything registered on the gateway that is not the
   // numbered default. The list comes from the last console discovery, so
   // registering an app in the Privilege console makes it a selectable door with
