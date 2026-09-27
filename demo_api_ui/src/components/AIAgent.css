@@ -5893,14 +5893,14 @@ body > .banking-agent-float-root .banking-agent-panel {
   padding: 0;
   font-size: var(--font-size-xs);
   line-height: 1;
-  color: #cbd5e1;
+  color: var(--th-text-muted);
   background: transparent;
   border: none;
   cursor: pointer;
 }
 
 .ba-demo-steps-popout__search-clear:hover {
-  color: #fff;
+  color: var(--th-text);
 }
 
 .ba-demo-steps-popout__progress {
@@ -5909,11 +5909,11 @@ body > .banking-agent-float-root .banking-agent-panel {
   letter-spacing: normal;
   text-transform: none;
   white-space: nowrap;
-  color: #f8fafc;
+  color: var(--th-text);
 }
 
 .ba-demo-steps-popout__progress--all {
-  color: #4ade80;
+  color: var(--th-status-success-text);
 }
 
 .ba-agent-popout-hdr__top,
