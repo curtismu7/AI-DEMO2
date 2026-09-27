@@ -324,6 +324,31 @@ authorization checks.
 `CI=true npx jest tests/routes/privilegeMcpClient.silentAuth.test.js
 --runInBand --forceExit` — 10 passed.
 
+### 2026-09-27 — Path switch to Direct left an active app session at a sign-in prompt
+
+**Files:** `demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`,
+`demo_api_ui/src/pages/__tests__/PrivilegeMcpClientPage.doorSwitchReauth.test.jsx`.
+
+**What was broken:** Changing Path to Direct cleared the Privilege token because
+Direct uses its own broker grant. The path-switch handler then waited for the
+user to click Sign in, even when the main PingOne app session was still active.
+The connection rail showed App session signed in alongside a Gateway identity
+sign-in prompt.
+
+**What was fixed:** An explicit Path selection now starts the BFF's
+`prompt=none` authorization flow when the app or current gateway session can be
+reused. On callback, the existing silent-switch path discovers tools for the
+selected destination. If the BFF cannot prepare silent authorization, the page
+keeps the manual sign-in fallback.
+
+**Do not break:** Keep the app token out of `session.oauth`; each path must
+receive its own authorization-server token. Preserve manual fallback, avoid
+auto-discovery except after an explicit path switch, and keep Privilege 403
+policy denials intact.
+
+**Verify:** Seven focused Privilege page Vitest files — 41 passed;
+`cd demo_api_ui && npm run build` — passed.
+
 ### 2026-09-27 — Privilege door switch waited for a manual sign-in click
 
 **Files:** `demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`,

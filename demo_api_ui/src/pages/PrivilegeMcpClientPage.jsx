@@ -990,6 +990,31 @@ export default function PrivilegeMcpClientPage() {
         setSelectedTool(null);
         return;
       }
+      // A path change is an explicit user action, so use the current PingOne
+      // browser session to obtain this path's own token without waiting for a
+      // second Sign in click. The BFF only adds prompt=none when it can verify
+      // an app or existing gateway session; otherwise this keeps the manual
+      // sign-in fallback below.
+      if (!forceReauth && (mainAppAuthenticated || authenticated)) {
+        setAuthenticated(false);
+        setTools([]);
+        setSelectedTool(null);
+        setSwitching(true);
+        writeSessionFlag('cur_priv_switching', true);
+        writeSessionFlag(SILENT_DOOR_SWITCH_KEY, true);
+        try {
+          const redirected = await startAuthRedirect({ silentOnly: true });
+          if (!redirected) {
+            writeSessionFlag(SILENT_DOOR_SWITCH_KEY, false);
+            clearSwitching();
+          }
+        } catch (err) {
+          writeSessionFlag(SILENT_DOOR_SWITCH_KEY, false);
+          clearSwitching();
+          throw err;
+        }
+        return;
+      }
       // forceReauth IS the button: it only ever comes from the re-arm control
       // on a dead gateway session, so redirecting is what the user just asked
       // for. The no-automatic-navigation rule is about switches nobody clicked

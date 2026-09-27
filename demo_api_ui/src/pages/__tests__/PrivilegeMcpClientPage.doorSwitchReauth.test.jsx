@@ -19,10 +19,10 @@
 // POST /config already answers `oauth: { authenticated }` for the DESTINATION
 // key. These tests pin that both switchers act on it.
 //
-// A Privilege door has its own OAuth grant. When the current door has a valid
-// Gateway session, switching to an unconnected door should silently authorize
-// that destination and fetch its tools after the callback. Direct/Façade keep
-// their explicit Sign in affordance because their broker flow is different.
+// A Privilege door has its own OAuth grant. When the current app or Gateway
+// session is valid, switching to an unconnected door or path should silently
+// authorize that destination and fetch its tools after the callback. Every path
+// still receives its own grant from its own authorization server.
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import PrivilegeMcpClientPage from "../PrivilegeMcpClientPage";
@@ -234,10 +234,10 @@ describe("Privilege client — re-auth on switch", () => {
     expect(window.location.href).toBe("");
   });
 
-  // Direct is not exempt: every direct door is a façade door with requireBearer
-  // (mcpFacade.js DOORS), so a path switch into Direct really does need its own
-  // credential — it just asks for one instead of taking the browser there.
-  it("offers Sign in — and does NOT navigate — after switching the path to Direct", async () => {
+  // Direct needs its own broker token, but the existing app session can satisfy
+  // the authorization silently. Selecting a path is the user's explicit action
+  // that permits the OAuth round trip.
+  it("silently authorizes Direct from the active app session after a path switch", async () => {
     mockGateway({ gatewayMode: "privilege", mcpUrl: PRIV_DOOR, configAuthenticated: false });
     renderPage();
 
@@ -245,8 +245,27 @@ describe("Privilege client — re-auth on switch", () => {
     fireEvent.change(path, { target: { value: "direct" } });
 
     await waitFor(() => expect(callsTo("config")).toHaveLength(1));
-    await waitFor(() => expect(screen.getByRole("button", { name: /sign in/i })).toBeTruthy());
+    await waitFor(() => expect(callsTo("auth/start")).toHaveLength(1));
+    expect(window.location.href).toBe(`${AUTH_URL}&prompt=none`);
+    expect(sessionStorage.getItem(SILENT_DOOR_SWITCH_KEY)).toBe("1");
+  });
+
+  it("keeps manual sign-in for Direct when there is no reusable session", async () => {
+    mockGateway({
+      gatewayMode: "privilege",
+      mcpUrl: PRIV_DOOR,
+      configAuthenticated: false,
+      initialOAuthAuthenticated: false,
+      mainAppAuthenticated: false,
+    });
+    renderPage();
+
+    const path = await screen.findByLabelText("Connection path");
+    fireEvent.change(path, { target: { value: "direct" } });
+
+    await waitFor(() => expect(callsTo("config")).toHaveLength(1));
     expect(callsTo("auth/start")).toHaveLength(0);
     expect(window.location.href).toBe("");
+    expect(await screen.findByRole("button", { name: /sign in/i })).toBeTruthy();
   });
 });
