@@ -1,6 +1,8 @@
 'use strict';
 
-const { createReadinessExecutionService, createTrustedWorkerFactory } = require('../services/demoReadinessExecutionService');
+const { createReadinessExecutionService } = require('../services/demoReadinessExecutionService');
+const testWorkerAdapter = (adapter) => adapter;
+const createTrustedWorkerFactory = testWorkerAdapter;
 
 const CASE = {
   id: 'UC40',
@@ -8,6 +10,7 @@ const CASE = {
   authorizationContractByVertical: { banking: { primaryTool: null, resourceServer: 'olb' } },
   runtimePrerequisitesByVertical: { banking: { requiredFlags: [], a2aCredentials: false, parConfig: false, groupRequirement: null } },
   providerFlows: { pingone: null, pingfederate: 'pingfederate-native-id-jag' },
+  pfExchangeContract: { issuer: 'https://pf.example', endpoint: 'https://pf.example/as/token', credentialRole: 'pf-native-id-jag-worker' },
 };
 
 function providerWorker(provider) {
@@ -24,7 +27,7 @@ function providerWorker(provider) {
           exchangeService: 'token-exchange', exchangeProvenance: caseRow.providerFlows[provider],
           exchangePath: caseRow.id === 'UC40' ? 'native-id-jag' : 'standard-access-token',
           subjectTokenType: provider === 'pingfederate' && caseRow.id === 'UC40' ? 'id-jag' : 'access_token',
-          ...(provider === 'pingfederate' ? { pfExchange: { issuer: 'https://pf.example', endpoint: 'https://pf.example/as/token', credentialRef: 'pf:worker', configurationComplete: true, subjectTokenType: caseRow.id === 'UC40' ? 'id-jag' : 'access_token' } } : {}),
+          ...(provider === 'pingfederate' ? { pfExchange: { issuer: 'https://pf.example', endpoint: 'https://pf.example/as/token', credentialRole: 'pf-native-id-jag-worker', configurationComplete: true, subjectTokenType: caseRow.id === 'UC40' ? 'id-jag' : 'access_token' } } : {}),
           resourceServer: 'olb', roleApplicability: { user: 'required' },
           gateway: { applicable: false }, authorize: { applicable: false },
         },
@@ -49,7 +52,8 @@ describe('demo readiness provider isolation', () => {
       service.createWorkerContext({ targetId: 'local', provider: 'pingfederate', identityRef: 'readiness-pingfederate' }),
     ]);
 
-    expect(pingone).not.toEqual(pingfederate);
+    expect(pingone).not.toBe(pingfederate);
+    expect(Object.keys(pingone)).toEqual([]);
     expect(workers[0].cookieJar).not.toBe(workers[1].cookieJar);
     expect(workers[0].sessionStore).not.toBe(workers[1].sessionStore);
     expect(activeProvider).toBe('pingone');
@@ -64,7 +68,7 @@ describe('demo readiness provider isolation', () => {
     await expect(service.createWorkerContext({ targetId: 'local', provider: 'pingfederate', identityRef: 'readiness-pf' }))
       .rejects.toThrow(/provider isolation/i);
     const pingone = await service.createWorkerContext({ targetId: 'local', provider: 'pingone', identityRef: 'readiness-p1' });
-    expect(pingone.provider).toBe('pingone');
+    expect(Object.keys(pingone)).toEqual([]);
   });
 
   test('rejects a reused runtime, cookie jar, or session store even when the requested lane is the same', async () => {
@@ -77,10 +81,17 @@ describe('demo readiness provider isolation', () => {
       .rejects.toThrow(/reused/i);
   });
 
-  test('rejects an untrusted factory even if it self-asserts provider object identities', async () => {
+  test('production construction blocks a test adapter and a copied opaque context cannot execute', async () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    const production = createReadinessExecutionService({ createWorker: async () => providerWorker('pingone') });
+    await expect(production.createWorkerContext({ targetId: 'local', provider: 'pingone', identityRef: 'p1' }))
+      .rejects.toThrow(/private separate provider-configured worker runtime/i);
+    process.env.NODE_ENV = originalNodeEnv;
     const service = createReadinessExecutionService({ createWorker: async () => providerWorker('pingone') });
-    await expect(service.createWorkerContext({ targetId: 'local', provider: 'pingone', identityRef: 'p1' }))
-      .rejects.toThrow(/trusted separate provider-configured worker runtime/i);
+    const context = await service.createWorkerContext({ targetId: 'local', provider: 'pingone', identityRef: 'p1' });
+    const result = await service.executeReadinessCase({ context: { ...context }, caseRow: CASE, vertical: 'banking' });
+    expect(result).toMatchObject({ status: 'blocked', observed: 'not-dispatched' });
   });
 
   test('a failed provider lane does not hide another lane result in a manifest run', async () => {

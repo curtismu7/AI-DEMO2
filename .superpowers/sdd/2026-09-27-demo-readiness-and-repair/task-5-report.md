@@ -144,3 +144,49 @@ tests/demoReadinessProviderIsolation.test.js --forceExit`
 
 Result: 4 suites passed, 75 tests passed, 1 named-identity integration test
 skipped.
+
+## Fix round 3
+
+The production execution service no longer exports or accepts a worker-factory
+registration helper. It has no production worker factory, so it blocks provider
+setup. Jest alone can supply a test adapter during unit tests. Returned contexts
+are empty opaque objects stored in a private `WeakMap`; an object copied from a
+known context is rejected. Worker runtime, cookie-jar, and session-store object
+identity remains collision-checked, and no request data can enable a test
+adapter.
+
+The feature manifest now has checked-in contracts for every probe: provider
+flow, exchange service, resource, tool, audience, scopes, Gateway/Authorize
+applicability, expected decision, and behavior stages. Execution compares
+observations with these declarations and stores the declared provider-role map
+on the report row. There are no generic readiness tool/resource/role defaults.
+PF token-exchange rows require an exact issuer, endpoint, and credential role;
+unresolved production PF contracts block rather than pass.
+
+PF A2A verifies ordered `exchange1-id-jag` then
+`exchange2-access-token` hops with the same subject and ordered actor chain.
+UC38/44 uses the same strict ordered-chain comparison. The runner emits the
+category inventory before dispatch, marks the exact 12-minute boundary
+non-ready, races worker calls with an abort signal at the 15-minute deadline,
+and records the timed-out and queued rows as `not-run` even if a worker ignores
+the signal.
+
+Focused evidence:
+
+`CI=true npx jest tests/demoReadinessExecutionService.test.js
+tests/demoReadinessProviderIsolation.test.js --forceExit`
+
+Result: 2 suites passed, 27 tests passed, 1 named-identity integration test
+skipped. The named readiness identities remain absent; no provider login,
+hosted service, Docker Compose, deployment, or push was used.
+
+Final scoped verification:
+
+`CI=true npx jest tests/demoReadinessReport.test.js
+tests/demoReadinessCatalog.test.js tests/demoReadinessExecutionService.test.js
+tests/demoReadinessProviderIsolation.test.js --forceExit`
+
+Result: 4 suites passed, 78 tests passed, 1 named-identity integration test
+skipped. `graphify update .` completed after the change; it reported the
+repository's existing Terraform-parser dependency warning and partial
+extraction warnings for unrelated malformed files.

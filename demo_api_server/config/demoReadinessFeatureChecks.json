@@ -2,6 +2,29 @@
   "schemaVersion": 1,
   "sourceRef": "demo_api_ui/tests/e2e/a2a-failure-modes.real.spec.js",
   "countsTowardDemoSteps": false,
+  "contracts": {
+    "A2A-FM1": { "providerFlows": { "pingone": "pingone-a2a", "pingfederate": "pingfederate-a2a" }, "exchangeService": "a2a-wire-gate", "resourceServer": "demo_a2a_mcp_gateway", "selectedTool": null, "audiences": [], "requiredScopes": [], "gateway": { "applicable": false }, "authorize": { "applicable": false }, "expectedDecision": null, "behaviorStages": ["allowlist-refusal"] },
+    "A2A-FM2": { "providerFlows": { "pingone": "pingone-a2a", "pingfederate": "pingfederate-a2a" }, "exchangeService": "a2a-wire-gate", "resourceServer": "demo_a2a_mcp_gateway", "selectedTool": null, "audiences": [], "requiredScopes": [], "gateway": { "applicable": false }, "authorize": { "applicable": false }, "expectedDecision": null, "behaviorStages": ["actless-bearer-refusal"] },
+    "A2A-FM3": { "providerFlows": { "pingone": "pingone-a2a", "pingfederate": "pingfederate-a2a" }, "exchangeService": "token-exchange", "resourceServer": "demo_a2a_mcp_gateway", "selectedTool": "sensitive_passenger_record", "audiences": ["mcpgateway-a2a.ping.demo"], "requiredScopes": ["read", "pnr:read"], "authorizeToolGroup": { "role": "premiumTier" }, "expectedDecision": "PERMIT", "behaviorStages": ["exchange1", "exchange2", "tool-dispatched"] },
+    "PF-DAVINCI-IK": { "providerFlows": { "pingfederate": "pingfederate-davinci" }, "exchangeService": "pf-davinci", "resourceServer": "pf-davinci", "selectedTool": null, "audiences": [], "requiredScopes": [], "gateway": { "applicable": false }, "authorize": { "applicable": false }, "expectedDecision": null, "behaviorStages": ["pf-login-proof"] },
+    "PRIV-TOOL-ABUSE": { "providerFlows": { "pingone": "pingone-standard", "pingfederate": "pingfederate-standard" }, "exchangeService": "token-exchange", "resourceServer": "mcpgateway", "selectedTool": "get_account_balance", "audiences": ["mcpgateway.ping.demo"], "requiredScopes": ["accounts:read"], "authorizeToolGroup": { "role": "standard" }, "expectedDecision": "DENY", "behaviorStages": ["cross-owner-attempt", "denied"] },
+    "PRIV-TOOL-POISONING": { "providerFlows": { "pingone": "pingone-standard", "pingfederate": "pingfederate-standard" }, "exchangeService": "token-exchange", "resourceServer": "mcpgateway", "selectedTool": "get_account_balance", "audiences": ["mcpgateway.ping.demo"], "requiredScopes": ["accounts:read"], "authorizeToolGroup": { "role": "standard" }, "expectedDecision": "HITL_REQUIRED", "behaviorStages": ["schema-valid-call", "hitl-gate"] },
+    "PRIV-SCHEMA-VIOLATION": { "providerFlows": { "pingone": "pingone-standard", "pingfederate": "pingfederate-standard" }, "exchangeService": "mcp-schema", "resourceServer": "mcpgateway", "selectedTool": null, "audiences": [], "requiredScopes": [], "gateway": { "applicable": false }, "authorize": { "applicable": false }, "expectedDecision": null, "behaviorStages": ["schema-rejected"] },
+    "PRIV-INTER-AGENT-ABUSE": { "providerFlows": { "pingone": "pingone-a2a", "pingfederate": "pingfederate-a2a" }, "exchangeService": "a2a-wire-gate", "resourceServer": "demo_a2a_mcp_gateway", "selectedTool": null, "audiences": [], "requiredScopes": [], "gateway": { "applicable": false }, "authorize": { "applicable": false }, "expectedDecision": null, "behaviorStages": ["delegation-mismatch-denied"] },
+    "PRIV-MALICIOUS-CONTENT": { "providerFlows": { "pingone": "pingone-standard", "pingfederate": "pingfederate-standard" }, "exchangeService": "token-exchange", "resourceServer": "mcpgateway", "selectedTool": "get_account_balance", "audiences": ["mcpgateway.ping.demo"], "requiredScopes": ["accounts:read"], "authorizeToolGroup": { "role": "standard" }, "expectedDecision": "DENY", "behaviorStages": ["content-submitted", "privilege-decision", "model-reachability-recorded"] },
+    "PINGONE-AGENT-IAM-CORE": { "providerFlows": { "pingone": "pingone-standard" }, "exchangeService": "token-exchange", "resourceServer": "mcpgateway", "selectedTool": "get_account_balance", "audiences": ["mcpgateway.ping.demo"], "requiredScopes": ["accounts:read"], "authorizeToolGroup": { "role": "standard" }, "expectedDecision": "PERMIT", "behaviorStages": ["identity-read", "lifecycle-read", "delegated-exchange", "tool-dispatched"] },
+    "PF-CIMD-VALID": { "providerFlows": { "pingfederate": "pingfederate-cimd" }, "exchangeService": "pf-cimd", "resourceServer": "pf-cimd", "selectedTool": null, "audiences": [], "requiredScopes": [], "gateway": { "applicable": false }, "authorize": { "applicable": false }, "expectedDecision": null, "behaviorStages": ["metadata-read", "registration-accepted"] },
+    "PF-CIMD-REJECTED": { "providerFlows": { "pingfederate": "pingfederate-cimd" }, "exchangeService": "pf-cimd", "resourceServer": "pf-cimd", "selectedTool": null, "audiences": [], "requiredScopes": [], "gateway": { "applicable": false }, "authorize": { "applicable": false }, "expectedDecision": null, "behaviorStages": ["metadata-read", "registration-rejected"] },
+    "PF-THIRD-PARTY-AS-ALLOW": { "providerFlows": { "pingfederate": "pingfederate-third-party-as" }, "exchangeService": "token-exchange", "resourceServer": "mcpgateway", "selectedTool": "get_account_balance", "audiences": ["mcpgateway.ping.demo"], "requiredScopes": ["accounts:read"], "authorizeToolGroup": { "role": "standard" }, "expectedDecision": "PERMIT", "behaviorStages": ["third-party-as-exchange", "tool-dispatched"] },
+    "PF-THIRD-PARTY-AS-DENY": { "providerFlows": { "pingfederate": "pingfederate-third-party-as" }, "exchangeService": "token-exchange", "resourceServer": "mcpgateway", "selectedTool": "get_account_balance", "audiences": ["mcpgateway.ping.demo"], "requiredScopes": ["accounts:read"], "authorizeToolGroup": { "role": "standard" }, "expectedDecision": "DENY", "behaviorStages": ["third-party-as-exchange", "denied"] },
+    "PF-ID-JAG-INVALID": { "providerFlows": { "pingfederate": "pingfederate-native-id-jag" }, "exchangeService": "token-exchange", "resourceServer": "mcpgateway", "selectedTool": "get_account_balance", "audiences": ["mcpgateway.ping.demo"], "requiredScopes": ["accounts:read"], "authorizeToolGroup": { "role": "standard" }, "expectedDecision": "DENY", "behaviorStages": ["native-id-jag", "invalid-rejected"] },
+    "PF-ID-JAG-EXPIRED": { "providerFlows": { "pingfederate": "pingfederate-native-id-jag" }, "exchangeService": "token-exchange", "resourceServer": "mcpgateway", "selectedTool": "get_account_balance", "audiences": ["mcpgateway.ping.demo"], "requiredScopes": ["accounts:read"], "authorizeToolGroup": { "role": "standard" }, "expectedDecision": "DENY", "behaviorStages": ["native-id-jag", "expired-rejected"] },
+    "PF-ID-JAG-WRONG-AUDIENCE": { "providerFlows": { "pingfederate": "pingfederate-native-id-jag" }, "exchangeService": "token-exchange", "resourceServer": "mcpgateway", "selectedTool": "get_account_balance", "audiences": ["mcpgateway.ping.demo"], "requiredScopes": ["accounts:read"], "authorizeToolGroup": { "role": "standard" }, "expectedDecision": "DENY", "behaviorStages": ["native-id-jag", "wrong-audience-rejected"] },
+    "PF-RAR-VALID": { "providerFlows": { "pingfederate": "pingfederate-standard" }, "exchangeService": "token-exchange", "resourceServer": "mcpgateway", "selectedTool": "get_account_balance", "audiences": ["mcpgateway.ping.demo"], "requiredScopes": ["accounts:read"], "authorizeToolGroup": { "role": "standard" }, "expectedDecision": "PERMIT", "behaviorStages": ["authorization-details", "rar-permit"] },
+    "PF-RAR-INVALID": { "providerFlows": { "pingfederate": "pingfederate-standard" }, "exchangeService": "token-exchange", "resourceServer": "mcpgateway", "selectedTool": "get_account_balance", "audiences": ["mcpgateway.ping.demo"], "requiredScopes": ["accounts:read"], "authorizeToolGroup": { "role": "standard" }, "expectedDecision": "DENY", "behaviorStages": ["authorization-details", "rar-deny"] },
+    "UC2-PASSENGER-INVALID-TARGET": { "providerFlows": { "pingone": "pingone-a2a", "pingfederate": "pingfederate-a2a" }, "exchangeService": "a2a-wire-gate", "resourceServer": "demo_a2a_mcp_gateway", "selectedTool": null, "audiences": [], "requiredScopes": [], "gateway": { "applicable": false }, "authorize": { "applicable": false }, "expectedDecision": null, "behaviorStages": ["passenger-token", "invalid-target", "exchange3-not-reached"] },
+    "UC-LEARN11-PROMPT-INJECTION": { "providerFlows": { "pingone": "pingone-attack-sim", "pingfederate": "pingfederate-attack-sim" }, "exchangeService": "attack-simulation", "resourceServer": "attack-lab", "selectedTool": null, "audiences": [], "requiredScopes": [], "gateway": { "applicable": false }, "authorize": { "applicable": false }, "expectedDecision": null, "behaviorStages": ["route-open", "attack-prefilled", "attack-sent", "attack-denied", "provider-not-reached"] }
+  },
   "checks": [
     {
       "id": "A2A-FM1",
@@ -11,6 +34,8 @@
       "providers": ["pingone", "pingfederate"],
       "executionMode": "a2a-wire-negative",
       "expectedOutcome": "clear_allowlist_refusal_before_exchange",
+      "requiredEvidence": ["allowlist", "exchange-not-reached"],
+      "providerRoleApplicability": { "userSession": "required", "agentIdentity": "provider-bound" },
       "configurationDependencies": ["pingfederate-a2a-runtime", "authorize-policy-definition", "agent-gateway-runtime-config"],
       "sourceCodeChanges": "never"
     },
@@ -22,6 +47,8 @@
       "providers": ["pingone", "pingfederate"],
       "executionMode": "a2a-wire-negative",
       "expectedOutcome": "actless_bearer_rejected_without_tool_data",
+      "requiredEvidence": ["actless-bearer", "tool-not-reached"],
+      "providerRoleApplicability": { "userSession": "required", "agentIdentity": "provider-bound" },
       "configurationDependencies": ["pingfederate-a2a-runtime", "agent-gateway-runtime-config"],
       "sourceCodeChanges": "never"
     },
@@ -37,6 +64,7 @@
         "pingfederate": "id_jag_exchange1_nested_act_exchange2_permit"
       },
       "requiredEvidence": ["a2a-exchange1", "a2a-exchange2", "authorize-permit", "tool-dispatched"],
+      "providerRoleApplicability": { "userSession": "required", "agentIdentity": "provider-bound" },
       "configurationDependencies": ["pingfederate-a2a-runtime", "pingone-scope-addition", "pingone-app-scope-grant", "authorize-policy-definition", "agent-gateway-runtime-config"],
       "sourceCodeChanges": "never"
     },
@@ -54,6 +82,7 @@
       "providers": ["pingfederate"],
       "executionMode": "pf-davinci-login-proof",
       "expectedOutcome": "dedicated_pf_proof_with_pingone_session_preserved",
+      "requiredEvidence": ["pingone-session-preserved", "pf-login-proof"],
       "providerRoleApplicability": {
         "pingoneUserSession": "preserved_if_present_but_not_accepted_as_the_pf_proof",
         "pingfederateUserSession": "required"
@@ -69,6 +98,7 @@
       "providers": ["pingone", "pingfederate"],
       "executionMode": "privilege-attack-lab",
       "expectedOutcome": "authorization_or_resource_owner_denied",
+      "requiredEvidence": ["cross-owner-attempt", "authorization-denied"],
       "attackLab": true,
       "providerRoleApplicability": { "userSession": "required", "agentIdentity": "provider-bound", "modelBackend": "not-applicable" },
       "configurationDependencies": ["authorize-policy-definition", "agent-gateway-runtime-config"],
@@ -82,6 +112,7 @@
       "providers": ["pingone", "pingfederate"],
       "executionMode": "privilege-attack-lab",
       "expectedOutcome": "schema_valid_call_reaches_normal_hitl_gate",
+      "requiredEvidence": ["schema-valid-call", "hitl-gate"],
       "attackLab": true,
       "providerRoleApplicability": { "userSession": "required", "agentIdentity": "provider-bound", "modelBackend": "not-reached" },
       "configurationDependencies": ["authorize-policy-definition", "agent-gateway-runtime-config"],
@@ -95,6 +126,7 @@
       "providers": ["pingone", "pingfederate"],
       "executionMode": "privilege-attack-lab",
       "expectedOutcome": "input_schema_rejected_before_tool_execution",
+      "requiredEvidence": ["schema-violation", "tool-not-reached"],
       "attackLab": true,
       "providerRoleApplicability": { "userSession": "required", "agentIdentity": "provider-bound", "modelBackend": "not-applicable" },
       "configurationDependencies": ["agent-gateway-runtime-config"],
@@ -108,6 +140,7 @@
       "providers": ["pingone", "pingfederate"],
       "executionMode": "privilege-attack-lab",
       "expectedOutcome": "a2a_identity_mismatch_denied_before_specialist_tool",
+      "requiredEvidence": ["delegated-identity", "specialist-not-reached"],
       "attackLab": true,
       "providerRoleApplicability": { "userSession": "required", "agentIdentity": "provider-bound", "modelBackend": "not-applicable" },
       "configurationDependencies": ["pingfederate-a2a-runtime", "a2a-specialist-credentials", "authorize-policy-definition"],
@@ -121,6 +154,7 @@
       "providers": ["pingone", "pingfederate"],
       "executionMode": "privilege-attack-lab",
       "expectedOutcome": "observed_privilege_decision_with_model_reachability",
+      "requiredEvidence": ["content-submitted", "privilege-decision", "model-reachability"],
       "attackLab": true,
       "providerRoleApplicability": { "userSession": "required", "agentIdentity": "provider-bound", "modelBackend": "record_observed_reachability" },
       "configurationDependencies": ["agent-gateway-runtime-config"],
