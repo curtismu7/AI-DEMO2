@@ -200,6 +200,39 @@ read the configured host. A new browser origin must be added to ALL of:
 
 **Verify:** `node --check demo_api_server/server.js`, `bash -n k8s/aws/deploy.sh k8s/deploy.sh`, YAML parsing for the touched manifests, and `git diff --check` passed. No tests, live requests, or deployment were run. Runtime policy enforcement and login/CodeGraph/MCP smoke behavior remain unverified.
 
+### 2026-09-27 — Exchange diagnostics no longer mask the underlying failure
+
+**Files:** `demo_api_server/services/agentMcpTokenService.js`,
+`demo_api_server/src/__tests__/agentMcpTokenService.test.js`.
+
+**What was broken:** When Exchange #1 rejected a `subject_token`, its diagnostic
+interpolated an undeclared `tool` variable. That `ReferenceError` replaced the
+original structured exchange error and surfaced as `tool is not defined` from
+`POST /api/mcp/tool`.
+
+**What was fixed:** The diagnostic now uses the tool already supplied to the
+exchange helper (`opts.tool`, then `toolTrigger`), so it can report the
+subject-token rejection without replacing it.
+
+**Do not break:** Keep the two-exchange selection, credentials, token scopes,
+session handling, and strict subject/audience/scope checks unchanged. The
+passenger A2A exchange failure documented under UC38 remains a separate UC2
+issue.
+
+**Live finding:** After this fix, the latest `banking.get_balance` call reaches
+PingFederate Exchange #1, which returns HTTP 200, then still receives HTTP 502
+because the BFF rejects the intermediate token for not preserving the user
+subject. The live `aiDemoStandardTePolicy` currently maps `subject` from
+`SUBJECT_TOKEN.sub` and `spiffeId` from `ACTOR_TOKEN.sub`, but the validated
+source attributes are `subjecttoken.Username` and `actortoken.client_id`; the
+policy output consequently contains neither `subject` nor `spiffeId`. Keep the
+BFF subject/audience/scope validation strict. Correcting the shared local
+PingFederate identity mappings requires explicit operator approval.
+
+**Verify:** `CI=true npx jest src/__tests__/agentMcpTokenService.test.js
+--forceExit --runInBand` passes 100/100. The latest exact live call still returns
+HTTP 502 `invalid_grant` at intermediate-token validation, as described above.
+
 ### 2026-09-26 — A2A provider-flip incident: three compounding failure layers, now guarded
 
 **What was broken (the 40-minute `a2a_unauthorized` outage class):**

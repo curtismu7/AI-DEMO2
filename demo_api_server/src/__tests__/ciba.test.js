@@ -36,6 +36,10 @@ jest.mock('../../services/cibaService', () => ({
 jest.mock('../../services/cibaSimulatedService', () => ({
   initiateSimulated: jest.fn(),
   isSimulatedApproved: jest.fn(),
+  // routes/ciba.js consults this before every simulated-failover branch; the
+  // default below keeps the "failover enabled" tests green. Tests that pin
+  // failover OFF override it with mockReturnValueOnce(false).
+  isLocalSimulationEnabled: jest.fn(() => true),
 }));
 
 jest.mock('../../services/tokenChainService', () => ({
@@ -359,7 +363,7 @@ describe('POST /api/auth/ciba/initiate', () => {
   // ── PingOne errors ────────────────────────────────────────────────────────
 
   it('returns 502 when PingOne returns an error response and failover is explicitly disabled', async () => {
-    configStore.getEffective.mockReturnValueOnce('deny');
+    cibaSimulatedService.isLocalSimulationEnabled.mockReturnValueOnce(false);
     const pingErr = {
       response: {
         data: {
@@ -382,7 +386,7 @@ describe('POST /api/auth/ciba/initiate', () => {
   });
 
   it('returns 502 on network / timeout error when failover is explicitly disabled', async () => {
-    configStore.getEffective.mockReturnValueOnce('deny');
+    cibaSimulatedService.isLocalSimulationEnabled.mockReturnValueOnce(false);
     cibaService.initiateBackchannelAuth.mockRejectedValue(new Error('ECONNREFUSED'));
     const res = await request(buildApp())
       .post('/api/auth/ciba/initiate')
@@ -727,7 +731,7 @@ describe('GET /api/auth/ciba/poll/:authReqId — OTP approval simulation', () =>
     expect(res.body.error).toBe('access_denied');
   });
 
-  it('returns 403 when PingOne reports expired_token', async () => {
+  it('returns 410 with status:"denied" when PingOne reports expired_token', async () => {
     const pingExpired = { response: { data: { error: 'expired_token' } } };
     cibaService.pollForTokens.mockRejectedValue(pingExpired);
 
@@ -735,7 +739,7 @@ describe('GET /api/auth/ciba/poll/:authReqId — OTP approval simulation', () =>
       .get(`/api/auth/ciba/poll/${MOCK_AUTH_REQ_ID}`)
       .set('x-test-user', USER_HDR);
 
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(410);
     expect(res.body.status).toBe('denied');
   });
 
@@ -830,8 +834,8 @@ describe('GET /api/auth/ciba/poll/:authReqId — OTP approval simulation', () =>
       expect.objectContaining({
         eventType: 'auth',
         userId: 'u1',
-        description: 'CIBA backchannel step-up approved (out-of-band)',
-        additionalData: expect.objectContaining({ grantedVia: 'ciba', engine: 'simulated' }),
+        description: 'Local simulated CIBA approval',
+        additionalData: expect.objectContaining({ grantedVia: 'local_ciba_simulation', engine: 'simulated' }),
       }),
     );
   });
