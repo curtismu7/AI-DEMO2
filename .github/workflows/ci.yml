@@ -158,8 +158,8 @@ jobs:
         run: npm install --prefix demo_api_server --no-audit --no-fund
       - name: Run Jest suite
         # This is a persistent self-hosted Mac. Unit tests provide their own
-        # mock endpoints; inherited gateway URL aliases silently redirect
-        # mocked calls to the live demo gateways.
+        # mock endpoints; clear inherited aliases so tests cannot be redirected
+        # to live demo gateways. Routing tests configure their own test URLs.
         run: |
           env -u MCP_GATEWAY_HTTP_URL \
             -u MCP_PINGGATEWAY_URL \
@@ -204,10 +204,10 @@ jobs:
         run: npm --prefix demo_api_ui run test:unit
         env:
           CI: 'true'
-          # vitest forks carry --max-old-space-size=12288 via poolOptions, but the
-          # MAIN vitest process (module collection, reporters) uses the default
-          # heap and OOMs on the self-hosted runner when 5 other jobs share the box.
-          NODE_OPTIONS: '--max-old-space-size=12288'
+          # The Vitest parent hit its 12 GB heap limit near the end of the full
+          # suite. The repository's measured passing heap is 14 GB; keep this
+          # aligned with that measurement. Fork workers retain their 12 GB cap.
+          NODE_OPTIONS: '--max-old-space-size=14336'
       - name: Vite build gate
         run: npm --prefix demo_api_ui run build
 

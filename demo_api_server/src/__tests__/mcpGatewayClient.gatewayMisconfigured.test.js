@@ -7,6 +7,16 @@ jest.mock('../../services/configStore', () => ({
 
 const axios = require('axios');
 const { callToolViaGateway } = require('../../services/mcpGatewayClient');
+const previousPingGatewayUrl = process.env.MCP_PINGGATEWAY_URL;
+
+beforeEach(() => {
+  process.env.MCP_PINGGATEWAY_URL = 'https://api.ping.demo:3005';
+});
+
+afterAll(() => {
+  if (previousPingGatewayUrl === undefined) delete process.env.MCP_PINGGATEWAY_URL;
+  else process.env.MCP_PINGGATEWAY_URL = previousPingGatewayUrl;
+});
 
 test('a 503 gateway_misconfigured response surfaces its real message, not a generic "Gateway upstream error"', async () => {
   axios.post = jest.fn().mockResolvedValue({

@@ -7,6 +7,7 @@ jest.mock('axios', () => ({
 
 const axios = require('axios');
 const { callToolViaGateway } = require('../services/mcpGatewayClient');
+const previousPingGatewayUrl = process.env.MCP_PINGGATEWAY_URL;
 
 function successResponse(result = { content: [{ type: 'text', text: 'balance' }] }) {
   return { status: 200, headers: {}, data: { jsonrpc: '2.0', id: 1, result } };
@@ -14,8 +15,14 @@ function successResponse(result = { content: [{ type: 'text', text: 'balance' }]
 
 describe('mcpGatewayClient transient balance retry', () => {
   beforeEach(() => {
+    process.env.MCP_PINGGATEWAY_URL = 'https://gw.example';
     axios.post.mockReset();
     axios.get.mockReset();
+  });
+
+  afterAll(() => {
+    if (previousPingGatewayUrl === undefined) delete process.env.MCP_PINGGATEWAY_URL;
+    else process.env.MCP_PINGGATEWAY_URL = previousPingGatewayUrl;
   });
 
   test('retries a transient gateway 502 for the read-only balance tool once', async () => {

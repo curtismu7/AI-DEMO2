@@ -201,11 +201,13 @@ also referenced `configStore` before its initialization, returning HTTP 502;
 the gateway client re-routed an already selected Node gateway base to PingGateway
 and did not recognize the A2A resource-name audience observed in PingOne.
 
-**What was fixed:** CI clears all four gateway URL aliases before Jest. The
-pipeline initializes its routing config before audience resolution. Recognized
-A2A and ID-JAG audiences keep the Node gateway destination when it is already
-selected, and the A2A pin accepts the configured audience or canonical resource
-name.
+**What was fixed:** CI clears the four inherited gateway URL aliases before
+Jest, preventing mocks from being redirected to live gateways; gateway routing
+tests declare their own endpoint URLs. The Vitest parent heap limit was raised
+to the measured passing 14 GB after CI hit its 12 GB limit. The pipeline
+initializes its routing config before audience resolution. Recognized A2A and
+ID-JAG audiences keep the Node gateway destination when it is already selected,
+and the A2A pin accepts the configured audience or canonical resource name.
 
 **Do not break:** ordinary vertical tools must continue to use PingGateway and
 its own token audience. Missing required Node gateway configuration still fails
