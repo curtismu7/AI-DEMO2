@@ -110,7 +110,7 @@ describe("AdminSideNav — best-of-breed pass", () => {
       const routeRequirement = href === "/academy/delegation/guided"
         ? "/academy/:lessonId/:mode"
         : href;
-      expect(authRouteRequirements[routeRequirement], `${href} stays public to preserve guest access`).toBe("public");
+      expect(authRouteRequirements[routeRequirement], `${href} is declared public for guest access`).toBe("public");
     }
   });
 
