@@ -57,6 +57,34 @@ function pickVertical(req, res) {
   return vertical;
 }
 
+/**
+ * Readiness-only dispatch adapter.  It deliberately receives a worker-owned
+ * runtime rather than an Express request, so it cannot use a presenter cookie
+ * or the BFF's process-wide OAuth-provider setting.  The agent branch reuses
+ * the same outcome vocabulary as the conformance route below.
+ */
+function createReadinessExecutionAdapter(dispatchers = {}) {
+  const byKind = {
+    'agent-outcome': dispatchers.agent,
+    'attack-outcome': dispatchers.attack,
+    'page-load': dispatchers.page,
+    'education-panel': dispatchers.education,
+    'admin-mcp': dispatchers.admin,
+    a2a: dispatchers.a2a,
+    'intent-binding-quick': dispatchers.intentBinding,
+    'id-jag': dispatchers.idJag,
+  };
+  return async ({ behavior, authorization, context, caseRow, vertical, deadlineAt }) => {
+    const dispatch = byKind[behavior?.kind];
+    if (typeof dispatch !== 'function') throw new Error('readiness dispatch is unavailable for ' + behavior?.kind);
+    const response = await dispatch({ behavior, authorization, context, caseRow, vertical, deadlineAt });
+    const observed = behavior.kind === 'agent-outcome'
+      ? outcomeFromAgentResponse(response)
+      : (response?.observed || response?.outcome || response?.decision || 'UNKNOWN');
+    return { observed, evidence: response?.evidence || {} };
+  };
+}
+
 // GET /api/use-cases  → list
 router.get('/', (req, res) => {
   if (req.query.vertical === 'pingone-admin') {
@@ -529,3 +557,4 @@ router.get('/golden/:vertical/:useCaseId', (req, res) => {
 module.exports = router;
 module.exports._cibaRequestsForTest = cibaRequests;
 module.exports._sweepExpiredCibaRequestsForTest = _sweepExpiredCibaRequests;
+module.exports.createReadinessExecutionAdapter = createReadinessExecutionAdapter;

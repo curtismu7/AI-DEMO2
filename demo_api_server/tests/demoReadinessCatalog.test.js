@@ -105,6 +105,8 @@ describe('demo readiness catalog', () => {
     expect(sources.featureChecks.countsTowardDemoSteps).toBe(false);
     expect(sources.featureChecks.checks.map((check) => check.id)).toEqual([
       'A2A-FM1', 'A2A-FM2', 'A2A-FM3', 'PF-DAVINCI-IK',
+      'PRIV-TOOL-ABUSE', 'PRIV-TOOL-POISONING', 'PRIV-SCHEMA-VIOLATION',
+      'PRIV-INTER-AGENT-ABUSE', 'PRIV-MALICIOUS-CONTENT',
     ]);
     expect(sources.featureChecks.checks.slice(0, 3).every((check) =>
       check.providers.includes('pingone')

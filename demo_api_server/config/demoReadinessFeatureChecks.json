@@ -60,6 +60,71 @@
       },
       "configurationDependencies": ["pingfederate-davinci-integration"],
       "sourceCodeChanges": "never"
+    },
+    {
+      "id": "PRIV-TOOL-ABUSE",
+      "sourceRef": "demo_api_ui/src/pages/AttackLabTab.jsx#tool_abuse",
+      "testTitle": "Tool Abuse runs a cross-owner read through the authorization pipeline",
+      "vertical": "banking",
+      "providers": ["pingone", "pingfederate"],
+      "executionMode": "privilege-attack-lab",
+      "expectedOutcome": "authorization_or_resource_owner_denied",
+      "attackLab": true,
+      "providerRoleApplicability": { "userSession": "required", "agentIdentity": "provider-bound", "modelBackend": "not-applicable" },
+      "configurationDependencies": ["authorize-policy-definition", "agent-gateway-runtime-config"],
+      "sourceCodeChanges": "never"
+    },
+    {
+      "id": "PRIV-TOOL-POISONING",
+      "sourceRef": "demo_api_ui/src/config/toolAttackCatalog.js#tool_poisoning",
+      "testTitle": "Tool Poisoning preserves the observed HITL result without inventing a Privilege block",
+      "vertical": "banking",
+      "providers": ["pingone", "pingfederate"],
+      "executionMode": "privilege-attack-lab",
+      "expectedOutcome": "schema_valid_call_reaches_normal_hitl_gate",
+      "attackLab": true,
+      "providerRoleApplicability": { "userSession": "required", "agentIdentity": "provider-bound", "modelBackend": "not-reached" },
+      "configurationDependencies": ["authorize-policy-definition", "agent-gateway-runtime-config"],
+      "sourceCodeChanges": "never"
+    },
+    {
+      "id": "PRIV-SCHEMA-VIOLATION",
+      "sourceRef": "demo_api_ui/src/config/toolAttackCatalog.js#schema_violation",
+      "testTitle": "Schema Violation stops at the MCP input-schema boundary",
+      "vertical": "banking",
+      "providers": ["pingone", "pingfederate"],
+      "executionMode": "privilege-attack-lab",
+      "expectedOutcome": "input_schema_rejected_before_tool_execution",
+      "attackLab": true,
+      "providerRoleApplicability": { "userSession": "required", "agentIdentity": "provider-bound", "modelBackend": "not-applicable" },
+      "configurationDependencies": ["agent-gateway-runtime-config"],
+      "sourceCodeChanges": "never"
+    },
+    {
+      "id": "PRIV-INTER-AGENT-ABUSE",
+      "sourceRef": "demo_api_ui/src/components/InterAgentAbuseTester.jsx",
+      "testTitle": "Inter-Agent Abuse rejects absent or forged delegated identity at the A2A wire gate",
+      "vertical": "airlines",
+      "providers": ["pingone", "pingfederate"],
+      "executionMode": "privilege-attack-lab",
+      "expectedOutcome": "a2a_identity_mismatch_denied_before_specialist_tool",
+      "attackLab": true,
+      "providerRoleApplicability": { "userSession": "required", "agentIdentity": "provider-bound", "modelBackend": "not-applicable" },
+      "configurationDependencies": ["pingfederate-a2a-runtime", "a2a-specialist-credentials", "authorize-policy-definition"],
+      "sourceCodeChanges": "never"
+    },
+    {
+      "id": "PRIV-MALICIOUS-CONTENT",
+      "sourceRef": "demo_api_ui/src/pages/AttackLabTab.jsx#malicious_content",
+      "testTitle": "Malicious Content records the actual Privilege decision and provider reachability",
+      "vertical": "banking",
+      "providers": ["pingone", "pingfederate"],
+      "executionMode": "privilege-attack-lab",
+      "expectedOutcome": "observed_privilege_decision_with_model_reachability",
+      "attackLab": true,
+      "providerRoleApplicability": { "userSession": "required", "agentIdentity": "provider-bound", "modelBackend": "record_observed_reachability" },
+      "configurationDependencies": ["agent-gateway-runtime-config"],
+      "sourceCodeChanges": "never"
     }
   ]
 }
