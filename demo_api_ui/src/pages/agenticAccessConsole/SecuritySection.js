@@ -84,7 +84,7 @@ export default function SecuritySection() {
           <div className="aac-stat-detail">real PingGateway container, token-redacted</div>
         </div>
         <div className="aac-stat-tile">
-          <div className="aac-stat-value">🔒</div>
+          <div className="aac-stat-value">🔐</div>
           <div className="aac-stat-label">Security API</div>
           <div className="aac-stat-detail">/api/security/* — admin token required</div>
         </div>

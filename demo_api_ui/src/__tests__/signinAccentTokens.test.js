@@ -22,6 +22,14 @@ function cssFiles(dir) {
   });
 }
 
+function sourceFiles(dir) {
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+    const full = path.join(dir, e.name);
+    if (e.isDirectory()) return e.name === 'node_modules' || e.name === '__tests__' ? [] : sourceFiles(full);
+    return /\.(jsx?|js)$/.test(e.name) ? [full] : [];
+  });
+}
+
 const FILES = cssFiles(SRC);
 const ALL_CSS = FILES.map((f) => fs.readFileSync(f, 'utf8'));
 
@@ -29,6 +37,16 @@ const ALL_CSS = FILES.map((f) => fs.readFileSync(f, 'utf8'));
 const defined = new Set(
   ALL_CSS.flatMap((t) => [...t.matchAll(/(--[a-zA-Z0-9-]+)\s*:/g)].map((m) => m[1])),
 );
+
+// Custom properties can also be defined inline from JSX:
+//   style={{ '--lane': i + 1 }}  /  style={{ '--actor-color': actor.color }}
+// The CSS-only scan above cannot see those, which made the app-wide check
+// flag three legitimately-defined properties (2fafb0f5b flow visualizers).
+const JSX_DEFINED = /['"](--[a-zA-Z0-9-]+)['"]\s*:/;
+for (const f of sourceFiles(SRC)) {
+  const t = fs.readFileSync(f, 'utf8');
+  for (const m of t.matchAll(new RegExp(JSX_DEFINED.source, 'g'))) defined.add(m[1]);
+}
 
 /** Selectors that style a sign-in surface. */
 const SIGNIN =

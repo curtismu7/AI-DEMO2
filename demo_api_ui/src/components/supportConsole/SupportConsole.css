@@ -24,7 +24,7 @@
   --tint: color-mix(in srgb, var(--accent) 12%, var(--th-bg-card));
   color: var(--th-text);
 }
-.vops__hero { background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#fff; padding:20px 28px 56px; }
+.vops__hero { background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 50%,var(--accent2)),var(--accent2)); color:#fff; padding:20px 28px 56px; }
 .vops__brand { display:flex; align-items:center; gap:12px; } .vops__brand h1 { font-size:var(--font-size-xl); margin:0; }
 .vops__icon { width:40px;height:40px;border-radius:12px;background:#ffffff26;display:grid;place-items:center;font-size:var(--font-size-base);font-weight:800;letter-spacing:.02em; }
 .vops__lookup { margin-top:16px; display:flex; gap:8px; max-width:560px; }
