@@ -66,7 +66,7 @@
   gap: 8px;
   font-size: 0.86rem;
   line-height: 1.4;
-  color: var(--th-text);
+  color: #0f172a;
 }
 .acm-list li {
   position: relative;

@@ -292,6 +292,7 @@ body:has(.dashboard-content.ud-body.ud-focus-mode) .footer {
 .tcfs-spotlight-intro-list code {
   font-size: var(--font-size-base);
   background: var(--th-bg-inset);
+  color: var(--th-code-text);
   border-radius: 3px;
   padding: 1px 4px;
 }
