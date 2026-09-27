@@ -56,6 +56,11 @@ describe('PingGateway Exchange #3 provider routing', () => {
     expect(SOURCE).toMatch(/httpPostForm\(pfTokenEndpoint, actorFormBody, actorHeaders\)/);
     expect(SOURCE).toMatch(/if \(isPfSubject\) \{\s*params\['actor_token'\]\s*=\s*pfActorToken[\s\S]*?params\['actor_token_type'\]\s*=\s*'urn:ietf:params:oauth:token-type:access_token'/);
     expect(SOURCE).toMatch(/if \(actorResp\.code != 200\)[\s\S]*?pf_actor_token_failed/);
+    expect(SOURCE).toMatch(/actorJwtParts\.length != 3/);
+    expect(SOURCE).toMatch(/actorIdentity\s*=\s*actorClaims\.client_id\s*\?:\s*actorClaims\.sub/);
+    expect(SOURCE).toMatch(/actorIdentity\?\.toString\(\) != pfMcpActorClientId/);
+    expect(SOURCE).toMatch(/expectedActorScopes\.every\s*\{\s*actorScopes\.contains\(it\)\s*\}/);
+    expect(SOURCE).toMatch(/actorHeader\?\.typ[\s\S]*?id-jag/);
     expect(SOURCE).not.toMatch(/logger\.(?:info|warn|error)\([^\n]*actorResp\.body/);
   });
 });

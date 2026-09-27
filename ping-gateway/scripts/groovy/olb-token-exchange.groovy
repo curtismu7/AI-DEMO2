@@ -257,6 +257,39 @@ if (isPfSubject) {
         errResp.entity.setString('{"error":"pf_actor_token_failed"}')
         return Promises.newResultPromise(errResp)
     }
+    // Match the BFF's PF actor checks before forwarding this token: require a
+    // JWT access token for the configured actor client with every requested scope.
+    def actorTokenValid = false
+    try {
+        def actorJwtParts = pfActorToken.split('\\.', -1)
+        if (actorJwtParts.length != 3) throw new IllegalArgumentException('malformed actor JWT')
+        def actorHeader = new JsonSlurper().parseText(
+            new String(java.util.Base64.getUrlDecoder().decode(actorJwtParts[0]), 'UTF-8'))
+        def actorClaims = new JsonSlurper().parseText(
+            new String(java.util.Base64.getUrlDecoder().decode(actorJwtParts[1]), 'UTF-8'))
+        if ((actorHeader?.typ ?: '').toString().toLowerCase().contains('id-jag')) {
+            throw new IllegalArgumentException('actor token is an ID-JAG')
+        }
+        def actorIdentity = actorClaims.client_id ?: actorClaims.sub
+        if (actorIdentity?.toString() != pfMcpActorClientId) {
+            throw new IllegalArgumentException('actor identity mismatch')
+        }
+        def actorScopes = [] as Set
+        if (actorClaims.scope instanceof Collection) {
+            actorScopes.addAll(actorClaims.scope.collect { it?.toString() })
+        } else {
+            actorScopes.addAll((actorClaims.scope ?: '').toString().split(/\s+/).findAll { it })
+        }
+        def expectedActorScopes = pfMcpActorScope.trim().split(/\s+/).findAll { it }
+        actorTokenValid = expectedActorScopes && expectedActorScopes.every { actorScopes.contains(it) }
+    } catch (Exception ignored) {}
+    if (!actorTokenValid) {
+        logger.warn('[OlbExchange] PF MCP actor token failed identity/scope/format validation')
+        def errResp = new Response(Status.BAD_GATEWAY)
+        errResp.headers.put('Content-Type', ['application/json'])
+        errResp.entity.setString('{"error":"pf_actor_token_failed"}')
+        return Promises.newResultPromise(errResp)
+    }
 }
 // PF access-token subjects use access_token typing; only an actual PF ID-JAG
 // (typ=oauth-id-jag+jwt) uses id-jag typing. PingOne behavior stays access_token.

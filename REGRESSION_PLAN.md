@@ -206,9 +206,10 @@ the dedicated MCP-service actor client.
 **What was fixed:** generated PingGateway configuration now reuses the BFF's
 existing PF MCP-service actor ID, secret, auth method, and scope. For PF-issued
 subjects, PingGateway mints that actor's client-credentials access token and
-sends it as `actor_token` on Exchange #3. PingOne sends no actor token and keeps
-its existing Exchange #3 request. PF's nested `act` chain remains part of the
-verified end-to-end contract.
+sends it as `actor_token` on Exchange #3 after checking it is an access-token
+JWT for the configured actor client and includes every requested actor scope.
+PingOne sends no actor token and keeps its existing Exchange #3 request. PF's
+nested `act` chain remains part of the verified end-to-end contract.
 
 **Do not break:** keep the actor token PF-only, preserve PF subject-token type,
 subject `sub`, nested `act`, PF's omitted `resource` and provider-specific
