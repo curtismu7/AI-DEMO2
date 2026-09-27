@@ -274,6 +274,32 @@ above were applied.
 
 **Verify:** Focused `pf-idjag-run-mode.spec.js` → 8 passed against the isolated worktree Vite server using system Chrome (the shared Playwright headless-shell cache was being reinstalled); `npm run build` exits 0.
 
+### 2026-09-27 — Cookie-restored P1 session skipped silent Privilege sign-in
+
+**Files:** `demo_api_server/routes/privilegeMcpClient.js`,
+`demo_api_server/tests/routes/privilegeMcpClient.silentAuth.test.js`.
+
+**What was broken:** `/state` treated the dashboard's signed-cookie-restored
+identity as authenticated when the OAuth token field was absent, but
+`/auth/start` only looked for an access token or a saved Privilege grant. The
+UI therefore showed the user as signed in while door authorization triggered
+another interactive PingOne login.
+
+**What was fixed:** Both endpoints now share the same main-app session check.
+The BFF requests `prompt=none` for a recognized dashboard identity, allowing
+PingOne SSO to issue the selected door's own grant. `login_required` still
+falls back to interactive login, and each door's authorization remains
+independent.
+
+**Do not break:** Keep the signed dashboard identity as the SSO signal; do not
+reuse one door's access or refresh token as another door's grant. Preserve the
+interactive fallback after a silent-auth failure and the per-door gateway
+authorization checks.
+
+**Verify:** Added test failed before the fix and passed after it;
+`CI=true npx jest tests/routes/privilegeMcpClient.silentAuth.test.js
+--runInBand --forceExit` — 10 passed.
+
 ### 2026-09-27 — Switching Privilege doors repeated interactive login
 
 **Files changed:** `demo_api_server/routes/privilegeMcpClient.js`,

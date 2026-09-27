@@ -142,6 +142,10 @@ describe('privilege silent auth — prompt=none', () => {
       const app = buildApp({ user: { id: 'customer-1', role: 'customer' } });
       const state = await request(app).get('/api/privilege-mcp/state').expect(200);
       expect(state.body.mainAppAuthenticated).toBe(true);
+
+      await configure(app);
+      const authUrl = await startAuth(app);
+      expect(authUrl.searchParams.get('prompt')).toBe('none');
     });
 
     test('omits prompt=none when privilegePromptNoneFailed is set', async () => {
