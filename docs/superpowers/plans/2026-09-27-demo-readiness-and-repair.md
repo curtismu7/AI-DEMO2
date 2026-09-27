@@ -34,7 +34,7 @@
 - `demo_api_server/services/demoReadinessAuditService.js` performs read-only source and live-target checks.
 - `demo_api_server/services/demoReadinessRepairService.js` plans, fingerprints, applies, and verifies approved repairs.
 - `demo_api_server/services/demoReadinessExecutionService.js` creates isolated provider sessions and executes the supported demo entry paths.
-- `demo_api_server/services/demoReadinessRunner.js` sequences audit, preview, confirmation, repair, re-audit, matrix execution, final reset, and result status under the deadline.
+- `demo_api_server/services/demoReadinessRunner.js` sequences audit, preview, confirmation, repair, re-audit, matrix execution, and result status under the deadline. The CLI leaves demo state alone; only Admin sidebar Reset Demo performs cleanup after READY.
 - `demo_api_server/services/demoReadinessJobStore.js` stores expiring async job state and progress for the admin UI.
 - `demo_api_server/routes/demoReadiness.js` exposes admin-only create, read, and confirm operations; it never starts a shell process.
 - `scripts/check-demo-readiness-contract.mjs` verifies UI/backend inventory parity and configuration-only repairability during build/CI.
@@ -80,12 +80,13 @@
 
 **Interfaces:**
 - `createReadinessReport({ runId, commit, targets, startedAt, deadlineAt })` returns a report with `status`, `ready`, `elapsedMs`, `inventory`, `checks`, `repairs`, and `unfinished`.
-- `recordCheck(report, { id, target, provider, useCaseId, status, expected, observed, sourceRef, evidence })` accepts only `pass`, `fail`, `blocked`, or `not-run`; any non-pass required row prevents `ready: true`.
+- `recordCheck(report, { id, target, userSessionProvider, agentIdentityProvider, tokenIssuerExchangeService, resourceServer, providerApplicability, useCaseId, status, expected, observed, sourceRef, evidence })` accepts only `pass`, `fail`, `blocked`, or `not-run`; any non-pass required row prevents `ready: true`. Preserve each provider role independently. A role excluded by the feature contract is recorded as `not-applicable` with its contract reason; this does not skip any other declared hop.
 - `redactReadinessValue(value)` removes bearer/JWT strings, passwords, cookies, authorization headers, and raw session identifiers recursively before persistence or display.
 - `remainingBudget(report, now)` returns `max(0, deadlineAt - now)`; deadline expiry marks queued rows `not-run` and active rows `blocked` with reason `deadline_exceeded`.
 
 - [ ] Write Jest tests for each status, aggregate readiness, stable counts, the exact 900,000 ms hard deadline, the 720,000 ms target warning, and expiry while queued or active rows exist.
 - [ ] Test nested redaction using bearer/JWT/password/cookie/session fixtures and assert report serialization contains none of the input secret values.
+- [ ] Test that each row retains target, user-session provider, agent identity provider, token issuer/exchange service, resource server, and per-role applicability; a not-applicable role has a contract reason while other declared hops remain required.
 - [ ] Run `cd demo_api_server && CI=true npx jest tests/demoReadinessReport.test.js --forceExit`; expected: all report and deadline cases pass without outbound network.
 - [ ] Run `graphify update .`, `git diff --check`, stage only the listed paths, verify the branch, and commit as `feat: add demo readiness report model`.
 
@@ -148,6 +149,8 @@
 
 - [ ] Add contract tests showing the base inventory is 184 provider/target/use-case executions plus two UC40 ID-JAG executions, and each declared vertical expansion adds explicit rows rather than overwriting another lane.
 - [ ] Add mocked execution tests for PERMIT, DENY, STEP_UP, HITL_REQUIRED, expected Admin tool output, page route load, education panel registration/open, attack simulation verdicts, UC2.5 A2A evidence, UC14b quick-result outcome, UC38/UC44 chip adaptation, standard PF exchange provenance, UC40 native ID-JAG provenance, and wrong-provenance failures.
+- [ ] Add separate AI-agent feature checks, outside the 46 Demo Steps count, for the PingOne Agent IAM Core identity/lifecycle and delegated downscoped-exchange baseline; PF CIMD acceptance and rejection; PF cross-domain third-party authorization-server allow and deny outcomes; native PF ID-JAG acceptance and invalid/expired/wrong-audience rejection through the existing mock resource server; and PF RAR processor acceptance and rejection of authorization details.
+- [ ] Record user-session provider, agent identity provider, token issuer/exchange service, resource server, and target on every AI-agent row. Assert that only contract-excluded roles are `not-applicable`, without omitting declared exchange hops. Exercise PAR wherever the flow requires it and do not count PAR as PF-only; keep all AI-agent cases on OAuth/JWT with no SAML path.
 - [ ] Add concurrency tests proving provider worker state and cookies are separate, `oauth_provider` is unchanged, one worker failure does not hide other lane results, and the deadline launches no new rows after expiry.
 - [ ] Add a provider-login integration test using the existing real-login helper contracts for both providers and dedicated readiness identities; it must assert PingOne sessions identify PingOne and PF sessions identify PingFederate before any demo case runs.
 - [ ] Run `cd demo_api_server && CI=true npx jest tests/demoReadinessExecutionService.test.js tests/demoReadinessProviderIsolation.test.js --forceExit`; expected: mocks verify correct session, route, outcome, audience, and provenance per row.
@@ -234,6 +237,8 @@
 
 - Both targets and provider modes: Tasks 3, 5, 6, and 9.
 - Every executable Demo Steps case and explicit 46-count parity: Task 1 and Task 5.
+- AI-agent cases separate from the 46-entry inventory: Task 5 covers PingOne Agent IAM Core, PF CIMD, third-party authorization-server exchange, native ID-JAG through the existing mock resource server, and PF RAR processor outcomes.
+- AI-agent report role attribution and not-applicable semantics: Task 2 and Task 5; declared exchange hops remain tested. PAR is exercised where required and is not PF-only; these cases have no SAML path.
 - UC40 native PF ID-JAG and standard exchange evidence elsewhere: Task 5.
 - Agent Gateway, Authorize, audiences, scopes, grants, and live policy readback: Task 3; unavailable policy readback blocks full READY.
 - Source-of-truth configuration-only repairability check: Task 1; fixture-based repair proof and source immutability are required.
