@@ -1,0 +1,162 @@
+{
+  "schemaVersion": 1,
+  "sourceCodeRepairPolicy": "never",
+  "driftClasses": {
+    "pingone-scope-addition": {
+      "sourceOfTruth": "scope-topology.json",
+      "readback": "PingOne Management API resource-scope list",
+      "repairMode": "automatic",
+      "configurationOnly": true,
+      "operation": "Create only a uniquely mapped missing scope"
+    },
+    "pingone-app-scope-grant": {
+      "sourceOfTruth": "scope-topology.json and named app mapping",
+      "readback": "PingOne Management API application grant list",
+      "repairMode": "automatic",
+      "configurationOnly": true,
+      "operation": "Add only a uniquely mapped required grant"
+    },
+    "pingone-resource-audience": {
+      "sourceOfTruth": "scope-topology.json",
+      "readback": "PingOne Management API resource list",
+      "repairMode": "manual",
+      "configurationOnly": true,
+      "operation": "No automatic audience update is declared"
+    },
+    "authorize-endpoint-reference": {
+      "sourceOfTruth": "repository runtime configuration",
+      "readback": "PingOne Authorize decision-endpoint list",
+      "repairMode": "manual",
+      "configurationOnly": true,
+      "operation": "Require an explicit supported config edit and readback"
+    },
+    "authorize-policy-definition": {
+      "sourceOfTruth": "PingOne Authorize policy definition",
+      "readback": "Unavailable with current worker permissions",
+      "repairMode": "manual",
+      "configurationOnly": true,
+      "operation": "Block READY until full policy readback is supported"
+    },
+    "agent-gateway-runtime-config": {
+      "sourceOfTruth": "ping-gateway/config and ping-gateway/scripts",
+      "readback": "Target config fingerprint and route checks",
+      "repairMode": "release-only",
+      "configurationOnly": true,
+      "operation": "Use the approved local or hosted release process"
+    },
+    "pingfederate-standard-exchange": {
+      "sourceOfTruth": "Committed PingFederate profile/provisioning contract and REGRESSION_PLAN.md",
+      "readback": "Provider-specific login, token exchange, issuer/JWKS validation, audience, and scope evidence",
+      "repairMode": "manual",
+      "configurationOnly": true,
+      "operation": "Repair the named PingFederate profile setting through its supported admin API"
+    },
+    "pingfederate-a2a-runtime": {
+      "sourceOfTruth": "Committed A2A PingFederate provisioning contract and scope-topology.json",
+      "readback": "Specialist clients, token-exchange policy references, SP resource URIs, ID-JAG settings, ATMs, allowed audiences, and gateway issuer/JWKS checks",
+      "repairMode": "manual",
+      "configurationOnly": true,
+      "operation": "Repair only a uniquely identified PingFederate object; require full API readback before READY"
+    },
+    "pingfederate-native-id-jag": {
+      "sourceOfTruth": "Committed UC40 PingFederate contract and REGRESSION_PLAN.md",
+      "readback": "Native PingFederate issuance and MCP authorization-server redemption evidence",
+      "repairMode": "manual",
+      "configurationOnly": true,
+      "operation": "Repair the named UC40 profile object through the supported PingFederate admin API"
+    },
+    "demo-execution-code-defect": {
+      "sourceOfTruth": "Demo Steps catalog, route handlers, and focused service/UI tests",
+      "readback": "Affected scenario test and build in an isolated source checkout",
+      "repairMode": "release-only",
+      "configurationOnly": false,
+      "operation": "Do not repair during live readiness; create and verify a source patch in the build workflow"
+    },
+    "demo-page-or-panel": {
+      "sourceOfTruth": "UI route and panel implementation",
+      "readback": "Browser route or education-panel readiness check",
+      "repairMode": "release-only",
+      "configurationOnly": false,
+      "operation": "Treat code defects as release blockers"
+    },
+    "demo-feature-flag": {
+      "sourceOfTruth": "Resolved use-case maturity and UI/BFF prerequisite contract",
+      "readback": "Effective worker-runtime flag value before and after the case",
+      "repairMode": "automatic",
+      "configurationOnly": true,
+      "operation": "Arm only the required flag in an isolated readiness worker and restore it after the case"
+    },
+    "a2a-specialist-credentials": {
+      "sourceOfTruth": "demo_api_server/config/a2aSpecialists.js and provider-specific profile contract",
+      "readback": "Presence of dedicated worker client IDs/secrets without recording their values",
+      "repairMode": "manual",
+      "configurationOnly": true,
+      "operation": "Configure dedicated worker credentials through the protected runtime configuration"
+    },
+    "pingone-par-runtime": {
+      "sourceOfTruth": "demo_api_server/services/demoStepPrerequisites.js PAR_CONFIG_KEYS",
+      "readback": "Presence of PAR endpoint, actor client, and redirect values without recording secrets",
+      "repairMode": "manual",
+      "configurationOnly": true,
+      "operation": "Configure missing PAR settings through the protected runtime configuration"
+    },
+    "authorize-group-membership": {
+      "sourceOfTruth": "Vertical manifest groups and PingOne Authorize policy contract",
+      "readback": "Live group membership and policy decision evidence",
+      "repairMode": "manual",
+      "configurationOnly": true,
+      "operation": "Require exact membership and policy readback before the case can pass"
+    },
+    "pingfederate-davinci-integration": {
+      "sourceOfTruth": "Committed PF DaVinci proof flow and role-specific profile contract",
+      "readback": "Dedicated PF client, authentication policy adapter configuration, and signed login proof",
+      "repairMode": "manual",
+      "configurationOnly": true,
+      "operation": "Repair the PF client or adapter policy through its supported administrative interface"
+    }
+  },
+  "executionModes": {
+    "agent-chip": { "repairClass": "configuration-first", "configurationDependencies": ["pingone-scope-addition", "pingone-app-scope-grant", "pingone-resource-audience", "authorize-endpoint-reference", "authorize-policy-definition", "agent-gateway-runtime-config"], "sourceCodeChanges": "never" },
+    "a2a": { "repairClass": "configuration-first", "configurationDependencies": ["pingone-scope-addition", "pingone-app-scope-grant", "authorize-policy-definition", "agent-gateway-runtime-config", "pingfederate-a2a-runtime"], "sourceCodeChanges": "never" },
+    "intent-binding-quick": { "repairClass": "configuration-first", "configurationDependencies": ["pingone-scope-addition", "pingone-app-scope-grant", "authorize-policy-definition"], "sourceCodeChanges": "never" },
+    "attack-sim": { "repairClass": "configuration-first", "configurationDependencies": ["pingone-scope-addition", "authorize-policy-definition", "agent-gateway-runtime-config"], "sourceCodeChanges": "never" },
+    "page": { "repairClass": "release-required", "configurationDependencies": ["demo-page-or-panel"], "sourceCodeChanges": "never" },
+    "education-panel": { "repairClass": "release-required", "configurationDependencies": ["demo-page-or-panel"], "sourceCodeChanges": "never" },
+    "admin-mcp": { "repairClass": "configuration-first", "configurationDependencies": ["pingone-scope-addition", "pingone-app-scope-grant"], "sourceCodeChanges": "never" },
+    "live-id-jag": { "repairClass": "configuration-first", "configurationDependencies": ["pingone-scope-addition", "pingone-app-scope-grant", "authorize-policy-definition", "agent-gateway-runtime-config"], "sourceCodeChanges": "never" }
+  },
+  "providerFlows": {
+    "pingone-standard": {
+      "sourceCodeChanges": "never",
+      "configurationDependencies": ["pingone-scope-addition", "pingone-app-scope-grant", "pingone-resource-audience", "authorize-endpoint-reference", "authorize-policy-definition", "agent-gateway-runtime-config"]
+    },
+    "pingone-a2a": {
+      "sourceCodeChanges": "never",
+      "configurationDependencies": ["pingone-scope-addition", "pingone-app-scope-grant", "authorize-policy-definition", "agent-gateway-runtime-config"]
+    },
+    "pingone-admin-mcp": {
+      "sourceCodeChanges": "never",
+      "configurationDependencies": ["pingone-app-scope-grant"]
+    },
+    "pingfederate-standard": {
+      "sourceCodeChanges": "never",
+      "configurationDependencies": ["pingfederate-standard-exchange", "authorize-policy-definition", "agent-gateway-runtime-config"]
+    },
+    "pingfederate-a2a": {
+      "sourceCodeChanges": "never",
+      "configurationDependencies": ["pingfederate-a2a-runtime", "pingone-scope-addition", "authorize-policy-definition", "agent-gateway-runtime-config"]
+    },
+    "pingfederate-native-id-jag": {
+      "sourceCodeChanges": "never",
+      "configurationDependencies": ["pingfederate-native-id-jag", "authorize-policy-definition", "agent-gateway-runtime-config"]
+    },
+    "pingfederate-workload": {
+      "sourceCodeChanges": "never",
+      "configurationDependencies": ["pingfederate-standard-exchange", "pingone-app-scope-grant", "authorize-policy-definition", "agent-gateway-runtime-config"]
+    },
+    "pingfederate-admin-mcp": {
+      "sourceCodeChanges": "never",
+      "configurationDependencies": ["pingfederate-standard-exchange", "pingone-app-scope-grant"]
+    }
+  }
+}

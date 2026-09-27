@@ -1,0 +1,154 @@
+# Demo Readiness Master Guide
+
+This is the living human reference for the demo readiness checks, repairs, operator flow, and extension process. The checked-in inventories, topology, use-case definitions, feature manifests, profile contracts, and implementation are authoritative; this guide explains how they fit together. Every task that changes a check, repair class, provider path, feature probe, or operator flow updates this file in the same commit.
+
+## Goal and current status
+
+The readiness workflow will check local Docker and hosted SE, show every finding, offer one digest-bound repair preview, apply only approved source-backed configuration changes, re-audit, and execute every required Demo Step and feature probe. A full green result requires every applicable target/provider/scenario row to pass before the 15-minute hard deadline. The target duration is 12 minutes. The run must list unfinished rows and return NOT READY when it cannot complete; it must not skip cases to fit the budget.
+
+The workflow also has a separate command users can run directly and an Admin sidebar Reset Demo integration. Only the Admin sidebar action may launch privileged readiness repair. It performs the existing reset/sign-out cleanup only after full readiness. The live readiness path never edits application source. A separate build-time helper may propose a source patch in an isolated worktree for review after focused tests/build pass; it never commits or deploys.
+
+The current branch has the 46-case inventory/build contract and a report model. The two-target audit, confirmed-repair service, full scenario runner, CLI, admin job/UI, and source-fix helper are still planned work. PF Exchange #3 also needs the source/config fix below before it can be considered verified. No end-to-end green result or 12-minute benchmark has been established.
+
+## Coverage inventory
+
+The current executable Demo Steps list has 46 unique actions:
+
+| Source lane | Source entries | Unique runnable entries | Notes |
+|---|---:|---:|---|
+| Primary | 24 | 24 | All remain in the executable inventory. |
+| CIAM | 5 | 4 | UC2 is already present in Primary. |
+| Privilege | 7 | 6 | UC40 is already present in Primary. |
+| Admin | 13 | 12 | Admin1–Admin12 execute MCP operations; Admin13 is navigation. |
+| **Total** | **49** | **46** | UC2 and UC40 are cross-lane duplicates; Admin13 is excluded. |
+
+The catalog currently derives 184 behavior-plus-authorization vertical groups and 734 core target/provider rows. UC14b's full-page live-PAR variant adds four rows. A2A FM1/FM2/FM3 add 12 provider/target rows, and PF-DAVINCI-IK adds two PF-only target rows, for a current declared baseline of 752. The five Privilege LLM Attack Lab probes add 20 rows, bringing the known expanded count to 772 before PingOne Agent IAM Core and remaining PF protocol probes. Task 5 must register all added probes in the feature manifest; Task 10 reports the exact derived count rather than assuming 772 remains final.
+
+The 46-step count and separate feature-probe count are distinct. Adding assertions to an existing PF session row, including PingGateway Exchange #3 checks, does not add a Demo Steps entry or a matrix row. A newly exposed UI action must be added to the UI list and inventory, receive a backend behavior/auth/config contract, and trigger fresh row-count and timing review.
+
+Runnable IDs in source order:
+
+- Primary (24): `UC24`, `UC1`, `UC8`, `UC7`, `UC14b`, `UC14`, `UC12`, `UC6`, `UC2`, `UC2.5`, `UC2.7`, `UC22`, `UC5`, `UC10`, `UC13`, `UC11`, `UC20`, `UC18`, `UC30`, `UC31`, `UC32`, `UC40`, `UC38`, `UC-TOOL1`.
+- CIAM-only additions (4): `UC43`, `UC44`, `UC45`, `UC2.6`. `UC2` is already in Primary.
+- Privilege-only additions (6): `UC17`, `UC25`, `UC-PAM-SETUP`, `UC-PAM-SCRIPT`, `UC-LEARN11`, `UC-TOOL3`. `UC40` is already in Primary.
+- Admin executable entries (12): `ADMIN1` through `ADMIN12`. `ADMIN13` is listed in source but is navigation-only and excluded.
+
+### Required provider and protocol lanes
+
+- Establish dedicated PingOne user sessions and dedicated PingFederate user sessions for every applicable step, on both targets. Use isolated identities and sessions; never relabel one provider's session or flip the active BFF's process-wide OAuth provider.
+- UC40 is PF-only. Its PingOne lane is explicitly not applicable because the native ID-JAG journey requires a PingFederate-authenticated session. UC40 proves the standalone native PF ID-JAG issuance and redemption path.
+- PF UC2 and UC2.5 A2A use the internal ID-JAG Exchange #1 followed by access-token Exchange #2. UC2.5 uses its direct A2A endpoints. This is distinct from UC40. UC2.5 and UC2.6 verticals remain separate when A2A tools or Authorize groups differ.
+- UC38/UC44 retain actor-bound standard two-exchange behavior, preserve the nested `act` chain and user subject, and do not use native ID-JAG. Their existing link-to-chip behavior remains part of the actual trigger contract.
+- UC14b has two paths: its quick result is labeled simulated; the full-page flow proves the live PAR/RAR route.
+- PF DaVinci Integration Kit login is a separate PF-only proof. A pre-existing PingOne session cannot satisfy the PF proof, and the PF callback must preserve PingOne tokens/session state.
+- Keep the passenger A2A `invalid_target` failure as UC2 A2A evidence. It is not evidence for PingGateway Exchange #3 or UC40.
+
+### Separate feature probes
+
+Feature probes are registered alongside the 46 UI entries and state their provider roles and expected outcomes explicitly.
+
+| Probe family | Coverage |
+|---|---|
+| A2A FM1 | Out-of-allowlist tool is refused before exchange. |
+| A2A FM2 | Act-less bearer is refused and returns no protected tool data. |
+| A2A FM3 | Nested delegation succeeds; expected exchange chain differs by provider. |
+| PF-DAVINCI-IK | Dedicated PF login proof succeeds while any existing PingOne session is preserved. |
+| Privilege Attack Lab | Tool Abuse, Tool Poisoning, Schema Violation, Inter-Agent Abuse, and Malicious Content. Derive outcome/attribution from the attack catalog; do not assume every case is a block. UC-LEARN11 checks both its prefilled prompt and the actual send/deny result. |
+| PingOne Agent IAM Core | Identity, lifecycle, and delegated-token-exchange baseline. |
+| PingFederate agent features | CIMD valid/rejected metadata, third-party authorization-server allow/deny exchange, valid ID-JAG issuance/redemption by the existing mock resource server plus invalid/expired/wrong-audience rejection, and RAR valid/invalid detail processing. Declare applicability by provider role. |
+
+PAR is tested where a flow needs it; it is not a PF-only capability. All AI-agent feature paths use OAuth/JWT, not API keys.
+
+## Check layers and sources of truth
+
+### Checked-in contract
+
+- `demo_api_ui/src/config/demoUseCaseSteps.js` supplies the five source lane lists and their executable action IDs.
+- `demo_api_server/config/demoReadinessInventory.json` is the backend projection; the build check rejects divergence from the UI list.
+- `demo_api_server/services/demoReadinessCatalog.js` joins those IDs to the backend use-case catalog, actual UI trigger/route semantics, expected outcomes, provider flows, and per-vertical authorization signatures.
+- `demo_api_server/services/demoStepPrerequisites.js` supplies required feature flags, A2A credentials, PAR settings, and group prerequisites; the UI and BFF prerequisite helpers must agree.
+- `scope-topology.json`, `ping-gateway/config/scope-topology.json`, vertical manifests, route/auth configuration, and registered MCP tool metadata define resource audiences, required scopes, and applicable Authorize group relationships.
+- `demo_api_server/config/demoReadinessFeatureChecks.json` declares separate provider feature probes and expected results.
+- `demo_api_server/config/demoReadinessRepairability.json` classifies drift by source, supported readback, repair mode, and operation.
+- Task 3 will add a secret-free, role-specific PingFederate profile contract. Until a role has a reconciled, authoritative expectation, that role is undocumented and blocks READY.
+
+The build/CI contract verifies all 46 unique runnable entries, exact source-lane order, no Admin13 execution, registered behavior/handler variants, vertical scope/resource/audience parity, group mapping, prerequisite parity, provider applicability, and repairability classification. It also catches any newly introduced UI step that lacks an expected outcome or dependency map.
+
+### Local and hosted audits
+
+The read-only audit covers every setting consumed by Agent Gateway and Authorize, including:
+
+- resource audiences, scopes and mirrors, app grants, registered tool scopes, feature flags, A2A credentials, PAR settings, and vertical group membership;
+- Gateway routes/auth configuration, loaded revision and config fingerprints, route health, effective audiences/scopes, and the expected Authorize decision endpoint references;
+- complete live Authorize policy definitions when a supported read path exists. A successful decision call does not prove policy-tree parity. Current worker credentials cannot read the complete policy tree, so full READY remains blocked until supported readback is available;
+- PingFederate role-specific OAuth grants, processor-policy refs, ATMs/restrictions, service-provider resource URIs, ID-JAG settings, exchange mappings, issuer/JWKS routing, DaVinci client/adapter, CIMD, third-party authorization-server, and RAR configuration through supported PF Admin APIs;
+- local Docker health/config inspection through read-only commands. Hosted SE is audited and exercised, never deployed or updated by this workflow.
+
+Missing credentials, unavailable targets, unsupported readback, source/live disagreement, unknown drift, revision mismatch, or incomplete checks are blockers. Never substitute a successful tool call for missing configuration readback.
+
+### PingGateway Exchange #3: current release prerequisite
+
+The active feature work adds PF Exchange #3 routing to existing PF session rows. Its contract is:
+
+1. Select the exchange provider from the validated subject token's signed issuer. A PF issuer selects `PF_TOKEN_ENDPOINT` and the PF standard MCP exchanger; a PingOne issuer keeps `PINGONE_TOKEN_ENDPOINT` and `TE_CLIENT_*`.
+2. If the subject issuer is PF but the PF endpoint or dedicated exchanger credentials are missing, fail closed with `pf_exchange_not_configured`. Never send that subject to PingOne or substitute PingOne credentials.
+3. Generate Gateway `PF_ISSUER_URI`, `PF_TOKEN_ENDPOINT`, `PF_TE_CLIENT_ID`, and `PF_TE_CLIENT_SECRET` from the existing BFF PF config values. Do not rely on a hand-edited ignored Gateway `.env`.
+4. Require an HTTPS PF token endpoint whose scheme and authority match the issuer while retaining the configured token path.
+5. Send `subject_token_type=access_token`, except use `id-jag` only when the JWT header `typ` is exactly `oauth-id-jag+jwt`. The requested token type remains access token. Preserve the user `sub` and nested A2A `act` claims.
+6. Prove the end-to-end path with a registered backend MCP tool and its expected audience/result. An unregistered UI intent alias is an unknown-tool result, not proof of Exchange #3 success/failure.
+7. Keep logs and returned errors free of raw subject/access tokens, authorization data, MCP session IDs, and provider/backend response bodies.
+
+Code review found the current Gateway filters fall through to PingOne when PF endpoint configuration is incomplete and can reuse PingOne exchanger credentials for PF; the local environment generator omits the PF variables. The OLB filter also sends `subject_token_type=id-jag` for every PF subject, including ordinary PF access tokens, while Exchange #3 must choose `id-jag` only for a JWT header whose `typ` is exactly `oauth-id-jag+jwt`. The filters log raw provider response bodies, and the OLB filter logs the MCP session ID. Task 2A is a release prerequisite to close these gaps and add regression tests. Until it is complete and the Task 3 audit can read back the generated/local and hosted configuration, PF Exchange #3 readiness is blocked. Its assertions attach to existing rows and do not change the 46-step count.
+
+## Expected outcomes and step independence
+
+Each row uses the catalog's declared expected result and the same trigger-specific action the UI invokes. Tool rows compare the real token issuer, policy subject, actor chain, resource audience, granted scopes, Gateway route/verdict, and Authorize decision. Store sanitized claim summaries, never tokens. Navigation and education rows prove the registered page/panel loads and state why Gateway/Authorize evidence does not apply. Admin1–12 assert the declared MCP operation and result.
+
+Keep these regressions explicit:
+
+- UC5's declared `DENY_403` and UC18's `DENY_429` cannot pass because an unrelated Gateway audience mismatch occurred.
+- Derive UC38's page-route check from its declared trigger and verify the workload-agent page loads.
+- For steps sharing mutable feature-flag or vertical test state, run a small standalone/normal/reverse sequence comparison and restore only test-changed state in `finally`. A cleanup failure fails readiness. Do not permute every case or reset presenter/live user data.
+
+## Repair and source-fix boundaries
+
+| Drift | Live readiness action |
+|---|---|
+| Missing, uniquely mapped PingOne scope or required app grant | May regenerate/apply only after a full exact preview, one admin confirmation, a pre-write reread, and successful API readback. |
+| A required feature flag for one scenario | Arm only inside an isolated readiness worker; restore in `finally` and fail if restore fails. |
+| Local generated PingGateway PF Exchange #3 env | Automatic only if a tested in-process adapter can regenerate from declared BFF values, safely restart the local Gateway, and verify loaded config after preview/confirmation. Otherwise classify as release-only/manual. Never hand-edit the generated file or shell out from the BFF. |
+| Hosted SE Gateway configuration | Read-only/release-only. No cluster update or deployment. |
+| PF client/SP profile, DaVinci adapter, or native ID-JAG config | Manual/release-only unless a supported exact-object write, idempotency, and readback have been proven and declared. |
+| Full Authorize policy tree | Block READY until a supported read path exists; do not infer policy correctness from observed decisions. |
+| Unknown/ambiguous drift, missing credentials, or application code defect | Block the run and identify the exact fix. Never guess or broaden access. |
+| Source-code defect | Separate build-time helper may produce an uncommitted patch in an isolated worktree, limited to declared code refs. Require focused tests/build and review. Never call it from readiness or Reset Demo. |
+
+Every automatic change is bound to one digest of the displayed preview. Before writing, reread each object and reject changed, ambiguous, stale, or repeated plans. Record sanitized before/after evidence and verify through the source API. The live reset flow does not fix application code.
+
+## Report, deadline, and operator flow
+
+The report has stable check statuses (`pass`, `fail`, `blocked`, `not-run`), required/optional aggregation, counts, repairs, unfinished work, timing, and sanitized evidence. Each check records `userSessionProvider`, `agentIdentityProvider`, `tokenIssuer`, `exchangeService`, and `resourceServer` independently, with `providerApplicability` mapping `userLogin`, `agentIdentity`, `tokenIssuer`, `exchangeService`, and `resourceServer` roles to `required` or `not-applicable` and a source-contract reason for every exclusion. These fields contain stable nonsecret provider/service/resource identifiers; a generic provider label cannot represent cross-domain token flows. Deadline expiry is terminal: ready stays false, queued work becomes not-run, active work becomes blocked, and the report lists remaining rows. Redaction covers bearers/JWTs, credentials, cookies, authorization data, and session identifiers before persistence or display, including direct report reads and serialized output.
+
+One run timer starts before prerequisites and includes audit, preview/confirmation wait, repair, re-audit, all applicable scenario rows, cleanup, and report. The target warning starts at 12 minutes; expiry is 15 minutes. The CLI and Admin job use the same runner. Admin routes require authentication, admin role, and admin scope. The job confirmation is bound to the exact repair digest. Failed, blocked, stale, or expired jobs do not reset demo state or sign the administrator out.
+
+## How to add a future check
+
+1. Decide whether the new behavior is an existing UI step, a separate provider feature probe, or a configuration audit. Keep these categories distinct.
+2. Link the exact source of truth: UI trigger, backend handler, expected-outcome catalog, topology/profile contract, live API readback, and test fixture. Do not copy an expectation only from a handoff note or current live state.
+3. Declare target and provider roles, explicit non-applicability reasons, vertical applicability, auth/session requirements, token/exchange path, and expected positive or negative result.
+4. Declare the evidence required to prove the result: actual registered route/tool, issuer/subject/actor summary, audience/scopes, Gateway decision, Authorize result, or page/panel behavior. Define why evidence is not applicable for non-tool rows.
+5. Add the check to the appropriate inventory/feature manifest, include a focused failure test and a source/live drift test, recalculate the derived row count, and review impact on the 12/15-minute limits.
+6. Add a repairability classification even if it is manual or release-only. Name the exact object, source, readback, operation, confirmation boundary, idempotency, and cleanup/restore behavior. If any is unknown, keep it blocked.
+7. Ensure failure output and logs are redacted. Test serialized output and direct report reads for token, credential, cookie, authorization, and session values.
+8. Update this guide and the implementation plan in the same task commit. Run the focused checks, inspect the staged paths, and commit the task separately.
+
+## Current blockers and plan status
+
+- **Authorize policy-tree readback:** unavailable with current worker permissions; full READY remains impossible until supported.
+- **PF Exchange #3:** local source wiring and fail-closed behavior are incomplete; filters also need their raw response/session logging removed. Task 2A is planned and blocks PF readiness. Any local environment auto-repair additionally depends on Task 4 proving a safe in-process restart/readback adapter; otherwise it remains release-only/manual.
+- **PF profile contracts:** complete secret-free per-role expectations do not yet exist; Task 3 must add and reconcile them before live parity can pass.
+- **Hosted SE:** read/execute only; remote repair/deploy is not permitted by repository policy.
+- **Isolation, full matrix, timing:** provider-worker isolation, all 46 step executions, all remaining feature probes, and a complete ≤12-minute benchmark remain unproved.
+- **Implementation sequence:** Tasks 1 and 2 are committed. Task 2A, Tasks 3–10, and final integration review remain.
+
+Update this status table as each task is committed. Do not label the readiness workflow operational until audit, repair, execution, CLI, admin UI, all intended probes, and final timing/security checks are implemented and reviewed.
