@@ -516,9 +516,12 @@ describe('POST /api/davinci-login/sdk-token', () => {
     PINGONE_DAVINCI_LOGIN_POLICY_ID_V2: 'pol-v2',
   };
   const saved = {};
+  let savedPingOneRegion;
 
   beforeEach(() => {
     axios.post.mockReset();
+    savedPingOneRegion = process.env.PINGONE_REGION;
+    delete process.env.PINGONE_REGION;
     // The API key is a vault secret: vaultLoader caches it into configStore
     // under the lowercased name, never into process.env.
     configStore.getEffective.mockReset().mockImplementation((k) =>
@@ -527,6 +530,8 @@ describe('POST /api/davinci-login/sdk-token', () => {
     Object.keys(ENV).forEach((k) => { saved[k] = process.env[k]; process.env[k] = ENV[k]; });
   });
   afterEach(() => {
+    if (savedPingOneRegion === undefined) delete process.env.PINGONE_REGION;
+    else process.env.PINGONE_REGION = savedPingOneRegion;
     Object.keys(ENV).forEach((k) => {
       if (saved[k] === undefined) delete process.env[k]; else process.env[k] = saved[k];
     });
@@ -536,12 +541,20 @@ describe('POST /api/davinci-login/sdk-token', () => {
     oauthEndpointResolver.getDiscoveryEndpoint.mockReturnValueOnce(
       'https://pingfederate:9031/.well-known/openid-configuration'
     );
+    configStore.getEffective.mockImplementation((key) => {
+      if (key === 'pingone_davinci_api_key') return 'sk-secret-key';
+      if (key === 'pingone_region') return 'eu';
+      return '';
+    });
     axios.post.mockResolvedValue({ data: { access_token: 'sdk-tok-1' } });
 
     const res = await request(buildApp({})).post('/api/davinci-login/sdk-token');
 
     expect(res.status).toBe(200);
-    expect(res.body.apiRoot).toBe('https://auth.pingone.com/');
+    expect(res.body.apiRoot).toBe('https://auth.pingone.eu/');
+    expect(axios.post.mock.calls[0][0]).toBe(
+      'https://orchestrate-api.pingone.eu/v1/company/co-1/sdktoken'
+    );
   });
 
   test('mints a token with no username, binds the nonce to the session, and passes it to the flow', async () => {

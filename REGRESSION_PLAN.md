@@ -199,13 +199,18 @@ the browser received `https://pingfederate:9031/` and could not resolve that
 Docker-only hostname, so DaVinci sign-in failed before the flow rendered.
 
 **What was fixed:** the Widget now receives PingOne's public DaVinci API root,
-independent of whether the app login provider is PingOne or PingFederate.
+independent of whether the app login provider is PingOne or PingFederate. Both
+the Widget API root and server-side SDK-token request follow the configured
+PingOne region, such as `auth.pingone.com` and
+`orchestrate-api.pingone.com` or their `.eu` equivalents. Unsupported region
+values fall back to `com` before building either hostname.
 
 **Do not break:** keep OAuth provider endpoint resolution unchanged; preserve
 the Widget's API-key custody, nonce/session handling, and token validation.
 
 **Verify:** the focused BFF route suite passes (32 tests); its regression case
-first failed with the internal PF hostname and now expects the PingOne API root.
+first failed with the internal PF hostname and now checks both `.eu` hosts
+while PF is selected.
 
 ### 2026-09-27 — Demo Steps scrim escaped the Command Dock stacking context
 

@@ -32,8 +32,21 @@ const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 
 const router = express.Router();
 
-const ORCHESTRATE_BASE = 'https://orchestrate-api.pingone.com/v1';
-const DAVINCI_API_ROOT = 'https://auth.pingone.com/';
+const PINGONE_REGIONS = new Set(['com', 'ca', 'eu', 'asia', 'com.au']);
+
+function getPingOneRegion() {
+  const configuredRegion = String(
+    process.env.PINGONE_REGION || configStore.getEffective('pingone_region') || 'com'
+  ).trim() || 'com';
+  return PINGONE_REGIONS.has(configuredRegion) ? configuredRegion : 'com';
+}
+
+function getDavinciApiRoot(region) {
+  // The Widget API host is independent of the app's OAuth provider. In PF
+  // mode, the OIDC discovery URL points to an internal PF Docker hostname.
+  // Follow the configured PingOne region for the browser-facing DaVinci API.
+  return `https://auth.pingone.${region}/`;
+}
 
 // Arms one login run: the single-use nonce /widget-session and /callback
 // verify. It goes to the flow as a parameter and comes back as the ID token's
@@ -164,13 +177,14 @@ router.post('/sdk-token', async (req, res) => {
       return res.status(500).json({ error: 'session_save_failed', message: 'Could not persist nonce.' });
     }
     try {
+      const region = getPingOneRegion();
       // `username` is optional in the flow's Input Schema — only send it when
       // supplied, since DaVinci rejects any undeclared property with "data has
       // additional properties" for anything NOT declared, but an empty string
       // for an optional field is a value, not an omission.
       const parameters = username ? { nonce, username } : { nonce };
       const { data } = await axios.post(
-        `${ORCHESTRATE_BASE}/company/${companyId}/sdktoken`,
+        `https://orchestrate-api.pingone.${region}/v1/company/${companyId}/sdktoken`,
         { policyId, parameters },
         { headers: { 'X-SK-API-KEY': apiKey, 'Content-Type': 'application/json' }, timeout: 10_000 }
       );
@@ -185,9 +199,7 @@ router.post('/sdk-token', async (req, res) => {
         companyId,
         policyId,
         flowVersion: version,
-        // DaVinci's browser API host is independent of the app's OAuth provider.
-        // In PF mode, the OIDC discovery URL is an internal PF Docker hostname.
-        apiRoot: DAVINCI_API_ROOT,
+        apiRoot: getDavinciApiRoot(region),
       });
     } catch (e) {
       const normalized = normalizeAxiosError(e, { label: 'DaVinci SDK token', timeoutMs: 10_000 });
