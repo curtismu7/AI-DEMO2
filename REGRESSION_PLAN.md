@@ -293,6 +293,34 @@ existing Exchange #3 behavior. The UC38 passenger A2A
 `olbTokenExchangeProviderRouting.test.js`; then run the valid local MCP tool through
 `/api/mcp/tool` and confirm PF Exchange #3 plus the backend tool call complete.
 
+### 2026-09-27 — PingGateway PF validation used the wrong JWKS URL
+
+**Files:** `demo_api_server/scripts/refresh-service-envs.js`,
+`demo_api_server/tests/refreshServiceEnvsPfGateway.test.js`,
+`ping-gateway/.env.example`,
+`ping-gateway/scripts/groovy/jwks-token-validation.groovy`,
+`docs/superpowers/specs/2026-09-26-demo-readiness-and-repair-design.md`.
+
+**What was broken:** The PF local-JWKS route was selected, but PingGateway had
+no `PF_JWKS_URI`. Its fallback requested `${PF_ISSUER_URI}/JWKS`, while this PF
+instance publishes signing keys at `/pf/JWKS`. Validation failed before
+PingGateway Exchange #3, surfacing as HTTP 502 from `/api/mcp/tool`.
+
+**What was fixed:** Service-env generation now emits `PF_JWKS_URI` on the PF
+issuer hostname, defaulting to `/pf/JWKS`, and rewrites configured JWKS URLs to
+that TLS hostname. The validator fallback uses the same local PF path. The
+readiness design now requires its PF-session MCP row to verify issuer-specific
+JWKS validation and PF Exchange #3 while preserving PingOne's existing
+introspection path.
+
+**Do not break:** Verify PF tokens against the configured PF JWKS and exact
+issuer; keep PingOne tokens on their existing validation path and fail closed
+when validation cannot complete.
+
+**Verify:** Focused `refreshServiceEnvsPfGateway.test.js`; local
+`get_my_accounts` through `/api/mcp/tool` returns a successful backend result
+after deployment.
+
 ### 2026-09-27 — Exchange diagnostics no longer mask the underlying failure
 
 **Files:** `demo_api_server/services/agentMcpTokenService.js`,

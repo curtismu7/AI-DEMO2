@@ -48,7 +48,7 @@ def jwksUri            = System.getenv('PINGONE_JWKS_URI') ?: (issuerUri ? issue
 // is configured, tokens whose iss matches are verified against PF_JWKS_URI
 // instead of the PingOne JWKS.
 def pfIssuerUri        = System.getenv('PF_ISSUER_URI') ?: ''
-def pfJwksUri          = System.getenv('PF_JWKS_URI') ?: (pfIssuerUri ? pfIssuerUri + '/JWKS' : '')
+def pfJwksUri          = System.getenv('PF_JWKS_URI') ?: (pfIssuerUri ? pfIssuerUri + '/pf/JWKS' : '')
 def mockSecret         = System.getenv('AUTHZ_JWT_SECRET') ?: ''
 def mockIssuer         = System.getenv('AUTHZ_ISSUER_URI') ?: ''
 def gatewayResourceUri = System.getenv('PG_GATEWAY_RESOURCE_URI') ?: ''
