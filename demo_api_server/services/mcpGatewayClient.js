@@ -131,7 +131,6 @@ const BRAVE_TOOLS = new Set([
  * @throws {Error} with `.code` and `.httpStatus` for 401/403/5xx
  */
 async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, opts = {}) {
-    let base = (gatewayUrl || getMcpGatewayHttpUrl()).replace(/\/$/, '');
     // Attack-sim escape hatch: the caller has deliberately constructed a token
     // and headers for the EXACT gateway named by gatewayUrl (e.g. the DPoP
     // replay sim's cnf.jkt-bound token only makes sense at the Node gateway,
@@ -144,6 +143,13 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     // other tool (and the Node gateway) uses /mcp.
     const pgUrl = (process.env.MCP_PINGGATEWAY_URL || configStore.getEffective('mcp_pinggateway_url') || '').replace(/\/$/, '');
     const nodeUrl = (process.env.MCP_DEMO_GATEWAY_URL || configStore.getEffective('mcp_demo_gateway_url') || '').replace(/\/$/, '');
+    if (pinNodeGateway && !gatewayUrl && !nodeUrl) {
+        const err = new Error('A2A MCP calls require the Node gateway, but its HTTP URL is not configured.');
+        err.code = 'GATEWAY_UNREACHABLE';
+        err.httpStatus = 503;
+        throw err;
+    }
+    let base = (gatewayUrl || (pinNodeGateway ? nodeUrl : getMcpGatewayHttpUrl())).replace(/\/$/, '');
     const isConfiguredGatewayBase = (base === pgUrl && !!pgUrl) || (base === nodeUrl && !!nodeUrl);
     // Explicit Node-only tools always use the Node gateway, regardless of the
     // caller's default base. They must not leak to PingGateway when Node is down.

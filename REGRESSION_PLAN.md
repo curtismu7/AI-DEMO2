@@ -192,7 +192,8 @@ read the configured host. A new browser origin must be added to ALL of:
 
 **Files:** `.github/workflows/ci.yml`,
 `demo_api_server/services/mcpToolPipeline.js`,
-`demo_api_server/services/mcpGatewayClient.js`.
+`demo_api_server/services/mcpGatewayClient.js`,
+`demo_api_server/src/__tests__/mcpGatewayClient.pinnedAudience.test.js`.
 
 **What was broken:** the persistent CI runner inherited local PingGateway and
 Node gateway URL aliases, redirecting mocked gateway calls. The A2A token pin
@@ -214,7 +215,7 @@ RFC 8693 token exchange flow.
 **Verify:** the focused BFF run covering `mcpGatewayClient.idJagPin`,
 `mcpGatewayClient.a2aPin`, `mcpGatewayClient.pinnedAudience`,
 `mcpToolPipeline.gatewayDenyOnSuccess`, and `mcpToolPipeline.gatewayDenyEvidence`
-passed 27/27 tests; `git diff --check` passed.
+passed 28/28 tests; `git diff --check` passed.
 
 ### 2026-09-27 — Demo Steps scrim escaped the Command Dock stacking context
 

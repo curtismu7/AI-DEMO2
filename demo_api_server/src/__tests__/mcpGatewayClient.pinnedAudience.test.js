@@ -58,7 +58,7 @@ const jwtWithAud = (aud) =>
   `${b64u({ alg: 'none', typ: 'JWT' })}.${b64u({ aud, sub: 'user1', exp: Math.floor(Date.now() / 1000) + 3600 })}.sig`;
 
 const ENV_KEYS = [
-  'MCP_PINGGATEWAY_URL', 'MCP_DEMO_GATEWAY_URL', 'PINGONE_RESOURCE_MCP_SERVER_URI',
+  'MCP_GATEWAY_HTTP_URL', 'MCP_PINGGATEWAY_URL', 'MCP_DEMO_GATEWAY_URL', 'PINGONE_RESOURCE_MCP_SERVER_URI',
   'A2A_GATEWAY_AUDIENCE', 'PINGONE_RESOURCE_MCP_GATEWAY_URI', 'MCP_GW_RESOURCE_URI',
   'PINGONE_RESOURCE_PINGGATEWAY_URI', 'PINGONE_RESOURCE_MCP_APIKEY_URI',
 ];
@@ -197,6 +197,14 @@ describe('expected audience follows the pin, not the routing mode', () => {
   it('fails closed for A2A when the required Node gateway URL is absent', async () => {
     delete process.env.MCP_DEMO_GATEWAY_URL;
     const err = await callWith(jwtWithAud(A2A_AUD)).catch((e) => e);
+    expect(err.code).toBe('GATEWAY_UNREACHABLE');
+    expect(axios.post).not.toHaveBeenCalled();
+  });
+
+  it('does not fall back to the default gateway when an A2A pin has no Node URL', async () => {
+    delete process.env.MCP_DEMO_GATEWAY_URL;
+    process.env.MCP_GATEWAY_HTTP_URL = PG_URL;
+    const err = await callToolViaGateway('', jwtWithAud(A2A_AUD), 'get_account_balance', {}, { pinNodeGateway: true }).catch((e) => e);
     expect(err.code).toBe('GATEWAY_UNREACHABLE');
     expect(axios.post).not.toHaveBeenCalled();
   });
