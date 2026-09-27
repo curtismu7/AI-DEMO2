@@ -27,4 +27,5 @@ resource server. For service edits it requires the repository and service
 instructions, `REGRESSION_PLAN.md` sections 0–1, and `regression-guard` for
 protected authorization or token paths. It starts current PingFederate product
 research at <https://docs.pingidentity.com/llms.txt> and keeps assertions,
-access tokens, and secrets out of logs and evidence.
+access tokens, and secrets out of logs and evidence. It traces issuer checks,
+JWKS selection, and supported time-claim checks separately at every hop.

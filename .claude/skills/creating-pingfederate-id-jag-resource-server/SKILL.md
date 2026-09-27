@@ -30,12 +30,17 @@ PingFederate ID-JAG flow. An ID-JAG is a one-time grant assertion for
    MCP server setting used by `oauth-mcp`; `MCP_RESOURCE_SERVER_RESOURCE_URI`
    belongs to `demo_mcp_resource_server`. Do not copy one setting into the
    other without confirming the route and accepted audience list.
-6. Configure each verifier with the exact issuer string and JWKS for its input
-   token. An issuer-string mismatch is a validation failure. Do not infer that
-   the gateway and backend use one issuer or one JWKS endpoint.
-7. Keep signature, issuer, audience, expiry, not-before, issued-at, delegation,
-   and scope checks fail-closed. A missing trust anchor or failed exchange must
-   reject the request; do not introduce a mock-token fallback.
+6. Separate JWKS selection from issuer validation at every hop. Configure an
+   explicit expected-issuer check or allowlist for the received token as well as
+   its JWKS; an unverified `iss` can select a key source but cannot establish
+   the issuer's identity. Do not infer that the gateway and backend use one
+   issuer or one JWKS endpoint.
+7. Enforce and document only the time claims each hop actually supports. Check
+   the profile-required `exp`, `nbf`, and `iat` behavior separately; implement
+   and test any missing required check instead of claiming it is covered. Keep
+   signature, issuer, audience, delegation, and scope checks fail-closed. A
+   missing trust anchor or failed exchange must reject the request; do not
+   introduce a mock-token fallback.
 8. Never log, return, paste into evidence, or otherwise expose a raw assertion,
    access token, or secret. Use redacted identifiers and failure codes in
    diagnostics.
@@ -53,8 +58,8 @@ PingFederate ID-JAG flow. An ID-JAG is a one-time grant assertion for
 
 - State the issuer, JWKS URI, accepted audience, and scopes for every hop.
 - State whether the gateway performs RFC 8693 exchange or forwards a token.
-- Confirm that the backend's verifier accepts the issuer and JWKS of the token
-  delivered to that backend.
+- Confirm that the backend's verifier checks an explicit expected issuer or
+  allowlist and the JWKS of the token delivered to that backend.
 - Preserve BFF-only browser-token custody and server-to-server token handling.
 - Keep production validation cryptographic and fail-closed.
 - Keep assertions, access tokens, and secrets out of logs, responses, and
