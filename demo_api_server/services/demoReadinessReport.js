@@ -21,16 +21,32 @@ function redactReadinessValue(value) {
   return redactValue(out);
 }
 
+function guardedReadinessValue(value) {
+  const redacted = redactReadinessValue(value);
+  if (Array.isArray(redacted)) {
+    const guarded = redacted.map(guardedReadinessValue);
+    return new Proxy(guarded, {
+      set(target, property, nextValue) {
+        target[property] = property === 'length' ? nextValue : guardedReadinessValue(nextValue);
+        return true;
+      },
+    });
+  }
+  if (redacted && typeof redacted === 'object') {
+    const guarded = Object.fromEntries(Object.entries(redacted).map(([key, item]) => [key, guardedReadinessValue(item)]));
+    return new Proxy(guarded, {
+      set(target, property, nextValue) {
+        const safeValue = redactReadinessValue({ [property]: nextValue })[property];
+        target[property] = guardedReadinessValue(safeValue);
+        return true;
+      },
+    });
+  }
+  return redacted;
+}
+
 function sanitizedCollection(values = []) {
-  const collection = [];
-  const safeCollection = new Proxy(collection, {
-    set(target, property, value) {
-      target[property] = property === 'length' ? value : redactReadinessValue(value);
-      return true;
-    },
-  });
-  safeCollection.push(...values);
-  return safeCollection;
+  return guardedReadinessValue(values);
 }
 
 function addSanitizedCollection(report, key) {

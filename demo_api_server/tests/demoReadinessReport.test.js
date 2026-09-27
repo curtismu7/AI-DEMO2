@@ -148,6 +148,17 @@ describe('demo readiness report', () => {
     }
   });
 
+  test('redacts direct nested repair mutations before callers can read them', () => {
+    const report = makeReport();
+    report.repairs.push({ before: {} });
+
+    report.repairs[0].before.authorization = 'Bearer direct-read-secret';
+    report.repairs[0].before.sessionId = 'direct-read-session';
+
+    expect(report.repairs[0].before.authorization).toBe('[REDACTED]');
+    expect(report.repairs[0].before.sessionId).toBe('[REDACTED]');
+  });
+
   test('updates elapsed time and target warning without expiring before the exact deadline', () => {
     const report = makeReport();
 
