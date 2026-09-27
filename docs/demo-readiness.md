@@ -185,3 +185,21 @@ exact settings for every role. The new contract lists standard exchangers and
 actors, A2A specialists, UC40 ID-JAG, DaVinci, CIMD, third-party AS, and RAR,
 with unresolved fields marked explicitly. PingFederate readiness remains
 blocked until each role has a committed expectation and supported API readback.
+
+### Task 3 Fix Round 1
+
+The audit now performs read-only PingOne Management API GET requests for
+resources, applications, groups, and decision endpoints when target credentials
+are supplied. It performs PingFederate Admin API GET requests for OAuth clients,
+access-token managers, and authentication policies at the target's declared
+PF Admin API base. It compares documented client role fields and records
+unsupported SP, ID-JAG, DaVinci, RAR, CIMD, and policy-tree reads as required
+blocked findings. Neither adapter makes a write or uses a successful runtime
+call as configuration parity.
+
+Local Gateway inspection parses docker ps and docker inspect output to compare
+the PF issuer, endpoint authority/path, PF exchanger credential presence, and
+generated-environment mount provenance. Hosted Gateway evidence must be
+supplied by a supported target runtime read; omitted evidence blocks. Runtime
+checks require declared BFF, Gateway, Authorize URLs and a revision, and never
+default an expected revision to the observed value.

@@ -30,7 +30,7 @@ function passingAdapters(overrides = {}) {
       })),
     },
     runtime: {
-      readTarget: jest.fn(async () => ({ health: true, revision: 'abc123', expectedRevision: 'abc123' })),
+      readTarget: jest.fn(async () => ({ health: true, revision: 'abc123', expectedRevision: 'abc123', audienceScopes: { audience: 'mcpserver.ping.demo', scopes: ['read'] } })),
     },
     docker: {
       inspect: jest.fn(async () => ({ pfIssuer: true, endpointAuthority: true, endpointPath: true, distinctCredentials: true, provenance: true })),
@@ -51,7 +51,7 @@ describe('demo readiness audit service', () => {
     });
     const se = await audit.auditTarget({
       targetId: 'se',
-      targetConfig: { kind: 'se', pingOne: { environmentId: 'env' }, pingFederate: { baseUrl: 'https://pf.se' } },
+      targetConfig: { kind: 'se', pingOne: { environmentId: 'env' }, pingFederate: { baseUrl: 'https://pf.se' }, gateway: { pfExchange3: true } },
       deadlineAt: Date.now() + 1_000,
     });
 
@@ -122,5 +122,66 @@ describe('demo readiness audit service', () => {
     expect(execFile).toHaveBeenCalledWith('docker', ['ps', '--format', '{{json .}}'], expect.any(Object));
     expect(execFile).toHaveBeenCalledWith('docker', ['inspect', 'ai-demo-ping-gateway'], expect.any(Object));
     expect(JSON.stringify(execFile.mock.calls)).not.toMatch(/compose|\brm\b|\bup\b|\bdown\b|\bkill\b/);
+  });
+
+  test('reads and parses PingOne Management API resources, applications, groups, and endpoints', async () => {
+    const fetch = jest.fn(async (url) => ({ ok: true, status: 200, json: async () => {
+      if (url.includes('/resources')) return { _embedded: { resources: [{ id: 'resource-1', audience: 'https://api.example.test' }] } };
+      if (url.includes('/applications')) return { _embedded: { applications: [{ id: 'app-1' }] } };
+      if (url.includes('/groups')) return { _embedded: { groups: [{ id: 'group-1' }] } };
+      return { _embedded: { decisionEndpoints: [{ id: 'endpoint-1' }] } };
+    } }));
+    const audit = createAuditService({ fetch, pfProfiles: { roles: {} } });
+    const checks = await audit.auditPingOneConfiguration({
+      environmentId: 'env-1', credentials: { accessToken: 'secret-token' },
+      expected: { audiences: ['https://api.example.test'], applicationIds: ['app-1'], groupIds: ['group-1'], decisionEndpointIds: ['endpoint-1'] },
+    });
+    expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/v1/environments/env-1/resources?limit=100'), expect.objectContaining({ method: 'GET' }));
+    expect(checks.find((row) => row.id === 'pingone:audience')).toEqual(expect.objectContaining({ status: 'pass', userSessionProvider: 'pingone' }));
+    expect(checks.find((row) => row.id === 'pingone:policyReadback')).toEqual(expect.objectContaining({ status: 'blocked' }));
+  });
+
+  test('parses Gateway Exchange #3 environment without returning credential values', async () => {
+    const execFile = jest.fn()
+      .mockResolvedValueOnce({ stdout: '{"Names":"ai-demo-ping-gateway"}\n' })
+      .mockResolvedValueOnce({ stdout: JSON.stringify([{ Config: { Env: [
+        'PF_ISSUER_URI=https://pf.example.test', 'PF_TOKEN_ENDPOINT=https://pf.example.test/as/token.oauth2',
+        'PF_TE_CLIENT_ID=pf-client', 'PF_TE_CLIENT_SECRET=actual-secret', 'PF_TE_AUTH_METHOD=basic',
+      ] }, Mounts: [{ Source: '/repo/ping-gateway', Destination: '/opt/out/instance' }] }]) });
+    const checks = await createAuditService({ adapters: { execFile }, pfProfiles: { roles: {} } }).auditLocalDockerConfiguration({ targetId: 'local', targetKind: 'local' });
+    expect(checks).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'gateway:pf-exchange3', status: 'pass' })]));
+    expect(JSON.stringify(checks)).not.toContain('actual-secret');
+  });
+
+  test('redacts returned evidence and converts a late read into not-run', async () => {
+    const adapters = passingAdapters({
+      runtime: { readTarget: jest.fn(async () => ({ health: { status: 'pass', reason: 'Bearer abc.def.ghi' }, revision: 'old', expectedRevision: 'old' })) },
+    });
+    const audit = createAuditService({ adapters, pfProfiles: { roles: {} } });
+    const checks = await audit.auditTarget({ targetId: 'local', targetConfig: { kind: 'se', pingOne: {}, pingFederate: {}, runtime: {} }, deadlineAt: Date.now() - 1 });
+    expect(checks[0]).toEqual(expect.objectContaining({ status: 'not-run', providerApplicability: expect.any(Object) }));
+    expect(JSON.stringify(await audit.auditRuntimeTarget({}))).not.toContain('abc.def.ghi');
+  });
+
+  test('blocks every PF role when an Admin API reader cannot read profiles', async () => {
+    const profiles = { roles: { standard: { objectId: 'standard-client', unresolved: false, expected: { grantTypes: ['TOKEN_EXCHANGE'] }, sourceRef: 'source' } } };
+    const checks = await createAuditService({ adapters: passingAdapters(), pfProfiles: profiles }).auditPingFederateConfiguration({ baseUrl: 'https://pf.example.test:9999/pf-admin-api/v1' });
+    expect(checks.find((row) => row.id === 'pingfederate:profile:standard')).toEqual(expect.objectContaining({ status: 'blocked' }));
+  });
+
+  test('reads PF Admin clients and compares a concrete declared role', async () => {
+    const fetch = jest.fn(async (url) => ({ ok: true, status: 200, json: async () => {
+      if (url.endsWith('/oauth/clients')) return [{ clientId: 'standard-client', grantTypes: ['TOKEN_EXCHANGE'] }];
+      return [];
+    } }));
+    const profiles = { roles: {
+      standard: { objectId: 'standard-client', unresolved: false, expected: { grantTypes: ['TOKEN_EXCHANGE'] }, sourceRef: 'committed profile' },
+    } };
+    const checks = await createAuditService({ fetch, pfProfiles: profiles }).auditPingFederateConfiguration({
+      baseUrl: 'https://pf.example.test:9999/pf-admin-api/v1',
+      credentials: { accessToken: 'pf-secret' },
+    });
+    expect(fetch).toHaveBeenCalledWith('https://pf.example.test:9999/pf-admin-api/v1/oauth/clients', expect.objectContaining({ method: 'GET' }));
+    expect(checks.find((row) => row.id === 'pingfederate:profile:standard')).toEqual(expect.objectContaining({ status: 'pass' }));
   });
 });

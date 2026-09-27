@@ -1129,6 +1129,6 @@ module.exports = { fetchJson, checkContainers, checkNetworks, ensureMkcertRoot }
 if (require.main === module) {
   main().catch((err) => {
     console.error(`health gate failed: ${err.stack || err.message}`);
-    process.exit(2);
+    process.exit(1);
   });
 }

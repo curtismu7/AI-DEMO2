@@ -4,60 +4,70 @@
   "roles": {
     "standard-agent-exchanger": {
       "kind": "oauth-client",
-      "expected": { "grantTypes": ["urn:ietf:params:oauth:grant-type:token-exchange"], "processorPolicyRef": "undocumented", "atmAudience": "undocumented", "allowedAudiences": "undocumented" },
-      "unresolved": true,
-      "sourceRef": "demo_api_server/services/pfStandardTokenExchangeService.js"
+      "objectId": "ai-demo-pf-standard-agent-exchanger",
+      "expected": { "grantTypes": ["TOKEN_EXCHANGE"], "defaultAccessTokenManagerRef": "aiDemoPfAgentGwJwtAtm", "restrictToDefaultAccessTokenManager": true },
+      "unresolved": false,
+      "sourceRef": "UC40-PF-IDJAG-SESSION-HANDOFF.md#7"
     },
     "standard-mcp-exchanger": {
       "kind": "oauth-client",
-      "expected": { "grantTypes": ["urn:ietf:params:oauth:grant-type:token-exchange"], "processorPolicyRef": "undocumented", "atmAudience": "undocumented", "allowedAudiences": "undocumented" },
-      "unresolved": true,
-      "sourceRef": "demo_api_server/scripts/refresh-service-envs.js"
+      "objectId": "ai-demo-pf-standard-mcp-exchanger",
+      "expected": { "grantTypes": ["TOKEN_EXCHANGE"], "tokenExchangeProcessorPolicyRef": "aiDemoStandardTePolicy" },
+      "unresolved": false,
+      "sourceRef": "UC40-PF-IDJAG-SESSION-HANDOFF.md#7"
     },
     "ai-agent-actor": {
       "kind": "oauth-client",
-      "expected": { "grantTypes": ["client_credentials"], "processorPolicyRef": "undocumented" },
-      "unresolved": true,
-      "sourceRef": "demo_api_server/services/agentMcpTokenService.js"
+      "objectId": "ai-demo-pf-standard-actor",
+      "expected": { "grantTypes": ["CLIENT_CREDENTIALS", "TOKEN_EXCHANGE"] },
+      "unresolved": false,
+      "sourceRef": "UC40-PF-IDJAG-SESSION-HANDOFF.md#3"
     },
     "mcp-service-actor": {
       "kind": "oauth-client",
+      "objectId": "PF_MCP_SERVICE_ACTOR_CLIENT_ID",
       "expected": { "grantTypes": ["client_credentials"], "processorPolicyRef": "undocumented" },
       "unresolved": true,
       "sourceRef": "demo_api_server/services/agentMcpTokenService.js"
     },
     "a2a-specialist": {
       "kind": "service-provider",
+      "objectId": "A2A_SPECIALIST_CLIENTS",
       "expected": { "resourceUris": "undocumented", "idJag": "undocumented" },
       "unresolved": true,
       "sourceRef": "demo_api_server/config/a2aSpecialists.js"
     },
     "uc40-native-id-jag": {
       "kind": "oauth-client",
+      "objectId": "ai-demo-pf-id-jag",
       "expected": { "idJagAudience": "environment-configured", "idJagResource": "environment-configured", "idJagSubjectTokenType": "environment-configured" },
       "unresolved": true,
       "sourceRef": "demo_api_server/services/agentMcpTokenService.js"
     },
     "davinci-login": {
       "kind": "oauth-client",
+      "objectId": "ai-demo-pf-user",
       "expected": { "authenticationPolicyAdapter": "undocumented" },
       "unresolved": true,
       "sourceRef": "demo_api_server/routes/pfDavinciAuth.js"
     },
     "cimd": {
       "kind": "oauth-client",
+      "objectId": "PF_CIMD_CLIENT",
       "expected": { "cimdPolicy": "undocumented", "issuer": "environment-configured", "jwksUri": "environment-configured" },
       "unresolved": true,
       "sourceRef": "demo_api_server/routes/cimdAgentMetadata.js"
     },
     "third-party-authorization-server": {
       "kind": "oauth-client",
+      "objectId": "PF_THIRD_PARTY_AS_CLIENT",
       "expected": { "thirdPartyAuthorizationServer": "undocumented" },
       "unresolved": true,
       "sourceRef": "docs/superpowers/specs/2026-09-26-demo-readiness-and-repair-design.md"
     },
     "rar": {
       "kind": "oauth-client",
+      "objectId": "PF_RAR_CLIENT",
       "expected": { "rarProcessor": "undocumented", "authorizationDetailsTypes": "undocumented" },
       "unresolved": true,
       "sourceRef": "docs/superpowers/specs/2026-09-26-demo-readiness-and-repair-design.md"
