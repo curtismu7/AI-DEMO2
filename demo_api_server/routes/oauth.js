@@ -242,7 +242,7 @@ router.get('/callback', async (req, res) => {
 
     const loginProvider = req.session.oauthLoginProvider || pkceCookie?.oauthProvider;
     const selectedProvider = configStore.getOAuthProvider?.() || 'pingone';
-    if (loginProvider && loginProvider !== selectedProvider) {
+    if (!loginProvider || loginProvider !== selectedProvider) {
       clearPkceCookie(res, _isProd());
       delete req.session.oauthState;
       delete req.session.oauthCodeVerifier;

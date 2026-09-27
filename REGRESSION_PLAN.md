@@ -22,10 +22,12 @@ global provider was PingOne.
 
 **What was fixed:** PKCE state and server sessions now retain the login provider;
 callbacks fail closed and clear pending login state when provider configuration
-changes. Concurrent refresh requests wait for the single refresh operation and
+changes or the recorded provider is absent. Explicit PF preflight ignores shared
+discovery settings that may belong to PingOne and derives its URL from PF-specific
+settings. Concurrent refresh requests wait for the single refresh operation and
 reload its durably saved tokens before continuing. PingFederate preflight
-resolves endpoints explicitly for PingFederate, and stale sessions from a
-previous provider are cleared before their refresh token can be sent elsewhere.
+resolves endpoints explicitly for PingFederate, and stale sessions from a previous
+provider are cleared before their refresh token can be sent elsewhere.
 
 **Do not break:** Preserve PKCE/state/nonce validation and callback host
 preservation. The BFF remains the sole browser-token custodian. Refresh tokens
@@ -34,8 +36,9 @@ callbacks and endpoint resolution must stay bound to the provider recorded when
 login began.
 
 **Verify:** Focused BFF auth/session Jest suites covering callback provider
-mismatch, PKCE provider round-trip, PingFederate preflight and endpoint
-resolution, concurrent refresh, and stale-provider session clearing.
+mismatch and missing-provider callbacks, PKCE provider round-trip, PingFederate
+preflight and endpoint resolution in the presence of shared PingOne settings,
+concurrent refresh, and stale-provider session clearing.
 
 ---
 

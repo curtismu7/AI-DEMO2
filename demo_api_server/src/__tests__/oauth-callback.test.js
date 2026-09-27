@@ -34,14 +34,15 @@ describe('OAuth Callback Token Storage (Task 7)', () => {
     }));
 
     app.get('/__test/admin-login-session', (req, res) => {
-      Object.assign(req.session, {
+      const loginSession = {
         oauthType: 'admin',
         oauthState: 'admin-state',
         oauthCodeVerifier: 'admin-verifier',
         oauthRedirectUri: 'https://local.ping-devops.com:4000/api/auth/oauth/callback',
         oauthNonce: 'admin-nonce',
-        oauthLoginProvider: 'pingfederate',
-      });
+      };
+      if (req.query.legacy !== '1') loginSession.oauthLoginProvider = 'pingfederate';
+      Object.assign(req.session, loginSession);
       req.session.save((err) => res.sendStatus(err ? 500 : 204));
     });
 
@@ -190,6 +191,18 @@ describe('OAuth Callback Token Storage (Task 7)', () => {
   test('admin callback does not redeem a code with a provider different from login start', async () => {
     const agent = request.agent(app);
     await agent.get('/__test/admin-login-session').expect(204);
+
+    const response = await agent.get('/api/auth/oauth/callback')
+      .query({ code: 'admin-code', state: 'admin-state' });
+
+    expect(response.status).toBe(302);
+    expect(response.headers.location).toContain('error=provider_changed');
+    expect(mockOAuthService.exchangeCodeForToken).not.toHaveBeenCalled();
+  });
+
+  test('admin callback does not redeem a code without a recorded login provider', async () => {
+    const agent = request.agent(app);
+    await agent.get('/__test/admin-login-session?legacy=1').expect(204);
 
     const response = await agent.get('/api/auth/oauth/callback')
       .query({ code: 'admin-code', state: 'admin-state' });

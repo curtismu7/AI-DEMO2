@@ -674,7 +674,7 @@ router.get('/callback', async (req, res) => {
 
     const loginProvider = req.session.oauthLoginProvider || pkceCookie?.oauthProvider;
     const selectedProvider = configStore.getOAuthProvider?.() || 'pingone';
-    if (loginProvider && loginProvider !== selectedProvider) {
+    if (!loginProvider || loginProvider !== selectedProvider) {
       clearPendingIdJagRun(req);
       clearIdJagCookie(res);
       clearPkceCookie(res, _isProd());

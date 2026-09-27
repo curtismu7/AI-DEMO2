@@ -228,11 +228,18 @@ function getIssuer(provider) {
 
 function getDiscoveryEndpoint(provider) {
   if (_isPingFederate(provider)) {
-    const explicit = _configured('pf_discovery_endpoint', 'oauth_discovery_endpoint');
+    // An explicit provider override is used by PF preflight even while
+    // PingOne is globally selected. Shared OAUTH_* values may belong to
+    // PingOne, so only trust PF-specific settings in that case.
+    const explicit = provider === undefined
+      ? _configured('pf_discovery_endpoint', 'oauth_discovery_endpoint')
+      : configStore.getEffective('pf_discovery_endpoint');
     if (explicit) return explicit;
     const cached = provider === undefined ? _fromCache('discovery_endpoint') : null;
     if (cached) return cached;
-    const issuer = getIssuer(provider);
+    const issuer = provider === undefined
+      ? getIssuer()
+      : configStore.getEffective('pf_issuer');
     return issuer ? `${issuer.replace(/\/+$/, '')}/.well-known/openid-configuration` : '';
   }
   const explicit = configStore.getEffective('oauth_discovery_endpoint');
