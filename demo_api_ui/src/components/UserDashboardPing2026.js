@@ -46,6 +46,7 @@ import TokenChainFilmstrip from "./TokenChainFilmstrip";
 import ReelDock from "./ReelDock";
 import SequenceReelDiagram from "./SequenceReelDiagram";
 import TokenTopologyPanel from "./TokenTopologyPanel";
+import ServerTopologyStory from "./ServerTopologyStory";
 import StepDetailPanel from "./StepDetailPanel";
 import CollapsibleStepDetail from "./CollapsibleStepDetail";
 import SimpleStepperBar from "./SimpleStepperBar";
@@ -269,6 +270,17 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
     const handler = (e) => setShowTokenTopology(!!e.detail?.on);
     window.addEventListener("agent-token-topology-toggle", handler);
     return () => window.removeEventListener("agent-token-topology-toggle", handler);
+  }, []);
+  const [showServerTopology, setShowServerTopology] = useState(() => {
+    try {
+      const surface = localStorage.getItem("ba_server_topology_surface");
+      return surface === "embedded" || surface === "both";
+    } catch { return false; }
+  });
+  useEffect(() => {
+    const handler = (event) => setShowServerTopology(!!event.detail?.on);
+    window.addEventListener("agent-server-topology-toggle", handler);
+    return () => window.removeEventListener("agent-server-topology-toggle", handler);
   }, []);
   // The step a user clicked on in the diagram, rendered below it via
   // StepDetailPanel — the same narrative/RFC/request-response detail the
@@ -3938,9 +3950,10 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               reel at all. .agent-clinical-host is display:block over a 100vh
               shell, the same shape as float mode, so .tcfs-float-host's
               position:sticky/bottom:0 pins it without any clinical-specific CSS. */}
-          {showFilmstrip && !showSequenceDiagram && <ReelDock />}
-          {showTokenTopology && !showSequenceDiagram && <TokenTopologyPanel inline />}
-          {showSequenceDiagram && (
+          {showFilmstrip && !showSequenceDiagram && !showServerTopology && <ReelDock />}
+          {showTokenTopology && !showSequenceDiagram && !showServerTopology && <TokenTopologyPanel inline />}
+          {showServerTopology && <ServerTopologyStory />}
+          {showSequenceDiagram && !showServerTopology && (
             <SequenceReelDiagram
               onSelectStep={setSelectedSeqStep}
               onReset={() => setSelectedSeqStep(null)}
@@ -4111,9 +4124,10 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               data-testid="dashboard-focus-chain-resize"
             />
           )}
-          {showFilmstrip && !showSequenceDiagram && <TokenChainFilmstrip />}
-          {showTokenTopology && !showSequenceDiagram && <TokenTopologyPanel inline />}
-          {showSequenceDiagram && (
+          {showFilmstrip && !showSequenceDiagram && !showServerTopology && <TokenChainFilmstrip />}
+          {showTokenTopology && !showSequenceDiagram && !showServerTopology && <TokenTopologyPanel inline />}
+          {showServerTopology && <ServerTopologyStory />}
+          {showSequenceDiagram && !showServerTopology && (
             <SequenceReelDiagram
               onSelectStep={setSelectedSeqStep}
               onReset={() => setSelectedSeqStep(null)}
@@ -4196,9 +4210,10 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
             {/* Response mirror — shows last agent reply on main page when toggled on */}
             <AgentResponseMirror />
             {/* Movie reel filmstrip — toggled via More › Movie reel in the agent header */}
-            {showFilmstrip && !showSequenceDiagram && <ReelDock />}
-            {showTokenTopology && !showSequenceDiagram && <TokenTopologyPanel inline />}
-          {showSequenceDiagram && (
+            {showFilmstrip && !showSequenceDiagram && !showServerTopology && <ReelDock />}
+            {showTokenTopology && !showSequenceDiagram && !showServerTopology && <TokenTopologyPanel inline />}
+            {showServerTopology && <ServerTopologyStory />}
+          {showSequenceDiagram && !showServerTopology && (
             <SequenceReelDiagram
               onSelectStep={setSelectedSeqStep}
               onReset={() => setSelectedSeqStep(null)}

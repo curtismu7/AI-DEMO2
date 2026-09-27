@@ -216,7 +216,68 @@ RFC 8693 token exchange flow.
 `mcpGatewayClient.a2aPin`, `mcpGatewayClient.pinnedAudience`,
 `mcpToolPipeline.gatewayDenyOnSuccess`, and `mcpToolPipeline.gatewayDenyEvidence`
 passed 28/28 tests; `git diff --check` passed.
+### 2026-09-27 — PF Exchange #3 omitted its required MCP-service actor token
 
+**Files:** `demo_api_server/scripts/refresh-service-envs.js`,
+`demo_api_server/tests/refreshServiceEnvsPfGateway.test.js`,
+`demo_api_server/src/__tests__/olbTokenExchangeProviderRouting.test.js`,
+`ping-gateway/scripts/groovy/olb-token-exchange.groovy`,
+`ping-gateway/.env.example`,
+`docs/superpowers/specs/2026-09-26-demo-readiness-and-repair-design.md`.
+
+**What was broken:** after PF Exchange #3 began requesting only registered
+banking scopes, the request reached `aiDemoStandardTePolicy` and PF returned
+`invalid_request: actor_token is required`. PingGateway had no PF MCP-service
+actor-token hop, although the BFF's standard PF exchange service already uses
+the dedicated MCP-service actor client.
+
+**What was fixed:** generated PingGateway configuration now reuses the BFF's
+existing PF MCP-service actor ID, secret, auth method, and scope. For PF-issued
+subjects, PingGateway mints that actor's client-credentials access token and
+sends it as `actor_token` on Exchange #3 after checking it is an access-token
+JWT for the configured actor client and includes every requested actor scope.
+PingOne sends no actor token and keeps its existing Exchange #3 request. PF's
+nested `act` chain remains part of the verified end-to-end contract.
+
+**Do not break:** keep the actor token PF-only, preserve PF subject-token type,
+subject `sub`, nested `act`, PF's omitted `resource` and provider-specific
+scopes, and PingOne's existing resource/scope path. The passenger A2A
+`invalid_target` failure remains a separate UC2 issue.
+
+**Verify:** focused environment and provider-routing tests; `npm run
+topology:verify`; then recreate only local PingGateway and call a registered
+banking MCP tool through `/api/mcp/tool`, verifying the result and sanitized
+subject/actor/audience evidence.
+
+### 2026-09-27 — PF Exchange #3 requested an unregistered PingOne scope
+
+**Files:** `demo_api_server/scripts/refresh-service-envs.js`,
+`demo_api_server/tests/refreshServiceEnvsPfGateway.test.js`,
+`demo_api_server/src/__tests__/olbTokenExchangeProviderRouting.test.js`,
+`ping-gateway/scripts/groovy/olb-token-exchange.groovy`,
+`ping-gateway/.env.example`,
+`docs/superpowers/specs/2026-09-26-demo-readiness-and-repair-design.md`.
+
+**What was broken:** PingGateway used the shared `PG_OLB_SCOPE=read write
+code:search` for both providers. The local PF exchanger registers `read` and
+`write` but not `code:search`, so PF returned `invalid_scope` and the banking
+tool call surfaced from `/api/mcp/tool` as HTTP 502.
+
+**What was fixed:** the generated PingGateway environment now includes
+`PG_OLB_SCOPE_PF=read write`. Exchange #3 selects that list only for a
+PF-issued subject. PingOne continues to use `PG_OLB_SCOPE=read write
+code:search`. The readiness spec records this PF scope difference; PF
+code-search remains unsupported until its scope is explicitly provisioned.
+
+**Do not break:** preserve issuer-based provider selection, PF's omitted
+`resource` and default ATM, PF subject-token typing, the user's `sub` and
+nested `act` chain, and PingOne's unchanged resource/scope request. The
+passenger A2A `invalid_target` failure remains a separate UC2 issue.
+
+**Verify:** focused `refreshServiceEnvsPfGateway.test.js` and
+`olbTokenExchangeProviderRouting.test.js`; deploy only local PingGateway and
+call a registered banking MCP tool through `/api/mcp/tool`, confirming the PF
+exchange succeeds and returns the registered tool result.
 ### 2026-09-27 — PF Exchange #3 omits the PingOne-only resource identifier
 
 **Files:** `ping-gateway/scripts/groovy/olb-token-exchange.groovy`,

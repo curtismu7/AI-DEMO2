@@ -1047,6 +1047,7 @@ export default function AdminSideNav({
       label: "Diagrams",
       icon: "arc",
       children: [
+        { label: "Server Topology (Interactive)", path: "/architecture/server-topology", icon: "arc" },
         { label: "PingFederate ID-JAG (Node)", path: "/architecture/pingfederate-id-jag", icon: "arc" },
         {
           label: "System Diagram (Node)",
