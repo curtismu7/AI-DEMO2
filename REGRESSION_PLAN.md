@@ -188,6 +188,36 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-27 — PF Exchange #3 requested an unregistered PingOne scope
+
+**Files:** `demo_api_server/scripts/refresh-service-envs.js`,
+`demo_api_server/tests/refreshServiceEnvsPfGateway.test.js`,
+`demo_api_server/src/__tests__/olbTokenExchangeProviderRouting.test.js`,
+`ping-gateway/scripts/groovy/olb-token-exchange.groovy`,
+`ping-gateway/.env.example`,
+`docs/superpowers/specs/2026-09-26-demo-readiness-and-repair-design.md`.
+
+**What was broken:** PingGateway used the shared `PG_OLB_SCOPE=read write
+code:search` for both providers. The local PF exchanger registers `read` and
+`write` but not `code:search`, so PF returned `invalid_scope` and the banking
+tool call surfaced from `/api/mcp/tool` as HTTP 502.
+
+**What was fixed:** the generated PingGateway environment now includes
+`PG_OLB_SCOPE_PF=read write`. Exchange #3 selects that list only for a
+PF-issued subject. PingOne continues to use `PG_OLB_SCOPE=read write
+code:search`. The readiness spec records this PF scope difference; PF
+code-search remains unsupported until its scope is explicitly provisioned.
+
+**Do not break:** preserve issuer-based provider selection, PF's omitted
+`resource` and default ATM, PF subject-token typing, the user's `sub` and
+nested `act` chain, and PingOne's unchanged resource/scope request. The
+passenger A2A `invalid_target` failure remains a separate UC2 issue.
+
+**Verify:** focused `refreshServiceEnvsPfGateway.test.js` and
+`olbTokenExchangeProviderRouting.test.js`; deploy only local PingGateway and
+call a registered banking MCP tool through `/api/mcp/tool`, confirming the PF
+exchange succeeds and returns the registered tool result.
+
 ### 2026-09-27 — PF Exchange #3 omits the PingOne-only resource identifier
 
 **Files:** `ping-gateway/scripts/groovy/olb-token-exchange.groovy`,

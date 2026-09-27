@@ -33,10 +33,17 @@ describe('PingGateway Exchange #3 provider routing', () => {
   test('uses PF default ATM for PF subjects while retaining PingOne resource targeting', () => {
     const paramsBlock = SOURCE.slice(
       SOURCE.indexOf('def params = ['),
-      SOURCE.indexOf('if (olbScope?.trim())'),
+      SOURCE.indexOf('if (requestedOlbScope?.trim())'),
     );
 
     expect(paramsBlock).toMatch(/if \(!isPfSubject\) \{[\s\S]*params\['resource'\]\s*=\s*olbAudience/);
     expect(paramsBlock).not.toMatch(/'resource'\s*:\s*olbAudience/);
+  });
+
+  test('uses PF-registered banking scopes for PF and preserves the PingOne scope list', () => {
+    expect(SOURCE).toMatch(/def pfOlbScope\s*=\s*System\.getenv\('PG_OLB_SCOPE_PF'\)\s*\?:\s*''/);
+    expect(SOURCE).toMatch(/def requestedOlbScope\s*=\s*isPfSubject\s*\?\s*pfOlbScope\s*:\s*olbScope/);
+    expect(SOURCE).toMatch(/if \(requestedOlbScope\?\.trim\(\)\)\s*\{\s*params\['scope'\]\s*=\s*requestedOlbScope\.trim\(\)/);
+    expect(SOURCE).toMatch(/PG_OLB_SCOPE setting is PingOne-specific/);
   });
 });

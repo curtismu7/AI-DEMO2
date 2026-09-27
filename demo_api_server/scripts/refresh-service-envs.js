@@ -145,6 +145,9 @@ function buildPingGatewayPfExchangeEnv(apiVars = {}) {
     PF_TOKEN_ENDPOINT: tokenEndpoint,
     PF_TE_CLIENT_ID: apiVars.PF_STANDARD_TOKEN_EXCHANGE_CLIENT_ID || '',
     PF_TE_CLIENT_SECRET: apiVars.PF_STANDARD_TOKEN_EXCHANGE_CLIENT_SECRET || '',
+    // The local PF exchanger registers read/write but not PingOne's code:search.
+    // Keep provider-specific scopes so PF tool calls don't request an unknown scope.
+    PG_OLB_SCOPE_PF: 'read write',
   };
 }
 

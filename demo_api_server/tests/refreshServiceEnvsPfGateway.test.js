@@ -14,6 +14,7 @@ test('PingGateway gets PF exchange credentials and the issuer-matching endpoint 
     PF_TOKEN_ENDPOINT: 'https://local.ping-devops.com:9031/as/token.oauth2',
     PF_TE_CLIENT_ID: 'ai-demo-pf-standard-mcp-exchanger',
     PF_TE_CLIENT_SECRET: 'pf-standard-exchange-secret',
+    PG_OLB_SCOPE_PF: 'read write',
   });
 });
 
@@ -24,6 +25,7 @@ test('PingOne-only configuration leaves the PingGateway PF branch disabled', () 
     PF_TOKEN_ENDPOINT: '',
     PF_TE_CLIENT_ID: '',
     PF_TE_CLIENT_SECRET: '',
+    PG_OLB_SCOPE_PF: 'read write',
   });
 });
 

@@ -31,6 +31,7 @@ def pfTeClientId    = System.getenv('PF_TE_CLIENT_ID') ?: ''
 def pfTeClientSecret= System.getenv('PF_TE_CLIENT_SECRET') ?: ''
 def olbAudience     = System.getenv('PG_OLB_RESOURCE_URI') ?: ''
 def olbScope        = System.getenv('PG_OLB_SCOPE') ?: ''
+def pfOlbScope      = System.getenv('PG_OLB_SCOPE_PF') ?: ''
 def mcpBaseUrl      = System.getenv('PG_OLB_BACKEND_URL') ?: 'http://mcp-server:8080'
 def mcpUrl          = mcpBaseUrl.replaceAll('/+$', '') + '/mcp'
 
@@ -204,6 +205,11 @@ if (isPfSubject && (!pfTokenEndpoint || !pfTeClientId || !pfTeClientSecret)) {
 def exEndpoint  = isPfSubject ? pfTokenEndpoint : tokenEndpoint
 def exClientId  = isPfSubject ? pfTeClientId : teClientId
 def exClientSecret = isPfSubject ? pfTeClientSecret : teClientSecret
+// The local PF scope registry differs from PingOne: read/write are registered,
+// but code:search is not. Keep the PingOne scope contract intact and use PF's
+// narrower provider-specific scope list only for PF-issued subjects. The
+// PG_OLB_SCOPE setting is PingOne-specific; PG_OLB_SCOPE_PF configures PF.
+def requestedOlbScope = isPfSubject ? pfOlbScope : olbScope
 // PF access-token subjects use access_token typing; only an actual PF ID-JAG
 // (typ=oauth-id-jag+jwt) uses id-jag typing. PingOne behavior stays access_token.
 def subjectTokenType = (isPfSubject && tokenTyp == 'oauth-id-jag+jwt')
@@ -224,15 +230,15 @@ if (!isPfSubject) {
     // PingOne needs this RFC 8707 target to select the single backend resource.
     params['resource'] = olbAudience
 }
-if (olbScope?.trim()) {
-    params['scope'] = olbScope.trim()
+if (requestedOlbScope?.trim()) {
+    params['scope'] = requestedOlbScope.trim()
 }
 def formBody = params.collect { k, v ->
     java.net.URLEncoder.encode(k, 'UTF-8') + '=' + java.net.URLEncoder.encode(v as String, 'UTF-8')
 }.join('&')
 
 def resourceLog = isPfSubject ? ' resource=(omitted; PF exchanger default ATM)' : ' resource=' + olbAudience
-logger.info('[OlbExchange] REQUEST → ' + exEndpoint + resourceLog + ' scope=' + (olbScope?.trim() ?: '(omit)'))
+logger.info('[OlbExchange] REQUEST → ' + exEndpoint + resourceLog + ' scope=' + (requestedOlbScope?.trim() ?: '(omit)'))
 def exchangeResp = httpPostForm(exEndpoint, formBody)
 logger.info('[OlbExchange] RESPONSE HTTP ' + exchangeResp.code)
 
