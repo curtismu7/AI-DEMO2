@@ -140,6 +140,27 @@ describe("AdminSideNav — best-of-breed pass", () => {
     expect(screen.getByText("Observability")).toBeTruthy();
   });
 
+  it("searches PF AI feature terms to find the comparison page", () => {
+    renderNav();
+    const input = screen.getByLabelText(/search navigation/i);
+
+    for (const term of ["AI feature comparison", "ID-JAG", "third-party token exchange", "PAR", "RAR"]) {
+      fireEvent.change(input, { target: { value: term } });
+      expect(screen.getByRole("link", { name: "CIMD, Token Exchange, and RAR" })).toHaveAttribute(
+        "href",
+        "/pingfederate-ai-agent",
+      );
+    }
+  });
+
+  it("opens the PingFederate AI Agent sidebar group on its comparison page", () => {
+    renderNav("/pingfederate-ai-agent");
+    expect(screen.getByRole("button", { name: /^PingFederate AI Agent/ })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+  });
+
   it('searching "foo" surfaces PromptFoo Evals under Developer Tools', () => {
     renderNav();
     fireEvent.change(screen.getByLabelText(/search navigation/i), { target: { value: "foo" } });
