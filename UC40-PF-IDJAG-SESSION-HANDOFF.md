@@ -75,7 +75,9 @@ Credentials: PF user `demouser` / `Baseball123!` (Simple PCV `aiDemoPfSimplePcv`
 
 ---
 
-## 4. THE REMAINING BLOCKER (start here)
+## 4. ~~THE REMAINING BLOCKER~~ **RESOLVED (2026-09-27, see §4a)**
+
+<details><summary>Original diagnosis (kept for history)</summary>
 
 **Symptom:** `POST /api/mcp/tool` → 502 `invalid_grant`. BFF log shows:
 ```
@@ -105,9 +107,29 @@ docker exec ai-demo-api-server node /tmp/replayrun.js
 
 ---
 
+## 4a. RESOLUTION (2026-09-27)
+
+The chain now runs **end-to-end green**: policy PERMIT → `pf-id-jag-issued` → `pf-id-jag-redeemed` → gateway hops → HTTP 200 with 13 token-chain events. Fixes applied after §4 was written:
+
+1. **Provider pin** — PR #325 had (deliberately) removed the compose pin; `oauth_provider` kept reverting to `pingone`. Re-set via `configStore.setConfig({oauth_provider:'pingfederate'})` inside the container and **restart the BFF** (in-process config is cached; a separate-node `setConfig` isn't seen until restart).
+2. **The "UnresolvableKeyException" was a red herring** — it came from test scripts sending the **ID token** (kid `t2YnwJgg…`, aud `ai-demo-pf-user`) as the subject. The live run's subject is the session **access token** (kid `aidemopf-idjag-signing`), which the processor verifies fine once the issuer/audience fixes from §2 were in place.
+3. **Duplicate ATM mappings under one policy** — deleted `…|aiDemoStandardTePolicy|aiDemoPfJwtAtm`; PF selected the wrong ATM (aud `enduser.ping.demo`) for Exchange #1. The agent-gw mapping + the agent-exchanger client's `defaultAccessTokenManagerRef` now control the output aud (`https://agentgateway.ping.demo`).
+4. **`sameScopes` subset fix merged (PR #337)** — required for the policy's fixed scope output.
+5. **`ai-demo-pf-user` client needed the `TOKEN_EXCHANGE` grant type** for the ID-JAG issue (PF returned `unauthorized_client` before).
+6. **`enterprise_mcp_allowed_groups`** — set to `banking-agents,employees,demouser` via configStore (configStore/LMDB, survives restarts).
+7. **`enterpriseMcpPolicyService` identity fallback** (PR #346): PF logins map to a synthetic demo-store user (`reseed-wipe-…`), so the policy now also matches the token subject (`userSub='demouser'`) against the allowlist.
+8. **Correct tool name**: the MCP server exposes `get_my_accounts` etc. — NOT `banking.get_balance` (that intent name only drives the UI chip).
+
+**Known follow-ups (non-blocking):**
+- `gw-backend-exchange: deny` hop — the PingGateway backend RFC 8693 exchange is denied by downstream policy; investigate in the PingGateway/P1AZ config if the final-hop story matters for the demo.
+- One unnamed 401 hop mid-chain (same area).
+- The A2A path (`/api/agent/invoke`, audience `a2a-intermediate-passenger.ping.demo`) still fails `invalid_target` in PF-mode — pre-existing UC2 issue, see HANDOFF-UC38-demo-steps.md §2.1.
+
+---
+
 ## 5. Diagnostics that were added (temp) — REMOVE before merging
 
-- `services/oauthService.js` `performTokenExchangeAs` catch block logs `debugAuth: { clientId, secretLen, secretPrefix, endpoint, method }` — **uncommitted**, strip it.
+- ~~`services/oauthService.js` `performTokenExchangeAs` catch block logs `debugAuth`~~ — removed before PR #337 merge. Two more temp debugs ([Exchange-As][dbg] subject log, [UC40 dbg] intermediate/policy logs) were also stripped before the final verification run; none remain in `main`.
 
 ## 6. Files changed this session (all UNCOMMITTED unless noted)
 
@@ -154,10 +176,12 @@ curl -sk -c /tmp/j -b /tmp/j -X POST https://local.ping-devops.com:4000/api/mcp/
 # 4. then the browser UC40 chip run — token chain should populate on /pingfederate-id-jag/demo
 ```
 
-## 10. Next agent's TODO list
+## 10. ~~Next agent's TODO list~~ STATUS (2026-09-27)
 
-1. **Fix the `UnresolvableKeyException`** (§4) — likely JWKS self-fetch inside the PF container.
-2. Re-run `/api/mcp/tool` → expect Exchange #1 + #2 to pass; fix Exchange #2 aud/act per §4 notes.
-3. Remove the `debugAuth` line from `oauthService.js`; fix the theme script's broken sed; commit `pfStandardTokenExchangeService.js` (subset scopes) with a note referencing this file.
-4. Re-verify the browser UC40 run end-to-end and confirm the token chain UI populates.
-5. Confirm provider pin still holds (`environment:` in compose).
+1. ~~UnresolvableKeyException~~ — resolved (§4a.2): red herring from ID-token-as-subject test data.
+2. ~~Exchange #1/#2~~ — ID-JAG issue + redeem pass; 13 chain events on a live run.
+3. ~~debugAuth removal + subset scopes~~ — done in PR #337. Theme script's broken sed: still unfixed (minor — manual one-liner in §2.10).
+4. ~~Token chain populates~~ — verified via API (13 events). **Browser UI run not yet re-verified end-to-end by a human.**
+5. ~~Provider pin~~ — superseded by PR #325's toggle+auto-restore design; provider is now managed via configStore (currently `pingfederate`).
+
+**Remaining (non-blocking):** `gw-backend-exchange: deny` downstream hop; A2A passenger audience `invalid_target` (pre-existing UC2); browser-level UC40 run confirmation.
