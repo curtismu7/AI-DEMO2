@@ -57,9 +57,9 @@
 
 **Files:** hosted manifest references and `k8s/aws/deploy.sh` release inventory.
 
-- [ ] Identify every third-party image used by the hosted deployment path and obtain stable version/digest evidence from approved sources.
-- [ ] Pin each applicable workload to an immutable digest; leave local-only or unused optional manifests unchanged.
-- [ ] Record the complete hosted image inventory in the release process and verify the rewrite cannot leave a mutable hosted reference.
+- [x] Identify every third-party image used by the hosted deployment path and obtain runtime digest evidence; use registry manifest evidence for the inactive conditional seed Job.
+- [x] Pin each applicable hosted workload to an immutable digest; leave local-only or unused optional manifests unchanged.
+- [x] Record the hosted image inventory in the readiness report and add a deploy-time guard against mutable third-party image references after first-party rewrites.
 
 ### Task 6: Close Pod Security and general egress gaps safely
 

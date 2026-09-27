@@ -109,11 +109,24 @@ patch_images() {
   echo "$content"
 }
 
+# Third-party images must be digest-pinned. First-party images are rewritten
+# above to a commit-derived GHCR tag; every other image must carry an immutable
+# sha256 digest so a hosted rollout cannot resolve a different upstream tag.
+assert_pinned_external_images() {
+  local content="$1"
+  local image
+  while IFS= read -r image; do
+    [[ -z "$image" || "$image" == "$GHCR_REGISTRY/"* ]] && continue
+    [[ "$image" == *@sha256:* ]] || die "External image is not digest-pinned: $image"
+  done < <(printf '%s\n' "$content" | sed -nE 's/^[[:space:]]*image:[[:space:]]*([^[:space:]]+).*/\1/p')
+}
+
 apply_patched() {
   local file="$1"
   local content
   content=$(cat "$file")
   content=$(patch_images "$content")
+  assert_pinned_external_images "$content"
   # When deploying to a non-default namespace (SE cluster), rewrite every
   # hardcoded "namespace: ai-demo" in the manifest to the target namespace
   # so kubectl doesn't reject the mismatch.

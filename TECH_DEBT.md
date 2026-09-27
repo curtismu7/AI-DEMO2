@@ -16,13 +16,13 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
-### [ ] 2026-09-26 — Hosted Kubernetes image pinning, restricted admission, and egress scope remain open
+### [ ] 2026-09-27 — Hosted Kubernetes restricted admission and egress scope remain open
 
-**What's wrong.** Hosted manifests still contain mutable third-party image tags, namespace Pod Security Admission is `audit`/`warn` rather than enforced `restricted`, and network policy permits broad outbound TCP 80/443 and DNS. The security review is in `docs/security/SECURITY_REVIEW_2026-09-26.md` (M-04, L-01, L-02).
+**What's wrong.** Third-party image references in the hosted deployment path have been pinned to observed runtime digests (M-04); a deploy-time guard now blocks new mutable external references. Restricted Pod Security compatibility and per-workload egress remain unresolved. Read-only inspection on 2026-09-27 found no namespace Pod Security labels or namespaced NetworkPolicies in `ping-devops-cmuir` or `ping-devops-curtismuir`; cluster-level admission/network controls and CNI enforcement were not inspected. See `docs/security/SECURITY_REVIEW_2026-09-26.md` (L-01, L-02).
 
-**Why it wasn't fixed now.** The repository does not identify the currently deployed third-party image digests, so choosing a version could change the hosted demo unexpectedly. Restricted enforcement needs a complete workload compatibility audit and, for the pre-created hosted namespace, administrator-owned admission settings. Egress narrowing needs confirmed provider destinations and CNI enforcement details. These were intentionally left unchanged rather than guessed without runtime evidence.
+**Why it wasn't fixed now.** Enabling Restricted admission can reject or break workloads that lack explicit security contexts or need the seed Job's root write behavior. Egress narrowing needs confirmed provider destinations and CNI enforcement details. These shared namespace controls remain unchanged until compatibility and operator evidence are established.
 
-**Real fix.** Record and validate the active hosted image set, pin tested third-party images by digest, migrate every workload to Restricted-compatible security contexts, confirm namespace enforcement with its administrator, and narrow per-workload egress only after the provider/DNS inventory and CNI capability are confirmed.
+**Real fix.** Audit deployed pod violations and writable paths, migrate workloads to Restricted-compatible security contexts, confirm namespace enforcement with its administrator, and narrow per-workload egress only after the provider/DNS inventory and CNI capability are confirmed.
 
 ### [ ] 2026-09-14 — AIAgentFull Privilege MCP transport bypasses token exchange and authz gates
 

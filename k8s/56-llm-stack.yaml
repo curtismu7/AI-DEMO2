@@ -83,7 +83,7 @@ spec:
     spec:
       containers:
         - name: llama-server
-          image: ghcr.io/ggml-org/llama.cpp:server
+          image: ghcr.io/ggml-org/llama.cpp@sha256:6257697a7f5d034b8fb499ddb07af3e250506352f94102054252a23f3b85e0af
           imagePullPolicy: IfNotPresent
           args:
             - "--host"
@@ -186,7 +186,7 @@ spec:
     spec:
       containers:
         - name: llama-server
-          image: ghcr.io/ggml-org/llama.cpp:server
+          image: ghcr.io/ggml-org/llama.cpp@sha256:6257697a7f5d034b8fb499ddb07af3e250506352f94102054252a23f3b85e0af
           imagePullPolicy: IfNotPresent
           args:
             - "--host"
@@ -286,7 +286,7 @@ spec:
     spec:
       containers:
         - name: llama-server
-          image: ghcr.io/ggml-org/llama.cpp:server
+          image: ghcr.io/ggml-org/llama.cpp@sha256:6257697a7f5d034b8fb499ddb07af3e250506352f94102054252a23f3b85e0af
           imagePullPolicy: IfNotPresent
           args:
             - "--host"

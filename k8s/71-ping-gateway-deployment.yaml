@@ -30,7 +30,7 @@ spec:
     spec:
       containers:
       - name: ping-gateway
-        image: us-docker.pkg.dev/forgeops-public/images-base/ig:latest
+        image: us-docker.pkg.dev/forgeops-public/images-base/ig@sha256:ccdde554f83c597a0851d714d08c32c3caa2b3d28cad0d9d7fcddf2299619388
         imagePullPolicy: Always
         # Import mkcert root into a writable JVM truststore copy (same pattern as
         # docker-compose ping-gateway entrypoint) so apikey-dispatch.groovy can

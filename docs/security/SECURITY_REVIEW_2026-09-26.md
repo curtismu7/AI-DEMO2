@@ -1,12 +1,12 @@
-# Security Review — 2026-09-26
+# Security Review — 2026-09-26 (live evidence added 2026-09-27)
 
 ## Executive summary
 
-This is a static, repository-based review of the hosted Kubernetes demo deployment and the application paths reachable through it. It covers the BFF, MCP service boundary, CodeGraph proxy, Kubernetes network and pod policy, logging, and release image references. It does not include live cluster probing, penetration testing, dependency advisory scanning, or review of every standalone teaching/lab example in the repository.
+This is a repository review of the hosted Kubernetes demo deployment, supplemented by read-only inspection of the two shared namespaces available to this operator. It covers the BFF, MCP service boundary, CodeGraph proxy, Kubernetes network and pod policy, logging, and release image references. It does not include penetration testing, dependency advisory scanning, or review of every standalone teaching/lab example in the repository.
 
 The app has meaningful controls: the hosted admission gate is separate from application login, the BFF holds browser tokens, internal agent routes require a shared secret, and hosted deployment rewrites first-party images to commit-tagged registry references. The remaining issues are primarily at the network boundary and in demo-mode configuration.
 
-**Disposition:** the repository now contains mitigations for H-01 and M-01 through M-03. They have not been deployed or exercised against a live cluster. M-04 and the Low findings remain open; immutable image selection and Restricted/egress enforcement need compatibility or external-cluster evidence before promotion. A read-only query of the configured Kubernetes context failed because the EKS API hostname did not resolve.
+**Disposition:** the repository contains mitigations for H-01 and M-01 through M-03, but they are not confirmed live. Read-only inspection found no NetworkPolicies or namespace Pod Security labels in either `ping-devops-cmuir` or `ping-devops-curtismuir`. M-04 is addressed in repository manifests using observed runtime image digests for `ping-devops-cmuir`; the changes have not been deployed. Restricted enforcement and egress narrowing remain open pending compatibility and cluster/CNI evidence.
 
 ## High
 
@@ -20,7 +20,7 @@ The app has meaningful controls: the hosted admission gate is separate from appl
 
 **Confidence / false-positive notes:** high confidence in the manifest-level path. Impact depends on what MCP tools and credentials are enabled at runtime; this review did not exercise the deployed server.
 
-**Repository remediation:** `k8s/04-network-policies.yaml` excludes `mcp-server` from the namespace-wide same-namespace ingress rule and permits ingress only from PingGateway, the in-cluster MCP gateway, and the ingress controller needed for the protected-resource metadata endpoint. Both Kubernetes deploy scripts apply the policy. Existing broad network egress is retained. Live CNI enforcement and MCP smoke behavior remain unverified.
+**Repository remediation:** `k8s/04-network-policies.yaml` excludes `mcp-server` from the namespace-wide same-namespace ingress rule and permits ingress only from PingGateway, the in-cluster MCP gateway, and the ingress controller needed for the protected-resource metadata endpoint. Both Kubernetes deploy scripts apply the policy. Existing broad network egress is retained. **Live observation 2026-09-27:** neither reviewed namespace has a namespaced NetworkPolicy, so this MCP protection is not currently active there. The shared cluster was not changed; CNI enforcement and MCP smoke behavior remain unverified.
 
 ## Medium
 
@@ -34,7 +34,7 @@ The app has meaningful controls: the hosted admission gate is separate from appl
 
 **Confidence / false-positive notes:** high confidence in the configuration behavior; the live secret value and all possible internal HTTP routes were not inspected. This finding is specifically about the fail-open fallback and cookie configuration, not a claim that the current secret is known.
 
-**Repository remediation:** hosted BFF configuration now requires a non-default `SESSION_SECRET` and enables Secure cookies through explicit environment flags while retaining `NODE_ENV=development`. The normal secret source and OAuth/session lifecycle are unchanged. A missing hosted secret will now prevent the BFF from starting; the current running deployment has not been inspected.
+**Repository remediation:** hosted BFF configuration now requires a non-default `SESSION_SECRET` and enables Secure cookies through explicit environment flags while retaining `NODE_ENV=development`. The normal secret source and OAuth/session lifecycle are unchanged. A missing hosted secret will now prevent the BFF from starting. **Live observation 2026-09-27:** the BFF is still running image `sha-0504823c6dd46706fcb2eb86f5321b65555dc6db`, which predates the repository hardening commit; `NODE_ENV=development` is set, but `SESSION_SECRET_REQUIRED` and `SESSION_COOKIE_SECURE` are absent. The Secret reference exists but its value was not inspected. This mitigation is not live yet.
 
 ### M-02 — Public CodeGraph reindex and query can consume shared compute and model quota
 
@@ -46,7 +46,7 @@ The app has meaningful controls: the hosted admission gate is separate from appl
 
 **Confidence / false-positive notes:** high confidence that the routes are intentionally public; this is an availability and cost-control risk, not an accidental authentication omission. The hosted admission gate reduces exposure but is not a per-feature abuse control.
 
-**Repository remediation:** the query endpoint is limited to 10 requests per minute per client IP, and reindex is limited to 1 request per 5 minutes per client IP. The existing public feature and admission gate remain unchanged. Rate limiting is process-local and can be bypassed across multiple source IPs; cluster behavior was not exercised.
+**Repository remediation:** the query endpoint is limited to 10 requests per minute per client IP, and reindex is limited to 1 request per 5 minutes per client IP. The existing public feature and admission gate remain unchanged. Rate limiting is process-local and can be bypassed across multiple source IPs. The live BFF still runs the pre-hardening `sha-0504823…` image, so these limits are not live yet.
 
 ### M-03 — OAuth callback authorization codes are recorded in access logs
 
@@ -58,19 +58,19 @@ The app has meaningful controls: the hosted admission gate is separate from appl
 
 **Confidence / false-positive notes:** high confidence in URL logging from Morgan's standard combined format and the callback path. Whether an attacker could redeem a logged code depends on timing and access to the matching PKCE verifier; this review found only a truncated verifier prefix in the route's explicit debug log.
 
-**Repository remediation:** access logs now record URL path only and reduce the Referer to origin/path, preserving method/status/length/user-agent while removing query values. OAuth callback processing and state validation were not changed.
+**Repository remediation:** access logs now record URL path only and reduce the Referer to origin/path, preserving method/status/length/user-agent while removing query values. OAuth callback processing and state validation were not changed. The live BFF still runs the pre-hardening `sha-0504823…` image, so query redaction is not live yet.
 
 ### M-04 — Some hosted workloads still use mutable third-party image tags
 
-**Evidence:** `k8s/aws/deploy.sh:95-108` rewrites first-party image names in `IMAGE_MAP` to a commit-derived tag and changes pull policy. The map does not rewrite third-party references. For example, `k8s/71-ping-gateway-deployment.yaml:33-34` uses `ig:latest`; `k8s/72-rag-stack.yaml:121-123` uses `weaviate:latest`; `k8s/54-seed-llm-models.yaml:73` uses `curlimages/curl:latest`; and llama.cpp workloads use the mutable `ghcr.io/ggml-org/llama.cpp:server` tag.
+**Evidence:** before remediation, `k8s/aws/deploy.sh` rewrote first-party image names in `IMAGE_MAP` to commit-derived tags but did not rewrite third-party references. Hosted manifests used mutable `ig:latest`, `weaviate:latest`, `curlimages/curl:latest`, and `ghcr.io/ggml-org/llama.cpp:server` references. Read-only runtime evidence from `ping-devops-cmuir` confirmed the active third-party image IDs on 2026-09-27; the repository manifests now pin the active workload images to those digests.
 
 **Impact:** a rebuild or restart can resolve a different upstream image under the same tag, making releases non-reproducible and allowing upstream tag changes to alter the deployed code without a repository change. Image provenance and rollback become harder to establish.
 
 **Recommendation:** pin deployed third-party images to immutable digests (or fixed versions plus digest verification), include them in a reviewed update process, and keep non-deployment job images pinned as well when they run in the cluster.
 
-**Confidence / false-positive notes:** high confidence for the cited references. Whether each optional RAG or seed manifest is applied in a given hosted profile varies; the cited Ping Gateway manifest is part of the hosted deployment path.
+**Confidence / false-positive notes:** high confidence for the prior mutable-reference issue and the captured runtime digests. The model seed Job was not present during inspection, so its curl image uses an OCI manifest-list digest queried directly from the registry on 2026-09-27. The manually installed gateway and unused optional manifests remain outside the hosted deployment path.
 
-**Status:** awaiting runtime image evidence. The hosted image inventory is in `docs/security/HOSTED_WORKLOAD_READINESS_2026-09-26.md`; `k8s/aws/security-preflight.sh` now reports runtime image IDs without reading secrets. The configured cluster could not be queried to capture them. Pinning an unverified version could change demo behavior, so immutable references remain a promotion prerequisite rather than being guessed here.
+**Status:** repository manifests pinned; deployment pending. The active `ping-devops-cmuir` images for PingGateway, Weaviate, llama.cpp, Tika, and monitoring components were pinned to their observed `imageID` digests. The conditional curl seed Job was pinned to a registry manifest-list digest because no seed Job was running. See `docs/security/HOSTED_WORKLOAD_READINESS_2026-09-26.md` for the inventory and evidence. The shared cluster was not changed.
 
 ## Low
 
@@ -84,19 +84,19 @@ The app has meaningful controls: the hosted admission gate is separate from appl
 
 **Confidence / false-positive notes:** high confidence that this manifest alone does not enforce restricted PSS. Cluster-level admission policies could provide equivalent enforcement and were not inspected.
 
-**Status:** partially addressed; enforcement remains open. Static workload inventory is in `docs/security/HOSTED_WORKLOAD_READINESS_2026-09-26.md`. `k8s/aws/security-preflight.sh` reports namespace-scoped Pod Security labels and workload images. No namespace policy was changed. Runtime workload audit and namespace-admin confirmation are still required before enforcement.
+**Status:** open. Neither `ping-devops-cmuir` nor `ping-devops-curtismuir` has namespace-scoped Pod Security labels. Cluster-level admission may exist but was not inspected. Static workload inventory is in `docs/security/HOSTED_WORKLOAD_READINESS_2026-09-26.md`; keep enforcement unchanged pending workload audit and namespace-admin confirmation.
 
-### L-02 — Namespace network policy permits broad outbound HTTP(S) and DNS
+### L-02 — Shared namespaces have no namespaced egress policy; repository policy allows broad outbound HTTP(S) and DNS
 
 **Evidence:** `k8s/04-network-policies.yaml:26-46` and `:81-101` allow selected pods to connect to any IPv4 destination on TCP 80/443 and port 53, in addition to namespace-local destinations. Metadata link-local addresses are excluded, which is useful but does not restrict other external destinations.
 
-**Impact:** a compromised pod can make outbound connections to arbitrary public endpoints over HTTP(S), supporting data exfiltration or command-and-control. Required PingOne and model-provider integrations explain some external egress, but the policy does not limit destinations to those dependencies.
+**Impact:** the repository policy allows outbound connections to arbitrary public endpoints over HTTP(S), supporting data exfiltration or command-and-control. Live inspection found no namespaced NetworkPolicy in either reviewed namespace; absent equivalent cluster-wide controls, pod egress there is not constrained by Kubernetes NetworkPolicy. Required PingOne and model-provider integrations explain some external egress, but do not justify unrestricted destinations.
 
 **Recommendation:** use an egress proxy or maintained destination allowlists for the hosted profile where practical. At minimum, split broad egress permissions by workload so services without external-call requirements have no general Internet access.
 
-**Confidence / false-positive notes:** high confidence in the policy's scope. Whether the cluster CNI enforces NetworkPolicy and whether additional cloud firewall rules restrict egress were not inspected.
+**Confidence / false-positive notes:** high confidence in the repository policy scope and the absence of namespaced NetworkPolicy objects. Whether the CNI enforces policy and whether cluster-wide or cloud firewall rules restrict egress were not inspected.
 
-**Status:** open. The new MCP ingress restriction preserves the existing egress rules. `k8s/aws/security-preflight.sh` reports present NetworkPolicy objects, but cannot establish CNI enforcement. Destination narrowing requires a verified provider/DNS inventory and CNI confirmation; the configured cluster could not be reached to inspect either.
+**Status:** open. Neither reviewed namespace has a namespaced NetworkPolicy, so the repository's current MCP ingress policy and egress rules are not present there. CNI or cluster-wide controls may exist but were not inspected. Destination narrowing requires a verified provider/DNS inventory and CNI confirmation.
 
 ## Positive controls observed
 
@@ -108,6 +108,6 @@ The app has meaningful controls: the hosted admission gate is separate from appl
 
 ## Review limitations
 
-This report is based on source and deployment configuration only. It does not assert live exploitability, inspect cloud IAM, cluster RBAC/admission configuration, ingress-controller settings outside repository manifests, secret values, registry policy, runtime image digests, or dependency vulnerability databases. One read-only Kubernetes request was attempted and failed at DNS resolution for the configured API endpoint. No tests, scans, or deployments were run as part of this review or remediation.
+Live inspection on 2026-09-27 was read-only and limited to namespace metadata, pods and their image IDs, Jobs, and namespaced NetworkPolicies in `ping-devops-cmuir` and `ping-devops-curtismuir`. It did not inspect cloud IAM, cluster RBAC/admission configuration, ingress-controller settings outside repository manifests, Secret objects or values, registry policy, or dependency vulnerability databases. The CNI and cluster-wide network/admission policies were not assessed. No deployments or tests were run.
 
-Run the read-only evidence collector with `K8S_NAMESPACE=<hosted-namespace> KUBE_CONTEXT=<context> ./k8s/aws/security-preflight.sh`. It prints Pod Security labels, pod image/imageID data, and NetworkPolicy metadata; it never fetches Secret objects or changes resources. A namespace administrator or cluster operator must still confirm cluster-level admission and CNI enforcement.
+Run the read-only evidence collector with `K8S_NAMESPACE=<hosted-namespace> KUBE_CONTEXT=<context> ./k8s/aws/security-preflight.sh`. It prints Pod Security labels, third-party image/imageID pairs, and NetworkPolicy metadata; it never fetches Secret objects or changes resources. A namespace administrator or cluster operator must still confirm cluster-level admission and CNI enforcement.

@@ -41,7 +41,7 @@ spec:
         fsGroup: 65534
       containers:
         - name: alertmanager
-          image: prom/alertmanager:v0.34.0
+          image: prom/alertmanager@sha256:690c7b525f4367aa91f73e2f91c632206d32e97c6384bdbf2fb7a861b420340d
           imagePullPolicy: IfNotPresent
           args:
             - --config.file=/etc/alertmanager/alertmanager.yml
