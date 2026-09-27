@@ -109,6 +109,34 @@ function parseEnv(filePath) {
 }
 
 /**
+ * PingGateway's Exchange #3 can exchange a PF-issued subject only at PF. Reuse
+ * the PF standard MCP exchanger used for the BFF's final standard exchange.
+ * PF_TOKEN_ENDPOINT in the BFF env may use Docker's `pingfederate` DNS alias,
+ * whose hostname is not on PF's TLS certificate; PingGateway must dial the
+ * issuer hostname instead while preserving the configured endpoint path.
+ */
+function buildPingGatewayPfExchangeEnv(apiVars = {}) {
+  const issuerUri = apiVars.PF_ISSUER_URI || apiVars.PF_ISSUER || '';
+  const configuredEndpoint = apiVars.PF_TOKEN_ENDPOINT || '';
+  let tokenEndpoint = configuredEndpoint;
+
+  if (issuerUri && configuredEndpoint) {
+    const issuer = new URL(issuerUri);
+    const endpoint = new URL(configuredEndpoint);
+    endpoint.protocol = issuer.protocol;
+    endpoint.host = issuer.host;
+    tokenEndpoint = endpoint.toString();
+  }
+
+  return {
+    PF_ISSUER_URI: issuerUri,
+    PF_TOKEN_ENDPOINT: tokenEndpoint,
+    PF_TE_CLIENT_ID: apiVars.PF_STANDARD_TOKEN_EXCHANGE_CLIENT_ID || '',
+    PF_TE_CLIENT_SECRET: apiVars.PF_STANDARD_TOKEN_EXCHANGE_CLIENT_SECRET || '',
+  };
+}
+
+/**
  * Decrypt a dotenvx `encrypted:...` value on its way into a GENERATED service
  * `.env`. Only demo_api_server/.env is encrypted at rest; the 11 files this
  * script writes are plaintext by design (they already carry PingOne client
@@ -975,9 +1003,9 @@ async function main(deps = {}) {
   // ── ping-gateway/.env ─────────────────────────────────────────────────────
   // PingGateway uses INTROSPECT_CLIENT_ID and a plain-text introspection endpoint.
   // The exchanger client is the right introspector for mcpgateway.ping.demo tokens.
-  // Exchange #3 (olb-token-exchange.groovy) needs TE_CLIENT_* + PG_OLB_* — without
-  // them the Groovy filter posts empty client_id/secret and PingOne returns
-  // invalid_client before any tool reaches the MCP server.
+  // Exchange #3 (olb-token-exchange.groovy) uses TE_CLIENT_* + PG_OLB_* for
+  // PingOne-issued subjects. PF-issued subjects take the separate PF endpoint
+  // and exchanger emitted by buildPingGatewayPfExchangeEnv() below.
   const mcpServerAud = topology.resources?.['Super Banking MCP Server']?.uri
     || fb('MCP_SERVER_RESOURCE_URI')
     || 'mcpserver.ping.demo';
@@ -991,6 +1019,7 @@ async function main(deps = {}) {
     PINGONE_INTROSPECTION_ENDPOINT: `${asBase}/introspect`,
     PINGONE_ISSUER_URI:             `${asBase}`,
     PINGONE_TOKEN_ENDPOINT:         `${asBase}/token`,
+    ...buildPingGatewayPfExchangeEnv(apiVars),
     INTROSPECT_CLIENT_ID:           creds.mcpExchangerClientId,
     INTROSPECT_CLIENT_SECRET:       creds.mcpExchangerSecret,
     // McpProtectionFilter.resourceId — the aud the inbound MCP token must carry.
@@ -1152,6 +1181,7 @@ if (require.main === module) {
 // the `require.main === module` guard above still drives the CLI path.
 module.exports = {
   loadVaultSecrets, writeEnvFile, dotenvxPlain, getRotatableVaultKeyMap,
+  buildPingGatewayPfExchangeEnv,
   propagateServiceEnvs: main,
   // Exported so the container-vs-native path contract above is testable: the
   // two roots differ inside the BFF image and a regression there is invisible
