@@ -81,6 +81,49 @@ describe('privilege silent auth — prompt=none', () => {
       expect(authUrl.searchParams.has('prompt')).toBe(false);
     });
 
+    test('uses an existing Privilege door session to silently authorize another door', async () => {
+      const app = buildApp({
+        privilegeMcpClientOAuth: {
+          oauth: { accessToken: null },
+          savedOauthByDoor: {
+            'privilege::https://mcpgw.example.com/opensearch22/mcp': {
+              accessToken: 'previous-door-token',
+              tokenUri: 'https://mcpgw.example.com/opensearch22/token',
+              expiresAt: Date.now() + 60_000,
+              dcrClientId: 'previous-door-client',
+            },
+          },
+        },
+      });
+      await configure(app);
+
+      const authUrl = await startAuth(app);
+
+      expect(authUrl.searchParams.get('prompt')).toBe('none');
+    });
+
+    test('uses a saved Privilege refresh token when its access token is absent', async () => {
+      const app = buildApp({
+        privilegeMcpClientOAuth: {
+          oauth: { accessToken: null },
+          savedOauthByDoor: {
+            'privilege::https://mcpgw.example.com/opensearch22/mcp': {
+              accessToken: null,
+              refreshToken: 'previous-door-refresh-token',
+              tokenUri: 'https://mcpgw.example.com/opensearch22/token',
+              expiresAt: null,
+              dcrClientId: 'previous-door-client',
+            },
+          },
+        },
+      });
+      await configure(app);
+
+      const authUrl = await startAuth(app);
+
+      expect(authUrl.searchParams.get('prompt')).toBe('none');
+    });
+
     test('uses a cookie-restored dashboard session for prompt=none', async () => {
       const app = buildApp({
         user: { id: 'customer-1', role: 'customer' },
@@ -99,6 +142,10 @@ describe('privilege silent auth — prompt=none', () => {
       const app = buildApp({ user: { id: 'customer-1', role: 'customer' } });
       const state = await request(app).get('/api/privilege-mcp/state').expect(200);
       expect(state.body.mainAppAuthenticated).toBe(true);
+
+      await configure(app);
+      const authUrl = await startAuth(app);
+      expect(authUrl.searchParams.get('prompt')).toBe('none');
     });
 
     test('omits prompt=none when privilegePromptNoneFailed is set', async () => {

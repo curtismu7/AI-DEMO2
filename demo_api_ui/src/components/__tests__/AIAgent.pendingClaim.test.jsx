@@ -53,6 +53,13 @@ vi.mock("../../services/demoAgentService", () => ({
   fetchAgentTools: vi.fn().mockResolvedValue({ availableTools: [], vertical: null, allowWrite: true }),
 }));
 vi.mock("../../services/configService", () => ({ loadPublicConfig: vi.fn().mockResolvedValue({}) }));
+vi.mock("../../services/cachedStatusService", () => ({
+  // Module-level 10s TTL cache is poisoned by sibling tests' fetch mocks in the
+  // same worker — bypass it entirely so each test's fetch stub is authoritative.
+  getCachedStatus: (url, config) => fetch(url, config),
+  getCachedJson: (url) => fetch(url).then((r) => r.json()),
+  clearStatusCache: () => {},
+}));
 vi.mock("../../services/agentAccessConsent", () => ({
   isAgentBlockedByConsentDecline: vi.fn(() => false),
   setAgentBlockedByConsentDecline: vi.fn(),
@@ -220,13 +227,15 @@ describe("before the vertical manifest resolves", () => {
   });
 });
 
-// The gate added in #1981 had no timeout, so a surface whose manifest never
-// resolves dropped the question silently — and a silent drop is
-// indistinguishable from "this path was never watched", which is the ambiguity
-// that cost two sessions hours on this defect. The wait is bounded, and the
-// expiry hands the question back where the user can see and send it.
+// 7342504cc re-scoped the #1981 gate: while the vertical context is loading the
+// resume WAITS (bounded by RESUME_VERTICAL_WAIT_MS); on expiry it no longer
+// hands the question back — it SENDS without the client vertical override and
+// lets the BFF resolve the session-pinned vertical (agentInvokeRoute's
+// activeIdFor). Handing back dropped valid demo steps for signed-in sessions
+// whose client manifest was unavailable. This suite now pins that: the question
+// is sent, not stranded.
 describe("when the vertical manifest never resolves", () => {
-  it("gives the question back to the composer instead of dropping it", async () => {
+  it("sends the question without a client vertical once the wait expires (BFF resolves it)", async () => {
     vi.useFakeTimers();
     try {
       mockVerticalId = null; // never resolves
@@ -243,15 +252,21 @@ describe("when the vertical manifest never resolves", () => {
         </MemoryRouter>,
       );
 
-      // Past the 8s deadline.
-      await act(async () => { await vi.advanceTimersByTimeAsync(9000); });
+      // Past the 8s deadline AND the 250ms send debounce it schedules: the
+      // wait-tick fires at ~8s, and only then is the 250ms send timer armed,
+      // so a single 9000ms advance can stop one tick short of the send.
+      await act(async () => { await vi.advanceTimersByTimeAsync(10000); });
+      // The 250ms send debounce is armed by the effect re-run that the
+      // deadline tick itself triggers (React flushes that render after the
+      // clock stops), so one more advance is needed to fire it.
+      await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
 
-      // Never sent — a request without a vertical is the bug this gate exists for.
-      expect(sendAgentMessage).not.toHaveBeenCalled();
-      // But the visitor can see what happened and act on it.
-      expect(screen.getByText(/haven't asked that yet/i)).toBeInTheDocument();
-      const box = screen.getByPlaceholderText(/Ask about|Message/i);
-      expect(box).toHaveValue(QUESTION);
+      // 7342504cc: a signed-in session with an unresolved client manifest no
+      // longer hands the question back — the BFF resolves the vertical from the
+      // session (agentInvokeRoute's activeIdFor), so the resume SENDS rather
+      // than stranding. The old "haven't asked that yet" contract is gone.
+      expect(sendAgentMessage).toHaveBeenCalled();
+      expect(screen.queryByText(/haven't asked that yet/i)).not.toBeInTheDocument();
     } finally {
       vi.useRealTimers();
     }

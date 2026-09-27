@@ -80,6 +80,11 @@ function includesAudience(actual, expected) {
   return Array.isArray(actual) ? actual.includes(expected) : actual === expected;
 }
 
+function resolveUserSubject(claims) {
+  const subject = claims?.sub ?? claims?.Username;
+  return subject === undefined || subject === null || subject === '' ? null : String(subject);
+}
+
 function actorIdentity(decoded) {
   return decoded.claims.client_id || decoded.claims.sub;
 }
@@ -156,6 +161,7 @@ function validateFinalToken(token, { userSub, audience, scopes, agentActorToken,
 
 module.exports = {
   resolveConfig,
+  resolveUserSubject,
   getActorToken,
   performExchange,
   validateIntermediateToken,

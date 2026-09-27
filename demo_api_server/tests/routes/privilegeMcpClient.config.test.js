@@ -108,13 +108,14 @@ describe('POST /api/privilege-mcp/config — blank values do not overwrite', () 
       .expect(200);
     expect(privilege.body.oauth.authenticated).toBe(true);
 
-    // Switch to façade, never signed in there — must NOT inherit privilege's
-    // token (the real gateway rejects a foreign-audience token outright).
+    // Switch to façade, never signed in there. The live token remains in the
+    // shared slot, but the response must distinguish it from a façade grant.
     const facade = await browser
       .post('/api/privilege-mcp/config')
       .send({ gatewayMode: 'facade', mcpUrl: 'https://ai-demo.example/mcp-facade/privilege-gateway/app/mcp' })
       .expect(200);
-    expect(facade.body.oauth.authenticated).toBe(false);
+    expect(facade.body.oauth.authenticated).toBe(true);
+    expect(facade.body.oauth.destinationAuthenticated).toBe(false);
 
     // Switch back to privilege — its earlier token must come back on its own,
     // with no fresh Authorization header on this request.
@@ -123,6 +124,35 @@ describe('POST /api/privilege-mcp/config — blank values do not overwrite', () 
       .send({ gatewayMode: 'privilege' })
       .expect(200);
     expect(backToPrivilege.body.oauth.authenticated).toBe(true);
+    expect(backToPrivilege.body.oauth.destinationAuthenticated).toBe(true);
+  });
+
+  it('does not report a retained source-path token as authenticated for the destination', async () => {
+    const browser = request.agent(app);
+    const privilegeUrl = 'https://gw.example.com/opensearch22/mcp';
+    const directUrl = 'https://ai-demo.example.com/mcp-facade/opensearch/mcp';
+
+    await browser
+      .post('/api/privilege-mcp/config')
+      .set('Authorization', 'Bearer privilege-token')
+      .send({ gatewayMode: 'privilege', mcpUrl: privilegeUrl })
+      .expect(200);
+
+    const direct = await browser
+      .post('/api/privilege-mcp/config')
+      .send({ gatewayMode: 'direct', mcpUrl: directUrl })
+      .expect(200);
+
+    // The outgoing token remains available for its source path, but is not the
+    // Direct broker grant. The UI must request Direct's own token silently.
+    expect(direct.body.oauth.authenticated).toBe(true);
+    expect(direct.body.oauth.destinationAuthenticated).toBe(false);
+
+    const privilegeAgain = await browser
+      .post('/api/privilege-mcp/config')
+      .send({ gatewayMode: 'privilege' })
+      .expect(200);
+    expect(privilegeAgain.body.oauth.destinationAuthenticated).toBe(true);
   });
 
   it('does not restore an expired stash as authenticated', async () => {

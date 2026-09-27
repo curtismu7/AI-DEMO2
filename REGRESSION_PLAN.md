@@ -188,6 +188,232 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-27 — Demo Steps scrim escaped the Command Dock stacking context
+
+**Files:** `demo_api_ui/src/components/DemoStepsDropdown.jsx`,
+`demo_api_ui/src/components/__tests__/DemoStepsDropdown.test.jsx`,
+`demo_api_ui/tests/e2e/pf-idjag-run-mode.spec.js`.
+
+**What was broken:** PR #349 raised the scrim's z-index to 100062, but the
+scrim was still rendered inside the Command Dock's `FloatingPanel` stacking
+context at 100061. A child z-index cannot escape that parent context, so the
+scrim could not cover the Dock.
+
+**What was fixed:** Portal the scrim to `document.body`, alongside the drawer.
+The Dock panel, scrim, and drawer now participate in the same root stacking
+order at 100061, 100062, and 100063 respectively.
+
+**Do not break:** Keep the scrim body-portaled and below the body-portaled
+drawer; preserve its close-on-mousedown behavior and modal layers at 100070+.
+
+**Verify:** Focused component unit test, the UC40 browser flow with a DOM
+stack-order and `elementFromPoint` assertion, and `cd demo_api_ui && npm run build`
+pass. The contrast audit was run in both themes; it also surfaced
+existing dashboard and drawer text contrast findings outside this layering
+change.
+
+### 2026-09-27 — PingFederate standard exchanges preserve subject and nested actor chain
+
+**Files:** `demo_api_server/services/agentMcpTokenService.js`,
+`demo_api_server/services/pfStandardTokenExchangeService.js`,
+`demo_api_server/src/__tests__/agentMcpTokenService.test.js`,
+`demo_api_server/src/__tests__/pfStandardTokenExchangeService.test.js`,
+`UC40-PF-IDJAG-SESSION-HANDOFF.md`.
+
+**What was broken:** The local PF user token carried a signed `Username` claim
+without `sub`. The PF token processor did not declare `Username`, the standard
+exchange policy read `sub`, and the agent-gateway access-token mapping emitted
+`Username` without `sub`. Exchange #1 returned HTTP 200, but BFF intermediate
+token validation then failed its subject check and `/api/mcp/tool` returned
+HTTP 502 `invalid_grant`. The final PF mapping also left the actor claim as a
+scalar, while the BFF's full MCP-service → AI-agent delegation shape is nested.
+The original local actor client IDs were not the
+registered identities in the local PingOne Authorize chain, so the gateway
+policy denied otherwise valid downstream tokens.
+
+**What was fixed:** The local PF processor contract now exposes `Username`;
+`aiDemoStandardTePolicy` maps `SUBJECT_TOKEN.Username` to `subject` and
+`ACTOR_TOKEN.client_id` to `spiffeId` for both supported subject-token types.
+The agent-gateway ATM contract and mapping now emit `sub` from the policy
+subject while retaining the existing `Username` claim. The PF standard adapter
+uses signed `sub`, falling back to signed `Username` only when `sub` is absent.
+This is a documented PF-specific token-shape difference; it does not relax
+subject validation. The dedicated MCP gateway ATM mapping now emits a nested
+`act` map by combining the MCP actor `spiffeId` with the prior agent `act`, and
+the local PF actor client IDs match the registered PingOne Authorize actor
+identities. The passenger A2A `invalid_target` from UC38 remains a separate UC2
+issue, outside the UC40 chain.
+
+**Do not break:** Keep the two-exchange flow and strict subject, audience, scope,
+and actor validation. PingOne continues to use its `sub` claim. The passenger
+A2A exchange failure documented under UC38 remains a separate UC2 issue.
+
+**Verify:** `CI=true npx jest src/__tests__/agentMcpTokenService.test.js
+src/__tests__/pfStandardTokenExchangeService.test.js --forceExit --runInBand`
+passes 108/108. The focused local API request and tool result are recorded below
+after deployment. The valid banking tools are `get_my_accounts` and
+`get_account_balance`; `banking.get_balance` is a UI intent label, not a
+registered MCP tool name.
+
+### 2026-09-27 — Exchange diagnostics no longer mask the underlying failure
+
+**Files:** `demo_api_server/services/agentMcpTokenService.js`,
+`demo_api_server/src/__tests__/agentMcpTokenService.test.js`.
+
+**What was broken:** When Exchange #1 rejected a `subject_token`, its diagnostic
+interpolated an undeclared `tool` variable. That `ReferenceError` replaced the
+original structured exchange error and surfaced as `tool is not defined` from
+`POST /api/mcp/tool`.
+
+**What was fixed:** The diagnostic now uses the tool already supplied to the
+exchange helper (`opts.tool`, then `toolTrigger`), so it can report the
+subject-token rejection without replacing it.
+
+**Do not break:** Keep the two-exchange selection, credentials, token scopes,
+session handling, and strict subject/audience/scope checks unchanged. The
+passenger A2A exchange failure documented under UC38 remains a separate UC2
+issue.
+
+**Live finding at the time:** The latest `banking.get_balance` call reached
+PingFederate Exchange #1 (HTTP 200), then returned HTTP 502 because the BFF
+rejected the intermediate token for not preserving the user subject. The
+follow-up 2026-09-27 entry above records the local PF and BFF correction.
+
+**Verify:** `CI=true npx jest src/__tests__/agentMcpTokenService.test.js
+--forceExit --runInBand` passes 100/100. The latest exact live call still returns
+HTTP 502 `invalid_grant` before the identity mapping and subject-claim fixes
+above were applied.
+
+### 2026-09-26 — Demo Steps drawer scrim blocked Command Dock actions
+
+**Files changed:**
+- `demo_api_ui/src/components/AIAgent.css` — raise the Demo Steps scrim and drawer above the Command Dock panel.
+- `demo_api_ui/tests/e2e/pf-idjag-run-mode.spec.js` — open the collapsed Demo Controls pill before locating dashboard controls.
+
+**What was broken:** Mission Control UC40 and provider-switch browser flows queried controls before opening the collapsed Command Dock. The scrim was nested inside the Dock's `FloatingPanel`, so changing its child z-index could not put it above the Dock. The provider-switch spec also depended on a live session-clear endpoint and checked storage before the reload completed.
+
+**What was fixed:** The focused flows now open the dock by its exact accessible name, and the provider-switch spec mocks session clearing and waits for the reload before checking session storage. The scrim and drawer z-index values were raised, but the scrim still needed the follow-up body portal recorded above to escape the Dock's stacking context.
+
+**Do not break:** Keep the scrim below the drawer and preserve higher modal layers (100070+).
+
+**Verify:** Focused `pf-idjag-run-mode.spec.js` → 8 passed against the isolated worktree Vite server using system Chrome (the shared Playwright headless-shell cache was being reinstalled); `npm run build` exits 0.
+
+### 2026-09-27 — Cookie-restored P1 session skipped silent Privilege sign-in
+
+**Files:** `demo_api_server/routes/privilegeMcpClient.js`,
+`demo_api_server/tests/routes/privilegeMcpClient.silentAuth.test.js`.
+
+**What was broken:** `/state` treated the dashboard's signed-cookie-restored
+identity as authenticated when the OAuth token field was absent, but
+`/auth/start` only looked for an access token or a saved Privilege grant. The
+UI therefore showed the user as signed in while door authorization triggered
+another interactive PingOne login.
+
+**What was fixed:** Both endpoints now share the same main-app session check.
+The BFF requests `prompt=none` for a recognized dashboard identity, allowing
+PingOne SSO to issue the selected door's own grant. `login_required` still
+falls back to interactive login, and each door's authorization remains
+independent.
+
+**Do not break:** Keep the signed dashboard identity as the SSO signal; do not
+reuse one door's access or refresh token as another door's grant. Preserve the
+interactive fallback after a silent-auth failure and the per-door gateway
+authorization checks.
+
+**Verify:** Added test failed before the fix and passed after it;
+`CI=true npx jest tests/routes/privilegeMcpClient.silentAuth.test.js
+--runInBand --forceExit` — 10 passed.
+
+### 2026-09-27 — Path switch to Direct left an active app session at a sign-in prompt
+
+**Files:** `demo_api_server/routes/privilegeMcpClient.js`,
+`demo_api_server/tests/routes/privilegeMcpClient.config.test.js`,
+`demo_api_server/tests/routes/privilegeMcpClient.sharedDoorToken.test.js`,
+`demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`,
+`demo_api_ui/src/pages/__tests__/PrivilegeMcpClientPage.doorSwitchReauth.test.jsx`.
+
+**What was broken:** Changing Path to Direct cleared the Privilege token because
+Direct uses its own broker grant. The path-switch handler then waited for the
+user to click Sign in, even when the main PingOne app session was still active.
+The connection rail showed App session signed in alongside a Gateway identity
+sign-in prompt.
+
+**What was fixed:** An explicit Path selection now starts the BFF's
+`prompt=none` authorization flow when the app or current gateway session can be
+reused. On callback, the existing silent-switch path discovers tools for the
+selected destination. If the BFF cannot prepare silent authorization, the page
+keeps the manual sign-in fallback. `/config` now reports whether its live token
+belongs to the selected destination separately from whether a token remains in
+the shared slot, so the source path's token cannot suppress that authorization.
+If starting silent authorization itself fails, the selected Path stays aligned
+with the BFF and the page offers a manual retry.
+
+**Do not break:** Keep the app token out of `session.oauth`; each path must
+receive its own authorization-server token. Preserve manual fallback, avoid
+auto-discovery except after an explicit path switch, and keep Privilege 403
+policy denials intact.
+
+**Verify:** Seven focused Privilege page Vitest files — 42 passed;
+`CI=true npx jest tests/routes/privilegeMcpClient.config.test.js
+tests/routes/privilegeMcpClient.sharedDoorToken.test.js --forceExit --runInBand`
+— 14 passed; `cd demo_api_ui && npm run build` — passed.
+
+### 2026-09-27 — Privilege door switch waited for a manual sign-in click
+
+**Files:** `demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`,
+`demo_api_ui/src/pages/__tests__/PrivilegeMcpClientPage.doorSwitchReauth.test.jsx`.
+
+**What was broken:** Switching to an unconnected Privilege door cleared its
+token, then waited for a tools/list 401 and a manual Sign in click before
+starting the existing `prompt=none` flow. The modal claimed silent sign-in had
+failed before it had even been attempted. After a successful OAuth return, the
+page also waited for another manual tools discovery.
+
+**What was fixed:** When the current P1 or Privilege session can be reused, a
+door switch now starts authorization only if the BFF prepared `prompt=none`.
+After a successful callback it discovers tools for the selected door. If silent
+auth is unavailable or returns `login_required`, the page keeps the interactive
+Sign in fallback.
+
+**Do not break:** Never reuse another door's access or refresh token as this
+door's grant. Do not run a tool automatically; only discover the selected
+door's tools. Preserve gateway policy denials and the interactive fallback.
+
+**Verify:** Seven focused Privilege page test files — 40 passed;
+`npm run build` — passed.
+
+### 2026-09-27 — Switching Privilege doors repeated interactive login
+
+**Files changed:** `demo_api_server/routes/privilegeMcpClient.js`,
+`demo_api_server/tests/routes/privilegeMcpClient.silentAuth.test.js`,
+`demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`.
+
+**What was broken:** silent authorization was attempted only when the main
+application session had an access token. A user authenticated through one
+Privilege door could switch to another door with no saved grant and be sent
+through another interactive login. The modal also described a missing
+per-door saved token as “sign-in needed,” which confused door-token status
+with the user's existing gateway SSO session.
+
+**What was fixed:** a valid saved Privilege OAuth grant now enables
+`prompt=none` for the next door's authorization flow. If the identity provider
+still has the user's SSO session, it can issue that door's grant without
+repeating interactive login. The modal now says “no saved token” and explains
+that each selected door may need its own grant while existing gateway SSO can
+be reused.
+
+**Do not break:** keep each OAuth response server-side and preserve the
+gateway's per-app authorization decision; a silent-login failure must still
+fall back to the explicit interactive flow. Do not describe refresh tokens as
+universally door-bound: OAuth refresh behavior depends on the issuer, client,
+grant and the issuer's supported resource model. In the current gateway
+metadata, each app advertises its own issuer and token endpoint.
+
+**Verify:** `CI=true npx jest tests/routes/privilegeMcpClient.silentAuth.test.js
+--forceExit` — 10 passed; focused UI tests for door switching and denial
+diagnostics — 4 passed; `cd demo_api_ui && npm run build` — passed. The full UI
+suite reported a separate undefined CSS-token failure and did not complete.
+
 ### 2026-09-26 — A2A provider-flip incident: three compounding failure layers, now guarded
 
 **What was broken (the 40-minute `a2a_unauthorized` outage class):**
