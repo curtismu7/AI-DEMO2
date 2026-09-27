@@ -118,6 +118,46 @@ test('Mission Control UC40 uses the same live handoff', async ({ page }) => {
   if (await stepsTrigger.getAttribute('aria-expanded') !== 'true') await stepsTrigger.click();
   const chip = page.getByTestId('demo-step-UC40');
   await expect(chip).toContainText('Signs out your current session silently');
+  const layerOrder = await page.evaluate(() => {
+    const dock = document.querySelector('.cmd-dock-panel');
+    const scrims = [...document.querySelectorAll('[data-testid="demo-steps-scrim"]')];
+    const bodyScrims = scrims.filter((element) => element.parentElement === document.body);
+    const scrim = bodyScrims[0];
+    const drawers = [...document.querySelectorAll('[data-testid="demo-steps-popout"]')];
+    if (!dock || !scrim || drawers.length === 0) {
+      return { bodyScrimCount: bodyScrims.length };
+    }
+
+    const dockRect = dock.getBoundingClientRect();
+    const drawerRects = drawers.map((drawer) => drawer.getBoundingClientRect());
+    const candidates = [
+      [dockRect.left + 8, dockRect.top + 8],
+      [dockRect.right - 8, dockRect.top + 8],
+      [dockRect.left + 8, dockRect.bottom - 8],
+      [dockRect.right - 8, dockRect.bottom - 8],
+      [dockRect.left + dockRect.width / 2, dockRect.top + dockRect.height / 2],
+    ];
+    const point = candidates.find(([x, y]) =>
+      x >= 0 && y >= 0 && x < window.innerWidth && y < window.innerHeight
+      && !drawerRects.some((rect) => x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom));
+
+    return {
+      bodyScrimCount: bodyScrims.length,
+      scrimInBody: scrim.parentElement === document.body,
+      dockZIndex: getComputedStyle(dock).zIndex,
+      scrimZIndex: getComputedStyle(scrim).zIndex,
+      drawerZIndex: getComputedStyle(drawers[0]).zIndex,
+      scrimCoversDock: Boolean(point && document.elementFromPoint(...point) === scrim),
+    };
+  });
+  expect(layerOrder).toEqual({
+    bodyScrimCount: 1,
+    scrimInBody: true,
+    dockZIndex: '100061',
+    scrimZIndex: '100062',
+    drawerZIndex: '100063',
+    scrimCoversDock: true,
+  });
   await chip.click();
   await expectHandoff(page, calls, '/dashboard');
 });

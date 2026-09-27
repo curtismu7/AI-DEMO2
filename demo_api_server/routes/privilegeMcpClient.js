@@ -1569,6 +1569,16 @@ async function getOrRegisterDcrClient(authorizationUri, redirectUri, tokenEndpoi
   return client;
 }
 
+// Keep the auth-start decision aligned with /state: the dashboard can restore
+// identity from its signed cookie without restoring the OAuth access token.
+function hasMainAppSession(req) {
+  const mainAppToken = req.session?.oauthTokens?.accessToken;
+  return Boolean(
+    (mainAppToken && mainAppToken !== '_cookie_session')
+    || (req.session?.user && (!mainAppToken || req.session?._restoredFromCookie)),
+  );
+}
+
 // Shared by /auth/start and /chat's inline re-auth path — discovers the auth
 // endpoints, registers a DCR client if the gateway is self-advertising, and
 // builds the PKCE authorization URL. Does not set pendingAuth.returnTo —
@@ -1672,7 +1682,7 @@ async function beginOAuthFlow(session, req, { callbackPath, callbackOrigin } = {
     && (saved.refreshToken || (saved.accessToken && (!saved.expiresAt || saved.expiresAt > Date.now())))
   ));
   const promptNoneAttempted = Boolean(
-    (req.session?.oauthTokens?.accessToken || hasSavedPrivilegeOauthSession)
+    (hasMainAppSession(req) || hasSavedPrivilegeOauthSession)
       && !req.session?.privilegePromptNoneFailed,
   );
   if (promptNoneAttempted) authUrl.searchParams.set('prompt', 'none');
@@ -1739,11 +1749,7 @@ router.get('/state', (req, res) => {
   // `_cookie_session` token stub, so checking only for a real OAuth access
   // token made the Privilege client incorrectly report the dashboard user as
   // signed out and skip prompt=none silent sign-in.
-  const mainAppToken = req.session?.oauthTokens?.accessToken;
-  const mainAppAuth = Boolean(
-    (mainAppToken && mainAppToken !== '_cookie_session')
-    || (req.session?.user && (!mainAppToken || req.session?._restoredFromCookie)),
-  );
+  const mainAppAuth = hasMainAppSession(req);
   // Sibling Agentic Apps — everything registered on the gateway that is not the
   // numbered default. The list comes from the last console discovery, so
   // registering an app in the Privilege console makes it a selectable door with
@@ -2023,6 +2029,12 @@ router.post('/config', express.json(), (req, res) => {
   const providedBearerThisRequest = /^Bearer\s+\S+/i.test(String(req.headers?.authorization || ''));
   const previousOauthKey = oauthKey(session.gatewayMode, session.config.mcpUrl);
   const nextOauthKey = oauthKey(gatewayMode, session.gatewayConfigs[gatewayMode].mcpUrl);
+  const live = (o) => Boolean(o && o.accessToken && (!o.expiresAt || o.expiresAt > Date.now()));
+  // `session.oauth` may deliberately keep the outgoing live token when there
+  // is no destination stash, so slot presence alone is not proof that the
+  // selected path can use it. Report that distinction to the UI separately.
+  let destinationAuthenticated = providedBearerThisRequest
+    || (nextOauthKey === previousOauthKey && live(session.oauth));
   // A key change drops the working token when the destination door has no live
   // stash — the "sign in again after every Get MCP Tools" loop. Log the
   // transition and what the incoming body claimed, so the offending frontend
@@ -2040,7 +2052,7 @@ router.post('/config', express.json(), (req, res) => {
     // An expired stash must not report authenticated: true — the frontend
     // would skip /auth/start on the strength of it and hand a dead token
     // straight to tools/list instead of getting a fresh one.
-    const restoredIsLive = restored && (!restored.expiresAt || restored.expiresAt > Date.now());
+    const restoredIsLive = live(restored);
     // A destination door with no live stash of its own used to NULL the slot,
     // which turned a door flip (denial-probe "Use this door", a stale frontend
     // config re-POST) into a forced sign-in on the next tools/list — observed
@@ -2050,9 +2062,9 @@ router.post('/config', express.json(), (req, res) => {
     // working; a cross-app token gets the gateway's natural 401, which the
     // denial modal + door probe already handle with real evidence, rather
     // than a synthetic "Not authenticated" that demands a fresh sign-in.
-    const live = (o) => o && o.accessToken && (!o.expiresAt || o.expiresAt > Date.now());
     if (restoredIsLive) {
       session.oauth = { ...restored };
+      destinationAuthenticated = true;
     } else if (live(session.oauth)) {
       // keep the outgoing token in the slot; it stays stashed under its own key
     } else {
@@ -2074,6 +2086,7 @@ router.post('/config', express.json(), (req, res) => {
         && live(session.savedOauthByDoor[k]));
       if (match) {
         session.oauth = { ...session.savedOauthByDoor[match] };
+        destinationAuthenticated = true;
         console.log(`[privilege-mcp] /config restored live stash for destination door from key ${match}`);
       }
     }
@@ -2093,7 +2106,10 @@ router.post('/config', express.json(), (req, res) => {
     config: session.config,
     gatewayMode: session.gatewayMode,
     gatewayConfigs: session.gatewayConfigs,
-    oauth: { authenticated: Boolean(session.oauth.accessToken) },
+    oauth: {
+      authenticated: Boolean(session.oauth.accessToken),
+      destinationAuthenticated,
+    },
   });
 });
 
