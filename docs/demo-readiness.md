@@ -229,3 +229,29 @@ field readback exist. The complete PingOne Authorize policy tree and PF
 grant/processor/ATM, specialist, ID-JAG, DaVinci, CIMD, third-party AS, RAR,
 and JWT-audience fields remain explicit blockers where committed sources do not
 define an exact supported comparison.
+
+### Task 3 Fix Round 3
+
+`runtime:revision` accepts only the caller/target's declared expected revision;
+an adapter-reported expectation cannot confirm its own observed revision. Root
+and Gateway scope maps compare semantically, so source JSON object key order
+does not cause drift. All 46 repository rows now include the twelve Admin rows:
+they use their committed Admin auth, action, provider-flow, and expected-tool
+contract rather than a nonexistent vertical prerequisite map.
+
+The concrete PingOne Management API adapter reads exact declared resource
+audiences, resource scopes, application grants, decision endpoints, and subject
+group memberships. It calls `GET /users/{id}/memberOfGroups` for each declared
+subject membership contract. Missing declared grant or subject/group contracts
+block their family rows; declared exact sets fail on unexpected extras. The PF
+Admin adapter continues to read clients, access-token managers, and
+authentication policies, but its broad families remain blocked until a
+committed exact field contract exists.
+
+All injected read adapters receive a deadline-derived abort signal and are
+wrapped by the audit deadline, including repository, PingOne, PF, runtime,
+hosted Gateway, and local Docker adapters. `docker ps`/`docker inspect` retain
+their read-only argument-array calls and bounded child-process timeouts. The
+health-gate JSON helper combines its existing 10-second timeout with a caller
+signal, preserving direct CLI behavior while allowing the audit deadline to
+cancel the health read.

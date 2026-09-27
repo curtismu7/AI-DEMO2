@@ -55,7 +55,9 @@ function sh(cmd, { timeoutMs = 15000 } = {}) {
 }
 
 async function fetchJson(url, opts = {}) {
-  const res = await fetch(url, { ...opts, signal: AbortSignal.timeout(10000) });
+  const timeoutSignal = AbortSignal.timeout(10000);
+  const signal = opts.signal ? AbortSignal.any([opts.signal, timeoutSignal]) : timeoutSignal;
+  const res = await fetch(url, { ...opts, signal });
   const text = await res.text();
   let body = null;
   try { body = JSON.parse(text); } catch { /* non-JSON */ }
