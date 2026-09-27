@@ -94,11 +94,11 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
+      # Skip the shared npm cache here: its >1 GiB restore/extract timed out
+      # this 15-minute gates job before any hygiene checks could run.
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: demo_api_server/package.json
       # Deps install FIRST. hygiene:check used to run against a bare checkout,
       # which worked only while every command in the chain was dependency-free.
       # 04487cdf appended `gen-intent-topology.js check`, and that one loads
