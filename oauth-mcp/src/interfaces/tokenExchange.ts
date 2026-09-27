@@ -24,6 +24,10 @@ export interface TokenExchangeResponse {
   refresh_token?: string;
 }
 
+export interface TokenExchangeClient {
+  exchangeToken(request: TokenExchangeRequest): Promise<TokenExchangeResponse>;
+}
+
 export interface MayActClaim {
   client_id: string;
   sub?: string;

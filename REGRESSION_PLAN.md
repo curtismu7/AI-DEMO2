@@ -208,6 +208,49 @@ policy so guest access remains available.
 **Verify:** `cd demo_api_ui && npx vitest run
 src/components/__tests__/adminSideNav.test.jsx`; `npm run build`; `npm run
 authz:verify`.
+### 2026-09-27 — oauth-mcp routed PF Step 9 subjects to PingOne
+
+**Files:** `oauth-mcp/src/tools/TokenResolver.ts`,
+`oauth-mcp/src/auth/PfStep9TokenExchangeService.ts`,
+`demo_api_server/scripts/refresh-service-envs.js`,
+`spiffe/pingfederate/pf-step9-te-policy.json`,
+`spiffe/pingfederate/pf-step9-atm-mapping.json`,
+`scripts/pingfederate/provision-pf-step9.sh`,
+`docs/superpowers/specs/2026-09-26-demo-readiness-and-repair-design.md`.
+
+**What was broken:** After PingGateway Exchange #3 returned a PF-issued agent
+token, `oauth-mcp` Step 9 used its single PingOne token-exchange service for
+every issuer. PingOne rejected the PF `subject_token` with “Cannot parse token
+claims,” so the registered Banking API MCP call failed at the final exchange
+and surfaced as an error/502. Local PF also had no dedicated Step 9 policy;
+the existing MCP actor client allowed only `CLIENT_CREDENTIALS`.
+
+**What was fixed:** `TokenResolver` now routes by the authenticated token's
+issuer. PingOne keeps its current endpoint, `resource` selector, scopes, and
+cache behavior. PF uses a separate service: it obtains the existing PF
+MCP-service client-credentials actor token, exchanges the PF subject token
+without a `resource` or `audience` selector, and checks issuer, subject,
+audience, scopes, and nested `act` before forwarding the result. A dedicated
+PF access-token-only policy and ATM mapping preserve the incoming subject and
+actor chain; the local provisioner extends the existing actor client while
+leaving `aiDemoStandardTePolicy` and its mapping unchanged. PF settings and the
+protected actor secret are generated only into `oauth-mcp/.env`.
+
+This is a documented PF-specific Step 9 difference. The UC38 passenger A2A
+`invalid_target` remains a separate UC2 issue and is not part of the UC40 or
+Banking API Step 9 chain.
+
+**Do not break:** Keep provider routing tied to the authenticated issuer; do
+not send a PF subject token to PingOne or fall back to PingOne on PF
+configuration/exchange failure. Preserve PingOne's existing request and
+cache, self-issued token passthrough, vertical-tool behavior, subject and
+scope isolation, and the full nested `act` chain.
+
+**Verify:** `oauth-mcp` build and focused `TokenResolver`/PF exchange tests;
+`demo_api_server` PF env-generation test; local PF policy/mapping/client
+readback; then a fresh registered `get_my_accounts` or `get_account_balance`
+call through `/api/mcp/tool` plus a PingOne-lane call. Do not use the UI intent
+label `banking.get_balance` as the registered MCP tool name.
 
 ### 2026-09-27 — PF Exchange #3 omitted its required MCP-service actor token
 
