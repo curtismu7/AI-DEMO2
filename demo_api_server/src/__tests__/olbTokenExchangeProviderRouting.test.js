@@ -18,7 +18,7 @@ describe('PingGateway Exchange #3 provider routing', () => {
   });
 
   test('fails closed for PF subjects when endpoint or PF exchanger credentials are missing', () => {
-    expect(SOURCE).toMatch(/if \(isPfSubject && \(!pfTokenEndpoint \|\| !pfTeClientId \|\| !pfTeClientSecret\)\)/);
+    expect(SOURCE).toMatch(/if \(isPfSubject && \([\s\S]*?!pfTokenEndpoint[\s\S]*?!pfTeClientId[\s\S]*?!pfTeClientSecret[\s\S]*?!pfMcpActorClientId[\s\S]*?!pfMcpActorClientSecret[\s\S]*?!pfMcpActorScope[\s\S]*?pfMcpActorAuthMethod in \['basic', 'post'\]/);
     expect(SOURCE).toContain('{"error":"pf_exchange_not_configured"}');
     expect(SOURCE).not.toMatch(/pfTeClientId\s*\?:\s*teClientId/);
     expect(SOURCE).not.toMatch(/pfTeClientSecret\s*\?:\s*teClientSecret/);
@@ -45,5 +45,17 @@ describe('PingGateway Exchange #3 provider routing', () => {
     expect(SOURCE).toMatch(/def requestedOlbScope\s*=\s*isPfSubject\s*\?\s*pfOlbScope\s*:\s*olbScope/);
     expect(SOURCE).toMatch(/if \(requestedOlbScope\?\.trim\(\)\)\s*\{\s*params\['scope'\]\s*=\s*requestedOlbScope\.trim\(\)/);
     expect(SOURCE).toMatch(/PG_OLB_SCOPE setting is PingOne-specific/);
+  });
+
+  test('uses the PF MCP service actor token for PF Exchange #3 only', () => {
+    expect(SOURCE).toMatch(/def pfMcpActorClientId\s*=\s*System\.getenv\('PF_MCP_ACTOR_CLIENT_ID'\)\s*\?:\s*''/);
+    expect(SOURCE).toMatch(/def pfMcpActorClientSecret\s*=\s*System\.getenv\('PF_MCP_ACTOR_CLIENT_SECRET'\)\s*\?:\s*''/);
+    expect(SOURCE).toMatch(/def pfMcpActorScope\s*=\s*System\.getenv\('PF_MCP_ACTOR_SCOPE'\)\s*\?:\s*''/);
+    expect(SOURCE).toMatch(/def actorParams\s*=\s*\[[\s\S]*?'grant_type'\s*:\s*'client_credentials'/);
+    expect(SOURCE).toMatch(/if \(pfMcpActorAuthMethod == 'post'\)[\s\S]*?actorParams\['client_id'\][\s\S]*?actorParams\['client_secret'\][\s\S]*?Authorization.*Basic/);
+    expect(SOURCE).toMatch(/httpPostForm\(pfTokenEndpoint, actorFormBody, actorHeaders\)/);
+    expect(SOURCE).toMatch(/if \(isPfSubject\) \{\s*params\['actor_token'\]\s*=\s*pfActorToken[\s\S]*?params\['actor_token_type'\]\s*=\s*'urn:ietf:params:oauth:token-type:access_token'/);
+    expect(SOURCE).toMatch(/if \(actorResp\.code != 200\)[\s\S]*?pf_actor_token_failed/);
+    expect(SOURCE).not.toMatch(/logger\.(?:info|warn|error)\([^\n]*actorResp\.body/);
   });
 });
