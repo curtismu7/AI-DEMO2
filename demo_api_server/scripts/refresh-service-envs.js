@@ -148,6 +148,10 @@ function buildPingGatewayPfExchangeEnv(apiVars = {}) {
     // The local PF exchanger registers read/write but not PingOne's code:search.
     // Keep provider-specific scopes so PF tool calls don't request an unknown scope.
     PG_OLB_SCOPE_PF: 'read write',
+    PF_MCP_ACTOR_CLIENT_ID: apiVars.PF_MCP_SERVICE_ACTOR_CLIENT_ID || '',
+    PF_MCP_ACTOR_CLIENT_SECRET: apiVars.PF_MCP_SERVICE_ACTOR_CLIENT_SECRET || '',
+    PF_MCP_ACTOR_AUTH_METHOD: (apiVars.PF_MCP_SERVICE_ACTOR_TOKEN_ENDPOINT_AUTH_METHOD || 'basic').toLowerCase(),
+    PF_MCP_ACTOR_SCOPE: apiVars.PF_STANDARD_MCP_ACTOR_SCOPE || 'mcp:invoke',
   };
 }
 

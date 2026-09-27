@@ -32,11 +32,15 @@ def pfTeClientSecret= System.getenv('PF_TE_CLIENT_SECRET') ?: ''
 def olbAudience     = System.getenv('PG_OLB_RESOURCE_URI') ?: ''
 def olbScope        = System.getenv('PG_OLB_SCOPE') ?: ''
 def pfOlbScope      = System.getenv('PG_OLB_SCOPE_PF') ?: ''
+def pfMcpActorClientId = System.getenv('PF_MCP_ACTOR_CLIENT_ID') ?: ''
+def pfMcpActorClientSecret = System.getenv('PF_MCP_ACTOR_CLIENT_SECRET') ?: ''
+def pfMcpActorAuthMethod = (System.getenv('PF_MCP_ACTOR_AUTH_METHOD') ?: 'basic').toLowerCase()
+def pfMcpActorScope = System.getenv('PF_MCP_ACTOR_SCOPE') ?: ''
 def mcpBaseUrl      = System.getenv('PG_OLB_BACKEND_URL') ?: 'http://mcp-server:8080'
 def mcpUrl          = mcpBaseUrl.replaceAll('/+$', '') + '/mcp'
 
 // ── Blocking HTTP helper (form-encoded) ──────────────────────────────────────
-def httpPostForm = { String url, String reqBody ->
+def httpPostForm = { String url, String reqBody, Map hdrs ->
     try {
         def conn = new URL(url).openConnection() as java.net.HttpURLConnection
         conn.requestMethod = 'POST'
@@ -44,6 +48,7 @@ def httpPostForm = { String url, String reqBody ->
         conn.connectTimeout = 5000
         conn.readTimeout = 10000
         conn.setRequestProperty('Content-Type', 'application/x-www-form-urlencoded')
+        hdrs.each { k, v -> conn.setRequestProperty(k as String, v as String) }
         conn.outputStream.withWriter('UTF-8') { it.write(reqBody) }
         def code = conn.responseCode
         def body = ''
@@ -195,8 +200,10 @@ try {
     }
 } catch (Exception ignored) {}
 def isPfSubject = pfIssuer && tokenIss == pfIssuer
-if (isPfSubject && (!pfTokenEndpoint || !pfTeClientId || !pfTeClientSecret)) {
-    logger.error('[OlbExchange] PF subject received but PF Exchange #3 endpoint/client credentials are incomplete')
+if (isPfSubject && (!pfTokenEndpoint || !pfTeClientId || !pfTeClientSecret
+        || !pfMcpActorClientId || !pfMcpActorClientSecret || !pfMcpActorScope
+        || !(pfMcpActorAuthMethod in ['basic', 'post']))) {
+    logger.error('[OlbExchange] PF subject received but PF Exchange #3 or MCP actor configuration is incomplete/unsupported')
     def errResp = new Response(Status.BAD_GATEWAY)
     errResp.headers.put('Content-Type', ['application/json'])
     errResp.entity.setString('{"error":"pf_exchange_not_configured"}')
@@ -210,6 +217,80 @@ def exClientSecret = isPfSubject ? pfTeClientSecret : teClientSecret
 // narrower provider-specific scope list only for PF-issued subjects. The
 // PG_OLB_SCOPE setting is PingOne-specific; PG_OLB_SCOPE_PF configures PF.
 def requestedOlbScope = isPfSubject ? pfOlbScope : olbScope
+// PF's standard exchange policy requires an MCP-service actor. Mint it with
+// the same dedicated client-credentials profile used by the BFF PF exchange
+// service; never substitute the user subject or the exchanger client itself.
+def pfActorToken = null
+if (isPfSubject) {
+    def actorParams = [
+        'grant_type': 'client_credentials',
+        'scope': pfMcpActorScope.trim(),
+    ]
+    def actorHeaders = [:]
+    if (pfMcpActorAuthMethod == 'post') {
+        actorParams['client_id'] = pfMcpActorClientId
+        actorParams['client_secret'] = pfMcpActorClientSecret
+    } else {
+        def actorCredentials = pfMcpActorClientId + ':' + pfMcpActorClientSecret
+        def encodedActorCredentials = java.util.Base64.getEncoder().encodeToString(actorCredentials.getBytes('UTF-8'))
+        actorHeaders['Authorization'] = 'Basic ' + encodedActorCredentials
+    }
+    def actorFormBody = actorParams.collect { k, v ->
+        java.net.URLEncoder.encode(k, 'UTF-8') + '=' + java.net.URLEncoder.encode(v as String, 'UTF-8')
+    }.join('&')
+    logger.info('[OlbExchange] PF MCP actor-token request scope=' + pfMcpActorScope.trim())
+    def actorResp = httpPostForm(pfTokenEndpoint, actorFormBody, actorHeaders)
+    if (actorResp.code != 200) {
+        logger.warn('[OlbExchange] PF MCP actor-token request failed HTTP ' + actorResp.code)
+        def errResp = new Response(Status.BAD_GATEWAY)
+        errResp.headers.put('Content-Type', ['application/json'])
+        errResp.entity.setString('{"error":"pf_actor_token_failed"}')
+        return Promises.newResultPromise(errResp)
+    }
+    try {
+        pfActorToken = new JsonSlurper().parseText(actorResp.body ?: '{}')?.access_token as String
+    } catch (Exception ignored) {}
+    if (!pfActorToken) {
+        logger.warn('[OlbExchange] PF MCP actor-token response omitted access_token')
+        def errResp = new Response(Status.BAD_GATEWAY)
+        errResp.headers.put('Content-Type', ['application/json'])
+        errResp.entity.setString('{"error":"pf_actor_token_failed"}')
+        return Promises.newResultPromise(errResp)
+    }
+    // Match the BFF's PF actor checks before forwarding this token: require a
+    // JWT access token for the configured actor client with every requested scope.
+    def actorTokenValid = false
+    try {
+        def actorJwtParts = pfActorToken.split('\\.', -1)
+        if (actorJwtParts.length != 3) throw new IllegalArgumentException('malformed actor JWT')
+        def actorHeader = new JsonSlurper().parseText(
+            new String(java.util.Base64.getUrlDecoder().decode(actorJwtParts[0]), 'UTF-8'))
+        def actorClaims = new JsonSlurper().parseText(
+            new String(java.util.Base64.getUrlDecoder().decode(actorJwtParts[1]), 'UTF-8'))
+        if ((actorHeader?.typ ?: '').toString().toLowerCase().contains('id-jag')) {
+            throw new IllegalArgumentException('actor token is an ID-JAG')
+        }
+        def actorIdentity = actorClaims.client_id ?: actorClaims.sub
+        if (actorIdentity?.toString() != pfMcpActorClientId) {
+            throw new IllegalArgumentException('actor identity mismatch')
+        }
+        def actorScopes = [] as Set
+        if (actorClaims.scope instanceof Collection) {
+            actorScopes.addAll(actorClaims.scope.collect { it?.toString() })
+        } else {
+            actorScopes.addAll((actorClaims.scope ?: '').toString().split(/\s+/).findAll { it })
+        }
+        def expectedActorScopes = pfMcpActorScope.trim().split(/\s+/).findAll { it }
+        actorTokenValid = expectedActorScopes && expectedActorScopes.every { actorScopes.contains(it) }
+    } catch (Exception ignored) {}
+    if (!actorTokenValid) {
+        logger.warn('[OlbExchange] PF MCP actor token failed identity/scope/format validation')
+        def errResp = new Response(Status.BAD_GATEWAY)
+        errResp.headers.put('Content-Type', ['application/json'])
+        errResp.entity.setString('{"error":"pf_actor_token_failed"}')
+        return Promises.newResultPromise(errResp)
+    }
+}
 // PF access-token subjects use access_token typing; only an actual PF ID-JAG
 // (typ=oauth-id-jag+jwt) uses id-jag typing. PingOne behavior stays access_token.
 def subjectTokenType = (isPfSubject && tokenTyp == 'oauth-id-jag+jwt')
@@ -230,6 +311,10 @@ if (!isPfSubject) {
     // PingOne needs this RFC 8707 target to select the single backend resource.
     params['resource'] = olbAudience
 }
+if (isPfSubject) {
+    params['actor_token'] = pfActorToken
+    params['actor_token_type'] = 'urn:ietf:params:oauth:token-type:access_token'
+}
 if (requestedOlbScope?.trim()) {
     params['scope'] = requestedOlbScope.trim()
 }
@@ -239,7 +324,7 @@ def formBody = params.collect { k, v ->
 
 def resourceLog = isPfSubject ? ' resource=(omitted; PF exchanger default ATM)' : ' resource=' + olbAudience
 logger.info('[OlbExchange] REQUEST → ' + exEndpoint + resourceLog + ' scope=' + (requestedOlbScope?.trim() ?: '(omit)'))
-def exchangeResp = httpPostForm(exEndpoint, formBody)
+def exchangeResp = httpPostForm(exEndpoint, formBody, [:])
 logger.info('[OlbExchange] RESPONSE HTTP ' + exchangeResp.code)
 
 if (exchangeResp.code != 200) {
