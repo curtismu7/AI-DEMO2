@@ -10,6 +10,7 @@ const BEARER_RE = /(bearer\s+)[^\s,;]+/gi;
 const TOKEN_VALUE_KEY_RE = /(?:^|_)token(?:$|_(?:value|secret|raw|jwt|credential|bearer))$/i;
 const COMPOUND_SECRET_KEY_RE = /(?:^|_)(auth|authorization|password|passwd|cookie|client_secret|api_key)(?:_|$)/i;
 const INTERNAL_SERIALIZERS = new WeakSet();
+const USER_SESSION_PROVIDER_IDS = new Set(['pingone', 'pingfederate']);
 
 function normalizeKey(key) {
   return key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').replace(/-/g, '_').toLowerCase();
@@ -19,8 +20,9 @@ function isTokenValueKey(key) {
   return TOKEN_VALUE_KEY_RE.test(normalizeKey(key));
 }
 
-function isReadinessSecretKey(key) {
+function isReadinessSecretKey(key, value) {
   const normalized = normalizeKey(key);
+  if (normalized === 'user_session_provider' && USER_SESSION_PROVIDER_IDS.has(value)) return false;
   return SESSION_KEY_RE.test(key) || isTokenValueKey(key) || COMPOUND_SECRET_KEY_RE.test(normalized);
 }
 
@@ -41,7 +43,7 @@ function redactReadinessValue(value) {
 
   const out = {};
   for (const [key, item] of Object.entries(value)) {
-    out[key] = isReadinessSecretKey(key) ? '[REDACTED]' : redactReadinessValue(item);
+    out[key] = isReadinessSecretKey(key, item) ? '[REDACTED]' : redactReadinessValue(item);
   }
   return redactValue(out);
 }
@@ -164,7 +166,12 @@ function recordCheck(report, row) {
   const check = redactReadinessValue({
     id: row.id,
     target: row.target,
-    provider: row.provider,
+    userSessionProvider: row.userSessionProvider,
+    agentIdentityProvider: row.agentIdentityProvider,
+    tokenIssuer: row.tokenIssuer,
+    exchangeService: row.exchangeService,
+    resourceServer: row.resourceServer,
+    providerApplicability: row.providerApplicability,
     useCaseId: row.useCaseId,
     status: row.status,
     required: row.required !== false,

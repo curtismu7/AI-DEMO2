@@ -61,6 +61,38 @@ describe('demo readiness report', () => {
     });
   });
 
+  test('records provider attribution and applicability independently for each role', () => {
+    const report = makeReport();
+    const attribution = {
+      userSessionProvider: 'pingone',
+      agentIdentityProvider: 'pingfederate',
+      tokenIssuer: 'https://pf.example/as',
+      exchangeService: 'third-party-authorization-server',
+      resourceServer: 'banking-mcp',
+      providerApplicability: {
+        userLogin: { status: 'required' },
+        agentIdentity: { status: 'required' },
+        tokenIssuer: { status: 'required' },
+        exchangeService: { status: 'required' },
+        resourceServer: { status: 'required' },
+        alternateUserLogin: {
+          status: 'not-applicable',
+          reason: 'This feature requires the PingOne user session.',
+        },
+      },
+    };
+
+    recordCheck(report, { id: 'cross-domain-feature', status: 'pass', ...attribution });
+
+    expect(report.checks[0]).toMatchObject(attribution);
+    expect(report.checks[0]).not.toHaveProperty('provider');
+    expect(JSON.parse(JSON.stringify(report)).checks[0]).toMatchObject(attribution);
+
+    report.checks[0].userSessionProvider = 'Bearer raw-session-provider';
+    expect(report.checks[0].userSessionProvider).toBe('[REDACTED]');
+    expect(JSON.stringify(report)).not.toContain('raw-session-provider');
+  });
+
   test('rejects a check status outside the report contract', () => {
     expect(() => recordCheck(makeReport(), { id: 'bad', status: 'queued' })).toThrow(/invalid readiness check status/i);
   });

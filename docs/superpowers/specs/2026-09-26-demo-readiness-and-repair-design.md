@@ -154,7 +154,7 @@ Every run produces a concise UI/terminal summary and a machine-readable report. 
 
 - Run ID, time, repository revision, target, and the target/provider matrix attempted.
 - Every static and live check with status, sanitized evidence, and source-of-truth reference.
-- Every demo step and vertical variant with provider, expected result, observed result, and status.
+- Every demo step and vertical variant with `userSessionProvider`, `agentIdentityProvider`, `tokenIssuer`, `exchangeService`, `resourceServer`, per-role applicability, expected result, observed result, and status. These roles are separate report fields; one generic `provider` value cannot stand in for them. `providerApplicability` maps `userLogin`, `agentIdentity`, `tokenIssuer`, `exchangeService`, and `resourceServer` to `required` or `not-applicable`; a not-applicable role carries its source-contract reason.
 - The full repair preview and, if confirmed, sanitized before/after verification.
 - Blockers, unavailable checks, and explicit limitations, including inability to read exact live Authorize policy content.
 
