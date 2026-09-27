@@ -1,6 +1,6 @@
 # PingFederate ID-JAG Resource Server Skill Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax.
 
 **Goal:** Add one repository-local skill and a complete mirrored copy in `~/Documents` that guide end-to-end PF ID-JAG redemption and downstream access-token validation.
 
@@ -21,33 +21,20 @@
 
 ---
 
-### Task 1: Write the skill bundle
+### Task 1: Deliver the complete skill bundle
 
 **Files:**
 - Create: `.claude/skills/creating-pingfederate-id-jag-resource-server/SKILL.md`
 - Create: `.claude/skills/creating-pingfederate-id-jag-resource-server/README.md`
 - Create: `.claude/skills/creating-pingfederate-id-jag-resource-server/references/id-jag-redemption.md`
 - Create: `.claude/skills/creating-pingfederate-id-jag-resource-server/references/downstream-validation.md`
+- Create: `/Users/cmuir/Documents/creating-pingfederate-id-jag-resource-server/` (identical four-file copy)
 
 - [ ] Write `SKILL.md` with the approved name/trigger, end-to-end workflow, and conditional links to the two layer references.
 - [ ] Write `references/id-jag-redemption.md` around `oauth-mcp/src/oauth/IdJagGrantHandler.ts`, `OAuthRouter.ts`, and the existing ID-JAG unit suites. Cover `typ`, pinned algorithm, issuer/audience, timestamps, accepted resource, `jti` replay, and the process-local replay-cache limitation.
 - [ ] Write `references/downstream-validation.md` around `demo_mcp_gateway/src/tokenValidator.ts`, `GatewayTokenPolicy.ts`, `demo_mcp_resource_server/src/server/tokenValidator.ts`, and their focused ID-JAG/PF tests. Explain the current issuer/JWKS behavior at each hop and the gateway-mediated exchange path.
 - [ ] In both references, call out exact issuer-string alignment, the different `MCP_SERVER_RESOURCE_URI` and `MCP_RESOURCE_SERVER_RESOURCE_URI` settings, BFF-only token custody, fail-closed checks, and no mock fallback.
 - [ ] Write `README.md` with when to use the skill, the Claude Code slash invocation, and an example request that supplies target resource URI, audience, scopes, and whether live PF provisioning is requested.
-
-### Task 2: Create and verify the shared copy
-
-**Files:**
-- Create: `/Users/cmuir/Documents/creating-pingfederate-id-jag-resource-server/` (copy of the four files from Task 1)
-
-- [ ] Copy the complete skill directory, including `references/`, to the approved Documents path.
-- [ ] Compare the source and shared directories recursively; expected result is no file-content differences and exactly four files in each.
-
-### Task 3: Review and commit the repository skill
-
-**Files:**
-- Review: the four files from Task 1
-
-- [ ] Check each implementation/spec requirement against the authored files, especially that the raw ID-JAG never reaches a resource server and that the gateway and backend do not assume the same issuer/JWKS.
-- [ ] Run `git diff --check` and inspect the staged path list; stage only the four skill files.
-- [ ] Confirm branch `codex/pf-id-jag-resource-server-skill`, then commit the skill bundle as one logical unit.
+- [ ] Copy the complete repository skill directory, including `references/`, to `/Users/cmuir/Documents/creating-pingfederate-id-jag-resource-server/` and compare the two trees recursively; expected result is no content differences and exactly four files in each.
+- [ ] Check the bundle against the spec, especially that the raw ID-JAG never reaches a resource server and that the gateway and backend do not assume the same issuer/JWKS.
+- [ ] Run `git diff --check`, inspect the staged path list, stage only the four repository skill files, confirm branch `codex/pf-id-jag-resource-server-skill`, and commit the skill bundle as one logical unit.
