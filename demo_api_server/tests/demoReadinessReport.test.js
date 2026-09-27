@@ -245,6 +245,39 @@ describe('demo readiness report', () => {
     }
   });
 
+  test('redacts auth, client-secret, and API-key credential variants recursively', () => {
+    const report = makeReport();
+    report.repairs.push({
+      evidence: {
+        auth: 'Basic raw-auth',
+        authHeader: 'Basic raw-auth-header',
+        clientSecret: 'raw-client-secret',
+        clientSecretValue: 'raw-client-secret-value',
+        apiKey: 'raw-api-key',
+        apiKeyValue: 'raw-api-key-value',
+      },
+    });
+
+    const serialized = JSON.stringify(report);
+    for (const secret of [
+      'raw-auth', 'raw-auth-header', 'raw-client-secret', 'raw-client-secret-value', 'raw-api-key', 'raw-api-key-value',
+    ]) {
+      expect(serialized).not.toContain(secret);
+    }
+  });
+
+  test('rejects symbol-keyed writes and drops symbols from inserted report payloads', () => {
+    const report = makeReport();
+    const tokenKey = Symbol('accessToken');
+    report.repairs.push({ evidence: { [tokenKey]: 'inserted-symbol-token' } });
+
+    expect(report.repairs[0].evidence[tokenKey]).toBeUndefined();
+    expect(Reflect.set(report.repairs[0].evidence, tokenKey, 'direct-symbol-token')).toBe(false);
+    expect(() => Object.defineProperty(report.repairs[0].evidence, tokenKey, {
+      value: 'descriptor-symbol-token',
+    })).toThrow();
+  });
+
   test('redacts function-valued report payloads before direct reads', () => {
     const report = makeReport();
     const evidence = () => {};

@@ -8,7 +8,7 @@ const CHECK_STATUSES = new Set(['pass', 'fail', 'blocked', 'not-run']);
 const SESSION_KEY_RE = /session|^sid$/i;
 const BEARER_RE = /(bearer\s+)[^\s,;]+/gi;
 const TOKEN_VALUE_KEY_RE = /(?:^|_)token(?:$|_(?:value|secret|raw|jwt|credential|bearer))$/i;
-const COMPOUND_SECRET_KEY_RE = /(?:^|_)(authorization|password|passwd|cookie)(?:_|$)/i;
+const COMPOUND_SECRET_KEY_RE = /(?:^|_)(auth|authorization|password|passwd|cookie|client_secret|api_key)(?:_|$)/i;
 
 function normalizeKey(key) {
   return key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').replace(/-/g, '_').toLowerCase();
@@ -45,12 +45,12 @@ function guardedReadinessValue(value) {
   };
   const guardedHandler = {
     set(target, property, nextValue) {
-      if (property === '__proto__') return false;
+      if (typeof property === 'symbol' || property === '__proto__') return false;
       target[property] = property === 'length' ? nextValue : guardedPropertyValue(property, nextValue);
       return true;
     },
     defineProperty(target, property, descriptor) {
-      if (property === '__proto__') return false;
+      if (typeof property === 'symbol' || property === '__proto__') return false;
       if ('get' in descriptor || 'set' in descriptor) {
         throw new TypeError('Readiness report values cannot define accessor properties');
       }
