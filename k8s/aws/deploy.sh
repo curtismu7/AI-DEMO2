@@ -168,6 +168,11 @@ else
   kubectl apply -f "$K8S_DIR/01-namespace.yaml"
 fi
 
+# Apply service network boundaries in both managed and pre-created namespaces.
+# In SE mode this updates only NetworkPolicy objects; it does not patch the
+# shared Namespace labels or quota.
+apply_patched "$K8S_DIR/04-network-policies.yaml"
+
 # Create a GHCR pull secret so containerd (OrbStack/EKS) can pull private images.
 # Uses gh CLI token — idempotent (--dry-run + apply).
 if command -v gh &>/dev/null; then

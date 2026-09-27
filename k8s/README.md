@@ -111,6 +111,7 @@ cp k8s/03-secrets.yaml.template k8s/03-secrets.yaml
 ### 1. Create Namespace and Infrastructure
 ```bash
 kubectl apply -f k8s/01-namespace.yaml
+kubectl apply -f k8s/04-network-policies.yaml
 kubectl apply -f k8s/02-configmap.yaml
 kubectl apply -f k8s/03-secrets.yaml
 ```
@@ -355,6 +356,7 @@ kubectl delete -f k8s/30-mcp-server-deployment.yaml
 kubectl delete -f k8s/40-agent-service-deployment.yaml
 kubectl delete -f k8s/50-redis-deployment.yaml
 kubectl delete -f k8s/02-configmap.yaml
+kubectl delete -f k8s/04-network-policies.yaml
 kubectl delete -f k8s/01-namespace.yaml
 ```
 

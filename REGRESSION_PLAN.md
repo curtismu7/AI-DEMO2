@@ -188,6 +188,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-26 — Hosted BFF logs, sessions, CodeGraph abuse budget, and MCP ingress hardening
+
+**Files changed:** `demo_api_server/server.js`, `k8s/20-api-server-deployment.yaml`, `k8s/01-namespace.yaml`, `k8s/04-network-policies.yaml`, `k8s/aws/deploy.sh`, `k8s/deploy.sh`, `k8s/security-hardening.test.sh`.
+
+**What was wrong:** the access logger persisted query values, demo-mode `NODE_ENV=development` selected insecure session defaults, public CodeGraph routes had no route-specific cost budget, and the namespace-wide NetworkPolicy allowed any pod to reach the auth-disabled MCP server directly.
+
+**What was fixed:** request URLs and Referer values are logged without query strings; hosted BFF config independently requires a non-default session secret and Secure cookies; CodeGraph query and reindex have separate per-IP limits; `mcp-server` now accepts ingress only from PingGateway, the in-cluster MCP gateway, and ingress-nginx for the metadata route. Legacy same-namespace connectivity and prior egress rules remain for other workloads.
+
+**Do not break:** keep `NODE_ENV=development`, simulated Authorize, OAuth code/state validation, session persistence/regeneration, hosted admission, CodeGraph SSE behavior, and public MCP ingress/auth contracts unchanged. The optional manual `demo-mcpgw` install is not part of the hosted deploy path; add it to the MCP policy if that changes.
+
+**Verify:** `node --check demo_api_server/server.js`, `bash -n k8s/aws/deploy.sh k8s/deploy.sh`, YAML parsing for the touched manifests, and `git diff --check` passed. No tests, live requests, or deployment were run. Runtime policy enforcement and login/CodeGraph/MCP smoke behavior remain unverified.
+
 ### 2026-09-26 — A2A provider-flip incident: three compounding failure layers, now guarded
 
 **What was broken (the 40-minute `a2a_unauthorized` outage class):**

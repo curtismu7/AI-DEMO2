@@ -91,6 +91,7 @@ deploy() {
   info "Deploying AI Demo to namespace: $NS"
 
   kubectl apply -f "$SCRIPT_DIR/01-namespace.yaml"
+  kubectl apply -f "$SCRIPT_DIR/04-network-policies.yaml"
 
   # Images are tagged ai-demo-k8-*:latest with imagePullPolicy: IfNotPresent. When
   # only the image *contents* change (a rebuild), the Deployment spec is

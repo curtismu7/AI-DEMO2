@@ -478,6 +478,27 @@ const agentLimiter = rateLimit({
 });
 app.use('/api/demo-agent/message', agentLimiter);
 
+// CodeGraph remains available to admitted demo visitors, but its LLM query
+// and source re-index paths have materially higher per-request costs than
+// ordinary API reads. These route-local budgets run after the hosted access
+// gate below and do not alter application authentication behavior.
+const codeGraphQueryLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: _rateLimitHandler,
+    skip: () => rateLimitDisabled,
+});
+const codeGraphReindexLimiter = rateLimit({
+    windowMs: 5 * 60 * 1000,
+    max: 1,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: _rateLimitHandler,
+    skip: () => rateLimitDisabled,
+});
+
 // Logging middleware
 // Skip access-log noise from high-frequency polling endpoints
 const POLL_ROUTES = new Set([
@@ -489,7 +510,21 @@ const POLL_ROUTES = new Set([
   '/api/config/vertical',
   '/api/admin/config',
 ]);
-app.use(morgan('combined', {
+// Never persist query strings in access logs: OAuth callbacks carry one-time
+// codes and state in the URL. Preserve the useful combined fields while
+// reducing both request URL and Referer to origin/path only.
+morgan.token('safe-url', (req) => req.path || '/');
+morgan.token('safe-referrer', (req) => {
+  const referrer = req.get('referrer') || req.get('referer');
+  if (!referrer) return '-';
+  try {
+    const parsed = new URL(referrer);
+    return `${parsed.origin}${parsed.pathname}`;
+  } catch (_err) {
+    return '-';
+  }
+});
+app.use(morgan(':remote-addr - :remote-user [:date[clf]] ":method :safe-url HTTP/:http-version" :status :res[content-length] ":safe-referrer" ":user-agent"', {
   skip: (req) => POLL_ROUTES.has(req.path),
 }));
 
@@ -503,7 +538,10 @@ const sessionMiddleware = session({
     secret: (() => {
         const s = process.env.SESSION_SECRET;
         if (!s || s === 'dev-session-secret-change-in-production') {
-            if (process.env.NODE_ENV === 'production' || process.env.REPL_ID || process.env.REPLIT_DEPLOYMENT) {
+            if (process.env.NODE_ENV === 'production'
+                || process.env.REPL_ID
+                || process.env.REPLIT_DEPLOYMENT
+                || process.env.SESSION_SECRET_REQUIRED === 'true') {
                 console.error('[FATAL] SESSION_SECRET env var is not set or is using the insecure default. Set a random 32+ character string in your deployment environment.');
                 process.exit(1);
             }
@@ -517,7 +555,7 @@ const sessionMiddleware = session({
         store: sessionStore
     } : {}),
     cookie: {
-        secure: isProduction,
+        secure: isProduction || process.env.SESSION_COOKIE_SECURE === 'true',
         httpOnly: true,
         sameSite: isProduction ? 'none' : 'lax',
         maxAge: 24 * 60 * 60 * 1000 // 24 hours
@@ -1465,8 +1503,8 @@ app.use('/api', delegationGate, agentInvokeRoutes);
 app.use('/api/agent', delegationGate, transactionTurnMiddleware, agentRunRoutes); // AG-UI Step 2: /api/agent/run
 app.use('/api/agent/langchain', delegationGate, require('./routes/agentLangchainRunRoute')); // AG-UI Phase 2.3: LangChain /run
 const { codegraphProxy, codegraphReindexProxy, codegraphStatus } = require('./routes/codegraphProxy');
-app.post('/api/codegraph/query', codegraphProxy);
-app.post('/api/codegraph/reindex', codegraphReindexProxy);
+app.post('/api/codegraph/query', codeGraphQueryLimiter, codegraphProxy);
+app.post('/api/codegraph/reindex', codeGraphReindexLimiter, codegraphReindexProxy);
 app.get('/api/codegraph/status', codegraphStatus); // no auth — probe + auto-wake
 app.use('/api/agent', require('./routes/agentConsentRoute')); // AG-UI Phase 4.1: HITL consent
 app.use('/api/langchain', langchainConfigRoutes);

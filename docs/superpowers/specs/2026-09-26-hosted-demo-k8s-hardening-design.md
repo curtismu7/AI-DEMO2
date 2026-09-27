@@ -6,7 +6,7 @@ Make the hosted demo safer and more dependable to operate while preserving its c
 
 ## Context
 
-The target is the hosted demo path in `k8s/aws/deploy.sh`, especially its use of a pre-created `K8S_NAMESPACE` on the Ping SE shared cluster. The script skips namespace creation in that mode. `k8s/01-namespace.yaml` currently sets restricted Pod Security Admission to `audit` and `warn`, while `k8s/01-namespace.yaml` also defines a NetworkPolicy that allows ingress from every pod in the namespace and broad egress on ports 80, 443, and 53.
+The target is the hosted demo path in `k8s/aws/deploy.sh`, especially its use of a pre-created `K8S_NAMESPACE` on the Ping SE shared cluster. The script skips namespace creation in that mode. `k8s/01-namespace.yaml` sets restricted Pod Security Admission to `audit` and `warn`. Network policies are maintained in `k8s/04-network-policies.yaml`; the namespace policy retains broad ingress for legacy workloads and broad egress on ports 80, 443, and 53, while a service-specific policy narrows direct ingress to `mcp-server`.
 
 The current hosted BFF runtime intentionally uses `NODE_ENV=development` and `MCP_AUTH_DISABLED=true` to support the demo's simulated authorization paths. Those settings are explicitly out of scope. Keep the existing vault and generated Kubernetes Secret flow; newly required alert credentials must use that same flow rather than introducing a new secret manager.
 
