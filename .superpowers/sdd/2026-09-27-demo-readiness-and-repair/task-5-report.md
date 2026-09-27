@@ -190,3 +190,50 @@ Result: 4 suites passed, 78 tests passed, 1 named-identity integration test
 skipped. `graphify update .` completed after the change; it reported the
 repository's existing Terraform-parser dependency warning and partial
 extraction warnings for unrelated malformed files.
+
+## Fix round 4
+
+The execution report now takes provider-role applicability only from the
+checked-in row contract: `row.check.providerRoleApplicability` for a feature,
+or the catalog's `providerRoleApplicability` for a core row. A worker's map is
+retained only as sanitized observed evidence and cannot rewrite the report row.
+
+The catalog attaches a PF key-and-role contract to every PF core row. Ordinary
+PF exchange, UC2/UC2.5's ordered ID-JAG then access-token Exchange #2 path,
+UC40 native ID-JAG, and UC38/UC44 actor-bound standard exchange all identify
+the source configuration keys and profile roles. Each PF exchange-backed
+feature contract does the same. The checked-in profile explicitly marks those
+roles unresolved, and the runtime sources contain keys rather than literal
+issuer, token endpoint, or registration values. Therefore these contracts use
+`status: "blocked"` and `pf_exact_exchange_contract_source_gap`, with a
+specific remediation to commit a supported PF provisioner or Admin API
+readback. The runner blocks those rows before dispatch. This is an unresolved
+source contract gap, so PF runtime coverage is not described as complete.
+
+Feature execution no longer calls a generic feature adapter. Each family has a
+dedicated worker method and structured validator: A2A FM1–FM3; all five Attack
+Lab effects; PingOne Agent IAM; CIMD valid/rejected; third-party AS allow/deny;
+native ID-JAG invalid/expired/wrong-audience; RAR valid/invalid; UC2 passenger
+`invalid_target`; and UC-LEARN11. UC-LEARN11 parses the selected route, compares
+the prefilled prompt injection payload, submits the probe, and verifies
+`llm_policy_denied` with the provider not reached. Test-only ready PF fixtures
+exercise the behavior validators without enabling a production provider or
+claiming that the blocked checked-in PF lanes passed.
+
+The runner writes category counts to a concrete token-free inventory sink before
+worker setup. It races worker-context creation and row dispatch against the
+15-minute limit, aborts both on expiry, and returns the timed-out plus queued
+rows as `not-run`. At exactly 12 minutes, the run is still `not-ready`.
+Production remains fail closed: it has no provider worker factory and does not
+toggle `oauth_provider`, borrow browser/admin sessions, or expose tokens.
+
+Focused evidence after this repair:
+
+`CI=true npx jest tests/demoReadinessCatalog.test.js
+tests/demoReadinessExecutionService.test.js
+tests/demoReadinessProviderIsolation.test.js
+tests/demoReadinessReport.test.js --forceExit --runInBand`
+
+Result: 4 suites passed, 88 tests
+passed, 1 named-identity integration test skipped. No provider login, live
+service, Docker Compose, deployment, or push was used.

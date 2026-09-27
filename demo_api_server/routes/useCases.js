@@ -85,6 +85,44 @@ function createReadinessExecutionAdapter(dispatchers = {}) {
   };
 }
 
+/**
+ * Readiness feature probes are kept separate from UI request handling.  Each
+ * family maps to one explicit runtime action so a worker cannot pass by
+ * returning manifest labels through a catch-all feature callback.  The
+ * execution service verifies the structured result against the checked-in
+ * family contract before it can be reported as a pass.
+ */
+function createReadinessFeatureExecutionAdapter(dispatchers = {}) {
+  const byFamily = {
+    'a2a-fm1': dispatchers.a2aFm1,
+    'a2a-fm2': dispatchers.a2aFm2,
+    'a2a-fm3': dispatchers.a2aFm3,
+    'pf-davinci-login': dispatchers.pfDavinciLogin,
+    'attack-tool-abuse': dispatchers.attackToolAbuse,
+    'attack-tool-poisoning': dispatchers.attackToolPoisoning,
+    'attack-schema-violation': dispatchers.attackSchemaViolation,
+    'attack-inter-agent-abuse': dispatchers.attackInterAgentAbuse,
+    'attack-malicious-content': dispatchers.attackMaliciousContent,
+    'agent-iam-core': dispatchers.agentIamCore,
+    'pf-cimd': dispatchers.pfCimd,
+    'pf-third-party-as': dispatchers.pfThirdPartyAuthorizationServer,
+    'pf-native-id-jag': dispatchers.pfNativeIdJag,
+    'pf-rar': dispatchers.pfRar,
+    'uc2-passenger-invalid-target': dispatchers.uc2PassengerInvalidTarget,
+    'prompt-injection': dispatchers.promptInjection,
+  };
+  return async ({ check, contract, context, deadlineAt, abortSignal }) => {
+    const family = contract?.featureFamily;
+    const dispatch = byFamily[family];
+    if (typeof dispatch !== 'function') throw new Error('readiness feature dispatch is unavailable for ' + family);
+    const response = await dispatch({ check, contract, context, deadlineAt, abortSignal });
+    return {
+      observed: response?.observed || response?.outcome || 'UNKNOWN',
+      evidence: response?.evidence || {},
+    };
+  };
+}
+
 // GET /api/use-cases  → list
 router.get('/', (req, res) => {
   if (req.query.vertical === 'pingone-admin') {
@@ -558,3 +596,4 @@ module.exports = router;
 module.exports._cibaRequestsForTest = cibaRequests;
 module.exports._sweepExpiredCibaRequestsForTest = _sweepExpiredCibaRequests;
 module.exports.createReadinessExecutionAdapter = createReadinessExecutionAdapter;
+module.exports.createReadinessFeatureExecutionAdapter = createReadinessFeatureExecutionAdapter;

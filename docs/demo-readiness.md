@@ -22,6 +22,37 @@ Keep this record current in the same commit as each task that changes a check, r
 | 4 — preview-bound configuration repair | Builds a digest-bound preview from structured audit candidates. A single administrator confirmation may apply only uniquely identified, source-backed PingOne scope additions and app-scope grants. Apply rereads every object before the first write, passes a digest idempotency key, reads back each write, and records sanitized before/after evidence. | Focused mocked repair and audit suites prove stale targets, expiry, changed values, repeat confirmation, ambiguous IDs, readback, timeout retry, isolated feature-flag cleanup, and blocked Authorize writes. No live services are called. |
 | 5 — isolated scenario execution | Adds an execution service that derives and records every core, route-variant, feature, and Attack Lab row. It preserves UC14b’s full-page behavior, validates observations against checked-in catalog and feature contracts, and redacts every report row. Production has no worker factory: only a Jest-only adapter can create empty opaque contexts held by identity in a private map. A copied context, a worker-object collision, or a failed setup blocks its lane. The manifest declares feature provider flow, exchange service, resource, tool, audience, scope, Gateway/Authorize applicability, behavior stages, and provider roles. | Mocked coverage proves feature behavior stages, static contract mismatch blocks, exact PF endpoint/credential-role and hop checks, opaque-context forgery rejection, sticky lanes, and deadline races. The runner emits category counts before dispatch, marks the report non-ready at exactly 12 minutes, aborts in-flight dispatch at 15 minutes, and records remaining rows as `not-run`. No production worker runtime exists, so real provider lanes and unresolved PF endpoint/credential-role contracts remain blocked. |
 
+### Task 5 repair round 4: contract and dispatch boundary
+
+The runner emits the derived category counts to its concrete inventory sink before
+it creates a worker or dispatches any row. Provider setup itself is raced against
+the same 15-minute hard deadline as dispatch. A setup timeout records the timed
+out row and every queued row as `not-run`; the exact 12-minute boundary remains
+`not-ready`.
+
+Report applicability comes only from the checked-in feature row
+`providerRoleApplicability` or the catalog row contract. A worker observation
+can produce a sanitized mismatch finding, but cannot overwrite the report's
+declared roles.
+
+Feature dispatch is family-specific. A2A FM1/FM2/FM3, the five Attack Lab
+effects, Agent IAM, CIMD, third-party AS, native ID-JAG, RAR, UC2 passenger
+`invalid_target`, and UC-LEARN11 each call a dedicated worker adapter and
+validate structured results. UC-LEARN11 compares the actual
+`/llm-gateway?attack=prompt_injection` route, selected attack, exact prefilled
+payload, submission denial code, and `reachedProvider: false`; manifest labels
+alone cannot pass the probe.
+
+The checked-in PF sources establish configuration-key and credential-role
+references, including ordinary exchange, UC2/UC2.5's ordered ID-JAG then
+Exchange #2 path, UC40 native ID-JAG, and UC38/UC44 actor-bound exchange. They
+do **not** contain a committed literal PF issuer, token endpoint, or registered
+client readback. Every affected core or feature row therefore carries
+`pf_exact_exchange_contract_source_gap` with a remediation to commit a supported
+provisioner or PF Admin API readback. Those rows are blocked before dispatch;
+they are not expected-success tests and Task 5 PF runtime coverage remains
+incomplete until that source gap is closed.
+
 ## Coverage inventory
 
 The current executable Demo Steps list has 46 unique actions:
@@ -82,7 +113,7 @@ PAR is tested where a flow needs it; it is not a PF-only capability. All AI-agen
 - `scope-topology.json`, `ping-gateway/config/scope-topology.json`, vertical manifests, route/auth configuration, and registered MCP tool metadata define resource audiences, required scopes, and applicable Authorize group relationships.
 - `demo_api_server/config/demoReadinessFeatureChecks.json` declares separate provider feature probes and expected results.
 - `demo_api_server/config/demoReadinessRepairability.json` classifies drift by source, supported readback, repair mode, and operation.
-- Task 3 will add a secret-free, role-specific PingFederate profile contract. Until a role has a reconciled, authoritative expectation, that role is undocumented and blocks READY.
+- `demo_api_server/config/demoReadinessPingFederateProfiles.json` supplies the secret-free, role-specific PF key and role references. Until a committed provisioner or supported PF Admin API readback reconciles a role's literal registration, that row blocks READY.
 
 The build/CI contract verifies all 46 unique runnable entries, exact source-lane order, no Admin13 execution, registered behavior/handler variants, vertical scope/resource/audience parity, group mapping, prerequisite parity, provider applicability, and repairability classification. It also catches any newly introduced UI step that lacks an expected outcome or dependency map.
 

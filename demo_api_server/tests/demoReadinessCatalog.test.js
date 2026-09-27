@@ -99,6 +99,31 @@ describe('demo readiness catalog', () => {
     expect(rows.get('UC1').providerFlows.pingfederate).not.toBe('pingfederate-native-id-jag');
   });
 
+  test('attaches source-backed PF role/key contracts and explicitly blocks unresolved literal PF settings', () => {
+    const rows = new Map(buildDemoReadinessCatalog().map((row) => [row.id, row]));
+    const ordinary = rows.get('UC1').pfExchangeContract;
+    const a2a = rows.get('UC2.5').pfExchangeContract;
+    const native = rows.get('UC40').pfExchangeContract;
+    const workload = rows.get('UC38').pfExchangeContract;
+
+    expect(ordinary).toMatchObject({
+      status: 'blocked',
+      issuer: { configurationKey: 'pf_issuer' },
+      endpoint: { configurationKey: 'pf_token_endpoint' },
+      sourceGap: { code: 'pf_exact_exchange_contract_source_gap' },
+    });
+    expect(ordinary.credentialRoles.map((role) => role.roleId)).toEqual([
+      'standard-agent-exchanger', 'standard-mcp-exchanger', 'ai-agent-actor', 'mcp-service-actor',
+    ]);
+    expect(a2a.credentialRoles.map((role) => role.roleId)).toEqual([
+      'standard-agent-exchanger', 'ai-agent-actor', 'a2a-specialist',
+    ]);
+    expect(native.credentialRoles.map((role) => role.roleId)).toEqual(['uc40-native-id-jag']);
+    expect(workload.credentialRoles.map((role) => role.roleId)).toEqual([
+      'standard-agent-exchanger', 'standard-mcp-exchanger', 'ai-agent-actor', 'mcp-service-actor',
+    ]);
+  });
+
   test('keeps PF A2A and DaVinci feature probes outside the 46 Demo Steps count', () => {
     const sources = loadDemoReadinessSources();
 
@@ -131,6 +156,30 @@ describe('demo readiness catalog', () => {
         sourceRef: 'demo_api_server/tests/routes/pfDavinciAuth.test.js',
       }],
     });
+  });
+
+  test('declares a structured family contract and an exact-or-blocked PF exchange contract for every feature probe', () => {
+    const featureManifest = loadDemoReadinessSources().featureChecks;
+    for (const check of featureManifest.checks) {
+      const contract = featureManifest.contracts[check.id];
+      expect(contract).toEqual(expect.objectContaining({
+        featureFamily: expect.any(String),
+        familyContract: expect.any(Object),
+      }));
+      if (check.providers.includes('pingfederate') && contract.exchangeService === 'token-exchange') {
+        expect(contract.pfExchangeContract).toMatchObject({
+          status: 'blocked',
+          issuer: { configurationKey: 'pf_issuer' },
+          endpoint: { configurationKey: 'pf_token_endpoint' },
+          sourceGap: { code: 'pf_exact_exchange_contract_source_gap' },
+        });
+        expect(contract.pfExchangeContract.credentialRoles.length).toBeGreaterThan(0);
+      }
+      if (contract.selectedTool) {
+        expect(contract.gateway?.applicable).not.toBe(false);
+        expect(contract.authorize?.applicable).not.toBe(false);
+      }
+    }
   });
 
   test('resolves UC38 and UC44 prompts and tools for each declared vertical', () => {
