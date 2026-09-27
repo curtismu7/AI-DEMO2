@@ -295,7 +295,7 @@ describe('demo readiness repair service', () => {
     const firstWorker = {}; const secondWorker = {};
     const adapter = {
       createIsolatedWorker: jest.fn().mockResolvedValueOnce(firstWorker).mockResolvedValueOnce(secondWorker),
-      read: jest.fn().mockResolvedValueOnce(true).mockResolvedValueOnce(true).mockResolvedValueOnce(false),
+      read: jest.fn().mockResolvedValueOnce(true).mockResolvedValueOnce(true).mockResolvedValueOnce(false).mockResolvedValueOnce(false),
       write: jest.fn(), readback: jest.fn(),
       restore: jest.fn().mockRejectedValueOnce(new Error('second worker restore failed')).mockResolvedValueOnce(undefined),
     };
@@ -315,6 +315,8 @@ describe('demo readiness repair service', () => {
     expect(adapter.restore).toHaveBeenCalledTimes(2);
     expect(adapter.restore).toHaveBeenLastCalledWith(expect.objectContaining({ workerContext: firstWorker, expected: false }));
     expect(adapter.read).toHaveBeenLastCalledWith(expect.objectContaining({ workerContext: firstWorker }));
+    expect(adapter.read.mock.calls.filter(([args]) => args.workerContext === secondWorker)).toHaveLength(2);
+    expect(adapter.read.mock.calls.filter(([args]) => args.workerContext === firstWorker)).toHaveLength(2);
   });
 
   test('plans a legitimate false source-contract expectation', () => {

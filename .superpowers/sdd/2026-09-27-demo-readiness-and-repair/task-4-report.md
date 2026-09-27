@@ -111,3 +111,20 @@ Tests: 18 passed, 18 total
 The suite includes two worker contexts where the first cleanup fails and the
 later context is still restored/read back, plus a combined apply-and-cleanup
 failure that retains both errors.
+
+## Fix round 3
+
+- Cleanup now guards `restore` and restore readback independently for each
+  worker. A failed restore records an error but still performs that worker's
+  readback; all remaining workers then receive both cleanup attempts. Cleanup
+  errors remain aggregated without hiding an original apply error.
+
+The new regression was red before this change: after the second worker restore
+failed, that worker had only its prewrite read. The green run proves two reads
+for each worker, including a restore-readback after the failed restore.
+
+```text
+CI=true npx jest tests/demoReadinessRepairService.test.js --forceExit
+PASS tests/demoReadinessRepairService.test.js
+Tests: 18 passed, 18 total
+```

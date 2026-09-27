@@ -193,6 +193,10 @@ function createRepairService({ adapters = {}, sourceReaders = {}, verifyAdminCon
     for (const item of prewrites.filter((entry) => entry.needsWorker).reverse()) {
       try {
         await item.adapter.restore({ target: item.change.target, object: item.change.object, expected: item.change.current, workerContext: item.workerContext, digest: plan.digest });
+      } catch (error) {
+        cleanupFailures.push(error);
+      }
+      try {
         const restored = await item.adapter.read({ target: item.change.target, object: item.change.object, sourceRef: item.change.sourceRef, workerContext: item.workerContext });
         if (!sameValue(restored, item.change.current)) throw new Error('isolated feature-flag restore readback does not match the original value');
         item.restored = restored;
