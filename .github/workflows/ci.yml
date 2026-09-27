@@ -296,14 +296,16 @@ jobs:
       - name: langchain_agent (blocking — 834 passing)
         run: |
           cd langchain_agent
-          python3.12 -m pip install --quiet --upgrade pip
-          [ -f requirements.txt ] && python3.12 -m pip install --quiet -r requirements.txt || true
-          python3.12 -m pytest tests/ -q
+          python3.12 -m venv .venv
+          .venv/bin/python -m pip install --quiet --upgrade pip
+          [ -f requirements.txt ] && .venv/bin/python -m pip install --quiet -r requirements.txt || true
+          .venv/bin/python -m pytest tests/ -q
       - name: llamaindex_agent (blocking — 9 passing)
         run: |
           cd llamaindex_agent
-          [ -f requirements.txt ] && python3.12 -m pip install --quiet -r requirements.txt || true
-          python3.12 -m pytest tests/ -q
+          python3.12 -m venv .venv
+          [ -f requirements.txt ] && .venv/bin/python -m pip install --quiet -r requirements.txt || true
+          .venv/bin/python -m pytest tests/ -q
 
   authz-decision-tests:
     # demo_authz_server and demo_mcp_gateway had ~90 test cases that no job ran.

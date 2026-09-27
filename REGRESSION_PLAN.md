@@ -199,8 +199,9 @@ cache override could not relocate that Python build. Vitest workers also
 reached their 12 GB V8 heap ceiling in the full CI run.
 
 **What was fixed:** route the selector and hygiene/topology jobs only to the
-`ci-gates` runner, use the runner's installed Python 3.12, and raise the Vitest
-parent and worker heap ceiling to the measured 14 GB.
+`ci-gates` runner, use the runner's installed Python 3.12 in per-service virtual
+environments, and raise the Vitest parent and worker heap ceiling to the
+measured 14 GB.
 
 **Do not break:** keep the gate runner on only the `ci-gates` label; leave the
 UI worker cap scoped to CI; keep Python tests explicitly on Python 3.12.
