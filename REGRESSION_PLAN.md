@@ -216,6 +216,28 @@ RFC 8693 token exchange flow.
 `mcpGatewayClient.a2aPin`, `mcpGatewayClient.pinnedAudience`,
 `mcpToolPipeline.gatewayDenyOnSuccess`, and `mcpToolPipeline.gatewayDenyEvidence`
 passed 28/28 tests; `git diff --check` passed.
+
+### 2026-09-27 — Server topology was missing from customer navigation
+
+**Files:** `demo_api_ui/src/components/AdminSideNav.jsx`,
+`demo_api_ui/src/components/__tests__/adminSideNav.test.jsx`.
+
+**What was broken:** the sidebar's intent-based composition included most
+diagram routes under Architecture & Learning but omitted Server Topology. The
+route itself was public, but users could not find it through sidebar search.
+
+**What was fixed:** added Server Topology to the Architecture & Learning group
+and added a customer-role regression test that searches every diagram route,
+checks that no admin badge gates it, and keeps the routes public for guests.
+
+**Do not break:** keep all diagram routes visible to regular signed-in users;
+diagram links must not acquire an admin-only badge. Keep their public route
+policy so guest access remains available.
+
+**Verify:** `cd demo_api_ui && npx vitest run
+src/components/__tests__/adminSideNav.test.jsx`; `npm run build`; `npm run
+authz:verify`.
+
 ### 2026-09-27 — PF Exchange #3 omitted its required MCP-service actor token
 
 **Files:** `demo_api_server/scripts/refresh-service-envs.js`,
