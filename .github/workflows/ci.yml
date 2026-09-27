@@ -17,6 +17,8 @@ permissions:
   contents: read
   pull-requests: read
 
+# The self-hosted runner's shared npm cache grew to about 1.1 GiB and consumed
+# most of the gates job's 15-minute budget during restore/extract; skip it.
 jobs:
   changes:
     name: Select affected test suites
@@ -94,8 +96,6 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
-      # Skip the shared npm cache here: its >1 GiB restore/extract timed out
-      # this 15-minute gates job before any hygiene checks could run.
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -152,8 +152,6 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: demo_api_server/package.json
       - name: Install deps
         run: npm install --prefix demo_api_server --no-audit --no-fund
       - name: Run Jest suite
@@ -186,8 +184,6 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: demo_api_ui/package.json
       - name: Install deps
         run: npm install --prefix demo_api_ui --no-audit --no-fund
       # Vitest, not jest — see demo_api_ui/CLAUDE.md. CI=true keeps the reporter
@@ -335,8 +331,6 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: demo_mcp_gateway/package.json
       - name: Install demo_authz_server deps
         run: npm install --prefix demo_authz_server --no-audit --no-fund
       - name: Install demo_mcp_gateway deps
