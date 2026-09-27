@@ -35,3 +35,19 @@ Then point `PINGFEDERATE_PROFILE_PATH` at `~/pingfederate-profile`.
   `ai-demo_ai-demo` network — this compose file already joins it.
 - `npm run demo:health-gate` checks the container is up and healthy and will
   print this recovery path when it is missing.
+
+## AI Agent RAR processor
+
+The PF AI Agent page includes CIMD, third-party ID-JAG exchange, and a custom
+`banking_transaction` RAR flow. PF RAR uses a custom SDK processor; it is not
+the existing PingOne PAR/Authorize flow. Build the processor against the PF
+installation, deploy it, and configure the authorization detail type and
+user-attribute mapping before enabling the BFF feature:
+
+```bash
+PF_HOME=/path/to/pingfederate scripts/pingfederate/plugins/ai-agent-rar/build.sh
+```
+
+See `plugins/ai-agent-rar/README.md` for policy fields, test instructions, and
+PF admin-console setup. The processor requires PF 13.1 or newer and the
+`transactions:write` scope. It uses only OAuth and JWT.
