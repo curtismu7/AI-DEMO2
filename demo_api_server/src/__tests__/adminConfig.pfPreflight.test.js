@@ -117,6 +117,8 @@ describe('POST /api/admin/config — PingFederate pre-flight reachability gate',
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
     expect(configStore.setConfig.mock.calls).toContainEqual([{ OAUTH_PROVIDER: 'pingfederate' }]);
+    expect(require('../../services/oauthEndpointResolver').getDiscoveryEndpoint)
+      .toHaveBeenCalledWith('pingfederate');
   });
 
   test('does NOT probe when switching back to pingone', async () => {

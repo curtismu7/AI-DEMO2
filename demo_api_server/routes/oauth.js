@@ -72,6 +72,7 @@ router.get('/login', (req, res) => {
     // Generate state parameter for CSRF protection
     const state = oauthService.generateState();
     startLoginAudit(req, 'admin', Date.now(), state);
+    const loginProvider = configStore.getOAuthProvider?.() || 'pingone';
 
     // Generate PKCE code_verifier and store in session
     const codeVerifier = oauthService.generateCodeVerifier();
@@ -93,6 +94,7 @@ router.get('/login', (req, res) => {
     req.session.oauthState = state;
     req.session.oauthCodeVerifier = codeVerifier;
     req.session.oauthRedirectUri = redirectUri;
+    req.session.oauthLoginProvider = loginProvider;
     console.log('[oauth/login] Stored in session - redirectUri:', redirectUri);
 
     // Same-origin SPA path to land on after admin login (e.g. the admin link a
@@ -165,7 +167,7 @@ router.get('/login', (req, res) => {
 
     // Vercel / serverless: also store PKCE data in a signed cookie so the
     // callback can recover it if the in-memory session is on a different instance.
-    setPkceCookie(res, { state, codeVerifier, redirectUri, nonce }, _isProd());
+    setPkceCookie(res, { state, codeVerifier, redirectUri, nonce, oauthProvider: loginProvider }, _isProd());
 
     // Explicitly save before redirecting — required with async stores (Redis/Upstash)
     // so the state/verifier are persisted before PingOne sends the callback.
@@ -236,6 +238,21 @@ router.get('/callback', async (req, res) => {
       // Auto-retry login instead of showing error (multi-tab race)
       console.log('[oauth/callback] Auto-retrying login after invalid_state (multi-tab race)');
       return res.redirect(`${req.baseUrl}/login`);
+    }
+
+    const loginProvider = req.session.oauthLoginProvider || pkceCookie?.oauthProvider;
+    const selectedProvider = configStore.getOAuthProvider?.() || 'pingone';
+    if (loginProvider && loginProvider !== selectedProvider) {
+      clearPkceCookie(res, _isProd());
+      delete req.session.oauthState;
+      delete req.session.oauthCodeVerifier;
+      delete req.session.oauthRedirectUri;
+      delete req.session.oauthNonce;
+      delete req.session.oauthLoginProvider;
+      finishLoginAudit(req, { outcome: 'failure', reasonCode: 'oauth_provider_error' });
+      return req.session.save(() => {
+        res.redirect(`${getFrontendOrigin()}/login?error=provider_changed`);
+      });
     }
 
     if (!code) {
@@ -381,6 +398,7 @@ router.get('/callback', async (req, res) => {
     // this afterwards always lost the /login route's return_to and every admin
     // login landed on /admin. Mirrors the end-user callback (oauthUser.js).
     const postLoginReturnToPath = sanitizePostLoginReturnPath(req.session.postLoginReturnToPath) || null;
+    const resolvedLoginProvider = loginProvider || selectedProvider;
     const hostedLoginAudit = req.session.hostedLoginAudit || null;
     const hostedLoginAudits = req.session.hostedLoginAudits || null;
 
@@ -399,6 +417,7 @@ router.get('/callback', async (req, res) => {
       req.session.oauthTokens = oauthTokens;
       req.session.user = authedUser;
       req.session.clientType = clientType;
+      req.session.oauthProvider = resolvedLoginProvider;
       if (hostedLoginAudit) req.session.hostedLoginAudit = hostedLoginAudit;
       if (hostedLoginAudits) req.session.hostedLoginAudits = hostedLoginAudits;
       if (hostedAccessDecision) {

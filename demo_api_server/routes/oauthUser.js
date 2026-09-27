@@ -495,7 +495,7 @@ router.get('/login', (req, res) => {
 
     // Vercel / serverless: also persist PKCE data in a signed cookie so the
     // callback can recover it when the in-memory session is on a different instance.
-    setPkceCookie(res, { state, codeVerifier, redirectUri, nonce }, _isProd());
+    setPkceCookie(res, { state, codeVerifier, redirectUri, nonce, oauthProvider: selectedProvider }, _isProd());
 
     // Persist PKCE state before redirecting so the callback can validate.
     // Non-fatal: state/verifier are already in the signed PKCE cookie (setPkceCookie above),
@@ -573,8 +573,12 @@ router.get('/silent-reauth', (req, res) => {
     req.session.oauthRedirectUri = redirectUri;
     req.session.oauthNonce = nonce;
     req.session.oauthType = 'user';
+    req.session.oauthLoginProvider = configStore.getOAuthProvider?.() || 'pingone';
     req.session.oauthLoginStartedAt = Date.now();
-    setPkceCookie(res, { state, codeVerifier, redirectUri, nonce }, _isProd());
+    setPkceCookie(res, {
+      state, codeVerifier, redirectUri, nonce,
+      oauthProvider: req.session.oauthLoginProvider,
+    }, _isProd());
 
     req.session.save((err) => {
       if (err) {
@@ -666,6 +670,21 @@ router.get('/callback', async (req, res) => {
       // This handles the multi-tab race where tab B's login overwrites tab A's PKCE state.
       console.log('[oauth/user/callback] Auto-retrying login after invalid_state (multi-tab race)');
       return res.redirect(`${req.baseUrl}/login`);
+    }
+
+    const loginProvider = req.session.oauthLoginProvider || pkceCookie?.oauthProvider;
+    const selectedProvider = configStore.getOAuthProvider?.() || 'pingone';
+    if (loginProvider && loginProvider !== selectedProvider) {
+      clearPendingIdJagRun(req);
+      clearIdJagCookie(res);
+      clearPkceCookie(res, _isProd());
+      delete req.session.oauthState;
+      delete req.session.oauthCodeVerifier;
+      delete req.session.oauthRedirectUri;
+      delete req.session.oauthNonce;
+      delete req.session.oauthLoginProvider;
+      finishLoginAudit(req, { outcome: 'failure', reasonCode: 'oauth_provider_error' });
+      return redirectEndUserOAuthSpaFailure(req, res, { error: 'provider_changed' });
     }
 
     // Validate code parameter
@@ -914,9 +933,9 @@ router.get('/callback', async (req, res) => {
     // Preserve step-up return destination across session regeneration
     const stepUpReturnTo = req.session.stepUpReturnTo || null;
     const postLoginReturnToPath = sanitizePostLoginReturnPath(req.session.postLoginReturnToPath) || null;
-    const loginProvider = req.session.oauthLoginProvider || configStore.getOAuthProvider?.() || 'pingone';
+    const resolvedLoginProvider = loginProvider || selectedProvider;
     const hadIdJagHandoff = !!req.session.pendingIdJagNonce;
-    const validatedIdJagIntent = hadIdJagHandoff && loginProvider === 'pingfederate'
+    const validatedIdJagIntent = hadIdJagHandoff && resolvedLoginProvider === 'pingfederate'
       && configStore.getOAuthProvider?.() === 'pingfederate'
       && pendingIdJagRun(req)?.returnTo === postLoginReturnToPath
       ? consumePendingIdJagRun(req) : null;
@@ -978,7 +997,7 @@ router.get('/callback', async (req, res) => {
       req.session.user = authedUser;
       req.session.clientType = clientType;
       req.session.oauthType = 'user';
-      req.session.oauthProvider = loginProvider;
+      req.session.oauthProvider = resolvedLoginProvider;
       if (validatedIdJagIntent) req.session.idJagRunIntent = validatedIdJagIntent;
       if (hostedLoginAudit) req.session.hostedLoginAudit = hostedLoginAudit;
       if (hostedLoginAudits) req.session.hostedLoginAudits = hostedLoginAudits;

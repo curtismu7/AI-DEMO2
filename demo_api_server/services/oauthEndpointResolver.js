@@ -23,7 +23,8 @@ function _fromCache(field) {
   return _discoveryCache?.[field] ?? null;
 }
 
-function _isPingFederate() {
+function _isPingFederate(provider) {
+  if (provider !== undefined) return provider === 'pingfederate';
   return typeof configStore.getOAuthProvider === 'function'
     && configStore.getOAuthProvider() === 'pingfederate';
 }
@@ -212,10 +213,10 @@ function _normalizePingOneIssuer(issuer) {
   return issuer;
 }
 
-function getIssuer() {
-  if (_isPingFederate()) {
+function getIssuer(provider) {
+  if (_isPingFederate(provider)) {
     return _configured('pf_issuer', 'oauth_issuer')
-      || _fromCache('issuer')
+      || (provider === undefined ? _fromCache('issuer') : null)
       || '';
   }
   const explicit = configStore.getEffective('oauth_issuer');
@@ -225,11 +226,13 @@ function getIssuer() {
   return _pingOneBase();
 }
 
-function getDiscoveryEndpoint() {
-  if (_isPingFederate()) {
+function getDiscoveryEndpoint(provider) {
+  if (_isPingFederate(provider)) {
     const explicit = _configured('pf_discovery_endpoint', 'oauth_discovery_endpoint');
     if (explicit) return explicit;
-    const issuer = getIssuer();
+    const cached = provider === undefined ? _fromCache('discovery_endpoint') : null;
+    if (cached) return cached;
+    const issuer = getIssuer(provider);
     return issuer ? `${issuer.replace(/\/+$/, '')}/.well-known/openid-configuration` : '';
   }
   const explicit = configStore.getEffective('oauth_discovery_endpoint');

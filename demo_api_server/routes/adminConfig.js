@@ -96,7 +96,7 @@ function requireAdminOrUnconfigured(req, res, next) {
  */
 async function probePingFederateReachability() {
   const { getDiscoveryEndpoint } = require('../services/oauthEndpointResolver');
-  const discoveryUrl = getDiscoveryEndpoint();
+  const discoveryUrl = getDiscoveryEndpoint('pingfederate');
   if (!discoveryUrl) {
     return { ok: false, error: 'PF discovery endpoint is not configured (PF_ISSUER / PF_DISCOVERY_ENDPOINT missing)' };
   }

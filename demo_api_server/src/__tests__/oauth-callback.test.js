@@ -9,6 +9,11 @@ const request = require('supertest');
 
 // Mock the dependencies before importing routes
 jest.mock('../../services/oauthService');
+jest.mock('../../services/configStore', () => ({
+  getOAuthProvider: jest.fn(() => 'pingone'),
+  getEffective: jest.fn(() => ''),
+  isConfigured: jest.fn(() => true),
+}));
 jest.mock('../../data/store');
 jest.mock('../../middleware/auth');
 
@@ -27,6 +32,18 @@ describe('OAuth Callback Token Storage (Task 7)', () => {
       resave: false,
       saveUninitialized: false
     }));
+
+    app.get('/__test/admin-login-session', (req, res) => {
+      Object.assign(req.session, {
+        oauthType: 'admin',
+        oauthState: 'admin-state',
+        oauthCodeVerifier: 'admin-verifier',
+        oauthRedirectUri: 'https://local.ping-devops.com:4000/api/auth/oauth/callback',
+        oauthNonce: 'admin-nonce',
+        oauthLoginProvider: 'pingfederate',
+      });
+      req.session.save((err) => res.sendStatus(err ? 500 : 204));
+    });
 
     // Import routes after mocking
     const oauthRoutes = require('../../routes/oauth');
@@ -168,6 +185,18 @@ describe('OAuth Callback Token Storage (Task 7)', () => {
     
     // Verify JWT token is NOT present (this is the key requirement)
     expect(statusResponse.body.jwtToken).toBeUndefined();
+  });
+
+  test('admin callback does not redeem a code with a provider different from login start', async () => {
+    const agent = request.agent(app);
+    await agent.get('/__test/admin-login-session').expect(204);
+
+    const response = await agent.get('/api/auth/oauth/callback')
+      .query({ code: 'admin-code', state: 'admin-state' });
+
+    expect(response.status).toBe(302);
+    expect(response.headers.location).toContain('error=provider_changed');
+    expect(mockOAuthService.exchangeCodeForToken).not.toHaveBeenCalled();
   });
 
   test('User OAuth status endpoint returns OAuth tokens instead of JWT', async () => {
