@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Secret-free PingFederate readiness contracts. An unresolved role blocks readiness until a committed provisioner and supported PF Admin API readback establish its exact settings.",
+  "roles": {
+    "standard-agent-exchanger": {
+      "kind": "oauth-client",
+      "expected": { "grantTypes": ["urn:ietf:params:oauth:grant-type:token-exchange"], "processorPolicyRef": "undocumented", "atmAudience": "undocumented", "allowedAudiences": "undocumented" },
+      "unresolved": true,
+      "sourceRef": "demo_api_server/services/pfStandardTokenExchangeService.js"
+    },
+    "standard-mcp-exchanger": {
+      "kind": "oauth-client",
+      "expected": { "grantTypes": ["urn:ietf:params:oauth:grant-type:token-exchange"], "processorPolicyRef": "undocumented", "atmAudience": "undocumented", "allowedAudiences": "undocumented" },
+      "unresolved": true,
+      "sourceRef": "demo_api_server/scripts/refresh-service-envs.js"
+    },
+    "ai-agent-actor": {
+      "kind": "oauth-client",
+      "expected": { "grantTypes": ["client_credentials"], "processorPolicyRef": "undocumented" },
+      "unresolved": true,
+      "sourceRef": "demo_api_server/services/agentMcpTokenService.js"
+    },
+    "mcp-service-actor": {
+      "kind": "oauth-client",
+      "expected": { "grantTypes": ["client_credentials"], "processorPolicyRef": "undocumented" },
+      "unresolved": true,
+      "sourceRef": "demo_api_server/services/agentMcpTokenService.js"
+    },
+    "a2a-specialist": {
+      "kind": "service-provider",
+      "expected": { "resourceUris": "undocumented", "idJag": "undocumented" },
+      "unresolved": true,
+      "sourceRef": "demo_api_server/config/a2aSpecialists.js"
+    },
+    "uc40-native-id-jag": {
+      "kind": "oauth-client",
+      "expected": { "idJagAudience": "environment-configured", "idJagResource": "environment-configured", "idJagSubjectTokenType": "environment-configured" },
+      "unresolved": true,
+      "sourceRef": "demo_api_server/services/agentMcpTokenService.js"
+    },
+    "davinci-login": {
+      "kind": "oauth-client",
+      "expected": { "authenticationPolicyAdapter": "undocumented" },
+      "unresolved": true,
+      "sourceRef": "demo_api_server/routes/pfDavinciAuth.js"
+    },
+    "cimd": {
+      "kind": "oauth-client",
+      "expected": { "cimdPolicy": "undocumented", "issuer": "environment-configured", "jwksUri": "environment-configured" },
+      "unresolved": true,
+      "sourceRef": "demo_api_server/routes/cimdAgentMetadata.js"
+    },
+    "third-party-authorization-server": {
+      "kind": "oauth-client",
+      "expected": { "thirdPartyAuthorizationServer": "undocumented" },
+      "unresolved": true,
+      "sourceRef": "docs/superpowers/specs/2026-09-26-demo-readiness-and-repair-design.md"
+    },
+    "rar": {
+      "kind": "oauth-client",
+      "expected": { "rarProcessor": "undocumented", "authorizationDetailsTypes": "undocumented" },
+      "unresolved": true,
+      "sourceRef": "docs/superpowers/specs/2026-09-26-demo-readiness-and-repair-design.md"
+    }
+  }
+}

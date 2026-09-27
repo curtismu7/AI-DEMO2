@@ -163,3 +163,25 @@ One run timer starts before prerequisites and includes audit, preview/confirmati
 - **Implementation sequence:** Tasks 1, 2, and the Task 2A PF source prerequisite are committed. Tasks 3–10 and final integration review remain. The live PF Exchange #3 readback and registered-tool proof remain in Tasks 3 and 5.
 
 Update this status table as each task is committed. Do not label the readiness workflow operational until audit, repair, execution, CLI, admin UI, all intended probes, and final timing/security checks are implemented and reviewed.
+
+
+## Task 3 audit implementation
+
+Task 3 adds the read-only audit service and a secret-free, role-specific
+PingFederate contract. The service records repository, PingOne, PingFederate,
+runtime, and local Docker findings using the readiness report row shape. It
+uses argument-array `docker ps` and `docker inspect` only; it never starts,
+stops, provisions, repairs, or deploys a target. The existing health and MCP
+preflight probes can now be imported without running their CLIs.
+
+The audit recognizes an incorrect declared value as a failed required check and
+an unavailable or unauthorized management read as a blocked required check.
+The current PingOne worker can list decision endpoints but cannot read the
+complete live Authorize policy tree. A successful decision is never accepted
+as proof of policy parity, so `policyReadback` remains blocking.
+
+No committed PingFederate Admin API client or role-complete provisioner supplies
+exact settings for every role. The new contract lists standard exchangers and
+actors, A2A specialists, UC40 ID-JAG, DaVinci, CIMD, third-party AS, and RAR,
+with unresolved fields marked explicitly. PingFederate readiness remains
+blocked until each role has a committed expectation and supported API readback.

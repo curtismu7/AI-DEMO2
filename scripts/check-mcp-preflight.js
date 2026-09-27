@@ -184,9 +184,13 @@ async function main() {
   process.exit(code);
 }
 
+module.exports = { TARGETS, probe, gatewaySessionRow };
+
 // A throw anywhere above would otherwise exit 0 on an unhandled rejection in
 // some Node configurations — the exact false green this script exists to catch.
-main().catch((err) => {
-  console.error(`preflight failed: ${err.stack || err.message}`);
-  process.exit(2);
-});
+if (require.main === module) {
+  main().catch((err) => {
+    console.error(`preflight failed: ${err.stack || err.message}`);
+    process.exit(2);
+  });
+}

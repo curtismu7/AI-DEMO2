@@ -71,7 +71,8 @@ function mkcertRoot() {
   }
 }
 
-if (process.env.NODE_EXTRA_CA_CERTS === undefined) {
+function ensureMkcertRoot() {
+  if (process.env.NODE_EXTRA_CA_CERTS !== undefined) return;
   const root = mkcertRoot();
   if (root && fs.existsSync(root)) {
     process.env.NODE_EXTRA_CA_CERTS = root;
@@ -1087,7 +1088,8 @@ async function checkLlmTier() {
 
 // ── main ─────────────────────────────────────────────────────────────────────
 
-(async () => {
+async function main() {
+  ensureMkcertRoot();
   console.log('\n=== AI-DEMO2 pre-demo health gate ===\n');
   const running = checkContainers();
   checkNetworks();
@@ -1120,4 +1122,13 @@ async function checkLlmTier() {
   }
   console.log(`\n${rows.length - failed}/${rows.length} checks passed${failed ? ` — ${failed} FAILED. Do not start the demo.` : ' — clear to demo.'}\n`);
   process.exit(failed ? 1 : 0);
-})();
+}
+
+module.exports = { fetchJson, checkContainers, checkNetworks, ensureMkcertRoot };
+
+if (require.main === module) {
+  main().catch((err) => {
+    console.error(`health gate failed: ${err.stack || err.message}`);
+    process.exit(2);
+  });
+}
