@@ -26,6 +26,8 @@ changes or the recorded provider is absent. PF preflight validates discovery
 metadata and issuer, then persists discovered values under PF-specific keys as
 part of the switch. Selected-PF runtime resolution ignores shared endpoint
 settings and discovery cache data that may belong to PingOne.
+Every code-flow entry point, including normal login, silent re-authentication,
+and MFA step-up, records the same provider in the session and signed PKCE cookie.
 Concurrent refresh requests wait for the single refresh operation and reload its
 durably saved tokens before continuing. Stale sessions from a previous provider
 are cleared before their refresh token can be sent elsewhere.
@@ -40,7 +42,8 @@ login began.
 mismatch and missing-provider callbacks, PKCE provider round-trip, PingFederate
 preflight and runtime endpoint resolution in the presence of shared PingOne
 settings, preflight metadata validation and PF-specific persistence, concurrent
-refresh, and stale-provider session clearing.
+refresh, stale-provider session clearing, and a step-up check asserting the
+provider marker in both session and PKCE cookie.
 
 ---
 

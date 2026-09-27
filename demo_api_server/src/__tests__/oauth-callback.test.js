@@ -9,6 +9,7 @@ const request = require('supertest');
 
 // Mock the dependencies before importing routes
 jest.mock('../../services/oauthService');
+jest.mock('../../services/oauthUserService');
 jest.mock('../../services/configStore', () => ({
   getOAuthProvider: jest.fn(() => 'pingone'),
   getEffective: jest.fn(() => ''),
@@ -18,6 +19,9 @@ jest.mock('../../data/store');
 jest.mock('../../middleware/auth');
 
 const mockOAuthService = require('../../services/oauthService');
+const mockOAuthUserService = require('../../services/oauthUserService');
+const mockConfigStore = require('../../services/configStore');
+const { readPkceCookie } = require('../../services/pkceStateCookie');
 const mockDataStore = require('../../data/store');
 const mockAuth = require('../../middleware/auth');
 
@@ -32,6 +36,10 @@ describe('OAuth Callback Token Storage (Task 7)', () => {
       resave: false,
       saveUninitialized: false
     }));
+
+    app.get('/__test/user-login-provider', (req, res) => {
+      res.json({ loginProvider: req.session.oauthLoginProvider || null });
+    });
 
     app.get('/__test/admin-login-session', (req, res) => {
       const loginSession = {
@@ -100,6 +108,9 @@ describe('OAuth Callback Token Storage (Task 7)', () => {
     // Mock generateState for OAuth service
     mockOAuthService.generateState = jest.fn().mockReturnValue('test-state');
     mockOAuthService.generateAuthorizationUrl = jest.fn().mockReturnValue('https://oauth.example.com/auth');
+    mockOAuthUserService.generateState = jest.fn().mockReturnValue('step-up-state');
+    mockOAuthUserService.generateCodeVerifier = jest.fn().mockReturnValue('step-up-verifier');
+    mockOAuthUserService.generateAuthorizationUrl = jest.fn().mockReturnValue('https://pf.example.com/auth');
   });
 
   test('Admin OAuth status endpoint returns OAuth tokens instead of JWT', async () => {
@@ -210,6 +221,25 @@ describe('OAuth Callback Token Storage (Task 7)', () => {
     expect(response.status).toBe(302);
     expect(response.headers.location).toContain('error=provider_changed');
     expect(mockOAuthService.exchangeCodeForToken).not.toHaveBeenCalled();
+  });
+
+  test('step-up stores the selected provider in both session and PKCE fallback cookie', async () => {
+    mockConfigStore.getOAuthProvider.mockReturnValue('pingfederate');
+    const agent = request.agent(app);
+
+    const response = await agent.get('/api/auth/oauth/user/stepup')
+      .query({ return_to: '/dashboard' });
+
+    expect(response.status).toBe(302);
+    expect(response.headers.location).toBe('https://pf.example.com/auth');
+    const sessionResponse = await agent.get('/__test/user-login-provider');
+    expect(sessionResponse.body.loginProvider).toBe('pingfederate');
+
+    const pkceCookie = response.headers['set-cookie']
+      .find((cookie) => cookie.startsWith('_pkce='))
+      .split(';')[0];
+    expect(readPkceCookie({ headers: { cookie: pkceCookie } }))
+      .toMatchObject({ oauthProvider: 'pingfederate' });
   });
 
   test('User OAuth status endpoint returns OAuth tokens instead of JWT', async () => {

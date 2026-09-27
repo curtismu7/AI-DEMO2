@@ -490,7 +490,7 @@ router.get('/login', (req, res) => {
     req.session.oauthRedirectUri = redirectUri;
     req.session.oauthNonce = nonce;
     req.session.oauthType = 'user'; // Distinguish from admin OAuth
-    req.session.oauthLoginProvider = configStore.getOAuthProvider?.() || 'pingone';
+    req.session.oauthLoginProvider = selectedProvider;
     req.session.oauthLoginTraceId = loginTraceId;
 
     // Vercel / serverless: also persist PKCE data in a signed cookie so the
@@ -1161,6 +1161,7 @@ router.get('/stepup', (req, res) => {
     // after MFA (callback does res.redirect(stepUpReturnTo)).
     const returnTo = sanitizeStepUpReturnTo(req.query.return_to);
     const stepUpSep = returnTo.includes('?') ? '&' : '?';
+    const loginProvider = configStore.getOAuthProvider?.() || 'pingone';
 
     const state = oauthService.generateState();
     const codeVerifier = oauthService.generateCodeVerifier();
@@ -1181,10 +1182,11 @@ router.get('/stepup', (req, res) => {
     req.session.oauthRedirectUri = redirectUri;
     req.session.oauthNonce = nonce;
     req.session.oauthType = 'user';
+    req.session.oauthLoginProvider = loginProvider;
     req.session.stepUpReturnTo = `${returnTo}${stepUpSep}stepup=done`;
 
     // Vercel / serverless: PKCE cookie fallback
-    setPkceCookie(res, { state, codeVerifier, redirectUri, nonce }, _isProd());
+    setPkceCookie(res, { state, codeVerifier, redirectUri, nonce, oauthProvider: loginProvider }, _isProd());
 
     console.log(`[StepUp] Initiating MFA step-up with acr_values=${acrValue}`);
     req.session.save((err) => {
