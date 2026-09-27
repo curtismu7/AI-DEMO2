@@ -123,6 +123,17 @@ describe('demo readiness report', () => {
     expect(JSON.stringify(report)).not.toContain('secret-value');
   });
 
+  test('redacts direct nested check mutations before callers can read them', () => {
+    const report = makeReport();
+    const check = recordCheck(report, { id: 'direct-check', status: 'pass', evidence: {} });
+
+    report.checks[0].evidence.authorization = 'Bearer direct-check-secret';
+    check.evidence.sessionId = 'direct-check-session';
+
+    expect(report.checks[0].evidence.authorization).toBe('[REDACTED]');
+    expect(check.evidence.sessionId).toBe('[REDACTED]');
+  });
+
   test('redacts nested secret fixtures inserted into repairs and unfinished rows before report serialization', () => {
     const report = makeReport();
     const bearer = 'Bearer repair-bearer-token';
@@ -157,6 +168,33 @@ describe('demo readiness report', () => {
 
     expect(report.repairs[0].before.authorization).toBe('[REDACTED]');
     expect(report.repairs[0].before.sessionId).toBe('[REDACTED]');
+  });
+
+  test('sanitizes defineProperty values and rejects accessor properties in report rows', () => {
+    const report = makeReport();
+    report.repairs.push({ before: {} });
+
+    Object.defineProperty(report.repairs[0].before, 'authorization', {
+      value: 'Bearer define-property-secret',
+      enumerable: true,
+    });
+
+    expect(report.repairs[0].before.authorization).toBe('[REDACTED]');
+    expect(() => Object.defineProperty(report.repairs[0].before, 'token', {
+      get: () => 'Bearer accessor-secret',
+    })).toThrow(/accessor/i);
+  });
+
+  test('redacts direct root, target, and inventory mutations before callers can read them', () => {
+    const report = makeReport();
+
+    report.commit = 'Bearer root-commit-secret';
+    report.targets.push('Bearer root-target-secret');
+    report.inventory.evidence = { sessionId: 'root-session-secret' };
+
+    expect(report.commit).toBe('Bearer [REDACTED]');
+    expect(report.targets[1]).toBe('Bearer [REDACTED]');
+    expect(report.inventory.evidence.sessionId).toBe('[REDACTED]');
   });
 
   test('updates elapsed time and target warning without expiring before the exact deadline', () => {

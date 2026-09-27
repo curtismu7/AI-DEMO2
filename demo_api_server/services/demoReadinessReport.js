@@ -23,41 +23,37 @@ function redactReadinessValue(value) {
 
 function guardedReadinessValue(value) {
   const redacted = redactReadinessValue(value);
+  const guardedPropertyValue = (property, nextValue) => {
+    if (typeof property !== 'string') return guardedReadinessValue(nextValue);
+    return guardedReadinessValue(redactReadinessValue({ [property]: nextValue })[property]);
+  };
+  const guardedHandler = {
+    set(target, property, nextValue) {
+      target[property] = property === 'length' ? nextValue : guardedPropertyValue(property, nextValue);
+      return true;
+    },
+    defineProperty(target, property, descriptor) {
+      if ('get' in descriptor || 'set' in descriptor) {
+        throw new TypeError('Readiness report values cannot define accessor properties');
+      }
+      const safeDescriptor = { ...descriptor };
+      if ('value' in safeDescriptor && property !== 'length') {
+        safeDescriptor.value = guardedPropertyValue(property, safeDescriptor.value);
+        safeDescriptor.configurable = true;
+        safeDescriptor.writable = true;
+      }
+      return Reflect.defineProperty(target, property, safeDescriptor);
+    },
+  };
   if (Array.isArray(redacted)) {
     const guarded = redacted.map(guardedReadinessValue);
-    return new Proxy(guarded, {
-      set(target, property, nextValue) {
-        target[property] = property === 'length' ? nextValue : guardedReadinessValue(nextValue);
-        return true;
-      },
-    });
+    return new Proxy(guarded, guardedHandler);
   }
   if (redacted && typeof redacted === 'object') {
     const guarded = Object.fromEntries(Object.entries(redacted).map(([key, item]) => [key, guardedReadinessValue(item)]));
-    return new Proxy(guarded, {
-      set(target, property, nextValue) {
-        const safeValue = redactReadinessValue({ [property]: nextValue })[property];
-        target[property] = guardedReadinessValue(safeValue);
-        return true;
-      },
-    });
+    return new Proxy(guarded, guardedHandler);
   }
   return redacted;
-}
-
-function sanitizedCollection(values = []) {
-  return guardedReadinessValue(values);
-}
-
-function addSanitizedCollection(report, key) {
-  let collection = sanitizedCollection();
-  Object.defineProperty(report, key, {
-    enumerable: true,
-    get: () => collection,
-    set: (values) => {
-      collection = sanitizedCollection(Array.isArray(values) ? values : []);
-    },
-  });
 }
 
 function safeReportSnapshot(report) {
@@ -105,10 +101,10 @@ function refreshReport(report) {
 }
 
 function createReadinessReport({ runId, commit, targets, startedAt, deadlineAt }) {
-  const report = {
-    runId: redactReadinessValue(runId),
-    commit: redactReadinessValue(commit),
-    targets: redactReadinessValue(targets || []),
+  const report = guardedReadinessValue({
+    runId,
+    commit,
+    targets: targets || [],
     startedAt,
     deadlineAt,
     status: 'running',
@@ -117,9 +113,9 @@ function createReadinessReport({ runId, commit, targets, startedAt, deadlineAt }
     targetWarning: false,
     inventory: emptyInventory(),
     checks: [],
-  };
-  addSanitizedCollection(report, 'repairs');
-  addSanitizedCollection(report, 'unfinished');
+    repairs: [],
+    unfinished: [],
+  });
   Object.defineProperty(report, 'toJSON', { value: () => safeReportSnapshot(report) });
   return report;
 }
@@ -143,7 +139,7 @@ function recordCheck(report, row) {
   });
   report.checks.push(check);
   refreshReport(report);
-  return check;
+  return report.checks[report.checks.length - 1];
 }
 
 function remainingBudget(report, now) {
