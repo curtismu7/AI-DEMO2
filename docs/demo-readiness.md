@@ -203,3 +203,29 @@ generated-environment mount provenance. Hosted Gateway evidence must be
 supplied by a supported target runtime read; omitted evidence blocks. Runtime
 checks require declared BFF, Gateway, Authorize URLs and a revision, and never
 default an expected revision to the observed value.
+
+### Task 3 Fix Round 2
+
+Gateway Exchange #3 checks require a checked-in expectation for the HTTPS PF
+issuer, full token endpoint including path, client identifier, and generated
+environment provenance. Local checks compare that expectation against parsed
+read-only `docker ps`/`docker inspect` output without recording credential
+values. Hosted SE checks require a target-specific supported readback adapter;
+a configuration boolean, reachability response, or nonempty environment cannot
+pass. A Gateway 5xx, missing audience/scope readback, missing revision, or
+deadline-expired read blocks or marks the required row unfinished.
+
+Each of the 46 repository rows now records its checked-in UI/BFF prerequisite
+relationship: flags, A2A/PAR requirements, registered tool, scope/audience,
+vertical authorization contract, and static prerequisite parity. A2A credential
+and PAR application parity stay blocked until their declared target objects can
+be read. PingOne reader errors produce blocking PingOne family rows while the
+other target audits continue.
+
+The PF profile contract no longer derives object names or grants from handoff
+notes. Every role maps to a committed code/config reference and stays required
+and blocked until an exact declared object contract and supported PF Admin API
+field readback exist. The complete PingOne Authorize policy tree and PF
+grant/processor/ATM, specialist, ID-JAG, DaVinci, CIMD, third-party AS, RAR,
+and JWT-audience fields remain explicit blockers where committed sources do not
+define an exact supported comparison.

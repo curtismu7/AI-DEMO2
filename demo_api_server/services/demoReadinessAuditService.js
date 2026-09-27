@@ -49,6 +49,10 @@ function afterRead(rows, deadlineAt, signal) {
 function all(actual, expected) {
   return Array.isArray(expected) && expected.length > 0 && expected.every((entry) => actual.includes(entry));
 }
+function exactArray(actual, expected) {
+  return Array.isArray(actual) && Array.isArray(expected)
+    && actual.length === expected.length && expected.every((entry) => actual.includes(entry));
+}
 async function get(fetchImpl, url, options = {}) {
   if (expired(options.deadlineAt, options.signal)) throw new Error('deadline exceeded or aborted');
   const response = await fetchImpl(url, { method: 'GET', headers: options.headers || {}, signal: readSignal(options.deadlineAt, options.signal) });
@@ -70,10 +74,20 @@ function repositoryValues() {
   const useCases = sources.useCases;
   const requirements = catalog.map((entry) => {
     const useCase = useCases.find((candidate) => candidate.id === entry.id) || {};
-    return { id: entry.id, flags: requiredFlagsForUseCase(useCase), a2a: needsA2aCredentials(useCase), par: needsParConfig(useCase), tool: useCase.primaryTool };
+    return {
+      id: entry.id,
+      flags: requiredFlagsForUseCase(useCase),
+      a2a: needsA2aCredentials(useCase),
+      par: needsParConfig(useCase),
+      tool: useCase.primaryTool,
+      auth: entry.auth,
+      authorization: entry.authorizationContractByVertical,
+      prerequisites: entry.runtimePrerequisitesByVertical,
+      sourceRef: entry.sourceRef,
+    };
   });
   const toolNames = Object.keys(topology.tools || {});
-  return {
+  const values = {
     scopeTopology: { status: Object.keys(topology.scopes || {}).length ? 'pass' : 'fail', observed: { scopeCount: Object.keys(topology.scopes || {}).length } },
     verticalManifests: { status: Object.keys(sources.verticalManifests || {}).length ? 'pass' : 'fail' },
     routeAuth: { status: catalog.every((entry) => entry.auth) ? 'pass' : 'fail', observed: { catalogCount: catalog.length } },
@@ -82,6 +96,25 @@ function repositoryValues() {
     gatewayConfig: { status: JSON.stringify(gateway.scopes || {}) === JSON.stringify(topology.scopes || {}) ? 'pass' : 'fail' },
     authorizeReferences: { status: Boolean(sources.repairability.driftClasses?.['authorize-endpoint-reference']) ? 'pass' : 'fail' },
   };
+  for (const item of requirements) {
+    const authorizationContracts = Object.values(item.authorization || {});
+    const prerequisiteContracts = Object.values(item.prerequisites || {});
+    const toolContract = authorizationContracts.every((contract) => !contract.primaryTool || (
+      contract.gatewayTool && contract.requiredScopes.length > 0
+      && contract.scopeResources.length === contract.requiredScopes.length
+      && contract.scopeResources.every((scope) => scope.audience && scope.scope)
+    ));
+    const prerequisiteParity = prerequisiteContracts.length > 0 && prerequisiteContracts.every((contract) => (
+      exactArray(contract.requiredFlags, item.flags)
+      && contract.a2aCredentials === item.a2a && contract.parConfig === item.par
+    ));
+    const staticContract = Boolean(item.auth && toolContract && prerequisiteParity && (!item.tool || toolNames.includes(item.tool)));
+    const deferred = item.a2a || item.par;
+    values['case:' + item.id] = deferred
+      ? { status: staticContract ? 'blocked' : 'fail', reason: staticContract ? (item.a2a ? 'A2A credential/profile parity requires live target readback' : 'PAR application configuration requires live target readback') : 'checked-in UI/backend prerequisite or authorization contract disagrees', observed: { flags: item.flags, a2a: item.a2a, par: item.par, tool: item.tool, prerequisiteParity, toolContract, verticalContracts: prerequisiteContracts.length }, sourceRef: item.sourceRef }
+      : { status: staticContract ? 'pass' : 'fail', observed: { flags: item.flags, a2a: item.a2a, par: item.par, tool: item.tool, prerequisiteParity, toolContract, verticalContracts: prerequisiteContracts.length }, sourceRef: item.sourceRef };
+  }
+  return values;
 }
 
 async function pingOneRead({ environmentId, credentials = {}, expected = {}, fetchImpl, deadlineAt, signal }) {
@@ -143,7 +176,7 @@ async function pfRead({ baseUrl, credentials = {}, fetchImpl, deadlineAt, signal
     ]);
     const clients = Array.isArray(clientBody) ? clientBody : (clientBody.items || clientBody._embedded?.clients || []);
     return { clients, values: {
-      clientGrantProcessorAtm: { status: Array.isArray(clients) ? 'pass' : 'blocked', observed: { clients: clients.length } },
+      clientGrantProcessorAtm: { status: 'blocked', reason: 'no authoritative client grant, processor-policy, and ATM contract is committed' },
       specialistResourceUriIdJag: { status: 'blocked', reason: 'specialist SP resource URI/ID-JAG endpoint is not documented in committed sources' },
       davinciClientAdapter: { status: 'blocked', reason: (policies ? 'DaVinci adapter contract is undocumented' : 'authentication policy read unavailable') },
       jwksAudience: { status: 'blocked', reason: (atms ? 'JWT allowed-audience contract is undocumented' : 'access-token manager read unavailable') },
@@ -156,7 +189,7 @@ function profileResult(profile, actual) {
   if (!actual) return { status: 'blocked', reason: 'PF Admin API did not return the declared role object' };
   if (profile.unresolved) return { status: 'blocked', reason: 'committed role contract is unresolved' };
   for (const [field, expected] of Object.entries(profile.expected || {})) {
-    if (Array.isArray(expected) ? !all(actual[field] || [], expected) : actual[field] !== expected) return false;
+    if (Array.isArray(expected) ? !exactArray(actual[field], expected) : actual[field] !== expected) return false;
   }
   return true;
 }
@@ -173,9 +206,50 @@ function inspectEnv(stdout) {
     authority = issuer.protocol === 'https:' && issuer.host === endpoint.host;
     pathPresent = endpoint.pathname !== '/';
   } catch { /* finding below */ }
-  return { issuer: Boolean(env.PF_ISSUER_URI), authority, pathPresent,
+  return { issuer: Boolean(env.PF_ISSUER_URI), issuerValue: env.PF_ISSUER_URI || '', endpointValue: env.PF_TOKEN_ENDPOINT || '', clientId: env.PF_TE_CLIENT_ID || '', authority, pathPresent,
     credentials: Boolean(env.PF_TE_CLIENT_ID && env.PF_TE_CLIENT_SECRET),
+    mountSources: (item.Mounts || []).map((mount) => String(mount.Source || '')),
     provenance: (item.Mounts || []).some((mount) => String(mount.Source || '').includes('ping-gateway')) };
+}
+function gatewayComparison(actual, expected) {
+  if (!expected || typeof expected !== 'object' || Array.isArray(expected)) {
+    return { status: 'blocked', reason: 'declared Gateway Exchange #3 expectation is required' };
+  }
+  if (!actual || typeof actual !== 'object' || !Array.isArray(actual.mountSources)
+      || typeof actual.issuerValue !== 'string' || typeof actual.endpointValue !== 'string'
+      || typeof actual.clientId !== 'string' || typeof actual.authority !== 'boolean'
+      || typeof actual.pathPresent !== 'boolean' || typeof actual.credentials !== 'boolean') {
+    return { status: 'blocked', reason: 'Gateway Exchange #3 readback is incomplete' };
+  }
+  try {
+    const issuer = new URL(expected.issuer);
+    const endpoint = new URL(expected.tokenEndpoint);
+    if (issuer.protocol !== 'https:' || endpoint.protocol !== 'https:' || issuer.host !== endpoint.host || endpoint.pathname === '/' || !expected.clientId || !expected.provenanceContains) {
+      return { status: 'blocked', reason: 'declared Gateway Exchange #3 expectation is incomplete or invalid' };
+    }
+  } catch {
+    return { status: 'blocked', reason: 'declared Gateway Exchange #3 expectation is incomplete or invalid' };
+  }
+  const issuer = actual.issuerValue === expected.issuer;
+  const endpoint = actual.endpointValue === expected.tokenEndpoint;
+  const client = expected.clientId ? actual.clientId === expected.clientId : false;
+  const provenance = expected.provenanceContains ? actual.mountSources.some((source) => source.includes(expected.provenanceContains)) : false;
+  const valid = issuer && endpoint && actual.authority && actual.pathPresent && actual.credentials && client && provenance;
+  return {
+    status: valid ? 'pass' : 'fail',
+    observed: { issuer, endpoint, endpointAuthorityMatchesIssuer: actual.authority, endpointPathConfigured: actual.pathPresent, distinctCredentialsPresent: actual.credentials, clientIdMatches: client, generatedEnvironmentProvenance: provenance },
+  };
+}
+function runtimeAudienceScope(actual, expected) {
+  if (!expected?.audience || !Array.isArray(expected.scopes)) return { status: 'blocked', reason: 'declared runtime audience and scopes are required' };
+  if (!actual || !actual.audience || !Array.isArray(actual.scopes)) return { status: 'blocked', reason: 'runtime audience/scope readback unavailable' };
+  return actual.audience === expected.audience && exactArray(actual.scopes, expected.scopes);
+}
+function runtimeHealth(actual) {
+  if (!actual || typeof actual !== 'object' || !['pass', 'fail', 'blocked'].includes(actual.status)) {
+    return { status: 'blocked', reason: 'runtime health readback must report an explicit successful probe' };
+  }
+  return actual;
 }
 
 function createAuditService({ adapters = {}, pfProfiles = PF_PROFILES, fetch = globalThis.fetch } = {}) {
@@ -184,12 +258,17 @@ function createAuditService({ adapters = {}, pfProfiles = PF_PROFILES, fetch = g
   async function auditRepositoryContracts({ deadlineAt, signal } = {}) {
     try {
       const values = adapters.repository?.readContracts ? await adapters.repository.readContracts({ deadlineAt, signal }) : repositoryValues();
-      return afterRead(Object.entries(values).map(([name, value]) => auditRow('repository:' + name, value, { sourceRef: 'checked-in source contract' })), deadlineAt, signal);
+      return afterRead(Object.entries(values).map(([name, value]) => auditRow('repository:' + name, value, { sourceRef: value?.sourceRef || 'checked-in source contract' })), deadlineAt, signal);
     } catch (error) { return [auditRow('repository:contracts', { status: 'blocked', reason: error.message }, { sourceRef: 'checked-in source contract' })]; }
   }
   async function auditPingOneConfiguration(args = {}) {
-    const values = adapters.pingOne?.readConfiguration ? await adapters.pingOne.readConfiguration(args)
-      : await pingOneRead({ ...args, fetchImpl });
+    let values;
+    try {
+      values = adapters.pingOne?.readConfiguration ? await adapters.pingOne.readConfiguration(args)
+        : await pingOneRead({ ...args, fetchImpl });
+    } catch (error) {
+      values = blocked(P1, error.message);
+    }
     return afterRead(P1.map((name) => auditRow('pingone:' + name, values[name] || false, { sourceRef: name === 'policyReadback' ? 'PingOne Authorize policy API' : 'PingOne Management API' })), args.deadlineAt, args.signal);
   }
   async function auditPingFederateConfiguration(args = {}) {
@@ -203,7 +282,9 @@ function createAuditService({ adapters = {}, pfProfiles = PF_PROFILES, fetch = g
     }
     for (const [role, profile] of Object.entries(pfProfiles.roles || {})) {
       let actual = null;
-      if (typeof adapters.pingFederate?.readProfile === 'function') actual = await adapters.pingFederate.readProfile({ ...args, role, profile });
+      if (typeof adapters.pingFederate?.readProfile === 'function') {
+        try { actual = await adapters.pingFederate.readProfile({ ...args, role, profile }); } catch { actual = null; }
+      }
       else if (Array.isArray(live.clients)) actual = live.clients.find((client) => [client.id, client.clientId, client.name].includes(profile.objectId));
       checks.push(auditRow('pingfederate:profile:' + role, profileResult(profile, actual), { ...base, sourceRef: profile.sourceRef }));
     }
@@ -214,32 +295,48 @@ function createAuditService({ adapters = {}, pfProfiles = PF_PROFILES, fetch = g
       const values = adapters.runtime?.readTarget ? await adapters.runtime.readTarget(args) : await (async () => {
         if (!args.bffUrl || !args.gatewayUrl || !args.authorizeUrl || !args.expectedRevision) throw new Error('BFF, Gateway, Authorize URLs and expected revision are required');
         const health = await healthGate.fetchJson(args.bffUrl.replace(/\/$/, '') + '/api/healthz', { signal: readSignal(args.deadlineAt, args.signal) });
-        const gateway = await mcpPreflight.probe(args.gatewayUrl);
+        const gateway = await mcpPreflight.probe(args.gatewayUrl, { signal: readSignal(args.deadlineAt, args.signal), timeoutMs: args.deadlineAt ? Math.max(1, args.deadlineAt - Date.now()) : undefined });
         const authorize = await get(fetchImpl, args.authorizeUrl, args);
-        return { health: health.status === 200 && Boolean(gateway.status), revision: health.body?.revision || health.body?.commit, audienceScopes: health.body?.audienceScopes || authorize.audienceScopes };
+        const routeStatus = gateway.status;
+        const routeReady = [200, 401, 403].includes(routeStatus);
+        return { health: routeReady && health.status === 200
+          ? { status: 'pass', observed: { bffStatus: health.status, gatewayStatus: routeStatus } }
+          : { status: 'blocked', reason: routeStatus ? 'Gateway probe returned HTTP ' + routeStatus : 'Gateway probe returned no status' }, revision: health.body?.revision || health.body?.commit, audienceScopes: health.body?.audienceScopes || authorize.audienceScopes };
       })();
       return afterRead([
-        auditRow('runtime:health', values.health, { sourceRef: 'health and reachable route probes' }),
+        auditRow('runtime:health', runtimeHealth(values.health), { sourceRef: 'health and reachable route probes' }),
         auditRow('runtime:revision', (args.expectedRevision || values.expectedRevision) ? values.revision === (args.expectedRevision || values.expectedRevision) : { status: 'blocked', reason: 'expected revision is required' }, { expected: args.expectedRevision || values.expectedRevision || 'declared revision', sourceRef: 'target revision/config fingerprint' }),
-        auditRow('runtime:audience-scope', values.audienceScopes ? true : { status: 'blocked', reason: 'runtime audience/scope readback unavailable' }, { sourceRef: 'target runtime configuration' }),
+        auditRow('runtime:audience-scope', runtimeAudienceScope(values.audienceScopes, args.expectedAudienceScopes), { expected: args.expectedAudienceScopes, sourceRef: 'target runtime configuration' }),
       ], args.deadlineAt, args.signal);
     } catch (error) { return [auditRow('runtime:health', { status: 'blocked', reason: error.message }, { sourceRef: 'health and reachable route probes' })]; }
   }
   async function auditLocalDockerConfiguration({ targetId, targetKind, hostedConfig, deadlineAt, signal } = {}) {
-    if (targetKind === 'se') return afterRead([auditRow('gateway:pf-exchange3', hostedConfig?.pfExchange3 || { status: 'blocked', reason: 'hosted Gateway configuration readback unavailable' }, { target: targetId, sourceRef: 'hosted Gateway runtime configuration' })], deadlineAt, signal);
+    if (targetKind === 'se') {
+      if (typeof adapters.hostedGateway?.readConfiguration !== 'function') {
+        return [auditRow('gateway:pf-exchange3', { status: 'blocked', reason: 'hosted Gateway configuration has no supported readback adapter' }, { target: targetId, sourceRef: 'hosted Gateway runtime configuration' })];
+      }
+      try {
+        const actual = await adapters.hostedGateway.readConfiguration({ targetId, targetKind, deadlineAt, signal });
+        return afterRead([auditRow('gateway:pf-exchange3', gatewayComparison(actual, hostedConfig?.expected), { target: targetId, sourceRef: 'hosted Gateway runtime configuration' })], deadlineAt, signal);
+      } catch (error) {
+        return [auditRow('gateway:pf-exchange3', { status: 'blocked', reason: error.message }, { target: targetId, sourceRef: 'hosted Gateway runtime configuration' })];
+      }
+    }
     if (targetKind !== 'local') return [];
     if (adapters.docker?.inspect) {
-      const values = await adapters.docker.inspect({ targetId, targetKind });
-      return afterRead(Object.entries(values).map(([name, value]) => auditRow('gateway:' + name, value, { target: targetId, sourceRef: 'read-only Gateway environment' })), deadlineAt, signal);
+      const values = await adapters.docker.inspect({ targetId, targetKind, deadlineAt, signal });
+      return afterRead([auditRow('gateway:pf-exchange3', values ? gatewayComparison(values, hostedConfig?.expected) : { status: 'blocked', reason: 'Docker adapter did not return Gateway configuration readback' }, { target: targetId, sourceRef: 'read-only Gateway environment' })], deadlineAt, signal);
     }
     try {
-      const ps = await runExecFile('docker', ['ps', '--format', '{{json .}}'], { encoding: 'utf8' });
+      const timeout = Math.max(1, (deadlineAt || (Date.now() + 15_000)) - Date.now());
+      const options = { encoding: 'utf8', timeout, signal: readSignal(deadlineAt, signal) };
+      const ps = await runExecFile('docker', ['ps', '--format', '{{json .}}'], options);
+      if (expired(deadlineAt, signal)) return [auditRow('gateway:pf-exchange3', { status: 'not-run', reason: 'deadline exceeded or aborted' }, { target: targetId, sourceRef: 'docker ps/inspect' })];
       const listed = String(ps.stdout || '').split('\n').filter(Boolean).some((line) => JSON.parse(line).Names === 'ai-demo-ping-gateway');
-      const inspect = await runExecFile('docker', ['inspect', 'ai-demo-ping-gateway'], { encoding: 'utf8' });
+      const inspect = await runExecFile('docker', ['inspect', 'ai-demo-ping-gateway'], options);
       if (!listed) return [auditRow('gateway:pf-exchange3', { status: 'blocked', reason: 'PingGateway container is not running' }, { target: targetId, sourceRef: 'docker ps/inspect' })];
       const config = inspectEnv(String(inspect.stdout || ''));
-      const valid = config.issuer && config.authority && config.pathPresent && config.credentials && config.provenance;
-      return afterRead([auditRow('gateway:pf-exchange3', { status: valid ? 'pass' : 'fail', observed: { pfIssuerConfigured: config.issuer, endpointAuthorityMatchesIssuer: config.authority, endpointPathConfigured: config.pathPresent, distinctCredentialsPresent: config.credentials, generatedEnvironmentProvenance: config.provenance } }, { target: targetId, sourceRef: 'docker ps/inspect Gateway Exchange #3 environment' })], deadlineAt, signal);
+      return afterRead([auditRow('gateway:pf-exchange3', gatewayComparison(config, hostedConfig?.expected), { target: targetId, sourceRef: 'docker ps/inspect Gateway Exchange #3 environment' })], deadlineAt, signal);
     } catch (error) { return [auditRow('gateway:pf-exchange3', { status: 'blocked', reason: error.message }, { target: targetId, sourceRef: 'docker ps/inspect Gateway Exchange #3 environment' })]; }
   }
   async function auditTarget({ targetId, targetConfig = {}, deadlineAt, signal } = {}) {

@@ -2,6 +2,23 @@
 
 const { createAuditService } = require('../services/demoReadinessAuditService');
 
+const GATEWAY_EXPECTED = {
+  issuer: 'https://pf.example.test',
+  tokenEndpoint: 'https://pf.example.test/as/token.oauth2',
+  clientId: 'pf-client',
+  provenanceContains: 'ping-gateway',
+};
+const GATEWAY_OBSERVED = {
+  issuerValue: GATEWAY_EXPECTED.issuer,
+  endpointValue: GATEWAY_EXPECTED.tokenEndpoint,
+  clientId: GATEWAY_EXPECTED.clientId,
+  authority: true,
+  pathPresent: true,
+  credentials: true,
+  mountSources: ['/repo/ping-gateway'],
+};
+const RUNTIME_AUDIENCE = { audience: 'mcpserver.ping.demo', scopes: ['read'] };
+
 function passingAdapters(overrides = {}) {
   return {
     repository: {
@@ -30,11 +47,12 @@ function passingAdapters(overrides = {}) {
       })),
     },
     runtime: {
-      readTarget: jest.fn(async () => ({ health: true, revision: 'abc123', expectedRevision: 'abc123', audienceScopes: { audience: 'mcpserver.ping.demo', scopes: ['read'] } })),
+      readTarget: jest.fn(async () => ({ health: { status: 'pass', observed: { bffStatus: 200, gatewayStatus: 401 } }, revision: 'abc123', expectedRevision: 'abc123', audienceScopes: RUNTIME_AUDIENCE })),
     },
     docker: {
-      inspect: jest.fn(async () => ({ pfIssuer: true, endpointAuthority: true, endpointPath: true, distinctCredentials: true, provenance: true })),
+      inspect: jest.fn(async () => GATEWAY_OBSERVED),
     },
+    hostedGateway: { readConfiguration: jest.fn(async () => GATEWAY_OBSERVED) },
     ...overrides,
   };
 }
@@ -46,12 +64,12 @@ describe('demo readiness audit service', () => {
 
     const local = await audit.auditTarget({
       targetId: 'local',
-      targetConfig: { kind: 'local', pingOne: { environmentId: 'env' }, pingFederate: { baseUrl: 'https://pf.local' } },
+      targetConfig: { kind: 'local', pingOne: { environmentId: 'env' }, pingFederate: { baseUrl: 'https://pf.local' }, runtime: { expectedAudienceScopes: RUNTIME_AUDIENCE }, gateway: { expected: GATEWAY_EXPECTED } },
       deadlineAt: Date.now() + 1_000,
     });
     const se = await audit.auditTarget({
       targetId: 'se',
-      targetConfig: { kind: 'se', pingOne: { environmentId: 'env' }, pingFederate: { baseUrl: 'https://pf.se' }, gateway: { pfExchange3: true } },
+      targetConfig: { kind: 'se', pingOne: { environmentId: 'env' }, pingFederate: { baseUrl: 'https://pf.se' }, runtime: { expectedAudienceScopes: RUNTIME_AUDIENCE }, gateway: { expected: GATEWAY_EXPECTED } },
       deadlineAt: Date.now() + 1_000,
     });
 
@@ -69,14 +87,14 @@ describe('demo readiness audit service', () => {
   ])('reports a failed required %s check', async (family) => {
     const adapters = passingAdapters();
     if (family === 'gatewayConfig') adapters.repository.readContracts.mockReturnValue({ ...adapters.repository.readContracts(), gatewayConfig: false });
-    else if (family === 'health') adapters.runtime.readTarget.mockResolvedValue({ health: false, revision: 'abc123', expectedRevision: 'abc123' });
-    else if (family === 'revision') adapters.runtime.readTarget.mockResolvedValue({ health: true, revision: 'old', expectedRevision: 'new' });
+    else if (family === 'health') adapters.runtime.readTarget.mockResolvedValue({ health: { status: 'fail' }, revision: 'abc123', expectedRevision: 'abc123', audienceScopes: RUNTIME_AUDIENCE });
+    else if (family === 'revision') adapters.runtime.readTarget.mockResolvedValue({ health: { status: 'pass' }, revision: 'old', expectedRevision: 'new', audienceScopes: RUNTIME_AUDIENCE });
     else if (['clientGrantProcessorAtm', 'specialistResourceUriIdJag', 'davinciClientAdapter', 'jwksAudience'].includes(family)) {
       adapters.pingFederate.readConfiguration.mockResolvedValue({ clientGrantProcessorAtm: true, specialistResourceUriIdJag: true, davinciClientAdapter: true, jwksAudience: true, [family]: false });
     } else adapters.pingOne.readConfiguration.mockResolvedValue({ audience: true, scope: true, mirror: true, appGrant: true, requiredFlag: true, a2aCredential: true, parSetting: true, groupMembership: true, registeredToolScope: true, authorizeEndpoint: true, policyReadback: true, [family]: false });
 
     const checks = await createAuditService({ adapters, pfProfiles: { roles: {} } }).auditTarget({
-      targetId: 'local', targetConfig: { kind: 'local', pingOne: {}, pingFederate: {} }, deadlineAt: Date.now() + 1_000,
+      targetId: 'local', targetConfig: { kind: 'local', pingOne: {}, pingFederate: {}, runtime: { expectedAudienceScopes: RUNTIME_AUDIENCE }, gateway: { expected: GATEWAY_EXPECTED } }, deadlineAt: Date.now() + 1_000,
     });
     expect(checks.find((check) => check.id.endsWith(`:${family}`))).toEqual(expect.objectContaining({ status: 'fail', required: true }));
   });
@@ -118,7 +136,7 @@ describe('demo readiness audit service', () => {
   test('uses only argument-array docker adapters and never invokes a shell mutation', async () => {
     const execFile = jest.fn(async () => ({ stdout: '{}' }));
     const audit = createAuditService({ adapters: { execFile }, pfProfiles: { roles: {} } });
-    await audit.auditLocalDockerConfiguration({ targetId: 'local', targetKind: 'local' });
+    await audit.auditLocalDockerConfiguration({ targetId: 'local', targetKind: 'local', hostedConfig: { expected: GATEWAY_EXPECTED }, deadlineAt: Date.now() + 500 });
     expect(execFile).toHaveBeenCalledWith('docker', ['ps', '--format', '{{json .}}'], expect.any(Object));
     expect(execFile).toHaveBeenCalledWith('docker', ['inspect', 'ai-demo-ping-gateway'], expect.any(Object));
     expect(JSON.stringify(execFile.mock.calls)).not.toMatch(/compose|\brm\b|\bup\b|\bdown\b|\bkill\b/);
@@ -148,17 +166,17 @@ describe('demo readiness audit service', () => {
         'PF_ISSUER_URI=https://pf.example.test', 'PF_TOKEN_ENDPOINT=https://pf.example.test/as/token.oauth2',
         'PF_TE_CLIENT_ID=pf-client', 'PF_TE_CLIENT_SECRET=actual-secret', 'PF_TE_AUTH_METHOD=basic',
       ] }, Mounts: [{ Source: '/repo/ping-gateway', Destination: '/opt/out/instance' }] }]) });
-    const checks = await createAuditService({ adapters: { execFile }, pfProfiles: { roles: {} } }).auditLocalDockerConfiguration({ targetId: 'local', targetKind: 'local' });
+    const checks = await createAuditService({ adapters: { execFile }, pfProfiles: { roles: {} } }).auditLocalDockerConfiguration({ targetId: 'local', targetKind: 'local', hostedConfig: { expected: GATEWAY_EXPECTED }, deadlineAt: Date.now() + 500 });
     expect(checks).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'gateway:pf-exchange3', status: 'pass' })]));
     expect(JSON.stringify(checks)).not.toContain('actual-secret');
   });
 
   test('redacts returned evidence and converts a late read into not-run', async () => {
     const adapters = passingAdapters({
-      runtime: { readTarget: jest.fn(async () => ({ health: { status: 'pass', reason: 'Bearer abc.def.ghi' }, revision: 'old', expectedRevision: 'old' })) },
+      runtime: { readTarget: jest.fn(async () => ({ health: { status: 'pass', reason: 'Bearer abc.def.ghi' }, revision: 'old', expectedRevision: 'old', audienceScopes: RUNTIME_AUDIENCE })) },
     });
     const audit = createAuditService({ adapters, pfProfiles: { roles: {} } });
-    const checks = await audit.auditTarget({ targetId: 'local', targetConfig: { kind: 'se', pingOne: {}, pingFederate: {}, runtime: {} }, deadlineAt: Date.now() - 1 });
+    const checks = await audit.auditTarget({ targetId: 'local', targetConfig: { kind: 'se', pingOne: {}, pingFederate: {}, runtime: { expectedAudienceScopes: RUNTIME_AUDIENCE }, gateway: { expected: GATEWAY_EXPECTED } }, deadlineAt: Date.now() - 1 });
     expect(checks[0]).toEqual(expect.objectContaining({ status: 'not-run', providerApplicability: expect.any(Object) }));
     expect(JSON.stringify(await audit.auditRuntimeTarget({}))).not.toContain('abc.def.ghi');
   });
@@ -183,5 +201,74 @@ describe('demo readiness audit service', () => {
     });
     expect(fetch).toHaveBeenCalledWith('https://pf.example.test:9999/pf-admin-api/v1/oauth/clients', expect.objectContaining({ method: 'GET' }));
     expect(checks.find((row) => row.id === 'pingfederate:profile:standard')).toEqual(expect.objectContaining({ status: 'pass' }));
+  });
+
+  test('blocks hosted Gateway booleans and requires a supported hosted readback', async () => {
+    const audit = createAuditService({ adapters: passingAdapters({ hostedGateway: {} }), pfProfiles: { roles: {} } });
+    const checks = await audit.auditLocalDockerConfiguration({
+      targetId: 'se', targetKind: 'se', hostedConfig: { pfExchange3: true, expected: GATEWAY_EXPECTED }, deadlineAt: Date.now() + 1_000,
+    });
+    expect(checks).toEqual([expect.objectContaining({ status: 'blocked', required: true })]);
+  });
+
+  test('fails concrete Gateway differences instead of accepting environment presence', async () => {
+    const adapters = passingAdapters({ docker: { inspect: jest.fn(async () => ({ ...GATEWAY_OBSERVED, endpointValue: 'http://wrong.example.test/token', credentials: false })) } });
+    const checks = await createAuditService({ adapters, pfProfiles: { roles: {} } }).auditLocalDockerConfiguration({
+      targetId: 'local', targetKind: 'local', hostedConfig: { expected: GATEWAY_EXPECTED }, deadlineAt: Date.now() + 1_000,
+    });
+    expect(checks[0]).toEqual(expect.objectContaining({ status: 'fail' }));
+    expect(checks[0].observed).toEqual(expect.objectContaining({ endpoint: false, distinctCredentialsPresent: false }));
+  });
+
+  test('blocks unknown runtime audience/scope values rather than accepting a truthy object', async () => {
+    const adapters = passingAdapters({ runtime: { readTarget: jest.fn(async () => ({ health: { status: 'pass' }, revision: 'abc123', expectedRevision: 'abc123', audienceScopes: { audience: 'other', scopes: ['read', 'write'] } })) } });
+    const checks = await createAuditService({ adapters, pfProfiles: { roles: {} } }).auditRuntimeTarget({ expectedAudienceScopes: RUNTIME_AUDIENCE });
+    expect(checks.find((row) => row.id === 'runtime:audience-scope')).toEqual(expect.objectContaining({ status: 'fail' }));
+  });
+
+  test('keeps an injected PingOne reader rejection within blocking family rows', async () => {
+    const adapters = passingAdapters({ pingOne: { readConfiguration: jest.fn(async () => { throw new Error('unauthorized reader'); }) } });
+    const checks = await createAuditService({ adapters, pfProfiles: { roles: {} } }).auditTarget({
+      targetId: 'local', targetConfig: { kind: 'local', pingOne: {}, pingFederate: {}, runtime: { expectedAudienceScopes: RUNTIME_AUDIENCE }, gateway: { expected: GATEWAY_EXPECTED } }, deadlineAt: Date.now() + 1_000,
+    });
+    expect(checks.filter((row) => row.id.startsWith('pingone:'))).toHaveLength(11);
+    expect(checks.filter((row) => row.id.startsWith('pingone:')).every((row) => row.status === 'blocked')).toBe(true);
+  });
+
+  test('uses deadline-bound Docker execution options', async () => {
+    const execFile = jest.fn()
+      .mockResolvedValueOnce({ stdout: '{"Names":"ai-demo-ping-gateway"}\n' })
+      .mockResolvedValueOnce({ stdout: JSON.stringify([{ Config: { Env: [] }, Mounts: [] }]) });
+    await createAuditService({ adapters: { execFile }, pfProfiles: { roles: {} } }).auditLocalDockerConfiguration({
+      targetId: 'local', targetKind: 'local', hostedConfig: { expected: GATEWAY_EXPECTED }, deadlineAt: Date.now() + 500,
+    });
+    const options = execFile.mock.calls[0][2];
+    expect(options.timeout).toBeGreaterThan(0);
+    expect(options.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  test('blocks a 5xx Gateway probe in the default runtime read', async () => {
+    const preflight = require('../../scripts/check-mcp-preflight');
+    const gate = require('../../scripts/check-demo-health-gate');
+    const probe = jest.spyOn(preflight, 'probe').mockResolvedValue({ status: 503 });
+    const health = jest.spyOn(gate, 'fetchJson').mockResolvedValue({ status: 200, body: { revision: 'abc123', audienceScopes: RUNTIME_AUDIENCE } });
+    try {
+      const fetch = jest.fn(async () => ({ ok: true, status: 200, json: async () => ({ audienceScopes: RUNTIME_AUDIENCE }) }));
+      const checks = await createAuditService({ fetch, pfProfiles: { roles: {} } }).auditRuntimeTarget({
+        bffUrl: 'https://bff.example.test', gatewayUrl: 'https://gateway.example.test/mcp', authorizeUrl: 'https://authorize.example.test', expectedRevision: 'abc123', expectedAudienceScopes: RUNTIME_AUDIENCE, deadlineAt: Date.now() + 1_000,
+      });
+      expect(checks.find((row) => row.id === 'runtime:health')).toEqual(expect.objectContaining({ status: 'blocked' }));
+    } finally {
+      probe.mockRestore();
+      health.mockRestore();
+    }
+  });
+
+  test('emits all 46 repository rows and blocks A2A or PAR fields pending live readback', async () => {
+    const checks = await createAuditService({ pfProfiles: { roles: {} } }).auditRepositoryContracts();
+    const cases = checks.filter((row) => row.id.startsWith('repository:case:'));
+    expect(cases).toHaveLength(46);
+    expect(cases.some((row) => row.status === 'blocked' && /A2A|PAR/.test(row.evidence || ''))).toBe(true);
+    expect(cases.every((row) => row.observed && Array.isArray(row.observed.flags))).toBe(true);
   });
 });

@@ -4,24 +4,24 @@
   "roles": {
     "standard-agent-exchanger": {
       "kind": "oauth-client",
-      "objectId": "ai-demo-pf-standard-agent-exchanger",
-      "expected": { "grantTypes": ["TOKEN_EXCHANGE"], "defaultAccessTokenManagerRef": "aiDemoPfAgentGwJwtAtm", "restrictToDefaultAccessTokenManager": true },
-      "unresolved": false,
-      "sourceRef": "UC40-PF-IDJAG-SESSION-HANDOFF.md#7"
+      "objectId": "PF_STANDARD_AGENT_EXCHANGE_CLIENT_ID",
+      "expected": { "grantTypes": "undocumented", "defaultAccessTokenManagerRef": "undocumented", "restrictToDefaultAccessTokenManager": "undocumented" },
+      "unresolved": true,
+      "sourceRef": "demo_api_server/services/pfStandardTokenExchangeService.js"
     },
     "standard-mcp-exchanger": {
       "kind": "oauth-client",
-      "objectId": "ai-demo-pf-standard-mcp-exchanger",
-      "expected": { "grantTypes": ["TOKEN_EXCHANGE"], "tokenExchangeProcessorPolicyRef": "aiDemoStandardTePolicy" },
-      "unresolved": false,
-      "sourceRef": "UC40-PF-IDJAG-SESSION-HANDOFF.md#7"
+      "objectId": "PF_STANDARD_TOKEN_EXCHANGE_CLIENT_ID",
+      "expected": { "grantTypes": "undocumented", "tokenExchangeProcessorPolicyRef": "undocumented" },
+      "unresolved": true,
+      "sourceRef": "demo_api_server/services/pfStandardTokenExchangeService.js"
     },
     "ai-agent-actor": {
       "kind": "oauth-client",
-      "objectId": "ai-demo-pf-standard-actor",
-      "expected": { "grantTypes": ["CLIENT_CREDENTIALS", "TOKEN_EXCHANGE"] },
-      "unresolved": false,
-      "sourceRef": "UC40-PF-IDJAG-SESSION-HANDOFF.md#3"
+      "objectId": "PF_AI_AGENT_ACTOR_CLIENT_ID",
+      "expected": { "grantTypes": "undocumented" },
+      "unresolved": true,
+      "sourceRef": "demo_api_server/services/pfStandardTokenExchangeService.js"
     },
     "mcp-service-actor": {
       "kind": "oauth-client",
