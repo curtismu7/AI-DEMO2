@@ -108,6 +108,8 @@ For each target:
 - For every exchange-backed row, compare the observed issuer, subject/actor, audience set, and granted scopes with the provider-role and selected-tool contract; prove the required scopes reach Agent Gateway and the expected Authorize decision is returned. Permit scope supersets only when the source contract explicitly names them. Store claim summaries, not bearer tokens. Page, panel, and navigation rows must state why Gateway/Authorize evidence does not apply.
 - Exercise the separate A2A FM1 allowlist refusal, FM2 act-less bearer refusal, and FM3 successful nested delegation for each target and provider context; prove FM2 returns no protected tool data.
 - Run both UC14b UI variants: the quick result endpoint and the full-page RAR/PAR route. The report labels the quick result as simulated and requires the full-page route to expose the live PAR path.
+- For PingFederate steps that perform an exchange, assert the expected standard exchange path and absence of native ID-JAG provenance except UC40.
+- For local PingGateway MCP calls under a PingFederate session, assert that the token issuer selects PF JWKS validation at the configured PF JWKS URL and that Exchange #3 completes at PF; PingOne-session rows retain the existing PingOne validation path.
 
 A row passes when the observed behavior matches the catalog's declared expectation. Expected denials, consent or HITL pauses, step-up results, and other intentional outcomes count as passes when the correct outcome and evidence are observed; success does not mean every call must be permitted.
 

@@ -255,6 +255,72 @@ after deployment. The valid banking tools are `get_my_accounts` and
 `get_account_balance`; `banking.get_balance` is a UI intent label, not a
 registered MCP tool name.
 
+### 2026-09-27 — PingGateway routes PF-issued Exchange #3 subjects to PF
+
+**Files:** `demo_api_server/scripts/refresh-service-envs.js`,
+`demo_api_server/tests/refreshServiceEnvsPfGateway.test.js`,
+`demo_api_server/src/__tests__/olbTokenExchangeProviderRouting.test.js`,
+`ping-gateway/.env.example`,
+`ping-gateway/scripts/groovy/olb-token-exchange.groovy`, `REGRESSION_PLAN.md`,
+`UC40-PF-IDJAG-SESSION-HANDOFF.md`.
+
+**What was broken:** PingGateway already selected a PF token-exchange branch
+when the inbound subject token's `iss` matched `PF_ISSUER_URI`, but generated
+`ping-gateway/.env` omitted `PF_TOKEN_ENDPOINT` and `PF_TE_CLIENT_*`. With an
+empty PF endpoint the branch was disabled, so the PF-issued subject was posted
+to PingOne and Exchange #3 failed with “Cannot parse token claims for request
+param `subject_token`,” surfacing as HTTP 502.
+The same filter also labeled every PF subject as ID-JAG, although ordinary PF
+access tokens require `access_token` typing.
+
+**What was fixed:** The env generator now supplies the PF token endpoint and
+standard MCP exchanger credentials to PingGateway. It changes the endpoint
+host to the PF issuer host while preserving the token path, so the JVM uses a
+hostname covered by PF's TLS certificate. PingOne-issued subjects still use
+the existing PingOne endpoint and MCP Gateway client. This is a provider
+difference at PingGateway Exchange #3; it does not change BFF subject
+validation or the nested `act` contract. The PF request now uses `id-jag`
+typing only when the signed JWT header is `oauth-id-jag+jwt`; PF access tokens
+and all PingOne tokens remain `access_token`.
+
+**Do not break:** Keep provider selection tied to the signed issuer, fail
+closed when PF endpoint or credentials are missing, keep the PF standard MCP
+exchanger distinct from the PingOne MCP Gateway client, and preserve PingOne's
+existing Exchange #3 behavior. The UC38 passenger A2A
+`invalid_target` remains a separate UC2 issue outside the UC40 chain.
+
+**Verify:** focused Jest coverage for `refreshServiceEnvsPfGateway.test.js` and
+`olbTokenExchangeProviderRouting.test.js`; then run the valid local MCP tool through
+`/api/mcp/tool` and confirm PF Exchange #3 plus the backend tool call complete.
+
+### 2026-09-27 — PingGateway PF validation used the wrong JWKS URL
+
+**Files:** `demo_api_server/scripts/refresh-service-envs.js`,
+`demo_api_server/tests/refreshServiceEnvsPfGateway.test.js`,
+`ping-gateway/.env.example`,
+`ping-gateway/scripts/groovy/jwks-token-validation.groovy`,
+`docs/superpowers/specs/2026-09-26-demo-readiness-and-repair-design.md`.
+
+**What was broken:** The PF local-JWKS route was selected, but PingGateway had
+no `PF_JWKS_URI`. Its fallback requested `${PF_ISSUER_URI}/JWKS`, while this PF
+instance publishes signing keys at `/pf/JWKS`. Validation failed before
+PingGateway Exchange #3, surfacing as HTTP 502 from `/api/mcp/tool`.
+
+**What was fixed:** Service-env generation now emits `PF_JWKS_URI` on the PF
+issuer hostname, defaulting to `/pf/JWKS`, and rewrites configured JWKS URLs to
+that TLS hostname. The validator fallback uses the same local PF path. The
+readiness design now requires its PF-session MCP row to verify issuer-specific
+JWKS validation and PF Exchange #3 while preserving PingOne's existing
+introspection path.
+
+**Do not break:** Verify PF tokens against the configured PF JWKS and exact
+issuer; keep PingOne tokens on their existing validation path and fail closed
+when validation cannot complete.
+
+**Verify:** Focused `refreshServiceEnvsPfGateway.test.js`; local
+`get_my_accounts` through `/api/mcp/tool` returns a successful backend result
+after deployment.
+
 ### 2026-09-27 — Exchange diagnostics no longer mask the underlying failure
 
 **Files:** `demo_api_server/services/agentMcpTokenService.js`,

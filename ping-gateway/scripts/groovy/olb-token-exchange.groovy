@@ -183,19 +183,36 @@ def issuedToken
 // (access_token typing is rejected), and PF forbids id-jag→id-jag so the
 // requested type stays access_token.
 def tokenIss = ''
+def tokenTyp = ''
 try {
     def h = authHeader.startsWith('Bearer ') ? authHeader.substring(7) : ''
     def p = h.split('\\.', -1)
-    if (p.length == 3) tokenIss = new JsonSlurper().parseText(new String(java.util.Base64.getUrlDecoder().decode(p[1]), 'UTF-8'))['iss'] ?: ''
+    if (p.length == 3) {
+        def slurper = new JsonSlurper()
+        tokenIss = slurper.parseText(new String(java.util.Base64.getUrlDecoder().decode(p[1]), 'UTF-8'))['iss'] ?: ''
+        tokenTyp = slurper.parseText(new String(java.util.Base64.getUrlDecoder().decode(p[0]), 'UTF-8'))['typ'] ?: ''
+    }
 } catch (Exception ignored) {}
-def isPfSubject = pfIssuer && pfTokenEndpoint && tokenIss == pfIssuer
+def isPfSubject = pfIssuer && tokenIss == pfIssuer
+if (isPfSubject && (!pfTokenEndpoint || !pfTeClientId || !pfTeClientSecret)) {
+    logger.error('[OlbExchange] PF subject received but PF Exchange #3 endpoint/client credentials are incomplete')
+    def errResp = new Response(Status.BAD_GATEWAY)
+    errResp.headers.put('Content-Type', ['application/json'])
+    errResp.entity.setString('{"error":"pf_exchange_not_configured"}')
+    return Promises.newResultPromise(errResp)
+}
 def exEndpoint  = isPfSubject ? pfTokenEndpoint : tokenEndpoint
-def exClientId  = isPfSubject ? (pfTeClientId ?: teClientId) : teClientId
-def exClientSecret = isPfSubject ? (pfTeClientSecret ?: teClientSecret) : teClientSecret
+def exClientId  = isPfSubject ? pfTeClientId : teClientId
+def exClientSecret = isPfSubject ? pfTeClientSecret : teClientSecret
+// PF access-token subjects use access_token typing; only an actual PF ID-JAG
+// (typ=oauth-id-jag+jwt) uses id-jag typing. PingOne behavior stays access_token.
+def subjectTokenType = (isPfSubject && tokenTyp == 'oauth-id-jag+jwt')
+    ? 'urn:ietf:params:oauth:token-type:id-jag'
+    : 'urn:ietf:params:oauth:token-type:access_token'
 def params = [
     'grant_type'           : 'urn:ietf:params:oauth:grant-type:token-exchange',
     'subject_token'        : subjectToken,
-    'subject_token_type'   : (isPfSubject ? 'urn:ietf:params:oauth:token-type:id-jag' : 'urn:ietf:params:oauth:token-type:access_token'),
+    'subject_token_type'   : subjectTokenType,
     'requested_token_type' : 'urn:ietf:params:oauth:token-type:access_token',
     'resource'             : olbAudience,
     'client_id'            : exClientId,

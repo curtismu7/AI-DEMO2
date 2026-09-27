@@ -183,6 +183,7 @@
     "/pingfederate-id-jag": "public",
     "/pingfederate-id-jag/demo": "public",
     "/pingfederate-id-jag/diagram": "public",
+    "/pingfederate-ai-agent": "public",
     "/davinci-login-guide": "public",
     "/davinci-sdk-login": "public",
     "/delegated-commerce": "admin",
