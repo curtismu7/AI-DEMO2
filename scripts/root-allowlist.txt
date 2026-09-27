@@ -1,6 +1,7 @@
 # (npm run root:allowlist:check), wired into .github/workflows/ci.yml `gates`.
 # Top-level entries allowed at repo root. Update in the SAME PR that adds a
 # genuine new top-level dir/file. Enforced by scripts/check-root-allowlist.js
+.demo-provider-intent.json
 .agents
 .aidlc
 .aidlc-rule-details
@@ -29,13 +30,18 @@ Connect to the PingOne Remote MCP Server.pdf
 DOCKER_STARTUP.md
 FEATURES.md
 HANDOFF.md
+HANDOFF-A2A-PF-SESSION-2026-09-26.md
+HANDOFF-UC38-demo-steps.md
 NEW-MACHINE.md
 README.md
 REGRESSION_LOG.md
 REGRESSION_PLAN.md
+PF-LOGIN-CHAIN-SESSION-2026-09-26.md
 SECRETS_IMPLEMENTATION.md
+SESSION-REPORT-2026-09-26.md
 TECH_DEBT.md
 THEMING.md
+UC40-PF-IDJAG-SESSION-HANDOFF.md
 W8-HANDOFF.md
 agent_token_service
 aidlc-docs
