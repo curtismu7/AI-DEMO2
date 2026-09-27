@@ -188,6 +188,30 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-27 — Demo Steps scrim escaped the Command Dock stacking context
+
+**Files:** `demo_api_ui/src/components/DemoStepsDropdown.jsx`,
+`demo_api_ui/src/components/__tests__/DemoStepsDropdown.test.jsx`,
+`demo_api_ui/tests/e2e/pf-idjag-run-mode.spec.js`.
+
+**What was broken:** PR #349 raised the scrim's z-index to 100062, but the
+scrim was still rendered inside the Command Dock's `FloatingPanel` stacking
+context at 100061. A child z-index cannot escape that parent context, so the
+scrim could not cover the Dock.
+
+**What was fixed:** Portal the scrim to `document.body`, alongside the drawer.
+The Dock panel, scrim, and drawer now participate in the same root stacking
+order at 100061, 100062, and 100063 respectively.
+
+**Do not break:** Keep the scrim body-portaled and below the body-portaled
+drawer; preserve its close-on-mousedown behavior and modal layers at 100070+.
+
+**Verify:** Focused component unit test, the UC40 browser flow with a DOM
+stack-order and `elementFromPoint` assertion, and `cd demo_api_ui && npm run build`
+pass. The contrast audit was run in both themes; it also surfaced
+existing dashboard and drawer text contrast findings outside this layering
+change.
+
 ### 2026-09-27 — Exchange diagnostics no longer mask the underlying failure
 
 **Files:** `demo_api_server/services/agentMcpTokenService.js`,
@@ -227,11 +251,11 @@ HTTP 502 `invalid_grant` at intermediate-token validation, as described above.
 - `demo_api_ui/src/components/AIAgent.css` — raise the Demo Steps scrim and drawer above the Command Dock panel.
 - `demo_api_ui/tests/e2e/pf-idjag-run-mode.spec.js` — open the collapsed Demo Controls pill before locating dashboard controls.
 
-**What was broken:** Mission Control UC40 and provider-switch browser flows queried controls before opening the collapsed Command Dock. Once open, the dock panel and drawer portal were both at z-index 100061, allowing the drawer scrim at z-index 100060 to intercept clicks on the visible UC40 chip. The provider-switch spec also depended on a live session-clear endpoint and checked storage before the reload completed.
+**What was broken:** Mission Control UC40 and provider-switch browser flows queried controls before opening the collapsed Command Dock. The scrim was nested inside the Dock's `FloatingPanel`, so changing its child z-index could not put it above the Dock. The provider-switch spec also depended on a live session-clear endpoint and checked storage before the reload completed.
 
-**What was fixed:** The focused flows now open the dock by its exact accessible name. The scrim is at z-index 100062 and the drawer at 100063, above the dock (100061); the drawer content receives pointer events while the rest of the page stays dimmed. The provider-switch spec mocks session clearing and waits for the reload before checking session storage.
+**What was fixed:** The focused flows now open the dock by its exact accessible name, and the provider-switch spec mocks session clearing and waits for the reload before checking session storage. The scrim and drawer z-index values were raised, but the scrim still needed the follow-up body portal recorded above to escape the Dock's stacking context.
 
-**Do not break:** Keep the scrim below the drawer and both above Command Dock. Preserve higher modal layers (100070+).
+**Do not break:** Keep the scrim below the drawer and preserve higher modal layers (100070+).
 
 **Verify:** Focused `pf-idjag-run-mode.spec.js` → 8 passed against the isolated worktree Vite server using system Chrome (the shared Playwright headless-shell cache was being reinstalled); `npm run build` exits 0.
 
