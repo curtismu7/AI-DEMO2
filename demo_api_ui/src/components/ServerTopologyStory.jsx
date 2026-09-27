@@ -36,7 +36,7 @@ function StoryControls({ scenario, setScenario, view, setView, step, setStep, pl
         <button type="button" aria-pressed={view === "sequence"} onClick={() => setView("sequence")}>Sequence</button>
         <button type="button" aria-pressed={view === "reel"} onClick={() => setView("reel")}>Movie reel</button>
       </div>
-      <button type="button" onClick={() => setStep((current) => Math.max(0, current - 1))} disabled={step === 0}>Back</button>
+      <button type="button" onClick={() => { setPlaying(false); setStep((current) => Math.max(0, current - 1)); }} disabled={step === 0}>Back</button>
       <button className="sts-play" type="button" onClick={() => {
         if (playing) setPlaying(false);
         else { if (step >= playback.edgeIds.length - 1) setStep(0); setPlaying(true); }
@@ -61,7 +61,7 @@ function SequenceView({ playback, actors, step }) {
           <strong>{SERVERS[id]?.title || id}</strong><small>{SERVERS[id]?.service || "external"}</small>
         </div>)}
       </div>
-      <div className="sts-sequence__events" style={{ "--sts-columns": actors.length }}>
+      <div className="sts-sequence__events" role="list" aria-label="Request path hops" style={{ "--sts-columns": actors.length }}>
         {actors.map((id, index) => <i key={id} style={{ gridColumn: index + 1 }} aria-hidden="true" />)}
         {playback.edgeIds.slice(0, step + 1).map((edgeId, index) => {
           const edge = EDGES[edgeId];
@@ -70,7 +70,10 @@ function SequenceView({ playback, actors, step }) {
           const start = Math.min(from, to) + 1;
           const width = Math.abs(from - to) + 1;
           const reverse = from > to;
-          return <div key={edgeId} className={`sts-message${index === step ? " is-current" : ""}${reverse ? " is-reverse" : ""}`} style={{ gridColumn: `${start} / span ${width}`, gridRow: index + 1 }}>
+          const source = SERVERS[edge.source]?.title || edge.source;
+          const target = SERVERS[edge.target]?.title || edge.target;
+          const spokenDetail = `Hop ${index + 1}: ${source} to ${target}. ${edge.label}. Protocol: ${edge.data.protocol}. Network: ${edge.data.network}. Security: ${edge.data.security}. Standards: ${referenceLabel(edge.data)}.`;
+          return <div key={edgeId} role="listitem" aria-label={spokenDetail} className={`sts-message${index === step ? " is-current" : ""}${reverse ? " is-reverse" : ""}`} style={{ gridColumn: `${start} / span ${width}`, gridRow: index + 1 }}>
             <span className="sts-message__label">{edge.label}<small>{edge.data.protocol}</small><small>{referenceLabel(edge.data)}</small></span>
           </div>;
         })}
