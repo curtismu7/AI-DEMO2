@@ -1,6 +1,6 @@
 'use strict';
 
-const { createReadinessExecutionService, expectedExchangePath } = require('../services/demoReadinessExecutionService');
+const { createReadinessExecutionService, createTrustedWorkerFactory, expectedExchangePath } = require('../services/demoReadinessExecutionService');
 
 const CASE = {
   id: 'UC6',
@@ -10,6 +10,7 @@ const CASE = {
   authorizationContractByVertical: {
     banking: {
       primaryTool: 'get_account_balance',
+      resourceServer: 'gateway',
       requiredScopes: ['read'],
       scopeResources: [{ scope: 'read', audience: 'https://gateway.example' }],
       authorizeToolGroup: { role: 'standard', groupName: 'Standard' },
@@ -24,14 +25,14 @@ const CASE = {
 function worker(overrides = {}) {
   return {
     provider: 'pingone',
-    runtimeId: 'runtime-pingone', cookieJarId: 'cookies-pingone', sessionStoreId: 'sessions-pingone',
+    runtime: {}, cookieJar: {}, sessionStore: {},
     async verifyPrerequisites() { return { status: 'pass' }; },
     async executeReadinessCase() {
       return {
         observed: 'DENY',
         evidence: {
           userSessionProvider: 'pingone', agentIdentityProvider: 'pingone', tokenIssuer: 'pingone',
-          subject: 'user-1', actor: 'agent-1', actorChain: ['agent-1'], roleApplicability: { user: 'required' },
+          subject: 'user-1', actor: 'agent-1', actorChain: ['agent-1'], roleApplicability: { authorizeRole: 'standard' },
           resourceServer: 'gateway', exchangeService: 'token-exchange', exchangePath: 'standard-access-token', subjectTokenType: 'access_token',
           audiences: ['https://gateway.example'], scopes: ['read'], selectedTool: 'get_account_balance', exchangeProvenance: 'pingone-standard',
           gateway: { route: 'gateway', verdict: 'DENY' }, authorize: { decision: 'DENY', reference: 'p1az-1' },
@@ -44,7 +45,7 @@ function worker(overrides = {}) {
 
 describe('demo readiness execution service', () => {
   test('uses a provider-bound worker, verifies prerequisites, and records redacted authorization evidence', async () => {
-    const createWorker = jest.fn(async () => worker());
+    const createWorker = createTrustedWorkerFactory(jest.fn(async () => worker()));
     const service = createReadinessExecutionService({ createWorker, catalog: [CASE] });
     const context = await service.createWorkerContext({ targetId: 'local', provider: 'pingone', identityRef: 'readiness-p1', deadlineAt: Date.now() + 1000 });
     const result = await service.executeReadinessCase({ context, caseRow: CASE, vertical: 'banking', mode: 'agent-chip', deadlineAt: Date.now() + 1000 });
@@ -57,7 +58,7 @@ describe('demo readiness execution service', () => {
 
   test('fails closed when a worker is not explicitly provider-bound and leaves the active provider untouched', async () => {
     const activeProvider = 'pingone';
-    const service = createReadinessExecutionService({ createWorker: async () => ({ provider: 'pingfederate', isolated: false }) });
+    const service = createReadinessExecutionService({ createWorker: createTrustedWorkerFactory(async () => ({ provider: 'pingfederate' })) });
     await expect(service.createWorkerContext({ targetId: 'local', provider: 'pingfederate', identityRef: 'pf-worker' }))
       .rejects.toThrow(/provider isolation/i);
     expect(activeProvider).toBe('pingone');
@@ -65,7 +66,7 @@ describe('demo readiness execution service', () => {
 
   test('blocks a row before dispatch when prerequisites are unavailable', async () => {
     const executeReadinessCase = jest.fn();
-    const service = createReadinessExecutionService({ createWorker: async () => worker({ verifyPrerequisites: async () => ({ status: 'blocked', reason: 'credentials missing' }), executeReadinessCase }) });
+    const service = createReadinessExecutionService({ createWorker: createTrustedWorkerFactory(async () => worker({ verifyPrerequisites: async () => ({ status: 'blocked', reason: 'credentials missing' }), executeReadinessCase })) });
     const context = await service.createWorkerContext({ targetId: 'local', provider: 'pingone', identityRef: 'readiness-p1' });
     const result = await service.executeReadinessCase({ context, caseRow: CASE, vertical: 'banking', mode: 'agent-chip' });
     expect(result).toMatchObject({ status: 'blocked', expected: 'DENY', observed: 'not-dispatched' });
@@ -73,9 +74,9 @@ describe('demo readiness execution service', () => {
   });
 
   test('fails mismatched outcome, provenance, and authorization evidence', async () => {
-    const service = createReadinessExecutionService({ createWorker: async () => worker({
+    const service = createReadinessExecutionService({ createWorker: createTrustedWorkerFactory(async () => worker({
       executeReadinessCase: async () => ({ observed: 'PERMIT', evidence: { tokenIssuer: 'pingfederate', audiences: ['wrong'], scopes: ['write'], gateway: { verdict: 'PERMIT' }, authorize: { decision: 'PERMIT' } } }),
-    }) });
+    })) });
     const context = await service.createWorkerContext({ targetId: 'local', provider: 'pingone', identityRef: 'readiness-p1' });
     const result = await service.executeReadinessCase({ context, caseRow: CASE, vertical: 'banking', mode: 'agent-chip' });
     expect(result.status).toBe('fail');
@@ -116,10 +117,11 @@ describe('demo readiness execution service', () => {
     const service = createReadinessExecutionService({
       catalog: [variantCase],
       featureChecks: [{ id: 'FEATURE', providers: ['pingone'], expectedOutcome: 'FEATURE_PASS', executionMode: 'feature' }],
-      createWorker: async () => worker({
+      createWorker: createTrustedWorkerFactory(async () => worker({
+        async verifyFeaturePrerequisites({ configurationDependencies }) { return { status: 'pass', verifiedDependencies: configurationDependencies }; },
         async executeReadinessCase(input) { seen.push(input.behavior); return { observed: input.behavior.kind === 'page-load' ? 'page-load' : 'DENY', evidence: worker().executeReadinessCase ? (await worker().executeReadinessCase()).evidence : {} }; },
-        async executeReadinessFeature() { return { observed: 'FEATURE_PASS', evidence: { userSessionProvider: 'pingone', agentIdentityProvider: 'pingone', tokenIssuer: 'pingone', subject: 'user-1', actorChain: ['agent-1'], exchangeService: 'feature', exchangeProvenance: 'feature', exchangePath: 'standard-access-token', subjectTokenType: 'access_token', resourceServer: 'feature', roleApplicability: { user: 'required' }, gateway: { applicable: false }, authorize: { applicable: false } } }; },
-      }),
+        async executeReadinessFeature() { return { observed: 'FEATURE_PASS', evidence: { userSessionProvider: 'pingone', agentIdentityProvider: 'pingone', tokenIssuer: 'pingone', subject: 'user-1', actorChain: ['agent-1'], exchangeService: 'token-exchange', exchangeProvenance: 'pingone-standard', exchangePath: 'standard-access-token', subjectTokenType: 'access_token', resourceServer: 'readiness-control', roleApplicability: {}, providerRoleApplicability: {}, requiredEvidence: [], gateway: { applicable: false }, authorize: { applicable: false } } }; },
+      })),
     });
     const run = await service.runManifest({ targets: ['local'] });
     expect(run.results).toHaveLength(run.manifest.counts.total);
@@ -129,23 +131,73 @@ describe('demo readiness execution service', () => {
   });
 
   test('requires observed provider roles, subject/actor chain, exchange, resource, and authorization evidence', async () => {
-    const service = createReadinessExecutionService({ createWorker: async () => worker({
+    const service = createReadinessExecutionService({ createWorker: createTrustedWorkerFactory(async () => worker({
       async executeReadinessCase() { return { observed: 'DENY', evidence: { audiences: ['https://gateway.example'], scopes: ['read'], selectedTool: 'get_account_balance', gateway: { route: 'gateway', verdict: 'DENY' }, authorize: { decision: 'DENY', reference: 'p1az' } } }; },
-    }) });
+    })) });
     const context = await service.createWorkerContext({ targetId: 'local', provider: 'pingone', identityRef: 'p1' });
     const result = await service.executeReadinessCase({ context, caseRow: CASE, vertical: 'banking' });
     expect(result.status).toBe('fail');
     expect(result.evidence.contractFailures).toEqual(expect.arrayContaining([expect.stringMatching(/user-session provider|subject|actor chain|exchange service|role applicability/i)]));
   });
 
+  test('executes every new feature family against its declared dependencies, evidence, and provider-role contract', async () => {
+    const checks = require('../config/demoReadinessFeatureChecks.json').checks.filter((check) => [
+      'PINGONE-AGENT-IAM-CORE', 'PF-CIMD-VALID', 'PF-CIMD-REJECTED', 'PF-THIRD-PARTY-AS-ALLOW',
+      'PF-THIRD-PARTY-AS-DENY', 'PF-ID-JAG-INVALID', 'PF-ID-JAG-EXPIRED', 'PF-ID-JAG-WRONG-AUDIENCE',
+      'PF-RAR-VALID', 'PF-RAR-INVALID', 'UC2-PASSENGER-INVALID-TARGET', 'UC-LEARN11-PROMPT-INJECTION',
+    ].includes(check.id));
+    for (const check of checks) for (const provider of check.providers) {
+      const exchangeBacked = check.exchangeBacked === true;
+      const nativeIdJag = check.executionMode === 'pf-native-id-jag-negative';
+      const a2aPassenger = check.executionMode === 'a2a-passenger-negative';
+      const verified = jest.fn(async ({ configurationDependencies }) => ({ status: 'pass', verifiedDependencies: configurationDependencies }));
+      const service = createReadinessExecutionService({
+        createWorker: createTrustedWorkerFactory(async () => ({
+          provider, runtime: {}, cookieJar: {}, sessionStore: {}, verifyFeaturePrerequisites: verified,
+          async executeReadinessCase() { throw new Error('not used by feature fixture'); },
+          async executeReadinessFeature() {
+            return { observed: check.expectedByProvider?.[provider] || check.expectedOutcome, evidence: {
+              userSessionProvider: provider, agentIdentityProvider: provider, tokenIssuer: provider, subject: 'readiness-user', actorChain: ['readiness-agent'],
+              exchangeService: 'token-exchange', exchangeProvenance: nativeIdJag ? 'pingfederate-native-id-jag' : provider === 'pingfederate' ? 'pingfederate-standard' : 'pingone-standard',
+              exchangePath: nativeIdJag ? 'native-id-jag' : a2aPassenger ? provider === 'pingfederate' ? 'a2a-id-jag-then-access' : 'a2a-access-token' : 'standard-access-token', subjectTokenType: nativeIdJag ? 'id-jag' : 'access_token',
+              ...(a2aPassenger && provider === 'pingfederate' ? { exchangeHops: [{ type: 'id-jag' }, { type: 'access_token' }] } : {}),
+              ...(provider === 'pingfederate' ? { pfExchange: { issuer: 'https://pf.example', endpoint: 'https://pf.example/token', credentialRef: 'pf:readiness', configurationComplete: true, subjectTokenType: nativeIdJag ? 'id-jag' : 'access_token', registeredToolResult: exchangeBacked ? 'pass' : undefined } } : {}),
+              resourceServer: exchangeBacked ? 'readiness-gateway' : 'readiness-control', roleApplicability: exchangeBacked ? { authorizeRole: 'readiness' } : {},
+              providerRoleApplicability: check.providerRoleApplicability || {}, requiredEvidence: check.requiredEvidence || [],
+              ...(exchangeBacked ? { selectedTool: 'readiness-probe', audiences: [], scopes: [], gateway: { route: 'readiness', verdict: 'PERMIT' }, authorize: { reference: 'authorize-ref', decision: 'PERMIT' } } : { gateway: { applicable: false }, authorize: { applicable: false } }),
+            } };
+          },
+        })),
+      });
+      const context = await service.createWorkerContext({ targetId: 'local', provider, identityRef: 'mocked-' + provider });
+      const result = await service.executeReadinessFeature({ context, check });
+      expect(result).toMatchObject({ status: 'pass', expected: check.expectedByProvider?.[provider] || check.expectedOutcome });
+      expect(verified).toHaveBeenCalledWith(expect.objectContaining({ configurationDependencies: check.configurationDependencies }));
+    }
+  });
+
   test('marks every unstarted row not-run when the hard deadline expires and reports the timing gate', async () => {
     const now = jest.fn().mockReturnValueOnce(0).mockReturnValue(900001);
-    const service = createReadinessExecutionService({ catalog: [{ ...CASE, runtimeVerticalGroups: [{ vertical: 'banking', verticals: ['banking'] }], alternateBehaviors: [] }], featureChecks: [], createWorker: jest.fn(), now });
+    const service = createReadinessExecutionService({ catalog: [{ ...CASE, runtimeVerticalGroups: [{ vertical: 'banking', verticals: ['banking'] }], alternateBehaviors: [] }], featureChecks: [], createWorker: createTrustedWorkerFactory(jest.fn()), now });
     const run = await service.runManifest({ targets: ['local'], startedAt: 0, deadlineAt: 900000 });
     expect(run.results).toHaveLength(run.manifest.counts.total);
     expect(run.results.filter((row) => row.status === 'not-run')).toHaveLength(run.manifest.counts.total - 1);
     expect(run.results[0].status).toBe('blocked');
     expect(run.timing).toMatchObject({ deadlineExceeded: true, targetMet: false, hardLimitMs: 900000, targetMs: 720000 });
+  });
+
+  test('sets the twelve-minute target warning and prevents READY while preserving completed rows', async () => {
+    const now = jest.fn().mockReturnValueOnce(0).mockReturnValue(720001);
+    const service = createReadinessExecutionService({
+      catalog: [{ ...CASE, runtimeVerticalGroups: [{ vertical: 'banking', verticals: ['banking'] }], alternateBehaviors: [] }],
+      featureChecks: [], now,
+      createWorker: createTrustedWorkerFactory(async () => worker()),
+    });
+    const run = await service.runManifest({ targets: ['local'], startedAt: 0, deadlineAt: 900000 });
+    expect(run.categoryCounts).toEqual({ core: 2, variants: 0, feature: 0, attackLab: 0, total: 2 });
+    expect(run.results).toHaveLength(2);
+    expect(run.timing).toMatchObject({ targetMet: false, deadlineExceeded: false });
+    expect(run.report).toMatchObject({ targetWarning: true, status: 'not-ready', ready: false, categoryCounts: run.categoryCounts });
   });
 
   test('keeps ordinary, A2A, native ID-JAG, and actor-bound PF provenance distinct', () => {
@@ -156,15 +208,38 @@ describe('demo readiness execution service', () => {
     expect(expectedExchangePath({ id: 'UC44' }, 'pingone')).toBe('actor-bound-standard-two-exchange');
   });
 
+  test.each(['UC38', 'UC44'])('retains the same user subject and actor chain through both exchanges for %s', async (id) => {
+    const actorCase = { ...CASE, id };
+    const service = createReadinessExecutionService({ createWorker: createTrustedWorkerFactory(async () => worker({
+      async executeReadinessCase() {
+        const result = await worker().executeReadinessCase();
+        return { observed: 'DENY', evidence: { ...result.evidence, actorChain: ['user-1', 'agent-1'], exchangePath: 'actor-bound-standard-two-exchange', exchangeHops: [{ subject: 'user-1', actorChain: ['user-1', 'agent-1'] }, { subject: 'user-1', actorChain: ['user-1', 'agent-1'] }] } };
+      },
+    })) });
+    const context = await service.createWorkerContext({ targetId: 'local', provider: 'pingone', identityRef: 'mocked-p1' });
+    expect(await service.executeReadinessCase({ context, caseRow: actorCase, vertical: 'banking' })).toMatchObject({ status: 'pass' });
+  });
+
   test('fails a PF exchange with an incomplete endpoint, wrong token type, or no registered tool result', async () => {
     const pfCase = { ...CASE, providerFlows: { pingone: null, pingfederate: 'pingfederate-standard' } };
-    const service = createReadinessExecutionService({ createWorker: async () => ({
-      ...worker(), provider: 'pingfederate', runtimeId: 'pf-runtime', cookieJarId: 'pf-cookies', sessionStoreId: 'pf-sessions',
+    const service = createReadinessExecutionService({ createWorker: createTrustedWorkerFactory(async () => ({
+      ...worker(), provider: 'pingfederate', runtime: {}, cookieJar: {}, sessionStore: {},
       async executeReadinessCase() { return { observed: 'DENY', evidence: { ...(await worker().executeReadinessCase()).evidence, userSessionProvider: 'pingfederate', tokenIssuer: 'pingfederate', agentIdentityProvider: 'pingfederate', exchangeProvenance: 'pingfederate-standard', pfExchange: { issuer: 'http://pf.example', endpoint: 'https://other.example/token', credentialRef: '', configurationComplete: false, subjectTokenType: 'id-jag', registeredToolResult: 'fail' } } }; },
-    }) });
+    })) });
     const context = await service.createWorkerContext({ targetId: 'local', provider: 'pingfederate', identityRef: 'pf' });
     const result = await service.executeReadinessCase({ context, caseRow: pfCase, vertical: 'banking' });
     expect(result.status).toBe('fail');
     expect(result.evidence.contractFailures).toEqual(expect.arrayContaining([expect.stringMatching(/PF endpoint|credential|configuration|subject-token|registered-tool/i)]));
+  });
+
+  test('fails closed when PF A2A omits its intermediate ID-JAG or changes the preserved actor chain', async () => {
+    const a2aCase = { ...CASE, id: 'UC2', providerFlows: { pingone: null, pingfederate: 'pingfederate-a2a' } };
+    const service = createReadinessExecutionService({ createWorker: createTrustedWorkerFactory(async () => ({
+      ...worker(), provider: 'pingfederate', runtime: {}, cookieJar: {}, sessionStore: {},
+      async executeReadinessCase() { return { observed: 'DENY', evidence: { ...(await worker().executeReadinessCase()).evidence, userSessionProvider: 'pingfederate', agentIdentityProvider: 'pingfederate', tokenIssuer: 'pingfederate', exchangeProvenance: 'pingfederate-a2a', exchangePath: 'a2a-id-jag-then-access', pfExchange: { issuer: 'https://pf.example', endpoint: 'https://pf.example/token', credentialRef: 'pf:readiness', configurationComplete: true, subjectTokenType: 'access_token', registeredToolResult: 'pass' }, exchangeHops: [{ type: 'access_token' }] } }; },
+    })) });
+    const context = await service.createWorkerContext({ targetId: 'local', provider: 'pingfederate', identityRef: 'mocked-pf' });
+    const result = await service.executeReadinessCase({ context, caseRow: a2aCase, vertical: 'banking' });
+    expect(result.evidence.contractFailures).toEqual(expect.arrayContaining([expect.stringMatching(/intermediate ID-JAG/i)]));
   });
 });

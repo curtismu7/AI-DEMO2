@@ -94,3 +94,53 @@ tests/demoReadinessProviderIsolation.test.js --forceExit`
 Result: 3 suites passed, 37 tests passed, 1 named-identity integration test
 skipped. No hosted services, Docker Compose, deployment, or provider login was
 used.
+
+## Fix round 2
+
+Worker isolation now requires a factory explicitly marked by the readiness
+adapter and opaque, object-identity-distinct `runtime`, `cookieJar`, and
+`sessionStore` handles. String identifiers are not accepted. Reusing any
+handle across lane creation, including for a matching provider, blocks setup;
+a setup failure remains sticky for that target/provider lane. No local worker
+adapter is configured, so the actual provider lanes remain blocked rather than
+claiming isolation from a self-asserted runtime.
+
+Core evidence is compared with static catalog contracts for provider roles,
+issuer, exchange service/provenance, resource server, Authorize role,
+audiences, scopes, selected tool, Gateway, and Authorize decision. UC2/UC2.5
+PF rows require an intermediate ID-JAG then Exchange #2 access token. UC38/44
+require the same observed user subject and full actor chain at both exchange
+hops. PF requires `configurationComplete === true`, a `pf:` credential
+reference, HTTPS issuer/endpoint on one authority, correct token type, and a
+registered-tool result where applicable.
+
+Feature probes now call a mocked prerequisite verifier and compare its exact
+configuration dependency set, required evidence set, and provider-role
+applicability with the declared feature manifest. Mock coverage executes every
+new family: Agent IAM, CIMD valid/rejected, third-party AS allow/deny, native
+ID-JAG invalid/expired/wrong-audience, RAR valid/invalid, UC2
+`invalid_target`, and UC-LEARN11 prefill/send/deny/provider-not-reached.
+Exchange-backed feature probes require Gateway and Authorize observations.
+
+The final report exposes exact category counts, `targetWarning`, and a
+non-ready state after the 12-minute target; the 15-minute cutoff still records
+all remaining rows as `not-run`.
+
+Fix-round focused evidence:
+
+`CI=true npx jest tests/demoReadinessExecutionService.test.js
+tests/demoReadinessProviderIsolation.test.js --forceExit`
+
+Result: 2 suites passed, 24 tests passed, 1 named-identity integration test
+skipped. The named readiness identities were absent; no login integration,
+other identity, hosted service, Docker Compose, deployment, or provider call
+was used.
+
+Final focused verification after report-category serialization:
+
+`CI=true npx jest tests/demoReadinessReport.test.js
+tests/demoReadinessCatalog.test.js tests/demoReadinessExecutionService.test.js
+tests/demoReadinessProviderIsolation.test.js --forceExit`
+
+Result: 4 suites passed, 75 tests passed, 1 named-identity integration test
+skipped.

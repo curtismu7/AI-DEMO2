@@ -1,6 +1,6 @@
 'use strict';
 
-const { createReadinessExecutionService } = require('../services/demoReadinessExecutionService');
+const { createReadinessExecutionService, createTrustedWorkerFactory } = require('../services/demoReadinessExecutionService');
 
 const CASE = {
   id: 'UC40',
@@ -13,9 +13,7 @@ const CASE = {
 function providerWorker(provider) {
   return {
     provider,
-    runtimeId: 'runtime-' + provider,
-    cookieJarId: 'cookies-' + provider,
-    sessionStoreId: 'sessions-' + provider,
+    runtime: {}, cookieJar: {}, sessionStore: {},
     async verifyPrerequisites() { return { status: 'pass' }; },
     async executeReadinessCase({ caseRow }) {
       return {
@@ -26,7 +24,7 @@ function providerWorker(provider) {
           exchangeService: 'token-exchange', exchangeProvenance: caseRow.providerFlows[provider],
           exchangePath: caseRow.id === 'UC40' ? 'native-id-jag' : 'standard-access-token',
           subjectTokenType: provider === 'pingfederate' && caseRow.id === 'UC40' ? 'id-jag' : 'access_token',
-          ...(provider === 'pingfederate' ? { pfExchange: { issuer: 'https://pf.example', endpoint: 'https://pf.example/as/token', credentialRef: 'pf-worker', configurationComplete: true, subjectTokenType: caseRow.id === 'UC40' ? 'id-jag' : 'access_token' } } : {}),
+          ...(provider === 'pingfederate' ? { pfExchange: { issuer: 'https://pf.example', endpoint: 'https://pf.example/as/token', credentialRef: 'pf:worker', configurationComplete: true, subjectTokenType: caseRow.id === 'UC40' ? 'id-jag' : 'access_token' } } : {}),
           resourceServer: 'olb', roleApplicability: { user: 'required' },
           gateway: { applicable: false }, authorize: { applicable: false },
         },
@@ -40,11 +38,11 @@ describe('demo readiness provider isolation', () => {
     const activeProvider = 'pingone';
     const workers = [];
     const service = createReadinessExecutionService({
-      createWorker: async ({ provider }) => {
+      createWorker: createTrustedWorkerFactory(async ({ provider }) => {
         const runtime = providerWorker(provider);
         workers.push(runtime);
         return runtime;
-      },
+      }),
     });
     const [pingone, pingfederate] = await Promise.all([
       service.createWorkerContext({ targetId: 'local', provider: 'pingone', identityRef: 'readiness-pingone' }),
@@ -52,16 +50,16 @@ describe('demo readiness provider isolation', () => {
     ]);
 
     expect(pingone).not.toEqual(pingfederate);
-    expect(workers[0].cookieJarId).not.toBe(workers[1].cookieJarId);
-    expect(workers[0].sessionStoreId).not.toBe(workers[1].sessionStoreId);
+    expect(workers[0].cookieJar).not.toBe(workers[1].cookieJar);
+    expect(workers[0].sessionStore).not.toBe(workers[1].sessionStore);
     expect(activeProvider).toBe('pingone');
   });
 
   test('one provider setup failure is reported while the other lane remains usable', async () => {
     const service = createReadinessExecutionService({
-      createWorker: async ({ provider }) => provider === 'pingfederate'
-        ? { provider, runtimeId: 'shared', cookieJarId: 'shared', sessionStoreId: 'shared' }
-        : providerWorker(provider),
+      createWorker: createTrustedWorkerFactory(async ({ provider }) => provider === 'pingfederate'
+        ? { provider }
+        : providerWorker(provider)),
     });
     await expect(service.createWorkerContext({ targetId: 'local', provider: 'pingfederate', identityRef: 'readiness-pf' }))
       .rejects.toThrow(/provider isolation/i);
@@ -69,12 +67,28 @@ describe('demo readiness provider isolation', () => {
     expect(pingone.provider).toBe('pingone');
   });
 
+  test('rejects a reused runtime, cookie jar, or session store even when the requested lane is the same', async () => {
+    const reused = providerWorker('pingone');
+    const service = createReadinessExecutionService({
+      createWorker: createTrustedWorkerFactory(async () => reused),
+    });
+    await service.createWorkerContext({ targetId: 'local', provider: 'pingone', identityRef: 'first' });
+    await expect(service.createWorkerContext({ targetId: 'hosted', provider: 'pingone', identityRef: 'second' }))
+      .rejects.toThrow(/reused/i);
+  });
+
+  test('rejects an untrusted factory even if it self-asserts provider object identities', async () => {
+    const service = createReadinessExecutionService({ createWorker: async () => providerWorker('pingone') });
+    await expect(service.createWorkerContext({ targetId: 'local', provider: 'pingone', identityRef: 'p1' }))
+      .rejects.toThrow(/trusted separate provider-configured worker runtime/i);
+  });
+
   test('a failed provider lane does not hide another lane result in a manifest run', async () => {
     const caseRow = { ...CASE, id: 'UC6', providerFlows: { pingone: 'pingone-standard', pingfederate: 'pingfederate-standard' }, runtimeVerticalGroups: [{ vertical: 'banking', verticals: ['banking'] }] };
     const service = createReadinessExecutionService({
       catalog: [caseRow],
       featureChecks: [],
-      createWorker: async ({ provider }) => provider === 'pingfederate' ? { provider, runtimeId: 'shared', cookieJarId: 'shared', sessionStoreId: 'shared' } : providerWorker(provider),
+      createWorker: createTrustedWorkerFactory(async ({ provider }) => provider === 'pingfederate' ? { provider } : providerWorker(provider)),
     });
     const run = await service.runManifest({ targets: ['local'] });
     expect(run.results).toEqual(expect.arrayContaining([
@@ -84,7 +98,7 @@ describe('demo readiness provider isolation', () => {
   });
 
   test('expired deadline starts no provider worker or row', async () => {
-    const createWorker = jest.fn();
+    const createWorker = createTrustedWorkerFactory(jest.fn());
     const service = createReadinessExecutionService({ createWorker, catalog: [CASE] });
     const run = await service.runManifest({ targets: ['local'], deadlineAt: Date.now() - 1 });
     expect(createWorker).not.toHaveBeenCalled();
@@ -93,9 +107,9 @@ describe('demo readiness provider isolation', () => {
   });
 
   test('a failed target/provider setup blocks the rest of that lane without retrying it', async () => {
-    const createWorker = jest.fn(async ({ provider }) => provider === 'pingfederate'
-      ? { provider, runtimeId: 'bad', cookieJarId: 'bad', sessionStoreId: 'bad' }
-      : providerWorker(provider));
+    const createWorker = createTrustedWorkerFactory(jest.fn(async ({ provider }) => provider === 'pingfederate'
+      ? { provider }
+      : providerWorker(provider)));
     const row = { ...CASE, id: 'UC6', providerFlows: { pingone: 'pingone-standard', pingfederate: 'pingfederate-standard' }, runtimeVerticalGroups: [{ vertical: 'banking', verticals: ['banking'] }, { vertical: 'banking', verticals: ['banking'] }] };
     const service = createReadinessExecutionService({ catalog: [row], featureChecks: [], createWorker });
     const run = await service.runManifest({ targets: ['local'] });

@@ -6,6 +6,7 @@ const featureCheckSource = require('../config/demoReadinessFeatureChecks.json');
 const { HARD_DEADLINE_MS, TARGET_WARNING_MS, createReadinessReport, recordCheck, redactReadinessValue } = require('./demoReadinessReport');
 
 const PROVIDERS = new Set(['pingone', 'pingfederate']);
+const TRUSTED_WORKER_FACTORIES = new WeakSet();
 const exactValues = (actual, expected) => JSON.stringify([...new Set((Array.isArray(actual) ? actual : actual == null ? [] : [actual]).filter(Boolean).map(String))].sort()) === JSON.stringify([...new Set((Array.isArray(expected) ? expected : expected == null ? [] : [expected]).filter(Boolean).map(String))].sort());
 const expired = (deadlineAt, now) => Boolean(deadlineAt && now >= deadlineAt);
 const outcomeFor = (behavior) => behavior?.expectedOutcome || behavior?.expectedAction || behavior?.kind || 'unknown';
@@ -19,14 +20,19 @@ function expectedExchangePath(caseRow, provider) {
   return 'standard-access-token';
 }
 
+function createTrustedWorkerFactory(factory) {
+  if (typeof factory !== 'function') throw new TypeError('trusted readiness worker factory must be a function');
+  TRUSTED_WORKER_FACTORIES.add(factory);
+  return factory;
+}
 function validateWorker(worker, provider, identities, key) {
   if (!worker || typeof worker !== 'object') throw providerIsolationError('worker runtime was not created');
   if (worker.provider !== provider) throw providerIsolationError('worker provider does not match requested provider');
-  for (const field of ['runtimeId', 'cookieJarId', 'sessionStoreId']) {
-    if (typeof worker[field] !== 'string' || !worker[field].trim()) throw providerIsolationError('worker has no verifiable ' + field);
-    const owner = identities.get(field + ':' + worker[field]);
-    if (owner && owner !== key) throw providerIsolationError(field + ' is shared with ' + owner);
-    identities.set(field + ':' + worker[field], key);
+  for (const field of ['runtime', 'cookieJar', 'sessionStore']) {
+    if (!worker[field] || typeof worker[field] !== 'object') throw providerIsolationError('worker has no verifiable ' + field + ' object');
+    const owner = identities.get(worker[field]);
+    if (owner) throw providerIsolationError(field + ' object is reused by ' + owner);
+    identities.set(worker[field], key);
   }
   if (typeof worker.executeReadinessCase !== 'function') throw providerIsolationError('worker has no readiness execution adapter');
 }
@@ -55,26 +61,37 @@ function deriveExecutionManifest({ catalog = buildDemoReadinessCatalog(), featur
 function evidenceFailures({ evidence, provider, authorization, expected, caseRow }) {
   const failures = []; const require = (condition, message) => { if (!condition) failures.push(message); };
   require(evidence.userSessionProvider === provider, 'user-session provider is missing or does not match provider lane');
-  require(typeof evidence.agentIdentityProvider === 'string' && evidence.agentIdentityProvider, 'agent identity provider is missing');
+  const expectedAgentProvider = caseRow.agentIdentityProviderByProvider?.[provider] || provider;
+  require(evidence.agentIdentityProvider === expectedAgentProvider, 'agent identity provider does not match static provider-role contract');
   require(evidence.tokenIssuer === provider, 'token issuer is missing or does not match provider lane');
   require(typeof evidence.subject === 'string' && evidence.subject, 'subject is missing');
   require(Array.isArray(evidence.actorChain) && evidence.actorChain.length > 0, 'actor chain is missing');
   if (caseRow.id === 'UC38' || caseRow.id === 'UC44') require(Array.isArray(evidence.actorChain) && evidence.actorChain.length >= 2, 'actor-bound standard exchange requires the retained user and agent chain');
-  require(typeof evidence.exchangeService === 'string' && evidence.exchangeService, 'exchange service is missing');
+  require(evidence.exchangeService === (caseRow.exchangeService || 'token-exchange'), 'exchange service does not match static contract');
   require(typeof evidence.exchangeProvenance === 'string' && evidence.exchangeProvenance === caseRow.providerFlows?.[provider], 'exchange provenance does not match provider flow');
-  require(typeof evidence.resourceServer === 'string' && evidence.resourceServer, 'resource server is missing');
+  if (authorization?.resourceServer) require(evidence.resourceServer === authorization.resourceServer, 'resource server does not match catalog contract');
+  else require(typeof evidence.resourceServer === 'string' && evidence.resourceServer, 'resource server is missing');
   require(evidence.roleApplicability && typeof evidence.roleApplicability === 'object' && !Array.isArray(evidence.roleApplicability), 'role applicability is missing');
+  if (authorization?.authorizeToolGroup?.role) require(evidence.roleApplicability?.authorizeRole === authorization.authorizeToolGroup.role, 'role applicability does not match Authorize role contract');
   require(evidence.exchangePath === expectedExchangePath(caseRow, provider), 'exchange path does not match case/provider contract');
   if (provider === 'pingfederate') {
     const exchange = evidence.pfExchange || {};
     let issuer; let endpoint;
     try { issuer = new URL(exchange.issuer); endpoint = new URL(exchange.endpoint); } catch (_error) { /* reported below */ }
     require(Boolean(issuer && endpoint && issuer.protocol === 'https:' && endpoint.protocol === 'https:' && issuer.host === endpoint.host), 'PF endpoint/issuer scheme or authority is invalid');
-    require(typeof exchange.credentialRef === 'string' && exchange.credentialRef, 'PF-only exchanger credential reference is missing');
-    require(exchange.configurationComplete !== false, 'PF exchange configuration is incomplete');
+    require(typeof exchange.credentialRef === 'string' && /^pf:/.test(exchange.credentialRef), 'PF-only exchanger credential reference is missing or invalid');
+    require(exchange.configurationComplete === true, 'PF exchange configuration is incomplete');
     require(exchange.subjectTokenType === (caseRow.id === 'UC40' ? 'id-jag' : 'access_token'), 'PF subject-token type does not match case provenance');
     if (authorization?.primaryTool) require(exchange.registeredToolResult === 'pass', 'PF registered-tool call did not return the expected result');
   } else require(evidence.subjectTokenType === 'access_token', 'PingOne subject-token type must be access_token');
+  if ((caseRow.id === 'UC2' || caseRow.id === 'UC2.5') && provider === 'pingfederate') {
+    const hops = evidence.exchangeHops || [];
+    require(hops.length === 2 && hops[0]?.type === 'id-jag' && hops[1]?.type === 'access_token', 'PF A2A requires intermediate ID-JAG then Exchange #2 access token');
+  }
+  if (caseRow.id === 'UC38' || caseRow.id === 'UC44') {
+    const hops = evidence.exchangeHops || [];
+    require(hops.length === 2 && hops.every((hop) => hop?.subject === evidence.subject && exactValues(hop?.actorChain, evidence.actorChain)), 'actor-bound exchanges must retain the same subject and actor chain at every hop');
+  }
   if (authorization?.primaryTool) {
     require(evidence.selectedTool === authorization.primaryTool, 'selected tool does not match catalog contract');
     require(exactValues(evidence.audiences, authorization.scopeResources?.map((item) => item.audience)), 'audience set does not match catalog contract');
@@ -92,12 +109,30 @@ function evidenceFailures({ evidence, provider, authorization, expected, caseRow
   return failures;
 }
 
+function featureContract(check, provider) {
+  const exchangeBacked = check.exchangeBacked === true;
+  const providerFlow = check.providerFlows?.[provider] || (check.executionMode === 'pf-native-id-jag-negative' ? 'pingfederate-native-id-jag' : provider === 'pingfederate' ? 'pingfederate-standard' : 'pingone-standard');
+  return {
+    id: check.executionMode === 'pf-native-id-jag-negative' ? 'UC40' : check.executionMode === 'a2a-passenger-negative' ? 'UC2' : check.id,
+    providerFlows: { [provider]: providerFlow },
+    agentIdentityProviderByProvider: check.agentIdentityProviderByProvider || { [provider]: provider },
+    exchangeService: check.exchangeService || 'token-exchange',
+    authorizationContractByVertical: {
+      feature: exchangeBacked ? {
+        primaryTool: check.selectedTool || 'readiness-probe', resourceServer: check.resourceServer || 'readiness-gateway',
+        requiredScopes: check.requiredScopes || [], scopeResources: (check.audiences || []).map((audience) => ({ audience })),
+        authorizeToolGroup: check.authorizeToolGroup || { role: 'readiness' },
+      } : { primaryTool: null, resourceServer: check.resourceServer || 'readiness-control' },
+    },
+  };
+}
+
 function createReadinessExecutionService({ createWorker, catalog = buildDemoReadinessCatalog(), featureChecks = featureCheckSource.checks || [], now = () => Date.now() } = {}) {
   const contexts = new Map(); const identities = new Map();
   async function createWorkerContext({ targetId, provider, identityRef, deadlineAt }) {
     if (!targetId || !PROVIDERS.has(provider)) throw providerIsolationError('target and supported provider are required');
     if (expired(deadlineAt, now())) throw new Error('deadline exceeded before provider worker creation');
-    if (typeof createWorker !== 'function') throw providerIsolationError('no separate provider-configured worker runtime is available');
+    if (typeof createWorker !== 'function' || !TRUSTED_WORKER_FACTORIES.has(createWorker)) throw providerIsolationError('no trusted separate provider-configured worker runtime is available');
     const worker = await createWorker({ targetId, provider, identityRef, deadlineAt });
     validateWorker(worker, provider, identities, laneKey(targetId, provider));
     if (expired(deadlineAt, now())) throw new Error('deadline exceeded while creating provider worker');
@@ -117,11 +152,26 @@ function createReadinessExecutionService({ createWorker, catalog = buildDemoRead
     const saved = contexts.get(context?.handle); const expected = check.expectedByProvider?.[context?.provider] || check.expectedOutcome;
     if (!saved || !expected) return redactReadinessValue({ status: 'blocked', expected: expected || null, observed: 'not-dispatched', evidence: { reason: 'feature contract or worker context is unavailable' } });
     if (typeof saved.worker.executeReadinessFeature !== 'function') return redactReadinessValue({ status: 'blocked', expected, observed: 'not-dispatched', evidence: { reason: 'worker has no feature-probe execution adapter' } });
-    try { const execution = await saved.worker.executeReadinessFeature({ context, check, deadlineAt }); const evidence = execution?.evidence || {}; const observed = execution?.observed || 'UNKNOWN'; const failures = [...(observed === expected ? [] : ['observed outcome does not match declared feature outcome']), ...evidenceFailures({ evidence, provider: context.provider, authorization: { primaryTool: null }, expected: 'feature', caseRow: { id: 'feature', providerFlows: { [context.provider]: evidence.exchangeProvenance || 'feature' } } }).filter((failure) => failure !== 'exchange path does not match case/provider contract')]; if (failures.length) evidence.contractFailures = failures; return redactReadinessValue({ status: failures.length ? 'fail' : 'pass', expected, observed, evidence }); } catch (error) { return redactReadinessValue({ status: 'fail', expected, observed: 'execution-error', evidence: { reason: error?.message || 'feature probe failed' } }); }
+    if (expired(deadlineAt, now())) return redactReadinessValue({ status: 'not-run', expected, observed: 'deadline-expired', evidence: { reason: 'deadline exceeded before feature dispatch' } });
+    const configurationDependencies = check.configurationDependencies || [];
+    const prerequisite = typeof saved.worker.verifyFeaturePrerequisites === 'function'
+      ? await saved.worker.verifyFeaturePrerequisites({ context, check, configurationDependencies, deadlineAt })
+      : { status: 'blocked', reason: 'worker cannot verify feature configuration dependencies' };
+    if (prerequisite?.status !== 'pass' || !exactValues(prerequisite?.verifiedDependencies, configurationDependencies)) {
+      return redactReadinessValue({ status: 'blocked', expected, observed: 'not-dispatched', evidence: { reason: prerequisite?.reason || 'feature configuration dependencies are unavailable', configurationDependencies } });
+    }
+    try {
+      const execution = await saved.worker.executeReadinessFeature({ context, check, deadlineAt }); const evidence = execution?.evidence || {}; const observed = execution?.observed || '';
+      const staticCase = featureContract(check, context.provider); const authorization = staticCase.authorizationContractByVertical.feature;
+      const failures = [...(observed === expected ? [] : ['observed outcome does not match declared feature outcome']), ...evidenceFailures({ evidence, provider: context.provider, authorization, expected: observed, caseRow: staticCase })];
+      requireFeatureEvidence(failures, evidence, check, context.provider);
+      if (failures.length) evidence.contractFailures = failures;
+      return redactReadinessValue({ status: failures.length ? 'fail' : 'pass', expected, observed, evidence });
+    } catch (error) { return redactReadinessValue({ status: 'fail', expected, observed: 'execution-error', evidence: { reason: error?.message || 'feature probe failed' } }); }
   }
   function staticRow(row, status, reason) { return redactReadinessValue({ status, expected: row.check ? (row.check.expectedByProvider?.[row.provider] || row.check.expectedOutcome) : outcomeFor(row.behavior), observed: status === 'not-run' ? 'deadline-expired' : 'not-dispatched', evidence: { reason, provider: row.provider, target: row.targetId } }); }
   async function runManifest({ targets = ['local', 'hosted'], identityRefFor, deadlineAt, startedAt = now(), commit, report: suppliedReport, onProgress } = {}) {
-    const manifest = deriveExecutionManifest({ catalog, featureChecks, targets }); const hardDeadlineAt = deadlineAt || startedAt + HARD_DEADLINE_MS; const report = suppliedReport || createReadinessReport({ runId: crypto.randomUUID(), commit, targets, startedAt, deadlineAt: hardDeadlineAt }); const rows = [...manifest.core, ...manifest.variants, ...manifest.feature, ...manifest.attackLab]; const lanes = new Map(); const results = [];
+    const manifest = deriveExecutionManifest({ catalog, featureChecks, targets }); const hardDeadlineAt = deadlineAt || startedAt + HARD_DEADLINE_MS; const report = suppliedReport || createReadinessReport({ runId: crypto.randomUUID(), commit, targets, startedAt, deadlineAt: hardDeadlineAt }); report.categoryCounts = manifest.counts; const rows = [...manifest.core, ...manifest.variants, ...manifest.feature, ...manifest.attackLab]; const lanes = new Map(); const results = [];
     for (let index = 0; index < rows.length; index += 1) {
       const row = rows[index]; let result; const key = laneKey(row.targetId, row.provider); let lane = lanes.get(key);
       if (expired(hardDeadlineAt, now())) result = staticRow(row, 'not-run', 'deadline exceeded before row dispatch');
@@ -130,10 +180,18 @@ function createReadinessExecutionService({ createWorker, catalog = buildDemoRead
       result = redactReadinessValue(result); results.push(result);
       recordCheck(report, { id: [row.kind, row.caseRow?.id || row.check?.id, row.targetId, row.provider, row.behavior?.variant || row.vertical || index].filter(Boolean).join(':'), target: row.targetId, useCaseId: row.caseRow?.id || row.check?.id, userSessionProvider: result.evidence?.userSessionProvider, agentIdentityProvider: result.evidence?.agentIdentityProvider, tokenIssuer: result.evidence?.tokenIssuer, exchangeService: result.evidence?.exchangeService, resourceServer: result.evidence?.resourceServer, providerApplicability: { [row.provider]: 'applicable' }, status: result.status, expected: result.expected, observed: result.observed, sourceRef: row.caseRow?.sourceRef || row.check?.sourceRef, evidence: result.evidence }); onProgress?.({ index: index + 1, total: rows.length, categoryCounts: manifest.counts, row, result });
     }
-    const elapsedMs = Math.max(0, now() - startedAt); const timing = { elapsedMs, targetMs: TARGET_WARNING_MS, hardLimitMs: HARD_DEADLINE_MS, targetMet: elapsedMs <= TARGET_WARNING_MS && results.every((result) => result.status !== 'not-run'), deadlineExceeded: elapsedMs > HARD_DEADLINE_MS || results.some((result) => result.status === 'not-run') }; report.elapsedMs = elapsedMs; if (timing.deadlineExceeded) { report.status = 'deadline_exceeded'; report.ready = false; }
+    const elapsedMs = Math.max(0, now() - startedAt); const timing = { elapsedMs, targetMs: TARGET_WARNING_MS, hardLimitMs: HARD_DEADLINE_MS, targetMet: elapsedMs <= TARGET_WARNING_MS && results.every((result) => result.status !== 'not-run'), deadlineExceeded: elapsedMs > HARD_DEADLINE_MS || results.some((result) => result.status === 'not-run') }; report.elapsedMs = elapsedMs; report.targetWarning = elapsedMs >= TARGET_WARNING_MS; if (timing.deadlineExceeded) { report.status = 'deadline_exceeded'; report.ready = false; } else if (!timing.targetMet) { report.status = 'not-ready'; report.ready = false; }
     return { manifest, categoryCounts: manifest.counts, results, report, timing };
   }
   return { createWorkerContext, executeReadinessCase, executeReadinessFeature, runManifest, deriveExecutionManifest: (options) => deriveExecutionManifest({ catalog, featureChecks, ...options }) };
 }
 
-module.exports = { createReadinessExecutionService, deriveExecutionManifest, expectedExchangePath };
+function requireFeatureEvidence(failures, evidence, check, provider) {
+  const require = (condition, message) => { if (!condition) failures.push(message); };
+  const supplied = evidence.requiredEvidence || [];
+  require(exactValues(supplied, check.requiredEvidence || []), 'required feature evidence does not match static contract');
+  require(JSON.stringify(evidence.providerRoleApplicability || {}) === JSON.stringify(check.providerRoleApplicability || {}), 'feature provider-role applicability does not match static contract');
+  require(evidence.userSessionProvider === provider && evidence.agentIdentityProvider === (check.agentIdentityProviderByProvider?.[provider] || provider), 'feature observed provider roles do not match static contract');
+}
+
+module.exports = { createReadinessExecutionService, createTrustedWorkerFactory, deriveExecutionManifest, expectedExchangePath };

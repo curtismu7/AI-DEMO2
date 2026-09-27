@@ -133,6 +133,8 @@
       "providers": ["pingone"],
       "executionMode": "agent-iam-core",
       "expectedOutcome": "agent_identity_lifecycle_and_delegated_exchange_verified",
+      "requiredEvidence": ["agent-identity", "lifecycle", "delegated-exchange", "authorize-permit", "tool-dispatched"],
+      "exchangeBacked": true,
       "providerRoleApplicability": { "userSession": "pingone-required", "agentIdentity": "pingone-required" },
       "configurationDependencies": ["pingone-scope-addition", "authorize-policy-definition"],
       "sourceCodeChanges": "never"
@@ -144,6 +146,7 @@
       "providers": ["pingfederate"],
       "executionMode": "pf-cimd",
       "expectedOutcome": "cimd_valid_metadata_accepted",
+      "requiredEvidence": ["cimd-document", "cimd-registration"],
       "providerRoleApplicability": { "userSession": "pingfederate-required", "agentIdentity": "provider-bound" },
       "configurationDependencies": ["pingfederate-standard-exchange"],
       "sourceCodeChanges": "never"
@@ -155,6 +158,7 @@
       "providers": ["pingfederate"],
       "executionMode": "pf-cimd",
       "expectedOutcome": "cimd_invalid_metadata_rejected_before_registration",
+      "requiredEvidence": ["cimd-document", "cimd-rejection", "registration-not-reached"],
       "providerRoleApplicability": { "userSession": "pingfederate-required", "agentIdentity": "provider-bound" },
       "configurationDependencies": ["pingfederate-standard-exchange"],
       "sourceCodeChanges": "never"
@@ -166,6 +170,8 @@
       "providers": ["pingfederate"],
       "executionMode": "pf-third-party-as",
       "expectedOutcome": "third_party_as_exchange_permitted",
+      "requiredEvidence": ["third-party-as", "exchange", "gateway-verdict", "authorize-decision"],
+      "exchangeBacked": true,
       "providerRoleApplicability": { "userSession": "pingfederate-required", "agentIdentity": "provider-bound" },
       "configurationDependencies": ["pingfederate-standard-exchange", "authorize-policy-definition"],
       "sourceCodeChanges": "never"
@@ -177,6 +183,8 @@
       "providers": ["pingfederate"],
       "executionMode": "pf-third-party-as",
       "expectedOutcome": "third_party_as_exchange_denied",
+      "requiredEvidence": ["third-party-as", "exchange", "gateway-verdict", "authorize-decision"],
+      "exchangeBacked": true,
       "providerRoleApplicability": { "userSession": "pingfederate-required", "agentIdentity": "provider-bound" },
       "configurationDependencies": ["pingfederate-standard-exchange", "authorize-policy-definition"],
       "sourceCodeChanges": "never"
@@ -188,6 +196,8 @@
       "providers": ["pingfederate"],
       "executionMode": "pf-native-id-jag-negative",
       "expectedOutcome": "invalid_id_jag_rejected",
+      "requiredEvidence": ["id-jag", "invalid-signature", "gateway-verdict", "authorize-decision"],
+      "exchangeBacked": true,
       "providerRoleApplicability": { "userSession": "pingfederate-required", "agentIdentity": "provider-bound" },
       "configurationDependencies": ["pingfederate-native-id-jag"],
       "sourceCodeChanges": "never"
@@ -199,6 +209,8 @@
       "providers": ["pingfederate"],
       "executionMode": "pf-native-id-jag-negative",
       "expectedOutcome": "expired_id_jag_rejected",
+      "requiredEvidence": ["id-jag", "expired", "gateway-verdict", "authorize-decision"],
+      "exchangeBacked": true,
       "providerRoleApplicability": { "userSession": "pingfederate-required", "agentIdentity": "provider-bound" },
       "configurationDependencies": ["pingfederate-native-id-jag"],
       "sourceCodeChanges": "never"
@@ -210,6 +222,8 @@
       "providers": ["pingfederate"],
       "executionMode": "pf-native-id-jag-negative",
       "expectedOutcome": "wrong_audience_id_jag_rejected",
+      "requiredEvidence": ["id-jag", "wrong-audience", "gateway-verdict", "authorize-decision"],
+      "exchangeBacked": true,
       "providerRoleApplicability": { "userSession": "pingfederate-required", "agentIdentity": "provider-bound" },
       "configurationDependencies": ["pingfederate-native-id-jag"],
       "sourceCodeChanges": "never"
@@ -221,6 +235,8 @@
       "providers": ["pingfederate"],
       "executionMode": "pf-rar",
       "expectedOutcome": "rar_valid_details_permitted",
+      "requiredEvidence": ["authorization-details", "rar-valid", "gateway-verdict", "authorize-decision"],
+      "exchangeBacked": true,
       "providerRoleApplicability": { "userSession": "pingfederate-required", "agentIdentity": "provider-bound" },
       "configurationDependencies": ["pingfederate-standard-exchange", "pingone-par-runtime", "authorize-policy-definition"],
       "sourceCodeChanges": "never"
@@ -232,6 +248,8 @@
       "providers": ["pingfederate"],
       "executionMode": "pf-rar",
       "expectedOutcome": "rar_invalid_details_denied",
+      "requiredEvidence": ["authorization-details", "rar-invalid", "gateway-verdict", "authorize-decision"],
+      "exchangeBacked": true,
       "providerRoleApplicability": { "userSession": "pingfederate-required", "agentIdentity": "provider-bound" },
       "configurationDependencies": ["pingfederate-standard-exchange", "pingone-par-runtime", "authorize-policy-definition"],
       "sourceCodeChanges": "never"
@@ -243,6 +261,7 @@
       "providers": ["pingone", "pingfederate"],
       "executionMode": "a2a-passenger-negative",
       "expectedOutcome": "passenger_invalid_target_before_exchange3",
+      "requiredEvidence": ["passenger-token", "invalid_target", "exchange3-not-reached"],
       "providerRoleApplicability": { "userSession": "required", "agentIdentity": "provider-bound" },
       "configurationDependencies": ["pingfederate-a2a-runtime", "authorize-policy-definition"],
       "sourceCodeChanges": "never"
@@ -254,6 +273,7 @@
       "providers": ["pingone", "pingfederate"],
       "executionMode": "prompt-injection-probe",
       "expectedOutcome": "prefilled_attack_selected_then_denied_provider_not_reached",
+      "requiredEvidence": ["attack-prefilled", "attack-sent", "attack-denied", "provider-not-reached"],
       "providerRoleApplicability": { "userSession": "required", "agentIdentity": "provider-bound", "modelBackend": "provider-not-reached" },
       "configurationDependencies": ["agent-gateway-runtime-config", "authorize-policy-definition"],
       "sourceCodeChanges": "never"
