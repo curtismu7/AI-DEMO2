@@ -326,7 +326,10 @@ authorization checks.
 
 ### 2026-09-27 — Path switch to Direct left an active app session at a sign-in prompt
 
-**Files:** `demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`,
+**Files:** `demo_api_server/routes/privilegeMcpClient.js`,
+`demo_api_server/tests/routes/privilegeMcpClient.config.test.js`,
+`demo_api_server/tests/routes/privilegeMcpClient.sharedDoorToken.test.js`,
+`demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`,
 `demo_api_ui/src/pages/__tests__/PrivilegeMcpClientPage.doorSwitchReauth.test.jsx`.
 
 **What was broken:** Changing Path to Direct cleared the Privilege token because
@@ -339,15 +342,21 @@ sign-in prompt.
 `prompt=none` authorization flow when the app or current gateway session can be
 reused. On callback, the existing silent-switch path discovers tools for the
 selected destination. If the BFF cannot prepare silent authorization, the page
-keeps the manual sign-in fallback.
+keeps the manual sign-in fallback. `/config` now reports whether its live token
+belongs to the selected destination separately from whether a token remains in
+the shared slot, so the source path's token cannot suppress that authorization.
+If starting silent authorization itself fails, the selected Path stays aligned
+with the BFF and the page offers a manual retry.
 
 **Do not break:** Keep the app token out of `session.oauth`; each path must
 receive its own authorization-server token. Preserve manual fallback, avoid
 auto-discovery except after an explicit path switch, and keep Privilege 403
 policy denials intact.
 
-**Verify:** Seven focused Privilege page Vitest files — 41 passed;
-`cd demo_api_ui && npm run build` — passed.
+**Verify:** Seven focused Privilege page Vitest files — 42 passed;
+`CI=true npx jest tests/routes/privilegeMcpClient.config.test.js
+tests/routes/privilegeMcpClient.sharedDoorToken.test.js --forceExit --runInBand`
+— 14 passed; `cd demo_api_ui && npm run build` — passed.
 
 ### 2026-09-27 — Privilege door switch waited for a manual sign-in click
 

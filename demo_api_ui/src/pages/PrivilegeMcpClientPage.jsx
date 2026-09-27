@@ -978,7 +978,8 @@ export default function PrivilegeMcpClientPage() {
       // session is dead while session.oauth may still hold a restored token.
       // Taking the shortcut there would switch mode, arm nothing, and say
       // nothing — the same dead-end button Ruling 5 removed by another route.
-      if (saved.oauth?.authenticated && !forceReauth) {
+      const destinationAuthenticated = saved.oauth?.destinationAuthenticated ?? saved.oauth?.authenticated;
+      if (destinationAuthenticated && !forceReauth) {
         setAuthenticated(true);
         // No auto-discovery on a path switch. Choosing a path says which lane
         // to use, not that you want it probed — and probing spends a real call
@@ -1011,7 +1012,7 @@ export default function PrivilegeMcpClientPage() {
         } catch (err) {
           writeSessionFlag(SILENT_DOOR_SWITCH_KEY, false);
           clearSwitching();
-          throw err;
+          requestSignIn(`Silent sign-in could not start for this path. Sign in manually to retry. (${err.message})`);
         }
         return;
       }
@@ -1246,7 +1247,8 @@ export default function PrivilegeMcpClientPage() {
       // no matter which door is picked. /config reports the DESTINATION key's
       // state; act on it rather than fetching tools with a credential the BFF
       // has just told us does not exist. Same branch switchGatewayMode uses.
-      if (!saved?.oauth?.authenticated && gatewayMode === 'privilege'
+      const destinationAuthenticated = saved?.oauth?.destinationAuthenticated ?? saved?.oauth?.authenticated;
+      if (!destinationAuthenticated && gatewayMode === 'privilege'
         && (mainAppAuthenticated || authenticated)) {
         // A token from the previous door cannot be reused directly. Ask the
         // Gateway's authorization server for a grant to this door using the
@@ -1271,7 +1273,7 @@ export default function PrivilegeMcpClientPage() {
         }
         return;
       }
-      setAuthenticated(Boolean(saved?.oauth?.authenticated));
+      setAuthenticated(Boolean(saved?.oauth?.destinationAuthenticated ?? saved?.oauth?.authenticated));
       // Same rule as the path switch above: selecting a door is not a request to
       // probe it. The tools from the door you just left are cleared so the panel
       // never shows another door's results, and "Get MCP Tools" fetches.

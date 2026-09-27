@@ -47,9 +47,11 @@ function mockGateway({
   gatewayMode = "direct",
   mcpUrl = DOOR_A,
   configAuthenticated = false,
+  configDestinationAuthenticated = configAuthenticated,
   initialOAuthAuthenticated = true,
   mainAppAuthenticated = true,
   silentPromptAvailable = true,
+  authStartError = null,
   listedTools = [],
 }) {
   global.fetch = vi.fn((url, opts) => {
@@ -89,10 +91,14 @@ function mockGateway({
           privilege: { mcpUrl: PRIV_DOOR },
           facade: { mcpUrl: DOOR_A },
         },
-        oauth: { authenticated: configAuthenticated },
+        oauth: {
+          authenticated: configAuthenticated,
+          destinationAuthenticated: configDestinationAuthenticated,
+        },
       });
     }
     if (u.endsWith("/api/privilege-mcp/auth/start") && opts?.method === "POST") {
+      if (authStartError) return Promise.reject(new Error(authStartError));
       return json({ authUrl: silentPromptAvailable ? `${AUTH_URL}&prompt=none` : AUTH_URL });
     }
     if (u.endsWith("/api/privilege-mcp/tools/list") && opts?.method === "POST") {
@@ -145,7 +151,8 @@ describe("Privilege client — re-auth on switch", () => {
     mockGateway({
       gatewayMode: "privilege",
       mcpUrl: PRIV_DOOR,
-      configAuthenticated: false,
+      configAuthenticated: true,
+      configDestinationAuthenticated: false,
       initialOAuthAuthenticated: true,
       mainAppAuthenticated: false,
     });
@@ -238,7 +245,12 @@ describe("Privilege client — re-auth on switch", () => {
   // the authorization silently. Selecting a path is the user's explicit action
   // that permits the OAuth round trip.
   it("silently authorizes Direct from the active app session after a path switch", async () => {
-    mockGateway({ gatewayMode: "privilege", mcpUrl: PRIV_DOOR, configAuthenticated: false });
+    mockGateway({
+      gatewayMode: "privilege",
+      mcpUrl: PRIV_DOOR,
+      configAuthenticated: true,
+      configDestinationAuthenticated: false,
+    });
     renderPage();
 
     const path = await screen.findByLabelText("Connection path");
@@ -267,5 +279,24 @@ describe("Privilege client — re-auth on switch", () => {
     expect(callsTo("auth/start")).toHaveLength(0);
     expect(window.location.href).toBe("");
     expect(await screen.findByRole("button", { name: /sign in/i })).toBeTruthy();
+  });
+
+  it("keeps the selected path and offers manual retry if silent auth cannot start", async () => {
+    mockGateway({
+      gatewayMode: "privilege",
+      mcpUrl: PRIV_DOOR,
+      configAuthenticated: true,
+      configDestinationAuthenticated: false,
+      authStartError: "authorization server unavailable",
+    });
+    renderPage();
+
+    const path = await screen.findByLabelText("Connection path");
+    fireEvent.change(path, { target: { value: "direct" } });
+
+    await waitFor(() => expect(callsTo("auth/start")).toHaveLength(1));
+    await waitFor(() => expect(path.value).toBe("direct"));
+    expect(callsTo("config")).toHaveLength(1);
+    expect(await screen.findByRole("heading", { name: "Sign in to the gateway" })).toBeTruthy();
   });
 });

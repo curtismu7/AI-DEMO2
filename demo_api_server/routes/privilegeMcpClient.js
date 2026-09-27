@@ -2029,6 +2029,12 @@ router.post('/config', express.json(), (req, res) => {
   const providedBearerThisRequest = /^Bearer\s+\S+/i.test(String(req.headers?.authorization || ''));
   const previousOauthKey = oauthKey(session.gatewayMode, session.config.mcpUrl);
   const nextOauthKey = oauthKey(gatewayMode, session.gatewayConfigs[gatewayMode].mcpUrl);
+  const live = (o) => Boolean(o && o.accessToken && (!o.expiresAt || o.expiresAt > Date.now()));
+  // `session.oauth` may deliberately keep the outgoing live token when there
+  // is no destination stash, so slot presence alone is not proof that the
+  // selected path can use it. Report that distinction to the UI separately.
+  let destinationAuthenticated = providedBearerThisRequest
+    || (nextOauthKey === previousOauthKey && live(session.oauth));
   // A key change drops the working token when the destination door has no live
   // stash — the "sign in again after every Get MCP Tools" loop. Log the
   // transition and what the incoming body claimed, so the offending frontend
@@ -2046,7 +2052,7 @@ router.post('/config', express.json(), (req, res) => {
     // An expired stash must not report authenticated: true — the frontend
     // would skip /auth/start on the strength of it and hand a dead token
     // straight to tools/list instead of getting a fresh one.
-    const restoredIsLive = restored && (!restored.expiresAt || restored.expiresAt > Date.now());
+    const restoredIsLive = live(restored);
     // A destination door with no live stash of its own used to NULL the slot,
     // which turned a door flip (denial-probe "Use this door", a stale frontend
     // config re-POST) into a forced sign-in on the next tools/list — observed
@@ -2056,9 +2062,9 @@ router.post('/config', express.json(), (req, res) => {
     // working; a cross-app token gets the gateway's natural 401, which the
     // denial modal + door probe already handle with real evidence, rather
     // than a synthetic "Not authenticated" that demands a fresh sign-in.
-    const live = (o) => o && o.accessToken && (!o.expiresAt || o.expiresAt > Date.now());
     if (restoredIsLive) {
       session.oauth = { ...restored };
+      destinationAuthenticated = true;
     } else if (live(session.oauth)) {
       // keep the outgoing token in the slot; it stays stashed under its own key
     } else {
@@ -2080,6 +2086,7 @@ router.post('/config', express.json(), (req, res) => {
         && live(session.savedOauthByDoor[k]));
       if (match) {
         session.oauth = { ...session.savedOauthByDoor[match] };
+        destinationAuthenticated = true;
         console.log(`[privilege-mcp] /config restored live stash for destination door from key ${match}`);
       }
     }
@@ -2099,7 +2106,10 @@ router.post('/config', express.json(), (req, res) => {
     config: session.config,
     gatewayMode: session.gatewayMode,
     gatewayConfigs: session.gatewayConfigs,
-    oauth: { authenticated: Boolean(session.oauth.accessToken) },
+    oauth: {
+      authenticated: Boolean(session.oauth.accessToken),
+      destinationAuthenticated,
+    },
   });
 });
 
