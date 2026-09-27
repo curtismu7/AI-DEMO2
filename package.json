@@ -12,6 +12,7 @@
     "demo:launcher": "node scripts/demo-launcher-server.mjs",
     "demo:preflight": "node scripts/check-mcp-preflight.js",
     "demo:health-gate": "node scripts/check-demo-health-gate.js",
+    "demo:readiness:contract": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-demo-readiness-contract.mjs",
     "demo:provider-lock": "node scripts/pingone/demo-provider-lock.js",
     "demo:provider-verify": "node scripts/pingone/demo-provider-lock.js verify",
     "topology:check": "node scripts/gen-service-topology.js check",

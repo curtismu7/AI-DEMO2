@@ -15,27 +15,34 @@ const { writeLedgerEntry } = require('../services/stepVerificationLedger');
 
 const VERTICAL = 'pingone-admin';
 
-/** Expected parse result for each ADMIN chip. */
-const ADMIN_PARSE_EXPECT = {
-  ADMIN1: { action: 'call_pingone_tool', toolName: 'listApplications' },
-  ADMIN2: { action: 'call_pingone_tool', toolName: 'listUsers' },
-  ADMIN3: { action: 'call_pingone_tool', toolName: 'listPopulations' },
-  ADMIN4: { action: 'call_pingone_tool', toolName: 'getEnvironment' },
-  // ADMIN5/6 assert the FILTER too — the prefix reaching PingOne as a SCIM sw
-  // filter is the step's whole point; a parse that resolves the tool but drops
-  // the filter lists everything and demos nothing. Case matters: sw is
-  // case-sensitive, so "Demo" must survive as "Demo".
-  ADMIN5: { action: 'call_pingone_tool', toolName: 'listUsers', filter: 'username sw "curt"' },
-  ADMIN6: { action: 'call_pingone_tool', toolName: 'listApplications', filter: 'name sw "Demo"' },
-  ADMIN7: { action: 'list_pingone_tools', toolName: undefined },
-  ADMIN8: { action: 'call_pingone_tool', toolName: 'listResources' },
-  ADMIN9: { action: 'call_pingone_tool', toolName: 'getEnvironmentServices' },
-  ADMIN10: { action: 'call_pingone_tool', toolName: 'listDavinciFlows' },
-  ADMIN11: { action: 'call_pingone_tool', toolName: 'listDavinciApplications' },
-  ADMIN12: { action: 'call_pingone_tool', toolName: 'listDavinciConnectors' },
+/** Expected parse result for each ADMIN chip. The readiness runner shares this contract. */
+const { adminExpectations: ADMIN_PARSE_EXPECT } = require('../config/demoReadinessInventory');
+const EXPECTED_ADMIN_TOOLS = {
+  ADMIN1: ['call_pingone_tool', 'listApplications'],
+  ADMIN2: ['call_pingone_tool', 'listUsers'],
+  ADMIN3: ['call_pingone_tool', 'listPopulations'],
+  ADMIN4: ['call_pingone_tool', 'getEnvironment'],
+  ADMIN5: ['call_pingone_tool', 'listUsers'],
+  ADMIN6: ['call_pingone_tool', 'listApplications'],
+  ADMIN7: ['list_pingone_tools', null],
+  ADMIN8: ['call_pingone_tool', 'listResources'],
+  ADMIN9: ['call_pingone_tool', 'getEnvironmentServices'],
+  ADMIN10: ['call_pingone_tool', 'listDavinciFlows'],
+  ADMIN11: ['call_pingone_tool', 'listDavinciApplications'],
+  ADMIN12: ['call_pingone_tool', 'listDavinciConnectors'],
 };
 
 describe('step verification — pingone-admin catalog', () => {
+  test('readiness expectations preserve the existing ADMIN parser contract', () => {
+    expect(Object.fromEntries(Object.entries(ADMIN_PARSE_EXPECT).map(([id, expected]) => [
+      id,
+      [expected.expectedAction, expected.expectedTool],
+    ]))).toEqual(EXPECTED_ADMIN_TOOLS);
+    expect(ADMIN_PARSE_EXPECT.ADMIN5.expectedArguments.filter).toBe('username sw "curt"');
+    expect(ADMIN_PARSE_EXPECT.ADMIN6.expectedArguments.filter).toBe('name sw "Demo"');
+    expect(ADMIN_PARSE_EXPECT.ADMIN7.queryInput).toBe('user');
+  });
+
   test('catalog lists ADMIN1–13 with MCP chips followed by the Privilege handoff', () => {
     expect(ADMIN_DEMO_STEPS.map((s) => s.id)).toEqual([
       'ADMIN1', 'ADMIN2', 'ADMIN3', 'ADMIN4', 'ADMIN5', 'ADMIN6',
@@ -65,8 +72,8 @@ describe('step verification — pingone-admin chip routing (check 2: parse/route
 
       const wired = parsed && parsed.kind !== 'none';
       const ok = wired
-        && parsed.action === expect_.action
-        && parsed.params?.name === expect_.toolName;
+        && parsed.action === expect_.expectedAction
+        && parsed.params?.name === expect_.expectedTool;
 
       const status = ok ? 'PASS' : 'FAIL';
       const errorClass = ok ? null : (wired ? 'wrong_response' : 'parse_error');
@@ -78,16 +85,20 @@ describe('step verification — pingone-admin chip routing (check 2: parse/route
         mode: 'unit-parse',
         status,
         errorClass,
-        primaryTool: expect_.action,
+        primaryTool: expect_.expectedAction,
         checkedAt: new Date().toISOString(),
-        verifiedBy: `nlIntentParser pingone-admin heuristics → ${expect_.toolName}`,
+        verifiedBy: `nlIntentParser pingone-admin heuristics → ${expect_.expectedTool || expect_.expectedAction}`,
       });
 
       expect(parsed?.kind).not.toBe('none');
-      expect(parsed.action).toBe(expect_.action);
-      expect(parsed.params?.name).toBe(expect_.toolName);
-      if (expect_.filter) {
-        expect(parsed.params?.arguments?.filter).toBe(expect_.filter);
+      expect(parsed.action).toBe(expect_.expectedAction);
+      if (expect_.expectedTool == null) {
+        expect(parsed.params?.name).toBeUndefined();
+      } else {
+        expect(parsed.params?.name).toBe(expect_.expectedTool);
+      }
+      if (expect_.expectedArguments?.filter) {
+        expect(parsed.params?.arguments?.filter).toBe(expect_.expectedArguments.filter);
       }
     },
   );
@@ -98,7 +109,7 @@ describe('pingone-admin tool-filter phrase (ADMIN7 modal output)', () => {
     const ctx = resolveVerticalCtx(VERTICAL);
     const parsed = parseHeuristic('Show me the PingOne tools matching "user"', VERTICAL, ctx, {});
     expect(parsed?.action).toBe('list_pingone_tools');
-    expect(parsed?.params?.filter).toBe('user');
+    expect(parsed?.params?.filter).toBe(ADMIN_PARSE_EXPECT.ADMIN7.queryInput);
   });
 });
 
@@ -114,7 +125,7 @@ describe('step verification — pingone-admin prerequisites', () => {
         mode: 'unit-prereq',
         status: 'PASS',
         errorClass: null,
-        primaryTool: ADMIN_PARSE_EXPECT[s.id]?.action || null,
+        primaryTool: ADMIN_PARSE_EXPECT[s.id]?.expectedAction || null,
         checkedAt: new Date().toISOString(),
         verifiedBy: 'pingone-admin vertical has no flag/A2A/PAR prerequisites',
       });
