@@ -99,7 +99,7 @@
 - `remainingBudget(report, now)` returns `max(0, deadlineAt - now)`; deadline expiry marks queued rows `not-run` and active rows `blocked` with reason `deadline_exceeded`.
 
 - [ ] Write Jest tests for each status, aggregate readiness, stable counts, the exact 900,000 ms hard deadline, the 720,000 ms target warning, and expiry while queued or active rows exist.
-- [ ] Test nested redaction using bearer/JWT/password/cookie/session fixtures and assert report serialization contains none of the input secret values.
+- [ ] Test nested redaction using bearer/JWT/password/cookie/session fixtures and assert both direct reads and serialized report output stay sanitized after writes to checks, repairs, unfinished rows, targets, and inventory. Sanitize `defineProperty` data descriptors and reject accessors or prototype changes that would make inherited secrets readable.
 - [ ] Run `cd demo_api_server && CI=true npx jest tests/demoReadinessReport.test.js --forceExit`; expected: all report and deadline cases pass without outbound network.
 - [ ] Run `graphify update .`, `git diff --check`, stage only the listed paths, verify the branch, and commit as `feat: add demo readiness report model`.
 
@@ -113,8 +113,8 @@
 - Modify: `ping-gateway/scripts/groovy/invest-dispatch.groovy`
 - Modify: `ping-gateway/.env.example`
 - Modify: `demo_api_server/config/demoReadinessRepairability.json`
-- Create: `demo_api_server/src/__tests__/refreshServiceEnvs.pfExchange3.test.js`
-- Create: `demo_api_server/src/__tests__/pingGatewayPfExchange3Contract.test.js`
+- Create: `demo_api_server/tests/refreshServiceEnvsPfGateway.test.js`
+- Create: `demo_api_server/src/__tests__/olbTokenExchangeProviderRouting.test.js`
 - Modify: focused PingGateway exchange test fixtures if an existing harness is available
 - Modify: `docs/demo-readiness.md`
 
@@ -124,14 +124,14 @@
 - Require the PF endpoint to use HTTPS and the same scheme/authority as the PF issuer while preserving the configured token path. Keep PingOne endpoint selection and `access_token` subject typing unchanged.
 - For PF subjects, send `subject_token_type=access_token` unless the signed JWT header `typ` is exactly `oauth-id-jag+jwt`, in which case send `id-jag`. The requested token type remains `access_token`. Preserve the original user `sub` and nested A2A `act` claims; do not rewrite identity based on provider selection.
 - Never log subject or issued tokens, raw MCP session IDs, request authorization data, raw PingFederate/PingOne response bodies, or unfiltered provider errors. Gateway logs and returned error envelopes expose only status and stable sanitized error categories.
-- Add target-scoped repairability entries: local generated Gateway environment may be regenerated from declared BFF configuration after the run's exact preview and confirmation; hosted SE remains read-only/release-only and is never deployed or updated by this workflow. Keep the environment variables' secret values out of reports and tests' output.
+- Add target-scoped repairability entries. A stale local generated Gateway environment is automatically repairable only if Task 4 provides a tested in-process adapter that regenerates it, safely restarts the local Gateway, and verifies the loaded values after the exact preview and confirmation. If that adapter is not supported, classify the drift as release-only/manual. Hosted SE remains read-only/release-only and is never deployed or updated by this workflow. Keep environment-variable secret values out of reports and tests' output.
 - These assertions attach to existing PF Gateway rows. They add no Demo Steps entries and do not change the 46-case count or matrix row count.
 
-- [ ] Add regression tests for PF issuer routing with complete configuration, PF issuer routing with each required PF setting missing (proving no PingOne fallback), distinct PF exchanger credentials, exact JWT `typ` handling, access-token requested type, PF issuer/endpoint HTTPS authority and path parity, preservation of subject/actor claims, and unchanged PingOne behavior.
+- [ ] Add `olbTokenExchangeProviderRouting.test.js` regression tests for both PingGateway Exchange #3 filters: PF issuer routing with complete configuration, PF issuer routing with each required PF setting missing (proving no PingOne fallback), distinct PF exchanger credentials, exact JWT `typ` handling, access-token requested type, PF issuer/endpoint HTTPS authority and path parity, preservation of subject/actor claims, and unchanged PingOne behavior.
 - [ ] Assert the environment generator maps the existing BFF source values to the four Gateway variables and that missing PF credentials remain missing rather than inheriting PingOne values.
 - [ ] Assert failure logging and returned error envelopes do not expose exchange response bodies, access tokens, raw MCP session IDs, or authorization data; keep logs limited to stable error categories and status codes.
 - [ ] Use a registered MCP tool for the Exchange #3 success fixture. If a UI intent alias is not a registered tool, report its unknown-tool result separately; it cannot satisfy this check.
-- [ ] Update `demoReadinessRepairability.json` with local-regeneration and hosted-release-only classifications and exact readbacks; verify secrets are never included in evidence.
+- [ ] Update `demoReadinessRepairability.json` with the local generated-environment mode determined by Task 4's supported repair adapter and hosted release-only classification; verify secrets are never included in evidence.
 - [ ] Run focused generator/Gateway tests, the relevant source/config contract checks, `graphify update .`, and `git diff --check`; stage only Task 2A paths and commit as `fix: route PF gateway exchanges safely`.
 
 ### Task 3: Implement read-only audits for both targets
@@ -170,6 +170,7 @@
 **Files:**
 - Create: `demo_api_server/services/demoReadinessRepairService.js`
 - Create: `demo_api_server/tests/demoReadinessRepairService.test.js`
+- Create: `demo_api_server/services/demoReadinessLocalGatewayEnvRepair.js` only if a supported in-process local regeneration/restart/readback path is available; otherwise keep this drift release-only/manual
 - Modify: `demo_api_server/config/demoReadinessRepairability.json`
 - Modify: `demo_api_server/services/demoReadinessAuditService.js` only to emit structured repair candidates
 - Update: `docs/demo-readiness.md` with preview/confirmation rules and each supported repair class
@@ -178,13 +179,14 @@
 - `planRepairs({ findings, targets, now })` returns `{ planId, digest, expiresAt, changes, blocked }`; every change includes target/object/current/expected/sourceRef/operation.
 - `applyRepairs({ digest, confirmedBy, targets, now })` rejects expired or mismatched plans, re-reads every object's current state, applies only `automatic` candidates from that digest, then verifies each write using the source API's readback.
 - `repairMode: release-only` and `manual` remain visible in `blocked` with an operator action and cannot be passed to an apply adapter.
+- A local generated Gateway environment repair may be automatic only through a supported in-process adapter that regenerates from the declared source, safely restarts the local Gateway, and proves the loaded config by readback. The BFF route may not spawn shell commands or use `child_process`; if the adapter cannot meet this contract, leave the drift release-only/manual. Hosted SE never receives writes or deployment from this workflow.
 
 - [ ] Test that a changed target set, expired plan, altered current value, repeated confirmation, and ambiguous object ID each stop before the first write.
 - [ ] Test that the generated preview includes the exact before/after values and repository source reference, and its digest changes if any field changes.
 - [ ] Test a confirmed repair applies once, performs readback, records sanitized before/after evidence, and is safe to retry after a timeout.
 - [ ] Test required demo flags are changed only in the isolated readiness worker, restored after each case, and never left changed in the presenter's active runtime.
 - [ ] Test unauthorized/unsupported Authorize policy writes stay blocked and never call a mutation client.
-- [ ] Keep PF standard/A2A/native-ID-JAG drift manual until supported exact-object writes, idempotency, and readback are proven; no PF mutation can be inferred from a feature label alone. Local Exchange #3 generated-env refresh is the only PF-related automatic operation and must regenerate from the checked-in BFF source mapping; hosted SE stays release-only.
+- [ ] Keep PF standard/A2A/native-ID-JAG drift manual until supported exact-object writes, idempotency, and readback are proven; no PF mutation can be inferred from a feature label alone. Local Exchange #3 generated-env refresh is automatic only if the in-process local adapter above is proven; otherwise it remains release-only/manual. Hosted SE stays read-only.
 - [ ] Run `cd demo_api_server && CI=true npx jest tests/demoReadinessRepairService.test.js --forceExit`; expected: mocks record writes only after a matching confirmation and pre-write reread.
 - [ ] Run `graphify update .`, `git diff --check`, stage only the listed paths, verify branch, and commit as `feat: apply confirmed demo config repairs`.
 

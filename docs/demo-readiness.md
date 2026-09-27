@@ -19,18 +19,25 @@ The current executable Demo Steps list has 46 unique actions:
 | Primary | 24 | 24 | All remain in the executable inventory. |
 | CIAM | 5 | 4 | UC2 is already present in Primary. |
 | Privilege | 7 | 6 | UC40 is already present in Primary. |
-| Admin | 12 | 12 | Admin1–Admin12 execute MCP operations; Admin13 is navigation. |
-| **Total** | **48** | **46** | Duplicates are deduplicated; Admin13 is excluded. |
+| Admin | 13 | 12 | Admin1–Admin12 execute MCP operations; Admin13 is navigation. |
+| **Total** | **49** | **46** | UC2 and UC40 are cross-lane duplicates; Admin13 is excluded. |
 
 The catalog currently derives 184 behavior-plus-authorization vertical groups and 734 core target/provider rows. UC14b's full-page live-PAR variant adds four rows. A2A FM1/FM2/FM3 add 12 provider/target rows, and PF-DAVINCI-IK adds two PF-only target rows, for a current declared baseline of 752. The five Privilege LLM Attack Lab probes add 20 rows, bringing the known expanded count to 772 before PingOne Agent IAM Core and remaining PF protocol probes. Task 5 must register all added probes in the feature manifest; Task 10 reports the exact derived count rather than assuming 772 remains final.
 
 The 46-step count and separate feature-probe count are distinct. Adding assertions to an existing PF session row, including PingGateway Exchange #3 checks, does not add a Demo Steps entry or a matrix row. A newly exposed UI action must be added to the UI list and inventory, receive a backend behavior/auth/config contract, and trigger fresh row-count and timing review.
 
+Runnable IDs in source order:
+
+- Primary (24): `UC24`, `UC1`, `UC8`, `UC7`, `UC14b`, `UC14`, `UC12`, `UC6`, `UC2`, `UC2.5`, `UC2.7`, `UC22`, `UC5`, `UC10`, `UC13`, `UC11`, `UC20`, `UC18`, `UC30`, `UC31`, `UC32`, `UC40`, `UC38`, `UC-TOOL1`.
+- CIAM-only additions (4): `UC43`, `UC44`, `UC45`, `UC2.6`. `UC2` is already in Primary.
+- Privilege-only additions (6): `UC17`, `UC25`, `UC-PAM-SETUP`, `UC-PAM-SCRIPT`, `UC-LEARN11`, `UC-TOOL3`. `UC40` is already in Primary.
+- Admin executable entries (12): `ADMIN1` through `ADMIN12`. `ADMIN13` is listed in source but is navigation-only and excluded.
+
 ### Required provider and protocol lanes
 
 - Establish dedicated PingOne user sessions and dedicated PingFederate user sessions for every applicable step, on both targets. Use isolated identities and sessions; never relabel one provider's session or flip the active BFF's process-wide OAuth provider.
 - UC40 is PF-only. Its PingOne lane is explicitly not applicable because the native ID-JAG journey requires a PingFederate-authenticated session. UC40 proves the standalone native PF ID-JAG issuance and redemption path.
-- PF UC2 and UC2.5 A2A use the internal ID-JAG Exchange #1 followed by access-token Exchange #2. UC2.5 uses its direct A2A endpoints. This is distinct from UC40.
+- PF UC2 and UC2.5 A2A use the internal ID-JAG Exchange #1 followed by access-token Exchange #2. UC2.5 uses its direct A2A endpoints. This is distinct from UC40. UC2.5 and UC2.6 verticals remain separate when A2A tools or Authorize groups differ.
 - UC38/UC44 retain actor-bound standard two-exchange behavior, preserve the nested `act` chain and user subject, and do not use native ID-JAG. Their existing link-to-chip behavior remains part of the actual trigger contract.
 - UC14b has two paths: its quick result is labeled simulated; the full-page flow proves the live PAR/RAR route.
 - PF DaVinci Integration Kit login is a separate PF-only proof. A pre-existing PingOne session cannot satisfy the PF proof, and the PF callback must preserve PingOne tokens/session state.
@@ -47,8 +54,8 @@ Feature probes are registered alongside the 46 UI entries and state their provid
 | A2A FM3 | Nested delegation succeeds; expected exchange chain differs by provider. |
 | PF-DAVINCI-IK | Dedicated PF login proof succeeds while any existing PingOne session is preserved. |
 | Privilege Attack Lab | Tool Abuse, Tool Poisoning, Schema Violation, Inter-Agent Abuse, and Malicious Content. Derive outcome/attribution from the attack catalog; do not assume every case is a block. UC-LEARN11 checks both its prefilled prompt and the actual send/deny result. |
-| PingOne Agent IAM Core | Identity and delegated-token-exchange baseline. |
-| PingFederate agent features | CIMD valid/rejected metadata, third-party authorization-server allow/deny exchange, ID-JAG invalid/expired/wrong-audience rejection, and RAR valid/invalid detail processing. Declare applicability by provider role. |
+| PingOne Agent IAM Core | Identity, lifecycle, and delegated-token-exchange baseline. |
+| PingFederate agent features | CIMD valid/rejected metadata, third-party authorization-server allow/deny exchange, valid ID-JAG issuance/redemption by the existing mock resource server plus invalid/expired/wrong-audience rejection, and RAR valid/invalid detail processing. Declare applicability by provider role. |
 
 PAR is tested where a flow needs it; it is not a PF-only capability. All AI-agent feature paths use OAuth/JWT, not API keys.
 
@@ -109,7 +116,7 @@ Keep these regressions explicit:
 |---|---|
 | Missing, uniquely mapped PingOne scope or required app grant | May regenerate/apply only after a full exact preview, one admin confirmation, a pre-write reread, and successful API readback. |
 | A required feature flag for one scenario | Arm only inside an isolated readiness worker; restore in `finally` and fail if restore fails. |
-| Local generated PingGateway PF Exchange #3 env | After the source mapping is implemented, regenerate from declared BFF values after preview/confirmation and verify effective config. Never hand-edit the generated file. |
+| Local generated PingGateway PF Exchange #3 env | Automatic only if a tested in-process adapter can regenerate from declared BFF values, safely restart the local Gateway, and verify loaded config after preview/confirmation. Otherwise classify as release-only/manual. Never hand-edit the generated file or shell out from the BFF. |
 | Hosted SE Gateway configuration | Read-only/release-only. No cluster update or deployment. |
 | PF client/SP profile, DaVinci adapter, or native ID-JAG config | Manual/release-only unless a supported exact-object write, idempotency, and readback have been proven and declared. |
 | Full Authorize policy tree | Block READY until a supported read path exists; do not infer policy correctness from observed decisions. |
@@ -138,7 +145,7 @@ One run timer starts before prerequisites and includes audit, preview/confirmati
 ## Current blockers and plan status
 
 - **Authorize policy-tree readback:** unavailable with current worker permissions; full READY remains impossible until supported.
-- **PF Exchange #3:** local source wiring and fail-closed behavior are incomplete; Task 2A is planned and blocks PF readiness.
+- **PF Exchange #3:** local source wiring and fail-closed behavior are incomplete; filters also need their raw response/session logging removed. Task 2A is planned and blocks PF readiness. Any local environment auto-repair additionally depends on Task 4 proving a safe in-process restart/readback adapter; otherwise it remains release-only/manual.
 - **PF profile contracts:** complete secret-free per-role expectations do not yet exist; Task 3 must add and reconcile them before live parity can pass.
 - **Hosted SE:** read/execute only; remote repair/deploy is not permitted by repository policy.
 - **Isolation, full matrix, timing:** provider-worker isolation, all 46 step executions, all remaining feature probes, and a complete ≤12-minute benchmark remain unproved.
