@@ -204,6 +204,7 @@
 }
 
 :root[data-theme="dark"] .transaction-consent-card__check {
+  color: var(--th-text);
   background: var(--th-bg-inset);
 }
 
