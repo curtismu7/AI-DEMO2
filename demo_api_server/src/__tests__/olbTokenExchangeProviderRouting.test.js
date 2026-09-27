@@ -85,6 +85,24 @@ describe.each(FILTERS)('PingGateway $name Exchange #3 provider contract', (filte
     }
   });
 
+  test('preserves only sanitized insufficient-scope semantics for BFF recovery', () => {
+    expectMatch(source(), /err\.code\s*==\s*-32005/);
+    expectMatch(source(), /safeScopeList/);
+    expectMatch(source(), /requiredScopes/);
+    expectMatch(source(), /missingScopes/);
+    expectMatch(source(), /availableScopes/);
+    expectMatch(source(), /code\s*:\s*-32005/);
+    expectMatch(source(), /message\s*:\s*['"]insufficient_scope['"]/);
+    expectNoMatch(source(), /error\.code\s*\?:\s*-32603/);
+    if (filter.name === 'OLB') {
+      expectMatch(source(), /if\s*\(toolResp\.code\s*==\s*200\s*&&\s*toolResp\.body\)[\s\S]*?sanitizeMcpResponse\(toolResp\.body\)\.body/);
+      expectMatch(source(), /if\s*\(safeResult\.scopeDenied\)\s*\{\s*finalResp\.entity\.setString\(safeResult\.body\)/);
+    } else {
+      expectMatch(source(), /def safeBackend\s*=\s*sanitizeMcpResponse\(beResp\.body\s*\?:\s*['"]['"]\)/);
+      expectMatch(source(), /if\s*\(safeBackend\.scopeDenied\s*\|\|\s*safeBackend\.isError\)/);
+    }
+  });
+
   test('types only exactly id-jag JWTs as id-jag and requests an access token', () => {
     expectMatch(source(), /subjectTyp\s*==\s*['"]oauth-id-jag\+jwt['"]/);
     expectMatch(source(), /subject_token_type[\s\S]{0,180}subjectType/);
@@ -103,12 +121,14 @@ describe.each(FILTERS)('PingGateway $name Exchange #3 provider contract', (filte
     expectNoMatch(text, /logger\.(?:info|warn|error)\([^\n]*sessionId/);
     expectNoMatch(text, /(?:detail|pingone_error)\s*:\s*(?:initResp|exchangeResp)\.body/);
     expectNoMatch(text, /logger\.(?:info|warn|error)\([^\n]*(?:authHeader|subjectToken)/);
-    expectNoMatch(text, /(?:parsedBody|backendEnvelope)\.error\.code/);
+    expectNoMatch(text, /(?:parsedBody|backendEnvelope)\.error\.message\s*[,}]/);
     expectMatch(text, /error\s*:\s*['"](?:token_exchange_failed|mcp_initialize_failed|mcp_tool_call_failed)['"]/);
+    expectNoMatch(text, /logger\.(?:info|warn|error)\([^\n]*e\.message/);
+    expectNoMatch(text, /logger\.(?:info|warn|error)\([^\n]*(?:exEndpoint|mcpUrl|investMcpUrl|olbAudience|investAudience|olbScope|wantScope)/);
     if (filter.name === 'OLB') {
-      expectMatch(text, /catch\s*\(Exception ignored\)\s*\{\s*safeBody\s*=\s*JsonOutput\.toJson\(\[error:\s*'mcp_tool_call_failed'\]\)/);
+      expectMatch(text, /return\s*\[body:\s*JsonOutput\.toJson\(\[error:\s*'mcp_tool_call_failed'\]\),\s*isError:\s*true,\s*scopeDenied:\s*false\]/);
     } else {
-      expectMatch(text, /catch\s*\(Exception ignored\)\s*\{\s*return Promises\.newResultPromise\(rpcError\(rpcId, -32603, 'mcp_tool_call_failed'\)\)/);
+      expectMatch(text, /return\s*\[body:\s*JsonOutput\.toJson\(\[jsonrpc:\s*'2\.0',\s*id:\s*rpcId,\s*error:\s*\[code:\s*-32603,\s*message:\s*'mcp_tool_call_failed'\]\]\),\s*isError:\s*true,\s*scopeDenied:\s*false\]/);
     }
   });
 });

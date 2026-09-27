@@ -114,8 +114,10 @@
 - Modify: `ping-gateway/scripts/groovy/invest-dispatch.groovy`
 - Modify: `ping-gateway/.env.example`
 - Modify: `demo_api_server/config/demoReadinessRepairability.json`
+- Modify: `demo_api_server/services/mcpGatewayClient.js`
 - Create: `demo_api_server/tests/refreshServiceEnvsPfGateway.test.js`
 - Create: `demo_api_server/src/__tests__/olbTokenExchangeProviderRouting.test.js`
+- Create: `demo_api_server/src/__tests__/mcpGatewayClient.insufficientScope.test.js`
 - Modify: focused PingGateway exchange test fixtures if an existing harness is available
 - Modify: `docs/demo-readiness.md`
 
@@ -124,16 +126,18 @@
 - Select the PF branch as soon as the validated subject issuer equals the configured PF issuer, independent of whether optional PF endpoint/credential settings are present. If required PF settings are missing, return stable `pf_exchange_not_configured` failure without contacting PingOne or substituting PingOne exchanger credentials.
 - Require the PF endpoint to use HTTPS and the same scheme/authority as the PF issuer while preserving the configured token path. Follow the configured PF Basic/Post client-auth method. Omit PingOne `resource` request parameters for PF because the PF processor policy derives the output audience; the live readiness row must validate the issued audience against the expected backend. Keep PingOne endpoint selection, resource handling, and `access_token` subject typing unchanged.
 - For PF subjects, send `subject_token_type=access_token` unless the signed JWT header `typ` is exactly `oauth-id-jag+jwt`, in which case send `id-jag`. The requested token type remains `access_token`. Preserve the original user `sub` and nested A2A `act` claims; do not rewrite identity based on provider selection.
-- Never log subject or issued tokens, raw MCP session IDs, request authorization data, raw PingFederate/PingOne response bodies, or unfiltered provider errors. Gateway logs and returned error envelopes expose only status and stable sanitized error categories.
+- Never log subject or issued tokens, raw MCP session IDs, request authorization data, raw PingFederate/PingOne response bodies, or unfiltered provider errors. Returned errors expose stable sanitized categories; the exact `-32005` scope-denial shape may also include only bounded `requiredScopes`, derived `missingScopes`, and `availableScopes` for the BFF recovery path.
 - Add target-scoped repairability entries. A stale local generated Gateway environment is automatically repairable only if Task 4 provides a tested in-process adapter that regenerates it, safely restarts the local Gateway, and verifies the loaded values after the exact preview and confirmation. If that adapter is not supported, classify the drift as release-only/manual. Hosted SE remains read-only/release-only and is never deployed or updated by this workflow. Keep environment-variable secret values out of reports and tests' output.
 - These assertions attach to existing PF Gateway rows. They add no Demo Steps entries and do not change the 46-case count or matrix row count.
 
 - [x] Add static Groovy source-contract regression tests for both Exchange #3 filters: issuer-first PF routing, fail-closed checks before exchange, PF-only credentials, configured Basic/Post client authentication, PF policy-derived audience behavior, exact JWT `typ` handling, access-token requested type, HTTPS authority/path rules, unchanged subject-token forwarding, and registered-tool names.
 - [x] Assert the environment generator maps the existing BFF source values to the five Gateway variables and that missing PF credentials remain missing rather than inheriting PingOne values.
 - [x] Assert source logs and stable failure responses do not expose exchange response bodies, access tokens, raw MCP session IDs, or authorization data.
+- [x] Preserve JSON-RPC `-32005` as a sanitized `insufficient_scope` response with bounded required/missing/available scope lists for BFF recovery; cover backend HTTP 200 and HTTP 403 response paths and map other backend errors to fixed generic failures.
+- [x] Map both HTTP 200 and HTTP 403 JSON-RPC `-32005` responses in the BFF Gateway client to the existing `mcp_insufficient_scope` pipeline path; focused client tests cover both forms.
 - [ ] Use a registered MCP tool in an end-to-end Exchange #3 success fixture and verify its expected audience/result. The source-contract check confirms the fixture tool is registered; this live proof belongs to Task 5 and cannot pass from a static source check.
 - [x] Classify local generated Gateway PF env and hosted SE PF env as `release-only`; Task 4 may upgrade local repair only after proving a safe in-process adapter. Keep secret values out of evidence.
-- [x] Run focused generator/source-contract tests, the readiness contract check, `graphify update .`, and `git diff --check`. No Groovy runtime is installed; the registered-tool live exchange proof remains in Task 5.
+- [x] Run focused generator/source-contract and BFF Gateway mapping tests, the readiness contract check, `graphify update .`, and `git diff --check`. The existing BFF pipeline characterization Jest process exits 134 without output under Node 22 and 26; no Groovy runtime is installed, and the registered-tool live exchange proof remains in Task 5.
 - Commit only Task 2A paths as `fix: route PF gateway exchanges safely`.
 
 ### Task 3: Implement read-only audits for both targets

@@ -48,6 +48,51 @@ def olbAudience     = System.getenv('PG_OLB_RESOURCE_URI') ?: ''
 def olbScope        = System.getenv('PG_OLB_SCOPE') ?: ''
 def mcpBaseUrl      = System.getenv('PG_OLB_BACKEND_URL') ?: 'http://mcp-server:8080'
 def mcpUrl          = mcpBaseUrl.replaceAll('/+$', '') + '/mcp'
+def safeScopeList = { Object scopes ->
+    if (!(scopes instanceof Collection)) return []
+    return scopes.findAll { it instanceof String && (it as String) ==~ /[A-Za-z0-9*:._\/-]{1,128}/ }
+        .unique().take(64)
+}
+// The BFF maps JSON-RPC -32005 to its scope-recovery response. Preserve only
+// that code and bounded scope names; never forward backend error text or data.
+def sanitizeMcpResponse = { String body ->
+    try {
+        def envelope = new JsonSlurper().parseText(body ?: '{}')
+        if (envelope?.error) {
+            def err = envelope.error
+            if (err.code == -32005) {
+                def errorData = err.data instanceof Map ? err.data : [:]
+                def requiredSource = errorData.requiredScopes instanceof Collection
+                    ? errorData.requiredScopes
+                    : (errorData.requiredScope instanceof String ? [errorData.requiredScope] : [])
+                def requiredScopes = safeScopeList(requiredSource)
+                def availableScopes = safeScopeList(errorData.availableScopes)
+                def missingScopes = requiredScopes.findAll { !availableScopes.contains(it) }
+                return [
+                    body: JsonOutput.toJson([
+                        jsonrpc: '2.0',
+                        id: envelope.id,
+                        error: [
+                            code: -32005,
+                            message: 'insufficient_scope',
+                            data: [requiredScopes: requiredScopes, missingScopes: missingScopes, availableScopes: availableScopes],
+                        ],
+                    ]),
+                    isError: true,
+                    scopeDenied: true,
+                ]
+            }
+            return [
+                body: JsonOutput.toJson([jsonrpc: '2.0', id: envelope.id, error: [code: -32603, message: 'mcp_tool_call_failed']]),
+                isError: true,
+                scopeDenied: false,
+            ]
+        }
+        return [body: body ?: '{}', isError: false, scopeDenied: false]
+    } catch (Exception ignored) {
+        return [body: JsonOutput.toJson([error: 'mcp_tool_call_failed']), isError: true, scopeDenied: false]
+    }
+}
 
 // ── Blocking HTTP helper (form-encoded) ──────────────────────────────────────
 def httpPostForm = { String url, String reqBody, Map hdrs ->
@@ -65,7 +110,7 @@ def httpPostForm = { String url, String reqBody, Map hdrs ->
         try { body = (code < 400 ? conn.inputStream : (conn.errorStream ?: conn.inputStream))?.text ?: '' } catch (Exception ignored) {}
         return [code: code, body: body]
     } catch (Exception e) {
-        logger.warn('[OlbExchange] httpPostForm failed: ' + e.message)
+        logger.warn('[OlbExchange] token endpoint transport error')
         return [code: 0, body: '']
     }
 }
@@ -116,8 +161,7 @@ if (mtlsKeystore && new File(mtlsKeystore).exists()) {
         // Do NOT fall back to plaintext silently: if mTLS was configured and the
         // keystore is broken, the operator needs to see it rather than discover
         // the hop quietly downgraded.
-        logger.error('[OlbExchange] mTLS keystore load FAILED (' + e.message +
-            ') — https calls to the MCP server will fail the client-cert check')
+        logger.error('[OlbExchange] mTLS keystore load failed; MCP calls requiring client certificates will fail')
     }
 } else if (mtlsKeystore) {
     logger.error('[OlbExchange] PG_MTLS_KEYSTORE_PATH set to ' + mtlsKeystore +
@@ -151,7 +195,7 @@ def httpPostJson = { String url, String jsonBody, Map hdrs ->
         try { body = (code < 400 ? conn.inputStream : (conn.errorStream ?: conn.inputStream))?.text ?: '' } catch (Exception ignored) {}
         return [code: code, body: body, headers: respHeaders]
     } catch (Exception e) {
-        logger.warn('[OlbExchange] httpPostJson failed: ' + e.message)
+        logger.warn('[OlbExchange] MCP transport error')
         return [code: 0, body: '', headers: [:]]
     }
 }
@@ -247,7 +291,7 @@ def formBody = params.collect { k, v ->
     java.net.URLEncoder.encode(k, 'UTF-8') + '=' + java.net.URLEncoder.encode(v as String, 'UTF-8')
 }.join('&')
 
-logger.info('[OlbExchange] REQUEST → ' + exEndpoint + ' resource=' + (isPfSubject ? '(policy-derived)' : olbAudience) + ' scope=' + (olbScope?.trim() ?: '(omit)'))
+logger.info('[OlbExchange] Exchange #3 request provider=' + (isPfSubject ? 'pingfederate' : 'pingone'))
 def exchangeResp = httpPostForm(exEndpoint, formBody, exchangeHeaders)
 logger.info('[OlbExchange] RESPONSE HTTP ' + exchangeResp.code)
 
@@ -297,7 +341,7 @@ def initBody = JsonOutput.toJson([
         clientInfo     : [name: 'PingGateway', version: '2026.3'],
     ],
 ])
-logger.info('[OlbExchange] Sending MCP initialize to ' + mcpUrl)
+logger.info('[OlbExchange] Sending MCP initialize')
 def initResp = httpPostJson(mcpUrl, initBody, initHdrs)
 logger.info('[OlbExchange] MCP initialize response HTTP ' + initResp.code)
 
@@ -346,21 +390,13 @@ def igStatus = (toolResp.code > 0) ? Status.valueOf(toolResp.code) : Status.BAD_
 def finalResp = new Response(igStatus)
 finalResp.headers.put('Content-Type', ['application/json'])
 if (toolResp.code == 200 && toolResp.body) {
-    def safeBody = toolResp.body
-    try {
-        def parsedBody = new JsonSlurper().parseText(toolResp.body)
-        if (parsedBody?.error) {
-            safeBody = JsonOutput.toJson([
-                jsonrpc: parsedBody.jsonrpc ?: '2.0',
-                id: parsedBody.id,
-                error: [code: -32603, message: 'mcp_tool_call_failed'],
-            ])
-        }
-    } catch (Exception ignored) {
-        safeBody = JsonOutput.toJson([error: 'mcp_tool_call_failed'])
-    }
-    finalResp.entity.setString(safeBody)
+    finalResp.entity.setString(sanitizeMcpResponse(toolResp.body).body)
 } else if (toolResp.code != 200) {
-    finalResp.entity.setString(JsonOutput.toJson([error: 'mcp_tool_call_failed', http_status: toolResp.code]))
+    def safeResult = sanitizeMcpResponse(toolResp.body ?: '')
+    if (safeResult.scopeDenied) {
+        finalResp.entity.setString(safeResult.body)
+    } else {
+        finalResp.entity.setString(JsonOutput.toJson([error: 'mcp_tool_call_failed', http_status: toolResp.code]))
+    }
 }
 return Promises.newResultPromise(finalResp)

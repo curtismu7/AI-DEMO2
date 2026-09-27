@@ -151,6 +151,51 @@ def rpcError = { id, code, message ->
     r.entity.setString(JsonOutput.toJson([jsonrpc: '2.0', id: id, error: [code: code, message: message]]))
     return r
 }
+def safeScopeList = { Object scopes ->
+    if (!(scopes instanceof Collection)) return []
+    return scopes.findAll { it instanceof String && (it as String) ==~ /[A-Za-z0-9*:._\/-]{1,128}/ }
+        .unique().take(64)
+}
+// The BFF maps JSON-RPC -32005 to its scope-recovery response. Preserve only
+// that code and bounded scope names; never forward backend error text or data.
+def sanitizeMcpResponse = { String body ->
+    try {
+        def envelope = new JsonSlurper().parseText(body ?: '{}')
+        if (envelope?.error) {
+            def err = envelope.error
+            if (err.code == -32005) {
+                def errorData = err.data instanceof Map ? err.data : [:]
+                def requiredSource = errorData.requiredScopes instanceof Collection
+                    ? errorData.requiredScopes
+                    : (errorData.requiredScope instanceof String ? [errorData.requiredScope] : [])
+                def requiredScopes = safeScopeList(requiredSource)
+                def availableScopes = safeScopeList(errorData.availableScopes)
+                def missingScopes = requiredScopes.findAll { !availableScopes.contains(it) }
+                return [
+                    body: JsonOutput.toJson([
+                        jsonrpc: '2.0',
+                        id: envelope.id,
+                        error: [
+                            code: -32005,
+                            message: 'insufficient_scope',
+                            data: [requiredScopes: requiredScopes, missingScopes: missingScopes, availableScopes: availableScopes],
+                        ],
+                    ]),
+                    isError: true,
+                    scopeDenied: true,
+                ]
+            }
+            return [
+                body: JsonOutput.toJson([jsonrpc: '2.0', id: envelope.id, error: [code: -32603, message: 'mcp_tool_call_failed']]),
+                isError: true,
+                scopeDenied: false,
+            ]
+        }
+        return [body: body ?: '{}', isError: false, scopeDenied: false]
+    } catch (Exception ignored) {
+        return [body: JsonOutput.toJson([jsonrpc: '2.0', id: rpcId, error: [code: -32603, message: 'mcp_tool_call_failed']]), isError: true, scopeDenied: false]
+    }
+}
 
 // ── Blocking HTTP helpers ─────────────────────────────────────────────────────
 def httpPostForm = { String url, String reqBody, Map hdrs ->
@@ -168,7 +213,7 @@ def httpPostForm = { String url, String reqBody, Map hdrs ->
         try { text = (code < 400 ? conn.inputStream : (conn.errorStream ?: conn.inputStream))?.text ?: '' } catch (Exception ignored) {}
         return [code: code, body: text]
     } catch (Exception e) {
-        logger.warn('[InvestDispatch] httpPostForm failed: ' + e.message)
+        logger.warn('[InvestDispatch] token endpoint transport error')
         return [code: 0, body: '']
     }
 }
@@ -189,7 +234,7 @@ def httpPostJson = { String url, String reqBody, String bearer ->
         try { text = (code < 400 ? conn.inputStream : (conn.errorStream ?: conn.inputStream))?.text ?: '' } catch (Exception ignored) {}
         return [code: code, body: text]
     } catch (Exception e) {
-        logger.warn('[InvestDispatch] httpPostJson failed: ' + e.message)
+        logger.warn('[InvestDispatch] backend transport error')
         return [code: 0, body: '']
     }
 }
@@ -265,8 +310,7 @@ def formBody = params.findAll { it.value != null }.collect { k, v ->
     java.net.URLEncoder.encode(k, 'UTF-8') + '=' + java.net.URLEncoder.encode(v as String, 'UTF-8')
 }.join('&')
 
-logger.info('[InvestDispatch] tool=' + toolName + ' request provider=' + (isPfSubject ? 'pingfederate' : 'pingone') +
-    ' resource=' + (isPfSubject ? '(policy-derived)' : investAudience) + ' scope=' + (wantScope ?: '(omit)'))
+logger.info('[InvestDispatch] tool=' + toolName + ' request provider=' + (isPfSubject ? 'pingfederate' : 'pingone'))
 def exchangeResp = httpPostForm(exEndpoint, formBody, exchangeHeaders)
 logger.info('[InvestDispatch] Exchange #3 HTTP ' + exchangeResp.code)
 
@@ -291,23 +335,22 @@ if (!issuedToken) {
 
 // ── Forward the original JSON-RPC envelope to the resource server ─────────────
 def beResp = httpPostJson(investMcpUrl, bodyStr, issuedToken)
-logger.info('[InvestDispatch] backend ' + investMcpUrl + ' HTTP ' + beResp.code)
+logger.info('[InvestDispatch] resource server HTTP ' + beResp.code)
 
 if (beResp.code == 0) {
     return Promises.newResultPromise(rpcError(rpcId, -32603, 'Invest backend unreachable'))
 }
 
-if (beResp.code != 200) {
-    logger.warn('[InvestDispatch] backend request failed HTTP ' + beResp.code)
-    return Promises.newResultPromise(rpcError(rpcId, -32603, 'mcp_tool_call_failed'))
+def safeBackend = sanitizeMcpResponse(beResp.body ?: '')
+if (safeBackend.scopeDenied || safeBackend.isError) {
+    def out = new Response(Status.OK)
+    out.headers.put('Content-Type', ['application/json'])
+    out.entity.setString(safeBackend.body)
+    return Promises.newResultPromise(out)
 }
 
-try {
-    def backendEnvelope = new JsonSlurper().parseText(beResp.body ?: '{}')
-    if (backendEnvelope?.error) {
-        return Promises.newResultPromise(rpcError(rpcId, -32603, 'mcp_tool_call_failed'))
-    }
-} catch (Exception ignored) {
+if (beResp.code != 200) {
+    logger.warn('[InvestDispatch] resource server request failed HTTP ' + beResp.code)
     return Promises.newResultPromise(rpcError(rpcId, -32603, 'mcp_tool_call_failed'))
 }
 
