@@ -194,7 +194,7 @@ describe("Architecture diagram completeness", () => {
       "✅", // ✅
       "❌", // ❌
     ]);
-    // Conservative emoji ranges — covers 🖥 ☁ which we know existed in
+    // Conservative emoji ranges — covers desktop-machine and cloud glyphs
     // architecture.mmd. Second range extended to U+2B55 so common dingbats
     // like ⭐ (U+2B50) and ⭕ (U+2B55) that a contributor might paste into a
     // label are not silently allowed (WR-02 / Phase 270 review).

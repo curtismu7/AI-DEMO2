@@ -36,7 +36,7 @@ const TABS = [
   { id: "security", label: "Security", Component: SecuritySection },
 ];
 
-export default function AgenticAccessConsolePage() {
+export default function AgenticAccessConsolePage({ user }) {
   const { darkMode, toggleDarkMode } = useThemeOptional();
   const [activeTab, setActiveTab] = useState("dashboard");
 
@@ -78,7 +78,7 @@ export default function AgenticAccessConsolePage() {
       </nav>
 
       <section className="aac-section">
-        <Active />
+        <Active user={user} />
       </section>
     </div>
   );
