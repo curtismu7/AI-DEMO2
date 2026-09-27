@@ -235,6 +235,38 @@ HTTP 502 `invalid_grant` at intermediate-token validation, as described above.
 
 **Verify:** Focused `pf-idjag-run-mode.spec.js` → 8 passed against the isolated worktree Vite server using system Chrome (the shared Playwright headless-shell cache was being reinstalled); `npm run build` exits 0.
 
+### 2026-09-27 — Switching Privilege doors repeated interactive login
+
+**Files changed:** `demo_api_server/routes/privilegeMcpClient.js`,
+`demo_api_server/tests/routes/privilegeMcpClient.silentAuth.test.js`,
+`demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`.
+
+**What was broken:** silent authorization was attempted only when the main
+application session had an access token. A user authenticated through one
+Privilege door could switch to another door with no saved grant and be sent
+through another interactive login. The modal also described a missing
+per-door saved token as “sign-in needed,” which confused door-token status
+with the user's existing gateway SSO session.
+
+**What was fixed:** a valid saved Privilege OAuth grant now enables
+`prompt=none` for the next door's authorization flow. If the identity provider
+still has the user's SSO session, it can issue that door's grant without
+repeating interactive login. The modal now says “no saved token” and explains
+that each selected door may need its own grant while existing gateway SSO can
+be reused.
+
+**Do not break:** keep each OAuth response server-side and preserve the
+gateway's per-app authorization decision; a silent-login failure must still
+fall back to the explicit interactive flow. Do not describe refresh tokens as
+universally door-bound: OAuth refresh behavior depends on the issuer, client,
+grant and the issuer's supported resource model. In the current gateway
+metadata, each app advertises its own issuer and token endpoint.
+
+**Verify:** `CI=true npx jest tests/routes/privilegeMcpClient.silentAuth.test.js
+--forceExit` — 9 passed; focused UI tests for door switching and denial
+diagnostics — 4 passed; `cd demo_api_ui && npm run build` — passed. The full UI
+suite reported a separate undefined CSS-token failure and did not complete.
+
 ### 2026-09-26 — A2A provider-flip incident: three compounding failure layers, now guarded
 
 **What was broken (the 40-minute `a2a_unauthorized` outage class):**
