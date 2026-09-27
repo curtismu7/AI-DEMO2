@@ -110,6 +110,99 @@ def get_actor_client_id() -> str:
     )
 
 
+def validate_actor_runtime_config(config: dict[str, str]) -> dict[str, str]:
+    client_secret = config.get("clientSecret")
+    if (
+        not isinstance(client_secret, str)
+        or not client_secret.strip()
+        or client_secret.strip().startswith("encrypted:")
+    ):
+        raise RuntimeError(
+            "PF actor client secret is unresolved or empty; refusing to modify PingFederate"
+        )
+    if config.get("authMethod") not in {"basic", "post"}:
+        raise RuntimeError(
+            "PF actor token endpoint auth method must be basic or post; refusing to modify PingFederate"
+        )
+    return config
+
+
+def get_actor_runtime_config() -> dict[str, str]:
+    source_root = next(
+        (root for root in _worktree_roots() if (root / "demo_api_server" / ".env").is_file()),
+        None,
+    )
+    if source_root is None:
+        raise RuntimeError("demo_api_server/.env is required to update the PF actor client")
+
+    helper = ROOT / "demo_api_server" / "scripts" / "refresh-service-envs.js"
+    env_path = source_root / "demo_api_server" / ".env"
+    node_script = r"""
+const fs = require('fs');
+const root = process.argv[1];
+const envPath = process.argv[2];
+const helperPath = process.argv[3];
+process.env.CODE_SEARCH_REPO_ROOT = root;
+console.log = () => {};
+console.warn = () => {};
+const { loadVaultSecrets, dotenvxPlain, buildPingGatewayPfExchangeEnv } = require(helperPath);
+function parseEnv(filePath) {
+  const values = {};
+  for (const raw of fs.readFileSync(filePath, 'utf8').split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line || line.startsWith('#')) continue;
+    const index = line.indexOf('=');
+    if (index < 1) continue;
+    let value = line.slice(index + 1).trim();
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) value = value.slice(1, -1);
+    values[line.slice(0, index).trim()] = value;
+  }
+  return values;
+}
+(async () => {
+  const apiVars = parseEnv(envPath);
+  const vault = await loadVaultSecrets(['PF_MCP_SERVICE_ACTOR_CLIENT_SECRET'], root);
+  const clientSecret = vault.PF_MCP_SERVICE_ACTOR_CLIENT_SECRET
+    || dotenvxPlain(apiVars.PF_MCP_SERVICE_ACTOR_CLIENT_SECRET);
+  const pfEnv = buildPingGatewayPfExchangeEnv(apiVars);
+  const result = {
+    clientId: apiVars.PF_MCP_SERVICE_ACTOR_CLIENT_ID || '',
+    clientSecret: clientSecret || '',
+    issuerUri: pfEnv.PF_ISSUER_URI,
+    tokenEndpoint: pfEnv.PF_TOKEN_ENDPOINT,
+    authMethod: (apiVars.PF_MCP_SERVICE_ACTOR_TOKEN_ENDPOINT_AUTH_METHOD || 'basic').toLowerCase(),
+    actorScope: apiVars.PF_STANDARD_MCP_ACTOR_SCOPE || 'mcp:invoke',
+  };
+  if (Object.values(result).some(value => typeof value !== 'string' || !value)) process.exit(2);
+  process.stdout.write(JSON.stringify(result));
+})().catch(() => process.exit(2));
+"""
+    try:
+        raw = subprocess.check_output(
+            ["node", "-e", node_script, str(source_root), str(env_path), str(helper)],
+            cwd=ROOT,
+            text=True,
+            stderr=subprocess.DEVNULL,
+        )
+        config = json.loads(raw)
+    except (OSError, subprocess.CalledProcessError, json.JSONDecodeError) as exc:
+        raise RuntimeError(
+            "Could not resolve PF actor credentials from the protected BFF configuration"
+        ) from exc
+
+    override_id = os.environ.get("PF_MCP_SERVICE_ACTOR_CLIENT_ID", "").strip()
+    override_secret = os.environ.get("PF_MCP_SERVICE_ACTOR_CLIENT_SECRET", "")
+    if override_id and override_id != config["clientId"] and not override_secret:
+        raise RuntimeError(
+            "An overridden PF actor client ID requires its matching secret in the environment"
+        )
+    if override_id:
+        config["clientId"] = override_id
+    if override_secret:
+        config["clientSecret"] = override_secret
+    return validate_actor_runtime_config(config)
+
+
 def api_request(
     method: str,
     path: str,
@@ -194,7 +287,12 @@ def ensure_resource(
         raise RuntimeError(f"PF Admin API {method} {path} returned HTTP {result}")
 
 
-def ensure_actor_client(client_id: str, auth_header: str, apply: bool) -> None:
+def ensure_actor_client(
+    client_id: str,
+    client_secret: str,
+    auth_header: str,
+    apply: bool,
+) -> None:
     path = resource_path("/oauth/clients", client_id)
     status, client = api_request("GET", path, auth_header)
     if status != 200 or not isinstance(client, dict):
@@ -227,9 +325,15 @@ def ensure_actor_client(client_id: str, auth_header: str, apply: bool) -> None:
 
     client["grantTypes"] = target_grants
     client["tokenExchangeProcessorPolicyRef"] = policy_ref
+    client_auth = client.get("clientAuth")
+    if not isinstance(client_auth, dict):
+        raise RuntimeError(f"{client_id} has no supported clientAuth configuration")
+    client_auth.pop("encryptedSecret", None)
+    client_auth["secret"] = client_secret
+    client["clientAuth"] = client_auth
     print(
         f"UPDATE configured actor client {client_id} (retain CLIENT_CREDENTIALS, add TOKEN_EXCHANGE, "
-        f"attach {POLICY_ID}; existing secret is preserved)"
+        f"attach {POLICY_ID}; restore its protected runtime secret without logging it)"
     )
     if not apply:
         return
@@ -314,6 +418,57 @@ def verify_readback(
     )
 
 
+def verify_actor_credentials(config: dict[str, str]) -> None:
+    params = {"grant_type": "client_credentials", "scope": config["actorScope"]}
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/x-www-form-urlencoded",
+    }
+    if config["authMethod"] == "basic":
+        credentials = f"{config['clientId']}:{config['clientSecret']}".encode("utf-8")
+        headers["Authorization"] = "Basic " + base64.b64encode(credentials).decode("ascii")
+    elif config["authMethod"] == "post":
+        params["client_id"] = config["clientId"]
+        params["client_secret"] = config["clientSecret"]
+    else:
+        raise RuntimeError("PF actor client token endpoint auth method must be basic or post")
+
+    request = urllib.request.Request(
+        config["tokenEndpoint"],
+        data=urllib.parse.urlencode(params).encode("utf-8"),
+        method="POST",
+        headers=headers,
+    )
+    try:
+        with urllib.request.urlopen(
+            request, context=ssl._create_unverified_context(), timeout=20
+        ) as response:
+            token_response = json.loads(response.read())
+    except urllib.error.HTTPError as exc:
+        raise RuntimeError(
+            f"PF configured actor credentials failed at token endpoint (HTTP {exc.code})"
+        ) from None
+    except (OSError, TimeoutError, json.JSONDecodeError) as exc:
+        raise RuntimeError("PF configured actor credentials could not be verified") from exc
+
+    access_token = token_response.get("access_token") if isinstance(token_response, dict) else None
+    if not isinstance(access_token, str):
+        raise RuntimeError("PF configured actor did not receive an access token")
+    parts = access_token.split(".")
+    if len(parts) != 3:
+        raise RuntimeError("PF configured actor token is not a JWT access token")
+    try:
+        claims = json.loads(base64.urlsafe_b64decode(parts[1] + "=" * (-len(parts[1]) % 4)))
+    except (ValueError, json.JSONDecodeError) as exc:
+        raise RuntimeError("PF configured actor token claims could not be read") from exc
+    scopes = claims.get("scope", "")
+    scope_set = set(scopes.split()) if isinstance(scopes, str) else set(scopes) if isinstance(scopes, list) else set()
+    identity = claims.get("client_id") or claims.get("sub")
+    if claims.get("iss") != config["issuerUri"] or identity != config["clientId"] or config["actorScope"] not in scope_set:
+        raise RuntimeError("PF configured actor token does not match issuer, client, and scope")
+    print("ACTOR CREDENTIALS OK: protected runtime secret can mint the configured PF actor token")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -337,6 +492,9 @@ def main() -> int:
             (ROOT / "spiffe/pingfederate/pf-step9-atm-mapping.json").read_text()
         )
         actor_client_id = get_actor_client_id()
+        actor_runtime_config = get_actor_runtime_config() if args.apply else None
+        if actor_runtime_config and actor_runtime_config["clientId"] != actor_client_id:
+            raise RuntimeError("PF actor client ID source does not match the BFF runtime configuration")
 
         ensure_resource(
             "dedicated PF Step 9 policy",
@@ -354,9 +512,15 @@ def main() -> int:
             auth_header,
             args.apply,
         )
-        ensure_actor_client(actor_client_id, auth_header, args.apply)
+        ensure_actor_client(
+            actor_client_id,
+            actor_runtime_config["clientSecret"] if actor_runtime_config else "",
+            auth_header,
+            args.apply,
+        )
         if args.apply:
             verify_readback(actor_client_id, policy, mapping, auth_header)
+            verify_actor_credentials(actor_runtime_config)
         else:
             print("Dry-run only. Pass --apply to write these three scoped changes.")
     except (OSError, RuntimeError, json.JSONDecodeError) as exc:

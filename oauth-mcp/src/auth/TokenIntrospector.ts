@@ -309,20 +309,16 @@ export class TokenIntrospector {
    * configured issuer claim. Other claim checks (aud / may_act / act / exp) are
    * enforced separately by the caller.
    *
-   * Fail-closed when JWKS is configured: a token whose signature does not verify
-   * is rejected. The dev-only escape hatch SKIP_TOKEN_SIGNATURE_VALIDATION=true
-   * (already fatal outside development via ConfigManager) downgrades a failure to
-   * a warning. When no JWKS endpoint is configured there is nothing to verify
-   * against, so the decode-only path is preserved with a prominent warning.
+   * PF signatures always fail closed, including during JWKS outages; the global
+   * development bypasses are not allowed to skip PF issuer verification. For
+   * other issuers, existing development and outage overrides remain unchanged.
    *
    * @returns true when the signature was cryptographically verified; false when
-   *          the token was accepted WITHOUT verification (no JWKS configured, the
-   *          SKIP escape hatch, or the ALLOW_JWKS_FAILOPEN outage path). Throws
-   *          when verification ran and failed.
+   *          the token was accepted WITHOUT verification (no PingOne JWKS, the
+   *          SKIP escape hatch, or the ALLOW_JWKS_FAILOPEN outage path). PF tokens
+   *          throw whenever signature verification cannot be completed.
    */
   private async verifyTokenSignature(token: string): Promise<boolean> {
-    const skip = process.env.SKIP_TOKEN_SIGNATURE_VALIDATION === 'true';
-
     // Peek `iss` (unverified — just routing which key to check against, not
     // trusting the claim yet). A self-issued token from oauth-mcp's own
     // embedded AS verifies against its local RSA key, no network involved.
@@ -334,7 +330,13 @@ export class TokenIntrospector {
       }
     } catch { /* malformed — fall through to the existing PingOne path, which will reject it */ }
 
-    if (peekedIss && peekedIss === resolveEmbeddedIssuer()) {
+    const configuredPfIssuer = process.env.PF_ISSUER_URI || process.env.PF_ISSUER;
+    const isPfIssuer = typeof peekedIss === 'string'
+      && Boolean(configuredPfIssuer)
+      && peekedIss === configuredPfIssuer;
+    const skip = !isPfIssuer && process.env.SKIP_TOKEN_SIGNATURE_VALIDATION === 'true';
+
+    if (peekedIss && peekedIss === resolveEmbeddedIssuer() && !isPfIssuer) {
       const { jwtVerify } = await getJose();
       try {
         const embedded = await getEmbeddedSigningKeyManager();
@@ -356,10 +358,6 @@ export class TokenIntrospector {
     // It does not establish trust: jwtVerify below must verify the signature.
     // PF's JWKS is explicit and isolated; missing PF key configuration fails
     // closed rather than falling back to PingOne's resolver or decode-only mode.
-    const configuredPfIssuer = process.env.PF_ISSUER_URI || process.env.PF_ISSUER;
-    const isPfIssuer = typeof peekedIss === 'string'
-      && Boolean(configuredPfIssuer)
-      && peekedIss === configuredPfIssuer;
     const providerLabel = isPfIssuer ? 'PingFederate' : 'PingOne';
     const jwksUri = isPfIssuer ? process.env.PF_JWKS_URI?.trim() : undefined;
     if (isPfIssuer && !jwksUri) {
@@ -449,14 +447,13 @@ export class TokenIntrospector {
           // last-known-good also couldn't resolve keys — fall through to fail-closed.
         }
       }
-      // No verifiable keyset and JWKS unreachable. FAIL CLOSED by default: an
-      // unverifiable signature must not pass (the previous default silently accepted,
-      // so an attacker who could force/await a JWKS outage got a forged JWT accepted).
-      // STRICT_AUTH always fails closed; an operator who knowingly runs a demo box with
-      // a flaky JWKS endpoint can restore accept-on-gateway-authorization by setting
-      // ALLOW_JWKS_FAILOPEN=true.
-      if (process.env.STRICT_AUTH === 'true' || process.env.ALLOW_JWKS_FAILOPEN !== 'true') {
-        teachLog.error(`${providerLabel} JWKS endpoint unavailable (${msg}) and no verifiable keyset — failing closed (set ALLOW_JWKS_FAILOPEN=true to accept on gateway authorization)`, undefined, { operation: 'jwks_verify', detail: msg });
+      // No verifiable keyset and JWKS unreachable. PF always fails closed. Other
+      // issuers retain the existing default and explicit demo override behavior.
+      if (isPfIssuer || process.env.STRICT_AUTH === 'true' || process.env.ALLOW_JWKS_FAILOPEN !== 'true') {
+        const failureReason = isPfIssuer
+          ? ' — PF issuer signatures must be verifiable'
+          : ' — failing closed (set ALLOW_JWKS_FAILOPEN=true to accept on gateway authorization)';
+        teachLog.error(`${providerLabel} JWKS endpoint unavailable (${msg}) and no verifiable keyset${failureReason}`, undefined, { operation: 'jwks_verify', detail: msg });
         throw new AuthenticationError('Agent token signature verification unavailable (JWKS unreachable)', AuthErrorCodes.INVALID_AGENT_TOKEN);
       }
       teachLog.warn(`${providerLabel} JWKS endpoint unavailable (${msg}) and ALLOW_JWKS_FAILOPEN=true — agent token signature NOT verified; accepting on gateway authorization. Fix its JWKS URI to restore signature checks.`);

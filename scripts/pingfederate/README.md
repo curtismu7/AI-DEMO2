@@ -49,8 +49,9 @@ The committed PF contract is in
 `spiffe/pingfederate/pf-step9-atm-mapping.json`. It requires an access-token
 actor, targets `aiDemoPfJwtAtm`, retains the incoming subject's `act`, and
 builds a nested actor chain for the PF MCP-service actor. The provisioner adds
-`TOKEN_EXCHANGE` to the existing `ai-demo-pf-standard-mcp-actor` client while
-preserving its `CLIENT_CREDENTIALS` grant, default ATM, and protected secret.
+`TOKEN_EXCHANGE` to the PF MCP actor client configured in
+`demo_api_server/.env`, preserving its `CLIENT_CREDENTIALS` grant, default ATM,
+and protected secret.
 
 Preview the local PF changes, then apply and read them back:
 

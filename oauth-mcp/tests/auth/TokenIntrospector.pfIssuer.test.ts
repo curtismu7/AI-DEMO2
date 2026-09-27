@@ -73,6 +73,8 @@ describe('TokenIntrospector — PingFederate issuer JWKS routing', () => {
   });
 
   it('does not fall back to PingOne JWKS when the PF signature fails', async () => {
+    process.env.SKIP_TOKEN_SIGNATURE_VALIDATION = 'true';
+    process.env.ALLOW_JWKS_FAILOPEN = 'true';
     jwtVerify.mockRejectedValue(new Error('signature verification failed'));
     const token = makeJwt({ iss: PF_ISSUER, sub: 'user-1' });
 
@@ -82,6 +84,20 @@ describe('TokenIntrospector — PingFederate issuer JWKS routing', () => {
     expect(mockedJwks.createJwksKeySet).toHaveBeenCalledWith(PF_JWKS_URI);
     expect(jwtVerify).toHaveBeenCalledTimes(1);
     expect(jwtVerify).toHaveBeenCalledWith(token, pfKeySet, { issuer: PF_ISSUER });
+  });
+
+  it('fails closed on a PF JWKS outage despite global demo fail-open switches', async () => {
+    process.env.SKIP_TOKEN_SIGNATURE_VALIDATION = 'true';
+    process.env.ALLOW_JWKS_FAILOPEN = 'true';
+    jwtVerify.mockRejectedValue(new Error('fetch failed'));
+    const token = makeJwt({ iss: PF_ISSUER, sub: 'user-1' });
+
+    await expect((ti as any).verifyTokenSignature(token)).rejects.toBeInstanceOf(AuthenticationError);
+
+    expect(mockedJwks.createJwksKeySet).toHaveBeenCalledWith(PF_JWKS_URI);
+    expect(jwtVerify).toHaveBeenCalledTimes(2);
+    expect(jwtVerify).toHaveBeenNthCalledWith(1, token, pfKeySet, { issuer: PF_ISSUER });
+    expect(jwtVerify).toHaveBeenNthCalledWith(2, token, pfKeySet, { issuer: PF_ISSUER });
   });
 
   it('fails closed when PF is configured without a PF JWKS URI', async () => {

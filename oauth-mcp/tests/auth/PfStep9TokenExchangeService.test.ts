@@ -93,6 +93,23 @@ describe('PfStep9TokenExchangeService', () => {
     expect(exchangeBody.has('audience')).toBe(false);
   });
 
+  it('rejects a PF ID-JAG subject before requesting an actor token or exchanging it as an access token', async () => {
+    const idJagSubject = makeJwt({ iss: config.issuerUri, sub: 'user-1' }, {
+      alg: 'RS256',
+      typ: 'oauth-id-jag+jwt',
+    });
+
+    await expect(service.exchangeToken({
+      grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
+      subject_token: idJagSubject,
+      subject_token_type: 'urn:ietf:params:oauth:token-type:access_token',
+      requested_token_type: 'urn:ietf:params:oauth:token-type:access_token',
+      scope: 'read',
+    })).rejects.toThrow(/ID-JAG/);
+
+    expect(http.post).not.toHaveBeenCalled();
+  });
+
   it('reuses the PF actor token while independently exchanging the requested subject token', async () => {
     http.post
       .mockResolvedValueOnce({ data: { access_token: actorToken, token_type: 'Bearer', expires_in: 3600 } })

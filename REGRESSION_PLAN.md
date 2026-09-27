@@ -213,6 +213,8 @@ authz:verify`.
 **Files:** `oauth-mcp/src/tools/TokenResolver.ts`,
 `oauth-mcp/src/auth/PfStep9TokenExchangeService.ts`,
 `oauth-mcp/src/auth/TokenIntrospector.ts`, `oauth-mcp/src/auth/jwks.ts`,
+`oauth-mcp/tests/auth/TokenIntrospector.pfIssuer.test.ts`,
+`oauth-mcp/tests/auth/PfStep9TokenExchangeService.test.ts`,
 `demo_api_server/scripts/refresh-service-envs.js`,
 `demo_api_server/tests/refreshServiceEnvsPfGateway.test.js`,
 `oauth-mcp/.env.example`,
@@ -241,10 +243,15 @@ protected actor secret are generated only into `oauth-mcp/.env`.
 
 Inbound signature validation now selects the configured issuer's JWKS before
 Step 9 routing. A PF `iss` uses `PF_JWKS_URI`; missing or invalid PF JWKS
-configuration fails closed and cannot fall back to PingOne keys. The
+configuration and JWKS outages fail closed regardless of global demo bypasses,
+and cannot fall back to PingOne keys. The Step 9 service also rejects a PF
+subject whose JWT header `typ` is exactly `oauth-id-jag+jwt`, because its policy
+accepts access-token subjects only. The
 provisioner reads the actor client ID from the same BFF configuration used by
 runtime and verifies the subject, scope, nested `act`, ATM, and grant contract
-on readback.
+on readback. When applying a client update, it supplies the protected runtime
+secret and validates that the configured client can still mint its PF actor
+token without logging that secret or token.
 
 This is a documented PF-specific Step 9 difference. The UC38 passenger A2A
 `invalid_target` remains a separate UC2 issue and is not part of the UC40 or

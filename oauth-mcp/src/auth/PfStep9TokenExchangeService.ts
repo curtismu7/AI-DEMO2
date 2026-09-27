@@ -34,6 +34,16 @@ function decodeJwt(token: string, label: string): DecodedJwt {
   }
 }
 
+function jwtHeaderType(token: string): unknown {
+  const encodedHeader = token.split('.')[0];
+  if (!encodedHeader) return undefined;
+  try {
+    return JSON.parse(Buffer.from(encodedHeader, 'base64url').toString('utf8')).typ;
+  } catch {
+    return undefined;
+  }
+}
+
 function tokenIdentity(claims: Record<string, unknown>): string | undefined {
   for (const key of ['client_id', 'sub', 'spiffeId']) {
     if (typeof claims[key] === 'string' && claims[key]) return claims[key] as string;
@@ -97,6 +107,9 @@ export class PfStep9TokenExchangeService implements TokenExchangeClient {
   async exchangeToken(request: TokenExchangeRequest): Promise<TokenExchangeResponse> {
     if (request.grant_type !== TOKEN_EXCHANGE_GRANT || request.subject_token_type !== ACCESS_TOKEN_TYPE) {
       throw new AuthenticationError('PF Step 9 only accepts access-token RFC 8693 exchanges', AuthErrorCodes.INVALID_PARAMS);
+    }
+    if (jwtHeaderType(request.subject_token) === 'oauth-id-jag+jwt') {
+      throw new AuthenticationError('PF Step 9 cannot submit an ID-JAG as an access-token subject', AuthErrorCodes.INVALID_PARAMS);
     }
     if (request.resource || request.audience) {
       throw new AuthenticationError(
