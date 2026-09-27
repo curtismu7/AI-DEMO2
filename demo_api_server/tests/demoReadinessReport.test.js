@@ -278,6 +278,33 @@ describe('demo readiness report', () => {
     })).toThrow();
   });
 
+  test('rejects incoming accessor payloads before they can expose direct-read secrets', () => {
+    const report = makeReport();
+    const evidence = {};
+    Object.defineProperty(evidence, 'detail', {
+      enumerable: true,
+      get: () => 'accessor-raw-secret',
+    });
+
+    expect(() => report.repairs.push({ evidence })).toThrow(/accessor/i);
+    expect(JSON.stringify(report)).not.toContain('accessor-raw-secret');
+  });
+
+  test('preserves the internal report serializer while excluding arbitrary root fields', () => {
+    const report = makeReport();
+    report.extra = 'outside-contract';
+
+    expect(typeof report.toJSON).toBe('function');
+    expect(JSON.parse(JSON.stringify(report))).not.toHaveProperty('extra');
+  });
+
+  test('rejects __proto__ keys in incoming report payloads before redaction', () => {
+    const payload = {};
+    Object.defineProperty(payload, '__proto__', { enumerable: true, value: { authorization: 'proto-secret' } });
+
+    expect(() => redactReadinessValue(payload)).toThrow(/__proto__/i);
+  });
+
   test('redacts function-valued report payloads before direct reads', () => {
     const report = makeReport();
     const evidence = () => {};

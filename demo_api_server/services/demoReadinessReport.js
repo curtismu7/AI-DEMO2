@@ -9,6 +9,7 @@ const SESSION_KEY_RE = /session|^sid$/i;
 const BEARER_RE = /(bearer\s+)[^\s,;]+/gi;
 const TOKEN_VALUE_KEY_RE = /(?:^|_)token(?:$|_(?:value|secret|raw|jwt|credential|bearer))$/i;
 const COMPOUND_SECRET_KEY_RE = /(?:^|_)(auth|authorization|password|passwd|cookie|client_secret|api_key)(?:_|$)/i;
+const INTERNAL_SERIALIZERS = new WeakSet();
 
 function normalizeKey(key) {
   return key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').replace(/-/g, '_').toLowerCase();
@@ -27,6 +28,14 @@ function redactReadinessValue(value) {
   if (value == null) return value;
   if (typeof value === 'function') return '[REDACTED]';
   if (typeof value === 'string') return redactValue(value).replace(BEARER_RE, '$1[REDACTED]');
+  if (typeof value === 'object') {
+    for (const [key, descriptor] of Object.entries(Object.getOwnPropertyDescriptors(value))) {
+      if (key === '__proto__') throw new TypeError('Readiness report values cannot define __proto__ properties');
+      if ('get' in descriptor || 'set' in descriptor) {
+        throw new TypeError('Readiness report values cannot define accessor properties');
+      }
+    }
+  }
   if (Array.isArray(value)) return value.map(redactReadinessValue);
   if (typeof value !== 'object') return value;
 
@@ -51,6 +60,9 @@ function guardedReadinessValue(value) {
     },
     defineProperty(target, property, descriptor) {
       if (typeof property === 'symbol' || property === '__proto__') return false;
+      if (property === 'toJSON' && 'value' in descriptor && INTERNAL_SERIALIZERS.has(descriptor.value)) {
+        return Reflect.defineProperty(target, property, descriptor);
+      }
       if ('get' in descriptor || 'set' in descriptor) {
         throw new TypeError('Readiness report values cannot define accessor properties');
       }
@@ -122,7 +134,10 @@ function refreshReport(report) {
 }
 
 function createReadinessReport({ runId, commit, targets, startedAt, deadlineAt }) {
-  const report = guardedReadinessValue({
+  let report;
+  const serializer = () => safeReportSnapshot(report);
+  INTERNAL_SERIALIZERS.add(serializer);
+  report = guardedReadinessValue({
     runId,
     commit,
     targets: targets || [],
@@ -137,7 +152,7 @@ function createReadinessReport({ runId, commit, targets, startedAt, deadlineAt }
     repairs: [],
     unfinished: [],
   });
-  Object.defineProperty(report, 'toJSON', { value: () => safeReportSnapshot(report) });
+  Object.defineProperty(report, 'toJSON', { value: serializer });
   return report;
 }
 
