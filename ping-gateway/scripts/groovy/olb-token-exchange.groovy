@@ -214,10 +214,16 @@ def params = [
     'subject_token'        : subjectToken,
     'subject_token_type'   : subjectTokenType,
     'requested_token_type' : 'urn:ietf:params:oauth:token-type:access_token',
-    'resource'             : olbAudience,
     'client_id'            : exClientId,
     'client_secret'        : exClientSecret,
 ]
+// The PF MCP exchanger is restricted to its dedicated MCP-gateway ATM, which
+// emits the backend-accepted audience. PF requires an absolute URI when
+// `resource` is set, so omit PingOne's opaque resource alias on that branch.
+if (!isPfSubject) {
+    // PingOne needs this RFC 8707 target to select the single backend resource.
+    params['resource'] = olbAudience
+}
 if (olbScope?.trim()) {
     params['scope'] = olbScope.trim()
 }
@@ -225,7 +231,8 @@ def formBody = params.collect { k, v ->
     java.net.URLEncoder.encode(k, 'UTF-8') + '=' + java.net.URLEncoder.encode(v as String, 'UTF-8')
 }.join('&')
 
-logger.info('[OlbExchange] REQUEST → ' + exEndpoint + ' resource=' + olbAudience + ' scope=' + (olbScope?.trim() ?: '(omit)'))
+def resourceLog = isPfSubject ? ' resource=(omitted; PF exchanger default ATM)' : ' resource=' + olbAudience
+logger.info('[OlbExchange] REQUEST → ' + exEndpoint + resourceLog + ' scope=' + (olbScope?.trim() ?: '(omit)'))
 def exchangeResp = httpPostForm(exEndpoint, formBody)
 logger.info('[OlbExchange] RESPONSE HTTP ' + exchangeResp.code)
 

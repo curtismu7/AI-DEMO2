@@ -217,6 +217,31 @@ RFC 8693 token exchange flow.
 `mcpToolPipeline.gatewayDenyOnSuccess`, and `mcpToolPipeline.gatewayDenyEvidence`
 passed 28/28 tests; `git diff --check` passed.
 
+### 2026-09-27 — PF Exchange #3 omits the PingOne-only resource identifier
+
+**Files:** `ping-gateway/scripts/groovy/olb-token-exchange.groovy`,
+`demo_api_server/src/__tests__/olbTokenExchangeProviderRouting.test.js`,
+`docs/superpowers/specs/2026-09-26-demo-readiness-and-repair-design.md`.
+
+**What was broken:** Exchange #3 sent `PG_OLB_RESOURCE_URI=mcpserver.ping.demo`
+to PingFederate. That PingOne resource alias is not an absolute URI, so PF
+returned `invalid_target` and the registered MCP call failed before reaching
+the backend.
+
+**What was fixed:** PF subjects now omit `resource` and use the MCP exchanger's
+restricted default MCP-gateway ATM. PingOne subjects still send the configured
+resource selector to choose the backend resource.
+
+**Do not break:** Preserve issuer-based provider selection and fail-closed PF
+credential handling, PF subject-token typing, the user's `sub` and nested
+`act` chain, PingOne's `resource` and scope behavior, and the PF ATM's
+backend-accepted audience. Keep passenger A2A `invalid_target` under its
+separate UC2 path.
+
+**Verify:** Focused `olbTokenExchangeProviderRouting.test.js`; then call a
+registered banking MCP tool through the local `/api/mcp/tool` route after the
+targeted PingGateway deploy and confirm the PF exchange reaches the backend.
+
 ### 2026-09-27 — Demo Steps scrim escaped the Command Dock stacking context
 
 **Files:** `demo_api_ui/src/components/DemoStepsDropdown.jsx`,
