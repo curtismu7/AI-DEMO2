@@ -69,13 +69,18 @@ function makeOauth() {
 }
 
 const reqWithToken = () => ({ session: {} });
-const sessionBearer = () => fakeJwt({ sub: USER, scope: 'read write' });
+const sessionBearer = () => fakeJwt({
+  sub: USER,
+  scope: 'read write',
+  iss: 'https://auth.pingone.com/test-env/as',
+});
 
 describe('a2aDelegationService.delegateToSpecialist (chained RFC 8693)', () => {
   const bankingDeps = (cfgOverrides) => ({
     oauthService: undefined, // set per call
     configStore: makeConfig(cfgOverrides),
     getSessionBearerForMcp: sessionBearer,
+    getIssuer: () => 'https://auth.pingone.com/test-env/as',
     scopeTopology: makeScopeTopology(),
     // Unit tests cover RFC 8693 identity only; protocol wire hop is separate.
     sendA2aProtocolHandoff: async ({ tokenEvents }) => ({ ok: true, tokenEvents }),
@@ -491,7 +496,8 @@ describe('split exchanges', () => {
           a2a_gateway_audience: 'https://gateway.example',
         })[k] || '',
     },
-    getSessionBearerForMcp: () => 'USER.TOKEN',
+    getSessionBearerForMcp: sessionBearer,
+    getIssuer: () => 'https://auth.pingone.com/test-env/as',
     scopeTopology: { a2aDelegatedScope: () => 'invest:read', toolScopes: () => ['invest:read'] },
     verifiedTrustService: { isEnabled: () => false },
   });
