@@ -157,12 +157,14 @@ jobs:
       - name: Install deps
         run: npm install --prefix demo_api_server --no-audit --no-fund
       - name: Run Jest suite
-        # This is a persistent self-hosted Mac, and its shell has local demo
-        # gateway URLs. Unit tests provide their own mock endpoints; inheriting
-        # the live values silently redirects dozens of mocked gateway calls.
+        # This is a persistent self-hosted Mac. Unit tests provide their own
+        # mock endpoints; inherited gateway URL aliases silently redirect
+        # mocked calls to the live demo gateways.
         run: |
           env -u MCP_GATEWAY_HTTP_URL \
             -u MCP_PINGGATEWAY_URL \
+            -u MCP_DEMO_GATEWAY_URL \
+            -u PINGGATEWAY_URL \
             npm test --prefix demo_api_server
 
   ui-tests:

@@ -143,10 +143,11 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     // to the dedicated /mcp/apikey route (vault-key credential mediation); every
     // other tool (and the Node gateway) uses /mcp.
     const pgUrl = (process.env.MCP_PINGGATEWAY_URL || configStore.getEffective('mcp_pinggateway_url') || '').replace(/\/$/, '');
+    const nodeUrl = (process.env.MCP_DEMO_GATEWAY_URL || configStore.getEffective('mcp_demo_gateway_url') || '').replace(/\/$/, '');
+    const isConfiguredGatewayBase = (base === pgUrl && !!pgUrl) || (base === nodeUrl && !!nodeUrl);
     // Explicit Node-only tools always use the Node gateway, regardless of the
     // caller's default base. They must not leak to PingGateway when Node is down.
     if (isNodeGatewayOnlyTool(tool)) {
-        const nodeUrl = (process.env.MCP_DEMO_GATEWAY_URL || configStore.getEffective('mcp_demo_gateway_url') || '').replace(/\/$/, '');
         if (!nodeUrl) {
             const err = new Error(`Node gateway is required for Node-only MCP tool ${tool}, but its HTTP URL is not configured.`);
             err.code = 'GATEWAY_UNREACHABLE';
@@ -183,17 +184,18 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     // bearers to the Node gateway, same Node-only routing as Path B/C above and
     // the RAR sims (#603). mcp_demo_gateway_url, not MCP_GATEWAY_HTTP_URL — the
     // latter is baked per-container and may point at IG (#375).
-    if (pgUrl && base === pgUrl && !pinNodeGateway) {
-        const a2aAud = process.env.A2A_GATEWAY_AUDIENCE
-            || configStore.getEffective('a2a_gateway_audience') || '';
-        if (a2aAud) {
+    if (isConfiguredGatewayBase && !pinNodeGateway) {
+        const { A2A_GATEWAY_RESOURCE_NAME } = require('../config/a2aSpecialists');
+        const a2aAuds = [
+            process.env.A2A_GATEWAY_AUDIENCE || configStore.getEffective('a2a_gateway_audience'),
+            A2A_GATEWAY_RESOURCE_NAME,
+        ].filter(Boolean).flatMap((value) => String(value).split(',').map((part) => part.trim()).filter(Boolean));
+        if (a2aAuds.length) {
             const claims = decodeJwt(bearerToken)?.claims;
             const audList = Array.isArray(claims?.aud) ? claims.aud.map(String)
                 : (claims?.aud != null ? [String(claims.aud)] : []);
-            const a2aAuds = [a2aAud].map((v) => String(v).trim());
-            if (audList.some((a) => a2aAuds.includes(a))) {
-                const nodeUrl = (process.env.MCP_DEMO_GATEWAY_URL
-                    || configStore.getEffective('mcp_demo_gateway_url') || '').replace(/\/$/, '');
+            const matchedAud = audList.find((audience) => a2aAuds.includes(audience));
+            if (matchedAud) {
                 if (!nodeUrl) {
                     const err = new Error('A2A MCP calls require the Node gateway, but its HTTP URL is not configured.');
                     err.code = 'GATEWAY_UNREACHABLE';
@@ -202,9 +204,8 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
                 }
                 base = nodeUrl;
                 // The aud that CAUSED the redirect — the URI normally, but the
-                // drifted NAME form when that is what the token carries (a pin
-                // only fires when the token already contains the value).
-                pinnedAud = audList.find((a) => a2aAuds.includes(a)) || a2aAud;
+                // drifted resource-name form when that is what the token carries.
+                pinnedAud = matchedAud;
             }
         }
     }
@@ -218,7 +219,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     // (verifies against oauth-mcp's own signing key, not PingOne's) both cover
     // it — so pin these bearers there, same Node-only routing as Path B/C and
     // A2A above.
-    if (pgUrl && base === pgUrl && !pinNodeGateway) {
+    if (isConfiguredGatewayBase && !pinNodeGateway) {
         const olbAud = process.env.PINGONE_RESOURCE_MCP_SERVER_URI
             || configStore.getEffective('pingone_resource_mcp_server_uri') || '';
         if (olbAud) {
@@ -226,8 +227,6 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
             const audList = Array.isArray(claims?.aud) ? claims.aud.map(String)
                 : (claims?.aud != null ? [String(claims.aud)] : []);
             if (audList.includes(olbAud)) {
-                const nodeUrl = (process.env.MCP_DEMO_GATEWAY_URL
-                    || configStore.getEffective('mcp_demo_gateway_url') || '').replace(/\/$/, '');
                 if (!nodeUrl) {
                     const err = new Error('Native ID-JAG MCP calls require the Node gateway, but its HTTP URL is not configured.');
                     err.code = 'GATEWAY_UNREACHABLE';

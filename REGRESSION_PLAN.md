@@ -188,6 +188,34 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-27 — BFF CI gateway routing failures
+
+**Files:** `.github/workflows/ci.yml`,
+`demo_api_server/services/mcpToolPipeline.js`,
+`demo_api_server/services/mcpGatewayClient.js`.
+
+**What was broken:** the persistent CI runner inherited local PingGateway and
+Node gateway URL aliases, redirecting mocked gateway calls. The A2A token pin
+also referenced `configStore` before its initialization, returning HTTP 502;
+the gateway client re-routed an already selected Node gateway base to PingGateway
+and did not recognize the A2A resource-name audience observed in PingOne.
+
+**What was fixed:** CI clears all four gateway URL aliases before Jest. The
+pipeline initializes its routing config before audience resolution. Recognized
+A2A and ID-JAG audiences keep the Node gateway destination when it is already
+selected, and the A2A pin accepts the configured audience or canonical resource
+name.
+
+**Do not break:** ordinary vertical tools must continue to use PingGateway and
+its own token audience. Missing required Node gateway configuration still fails
+closed. Do not change the gateway-authoritative `skipBffAuthorize` rule or the
+RFC 8693 token exchange flow.
+
+**Verify:** the focused BFF run covering `mcpGatewayClient.idJagPin`,
+`mcpGatewayClient.a2aPin`, `mcpGatewayClient.pinnedAudience`,
+`mcpToolPipeline.gatewayDenyOnSuccess`, and `mcpToolPipeline.gatewayDenyEvidence`
+passed 27/27 tests; `git diff --check` passed.
+
 ### 2026-09-27 — Demo Steps scrim escaped the Command Dock stacking context
 
 **Files:** `demo_api_ui/src/components/DemoStepsDropdown.jsx`,
