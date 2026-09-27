@@ -35,7 +35,7 @@ function ApprovalStatusPill({ status }) {
 
 const LIVE_STATUS_MAP = { approved: "permit", denied: "deny", pending: "indeterminate", expired: "deny" };
 
-export default function CibaSection() {
+export default function CibaSection({ user }) {
   const [requests, setRequests] = useState(null);
   const [error, setError] = useState(false);
   const [initiating, setInitiating] = useState(false);
