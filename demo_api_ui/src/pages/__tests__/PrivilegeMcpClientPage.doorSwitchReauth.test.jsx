@@ -19,20 +19,10 @@
 // POST /config already answers `oauth: { authenticated }` for the DESTINATION
 // key. These tests pin that both switchers act on it.
 //
-// UPDATED 2026-09-10. The original fix made both switchers REDIRECT to the IdP
-// on a switch with no token. That fixed the 401s but made the page navigate
-// away from itself on a dropdown change — on stage it reads as the demo
-// breaking. Two things changed since:
-//
-//   - every door on our own origin now shares ONE token (privilegeMcpClient.js
-//     oauthKey), so the common switch needs no sign-in at all;
-//   - when a switch genuinely has no credential, the page now REPORTS it and
-//     waits for the rail's Sign in button instead of navigating.
-//
-// So the invariant these tests protect is unchanged in substance — a switch
-// must never silently leave a dead client — but it is now satisfied by an
-// explicit affordance rather than an automatic redirect. Nothing may navigate
-// the browser without a click.
+// A Privilege door has its own OAuth grant. When the current door has a valid
+// Gateway session, switching to an unconnected door should silently authorize
+// that destination and fetch its tools after the callback. Direct/Façade keep
+// their explicit Sign in affordance because their broker flow is different.
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import PrivilegeMcpClientPage from "../PrivilegeMcpClientPage";
@@ -48,10 +38,20 @@ const AUTH_URL = "https://gateway.example/authorize?client_id=dcr-1";
 const DOOR_A = "https://local.ping-devops.com:4000/mcp-facade/opensearch/mcp";
 const DOOR_B = "https://local.ping-devops.com:4000/mcp-facade/brave/mcp";
 const PRIV_DOOR = "https://mcpgw.ai-demo.ping-devops.com/opensearch22/mcp";
+const PRIV_DOOR_B = "https://mcpgw.ai-demo.ping-devops.com/brave/mcp";
+const SILENT_DOOR_SWITCH_KEY = "cur_priv_silent_door_switch";
 
 // `configAuthenticated` is what the BFF reports for the key being switched TO.
 // false is the reported bug's shape: a door this session has never signed into.
-function mockGateway({ gatewayMode = "direct", mcpUrl = DOOR_A, configAuthenticated = false }) {
+function mockGateway({
+  gatewayMode = "direct",
+  mcpUrl = DOOR_A,
+  configAuthenticated = false,
+  initialOAuthAuthenticated = true,
+  mainAppAuthenticated = true,
+  silentPromptAvailable = true,
+  listedTools = [],
+}) {
   global.fetch = vi.fn((url, opts) => {
     const u = String(url);
     const json = (body) => Promise.resolve({ ok: true, status: 200, text: async () => JSON.stringify(body) });
@@ -67,13 +67,14 @@ function mockGateway({ gatewayMode = "direct", mcpUrl = DOOR_A, configAuthentica
         },
         // Already signed in for the door we land on, so mount-time auto-connect
         // stays out of the way and any /auth/start belongs to the switch.
-        oauth: { authenticated: true },
-        mainAppAuthenticated: true,
+        oauth: { authenticated: initialOAuthAuthenticated },
+        mainAppAuthenticated,
         tools: [],
         presets: [
           { label: "Direct — opensearch", mode: "direct", url: DOOR_A },
           { label: "Direct — Brave Search", mode: "direct", url: DOOR_B },
           { label: "Privilege — opensearch22", mode: "privilege", url: PRIV_DOOR },
+          { label: "Privilege — brave", mode: "privilege", url: PRIV_DOOR_B },
         ],
       });
     }
@@ -92,10 +93,10 @@ function mockGateway({ gatewayMode = "direct", mcpUrl = DOOR_A, configAuthentica
       });
     }
     if (u.endsWith("/api/privilege-mcp/auth/start") && opts?.method === "POST") {
-      return json({ authUrl: AUTH_URL });
+      return json({ authUrl: silentPromptAvailable ? `${AUTH_URL}&prompt=none` : AUTH_URL });
     }
     if (u.endsWith("/api/privilege-mcp/tools/list") && opts?.method === "POST") {
-      return json({ tools: [], policy: { total: 0, permitted: 0, filtered: 0, filteredTools: [] } });
+      return json({ tools: listedTools, policy: { total: listedTools.length, permitted: listedTools.length, filtered: 0, filteredTools: [] } });
     }
     return new Promise(() => {});
   });
@@ -106,9 +107,9 @@ const callsTo = (path, method = "POST") =>
     ([url, opts]) => String(url).endsWith(`/api/privilege-mcp/${path}`) && opts?.method === method,
   );
 
-function renderPage() {
+function renderPage(initialEntry = "/privilege-mcp-client") {
   render(
-    <MemoryRouter initialEntries={["/privilege-mcp-client"]}>
+    <MemoryRouter initialEntries={[initialEntry]}>
       <PrivilegeMcpClientPage />
     </MemoryRouter>,
   );
@@ -121,6 +122,7 @@ beforeEach(() => {
   };
   delete window.location;
   window.location = { href: "", search: "" };
+  sessionStorage.clear();
 });
 
 describe("Privilege client — re-auth on switch", () => {
@@ -137,6 +139,75 @@ describe("Privilege client — re-auth on switch", () => {
     // Nothing may leave the page on its own — this is the whole point.
     expect(callsTo("auth/start")).toHaveLength(0);
     expect(window.location.href).toBe("");
+  });
+
+  it("silently authorizes a new Privilege door when the current Gateway session is active", async () => {
+    mockGateway({
+      gatewayMode: "privilege",
+      mcpUrl: PRIV_DOOR,
+      configAuthenticated: false,
+      initialOAuthAuthenticated: true,
+      mainAppAuthenticated: false,
+    });
+    renderPage();
+
+    const door = await screen.findByLabelText("MCP backend (door)");
+    fireEvent.change(door, { target: { value: PRIV_DOOR_B } });
+
+    await waitFor(() => expect(callsTo("auth/start")).toHaveLength(1));
+    expect(window.location.href).toBe(`${AUTH_URL}&prompt=none`);
+    expect(screen.queryByText("Sign in to the gateway")).toBeNull();
+  });
+
+  it("fetches tools automatically after silent authorization returns for a door switch", async () => {
+    mockGateway({
+      gatewayMode: "privilege",
+      mcpUrl: PRIV_DOOR_B,
+      configAuthenticated: true,
+      initialOAuthAuthenticated: true,
+      mainAppAuthenticated: false,
+      listedTools: [{ name: "ListIndexTool", description: "Lists indices" }],
+    });
+    sessionStorage.setItem(SILENT_DOOR_SWITCH_KEY, "1");
+    sessionStorage.setItem("cur_priv_switching", "1");
+    renderPage("/privilege-mcp-client?auth=success");
+
+    await waitFor(() => expect(callsTo("tools/list")).toHaveLength(1));
+    expect(await screen.findAllByText("ListIndexTool")).not.toHaveLength(0);
+    await waitFor(() => expect(sessionStorage.getItem("cur_priv_switching")).toBeNull());
+  });
+
+  it("keeps manual sign-in available when a silent Privilege flow is unavailable", async () => {
+    mockGateway({
+      gatewayMode: "privilege",
+      mcpUrl: PRIV_DOOR,
+      configAuthenticated: false,
+      initialOAuthAuthenticated: true,
+      mainAppAuthenticated: false,
+      silentPromptAvailable: false,
+    });
+    renderPage();
+
+    const door = await screen.findByLabelText("MCP backend (door)");
+    fireEvent.change(door, { target: { value: PRIV_DOOR_B } });
+
+    await waitFor(() => expect(callsTo("auth/start")).toHaveLength(1));
+    expect(window.location.href).toBe("");
+    expect(await screen.findByRole("heading", { name: "Sign in to the gateway" })).toBeTruthy();
+  });
+
+  it("offers interactive fallback after silent auth fails without a main-app session", async () => {
+    mockGateway({
+      gatewayMode: "privilege",
+      mcpUrl: PRIV_DOOR_B,
+      configAuthenticated: false,
+      initialOAuthAuthenticated: false,
+      mainAppAuthenticated: false,
+    });
+    renderPage("/privilege-mcp-client?auth=silent_failed");
+
+    expect(await screen.findByRole("heading", { name: "Sign in to the gateway" })).toBeTruthy();
+    expect(callsTo("auth/start")).toHaveLength(0);
   });
 
   it("does NOT sign in again when the destination door already has a live token", async () => {
