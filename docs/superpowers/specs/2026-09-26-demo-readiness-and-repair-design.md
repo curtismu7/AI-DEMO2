@@ -2,7 +2,7 @@
 
 ## Status
 
-Design revision in review. The implementation plan will be written only after the user approves the revised spec.
+Approved for implementation. The task sequence and commit checkpoints are in [the implementation plan](../plans/2026-09-27-demo-readiness-and-repair.md).
 
 ## Goal
 
