@@ -188,6 +188,49 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-27 — PingFederate standard exchanges preserve subject and nested actor chain
+
+**Files:** `demo_api_server/services/agentMcpTokenService.js`,
+`demo_api_server/services/pfStandardTokenExchangeService.js`,
+`demo_api_server/src/__tests__/agentMcpTokenService.test.js`,
+`demo_api_server/src/__tests__/pfStandardTokenExchangeService.test.js`,
+`UC40-PF-IDJAG-SESSION-HANDOFF.md`.
+
+**What was broken:** The local PF user token carried a signed `Username` claim
+without `sub`. The PF token processor did not declare `Username`, the standard
+exchange policy read `sub`, and the agent-gateway access-token mapping emitted
+`Username` without `sub`. Exchange #1 returned HTTP 200, but BFF intermediate
+token validation then failed its subject check and `/api/mcp/tool` returned
+HTTP 502 `invalid_grant`. The final PF mapping also left the actor claim as a
+scalar, while the BFF's full MCP-service → AI-agent delegation shape is nested.
+The original local actor client IDs were not the
+registered identities in the local PingOne Authorize chain, so the gateway
+policy denied otherwise valid downstream tokens.
+
+**What was fixed:** The local PF processor contract now exposes `Username`;
+`aiDemoStandardTePolicy` maps `SUBJECT_TOKEN.Username` to `subject` and
+`ACTOR_TOKEN.client_id` to `spiffeId` for both supported subject-token types.
+The agent-gateway ATM contract and mapping now emit `sub` from the policy
+subject while retaining the existing `Username` claim. The PF standard adapter
+uses signed `sub`, falling back to signed `Username` only when `sub` is absent.
+This is a documented PF-specific token-shape difference; it does not relax
+subject validation. The dedicated MCP gateway ATM mapping now emits a nested
+`act` map by combining the MCP actor `spiffeId` with the prior agent `act`, and
+the local PF actor client IDs match the registered PingOne Authorize actor
+identities. The passenger A2A `invalid_target` from UC38 remains a separate UC2
+issue, outside the UC40 chain.
+
+**Do not break:** Keep the two-exchange flow and strict subject, audience, scope,
+and actor validation. PingOne continues to use its `sub` claim. The passenger
+A2A exchange failure documented under UC38 remains a separate UC2 issue.
+
+**Verify:** `CI=true npx jest src/__tests__/agentMcpTokenService.test.js
+src/__tests__/pfStandardTokenExchangeService.test.js --forceExit --runInBand`
+passes 108/108. The focused local API request and tool result are recorded below
+after deployment. The valid banking tools are `get_my_accounts` and
+`get_account_balance`; `banking.get_balance` is a UI intent label, not a
+registered MCP tool name.
+
 ### 2026-09-27 — Exchange diagnostics no longer mask the underlying failure
 
 **Files:** `demo_api_server/services/agentMcpTokenService.js`,
@@ -207,19 +250,15 @@ session handling, and strict subject/audience/scope checks unchanged. The
 passenger A2A exchange failure documented under UC38 remains a separate UC2
 issue.
 
-**Live finding:** After this fix, the latest `banking.get_balance` call reaches
-PingFederate Exchange #1, which returns HTTP 200, then still receives HTTP 502
-because the BFF rejects the intermediate token for not preserving the user
-subject. The live `aiDemoStandardTePolicy` currently maps `subject` from
-`SUBJECT_TOKEN.sub` and `spiffeId` from `ACTOR_TOKEN.sub`, but the validated
-source attributes are `subjecttoken.Username` and `actortoken.client_id`; the
-policy output consequently contains neither `subject` nor `spiffeId`. Keep the
-BFF subject/audience/scope validation strict. Correcting the shared local
-PingFederate identity mappings requires explicit operator approval.
+**Live finding at the time:** The latest `banking.get_balance` call reached
+PingFederate Exchange #1 (HTTP 200), then returned HTTP 502 because the BFF
+rejected the intermediate token for not preserving the user subject. The
+follow-up 2026-09-27 entry above records the local PF and BFF correction.
 
 **Verify:** `CI=true npx jest src/__tests__/agentMcpTokenService.test.js
 --forceExit --runInBand` passes 100/100. The latest exact live call still returns
-HTTP 502 `invalid_grant` at intermediate-token validation, as described above.
+HTTP 502 `invalid_grant` before the identity mapping and subject-claim fixes
+above were applied.
 
 ### 2026-09-26 — Demo Steps drawer scrim blocked Command Dock actions
 
