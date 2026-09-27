@@ -114,6 +114,7 @@
 - Modify: `ping-gateway/.env.example`
 - Modify: `demo_api_server/config/demoReadinessRepairability.json`
 - Create: `demo_api_server/src/__tests__/refreshServiceEnvs.pfExchange3.test.js`
+- Create: `demo_api_server/src/__tests__/pingGatewayPfExchange3Contract.test.js`
 - Modify: focused PingGateway exchange test fixtures if an existing harness is available
 - Modify: `docs/demo-readiness.md`
 
@@ -122,11 +123,13 @@
 - Select the PF branch as soon as the validated subject issuer equals the configured PF issuer, independent of whether optional PF endpoint/credential settings are present. If required PF settings are missing, return stable `pf_exchange_not_configured` failure without contacting PingOne or substituting PingOne exchanger credentials.
 - Require the PF endpoint to use HTTPS and the same scheme/authority as the PF issuer while preserving the configured token path. Keep PingOne endpoint selection and `access_token` subject typing unchanged.
 - For PF subjects, send `subject_token_type=access_token` unless the signed JWT header `typ` is exactly `oauth-id-jag+jwt`, in which case send `id-jag`. The requested token type remains `access_token`. Preserve the original user `sub` and nested A2A `act` claims; do not rewrite identity based on provider selection.
+- Never log subject or issued tokens, raw MCP session IDs, request authorization data, raw PingFederate/PingOne response bodies, or unfiltered provider errors. Gateway logs and returned error envelopes expose only status and stable sanitized error categories.
 - Add target-scoped repairability entries: local generated Gateway environment may be regenerated from declared BFF configuration after the run's exact preview and confirmation; hosted SE remains read-only/release-only and is never deployed or updated by this workflow. Keep the environment variables' secret values out of reports and tests' output.
 - These assertions attach to existing PF Gateway rows. They add no Demo Steps entries and do not change the 46-case count or matrix row count.
 
 - [ ] Add regression tests for PF issuer routing with complete configuration, PF issuer routing with each required PF setting missing (proving no PingOne fallback), distinct PF exchanger credentials, exact JWT `typ` handling, access-token requested type, PF issuer/endpoint HTTPS authority and path parity, preservation of subject/actor claims, and unchanged PingOne behavior.
 - [ ] Assert the environment generator maps the existing BFF source values to the four Gateway variables and that missing PF credentials remain missing rather than inheriting PingOne values.
+- [ ] Assert failure logging and returned error envelopes do not expose exchange response bodies, access tokens, raw MCP session IDs, or authorization data; keep logs limited to stable error categories and status codes.
 - [ ] Use a registered MCP tool for the Exchange #3 success fixture. If a UI intent alias is not a registered tool, report its unknown-tool result separately; it cannot satisfy this check.
 - [ ] Update `demoReadinessRepairability.json` with local-regeneration and hosted-release-only classifications and exact readbacks; verify secrets are never included in evidence.
 - [ ] Run focused generator/Gateway tests, the relevant source/config contract checks, `graphify update .`, and `git diff --check`; stage only Task 2A paths and commit as `fix: route PF gateway exchanges safely`.
@@ -136,10 +139,10 @@
 **Files:**
 - Create: `demo_api_server/services/demoReadinessAuditService.js`
 - Create: `demo_api_server/tests/demoReadinessAuditService.test.js`
+- Create: `demo_api_server/config/demoReadinessPingFederateProfiles.json` with secret-free, role-specific PF contracts for standard exchangers/actors, A2A specialists, UC40 native ID-JAG, DaVinci login, CIMD, third-party authorization-server, and RAR roles
 - Modify: `scripts/check-demo-health-gate.js` only to export/reuse read-only probes without changing its existing exit semantics
 - Modify: `scripts/check-mcp-preflight.js` only to export/reuse reachability probes without changing its existing exit semantics
 - Modify: `demo_api_server/services/pingOneAuthorizeService.js` only if a supported live Authorize policy read path can be added using existing worker credentials and documented API calls
-- Modify: committed PingFederate A2A provisioning/config contract and its tests so it can be reconciled against the live PF Admin API; never treat handoff notes or untracked scripts as a release source of truth
 - Update: `docs/demo-readiness.md` with audit families, target-specific readbacks, and current blockers
 
 **Interfaces:**
@@ -150,11 +153,13 @@
 - `auditRuntimeTarget({ bffUrl, gatewayUrl, authorizeUrl, targetKind, deadlineAt })` checks health, reachable routes, loaded revision/config fingerprint, and the actual audience/scope values consumed at runtime.
 - Read required use-case flags, A2A credentials, PAR configuration, and vertical group requirements from the same prerequisite helpers the UI and BFF use; check presence and effective state without exposing secrets. The runner may arm required flags only in an isolated worker and must restore those values after each case.
 - PingFederate expectations are role-specific and come from a committed contract plus supported API readback. The A2A specialist clients and the ordinary standard-exchange actor/agent/MCP exchanger clients are distinct profiles; do not apply the standard agent-exchanger ATM or MCP-exchanger processor-policy requirements to every specialist client. For each role, compare grants, processor-policy references, default ATM/restriction settings, SP resource URIs and ID-JAG fields, and exchange mappings against the current checked-in provisioner and the actual protocol hop. If a required value is undocumented or the code, provisioner, and live PF readback disagree, block readiness until those sources are reconciled; do not infer intended settings from handoff notes alone.
+- The role-specific contract file is an explicit Task 3 deliverable because no complete, secret-free PF profile contract currently covers every role. If a client/SP role has no authoritative declared expectation, report it as undocumented and block readiness rather than deriving a passing expectation from whatever the live server currently returns.
 
 - [ ] Add mocked Jest tests for healthy local/SE targets and for one failure in each required family: audience, scope, mirror, app grant, required flag, A2A specialist credential, PAR setting, Authorize group membership, registered tool scope, gateway route/auth config, Authorize endpoint reference/policy readback, role-specific PF client grant/processor-policy/ATM, PF SP resource URI/ID-JAG setting, PF DaVinci client/adapter setting, PF JWKS audience, service health, and revision mismatch.
 - [ ] Audit PingGateway Exchange #3 configuration by read-only source/environment/runtime readback: PF issuer, endpoint authority and configured path, presence of distinct PF exchanger credentials, generated local environment provenance, and the hosted SE equivalent. Do not log credential values. A PF issuer with incomplete configuration is a blocker, not a PingOne-routed success.
 - [ ] Assert an unavailable or unauthorized Authorize policy read produces a blocking finding and never substitutes a successful decision probe for policy parity.
 - [ ] Assert unavailable PF Admin API readback is a blocker and never substitutes a successful login or demo call for profile parity. Assert each client/SP role matches its committed contract; reject missing or wrong settings required by that role, and do not require ordinary-exchange ATM or processor-policy fields on A2A specialists unless their own contract declares them.
+- [ ] Populate and validate the new PF role contract from committed sources and supported readback; include expected client/SP role, grants, processor-policy refs, ATM/restrictions, audiences, issuer/JWKS, resource URIs, ID-JAG fields, DaVinci adapter, CIMD, third-party-AS and RAR processor/detail requirements. Leave undocumented values explicitly unresolved and blocking.
 - [ ] Assert local Docker inspection is read-only and uses `execFile` argument arrays for `docker inspect`/`docker ps`; no shell string may contain a mutation command.
 - [ ] Run `cd demo_api_server && CI=true npx jest tests/demoReadinessAuditService.test.js --forceExit`; expected: all probes use mocked dependencies and make zero network calls.
 - [ ] Run `npm run topology:verify` and `npm run authz:verify`; expected: existing source checks remain green.
