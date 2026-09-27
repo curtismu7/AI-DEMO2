@@ -259,6 +259,7 @@ registered MCP tool name.
 
 **Files:** `demo_api_server/scripts/refresh-service-envs.js`,
 `demo_api_server/tests/refreshServiceEnvsPfGateway.test.js`,
+`demo_api_server/src/__tests__/olbTokenExchangeProviderRouting.test.js`,
 `ping-gateway/.env.example`,
 `ping-gateway/scripts/groovy/olb-token-exchange.groovy`, `REGRESSION_PLAN.md`,
 `UC40-PF-IDJAG-SESSION-HANDOFF.md`.
@@ -288,8 +289,8 @@ exchanger distinct from the PingOne MCP Gateway client, and preserve PingOne's
 existing Exchange #3 behavior. The UC38 passenger A2A
 `invalid_target` remains a separate UC2 issue outside the UC40 chain.
 
-**Verify:** `CI=true npx jest tests/refreshServiceEnvsPfGateway.test.js
---forceExit --runInBand`; then run the valid local MCP tool through
+**Verify:** focused Jest coverage for `refreshServiceEnvsPfGateway.test.js` and
+`olbTokenExchangeProviderRouting.test.js`; then run the valid local MCP tool through
 `/api/mcp/tool` and confirm PF Exchange #3 plus the backend tool call complete.
 
 ### 2026-09-27 — Exchange diagnostics no longer mask the underlying failure
