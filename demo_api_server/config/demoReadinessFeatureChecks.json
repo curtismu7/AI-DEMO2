@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "sourceRef": "demo_api_ui/tests/e2e/a2a-failure-modes.real.spec.js",
+  "countsTowardDemoSteps": false,
+  "checks": [
+    {
+      "id": "A2A-FM1",
+      "sourceRef": "demo_api_ui/tests/e2e/a2a-failure-modes.real.spec.js",
+      "testTitle": "FM1: out-of-allowlist tool is refused with the allowlist named",
+      "vertical": "airlines",
+      "providers": ["pingone", "pingfederate"],
+      "executionMode": "a2a-wire-negative",
+      "expectedOutcome": "clear_allowlist_refusal_before_exchange",
+      "configurationDependencies": ["pingfederate-a2a-runtime", "authorize-policy-definition", "agent-gateway-runtime-config"],
+      "sourceCodeChanges": "never"
+    },
+    {
+      "id": "A2A-FM2",
+      "sourceRef": "demo_api_ui/tests/e2e/a2a-failure-modes.real.spec.js",
+      "testTitle": "FM2: act-less bearer is refused by the A2A wire gate",
+      "vertical": "airlines",
+      "providers": ["pingone", "pingfederate"],
+      "executionMode": "a2a-wire-negative",
+      "expectedOutcome": "actless_bearer_rejected_without_tool_data",
+      "configurationDependencies": ["pingfederate-a2a-runtime", "agent-gateway-runtime-config"],
+      "sourceCodeChanges": "never"
+    },
+    {
+      "id": "A2A-FM3",
+      "sourceRef": "demo_api_ui/tests/e2e/a2a-failure-modes.real.spec.js",
+      "testTitle": "FM3: happy path stays green after the failure-mode probes",
+      "vertical": "airlines",
+      "providers": ["pingone", "pingfederate"],
+      "executionMode": "a2a-wire-happy",
+      "expectedByProvider": {
+        "pingone": "nested_act_two_exchange_permit",
+        "pingfederate": "id_jag_exchange1_nested_act_exchange2_permit"
+      },
+      "requiredEvidence": ["a2a-exchange1", "a2a-exchange2", "authorize-permit", "tool-dispatched"],
+      "configurationDependencies": ["pingfederate-a2a-runtime", "pingone-scope-addition", "pingone-app-scope-grant", "authorize-policy-definition", "agent-gateway-runtime-config"],
+      "sourceCodeChanges": "never"
+    },
+    {
+      "id": "PF-DAVINCI-IK",
+      "sourceRef": "demo_api_ui/src/pages/__tests__/PingFederateDavinciKitPage.test.jsx",
+      "testTitle": "requires the dedicated PF proof even if a PingOne user is present",
+      "relatedTests": [
+        {
+          "sourceRef": "demo_api_server/tests/routes/pfDavinciAuth.test.js",
+          "testTitle": "keeps PingOne tokens while proving PF login with %s"
+        }
+      ],
+      "countsTowardDemoSteps": false,
+      "providers": ["pingfederate"],
+      "executionMode": "pf-davinci-login-proof",
+      "expectedOutcome": "dedicated_pf_proof_with_pingone_session_preserved",
+      "providerRoleApplicability": {
+        "pingoneUserSession": "preserved_if_present_but_not_accepted_as_the_pf_proof",
+        "pingfederateUserSession": "required"
+      },
+      "configurationDependencies": ["pingfederate-davinci-integration"],
+      "sourceCodeChanges": "never"
+    }
+  ]
+}
