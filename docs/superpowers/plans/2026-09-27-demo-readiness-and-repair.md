@@ -21,6 +21,7 @@
 - Missing credentials, unsupported live readback, unavailable targets, unknown drift, failed or untested cases, and timed-out rows are NOT READY.
 - The current deployment policy allows local Docker deployment only. The runner may read hosted SE and may repair supported PingOne configuration after confirmation, but it must not update or deploy the hosted SE cluster.
 - Do not emit tokens, passwords, cookies, raw session IDs, authorization headers, or unredacted provider responses in reports or logs.
+- Maintain `docs/demo-readiness.md` as the living master reference. Every task that adds or changes a check, repair class, provider flow, feature probe, or operator workflow updates it in that same task commit. The document indexes the checked-in sources of truth; it never replaces them. Task 10 reconciles it against the finished implementation.
 - Before BFF or UI edits, read their nested `CLAUDE.md` files and `REGRESSION_PLAN.md` §0–§1, invoke `.claude/skills/regression-guard/`, and preserve all listed invariants and the emoji allowlist.
 - After every UI change, run `cd demo_api_ui && npm run build`; run the theme contrast auditor for changed pages in light and dark themes.
 - After source edits, run `graphify update .`; run focused tests for touched paths. Do not run Docker Compose from this worktree.
@@ -41,6 +42,7 @@
 - `scripts/check-demo-readiness-contract.mjs` verifies UI/backend inventory parity and configuration-only repairability during build/CI.
 - `scripts/demo-readiness.js` provides the interactive command-line entry point and machine-readable JSON output.
 - `demo_api_ui/src/components/AdminSideNav.jsx` starts, confirms, and displays the async readiness/reset job only for Admin sidebar Reset Demo.
+- `docs/demo-readiness.md` is the living catalog of coverage, sources of truth, readbacks, repair boundaries, evidence rules, and the procedure for adding future checks and fixes.
 - Focused Jest/Vitest tests live beside the existing BFF route/service and UI component tests.
 
 ---
@@ -59,6 +61,7 @@
 - Create: `demo_api_ui/src/config/__tests__/demoReadinessContract.test.js`
 - Modify: `demo_api_server/tests/stepVerification.pingone-admin.test.js` to consume the shared Admin1–12 expected-operation contract
 - Modify: `docs/superpowers/specs/2026-09-26-demo-readiness-and-repair-design.md` only if a checked-in UI catalog change alters the case composition
+- Update: `docs/demo-readiness.md` with the inventory, feature probes, source-of-truth links, and contract-check behavior
 
 **Interfaces:**
 - `demoReadinessInventory.json` stores all five lane arrays copied from the current UI list: `primary`, empty `advanced`, `ciam`, `privilege`, and executable `admin` IDs. The build contract checks this BFF projection against UI ES module exports. It asserts 24 primary entries, five CIAM source entries with UC2 deduped, seven Privilege source entries with UC40 deduped, and 12 executable Admin entries, for 46 unique runnable steps.
@@ -87,6 +90,7 @@
 **Files:**
 - Create: `demo_api_server/services/demoReadinessReport.js`
 - Create: `demo_api_server/tests/demoReadinessReport.test.js`
+- Update: `docs/demo-readiness.md` with row statuses, deadline rules, report fields, and redaction behavior
 
 **Interfaces:**
 - `createReadinessReport({ runId, commit, targets, startedAt, deadlineAt })` returns a report with `status`, `ready`, `elapsedMs`, `inventory`, `checks`, `repairs`, and `unfinished`.
@@ -99,6 +103,34 @@
 - [ ] Run `cd demo_api_server && CI=true npx jest tests/demoReadinessReport.test.js --forceExit`; expected: all report and deadline cases pass without outbound network.
 - [ ] Run `graphify update .`, `git diff --check`, stage only the listed paths, verify the branch, and commit as `feat: add demo readiness report model`.
 
+### Task 2A: Complete the in-progress PingGateway PF Exchange #3 contract
+
+**Purpose:** The readiness workflow depends on a working, source-backed PF Exchange #3 path. Current Gateway filters fall back to PingOne when PF endpoint configuration is incomplete, reuse PingOne exchanger credentials when PF credentials are missing, and the local generated environment does not yet emit the PF settings. Complete that feature before the readiness audit and runner claim it can validate it. These are release-time code/configuration changes; the live readiness/reset workflow must never patch source files.
+
+**Files:**
+- Modify: `demo_api_server/scripts/refresh-service-envs.js`
+- Modify: `ping-gateway/scripts/groovy/olb-token-exchange.groovy`
+- Modify: `ping-gateway/scripts/groovy/invest-dispatch.groovy`
+- Modify: `ping-gateway/.env.example`
+- Modify: `demo_api_server/config/demoReadinessRepairability.json`
+- Create: `demo_api_server/src/__tests__/refreshServiceEnvs.pfExchange3.test.js`
+- Modify: focused PingGateway exchange test fixtures if an existing harness is available
+- Modify: `docs/demo-readiness.md`
+
+**Interfaces and invariants:**
+- Generate `PF_ISSUER_URI`, `PF_TOKEN_ENDPOINT`, `PF_TE_CLIENT_ID`, and `PF_TE_CLIENT_SECRET` in `ping-gateway/.env` from the existing BFF `PF_ISSUER`/`PF_ISSUER_URI`, `PF_TOKEN_ENDPOINT`, and `PF_STANDARD_TOKEN_EXCHANGE_CLIENT_ID/SECRET` source values. Do not introduce a second credential source or depend on a hand-edited ignored `.env` file.
+- Select the PF branch as soon as the validated subject issuer equals the configured PF issuer, independent of whether optional PF endpoint/credential settings are present. If required PF settings are missing, return stable `pf_exchange_not_configured` failure without contacting PingOne or substituting PingOne exchanger credentials.
+- Require the PF endpoint to use HTTPS and the same scheme/authority as the PF issuer while preserving the configured token path. Keep PingOne endpoint selection and `access_token` subject typing unchanged.
+- For PF subjects, send `subject_token_type=access_token` unless the signed JWT header `typ` is exactly `oauth-id-jag+jwt`, in which case send `id-jag`. The requested token type remains `access_token`. Preserve the original user `sub` and nested A2A `act` claims; do not rewrite identity based on provider selection.
+- Add target-scoped repairability entries: local generated Gateway environment may be regenerated from declared BFF configuration after the run's exact preview and confirmation; hosted SE remains read-only/release-only and is never deployed or updated by this workflow. Keep the environment variables' secret values out of reports and tests' output.
+- These assertions attach to existing PF Gateway rows. They add no Demo Steps entries and do not change the 46-case count or matrix row count.
+
+- [ ] Add regression tests for PF issuer routing with complete configuration, PF issuer routing with each required PF setting missing (proving no PingOne fallback), distinct PF exchanger credentials, exact JWT `typ` handling, access-token requested type, PF issuer/endpoint HTTPS authority and path parity, preservation of subject/actor claims, and unchanged PingOne behavior.
+- [ ] Assert the environment generator maps the existing BFF source values to the four Gateway variables and that missing PF credentials remain missing rather than inheriting PingOne values.
+- [ ] Use a registered MCP tool for the Exchange #3 success fixture. If a UI intent alias is not a registered tool, report its unknown-tool result separately; it cannot satisfy this check.
+- [ ] Update `demoReadinessRepairability.json` with local-regeneration and hosted-release-only classifications and exact readbacks; verify secrets are never included in evidence.
+- [ ] Run focused generator/Gateway tests, the relevant source/config contract checks, `graphify update .`, and `git diff --check`; stage only Task 2A paths and commit as `fix: route PF gateway exchanges safely`.
+
 ### Task 3: Implement read-only audits for both targets
 
 **Files:**
@@ -108,6 +140,7 @@
 - Modify: `scripts/check-mcp-preflight.js` only to export/reuse reachability probes without changing its existing exit semantics
 - Modify: `demo_api_server/services/pingOneAuthorizeService.js` only if a supported live Authorize policy read path can be added using existing worker credentials and documented API calls
 - Modify: committed PingFederate A2A provisioning/config contract and its tests so it can be reconciled against the live PF Admin API; never treat handoff notes or untracked scripts as a release source of truth
+- Update: `docs/demo-readiness.md` with audit families, target-specific readbacks, and current blockers
 
 **Interfaces:**
 - `auditTarget({ targetId, targetConfig, deadlineAt, signal })` returns `checks[]` using the report row schema and performs no writes.
@@ -119,6 +152,7 @@
 - PingFederate expectations are role-specific and come from a committed contract plus supported API readback. The A2A specialist clients and the ordinary standard-exchange actor/agent/MCP exchanger clients are distinct profiles; do not apply the standard agent-exchanger ATM or MCP-exchanger processor-policy requirements to every specialist client. For each role, compare grants, processor-policy references, default ATM/restriction settings, SP resource URIs and ID-JAG fields, and exchange mappings against the current checked-in provisioner and the actual protocol hop. If a required value is undocumented or the code, provisioner, and live PF readback disagree, block readiness until those sources are reconciled; do not infer intended settings from handoff notes alone.
 
 - [ ] Add mocked Jest tests for healthy local/SE targets and for one failure in each required family: audience, scope, mirror, app grant, required flag, A2A specialist credential, PAR setting, Authorize group membership, registered tool scope, gateway route/auth config, Authorize endpoint reference/policy readback, role-specific PF client grant/processor-policy/ATM, PF SP resource URI/ID-JAG setting, PF DaVinci client/adapter setting, PF JWKS audience, service health, and revision mismatch.
+- [ ] Audit PingGateway Exchange #3 configuration by read-only source/environment/runtime readback: PF issuer, endpoint authority and configured path, presence of distinct PF exchanger credentials, generated local environment provenance, and the hosted SE equivalent. Do not log credential values. A PF issuer with incomplete configuration is a blocker, not a PingOne-routed success.
 - [ ] Assert an unavailable or unauthorized Authorize policy read produces a blocking finding and never substitutes a successful decision probe for policy parity.
 - [ ] Assert unavailable PF Admin API readback is a blocker and never substitutes a successful login or demo call for profile parity. Assert each client/SP role matches its committed contract; reject missing or wrong settings required by that role, and do not require ordinary-exchange ATM or processor-policy fields on A2A specialists unless their own contract declares them.
 - [ ] Assert local Docker inspection is read-only and uses `execFile` argument arrays for `docker inspect`/`docker ps`; no shell string may contain a mutation command.
@@ -133,6 +167,7 @@
 - Create: `demo_api_server/tests/demoReadinessRepairService.test.js`
 - Modify: `demo_api_server/config/demoReadinessRepairability.json`
 - Modify: `demo_api_server/services/demoReadinessAuditService.js` only to emit structured repair candidates
+- Update: `docs/demo-readiness.md` with preview/confirmation rules and each supported repair class
 
 **Interfaces:**
 - `planRepairs({ findings, targets, now })` returns `{ planId, digest, expiresAt, changes, blocked }`; every change includes target/object/current/expected/sourceRef/operation.
@@ -144,7 +179,7 @@
 - [ ] Test a confirmed repair applies once, performs readback, records sanitized before/after evidence, and is safe to retry after a timeout.
 - [ ] Test required demo flags are changed only in the isolated readiness worker, restored after each case, and never left changed in the presenter's active runtime.
 - [ ] Test unauthorized/unsupported Authorize policy writes stay blocked and never call a mutation client.
-- [ ] Keep PF standard/A2A/native-ID-JAG drift manual until supported exact-object writes, idempotency, and readback are proven; no PF mutation can be inferred from a feature label alone.
+- [ ] Keep PF standard/A2A/native-ID-JAG drift manual until supported exact-object writes, idempotency, and readback are proven; no PF mutation can be inferred from a feature label alone. Local Exchange #3 generated-env refresh is the only PF-related automatic operation and must regenerate from the checked-in BFF source mapping; hosted SE stays release-only.
 - [ ] Run `cd demo_api_server && CI=true npx jest tests/demoReadinessRepairService.test.js --forceExit`; expected: mocks record writes only after a matching confirmation and pre-write reread.
 - [ ] Run `graphify update .`, `git diff --check`, stage only the listed paths, verify branch, and commit as `feat: apply confirmed demo config repairs`.
 
@@ -156,6 +191,7 @@
 - Modify: `demo_api_server/services/agentMcpTokenService.js` only if a narrow explicit provider/session context is required; preserve normal provider resolution and current token custody invariants
 - Modify: `demo_api_server/routes/useCases.js` only to expose a readiness-only execution adapter that reuses the same scenario dispatch and expected-outcome verification
 - Create: `demo_api_server/tests/demoReadinessProviderIsolation.test.js`
+- Update: `docs/demo-readiness.md` with provider lanes, feature probes, scenario evidence, and row-count changes
 
 **Interfaces:**
 - `createWorkerContext({ targetId, provider, identityRef, deadlineAt })` returns an opaque context handle backed by a separate provider-configured worker BFF/runtime or equivalent provider-bound login transaction. Browser cookies, BFF sessions, and OAuth config are isolated; credentials and tokens never enter job state or reports.
@@ -168,6 +204,8 @@
 
 - [ ] Add contract tests showing 182 unexpanded applicable case/target/provider rows, 184 current behavior-plus-authorization vertical groups, and 734 core target/provider rows. Add UC14b's four full-page rows, 12 A2A FM1/FM2/FM3 rows, and two PF-DAVINCI-IK PF-only target rows for a current baseline of 752; keep UC40 only in its PF lane. Derive future counts from the inventory and feature manifest, and fail if a new row is omitted or silently merged.
 - [ ] Add mocked execution tests for PERMIT, DENY, STEP_UP, HITL_REQUIRED, expected Admin tool output, page route load, education panel registration/open, attack simulation verdicts, UC2.5 direct A2A route evidence, UC14b quick-result and full-page route, UC38/UC44 chip adaptation, PF standard exchange provenance, PF A2A internal ID-JAG/exchange provenance, UC40 native ID-JAG provenance, wrong-provenance failures, and mismatched issuer/subject/audience/scopes or Gateway/Authorize evidence.
+- [ ] On existing PingFederate rows that reach PingGateway Exchange #3, assert issuer-based endpoint selection, PF-only exchanger credentials, endpoint/issuer scheme-authority and path rules, exact subject-token typing, fail-closed behavior for incomplete PF configuration, and a successful registered-tool call with the expected audience/result. Assert PingOne rows retain the PingOne endpoint/credentials and access-token typing. Keep UC2's passenger `invalid_target` A2A failure as separate UC2 evidence; never count it for Exchange #3 or UC40.
+- [ ] Add focused order-independence regressions from the spec: UC5 and UC18 must not pass on a Gateway audience-mismatch response; derive UC38's route assertion from its catalog trigger; for steps that share mutable flags/vertical state, test normal and reverse sequence and restore only the test-changed state in `finally`, failing if cleanup fails.
 - [ ] For every PF-authenticated worker lane, verify the provider's real user subject is used for policy and token attribution; cover subject claim normalization, synthetic demo-store IDs, allowlisted and denied identities, and subject mismatch. UC38/UC44 must retain the user subject and actor chain through both standard exchanges.
 - [ ] Add provider-feature tests for the approved PingOne Agent IAM Core baseline and PingFederate CIMD valid/rejected metadata, third-party authorization-server allow/deny exchange, native ID-JAG invalid/expired/wrong-audience rejection, and RAR valid/invalid detail processing. Extend the feature-check manifest with each test and provider-role declaration; keep them separate from the 46 UI step count.
 - [ ] Add separate feature probes for the five Privilege LLM Attack Lab scenarios linked by UC-TOOL3 and UC-LEARN11: Tool Abuse, Tool Poisoning, Schema Violation, Inter-Agent Abuse, and Malicious Content. Derive each expected effect and attribution from the current attack catalog, run both provider sessions on both targets, and never label every case a Privilege block. Cover UC-LEARN11's prefilled prompt plus the actual send/deny outcome. Register each probe in the manifest with its user-session provider roles and observed model/backend reachability.
@@ -185,6 +223,7 @@
 - Create: `scripts/demo-readiness.js`
 - Create: `scripts/demo-readiness.test.js`
 - Modify: root `package.json`
+- Update: `docs/demo-readiness.md` with runner phases, deadline behavior, CLI usage, and exit conditions
 
 **Interfaces:**
 - `startReadinessRun({ targets, confirmRepairs, onProgress, clock, adapters })` runs prerequisites, audit, preview, confirmation, apply, re-audit, matrix, final status, and CLI-only report under a single 15-minute timer.
@@ -205,6 +244,7 @@
 - Create: `demo_api_server/routes/demoReadiness.js`
 - Create: `demo_api_server/tests/demoReadiness.route.test.js`
 - Modify: `demo_api_server/server.js`
+- Update: `docs/demo-readiness.md` with job lifecycle, auth requirements, and report polling behavior
 
 **Interfaces:**
 - `POST /api/admin/demo-readiness/jobs` requires `authenticateToken`, `requireAdmin`, and `requireScopes(['admin'])`; it starts audit and returns `{ jobId, status }`.
@@ -223,6 +263,7 @@
 **Files:**
 - Modify: `demo_api_ui/src/components/AdminSideNav.jsx`
 - Modify: `demo_api_ui/src/components/__tests__/AdminSideNav.resetDemo.test.jsx`
+- Update: `docs/demo-readiness.md` with the Reset Demo confirmation and post-ready cleanup flow
 
 **Interfaces:**
 - Admin sidebar Reset Demo starts the new job, polls status, renders every failing row and repair preview, then presents one explicit confirmation bound to the returned digest.
@@ -243,6 +284,7 @@
 - Create: `scripts/demo-readiness-build-fix.js`
 - Create: `scripts/demo-readiness-build-fix.test.js`
 - Modify: `package.json`
+- Update: `docs/demo-readiness.md` with the configuration-only proof and isolated source-fix boundary
 
 **Interfaces:**
 - `validateConfigOnlyRecovery({ caseRow, driftFixture, adapters })` creates a deterministic live-config mismatch in a disposable fixture, previews/applies the supported configuration repair, reruns the affected scenario, and proves the application source tree hash is unchanged.
@@ -260,7 +302,7 @@
 ### Task 10: Prove timing, operator recovery, and the complete contract
 
 **Files:**
-- Create: `docs/demo-readiness.md`
+- Update: `docs/demo-readiness.md`
 - Modify: `README.md` only to add the command link
 - Modify: existing readiness tests only for measured concurrency defaults and deadlines
 - Modify: `REGRESSION_PLAN.md` §4 only if the implementation fixes a real regression or adds a protected invariant
@@ -275,12 +317,16 @@
 - [ ] Verify the combined measured run finishes within 12 minutes against the exact runtime-derived row count, including every case/vertical authorization signature and every approved feature-manifest probe; the 772-row baseline includes the five LLM Attack Lab probes and precedes PingOne Agent IAM Core and remaining PF CIMD/third-party/ID-JAG/RAR checks. If it exceeds 12 minutes, tune bounded concurrency and repeat without dropping rows; if it cannot complete by 15 minutes, preserve NOT READY and list unfinished rows. Report the measured result honestly; do not claim 12-minute readiness without a full-size run.
 - [ ] Review the final docs and reports for secret leakage, run `git diff --check`, stage only task-owned paths, verify branch, and commit as `docs: document demo readiness operation`.
 
+Every task's file list above includes `docs/demo-readiness.md` where applicable; its additions are committed with that task. Task 10 reconciles the guide with the actual supported checks, repairs, known blockers, exact feature manifest, operator workflow, and timing evidence before committing the final documentation.
+
 ## Self-review against spec
 
 - Both targets and provider modes: Tasks 3, 5, 6, and 10.
 - Every executable Demo Steps case and explicit 46-count parity: Task 1 and Task 5.
 - UC40 native PF ID-JAG and standard exchange evidence elsewhere: Task 5.
 - Agent Gateway, Authorize, audiences, scopes, grants, and live policy readback: Task 3; unavailable policy readback blocks full READY.
+- In-progress PF PingGateway Exchange #3 routing and local generated-environment mapping: Task 2A prerequisite, Task 3 read-only audit, Task 4 repair classification, and Task 5 provider/step assertions.
+- UC5/UC18 expected-denial correctness, catalog-derived UC38 route, and stateful sequence cleanup: Task 5 focused regression cases.
 - Source-of-truth configuration-only repairability check: Task 1; fixture-based repair proof and source immutability are required in Tasks 4 and 9.
 - Separate safe source-fix workflow: Task 9; never called by live readiness/reset, verified in an isolated worktree, and returned for review after focused tests/build pass.
 - Exact preview, one confirmation, stale-plan reread, safe apply, readback: Task 4 and Tasks 6–8.
@@ -288,4 +334,5 @@
 - Local Docker/hosted SE isolation and no shared OAuth provider flip: Tasks 3 and 5.
 - CLI and admin-only async job, Admin sidebar only, delayed reset/logout: Tasks 6–8.
 - Reports, sanitized evidence, operator steps: Tasks 2, 7, and 10.
+- Living master reference and future extension procedure: updated in each task commit, reconciled in Task 10.
 - Hosted SE deploy/update is prohibited by current repository policy; any cluster mismatch remains NOT READY until fixed through the approved release process.
