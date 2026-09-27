@@ -8,7 +8,7 @@ Approved for implementation. The task sequence and commit checkpoints are in [th
 
 Give presenters one repeatable way to bring the demo environment into a known-good state and prove that all 46 Demo Steps use cases work before a presentation, within a 15-minute wall-clock limit.
 
-The readiness run covers both local Docker and hosted SE. It exercises every use case in the complete 46-case Demo Steps inventory and applicable vertical variant through both PingOne session login and PingFederate session login. It also verifies the native PingFederate ID-JAG journey. A run is ready only when every required check and every demo step on each target has the expected result. If the full repair-and-verification run cannot finish within 15 minutes, it returns NOT READY with the remaining work listed.
+The readiness run covers both local Docker and hosted SE. It exercises every entry in the complete 46-case Demo Steps inventory and applicable vertical variant through both PingOne session login and PingFederate session login, using the same trigger-specific handler as the UI. It also verifies the native PingFederate ID-JAG journey. A run is ready only when every required check and every demo step on each target has its declared result. If the full repair-and-verification run cannot finish within 15 minutes, it returns NOT READY with the remaining work listed.
 
 The same readiness workflow is available as a command the user can run directly and through **Admin → Reset Demo**. It audits first, previews safe configuration repairs, requires one administrator confirmation, applies those repairs, and reruns the checks. The Admin reset clears demo state and signs out only after readiness passes.
 
@@ -64,16 +64,17 @@ The time budget is designed around parallel target/provider workers, one login p
 
 ### 3. Full demo matrix and pass criteria
 
-The runner derives its 46 rows from the Demo Steps UI lists and verifies each against the matching backend catalog, auth requirements, and vertical configuration. A selected step missing from the backend, marked as needing a build, missing an expected result, or otherwise not executable blocks readiness.
+The runner derives its 46 rows from the Demo Steps UI lists and verifies each against the matching backend catalog, auth requirements, vertical configuration, and actual UI handler. A selected step missing from the backend, marked as needing a build, missing a behavior contract, or otherwise not executable blocks readiness. The contract distinguishes chip execution (including UC2.5's A2A route and UC38/UC44's link-to-chip adaptation), attack simulation, page navigation, education-panel opening, Admin MCP tool execution, and UC40's native ID-JAG handoff. Page/panel entries pass only when their declared destination or panel loads and its required runtime checks pass; they are not treated as agent tool calls.
 
-The base matrix is 46 use cases × 2 session providers × 2 targets (184 executions), before expanding vertical variants and the additional UC40 ID-JAG execution on each target. The runner reports the actual expanded row count before execution and must meet the same 15-minute limit for the complete expanded inventory.
+The base matrix is 46 Demo Steps entries × 2 session providers × 2 targets (184 behavior checks), before expanding applicable vertical variants and the additional UC40 ID-JAG execution on each target. The runner reports the actual expanded row count before execution and must meet the same 15-minute limit for the complete expanded inventory.
 
 For each target:
 
-- Establish a fresh PingOne-authenticated user session and execute every demo step through the same supported entry path used by the demo.
-- Establish a separate fresh PingFederate-authenticated user session and execute every demo step through that same entry path.
+- Establish a fresh PingOne-authenticated user session and check every demo step through the same trigger-specific handler used by the UI.
+- Establish a separate fresh PingFederate-authenticated user session and check every demo step through that same handler.
+- For chip and attack steps, assert the catalog outcome and evidence; for Admin1–Admin12, assert the expected PingOne MCP operation and response; for page/panel steps, assert the declared route or panel loads with its required configuration; and for UC2.5, verify the A2A orchestration path.
 - Execute UC40 through the native PingFederate ID-JAG path.
-- For all other PingFederate steps, assert the expected standard exchange path and absence of native ID-JAG provenance.
+- For PingFederate steps that perform an exchange, assert the expected standard exchange path and absence of native ID-JAG provenance except UC40.
 
 A row passes when the observed behavior matches the catalog's declared expectation. Expected denials, consent or HITL pauses, step-up results, and other intentional outcomes count as passes when the correct outcome and evidence are observed; success does not mean every call must be permitted.
 
