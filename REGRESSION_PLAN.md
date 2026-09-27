@@ -255,6 +255,43 @@ after deployment. The valid banking tools are `get_my_accounts` and
 `get_account_balance`; `banking.get_balance` is a UI intent label, not a
 registered MCP tool name.
 
+### 2026-09-27 — PingGateway routes PF-issued Exchange #3 subjects to PF
+
+**Files:** `demo_api_server/scripts/refresh-service-envs.js`,
+`demo_api_server/tests/refreshServiceEnvsPfGateway.test.js`,
+`ping-gateway/.env.example`,
+`ping-gateway/scripts/groovy/olb-token-exchange.groovy`, `REGRESSION_PLAN.md`,
+`UC40-PF-IDJAG-SESSION-HANDOFF.md`.
+
+**What was broken:** PingGateway already selected a PF token-exchange branch
+when the inbound subject token's `iss` matched `PF_ISSUER_URI`, but generated
+`ping-gateway/.env` omitted `PF_TOKEN_ENDPOINT` and `PF_TE_CLIENT_*`. With an
+empty PF endpoint the branch was disabled, so the PF-issued subject was posted
+to PingOne and Exchange #3 failed with “Cannot parse token claims for request
+param `subject_token`,” surfacing as HTTP 502.
+The same filter also labeled every PF subject as ID-JAG, although ordinary PF
+access tokens require `access_token` typing.
+
+**What was fixed:** The env generator now supplies the PF token endpoint and
+standard MCP exchanger credentials to PingGateway. It changes the endpoint
+host to the PF issuer host while preserving the token path, so the JVM uses a
+hostname covered by PF's TLS certificate. PingOne-issued subjects still use
+the existing PingOne endpoint and MCP Gateway client. This is a provider
+difference at PingGateway Exchange #3; it does not change BFF subject
+validation or the nested `act` contract. The PF request now uses `id-jag`
+typing only when the signed JWT header is `oauth-id-jag+jwt`; PF access tokens
+and all PingOne tokens remain `access_token`.
+
+**Do not break:** Keep provider selection tied to the signed issuer, fail
+closed when PF endpoint or credentials are missing, keep the PF standard MCP
+exchanger distinct from the PingOne MCP Gateway client, and preserve PingOne's
+existing Exchange #3 behavior. The UC38 passenger A2A
+`invalid_target` remains a separate UC2 issue outside the UC40 chain.
+
+**Verify:** `CI=true npx jest tests/refreshServiceEnvsPfGateway.test.js
+--forceExit --runInBand`; then run the valid local MCP tool through
+`/api/mcp/tool` and confirm PF Exchange #3 plus the backend tool call complete.
+
 ### 2026-09-27 — Exchange diagnostics no longer mask the underlying failure
 
 **Files:** `demo_api_server/services/agentMcpTokenService.js`,

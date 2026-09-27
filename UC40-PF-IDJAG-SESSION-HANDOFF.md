@@ -141,9 +141,25 @@ The chain now runs **end-to-end green**: policy PERMIT → `pf-id-jag-issued` �
    separate from the passenger A2A `invalid_target` documented in
    `HANDOFF-UC38-demo-steps.md` §2.1.
 
+10. **PingGateway Exchange #3 follows the subject issuer (2026-09-27):**
+    `olb-token-exchange.groovy` already sends PF-issued subjects to PF, but the
+    generated `ping-gateway/.env` had no PF token endpoint or exchanger
+    credentials. It therefore fell through to PingOne, which cannot parse a PF
+    subject token and returned HTTP 400; the BFF surfaced HTTP 502. The env
+    generator now maps `PF_STANDARD_TOKEN_EXCHANGE_CLIENT_ID/SECRET` to
+    `PF_TE_CLIENT_ID/SECRET` and rewrites the BFF's internal `pingfederate`
+    hostname to the issuer hostname for TLS certificate validation. It also
+    sends `subject_token_type=id-jag` only for a JWT header typed
+    `oauth-id-jag+jwt`; PF access tokens use `access_token`, matching the
+    existing PF investment dispatcher behavior. PF is selected from the
+    signed issuer even if config is incomplete; missing PF endpoint or client
+    credentials now fail closed instead of sending a PF token to PingOne or
+    PingOne credentials to PF. The
+    passenger A2A `invalid_target` remains separate UC2 noise.
+
 **Known follow-ups (non-blocking):**
-- `gw-backend-exchange: deny` hop — the PingGateway backend RFC 8693 exchange is denied by downstream policy; investigate in the PingGateway/P1AZ config if the final-hop story matters for the demo.
-- One unnamed 401 hop mid-chain (same area).
+- Verify the PF Exchange #3 env wiring against a fresh local tool call after
+  deploying the refreshed `ping-gateway/.env`.
 - The passenger A2A path (`/api/agent/invoke`, audience `a2a-intermediate-passenger.ping.demo`) still fails `invalid_target` in PF-mode — pre-existing UC2 issue, not part of this UC40 chain; see HANDOFF-UC38-demo-steps.md §2.1.
 
 ---
