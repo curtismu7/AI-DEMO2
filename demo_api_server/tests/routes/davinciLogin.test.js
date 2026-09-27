@@ -32,6 +32,7 @@ jest.mock('../../services/oauthEndpointResolver', () => ({
 
 const axios = require('axios');
 const configStore = require('../../services/configStore');
+const oauthEndpointResolver = require('../../services/oauthEndpointResolver');
 const oauthService = require('../../services/oauthService');
 const tokenVerificationService = require('../../services/tokenVerificationService');
 const dataStore = require('../../data/store');
@@ -529,6 +530,18 @@ describe('POST /api/davinci-login/sdk-token', () => {
     Object.keys(ENV).forEach((k) => {
       if (saved[k] === undefined) delete process.env[k]; else process.env[k] = saved[k];
     });
+  });
+
+  test('uses the PingOne DaVinci API root when PingFederate is the OAuth provider', async () => {
+    oauthEndpointResolver.getDiscoveryEndpoint.mockReturnValueOnce(
+      'https://pingfederate:9031/.well-known/openid-configuration'
+    );
+    axios.post.mockResolvedValue({ data: { access_token: 'sdk-tok-1' } });
+
+    const res = await request(buildApp({})).post('/api/davinci-login/sdk-token');
+
+    expect(res.status).toBe(200);
+    expect(res.body.apiRoot).toBe('https://auth.pingone.com/');
   });
 
   test('mints a token with no username, binds the nonce to the session, and passes it to the flow', async () => {

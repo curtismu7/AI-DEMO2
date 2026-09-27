@@ -24,7 +24,6 @@ const express = require('express');
 const axios = require('axios');
 const davinciConfig = require('../config/davinci');
 const configStore = require('../services/configStore');
-const { getDiscoveryEndpoint } = require('../services/oauthEndpointResolver');
 const oauthService = require('../services/oauthService');
 const tokenVerificationService = require('../services/tokenVerificationService');
 const dataStore = require('../data/store');
@@ -34,6 +33,7 @@ const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 const router = express.Router();
 
 const ORCHESTRATE_BASE = 'https://orchestrate-api.pingone.com/v1';
+const DAVINCI_API_ROOT = 'https://auth.pingone.com/';
 
 // Arms one login run: the single-use nonce /widget-session and /callback
 // verify. It goes to the flow as a parameter and comes back as the ID token's
@@ -185,7 +185,9 @@ router.post('/sdk-token', async (req, res) => {
         companyId,
         policyId,
         flowVersion: version,
-        apiRoot: `${new URL(getDiscoveryEndpoint()).origin}/`,
+        // DaVinci's browser API host is independent of the app's OAuth provider.
+        // In PF mode, the OIDC discovery URL is an internal PF Docker hostname.
+        apiRoot: DAVINCI_API_ROOT,
       });
     } catch (e) {
       const normalized = normalizeAxiosError(e, { label: 'DaVinci SDK token', timeoutMs: 10_000 });

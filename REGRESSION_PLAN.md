@@ -188,6 +188,25 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-27 — DaVinci Widget used PingFederate's internal host for DaVinci API calls
+
+**Files changed:** `demo_api_server/routes/davinciLogin.js`,
+`demo_api_server/tests/routes/davinciLogin.test.js`, and this plan.
+
+**What was broken:** the Widget's SDK-token response derived `apiRoot` from
+the selected OAuth provider's OIDC discovery endpoint. With PingFederate active,
+the browser received `https://pingfederate:9031/` and could not resolve that
+Docker-only hostname, so DaVinci sign-in failed before the flow rendered.
+
+**What was fixed:** the Widget now receives PingOne's public DaVinci API root,
+independent of whether the app login provider is PingOne or PingFederate.
+
+**Do not break:** keep OAuth provider endpoint resolution unchanged; preserve
+the Widget's API-key custody, nonce/session handling, and token validation.
+
+**Verify:** the focused BFF route suite passes (32 tests); its regression case
+first failed with the internal PF hostname and now expects the PingOne API root.
+
 ### 2026-09-27 — Demo Steps scrim escaped the Command Dock stacking context
 
 **Files:** `demo_api_ui/src/components/DemoStepsDropdown.jsx`,
