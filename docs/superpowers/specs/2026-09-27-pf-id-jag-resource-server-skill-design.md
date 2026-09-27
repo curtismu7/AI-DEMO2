@@ -25,6 +25,10 @@ Add these files under `.claude/skills/creating-pingfederate-id-jag-resource-serv
 
 The skill applies to new and existing resource-server work. It must tell agents to read root and nearest-service `CLAUDE.md`, `REGRESSION_PLAN.md` sections 0–1, and invoke `regression-guard` before editing protected auth or token paths. PingFederate documentation begins at `https://docs.pingidentity.com/llms.txt` when current product-specific behavior needs confirmation.
 
+## Distribution
+
+Keep the canonical copy in `.claude/skills/` for repository use. Also copy the complete skill folder, including its README and references, to `~/Documents/creating-pingfederate-id-jag-resource-server` as a shareable version. Keep all four files identical between the two locations.
+
 ## Required guidance
 
 - Trace each token hop and record the issuer, verification JWKS, accepted audience/resource, required scopes, and deployment owner before editing.
@@ -47,5 +51,6 @@ The skill applies to new and existing resource-server work. It must tell agents 
 - The skill entrypoint describes when it applies without loading both layer references unconditionally.
 - Each reference names the actual service boundary and points to current implementation and test files.
 - The README explains how to invoke the skill and what target resource, audience, scopes, and provisioning intent to include in a request.
+- The complete four-file skill folder is mirrored to `~/Documents/creating-pingfederate-id-jag-resource-server`.
 - Guidance does not imply that the current downstream service receives the raw ID-JAG or that all downstream tokens use the same issuer/JWKS.
 - Skill implementation adds only the four files listed under Deliverables; no service/config code changes are made. This design document is a workflow artifact for review.
