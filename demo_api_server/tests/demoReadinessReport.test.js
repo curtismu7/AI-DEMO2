@@ -134,6 +134,29 @@ describe('demo readiness report', () => {
     expect(check.evidence.sessionId).toBe('[REDACTED]');
   });
 
+  test('redacts opaque tokens under camelCase and generic token keys', () => {
+    const report = makeReport();
+    const check = recordCheck(report, {
+      id: 'opaque-tokens',
+      status: 'pass',
+      evidence: {
+        accessToken: 'opaque-access-token',
+        subjectToken: 'opaque-subject-token',
+        idJagToken: 'opaque-id-jag-token',
+        token: 'opaque-generic-token',
+      },
+    });
+
+    for (const key of ['accessToken', 'subjectToken', 'idJagToken', 'token']) {
+      expect(report.checks[0].evidence[key]).toBe('[REDACTED]');
+      expect(check.evidence[key]).toBe('[REDACTED]');
+    }
+    const serialized = JSON.stringify(report);
+    for (const secret of ['opaque-access-token', 'opaque-subject-token', 'opaque-id-jag-token', 'opaque-generic-token']) {
+      expect(serialized).not.toContain(secret);
+    }
+  });
+
   test('redacts nested secret fixtures inserted into repairs and unfinished rows before report serialization', () => {
     const report = makeReport();
     const bearer = 'Bearer repair-bearer-token';
@@ -183,6 +206,17 @@ describe('demo readiness report', () => {
     expect(() => Object.defineProperty(report.repairs[0].before, 'token', {
       get: () => 'Bearer accessor-secret',
     })).toThrow(/accessor/i);
+  });
+
+  test('rejects prototype changes that could expose inherited readiness secrets', () => {
+    const report = makeReport();
+    report.repairs.push({ before: {} });
+    const inheritedSecrets = { authorization: 'Bearer inherited-secret', sessionId: 'inherited-session' };
+
+    expect(Reflect.setPrototypeOf(report.repairs[0].before, inheritedSecrets)).toBe(false);
+    expect(() => Object.setPrototypeOf(report.targets, inheritedSecrets)).toThrow(/prototype/i);
+    expect(report.repairs[0].before.authorization).toBeUndefined();
+    expect(report.targets.authorization).toBeUndefined();
   });
 
   test('redacts direct root, target, and inventory mutations before callers can read them', () => {

@@ -7,6 +7,12 @@ const TARGET_WARNING_MS = 720_000;
 const CHECK_STATUSES = new Set(['pass', 'fail', 'blocked', 'not-run']);
 const SESSION_KEY_RE = /session|^sid$/i;
 const BEARER_RE = /(bearer\s+)[^\s,;]+/gi;
+const TOKEN_VALUE_KEY_RE = /(?:^|_)token(?:$|_(?:value|secret|raw|jwt|credential|bearer))$/i;
+
+function isTokenValueKey(key) {
+  const normalized = key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
+  return TOKEN_VALUE_KEY_RE.test(normalized);
+}
 
 function redactReadinessValue(value) {
   if (value == null) return value;
@@ -16,7 +22,7 @@ function redactReadinessValue(value) {
 
   const out = {};
   for (const [key, item] of Object.entries(value)) {
-    out[key] = SESSION_KEY_RE.test(key) ? '[REDACTED]' : redactReadinessValue(item);
+    out[key] = SESSION_KEY_RE.test(key) || isTokenValueKey(key) ? '[REDACTED]' : redactReadinessValue(item);
   }
   return redactValue(out);
 }
@@ -43,6 +49,9 @@ function guardedReadinessValue(value) {
         safeDescriptor.writable = true;
       }
       return Reflect.defineProperty(target, property, safeDescriptor);
+    },
+    setPrototypeOf() {
+      return false;
     },
   };
   if (Array.isArray(redacted)) {
