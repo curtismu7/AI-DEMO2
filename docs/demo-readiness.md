@@ -47,11 +47,14 @@ The checked-in PF sources establish configuration-key and credential-role
 references, including ordinary exchange, UC2/UC2.5's ordered ID-JAG then
 Exchange #2 path, UC40 native ID-JAG, and UC38/UC44 actor-bound exchange. They
 do **not** contain a committed literal PF issuer, token endpoint, or registered
-client readback. Every affected core or feature row therefore carries
-`pf_exact_exchange_contract_source_gap` with a remediation to commit a supported
-provisioner or PF Admin API readback. Those rows are blocked before dispatch;
-they are not expected-success tests and Task 5 PF runtime coverage remains
-incomplete until that source gap is closed.
+client readback. The affected exchange-backed core and feature rows therefore
+carry `pf_exact_exchange_contract_source_gap` with a remediation to commit a
+supported provisioner or PF Admin API readback. At fix round 4, the two non-exchange PF
+feature rows `PRIV-MALICIOUS-CONTENT` and `UC-LEARN11-PROMPT-INJECTION` did not
+yet carry credential contracts. Fix round 5 below adds
+`pf_exact_credential_contract_source_gap` to both and blocks them before worker
+setup or dispatch. PF runtime coverage remains incomplete until these source
+gaps close.
 
 ## Coverage inventory
 
@@ -68,6 +71,29 @@ The current executable Demo Steps list has 46 unique actions:
 The catalog currently derives 184 behavior-plus-authorization vertical groups and 734 core target/provider rows. UC14b's full-page live-PAR variant adds four rows. A2A FM1/FM2/FM3 add 12 provider/target rows, and PF-DAVINCI-IK adds two PF-only target rows, for the original 752-row baseline. The five Privilege LLM Attack Lab probes add 20 rows. Agent IAM Core, PF CIMD valid/rejected, third-party AS allow/deny, invalid/expired/wrong-audience ID-JAG, valid/invalid RAR, UC2 passenger `invalid_target`, and UC-LEARN11 prompt injection add 28 rows. The runner derives 800 current rows by category rather than preserving a hand-maintained total.
 
 The 46-step count and separate feature-probe count are distinct. Adding assertions to an existing PF session row, including PingGateway Exchange #3 checks, does not add a Demo Steps entry or a matrix row. A newly exposed UI action must be added to the UI list and inventory, receive a backend behavior/auth/config contract, and trigger fresh row-count and timing review.
+
+### Task 5 repair round 5: PF feature contracts and independent family evidence
+
+Every feature row that declares PingFederate applicability must carry either an
+exact source-backed credential contract or a blocked contract with a named
+source gap, including non-exchange probes. The checked-in PF profile does not
+resolve the user-session role needed by `PRIV-MALICIOUS-CONTENT` or
+`UC-LEARN11-PROMPT-INJECTION`; each therefore carries a
+`pf_exact_credential_contract_source_gap`. Catalog validation rejects either
+row if its credential contract is removed. Execution records the affected row
+as blocked before worker creation, prerequisite setup, or family dispatch. No PF
+issuer, endpoint, or credential literal is inferred from the source gap.
+
+Family validator tests now use independent behavior observations and mutate or
+remove each family's decision-specific facts to prove rejection. The
+UC-LEARN11 test opens the checked-in `/llm-gateway?attack=prompt_injection`
+route, reads the selected payload from the UI attack catalog, submits it
+through the page's send handler, and feeds the structured response into the
+family validator. It rejects a changed route, selected attack, payload, or
+provider-reached outcome. Other family fixtures cover their own route,
+authorization, schema, lifecycle, registration, exchange, or reachability
+evidence instead of copying all `familyContract` values into a fake worker
+observation.
 
 Runnable IDs in source order:
 

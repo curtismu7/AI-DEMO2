@@ -116,9 +116,35 @@ function featureSourceGap(contract, provider) {
   if (contract?.familyContract?.status === 'blocked' || contract?.familyContract?.sourceGap) {
     return contract.familyContract.sourceGap || { code: 'feature_family_source_gap', reason: 'The feature family contract is blocked.' };
   }
-  if (provider === 'pingfederate' && contract?.exchangeService === 'token-exchange') return pfSourceGap(contract.pfExchangeContract);
-  if (provider === 'pingfederate' && (contract?.pfCredentialContract?.status === 'blocked' || contract?.pfCredentialContract?.sourceGap)) {
-    return contract.pfCredentialContract.sourceGap || { code: 'pf_exact_credential_contract_source_gap', reason: 'The PingFederate credential contract is blocked.' };
+  if (provider === 'pingfederate') {
+    const exchangeBacked = contract?.exchangeService === 'token-exchange';
+    const pfContract = exchangeBacked ? contract?.pfExchangeContract : contract?.pfCredentialContract;
+    const sourceGapCode = exchangeBacked ? 'pf_exact_exchange_contract_source_gap' : 'pf_exact_credential_contract_source_gap';
+    const roles = pfContract?.credentialRoles;
+    const sourceBackedRoles = Array.isArray(roles) && roles.length > 0
+      && roles.every((role) => typeof role?.roleId === 'string' && role.roleId
+        && typeof role?.sourceRef === 'string' && role.sourceRef
+        && Array.isArray(role.configurationKeys));
+    const missingContract = {
+      code: sourceGapCode,
+      reason: exchangeBacked
+        ? 'The PingFederate feature row has no exact source-backed issuer, endpoint, and credential-role contract.'
+        : 'The PingFederate feature row has no exact source-backed credential contract.',
+      remediation: 'Add the checked-in PingFederate contract or a named source gap before enabling this provider lane.',
+    };
+    if (!pfContract || !sourceBackedRoles) return missingContract;
+    if (exchangeBacked) {
+      const sourceGap = pfSourceGap(pfContract);
+      if (sourceGap) return sourceGap;
+      if (pfContract.status !== 'ready' || typeof pfContract.issuer !== 'string'
+          || typeof pfContract.endpoint !== 'string' || !pfContract.issuerSourceRef || !pfContract.endpointSourceRef) {
+        return missingContract;
+      }
+    } else if (pfContract.status === 'blocked' || pfContract.sourceGap) {
+      return pfContract.sourceGap || { code: sourceGapCode, reason: 'The PingFederate credential contract is blocked.' };
+    } else if (pfContract.status !== 'ready') {
+      return missingContract;
+    }
   }
   return null;
 }

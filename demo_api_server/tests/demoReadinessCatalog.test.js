@@ -175,12 +175,35 @@ describe('demo readiness catalog', () => {
         });
         expect(contract.pfExchangeContract.credentialRoles.length).toBeGreaterThan(0);
       }
+      if (check.providers.includes('pingfederate') && contract.exchangeService !== 'token-exchange') {
+        expect(contract.pfCredentialContract).toMatchObject({
+          status: 'blocked',
+          sourceGap: {
+            code: expect.any(String),
+            reason: expect.any(String),
+            remediation: expect.any(String),
+          },
+        });
+        expect(contract.pfCredentialContract.credentialRoles.length).toBeGreaterThan(0);
+      }
       if (contract.selectedTool) {
         expect(contract.gateway?.applicable).not.toBe(false);
         expect(contract.authorize?.applicable).not.toBe(false);
       }
     }
   });
+
+  test.each(['PRIV-MALICIOUS-CONTENT', 'UC-LEARN11-PROMPT-INJECTION'])(
+    'rejects PF-applicable feature %s when its credential contract is missing',
+    (id) => {
+      const sources = structuredClone(loadDemoReadinessSources());
+      delete sources.featureChecks.contracts[id].pfCredentialContract;
+
+      expect(() => validateDemoReadinessCatalog(sources)).toThrow(
+        new RegExp(`${id} PingFederate feature probe lacks an exact credential contract or actionable source gap`),
+      );
+    },
+  );
 
   test('resolves UC38 and UC44 prompts and tools for each declared vertical', () => {
     const rows = new Map(buildDemoReadinessCatalog().map((row) => [row.id, row]));

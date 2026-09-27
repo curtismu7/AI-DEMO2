@@ -237,3 +237,75 @@ tests/demoReadinessReport.test.js --forceExit --runInBand`
 Result: 4 suites passed, 88 tests
 passed, 1 named-identity integration test skipped. No provider login, live
 service, Docker Compose, deployment, or push was used.
+
+## Fix round 5
+
+Every PingFederate-applicable feature row now requires either an exact
+source-backed exchange/credential contract or an actionable blocked source-gap
+contract. `PRIV-MALICIOUS-CONTENT` and `UC-LEARN11-PROMPT-INJECTION` each carry
+`pfCredentialContract.status: "blocked"` with
+`pf_exact_credential_contract_source_gap`, the unresolved `davinci-login`
+profile role, its checked-in source reference/configuration keys, and specific
+remediation. No issuer, endpoint, or credential literal was invented. Catalog
+validation rejects either row if that contract is removed. Runtime row setup
+uses the named source gap to record `blocked/not-dispatched` before
+`createWorker`, prerequisite checks, or family dispatch. Injected-worker tests
+verify that both setup and dispatch remain untouched.
+
+The prior all-family fixture that copied values from `familyContract` is gone.
+Twenty-one explicit family observations now exercise each validator's distinct
+route, prompt, exchange step, decision, schema boundary, registration,
+reachability, or lifecycle fields. Every fixture has changed/missing evidence
+mutations; the manifest is passed only as the validator's expected contract.
+The A2A FM1/FM3 route expectation follows the checked-in E2E caller at
+`/api/agent/invoke`; FM2 remains its separate direct `/api/a2a/message` probe.
+Attack Lab fixture facts follow the current UI attack controls/catalog. The
+third-party-AS validator fixtures test only its explicit PERMIT/DENY comparison;
+the unresolved PF source contract still blocks their execution.
+
+The fixture references were checked against `demo_api_ui/tests/e2e/a2a-failure-modes.real.spec.js`,
+`demo_api_server/src/__tests__/a2aProtocolCards.test.js`,
+`demo_api_ui/src/pages/AttackLabTab.jsx`,
+`demo_api_ui/src/pages/attackLabEvidence.js`,
+`demo_api_ui/src/config/toolAttackCatalog.js`,
+`demo_api_server/tests/routes/pfDavinciAuth.test.js`,
+`demo_api_server/tests/agentRegistryService.test.js`,
+`demo_api_server/src/__tests__/cimdAgentMetadata.route.test.js`,
+`demo_api_server/services/agentMcpTokenService.js`, and the checked-in RAR
+enforcement tests. CIMD and third-party-AS unit fixtures do not claim a live PF
+registration outcome; their explicit source-gap contracts keep those rows
+blocked.
+
+UC-LEARN11 is now exercised through the real `LlmGatewayPage`: the test opens
+`/llm-gateway?attack=prompt_injection`, reads the selected attack and payload
+from `GUARDRAIL_ATTACKS`, sends through the page's submit handler, then validates
+the structured `llm_policy_denied` response with `reachedProvider: false`. The
+validator rejects a changed route, selected attack, payload, and a response
+that says the provider was reached.
+
+The UI prebuild contract guard now checks that every implementation `sourceRef`
+exists and checks test-title text only against actual test files: test-like
+source refs and `relatedTests`. Focused test refs were added for the two
+affected PF rows. This preserves module/route source references while ensuring
+the R5 BFF/UI tests are linked to the contract.
+
+Focused evidence:
+
+`CI=true npx jest tests/demoReadinessCatalog.test.js
+tests/demoReadinessExecutionService.test.js --forceExit --runInBand`
+
+Result: 2 suites passed, 72 tests passed.
+
+`npm run test:unit -- src/pages/__tests__/LlmGatewayReadinessEvidence.test.jsx`
+
+Result: 1 file passed, 1 test passed.
+
+`npm run build` from `demo_api_ui/`
+
+Result: contract guard passed and Vite production build succeeded. Vite reported
+the existing missing local mkcert files and large output chunks as warnings.
+`graphify update .` completed; it reported the existing missing
+`tree_sitter_hcl` dependency for Terraform/HCL and partial extraction warnings
+for 22 files with syntax errors. `git diff --check` passed. No live provider,
+hosted service, Docker Compose, deployment, or push was used. The pre-existing
+modified `ADMIN7.chip.unit-parse.json` artifact was preserved and not staged.

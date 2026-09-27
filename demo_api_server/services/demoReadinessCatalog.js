@@ -39,6 +39,35 @@ function pushIssue(issues, message) {
   issues.push(message);
 }
 
+function hasSourceBackedCredentialRoles(contract) {
+  return Array.isArray(contract?.credentialRoles)
+    && contract.credentialRoles.length > 0
+    && contract.credentialRoles.every((role) => typeof role?.roleId === 'string' && role.roleId
+      && typeof role?.sourceRef === 'string' && role.sourceRef
+      && Array.isArray(role.configurationKeys));
+}
+
+function hasActionablePfSourceGap(contract) {
+  return contract?.status === 'blocked'
+    && typeof contract.sourceGap?.code === 'string' && contract.sourceGap.code
+    && typeof contract.sourceGap?.reason === 'string' && contract.sourceGap.reason
+    && typeof contract.sourceGap?.remediation === 'string' && contract.sourceGap.remediation
+    && hasSourceBackedCredentialRoles(contract);
+}
+
+function hasExactPfFeatureContract(contract, exchangeBacked) {
+  if (hasActionablePfSourceGap(contract)) {
+    return !exchangeBacked || Boolean(
+      contract.issuer?.configurationKey && contract.issuer?.sourceRef
+      && contract.endpoint?.configurationKey && contract.endpoint?.sourceRef,
+    );
+  }
+  if (contract?.status !== 'ready' || !hasSourceBackedCredentialRoles(contract)) return false;
+  if (!exchangeBacked) return true;
+  return typeof contract.issuer === 'string' && Boolean(contract.issuerSourceRef)
+    && typeof contract.endpoint === 'string' && Boolean(contract.endpointSourceRef);
+}
+
 function duplicateValues(values) {
   const seen = new Set();
   const duplicates = new Set();
@@ -416,18 +445,13 @@ function validateDemoReadinessCatalog(sources, { uiInventory, educationPanelIds 
       }
       if (provider === 'pingfederate' && contract.exchangeService === 'token-exchange') {
         const pfContract = contract.pfExchangeContract;
-        const blocked = pfContract?.status === 'blocked' && pfContract?.sourceGap?.code;
-        const ready = typeof pfContract?.issuer === 'string' && typeof pfContract?.endpoint === 'string'
-          && (pfContract?.credentialRole || pfContract?.credentialRoles?.length);
-        if (!blocked && !ready) {
+        if (!hasExactPfFeatureContract(pfContract, true)) {
           pushIssue(issues, `${check.id} PingFederate exchange probe lacks an exact contract or actionable source gap`);
         }
       }
       if (provider === 'pingfederate' && contract.exchangeService !== 'token-exchange'
-          && contract.pfCredentialContract && !(contract.pfCredentialContract.status === 'blocked'
-            && contract.pfCredentialContract.sourceGap?.code)
-          && !contract.pfCredentialContract.credentialRoles?.length) {
-        pushIssue(issues, `${check.id} PingFederate credential probe has no role contract or actionable source gap`);
+          && !hasExactPfFeatureContract(contract.pfCredentialContract, false)) {
+        pushIssue(issues, `${check.id} PingFederate feature probe lacks an exact credential contract or actionable source gap`);
       }
     }
     if (contract.selectedTool && (contract.gateway?.applicable === false || contract.authorize?.applicable === false)) {
