@@ -1,0 +1,124 @@
+'use strict';
+
+const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
+const { exchangeForThirdPartyAccessToken } = require('../../services/pfAiAgentCrossDomainExchangeService');
+
+const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
+const jwk = publicKey.export({ format: 'jwk' });
+jwk.kid = 'pf-id-jag-signing-key';
+jwk.use = 'sig';
+jwk.alg = 'RS256';
+const idJag = jwt.sign({
+  iss: 'https://pf.example.test',
+  aud: 'https://downstream.example.test',
+  sub: 'agent-user-100',
+  scope: 'accounts:read',
+  resource: 'https://downstream.example.test/accounts',
+  exp: Math.floor(Date.now() / 1000) + 300,
+}, privateKey, { algorithm: 'RS256', keyid: jwk.kid });
+
+function makeStore(overrides = {}) {
+  const values = {
+    pf_issuer: 'https://pf.example.test',
+    pf_jwks_uri: 'https://pf.example.test/pf/JWKS',
+    pf_token_endpoint: 'https://pf.example.test/as/token.oauth2',
+    pf_ai_cross_domain_enabled: 'true',
+    pf_ai_cross_domain_client_id: 'pf-id-jag-client',
+    pf_ai_cross_domain_client_secret: 'pf-secret',
+    pf_ai_cross_domain_token_endpoint_auth_method: 'basic',
+    pf_ai_cross_domain_audience: 'https://downstream.example.test',
+    pf_ai_cross_domain_resource: 'https://downstream.example.test/accounts',
+    pf_ai_cross_domain_scope: 'accounts:read',
+    pf_ai_third_party_token_endpoint: 'https://downstream.example.test/token',
+    pf_ai_third_party_client_id: 'downstream-jwt-bearer-client',
+    pf_ai_third_party_client_secret: 'downstream-secret',
+    pf_ai_third_party_token_endpoint_auth_method: 'post',
+    pf_ai_third_party_resource: 'https://downstream.example.test/accounts',
+    pf_ai_third_party_scope: 'accounts:read',
+    ...overrides,
+  };
+  return { getEffective: (key) => values[String(key).toLowerCase()] || '' };
+}
+
+function jsonResponse(data, status = 200) {
+  return { ok: status >= 200 && status < 300, status, json: async () => data };
+}
+
+function responseSequence() {
+  return jest.fn()
+    .mockResolvedValueOnce(jsonResponse({
+      access_token: idJag,
+      issued_token_type: 'urn:ietf:params:oauth:token-type:id-jag',
+      token_type: 'N_A',
+      expires_in: 240,
+    }))
+    .mockResolvedValueOnce(jsonResponse({ keys: [jwk] }))
+    .mockResolvedValueOnce(jsonResponse({
+      access_token: 'downstream-access-token',
+      token_type: 'Bearer',
+      expires_in: 900,
+      scope: 'accounts:read',
+    }));
+}
+
+describe('PF AI Agent cross-domain exchange', () => {
+  test('issues a PF ID-JAG and redeems it at the configured third-party authorization server', async () => {
+    const fetchImpl = responseSequence();
+    const req = { session: { oauthProvider: 'pingone', oauthTokens: { accessToken: 'p1-session-token' } } };
+
+    const result = await exchangeForThirdPartyAccessToken(req, {
+      subjectProvider: 'pingone', store: makeStore(), fetchImpl,
+    });
+
+    expect(result).toEqual(expect.objectContaining({
+      subjectProvider: 'pingone',
+      pfIssuer: 'https://pf.example.test',
+      assertionAudience: 'https://downstream.example.test',
+      downstreamIssuer: 'https://downstream.example.test',
+      downstreamAudience: 'https://downstream.example.test/accounts',
+      subject: 'agent-user-100',
+      scope: ['accounts:read'],
+      hops: expect.arrayContaining([expect.objectContaining({ issuer: 'https://pf.example.test' })]),
+    }));
+    const pfBody = fetchImpl.mock.calls[0][1].body;
+    expect(pfBody.get('requested_token_type')).toBe('urn:ietf:params:oauth:token-type:id-jag');
+    expect(pfBody.get('subject_token_type')).toBe('urn:ietf:params:oauth:token-type:access_token');
+    expect(pfBody.get('subject_token')).toBe('p1-session-token');
+    const downstreamBody = fetchImpl.mock.calls[2][1].body;
+    expect(downstreamBody.get('grant_type')).toBe('urn:ietf:params:oauth:grant-type:jwt-bearer');
+    expect(downstreamBody.get('assertion')).toBe(idJag);
+    expect(JSON.stringify(result)).not.toMatch(/p1-session-token|downstream-access-token|eyJ/);
+  });
+
+  test('rejects a PingOne token when PingFederate is selected as the source without making an outbound call', async () => {
+    const fetchImpl = jest.fn();
+    const req = { session: { oauthProvider: 'pingone', oauthTokens: { accessToken: 'p1-session-token' } } };
+
+    await expect(exchangeForThirdPartyAccessToken(req, {
+      subjectProvider: 'pingfederate', store: makeStore(), fetchImpl,
+    })).rejects.toMatchObject({ code: 'PF_AI_SUBJECT_PROVIDER_MISMATCH', httpStatus: 403 });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  test('rejects an ID-JAG with a different audience before calling the downstream AS', async () => {
+    const badIdJag = jwt.sign({
+      iss: 'https://pf.example.test',
+      aud: 'https://other.example.test',
+      sub: 'agent-user-100',
+      scope: 'accounts:read',
+      resource: 'https://downstream.example.test/accounts',
+      exp: Math.floor(Date.now() / 1000) + 300,
+    }, privateKey, { algorithm: 'RS256', keyid: jwk.kid });
+    const fetchImpl = jest.fn()
+      .mockResolvedValueOnce(jsonResponse({ access_token: badIdJag,
+        issued_token_type: 'urn:ietf:params:oauth:token-type:id-jag' }))
+      .mockResolvedValueOnce(jsonResponse({ keys: [jwk] }));
+    const req = { session: { oauthProvider: 'pingfederate', oauthTokens: { accessToken: 'pf-session-token' } } };
+
+    await expect(exchangeForThirdPartyAccessToken(req, {
+      subjectProvider: 'pingfederate', store: makeStore(), fetchImpl,
+    })).rejects.toMatchObject({ code: 'PF_AI_ID_JAG_INVALID' });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+});

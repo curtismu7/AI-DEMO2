@@ -1373,6 +1373,9 @@ export default function AdminSideNav({
       { label: "How ID-JAG Works", path: "/pingfederate-id-jag" },
       { label: "ID-JAG Diagram", path: "/pingfederate-id-jag/diagram" },
     ], "sec"),
+    productGroup("PingFederate AI Agent", [
+      { label: "CIMD, Token Exchange, and RAR", path: "/pingfederate-ai-agent" },
+    ], "sec"),
     productGroup("Developer Tools", [
       "Code Explorer",
       { from: "Graphify", rename: "Graphify" },

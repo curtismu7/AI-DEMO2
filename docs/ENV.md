@@ -50,6 +50,38 @@ PF mode is intentionally fail-closed: the ID-JAG is redeemed only at the
 explicit downstream endpoint. It is never treated as a final MCP bearer and
 does not fall back to the PingOne or local mock exchange.
 
+## PingFederate AI Agent feature demos
+
+The separate `/pingfederate-ai-agent` page exercises PingFederate CIMD,
+PF-issued ID-JAG cross-domain exchange, and PF RAR. These flags are off by
+default and do not require changing `OAUTH_PROVIDER`. The cross-domain page
+requires the user to select the current session's provider as the subject
+source; the BFF uses that session's access token and does not accept a token
+from the browser request.
+
+```dotenv
+PF_AI_CIMD_ENABLED=true
+PF_AI_CROSS_DOMAIN_ENABLED=true
+PF_AI_CROSS_DOMAIN_CLIENT_ID=<pf-token-exchange-client-id>
+PF_AI_CROSS_DOMAIN_TOKEN_ENDPOINT_AUTH_METHOD=basic
+PF_AI_CROSS_DOMAIN_AUDIENCE=<third-party-authorization-server-issuer>
+PF_AI_CROSS_DOMAIN_RESOURCE=<third-party-resource-uri>
+PF_AI_CROSS_DOMAIN_SCOPE=<space-separated-downstream-scopes>
+PF_AI_THIRD_PARTY_TOKEN_ENDPOINT=<third-party-token-endpoint>
+PF_AI_THIRD_PARTY_CLIENT_ID=<third-party-jwt-bearer-client-id>
+PF_AI_THIRD_PARTY_TOKEN_ENDPOINT_AUTH_METHOD=basic
+PF_AI_THIRD_PARTY_RESOURCE=<third-party-resource-uri>
+PF_AI_THIRD_PARTY_SCOPE=<space-separated-downstream-scopes>
+PF_AI_RAR_ENABLED=true
+```
+
+Store `PF_AI_CROSS_DOMAIN_CLIENT_SECRET` and
+`PF_AI_THIRD_PARTY_CLIENT_SECRET` in the deployment secret store. Configure
+`PF_PAR_ENDPOINT` and deploy/configure the custom RAR processor before setting
+`PF_AI_RAR_ENABLED=true`. The public CIMD metadata document and callback are
+served at `/api/pf-ai-agent/cimd/client-metadata.json` and
+`/api/pf-ai-agent/cimd/callback` on `PUBLIC_APP_URL`.
+
 ## Credential Variables (PingOne Apps)
 
 ### Core Apps

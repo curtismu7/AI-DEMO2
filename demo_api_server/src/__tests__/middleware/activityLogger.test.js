@@ -98,4 +98,39 @@ describe('activityLogger requestBody redaction', () => {
     expect(logEntry.requestBody.email).toBe('jane@example.com');
     expect(logEntry.requestBody.username).toBe('jane');
   });
+
+  it('omits OAuth callback codes and state from the activity endpoint', async () => {
+    const req = mockReq({
+      method: 'GET',
+      originalUrl: '/api/pf-ai-agent/cimd/callback?code=single-use-code&state=csrf-state',
+      path: '/api/pf-ai-agent/cimd/callback',
+    });
+    const res = mockRes();
+
+    logActivity(req, res, () => {});
+    res.send(JSON.stringify({ success: true }));
+    await flush();
+
+    const logEntry = createActivityLog.mock.calls[0][0];
+    expect(logEntry.endpoint).toBe('GET /api/pf-ai-agent/cimd/callback');
+    expect(logEntry.endpoint).not.toMatch(/single-use-code|csrf-state/);
+  });
+
+  it('redacts the PF RAR user key in activity request bodies', async () => {
+    const req = mockReq({
+      method: 'POST',
+      originalUrl: '/api/pf-ai-agent/rar/start',
+      path: '/api/pf-ai-agent/rar/start',
+      body: { scenario: 'allowed', userKey: 'private-user' },
+    });
+    const res = mockRes();
+
+    logActivity(req, res, () => {});
+    res.send(JSON.stringify({ success: true }));
+    await flush();
+
+    const logEntry = createActivityLog.mock.calls[0][0];
+    expect(logEntry.requestBody.userKey).toBe('[REDACTED]');
+    expect(JSON.stringify(logEntry)).not.toContain('private-user');
+  });
 });

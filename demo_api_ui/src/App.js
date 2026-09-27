@@ -225,6 +225,7 @@ import PublicRoutes, {
   PingFederateIdJagExplainerPageRoute,
   PingFederateIdJagDemoPageRoute,
   PingFederateIdJagDiagramPageRoute,
+  PingFederateAiAgentPageRoute,
   GroupPolicyBoardPageRoute,
   PrivilegeMcpClientPageRoute,
   LlmGatewayPageRoute,
@@ -1355,6 +1356,10 @@ function AppWithAuth() {
                 <Route
                   path="/pingfederate-id-jag/diagram"
                   element={<PingFederateIdJagDiagramPageRoute user={user} logout={logout} />}
+                />
+                <Route
+                  path="/pingfederate-ai-agent"
+                  element={<PingFederateAiAgentPageRoute user={user} logout={logout} />}
                 />
                 <Route
                   path="/privilege-demo"
