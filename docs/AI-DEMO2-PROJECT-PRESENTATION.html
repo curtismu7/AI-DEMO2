@@ -271,12 +271,12 @@
   <main class="deck" aria-label="AI-DEMO2 code tour presentation">
     <section class="slide dark cover active" aria-label="Title slide">
       <div class="brand"><span class="brand-mark"></span>AI-DEMO2</div>
-      <p class="eyebrow">Code inventory · 25 September 2026</p>
+      <p class="eyebrow">Code inventory · 27 September 2026</p>
       <h1>AI-DEMO2<br>a governed AI agent demo stack</h1>
       <div class="rule"></div>
       <p class="dek">68 use cases, 43 servers, 11 verticals — every hop evidenced with token-chain views.</p>
-      <div class="stamp">Source: tracked code and commit history through 25 Sep 2026. Maturity and setup requirements called out.</div>
-      <div class="signature">44 slides · arrow keys · source links on every slide</div>
+      <div class="stamp">Source: tracked code and commit history through 27 Sep 2026. Maturity and setup requirements called out.</div>
+      <div class="signature">49 slides · arrow keys · source links on every slide</div>
       <div class="source"><a href="../demo_api_server/config/useCases.js">Use-case source of truth</a><a href="../README.md">Repository README</a></div>
     </section>
     <section class="slide">
@@ -745,7 +745,7 @@ sequenceDiagram
         <div class="rfc-card"><h3>Where to see them</h3><p class="rfc-list">Token Chain inspector renders <b>principal/actor/audience/scopes</b> per hop · Authorize decision inspector shows P1AZ rules firing · token lab exercises <b>7662 introspection</b> and <b>7009 revocation</b> fail-closed · PAR button on the gateway console sends <b>9126</b> pushes · A2A sequence demonstrates nested <b>8693</b> exchanges</p></div>
       </div>
       <p class="small" style="margin-top:10px">Most-referenced specs by count in tracked docs: 8693 · 9728 · 7662 · 8707 · 6749 · 7009 · 9396 · 9700 · 7636 · 9449. RFC 2119/8174/6819/3749/7235 appear only in boilerplate/error text and are not claimed as implemented features.</p>
-      <div class="source"><a href="../REGRESSION_PLAN.md">Token exchange contract</a><a href="../docs/P1AZ_TOKENACTIVE_RULE_SETUP.md">P1AZ TokenActive rule setup</a><a href="../docs/scope-topology.md">Scope and audience topology</a><a href="../.claude/skills/par/SKILL.md">PAR skill</a></div>
+      <div class="source"><a href="../REGRESSION_PLAN.md">Token exchange contract</a><a href="../docs/P1AZ_TOKENACTIVE_RULE_SETUP.md">P1AZ TokenActive rule setup</a><a href="../docs/scope-topology.md">Scope and audience topology</a><a href="../claudSkills/pingone/oauth-pingone/SKILL.md">PingOne OAuth skill · PAR / RAR</a></div>
     </section>
         <section class="slide">
       <div class="brand"><span class="brand-mark"></span>18 / RFC reference list</div>
@@ -1050,10 +1050,11 @@ sequenceDiagram
         <div class="date">25–30 Jun</div><div class="event"><b>Base and operations surfaces</b><code>ee711d407</code> initial service code · <code>cce195077</code> two-exchange hardening · <code>3b58a70bf</code> five-vertical operations console.</div>
         <div class="date">1–8 Jul</div><div class="event"><b>Policy and gateway instrumentation</b><code>2be65eaf5</code> Authorize decision inspector · <code>118486343</code> Authorize parsing/timeouts/audit hardening · vertical-scoped policy work.</div>
         <div class="date">1–30 Aug</div><div class="event"><b>Privilege, MCP and external clients</b><code>3f3436027</code> Privilege proxy with PingOne token exchange · <code>fdb5f7fd4</code> standalone LibreChat MCP OAuth proof · gateway inspector expanded.</div>
-        <div class="date">11–25 Sep</div><div class="event"><b>Vertical architecture, token views and trust demos</b><code>967c7f33f</code> live identity chain · <code>20e277873</code> vertical manifest ops · <code>0d79eac39</code> attack lab · <code>9db694be1</code> cross-vertical consent coverage · <code>bc858fb6f</code> audience-aware MCP routing.</div>
+        <div class="date">11–24 Sep</div><div class="event"><b>Vertical architecture, token views and trust demos</b><code>967c7f33f</code> live identity chain · <code>20e277873</code> vertical manifest ops · <code>0d79eac39</code> attack lab · <code>9db694be1</code> cross-vertical consent coverage · <code>bc858fb6f</code> audience-aware MCP routing.</div>
+        <div class="date">25–27 Sep</div><div class="event"><b>New workflows and operator tooling</b><code>5d71bdde1</code> public Access Console + delegation/security · <code>2fafb0f5b</code> A2A visualizer · <code>fc522171c</code> Command Dock · <code>3b7843723</code> UC38/44 agent runs · <code>b7cfee742</code> SPIRE/PF exchange · <code>97c4b84ba</code> optional mTLS · <code>b069a237c</code> silent door SSO · PF A2A provisioning.</div>
       </div>
       <p class="small" style="margin-top:14px">Repo begins 25 Jun 2026. Features often span many commits across branches.</p>
-      <div class="source"><a href="../CHANGELOG.md">Changelog</a><span>Current remote tip reviewed through ad510a237 · 25 Sep 2026</span></div>
+      <div class="source"><a href="../CHANGELOG.md">Changelog</a><span>Repository revision reviewed: f88461c7d · 27 Sep 2026</span></div>
     </section>
     <section class="slide dark">
       <div class="brand"><span class="brand-mark"></span>37 / Current vs incomplete</div>
@@ -1064,8 +1065,8 @@ sequenceDiagram
         <div class="panel"><div class="metric">2</div><h3>Needs build</h3><p>UC15 intent tampering; UC29 introspection fail-closed.</p></div>
       </div>
       <div class="panel" style="margin-top:18px"><h3>Open debt (<code>TECH_DEBT.md</code>)</h3><p>One Privilege transport bypasses the shared pipeline; <code>AIAgentFull</code> duplicates a large component; shared event feeds lack per-user filtering; SDK sign-in needs manually provisioned CORS.</p></div>
-      <p class="small" style="margin-top:12px"><b>Current:</b> LangChain active. Protected demos need a configured PingOne tenant; LLM routes need credentials or a local model. The stack was stopped during this revision — these pages describe code and saved captures, not live health.</p>
-      <div class="source"><a href="../demo_api_server/config/useCases.js">Catalog maturity values</a><a href="../TECH_DEBT.md">Open and resolved debt ledger</a><a href="../planning/">Plans and handoffs</a></div>
+      <p class="small" style="margin-top:12px"><b>Current:</b> LangChain active. Protected demos need a configured PingOne tenant; LLM routes need credentials or a local model. Stack reported down on 27 Sep; this is a code inventory, not a live-health claim.</p>
+      <div class="source"><a href="../demo_api_server/config/useCases.js">Catalog maturity values</a><a href="../TECH_DEBT.md">Open and resolved debt ledger</a><a href="../planning/">Plans and handoffs</a><a href="../docs/superpowers/plans/2026-09-27-demo-readiness-and-repair.md">Readiness/repair plan (not shipped)</a></div>
     </section>
     <section class="slide">
       <div class="brand"><span class="brand-mark"></span>38 / Start here</div>
@@ -1128,7 +1129,8 @@ sequenceDiagram
         <div class="skill-card"><h3>PingOne · 11 skills</h3><ul><li>authz-server</li><li>authz-server-parity</li><li>ciba</li><li>oauth-pingone</li><li>pingone-api-calls</li><li>pingone-authorize-configure</li><li>pingone-mcp</li><li>pingone-mcp-install</li><li>pingone-mfa</li><li>pingone-recognize</li><li>pingone-session-termination</li></ul></div>
         <div class="skill-card"><h3>SE export · 5 skills</h3><ul><li>karpathy-guidelines</li><li>p1az-import-generator</li><li>ping-se-cluster-deploy</li><li>pingone-mcp-connect</li><li>privilege-cloud-mcp-gateway</li></ul><p>Field-facing deployment and integration workflows for SE use.</p></div>
       </div>
-      <div class="source"><a href="../claudSkills/pingone/">PingOne portable skills</a><a href="../se-skills-export/">SE skill export bundle</a><a href="../.claude/skills/">Project-local library</a></div>
+      <p class="skill-footer">Separate from the 27 portable skills above: a PingFederate operator skill for the Admin API, <code>pingcli</code> and troubleshooting, packaged as a ZIP.</p>
+      <div class="source"><a href="../claudSkills/pingone/">PingOne portable skills</a><a href="../se-skills-export/">SE skill export bundle</a><a href="../.claude/skills/">Project-local library</a><a href="../pingfederate-skill/pingfederate/SKILL.md">PingFederate operator skill</a><a href="../pingfederate-skill/pingfederate.zip">ZIP package</a></div>
     </section>
     <section class="slide">
       <div class="brand"><span class="brand-mark"></span>44 / Technical choices visible in code</div>
@@ -1142,6 +1144,50 @@ sequenceDiagram
         <div class="decision"><b>Each data system has a job</b><span>LMDB = BFF state · Weaviate = vectors · OpenSearch = MCP search sample. No production bank database.</span></div>
       </div>
       <div class="source"><a href="../demo_api_server/services/agentFrameworkOrchestrator.js">Current framework selector</a><a href="../demo_api_server/services/nlIntentParser.js">Intent routing implementation</a><a href="../docker-compose.yml">Service profiles</a><a href="../TECH_DEBT.md">Documented limitations and follow-up</a></div>
+    </section>
+    <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>45 / New dashboard and discovery flows</div>
+      <p class="eyebrow">Recent UI features · code-backed</p><h2>Run and inspect agent workflows without losing the demo context.</h2>
+      <div class="grid g2">
+        <div class="panel redline"><h3>Command Dock</h3><p>A draggable Demo Controls pill opens a movable, resizable panel that can pop out into its own window. Its position persists, and the controls work in floating and split-column dashboard-agent layouts.</p></div>
+        <div class="panel redline"><h3>UC38 / UC44 in the dashboard agent</h3><p>The main Demo Steps action turns the catalog item into an agent prompt and keeps the run in the dashboard. A separate button opens the dedicated workload-identity walkthrough at <code>/workload-agents</code>.</p></div>
+        <div class="panel redline"><h3>Public Agentic Access Console</h3><p>The read-only console now opens without an admin session. Delegation &amp; A2A shows exchange events and the public specialist registry; Security adds gateway decisions and redacted logs, with identity-scoped data still protected.</p></div>
+        <div class="panel redline"><h3>Interactive A2A architecture</h3><p>Step or play the teaching flow; click a hop to inspect token claims, exchange requests or JSON-RPC messages. It separates the RFC 8693 identity chain from the A2A wire protocol and labels this page as a walkthrough, not a live run.</p></div>
+      </div>
+      <div class="source"><a href="../demo_api_ui/src/components/CommandDock.jsx">Command Dock</a><a href="../demo_api_ui/src/components/DemoStepsDropdown.jsx">Demo Steps routing</a><a href="../demo_api_ui/src/pages/AgenticAccessConsolePage.js">Access Console</a><a href="../demo_api_ui/src/pages/agenticAccessConsole/DelegationSection.js">Delegation &amp; A2A data</a><a href="../demo_api_ui/src/components/A2AArchitecturePage.jsx">A2A walkthrough</a></div>
+    </section>
+    <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>46 / SPIFFE workload identity · PingFederate</div>
+      <p class="eyebrow">A real JWT-SVID exchange path</p><h2>SPIRE proves the workload. PingFederate issues the delegated token.</h2>
+      <div class="grid g2">
+        <div class="panel redline"><h3>1 · Subject token</h3><p>The BFF obtains a PingFederate client-credentials access token for the machine identity and requested MCP scope.</p></div>
+        <div class="panel redline"><h3>2 · Workload proof</h3><p>The BFF asks the SPIRE Workload API for a short-lived JWT-SVID identifying the attested BFF workload.</p></div>
+        <div class="panel redline"><h3>3 · RFC 8693 exchange</h3><p>The BFF sends the PingFederate token as <code>subject_token</code> and the SPIRE JWT-SVID as <code>actor_token</code>.</p></div>
+        <div class="panel redline"><h3>4 · Issued actor chain</h3><p>PingFederate validates the SVID and returns an access token that carries the verified SPIFFE workload identity in its actor chain.</p></div>
+      </div>
+      <p class="small"><b>Opt-in:</b> the SPIRE profile and <code>ff_spiffe_pf_exchange</code> are required; that feature flag defaults off. Gateway-to-MCP SVID-backed mTLS is a separate <code>MCP_MTLS_ON</code> switch, also off by default.</p>
+      <div class="source"><a href="../demo_api_server/services/spiffePingfederateService.js">Subject + actor exchange</a><a href="../demo_api_server/routes/spiffeDemo.js">BFF endpoint</a><a href="../docs/SPIFFE_PLAN.md">SPIFFE implementation phases</a><a href="../docs/demo-flag-map.md">Feature-flag defaults</a><a href="../spiffe/README.md">SPIRE profile setup</a></div>
+    </section>
+    <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>47 / Privilege · switch doors without losing SSO</div>
+      <p class="eyebrow">Per-door OAuth state</p><h2>Each gateway door gets its own audience-bound grant.</h2>
+      <div class="grid g2">
+        <div class="panel redline"><h3>What happens on a switch</h3><ul class="plain-list"><li>A token for one door is never reused at another door.</li><li>A saved destination-door grant is restored when available.</li><li>Otherwise, an existing gateway SSO session can authorize the new door with <code>prompt=none</code>.</li><li>If silent authorization cannot work, the page offers an explicit sign-in.</li></ul></div>
+        <div class="panel redline"><h3>What the presenter can inspect</h3><ul class="plain-list"><li>The selected door and its own connection state.</li><li>A probe of other doors, including reachable tools and failures.</li><li>OAuth state survives a BFF session restore and remains keyed by door.</li><li>The destination door reconnects after authorization returns.</li></ul></div>
+      </div>
+      <p class="small">The switch demonstrates both usability and audience isolation: single sign-on can avoid another prompt, while every door still receives a token issued for its own audience.</p>
+      <div class="source"><a href="../demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx">Door switch UI</a><a href="../demo_api_server/routes/privilegeMcpClient.js">Per-door OAuth state</a><a href="../demo_api_ui/src/pages/__tests__/PrivilegeMcpClientPage.doorSwitchReauth.test.jsx">Switch behavior coverage</a><a href="../REGRESSION_PLAN.md">Session and door regression contract</a></div>
+    </section>
+    <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>48 / Operator tooling · shipped and planned</div>
+      <p class="eyebrow">Run readiness and PingFederate support</p><h2>More setup evidence at startup; broader readiness work is still planned.</h2>
+      <div class="grid g3">
+        <div class="panel redline"><h3>Docker start health gate</h3><p>After <code>run-docker.sh start</code>, checks required containers and networks, key flags, PingOne / Authorize, gateway reachability, token exchange and stale images. A failure warns but does not stop the stack.</p></div>
+        <div class="panel redline"><h3>A2A PingFederate provisioning</h3><p>Operator scripts create or update the PingFederate service-provider connections for the A2A gateway and specialists, plus specialist OAuth clients for the PF-mode handoff.</p></div>
+        <div class="panel redline"><h3>Shareable PingFederate skill</h3><p>A packaged operator skill covers the Admin API, <code>pingcli</code> and troubleshooting references. A ZIP is included for sharing the same runbook outside this repo.</p></div>
+      </div>
+      <div class="panel blue"><p><b>Planned, not shipped:</b> the full readiness / repair runner is a design and implementation plan. It targets all 46 Demo Steps across providers and Docker / hosted targets, with previewed configuration repairs. The current startup gate does not do that full matrix.</p></div>
+      <div class="source"><a href="../scripts/check-demo-health-gate.js">Shipped Docker health gate</a><a href="../run-docker.sh">Docker start hook</a><a href="../scripts/pingfederate/provision-a2a-sp-connections.sh">A2A PF connections</a><a href="../scripts/pingfederate/provision-a2a-specialist-pf-clients.sh">A2A PF clients</a><a href="../pingfederate-skill/pingfederate/SKILL.md">PingFederate skill</a><a href="../docs/superpowers/plans/2026-09-27-demo-readiness-and-repair.md">Readiness plan</a></div>
     </section>
   </main>
   <nav class="controls" aria-label="Slide controls">
