@@ -269,10 +269,10 @@ export default defineConfig(({ mode }) => {
       // CI has been surviving on the default because its Node 22 collects
       // differently from a local Node 26 — which makes this the worst kind of
       // trap: green on the runner, unrunnable on the machine of whoever is
-      // trying to verify before pushing. 12 GB is headroom on any box that can
+      // trying to verify before pushing. 14 GB is headroom on any box that can
       // run the stack, and workers only reserve what they use.
       poolOptions: {
-        forks: { execArgv: ['--max-old-space-size=12288'] },
+        forks: { execArgv: ['--max-old-space-size=14336'] },
       },
       // Two self-hosted runner services share one 16-core Mac. Keep the UI
       // suite from treating the host's full CPU count as its private pool.

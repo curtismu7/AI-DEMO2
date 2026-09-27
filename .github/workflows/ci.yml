@@ -202,10 +202,9 @@ jobs:
         run: npm --prefix demo_api_ui run test:unit
         env:
           CI: 'true'
-          # vitest forks carry --max-old-space-size=12288 via poolOptions, but the
-          # MAIN vitest process (module collection, reporters) uses the default
-          # heap and OOMs on the self-hosted runner when 5 other jobs share the box.
-          NODE_OPTIONS: '--max-old-space-size=12288'
+          # The full suite exceeded its 12 GB worker limit on the shared Mac.
+          # Keep both the Vitest parent and workers at the measured 14 GB ceiling.
+          NODE_OPTIONS: '--max-old-space-size=14336'
       - name: Vite build gate
         run: npm --prefix demo_api_ui run build
 
@@ -285,26 +284,26 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
-        with:
-          python-version: '3.12'
-        env:
-          # setup-python@v7 assumes the hosted-runner layout and mkdirs
-          # /Users/runner (Permission denied on this self-hosted Mac). Point
-          # its tool cache at a writable path in the workspace instead.
-          RUNNER_TOOL_CACHE: ${{ github.workspace }}/.tool-cache
-          AGENT_TOOLSDIRECTORY: ${{ github.workspace }}/.tool-cache
+      - name: Use the runner's installed Python 3.12
+        run: |
+          python="$HOME/.local/bin/python3.12"
+          if [ ! -x "$python" ]; then
+            echo "Python 3.12 is not installed at $python" >&2
+            exit 1
+          fi
+          "$python" --version
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: langchain_agent (blocking — 834 passing)
         run: |
           cd langchain_agent
-          python -m pip install --quiet --upgrade pip
-          [ -f requirements.txt ] && python -m pip install --quiet -r requirements.txt || true
-          python -m pytest tests/ -q
+          python3.12 -m pip install --quiet --upgrade pip
+          [ -f requirements.txt ] && python3.12 -m pip install --quiet -r requirements.txt || true
+          python3.12 -m pytest tests/ -q
       - name: llamaindex_agent (blocking — 9 passing)
         run: |
           cd llamaindex_agent
-          [ -f requirements.txt ] && python -m pip install --quiet -r requirements.txt || true
-          python -m pytest tests/ -q
+          [ -f requirements.txt ] && python3.12 -m pip install --quiet -r requirements.txt || true
+          python3.12 -m pytest tests/ -q
 
   authz-decision-tests:
     # demo_authz_server and demo_mcp_gateway had ~90 test cases that no job ran.

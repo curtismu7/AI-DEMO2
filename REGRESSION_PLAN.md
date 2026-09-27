@@ -188,6 +188,26 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-27 — Third self-hosted runner could not take CI gates reliably
+
+**Files:** `.github/workflows/ci.yml`, `demo_api_ui/vite.config.js`.
+
+**What was broken:** the third Mac runner shared the default labels and could
+take heavy suites, while the Python setup action's macOS distribution requires
+the hosted-runner path `/Users/runner/hostedtoolcache`. The previous writable
+cache override could not relocate that Python build. Vitest workers also
+reached their 12 GB V8 heap ceiling in the full CI run.
+
+**What was fixed:** route the selector and hygiene/topology jobs only to the
+`ci-gates` runner, use the runner's installed Python 3.12, and raise the Vitest
+parent and worker heap ceiling to the measured 14 GB.
+
+**Do not break:** keep the gate runner on only the `ci-gates` label; leave the
+UI worker cap scoped to CI; keep Python tests explicitly on Python 3.12.
+
+**Verify:** `actionlint` on `.github/workflows/ci.yml`; run the Python agent,
+Vitest, API and unwired-service CI jobs on the updated PR.
+
 ### 2026-09-27 — Server topology was missing from customer navigation
 
 **Files:** `demo_api_ui/src/components/AdminSideNav.jsx`,
