@@ -41,11 +41,11 @@
 
 5. **Stale JWT Token Processor (`aiDemoPfAccessSubjectProcessor`)** — its Allowed Issuers table still had `https://localhost:9031`; updated issuer to `https://local.ping-devops.com:9031` + JWKS URL, and added audience `enduser.ping.demo` (kept `ai-demo-pf-id-jag`).
 
-6. **New Token Exchange processor policy `aiDemoStandardTePolicy`** ("AI Demo Standard 2-Exchange Delegation") — mirrors `aiDemoSpiffeTePolicy` but subject processor = `aiDemoPfAccessSubjectProcessor` for BOTH subject and actor (PF access tokens, not SPIFFE SVIDs). Attribute contract copied from the SPIFFE policy (subject/scope/client_id/spiffeId), `spiffeId` fulfilled from `ACTOR_TOKEN.sub`. Attached to client `ai-demo-pf-standard-mcp-exchanger` via `tokenExchangeProcessorPolicyRef`.
+6. **New Token Exchange processor policy `aiDemoStandardTePolicy`** ("AI Demo Standard 2-Exchange Delegation") — mirrors `aiDemoSpiffeTePolicy` but subject processor = `aiDemoPfAccessSubjectProcessor` for BOTH subject and actor (PF access tokens, not SPIFFE SVIDs). Attribute contract copied from the SPIFFE policy (subject/scope/client_id/spiffeId). As of 2026-09-27, `subject` is fulfilled from `SUBJECT_TOKEN.Username` and `spiffeId` from `ACTOR_TOKEN.client_id`. Attached to client `ai-demo-pf-standard-mcp-exchanger` via `tokenExchangeProcessorPolicyRef`.
 
-7. **New access-token manager `aiDemoPfAgentGwJwtAtm`** — clone of `aiDemoPfJwtAtm` with `Audience Claim Value = https://agentgateway.ping.demo` and `Publish Keys to the PingFederate JWKS Endpoint = false` (so the shared key ID doesn't collide). Needed because PF derives output token `aud` from the mapping's ATM, and Exchange #1's intermediate token must have aud `https://agentgateway.ping.demo` for `validateIntermediateToken` to pass.
+7. **New access-token manager `aiDemoPfAgentGwJwtAtm`** — clone of `aiDemoPfJwtAtm` with `Audience Claim Value = https://agentgateway.ping.demo`, `Publish Keys to the PingFederate JWKS Endpoint = false` (so the shared key ID doesn't collide), and an extended `sub` attribute. Its access-token mapping emits `sub` and `Username` from the policy's `subject` so `validateIntermediateToken` can preserve the signed PF user identity.
 
-8. **New access-token mapping** `urn:ietf:params:oauth:grant-type:token-exchange|aiDemoStandardTePolicy|aiDemoPfAgentGwJwtAtm` (copy of the SPIFFE mapping with the new policy context + new ATM). A second mapping for `...|aiDemoPfJwtAtm` also exists; PF currently resolves the exchange via the client's default ATM (agent-gw one).
+8. **New access-token mapping** `urn:ietf:params:oauth:grant-type:token-exchange|aiDemoStandardTePolicy|aiDemoPfAgentGwJwtAtm` (copy of the SPIFFE mapping with the new policy context + new ATM). It emits `sub`, `Username`, `client_id`, `spiffeId`, `scope`, and `act`; `sub` and `Username` both come from the policy's `subject`. A second mapping for `...|aiDemoPfJwtAtm` also exists; PF currently resolves the exchange via the client's default ATM (agent-gw one).
 
 9. **BFF code fix (`services/pfStandardTokenExchangeService.js`)** — `sameScopes()` changed from exact-equality to **subset** semantics: PF's policy issues a policy-level scope set (superset of requested scopes); exact equality made every PF-mode exchange fail "intermediate scope mismatch". **This is an uncommitted working-tree change.**
 
@@ -120,10 +120,31 @@ The chain now runs **end-to-end green**: policy PERMIT → `pf-id-jag-issued` �
 7. **`enterpriseMcpPolicyService` identity fallback** (PR #346): PF logins map to a synthetic demo-store user (`reseed-wipe-…`), so the policy now also matches the token subject (`userSub='demouser'`) against the allowlist.
 8. **Correct tool name**: the MCP server exposes `get_my_accounts` etc. — NOT `banking.get_balance` (that intent name only drives the UI chip).
 
+9. **PF-specific identity and actor claim shape (2026-09-27):** Local PF user
+   access tokens sign `Username` without `sub`. The BFF's PF standard-exchange
+   adapter resolves the expected subject from signed `sub`, falling back to
+   signed `Username` only when PF omits `sub`; strict intermediate/final subject
+   validation remains enabled. The PF processor contract exposes `Username`,
+   the standard exchange policy maps `SUBJECT_TOKEN.Username` to `subject`, and
+   the agent-gateway ATM emits that value as `sub`.
+   The BFF validates a full two-hop `act` chain as nested MCP service → AI
+   agent actors (and retains a flat AI-agent compatibility shape). This local
+   PF route uses the full chain, so its final MCP gateway ATM must wrap the
+   prior agent `act` in an outer MCP actor map:
+   `{"sub": <MCP actor client_id>, "act": {"sub": <AI-agent client_id>}}`.
+   The live local mapping uses an OGNL expression to construct that nested
+   object. The BFF actor IDs in the ignored local `.env` must be the registered
+   PingOne Authorize identities (`0b412e8b-cfbc-4c7d-a773-0d46118de09d` for
+   AI agent and `f4dd707d-f78d-4417-ba56-dc8707d10a1f` for MCP service); the
+   earlier PF client aliases were not in the local actor chain and were denied
+   by the gateway policy. This is a local PF mapping/configuration difference,
+   separate from the passenger A2A `invalid_target` documented in
+   `HANDOFF-UC38-demo-steps.md` §2.1.
+
 **Known follow-ups (non-blocking):**
 - `gw-backend-exchange: deny` hop — the PingGateway backend RFC 8693 exchange is denied by downstream policy; investigate in the PingGateway/P1AZ config if the final-hop story matters for the demo.
 - One unnamed 401 hop mid-chain (same area).
-- The A2A path (`/api/agent/invoke`, audience `a2a-intermediate-passenger.ping.demo`) still fails `invalid_target` in PF-mode — pre-existing UC2 issue, see HANDOFF-UC38-demo-steps.md §2.1.
+- The passenger A2A path (`/api/agent/invoke`, audience `a2a-intermediate-passenger.ping.demo`) still fails `invalid_target` in PF-mode — pre-existing UC2 issue, not part of this UC40 chain; see HANDOFF-UC38-demo-steps.md §2.1.
 
 ---
 
@@ -145,9 +166,10 @@ The chain now runs **end-to-end green**: policy PERMIT → `pf-id-jag-issued` �
 ## 7. PF objects created this session (live in `ai-demo-pfederate-out-classic` volume; survive PF restarts, lost only if the volume is replaced)
 
 - Clients: `ai-demo-pf-standard-actor`, `ai-demo-pf-standard-mcp-exchanger` (+ `tokenExchangeProcessorPolicyRef`), `ai-demo-pf-standard-agent-exchanger` (+ default ATM `aiDemoPfAgentGwJwtAtm`, `restrictToDefaultAccessTokenManager=true`)
-- ATM: `aiDemoPfAgentGwJwtAtm` (aud `https://agentgateway.ping.demo`, JWKS publish off)
-- TE policy: `aiDemoStandardTePolicy`
-- ATM mappings: `urn:ietf:params:oauth:grant-type:token-exchange|aiDemoStandardTePolicy|aiDemoPfJwtAtm` and `...|aiDemoPfAgentGwJwtAtm`
+- ATMs: `aiDemoPfAgentGwJwtAtm` (aud `https://agentgateway.ping.demo`, JWKS publish off, `sub` contract attribute) and `aiDemoPfMcpGatewayJwtAtm` (aud `https://api.ping.demo:3036/mcp`, dedicated final MCP mapping)
+- TE policy: `aiDemoStandardTePolicy` (`SUBJECT_TOKEN.Username` → `subject`; `ACTOR_TOKEN.client_id` → `spiffeId` for access-token and ID-JAG subject types)
+- ATM mappings: the agent-gateway mapping emits the prior agent actor as `act`; the dedicated MCP gateway mapping emits `act = {sub: MCP actor, act: prior agent act}` using an OGNL expression. `ai-demo-pf-standard-agent-exchanger` and `ai-demo-pf-standard-mcp-exchanger` are pinned to their respective ATMs.
+- Local actor identities: BFF client IDs use the registered PingOne Authorize IDs shown in §4a. Keep those IDs synchronized with the local `demo_api_server/.env` values; they are not PF client secrets.
 - AS scopes added: `agent:invoke`, `read`, `write`, `transfer`, `admin:read`, `sensitive:read`
 - Modified: `aiDemoPfJwtAtm` (issuer/audience), `aiDemoPfAccessSubjectProcessor` (issuer/JWKS/audiences)
 

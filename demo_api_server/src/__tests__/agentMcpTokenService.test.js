@@ -268,12 +268,14 @@ describe('resolveMcpAccessTokenWithEvents — PingFederate standard exchange aud
       .mockResolvedValueOnce(sampleJwtPfAgentActorToken)
       .mockResolvedValueOnce(sampleJwtPfMcpActorToken);
     mockPerformTokenExchangeAs.mockImplementation((subjectToken, actorToken, clientId, clientSecret, audience, scopes) => {
+      const subjectClaims = JSON.parse(Buffer.from(subjectToken.split('.')[1], 'base64url').toString('utf8'));
+      const subject = subjectClaims.sub || subjectClaims.Username;
       const actorClaims = JSON.parse(Buffer.from(actorToken.split('.')[1], 'base64url').toString('utf8'));
       if (clientId === 'pf-agent-hop-client') {
-        return Promise.resolve(makeJwt({ sub: USER_SUB, aud: 'https://pf.example.test/agent-intermediate', scope: scopes.join(' ') }));
+        return Promise.resolve(makeJwt({ sub: subject, aud: 'https://pf.example.test/agent-intermediate', scope: scopes.join(' ') }));
       }
       return Promise.resolve(makeJwt({
-        sub: USER_SUB,
+        sub: subject,
         aud: audience,
         scope: scopes.join(' '),
         act: { sub: actorClaims.sub, act: { sub: 'pf-agent-actor' } },
@@ -302,6 +304,26 @@ describe('resolveMcpAccessTokenWithEvents — PingFederate standard exchange aud
     ]));
     expect(mockPerformTokenExchange).not.toHaveBeenCalled();
     expect(mockPerformTokenExchangeWithActor).not.toHaveBeenCalled();
+  });
+
+  it('uses Username as the subject when a PF user token has no sub', async () => {
+    const pfUserToken = makeJwt({
+      Username: 'pf-user',
+      aud: 'banking_enduser',
+      scope: 'openid profile email offline_access read',
+      iss: 'https://local.ping-devops.com:9031',
+      exp: Math.floor(Date.now() / 1000) + 3600,
+      iat: Math.floor(Date.now() / 1000),
+    });
+
+    const result = await resolveMcpAccessTokenWithEvents(makeReq(pfUserToken), 'get_my_accounts');
+
+    expect(result.userSub).toBe('pf-user');
+    expect(mockPerformTokenExchangeAs).toHaveBeenNthCalledWith(
+      1, pfUserToken, sampleJwtPfAgentActorToken, 'pf-agent-hop-client', 'pf-agent-hop-secret',
+      'https://pf.example.test/agent-intermediate', expect.any(Array), 'basic',
+      expect.objectContaining({ requestedTokenType: 'urn:ietf:params:oauth:token-type:access_token', omitAudience: true })
+    );
   });
 
   it('keeps PF direct-MCP callers on the server audience even when gateway routing is enabled', async () => {

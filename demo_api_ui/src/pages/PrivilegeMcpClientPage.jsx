@@ -1539,6 +1539,11 @@ export default function PrivilegeMcpClientPage() {
               <dt>Identity</dt><dd>{user?.email || '(unknown)'}</dd>
               <dt>Gateway said</dt><dd>{blockedDetail?.upstream || '403 Forbidden'}</dd>
             </dl>
+            {doorProbe.results?.some((r) => r.needsAuth) && (
+              <p className="cur-denial-note">
+                Each Privilege app needs its own token. Use a door to connect it; your existing gateway login is reused silently when available.
+              </p>
+            )}
             <p className="cur-denial-note">
               The gateway does not disclose which policy denied this — it returns a bare
               403 and logs nothing — so the policy name below cannot be confirmed as the
@@ -1593,16 +1598,14 @@ export default function PrivilegeMcpClientPage() {
                     server errored" — relayFailureStatus maps anything WITHOUT a
                     4xx upstream status to 500, so it means the relay never got
                     an HTTP answer, and the reason is only in this string. */}
-                {/* needsAuth is NOT a failure: the gateway issues one token per
-                    application, so a door this session has never signed into has
-                    no token to present. Showing it as a bare 401 read as "your
-                    identity is dead everywhere" and sent people back through a
-                    sign-in they did not need. Offer the switch instead — picking
-                    the door is what starts its own sign-in. */}
+                {/* needsAuth is per-door: each gateway application has its own
+                    audience-bound token. Switching can reuse the existing IdP
+                    session silently; only a missing/expired IdP session needs
+                    an interactive sign-in. */}
                 {doorProbe.results.map((r) => (
                   <div key={r.url} className="cur-denial-probe-row">
                     <span className={r.ok ? 'cur-denial-ok' : (r.needsAuth ? 'cur-denial-auth' : 'cur-denial-bad')}>
-                      {r.ok ? `${r.tools} tools` : (r.needsAuth ? 'sign-in needed' : (r.status || 'failed'))}
+                      {r.ok ? `${r.tools} tools` : (r.needsAuth ? 'no saved token' : (r.status || 'failed'))}
                     </span>
                     <span className="cur-denial-door">{doorName(r.url) || r.url}</span>
                     {!r.ok && !r.needsAuth && r.error && <span className="cur-denial-probe-why" title={r.error}>{r.error}</span>}
