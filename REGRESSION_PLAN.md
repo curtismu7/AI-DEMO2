@@ -221,6 +221,20 @@ PingFederate identity mappings requires explicit operator approval.
 --forceExit --runInBand` passes 100/100. The latest exact live call still returns
 HTTP 502 `invalid_grant` at intermediate-token validation, as described above.
 
+### 2026-09-26 — Demo Steps drawer scrim blocked Command Dock actions
+
+**Files changed:**
+- `demo_api_ui/src/components/AIAgent.css` — raise the Demo Steps scrim and drawer above the Command Dock panel.
+- `demo_api_ui/tests/e2e/pf-idjag-run-mode.spec.js` — open the collapsed Demo Controls pill before locating dashboard controls.
+
+**What was broken:** Mission Control UC40 and provider-switch browser flows queried controls before opening the collapsed Command Dock. Once open, the dock panel and drawer portal were both at z-index 100061, allowing the drawer scrim at z-index 100060 to intercept clicks on the visible UC40 chip. The provider-switch spec also depended on a live session-clear endpoint and checked storage before the reload completed.
+
+**What was fixed:** The focused flows now open the dock by its exact accessible name. The scrim is at z-index 100062 and the drawer at 100063, above the dock (100061); the drawer content receives pointer events while the rest of the page stays dimmed. The provider-switch spec mocks session clearing and waits for the reload before checking session storage.
+
+**Do not break:** Keep the scrim below the drawer and both above Command Dock. Preserve higher modal layers (100070+).
+
+**Verify:** Focused `pf-idjag-run-mode.spec.js` → 8 passed against the isolated worktree Vite server using system Chrome (the shared Playwright headless-shell cache was being reinstalled); `npm run build` exits 0.
+
 ### 2026-09-26 — A2A provider-flip incident: three compounding failure layers, now guarded
 
 **What was broken (the 40-minute `a2a_unauthorized` outage class):**
