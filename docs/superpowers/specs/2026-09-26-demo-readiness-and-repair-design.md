@@ -113,6 +113,18 @@ Every run produces a concise UI/terminal summary and a machine-readable report. 
 
 Do not include access tokens, ID-JAG tokens, passwords, client secrets, cookies, or authorization headers. A report with any failed/unknown required row, untested required target, unresolved repair, or unavailable readback for a required live authorization setting is **NOT READY**. The summary may say **READY — BOTH TARGETS** only after every required live configuration comparison and every required row on both targets passes.
 
+## Build-time repairability validation
+
+Before declaring the readiness feature complete, validate that each of the 46 Demo Steps cases has a documented configuration contract and an actionable failure path:
+
+- Map each case and supported provider/target path to the audiences, scopes, grants, gateway settings, Authorize checks, and other configuration it depends on.
+- For each configuration drift class the runner claims to repair, introduce a controlled mismatch in a disposable local fixture, verify that the runner previews and repairs it, then rerun the affected demo step successfully.
+- Verify that configuration repair changes only configuration; it must not require editing application source or rebuilding the application.
+- If a demo step cannot be made healthy through supported configuration, classify it as requiring a code fix and keep that case blocked until the code is corrected during feature construction. The build workflow may automatically apply a focused source patch in an isolated checkout, then must run the affected service tests/build and present the patch for review before release. Do not claim that runtime configuration repair covers it.
+- Fail the build-time validation when a newly added Demo Steps entry lacks an expected outcome, dependency mapping, or repairability classification.
+
+This validation proves the current application can recover from supported demo drift by changing configuration alone, while surfacing actual source defects before the pre-demo runner is considered ready.
+
 ## Acceptance criteria
 
 - One direct command runs the same readiness service used by Admin → Reset Demo.
@@ -135,7 +147,7 @@ Current policy APIs/worker credentials do not expose the complete live Authorize
 
 ## Out of scope
 
-- Automatically changing application source code to fix a failed demo step.
+- Editing or rebuilding application source from the live pre-demo Reset Demo action; source changes belong in the isolated build workflow and must be verified before release.
 - Guessing or deleting ambiguous live grants, scopes, resources, or policies.
 - Deploying to a remote SE cluster.
 - Changing the dashboard reset or account reset into a privileged configuration-repair operation.
