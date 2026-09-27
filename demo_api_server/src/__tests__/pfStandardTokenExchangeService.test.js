@@ -55,6 +55,26 @@ describe('PF standard token-exchange provider adapter', () => {
     expect(() => service.resolveConfig()).toThrow(/PF_MCP_SERVICE_ACTOR_CLIENT_SECRET/);
   });
 
+  test('uses the PingFederate Username claim when the access token has no sub', () => {
+    expect(service.resolveUserSubject({ Username: 'demouser' })).toBe('demouser');
+    expect(service.resolveUserSubject({ sub: 'stable-sub', Username: 'demouser' })).toBe('stable-sub');
+    expect(service.resolveUserSubject({})).toBeNull();
+  });
+
+  test('validates an intermediate sub against the resolved PingFederate user identity', () => {
+    const config = service.resolveConfig();
+    const userSub = service.resolveUserSubject({ Username: 'demouser' });
+    const intermediate = jwt({ sub: 'demouser', aud: config.intermediateAudience, scope: 'agent:invoke' });
+    expect(service.validateIntermediateToken(intermediate, {
+      userSub, audience: config.intermediateAudience, scopes: ['agent:invoke'],
+    }).claims.sub).toBe('demouser');
+    expect(() => service.validateIntermediateToken(jwt({
+      sub: 'different-user', aud: config.intermediateAudience, scope: 'agent:invoke',
+    }), {
+      userSub, audience: config.intermediateAudience, scopes: ['agent:invoke'],
+    })).toThrow(/did not preserve the user subject/);
+  });
+
   test('gets and validates actor tokens against their configured role', async () => {
     mockGetAiAgentClientCredentialsToken
       .mockResolvedValueOnce(jwt({ sub: 'unexpected-agent', client_id: 'unexpected-agent' }))

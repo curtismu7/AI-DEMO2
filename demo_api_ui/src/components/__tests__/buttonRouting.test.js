@@ -510,8 +510,8 @@ function DashboardQuickActionsStub() {
 			<Link to="/admin/banking">Banking admin</Link>
 			<Link to="/accounts">Manage Accounts</Link>
 			<Link to="/transactions">View Transactions</Link>
-			<Link to="/settings">🔒 Security Settings</Link>
-			<Link to="/mcp-inspector">🔌 MCP Inspector</Link>
+			<Link to="/settings">🔐 Security Settings</Link>
+			<Link to="/mcp-inspector">🔧 MCP Inspector</Link>
 		</div>
 	);
 }

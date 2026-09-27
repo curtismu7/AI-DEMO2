@@ -169,6 +169,10 @@ describe('useAgentRun — settles tokenChainTraceStore on RUN_FINISHED / RUN_ERR
 
     await act(async () => { await result.current.run({ threadId: 't', runId: 'A', messages: [] }); });
 
-    expect(tokenChainTraceStore.completeTrace).toHaveBeenCalledWith(false, expect.any(String));
+    // 401850b3a added failure-cause propagation: completeTrace(false,
+    // flowTraceId, message) on RUN_ERROR.
+    expect(tokenChainTraceStore.completeTrace).toHaveBeenCalledWith(
+      false, expect.any(String), 'boom',
+    );
   });
 });

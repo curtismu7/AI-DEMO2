@@ -13,6 +13,16 @@ import PrivilegeMcpLearningPage from './PrivilegeMcpLearningPage';
 import './PrivilegeMcpClientPage.css';
 
 const API_BASE = '/api/privilege-mcp';
+const SILENT_DOOR_SWITCH_KEY = 'cur_priv_silent_door_switch';
+const readSessionFlag = (key) => {
+  try { return sessionStorage.getItem(key) === '1'; } catch { return false; }
+};
+const writeSessionFlag = (key, enabled) => {
+  try {
+    if (enabled) sessionStorage.setItem(key, '1');
+    else sessionStorage.removeItem(key);
+  } catch { /* session storage can be disabled */ }
+};
 // Deep link for the "grant access" hint on a policy denial. The env must be the
 // PingOne tenant that OWNS the gateway the door points at, or the link opens a
 // console with no such Agentic App in it. Kept in step with PRIVILEGE_SSO_ENV_ID
@@ -423,9 +433,8 @@ export default function PrivilegeMcpClientPage() {
     setShowSignInModal(true);
     setSignInReason(
       reason
-        || 'This gateway is its own authorization server, so it issues its own token '
-           + 'rather than reusing your app session. Silent sign-in did not complete, so '
-           + 'this one may ask for your credentials.',
+        || 'This door needs its own gateway token. We will reuse your existing sign-in silently when the gateway allows it; '
+           + 'you only need to sign in manually if that session is unavailable.',
     );
   };
   /**
@@ -767,7 +776,9 @@ export default function PrivilegeMcpClientPage() {
       // Returning from a round trip (?auth=...) still hands back to the modal:
       // that redirect was user-initiated, so reporting its outcome is expected
       // rather than surprising.
-      if (s.mainAppAuthenticated && !s.oauth?.authenticated && searchParams.get('auth')) {
+      if (searchParams.get('auth') === 'silent_failed') {
+        requestSignIn('The gateway could not reuse your existing session for this door. Sign in once to connect it.');
+      } else if (s.mainAppAuthenticated && !s.oauth?.authenticated && searchParams.get('auth')) {
         requestSignIn();
       }
 
@@ -793,8 +804,11 @@ export default function PrivilegeMcpClientPage() {
     const authResult = searchParams.get('auth');
     const reason = searchParams.get('reason');
     if (authResult === 'success') {
-      appendChat('system', 'OAuth completed. Press "Get MCP Tools" to discover tools.');
-      api('/state').then((s) => {
+      const silentDoorSwitch = readSessionFlag(SILENT_DOOR_SWITCH_KEY);
+      appendChat('system', silentDoorSwitch
+        ? 'Connected to the selected door. Loading tools...'
+        : 'OAuth completed. Press "Get MCP Tools" to discover tools.');
+      api('/state').then(async (s) => {
         if (s.oauth?.authenticated) {
           setAuthenticated(true);
           // The app shell owns the top banner; notify it after this page's
@@ -802,16 +816,11 @@ export default function PrivilegeMcpClientPage() {
           window.dispatchEvent(new CustomEvent('userAuthenticated'));
         }
         if (s.oauth?.scope) setGrantedScopes(s.oauth.scope.split(' ').filter(Boolean));
+        if (silentDoorSwitch && s.oauth?.authenticated) await refreshTools(true);
       })
-        // NO automatic discovery on the sign-in return trip. Signing in says
-        // who you are; it does not say which door you meant to probe, and
-        // firing tools/list at whatever door happened to be selected spends a
-        // real call — and on a denying door pops the denial modal — before the
-        // presenter has touched anything. "Get MCP Tools" is the one control
-        // that discovers, so the page never calls a door nobody asked for.
-        //
-        // clearSwitching used to ride on refreshTools().finally; it has to run
-        // on its own now or the switching overlay would never lift.
+        // Manual sign-in never auto-discovers. A silent door switch is the
+        // exception: the user explicitly selected this destination, so finish
+        // the requested switch by discovering its tools after authorization.
         //
         // (History, still true of the button path: discovery must not race
         // /state. They used to run concurrently, so a 403 arriving first was
@@ -819,18 +828,21 @@ export default function PrivilegeMcpClientPage() {
         // "(unknown)" and the door probe had no presets to try, the two facts
         // that modal exists to supply.)
         .catch(() => {})
-        .finally(clearSwitching);
+        .finally(() => {
+          if (silentDoorSwitch) writeSessionFlag(SILENT_DOOR_SWITCH_KEY, false);
+          clearSwitching();
+        });
     } else {
       // Stale switch flag (auth error, silent_failed, or back-button out of the
       // redirect) — never leave the overlay stuck.
+      writeSessionFlag(SILENT_DOOR_SWITCH_KEY, false);
       clearSwitching();
     }
     if (authResult === 'error') {
       appendChat('system', `OAuth failed: ${reason ? decodeURIComponent(reason) : 'Unknown'}`);
     }
-    // silent_failed: prompt=none couldn't reuse a PingOne session — show the
-    // manual Sign In button without an error message.
-    // (no-op here; the /state effect already guards on authParam !== 'silent_failed')
+    // silent_failed: the /state effect offers the manual gateway sign-in
+    // fallback, without attempting prompt=none again.
 
     // Return trip from the pingone-admin door's separate delegated-PKCE login
     // (routes/mcpPingOneAdminAuth.js) — refresh so the newly-usable token gets
@@ -895,7 +907,7 @@ export default function PrivilegeMcpClientPage() {
   // changed body shape — used to send the browser to the literal string
   // "undefined": blank page, no error, nothing logged. Every caller redirects
   // through here so that failure surfaces as an exception their catch reports.
-  const startAuthRedirect = async () => {
+  const startAuthRedirect = async ({ silentOnly = false } = {}) => {
     const data = await api('/auth/start', { method: 'POST' });
     // An ungated door (mcpFacade.js DOORS.banking) has no authorization server
     // to redirect to. Its tools load with no token, so fetch them rather than
@@ -907,7 +919,12 @@ export default function PrivilegeMcpClientPage() {
       return;
     }
     if (!data?.authUrl) throw new Error('sign-in did not return an authorization URL');
+    if (silentOnly && new URL(data.authUrl).searchParams.get('prompt') !== 'none') {
+      requestSignIn('The gateway cannot silently authorize this door from the current session. Sign in to connect it.');
+      return false;
+    }
     window.location.href = data.authUrl;
+    return true;
   };
 
   const switchGatewayMode = async (nextMode, { forceReauth = false } = {}) => {
@@ -1204,14 +1221,29 @@ export default function PrivilegeMcpClientPage() {
       // no matter which door is picked. /config reports the DESTINATION key's
       // state; act on it rather than fetching tools with a credential the BFF
       // has just told us does not exist. Same branch switchGatewayMode uses.
-      if (!saved?.oauth?.authenticated && mainAppAuthenticated) {
-        // Selecting a door this session has no credential for is not an error
-        // and not a reason to navigate. Show it as not signed in and let the
-        // rail's Sign in button do it — most switches no longer need one at
-        // all, since every door on our own origin shares a single token.
+      if (!saved?.oauth?.authenticated && gatewayMode === 'privilege'
+        && (mainAppAuthenticated || authenticated)) {
+        // A token from the previous door cannot be reused directly. Ask the
+        // Gateway's authorization server for a grant to this door using the
+        // existing browser SSO session; only show manual sign-in if the BFF
+        // cannot make a prompt=none request.
         setAuthenticated(false);
         setTools([]);
         setSelectedTool(null);
+        setSwitching(true);
+        writeSessionFlag('cur_priv_switching', true);
+        writeSessionFlag(SILENT_DOOR_SWITCH_KEY, true);
+        try {
+          const redirected = await startAuthRedirect({ silentOnly: true });
+          if (!redirected) {
+            writeSessionFlag(SILENT_DOOR_SWITCH_KEY, false);
+            clearSwitching();
+          }
+        } catch (err) {
+          writeSessionFlag(SILENT_DOOR_SWITCH_KEY, false);
+          clearSwitching();
+          throw err;
+        }
         return;
       }
       setAuthenticated(Boolean(saved?.oauth?.authenticated));
@@ -1539,6 +1571,11 @@ export default function PrivilegeMcpClientPage() {
               <dt>Identity</dt><dd>{user?.email || '(unknown)'}</dd>
               <dt>Gateway said</dt><dd>{blockedDetail?.upstream || '403 Forbidden'}</dd>
             </dl>
+            {doorProbe.results?.some((r) => r.needsAuth) && (
+              <p className="cur-denial-note">
+                Each Privilege app needs its own token. Use a door to connect it; your existing gateway login is reused silently when available.
+              </p>
+            )}
             <p className="cur-denial-note">
               The gateway does not disclose which policy denied this — it returns a bare
               403 and logs nothing — so the policy name below cannot be confirmed as the
@@ -1593,16 +1630,14 @@ export default function PrivilegeMcpClientPage() {
                     server errored" — relayFailureStatus maps anything WITHOUT a
                     4xx upstream status to 500, so it means the relay never got
                     an HTTP answer, and the reason is only in this string. */}
-                {/* needsAuth is NOT a failure: the gateway issues one token per
-                    application, so a door this session has never signed into has
-                    no token to present. Showing it as a bare 401 read as "your
-                    identity is dead everywhere" and sent people back through a
-                    sign-in they did not need. Offer the switch instead — picking
-                    the door is what starts its own sign-in. */}
+                {/* needsAuth is per-door: each gateway application has its own
+                    audience-bound token. Switching can reuse the existing IdP
+                    session silently; only a missing/expired IdP session needs
+                    an interactive sign-in. */}
                 {doorProbe.results.map((r) => (
                   <div key={r.url} className="cur-denial-probe-row">
                     <span className={r.ok ? 'cur-denial-ok' : (r.needsAuth ? 'cur-denial-auth' : 'cur-denial-bad')}>
-                      {r.ok ? `${r.tools} tools` : (r.needsAuth ? 'sign-in needed' : (r.status || 'failed'))}
+                      {r.ok ? `${r.tools} tools` : (r.needsAuth ? 'no saved token' : (r.status || 'failed'))}
                     </span>
                     <span className="cur-denial-door">{doorName(r.url) || r.url}</span>
                     {!r.ok && !r.needsAuth && r.error && <span className="cur-denial-probe-why" title={r.error}>{r.error}</span>}

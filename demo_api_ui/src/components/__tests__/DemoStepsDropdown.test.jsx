@@ -80,6 +80,18 @@ describe('DemoStepsDropdown', () => {
     expect(screen.getByTestId('demo-steps-trigger')).toHaveTextContent(/Demo steps/);
   });
 
+  it('portals the scrim to the document body so it can cover the Command Dock', async () => {
+    render(
+      <DemoStepsDropdown
+        open
+        onOpenChange={() => {}}
+        onSelect={() => {}}
+      />,
+    );
+    await screen.findByTestId('demo-steps-popout');
+    expect(screen.getByTestId('demo-steps-scrim').parentElement).toBe(document.body);
+  });
+
   it('does not render the legacy live-P1AZ arming button (flags are on by default)', async () => {
     render(
       <DemoStepsDropdown
