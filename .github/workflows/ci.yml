@@ -112,6 +112,8 @@ jobs:
         run: npm install --prefix demo_api_server --no-audit --no-fund
       - name: Install demo_mcp_gateway deps (topology step 6 runs toolSchemaDrift jest)
         run: npm install --prefix demo_mcp_gateway --no-audit --no-fund
+      - name: Mock-drift gate (jest.mock missing load-bearing exports)
+        run: node scripts/check-mock-drift.js
       - name: Fresh-clone hygiene
         run: npm run hygiene:check
       - name: REGRESSION_PLAN §1 paths exist
@@ -277,15 +279,15 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
-        with:
-          python-version: '3.12'
-        env:
-          # setup-python@v7 assumes the hosted-runner layout and mkdirs
-          # /Users/runner (Permission denied on this self-hosted Mac). Point
-          # its tool cache at a writable path in the workspace instead.
-          RUNNER_TOOL_CACHE: ${{ github.workspace }}/.tool-cache
-          AGENT_TOOLSDIRECTORY: ${{ github.workspace }}/.tool-cache
+      - name: Set up Python 3.12
+        run: |
+          if ! command -v uv >/dev/null 2>&1; then
+            HOMEBREW_NO_AUTO_UPDATE=1 brew install uv
+          fi
+          uv python install 3.12
+          python_bin="$(uv python find --no-project 3.12)"
+          echo "$(dirname "$python_bin")" >> "$GITHUB_PATH"
+          "$python_bin" --version
       - name: langchain_agent (blocking — 834 passing)
         run: |
           cd langchain_agent
@@ -368,3 +370,42 @@ jobs:
         run: npm run test:mcp-resource-server
       - name: Cloud P1AZ snapshot drift + DecisionContext coverage
         run: npm run test:snapshots
+
+  main-red-alert:
+    # Guard against the 2026-09-26 failure mode: main's CI sat 32-runs red for
+    # days because triggers were disabled and nothing watched for redness —
+    # broken tests accumulated as invisible debt (the ciba mock drift being
+    # the worst case). This job runs ONLY on push-to-main, fails loudly when
+    # any suite is red, and writes a machine-readable summary so a future
+    # notifier (Slack/webhook) has one file to read. It does not replace
+    # branch protection — it makes "main is red" un-missable in the run list.
+    name: Main is red (alert)
+    needs: [changes, gates, api-server-tests, ui-tests, unwired-service-suites, python-agent-suites, authz-decision-tests]
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, macOS]
+    timeout-minutes: 5
+    steps:
+      - name: Evaluate upstream jobs
+        run: |
+          {
+            echo "## CI main-red-alert @ ${{ github.sha }}"
+            echo ""
+            echo "| Job | Result |"
+            echo "|---|---|"
+            echo "| gates | ${{ contains(needs.gates.result, 'success') && '✅' || '❌ ' }} ${{ needs.gates.result }} |"
+            echo "| api-server-tests | ${{ contains(needs.api-server-tests.result, 'success') && '✅' || '❌ ' }} ${{ needs.api-server-tests.result }} |"
+            echo "| ui-tests | ${{ contains(needs.ui-tests.result, 'success') && '✅' || '❌ ' }} ${{ needs.ui-tests.result }} |"
+            echo "| unwired-service-suites | ${{ contains(needs.unwired-service-suites.result, 'success') && '✅' || '❌ ' }} ${{ needs.unwired-service-suites.result }} |"
+            echo "| python-agent-suites | ${{ contains(needs.python-agent-suites.result, 'success') && '✅' || '❌ ' }} ${{ needs.python-agent-suites.result }} |"
+            echo "| authz-decision-tests | ${{ contains(needs.authz-decision-tests.result, 'success') && '✅' || '❌ ' }} ${{ needs.authz-decision-tests.result }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [[ "${{ needs.gates.result }}" != "success" \
+             || "${{ needs.api-server-tests.result }}" != "success" \
+             || "${{ needs.ui-tests.result }}" != "success" \
+             || "${{ needs.unwired-service-suites.result }}" != "success" \
+             || "${{ needs.python-agent-suites.result }}" != "success" \
+             || "${{ needs.authz-decision-tests.result }}" != "success" ]]; then
+            echo "::error::main is RED — every job above must be green on main. This alert exists because 32 consecutive red runs on main went unnoticed (2026-09-26 postmortem). Fix or revert before merging further."
+            exit 1
+          fi
+          echo "main is green across all suites."

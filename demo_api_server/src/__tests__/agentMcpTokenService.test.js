@@ -1386,6 +1386,36 @@ describe('resolveMcpAccessTokenWithEvents — 2-exchange delegation (ff_two_exch
     expect(err.error || err.code || err.message).toBeDefined();
   });
 
+  it('subject-token rejection keeps its exchange error and identifies the requested tool', async () => {
+    const exchangeErr = Object.assign(new Error('token exchange rejected'), {
+      httpStatus: 400,
+      pingoneError: 'invalid_request',
+      pingoneErrorDescription: "Cannot parse token claims for request param 'subject_token'",
+    });
+    mockGetClientCredentialsTokenAs.mockReset().mockResolvedValueOnce(agentActorJwt);
+    mockPerformTokenExchangeAs.mockReset().mockRejectedValueOnce(exchangeErr);
+    const errorLog = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    let resultError;
+    let loggedMessages = [];
+    try {
+      await resolveMcpAccessTokenWithEvents(makeReq2ex(sampleJwtUserAccessToken), 'get_my_accounts');
+    } catch (err) {
+      resultError = err;
+    } finally {
+      loggedMessages = errorLog.mock.calls.map(([message]) => String(message));
+      errorLog.mockRestore();
+    }
+
+    expect(resultError).toMatchObject({
+      error: 'invalid_grant',
+      exchangeContext: { exchangeStep: '1-exchange' },
+    });
+    expect(loggedMessages).toEqual([
+      expect.stringContaining('tool=get_my_accounts'),
+    ]);
+  });
+
   it('session.mcpExchangeMode=double triggers 2-exchange even when ff_two_exchange_delegation=false', async () => {
     configStore.getEffective.mockImplementation((key) => {
       if (key === 'pingone_resource_mcp_server_uri' || key === 'mcp_resource_uri')           return TWO_EX_MCP_RESOURCE;
