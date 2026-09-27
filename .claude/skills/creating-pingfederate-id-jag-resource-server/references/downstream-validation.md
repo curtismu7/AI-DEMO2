@@ -9,6 +9,10 @@ must not assume one issuer or JWKS works everywhere. The BFF remains the only
 browser-token custodian, with server-to-server calls carrying tokens between
 services.
 
+Do not log or expose assertions, access tokens, JWKS credentials, or other
+secrets while tracing a hop. Use redacted identifiers and error codes in logs,
+responses, and evidence.
+
 | Receiver | Token issuer selected by the received token | JWKS trust source |
 | --- | --- | --- |
 | `oauth-mcp` redemption endpoint | PingFederate raw ID-JAG | `ENTERPRISE_IDP_JWKS_URL` |

@@ -23,4 +23,8 @@ the gateway-mediated token path.
 For a live change, explicitly say that PingFederate provisioning is requested
 and identify the authorized environment. The skill treats the raw ID-JAG as a
 grant assertion redeemed by `oauth-mcp`; it does not send that assertion to a
-resource server.
+resource server. For service edits it requires the repository and service
+instructions, `REGRESSION_PLAN.md` sections 0–1, and `regression-guard` for
+protected authorization or token paths. It starts current PingFederate product
+research at <https://docs.pingidentity.com/llms.txt> and keeps assertions,
+access tokens, and secrets out of logs and evidence.

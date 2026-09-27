@@ -7,6 +7,10 @@ ID-JAG. It is a grant assertion for the token endpoint, never a resource-server
 bearer token. The BFF retains browser-token custody; the assertion and the
 redeemed tokens stay on the server-to-server authorization path.
 
+Treat the assertion and every token response as secret material. Do not log,
+return, paste into traces, or include them in test evidence; record only
+redacted identifiers and failure codes.
+
 `oauth-mcp/src/oauth/OAuthRouter.ts` accepts the JWT bearer grant only while
 native ID-JAG mode is enabled. It passes these values to the verifier:
 
