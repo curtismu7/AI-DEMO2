@@ -188,6 +188,93 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-28 — BFF routed banking balance aliases as unknown MCP tools
+
+**Files:** `demo_api_server/server.js`,
+`demo_api_server/services/bankingMcpToolAliases.js`,
+`demo_api_server/services/mcpGatewayClient.js`,
+`demo_api_server/tests/bankingMcpToolAliases.test.js`,
+`demo_api_server/tests/mcpBankingToolAliasesRoute.test.js`.
+
+**What was broken:** `/api/mcp/tool` forwarded UI/parser names `get_balance`,
+`get_accounts`, and `get_transactions` (including `banking.*` forms) unchanged,
+but those names are not registered by the banking MCP. PingGateway therefore
+returned `Unknown tool` and the BFF surfaced a 502.
+
+**What was fixed:** resolve the explicit vertical first, then the session's
+active vertical (banking default), and normalize all three banking aliases
+before token intent minting and pipeline dispatch. Balance uses `get_my_accounts`
+without an `account_id` and `get_account_balance` with one; accounts maps to
+`get_my_accounts`; transactions maps to `get_my_transactions`. Arguments are
+preserved, and each alias keeps its matching intent. An explicit non-banking
+vertical takes precedence and is left unchanged. All calls pass through the
+existing session, token exchange, and gateway authorization path.
+
+**Do not break:** `requireSession`, transaction-turn middleware, session token
+selection, and gateway authorization remain unchanged.
+
+**Verify:** `cd demo_api_server && CI=true npx jest
+tests/bankingMcpToolAliases.test.js tests/mcpBankingToolAliasesRoute.test.js
+--forceExit` (16 passed). The separate
+`src/__tests__/mcpToolPipeline.characterization.test.js` suite remains red
+14/54 when run alone; its gateway-audit/HITL cases do not import the changed
+alias resolver.
+### 2026-09-28 — User status returned 500 after logout destroyed the session
+
+**Files:** `routes/oauthUser.js`,
+`src/__tests__/oauthStatus.integration.test.js`.
+
+**What was broken:** the signed-out status endpoint dereferenced `req.session`
+after logout had destroyed it, so a routine status probe returned HTTP 500.
+
+**What was fixed:** the status handler now treats a missing session object as
+empty and returns the existing unauthenticated response shape.
+
+**Do not break:** preserve token-expiry and stale-session reporting, the
+four-signal admin-role check, and the BFF-only ownership of OAuth tokens.
+
+**Verify:** focused OAuth status and end-to-end logout suites with Node 22.
+
+### 2026-09-28 — Embedded Token topology crowded the agent column
+
+**Files:** `demo_api_ui/src/components/TokenChainFilmstrip.css`,
+`demo_api_ui/src/components/TokenTopologyPanel.jsx`,
+`demo_api_ui/src/components/TokenTopologyPanel.css`,
+`demo_api_ui/src/components/UserDashboardPing2026.js`.
+
+**What was broken:** the embedded topology was auto-placed in the Focus Mode
+grid, where it could compete with the agent and spotlight columns. Selecting a
+node opened its detail inspector beside the graph and narrowed the topology.
+
+**What was fixed:** embedded topology now has a full-width row below the
+agent/spotlight columns. Selecting a node opens its detail inspector below the
+graph. The draggable pop-out retains its side inspector.
+
+**Do not break:** keep the agent and spotlight side by side above the embedded
+topology; keep details tied to the selected node; preserve the pop-out's
+resizable inspector and shared trace data.
+
+**Verify:** `cd demo_api_ui && npm run build`; inspect embedded and pop-out
+topology in light and dark themes.
+
+### 2026-09-28 — Quick Config floating title bar shrank to content width
+
+**Files:** `demo_api_ui/src/components/AIAgent.css`, `REGRESSION_PLAN.md`.
+
+**What was broken:** Quick Config's tray styles set `align-items: flex-start`.
+After the tray moved into the shared floating-panel shell, that alignment made
+the title bar use its content width, leaving the rest of the panel header
+without its background.
+
+**What was fixed:** the Quick Config floating-panel override now stretches its
+children across the panel width.
+
+**Do not break:** preserve Quick Config's inner content alignment and the
+floating panel's drag, resize, collapse, and pop-out controls. Keep the change
+scoped to Quick Config; do not change the shared floating-panel behavior.
+
+**Verify:** `cd demo_api_ui && npm run build`; inspect the Quick Config title
+bar in light and dark themes.
 ### 2026-09-28 — Topology playback conflated bearer and API-key paths
 
 **Files:** `demo_api_ui/src/components/serverTopologyData.js`,
@@ -250,28 +337,6 @@ passthrough only for deployments where Step 9 is not configured.
 **Verify:** focused `ServerTopologyPage.playbacks.test.jsx`, UI build, topology
 verification, contract verification, and export consistency checks.
 
-### 2026-09-28 — DaVinci widget runtime followed PF instead of the PingOne region
-
-**Files:** `demo_api_server/routes/davinciLogin.js`,
-`demo_api_server/tests/routes/davinciLogin.test.js`.
-
-**What was broken:** the widget SDK's `apiRoot` was derived from the active
-OAuth discovery endpoint. With PF selected, that pointed `davinci.js` at the
-internal `pingfederate:9031` host, so the browser could not start the flow.
-
-**What was fixed:** the widget API root now uses the configured PingOne region,
-independent of which provider handles the app's OAuth login. The SDK token,
-flow policy, nonce, and login-provider selection remain unchanged.
-
-**Do not break:** keep the DaVinci runtime rooted at `auth.pingone.{region}`
-when PF is selected; keep nonce arming and policy selection in
-`routes/davinciLogin.js` unchanged.
-
-**Verify:** `cd demo_api_server && CI=true npx jest
-tests/routes/davinciLogin.test.js --forceExit` (32/32). The regression test
-first failed with `https://pingfederate:9031/`, then passed with the configured
-PingOne region.
-
 ### 2026-09-28 — Admin Reset Demo repair confirmation hid its audit findings
 
 **Files changed:** `demo_api_server/services/demoReadinessRunner.js`,
@@ -305,6 +370,28 @@ rendered finding/preview text contrast (0 failures in light and dark, minimum
 6.80:1 / 8.47:1); `git diff --check`. The broader `npm run test:unit` run did
 not finish after seven minutes with one worker still active and was stopped
 without a suite result.
+
+### 2026-09-28 — DaVinci widget runtime followed PF instead of the PingOne region
+
+**Files:** `demo_api_server/routes/davinciLogin.js`,
+`demo_api_server/tests/routes/davinciLogin.test.js`.
+
+**What was broken:** the widget SDK's `apiRoot` was derived from the active
+OAuth discovery endpoint. With PF selected, that pointed `davinci.js` at the
+internal `pingfederate:9031` host, so the browser could not start the flow.
+
+**What was fixed:** the widget API root now uses the configured PingOne region,
+independent of which provider handles the app's OAuth login. The SDK token,
+flow policy, nonce, and login-provider selection remain unchanged.
+
+**Do not break:** keep the DaVinci runtime rooted at `auth.pingone.{region}`
+when PF is selected; keep nonce arming and policy selection in
+`routes/davinciLogin.js` unchanged.
+
+**Verify:** `cd demo_api_server && CI=true npx jest
+tests/routes/davinciLogin.test.js --forceExit` (32/32). The regression test
+first failed with `https://pingfederate:9031/`, then passed with the configured
+PingOne region.
 ### 2026-09-28 — Vitest worker memory grew past 9 GB
 
 **Files:** `.github/workflows/ci.yml`, `demo_api_ui/vite.config.js`, and the
@@ -493,6 +580,24 @@ were canceled while the PR merge ref was being superseded by updates to main.
 The selector and gate share one runner, so make the gate depend on selection to
 avoid a long gate install delaying suite dispatch. Their fresh run is needed
 before treating those suites as verified.
+
+### 2026-09-28 — Demo Steps use cases were clipped in a multi-column grid
+
+**Files:** `demo_api_ui/src/components/AIAgent.css`, `REGRESSION_PLAN.md`.
+
+**What was broken:** Mission Control auto-filled narrow columns and forced use
+case names onto one line with ellipses. A long ID-JAG card also stretched every
+card sharing its grid row.
+
+**What was fixed:** the use-case cards now render as a single full-width list,
+with wrapping labels and equal-height rows that grow together when longer text
+wraps, so each phrase stays readable.
+
+**Do not break:** keep the existing selection, completion, progress, explain,
+and workload-link behavior; this layout change does not alter auth or sessions.
+
+**Verify:** `cd demo_api_ui && npm run build`; run the `THEMING.md` §1.4
+contrast auditor on Mission Control in both themes.
 
 ### 2026-09-27 — Server topology was missing from customer navigation
 

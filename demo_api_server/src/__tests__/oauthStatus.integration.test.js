@@ -151,7 +151,19 @@ describe('OAuth Status Endpoints — Token Expiry & Session Validation (Integrat
   });
 
   describe('GET /api/auth/oauth/user/status (end-user)', () => {
-    test('no session → authenticated: false', async () => {
+    test('missing session object after logout → authenticated: false', async () => {
+      const app = express();
+      app.use('/api/auth/oauth/user', require('../../routes/oauthUser'));
+
+      const res = await request(app).get('/api/auth/oauth/user/status');
+
+      expect(res.status).toBe(200);
+      expect(res.body.authenticated).toBe(false);
+      expect(res.body.user).toBeNull();
+      expect(res.body.staleSession).toBe(false);
+    });
+
+  test('no session → authenticated: false', async () => {
       const app = buildAppWithSession();
       const res = await request(app).get('/api/auth/oauth/user/status');
 

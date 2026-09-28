@@ -2,6 +2,12 @@ name: CI
 
 on:
   workflow_dispatch:
+    inputs:
+      target_ref:
+        description: Full commit SHA to test; leave blank to test the selected ref
+        type: string
+        required: false
+        default: ''
   pull_request:
   push:
     branches: [main]
@@ -9,7 +15,7 @@ on:
     - cron: '17 9 * * *'
 
 concurrency:
-  group: ci-${{ github.ref }}-${{ github.event_name == 'schedule' && 'nightly' || 'interactive' }}
+  group: ci-${{ inputs.target_ref || github.ref }}-${{ github.event_name == 'schedule' && 'nightly' || 'interactive' }}
   # Superseding is safe here: this workflow only runs tests. Image builds live
   # in build-images.yml, which keys its own group by github.sha precisely so a
   # merge's build can never be evicted by a later merge — see that file.
@@ -31,6 +37,15 @@ jobs:
       unwired-services: ${{ steps.all.outputs['unwired-services'] || steps.nightly.outputs['unwired-services'] || steps.filter.outputs['unwired-services'] }}
       python-agents: ${{ steps.all.outputs['python-agents'] || steps.nightly.outputs['python-agents'] || steps.filter.outputs['python-agents'] }}
     steps:
+      - name: Validate optional target commit SHA
+        if: github.event_name == 'workflow_dispatch' && inputs.target_ref != ''
+        env:
+          TARGET_REF: ${{ inputs.target_ref }}
+        run: |
+          if ! [[ "$TARGET_REF" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "::error::target_ref must be a full 40-character commit SHA"
+            exit 1
+          fi
       - name: Run every suite on main and manual CI
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         id: all
@@ -125,6 +140,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.target_ref || github.ref }}
       - name: Lint GitHub Actions workflows
         run: /opt/homebrew/bin/actionlint .github/workflows/ci.yml
       - uses: actions/setup-node@v7
@@ -189,6 +206,8 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.target_ref || github.ref }}
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -229,7 +248,36 @@ jobs:
     runs-on: [self-hosted, macOS]
     timeout-minutes: 30
     steps:
+      # Older target commits predate the 4 GB Vitest RSS guard. Preserve the
+      # current guard from this workflow revision, then check out the target.
+      - name: Checkout current UI memory guard
+        if: github.event_name == 'workflow_dispatch' && inputs.target_ref != ''
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          path: _ci-workflow
+          sparse-checkout: |
+            demo_api_ui/scripts/run-vitest-with-memory-guard.mjs
+            demo_api_ui/scripts/select-vitest-mode.mjs
+            demo_api_ui/scripts/vitest-memory-guard.config.mjs
+          sparse-checkout-cone-mode: false
+      - name: Preserve current UI memory guard
+        if: github.event_name == 'workflow_dispatch' && inputs.target_ref != ''
+        run: |
+          mkdir -p "$RUNNER_TEMP/ci-ui-guard"
+          cp _ci-workflow/demo_api_ui/scripts/run-vitest-with-memory-guard.mjs "$RUNNER_TEMP/ci-ui-guard/"
+          cp _ci-workflow/demo_api_ui/scripts/select-vitest-mode.mjs "$RUNNER_TEMP/ci-ui-guard/"
+          cp _ci-workflow/demo_api_ui/scripts/vitest-memory-guard.config.mjs "$RUNNER_TEMP/ci-ui-guard/"
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.target_ref || github.ref }}
+      - name: Restore current UI memory guard
+        if: github.event_name == 'workflow_dispatch' && inputs.target_ref != ''
+        run: |
+          mkdir -p demo_api_ui/scripts
+          cp "$RUNNER_TEMP/ci-ui-guard/run-vitest-with-memory-guard.mjs" demo_api_ui/scripts/
+          cp "$RUNNER_TEMP/ci-ui-guard/select-vitest-mode.mjs" demo_api_ui/scripts/
+          cp "$RUNNER_TEMP/ci-ui-guard/vitest-memory-guard.config.mjs" demo_api_ui/scripts/
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -248,8 +296,14 @@ jobs:
         env:
           CI: 'true'
           VITEST_RELATED_FILES_JSON: ${{ needs.changes.outputs['ui-changed-files'] }}
-      - name: Full Vitest unit suite on main, nightly, and manual runs
-        if: github.event_name != 'pull_request'
+      - name: Full Vitest suite for pinned target refs (4 GB guarded)
+        if: github.event_name == 'workflow_dispatch' && inputs.target_ref != ''
+        working-directory: demo_api_ui
+        run: node scripts/run-vitest-with-memory-guard.mjs unit
+        env:
+          CI: 'true'
+      - name: Full Vitest unit suite on main, nightly, and ordinary manual runs
+        if: github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.target_ref == '')
         run: npm --prefix demo_api_ui run test:unit
         env:
           CI: 'true'
@@ -292,6 +346,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.target_ref || github.ref }}
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -333,6 +389,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.target_ref || github.ref }}
       - name: Use the runner's installed Python 3.12
         run: |
           python="$HOME/.local/bin/python3.12"
@@ -386,6 +444,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.target_ref || github.ref }}
       - uses: actions/setup-node@v7
         with:
           node-version: 22

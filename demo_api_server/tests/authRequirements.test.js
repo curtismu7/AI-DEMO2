@@ -46,8 +46,8 @@ describe('auth-requirements SoT', () => {
       trigger: { type: 'link', path: '/agent-builder' },
     });
     expect(assistant).toMatchObject({
-      title: 'Workload Agent: Digital Assistant — OBO',
-      trigger: { type: 'link', path: '/personal-agent' },
+      title: 'Workload Agent: OBO customer-data read',
+      trigger: { type: 'link', path: '/workload-agents?useCase=UC44' },
     });
     expect(authLevelForUseCaseId('UC43')).toBe('user');
     expect(authLevelForUseCaseId('UC44')).toBe('user');

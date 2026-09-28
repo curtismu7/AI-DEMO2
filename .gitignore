@@ -13,6 +13,7 @@ node_modules
 **/*.key
 dist
 **/dist
+demo_api_ui/public/exports/*.csv
 build
 **/build
 .venv

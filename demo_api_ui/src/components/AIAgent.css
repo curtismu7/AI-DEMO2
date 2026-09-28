@@ -6537,6 +6537,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 .ba-demo-steps-float__close:focus-visible {
   border-color: var(--th-status-info);
   background: var(--th-bg-hover);
+  color: var(--th-text);
   outline: none;
 }
 
@@ -6616,7 +6617,8 @@ body > .banking-agent-float-root .banking-agent-panel {
 
 .ba-demo-steps-float__body .ba-demo-steps-popout__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-rows: minmax(76px, 1fr);
   gap: 8px;
   max-height: none;
   padding: 0;
@@ -6655,12 +6657,14 @@ body > .banking-agent-float-root .banking-agent-panel {
 .ba-demo-steps-float__body .ba-demo-steps-popout__card--next .banking-chips-dropdown__button {
   border-color: var(--th-status-info);
   background: var(--th-bg-hover);
+  color: var(--th-text);
   outline: none;
 }
 
 .ba-demo-steps-float__body .banking-chips-dropdown__button--done {
   border-color: var(--th-status-success);
   background: var(--th-status-success-bg);
+  color: var(--th-status-success-text);
 }
 
 /* When the ✓ check renders it becomes a 4th grid child; without an extra
@@ -6680,13 +6684,14 @@ body > .banking-agent-float-root .banking-agent-panel {
 
 .ba-demo-steps-float__body .banking-chips-dropdown__chip-name {
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
   color: var(--th-text);
   font-size: var(--font-size-base);
   font-weight: 700;
   line-height: 1.35;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: break-word;
+  text-overflow: clip;
+  white-space: normal;
 }
 
 .ba-demo-steps-float__body .banking-chips-dropdown__chip-name--id-jag {

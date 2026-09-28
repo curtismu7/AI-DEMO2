@@ -141,6 +141,21 @@ describe("Server topology use-case playback", () => {
       .toHaveTextContent("Local Compose client → directly published MCP server");
   });
 
+  it("shows PDF and Lucidchart downloads on the topology page", () => {
+    render(<ServerTopologyPage />);
+
+    const exports = screen.getByRole("group", { name: "Export server topology" });
+    expect(within(exports).getByRole("button", { name: "Save as PDF" })).toBeInTheDocument();
+    expect(within(exports).getByRole("link", { name: "Download Lucidchart CSV" })).toHaveAttribute(
+      "href",
+      "/exports/server-topology-lucidchart.csv",
+    );
+    expect(within(exports).getByRole("link", { name: "Download details CSV" })).toHaveAttribute(
+      "href",
+      "/exports/server-topology-details.csv",
+    );
+  });
+
   it("keeps each advertised use case tied to real topology connections and an outcome", () => {
     const edgeIds = new Set(SERVER_EDGES.map((edge) => edge.id));
 
