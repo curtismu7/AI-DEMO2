@@ -188,6 +188,66 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-28 — Shared-Mac CI contention from duplicate runner registrations and caches
+
+**Files:** `.github/workflows/ci.yml`.
+
+**What was broken:** multiple Actions runner registrations on the same Mac were
+treated as independent capacity. Their persistent workspaces held multi-gigabyte
+`node_modules` trees, so simultaneous `git clean -ffdx` operations competed for
+disk and CPU. The npm cache also exceeded 1 GiB; a canceled run left its cache
+extraction process running. The host still had 68% free memory during the
+observed contention, so memory exhaustion was not the cause of that run.
+
+**What was fixed:** route all CI jobs through the default self-hosted macOS
+labels so a single registered runner serializes them; run suite selection
+before repository gates and make expensive suites depend on the gates; disable
+the large npm cache; install pytest
+explicitly for llamaindex and fail on dependency-install errors.
+
+**Do not break:** do not require a special `ci-gates` runner label; keep npm
+caching disabled on self-hosted jobs; keep Python tests isolated in Python 3.12
+virtual environments.
+
+**Verify:** actionlint and a fresh full CI run on a single registered Mac
+runner; `llamaindex_agent` must report 10 passed, 1 skipped.
+
+### 2026-09-27 — Third self-hosted runner could not take CI gates reliably
+
+**Superseded 2026-09-28:** the third registration shared the same physical
+Mac and did not add capacity. See the newer single-runner finding above.
+
+**Files:** `.github/workflows/ci.yml`, `demo_api_ui/vite.config.js`.
+
+**What was broken:** the third Mac runner shared the default labels and could
+take heavy suites, while the Python setup action's macOS distribution requires
+the hosted-runner path `/Users/runner/hostedtoolcache`. The previous writable
+cache override could not relocate that Python build. Vitest workers also
+reached their 12 GB V8 heap ceiling in the full CI run.
+
+**What was fixed:** route the selector and hygiene/topology jobs only to the
+`ci-gates` runner, use the runner's installed Python 3.12 in per-service virtual
+environments, and raise the Vitest parent and worker heap ceiling to the
+measured 14 GB.
+
+**Do not break:** preserve the 14 GB UI worker ceiling and Python 3.12
+environment details recorded here; runner routing is superseded by the newer
+single-runner finding above.
+
+**Verify:** `actionlint` on `.github/workflows/ci.yml`; run the Python agent,
+Vitest, API and unwired-service CI jobs on the updated PR.
+
+The first rerun exposed a missing test dependency in `llamaindex_agent`: its
+runtime requirements do not include pytest, and the workflow suppressed pip
+installation errors. Install pytest explicitly for that suite and fail the job
+if either agent's requirements cannot be installed. Several Node jobs also
+retained automatic setup-node npm caching even though the shared-runner cache is
+over 1 GiB; disable it consistently across all jobs. The API/UI/unwired jobs
+were canceled while the PR merge ref was being superseded by updates to main.
+The selector and gate share one runner, so make the gate depend on selection to
+avoid a long gate install delaying suite dispatch. Their fresh run is needed
+before treating those suites as verified.
+
 ### 2026-09-27 — Server topology was missing from customer navigation
 
 **Files:** `demo_api_ui/src/components/AdminSideNav.jsx`,
