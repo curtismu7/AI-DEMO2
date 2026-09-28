@@ -8,6 +8,9 @@ WORKDIR /app
 COPY demo_api_ui/package*.json ./
 RUN npm install --legacy-peer-deps
 COPY demo_api_ui/vite.config.js demo_api_ui/index.html ./
+COPY demo_api_ui/scripts/sync-topology-exports.mjs ./scripts/
+COPY docs/exports/server-topology-lucidchart.csv /docs/exports/
+COPY docs/exports/server-topology-details.csv /docs/exports/
 EXPOSE 4000
 CMD ["npm", "start"]
 
@@ -24,6 +27,8 @@ RUN npm install --legacy-peer-deps
 
 # Copy source code
 COPY demo_api_ui/ .
+COPY docs/exports/server-topology-lucidchart.csv /docs/exports/
+COPY docs/exports/server-topology-details.csv /docs/exports/
 
 # demoAgentService.js imports ../../../llm-timeouts.json which resolves to
 # /llm-timeouts.json (3 levels above /app/src/services/). Provide it at build time.
