@@ -188,6 +188,15 @@ describe("AdminSideNav — best-of-breed pass", () => {
     expect(screen.getByText("Observability")).toBeTruthy();
   });
 
+  it("makes Server Topology visible to a logged-in customer from Architecture & Learning", () => {
+    renderNavAsUser(customerUser);
+    fireEvent.click(screen.getByRole("button", { name: /^Architecture & Learning/ }));
+    expect(screen.getByRole("link", { name: "Server Topology (Interactive)" })).toHaveAttribute(
+      "href",
+      "/architecture/server-topology",
+    );
+  });
+
   it("searches PF AI feature terms to find the comparison page", () => {
     renderNav();
     const input = screen.getByLabelText(/search navigation/i);
