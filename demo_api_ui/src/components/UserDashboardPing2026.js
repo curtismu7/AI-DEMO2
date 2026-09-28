@@ -4010,7 +4010,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
           // and banking-column states keep their existing rules.
           className={`dashboard-content ud-body ud-body--2026 ud-focus-mode ${splitGridClass(
             showBankingInMiddle,
-          )}${middleAgentOpen ? "" : " ud-middle-collapsed"}${showSequenceDiagram ? " ud-sequence-view-active" : ""}${showSequenceDiagram && slowMode ? " ud-slow-mode-active" : ""}`}
+          )}${middleAgentOpen ? "" : " ud-middle-collapsed"}${showSequenceDiagram ? " ud-sequence-view-active" : ""}${showSequenceDiagram && slowMode ? " ud-slow-mode-active" : ""}${showTokenTopology && !showSequenceDiagram && !showServerTopology ? " ud-token-topology-active" : ""}`}
           style={{
             '--ud-agent-col-width': `${agentColWidth}px`,
             '--ud-focus-agent-frac': `${agentFrac}fr`,            ...(focusChainHeight != null
