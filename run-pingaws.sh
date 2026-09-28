@@ -10,7 +10,7 @@
 #   ./run-pingaws.sh build              # build images + push to GHCR
 #   ./run-pingaws.sh deploy             # deploy only (images already in GHCR)
 #   ./run-pingaws.sh status             # show pods in your SE namespace
-#   ./run-pingaws.sh basic              # scale your SE namespace to the dashboard/admin + agent set
+#   ./run-pingaws.sh basic              # scale your SE namespace to dashboard/admin + login only
 #   ./run-pingaws.sh rag [on|off]       # build/start or stop the RAG stack
 #   ./run-pingaws.sh undeploy           # delete workloads AND secrets INSIDE your
 #                                       # namespace (asks first). The namespace is kept.
@@ -54,7 +54,7 @@ Usage:
   ./run-pingaws.sh build            build images + push to GHCR
   ./run-pingaws.sh deploy           deploy only (no rebuild)
   ./run-pingaws.sh status           show SE pod status
-  ./run-pingaws.sh basic            scale an existing SE deployment to dashboard/admin + agent services
+  ./run-pingaws.sh basic            scale an existing SE deployment to dashboard/admin + login only
   ./run-pingaws.sh rag [on|off]     build/start or stop the RAG stack
   ./run-pingaws.sh undeploy         delete everything INSIDE your SHARED SE namespace:
                                     workloads AND secrets. The namespace itself is KEPT.
