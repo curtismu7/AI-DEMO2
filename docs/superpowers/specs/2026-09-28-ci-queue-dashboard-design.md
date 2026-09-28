@@ -2,7 +2,7 @@
 
 ## Status
 
-Design approved in chat on 2026-09-28. Awaiting spec review before implementation planning.
+Design and spec approved in chat on 2026-09-28. Implementation plan: `docs/superpowers/plans/2026-09-28-ci-queue-dashboard.md`.
 
 ## Problem
 
@@ -35,7 +35,7 @@ CI activity is currently inspected through the GitHub Actions website and CLI. O
 
 - Add a small standalone tool under `scripts/ci-queue-dashboard/`, launched from the repository root through a documented npm script.
 - The Node server binds only to `127.0.0.1` and serves the static dashboard plus a read-only JSON endpoint. It uses `child_process.spawn` with a fixed `gh` executable and argument arrays (no shell interpolation). Repository context comes from the checked-out repository; the user cannot pass an arbitrary owner/repository or command through the HTTP API.
-- Use fixed `gh api` GET requests through the CLI's stored authentication: one bounded Actions-runs listing and a bounded set of corresponding jobs requests. Fetch all currently active runs plus a small recent-history window, so the runner queue is visible without issuing one request for every historical run. Normalize the responses into run/job identifiers, workflow and branch names, run/job status and conclusion, creation/start/completion timestamps, and runner name/group/labels when available. A sample queued job exposes the queued status and labels but no assigned runner name, so the page must render an unassigned/queued state clearly. Raw CLI output and authentication material are never sent to the page. Missing `gh`, missing authentication, permission errors, and API failures produce a visible, actionable dashboard error with no token details.
+- Use fixed `gh api` GET requests through the CLI's stored authentication: separate bounded Actions-runs listings for queued and in-progress work, a small completed-history listing, and bounded jobs requests for those runs. Fetch all active runs plus a small recent-history window, so the runner queue is visible without issuing one request for every historical run. Normalize the responses into run/job identifiers, workflow and branch names, run/job status and conclusion, creation/start/completion timestamps, and runner name/group/labels when available. A sample queued job exposes the queued status and labels but no assigned runner name, so the page must render an unassigned/queued state clearly. Raw CLI output and authentication material are never sent to the page. Missing `gh`, missing authentication, permission errors, and API failures produce a visible, actionable dashboard error with no token details.
 - The page groups jobs under their workflow runs, orders queued runs by creation time, distinguishes queue estimate from active work and completed history, and links each run to GitHub. It shows a last-updated time and refreshes every 15 seconds. If a refresh fails, the last successful snapshot remains visible with a stale/error indicator.
 - Keep the list bounded to recent runs and prioritize all active runs, so refresh work stays predictable. Poll the bounded data set every 15 seconds and avoid spawning a command/request for every historical run.
 - The endpoint is read-only, the server has no mutation routes, and the browser receives no GitHub credential. Bind to loopback, avoid enabling CORS, and accept requests only for the local dashboard origin/host.
