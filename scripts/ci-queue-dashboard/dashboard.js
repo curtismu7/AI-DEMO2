@@ -96,8 +96,9 @@ function makeStatus(status, conclusion) {
 }
 
 function runTiming(run) {
-  if (normalized(run.status) === 'queued') return `Waiting ${formatDuration(run.createdAt)}`;
-  if (normalized(run.status) === 'in_progress') return `Running ${formatDuration(run.startedAt || run.createdAt)}`;
+  const timingKind = window.CiQueueDashboardModel.runTimingKind(run.status);
+  if (timingKind === 'waiting') return `Waiting ${formatDuration(run.createdAt)}`;
+  if (timingKind === 'running') return `Running ${formatDuration(run.startedAt || run.createdAt)}`;
   return `Finished ${formatLocalTime(run.completedAt || run.updatedAt)}`;
 }
 
@@ -127,19 +128,9 @@ function addJobTable(run, compact = false) {
     status.append(makeStatus(job.status, job.conclusion));
     const timing = node('td', 'job-timing', jobTiming(job, run));
     const runner = node('td', 'job-runner');
-    const runnerFallback = normalized(job.status) === 'queued'
-      ? 'Not assigned'
-      : normalized(job.status) === 'completed'
-        ? 'Runner unavailable'
-        : 'Runner not reported';
-    const runnerStateClass = job.runnerName
-      ? 'runner-assigned'
-      : normalized(job.status) === 'queued'
-        ? 'runner-unassigned'
-        : 'runner-unavailable';
-    runner.append(node('span', runnerStateClass, job.runnerName || runnerFallback));
-    if (!job.runnerName && job.labels?.length) runner.append(node('span', 'runner-labels', `Labels: ${job.labels.join(', ')}`));
-    if (job.runnerGroup) runner.title = `Runner group: ${job.runnerGroup}`;
+    const runnerInfo = window.CiQueueDashboardModel.runnerDetails(job);
+    runner.append(node('span', `runner-${runnerInfo.state}`, runnerInfo.name));
+    for (const detail of runnerInfo.details) runner.append(node('span', 'runner-labels', detail));
     row.append(name, status, timing, runner);
     body.append(row);
   }
@@ -209,7 +200,8 @@ function renderRunner(snapshot) {
     runner.append(node('span', 'runner-state-mark runner-state-mark--active'));
     const runnerText = node('div', 'runner-machine-text');
     runnerText.append(node('strong', 'runner-name', job.runnerName));
-    runnerText.append(node('span', 'runner-group', job.runnerGroup || (job.labels || []).join(', ') || 'Self-hosted runner'));
+    if (job.runnerGroup) runnerText.append(node('span', 'runner-group', `Group: ${job.runnerGroup}`));
+    if (job.labels?.length) runnerText.append(node('span', 'runner-group', `Labels: ${job.labels.join(', ')}`));
     runner.append(runnerText);
     const work = node('div', 'runner-work');
     work.append(node('span', 'runner-job-name', job.name));
