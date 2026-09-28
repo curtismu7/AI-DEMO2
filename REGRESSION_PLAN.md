@@ -218,6 +218,50 @@ src/components/__tests__/AIAgent.surfaceSelectorLayout.test.js` (29/29); `cd
 demo_api_ui && npm run build`; inspect contrast in the rendered dashboard in
 light and dark themes.
 
+### 2026-09-28 — PF active provider broke the PingOne MCP machine-token chain
+
+**Files:** `demo_api_server/services/oauthEndpointResolver.js`,
+`demo_api_server/services/agentCCTokenService.js`,
+`demo_api_server/middleware/auth.js`,
+`demo_api_server/src/__tests__/agentCCTokenService.scopeVertical.test.js`,
+`demo_api_server/tests/oauth-endpoint-config.test.js`,
+`demo_api_server/tests/verticalToolAudience.regression.test.js`.
+
+**What was broken:** when the BFF's active user provider was PingFederate,
+`agentCCTokenService` posted PingOne MCP token-exchanger credentials to the
+PingFederate token endpoint. PF rejected them as `invalid_client`, and the
+subject-token route surfaced a 502. OAuth error bodies and tokenless 2xx
+responses were also treated as successful responses until a later route check.
+After that endpoint mismatch was corrected, Step 9 successfully exchanged the
+machine token for `aud=enduser.ping.demo`, but the BFF still tried PF's JWKS for
+the PingOne signature and returned `invalid_token`.
+
+**What was fixed:** resolve the machine-token endpoint independently from the
+active interactive-login provider: use `PINGONE_TOKEN_ENDPOINT` when set, else
+derive the PingOne endpoint from the configured region and environment. Reject
+non-2xx OAuth responses, any response containing an OAuth `error` (including a
+malformed 2xx response that also includes `access_token`), and responses without
+`access_token` with a safe, actionable error. The BFF now also resolves PingOne
+issuer/JWKS independently and verifies a token against PingOne's JWKS when its
+exact configured issuer matches, while PF-issued tokens continue through PF's
+JWKS. This is an intentional PF/PingOne difference: interactive login can use
+PF, while this MCP machine credential and its resource token are PingOne-issued.
+
+**Do not break:** keep browser login and user-token provider selection tied to
+the active provider. Keep MCP machine credentials on the PingOne endpoint unless
+an explicit machine-token endpoint override is configured; never send those
+credentials to the active user's IdP by default. Validate PingOne tokens only
+against the exact configured PingOne issuer and its JWKS; preserve the PF issuer
+and JWKS path. Continue enforcing the BFF audience and scope checks after
+signature validation.
+
+**Verify:** from `demo_api_server`, `CI=true npx jest
+tests/verticalToolAudience.regression.test.js tests/oauth-endpoint-config.test.js
+src/__tests__/agentCCTokenService.scopeVertical.test.js
+tests/routes/demoSubjectToken.test.js --forceExit` (43 passed). In local Docker,
+the authenticated `/api/mcp/tool` request for `banking.get_balance` returned
+HTTP 200 with `result.isError=false` while PF was the active login provider.
+
 ### 2026-09-28 — BFF routed banking balance aliases as unknown MCP tools
 
 **Files:** `demo_api_server/server.js`,
@@ -423,6 +467,28 @@ processed 181 code files, kept 5,243 unchanged, and took 22.1s (7.9s detect,
 Terraform/HCL files are represented; 176 intentionally skipped JSON files
 still re-queue, tracked in `TECH_DEBT.md`.
 
+### 2026-09-28 — Stable Token Chain events caused an unbounded UI test render loop
+
+**Files:** `demo_api_ui/src/components/TokenChainDisplay.jsx`,
+`demo_api_ui/src/components/__tests__/TokenChainDisplay.a2aProgress.test.jsx`,
+`demo_api_ui/src/components/__tests__/OAuthProviderToggle.idJagReset.test.jsx`.
+
+**What was broken:** Token Chain filtered the live event array during every
+render. An effect treated each newly allocated array as changed, called
+`setLastUpdated`, and triggered another render. The A2A handoff test then
+allocated indefinitely until the Vitest worker exhausted its heap. A separate
+provider-toggle test expected `/logout` navigation even though the component
+clears session state and reloads the current page.
+
+**What was fixed:** memoized the filtered live events against the context event
+array and added a render-settling regression test. Updated the provider-toggle
+test to assert the implemented page reload after state cleanup.
+
+**Do not break:** keep the filtered event reference stable while its source
+array is unchanged; refresh the Token Chain when the source array changes; keep
+provider-switch cleanup followed by a page reload.
+
+**Verify:** focused Token Chain unit test; full UI unit suite; `npm run build`.
 ### 2026-09-28 — Shared-Mac CI contention from duplicate runner registrations and caches
 
 **Files:** `.github/workflows/ci.yml`, `demo_api_ui/vite.config.js`, and the AIAgent test suites.
@@ -515,6 +581,24 @@ were canceled while the PR merge ref was being superseded by updates to main.
 The selector and gate share one runner, so make the gate depend on selection to
 avoid a long gate install delaying suite dispatch. Their fresh run is needed
 before treating those suites as verified.
+
+### 2026-09-28 — Demo Steps use cases were clipped in a multi-column grid
+
+**Files:** `demo_api_ui/src/components/AIAgent.css`, `REGRESSION_PLAN.md`.
+
+**What was broken:** Mission Control auto-filled narrow columns and forced use
+case names onto one line with ellipses. A long ID-JAG card also stretched every
+card sharing its grid row.
+
+**What was fixed:** the use-case cards now render as a single full-width list,
+with wrapping labels and equal-height rows that grow together when longer text
+wraps, so each phrase stays readable.
+
+**Do not break:** keep the existing selection, completion, progress, explain,
+and workload-link behavior; this layout change does not alter auth or sessions.
+
+**Verify:** `cd demo_api_ui && npm run build`; run the `THEMING.md` §1.4
+contrast auditor on Mission Control in both themes.
 
 ### 2026-09-28 — Demo Steps use cases were clipped in a multi-column grid
 
