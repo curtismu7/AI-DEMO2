@@ -515,6 +515,9 @@ describe('BankingToolProvider', () => {
         const originalEnv = { ...process.env };
         process.env.MCP_SERVER_RESOURCE_URI = 'mcpserver.ping.demo,mcpgateway.ping.demo';
         process.env.BANKING_API_RESOURCE_URI = 'enduser.ping.demo';
+        delete process.env.PF_ISSUER_URI;
+        delete process.env.PF_ISSUER;
+        process.env.PINGONE_ISSUER_URI = 'https://issuer.pingone.example';
         delete process.env.PINGONE_JWKS_URI;
 
         try {
@@ -527,7 +530,7 @@ describe('BankingToolProvider', () => {
           const step9Provider = new BankingToolProvider(mockApiClient, mockAuthManager, mockSessionManager);
           step9Provider.setTokenExchangeService(mockTokenExchangeService);
 
-          const agentToken = makeJwt({ aud: 'mcpserver.ping.demo', scope: 'gateway:mcp:invoke', exp: Math.floor(Date.now() / 1000) + 3600 });
+          const agentToken = makeJwt({ iss: 'https://issuer.pingone.example', aud: 'mcpserver.ping.demo', scope: 'gateway:mcp:invoke', exp: Math.floor(Date.now() / 1000) + 3600 });
 
           mockSuccessfulAuthorization();
           mockApiClient.createTransfer.mockResolvedValue({

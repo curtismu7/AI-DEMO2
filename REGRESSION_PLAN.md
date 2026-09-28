@@ -188,6 +188,66 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-28 — Shared-Mac CI contention from duplicate runner registrations and caches
+
+**Files:** `.github/workflows/ci.yml`.
+
+**What was broken:** multiple Actions runner registrations on the same Mac were
+treated as independent capacity. Their persistent workspaces held multi-gigabyte
+`node_modules` trees, so simultaneous `git clean -ffdx` operations competed for
+disk and CPU. The npm cache also exceeded 1 GiB; a canceled run left its cache
+extraction process running. The host still had 68% free memory during the
+observed contention, so memory exhaustion was not the cause of that run.
+
+**What was fixed:** route all CI jobs through the default self-hosted macOS
+labels so a single registered runner serializes them; run suite selection
+before repository gates and make expensive suites depend on the gates; disable
+the large npm cache; install pytest
+explicitly for llamaindex and fail on dependency-install errors.
+
+**Do not break:** do not require a special `ci-gates` runner label; keep npm
+caching disabled on self-hosted jobs; keep Python tests isolated in Python 3.12
+virtual environments.
+
+**Verify:** actionlint and a fresh full CI run on a single registered Mac
+runner; `llamaindex_agent` must report 10 passed, 1 skipped.
+
+### 2026-09-27 — Third self-hosted runner could not take CI gates reliably
+
+**Superseded 2026-09-28:** the third registration shared the same physical
+Mac and did not add capacity. See the newer single-runner finding above.
+
+**Files:** `.github/workflows/ci.yml`, `demo_api_ui/vite.config.js`.
+
+**What was broken:** the third Mac runner shared the default labels and could
+take heavy suites, while the Python setup action's macOS distribution requires
+the hosted-runner path `/Users/runner/hostedtoolcache`. The previous writable
+cache override could not relocate that Python build. Vitest workers also
+reached their 12 GB V8 heap ceiling in the full CI run.
+
+**What was fixed:** route the selector and hygiene/topology jobs only to the
+`ci-gates` runner, use the runner's installed Python 3.12 in per-service virtual
+environments, and raise the Vitest parent and worker heap ceiling to the
+measured 14 GB.
+
+**Do not break:** preserve the 14 GB UI worker ceiling and Python 3.12
+environment details recorded here; runner routing is superseded by the newer
+single-runner finding above.
+
+**Verify:** `actionlint` on `.github/workflows/ci.yml`; run the Python agent,
+Vitest, API and unwired-service CI jobs on the updated PR.
+
+The first rerun exposed a missing test dependency in `llamaindex_agent`: its
+runtime requirements do not include pytest, and the workflow suppressed pip
+installation errors. Install pytest explicitly for that suite and fail the job
+if either agent's requirements cannot be installed. Several Node jobs also
+retained automatic setup-node npm caching even though the shared-runner cache is
+over 1 GiB; disable it consistently across all jobs. The API/UI/unwired jobs
+were canceled while the PR merge ref was being superseded by updates to main.
+The selector and gate share one runner, so make the gate depend on selection to
+avoid a long gate install delaying suite dispatch. Their fresh run is needed
+before treating those suites as verified.
+
 ### 2026-09-27 — Server topology was missing from customer navigation
 
 **Files:** `demo_api_ui/src/components/AdminSideNav.jsx`,
@@ -208,6 +268,66 @@ policy so guest access remains available.
 **Verify:** `cd demo_api_ui && npx vitest run
 src/components/__tests__/adminSideNav.test.jsx`; `npm run build`; `npm run
 authz:verify`.
+### 2026-09-27 — oauth-mcp routed PF Step 9 subjects to PingOne
+
+**Files:** `oauth-mcp/src/tools/TokenResolver.ts`,
+`oauth-mcp/src/auth/PfStep9TokenExchangeService.ts`,
+`oauth-mcp/src/auth/TokenIntrospector.ts`, `oauth-mcp/src/auth/jwks.ts`,
+`oauth-mcp/tests/auth/TokenIntrospector.pfIssuer.test.ts`,
+`oauth-mcp/tests/auth/PfStep9TokenExchangeService.test.ts`,
+`demo_api_server/scripts/refresh-service-envs.js`,
+`demo_api_server/tests/refreshServiceEnvsPfGateway.test.js`,
+`oauth-mcp/.env.example`,
+`spiffe/pingfederate/pf-step9-te-policy.json`,
+`spiffe/pingfederate/pf-step9-atm-mapping.json`,
+`scripts/pingfederate/provision-pf-step9.sh`,
+`docs/superpowers/specs/2026-09-26-demo-readiness-and-repair-design.md`.
+
+**What was broken:** After PingGateway Exchange #3 returned a PF-issued agent
+token, `oauth-mcp` Step 9 used its single PingOne token-exchange service for
+every issuer. PingOne rejected the PF `subject_token` with “Cannot parse token
+claims,” so the registered Banking API MCP call failed at the final exchange
+and surfaced as an error/502. Local PF also had no dedicated Step 9 policy;
+the existing MCP actor client allowed only `CLIENT_CREDENTIALS`.
+
+**What was fixed:** `TokenResolver` now routes by the authenticated token's
+issuer. PingOne keeps its current endpoint, `resource` selector, scopes, and
+cache behavior. PF uses a separate service: it obtains the existing PF
+MCP-service client-credentials actor token, exchanges the PF subject token
+without a `resource` or `audience` selector, and checks issuer, subject,
+audience, scopes, and nested `act` before forwarding the result. A dedicated
+PF access-token-only policy and ATM mapping preserve the incoming subject and
+actor chain; the local provisioner extends the existing actor client while
+leaving `aiDemoStandardTePolicy` and its mapping unchanged. PF settings and the
+protected actor secret are generated only into `oauth-mcp/.env`.
+
+Inbound signature validation now selects the configured issuer's JWKS before
+Step 9 routing. A PF `iss` uses `PF_JWKS_URI`; missing or invalid PF JWKS
+configuration and JWKS outages fail closed regardless of global demo bypasses,
+and cannot fall back to PingOne keys. The Step 9 service also rejects a PF
+subject whose JWT header `typ` is exactly `oauth-id-jag+jwt`, because its policy
+accepts access-token subjects only. The
+provisioner reads the actor client ID from the same BFF configuration used by
+runtime and verifies the subject, scope, nested `act`, ATM, and grant contract
+on readback. When applying a client update, it supplies the protected runtime
+secret and validates that the configured client can still mint its PF actor
+token without logging that secret or token.
+
+This is a documented PF-specific Step 9 difference. The UC38 passenger A2A
+`invalid_target` remains a separate UC2 issue and is not part of the UC40 or
+Banking API Step 9 chain.
+
+**Do not break:** Keep provider routing tied to the authenticated issuer; do
+not send a PF subject token to PingOne or fall back to PingOne on PF
+configuration/exchange failure. Preserve PingOne's existing request and
+cache, self-issued token passthrough, vertical-tool behavior, subject and
+scope isolation, and the full nested `act` chain.
+
+**Verify:** `oauth-mcp` build and focused `TokenResolver`/PF exchange tests;
+`demo_api_server` PF env-generation test; local PF policy/mapping/client
+readback; then a fresh registered `get_my_accounts` or `get_account_balance`
+call through `/api/mcp/tool` plus a PingOne-lane call. Do not use the UI intent
+label `banking.get_balance` as the registered MCP tool name.
 
 ### 2026-09-27 — PF Exchange #3 omitted its required MCP-service actor token
 
