@@ -75,6 +75,32 @@ test('server exposes only GET routes and returns safe snapshot errors', async (t
   assert.doesNotMatch(JSON.stringify(failure), /do-not-return/);
 });
 
+test('server serves a page wired to local JavaScript and CSS assets', async (t) => {
+  const server = createDashboardServer({ getSnapshot: async () => ({}) });
+  const baseUrl = await listen(server);
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const [pageResponse, scriptResponse, styleResponse] = await Promise.all([
+    fetch(`${baseUrl}/`),
+    fetch(`${baseUrl}/dashboard.js`),
+    fetch(`${baseUrl}/dashboard.css`),
+  ]);
+  const [page, script, style] = await Promise.all([
+    pageResponse.text(),
+    scriptResponse.text(),
+    styleResponse.text(),
+  ]);
+
+  assert.equal(pageResponse.status, 200);
+  assert.match(page, /src="\/dashboard\.js" defer/);
+  assert.match(page, /href="\/dashboard\.css"/);
+  assert.equal(scriptResponse.status, 200);
+  assert.equal(styleResponse.status, 200);
+  assert.match(script, /\/api\/snapshot/);
+  assert.doesNotMatch(script, /\.innerHTML\s*=|\sonclick\s*=/i);
+  assert.ok(style.includes(':root'));
+});
+
 test('server refuses a non-loopback bind address', () => {
   assert.throws(
     () => createDashboardServer({ getSnapshot: async () => ({}), host: '0.0.0.0' }),
