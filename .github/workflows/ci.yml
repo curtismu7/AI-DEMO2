@@ -248,9 +248,33 @@ jobs:
     runs-on: [self-hosted, macOS]
     timeout-minutes: 30
     steps:
+      # Older target commits predate the 4 GB Vitest RSS guard. Preserve the
+      # current guard from this workflow revision, then check out the target.
+      - name: Checkout current UI memory guard
+        if: github.event_name == 'workflow_dispatch' && inputs.target_ref != ''
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          path: _ci-workflow
+          sparse-checkout: |
+            demo_api_ui/scripts/run-vitest-with-memory-guard.mjs
+            demo_api_ui/scripts/select-vitest-mode.mjs
+          sparse-checkout-cone-mode: false
+      - name: Preserve current UI memory guard
+        if: github.event_name == 'workflow_dispatch' && inputs.target_ref != ''
+        run: |
+          mkdir -p "$RUNNER_TEMP/ci-ui-guard"
+          cp _ci-workflow/demo_api_ui/scripts/run-vitest-with-memory-guard.mjs "$RUNNER_TEMP/ci-ui-guard/"
+          cp _ci-workflow/demo_api_ui/scripts/select-vitest-mode.mjs "$RUNNER_TEMP/ci-ui-guard/"
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.target_ref || github.ref }}
+      - name: Restore current UI memory guard
+        if: github.event_name == 'workflow_dispatch' && inputs.target_ref != ''
+        run: |
+          mkdir -p demo_api_ui/scripts
+          cp "$RUNNER_TEMP/ci-ui-guard/run-vitest-with-memory-guard.mjs" demo_api_ui/scripts/
+          cp "$RUNNER_TEMP/ci-ui-guard/select-vitest-mode.mjs" demo_api_ui/scripts/
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -269,8 +293,14 @@ jobs:
         env:
           CI: 'true'
           VITEST_RELATED_FILES_JSON: ${{ needs.changes.outputs['ui-changed-files'] }}
-      - name: Full Vitest unit suite on main, nightly, and manual runs
-        if: github.event_name != 'pull_request'
+      - name: Full Vitest suite for pinned target refs (4 GB guarded)
+        if: github.event_name == 'workflow_dispatch' && inputs.target_ref != ''
+        working-directory: demo_api_ui
+        run: node scripts/run-vitest-with-memory-guard.mjs unit
+        env:
+          CI: 'true'
+      - name: Full Vitest unit suite on main, nightly, and ordinary manual runs
+        if: github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.target_ref == '')
         run: npm --prefix demo_api_ui run test:unit
         env:
           CI: 'true'
