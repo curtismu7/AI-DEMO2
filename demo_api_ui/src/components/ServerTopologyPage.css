@@ -143,7 +143,7 @@
 .stm-communication-list span { color: var(--th-text-muted); font-size: var(--font-size-3xs); line-height: 1.35; overflow-wrap: anywhere; }
 .stm-communication-list .stm-communication-options { display: block; padding: 5px 6px; border-radius: 4px; background: var(--th-bg-inset); color: var(--th-text-body); }
 .stm-communication-options strong { color: var(--th-text-body); }
-.stm-communication-list small { justify-self: start; padding: 2px 5px; border-radius: 3px; background: var(--th-bg-inset); color: var(--th-text-muted); font-size: var(--font-size-4xs); }
+.stm-communication-list small { justify-self: start; padding: 2px 5px; border-radius: 3px; background: var(--th-bg-inset); color: var(--th-text-muted); font-size: var(--font-size-3xs); }
 .stm-code { padding: 6px 7px; border: 1px solid var(--th-border); border-radius: 4px; background: var(--th-bg-inset); color: var(--th-status-info-text); font: var(--font-size-3xs) var(--font-mono); overflow-wrap: anywhere; }
 .stm-subtle { margin-top: 5px !important; color: var(--th-text-muted) !important; font-size: var(--font-size-3xs) !important; }
 .stm-path-arrow { color: var(--th-text-muted); font-size: var(--font-size-3xs); }
