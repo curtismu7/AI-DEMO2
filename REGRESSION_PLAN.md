@@ -188,6 +188,29 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-28 — Stable Token Chain events caused an unbounded UI test render loop
+
+**Files:** `demo_api_ui/src/components/TokenChainDisplay.jsx`,
+`demo_api_ui/src/components/__tests__/TokenChainDisplay.a2aProgress.test.jsx`,
+`demo_api_ui/src/components/__tests__/OAuthProviderToggle.idJagReset.test.jsx`.
+
+**What was broken:** Token Chain filtered the live event array during every
+render. An effect treated each newly allocated array as changed, called
+`setLastUpdated`, and triggered another render. The A2A handoff test then
+allocated indefinitely until the Vitest worker exhausted its heap. A separate
+provider-toggle test expected `/logout` navigation even though the component
+clears session state and reloads the current page.
+
+**What was fixed:** memoized the filtered live events against the context event
+array and added a render-settling regression test. Updated the provider-toggle
+test to assert the implemented page reload after state cleanup.
+
+**Do not break:** keep the filtered event reference stable while its source
+array is unchanged; refresh the Token Chain when the source array changes; keep
+provider-switch cleanup followed by a page reload.
+
+**Verify:** focused Token Chain unit test; full UI unit suite; `npm run build`.
+
 ### 2026-09-27 — Server topology was missing from customer navigation
 
 **Files:** `demo_api_ui/src/components/AdminSideNav.jsx`,

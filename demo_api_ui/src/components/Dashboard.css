@@ -22,10 +22,15 @@
 }
 .dash-scope-injection-banner__close:hover { opacity: 1; }
 
-/* Recent Activity remains on the brand white surface in dark mode too. */
+.admin-dashboard-page .card {
+  border-color: var(--admin-line);
+  background: var(--admin-surface);
+  color: var(--admin-ink);
+}
+
 .admin-dashboard-page .card .empty-state,
 .admin-dashboard-page .card .empty-state h3 {
-  color: #1f2937;
+  color: var(--admin-ink);
 }
 
 /* ── Admin dashboard: skip link hidden until focused (standard skip-link

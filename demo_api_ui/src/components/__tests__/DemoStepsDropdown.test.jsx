@@ -80,7 +80,7 @@ describe('DemoStepsDropdown', () => {
     expect(screen.getByTestId('demo-steps-trigger')).toHaveTextContent(/Demo steps/);
   });
 
-  it('portals the scrim to the document body so it can cover the Command Dock', async () => {
+  it('portals its floating panel to the document body above the Command Dock', async () => {
     render(
       <DemoStepsDropdown
         open
@@ -88,8 +88,9 @@ describe('DemoStepsDropdown', () => {
         onSelect={() => {}}
       />,
     );
-    await screen.findByTestId('demo-steps-popout');
-    expect(screen.getByTestId('demo-steps-scrim').parentElement).toBe(document.body);
+    const panel = await screen.findByTestId('demo-steps-popout');
+    expect(panel.parentElement).toBe(document.body);
+    expect(panel).toHaveAttribute('data-placement', 'floating');
   });
 
   it('does not render the legacy live-P1AZ arming button (flags are on by default)', async () => {
@@ -119,7 +120,7 @@ describe('DemoStepsDropdown', () => {
     expect(onStopAgentClick).toHaveBeenCalledTimes(1);
   });
 
-  it('renders the selected drawer affordances when open', async () => {
+  it('renders the close control and resize handles when open', async () => {
     render(
       <DemoStepsDropdown
         open
@@ -130,8 +131,8 @@ describe('DemoStepsDropdown', () => {
     await waitFor(() => expect(screen.getByTestId('demo-steps-popout')).toBeInTheDocument());
 
     expect(screen.getByTestId('demo-steps-close')).toBeInTheDocument();
-    expect(screen.getByTestId('demo-steps-resize-handle')).toBeInTheDocument();
-    expect(screen.getByTestId('demo-steps-popout')).toHaveAttribute('data-placement', 'right-overlay');
+    expect(screen.getByRole('separator', { name: 'Resize southeast' })).toBeInTheDocument();
+    expect(screen.getByTestId('demo-steps-popout')).toHaveAttribute('data-placement', 'floating');
   });
 
   it('launches Agent Identity Academy from Demo steps', async () => {
@@ -157,10 +158,10 @@ describe('DemoStepsDropdown', () => {
     );
 
     expect(css).toMatch(
-      /@container\s*\(max-width:\s*460px\)[\s\S]*?\.ba-demo-steps-drawer \.ba-demo-steps-popout__header-actions[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\) auto/,
+      /@container\s*\(max-width:\s*460px\)[\s\S]*?\.ba-demo-steps-float__content \.ba-demo-steps-popout__header-actions[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\) auto/,
     );
     expect(css).toMatch(
-      /@container\s*\(max-width:\s*460px\)[\s\S]*?\.ba-demo-steps-drawer \.ba-demo-steps-popout__search[\s\S]*?grid-column:\s*1\s*\/\s*-1/,
+      /@container\s*\(max-width:\s*460px\)[\s\S]*?\.ba-demo-steps-float__content \.ba-demo-steps-popout__search[\s\S]*?grid-column:\s*1\s*\/\s*-1/,
     );
   });
 

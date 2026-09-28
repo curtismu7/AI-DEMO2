@@ -4597,6 +4597,20 @@ const TokenChainDisplay = ({ idTokenMode = false, hideHeader = false }) => {
     Array.isArray(sessionPreviewEvents) &&
     sessionPreviewEvents.length > 0;
   const canClearChain = Boolean(hasRunEvidence || isSessionPreview);
+  const liveEvents = React.useMemo(
+    () => {
+      const events = Array.isArray(ctx?.events) ? ctx.events : [];
+      return events.filter((event) =>
+        ![
+          "id-jag-issued",
+          "id-jag-redeemed",
+          "pf-id-jag-issued",
+          "pf-id-jag-redeemed",
+        ].includes(event?.id),
+      );
+    },
+    [ctx?.events],
+  );
 
   /** Clear live/session events and the shared TraceRail so every Token Chain surface resets together. */
   const handleClearChain = useCallback(() => {
@@ -4627,7 +4641,7 @@ const TokenChainDisplay = ({ idTokenMode = false, hideHeader = false }) => {
   const currentEvents = mockIdJag || (nativeIdJag && idJagEvents.length > 0)
     ? idJagEvents
     : isLive
-    ? ctx.events.filter((event) => !["id-jag-issued", "id-jag-redeemed", "pf-id-jag-issued", "pf-id-jag-redeemed"].includes(event?.id))
+    ? liveEvents
     : isSessionPreview
       ? sessionPreviewEvents
       : effectivePlaceholders;

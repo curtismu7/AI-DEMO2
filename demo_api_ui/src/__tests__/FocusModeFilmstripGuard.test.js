@@ -96,10 +96,9 @@ describe("Focus Mode filmstrip guard", () => {
     expect(direct).toHaveLength(1);
     // Three ReelDocks now: float, clinical-split, and the pop-out modal.
     expect(docks).toHaveLength(3);
-    // Also gated on !showSequenceDiagram since the Quick Config "Sequence
-    // view" toggle swaps the reel for SequenceReelDiagram at the same sites.
-    expect(p2026).toMatch(/\{showFilmstrip && !showSequenceDiagram && <TokenChainFilmstrip\s*\/>\}/);
-    const dockGuards = p2026.match(/\{showFilmstrip && !showSequenceDiagram && <ReelDock\s*\/>\}/g) || [];
+    // Also gated while Sequence or Server Topology replaces the reel.
+    expect(p2026).toMatch(/\{showFilmstrip && !showSequenceDiagram && !showServerTopology && <TokenChainFilmstrip\s*\/>\}/);
+    const dockGuards = p2026.match(/\{showFilmstrip && !showSequenceDiagram && !showServerTopology && <ReelDock\s*\/>\}/g) || [];
     expect(dockGuards).toHaveLength(2);
     expect(p2026).toMatch(/\{showFilmstripPopout && \(/);
   });
@@ -115,7 +114,7 @@ describe("Focus Mode filmstrip guard", () => {
     const endOfBranch = p2026.indexOf("if (loading) {", branch);
     expect(endOfBranch).toBeGreaterThan(branch);
     const clinicalJsx = p2026.slice(branch, endOfBranch);
-    expect(clinicalJsx).toMatch(/\{showFilmstrip && !showSequenceDiagram && <ReelDock\s*\/>\}/);
+    expect(clinicalJsx).toMatch(/\{showFilmstrip && !showSequenceDiagram && !showServerTopology && <ReelDock\s*\/>\}/);
   });
 
   test("closing the movie reel pop-out publishes its surface change", () => {

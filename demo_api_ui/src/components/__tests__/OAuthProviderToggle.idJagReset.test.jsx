@@ -11,7 +11,10 @@ beforeEach(() => {
   vi.clearAllMocks();
   sessionStorage.clear();
   delete window.location;
-  window.location = { href: 'https://local.ping-devops.com:4000/dashboard' };
+  window.location = {
+    href: 'https://local.ping-devops.com:4000/dashboard',
+    reload: vi.fn(),
+  };
   bffAxios.get.mockResolvedValue({ data: { config: { oauth_provider: 'pingfederate' } } });
   bffAxios.post.mockResolvedValue({ data: { ok: true } });
 });
@@ -22,7 +25,7 @@ test('provider switch clears pending ID-JAG launch and one-shot replay state', a
   sessionStorage.setItem('bx_id_jag_replayed', '1');
   render(<OAuthProviderToggle />);
   fireEvent.click(await screen.findByRole('button', { name: 'Toggle OAuth login provider' }));
-  await waitFor(() => expect(window.location.href).toBe('/logout'));
+  await waitFor(() => expect(window.location.reload).toHaveBeenCalledOnce());
   expect(sessionStorage.getItem(ID_JAG_PENDING_INTENT_KEY)).toBeNull();
   expect(sessionStorage.getItem('bx_id_jag_replayed')).toBeNull();
 });
