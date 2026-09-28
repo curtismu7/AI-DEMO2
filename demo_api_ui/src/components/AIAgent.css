@@ -5101,6 +5101,7 @@ body > .banking-agent-float-root .banking-agent-panel {
    dismissal, dragging, pop-out, and resize behavior. Keep the tray's content
    styling, but let the shell own its frame and scrolling. */
 .fp-panel.ba-header-more-pop {
+  align-items: stretch;
   min-width: 0;
   max-height: none;
   gap: 0;

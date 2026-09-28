@@ -188,6 +188,47 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-28 — Embedded Token topology crowded the agent column
+
+**Files:** `demo_api_ui/src/components/TokenChainFilmstrip.css`,
+`demo_api_ui/src/components/TokenTopologyPanel.jsx`,
+`demo_api_ui/src/components/TokenTopologyPanel.css`,
+`demo_api_ui/src/components/UserDashboardPing2026.js`.
+
+**What was broken:** the embedded topology was auto-placed in the Focus Mode
+grid, where it could compete with the agent and spotlight columns. Selecting a
+node opened its detail inspector beside the graph and narrowed the topology.
+
+**What was fixed:** embedded topology now has a full-width row below the
+agent/spotlight columns. Selecting a node opens its detail inspector below the
+graph. The draggable pop-out retains its side inspector.
+
+**Do not break:** keep the agent and spotlight side by side above the embedded
+topology; keep details tied to the selected node; preserve the pop-out's
+resizable inspector and shared trace data.
+
+**Verify:** `cd demo_api_ui && npm run build`; inspect embedded and pop-out
+topology in light and dark themes.
+
+### 2026-09-28 — Quick Config floating title bar shrank to content width
+
+**Files:** `demo_api_ui/src/components/AIAgent.css`, `REGRESSION_PLAN.md`.
+
+**What was broken:** Quick Config's tray styles set `align-items: flex-start`.
+After the tray moved into the shared floating-panel shell, that alignment made
+the title bar use its content width, leaving the rest of the panel header
+without its background.
+
+**What was fixed:** the Quick Config floating-panel override now stretches its
+children across the panel width.
+
+**Do not break:** preserve Quick Config's inner content alignment and the
+floating panel's drag, resize, collapse, and pop-out controls. Keep the change
+scoped to Quick Config; do not change the shared floating-panel behavior.
+
+**Verify:** `cd demo_api_ui && npm run build`; inspect the Quick Config title
+bar in light and dark themes.
+
 ### 2026-09-28 — DaVinci widget runtime followed PF instead of the PingOne region
 
 **Files:** `demo_api_server/routes/davinciLogin.js`,
