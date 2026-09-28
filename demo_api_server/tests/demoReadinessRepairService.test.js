@@ -238,6 +238,24 @@ describe('demo readiness repair service', () => {
     expect(adapter.write).toHaveBeenCalledTimes(1);
   });
 
+  test('retains a mismatched source readback in failed repair evidence', async () => {
+    const observed = ['read', 'unexpected'];
+    const adapter = {
+      read: jest.fn(async () => ['read']),
+      write: jest.fn(async () => undefined),
+      readback: jest.fn(async () => observed),
+    };
+    const { service } = repairService({ adapter });
+    const plan = service.planRepairs({ findings: [finding()], targets: TARGETS, now: NOW });
+
+    const failure = await service.applyRepairs({ digest: plan.digest, confirmedBy: ADMIN_ASSERTION, targets: TARGETS, now: NOW })
+      .catch((error) => error);
+
+    expect(failure.message).toMatch(/readback does not match/i);
+    expect(failure.repairEvidence[0].after).toEqual(observed);
+    expect(failure.repairEvidence[0].outcome).toBe('readback-mismatch');
+  });
+
   test('is safe to retry after a timeout when readback already has the expected value', async () => {
     const adapter = {
       read: jest.fn()
@@ -455,6 +473,36 @@ describe('demo readiness repair service', () => {
     expect(adapter.read).toHaveBeenLastCalledWith(expect.objectContaining({ workerContext: firstWorker }));
     expect(adapter.read.mock.calls.filter(([args]) => args.workerContext === secondWorker)).toHaveLength(2);
     expect(adapter.read.mock.calls.filter(([args]) => args.workerContext === firstWorker)).toHaveLength(2);
+  });
+
+  test('retains a mismatched isolated-worker restore readback in failure evidence', async () => {
+    const worker = {};
+    let readCount = 0;
+    const adapter = {
+      createIsolatedWorker: jest.fn(async () => worker),
+      read: jest.fn(async () => (++readCount === 1 ? false : true)),
+      write: jest.fn(async () => undefined),
+      readback: jest.fn(async () => true),
+      restore: jest.fn(async () => undefined),
+    };
+    const service = createRepairService({
+      now: () => NOW,
+      verifyAdminConfirmation: jest.fn(async () => ({ subject: 'admin-1' })),
+      sourceReaders: { readinessWorkerFlag: jest.fn(() => ({
+        target: 'local', object: { id: 'ff_demo' }, expected: true,
+        sourceRef: 'demo_api_server/config/useCases.js#UC1', operation: 'Enable only for the isolated readiness worker',
+      })) },
+      adapters: { 'demo-feature-flag': adapter },
+    });
+    const plan = service.planRepairs({ findings: [finding({ repairCandidates: [{
+      repairClass: 'demo-feature-flag', target: 'local', object: { id: 'ff_demo' }, current: false, expected: true,
+    }] })], targets: TARGETS, now: NOW });
+
+    const failure = await service.applyRepairs({ digest: plan.digest, confirmedBy: ADMIN_ASSERTION, targets: TARGETS, now: NOW })
+      .catch((error) => error);
+
+    expect(failure.message).toMatch(/cleanup failed/i);
+    expect(failure.repairEvidence[0]).toEqual(expect.objectContaining({ after: true, restored: true }));
   });
 
   test('plans a legitimate false source-contract expectation', () => {

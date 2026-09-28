@@ -38,6 +38,12 @@ function unresolvedAuditFailure(rows) {
   return rows.some((row) => row.required && row.status === 'fail' && !row.repairCandidate && !row.repairCandidates?.length);
 }
 
+function checkInventoryError(items) {
+  if (!Array.isArray(items) || items.length === 0) return 'adapter returned an empty check inventory';
+  if (!items.some((item) => item?.required !== false)) return 'adapter returned no required checks';
+  return null;
+}
+
 function matrixCoverageError(result) {
   const rows = result?.rows;
   if (!Array.isArray(rows) || rows.length === 0) return 'scenario adapter returned no required rows';
@@ -132,10 +138,34 @@ async function startReadinessRun({
   let matrixAttempted = false;
   let matrixDetails = null;
 
-  const expired = () => nowFrom(clock) >= deadlineAt;
+  let deadlineElapsed = false;
+  const expired = () => deadlineElapsed || nowFrom(clock) >= deadlineAt;
   const progress = async (phase, details = {}) => {
     phases.push({ phase, at: nowFrom(clock) });
     await onProgress(redactReadinessValue({ phase, deadlineAt, ...details }));
+  };
+  const waitUntilDeadline = (callback, onTimeout = () => {}) => {
+    if (expired()) return Promise.resolve({ timedOut: true });
+    let timer;
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (result) => {
+        if (settled) return;
+        settled = true;
+        if (timer) clearTimeout(timer);
+        resolve(result);
+      };
+      const remaining = Math.max(1, deadlineAt - nowFrom(clock));
+      timer = setTimeout(() => {
+        deadlineElapsed = true;
+        onTimeout();
+        finish({ timedOut: true });
+      }, remaining);
+      Promise.resolve().then(callback).then(
+        (value) => finish({ value }),
+        (error) => finish({ error }),
+      );
+    });
   };
   const addRows = (items, phase) => {
     const normalized = normalizeRows(items, phase);
@@ -188,36 +218,35 @@ async function startReadinessRun({
   };
   const runAdapter = async (phase, work, { drainOnTimeout = false } = {}) => {
     if (expired()) return { timedOut: true };
-    await progress(phase);
-    let timer;
+    const progressResult = await waitUntilDeadline(() => progress(phase));
+    if (progressResult.timedOut || expired()) return { timedOut: true };
+    if (progressResult.error) return { adapterError: redactReadinessValue(progressResult.error?.message || 'progress callback failed') };
     const controller = new AbortController();
-    const timeout = new Promise((resolve) => {
-      const remaining = Math.max(1, deadlineAt - nowFrom(clock));
-      timer = setTimeout(() => { controller.abort(); resolve({ timedOut: true }); }, remaining);
-    });
     const operation = Promise.resolve().then(() => work({ signal: controller.signal, deadlineAt }));
     try {
-      const result = await Promise.race([operation, timeout]);
-      if (result?.timedOut && drainOnTimeout) {
+      const operationResult = await waitUntilDeadline(() => operation, () => controller.abort());
+      if (operationResult.timedOut && drainOnTimeout) {
         try {
-          return { ...result, completedResult: redactReadinessValue(await operation) };
+          return { timedOut: true, completedResult: redactReadinessValue(await operation) };
         } catch (error) {
           return {
-            ...result,
+            timedOut: true,
             adapterError: redactReadinessValue(error?.message || 'adapter failed'),
             ...(Array.isArray(error?.repairEvidence) ? { repairEvidence: redactReadinessValue(error.repairEvidence) } : {}),
           };
         }
       }
+      if (operationResult.error) return {
+        adapterError: redactReadinessValue(operationResult.error?.message || 'adapter failed'),
+        ...(Array.isArray(operationResult.error?.repairEvidence) ? { repairEvidence: redactReadinessValue(operationResult.error.repairEvidence) } : {}),
+      };
       if (expired()) controller.abort();
-      return result;
+      return operationResult.value;
     } catch (error) {
       return {
         adapterError: redactReadinessValue(error?.message || 'adapter failed'),
         ...(Array.isArray(error?.repairEvidence) ? { repairEvidence: redactReadinessValue(error.repairEvidence) } : {}),
       };
-    } finally {
-      if (timer) clearTimeout(timer);
     }
   };
 
@@ -233,6 +262,11 @@ async function startReadinessRun({
     checks.push({ id: 'prerequisites:adapter', status: 'blocked', required: true, phase: 'prerequisites', evidence: prerequisiteResult.adapterError });
     return makeResult();
   }
+  const prerequisiteInventoryError = checkInventoryError(prerequisiteResult);
+  if (prerequisiteInventoryError) {
+    checks.push({ id: 'prerequisites:inventory', status: 'blocked', required: true, phase: 'prerequisites', evidence: prerequisiteInventoryError });
+    return makeResult();
+  }
   const prerequisiteRows = addRows(prerequisiteResult, 'prerequisites');
   if (!rowsPassed(prerequisiteRows)) return makeResult();
 
@@ -240,6 +274,11 @@ async function startReadinessRun({
   if (initialResult?.timedOut || expired()) return finishDeadline();
   if (initialResult?.adapterError) {
     checks.push({ id: 'audit:adapter', status: 'blocked', required: true, phase: 'audit-initial', evidence: initialResult.adapterError });
+    return makeResult();
+  }
+  const initialInventoryError = checkInventoryError(initialResult);
+  if (initialInventoryError) {
+    checks.push({ id: 'audit:initial-inventory', status: 'blocked', required: true, phase: 'audit-initial', evidence: initialInventoryError });
     return makeResult();
   }
   const initialRows = addRows(initialResult, 'audit-initial');
@@ -252,7 +291,12 @@ async function startReadinessRun({
     return makeResult();
   }
   repairPreview = redactReadinessValue(previewResult || { changes: [], blocked: [], digest: null });
-  await onProgress(redactReadinessValue({ phase: 'repair-preview-ready', preview: repairPreview, deadlineAt }));
+  const previewProgress = await waitUntilDeadline(() => onProgress(redactReadinessValue({ phase: 'repair-preview-ready', preview: repairPreview, deadlineAt })));
+  if (previewProgress.timedOut || expired()) return finishDeadline();
+  if (previewProgress.error) {
+    checks.push({ id: 'repair:preview-progress', status: 'blocked', required: true, phase: 'repair-preview', evidence: redactReadinessValue(previewProgress.error?.message || 'progress callback failed') });
+    return makeResult();
+  }
   if ((repairPreview.blocked || []).length) return makeResult();
 
   if ((repairPreview.changes || []).length) {
@@ -308,6 +352,11 @@ async function startReadinessRun({
   if (reAuditResult?.timedOut || expired()) return finishDeadline();
   if (reAuditResult?.adapterError) {
     checks.push({ id: 'audit:recheck', status: 'blocked', required: true, phase: 'audit-after-repair', evidence: reAuditResult.adapterError });
+    return makeResult();
+  }
+  const reAuditInventoryError = checkInventoryError(reAuditResult);
+  if (reAuditInventoryError) {
+    checks.push({ id: 'audit:after-repair-inventory', status: 'blocked', required: true, phase: 'audit-after-repair', evidence: reAuditInventoryError });
     return makeResult();
   }
   const reAuditRows = addRows(reAuditResult, 'audit-after-repair');

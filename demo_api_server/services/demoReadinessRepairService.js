@@ -226,12 +226,13 @@ function createRepairService({ adapters = {}, sourceReaders = {}, verifyAdminCon
         } catch (error) {
           readbackError = error;
         }
+        item.after = after;
         if (readbackError || !sameValue(after, change.expected)) {
+          item.outcome = readbackError ? 'readback-failed' : 'readback-mismatch';
           const verificationError = readbackError || new Error('repair readback does not match the expected value');
           if (writeError) throw new AggregateError([writeError, verificationError], writeError.message || 'repair write and readback failed', { cause: writeError });
           throw verificationError;
         }
-        item.after = after;
         item.outcome = 'applied';
         if (writeError) throw writeError;
         assertActive(control);
@@ -253,8 +254,8 @@ function createRepairService({ adapters = {}, sourceReaders = {}, verifyAdminCon
       }
       try {
         const restored = await item.adapter.read({ target: item.change.target, object: item.change.object, sourceRef: item.change.sourceRef, workerContext: item.workerContext });
-        if (!sameValue(restored, original)) throw new Error('isolated feature-flag restore readback does not match the original value');
         item.restored = restored;
+        if (!sameValue(restored, original)) throw new Error('isolated feature-flag restore readback does not match the original value');
       } catch (error) {
         cleanupFailures.push(error);
       }

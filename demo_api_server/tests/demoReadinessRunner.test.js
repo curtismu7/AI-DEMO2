@@ -16,6 +16,52 @@ function harness(overrides = {}) {
 }
 
 describe('startReadinessRun', () => {
+  test('empty prerequisite inventories block readiness before audit', async () => {
+    const { calls, adapters } = harness({ checkPrerequisites: async () => [] });
+
+    const result = await startReadinessRun({ targets: ['local', 'se'], adapters });
+
+    expect(calls).not.toContain('audit:initial');
+    expect(result.ready).toBe(false);
+    expect(result.checks).toContainEqual(expect.objectContaining({ id: 'prerequisites:inventory', status: 'blocked' }));
+  });
+
+  test('empty initial audit inventories block readiness before repair preview', async () => {
+    const { calls, adapters } = harness({ audit: async () => [] });
+
+    const result = await startReadinessRun({ targets: ['local', 'se'], adapters });
+
+    expect(calls).not.toContain('preview');
+    expect(result.ready).toBe(false);
+    expect(result.checks).toContainEqual(expect.objectContaining({ id: 'audit:initial-inventory', status: 'blocked' }));
+  });
+
+  test('empty re-audit inventories block readiness before scenario execution', async () => {
+    const { calls, adapters } = harness({ audit: async ({ phase }) => phase === 'initial'
+      ? [{ id: 'config', status: 'fail', repairCandidate: { repairClass: 'test', target: 'local', object: { id: 'object' }, current: 'old', expected: 'new' } }]
+      : [] });
+
+    const result = await startReadinessRun({ targets: ['local', 'se'], adapters, confirmRepairs: async ({ digest }) => ({ confirmed: true, digest, adminAssertion: { subject: 'readiness-admin' } }) });
+
+    expect(calls).toContain('apply:abc123');
+    expect(calls).not.toContain('execute');
+    expect(result.ready).toBe(false);
+    expect(result.checks).toContainEqual(expect.objectContaining({ id: 'audit:after-repair-inventory', status: 'blocked' }));
+  });
+
+  test.each(['prerequisites', 'repair-preview-ready'])('deadline bounds a stalled %s progress callback', async (stalledPhase) => {
+    const { adapters } = harness({ audit: async () => [{ id: 'config', status: 'pass' }], planRepairs: async () => ({ digest: 'empty', changes: [], blocked: [] }) });
+    const result = await startReadinessRun({
+      targets: ['local', 'se'], adapters, deadlineMs: 30,
+      onProgress: async ({ phase }) => {
+        if (phase === stalledPhase) return new Promise(() => {});
+      },
+    });
+
+    expect(result.status).toBe('deadline-exceeded');
+    expect(result.ready).toBe(false);
+  });
+
   test('runs phases in order and binds apply to the displayed digest', async () => {
     const { calls, adapters } = harness();
     const result = await startReadinessRun({ targets: ['local', 'se'], adapters, confirmRepairs: async ({ digest }) => ({ confirmed: true, digest, adminAssertion: { subject: 'readiness-admin' } }) });
@@ -146,6 +192,26 @@ describe('startReadinessRun', () => {
     expect(calls).not.toContain('execute');
     expect(result.status).toBe('not-ready');
     expect(result.checks.find((row) => row.id === 'repair:apply').status).toBe('blocked');
+  });
+
+  test('failed apply retains its observed readback evidence in both report views', async () => {
+    const evidence = [{ after: ['read', 'unexpected'], outcome: 'readback-mismatch' }];
+    const { adapters } = harness({
+      applyRepairs: async () => {
+        const error = new Error('repair readback does not match the expected value');
+        error.repairEvidence = evidence;
+        throw error;
+      },
+    });
+
+    const result = await startReadinessRun({
+      targets: ['local', 'se'], adapters,
+      confirmRepairs: async ({ digest }) => ({ confirmed: true, digest, adminAssertion: { subject: 'readiness-admin' } }),
+    });
+
+    expect(result.repairEvidence).toEqual({ digest: 'abc123', evidence });
+    expect(result.report.repairEvidence).toEqual({ digest: 'abc123', evidence });
+    expect(result.ready).toBe(false);
   });
 
   test('apply acknowledgement must carry the exact preview digest', async () => {
