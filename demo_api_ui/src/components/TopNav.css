@@ -595,14 +595,14 @@
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: #ffffff;
+  color: var(--brand-topnav-text, #ffffff);
   white-space: nowrap;
   padding-right: 2px;
 }
 
 .topnav-token-pill__view-btn {
   font-size: var(--font-size-xs);
-  color: #ffffff;
+  color: var(--brand-topnav-text, #ffffff);
   background: none;
   border: none;
   border-left: 1px solid #334155;
@@ -613,7 +613,7 @@
 }
 
 .topnav-token-pill__view-btn:hover {
-  color: #ffffff;
+  color: var(--brand-topnav-text, #ffffff);
   text-decoration: underline;
 }
 

@@ -1,9 +1,18 @@
 import fs from "node:fs";
 import path from "node:path";
-import { INDUSTRY_PRESETS } from "../../config/industryPresets";
 
 const topNavCss = fs.readFileSync(path.resolve(__dirname, "../TopNav.css"), "utf8");
 const heroCss = fs.readFileSync(path.resolve(__dirname, "../AgentGreetingHero.module.css"), "utf8");
+const verticalsRoot = path.resolve(__dirname, "../../../../demo_api_server/config/verticals");
+const verticalThemes = fs.readdirSync(verticalsRoot, { withFileTypes: true })
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => {
+    const manifestPath = path.join(verticalsRoot, entry.name, "manifest.json");
+    if (!fs.existsSync(manifestPath)) return null;
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+    return { id: manifest.id || entry.name, cssVars: manifest.theme?.cssVars || {} };
+  })
+  .filter(Boolean);
 
 const rgb = (hex) => hex.match(/[\da-f]{2}/gi).map((part) => Number.parseInt(part, 16));
 const luminance = ([r, g, b]) => {
@@ -19,28 +28,36 @@ const contrast = (foreground, background) => {
 };
 
 describe("dashboard text contrast", () => {
-  it("keeps the customer session label and token action readable across branded navigation colors", () => {
+  it("uses theme text and keeps the session pill readable across vertical headers", () => {
     const label = topNavCss.match(/\.topnav-token-pill__session-label\s*\{([^}]+)\}/)?.[1] || "";
     const viewButton = topNavCss.match(/\.topnav-token-pill__view-btn\s*\{([^}]+)\}/)?.[1] || "";
     const viewButtonHover = topNavCss.match(/\.topnav-token-pill__view-btn:hover\s*\{([^}]+)\}/)?.[1] || "";
     const tokenPill = topNavCss.match(/\.topnav-token-pill\s*\{([^}]+)\}/)?.[1] || "";
     const pillOpacity = Number(tokenPill.match(/background:\s*rgba\(0,\s*0,\s*0,\s*([\d.]+)\)/)?.[1]);
-    const navBackgrounds = ["1d4ed8", ...INDUSTRY_PRESETS.flatMap(({ cssVars }) => [
-      cssVars["--brand-dashboard-header-start"],
-      cssVars["--brand-dashboard-header-end"],
-    ].filter((value) => /^#[\da-f]{6}$/i.test(value)).map((value) => value.slice(1)))];
     const compositePillBackground = (hex) => rgb(hex).map((channel) => channel * (1 - pillOpacity));
-    const foreground = (rule) => rule.match(/color:\s*(#[\da-f]{6})/i)?.[1];
+    const declaration = (rule) => rule.match(/color:\s*([^;]+)/i)?.[1]?.trim();
+    const resolveHeaderColor = (value, cssVars) => {
+      if (/^#[\da-f]{6}$/i.test(value || "")) return value.slice(1);
+      if (value === "var(--brand-navy)") return (cssVars["--theme-accent"] || "#1d4ed8").slice(1);
+      return null;
+    };
 
     expect(Number.isFinite(pillOpacity)).toBe(true);
-    expect(foreground(label)).toBeTruthy();
-    expect(foreground(viewButton)).toBeTruthy();
-    expect(foreground(viewButtonHover)).toBeTruthy();
-    for (const background of navBackgrounds) {
-      const renderedBackground = compositePillBackground(background);
-      expect(contrast(rgb(foreground(label)), renderedBackground)).toBeGreaterThanOrEqual(4.5);
-      expect(contrast(rgb(foreground(viewButton)), renderedBackground)).toBeGreaterThanOrEqual(4.5);
-      expect(contrast(rgb(foreground(viewButtonHover)), renderedBackground)).toBeGreaterThanOrEqual(4.5);
+    expect(declaration(label)).toMatch(/^var\(--brand-topnav-text/);
+    expect(declaration(viewButton)).toMatch(/^var\(--brand-topnav-text/);
+    expect(declaration(viewButtonHover)).toMatch(/^var\(--brand-topnav-text/);
+    expect(verticalThemes.length).toBeGreaterThan(0);
+    for (const { id, cssVars } of verticalThemes) {
+      const foregroundColor = cssVars["--brand-topnav-text"] || cssVars["--brand-dashboard-header-text"] || "#ffffff";
+      const foregroundRgb = rgb(foregroundColor);
+      for (const headerValue of [cssVars["--brand-dashboard-header-start"], cssVars["--brand-dashboard-header-end"]]) {
+        const background = resolveHeaderColor(headerValue, cssVars);
+        if (!background) continue;
+        expect(
+          contrast(foregroundRgb, compositePillBackground(background)),
+          `${id} header ${headerValue} needs readable token-pill text`,
+        ).toBeGreaterThanOrEqual(4.5);
+      }
     }
   });
 

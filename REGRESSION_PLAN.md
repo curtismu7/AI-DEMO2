@@ -199,10 +199,10 @@ read the configured host. A new browser origin must be added to ALL of:
 dim against the blue top navigation. The greeting overlay also left white hero
 text below the large-text contrast threshold over bright image areas.
 
-**What was fixed:** the session label and token action use white text, with an
-underline hover state that retains the same contrast. The hero image overlay is
-stronger at both gradient stops so the greeting remains readable over bright
-pixels.
+**What was fixed:** the session label and token action use the vertical's
+`--brand-topnav-text` color, with an underline hover state that retains the same
+contrast. The hero image overlay is stronger at both gradient stops so the
+greeting remains readable over bright pixels.
 
 **Do not break:** preserve the top navigation's theme-driven background and the
 hero image/greeting layout; keep both fixes limited to contrast styling.
