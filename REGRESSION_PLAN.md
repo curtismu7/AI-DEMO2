@@ -188,6 +188,36 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-28 — Topology playback conflated bearer and API-key paths
+
+**Files:** `demo_api_ui/src/components/serverTopologyData.js`,
+`demo_api_ui/src/components/__tests__/ServerTopologyPage.playbacks.test.jsx`,
+`docs/exports/server-topology-details.csv`,
+`docs/exports/server-topology-lucidchart.csv`,
+`docs/SECURITY_NETWORKING_ASSESSMENT.md`,
+`docs/SECURITY_NETWORKING_REMEDIATION_WORKPLAN.md`.
+
+**What was broken:** the API-key playback showed RFC 8693 even though the
+gateway returns from that dispatch after Authorize and calls the backend with
+`X-API-Key`. The protected API playback pointed at that API-key service while
+claiming bearer authorization, and the direct MCP playback did not identify
+that it represented the local Compose listener rather than hosted routing.
+
+**What was fixed:** the API-key playback now ends at the direct backend call;
+the bearer-protected MCP route ends at the BFF API called by
+`BankingAPIClient`; and the direct MCP playback is labeled local, with the
+hosted PingGateway route explained separately. The topology exports, assessment,
+and workplan now match those paths.
+
+**Do not break:** keep Authorize before the API-key dispatch, keep that branch
+free of RFC 8693 and bearer credentials at the backend, retain RFC 8693 on
+token-authenticated MCP routes, and preserve the local/hosted route distinction.
+
+**Verify:** `npx vitest run
+src/components/__tests__/ServerTopologyPage.playbacks.test.jsx` (10 passed),
+`npm run build`, `npm run topology:verify`, and `npm run
+demo:readiness:contract` (46 Demo Steps / 800 matrix rows).
+
 ### 2026-09-28 — DaVinci widget runtime followed PF instead of the PingOne region
 
 **Files:** `demo_api_server/routes/davinciLogin.js`,

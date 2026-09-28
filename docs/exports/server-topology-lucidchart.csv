@@ -151,12 +151,12 @@ HTTPS · PingOne Authorize API",10,6,None,Arrow
 OAuth 2.0 · Token Exchange",10,6,None,Arrow
 59,Line,,1,,"API-key backend call
 HTTP · REST/JSON · X-API-Key",10,13,None,Arrow
-60,Line,,1,,"Direct MCP (local; hosted via gateway)
+60,Line,,1,,"Local direct MCP request
 MCP · JSON-RPC · HTTP/WebSocket",2,11,None,Arrow
 61,Line,,1,,"tool / data API
 HTTP · protected service call",11,12,None,Arrow
-62,Line,,1,,"REST / JSON · X-API-Key
-HTTP · REST/JSON",11,13,None,Arrow
+62,Line,,1,,"BFF protected API · delegated bearer
+HTTP · REST/JSON · OAuth bearer",11,5,None,Arrow
 63,Line,,1,,"agent request
 HTTP · AG-UI/SSE",5,14,None,Arrow
 64,Line,,1,,"service discovery

@@ -40,7 +40,7 @@ describe("Server topology use-case playback", () => {
 
     const selector = screen.getByRole("combobox", { name: /choose a request flow/i });
     expect(within(selector).getByRole("option", {
-      name: /Agent → Demo Agent Gateway → protected API.*Authorized API data returned/i,
+      name: /Agent → Demo Agent Gateway → protected BFF API.*Authorized API data returned/i,
     })).toBeInTheDocument();
     expect(screen.getByText(/Gateway → PingOne Authorize · policy decision/i)).toBeInTheDocument();
 
@@ -49,12 +49,51 @@ describe("Server topology use-case playback", () => {
     expect(screen.getByText(/returns the mortgage record through the agent.*API key stays server-side/i)).toBeInTheDocument();
     expect(screen.getByText("01").parentElement).toHaveTextContent("User / agent client → ingress");
     expect(screen.getByText("02").parentElement).toHaveTextContent("Ingress → frontend");
-    expect(within(screen.getByLabelText("Numbered flow steps")).getAllByRole("listitem")[7]).toHaveTextContent(
+    expect(within(screen.getByLabelText("Numbered flow steps")).getAllByRole("listitem")[6]).toHaveTextContent(
       "Gateway → API resource server · X-API-Key",
     );
     expect(within(selector).getByRole("option", {
       name: /Agent → Demo Agent Gateway → API-key backend.*Mortgage data returned.*key stays server-side/i,
     })).toBeInTheDocument();
+  });
+
+  it("ends the API-key route after Authorize and the X-API-Key backend call", () => {
+    render(<ServerTopologyPage />);
+
+    const selector = screen.getByRole("combobox", { name: /choose a request flow/i });
+    fireEvent.change(selector, { target: { value: "apiKeyBackend" } });
+
+    const steps = within(screen.getByLabelText("Numbered flow steps")).getAllByRole("listitem");
+    expect(steps).toHaveLength(7);
+    expect(steps[5]).toHaveTextContent("PingOne Authorize · policy decision");
+    expect(steps[6]).toHaveTextContent("API resource server · X-API-Key");
+    expect(steps.some((step) => /RFC 8693 exchange/i.test(step.textContent))).toBe(false);
+  });
+
+  it("shows the MCP server's bearer call to the BFF in the protected API route", () => {
+    render(<ServerTopologyPage />);
+
+    const selector = screen.getByRole("combobox", { name: /choose a request flow/i });
+    fireEvent.change(selector, { target: { value: "protectedApi" } });
+
+    const steps = within(screen.getByLabelText("Numbered flow steps")).getAllByRole("listitem");
+    expect(steps).toHaveLength(9);
+    expect(steps[6]).toHaveTextContent("RFC 8693 exchange");
+    expect(steps[8]).toHaveTextContent("OAuth MCP server → BFF API · delegated user bearer");
+  });
+
+  it("marks the direct MCP playback as local and describes the hosted route", () => {
+    render(<ServerTopologyPage />);
+
+    const selector = screen.getByRole("combobox", { name: /choose a request flow/i });
+    expect(within(selector).getByRole("option", {
+      name: /Local Compose: direct MCP client → MCP server/i,
+    })).toBeInTheDocument();
+    fireEvent.change(selector, { target: { value: "directMcp" } });
+
+    expect(screen.getByText(/Hosted MCP requests route through PingGateway/i)).toBeInTheDocument();
+    expect(within(screen.getByLabelText("Numbered flow steps")).getByRole("listitem"))
+      .toHaveTextContent("Local Compose client → directly published MCP server");
   });
 
   it("keeps each advertised use case tied to real topology connections and an outcome", () => {
