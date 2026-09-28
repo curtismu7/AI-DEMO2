@@ -8,7 +8,7 @@ const test = require('node:test');
 
 // Small DOM adapter for the standalone script's public DOM operations. The
 // production renderer and event handlers run unchanged; only browser IO is fake.
-async function dashboard(runs) {
+async function dashboard(runs, nowMs = Date.now()) {
   const ids = new Map();
   const listeners = {};
   const requests = [];
@@ -42,8 +42,11 @@ async function dashboard(runs) {
     createElement: (tag) => new Element(tag),
     addEventListener: (name, handler) => { listeners[name] = handler; },
   };
+  class DashboardDate extends Date {
+    static now() { return nowMs; }
+  }
   const window = { CiQueueDashboardModel: require('./dashboard-model'), setInterval() {}, confirm() { assert.fail('Details must not ask for action confirmation'); } };
-  const context = vm.createContext({ document, window, URL, Intl, Date, fetch: async (url, options) => {
+  const context = vm.createContext({ document, window, URL, Intl, Date: DashboardDate, fetch: async (url, options) => {
     requests.push({ url, options });
     assert.ok(['/api/snapshot', '/api/control-state'].includes(url), `Unexpected request: ${url}`);
     return { ok: true, json: async () => url === '/api/snapshot' ? { runs, repository: 'owner/repo', summary: {}, updatedAt: '2026-09-28T10:06:00Z' } : { workflows: [], runners: [] } };
@@ -87,6 +90,30 @@ test('run details opens an accessible read-only panel with safe job/step progres
   ui.click(open);
   ui.key('Escape');
   assert.equal(panel.hidden, true);
+});
+
+test('active run cards keep the run timer and show the current step timer separately', async () => {
+  const nowMs = Date.parse('2026-09-28T10:10:05Z');
+  const ui = await dashboard([{
+    id: 7,
+    title: 'UI tests',
+    workflow: 'CI',
+    status: 'in_progress',
+    createdAt: '2026-09-28T10:00:00Z',
+    startedAt: '2026-09-28T10:02:00Z',
+    jobs: [{
+      name: 'UI tests (Vitest) + build',
+      status: 'in_progress',
+      startedAt: '2026-09-28T10:03:00Z',
+      steps: [{ name: 'Vitest unit suite', status: 'in_progress', startedAt: '2026-09-28T10:09:00Z' }],
+    }],
+  }], nowMs);
+  const card = ui.ids.get('active-runs').children[0];
+
+  assert.ok(card.textContent.includes('Running 8m 5s'), 'retains elapsed workflow runtime');
+  for (const label of ['Current step', 'UI tests (Vitest) + build', 'Vitest unit suite', 'Elapsed: 1m 5s']) {
+    assert.ok(card.textContent.includes(label), label);
+  }
 });
 
 test('details labels missing jobs, steps and timestamps unavailable without a guessed clock', async () => {

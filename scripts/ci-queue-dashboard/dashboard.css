@@ -246,6 +246,12 @@ h1 { margin-bottom: 5px; font-size: clamp(29px, 4vw, 40px); line-height: 1.08; l
 .run-metadata { display: flex; flex-wrap: wrap; gap: 5px 15px; padding: 0 15px 10px; color: var(--ink-quiet); font-size: 11px; }
 .run-branch { color: var(--ink-soft); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .run-timing { font-variant-numeric: tabular-nums; }
+.run-current-steps { display: grid; gap: 5px; padding: 0 15px 10px; }
+.run-current-step { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 9px; padding: 6px 9px; border-left: 3px solid var(--blue); background: var(--blue-wash); color: var(--ink-soft); font-size: 11px; }
+.run-current-step-label { color: var(--blue); font-weight: 750; }
+.run-current-step-job { color: var(--ink); }
+.run-current-step-name { overflow-wrap: anywhere; }
+.run-current-step-time { margin-left: auto; color: var(--blue); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .job-table-wrap { border-top: 1px solid var(--line); }
 .job-table { width: 100%; border-collapse: collapse; text-align: left; }
 .job-table th, .job-table td { padding: 8px 12px; border-bottom: 1px solid #e3e9ec; vertical-align: middle; font-size: 11px; }

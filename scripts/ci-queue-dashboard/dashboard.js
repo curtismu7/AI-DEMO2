@@ -131,6 +131,30 @@ function jobTiming(job, run) {
   return formatDuration(job.startedAt, job.completedAt);
 }
 
+function currentStepTimings(run) {
+  const rows = [];
+  const model = window.CiQueueDashboardModel;
+  const nowMs = Date.now();
+  for (const job of Array.isArray(run.jobs) ? run.jobs : []) {
+    if (normalized(job.status) !== 'in_progress') continue;
+    for (const step of Array.isArray(job.steps) ? job.steps : []) {
+      if (normalized(step.status) !== 'in_progress') continue;
+      const row = node('div', 'run-current-step');
+      row.setAttribute('role', 'group');
+      row.setAttribute('aria-label', `Current step for ${job.name || 'Job'}: ${step.name || 'Step'}`);
+      row.append(node('span', 'run-current-step-label', 'Current step'));
+      row.append(node('strong', 'run-current-step-job', job.name || 'Job'));
+      row.append(node('span', 'run-current-step-name', step.name || 'Step'));
+      row.append(node('span', 'run-current-step-time', `Elapsed: ${formatElapsed(model.executionDurationMs(step, nowMs))}`));
+      rows.push(row);
+    }
+  }
+  if (rows.length === 0) return null;
+  const summary = node('div', 'run-current-steps');
+  summary.append(...rows);
+  return summary;
+}
+
 function addJobTable(run, compact = false) {
   const wrapper = node('div', compact ? 'job-table-wrap job-table-wrap--compact' : 'job-table-wrap');
   const table = node('table', 'job-table');
@@ -213,7 +237,10 @@ function createRunArticle(run, compact = false, history = []) {
   metadata.append(node('span', 'run-timing', runTiming(run)));
   if (normalized(run.status) === 'in_progress') metadata.append(node('span', 'run-eta', estimatedRemaining(run, history)));
 
-  article.append(header, metadata, addJobTable(run, compact));
+  article.append(header, metadata);
+  const activeSteps = currentStepTimings(run);
+  if (activeSteps) article.append(activeSteps);
+  article.append(addJobTable(run, compact));
   return article;
 }
 
