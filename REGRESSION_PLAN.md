@@ -188,6 +188,34 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-28 — BFF routed banking balance aliases as unknown MCP tools
+
+**Files:** `demo_api_server/server.js`,
+`demo_api_server/services/bankingMcpToolAliases.js`,
+`demo_api_server/tests/bankingMcpToolAliases.test.js`,
+`demo_api_server/tests/mcpBalanceAliasRoute.test.js`.
+
+**What was broken:** `/api/mcp/tool` forwarded `get_balance` and
+`banking.get_balance` unchanged, but the banking MCP registers
+`get_my_accounts` and `get_account_balance`. PingGateway therefore returned
+`Unknown tool` and the BFF surfaced a 502.
+
+**What was fixed:** normalize the banking balance alias before token intent
+minting and pipeline dispatch. With no `account_id`, call `get_my_accounts`;
+with an `account_id`, call `get_account_balance`. Both retain the
+`view_balance` intent and pass through the existing session, token exchange,
+and gateway authorization path.
+
+**Do not break:** `requireSession`, transaction-turn middleware, session token
+selection, and gateway authorization remain unchanged.
+
+**Verify:** `cd demo_api_server && CI=true npx jest
+tests/bankingMcpToolAliases.test.js tests/mcpBalanceAliasRoute.test.js
+--forceExit` (6 passed). The separate
+`src/__tests__/mcpToolPipeline.characterization.test.js` suite remains red
+14/54 when run alone; its gateway-audit/HITL cases do not import the changed
+alias resolver.
+
 ### 2026-09-28 — Shared-Mac CI contention from duplicate runner registrations and caches
 
 **Files:** `.github/workflows/ci.yml`.

@@ -2184,6 +2184,7 @@ function publishTokenEventsToSse(flowTraceId, tokenEvents) {
 const { publishMcpResultToSse } = require('./services/mcpSsePublisher');
 
 const { runMcpToolPipeline } = require('./services/mcpToolPipeline');
+const { resolveBankingMcpToolAlias } = require('./services/bankingMcpToolAliases');
 const { createPendingDecision: _createPendingDecision } = require('./routes/mcpDecisionPolling');
 const _hitlServiceClient = require('./services/hitlServiceClient');
 const { decodeJwtClaims: _decodeJwtClaims } = require('./services/agentMcpTokenService');
@@ -2332,10 +2333,12 @@ app.post('/api/mcp/tool', express.json(), requireSession, transactionTurnMiddlew
         console.warn('[/api/mcp/tool] Middleware did not parse body, but stream claims data. Using middleware result.');
     }
     const {
-        tool,
+        tool: requestedTool,
         params,
         flowTraceId: bodyFlowTrace
     } = parsedBody;
+    const toolAlias = resolveBankingMcpToolAlias(requestedTool, params, parsedBody.vertical);
+    const tool = toolAlias?.tool || requestedTool;
     const useCaseId = typeof parsedBody.useCaseId === 'string' ? parsedBody.useCaseId.trim() : '';
     const flowTraceId = typeof bodyFlowTrace === 'string' ? bodyFlowTrace.trim() : '';
 
@@ -2511,8 +2514,8 @@ app.post('/api/mcp/tool', express.json(), requireSession, transactionTurnMiddlew
           // Manufacturing
           show_work_order: 'view_work_orders',
         };
-        _itIntent = _TOOL_TO_INTENT[tool] || tool;
-        _itConf = _TOOL_TO_INTENT[tool] ? 0.97 : 0.50;
+        _itIntent = toolAlias?.intent || _TOOL_TO_INTENT[tool] || tool;
+        _itConf = (toolAlias?.intent || _TOOL_TO_INTENT[tool]) ? 0.97 : 0.50;
         const { token: _it } = mintIntentToken({
           userId: req.session.user.id,
           sessionId: req.session.id,
