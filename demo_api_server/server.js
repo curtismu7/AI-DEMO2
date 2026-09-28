@@ -236,6 +236,7 @@ const {
 const appConfigRoutes = require('./routes/appConfig');
 const configCredentialsRoutes = require('./routes/configCredentials');
 const thresholdsRoutes = require('./routes/thresholds');
+const { verticalManifest } = require('./services/verticalManifest');
 const verticalManifestRoutes = require('./routes/verticalManifest');
 const groupMembershipRoutes = require('./routes/groupMembership');
 const pingoneAuditRoutes = require('./routes/pingoneAudit');
@@ -2337,7 +2338,12 @@ app.post('/api/mcp/tool', express.json(), requireSession, transactionTurnMiddlew
         params,
         flowTraceId: bodyFlowTrace
     } = parsedBody;
-    const toolAlias = resolveBankingMcpToolAlias(requestedTool, params, parsedBody.vertical);
+    const isBalanceAlias = requestedTool === 'get_balance' || requestedTool === 'banking.get_balance';
+    const bodyVertical = typeof parsedBody.vertical === 'string' ? parsedBody.vertical.trim() : '';
+    const aliasVertical = bodyVertical
+      || (isBalanceAlias ? verticalManifest.resolver.activeIdFor(req) : null)
+      || (isBalanceAlias ? 'banking' : null);
+    const toolAlias = resolveBankingMcpToolAlias(requestedTool, params, aliasVertical);
     const tool = toolAlias?.tool || requestedTool;
     const useCaseId = typeof parsedBody.useCaseId === 'string' ? parsedBody.useCaseId.trim() : '';
     const flowTraceId = typeof bodyFlowTrace === 'string' ? bodyFlowTrace.trim() : '';

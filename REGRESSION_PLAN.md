@@ -200,18 +200,20 @@ read the configured host. A new browser origin must be added to ALL of:
 `get_my_accounts` and `get_account_balance`. PingGateway therefore returned
 `Unknown tool` and the BFF surfaced a 502.
 
-**What was fixed:** normalize the banking balance alias before token intent
-minting and pipeline dispatch. With no `account_id`, call `get_my_accounts`;
-with an `account_id`, call `get_account_balance`. Both retain the
-`view_balance` intent and pass through the existing session, token exchange,
-and gateway authorization path.
+**What was fixed:** resolve the explicit vertical first, then the session's
+active vertical (banking default), and normalize the banking balance alias
+before token intent minting and pipeline dispatch. With no `account_id`, call
+`get_my_accounts`; with an `account_id`, call `get_account_balance`. An
+explicit non-banking vertical takes precedence and is left unchanged. Both
+banking paths retain the `view_balance` intent and pass through the existing
+session, token exchange, and gateway authorization path.
 
 **Do not break:** `requireSession`, transaction-turn middleware, session token
 selection, and gateway authorization remain unchanged.
 
 **Verify:** `cd demo_api_server && CI=true npx jest
 tests/bankingMcpToolAliases.test.js tests/mcpBalanceAliasRoute.test.js
---forceExit` (6 passed). The separate
+--forceExit` (8 passed). The separate
 `src/__tests__/mcpToolPipeline.characterization.test.js` suite remains red
 14/54 when run alone; its gateway-audit/HITL cases do not import the changed
 alias resolver.

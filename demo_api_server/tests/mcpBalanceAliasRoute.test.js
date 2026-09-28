@@ -34,6 +34,16 @@ function makeResponse() {
   };
 }
 
+function makeRequest(body) {
+  return {
+    headers: { 'user-agent': 'jest', 'content-type': 'application/json', 'content-length': '65' },
+    body,
+    readableLength: 0,
+    sessionID: 'test-session',
+    session: { id: 'test-session', user: null, active_vertical: 'banking' },
+  };
+}
+
 describe('POST /api/mcp/tool banking balance alias', () => {
   const previousIntentSecret = process.env.INTENT_TOKEN_SECRET;
 
@@ -46,13 +56,8 @@ describe('POST /api/mcp/tool banking balance alias', () => {
   test('forwards banking.get_balance to the registered no-argument account tool', async () => {
     process.env.INTENT_TOKEN_SECRET = 'route-test-intent-secret';
     const handler = getMcpToolHandler();
-    const req = {
-      headers: { 'user-agent': 'jest', 'content-type': 'application/json', 'content-length': '65' },
-      body: { tool: 'banking.get_balance', params: {}, vertical: 'banking' },
-      readableLength: 0,
-      sessionID: 'test-session',
-      session: { id: 'test-session', user: { id: 'test-user' } },
-    };
+    const req = makeRequest({ tool: 'banking.get_balance', params: {}, vertical: 'banking' });
+    req.session.user = { id: 'test-user' };
     const res = makeResponse();
 
     await handler(req, res, jest.fn());
@@ -68,5 +73,32 @@ describe('POST /api/mcp/tool banking balance alias', () => {
     const intentClaims = JSON.parse(Buffer.from(pipelineReq.intentToken.split('.')[1], 'base64url').toString('utf8'));
     expect(intentClaims).toMatchObject({ intent: 'view_balance', confidence: 0.97 });
     expect(intentClaims.permitted_tools).toContain('get_my_accounts');
+  });
+
+  test('uses the session active vertical when a balance request omits vertical', async () => {
+    const handler = getMcpToolHandler();
+    const req = makeRequest({ tool: 'get_balance', params: {} });
+    const res = makeResponse();
+
+    await handler(req, res, jest.fn());
+
+    expect(runMcpToolPipeline).toHaveBeenCalledWith(expect.objectContaining({
+      tool: 'get_my_accounts',
+      params: {},
+      vertical: undefined,
+    }));
+  });
+
+  test('an explicit non-banking vertical overrides the session active vertical', async () => {
+    const handler = getMcpToolHandler();
+    const req = makeRequest({ tool: 'get_balance', params: {}, vertical: 'airlines' });
+    const res = makeResponse();
+
+    await handler(req, res, jest.fn());
+
+    expect(runMcpToolPipeline).toHaveBeenCalledWith(expect.objectContaining({
+      tool: 'get_balance',
+      vertical: 'airlines',
+    }));
   });
 });
