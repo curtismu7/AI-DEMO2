@@ -15,6 +15,16 @@ jest.mock('../../services/configStore', () => ({
 
 const axios = require('axios');
 const { callToolViaGateway } = require('../../services/mcpGatewayClient');
+const previousPingGatewayUrl = process.env.MCP_PINGGATEWAY_URL;
+
+beforeAll(() => {
+  process.env.MCP_PINGGATEWAY_URL = 'https://api.ping.demo:3005';
+});
+
+afterAll(() => {
+  if (previousPingGatewayUrl === undefined) delete process.env.MCP_PINGGATEWAY_URL;
+  else process.env.MCP_PINGGATEWAY_URL = previousPingGatewayUrl;
+});
 
 test('a 428 elicitation_required response is tagged .elicitation with the prompt/id in .rpcData', async () => {
   axios.post = jest.fn().mockResolvedValue({
