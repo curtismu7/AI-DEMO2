@@ -78,6 +78,10 @@ panel does not perform a GitHub mutation. Step data comes from the existing
 workflow-jobs response; it does not introduce another credential or service
 boundary.
 
+Active run cards also show the name of each currently running step and that
+step's elapsed time, alongside the workflow timer. This keeps the current
+checkpoint visible in the queue without opening the detail panel.
+
 ### Errors and recovery
 
 - If the dashboard is stopped, opening the link reaches the browser's normal
@@ -107,6 +111,8 @@ boundary.
   GitHub job-step status and timing fields.
 - `scripts/ci-queue-dashboard/dashboard.js`, `index.html`, and `dashboard.css` —
   render and style the selected run detail panel.
+- `scripts/ci-queue-dashboard/README.md`, `dashboard.js`, and `dashboard.css` —
+  document and show the current step timer on active run cards.
 - `scripts/ci-queue-dashboard/dashboard-model.js` and its tests — derive queue
   and execution durations with missing timestamp handling.
 

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a demo navigation entry that opens the existing local CI queue dashboard in a separate browser tab at a stable localhost URL, and add an in-dashboard run detail panel that explains job and step timing.
+**Goal:** Add a demo navigation entry that opens the existing local CI queue dashboard in a separate browser tab at a stable localhost URL, add an in-dashboard run detail panel that explains job and step timing, and show active step timing on running cards.
 
 **Architecture:** The dashboard server defaults to port `57500` and remains bound to `127.0.0.1`. The demo's visible Observability group gains a child action that opens that URL in a new tab; GitHub requests and the machine's `gh` login remain inside the standalone dashboard process. The run detail panel uses the existing run snapshot and job response, including steps, without changing the authentication or mutation boundaries.
 
@@ -17,6 +17,7 @@
 - GitHub credentials, dashboard API data, and action requests do not pass through the demo UI or BFF.
 - Existing run confirmation, stale-state checks, rerun behavior, workflow controls, and idle runner controls remain unchanged.
 - Run details are read-only and show queue wait separately from workflow execution, with job/step statuses and elapsed times.
+- Active cards show the current step name and elapsed time next to the overall run timer.
 - Preserve demo sign-in, role resolution, routes, use-case authorization declarations, and existing sidebar behavior.
 - Project UI emoji, theme, and contrast rules remain in force; do not add CSS for this action.
 - After any `demo_api_ui/` edit, run its focused Vitest tests and `npm run build`.
@@ -36,6 +37,7 @@
 - `scripts/ci-queue-dashboard/github.js` and `github.test.js` — normalize job-step fields from GitHub's existing jobs response.
 - `scripts/ci-queue-dashboard/dashboard-model.js` and `.test.js` — derive queue and execution durations, handling missing timestamps.
 - `scripts/ci-queue-dashboard/index.html`, `dashboard.js`, and `dashboard.css` — add the accessible run detail panel and run-card action.
+- `scripts/ci-queue-dashboard/README.md`, `dashboard.js`, `dashboard.css`, and `dashboard.test.js` — document and show current step timing on active cards.
 
 ## Task 1: Set and document the dashboard's stable default port
 
@@ -152,7 +154,23 @@ git commit -m "feat: add CI dashboard to demo navigation"
 - [ ] **Step 4: Run focused standalone dashboard tests.** Run `npm run test:ci-dashboard`; expected all dashboard tests pass.
 - [ ] **Step 5: Commit only the task paths.** Use `feat: add CI dashboard run details`.
 
-## Task 4: Verify the integrated local flow and update PR #383
+## Task 4: Show the active step timer on running cards
+
+**Files:**
+- Modify: `scripts/ci-queue-dashboard/dashboard.js`
+- Test: `scripts/ci-queue-dashboard/dashboard.test.js`
+- Modify: `scripts/ci-queue-dashboard/dashboard.css`
+- Modify: `scripts/ci-queue-dashboard/README.md`
+
+**Interface:** An active run card retains its workflow elapsed time and also shows each in-progress job's current step name and elapsed time. If no job step is running or its timing cannot be computed, the card does not invent a step or duration. This is read-only.
+
+- [ ] **Step 1: Add a focused test** proving the active card preserves the workflow timer and separately displays job, current step, and step elapsed time.
+- [ ] **Step 2: Render running steps on active cards** using the existing normalized jobs/steps and elapsed-time formatter; add concise styling consistent with dashboard tokens.
+- [ ] **Step 3: Update the README** to describe current step timing alongside active run runtime.
+- [ ] **Step 4: Run `npm run test:ci-dashboard` and `git diff --check`;** expected all dashboard tests pass.
+- [ ] **Step 5: Commit only the four named files** with `feat: show current step time on active runs`.
+
+## Task 5: Verify the integrated local flow and update PR #383
 
 **Files:** No additional files unless verification finds a defect.
 
@@ -198,3 +216,4 @@ Expected: PR #383 includes the stable-port and navigation commits; no deployment
 - Rerun failed jobs remains available from failed completed runs on the standalone dashboard.
 - Dashboard tests, selected navigation tests, the UI build, contrast check, root allowlist, and diff check have fresh passing evidence.
 - Run details show the queue/execution split and job-step progress without adding a mutation path.
+- Active run cards show current step time alongside workflow elapsed time.
