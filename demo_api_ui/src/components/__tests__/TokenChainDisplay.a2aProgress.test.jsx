@@ -125,6 +125,17 @@ describe('A2A mismatch-probe event', () => {
     expect(screen.getByText(PROBE_LABEL)).toBeInTheDocument();
   });
 
+  it('refreshes when the live event array changes', () => {
+    CURRENT_EVENTS = EVENTS;
+    global.fetch = vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) });
+    const { rerender } = render(<TokenChainDisplay />);
+
+    withProbe();
+    act(() => rerender(<TokenChainDisplay />));
+
+    expect(screen.getByText(PROBE_LABEL)).toBeInTheDocument();
+  });
+
   it('keeps the probe in chain order, after Exchange #2', () => {
     withProbe();
     const { container } = render(<TokenChainDisplay />);

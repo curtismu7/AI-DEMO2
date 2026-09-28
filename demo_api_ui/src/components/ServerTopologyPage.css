@@ -83,7 +83,7 @@
 .stm-fit-button:hover { border-color: #68798d; }
 
 .stm-node { width: 218px; min-height: 104px; padding: 10px 11px; border: 1px solid var(--stm-canvas-border); border-radius: var(--radius-lg); background: var(--stm-canvas-raised); box-shadow: var(--shadow-md); color: var(--stm-canvas-text); }
-.stm-node.is-selected { border-color: #388bfd; box-shadow: var(--shadow-lg); }
+.stm-node.is-selected { border-color: #388bfd; outline: 2px solid #388bfd55; outline-offset: 1px; box-shadow: var(--shadow-lg); }
 .stm-node__head { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .stm-node__head strong { overflow: hidden; color: #f0f4f8; font-size: var(--font-size-xs); font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .stm-node__dot { width: 8px; height: 8px; flex: 0 0 8px; border: 0; border-radius: var(--radius-pill); outline: 3px solid color-mix(in srgb, var(--stm-accent) 15%, transparent); background: var(--stm-accent); }
