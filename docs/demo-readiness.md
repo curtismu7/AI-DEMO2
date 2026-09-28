@@ -258,6 +258,70 @@ and hosted SE Gateway configuration. Readiness does not create a local Gateway
 adapter until an in-process regenerate, safe restart, and loaded-config readback
 implementation exists. Hosted SE is read-only in every repair path.
 
+## Disposable configuration proof and source candidates
+
+Task 9 adds `demoReadinessBuildRepairService` as a separate build-time helper.
+`validateConfigOnlyRecovery` accepts deterministic fixture adapters, creates a
+temporary fixture directory, reproduces a supported scope/grant or isolated-worker
+flag mismatch, and uses the existing exact-preview, apply, and readback repair
+service. It requires the scenario to fail before repair and pass on retry. A flag
+scenario retries while its isolated worker is armed; restoration and readback
+finish before success is returned. Fixture disposal and directory removal run
+after success and failure. Hashes of tracked and nonignored untracked application
+source, including configuration code, must match before and after. Caller checkout
+file, HEAD, and index preservation is also required. This proof supplies no live
+PingOne/PingFederate adapters or presenter-state reset.
+
+`prepareSourceFix` accepts an unresolved `source-defect`, a committed base
+revision, an injected unified-diff provider, and a separately trusted test plan.
+A recorded passing configuration recovery prevents a provider call. Case IDs and
+`codeRefs` must match `config/useCases.js`; only existing declared application
+source paths are eligible. Configuration, secrets, generated/build output,
+traversal, symlinks, paths outside that allowlist, command payloads, binary diffs,
+renames, and mode changes are rejected. Failure text cannot supply references or
+test commands.
+
+The candidate lives in a detached temporary git worktree. Trusted checks use
+`{ command, args, cwd? }` argv entries with `shell: false`; `cwd` stays inside
+that worktree. Choose meaningful focused tests for every affected service, UI
+tests when applicable, and its build. The helper verifies the supplied plan; the
+reviewer must assess whether that plan proves the case. Child processes receive
+basic tool environment variables and `CI=true`, without inherited demo credentials.
+The worktree is a source-isolation boundary, not an operating-system sandbox for
+arbitrary code: use trusted local disposable checks.
+
+Any failed test/build, changed candidate revision/index, unexpected source
+mutation, or cleanup/preservation failure blocks the candidate. Success returns
+only an uncommitted sanitized patch/diff, changed paths, check evidence, and a
+suggested review action. Both passing and failed worktrees are removed. The
+caller's source hash, HEAD, and index hash must remain unchanged. Redaction can
+alter a hunk containing sensitive data; inspect the review output before applying
+it through the normal reviewed change workflow.
+
+Both interfaces verify the caller's tracked and nonignored untracked file contents,
+paths, modes, HEAD, and index, and return that explicit preservation scope. The
+Git enumeration receives an explicit literal exclusion for the protected Admin
+fixture, and returned paths are filtered again before service filesystem stats
+or reads. Git-ignored dependency/build/cache artifacts are excluded. Symlinks,
+unsupported file types, unreadable files, or failed snapshots block rather than
+claim preservation.
+
+The offline CLI accepts explicit patch data and a separate trusted JSON plan:
+
+```sh
+npm run demo:build-fix -- --help
+npm run demo:build-fix -- --case UC2.5 --base HEAD \
+  --patch-file /path/to/candidate.diff --test-plan /path/to/trusted-checks.json
+```
+
+The JSON plan is an array of argv entries, for example
+`[{"command":"npm","args":["run","build"],"cwd":"demo_api_ui"}]`; add the
+focused service/UI test entries before the build. Exit 0 means the supplied
+candidate checks passed and review evidence was captured; exit 1 is blocked and
+exit 2 is invalid input. There is no model SDK or network patch provider. This
+helper is never imported by `demo:ready`, the readiness runner, or Admin Reset
+Demo, and never commits, stages, deploys, or repairs live configuration.
+
 ## Report, deadline, and operator flow
 
 The report has stable check statuses (`pass`, `fail`, `blocked`, `not-run`), required/optional aggregation, counts, repairs, unfinished work, timing, and sanitized evidence. Each check records `userSessionProvider`, `agentIdentityProvider`, `tokenIssuer`, `exchangeService`, and `resourceServer` independently, with `providerApplicability` mapping `userLogin`, `agentIdentity`, `tokenIssuer`, `exchangeService`, and `resourceServer` roles to `required` or `not-applicable` and a source-contract reason for every exclusion. These fields contain stable nonsecret provider/service/resource identifiers; a generic provider label cannot represent cross-domain token flows. Deadline expiry is terminal: ready stays false, queued work becomes not-run, active work becomes blocked, and the report lists remaining rows. Redaction covers bearers/JWTs, credentials, cookies, authorization data, and session identifiers before persistence or display, including direct report reads and serialized output.
