@@ -136,6 +136,7 @@ describe('startReadinessRun', () => {
     });
     expect(result.status).toBe('deadline-exceeded');
     expect(result.repairEvidence).toEqual({ digest: 'abc123', evidence: [{ after: 'verified-after-deadline' }] });
+    expect(result.report.repairEvidence).toEqual({ digest: 'abc123', evidence: [{ after: 'verified-after-deadline' }] });
     expect(calls).not.toContain('execute');
   });
 
