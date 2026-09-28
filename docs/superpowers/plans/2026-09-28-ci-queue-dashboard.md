@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build a local read-only dashboard that shows this repository's GitHub Actions runs and job queue using the machine's existing `gh` login.
+**Goal:** Build a local dashboard that shows this repository's GitHub Actions queue and offers explicit run/workflow controls plus pause/resume for this machine's idle runner service.
 
-**Architecture:** A standalone Node HTTP server binds to loopback, calls the GitHub CLI with fixed `gh api` GET arguments, normalizes bounded run/job data, and serves static HTML/CSS/JavaScript. The browser polls one local read-only endpoint every 15 seconds; GitHub credentials remain inside the CLI and never reach the server response or page.
+**Architecture:** A standalone Node HTTP server binds to loopback, calls the GitHub CLI with fixed `gh api` requests, normalizes bounded run/job/control data, and serves static HTML/CSS/JavaScript. The browser polls local snapshot/control endpoints every 15 seconds. Explicit mutations use a single validated local action endpoint. Runner pause/resume uses fixed `launchctl` operations for this checkout's exact repository runner service; GitHub credentials remain inside the CLI and never reach the page.
 
 **Tech Stack:** Node.js >= 22, built-in `http`, `child_process.spawn`, browser HTML/CSS/JavaScript, and Node's built-in `node:test`; no added dependencies.
 
@@ -12,11 +12,12 @@
 
 ## Global Constraints
 
-- The tool is local and read-only; do not add run cancel/retry/dispatch controls.
+- The tool is local. Run cancellation/retry and workflow disable/enable use fixed GitHub actions; local runner pause/resume is allowed only for a matching launchd service when GitHub reports it idle.
 - The server binds only to `127.0.0.1`, does not enable CORS, and accepts only its local host/origin.
 - Reuse authentication through `gh`; never call `gh auth token`, read CLI credential files, or send credentials/raw CLI output to the page.
 - Spawn `gh` with fixed argument arrays and `shell: false`; validate repo slugs and run IDs before constructing API paths.
 - Poll every 15 seconds and bound history/request concurrency; include active runs before completed history.
+- Recheck fresh run/workflow/runner state at the server boundary before mutation; never cancel/rerun an item absent from the current snapshot.
 - Preserve the project emoji allowlist; use plain text and CSS status markers.
 - Keep changes to `scripts/ci-queue-dashboard/`, root `package.json`, and a concise usage document within the new tool.
 
@@ -24,8 +25,9 @@
 
 ## File Structure
 
-- `scripts/ci-queue-dashboard/github.js` — repo identity validation, fixed GitHub CLI GET calls, bounded run selection, response normalization, and queue/history ordering.
-- `scripts/ci-queue-dashboard/server.js` — loopback HTTP server, static asset serving, JSON endpoint, safe errors, and startup/shutdown behavior.
+- `scripts/ci-queue-dashboard/github.js` — repo identity validation, fixed GitHub CLI calls, bounded run selection, response normalization, queue/history ordering, and controlled mutations.
+- `scripts/ci-queue-dashboard/runner-control.js` — exact repo-scoped launchd service matching and idle-only pause/resume controls.
+- `scripts/ci-queue-dashboard/server.js` — loopback HTTP server, static assets, read/action JSON endpoints, safe errors, and startup/shutdown behavior.
 - `scripts/ci-queue-dashboard/index.html` — accessible page structure and summary/run/job containers.
 - `scripts/ci-queue-dashboard/dashboard.css` — responsive, high-contrast status and queue layout.
 - `scripts/ci-queue-dashboard/dashboard-model.js` — pure run-state grouping shared by the browser and Node tests.
@@ -33,6 +35,7 @@
 - `scripts/ci-queue-dashboard/github.test.js` — normalization, bounded selection, queue ordering, and CLI error tests using injected command results.
 - `scripts/ci-queue-dashboard/dashboard-model.test.js` — asserts running and queued runs stay in separate visual groups.
 - `scripts/ci-queue-dashboard/server.test.js` — endpoint, loopback/origin, static route, and sanitized failure tests using injected snapshot data.
+- `scripts/ci-queue-dashboard/runner-control.test.js` — exact local service matching, idle gating, pause/resume, and platform-unavailable behavior.
 - `scripts/ci-queue-dashboard/README.md` — prerequisites, startup, `gh` login, local-only behavior, and troubleshooting.
 - `package.json` — add `ci:dashboard` and focused `test:ci-dashboard` scripts.
 
@@ -88,7 +91,7 @@ git add scripts/ci-queue-dashboard/github.js scripts/ci-queue-dashboard/github.t
 git commit -m "feat: add GitHub Actions queue data reader"
 ```
 
-## Task 2: Serve the local read-only dashboard endpoint
+## Task 2: Serve the local dashboard endpoints
 
 **Files:**
 - Create: `scripts/ci-queue-dashboard/server.js`
@@ -96,8 +99,9 @@ git commit -m "feat: add GitHub Actions queue data reader"
 
 **Interfaces:**
 - `createDashboardServer({ getSnapshot, host = '127.0.0.1', port = 0 })` returns the Node HTTP server; tests inject `getSnapshot` and use an ephemeral loopback port.
-- `GET /api/snapshot` returns the normalized snapshot as JSON or a fixed safe error object `{ error: { code, message } }`.
-- `GET /`, `/dashboard.js`, and `/dashboard.css` serve only the three local static assets; all other paths/methods receive `404`/`405` without proxying.
+- `GET /api/snapshot` and `GET /api/control-state` return bounded local metadata or a fixed safe error object `{ error: { code, message } }`.
+- `POST /api/actions` accepts only named actions and validated numeric identifiers; it never accepts arbitrary commands, methods, repository slugs, or paths.
+- `GET /`, `/dashboard-model.js`, `/dashboard.js`, and `/dashboard.css` serve only fixed local assets; unknown paths/methods receive `404`/`405` without proxying.
 
 - [x] **Step 1: Write failing server tests.** Cover JSON success, static assets, unknown path, unsupported method, foreign Host/Origin, sanitized snapshot failures, and that the listener is loopback-only.
 
@@ -107,7 +111,7 @@ Run: `node --test scripts/ci-queue-dashboard/server.test.js`
 
 Expected: module-load failure for the not-yet-created server module.
 
-- [x] **Step 3: Implement `createDashboardServer`.** Serve files from the fixed dashboard directory only; do not derive paths from request input. Bind explicitly to `127.0.0.1`, set JSON/HTML content types and `Cache-Control: no-store` on the snapshot, allow same-origin GETs, reject foreign origins/hosts, and do not set CORS headers. Return a generic status code and remediation message for `gh` errors without echoing child-process output.
+- [x] **Step 3: Implement `createDashboardServer`.** Serve files from the fixed dashboard directory only; do not derive paths from request input. Bind explicitly to `127.0.0.1`, set JSON/HTML content types and `Cache-Control: no-store`, accept only same-origin actions, reject foreign origins/hosts, and do not set CORS headers. Return fixed safe errors without echoing child-process output.
 
 - [x] **Step 4: Pass the server tests.**
 
@@ -163,7 +167,7 @@ git commit -m "feat: add live CI queue dashboard page"
 
 - [x] **Step 2: Add the executable startup path.** When run directly, verify Node >=22, start the reader/server, and print only the local URL. Let the dashboard endpoint show a fixed, safe `gh auth login` remediation when the CLI is missing or unauthenticated; never echo `gh auth status` output. Open no browser automatically and close the listener on SIGINT/SIGTERM.
 
-- [x] **Step 3: Document first-run and troubleshooting.** Explain `gh auth login`, `npm run ci:dashboard`, opening the printed `http://127.0.0.1:<port>` address, `npm run test:ci-dashboard`, required read access to Actions runs/jobs, the 15-second refresh, and that the page is local/read-only.
+- [x] **Step 3: Document first-run and troubleshooting.** Explain `gh auth login`, `npm run ci:dashboard`, opening the printed `http://127.0.0.1:<port>` address, `npm run test:ci-dashboard`, required GitHub permissions, the 15-second refresh, and local-only behavior.
 
 - [x] **Step 4: Run focused tests and a live authenticated smoke check.**
 
@@ -192,11 +196,24 @@ git add package.json scripts/ci-queue-dashboard/server.js scripts/ci-queue-dashb
 git commit -m "docs: add local CI queue dashboard command"
 ```
 
+## Task 5: Add approved workflow, run, and local runner controls
+
+**Files:**
+- Modify: `scripts/ci-queue-dashboard/github.js`, `server.js`, `index.html`, `dashboard.css`, `dashboard-model.js`, `dashboard.js`, and `README.md`
+- Create: `scripts/ci-queue-dashboard/runner-control.js`
+- Test: dashboard GitHub, server, model, and runner-control test files
+
+- [x] **Step 1: Write tests for fixed workflow/run operations, stale item rejection, and idle-only local runner controls.** Use injected process launchers for GitHub CLI and launchd; assert fixed argument arrays, shell disabled, exact repo runner service, and that a busy runner is never stopped.
+- [x] **Step 2: Add state reads and fixed GitHub mutations.** Load workflows and repository runners. Support run cancellation, rerunning failed jobs, and workflow disable/enable. Re-read current state before accepting the selected operation.
+- [x] **Step 3: Add exact launchd pause/resume operations.** Derive the repo-scoped service label from the verified repo and runner, check the loaded service list, pause only when GitHub reports idle, and show controls unavailable when not on the matching Mac service.
+- [x] **Step 4: Add counts, runtime estimates, and confirmation-based controls.** Show queued workflow/job counts, active runtime, a same-workflow median runtime estimate from recent history, run actions, workflow state, runner state, and actionable permission errors.
+- [x] **Step 5: Verify focused tests and inspect the local page.** Run `npm run test:ci-dashboard`, serve the current worktree with the local command, inspect controls and mobile layout, and do not click a mutation during the visual smoke check.
+
 ## Final Review Checklist
 
 - The normalized response includes all queued and in-progress runs within API pagination bounds and five most recent completed runs.
 - Queued runs/jobs, running jobs, completed outcomes, wait/run durations, runner details, freshness, stale data, empty state, and authentication errors are visible.
 - The dashboard uses the machine's `gh` authentication only; neither server response nor page includes a GitHub credential or raw CLI error output.
-- The listener is bound to `127.0.0.1`; methods/routes are read-only, foreign hosts/origins are rejected, and CORS is absent.
+- The listener is bound to `127.0.0.1`; foreign hosts/origins are rejected, CORS is absent, and only fixed validated action routes can mutate GitHub or the exact local runner service.
 - Polling occurs every 15 seconds without overlapping requests; active runs are prioritized and API calls are bounded/concurrent-limited.
 - `npm run test:ci-dashboard`, the live smoke check, `npm run root:allowlist:check`, and `git diff --check` have fresh passing evidence before the implementation is reported complete.

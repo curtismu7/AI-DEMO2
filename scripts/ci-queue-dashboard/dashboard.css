@@ -122,6 +122,16 @@ h1 { margin-bottom: 5px; font-size: clamp(29px, 4vw, 40px); line-height: 1.08; l
   font-size: 13px;
 }
 .error-banner[hidden] { display: none; }
+.action-feedback {
+  margin: 0 0 18px;
+  padding: 10px 14px;
+  border-left: 4px solid var(--blue);
+  background: var(--blue-wash);
+  color: var(--ink);
+  font-size: 12px;
+}
+.action-feedback[data-kind="error"] { border-left-color: var(--red); background: var(--red-wash); color: #722c26; }
+.action-feedback[hidden] { display: none; }
 
 .summary-strip {
   display: grid;
@@ -138,6 +148,26 @@ h1 { margin-bottom: 5px; font-size: clamp(29px, 4vw, 40px); line-height: 1.08; l
 .summary-running .summary-value { color: var(--blue); }
 .summary-passed .summary-value { color: var(--green); }
 .summary-failed .summary-value { color: var(--red); }
+
+.control-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 22px; }
+.control-panel { min-width: 0; padding: 15px 16px; border: 1px solid var(--line); border-top: 3px solid var(--line-strong); background: var(--surface); }
+.control-panel:first-child { border-top-color: var(--blue); }
+.control-panel:last-child { border-top-color: var(--green); }
+.control-list { display: grid; gap: 7px; margin-top: 13px; }
+.control-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; padding: 8px 9px; border-top: 1px solid var(--line); }
+.control-identity { display: grid; min-width: 0; gap: 2px; }
+.control-name { overflow-wrap: anywhere; font-size: 12px; font-weight: 700; }
+.control-state { color: var(--ink-quiet); font-size: 10px; }
+.control-state--active { color: var(--green); }
+.control-state--disabled { color: var(--amber); }
+.control-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; }
+.control-button { min-height: 30px; padding: 5px 9px; border: 1px solid var(--line-strong); border-radius: 3px; background: var(--surface); color: var(--ink); cursor: pointer; font-size: 11px; font-weight: 650; white-space: nowrap; }
+.control-button:hover:not(:disabled) { border-color: var(--blue); background: var(--blue-wash); }
+.control-button--danger { border-color: #c98983; color: #852f29; }
+.control-button--danger:hover:not(:disabled) { border-color: var(--red); background: var(--red-wash); }
+.control-button:disabled { color: var(--ink-quiet); cursor: not-allowed; opacity: .7; }
+.control-note { margin: 9px 0 0; color: var(--ink-quiet); font-size: 10px; }
+.control-note:empty { display: none; }
 
 .runner-lane {
   margin-top: 24px;
@@ -190,6 +220,7 @@ h1 { margin-bottom: 5px; font-size: clamp(29px, 4vw, 40px); line-height: 1.08; l
 .run-entry--completed[data-status="failed"],
 .run-entry--completed[data-status="cancelled"] { border-left-color: var(--red); }
 .run-entry-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 15px; padding: 14px 15px 8px; }
+.run-actions { display: flex; align-items: center; flex: 0 0 auto; gap: 7px; }
 .run-title-group { display: flex; align-items: baseline; flex-wrap: wrap; gap: 5px 10px; min-width: 0; }
 .run-title { margin: 0; overflow-wrap: anywhere; font-size: 14px; font-weight: 700; }
 .run-workflow { margin: 0; color: var(--ink-quiet); font-size: 11px; }
@@ -246,6 +277,10 @@ h1 { margin-bottom: 5px; font-size: clamp(29px, 4vw, 40px); line-height: 1.08; l
   .summary-item { min-height: 66px; padding: 11px 13px; }
   .summary-item:nth-child(3) { border-left: 0; border-top: 1px solid var(--line); }
   .summary-item:nth-child(4) { border-top: 1px solid var(--line); }
+  .control-grid { grid-template-columns: 1fr; gap: 10px; margin-top: 16px; }
+  .control-panel { padding: 13px 12px; }
+  .control-row { align-items: flex-start; flex-direction: column; }
+  .control-actions { justify-content: flex-start; }
   .runner-assignment { grid-template-columns: 1fr auto; gap: 10px; }
   .runner-work { grid-column: 1 / -1; grid-row: 2; padding-left: 21px; }
   .runner-duration { grid-column: 2; grid-row: 1; }
@@ -267,6 +302,8 @@ h1 { margin-bottom: 5px; font-size: clamp(29px, 4vw, 40px); line-height: 1.08; l
   .job-table th, .job-table td { font-size: 10px; }
   .job-table .job-name { width: 31%; }
   .run-title-group { gap: 3px 7px; }
+  .run-entry-header { flex-wrap: wrap; }
+  .run-actions { width: 100%; justify-content: space-between; }
   .status-badge { padding-right: 6px; padding-left: 6px; }
 }
 

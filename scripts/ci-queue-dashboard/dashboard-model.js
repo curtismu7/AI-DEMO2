@@ -22,6 +22,23 @@
     };
   }
 
+  function estimateRemainingMs(run, history, nowMs = Date.now()) {
+    if (!run.startedAt || !Number.isFinite(Date.parse(run.startedAt))) return null;
+    const runtimes = (Array.isArray(history) ? history : [])
+      .filter((item) => item.status === 'completed'
+        && (run.workflowId ? item.workflowId === run.workflowId : item.workflow === run.workflow))
+      .map((item) => Date.parse(item.completedAt) - Date.parse(item.startedAt))
+      .filter((duration) => Number.isFinite(duration) && duration > 0)
+      .sort((a, b) => a - b);
+    if (!runtimes.length) return null;
+    const middle = Math.floor(runtimes.length / 2);
+    const median = runtimes.length % 2
+      ? runtimes[middle]
+      : (runtimes[middle - 1] + runtimes[middle]) / 2;
+    const elapsed = nowMs - Date.parse(run.startedAt);
+    return Math.round(median - elapsed);
+  }
+
   function classifyRuns(runs) {
     const groups = { inProgress: [], queued: [], completed: [] };
     for (const run of Array.isArray(runs) ? runs : []) {
@@ -33,7 +50,7 @@
     return groups;
   }
 
-  const model = { classifyRuns, runTimingKind, runnerDetails };
+  const model = { classifyRuns, runTimingKind, runnerDetails, estimateRemainingMs };
   if (typeof module === 'object' && module.exports) module.exports = model;
   else root.CiQueueDashboardModel = model;
 })(typeof window === 'undefined' ? globalThis : window);

@@ -20,6 +20,7 @@ function normalizeRun(run) {
   const status = run.status || 'unknown';
   return {
     id: Number(run.id),
+    workflowId: Number.isSafeInteger(Number(run.workflow_id)) ? Number(run.workflow_id) : null,
     workflow: run.name || run.path || 'Workflow',
     title: run.display_title || run.name || 'Workflow run',
     branch: run.head_branch || '',
@@ -45,6 +46,26 @@ function normalizeJob(job) {
     runnerName: job.runner_name || null,
     runnerGroup: job.runner_group_name || null,
     labels: Array.isArray(job.labels) ? job.labels.map(String) : [],
+  };
+}
+
+function normalizeWorkflow(workflow) {
+  return {
+    id: Number(workflow.id),
+    name: workflow.name || workflow.path || 'Workflow',
+    path: workflow.path || '',
+    state: workflow.state || 'unknown',
+    url: workflow.html_url || '',
+  };
+}
+
+function normalizeRunner(runner) {
+  return {
+    id: Number(runner.id),
+    name: runner.name || 'Runner',
+    status: runner.status || 'unknown',
+    busy: Boolean(runner.busy),
+    labels: Array.isArray(runner.labels) ? runner.labels.map((label) => String(label.name || '')).filter(Boolean) : [],
   };
 }
 
@@ -167,10 +188,11 @@ function runGh(spawn, args, { cwd, timeoutMs, maxOutputBytes }) {
       if (oversized) return finish(new DashboardDataError('GH_OUTPUT_LIMIT', 'GitHub returned more dashboard data than expected.'));
       if (timedOut) return finish(new DashboardDataError('GH_TIMEOUT', 'GitHub did not respond in time.'));
       if (code !== 0) {
-        const authError = /not logged in|authentication required|must authenticate|bad credentials|gh auth login|resource not accessible/i.test(stderr);
+        const authError = /not logged in|authentication required|must authenticate|bad credentials|gh auth login/i.test(stderr);
+        const permissionError = /resource not accessible|must have .* permission|requires .* permission|HTTP 403/i.test(stderr);
         return finish(new DashboardDataError(
-          authError ? 'GH_AUTH' : 'GH_API',
-          authError ? 'GitHub CLI authentication is unavailable. Run gh auth login.' : 'GitHub Actions data could not be loaded. Check GitHub access and try again.',
+          authError ? 'GH_AUTH' : permissionError ? 'GH_PERMISSION' : 'GH_API',
+          authError ? 'GitHub CLI authentication is unavailable. Run gh auth login.' : permissionError ? 'GitHub denied this Actions operation. Check repository Actions or Administration permissions.' : 'GitHub Actions data could not be loaded. Check GitHub access and try again.',
         ));
       }
       finish(null, stdout);
@@ -269,6 +291,47 @@ function createGitHubReader({
     throw new DashboardDataError('GH_JOB_LIMIT', 'A workflow has more jobs than the dashboard limit.');
   }
 
+  async function readControlList(repository, collection, endpointPath) {
+    const items = [];
+    for (let page = 1; page <= MAX_PAGES; page += 1) {
+      const response = parseJson(await callGh(['api', `repos/${repository}/actions/${endpointPath}?per_page=${PAGE_SIZE}&page=${page}`]));
+      if (!Array.isArray(response[collection])) {
+        throw new DashboardDataError('GH_RESPONSE', 'GitHub returned an unexpected Actions control response.');
+      }
+      items.push(...response[collection]);
+      if (response[collection].length < PAGE_SIZE) return items;
+    }
+    throw new DashboardDataError('GH_CONTROL_LIMIT', 'GitHub returned more Actions controls than the dashboard limit.');
+  }
+
+  async function getControlState() {
+    const repository = await getRepository();
+    const [workflows, runners] = await Promise.all([
+      readControlList(repository, 'workflows', 'workflows'),
+      readControlList(repository, 'runners', 'runners'),
+    ]);
+    return {
+      repository,
+      workflows: workflows.map(normalizeWorkflow).filter((workflow) => Number.isSafeInteger(workflow.id) && workflow.id > 0),
+      runners: runners.map(normalizeRunner).filter((runner) => Number.isSafeInteger(runner.id) && runner.id > 0),
+    };
+  }
+
+  async function performAction({ type, action, id }) {
+    const resourceId = validateRunId(id);
+    const operations = {
+      'run:cancel': ['POST', `actions/runs/${resourceId}/cancel`],
+      'run:rerun-failed': ['POST', `actions/runs/${resourceId}/rerun-failed-jobs`],
+      'workflow:pause': ['PUT', `actions/workflows/${resourceId}/disable`],
+      'workflow:resume': ['PUT', `actions/workflows/${resourceId}/enable`],
+    };
+    const operation = operations[`${type}:${action}`];
+    if (!operation) throw new DashboardDataError('GH_ACTION', 'This dashboard action is not supported.');
+    const repository = await getRepository();
+    await callGh(['api', '-X', operation[0], `repos/${repository}/${operation[1]}`]);
+    return { ok: true };
+  }
+
   async function getSnapshot() {
     const repository = await getRepository();
     const [queuedRuns, waitingRuns, pendingRuns, requestedRuns, runningRuns, completedRuns] = await Promise.all([
@@ -306,7 +369,7 @@ function createGitHubReader({
     });
   }
 
-  return { getSnapshot };
+  return { getSnapshot, getControlState, performAction };
 }
 
 module.exports = {
@@ -315,6 +378,8 @@ module.exports = {
   createGitHubReader,
   normalizeJob,
   normalizeRun,
+  normalizeRunner,
+  normalizeWorkflow,
   validateRepositorySlug,
   validateRunId,
 };

@@ -35,11 +35,12 @@
       </section>
 
       <div id="error-banner" class="error-banner" role="alert" hidden></div>
+      <div id="action-feedback" class="action-feedback" role="status" aria-live="polite" hidden></div>
 
       <section class="summary-strip" aria-label="Workflow run totals">
         <div class="summary-item summary-queued">
           <span id="summary-queued" class="summary-value">—</span>
-          <span class="summary-label">Queued</span>
+          <span class="summary-label">Queued workflows</span>
         </div>
         <div class="summary-item summary-running">
           <span id="summary-running" class="summary-value">—</span>
@@ -53,6 +54,33 @@
           <span id="summary-failed" class="summary-value">—</span>
           <span class="summary-label">Failed or cancelled</span>
         </div>
+      </section>
+
+      <section class="control-grid" aria-label="Workflow and runner controls">
+        <section class="control-panel" aria-labelledby="workflow-controls-heading">
+          <div class="section-heading">
+            <div>
+              <h2 id="workflow-controls-heading">Workflows</h2>
+              <p>Pause blocks new runs. Existing runs continue.</p>
+            </div>
+          </div>
+          <div id="workflow-controls" class="control-list">
+            <p class="placeholder">Loading workflows.</p>
+          </div>
+          <p id="workflow-control-note" class="control-note" role="status"></p>
+        </section>
+        <section class="control-panel" aria-labelledby="runner-controls-heading">
+          <div class="section-heading">
+            <div>
+              <h2 id="runner-controls-heading">Local runners</h2>
+              <p>Pausing takes an idle runner offline so it receives no new jobs.</p>
+            </div>
+          </div>
+          <div id="runner-controls" class="control-list">
+            <p class="placeholder">Checking local runner services.</p>
+          </div>
+          <p id="runner-control-note" class="control-note" role="status"></p>
+        </section>
       </section>
 
       <section class="runner-lane" aria-labelledby="runner-heading">
@@ -104,7 +132,7 @@
       </section>
 
       <footer class="page-footer">
-        <span>Read-only view</span>
+        <span>Actions use this machine’s GitHub CLI login</span>
         <span>Updates every 15 seconds</span>
         <span>GitHub CLI login stays on this machine</span>
       </footer>

@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const http = require('node:http');
 const path = require('node:path');
 const { createGitHubReader } = require('./github');
+const { createRunnerController } = require('./runner-control');
 
 const ASSETS = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
@@ -19,7 +20,18 @@ const SAFE_ERRORS = {
   GH_OUTPUT_LIMIT: { status: 502, message: 'GitHub returned more dashboard data than expected.' },
   GH_RESPONSE: { status: 502, message: 'GitHub returned an unreadable dashboard response.' },
   GH_REPOSITORY: { status: 503, message: 'The current checkout is not a GitHub repository.' },
+  GH_PERMISSION: { status: 403, message: 'GitHub denied this Actions operation. Check repository Actions or Administration permissions.' },
+  GH_CONTROL_LIMIT: { status: 502, message: 'GitHub returned more Actions controls than the dashboard limit.' },
+  GH_ACTION: { status: 400, message: 'This dashboard action is not supported.' },
+  RUNNER_BUSY: { status: 409, message: 'This runner is running a job. Wait until it is idle before pausing it.' },
+  RUNNER_STATE: { status: 409, message: 'The runner is not in a state that allows this action.' },
+  RUNNER_ACTION: { status: 400, message: 'This runner action is not supported.' },
+  RUNNER_CONTROL_UNAVAILABLE: { status: 409, message: 'No matching local runner service is available on this machine.' },
+  RUNNER_CONTROL_FAILED: { status: 502, message: 'The local runner service action failed.' },
+  RUNNER_CONTROL_TIMEOUT: { status: 504, message: 'The local runner service did not respond in time.' },
+  ACTION_STALE: { status: 409, message: 'That item changed state. Refresh the dashboard and try again.' },
 };
+const MAX_ACTION_BODY_BYTES = 4096;
 
 function jsonResponse(response, status, body, headOnly = false) {
   const data = Buffer.from(JSON.stringify(body));
@@ -59,7 +71,61 @@ function allowedOrigin(request, server) {
   }
 }
 
-function createDashboardServer({ getSnapshot, host = '127.0.0.1', port = 0, assetDirectory = __dirname } = {}) {
+function readJsonBody(request) {
+  return new Promise((resolve, reject) => {
+    if (!/^application\/json(?:\s*;|$)/i.test(request.headers['content-type'] || '')) {
+      reject(Object.assign(new Error('JSON is required.'), { code: 'BAD_JSON' }));
+      request.resume();
+      return;
+    }
+    let size = 0;
+    let body = '';
+    let tooLarge = false;
+    request.on('data', (chunk) => {
+      if (tooLarge) return;
+      size += chunk.length;
+      if (size > MAX_ACTION_BODY_BYTES) {
+        tooLarge = true;
+        body = '';
+        return;
+      }
+      body += chunk.toString('utf8');
+    });
+    request.once('error', () => reject(Object.assign(new Error('Request could not be read.'), { code: 'BAD_JSON' })));
+    request.once('end', () => {
+      if (tooLarge) {
+        reject(Object.assign(new Error('Request is too large.'), { code: 'BODY_LIMIT' }));
+        return;
+      }
+      try {
+        resolve(JSON.parse(body));
+      } catch {
+        reject(Object.assign(new Error('JSON is invalid.'), { code: 'BAD_JSON' }));
+      }
+    });
+  });
+}
+
+function validateActionInput(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  if (typeof value.id !== 'number') return null;
+  const id = value.id;
+  if (!Number.isSafeInteger(id) || id <= 0) return null;
+  const allowed = {
+    run: ['cancel', 'rerun-failed'],
+    workflow: ['pause', 'resume'],
+    runner: ['pause', 'resume'],
+  };
+  if (!allowed[value.type]?.includes(value.action)) return null;
+  return { type: value.type, action: value.action, id };
+}
+
+function errorResponse(error) {
+  const safe = SAFE_ERRORS[error?.code] || { status: 502, message: 'Dashboard action could not be completed. Check GitHub access and try again.' };
+  return { status: safe.status, body: { error: { code: SAFE_ERRORS[error?.code] ? error.code : 'ACTION_FAILED', message: safe.message } } };
+}
+
+function createDashboardServer({ getSnapshot, getControlState, performAction, performRunnerAction, host = '127.0.0.1', port = 0, assetDirectory = __dirname } = {}) {
   if (host !== '127.0.0.1') throw new TypeError('Dashboard server must bind to 127.0.0.1.');
   if (typeof getSnapshot !== 'function') throw new TypeError('getSnapshot must be a function.');
 
@@ -81,8 +147,79 @@ function createDashboardServer({ getSnapshot, host = '127.0.0.1', port = 0, asse
       return;
     }
 
+    if (pathname === '/api/control-state' && (request.method === 'GET' || request.method === 'HEAD')) {
+      if (typeof getControlState !== 'function') {
+        jsonResponse(response, 503, { error: { code: 'CONTROL_UNAVAILABLE', message: 'Workflow and runner controls are unavailable.' } }, request.method === 'HEAD');
+        return;
+      }
+      try {
+        jsonResponse(response, 200, await getControlState(), request.method === 'HEAD');
+      } catch (error) {
+        const safe = errorResponse(error);
+        jsonResponse(response, safe.status, safe.body, request.method === 'HEAD');
+      }
+      return;
+    }
+
+    if (pathname === '/api/actions' && request.method === 'POST') {
+      let input;
+      try {
+        input = validateActionInput(await readJsonBody(request));
+      } catch (error) {
+        if (!response.headersSent) {
+          const code = error?.code === 'BODY_LIMIT' ? 'BODY_LIMIT' : 'BAD_REQUEST';
+          const message = error?.code === 'BODY_LIMIT' ? 'Action request is too large.' : 'Action request must contain valid JSON.';
+          jsonResponse(response, error?.code === 'BODY_LIMIT' ? 413 : 400, { error: { code, message } });
+        }
+        return;
+      }
+      if (!input) {
+        jsonResponse(response, 400, { error: { code: 'BAD_ACTION', message: 'Choose a supported action and a valid identifier.' } });
+        return;
+      }
+      try {
+        let result;
+        if (input.type === 'runner') {
+          if (typeof getControlState !== 'function' || typeof performRunnerAction !== 'function') {
+            throw Object.assign(new Error(), { code: 'RUNNER_CONTROL_UNAVAILABLE' });
+          }
+          const state = await getControlState();
+          const runner = state.runners?.find((item) => item.id === input.id);
+          if (!runner || !runner.localControlAvailable) throw Object.assign(new Error(), { code: 'RUNNER_CONTROL_UNAVAILABLE' });
+          if (input.action === 'pause' && runner.busy) throw Object.assign(new Error(), { code: 'RUNNER_BUSY' });
+          result = await performRunnerAction(state.repository, runner, input.action);
+        } else if (input.type === 'workflow') {
+          if (typeof getControlState !== 'function' || typeof performAction !== 'function') {
+            throw Object.assign(new Error(), { code: 'GH_ACTION' });
+          }
+          const state = await getControlState();
+          const workflow = state.workflows?.find((item) => item.id === input.id);
+          const desiredState = input.action === 'pause' ? 'active' : 'disabled';
+          if (!workflow || (desiredState === 'active' ? workflow.state !== 'active' : workflow.state === 'active')) {
+            throw Object.assign(new Error(), { code: 'ACTION_STALE' });
+          }
+          result = await performAction(input);
+        } else {
+          if (typeof performAction !== 'function') throw Object.assign(new Error(), { code: 'GH_ACTION' });
+          const snapshot = await getSnapshot();
+          const run = snapshot.runs?.find((item) => item.id === input.id);
+          const canCancel = ['queued', 'requested', 'waiting', 'pending', 'in_progress'].includes(run?.status);
+          const canRerun = run?.status === 'completed' && ['failure', 'timed_out', 'action_required'].includes(run?.conclusion);
+          if (!run || (input.action === 'cancel' ? !canCancel : !canRerun)) {
+            throw Object.assign(new Error(), { code: 'ACTION_STALE' });
+          }
+          result = await performAction(input);
+        }
+        jsonResponse(response, 200, result || { ok: true });
+      } catch (error) {
+        const safe = errorResponse(error);
+        jsonResponse(response, safe.status, safe.body);
+      }
+      return;
+    }
+
     if (request.method !== 'GET' && request.method !== 'HEAD') {
-      response.writeHead(405, { Allow: 'GET, HEAD', 'Cache-Control': 'no-store' });
+      response.writeHead(405, { Allow: pathname === '/api/actions' ? 'GET, HEAD, POST' : 'GET, HEAD', 'Cache-Control': 'no-store' });
       response.end();
       return;
     }
@@ -131,7 +268,17 @@ function startDashboard({ port = 0, log = console.log, errorLog = console.error 
   }
 
   const reader = createGitHubReader();
-  const server = createDashboardServer({ getSnapshot: reader.getSnapshot });
+  const runnerController = createRunnerController();
+  const getControlState = async () => {
+    const state = await reader.getControlState();
+    return { ...state, runners: await runnerController.inspect(state.repository, state.runners) };
+  };
+  const server = createDashboardServer({
+    getSnapshot: reader.getSnapshot,
+    getControlState,
+    performAction: reader.performAction,
+    performRunnerAction: runnerController.perform,
+  });
   const onError = (error) => {
     server.removeListener('listening', onListening);
     errorLog(error?.code === 'EADDRINUSE'

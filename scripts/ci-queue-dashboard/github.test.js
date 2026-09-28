@@ -9,6 +9,7 @@ const { DashboardDataError, buildSnapshot, createGitHubReader, normalizeJob, nor
 function run(id, createdAt, status = 'queued', conclusion = null) {
   return {
     id,
+    workflow_id: 12,
     name: 'CI',
     display_title: `workflow ${id}`,
     event: 'pull_request',
@@ -26,6 +27,7 @@ function run(id, createdAt, status = 'queued', conclusion = null) {
 test('normalizeRun maps GitHub workflow run fields to the dashboard contract', () => {
   assert.deepEqual(normalizeRun(run(12, '2026-09-28T10:02:00Z')), {
     id: 12,
+    workflowId: 12,
     workflow: 'CI',
     title: 'workflow 12',
     branch: 'main',
@@ -182,6 +184,22 @@ test('createGitHubReader sanitizes authentication failures from gh stderr', asyn
   });
 });
 
+test('createGitHubReader maps missing Actions write access to a safe permission error', async () => {
+  const { spawn } = fakeSpawner(({ args }) => (
+    args[0] === 'repo'
+      ? { stdout: 'cmuir_pingcorp/AI-DEMO2\n' }
+      : { code: 1, stderr: 'HTTP 403 Resource not accessible by integration token=private-value' }
+  ));
+  const reader = createGitHubReader({ spawn });
+
+  await assert.rejects(reader.performAction({ type: 'run', action: 'cancel', id: 41 }), (error) => {
+    assert.equal(error.code, 'GH_PERMISSION');
+    assert.match(error.message, /Check repository Actions or Administration permissions/);
+    assert.doesNotMatch(error.message, /private-value|integration/);
+    return true;
+  });
+});
+
 test('createGitHubReader rejects malformed API JSON without exposing its payload', async () => {
   const { spawn } = fakeSpawner(({ args }) => (
     args[0] === 'repo'
@@ -221,4 +239,58 @@ test('createGitHubReader paginates the full queued run list', async () => {
   assert.equal(snapshot.summary.queued, 101);
   assert.equal(snapshot.runs[0].id, 100);
   assert.equal(snapshot.runs.at(-1).id, 250);
+});
+
+test('createGitHubReader returns workflow and runner controls from repository Actions', async () => {
+  const { spawn, calls } = fakeSpawner(({ args }) => {
+    if (args[0] === 'repo') return { stdout: 'cmuir_pingcorp/AI-DEMO2\n' };
+    if (args[1] === 'repos/cmuir_pingcorp/AI-DEMO2/actions/workflows?per_page=100&page=1') {
+      return { stdout: JSON.stringify({ workflows: [{ id: 7, name: 'CI', path: '.github/workflows/ci.yml', state: 'active', html_url: 'https://github.com/cmuir_pingcorp/AI-DEMO2/actions/workflows/ci.yml' }] }) };
+    }
+    if (args[1] === 'repos/cmuir_pingcorp/AI-DEMO2/actions/runners?per_page=100&page=1') {
+      return { stdout: JSON.stringify({ runners: [{ id: 23, name: 'cmuir-dev-mac', status: 'online', busy: false, labels: [{ name: 'self-hosted' }, { name: 'macOS' }] }] }) };
+    }
+    assert.fail(`unexpected gh api endpoint: ${args[1]}`);
+  });
+  const reader = createGitHubReader({ spawn });
+
+  assert.deepEqual(await reader.getControlState(), {
+    repository: 'cmuir_pingcorp/AI-DEMO2',
+    workflows: [{ id: 7, name: 'CI', path: '.github/workflows/ci.yml', state: 'active', url: 'https://github.com/cmuir_pingcorp/AI-DEMO2/actions/workflows/ci.yml' }],
+    runners: [{ id: 23, name: 'cmuir-dev-mac', status: 'online', busy: false, labels: ['self-hosted', 'macOS'] }],
+  });
+  assert.ok(calls.every((call) => call.options.shell === false));
+});
+
+test('performAction uses fixed GitHub Actions endpoints for run and workflow controls', async () => {
+  const { spawn, calls } = fakeSpawner(({ args }) => (
+    args[0] === 'repo'
+      ? { stdout: 'cmuir_pingcorp/AI-DEMO2\n' }
+      : { stdout: '{}' }
+  ));
+  const reader = createGitHubReader({ spawn });
+
+  await reader.performAction({ type: 'run', action: 'cancel', id: 41 });
+  await reader.performAction({ type: 'run', action: 'rerun-failed', id: 42 });
+  await reader.performAction({ type: 'workflow', action: 'pause', id: 7 });
+  await reader.performAction({ type: 'workflow', action: 'resume', id: 8 });
+
+  assert.deepEqual(calls.filter((call) => call.args[0] === 'api').map((call) => call.args.slice(1)), [
+    ['-X', 'POST', 'repos/cmuir_pingcorp/AI-DEMO2/actions/runs/41/cancel'],
+    ['-X', 'POST', 'repos/cmuir_pingcorp/AI-DEMO2/actions/runs/42/rerun-failed-jobs'],
+    ['-X', 'PUT', 'repos/cmuir_pingcorp/AI-DEMO2/actions/workflows/7/disable'],
+    ['-X', 'PUT', 'repos/cmuir_pingcorp/AI-DEMO2/actions/workflows/8/enable'],
+  ]);
+});
+
+test('performAction rejects unsupported operations before calling GitHub', async () => {
+  let calls = 0;
+  const { spawn } = fakeSpawner(({ args }) => {
+    calls += 1;
+    return args[0] === 'repo' ? { stdout: 'cmuir_pingcorp/AI-DEMO2\n' } : { stdout: '{}' };
+  });
+  const reader = createGitHubReader({ spawn });
+
+  await assert.rejects(reader.performAction({ type: 'runner', action: 'delete', id: 23 }), { code: 'GH_ACTION' });
+  assert.equal(calls, 0);
 });

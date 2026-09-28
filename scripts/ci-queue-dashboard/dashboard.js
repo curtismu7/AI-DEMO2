@@ -9,6 +9,7 @@ const elements = {
   freshness: document.getElementById('freshness'),
   liveState: document.getElementById('live-state'),
   error: document.getElementById('error-banner'),
+  actionFeedback: document.getElementById('action-feedback'),
   refresh: document.getElementById('refresh-button'),
   queuedTotal: document.getElementById('summary-queued'),
   runningTotal: document.getElementById('summary-running'),
@@ -16,6 +17,10 @@ const elements = {
   failedTotal: document.getElementById('summary-failed'),
   runnerCount: document.getElementById('runner-count'),
   runnerContent: document.getElementById('runner-content'),
+  workflowControls: document.getElementById('workflow-controls'),
+  workflowControlNote: document.getElementById('workflow-control-note'),
+  runnerControls: document.getElementById('runner-controls'),
+  runnerControlNote: document.getElementById('runner-control-note'),
   activeCount: document.getElementById('active-count'),
   activeEmpty: document.getElementById('active-empty'),
   activeRuns: document.getElementById('active-runs'),
@@ -95,6 +100,15 @@ function makeStatus(status, conclusion) {
   return node('span', `status-badge ${statusClass(status, conclusion)}`, statusLabel(status, conclusion));
 }
 
+function makeActionButton(type, action, id, label, danger = false) {
+  const button = node('button', `control-button${danger ? ' control-button--danger' : ''}`, label);
+  button.type = 'button';
+  button.dataset.actionType = type;
+  button.dataset.action = action;
+  button.dataset.resourceId = String(id);
+  return button;
+}
+
 function runTiming(run) {
   const timingKind = window.CiQueueDashboardModel.runTimingKind(run.status);
   if (timingKind === 'waiting') return `Waiting ${formatDuration(run.createdAt)}`;
@@ -143,7 +157,18 @@ function addJobTable(run, compact = false) {
   return wrapper;
 }
 
-function createRunArticle(run, compact = false) {
+function estimatedRemaining(run, history) {
+  const remainingMs = window.CiQueueDashboardModel.estimateRemainingMs(run, history);
+  if (remainingMs === null) return 'Estimate unavailable';
+  if (remainingMs === 0) return 'At typical runtime';
+  const seconds = Math.ceil(Math.abs(remainingMs) / 1000);
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const duration = hours > 0 ? `${hours}h ${minutes}m` : minutes > 0 ? `${minutes}m` : `${seconds}s`;
+  return remainingMs < 0 ? `Over typical runtime by ${duration}` : `Estimated ${duration} left`;
+}
+
+function createRunArticle(run, compact = false, history = []) {
   const article = node('article', `run-entry${compact ? ' run-entry--completed' : ''}`);
   article.dataset.status = statusClass(run.status, run.conclusion).replace('status--', '');
   const header = node('div', 'run-entry-header');
@@ -159,15 +184,82 @@ function createRunArticle(run, compact = false) {
     link.rel = 'noopener noreferrer';
     titleGroup.append(link);
   }
-  header.append(titleGroup, makeStatus(run.status, run.conclusion));
+  const headerActions = node('div', 'run-actions');
+  headerActions.append(makeStatus(run.status, run.conclusion));
+  if (['queued', 'requested', 'waiting', 'pending', 'in_progress'].includes(normalized(run.status))) {
+    headerActions.append(makeActionButton('run', 'cancel', run.id, 'Stop run', true));
+  } else if (run.status === 'completed' && ['failure', 'timed_out', 'action_required'].includes(run.conclusion)) {
+    headerActions.append(makeActionButton('run', 'rerun-failed', run.id, 'Rerun failed jobs'));
+  }
+  header.append(titleGroup, headerActions);
 
   const metadata = node('div', 'run-metadata');
   metadata.append(node('span', 'run-branch', run.branch || 'Branch unavailable'));
   metadata.append(node('span', 'run-event', String(run.event || 'Event unavailable').replaceAll('_', ' ')));
   metadata.append(node('span', 'run-timing', runTiming(run)));
+  if (normalized(run.status) === 'in_progress') metadata.append(node('span', 'run-eta', estimatedRemaining(run, history)));
 
   article.append(header, metadata, addJobTable(run, compact));
   return article;
+}
+
+function renderWorkflowControls(controls) {
+  elements.workflowControls.replaceChildren();
+  elements.workflowControlNote.textContent = controls?.error || '';
+  const workflows = Array.isArray(controls?.workflows) ? controls.workflows : [];
+  if (controls?.error) return;
+  if (!workflows.length) {
+    elements.workflowControls.append(node('p', 'placeholder', 'No workflows are available.'));
+    return;
+  }
+  for (const workflow of workflows) {
+    const row = node('div', 'control-row');
+    const identity = node('div', 'control-identity');
+    identity.append(node('span', 'control-name', workflow.name));
+    const active = workflow.state === 'active';
+    identity.append(node('span', `control-state ${active ? 'control-state--active' : 'control-state--disabled'}`, active ? 'Active' : `Disabled (${workflow.state.replaceAll('_', ' ')})`));
+    row.append(identity, makeActionButton('workflow', active ? 'pause' : 'resume', workflow.id, active ? 'Pause workflow' : 'Resume workflow'));
+    elements.workflowControls.append(row);
+  }
+}
+
+function renderRunnerControls(controls) {
+  elements.runnerControls.replaceChildren();
+  elements.runnerControlNote.textContent = controls?.error || '';
+  const runners = Array.isArray(controls?.runners) ? controls.runners : [];
+  if (controls?.error) return;
+  if (!runners.length) {
+    elements.runnerControls.append(node('p', 'placeholder', 'No repository runners are available.'));
+    return;
+  }
+  let hasLocalControl = false;
+  for (const runner of runners) {
+    const row = node('div', 'control-row');
+    const identity = node('div', 'control-identity');
+    identity.append(node('span', 'control-name', runner.name));
+    const localPaused = Boolean(runner.localPaused);
+    const busy = Boolean(runner.busy);
+    const stateText = localPaused ? 'Paused on this machine' : `${runner.status} · ${busy ? 'Busy' : 'Idle'}`;
+    identity.append(node('span', `control-state${runner.status === 'online' && !busy && !localPaused ? ' control-state--active' : ''}`, stateText));
+    row.append(identity);
+    if (runner.localControlAvailable) {
+      hasLocalControl = true;
+      const action = localPaused ? 'resume' : 'pause';
+      const button = makeActionButton('runner', action, runner.id, localPaused ? 'Resume runner' : 'Pause runner');
+      button.disabled = action === 'pause' && (busy || runner.status !== 'online');
+      if (button.disabled) button.title = busy ? 'Wait for the assigned job to finish.' : 'This runner must be online to pause.';
+      row.append(button);
+    } else {
+      row.append(node('span', 'control-state', 'No matching local service'));
+    }
+    elements.runnerControls.append(row);
+  }
+  if (!hasLocalControl) elements.runnerControlNote.textContent = 'Runner controls appear on the Mac that hosts the matching launchd service.';
+}
+
+function renderControls(controls) {
+  renderWorkflowControls(controls);
+  renderRunnerControls(controls);
 }
 
 function renderRunner(snapshot) {
@@ -211,7 +303,7 @@ function renderRunner(snapshot) {
   }
 }
 
-function render(snapshot) {
+function render(snapshot, controls) {
   currentSnapshot = snapshot;
   elements.repository.textContent = snapshot.repository || 'GitHub repository';
   elements.freshness.textContent = `Updated ${formatLocalTime(snapshot.updatedAt)}`;
@@ -225,15 +317,72 @@ function render(snapshot) {
   elements.failedTotal.textContent = String(summary.failed ?? 0);
 
   const groups = window.CiQueueDashboardModel.classifyRuns(snapshot.runs);
-  elements.activeCount.textContent = `${groups.inProgress.length} running`;
+  const jobCount = (runs, statuses) => runs.reduce((total, run) => total + (Array.isArray(run.jobs) ? run.jobs.filter((job) => statuses.includes(normalized(job.status))).length : 0), 0);
+  elements.activeCount.textContent = `${groups.inProgress.length} workflows · ${jobCount(groups.inProgress, ['in_progress'])} jobs`;
   elements.activeEmpty.hidden = groups.inProgress.length > 0;
-  elements.activeRuns.replaceChildren(...groups.inProgress.map((run) => createRunArticle(run)));
-  elements.queueCount.textContent = `${groups.queued.length} waiting`;
+  elements.activeRuns.replaceChildren(...groups.inProgress.map((run) => createRunArticle(run, false, snapshot.runs)));
+  elements.queueCount.textContent = `${groups.queued.length} workflows · ${jobCount(groups.queued, ['queued', 'requested', 'waiting', 'pending'])} jobs`;
   elements.queueEmpty.hidden = groups.queued.length > 0;
-  elements.queuedRuns.replaceChildren(...groups.queued.map((run) => createRunArticle(run)));
+  elements.queuedRuns.replaceChildren(...groups.queued.map((run) => createRunArticle(run, false, snapshot.runs)));
   elements.completedEmpty.hidden = groups.completed.length > 0;
-  elements.completedRuns.replaceChildren(...groups.completed.map((run) => createRunArticle(run, true)));
+  elements.completedRuns.replaceChildren(...groups.completed.map((run) => createRunArticle(run, true, snapshot.runs)));
   renderRunner(snapshot);
+  renderControls(controls);
+}
+
+function actionPrompt(button) {
+  const action = button.dataset.action;
+  const type = button.dataset.actionType;
+  const id = button.dataset.resourceId;
+  if (type === 'run' && action === 'cancel') return `Stop workflow run ${id}? This cancels its queued or running jobs.`;
+  if (type === 'run') return `Rerun the failed jobs for workflow run ${id}?`;
+  if (type === 'workflow' && action === 'pause') return 'Pause this workflow? New runs will not start until you resume it.';
+  if (type === 'workflow') return 'Resume this workflow so new runs can start?';
+  if (type === 'runner' && action === 'pause') return 'Pause this local runner? It will stop accepting new jobs after it is stopped.';
+  return 'Resume this local runner so it can accept jobs?';
+}
+
+function actionDescription(button) {
+  const type = button.dataset.actionType;
+  const action = button.dataset.action;
+  if (type === 'run' && action === 'cancel') return 'Stop request sent to GitHub.';
+  if (type === 'run') return 'Rerun request sent to GitHub.';
+  if (type === 'workflow' && action === 'pause') return 'Workflow paused.';
+  if (type === 'workflow') return 'Workflow resumed.';
+  if (type === 'runner' && action === 'pause') return 'Local runner paused.';
+  return 'Local runner resumed.';
+}
+
+function setActionFeedback(message, isError = false) {
+  elements.actionFeedback.hidden = !message;
+  elements.actionFeedback.dataset.kind = isError ? 'error' : 'success';
+  elements.actionFeedback.textContent = message;
+}
+
+async function runAction(button) {
+  if (button.disabled || !window.confirm(actionPrompt(button))) return;
+  button.disabled = true;
+  setActionFeedback('Applying action…');
+  try {
+    const response = await fetch('/api/actions', {
+      method: 'POST',
+      cache: 'no-store',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: button.dataset.actionType,
+        action: button.dataset.action,
+        id: Number(button.dataset.resourceId),
+      }),
+    });
+    const body = await response.json();
+    if (!response.ok) throw new Error(body?.error?.message || 'The action could not be completed.');
+    setActionFeedback(actionDescription(button));
+    await refresh();
+  } catch (error) {
+    setActionFeedback(error instanceof Error ? error.message : 'The action could not be completed.', true);
+  } finally {
+    button.disabled = false;
+  }
 }
 
 function showRefreshError(message) {
@@ -253,7 +402,16 @@ async function refresh() {
     const response = await fetch('/api/snapshot', { cache: 'no-store', headers: { Accept: 'application/json' } });
     const body = await response.json();
     if (!response.ok) throw new Error(body?.error?.message || 'GitHub Actions data could not be loaded.');
-    render(body);
+    let controls = null;
+    try {
+      const controlsResponse = await fetch('/api/control-state', { cache: 'no-store', headers: { Accept: 'application/json' } });
+      const controlsBody = await controlsResponse.json();
+      if (!controlsResponse.ok) throw new Error(controlsBody?.error?.message || 'Workflow and runner controls could not be loaded.');
+      controls = controlsBody;
+    } catch (error) {
+      controls = { error: error instanceof Error ? error.message : 'Workflow and runner controls could not be loaded.' };
+    }
+    render(body, controls);
   } catch (error) {
     showRefreshError(error instanceof Error ? error.message : 'GitHub Actions data could not be loaded.');
   } finally {
@@ -264,6 +422,10 @@ async function refresh() {
 }
 
 elements.refresh.addEventListener('click', refresh);
+document.addEventListener('click', (event) => {
+  const button = event.target.closest('button[data-action-type]');
+  if (button) runAction(button);
+});
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') refresh();
 });

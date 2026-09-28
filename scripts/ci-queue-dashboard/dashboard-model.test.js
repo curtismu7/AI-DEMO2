@@ -2,7 +2,7 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { classifyRuns, runTimingKind, runnerDetails } = require('./dashboard-model');
+const { classifyRuns, runTimingKind, runnerDetails, estimateRemainingMs } = require('./dashboard-model');
 
 test('classifyRuns keeps in-progress work separate from queued work', () => {
   const groups = classifyRuns([
@@ -45,4 +45,32 @@ test('runnerDetails retains labels when a queued job has no assigned runner', ()
     state: 'unassigned',
     details: ['Labels: linux, x64'],
   });
+});
+
+test('estimateRemainingMs uses the median runtime of recent completed runs for the same workflow', () => {
+  const current = { workflowId: 7, status: 'in_progress', startedAt: '2026-09-28T11:50:00.000Z' };
+  const history = [
+    { workflowId: 7, status: 'completed', startedAt: '2026-09-28T10:00:00.000Z', completedAt: '2026-09-28T10:10:00.000Z' },
+    { workflowId: 7, status: 'completed', startedAt: '2026-09-28T10:20:00.000Z', completedAt: '2026-09-28T10:40:00.000Z' },
+    { workflowId: 7, status: 'completed', startedAt: '2026-09-28T10:50:00.000Z', completedAt: '2026-09-28T11:20:00.000Z' },
+    { workflowId: 9, status: 'completed', startedAt: '2026-09-28T10:00:00.000Z', completedAt: '2026-09-28T12:00:00.000Z' },
+  ];
+
+  assert.equal(estimateRemainingMs(current, history, Date.parse('2026-09-28T11:55:00.000Z')), 15 * 60 * 1000);
+});
+
+test('estimateRemainingMs returns no estimate when comparable history is missing', () => {
+  assert.equal(estimateRemainingMs(
+    { workflowId: 7, status: 'in_progress', startedAt: '2026-09-28T11:40:00.000Z' },
+    [{ workflowId: 9, status: 'completed', startedAt: '2026-09-28T10:00:00.000Z', completedAt: '2026-09-28T10:20:00.000Z' }],
+    Date.parse('2026-09-28T11:55:00.000Z'),
+  ), null);
+});
+
+test('estimateRemainingMs reports a negative estimate when runtime exceeds its usual duration', () => {
+  assert.equal(estimateRemainingMs(
+    { workflowId: 7, status: 'in_progress', startedAt: '2026-09-28T11:40:00.000Z' },
+    [{ workflowId: 7, status: 'completed', startedAt: '2026-09-28T10:00:00.000Z', completedAt: '2026-09-28T10:10:00.000Z' }],
+    Date.parse('2026-09-28T11:55:00.000Z'),
+  ), -5 * 60 * 1000);
 });
