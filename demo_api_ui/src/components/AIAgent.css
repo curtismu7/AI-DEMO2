@@ -5101,6 +5101,7 @@ body > .banking-agent-float-root .banking-agent-panel {
    dismissal, dragging, pop-out, and resize behavior. Keep the tray's content
    styling, but let the shell own its frame and scrolling. */
 .fp-panel.ba-header-more-pop {
+  align-items: stretch;
   min-width: 0;
   max-height: none;
   gap: 0;
@@ -6536,6 +6537,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 .ba-demo-steps-float__close:focus-visible {
   border-color: var(--th-status-info);
   background: var(--th-bg-hover);
+  color: var(--th-text);
   outline: none;
 }
 
@@ -6654,12 +6656,14 @@ body > .banking-agent-float-root .banking-agent-panel {
 .ba-demo-steps-float__body .ba-demo-steps-popout__card--next .banking-chips-dropdown__button {
   border-color: var(--th-status-info);
   background: var(--th-bg-hover);
+  color: var(--th-text);
   outline: none;
 }
 
 .ba-demo-steps-float__body .banking-chips-dropdown__button--done {
   border-color: var(--th-status-success);
   background: var(--th-status-success-bg);
+  color: var(--th-status-success-text);
 }
 
 /* When the ✓ check renders it becomes a 4th grid child; without an extra

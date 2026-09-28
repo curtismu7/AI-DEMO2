@@ -93,7 +93,12 @@
 .pf-ai-agent__comparison-grid { overflow: hidden; border: 1px solid var(--th-border); border-radius: var(--radius-sm); background: var(--th-bg-card); color: var(--th-text); }
 .pf-ai-agent__comparison-header [role="row"],
 .pf-ai-agent__comparison-row { display: grid; grid-template-columns: minmax(165px, 0.72fr) repeat(2, minmax(0, 1.14fr)); gap: 0; }
-.pf-ai-agent__comparison-header { background: var(--th-bg-inset); color: var(--th-text-muted); font-size: var(--font-size-xs); font-weight: 750; }
+.pf-ai-agent__comparison-header {
+  background: var(--th-bg-inset);
+  color: var(--th-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 750;
+}
 .pf-ai-agent__comparison-header [role="columnheader"],
 .pf-ai-agent__comparison-row > h3,
 .pf-ai-agent__comparison-cell { padding: 12px 14px; }

@@ -1,8 +1,8 @@
-.sts-shell { position: relative; z-index: 1; margin: 8px 12px 12px; overflow: hidden; border: 1px solid var(--th-border); border-radius: var(--radius-lg); background: var(--th-bg-card); color: var(--th-text); box-shadow: var(--shadow-md); }
+.sts-shell { position: relative; z-index: 1; margin: 8px 12px 12px; overflow: hidden; border: 1px solid var(--th-border); border-radius: var(--radius-lg); background: var(--th-bg-card); color: var(--th-text); box-shadow: var(--shadow-lg); }
 .sts-heading { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px 6px; }
 .sts-heading h2 { margin: 0; font-size: var(--font-size-sm); }
 .sts-heading p { margin: 3px 0 0; color: var(--th-text-muted); font-size: var(--font-size-3xs); }
-.sts-heading > span { padding: 3px 6px; border: 1px solid var(--th-status-warning-border); border-radius: var(--radius-sm); color: var(--th-status-warning-text); font: 650 var(--font-size-3xs) var(--font-mono); }
+.sts-heading > span { padding: 3px 6px; border: 1px solid var(--th-status-warning-border); border-radius: var(--radius-sm); color: var(--th-status-warning-text); font: 650 10px var(--font-mono); }
 .sts-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 7px 12px; border-block: 1px solid var(--th-border); background: var(--th-bg-inset); }
 .sts-controls label { color: var(--th-text-muted); font-size: var(--font-size-3xs); font-weight: 650; }
 .sts-controls button, .sts-controls select { min-height: 29px; padding: 4px 8px; border: 1px solid var(--th-border); border-radius: var(--radius-md); background: var(--th-bg-card); color: var(--th-text-body); font: inherit; font-size: var(--font-size-3xs); cursor: pointer; }
@@ -17,7 +17,7 @@
 .sts-sequence__actors, .sts-sequence__events { display: grid; grid-template-columns: repeat(var(--sts-columns), minmax(125px, 1fr)); min-width: max(100%, calc(var(--sts-columns) * 125px)); }
 .sts-sequence__actors { position: sticky; top: 0; z-index: 1; gap: 7px; }
 .sts-actor { min-height: 51px; padding: 7px 8px; border: 1px solid var(--th-border); border-radius: var(--radius-md); background: var(--th-bg-inset); text-align: center; }
-.sts-actor.is-active { border-color: #388bfd; box-shadow: var(--shadow-sm); }
+.sts-actor.is-active { border-color: #388bfd; outline: 1px solid #388bfd55; }
 .sts-actor strong, .sts-actor small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sts-actor strong { color: var(--th-text); font-size: var(--font-size-3xs); }
 .sts-actor small { margin-top: 3px; color: var(--th-text-muted); font: 10px var(--font-mono); }
@@ -26,10 +26,10 @@
 .sts-message { position: relative; align-self: center; height: 1px; margin: 0 4px; border-top: 1.5px solid #8b949e; }
 .sts-message::after { position: absolute; top: -5px; right: 0; width: 8px; height: 8px; border-top: 1.5px solid currentColor; border-right: 1.5px solid currentColor; color: #8b949e; content: ""; transform: rotate(45deg); }
 .sts-message.is-reverse::after { right: auto; left: 0; transform: rotate(225deg); }
-.sts-message.is-current { border-color: #388bfd; color: #388bfd; box-shadow: var(--shadow-sm); }
+.sts-message.is-current { border-color: #388bfd; color: #388bfd; outline: 1px solid #388bfd66; }
 .sts-message.is-current::after { color: #388bfd; }
-.sts-message__label { position: absolute; top: -9px; left: 50%; max-width: 90%; padding: 2px 6px; transform: translate(-50%, -100%); border: 1px solid var(--th-border); border-radius: var(--radius-sm); background: var(--th-bg-card); color: var(--th-text-body); font-size: var(--font-size-3xs); text-align: center; white-space: nowrap; }
-.sts-message__label small { display: block; margin-top: 2px; color: var(--th-text-muted); font: var(--font-size-3xs) var(--font-mono); }
+.sts-message__label { position: absolute; top: -9px; left: 50%; max-width: 90%; padding: 2px 6px; transform: translate(-50%, -100%); border: 1px solid var(--th-border); border-radius: var(--radius-sm); background: var(--th-bg-card); color: var(--th-text-body); font-size: 10px; text-align: center; white-space: nowrap; }
+.sts-message__label small { display: block; margin-top: 2px; color: var(--th-text-muted); font: 9px var(--font-mono); }
 .sts-current-caption { margin: 8px 3px 4px; color: var(--th-text-body); font-size: var(--font-size-3xs); }
 .sts-current-caption span { color: var(--th-text-muted); }
 .sts-reel { display: flex; gap: 9px; overflow-x: auto; padding: 12px; scroll-snap-type: x mandatory; }

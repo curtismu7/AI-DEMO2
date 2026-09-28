@@ -5,13 +5,8 @@
  * @description A use case must declare EVERY gateway tool it calls, not just
  * the first one.
  *
- * The gap this closes: `primaryTool` was the only tool a use case declared
- * machine-readably, so every gate built on this catalog -- the chip-reachability
- * gate, useCases.primaryTool.test.js -- could only ever see one tool per use
- * case. UC38 runs two. Its own prose says so ("calls get_loyalty_status to check
- * the miles balance and redeem_miles to upgrade the cabin"), but only
- * redeem_miles was declared, so get_loyalty_status stayed intent-unreachable
- * through two rounds of fixes and was found by driving the live stack (PR #2446).
+ * The catalog uses primaryTool for its active protected actions and can declare
+ * secondaryTools when a use case actually invokes additional gateway tools.
  *
  * The check is deliberately narrow to stay precise: a GATEWAY-surface tool name
  * appearing verbatim in the entry's own prose. Filtering to gateway surface is
@@ -81,38 +76,33 @@ describe('a use case declares every gateway tool it names', () => {
   });
 });
 
-describe('UC38 — the case that proved the gap', () => {
+describe('UC38 — active workload action', () => {
   const uc38 = USE_CASES.find((u) => u.id === 'UC38');
 
   it('exists (vacuity guard)', () => {
     expect(uc38).toBeDefined();
   });
 
-  it('declares both of its tools', () => {
-    const declared = declaredTools(uc38);
-    expect(declared.has('redeem_miles')).toBe(true);
-    expect(declared.has('get_loyalty_status')).toBe(true);
-  });
-
-  it('still names get_loyalty_status in its prose, so the sweep above is live', () => {
-    expect(namedInProse(uc38)).toContain('get_loyalty_status');
+  it('resolves the airlines action through the workload-agent entry point', () => {
+    const resolved = resolveUseCase('UC38', 'airlines');
+    expect(resolved).toMatchObject({
+      title: 'Workload Agent: MFA-gated protected action',
+      primaryTool: 'pay_airline_fee',
+      trigger: { path: '/workload-agents?useCase=UC38' },
+    });
+    expect(declaredTools(uc38).has(resolved.primaryTool)).toBe(true);
   });
 });
 
-describe('secondaryTools survives the catalog plumbing', () => {
-  // resolveUseCase merges base + per-vertical override. A field the merge drops
-  // would leave this whole gate asserting nothing — and this repo has shipped
-  // exactly that bug before (manifest schema stripping unknown fields).
-  it('resolveUseCase does not strip the field', () => {
-    const resolved = resolveUseCase('UC38', 'airlines');
-    expect(resolved).toBeDefined();
-    expect(resolved.secondaryTools).toEqual(['get_loyalty_status']);
-  });
-
-  it('every declared secondary tool exists in scope-topology', () => {
+describe('secondaryTools catalog plumbing', () => {
+  it('preserves and validates any secondary tools the catalog declares', () => {
     for (const u of USE_CASES) {
-      for (const t of u.secondaryTools || []) {
-        expect(topology.tools[t]).toBeDefined();
+      for (const vertical of VERTICAL_IDS) {
+        const resolved = resolveUseCase(u.id, vertical);
+        for (const tool of u.secondaryTools || []) {
+          expect(resolved.secondaryTools).toContain(tool);
+          expect(topology.tools[tool]).toBeDefined();
+        }
       }
     }
   });

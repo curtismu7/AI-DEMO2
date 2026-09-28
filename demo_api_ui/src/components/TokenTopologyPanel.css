@@ -992,6 +992,40 @@
   border-radius: var(--radius-md);
   overflow: hidden;
 }
+.ttp-inline .ttp-root {
+  height: auto;
+  min-height: 360px;
+  overflow: visible;
+}
+.ttp-inline .ttp-root.ttp-reel-layout .ttp-body {
+  flex: 0 0 auto;
+  flex-direction: column-reverse;
+  overflow: visible;
+}
+.ttp-inline .ttp-main {
+  flex: 0 0 auto;
+  overflow: visible;
+}
+.ttp-inline .ttp-diagram {
+  flex: 0 0 auto;
+  overflow: visible;
+}
+.ttp-inline .ttp-insp-pane--inline {
+  width: auto;
+  flex: 0 0 auto;
+  position: static;
+  overflow: visible;
+  border-left: 0;
+  border-top: 1px solid #30363d;
+}
+.ttp-inline .ttp-insp-pane--inline .ttp-insp,
+.ttp-inline .ttp-insp-pane--inline .ttp-insp-body {
+  height: auto;
+  overflow: visible;
+}
+.ttp-inline .ttp-insp-pane--inline .ttp-insp-body {
+  flex: 0 0 auto;
+}
 /* ── movie-reel layout: reel pinned to the bottom, details on the right ── */
 /* The topology canvas spans the full width below the context and evidence. */
 .ttp-root.ttp-reel-layout .ttp-body {

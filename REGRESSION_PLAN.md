@@ -188,6 +188,85 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-28 — User status returned 500 after logout destroyed the session
+
+**Files:** `routes/oauthUser.js`,
+`src/__tests__/oauthStatus.integration.test.js`.
+
+**What was broken:** the signed-out status endpoint dereferenced `req.session`
+after logout had destroyed it, so a routine status probe returned HTTP 500.
+
+**What was fixed:** the status handler now treats a missing session object as
+empty and returns the existing unauthenticated response shape.
+
+**Do not break:** preserve token-expiry and stale-session reporting, the
+four-signal admin-role check, and the BFF-only ownership of OAuth tokens.
+
+**Verify:** focused OAuth status and end-to-end logout suites with Node 22.
+
+### 2026-09-28 — Embedded Token topology crowded the agent column
+
+**Files:** `demo_api_ui/src/components/TokenChainFilmstrip.css`,
+`demo_api_ui/src/components/TokenTopologyPanel.jsx`,
+`demo_api_ui/src/components/TokenTopologyPanel.css`,
+`demo_api_ui/src/components/UserDashboardPing2026.js`.
+
+**What was broken:** the embedded topology was auto-placed in the Focus Mode
+grid, where it could compete with the agent and spotlight columns. Selecting a
+node opened its detail inspector beside the graph and narrowed the topology.
+
+**What was fixed:** embedded topology now has a full-width row below the
+agent/spotlight columns. Selecting a node opens its detail inspector below the
+graph. The draggable pop-out retains its side inspector.
+
+**Do not break:** keep the agent and spotlight side by side above the embedded
+topology; keep details tied to the selected node; preserve the pop-out's
+resizable inspector and shared trace data.
+
+**Verify:** `cd demo_api_ui && npm run build`; inspect embedded and pop-out
+topology in light and dark themes.
+
+### 2026-09-28 — Quick Config floating title bar shrank to content width
+
+**Files:** `demo_api_ui/src/components/AIAgent.css`, `REGRESSION_PLAN.md`.
+
+**What was broken:** Quick Config's tray styles set `align-items: flex-start`.
+After the tray moved into the shared floating-panel shell, that alignment made
+the title bar use its content width, leaving the rest of the panel header
+without its background.
+
+**What was fixed:** the Quick Config floating-panel override now stretches its
+children across the panel width.
+
+**Do not break:** preserve Quick Config's inner content alignment and the
+floating panel's drag, resize, collapse, and pop-out controls. Keep the change
+scoped to Quick Config; do not change the shared floating-panel behavior.
+
+**Verify:** `cd demo_api_ui && npm run build`; inspect the Quick Config title
+bar in light and dark themes.
+
+### 2026-09-28 — DaVinci widget runtime followed PF instead of the PingOne region
+
+**Files:** `demo_api_server/routes/davinciLogin.js`,
+`demo_api_server/tests/routes/davinciLogin.test.js`.
+
+**What was broken:** the widget SDK's `apiRoot` was derived from the active
+OAuth discovery endpoint. With PF selected, that pointed `davinci.js` at the
+internal `pingfederate:9031` host, so the browser could not start the flow.
+
+**What was fixed:** the widget API root now uses the configured PingOne region,
+independent of which provider handles the app's OAuth login. The SDK token,
+flow policy, nonce, and login-provider selection remain unchanged.
+
+**Do not break:** keep the DaVinci runtime rooted at `auth.pingone.{region}`
+when PF is selected; keep nonce arming and policy selection in
+`routes/davinciLogin.js` unchanged.
+
+**Verify:** `cd demo_api_server && CI=true npx jest
+tests/routes/davinciLogin.test.js --forceExit` (32/32). The regression test
+first failed with `https://pingfederate:9031/`, then passed with the configured
+PingOne region.
+
 ### 2026-09-28 — Vitest worker memory grew past 9 GB
 
 **Files:** `.github/workflows/ci.yml`, `demo_api_ui/vite.config.js`, and the

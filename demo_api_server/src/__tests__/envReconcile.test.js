@@ -19,6 +19,38 @@ describe('envReconcile.isEnvScoped', () => {
   test('unknown key defaults to NOT env-scoped (never purge what we do not understand)', () => {
     expect(er.isEnvScoped('totally_unknown_key')).toBe(false);
   });
+
+  test('classifies PingOne agent credentials as scoped and PF/SPIFFE transport settings as agnostic', () => {
+    for (const key of [
+      'pingone_fraud_watch_agent_client_id', 'pingone_fraud_watch_agent_client_secret',
+      'pingone_balance_sweep_agent_client_id', 'pingone_balance_sweep_agent_client_secret',
+    ]) {
+      expect(er.isEnvScoped(key)).toBe(true);
+    }
+    for (const key of [
+      'pf_standard_agent_exchange_client_id', 'pf_standard_agent_exchange_client_secret',
+      'pf_standard_agent_exchange_token_endpoint_auth_method', 'pf_standard_intermediate_audience',
+      'pf_mcp_service_actor_client_id', 'pf_mcp_service_actor_client_secret',
+      'pf_mcp_service_actor_token_endpoint_auth_method', 'pf_standard_mcp_actor_scope',
+      'spiffe_svid_path', 'spiffe_key_path', 'spiffe_bundle_path', 'spiffe_trust_domain',
+      'spiffe_pf_issuer', 'spiffe_pf_token_endpoint', 'spiffe_pf_svid_audience', 'spiffe_pf_ca_path',
+      'spiffe_pf_exchange_client_id', 'spiffe_pf_exchange_client_secret',
+      'spiffe_pf_subject_client_id', 'spiffe_pf_subject_client_secret',
+    ]) {
+      expect(er.ENV_AGNOSTIC_KEYS.has(key)).toBe(true);
+      expect(er.isEnvScoped(key)).toBe(false);
+    }
+  });
+
+  test('classifies SPIFFE bridge PingOne app credentials as env-scoped', () => {
+    for (const key of [
+      'spiffe_bridge_private_key', 'spiffe_bridge_kid', 'spiffe_pingone_client_map',
+    ]) {
+      expect(er.ENV_SCOPED_KEYS.has(key)).toBe(true);
+      expect(er.ENV_AGNOSTIC_KEYS.has(key)).toBe(false);
+      expect(er.isEnvScoped(key)).toBe(true);
+    }
+  });
 });
 
 describe('envReconcile.computeVerdict', () => {

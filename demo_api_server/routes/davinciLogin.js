@@ -24,7 +24,6 @@ const express = require('express');
 const axios = require('axios');
 const davinciConfig = require('../config/davinci');
 const configStore = require('../services/configStore');
-const { getDiscoveryEndpoint } = require('../services/oauthEndpointResolver');
 const oauthService = require('../services/oauthService');
 const tokenVerificationService = require('../services/tokenVerificationService');
 const dataStore = require('../data/store');
@@ -185,7 +184,10 @@ router.post('/sdk-token', async (req, res) => {
         companyId,
         policyId,
         flowVersion: version,
-        apiRoot: `${new URL(getDiscoveryEndpoint()).origin}/`,
+        // DaVinci's runtime is hosted by PingOne even when this demo has PF
+        // selected as its OAuth provider. Keep the SDK on the configured P1
+        // region rather than deriving its host from the active OIDC issuer.
+        apiRoot: `https://auth.pingone.${configStore.getEffective('pingone_region') || 'com'}/`,
       });
     } catch (e) {
       const normalized = normalizeAxiosError(e, { label: 'DaVinci SDK token', timeoutMs: 10_000 });
