@@ -22,6 +22,14 @@ const FILTER_OPTIONS = [
   ["ai", "AI & data"], ["telemetry", "Observability"], ["optional", "Optional profiles"],
 ];
 const EDGE_COLORS = { mcp: "#388bfd", oauth: "#bc8cff", agent: "#d29922", data: "#f0883e", telemetry: "#3fb950", optional: "#788492" };
+const NODE_TYPE_COLORS = {
+  client: "#58a6ff", gateway: "#bc8cff", app: "#39c5cf", identity: "#db61a2",
+  data: "#f0883e", agent: "#d29922", telemetry: "#3fb950",
+};
+const NODE_TYPE_LABELS = [
+  ["client", "Client"], ["gateway", "Gateway"], ["app", "App"], ["identity", "Identity"],
+  ["data", "Data"], ["agent", "Agent"], ["telemetry", "Telemetry"],
+];
 const NODE_BY_ID = Object.fromEntries(SERVER_MAP.map((node) => [node.id, node]));
 const EDGE_BY_ID = Object.fromEntries(SERVER_EDGES.map((item) => [item.id, item]));
 
@@ -54,7 +62,7 @@ function labelForEdge(item, layer) {
 const ServerCardNode = memo(function ServerCardNode({ data, selected }) {
   const group = GROUPS[data.group] || GROUPS.core;
   return (
-    <article className={`stm-node stm-node--${data.kind}${selected ? " is-selected" : ""}`} style={{ "--stm-accent": group.color }}>
+    <article className={`stm-node stm-node--${data.kind}${selected ? " is-selected" : ""}`} style={{ "--stm-accent": group.color, "--stm-node-type-color": NODE_TYPE_COLORS[data.kind] || group.color }}>
       <Handle type="target" position={Position.Left} aria-label="Connection input" />
       <div className="stm-node__head">
         <span className="stm-node__dot" aria-hidden="true" />
@@ -386,7 +394,10 @@ function ServerTopologyContent() {
               onSelectEdge={selectEdge} onClearSelection={clearSelection}
             />
           </ReactFlowProvider>
-          <div className="stm-legend" aria-label="Connection legend">
+          <div className="stm-legend" aria-label="Diagram legend">
+            <strong className="stm-legend__heading">Boxes</strong>
+            {NODE_TYPE_LABELS.map(([key, label]) => <span key={key}><i className="stm-legend__node" style={{ "--stm-accent": NODE_TYPE_COLORS[key] }} />{label}</span>)}
+            <strong className="stm-legend__heading">Connections</strong>
             {[["mcp", "MCP / HTTP"], ["oauth", "OAuth / identity"], ["agent", "Agent / model"], ["telemetry", "Telemetry"]].map(([key, label]) => <span key={key}><i style={{ "--stm-accent": EDGE_COLORS[key] }} />{label}</span>)}
             <span><i className="stm-legend__optional" />Optional profile</span>
           </div>

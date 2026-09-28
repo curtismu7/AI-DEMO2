@@ -97,8 +97,8 @@
 .stm-fit-button { position: absolute; z-index: 5; top: 10px; left: 10px; min-height: 29px; padding: 4px 9px; border: 1px solid #39424e; border-radius: 5px; background: #171c24; color: #d9e0e8; font-size: var(--font-size-3xs); cursor: pointer; }
 .stm-fit-button:hover { border-color: #68798d; }
 
-.stm-node { width: 218px; min-height: 104px; padding: 10px 11px; border: 1px solid var(--stm-canvas-border); border-radius: 7px; background: var(--stm-canvas-raised); box-shadow: 0 2px 7px #0007; color: var(--stm-canvas-text); }
-.stm-node.is-selected { border-color: #388bfd; box-shadow: 0 0 0 1px #388bfd55, 0 3px 11px #0009; }
+.stm-node { width: 218px; min-height: 104px; padding: 10px 11px; border: 2px solid var(--stm-node-type-color, var(--stm-canvas-border)); border-radius: 7px; background: var(--stm-canvas-raised); box-shadow: 0 2px 7px #0007; color: var(--stm-canvas-text); }
+.stm-node.is-selected { border-color: var(--stm-node-type-color, var(--stm-canvas-border)); box-shadow: 0 0 0 2px #388bfd99, 0 3px 11px #0009; }
 .stm-node__head { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .stm-node__head strong { overflow: hidden; color: #f0f4f8; font-size: var(--font-size-xs); font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .stm-node__dot { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: var(--stm-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--stm-accent) 15%, transparent); }
@@ -117,7 +117,9 @@
 
 .stm-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 15px; min-height: 34px; padding: 6px 10px; border-top: 1px solid var(--th-border); color: var(--th-text-muted); font-size: var(--font-size-3xs); }
 .stm-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.stm-legend__heading { color: var(--th-text); font-size: var(--font-size-3xs); font-weight: 700; }
 .stm-legend i { width: 20px; height: 0; border-top: 2px solid var(--stm-accent); }
+.stm-legend i.stm-legend__node { width: 14px; height: 11px; border: 2px solid var(--stm-accent); border-radius: 3px; }
 .stm-legend .stm-legend__optional { border-color: #788492; border-top-style: dashed; }
 
 .stm-details { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
