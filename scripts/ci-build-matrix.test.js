@@ -91,7 +91,7 @@ const COMPOSE = [
   'services:',
   '  demo-api-server:',
   '    build:',
-  '      context: .    # repo root',
+  '      context: ${AI_DEMO_BFF_BUILD_CONTEXT:-.}    # repo root default',
   '      dockerfile: demo_api_server/Dockerfile',
   '  ui:',
   '    build:',
@@ -250,6 +250,6 @@ test('topology export CSV changes rebuild the frontend image', () => {
 
   assert.ok(copySources(read('demo_api_ui/Dockerfile')).includes('docs/exports/server-topology-lucidchart.csv'));
   assert.ok(copySources(read('demo_api_ui/Dockerfile')).includes('docs/exports/server-topology-details.csv'));
-  assert.deepStrictEqual(keysFor('docs/exports/server-topology-lucidchart.csv'), ['frontend']);
-  assert.deepStrictEqual(keysFor('docs/exports/server-topology-details.csv'), ['frontend']);
+  assert.deepStrictEqual(keysFor('docs/exports/server-topology-lucidchart.csv'), ['bff', 'frontend']);
+  assert.deepStrictEqual(keysFor('docs/exports/server-topology-details.csv'), ['bff', 'frontend']);
 });
