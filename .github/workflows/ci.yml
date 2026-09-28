@@ -2,6 +2,12 @@ name: CI
 
 on:
   workflow_dispatch:
+    inputs:
+      target_ref:
+        description: Full commit SHA to test; leave blank to test the selected ref
+        type: string
+        required: false
+        default: ''
   pull_request:
   push:
     branches: [main]
@@ -9,7 +15,7 @@ on:
     - cron: '17 9 * * *'
 
 concurrency:
-  group: ci-${{ github.ref }}-${{ github.event_name == 'schedule' && 'nightly' || 'interactive' }}
+  group: ci-${{ inputs.target_ref || github.ref }}-${{ github.event_name == 'schedule' && 'nightly' || 'interactive' }}
   # Superseding is safe here: this workflow only runs tests. Image builds live
   # in build-images.yml, which keys its own group by github.sha precisely so a
   # merge's build can never be evicted by a later merge — see that file.
@@ -31,6 +37,15 @@ jobs:
       unwired-services: ${{ steps.all.outputs['unwired-services'] || steps.nightly.outputs['unwired-services'] || steps.filter.outputs['unwired-services'] }}
       python-agents: ${{ steps.all.outputs['python-agents'] || steps.nightly.outputs['python-agents'] || steps.filter.outputs['python-agents'] }}
     steps:
+      - name: Validate optional target commit SHA
+        if: github.event_name == 'workflow_dispatch' && inputs.target_ref != ''
+        env:
+          TARGET_REF: ${{ inputs.target_ref }}
+        run: |
+          if ! [[ "$TARGET_REF" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "::error::target_ref must be a full 40-character commit SHA"
+            exit 1
+          fi
       - name: Run every suite on main and manual CI
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         id: all
@@ -125,6 +140,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.target_ref || github.ref }}
       - name: Lint GitHub Actions workflows
         run: /opt/homebrew/bin/actionlint .github/workflows/ci.yml
       - uses: actions/setup-node@v7
@@ -189,6 +206,8 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.target_ref || github.ref }}
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -230,6 +249,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.target_ref || github.ref }}
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -292,6 +313,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.target_ref || github.ref }}
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -333,6 +356,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.target_ref || github.ref }}
       - name: Use the runner's installed Python 3.12
         run: |
           python="$HOME/.local/bin/python3.12"
@@ -386,6 +411,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.target_ref || github.ref }}
       - uses: actions/setup-node@v7
         with:
           node-version: 22
