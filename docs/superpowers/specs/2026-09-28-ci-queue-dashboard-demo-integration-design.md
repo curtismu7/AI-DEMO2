@@ -35,12 +35,13 @@ so a stable destination is needed before the demo can link to it.
 
 ### Navigation and launch
 
-Add a child action named **CI Queue Dashboard** to the existing **Monitoring**
-group in `AdminSideNav`. It opens `http://127.0.0.1:57500/` in a new tab using
-`noopener,noreferrer`, matching the existing external-tool navigation pattern.
-Update the navigation structure catalog and its tests so the item remains
-available to Demo Config's navigation picker and does not drift from the
-rendered sidebar.
+Add a child action named **CI Queue Dashboard** to the visible **Observability**
+group in `AdminSideNav`. The rendered group is composed from entries in the
+legacy Monitoring list. The action opens `http://127.0.0.1:57500/` in a new tab
+using `noopener,noreferrer`, matching the existing external-tool navigation
+pattern. Update the navigation structure catalog and its tests so the item
+remains available to Demo Config's navigation picker and does not drift from
+the rendered sidebar.
 
 Set the standalone dashboard's default listen port to `57500`; callers and
 tests may still pass an explicit port. The process continues to bind only to
@@ -84,8 +85,8 @@ controls inside the demo UI.
   port while keeping explicit ephemeral ports available in tests.
 - `scripts/ci-queue-dashboard/README.md` — document the stable address and
   navigation prerequisite.
-- `demo_api_ui/src/components/AdminSideNav.jsx` — add the Monitoring child
-  action.
+- `demo_api_ui/src/components/AdminSideNav.jsx` — add the action sourced from
+  the legacy Monitoring list and rendered in Observability.
 - `demo_api_ui/src/config/navStructureCatalog.js` — register the navigation
   item.
 - `demo_api_ui/src/components/__tests__/adminSideNav.test.jsx` and relevant
