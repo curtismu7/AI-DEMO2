@@ -52,6 +52,10 @@
 .stm-filters strong { margin-left: auto; color: var(--th-text-muted); font-size: var(--font-size-3xs); font-weight: 600; }
 .stm-toolbar button:hover, .stm-filters button:hover, .stm-playback button:hover:not(:disabled), .stm-icon-button:hover { border-color: #647386; }
 .stm-toolbar button:focus-visible, .stm-filters button:focus-visible, .stm-playback button:focus-visible, .stm-playback select:focus-visible, .stm-icon-button:focus-visible { outline: 2px solid var(--th-status-info); outline-offset: 2px; }
+.stm-flow-toggle { display: inline-flex; align-items: center; gap: 7px; min-height: 31px; padding: 5px 10px; border: 1px solid var(--th-border); border-radius: 5px; background: var(--th-bg-card); color: var(--th-text-body); font-size: var(--font-size-2xs); cursor: pointer; white-space: nowrap; }
+.stm-flow-toggle input { width: 15px; height: 15px; margin: 0; accent-color: var(--th-status-info); cursor: pointer; }
+.stm-flow-toggle:focus-within { outline: 2px solid var(--th-status-info); outline-offset: 2px; }
+.stm-flow-toggle:has(input:checked) { border-color: var(--th-status-info); color: var(--th-text); }
 
 .stm-playback { min-height: 40px; padding: 5px 8px; border: 1px solid var(--th-border); border-radius: 6px; background: var(--th-bg-card); }
 .stm-playback label { margin-right: 3px; color: var(--th-text-muted); font-size: var(--font-size-2xs); font-weight: 650; }
@@ -169,6 +173,7 @@
   .stm-toolbar__spacer { display: none; }
   .stm-segmented, .stm-layers { flex: 1 1 100%; }
   .stm-segmented button, .stm-layers button { flex: 1; padding-inline: 5px; }
+  .stm-flow-toggle { flex: 1 1 100%; }
   .stm-playback { gap: 5px; }
   .stm-playback label, .stm-playback select { flex: 1 1 100%; }
   .stm-playback select { width: 100%; }

@@ -25,6 +25,13 @@ const EDGE_COLORS = { mcp: "#388bfd", oauth: "#bc8cff", agent: "#d29922", data: 
 const NODE_BY_ID = Object.fromEntries(SERVER_MAP.map((node) => [node.id, node]));
 const EDGE_BY_ID = Object.fromEntries(SERVER_EDGES.map((item) => [item.id, item]));
 
+function flowNodeIds(steps) {
+  return new Set(steps.flatMap(({ edgeId }) => {
+    const edge = EDGE_BY_ID[edgeId];
+    return edge ? [edge.source, edge.target] : [];
+  }));
+}
+
 function endpointFor(node, deployment) {
   return deployment === "local" ? node.data.local : node.data.k8s;
 }
@@ -69,15 +76,16 @@ const ZoneNode = memo(function ZoneNode({ data }) {
 
 const nodeTypes = { server: ServerCardNode, zone: ZoneNode };
 
-function FitFilteredServices({ filter }) {
+function FitFilteredServices({ filter, flowOnly, playbackSteps }) {
   const { fitView } = useReactFlow();
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      const visible = SERVER_MAP.filter((node) => matchesFilter(node, filter)).map(({ id }) => ({ id }));
+      const inFlow = flowOnly ? flowNodeIds(playbackSteps) : null;
+      const visible = SERVER_MAP.filter((node) => inFlow ? inFlow.has(node.id) : matchesFilter(node, filter)).map(({ id }) => ({ id }));
       fitView({ nodes: visible, padding: 0.1, minZoom: 0.2, maxZoom: 1, duration: 220 });
     }, 180);
     return () => window.clearTimeout(timer);
-  }, [filter, fitView]);
+  }, [filter, fitView, flowOnly, playbackSteps]);
   return null;
 }
 
@@ -168,20 +176,22 @@ function DetailPanel({ selectedNode, selectedEdge, deployment, activeStep, playb
 }
 
 function TopologyCanvas({
-  deployment, filter, activeLayer, selectedNode, selectedEdge, activePlaybackEdge, playbackSteps, onSelectNode, onSelectEdge, onFit, onClearSelection,
+  deployment, filter, flowOnly, activeLayer, selectedNode, selectedEdge, activePlaybackEdge, playbackSteps, onSelectNode, onSelectEdge, onFit, onClearSelection,
 }) {
+  const routeEdges = useMemo(() => new Set(playbackSteps.map((step) => step.edgeId)), [playbackSteps]);
+  const routeNodes = useMemo(() => flowNodeIds(playbackSteps), [playbackSteps]);
   const graphNodes = useMemo(() => {
-    const serviceNodes = SERVER_MAP.map((node) => ({
+    const serviceNodes = SERVER_MAP.filter((node) => !flowOnly || routeNodes.has(node.id)).map((node) => ({
       ...node,
       selected: node.id === selectedNode,
       data: { ...node.data, endpoint: endpointFor(node, deployment) },
-      style: { opacity: matchesFilter(node, filter) ? 1 : 0.22 },
+      style: { opacity: flowOnly || matchesFilter(node, filter) ? 1 : 0.22 },
     }));
-    return [...SERVER_ZONES, ...serviceNodes];
-  }, [deployment, filter, selectedNode]);
+    return flowOnly ? serviceNodes : [...SERVER_ZONES, ...serviceNodes];
+  }, [deployment, filter, flowOnly, routeNodes, selectedNode]);
 
-  const graphEdges = useMemo(() => SERVER_EDGES.map((item) => {
-    const visible = filter === "all" || matchesFilter(NODE_BY_ID[item.source], filter) || matchesFilter(NODE_BY_ID[item.target], filter) || (filter === "optional" && item.data.profile);
+  const graphEdges = useMemo(() => SERVER_EDGES.filter((item) => !flowOnly || routeEdges.has(item.id)).map((item) => {
+    const visible = flowOnly || filter === "all" || matchesFilter(NODE_BY_ID[item.source], filter) || matchesFilter(NODE_BY_ID[item.target], filter) || (filter === "optional" && item.data.profile);
     const stepIndex = playbackSteps.findIndex((step) => step.edgeId === item.id);
     const isOnPlayback = stepIndex >= 0;
     const isIncomingToSelection = selectedNode && item.target === selectedNode;
@@ -202,7 +212,7 @@ function TopologyCanvas({
       markerEnd: { type: MarkerType.ArrowClosed, color: stroke },
       data: { ...item.data, standards },
     };
-  }), [activeLayer, activePlaybackEdge, filter, playbackSteps, selectedEdge, selectedNode]);
+  }), [activeLayer, activePlaybackEdge, filter, flowOnly, playbackSteps, routeEdges, selectedEdge, selectedNode]);
 
   return (
     <div className="stm-canvas" aria-label="Interactive server topology graph">
@@ -225,9 +235,9 @@ function TopologyCanvas({
       >
         <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="var(--stm-dot)" />
         <Controls position="top-right" showInteractive={false} />
-        <FitFilteredServices filter={filter} />
+        <FitFilteredServices filter={filter} flowOnly={flowOnly} playbackSteps={playbackSteps} />
       </ReactFlow>
-      <button className="stm-fit-button" type="button" onClick={onFit}>Fit all servers</button>
+      <button className="stm-fit-button" type="button" onClick={onFit}>{flowOnly ? "Fit current flow" : "Fit all servers"}</button>
     </div>
   );
 }
@@ -235,15 +245,17 @@ function TopologyCanvas({
 function CanvasWithFit(props) {
   const { fitView } = useReactFlow();
   const handleFit = useCallback(() => {
-    const visible = SERVER_MAP.filter((node) => matchesFilter(node, props.filter)).map(({ id }) => ({ id }));
+    const inFlow = props.flowOnly ? flowNodeIds(props.playbackSteps) : null;
+    const visible = SERVER_MAP.filter((node) => inFlow ? inFlow.has(node.id) : matchesFilter(node, props.filter)).map(({ id }) => ({ id }));
     fitView({ nodes: visible, padding: 0.1, minZoom: 0.2, maxZoom: 1, duration: 250 });
-  }, [fitView, props.filter]);
+  }, [fitView, props.filter, props.flowOnly, props.playbackSteps]);
   return <TopologyCanvas {...props} onFit={handleFit} />;
 }
 
 function ServerTopologyContent() {
   const [deployment, setDeployment] = useState("local");
   const [filter, setFilter] = useState("all");
+  const [flowOnly, setFlowOnly] = useState(false);
   const [activeLayer, setActiveLayer] = useState("protocol");
   const [selectedNode, setSelectedNode] = useState(null);
   const [selectedEdge, setSelectedEdge] = useState("browser-ingress");
@@ -335,12 +347,16 @@ function ServerTopologyContent() {
           <div className="stm-layers" role="group" aria-label="Connection label detail">
             {LAYER_OPTIONS.map(([key, label]) => <button key={key} type="button" aria-pressed={activeLayer === key} onClick={() => setActiveLayer(key)}>{label}</button>)}
           </div>
+          <label className="stm-flow-toggle" htmlFor="stm-flow-only">
+            <input id="stm-flow-only" type="checkbox" checked={flowOnly} onChange={(event) => setFlowOnly(event.target.checked)} />
+            <span>Flow boxes only</span>
+          </label>
         </div>
-        <nav className="stm-filters" aria-label="Filter servers by category">
+        {!flowOnly && <nav className="stm-filters" aria-label="Filter servers by category">
           <span>Show</span>
           {FILTER_OPTIONS.map(([key, label]) => <button key={key} type="button" aria-pressed={filter === key} onClick={() => setFilter(key)}>{label}</button>)}
           <strong>{filter === "all" ? `${SERVER_MAP.length} services` : `${SERVER_MAP.filter((node) => matchesFilter(node, filter)).length} shown`}</strong>
-        </nav>
+        </nav>}
         <section className="stm-playback" aria-label="Flow playback controls">
           <label htmlFor="stm-playback-scenario">Choose a request flow</label>
           <select id="stm-playback-scenario" value={scenario} onChange={selectScenario}>
@@ -362,10 +378,10 @@ function ServerTopologyContent() {
 
       <section className={`stm-workspace${detailsOpen ? "" : " stm-workspace--map-only"}`} aria-label="Server graph and selected details">
         <div className="stm-graph-panel">
-          <div className="stm-graph-caption"><strong>Service map</strong><span>{deployment === "local" ? "Local Docker network" : "Kubernetes · ai-demo namespace"}</span><span className="stm-scroll-hint">Drag to pan · scroll to zoom</span><button type="button" aria-expanded={detailsOpen} onClick={() => setDetailsOpen((open) => !open)}>{detailsOpen ? "Hide details" : "Show details"}</button></div>
+          <div className="stm-graph-caption"><strong>{flowOnly ? "Current flow" : "Service map"}</strong><span>{deployment === "local" ? "Local Docker network" : "Kubernetes · ai-demo namespace"}</span><span className="stm-scroll-hint">Drag to pan · scroll to zoom</span><button type="button" aria-expanded={detailsOpen} onClick={() => setDetailsOpen((open) => !open)}>{detailsOpen ? "Hide details" : "Show details"}</button></div>
           <ReactFlowProvider>
             <CanvasWithFit
-              deployment={deployment} filter={filter} activeLayer={activeLayer} selectedNode={selectedNode}
+              deployment={deployment} filter={filter} flowOnly={flowOnly} activeLayer={activeLayer} selectedNode={selectedNode}
               selectedEdge={selectedEdge} activePlaybackEdge={activePlaybackEdge} playbackSteps={playback.steps} onSelectNode={selectNode}
               onSelectEdge={selectEdge} onClearSelection={clearSelection}
             />
