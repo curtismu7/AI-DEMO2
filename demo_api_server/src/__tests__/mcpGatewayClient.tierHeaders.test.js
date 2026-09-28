@@ -7,13 +7,20 @@ jest.mock('../../services/configStore', () => ({
 
 const axios = require('axios');
 const { callToolViaGateway } = require('../../services/mcpGatewayClient');
+const previousPingGatewayUrl = process.env.MCP_PINGGATEWAY_URL;
 
 beforeEach(() => {
+  process.env.MCP_PINGGATEWAY_URL = 'https://api.ping.demo:3005';
   axios.post = jest.fn().mockResolvedValue({
     status: 200,
     headers: {},
     data: { jsonrpc: '2.0', id: '1', result: { content: [{ text: '{}' }] } },
   });
+});
+
+afterAll(() => {
+  if (previousPingGatewayUrl === undefined) delete process.env.MCP_PINGGATEWAY_URL;
+  else process.env.MCP_PINGGATEWAY_URL = previousPingGatewayUrl;
 });
 
 test('sends X-User-Tier and tier definition headers when userGroups maps to a non-default tier', async () => {

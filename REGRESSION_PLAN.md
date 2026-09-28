@@ -188,9 +188,105 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-28 — Vitest worker memory grew past 9 GB
+
+**Files:** `.github/workflows/ci.yml`, `demo_api_ui/vite.config.js`, and the
+oversized UI test suites.
+
+**What was broken:** Vitest's default fork pool reused workers across hundreds
+of jsdom files, while CI and the worker config each allowed a 14 GB V8 heap. A
+single worker reached over 4 GB RSS in a local UI run and 9.8 GB RSS in CI.
+Limiting the pool to two workers did not limit memory per worker. Vitest's
+`memoryLimit` tracks heap use and recycles only after a file finishes; its
+`vmForks` pool also fails to load the current React Router ESM/CJS boundary.
+The live-event path in `TokenChainDisplay` also built a new filtered event
+array on every render; an effect watched that array and updated state, causing
+an endless render loop that could exhaust a worker's heap inside one test file.
+The Agent Gateway tester also left its four startup requests active on unmount;
+a late tools failure attempted to update state after the test DOM was destroyed.
+
+**What was fixed:** remove the 14 GB heap overrides, cap each worker's V8 heap
+at 1.4 GB, and cap the pool at two workers. The full unit suite starts fresh
+workers every 12 test files. Route both UI test commands through a watchdog
+that samples every Vitest process's RSS every 100 ms and terminates the
+complete run if any process exceeds 4,000,000,000 bytes. The 4 GB ceiling is a
+hard stop; the measured full-suite peak before this increase was 1.86 GB. Split
+the remaining UI test files over 1,000 lines into focused suites while keeping
+their assertions intact. Keep the derived live-event list stable between
+renders so its state-setting effects run only when the underlying events
+change. Abort the Agent Gateway startup requests on unmount and ignore their
+late results.
+
+**Do not break:** preserve every UI test assertion and existing dev-proxy,
+OAuth, and session behavior. Stop the complete Vitest process tree when any
+process exceeds 4,000,000,000 bytes RSS; never scale the ceiling to the host's
+reported RAM.
+
+**Verify:** run the watchdog unit tests, split UI suites under `vmForks`,
+`npm run test:unit`, `npm run build`, and actionlint on
+`.github/workflows/ci.yml`; confirm no UI test file exceeds 1,000 lines and
+monitor the full run for RSS breaches below the 4 GB ceiling.
+
+### 2026-09-28 — Related UI tests on pull requests
+
+**Files:** `.github/workflows/ci.yml`, `demo_api_ui/package.json`, and
+`demo_api_ui/scripts/select-vitest-mode.mjs`.
+
+**What was broken:** every UI pull request selected the complete 690-file
+Vitest suite, even when a change touched one leaf component.
+
+**What was fixed:** pass the pull request's changed UI paths to the guarded
+Vitest launcher. Only explicitly verified leaf-component edits run
+`vitest related`; changed unit test files run directly. Shared or unverified
+components, the App shell, route-level pages, contexts, hooks, services,
+styles, test setup, config, deleted or renamed files, and unknown paths select
+the complete suite. `AgentRunTimeline.jsx` is currently the only allowlisted
+leaf: it has one production importer (`AgentFlowHistoryPage.jsx`) and focused
+tests. Pushes to main, manual runs, and the nightly schedule use the full
+suite; the nightly schedule runs the gates and UI suite without queuing the
+unrelated service suites.
+
+**Do not break:** Vitest related selection only follows static imports. Keep
+dynamic route and shared UI infrastructure changes on the full suite, and do
+not let an unavailable changed-file list turn into an empty green run.
+
+**Verify:** selector unit tests cover leaf components, shared contexts, the
+App shell, route pages, styles, and config. Validate selected tests against
+representative component changes and confirm main/manual execution still calls
+the guarded full-suite command.
+
+### 2026-09-28 — Graphify refresh cost and parser warnings
+
+**Files:** `CLAUDE.md`, `.graphifyignore`,
+`demo_api_server/services/agentRunContext.js`,
+`demo_api_ui/src/components/education/{AiPlatformLandscapePanel,IntentAuthStandardsPanel,LlmLandscapePanel}.js`.
+
+**What was broken:** the post-edit `graphify update .` instruction performed a
+full AST scan. Graphify also re-queued 1,068 JSON files that its extractor
+intentionally skipped as data, lacked the optional HCL grammar, and flagged
+literal NUL/JSX ampersands in four source files as partial parses.
+
+**What was fixed:** use manifest-backed `graphify extract . --code-only
+--no-cluster --timing`; exclude the large step-verification/golden data and
+generated execution traces; spell the run-key separator as `\u0000` and encode
+JSX ampersands as entities so displayed text stays the same. The local Graphify
+tool was upgraded to 0.9.71 and `tree-sitter-hcl` installed.
+
+**Do not break:** session+run scoped context keys and the `LLM token custody`
+invariant; preserve the current JSX text and keep application behavior
+independent of Graphify exclusions.
+
+**Verify:** `node --check demo_api_server/services/agentRunContext.js` passed;
+the Graphify extractor reported no parse errors for the four changed files;
+`cd demo_api_ui && npm run build` passed. The incremental no-cluster refresh
+processed 181 code files, kept 5,243 unchanged, and took 22.1s (7.9s detect,
+5.7s AST, 7.1s write), producing 66,751 nodes and 121,389 edges. All six
+Terraform/HCL files are represented; 176 intentionally skipped JSON files
+still re-queue, tracked in `TECH_DEBT.md`.
+
 ### 2026-09-28 — Shared-Mac CI contention from duplicate runner registrations and caches
 
-**Files:** `.github/workflows/ci.yml`.
+**Files:** `.github/workflows/ci.yml`, `demo_api_ui/vite.config.js`, and the AIAgent test suites.
 
 **What was broken:** multiple Actions runner registrations on the same Mac were
 treated as independent capacity. Their persistent workspaces held multi-gigabyte
@@ -205,12 +301,46 @@ before repository gates and make expensive suites depend on the gates; disable
 the large npm cache; install pytest
 explicitly for llamaindex and fail on dependency-install errors.
 
+**Follow-up:** the cold BFF dependency install took nearly 30 minutes against
+its previous 30-minute job limit, and the grouped authz/gateway suites exceeded
+their 30-minute limit. Use lockfile-based `npm ci`, give the API and grouped
+service jobs 60 and 45 minutes, and cap CI Vitest workers at two on the shared
+Mac. The 14 GB heap override was later removed after a worker reached 9.8 GB;
+see the newer Vitest memory entry above. Split the 1,787-line AIAgent chips
+suite into four focused files while retaining all 88 tests.
+
 **Do not break:** do not require a special `ci-gates` runner label; keep npm
 caching disabled on self-hosted jobs; keep Python tests isolated in Python 3.12
 virtual environments.
 
 **Verify:** actionlint and a fresh full CI run on a single registered Mac
 runner; `llamaindex_agent` must report 10 passed, 1 skipped.
+
+### 2026-09-27 — BFF CI gateway routing failures
+
+**Files:** `.github/workflows/ci.yml`,
+`demo_api_server/services/mcpToolPipeline.js`,
+`demo_api_server/services/mcpGatewayClient.js`,
+`demo_api_server/src/__tests__/mcpGatewayClient.pinnedAudience.test.js`.
+
+**What was broken:** the persistent CI runner inherited local PingGateway and
+Node gateway URL aliases, redirecting mocked gateway calls. The A2A token pin
+also used routing config before initialization, and the gateway client could
+re-route a selected Node gateway base to PingGateway.
+
+**What was fixed:** the API test job clears inherited gateway URL aliases;
+routing tests set their own test endpoints. The pipeline initializes routing
+config before audience resolution. Recognized A2A and ID-JAG audiences keep the
+Node gateway destination when it is already selected, and A2A pinning accepts
+the configured audience or canonical resource name.
+
+**Do not break:** ordinary vertical tools continue to use PingGateway and its
+token audience. Missing required Node gateway configuration still fails
+closed. Preserve the gateway-authoritative `skipBffAuthorize` rule and RFC 8693
+token exchange flow.
+
+**Verify:** focused BFF routing and pipeline tests passed 28/28 before the
+single-runner merge; rerun in protected CI.
 
 ### 2026-09-27 — Third self-hosted runner could not take CI gates reliably
 
@@ -226,13 +356,12 @@ cache override could not relocate that Python build. Vitest workers also
 reached their 12 GB V8 heap ceiling in the full CI run.
 
 **What was fixed:** route the selector and hygiene/topology jobs only to the
-`ci-gates` runner, use the runner's installed Python 3.12 in per-service virtual
-environments, and raise the Vitest parent and worker heap ceiling to the
-measured 14 GB.
+`ci-gates` runner and use the runner's installed Python 3.12 in per-service
+virtual environments. The 14 GB Vitest heap workaround was superseded by the
+2026-09-28 worker-recycling fix above.
 
-**Do not break:** preserve the 14 GB UI worker ceiling and Python 3.12
-environment details recorded here; runner routing is superseded by the newer
-single-runner finding above.
+**Do not break:** preserve the Python 3.12 environment details recorded here;
+runner routing is superseded by the newer single-runner finding above.
 
 **Verify:** `actionlint` on `.github/workflows/ci.yml`; run the Python agent,
 Vitest, API and unwired-service CI jobs on the updated PR.
