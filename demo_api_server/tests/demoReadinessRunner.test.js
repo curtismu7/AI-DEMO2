@@ -1,0 +1,127 @@
+'use strict';
+
+const { startReadinessRun } = require('../services/demoReadinessRunner');
+
+function harness(overrides = {}) {
+  const calls = [];
+  const adapters = {
+    checkPrerequisites: async () => { calls.push('prerequisites'); return [{ id: 'runtime', status: 'pass' }]; },
+    audit: async ({ phase }) => { calls.push('audit:' + phase); return [{ id: 'config', status: phase === 'initial' ? 'fail' : 'pass', repairCandidate: phase === 'initial' ? { repairClass: 'test', target: 'local', object: { id: 'object' }, current: 'old', expected: 'new', sourceRef: 'source', operation: 'set value' } : undefined }]; },
+    planRepairs: async () => { calls.push('preview'); return { digest: 'abc123', changes: [{ operation: 'set value', secret: 'client_secret=hidden' }], blocked: [] }; },
+    applyRepairs: async ({ digest }) => { calls.push('apply:' + digest); return { digest, evidence: [] }; },
+    execute: async () => { calls.push('execute'); return { rows: [{ id: 'row', status: 'pass' }] }; },
+    ...overrides,
+  };
+  return { calls, adapters };
+}
+
+describe('startReadinessRun', () => {
+  test('runs phases in order and binds apply to the displayed digest', async () => {
+    const { calls, adapters } = harness();
+    const result = await startReadinessRun({ targets: ['local', 'se'], adapters, confirmRepairs: async ({ digest }) => ({ confirmed: true, digest, adminAssertion: { subject: 'readiness-admin' } }) });
+    expect(calls).toEqual(['prerequisites', 'audit:initial', 'preview', 'apply:abc123', 'audit:after-repair', 'execute']);
+    expect(result.status).toBe('ready');
+    expect(result.checks.find((row) => row.id === 'config').resolvedByRepair).toBe(true);
+  });
+
+  test('starts one deadline before prerequisites and includes confirmation wait', async () => {
+    let now = 1_000;
+    let deadlineSeen;
+    const { adapters } = harness({
+      checkPrerequisites: async ({ deadlineAt }) => { deadlineSeen = deadlineAt; now += 100; return [{ id: 'runtime', status: 'pass' }]; },
+    });
+    const result = await startReadinessRun({ targets: ['local'], adapters, clock: () => now, confirmRepairs: async ({ deadlineAt }) => { expect(deadlineAt).toBe(deadlineSeen); now = deadlineAt; return 'abc123'; } });
+    expect(deadlineSeen).toBe(901_000);
+    expect(result.status).toBe('deadline-exceeded');
+    expect(result.rows.some((row) => row.status === 'not-run')).toBe(true);
+  });
+
+  test('declined or incorrect confirmation never writes or executes', async () => {
+    for (const answer of [false, 'wrong']) {
+      const { calls, adapters } = harness();
+      const result = await startReadinessRun({ targets: ['local'], adapters, confirmRepairs: async () => answer });
+      expect(calls).not.toContain('apply:abc123');
+      expect(calls).not.toContain('execute');
+      expect(result.status).toBe('not-ready');
+    }
+  });
+
+  test('an audit blocker prevents repair writes and matrix execution', async () => {
+    const { calls, adapters } = harness({ audit: async () => { calls.push('audit:initial'); return [{ id: 'policy', status: 'blocked' }]; } });
+    const result = await startReadinessRun({ targets: ['local'], adapters, confirmRepairs: async () => 'abc123' });
+    expect(calls).not.toContain('apply:abc123');
+    expect(calls).not.toContain('execute');
+    expect(result.status).toBe('not-ready');
+  });
+
+  test('re-audits after applying repairs before scenarios and blocks on re-audit failure', async () => {
+    const { calls, adapters } = harness({ audit: async ({ phase }) => { calls.push('audit:' + phase); return [{ id: 'config', status: phase === 'initial' ? 'fail' : 'blocked', repairCandidate: { repairClass: 'test', target: 'local', object: { id: 'object' }, current: 'old', expected: 'new' } }]; } });
+    const result = await startReadinessRun({ targets: ['local'], adapters, confirmRepairs: async () => 'abc123' });
+    expect(calls.indexOf('audit:after-repair')).toBeLessThan(calls.indexOf('execute') < 0 ? Infinity : calls.indexOf('execute'));
+    expect(calls).not.toContain('execute');
+    expect(result.status).toBe('not-ready');
+  });
+
+  test('every failed, blocked, unknown, or unfinished matrix row prevents READY', async () => {
+    for (const status of ['fail', 'blocked', 'unknown', 'not-run']) {
+      const { calls, adapters } = harness({ audit: async () => [{ id: 'config', status: 'pass' }], planRepairs: async () => ({ digest: 'empty', changes: [], blocked: [] }), execute: async () => { calls.push('execute'); return { rows: [{ id: 'required', status }] }; } });
+      const result = await startReadinessRun({ targets: ['local', 'se'], adapters });
+      expect(calls).toContain('execute');
+      expect(result.status).toBe('not-ready');
+    }
+  });
+
+  test('failed apply/readback never launches the scenario matrix', async () => {
+    const { calls, adapters } = harness({ applyRepairs: async () => { calls.push('apply:abc123'); throw new Error('readback failed'); } });
+    const result = await startReadinessRun({ targets: ['local', 'se'], adapters, confirmRepairs: async ({ digest }) => ({ confirmed: true, digest, adminAssertion: { subject: 'readiness-admin' } }) });
+    expect(calls).not.toContain('execute');
+    expect(result.status).toBe('not-ready');
+    expect(result.checks.find((row) => row.id === 'repair:apply').status).toBe('blocked');
+  });
+
+  test('apply acknowledgement must carry the exact preview digest', async () => {
+    const { calls, adapters } = harness({ applyRepairs: async () => { calls.push('apply:abc123'); return { digest: 'different' }; } });
+    const result = await startReadinessRun({ targets: ['local', 'se'], adapters, confirmRepairs: async ({ digest }) => ({ confirmed: true, digest, adminAssertion: { subject: 'readiness-admin' } }) });
+    expect(calls).not.toContain('execute');
+    expect(result.status).toBe('not-ready');
+    expect(result.checks.find((row) => row.id === 'repair:apply-digest').status).toBe('blocked');
+  });
+
+  test('single-target success is diagnostic and can never be full READY', async () => {
+    const { adapters } = harness({ audit: async () => [{ id: 'config', status: 'pass' }], planRepairs: async () => ({ digest: 'empty', changes: [], blocked: [] }), execute: async () => ({ rows: [{ id: 'required', status: 'pass' }] }) });
+    const result = await startReadinessRun({ targets: ['local'], adapters, confirmRepairs: async () => true });
+    expect(result.ready).toBe(false);
+    expect(result.label).toMatch(/diagnostic/i);
+  });
+
+  test('confirmed digest without an administrator assertion cannot write', async () => {
+    const { calls, adapters } = harness();
+    const result = await startReadinessRun({ targets: ['local', 'se'], adapters, confirmRepairs: async ({ digest }) => digest });
+    expect(calls).not.toContain('apply:abc123');
+    expect(result.checks.find((row) => row.id === 'repair:administrator-assertion').status).toBe('blocked');
+  });
+
+  test('deadline abort signal reaches an in-flight repair before timeout is reported', async () => {
+    let observedSignal;
+    let wroteAfterAbort = false;
+    const { adapters } = harness({
+      applyRepairs: async ({ digest, signal }) => {
+        observedSignal = signal;
+        await new Promise((resolve) => setTimeout(resolve, 1_300));
+        if (!signal.aborted) wroteAfterAbort = true;
+        return { digest };
+      },
+    });
+    const result = await startReadinessRun({ targets: ['local', 'se'], adapters, deadlineMs: 1_000, confirmRepairs: async ({ digest }) => ({ confirmed: true, digest, adminAssertion: { subject: 'readiness-admin' } }) });
+    expect(result.status).toBe('deadline-exceeded');
+    expect(observedSignal.aborted).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(wroteAfterAbort).toBe(false);
+  });
+
+  test('redacts credentials from returned report evidence', async () => {
+    const { adapters } = harness({ audit: async () => [{ id: 'check', status: 'blocked', evidence: { authorization: 'Bearer secret-token', client_secret: 'secret' } }] });
+    const result = await startReadinessRun({ targets: ['local'], adapters });
+    expect(JSON.stringify(result)).not.toMatch(/secret-token|"client_secret":"secret"/);
+  });
+});
