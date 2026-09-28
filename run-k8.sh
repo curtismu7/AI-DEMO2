@@ -13,7 +13,7 @@
 #   ./run-k8.sh kill                     # kill ai-demo port-forwards + stray demo-port listeners
 #   ./run-k8.sh stop                     # clear forwards + scale all workloads to 0 (keep config; frees memory)
 #   ./run-k8.sh mode demo                # minimal set for dashboard demos (frontend + BFF + gateways)
-#   ./run-k8.sh mode basic               # dashboard/admin + agent set in the current namespace
+#   ./run-k8.sh mode basic               # dashboard/admin + login services in the current namespace
 #   ./run-k8.sh mode mcpgw               # scale down to ping-mcpgw + mcp-server only
 #   ./run-k8.sh mode full                # scale back up to full stack (no rebuild)
 #   ./run-k8.sh extras off               # stop just the investment + mortgage backends (frees memory; 'extras on' restores)
@@ -39,7 +39,7 @@
 #   ./run-k8.sh se-deploy     # deploy to SE cluster (auto-derives your namespace)
 #   ./run-k8.sh se-all        # se-build + se-deploy
 #   ./run-k8.sh se-status     # switch to the SE cluster + your namespace, show pod status
-#   ./run-k8.sh se-basic      # scale your SE namespace to the dashboard/admin + agent set
+#   ./run-k8.sh se-basic      # scale your SE namespace to dashboard/admin + login only
 #   ./run-k8.sh se-undeploy   # delete everything INSIDE your SE namespace: workloads AND
 #                             # secrets, so create-secrets.sh must be re-run before the
 #                             # next deploy. The namespace itself is KEPT — it is

@@ -289,7 +289,7 @@ show_commands() {
   demo_box_open "${WHITE}" "COMMANDS"
   demo_box_row "${WHITE}" "${BOLD}./k8s/deploy.sh${RESET}                       full deploy"
   demo_box_row "${WHITE}" "${BOLD}./k8s/deploy.sh status${RESET}            pod and agent health"
-  demo_box_row "${WHITE}" "${BOLD}./k8s/deploy.sh mode basic${RESET}       scale to dashboard/admin + agent set"
+  demo_box_row "${WHITE}" "${BOLD}./k8s/deploy.sh mode basic${RESET}       scale to dashboard/admin + login only"
   demo_box_row "${WHITE}" "${BOLD}./k8s/deploy.sh forward${RESET}           port-forward to localhost"
   demo_box_row "${WHITE}" "${BOLD}./k8s/deploy.sh forward-api${RESET}       BFF :3001 only (auto-respawn)"
   demo_box_row "${WHITE}" "${BOLD}./k8s/deploy.sh forward-bg [api]${RESET}  detached forward supervisor"
@@ -705,7 +705,7 @@ stop_cluster() {
 }
 
 # Switch between predefined pod subsets without a full redeploy.
-#   mode basic  — dashboard/admin + MCP/agent path, with RAG and showcase backends off
+#   mode basic  — dashboard/admin + login only; scale agent and showcase backends off
 #   mode demo   — minimal set for dashboard + token-chain demos:
 #                 frontend, demo-api-server, mcp-server, mcp-gateway, ping-gateway
 #   mode mcpgw  — only ping-mcpgw + mcp-server (mcpgw proxies to mcp-server)
@@ -714,9 +714,9 @@ mode_cmd() {
   local target="${1:-}"
   case "$target" in
     basic)
-      local basic_deployments=(frontend demo-api-server mcp-server mcp-gateway ping-gateway agent-service hitl-service llm-proxy tier-manager llama-tier1)
+      local basic_deployments=(frontend demo-api-server)
       local dep existing=()
-      info "Switching to basic mode (dashboard/admin + MCP/agent path)..."
+      info "Switching to basic mode (dashboard/admin + login only)..."
       # Check every required deployment before scaling anything down. This mode
       # operates on an existing full deployment; it does not apply manifests.
       for dep in "${basic_deployments[@]}"; do
