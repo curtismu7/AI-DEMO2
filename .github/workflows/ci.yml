@@ -20,8 +20,7 @@ permissions:
 jobs:
   changes:
     name: Select affected test suites
-    # Dedicated runner has only the ci-gates label; it cannot take heavy jobs.
-    runs-on: [ci-gates]
+    runs-on: [self-hosted, macOS]
     outputs:
       api-server: ${{ steps.all.outputs['api-server'] || steps.filter.outputs['api-server'] }}
       decision-services: ${{ steps.all.outputs['decision-services'] || steps.filter.outputs['decision-services'] }}
@@ -92,9 +91,8 @@ jobs:
   gates:
     name: Hygiene + topology gates
     needs: changes
-    # Run selection first on this dedicated runner, then use its remaining time
-    # for the repository gates while the affected suites fan out.
-    runs-on: [ci-gates]
+    # Run selection first, then run repository gates on the single CI runner.
+    runs-on: [self-hosted, macOS]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
@@ -149,7 +147,7 @@ jobs:
 
   api-server-tests:
     name: API server tests (Jest)
-    needs: changes
+    needs: [changes, gates]
     if: needs.changes.outputs['api-server'] == 'true'
     runs-on: [self-hosted, macOS]
     timeout-minutes: 30
@@ -183,7 +181,7 @@ jobs:
     # module that fails `vite build` is exactly the false pass demo_api_ui's
     # CLAUDE.md warns about.
     name: UI tests (Vitest) + build
-    needs: changes
+    needs: [changes, gates]
     if: needs.changes.outputs['ui'] == 'true'
     runs-on: [self-hosted, macOS]
     timeout-minutes: 30
@@ -241,7 +239,7 @@ jobs:
     # the distinction it exists to draw — "0 tests ran" must not look like
     # "all tests passed".
     name: Unwired service suites (agent, hitl, code-search, token, resource-server)
-    needs: changes
+    needs: [changes, gates]
     if: needs.changes.outputs['unwired-services'] == 'true'
     runs-on: [self-hosted, macOS]
     timeout-minutes: 30
@@ -282,7 +280,7 @@ jobs:
     #   langchain_agent   834 passed          -> BLOCKING
     #   llamaindex_agent    9 passed, 1 skip  -> BLOCKING
     name: Python agent suites (langchain, llamaindex)
-    needs: changes
+    needs: [changes, gates]
     if: needs.changes.outputs['python-agents'] == 'true'
     runs-on: [self-hosted, macOS]
     timeout-minutes: 30
@@ -335,7 +333,7 @@ jobs:
     # constraint — a separate job means another runner and another npm install
     # for ~90s of tests. Bundling is why this job already spans three services.
     name: Service suites (authz-server + mcp-gateway + mcp-server + mcp-resource-server)
-    needs: changes
+    needs: [changes, gates]
     if: needs.changes.outputs['decision-services'] == 'true'
     runs-on: [self-hosted, macOS]
     timeout-minutes: 30
