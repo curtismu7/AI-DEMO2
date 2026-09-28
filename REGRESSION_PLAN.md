@@ -188,6 +188,28 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-28 — DaVinci widget runtime followed PF instead of the PingOne region
+
+**Files:** `demo_api_server/routes/davinciLogin.js`,
+`demo_api_server/tests/routes/davinciLogin.test.js`.
+
+**What was broken:** the widget SDK's `apiRoot` was derived from the active
+OAuth discovery endpoint. With PF selected, that pointed `davinci.js` at the
+internal `pingfederate:9031` host, so the browser could not start the flow.
+
+**What was fixed:** the widget API root now uses the configured PingOne region,
+independent of which provider handles the app's OAuth login. The SDK token,
+flow policy, nonce, and login-provider selection remain unchanged.
+
+**Do not break:** keep the DaVinci runtime rooted at `auth.pingone.{region}`
+when PF is selected; keep nonce arming and policy selection in
+`routes/davinciLogin.js` unchanged.
+
+**Verify:** `cd demo_api_server && CI=true npx jest
+tests/routes/davinciLogin.test.js --forceExit` (32/32). The regression test
+first failed with `https://pingfederate:9031/`, then passed with the configured
+PingOne region.
+
 ### 2026-09-28 — Vitest worker memory grew past 9 GB
 
 **Files:** `.github/workflows/ci.yml`, `demo_api_ui/vite.config.js`, and the
