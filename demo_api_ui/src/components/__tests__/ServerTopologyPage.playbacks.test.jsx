@@ -1,6 +1,8 @@
 import React from "react";
-import { fireEvent, render, screen, within } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+const reactFlowMocks = vi.hoisted(() => ({ fitView: vi.fn(), setViewport: vi.fn() }));
 
 vi.mock("@xyflow/react", async () => {
   const ReactModule = await import("react");
@@ -27,14 +29,145 @@ vi.mock("@xyflow/react", async () => {
       children,
     ),
     ReactFlowProvider: ({ children }) => children,
-    useReactFlow: () => ({ fitView: vi.fn() }),
+    useReactFlow: () => ({ fitView: reactFlowMocks.fitView, getViewport: () => ({ x: 24, y: 36, zoom: 0.62 }), setViewport: reactFlowMocks.setViewport }),
   };
 });
 
 import ServerTopologyPage from "../ServerTopologyPage";
 import { PLAYBACKS, SERVER_EDGES } from "../serverTopologyData";
 
+function firePointer(target, type, properties) {
+  const event = new Event(type, { bubbles: true, cancelable: true });
+  Object.entries(properties).forEach(([key, value]) => Object.defineProperty(event, key, { value }));
+  fireEvent(target, event);
+}
+
+afterEach(() => window.localStorage.clear());
+
 describe("Server topology use-case playback", () => {
+  it("resizes and remembers the playback, detail, and notes panes with keyboard controls", () => {
+    const originalWidth = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1280 });
+    window.localStorage.clear();
+    window.localStorage.setItem("server-topology-flow-size", "158");
+    window.localStorage.setItem("server-topology-details-width", "320");
+    window.localStorage.setItem("server-topology-notes-size", "72");
+
+    try {
+      render(<ServerTopologyPage />);
+
+      const flowResize = screen.getByRole("separator", { name: "Resize playback and results pane" });
+      expect(flowResize).toHaveAttribute("aria-orientation", "horizontal");
+      expect(flowResize).toHaveAttribute("aria-valuenow", "158");
+      fireEvent.keyDown(flowResize, { key: "ArrowDown" });
+      expect(flowResize).toHaveAttribute("aria-valuenow", "174");
+      expect(window.localStorage.getItem("server-topology-flow-size")).toBe("174");
+
+      fireEvent.click(screen.getByRole("button", { name: "Show details" }));
+      const detailsResize = screen.getByRole("separator", { name: "Resize map and details pane" });
+      expect(detailsResize).toHaveAttribute("aria-orientation", "vertical");
+      expect(detailsResize).toHaveAttribute("aria-valuenow", "320");
+      fireEvent.keyDown(detailsResize, { key: "ArrowLeft" });
+      expect(detailsResize).toHaveAttribute("aria-valuenow", "336");
+      expect(window.localStorage.getItem("server-topology-details-width")).toBe("336");
+
+      const notesResize = screen.getByRole("separator", { name: "Resize network and mTLS notes" });
+      fireEvent.keyDown(notesResize, { key: "ArrowUp" });
+      expect(notesResize).toHaveAttribute("aria-valuenow", "88");
+      expect(window.localStorage.getItem("server-topology-notes-size")).toBe("88");
+    } finally {
+      Object.defineProperty(window, "innerWidth", { configurable: true, value: originalWidth });
+      window.localStorage.clear();
+    }
+  });
+
+  it("switches the map/details divider to a vertical resize on narrow screens", () => {
+    const originalWidth = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 800 });
+    window.localStorage.clear();
+
+    try {
+      render(<ServerTopologyPage />);
+      fireEvent.click(screen.getByRole("button", { name: "Show details" }));
+
+      const detailsResize = screen.getByRole("separator", { name: "Resize map and details pane" });
+      expect(detailsResize).toHaveAttribute("aria-orientation", "horizontal");
+      fireEvent.keyDown(detailsResize, { key: "ArrowUp" });
+      expect(detailsResize).toHaveAttribute("aria-valuenow", "336");
+      expect(window.localStorage.getItem("server-topology-details-height")).toBe("336");
+    } finally {
+      Object.defineProperty(window, "innerWidth", { configurable: true, value: originalWidth });
+      window.localStorage.clear();
+    }
+  });
+
+  it("reserves enough narrow-screen height for the stacked playback and result controls", () => {
+    const originalWidth = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 800 });
+    window.localStorage.clear();
+
+    try {
+      render(<ServerTopologyPage />);
+
+      const flowResize = screen.getByRole("separator", { name: "Resize playback and results pane" });
+      expect(flowResize).toHaveAttribute("aria-valuemin", "180");
+      expect(flowResize).toHaveAttribute("aria-valuenow", "220");
+
+      const notesResize = screen.getByRole("separator", { name: "Resize network and mTLS notes" });
+      expect(notesResize).toHaveAttribute("aria-valuemin", "112");
+      expect(notesResize).toHaveAttribute("aria-valuenow", "144");
+    } finally {
+      Object.defineProperty(window, "innerWidth", { configurable: true, value: originalWidth });
+      window.localStorage.clear();
+    }
+  });
+
+  it("resizes the playback pane by dragging its divider", () => {
+    const originalWidth = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1280 });
+    window.localStorage.clear();
+    render(<ServerTopologyPage />);
+
+    const flowResize = screen.getByRole("separator", { name: "Resize playback and results pane" });
+    firePointer(flowResize, "pointerdown", { button: 0, pointerId: 1, clientX: 12, clientY: 100 });
+    expect(flowResize).toHaveAttribute("data-resizing", "true");
+    firePointer(flowResize, "pointermove", { pointerId: 1, clientX: 12, clientY: 132 });
+    expect(flowResize).toHaveAttribute("aria-valuenow", "182");
+    firePointer(flowResize, "pointerup", { pointerId: 1, clientX: 12, clientY: 132 });
+
+    expect(flowResize).toHaveAttribute("aria-valuenow", "182");
+    expect(window.localStorage.getItem("server-topology-flow-size")).toBe("182");
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: originalWidth });
+  });
+
+  it("fits the current topology for print and restores the interactive viewport afterward", () => {
+    reactFlowMocks.fitView.mockClear();
+    reactFlowMocks.setViewport.mockClear();
+    render(<ServerTopologyPage />);
+
+    window.dispatchEvent(new Event("beforeprint"));
+    expect(reactFlowMocks.fitView).toHaveBeenCalledWith(expect.objectContaining({
+      padding: 0.1,
+      duration: 0,
+    }));
+
+    window.dispatchEvent(new Event("afterprint"));
+    expect(reactFlowMocks.setViewport).toHaveBeenCalledWith(
+      { x: 24, y: 36, zoom: 0.62 },
+      { duration: 0 },
+    );
+  });
+
+  it("refits the graph when opening details reduces its available width", async () => {
+    reactFlowMocks.fitView.mockClear();
+    render(<ServerTopologyPage />);
+    await waitFor(() => expect(reactFlowMocks.fitView).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByRole("button", { name: "Show details" }));
+
+    await waitFor(() => expect(reactFlowMocks.fitView).toHaveBeenCalledTimes(2));
+  });
+
   it("shows a full numbered route and its result in the use-case selector", () => {
     render(<ServerTopologyPage />);
 
@@ -55,6 +188,21 @@ describe("Server topology use-case playback", () => {
     expect(within(selector).getByRole("option", {
       name: /Agent → Demo Agent Gateway → API-key backend.*Mortgage data returned.*key stays server-side/i,
     })).toBeInTheDocument();
+  });
+
+  it("shows PDF and Lucidchart downloads on the topology page", () => {
+    render(<ServerTopologyPage />);
+
+    const exports = screen.getByRole("group", { name: "Export server topology" });
+    expect(within(exports).getByRole("button", { name: "Save as PDF" })).toBeInTheDocument();
+    expect(within(exports).getByRole("link", { name: "Download Lucidchart CSV" })).toHaveAttribute(
+      "href",
+      "/exports/server-topology-lucidchart.csv",
+    );
+    expect(within(exports).getByRole("link", { name: "Download details CSV" })).toHaveAttribute(
+      "href",
+      "/exports/server-topology-details.csv",
+    );
   });
 
   it("keeps each advertised use case tied to real topology connections and an outcome", () => {

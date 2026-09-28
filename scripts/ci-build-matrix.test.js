@@ -91,7 +91,7 @@ const COMPOSE = [
   'services:',
   '  demo-api-server:',
   '    build:',
-  '      context: .    # repo root',
+  '      context: ${AI_DEMO_BFF_BUILD_CONTEXT:-.}    # repo root default',
   '      dockerfile: demo_api_server/Dockerfile',
   '  ui:',
   '    build:',
@@ -114,6 +114,9 @@ const DOCKERFILES = {
   ].join('\n'),
   'demo_api_ui/Dockerfile': [
     'FROM node:22-alpine AS builder',
+    'COPY demo_api_ui/scripts/sync-topology-exports.mjs ./scripts/',
+    'COPY docs/exports/server-topology-lucidchart.csv /docs/exports/',
+    'COPY docs/exports/server-topology-details.csv /docs/exports/',
     'COPY demo_api_ui/ .',
     'COPY llm-timeouts.json /llm-timeouts.json',
     'FROM nginx',
@@ -186,6 +189,8 @@ test('omitting rootDeps keeps the original prefix-only behaviour', () => {
 test('copySources skips --from= copies, which come from a stage not the context', () => {
   const srcs = copySources(DOCKERFILES['demo_api_ui/Dockerfile']);
   assert.ok(srcs.includes('llm-timeouts.json'));
+  assert.ok(srcs.includes('docs/exports/server-topology-lucidchart.csv'));
+  assert.ok(srcs.includes('docs/exports/server-topology-details.csv'));
   assert.ok(!srcs.some((x) => x.startsWith('/app')), 'stage copies must not leak in');
 });
 
@@ -225,4 +230,26 @@ test('the real repo derives the documented root dependencies', () => {
   assert.deepStrictEqual(keysFor('llm-timeouts.json'), ['bff', 'frontend']);
   // Still no false positives on a genuinely root-only doc.
   assert.deepStrictEqual(keysFor('README.md'), []);
+});
+
+test('topology export CSV changes rebuild the frontend image', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const { execFileSync } = require('child_process');
+  const root = path.join(__dirname, '..');
+  const map = JSON.parse(
+    execFileSync(path.join(root, 'se-update-code.sh'), ['--print-map'], { encoding: 'utf8', cwd: root }),
+  );
+  const compose = fs.readFileSync(path.join(root, 'docker-compose.yml'), 'utf8');
+  const read = (rel) => {
+    const abs = path.join(root, rel);
+    return fs.existsSync(abs) ? fs.readFileSync(abs, 'utf8') : null;
+  };
+  const deps = rootDependencies(map, compose, read);
+  const keysFor = (p) => buildMatrix(map, [p], deps).include.map((e) => e.key).sort();
+
+  assert.ok(copySources(read('demo_api_ui/Dockerfile')).includes('docs/exports/server-topology-lucidchart.csv'));
+  assert.ok(copySources(read('demo_api_ui/Dockerfile')).includes('docs/exports/server-topology-details.csv'));
+  assert.deepStrictEqual(keysFor('docs/exports/server-topology-lucidchart.csv'), ['bff', 'frontend']);
+  assert.deepStrictEqual(keysFor('docs/exports/server-topology-details.csv'), ['bff', 'frontend']);
 });
