@@ -84,10 +84,9 @@ describe("Server topology use-case playback", () => {
     expect(PLAYBACKS.protectedApi.result).toMatch(/Step 9 is not configured/i);
   });
 
-  it("shows the conditional MCP Step 9 exchange for either configured issuer", () => {
+  it("shows the conditional MCP Step 9 exchange on the PingOne-issued Node Gateway path", () => {
     const routes = [
       { key: "protectedApiPingOne", provider: "PingOne", edgeId: "mcpmcp-pingone-step9" },
-      { key: "protectedApiPingFederate", provider: "PingFederate", edgeId: "mcpmcp-pingfederate-step9" },
     ];
 
     for (const route of routes) {
@@ -105,6 +104,21 @@ describe("Server topology use-case playback", () => {
       source: "mcpmcp",
       target: "pingone",
     });
+  });
+
+  it("shows PingFederate Step 9 only when a direct MCP client supplies a PF-issued token", () => {
+    const playback = PLAYBACKS.directMcpPingFederateStep9;
+
+    expect(playback.label).toMatch(/Local.*WebSocket.*PingFederate Step 9/i);
+    expect(playback.result).toMatch(/PF-issued bearer/i);
+    expect(playback.result).toMatch(/conditional|when configured/i);
+    expect(playback.result).toMatch(/HTTP MCP route.*excludes PF/i);
+    expect(playback.steps.map(({ edgeId }) => edgeId)).toEqual([
+      "browser-mcpmcp-direct",
+      "mcpmcp-pingfederate-step9",
+      "mcpmcp-bff-api",
+    ]);
+    expect(PLAYBACKS.protectedApiPingFederate).toBeUndefined();
     expect(SERVER_EDGES.find(({ id }) => id === "mcpmcp-pingfederate-step9")).toMatchObject({
       source: "mcpmcp",
       target: "pingfederate",

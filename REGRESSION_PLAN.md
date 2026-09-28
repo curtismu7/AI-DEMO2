@@ -230,18 +230,20 @@ demo:readiness:contract` (46 Demo Steps / 800 matrix rows).
 **What was missing:** the protected BFF API playback showed the Node gateway's
 RFC 8693 exchange and then the MCP server's BFF call, but omitted the optional
 MCP Step 9 exchange performed for configured non-vertical banking data tools.
-That exchange selects PingOne or PingFederate from the signed gateway token.
+That exchange selects the matching issuer from the validated agent token
+presented to OAuth MCP.
 
-**What was fixed:** the topology now has separate PingOne and PingFederate
-Step 9 issuer edges and conditional playback variants, while the existing
-playback explicitly covers the configuration where Step 9 is not configured
-and the MCP server uses passthrough. The audit, workplan, and both exports now
-record all three paths.
+**What was fixed:** the Node Gateway path now has a conditional PingOne Step 9
+variant, while the PF Step 9 edge is used only by the direct local WebSocket
+path that supplies a PF-issued bearer. The existing playback explicitly covers
+the no-Step-9 passthrough case. The audit, workplan, and both exports now record
+all three paths accurately.
 
-**Do not break:** keep the MCP Step 9 exchange separate from the Node gateway's
-initial exchange; represent provider selection as conditional, not as two
-sequential exchanges; preserve passthrough only for deployments where Step 9
-is not configured.
+**Do not break:** keep MCP Step 9 separate from the Node gateway's PingOne
+exchange; do not pair the PF Step 9 edge with that PingOne-issued token; keep
+the PF variant on the direct local WebSocket path unless the HTTP issuer
+allowlist or another real ingress path is changed to accept PF-issued tokens.
+Preserve passthrough only for deployments where Step 9 is not configured.
 
 **Verify:** focused `ServerTopologyPage.playbacks.test.jsx`, UI build, topology
 verification, contract verification, and export consistency checks.
