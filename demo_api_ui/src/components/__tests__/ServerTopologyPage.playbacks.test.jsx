@@ -94,6 +94,7 @@ describe("Server topology use-case playback", () => {
       expect(playback.label).toContain(route.provider);
       expect(playback.result).toMatch(/conditional|when configured/i);
       expect(playback.result).toMatch(/Step 9/i);
+      expect(playback.result).toMatch(/BANKING_API_RESOURCE_URI must match the BFF resource audience/i);
       expect(playback.steps).toHaveLength(10);
       expect(playback.steps[8]).toMatchObject({ edgeId: route.edgeId });
       expect(playback.steps[8].title).toContain(`MCP server → ${route.provider}`);
@@ -112,6 +113,7 @@ describe("Server topology use-case playback", () => {
     expect(playback.label).toMatch(/Local.*WebSocket.*PingFederate Step 9/i);
     expect(playback.result).toMatch(/PF-issued bearer/i);
     expect(playback.result).toMatch(/conditional|when configured/i);
+    expect(playback.result).toMatch(/BANKING_API_RESOURCE_URI must match the BFF resource audience/i);
     expect(playback.result).toMatch(/HTTP MCP route.*excludes PF/i);
     expect(playback.steps.map(({ edgeId }) => edgeId)).toEqual([
       "browser-mcpmcp-direct",

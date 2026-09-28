@@ -243,7 +243,9 @@ all three paths accurately.
 exchange; do not pair the PF Step 9 edge with that PingOne-issued token; keep
 the PF variant on the direct local WebSocket path unless the HTTP issuer
 allowlist or another real ingress path is changed to accept PF-issued tokens.
-Preserve passthrough only for deployments where Step 9 is not configured.
+Require `BANKING_API_RESOURCE_URI` to match the BFF resource audience for both
+provider variants; the env refresh helper aligns them by default. Preserve
+passthrough only for deployments where Step 9 is not configured.
 
 **Verify:** focused `ServerTopologyPage.playbacks.test.jsx`, UI build, topology
 verification, contract verification, and export consistency checks.
