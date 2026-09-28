@@ -1030,7 +1030,7 @@ cmd_help() {
   echo ""
   echo -e "${WHITE}${BOLD}  Commands:${RESET}"
   echo "    (default)  Start all services (${PROTO_LABEL} on ${API_HOST})"
-  echo "    basic      Start the lean local Compose dashboard/admin + agent set"
+  echo "    basic      Start dashboard/admin + login services; stop local model tiers"
   echo "    stop       Stop all services gracefully (process tree + port sweep)"
   echo "    restart    Stop then start all services"
   echo "    status     Show running/stopped status with ports and URLs"
