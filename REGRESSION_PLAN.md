@@ -188,6 +188,31 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-28 — Floating agent could not be closed
+
+**Files:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/components/AIAgent.css`,
+`demo_api_ui/src/components/__tests__/AIAgent.headerControls.test.js`.
+
+**What was broken:** the floating agent selected the Command Dock header, while
+the Close agent button remained inside the legacy header branch. Closing the
+Command Dock only hid its controls tray, leaving the agent open.
+
+**What was fixed:** render the existing Close agent control in the shared
+floating header outside the Command Dock branch. Give that control a
+theme-token background, border, and text color so it stays legible in light and
+dark themes. Closing the agent still restores its FAB and closes a popped-out
+agent window.
+
+**Do not break:** keep inline agents free of the floating close control; retain
+the existing `isOpen` and popped-out-window cleanup behavior.
+
+**Verify:** `CI=true npm run test:unit --
+src/components/__tests__/AIAgent.headerControls.test.js` (17 passed), and
+`npm run build` (exit 0). The close control measured 17.85:1 in light and
+17.03:1 in dark. The agent panel scan found no light-theme issues and one
+existing dark-theme `.ba-subtitle` issue at 1:1; tracked in `TECH_DEBT.md`.
+
 ### 2026-09-28 — BFF routed banking balance aliases as unknown MCP tools
 
 **Files:** `demo_api_server/server.js`,

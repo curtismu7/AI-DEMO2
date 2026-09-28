@@ -11645,25 +11645,26 @@ export default function BankingAgent({
                     Graph
                   </button>
                 )}
-                {/* Close — float mode only */}
-                {!isInline && (
-                  <button
-                    type="button"
-                    className="ba-icon-btn ba-close-btn"
-                    onClick={() => {
-                      setIsOpen(false);
-                      if (poppedOutWin) {
-                        if (!poppedOutWin.closed) poppedOutWin.close();
-                        setPoppedOutWin(null);
-                      }
-                    }}
-                    aria-label="Close agent"
-                    title="Close"
-                  >
-                    −
-                  </button>
-                )}
               </div>
+              )}
+              {/* Keep the agent close control outside the Command Dock branch so
+                  it remains available when that tray is collapsed. */}
+              {!isInline && (
+                <button
+                  type="button"
+                  className="ba-icon-btn ba-close-btn"
+                  onClick={() => {
+                    setIsOpen(false);
+                    if (poppedOutWin) {
+                      if (!poppedOutWin.closed) poppedOutWin.close();
+                      setPoppedOutWin(null);
+                    }
+                  }}
+                  aria-label="Close agent"
+                  title="Close"
+                >
+                  −
+                </button>
               )}
               </MaybePortal>
             </div>

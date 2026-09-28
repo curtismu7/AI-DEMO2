@@ -16,6 +16,21 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-09-28 — Floating agent subtitle loses contrast in dark app theme
+
+**What's wrong.** `AIAgent.css` colors `.ba-subtitle` with `var(--th-text)`,
+which becomes white in dark app theme. The floating agent header still paints
+white through `.banking-agent-panel.ba-mode-light .ba-header`, so the subtitle
+falls to 1:1 contrast.
+
+**Why it wasn't fixed now.** This close-control fix gives the button its own
+theme-token surface and ink. Changing the floating header's theme behavior also
+affects its other text and appearance settings.
+
+**Real fix.** Align the floating header surface and its text to the same
+`--th-*` token family, then run the contrast auditor for the agent in both app
+themes.
+
 ### [ ] 2026-09-28 — Graphify requeues intentionally skipped JSON on every refresh
 
 **What's wrong.** Graphify `0.9.71`'s zero-node recovery check re-queues

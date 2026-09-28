@@ -746,6 +746,17 @@ body > .banking-agent-float-root .banking-agent-panel {
   border: 1.5px solid #111827;
   color: var(--th-text);
 }
+.banking-agent-panel:not(.ba-mode-inline) .ba-close-btn {
+  background: var(--th-bg-card);
+  border-color: var(--th-border);
+  color: var(--th-text);
+  opacity: 1;
+}
+.banking-agent-panel:not(.ba-mode-inline) .ba-close-btn:hover {
+  background: var(--th-bg-inset);
+  border-color: var(--th-border);
+  color: var(--th-text);
+}
 
 .banking-agent-panel:not(.ba-mode-inline) .ba-cmd-btn {
   background: var(--ba-float-btn);

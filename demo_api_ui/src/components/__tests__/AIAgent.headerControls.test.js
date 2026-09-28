@@ -261,6 +261,23 @@ describe("Header controls after the Actions dropdown removal", () => {
   // Float mode keeps only the title row and window buttons in the agent
   // header; the secondary controls live in the Command Dock tray. Tests in
   // this block open the dock first, exactly like a presenter would.
+  it("float mode: closes the agent and restores its FAB", async () => {
+    renderThemedAgent({ user: customerUser, mode: "float" });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
+    });
+
+    await screen.findByRole("dialog", { name: /AI Agent/i });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Close agent" }));
+    });
+
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: /AI Agent/i })).not.toBeInTheDocument(),
+    );
+    expect(screen.getByRole("button", { name: /Open.*AI Agent/i })).toBeVisible();
+  });
+
   async function openFloatAgentWithDock(renderFn, props = {}, opts = {}) {
     renderFn(props, opts);
     await act(async () => {
