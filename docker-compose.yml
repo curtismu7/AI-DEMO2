@@ -977,6 +977,9 @@ services:
       #
       # Its three settings are NOT declared here on purpose:
       #   PINGONE_MCP_EXCHANGER_CLIENT_ID / _SECRET / BANKING_API_RESOURCE_URI
+      # PF Step 9 additionally reads PF_ISSUER_URI, PF_TOKEN_ENDPOINT, and the
+      # existing PF_MCP_SERVICE_ACTOR_CLIENT_ID / _SECRET / auth-method / scope
+      # from oauth-mcp/.env. PF subjects never use the PingOne exchanger above.
       # They come from this service's env_file (oauth-mcp/.env). A compose
       # `environment:` entry OVERRIDES env_file, so declaring them here with a
       # "${VAR:-}" default blanked the real secret that env_file already supplied
