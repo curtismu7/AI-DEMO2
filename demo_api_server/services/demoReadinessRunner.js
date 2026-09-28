@@ -287,11 +287,9 @@ async function startReadinessRun({
     }
     const applyResult = await runAdapter('repair-apply', ({ signal }) => adapters.applyRepairs({ digest: repairPreview.digest, confirmedBy, targets: selectedTargets, deadlineAt, signal, now: nowFrom(clock) }), { drainOnTimeout: true });
     if (applyResult?.timedOut || expired()) {
-      repairEvidence = applyResult?.completedResult
-        ? redactReadinessValue(applyResult.completedResult)
-        : Array.isArray(applyResult?.repairEvidence)
-          ? redactReadinessValue({ digest: repairPreview.digest, evidence: applyResult.repairEvidence })
-          : null;
+      if (applyResult?.completedResult) repairEvidence = redactReadinessValue(applyResult.completedResult);
+      else if (Array.isArray(applyResult?.evidence)) repairEvidence = redactReadinessValue(applyResult);
+      else if (Array.isArray(applyResult?.repairEvidence)) repairEvidence = redactReadinessValue({ digest: repairPreview.digest, evidence: applyResult.repairEvidence });
       return finishDeadline();
     }
     if (applyResult?.adapterError) {

@@ -125,6 +125,20 @@ describe('startReadinessRun', () => {
     expect(finalized).toBe(true);
   });
 
+  test('deadline after apply settles preserves readback evidence in the final report', async () => {
+    let now = 1_000;
+    const { calls, adapters } = harness({
+      applyRepairs: async ({ digest }) => { now = 2_000; return { digest, evidence: [{ after: 'verified-after-deadline' }] }; },
+    });
+    const result = await startReadinessRun({
+      targets: ['local', 'se'], adapters, clock: () => now, deadlineMs: 1_000,
+      confirmRepairs: async ({ digest }) => ({ confirmed: true, digest, adminAssertion: { subject: 'readiness-admin' } }),
+    });
+    expect(result.status).toBe('deadline-exceeded');
+    expect(result.repairEvidence).toEqual({ digest: 'abc123', evidence: [{ after: 'verified-after-deadline' }] });
+    expect(calls).not.toContain('execute');
+  });
+
   test('failed apply/readback never launches the scenario matrix', async () => {
     const { calls, adapters } = harness({ applyRepairs: async () => { calls.push('apply:abc123'); throw new Error('readback failed'); } });
     const result = await startReadinessRun({ targets: ['local', 'se'], adapters, confirmRepairs: async ({ digest }) => ({ confirmed: true, digest, adminAssertion: { subject: 'readiness-admin' } }) });
