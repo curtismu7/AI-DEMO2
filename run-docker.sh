@@ -1850,6 +1850,14 @@ cmd_start() {
     fi
   fi
 
+  # Compose starts optional `depends_on` services when the BFF is targeted,
+  # even when `required: false`. Tracing is outside the basic profile; stop its
+  # Jaeger dependency after the selected dashboard/login services are up.
+  if [[ "${stack}" == "basic" ]]; then
+    docker compose "${COMPOSE_FILES[@]}" stop jaeger \
+      || { err "Could not stop Jaeger; basic mode left an unselected service running."; return 1; }
+  fi
+
   _prune_build_leftovers
 
   echo ""
