@@ -80,6 +80,35 @@ describe("Server topology use-case playback", () => {
     expect(steps).toHaveLength(9);
     expect(steps[6]).toHaveTextContent("RFC 8693 exchange");
     expect(steps[8]).toHaveTextContent("OAuth MCP server → BFF API · delegated user bearer");
+    expect(PLAYBACKS.protectedApi.label).toMatch(/Step 9 passthrough/i);
+    expect(PLAYBACKS.protectedApi.result).toMatch(/Step 9 is not configured/i);
+  });
+
+  it("shows the conditional MCP Step 9 exchange for either configured issuer", () => {
+    const routes = [
+      { key: "protectedApiPingOne", provider: "PingOne", edgeId: "mcpmcp-pingone-step9" },
+      { key: "protectedApiPingFederate", provider: "PingFederate", edgeId: "mcpmcp-pingfederate-step9" },
+    ];
+
+    for (const route of routes) {
+      const playback = PLAYBACKS[route.key];
+      expect(playback.label).toContain(route.provider);
+      expect(playback.result).toMatch(/conditional|when configured/i);
+      expect(playback.result).toMatch(/Step 9/i);
+      expect(playback.steps).toHaveLength(10);
+      expect(playback.steps[8]).toMatchObject({ edgeId: route.edgeId });
+      expect(playback.steps[8].title).toContain(`MCP server → ${route.provider}`);
+      expect(playback.steps[9].edgeId).toBe("mcpmcp-bff-api");
+    }
+
+    expect(SERVER_EDGES.find(({ id }) => id === "mcpmcp-pingone-step9")).toMatchObject({
+      source: "mcpmcp",
+      target: "pingone",
+    });
+    expect(SERVER_EDGES.find(({ id }) => id === "mcpmcp-pingfederate-step9")).toMatchObject({
+      source: "mcpmcp",
+      target: "pingfederate",
+    });
   });
 
   it("marks the direct MCP playback as local and describes the hosted route", () => {

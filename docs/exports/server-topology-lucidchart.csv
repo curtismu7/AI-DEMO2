@@ -221,3 +221,7 @@ HTTP · Prometheus scrape",32,16,None,Arrow
 SPIFFE Workload API · X.509-SVID",36,5,None,Arrow
 94,Line,,1,,"Gateway workload identity
 SPIFFE Workload API · X.509-SVID",36,10,None,Arrow
+95,Line,,1,,"Step 9 · PingOne token exchange
+OAuth 2.0 · RFC 8693",11,6,None,Arrow
+96,Line,,1,,"Step 9 · PingFederate token exchange
+OAuth 2.0 · RFC 8693",11,7,None,Arrow

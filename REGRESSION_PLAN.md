@@ -218,6 +218,34 @@ src/components/__tests__/ServerTopologyPage.playbacks.test.jsx` (10 passed),
 `npm run build`, `npm run topology:verify`, and `npm run
 demo:readiness:contract` (46 Demo Steps / 800 matrix rows).
 
+### 2026-09-28 — Show conditional provider-specific MCP Step 9 in protected API playback
+
+**Files:** `demo_api_ui/src/components/serverTopologyData.js`,
+`demo_api_ui/src/components/__tests__/ServerTopologyPage.playbacks.test.jsx`,
+`docs/exports/server-topology-details.csv`,
+`docs/exports/server-topology-lucidchart.csv`,
+`docs/SECURITY_NETWORKING_ASSESSMENT.md`,
+`docs/SECURITY_NETWORKING_REMEDIATION_WORKPLAN.md`.
+
+**What was missing:** the protected BFF API playback showed the Node gateway's
+RFC 8693 exchange and then the MCP server's BFF call, but omitted the optional
+MCP Step 9 exchange performed for configured non-vertical banking data tools.
+That exchange selects PingOne or PingFederate from the signed gateway token.
+
+**What was fixed:** the topology now has separate PingOne and PingFederate
+Step 9 issuer edges and conditional playback variants, while the existing
+playback explicitly covers the configuration where Step 9 is not configured
+and the MCP server uses passthrough. The audit, workplan, and both exports now
+record all three paths.
+
+**Do not break:** keep the MCP Step 9 exchange separate from the Node gateway's
+initial exchange; represent provider selection as conditional, not as two
+sequential exchanges; preserve passthrough only for deployments where Step 9
+is not configured.
+
+**Verify:** focused `ServerTopologyPage.playbacks.test.jsx`, UI build, topology
+verification, contract verification, and export consistency checks.
+
 ### 2026-09-28 — DaVinci widget runtime followed PF instead of the PingOne region
 
 **Files:** `demo_api_server/routes/davinciLogin.js`,
