@@ -298,13 +298,13 @@ jobs:
           cd langchain_agent
           python3.12 -m venv .venv
           .venv/bin/python -m pip install --quiet --upgrade pip
-          [ -f requirements.txt ] && .venv/bin/python -m pip install --quiet -r requirements.txt || true
+          .venv/bin/python -m pip install --quiet -r requirements.txt
           .venv/bin/python -m pytest tests/ -q
       - name: llamaindex_agent (blocking — 9 passing)
         run: |
           cd llamaindex_agent
           python3.12 -m venv .venv
-          [ -f requirements.txt ] && .venv/bin/python -m pip install --quiet -r requirements.txt || true
+          .venv/bin/python -m pip install --quiet -r requirements.txt pytest
           .venv/bin/python -m pytest tests/ -q
 
   authz-decision-tests:
