@@ -9,7 +9,7 @@ function harness(overrides = {}) {
     audit: async ({ phase }) => { calls.push('audit:' + phase); return [{ id: 'config', status: phase === 'initial' ? 'fail' : 'pass', repairCandidate: phase === 'initial' ? { repairClass: 'test', target: 'local', object: { id: 'object' }, current: 'old', expected: 'new', sourceRef: 'source', operation: 'set value' } : undefined }]; },
     planRepairs: async () => { calls.push('preview'); return { digest: 'abc123', changes: [{ operation: 'set value', secret: 'client_secret=hidden' }], blocked: [] }; },
     applyRepairs: async ({ digest }) => { calls.push('apply:' + digest); return { digest, evidence: [] }; },
-    execute: async () => { calls.push('execute'); return { rows: [{ id: 'row', status: 'pass' }] }; },
+    execute: async () => { calls.push('execute'); return { rows: [{ id: 'row', status: 'pass' }], expectedRowIds: ['row'], categoryCounts: { total: 1 } }; },
     ...overrides,
   };
   return { calls, adapters };
@@ -64,11 +64,64 @@ describe('startReadinessRun', () => {
 
   test('every failed, blocked, unknown, or unfinished matrix row prevents READY', async () => {
     for (const status of ['fail', 'blocked', 'unknown', 'not-run']) {
-      const { calls, adapters } = harness({ audit: async () => [{ id: 'config', status: 'pass' }], planRepairs: async () => ({ digest: 'empty', changes: [], blocked: [] }), execute: async () => { calls.push('execute'); return { rows: [{ id: 'required', status }] }; } });
+      const { calls, adapters } = harness({ audit: async () => [{ id: 'config', status: 'pass' }], planRepairs: async () => ({ digest: 'empty', changes: [], blocked: [] }), execute: async () => { calls.push('execute'); return { rows: [{ id: 'required', status }], expectedRowIds: ['required'], categoryCounts: { total: 1 } }; } });
       const result = await startReadinessRun({ targets: ['local', 'se'], adapters });
       expect(calls).toContain('execute');
       expect(result.status).toBe('not-ready');
     }
+  });
+
+  test('empty scenario results cannot complete READY', async () => {
+    const { calls, adapters } = harness({
+      audit: async () => [{ id: 'config', status: 'pass' }],
+      planRepairs: async () => ({ digest: 'empty', changes: [], blocked: [] }),
+      execute: async () => { calls.push('execute'); return { rows: [], expectedRowIds: ['required'], categoryCounts: { total: 1 } }; },
+    });
+    const result = await startReadinessRun({ targets: ['local', 'se'], adapters });
+    expect(calls).toContain('execute');
+    expect(result.ready).toBe(false);
+    expect(result.status).toBe('not-ready');
+    expect(result.rows.some((row) => row.id === 'scenario-matrix:coverage' && row.status === 'blocked')).toBe(true);
+  });
+
+  test('an incomplete scenario row count cannot complete READY', async () => {
+    const { adapters } = harness({
+      audit: async () => [{ id: 'config', status: 'pass' }],
+      planRepairs: async () => ({ digest: 'empty', changes: [], blocked: [] }),
+      execute: async () => ({ rows: [{ id: 'required-a', status: 'pass' }], expectedRowIds: ['required-a', 'required-b'], categoryCounts: { total: 2 } }),
+    });
+    const result = await startReadinessRun({ targets: ['local', 'se'], adapters });
+    expect(result.ready).toBe(false);
+    expect(result.rows.some((row) => row.id === 'scenario-matrix:coverage' && row.status === 'blocked')).toBe(true);
+  });
+
+  test('category counts without manifest row IDs cannot complete READY', async () => {
+    const { adapters } = harness({
+      audit: async () => [{ id: 'config', status: 'pass' }],
+      planRepairs: async () => ({ digest: 'empty', changes: [], blocked: [] }),
+      execute: async () => ({ rows: [{ id: 'required-a', status: 'pass' }], categoryCounts: { total: 1 } }),
+    });
+    const result = await startReadinessRun({ targets: ['local', 'se'], adapters });
+    expect(result.ready).toBe(false);
+    expect(result.rows.some((row) => row.id === 'scenario-matrix:coverage' && row.status === 'blocked')).toBe(true);
+  });
+
+  test('runner does not finalize deadline while apply side effect is active', async () => {
+    let releaseApply;
+    let applyStarted;
+    const started = new Promise((resolve) => { applyStarted = resolve; });
+    const gate = new Promise((resolve) => { releaseApply = resolve; });
+    const { adapters } = harness({ applyRepairs: async ({ digest, signal }) => { applyStarted(signal); await gate; return { digest }; } });
+    let finalized = false;
+    const running = startReadinessRun({ targets: ['local', 'se'], adapters, deadlineMs: 150, confirmRepairs: async ({ digest }) => ({ confirmed: true, digest, adminAssertion: { subject: 'readiness-admin' } }) }).finally(() => { finalized = true; });
+    const signal = await started;
+    await new Promise((resolve) => setTimeout(resolve, 180));
+    expect(signal.aborted).toBe(true);
+    expect(finalized).toBe(false);
+    releaseApply();
+    const result = await running;
+    expect(result.status).toBe('deadline-exceeded');
+    expect(finalized).toBe(true);
   });
 
   test('failed apply/readback never launches the scenario matrix', async () => {
@@ -88,7 +141,7 @@ describe('startReadinessRun', () => {
   });
 
   test('single-target success is diagnostic and can never be full READY', async () => {
-    const { adapters } = harness({ audit: async () => [{ id: 'config', status: 'pass' }], planRepairs: async () => ({ digest: 'empty', changes: [], blocked: [] }), execute: async () => ({ rows: [{ id: 'required', status: 'pass' }] }) });
+    const { adapters } = harness({ audit: async () => [{ id: 'config', status: 'pass' }], planRepairs: async () => ({ digest: 'empty', changes: [], blocked: [] }), execute: async () => ({ rows: [{ id: 'required', status: 'pass' }], expectedRowIds: ['required'], categoryCounts: { total: 1 } }) });
     const result = await startReadinessRun({ targets: ['local'], adapters, confirmRepairs: async () => true });
     expect(result.ready).toBe(false);
     expect(result.label).toMatch(/diagnostic/i);

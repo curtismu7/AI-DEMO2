@@ -16,6 +16,8 @@ test('help documents both targets and digest-bound repair confirmation', async (
   assert.equal(code, 0);
   assert.match(output, /--target local\|se\|both/);
   assert.match(output, /exact repair plan digest/);
+  assert.match(output, /no verified administrator/);
+  assert.match(output, /Admin sidebar Reset Demo/);
 });
 
 test('prints complete preview before one exact-digest prompt and redacts output', async () => {

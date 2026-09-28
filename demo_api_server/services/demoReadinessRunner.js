@@ -38,9 +38,23 @@ function unresolvedAuditFailure(rows) {
   return rows.some((row) => row.required && row.status === 'fail' && !row.repairCandidate && !row.repairCandidates?.length);
 }
 
+function matrixCoverageError(result) {
+  const rows = result?.rows;
+  if (!Array.isArray(rows) || rows.length === 0) return 'scenario adapter returned no required rows';
+  const ids = rows.map((row) => row?.id);
+  if (ids.some((id) => typeof id !== 'string' || !id.trim())) return 'scenario adapter returned a row without an ID';
+  if (new Set(ids).size !== ids.length) return 'scenario adapter returned duplicate row IDs';
+  const expectedIds = result.expectedRowIds || result.manifestRowIds;
+  if (!Array.isArray(expectedIds) || !expectedIds.length || expectedIds.some((id) => typeof id !== 'string' || !id.trim()) || new Set(expectedIds).size !== expectedIds.length) {
+    return 'scenario manifest did not provide a valid nonempty expected row inventory';
+  }
+  if (expectedIds.length !== ids.length || expectedIds.some((id) => !ids.includes(id))) return 'scenario result IDs do not match the expected manifest';
+  return null;
+}
+
 function createDefaultAdapters(clock = Date.now) {
   const audit = createAuditService();
-  const repairs = createRepairService();
+  const repairs = createRepairService({ now: () => nowFrom(clock) });
   const execution = createReadinessExecutionService();
   return {
     checkPrerequisites: async () => [{ id: 'provider-workers', status: 'blocked', evidence: 'No production provider-isolated worker runtime or named readiness identities are configured.' }],
@@ -76,6 +90,7 @@ function createDefaultAdapters(clock = Date.now) {
             sourceRef: row.caseRow?.sourceRef || row.check?.sourceRef,
           };
         }),
+        expectedRowIds: manifestRows.map((row, index) => [row.kind, row.caseRow?.id || row.check?.id, row.targetId, row.provider, row.behavior?.variant || row.vertical || index].filter(Boolean).join(':')),
         categoryCounts: result.categoryCounts,
         timing: result.timing,
         executionReport: result.report,
@@ -171,7 +186,7 @@ async function startReadinessRun({
       },
     });
   };
-  const runAdapter = async (phase, work) => {
+  const runAdapter = async (phase, work, { drainOnTimeout = false } = {}) => {
     if (expired()) return { timedOut: true };
     await progress(phase);
     let timer;
@@ -180,8 +195,13 @@ async function startReadinessRun({
       const remaining = Math.max(1, deadlineAt - nowFrom(clock));
       timer = setTimeout(() => { controller.abort(); resolve({ timedOut: true }); }, remaining);
     });
+    const operation = Promise.resolve().then(() => work({ signal: controller.signal, deadlineAt }));
     try {
-      const result = await Promise.race([Promise.resolve().then(() => work({ signal: controller.signal, deadlineAt })), timeout]);
+      const result = await Promise.race([operation, timeout]);
+      if (result?.timedOut && drainOnTimeout) {
+        await operation.catch(() => {});
+        return result;
+      }
       if (expired()) controller.abort();
       return result;
     } catch (error) {
@@ -255,7 +275,7 @@ async function startReadinessRun({
       checks.push({ id: 'repair:administrator-assertion', status: 'blocked', required: true, phase: 'repair-confirmation', evidence: 'exact plan digest was confirmed but no verified administrator assertion was supplied' });
       return makeResult();
     }
-    const applyResult = await runAdapter('repair-apply', ({ signal }) => adapters.applyRepairs({ digest: repairPreview.digest, confirmedBy, targets: selectedTargets, deadlineAt, signal }));
+    const applyResult = await runAdapter('repair-apply', ({ signal }) => adapters.applyRepairs({ digest: repairPreview.digest, confirmedBy, targets: selectedTargets, deadlineAt, signal, now: nowFrom(clock) }), { drainOnTimeout: true });
     if (applyResult?.timedOut || expired()) return finishDeadline();
     if (applyResult?.adapterError) {
       checks.push({ id: 'repair:apply', status: 'blocked', required: true, phase: 'repair-apply', evidence: applyResult.adapterError });
@@ -298,7 +318,9 @@ async function startReadinessRun({
     report: executionResult.executionReport,
   };
   rows.push(...executionRows);
-  matrixCompleted = rowsPassed(executionRows);
+  const coverageError = matrixCoverageError(executionResult);
+  if (coverageError) rows.push({ id: 'scenario-matrix:coverage', status: 'blocked', required: true, phase: 'scenario-matrix', evidence: coverageError });
+  matrixCompleted = !coverageError && rowsPassed(executionRows);
   return makeResult();
 }
 

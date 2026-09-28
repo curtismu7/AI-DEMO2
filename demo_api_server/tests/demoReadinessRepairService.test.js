@@ -72,6 +72,98 @@ describe('demo readiness repair service', () => {
     expect(adapter.write).not.toHaveBeenCalled();
   });
 
+  test.each([
+    ['aborted signal', ({ controller }) => ({ signal: controller.signal, deadlineAt: NOW + 1_000 })],
+    ['expired deadline', ({ controller }) => ({ signal: controller.signal, deadlineAt: NOW })],
+  ])('cancellation %s before the first write prevents mutation', async (_label, cancellationArgs) => {
+    const { service, adapter } = repairService();
+    const plan = service.planRepairs({ findings: [finding()], targets: TARGETS, now: NOW });
+    const controller = new AbortController();
+    if (_label === 'aborted signal') controller.abort();
+    await expect(service.applyRepairs({ digest: plan.digest, confirmedBy: ADMIN_ASSERTION, targets: TARGETS, now: NOW, ...cancellationArgs({ controller }) }))
+      .rejects.toThrow(/abort|deadline|expir/i);
+    expect(adapter.write).not.toHaveBeenCalled();
+  });
+
+  test('abort during a write waits for it to settle and prevents subsequent writes', async () => {
+    let startWrite;
+    let releaseWrite;
+    const writeStarted = new Promise((resolve) => { startWrite = resolve; });
+    const writeGate = new Promise((resolve) => { releaseWrite = resolve; });
+    const adapter = {
+      read: jest.fn(async () => ['read']),
+      write: jest.fn(async () => { startWrite(); await writeGate; }),
+      readback: jest.fn(async () => ['read', 'write']),
+    };
+    const sourceReaders = {
+      pingoneScopeTopology: jest.fn(({ objectId }) => ({
+        target: 'local', object: { id: objectId, kind: 'resource-scope' }, expected: ['read', 'write'],
+        sourceRef: 'scope-topology.json#resources/' + objectId + '/scopes', operation: 'Create the uniquely mapped missing scope write',
+      })),
+    };
+    const service = createRepairService({ now: () => NOW, adapters: { 'pingone-scope-addition': adapter }, sourceReaders, verifyAdminConfirmation: async () => ({ subject: 'admin-1' }) });
+    const first = finding().repairCandidates[0];
+    const second = { ...first, object: { id: 'resource-2', kind: 'resource-scope' }, sourceRef: 'scope-topology.json#resources/resource-2/scopes' };
+    const plan = service.planRepairs({ findings: [finding({ repairCandidates: [first, second] })], targets: TARGETS, now: NOW });
+    const controller = new AbortController();
+    let settled = false;
+    const applying = service.applyRepairs({ digest: plan.digest, confirmedBy: ADMIN_ASSERTION, targets: TARGETS, now: NOW, deadlineAt: NOW + 1_000, signal: controller.signal }).finally(() => { settled = true; });
+
+    await writeStarted;
+    controller.abort();
+    await Promise.resolve();
+    expect(settled).toBe(false);
+    releaseWrite();
+    await expect(applying).rejects.toThrow(/abort|deadline|expir/i);
+    expect(adapter.write).toHaveBeenCalledTimes(1);
+  });
+
+  test('deadline cancellation does not prevent isolated worker restoration and readback', async () => {
+    let clockNow = NOW;
+    let startWrite;
+    let releaseWrite;
+    const writeStarted = new Promise((resolve) => { startWrite = resolve; });
+    const writeGate = new Promise((resolve) => { releaseWrite = resolve; });
+    const worker = {};
+    let enabled = false;
+    const adapter = {
+      createIsolatedWorker: jest.fn(async () => worker),
+      read: jest.fn(async () => enabled),
+      write: jest.fn(async () => { startWrite(); await writeGate; enabled = true; }),
+      readback: jest.fn(async () => enabled),
+      restore: jest.fn(async () => { enabled = false; }),
+    };
+    const sourceReaders = {
+      readinessWorkerFlag: jest.fn(() => ({
+        target: 'local', object: { id: 'ff_demo' }, expected: true,
+        sourceRef: 'demo_api_server/config/useCases.js#UC1', operation: 'Enable only for the isolated readiness worker',
+      })),
+    };
+    const service = createRepairService({ now: () => clockNow, adapters: { 'demo-feature-flag': adapter }, sourceReaders, verifyAdminConfirmation: async () => ({ subject: 'admin-1' }) });
+    const candidate = {
+      repairClass: 'demo-feature-flag', target: 'local', object: { id: 'ff_demo' }, current: false, expected: true,
+      sourceRef: 'demo_api_server/config/useCases.js#UC1', operation: 'Enable only for the isolated readiness worker',
+    };
+    const plan = service.planRepairs({ findings: [finding({ repairCandidates: [candidate] })], targets: TARGETS, now: NOW });
+    const deadlineAt = NOW + 1_000;
+    const controller = new AbortController();
+    const applying = service.applyRepairs({ digest: plan.digest, confirmedBy: ADMIN_ASSERTION, targets: TARGETS, now: NOW, deadlineAt, signal: controller.signal });
+
+    await writeStarted;
+    clockNow = deadlineAt;
+    controller.abort();
+    releaseWrite();
+
+    await expect(applying).rejects.toThrow(/abort|deadline|expir/i);
+    expect(adapter.restore).toHaveBeenCalledTimes(1);
+    expect(adapter.restore.mock.calls[0][0]).not.toHaveProperty('signal');
+    expect(adapter.restore.mock.calls[0][0]).not.toHaveProperty('deadlineAt');
+    expect(adapter.read).toHaveBeenCalledTimes(2);
+    expect(adapter.read.mock.calls[1][0]).not.toHaveProperty('signal');
+    expect(adapter.read.mock.calls[1][0]).not.toHaveProperty('deadlineAt');
+    expect(enabled).toBe(false);
+  });
+
   test('an altered current value or ambiguous object stops before the first write', async () => {
     const changed = repairService({ current: ['admin'] });
     const changedPlan = changed.service.planRepairs({ findings: [finding()], targets: TARGETS, now: NOW });

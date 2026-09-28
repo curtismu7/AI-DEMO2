@@ -15,7 +15,9 @@ Options:
   -h, --help              Show this help.
 
 Repairs are shown in full and require typing the exact repair plan digest once. The confirmation wait
-counts toward the single 15-minute deadline. Exit status is 0 only for full READY — BOTH TARGETS.
+counts toward the single 15-minute deadline. This standalone CLI has no verified administrator
+identity, so a typed digest can never authorize a repair write; use Admin sidebar Reset Demo for
+administrator-bound repair. Exit status is 0 only for full READY — BOTH TARGETS.
 `;
 
 function parseArgs(argv = []) {

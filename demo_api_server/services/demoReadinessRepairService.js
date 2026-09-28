@@ -149,11 +149,26 @@ function createRepairService({ adapters = {}, sourceReaders = {}, verifyAdminCon
     return redactReadinessValue({ planId: plan.planId, digest, expiresAt: plan.expiresAt, changes, blocked });
   }
 
-  async function applyRepairs({ digest, confirmedBy, targets = [], now = clock() } = {}) {
+  function assertActive({ signal, deadlineAt } = {}) {
+    if (signal?.aborted) throw new Error('repair cancelled by abort signal');
+    if (deadlineAt && clock() >= deadlineAt) throw new Error('repair deadline expired');
+  }
+
+  async function callAdapter(adapter, method, args, control) {
+    assertActive(control);
+    const result = await adapter[method]({ ...args, signal: control?.signal, deadlineAt: control?.deadlineAt });
+    assertActive(control);
+    return result;
+  }
+
+  async function applyRepairs({ digest, confirmedBy, targets = [], now = clock(), deadlineAt, signal } = {}) {
+    const control = { deadlineAt, signal };
+    assertActive(control);
     const plan = plans.get(digest);
     if (!plan || plan.digest !== digest) throw new Error('repair plan digest does not match a displayed preview');
     if (typeof verifyAdminConfirmation !== 'function') throw new Error('a verified administrator confirmation verifier is required');
-    const administrator = await verifyAdminConfirmation(confirmedBy);
+    const administrator = await verifyAdminConfirmation(confirmedBy, { signal, deadlineAt });
+    assertActive(control);
     if (!administrator || typeof administrator.subject !== 'string' || !administrator.subject) throw new Error('a verified administrator assertion is required');
     if (plan.confirmed) throw new Error('repair plan is already confirmed');
     if (now >= plan.expiresAt) throw new Error('repair plan has expired');
@@ -163,13 +178,14 @@ function createRepairService({ adapters = {}, sourceReaders = {}, verifyAdminCon
     let applyError;
     try {
       for (const change of plan.changes) {
+        assertActive(control);
         const adapter = adapters[change.repairClass];
         const needsWorker = driftClasses[change.repairClass]?.requiresIsolatedWorker;
-        const workerContext = needsWorker ? await adapter.createIsolatedWorker({ target: change.target, object: change.object, sourceRef: change.sourceRef }) : undefined;
+        const workerContext = needsWorker ? await callAdapter(adapter, 'createIsolatedWorker', { target: change.target, object: change.object, sourceRef: change.sourceRef }, control) : undefined;
         if (needsWorker && (!workerContext || typeof workerContext !== 'object')) throw new Error('trusted isolated worker adapter did not provide a worker context');
         const item = { change, adapter, workerContext, needsWorker };
         if (needsWorker) prewrites.push(item);
-        const current = await adapter.read({ target: change.target, object: change.object, sourceRef: change.sourceRef, workerContext });
+        const current = await callAdapter(adapter, 'read', { target: change.target, object: change.object, sourceRef: change.sourceRef, workerContext }, control);
         item.current = current;
         item.outcome = sameValue(current, change.expected) ? 'already-applied' : 'pending';
         if (!needsWorker) prewrites.push(item);
@@ -179,8 +195,8 @@ function createRepairService({ adapters = {}, sourceReaders = {}, verifyAdminCon
       for (const item of prewrites) {
         const { change, adapter, current, workerContext } = item;
         if (item.outcome === 'already-applied') { item.after = current; continue; }
-        await adapter.write({ ...change, current, workerContext, digest: plan.digest, idempotencyKey: plan.digest, confirmedBy: administrator.subject });
-        const after = await adapter.readback({ target: change.target, object: change.object, sourceRef: change.sourceRef, workerContext });
+        await callAdapter(adapter, 'write', { ...change, current, workerContext, digest: plan.digest, idempotencyKey: plan.digest, confirmedBy: administrator.subject }, control);
+        const after = await callAdapter(adapter, 'readback', { target: change.target, object: change.object, sourceRef: change.sourceRef, workerContext }, control);
         if (!sameValue(after, change.expected)) throw new Error('repair readback does not match the expected value');
         item.after = after;
         item.outcome = 'applied';
@@ -192,6 +208,9 @@ function createRepairService({ adapters = {}, sourceReaders = {}, verifyAdminCon
     const cleanupFailures = [];
     for (const item of prewrites.filter((entry) => entry.needsWorker).reverse()) {
       try {
+        // Restoration is compensating safety work. It must still run after the
+        // readiness deadline aborts the in-flight apply, so it deliberately
+        // receives no already-aborted run signal or expired deadline.
         await item.adapter.restore({ target: item.change.target, object: item.change.object, expected: item.change.current, workerContext: item.workerContext, digest: plan.digest });
       } catch (error) {
         cleanupFailures.push(error);
