@@ -47,8 +47,10 @@ export function resolveJwksUri(): string | null {
  * Create a remote JWKS keyset for the configured PingOne endpoint, or null when
  * no JWKS endpoint is configured / the URL is invalid. Callers should memoise.
  */
-export async function createJwksKeySet(): Promise<Awaited<ReturnType<JoseModule['createRemoteJWKSet']>> | null> {
-  const jwksUri = resolveJwksUri();
+export async function createJwksKeySet(
+  jwksUriOverride?: string,
+): Promise<Awaited<ReturnType<JoseModule['createRemoteJWKSet']>> | null> {
+  const jwksUri = jwksUriOverride === undefined ? resolveJwksUri() : jwksUriOverride;
   if (!jwksUri) return null;
   try {
     const { createRemoteJWKSet } = await getJose();
