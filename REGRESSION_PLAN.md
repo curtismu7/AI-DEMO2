@@ -218,6 +218,38 @@ src/components/__tests__/AIAgent.surfaceSelectorLayout.test.js` (29/29); `cd
 demo_api_ui && npm run build`; inspect contrast in the rendered dashboard in
 light and dark themes.
 
+### 2026-09-28 — BFF routed banking balance aliases as unknown MCP tools
+
+**Files:** `demo_api_server/server.js`,
+`demo_api_server/services/bankingMcpToolAliases.js`,
+`demo_api_server/services/mcpGatewayClient.js`,
+`demo_api_server/tests/bankingMcpToolAliases.test.js`,
+`demo_api_server/tests/mcpBankingToolAliasesRoute.test.js`.
+
+**What was broken:** `/api/mcp/tool` forwarded UI/parser names `get_balance`,
+`get_accounts`, and `get_transactions` (including `banking.*` forms) unchanged,
+but those names are not registered by the banking MCP. PingGateway therefore
+returned `Unknown tool` and the BFF surfaced a 502.
+
+**What was fixed:** resolve the explicit vertical first, then the session's
+active vertical (banking default), and normalize all three banking aliases
+before token intent minting and pipeline dispatch. Balance uses `get_my_accounts`
+without an `account_id` and `get_account_balance` with one; accounts maps to
+`get_my_accounts`; transactions maps to `get_my_transactions`. Arguments are
+preserved, and each alias keeps its matching intent. An explicit non-banking
+vertical takes precedence and is left unchanged. All calls pass through the
+existing session, token exchange, and gateway authorization path.
+
+**Do not break:** `requireSession`, transaction-turn middleware, session token
+selection, and gateway authorization remain unchanged.
+
+**Verify:** `cd demo_api_server && CI=true npx jest
+tests/bankingMcpToolAliases.test.js tests/mcpBankingToolAliasesRoute.test.js
+--forceExit` (16 passed). The separate
+`src/__tests__/mcpToolPipeline.characterization.test.js` suite remains red
+14/54 when run alone; its gateway-audit/HITL cases do not import the changed
+alias resolver.
+
 ### 2026-09-28 — User status returned 500 after logout destroyed the session
 
 **Files:** `routes/oauthUser.js`,
@@ -274,7 +306,6 @@ scoped to Quick Config; do not change the shared floating-panel behavior.
 
 **Verify:** `cd demo_api_ui && npm run build`; inspect the Quick Config title
 bar in light and dark themes.
-
 ### 2026-09-28 — DaVinci widget runtime followed PF instead of the PingOne region
 
 **Files:** `demo_api_server/routes/davinciLogin.js`,
@@ -296,7 +327,6 @@ when PF is selected; keep nonce arming and policy selection in
 tests/routes/davinciLogin.test.js --forceExit` (32/32). The regression test
 first failed with `https://pingfederate:9031/`, then passed with the configured
 PingOne region.
-
 ### 2026-09-28 — Vitest worker memory grew past 9 GB
 
 **Files:** `.github/workflows/ci.yml`, `demo_api_ui/vite.config.js`, and the
@@ -485,6 +515,24 @@ were canceled while the PR merge ref was being superseded by updates to main.
 The selector and gate share one runner, so make the gate depend on selection to
 avoid a long gate install delaying suite dispatch. Their fresh run is needed
 before treating those suites as verified.
+
+### 2026-09-28 — Demo Steps use cases were clipped in a multi-column grid
+
+**Files:** `demo_api_ui/src/components/AIAgent.css`, `REGRESSION_PLAN.md`.
+
+**What was broken:** Mission Control auto-filled narrow columns and forced use
+case names onto one line with ellipses. A long ID-JAG card also stretched every
+card sharing its grid row.
+
+**What was fixed:** the use-case cards now render as a single full-width list,
+with wrapping labels and equal-height rows that grow together when longer text
+wraps, so each phrase stays readable.
+
+**Do not break:** keep the existing selection, completion, progress, explain,
+and workload-link behavior; this layout change does not alter auth or sessions.
+
+**Verify:** `cd demo_api_ui && npm run build`; run the `THEMING.md` §1.4
+contrast auditor on Mission Control in both themes.
 
 ### 2026-09-27 — Server topology was missing from customer navigation
 
