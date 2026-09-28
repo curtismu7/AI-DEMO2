@@ -6,6 +6,7 @@
     <meta name="color-scheme" content="light">
     <title>GitHub Actions queue</title>
     <link rel="stylesheet" href="/dashboard.css">
+    <script src="/dashboard-model.js" defer></script>
     <script src="/dashboard.js" defer></script>
   </head>
   <body>
@@ -65,6 +66,18 @@
         <div id="runner-content" class="runner-content">
           <p class="placeholder">Waiting for the first queue update.</p>
         </div>
+      </section>
+
+      <section class="queue-section" aria-labelledby="active-heading">
+        <div class="section-heading queue-heading-row">
+          <div>
+            <h2 id="active-heading">In progress</h2>
+            <p>Jobs and workflows currently running on a runner.</p>
+          </div>
+          <span id="active-count" class="section-count">—</span>
+        </div>
+        <div id="active-empty" class="empty-state" hidden>No workflow runs are in progress.</div>
+        <div id="active-runs" class="run-list"></div>
       </section>
 
       <section class="queue-section" aria-labelledby="queue-heading">

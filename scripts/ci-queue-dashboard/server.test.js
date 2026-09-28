@@ -80,22 +80,30 @@ test('server serves a page wired to local JavaScript and CSS assets', async (t) 
   const baseUrl = await listen(server);
   t.after(() => new Promise((resolve) => server.close(resolve)));
 
-  const [pageResponse, scriptResponse, styleResponse] = await Promise.all([
+  const [pageResponse, modelResponse, scriptResponse, styleResponse] = await Promise.all([
     fetch(`${baseUrl}/`),
+    fetch(`${baseUrl}/dashboard-model.js`),
     fetch(`${baseUrl}/dashboard.js`),
     fetch(`${baseUrl}/dashboard.css`),
   ]);
-  const [page, script, style] = await Promise.all([
+  const [page, model, script, style] = await Promise.all([
     pageResponse.text(),
+    modelResponse.text(),
     scriptResponse.text(),
     styleResponse.text(),
   ]);
 
   assert.equal(pageResponse.status, 200);
+  assert.match(page, /<h2 id="active-heading">In progress<\/h2>/);
+  assert.match(page, /<h2 id="queue-heading">Waiting for a runner<\/h2>/);
+  assert.match(page, /src="\/dashboard-model\.js" defer/);
   assert.match(page, /src="\/dashboard\.js" defer/);
   assert.match(page, /href="\/dashboard\.css"/);
+  assert.equal(modelResponse.status, 200);
   assert.equal(scriptResponse.status, 200);
   assert.equal(styleResponse.status, 200);
+  assert.match(pageResponse.headers.get('content-security-policy') || '', /default-src 'self'/);
+  assert.match(model, /inProgress: \[\]/);
   assert.match(script, /\/api\/snapshot/);
   assert.doesNotMatch(script, /\.innerHTML\s*=|\sonclick\s*=/i);
   assert.ok(style.includes(':root'));

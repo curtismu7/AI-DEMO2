@@ -16,6 +16,9 @@ const elements = {
   failedTotal: document.getElementById('summary-failed'),
   runnerCount: document.getElementById('runner-count'),
   runnerContent: document.getElementById('runner-content'),
+  activeCount: document.getElementById('active-count'),
+  activeEmpty: document.getElementById('active-empty'),
+  activeRuns: document.getElementById('active-runs'),
   queueCount: document.getElementById('queue-count'),
   queueEmpty: document.getElementById('queue-empty'),
   queuedRuns: document.getElementById('queued-runs'),
@@ -123,8 +126,19 @@ function addJobTable(run, compact = false) {
     const status = node('td');
     status.append(makeStatus(job.status, job.conclusion));
     const timing = node('td', 'job-timing', jobTiming(job, run));
-    const runnerLabel = job.runnerName || (job.labels?.length ? job.labels.join(', ') : 'Not assigned');
-    const runner = node('td', 'job-runner', runnerLabel);
+    const runner = node('td', 'job-runner');
+    const runnerFallback = normalized(job.status) === 'queued'
+      ? 'Not assigned'
+      : normalized(job.status) === 'completed'
+        ? 'Runner unavailable'
+        : 'Runner not reported';
+    const runnerStateClass = job.runnerName
+      ? 'runner-assigned'
+      : normalized(job.status) === 'queued'
+        ? 'runner-unassigned'
+        : 'runner-unavailable';
+    runner.append(node('span', runnerStateClass, job.runnerName || runnerFallback));
+    if (!job.runnerName && job.labels?.length) runner.append(node('span', 'runner-labels', `Labels: ${job.labels.join(', ')}`));
     if (job.runnerGroup) runner.title = `Runner group: ${job.runnerGroup}`;
     row.append(name, status, timing, runner);
     body.append(row);
@@ -218,14 +232,15 @@ function render(snapshot) {
   elements.passedTotal.textContent = String(summary.succeeded ?? 0);
   elements.failedTotal.textContent = String(summary.failed ?? 0);
 
-  const queued = snapshot.runs.filter((run) => ['queued', 'requested', 'waiting', 'pending'].includes(normalized(run.status)));
-  const inProgress = snapshot.runs.filter((run) => normalized(run.status) === 'in_progress');
-  const completed = snapshot.runs.filter((run) => normalized(run.status) === 'completed');
-  elements.queueCount.textContent = `${queued.length} waiting`;
-  elements.queueEmpty.hidden = queued.length > 0;
-  elements.queuedRuns.replaceChildren(...[...inProgress, ...queued].map((run) => createRunArticle(run)));
-  elements.completedEmpty.hidden = completed.length > 0;
-  elements.completedRuns.replaceChildren(...completed.map((run) => createRunArticle(run, true)));
+  const groups = window.CiQueueDashboardModel.classifyRuns(snapshot.runs);
+  elements.activeCount.textContent = `${groups.inProgress.length} running`;
+  elements.activeEmpty.hidden = groups.inProgress.length > 0;
+  elements.activeRuns.replaceChildren(...groups.inProgress.map((run) => createRunArticle(run)));
+  elements.queueCount.textContent = `${groups.queued.length} waiting`;
+  elements.queueEmpty.hidden = groups.queued.length > 0;
+  elements.queuedRuns.replaceChildren(...groups.queued.map((run) => createRunArticle(run)));
+  elements.completedEmpty.hidden = groups.completed.length > 0;
+  elements.completedRuns.replaceChildren(...groups.completed.map((run) => createRunArticle(run, true)));
   renderRunner(snapshot);
 }
 

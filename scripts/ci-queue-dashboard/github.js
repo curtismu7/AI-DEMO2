@@ -56,13 +56,19 @@ function byCreatedAtDescending(a, b) {
   return byCreatedAtAscending(b, a);
 }
 
+function normalizedRuns(runs) {
+  const seen = new Set();
+  return runs.map(normalizeRun).filter((run) => {
+    if (!Number.isSafeInteger(run.id) || run.id <= 0 || seen.has(run.id)) return false;
+    seen.add(run.id);
+    return true;
+  });
+}
+
 function buildSnapshot({ repository, queuedRuns = [], runningRuns = [], completedRuns = [], jobsByRun = {}, now = new Date() }) {
-  const queued = queuedRuns.map(normalizeRun).sort(byCreatedAtAscending);
-  const running = runningRuns.map(normalizeRun).sort(byCreatedAtAscending);
-  const completed = completedRuns
-    .map(normalizeRun)
-    .sort(byCreatedAtDescending)
-    .slice(0, 5);
+  const queued = normalizedRuns(queuedRuns).sort(byCreatedAtAscending);
+  const running = normalizedRuns(runningRuns).sort(byCreatedAtAscending);
+  const completed = normalizedRuns(completedRuns).sort(byCreatedAtDescending).slice(0, 5);
   const seen = new Set();
   const runs = [...queued, ...running, ...completed]
     .filter((run) => {
@@ -74,7 +80,7 @@ function buildSnapshot({ repository, queuedRuns = [], runningRuns = [], complete
 
   const completedCounts = completed.reduce((counts, run) => {
     if (run.conclusion === 'success') counts.succeeded += 1;
-    else counts.failed += 1;
+    else if (['failure', 'cancelled', 'timed_out', 'action_required'].includes(run.conclusion)) counts.failed += 1;
     return counts;
   }, { succeeded: 0, failed: 0 });
 
@@ -161,7 +167,7 @@ function runGh(spawn, args, { cwd, timeoutMs, maxOutputBytes }) {
       if (oversized) return finish(new DashboardDataError('GH_OUTPUT_LIMIT', 'GitHub returned more dashboard data than expected.'));
       if (timedOut) return finish(new DashboardDataError('GH_TIMEOUT', 'GitHub did not respond in time.'));
       if (code !== 0) {
-        const authError = /not logged in|authentication required|must authenticate|bad credentials/i.test(stderr);
+        const authError = /not logged in|authentication required|must authenticate|bad credentials|gh auth login|resource not accessible/i.test(stderr);
         return finish(new DashboardDataError(
           authError ? 'GH_AUTH' : 'GH_API',
           authError ? 'GitHub CLI authentication is unavailable. Run gh auth login.' : 'GitHub Actions data could not be loaded. Check GitHub access and try again.',
@@ -265,14 +271,18 @@ function createGitHubReader({
 
   async function getSnapshot() {
     const repository = await getRepository();
-    const [queuedRuns, runningRuns, completedRuns] = await Promise.all([
+    const [queuedRuns, waitingRuns, pendingRuns, requestedRuns, runningRuns, completedRuns] = await Promise.all([
       readAllRuns(repository, 'queued'),
+      readAllRuns(repository, 'waiting'),
+      readAllRuns(repository, 'pending'),
+      readAllRuns(repository, 'requested'),
       readAllRuns(repository, 'in_progress'),
       readCompletedRuns(repository),
     ]);
+    const allQueuedRuns = [...queuedRuns, ...waitingRuns, ...pendingRuns, ...requestedRuns];
     const selectedCompletedRuns = completedRuns.slice(0, 5);
-    const allRuns = [...queuedRuns, ...runningRuns, ...selectedCompletedRuns];
-    const activeIds = new Set([...queuedRuns, ...runningRuns].map((run) => Number(run.id)));
+    const allRuns = [...allQueuedRuns, ...runningRuns, ...selectedCompletedRuns];
+    const activeIds = new Set([...allQueuedRuns, ...runningRuns].map((run) => Number(run.id)));
     const liveCompletedIds = new Set(selectedCompletedRuns.map((run) => Number(run.id)));
     const jobsList = await mapLimit(allRuns, 5, async (run) => {
       const runId = validateRunId(run.id);
@@ -288,7 +298,7 @@ function createGitHubReader({
 
     return buildSnapshot({
       repository,
-      queuedRuns,
+      queuedRuns: allQueuedRuns,
       runningRuns,
       completedRuns: selectedCompletedRuns,
       jobsByRun: Object.fromEntries(jobsList),

@@ -3,9 +3,11 @@
 const fs = require('node:fs');
 const http = require('node:http');
 const path = require('node:path');
+const { createGitHubReader } = require('./github');
 
 const ASSETS = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
+  ['/dashboard-model.js', ['dashboard-model.js', 'text/javascript; charset=utf-8']],
   ['/dashboard.js', ['dashboard.js', 'text/javascript; charset=utf-8']],
   ['/dashboard.css', ['dashboard.css', 'text/css; charset=utf-8']],
 ]);
@@ -111,6 +113,7 @@ function createDashboardServer({ getSnapshot, host = '127.0.0.1', port = 0, asse
         'Content-Length': content.length,
         'Cache-Control': 'no-cache',
         'X-Content-Type-Options': 'nosniff',
+        'Content-Security-Policy': "default-src 'self'; connect-src 'self'; script-src 'self'; style-src 'self'; base-uri 'none'; frame-ancestors 'none'",
       });
       response.end(request.method === 'HEAD' ? undefined : content);
     } catch {
@@ -121,4 +124,44 @@ function createDashboardServer({ getSnapshot, host = '127.0.0.1', port = 0, asse
   return server;
 }
 
-module.exports = { createDashboardServer };
+function startDashboard({ port = 0, log = console.log, errorLog = console.error } = {}) {
+  const nodeMajor = Number(process.versions.node.split('.')[0]);
+  if (!Number.isInteger(nodeMajor) || nodeMajor < 22) {
+    throw new Error('Node.js 22 or newer is required to run the CI queue dashboard.');
+  }
+
+  const reader = createGitHubReader();
+  const server = createDashboardServer({ getSnapshot: reader.getSnapshot });
+  const onError = (error) => {
+    server.removeListener('listening', onListening);
+    errorLog(error?.code === 'EADDRINUSE'
+      ? 'The local dashboard port is unavailable. Stop the other process and try again.'
+      : 'The local dashboard could not start.');
+    process.exitCode = 1;
+  };
+  const onListening = () => {
+    const address = server.address();
+    log(`CI queue dashboard: http://127.0.0.1:${address.port}`);
+    log('Press Ctrl-C to stop.');
+  };
+
+  server.once('error', onError);
+  server.once('listening', onListening);
+  server.listen(port, '127.0.0.1');
+
+  const stop = () => server.close();
+  process.once('SIGINT', stop);
+  process.once('SIGTERM', stop);
+  return server;
+}
+
+if (require.main === module) {
+  try {
+    startDashboard();
+  } catch (error) {
+    console.error(error.message);
+    process.exitCode = 1;
+  }
+}
+
+module.exports = { createDashboardServer, startDashboard };

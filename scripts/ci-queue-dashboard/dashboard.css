@@ -46,7 +46,7 @@ a:focus-visible, button:focus-visible {
 }
 
 .dashboard-shell {
-  width: min(1180px, calc(100% - 56px));
+  width: min(1460px, calc(100% - 56px));
   margin: 0 auto;
   padding: 0 0 34px;
 }
@@ -223,6 +223,11 @@ h1 { margin-bottom: 5px; font-size: clamp(29px, 4vw, 40px); line-height: 1.08; l
 .job-table .job-name { width: 38%; padding-left: 15px; overflow-wrap: anywhere; font-weight: 600; }
 .job-timing { color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .job-runner { color: var(--ink-soft); overflow-wrap: anywhere; }
+.job-runner span { display: block; }
+.runner-assigned { font-weight: 650; }
+.runner-unassigned { color: var(--amber); font-weight: 650; }
+.runner-unavailable { color: var(--ink-quiet); }
+.job-runner .runner-labels { color: var(--ink-quiet); font-size: 10px; }
 .job-unavailable { margin: 0; padding: 10px 15px; color: var(--ink-quiet); font-size: 11px; }
 .run-list--completed { gap: 7px; }
 .run-list--completed .run-entry-header { padding-top: 11px; }

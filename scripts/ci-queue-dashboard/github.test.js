@@ -90,6 +90,20 @@ test('buildSnapshot orders queued runs oldest-first and limits completed history
   assert.equal(snapshot.updatedAt, '2026-09-28T10:03:00.000Z');
 });
 
+test('buildSnapshot does not count skipped or neutral runs as failures', () => {
+  const snapshot = buildSnapshot({
+    repository: 'cmuir_pingcorp/AI-DEMO2',
+    completedRuns: [
+      run(51, '2026-09-28T09:00:00Z', 'completed', 'skipped'),
+      run(52, '2026-09-28T09:01:00Z', 'completed', 'neutral'),
+      run(53, '2026-09-28T09:02:00Z', 'completed', 'cancelled'),
+    ],
+    now: new Date('2026-09-28T10:03:00Z'),
+  });
+
+  assert.deepEqual(snapshot.summary, { queued: 0, inProgress: 0, succeeded: 0, failed: 1 });
+});
+
 function fakeSpawner(handler) {
   const calls = [];
   const spawn = (command, args, options) => {
@@ -120,6 +134,7 @@ test('createGitHubReader reads active jobs with fixed gh arguments and no shell'
     if (args[0] === 'repo') return { stdout: 'cmuir_pingcorp/AI-DEMO2\n' };
     const endpoint = args[1];
     if (endpoint.includes('status=queued')) return { stdout: JSON.stringify({ workflow_runs: [queued] }) };
+    if (endpoint.includes('status=waiting') || endpoint.includes('status=pending') || endpoint.includes('status=requested')) return { stdout: JSON.stringify({ workflow_runs: [] }) };
     if (endpoint.includes('status=in_progress')) return { stdout: JSON.stringify({ workflow_runs: [] }) };
     if (endpoint.includes('status=completed')) return { stdout: JSON.stringify({ workflow_runs: [completed] }) };
     if (endpoint.endsWith('/41/jobs?per_page=100&page=1')) {
@@ -193,6 +208,7 @@ test('createGitHubReader paginates the full queued run list', async () => {
     if (endpoint.includes('status=queued') && page === '1') return { stdout: JSON.stringify({ workflow_runs: firstPage }) };
     if (endpoint.includes('status=queued') && page === '2') return { stdout: JSON.stringify({ workflow_runs: finalPage }) };
     if (endpoint.includes('status=queued')) return { stdout: JSON.stringify({ workflow_runs: [] }) };
+    if (endpoint.includes('status=waiting') || endpoint.includes('status=pending') || endpoint.includes('status=requested')) return { stdout: JSON.stringify({ workflow_runs: [] }) };
     if (endpoint.includes('status=in_progress')) return { stdout: JSON.stringify({ workflow_runs: [] }) };
     if (endpoint.includes('status=completed')) return { stdout: JSON.stringify({ workflow_runs: [] }) };
     if (/\/jobs\?/.test(endpoint)) return { stdout: JSON.stringify({ jobs: [] }) };
