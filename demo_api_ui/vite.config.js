@@ -269,10 +269,10 @@ export default defineConfig(({ mode }) => {
       // CI has been surviving on the default because its Node 22 collects
       // differently from a local Node 26 — which makes this the worst kind of
       // trap: green on the runner, unrunnable on the machine of whoever is
-      // trying to verify before pushing. 12 GB is headroom on any box that can
-      // run the stack, and workers only reserve what they use.
+      // trying to verify before pushing. Keep the worker cap at the measured
+      // 14 GB pass too; the CI parent NODE_OPTIONS does not override this value.
       poolOptions: {
-        forks: { execArgv: ['--max-old-space-size=12288'] },
+        forks: { execArgv: ['--max-old-space-size=14336'] },
       },
       exclude: [
         '**/node_modules/**',

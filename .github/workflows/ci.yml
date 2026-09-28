@@ -111,9 +111,9 @@ jobs:
       # node_modules — so installing first costs a cache-warm minute and
       # removes a whole class of "gate is red for a reason unrelated to the PR".
       - name: Install demo_api_server deps (hygiene + topology gates both need them)
-        run: npm install --prefix demo_api_server --no-audit --no-fund
+        run: npm ci --prefix demo_api_server --no-audit --no-fund
       - name: Install demo_mcp_gateway deps (topology step 6 runs toolSchemaDrift jest)
-        run: npm install --prefix demo_mcp_gateway --no-audit --no-fund
+        run: npm ci --prefix demo_mcp_gateway --no-audit --no-fund
       - name: Mock-drift gate (jest.mock missing load-bearing exports)
         run: node scripts/check-mock-drift.js
       - name: Fresh-clone hygiene
@@ -150,14 +150,14 @@ jobs:
     needs: changes
     if: needs.changes.outputs['api-server'] == 'true'
     runs-on: [self-hosted, macOS]
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: 22
       - name: Install deps
-        run: npm install --prefix demo_api_server --no-audit --no-fund
+        run: npm ci --prefix demo_api_server --no-audit --no-fund
       - name: Run Jest suite
         # This is a persistent self-hosted Mac. Unit tests provide their own
         # mock endpoints; clear inherited aliases so tests cannot be redirected
@@ -197,7 +197,7 @@ jobs:
         with:
           node-version: 22
       - name: Install deps
-        run: npm install --prefix demo_api_ui --no-audit --no-fund
+        run: npm ci --prefix demo_api_ui --no-audit --no-fund
       # Vitest, not jest — see demo_api_ui/CLAUDE.md. CI=true keeps the reporter
       # non-interactive and makes `vitest run` exit non-zero on failure.
       # `--prefix` goes BEFORE `run`: after a script name npm's parser is
@@ -206,9 +206,8 @@ jobs:
         run: npm --prefix demo_api_ui run test:unit
         env:
           CI: 'true'
-          # The Vitest parent hit its 12 GB heap limit near the end of the full
-          # suite. The repository's measured passing heap is 14 GB; keep this
-          # aligned with that measurement. Fork workers retain their 12 GB cap.
+          # Match the measured passing 14 GB heap for the Vitest parent and
+          # fork workers; setting only the parent leaves each worker at 12 GB.
           NODE_OPTIONS: '--max-old-space-size=14336'
       - name: Vite build gate
         run: npm --prefix demo_api_ui run build
@@ -260,7 +259,7 @@ jobs:
       # sibling's deps is the smallest honest fix; the cross-package import
       # itself is logged in TECH_DEBT.
       - name: Install demo_api_server deps (demo_agent_service's vault suite imports its lib)
-        run: npm install --prefix demo_api_server --no-audit --no-fund
+        run: npm ci --prefix demo_api_server --no-audit --no-fund
       - name: demo_agent_service (blocking)
         run: SUITE_BLOCKING=1 bash scripts/test-service-suite.sh agent-service
       - name: demo_hitl_service (blocking)
@@ -340,20 +339,20 @@ jobs:
     needs: changes
     if: needs.changes.outputs['decision-services'] == 'true'
     runs-on: [self-hosted, macOS]
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: 22
       - name: Install demo_authz_server deps
-        run: npm install --prefix demo_authz_server --no-audit --no-fund
+        run: npm ci --prefix demo_authz_server --no-audit --no-fund
       - name: Install demo_mcp_gateway deps
-        run: npm install --prefix demo_mcp_gateway --no-audit --no-fund
+        run: npm ci --prefix demo_mcp_gateway --no-audit --no-fund
       - name: Install oauth-mcp deps
-        run: npm install --prefix oauth-mcp --no-audit --no-fund
+        run: npm ci --prefix oauth-mcp --no-audit --no-fund
       - name: Install demo_mcp_resource_server deps
-        run: npm install --prefix demo_mcp_resource_server --no-audit --no-fund
+        run: npm ci --prefix demo_mcp_resource_server --no-audit --no-fund
       # node --test recursion differs by Node major; keep both globs so the
       # tests/ suites (UC16, tier) are never silently skipped.
       # BLOCKING as of 2026-09-07: the tolerance below was for pre-existing

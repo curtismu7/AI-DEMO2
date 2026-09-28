@@ -188,6 +188,25 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-28 — CI UI heap and suite timeout budgets
+
+**Files:** `.github/workflows/ci.yml`, `demo_api_ui/vite.config.js`.
+
+**What was broken:** the CI Vitest parent had a 14 GB heap limit, but fork
+workers still had 12 GB; a worker exhausted that cap during the full UI suite.
+The BFF dependency install also used the 30-minute API job budget, and the
+combined authz/gateway suites exceeded their 30-minute job limit.
+
+**What was fixed:** set the Vitest fork workers to the measured passing 14 GB
+heap, use lockfile-driven `npm ci` for CI service installs, and raise the API
+and grouped decision-service timeouts to cover cold installs and full suites.
+
+**Do not break:** keep the Vite dev proxy, allowed hosts, and UI API routing
+unchanged. Preserve the CI gateway-alias clearing and required suite gates.
+
+**Verify:** full UI Vitest suite and UI build; topology verification; fresh
+protected CI run.
+
 ### 2026-09-27 — BFF CI gateway routing failures
 
 **Files:** `.github/workflows/ci.yml`,
