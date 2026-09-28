@@ -67,6 +67,9 @@ const ENV_SCOPED_KEYS = new Set([
   'pingone_holdings_agent_client_id', 'pingone_holdings_agent_client_secret',
   'pingone_passenger_agent_client_id', 'pingone_passenger_agent_client_secret',
   'pingone_identity_agent_client_id', 'pingone_identity_agent_client_secret',
+  // PingOne agent clients belong to the active environment.
+  'pingone_fraud_watch_agent_client_id', 'pingone_fraud_watch_agent_client_secret',
+  'pingone_balance_sweep_agent_client_id', 'pingone_balance_sweep_agent_client_secret',
   // copilot (copilot_agent_client_id/secret — copilot Studio auth to PingOne, env-specific)
   'copilot_agent_client_id', 'copilot_agent_client_secret',
   // resource/audience URIs (env-scoped resource servers)
@@ -189,6 +192,17 @@ const ENV_AGNOSTIC_KEYS = new Set([
   'pf_token_exchange_token_endpoint_auth_method',
   'pf_standard_token_exchange_client_id', 'pf_standard_token_exchange_client_secret',
   'pf_standard_token_exchange_token_endpoint_auth_method', 'pf_standard_token_exchange_actor_scope',
+  'pf_standard_agent_exchange_client_id', 'pf_standard_agent_exchange_client_secret',
+  'pf_standard_agent_exchange_token_endpoint_auth_method', 'pf_standard_intermediate_audience',
+  'pf_mcp_service_actor_client_id', 'pf_mcp_service_actor_client_secret',
+  'pf_mcp_service_actor_token_endpoint_auth_method', 'pf_standard_mcp_actor_scope',
+  // SPIFFE workload identity and its PF bridge settings are provider/deployment
+  // configuration, independent of a PingOne environment-id switch.
+  'spiffe_svid_path', 'spiffe_key_path', 'spiffe_bundle_path', 'spiffe_trust_domain',
+  'spiffe_pf_issuer', 'spiffe_pf_token_endpoint', 'spiffe_pf_svid_audience', 'spiffe_pf_ca_path',
+  'spiffe_pf_exchange_client_id', 'spiffe_pf_exchange_client_secret',
+  'spiffe_pf_subject_client_id', 'spiffe_pf_subject_client_secret',
+  'spiffe_bridge_private_key', 'spiffe_bridge_kid', 'spiffe_pingone_client_map',
   'pf_ai_agent_actor_client_id', 'pf_ai_agent_actor_client_secret',
   'pf_ai_agent_actor_token_endpoint_auth_method',
   'pf_id_jag_enabled', 'pf_id_jag_audience', 'pf_id_jag_resource',
