@@ -4,22 +4,15 @@ const roster = require('../../services/controlPlane/demoAgentRoster');
 function fakeReq() { return { session: {} }; }
 
 describe('demoAgentRoster (per-session)', () => {
-  it('seeds 5 active demo agents on first read', () => {
+  it('starts empty because only live PingOne identities are shown', () => {
     const req = fakeReq();
     const list = roster.getRoster(req);
-    expect(list).toHaveLength(5);
-    expect(list.every((a) => a.status === 'active')).toBe(true);
-    expect(list.map((a) => a.id)).toEqual(
-      expect.arrayContaining(['chatgpt', 'copilot', 'glean', 'agentforce', 'servicenow'])
-    );
+    expect(list).toEqual([]);
   });
 
-  it('setStatus flips one agent and persists on the session', () => {
+  it('does not allow status changes to an unknown agent', () => {
     const req = fakeReq();
-    roster.getRoster(req);
-    const updated = roster.setStatus(req, 'glean', 'revoked');
-    expect(updated.status).toBe('revoked');
-    expect(roster.getRoster(req).find((a) => a.id === 'glean').status).toBe('revoked');
+    expect(roster.setStatus(req, 'glean', 'revoked')).toBeNull();
   });
 
   it('setStatus returns null for an unknown id', () => {
@@ -27,18 +20,14 @@ describe('demoAgentRoster (per-session)', () => {
     expect(roster.setStatus(req, 'nope', 'revoked')).toBeNull();
   });
 
-  it('reset restores all to active', () => {
+  it('reset restores the empty seed', () => {
     const req = fakeReq();
-    roster.getRoster(req);
-    roster.setStatus(req, 'glean', 'revoked');
     roster.reset(req);
-    expect(roster.getRoster(req).every((a) => a.status === 'active')).toBe(true);
+    expect(roster.getRoster(req)).toEqual([]);
   });
 
-  it('two sessions are isolated', () => {
+  it('two sessions receive separate roster arrays', () => {
     const a = fakeReq(); const b = fakeReq();
-    roster.getRoster(a); roster.getRoster(b);
-    roster.setStatus(a, 'glean', 'revoked');
-    expect(roster.getRoster(b).find((x) => x.id === 'glean').status).toBe('active');
+    expect(roster.getRoster(a)).not.toBe(roster.getRoster(b));
   });
 });
