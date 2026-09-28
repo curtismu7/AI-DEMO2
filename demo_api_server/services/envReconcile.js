@@ -96,6 +96,8 @@ const ENV_SCOPED_KEYS = new Set([
   // private_key_jwt credentials for the dedicated token-exchange app (also PingOne-env-specific)
   'pingone_private_key_jwt_exchanger_client_id',
   'pingone_private_key_jwt_exchanger_private_key', 'pingone_private_key_jwt_exchanger_kid',
+  // SPIFFE bridge credentials authenticate a mapped client in the active PingOne environment.
+  'spiffe_bridge_private_key', 'spiffe_bridge_kid', 'spiffe_pingone_client_map',
 ]);
 
 // Keys that SURVIVE an env change (flags, thresholds, UI, deployment topology, internal secrets,
@@ -202,7 +204,6 @@ const ENV_AGNOSTIC_KEYS = new Set([
   'spiffe_pf_issuer', 'spiffe_pf_token_endpoint', 'spiffe_pf_svid_audience', 'spiffe_pf_ca_path',
   'spiffe_pf_exchange_client_id', 'spiffe_pf_exchange_client_secret',
   'spiffe_pf_subject_client_id', 'spiffe_pf_subject_client_secret',
-  'spiffe_bridge_private_key', 'spiffe_bridge_kid', 'spiffe_pingone_client_map',
   'pf_ai_agent_actor_client_id', 'pf_ai_agent_actor_client_secret',
   'pf_ai_agent_actor_token_endpoint_auth_method',
   'pf_id_jag_enabled', 'pf_id_jag_audience', 'pf_id_jag_resource',
