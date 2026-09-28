@@ -188,9 +188,105 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-28 — Vitest worker memory grew past 9 GB
+
+**Files:** `.github/workflows/ci.yml`, `demo_api_ui/vite.config.js`, and the
+oversized UI test suites.
+
+**What was broken:** Vitest's default fork pool reused workers across hundreds
+of jsdom files, while CI and the worker config each allowed a 14 GB V8 heap. A
+single worker reached over 4 GB RSS in a local UI run and 9.8 GB RSS in CI.
+Limiting the pool to two workers did not limit memory per worker. Vitest's
+`memoryLimit` tracks heap use and recycles only after a file finishes; its
+`vmForks` pool also fails to load the current React Router ESM/CJS boundary.
+The live-event path in `TokenChainDisplay` also built a new filtered event
+array on every render; an effect watched that array and updated state, causing
+an endless render loop that could exhaust a worker's heap inside one test file.
+The Agent Gateway tester also left its four startup requests active on unmount;
+a late tools failure attempted to update state after the test DOM was destroyed.
+
+**What was fixed:** remove the 14 GB heap overrides, cap each worker's V8 heap
+at 1.4 GB, and cap the pool at two workers. The full unit suite starts fresh
+workers every 12 test files. Route both UI test commands through a watchdog
+that samples every Vitest process's RSS every 100 ms and terminates the
+complete run if any process exceeds 4,000,000,000 bytes. The 4 GB ceiling is a
+hard stop; the measured full-suite peak before this increase was 1.86 GB. Split
+the remaining UI test files over 1,000 lines into focused suites while keeping
+their assertions intact. Keep the derived live-event list stable between
+renders so its state-setting effects run only when the underlying events
+change. Abort the Agent Gateway startup requests on unmount and ignore their
+late results.
+
+**Do not break:** preserve every UI test assertion and existing dev-proxy,
+OAuth, and session behavior. Stop the complete Vitest process tree when any
+process exceeds 4,000,000,000 bytes RSS; never scale the ceiling to the host's
+reported RAM.
+
+**Verify:** run the watchdog unit tests, split UI suites under `vmForks`,
+`npm run test:unit`, `npm run build`, and actionlint on
+`.github/workflows/ci.yml`; confirm no UI test file exceeds 1,000 lines and
+monitor the full run for RSS breaches below the 4 GB ceiling.
+
+### 2026-09-28 — Related UI tests on pull requests
+
+**Files:** `.github/workflows/ci.yml`, `demo_api_ui/package.json`, and
+`demo_api_ui/scripts/select-vitest-mode.mjs`.
+
+**What was broken:** every UI pull request selected the complete 690-file
+Vitest suite, even when a change touched one leaf component.
+
+**What was fixed:** pass the pull request's changed UI paths to the guarded
+Vitest launcher. Only explicitly verified leaf-component edits run
+`vitest related`; changed unit test files run directly. Shared or unverified
+components, the App shell, route-level pages, contexts, hooks, services,
+styles, test setup, config, deleted or renamed files, and unknown paths select
+the complete suite. `AgentRunTimeline.jsx` is currently the only allowlisted
+leaf: it has one production importer (`AgentFlowHistoryPage.jsx`) and focused
+tests. Pushes to main, manual runs, and the nightly schedule use the full
+suite; the nightly schedule runs the gates and UI suite without queuing the
+unrelated service suites.
+
+**Do not break:** Vitest related selection only follows static imports. Keep
+dynamic route and shared UI infrastructure changes on the full suite, and do
+not let an unavailable changed-file list turn into an empty green run.
+
+**Verify:** selector unit tests cover leaf components, shared contexts, the
+App shell, route pages, styles, and config. Validate selected tests against
+representative component changes and confirm main/manual execution still calls
+the guarded full-suite command.
+
+### 2026-09-28 — Graphify refresh cost and parser warnings
+
+**Files:** `CLAUDE.md`, `.graphifyignore`,
+`demo_api_server/services/agentRunContext.js`,
+`demo_api_ui/src/components/education/{AiPlatformLandscapePanel,IntentAuthStandardsPanel,LlmLandscapePanel}.js`.
+
+**What was broken:** the post-edit `graphify update .` instruction performed a
+full AST scan. Graphify also re-queued 1,068 JSON files that its extractor
+intentionally skipped as data, lacked the optional HCL grammar, and flagged
+literal NUL/JSX ampersands in four source files as partial parses.
+
+**What was fixed:** use manifest-backed `graphify extract . --code-only
+--no-cluster --timing`; exclude the large step-verification/golden data and
+generated execution traces; spell the run-key separator as `\u0000` and encode
+JSX ampersands as entities so displayed text stays the same. The local Graphify
+tool was upgraded to 0.9.71 and `tree-sitter-hcl` installed.
+
+**Do not break:** session+run scoped context keys and the `LLM token custody`
+invariant; preserve the current JSX text and keep application behavior
+independent of Graphify exclusions.
+
+**Verify:** `node --check demo_api_server/services/agentRunContext.js` passed;
+the Graphify extractor reported no parse errors for the four changed files;
+`cd demo_api_ui && npm run build` passed. The incremental no-cluster refresh
+processed 181 code files, kept 5,243 unchanged, and took 22.1s (7.9s detect,
+5.7s AST, 7.1s write), producing 66,751 nodes and 121,389 edges. All six
+Terraform/HCL files are represented; 176 intentionally skipped JSON files
+still re-queue, tracked in `TECH_DEBT.md`.
+
 ### 2026-09-28 — Shared-Mac CI contention from duplicate runner registrations and caches
 
-**Files:** `.github/workflows/ci.yml`.
+**Files:** `.github/workflows/ci.yml`, `demo_api_ui/vite.config.js`, and the AIAgent test suites.
 
 **What was broken:** multiple Actions runner registrations on the same Mac were
 treated as independent capacity. Their persistent workspaces held multi-gigabyte
@@ -205,12 +301,46 @@ before repository gates and make expensive suites depend on the gates; disable
 the large npm cache; install pytest
 explicitly for llamaindex and fail on dependency-install errors.
 
+**Follow-up:** the cold BFF dependency install took nearly 30 minutes against
+its previous 30-minute job limit, and the grouped authz/gateway suites exceeded
+their 30-minute limit. Use lockfile-based `npm ci`, give the API and grouped
+service jobs 60 and 45 minutes, and cap CI Vitest workers at two on the shared
+Mac. The 14 GB heap override was later removed after a worker reached 9.8 GB;
+see the newer Vitest memory entry above. Split the 1,787-line AIAgent chips
+suite into four focused files while retaining all 88 tests.
+
 **Do not break:** do not require a special `ci-gates` runner label; keep npm
 caching disabled on self-hosted jobs; keep Python tests isolated in Python 3.12
 virtual environments.
 
 **Verify:** actionlint and a fresh full CI run on a single registered Mac
 runner; `llamaindex_agent` must report 10 passed, 1 skipped.
+
+### 2026-09-27 — BFF CI gateway routing failures
+
+**Files:** `.github/workflows/ci.yml`,
+`demo_api_server/services/mcpToolPipeline.js`,
+`demo_api_server/services/mcpGatewayClient.js`,
+`demo_api_server/src/__tests__/mcpGatewayClient.pinnedAudience.test.js`.
+
+**What was broken:** the persistent CI runner inherited local PingGateway and
+Node gateway URL aliases, redirecting mocked gateway calls. The A2A token pin
+also used routing config before initialization, and the gateway client could
+re-route a selected Node gateway base to PingGateway.
+
+**What was fixed:** the API test job clears inherited gateway URL aliases;
+routing tests set their own test endpoints. The pipeline initializes routing
+config before audience resolution. Recognized A2A and ID-JAG audiences keep the
+Node gateway destination when it is already selected, and A2A pinning accepts
+the configured audience or canonical resource name.
+
+**Do not break:** ordinary vertical tools continue to use PingGateway and its
+token audience. Missing required Node gateway configuration still fails
+closed. Preserve the gateway-authoritative `skipBffAuthorize` rule and RFC 8693
+token exchange flow.
+
+**Verify:** focused BFF routing and pipeline tests passed 28/28 before the
+single-runner merge; rerun in protected CI.
 
 ### 2026-09-27 — Third self-hosted runner could not take CI gates reliably
 
@@ -226,13 +356,12 @@ cache override could not relocate that Python build. Vitest workers also
 reached their 12 GB V8 heap ceiling in the full CI run.
 
 **What was fixed:** route the selector and hygiene/topology jobs only to the
-`ci-gates` runner, use the runner's installed Python 3.12 in per-service virtual
-environments, and raise the Vitest parent and worker heap ceiling to the
-measured 14 GB.
+`ci-gates` runner and use the runner's installed Python 3.12 in per-service
+virtual environments. The 14 GB Vitest heap workaround was superseded by the
+2026-09-28 worker-recycling fix above.
 
-**Do not break:** preserve the 14 GB UI worker ceiling and Python 3.12
-environment details recorded here; runner routing is superseded by the newer
-single-runner finding above.
+**Do not break:** preserve the Python 3.12 environment details recorded here;
+runner routing is superseded by the newer single-runner finding above.
 
 **Verify:** `actionlint` on `.github/workflows/ci.yml`; run the Python agent,
 Vitest, API and unwired-service CI jobs on the updated PR.
@@ -268,6 +397,66 @@ policy so guest access remains available.
 **Verify:** `cd demo_api_ui && npx vitest run
 src/components/__tests__/adminSideNav.test.jsx`; `npm run build`; `npm run
 authz:verify`.
+### 2026-09-27 — oauth-mcp routed PF Step 9 subjects to PingOne
+
+**Files:** `oauth-mcp/src/tools/TokenResolver.ts`,
+`oauth-mcp/src/auth/PfStep9TokenExchangeService.ts`,
+`oauth-mcp/src/auth/TokenIntrospector.ts`, `oauth-mcp/src/auth/jwks.ts`,
+`oauth-mcp/tests/auth/TokenIntrospector.pfIssuer.test.ts`,
+`oauth-mcp/tests/auth/PfStep9TokenExchangeService.test.ts`,
+`demo_api_server/scripts/refresh-service-envs.js`,
+`demo_api_server/tests/refreshServiceEnvsPfGateway.test.js`,
+`oauth-mcp/.env.example`,
+`spiffe/pingfederate/pf-step9-te-policy.json`,
+`spiffe/pingfederate/pf-step9-atm-mapping.json`,
+`scripts/pingfederate/provision-pf-step9.sh`,
+`docs/superpowers/specs/2026-09-26-demo-readiness-and-repair-design.md`.
+
+**What was broken:** After PingGateway Exchange #3 returned a PF-issued agent
+token, `oauth-mcp` Step 9 used its single PingOne token-exchange service for
+every issuer. PingOne rejected the PF `subject_token` with “Cannot parse token
+claims,” so the registered Banking API MCP call failed at the final exchange
+and surfaced as an error/502. Local PF also had no dedicated Step 9 policy;
+the existing MCP actor client allowed only `CLIENT_CREDENTIALS`.
+
+**What was fixed:** `TokenResolver` now routes by the authenticated token's
+issuer. PingOne keeps its current endpoint, `resource` selector, scopes, and
+cache behavior. PF uses a separate service: it obtains the existing PF
+MCP-service client-credentials actor token, exchanges the PF subject token
+without a `resource` or `audience` selector, and checks issuer, subject,
+audience, scopes, and nested `act` before forwarding the result. A dedicated
+PF access-token-only policy and ATM mapping preserve the incoming subject and
+actor chain; the local provisioner extends the existing actor client while
+leaving `aiDemoStandardTePolicy` and its mapping unchanged. PF settings and the
+protected actor secret are generated only into `oauth-mcp/.env`.
+
+Inbound signature validation now selects the configured issuer's JWKS before
+Step 9 routing. A PF `iss` uses `PF_JWKS_URI`; missing or invalid PF JWKS
+configuration and JWKS outages fail closed regardless of global demo bypasses,
+and cannot fall back to PingOne keys. The Step 9 service also rejects a PF
+subject whose JWT header `typ` is exactly `oauth-id-jag+jwt`, because its policy
+accepts access-token subjects only. The
+provisioner reads the actor client ID from the same BFF configuration used by
+runtime and verifies the subject, scope, nested `act`, ATM, and grant contract
+on readback. When applying a client update, it supplies the protected runtime
+secret and validates that the configured client can still mint its PF actor
+token without logging that secret or token.
+
+This is a documented PF-specific Step 9 difference. The UC38 passenger A2A
+`invalid_target` remains a separate UC2 issue and is not part of the UC40 or
+Banking API Step 9 chain.
+
+**Do not break:** Keep provider routing tied to the authenticated issuer; do
+not send a PF subject token to PingOne or fall back to PingOne on PF
+configuration/exchange failure. Preserve PingOne's existing request and
+cache, self-issued token passthrough, vertical-tool behavior, subject and
+scope isolation, and the full nested `act` chain.
+
+**Verify:** `oauth-mcp` build and focused `TokenResolver`/PF exchange tests;
+`demo_api_server` PF env-generation test; local PF policy/mapping/client
+readback; then a fresh registered `get_my_accounts` or `get_account_balance`
+call through `/api/mcp/tool` plus a PingOne-lane call. Do not use the UI intent
+label `banking.get_balance` as the registered MCP tool name.
 
 ### 2026-09-27 — PF Exchange #3 omitted its required MCP-service actor token
 

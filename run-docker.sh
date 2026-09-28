@@ -1320,8 +1320,8 @@ _prepare_docker_build_contexts() {
   [[ -z "${BUILD_CONTEXT_TMP}" ]] || return 0
 
   BUILD_CONTEXT_TMP="$(mktemp -d "${TMPDIR:-/tmp}/ai-demo-build-context.XXXXXX")"
-  node "${BASEDIR}/scripts/docker-build-contexts.js" "${BASEDIR}" "${BUILD_CONTEXT_TMP}" ${contexts[@]+"${contexts[@]}"}
   trap '[[ -z "${BUILD_CONTEXT_TMP}" ]] || rm -rf "${BUILD_CONTEXT_TMP}"' EXIT
+  node "${BASEDIR}/scripts/docker-build-contexts.js" "${BASEDIR}" "${BUILD_CONTEXT_TMP}" ${contexts[@]+"${contexts[@]}"}
 
   if [[ " ${contexts[*]} " == *" bff "* ]]; then
     export AI_DEMO_BFF_BUILD_CONTEXT="${BUILD_CONTEXT_TMP}/bff"

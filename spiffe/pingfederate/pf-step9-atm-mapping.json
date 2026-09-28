@@ -1,0 +1,44 @@
+{
+  "id": "urn:ietf:params:oauth:grant-type:token-exchange|aiDemoPfStep9TePolicy|aiDemoPfJwtAtm",
+  "context": {
+    "type": "TOKEN_EXCHANGE_PROCESSOR_POLICY",
+    "contextRef": {
+      "id": "aiDemoPfStep9TePolicy",
+      "location": "https://localhost:9999/pf-admin-api/v1/oauth/tokenExchange/processor/policies/aiDemoPfStep9TePolicy"
+    }
+  },
+  "accessTokenManagerRef": {
+    "id": "aiDemoPfJwtAtm",
+    "location": "https://localhost:9999/pf-admin-api/v1/oauth/accessTokenManagers/aiDemoPfJwtAtm"
+  },
+  "attributeSources": [],
+  "attributeContractFulfillment": {
+    "sub": {
+      "source": { "type": "TOKEN_EXCHANGE_PROCESSOR_POLICY" },
+      "value": "subject"
+    },
+    "act": {
+      "source": { "type": "EXPRESSION" },
+      "value": "#{\"sub\": #this.get(\"tepp.spiffeId\").toString(), \"act\": #this.get(\"tepp.priorAct\").getObjectValue()}"
+    },
+    "Username": {
+      "source": { "type": "TOKEN_EXCHANGE_PROCESSOR_POLICY" },
+      "value": "subject"
+    },
+    "scope": {
+      "source": { "type": "CONTEXT" },
+      "value": "OAuthScopes"
+    },
+    "client_id": {
+      "source": { "type": "TOKEN_EXCHANGE_PROCESSOR_POLICY" },
+      "value": "client_id"
+    },
+    "spiffeId": {
+      "source": { "type": "TOKEN_EXCHANGE_PROCESSOR_POLICY" },
+      "value": "spiffeId"
+    }
+  },
+  "issuanceCriteria": {
+    "conditionalCriteria": []
+  }
+}

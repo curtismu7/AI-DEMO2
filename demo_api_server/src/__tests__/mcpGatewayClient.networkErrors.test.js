@@ -12,10 +12,17 @@ const {
   getMcpGatewayHttpUrl,
   _normalizeGatewayNetworkError,
 } = require('../../services/mcpGatewayClient');
+const previousPingGatewayUrl = process.env.MCP_PINGGATEWAY_URL;
 
 describe('mcpGatewayClient network error normalization', () => {
   beforeEach(() => {
+    process.env.MCP_PINGGATEWAY_URL = 'https://api.ping.demo:3005';
     jest.clearAllMocks();
+  });
+
+  afterAll(() => {
+    if (previousPingGatewayUrl === undefined) delete process.env.MCP_PINGGATEWAY_URL;
+    else process.env.MCP_PINGGATEWAY_URL = previousPingGatewayUrl;
   });
 
   test('_normalizeGatewayNetworkError maps ECONNABORTED to GATEWAY_TIMEOUT', () => {
