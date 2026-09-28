@@ -3,6 +3,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
+const fs = require('node:fs');
+const path = require('node:path');
 const {
   inspectDockerfile, checkLabels, checkComposeAgreement, LABEL_KEY, EXPECTED_URL,
 } = require('./check-ghcr-source-labels');
@@ -138,4 +140,16 @@ test('a service the build map names but compose does not have is reported', () =
 
 test('a service with no build: block is skipped — nothing is built from it', () => {
   assert.deepStrictEqual(checkComposeAgreement([ENTRY], 'services:\n  svc:\n    image: x\n'), []);
+});
+
+test('Compose build context and Dockerfile defaults resolve for CI image services', () => {
+  const compose = fs.readFileSync(path.join(__dirname, '..', 'docker-compose.yml'), 'utf8');
+  const entries = [
+    { key: 'bff', sourceDir: 'demo_api_server', ghcrImage: 'ai-demo-demo-api-server', composeService: 'demo-api-server' },
+    { key: 'gateway', sourceDir: 'demo_mcp_gateway', ghcrImage: 'ai-demo-mcp-gateway', composeService: 'mcp-gateway' },
+    { key: 'agent', sourceDir: 'langchain_agent', ghcrImage: 'ai-demo-langchain-agent', composeService: 'langchain-agent' },
+    { key: 'authz', sourceDir: 'demo_authz_server', ghcrImage: 'ai-demo-authz-server', composeService: 'authz-server' },
+  ];
+
+  assert.deepStrictEqual(checkComposeAgreement(entries, compose), []);
 });

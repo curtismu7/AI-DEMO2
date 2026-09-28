@@ -170,7 +170,15 @@ function checkComposeAgreement(map, composeText) {
     if (current) blocks.get(current).push(line);
   }
 
-  const value = (raw) => raw.replace(/#.*$/, '').trim().replace(/^["']|["']$/g, '');
+  const value = (raw) => raw
+    .replace(/#.*$/, '')
+    .trim()
+    .replace(/^["']|["']$/g, '')
+    // This gate checks the repository defaults used by CI. The optional
+    // staging variables in run-docker.sh are unset in that build, so compare
+    // their Compose `:-` defaults rather than treating the expression as a
+    // literal filesystem path.
+    .replace(/\$\{[A-Za-z_][A-Za-z0-9_]*:-([^}]*)\}/g, '$1');
 
   for (const entry of map) {
     if (!entry.sourceDir || !entry.ghcrImage || !entry.composeService) continue;
