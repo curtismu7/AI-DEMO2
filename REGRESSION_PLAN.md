@@ -218,6 +218,31 @@ src/components/__tests__/AIAgent.surfaceSelectorLayout.test.js` (29/29); `cd
 demo_api_ui && npm run build`; inspect contrast in the rendered dashboard in
 light and dark themes.
 
+### 2026-09-28 — Server topology edge labels collided and flow controls used excess height
+
+**Files:** `demo_api_ui/src/components/ServerTopologyPage.jsx`,
+`demo_api_ui/src/components/ServerTopologyPage.css`,
+`demo_api_ui/src/components/topologyEdgeLabelLayout.js`,
+`demo_api_ui/src/components/__tests__/ServerTopologyPage.playbacks.test.jsx`,
+`demo_api_ui/src/components/__tests__/topologyEdgeLabelLayout.test.js`.
+
+**What was broken:** edge labels shared route midpoints and could overlap one
+another or sit directly on their lines. The playback/result area and its controls
+also took enough vertical space to hide most of the map in a short viewport.
+
+**What was fixed:** position padded labels in separate lanes, with a dark
+background that keeps route strokes clear of the text. Compress the result strip,
+toolbar spacing, and default desktop playback height; preserve numbered steps,
+all controls, and any custom pane size saved by the user.
+
+**Do not break:** keep flow selection, step numbering, playback, filtering,
+exports, and resizable panes intact. Keep label rectangles separated and clear of
+their route midpoint.
+
+**Verify:** focused Vitest suites (17 passed), UI build, and a desktop browser
+render with 58 labels and zero overlapping label rectangles; contrast auditor
+reported zero text failures in dark and light themes.
+
 ### 2026-09-28 — PF active provider broke the PingOne MCP machine-token chain
 
 **Files:** `demo_api_server/services/oauthEndpointResolver.js`,
