@@ -20,9 +20,11 @@ permissions:
 # The self-hosted runner's shared npm cache grew to about 1.1 GiB and consumed
 # most of the gates job's 15-minute budget during restore/extract; skip it.
 jobs:
+  # Keep lightweight planning/gates on the dedicated runner so general macOS
+  # workers stay available for the long service suites.
   changes:
     name: Select affected test suites
-    runs-on: [self-hosted, macOS]
+    runs-on: [self-hosted, ci-gates]
     outputs:
       api-server: ${{ steps.all.outputs['api-server'] || steps.filter.outputs['api-server'] }}
       decision-services: ${{ steps.all.outputs['decision-services'] || steps.filter.outputs['decision-services'] }}
@@ -92,7 +94,7 @@ jobs:
 
   gates:
     name: Hygiene + topology gates
-    runs-on: [self-hosted, macOS]
+    runs-on: [self-hosted, ci-gates]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7

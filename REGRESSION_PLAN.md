@@ -203,11 +203,13 @@ and did not recognize the A2A resource-name audience observed in PingOne.
 
 **What was fixed:** CI clears the four inherited gateway URL aliases before
 Jest, preventing mocks from being redirected to live gateways; gateway routing
-tests declare their own endpoint URLs. The Vitest parent heap limit was raised
-to the measured passing 14 GB after CI hit its 12 GB limit. The pipeline
-initializes its routing config before audience resolution. Recognized A2A and
-ID-JAG audiences keep the Node gateway destination when it is already selected,
-and the A2A pin accepts the configured audience or canonical resource name.
+tests declare their own endpoint URLs. The selector and topology gates now use
+the dedicated `ci-gates` runner, leaving general macOS workers for suite jobs.
+The Vitest parent heap limit was raised to the measured passing 14 GB after CI
+hit its 12 GB limit. The pipeline initializes its routing config before
+audience resolution. Recognized A2A and ID-JAG audiences keep the Node gateway
+destination when it is already selected, and the A2A pin accepts the configured
+audience or canonical resource name.
 
 **Do not break:** ordinary vertical tools must continue to use PingGateway and
 its own token audience. Missing required Node gateway configuration still fails
