@@ -57,6 +57,7 @@ export const NAV_PAGE_PATHS = {
   "Run ID-JAG Demo": "/pingfederate-id-jag/demo",
   "How ID-JAG Works": "/pingfederate-id-jag",
   "ID-JAG Diagram": "/pingfederate-id-jag/diagram",
+  "CIMD, Token Exchange, and RAR": "/pingfederate-ai-agent",
   "MCP Discovery": "/mcp-discovery",
   "Ping AI Test Lab": "/ping-ai-test-lab",
   "Capability Tour": "/agent-gateway-capabilities",

@@ -373,6 +373,10 @@
 }
 .aac-step-body { font-size: var(--font-size-base); line-height: 1.5; }
 .aac-step-body code { font-family: var(--font-mono); font-size: var(--font-size-sm); }
+.aac-section :not(pre) > code {
+  background: var(--th-code-bg);
+  color: var(--th-code-text);
+}
 
 /* Vertical tiles (§9). */
 .aac-vertical-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }

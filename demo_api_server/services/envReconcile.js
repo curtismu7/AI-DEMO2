@@ -195,6 +195,13 @@ const ENV_AGNOSTIC_KEYS = new Set([
   'pf_id_jag_scope', 'pf_id_jag_subject_token_type',
   'pf_id_jag_redemption_token_endpoint', 'pf_id_jag_redemption_client_id',
   'pf_id_jag_redemption_client_secret', 'pf_id_jag_redemption_auth_method',
+  'pf_ai_cimd_enabled', 'pf_ai_cross_domain_enabled',
+  'pf_ai_cross_domain_client_id', 'pf_ai_cross_domain_client_secret',
+  'pf_ai_cross_domain_token_endpoint_auth_method', 'pf_ai_cross_domain_audience',
+  'pf_ai_cross_domain_resource', 'pf_ai_cross_domain_scope',
+  'pf_ai_third_party_token_endpoint', 'pf_ai_third_party_client_id',
+  'pf_ai_third_party_client_secret', 'pf_ai_third_party_token_endpoint_auth_method',
+  'pf_ai_third_party_resource', 'pf_ai_third_party_scope', 'pf_ai_rar_enabled',
   // ciba
   'ciba_enabled', 'ciba_token_delivery_mode', 'ciba_binding_message',
   'ciba_poll_interval_ms', 'ciba_auth_request_expiry',

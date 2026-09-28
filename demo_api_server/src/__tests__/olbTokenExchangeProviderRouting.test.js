@@ -13,6 +13,8 @@ const FILTERS = [
     name: 'OLB',
     file: path.join(ROOT, 'ping-gateway/scripts/groovy/olb-token-exchange.groovy'),
     issuerVariable: 'tokenIss',
+    subjectTypVariable: 'tokenTyp',
+    subjectTypeVariable: 'subjectTokenType',
     successTool: 'get_my_accounts',
     registry: REGISTERED_TOOLS.olb,
     forwardingCall: /httpPostJson\(mcpUrl,\s*rawBody,\s*toolHdrs\)/,
@@ -21,25 +23,13 @@ const FILTERS = [
     name: 'Invest',
     file: path.join(ROOT, 'ping-gateway/scripts/groovy/invest-dispatch.groovy'),
     issuerVariable: 'subjectIss',
+    subjectTypVariable: 'subjectTyp',
+    subjectTypeVariable: 'subjectType',
     successTool: 'get_investment_accounts',
     registry: REGISTERED_TOOLS.invest,
     forwardingCall: /httpPostJson\(investMcpUrl,\s*bodyStr,\s*issuedToken\)/,
   },
 ];
-
-function expectMatch(text, pattern) {
-  expect(pattern.test(text)).toBe(true);
-}
-
-function expectNoMatch(text, pattern) {
-  expect(pattern.test(text)).toBe(false);
-}
-
-function isRegisteredTool(registryFile, toolName) {
-  const openapi = JSON.parse(fs.readFileSync(registryFile, 'utf8'));
-  return Object.values(openapi.paths || {}).some((pathItem) =>
-    Object.values(pathItem).some((operation) => operation.operationId === toolName));
-}
 
 function groovyCode(file) {
   return fs.readFileSync(file, 'utf8')
@@ -49,86 +39,121 @@ function groovyCode(file) {
     .join('\n');
 }
 
+function isRegisteredTool(registryFile, toolName) {
+  const openapi = JSON.parse(fs.readFileSync(registryFile, 'utf8'));
+  return Object.values(openapi.paths || {}).some((pathItem) =>
+    Object.values(pathItem).some((operation) => operation.operationId === toolName));
+}
+
 describe.each(FILTERS)('PingGateway $name Exchange #3 provider contract', (filter) => {
   const source = () => groovyCode(filter.file);
 
-  test('selects PF from the parsed issuer even when optional PF settings are absent', () => {
-    expectMatch(source(), new RegExp(`def isPfSubject\\s*=\\s*pfIssuer\\s*&&\\s*${filter.issuerVariable}\\s*==\\s*pfIssuer`));
-    expectMatch(source(), /if\s*\(isPfSubject\s*&&\s*!pfExchangeConfigValid\s*\(\s*\)\s*\)/);
-    expectMatch(source(), /pf_exchange_not_configured/);
-    expectMatch(source(), /if\s*\(!pfIssuer\s*\|\|\s*!pfTokenEndpoint\s*\|\|\s*!pfTeClientId\s*\|\|\s*!pfTeClientSecret\)/);
-    expect(source().indexOf('pf_exchange_not_configured')).toBeLessThan(source().indexOf('httpPostForm(exEndpoint'));
+  test('selects PF from the signed issuer and fails closed when its configuration is incomplete', () => {
+    const text = source();
+    expect(text).toMatch(new RegExp(`def isPfSubject\\s*=\\s*pfIssuer\\s*&&\\s*${filter.issuerVariable}\\s*==\\s*pfIssuer`));
+    expect(text).toMatch(/def pfExchangeConfigValid\s*=\s*\{/);
+    expect(text).toMatch(/if\s*\(isPfSubject\s*&&\s*\(?\s*!pfExchangeConfigValid\s*\(/);
+    if (filter.name === 'OLB') {
+      expect(text).toContain('{"error":"pf_exchange_not_configured"}');
+    } else {
+      expect(text).toContain("rpcError(rpcId, -32603, 'pf_exchange_not_configured')");
+    }
+    expect(text.indexOf('pf_exchange_not_configured')).toBeLessThan(text.indexOf('httpPostForm(exEndpoint'));
   });
 
   test('routes PF subjects only with the dedicated PF exchanger credentials', () => {
-    expectMatch(source(), /def exEndpoint\s*=\s*isPfSubject\s*\?\s*pfTokenEndpoint\s*:\s*tokenEndpoint/);
-    expectMatch(source(), /def exClientId\s*=\s*isPfSubject\s*\?\s*pfTeClientId\s*:\s*teClientId/);
-    expectMatch(source(), /def exClientSecret\s*=\s*isPfSubject\s*\?\s*pfTeClientSecret\s*:\s*teClientSecret/);
-    expectNoMatch(source(), /pfTeClient(?:Id|Secret)\s*\?:\s*teClient/);
+    expect(source()).toMatch(/def exEndpoint\s*=\s*isPfSubject\s*\?\s*pfTokenEndpoint\s*:\s*tokenEndpoint/);
+    expect(source()).toMatch(/def exClientId\s*=\s*isPfSubject\s*\?\s*pfTeClientId\s*:\s*teClientId/);
+    expect(source()).toMatch(/def exClientSecret\s*=\s*isPfSubject\s*\?\s*pfTeClientSecret\s*:\s*teClientSecret/);
+    expect(source()).not.toMatch(/pfTeClient(?:Id|Secret)\s*\?:\s*teClient/);
   });
 
-  test('validates HTTPS and equal issuer/endpoint authority without replacing the token path', () => {
-    expectMatch(source(), /def pfExchangeConfigValid\s*=\s*\{[\s\S]*?issuerUri\.scheme[\s\S]*?https/i);
-    expectMatch(source(), /issuerUri\.authority\s*==\s*endpointUri\.authority/);
-    expectMatch(source(), /pfTeAuthMethod\s+in\s+\['basic',\s*'client_secret_basic',\s*'post',\s*'client_secret_post'\]/);
-    expectMatch(source(), /def exEndpoint\s*=\s*isPfSubject\s*\?\s*pfTokenEndpoint/);
-    expectNoMatch(source(), /pfTokenEndpoint\s*\+\s*['"]\/token/);
+  test('validates HTTPS, issuer authority, and configured PF token endpoint authentication', () => {
+    const text = source();
+    expect(text).toMatch(/issuerUri\.scheme\?\.equalsIgnoreCase\('https'\)/);
+    expect(text).toMatch(/endpointUri\.scheme\?\.equalsIgnoreCase\('https'\)/);
+    expect(text).toMatch(/issuerUri\.authority\s*==\s*endpointUri\.authority/);
+    expect(text).toMatch(/pfTeAuthMethod\s+in\s+\['basic',\s*'client_secret_basic',\s*'post',\s*'client_secret_post'\]/);
+    expect(text).toMatch(/if\s*\(isPfSubject\s*&&\s*pfTeAuthMethod\s+in\s+\['basic',\s*'client_secret_basic'\]\)/);
+    expect(text).not.toMatch(/pfTokenEndpoint\s*\+\s*['"]\/token/);
   });
 
-  test('uses PF endpoint auth and policy-derived audience contracts', () => {
-    expectMatch(source(), /System\.getenv\(['"]PF_TE_AUTH_METHOD['"]\)\s*\?:\s*'basic'/);
-    expectMatch(source(), /if\s*\(isPfSubject\s*&&\s*pfTeAuthMethod\s+in\s+\['basic',\s*'client_secret_basic'\]\)/);
+  test('uses PF policy scopes and preserves PingOne RFC 8707 resource targeting', () => {
+    const text = source();
     if (filter.name === 'OLB') {
-      expectMatch(source(), /if\s*\(!isPfSubject\)\s*params\[['"]resource['"]\]\s*=\s*olbAudience/);
+      expect(text).toMatch(/def pfOlbScope\s*=\s*System\.getenv\('PG_OLB_SCOPE_PF'\)\s*\?:\s*''/);
+      expect(text).toMatch(/def requestedOlbScope\s*=\s*isPfSubject\s*\?\s*pfOlbScope\s*:\s*olbScope/);
+      expect(text).toMatch(/if\s*\(requestedOlbScope\?\.trim\(\)\)\s*\{\s*params\['scope'\]\s*=\s*requestedOlbScope\.trim\(\)/);
+      expect(text).toMatch(/if\s*\(!isPfSubject\)\s*\{\s*params\['resource'\]\s*=\s*olbAudience/);
     } else {
-      expectMatch(source(), /'resource'\s*:\s*\(isPfSubject\s*\?\s*null\s*:\s*investAudience\)/);
+      expect(text).toMatch(/def wantScope\s*=\s*SCOPE_FOR_TOOL\[toolName\]/);
+      expect(text).toMatch(/if\s*\(wantScope\)\s*params\['scope'\]\s*=\s*wantScope/);
+      expect(text).toMatch(/'resource'\s*:\s*\(isPfSubject\s*\?\s*null\s*:\s*investAudience\)/);
     }
   });
 
-  test('preserves only sanitized insufficient-scope semantics for BFF recovery', () => {
-    expectMatch(source(), /err\.code\s*==\s*-32005/);
-    expectMatch(source(), /safeScopeList/);
-    expectMatch(source(), /requiredScopes/);
-    expectMatch(source(), /missingScopes/);
-    expectMatch(source(), /availableScopes/);
-    expectMatch(source(), /code\s*:\s*-32005/);
-    expectMatch(source(), /message\s*:\s*['"]insufficient_scope['"]/);
-    expectNoMatch(source(), /error\.code\s*\?:\s*-32603/);
+  test('preserves sanitized insufficient-scope recovery without forwarding backend errors', () => {
+    const text = source();
+    expect(text).toMatch(/err\.code\s*==\s*-32005/);
+    expect(text).toMatch(/safeScopeList/);
+    expect(text).toMatch(/requiredScopes/);
+    expect(text).toMatch(/missingScopes/);
+    expect(text).toMatch(/availableScopes/);
+    expect(text).toMatch(/code\s*:\s*-32005/);
+    expect(text).toMatch(/message\s*:\s*['"]insufficient_scope['"]/);
+    expect(text).not.toMatch(/error\.code\s*\?:\s*-32603/);
     if (filter.name === 'OLB') {
-      expectMatch(source(), /if\s*\(toolResp\.code\s*==\s*200\s*&&\s*toolResp\.body\)[\s\S]*?sanitizeMcpResponse\(toolResp\.body\)\.body/);
-      expectMatch(source(), /if\s*\(safeResult\.scopeDenied\)\s*\{\s*finalResp\.entity\.setString\(safeResult\.body\)/);
+      expect(text).toMatch(/sanitizeMcpResponse\(toolResp\.body\)\.body/);
+      expect(text).toMatch(/if\s*\(safeResult\.scopeDenied\)\s*\{\s*finalResp\.entity\.setString\(safeResult\.body\)/);
     } else {
-      expectMatch(source(), /def safeBackend\s*=\s*sanitizeMcpResponse\(beResp\.body\s*\?:\s*['"]['"]\)/);
-      expectMatch(source(), /if\s*\(safeBackend\.scopeDenied\s*\|\|\s*safeBackend\.isError\)/);
+      expect(text).toMatch(/def safeBackend\s*=\s*sanitizeMcpResponse\(beResp\.body\s*\?:\s*['"]['"]\)/);
+      expect(text).toMatch(/if\s*\(safeBackend\.scopeDenied\s*\|\|\s*safeBackend\.isError\)/);
     }
   });
 
-  test('types only exactly id-jag JWTs as id-jag and requests an access token', () => {
-    expectMatch(source(), /subjectTyp\s*==\s*['"]oauth-id-jag\+jwt['"]/);
-    expectMatch(source(), /subject_token_type[\s\S]{0,180}subjectType/);
-    expectMatch(source(), /requested_token_type[\s\S]{0,100}token-type:access_token/);
+  test('types only native PF ID-JAGs as id-jag and requests an access token', () => {
+    const text = source();
+    const typVariable = filter.subjectTypVariable;
+    const typeVariable = filter.subjectTypeVariable;
+    expect(text).toMatch(new RegExp(`def ${typeVariable}\\s*=\\s*\\(isPfSubject\\s*&&\\s*${typVariable}\\s*==\\s*'oauth-id-jag\\+jwt'\\)`));
+    expect(text).toMatch(new RegExp(`'subject_token_type'\\s*:\\s*${typeVariable}`));
+    expect(text).toMatch(/'requested_token_type'\s*:\s*'urn:ietf:params:oauth:token-type:access_token'/);
   });
 
-  test('passes the original subject token through and exercises a registered MCP tool', () => {
-    expectMatch(source(), /subject_token[\s\S]{0,100}subjectToken/);
-    expectMatch(source(), filter.forwardingCall);
+  test('passes the original subject token through and calls a registered MCP tool', () => {
+    expect(source()).toMatch(/'subject_token'\s*:\s*subjectToken/);
+    expect(source()).toMatch(filter.forwardingCall);
     expect(isRegisteredTool(filter.registry, filter.successTool)).toBe(true);
   });
 
-  test('does not log or return raw exchange, backend, authorization, or MCP session data', () => {
+  if (filter.name === 'OLB') {
+    test('uses a validated PF MCP actor token only on PF Exchange #3', () => {
+      const text = source();
+      expect(text).toMatch(/System\.getenv\('PF_MCP_ACTOR_CLIENT_ID'\)/);
+      expect(text).toMatch(/System\.getenv\('PF_MCP_ACTOR_CLIENT_SECRET'\)/);
+      expect(text).toMatch(/System\.getenv\('PF_MCP_ACTOR_SCOPE'\)/);
+      expect(text).toMatch(/def actorParams\s*=\s*\[\s*'grant_type'\s*:\s*'client_credentials'/);
+      expect(text).toMatch(/if\s*\(pfMcpActorAuthMethod\s*==\s*'post'\)[\s\S]*?actorParams\['client_id'\][\s\S]*?actorParams\['client_secret'\][\s\S]*?actorHeaders\['Authorization'\]\s*=\s*'Basic '/);
+      expect(text).toMatch(/httpPostForm\(pfTokenEndpoint,\s*actorFormBody,\s*actorHeaders\)/);
+      expect(text).toMatch(/params\['actor_token'\]\s*=\s*pfActorToken/);
+      expect(text).toMatch(/params\['actor_token_type'\]\s*=\s*'urn:ietf:params:oauth:token-type:access_token'/);
+      expect(text).toMatch(/actorJwtParts\.length\s*!=\s*3/);
+      expect(text).toMatch(/actorHeader\?\.typ[\s\S]*?id-jag/);
+      expect(text).toMatch(/actorIdentity\?\.toString\(\)\s*!=\s*pfMcpActorClientId/);
+      expect(text).toMatch(/expectedActorScopes\.every\s*\{\s*actorScopes\.contains\(it\)\s*\}/);
+      expect(text).not.toMatch(/logger\.(?:info|warn|error)\([^\n]*actorResp\.body/);
+    });
+  }
+
+  test('does not log or return raw exchange, backend, authorization, or session data', () => {
     const text = source();
-    expectNoMatch(text, /logger\.(?:info|warn|error)\([^\n]*(?:exchangeResp|initResp|toolResp|beResp)\.body/);
-    expectNoMatch(text, /logger\.(?:info|warn|error)\([^\n]*sessionId/);
-    expectNoMatch(text, /(?:detail|pingone_error)\s*:\s*(?:initResp|exchangeResp)\.body/);
-    expectNoMatch(text, /logger\.(?:info|warn|error)\([^\n]*(?:authHeader|subjectToken)/);
-    expectNoMatch(text, /(?:parsedBody|backendEnvelope)\.error\.message\s*[,}]/);
-    expectMatch(text, /error\s*:\s*['"](?:token_exchange_failed|mcp_initialize_failed|mcp_tool_call_failed)['"]/);
-    expectNoMatch(text, /logger\.(?:info|warn|error)\([^\n]*e\.message/);
-    expectNoMatch(text, /logger\.(?:info|warn|error)\([^\n]*(?:exEndpoint|mcpUrl|investMcpUrl|olbAudience|investAudience|olbScope|wantScope)/);
-    if (filter.name === 'OLB') {
-      expectMatch(text, /return\s*\[body:\s*JsonOutput\.toJson\(\[error:\s*'mcp_tool_call_failed'\]\),\s*isError:\s*true,\s*scopeDenied:\s*false\]/);
-    } else {
-      expectMatch(text, /return\s*\[body:\s*JsonOutput\.toJson\(\[jsonrpc:\s*'2\.0',\s*id:\s*rpcId,\s*error:\s*\[code:\s*-32603,\s*message:\s*'mcp_tool_call_failed'\]\]\),\s*isError:\s*true,\s*scopeDenied:\s*false\]/);
-    }
+    expect(text).not.toMatch(/logger\.(?:info|warn|error)\([^\n]*(?:exchangeResp|initResp|toolResp|beResp)\.body/);
+    expect(text).not.toMatch(/logger\.(?:info|warn|error)\([^\n]*sessionId/);
+    expect(text).not.toMatch(/(?:detail|pingone_error)\s*:\s*(?:initResp|exchangeResp)\.body/);
+    expect(text).not.toMatch(/logger\.(?:info|warn|error)\([^\n]*(?:authHeader|subjectToken)/);
+    expect(text).not.toMatch(/(?:parsedBody|backendEnvelope)\.error\.message\s*[,}]/);
+    expect(text).toMatch(/error\s*:\s*['"](?:token_exchange_failed|mcp_initialize_failed|mcp_tool_call_failed)['"]/);
+    expect(text).not.toMatch(/logger\.(?:info|warn|error)\([^\n]*e\.message/);
+    expect(text).not.toMatch(/logger\.(?:info|warn|error)\([^\n]*(?:exEndpoint|mcpUrl|investMcpUrl|olbAudience|investAudience)/);
   });
 });

@@ -46,6 +46,11 @@ def pfExchangeConfigValid = {
 }
 def olbAudience     = System.getenv('PG_OLB_RESOURCE_URI') ?: ''
 def olbScope        = System.getenv('PG_OLB_SCOPE') ?: ''
+def pfOlbScope      = System.getenv('PG_OLB_SCOPE_PF') ?: ''
+def pfMcpActorClientId = System.getenv('PF_MCP_ACTOR_CLIENT_ID') ?: ''
+def pfMcpActorClientSecret = System.getenv('PF_MCP_ACTOR_CLIENT_SECRET') ?: ''
+def pfMcpActorAuthMethod = (System.getenv('PF_MCP_ACTOR_AUTH_METHOD') ?: 'basic').toLowerCase()
+def pfMcpActorScope = System.getenv('PF_MCP_ACTOR_SCOPE') ?: ''
 def mcpBaseUrl      = System.getenv('PG_OLB_BACKEND_URL') ?: 'http://mcp-server:8080'
 def mcpUrl          = mcpBaseUrl.replaceAll('/+$', '') + '/mcp'
 def safeScopeList = { Object scopes ->
@@ -243,18 +248,21 @@ def issuedToken
 // the signed-token header only to identify the exact ID-JAG typ; the original
 // subject token is sent unchanged to the selected authorization server.
 def tokenIss = ''
-def subjectTyp = ''
+def tokenTyp = ''
 try {
     def h = authHeader.startsWith('Bearer ') ? authHeader.substring(7) : ''
     def p = h.split('\\.', -1)
     if (p.length == 3) {
-        tokenIss = new JsonSlurper().parseText(new String(java.util.Base64.getUrlDecoder().decode(p[1]), 'UTF-8'))['iss'] ?: ''
-        subjectTyp = new JsonSlurper().parseText(new String(java.util.Base64.getUrlDecoder().decode(p[0]), 'UTF-8'))['typ'] ?: ''
+        def slurper = new JsonSlurper()
+        tokenIss = slurper.parseText(new String(java.util.Base64.getUrlDecoder().decode(p[1]), 'UTF-8'))['iss'] ?: ''
+        tokenTyp = slurper.parseText(new String(java.util.Base64.getUrlDecoder().decode(p[0]), 'UTF-8'))['typ'] ?: ''
     }
 } catch (Exception ignored) {}
 def isPfSubject = pfIssuer && tokenIss == pfIssuer
-if (isPfSubject && !pfExchangeConfigValid()) {
-    logger.warn('[OlbExchange] PF Exchange #3 is not configured')
+if (isPfSubject && (!pfExchangeConfigValid()
+        || !pfMcpActorClientId || !pfMcpActorClientSecret || !pfMcpActorScope
+        || !(pfMcpActorAuthMethod in ['basic', 'post']))) {
+    logger.warn('[OlbExchange] PF Exchange #3 or MCP actor configuration is incomplete or unsupported')
     def errResp = new Response(Status.SERVICE_UNAVAILABLE)
     errResp.headers.put('Content-Type', ['application/json'])
     errResp.entity.setString('{"error":"pf_exchange_not_configured"}')
@@ -263,22 +271,111 @@ if (isPfSubject && !pfExchangeConfigValid()) {
 def exEndpoint  = isPfSubject ? pfTokenEndpoint : tokenEndpoint
 def exClientId  = isPfSubject ? pfTeClientId : teClientId
 def exClientSecret = isPfSubject ? pfTeClientSecret : teClientSecret
-def subjectType = (isPfSubject && subjectTyp == 'oauth-id-jag+jwt')
+// The local PF scope registry differs from PingOne: read/write are registered,
+// but code:search is not. Keep the PingOne scope contract intact and use PF's
+// narrower provider-specific scope list only for PF-issued subjects. The
+// PG_OLB_SCOPE setting is PingOne-specific; PG_OLB_SCOPE_PF configures PF.
+def requestedOlbScope = isPfSubject ? pfOlbScope : olbScope
+// PF's standard exchange policy requires an MCP-service actor. Mint it with
+// the same dedicated client-credentials profile used by the BFF PF exchange
+// service; never substitute the user subject or the exchanger client itself.
+def pfActorToken = null
+if (isPfSubject) {
+    def actorParams = [
+        'grant_type': 'client_credentials',
+        'scope': pfMcpActorScope.trim(),
+    ]
+    def actorHeaders = [:]
+    if (pfMcpActorAuthMethod == 'post') {
+        actorParams['client_id'] = pfMcpActorClientId
+        actorParams['client_secret'] = pfMcpActorClientSecret
+    } else {
+        def actorCredentials = pfMcpActorClientId + ':' + pfMcpActorClientSecret
+        def encodedActorCredentials = java.util.Base64.getEncoder().encodeToString(actorCredentials.getBytes('UTF-8'))
+        actorHeaders['Authorization'] = 'Basic ' + encodedActorCredentials
+    }
+    def actorFormBody = actorParams.collect { k, v ->
+        java.net.URLEncoder.encode(k, 'UTF-8') + '=' + java.net.URLEncoder.encode(v as String, 'UTF-8')
+    }.join('&')
+    logger.info('[OlbExchange] PF MCP actor-token request scope=' + pfMcpActorScope.trim())
+    def actorResp = httpPostForm(pfTokenEndpoint, actorFormBody, actorHeaders)
+    if (actorResp.code != 200) {
+        logger.warn('[OlbExchange] PF MCP actor-token request failed HTTP ' + actorResp.code)
+        def errResp = new Response(Status.BAD_GATEWAY)
+        errResp.headers.put('Content-Type', ['application/json'])
+        errResp.entity.setString('{"error":"pf_actor_token_failed"}')
+        return Promises.newResultPromise(errResp)
+    }
+    try {
+        pfActorToken = new JsonSlurper().parseText(actorResp.body ?: '{}')?.access_token as String
+    } catch (Exception ignored) {}
+    if (!pfActorToken) {
+        logger.warn('[OlbExchange] PF MCP actor-token response omitted access_token')
+        def errResp = new Response(Status.BAD_GATEWAY)
+        errResp.headers.put('Content-Type', ['application/json'])
+        errResp.entity.setString('{"error":"pf_actor_token_failed"}')
+        return Promises.newResultPromise(errResp)
+    }
+    // Match the BFF's PF actor checks before forwarding this token: require a
+    // JWT access token for the configured actor client with every requested scope.
+    def actorTokenValid = false
+    try {
+        def actorJwtParts = pfActorToken.split('\\.', -1)
+        if (actorJwtParts.length != 3) throw new IllegalArgumentException('malformed actor JWT')
+        def actorHeader = new JsonSlurper().parseText(
+            new String(java.util.Base64.getUrlDecoder().decode(actorJwtParts[0]), 'UTF-8'))
+        def actorClaims = new JsonSlurper().parseText(
+            new String(java.util.Base64.getUrlDecoder().decode(actorJwtParts[1]), 'UTF-8'))
+        if ((actorHeader?.typ ?: '').toString().toLowerCase().contains('id-jag')) {
+            throw new IllegalArgumentException('actor token is an ID-JAG')
+        }
+        def actorIdentity = actorClaims.client_id ?: actorClaims.sub
+        if (actorIdentity?.toString() != pfMcpActorClientId) {
+            throw new IllegalArgumentException('actor identity mismatch')
+        }
+        def actorScopes = [] as Set
+        if (actorClaims.scope instanceof Collection) {
+            actorScopes.addAll(actorClaims.scope.collect { it?.toString() })
+        } else {
+            actorScopes.addAll((actorClaims.scope ?: '').toString().split(/\s+/).findAll { it })
+        }
+        def expectedActorScopes = pfMcpActorScope.trim().split(/\s+/).findAll { it }
+        actorTokenValid = expectedActorScopes && expectedActorScopes.every { actorScopes.contains(it) }
+    } catch (Exception ignored) {}
+    if (!actorTokenValid) {
+        logger.warn('[OlbExchange] PF MCP actor token failed identity/scope/format validation')
+        def errResp = new Response(Status.BAD_GATEWAY)
+        errResp.headers.put('Content-Type', ['application/json'])
+        errResp.entity.setString('{"error":"pf_actor_token_failed"}')
+        return Promises.newResultPromise(errResp)
+    }
+}
+// PF access-token subjects use access_token typing; only an actual PF ID-JAG
+// (typ=oauth-id-jag+jwt) uses id-jag typing. PingOne behavior stays access_token.
+def subjectTokenType = (isPfSubject && tokenTyp == 'oauth-id-jag+jwt')
     ? 'urn:ietf:params:oauth:token-type:id-jag'
     : 'urn:ietf:params:oauth:token-type:access_token'
 def params = [
     'grant_type'           : 'urn:ietf:params:oauth:grant-type:token-exchange',
     'subject_token'        : subjectToken,
-    'subject_token_type'   : subjectType,
+    'subject_token_type'   : subjectTokenType,
     'requested_token_type' : 'urn:ietf:params:oauth:token-type:access_token',
     'client_id'            : exClientId,
     'client_secret'        : exClientSecret,
 ]
-// PingOne uses RFC 8707 resource selection. PF derives output audiences from
-// its configured processor policy; the readiness runner verifies that audience.
-if (!isPfSubject) params['resource'] = olbAudience
-if (olbScope?.trim()) {
-    params['scope'] = olbScope.trim()
+// The PF MCP exchanger is restricted to its dedicated MCP-gateway ATM, which
+// emits the backend-accepted audience. PF requires an absolute URI when
+// `resource` is set, so omit PingOne's opaque resource alias on that branch.
+if (!isPfSubject) {
+    // PingOne needs this RFC 8707 target to select the single backend resource.
+    params['resource'] = olbAudience
+}
+if (isPfSubject) {
+    params['actor_token'] = pfActorToken
+    params['actor_token_type'] = 'urn:ietf:params:oauth:token-type:access_token'
+}
+if (requestedOlbScope?.trim()) {
+    params['scope'] = requestedOlbScope.trim()
 }
 def exchangeHeaders = [:]
 if (isPfSubject && pfTeAuthMethod in ['basic', 'client_secret_basic']) {

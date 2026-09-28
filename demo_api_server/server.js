@@ -63,6 +63,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const safeRequestLogUrl = require('./utils/safeRequestLogUrl');
 const rateLimit = require('express-rate-limit');
 const session = require('express-session');
 
@@ -490,6 +491,7 @@ const POLL_ROUTES = new Set([
   '/api/config/vertical',
   '/api/admin/config',
 ]);
+morgan.token('url', safeRequestLogUrl);
 app.use(morgan('combined', {
   skip: (req) => POLL_ROUTES.has(req.path),
 }));
@@ -718,6 +720,8 @@ app.use(
 const TRACKING_SKIP_PREFIXES = [
     '/api-calls', '/tokens/session-preview', '/tokens/agent-cc-preview',
     '/healthz', '/health', '/mcp/traffic', '/oauth/monitor',
+    // PF AI callback URLs carry OAuth codes; RAR forms can carry user identifiers.
+    '/pf-ai-agent/',
     // Swagger UI: one page load pulls a dozen static assets plus the spec, which
     // would bury real traffic in the API Explorer.
     '/docs', '/openapi.json', '/reference',
@@ -737,7 +741,7 @@ app.use('/api', (req, res, next) => {
         trackApiCall({
             sessionId: req.session?.id || 'default',
             method: req.method,
-            url: req.originalUrl,
+            url: safeRequestLogUrl(req),
             requestHeaders: req.headers,
             requestBody: req.body && Object.keys(req.body).length ? req.body : null,
             responseStatus: res.statusCode,
@@ -1423,6 +1427,7 @@ app.use('/api/davinci-sdk-login', require('./routes/davinciSdkLogin'));
 app.use('/api/auth', authRoutes);
 app.use('/api/auth/oauth', oauthRoutes);
 app.use('/api/auth/oauth/user', oauthUserRoutes);
+app.use('/api/pf-ai-agent', require('./routes/pfAiAgent'));
 registerCallbacks(app, oauthRoutes, oauthUserRoutes, authLimiter);
 app.use('/api/auth/ciba', cibaRoutes);
 app.use('/api/auth', parRequestRoutes);

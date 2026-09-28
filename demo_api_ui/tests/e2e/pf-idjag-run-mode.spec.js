@@ -112,11 +112,52 @@ test('Mission Control UC40 uses the same live handoff', async ({ page }) => {
   }));
   const calls = await installHandoffBoundary(page);
   await page.goto('/dashboard');
+  await page.getByRole('button', { name: '🎛 Demo Controls', exact: true }).click();
   await expect(page.getByTestId('demo-steps-trigger').first()).toBeVisible();
   const stepsTrigger = page.getByTestId('demo-steps-trigger').first();
   if (await stepsTrigger.getAttribute('aria-expanded') !== 'true') await stepsTrigger.click();
   const chip = page.getByTestId('demo-step-UC40');
   await expect(chip).toContainText('Signs out your current session silently');
+  const layerOrder = await page.evaluate(() => {
+    const dock = document.querySelector('.cmd-dock-panel');
+    const scrims = [...document.querySelectorAll('[data-testid="demo-steps-scrim"]')];
+    const bodyScrims = scrims.filter((element) => element.parentElement === document.body);
+    const scrim = bodyScrims[0];
+    const drawers = [...document.querySelectorAll('[data-testid="demo-steps-popout"]')];
+    if (!dock || !scrim || drawers.length === 0) {
+      return { bodyScrimCount: bodyScrims.length };
+    }
+
+    const dockRect = dock.getBoundingClientRect();
+    const drawerRects = drawers.map((drawer) => drawer.getBoundingClientRect());
+    const candidates = [
+      [dockRect.left + 8, dockRect.top + 8],
+      [dockRect.right - 8, dockRect.top + 8],
+      [dockRect.left + 8, dockRect.bottom - 8],
+      [dockRect.right - 8, dockRect.bottom - 8],
+      [dockRect.left + dockRect.width / 2, dockRect.top + dockRect.height / 2],
+    ];
+    const point = candidates.find(([x, y]) =>
+      x >= 0 && y >= 0 && x < window.innerWidth && y < window.innerHeight
+      && !drawerRects.some((rect) => x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom));
+
+    return {
+      bodyScrimCount: bodyScrims.length,
+      scrimInBody: scrim.parentElement === document.body,
+      dockZIndex: getComputedStyle(dock).zIndex,
+      scrimZIndex: getComputedStyle(scrim).zIndex,
+      drawerZIndex: getComputedStyle(drawers[0]).zIndex,
+      scrimCoversDock: Boolean(point && document.elementFromPoint(...point) === scrim),
+    };
+  });
+  expect(layerOrder).toEqual({
+    bodyScrimCount: 1,
+    scrimInBody: true,
+    dockZIndex: '100061',
+    scrimZIndex: '100062',
+    drawerZIndex: '100063',
+    scrimCoversDock: true,
+  });
   await chip.click();
   await expectHandoff(page, calls, '/dashboard');
 });
@@ -146,6 +187,11 @@ for (const provider of ['pingone', 'pingfederate']) {
 test('switching provider clears ID-JAG mode before leaving the page', async ({ page }) => {
   await mockCustomerDashboard(page);
   const configPosts = [];
+  await page.route('**/api/auth/clear-session', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ ok: true }),
+  }));
   await page.route('**/api/admin/config', (route) => {
     if (route.request().method() === 'POST') {
       configPosts.push(route.request().postDataJSON());
@@ -157,16 +203,19 @@ test('switching provider clears ID-JAG mode before leaving the page', async ({ p
     contentType: 'text/html', body: '<!doctype html><title>Logout boundary</title>',
   }));
   await page.goto('/dashboard');
+  await page.getByRole('button', { name: '🎛 Demo Controls', exact: true }).click();
   const toggle = page.getByRole('button', { name: 'Toggle OAuth login provider' });
   await expect(toggle).toBeVisible();
   await seedStaleMode(page);
   await page.keyboard.press('Escape');
+  const dashboardReload = page.waitForNavigation({ waitUntil: 'domcontentloaded' });
   await toggle.evaluate((element) => element.click());
   await expect.poll(() => configPosts.length).toBe(1);
   // The toggle's contract (OAuthProviderToggle.jsx): POST config, clear the
   // BFF session, then window.location.reload() — the browser stays on the
   // same URL rather than navigating to /logout. The reload re-runs the
   // dashboard boot; wait for it, then assert mode cleared.
+  await dashboardReload;
   await expect(page).toHaveURL(/\/dashboard$/);
   expect(configPosts).toEqual([{ oauth_provider: 'pingfederate' }]);
   await expectModeCleared(page);

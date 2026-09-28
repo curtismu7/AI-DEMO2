@@ -1,34 +1,28 @@
-# SE Skills Export
+# Ping Product Skill Packages
 
-Generic Claude Code skills extracted from this repo's `.claude/skills/`,
-stripped of anything specific to the AI-DEMO2 banking demo. Meant to be
-copy-pasted by any Ping SE into their own `~/.claude/skills/<name>/`
-(personal, all repos) or a specific project's `.claude/skills/<name>/`.
+Each folder in this directory is an independently installable skill package containing `SKILL.md`. These packages are useful both with AI-DEMO2 and as starting points for other Ping product integrations. Project copies live under `.claude/skills/`; keep those copies synchronized when a skill changes.
 
-These deliberately do NOT duplicate the official `ping-identity` Claude
-Code plugin (marketplace `pingidentity`), which already covers broad
-platform knowledge — tenant setup, app registration, DaVinci/AIC journeys,
-SDK integration, universal services. Install that plugin first; the skills
-here are narrower, tool-shaped things it doesn't provide: a working file
-generator, IDE/MCP connection runbooks, and shared-infra deploy discipline.
+## Packages
 
-## Skills
-
-| Skill | What it does |
+| Skill | Use it for |
 |---|---|
-| [`p1az-import-generator/`](p1az-import-generator/) | Turns plain-language authorization rules into a PingOne Authorize (P1AZ) snapshot import file — P1AZ has no API for authoring policy logic, so this is the only non-console path |
-| [`pingone-mcp-connect/`](pingone-mcp-connect/) | Connect an IDE (Claude Code / Cursor / VS Code) to PingOne's MCP server: install, create the right kind of Worker OAuth app, wire redirect URIs, fix the common auth failures |
-| [`ping-se-cluster-deploy/`](ping-se-cluster-deploy/) | Get access to and deploy onto Ping's shared SE DevOps Kubernetes cluster: namespace request, kubeconfig, GHCR auth, undeploy etiquette |
-| [`privilege-cloud-mcp-gateway/`](privilege-cloud-mcp-gateway/) | Durable lessons for troubleshooting a PingOne Privilege Cloud MCP gateway integration — this vendor API is young and still shifting, treat every specific (port, header) as something to verify live, not trust |
-| [`karpathy-guidelines/`](karpathy-guidelines/) | General coding-agent behavior guidelines (not Ping-specific) — bonus, zero rework needed |
+| [`pingdirectory-ai-demo/`](pingdirectory-ai-demo/) | PingDirectory LDAP integration, schema, groups, TLS, and operations |
+| [`pingaccess-ai-demo/`](pingaccess-ai-demo/) | PingAccess web/API enforcement and distinguishing it from PingGateway |
+| [`pingid-ai-demo/`](pingid-ai-demo/) | PingID MFA integration, enrollment, and authentication policy |
+| [`pingauthorize-aam-ai-demo/`](pingauthorize-aam-ai-demo/) | PingOne Authorize API Access Management, Sideband, API services, and the demo's AAM path |
+| [`pingone-protect-ai-demo/`](pingone-protect-ai-demo/) | PingOne Protect and Signals risk-evaluation integration |
+| [`p1az-import-generator/`](p1az-import-generator/) | Generate a PingOne Authorize policy snapshot from plain-language rules |
+| [`pingone-mcp-connect/`](pingone-mcp-connect/) | Connect an IDE to PingOne MCP and configure its Worker app |
+| [`ping-se-cluster-deploy/`](ping-se-cluster-deploy/) | Shared Ping SE Kubernetes cluster access and deployment |
+| [`privilege-cloud-mcp-gateway/`](privilege-cloud-mcp-gateway/) | PingOne Privilege Cloud MCP gateway troubleshooting |
+| [`karpathy-guidelines/`](karpathy-guidelines/) | General coding-agent behavior guidelines |
 
-## Install
+For a personal Claude Code installation:
 
 ```bash
-cp -r p1az-import-generator ~/.claude/skills/
-cp -r pingone-mcp-connect ~/.claude/skills/
-# ...etc, or copy the whole se-skills-export/ tree in one go
+cp -R <skill-name> ~/.claude/skills/
 ```
 
-Or drop individual folders into a project's `.claude/skills/` to scope them
-to that repo only.
+For project use, copy the folder to `.claude/skills/`. Other compatible agents may use their documented skill directory. Reload the agent if it does not discover the new skill.
+
+Ping product behavior and APIs change by release and deployment. Each skill directs the agent to start from Ping's official documentation index (`https://docs.pingidentity.com/llms.txt`) and verify version-specific details before using them.

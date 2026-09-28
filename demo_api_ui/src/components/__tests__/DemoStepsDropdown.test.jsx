@@ -80,6 +80,40 @@ describe('DemoStepsDropdown', () => {
     expect(screen.getByTestId('demo-steps-trigger')).toHaveTextContent(/Demo steps/);
   });
 
+  it('aborts an outstanding catalog request when unmounted', () => {
+    let requestSignal;
+    apiClient.get.mockImplementationOnce((_url, config) => {
+      requestSignal = config.signal;
+      return new Promise(() => {});
+    });
+    const { unmount } = render(
+      <DemoStepsDropdown
+        open
+        onOpenChange={() => {}}
+        onSelect={() => {}}
+      />,
+    );
+
+    expect(requestSignal).toBeDefined();
+    expect(requestSignal.aborted).toBe(false);
+    unmount();
+    expect(requestSignal.aborted).toBe(true);
+  });
+
+  it('portals the floating panel to the document body without a modal scrim', async () => {
+    render(
+      <DemoStepsDropdown
+        open
+        onOpenChange={() => {}}
+        onSelect={() => {}}
+      />,
+    );
+    const panel = await screen.findByTestId('demo-steps-popout');
+    expect(panel.parentElement).toBe(document.body);
+    expect(panel).toHaveAttribute('data-placement', 'floating');
+    expect(screen.queryByTestId('demo-steps-scrim')).not.toBeInTheDocument();
+  });
+
   it('does not render the legacy live-P1AZ arming button (flags are on by default)', async () => {
     render(
       <DemoStepsDropdown
@@ -107,7 +141,7 @@ describe('DemoStepsDropdown', () => {
     expect(onStopAgentClick).toHaveBeenCalledTimes(1);
   });
 
-  it('renders the selected drawer affordances when open', async () => {
+  it('renders the floating panel close and resize affordances when open', async () => {
     render(
       <DemoStepsDropdown
         open
@@ -118,8 +152,8 @@ describe('DemoStepsDropdown', () => {
     await waitFor(() => expect(screen.getByTestId('demo-steps-popout')).toBeInTheDocument());
 
     expect(screen.getByTestId('demo-steps-close')).toBeInTheDocument();
-    expect(screen.getByTestId('demo-steps-resize-handle')).toBeInTheDocument();
-    expect(screen.getByTestId('demo-steps-popout')).toHaveAttribute('data-placement', 'right-overlay');
+    expect(screen.getByRole('separator', { name: 'Resize east' })).toBeInTheDocument();
+    expect(screen.getByTestId('demo-steps-popout')).toHaveAttribute('data-placement', 'floating');
   });
 
   it('launches Agent Identity Academy from Demo steps', async () => {
@@ -138,17 +172,17 @@ describe('DemoStepsDropdown', () => {
     );
   });
 
-  it('stacks the drawer search above its actions when the drawer is narrow', () => {
+  it('stacks the floating panel search above its actions when the panel is narrow', () => {
     const css = fs.readFileSync(
       path.resolve(__dirname, '../AIAgent.css'),
       'utf8',
     );
 
     expect(css).toMatch(
-      /@container\s*\(max-width:\s*460px\)[\s\S]*?\.ba-demo-steps-drawer \.ba-demo-steps-popout__header-actions[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\) auto/,
+      /@container\s*\(max-width:\s*460px\)[\s\S]*?\.ba-demo-steps-float__content \.ba-demo-steps-popout__header-actions[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\) auto/,
     );
     expect(css).toMatch(
-      /@container\s*\(max-width:\s*460px\)[\s\S]*?\.ba-demo-steps-drawer \.ba-demo-steps-popout__search[\s\S]*?grid-column:\s*1\s*\/\s*-1/,
+      /@container\s*\(max-width:\s*460px\)[\s\S]*?\.ba-demo-steps-float__content \.ba-demo-steps-popout__search[\s\S]*?grid-column:\s*1\s*\/\s*-1/,
     );
   });
 
@@ -788,7 +822,7 @@ describe('DemoStepsDropdown — pingone-admin vertical', () => {
     );
     await waitFor(() => expect(apiClient.get).toHaveBeenCalledWith(
       '/api/use-cases',
-      { params: { vertical: 'pingone-admin' }, _silent: true },
+      expect.objectContaining({ params: { vertical: 'pingone-admin' }, _silent: true }),
     ));
   });
 

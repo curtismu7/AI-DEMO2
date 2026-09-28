@@ -21,6 +21,7 @@ import UnattendedRunsPanel from "./UnattendedRunsPanel";
 import SimpleStepperPanel from "./SimpleStepperPanel";
 import AgentFlowDiagramPanel from "./AgentFlowDiagramPanel";
 import SequenceReelDiagram from "./SequenceReelDiagram";
+import ServerTopologyStory from "./ServerTopologyStory";
 import CollapsibleStepDetail from "./CollapsibleStepDetail";
 import OAuthVisualizerPanel from "./OAuthVisualizerPanel";
 import ReasoningPanel from './ReasoningPanel';
@@ -79,7 +80,7 @@ import JsonField from "./shared/JsonField";
 import AgentGreetingHero from "./AgentGreetingHero";
 import AgentConsentModal from "./AgentConsentModal";
 import AgentDemoGuide from "./AgentDemoGuide";
-import DemoStepsDropdown, { readStoredDemoStepsOpen } from "./DemoStepsDropdown";
+import DemoStepsDropdown, { DemoStepsTrigger, readStoredDemoStepsOpen } from "./DemoStepsDropdown";
 import AdminToolsDropdown from "./AdminToolsDropdown";
 import { markUseCaseCompleted, clearCompletedUseCases } from "../utils/useCaseDemoProgress";
 import { requiredFlagsForUseCase } from "../utils/requiredDemoFlags";
@@ -151,6 +152,7 @@ const EVIDENCE_VIEW_OPTIONS = [
   { value: "simple-stepper", label: "Simple stepper", description: "Compact current step" },
   { value: "sequence-view", label: "Sequence view", description: "Actor-to-actor flow" },
   { value: "token-topology", label: "Token topology", description: "Delegation map" },
+  { value: "server-topology", label: "Server flow", description: "Sequence diagram and movie reel" },
   { value: "oauth-visualizer", label: "OAuth visualizer", description: "Protocol walkthrough" },
 ];
 
@@ -633,6 +635,7 @@ export default function BankingAgent({
   const [showDiscovery, setShowDiscovery] = useState(false);
   /** Demo steps popout — same list as /use-cases Demo section. */
   const [showDemoSteps, setShowDemoSteps] = useState(readStoredDemoStepsOpen);
+  const [floatingDemoStepsOpen, setFloatingDemoStepsOpen] = useState(false);
   /** Admin tools popout — PingOne ops + banking customer-CRUD, admin-only. */
   const [showAdminTools, setShowAdminTools] = useState(false);
   const [discoverySearch, setDiscoverySearch] = useState("");
@@ -1243,6 +1246,16 @@ export default function BankingAgent({
   const [showTokenTopology, setShowTokenTopology] = useState(false); // dispatches token-topology-open; panel lives in App.js
   const [showInlineTokenTopology, setShowInlineTokenTopology] = useState(false);
   const [topologySurface, setTopologySurface] = useState(() => readStoredSurface("ba_token_topology_surface"));
+  const [serverTopologySurface, setServerTopologySurface] = useState(() => readStoredSurface("ba_server_topology_surface"));
+  const chooseServerTopologySurface = useCallback((surface) => {
+    const embedded = surface === "embedded" || surface === "both";
+    const popout = surface === "popout" || surface === "both";
+    setServerTopologySurface(surface);
+    try { localStorage.setItem("ba_server_topology_surface", surface); } catch {}
+    window.dispatchEvent(new CustomEvent("agent-server-topology-toggle", { detail: { on: embedded, surface } }));
+    if (popout) window.dispatchEvent(new CustomEvent("agent-server-topology-popout-open"));
+    else window.dispatchEvent(new CustomEvent("agent-server-topology-popout-close"));
+  }, []);
   const chooseTopologySurface = useCallback((surface) => {
     const embedded = surface === "embedded" || surface === "both";
     const popout = surface === "popout" || surface === "both";
@@ -1366,8 +1379,9 @@ export default function BankingAgent({
     { id: "simple-stepper", label: "Simple stepper", value: simpleStepperSurface, choose: chooseSimpleStepperSurface },
     { id: "sequence-view", label: "Sequence view", value: sequenceSurface, choose: chooseSequenceSurface },
     { id: "token-topology", label: "Token topology", value: topologySurface, choose: chooseTopologySurface },
+    { id: "server-topology", label: "Server flow", value: serverTopologySurface, choose: chooseServerTopologySurface },
     { id: "oauth-visualizer", label: "OAuth visualizer", value: oauthVisualizerSurface, choose: chooseOauthVisualizerSurface },
-  ]), [movieReelSurface, simpleStepperSurface, sequenceSurface, topologySurface, oauthVisualizerSurface, chooseMovieReelSurface, chooseSimpleStepperSurface, chooseSequenceSurface, chooseTopologySurface, chooseOauthVisualizerSurface]);
+  ]), [movieReelSurface, simpleStepperSurface, sequenceSurface, topologySurface, serverTopologySurface, oauthVisualizerSurface, chooseMovieReelSurface, chooseSimpleStepperSurface, chooseSequenceSurface, chooseTopologySurface, chooseServerTopologySurface, chooseOauthVisualizerSurface]);
   const embeddedEvidenceSurfaces = useMemo(
     () => evidenceSurfaceRows.filter((row) => surfaceHasEmbedded(row.value)),
     [evidenceSurfaceRows],
@@ -1452,6 +1466,13 @@ export default function BankingAgent({
       chooseSequenceSurface(withoutEmbeddedSurface(sequenceSurface));
       chooseOauthVisualizerSurface(withoutEmbeddedSurface(oauthVisualizerSurface));
       chooseTopologySurface(topologySurface === "none" ? "embedded" : topologySurface);
+    } else if (view === "server-topology") {
+      chooseMovieReelSurface(withoutEmbeddedSurface(movieReelSurface));
+      chooseSimpleStepperSurface(withoutEmbeddedSurface(simpleStepperSurface));
+      chooseSequenceSurface(withoutEmbeddedSurface(sequenceSurface));
+      chooseTopologySurface(withoutEmbeddedSurface(topologySurface));
+      chooseOauthVisualizerSurface(withoutEmbeddedSurface(oauthVisualizerSurface));
+      chooseServerTopologySurface(serverTopologySurface === "none" ? "embedded" : serverTopologySurface);
     } else if (view === "oauth-visualizer") {
       chooseMovieReelSurface(withoutEmbeddedSurface(movieReelSurface));
       chooseSimpleStepperSurface(withoutEmbeddedSurface(simpleStepperSurface));
@@ -1459,7 +1480,7 @@ export default function BankingAgent({
       chooseTopologySurface(withoutEmbeddedSurface(topologySurface));
       chooseOauthVisualizerSurface(oauthVisualizerSurface === "none" ? "embedded" : oauthVisualizerSurface);
     }
-  }, [chooseMovieReelSurface, chooseOauthVisualizerSurface, chooseSequenceSurface, chooseSimpleStepperSurface, chooseTopologySurface, movieReelSurface, oauthVisualizerSurface, sequenceSurface, simpleStepperSurface, topologySurface]);
+  }, [chooseMovieReelSurface, chooseOauthVisualizerSurface, chooseSequenceSurface, chooseSimpleStepperSurface, chooseTopologySurface, chooseServerTopologySurface, movieReelSurface, oauthVisualizerSurface, sequenceSurface, simpleStepperSurface, topologySurface, serverTopologySurface]);
 
   const [followSequenceFlow, setFollowSequenceFlow] = useState(() => {
     try {
@@ -8357,6 +8378,7 @@ export default function BankingAgent({
   async function handleDemoStepSelect(uc, stepNumber, opts) {
     if (!uc) return;
     setShowDemoSteps(false);
+    setFloatingDemoStepsOpen(false);
     setShowDiscovery(false);
     if (launchIdJagDemoStep(uc)) return;
     if (isAgentBlockedByConsentDecline()) {
@@ -10132,6 +10154,30 @@ export default function BankingAgent({
       className={`banking-agent-float-root${distinctFloatingChrome && !isInline ? " banking-agent-float-root--distinct" : ""}`}
       data-agent-ui="floating"
     >
+      <DemoStepsDropdown
+        vertical={effectiveVerticalId || "banking"}
+        disabled={consentBlocked}
+        onStopAgentClick={onStopAgentClick}
+        open={showDemoSteps && (effectiveIsOpen || floatingDemoStepsOpen)}
+        persistOpenState={showDemoSteps}
+        showTrigger={false}
+        showFloatingButton={!isInline}
+        onOpenChange={(next) => {
+          setShowDemoSteps(next);
+          if (!next) setFloatingDemoStepsOpen(false);
+          if (next) setShowDiscovery(false);
+        }}
+        onFloatingOpen={() => {
+          setShowDemoSteps(true);
+          setFloatingDemoStepsOpen(true);
+          setShowDiscovery(false);
+        }}
+        onSelect={(uc, stepNumber, opts) => {
+          window.dispatchEvent(new CustomEvent("agent-demo-step-select", {
+            detail: { uc, stepNumber, opts },
+          }));
+        }}
+      />
       {/* FAB - only shown when floating agent is collapsed (not in inline mode) */}
       {!isInline && !isOpen && (
         <button
@@ -10506,6 +10552,7 @@ export default function BankingAgent({
                                   </>
                                 )}
                                 {quickConfigView === "token-topology" && <SurfaceSelector id="topology-surface-select" label="Token topology" value={topologySurface} onChange={(e) => chooseEvidenceSurface("token-topology", e.target.value)} open={openSurfaceSelector === "topology-surface-select"} onToggle={setOpenSurfaceSelector} />}
+                                {quickConfigView === "server-topology" && <SurfaceSelector id="server-topology-surface-select" label="Server flow" value={serverTopologySurface} onChange={(e) => chooseEvidenceSurface("server-topology", e.target.value)} open={openSurfaceSelector === "server-topology-surface-select"} onToggle={setOpenSurfaceSelector} />}
                                 {quickConfigView === "oauth-visualizer" && <SurfaceSelector id="oauth-visualizer-surface-select" label="OAuth visualizer" value={oauthVisualizerSurface} onChange={(e) => chooseEvidenceSurface("oauth-visualizer", e.target.value)} open={openSurfaceSelector === "oauth-visualizer-surface-select"} onToggle={setOpenSurfaceSelector} />}
                               </div>
                             </>
@@ -10797,19 +10844,13 @@ export default function BankingAgent({
                     )}
                   </div>
                   <div className="ba-header-tools cmd-dock-tools">
-                    <DemoStepsDropdown
-                      vertical={effectiveVerticalId || "banking"}
+                    <DemoStepsTrigger
+                      open={showDemoSteps && (effectiveIsOpen || floatingDemoStepsOpen)}
                       disabled={consentBlocked}
-                      onStopAgentClick={onStopAgentClick}
-                      open={showDemoSteps}
                       onOpenChange={(next) => {
                         setShowDemoSteps(next);
+                        if (!next) setFloatingDemoStepsOpen(false);
                         if (next) setShowDiscovery(false);
-                      }}
-                      onSelect={(uc, stepNumber, opts) => {
-                        window.dispatchEvent(new CustomEvent("agent-demo-step-select", {
-                          detail: { uc, stepNumber, opts },
-                        }));
                       }}
                     />
                     {/* Split-column (dashboard) controls that live outside the dock
@@ -10879,7 +10920,10 @@ export default function BankingAgent({
                         open={showAdminTools}
                         onOpenChange={(next) => {
                           setShowAdminTools(next);
-                          if (next) setShowDemoSteps(false);
+                          if (next) {
+                            setShowDemoSteps(false);
+                            setFloatingDemoStepsOpen(false);
+                          }
                         }}
                         onSelect={handleAdminToolSelect}
                       />
@@ -11133,6 +11177,7 @@ export default function BankingAgent({
                           </>
                         )}
                         {quickConfigView === "token-topology" && <SurfaceSelector id="topology-surface-select" label="Token topology" value={topologySurface} onChange={(e) => chooseEvidenceSurface("token-topology", e.target.value)} open={openSurfaceSelector === "topology-surface-select"} onToggle={setOpenSurfaceSelector} />}
+                        {quickConfigView === "server-topology" && <SurfaceSelector id="server-topology-surface-select" label="Server flow" value={serverTopologySurface} onChange={(e) => chooseEvidenceSurface("server-topology", e.target.value)} open={openSurfaceSelector === "server-topology-surface-select"} onToggle={setOpenSurfaceSelector} />}
                         {quickConfigView === "oauth-visualizer" && <SurfaceSelector id="oauth-visualizer-surface-select" label="OAuth visualizer" value={oauthVisualizerSurface} onChange={(e) => chooseEvidenceSurface("oauth-visualizer", e.target.value)} open={openSurfaceSelector === "oauth-visualizer-surface-select"} onToggle={setOpenSurfaceSelector} />}
                           </div>
                         </>
@@ -11435,19 +11480,13 @@ export default function BankingAgent({
                     shows ADMIN1-7 (forceVertical pingone-admin), which belongs
                     WITH the admin agent — the page strip carries the guided
                     Demo Track instead (2026-08-10 layout decision). */}
-                <DemoStepsDropdown
-                  vertical={effectiveVerticalId || "banking"}
+                <DemoStepsTrigger
+                  open={showDemoSteps && (effectiveIsOpen || floatingDemoStepsOpen)}
                   disabled={consentBlocked}
-                  onStopAgentClick={onStopAgentClick}
-                  open={showDemoSteps}
                   onOpenChange={(next) => {
                     setShowDemoSteps(next);
+                    if (!next) setFloatingDemoStepsOpen(false);
                     if (next) setShowDiscovery(false);
-                  }}
-                  onSelect={(uc, stepNumber, opts) => {
-                    window.dispatchEvent(new CustomEvent("agent-demo-step-select", {
-                      detail: { uc, stepNumber, opts },
-                    }));
                   }}
                 />
                 {/* Live Use-Case Workbench — same catalog, live/interactive mode */}
@@ -11519,7 +11558,10 @@ export default function BankingAgent({
                     open={showAdminTools}
                     onOpenChange={(next) => {
                       setShowAdminTools(next);
-                      if (next) setShowDemoSteps(false);
+                      if (next) {
+                        setShowDemoSteps(false);
+                        setFloatingDemoStepsOpen(false);
+                      }
                     }}
                     onSelect={handleAdminToolSelect}
                   />
@@ -13954,6 +13996,18 @@ export default function BankingAgent({
             <CollapsibleStepDetail step={selectedSequencePopoutStep} />
           </div>
         )}
+      </DraggableModal>
+      <DraggableModal
+        isOpen={serverTopologySurface === "popout" || serverTopologySurface === "both"}
+        onClose={() => chooseEvidenceSurface("server-topology", serverTopologySurface === "both" ? "embedded" : "none")}
+        title="Server flow"
+        defaultWidth={Math.min(1120, Math.max(680, window.innerWidth - 48))}
+        defaultHeight={Math.min(720, Math.max(440, window.innerHeight - 80))}
+        minWidth={560}
+        minHeight={360}
+        storageKey="server-topology-flow-popout"
+      >
+        <ServerTopologyStory />
       </DraggableModal>
       {(() => {
         // Copy + builder per modal kind. 'tool' filters are case-insensitive

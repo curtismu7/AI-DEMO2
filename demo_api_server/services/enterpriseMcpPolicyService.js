@@ -165,7 +165,10 @@ async function checkPolicy(req, { runScoped = false } = {}) {
 
   const allowedGroups = getAllowedGroups();
   const userSub = req.session?.user?.oauthId || req.session?.user?.sub || null;
-  const username = req.session?.user?.username || null;
+  // PingFederate logins may not populate `username` (PF's userinfo returns an
+  // empty profile) but do set `id` from the adapter's username (e.g.
+  // 'demouser'). Fall back to `id` so the username allowlist still applies.
+  const username = req.session?.user?.username || req.session?.user?.id || null;
   const populationId =
     req.session?.populationId ||
     req.session?.user?.populationId ||
@@ -192,6 +195,14 @@ async function checkPolicy(req, { runScoped = false } = {}) {
   if (!matched && username && allowedGroups.includes(username)) {
     matched = true;
     matchDetail = `allowlist:${username}`;
+  }
+
+  // PingFederate logins map the demo-store username to a synthetic account
+  // (e.g. 'reseed-wipe-…'), so the username above is not the IdP identity.
+  // The token subject (e.g. 'demouser') is — match it against the allowlist too.
+  if (!matched && userSub && allowedGroups.includes(userSub)) {
+    matched = true;
+    matchDetail = `allowlist:sub:${userSub}`;
   }
 
   let result;

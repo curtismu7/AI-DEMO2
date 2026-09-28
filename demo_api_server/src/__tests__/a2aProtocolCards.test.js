@@ -114,6 +114,10 @@ describe('a2aAgentCardService', () => {
     expect(JSON.parse(res.body.result.message.parts[0].text)).toEqual({
       result: null,
       toolError: 'not_authorized_for_skill',
+      // #307 wire-refusal diagnostics: specialist refusals carry a "Why:" so
+      // the failure is never cryptic. This test was stale against that change
+      // (found by scripts/check-mock-drift.js's first live catch, 2026-09-26).
+      diagnostic: expect.stringContaining('skills'),
     });
     expect(res.body.result.message.metadata).toMatchObject({
       vertical: 'abercrombie-fitch',

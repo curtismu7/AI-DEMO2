@@ -9,6 +9,7 @@
 .cursor
 .cursorrules
 .dockerignore
+.graphifyignore
 .editorconfig
 .github
 .gitignore
@@ -28,7 +29,17 @@ CODE_REVIEW.md
 Connect to the PingOne Remote MCP Server.pdf
 DOCKER_STARTUP.md
 FEATURES.md
+HANDOFF-A2A-PF-SESSION-2026-09-26.md
+HANDOFF-UC38-demo-steps.md
 HANDOFF.md
+# Dated cross-agent session handoff reports (docs/ is the canonical home for
+# NEW ones; these four landed at root on 2026-09-26 across parallel agent
+# sessions before the allowlist gate could catch them).
+PF-LOGIN-CHAIN-SESSION-2026-09-26.md
+SESSION-REPORT-2026-09-26.md
+UC40-PF-IDJAG-SESSION-HANDOFF.md
+# Runtime intent file written by demo_api_server (provider preflight, PR #335).
+.demo-provider-intent.json
 NEW-MACHINE.md
 README.md
 REGRESSION_LOG.md

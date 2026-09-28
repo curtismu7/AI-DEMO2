@@ -14,7 +14,6 @@
  */
 
 import { BankingAuthenticationManager } from '../auth/BankingAuthenticationManager';
-import { TokenExchangeService } from '../auth/TokenExchangeService';
 import { Logger } from '../utils/Logger';
 import { createHash } from 'crypto';
 import { tokenCache } from '../services/tokenCacheService';
@@ -22,12 +21,14 @@ import { getScopesForTool } from './toolScopeMap';
 import type { BankingToolDefinition } from './BankingToolRegistry';
 import { Session, AuthErrorCodes, AuthenticationError, UserTokens } from '../interfaces/auth';
 import { TokenExchangeRequest } from '../interfaces/tokenExchange';
+import type { TokenExchangeClient } from '../interfaces/tokenExchange';
 import { resolveEmbeddedIssuer } from '../oauth/embeddedIssuer';
 import { TokenStore } from '../oauth/TokenStore';
 
 export interface TokenResolverDeps {
   authManager: BankingAuthenticationManager;
-  tokenExchangeService?: TokenExchangeService;
+  tokenExchangeService?: TokenExchangeClient;
+  pfTokenExchangeService?: TokenExchangeClient;
   logger: Logger;
   /** Looks up the real PingOne access token stashed alongside a self-issued
    *  agentToken minted via authorization_code federation (external door).
@@ -42,9 +43,7 @@ export interface TokenResolution {
 }
 
 /**
- * Step 9 exists to re-exchange a PingOne-issued gateway token at PingOne for
- * a Banking-API-audienced one. A self-issued agentToken — minted by this
- * server's own embedded AS, whether via native ID-JAG redemption
+ * A self-issued agentToken — minted by this server's own embedded AS, whether via native ID-JAG redemption
  * (OAuthRouter.redeemIdJag) or its own native OAuth flow — was never issued
  * by PingOne, so PingOne always rejects the re-exchange with "Cannot parse
  * token claims for request param 'subject_token'". Signature verification
@@ -61,6 +60,44 @@ function isSelfIssuedToken(token: string): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * The agent token has already passed AuthenticationIntegration's signature and
+ * issuer validation. Decode its issuer here only to select the matching Step 9
+ * exchange endpoint; never use this decode as token validation.
+ */
+function resolveStep9Provider(token: string): 'pingone' | 'pingfederate' {
+  let issuer: string | undefined;
+  try {
+    const payload = token.split('.')[1];
+    if (payload) {
+      const decoded = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+      if (typeof decoded.iss === 'string' && decoded.iss) issuer = decoded.iss;
+    }
+  } catch {
+    // The caller fails closed below if an exchange is required.
+  }
+
+  if (!issuer) {
+    throw new AuthenticationError(
+      'Step 9 cannot route an agent token without a valid issuer claim',
+      AuthErrorCodes.INVALID_AGENT_TOKEN,
+    );
+  }
+
+  const pfIssuer = process.env.PF_ISSUER_URI || process.env.PF_ISSUER;
+  if (pfIssuer && issuer === pfIssuer) return 'pingfederate';
+
+  const pingOneIssuer = process.env.PINGONE_ISSUER_URI
+    || process.env.PINGONE_ISSUER
+    || process.env.PINGONE_TOKEN_ENDPOINT?.replace(/\/token\/?$/, '');
+  if (pingOneIssuer && issuer === pingOneIssuer) return 'pingone';
+
+  throw new AuthenticationError(
+    'Step 9 is not configured for the agent token issuer',
+    AuthErrorCodes.INVALID_AGENT_TOKEN,
+  );
 }
 
 /**
@@ -97,7 +134,7 @@ export class TokenResolver {
   constructor(private deps: TokenResolverDeps) {}
 
   async resolve(session: Session, tool: BankingToolDefinition, agentToken?: string): Promise<TokenResolution> {
-    const { tokenExchangeService, tokenStore, logger } = this.deps;
+    const { tokenExchangeService, pfTokenExchangeService, tokenStore, logger } = this.deps;
 
     let token: string;
     if (agentToken) {
@@ -110,97 +147,114 @@ export class TokenResolver {
         logger.debug(`[BankingToolProvider] Self-issued agent token — skipping Step 9 resource exchange for ${tool.name}`);
         return { token: agentToken, source: 'agent-passthrough' };
       }
-      // Step 9: Second RFC 8693 exchange — exchange gateway-scoped token for resource-scoped token.
-      // Gated on BANKING_API_RESOURCE_URI: when absent, fall back to using gateway token directly
-      // for backward compatibility (e.g. local dev without full resource server config).
+      // Step 9: Second RFC 8693 exchange — exchange a gateway-scoped token for a
+      // Banking API token at the token issuer that signed the gateway token.
+      // PingOne keeps its resource selector; PF's dedicated policy selects its ATM.
+      // When Step 9 is not configured for PingOne, preserve the existing passthrough.
       // Vertical action tools route to /api/path/vertical-tool, which accepts the
       // gateway-audience token directly. Step 9 exchange is for banking data APIs only.
-      if (tokenExchangeService && process.env.BANKING_API_RESOURCE_URI && !tool.vertical) {
-        const toolScopes = getScopesForTool(tool.name);
-        // Bind the cache key to a fingerprint of THIS agent token, not just the
-        // sessionId: a re-minted token (different subject/actor) sharing a sessionId
-        // must not read a resource token minted for a different principal.
-        const agentTokenFp = createHash('sha256').update(agentToken).digest('hex').slice(0, 16);
-        const agentCacheKey = `agent:${session.sessionId}:${agentTokenFp}:${[...toolScopes].sort().join(',')}`;
-        const cachedResourceToken = tokenCache.get(agentCacheKey, toolScopes);
-        if (cachedResourceToken) {
-          token = cachedResourceToken;
-          logger.debug(`[BankingToolProvider] Step 9 resource cache hit for ${tool.name}`);
-        } else {
-          logger.info(`[BankingToolProvider] Step 9 resource exchange initiated for tool: ${tool.name}, scopes: ${toolScopes.join(',')}`);
-          try {
-            const exchangeRequest: TokenExchangeRequest = {
-              grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
-              subject_token: agentToken,
-              subject_token_type: 'urn:ietf:params:oauth:token-type:access_token',
-              scope: toolScopes.join(' '),
-              // RFC 8707 `resource`, NOT `audience`. PingOne honors resource= and
-              // SILENTLY IGNORES audience= (same trap documented at length in
-              // demo_api_server/services/agentMcpTokenService.js ~L2330). With
-              // audience= the exchange returned 200 with expires_in=3600 and the
-              // token still carried aud=mcpserver.ping.demo — Step 9 "succeeded"
-              // while narrowing nothing. Verified live before/after.
-              resource: process.env.BANKING_API_RESOURCE_URI,
-            };
-            const exchangeResponse = await tokenExchangeService.exchangeToken(exchangeRequest);
-            // Validate the response before caching (parity with the user path): a
-            // missing/zero expires_in yields expiresAt = NaN, which tokenCache treats
-            // as never-expired and would serve the token indefinitely.
-            if (exchangeResponse.token_type !== 'Bearer' || !(exchangeResponse.expires_in > 0)) {
-              throw new Error(
-                `Step 9 token exchange for '${tool.name}' returned unexpected response — ` +
-                `token_type: ${exchangeResponse.token_type}, expires_in: ${exchangeResponse.expires_in}`
-              );
-            }
-            token = exchangeResponse.access_token;
-            const expiresAt = Date.now() + (exchangeResponse.expires_in * 1000);
-            tokenCache.set(agentCacheKey, toolScopes, token, expiresAt);
-            logger.info(`[BankingToolProvider] Step 9 resource exchange succeeded for ${tool.name} (expires_in: ${exchangeResponse.expires_in}s)`);
-          } catch (exchangeError) {
-            logger.error(`[BankingToolProvider] Step 9 resource exchange FAILED for ${tool.name}:`, {}, exchangeError instanceof Error ? exchangeError : undefined);
-            throw Object.assign(
-              new Error(
-                `Step 9 token exchange failed for tool '${tool.name}': ${exchangeError instanceof Error ? exchangeError.message : 'Unknown error'}`
-              ),
-              { cause: exchangeError }
-            );
-          }
-        }
-        return { token, source: 'agent-step9-exchange' };
-      } else {
-        // Backward compat: no resource URI configured — use gateway token directly.
-        // For a banking DATA tool (!tool.vertical) this forwards an un-narrowed
-        // gateway-audience token to the Banking API. Under STRICT_AUTH that is a
-        // misconfiguration (Step 9 should narrow scopes + audience), so fail closed.
-        // Gated on STRICT_AUTH (not NODE_ENV) because the local demo runs
-        // NODE_ENV=production without BANKING_API_RESOURCE_URI and relies on passthrough.
-        if (process.env.STRICT_AUTH === 'true' && tokenExchangeService && !tool.vertical) {
+      const bankingApiResourceUri = process.env.BANKING_API_RESOURCE_URI;
+      const pfIssuerConfigured = Boolean(process.env.PF_ISSUER_URI || process.env.PF_ISSUER);
+      const shouldResolveStep9 = !tool.vertical && Boolean(bankingApiResourceUri || pfIssuerConfigured);
+
+      if (shouldResolveStep9) {
+        const provider = resolveStep9Provider(agentToken);
+        const exchangeService = provider === 'pingfederate' ? pfTokenExchangeService : tokenExchangeService;
+
+        if (provider === 'pingfederate' && !bankingApiResourceUri) {
           throw new AuthenticationError(
-            `Step 9 resource exchange required for banking data tool '${tool.name}' but BANKING_API_RESOURCE_URI is not set`,
+            'PF Step 9 requires BANKING_API_RESOURCE_URI to identify the Banking API audience',
             AuthErrorCodes.INVALID_AGENT_TOKEN,
           );
         }
-        token = agentToken;
-        // With STRICT_AUTH off — the local default — the throw above does not
-        // fire and a banking DATA tool silently forwards an un-narrowed
-        // gateway-audience token. The Banking API usually enforces its own
-        // resource audience (enduser.ping.demo), so it answers 401
-        // invalid_token, and from downstream that reads as a broken token rather
-        // than an unset env var. debug-level hid the one clue at normal log
-        // levels; warn names the cause and the fix at the point of origin.
-        if (tokenExchangeService && !tool.vertical) {
-          logger.warn(
-            `[BankingToolProvider] Step 9 resource exchange DISABLED for banking data tool '${tool.name}' ` +
-            `(BANKING_API_RESOURCE_URI unset) — forwarding the gateway-audience token to the Banking API. ` +
-            `If the Banking API enforces a different audience it will reject this with 401 invalid_token. ` +
-            `To enable: set BANKING_API_RESOURCE_URI to the Banking API audience and grant the ` +
-            `token-exchanger app a scope on that resource.`,
+        if (provider === 'pingfederate' && !exchangeService) {
+          throw new AuthenticationError(
+            'PF Step 9 token exchange is not configured',
+            AuthErrorCodes.INVALID_AGENT_TOKEN,
           );
-        } else {
-          logger.debug(`[BankingToolProvider] Using BFF-exchanged delegated token for ${tool.name} (no Step 9 resource exchange)`);
         }
-        return { token, source: 'agent-passthrough' };
+
+        if (exchangeService && bankingApiResourceUri) {
+          const toolScopes = getScopesForTool(tool.name);
+          // Bind the cache key to a fingerprint of THIS agent token, not just the
+          // sessionId: a re-minted token (different subject/actor) sharing a sessionId
+          // must not read a resource token minted for a different principal.
+          const agentTokenFp = createHash('sha256').update(agentToken).digest('hex').slice(0, 16);
+          const agentCacheKey = `agent:${provider}:${session.sessionId}:${agentTokenFp}:${bankingApiResourceUri}:${[...toolScopes].sort().join(',')}`;
+          const cachedResourceToken = tokenCache.get(agentCacheKey, toolScopes);
+          if (cachedResourceToken) {
+            token = cachedResourceToken;
+            logger.debug(`[BankingToolProvider] Step 9 resource cache hit for ${tool.name}`);
+          } else {
+            logger.info(`[BankingToolProvider] Step 9 ${provider} exchange initiated for tool: ${tool.name}, scopes: ${toolScopes.join(',')}`);
+            try {
+              const exchangeRequest: TokenExchangeRequest = {
+                grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
+                subject_token: agentToken,
+                subject_token_type: 'urn:ietf:params:oauth:token-type:access_token',
+                ...(provider === 'pingfederate' && {
+                  requested_token_type: 'urn:ietf:params:oauth:token-type:access_token',
+                }),
+                scope: toolScopes.join(' '),
+                // PingOne uses RFC 8707 `resource`, NOT `audience`; it silently
+                // ignores audience=. PF's dedicated policy selects the Banking API
+                // ATM, so omit both selectors on the PF request.
+                ...(provider === 'pingone' && { resource: bankingApiResourceUri }),
+              };
+              const exchangeResponse = await exchangeService.exchangeToken(exchangeRequest);
+              // Validate the response before caching (parity with the user path): a
+              // missing/zero expires_in yields expiresAt = NaN, which tokenCache treats
+              // as never-expired and would serve the token indefinitely.
+              if (exchangeResponse.token_type !== 'Bearer' || !(exchangeResponse.expires_in > 0)) {
+                throw new Error(
+                  `Step 9 token exchange for '${tool.name}' returned unexpected response — ` +
+                  `token_type: ${exchangeResponse.token_type}, expires_in: ${exchangeResponse.expires_in}`
+                );
+              }
+              token = exchangeResponse.access_token;
+              const expiresAt = Date.now() + (exchangeResponse.expires_in * 1000);
+              tokenCache.set(agentCacheKey, toolScopes, token, expiresAt);
+              logger.info(`[BankingToolProvider] Step 9 ${provider} exchange succeeded for ${tool.name} (expires_in: ${exchangeResponse.expires_in}s)`);
+            } catch (exchangeError) {
+              logger.error(`[BankingToolProvider] Step 9 resource exchange FAILED for ${tool.name}:`, {}, exchangeError instanceof Error ? exchangeError : undefined);
+              throw Object.assign(
+                new Error(
+                  `Step 9 token exchange failed for tool '${tool.name}': ${exchangeError instanceof Error ? exchangeError.message : 'Unknown error'}`
+                ),
+                { cause: exchangeError }
+              );
+            }
+          }
+          return { token, source: 'agent-step9-exchange' };
+        }
       }
+
+      // Backward compat: no resource URI configured — use gateway token directly.
+      // For a banking DATA tool (!tool.vertical) this forwards an un-narrowed
+      // gateway-audience token to the Banking API. Under STRICT_AUTH that is a
+      // misconfiguration (Step 9 should narrow scopes + audience), so fail closed.
+      // Gated on STRICT_AUTH (not NODE_ENV) because the local demo runs
+      // NODE_ENV=production without BANKING_API_RESOURCE_URI and relies on passthrough.
+      if (process.env.STRICT_AUTH === 'true' && tokenExchangeService && !tool.vertical && !bankingApiResourceUri) {
+        throw new AuthenticationError(
+          `Step 9 resource exchange required for banking data tool '${tool.name}' but BANKING_API_RESOURCE_URI is not set`,
+          AuthErrorCodes.INVALID_AGENT_TOKEN,
+        );
+      }
+      token = agentToken;
+      // With STRICT_AUTH off — the local default — a banking DATA tool can
+      // forward an un-narrowed gateway token when Step 9 is intentionally off.
+      if ((tokenExchangeService || pfIssuerConfigured) && !tool.vertical) {
+        logger.warn(
+          `[BankingToolProvider] Step 9 resource exchange DISABLED for banking data tool '${tool.name}' ` +
+          `(BANKING_API_RESOURCE_URI unset or Step 9 unavailable) — forwarding the gateway-audience token to the Banking API. ` +
+          `If the Banking API enforces a different audience it will reject this with 401 invalid_token. ` +
+          `To enable: set BANKING_API_RESOURCE_URI and configure the provider's Step 9 exchanger.`,
+        );
+      } else {
+        logger.debug(`[BankingToolProvider] Using BFF-exchanged delegated token for ${tool.name} (no Step 9 resource exchange)`);
+      }
+      return { token, source: 'agent-passthrough' };
     } else {
       // Resolve user token from session
       const userToken = this.getUserTokenForScopes(session, tool.requiredScopes);

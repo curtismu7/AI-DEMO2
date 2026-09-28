@@ -1794,6 +1794,7 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
   // the PF adapter. The PF ID-JAG lane is selected only by UC40 above.
   if (pfExchangeMode === 'standard') {
     const pfConfig = pfStandardTokenExchangeService.resolveConfig();
+    const pfUserSub = pfStandardTokenExchangeService.resolveUserSubject(_rawUserClaims);
     let expectedFinalAudience = mcpResourceUri;
     if (opts.forcePingGatewayAudience && !opts.forceDirectMcpAudience) {
       expectedFinalAudience = configuredPingGatewayAudience(tool);
@@ -1815,7 +1816,7 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
     }
 
     return await _performTwoExchangeDelegation(
-      tokenEvents, userToken, finalScopes, userSub, toolTrigger, mcpResourceUri, req,
+      tokenEvents, userToken, finalScopes, pfUserSub, toolTrigger, mcpResourceUri, req,
       { ...opts, tool, exchangeProvider: pfStandardTokenExchangeService, providerConfig: pfConfig, expectedFinalAudience }
     );
   }
@@ -2805,7 +2806,7 @@ async function _performTwoExchangeDelegation(
     if (isSubjectRejection) {
       console.error(
         `[TwoExchange] Subject token REJECTED by the tenant token-exchange policy` +
-        ` (subject client=${subjectClient || 'unknown'}, tool=${tool || 'discovery'}).\n` +
+        ` (subject client=${subjectClient || 'unknown'}, tool=${opts.tool || toolTrigger || 'discovery'}).\n` +
         `  Sessions signed in through this client cannot delegate tools — add this client to the` +
         ` tenant's token-exchange policy (PingOne Authorize console) or sign in via the standard user login app.`);
     }

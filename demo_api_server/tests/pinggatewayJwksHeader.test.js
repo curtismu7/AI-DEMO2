@@ -19,6 +19,8 @@ jest.mock('axios', () => ({ post: jest.fn() }));
 
 const axios = require('axios');
 const { callToolViaGateway } = require('../services/mcpGatewayClient');
+const previousPingGatewayUrl = process.env.MCP_PINGGATEWAY_URL;
+const previousDemoGatewayUrl = process.env.MCP_DEMO_GATEWAY_URL;
 
 function stubConfig(map = {}) {
   mockGetEffective.mockImplementation((key) => {
@@ -43,9 +45,18 @@ function lastHeaders() {
 
 describe('callToolViaGateway X-Token-Validation header', () => {
   beforeEach(() => {
+    process.env.MCP_PINGGATEWAY_URL = 'http://ping-gateway:8080';
+    process.env.MCP_DEMO_GATEWAY_URL = 'http://mcp-gateway:3005';
     mockGetEffective.mockReset();
     axios.post.mockReset();
     axios.post.mockResolvedValue(okResponse());
+  });
+
+  afterAll(() => {
+    if (previousPingGatewayUrl === undefined) delete process.env.MCP_PINGGATEWAY_URL;
+    else process.env.MCP_PINGGATEWAY_URL = previousPingGatewayUrl;
+    if (previousDemoGatewayUrl === undefined) delete process.env.MCP_DEMO_GATEWAY_URL;
+    else process.env.MCP_DEMO_GATEWAY_URL = previousDemoGatewayUrl;
   });
 
   test('gateway flag ON + ff_mcp_gateway_jwks true -> X-Token-Validation: jwks', async () => {
@@ -75,7 +86,7 @@ describe('callToolViaGateway X-Token-Validation header', () => {
   test('gateway flag OFF -> no X-Token-Validation header (Node path unchanged)', async () => {
     stubConfig({ ff_mcp_gateway_pinggateway: 'false', ff_mcp_gateway_jwks: 'true' });
 
-    await callToolViaGateway('http://mcp-gateway:3005', 'tok', 'get_accounts', {});
+    await callToolViaGateway('http://mcp-gateway:3005', 'tok', 'get_accounts', {}, { pinNodeGateway: true });
 
     expect(lastHeaders()).not.toHaveProperty('X-Token-Validation');
   });

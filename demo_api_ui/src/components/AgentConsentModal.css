@@ -59,8 +59,8 @@
   margin: 0;
   padding: 10px 14px;
   list-style: none;
-  border-top: 1px solid #f1f5f9;
-  background: #f8fafc;
+  border-top: 1px solid var(--th-border);
+  background: var(--th-bg-inset);
   display: flex;
   flex-direction: column;
   gap: 8px;

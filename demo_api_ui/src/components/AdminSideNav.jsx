@@ -177,6 +177,7 @@ const AUTO_EXPAND_SECTIONS = [
   { id: "ai-experiences", paths: ["/delegated-commerce", "/use-cases", "/use-cases/live", "/demo-track", "/group-policy", "/agent-lifecycle", "/delegation-chain-value", "/a2a-protocol-learning", "/control-plane", "/ai-control-plane", "/agent-registry", "/agent-builder", "/agent-flow-inspector", "/agent-onboarding-flow", "/agent-onboarding-flow-subway", "/langchain", "/ungoverned-agent", "/servers", "/autonomous-agents", "/personal-agent", "/privilege-for-ai"] },
   { id: "mcp-integrations", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/demo/enterprise-mcp", "/ping-ai-test-lab", "/agent-gateway-inspector", "/agent-gateway-capabilities", "/webmcp", "/mcp-scanner", "/personal-agent"] },
   { id: "pingfederate-id-jag", paths: ["/pingfederate-id-jag"] },
+  { id: "pingfederate-ai-agent", paths: ["/pingfederate-ai-agent"] },
   { id: "utilities", paths: ["/pingone-test", "/mfa-test", "/oauth-debug-logs", "/token-exchange-tester", "/mgmt-api", "/pingone-setup", "/mcp-discovery", "/check"] },
   { id: "delegation-consent", paths: ["/transaction-consent", "/actor-token-education"] },
   { id: "authorize", paths: ["/pingone-authorize", "/pingone-authorize-capabilities", "/policy-decision-trace", "/authz-test", "/scope-audit", "/scope-reference"] },
@@ -1066,6 +1067,7 @@ export default function AdminSideNav({
       label: "Diagrams",
       icon: "arc",
       children: [
+        { label: "Server Topology (Interactive)", path: "/architecture/server-topology", icon: "arc" },
         { label: "PingFederate ID-JAG (Node)", path: "/architecture/pingfederate-id-jag", icon: "arc" },
         {
           label: "System Diagram (Node)",
@@ -1392,6 +1394,13 @@ export default function AdminSideNav({
       { label: "How ID-JAG Works", path: "/pingfederate-id-jag" },
       { label: "ID-JAG Diagram", path: "/pingfederate-id-jag/diagram" },
     ], "sec"),
+    productGroup("PingFederate AI Agent", [
+      {
+        label: "CIMD, Token Exchange, and RAR",
+        path: "/pingfederate-ai-agent",
+        searchAlias: "PingFederate PF AI feature comparison AI agent differences ID-JAG third-party token exchange third party token exchange PAR Pushed Authorization Request RAR Rich Authorization Request CIMD",
+      },
+    ], "sec"),
     productGroup("Developer Tools", [
       "Code Explorer",
       { from: "Graphify", rename: "Graphify" },
@@ -1420,6 +1429,7 @@ export default function AdminSideNav({
       "Grafana",
     ], "log"),
     productGroup("Architecture & Learning", [
+      "Server Topology (Interactive)",
       "PingFederate ID-JAG (Node)",
       "System Diagram (Node)",
       "Overview Diagram (Node)",
@@ -2130,7 +2140,7 @@ export default function AdminSideNav({
           )}
         </div>
 
-        {/* Filter — live-filters nav items by label (hidden when collapsed) */}
+        {/* Filter — live-filters nav items by label or search alias (hidden when collapsed) */}
         {!collapsed && (
           <div className="admin-side-nav__filter-row">
             <div className="admin-side-nav__filter">

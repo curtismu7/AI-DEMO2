@@ -289,6 +289,7 @@ show_commands() {
   demo_box_open "${WHITE}" "COMMANDS"
   demo_box_row "${WHITE}" "${BOLD}./k8s/deploy.sh${RESET}                       full deploy"
   demo_box_row "${WHITE}" "${BOLD}./k8s/deploy.sh status${RESET}            pod and agent health"
+  demo_box_row "${WHITE}" "${BOLD}./k8s/deploy.sh mode basic${RESET}       scale to dashboard/admin + login only"
   demo_box_row "${WHITE}" "${BOLD}./k8s/deploy.sh forward${RESET}           port-forward to localhost"
   demo_box_row "${WHITE}" "${BOLD}./k8s/deploy.sh forward-api${RESET}       BFF :3001 only (auto-respawn)"
   demo_box_row "${WHITE}" "${BOLD}./k8s/deploy.sh forward-bg [api]${RESET}  detached forward supervisor"
@@ -704,6 +705,7 @@ stop_cluster() {
 }
 
 # Switch between predefined pod subsets without a full redeploy.
+#   mode basic  — dashboard/admin + login only; scale agent and showcase backends off
 #   mode demo   — minimal set for dashboard + token-chain demos:
 #                 frontend, demo-api-server, mcp-server, mcp-gateway, ping-gateway
 #   mode mcpgw  — only ping-mcpgw + mcp-server (mcpgw proxies to mcp-server)
@@ -711,6 +713,26 @@ stop_cluster() {
 mode_cmd() {
   local target="${1:-}"
   case "$target" in
+    basic)
+      local basic_deployments=(frontend demo-api-server)
+      local dep existing=()
+      info "Switching to basic mode (dashboard/admin + login only)..."
+      # Check every required deployment before scaling anything down. This mode
+      # operates on an existing full deployment; it does not apply manifests.
+      for dep in "${basic_deployments[@]}"; do
+        kubectl get deployment "$dep" -n "$NS" >/dev/null 2>&1 \
+          || die "Required deployment/$dep is missing in namespace $NS. Deploy the full stack first."
+      done
+      while IFS= read -r dep; do
+        [ -n "$dep" ] && existing+=("$dep")
+      done < <(kubectl get deployments -n "$NS" -l app=ai-demo -o name)
+      [ "${#existing[@]}" -gt 0 ] || die "No app=ai-demo deployments found in namespace $NS."
+      kubectl scale -n "$NS" "${existing[@]}" --replicas=0
+      for dep in "${basic_deployments[@]}"; do
+        kubectl scale "deployment/$dep" -n "$NS" --replicas=1
+      done
+      success "Basic mode scaled up: ${basic_deployments[*]}"
+      ;;
     demo)
       info "Switching to demo mode (dashboards + token chain)..."
       # Full stack scaled to 0 first; only then the demo pods come up.
@@ -732,7 +754,7 @@ mode_cmd() {
       deploy
       ;;
     *)
-      die "Usage: mode <demo|mcpgw|full>"
+      die "Usage: mode <basic|demo|mcpgw|full>"
       ;;
   esac
 }

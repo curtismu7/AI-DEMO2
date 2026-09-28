@@ -1,4 +1,6 @@
 import React from "react";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, it, expect, vi } from "vitest";
@@ -52,6 +54,34 @@ beforeEach(() => {
 
 const adminUser = { id: "4", username: "admin", role: "admin" };
 const customerUser = { id: "1", username: "customer", role: "customer" };
+const authRouteRequirements = JSON.parse(
+  readFileSync(
+    path.resolve(__dirname, "../../../../demo_api_server/config/auth-requirements.json"),
+    "utf8",
+  ),
+).routes;
+const customerDiagramSearches = [
+  ["Server Topology", "/architecture/server-topology"],
+  ["PingFederate ID-JAG", "/architecture/pingfederate-id-jag"],
+  ["System Diagram", "/architecture/system"],
+  ["System Flow", "/monitoring/system-flow"],
+  ["Overview Diagram", "/architecture/overview"],
+  ["Token Flow", "/architecture/token-flow"],
+  ["Token Chain Architecture", "/architecture/token-chain"],
+  ["Interactive Flow", "/architecture/flow"],
+  ["Sequence Diagram", "/sequence-diagram"],
+  ["Canvas Diagram", "/architecture/canvas"],
+  ["Delegated Access Proof", "/academy/delegation/guided"],
+  ["Agent Onboarding Flow", "/agent-onboarding-flow"],
+  ["Agent Onboarding Flow Subway", "/agent-onboarding-flow-subway"],
+  ["Invest Dual-Auth", "/invest-dual-auth"],
+  ["AI Gateway Diagrams", "/privilege-mcp-diagrams"],
+  ["AI Gateway Enforcement", "/privilege-first-gateway"],
+  ["Gateway vs P1AZ Enforcement", "/gateway-enforcement-map"],
+  ["Resource Server Placement", "/resource-server-placement"],
+  ["Identity Journey Map", "/login-flow"],
+  ["ID-JAG Diagram", "/pingfederate-id-jag/diagram"],
+];
 const renderNav = (path = "/admin") =>
   render(
     <MemoryRouter initialEntries={[path]}>
@@ -66,6 +96,24 @@ const renderNavAsUser = (user, path = "/") =>
   );
 
 describe("AdminSideNav — best-of-breed pass", () => {
+  it("lets a signed-in customer search and open every diagram without an admin gate", () => {
+    renderNavAsUser(customerUser);
+    const navigation = screen.getByRole("navigation", { name: /primary navigation/i });
+    const search = within(navigation).getByLabelText(/search navigation/i);
+    for (const [query, href] of customerDiagramSearches) {
+      fireEvent.change(search, { target: { value: query } });
+      const link = within(navigation).getAllByRole("link")
+        .find((candidate) => candidate.getAttribute("href") === href);
+      expect(link, `${href} appears for the search ${query}`).toBeTruthy();
+      expect(link.querySelector(".admin-side-nav__badge"), `${href} has no admin-only badge`).toBeNull();
+
+      const routeRequirement = href === "/academy/delegation/guided"
+        ? "/academy/:lessonId/:mode"
+        : href;
+      expect(authRouteRequirements[routeRequirement], `${href} is declared public for guest access`).toBe("public");
+    }
+  });
+
   it("labels the primary navigation landmark", () => {
     renderNav();
     expect(screen.getByRole("navigation", { name: /primary navigation/i })).toBeTruthy();
@@ -138,6 +186,36 @@ describe("AdminSideNav — best-of-breed pass", () => {
     // non-matching top-level item is filtered out; matching group remains
     expect(screen.queryByText("Skin Studio")).toBeNull();
     expect(screen.getByText("Observability")).toBeTruthy();
+  });
+
+  it("makes Server Topology visible to a logged-in customer from Architecture & Learning", () => {
+    renderNavAsUser(customerUser);
+    fireEvent.click(screen.getByRole("button", { name: /^Architecture & Learning/ }));
+    expect(screen.getByRole("link", { name: "Server Topology (Interactive)" })).toHaveAttribute(
+      "href",
+      "/architecture/server-topology",
+    );
+  });
+
+  it("searches PF AI feature terms to find the comparison page", () => {
+    renderNav();
+    const input = screen.getByLabelText(/search navigation/i);
+
+    for (const term of ["AI feature comparison", "ID-JAG", "third-party token exchange", "PAR", "RAR"]) {
+      fireEvent.change(input, { target: { value: term } });
+      expect(screen.getByRole("link", { name: "CIMD, Token Exchange, and RAR" })).toHaveAttribute(
+        "href",
+        "/pingfederate-ai-agent",
+      );
+    }
+  });
+
+  it("opens the PingFederate AI Agent sidebar group on its comparison page", () => {
+    renderNav("/pingfederate-ai-agent");
+    expect(screen.getByRole("button", { name: /^PingFederate AI Agent/ })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
   });
 
   it('searching "foo" surfaces PromptFoo Evals under Developer Tools', () => {

@@ -368,27 +368,38 @@ export default function AgentGatewayTester({ twoStep = false }) {
   const [refreshing, setRefreshing] = useState(false);
   const [treeSection, setTreeSection] = useState('tools');
 
-  const fetchActive = useCallback(async () => {
+  const fetchActive = useCallback(async (signal) => {
     try {
-      const { data } = await apiClient.get('/api/mcp-gateway/active');
+      const { data } = await (signal
+        ? apiClient.get('/api/mcp-gateway/active', { signal })
+        : apiClient.get('/api/mcp-gateway/active'));
+      if (signal?.aborted) return;
       setActive(data);
     } catch (e) {
+      if (signal?.aborted) return;
       notifyError(formatAxiosError(e, 'Failed to load active gateway state'));
     }
   }, []);
 
-  const fetchRateStatus = useCallback(async () => {
+  const fetchRateStatus = useCallback(async (signal) => {
     try {
-      const { data } = await apiClient.get('/api/mcp-gateway/rate-limit-status');
+      const { data } = await (signal
+        ? apiClient.get('/api/mcp-gateway/rate-limit-status', { signal })
+        : apiClient.get('/api/mcp-gateway/rate-limit-status'));
+      if (signal?.aborted) return;
       setRateStatus(data);
     } catch (e) {
+      if (signal?.aborted) return;
       notifyError(formatAxiosError(e, 'Failed to load rate-limit status'));
     }
   }, []);
 
-  const fetchTools = useCallback(async () => {
+  const fetchTools = useCallback(async (signal) => {
     try {
-      const { data } = await apiClient.get('/api/mcp/inspector/tools');
+      const { data } = await (signal
+        ? apiClient.get('/api/mcp/inspector/tools', { signal })
+        : apiClient.get('/api/mcp/inspector/tools'));
+      if (signal?.aborted) return;
       const list = data.tools || [];
       if (list.length) {
         setTools(list);
@@ -398,16 +409,21 @@ export default function AgentGatewayTester({ twoStep = false }) {
         setToolsSource(data.mfa_required ? 'static (live list is MFA-gated)' : 'static');
       }
     } catch {
+      if (signal?.aborted) return;
       setTools(FALLBACK_TOOLS);
       setToolsSource('static (BFF unreachable)');
     }
   }, []);
 
-  const fetchRules = useCallback(async () => {
+  const fetchRules = useCallback(async (signal) => {
     try {
-      const { data } = await apiClient.get('/api/authorize/rules');
+      const { data } = await (signal
+        ? apiClient.get('/api/authorize/rules', { signal })
+        : apiClient.get('/api/authorize/rules'));
+      if (signal?.aborted) return;
       setRules(data);
     } catch (e) {
+      if (signal?.aborted) return;
       notifyError(formatAxiosError(e, 'Failed to load authorize rules'));
     }
   }, []);
@@ -425,10 +441,12 @@ export default function AgentGatewayTester({ twoStep = false }) {
   }, []);
 
   useEffect(() => {
-    fetchActive();
-    fetchTools();
-    fetchRules();
-    fetchRateStatus();
+    const controller = new AbortController();
+    fetchActive(controller.signal);
+    fetchTools(controller.signal);
+    fetchRules(controller.signal);
+    fetchRateStatus(controller.signal);
+    return () => controller.abort();
   }, [fetchActive, fetchTools, fetchRules, fetchRateStatus]);
 
   const handleRefresh = useCallback(async () => {

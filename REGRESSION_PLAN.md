@@ -188,6 +188,28 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-28 — DaVinci widget runtime followed PF instead of the PingOne region
+
+**Files:** `demo_api_server/routes/davinciLogin.js`,
+`demo_api_server/tests/routes/davinciLogin.test.js`.
+
+**What was broken:** the widget SDK's `apiRoot` was derived from the active
+OAuth discovery endpoint. With PF selected, that pointed `davinci.js` at the
+internal `pingfederate:9031` host, so the browser could not start the flow.
+
+**What was fixed:** the widget API root now uses the configured PingOne region,
+independent of which provider handles the app's OAuth login. The SDK token,
+flow policy, nonce, and login-provider selection remain unchanged.
+
+**Do not break:** keep the DaVinci runtime rooted at `auth.pingone.{region}`
+when PF is selected; keep nonce arming and policy selection in
+`routes/davinciLogin.js` unchanged.
+
+**Verify:** `cd demo_api_server && CI=true npx jest
+tests/routes/davinciLogin.test.js --forceExit` (32/32). The regression test
+first failed with `https://pingfederate:9031/`, then passed with the configured
+PingOne region.
+
 ### 2026-09-28 — Admin Reset Demo repair confirmation hid its audit findings
 
 **Files changed:** `demo_api_server/services/demoReadinessRunner.js`,
@@ -221,6 +243,655 @@ rendered finding/preview text contrast (0 failures in light and dark, minimum
 6.80:1 / 8.47:1); `git diff --check`. The broader `npm run test:unit` run did
 not finish after seven minutes with one worker still active and was stopped
 without a suite result.
+### 2026-09-28 — Vitest worker memory grew past 9 GB
+
+**Files:** `.github/workflows/ci.yml`, `demo_api_ui/vite.config.js`, and the
+oversized UI test suites.
+
+**What was broken:** Vitest's default fork pool reused workers across hundreds
+of jsdom files, while CI and the worker config each allowed a 14 GB V8 heap. A
+single worker reached over 4 GB RSS in a local UI run and 9.8 GB RSS in CI.
+Limiting the pool to two workers did not limit memory per worker. Vitest's
+`memoryLimit` tracks heap use and recycles only after a file finishes; its
+`vmForks` pool also fails to load the current React Router ESM/CJS boundary.
+The live-event path in `TokenChainDisplay` also built a new filtered event
+array on every render; an effect watched that array and updated state, causing
+an endless render loop that could exhaust a worker's heap inside one test file.
+The Agent Gateway tester also left its four startup requests active on unmount;
+a late tools failure attempted to update state after the test DOM was destroyed.
+
+**What was fixed:** remove the 14 GB heap overrides, cap each worker's V8 heap
+at 1.4 GB, and cap the pool at two workers. The full unit suite starts fresh
+workers every 12 test files. Route both UI test commands through a watchdog
+that samples every Vitest process's RSS every 100 ms and terminates the
+complete run if any process exceeds 4,000,000,000 bytes. The 4 GB ceiling is a
+hard stop; the measured full-suite peak before this increase was 1.86 GB. Split
+the remaining UI test files over 1,000 lines into focused suites while keeping
+their assertions intact. Keep the derived live-event list stable between
+renders so its state-setting effects run only when the underlying events
+change. Abort the Agent Gateway startup requests on unmount and ignore their
+late results.
+
+**Do not break:** preserve every UI test assertion and existing dev-proxy,
+OAuth, and session behavior. Stop the complete Vitest process tree when any
+process exceeds 4,000,000,000 bytes RSS; never scale the ceiling to the host's
+reported RAM.
+
+**Verify:** run the watchdog unit tests, split UI suites under `vmForks`,
+`npm run test:unit`, `npm run build`, and actionlint on
+`.github/workflows/ci.yml`; confirm no UI test file exceeds 1,000 lines and
+monitor the full run for RSS breaches below the 4 GB ceiling.
+
+### 2026-09-28 — Related UI tests on pull requests
+
+**Files:** `.github/workflows/ci.yml`, `demo_api_ui/package.json`, and
+`demo_api_ui/scripts/select-vitest-mode.mjs`.
+
+**What was broken:** every UI pull request selected the complete 690-file
+Vitest suite, even when a change touched one leaf component.
+
+**What was fixed:** pass the pull request's changed UI paths to the guarded
+Vitest launcher. Only explicitly verified leaf-component edits run
+`vitest related`; changed unit test files run directly. Shared or unverified
+components, the App shell, route-level pages, contexts, hooks, services,
+styles, test setup, config, deleted or renamed files, and unknown paths select
+the complete suite. `AgentRunTimeline.jsx` is currently the only allowlisted
+leaf: it has one production importer (`AgentFlowHistoryPage.jsx`) and focused
+tests. Pushes to main, manual runs, and the nightly schedule use the full
+suite; the nightly schedule runs the gates and UI suite without queuing the
+unrelated service suites.
+
+**Do not break:** Vitest related selection only follows static imports. Keep
+dynamic route and shared UI infrastructure changes on the full suite, and do
+not let an unavailable changed-file list turn into an empty green run.
+
+**Verify:** selector unit tests cover leaf components, shared contexts, the
+App shell, route pages, styles, and config. Validate selected tests against
+representative component changes and confirm main/manual execution still calls
+the guarded full-suite command.
+
+### 2026-09-28 — Graphify refresh cost and parser warnings
+
+**Files:** `CLAUDE.md`, `.graphifyignore`,
+`demo_api_server/services/agentRunContext.js`,
+`demo_api_ui/src/components/education/{AiPlatformLandscapePanel,IntentAuthStandardsPanel,LlmLandscapePanel}.js`.
+
+**What was broken:** the post-edit `graphify update .` instruction performed a
+full AST scan. Graphify also re-queued 1,068 JSON files that its extractor
+intentionally skipped as data, lacked the optional HCL grammar, and flagged
+literal NUL/JSX ampersands in four source files as partial parses.
+
+**What was fixed:** use manifest-backed `graphify extract . --code-only
+--no-cluster --timing`; exclude the large step-verification/golden data and
+generated execution traces; spell the run-key separator as `\u0000` and encode
+JSX ampersands as entities so displayed text stays the same. The local Graphify
+tool was upgraded to 0.9.71 and `tree-sitter-hcl` installed.
+
+**Do not break:** session+run scoped context keys and the `LLM token custody`
+invariant; preserve the current JSX text and keep application behavior
+independent of Graphify exclusions.
+
+**Verify:** `node --check demo_api_server/services/agentRunContext.js` passed;
+the Graphify extractor reported no parse errors for the four changed files;
+`cd demo_api_ui && npm run build` passed. The incremental no-cluster refresh
+processed 181 code files, kept 5,243 unchanged, and took 22.1s (7.9s detect,
+5.7s AST, 7.1s write), producing 66,751 nodes and 121,389 edges. All six
+Terraform/HCL files are represented; 176 intentionally skipped JSON files
+still re-queue, tracked in `TECH_DEBT.md`.
+
+### 2026-09-28 — Shared-Mac CI contention from duplicate runner registrations and caches
+
+**Files:** `.github/workflows/ci.yml`, `demo_api_ui/vite.config.js`, and the AIAgent test suites.
+
+**What was broken:** multiple Actions runner registrations on the same Mac were
+treated as independent capacity. Their persistent workspaces held multi-gigabyte
+`node_modules` trees, so simultaneous `git clean -ffdx` operations competed for
+disk and CPU. The npm cache also exceeded 1 GiB; a canceled run left its cache
+extraction process running. The host still had 68% free memory during the
+observed contention, so memory exhaustion was not the cause of that run.
+
+**What was fixed:** route all CI jobs through the default self-hosted macOS
+labels so a single registered runner serializes them; run suite selection
+before repository gates and make expensive suites depend on the gates; disable
+the large npm cache; install pytest
+explicitly for llamaindex and fail on dependency-install errors.
+
+**Follow-up:** the cold BFF dependency install took nearly 30 minutes against
+its previous 30-minute job limit, and the grouped authz/gateway suites exceeded
+their 30-minute limit. Use lockfile-based `npm ci`, give the API and grouped
+service jobs 60 and 45 minutes, and cap CI Vitest workers at two on the shared
+Mac. The 14 GB heap override was later removed after a worker reached 9.8 GB;
+see the newer Vitest memory entry above. Split the 1,787-line AIAgent chips
+suite into four focused files while retaining all 88 tests.
+
+**Do not break:** do not require a special `ci-gates` runner label; keep npm
+caching disabled on self-hosted jobs; keep Python tests isolated in Python 3.12
+virtual environments.
+
+**Verify:** actionlint and a fresh full CI run on a single registered Mac
+runner; `llamaindex_agent` must report 10 passed, 1 skipped.
+
+### 2026-09-27 — BFF CI gateway routing failures
+
+**Files:** `.github/workflows/ci.yml`,
+`demo_api_server/services/mcpToolPipeline.js`,
+`demo_api_server/services/mcpGatewayClient.js`,
+`demo_api_server/src/__tests__/mcpGatewayClient.pinnedAudience.test.js`.
+
+**What was broken:** the persistent CI runner inherited local PingGateway and
+Node gateway URL aliases, redirecting mocked gateway calls. The A2A token pin
+also used routing config before initialization, and the gateway client could
+re-route a selected Node gateway base to PingGateway.
+
+**What was fixed:** the API test job clears inherited gateway URL aliases;
+routing tests set their own test endpoints. The pipeline initializes routing
+config before audience resolution. Recognized A2A and ID-JAG audiences keep the
+Node gateway destination when it is already selected, and A2A pinning accepts
+the configured audience or canonical resource name.
+
+**Do not break:** ordinary vertical tools continue to use PingGateway and its
+token audience. Missing required Node gateway configuration still fails
+closed. Preserve the gateway-authoritative `skipBffAuthorize` rule and RFC 8693
+token exchange flow.
+
+**Verify:** focused BFF routing and pipeline tests passed 28/28 before the
+single-runner merge; rerun in protected CI.
+
+### 2026-09-27 — Third self-hosted runner could not take CI gates reliably
+
+**Superseded 2026-09-28:** the third registration shared the same physical
+Mac and did not add capacity. See the newer single-runner finding above.
+
+**Files:** `.github/workflows/ci.yml`, `demo_api_ui/vite.config.js`.
+
+**What was broken:** the third Mac runner shared the default labels and could
+take heavy suites, while the Python setup action's macOS distribution requires
+the hosted-runner path `/Users/runner/hostedtoolcache`. The previous writable
+cache override could not relocate that Python build. Vitest workers also
+reached their 12 GB V8 heap ceiling in the full CI run.
+
+**What was fixed:** route the selector and hygiene/topology jobs only to the
+`ci-gates` runner and use the runner's installed Python 3.12 in per-service
+virtual environments. The 14 GB Vitest heap workaround was superseded by the
+2026-09-28 worker-recycling fix above.
+
+**Do not break:** preserve the Python 3.12 environment details recorded here;
+runner routing is superseded by the newer single-runner finding above.
+
+**Verify:** `actionlint` on `.github/workflows/ci.yml`; run the Python agent,
+Vitest, API and unwired-service CI jobs on the updated PR.
+
+The first rerun exposed a missing test dependency in `llamaindex_agent`: its
+runtime requirements do not include pytest, and the workflow suppressed pip
+installation errors. Install pytest explicitly for that suite and fail the job
+if either agent's requirements cannot be installed. Several Node jobs also
+retained automatic setup-node npm caching even though the shared-runner cache is
+over 1 GiB; disable it consistently across all jobs. The API/UI/unwired jobs
+were canceled while the PR merge ref was being superseded by updates to main.
+The selector and gate share one runner, so make the gate depend on selection to
+avoid a long gate install delaying suite dispatch. Their fresh run is needed
+before treating those suites as verified.
+
+### 2026-09-27 — Server topology was missing from customer navigation
+
+**Files:** `demo_api_ui/src/components/AdminSideNav.jsx`,
+`demo_api_ui/src/components/__tests__/adminSideNav.test.jsx`.
+
+**What was broken:** the sidebar's intent-based composition included most
+diagram routes under Architecture & Learning but omitted Server Topology. The
+route itself was public, but users could not find it through sidebar search.
+
+**What was fixed:** added Server Topology to the Architecture & Learning group
+and added a customer-role regression test that searches every diagram route,
+checks that no admin badge gates it, and keeps the routes public for guests.
+
+**Do not break:** keep all diagram routes visible to regular signed-in users;
+diagram links must not acquire an admin-only badge. Keep their public route
+policy so guest access remains available.
+
+**Verify:** `cd demo_api_ui && npx vitest run
+src/components/__tests__/adminSideNav.test.jsx`; `npm run build`; `npm run
+authz:verify`.
+### 2026-09-27 — oauth-mcp routed PF Step 9 subjects to PingOne
+
+**Files:** `oauth-mcp/src/tools/TokenResolver.ts`,
+`oauth-mcp/src/auth/PfStep9TokenExchangeService.ts`,
+`oauth-mcp/src/auth/TokenIntrospector.ts`, `oauth-mcp/src/auth/jwks.ts`,
+`oauth-mcp/tests/auth/TokenIntrospector.pfIssuer.test.ts`,
+`oauth-mcp/tests/auth/PfStep9TokenExchangeService.test.ts`,
+`demo_api_server/scripts/refresh-service-envs.js`,
+`demo_api_server/tests/refreshServiceEnvsPfGateway.test.js`,
+`oauth-mcp/.env.example`,
+`spiffe/pingfederate/pf-step9-te-policy.json`,
+`spiffe/pingfederate/pf-step9-atm-mapping.json`,
+`scripts/pingfederate/provision-pf-step9.sh`,
+`docs/superpowers/specs/2026-09-26-demo-readiness-and-repair-design.md`.
+
+**What was broken:** After PingGateway Exchange #3 returned a PF-issued agent
+token, `oauth-mcp` Step 9 used its single PingOne token-exchange service for
+every issuer. PingOne rejected the PF `subject_token` with “Cannot parse token
+claims,” so the registered Banking API MCP call failed at the final exchange
+and surfaced as an error/502. Local PF also had no dedicated Step 9 policy;
+the existing MCP actor client allowed only `CLIENT_CREDENTIALS`.
+
+**What was fixed:** `TokenResolver` now routes by the authenticated token's
+issuer. PingOne keeps its current endpoint, `resource` selector, scopes, and
+cache behavior. PF uses a separate service: it obtains the existing PF
+MCP-service client-credentials actor token, exchanges the PF subject token
+without a `resource` or `audience` selector, and checks issuer, subject,
+audience, scopes, and nested `act` before forwarding the result. A dedicated
+PF access-token-only policy and ATM mapping preserve the incoming subject and
+actor chain; the local provisioner extends the existing actor client while
+leaving `aiDemoStandardTePolicy` and its mapping unchanged. PF settings and the
+protected actor secret are generated only into `oauth-mcp/.env`.
+
+Inbound signature validation now selects the configured issuer's JWKS before
+Step 9 routing. A PF `iss` uses `PF_JWKS_URI`; missing or invalid PF JWKS
+configuration and JWKS outages fail closed regardless of global demo bypasses,
+and cannot fall back to PingOne keys. The Step 9 service also rejects a PF
+subject whose JWT header `typ` is exactly `oauth-id-jag+jwt`, because its policy
+accepts access-token subjects only. The
+provisioner reads the actor client ID from the same BFF configuration used by
+runtime and verifies the subject, scope, nested `act`, ATM, and grant contract
+on readback. When applying a client update, it supplies the protected runtime
+secret and validates that the configured client can still mint its PF actor
+token without logging that secret or token.
+
+This is a documented PF-specific Step 9 difference. The UC38 passenger A2A
+`invalid_target` remains a separate UC2 issue and is not part of the UC40 or
+Banking API Step 9 chain.
+
+**Do not break:** Keep provider routing tied to the authenticated issuer; do
+not send a PF subject token to PingOne or fall back to PingOne on PF
+configuration/exchange failure. Preserve PingOne's existing request and
+cache, self-issued token passthrough, vertical-tool behavior, subject and
+scope isolation, and the full nested `act` chain.
+
+**Verify:** `oauth-mcp` build and focused `TokenResolver`/PF exchange tests;
+`demo_api_server` PF env-generation test; local PF policy/mapping/client
+readback; then a fresh registered `get_my_accounts` or `get_account_balance`
+call through `/api/mcp/tool` plus a PingOne-lane call. Do not use the UI intent
+label `banking.get_balance` as the registered MCP tool name.
+
+### 2026-09-27 — PF Exchange #3 omitted its required MCP-service actor token
+
+**Files:** `demo_api_server/scripts/refresh-service-envs.js`,
+`demo_api_server/tests/refreshServiceEnvsPfGateway.test.js`,
+`demo_api_server/src/__tests__/olbTokenExchangeProviderRouting.test.js`,
+`ping-gateway/scripts/groovy/olb-token-exchange.groovy`,
+`ping-gateway/.env.example`,
+`docs/superpowers/specs/2026-09-26-demo-readiness-and-repair-design.md`.
+
+**What was broken:** after PF Exchange #3 began requesting only registered
+banking scopes, the request reached `aiDemoStandardTePolicy` and PF returned
+`invalid_request: actor_token is required`. PingGateway had no PF MCP-service
+actor-token hop, although the BFF's standard PF exchange service already uses
+the dedicated MCP-service actor client.
+
+**What was fixed:** generated PingGateway configuration now reuses the BFF's
+existing PF MCP-service actor ID, secret, auth method, and scope. For PF-issued
+subjects, PingGateway mints that actor's client-credentials access token and
+sends it as `actor_token` on Exchange #3 after checking it is an access-token
+JWT for the configured actor client and includes every requested actor scope.
+PingOne sends no actor token and keeps its existing Exchange #3 request. PF's
+nested `act` chain remains part of the verified end-to-end contract.
+
+**Do not break:** keep the actor token PF-only, preserve PF subject-token type,
+subject `sub`, nested `act`, PF's omitted `resource` and provider-specific
+scopes, and PingOne's existing resource/scope path. The passenger A2A
+`invalid_target` failure remains a separate UC2 issue.
+
+**Verify:** focused environment and provider-routing tests; `npm run
+topology:verify`; then recreate only local PingGateway and call a registered
+banking MCP tool through `/api/mcp/tool`, verifying the result and sanitized
+subject/actor/audience evidence.
+
+### 2026-09-27 — PF Exchange #3 requested an unregistered PingOne scope
+
+**Files:** `demo_api_server/scripts/refresh-service-envs.js`,
+`demo_api_server/tests/refreshServiceEnvsPfGateway.test.js`,
+`demo_api_server/src/__tests__/olbTokenExchangeProviderRouting.test.js`,
+`ping-gateway/scripts/groovy/olb-token-exchange.groovy`,
+`ping-gateway/.env.example`,
+`docs/superpowers/specs/2026-09-26-demo-readiness-and-repair-design.md`.
+
+**What was broken:** PingGateway used the shared `PG_OLB_SCOPE=read write
+code:search` for both providers. The local PF exchanger registers `read` and
+`write` but not `code:search`, so PF returned `invalid_scope` and the banking
+tool call surfaced from `/api/mcp/tool` as HTTP 502.
+
+**What was fixed:** the generated PingGateway environment now includes
+`PG_OLB_SCOPE_PF=read write`. Exchange #3 selects that list only for a
+PF-issued subject. PingOne continues to use `PG_OLB_SCOPE=read write
+code:search`. The readiness spec records this PF scope difference; PF
+code-search remains unsupported until its scope is explicitly provisioned.
+
+**Do not break:** preserve issuer-based provider selection, PF's omitted
+`resource` and default ATM, PF subject-token typing, the user's `sub` and
+nested `act` chain, and PingOne's unchanged resource/scope request. The
+passenger A2A `invalid_target` failure remains a separate UC2 issue.
+
+**Verify:** focused `refreshServiceEnvsPfGateway.test.js` and
+`olbTokenExchangeProviderRouting.test.js`; deploy only local PingGateway and
+call a registered banking MCP tool through `/api/mcp/tool`, confirming the PF
+exchange succeeds and returns the registered tool result.
+
+### 2026-09-27 — PF Exchange #3 omits the PingOne-only resource identifier
+
+**Files:** `ping-gateway/scripts/groovy/olb-token-exchange.groovy`,
+`demo_api_server/src/__tests__/olbTokenExchangeProviderRouting.test.js`,
+`docs/superpowers/specs/2026-09-26-demo-readiness-and-repair-design.md`.
+
+**What was broken:** Exchange #3 sent `PG_OLB_RESOURCE_URI=mcpserver.ping.demo`
+to PingFederate. That PingOne resource alias is not an absolute URI, so PF
+returned `invalid_target` and the registered MCP call failed before reaching
+the backend.
+
+**What was fixed:** PF subjects now omit `resource` and use the MCP exchanger's
+restricted default MCP-gateway ATM. PingOne subjects still send the configured
+resource selector to choose the backend resource.
+
+**Do not break:** Preserve issuer-based provider selection and fail-closed PF
+credential handling, PF subject-token typing, the user's `sub` and nested
+`act` chain, PingOne's `resource` and scope behavior, and the PF ATM's
+backend-accepted audience. Keep passenger A2A `invalid_target` under its
+separate UC2 path.
+
+**Verify:** Focused `olbTokenExchangeProviderRouting.test.js`; then call a
+registered banking MCP tool through the local `/api/mcp/tool` route after the
+targeted PingGateway deploy and confirm the PF exchange reaches the backend.
+
+### 2026-09-27 — Demo Steps scrim escaped the Command Dock stacking context
+
+**Files:** `demo_api_ui/src/components/DemoStepsDropdown.jsx`,
+`demo_api_ui/src/components/__tests__/DemoStepsDropdown.test.jsx`,
+`demo_api_ui/tests/e2e/pf-idjag-run-mode.spec.js`.
+
+**What was broken:** PR #349 raised the scrim's z-index to 100062, but the
+scrim was still rendered inside the Command Dock's `FloatingPanel` stacking
+context at 100061. A child z-index cannot escape that parent context, so the
+scrim could not cover the Dock.
+
+**What was fixed:** Portal the scrim to `document.body`, alongside the drawer.
+The Dock panel, scrim, and drawer now participate in the same root stacking
+order at 100061, 100062, and 100063 respectively.
+
+**Do not break:** Keep the scrim body-portaled and below the body-portaled
+drawer; preserve its close-on-mousedown behavior and modal layers at 100070+.
+
+**Verify:** Focused component unit test, the UC40 browser flow with a DOM
+stack-order and `elementFromPoint` assertion, and `cd demo_api_ui && npm run build`
+pass. The contrast audit was run in both themes; it also surfaced
+existing dashboard and drawer text contrast findings outside this layering
+change.
+
+### 2026-09-27 — PingFederate standard exchanges preserve subject and nested actor chain
+
+**Files:** `demo_api_server/services/agentMcpTokenService.js`,
+`demo_api_server/services/pfStandardTokenExchangeService.js`,
+`demo_api_server/src/__tests__/agentMcpTokenService.test.js`,
+`demo_api_server/src/__tests__/pfStandardTokenExchangeService.test.js`,
+`UC40-PF-IDJAG-SESSION-HANDOFF.md`.
+
+**What was broken:** The local PF user token carried a signed `Username` claim
+without `sub`. The PF token processor did not declare `Username`, the standard
+exchange policy read `sub`, and the agent-gateway access-token mapping emitted
+`Username` without `sub`. Exchange #1 returned HTTP 200, but BFF intermediate
+token validation then failed its subject check and `/api/mcp/tool` returned
+HTTP 502 `invalid_grant`. The final PF mapping also left the actor claim as a
+scalar, while the BFF's full MCP-service → AI-agent delegation shape is nested.
+The original local actor client IDs were not the
+registered identities in the local PingOne Authorize chain, so the gateway
+policy denied otherwise valid downstream tokens.
+
+**What was fixed:** The local PF processor contract now exposes `Username`;
+`aiDemoStandardTePolicy` maps `SUBJECT_TOKEN.Username` to `subject` and
+`ACTOR_TOKEN.client_id` to `spiffeId` for both supported subject-token types.
+The agent-gateway ATM contract and mapping now emit `sub` from the policy
+subject while retaining the existing `Username` claim. The PF standard adapter
+uses signed `sub`, falling back to signed `Username` only when `sub` is absent.
+This is a documented PF-specific token-shape difference; it does not relax
+subject validation. The dedicated MCP gateway ATM mapping now emits a nested
+`act` map by combining the MCP actor `spiffeId` with the prior agent `act`, and
+the local PF actor client IDs match the registered PingOne Authorize actor
+identities. The passenger A2A `invalid_target` from UC38 remains a separate UC2
+issue, outside the UC40 chain.
+
+**Do not break:** Keep the two-exchange flow and strict subject, audience, scope,
+and actor validation. PingOne continues to use its `sub` claim. The passenger
+A2A exchange failure documented under UC38 remains a separate UC2 issue.
+
+**Verify:** `CI=true npx jest src/__tests__/agentMcpTokenService.test.js
+src/__tests__/pfStandardTokenExchangeService.test.js --forceExit --runInBand`
+passes 108/108. The focused local API request and tool result are recorded below
+after deployment. The valid banking tools are `get_my_accounts` and
+`get_account_balance`; `banking.get_balance` is a UI intent label, not a
+registered MCP tool name.
+
+### 2026-09-27 — PingGateway routes PF-issued Exchange #3 subjects to PF
+
+**Files:** `demo_api_server/scripts/refresh-service-envs.js`,
+`demo_api_server/tests/refreshServiceEnvsPfGateway.test.js`,
+`demo_api_server/src/__tests__/olbTokenExchangeProviderRouting.test.js`,
+`ping-gateway/.env.example`,
+`ping-gateway/scripts/groovy/olb-token-exchange.groovy`, `REGRESSION_PLAN.md`,
+`UC40-PF-IDJAG-SESSION-HANDOFF.md`.
+
+**What was broken:** PingGateway already selected a PF token-exchange branch
+when the inbound subject token's `iss` matched `PF_ISSUER_URI`, but generated
+`ping-gateway/.env` omitted `PF_TOKEN_ENDPOINT` and `PF_TE_CLIENT_*`. With an
+empty PF endpoint the branch was disabled, so the PF-issued subject was posted
+to PingOne and Exchange #3 failed with “Cannot parse token claims for request
+param `subject_token`,” surfacing as HTTP 502.
+The same filter also labeled every PF subject as ID-JAG, although ordinary PF
+access tokens require `access_token` typing.
+
+**What was fixed:** The env generator now supplies the PF token endpoint and
+standard MCP exchanger credentials to PingGateway. It changes the endpoint
+host to the PF issuer host while preserving the token path, so the JVM uses a
+hostname covered by PF's TLS certificate. PingOne-issued subjects still use
+the existing PingOne endpoint and MCP Gateway client. This is a provider
+difference at PingGateway Exchange #3; it does not change BFF subject
+validation or the nested `act` contract. The PF request now uses `id-jag`
+typing only when the signed JWT header is `oauth-id-jag+jwt`; PF access tokens
+and all PingOne tokens remain `access_token`.
+
+**Do not break:** Keep provider selection tied to the signed issuer, fail
+closed when PF endpoint or credentials are missing, keep the PF standard MCP
+exchanger distinct from the PingOne MCP Gateway client, and preserve PingOne's
+existing Exchange #3 behavior. The UC38 passenger A2A
+`invalid_target` remains a separate UC2 issue outside the UC40 chain.
+
+**Verify:** focused Jest coverage for `refreshServiceEnvsPfGateway.test.js` and
+`olbTokenExchangeProviderRouting.test.js`; then run the valid local MCP tool through
+`/api/mcp/tool` and confirm PF Exchange #3 plus the backend tool call complete.
+
+### 2026-09-27 — PingGateway PF validation used the wrong JWKS URL
+
+**Files:** `demo_api_server/scripts/refresh-service-envs.js`,
+`demo_api_server/tests/refreshServiceEnvsPfGateway.test.js`,
+`ping-gateway/.env.example`,
+`ping-gateway/scripts/groovy/jwks-token-validation.groovy`,
+`docs/superpowers/specs/2026-09-26-demo-readiness-and-repair-design.md`.
+
+**What was broken:** The PF local-JWKS route was selected, but PingGateway had
+no `PF_JWKS_URI`. Its fallback requested `${PF_ISSUER_URI}/JWKS`, while this PF
+instance publishes signing keys at `/pf/JWKS`. Validation failed before
+PingGateway Exchange #3, surfacing as HTTP 502 from `/api/mcp/tool`.
+
+**What was fixed:** Service-env generation now emits `PF_JWKS_URI` on the PF
+issuer hostname, defaulting to `/pf/JWKS`, and rewrites configured JWKS URLs to
+that TLS hostname. The validator fallback uses the same local PF path. The
+readiness design now requires its PF-session MCP row to verify issuer-specific
+JWKS validation and PF Exchange #3 while preserving PingOne's existing
+introspection path.
+
+**Do not break:** Verify PF tokens against the configured PF JWKS and exact
+issuer; keep PingOne tokens on their existing validation path and fail closed
+when validation cannot complete.
+
+**Verify:** Focused `refreshServiceEnvsPfGateway.test.js`; local
+`get_my_accounts` through `/api/mcp/tool` returns a successful backend result
+after deployment.
+
+### 2026-09-27 — Exchange diagnostics no longer mask the underlying failure
+
+**Files:** `demo_api_server/services/agentMcpTokenService.js`,
+`demo_api_server/src/__tests__/agentMcpTokenService.test.js`.
+
+**What was broken:** When Exchange #1 rejected a `subject_token`, its diagnostic
+interpolated an undeclared `tool` variable. That `ReferenceError` replaced the
+original structured exchange error and surfaced as `tool is not defined` from
+`POST /api/mcp/tool`.
+
+**What was fixed:** The diagnostic now uses the tool already supplied to the
+exchange helper (`opts.tool`, then `toolTrigger`), so it can report the
+subject-token rejection without replacing it.
+
+**Do not break:** Keep the two-exchange selection, credentials, token scopes,
+session handling, and strict subject/audience/scope checks unchanged. The
+passenger A2A exchange failure documented under UC38 remains a separate UC2
+issue.
+
+**Live finding at the time:** The latest `banking.get_balance` call reached
+PingFederate Exchange #1 (HTTP 200), then returned HTTP 502 because the BFF
+rejected the intermediate token for not preserving the user subject. The
+follow-up 2026-09-27 entry above records the local PF and BFF correction.
+
+**Verify:** `CI=true npx jest src/__tests__/agentMcpTokenService.test.js
+--forceExit --runInBand` passes 100/100. The latest exact live call still returns
+HTTP 502 `invalid_grant` before the identity mapping and subject-claim fixes
+above were applied.
+
+### 2026-09-26 — Demo Steps drawer scrim blocked Command Dock actions
+
+**Files changed:**
+- `demo_api_ui/src/components/AIAgent.css` — raise the Demo Steps scrim and drawer above the Command Dock panel.
+- `demo_api_ui/tests/e2e/pf-idjag-run-mode.spec.js` — open the collapsed Demo Controls pill before locating dashboard controls.
+
+**What was broken:** Mission Control UC40 and provider-switch browser flows queried controls before opening the collapsed Command Dock. The scrim was nested inside the Dock's `FloatingPanel`, so changing its child z-index could not put it above the Dock. The provider-switch spec also depended on a live session-clear endpoint and checked storage before the reload completed.
+
+**What was fixed:** The focused flows now open the dock by its exact accessible name, and the provider-switch spec mocks session clearing and waits for the reload before checking session storage. The scrim and drawer z-index values were raised, but the scrim still needed the follow-up body portal recorded above to escape the Dock's stacking context.
+
+**Do not break:** Keep the scrim below the drawer and preserve higher modal layers (100070+).
+
+**Verify:** Focused `pf-idjag-run-mode.spec.js` → 8 passed against the isolated worktree Vite server using system Chrome (the shared Playwright headless-shell cache was being reinstalled); `npm run build` exits 0.
+
+### 2026-09-27 — Cookie-restored P1 session skipped silent Privilege sign-in
+
+**Files:** `demo_api_server/routes/privilegeMcpClient.js`,
+`demo_api_server/tests/routes/privilegeMcpClient.silentAuth.test.js`.
+
+**What was broken:** `/state` treated the dashboard's signed-cookie-restored
+identity as authenticated when the OAuth token field was absent, but
+`/auth/start` only looked for an access token or a saved Privilege grant. The
+UI therefore showed the user as signed in while door authorization triggered
+another interactive PingOne login.
+
+**What was fixed:** Both endpoints now share the same main-app session check.
+The BFF requests `prompt=none` for a recognized dashboard identity, allowing
+PingOne SSO to issue the selected door's own grant. `login_required` still
+falls back to interactive login, and each door's authorization remains
+independent.
+
+**Do not break:** Keep the signed dashboard identity as the SSO signal; do not
+reuse one door's access or refresh token as another door's grant. Preserve the
+interactive fallback after a silent-auth failure and the per-door gateway
+authorization checks.
+
+**Verify:** Added test failed before the fix and passed after it;
+`CI=true npx jest tests/routes/privilegeMcpClient.silentAuth.test.js
+--runInBand --forceExit` — 10 passed.
+
+### 2026-09-27 — Path switch to Direct left an active app session at a sign-in prompt
+
+**Files:** `demo_api_server/routes/privilegeMcpClient.js`,
+`demo_api_server/tests/routes/privilegeMcpClient.config.test.js`,
+`demo_api_server/tests/routes/privilegeMcpClient.sharedDoorToken.test.js`,
+`demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`,
+`demo_api_ui/src/pages/__tests__/PrivilegeMcpClientPage.doorSwitchReauth.test.jsx`.
+
+**What was broken:** Changing Path to Direct cleared the Privilege token because
+Direct uses its own broker grant. The path-switch handler then waited for the
+user to click Sign in, even when the main PingOne app session was still active.
+The connection rail showed App session signed in alongside a Gateway identity
+sign-in prompt.
+
+**What was fixed:** An explicit Path selection now starts the BFF's
+`prompt=none` authorization flow when the app or current gateway session can be
+reused. On callback, the existing silent-switch path discovers tools for the
+selected destination. If the BFF cannot prepare silent authorization, the page
+keeps the manual sign-in fallback. `/config` now reports whether its live token
+belongs to the selected destination separately from whether a token remains in
+the shared slot, so the source path's token cannot suppress that authorization.
+If starting silent authorization itself fails, the selected Path stays aligned
+with the BFF and the page offers a manual retry.
+
+**Do not break:** Keep the app token out of `session.oauth`; each path must
+receive its own authorization-server token. Preserve manual fallback, avoid
+auto-discovery except after an explicit path switch, and keep Privilege 403
+policy denials intact.
+
+**Verify:** Seven focused Privilege page Vitest files — 42 passed;
+`CI=true npx jest tests/routes/privilegeMcpClient.config.test.js
+tests/routes/privilegeMcpClient.sharedDoorToken.test.js --forceExit --runInBand`
+— 14 passed; `cd demo_api_ui && npm run build` — passed.
+
+### 2026-09-27 — Privilege door switch waited for a manual sign-in click
+
+**Files:** `demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`,
+`demo_api_ui/src/pages/__tests__/PrivilegeMcpClientPage.doorSwitchReauth.test.jsx`.
+
+**What was broken:** Switching to an unconnected Privilege door cleared its
+token, then waited for a tools/list 401 and a manual Sign in click before
+starting the existing `prompt=none` flow. The modal claimed silent sign-in had
+failed before it had even been attempted. After a successful OAuth return, the
+page also waited for another manual tools discovery.
+
+**What was fixed:** When the current P1 or Privilege session can be reused, a
+door switch now starts authorization only if the BFF prepared `prompt=none`.
+After a successful callback it discovers tools for the selected door. If silent
+auth is unavailable or returns `login_required`, the page keeps the interactive
+Sign in fallback.
+
+**Do not break:** Never reuse another door's access or refresh token as this
+door's grant. Do not run a tool automatically; only discover the selected
+door's tools. Preserve gateway policy denials and the interactive fallback.
+
+**Verify:** Seven focused Privilege page test files — 40 passed;
+`npm run build` — passed.
+
+### 2026-09-27 — Switching Privilege doors repeated interactive login
+
+**Files changed:** `demo_api_server/routes/privilegeMcpClient.js`,
+`demo_api_server/tests/routes/privilegeMcpClient.silentAuth.test.js`,
+`demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`.
+
+**What was broken:** silent authorization was attempted only when the main
+application session had an access token. A user authenticated through one
+Privilege door could switch to another door with no saved grant and be sent
+through another interactive login. The modal also described a missing
+per-door saved token as “sign-in needed,” which confused door-token status
+with the user's existing gateway SSO session.
+
+**What was fixed:** a valid saved Privilege OAuth grant now enables
+`prompt=none` for the next door's authorization flow. If the identity provider
+still has the user's SSO session, it can issue that door's grant without
+repeating interactive login. The modal now says “no saved token” and explains
+that each selected door may need its own grant while existing gateway SSO can
+be reused.
+
+**Do not break:** keep each OAuth response server-side and preserve the
+gateway's per-app authorization decision; a silent-login failure must still
+fall back to the explicit interactive flow. Do not describe refresh tokens as
+universally door-bound: OAuth refresh behavior depends on the issuer, client,
+grant and the issuer's supported resource model. In the current gateway
+metadata, each app advertises its own issuer and token endpoint.
+
+**Verify:** `CI=true npx jest tests/routes/privilegeMcpClient.silentAuth.test.js
+--forceExit` — 10 passed; focused UI tests for door switching and denial
+diagnostics — 4 passed; `cd demo_api_ui && npm run build` — passed. The full UI
+suite reported a separate undefined CSS-token failure and did not complete.
 
 ### 2026-09-26 — A2A provider-flip incident: three compounding failure layers, now guarded
 

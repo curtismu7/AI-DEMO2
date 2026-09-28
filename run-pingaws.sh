@@ -10,6 +10,7 @@
 #   ./run-pingaws.sh build              # build images + push to GHCR
 #   ./run-pingaws.sh deploy             # deploy only (images already in GHCR)
 #   ./run-pingaws.sh status             # show pods in your SE namespace
+#   ./run-pingaws.sh basic              # scale your SE namespace to dashboard/admin + login only
 #   ./run-pingaws.sh rag [on|off]       # build/start or stop the RAG stack
 #   ./run-pingaws.sh undeploy           # delete workloads AND secrets INSIDE your
 #                                       # namespace (asks first). The namespace is kept.
@@ -53,6 +54,7 @@ Usage:
   ./run-pingaws.sh build            build images + push to GHCR
   ./run-pingaws.sh deploy           deploy only (no rebuild)
   ./run-pingaws.sh status           show SE pod status
+  ./run-pingaws.sh basic            scale an existing SE deployment to dashboard/admin + login only
   ./run-pingaws.sh rag [on|off]     build/start or stop the RAG stack
   ./run-pingaws.sh undeploy         delete everything INSIDE your SHARED SE namespace:
                                     workloads AND secrets. The namespace itself is KEPT.
@@ -77,6 +79,10 @@ SE_NAMESPACE=...) so every later run targets the same namespace by default —
 no re-deriving, no silent drift from a leftover shell export. Override for a
 single run (loudly logged, does not change the pinned value):
   SE_NAMESPACE=ping-devops-yourname ./run-pingaws.sh start
+
+`basic` changes replicas in the selected SE namespace only; the full stack must
+already be deployed. Use `deploy` to restore the full profile. It does not build
+or push images.
 EOF
 }
 
@@ -91,7 +97,7 @@ case "$cmd" in
     demo_machine_banner cluster
     exit 0
     ;;
-  start|all|se-all|""|build|se-build|deploy|se-deploy|rag|update)
+  start|all|se-all|""|build|se-build|deploy|se-deploy|rag|update|basic)
     demo_machine_banner cluster
     ;;
 esac
@@ -108,6 +114,9 @@ case "$cmd" in
     ;;
   status|se-status)
     exec "$RUN_K8" se-status "$@"
+    ;;
+  basic)
+    exec "$RUN_K8" se-basic "$@"
     ;;
   rag)
     exec "$RUN_K8" se-rag "$@"

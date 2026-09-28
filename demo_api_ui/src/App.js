@@ -225,6 +225,7 @@ import PublicRoutes, {
   PingFederateIdJagExplainerPageRoute,
   PingFederateIdJagDemoPageRoute,
   PingFederateIdJagDiagramPageRoute,
+  PingFederateAiAgentPageRoute,
   GroupPolicyBoardPageRoute,
   PrivilegeMcpClientPageRoute,
   LlmGatewayPageRoute,
@@ -1357,6 +1358,10 @@ function AppWithAuth() {
                   element={<PingFederateIdJagDiagramPageRoute user={user} logout={logout} />}
                 />
                 <Route
+                  path="/pingfederate-ai-agent"
+                  element={<PingFederateAiAgentPageRoute user={user} logout={logout} />}
+                />
+                <Route
                   path="/privilege-demo"
                   element={
                     <PrivilegeDemoPageRoute user={user} logout={logout} />
@@ -1655,7 +1660,7 @@ function AppWithAuth() {
                                 shared without requiring an admin session. */}
                             <Route
                               path="/admin/agentic-access-console"
-                              element={<AgenticAccessConsolePage />}
+                              element={<AgenticAccessConsolePage user={user} />}
                             />
                             <Route
                               path="/admin/banking"
