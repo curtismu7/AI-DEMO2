@@ -5,9 +5,11 @@ on:
   pull_request:
   push:
     branches: [main]
+  schedule:
+    - cron: '17 9 * * *'
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.ref }}-${{ github.event_name == 'schedule' && 'nightly' || 'interactive' }}
   # Superseding is safe here: this workflow only runs tests. Image builds live
   # in build-images.yml, which keys its own group by github.sha precisely so a
   # merge's build can never be evicted by a later merge — see that file.
@@ -22,14 +24,15 @@ jobs:
     name: Select affected test suites
     runs-on: [self-hosted, macOS]
     outputs:
-      api-server: ${{ steps.all.outputs['api-server'] || steps.filter.outputs['api-server'] }}
-      decision-services: ${{ steps.all.outputs['decision-services'] || steps.filter.outputs['decision-services'] }}
-      ui: ${{ steps.all.outputs['ui'] || steps.filter.outputs['ui'] }}
-      unwired-services: ${{ steps.all.outputs['unwired-services'] || steps.filter.outputs['unwired-services'] }}
-      python-agents: ${{ steps.all.outputs['python-agents'] || steps.filter.outputs['python-agents'] }}
+      api-server: ${{ steps.all.outputs['api-server'] || steps.nightly.outputs['api-server'] || steps.filter.outputs['api-server'] }}
+      decision-services: ${{ steps.all.outputs['decision-services'] || steps.nightly.outputs['decision-services'] || steps.filter.outputs['decision-services'] }}
+      ui: ${{ steps.all.outputs['ui'] || steps.nightly.outputs['ui'] || steps.filter.outputs['ui'] }}
+      ui-changed-files: ${{ steps.ui-files.outputs.files || '[]' }}
+      unwired-services: ${{ steps.all.outputs['unwired-services'] || steps.nightly.outputs['unwired-services'] || steps.filter.outputs['unwired-services'] }}
+      python-agents: ${{ steps.all.outputs['python-agents'] || steps.nightly.outputs['python-agents'] || steps.filter.outputs['python-agents'] }}
     steps:
-      - name: Run every suite for scheduled and manual CI
-        if: github.event_name != 'pull_request'
+      - name: Run every suite on main and manual CI
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         id: all
         run: |
           {
@@ -39,6 +42,17 @@ jobs:
             echo "unwired-services=true"
             echo "python-agents=true"
           } >> "$GITHUB_OUTPUT"
+      - name: Run the full UI suite in nightly CI
+        if: github.event_name == 'schedule'
+        id: nightly
+        run: |
+          {
+            echo "api-server=false"
+            echo "decision-services=false"
+            echo "ui=true"
+            echo "unwired-services=false"
+            echo "python-agents=false"
+          } >> "$GITHUB_OUTPUT"
       - name: Select suites affected by this PR
         if: github.event_name == 'pull_request'
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
@@ -46,7 +60,7 @@ jobs:
         with:
           # CI workflow edits are checked by actionlint and the always-on gates
           # below; they do not by themselves require every product test suite.
-          # Scheduled and manual runs still select every suite above.
+          # Main and manual runs select every suite; nightly selects the UI suite.
           filters: |
             api-server:
               - 'demo_api_server/**'
@@ -85,6 +99,23 @@ jobs:
             python-agents:
               - 'langchain_agent/**'
               - 'llamaindex_agent/**'
+      - name: Collect changed UI paths for related tests
+        if: github.event_name == 'pull_request' && steps.filter.outputs.ui == 'true'
+        id: ui-files
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const changed = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+              per_page: 100,
+            });
+            const uiFiles = changed
+              .filter(({ filename, previous_filename }) =>
+                filename.startsWith('demo_api_ui/') || previous_filename?.startsWith('demo_api_ui/'))
+              .map(({ filename, previous_filename, status }) => ({ filename, previous_filename, status }));
+            core.setOutput('files', JSON.stringify(uiFiles));
 
   gates:
     name: Hygiene + topology gates
@@ -211,13 +242,17 @@ jobs:
       # non-interactive and makes `vitest run` exit non-zero on failure.
       # `--prefix` goes BEFORE `run`: after a script name npm's parser is
       # ambiguous about whether a flag is npm's or the script's.
-      - name: Vitest unit suite
+      - name: Related Vitest unit tests for pull requests
+        if: github.event_name == 'pull_request'
+        run: npm --prefix demo_api_ui run test:unit:pr
+        env:
+          CI: 'true'
+          VITEST_RELATED_FILES_JSON: ${{ needs.changes.outputs['ui-changed-files'] }}
+      - name: Full Vitest unit suite on main, nightly, and manual runs
+        if: github.event_name != 'pull_request'
         run: npm --prefix demo_api_ui run test:unit
         env:
           CI: 'true'
-          # The full suite exceeded its 12 GB worker limit on the shared Mac.
-          # Keep both the Vitest parent and workers at the measured 14 GB ceiling.
-          NODE_OPTIONS: '--max-old-space-size=14336'
       - name: Vite build gate
         run: npm --prefix demo_api_ui run build
 
