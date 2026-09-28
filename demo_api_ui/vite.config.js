@@ -269,11 +269,16 @@ export default defineConfig(({ mode }) => {
       // CI has been surviving on the default because its Node 22 collects
       // differently from a local Node 26 — which makes this the worst kind of
       // trap: green on the runner, unrunnable on the machine of whoever is
-      // trying to verify before pushing. Keep the worker cap at the measured
-      // 14 GB pass too; the CI parent NODE_OPTIONS does not override this value.
+      // trying to verify before pushing. Keep the measured 14 GB heap on each
+      // fork; NODE_OPTIONS controls the Vitest parent, not its workers.
       poolOptions: {
         forks: { execArgv: ['--max-old-space-size=14336'] },
       },
+      // Two self-hosted runner services share one 16-core Mac. Keep the UI
+      // suite from treating the host's full CPU count as its private pool.
+      // This leaves capacity for the other runner while retaining parallel
+      // test execution within the UI job.
+      maxWorkers: process.env.CI === 'true' ? 2 : undefined,
       exclude: [
         '**/node_modules/**',
         '**/dist/**',

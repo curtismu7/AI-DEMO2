@@ -17,14 +17,10 @@ permissions:
   contents: read
   pull-requests: read
 
-# The self-hosted runner's shared npm cache grew to about 1.1 GiB and consumed
-# most of the gates job's 15-minute budget during restore/extract; skip it.
 jobs:
-  # Keep lightweight planning/gates on the dedicated runner so general macOS
-  # workers stay available for the long service suites.
   changes:
     name: Select affected test suites
-    runs-on: [ci-gates]
+    runs-on: [self-hosted, macOS]
     outputs:
       api-server: ${{ steps.all.outputs['api-server'] || steps.filter.outputs['api-server'] }}
       decision-services: ${{ steps.all.outputs['decision-services'] || steps.filter.outputs['decision-services'] }}
@@ -48,16 +44,17 @@ jobs:
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
         id: filter
         with:
+          # CI workflow edits are checked by actionlint and the always-on gates
+          # below; they do not by themselves require every product test suite.
+          # Scheduled and manual runs still select every suite above.
           filters: |
             api-server:
-              - '.github/workflows/ci.yml'
               - 'demo_api_server/**'
               - 'demo_authz_server/scopeTopology.js'
               - 'demo_llm_proxy/**'
               - 'scope-topology.json'
               - 'snapshots/**'
             decision-services:
-              - '.github/workflows/ci.yml'
               - 'package.json'
               - 'demo_authz_server/**'
               - 'demo_api_server/data/publicBranchCatalog.js'
@@ -77,10 +74,8 @@ jobs:
               - 'scripts/test-service-suite.sh'
               - 'scripts/test-snapshots.sh'
             ui:
-              - '.github/workflows/ci.yml'
               - 'demo_api_ui/**'
             unwired-services:
-              - '.github/workflows/ci.yml'
               - 'scripts/test-service-suite.sh'
               - 'demo_agent_service/**'
               - 'demo_hitl_service/**'
@@ -88,19 +83,24 @@ jobs:
               - 'agent_token_service/**'
               - 'demo_api_resource_server/**'
             python-agents:
-              - '.github/workflows/ci.yml'
               - 'langchain_agent/**'
               - 'llamaindex_agent/**'
 
   gates:
     name: Hygiene + topology gates
-    runs-on: [ci-gates]
+    needs: changes
+    # Run selection first, then run repository gates on the single CI runner.
+    runs-on: [self-hosted, macOS]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
+      - name: Lint GitHub Actions workflows
+        run: /opt/homebrew/bin/actionlint .github/workflows/ci.yml
       - uses: actions/setup-node@v7
         with:
           node-version: 22
+          # Skip restoring the >1 GiB npm cache on this shared-runner gate.
+          package-manager-cache: false
       # Deps install FIRST. hygiene:check used to run against a bare checkout,
       # which worked only while every command in the chain was dependency-free.
       # 04487cdf appended `gen-intent-topology.js check`, and that one loads
@@ -145,9 +145,14 @@ jobs:
       - name: Build cwd guard — own tests
         run: bash scripts/test-k8-build-cwd.sh
 
+  # The repository has one registered self-hosted Mac runner. Chain test jobs
+  # so one workflow does not leave several 30-minute jobs aging in its runner
+  # queue at the same time. `always()` lets later independent suites run after
+  # an earlier suite fails or is filtered out, while every suite still requires
+  # the shared gates to pass.
   api-server-tests:
     name: API server tests (Jest)
-    needs: changes
+    needs: [changes, gates]
     if: needs.changes.outputs['api-server'] == 'true'
     runs-on: [self-hosted, macOS]
     timeout-minutes: 60
@@ -156,12 +161,13 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
+          # Shares the oversized npm cache with the gates job.
+          package-manager-cache: false
       - name: Install deps
         run: npm ci --prefix demo_api_server --no-audit --no-fund
       - name: Run Jest suite
-        # This is a persistent self-hosted Mac. Unit tests provide their own
-        # mock endpoints; clear inherited aliases so tests cannot be redirected
-        # to live demo gateways. Routing tests configure their own test URLs.
+        # The persistent runner can inherit local gateway aliases; unit tests
+        # configure their own endpoints and must not be redirected to live URLs.
         run: |
           env -u MCP_GATEWAY_HTTP_URL \
             -u MCP_PINGGATEWAY_URL \
@@ -187,8 +193,8 @@ jobs:
     # module that fails `vite build` is exactly the false pass demo_api_ui's
     # CLAUDE.md warns about.
     name: UI tests (Vitest) + build
-    needs: changes
-    if: needs.changes.outputs['ui'] == 'true'
+    needs: [changes, gates, api-server-tests]
+    if: always() && needs.gates.result == 'success' && needs.changes.outputs['ui'] == 'true' && needs.api-server-tests.result != 'cancelled'
     runs-on: [self-hosted, macOS]
     timeout-minutes: 30
     steps:
@@ -196,6 +202,9 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
+          # The shared Mac's npm cache is over 1 GiB and costs more time to
+          # restore/save than it saves during dependency installation.
+          package-manager-cache: false
       - name: Install deps
         run: npm ci --prefix demo_api_ui --no-audit --no-fund
       # Vitest, not jest — see demo_api_ui/CLAUDE.md. CI=true keeps the reporter
@@ -206,8 +215,8 @@ jobs:
         run: npm --prefix demo_api_ui run test:unit
         env:
           CI: 'true'
-          # Match the measured passing 14 GB heap for the Vitest parent and
-          # fork workers; setting only the parent leaves each worker at 12 GB.
+          # The full suite exceeded its 12 GB worker limit on the shared Mac.
+          # Keep both the Vitest parent and workers at the measured 14 GB ceiling.
           NODE_OPTIONS: '--max-old-space-size=14336'
       - name: Vite build gate
         run: npm --prefix demo_api_ui run build
@@ -242,8 +251,8 @@ jobs:
     # the distinction it exists to draw — "0 tests ran" must not look like
     # "all tests passed".
     name: Unwired service suites (agent, hitl, code-search, token, resource-server)
-    needs: changes
-    if: needs.changes.outputs['unwired-services'] == 'true'
+    needs: [changes, gates, ui-tests]
+    if: always() && needs.gates.result == 'success' && needs.changes.outputs['unwired-services'] == 'true' && needs.ui-tests.result != 'cancelled'
     runs-on: [self-hosted, macOS]
     timeout-minutes: 30
     steps:
@@ -251,6 +260,7 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
+          package-manager-cache: false
       # demo_agent_service/tests/vault.test.ts imports ACROSS the package
       # boundary — ../demo_api_server/lib/vault/ — which requires argon2, a
       # demo_api_server dependency. Locally that resolves because the sibling's
@@ -282,34 +292,33 @@ jobs:
     #   langchain_agent   834 passed          -> BLOCKING
     #   llamaindex_agent    9 passed, 1 skip  -> BLOCKING
     name: Python agent suites (langchain, llamaindex)
-    needs: changes
-    if: needs.changes.outputs['python-agents'] == 'true'
+    needs: [changes, gates, unwired-service-suites]
+    if: always() && needs.gates.result == 'success' && needs.changes.outputs['python-agents'] == 'true' && needs.unwired-service-suites.result != 'cancelled'
     runs-on: [self-hosted, macOS]
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
-      - name: Set up Python 3.12
+      - name: Use the runner's installed Python 3.12
         run: |
-          if ! command -v uv >/dev/null 2>&1; then
-            HOMEBREW_NO_AUTO_UPDATE=1 brew install uv
+          python="$HOME/.local/bin/python3.12"
+          if [ ! -x "$python" ]; then
+            echo "Python 3.12 is not installed at $python" >&2
+            exit 1
           fi
-          uv python install 3.12
-          python_bin="$(uv python find --no-project 3.12)"
-          echo "DEMO_PYTHON_BIN=$python_bin" >> "$GITHUB_ENV"
-          "$python_bin" --version
+          "$python" --version
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: langchain_agent (blocking — 834 passing)
         run: |
           cd langchain_agent
-          uv venv --seed --python "$DEMO_PYTHON_BIN" .venv
+          python3.12 -m venv .venv
           .venv/bin/python -m pip install --quiet --upgrade pip
           .venv/bin/python -m pip install --quiet -r requirements.txt
           .venv/bin/python -m pytest tests/ -q
       - name: llamaindex_agent (blocking — 9 passing)
         run: |
           cd llamaindex_agent
-          uv venv --seed --python "$DEMO_PYTHON_BIN" .venv
-          .venv/bin/python -m pip install --quiet pytest
-          .venv/bin/python -m pip install --quiet -r requirements.txt
+          python3.12 -m venv .venv
+          .venv/bin/python -m pip install --quiet -r requirements.txt pytest
           .venv/bin/python -m pytest tests/ -q
 
   authz-decision-tests:
@@ -336,8 +345,8 @@ jobs:
     # constraint — a separate job means another runner and another npm install
     # for ~90s of tests. Bundling is why this job already spans three services.
     name: Service suites (authz-server + mcp-gateway + mcp-server + mcp-resource-server)
-    needs: changes
-    if: needs.changes.outputs['decision-services'] == 'true'
+    needs: [changes, gates, python-agent-suites]
+    if: always() && needs.gates.result == 'success' && needs.changes.outputs['decision-services'] == 'true' && needs.python-agent-suites.result != 'cancelled'
     runs-on: [self-hosted, macOS]
     timeout-minutes: 45
     steps:
@@ -345,6 +354,8 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
+          # Keep the large shared-runner npm cache out of this grouped suite.
+          package-manager-cache: false
       - name: Install demo_authz_server deps
         run: npm ci --prefix demo_authz_server --no-audit --no-fund
       - name: Install demo_mcp_gateway deps

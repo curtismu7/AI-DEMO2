@@ -188,24 +188,36 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
-### 2026-09-28 — CI UI heap and suite timeout budgets
+### 2026-09-28 — Shared-Mac CI contention from duplicate runner registrations and caches
 
-**Files:** `.github/workflows/ci.yml`, `demo_api_ui/vite.config.js`.
+**Files:** `.github/workflows/ci.yml`, `demo_api_ui/vite.config.js`, and the AIAgent test suites.
 
-**What was broken:** the CI Vitest parent had a 14 GB heap limit, but fork
-workers still had 12 GB; a worker exhausted that cap during the full UI suite.
-The BFF dependency install also used the 30-minute API job budget, and the
-combined authz/gateway suites exceeded their 30-minute job limit.
+**What was broken:** multiple Actions runner registrations on the same Mac were
+treated as independent capacity. Their persistent workspaces held multi-gigabyte
+`node_modules` trees, so simultaneous `git clean -ffdx` operations competed for
+disk and CPU. The npm cache also exceeded 1 GiB; a canceled run left its cache
+extraction process running. The host still had 68% free memory during the
+observed contention, so memory exhaustion was not the cause of that run.
 
-**What was fixed:** set the Vitest fork workers to the measured passing 14 GB
-heap, use lockfile-driven `npm ci` for CI service installs, and raise the API
-and grouped decision-service timeouts to cover cold installs and full suites.
+**What was fixed:** route all CI jobs through the default self-hosted macOS
+labels so a single registered runner serializes them; run suite selection
+before repository gates and make expensive suites depend on the gates; disable
+the large npm cache; install pytest
+explicitly for llamaindex and fail on dependency-install errors.
 
-**Do not break:** keep the Vite dev proxy, allowed hosts, and UI API routing
-unchanged. Preserve the CI gateway-alias clearing and required suite gates.
+**Follow-up:** the cold BFF dependency install took nearly 30 minutes against
+its previous 30-minute job limit, and the grouped authz/gateway suites exceeded
+their 30-minute limit. Use lockfile-based `npm ci`, give the API and grouped
+service jobs 60 and 45 minutes, set both Vitest parent and fork-worker heaps to
+14 GB, and cap CI Vitest workers at two on the shared Mac. Split the 1,787-line
+AIAgent chips suite into four focused files while retaining all 88 tests.
 
-**Verify:** full UI Vitest suite and UI build; topology verification; fresh
-protected CI run.
+**Do not break:** do not require a special `ci-gates` runner label; keep npm
+caching disabled on self-hosted jobs; keep Python tests isolated in Python 3.12
+virtual environments.
+
+**Verify:** actionlint and a fresh full CI run on a single registered Mac
+runner; `llamaindex_agent` must report 10 passed, 1 skipped.
 
 ### 2026-09-27 — BFF CI gateway routing failures
 
@@ -216,29 +228,58 @@ protected CI run.
 
 **What was broken:** the persistent CI runner inherited local PingGateway and
 Node gateway URL aliases, redirecting mocked gateway calls. The A2A token pin
-also referenced `configStore` before its initialization, returning HTTP 502;
-the gateway client re-routed an already selected Node gateway base to PingGateway
-and did not recognize the A2A resource-name audience observed in PingOne.
+also used routing config before initialization, and the gateway client could
+re-route a selected Node gateway base to PingGateway.
 
-**What was fixed:** CI clears the four inherited gateway URL aliases before
-Jest, preventing mocks from being redirected to live gateways; gateway routing
-tests declare their own endpoint URLs. The selector and topology gates now use
-the dedicated `ci-gates` runner, leaving general macOS workers for suite jobs.
-The Vitest parent heap limit was raised to the measured passing 14 GB after CI
-hit its 12 GB limit. The pipeline initializes its routing config before
-audience resolution. Recognized A2A and ID-JAG audiences keep the Node gateway
-destination when it is already selected, and the A2A pin accepts the configured
-audience or canonical resource name.
+**What was fixed:** the API test job clears inherited gateway URL aliases;
+routing tests set their own test endpoints. The pipeline initializes routing
+config before audience resolution. Recognized A2A and ID-JAG audiences keep the
+Node gateway destination when it is already selected, and A2A pinning accepts
+the configured audience or canonical resource name.
 
-**Do not break:** ordinary vertical tools must continue to use PingGateway and
-its own token audience. Missing required Node gateway configuration still fails
-closed. Do not change the gateway-authoritative `skipBffAuthorize` rule or the
-RFC 8693 token exchange flow.
+**Do not break:** ordinary vertical tools continue to use PingGateway and its
+token audience. Missing required Node gateway configuration still fails
+closed. Preserve the gateway-authoritative `skipBffAuthorize` rule and RFC 8693
+token exchange flow.
 
-**Verify:** the focused BFF run covering `mcpGatewayClient.idJagPin`,
-`mcpGatewayClient.a2aPin`, `mcpGatewayClient.pinnedAudience`,
-`mcpToolPipeline.gatewayDenyOnSuccess`, and `mcpToolPipeline.gatewayDenyEvidence`
-passed 28/28 tests; `git diff --check` passed.
+**Verify:** focused BFF routing and pipeline tests passed 28/28 before the
+single-runner merge; rerun in protected CI.
+
+### 2026-09-27 — Third self-hosted runner could not take CI gates reliably
+
+**Superseded 2026-09-28:** the third registration shared the same physical
+Mac and did not add capacity. See the newer single-runner finding above.
+
+**Files:** `.github/workflows/ci.yml`, `demo_api_ui/vite.config.js`.
+
+**What was broken:** the third Mac runner shared the default labels and could
+take heavy suites, while the Python setup action's macOS distribution requires
+the hosted-runner path `/Users/runner/hostedtoolcache`. The previous writable
+cache override could not relocate that Python build. Vitest workers also
+reached their 12 GB V8 heap ceiling in the full CI run.
+
+**What was fixed:** route the selector and hygiene/topology jobs only to the
+`ci-gates` runner, use the runner's installed Python 3.12 in per-service virtual
+environments, and raise the Vitest parent and worker heap ceiling to the
+measured 14 GB.
+
+**Do not break:** preserve the 14 GB UI worker ceiling and Python 3.12
+environment details recorded here; runner routing is superseded by the newer
+single-runner finding above.
+
+**Verify:** `actionlint` on `.github/workflows/ci.yml`; run the Python agent,
+Vitest, API and unwired-service CI jobs on the updated PR.
+
+The first rerun exposed a missing test dependency in `llamaindex_agent`: its
+runtime requirements do not include pytest, and the workflow suppressed pip
+installation errors. Install pytest explicitly for that suite and fail the job
+if either agent's requirements cannot be installed. Several Node jobs also
+retained automatic setup-node npm caching even though the shared-runner cache is
+over 1 GiB; disable it consistently across all jobs. The API/UI/unwired jobs
+were canceled while the PR merge ref was being superseded by updates to main.
+The selector and gate share one runner, so make the gate depend on selection to
+avoid a long gate install delaying suite dispatch. Their fresh run is needed
+before treating those suites as verified.
 
 ### 2026-09-27 — Server topology was missing from customer navigation
 
@@ -323,6 +364,7 @@ passenger A2A `invalid_target` failure remains a separate UC2 issue.
 `olbTokenExchangeProviderRouting.test.js`; deploy only local PingGateway and
 call a registered banking MCP tool through `/api/mcp/tool`, confirming the PF
 exchange succeeds and returns the registered tool result.
+
 ### 2026-09-27 — PF Exchange #3 omits the PingOne-only resource identifier
 
 **Files:** `ping-gateway/scripts/groovy/olb-token-exchange.groovy`,

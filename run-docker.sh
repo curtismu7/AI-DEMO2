@@ -117,9 +117,11 @@ CORE_SERVICES=(
   promptfoo-step-narration
 )
 
-# Smallest Compose set that keeps dashboard/admin and a live agent/tool path.
+# Smallest Compose set for dashboard/admin and login flows. The MCP services
+# satisfy demo-api-server's declared startup dependencies; live agent, gateway,
+# and model services are not needed to render these pages.
 # Keep this explicit so adding a core service does not silently grow basic mode.
-BASIC_SERVICES=(ui demo-api-server mcp-server mcp-discovery-agent ping-gateway agent-service llm-proxy hitl-service)
+BASIC_SERVICES=(ui demo-api-server mcp-discovery-agent mcp-server)
 
 # Optional groups — start on demand via `./run-docker.sh optional start <group>`.
 OPTIONAL_GROUP_NAMES=(rag tracing demo-auth mcpgw observability spiffe)
@@ -1772,9 +1774,13 @@ cmd_start() {
   node demo_api_server/scripts/ensure-service-keys.js
   echo ""
 
-  # Host llama.cpp must be up + bound 0.0.0.0 before the BFF starts so it isn't
-  # reported "not configured" on the first request.
-  start_llamacpp
+  # Dashboard/admin pages do not need a local model. Stop host tiers in basic
+  # mode to free their RAM; the other profiles start llama.cpp before the BFF.
+  if [[ "${stack}" == "basic" ]]; then
+    stop_llamacpp
+  else
+    start_llamacpp
+  fi
   echo ""
 
   if [[ "${stack}" == "basic" ]]; then
@@ -1828,7 +1834,7 @@ cmd_start() {
       ok "Starting full stack (core + all compose profiles)..."
       docker compose "${COMPOSE_FILES[@]}" "${FULL_STACK_PROFILE_ARGS[@]}" up -d
     elif [[ "${stack}" == "basic" ]]; then
-      ok "Starting basic dashboard/admin + live agent services: ${_CORE_UP[*]}"
+      ok "Starting basic dashboard/admin + login services: ${_CORE_UP[*]}"
       docker compose "${COMPOSE_FILES[@]}" up -d "${_CORE_UP[@]}"
     else
       if [[ "${_LLM_BACKEND}" == "omlx" ]]; then
@@ -1850,7 +1856,7 @@ cmd_start() {
   if [[ "${stack}" != "basic" ]]; then
     cmd_demo_sync
   else
-    ok "Basic mode leaves optional gateway and feature groups stopped."
+    ok "Basic mode leaves all unselected services and feature groups stopped."
   fi
 
   # Runs AFTER demo-sync: that step recreates instrumented services (mcp-server
@@ -2028,7 +2034,7 @@ cmd_help() {
   echo ""
   echo -e "${WHITE}${BOLD}  Commands:${RESET}"
   echo "    (default)             Stop existing containers, then start core + Code Search (rag)"
-  echo "    basic                 Stop this Compose project, then start the dashboard/admin + agent set"
+  echo "    basic                 Start dashboard/admin + login services; stop local model tiers"
   echo "    start full            Stop existing containers, then start every compose service"
   echo "    all                   Same as 'start full'"
   echo "    optional start <grp>  Start optional group(s) on a running stack (no teardown)"
@@ -2077,7 +2083,7 @@ cmd_help() {
   echo ""
   echo -e "${WHITE}${BOLD}  Examples:${RESET}"
   echo "    ./run-docker.sh                             # start core + Code Search (rag)"
-  echo "    ./run-docker.sh basic                      # dashboard/admin + live agent, optional groups off"
+  echo "    ./run-docker.sh basic                      # dashboard/admin + login, model tiers and optional groups off"
   echo "    ./run-docker.sh start full                  # start every compose service"
   echo "    ./run-docker.sh demo-sync                   # apply Quick Flag toggles to containers"
   echo "    ./run-docker.sh optional stop rag           # free Code Search RAM when unused"
