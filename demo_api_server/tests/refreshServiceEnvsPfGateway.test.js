@@ -1,6 +1,6 @@
 'use strict';
 
-const { buildPingGatewayPfExchangeEnv } = require('../scripts/refresh-service-envs');
+const { buildPingGatewayPfExchangeEnv, buildOauthMcpPfStep9Env } = require('../scripts/refresh-service-envs');
 
 test('PingGateway gets PF exchange credentials and the issuer-matching endpoint host', () => {
   expect(buildPingGatewayPfExchangeEnv({
@@ -46,4 +46,26 @@ test('PingGateway rewrites a configured PF JWKS URL to the issuer TLS host', () 
     PF_ISSUER_URI: 'https://local.ping-devops.com:9031',
     PF_JWKS_URI: 'https://pingfederate:9031/pf/JWKS',
   }).PF_JWKS_URI).toBe('https://local.ping-devops.com:9031/pf/JWKS');
+});
+
+test('oauth-mcp receives issuer-host PF Step 9 configuration and reuses the protected MCP actor secret', () => {
+  const issuer = 'https://local.ping-devops.com:9999';
+  expect(buildOauthMcpPfStep9Env({
+    PF_ISSUER: issuer,
+    PF_TOKEN_ENDPOINT: 'https://pingfederate:9999/as/token.oauth2',
+    PF_JWKS_URI: 'https://pingfederate:9999/pf/JWKS',
+    PF_MCP_SERVICE_ACTOR_CLIENT_ID: 'ai-demo-pf-standard-mcp-actor',
+    PF_MCP_SERVICE_ACTOR_TOKEN_ENDPOINT_AUTH_METHOD: 'basic',
+    PF_STANDARD_MCP_ACTOR_SCOPE: 'mcp:invoke',
+  }, {
+    PF_MCP_SERVICE_ACTOR_CLIENT_SECRET: 'vault-managed-pf-actor-secret',
+  })).toEqual({
+    PF_ISSUER_URI: issuer,
+    PF_JWKS_URI: `${issuer}/pf/JWKS`,
+    PF_TOKEN_ENDPOINT: `${issuer}/as/token.oauth2`,
+    PF_MCP_SERVICE_ACTOR_CLIENT_ID: 'ai-demo-pf-standard-mcp-actor',
+    PF_MCP_SERVICE_ACTOR_CLIENT_SECRET: 'vault-managed-pf-actor-secret',
+    PF_MCP_SERVICE_ACTOR_TOKEN_ENDPOINT_AUTH_METHOD: 'basic',
+    PF_STANDARD_MCP_ACTOR_SCOPE: 'mcp:invoke',
+  });
 });

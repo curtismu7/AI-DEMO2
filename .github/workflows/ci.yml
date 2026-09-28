@@ -5,9 +5,11 @@ on:
   pull_request:
   push:
     branches: [main]
+  schedule:
+    - cron: '17 9 * * *'
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.ref }}-${{ github.event_name == 'schedule' && 'nightly' || 'interactive' }}
   # Superseding is safe here: this workflow only runs tests. Image builds live
   # in build-images.yml, which keys its own group by github.sha precisely so a
   # merge's build can never be evicted by a later merge — see that file.
@@ -22,14 +24,15 @@ jobs:
     name: Select affected test suites
     runs-on: [self-hosted, macOS]
     outputs:
-      api-server: ${{ steps.all.outputs['api-server'] || steps.filter.outputs['api-server'] }}
-      decision-services: ${{ steps.all.outputs['decision-services'] || steps.filter.outputs['decision-services'] }}
-      ui: ${{ steps.all.outputs['ui'] || steps.filter.outputs['ui'] }}
-      unwired-services: ${{ steps.all.outputs['unwired-services'] || steps.filter.outputs['unwired-services'] }}
-      python-agents: ${{ steps.all.outputs['python-agents'] || steps.filter.outputs['python-agents'] }}
+      api-server: ${{ steps.all.outputs['api-server'] || steps.nightly.outputs['api-server'] || steps.filter.outputs['api-server'] }}
+      decision-services: ${{ steps.all.outputs['decision-services'] || steps.nightly.outputs['decision-services'] || steps.filter.outputs['decision-services'] }}
+      ui: ${{ steps.all.outputs['ui'] || steps.nightly.outputs['ui'] || steps.filter.outputs['ui'] }}
+      ui-changed-files: ${{ steps.ui-files.outputs.files || '[]' }}
+      unwired-services: ${{ steps.all.outputs['unwired-services'] || steps.nightly.outputs['unwired-services'] || steps.filter.outputs['unwired-services'] }}
+      python-agents: ${{ steps.all.outputs['python-agents'] || steps.nightly.outputs['python-agents'] || steps.filter.outputs['python-agents'] }}
     steps:
-      - name: Run every suite for scheduled and manual CI
-        if: github.event_name != 'pull_request'
+      - name: Run every suite on main and manual CI
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         id: all
         run: |
           {
@@ -39,21 +42,33 @@ jobs:
             echo "unwired-services=true"
             echo "python-agents=true"
           } >> "$GITHUB_OUTPUT"
+      - name: Run the full UI suite in nightly CI
+        if: github.event_name == 'schedule'
+        id: nightly
+        run: |
+          {
+            echo "api-server=false"
+            echo "decision-services=false"
+            echo "ui=true"
+            echo "unwired-services=false"
+            echo "python-agents=false"
+          } >> "$GITHUB_OUTPUT"
       - name: Select suites affected by this PR
         if: github.event_name == 'pull_request'
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
         id: filter
         with:
+          # CI workflow edits are checked by actionlint and the always-on gates
+          # below; they do not by themselves require every product test suite.
+          # Main and manual runs select every suite; nightly selects the UI suite.
           filters: |
             api-server:
-              - '.github/workflows/ci.yml'
               - 'demo_api_server/**'
               - 'demo_authz_server/scopeTopology.js'
               - 'demo_llm_proxy/**'
               - 'scope-topology.json'
               - 'snapshots/**'
             decision-services:
-              - '.github/workflows/ci.yml'
               - 'package.json'
               - 'demo_authz_server/**'
               - 'demo_api_server/data/publicBranchCatalog.js'
@@ -73,10 +88,8 @@ jobs:
               - 'scripts/test-service-suite.sh'
               - 'scripts/test-snapshots.sh'
             ui:
-              - '.github/workflows/ci.yml'
               - 'demo_api_ui/**'
             unwired-services:
-              - '.github/workflows/ci.yml'
               - 'scripts/test-service-suite.sh'
               - 'demo_agent_service/**'
               - 'demo_hitl_service/**'
@@ -84,21 +97,41 @@ jobs:
               - 'agent_token_service/**'
               - 'demo_api_resource_server/**'
             python-agents:
-              - '.github/workflows/ci.yml'
               - 'langchain_agent/**'
               - 'llamaindex_agent/**'
+      - name: Collect changed UI paths for related tests
+        if: github.event_name == 'pull_request' && steps.filter.outputs.ui == 'true'
+        id: ui-files
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const changed = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+              per_page: 100,
+            });
+            const uiFiles = changed
+              .filter(({ filename, previous_filename }) =>
+                filename.startsWith('demo_api_ui/') || previous_filename?.startsWith('demo_api_ui/'))
+              .map(({ filename, previous_filename, status }) => ({ filename, previous_filename, status }));
+            core.setOutput('files', JSON.stringify(uiFiles));
 
   gates:
     name: Hygiene + topology gates
+    needs: changes
+    # Run selection first, then run repository gates on the single CI runner.
     runs-on: [self-hosted, macOS]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
+      - name: Lint GitHub Actions workflows
+        run: /opt/homebrew/bin/actionlint .github/workflows/ci.yml
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: demo_api_server/package.json
+          # Skip restoring the >1 GiB npm cache on this shared-runner gate.
+          package-manager-cache: false
       # Deps install FIRST. hygiene:check used to run against a bare checkout,
       # which worked only while every command in the chain was dependency-free.
       # 04487cdf appended `gen-intent-topology.js check`, and that one loads
@@ -109,9 +142,9 @@ jobs:
       # node_modules — so installing first costs a cache-warm minute and
       # removes a whole class of "gate is red for a reason unrelated to the PR".
       - name: Install demo_api_server deps (hygiene + topology gates both need them)
-        run: npm install --prefix demo_api_server --no-audit --no-fund
+        run: npm ci --prefix demo_api_server --no-audit --no-fund
       - name: Install demo_mcp_gateway deps (topology step 6 runs toolSchemaDrift jest)
-        run: npm install --prefix demo_mcp_gateway --no-audit --no-fund
+        run: npm ci --prefix demo_mcp_gateway --no-audit --no-fund
       - name: Mock-drift gate (jest.mock missing load-bearing exports)
         run: node scripts/check-mock-drift.js
       - name: Fresh-clone hygiene
@@ -143,23 +176,35 @@ jobs:
       - name: Build cwd guard — own tests
         run: bash scripts/test-k8-build-cwd.sh
 
+  # The repository has one registered self-hosted Mac runner. Chain test jobs
+  # so one workflow does not leave several 30-minute jobs aging in its runner
+  # queue at the same time. `always()` lets later independent suites run after
+  # an earlier suite fails or is filtered out, while every suite still requires
+  # the shared gates to pass.
   api-server-tests:
     name: API server tests (Jest)
-    needs: changes
+    needs: [changes, gates]
     if: needs.changes.outputs['api-server'] == 'true'
     runs-on: [self-hosted, macOS]
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: demo_api_server/package.json
+          # Shares the oversized npm cache with the gates job.
+          package-manager-cache: false
       - name: Install deps
-        run: npm install --prefix demo_api_server --no-audit --no-fund
+        run: npm ci --prefix demo_api_server --no-audit --no-fund
       - name: Run Jest suite
-        run: npm test --prefix demo_api_server
+        # The persistent runner can inherit local gateway aliases; unit tests
+        # configure their own endpoints and must not be redirected to live URLs.
+        run: |
+          env -u MCP_GATEWAY_HTTP_URL \
+            -u MCP_PINGGATEWAY_URL \
+            -u MCP_DEMO_GATEWAY_URL \
+            -u PINGGATEWAY_URL \
+            npm test --prefix demo_api_server
 
   ui-tests:
     # demo_api_ui appeared NOWHERE in this file until 2026-08-17 — the fourth
@@ -179,8 +224,8 @@ jobs:
     # module that fails `vite build` is exactly the false pass demo_api_ui's
     # CLAUDE.md warns about.
     name: UI tests (Vitest) + build
-    needs: changes
-    if: needs.changes.outputs['ui'] == 'true'
+    needs: [changes, gates, api-server-tests]
+    if: always() && needs.gates.result == 'success' && needs.changes.outputs['ui'] == 'true' && needs.api-server-tests.result != 'cancelled'
     runs-on: [self-hosted, macOS]
     timeout-minutes: 30
     steps:
@@ -188,22 +233,26 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: demo_api_ui/package.json
+          # The shared Mac's npm cache is over 1 GiB and costs more time to
+          # restore/save than it saves during dependency installation.
+          package-manager-cache: false
       - name: Install deps
-        run: npm install --prefix demo_api_ui --no-audit --no-fund
+        run: npm ci --prefix demo_api_ui --no-audit --no-fund
       # Vitest, not jest — see demo_api_ui/CLAUDE.md. CI=true keeps the reporter
       # non-interactive and makes `vitest run` exit non-zero on failure.
       # `--prefix` goes BEFORE `run`: after a script name npm's parser is
       # ambiguous about whether a flag is npm's or the script's.
-      - name: Vitest unit suite
+      - name: Related Vitest unit tests for pull requests
+        if: github.event_name == 'pull_request'
+        run: npm --prefix demo_api_ui run test:unit:pr
+        env:
+          CI: 'true'
+          VITEST_RELATED_FILES_JSON: ${{ needs.changes.outputs['ui-changed-files'] }}
+      - name: Full Vitest unit suite on main, nightly, and manual runs
+        if: github.event_name != 'pull_request'
         run: npm --prefix demo_api_ui run test:unit
         env:
           CI: 'true'
-          # vitest forks carry --max-old-space-size=12288 via poolOptions, but the
-          # MAIN vitest process (module collection, reporters) uses the default
-          # heap and OOMs on the self-hosted runner when 5 other jobs share the box.
-          NODE_OPTIONS: '--max-old-space-size=12288'
       - name: Vite build gate
         run: npm --prefix demo_api_ui run build
 
@@ -237,8 +286,8 @@ jobs:
     # the distinction it exists to draw — "0 tests ran" must not look like
     # "all tests passed".
     name: Unwired service suites (agent, hitl, code-search, token, resource-server)
-    needs: changes
-    if: needs.changes.outputs['unwired-services'] == 'true'
+    needs: [changes, gates, ui-tests]
+    if: always() && needs.gates.result == 'success' && needs.changes.outputs['unwired-services'] == 'true' && needs.ui-tests.result != 'cancelled'
     runs-on: [self-hosted, macOS]
     timeout-minutes: 30
     steps:
@@ -246,6 +295,7 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
+          package-manager-cache: false
       # demo_agent_service/tests/vault.test.ts imports ACROSS the package
       # boundary — ../demo_api_server/lib/vault/ — which requires argon2, a
       # demo_api_server dependency. Locally that resolves because the sibling's
@@ -254,7 +304,7 @@ jobs:
       # sibling's deps is the smallest honest fix; the cross-package import
       # itself is logged in TECH_DEBT.
       - name: Install demo_api_server deps (demo_agent_service's vault suite imports its lib)
-        run: npm install --prefix demo_api_server --no-audit --no-fund
+        run: npm ci --prefix demo_api_server --no-audit --no-fund
       - name: demo_agent_service (blocking)
         run: SUITE_BLOCKING=1 bash scripts/test-service-suite.sh agent-service
       - name: demo_hitl_service (blocking)
@@ -277,32 +327,34 @@ jobs:
     #   langchain_agent   834 passed          -> BLOCKING
     #   llamaindex_agent    9 passed, 1 skip  -> BLOCKING
     name: Python agent suites (langchain, llamaindex)
-    needs: changes
-    if: needs.changes.outputs['python-agents'] == 'true'
+    needs: [changes, gates, unwired-service-suites]
+    if: always() && needs.gates.result == 'success' && needs.changes.outputs['python-agents'] == 'true' && needs.unwired-service-suites.result != 'cancelled'
     runs-on: [self-hosted, macOS]
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
-        with:
-          python-version: '3.12'
-        env:
-          # setup-python@v7 assumes the hosted-runner layout and mkdirs
-          # /Users/runner (Permission denied on this self-hosted Mac). Point
-          # its tool cache at a writable path in the workspace instead.
-          RUNNER_TOOL_CACHE: ${{ github.workspace }}/.tool-cache
-          AGENT_TOOLSDIRECTORY: ${{ github.workspace }}/.tool-cache
+      - name: Use the runner's installed Python 3.12
+        run: |
+          python="$HOME/.local/bin/python3.12"
+          if [ ! -x "$python" ]; then
+            echo "Python 3.12 is not installed at $python" >&2
+            exit 1
+          fi
+          "$python" --version
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: langchain_agent (blocking — 834 passing)
         run: |
           cd langchain_agent
-          python -m pip install --quiet --upgrade pip
-          [ -f requirements.txt ] && python -m pip install --quiet -r requirements.txt || true
-          python -m pytest tests/ -q
+          python3.12 -m venv .venv
+          .venv/bin/python -m pip install --quiet --upgrade pip
+          .venv/bin/python -m pip install --quiet -r requirements.txt
+          .venv/bin/python -m pytest tests/ -q
       - name: llamaindex_agent (blocking — 9 passing)
         run: |
           cd llamaindex_agent
-          [ -f requirements.txt ] && python -m pip install --quiet -r requirements.txt || true
-          python -m pytest tests/ -q
+          python3.12 -m venv .venv
+          .venv/bin/python -m pip install --quiet -r requirements.txt pytest
+          .venv/bin/python -m pytest tests/ -q
 
   authz-decision-tests:
     # demo_authz_server and demo_mcp_gateway had ~90 test cases that no job ran.
@@ -328,25 +380,25 @@ jobs:
     # constraint — a separate job means another runner and another npm install
     # for ~90s of tests. Bundling is why this job already spans three services.
     name: Service suites (authz-server + mcp-gateway + mcp-server + mcp-resource-server)
-    needs: changes
-    if: needs.changes.outputs['decision-services'] == 'true'
+    needs: [changes, gates, python-agent-suites]
+    if: always() && needs.gates.result == 'success' && needs.changes.outputs['decision-services'] == 'true' && needs.python-agent-suites.result != 'cancelled'
     runs-on: [self-hosted, macOS]
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: demo_mcp_gateway/package.json
+          # Keep the large shared-runner npm cache out of this grouped suite.
+          package-manager-cache: false
       - name: Install demo_authz_server deps
-        run: npm install --prefix demo_authz_server --no-audit --no-fund
+        run: npm ci --prefix demo_authz_server --no-audit --no-fund
       - name: Install demo_mcp_gateway deps
-        run: npm install --prefix demo_mcp_gateway --no-audit --no-fund
+        run: npm ci --prefix demo_mcp_gateway --no-audit --no-fund
       - name: Install oauth-mcp deps
-        run: npm install --prefix oauth-mcp --no-audit --no-fund
+        run: npm ci --prefix oauth-mcp --no-audit --no-fund
       - name: Install demo_mcp_resource_server deps
-        run: npm install --prefix demo_mcp_resource_server --no-audit --no-fund
+        run: npm ci --prefix demo_mcp_resource_server --no-audit --no-fund
       # node --test recursion differs by Node major; keep both globs so the
       # tests/ suites (UC16, tier) are never silently skipped.
       # BLOCKING as of 2026-09-07: the tolerance below was for pre-existing

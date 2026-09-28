@@ -211,16 +211,24 @@ export default function DemoStepsDropdown({
   // fetch before the previous vertical's request resolves — a monotonic
   // token discards a response that is no longer for the current vertical.
   const loadStepsReqIdRef = useRef(0);
+  const loadStepsControllerRef = useRef(null);
 
   const loadSteps = useCallback(() => {
     const reqId = ++loadStepsReqIdRef.current;
+    loadStepsControllerRef.current?.abort();
+    const controller = new AbortController();
+    loadStepsControllerRef.current = controller;
     setLoading(true);
     setError(null);
     const isAdmin = vertical === 'pingone-admin';
     const primaryIds = isAdmin ? ADMIN_PRIMARY_USE_CASE_IDS : DEMO_PRIMARY_USE_CASE_IDS;
     const advancedIds = isAdmin ? [] : DEMO_ADVANCED_USE_CASE_IDS;
     apiClient
-      .get('/api/use-cases', { params: { vertical }, _silent: true })
+      .get('/api/use-cases', {
+        params: { vertical },
+        _silent: true,
+        signal: controller.signal,
+      })
       .then(({ data }) => {
         if (reqId !== loadStepsReqIdRef.current) return;
         const catalog = data.useCases || [];
@@ -256,13 +264,21 @@ export default function DemoStepsDropdown({
         setPrivilegeSteps([]);
       })
       .finally(() => {
-        if (reqId === loadStepsReqIdRef.current) setLoading(false);
+        if (reqId === loadStepsReqIdRef.current) {
+          loadStepsControllerRef.current = null;
+          setLoading(false);
+        }
       });
   }, [vertical]);
 
   useEffect(() => {
     if (open) loadSteps();
     else setQuery('');
+    return () => {
+      ++loadStepsReqIdRef.current;
+      loadStepsControllerRef.current?.abort();
+      loadStepsControllerRef.current = null;
+    };
   }, [open, loadSteps]);
 
   useEffect(() => {

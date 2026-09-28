@@ -16,6 +16,24 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-09-28 — Graphify requeues intentionally skipped JSON on every refresh
+
+**What's wrong.** Graphify `0.9.71`'s zero-node recovery check re-queues
+manifest-stamped `.json` files with no graph nodes even when the JSON extractor
+intentionally returns `skipped: data json`. Excluding the large
+`step-verification`, `goldens`, and generated `visualizations` directories
+removes 891 of these files; 176 are still re-queued and parsed on a warm
+refresh.
+
+**Why it wasn't fixed now.** The recovery logic belongs to the installed
+third-party Graphify package. Excluding every remaining JSON path at the repo
+level would also keep application configs and docs out of a future semantic
+build, while patching site-packages would not be reproducible from this repo.
+
+**Real fix.** Have Graphify's recovery check honor the extractor's intentional
+`skipped` result (or persist that outcome in the AST cache), while keeping the
+files available to semantic extraction.
+
 ### [ ] 2026-09-14 — AIAgentFull Privilege MCP transport bypasses token exchange and authz gates
 
 **What's wrong.** The new `AIAgentFull` component's "Via Privilege Gateway" MCP transport calls `POST /api/privilege-mcp-simple/tools/call` (pre-existing, not introduced in this plan) which dispatches MCP tools directly without running the banking demo's RFC 8693 token exchange, PingOne Authorize gate, HITL interceptor, or kill-switch. All four live in `demo_api_server/services/mcpToolPipeline.js`, the protected core per `REGRESSION_PLAN.md` §1. Other MCP transports in the stack route through `mcpToolPipeline`, ensuring consistent authz policy and audit. The privilege-mcp endpoint is intentionally simple to serve as a policy-comparison tool (e.g., "see what an agent does when it ignores authorization"): not a production-equivalent path.

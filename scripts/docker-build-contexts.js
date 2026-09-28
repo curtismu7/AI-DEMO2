@@ -75,11 +75,6 @@ function copyTree(source, destination, options = {}) {
         visit(src, rel);
       } else if (entry.isFile()) {
         if (ignoredFile(entry.name, rel)) continue;
-        if (options.codeOnly) {
-          const ext = path.extname(entry.name).toLowerCase();
-          if (!CODE_INDEX_EXTENSIONS.has(ext) || /\.min\.(js|css)$/i.test(entry.name) || entry.name === 'package-lock.json') continue;
-          if (fs.statSync(src).size > 48 * 1024) continue;
-        }
         linkOrCopy(src, dest);
       }
     }

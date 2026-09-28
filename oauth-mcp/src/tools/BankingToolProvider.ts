@@ -14,6 +14,7 @@ import { ToolResult, AuthorizationRequest } from '../interfaces/mcp';
 import { Session, AuthErrorCodes, AuthenticationError } from '../interfaces/auth';
 import { BankingAPIError } from '../interfaces/banking';
 import { TokenExchangeService } from '../auth/TokenExchangeService';
+import type { TokenExchangeClient } from '../interfaces/tokenExchange';
 import { AuditLogger } from '../utils/AuditLogger';
 import { TokenChainAuditor } from './TokenChainAuditor';
 import { Logger, createDefaultLoggerConfig } from '../utils/Logger';
@@ -45,6 +46,7 @@ export class BankingToolProvider {
   private auditor: TokenChainAuditor;
   private logger: Logger;
   private tokenResolver: TokenResolver;
+  private pfTokenExchangeService?: TokenExchangeClient;
   private jwtVerifier: JwtClaimVerifier;
   private handlerDeps: HandlerDeps;
 
@@ -68,6 +70,7 @@ export class BankingToolProvider {
     return new TokenResolver({
       authManager: this.authManager,
       tokenExchangeService: this.tokenExchangeService,
+      pfTokenExchangeService: this.pfTokenExchangeService,
       tokenStore: this.tokenStore,
       logger: this.logger,
     });
@@ -80,6 +83,12 @@ export class BankingToolProvider {
    */
   setTokenExchangeService(svc: TokenExchangeService): void {
     this.tokenExchangeService = svc;
+    this.tokenResolver = this.buildTokenResolver();
+  }
+
+  /** Wire in the issuer-specific PF Step 9 service without changing PingOne exchange behavior. */
+  setPfTokenExchangeService(svc: TokenExchangeClient): void {
+    this.pfTokenExchangeService = svc;
     this.tokenResolver = this.buildTokenResolver();
   }
 
