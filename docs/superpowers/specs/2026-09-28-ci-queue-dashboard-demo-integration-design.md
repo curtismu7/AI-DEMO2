@@ -21,6 +21,8 @@ so a stable destination is needed before the demo can link to it.
 - Preserve the dashboard's existing run, workflow, and idle local runner
   controls, including the confirmed **Rerun failed jobs** action for failed
   completed runs.
+- Add a per-run detail panel inside the dashboard that explains run timing
+  and shows job and step progress.
 - Keep GitHub authentication inside the local `gh` process.
 
 ## Non-goals
@@ -67,6 +69,15 @@ runner service. The navigation change exposes those existing actions by opening
 the dashboard. This integration does not add a second implementation of those
 controls inside the demo UI.
 
+Each run card also has a **Run details** action that opens an accessible detail
+panel in the dashboard. The panel separates time waiting for a runner from
+workflow execution time, and lists each job and its steps with status and
+elapsed time. An in-progress step is identified as current. Missing timestamps
+or steps are labeled unavailable rather than guessed. Opening or closing the
+panel does not perform a GitHub mutation. Step data comes from the existing
+workflow-jobs response; it does not introduce another credential or service
+boundary.
+
 ### Errors and recovery
 
 - If the dashboard is stopped, opening the link reaches the browser's normal
@@ -92,6 +103,12 @@ controls inside the demo UI.
 - `demo_api_ui/src/components/__tests__/adminSideNav.test.jsx` and relevant
   navigation catalog tests — assert the item renders and opens the fixed local
   URL in a separate tab.
+- `scripts/ci-queue-dashboard/github.js` and `github.test.js` — retain normalized
+  GitHub job-step status and timing fields.
+- `scripts/ci-queue-dashboard/dashboard.js`, `index.html`, and `dashboard.css` —
+  render and style the selected run detail panel.
+- `scripts/ci-queue-dashboard/dashboard-model.js` and its tests — derive queue
+  and execution durations with missing timestamp handling.
 
 ## Verification
 
@@ -99,6 +116,8 @@ controls inside the demo UI.
   ports, plus the existing rerun action behavior.
 - Focused sidebar and navigation catalog tests verify the new entry and its
   separate-tab target.
+- Focused dashboard tests verify job-step normalization, run timing splits,
+  and opening/closing the run detail panel without triggering a mutation.
 - `cd demo_api_ui && npm run test:unit && npm run build` verifies the UI.
 - Run the §0 contrast auditor on the touched sidebar in light and dark themes;
   no new styling is planned.

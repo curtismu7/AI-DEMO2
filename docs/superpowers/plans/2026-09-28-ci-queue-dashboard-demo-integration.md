@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a demo navigation entry that opens the existing local CI queue dashboard in a separate browser tab at a stable localhost URL.
+**Goal:** Add a demo navigation entry that opens the existing local CI queue dashboard in a separate browser tab at a stable localhost URL, and add an in-dashboard run detail panel that explains job and step timing.
 
-**Architecture:** The dashboard server defaults to port `57500` and remains bound to `127.0.0.1`. The demo's visible Observability group gains a child action that opens that URL in a new tab; GitHub requests and the machine's `gh` login remain inside the standalone dashboard process.
+**Architecture:** The dashboard server defaults to port `57500` and remains bound to `127.0.0.1`. The demo's visible Observability group gains a child action that opens that URL in a new tab; GitHub requests and the machine's `gh` login remain inside the standalone dashboard process. The run detail panel uses the existing run snapshot and job response, including steps, without changing the authentication or mutation boundaries.
 
 **Tech Stack:** Node.js >=22, Node's built-in test runner, React 19, Vite 8, Vitest 3, and the existing `gh` CLI dashboard.
 
@@ -16,6 +16,7 @@
 - The demo opens `http://127.0.0.1:57500/` in a new tab using `noopener,noreferrer`.
 - GitHub credentials, dashboard API data, and action requests do not pass through the demo UI or BFF.
 - Existing run confirmation, stale-state checks, rerun behavior, workflow controls, and idle runner controls remain unchanged.
+- Run details are read-only and show queue wait separately from workflow execution, with job/step statuses and elapsed times.
 - Preserve demo sign-in, role resolution, routes, use-case authorization declarations, and existing sidebar behavior.
 - Project UI emoji, theme, and contrast rules remain in force; do not add CSS for this action.
 - After any `demo_api_ui/` edit, run its focused Vitest tests and `npm run build`.
@@ -32,6 +33,9 @@
 - `demo_api_ui/src/config/navStructureCatalog.js` — exposes the Observability children to Demo Config's navigation picker.
 - `demo_api_ui/src/components/__tests__/adminSideNav.test.jsx` — verifies the action opens the fixed URL in a separate tab.
 - `demo_api_ui/src/config/__tests__/navStructureCatalog.test.js` — verifies CI Queue Dashboard is in the Observability catalog.
+- `scripts/ci-queue-dashboard/github.js` and `github.test.js` — normalize job-step fields from GitHub's existing jobs response.
+- `scripts/ci-queue-dashboard/dashboard-model.js` and `.test.js` — derive queue and execution durations, handling missing timestamps.
+- `scripts/ci-queue-dashboard/index.html`, `dashboard.js`, and `dashboard.css` — add the accessible run detail panel and run-card action.
 
 ## Task 1: Set and document the dashboard's stable default port
 
@@ -132,7 +136,23 @@ git add demo_api_ui/src/components/AdminSideNav.jsx demo_api_ui/src/config/navSt
 git commit -m "feat: add CI dashboard to demo navigation"
 ```
 
-## Task 3: Verify the integrated local flow and update PR #383
+## Task 3: Add the read-only run detail panel
+
+**Files:**
+- Modify: `scripts/ci-queue-dashboard/github.js` and `github.test.js`
+- Modify: `scripts/ci-queue-dashboard/dashboard-model.js` and `dashboard-model.test.js`
+- Modify: `scripts/ci-queue-dashboard/index.html`, `dashboard.js`, and `dashboard.css`
+- Add or modify focused dashboard UI test coverage, following existing project test patterns
+
+**Interface:** Each run card has a **Run details** action that opens an accessible in-dashboard panel for that run. Show queue wait (`createdAt` to `startedAt`) and execution duration (`startedAt` to `completedAt`, or now while running) separately. Show each job's status and elapsed time, its steps' status and elapsed time, and clearly identify an in-progress step as current. If dates or job/step data are unavailable, say so without estimating from unrelated timestamps. Closing the panel restores the queue view; details are read-only and do not trigger run/workflow/runner actions.
+
+- [ ] **Step 1: Add focused failing tests for job-step normalization and run timing.** Preserve step name, status, conclusion, and start/completion timestamps from the existing GitHub jobs response. Test queue and execution split calculations for queued, running, completed, and incomplete-timestamp cases.
+- [ ] **Step 2: Add the panel interaction and content tests.** Verify selecting a run opens its details, the expected jobs/steps/current step and timing labels are shown, close works, and no mutation endpoint/action is requested.
+- [ ] **Step 3: Implement model/data normalization and panel rendering.** Reuse the existing job response; do not introduce another API call or change action/auth handling. Keep UI text content safe and accessible.
+- [ ] **Step 4: Run focused standalone dashboard tests.** Run `npm run test:ci-dashboard`; expected all dashboard tests pass.
+- [ ] **Step 5: Commit only the task paths.** Use `feat: add CI dashboard run details`.
+
+## Task 4: Verify the integrated local flow and update PR #383
 
 **Files:** No additional files unless verification finds a defect.
 
@@ -142,11 +162,9 @@ Run: `npm run test:ci-dashboard`
 
 Expected: all dashboard tests pass.
 
-- [ ] **Step 2: Run the required UI test and build gates.**
+- [ ] **Step 2: Re-run focused navigation tests and the UI build.** The Task 2 report records the full UI suite exiting without a final summary and multiple failures in untouched areas; do not rerun it here. Run `cd demo_api_ui && npx vitest run src/components/__tests__/adminSideNav.test.jsx src/config/__tests__/navStructureCatalog.test.js src/config/__tests__/navStructureCatalog.drift.test.js && npm run build`.
 
-Run: `cd demo_api_ui && npm run test:unit && npm run build`
-
-Expected: Vitest and Vite build both exit `0`.
+Expected: focused navigation tests and Vite build both exit `0`.
 
 - [ ] **Step 3: Run the navigation contrast check.** Open the demo's normal admin view in the browser, inspect the rendered Observability navigation in light and dark themes, and run `THEMING.md` §1 snippets A and B in both themes. Since this task adds no CSS, fix only a contrast issue caused by the added label/action.
 
@@ -179,3 +197,4 @@ Expected: PR #383 includes the stable-port and navigation commits; no deployment
 - The standalone dashboard binds to `127.0.0.1` and retains its existing local GitHub CLI, confirmation, stale-state, and runner-busy safeguards.
 - Rerun failed jobs remains available from failed completed runs on the standalone dashboard.
 - Dashboard tests, selected navigation tests, the UI build, contrast check, root allowlist, and diff check have fresh passing evidence.
+- Run details show the queue/execution split and job-step progress without adding a mutation path.
