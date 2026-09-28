@@ -9,6 +9,7 @@ import {
   parseProcessTable,
   VITEST_RSS_LIMIT_BYTES,
 } from '../run-vitest-with-memory-guard.mjs'
+import { applyVitestMemoryLimits } from '../vitest-memory-guard.config.mjs'
 
 async function waitForOutput(predicate, getOutput, timeoutMs = 3_000) {
   const startedAt = Date.now()
@@ -37,6 +38,40 @@ async function waitForProcessExit(pid, timeoutMs = 2_000) {
 describe('Vitest memory guard', () => {
   it('sets the per-process RSS ceiling to exactly 4 GB', () => {
     expect(VITEST_RSS_LIMIT_BYTES).toBe(4_000_000_000)
+  })
+
+  it('overrides legacy fork heap and parallelism while preserving target test config', () => {
+    const targetConfig = {
+      resolve: { alias: { '@': '/target/src' } },
+      test: {
+        environment: 'jsdom',
+        maxWorkers: 20,
+        poolOptions: {
+          forks: {
+            execArgv: ['--max-old-space-size=12288'],
+            maxForks: 20,
+            minForks: 8,
+          },
+        },
+      },
+    }
+
+    expect(applyVitestMemoryLimits(targetConfig)).toEqual({
+      resolve: { alias: { '@': '/target/src' } },
+      test: {
+        environment: 'jsdom',
+        pool: 'forks',
+        maxWorkers: 2,
+        poolOptions: {
+          forks: {
+            execArgv: ['--max-old-space-size=1400'],
+            maxForks: 2,
+            minForks: 1,
+          },
+        },
+      },
+    })
+    expect(targetConfig.test.poolOptions.forks.execArgv).toEqual(['--max-old-space-size=12288'])
   })
 
   it('chunks a full test-file list without dropping or reordering files', () => {
