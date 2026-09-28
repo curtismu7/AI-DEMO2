@@ -80,7 +80,27 @@ describe('DemoStepsDropdown', () => {
     expect(screen.getByTestId('demo-steps-trigger')).toHaveTextContent(/Demo steps/);
   });
 
-  it('portals its floating panel to the document body above the Command Dock', async () => {
+  it('aborts an outstanding catalog request when unmounted', () => {
+    let requestSignal;
+    apiClient.get.mockImplementationOnce((_url, config) => {
+      requestSignal = config.signal;
+      return new Promise(() => {});
+    });
+    const { unmount } = render(
+      <DemoStepsDropdown
+        open
+        onOpenChange={() => {}}
+        onSelect={() => {}}
+      />,
+    );
+
+    expect(requestSignal).toBeDefined();
+    expect(requestSignal.aborted).toBe(false);
+    unmount();
+    expect(requestSignal.aborted).toBe(true);
+  });
+
+  it('portals the floating panel to the document body without a modal scrim', async () => {
     render(
       <DemoStepsDropdown
         open
@@ -91,6 +111,7 @@ describe('DemoStepsDropdown', () => {
     const panel = await screen.findByTestId('demo-steps-popout');
     expect(panel.parentElement).toBe(document.body);
     expect(panel).toHaveAttribute('data-placement', 'floating');
+    expect(screen.queryByTestId('demo-steps-scrim')).not.toBeInTheDocument();
   });
 
   it('does not render the legacy live-P1AZ arming button (flags are on by default)', async () => {
@@ -120,7 +141,7 @@ describe('DemoStepsDropdown', () => {
     expect(onStopAgentClick).toHaveBeenCalledTimes(1);
   });
 
-  it('renders the close control and resize handles when open', async () => {
+  it('renders the floating panel close and resize affordances when open', async () => {
     render(
       <DemoStepsDropdown
         open
@@ -131,7 +152,7 @@ describe('DemoStepsDropdown', () => {
     await waitFor(() => expect(screen.getByTestId('demo-steps-popout')).toBeInTheDocument());
 
     expect(screen.getByTestId('demo-steps-close')).toBeInTheDocument();
-    expect(screen.getByRole('separator', { name: 'Resize southeast' })).toBeInTheDocument();
+    expect(screen.getByRole('separator', { name: 'Resize east' })).toBeInTheDocument();
     expect(screen.getByTestId('demo-steps-popout')).toHaveAttribute('data-placement', 'floating');
   });
 
@@ -151,7 +172,7 @@ describe('DemoStepsDropdown', () => {
     );
   });
 
-  it('stacks the drawer search above its actions when the drawer is narrow', () => {
+  it('stacks the floating panel search above its actions when the panel is narrow', () => {
     const css = fs.readFileSync(
       path.resolve(__dirname, '../AIAgent.css'),
       'utf8',
@@ -801,7 +822,7 @@ describe('DemoStepsDropdown — pingone-admin vertical', () => {
     );
     await waitFor(() => expect(apiClient.get).toHaveBeenCalledWith(
       '/api/use-cases',
-      { params: { vertical: 'pingone-admin' }, _silent: true },
+      expect.objectContaining({ params: { vertical: 'pingone-admin' }, _silent: true }),
     ));
   });
 

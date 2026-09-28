@@ -22,15 +22,10 @@
 }
 .dash-scope-injection-banner__close:hover { opacity: 1; }
 
-.admin-dashboard-page .card {
-  border-color: var(--admin-line);
-  background: var(--admin-surface);
-  color: var(--admin-ink);
-}
-
+/* Recent Activity empty-state ink follows the themed card surface. */
 .admin-dashboard-page .card .empty-state,
 .admin-dashboard-page .card .empty-state h3 {
-  color: var(--admin-ink);
+  color: var(--th-text);
 }
 
 /* ── Admin dashboard: skip link hidden until focused (standard skip-link

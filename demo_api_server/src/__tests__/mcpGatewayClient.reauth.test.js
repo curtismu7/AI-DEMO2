@@ -20,6 +20,16 @@ jest.mock('../../services/mcpToolAuthorizationService', () => ({
 
 const axios = require('axios');
 const { callToolViaGateway } = require('../../services/mcpGatewayClient');
+const previousPingGatewayUrl = process.env.MCP_PINGGATEWAY_URL;
+
+beforeEach(() => {
+  process.env.MCP_PINGGATEWAY_URL = 'https://api.ping.demo:3005';
+});
+
+afterAll(() => {
+  if (previousPingGatewayUrl === undefined) delete process.env.MCP_PINGGATEWAY_URL;
+  else process.env.MCP_PINGGATEWAY_URL = previousPingGatewayUrl;
+});
 
 function mock401(data) {
   axios.post = jest.fn().mockResolvedValue({ status: 401, headers: {}, data });

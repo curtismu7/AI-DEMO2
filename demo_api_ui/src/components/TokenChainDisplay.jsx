@@ -35,6 +35,7 @@ import { AGENT_ROLES, PRIMARY_AGENT } from '../config/agentTerminology';
 import "../styles/draggablePanel.css";
 
 const FETCH_COOLDOWN_MS = 5000; // Don't fetch more than once per 5 seconds
+const EMPTY_EVENTS = Object.freeze([]);
 
 // ─── RFC link helper ──────────────────────────────────────────────────────────
 
@@ -4589,7 +4590,9 @@ const TokenChainDisplay = ({ idTokenMode = false, hideHeader = false }) => {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const idJagEvents = mockIdJag || nativeIdJag ? idJagTrace.tokenEvents || [] : [];
+  const idJagEvents = mockIdJag || nativeIdJag
+    ? idJagTrace.tokenEvents || EMPTY_EVENTS
+    : EMPTY_EVENTS;
   const isLive = !mockIdJag && Boolean((ctx && ctx.events.length > 0) || (nativeIdJag && idJagEvents.length > 0));
   const hasRunEvidence = mockIdJag || isLive;
   const isSessionPreview =
@@ -4597,20 +4600,6 @@ const TokenChainDisplay = ({ idTokenMode = false, hideHeader = false }) => {
     Array.isArray(sessionPreviewEvents) &&
     sessionPreviewEvents.length > 0;
   const canClearChain = Boolean(hasRunEvidence || isSessionPreview);
-  const liveEvents = React.useMemo(
-    () => {
-      const events = Array.isArray(ctx?.events) ? ctx.events : [];
-      return events.filter((event) =>
-        ![
-          "id-jag-issued",
-          "id-jag-redeemed",
-          "pf-id-jag-issued",
-          "pf-id-jag-redeemed",
-        ].includes(event?.id),
-      );
-    },
-    [ctx?.events],
-  );
 
   /** Clear live/session events and the shared TraceRail so every Token Chain surface resets together. */
   const handleClearChain = useCallback(() => {
@@ -4638,13 +4627,23 @@ const TokenChainDisplay = ({ idTokenMode = false, hideHeader = false }) => {
       return ev;
     });
   }, [idTokenMode]);
-  const currentEvents = mockIdJag || (nativeIdJag && idJagEvents.length > 0)
-    ? idJagEvents
-    : isLive
-    ? liveEvents
-    : isSessionPreview
-      ? sessionPreviewEvents
-      : effectivePlaceholders;
+  const currentEvents = React.useMemo(() => {
+    if (mockIdJag || (nativeIdJag && idJagEvents.length > 0)) return idJagEvents;
+    if (isLive) {
+      return ctx.events.filter((event) => !["id-jag-issued", "id-jag-redeemed", "pf-id-jag-issued", "pf-id-jag-redeemed"].includes(event?.id));
+    }
+    if (isSessionPreview) return sessionPreviewEvents;
+    return effectivePlaceholders;
+  }, [
+    mockIdJag,
+    nativeIdJag,
+    idJagEvents,
+    isLive,
+    ctx?.events,
+    isSessionPreview,
+    sessionPreviewEvents,
+    effectivePlaceholders,
+  ]);
   // Prepend agent CC token event if present and not already represented in the chain.
   // Dedup: filter agentCcEvents to only include events whose IDs don't exist in currentEvents.
   const currentEventsWithCc = React.useMemo(() => {

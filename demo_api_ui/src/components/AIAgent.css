@@ -924,9 +924,6 @@ body > .banking-agent-float-root .banking-agent-panel {
   color: var(--th-text) !important;
   line-height: 1.4;
 }
-.banking-agent-panel.ba-mode-light .ba-subtitle {
-  color: var(--th-text) !important;
-}
 .ba-header-tools {
   display: flex;
   align-items: center;

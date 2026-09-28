@@ -96,7 +96,8 @@ describe("Focus Mode filmstrip guard", () => {
     expect(direct).toHaveLength(1);
     // Three ReelDocks now: float, clinical-split, and the pop-out modal.
     expect(docks).toHaveLength(3);
-    // Also gated while Sequence or Server Topology replaces the reel.
+    // The Sequence view and Server topology toggles each replace the reel at
+    // these sites, so none of their panels can render alongside the reel.
     expect(p2026).toMatch(/\{showFilmstrip && !showSequenceDiagram && !showServerTopology && <TokenChainFilmstrip\s*\/>\}/);
     const dockGuards = p2026.match(/\{showFilmstrip && !showSequenceDiagram && !showServerTopology && <ReelDock\s*\/>\}/g) || [];
     expect(dockGuards).toHaveLength(2);
