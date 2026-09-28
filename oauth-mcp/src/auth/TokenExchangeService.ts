@@ -9,6 +9,7 @@ import { AuditLogger } from '../utils/AuditLogger';
 import { 
   TokenExchangeRequest, 
   TokenExchangeResponse, 
+  TokenExchangeClient,
   TokenExchangeConfig,
   DelegationTokenInfo,
   TokenExchangeValidationResult,
@@ -19,7 +20,7 @@ import {
 import { AuthenticationError, AuthErrorCodes } from '../interfaces/auth';
 import { sanitizeAxiosCause } from '../utils/sanitizeAxiosCause';
 
-export class TokenExchangeService {
+export class TokenExchangeService implements TokenExchangeClient {
   private client: AxiosInstance;
   private config: TokenExchangeConfig;
   private logger: Logger;

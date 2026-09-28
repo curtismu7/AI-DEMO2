@@ -1,0 +1,56 @@
+{
+  "id": "aiDemoPfStep9TePolicy",
+  "name": "AI Demo PF Banking API Step 9 Exchange",
+  "actorTokenRequired": true,
+  "attributeContract": {
+    "coreAttributes": [
+      { "name": "subject" }
+    ],
+    "extendedAttributes": [
+      { "name": "scope" },
+      { "name": "client_id" },
+      { "name": "spiffeId" },
+      { "name": "priorAct" }
+    ]
+  },
+  "processorMappings": [
+    {
+      "attributeSources": [],
+      "attributeContractFulfillment": {
+        "subject": {
+          "source": { "type": "SUBJECT_TOKEN" },
+          "value": "Username"
+        },
+        "scope": {
+          "source": { "type": "CONTEXT" },
+          "value": "OAuthScopes"
+        },
+        "client_id": {
+          "source": { "type": "SUBJECT_TOKEN" },
+          "value": "client_id"
+        },
+        "spiffeId": {
+          "source": { "type": "ACTOR_TOKEN" },
+          "value": "client_id"
+        },
+        "priorAct": {
+          "source": { "type": "SUBJECT_TOKEN" },
+          "value": "act"
+        }
+      },
+      "issuanceCriteria": {
+        "conditionalCriteria": []
+      },
+      "subjectTokenType": "urn:ietf:params:oauth:token-type:access_token",
+      "subjectTokenProcessor": {
+        "id": "aiDemoPfAccessSubjectProcessor",
+        "location": "https://localhost:9999/pf-admin-api/v1/idp/tokenProcessors/aiDemoPfAccessSubjectProcessor"
+      },
+      "actorTokenType": "urn:ietf:params:oauth:token-type:access_token",
+      "actorTokenProcessor": {
+        "id": "aiDemoPfAccessSubjectProcessor",
+        "location": "https://localhost:9999/pf-admin-api/v1/idp/tokenProcessors/aiDemoPfAccessSubjectProcessor"
+      }
+    }
+  ]
+}

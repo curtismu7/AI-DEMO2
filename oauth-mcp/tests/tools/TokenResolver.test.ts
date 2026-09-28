@@ -41,6 +41,11 @@ function makeSession(overrides: Partial<Session> = {}): Session {
   };
 }
 
+function makeAgentToken(issuer: string, subject = 'user-1'): string {
+  const b64u = (o: object) => Buffer.from(JSON.stringify(o)).toString('base64url');
+  return `${b64u({ alg: 'RS256', typ: 'JWT' })}.${b64u({ iss: issuer, sub: subject })}.sig`;
+}
+
 describe('TokenResolver', () => {
   let authManager: jest.Mocked<BankingAuthenticationManager>;
   let tokenExchangeService: jest.Mocked<TokenExchangeService>;
@@ -151,8 +156,8 @@ describe('TokenResolver', () => {
 
   it('agent-step9-exchange: still exchanges a PingOne-issued agentToken when resource URI is configured', async () => {
     process.env.BANKING_API_RESOURCE_URI = 'https://banking.example';
-    const b64u = (o: object) => Buffer.from(JSON.stringify(o)).toString('base64url');
-    const pingOneToken = `${b64u({ alg: 'RS256' })}.${b64u({ iss: 'https://auth.pingone.com/env-123/as', sub: 'user-1' })}.sig`;
+    process.env.PINGONE_ISSUER = 'https://auth.pingone.com/env-123/as';
+    const pingOneToken = makeAgentToken(process.env.PINGONE_ISSUER);
     (tokenExchangeService.exchangeToken as jest.Mock).mockResolvedValue({
       access_token: 'resource-tok',
       token_type: 'Bearer',
@@ -164,10 +169,83 @@ describe('TokenResolver', () => {
     expect(res.token).toBe('resource-tok');
     expect(res.source).toBe('agent-step9-exchange');
     expect(tokenExchangeService.exchangeToken).toHaveBeenCalledTimes(1);
+    expect(tokenExchangeService.exchangeToken.mock.calls[0][0]).not.toHaveProperty('requested_token_type');
+  });
+
+  it('agent-step9-exchange: routes a PF-issued agent token to the PF exchange service without a resource selector', async () => {
+    process.env.BANKING_API_RESOURCE_URI = 'enduser.ping.demo';
+    process.env.PF_ISSUER_URI = 'https://local.ping-devops.com:9999';
+    const pfExchangeService = {
+      exchangeToken: jest.fn().mockResolvedValue({
+        access_token: 'pf-resource-token',
+        token_type: 'Bearer',
+        expires_in: 60,
+        issued_token_type: 'urn:ietf:params:oauth:token-type:access_token',
+      }),
+    };
+    const pfAgentToken = makeAgentToken(process.env.PF_ISSUER_URI);
+    const r = new TokenResolver({
+      authManager,
+      tokenExchangeService,
+      pfTokenExchangeService: pfExchangeService,
+      logger,
+    } as any);
+
+    const res = await r.resolve(makeSession(), baseTool, pfAgentToken);
+
+    expect(res.token).toBe('pf-resource-token');
+    expect(res.source).toBe('agent-step9-exchange');
+    expect(pfExchangeService.exchangeToken).toHaveBeenCalledWith(expect.objectContaining({
+      subject_token: pfAgentToken,
+      subject_token_type: 'urn:ietf:params:oauth:token-type:access_token',
+      requested_token_type: 'urn:ietf:params:oauth:token-type:access_token',
+      scope: 'read',
+    }));
+    expect(pfExchangeService.exchangeToken.mock.calls[0][0]).not.toHaveProperty('resource');
+    expect(tokenExchangeService.exchangeToken).not.toHaveBeenCalled();
+  });
+
+  it('agent-step9-exchange: partitions PF cached tokens by Banking API audience', async () => {
+    process.env.BANKING_API_RESOURCE_URI = 'enduser.ping.demo';
+    process.env.PF_ISSUER_URI = 'https://local.ping-devops.com:9999';
+    const pfExchangeService = {
+      exchangeToken: jest.fn().mockResolvedValue({
+        access_token: 'pf-resource-token',
+        token_type: 'Bearer',
+        expires_in: 60,
+        issued_token_type: 'urn:ietf:params:oauth:token-type:access_token',
+      }),
+    };
+    const pfAgentToken = makeAgentToken(process.env.PF_ISSUER_URI);
+    const r = new TokenResolver({
+      authManager,
+      tokenExchangeService,
+      pfTokenExchangeService: pfExchangeService,
+      logger,
+    } as any);
+    const session = makeSession();
+
+    await r.resolve(session, baseTool, pfAgentToken);
+    process.env.BANKING_API_RESOURCE_URI = 'https://banking.example';
+    await r.resolve(session, baseTool, pfAgentToken);
+
+    expect(pfExchangeService.exchangeToken).toHaveBeenCalledTimes(2);
+    expect(tokenExchangeService.exchangeToken).not.toHaveBeenCalled();
+  });
+
+  it('agent-step9-exchange: fails closed for a PF-issued token when PF Step 9 is not configured', async () => {
+    process.env.BANKING_API_RESOURCE_URI = 'enduser.ping.demo';
+    process.env.PF_ISSUER_URI = 'https://local.ping-devops.com:9999';
+    const pfAgentToken = makeAgentToken(process.env.PF_ISSUER_URI);
+    const r = new TokenResolver({ authManager, tokenExchangeService, logger });
+
+    await expect(r.resolve(makeSession(), baseTool, pfAgentToken)).rejects.toThrow(/PF Step 9/);
+    expect(tokenExchangeService.exchangeToken).not.toHaveBeenCalled();
   });
 
   it('agent-step9-exchange: exchanges when agentToken + resource URI present', async () => {
     process.env.BANKING_API_RESOURCE_URI = 'https://banking.example';
+    process.env.PINGONE_ISSUER = 'https://auth.pingone.com/env-123/as';
     (tokenExchangeService.exchangeToken as jest.Mock).mockResolvedValue({
       access_token: 'resource-tok',
       token_type: 'Bearer',
@@ -175,7 +253,7 @@ describe('TokenResolver', () => {
       issued_token_type: 'urn:ietf:params:oauth:token-type:access_token',
     });
     const r = new TokenResolver({ authManager, tokenExchangeService, logger });
-    const res = await r.resolve(makeSession(), baseTool, 'agent-tok');
+    const res = await r.resolve(makeSession(), baseTool, makeAgentToken(process.env.PINGONE_ISSUER));
     expect(res.token).toBe('resource-tok');
     expect(res.source).toBe('agent-step9-exchange');
     expect(tokenExchangeService.exchangeToken).toHaveBeenCalledTimes(1);

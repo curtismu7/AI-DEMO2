@@ -156,6 +156,27 @@ function buildPingGatewayPfExchangeEnv(apiVars = {}) {
 }
 
 /**
+ * oauth-mcp performs the final Banking API exchange for PF-issued agent tokens.
+ * It reuses the MCP-service actor client and secret already provisioned for the
+ * PF standard exchange; keep these credentials scoped to oauth-mcp rather than
+ * adding them to the shared environment emitted for every service.
+ */
+function buildOauthMcpPfStep9Env(apiVars = {}, vaultSecrets = {}) {
+  const gatewayPfEnv = buildPingGatewayPfExchangeEnv(apiVars);
+  return {
+    PF_ISSUER_URI: gatewayPfEnv.PF_ISSUER_URI,
+    PF_JWKS_URI: gatewayPfEnv.PF_JWKS_URI,
+    PF_TOKEN_ENDPOINT: gatewayPfEnv.PF_TOKEN_ENDPOINT,
+    PF_MCP_SERVICE_ACTOR_CLIENT_ID: apiVars.PF_MCP_SERVICE_ACTOR_CLIENT_ID || '',
+    PF_MCP_SERVICE_ACTOR_CLIENT_SECRET:
+      vaultSecrets.PF_MCP_SERVICE_ACTOR_CLIENT_SECRET || apiVars.PF_MCP_SERVICE_ACTOR_CLIENT_SECRET || '',
+    PF_MCP_SERVICE_ACTOR_TOKEN_ENDPOINT_AUTH_METHOD:
+      (apiVars.PF_MCP_SERVICE_ACTOR_TOKEN_ENDPOINT_AUTH_METHOD || 'basic').toLowerCase(),
+    PF_STANDARD_MCP_ACTOR_SCOPE: apiVars.PF_STANDARD_MCP_ACTOR_SCOPE || 'mcp:invoke',
+  };
+}
+
+/**
  * Decrypt a dotenvx `encrypted:...` value on its way into a GENERATED service
  * `.env`. Only demo_api_server/.env is encrypted at rest; the 11 files this
  * script writes are plaintext by design (they already carry PingOne client
@@ -677,7 +698,11 @@ async function main(deps = {}) {
   //
   // Degrades to the .env value when the vault is absent or locked, so a fresh
   // clone with no vault behaves as it always did.
-  const vaultSecrets = await loadVaultSecrets(['INTENT_TOKEN_SECRET', 'BFF_INTERNAL_SECRET', 'MCP_RESOURCE_SERVER_API_KEY', 'ENCRYPTION_MASTER_KEY', 'MCP_SERVER_ENCRYPTION_KEY', 'PINGONE_TOKEN_EXCHANGER_CLIENT_SECRET']);
+  const vaultSecrets = await loadVaultSecrets([
+    'INTENT_TOKEN_SECRET', 'BFF_INTERNAL_SECRET', 'MCP_RESOURCE_SERVER_API_KEY',
+    'ENCRYPTION_MASTER_KEY', 'MCP_SERVER_ENCRYPTION_KEY',
+    'PINGONE_TOKEN_EXCHANGER_CLIENT_SECRET', 'PF_MCP_SERVICE_ACTOR_CLIENT_SECRET',
+  ]);
   const fbVault = (key) => vaultSecrets[key] || fb(key);
   const existingResourceEnv = parseEnv(path.join(ROOT, 'demo_mcp_resource_server', '.env'));
   // This key is local service configuration, not a PingOne application secret.
@@ -811,6 +836,10 @@ async function main(deps = {}) {
     // run once" in that file's comment.
     PINGONE_MCP_EXCHANGER_CLIENT_ID:     creds.step9ExchangerClientId,
     PINGONE_MCP_EXCHANGER_CLIENT_SECRET: creds.step9ExchangerSecret,
+    // PF Step 9 is a separate issuer route. Its actor client is also the PF
+    // exchanger and is deliberately sourced from the existing protected BFF
+    // configuration, never from the PingOne Step 9 client.
+    ...buildOauthMcpPfStep9Env(apiVars, vaultSecrets),
     // Independent key, NOT derived from BFF_INTERNAL_SECRET. This key encrypts
     // persisted tokens at rest (EncryptedTokenStorage / EncryptionUtils), so
     // deriving it from the BFF HMAC secret meant one compromised value exposed
@@ -850,6 +879,8 @@ async function main(deps = {}) {
     'PINGONE_MCP_EXCHANGER_CLIENT_ID/SECRET is the Step 9 backend-exchange app;',
     'do not let it fall back to PINGONE_TOKEN_EXCHANGER_CLIENT_ID, which has no',
     'grant on Demo API (enduser.ping.demo) and silently breaks Step 9.',
+    'PF Step 9 uses the PF MCP-service actor client and a separate PF policy;',
+    'its protected client secret is copied only to oauth-mcp/.env.',
     'ENCRYPTION_KEY is independent of BFF_INTERNAL_SECRET on purpose — set',
     'MCP_SERVER_ENCRYPTION_KEY in demo_api_server/.env to pin it; rotating it',
     'orphans any existing *.enc token storage.',
@@ -1200,7 +1231,7 @@ if (require.main === module) {
 // the `require.main === module` guard above still drives the CLI path.
 module.exports = {
   loadVaultSecrets, writeEnvFile, dotenvxPlain, getRotatableVaultKeyMap,
-  buildPingGatewayPfExchangeEnv,
+  buildPingGatewayPfExchangeEnv, buildOauthMcpPfStep9Env,
   propagateServiceEnvs: main,
   // Exported so the container-vs-native path contract above is testable: the
   // two roots differ inside the BFF image and a regression there is invisible
