@@ -555,6 +555,28 @@ processed 181 code files, kept 5,243 unchanged, and took 22.1s (7.9s detect,
 Terraform/HCL files are represented; 176 intentionally skipped JSON files
 still re-queue, tracked in `TECH_DEBT.md`.
 
+### 2026-09-28 — Stable Token Chain events caused an unbounded UI test render loop
+
+**Files:** `demo_api_ui/src/components/TokenChainDisplay.jsx`,
+`demo_api_ui/src/components/__tests__/TokenChainDisplay.a2aProgress.test.jsx`,
+`demo_api_ui/src/components/__tests__/OAuthProviderToggle.idJagReset.test.jsx`.
+
+**What was broken:** Token Chain filtered the live event array during every
+render. An effect treated each newly allocated array as changed, called
+`setLastUpdated`, and triggered another render. The A2A handoff test then
+allocated indefinitely until the Vitest worker exhausted its heap. A separate
+provider-toggle test expected `/logout` navigation even though the component
+clears session state and reloads the current page.
+
+**What was fixed:** memoized the filtered live events against the context event
+array and added a render-settling regression test. Updated the provider-toggle
+test to assert the implemented page reload after state cleanup.
+
+**Do not break:** keep the filtered event reference stable while its source
+array is unchanged; refresh the Token Chain when the source array changes; keep
+provider-switch cleanup followed by a page reload.
+
+**Verify:** focused Token Chain unit test; full UI unit suite; `npm run build`.
 ### 2026-09-28 — Shared-Mac CI contention from duplicate runner registrations and caches
 
 **Files:** `.github/workflows/ci.yml`, `demo_api_ui/vite.config.js`, and the AIAgent test suites.
@@ -647,6 +669,24 @@ were canceled while the PR merge ref was being superseded by updates to main.
 The selector and gate share one runner, so make the gate depend on selection to
 avoid a long gate install delaying suite dispatch. Their fresh run is needed
 before treating those suites as verified.
+
+### 2026-09-28 — Demo Steps use cases were clipped in a multi-column grid
+
+**Files:** `demo_api_ui/src/components/AIAgent.css`, `REGRESSION_PLAN.md`.
+
+**What was broken:** Mission Control auto-filled narrow columns and forced use
+case names onto one line with ellipses. A long ID-JAG card also stretched every
+card sharing its grid row.
+
+**What was fixed:** the use-case cards now render as a single full-width list,
+with wrapping labels and equal-height rows that grow together when longer text
+wraps, so each phrase stays readable.
+
+**Do not break:** keep the existing selection, completion, progress, explain,
+and workload-link behavior; this layout change does not alter auth or sessions.
+
+**Verify:** `cd demo_api_ui && npm run build`; run the `THEMING.md` §1.4
+contrast auditor on Mission Control in both themes.
 
 ### 2026-09-28 — Demo Steps use cases were clipped in a multi-column grid
 
