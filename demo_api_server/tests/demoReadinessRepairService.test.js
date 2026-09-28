@@ -114,8 +114,11 @@ describe('demo readiness repair service', () => {
     await Promise.resolve();
     expect(settled).toBe(false);
     releaseWrite();
-    await expect(applying).rejects.toThrow(/abort|deadline|expir/i);
+    const failure = await applying.catch((error) => error);
+    expect(failure.message).toMatch(/abort|deadline|expir/i);
+    expect(failure.repairEvidence[0].after).toEqual(['read', 'write']);
     expect(adapter.write).toHaveBeenCalledTimes(1);
+    expect(adapter.readback).toHaveBeenCalledTimes(1);
   });
 
   test('deadline cancellation does not prevent isolated worker restoration and readback', async () => {
@@ -162,6 +165,49 @@ describe('demo readiness repair service', () => {
     expect(adapter.read.mock.calls[1][0]).not.toHaveProperty('signal');
     expect(adapter.read.mock.calls[1][0]).not.toHaveProperty('deadlineAt');
     expect(enabled).toBe(false);
+  });
+
+  test('cancellation during isolated-worker setup retains its context for cleanup', async () => {
+    let clockNow = NOW;
+    let startSetup;
+    let releaseSetup;
+    const setupStarted = new Promise((resolve) => { startSetup = resolve; });
+    const setupGate = new Promise((resolve) => { releaseSetup = resolve; });
+    const worker = {};
+    const adapter = {
+      createIsolatedWorker: jest.fn(async () => { startSetup(); await setupGate; return worker; }),
+      read: jest.fn(async () => false),
+      write: jest.fn(),
+      readback: jest.fn(),
+      restore: jest.fn(async () => undefined),
+    };
+    const sourceReaders = {
+      readinessWorkerFlag: jest.fn(() => ({
+        target: 'local', object: { id: 'ff_demo' }, expected: true,
+        sourceRef: 'demo_api_server/config/useCases.js#UC1', operation: 'Enable only for the isolated readiness worker',
+      })),
+    };
+    const service = createRepairService({ now: () => clockNow, adapters: { 'demo-feature-flag': adapter }, sourceReaders, verifyAdminConfirmation: async () => ({ subject: 'admin-1' }) });
+    const candidate = {
+      repairClass: 'demo-feature-flag', target: 'local', object: { id: 'ff_demo' }, current: false, expected: true,
+      sourceRef: 'demo_api_server/config/useCases.js#UC1', operation: 'Enable only for the isolated readiness worker',
+    };
+    const plan = service.planRepairs({ findings: [finding({ repairCandidates: [candidate] })], targets: TARGETS, now: NOW });
+    const deadlineAt = NOW + 1_000;
+    const controller = new AbortController();
+    const applying = service.applyRepairs({ digest: plan.digest, confirmedBy: ADMIN_ASSERTION, targets: TARGETS, now: NOW, deadlineAt, signal: controller.signal });
+
+    await setupStarted;
+    clockNow = deadlineAt;
+    controller.abort();
+    releaseSetup();
+
+    await expect(applying).rejects.toThrow(/abort|deadline|expir/i);
+    expect(adapter.write).not.toHaveBeenCalled();
+    expect(adapter.restore).toHaveBeenCalledWith(expect.objectContaining({ expected: false, workerContext: worker }));
+    expect(adapter.restore.mock.calls[0][0]).not.toHaveProperty('signal');
+    expect(adapter.read).toHaveBeenCalledTimes(1);
+    expect(adapter.read.mock.calls[0][0]).not.toHaveProperty('signal');
   });
 
   test('an altered current value or ambiguous object stops before the first write', async () => {

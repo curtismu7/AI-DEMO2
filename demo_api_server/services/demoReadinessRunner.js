@@ -199,13 +199,23 @@ async function startReadinessRun({
     try {
       const result = await Promise.race([operation, timeout]);
       if (result?.timedOut && drainOnTimeout) {
-        await operation.catch(() => {});
-        return result;
+        try {
+          return { ...result, completedResult: redactReadinessValue(await operation) };
+        } catch (error) {
+          return {
+            ...result,
+            adapterError: redactReadinessValue(error?.message || 'adapter failed'),
+            ...(Array.isArray(error?.repairEvidence) ? { repairEvidence: redactReadinessValue(error.repairEvidence) } : {}),
+          };
+        }
       }
       if (expired()) controller.abort();
       return result;
     } catch (error) {
-      return { adapterError: redactReadinessValue(error?.message || 'adapter failed') };
+      return {
+        adapterError: redactReadinessValue(error?.message || 'adapter failed'),
+        ...(Array.isArray(error?.repairEvidence) ? { repairEvidence: redactReadinessValue(error.repairEvidence) } : {}),
+      };
     } finally {
       if (timer) clearTimeout(timer);
     }
@@ -276,8 +286,16 @@ async function startReadinessRun({
       return makeResult();
     }
     const applyResult = await runAdapter('repair-apply', ({ signal }) => adapters.applyRepairs({ digest: repairPreview.digest, confirmedBy, targets: selectedTargets, deadlineAt, signal, now: nowFrom(clock) }), { drainOnTimeout: true });
-    if (applyResult?.timedOut || expired()) return finishDeadline();
+    if (applyResult?.timedOut || expired()) {
+      repairEvidence = applyResult?.completedResult
+        ? redactReadinessValue(applyResult.completedResult)
+        : Array.isArray(applyResult?.repairEvidence)
+          ? redactReadinessValue({ digest: repairPreview.digest, evidence: applyResult.repairEvidence })
+          : null;
+      return finishDeadline();
+    }
     if (applyResult?.adapterError) {
+      if (Array.isArray(applyResult.repairEvidence)) repairEvidence = redactReadinessValue({ digest: repairPreview.digest, evidence: applyResult.repairEvidence });
       checks.push({ id: 'repair:apply', status: 'blocked', required: true, phase: 'repair-apply', evidence: applyResult.adapterError });
       return makeResult();
     }

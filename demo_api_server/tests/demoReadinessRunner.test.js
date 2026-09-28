@@ -111,7 +111,7 @@ describe('startReadinessRun', () => {
     let applyStarted;
     const started = new Promise((resolve) => { applyStarted = resolve; });
     const gate = new Promise((resolve) => { releaseApply = resolve; });
-    const { adapters } = harness({ applyRepairs: async ({ digest, signal }) => { applyStarted(signal); await gate; return { digest }; } });
+    const { adapters } = harness({ applyRepairs: async ({ digest, signal }) => { applyStarted(signal); await gate; return { digest, evidence: [{ after: 'verified-after-timeout' }] }; } });
     let finalized = false;
     const running = startReadinessRun({ targets: ['local', 'se'], adapters, deadlineMs: 150, confirmRepairs: async ({ digest }) => ({ confirmed: true, digest, adminAssertion: { subject: 'readiness-admin' } }) }).finally(() => { finalized = true; });
     const signal = await started;
@@ -121,6 +121,7 @@ describe('startReadinessRun', () => {
     releaseApply();
     const result = await running;
     expect(result.status).toBe('deadline-exceeded');
+    expect(result.repairEvidence.evidence).toEqual([{ after: 'verified-after-timeout' }]);
     expect(finalized).toBe(true);
   });
 

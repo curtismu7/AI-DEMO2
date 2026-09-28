@@ -93,6 +93,19 @@ function sourceContractFor(change, classification, sourceReaders) {
   } };
 }
 
+function repairEvidenceFor(items) {
+  return redactReadinessValue(items.map((item) => ({
+    target: item.change.target,
+    object: item.change.object,
+    before: typeof item.current === 'undefined' ? item.change.current : item.current,
+    after: item.after,
+    restored: item.restored,
+    sourceRef: item.change.sourceRef,
+    operation: item.change.operation,
+    outcome: item.outcome || 'not-attempted',
+  })));
+}
+
 function createRepairService({ adapters = {}, sourceReaders = {}, verifyAdminConfirmation, repairabilityConfig = repairability, now: clock = Date.now, planTtlMs = DEFAULT_PLAN_TTL_MS } = {}) {
   const plans = new Map();
   const driftClasses = repairabilityConfig.driftClasses || {};
@@ -154,10 +167,10 @@ function createRepairService({ adapters = {}, sourceReaders = {}, verifyAdminCon
     if (deadlineAt && clock() >= deadlineAt) throw new Error('repair deadline expired');
   }
 
-  async function callAdapter(adapter, method, args, control) {
+  async function callAdapter(adapter, method, args, control, { allowCompletionAfterCancellation = false } = {}) {
     assertActive(control);
     const result = await adapter[method]({ ...args, signal: control?.signal, deadlineAt: control?.deadlineAt });
-    assertActive(control);
+    if (!allowCompletionAfterCancellation) assertActive(control);
     return result;
   }
 
@@ -181,7 +194,7 @@ function createRepairService({ adapters = {}, sourceReaders = {}, verifyAdminCon
         assertActive(control);
         const adapter = adapters[change.repairClass];
         const needsWorker = driftClasses[change.repairClass]?.requiresIsolatedWorker;
-        const workerContext = needsWorker ? await callAdapter(adapter, 'createIsolatedWorker', { target: change.target, object: change.object, sourceRef: change.sourceRef }, control) : undefined;
+        const workerContext = needsWorker ? await callAdapter(adapter, 'createIsolatedWorker', { target: change.target, object: change.object, sourceRef: change.sourceRef }, control, { allowCompletionAfterCancellation: true }) : undefined;
         if (needsWorker && (!workerContext || typeof workerContext !== 'object')) throw new Error('trusted isolated worker adapter did not provide a worker context');
         const item = { change, adapter, workerContext, needsWorker };
         if (needsWorker) prewrites.push(item);
@@ -195,11 +208,33 @@ function createRepairService({ adapters = {}, sourceReaders = {}, verifyAdminCon
       for (const item of prewrites) {
         const { change, adapter, current, workerContext } = item;
         if (item.outcome === 'already-applied') { item.after = current; continue; }
-        await callAdapter(adapter, 'write', { ...change, current, workerContext, digest: plan.digest, idempotencyKey: plan.digest, confirmedBy: administrator.subject }, control);
-        const after = await callAdapter(adapter, 'readback', { target: change.target, object: change.object, sourceRef: change.sourceRef, workerContext }, control);
-        if (!sameValue(after, change.expected)) throw new Error('repair readback does not match the expected value');
+        assertActive(control);
+        let writeError;
+        try {
+          await adapter.write({ ...change, current, workerContext, digest: plan.digest, idempotencyKey: plan.digest, confirmedBy: administrator.subject, signal, deadlineAt });
+        } catch (error) {
+          writeError = error;
+        }
+
+        // Once a write has started, always read it back after the call settles,
+        // even if the run deadline has fired. This read is the evidence needed
+        // to determine whether the provider accepted the write before abort.
+        let after;
+        let readbackError;
+        try {
+          after = await adapter.readback({ target: change.target, object: change.object, sourceRef: change.sourceRef, workerContext });
+        } catch (error) {
+          readbackError = error;
+        }
+        if (readbackError || !sameValue(after, change.expected)) {
+          const verificationError = readbackError || new Error('repair readback does not match the expected value');
+          if (writeError) throw new AggregateError([writeError, verificationError], writeError.message || 'repair write and readback failed', { cause: writeError });
+          throw verificationError;
+        }
         item.after = after;
         item.outcome = 'applied';
+        if (writeError) throw writeError;
+        assertActive(control);
       }
     } catch (error) {
       applyError = error;
@@ -207,34 +242,38 @@ function createRepairService({ adapters = {}, sourceReaders = {}, verifyAdminCon
 
     const cleanupFailures = [];
     for (const item of prewrites.filter((entry) => entry.needsWorker).reverse()) {
+      const original = item.change.current;
       try {
         // Restoration is compensating safety work. It must still run after the
         // readiness deadline aborts the in-flight apply, so it deliberately
         // receives no already-aborted run signal or expired deadline.
-        await item.adapter.restore({ target: item.change.target, object: item.change.object, expected: item.change.current, workerContext: item.workerContext, digest: plan.digest });
+        await item.adapter.restore({ target: item.change.target, object: item.change.object, expected: original, workerContext: item.workerContext, digest: plan.digest });
       } catch (error) {
         cleanupFailures.push(error);
       }
       try {
         const restored = await item.adapter.read({ target: item.change.target, object: item.change.object, sourceRef: item.change.sourceRef, workerContext: item.workerContext });
-        if (!sameValue(restored, item.change.current)) throw new Error('isolated feature-flag restore readback does not match the original value');
+        if (!sameValue(restored, original)) throw new Error('isolated feature-flag restore readback does not match the original value');
         item.restored = restored;
       } catch (error) {
         cleanupFailures.push(error);
       }
     }
     if (applyError) {
+      let failure = applyError instanceof Error ? applyError : new Error('repair apply failed');
       if (cleanupFailures.length) {
-        const failure = new AggregateError([applyError, ...cleanupFailures], 'repair apply and isolated worker cleanup failed', { cause: applyError });
+        failure = new AggregateError([applyError, ...cleanupFailures], 'repair apply and isolated worker cleanup failed', { cause: applyError });
         failure.applyError = applyError;
-        throw failure;
       }
-      throw applyError;
+      failure.repairEvidence = repairEvidenceFor(prewrites);
+      throw failure;
     }
     if (cleanupFailures.length) {
-      throw new AggregateError(cleanupFailures, 'isolated worker cleanup failed');
+      const failure = new AggregateError(cleanupFailures, 'isolated worker cleanup failed');
+      failure.repairEvidence = repairEvidenceFor(prewrites);
+      throw failure;
     }
-    const evidence = prewrites.map((item) => redactReadinessValue({ target: item.change.target, object: item.change.object, before: item.current, after: item.after, restored: item.restored, sourceRef: item.change.sourceRef, operation: item.change.operation, outcome: item.outcome }));
+    const evidence = repairEvidenceFor(prewrites);
     plan.confirmed = true;
     return redactReadinessValue({ planId: plan.planId, digest: plan.digest, confirmedBy: administrator.subject, evidence, blocked: plan.blocked });
   }
