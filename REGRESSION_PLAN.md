@@ -188,6 +188,29 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-28 — Readiness modal body missed the shared scroll surface
+
+**Files:** `demo_api_ui/src/components/AdminSideNav.jsx`,
+`demo_api_server/tests/mcpGatewayConfig.test.js`.
+
+**What was broken:** The Admin Reset Demo readiness modal rendered its long
+preview and findings directly in the modal body without the required
+`.dm-scroll` wrapper. The body had no shared padding/scroll behavior, so longer
+reports could be clipped. The gateway-push persistence regression also lacked an
+assertion that the intended store write was attempted.
+
+**What was fixed:** Put the existing readiness content on the shared scroll
+surface. Keep the BFF store failure active through the request and assert the
+exact persisted payload and single call, so the test verifies the gateway-push
+write failure path explicitly.
+
+**Do not break:** Preserve the readiness/reset/repair flow and its admin
+confirmation, and keep PingOne/PingFederate login and audience handling
+unchanged.
+
+**Verify:** `dmScrollContract.test.js` (2/2), `mcpGatewayConfig.test.js` (16/16),
+UI production build, and rendered modal contrast audit in light and dark themes.
+
 ### 2026-09-28 — PF active provider broke the PingOne MCP machine-token chain
 
 **Files:** `demo_api_server/services/oauthEndpointResolver.js`,

@@ -2362,7 +2362,7 @@ export default function AdminSideNav({
         minWidth={520}
         onClose={closeReadinessJob}
       >
-        <div className="admin-side-nav__readiness-content" aria-live="polite">
+        <div className="dm-scroll admin-side-nav__readiness-content" aria-live="polite">
           <p className="admin-side-nav__readiness-intro">
             Checking all 46 Demo Steps against local Docker and hosted SE, with PingOne and PingFederate sessions and UC40 ID-JAG coverage.
           </p>
