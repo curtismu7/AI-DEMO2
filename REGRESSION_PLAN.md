@@ -212,7 +212,9 @@ Vitest, API and unwired-service CI jobs on the updated PR.
 The first rerun exposed a missing test dependency in `llamaindex_agent`: its
 runtime requirements do not include pytest, and the workflow suppressed pip
 installation errors. Install pytest explicitly for that suite and fail the job
-if either agent's requirements cannot be installed. The API/UI/unwired jobs
+if either agent's requirements cannot be installed. Several Node jobs also
+retained automatic setup-node npm caching even though the shared-runner cache is
+over 1 GiB; disable it consistently across all jobs. The API/UI/unwired jobs
 were canceled while the PR merge ref was being superseded by updates to main;
 their fresh run is needed before treating those suites as verified.
 

@@ -190,8 +190,9 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: demo_api_ui/package.json
+          # The shared Mac's npm cache is over 1 GiB and costs more time to
+          # restore/save than it saves during dependency installation.
+          package-manager-cache: false
       - name: Install deps
         run: npm install --prefix demo_api_ui --no-audit --no-fund
       # Vitest, not jest — see demo_api_ui/CLAUDE.md. CI=true keeps the reporter
@@ -247,6 +248,7 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
+          package-manager-cache: false
       # demo_agent_service/tests/vault.test.ts imports ACROSS the package
       # boundary — ../demo_api_server/lib/vault/ — which requires argon2, a
       # demo_api_server dependency. Locally that resolves because the sibling's
@@ -340,8 +342,8 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: demo_mcp_gateway/package.json
+          # Keep the large shared-runner npm cache out of this grouped suite.
+          package-manager-cache: false
       - name: Install demo_authz_server deps
         run: npm install --prefix demo_authz_server --no-audit --no-fund
       - name: Install demo_mcp_gateway deps
