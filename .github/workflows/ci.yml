@@ -91,7 +91,9 @@ jobs:
 
   gates:
     name: Hygiene + topology gates
-    # Keep the third Mac slot dedicated to the selector and repo gates.
+    needs: changes
+    # Run selection first on this dedicated runner, then use its remaining time
+    # for the repository gates while the affected suites fan out.
     runs-on: [ci-gates]
     timeout-minutes: 15
     steps:
