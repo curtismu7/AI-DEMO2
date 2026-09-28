@@ -188,6 +188,35 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-28 — Graphify refresh cost and parser warnings
+
+**Files:** `CLAUDE.md`, `.graphifyignore`,
+`demo_api_server/services/agentRunContext.js`,
+`demo_api_ui/src/components/education/{AiPlatformLandscapePanel,IntentAuthStandardsPanel,LlmLandscapePanel}.js`.
+
+**What was broken:** the post-edit `graphify update .` instruction performed a
+full AST scan. Graphify also re-queued 1,068 JSON files that its extractor
+intentionally skipped as data, lacked the optional HCL grammar, and flagged
+literal NUL/JSX ampersands in four source files as partial parses.
+
+**What was fixed:** use manifest-backed `graphify extract . --code-only
+--no-cluster --timing`; exclude the large step-verification/golden data and
+generated execution traces; spell the run-key separator as `\u0000` and encode
+JSX ampersands as entities so displayed text stays the same. The local Graphify
+tool was upgraded to 0.9.71 and `tree-sitter-hcl` installed.
+
+**Do not break:** session+run scoped context keys and the `LLM token custody`
+invariant; preserve the current JSX text and keep application behavior
+independent of Graphify exclusions.
+
+**Verify:** `node --check demo_api_server/services/agentRunContext.js` passed;
+the Graphify extractor reported no parse errors for the four changed files;
+`cd demo_api_ui && npm run build` passed. The incremental no-cluster refresh
+processed 181 code files, kept 5,243 unchanged, and took 22.1s (7.9s detect,
+5.7s AST, 7.1s write), producing 66,751 nodes and 121,389 edges. All six
+Terraform/HCL files are represented; 176 intentionally skipped JSON files
+still re-queue, tracked in `TECH_DEBT.md`.
+
 ### 2026-09-28 — Stable Token Chain events caused an unbounded UI test render loop
 
 **Files:** `demo_api_ui/src/components/TokenChainDisplay.jsx`,
@@ -210,7 +239,6 @@ array is unchanged; refresh the Token Chain when the source array changes; keep
 provider-switch cleanup followed by a page reload.
 
 **Verify:** focused Token Chain unit test; full UI unit suite; `npm run build`.
-
 ### 2026-09-28 — Shared-Mac CI contention from duplicate runner registrations and caches
 
 **Files:** `.github/workflows/ci.yml`.
