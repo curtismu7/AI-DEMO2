@@ -2,6 +2,8 @@ import React from "react";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+const reactFlowMocks = vi.hoisted(() => ({ fitView: vi.fn(), setViewport: vi.fn() }));
+
 vi.mock("@xyflow/react", async () => {
   const ReactModule = await import("react");
   return {
@@ -27,7 +29,7 @@ vi.mock("@xyflow/react", async () => {
       children,
     ),
     ReactFlowProvider: ({ children }) => children,
-    useReactFlow: () => ({ fitView: vi.fn() }),
+    useReactFlow: () => ({ fitView: reactFlowMocks.fitView, getViewport: () => ({ x: 24, y: 36, zoom: 0.62 }), setViewport: reactFlowMocks.setViewport }),
   };
 });
 
@@ -35,6 +37,24 @@ import ServerTopologyPage from "../ServerTopologyPage";
 import { PLAYBACKS, SERVER_EDGES } from "../serverTopologyData";
 
 describe("Server topology use-case playback", () => {
+  it("fits the current topology for print and restores the interactive viewport afterward", () => {
+    reactFlowMocks.fitView.mockClear();
+    reactFlowMocks.setViewport.mockClear();
+    render(<ServerTopologyPage />);
+
+    window.dispatchEvent(new Event("beforeprint"));
+    expect(reactFlowMocks.fitView).toHaveBeenCalledWith(expect.objectContaining({
+      padding: 0.1,
+      duration: 0,
+    }));
+
+    window.dispatchEvent(new Event("afterprint"));
+    expect(reactFlowMocks.setViewport).toHaveBeenCalledWith(
+      { x: 24, y: 36, zoom: 0.62 },
+      { duration: 0 },
+    );
+  });
+
   it("shows a full numbered route and its result in the use-case selector", () => {
     render(<ServerTopologyPage />);
 
@@ -55,6 +75,21 @@ describe("Server topology use-case playback", () => {
     expect(within(selector).getByRole("option", {
       name: /Agent → Demo Agent Gateway → API-key backend.*Mortgage data returned.*key stays server-side/i,
     })).toBeInTheDocument();
+  });
+
+  it("shows PDF and Lucidchart downloads on the topology page", () => {
+    render(<ServerTopologyPage />);
+
+    const exports = screen.getByRole("group", { name: "Export server topology" });
+    expect(within(exports).getByRole("button", { name: "Save as PDF" })).toBeInTheDocument();
+    expect(within(exports).getByRole("link", { name: "Download Lucidchart CSV" })).toHaveAttribute(
+      "href",
+      "/exports/server-topology-lucidchart.csv",
+    );
+    expect(within(exports).getByRole("link", { name: "Download details CSV" })).toHaveAttribute(
+      "href",
+      "/exports/server-topology-details.csv",
+    );
   });
 
   it("keeps each advertised use case tied to real topology connections and an outcome", () => {

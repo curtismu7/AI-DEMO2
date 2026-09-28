@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Background,
   BackgroundVariant,
@@ -13,6 +13,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import { DEMO_STEP_USE_CASES, GROUPS, PLAYBACKS, RFC, SERVER_EDGES, SERVER_MAP, SERVER_ZONES, SPECS } from "./serverTopologyData";
 import "./ServerTopologyPage.css";
+import ServerTopologyExportControls from "./ServerTopologyExportControls";
 
 const LAYER_OPTIONS = [
   ["protocol", "Protocols"], ["network", "Network"], ["security", "Security"], ["standards", "RFCs & specs"],
@@ -94,6 +95,34 @@ function FitFilteredServices({ filter, flowOnly, playbackSteps }) {
     }, 180);
     return () => window.clearTimeout(timer);
   }, [filter, fitView, flowOnly, playbackSteps]);
+  return null;
+}
+
+function FitTopologyForPrint({ filter, flowOnly, playbackSteps }) {
+  const { fitView, getViewport, setViewport } = useReactFlow();
+  const previousViewport = useRef(null);
+
+  useEffect(() => {
+    const fitForPrint = () => {
+      previousViewport.current = getViewport();
+      const inFlow = flowOnly ? flowNodeIds(playbackSteps) : null;
+      const visible = SERVER_MAP
+        .filter((node) => inFlow ? inFlow.has(node.id) : matchesFilter(node, filter))
+        .map(({ id }) => ({ id }));
+      fitView({ nodes: visible, padding: 0.1, minZoom: 0.12, maxZoom: 1, duration: 0 });
+    };
+    const restoreAfterPrint = () => {
+      if (previousViewport.current) setViewport(previousViewport.current, { duration: 0 });
+      previousViewport.current = null;
+    };
+    window.addEventListener("beforeprint", fitForPrint);
+    window.addEventListener("afterprint", restoreAfterPrint);
+    return () => {
+      window.removeEventListener("beforeprint", fitForPrint);
+      window.removeEventListener("afterprint", restoreAfterPrint);
+    };
+  }, [filter, fitView, flowOnly, getViewport, playbackSteps, setViewport]);
+
   return null;
 }
 
@@ -279,6 +308,7 @@ function TopologyCanvas({
         <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="var(--stm-dot)" />
         <Controls position="top-right" showInteractive={false} />
         <FitFilteredServices filter={filter} flowOnly={flowOnly} playbackSteps={playbackSteps} />
+        <FitTopologyForPrint filter={filter} flowOnly={flowOnly} playbackSteps={playbackSteps} />
       </ReactFlow>
       <button className="stm-fit-button" type="button" onClick={onFit}>{flowOnly ? "Fit current flow" : "Fit all servers"}</button>
     </div>
@@ -308,6 +338,15 @@ function ServerTopologyContent() {
   const [playing, setPlaying] = useState(false);
 
   const playback = PLAYBACKS[scenario];
+
+  useEffect(() => {
+    const style = document.createElement("style");
+    style.setAttribute("data-server-topology-print", "");
+    style.textContent = "@media print { @page { size: A4 landscape; margin: 8mm; } }";
+    document.head.appendChild(style);
+    return () => style.remove();
+  }, []);
+
   const activePlaybackEdge = playing ? playback.steps[stepIndex]?.edgeId : null;
   const currentStep = playback.steps[stepIndex];
   const stepDetails = playing
@@ -394,6 +433,7 @@ function ServerTopologyContent() {
             <input id="stm-flow-only" type="checkbox" checked={flowOnly} onChange={(event) => setFlowOnly(event.target.checked)} />
             <span>Flow boxes only</span>
           </label>
+          <ServerTopologyExportControls />
         </div>
         {!flowOnly && <nav className="stm-filters" aria-label="Filter servers by category">
           <span>Show</span>
