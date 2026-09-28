@@ -188,6 +188,32 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-28 — Dashboard session and greeting contrast
+
+**Files:** `demo_api_ui/src/components/TopNav.css`,
+`demo_api_ui/src/components/AgentGreetingHero.module.css`,
+`demo_api_ui/src/components/__tests__/DashboardContrast.test.js`,
+`REGRESSION_PLAN.md`.
+
+**What was broken:** the customer session label and View Token action were too
+dim against the blue top navigation. The greeting overlay also left white hero
+text below the large-text contrast threshold over bright image areas.
+
+**What was fixed:** the session label and token action use white text, with an
+underline hover state that retains the same contrast. The hero image overlay is
+stronger at both gradient stops so the greeting remains readable over bright
+pixels.
+
+**Do not break:** preserve the top navigation's theme-driven background and the
+hero image/greeting layout; keep both fixes limited to contrast styling.
+
+**Verify:** `cd demo_api_ui && npm run test:unit --
+src/components/__tests__/DashboardContrast.test.js
+src/components/__tests__/AIAgent.headerControls.test.js
+src/components/__tests__/AIAgent.surfaceSelectorLayout.test.js` (20/20); `cd
+demo_api_ui && npm run build`; inspect contrast in the rendered dashboard in
+light and dark themes.
+
 ### 2026-09-28 — Embedded Token topology crowded the agent column
 
 **Files:** `demo_api_ui/src/components/TokenChainFilmstrip.css`,
