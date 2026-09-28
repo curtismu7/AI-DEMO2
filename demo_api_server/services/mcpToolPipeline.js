@@ -265,6 +265,7 @@ async function runMcpToolPipeline(ctx) {
   // site further down can gate on the same value — a call either goes through
   // the real gateway or it doesn't, decided once per pipeline run.
   const useGateway = deps.config.useGateway;
+  const routingConfig = require('./configStore');
 
   const flowTraceId = ctx.flowTraceId;
   const startTime = ctx.startTime;
@@ -999,7 +1000,6 @@ async function runMcpToolPipeline(ctx) {
     // must already be scoped to the gateway audience (MCP_GW_RESOURCE_URI).
     // Graceful fallback: if MCP_GATEWAY_HTTP_URL is not set, use the previous direct path.
     const configuredGatewayHttpUrl = deps.config.gatewayHttpUrl;
-    const routingConfig = require('./configStore');
     const pingGatewayHttpUrl = (process.env.MCP_PINGGATEWAY_URL
       || routingConfig.getEffective('mcp_pinggateway_url') || '').replace(/\/$/, '');
     const nodeGatewayHttpUrl = (process.env.MCP_DEMO_GATEWAY_URL
