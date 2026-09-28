@@ -188,6 +188,36 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-28 — Dashboard session and greeting contrast
+
+**Files:** `demo_api_ui/src/components/TopNav.css`,
+`demo_api_ui/src/components/AgentGreetingHero.module.css`,
+`demo_api_ui/src/components/__tests__/DashboardContrast.test.js`,
+`demo_api_ui/src/components/ServerTopologyPage.css`, `REGRESSION_PLAN.md`.
+
+**What was broken:** the customer session label and View Token action were too
+dim against the blue top navigation. The greeting overlay also left white hero
+text below the large-text contrast threshold over bright image areas. The
+topology communication label used an undefined font-size token.
+
+**What was fixed:** the session label and token action use the vertical's
+`--brand-topnav-text` color, with an underline hover state that retains the same
+contrast. The hero image overlay is stronger at both gradient stops so the
+greeting remains readable over bright pixels. The topology label now uses the
+defined 10px `--font-size-3xs` token.
+
+**Do not break:** preserve the top navigation's theme-driven background and the
+hero image/greeting layout; keep these fixes limited to contrast styling and
+the defined topology font-size scale.
+
+**Verify:** `cd demo_api_ui && npm run test:unit --
+src/__tests__/signinAccentTokens.test.js
+src/components/__tests__/DashboardContrast.test.js
+src/components/__tests__/AIAgent.headerControls.test.js
+src/components/__tests__/AIAgent.surfaceSelectorLayout.test.js` (29/29); `cd
+demo_api_ui && npm run build`; inspect contrast in the rendered dashboard in
+light and dark themes.
+
 ### 2026-09-28 — Readiness modal body missed the shared scroll surface
 
 **Files:** `demo_api_ui/src/components/AdminSideNav.jsx`,
@@ -286,6 +316,7 @@ tests/bankingMcpToolAliases.test.js tests/mcpBankingToolAliasesRoute.test.js
 `src/__tests__/mcpToolPipeline.characterization.test.js` suite remains red
 14/54 when run alone; its gateway-audit/HITL cases do not import the changed
 alias resolver.
+
 ### 2026-09-28 — User status returned 500 after logout destroyed the session
 
 **Files:** `routes/oauthUser.js`,
