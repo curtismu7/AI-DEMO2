@@ -188,6 +188,50 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-28 — PF active provider broke the PingOne MCP machine-token chain
+
+**Files:** `demo_api_server/services/oauthEndpointResolver.js`,
+`demo_api_server/services/agentCCTokenService.js`,
+`demo_api_server/middleware/auth.js`,
+`demo_api_server/src/__tests__/agentCCTokenService.scopeVertical.test.js`,
+`demo_api_server/tests/oauth-endpoint-config.test.js`,
+`demo_api_server/tests/verticalToolAudience.regression.test.js`.
+
+**What was broken:** when the BFF's active user provider was PingFederate,
+`agentCCTokenService` posted PingOne MCP token-exchanger credentials to the
+PingFederate token endpoint. PF rejected them as `invalid_client`, and the
+subject-token route surfaced a 502. OAuth error bodies and tokenless 2xx
+responses were also treated as successful responses until a later route check.
+After that endpoint mismatch was corrected, Step 9 successfully exchanged the
+machine token for `aud=enduser.ping.demo`, but the BFF still tried PF's JWKS for
+the PingOne signature and returned `invalid_token`.
+
+**What was fixed:** resolve the machine-token endpoint independently from the
+active interactive-login provider: use `PINGONE_TOKEN_ENDPOINT` when set, else
+derive the PingOne endpoint from the configured region and environment. Reject
+non-2xx OAuth responses, any response containing an OAuth `error` (including a
+malformed 2xx response that also includes `access_token`), and responses without
+`access_token` with a safe, actionable error. The BFF now also resolves PingOne
+issuer/JWKS independently and verifies a token against PingOne's JWKS when its
+exact configured issuer matches, while PF-issued tokens continue through PF's
+JWKS. This is an intentional PF/PingOne difference: interactive login can use
+PF, while this MCP machine credential and its resource token are PingOne-issued.
+
+**Do not break:** keep browser login and user-token provider selection tied to
+the active provider. Keep MCP machine credentials on the PingOne endpoint unless
+an explicit machine-token endpoint override is configured; never send those
+credentials to the active user's IdP by default. Validate PingOne tokens only
+against the exact configured PingOne issuer and its JWKS; preserve the PF issuer
+and JWKS path. Continue enforcing the BFF audience and scope checks after
+signature validation.
+
+**Verify:** from `demo_api_server`, `CI=true npx jest
+tests/verticalToolAudience.regression.test.js tests/oauth-endpoint-config.test.js
+src/__tests__/agentCCTokenService.scopeVertical.test.js
+tests/routes/demoSubjectToken.test.js --forceExit` (43 passed). In local Docker,
+the authenticated `/api/mcp/tool` request for `banking.get_balance` returned
+HTTP 200 with `result.isError=false` while PF was the active login provider.
+
 ### 2026-09-28 — BFF routed banking balance aliases as unknown MCP tools
 
 **Files:** `demo_api_server/server.js`,
