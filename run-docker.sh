@@ -117,6 +117,10 @@ CORE_SERVICES=(
   promptfoo-step-narration
 )
 
+# Smallest Compose set that keeps dashboard/admin and a live agent/tool path.
+# Keep this explicit so adding a core service does not silently grow basic mode.
+BASIC_SERVICES=(ui demo-api-server mcp-server mcp-discovery-agent ping-gateway agent-service llm-proxy hitl-service)
+
 # Optional groups — start on demand via `./run-docker.sh optional start <group>`.
 OPTIONAL_GROUP_NAMES=(rag tracing demo-auth mcpgw observability spiffe)
 
@@ -1689,6 +1693,7 @@ cmd_start() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --build) build_flag="--build"; shift ;;
+      basic) stack="basic"; shift ;;
       full|all) stack="full"; shift ;;
       core) stack="core"; shift ;;
       *) shift ;;
@@ -1701,8 +1706,16 @@ cmd_start() {
 
   demo_machine_banner docker
 
-  # Always stop first — clean slate
-  cmd_stop
+  # Always stop first — clean slate. Basic uses a project-scoped teardown so
+  # separately managed containers with ai-demo-* names (notably PingFederate)
+  # are left alone.
+  if [[ "${stack}" == "basic" ]]; then
+    echo "Stopping only Compose project ${COMPOSE_PROJECT_NAME} (preserving separate containers)..."
+    _compose_with_timeout 90 "${TEARDOWN_PROFILE_ARGS[@]}" down --timeout 5 --remove-orphans \
+      || { err "Could not stop Compose project ${COMPOSE_PROJECT_NAME}; basic start aborted."; return 1; }
+  else
+    cmd_stop
+  fi
 
   # Defense-in-depth: a container left over from a different Compose project
   # (e.g. a prior run under a different cwd, or a manual `docker run` using the
@@ -1764,14 +1777,27 @@ cmd_start() {
   start_llamacpp
   echo ""
 
-  _CORE_UP=($(_effective_core_services))
+  if [[ "${stack}" == "basic" ]]; then
+    _CORE_UP=()
+    for _svc in "${BASIC_SERVICES[@]}"; do
+      [[ ("${_LLM_BACKEND}" == "omlx" || "${_LLM_BACKEND}" == "mlx") && "${_svc}" == "llm-proxy" ]] && continue
+      _CORE_UP+=("${_svc}")
+    done
+  else
+    _CORE_UP=($(_effective_core_services))
+  fi
   _export_llamacpp_base_url
-  # cmd_stop ran above, so Loki is down here unless this start brings the group up.
+  # The teardown ran above, so Loki is down here unless this start brings the group up.
   if [[ "${stack}" == "full" ]]; then _export_loki_url on; else _export_loki_url; fi
-  # shellcheck disable=SC2206
-  _DEFAULT_PROFILES=($(_optional_profile_args "${DEFAULT_OPTIONAL_GROUPS[@]}"))
-  # shellcheck disable=SC2206
-  _DEFAULT_OPTIONAL_SVCS=($(_optional_resolve_groups "${DEFAULT_OPTIONAL_GROUPS[@]}"))
+  if [[ "${stack}" == "basic" ]]; then
+    _DEFAULT_PROFILES=()
+    _DEFAULT_OPTIONAL_SVCS=()
+  else
+    # shellcheck disable=SC2206
+    _DEFAULT_PROFILES=($(_optional_profile_args "${DEFAULT_OPTIONAL_GROUPS[@]}"))
+    # shellcheck disable=SC2206
+    _DEFAULT_OPTIONAL_SVCS=($(_optional_resolve_groups "${DEFAULT_OPTIONAL_GROUPS[@]}"))
+  fi
 
   # Clear any stale bare-metal listener (e.g. a leftover ./run.sh vite on :4000)
   # that would silently shadow a Docker container's published port.
@@ -1782,7 +1808,9 @@ cmd_start() {
     ok "Rebuilding images..."
     echo ""
     _prepare_docker_build_contexts bff langchain
-    if [[ "${stack}" == "full" ]]; then
+    if [[ "${stack}" == "basic" ]]; then
+      docker compose "${COMPOSE_FILES[@]}" up --build -d "${_CORE_UP[@]}"
+    elif [[ "${stack}" == "full" ]]; then
       docker compose "${COMPOSE_FILES[@]}" "${FULL_STACK_PROFILE_ARGS[@]}" up --build -d
     else
       docker compose "${COMPOSE_FILES[@]}" "${_DEFAULT_PROFILES[@]}" up --build -d \
@@ -1799,6 +1827,9 @@ cmd_start() {
     if [[ "${stack}" == "full" ]]; then
       ok "Starting full stack (core + all compose profiles)..."
       docker compose "${COMPOSE_FILES[@]}" "${FULL_STACK_PROFILE_ARGS[@]}" up -d
+    elif [[ "${stack}" == "basic" ]]; then
+      ok "Starting basic dashboard/admin + live agent services: ${_CORE_UP[*]}"
+      docker compose "${COMPOSE_FILES[@]}" up -d "${_CORE_UP[@]}"
     else
       if [[ "${_LLM_BACKEND}" == "omlx" ]]; then
         ok "Starting core + Code Search (${#_CORE_UP[@]} services + BFF + rag, llm-proxy skipped — host oMLX on :8090) — real P1AZ + PingGateway; demo-auth profile off until FF flipped."
@@ -1816,14 +1847,22 @@ cmd_start() {
   _prune_build_leftovers
 
   echo ""
-  cmd_demo_sync
+  if [[ "${stack}" != "basic" ]]; then
+    cmd_demo_sync
+  else
+    ok "Basic mode leaves optional gateway and feature groups stopped."
+  fi
 
   # Runs AFTER demo-sync: that step recreates instrumented services (mcp-server
   # among them) with its errors suppressed, so this is the first point where the
   # real end state is known.
   echo ""
   _verify_core_running || true
-  _run_demo_health_gate
+  if [[ "${stack}" != "basic" ]]; then
+    _run_demo_health_gate
+  else
+    ok "Basic mode skips the full-stack health gate."
+  fi
 
   echo ""
   echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
@@ -1989,6 +2028,7 @@ cmd_help() {
   echo ""
   echo -e "${WHITE}${BOLD}  Commands:${RESET}"
   echo "    (default)             Stop existing containers, then start core + Code Search (rag)"
+  echo "    basic                 Stop this Compose project, then start the dashboard/admin + agent set"
   echo "    start full            Stop existing containers, then start every compose service"
   echo "    all                   Same as 'start full'"
   echo "    optional start <grp>  Start optional group(s) on a running stack (no teardown)"
@@ -2037,6 +2077,7 @@ cmd_help() {
   echo ""
   echo -e "${WHITE}${BOLD}  Examples:${RESET}"
   echo "    ./run-docker.sh                             # start core + Code Search (rag)"
+  echo "    ./run-docker.sh basic                      # dashboard/admin + live agent, optional groups off"
   echo "    ./run-docker.sh start full                  # start every compose service"
   echo "    ./run-docker.sh demo-sync                   # apply Quick Flag toggles to containers"
   echo "    ./run-docker.sh optional stop rag           # free Code Search RAM when unused"
@@ -2143,6 +2184,9 @@ case "${COMMAND}" in
     ;;
   start)
     cmd_start "$@"
+    ;;
+  basic)
+    cmd_start basic "$@"
     ;;
   all)
     cmd_start full "$@"
