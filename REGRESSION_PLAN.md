@@ -209,12 +209,13 @@ the PingOne signature and returned `invalid_token`.
 **What was fixed:** resolve the machine-token endpoint independently from the
 active interactive-login provider: use `PINGONE_TOKEN_ENDPOINT` when set, else
 derive the PingOne endpoint from the configured region and environment. Reject
-non-2xx OAuth responses and responses without `access_token` with a safe,
-actionable error. The BFF now also resolves PingOne issuer/JWKS independently
-and verifies a token against PingOne's JWKS when its exact configured issuer
-matches, while PF-issued tokens continue through PF's JWKS. This is an
-intentional PF/PingOne difference: interactive login can use PF, while this MCP
-machine credential and its resource token are PingOne-issued.
+non-2xx OAuth responses, any response containing an OAuth `error` (including a
+malformed 2xx response that also includes `access_token`), and responses without
+`access_token` with a safe, actionable error. The BFF now also resolves PingOne
+issuer/JWKS independently and verifies a token against PingOne's JWKS when its
+exact configured issuer matches, while PF-issued tokens continue through PF's
+JWKS. This is an intentional PF/PingOne difference: interactive login can use
+PF, while this MCP machine credential and its resource token are PingOne-issued.
 
 **Do not break:** keep browser login and user-token provider selection tied to
 the active provider. Keep MCP machine credentials on the PingOne endpoint unless

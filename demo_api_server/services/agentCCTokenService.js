@@ -90,12 +90,15 @@ async function getAgentCCToken(req, options = {}) {
     const tokenData = tokenResponse.data;
 
     // `validateStatus: () => true` means OAuth error responses arrive here as
-    // resolved Axios results. Never treat an error body (or an incomplete 2xx
-    // response) as a minted token; callers must fail closed with the upstream
+    // resolved Axios results. Never treat an error body (even one paired with
+    // an access_token in a malformed 2xx response) or an incomplete 2xx
+    // response as a minted token; callers must fail closed with the upstream
     // status and OAuth error code available for diagnosis.
     const hasAccessToken = typeof tokenData?.access_token === 'string' && tokenData.access_token.length > 0;
-    if (tokenResponse.status < 200 || tokenResponse.status >= 300 || !hasAccessToken) {
-      const oauthError = typeof tokenData?.error === 'string' ? tokenData.error : null;
+    const oauthError = typeof tokenData?.error === 'string' && tokenData.error.length > 0
+      ? tokenData.error
+      : null;
+    if (tokenResponse.status < 200 || tokenResponse.status >= 300 || !hasAccessToken || oauthError) {
       const failureCode = oauthError || 'token_response_missing_access_token';
       const failureStatus = tokenResponse.status >= 400 && tokenResponse.status < 600
         ? tokenResponse.status

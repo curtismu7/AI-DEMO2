@@ -74,4 +74,16 @@ describe('getAgentCCToken — scope + vertical', () => {
       httpStatus: 502,
     });
   });
+
+  it('rejects a successful HTTP response that contains both a token and an OAuth error', async () => {
+    axios.post.mockResolvedValue({
+      status: 200,
+      data: { access_token: 'tok', error: 'invalid_client', error_description: 'Client authentication failed' },
+    });
+
+    await expect(getAgentCCToken({})).rejects.toMatchObject({
+      code: 'invalid_client',
+      httpStatus: 502,
+    });
+  });
 });
