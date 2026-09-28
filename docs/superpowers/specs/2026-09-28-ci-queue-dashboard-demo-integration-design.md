@@ -2,8 +2,8 @@
 
 ## Status
 
-Design approved in chat on 2026-09-28. This spec is awaiting user review before
-an implementation plan is written.
+Design approved in chat on 2026-09-28. Related pull request: #383. The
+implementation plan is being prepared.
 
 ## Problem
 
