@@ -142,6 +142,7 @@ const sensitiveBankingRoutes = require('./routes/sensitiveBanking');
 const transactionRoutes = require('./routes/transactions');
 const demoScenarioRoutes = require('./routes/demoScenario');
 const adminRoutes = require('./routes/admin');
+const demoReadinessRoutes = require('./routes/demoReadiness');
 const pingcliRoutes = require('./routes/pingcli');
 const promptfooRoutes = require('./routes/promptfoo');
 const mgmtApiRoutes = require('./routes/mgmtApi');
@@ -1732,6 +1733,7 @@ app.get('/api/demo-scenario', (req, res, next) => {
 });
 app.use('/api/demo-scenario', authenticateToken, demoScenarioRoutes);
 app.use('/api/admin/demo-users', adminDemoUsersRoutes);
+app.use('/api/admin/demo-readiness', demoReadinessRoutes);
 app.use('/api/admin/agent', authenticateToken, adminAgentToolsRoutes);
 app.use('/api/admin', authenticateToken, require('./routes/opsAssistantRoutes'));
 app.use('/api/admin', authenticateToken, require('./routes/adminVerticals'));
