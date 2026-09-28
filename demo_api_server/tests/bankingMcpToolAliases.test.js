@@ -20,6 +20,15 @@ describe('resolveBankingMcpToolAlias', () => {
     });
   });
 
+  test.each([
+    ['get_accounts', { account_type: 'checking' }, 'get_my_accounts', 'view_accounts'],
+    ['banking.get_accounts', {}, 'get_my_accounts', 'view_accounts'],
+    ['get_transactions', { limit: 5 }, 'get_my_transactions', 'view_transactions'],
+    ['banking.get_transactions', { offset: 10 }, 'get_my_transactions', 'view_transactions'],
+  ])('%s resolves to the registered banking tool', (alias, params, tool, intent) => {
+    expect(resolveBankingMcpToolAlias(alias, params, 'banking')).toEqual({ tool, intent });
+  });
+
   test('does not rewrite a balance alias from another vertical', () => {
     expect(resolveBankingMcpToolAlias('get_balance', {}, 'airlines')).toBeNull();
   });

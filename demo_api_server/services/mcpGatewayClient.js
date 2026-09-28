@@ -119,7 +119,7 @@ const BRAVE_TOOLS = new Set([
  *
  * @param {string} gatewayUrl   Base URL of the gateway (no trailing slash)
  * @param {string} bearerToken  Access token scoped to the gateway audience (MCP_GW_RESOURCE_URI)
- * @param {string} tool         MCP tool name (e.g. "get_accounts")
+ * @param {string} tool         Registered MCP tool name (e.g. "get_my_accounts")
  * @param {object} params       Tool arguments
  * @param {object} [opts]
  * @param {string} [opts.correlationId]  Forwarded as JSON-RPC id for tracing

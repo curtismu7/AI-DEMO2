@@ -192,28 +192,30 @@ read the configured host. A new browser origin must be added to ALL of:
 
 **Files:** `demo_api_server/server.js`,
 `demo_api_server/services/bankingMcpToolAliases.js`,
+`demo_api_server/services/mcpGatewayClient.js`,
 `demo_api_server/tests/bankingMcpToolAliases.test.js`,
-`demo_api_server/tests/mcpBalanceAliasRoute.test.js`.
+`demo_api_server/tests/mcpBankingToolAliasesRoute.test.js`.
 
-**What was broken:** `/api/mcp/tool` forwarded `get_balance` and
-`banking.get_balance` unchanged, but the banking MCP registers
-`get_my_accounts` and `get_account_balance`. PingGateway therefore returned
-`Unknown tool` and the BFF surfaced a 502.
+**What was broken:** `/api/mcp/tool` forwarded UI/parser names `get_balance`,
+`get_accounts`, and `get_transactions` (including `banking.*` forms) unchanged,
+but those names are not registered by the banking MCP. PingGateway therefore
+returned `Unknown tool` and the BFF surfaced a 502.
 
 **What was fixed:** resolve the explicit vertical first, then the session's
-active vertical (banking default), and normalize the banking balance alias
-before token intent minting and pipeline dispatch. With no `account_id`, call
-`get_my_accounts`; with an `account_id`, call `get_account_balance`. An
-explicit non-banking vertical takes precedence and is left unchanged. Both
-banking paths retain the `view_balance` intent and pass through the existing
-session, token exchange, and gateway authorization path.
+active vertical (banking default), and normalize all three banking aliases
+before token intent minting and pipeline dispatch. Balance uses `get_my_accounts`
+without an `account_id` and `get_account_balance` with one; accounts maps to
+`get_my_accounts`; transactions maps to `get_my_transactions`. Arguments are
+preserved, and each alias keeps its matching intent. An explicit non-banking
+vertical takes precedence and is left unchanged. All calls pass through the
+existing session, token exchange, and gateway authorization path.
 
 **Do not break:** `requireSession`, transaction-turn middleware, session token
 selection, and gateway authorization remain unchanged.
 
 **Verify:** `cd demo_api_server && CI=true npx jest
-tests/bankingMcpToolAliases.test.js tests/mcpBalanceAliasRoute.test.js
---forceExit` (8 passed). The separate
+tests/bankingMcpToolAliases.test.js tests/mcpBankingToolAliasesRoute.test.js
+--forceExit` (16 passed). The separate
 `src/__tests__/mcpToolPipeline.characterization.test.js` suite remains red
 14/54 when run alone; its gateway-audit/HITL cases do not import the changed
 alias resolver.

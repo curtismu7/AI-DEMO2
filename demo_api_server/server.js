@@ -2185,7 +2185,7 @@ function publishTokenEventsToSse(flowTraceId, tokenEvents) {
 const { publishMcpResultToSse } = require('./services/mcpSsePublisher');
 
 const { runMcpToolPipeline } = require('./services/mcpToolPipeline');
-const { resolveBankingMcpToolAlias } = require('./services/bankingMcpToolAliases');
+const { isBankingMcpToolAlias, resolveBankingMcpToolAlias } = require('./services/bankingMcpToolAliases');
 const { createPendingDecision: _createPendingDecision } = require('./routes/mcpDecisionPolling');
 const _hitlServiceClient = require('./services/hitlServiceClient');
 const { decodeJwtClaims: _decodeJwtClaims } = require('./services/agentMcpTokenService');
@@ -2338,11 +2338,11 @@ app.post('/api/mcp/tool', express.json(), requireSession, transactionTurnMiddlew
         params,
         flowTraceId: bodyFlowTrace
     } = parsedBody;
-    const isBalanceAlias = requestedTool === 'get_balance' || requestedTool === 'banking.get_balance';
+    const isBankingToolAlias = isBankingMcpToolAlias(requestedTool);
     const bodyVertical = typeof parsedBody.vertical === 'string' ? parsedBody.vertical.trim() : '';
     const aliasVertical = bodyVertical
-      || (isBalanceAlias ? verticalManifest.resolver.activeIdFor(req) : null)
-      || (isBalanceAlias ? 'banking' : null);
+      || (isBankingToolAlias ? verticalManifest.resolver.activeIdFor(req) : null)
+      || (isBankingToolAlias ? 'banking' : null);
     const toolAlias = resolveBankingMcpToolAlias(requestedTool, params, aliasVertical);
     const tool = toolAlias?.tool || requestedTool;
     const useCaseId = typeof parsedBody.useCaseId === 'string' ? parsedBody.useCaseId.trim() : '';

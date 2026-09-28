@@ -44,7 +44,7 @@ function makeRequest(body) {
   };
 }
 
-describe('POST /api/mcp/tool banking balance alias', () => {
+describe('POST /api/mcp/tool banking tool aliases', () => {
   const previousIntentSecret = process.env.INTENT_TOKEN_SECRET;
 
   beforeEach(() => runMcpToolPipeline.mockClear());
@@ -100,5 +100,58 @@ describe('POST /api/mcp/tool banking balance alias', () => {
       tool: 'get_balance',
       vertical: 'airlines',
     }));
+  });
+
+  test.each([
+    {
+      alias: 'get_accounts',
+      params: { account_type: 'checking' },
+      vertical: undefined,
+      tool: 'get_my_accounts',
+      intent: 'view_accounts',
+    },
+    {
+      alias: 'banking.get_accounts',
+      params: {},
+      vertical: 'banking',
+      tool: 'get_my_accounts',
+      intent: 'view_accounts',
+    },
+    {
+      alias: 'get_transactions',
+      params: { limit: 5 },
+      vertical: 'banking',
+      tool: 'get_my_transactions',
+      intent: 'view_transactions',
+    },
+    {
+      alias: 'banking.get_transactions',
+      params: { offset: 10 },
+      vertical: undefined,
+      tool: 'get_my_transactions',
+      intent: 'view_transactions',
+    },
+  ])('forwards $alias to $tool and mints the matching intent', async (testCase) => {
+    process.env.INTENT_TOKEN_SECRET = 'route-test-intent-secret';
+    const handler = getMcpToolHandler();
+    const body = { tool: testCase.alias, params: testCase.params };
+    if (testCase.vertical !== undefined) body.vertical = testCase.vertical;
+    const req = makeRequest(body);
+    req.session.user = { id: 'test-user' };
+    const res = makeResponse();
+
+    await handler(req, res, jest.fn());
+
+    expect(res.statusCode).toBe(200);
+    expect(runMcpToolPipeline).toHaveBeenCalledWith(expect.objectContaining({
+      tool: testCase.tool,
+      params: testCase.params,
+      vertical: testCase.vertical,
+    }));
+
+    const [{ req: pipelineReq }] = runMcpToolPipeline.mock.calls[0];
+    const intentClaims = JSON.parse(Buffer.from(pipelineReq.intentToken.split('.')[1], 'base64url').toString('utf8'));
+    expect(intentClaims).toMatchObject({ intent: testCase.intent, confidence: 0.97 });
+    expect(intentClaims.permitted_tools).toContain(testCase.tool);
   });
 });
