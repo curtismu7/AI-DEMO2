@@ -60,6 +60,51 @@ function getTokenEndpoint() {
   return base ? `${base}/token` : '';
 }
 
+/**
+ * Resolve PingOne's token endpoint independently of the active user-login IdP.
+ * Machine clients configured with PingOne credentials must never send them to
+ * the shared PF endpoint when OAUTH_PROVIDER=pingfederate.
+ */
+function getPingOneTokenEndpoint() {
+  const explicit = String(process.env.PINGONE_TOKEN_ENDPOINT || '').trim();
+  if (explicit) return explicit;
+  const base = _pingOneBase();
+  return base ? `${base}/token` : '';
+}
+
+/**
+ * Resolve PingOne's issuer independently of the active interactive-login IdP.
+ * MCP machine tokens can still be PingOne-issued when browser login uses PF.
+ */
+function getPingOneIssuer() {
+  const explicit = String(process.env.PINGONE_ISSUER_URI || process.env.PINGONE_ISSUER || '').trim();
+  if (explicit) return _normalizePingOneIssuer(explicit.replace(/\/+$/, ''));
+
+  const tokenEndpoint = getPingOneTokenEndpoint();
+  if (tokenEndpoint) {
+    try {
+      const endpoint = new URL(tokenEndpoint);
+      const path = endpoint.pathname.replace(/\/+$/, '');
+      if (path.endsWith('/token')) {
+        return `${endpoint.origin}${path.slice(0, -'/token'.length)}`;
+      }
+    } catch {
+      // Fall through to the environment-derived PingOne base when the override
+      // is not a valid URL.
+    }
+  }
+
+  return _pingOneBase();
+}
+
+/** Resolve the JWKS endpoint for PingOne-issued tokens, regardless of login IdP. */
+function getPingOneJwksUri() {
+  const explicit = String(process.env.PINGONE_JWKS_URI || process.env.PINGONE_JWKS_ENDPOINT || '').trim();
+  if (explicit) return explicit;
+  const issuer = getPingOneIssuer();
+  return issuer ? `${issuer.replace(/\/+$/, '')}/jwks` : '';
+}
+
 /** RFC 9126 PAR endpoint — same priority chain as getTokenEndpoint. */
 function getParEndpoint() {
   if (_isPingFederate()) {
@@ -254,6 +299,9 @@ function _resetDiscoveryCache() {
 module.exports = {
   getAuthorizationEndpoint,
   getTokenEndpoint,
+  getPingOneTokenEndpoint,
+  getPingOneIssuer,
+  getPingOneJwksUri,
   getParEndpoint,
   getUserInfoEndpoint,
   getJwksUri,
