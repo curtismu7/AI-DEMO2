@@ -8,7 +8,7 @@
 
 const axios = require('axios');
 const configStore = require('./configStore');
-const oauthConfig = require('../config/oauth');
+const oauthEndpointResolver = require('./oauthEndpointResolver');
 const { decodeJwt } = require('../utils/tokenUtils');
 
 /**
@@ -48,7 +48,8 @@ async function getAgentCCToken(req, options = {}) {
     throw err;
   }
 
-  if (!oauthConfig.tokenEndpoint) {
+  const tokenEndpoint = oauthEndpointResolver.getPingOneTokenEndpoint();
+  if (!tokenEndpoint) {
     const err = new Error('OAuth token endpoint not configured');
     err.code = 'oauth_endpoint_not_configured';
     err.httpStatus = 503;
@@ -80,13 +81,35 @@ async function getAgentCCToken(req, options = {}) {
     }
 
     // Request token from PingOne
-    const tokenResponse = await axios.post(oauthConfig.tokenEndpoint, body.toString(), {
+    const tokenResponse = await axios.post(tokenEndpoint, body.toString(), {
       headers,
       timeout: 10000,
       validateStatus: () => true,
     });
 
     const tokenData = tokenResponse.data;
+
+    // `validateStatus: () => true` means OAuth error responses arrive here as
+    // resolved Axios results. Never treat an error body (or an incomplete 2xx
+    // response) as a minted token; callers must fail closed with the upstream
+    // status and OAuth error code available for diagnosis.
+    const hasAccessToken = typeof tokenData?.access_token === 'string' && tokenData.access_token.length > 0;
+    if (tokenResponse.status < 200 || tokenResponse.status >= 300 || !hasAccessToken) {
+      const oauthError = typeof tokenData?.error === 'string' ? tokenData.error : null;
+      const failureCode = oauthError || 'token_response_missing_access_token';
+      const failureStatus = tokenResponse.status >= 400 && tokenResponse.status < 600
+        ? tokenResponse.status
+        : 502;
+      const failureMessage = oauthError
+        ? `Token endpoint rejected the agent credentials (${oauthError})`
+        : `Token endpoint did not return an access token (HTTP ${tokenResponse.status})`;
+      const responseError = new Error(failureMessage);
+      responseError.response = {
+        status: failureStatus,
+        data: { error: failureCode, error_description: failureMessage },
+      };
+      throw responseError;
+    }
 
     // Observability for the write-toggle: a client_credentials grant returns the
     // CLIENT's configured scopes — real PingOne may ignore the requested `scope`
