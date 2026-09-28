@@ -259,6 +259,7 @@ jobs:
           sparse-checkout: |
             demo_api_ui/scripts/run-vitest-with-memory-guard.mjs
             demo_api_ui/scripts/select-vitest-mode.mjs
+            demo_api_ui/scripts/vitest-memory-guard.config.mjs
           sparse-checkout-cone-mode: false
       - name: Preserve current UI memory guard
         if: github.event_name == 'workflow_dispatch' && inputs.target_ref != ''
@@ -266,6 +267,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/ci-ui-guard"
           cp _ci-workflow/demo_api_ui/scripts/run-vitest-with-memory-guard.mjs "$RUNNER_TEMP/ci-ui-guard/"
           cp _ci-workflow/demo_api_ui/scripts/select-vitest-mode.mjs "$RUNNER_TEMP/ci-ui-guard/"
+          cp _ci-workflow/demo_api_ui/scripts/vitest-memory-guard.config.mjs "$RUNNER_TEMP/ci-ui-guard/"
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.target_ref || github.ref }}
@@ -275,6 +277,7 @@ jobs:
           mkdir -p demo_api_ui/scripts
           cp "$RUNNER_TEMP/ci-ui-guard/run-vitest-with-memory-guard.mjs" demo_api_ui/scripts/
           cp "$RUNNER_TEMP/ci-ui-guard/select-vitest-mode.mjs" demo_api_ui/scripts/
+          cp "$RUNNER_TEMP/ci-ui-guard/vitest-memory-guard.config.mjs" demo_api_ui/scripts/
       - uses: actions/setup-node@v7
         with:
           node-version: 22
