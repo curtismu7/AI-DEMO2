@@ -6,6 +6,8 @@ const path = require('node:path');
 const { createGitHubReader } = require('./github');
 const { createRunnerController } = require('./runner-control');
 
+const DEFAULT_DASHBOARD_PORT = 57500;
+
 const ASSETS = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
   ['/dashboard-model.js', ['dashboard-model.js', 'text/javascript; charset=utf-8']],
@@ -261,7 +263,7 @@ function createDashboardServer({ getSnapshot, getControlState, performAction, pe
   return server;
 }
 
-function startDashboard({ port = 0, log = console.log, errorLog = console.error } = {}) {
+function startDashboard({ port = DEFAULT_DASHBOARD_PORT, log = console.log, errorLog = console.error } = {}) {
   const nodeMajor = Number(process.versions.node.split('.')[0]);
   if (!Number.isInteger(nodeMajor) || nodeMajor < 22) {
     throw new Error('Node.js 22 or newer is required to run the CI queue dashboard.');
@@ -311,4 +313,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { createDashboardServer, startDashboard };
+module.exports = { DEFAULT_DASHBOARD_PORT, createDashboardServer, startDashboard };

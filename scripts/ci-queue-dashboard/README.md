@@ -18,7 +18,7 @@ gh auth login
 npm run ci:dashboard
 ```
 
-Open the `http://127.0.0.1:<port>` address printed in the terminal. The dashboard refreshes about every 15 seconds. Queued runs are ordered oldest-first as a queue estimate; GitHub controls the actual scheduling order. It shows queued workflow/job counts, active runtime, and an estimated time remaining based on the median duration of up to five recent completed runs of the same workflow. If there is no comparable history, the estimate is unavailable. Use **Refresh now** to request an immediate update, and press Ctrl-C in the terminal to stop the dashboard server.
+The command opens the dashboard at <http://127.0.0.1:57500/>. Keep this process running before using the demo's CI queue navigation entry. The server listens only on loopback, so it is available from this machine and is not shared with other machines. The dashboard refreshes about every 15 seconds. Queued runs are ordered oldest-first as a queue estimate; GitHub controls the actual scheduling order. It shows queued workflow/job counts, active runtime, and an estimated time remaining based on the median duration of up to five recent completed runs of the same workflow. If there is no comparable history, the estimate is unavailable. Use **Refresh now** to request an immediate update, and press Ctrl-C in the terminal to stop the dashboard server.
 
 ## Controls
 

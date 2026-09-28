@@ -3,7 +3,7 @@
 const assert = require('node:assert/strict');
 const http = require('node:http');
 const test = require('node:test');
-const { createDashboardServer } = require('./server');
+const { DEFAULT_DASHBOARD_PORT, createDashboardServer } = require('./server');
 
 async function listen(server) {
   await new Promise((resolve, reject) => {
@@ -12,6 +12,10 @@ async function listen(server) {
   });
   return `http://127.0.0.1:${server.address().port}`;
 }
+
+test('dashboard has a stable default port for the demo navigation link', () => {
+  assert.equal(DEFAULT_DASHBOARD_PORT, 57500);
+});
 
 function requestWithHost(baseUrl, host) {
   const url = new URL(baseUrl);
