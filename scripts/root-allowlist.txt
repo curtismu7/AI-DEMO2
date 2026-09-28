@@ -9,6 +9,7 @@
 .cursor
 .cursorrules
 .dockerignore
+.graphifyignore
 .editorconfig
 .github
 .gitignore
