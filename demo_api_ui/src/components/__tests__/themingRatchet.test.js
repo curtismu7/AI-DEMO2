@@ -270,9 +270,9 @@ describe('theming ratchet', () => {
  * 489 -> 484: AIAgent.css adds matching --th-text ink to the agent header,
  * results panel, token event dark override, and both embedded-agent surfaces.
  */
-// Measured on the current main tree after the latest UI merges. New themed
-// surfaces must still add their own ink.
-const MAX_GROUND_WITHOUT_INK = 504;
+// 504 -> 500: the new banking demo-step hover/done states and PingFederate
+// comparison/session/result surfaces now declare their own themed ink.
+const MAX_GROUND_WITHOUT_INK = 500;
 
 const CSS_RULE = /([^{}]+)\{([^{}]*)\}/g;
 const HAS_COLOR = /(?:^|\n)\s*color\s*:/;

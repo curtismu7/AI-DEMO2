@@ -79,6 +79,13 @@ function buildApp() {
   const app = express();
   app.use(express.json());
   app.use(session({ secret: 't', resave: false, saveUninitialized: false }));
+  app.get('/__as-main', (req, res) => {
+    req.session.oauthTokens = { accessToken: 'main-token', refreshToken: 'r' };
+    req.session.user = { id: 'm1', username: 'mainuser', role: 'customer' };
+    req.session.clientType = 'enduser';
+    req.session.oauthType = 'user';
+    res.sendStatus(204);
+  });
   app.use('/api/davinci-sdk-login', davinciSdkLoginRouter);
   // Test-only window onto the session the callback wrote.
   app.get('/__session', (req, res) => res.json({
@@ -181,9 +188,9 @@ describe('routes/davinciSdkLogin', () => {
     }
 
     function happyUpstream(nonce) {
-      axios.post.mockResolvedValue({
-        data: {
-          access_token: 'at',
+    axios.post.mockResolvedValue({
+      data: {
+        access_token: `h.${Buffer.from(JSON.stringify({ client_id: SDK_APP_ID })).toString('base64url')}.s`,
           id_token: idTokenWithNonce(nonce),
           refresh_token: 'rt',
           expires_in: 3600,
@@ -245,13 +252,7 @@ describe('routes/davinciSdkLogin', () => {
       const { a, nonce } = await armed();
       // Sign the MAIN session in first (main-session user differs from the
       // lesson's customer to prove which one is which).
-      a.get('/__as-main', (req, res, next) => {
-        req.session.oauthTokens = { accessToken: 'main-token', refreshToken: 'r' };
-        req.session.user = { id: 'm1', username: 'mainuser', role: 'customer' };
-        req.session.clientType = 'enduser';
-        req.session.oauthType = 'user';
-        next();
-      });
+      await a.get('/__as-main').expect(204);
       happyUpstream(nonce);
 
       await a.post('/api/davinci-sdk-login/callback').send({ code: 'c', codeVerifier: 'v' }).expect(200);

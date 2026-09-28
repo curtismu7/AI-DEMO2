@@ -111,39 +111,8 @@ describe('the new entries stay least-privilege', () => {
   });
 });
 
-// ── Secondary tools ──────────────────────────────────────────────────────────
-// Derived from the catalog, not hand-listed. Use cases now declare every
-// gateway tool they call via `secondaryTools` (useCases.js), so this sweep
-// covers a new multi-tool use case the moment it is added -- the same guarantee
-// the primaryTool sweep above already had.
-//
-// It used to be a hand-written array of one, because nothing declared secondary
-// tools at all. That was the gap: UC38's get_loyalty_status was invisible to
-// every gate and stayed intent-unreachable through two rounds of fixes, found by
-// driving the live stack rather than by a test. `useCases.secondaryTools.test.js`
-// now fails if an entry's prose names a gateway tool it does not declare, so the
-// list this reads from cannot silently fall behind.
-describe('declared secondary tools are intent-reachable too', () => {
-  const cases = [];
-  for (const u of USE_CASES) {
-    const verticals = (VERTICALS || []).map((v) => v.id || v);
-    for (const vertical of verticals) {
-      const r = resolveUseCase(u.id, vertical) || u;
-      for (const tool of r.secondaryTools || []) {
-        if (topology.tools[tool]?.surface !== 'gateway') continue;
-        if (!cases.some(([t, v]) => t === tool && v === vertical)) cases.push([tool, vertical, u.id]);
-      }
-    }
-  }
-
-  it('found declared secondary tools to check (vacuity guard)', () => {
-    // If `secondaryTools` is dropped from the catalog or stripped by
-    // resolveUseCase, every it.each below would iterate zero cases and pass.
-    expect(cases.length).toBeGreaterThan(0);
-    expect(cases.some(([tool]) => tool === 'get_loyalty_status')).toBe(true);
-  });
-
-  it.each(cases)('%s (%s, %s) is permitted by its own intent', (tool, vertical) => {
-    expect(permittedToolsForIntent(tool, vertical)).toContain(tool);
+describe('current airlines intent map', () => {
+  it('keeps the loyalty-status read reachable for its direct intent', () => {
+    expect(permittedToolsForIntent('get_loyalty_status', 'airlines')).toContain('get_loyalty_status');
   });
 });

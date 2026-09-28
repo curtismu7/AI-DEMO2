@@ -188,6 +188,22 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-28 — User status returned 500 after logout destroyed the session
+
+**Files:** `routes/oauthUser.js`,
+`src/__tests__/oauthStatus.integration.test.js`.
+
+**What was broken:** the signed-out status endpoint dereferenced `req.session`
+after logout had destroyed it, so a routine status probe returned HTTP 500.
+
+**What was fixed:** the status handler now treats a missing session object as
+empty and returns the existing unauthenticated response shape.
+
+**Do not break:** preserve token-expiry and stale-session reporting, the
+four-signal admin-role check, and the BFF-only ownership of OAuth tokens.
+
+**Verify:** focused OAuth status and end-to-end logout suites with Node 22.
+
 ### 2026-09-28 — Embedded Token topology crowded the agent column
 
 **Files:** `demo_api_ui/src/components/TokenChainFilmstrip.css`,
