@@ -118,10 +118,14 @@ function DetailPanel({ selectedNode, selectedEdge, deployment, activeStep, playb
   const address = server ? endpointFor(server ? NODE_BY_ID[selectedNode] : null, deployment) : null;
   const incoming = selectedNode ? SERVER_EDGES.filter((item) => item.target === selectedNode) : [];
   const outgoing = selectedNode ? SERVER_EDGES.filter((item) => item.source === selectedNode) : [];
-  const mappingApplies = connection
-    ? playback.steps.some((step) => step.edgeId === connection.id)
-    : selectedNode && [...incoming, ...outgoing].some((item) => playback.steps.some((step) => step.edgeId === item.id));
-  const mappedDemoSteps = mappingApplies ? (playback.demoStepIds || []) : [];
+  const mappedDemoSteps = connection
+    ? [...new Set(playback.steps.find((step) => step.edgeId === connection.id)?.demoStepIds || [])]
+    : selectedNode
+      ? [...new Set(playback.steps.filter((step) => {
+        const item = EDGE_BY_ID[step.edgeId];
+        return item && (item.source === selectedNode || item.target === selectedNode);
+      }).flatMap((step) => step.demoStepIds || []))]
+      : [];
 
   return (
     <aside className="stm-details" aria-live="polite" aria-label="Selected topology details">
@@ -278,6 +282,15 @@ function ServerTopologyContent() {
     setSelectedNode(null);
     setSelectedEdge(PLAYBACKS[event.target.value].steps[0]?.edgeId || null);
   }, []);
+  const selectPlaybackStep = useCallback((index) => {
+    const step = playback.steps[index];
+    if (!step) return;
+    setPlaying(false);
+    setSelectedNode(null);
+    setStepIndex(index);
+    setSelectedEdge(step.edgeId);
+    setDetailsOpen(true);
+  }, [playback.steps]);
   const moveStep = useCallback((delta) => {
     setPlaying(false);
     setSelectedNode(null);
@@ -342,7 +355,7 @@ function ServerTopologyContent() {
         <section className="stm-flow-summary" aria-label="Selected flow and expected result" aria-live="polite">
           <div className="stm-flow-summary__outcome"><strong>Expected result</strong><span>{playback.result}</span></div>
           <ol className="stm-flow-summary__steps" aria-label="Numbered flow steps">
-            {playback.steps.map((step, index) => <li key={step.edgeId} aria-current={index === stepIndex ? "step" : undefined}><span>{String(index + 1).padStart(2, "0")}</span>{step.title}</li>)}
+            {playback.steps.map((step, index) => <li key={`${step.edgeId}-${index}`} aria-current={index === stepIndex ? "step" : undefined}><button type="button" aria-label={`Step ${String(index + 1).padStart(2, "0")}: ${step.title}`} onClick={() => selectPlaybackStep(index)}><span>{String(index + 1).padStart(2, "0")}</span>{step.title}</button></li>)}
           </ol>
         </section>
       </header>

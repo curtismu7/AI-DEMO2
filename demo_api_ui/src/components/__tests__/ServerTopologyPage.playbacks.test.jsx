@@ -71,13 +71,47 @@ describe("Server topology use-case playback", () => {
     }
   });
 
-  it("shows the selected diagram step and Demo Steps mapping in connection details", () => {
+  it("opens the numbered detail panel when a route step is selected", () => {
     render(<ServerTopologyPage />);
 
-    fireEvent.click(screen.getByRole("button", { name: /^05 · /i }));
+    expect(screen.queryByRole("complementary", { name: /selected topology details/i })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Step 05: BFF agent → Demo Agent Gateway/ }));
 
     const details = screen.getByRole("complementary", { name: /selected topology details/i });
     expect(within(details).getByText(/Diagram step 05 of 9/i)).toBeInTheDocument();
+    expect(within(details).getByRole("heading", { name: /BFF \/ API server → Demo Agent Gateway/ })).toBeInTheDocument();
+  });
+
+  it("maps Demo Steps to individual route connections", () => {
+    render(<ServerTopologyPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Step 01: User \/ agent client → ingress/ }));
+    let details = screen.getByRole("complementary", { name: /selected topology details/i });
+    expect(within(details).getByText(/No direct Demo Steps use case/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Step 06: Demo Agent Gateway → PingOne Authorize/ }));
+    details = screen.getByRole("complementary", { name: /selected topology details/i });
+    expect(within(details).getByRole("listitem")).toHaveTextContent(/UC1\s*Full flow — delegated access/);
+  });
+
+  it("includes separate PingOne and PingFederate login paths with real edges", () => {
+    expect(PLAYBACKS.pingOneLogin.steps.map(({ edgeId }) => edgeId)).toEqual([
+      "browser-ingress", "ingress-bff-login", "bff-browser-redirect", "browser-pingone-login", "pingone-browser-callback", "browser-ingress-callback", "ingress-bff-callback", "bff-pingone-token", "bff-browser-session",
+    ]);
+    expect(PLAYBACKS.pingFederateLogin.steps.map(({ edgeId }) => edgeId)).toEqual([
+      "browser-ingress", "ingress-bff-login", "bff-browser-redirect", "browser-pingfederate-login", "pingfederate-browser-callback", "browser-ingress-callback", "ingress-bff-callback", "bff-pingfederate-token", "bff-browser-session",
+    ]);
+    expect(PLAYBACKS.pingOneLogin.result).toMatch(/PingOne/i);
+    expect(PLAYBACKS.pingFederateLogin.result).toMatch(/PingFederate/i);
+  });
+
+  it("shows the selected diagram step and Demo Steps mapping in connection details", () => {
+    render(<ServerTopologyPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: /^06 · /i }));
+
+    const details = screen.getByRole("complementary", { name: /selected topology details/i });
+    expect(within(details).getByText(/Diagram step 06 of 9/i)).toBeInTheDocument();
     expect(within(details).getByText(/Demo Steps mapping/i)).toBeInTheDocument();
     expect(within(details).getByRole("listitem")).toHaveTextContent(/UC1\s*Full flow — delegated access/);
   });

@@ -64,9 +64,13 @@
 .stm-flow-summary__outcome { display: grid; gap: 3px; min-width: 0; color: var(--th-text-body); font-size: var(--font-size-3xs); line-height: 1.4; }
 .stm-flow-summary__outcome strong { color: var(--th-status-success-text); font-size: var(--font-size-2xs); }
 .stm-flow-summary__steps { display: flex; align-items: center; gap: 5px; min-width: 0; margin: 0; padding: 0 0 2px; overflow-x: auto; list-style: none; }
-.stm-flow-summary__steps li { display: flex; align-items: center; gap: 5px; min-height: 25px; flex: 0 0 auto; padding: 3px 7px 3px 4px; border: 1px solid var(--th-border); border-radius: 5px; background: var(--th-bg-page); color: var(--th-text-body); font-size: var(--font-size-3xs); white-space: nowrap; }
+.stm-flow-summary__steps li { display: flex; flex: 0 0 auto; padding: 0; border: 1px solid var(--th-border); border-radius: 5px; background: var(--th-bg-page); }
+.stm-flow-summary__steps li button { display: flex; align-items: center; gap: 5px; min-height: 25px; padding: 3px 7px 3px 4px; border: 0; border-radius: inherit; background: transparent; color: var(--th-text-body); font-size: var(--font-size-3xs); white-space: nowrap; cursor: pointer; }
+.stm-flow-summary__steps li button:hover { color: var(--th-text); }
+.stm-flow-summary__steps li button:focus-visible { outline: 2px solid var(--th-status-info); outline-offset: 2px; }
 .stm-flow-summary__steps li[aria-current="step"] { border-color: var(--th-status-info); background: var(--th-bg-card); color: var(--th-text); box-shadow: 0 0 0 1px color-mix(in srgb, var(--th-status-info) 35%, transparent); }
-.stm-flow-summary__steps li > span { display: inline-grid; place-items: center; width: 17px; height: 17px; border-radius: 4px; background: var(--th-bg-card); color: var(--th-status-info); font: 700 var(--font-size-3xs) var(--font-mono); }
+.stm-flow-summary__steps li[aria-current="step"] button { color: var(--th-text); }
+.stm-flow-summary__steps li button > span { display: inline-grid; place-items: center; width: 17px; height: 17px; border-radius: 4px; background: var(--th-bg-card); color: var(--th-status-info); font: 700 var(--font-size-3xs) var(--font-mono); }
 
 .stm-workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(290px, 340px); align-items: stretch; gap: 10px; flex: 1 1 auto; min-height: 500px; }
 .stm-workspace--map-only { grid-template-columns: minmax(0, 1fr); }
