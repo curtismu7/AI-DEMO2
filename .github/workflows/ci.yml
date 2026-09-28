@@ -44,16 +44,17 @@ jobs:
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
         id: filter
         with:
+          # CI workflow edits are checked by actionlint and the always-on gates
+          # below; they do not by themselves require every product test suite.
+          # Scheduled and manual runs still select every suite above.
           filters: |
             api-server:
-              - '.github/workflows/ci.yml'
               - 'demo_api_server/**'
               - 'demo_authz_server/scopeTopology.js'
               - 'demo_llm_proxy/**'
               - 'scope-topology.json'
               - 'snapshots/**'
             decision-services:
-              - '.github/workflows/ci.yml'
               - 'package.json'
               - 'demo_authz_server/**'
               - 'demo_api_server/data/publicBranchCatalog.js'
@@ -73,10 +74,8 @@ jobs:
               - 'scripts/test-service-suite.sh'
               - 'scripts/test-snapshots.sh'
             ui:
-              - '.github/workflows/ci.yml'
               - 'demo_api_ui/**'
             unwired-services:
-              - '.github/workflows/ci.yml'
               - 'scripts/test-service-suite.sh'
               - 'demo_agent_service/**'
               - 'demo_hitl_service/**'
@@ -84,7 +83,6 @@ jobs:
               - 'agent_token_service/**'
               - 'demo_api_resource_server/**'
             python-agents:
-              - '.github/workflows/ci.yml'
               - 'langchain_agent/**'
               - 'llamaindex_agent/**'
 
@@ -96,6 +94,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
+      - name: Lint GitHub Actions workflows
+        run: /opt/homebrew/bin/actionlint .github/workflows/ci.yml
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -145,6 +145,11 @@ jobs:
       - name: Build cwd guard — own tests
         run: bash scripts/test-k8-build-cwd.sh
 
+  # The repository has one registered self-hosted Mac runner. Chain test jobs
+  # so one workflow does not leave several 30-minute jobs aging in its runner
+  # queue at the same time. `always()` lets later independent suites run after
+  # an earlier suite fails or is filtered out, while every suite still requires
+  # the shared gates to pass.
   api-server-tests:
     name: API server tests (Jest)
     needs: [changes, gates]
@@ -181,8 +186,8 @@ jobs:
     # module that fails `vite build` is exactly the false pass demo_api_ui's
     # CLAUDE.md warns about.
     name: UI tests (Vitest) + build
-    needs: [changes, gates]
-    if: needs.changes.outputs['ui'] == 'true'
+    needs: [changes, gates, api-server-tests]
+    if: always() && needs.gates.result == 'success' && needs.changes.outputs['ui'] == 'true' && needs.api-server-tests.result != 'cancelled'
     runs-on: [self-hosted, macOS]
     timeout-minutes: 30
     steps:
@@ -239,8 +244,8 @@ jobs:
     # the distinction it exists to draw — "0 tests ran" must not look like
     # "all tests passed".
     name: Unwired service suites (agent, hitl, code-search, token, resource-server)
-    needs: [changes, gates]
-    if: needs.changes.outputs['unwired-services'] == 'true'
+    needs: [changes, gates, ui-tests]
+    if: always() && needs.gates.result == 'success' && needs.changes.outputs['unwired-services'] == 'true' && needs.ui-tests.result != 'cancelled'
     runs-on: [self-hosted, macOS]
     timeout-minutes: 30
     steps:
@@ -280,8 +285,8 @@ jobs:
     #   langchain_agent   834 passed          -> BLOCKING
     #   llamaindex_agent    9 passed, 1 skip  -> BLOCKING
     name: Python agent suites (langchain, llamaindex)
-    needs: [changes, gates]
-    if: needs.changes.outputs['python-agents'] == 'true'
+    needs: [changes, gates, unwired-service-suites]
+    if: always() && needs.gates.result == 'success' && needs.changes.outputs['python-agents'] == 'true' && needs.unwired-service-suites.result != 'cancelled'
     runs-on: [self-hosted, macOS]
     timeout-minutes: 30
     steps:
@@ -333,8 +338,8 @@ jobs:
     # constraint — a separate job means another runner and another npm install
     # for ~90s of tests. Bundling is why this job already spans three services.
     name: Service suites (authz-server + mcp-gateway + mcp-server + mcp-resource-server)
-    needs: [changes, gates]
-    if: needs.changes.outputs['decision-services'] == 'true'
+    needs: [changes, gates, python-agent-suites]
+    if: always() && needs.gates.result == 'success' && needs.changes.outputs['decision-services'] == 'true' && needs.python-agent-suites.result != 'cancelled'
     runs-on: [self-hosted, macOS]
     timeout-minutes: 30
     steps:
