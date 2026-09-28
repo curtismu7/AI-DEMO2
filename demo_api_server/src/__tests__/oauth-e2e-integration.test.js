@@ -93,6 +93,7 @@ const app = require('../../server');
 // - oauthUserService → used by routes/oauthUser.js (user OAuth flow, /api/auth/oauth/user/*)
 // jest.mock requires an INLINE factory function (it is hoisted before any requires)
 jest.mock('../../services/oauthService', () => ({
+  identifyProvider: jest.fn(() => 'pingone'),
   generateState: jest.fn(() => 'test-state-123'),
   generateCodeVerifier: jest.fn(() => 'test-verifier-abc'),
   generateAuthorizationUrl: jest.fn(() =>
@@ -105,6 +106,7 @@ jest.mock('../../services/oauthService', () => ({
   refreshToken: jest.fn(),
 }));
 jest.mock('../../services/oauthUserService', () => ({
+  identifyProvider: jest.fn(() => 'pingone'),
   generateState: jest.fn(() => 'test-state-123'),
   generateCodeVerifier: jest.fn(() => 'test-verifier-abc'),
   generateAuthorizationUrl: jest.fn(() =>
@@ -683,7 +685,7 @@ describe('End-to-End OAuth Integration Tests', () => {
         .get('/api/auth/oauth/user/status')
         .expect(200);
 
-      // When no session exists the server omits the field (undefined serialises as absent).
+      // A destroyed session is reported using the normal signed-out shape.
       expect(statusResponse.body.authenticated).toBeFalsy();
     });
 

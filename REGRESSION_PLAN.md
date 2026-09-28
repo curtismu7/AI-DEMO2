@@ -193,26 +193,46 @@ read the configured host. A new browser origin must be added to ALL of:
 **Files:** `demo_api_ui/src/components/TopNav.css`,
 `demo_api_ui/src/components/AgentGreetingHero.module.css`,
 `demo_api_ui/src/components/__tests__/DashboardContrast.test.js`,
-`REGRESSION_PLAN.md`.
+`demo_api_ui/src/components/ServerTopologyPage.css`, `REGRESSION_PLAN.md`.
 
 **What was broken:** the customer session label and View Token action were too
 dim against the blue top navigation. The greeting overlay also left white hero
-text below the large-text contrast threshold over bright image areas.
+text below the large-text contrast threshold over bright image areas. The
+topology communication label used an undefined font-size token.
 
 **What was fixed:** the session label and token action use the vertical's
 `--brand-topnav-text` color, with an underline hover state that retains the same
 contrast. The hero image overlay is stronger at both gradient stops so the
-greeting remains readable over bright pixels.
+greeting remains readable over bright pixels. The topology label now uses the
+defined 10px `--font-size-3xs` token.
 
 **Do not break:** preserve the top navigation's theme-driven background and the
-hero image/greeting layout; keep both fixes limited to contrast styling.
+hero image/greeting layout; keep these fixes limited to contrast styling and
+the defined topology font-size scale.
 
 **Verify:** `cd demo_api_ui && npm run test:unit --
+src/__tests__/signinAccentTokens.test.js
 src/components/__tests__/DashboardContrast.test.js
 src/components/__tests__/AIAgent.headerControls.test.js
-src/components/__tests__/AIAgent.surfaceSelectorLayout.test.js` (20/20); `cd
+src/components/__tests__/AIAgent.surfaceSelectorLayout.test.js` (29/29); `cd
 demo_api_ui && npm run build`; inspect contrast in the rendered dashboard in
 light and dark themes.
+
+### 2026-09-28 — User status returned 500 after logout destroyed the session
+
+**Files:** `routes/oauthUser.js`,
+`src/__tests__/oauthStatus.integration.test.js`.
+
+**What was broken:** the signed-out status endpoint dereferenced `req.session`
+after logout had destroyed it, so a routine status probe returned HTTP 500.
+
+**What was fixed:** the status handler now treats a missing session object as
+empty and returns the existing unauthenticated response shape.
+
+**Do not break:** preserve token-expiry and stale-session reporting, the
+four-signal admin-role check, and the BFF-only ownership of OAuth tokens.
+
+**Verify:** focused OAuth status and end-to-end logout suites with Node 22.
 
 ### 2026-09-28 — Embedded Token topology crowded the agent column
 

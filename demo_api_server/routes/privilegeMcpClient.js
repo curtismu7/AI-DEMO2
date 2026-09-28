@@ -1655,15 +1655,14 @@ async function beginOAuthFlow(session, req, { callbackPath, callbackOrigin } = {
   // A resource that advertises its own scopes wins over the session default:
   // requesting "openid profile email" at a door that exists to hand out
   // `audit:read` would defeat the narrowing the door was built for.
-  const requestedScopes = [...new Set([
-    ...(advertisedScopes?.length
-      ? advertisedScopes
-      : String(session.config.scopes || '').split(/\s+/).filter(Boolean)),
-    // Refresh tokens are issued only when the authorization server and its
-    // client registration permit offline_access. Ask on both PingOne and PF
-    // flows even when metadata leaves this standard scope out of its list.
-    'offline_access',
-  ])].join(' ');
+  const requestedScopes = [...new Set(advertisedScopes?.length
+    ? advertisedScopes
+    : [
+      ...String(session.config.scopes || '').split(/\s+/).filter(Boolean),
+      // For ordinary OAuth flows, ask for a refresh token when the provider
+      // supports it. A resource-specific advertised scope set remains exact.
+      'offline_access',
+    ])].join(' ');
   authUrl.searchParams.set('scope', requestedScopes);
   authUrl.searchParams.set('redirect_uri', redirectUri);
   authUrl.searchParams.set('state', oauthState);

@@ -19,11 +19,12 @@ beforeEach(() => mockRecords.clear());
 
 test('persists, reads, lists, and clears public-safe personal-agent associations', () => {
   const record = { userKey: 'sub-123', pingoneAgentId: 'agent-123', status: 'registered' };
+  const storedRecord = { ...record, agentType: 'personal' };
 
   store.put(record);
 
-  expect(store.get('sub-123')).toEqual(record);
-  expect(store.loadAll()).toEqual([['sub-123', record]]);
+  expect(store.get('sub-123')).toEqual(storedRecord);
+  expect(store.loadAll()).toEqual([['sub-123:personal', storedRecord]]);
 
   store.remove('sub-123');
   expect(store.get('sub-123')).toBeNull();
