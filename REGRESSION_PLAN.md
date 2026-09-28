@@ -188,6 +188,40 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-28 — Admin Reset Demo repair confirmation hid its audit findings
+
+**Files changed:** `demo_api_server/services/demoReadinessRunner.js`,
+`demo_api_server/tests/demoReadinessRunner.test.js`,
+`demo_api_ui/src/components/AdminSideNav.jsx`,
+`demo_api_ui/src/components/__tests__/AdminSideNav.resetDemo.test.jsx`,
+`docs/demo-readiness.md`, `REGRESSION_PLAN.md`.
+
+**What was broken:** the runner published the repair preview before it waited
+for the administrator, but the progress snapshot omitted the prerequisite and
+initial-audit rows. The Admin sidebar only rendered findings from the terminal
+report, which did not exist until that confirmation wait ended. In the same
+preview, blocked object values were joined as strings and displayed as
+`[object Object]`, hiding their identifiers.
+
+**What was fixed:** `repair-preview-ready` now includes the sanitized check and
+row snapshots already collected by the runner. The Admin sidebar uses those
+rows while no report exists and displays object-valued blocked identities as
+JSON, matching proposed changes. The master guide records this pre-confirmation
+review requirement.
+
+**Do not break:** the confirmation remains bound to the exact preview digest;
+only the existing READY gate can call reset, clear local history, or sign out.
+Dashboard/customer reset and logout paths remain unchanged.
+
+**Verify:** `CI=true npx jest tests/demoReadinessRunner.test.js
+tests/demoReadiness.route.test.js --runInBand --forceExit` (35 passed);
+`npx vitest run src/components/__tests__/AdminSideNav.resetDemo.test.jsx`
+(10 passed); `npm run build` (passed, 46 Demo Steps / 800 matrix rows);
+rendered finding/preview text contrast (0 failures in light and dark, minimum
+6.80:1 / 8.47:1); `git diff --check`. The broader `npm run test:unit` run did
+not finish after seven minutes with one worker still active and was stopped
+without a suite result.
+
 ### 2026-09-26 — A2A provider-flip incident: three compounding failure layers, now guarded
 
 **What was broken (the 40-minute `a2a_unauthorized` outage class):**

@@ -181,6 +181,32 @@ describe("AdminSideNav — Reset Demo readiness gate", () => {
     expect(localStorage.getItem("tokenChainHistory")).toBe("x");
   });
 
+  it("shows audit findings and blocked object details before repair confirmation", async () => {
+    setupStart();
+    apiClient.get.mockResolvedValue({ data: jobSnapshot({
+      status: "awaiting-confirmation",
+      progress: {
+        phase: "repair-preview-ready",
+        checks: [{ id: "authorize:policy-readback", status: "blocked", phase: "audit-initial", evidence: "Authorize policy readback unavailable" }],
+      },
+      preview: {
+        digest,
+        changes: [],
+        blocked: [{ target: "local", object: { id: "authorize-policy-1", label: "Agent Gateway" }, reason: "Policy source could not be reconciled" }],
+      },
+    }) });
+    renderNav();
+
+    await triggerReset();
+
+    expect(await screen.findByText("authorize:policy-readback — blocked")).toBeTruthy();
+    expect(screen.getByText("Authorize policy readback unavailable")).toBeTruthy();
+    expect(screen.getByText(/authorize-policy-1/)).toBeTruthy();
+    expect(screen.queryByText(/\[object Object\]/)).toBeNull();
+    expect(apiClient.post).not.toHaveBeenCalledWith("/api/admin/reset-demo");
+    expect(performLogoutMock).not.toHaveBeenCalled();
+  });
+
   it("keeps reset and sign-out blocked when the preview digest is stale", async () => {
     setupStart();
     apiClient.get.mockResolvedValue({ data: jobSnapshot({

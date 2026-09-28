@@ -291,7 +291,13 @@ async function startReadinessRun({
     return makeResult();
   }
   repairPreview = redactReadinessValue(previewResult || { changes: [], blocked: [], digest: null });
-  const previewProgress = await waitUntilDeadline(() => onProgress(redactReadinessValue({ phase: 'repair-preview-ready', preview: repairPreview, deadlineAt })));
+  const previewProgress = await waitUntilDeadline(() => onProgress(redactReadinessValue({
+    phase: 'repair-preview-ready',
+    preview: repairPreview,
+    checks: [...checks],
+    rows: [...rows],
+    deadlineAt,
+  })));
   if (previewProgress.timedOut || expired()) return finishDeadline();
   if (previewProgress.error) {
     checks.push({ id: 'repair:preview-progress', status: 'blocked', required: true, phase: 'repair-preview', evidence: redactReadinessValue(previewProgress.error?.message || 'progress callback failed') });

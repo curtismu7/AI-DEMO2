@@ -1975,9 +1975,10 @@ export default function AdminSideNav({
   const readinessPreview = readinessJob?.preview || readinessReport?.repairPreview;
   const readinessChanges = Array.isArray(readinessPreview?.changes) ? readinessPreview.changes : [];
   const readinessBlockedChanges = Array.isArray(readinessPreview?.blocked) ? readinessPreview.blocked : [];
+  const readinessFindingSource = readinessReport || readinessJob?.progress;
   const readinessFailures = [
-    ...(Array.isArray(readinessReport?.checks) ? readinessReport.checks : []),
-    ...(Array.isArray(readinessReport?.rows) ? readinessReport.rows : []),
+    ...(Array.isArray(readinessFindingSource?.checks) ? readinessFindingSource.checks : []),
+    ...(Array.isArray(readinessFindingSource?.rows) ? readinessFindingSource.rows : []),
   ].filter((row) => row && row.status !== "pass");
   const canConfirmReadinessRepairs = readinessJob?.status === "awaiting-confirmation"
     && typeof readinessPreview?.digest === "string"
@@ -2390,7 +2391,7 @@ export default function AdminSideNav({
                 ))}
                 {readinessBlockedChanges.map((change, index) => (
                   <li key={`blocked-${index}`}>
-                    <strong>Blocked: {[change.target, change.object].filter(Boolean).join(" · ") || `Change ${index + 1}`}</strong>
+                    <strong>Blocked: {[change.target, change.object].filter(Boolean).map((value) => typeof value === "string" ? value : JSON.stringify(value)).join(" · ") || `Change ${index + 1}`}</strong>
                     {change.reason && <div>{change.reason}</div>}
                   </li>
                 ))}
@@ -2407,9 +2408,9 @@ export default function AdminSideNav({
             </section>
           )}
 
-          {readinessReport && (
+          {(readinessReport || readinessFailures.length > 0) && (
             <section className="admin-side-nav__readiness-section" aria-labelledby="readiness-results-heading">
-              <h3 id="readiness-results-heading">Readiness results</h3>
+              <h3 id="readiness-results-heading">{readinessReport ? "Readiness results" : "Findings to review"}</h3>
               {readinessFailures.length > 0 ? (
                 <ul className="admin-side-nav__readiness-list">
                   {readinessFailures.map((row, index) => (

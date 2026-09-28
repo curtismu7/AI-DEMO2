@@ -70,6 +70,21 @@ describe('startReadinessRun', () => {
     expect(result.checks.find((row) => row.id === 'config').resolvedByRepair).toBe(true);
   });
 
+  test('includes the initial audit findings in the repair preview progress snapshot', async () => {
+    const { adapters } = harness();
+    const progressEvents = [];
+
+    await startReadinessRun({
+      targets: ['local', 'se'],
+      adapters,
+      onProgress: async (event) => { progressEvents.push(event); },
+      confirmRepairs: async () => false,
+    });
+
+    const previewEvent = progressEvents.find((event) => event.phase === 'repair-preview-ready');
+    expect(previewEvent.checks).toContainEqual(expect.objectContaining({ id: 'config', status: 'fail', phase: 'audit-initial' }));
+  });
+
   test('starts one deadline before prerequisites and includes confirmation wait', async () => {
     let now = 1_000;
     let deadlineSeen;
