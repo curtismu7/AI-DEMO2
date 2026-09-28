@@ -24,7 +24,7 @@ jobs:
   # workers stay available for the long service suites.
   changes:
     name: Select affected test suites
-    runs-on: [self-hosted, ci-gates]
+    runs-on: [ci-gates]
     outputs:
       api-server: ${{ steps.all.outputs['api-server'] || steps.filter.outputs['api-server'] }}
       decision-services: ${{ steps.all.outputs['decision-services'] || steps.filter.outputs['decision-services'] }}
@@ -94,7 +94,7 @@ jobs:
 
   gates:
     name: Hygiene + topology gates
-    runs-on: [self-hosted, ci-gates]
+    runs-on: [ci-gates]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
