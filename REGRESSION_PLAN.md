@@ -477,6 +477,43 @@ were canceled while the PR merge ref was being superseded by updates to main.
 The selector and gate share one runner, so make the gate depend on selection to
 avoid a long gate install delaying suite dispatch. Their fresh run is needed
 before treating those suites as verified.
+
+### 2026-09-28 — Demo Steps use cases were clipped in a multi-column grid
+
+**Files:** `demo_api_ui/src/components/AIAgent.css`, `REGRESSION_PLAN.md`.
+
+**What was broken:** Mission Control auto-filled narrow columns and forced use
+case names onto one line with ellipses. A long ID-JAG card also stretched every
+card sharing its grid row.
+
+**What was fixed:** the use-case cards now render as a single full-width list,
+with wrapping labels and equal-height rows that grow together when longer text
+wraps, so each phrase stays readable.
+
+**Do not break:** keep the existing selection, completion, progress, explain,
+and workload-link behavior; this layout change does not alter auth or sessions.
+
+**Verify:** `cd demo_api_ui && npm run build`; run the `THEMING.md` §1.4
+contrast auditor on Mission Control in both themes.
+
+### 2026-09-28 — Demo Steps use cases were clipped in a multi-column grid
+
+**Files:** `demo_api_ui/src/components/AIAgent.css`, `REGRESSION_PLAN.md`.
+
+**What was broken:** Mission Control auto-filled narrow columns and forced use
+case names onto one line with ellipses. A long ID-JAG card also stretched every
+card sharing its grid row.
+
+**What was fixed:** the use-case cards now render as a single full-width list,
+with wrapping labels and equal-height rows that grow together when longer text
+wraps, so each phrase stays readable.
+
+**Do not break:** keep the existing selection, completion, progress, explain,
+and workload-link behavior; this layout change does not alter auth or sessions.
+
+**Verify:** `cd demo_api_ui && npm run build`; run the `THEMING.md` §1.4
+contrast auditor on Mission Control in both themes.
+
 ### 2026-09-27 — Server topology was missing from customer navigation
 
 **Files:** `demo_api_ui/src/components/AdminSideNav.jsx`,
