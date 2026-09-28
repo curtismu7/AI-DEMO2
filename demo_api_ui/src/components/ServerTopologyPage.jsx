@@ -106,6 +106,39 @@ function stepForEdge(playback, edgeId) {
   return index < 0 ? null : { index, total: playback.steps.length, title: playback.steps[index].title };
 }
 
+const SECURITY_OPTION_STATUS = {
+  optional: "Optional · deployment-dependent",
+  candidate: "Candidate · not declared",
+};
+
+function SecurityOptionsPanel({ connection }) {
+  const options = connection?.data.securityOptions || [];
+  return (
+    <section className="stm-detail-section stm-detail-section--security-options">
+      <h3>Other security options</h3>
+      <p className="stm-security-options__intro">These are static design options, not enabled settings. The topology security note above describes the declared path.</p>
+      {options.length ? <ul className="stm-security-option-list">
+        {options.map((option) => (
+          <li className={`stm-security-option stm-security-option--${option.status}`} key={option.id}>
+            <div className="stm-security-option__head">
+              <strong>{option.title}</strong>
+              <span className={`stm-security-option__status stm-security-option__status--${option.status}`}>{SECURITY_OPTION_STATUS[option.status] || "Review status"}</span>
+            </div>
+            <p><strong>Security layer:</strong> {option.layer}</p>
+            <p><strong>Relationship:</strong> {option.relationship}</p>
+            <p>{option.description}</p>
+            <p><strong>Requires:</strong> {option.requirements}</p>
+            {standardsFor(option).length > 0 && <div className="stm-security-option__refs" aria-label="Standards for this option">
+              {standardsFor(option).map((standard) => <a key={standard.id} href={standard.url} target="_blank" rel="noreferrer">{standard.id}</a>)}
+            </div>}
+          </li>
+        ))}
+      </ul> : <p className="stm-subtle">No hop-specific options have been assessed for this connection.</p>}
+      <p className="stm-security-options__note">Token exchange provides delegated, audience-specific authorization. Workload mTLS authenticates services and protects their connection; it can complement a token and does not replace user-level authorization.</p>
+    </section>
+  );
+}
+
 function CommunicationList({ direction, tone, edges, playback }) {
   const routeStepByEdge = new Map(playback.steps.map((step, index) => [step.edgeId, { ...step, index }]));
   const orderedEdges = [...edges].sort((a, b) => (routeStepByEdge.get(a.id)?.index ?? Number.MAX_SAFE_INTEGER) - (routeStepByEdge.get(b.id)?.index ?? Number.MAX_SAFE_INTEGER));
@@ -118,6 +151,7 @@ function CommunicationList({ direction, tone, edges, playback }) {
           <span>{item.data.protocol}</span>
           <span>{item.data.network}</span>
           <span>{item.data.security}</span>
+          {(item.data.securityOptions || []).length > 0 && <span className="stm-communication-options"><strong>Other options:</strong> {(item.data.securityOptions || []).map((option) => `${option.status === "optional" ? "Optional" : "Candidate"}: ${option.title}`).join(" · ")}</span>}
           <small>{direction}</small>
         </li>;
       })}
@@ -172,6 +206,7 @@ function DetailPanel({ selectedNode, selectedEdge, deployment, activeStep, playb
         {(server || connection) && <section className="stm-detail-section"><h3>Protocol</h3><p>{connection ? connection.data.protocol : server.protocol}</p></section>}
         {(server || connection) && <section className="stm-detail-section"><h3>Network path</h3><p>{connection ? connection.data.network : server.network}</p></section>}
         {(server || connection) && <section className="stm-detail-section"><h3>TLS / authentication</h3><p>{connection ? connection.data.security : server.security}</p></section>}
+        {connection && <SecurityOptionsPanel connection={connection} />}
         {(server || connection) && <section className="stm-detail-section"><h3>Related RFCs & specs</h3>
           {standards.length ? <div className="stm-standard-list">{standards.map((standard) => <a key={standard.id} href={standard.url} target="_blank" rel="noreferrer"><strong>{standard.id}</strong><span>{standard.title}</span></a>)}</div> : <p className="stm-subtle">No references mapped for this item.</p>}
           <p className="stm-subtle">References describe related standards; they do not assert conformance. RFC 8705 is specific to OAuth client mTLS, not generic workload mTLS.</p>

@@ -141,8 +141,10 @@
 .stm-communication-list--incoming li { border-left-color: #bc8cff; }
 .stm-communication-list strong { color: var(--th-text-body); font-size: var(--font-size-3xs); line-height: 1.4; }
 .stm-communication-list span { color: var(--th-text-muted); font-size: var(--font-size-3xs); line-height: 1.35; overflow-wrap: anywhere; }
+.stm-communication-list .stm-communication-options { display: block; padding: 5px 6px; border-radius: 4px; background: var(--th-bg-inset); color: var(--th-text-body); }
+.stm-communication-options strong { color: var(--th-text-body); }
 .stm-communication-list small { justify-self: start; padding: 2px 5px; border-radius: 3px; background: var(--th-bg-inset); color: var(--th-text-muted); font-size: var(--font-size-4xs); }
-.stm-code { padding: 6px 7px; border: 1px solid var(--th-border); border-radius: 4px; background: var(--th-bg-inset); color: var(--th-status-info); font: var(--font-size-3xs) var(--font-mono); overflow-wrap: anywhere; }
+.stm-code { padding: 6px 7px; border: 1px solid var(--th-border); border-radius: 4px; background: var(--th-bg-inset); color: var(--th-status-info-text); font: var(--font-size-3xs) var(--font-mono); overflow-wrap: anywhere; }
 .stm-subtle { margin-top: 5px !important; color: var(--th-text-muted) !important; font-size: var(--font-size-3xs) !important; }
 .stm-path-arrow { color: var(--th-text-muted); font-size: var(--font-size-3xs); }
 .stm-standard-list { display: grid; gap: 6px; }
@@ -151,8 +153,21 @@
 .stm-standard-list strong { display: block; color: #8357ae; font: 650 var(--font-size-3xs) var(--font-mono); }
 :root[data-theme="dark"] .stm-standard-list strong { color: #d2b4ff; }
 .stm-standard-list span { display: block; margin-top: 3px; color: var(--th-text-muted); font-size: var(--font-size-3xs); line-height: 1.35; }
+.stm-security-options__intro { margin-bottom: 7px !important; color: var(--th-text-body) !important; font-size: var(--font-size-3xs) !important; }
+.stm-security-option-list { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+.stm-security-option { display: grid; gap: 5px; padding: 8px; border: 1px solid var(--th-border); border-left: 3px solid var(--th-status-warning); border-radius: 5px; background: var(--th-bg-card); color: var(--th-text-body); }
+.stm-security-option--optional { border-left-color: var(--th-status-info); }
+.stm-security-option__head { display: grid; gap: 5px; }
+.stm-security-option__head > strong { color: var(--th-text); font-size: var(--font-size-3xs); line-height: 1.4; }
+.stm-security-option__status { justify-self: start; padding: 2px 5px; border: 1px solid var(--th-border-strong); border-radius: 999px; background: var(--th-bg-inset); color: var(--th-text-body); font-size: var(--font-size-3xs); line-height: 1.35; }
+.stm-security-option p { color: var(--th-text-body) !important; font-size: var(--font-size-3xs) !important; }
+.stm-security-option p strong { color: var(--th-text); }
+.stm-security-option__refs { display: flex; flex-wrap: wrap; gap: 5px; }
+.stm-security-option__refs a { padding: 2px 5px; border: 1px solid var(--th-border); border-radius: 4px; background: var(--th-bg-inset); color: var(--th-status-info-text); font-size: var(--font-size-3xs); text-decoration: none; }
+.stm-security-option__refs a:hover { text-decoration: underline; }
+.stm-security-options__note { margin-top: 8px !important; padding: 7px; border-left: 2px solid var(--th-status-info); background: var(--th-bg-inset); color: var(--th-text-body) !important; font-size: var(--font-size-3xs) !important; }
 .stm-step-context { display: grid; gap: 3px; margin: 0 0 10px; padding: 7px; border-left: 3px solid #388bfd; background: var(--th-bg-inset); color: var(--th-text-body); font-size: var(--font-size-3xs); line-height: 1.4; }
-.stm-step-context strong { color: var(--th-status-info); font-family: var(--font-mono); }
+.stm-step-context strong { color: var(--th-status-info-text); font-family: var(--font-mono); }
 .stm-empty-detail { color: var(--th-text-muted); font-size: var(--font-size-2xs); line-height: 1.5; }
 .stm-evidence { margin-top: 13px; padding: 8px; border-left: 2px solid var(--th-status-warning); background: var(--th-status-warning-bg); color: var(--th-status-warning-text); font-size: var(--font-size-3xs); line-height: 1.45; }
 .stm-notes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; flex: 0 0 auto; color: var(--th-text-muted); font-size: var(--font-size-3xs); line-height: 1.4; }
