@@ -31,6 +31,7 @@ function normalizeRun(run) {
     startedAt: run.run_started_at || null,
     updatedAt: run.updated_at || null,
     completedAt: run.run_completed_at || (status === 'completed' ? run.updated_at || null : null),
+    runCompletedAt: run.run_completed_at || null,
     url: run.html_url || '',
   };
 }
@@ -46,6 +47,14 @@ function normalizeJob(job) {
     runnerName: job.runner_name || null,
     runnerGroup: job.runner_group_name || null,
     labels: Array.isArray(job.labels) ? job.labels.map(String) : [],
+    steps: Array.isArray(job.steps) ? job.steps.map((step) => ({
+      number: step.number ?? null,
+      name: step.name || 'Step',
+      status: step.status || 'unknown',
+      conclusion: step.conclusion || null,
+      startedAt: step.started_at || null,
+      completedAt: step.completed_at || null,
+    })) : [],
   };
 }
 

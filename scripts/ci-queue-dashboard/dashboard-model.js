@@ -39,6 +39,28 @@
     return Math.round(median - elapsed);
   }
 
+  function durationMs(startValue, endValue) {
+    if (!startValue || !endValue) return null;
+    const start = Date.parse(startValue);
+    const end = typeof endValue === 'number' ? endValue : Date.parse(endValue);
+    return Number.isFinite(start) && Number.isFinite(end) && end >= start ? end - start : null;
+  }
+
+  function executionDurationMs(work, nowMs = Date.now()) {
+    const end = work.status === 'in_progress' ? nowMs : work.completedAt;
+    return durationMs(work.startedAt, end);
+  }
+
+  function runDurations(run, nowMs = Date.now()) {
+    const waiting = runTimingKind(run.status) === 'waiting';
+    return {
+      queueWaitMs: durationMs(run.createdAt, waiting ? nowMs : run.startedAt),
+      // completedAt preserves the existing card/ETA update-time fallback. Details
+      // use only the explicit workflow completion timestamp supplied by GitHub.
+      executionMs: waiting ? null : executionDurationMs({ ...run, completedAt: run.runCompletedAt }, nowMs),
+    };
+  }
+
   function classifyRuns(runs) {
     const groups = { inProgress: [], queued: [], completed: [] };
     for (const run of Array.isArray(runs) ? runs : []) {
@@ -50,7 +72,7 @@
     return groups;
   }
 
-  const model = { classifyRuns, runTimingKind, runnerDetails, estimateRemainingMs };
+  const model = { classifyRuns, runTimingKind, runnerDetails, estimateRemainingMs, runDurations, executionDurationMs };
   if (typeof module === 'object' && module.exports) module.exports = model;
   else root.CiQueueDashboardModel = model;
 })(typeof window === 'undefined' ? globalThis : window);

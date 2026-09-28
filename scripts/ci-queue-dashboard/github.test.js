@@ -38,6 +38,7 @@ test('normalizeRun maps GitHub workflow run fields to the dashboard contract', (
     startedAt: null,
     updatedAt: '2026-09-28T10:02:00Z',
     completedAt: null,
+    runCompletedAt: null,
     url: 'https://github.com/cmuir_pingcorp/AI-DEMO2/actions/runs/12',
   });
 });
@@ -63,6 +64,7 @@ test('normalizeJob preserves status, timing, and available runner details', () =
     runnerName: 'cmuir-dev-mac',
     runnerGroup: 'Default',
     labels: ['self-hosted', 'macOS'],
+    steps: [],
   });
 });
 
@@ -293,4 +295,26 @@ test('performAction rejects unsupported operations before calling GitHub', async
 
   await assert.rejects(reader.performAction({ type: 'runner', action: 'delete', id: 23 }), { code: 'GH_ACTION' });
   assert.equal(calls, 0);
+});
+
+
+test('normalizeJob retains ordered step progress and explicit timing from the existing jobs response', () => {
+  const job = normalizeJob({ id: 8, steps: [
+    { number: 1, name: 'Checkout', status: 'completed', conclusion: 'success', started_at: '2026-09-28T10:01:00Z', completed_at: '2026-09-28T10:02:00Z' },
+    { number: 2, name: '<script>Test</script>', status: 'in_progress', conclusion: null, started_at: '2026-09-28T10:02:00Z', completed_at: null },
+    { number: 3, name: 'Upload', status: 'pending' },
+  ] });
+  assert.deepEqual(job.steps, [
+    { number: 1, name: 'Checkout', status: 'completed', conclusion: 'success', startedAt: '2026-09-28T10:01:00Z', completedAt: '2026-09-28T10:02:00Z' },
+    { number: 2, name: '<script>Test</script>', status: 'in_progress', conclusion: null, startedAt: '2026-09-28T10:02:00Z', completedAt: null },
+    { number: 3, name: 'Upload', status: 'pending', conclusion: null, startedAt: null, completedAt: null },
+  ]);
+  assert.deepEqual(normalizeJob({ id: 9 }).steps, []);
+});
+
+test('normalizeRun retains an explicit completion separately from the existing update-time fallback', () => {
+  const run = normalizeRun({ id: 9, status: 'completed', updated_at: '2026-09-28T10:03:00Z' });
+  assert.equal(run.completedAt, '2026-09-28T10:03:00Z');
+  assert.equal(run.runCompletedAt, null);
+  assert.equal(normalizeRun({ id: 10, run_completed_at: '2026-09-28T10:03:00Z' }).runCompletedAt, '2026-09-28T10:03:00Z');
 });

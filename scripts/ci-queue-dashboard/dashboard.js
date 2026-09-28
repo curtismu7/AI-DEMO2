@@ -3,8 +3,15 @@
 const POLL_INTERVAL_MS = 15000;
 let refreshInProgress = false;
 let currentSnapshot = null;
+let selectedRunId = null;
+let detailTrigger = null;
 
 const elements = {
+  detailPanel: document.getElementById('run-detail-panel'),
+  detailTitle: document.getElementById('run-detail-title'),
+  detailContent: document.getElementById('run-detail-content'),
+  detailClose: document.getElementById('run-detail-close'),
+  queueView: document.getElementById('queue-view'),
   repository: document.getElementById('repository-name'),
   freshness: document.getElementById('freshness'),
   liveState: document.getElementById('live-state'),
@@ -186,6 +193,13 @@ function createRunArticle(run, compact = false, history = []) {
   }
   const headerActions = node('div', 'run-actions');
   headerActions.append(makeStatus(run.status, run.conclusion));
+  const details = node('button', 'control-button', 'Run details');
+  details.type = 'button';
+  details.dataset.detailRunId = String(run.id);
+  details.setAttribute('aria-controls', 'run-detail-panel');
+  details.setAttribute('aria-expanded', String(selectedRunId === run.id));
+  headerActions.append(details);
+  if (selectedRunId === run.id) detailTrigger = details;
   if (['queued', 'requested', 'waiting', 'pending', 'in_progress'].includes(normalized(run.status))) {
     headerActions.append(makeActionButton('run', 'cancel', run.id, 'Stop run', true));
   } else if (run.status === 'completed' && ['failure', 'timed_out', 'action_required'].includes(run.conclusion)) {
@@ -201,6 +215,79 @@ function createRunArticle(run, compact = false, history = []) {
 
   article.append(header, metadata, addJobTable(run, compact));
   return article;
+}
+
+function formatElapsed(durationMs) {
+  if (durationMs === null) return 'Time unavailable';
+  const seconds = Math.floor(durationMs / 1000);
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  if (hours) return `${hours}h ${minutes}m`;
+  return minutes ? `${minutes}m ${seconds % 60}s` : `${seconds}s`;
+}
+
+function renderRunDetails() {
+  const run = currentSnapshot?.runs.find((item) => item.id === selectedRunId);
+  elements.detailContent.replaceChildren();
+  if (!run) {
+    elements.detailTitle.textContent = 'Run details';
+    elements.detailContent.append(node('p', 'job-unavailable', 'This run is unavailable in the latest queue update.'));
+    return;
+  }
+  const nowMs = Date.now();
+  const model = window.CiQueueDashboardModel;
+  const durations = model.runDurations(run, nowMs);
+  elements.detailTitle.textContent = `Run details: ${run.title || run.workflow || 'Workflow run'}`;
+  elements.detailContent.append(makeStatus(run.status, run.conclusion));
+  const timing = node('div', 'detail-timing');
+  timing.append(node('p', '', `Queue wait: ${formatElapsed(durations.queueWaitMs)}`));
+  timing.append(node('p', '', `Execution duration: ${formatElapsed(durations.executionMs)}`));
+  elements.detailContent.append(timing);
+  if (!Array.isArray(run.jobs) || !run.jobs.length) {
+    elements.detailContent.append(node('p', 'job-unavailable', 'Job details are unavailable.'));
+    return;
+  }
+  for (const job of run.jobs) {
+    const section = node('section', 'detail-job');
+    const heading = node('div', 'detail-job-heading');
+    heading.append(node('h3', '', job.name || 'Job'), makeStatus(job.status, job.conclusion));
+    heading.append(node('span', 'job-timing', `Elapsed: ${formatElapsed(model.executionDurationMs(job, nowMs))}`));
+    section.append(heading);
+    if (!Array.isArray(job.steps) || !job.steps.length) {
+      section.append(node('p', 'job-unavailable', 'Step details are unavailable.'));
+    } else {
+      const steps = node('ol', 'detail-steps');
+      for (const step of job.steps) {
+        const current = normalized(step.status) === 'in_progress';
+        const row = node('li', `detail-step${current ? ' detail-step--current' : ''}`);
+        if (current) row.setAttribute('aria-current', 'step');
+        row.append(node('span', 'detail-step-name', step.name || 'Step'), makeStatus(step.status, step.conclusion));
+        if (current) row.append(node('strong', 'detail-current', 'Current step'));
+        row.append(node('span', 'job-timing', `Elapsed: ${formatElapsed(model.executionDurationMs(step, nowMs))}`));
+        steps.append(row);
+      }
+      section.append(steps);
+    }
+    elements.detailContent.append(section);
+  }
+}
+
+function openRunDetails(button) {
+  selectedRunId = Number(button.dataset.detailRunId);
+  detailTrigger = button;
+  button.setAttribute('aria-expanded', 'true');
+  renderRunDetails();
+  elements.queueView.hidden = true;
+  elements.detailPanel.hidden = false;
+  elements.detailTitle.focus();
+}
+
+function closeRunDetails() {
+  selectedRunId = null;
+  elements.detailPanel.hidden = true;
+  elements.queueView.hidden = false;
+  detailTrigger?.setAttribute('aria-expanded', 'false');
+  (detailTrigger || elements.refresh).focus();
 }
 
 function renderWorkflowControls(controls) {
@@ -305,6 +392,7 @@ function renderRunner(snapshot) {
 
 function render(snapshot, controls) {
   currentSnapshot = snapshot;
+  if (selectedRunId !== null) detailTrigger = null;
   elements.repository.textContent = snapshot.repository || 'GitHub repository';
   elements.freshness.textContent = `Updated ${formatLocalTime(snapshot.updatedAt)}`;
   elements.liveState.replaceChildren(node('span', 'live-indicator'), node('span', '', 'Live queue'));
@@ -328,6 +416,7 @@ function render(snapshot, controls) {
   elements.completedRuns.replaceChildren(...groups.completed.map((run) => createRunArticle(run, true, snapshot.runs)));
   renderRunner(snapshot);
   renderControls(controls);
+  if (selectedRunId !== null) renderRunDetails();
 }
 
 function actionPrompt(button) {
@@ -423,8 +512,14 @@ async function refresh() {
 
 elements.refresh.addEventListener('click', refresh);
 document.addEventListener('click', (event) => {
+  if (event.target === elements.detailClose) { closeRunDetails(); return; }
+  const details = event.target.closest('button[data-detail-run-id]');
+  if (details) { openRunDetails(details); return; }
   const button = event.target.closest('button[data-action-type]');
   if (button) runAction(button);
+});
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && selectedRunId !== null) closeRunDetails();
 });
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') refresh();

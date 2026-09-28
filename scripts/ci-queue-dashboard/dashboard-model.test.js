@@ -2,7 +2,7 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { classifyRuns, runTimingKind, runnerDetails, estimateRemainingMs } = require('./dashboard-model');
+const { classifyRuns, runTimingKind, runnerDetails, estimateRemainingMs, runDurations, executionDurationMs } = require('./dashboard-model');
 
 test('classifyRuns keeps in-progress work separate from queued work', () => {
   const groups = classifyRuns([
@@ -73,4 +73,35 @@ test('estimateRemainingMs reports a negative estimate when runtime exceeds its u
     [{ workflowId: 7, status: 'completed', startedAt: '2026-09-28T10:00:00.000Z', completedAt: '2026-09-28T10:10:00.000Z' }],
     Date.parse('2026-09-28T11:55:00.000Z'),
   ), -5 * 60 * 1000);
+});
+
+
+const createdAt = '2026-09-28T10:00:00Z';
+const startedAt = '2026-09-28T10:02:00Z';
+const completedAt = '2026-09-28T10:05:00Z';
+const nowMs = Date.parse('2026-09-28T10:06:00Z');
+
+test('runDurations separates ongoing queue wait from execution for queued and running runs', () => {
+  assert.deepEqual(runDurations({ status: 'queued', createdAt }, nowMs), { queueWaitMs: 360000, executionMs: null });
+  assert.deepEqual(runDurations({ status: 'in_progress', createdAt, startedAt }, nowMs), { queueWaitMs: 120000, executionMs: 240000 });
+});
+
+test('runDurations stops both clocks at their explicit completed-run boundaries', () => {
+  assert.deepEqual(runDurations({ status: 'completed', createdAt, startedAt, runCompletedAt: completedAt }, nowMs), { queueWaitMs: 120000, executionMs: 180000 });
+});
+
+test('runDurations marks missing, invalid and reversed timestamps unavailable without fallback', () => {
+  for (const run of [
+    { status: 'completed', createdAt, updatedAt: completedAt },
+    { status: 'in_progress', createdAt: 'bad', startedAt: null },
+    { status: 'completed', createdAt: completedAt, startedAt, runCompletedAt: createdAt },
+  ]) assert.deepEqual(runDurations(run, nowMs), { queueWaitMs: null, executionMs: null });
+  assert.deepEqual(runDurations({ status: 'completed', createdAt, startedAt }, nowMs), { queueWaitMs: 120000, executionMs: null });
+});
+
+test('job and step elapsed time uses now only for in-progress work', () => {
+  assert.equal(executionDurationMs({ status: 'in_progress', startedAt }, nowMs), 240000);
+  assert.equal(executionDurationMs({ status: 'completed', startedAt, completedAt }, nowMs), 180000);
+  assert.equal(executionDurationMs({ status: 'completed', startedAt }, nowMs), null);
+  assert.equal(executionDurationMs({ status: 'pending', startedAt }, nowMs), null);
 });

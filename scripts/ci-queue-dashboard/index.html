@@ -37,6 +37,15 @@
       <div id="error-banner" class="error-banner" role="alert" hidden></div>
       <div id="action-feedback" class="action-feedback" role="status" aria-live="polite" hidden></div>
 
+      <section id="run-detail-panel" class="run-detail-panel" aria-labelledby="run-detail-title" hidden>
+        <div class="section-heading">
+          <h2 id="run-detail-title" tabindex="-1">Run details</h2>
+          <button id="run-detail-close" class="control-button" type="button">Close run details</button>
+        </div>
+        <div id="run-detail-content"></div>
+      </section>
+
+      <div id="queue-view">
       <section class="summary-strip" aria-label="Workflow run totals">
         <div class="summary-item summary-queued">
           <span id="summary-queued" class="summary-value">—</span>
@@ -130,6 +139,8 @@
         <div id="completed-empty" class="empty-state" hidden>No completed runs are available yet.</div>
         <div id="completed-runs" class="run-list run-list--completed"></div>
       </section>
+
+      </div>
 
       <footer class="page-footer">
         <span>Actions use this machine’s GitHub CLI login</span>
