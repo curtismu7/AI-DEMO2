@@ -126,7 +126,7 @@ def make_handler(manager):
             self.send_response(code)
             self.send_header("content-type", "application/json")
             self.send_header("content-length", str(len(payload)))
-            if self.path in {"/health", "/demo/config"}:
+            if self.path in {"/health", "/demo/config", "/inspect"}:
                 self.send_header("Vary", "Origin")
                 if self.headers.get("Origin") == UI_ORIGIN:
                     self.send_header("Access-Control-Allow-Origin", UI_ORIGIN)
@@ -140,19 +140,23 @@ def make_handler(manager):
             return False
 
         def do_OPTIONS(self):
-            if self.path != "/demo/config":
+            if self.path not in {"/demo/config", "/inspect"}:
                 return self._send(404, {"error": "not_found"})
             if not self._control_origin_allowed():
                 return
             method = self.headers.get("Access-Control-Request-Method", "GET")
             headers = {header.strip().lower() for header in
                        self.headers.get("Access-Control-Request-Headers", "").split(",") if header.strip()}
-            if method not in {"GET", "PUT", "OPTIONS"} or headers - {"content-type"}:
+            allowed_methods = {"POST", "OPTIONS"} if self.path == "/inspect" else {"GET", "PUT", "OPTIONS"}
+            if method not in allowed_methods or headers - {"content-type"}:
                 return self._send(403, {"error": "preflight_not_allowed"})
             self.send_response(204)
             self.send_header("Vary", "Origin")
             self.send_header("Access-Control-Allow-Origin", UI_ORIGIN)
-            self.send_header("Access-Control-Allow-Methods", "GET, PUT, OPTIONS")
+            if self.path == "/inspect":
+                self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")
+            else:
+                self.send_header("Access-Control-Allow-Methods", "GET, PUT, OPTIONS")
             self.send_header("Access-Control-Allow-Headers", "Content-Type")
             self.send_header("Content-Length", "0")
             self.end_headers()
@@ -193,6 +197,9 @@ def make_handler(manager):
         def do_POST(self):
             if self.path != "/inspect":
                 return self._send(404, {"error": "not_found"})
+            origin = self.headers.get("Origin")
+            if origin is not None and origin != UI_ORIGIN:
+                return self._send(403, {"error": "origin_not_allowed"})
             try:
                 n = int(self.headers.get("content-length") or 0)
                 req = json.loads(self.rfile.read(n) or b"{}")

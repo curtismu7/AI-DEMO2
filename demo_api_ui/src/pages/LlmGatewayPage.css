@@ -999,7 +999,8 @@
 }
 
 .lgw-sidecar__field input,
-.lgw-sidecar__field select {
+.lgw-sidecar__field select,
+.lgw-sidecar__field textarea {
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
@@ -1014,6 +1015,7 @@
 
 .lgw-sidecar__field input:disabled,
 .lgw-sidecar__field select:disabled,
+.lgw-sidecar__field textarea:disabled,
 .lgw-sidecar__field option:disabled {
   background: var(--th-bg-inset);
   color: var(--th-text-body);
@@ -1082,7 +1084,74 @@
   cursor: not-allowed;
 }
 
-.lgw-sidecar :is(input, select, button):focus-visible {
+.lgw-sidecar__inspection {
+  margin-top: 0.9rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--th-border);
+  color: var(--th-text);
+}
+
+.lgw-sidecar__inspection h3 {
+  margin: 0;
+  font-size: var(--font-size-base);
+  color: var(--th-text);
+}
+
+.lgw-sidecar__inspection-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: end;
+  margin-top: 0.7rem;
+}
+
+.lgw-sidecar__field textarea {
+  min-height: 4.5rem;
+  resize: vertical;
+}
+
+.lgw-sidecar__result {
+  margin-top: 0.75rem;
+  padding: 0.65rem;
+  border: 1px solid var(--th-border);
+  border-radius: 4px;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+
+.lgw-sidecar__result.is-flagged {
+  border-color: var(--th-status-error-border);
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
+}
+
+.lgw-sidecar__result.is-clear {
+  border-color: var(--th-status-success-border);
+  background: var(--th-status-success-bg);
+  color: var(--th-status-success-text);
+}
+
+.lgw-sidecar__result-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.lgw-sidecar__finding {
+  margin-top: 0.55rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid var(--th-border);
+  color: var(--th-text);
+}
+
+.lgw-sidecar__result p {
+  margin: 0.35rem 0 0;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.lgw-sidecar :is(input, select, textarea, button):focus-visible {
   outline: 2px solid var(--th-text);
   outline-offset: 3px;
 }
@@ -1093,6 +1162,7 @@
 
 @media (max-width: 600px) {
   .lgw-sidecar__fields { grid-template-columns: minmax(0, 1fr); }
+  .lgw-sidecar__inspection-form { grid-template-columns: minmax(0, 1fr); }
   .lgw-sidecar__switch { order: -1; }
 }
 
