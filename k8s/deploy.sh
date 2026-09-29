@@ -102,6 +102,14 @@ deploy() {
 
   kubectl apply -f "$SCRIPT_DIR/01-namespace.yaml"
 
+  # The shared namespace manifest is also used by the AWS deploy path. Raise
+  # the quota only for the guarded local ai-demo deployment, whose full manifest
+  # set needs 34 Services (25 already present plus 9 added by deploy).
+  if [[ "$NS" == "ai-demo" ]]; then
+    kubectl patch resourcequota ai-demo-quota -n "$NS" --type=merge \
+      -p '{"spec":{"hard":{"services":"34"}}}'
+  fi
+
   # Images are tagged ai-demo-k8-*:latest with imagePullPolicy: IfNotPresent. When
   # only the image *contents* change (a rebuild), the Deployment spec is
   # identical, so `kubectl apply` is a no-op and the running pods keep serving
@@ -139,9 +147,8 @@ deploy() {
   kubectl apply -f "$SCRIPT_DIR/73-jaeger-deployment.yaml"
   # Backend tool servers
   kubectl apply -f "$SCRIPT_DIR/30-mcp-server-deployment.yaml"
-  # PromptGuard is port-forwarded from its Deployment directly. The ai-demo
-  # namespace has a 25-Service quota and is currently full, so it deliberately
-  # does not allocate another ClusterIP Service.
+  # PromptGuard is port-forwarded from its Deployment directly, so it does not
+  # need a ClusterIP Service of its own.
   kubectl apply -f "$SCRIPT_DIR/65-promptguard-deployment.yaml"
   kubectl apply -f "$SCRIPT_DIR/63-mcp-resource-server-deployment.yaml"
   kubectl apply -f "$SCRIPT_DIR/64-api-resource-server-deployment.yaml"
