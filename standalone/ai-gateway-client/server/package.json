@@ -7,7 +7,9 @@
   "scripts": {
     "start": "node index.js",
     "dev": "node --watch index.js",
-    "test": "node --test *.test.js"
+    "test": "node --test *.test.js",
+    "test:integration": "node -r dotenv/config --test integration/*.test.js",
+    "test:integration:interactive": "node -r dotenv/config integration/interactive.js"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
