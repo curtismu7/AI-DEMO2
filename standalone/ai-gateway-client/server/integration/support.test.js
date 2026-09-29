@@ -110,6 +110,15 @@ test('loads custom relative and absolute fixture paths', () => {
   });
 });
 
+test('interactive mode validates the fixture without requiring a copied bearer', () => {
+  withConfig(({ serverDir }) => {
+    assert.deepEqual(readIntegrationConfig({ serverDir, env: {}, requireToken: false }), {
+      token: null,
+      fixture: example,
+    });
+  });
+});
+
 const http = require('node:http');
 const { configureDoor, postGateway, withRelayServer } = require('./support');
 async function withEndpoint(handler, callback) {
@@ -141,6 +150,19 @@ test('request helpers send the same bearer, JSON type, and requested body', asyn
   ]);
 });
 
+test('request helpers omit Authorization when the relay already owns the session', async () => {
+  const received = [];
+  await withEndpoint(async (req, res) => {
+    received.push(req.headers.authorization);
+    res.setHeader('Content-Type', 'application/json');
+    res.end('{"ok":true}');
+  }, async (base) => {
+    const response = await postGateway(base, '/state', null, {});
+    assert.equal(response.status, 200);
+  });
+  assert.deepEqual(received, [undefined]);
+});
+
 test('relay harness forwards the bearer to a loopback MCP endpoint', async () => {
   const received = [];
   await withEndpoint(async (req, res) => {
@@ -165,6 +187,33 @@ test('relay harness forwards the bearer to a loopback MCP endpoint', async () =>
   });
   assert.deepEqual(received.map((req) => req.method), ['server/discover', 'tools/list']);
   assert.ok(received.every((req) => req.authorization === `Bearer ${token}`), 'MCP must receive the exact bearer');
+});
+
+test('relay harness exposes the bearer only through a callback-scoped memory accessor', async () => {
+  await withRelayServer(async (base, { getAccessToken }) => {
+    assert.equal(getAccessToken(), null);
+    const relay = require('../lib/relay');
+    relay.__test.getSession({ headers: {} }).oauth.accessToken = token;
+    assert.equal(getAccessToken(), token);
+
+    const stateText = await (await fetch(`${base}/api/gateway/state`)).text();
+    assert.ok(!stateText.includes(token), 'public state must not export the bearer');
+    assert.equal(JSON.parse(stateText).oauth.authenticated, true);
+    const exported = await fetch(`${base}/api/gateway/token`);
+    assert.equal(exported.status, 404);
+    const storage = path.dirname(process.env.GATEWAY_ENV_PATH);
+    for (const file of fs.readdirSync(storage)) {
+      assert.ok(!fs.readFileSync(path.join(storage, file), 'utf8').includes(token));
+    }
+  });
+});
+
+test('interactive OAuth callback lands on a local completion page', async () => {
+  await withRelayServer(async (base) => {
+    const response = await fetch(`${base}/integration/auth-complete?auth=success`);
+    assert.equal(response.status, 200);
+    assert.equal(await response.text(), 'Sign-in callback received. Return to the test terminal.');
+  });
 });
 
 for (const shouldThrow of [false, true]) {
@@ -207,3 +256,18 @@ for (const shouldThrow of [false, true]) {
     });
   });
 }
+
+
+test('memory accessor expires when its callback finishes', async () => {
+  let accessor;
+  let relay;
+  await withRelayServer(async (_base, { getAccessToken }) => {
+    accessor = getAccessToken;
+    relay = require('../lib/relay');
+    relay.__test.getSession({ headers: {} }).oauth.accessToken = token;
+    assert.ok(getAccessToken() === token);
+  });
+  relay.__test.getSession({ headers: {} }).oauth.accessToken = token;
+  assert.equal(accessor(), null);
+  relay.__test.reset();
+});

@@ -3,9 +3,10 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-function readIntegrationConfig({ env = process.env, serverDir = path.join(__dirname, '..') } = {}) {
-  const token = env.AI_GATEWAY_TEST_TOKEN;
-  if (typeof token !== 'string' || !token.trim()) throw new Error('AI_GATEWAY_TEST_TOKEN is required');
+function readIntegrationConfig({ env = process.env, serverDir = path.join(__dirname, '..'), requireToken = true } = {}) {
+  const configuredToken = requireToken ? env.AI_GATEWAY_TEST_TOKEN : null;
+  const token = typeof configuredToken === 'string' && configuredToken.trim() ? configuredToken : null;
+  if (requireToken && !token) throw new Error('AI_GATEWAY_TEST_TOKEN is required');
   const configPath = path.resolve(serverDir, env.AI_GATEWAY_TEST_CONFIG || 'integration/config.local.json');
   let fixture;
   try {
@@ -37,6 +38,7 @@ async function withRelayServer(callback) {
   const previousModules = modulePaths.map((modulePath) => require.cache[modulePath]);
   let relay;
   let server;
+  let callbackActive = false;
   try {
     process.env.DOOR_STORE_DIR = tempDir;
     process.env.GATEWAY_ENV_PATH = path.join(tempDir, 'gateway.env');
@@ -45,12 +47,22 @@ async function withRelayServer(callback) {
     relay = require('../lib/relay');
     const app = require('express')();
     app.use('/api/gateway', relay);
+    app.get('/integration/auth-complete', (_req, res) => {
+      res.type('text/plain').send('Sign-in callback received. Return to the test terminal.');
+    });
     server = await new Promise((resolve, reject) => {
       const listener = app.listen(0, '127.0.0.1', () => resolve(listener));
       listener.once('error', reject);
     });
-    return await callback(`http://127.0.0.1:${server.address().port}`);
+    callbackActive = true;
+    const getAccessToken = () => {
+      if (!callbackActive) return null;
+      const accessToken = relay.__test.getSession({ headers: {} })?.oauth?.accessToken;
+      return typeof accessToken === 'string' && accessToken ? accessToken : null;
+    };
+    return await callback(`http://127.0.0.1:${server.address().port}`, { getAccessToken });
   } finally {
+    callbackActive = false;
     try {
       if (relay) {
         const session = relay.__test.getSession({ headers: {} });
@@ -79,7 +91,10 @@ async function withRelayServer(callback) {
 function postGateway(baseUrl, routePath, token, body) {
   return fetch(`${baseUrl}/api/gateway${routePath}`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    headers: {
+      ...(typeof token === 'string' && token.trim() ? { Authorization: `Bearer ${token}` } : {}),
+      'Content-Type': 'application/json',
+    },
     body: JSON.stringify(body),
   });
 }

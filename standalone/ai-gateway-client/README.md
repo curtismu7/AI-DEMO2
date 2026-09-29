@@ -36,6 +36,10 @@ Then open http://127.0.0.1:3910. It defaults to the **Privilege** door on the pu
 
 Copy `server/.env.example` to `server/.env`. Nothing is required to try either door against the public demo — set `PRIVILEGE_GATEWAY_HOST` (and friends) to point Privilege mode at your own Privilege AI Gateway, or `DIRECT_MCP_URL` to point Direct mode at any other MCP server you run.
 
+### Live integration tests
+
+The opt-in live suite checks configured Gateway allow/deny behavior. For interactive PKCE sign-in that keeps the bearer in memory, setup, and safe fixture requirements, see [`server/INTEGRATION_TESTS.md`](server/INTEGRATION_TESTS.md).
+
 ### Red-team demo: the hostile MCP server
 
 Two doors ship for the hostile MCP server (`standalone/hostile-mcp-server`, behind Privilege as the `libre` app):
