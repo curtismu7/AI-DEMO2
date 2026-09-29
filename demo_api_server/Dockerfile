@@ -47,8 +47,13 @@ COPY demo_api_server/ .
 # Copy repo-root files that BFF services reference via ../../
 # scopeTopology.js, agentRestrictionsService.js, pingoneProvisionService.js resolve to /scope-topology.json
 COPY scope-topology.json /scope-topology.json
+# demoReadinessCatalog.js resolves the gateway topology from /ping-gateway/config.
+COPY ping-gateway/config/scope-topology.json /ping-gateway/config/scope-topology.json
 # startupConfigGuard.js resolves to /service-topology.json (boot-time SoT validation)
 COPY service-topology.json /service-topology.json
+# demoReadinessAuditService.js imports these repo-root checks from /scripts.
+COPY scripts/check-demo-health-gate.js scripts/check-mcp-preflight.js /scripts/
+COPY scripts/lib/preflightRows.js /scripts/lib/preflightRows.js
 # agentReasoningClient.js resolves to /llm-timeouts.json (../../ from /app/services)
 COPY llm-timeouts.json /llm-timeouts.json
 # geminiNlIntent.js resolves to /docs/HELIX_AGENT_DIRECTIVES.json
