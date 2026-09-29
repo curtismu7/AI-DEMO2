@@ -150,6 +150,34 @@ def test_manager_failed_selection_restores_previous_and_records_unavailable():
     assert "model initialization failed" in manager.engines()[1]["reason"]
 
 
+def test_manager_shutdown_failure_restores_usable_previous_runtime():
+    class ShutdownFailure(FakeDetector):
+        def close(self):
+            super().close()
+            raise RuntimeError("shutdown failed after cleanup")
+
+    first_nemo = ShutdownFailure(BLOCKED)
+    nemo_instances = [first_nemo, FakeDetector(BLOCKED)]
+    manager = fake_manager({"classifier": lambda: FakeDetector(ALLOWED),
+                            "nemo": lambda: nemo_instances.pop(0)})
+    manager.select_engine("nemo")
+    try:
+        manager.select_engine("classifier")
+    except DetectorUnavailable as error:
+        assert "shutdown failed after cleanup" in str(error)
+    else:
+        assert False, "shutdown failure reported success"
+    assert first_nemo.closed
+    assert manager.active_engine() == "nemo"
+    assert manager.check("after failure") == BLOCKED
+    # Reselecting the restored engine and switching later both remain usable.
+    manager.select_engine("nemo")
+    assert manager.check("after reselect") == BLOCKED
+    assert manager.engines()[0]["available"]
+    manager.select_engine("classifier")
+    assert manager.check("after later switch") == ALLOWED
+
+
 def test_manager_switch_waits_for_inflight_check():
     checking, release, switch_started, switched = (threading.Event() for _ in range(4))
     errors = []

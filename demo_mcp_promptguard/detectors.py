@@ -138,15 +138,19 @@ class DetectorManager:
                 return
             previous = self._active
             close = getattr(self._detector, "close", None)
-            if close:
-                close()
             self._detector = None
+            stage = "shutdown"
             try:
+                if close:
+                    close()
+                stage = "initialization"
                 self._detector = self._factories[engine]()
             except Exception as error:
-                self._reasons[engine] = f"Detector initialization failed: {error}"
+                reason = f"Detector {stage} failed: {error}"
+                if stage == "initialization":
+                    self._reasons[engine] = reason
                 self._detector = self._factories[previous]()
-                raise DetectorUnavailable(self._reasons[engine]) from error
+                raise DetectorUnavailable(reason) from error
             self._active = engine
 
     def check(self, text):
