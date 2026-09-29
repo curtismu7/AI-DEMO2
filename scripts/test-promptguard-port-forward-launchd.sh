@@ -100,6 +100,11 @@ printf '%s\n' "$*" >> "$PROMPTGUARD_TEST_LAUNCHCTL_ARGS"
 STUB
 
 chmod +x "$TEST_BIN/git" "$TEST_BIN/kubectl-oidc_login" "$TEST_BIN/launchctl"
+cat > "$TEST_BIN/kubectl" <<'STUB'
+#!/usr/bin/env bash
+echo orbstack
+STUB
+chmod +x "$TEST_BIN/kubectl"
 cp "$FORWARD_SCRIPT" "$TEST_MAIN/scripts/promptguard-port-forward.sh"
 
 PROMPTGUARD_TEST_MAIN="$TEST_MAIN" \
@@ -115,8 +120,19 @@ grep -Fq '<key>RunAtLoad</key><true/>' "$PLIST" \
   || fail "LaunchAgent will not start at login"
 grep -Fq '<key>KeepAlive</key><true/>' "$PLIST" \
   || fail "LaunchAgent will not keep the supervisor running"
+grep -Fq '<key>PROMPTGUARD_PF_CONTEXT</key><string>orbstack</string>' "$PLIST" \
+  || fail "LaunchAgent did not pin the selected local Kubernetes context"
 grep -Fq "load $PLIST" "$TEST_STATE/launchctl.args" \
   || fail "installer did not load the LaunchAgent"
+
+if PROMPTGUARD_TEST_MAIN="$TEST_MAIN" PROMPTGUARD_PF_CONTEXT=us HOME="$TEST_HOME" PATH="$TEST_BIN:$PATH" \
+  "$INSTALLER" >"$TEST_STATE/remote-install.log" 2>&1; then
+  fail "installer accepted a remote Kubernetes context"
+fi
+if ! grep -Fq "refusing to install a local PromptGuard tunnel for context 'us'" "$TEST_STATE/remote-install.log"; then
+  cat "$TEST_STATE/remote-install.log" >&2
+  fail "installer did not explain why the remote context was rejected"
+fi
 
 PROMPTGUARD_TEST_LAUNCHCTL_ARGS="$TEST_STATE/launchctl.args" \
 HOME="$TEST_HOME" PATH="$TEST_BIN:$PATH" \

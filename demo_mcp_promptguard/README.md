@@ -88,9 +88,10 @@ The sidecar exposes these local endpoints on port 8086:
 
 For the UI to reach the Kubernetes sidecar, install the login LaunchAgent
 port-forward with `bash scripts/install-promptguard-port-forward-launchd.sh`.
-It targets the local `orbstack` context and keeps `localhost:8086` forwarded to
-the Deployment after login. Apply sends the edited config to the running
-sidecar. Only successfully applied values are saved as a localStorage draft;
+It pins the selected local OrbStack or Docker Desktop context and keeps
+`localhost:8086` forwarded to the Deployment after login. Apply sends the
+edited config to the running sidecar. Only successfully applied values are
+saved as a localStorage draft;
 unsaved edits may be lost on reload. A new browser or storage reset reads the
 active config from the endpoint. While open, the panel checks connection and
 shared state every 15 seconds, with a 5-second read timeout, and preserves the

@@ -27,8 +27,18 @@ if [[ ! -f "$FORWARD_SCRIPT" ]]; then
   exit 1
 fi
 
+PF_CONTEXT="${PROMPTGUARD_PF_CONTEXT:-$(kubectl config current-context 2>/dev/null || true)}"
+case "$PF_CONTEXT" in
+  orbstack|docker-desktop) ;;
+  *)
+    echo "ERROR: refusing to install a local PromptGuard tunnel for context '${PF_CONTEXT:-unknown}'" >&2
+    echo "Switch to OrbStack or Docker Desktop first, or set PROMPTGUARD_PF_CONTEXT to one of those local contexts." >&2
+    exit 1
+    ;;
+esac
+
 # Launchd has a minimal PATH; kubectl's exec credential plugin must be found
-# when the tunnel authenticates to the `us` context.
+# from the selected local Kubernetes context.
 KUBECTL_BIN="$(command -v kubectl || echo /usr/local/bin/kubectl)"
 OIDC_BIN="$(command -v kubectl-oidc_login || echo /opt/homebrew/bin/kubectl-oidc_login)"
 PATH_ENV="$(dirname "$KUBECTL_BIN"):$(dirname "$OIDC_BIN"):/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
@@ -49,6 +59,7 @@ cat > "$PLIST" <<PLISTEOF
   <key>EnvironmentVariables</key>
   <dict>
     <key>PATH</key><string>$PATH_ENV</string>
+    <key>PROMPTGUARD_PF_CONTEXT</key><string>$PF_CONTEXT</string>
   </dict>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>
@@ -64,6 +75,7 @@ launchctl load "$PLIST"
 
 echo "Installed and loaded $LABEL"
 echo "  script:    $FORWARD_SCRIPT"
+echo "  context:   $PF_CONTEXT"
 echo "  PATH:      $PATH_ENV"
 echo "  plist:     $PLIST"
 echo "  log:       $LOG"

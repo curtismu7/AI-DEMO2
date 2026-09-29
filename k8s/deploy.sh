@@ -57,10 +57,14 @@ check_prereqs() {
   command -v kubectl &>/dev/null || die "kubectl not found"
   local context
   context="$(kubectl config current-context 2>/dev/null || true)"
-  case "$context" in
-    orbstack|docker-desktop) ;;
-    *) die "Refusing local K8 operation on context '${context:-unknown}'. Switch to OrbStack (kubectl config use-context orbstack) or Docker Desktop first." ;;
-  esac
+  # run-k8.sh se-basic reuses this script with an explicitly selected SE
+  # namespace after switching to `us`; keep that separate from local ai-demo.
+  if [[ "$NS" == "ai-demo" ]]; then
+    case "$context" in
+      orbstack|docker-desktop) ;;
+      *) die "Refusing local K8 operation on context '${context:-unknown}'. Switch to OrbStack (kubectl config use-context orbstack) or Docker Desktop first." ;;
+    esac
+  fi
   kubectl cluster-info &>/dev/null || die "Cannot reach K8s cluster. Enable K8s in OrbStack Settings."
   info "K8s cluster reachable (context: $context)."
 }
