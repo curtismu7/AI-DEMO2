@@ -121,7 +121,7 @@ def make_handler(manager):
         def log_message(self, *a):
             pass
 
-        def _send(self, code, body):
+        def _send(self, code, body, response_headers=None):
             payload = json.dumps(body).encode()
             self.send_response(code)
             self.send_header("content-type", "application/json")
@@ -130,6 +130,10 @@ def make_handler(manager):
                 self.send_header("Vary", "Origin")
                 if self.headers.get("Origin") == UI_ORIGIN:
                     self.send_header("Access-Control-Allow-Origin", UI_ORIGIN)
+                if self.path == "/inspect":
+                    self.send_header("Access-Control-Expose-Headers", "X-PromptGuard-Engine")
+            for name, value in (response_headers or {}).items():
+                self.send_header(name, value)
             self.end_headers()
             self.wfile.write(payload)
 
@@ -206,6 +210,7 @@ def make_handler(manager):
                 units = req.get("units") or []
                 with lock:
                     findings = to_findings(units, manager, config["demo"])
+                    engine = manager.active_engine()
             except Exception as e:  # gateway's Fail Closed setting decides what a 5xx means
                 print("promptguard: inspect_failed", flush=True)
                 return self._send(502, {"error": "inspect_failed", "message": str(e)})
@@ -213,7 +218,7 @@ def make_handler(manager):
             # no prompt text — so shared cluster logs never carry the user's content.
             verdict = ", ".join(f["messages"][0] for f in findings) or "allow"
             print(f"promptguard: {len(units)} unit(s) -> {verdict}", flush=True)
-            return self._send(200, {"findings": findings})
+            return self._send(200, {"findings": findings}, {"X-PromptGuard-Engine": engine})
 
     return H
 

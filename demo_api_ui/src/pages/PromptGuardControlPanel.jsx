@@ -27,6 +27,7 @@ async function request(path, options) {
     error.status = response.status;
     throw error;
   }
+  if (path === '/inspect') data.engine = response.headers.get('X-PromptGuard-Engine');
   return data;
 }
 
@@ -196,8 +197,9 @@ export default function PromptGuardControlPanel() {
         }),
       });
       if (!Array.isArray(data.findings)) throw new Error('Inspection response did not include findings.');
+      if (!ENGINE_NAMES[data.engine]) throw new Error('Inspection response did not identify the active detector.');
       if (controller.signal.aborted) return;
-      setInspection({ findings: data.findings });
+      setInspection({ engine: data.engine, findings: data.findings });
     } catch (failure) {
       if (controller.signal.aborted) return;
       setInspectionError('Inspection failed: ' + failure.message);
@@ -291,7 +293,7 @@ export default function PromptGuardControlPanel() {
           >
             <div className="lgw-sidecar__result-heading">
               <strong>{inspectionHasFindings ? 'Flagged' : 'Clear'}</strong>
-              <span>Checked by PromptGuard sidecar</span>
+              <span>Detector: {ENGINE_NAMES[inspection.engine]}</span>
             </div>
             {inspectionHasFindings ? inspection.findings.map((finding, index) => (
               <div className="lgw-sidecar__finding" key={(finding.category || 'finding') + '-' + index}>
