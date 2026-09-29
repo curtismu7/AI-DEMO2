@@ -68,10 +68,10 @@
 
 - `npm run test:integration` runs `node -r dotenv/config --test integration/*.test.js`; `npm test` remains `node --test *.test.js`.
 
-- [ ] **Step 1: Add the fixture example and ignore rule.** Ignore only `server/integration/config.local.json`; keep the example tracked and token-free.
-- [ ] **Step 2: Add the script** `"test:integration": "node -r dotenv/config --test integration/*.test.js"` and verify the existing `npm test` script stays unchanged.
-- [ ] **Step 3: Run** `npm ci`, then `npm test` and `npm run` to verify the offline suite and new command are registered.
-- [ ] **Step 4: Commit** as `test(ai-gateway-client): add opt-in integration fixture config`.
+- [x] **Step 1: Add the fixture example and ignore rule.** Ignore only `server/integration/config.local.json`; keep the example tracked and token-free.
+- [x] **Step 2: Add the script** `"test:integration": "node -r dotenv/config --test integration/*.test.js"` and verify the existing `npm test` script stays unchanged.
+- [x] **Step 3: Run** `npm ci`, then `npm test` and `npm run` to verify the offline suite and new command are registered.
+- [x] **Step 4: Commit** as `test(ai-gateway-client): add opt-in integration fixture config` (`c3e452949`).
 
 ## Task 2: Build a local relay harness for live tests
 
@@ -85,13 +85,13 @@
 - `configureDoor(baseUrl, url, token)` POSTs `{ gatewayMode: "privilege", mcpUrl: url }` with `Authorization: Bearer <token>`.
 - `postGateway(baseUrl, path, token, body)` sends the bearer on every request so the relay uses the same principal throughout.
 
-- [ ] **Step 1: Write failing unit tests** for missing token, missing fixture, malformed JSON, missing required URLs/tool names, invalid URL schemes, and valid config parsing. Assert error text names missing variables/fields but never includes the token.
-- [ ] **Step 2: Run** `node --test integration/support.test.js`; confirm it fails because the support module is not implemented yet.
-- [ ] **Step 3: Implement `readIntegrationConfig()`** with those validations. Require HTTPS; allow loopback HTTP only when `AI_GATEWAY_ALLOW_HTTP_TEST_URLS=true`; reject embedded URL credentials and empty hostnames.
-- [ ] **Step 4: Add tests** that `configureDoor` and `postGateway` send the bearer header and JSON content type; implement those helpers and the `withRelayServer(callback)` lifecycle.
-- [ ] **Step 5: Test the harness with a local mock MCP endpoint**; verify it receives the exact bearer and cleanup runs even when the callback throws. Set temporary `DOOR_STORE_DIR` and `GATEWAY_ENV_PATH` before requiring `./lib/relay`.
-- [ ] **Step 6: Run** `node --test integration/support.test.js` and `npm test`.
-- [ ] **Step 7: Commit** as `test(ai-gateway-client): add isolated relay integration harness`.
+- [x] **Step 1: Write failing unit tests** for missing token, missing fixture, malformed JSON, missing required URLs/tool names, invalid URL schemes, and valid config parsing. Assert error text names missing variables/fields but never includes the token.
+- [x] **Step 2: Run** `node --test integration/support.test.js`; confirm it fails because the support module is not implemented yet.
+- [x] **Step 3: Implement `readIntegrationConfig()`** with those validations. Require HTTPS; allow loopback HTTP only when `AI_GATEWAY_ALLOW_HTTP_TEST_URLS=true`; reject embedded URL credentials and empty hostnames.
+- [x] **Step 4: Add tests** that `configureDoor` and `postGateway` send the bearer header and JSON content type; implement those helpers and the `withRelayServer(callback)` lifecycle.
+- [x] **Step 5: Test the harness with a local mock MCP endpoint**; verify it receives the exact bearer and cleanup runs even when the callback throws. Set temporary `DOOR_STORE_DIR` and `GATEWAY_ENV_PATH` before requiring `./lib/relay`.
+- [x] **Step 6: Run** `node --test integration/support.test.js` and `npm test`.
+- [x] **Step 7: Commit** as `test(ai-gateway-client): add isolated relay integration harness` (`fd0715ea3`).
 
 ## Task 3: Verify same-identity allow, deny, and door probing
 
@@ -103,11 +103,11 @@
 - Use `fixture.allowed.url`, `fixture.deniedDoor.url`, and the single `AI_GATEWAY_TEST_TOKEN` from `readIntegrationConfig()`.
 - The test calls only `tools/list` on the denied app and `/doors/probe`; it does not invoke a denied live tool.
 
-- [ ] **Step 1: Write the integration case** `same bearer can use the allowed app and receives 403 on the denied app`. Configure the allowed URL, call `/tools/list`, assert HTTP 200 and that the configured safe tool is present, then call that configured read-only tool and assert HTTP 200 with a nonempty MCP `result`. Reconfigure to the denied URL using the same token, call `/tools/list`, and assert HTTP 403.
-- [ ] **Step 2: Add the probe assertions** while the allowed URL is current: POST `/doors/probe` with only the denied URL, then assert the route returns 200 with one `{ ok: false, status: 403 }` result. Assert failures include no token text.
+- [x] **Step 1: Write the integration case** `same bearer can use the allowed app and receives 403 on the denied app`. Configure the allowed URL, call `/tools/list`, assert HTTP 200 and that the configured safe tool is present, then call that configured read-only tool and assert HTTP 200 with a nonempty MCP `result`. Reconfigure to the denied URL using the same token, call `/tools/list`, and assert HTTP 403.
+- [x] **Step 2: Add the probe assertions** while the allowed URL is current: POST `/doors/probe` with only the denied URL, then assert the route returns 200 with one `{ ok: false, status: 403 }` result. Assert failures include no token text.
 - [ ] **Step 3: Run the case against a provisioned staging fixture** and inspect only status/tool names in output. A 401 is an authentication/setup failure; a 5xx is an environment failure; only the configured 403 is the expected denial.
 - [ ] **Step 4: Run** `npm test` and `npm run test:integration` with the staging fixture.
-- [ ] **Step 5: Commit** as `test(ai-gateway-client): verify live gateway allow and deny paths`.
+- [x] **Step 5: Commit** as `test(ai-gateway-client): verify live gateway allow and deny paths` (`eea254a7b`).
 
 ## Task 3A: Run live checks with in-memory interactive sign-in
 
