@@ -163,6 +163,40 @@ describe("AdminSideNav — Reset Demo readiness gate", () => {
     expect(localStorage.getItem("api-traffic-store")).toBeNull();
   });
 
+  it("labels the approved Authorize policy-tree waiver as unverified while allowing a READY reset", async () => {
+    setupStart();
+    apiClient.get.mockResolvedValueOnce({ data: jobSnapshot({
+      status: "ready",
+      report: {
+        status: "ready",
+        ready: true,
+        targets: ["local", "se"],
+        checks: [
+          {
+            id: "pingone:policyReadback",
+            status: "blocked",
+            required: false,
+            waiver: "Temporary waiver: live Authorize policy-tree parity is unverified.",
+            evidence: "Endpoint references and runtime Authorize decisions remain required.",
+          },
+          { id: "other:optional", status: "blocked", required: false, waiver: "Unrelated metadata" },
+        ],
+      },
+    }) });
+    renderNav();
+
+    await triggerReset();
+
+    expect(await screen.findByText("pingone:policyReadback — waived (not verified)")).toBeTruthy();
+    expect(screen.getByText(/live Authorize policy-tree parity is unverified/i)).toBeTruthy();
+    expect(screen.getByText("other:optional — blocked")).toBeTruthy();
+    expect(screen.queryByText("other:optional — waived (not verified)")).toBeNull();
+    const readyStatus = screen.getByText(/All readiness checks passed\. Resetting demo state/);
+    expect(readyStatus.className).toContain("admin-side-nav__readiness-status--ready");
+    expect(readyStatus.className).not.toContain("admin-side-nav__readiness-status--blocked");
+    expect(apiClient.post).toHaveBeenCalledWith("/api/admin/reset-demo");
+  });
+
   it("does not apply repairs, reset, or sign out when the administrator declines the digest confirmation", async () => {
     setupStart();
     apiClient.get.mockResolvedValue({ data: jobSnapshot({

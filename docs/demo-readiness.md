@@ -22,7 +22,7 @@ The 46-step plan keeps separate PingOne and PingFederate user sessions wherever 
 | PingOne management/configuration readback | `PINGONE_ADMIN_CLIENT_ID`, `PINGONE_ADMIN_CLIENT_SECRET`, `PINGONE_WORKER_CLIENT_ID`, `PINGONE_WORKER_CLIENT_SECRET` |
 | Existing demo account scripts | `DEMO_USER_USERNAME`, `DEMO_USER_PASSWORD`, `DEMO_ADMIN_USERNAME`, `DEMO_ADMIN_PASSWORD` — these are not isolated readiness identities. |
 
-These are existing application variables, not a readiness worker credential contract. There is no production `DEMO_READINESS_*` identity map or provider-isolated worker factory yet. The default runner reports this as a blocker; the default CLI also lacks target runtime URLs and expected-revision configuration, and current worker credentials cannot read the complete Authorize policy tree. Filling in unrelated `.env` values does not remove those blockers. Do not claim a green run until supported target adapters, isolated per-provider identities/sessions, full required readbacks, and worker execution are supplied.
+These are existing application variables, not a readiness worker credential contract. There is no production `DEMO_READINESS_*` identity map or provider-isolated worker factory yet. The default runner reports this as a blocker; the default CLI also lacks target runtime URLs and expected-revision configuration. Current worker credentials cannot read the complete Authorize policy tree; an explicit temporary waiver keeps that specific limitation visible but nonrequired. Filling in unrelated `.env` values does not remove the other blockers. Do not claim a green run until supported target adapters, isolated per-provider identities/sessions, all other required readbacks, and worker execution are supplied.
 
 ### Direct CLI runner (Task 6)
 
@@ -40,7 +40,7 @@ Polling returns the latest sanitized phase/progress, the full repair preview whe
 
 ### Admin sidebar Reset Demo flow (Task 8)
 
-The Admin sidebar's Reset Demo confirmation starts a readiness job for both `local` and `se`. The UI polls the job and shows the current phase, all sanitized failing or unfinished check rows, and each proposed or blocked configuration change. The repair-preview progress snapshot includes prerequisite and initial-audit rows so the administrator can see the findings that prompted repairs before confirming. Blocked entries render the target and serialized object details, including object IDs. A proposed repair displays its digest and requires one separate administrator confirmation bound to that exact digest. Declining, a stale digest, a failed or blocked audit, missing Authorize policy readback, a failed scenario, job expiry, deadline exhaustion, or a polling error leaves demo state and the administrator session intact.
+The Admin sidebar's Reset Demo confirmation starts a readiness job for both `local` and `se`. The UI polls the job and shows the current phase, all sanitized failing or unfinished check rows, and each proposed or blocked configuration change. The repair-preview progress snapshot includes prerequisite and initial-audit rows so the administrator can see the findings that prompted repairs before confirming. Blocked entries render the target and serialized object details, including object IDs. A proposed repair displays its digest and requires one separate administrator confirmation bound to that exact digest. Declining, a stale digest, a failed required audit, a failed scenario, job expiry, deadline exhaustion, or a polling error leaves demo state and the administrator session intact. The approved temporary Authorize policy-tree waiver remains shown as waived/unverified and does not represent policy parity; endpoint references and runtime decisions remain required.
 
 The UI calls the existing `POST /api/admin/reset-demo` only when the terminal job status is `ready` and its report independently says `ready: true` for both targets. Only after that reset succeeds does the sidebar clear its local history and sign out. If cleanup fails, the report stays visible and the user remains signed in. Dashboard Reset Demo, customer account reset, and logout behavior elsewhere are unchanged. The UI does not call the separate build-time source-fix helper.
 
@@ -55,7 +55,7 @@ Keep this record current in the same commit as each task that changes a check, r
 | 1 — inventory and contract | Captures all 46 unique runnable Demo Steps, validates inventory/build parity, and records source-backed configuration-only repairability. | Focused contract checks passed in the task commits; no live audit or scenario execution exists yet. |
 | 2 — report model | Adds stable readiness status/count/timing/report contracts and redaction for direct reads and serialized output. Provider and service roles are recorded independently (`userSessionProvider`, `agentIdentityProvider`, `tokenIssuer`, `exchangeService`, `resourceServer`) with explicit role applicability. | Focused report suite passed 31/31; this proves report behavior only, not integration with live audit or execution. |
 | 2A — PF Exchange #3 source prerequisite | Adds issuer-selected PF exchange with dedicated credentials and configured Basic/Post client auth, fail-closed PF configuration, policy-derived PF audience, exact native ID-JAG typing, PF variables in generated Gateway env, and sanitized failures. Review follow-up preserves only the sanitized JSON-RPC `-32005` scope-denial signal and bounded scope lists, then maps HTTP 200 and HTTP 403 forms into the BFF's existing scope-recovery path. Local and hosted PF Gateway environment drift is explicitly `release-only` until safe readback/repair exists. | Focused static Groovy source-contract and generator tests pass 18/18; BFF mapping tests pass 2/2. No Groovy runtime or live PF/SE exchange is available. The existing `mcpToolPipeline` characterization Jest process exits 134 without output under Node 22 and 26, so its end-to-end mapping assertion could not be rerun; a registered backend tool is checked in source metadata. |
-| 3 — read-only configuration audit | Compares checked-in case, authorization, tool, and repairability contracts with PingOne, PingFederate, runtime, local Docker, and hosted SE audit adapters. It blocks on missing membership/grant/readback evidence and keeps hosted Gateway configuration read-only. | Focused audit suites passed 4 suites / 76 tests; topology and authz checks passed. Mocked contract coverage only: full Authorize policy readback, supported hosted/PF admin readback, isolated worker execution, and live targets remain blockers. |
+| 3 — read-only configuration audit | Compares checked-in case, authorization, tool, and repairability contracts with PingOne, PingFederate, runtime, local Docker, and hosted SE audit adapters. It blocks on missing membership/grant/readback evidence and keeps hosted Gateway configuration read-only. | Focused audit suites passed 4 suites / 76 tests; topology and authz checks passed. Mocked contract coverage only: Authorize policy-tree parity remains unverified under the approved temporary waiver; supported hosted/PF admin readback, isolated worker execution, and live targets remain blockers. |
 | 4 — preview-bound configuration repair | Builds a digest-bound preview from structured audit candidates. A single administrator confirmation may apply only uniquely identified, source-backed PingOne scope additions and app-scope grants. Apply rereads every object before the first write, passes a digest idempotency key, reads back each write, and records sanitized before/after evidence. | Focused mocked repair and audit suites prove stale targets, expiry, changed values, repeat confirmation, ambiguous IDs, readback, timeout retry, isolated feature-flag cleanup, and blocked Authorize writes. No live services are called. |
 | 5 — isolated scenario execution | Adds an execution service that derives and records every core, route-variant, feature, and Attack Lab row. It preserves UC14b’s full-page behavior, validates observations against checked-in catalog and feature contracts, and redacts every report row. The checked-in manifest currently registers 21 feature checks separately from the UI list. Production has no worker factory: only a Jest-only adapter can create empty opaque contexts held by identity in a private map. A copied context, a worker-object collision, or a failed setup blocks its lane. | The contract expands to 184 behavior/authorization groups, 734 core rows, four alternate-behavior rows, and 62 provider-feature rows (800 total). Mocked coverage proves feature behavior stages, static contract mismatch blocks, exact PF endpoint/credential-role and hop checks, opaque-context forgery rejection, sticky lanes, and deadline races. The runner emits category counts before dispatch, marks the report non-ready at exactly 12 minutes, aborts in-flight dispatch at 15 minutes, and records remaining rows as `not-run`. No production worker runtime exists, so real provider lanes and unresolved PF endpoint/credential-role contracts remain blocked. |
 | 6 — orchestration and CLI | Adds the 15-minute phase coordinator and `demo:ready` CLI with preview-bound confirmation, re-audit, nonempty required prerequisite/audit inventories, a strict expected-manifest matrix gate, JSON output, and diagnostic target labeling. Progress callbacks awaited by the runner stop waiting at expiry; scenario-row progress is fire-and-forget. A repair apply already in flight is drained through administrator verification, isolated-worker setup, pre-write reads, mutation, readback, and restoration; failed readback evidence retains the observed value. | Focused BFF tests pass 48/48 and CLI tests pass 5/5; CLI help and the 46-entry/800-row contract pass. A manifest-ID uniqueness check found 800 unique IDs. The standalone CLI has no verified administrator identity, so typed digest confirmation cannot authorize writes; administrator-bound repair remains in the Admin Reset Demo flow. Any repair apply or cleanup call that ignores cancellation can delay the final NOT READY report beyond 15 minutes. No live readiness run, provider login, hosted target, reset, or repair was used. |
@@ -191,11 +191,11 @@ The read-only audit covers every setting consumed by Agent Gateway and Authorize
 
 - resource audiences, scopes and mirrors, app grants, registered tool scopes, feature flags, A2A credentials, PAR settings, and vertical group membership;
 - Gateway routes/auth configuration, loaded revision and config fingerprints, route health, effective audiences/scopes, and the expected Authorize decision endpoint references;
-- complete live Authorize policy definitions when a supported read path exists. A successful decision call does not prove policy-tree parity. Current worker credentials cannot read the complete policy tree, so full READY remains blocked until supported readback is available;
+- complete live Authorize policy definitions when a supported read path exists. A successful decision call does not prove policy-tree parity. Current worker credentials cannot read the complete policy tree, so the check is reported as blocked and explicitly waived for now; the report must never describe the tree as verified. Decision endpoint references and every runtime Authorize decision remain required, and a reported mismatch or unexpected read failure still blocks READY;
 - PingFederate role-specific OAuth grants, processor-policy refs, ATMs/restrictions, service-provider resource URIs, ID-JAG settings, exchange mappings, issuer/JWKS routing, DaVinci client/adapter, CIMD, third-party authorization-server, and RAR configuration through supported PF Admin APIs;
 - local Docker health/config inspection through read-only commands. Hosted SE is audited and exercised, never deployed or updated by this workflow.
 
-Missing credentials, unavailable targets, unsupported readback, source/live disagreement, unknown drift, revision mismatch, or incomplete checks are blockers. Never substitute a successful tool call for missing configuration readback.
+Missing credentials, unavailable targets, unsupported required readback, source/live disagreement, unknown drift, revision mismatch, or incomplete checks are blockers. The sole exception is the known full Authorize policy-tree read gap documented above. Never substitute a successful tool call for missing configuration readback.
 
 ### PingGateway Exchange #3: current release prerequisite
 
@@ -231,7 +231,7 @@ Keep these regressions explicit:
 | Local generated PingGateway PF Exchange #3 env | `release-only` today. Task 4 may change this only if a tested in-process adapter regenerates from declared BFF values, safely restarts the local Gateway, and verifies loaded config after preview/confirmation. Never hand-edit the generated file or shell out from the BFF. |
 | Hosted SE Gateway configuration | `release-only`, read-only. No cluster update or deployment. |
 | PF client/SP profile, DaVinci adapter, or native ID-JAG config | Manual/release-only unless a supported exact-object write, idempotency, and readback have been proven and declared. |
-| Full Authorize policy tree | Block READY until a supported read path exists; do not infer policy correctness from observed decisions. |
+| Full Authorize policy tree | Report blocked and waived/unverified under the user-approved temporary exception; never infer parity from observed decisions. Keep decision endpoint references and runtime decisions required. Any observed mismatch or unexpected read failure blocks READY. Remove the waiver when supported exact readback is available. |
 | Unknown/ambiguous drift, missing credentials, or application code defect | Block the run and identify the exact fix. Never guess or broaden access. |
 | Source-code defect | Separate build-time helper may produce an uncommitted patch in an isolated worktree, limited to declared code refs. Require focused tests/build and review. Never call it from readiness or Reset Demo. |
 
@@ -351,7 +351,7 @@ One run timer starts before prerequisites and includes audit, preview/confirmati
 
 The checked-in contract currently derives **800 expected rows**: 734 core rows, four alternate-behavior rows, and 62 provider-feature rows across the 46 Demo Steps and 21 separately registered feature checks. This is an expected inventory, not a count of live rows that passed.
 
-The scenario scheduler currently processes one row at a time across targets and providers (effective scenario concurrency: one). The runner audits target families in parallel within a target and visits targets sequentially. No target/provider concurrency tuning is configured. The full local Docker plus hosted SE run was not executed: the default prerequisite adapter returns `blocked` because no production provider-isolated worker runtime or named readiness identity map is supplied, default runtime target URLs/revision are not wired, and complete Authorize policy-tree readback is unavailable. No live target login, repair, Reset Demo, or hosted cluster operation was attempted.
+The scenario scheduler currently processes one row at a time across targets and providers (effective scenario concurrency: one). The runner audits target families in parallel within a target and visits targets sequentially. No target/provider concurrency tuning is configured. The full local Docker plus hosted SE run was not executed: the default prerequisite adapter returns `blocked` because no production provider-isolated worker runtime or named readiness identity map is supplied, default runtime target URLs/revision are not wired, and other required readbacks remain incomplete. Complete Authorize policy-tree parity is also unavailable, but is explicitly waived as an unverified limitation for now. No live target login, repair, Reset Demo, or hosted cluster operation was attempted.
 
 | Measurement | Result |
 |---|---|
@@ -380,14 +380,14 @@ The 12/15-minute gate covers readiness checks and only the narrow, confirmed con
 
 ## Current blockers and plan status
 
-- **Authorize policy-tree readback:** unavailable with current worker permissions; full READY remains impossible until supported.
+- **Authorize policy-tree readback:** unavailable with current worker permissions; explicitly waived and shown as unverified for now. Endpoint-reference and runtime decision checks remain required; a reported mismatch or unexpected read error still blocks READY.
 - **PF Exchange #3:** Task 2A source changes and focused tests are complete, but no live PF exchange has been proved. Readiness remains blocked until supported readback verifies generated/local and hosted configuration and a production isolated worker proves the registered-tool audience/result. Local generated-environment repair remains release-only unless a safe in-process restart/readback adapter is proven.
 - **PF profile contracts:** secret-free per-role source expectations are checked in, but live registration readback through a supported PF Admin API adapter is unavailable; live parity remains blocked.
 - **Hosted SE:** read/execute only; remote repair/deploy is not permitted by repository policy.
 - **Isolation, full matrix, timing:** the runner requires a separate provider-configured worker BFF/runtime with its own cookie jar and session store. The current BFF cannot create that safely while its OAuth provider is process-wide, so provider setup blocks rather than toggling it. All 800 live matrix rows and a complete ≤12-minute benchmark remain unproved.
-- **Authorize/PF readback:** complete Authorize policy-tree readback is unavailable with current worker permissions. PF role expectations are checked in, but supported PF Admin API/hosted Gateway readback and live PF Exchange #3 registered-tool proof remain unavailable.
+- **Authorize/PF readback:** complete Authorize policy-tree readback is unavailable with current worker permissions and covered only by the explicit temporary waiver. PF role expectations are checked in, but supported PF Admin API/hosted Gateway readback and live PF Exchange #3 registered-tool proof remain unavailable.
 - **Local and hosted adapters:** the direct runner's default target configuration does not supply runtime BFF/Gateway/Authorize URLs and an expected revision. Both targets therefore remain diagnostic/blocking until maintained target adapters provide those values and the supported read paths.
-- **Implementation sequence:** Tasks 1–9 are committed. Task 10 documents the current operator settings, exact static row inventory, successful focused verification, and unmeasured live timing. Do not label readiness operational until the production worker/identity adapters, complete readbacks, full scenario execution, and final timing/security checks are proven.
+- **Implementation sequence:** Tasks 1–9 are committed. Task 10 documents the current operator settings, exact static row inventory, successful focused verification, and unmeasured live timing. Do not label readiness operational until the production worker/identity adapters, all other required readbacks, full scenario execution, and final timing/security checks are proven. Keep the Authorize policy-tree waiver visible and remove it when supported readback is available.
 
 Update this status table as each task is committed. Do not label the readiness workflow operational until audit, repair, execution, CLI, admin UI, all intended probes, and final timing/security checks are implemented and reviewed.
 
@@ -402,10 +402,13 @@ stops, provisions, repairs, or deploys a target. The existing health and MCP
 preflight probes can now be imported without running their CLIs.
 
 The audit recognizes an incorrect declared value as a failed required check and
-an unavailable or unauthorized management read as a blocked required check.
-The current PingOne worker can list decision endpoints but cannot read the
-complete live Authorize policy tree. A successful decision is never accepted
-as proof of policy parity, so `policyReadback` remains blocking.
+an unavailable or unauthorized management read as a blocked required check. The
+known limitation that current worker credentials cannot read the complete live
+Authorize policy tree is the sole user-approved exception: `policyReadback`
+remains visible as blocked/unverified with `required: false`. A successful
+decision is never accepted as proof of policy parity. Decision endpoint
+references, scenario decisions, unexpected read errors, and any observed policy
+mismatch remain required/blocking.
 
 No committed PingFederate Admin API client or role-complete provisioner supplies
 exact settings for every role. The new contract lists standard exchangers and
@@ -420,9 +423,11 @@ resources, applications, groups, and decision endpoints when target credentials
 are supplied. It performs PingFederate Admin API GET requests for OAuth clients,
 access-token managers, and authentication policies at the target's declared
 PF Admin API base. It compares documented client role fields and records
-unsupported SP, ID-JAG, DaVinci, RAR, CIMD, and policy-tree reads as required
-blocked findings. Neither adapter makes a write or uses a successful runtime
-call as configuration parity.
+unsupported SP, ID-JAG, DaVinci, RAR, and CIMD reads as required blocked
+findings. The complete Authorize policy-tree read is explicitly unverified
+under the temporary waiver; endpoint references and runtime decisions remain
+required. Neither adapter makes a write or uses a successful runtime call as
+configuration parity.
 
 Local Gateway inspection parses docker ps and docker inspect output to compare
 the PF issuer, endpoint authority/path, PF exchanger credential presence, and
@@ -452,10 +457,11 @@ other target audits continue.
 The PF profile contract no longer derives object names or grants from handoff
 notes. Every role maps to a committed code/config reference and stays required
 and blocked until an exact declared object contract and supported PF Admin API
-field readback exist. The complete PingOne Authorize policy tree and PF
-grant/processor/ATM, specialist, ID-JAG, DaVinci, CIMD, third-party AS, RAR,
-and JWT-audience fields remain explicit blockers where committed sources do not
-define an exact supported comparison.
+field readback exist. The complete PingOne Authorize policy tree remains
+explicitly unverified under the temporary waiver. PF grant/processor/ATM,
+specialist, ID-JAG, DaVinci, CIMD, third-party AS, RAR, and JWT-audience fields
+remain explicit blockers where committed sources do not define an exact
+supported comparison.
 
 ### Task 3 Fix Round 3
 

@@ -189,6 +189,7 @@ function recordCheck(report, row) {
     observed: row.observed,
     sourceRef: row.sourceRef,
     evidence: row.evidence,
+    waiver: row.waiver,
   });
   report.checks.push(check);
   refreshReport(report);

@@ -156,6 +156,13 @@ function isFullyReadyReadinessReport(report) {
     && ["local", "se"].every((target) => report.targets.includes(target));
 }
 
+function isAuthorizePolicyTreeWaiver(row) {
+  return row?.id === "pingone:policyReadback"
+    && row.status === "blocked"
+    && row.required === false
+    && typeof row.waiver === "string";
+}
+
 /** The sidebar rests as an icon rail unless the user has expanded it before. */
 function readStoredCollapsed() {
   try {
@@ -1990,6 +1997,7 @@ export default function AdminSideNav({
     ...(Array.isArray(readinessFindingSource?.checks) ? readinessFindingSource.checks : []),
     ...(Array.isArray(readinessFindingSource?.rows) ? readinessFindingSource.rows : []),
   ].filter((row) => row && row.status !== "pass");
+  const readinessBlockingFailures = readinessFailures.filter((row) => row.required !== false);
   const canConfirmReadinessRepairs = readinessJob?.status === "awaiting-confirmation"
     && typeof readinessPreview?.digest === "string"
     && readinessChanges.length > 0
@@ -1997,7 +2005,7 @@ export default function AdminSideNav({
     && !readinessJob.declined;
   const readinessPhase = readinessJob?.progress?.phase || readinessJob?.status;
   const readinessStatusTone = readinessJob?.cleanup === "failed"
-    || readinessFailures.length > 0
+    || readinessBlockingFailures.length > 0
     || Boolean(readinessJob?.error)
     ? "blocked"
     : readinessReport?.ready === true ? "ready" : "";
@@ -2425,15 +2433,19 @@ export default function AdminSideNav({
                 <ul className="admin-side-nav__readiness-list">
                   {readinessFailures.map((row, index) => (
                     <li key={`${row.id || "finding"}-${index}`}>
-                      <strong>{row.id || `Finding ${index + 1}`} — {row.status}</strong>
+                      <strong>{row.id || `Finding ${index + 1}`} — {isAuthorizePolicyTreeWaiver(row) ? "waived (not verified)" : row.status}</strong>
+                      {isAuthorizePolicyTreeWaiver(row) && <div>{row.waiver}</div>}
                       {row.evidence && <div>{typeof row.evidence === "string" ? row.evidence : JSON.stringify(row.evidence)}</div>}
                     </li>
                   ))}
                 </ul>
-              ) : readinessReport.ready === true ? (
+              ) : readinessReport?.ready === true ? (
                 <p>Every required check passed for local Docker and hosted SE.</p>
               ) : (
                 <p>The report does not establish full readiness. Demo state was not reset.</p>
+              )}
+              {readinessReport?.ready === true && readinessFailures.some(isAuthorizePolicyTreeWaiver) && (
+                <p>Every required check passed for local Docker and hosted SE. The waived finding above remains unverified.</p>
               )}
             </section>
           )}

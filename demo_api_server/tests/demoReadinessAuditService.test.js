@@ -106,6 +106,36 @@ describe('demo readiness audit service', () => {
     expect(checks.find((check) => check.id.endsWith(':policyReadback'))).toEqual(expect.objectContaining({ status: 'blocked', required: true }));
   });
 
+  test('marks only the approved Authorize policy-tree readback gap as waived and keeps endpoint checks required', async () => {
+    const adapters = passingAdapters();
+    adapters.pingOne.readConfiguration.mockResolvedValue({
+      authorizeEndpoint: true,
+      policyReadback: {
+        status: 'blocked',
+        reason: 'complete PingOne Authorize policy-tree read is unavailable with current worker credentials',
+        waiver: 'temporary-authorize-policy-tree-readback',
+      },
+    });
+    const checks = await createAuditService({ adapters, pfProfiles: { roles: {} } }).auditPingOneConfiguration({ environmentId: 'env' });
+
+    expect(checks.find((check) => check.id === 'pingone:policyReadback')).toEqual(expect.objectContaining({
+      status: 'blocked',
+      required: false,
+      waiver: expect.stringMatching(/policy-tree parity is unverified/i),
+    }));
+    expect(checks.find((check) => check.id === 'pingone:authorizeEndpoint')).toEqual(expect.objectContaining({ status: 'pass', required: true }));
+  });
+
+  test('does not waive an Authorize policy mismatch even when adapter includes the waiver marker', async () => {
+    const adapters = passingAdapters();
+    adapters.pingOne.readConfiguration.mockResolvedValue({
+      policyReadback: { status: 'fail', reason: 'policy differs from source', waiver: 'temporary-authorize-policy-tree-readback' },
+    });
+    const checks = await createAuditService({ adapters, pfProfiles: { roles: {} } }).auditPingOneConfiguration({ environmentId: 'env' });
+
+    expect(checks.find((check) => check.id === 'pingone:policyReadback')).toEqual(expect.objectContaining({ status: 'fail', required: true }));
+  });
+
   test('emits structured, source-backed repair candidates without making a write', async () => {
     const adapters = passingAdapters();
     adapters.pingOne.readConfiguration.mockResolvedValue({
@@ -200,7 +230,7 @@ describe('demo readiness audit service', () => {
     });
     expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/v1/environments/env-1/resources?limit=100'), expect.objectContaining({ method: 'GET' }));
     expect(checks.find((row) => row.id === 'pingone:audience')).toEqual(expect.objectContaining({ status: 'pass', userSessionProvider: 'pingone' }));
-    expect(checks.find((row) => row.id === 'pingone:policyReadback')).toEqual(expect.objectContaining({ status: 'blocked' }));
+    expect(checks.find((row) => row.id === 'pingone:policyReadback')).toEqual(expect.objectContaining({ status: 'blocked', required: false, waiver: expect.stringMatching(/policy-tree parity is unverified/i) }));
   });
 
   test('parses Gateway Exchange #3 environment without returning credential values', async () => {
