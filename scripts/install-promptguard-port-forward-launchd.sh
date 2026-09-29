@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+# Install a per-user LaunchAgent that keeps the PromptGuard health port-forward
+# available after login and reconnects it when the gateway pod is replaced.
+#
+# Usage:
+#   bash scripts/install-promptguard-port-forward-launchd.sh
+#   bash scripts/install-promptguard-port-forward-launchd.sh uninstall
+set -euo pipefail
+
+LABEL="com.aidemo2.promptguard-port-forward"
+PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
+LOG="$HOME/Library/Logs/aidemo2-promptguard-port-forward.log"
+
+if [[ "${1:-install}" == "uninstall" ]]; then
+  launchctl unload "$PLIST" 2>/dev/null || true
+  rm -f "$PLIST"
+  echo "Removed $LABEL"
+  exit 0
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+COMMON_DIR="$(git -C "$SCRIPT_DIR" rev-parse --path-format=absolute --git-common-dir)"
+MAIN_ROOT="$(dirname "$COMMON_DIR")"
+FORWARD_SCRIPT="$MAIN_ROOT/scripts/promptguard-port-forward.sh"
+if [[ ! -f "$FORWARD_SCRIPT" ]]; then
+  echo "ERROR: $FORWARD_SCRIPT not found (merge and sync the main checkout first)" >&2
+  exit 1
+fi
+
+PF_CONTEXT="${PROMPTGUARD_PF_CONTEXT:-$(kubectl config current-context 2>/dev/null || true)}"
+case "$PF_CONTEXT" in
+  orbstack|docker-desktop) ;;
+  *)
+    echo "ERROR: refusing to install a local PromptGuard tunnel for context '${PF_CONTEXT:-unknown}'" >&2
+    echo "Switch to OrbStack or Docker Desktop first, or set PROMPTGUARD_PF_CONTEXT to one of those local contexts." >&2
+    exit 1
+    ;;
+esac
+
+# Launchd has a minimal PATH; kubectl's exec credential plugin must be found
+# from the selected local Kubernetes context.
+KUBECTL_BIN="$(command -v kubectl || echo /usr/local/bin/kubectl)"
+OIDC_BIN="$(command -v kubectl-oidc_login || echo /opt/homebrew/bin/kubectl-oidc_login)"
+PATH_ENV="$(dirname "$KUBECTL_BIN"):$(dirname "$OIDC_BIN"):/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+
+mkdir -p "$HOME/Library/LaunchAgents" "$(dirname "$LOG")"
+
+cat > "$PLIST" <<PLISTEOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>$LABEL</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>$FORWARD_SCRIPT</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key><string>$PATH_ENV</string>
+    <key>PROMPTGUARD_PF_CONTEXT</key><string>$PF_CONTEXT</string>
+  </dict>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>ThrottleInterval</key><integer>10</integer>
+  <key>StandardOutPath</key><string>$LOG</string>
+  <key>StandardErrorPath</key><string>$LOG</string>
+</dict>
+</plist>
+PLISTEOF
+
+launchctl unload "$PLIST" 2>/dev/null || true
+launchctl load "$PLIST"
+
+echo "Installed and loaded $LABEL"
+echo "  script:    $FORWARD_SCRIPT"
+echo "  context:   $PF_CONTEXT"
+echo "  PATH:      $PATH_ENV"
+echo "  plist:     $PLIST"
+echo "  log:       $LOG"
+echo "  Uninstall: bash scripts/install-promptguard-port-forward-launchd.sh uninstall"

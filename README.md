@@ -134,6 +134,8 @@ Full mermaid source: [`docs/architecture-token-flow.mmd`](docs/architecture-toke
 
 Four deployment modes are supported. Pick the one that matches your environment.
 
+Before a live demo, use the [Demo Readiness Master Guide](docs/demo-readiness.md) and check the available readiness options with `npm run demo:ready -- --help`.
+
 ---
 
 ### Option 1 — Local (native processes, no Docker)

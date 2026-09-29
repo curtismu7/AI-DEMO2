@@ -76,7 +76,11 @@ function buildContexts(composeText) {
     if (/^ {4}\S/.test(line)) inBuild = /^ {4}build:/.test(line);
     if (!inBuild) continue;
     const ctx = line.match(/^ {6}context:(.*)$/);
-    if (ctx) contexts.set(current, ctx[1].replace(/#.*$/, '').trim().replace(/^["']|["']$/g, ''));
+    if (ctx) {
+      const value = ctx[1].replace(/#.*$/, '').trim().replace(/^["']|["']$/g, '');
+      const defaultValue = value.match(/^\$\{[^}:]+:-([^}]+)\}$/);
+      contexts.set(current, defaultValue ? defaultValue[1] : value);
+    }
   }
   return contexts;
 }

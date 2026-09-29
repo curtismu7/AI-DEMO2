@@ -30,6 +30,11 @@ describe('OAuth Endpoint Configuration', () => {
     delete process.env.OAUTH_DISCOVERY_ENDPOINT;
     delete process.env.OAUTH_PAR_ENDPOINT;
     delete process.env.PINGONE_PAR_ENDPOINT;
+    delete process.env.PINGONE_TOKEN_ENDPOINT;
+    delete process.env.PINGONE_ISSUER_URI;
+    delete process.env.PINGONE_ISSUER;
+    delete process.env.PINGONE_JWKS_URI;
+    delete process.env.PINGONE_JWKS_ENDPOINT;
     delete process.env.OAUTH_PROVIDER;
     delete process.env.PF_ISSUER;
     delete process.env.PF_DISCOVERY_ENDPOINT;
@@ -49,6 +54,11 @@ describe('OAuth Endpoint Configuration', () => {
     delete process.env.OAUTH_DISCOVERY_ENDPOINT;
     delete process.env.OAUTH_PAR_ENDPOINT;
     delete process.env.PINGONE_PAR_ENDPOINT;
+    delete process.env.PINGONE_TOKEN_ENDPOINT;
+    delete process.env.PINGONE_ISSUER_URI;
+    delete process.env.PINGONE_ISSUER;
+    delete process.env.PINGONE_JWKS_URI;
+    delete process.env.PINGONE_JWKS_ENDPOINT;
     delete process.env.OAUTH_PROVIDER;
     delete process.env.PF_ISSUER;
     delete process.env.PF_DISCOVERY_ENDPOINT;
@@ -214,6 +224,53 @@ describe('OAuth Endpoint Configuration', () => {
     expect(endpoints.userinfo_endpoint).toBe('https://pf.example.com/idp/userinfo.openid');
     expect(endpoints.jwks_uri).toBe('https://pf.example.com/pf/JWKS');
     expect(endpoints.issuer).toBe('https://pf.example.com');
+  });
+
+  test('resolves a PingOne machine-token endpoint independently of the active PF provider', () => {
+    process.env.OAUTH_PROVIDER = 'pingfederate';
+    process.env.PF_TOKEN_ENDPOINT = 'https://pf.example.com/as/token.oauth2';
+    process.env.PINGONE_ENVIRONMENT_ID = 'pingone-env-123';
+    process.env.PINGONE_REGION = 'eu';
+
+    resolver = require('../services/oauthEndpointResolver');
+
+    expect(resolver.getTokenEndpoint()).toBe('https://pf.example.com/as/token.oauth2');
+    expect(resolver.getPingOneTokenEndpoint()).toBe(
+      'https://auth.pingone.eu/pingone-env-123/as/token'
+    );
+  });
+
+  test('uses PINGONE_TOKEN_ENDPOINT as an explicit machine-token endpoint override', () => {
+    process.env.OAUTH_PROVIDER = 'pingfederate';
+    process.env.PINGONE_TOKEN_ENDPOINT = 'https://auth.pingone.ca/custom-env/as/token';
+
+    resolver = require('../services/oauthEndpointResolver');
+
+    expect(resolver.getPingOneTokenEndpoint()).toBe(
+      'https://auth.pingone.ca/custom-env/as/token'
+    );
+  });
+
+  test('resolves PingOne issuer and JWKS from the machine-token endpoint while PF is active', () => {
+    process.env.OAUTH_PROVIDER = 'pingfederate';
+    process.env.PF_TOKEN_ENDPOINT = 'https://pf.example.com/as/token.oauth2';
+    process.env.PINGONE_TOKEN_ENDPOINT = 'https://auth.pingone.ca/env-456/as/token';
+
+    resolver = require('../services/oauthEndpointResolver');
+
+    expect(resolver.getPingOneIssuer()).toBe('https://auth.pingone.ca/env-456/as');
+    expect(resolver.getPingOneJwksUri()).toBe('https://auth.pingone.ca/env-456/as/jwks');
+  });
+
+  test('explicit PingOne issuer and JWKS overrides take precedence over token-endpoint derivation', () => {
+    process.env.PINGONE_TOKEN_ENDPOINT = 'https://auth.pingone.ca/env-456/as/token';
+    process.env.PINGONE_ISSUER_URI = 'https://auth.pingone.eu/env-123';
+    process.env.PINGONE_JWKS_URI = 'https://keys.example.test/pingone/jwks';
+
+    resolver = require('../services/oauthEndpointResolver');
+
+    expect(resolver.getPingOneIssuer()).toBe('https://auth.pingone.eu/env-123/as');
+    expect(resolver.getPingOneJwksUri()).toBe('https://keys.example.test/pingone/jwks');
   });
 
   // ── Test 8: Auth0 pattern ────────────────────────────────────────────────

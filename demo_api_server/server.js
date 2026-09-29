@@ -143,6 +143,7 @@ const sensitiveBankingRoutes = require('./routes/sensitiveBanking');
 const transactionRoutes = require('./routes/transactions');
 const demoScenarioRoutes = require('./routes/demoScenario');
 const adminRoutes = require('./routes/admin');
+const demoReadinessRoutes = require('./routes/demoReadiness');
 const pingcliRoutes = require('./routes/pingcli');
 const promptfooRoutes = require('./routes/promptfoo');
 const mgmtApiRoutes = require('./routes/mgmtApi');
@@ -236,6 +237,7 @@ const {
 const appConfigRoutes = require('./routes/appConfig');
 const configCredentialsRoutes = require('./routes/configCredentials');
 const thresholdsRoutes = require('./routes/thresholds');
+const { verticalManifest } = require('./services/verticalManifest');
 const verticalManifestRoutes = require('./routes/verticalManifest');
 const groupMembershipRoutes = require('./routes/groupMembership');
 const pingoneAuditRoutes = require('./routes/pingoneAudit');
@@ -1737,6 +1739,7 @@ app.get('/api/demo-scenario', (req, res, next) => {
 });
 app.use('/api/demo-scenario', authenticateToken, demoScenarioRoutes);
 app.use('/api/admin/demo-users', adminDemoUsersRoutes);
+app.use('/api/admin/demo-readiness', demoReadinessRoutes);
 app.use('/api/admin/agent', authenticateToken, adminAgentToolsRoutes);
 app.use('/api/admin', authenticateToken, require('./routes/opsAssistantRoutes'));
 app.use('/api/admin', authenticateToken, require('./routes/adminVerticals'));
@@ -2184,6 +2187,7 @@ function publishTokenEventsToSse(flowTraceId, tokenEvents) {
 const { publishMcpResultToSse } = require('./services/mcpSsePublisher');
 
 const { runMcpToolPipeline } = require('./services/mcpToolPipeline');
+const { isBankingMcpToolAlias, resolveBankingMcpToolAlias } = require('./services/bankingMcpToolAliases');
 const { createPendingDecision: _createPendingDecision } = require('./routes/mcpDecisionPolling');
 const _hitlServiceClient = require('./services/hitlServiceClient');
 const { decodeJwtClaims: _decodeJwtClaims } = require('./services/agentMcpTokenService');
@@ -2332,10 +2336,17 @@ app.post('/api/mcp/tool', express.json(), requireSession, transactionTurnMiddlew
         console.warn('[/api/mcp/tool] Middleware did not parse body, but stream claims data. Using middleware result.');
     }
     const {
-        tool,
+        tool: requestedTool,
         params,
         flowTraceId: bodyFlowTrace
     } = parsedBody;
+    const isBankingToolAlias = isBankingMcpToolAlias(requestedTool);
+    const bodyVertical = typeof parsedBody.vertical === 'string' ? parsedBody.vertical.trim() : '';
+    const aliasVertical = bodyVertical
+      || (isBankingToolAlias ? verticalManifest.resolver.activeIdFor(req) : null)
+      || (isBankingToolAlias ? 'banking' : null);
+    const toolAlias = resolveBankingMcpToolAlias(requestedTool, params, aliasVertical);
+    const tool = toolAlias?.tool || requestedTool;
     const useCaseId = typeof parsedBody.useCaseId === 'string' ? parsedBody.useCaseId.trim() : '';
     const flowTraceId = typeof bodyFlowTrace === 'string' ? bodyFlowTrace.trim() : '';
 
@@ -2511,8 +2522,8 @@ app.post('/api/mcp/tool', express.json(), requireSession, transactionTurnMiddlew
           // Manufacturing
           show_work_order: 'view_work_orders',
         };
-        _itIntent = _TOOL_TO_INTENT[tool] || tool;
-        _itConf = _TOOL_TO_INTENT[tool] ? 0.97 : 0.50;
+        _itIntent = toolAlias?.intent || _TOOL_TO_INTENT[tool] || tool;
+        _itConf = (toolAlias?.intent || _TOOL_TO_INTENT[tool]) ? 0.97 : 0.50;
         const { token: _it } = mintIntentToken({
           userId: req.session.user.id,
           sessionId: req.session.id,

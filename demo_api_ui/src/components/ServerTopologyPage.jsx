@@ -1,8 +1,10 @@
-import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Background,
   BackgroundVariant,
+  BaseEdge,
   Controls,
+  getSmoothStepPath,
   Handle,
   MarkerType,
   Position,
@@ -13,6 +15,8 @@ import {
 import "@xyflow/react/dist/style.css";
 import { DEMO_STEP_USE_CASES, GROUPS, PLAYBACKS, RFC, SERVER_EDGES, SERVER_MAP, SERVER_ZONES, SPECS } from "./serverTopologyData";
 import "./ServerTopologyPage.css";
+import ServerTopologyExportControls from "./ServerTopologyExportControls";
+import { layoutEdgeLabels } from "./topologyEdgeLabelLayout";
 
 const LAYER_OPTIONS = [
   ["protocol", "Protocols"], ["network", "Network"], ["security", "Security"], ["standards", "RFCs & specs"],
@@ -32,6 +36,9 @@ const NODE_TYPE_LABELS = [
 ];
 const NODE_BY_ID = Object.fromEntries(SERVER_MAP.map((node) => [node.id, node]));
 const EDGE_BY_ID = Object.fromEntries(SERVER_EDGES.map((item) => [item.id, item]));
+// Keep these aligned with the .stm-node width and minimum height in the stylesheet.
+const NODE_CARD_WIDTH = 218;
+const NODE_CARD_HEIGHT = 104;
 
 function flowNodeIds(steps) {
   return new Set(steps.flatMap(({ edgeId }) => {
@@ -84,7 +91,152 @@ const ZoneNode = memo(function ZoneNode({ data }) {
 
 const nodeTypes = { server: ServerCardNode, zone: ZoneNode };
 
-function FitFilteredServices({ filter, flowOnly, playbackSteps }) {
+const TopologyLabeledEdge = memo(function TopologyLabeledEdge({
+  id, sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, label,
+  style, markerStart, markerEnd, interactionWidth, pathOptions, data,
+}) {
+  const [path, fallbackLabelX, fallbackLabelY] = getSmoothStepPath({
+    sourceX,
+    sourceY,
+    sourcePosition,
+    targetX,
+    targetY,
+    targetPosition,
+    borderRadius: pathOptions?.borderRadius,
+    offset: pathOptions?.offset,
+    stepPosition: pathOptions?.stepPosition,
+  });
+  const labelPosition = data?.labelPosition;
+
+  return (
+    <BaseEdge
+      id={id}
+      path={path}
+      labelX={labelPosition?.x ?? fallbackLabelX}
+      labelY={labelPosition?.y ?? fallbackLabelY}
+      label={label}
+      labelShowBg
+      labelBgPadding={[9, 6]}
+      labelBgBorderRadius={5}
+      style={style}
+      markerStart={markerStart}
+      markerEnd={markerEnd}
+      interactionWidth={interactionWidth}
+    />
+  );
+});
+const edgeTypes = { topologyLabeled: TopologyLabeledEdge };
+
+const PANE_SIZE_LIMITS = {
+  flow: { initial: 92, min: 88, max: 300 },
+  flowNarrow: { initial: 220, min: 180, max: 340 },
+  detailsWidth: { initial: 340, min: 280, max: 520 },
+  detailsHeight: { initial: 320, min: 220, max: 500 },
+  notes: { initial: 64, min: 44, max: 180 },
+  notesNarrow: { initial: 144, min: 112, max: 240 },
+};
+
+function clampPaneSize(value, min, max) {
+  return Math.max(min, Math.min(max, Math.round(value)));
+}
+
+function readPaneSize(key, limits) {
+  const { initial, min, max } = limits;
+  if (typeof window === "undefined") return initial;
+  try {
+    const stored = window.localStorage.getItem(key);
+    if (stored === null) return initial;
+    const parsed = Number(stored);
+    return Number.isFinite(parsed) ? clampPaneSize(parsed, min, max) : initial;
+  } catch {
+    return initial;
+  }
+}
+
+function usePersistedPaneSize(key, limits) {
+  const [size, setSize] = useState(() => readPaneSize(key, limits));
+  const resize = useCallback((nextSize) => {
+    setSize(clampPaneSize(nextSize, limits.min, limits.max));
+  }, [limits.max, limits.min]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(key, String(size));
+    } catch {
+      // The pane remains resizable when storage is unavailable.
+    }
+  }, [key, size]);
+
+  return [size, resize];
+}
+
+function useNarrowTopologyLayout() {
+  const [isNarrow, setIsNarrow] = useState(() => typeof window !== "undefined" && window.innerWidth <= 1040);
+  useEffect(() => {
+    const updateLayout = () => setIsNarrow(window.innerWidth <= 1040);
+    window.addEventListener("resize", updateLayout);
+    return () => window.removeEventListener("resize", updateLayout);
+  }, []);
+  return isNarrow;
+}
+
+function TopologyResizeHandle({ label, controls, value, min, max, axis, direction, onResize }) {
+  const dragStart = useRef(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const coordinateFor = (event) => axis === "x" ? event.clientX : event.clientY;
+
+  const onPointerDown = (event) => {
+    if (event.button != null && event.button !== 0) return;
+    const coordinate = coordinateFor(event);
+    if (!Number.isFinite(coordinate)) return;
+    event.preventDefault();
+    dragStart.current = { pointerId: event.pointerId, coordinate, value };
+    if (Number.isInteger(event.pointerId)) event.currentTarget.setPointerCapture?.(event.pointerId);
+    setIsDragging(true);
+  };
+  const onPointerMove = (event) => {
+    const start = dragStart.current;
+    if (!start || (start.pointerId != null && event.pointerId != null && start.pointerId !== event.pointerId)) return;
+    const coordinate = coordinateFor(event);
+    if (Number.isFinite(coordinate)) onResize(start.value + (coordinate - start.coordinate) * direction);
+  };
+  const onPointerUp = () => {
+    dragStart.current = null;
+    setIsDragging(false);
+  };
+  const onKeyDown = (event) => {
+    const negativeKey = axis === "x" ? "ArrowLeft" : "ArrowUp";
+    const positiveKey = axis === "x" ? "ArrowRight" : "ArrowDown";
+    if (event.key !== negativeKey && event.key !== positiveKey) return;
+    event.preventDefault();
+    const sign = event.key === negativeKey ? -1 : 1;
+    onResize(value + sign * direction * (event.shiftKey ? 64 : 16));
+  };
+
+  return (
+    <div
+      className={`stm-pane-resizer stm-pane-resizer--${axis}`}
+      role="separator"
+      aria-label={label}
+      aria-controls={controls}
+      aria-orientation={axis === "x" ? "vertical" : "horizontal"}
+      aria-valuemin={min}
+      aria-valuemax={max}
+      aria-valuenow={value}
+      aria-valuetext={`${value} pixels`}
+      data-resizing={isDragging || undefined}
+      tabIndex={0}
+      onKeyDown={onKeyDown}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+      onLostPointerCapture={onPointerUp}
+    />
+  );
+}
+
+function FitFilteredServices({ filter, flowOnly, playbackSteps, detailsOpen }) {
   const { fitView } = useReactFlow();
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -93,7 +245,35 @@ function FitFilteredServices({ filter, flowOnly, playbackSteps }) {
       fitView({ nodes: visible, padding: 0.1, minZoom: 0.2, maxZoom: 1, duration: 220 });
     }, 180);
     return () => window.clearTimeout(timer);
-  }, [filter, fitView, flowOnly, playbackSteps]);
+  }, [detailsOpen, filter, fitView, flowOnly, playbackSteps]);
+  return null;
+}
+
+function FitTopologyForPrint({ filter, flowOnly, playbackSteps }) {
+  const { fitView, getViewport, setViewport } = useReactFlow();
+  const previousViewport = useRef(null);
+
+  useEffect(() => {
+    const fitForPrint = () => {
+      previousViewport.current = getViewport();
+      const inFlow = flowOnly ? flowNodeIds(playbackSteps) : null;
+      const visible = SERVER_MAP
+        .filter((node) => inFlow ? inFlow.has(node.id) : matchesFilter(node, filter))
+        .map(({ id }) => ({ id }));
+      fitView({ nodes: visible, padding: 0.1, minZoom: 0.12, maxZoom: 1, duration: 0 });
+    };
+    const restoreAfterPrint = () => {
+      if (previousViewport.current) setViewport(previousViewport.current, { duration: 0 });
+      previousViewport.current = null;
+    };
+    window.addEventListener("beforeprint", fitForPrint);
+    window.addEventListener("afterprint", restoreAfterPrint);
+    return () => {
+      window.removeEventListener("beforeprint", fitForPrint);
+      window.removeEventListener("afterprint", restoreAfterPrint);
+    };
+  }, [filter, fitView, flowOnly, getViewport, playbackSteps, setViewport]);
+
   return null;
 }
 
@@ -178,7 +358,7 @@ function DetailPanel({ selectedNode, selectedEdge, deployment, activeStep, playb
       : [];
 
   return (
-    <aside className="stm-details" aria-live="polite" aria-label="Selected topology details">
+    <aside id="stm-topology-details" className="stm-details" aria-live="polite" aria-label="Selected topology details">
       <header className="stm-details__head">
         <span className="stm-details__dot" style={{ "--stm-accent": group?.color || "#388bfd" }} aria-hidden="true" />
         <div className="stm-details__titles">
@@ -219,7 +399,7 @@ function DetailPanel({ selectedNode, selectedEdge, deployment, activeStep, playb
 }
 
 function TopologyCanvas({
-  deployment, filter, flowOnly, activeLayer, selectedNode, selectedEdge, activePlaybackEdge, playbackSteps, onSelectNode, onSelectEdge, onFit, onClearSelection,
+  deployment, filter, flowOnly, activeLayer, selectedNode, selectedEdge, activePlaybackEdge, playbackSteps, detailsOpen, onSelectNode, onSelectEdge, onFit, onClearSelection,
 }) {
   const routeEdges = useMemo(() => new Set(playbackSteps.map((step) => step.edgeId)), [playbackSteps]);
   const routeNodes = useMemo(() => flowNodeIds(playbackSteps), [playbackSteps]);
@@ -250,19 +430,50 @@ function TopologyCanvas({
       animated: activePlaybackEdge === item.id,
       hidden: !visible,
       label: `${isIncomingToSelection ? "IN · " : isOutgoingFromSelection ? "OUT · " : ""}${isOnPlayback ? `${String(stepIndex + 1).padStart(2, "0")} · ` : ""}${label}`.slice(0, 48),
-      labelBgPadding: [6, 4],
       style: { stroke, strokeWidth: active ? 4 : 1.8, opacity: visible ? (selectedNode && !isFocusedCommunication ? 0.16 : 0.96) : 0.08, strokeDasharray: item.data.kind === "telemetry" ? "6 5" : item.data.profile ? "6 5" : undefined },
       markerEnd: { type: MarkerType.ArrowClosed, color: stroke },
       data: { ...item.data, standards },
     };
   }), [activeLayer, activePlaybackEdge, filter, flowOnly, playbackSteps, routeEdges, selectedEdge, selectedNode]);
 
+  const positionedEdges = useMemo(() => {
+    const visibleLabels = graphEdges.filter((item) => !item.hidden).map((item) => {
+      const source = NODE_BY_ID[item.source];
+      const target = NODE_BY_ID[item.target];
+      const [, x, y] = getSmoothStepPath({
+        sourceX: source.position.x + NODE_CARD_WIDTH,
+        sourceY: source.position.y + NODE_CARD_HEIGHT / 2,
+        sourcePosition: Position.Right,
+        targetX: target.position.x,
+        targetY: target.position.y + NODE_CARD_HEIGHT / 2,
+        targetPosition: Position.Left,
+      });
+      return { id: item.id, text: item.label, x, y };
+    });
+    const serviceObstacles = graphNodes
+      .filter((node) => node.type === "server")
+      .map((node) => ({
+        x: node.position.x + NODE_CARD_WIDTH / 2,
+        y: node.position.y + NODE_CARD_HEIGHT / 2,
+        width: NODE_CARD_WIDTH,
+        height: NODE_CARD_HEIGHT,
+      }));
+    const labelPositions = new Map(layoutEdgeLabels(visibleLabels, serviceObstacles).map((label) => [label.id, label]));
+
+    return graphEdges.map((item) => ({
+      ...item,
+      type: "topologyLabeled",
+      data: { ...item.data, labelPosition: labelPositions.get(item.id) },
+    }));
+  }, [graphEdges, graphNodes]);
+
   return (
     <div className="stm-canvas" aria-label="Interactive server topology graph">
       <ReactFlow
         nodes={graphNodes}
-        edges={graphEdges}
+        edges={positionedEdges}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         fitView
         fitViewOptions={{ padding: 0.08, minZoom: 0.2, maxZoom: 1 }}
         minZoom={0.12}
@@ -274,11 +485,12 @@ function TopologyCanvas({
         onEdgeClick={(_, item) => onSelectEdge(item.id)}
         onPaneClick={onClearSelection}
         proOptions={{ hideAttribution: true }}
-        defaultEdgeOptions={{ type: "smoothstep" }}
+        defaultEdgeOptions={{ type: "topologyLabeled" }}
       >
         <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="var(--stm-dot)" />
         <Controls position="top-right" showInteractive={false} />
-        <FitFilteredServices filter={filter} flowOnly={flowOnly} playbackSteps={playbackSteps} />
+        <FitFilteredServices filter={filter} flowOnly={flowOnly} playbackSteps={playbackSteps} detailsOpen={detailsOpen} />
+        <FitTopologyForPrint filter={filter} flowOnly={flowOnly} playbackSteps={playbackSteps} />
       </ReactFlow>
       <button className="stm-fit-button" type="button" onClick={onFit}>{flowOnly ? "Fit current flow" : "Fit all servers"}</button>
     </div>
@@ -296,6 +508,17 @@ function CanvasWithFit(props) {
 }
 
 function ServerTopologyContent() {
+  const [flowSizeWide, resizeFlowWide] = usePersistedPaneSize("server-topology-flow-size", PANE_SIZE_LIMITS.flow);
+  const [flowSizeNarrow, resizeFlowNarrow] = usePersistedPaneSize("server-topology-flow-size-narrow", PANE_SIZE_LIMITS.flowNarrow);
+  const [detailsWidth, resizeDetailsWidth] = usePersistedPaneSize("server-topology-details-width", PANE_SIZE_LIMITS.detailsWidth);
+  const [detailsHeight, resizeDetailsHeight] = usePersistedPaneSize("server-topology-details-height", PANE_SIZE_LIMITS.detailsHeight);
+  const [notesSizeWide, resizeNotesWide] = usePersistedPaneSize("server-topology-notes-size", PANE_SIZE_LIMITS.notes);
+  const [notesSizeNarrow, resizeNotesNarrow] = usePersistedPaneSize("server-topology-notes-size-narrow", PANE_SIZE_LIMITS.notesNarrow);
+  const isNarrow = useNarrowTopologyLayout();
+  const flowSize = isNarrow ? flowSizeNarrow : flowSizeWide;
+  const resizeFlow = isNarrow ? resizeFlowNarrow : resizeFlowWide;
+  const notesSize = isNarrow ? notesSizeNarrow : notesSizeWide;
+  const resizeNotes = isNarrow ? resizeNotesNarrow : resizeNotesWide;
   const [deployment, setDeployment] = useState("local");
   const [filter, setFilter] = useState("all");
   const [flowOnly, setFlowOnly] = useState(false);
@@ -308,6 +531,21 @@ function ServerTopologyContent() {
   const [playing, setPlaying] = useState(false);
 
   const playback = PLAYBACKS[scenario];
+  const pageStyle = {
+    "--stm-flow-size": `${flowSize}px`,
+    "--stm-details-width": `${detailsWidth}px`,
+    "--stm-details-height": `${detailsHeight}px`,
+    "--stm-notes-size": `${notesSize}px`,
+  };
+
+  useEffect(() => {
+    const style = document.createElement("style");
+    style.setAttribute("data-server-topology-print", "");
+    style.textContent = "@media print { @page { size: A4 landscape; margin: 8mm; } }";
+    document.head.appendChild(style);
+    return () => style.remove();
+  }, []);
+
   const activePlaybackEdge = playing ? playback.steps[stepIndex]?.edgeId : null;
   const currentStep = playback.steps[stepIndex];
   const stepDetails = playing
@@ -376,7 +614,7 @@ function ServerTopologyContent() {
   }, [playback.steps]);
 
   return (
-    <main className="server-topology-page">
+    <main className="server-topology-page" style={pageStyle}>
       <header className="stm-header">
         <div className="stm-heading">
           <div><h1>Server topology</h1><p>Configured services and their network paths across local Docker and hosted Kubernetes.</p></div>
@@ -394,12 +632,16 @@ function ServerTopologyContent() {
             <input id="stm-flow-only" type="checkbox" checked={flowOnly} onChange={(event) => setFlowOnly(event.target.checked)} />
             <span>Flow boxes only</span>
           </label>
+          <ServerTopologyExportControls />
         </div>
         {!flowOnly && <nav className="stm-filters" aria-label="Filter servers by category">
           <span>Show</span>
           {FILTER_OPTIONS.map(([key, label]) => <button key={key} type="button" aria-pressed={filter === key} onClick={() => setFilter(key)}>{label}</button>)}
           <strong>{filter === "all" ? `${SERVER_MAP.length} services` : `${SERVER_MAP.filter((node) => matchesFilter(node, filter)).length} shown`}</strong>
         </nav>}
+      </header>
+
+      <section id="stm-topology-flow-pane" className="stm-flow-pane" aria-label="Playback and selected flow">
         <section className="stm-playback" aria-label="Flow playback controls">
           <label htmlFor="stm-playback-scenario">Choose a request flow</label>
           <select id="stm-playback-scenario" value={scenario} onChange={selectScenario}>
@@ -412,19 +654,30 @@ function ServerTopologyContent() {
           <button type="button" onClick={restart}>Restart</button>
         </section>
         <section className="stm-flow-summary" aria-label="Selected flow and expected result" aria-live="polite">
-          <div className="stm-flow-summary__outcome"><strong>Expected result</strong><span>{playback.result}</span></div>
+          <div className="stm-flow-summary__outcome"><strong>Expected result</strong><span title={playback.result}>{playback.result}</span></div>
           <ol className="stm-flow-summary__steps" aria-label="Numbered flow steps">
             {playback.steps.map((step, index) => <li key={`${step.edgeId}-${index}`} aria-current={index === stepIndex ? "step" : undefined}><button type="button" aria-label={`Step ${String(index + 1).padStart(2, "0")}: ${step.title}`} onClick={() => selectPlaybackStep(index)}><span>{String(index + 1).padStart(2, "0")}</span>{step.title}</button></li>)}
           </ol>
         </section>
-      </header>
+      </section>
 
-      <section className={`stm-workspace${detailsOpen ? "" : " stm-workspace--map-only"}`} aria-label="Server graph and selected details">
+      <TopologyResizeHandle
+        label="Resize playback and results pane"
+        controls="stm-topology-flow-pane"
+        value={flowSize}
+        min={isNarrow ? PANE_SIZE_LIMITS.flowNarrow.min : PANE_SIZE_LIMITS.flow.min}
+        max={isNarrow ? PANE_SIZE_LIMITS.flowNarrow.max : PANE_SIZE_LIMITS.flow.max}
+        axis="y"
+        direction={1}
+        onResize={resizeFlow}
+      />
+
+      <section id="stm-topology-workspace" className={`stm-workspace${detailsOpen ? "" : " stm-workspace--map-only"}`} aria-label="Server graph and selected details">
         <div className="stm-graph-panel">
           <div className="stm-graph-caption"><strong>{flowOnly ? "Current flow" : "Service map"}</strong><span>{deployment === "local" ? "Local Docker network" : "Kubernetes · ai-demo namespace"}</span><span className="stm-scroll-hint">Drag to pan · scroll to zoom</span><button type="button" aria-expanded={detailsOpen} onClick={() => setDetailsOpen((open) => !open)}>{detailsOpen ? "Hide details" : "Show details"}</button></div>
           <ReactFlowProvider>
             <CanvasWithFit
-              deployment={deployment} filter={filter} flowOnly={flowOnly} activeLayer={activeLayer} selectedNode={selectedNode}
+              deployment={deployment} filter={filter} flowOnly={flowOnly} activeLayer={activeLayer} detailsOpen={detailsOpen} selectedNode={selectedNode}
               selectedEdge={selectedEdge} activePlaybackEdge={activePlaybackEdge} playbackSteps={playback.steps} onSelectNode={selectNode}
               onSelectEdge={selectEdge} onClearSelection={clearSelection}
             />
@@ -437,13 +690,34 @@ function ServerTopologyContent() {
             <span><i className="stm-legend__optional" />Optional profile</span>
           </div>
         </div>
+        {detailsOpen && <TopologyResizeHandle
+          label="Resize map and details pane"
+          controls="stm-topology-details"
+          value={isNarrow ? detailsHeight : detailsWidth}
+          min={isNarrow ? PANE_SIZE_LIMITS.detailsHeight.min : PANE_SIZE_LIMITS.detailsWidth.min}
+          max={isNarrow ? PANE_SIZE_LIMITS.detailsHeight.max : PANE_SIZE_LIMITS.detailsWidth.max}
+          axis={isNarrow ? "y" : "x"}
+          direction={-1}
+          onResize={isNarrow ? resizeDetailsHeight : resizeDetailsWidth}
+        />}
         {detailsOpen && <DetailPanel
           selectedNode={selectedNode} selectedEdge={playing ? activePlaybackEdge : selectedEdge} deployment={deployment}
           activeStep={stepDetails} playback={playback} onClear={clearSelection}
         />}
       </section>
 
-      <footer className="stm-notes">
+      <TopologyResizeHandle
+        label="Resize network and mTLS notes"
+        controls="stm-topology-notes"
+        value={notesSize}
+        min={isNarrow ? PANE_SIZE_LIMITS.notesNarrow.min : PANE_SIZE_LIMITS.notes.min}
+        max={isNarrow ? PANE_SIZE_LIMITS.notesNarrow.max : PANE_SIZE_LIMITS.notes.max}
+        axis="y"
+        direction={-1}
+        onResize={resizeNotes}
+      />
+
+      <footer id="stm-topology-notes" className="stm-notes">
         <span><strong>NetworkPolicy:</strong> <code>ai-demo-internal</code> allows ingress from <code>ai-demo</code> and <code>ingress-nginx</code>; egress to the namespace, DNS over TCP/UDP 53, and public TCP 80/443, excluding AWS metadata IPs.</span>
         <span><strong>mTLS:</strong> local MCP mTLS is opt-in; checked-in Kubernetes manifests do not declare workload mTLS for these service hops. RFC 8705 covers OAuth mTLS, not generic workload mTLS or SPIFFE.</span>
       </footer>

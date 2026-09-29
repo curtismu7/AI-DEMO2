@@ -55,8 +55,18 @@ die()     { demo_err "$@"; exit 1; }
 
 check_prereqs() {
   command -v kubectl &>/dev/null || die "kubectl not found"
+  local context
+  context="$(kubectl config current-context 2>/dev/null || true)"
+  # run-k8.sh se-basic reuses this script with an explicitly selected SE
+  # namespace after switching to `us`; keep that separate from local ai-demo.
+  if [[ "$NS" == "ai-demo" ]]; then
+    case "$context" in
+      orbstack|docker-desktop) ;;
+      *) die "Refusing local K8 operation on context '${context:-unknown}'. Switch to OrbStack (kubectl config use-context orbstack) or Docker Desktop first." ;;
+    esac
+  fi
   kubectl cluster-info &>/dev/null || die "Cannot reach K8s cluster. Enable K8s in OrbStack Settings."
-  info "K8s cluster reachable."
+  info "K8s cluster reachable (context: $context)."
 }
 
 # The seed Job's own "Complete" status is ephemeral (ttlSecondsAfterFinished:
@@ -91,6 +101,14 @@ deploy() {
   info "Deploying AI Demo to namespace: $NS"
 
   kubectl apply -f "$SCRIPT_DIR/01-namespace.yaml"
+
+  # The shared namespace manifest is also used by the AWS deploy path. Raise
+  # the quota only for the guarded local ai-demo deployment, whose full manifest
+  # set needs 34 Services (25 already present plus 9 added by deploy).
+  if [[ "$NS" == "ai-demo" ]]; then
+    kubectl patch resourcequota ai-demo-quota -n "$NS" --type=merge \
+      -p '{"spec":{"hard":{"services":"34"}}}'
+  fi
 
   # Images are tagged ai-demo-k8-*:latest with imagePullPolicy: IfNotPresent. When
   # only the image *contents* change (a rebuild), the Deployment spec is
@@ -129,6 +147,9 @@ deploy() {
   kubectl apply -f "$SCRIPT_DIR/73-jaeger-deployment.yaml"
   # Backend tool servers
   kubectl apply -f "$SCRIPT_DIR/30-mcp-server-deployment.yaml"
+  # PromptGuard is port-forwarded from its Deployment directly, so it does not
+  # need a ClusterIP Service of its own.
+  kubectl apply -f "$SCRIPT_DIR/65-promptguard-deployment.yaml"
   kubectl apply -f "$SCRIPT_DIR/63-mcp-resource-server-deployment.yaml"
   kubectl apply -f "$SCRIPT_DIR/64-api-resource-server-deployment.yaml"
   kubectl apply -f "$SCRIPT_DIR/57-mcp-weather-deployment.yaml"
@@ -218,7 +239,7 @@ deploy() {
   # and exit codes, then report any failures at the end.
   info "Waiting for rollouts in parallel (timeout 3m each)..."
   local _pids=() _deps=()
-  for dep in jaeger mcp-server mcp-resource-server api-resource-server mcp-weather mcp-brave mcp-jwt-verifier hitl-service \
+  for dep in jaeger mcp-server mcp-promptguard mcp-resource-server api-resource-server mcp-weather mcp-brave mcp-jwt-verifier hitl-service \
              demo-api-server ping-gateway agent-service \
              langchain-agent frontend \
              weaviate embeddings mcp-code-search llamaindex-agent; do
