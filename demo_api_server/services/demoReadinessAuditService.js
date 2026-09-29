@@ -7,19 +7,8 @@ const { promisify } = require('util');
 const { redactReadinessValue } = require('./demoReadinessReport');
 const PF_PROFILES = require('../config/demoReadinessPingFederateProfiles.json');
 const { getReadinessToolMetadata } = require('../config/verticals/pingone-admin/tools');
-
-function resolveRepositoryRoot({
-  moduleDirectory = __dirname,
-  repositoryMount = '/repo',
-  existsSync = fs.existsSync,
-} = {}) {
-  const mountedRoot = path.resolve(repositoryMount);
-  return existsSync(path.join(mountedRoot, 'scope-topology.json'))
-    ? mountedRoot
-    : path.resolve(moduleDirectory, '..', '..');
-}
-
-const REPOSITORY_ROOT = resolveRepositoryRoot();
+const { resolveRepositoryRoot } = require('../utils/repositoryRoot');
+const REPOSITORY_ROOT = resolveRepositoryRoot(__dirname);
 const healthGate = require(path.join(REPOSITORY_ROOT, 'scripts/check-demo-health-gate'));
 const mcpPreflight = require(path.join(REPOSITORY_ROOT, 'scripts/check-mcp-preflight'));
 
@@ -495,4 +484,4 @@ function createAuditService({ adapters = {}, pfProfiles = PF_PROFILES, fetch = g
   return { auditTarget, auditRepositoryContracts, auditPingOneConfiguration, auditPingFederateConfiguration, auditRuntimeTarget, auditLocalDockerConfiguration };
 }
 const defaults = createAuditService();
-module.exports = { createAuditService, ...defaults, inspectEnv, resolveRepositoryRoot, semanticEqual };
+module.exports = { createAuditService, ...defaults, inspectEnv, semanticEqual };

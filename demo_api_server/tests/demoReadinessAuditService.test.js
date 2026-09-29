@@ -1,6 +1,7 @@
 'use strict';
 
-const { createAuditService, resolveRepositoryRoot, semanticEqual } = require('../services/demoReadinessAuditService');
+const { resolveRepositoryRoot } = require('../utils/repositoryRoot');
+const { createAuditService, semanticEqual } = require('../services/demoReadinessAuditService');
 
 const GATEWAY_EXPECTED = {
   issuer: 'https://pf.example.test',
@@ -59,16 +60,14 @@ function passingAdapters(overrides = {}) {
 
 describe('demo readiness audit service', () => {
   test('resolves the mounted repository when BFF code runs from /app in Docker', () => {
-    expect(resolveRepositoryRoot({
-      moduleDirectory: '/app/services',
+    expect(resolveRepositoryRoot('/app/services', {
       repositoryMount: '/repo',
       existsSync: (candidate) => candidate === '/repo/scope-topology.json',
     })).toBe('/repo');
   });
 
   test('uses the module-relative repository outside Docker', () => {
-    expect(resolveRepositoryRoot({
-      moduleDirectory: '/workspace/demo_api_server/services',
+    expect(resolveRepositoryRoot('/workspace/demo_api_server/services', {
       repositoryMount: '/repo',
       existsSync: () => false,
     })).toBe('/workspace');

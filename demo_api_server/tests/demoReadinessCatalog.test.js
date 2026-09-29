@@ -1,5 +1,8 @@
 'use strict';
 
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const {
   buildDemoReadinessCatalog,
   loadDemoReadinessSources,
@@ -17,6 +20,23 @@ const EXPECTED_IDS = [
 ];
 
 describe('demo readiness catalog', () => {
+  test('loads topology files from the resolved repository mount', () => {
+    const mountedRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'demo-readiness-repo-'));
+    const scopeTopology = { source: 'mounted-repository' };
+    const gatewayScopeTopology = { source: 'mounted-gateway' };
+    fs.mkdirSync(path.join(mountedRoot, 'ping-gateway', 'config'), { recursive: true });
+    fs.writeFileSync(path.join(mountedRoot, 'scope-topology.json'), JSON.stringify(scopeTopology));
+    fs.writeFileSync(path.join(mountedRoot, 'ping-gateway', 'config', 'scope-topology.json'), JSON.stringify(gatewayScopeTopology));
+
+    try {
+      const sources = loadDemoReadinessSources({ repositoryRoot: mountedRoot });
+      expect(sources.scopeTopology).toEqual(scopeTopology);
+      expect(sources.gatewayScopeTopology).toEqual(gatewayScopeTopology);
+    } finally {
+      fs.rmSync(mountedRoot, { recursive: true, force: true });
+    }
+  });
+
   test('builds the 46 executable Demo Steps entries in lane order', () => {
     const rows = buildDemoReadinessCatalog();
 
