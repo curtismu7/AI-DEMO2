@@ -188,6 +188,58 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-29 — UI image omitted demo-readiness contract inputs
+
+**Files:** `demo_api_ui/Dockerfile`, `demo_api_ui/Dockerfile.dockerignore`,
+`scripts/docker-build-contexts.test.js`, `REGRESSION_PLAN.md`.
+
+**What was broken:** the UI package's `prebuild` checks the cross-repo demo
+readiness contract, but the UI Dockerfile's scoped build context excluded the
+root checker and its BFF, topology, and feature-test inputs. The production
+frontend image therefore failed before Vite could build. Copying the whole BFF
+directory also admitted local dependencies and runtime data into the context.
+
+**What was fixed:** run the contract from a temporary read-only BuildKit mount
+of its allowlisted repo inputs, then run the UI topology sync and Vite directly
+so the container does not repeat the host-oriented prebuild after that mount is
+gone. Added a regression test tying the Dockerfile command and context allowlist
+to all registered readiness feature sources while keeping BFF dependencies,
+runtime data, and environment files excluded.
+
+**Do not break:** keep ordinary local `npm run build` running the full readiness
+contract; keep the contract mount temporary and the published image UI-only; do
+not admit BFF `node_modules`, runtime data, or `.env` files into the UI context.
+
+**Verify:** `node --test scripts/docker-build-contexts.test.js`; `cd demo_api_ui
+&& npm run build`; `docker buildx build --load -f demo_api_ui/Dockerfile -t
+ai-demo-ui-readiness-contract-test:latest .` from the repo root.
+
+### 2026-09-29 — UI Docker context re-included unrelated files
+
+**Files:** `demo_api_ui/Dockerfile.dockerignore`,
+`scripts/docker-build-contexts.test.js`, `REGRESSION_PLAN.md`.
+
+**What was broken:** Docker treats a negated directory rule such as
+`!demo_api_server/` as allowing its descendants. The broad directory exceptions
+therefore sent unrelated scripts and local BFF logs, nested data, and env files
+to the UI image builder. A test that only collected `!` lines as literal paths
+did not model this behavior.
+
+**What was fixed:** exclude direct children after reopening each needed parent,
+then allow only the checker, its referenced sources/tests, and the two topology
+exports. Added recursive runtime-artifact and secret exclusions. A BuildKit
+fixture test now copies the filtered context out and checks required files are
+present while unrelated scripts, runtime files, env files, UI tests, and docs
+are absent.
+
+**Do not break:** do not replace narrow directory exceptions with broad subtree
+negations. Keep the Docker-backed fixture test exercising the actual ignore
+file semantics, including nested runtime paths.
+
+**Verify:** `node --test scripts/docker-build-contexts.test.js`; `cd demo_api_ui
+&& npm run build`; `docker buildx build --load -f demo_api_ui/Dockerfile -t
+ai-demo-ui-readiness-contract-test:latest .` from the repo root.
+
 ### 2026-09-29 — BFF readiness catalog could not load gateway scope topology
 
 **Files:** `demo_api_server/Dockerfile`, `scripts/docker-build-contexts.js`,
