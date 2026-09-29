@@ -104,10 +104,12 @@ deploy() {
 
   # The shared namespace manifest is also used by the AWS deploy path. Raise
   # the quota only for the guarded local ai-demo deployment, whose full manifest
-  # set needs 34 Services (25 already present plus 9 added by deploy).
+  # set needs 34 Services (25 already present plus 9 added by deploy) and
+  # 18 CPU in aggregate container limits. The OrbStack node remains capped at
+  # 16 CPUs; the namespace CPU quota allows those limits to be oversubscribed.
   if [[ "$NS" == "ai-demo" ]]; then
     kubectl patch resourcequota ai-demo-quota -n "$NS" --type=merge \
-      -p '{"spec":{"hard":{"services":"34"}}}'
+      -p '{"spec":{"hard":{"limits.cpu":"18","services":"34"}}}'
   fi
 
   # Images are tagged ai-demo-k8-*:latest with imagePullPolicy: IfNotPresent. When
