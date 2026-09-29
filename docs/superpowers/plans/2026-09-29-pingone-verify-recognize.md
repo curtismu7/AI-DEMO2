@@ -4,7 +4,7 @@
 
 **Goal:** Add PingOne Verify identity proofing to the signed-in customer onboarding journey, then offer PingOne Recognize enrollment and Recognize biometric step-up for high-value transfer consent.
 
-**Architecture:** The browser uses authenticated BFF routes only. The BFF creates and checks Verify transactions using the PingOne Management API token provider already in the server. After an authoritative Verify `SUCCESS`, the browser may start the Recognize Web SDK. The BFF issues Recognize's short-lived user-authorization JWT and verifies SDK-signed enrollment/authentication results using the vendor's documented backend verification contract. Transfers continue to use the existing immutable consent challenge and OTP fallback; a browser callback alone never approves a challenge.
+**Architecture:** App API operations go through authenticated BFF routes. The React UI opens PingOne Verify's hosted web experience and uses the official Recognize Web SDK directly. The BFF creates and checks Verify transactions using the PingOne Management API token provider already in the server. After an authoritative Verify `SUCCESS`, the browser may start Recognize. The BFF issues Recognize's short-lived user-authorization JWT and verifies SDK-signed enrollment/authentication results using the vendor's documented backend verification contract. Transfers continue to use the existing immutable consent challenge and OTP fallback; a browser callback alone never approves a challenge.
 
 **Tech Stack:** Node.js 22+ / Express / CommonJS BFF, existing LMDB stores, React / TypeScript UI, PingOne Verify REST API, PingOne Recognize Web SDK and its supported backend API.
 
@@ -16,6 +16,15 @@
 - Recognize is an optional biometric factor after Verify succeeds. The first release supports live Web SDK enrollment and authentication. It does not transfer Verify selfies into Recognize IDV Bridge and does not offer self-service unenrollment until the supported Recognize deletion contract and its lifecycle effects are confirmed.
 - High-value transfer consent uses the current server-side challenge and its OTP fallback. Web SDK support for displaying and signing transaction details must be proven from the Web SDK contract before claiming dynamic linking or payment SCA. The current PingOne dynamic-linking documentation is for Mobile SDK.
 - This document is an implementation and deployment-readiness plan. It does not provision tenants, mutate PingOne, change application code, or deploy anything.
+
+## Selected Integration Path
+
+Use direct product integration in the existing React/BFF app; do not route these flows through PingOne DaVinci or its Orchestration SDK.
+
+- **Verify:** The BFF calls the PingOne Verify REST API to create and read transactions. The React UI opens the returned Ping-hosted `webVerificationUrl` and resumes by polling the BFF. Ping's current standalone Verify SDK catalog lists Android and iOS SDKs; for this React web app, the plan uses the REST API and hosted web verification experience.
+- **Recognize:** The React UI integrates the official PingOne Recognize Web SDK. The BFF issues the user-authorization JWT, validates signed SDK results, stores minimal enrollment state, and makes the transfer challenge decision.
+- The browser necessarily navigates to the Verify hosted experience and the Recognize Web SDK communicates with the Recognize service. It never receives Management API credentials, Recognize API keys, private signing keys, or authority to mark a transaction verified/approved.
+- DaVinci Verify and Recognize connectors remain a separate future architecture option, not a dependency or fallback in this implementation plan.
 
 ## Current Repository State
 
@@ -51,7 +60,7 @@
 
 ## Global Constraints: Trust and Data Rules
 
-- Browser requests use the existing authenticated BFF session. The browser never receives PingOne Management access tokens, worker credentials, Recognize API keys, or private signing keys.
+- App API requests use the existing authenticated BFF session. The browser never receives PingOne Management access tokens, worker credentials, Recognize API keys, or private signing keys.
 - Use a stable, immutable customer identifier as the Recognize username. Confirm whether the canonical identifier is the PingOne user UUID or another persisted app subject; it must be identical in the SDK username and the BFF-issued JWT `sub`. Do not use mutable email as the identity key.
 - Configure Recognize user authorization as `RemoteJWKSet` against a dedicated public JWKS endpoint, with the vendor enabling that customer configuration. Use a dedicated signing keypair and key ID; publish rotation-safe public keys and keep the private key in server-only secret storage.
 - Recognize user-authorization JWTs use `aud: "authentication-service"`, matching `sub`, `iat`, and short `exp` (5–10 minutes); they are single-use. Enforce rate limits and prevent session-token replay.
@@ -183,6 +192,8 @@ Complete these checks in a non-production PingOne/Recognize tenant before applic
 
 ## Official References
 
+- [Ping SDK catalog: current standalone Verify SDK platforms](https://developer.pingidentity.com/sdks.html)
+- [Ping Orchestration SDK support matrix](https://developer.pingidentity.com/orchsdks/)
 - [PingOne Verify introduction](https://developer.pingidentity.com/pingone-api/verify/introduction.html)
 - [Create Verify Transaction API](https://developer.pingidentity.com/pingone-api/verify/verify-transactions/create-verify-transaction.html)
 - [Verify Transactions API: status, expiry, and transaction model](https://developer.pingidentity.com/pingone-api/verify/verify-transactions.html)
