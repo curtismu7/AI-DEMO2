@@ -9,6 +9,12 @@ const path = require('node:path');
 const test = require('node:test');
 
 const repoRoot = path.resolve(__dirname, '..');
+const contractVerticals = require(path.join(
+  repoRoot,
+  'demo_api_server',
+  'config',
+  'useCases',
+)).VERTICALS;
 
 test('BFF build context includes the readiness audit helper scripts', () => {
   const outputRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-demo-bff-context-'));
@@ -80,11 +86,15 @@ test('UI Docker build can run the cross-repo readiness contract against its cont
     'ping-gateway/config/scope-topology.json',
     'demo_api_server/',
     'demo_api_server/config/',
+    'demo_api_server/config/a2aSpecialists.js',
+    'demo_api_server/config/auth-requirements.json',
     'demo_api_server/config/demoReadinessFeatureChecks.json',
     'demo_api_server/config/demoReadinessInventory.json',
     'demo_api_server/config/demoReadinessPingFederateProfiles.json',
     'demo_api_server/config/demoReadinessRepairability.json',
     'demo_api_server/config/useCases.js',
+    'demo_api_server/config/admin/demoSteps.js',
+    ...contractVerticals.map((vertical) => `demo_api_server/config/verticals/${vertical}/manifest.json`),
     'demo_api_server/services/',
     'demo_api_server/services/demoReadinessCatalog.js',
     'demo_api_server/services/demoStepPrerequisites.js',
@@ -177,10 +187,19 @@ test('UI Docker context uses Docker ignore semantics to exclude runtime and unre
   };
   const expectedIncluded = [
     'scripts/check-demo-readiness-contract.mjs',
-    'demo_api_server/services/demoReadinessCatalog.js',
-    'demo_api_server/tests/demoReadinessExecutionService.test.js',
-    'demo_api_ui/tests/e2e/a2a-failure-modes.real.spec.js',
+    'scope-topology.json',
+    'ping-gateway/config/scope-topology.json',
     'docs/exports/server-topology-lucidchart.csv',
+    'docs/exports/server-topology-details.csv',
+    'demo_api_server/config/a2aSpecialists.js',
+    'demo_api_server/config/auth-requirements.json',
+    'demo_api_server/config/admin/demoSteps.js',
+    ...contractVerticals.map((vertical) => `demo_api_server/config/verticals/${vertical}/manifest.json`),
+    'demo_api_server/services/demoReadinessCatalog.js',
+    'demo_api_server/services/demoStepPrerequisites.js',
+    'demo_api_server/tests/demoReadinessExecutionService.test.js',
+    'demo_api_server/tests/routes/pfDavinciAuth.test.js',
+    'demo_api_ui/tests/e2e/a2a-failure-modes.real.spec.js',
   ];
   const expectedExcluded = [
     'scripts/unrelated-maintenance.js',
