@@ -65,16 +65,17 @@ const GATEWAY_APPS = ['opensearch22', 'opensearch', 'brave', 'agent-gateway'];
 
 const TIMEOUT_MS = 15000;
 
-async function probe(url) {
+async function probe(url, { signal, timeoutMs = TIMEOUT_MS } = {}) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const combinedSignal = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;
   try {
-    const res = await fetch(url, { signal: controller.signal, redirect: 'manual' });
+    const res = await fetch(url, { signal: combinedSignal, redirect: 'manual' });
     return { status: res.status };
   } catch (err) {
     // Pass the error through as it comes — classifyProbe reads `.message` off
     // an Error, and a fetch failure buries the real reason in `cause`.
-    if (err.name === 'AbortError') return { error: `timeout after ${TIMEOUT_MS}ms` };
+    if (err.name === 'AbortError') return { error: 'timeout after ' + timeoutMs + 'ms' };
     return { error: err.cause?.message ? `${err.message}: ${err.cause.message}` : err };
   } finally {
     clearTimeout(timer);
@@ -184,9 +185,13 @@ async function main() {
   process.exit(code);
 }
 
+module.exports = { TARGETS, probe, gatewaySessionRow };
+
 // A throw anywhere above would otherwise exit 0 on an unhandled rejection in
 // some Node configurations — the exact false green this script exists to catch.
-main().catch((err) => {
-  console.error(`preflight failed: ${err.stack || err.message}`);
-  process.exit(2);
-});
+if (require.main === module) {
+  main().catch((err) => {
+    console.error(`preflight failed: ${err.stack || err.message}`);
+    process.exit(2);
+  });
+}

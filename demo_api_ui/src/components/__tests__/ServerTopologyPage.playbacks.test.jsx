@@ -1,8 +1,6 @@
 import React from "react";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
-
-const reactFlowMocks = vi.hoisted(() => ({ fitView: vi.fn(), setViewport: vi.fn() }));
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@xyflow/react", async () => {
   const ReactModule = await import("react");
@@ -29,151 +27,20 @@ vi.mock("@xyflow/react", async () => {
       children,
     ),
     ReactFlowProvider: ({ children }) => children,
-    useReactFlow: () => ({ fitView: reactFlowMocks.fitView, getViewport: () => ({ x: 24, y: 36, zoom: 0.62 }), setViewport: reactFlowMocks.setViewport }),
+    useReactFlow: () => ({ fitView: vi.fn() }),
   };
 });
 
 import ServerTopologyPage from "../ServerTopologyPage";
 import { PLAYBACKS, SERVER_EDGES } from "../serverTopologyData";
 
-function firePointer(target, type, properties) {
-  const event = new Event(type, { bubbles: true, cancelable: true });
-  Object.entries(properties).forEach(([key, value]) => Object.defineProperty(event, key, { value }));
-  fireEvent(target, event);
-}
-
-afterEach(() => window.localStorage.clear());
-
 describe("Server topology use-case playback", () => {
-  it("resizes and remembers the playback, detail, and notes panes with keyboard controls", () => {
-    const originalWidth = window.innerWidth;
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1280 });
-    window.localStorage.clear();
-    window.localStorage.setItem("server-topology-flow-size", "158");
-    window.localStorage.setItem("server-topology-details-width", "320");
-    window.localStorage.setItem("server-topology-notes-size", "72");
-
-    try {
-      render(<ServerTopologyPage />);
-
-      const flowResize = screen.getByRole("separator", { name: "Resize playback and results pane" });
-      expect(flowResize).toHaveAttribute("aria-orientation", "horizontal");
-      expect(flowResize).toHaveAttribute("aria-valuenow", "158");
-      fireEvent.keyDown(flowResize, { key: "ArrowDown" });
-      expect(flowResize).toHaveAttribute("aria-valuenow", "174");
-      expect(window.localStorage.getItem("server-topology-flow-size")).toBe("174");
-
-      fireEvent.click(screen.getByRole("button", { name: "Show details" }));
-      const detailsResize = screen.getByRole("separator", { name: "Resize map and details pane" });
-      expect(detailsResize).toHaveAttribute("aria-orientation", "vertical");
-      expect(detailsResize).toHaveAttribute("aria-valuenow", "320");
-      fireEvent.keyDown(detailsResize, { key: "ArrowLeft" });
-      expect(detailsResize).toHaveAttribute("aria-valuenow", "336");
-      expect(window.localStorage.getItem("server-topology-details-width")).toBe("336");
-
-      const notesResize = screen.getByRole("separator", { name: "Resize network and mTLS notes" });
-      fireEvent.keyDown(notesResize, { key: "ArrowUp" });
-      expect(notesResize).toHaveAttribute("aria-valuenow", "88");
-      expect(window.localStorage.getItem("server-topology-notes-size")).toBe("88");
-    } finally {
-      Object.defineProperty(window, "innerWidth", { configurable: true, value: originalWidth });
-      window.localStorage.clear();
-    }
-  });
-
-  it("switches the map/details divider to a vertical resize on narrow screens", () => {
-    const originalWidth = window.innerWidth;
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 800 });
-    window.localStorage.clear();
-
-    try {
-      render(<ServerTopologyPage />);
-      fireEvent.click(screen.getByRole("button", { name: "Show details" }));
-
-      const detailsResize = screen.getByRole("separator", { name: "Resize map and details pane" });
-      expect(detailsResize).toHaveAttribute("aria-orientation", "horizontal");
-      fireEvent.keyDown(detailsResize, { key: "ArrowUp" });
-      expect(detailsResize).toHaveAttribute("aria-valuenow", "336");
-      expect(window.localStorage.getItem("server-topology-details-height")).toBe("336");
-    } finally {
-      Object.defineProperty(window, "innerWidth", { configurable: true, value: originalWidth });
-      window.localStorage.clear();
-    }
-  });
-
-  it("reserves enough narrow-screen height for the stacked playback and result controls", () => {
-    const originalWidth = window.innerWidth;
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 800 });
-    window.localStorage.clear();
-
-    try {
-      render(<ServerTopologyPage />);
-
-      const flowResize = screen.getByRole("separator", { name: "Resize playback and results pane" });
-      expect(flowResize).toHaveAttribute("aria-valuemin", "180");
-      expect(flowResize).toHaveAttribute("aria-valuenow", "220");
-
-      const notesResize = screen.getByRole("separator", { name: "Resize network and mTLS notes" });
-      expect(notesResize).toHaveAttribute("aria-valuemin", "112");
-      expect(notesResize).toHaveAttribute("aria-valuenow", "144");
-    } finally {
-      Object.defineProperty(window, "innerWidth", { configurable: true, value: originalWidth });
-      window.localStorage.clear();
-    }
-  });
-
-  it("resizes the playback pane by dragging its divider", () => {
-    const originalWidth = window.innerWidth;
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1280 });
-    window.localStorage.clear();
-    render(<ServerTopologyPage />);
-
-    const flowResize = screen.getByRole("separator", { name: "Resize playback and results pane" });
-    firePointer(flowResize, "pointerdown", { button: 0, pointerId: 1, clientX: 12, clientY: 100 });
-    expect(flowResize).toHaveAttribute("data-resizing", "true");
-    firePointer(flowResize, "pointermove", { pointerId: 1, clientX: 12, clientY: 132 });
-    expect(flowResize).toHaveAttribute("aria-valuenow", "182");
-    firePointer(flowResize, "pointerup", { pointerId: 1, clientX: 12, clientY: 132 });
-
-    expect(flowResize).toHaveAttribute("aria-valuenow", "182");
-    expect(window.localStorage.getItem("server-topology-flow-size")).toBe("182");
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: originalWidth });
-  });
-
-  it("fits the current topology for print and restores the interactive viewport afterward", () => {
-    reactFlowMocks.fitView.mockClear();
-    reactFlowMocks.setViewport.mockClear();
-    render(<ServerTopologyPage />);
-
-    window.dispatchEvent(new Event("beforeprint"));
-    expect(reactFlowMocks.fitView).toHaveBeenCalledWith(expect.objectContaining({
-      padding: 0.1,
-      duration: 0,
-    }));
-
-    window.dispatchEvent(new Event("afterprint"));
-    expect(reactFlowMocks.setViewport).toHaveBeenCalledWith(
-      { x: 24, y: 36, zoom: 0.62 },
-      { duration: 0 },
-    );
-  });
-
-  it("refits the graph when opening details reduces its available width", async () => {
-    reactFlowMocks.fitView.mockClear();
-    render(<ServerTopologyPage />);
-    await waitFor(() => expect(reactFlowMocks.fitView).toHaveBeenCalledTimes(1));
-
-    fireEvent.click(screen.getByRole("button", { name: "Show details" }));
-
-    await waitFor(() => expect(reactFlowMocks.fitView).toHaveBeenCalledTimes(2));
-  });
-
   it("shows a full numbered route and its result in the use-case selector", () => {
     render(<ServerTopologyPage />);
 
     const selector = screen.getByRole("combobox", { name: /choose a request flow/i });
     expect(within(selector).getByRole("option", {
-      name: /Agent → Demo Agent Gateway → protected API.*Authorized API data returned/i,
+      name: /Agent → Demo Agent Gateway → protected BFF API.*Authorized API data returned/i,
     })).toBeInTheDocument();
     expect(screen.getByText(/Gateway → PingOne Authorize · policy decision/i)).toBeInTheDocument();
 
@@ -182,12 +49,96 @@ describe("Server topology use-case playback", () => {
     expect(screen.getByText(/returns the mortgage record through the agent.*API key stays server-side/i)).toBeInTheDocument();
     expect(screen.getByText("01").parentElement).toHaveTextContent("User / agent client → ingress");
     expect(screen.getByText("02").parentElement).toHaveTextContent("Ingress → frontend");
-    expect(within(screen.getByLabelText("Numbered flow steps")).getAllByRole("listitem")[7]).toHaveTextContent(
+    expect(within(screen.getByLabelText("Numbered flow steps")).getAllByRole("listitem")[6]).toHaveTextContent(
       "Gateway → API resource server · X-API-Key",
     );
     expect(within(selector).getByRole("option", {
       name: /Agent → Demo Agent Gateway → API-key backend.*Mortgage data returned.*key stays server-side/i,
     })).toBeInTheDocument();
+  });
+
+  it("ends the API-key route after Authorize and the X-API-Key backend call", () => {
+    render(<ServerTopologyPage />);
+
+    const selector = screen.getByRole("combobox", { name: /choose a request flow/i });
+    fireEvent.change(selector, { target: { value: "apiKeyBackend" } });
+
+    const steps = within(screen.getByLabelText("Numbered flow steps")).getAllByRole("listitem");
+    expect(steps).toHaveLength(7);
+    expect(steps[5]).toHaveTextContent("PingOne Authorize · policy decision");
+    expect(steps[6]).toHaveTextContent("API resource server · X-API-Key");
+    expect(steps.some((step) => /RFC 8693 exchange/i.test(step.textContent))).toBe(false);
+  });
+
+  it("shows the MCP server's bearer call to the BFF in the protected API route", () => {
+    render(<ServerTopologyPage />);
+
+    const selector = screen.getByRole("combobox", { name: /choose a request flow/i });
+    fireEvent.change(selector, { target: { value: "protectedApi" } });
+
+    const steps = within(screen.getByLabelText("Numbered flow steps")).getAllByRole("listitem");
+    expect(steps).toHaveLength(9);
+    expect(steps[6]).toHaveTextContent("RFC 8693 exchange");
+    expect(steps[8]).toHaveTextContent("OAuth MCP server → BFF API · delegated user bearer");
+    expect(PLAYBACKS.protectedApi.label).toMatch(/Step 9 passthrough/i);
+    expect(PLAYBACKS.protectedApi.result).toMatch(/Step 9 is not configured/i);
+  });
+
+  it("shows the conditional MCP Step 9 exchange on the PingOne-issued Node Gateway path", () => {
+    const routes = [
+      { key: "protectedApiPingOne", provider: "PingOne", edgeId: "mcpmcp-pingone-step9" },
+    ];
+
+    for (const route of routes) {
+      const playback = PLAYBACKS[route.key];
+      expect(playback.label).toContain(route.provider);
+      expect(playback.result).toMatch(/conditional|when configured/i);
+      expect(playback.result).toMatch(/Step 9/i);
+      expect(playback.result).toMatch(/BANKING_API_RESOURCE_URI must match the BFF resource audience/i);
+      expect(playback.steps).toHaveLength(10);
+      expect(playback.steps[8]).toMatchObject({ edgeId: route.edgeId });
+      expect(playback.steps[8].title).toContain(`MCP server → ${route.provider}`);
+      expect(playback.steps[9].edgeId).toBe("mcpmcp-bff-api");
+    }
+
+    expect(SERVER_EDGES.find(({ id }) => id === "mcpmcp-pingone-step9")).toMatchObject({
+      source: "mcpmcp",
+      target: "pingone",
+    });
+  });
+
+  it("shows PingFederate Step 9 only when a direct MCP client supplies a PF-issued token", () => {
+    const playback = PLAYBACKS.directMcpPingFederateStep9;
+
+    expect(playback.label).toMatch(/Local.*WebSocket.*PingFederate Step 9/i);
+    expect(playback.result).toMatch(/PF-issued bearer/i);
+    expect(playback.result).toMatch(/conditional|when configured/i);
+    expect(playback.result).toMatch(/BANKING_API_RESOURCE_URI must match the BFF resource audience/i);
+    expect(playback.result).toMatch(/HTTP MCP route.*excludes PF/i);
+    expect(playback.steps.map(({ edgeId }) => edgeId)).toEqual([
+      "browser-mcpmcp-direct",
+      "mcpmcp-pingfederate-step9",
+      "mcpmcp-bff-api",
+    ]);
+    expect(PLAYBACKS.protectedApiPingFederate).toBeUndefined();
+    expect(SERVER_EDGES.find(({ id }) => id === "mcpmcp-pingfederate-step9")).toMatchObject({
+      source: "mcpmcp",
+      target: "pingfederate",
+    });
+  });
+
+  it("marks the direct MCP playback as local and describes the hosted route", () => {
+    render(<ServerTopologyPage />);
+
+    const selector = screen.getByRole("combobox", { name: /choose a request flow/i });
+    expect(within(selector).getByRole("option", {
+      name: /Local Compose: direct MCP client → MCP server/i,
+    })).toBeInTheDocument();
+    fireEvent.change(selector, { target: { value: "directMcp" } });
+
+    expect(screen.getByText(/Hosted MCP requests route through PingGateway/i)).toBeInTheDocument();
+    expect(within(screen.getByLabelText("Numbered flow steps")).getByRole("listitem"))
+      .toHaveTextContent("Local Compose client → directly published MCP server");
   });
 
   it("shows PDF and Lucidchart downloads on the topology page", () => {

@@ -14,9 +14,9 @@ describe('demo readiness build contract', () => {
     );
 
     expect(output).toContain('46 executable Demo Steps entries');
-    expect(output).toContain('4 provider feature checks are registered separately');
+    expect(output).toContain('21 provider feature checks are registered separately');
     expect(output).toContain('184 behavior/authorization groups; 734 core rows');
-    expect(output).toContain('14 registered provider-feature rows; 752 current rows');
+    expect(output).toContain('62 registered provider-feature rows; 800 current rows');
     expect(output).toContain('UI, BFF, and readiness prerequisite flags match for every case and vertical.');
   });
 });
