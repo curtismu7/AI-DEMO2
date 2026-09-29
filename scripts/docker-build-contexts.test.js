@@ -3,7 +3,6 @@
 const assert = require('node:assert/strict');
 const { spawnSync } = require('node:child_process');
 const fs = require('node:fs');
-const Module = require('node:module');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
@@ -236,7 +235,7 @@ test('UI Docker context uses Docker ignore semantics to exclude runtime and unre
   }
 });
 
-test('BFF runtime layout resolves the gateway topology imported by the readiness catalog', () => {
+test('BFF runtime layout resolves topology files from the packaged repository root', () => {
   const outputRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-demo-bff-runtime-'));
   try {
     const result = spawnSync(process.execPath, [
@@ -251,16 +250,15 @@ test('BFF runtime layout resolves the gateway topology imported by the readiness
     const stagedBff = path.join(outputRoot, 'bff');
     const runtimeRoot = path.join(outputRoot, 'runtime');
 
-    // Apply the Dockerfile COPY destinations for the gateway topology input to
-    // the simulated image root. Loading the real catalog proves the destination
-    // agrees with the module's relative require, rather than just proving the
-    // source file exists somewhere in the build context.
+    // Apply the Dockerfile COPY destinations for both topology inputs to the
+    // simulated image root, then load the catalog from its image path. This
+    // proves the runtime root resolver and the Dockerfile layout agree.
     const dockerfile = fs.readFileSync(path.join(repoRoot, 'demo_api_server', 'Dockerfile'), 'utf8');
-    const topologySource = 'ping-gateway/config/scope-topology.json';
-    const topologySourceFile = path.join(stagedBff, topologySource);
-    assert.ok(fs.existsSync(topologySourceFile), `BFF build context is missing ${topologySource}`);
-
-    const destinations = [];
+    const topologySources = new Set([
+      'scope-topology.json',
+      'ping-gateway/config/scope-topology.json',
+    ]);
+    const destinations = new Map([...topologySources].map((source) => [source, []]));
     for (const line of dockerfile.split(/\r?\n/)) {
       const match = line.match(/^\s*COPY\s+(.+)$/);
       if (!match) continue;
@@ -268,37 +266,44 @@ test('BFF runtime layout resolves the gateway topology imported by the readiness
       const destination = parts.at(-1);
       for (const source of parts.slice(0, -1)) {
         const normalizedSource = source.replace(/\/$/, '');
-        if (normalizedSource === topologySource) {
-          destinations.push(destination);
-        } else if (normalizedSource === 'ping-gateway') {
-          destinations.push(path.posix.join(destination, 'config/scope-topology.json'));
+        if (topologySources.has(normalizedSource)) {
+          destinations.get(normalizedSource).push(destination);
         }
       }
     }
 
-    for (const destination of destinations) {
-      const runtimeFile = path.join(runtimeRoot, destination.replace(/^\/+/, ''));
-      fs.mkdirSync(path.dirname(runtimeFile), { recursive: true });
-      fs.copyFileSync(topologySourceFile, runtimeFile);
+    for (const [source, copies] of destinations) {
+      const sourceFile = path.join(stagedBff, source);
+      assert.ok(fs.existsSync(sourceFile), `BFF build context is missing ${source}`);
+      assert.ok(copies.length > 0, `Dockerfile does not copy ${source} into the BFF image`);
+      for (const destination of copies) {
+        const runtimeFile = path.join(runtimeRoot, destination.replace(/^\/+/, ''));
+        fs.mkdirSync(path.dirname(runtimeFile), { recursive: true });
+        fs.copyFileSync(sourceFile, runtimeFile);
+      }
     }
 
-    const catalogSource = fs.readFileSync(
-      path.join(stagedBff, 'demo_api_server', 'services', 'demoReadinessCatalog.js'),
-      'utf8',
-    );
-    const gatewayTopologyImport = [...catalogSource.matchAll(/require\(['"]([^'"]*scope-topology\.json)['"]\)/g)]
-      .map((match) => match[1])
-      .find((specifier) => specifier.includes('ping-gateway'));
-    assert.ok(gatewayTopologyImport, 'readiness catalog must import the PingGateway scope topology');
+    const stagedApp = path.join(stagedBff, 'demo_api_server');
+    const runtimeApp = path.join(runtimeRoot, 'app');
+    fs.cpSync(stagedApp, runtimeApp, { recursive: true });
+    fs.symlinkSync(path.join(repoRoot, 'demo_api_server', 'node_modules'), path.join(runtimeApp, 'node_modules'), 'dir');
 
-    const requireFromCatalog = Module.createRequire(
-      path.join(runtimeRoot, 'app', 'services', 'demoReadinessCatalog.js'),
+    const catalogPath = path.join(runtimeApp, 'services', 'demoReadinessCatalog.js');
+    const catalog = require(catalogPath);
+    const { resolveRepositoryRoot } = require(path.join(runtimeApp, 'utils', 'repositoryRoot.js'));
+    const resolvedRoot = resolveRepositoryRoot(path.dirname(catalogPath), {
+      repositoryMount: path.join(outputRoot, 'unmounted-repo'),
+    });
+    assert.equal(resolvedRoot, runtimeRoot);
+
+    const sources = catalog.loadDemoReadinessSources({ repositoryRoot: resolvedRoot });
+    assert.deepEqual(
+      sources.scopeTopology,
+      JSON.parse(fs.readFileSync(path.join(runtimeRoot, 'scope-topology.json'), 'utf8')),
     );
-    const resolvedTopology = requireFromCatalog.resolve(gatewayTopologyImport);
-    const relativeTopologyPath = path.relative(fs.realpathSync(runtimeRoot), resolvedTopology);
-    assert.ok(
-      relativeTopologyPath && relativeTopologyPath !== '..' && !relativeTopologyPath.startsWith(`..${path.sep}`),
-      `catalog import resolved outside the simulated BFF image: ${resolvedTopology}`,
+    assert.deepEqual(
+      sources.gatewayScopeTopology,
+      JSON.parse(fs.readFileSync(path.join(runtimeRoot, 'ping-gateway/config/scope-topology.json'), 'utf8')),
     );
   } finally {
     fs.rmSync(outputRoot, { recursive: true, force: true });
