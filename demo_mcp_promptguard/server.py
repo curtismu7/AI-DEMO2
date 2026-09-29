@@ -8,12 +8,15 @@ An EMPTY findings list means "allow"; a finding whose category crosses that
 category's block threshold makes the gateway block. Contract reverse-engineered
 from the gateway binary + a live capture — see privilege/AGENTLESS-CONFIGURATION.md.
 
-This wraps Meta Prompt-Guard (a small text classifier). Any non-benign label at
-or above THRESHOLD becomes a finding on that unit.
+This adapts the selected local detector to Privilege findings. An optional
+demo override can force the verdict for matching request-direction user prompts.
 """
 import json
 import os
 import http.server
+import threading
+
+from detectors import DetectorManager, DetectorUnavailable
 
 # Tunable at deploy time — the model, its benign label(s) and the block point all
 # vary by classifier, so none of them is hardcoded. Default is ProtectAI's public
@@ -41,50 +44,79 @@ def category_for(label):
     return "malicious_content"
 
 
-def to_findings(units, classify):
-    """Pure mapping from request units to WebhookResponse findings.
+UI_ORIGIN = "https://local.ping-devops.com:4000"
+MAX_CONFIG_BYTES = 4096
 
-    `classify(text)` returns [{"label": str, "score": float}, ...]. Injectable so
-    the mapping is testable without loading the model. One finding per unit whose
-    worst non-benign label scores >= THRESHOLD.
-    """
+
+def validate_config(value):
+    """Validate the exact control schema before changing any shared state."""
+    if not isinstance(value, dict) or set(value) != {"engine", "demo"}:
+        raise ValueError("Config must contain exactly engine and demo")
+    engine, demo = value["engine"], value["demo"]
+    if engine not in ("classifier", "nemo"):
+        raise ValueError("Unknown detector engine")
+    if not isinstance(demo, dict) or set(demo) != {"enabled", "triggerPhrase", "outcome"}:
+        raise ValueError("Demo must contain exactly enabled, triggerPhrase and outcome")
+    if not isinstance(demo["enabled"], bool):
+        raise ValueError("Demo enabled must be a boolean")
+    phrase = demo["triggerPhrase"]
+    if not isinstance(phrase, str) or len(phrase) > 120:
+        raise ValueError("Trigger phrase must be a string of at most 120 characters")
+    phrase = phrase.strip()
+    if demo["enabled"] and not phrase:
+        raise ValueError("Trigger phrase is required when demo is enabled")
+    if demo["outcome"] not in ("allow", "block"):
+        raise ValueError("Unknown demo outcome")
+    return {"engine": engine, "demo": {"enabled": demo["enabled"],
+            "triggerPhrase": phrase, "outcome": demo["outcome"]}}
+
+
+def to_findings(units, manager, demo=None):
+    """Map normalized detector verdicts (or a scoped demo override) to findings."""
+    demo = demo or {"enabled": False}
     findings = []
     for i, unit in enumerate(units or []):
-        text = (unit or {}).get("text") or ""
+        unit = unit or {}
+        text = unit.get("text") or ""
         if not text.strip():
             continue
-        bad = [
-            s for s in classify(text)
-            if s["label"].lower() not in BENIGN_LABELS and s["score"] >= THRESHOLD
-        ]
-        if not bad:
+        matches_demo = (demo["enabled"] and unit.get("role") == "user_prompt"
+                        and unit.get("direction") == "request"
+                        and demo["triggerPhrase"].strip().lower() in text.lower())
+        if matches_demo:
+            if demo["outcome"] == "allow":
+                continue
+            result = {"blocked": True, "label": "INJECTION", "score": 1.0}
+            message = "Prompt-Guard demo override: block"
+        else:
+            result = manager.check(text)
+            label, score = result["label"], result["score"]
+            message = f"Prompt-Guard flagged {label}"
+            if score is not None:
+                message += f" ({score:.2f})"
+        if not result["blocked"]:
             continue
-        worst = max(bad, key=lambda s: s["score"])
+        score = result["score"]
         findings.append({
-            "category": category_for(worst["label"]),
-            "severity": "high" if worst["score"] >= 0.9 else "medium",
+            "category": category_for(result["label"] or "MALICIOUS"),
+            "severity": "high" if score is None or score >= 0.9 else "medium",
             "location": {"index": i},
-            "messages": [f"Prompt-Guard flagged {worst['label']} ({worst['score']:.2f})"],
+            "messages": [message],
             "contents": [text[:200]],
         })
     return findings
 
 
-def load_classifier():
-    """Load the model once. Imported lazily so importing this module (e.g. in
-    tests) needs neither transformers nor torch."""
-    from transformers import pipeline
-    clf = pipeline("text-classification", model=MODEL, top_k=None, truncation=True)
+def make_handler(manager):
+    config = {"engine": "classifier", "demo": {"enabled": False, "triggerPhrase": "", "outcome": "block"}}
+    # Serialize entire inspections with engine/config changes, so every unit of
+    # an inspection sees one active engine and one complete demo rule.
+    lock = threading.RLock()
 
-    def classify(text):
-        out = clf(text)
-        # top_k=None nests the scores one list deep.
-        return out[0] if out and isinstance(out[0], list) else out
+    def snapshot():
+        return {"config": {"engine": manager.active_engine(), "demo": dict(config["demo"])},
+                "engines": manager.engines()}
 
-    return classify
-
-
-def make_handler(classify):
     class H(http.server.BaseHTTPRequestHandler):
         def log_message(self, *a):
             pass
@@ -94,12 +126,68 @@ def make_handler(classify):
             self.send_response(code)
             self.send_header("content-type", "application/json")
             self.send_header("content-length", str(len(payload)))
+            if self.path in {"/health", "/demo/config"}:
+                self.send_header("Vary", "Origin")
+                if self.headers.get("Origin") == UI_ORIGIN:
+                    self.send_header("Access-Control-Allow-Origin", UI_ORIGIN)
             self.end_headers()
             self.wfile.write(payload)
+
+        def _control_origin_allowed(self):
+            if self.headers.get("Origin") == UI_ORIGIN:
+                return True
+            self._send(403, {"error": "origin_not_allowed"})
+            return False
+
+        def do_OPTIONS(self):
+            if self.path != "/demo/config":
+                return self._send(404, {"error": "not_found"})
+            if not self._control_origin_allowed():
+                return
+            method = self.headers.get("Access-Control-Request-Method", "GET")
+            headers = {header.strip().lower() for header in
+                       self.headers.get("Access-Control-Request-Headers", "").split(",") if header.strip()}
+            if method not in {"GET", "PUT", "OPTIONS"} or headers - {"content-type"}:
+                return self._send(403, {"error": "preflight_not_allowed"})
+            self.send_response(204)
+            self.send_header("Vary", "Origin")
+            self.send_header("Access-Control-Allow-Origin", UI_ORIGIN)
+            self.send_header("Access-Control-Allow-Methods", "GET, PUT, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        def do_PUT(self):
+            nonlocal config
+            if self.path != "/demo/config":
+                return self._send(404, {"error": "not_found"})
+            if not self._control_origin_allowed():
+                return
+            try:
+                if self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower() != "application/json":
+                    raise ValueError("Content-Type must be application/json")
+                length = int(self.headers.get("Content-Length") or 0)
+                if not 0 < length <= MAX_CONFIG_BYTES:
+                    raise ValueError("Config body must be between 1 and 4096 bytes")
+                new_config = validate_config(json.loads(self.rfile.read(length)))
+            except (ValueError, UnicodeError, RecursionError) as error:
+                return self._send(400, {"error": "invalid_config", "message": str(error)})
+            with lock:
+                try:
+                    manager.select_engine(new_config["engine"])
+                except DetectorUnavailable as error:
+                    return self._send(409, {"error": "engine_unavailable", "message": str(error)})
+                config = new_config
+                return self._send(200, snapshot())
 
         def do_GET(self):
             if self.path == "/health":
                 return self._send(200, {"ok": True})
+            if self.path == "/demo/config":
+                if not self._control_origin_allowed():
+                    return
+                with lock:
+                    return self._send(200, snapshot())
             self._send(404, {"error": "not_found"})
 
         def do_POST(self):
@@ -109,9 +197,10 @@ def make_handler(classify):
                 n = int(self.headers.get("content-length") or 0)
                 req = json.loads(self.rfile.read(n) or b"{}")
                 units = req.get("units") or []
-                findings = to_findings(units, classify)
+                with lock:
+                    findings = to_findings(units, manager, config["demo"])
             except Exception as e:  # gateway's Fail Closed setting decides what a 5xx means
-                print("promptguard: inspect_failed " + str(e), flush=True)
+                print("promptguard: inspect_failed", flush=True)
                 return self._send(502, {"error": "inspect_failed", "message": str(e)})
             # One line per call so a demo can show the sidecar firing. Verdict only —
             # no prompt text — so shared cluster logs never carry the user's content.
@@ -124,6 +213,8 @@ def make_handler(classify):
 
 if __name__ == "__main__":
     print(f"promptguard: loading {MODEL} ...", flush=True)
-    handler = make_handler(load_classifier())
+    manager = DetectorManager(MODEL, THRESHOLD, BENIGN_LABELS,
+                              os.path.join(os.path.dirname(__file__), "nemo_config"))
+    handler = make_handler(manager)
     print(f"promptguard: listening on :{PORT}/inspect (threshold={THRESHOLD})", flush=True)
-    http.server.HTTPServer(("0.0.0.0", PORT), handler).serve_forever()
+    http.server.ThreadingHTTPServer(("0.0.0.0", PORT), handler).serve_forever()

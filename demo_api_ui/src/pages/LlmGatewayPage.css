@@ -768,7 +768,7 @@
   color: var(--th-text-body);
 }
 
-.lgw-pill.is-ok { color: var(--th-status-success); }
+.lgw-pill.is-ok { color: var(--th-status-success-text); }
 .lgw-pill.is-warn { color: var(--th-status-warning); }
 .lgw-pill.is-bad { color: var(--th-status-error); }
 
@@ -924,4 +924,181 @@
   border-bottom: 1px solid var(--th-border);
   background: var(--th-bg-inset);
   color: var(--th-text);
+}
+
+/* Local PromptGuard controls: a draft and the active shared state are distinct. */
+.lgw-sidecar {
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--th-border);
+  border-radius: 6px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: var(--font-size-base);
+}
+
+.lgw-sidecar__header,
+.lgw-sidecar__footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.lgw-sidecar__header h2 {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  color: var(--th-text);
+}
+
+.lgw-sidecar__connection {
+  padding: 0.15rem 0.5rem;
+  border: 1px solid var(--th-border);
+  border-radius: 4px;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.lgw-sidecar__connection.is-connected {
+  border-color: var(--th-status-success-border);
+  background: var(--th-status-success-bg);
+  color: var(--th-status-success-text);
+}
+
+.lgw-sidecar__connection.is-disconnected,
+.lgw-sidecar__problem {
+  border: 1px solid var(--th-status-error-border);
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
+}
+
+.lgw-sidecar__problem {
+  padding: 0.5rem 0.65rem;
+  border-radius: 4px;
+  margin: 0.6rem 0 0;
+  font-size: var(--font-size-base);
+  overflow-wrap: anywhere;
+}
+
+.lgw-sidecar__fields {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1fr) auto minmax(14rem, 2fr) minmax(6rem, 0.6fr);
+  gap: 0.75rem;
+  align-items: end;
+  margin-top: 0.75rem;
+}
+
+.lgw-sidecar__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+  color: var(--th-text);
+}
+
+.lgw-sidecar__field input,
+.lgw-sidecar__field select {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid var(--th-border-strong);
+  border-radius: 4px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font: inherit;
+  font-size: var(--font-size-base);
+}
+
+.lgw-sidecar__field input:disabled,
+.lgw-sidecar__field select:disabled,
+.lgw-sidecar__field option:disabled {
+  background: var(--th-bg-inset);
+  color: var(--th-text-body);
+  cursor: not-allowed;
+}
+
+.lgw-sidecar__switch {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.2rem;
+  color: var(--th-text);
+}
+
+.lgw-sidecar__note {
+  margin: 0.5rem 0 0;
+  max-width: 100ch;
+  line-height: 1.4;
+  font-size: var(--font-size-sm);
+  color: var(--th-text-body);
+}
+
+.lgw-sidecar__note code {
+  background: var(--th-code-bg);
+  color: var(--th-code-text);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+.lgw-sidecar__footer {
+  margin-top: 0.75rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--th-border);
+}
+
+.lgw-sidecar__active {
+  margin: 0;
+  flex: 1 1 20rem;
+  font-size: var(--font-size-sm);
+  line-height: 1.4;
+  color: var(--th-text);
+  overflow-wrap: anywhere;
+}
+
+.lgw-sidecar__apply {
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--th-border-strong);
+  border-radius: 4px;
+  background: var(--th-bg-emphasis);
+  color: var(--th-text-on-emphasis);
+  font: inherit;
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.lgw-sidecar__apply:hover:not(:disabled) {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+.lgw-sidecar__apply:disabled {
+  background: var(--th-bg-inset);
+  color: var(--th-text-body);
+  cursor: not-allowed;
+}
+
+.lgw-sidecar :is(input, select, button):focus-visible {
+  outline: 2px solid var(--th-text);
+  outline-offset: 3px;
+}
+
+@media (max-width: 1100px) {
+  .lgw-sidecar__fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 600px) {
+  .lgw-sidecar__fields { grid-template-columns: minmax(0, 1fr); }
+  .lgw-sidecar__switch { order: -1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lgw-sidecar *, .lgw-sidecar *::before, .lgw-sidecar *::after {
+    animation: none;
+    transition: none;
+  }
 }

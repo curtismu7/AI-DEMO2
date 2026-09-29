@@ -40,6 +40,52 @@ Labels differ by model — ProtectAI deberta emits SAFE/INJECTION, Meta Prompt-G
 BENIGN/INJECTION/JAILBREAK, Prompt-Guard-2 BENIGN/MALICIOUS — so the benign set and
 threshold are the calibration knobs; tune them to the model you bake in.
 
+## Local runtime profiles
+
+The default image includes the built-in classifier only. NeMo Guardrails is an
+optional dependency; choose the NeMo profile at build time if operators want to
+use it from the UI. Both profiles bake the configured classifier model into the
+image, so startup does not need to download model weights.
+
+Run these commands from the repository root:
+
+```bash
+docker build --build-arg PROMPTGUARD_INSTALL_NEMO=0 \
+  -t promptguard:local-classifier demo_mcp_promptguard
+docker build --build-arg PROMPTGUARD_INSTALL_NEMO=1 \
+  -t promptguard:local-nemo demo_mcp_promptguard
+```
+
+The NeMo build installs `requirements-nemo.txt` and verifies the package import
+during the image build. The default build does not install or require
+`nemoguardrails`.
+
+The sidecar exposes these local endpoints on port 8086:
+
+- `GET /health` reports that the server is responding.
+- `POST /inspect` accepts the Privilege gateway request and returns its findings.
+- `GET /demo/config` returns the active detector and demo rule; `PUT /demo/config`
+  updates them. The browser UI calls this endpoint directly at
+  `http://localhost:8086/demo/config`.
+
+For the UI to reach the sidecar, start the login LaunchAgent port-forward. It
+keeps `localhost:8086` forwarded to the sidecar after login. Apply sends the
+edited config to the running sidecar. Only successfully applied values are
+saved as a localStorage draft; unsaved edits may be lost on reload. A new browser
+or storage reset reads the active config from the endpoint. While open, the panel
+checks connection and shared state every 15 seconds, with a 5-second read timeout,
+and preserves the draft through outages and sidecar restarts without applying it.
+
+If a detector switch and restoration both fail, the config endpoint returns
+409 and reports the previous detector unavailable. Inspections return 502
+until recovery. Restart the sidecar, or retry initialization by sending
+`PUT /demo/config` with the previous engine and a valid demo config.
+
+The configurable trigger phrase is a demo-only override. It applies to matching
+request-direction user prompts and is process-global to this sidecar instance,
+so all clients using that instance share the same rule. It is not per-user or
+per-session policy.
+
 ## Test / build
 
 ```bash
@@ -48,9 +94,6 @@ python3 test_server.py            # mapping check, no model/torch needed
 # Default model (ProtectAI) is public — no token. For a GATED model
 # (e.g. Meta Prompt-Guard) accept its licence on huggingface.co and add
 # --build-arg HF_TOKEN=hf_xxx --build-arg PROMPTGUARD_MODEL=meta-llama/Llama-Prompt-Guard-2-86M
-docker buildx build --platform linux/arm64 \
-  --build-arg GIT_SHA=$(git rev-parse --short HEAD) \
-  -t ghcr.io/cmuir_pingcorp/ai-demo-mcp-promptguard:latest --push .
 ```
 
 Then add the sidecar to `pingone-privgateway-helm-main/agentless/sidecars.values.yaml`
