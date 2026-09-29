@@ -9,6 +9,7 @@ const {
   waitForAuthenticatedSession,
   signInInteractively,
   runInteractiveIntegration,
+  formatInteractiveFailure,
 } = require('./interactive');
 const fixture = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.example.json'), 'utf8'));
 
@@ -166,6 +167,24 @@ test('URL instructions do not wait for terminal input before polling', async () 
     ]);
   } finally { input.end(); }
   assert.match(text, /https:\/\/gateway.example.test\/authorize/);
+});
+
+test('interactive CLI reports the safe assertion summary without response details', () => {
+  const error = new assert.AssertionError({
+    message: 'allowed app tools/list must succeed\nBearer dummy-private-test-token',
+    actual: 403,
+    expected: 200,
+    operator: 'strictEqual',
+  });
+  const message = formatInteractiveFailure?.(error);
+  assert.equal(message, 'Interactive live Gateway check failed: allowed app tools/list must succeed\n');
+  assert.ok(!message.includes('dummy-private-test-token'));
+});
+
+test('interactive CLI hides unexpected failure details', () => {
+  const message = formatInteractiveFailure?.(new Error('response leaked dummy-private-test-token'));
+  assert.equal(message, 'Interactive live Gateway integration failed. Check the TTY, fixture, browser sign-in, and staging connectivity.\n');
+  assert.ok(!message.includes('dummy-private-test-token'));
 });
 
 

@@ -1,8 +1,32 @@
 'use strict';
+const assert = require('node:assert/strict');
 const { configureDoor, postGateway, readIntegrationConfig, withRelayServer } = require('./support');
 const { runGatewayChecks } = require('./gatewayChecks');
 
 const AUTH_RETURN_TO = '/integration/auth-complete';
+const SAFE_INTERACTIVE_ERRORS = new Set([
+  'Interactive Gateway sign-in requires a TTY; use test:integration with AI_GATEWAY_TEST_TOKEN instead.',
+  'Timed out waiting for Gateway sign-in. Finish sign-in in the browser and retry.',
+  'Could not check local Gateway sign-in status.',
+  'Could not configure the allowed Gateway door. Check the integration fixture.',
+  'Could not start Gateway authorization. Check staging connectivity and the integration fixture.',
+  'Gateway authorization returned an unreadable response.',
+  'Gateway authorization response did not include a sign-in URL.',
+  'Gateway sign-in completed without an access token in the relay session.',
+  'Live gateway verification could not complete; check staging connectivity and response format',
+]);
+const GENERIC_INTERACTIVE_FAILURE = 'Interactive live Gateway integration failed. Check the TTY, fixture, browser sign-in, and staging connectivity.';
+
+function formatInteractiveFailure(err) {
+  if (err instanceof assert.AssertionError) {
+    // Gateway assertions use fixed, reviewable messages. Keep only that first
+    // line: Node's assertion diff can contain untrusted response data.
+    const summary = err.message.split(/\r?\n/, 1)[0];
+    if (summary) return `Interactive live Gateway check failed: ${summary}\n`;
+  }
+  if (err instanceof Error && SAFE_INTERACTIVE_ERRORS.has(err.message)) return `${err.message}\n`;
+  return `${GENERIC_INTERACTIVE_FAILURE}\n`;
+}
 
 function assertInteractiveTerminal(isTTY = process.stdin.isTTY) {
   if (!isTTY) {
@@ -90,9 +114,10 @@ async function runInteractiveIntegration({
 if (require.main === module) {
   runInteractiveIntegration().then(() => {
     process.stdout.write('Live Gateway integration checks passed.\n');
-  }).catch(() => {
-    // Unexpected network/parser exceptions may contain credentials or bodies.
-    process.stderr.write('Interactive live Gateway integration failed. Check the TTY, fixture, browser sign-in, and staging connectivity.\n');
+  }).catch((err) => {
+    // Assertion headlines and explicitly listed local errors are safe; never
+    // print arbitrary network/parser errors, which can contain credentials or bodies.
+    process.stderr.write(formatInteractiveFailure(err));
     process.exitCode = 1;
   });
 }
@@ -103,4 +128,5 @@ module.exports = {
   waitForAuthenticatedSession,
   signInInteractively,
   runInteractiveIntegration,
+  formatInteractiveFailure,
 };
