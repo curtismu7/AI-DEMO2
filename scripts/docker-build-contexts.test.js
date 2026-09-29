@@ -96,13 +96,23 @@ test('BFF runtime layout resolves the gateway topology imported by the readiness
       fs.copyFileSync(topologySourceFile, runtimeFile);
     }
 
+    const catalogSource = fs.readFileSync(
+      path.join(stagedBff, 'demo_api_server', 'services', 'demoReadinessCatalog.js'),
+      'utf8',
+    );
+    const gatewayTopologyImport = [...catalogSource.matchAll(/require\(['"]([^'"]*scope-topology\.json)['"]\)/g)]
+      .map((match) => match[1])
+      .find((specifier) => specifier.includes('ping-gateway'));
+    assert.ok(gatewayTopologyImport, 'readiness catalog must import the PingGateway scope topology');
+
     const requireFromCatalog = Module.createRequire(
       path.join(runtimeRoot, 'app', 'services', 'demoReadinessCatalog.js'),
     );
-    const resolvedTopology = requireFromCatalog.resolve('../../ping-gateway/config/scope-topology.json');
-    assert.equal(
-      resolvedTopology,
-      fs.realpathSync(path.join(runtimeRoot, 'ping-gateway', 'config', 'scope-topology.json')),
+    const resolvedTopology = requireFromCatalog.resolve(gatewayTopologyImport);
+    const relativeTopologyPath = path.relative(fs.realpathSync(runtimeRoot), resolvedTopology);
+    assert.ok(
+      relativeTopologyPath && relativeTopologyPath !== '..' && !relativeTopologyPath.startsWith(`..${path.sep}`),
+      `catalog import resolved outside the simulated BFF image: ${resolvedTopology}`,
     );
   } finally {
     fs.rmSync(outputRoot, { recursive: true, force: true });
