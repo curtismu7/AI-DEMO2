@@ -145,8 +145,14 @@ check_docker() {
 check_prereqs() {
   command -v kubectl &>/dev/null   || die "kubectl not found — install via: brew install kubectl"
   check_docker
+  local context
+  context="$(kubectl config current-context 2>/dev/null || true)"
+  case "$context" in
+    orbstack|docker-desktop) ;;
+    *) die "Refusing local K8 operation on context '${context:-unknown}'. Switch to OrbStack (kubectl config use-context orbstack) or Docker Desktop first." ;;
+  esac
   kubectl cluster-info &>/dev/null || die "Cannot reach K8s cluster. For local dev: enable Kubernetes in OrbStack/Docker Desktop Settings."
-  info "K8s cluster reachable."
+  info "K8s cluster reachable (context: $context)."
   # llama.cpp runs as an in-cluster 2-tier stack (k8s/56-llm-stack.yaml) — no host
   # install is required. The llm-proxy pod routes to llama-tier1/llama-tier5.
   info "LLM: in-cluster 2-tier stack — no host llama-server install required."
