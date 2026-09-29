@@ -6,13 +6,14 @@ const os = require('node:os');
 const path = require('node:path');
 const { readIntegrationConfig } = require('./support');
 const token = 'dummy-private-test-token';
+const deniedToken = 'dummy-denied-private-test-token';
 const example = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.example.json'), 'utf8'));
 function withConfig(callback) {
   const serverDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gateway-config-test-'));
   fs.mkdirSync(path.join(serverDir, 'integration'));
   const configPath = path.join(serverDir, 'integration/config.local.json');
   fs.writeFileSync(configPath, JSON.stringify(example));
-  const env = { AI_GATEWAY_TEST_TOKEN: token };
+  const env = { AI_GATEWAY_TEST_TOKEN: token, AI_GATEWAY_DENIED_TEST_TOKEN: deniedToken };
   try { callback({ env, serverDir, configPath }); }
   finally { fs.rmSync(serverDir, { recursive: true, force: true }); }
 }
@@ -20,12 +21,16 @@ function rejectsConfig(options, field) {
   assert.throws(() => readIntegrationConfig(options), (err) => {
     assert.ok(err.message.includes(field), `error must identify ${field}`);
     assert.ok(!err.message.includes(token), 'error must not disclose bearer');
+    assert.ok(!err.message.includes(deniedToken), 'error must not disclose denied-door bearer');
     return true;
   });
 }
-test('requires the bearer environment variable', () => {
+test('requires a bearer for each door-scoped audience', () => {
   withConfig(({ serverDir }) => {
-    for (const value of [undefined, '', '   ']) rejectsConfig({ serverDir, env: { AI_GATEWAY_TEST_TOKEN: value } }, 'AI_GATEWAY_TEST_TOKEN');
+    for (const value of [undefined, '', '   ']) {
+      rejectsConfig({ serverDir, env: { AI_GATEWAY_TEST_TOKEN: value, AI_GATEWAY_DENIED_TEST_TOKEN: deniedToken } }, 'AI_GATEWAY_TEST_TOKEN');
+      rejectsConfig({ serverDir, env: { AI_GATEWAY_TEST_TOKEN: token, AI_GATEWAY_DENIED_TEST_TOKEN: value } }, 'AI_GATEWAY_DENIED_TEST_TOKEN');
+    }
   });
 });
 test('identifies the fixture setting when a file is missing or unreadable', () => {
@@ -84,7 +89,7 @@ test('allows loopback HTTP only with the exact test opt-in', () => {
       fixture.allowed.url = `http://${host}:1234/mcp`;
       fs.writeFileSync(options.configPath, JSON.stringify(fixture));
       options.env.AI_GATEWAY_ALLOW_HTTP_TEST_URLS = 'true';
-      assert.deepEqual(readIntegrationConfig(options), { token, fixture });
+      assert.deepEqual(readIntegrationConfig(options), { token, deniedToken, fixture });
       options.env.AI_GATEWAY_ALLOW_HTTP_TEST_URLS = '1';
       rejectsConfig(options, 'allowed.url');
     }
@@ -98,14 +103,14 @@ test('allows loopback HTTP only with the exact test opt-in', () => {
   });
 });
 test('loads the default fixture relative to the server directory', () => {
-  withConfig((options) => assert.deepEqual(readIntegrationConfig(options), { token, fixture: example }));
+  withConfig((options) => assert.deepEqual(readIntegrationConfig(options), { token, deniedToken, fixture: example }));
 });
 test('loads custom relative and absolute fixture paths', () => {
   withConfig((options) => {
     fs.renameSync(options.configPath, path.join(options.serverDir, 'custom.json'));
     for (const configPath of ['custom.json', path.join(options.serverDir, 'custom.json')]) {
       options.env.AI_GATEWAY_TEST_CONFIG = configPath;
-      assert.deepEqual(readIntegrationConfig(options), { token, fixture: example });
+      assert.deepEqual(readIntegrationConfig(options), { token, deniedToken, fixture: example });
     }
   });
 });
@@ -114,6 +119,7 @@ test('interactive mode validates the fixture without requiring a copied bearer',
   withConfig(({ serverDir }) => {
     assert.deepEqual(readIntegrationConfig({ serverDir, env: {}, requireToken: false }), {
       token: null,
+      deniedToken: null,
       fixture: example,
     });
   });

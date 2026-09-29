@@ -2,7 +2,7 @@
 const assert = require('node:assert/strict');
 const { configureDoor, postGateway } = require('./support');
 
-async function runGatewayChecks({ baseUrl, fixture, token }) {
+async function runGatewayChecks({ baseUrl, fixture, token, deniedToken }) {
   try {
     const configured = await configureDoor(baseUrl, fixture.allowed.url, token);
     assert.equal(configured.status, 200, 'allowed app configuration must succeed');
@@ -24,27 +24,32 @@ async function runGatewayChecks({ baseUrl, fixture, token }) {
       && Object.keys(rpc.result).length > 0, 'read-only tool must return a nonempty MCP result');
     assert.ok(rpc.result.isError !== true, 'read-only tool result must not report an error');
 
-    // Probe while the allowed app is current; never call a denied live tool.
+    // The allowed token belongs to a different OAuth audience, so probing
+    // the other app should hit the audience boundary. Never call a denied tool.
     const probed = await postGateway(baseUrl, '/doors/probe', token, { urls: [fixture.deniedDoor.url] });
     assert.equal(probed.status, 200, 'door probe route must succeed');
     const probeText = await probed.text();
     assert.ok(!probeText.includes(token), 'door probe failure must not disclose the bearer');
+    assert.ok(!probeText.includes(deniedToken), 'door probe failure must not disclose the denied-door bearer');
     const probe = JSON.parse(probeText);
     assert.ok(Array.isArray(probe.results), 'door probe must return a results array');
     assert.equal(probe.results.length, 1, 'door probe must return only the configured denied door');
     assert.ok(probe.results[0].url === fixture.deniedDoor.url, 'door probe must identify the configured denied door');
     assert.ok(probe.results[0].ok === false, 'denied door probe must fail');
     const probeStatus = Number.isInteger(probe.results[0].status) ? probe.results[0].status : 'unknown';
-    assert.equal(probeStatus, 403,
-      `denied door must return policy denial, not 401 or 5xx (upstream HTTP ${probeStatus})`);
+    assert.equal(probeStatus, 401,
+      `allowed-door audience must be rejected by the other app (upstream HTTP ${probeStatus})`);
 
-    const deniedConfig = await configureDoor(baseUrl, fixture.deniedDoor.url, token);
+    // Authenticate to the denied app's own audience, then verify its app
+    // policy produces 403 for this same test identity.
+    const deniedConfig = await configureDoor(baseUrl, fixture.deniedDoor.url, deniedToken);
     assert.equal(deniedConfig.status, 200, 'denied app configuration must succeed');
-    const denied = await postGateway(baseUrl, '/tools/list', token, {});
+    const denied = await postGateway(baseUrl, '/tools/list', deniedToken, {});
     assert.equal(denied.status, 403,
       `denied app tools/list must return policy denial, not 401 or 5xx (HTTP ${denied.status})`);
     const deniedText = await denied.text();
     assert.ok(!deniedText.includes(token), 'denied app failure must not disclose the bearer');
+    assert.ok(!deniedText.includes(deniedToken), 'denied app failure must not disclose the denied-door bearer');
   } catch (err) {
     // Assertions contain only statuses/booleans and fixed messages. Network and
     // parser exceptions can include fixture URLs or bodies, so do not echo them.

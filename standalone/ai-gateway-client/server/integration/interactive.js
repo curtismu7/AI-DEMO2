@@ -5,10 +5,10 @@ const { runGatewayChecks } = require('./gatewayChecks');
 
 const AUTH_RETURN_TO = '/integration/auth-complete';
 const SAFE_INTERACTIVE_ERRORS = new Set([
-  'Interactive Gateway sign-in requires a TTY; use test:integration with AI_GATEWAY_TEST_TOKEN instead.',
+  'Interactive Gateway sign-in requires a TTY; use test:integration with AI_GATEWAY_TEST_TOKEN and AI_GATEWAY_DENIED_TEST_TOKEN instead.',
   'Timed out waiting for Gateway sign-in. Finish sign-in in the browser and retry.',
   'Could not check local Gateway sign-in status.',
-  'Could not configure the allowed Gateway door. Check the integration fixture.',
+  'Could not configure a Gateway door for sign-in. Check the integration fixture.',
   'Could not start Gateway authorization. Check staging connectivity and the integration fixture.',
   'Gateway authorization returned an unreadable response.',
   'Gateway authorization response did not include a sign-in URL.',
@@ -30,7 +30,7 @@ function formatInteractiveFailure(err) {
 
 function assertInteractiveTerminal(isTTY = process.stdin.isTTY) {
   if (!isTTY) {
-    throw new Error('Interactive Gateway sign-in requires a TTY; use test:integration with AI_GATEWAY_TEST_TOKEN instead.');
+    throw new Error('Interactive Gateway sign-in requires a TTY; use test:integration with AI_GATEWAY_TEST_TOKEN and AI_GATEWAY_DENIED_TEST_TOKEN instead.');
   }
 }
 
@@ -65,14 +65,21 @@ async function waitForAuthenticatedSession(baseUrl, {
   }
 }
 
-async function promptForSignIn(authUrl, { output = process.stdout } = {}) {
+async function promptForSignIn(authUrl, { output = process.stdout, doorLabel = 'configured' } = {}) {
   output.write(`Open this Gateway authorization URL in your browser:\n${authUrl}\n`);
-  output.write('Complete sign-in in the browser. Waiting up to two minutes for the callback.\n');
+  output.write(`Complete sign-in for the ${doorLabel} door with the same test identity. Waiting up to two minutes for the callback.\n`);
 }
 
-async function signInInteractively({ baseUrl, fixture, getAccessToken, prompt = promptForSignIn } = {}) {
-  const configured = await configureDoor(baseUrl, fixture.allowed.url);
-  if (!configured.ok) throw new Error('Could not configure the allowed Gateway door. Check the integration fixture.');
+async function signInInteractively({
+  baseUrl,
+  fixture,
+  doorUrl = fixture.allowed.url,
+  doorLabel = 'configured',
+  getAccessToken,
+  prompt = promptForSignIn,
+} = {}) {
+  const configured = await configureDoor(baseUrl, doorUrl);
+  if (!configured.ok) throw new Error('Could not configure a Gateway door for sign-in. Check the integration fixture.');
 
   const response = await postGateway(baseUrl, '/auth/start', null, { returnTo: AUTH_RETURN_TO });
   if (!response.ok) throw new Error('Could not start Gateway authorization. Check staging connectivity and the integration fixture.');
@@ -86,7 +93,7 @@ async function signInInteractively({ baseUrl, fixture, getAccessToken, prompt = 
     throw new Error('Gateway authorization response did not include a sign-in URL.');
   }
 
-  await prompt(authData.authUrl);
+  await prompt(authData.authUrl, { doorLabel });
   await waitForAuthenticatedSession(baseUrl);
 
   const token = getAccessToken?.();
@@ -106,8 +113,23 @@ async function runInteractiveIntegration({
   assertInteractiveTerminal(isTTY);
   const { fixture } = readConfig({ requireToken: false });
   await startRelay(async (baseUrl, { getAccessToken }) => {
-    const token = await signInInteractively({ baseUrl, fixture, getAccessToken, prompt });
-    await runChecks({ baseUrl, fixture, token });
+    const token = await signInInteractively({
+      baseUrl,
+      fixture,
+      doorUrl: fixture.allowed.url,
+      doorLabel: 'allowed',
+      getAccessToken,
+      prompt,
+    });
+    const deniedToken = await signInInteractively({
+      baseUrl,
+      fixture,
+      doorUrl: fixture.deniedDoor.url,
+      doorLabel: 'denied',
+      getAccessToken,
+      prompt,
+    });
+    await runChecks({ baseUrl, fixture, token, deniedToken });
   });
 }
 

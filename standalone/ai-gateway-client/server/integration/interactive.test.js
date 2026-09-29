@@ -16,6 +16,9 @@ const fixture = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.example.
 async function withGatewayMock(callback) {
   const calls = [];
   let authenticated = false;
+  let accessToken = null;
+  let authStarts = 0;
+  let configuredUrl = null;
   const server = http.createServer(async (req, res) => {
     const chunks = [];
     for await (const chunk of req) chunks.push(chunk);
@@ -23,12 +26,19 @@ async function withGatewayMock(callback) {
     calls.push({ method: req.method, url: req.url, authorization: req.headers.authorization, body: bodyText });
 
     if (req.url === '/api/gateway/config') {
+      const { mcpUrl } = JSON.parse(bodyText);
+      if (configuredUrl !== mcpUrl) {
+        configuredUrl = mcpUrl;
+        authenticated = false;
+        accessToken = null;
+      }
       res.writeHead(200, { 'Content-Type': 'application/json' });
       return res.end('{"ok":true}');
     }
     if (req.url === '/api/gateway/auth/start') {
+      authStarts += 1;
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      return res.end('{"authUrl":"https://gateway.example.test/authorize?state=one-time-state"}');
+      return res.end(JSON.stringify({ authUrl: `https://gateway.example.test/authorize?state=${authStarts}` }));
     }
     if (req.url === '/api/gateway/state') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -40,7 +50,8 @@ async function withGatewayMock(callback) {
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   try {
     await callback(`http://127.0.0.1:${server.address().port}`, calls, {
-      setAuthenticated: () => { authenticated = true; },
+      setAuthenticated: (token = null) => { authenticated = true; accessToken = token; },
+      getAccessToken: () => accessToken,
     });
   } finally {
     await new Promise((resolve, reject) => server.close((err) => err ? reject(err) : resolve()));
@@ -128,7 +139,7 @@ test('interactive sign-in uses the relay session without bearer headers or token
     });
 
     assert.equal(token, 'dummy-private-test-token');
-    assert.equal(promptUrl, 'https://gateway.example.test/authorize?state=one-time-state');
+    assert.equal(promptUrl, 'https://gateway.example.test/authorize?state=1');
     assert.ok(calls.every((call) => call.authorization === undefined), 'local login setup must not send a copied bearer');
     assert.deepEqual(calls.map(({ method, url }) => ({ method, url })), [
       { method: 'POST', url: '/api/gateway/config' },
@@ -150,7 +161,14 @@ test('interactive mode ignores a pre-provisioned token setting', () => {
   Object.defineProperty(env, 'AI_GATEWAY_TEST_TOKEN', {
     get() { throw new Error('interactive mode must not read a copied token'); },
   });
-  assert.equal(readIntegrationConfig({ env, requireToken: false }).token, null);
+  Object.defineProperty(env, 'AI_GATEWAY_DENIED_TEST_TOKEN', {
+    get() { throw new Error('interactive mode must not read a copied token'); },
+  });
+  assert.deepEqual(readIntegrationConfig({ env, requireToken: false }), {
+    token: null,
+    deniedToken: null,
+    fixture: JSON.parse(fs.readFileSync(path.join(__dirname, 'config.example.json'), 'utf8')),
+  });
 });
 
 test('URL instructions do not wait for terminal input before polling', async () => {
@@ -212,28 +230,42 @@ test('invalid interactive fixture fails before relay startup', async () => {
   assert.equal(relayStarted, false);
 });
 
-test('interactive command passes the memory bearer into shared checks in the relay scope', async () => {
-  await withGatewayMock(async (baseUrl, _calls, session) => {
+test('interactive command signs in to each door and passes both in-memory bearers into shared checks', async () => {
+  const allowedToken = 'dummy-allowed-private-test-token';
+  const deniedToken = 'dummy-denied-private-test-token';
+  await withGatewayMock(async (baseUrl, calls, session) => {
     let active = false;
     let checked = false;
+    const promptedDoors = [];
     await runInteractiveIntegration({
       isTTY: true,
       readConfig: () => ({ fixture }),
       startRelay: async (callback) => {
         active = true;
-        try { await callback(baseUrl, { getAccessToken: () => 'dummy-private-test-token' }); }
+        try { await callback(baseUrl, { getAccessToken: session.getAccessToken }); }
         finally { active = false; }
       },
-      prompt: async () => session.setAuthenticated(),
+      prompt: async (_url, { doorLabel }) => {
+        promptedDoors.push(doorLabel);
+        session.setAuthenticated(promptedDoors.length === 1 ? allowedToken : deniedToken);
+      },
       runChecks: async (options) => {
         assert.equal(active, true);
         assert.equal(options.baseUrl, baseUrl);
         assert.equal(options.fixture, fixture);
-        assert.ok(options.token === 'dummy-private-test-token');
+        assert.equal(options.token, allowedToken);
+        assert.equal(options.deniedToken, deniedToken);
         checked = true;
       },
     });
     assert.equal(checked, true);
     assert.equal(active, false);
+    assert.deepEqual(promptedDoors, ['allowed', 'denied']);
+    assert.deepEqual(calls.filter(({ url }) => url === '/api/gateway/config').map(({ body }) => JSON.parse(body).mcpUrl), [
+      fixture.allowed.url,
+      fixture.deniedDoor.url,
+    ]);
+    assert.equal(calls.filter(({ url }) => url === '/api/gateway/auth/start').length, 2);
+    assert.ok(calls.every((call) => call.authorization === undefined), 'interactive setup must not send copied bearer headers');
   });
 });

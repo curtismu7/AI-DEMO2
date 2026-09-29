@@ -6,7 +6,10 @@ const path = require('node:path');
 function readIntegrationConfig({ env = process.env, serverDir = path.join(__dirname, '..'), requireToken = true } = {}) {
   const configuredToken = requireToken ? env.AI_GATEWAY_TEST_TOKEN : null;
   const token = typeof configuredToken === 'string' && configuredToken.trim() ? configuredToken : null;
+  const configuredDeniedToken = requireToken ? env.AI_GATEWAY_DENIED_TEST_TOKEN : null;
+  const deniedToken = typeof configuredDeniedToken === 'string' && configuredDeniedToken.trim() ? configuredDeniedToken : null;
   if (requireToken && !token) throw new Error('AI_GATEWAY_TEST_TOKEN is required');
+  if (requireToken && !deniedToken) throw new Error('AI_GATEWAY_DENIED_TEST_TOKEN is required');
   const configPath = path.resolve(serverDir, env.AI_GATEWAY_TEST_CONFIG || 'integration/config.local.json');
   let fixture;
   try {
@@ -28,7 +31,7 @@ function readIntegrationConfig({ env = process.env, serverDir = path.join(__dirn
       throw new Error(`Fixture field ${field} requires HTTPS without URL credentials (loopback HTTP requires AI_GATEWAY_ALLOW_HTTP_TEST_URLS=true)`);
     }
   }
-  return { token, fixture };
+  return { token, deniedToken, fixture };
 }
 
 async function withRelayServer(callback) {
