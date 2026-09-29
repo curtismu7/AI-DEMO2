@@ -34,12 +34,15 @@ async function runGatewayChecks({ baseUrl, fixture, token }) {
     assert.equal(probe.results.length, 1, 'door probe must return only the configured denied door');
     assert.ok(probe.results[0].url === fixture.deniedDoor.url, 'door probe must identify the configured denied door');
     assert.ok(probe.results[0].ok === false, 'denied door probe must fail');
-    assert.ok(probe.results[0].status === 403, 'denied door must return policy denial, not 401 or 5xx');
+    const probeStatus = Number.isInteger(probe.results[0].status) ? probe.results[0].status : 'unknown';
+    assert.equal(probeStatus, 403,
+      `denied door must return policy denial, not 401 or 5xx (upstream HTTP ${probeStatus})`);
 
     const deniedConfig = await configureDoor(baseUrl, fixture.deniedDoor.url, token);
     assert.equal(deniedConfig.status, 200, 'denied app configuration must succeed');
     const denied = await postGateway(baseUrl, '/tools/list', token, {});
-    assert.equal(denied.status, 403, 'denied app tools/list must return policy denial, not 401 or 5xx');
+    assert.equal(denied.status, 403,
+      `denied app tools/list must return policy denial, not 401 or 5xx (HTTP ${denied.status})`);
     const deniedText = await denied.text();
     assert.ok(!deniedText.includes(token), 'denied app failure must not disclose the bearer');
   } catch (err) {
