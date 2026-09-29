@@ -218,6 +218,33 @@ src/components/__tests__/AIAgent.surfaceSelectorLayout.test.js` (29/29); `cd
 demo_api_ui && npm run build`; inspect contrast in the rendered dashboard in
 light and dark themes.
 
+### 2026-09-28 — Server topology edge labels collided and flow controls used excess height
+
+**Files:** `demo_api_ui/src/components/ServerTopologyPage.jsx`,
+`demo_api_ui/src/components/ServerTopologyPage.css`,
+`demo_api_ui/src/components/topologyEdgeLabelLayout.js`,
+`demo_api_ui/src/components/__tests__/ServerTopologyPage.playbacks.test.jsx`,
+`demo_api_ui/src/components/__tests__/topologyEdgeLabelLayout.test.js`.
+
+**What was broken:** edge labels shared route midpoints and could overlap one
+another, route strokes, or visible service cards. The playback/result controls
+also used enough vertical space to hide most of the map in a short viewport.
+
+**What was fixed:** place padded labels in separate lanes clear of route
+midpoints and visible service cards. Compress the result strip, toolbar spacing,
+and default desktop playback height; preserve numbered steps, pane resizing, and
+any custom size saved by the user.
+
+**Do not break:** keep flow selection, step numbering, playback, filtering,
+exports, and resizable panes intact. Keep label rectangles separated and clear
+of routes and visible service cards.
+
+**Verify:** focused Vitest suites (20 tests passed) cover label/card separation
+and saved 150px pane preservation; UI production build passed. The broad local UI
+suite stopped at batch 34/58 when its RSS monitor's `ps` subprocess was
+terminated; required CI UI tests/build and topology gates passed before the latest
+merge-base update.
+
 ### 2026-09-28 — Readiness modal body missed the shared scroll surface
 
 **Files:** `demo_api_ui/src/components/AdminSideNav.jsx`,

@@ -2,7 +2,9 @@ import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "
 import {
   Background,
   BackgroundVariant,
+  BaseEdge,
   Controls,
+  getSmoothStepPath,
   Handle,
   MarkerType,
   Position,
@@ -14,6 +16,7 @@ import "@xyflow/react/dist/style.css";
 import { DEMO_STEP_USE_CASES, GROUPS, PLAYBACKS, RFC, SERVER_EDGES, SERVER_MAP, SERVER_ZONES, SPECS } from "./serverTopologyData";
 import "./ServerTopologyPage.css";
 import ServerTopologyExportControls from "./ServerTopologyExportControls";
+import { layoutEdgeLabels } from "./topologyEdgeLabelLayout";
 
 const LAYER_OPTIONS = [
   ["protocol", "Protocols"], ["network", "Network"], ["security", "Security"], ["standards", "RFCs & specs"],
@@ -33,6 +36,9 @@ const NODE_TYPE_LABELS = [
 ];
 const NODE_BY_ID = Object.fromEntries(SERVER_MAP.map((node) => [node.id, node]));
 const EDGE_BY_ID = Object.fromEntries(SERVER_EDGES.map((item) => [item.id, item]));
+// Keep these aligned with the .stm-node width and minimum height in the stylesheet.
+const NODE_CARD_WIDTH = 218;
+const NODE_CARD_HEIGHT = 104;
 
 function flowNodeIds(steps) {
   return new Set(steps.flatMap(({ edgeId }) => {
@@ -85,8 +91,44 @@ const ZoneNode = memo(function ZoneNode({ data }) {
 
 const nodeTypes = { server: ServerCardNode, zone: ZoneNode };
 
+const TopologyLabeledEdge = memo(function TopologyLabeledEdge({
+  id, sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, label,
+  style, markerStart, markerEnd, interactionWidth, pathOptions, data,
+}) {
+  const [path, fallbackLabelX, fallbackLabelY] = getSmoothStepPath({
+    sourceX,
+    sourceY,
+    sourcePosition,
+    targetX,
+    targetY,
+    targetPosition,
+    borderRadius: pathOptions?.borderRadius,
+    offset: pathOptions?.offset,
+    stepPosition: pathOptions?.stepPosition,
+  });
+  const labelPosition = data?.labelPosition;
+
+  return (
+    <BaseEdge
+      id={id}
+      path={path}
+      labelX={labelPosition?.x ?? fallbackLabelX}
+      labelY={labelPosition?.y ?? fallbackLabelY}
+      label={label}
+      labelShowBg
+      labelBgPadding={[9, 6]}
+      labelBgBorderRadius={5}
+      style={style}
+      markerStart={markerStart}
+      markerEnd={markerEnd}
+      interactionWidth={interactionWidth}
+    />
+  );
+});
+const edgeTypes = { topologyLabeled: TopologyLabeledEdge };
+
 const PANE_SIZE_LIMITS = {
-  flow: { initial: 150, min: 112, max: 300 },
+  flow: { initial: 92, min: 88, max: 300 },
   flowNarrow: { initial: 220, min: 180, max: 340 },
   detailsWidth: { initial: 340, min: 280, max: 520 },
   detailsHeight: { initial: 320, min: 220, max: 500 },
@@ -98,7 +140,8 @@ function clampPaneSize(value, min, max) {
   return Math.max(min, Math.min(max, Math.round(value)));
 }
 
-function readPaneSize(key, { initial, min, max }) {
+function readPaneSize(key, limits) {
+  const { initial, min, max } = limits;
   if (typeof window === "undefined") return initial;
   try {
     const stored = window.localStorage.getItem(key);
@@ -387,19 +430,50 @@ function TopologyCanvas({
       animated: activePlaybackEdge === item.id,
       hidden: !visible,
       label: `${isIncomingToSelection ? "IN · " : isOutgoingFromSelection ? "OUT · " : ""}${isOnPlayback ? `${String(stepIndex + 1).padStart(2, "0")} · ` : ""}${label}`.slice(0, 48),
-      labelBgPadding: [6, 4],
       style: { stroke, strokeWidth: active ? 4 : 1.8, opacity: visible ? (selectedNode && !isFocusedCommunication ? 0.16 : 0.96) : 0.08, strokeDasharray: item.data.kind === "telemetry" ? "6 5" : item.data.profile ? "6 5" : undefined },
       markerEnd: { type: MarkerType.ArrowClosed, color: stroke },
       data: { ...item.data, standards },
     };
   }), [activeLayer, activePlaybackEdge, filter, flowOnly, playbackSteps, routeEdges, selectedEdge, selectedNode]);
 
+  const positionedEdges = useMemo(() => {
+    const visibleLabels = graphEdges.filter((item) => !item.hidden).map((item) => {
+      const source = NODE_BY_ID[item.source];
+      const target = NODE_BY_ID[item.target];
+      const [, x, y] = getSmoothStepPath({
+        sourceX: source.position.x + NODE_CARD_WIDTH,
+        sourceY: source.position.y + NODE_CARD_HEIGHT / 2,
+        sourcePosition: Position.Right,
+        targetX: target.position.x,
+        targetY: target.position.y + NODE_CARD_HEIGHT / 2,
+        targetPosition: Position.Left,
+      });
+      return { id: item.id, text: item.label, x, y };
+    });
+    const serviceObstacles = graphNodes
+      .filter((node) => node.type === "server")
+      .map((node) => ({
+        x: node.position.x + NODE_CARD_WIDTH / 2,
+        y: node.position.y + NODE_CARD_HEIGHT / 2,
+        width: NODE_CARD_WIDTH,
+        height: NODE_CARD_HEIGHT,
+      }));
+    const labelPositions = new Map(layoutEdgeLabels(visibleLabels, serviceObstacles).map((label) => [label.id, label]));
+
+    return graphEdges.map((item) => ({
+      ...item,
+      type: "topologyLabeled",
+      data: { ...item.data, labelPosition: labelPositions.get(item.id) },
+    }));
+  }, [graphEdges, graphNodes]);
+
   return (
     <div className="stm-canvas" aria-label="Interactive server topology graph">
       <ReactFlow
         nodes={graphNodes}
-        edges={graphEdges}
+        edges={positionedEdges}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         fitView
         fitViewOptions={{ padding: 0.08, minZoom: 0.2, maxZoom: 1 }}
         minZoom={0.12}
@@ -411,7 +485,7 @@ function TopologyCanvas({
         onEdgeClick={(_, item) => onSelectEdge(item.id)}
         onPaneClick={onClearSelection}
         proOptions={{ hideAttribution: true }}
-        defaultEdgeOptions={{ type: "smoothstep" }}
+        defaultEdgeOptions={{ type: "topologyLabeled" }}
       >
         <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="var(--stm-dot)" />
         <Controls position="top-right" showInteractive={false} />
@@ -580,7 +654,7 @@ function ServerTopologyContent() {
           <button type="button" onClick={restart}>Restart</button>
         </section>
         <section className="stm-flow-summary" aria-label="Selected flow and expected result" aria-live="polite">
-          <div className="stm-flow-summary__outcome"><strong>Expected result</strong><span>{playback.result}</span></div>
+          <div className="stm-flow-summary__outcome"><strong>Expected result</strong><span title={playback.result}>{playback.result}</span></div>
           <ol className="stm-flow-summary__steps" aria-label="Numbered flow steps">
             {playback.steps.map((step, index) => <li key={`${step.edgeId}-${index}`} aria-current={index === stepIndex ? "step" : undefined}><button type="button" aria-label={`Step ${String(index + 1).padStart(2, "0")}: ${step.title}`} onClick={() => selectPlaybackStep(index)}><span>{String(index + 1).padStart(2, "0")}</span>{step.title}</button></li>)}
           </ol>
