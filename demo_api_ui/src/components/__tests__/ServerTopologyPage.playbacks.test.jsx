@@ -2,7 +2,7 @@ import React from "react";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const reactFlowMocks = vi.hoisted(() => ({ fitView: vi.fn(), setViewport: vi.fn(), edges: [] }));
+const reactFlowMocks = vi.hoisted(() => ({ fitView: vi.fn(), setViewport: vi.fn(), edges: [], nodes: [] }));
 
 vi.mock("@xyflow/react", async () => {
   const ReactModule = await import("react");
@@ -21,6 +21,7 @@ vi.mock("@xyflow/react", async () => {
     Position: { Left: "left", Right: "right" },
     ReactFlow: ({ edges = [], nodes = [], onNodeClick, onEdgeClick, children }) => {
       reactFlowMocks.edges = edges;
+      reactFlowMocks.nodes = nodes;
       return ReactModule.createElement(
         "div",
         { "data-testid": "topology-canvas" },
@@ -73,6 +74,32 @@ describe("Server topology use-case playback", () => {
     }
   });
 
+  it("keeps visible edge labels outside server cards", () => {
+    render(<ServerTopologyPage />);
+
+    const serviceNodes = reactFlowMocks.nodes.filter((node) => node.type === "server");
+    const visibleLabels = reactFlowMocks.edges
+      .filter((edge) => !edge.hidden)
+      .map((edge) => edge.data.labelPosition);
+
+    for (const label of visibleLabels) {
+      for (const node of serviceNodes) {
+        const nodeBounds = {
+          x: node.position.x + 218 / 2,
+          y: node.position.y + 104 / 2,
+          width: 218,
+          height: 104,
+        };
+        const horizontalDistance = Math.abs(label.x - nodeBounds.x);
+        const verticalDistance = Math.abs(label.y - nodeBounds.y);
+        expect(
+          horizontalDistance >= (label.width + nodeBounds.width) / 2 + 8
+          || verticalDistance >= (label.height + nodeBounds.height) / 2 + 8,
+        ).toBe(true);
+      }
+    }
+  });
+
   it("resizes and remembers the playback, detail, and notes panes with keyboard controls", () => {
     const originalWidth = window.innerWidth;
     Object.defineProperty(window, "innerWidth", { configurable: true, value: 1280 });
@@ -103,6 +130,21 @@ describe("Server topology use-case playback", () => {
       fireEvent.keyDown(notesResize, { key: "ArrowUp" });
       expect(notesResize).toHaveAttribute("aria-valuenow", "88");
       expect(window.localStorage.getItem("server-topology-notes-size")).toBe("88");
+    } finally {
+      Object.defineProperty(window, "innerWidth", { configurable: true, value: originalWidth });
+      window.localStorage.clear();
+    }
+  });
+
+  it("preserves a previously saved 150px desktop playback pane size", () => {
+    const originalWidth = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1280 });
+    window.localStorage.setItem("server-topology-flow-size", "150");
+
+    try {
+      render(<ServerTopologyPage />);
+      expect(screen.getByRole("separator", { name: "Resize playback and results pane" }))
+        .toHaveAttribute("aria-valuenow", "150");
     } finally {
       Object.defineProperty(window, "innerWidth", { configurable: true, value: originalWidth });
       window.localStorage.clear();

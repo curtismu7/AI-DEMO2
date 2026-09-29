@@ -12,7 +12,7 @@ function boxesOverlap(a, b) {
     && verticalDistance < (a.height + b.height) / 2 + LABEL_GAP;
 }
 
-export function layoutEdgeLabels(labels) {
+export function layoutEdgeLabels(labels, obstacles = []) {
   const placed = [];
   const labelHeight = FONT_HEIGHT + VERTICAL_PADDING * 2;
   const firstLaneOffset = labelHeight / 2 + ROUTE_GAP;
@@ -34,7 +34,10 @@ export function layoutEdgeLabels(labels) {
         height: labelHeight,
       };
       lane += 1;
-    } while (placed.some((other) => boxesOverlap(candidate, other)));
+    } while (
+      placed.some((other) => boxesOverlap(candidate, other))
+      || obstacles.some((obstacle) => boxesOverlap(candidate, obstacle))
+    );
 
     placed.push(candidate);
     return candidate;

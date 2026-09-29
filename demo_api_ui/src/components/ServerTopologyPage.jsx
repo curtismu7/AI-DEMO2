@@ -128,7 +128,7 @@ const TopologyLabeledEdge = memo(function TopologyLabeledEdge({
 const edgeTypes = { topologyLabeled: TopologyLabeledEdge };
 
 const PANE_SIZE_LIMITS = {
-  flow: { initial: 92, previousInitial: 150, min: 88, max: 300 },
+  flow: { initial: 92, min: 88, max: 300 },
   flowNarrow: { initial: 220, min: 180, max: 340 },
   detailsWidth: { initial: 340, min: 280, max: 520 },
   detailsHeight: { initial: 320, min: 220, max: 500 },
@@ -147,8 +147,7 @@ function readPaneSize(key, limits) {
     const stored = window.localStorage.getItem(key);
     if (stored === null) return initial;
     const parsed = Number(stored);
-    const migrated = parsed === limits.previousInitial ? initial : parsed;
-    return Number.isFinite(migrated) ? clampPaneSize(migrated, min, max) : initial;
+    return Number.isFinite(parsed) ? clampPaneSize(parsed, min, max) : initial;
   } catch {
     return initial;
   }
@@ -451,14 +450,22 @@ function TopologyCanvas({
       });
       return { id: item.id, text: item.label, x, y };
     });
-    const labelPositions = new Map(layoutEdgeLabels(visibleLabels).map((label) => [label.id, label]));
+    const serviceObstacles = graphNodes
+      .filter((node) => node.type === "server")
+      .map((node) => ({
+        x: node.position.x + NODE_CARD_WIDTH / 2,
+        y: node.position.y + NODE_CARD_HEIGHT / 2,
+        width: NODE_CARD_WIDTH,
+        height: NODE_CARD_HEIGHT,
+      }));
+    const labelPositions = new Map(layoutEdgeLabels(visibleLabels, serviceObstacles).map((label) => [label.id, label]));
 
     return graphEdges.map((item) => ({
       ...item,
       type: "topologyLabeled",
       data: { ...item.data, labelPosition: labelPositions.get(item.id) },
     }));
-  }, [graphEdges]);
+  }, [graphEdges, graphNodes]);
 
   return (
     <div className="stm-canvas" aria-label="Interactive server topology graph">

@@ -32,4 +32,19 @@ describe("topology edge label layout", () => {
 
     expect(laidOut.map(({ y }) => y)).toEqual([61, 61]);
   });
+
+  it("moves labels outside server card rectangles", () => {
+    const obstacle = { id: "bff", x: 300, y: 200, width: 218, height: 104 };
+    const [label] = layoutEdgeLabels(
+      [{ id: "bff-agent", text: "Agent request", x: 300, y: 200 }],
+      [obstacle],
+    );
+    const horizontalDistance = Math.abs(label.x - obstacle.x);
+    const verticalDistance = Math.abs(label.y - obstacle.y);
+
+    expect(
+      horizontalDistance >= (label.width + obstacle.width) / 2 + 8
+      || verticalDistance >= (label.height + obstacle.height) / 2 + 8,
+    ).toBe(true);
+  });
 });

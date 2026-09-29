@@ -230,18 +230,22 @@ light and dark themes.
 another or sit directly on their lines. The playback/result area and its controls
 also took enough vertical space to hide most of the map in a short viewport.
 
-**What was fixed:** position padded labels in separate lanes, with a dark
-background that keeps route strokes clear of the text. Compress the result strip,
-toolbar spacing, and default desktop playback height; preserve numbered steps,
-all controls, and any custom pane size saved by the user.
+**What was fixed:** position padded labels in separate lanes clear of both route
+midpoints and visible service cards, with a dark background that keeps route
+strokes clear of the text. Compress the result strip, toolbar spacing, and default
+desktop playback height; preserve numbered steps, all controls, and any custom
+pane size saved by the user.
 
 **Do not break:** keep flow selection, step numbering, playback, filtering,
-exports, and resizable panes intact. Keep label rectangles separated and clear of
-their route midpoint.
+exports, and resizable panes intact. Keep label rectangles separated, clear of
+their route midpoints, and outside visible service cards.
 
-**Verify:** focused Vitest suites (17 passed), UI build, and a desktop browser
-render with 58 labels and zero overlapping label rectangles; contrast auditor
-reported zero text failures in dark and light themes.
+**Verify:** focused Vitest suites (20 passed) confirm labels remain outside
+visible service cards and saved 150px panes are preserved; UI production build
+passed. The full UI suite stopped at batch 34/58 when its local RSS monitor's
+`ps` process was terminated. The earlier desktop render measured 58 labels with
+no label-to-label overlap; the final server-card avoidance is covered by the
+focused component test.
 
 ### 2026-09-28 — PF active provider broke the PingOne MCP machine-token chain
 
