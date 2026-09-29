@@ -51,6 +51,8 @@ The local Kubernetes startup includes the same NeMo-enabled image and
 Deployment. `./run-k8.sh` builds the images and deploys the stack to the active
 local Kubernetes context. The PromptGuard Deployment has no ClusterIP Service;
 the login LaunchAgent forwards it directly to `localhost:8086`.
+The local deploy raises the `ai-demo` Service quota to 34 for its full manifest
+set; the shared namespace manifest keeps its baseline quota for other deploy paths.
 
 The config panel is on the AI Demo's **LLM Gateway** page at
 `https://local.ping-devops.com:4000/llm-gateway`. Select **NeMo Guardrails** and

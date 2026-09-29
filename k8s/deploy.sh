@@ -102,6 +102,14 @@ deploy() {
 
   kubectl apply -f "$SCRIPT_DIR/01-namespace.yaml"
 
+  # The shared namespace manifest is also used by the AWS deploy path. Raise
+  # the quota only for the guarded local ai-demo deployment, whose full manifest
+  # set needs 34 Services (25 already present plus 9 added by deploy).
+  if [[ "$NS" == "ai-demo" ]]; then
+    kubectl patch resourcequota ai-demo-quota -n "$NS" --type=merge \
+      -p '{"spec":{"hard":{"services":"34"}}}'
+  fi
+
   # Images are tagged ai-demo-k8-*:latest with imagePullPolicy: IfNotPresent. When
   # only the image *contents* change (a rebuild), the Deployment spec is
   # identical, so `kubectl apply` is a no-op and the running pods keep serving
