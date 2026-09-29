@@ -49,6 +49,9 @@ COPY demo_api_server/ .
 COPY scope-topology.json /scope-topology.json
 # startupConfigGuard.js resolves to /service-topology.json (boot-time SoT validation)
 COPY service-topology.json /service-topology.json
+# demoReadinessAuditService.js imports these repo-root checks from /scripts.
+COPY scripts/check-demo-health-gate.js scripts/check-mcp-preflight.js /scripts/
+COPY scripts/lib/preflightRows.js /scripts/lib/preflightRows.js
 # agentReasoningClient.js resolves to /llm-timeouts.json (../../ from /app/services)
 COPY llm-timeouts.json /llm-timeouts.json
 # geminiNlIntent.js resolves to /docs/HELIX_AGENT_DIRECTIVES.json
