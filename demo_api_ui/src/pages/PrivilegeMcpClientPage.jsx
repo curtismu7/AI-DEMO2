@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { FootprintSkinPicker } from '../components/aiFootprintMocks/FootprintSkinPicker';
 import { KIBANA_URL } from '../config/observabilityLinks';
+import PrivilegeA2aTab from '../features/privilegeA2aClient/PrivilegeA2aTab';
 import ToolsTable from '../components/privilege/ToolsTable';
 import JsonHighlight from '../components/shared/JsonHighlight';
 import JsonFormView from '../components/shared/JsonFormView';
@@ -252,7 +253,7 @@ const LLM_PATHS = {
 // Present mode ARE a demo move) and RESULTS (the returned data is half of what
 // you are showing), so the split is narrower than "chat vs everything else".
 const VIEW_TABS = {
-  demo: ['chat', 'tools'],
+  demo: ['chat', 'a2a', 'tools'],
   inspect: ['mcp', 'rpc', 'policies'],
 };
 const VIEW_TERMINAL_TABS = {
@@ -261,6 +262,7 @@ const VIEW_TERMINAL_TABS = {
 };
 const TAB_LABELS = [
   ['chat', 'Agent Chat'],
+  ['a2a', 'A2A'],
   ['tools', 'Tools'],
   ['mcp', 'MCP Explorer'],
   ['rpc', 'Raw RPC'],
@@ -2383,6 +2385,7 @@ export default function PrivilegeMcpClientPage() {
           </div>
 
           <div className="cur-editor-area">
+            {visibleTab === 'a2a' && <PrivilegeA2aTab />}
             {visibleTab === 'chat' && (
               <>
                 <div className="cur-chat-panel">

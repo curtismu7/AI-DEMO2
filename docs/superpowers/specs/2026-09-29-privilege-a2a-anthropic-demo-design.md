@@ -1,6 +1,6 @@
 # Privilege A2A Anthropic Demo in AI Guard Client
 
-**Status:** Design for user review<br>
+**Status:** Approved<br>
 **Date:** 2026-09-29
 
 ## Goal
@@ -40,7 +40,7 @@ AI Guard Client — A2A tab
           └─ main agent :3300
               ├─ Anthropic Messages API → Privilege, Bearer MAIN_AGENT_KEY
               ├─ A2A JSON-RPC → worker :3301, Bearer MAIN_AGENT_KEY
-              └─ worker trace SSE → browser stream
+              └─ worker trace SSE → main agent filters by fresh A2A context ID → BFF → browser stream
                   worker agent :3301
                     ├─ Anthropic Messages API → Privilege, Bearer WORKER_AGENT_KEY
                     └─ MCP Streamable HTTP → MCP server :3302,
@@ -61,8 +61,10 @@ main-agent URL remain configurable.
   browser, the BFF, or either agent process.
 - The BFF may require a valid AI-DEMO2 app session to access the chat endpoint,
   but it does not forward browser cookies, OAuth access tokens, `sub`, `act`,
-  or other user identity to the main agent. The A2A messages contain the
-  question, session correlation ID, and analyst response only.
+  or other user identity to the main agent. The main agent uses the opaque
+  session ID only for in-memory conversation history and creates a fresh
+  random A2A context ID for each chat turn. Worker trace events carry that
+  context ID, and each trace stream receives only matching events.
 - The existing AI Guard Client's interactive gateway OAuth remains separate
   from this machine-to-machine demo identity.
 - Local bearer-presence checks, if enabled for the worker or MCP process, only
@@ -143,8 +145,9 @@ main-agent URL remain configurable.
 - Backend package integration test: run main, worker, and MCP processes on
   ephemeral ports against a local Anthropic stub; verify the chat delegates,
   the MCP result reaches the worker model, the response reaches the tab, and
-  the main and worker use their own Bearer keys. Require Bearer headers on the
-  local A2A and MCP hops.
+  the main and worker use their own Bearer keys. Run concurrent chats and
+  verify their worker traces do not expose one another's entitlement details.
+  Require Bearer headers on the local A2A and MCP hops.
 - BFF route tests: reject missing app sessions, verify the proxy body excludes
   browser identity/tokens, relay SSE events, abort the upstream on disconnect,
   and return a safe error when the main agent is unavailable.

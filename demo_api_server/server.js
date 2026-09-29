@@ -1504,6 +1504,7 @@ app.use('/api/mcp/inspector/pingone-admin', mcpPingOneAdminAuthRoutes);
 app.use('/api/mcp/inspector/privilege', mcpPrivilegeAuthRoutes);
 // Privilege MCP Client — relay for the chat-first Privilege Gateway MCP client page
 app.use('/api/privilege-mcp', require('./routes/privilegeMcpClient'));
+app.use('/api/privilege-a2a', require('./routes/privilegeA2aClient'));
 // Minimal machine-to-machine sibling of the above: client_credentials token in,
 // MCP JSON-RPC out. Separate route on purpose — the interactive flow is untouched.
 app.use('/api/privilege-mcp-simple', require('./routes/privilegeMcpSimple'));

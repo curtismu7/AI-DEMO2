@@ -99,4 +99,20 @@ describe("PrivilegeMcpClientPage — no auto-discovery on sign-in return", () =>
     // not have removed discovery.
     await waitFor(() => expect(toolsListCalls).toBe(1));
   });
+
+  test("A2A is available in Demo while the existing MCP Inspect tabs remain available", async () => {
+    mockState();
+    localStorage.setItem("cur_priv_view", "demo");
+    renderAfterSignIn();
+
+    const a2aTab = await screen.findByRole("button", { name: "A2A" });
+    fireEvent.click(a2aTab);
+    await screen.findByRole("heading", { name: "A2A access review" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Inspect" }));
+    expect(await screen.findByRole("button", { name: "MCP Explorer" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Raw RPC" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Policies" })).toBeTruthy();
+    localStorage.removeItem("cur_priv_view");
+  });
 });

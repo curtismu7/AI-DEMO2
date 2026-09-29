@@ -188,6 +188,39 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-29 — Privilege A2A tab route mounts and BFF boundary
+
+**Files:** `standalone/privilege-a2a-anthropic-demo/src/worker-agent/index.ts`,
+`standalone/privilege-a2a-anthropic-demo/src/main-agent/index.ts`,
+`standalone/privilege-a2a-anthropic-demo/src/config.ts`,
+`demo_api_server/routes/privilegeA2aClient.js`,
+`demo_api_server/server.js`,
+`demo_api_ui/src/features/privilegeA2aClient/PrivilegeA2aTab.jsx`,
+`demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`.
+
+**What was broken:** the A2A SDK handlers were mounted with Express route
+methods at the full endpoint path even though their internal routers match `/`,
+so the worker's agent-card route returned 404. The AI Guard Client also had no
+session-gated relay for this three-process demo.
+
+**What was fixed:** mount the SDK routers at their endpoint prefixes, add the
+shared-secret check on integrated main-agent chat, and relay the A2A SSE stream
+through a session-gated BFF route that forwards only message and session ID.
+Add the A2A tab to Demo mode with an incremental text-only stream consumer.
+Give each chat turn a fresh opaque A2A context ID and filter worker traces by
+that ID, preventing concurrent chats from receiving one another's entitlement
+details.
+
+**Do not break:** keep the separate main → worker → MCP process topology and
+per-agent keys; never forward browser authorization, cookies, or user identity
+to the agents. Preserve banking A2A, OAuth/token exchange, and existing MCP
+tabs.
+
+**Verify:** backend `npm test` (including concurrent trace isolation) and
+`npm run build`; BFF focused Jest route test;
+AI Guard Client focused Vitest tests and `npm run build`; run the A2A tab
+contrast check in both page themes.
+
 ### 2026-09-29 — BFF readiness catalog could not load gateway scope topology
 
 **Files:** `demo_api_server/Dockerfile`, `scripts/docker-build-contexts.js`,
