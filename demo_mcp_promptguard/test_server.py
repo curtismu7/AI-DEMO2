@@ -450,6 +450,19 @@ def test_health_needs_no_origin_and_inspect_keeps_wire_contract():
         assert body["findings"][0]["category"] == "prompt_injection"
 
 
+def test_deeply_nested_json_returns_400_and_preserves_configuration():
+    with running_sidecar() as base:
+        previous = demo_config(phrase="existing", outcome="allow", engine="nemo")
+        assert http_call(base, "/demo/config", "PUT", previous)[0] == 200
+        nested_json = b"[" * 1100 + b"]" * 1100
+        status, headers, body = http_call(base, "/demo/config", "PUT", nested_json,
+                                         headers={"Content-Type": "application/json"})
+        assert status == 400, (status, body)
+        assert headers["Access-Control-Allow-Origin"] == ORIGIN
+        assert body["error"] == "invalid_config"
+        assert http_call(base, "/demo/config")[2]["config"] == previous
+
+
 def test_invalid_config_leaves_engine_and_demo_unchanged():
     invalid = [demo_config(phrase=""), demo_config(phrase=" "), demo_config(phrase="x" * 121),
                demo_config(engine="unknown"), demo_config(outcome="unknown"),

@@ -170,7 +170,7 @@ def make_handler(manager):
                 if not 0 < length <= MAX_CONFIG_BYTES:
                     raise ValueError("Config body must be between 1 and 4096 bytes")
                 new_config = validate_config(json.loads(self.rfile.read(length)))
-            except (ValueError, UnicodeError) as error:
+            except (ValueError, UnicodeError, RecursionError) as error:
                 return self._send(400, {"error": "invalid_config", "message": str(error)})
             with lock:
                 try:
