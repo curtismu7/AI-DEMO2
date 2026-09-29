@@ -1,6 +1,6 @@
 # NeMo Guardrails PromptGuard UI Configuration
 
-**Status:** Draft for user review
+**Status:** Approved for implementation
 **Date:** 2026-09-29
 
 ## Context
@@ -63,7 +63,7 @@ The UI exposes:
 
 - A detector selector for `Built-in classifier` and `NeMo Guardrails`, including availability/readiness state and a clear reason when NeMo is not installed or initialized.
 - An enabled/disabled switch, disabled by default.
-- A required literal trigger phrase, limited to 120 characters; it is not interpreted as a regular expression.
+- A literal trigger phrase, required when the demo override is enabled and limited to 120 characters; it is not interpreted as a regular expression.
 - An outcome selector: `allow` or `block`.
 - Connection status, active sidecar configuration, and an explicit Apply action.
 
@@ -71,7 +71,7 @@ Matching is a case-insensitive literal substring match after trimming the config
 
 The active detector and demo configuration live in sidecar memory. The detector resets to the built-in classifier on restart; the demo override resets to disabled. The UI stores the last-applied values in browser `localStorage` as a draft. On page load it reads the sidecar's active value; it does not silently reapply local storage. The operator can explicitly apply the saved draft after a restart. This keeps a stale browser value from unexpectedly changing shared sidecar behavior.
 
-The config response includes the active engine, demo settings, and an availability/readiness reason for each engine. The config endpoint validates the exact fields and enum values, rejects empty or oversized trigger phrases and oversized/malformed JSON, and returns a clear 4xx for invalid input. A request to select an unavailable engine returns a clear 4xx and leaves the active engine/config unchanged. Health and config responses contain no prompt text or credentials. Existing `/inspect` response contents remain capped as they are today; logs continue to record verdicts without logging full prompt text.
+The config response includes the active engine, demo settings, and an availability/readiness reason for each engine. The config endpoint validates the exact fields and enum values, requires a non-empty trigger phrase only while the demo override is enabled, rejects phrases over 120 characters and oversized/malformed JSON, and returns a clear 4xx for invalid input. A request to select an unavailable engine returns a clear 4xx and leaves the active engine/config unchanged. Health and config responses contain no prompt text or credentials. Existing `/inspect` response contents remain capped as they are today; logs continue to record verdicts without logging full prompt text.
 
 ## Error handling
 
