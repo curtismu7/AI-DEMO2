@@ -139,9 +139,8 @@ deploy() {
   kubectl apply -f "$SCRIPT_DIR/73-jaeger-deployment.yaml"
   # Backend tool servers
   kubectl apply -f "$SCRIPT_DIR/30-mcp-server-deployment.yaml"
-  # PromptGuard is port-forwarded from its Deployment directly. The ai-demo
-  # namespace has a 25-Service quota and is currently full, so it deliberately
-  # does not allocate another ClusterIP Service.
+  # PromptGuard is port-forwarded from its Deployment directly, so it does not
+  # need a ClusterIP Service of its own.
   kubectl apply -f "$SCRIPT_DIR/65-promptguard-deployment.yaml"
   kubectl apply -f "$SCRIPT_DIR/63-mcp-resource-server-deployment.yaml"
   kubectl apply -f "$SCRIPT_DIR/64-api-resource-server-deployment.yaml"

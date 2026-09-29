@@ -25,7 +25,7 @@ spec:
     limits.cpu: "16"
     limits.memory: 48Gi
     persistentvolumeclaims: "10"
-    services: "25"
+    services: "34"
     secrets: "30"
     configmaps: "20"
 ---
