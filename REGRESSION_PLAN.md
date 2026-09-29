@@ -188,6 +188,33 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-29 — BFF readiness catalog could not load gateway scope topology
+
+**Files:** `demo_api_server/Dockerfile`, `scripts/docker-build-contexts.js`,
+`scripts/docker-build-contexts.test.js`, `REGRESSION_PLAN.md`.
+
+**What was broken:** the BFF readiness catalog imports
+`../../ping-gateway/config/scope-topology.json`, which resolves to
+`/ping-gateway/config/scope-topology.json` in the container. The staged BFF
+build context omitted this file, and the image's code-search copy placed the
+gateway tree only under `/repo/ping-gateway`; the BFF therefore crash-looped
+when the readiness routes loaded.
+
+**What was fixed:** explicitly stage the topology file and copy it into the
+runtime path consumed by the catalog. Added a runtime-layout regression check
+that applies the Dockerfile copy destinations and asks Node to resolve the
+catalog's actual relative import.
+
+**Do not break:** keep the readiness catalog's existing use-case, scope, and
+audience validation unchanged; preserve the separate `/repo/ping-gateway` tree
+used by code search.
+
+**Verify:** `PATH=/opt/homebrew/opt/node@22/bin:$PATH node --test
+scripts/docker-build-contexts.test.js`; build the BFF image and run
+`require('/app/services/demoReadinessCatalog').loadDemoReadinessSources()` in
+the image; `cd demo_api_server && CI=true npx jest
+tests/demoReadinessAuditService.test.js --forceExit`.
+
 ### 2026-09-28 — Dashboard session and greeting contrast
 
 **Files:** `demo_api_ui/src/components/TopNav.css`,

@@ -47,6 +47,8 @@ COPY demo_api_server/ .
 # Copy repo-root files that BFF services reference via ../../
 # scopeTopology.js, agentRestrictionsService.js, pingoneProvisionService.js resolve to /scope-topology.json
 COPY scope-topology.json /scope-topology.json
+# demoReadinessCatalog.js resolves the gateway topology from /ping-gateway/config.
+COPY ping-gateway/config/scope-topology.json /ping-gateway/config/scope-topology.json
 # startupConfigGuard.js resolves to /service-topology.json (boot-time SoT validation)
 COPY service-topology.json /service-topology.json
 # demoReadinessAuditService.js imports these repo-root checks from /scripts.
