@@ -20,6 +20,7 @@ import { ATTACK_CATEGORIES, GUARDRAIL_ATTACKS } from '../config/guardrailAttackC
 import { KIBANA_URL } from '../config/observabilityLinks';
 import BlockAgreementModal from '../components/BlockAgreementModal';
 import LlmGatewayReel from './LlmGatewayReel';
+import PromptGuardControlPanel from './PromptGuardControlPanel';
 import JsonHighlight from '../components/shared/JsonHighlight';
 import PingIdentitySpinner from '../components/shared/PingIdentitySpinner';
 import GatewayVerdicts from '../components/GatewayVerdicts';
@@ -671,6 +672,8 @@ export default function LlmGatewayPage() {
           pending={{ provider: selected, model: modelByLane[selected] }}
         />
       </section>
+
+      <PromptGuardControlPanel />
 
       {loadError ? <p className="lgw-error" role="alert">{loadError}</p> : null}
 

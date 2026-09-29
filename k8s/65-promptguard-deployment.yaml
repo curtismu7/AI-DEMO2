@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-promptguard
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: mcp-promptguard
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: ai-demo
+      component: mcp-promptguard
+  template:
+    metadata:
+      labels:
+        app: ai-demo
+        component: mcp-promptguard
+    spec:
+      automountServiceAccountToken: false
+      containers:
+      - name: mcp-promptguard
+        image: ai-demo-k8-promptguard:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8086
+          name: http
+        env:
+        - name: PORT
+          value: "8086"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 1Gi
+          limits:
+            cpu: 500m
+            memory: 6Gi
+        startupProbe:
+          httpGet:
+            path: /health
+            port: http
+          periodSeconds: 10
+          failureThreshold: 90
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: http
+          periodSeconds: 10
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          periodSeconds: 30
+          failureThreshold: 3

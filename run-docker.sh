@@ -114,7 +114,7 @@ fi
 CORE_SERVICES=(
   ui mcp-discovery-agent mcp-server mcp-resource-server mcp-weather mcp-brave api-resource-server mcp-proxy
   ping-gateway langchain-agent agent-service hitl-service llm-proxy
-  promptfoo-step-narration
+  promptfoo-step-narration mcp-promptguard
 )
 
 # Smallest Compose set for dashboard/admin and login flows. The MCP services
@@ -826,6 +826,7 @@ SERVICES=(
   "ui|UI (React / nginx)   |4000|https://local.ping-devops.com:4000"
   "mcp-discovery-agent|MCP Discovery Agent   |-|internal :3910"
   "mcp-server|MCP Server            |8080|http://localhost:8080"
+  "mcp-promptguard|PromptGuard sidecar |8086|http://localhost:8086/health"
   "mcp-gateway|MCP Gateway           |3005|http://localhost:3005"
   "mcp-proxy|MCP Proxy             |8895|http://localhost:8895"
   "ping-gateway|Ping Gateway          |3036|http://localhost:3036"

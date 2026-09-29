@@ -145,8 +145,14 @@ check_docker() {
 check_prereqs() {
   command -v kubectl &>/dev/null   || die "kubectl not found — install via: brew install kubectl"
   check_docker
+  local context
+  context="$(kubectl config current-context 2>/dev/null || true)"
+  case "$context" in
+    orbstack|docker-desktop) ;;
+    *) die "Refusing local K8 operation on context '${context:-unknown}'. Switch to OrbStack (kubectl config use-context orbstack) or Docker Desktop first." ;;
+  esac
   kubectl cluster-info &>/dev/null || die "Cannot reach K8s cluster. For local dev: enable Kubernetes in OrbStack/Docker Desktop Settings."
-  info "K8s cluster reachable."
+  info "K8s cluster reachable (context: $context)."
   # llama.cpp runs as an in-cluster 2-tier stack (k8s/56-llm-stack.yaml) — no host
   # install is required. The llm-proxy pod routes to llama-tier1/llama-tier5.
   info "LLM: in-cluster 2-tier stack — no host llama-server install required."
@@ -292,6 +298,12 @@ tag_k8_images() {
       info "Tagged ${src}:latest → ${dst}:latest"
     fi
   done
+  # PromptGuard pins its Compose image tag to :local, so retag it explicitly
+  # for the local K8 manifest after the project-scoped build.
+  if docker image inspect "ai-demo-mcp-promptguard:local" &>/dev/null; then
+    docker tag "ai-demo-mcp-promptguard:local" "ai-demo-k8-promptguard:latest"
+    info "Tagged ai-demo-mcp-promptguard:local → ai-demo-k8-promptguard:latest"
+  fi
   docker image inspect "ai-demo-k8-api-server:latest" &>/dev/null \
     || warn "Missing ai-demo-k8-api-server:latest — build demo-api-server first"
 }
@@ -316,7 +328,7 @@ build() {
     COMPOSE_PARALLEL_LIMIT=1 docker compose -p "$K8_COMPOSE_PROJECT" -f docker-compose.yml build \
       demo-api-server ui mcp-server langchain-agent agent-service \
       hitl-service mcp-resource-server api-resource-server mcp-proxy authz-server mcp-gateway \
-      mcp-weather mcp-brave
+      mcp-weather mcp-brave mcp-promptguard
     COMPOSE_PARALLEL_LIMIT=1 docker compose -p "$K8_COMPOSE_PROJECT" -f docker-compose.yml --profile demo-auth build mcp-jwt-verifier
     COMPOSE_PARALLEL_LIMIT=1 docker compose -p "$K8_COMPOSE_PROJECT" -f docker-compose.yml --profile k8-build build tier-manager-k8 llm-proxy
   ) || die "image build failed"
