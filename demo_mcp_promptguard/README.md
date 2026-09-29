@@ -40,12 +40,30 @@ Labels differ by model — ProtectAI deberta emits SAFE/INJECTION, Meta Prompt-G
 BENIGN/INJECTION/JAILBREAK, Prompt-Guard-2 BENIGN/MALICIOUS — so the benign set and
 threshold are the calibration knobs; tune them to the model you bake in.
 
+## Docker startup
+
+`./run-docker.sh start` starts the sidecar as part of the core stack and binds
+`127.0.0.1:8086`. NeMo Guardrails is installed by default so both detector
+choices are available in the UI. For a classifier-only image, set
+`PROMPTGUARD_INSTALL_NEMO=0` before the sidecar image is built.
+
+The local Kubernetes startup includes the same NeMo-enabled image and
+Deployment. `./run-k8.sh` builds the images and deploys the stack to the active
+local Kubernetes context. The PromptGuard Deployment has no ClusterIP Service;
+the namespace Service quota is full, and the UI connects through the
+`localhost:8086` port-forward.
+
+The config panel is on the AI Demo's **LLM Gateway** page at
+`https://local.ping-devops.com:4000/llm-gateway`. Select **NeMo Guardrails** and
+apply the change there. The panel also controls the demo trigger phrase and its
+allow/block outcome. It does not require a separate NeMo account or console.
+
 ## Local runtime profiles
 
-The default image includes the built-in classifier only. NeMo Guardrails is an
-optional dependency; choose the NeMo profile at build time if operators want to
-use it from the UI. Both profiles bake the configured classifier model into the
-image, so startup does not need to download model weights.
+Direct Docker builds default to the built-in classifier only; add the build arg
+to install NeMo. Compose enables the optional dependency by default. Both
+profiles bake the configured classifier model into the image, so startup does
+not need to download model weights.
 
 Run these commands from the repository root:
 
@@ -57,7 +75,7 @@ docker build --build-arg PROMPTGUARD_INSTALL_NEMO=1 \
 ```
 
 The NeMo build installs `requirements-nemo.txt` and verifies the package import
-during the image build. The default build does not install or require
+during the image build. A classifier-only build does not install or require
 `nemoguardrails`.
 
 The sidecar exposes these local endpoints on port 8086:
@@ -68,13 +86,15 @@ The sidecar exposes these local endpoints on port 8086:
   updates them. The browser UI calls this endpoint directly at
   `http://localhost:8086/demo/config`.
 
-For the UI to reach the sidecar, start the login LaunchAgent port-forward. It
-keeps `localhost:8086` forwarded to the sidecar after login. Apply sends the
-edited config to the running sidecar. Only successfully applied values are
-saved as a localStorage draft; unsaved edits may be lost on reload. A new browser
-or storage reset reads the active config from the endpoint. While open, the panel
-checks connection and shared state every 15 seconds, with a 5-second read timeout,
-and preserves the draft through outages and sidecar restarts without applying it.
+For the UI to reach the Kubernetes sidecar, install the login LaunchAgent
+port-forward with `bash scripts/install-promptguard-port-forward-launchd.sh`.
+It targets the local `orbstack` context and keeps `localhost:8086` forwarded to
+the Deployment after login. Apply sends the edited config to the running
+sidecar. Only successfully applied values are saved as a localStorage draft;
+unsaved edits may be lost on reload. A new browser or storage reset reads the
+active config from the endpoint. While open, the panel checks connection and
+shared state every 15 seconds, with a 5-second read timeout, and preserves the
+draft through outages and sidecar restarts without applying it.
 
 If a detector switch and restoration both fail, the config endpoint returns
 409 and reports the previous detector unavailable. Inspections return 502

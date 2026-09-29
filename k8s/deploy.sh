@@ -129,6 +129,10 @@ deploy() {
   kubectl apply -f "$SCRIPT_DIR/73-jaeger-deployment.yaml"
   # Backend tool servers
   kubectl apply -f "$SCRIPT_DIR/30-mcp-server-deployment.yaml"
+  # PromptGuard is port-forwarded from its Deployment directly. The ai-demo
+  # namespace has a 25-Service quota and is currently full, so it deliberately
+  # does not allocate another ClusterIP Service.
+  kubectl apply -f "$SCRIPT_DIR/65-promptguard-deployment.yaml"
   kubectl apply -f "$SCRIPT_DIR/63-mcp-resource-server-deployment.yaml"
   kubectl apply -f "$SCRIPT_DIR/64-api-resource-server-deployment.yaml"
   kubectl apply -f "$SCRIPT_DIR/57-mcp-weather-deployment.yaml"
@@ -218,7 +222,7 @@ deploy() {
   # and exit codes, then report any failures at the end.
   info "Waiting for rollouts in parallel (timeout 3m each)..."
   local _pids=() _deps=()
-  for dep in jaeger mcp-server mcp-resource-server api-resource-server mcp-weather mcp-brave mcp-jwt-verifier hitl-service \
+  for dep in jaeger mcp-server mcp-promptguard mcp-resource-server api-resource-server mcp-weather mcp-brave mcp-jwt-verifier hitl-service \
              demo-api-server ping-gateway agent-service \
              langchain-agent frontend \
              weaviate embeddings mcp-code-search llamaindex-agent; do

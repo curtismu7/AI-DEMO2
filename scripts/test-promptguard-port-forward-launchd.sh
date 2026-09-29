@@ -73,7 +73,7 @@ for _ in {1..100}; do
 done
 
 [[ -s "$TEST_STATE/kubectl.args" ]] || fail "supervisor did not start kubectl port-forward"
-for expected in --context us -n ping-devops-curtismuir port-forward deployment/agentless-mcpgw 8086:8086; do
+for expected in --context orbstack -n ai-demo port-forward deployment/mcp-promptguard 8086:8086; do
   grep -Fqx -- "$expected" "$TEST_STATE/kubectl.args" \
     || fail "kubectl port-forward omitted expected argument: $expected"
 done

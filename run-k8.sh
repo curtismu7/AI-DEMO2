@@ -292,6 +292,12 @@ tag_k8_images() {
       info "Tagged ${src}:latest → ${dst}:latest"
     fi
   done
+  # PromptGuard pins its Compose image tag to :local, so retag it explicitly
+  # for the local K8 manifest after the project-scoped build.
+  if docker image inspect "ai-demo-mcp-promptguard:local" &>/dev/null; then
+    docker tag "ai-demo-mcp-promptguard:local" "ai-demo-k8-promptguard:latest"
+    info "Tagged ai-demo-mcp-promptguard:local → ai-demo-k8-promptguard:latest"
+  fi
   docker image inspect "ai-demo-k8-api-server:latest" &>/dev/null \
     || warn "Missing ai-demo-k8-api-server:latest — build demo-api-server first"
 }
@@ -316,7 +322,7 @@ build() {
     COMPOSE_PARALLEL_LIMIT=1 docker compose -p "$K8_COMPOSE_PROJECT" -f docker-compose.yml build \
       demo-api-server ui mcp-server langchain-agent agent-service \
       hitl-service mcp-resource-server api-resource-server mcp-proxy authz-server mcp-gateway \
-      mcp-weather mcp-brave
+      mcp-weather mcp-brave mcp-promptguard
     COMPOSE_PARALLEL_LIMIT=1 docker compose -p "$K8_COMPOSE_PROJECT" -f docker-compose.yml --profile demo-auth build mcp-jwt-verifier
     COMPOSE_PARALLEL_LIMIT=1 docker compose -p "$K8_COMPOSE_PROJECT" -f docker-compose.yml --profile k8-build build tier-manager-k8 llm-proxy
   ) || die "image build failed"
