@@ -115,6 +115,25 @@ describe('startReadinessRun', () => {
     expect(result.status).toBe('not-ready');
   });
 
+  test('an explicit nonrequired Authorize readback waiver stays visible and does not block a passing matrix', async () => {
+    const waiver = 'Temporary waiver: live Authorize policy-tree parity is unverified.';
+    const { adapters } = harness({
+      audit: async () => [
+        { id: 'config', status: 'pass' },
+        { id: 'pingone:policyReadback', status: 'blocked', required: false, waiver, evidence: 'Complete policy tree is not available.' },
+      ],
+      planRepairs: async () => ({ digest: 'empty', changes: [], blocked: [] }),
+    });
+
+    const result = await startReadinessRun({ targets: ['local', 'se'], adapters });
+
+    expect(result.status).toBe('ready');
+    expect(result.checks.filter((row) => row.id === 'pingone:policyReadback')).toHaveLength(2);
+    expect(result.checks).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'pingone:policyReadback', status: 'blocked', required: false, waiver }),
+    ]));
+  });
+
   test('re-audits after applying repairs before scenarios and blocks on re-audit failure', async () => {
     const { calls, adapters } = harness({ audit: async ({ phase }) => { calls.push('audit:' + phase); return [{ id: 'config', status: phase === 'initial' ? 'fail' : 'blocked', repairCandidate: { repairClass: 'test', target: 'local', object: { id: 'object' }, current: 'old', expected: 'new' } }]; } });
     const result = await startReadinessRun({ targets: ['local'], adapters, confirmRepairs: async () => 'abc123' });

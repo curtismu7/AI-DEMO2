@@ -10,6 +10,11 @@ const { getReadinessToolMetadata } = require('../config/verticals/pingone-admin/
 const healthGate = require('../../scripts/check-demo-health-gate');
 const mcpPreflight = require('../../scripts/check-mcp-preflight');
 
+// Keep the waiver limited to the known unsupported full-tree read. Remove it
+// when a supported exact read path is available; never use it for read errors
+// or policy mismatches.
+const AUTHORIZE_POLICY_TREE_WAIVER_ID = 'temporary-authorize-policy-tree-readback';
+const AUTHORIZE_POLICY_TREE_WAIVER = 'Temporary waiver: live Authorize policy-tree parity is unverified. Decision endpoint references and runtime Authorize decisions remain required.';
 const P1 = ['audience', 'scope', 'mirror', 'appGrant', 'requiredFlag', 'a2aCredential',
   'parSetting', 'groupMembership', 'registeredToolScope', 'authorizeEndpoint', 'policyReadback'];
 const PF = ['clientGrantProcessorAtm', 'specialistResourceUriIdJag', 'davinciClientAdapter', 'jwksAudience'];
@@ -28,6 +33,11 @@ function status(value) {
 }
 function auditRow(id, value, options = {}) {
   const result = status(value);
+  const waiver = id === 'pingone:policyReadback'
+    && result === 'blocked'
+    && value?.waiver === AUTHORIZE_POLICY_TREE_WAIVER_ID
+    ? AUTHORIZE_POLICY_TREE_WAIVER
+    : undefined;
   return redactReadinessValue({
     id, target: options.target,
     userSessionProvider: options.userSessionProvider || 'pingone',
@@ -37,17 +47,18 @@ function auditRow(id, value, options = {}) {
     resourceServer: options.resourceServer || 'agent-gateway',
     providerApplicability: options.providerApplicability || APPLICABILITY,
     status: ['pass', 'fail', 'blocked', 'not-run'].includes(result) ? result : 'fail',
-    required: options.required !== false, expected: options.expected || 'configured',
+    required: waiver ? false : options.required !== false, expected: options.expected || 'configured',
     observed: value && typeof value === 'object' && !Array.isArray(value) ? value.observed : Boolean(value),
     sourceRef: options.sourceRef,
     evidence: value && typeof value === 'object' && !Array.isArray(value) ? value.reason : undefined,
+    waiver,
     repairCandidate: value && typeof value === 'object' && !Array.isArray(value) ? value.repairCandidate : undefined,
     repairCandidates: value && typeof value === 'object' && !Array.isArray(value) ? value.repairCandidates : undefined,
   });
 }
 function afterRead(rows, deadlineAt, signal) {
   if (!expired(deadlineAt, signal)) return rows;
-  return rows.map((item) => auditRow(item.id, { status: 'not-run', reason: 'deadline exceeded or aborted' }, item));
+  return rows.map((item) => auditRow(item.id, { status: 'not-run', reason: 'deadline exceeded or aborted' }, { ...item, required: true }));
 }
 function all(actual, expected) {
   return Array.isArray(expected) && expected.length > 0 && expected.every((entry) => actual.includes(entry));
@@ -262,7 +273,11 @@ async function pingOneRead({ environmentId, credentials = {}, expected = {}, fet
       groupMembership: Object.keys(memberships).length ? { status: membershipChecks.every(Boolean) ? 'pass' : 'fail' } : { status: 'blocked', reason: 'group membership readback requires declared subject/group contracts' },
       registeredToolScope: { status: 'blocked', reason: 'registered Agent Gateway tool scope API is unavailable' },
       authorizeEndpoint: compare('decisionEndpointIds', endpointIds, 'decisionEndpointIds'),
-      policyReadback: { status: 'blocked', reason: 'complete PingOne Authorize policy-tree read is unavailable with current worker credentials' },
+      policyReadback: {
+        status: 'blocked',
+        reason: 'complete PingOne Authorize policy-tree read is unavailable with current worker credentials',
+        waiver: AUTHORIZE_POLICY_TREE_WAIVER_ID,
+      },
     };
   } catch (error) {
     return blocked(P1, error.message);
