@@ -214,6 +214,32 @@ not admit BFF `node_modules`, runtime data, or `.env` files into the UI context.
 && npm run build`; `docker buildx build --load -f demo_api_ui/Dockerfile -t
 ai-demo-ui-readiness-contract-test:latest .` from the repo root.
 
+### 2026-09-29 — UI Docker context re-included unrelated files
+
+**Files:** `demo_api_ui/Dockerfile.dockerignore`,
+`scripts/docker-build-contexts.test.js`, `REGRESSION_PLAN.md`.
+
+**What was broken:** Docker treats a negated directory rule such as
+`!demo_api_server/` as allowing its descendants. The broad directory exceptions
+therefore sent unrelated scripts and local BFF logs, nested data, and env files
+to the UI image builder. A test that only collected `!` lines as literal paths
+did not model this behavior.
+
+**What was fixed:** exclude direct children after reopening each needed parent,
+then allow only the checker, its referenced sources/tests, and the two topology
+exports. Added recursive runtime-artifact and secret exclusions. A BuildKit
+fixture test now copies the filtered context out and checks required files are
+present while unrelated scripts, runtime files, env files, UI tests, and docs
+are absent.
+
+**Do not break:** do not replace narrow directory exceptions with broad subtree
+negations. Keep the Docker-backed fixture test exercising the actual ignore
+file semantics, including nested runtime paths.
+
+**Verify:** `node --test scripts/docker-build-contexts.test.js`; `cd demo_api_ui
+&& npm run build`; `docker buildx build --load -f demo_api_ui/Dockerfile -t
+ai-demo-ui-readiness-contract-test:latest .` from the repo root.
+
 ### 2026-09-29 — BFF readiness catalog could not load gateway scope topology
 
 **Files:** `demo_api_server/Dockerfile`, `scripts/docker-build-contexts.js`,
