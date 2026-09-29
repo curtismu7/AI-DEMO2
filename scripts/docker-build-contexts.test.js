@@ -50,6 +50,97 @@ test('BFF build context includes the readiness audit helper scripts', () => {
   }
 });
 
+test('UI Docker build can run the cross-repo readiness contract against its context', () => {
+  const dockerfile = fs.readFileSync(path.join(repoRoot, 'demo_api_ui', 'Dockerfile'), 'utf8');
+  const dockerignore = fs.readFileSync(
+    path.join(repoRoot, 'demo_api_ui', 'Dockerfile.dockerignore'),
+    'utf8',
+  );
+  const exceptions = new Set(dockerignore.split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith('!'))
+    .map((line) => line.slice(1)));
+
+  const contractRun = String.raw`RUN --mount=type=bind,source=.,target=/workspace \
+    node /workspace/scripts/check-demo-readiness-contract.mjs`;
+  assert.ok(
+    dockerfile.includes(contractRun),
+    'the UI image builder must run the same readiness contract from the repo context',
+  );
+  assert.ok(
+    dockerfile.includes('RUN node scripts/sync-topology-exports.mjs && ./node_modules/.bin/vite build'),
+    'the UI image builder must run the topology sync and Vite after the root contract check',
+  );
+
+  const requiredRules = [
+    'scripts/',
+    'scripts/check-demo-readiness-contract.mjs',
+    'scope-topology.json',
+    'ping-gateway/',
+    'ping-gateway/config/',
+    'ping-gateway/config/scope-topology.json',
+    'demo_api_server/',
+    'demo_api_server/config/',
+    'demo_api_server/config/**',
+    'demo_api_server/services/',
+    'demo_api_server/services/demoReadinessCatalog.js',
+    'demo_api_server/services/demoStepPrerequisites.js',
+    'demo_api_server/services/scopeTopology.js',
+    'demo_api_server/routes/',
+    'demo_api_server/routes/intentBinding.js',
+    'demo_api_server/tests/',
+    'demo_api_server/tests/routes/',
+    'demo_api_server/tests/demoReadinessExecutionService.test.js',
+    'demo_api_server/tests/routes/pfDavinciAuth.test.js',
+    'demo_api_ui',
+    'demo_api_ui/**',
+    'demo_api_ui/tests',
+    'demo_api_ui/tests/**',
+  ];
+  for (const rule of requiredRules) {
+    assert.ok(exceptions.has(rule), `UI Docker build context is missing !${rule}`);
+  }
+  for (const excludedPath of [
+    'demo_api_server/node_modules',
+    'demo_api_server/**/node_modules',
+    'demo_api_server/data',
+    'demo_api_server/.env',
+    'demo_api_server/.env.*',
+    'demo_api_server/test-results',
+  ]) {
+    assert.ok(
+      dockerignore.split(/\r?\n/).map((line) => line.trim()).includes(excludedPath),
+      `UI Docker build context must exclude ${excludedPath}`,
+    );
+  }
+  assert.ok(
+    !dockerignore.split(/\r?\n/).map((line) => line.trim()).includes('demo_api_ui/tests'),
+    'UI readiness feature-test sources must not be excluded after the allowlist',
+  );
+
+  const featureChecks = require(path.join(
+    repoRoot,
+    'demo_api_server',
+    'config',
+    'demoReadinessFeatureChecks.json',
+  )).checks;
+  const featureRefs = featureChecks.flatMap((check) => [
+    check.sourceRef,
+    ...(check.relatedTests || []).map((relatedTest) => relatedTest.sourceRef),
+  ]).filter(Boolean).map((sourceRef) => sourceRef.split('#', 1)[0]);
+  for (const sourceRef of featureRefs) {
+    let included = exceptions.has(sourceRef);
+    if (sourceRef.startsWith('demo_api_server/config/')) {
+      included = exceptions.has('demo_api_server/config/**');
+    } else if (sourceRef.startsWith('demo_api_ui/src/')) {
+      included = exceptions.has('demo_api_ui/**');
+    } else if (sourceRef.startsWith('demo_api_ui/tests/')) {
+      included = exceptions.has('demo_api_ui/tests/**');
+    }
+    assert.ok(included, `UI Docker build context does not include readiness source ${sourceRef}`);
+  }
+});
+
 test('BFF runtime layout resolves the gateway topology imported by the readiness catalog', () => {
   const outputRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-demo-bff-runtime-'));
   try {

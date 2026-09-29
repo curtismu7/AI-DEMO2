@@ -45,8 +45,16 @@ ENV REACT_APP_POSTHOG_KEY=$REACT_APP_POSTHOG_KEY
 ENV REACT_APP_POSTHOG_HOST=$REACT_APP_POSTHOG_HOST
 ENV REACT_APP_KIBANA_URL=$REACT_APP_KIBANA_URL
 
-# Build the app
-RUN npm run build
+# The readiness contract spans UI, BFF, and provider feature-check sources.
+# Mount the allowlisted repo inputs only for this check; they are not copied
+# into the frontend image.
+RUN --mount=type=bind,source=.,target=/workspace \
+    node /workspace/scripts/check-demo-readiness-contract.mjs
+
+# The repo-level contract was validated from the bind-mounted context above.
+# Keep the UI-local topology sync, then call Vite directly so npm's prebuild
+# does not try to locate the cross-repo checker outside that temporary mount.
+RUN node scripts/sync-topology-exports.mjs && ./node_modules/.bin/vite build
 
 # Production stage
 ARG GIT_SHA=unknown
