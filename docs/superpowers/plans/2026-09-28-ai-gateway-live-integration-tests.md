@@ -4,7 +4,7 @@
 
 **Goal:** Add an explicitly invoked integration suite that verifies the AI Gateway Client against real, preconfigured MCP Gateway doors using a short-lived test identity.
 
-**Architecture:** Keep the existing mock-backed `node:test` suite as the default fast check. Add a separate integration suite under `server/integration/` that starts the existing relay locally, forwards a supplied bearer token to explicitly configured staging URLs, and checks allowed access, policy denial, filtered tools, and aggregate namespaces. The suite must fail before network access when its token or fixture config is missing.
+**Architecture:** Keep the existing mock-backed `node:test` suite as the default fast check. Add a separate integration suite under `server/integration/` that starts the existing relay locally and checks allowed access, policy denial, filtered tools, and aggregate namespaces against explicitly configured staging URLs. The ordinary live command accepts a supplied bearer token; an interactive variant uses the relay's existing PKCE/DCR sign-in and passes its access token between checks only in process memory, with no token export or persistence.
 
 **Tech Stack:** Node.js 22+, built-in `node:test`, existing Express relay, existing `dotenv` dependency, `fetch`.
 
@@ -15,10 +15,11 @@
 - Node services require Node >=22.
 - Run `npm ci` in `standalone/ai-gateway-client/server/` before its tests.
 - `cd standalone/ai-gateway-client/server && npm test` stays fast, offline, and mock-backed; live tests run only via `npm run test:integration`.
-- Live tests require an explicitly configured non-production gateway, fixture file, and test token; never fall back to the public demo or URLs from application defaults.
+- Live tests require an explicitly configured non-production gateway and fixture file; the ordinary command also requires a test token, while the interactive command requires a TTY and an enrolled test identity. Never fall back to the public demo or URLs from application defaults.
 - Use one dedicated test principal and harmless read-only tools or deterministic stub tools. Never call a real transfer, delete, write, or credential-bearing tool.
 - Do not create, edit, or delete gateway applications, identities, or policies from the test suite. Provision fixtures separately and treat the suite as read-only.
 - Never print or persist bearer tokens. Store the token in an ignored local env file or protected CI secret; fixture JSON contains URLs and tool inputs only.
+- Interactive sign-in uses the existing relay callback; the runner may hold the resulting bearer in process memory only and must not add a token export route or file.
 - Keep NHI management/enforcement API tests separate. This suite can exercise an externally provisioned NHI bearer token against MCP doors, but that alone does not prove NHI discovery or NHI policy-management behavior.
 - Do not run `docker compose` from the worktree. No UI changes are planned, so no UI build is required.
 
@@ -28,6 +29,8 @@
 
 - Create `standalone/ai-gateway-client/server/integration/support.js` for fixture validation, local relay startup, and authenticated API helpers.
 - Create `standalone/ai-gateway-client/server/integration/gateway.integration.test.js` for the live allow/deny, filtered-tool, and aggregate scenarios.
+- Create `standalone/ai-gateway-client/server/integration/gatewayChecks.js` to share live assertions between the node:test suite and interactive command.
+- Create `standalone/ai-gateway-client/server/integration/interactive.js` and `interactive.test.js` for the opt-in TTY-based PKCE/DCR sign-in runner and its polling/terminal checks.
 - Create `standalone/ai-gateway-client/server/integration/config.example.json` as a non-secret example fixture; add `server/integration/config.local.json` to the client `.gitignore` for operator-specific URLs and safe tool arguments.
 - Modify `standalone/ai-gateway-client/server/package.json` to add the opt-in `test:integration` command without changing `npm test`.
 - Create `standalone/ai-gateway-client/server/INTEGRATION_TESTS.md` with staging fixture setup, local secret handling, run command, and result interpretation; link it from the client README.
@@ -106,6 +109,36 @@
 - [ ] **Step 4: Run** `npm test` and `npm run test:integration` with the staging fixture.
 - [ ] **Step 5: Commit** as `test(ai-gateway-client): verify live gateway allow and deny paths`.
 
+## Task 3A: Run live checks with in-memory interactive sign-in
+
+**Files:**
+- Modify: `standalone/ai-gateway-client/server/integration/support.js`
+- Modify: `standalone/ai-gateway-client/server/integration/support.test.js`
+- Create: `standalone/ai-gateway-client/server/integration/gatewayChecks.js`
+- Modify: `standalone/ai-gateway-client/server/integration/gateway.integration.test.js`
+- Create: `standalone/ai-gateway-client/server/integration/interactive.js`
+- Create: `standalone/ai-gateway-client/server/integration/interactive.test.js`
+- Modify: `standalone/ai-gateway-client/server/package.json`
+- Create: `standalone/ai-gateway-client/server/INTEGRATION_TESTS.md`
+- Modify: `standalone/ai-gateway-client/README.md`
+- Modify: `standalone/ai-gateway-client/server/.env.example`
+
+**Interfaces:**
+- `readIntegrationConfig({ requireToken: false })` validates the same fixture while allowing the interactive command to start without `AI_GATEWAY_TEST_TOKEN`.
+- `withRelayServer(callback)` passes a callback-scoped `getAccessToken()` accessor backed by the relay's existing in-memory test session; it adds no HTTP route and persists nothing.
+- `gatewayChecks.runGatewayChecks({ baseUrl, fixture, token })` runs the existing assertions with the token only in memory.
+- `npm run test:integration:interactive` requires a TTY, prints the Gateway authorization URL, waits for the PKCE callback, then runs the checks in the same process.
+
+- [x] **Step 1: Add failing support tests** proving interactive config validation works without a token, the callback-scoped accessor returns the relay session's bearer without an HTTP export, and request helpers omit `Authorization` when no token is provided.
+- [x] **Step 2: Add failing interactive tests** proving the runner waits until `/state` reports authenticated, times out with a safe message, and rejects a non-TTY before starting authorization.
+- [x] **Step 3: Run** `node --test integration/support.test.js integration/interactive.test.js`; verify the new expectations fail because the interactive interfaces do not exist.
+- [x] **Step 4: Implement the smallest support changes**: optional token validation, optional Authorization header, callback-scoped in-memory accessor, and a generic callback landing page on the temporary relay.
+- [x] **Step 5: Extract the existing live assertions** into `gatewayChecks.js`; keep the ordinary test wrapper token-required and behavior unchanged.
+- [x] **Step 6: Implement the interactive command**: validate fixture and TTY before network access, configure the allowed door, start the existing PKCE/DCR flow, instruct the operator to open the authorization URL, poll only the public authenticated boolean, read the token through the in-memory accessor, run the shared assertions, then clean up the relay session.
+- [x] **Step 7: Add** `"test:integration:interactive": "node -r dotenv/config integration/interactive.js"`; keep `npm test` and `test:integration` unchanged.
+- [x] **Step 8: Run** focused support/interactive tests (38/38), `npm test` (16/16), and verify `npm run test:integration` fails before network access when the token is absent. The interactive live run remains pending the staging fixture and enrolled identity tracked under Task 3.
+- [x] **Step 9: Commit** as `test(ai-gateway-client): support in-memory interactive live auth` (`b364f1e8b`); scoped review passed with no blocking findings.
+
 ## Task 4: Verify policy-filtered tools and denied invocation
 
 **Files:**
@@ -159,6 +192,7 @@
 - The default `npm test` remains offline and passes without integration secrets or gateway access.
 - `npm run test:integration` fails before networking when fixture config or token is absent and runs only against explicit HTTPS URLs when configured; loopback HTTP requires the explicit opt-in flag.
 - The live suite uses one test token for allow/deny/probe, validates tool filtering and invocation denial, and checks namespaced aggregate discovery/call.
+- An operator can run the same live assertions through PKCE/DCR sign-in without exporting or persisting the bearer token.
 - Every live tool call is configured as read-only or a deterministic harmless stub; tests never write gateway configuration or invoke a real business mutation.
 - Test output and assertion failures never include bearer tokens.
 - The integration runbook names the need for staging fixtures and distinguishes MCP app/tool policy from NHI Agent Enforcement.
