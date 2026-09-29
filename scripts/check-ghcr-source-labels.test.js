@@ -131,9 +131,28 @@ test('a trailing comment on context: does not corrupt the resolved path', () => 
 });
 
 test('Compose default interpolation resolves build paths before agreement checks', () => {
-  const compose = 'services:\n  svc:\n    build:\n      context: ${SVC_BUILD_CONTEXT:-.}\n'
-    + '      dockerfile: ${SVC_DOCKERFILE:-svc_dir/Dockerfile}\n';
-  assert.deepStrictEqual(checkComposeAgreement([ENTRY], compose), []);
+  const savedContext = process.env.SVC_BUILD_CONTEXT;
+  const savedDockerfile = process.env.SVC_DOCKERFILE;
+  delete process.env.SVC_BUILD_CONTEXT;
+  delete process.env.SVC_DOCKERFILE;
+  try {
+    const compose = 'services:\n  svc:\n    build:\n      context: ${SVC_BUILD_CONTEXT:-.}\n'
+      + '      dockerfile: ${SVC_DOCKERFILE:-svc_dir/Dockerfile}\n';
+    assert.deepStrictEqual(checkComposeAgreement([ENTRY], compose), []);
+  } finally {
+    if (savedContext === undefined) delete process.env.SVC_BUILD_CONTEXT;
+    else process.env.SVC_BUILD_CONTEXT = savedContext;
+    if (savedDockerfile === undefined) delete process.env.SVC_DOCKERFILE;
+    else process.env.SVC_DOCKERFILE = savedDockerfile;
+  }
+});
+
+test('single-quoted paths remain literal instead of receiving Compose interpolation', () => {
+  const compose = "services:\n  svc:\n    build:\n      context: '${SVC_BUILD_CONTEXT:-.}'\n"
+    + "      dockerfile: '${SVC_DOCKERFILE:-svc_dir/Dockerfile}'\n";
+  const errs = checkComposeAgreement([ENTRY], compose);
+  assert.strictEqual(errs.length, 1);
+  assert.match(errs[0], /inspecting the wrong file/);
 });
 
 test('Compose path interpolation honors the build environment over its fallback', () => {

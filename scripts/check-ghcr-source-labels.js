@@ -172,17 +172,26 @@ function checkComposeAgreement(map, composeText) {
     if (current) blocks.get(current).push(line);
   }
 
-  const value = (raw) => raw
-    .replace(/#.*$/, '')
-    .trim()
-    .replace(/^["']|["']$/g, '')
-    .replace(/\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-(.*?))?\}/g, (expression, name, fallback) => {
+  const value = (raw) => {
+    const scalar = raw.replace(/#.*$/, '').trim();
+    const singleQuoted = scalar.startsWith("'") && scalar.endsWith("'");
+    const unquotedValue = singleQuoted || (scalar.startsWith('"') && scalar.endsWith('"'))
+      ? scalar.slice(1, -1)
+      : scalar;
+
+    // Compose interpolates unquoted and double-quoted scalars. Single-quoted
+    // values are literal, so leave their `${...}` text untouched; the path
+    // agreement check will then fail closed if it differs from the build map.
+    if (singleQuoted) return unquotedValue;
+
+    return unquotedValue.replace(/\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-(.*?))?\}/g, (expression, name, fallback) => {
       const configured = process.env[name];
       if (fallback !== undefined) {
         return configured === undefined || configured === '' ? fallback : configured;
       }
       return configured === undefined ? expression : configured;
     });
+  };
 
   for (const entry of map) {
     if (!entry.sourceDir || !entry.ghcrImage || !entry.composeService) continue;
