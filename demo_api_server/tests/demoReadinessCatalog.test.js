@@ -99,12 +99,43 @@ describe('demo readiness catalog', () => {
     expect(rows.get('UC1').providerFlows.pingfederate).not.toBe('pingfederate-native-id-jag');
   });
 
+  test('attaches source-backed PF role/key contracts and explicitly blocks unresolved literal PF settings', () => {
+    const rows = new Map(buildDemoReadinessCatalog().map((row) => [row.id, row]));
+    const ordinary = rows.get('UC1').pfExchangeContract;
+    const a2a = rows.get('UC2.5').pfExchangeContract;
+    const native = rows.get('UC40').pfExchangeContract;
+    const workload = rows.get('UC38').pfExchangeContract;
+
+    expect(ordinary).toMatchObject({
+      status: 'blocked',
+      issuer: { configurationKey: 'pf_issuer' },
+      endpoint: { configurationKey: 'pf_token_endpoint' },
+      sourceGap: { code: 'pf_exact_exchange_contract_source_gap' },
+    });
+    expect(ordinary.credentialRoles.map((role) => role.roleId)).toEqual([
+      'standard-agent-exchanger', 'standard-mcp-exchanger', 'ai-agent-actor', 'mcp-service-actor',
+    ]);
+    expect(a2a.credentialRoles.map((role) => role.roleId)).toEqual([
+      'standard-agent-exchanger', 'ai-agent-actor', 'a2a-specialist',
+    ]);
+    expect(native.credentialRoles.map((role) => role.roleId)).toEqual(['uc40-native-id-jag']);
+    expect(workload.credentialRoles.map((role) => role.roleId)).toEqual([
+      'standard-agent-exchanger', 'standard-mcp-exchanger', 'ai-agent-actor', 'mcp-service-actor',
+    ]);
+  });
+
   test('keeps PF A2A and DaVinci feature probes outside the 46 Demo Steps count', () => {
     const sources = loadDemoReadinessSources();
 
     expect(sources.featureChecks.countsTowardDemoSteps).toBe(false);
     expect(sources.featureChecks.checks.map((check) => check.id)).toEqual([
       'A2A-FM1', 'A2A-FM2', 'A2A-FM3', 'PF-DAVINCI-IK',
+      'PRIV-TOOL-ABUSE', 'PRIV-TOOL-POISONING', 'PRIV-SCHEMA-VIOLATION',
+      'PRIV-INTER-AGENT-ABUSE', 'PRIV-MALICIOUS-CONTENT',
+      'PINGONE-AGENT-IAM-CORE', 'PF-CIMD-VALID', 'PF-CIMD-REJECTED',
+      'PF-THIRD-PARTY-AS-ALLOW', 'PF-THIRD-PARTY-AS-DENY', 'PF-ID-JAG-INVALID',
+      'PF-ID-JAG-EXPIRED', 'PF-ID-JAG-WRONG-AUDIENCE', 'PF-RAR-VALID',
+      'PF-RAR-INVALID', 'UC2-PASSENGER-INVALID-TARGET', 'UC-LEARN11-PROMPT-INJECTION',
     ]);
     expect(sources.featureChecks.checks.slice(0, 3).every((check) =>
       check.providers.includes('pingone')
@@ -126,6 +157,53 @@ describe('demo readiness catalog', () => {
       }],
     });
   });
+
+  test('declares a structured family contract and an exact-or-blocked PF exchange contract for every feature probe', () => {
+    const featureManifest = loadDemoReadinessSources().featureChecks;
+    for (const check of featureManifest.checks) {
+      const contract = featureManifest.contracts[check.id];
+      expect(contract).toEqual(expect.objectContaining({
+        featureFamily: expect.any(String),
+        familyContract: expect.any(Object),
+      }));
+      if (check.providers.includes('pingfederate') && contract.exchangeService === 'token-exchange') {
+        expect(contract.pfExchangeContract).toMatchObject({
+          status: 'blocked',
+          issuer: { configurationKey: 'pf_issuer' },
+          endpoint: { configurationKey: 'pf_token_endpoint' },
+          sourceGap: { code: 'pf_exact_exchange_contract_source_gap' },
+        });
+        expect(contract.pfExchangeContract.credentialRoles.length).toBeGreaterThan(0);
+      }
+      if (check.providers.includes('pingfederate') && contract.exchangeService !== 'token-exchange') {
+        expect(contract.pfCredentialContract).toMatchObject({
+          status: 'blocked',
+          sourceGap: {
+            code: expect.any(String),
+            reason: expect.any(String),
+            remediation: expect.any(String),
+          },
+        });
+        expect(contract.pfCredentialContract.credentialRoles.length).toBeGreaterThan(0);
+      }
+      if (contract.selectedTool) {
+        expect(contract.gateway?.applicable).not.toBe(false);
+        expect(contract.authorize?.applicable).not.toBe(false);
+      }
+    }
+  });
+
+  test.each(['PRIV-MALICIOUS-CONTENT', 'UC-LEARN11-PROMPT-INJECTION'])(
+    'rejects PF-applicable feature %s when its credential contract is missing',
+    (id) => {
+      const sources = structuredClone(loadDemoReadinessSources());
+      delete sources.featureChecks.contracts[id].pfCredentialContract;
+
+      expect(() => validateDemoReadinessCatalog(sources)).toThrow(
+        new RegExp(`${id} PingFederate feature probe lacks an exact credential contract or actionable source gap`),
+      );
+    },
+  );
 
   test('resolves UC38 and UC44 prompts and tools for each declared vertical', () => {
     const rows = new Map(buildDemoReadinessCatalog().map((row) => [row.id, row]));

@@ -15,6 +15,7 @@ import { startRoleSwitch } from "../utils/roleSwitch";
 import { useVertical } from "../vertical/useVertical";
 import ConfirmModal from "./ConfirmModal";
 import ControlPlaneIntroModal from "./ControlPlaneIntroModal";
+import DraggableModal from "./DraggableModal";
 import { EDU } from "./education/educationIds";
 import { PAC_EDITOR_URL } from "./pacEditorStatus";
 import "./adminSkinPing2026.css";
@@ -146,6 +147,14 @@ const MAX_WIDTH = 520;
 // (deliberate UX: switching roles restores that role's own open group).
 const EXPANDED_SECTIONS_KEY_BASE = "adminSideNav.expandedSections";
 const COLLAPSED_KEY = "adminSideNav.collapsed";
+const READINESS_POLL_INTERVAL_MS = 500;
+
+function isFullyReadyReadinessReport(report) {
+  return report?.status === "ready"
+    && report?.ready === true
+    && Array.isArray(report.targets)
+    && ["local", "se"].every((target) => report.targets.includes(target));
+}
 
 /** The sidebar rests as an icon rail unless the user has expanded it before. */
 function readStoredCollapsed() {
@@ -378,8 +387,18 @@ export default function AdminSideNav({
   // Path queued behind the AI Control Plane intro-gate modal (null = closed).
   const [controlPlaneIntroPath, setControlPlaneIntroPath] = useState(null);
   const [showResetModal, setShowResetModal] = useState(false);
+  const [readinessJob, setReadinessJob] = useState(null);
+  const [showRepairConfirm, setShowRepairConfirm] = useState(false);
+  const readinessPollTimerRef = useRef(null);
+  const readinessGenerationRef = useRef(0);
+  const readinessResetStartedRef = useRef(false);
   const [latestRunId, setLatestRunId] = useState(null);
   const [latestRunTime, setLatestRunTime] = useState(null);
+
+  useEffect(() => () => {
+    clearTimeout(readinessPollTimerRef.current);
+    readinessGenerationRef.current += 1;
+  }, []);
 
   const isAdmin = user?.role === "admin";
   const { placement, fab, setAgentUi } = useAgentUiMode();
@@ -1678,31 +1697,121 @@ export default function AdminSideNav({
     }
   };
 
-  const handleResetConfirm = async () => {
-    setShowResetModal(false);
-    let resetOk = false;
+  async function finishReadyReset(generation) {
+    if (generation !== readinessGenerationRef.current || readinessResetStartedRef.current) return;
+    readinessResetStartedRef.current = true;
+    setReadinessJob((current) => current ? { ...current, cleanup: "running" } : current);
     try {
-      const res = await fetch("/api/admin/reset-demo", {
-        method: "POST",
-        credentials: "include",
-      });
-      resetOk = res.ok;
-      if (!resetOk) console.error("[Sidebar] Reset Demo failed:", res.status);
-    } catch (err) {
-      console.error("[Sidebar] Reset Demo failed:", err.message);
-    }
-    if (!resetOk) {
+      await apiClient.post("/api/admin/reset-demo");
+      try { localStorage.removeItem("tokenChainHistory"); } catch (_) {}
+      try { localStorage.removeItem("api-traffic-store"); } catch (_) {}
+      performLogout();
+    } catch (error) {
+      console.error("[Sidebar] Reset Demo failed:", error?.message || "cleanup failed");
+      readinessResetStartedRef.current = false;
+      setReadinessJob((current) => current ? {
+        ...current,
+        cleanup: "failed",
+        error: "Readiness passed, but demo cleanup failed. You are still signed in.",
+      } : current);
       notifyError("Reset Demo failed. Please try again.");
-      return;
     }
+  }
+
+  async function pollReadinessJob(jobId, generation = readinessGenerationRef.current) {
+    if (generation !== readinessGenerationRef.current) return;
+    clearTimeout(readinessPollTimerRef.current);
     try {
-      localStorage.removeItem("tokenChainHistory");
-    } catch (_) {}
+      const { data } = await apiClient.get(`/api/admin/demo-readiness/jobs/${encodeURIComponent(jobId)}`);
+      if (generation !== readinessGenerationRef.current) return;
+      const snapshot = { ...data, jobId };
+      setReadinessJob(snapshot);
+      if (snapshot.status === "ready" && isFullyReadyReadinessReport(snapshot.report)) {
+        await finishReadyReset(generation);
+        return;
+      }
+      if (snapshot.status === "ready") {
+        setReadinessJob((current) => current ? {
+          ...current,
+          status: "not-ready",
+          error: "The readiness report did not prove both targets fully READY. Reset was not run.",
+        } : current);
+        return;
+      }
+      if (snapshot.status === "running") {
+        readinessPollTimerRef.current = setTimeout(
+          () => pollReadinessJob(jobId, generation),
+          READINESS_POLL_INTERVAL_MS,
+        );
+      }
+    } catch (error) {
+      if (generation !== readinessGenerationRef.current) return;
+      console.error("[Sidebar] Readiness status check failed:", error?.message || "request failed");
+      setReadinessJob((current) => current ? {
+        ...current,
+        status: "poll-error",
+        error: "Readiness status could not be loaded. Reset was not run. Retry the status check or start a new run.",
+      } : current);
+    }
+  }
+
+  async function handleResetConfirm() {
+    setShowResetModal(false);
+    clearTimeout(readinessPollTimerRef.current);
+    readinessResetStartedRef.current = false;
+    const generation = ++readinessGenerationRef.current;
+    setReadinessJob({ status: "starting", progress: { phase: "starting" }, preview: null, report: null });
     try {
-      localStorage.removeItem("api-traffic-store");
-    } catch (_) {}
-    performLogout();
-  };
+      const { data } = await apiClient.post("/api/admin/demo-readiness/jobs");
+      if (!data?.jobId) throw new Error("readiness job ID was not returned");
+      if (generation !== readinessGenerationRef.current) return;
+      setReadinessJob((current) => current ? { ...current, ...data, jobId: data.jobId } : current);
+      await pollReadinessJob(data.jobId, generation);
+    } catch (error) {
+      if (generation !== readinessGenerationRef.current) return;
+      console.error("[Sidebar] Readiness job could not start:", error?.message || "request failed");
+      setReadinessJob({
+        status: "failed",
+        error: "The demo readiness job could not start. Reset was not run.",
+      });
+    }
+  }
+
+  async function handleRepairConfirm() {
+    const activeJob = readinessJob;
+    const repairDigest = activeJob?.preview?.digest;
+    if (!activeJob?.jobId || !repairDigest) return;
+    setShowRepairConfirm(false);
+    const generation = readinessGenerationRef.current;
+    setReadinessJob((current) => current ? { ...current, status: "running", error: null } : current);
+    try {
+      await apiClient.post(
+        `/api/admin/demo-readiness/jobs/${encodeURIComponent(activeJob.jobId)}/confirm`,
+        { digest: repairDigest },
+      );
+      await pollReadinessJob(activeJob.jobId, generation);
+    } catch (error) {
+      if (generation !== readinessGenerationRef.current) return;
+      console.error("[Sidebar] Readiness repair confirmation failed:", error?.message || "request failed");
+      setReadinessJob((current) => current ? {
+        ...current,
+        status: "not-ready",
+        error: "The repair preview could not be confirmed. Start a new readiness run; reset was not run.",
+      } : current);
+    }
+  }
+
+  function declineRepairConfirmation() {
+    setShowRepairConfirm(false);
+    setReadinessJob((current) => current ? { ...current, declined: true } : current);
+  }
+
+  function closeReadinessJob() {
+    clearTimeout(readinessPollTimerRef.current);
+    readinessGenerationRef.current += 1;
+    setShowRepairConfirm(false);
+    setReadinessJob(null);
+  }
 
   // Kill-switch state/handlers moved to App.js — this component (and its
   // local state) unmounts the instant `user` clears, which a successful kill
@@ -1871,6 +1980,27 @@ export default function AdminSideNav({
       </Link>
     );
   };
+
+  const readinessReport = readinessJob?.report;
+  const readinessPreview = readinessJob?.preview || readinessReport?.repairPreview;
+  const readinessChanges = Array.isArray(readinessPreview?.changes) ? readinessPreview.changes : [];
+  const readinessBlockedChanges = Array.isArray(readinessPreview?.blocked) ? readinessPreview.blocked : [];
+  const readinessFindingSource = readinessReport || readinessJob?.progress;
+  const readinessFailures = [
+    ...(Array.isArray(readinessFindingSource?.checks) ? readinessFindingSource.checks : []),
+    ...(Array.isArray(readinessFindingSource?.rows) ? readinessFindingSource.rows : []),
+  ].filter((row) => row && row.status !== "pass");
+  const canConfirmReadinessRepairs = readinessJob?.status === "awaiting-confirmation"
+    && typeof readinessPreview?.digest === "string"
+    && readinessChanges.length > 0
+    && readinessBlockedChanges.length === 0
+    && !readinessJob.declined;
+  const readinessPhase = readinessJob?.progress?.phase || readinessJob?.status;
+  const readinessStatusTone = readinessJob?.cleanup === "failed"
+    || readinessFailures.length > 0
+    || Boolean(readinessJob?.error)
+    ? "blocked"
+    : readinessReport?.ready === true ? "ready" : "";
 
   return (
     <div
@@ -2217,11 +2347,106 @@ export default function AdminSideNav({
       <ConfirmModal
         isOpen={showResetModal}
         title="Reset Demo"
-        message="Clear all agent history, token chain events, and MCP audit logs? You will be signed out and the theme will reset to default."
-        confirmLabel="Reset"
+        message="First verify Agent Gateway, Authorize, audiences, scopes, and grants for local Docker and hosted SE, including PingOne and PingFederate sessions and UC40 ID-JAG. Any configuration changes will be shown for your confirmation. Cleanup and sign-out happen only after every required check is READY."
+        confirmLabel="Check readiness"
         danger
         onConfirm={handleResetConfirm}
         onCancel={() => setShowResetModal(false)}
+      />
+      <DraggableModal
+        isOpen={Boolean(readinessJob)}
+        title="Demo readiness"
+        storageKey={null}
+        defaultWidth={680}
+        defaultHeight={620}
+        minWidth={520}
+        onClose={closeReadinessJob}
+      >
+        <div className="dm-scroll admin-side-nav__readiness-content" aria-live="polite">
+          <p className="admin-side-nav__readiness-intro">
+            Checking all 46 Demo Steps against local Docker and hosted SE, with PingOne and PingFederate sessions and UC40 ID-JAG coverage.
+          </p>
+          <p className={`admin-side-nav__readiness-status${readinessStatusTone ? ` admin-side-nav__readiness-status--${readinessStatusTone}` : ""}`}>
+            {readinessJob?.cleanup === "running"
+              ? "All readiness checks passed. Resetting demo state…"
+              : readinessJob?.cleanup === "failed"
+                ? "Readiness passed, but demo cleanup failed. You are still signed in."
+                : readinessJob?.status === "starting"
+                  ? "Starting readiness checks…"
+                  : `Status: ${String(readinessJob?.status || "running").replaceAll("-", " ")}`}
+          </p>
+          {readinessPhase && readinessJob?.status !== "starting" && (
+            <p>Current phase: {String(readinessPhase).replaceAll("-", " ")}</p>
+          )}
+          {readinessJob?.error && <p role="alert">{readinessJob.error}</p>}
+          {readinessJob?.status === "poll-error" && readinessJob.jobId && (
+            <button type="button" className="btn btn-secondary" onClick={() => void pollReadinessJob(readinessJob.jobId)}>
+              Retry status check
+            </button>
+          )}
+
+          {readinessPreview && (
+            <section className="admin-side-nav__readiness-section" aria-labelledby="readiness-preview-heading">
+              <h3 id="readiness-preview-heading">Configuration repair preview</h3>
+              <p>Proposed changes: {readinessChanges.length}. Blocked changes: {readinessBlockedChanges.length}.</p>
+              {readinessChanges.length === 0 && <p>No automatic configuration changes are proposed.</p>}
+              <ul className="admin-side-nav__readiness-list">
+                {readinessChanges.map((change, index) => (
+                  <li key={`${change.target || "target"}-${change.object || "object"}-${index}`}>
+                    <strong>{[change.target, change.object, change.operation].filter(Boolean).map((value) => typeof value === "string" ? value : JSON.stringify(value)).join(" · ") || `Change ${index + 1}`}</strong>
+                    {change.sourceRef && <div>Source: {change.sourceRef}</div>}
+                    {Object.prototype.hasOwnProperty.call(change, "current") && <div>Current value: {JSON.stringify(change.current)}</div>}
+                    {Object.prototype.hasOwnProperty.call(change, "expected") && <div>Expected value: {JSON.stringify(change.expected)}</div>}
+                  </li>
+                ))}
+                {readinessBlockedChanges.map((change, index) => (
+                  <li key={`blocked-${index}`}>
+                    <strong>Blocked: {[change.target, change.object].filter(Boolean).map((value) => typeof value === "string" ? value : JSON.stringify(value)).join(" · ") || `Change ${index + 1}`}</strong>
+                    {change.reason && <div>{change.reason}</div>}
+                  </li>
+                ))}
+              </ul>
+              {readinessPreview.digest && (
+                <p className="admin-side-nav__readiness-digest">Preview digest: {readinessPreview.digest}</p>
+              )}
+              {canConfirmReadinessRepairs && (
+                <button type="button" className="btn btn-primary" onClick={() => setShowRepairConfirm(true)}>
+                  Review repairs and confirm
+                </button>
+              )}
+              {readinessJob?.declined && <p role="status">Repair confirmation declined. No changes were applied; reset was not run.</p>}
+            </section>
+          )}
+
+          {(readinessReport || readinessFailures.length > 0) && (
+            <section className="admin-side-nav__readiness-section" aria-labelledby="readiness-results-heading">
+              <h3 id="readiness-results-heading">{readinessReport ? "Readiness results" : "Findings to review"}</h3>
+              {readinessFailures.length > 0 ? (
+                <ul className="admin-side-nav__readiness-list">
+                  {readinessFailures.map((row, index) => (
+                    <li key={`${row.id || "finding"}-${index}`}>
+                      <strong>{row.id || `Finding ${index + 1}`} — {row.status}</strong>
+                      {row.evidence && <div>{typeof row.evidence === "string" ? row.evidence : JSON.stringify(row.evidence)}</div>}
+                    </li>
+                  ))}
+                </ul>
+              ) : readinessReport.ready === true ? (
+                <p>Every required check passed for local Docker and hosted SE.</p>
+              ) : (
+                <p>The report does not establish full readiness. Demo state was not reset.</p>
+              )}
+            </section>
+          )}
+        </div>
+      </DraggableModal>
+      <ConfirmModal
+        isOpen={showRepairConfirm}
+        title="Apply readiness repairs"
+        message={`Confirm this exact repair preview to apply the displayed changes. The digest is ${readinessPreview?.digest || "unavailable"}. Cancelling applies nothing and does not reset demo state.`}
+        confirmLabel="Apply displayed repairs"
+        danger
+        onConfirm={handleRepairConfirm}
+        onCancel={declineRepairConfirmation}
       />
       <ConfirmModal
         isOpen={adminPromptPath != null}

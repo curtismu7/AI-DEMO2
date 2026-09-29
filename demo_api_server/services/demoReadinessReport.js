@@ -11,6 +11,11 @@ const TOKEN_VALUE_KEY_RE = /(?:^|_)token(?:$|_(?:value|secret|raw|jwt|credential
 const COMPOUND_SECRET_KEY_RE = /(?:^|_)(auth|authorization|password|passwd|cookie|client_secret|api_key)(?:_|$)/i;
 const INTERNAL_SERIALIZERS = new WeakSet();
 const USER_SESSION_PROVIDER_IDS = new Set(['pingone', 'pingfederate']);
+const READINESS_APPLICABILITY_VALUES = new Set([
+  'required', 'provider-bound', 'pingone-required', 'pingfederate-required',
+  'not-applicable', 'provider-flow-bound', 'vertical-contract-bound',
+  'preserved_if_present_but_not_accepted_as_the_pf_proof',
+]);
 
 function normalizeKey(key) {
   return key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').replace(/-/g, '_').toLowerCase();
@@ -23,6 +28,9 @@ function isTokenValueKey(key) {
 function isReadinessSecretKey(key, value) {
   const normalized = normalizeKey(key);
   if (normalized === 'user_session_provider' && USER_SESSION_PROVIDER_IDS.has(value)) return false;
+  // `providerApplicability.userSession` is a checked-in role declaration, not
+  // a browser session. Keep its small closed vocabulary visible in reports.
+  if (normalized.endsWith('user_session') && READINESS_APPLICABILITY_VALUES.has(value)) return false;
   return SESSION_KEY_RE.test(key) || isTokenValueKey(key) || COMPOUND_SECRET_KEY_RE.test(normalized);
 }
 
@@ -102,6 +110,7 @@ function safeReportSnapshot(report) {
     ready: report.ready,
     elapsedMs: report.elapsedMs,
     targetWarning: report.targetWarning,
+    categoryCounts: report.categoryCounts,
     inventory: report.inventory,
     checks: report.checks,
     repairs: report.repairs,
@@ -149,6 +158,7 @@ function createReadinessReport({ runId, commit, targets, startedAt, deadlineAt }
     ready: false,
     elapsedMs: 0,
     targetWarning: false,
+    categoryCounts: { core: 0, variants: 0, feature: 0, attackLab: 0, total: 0 },
     inventory: emptyInventory(),
     checks: [],
     repairs: [],

@@ -227,25 +227,46 @@ light and dark themes.
 `demo_api_ui/src/components/__tests__/topologyEdgeLabelLayout.test.js`.
 
 **What was broken:** edge labels shared route midpoints and could overlap one
-another or sit directly on their lines. The playback/result area and its controls
-also took enough vertical space to hide most of the map in a short viewport.
+another, route strokes, or visible service cards. The playback/result controls
+also used enough vertical space to hide most of the map in a short viewport.
 
-**What was fixed:** position padded labels in separate lanes clear of both route
-midpoints and visible service cards, with a dark background that keeps route
-strokes clear of the text. Compress the result strip, toolbar spacing, and default
-desktop playback height; preserve numbered steps, all controls, and any custom
-pane size saved by the user.
+**What was fixed:** place padded labels in separate lanes clear of route
+midpoints and visible service cards. Compress the result strip, toolbar spacing,
+and default desktop playback height; preserve numbered steps, pane resizing, and
+any custom size saved by the user.
 
 **Do not break:** keep flow selection, step numbering, playback, filtering,
-exports, and resizable panes intact. Keep label rectangles separated, clear of
-their route midpoints, and outside visible service cards.
+exports, and resizable panes intact. Keep label rectangles separated and clear
+of routes and visible service cards.
 
-**Verify:** focused Vitest suites (20 passed) confirm labels remain outside
-visible service cards and saved 150px panes are preserved; UI production build
-passed. The full UI suite stopped at batch 34/58 when its local RSS monitor's
-`ps` process was terminated. The earlier desktop render measured 58 labels with
-no label-to-label overlap; the final server-card avoidance is covered by the
-focused component test.
+**Verify:** focused Vitest suites (20 tests passed) cover label/card separation
+and saved 150px pane preservation; UI production build passed. The broad local UI
+suite stopped at batch 34/58 when its RSS monitor's `ps` subprocess was
+terminated; required CI UI tests/build and topology gates passed before the latest
+merge-base update.
+
+### 2026-09-28 — Readiness modal body missed the shared scroll surface
+
+**Files:** `demo_api_ui/src/components/AdminSideNav.jsx`,
+`demo_api_server/tests/mcpGatewayConfig.test.js`.
+
+**What was broken:** The Admin Reset Demo readiness modal rendered its long
+preview and findings directly in the modal body without the required
+`.dm-scroll` wrapper. The body had no shared padding/scroll behavior, so longer
+reports could be clipped. The gateway-push persistence regression also lacked an
+assertion that the intended store write was attempted.
+
+**What was fixed:** Put the existing readiness content on the shared scroll
+surface. Keep the BFF store failure active through the request and assert the
+exact persisted payload and single call, so the test verifies the gateway-push
+write failure path explicitly.
+
+**Do not break:** Preserve the readiness/reset/repair flow and its admin
+confirmation, and keep PingOne/PingFederate login and audience handling
+unchanged.
+
+**Verify:** `dmScrollContract.test.js` (2/2), `mcpGatewayConfig.test.js` (16/16),
+UI production build, and rendered modal contrast audit in light and dark themes.
 
 ### 2026-09-28 — PF active provider broke the PingOne MCP machine-token chain
 
@@ -379,6 +400,102 @@ scoped to Quick Config; do not change the shared floating-panel behavior.
 
 **Verify:** `cd demo_api_ui && npm run build`; inspect the Quick Config title
 bar in light and dark themes.
+### 2026-09-28 — Topology playback conflated bearer and API-key paths
+
+**Files:** `demo_api_ui/src/components/serverTopologyData.js`,
+`demo_api_ui/src/components/__tests__/ServerTopologyPage.playbacks.test.jsx`,
+`docs/exports/server-topology-details.csv`,
+`docs/exports/server-topology-lucidchart.csv`,
+`docs/SECURITY_NETWORKING_ASSESSMENT.md`,
+`docs/SECURITY_NETWORKING_REMEDIATION_WORKPLAN.md`.
+
+**What was broken:** the API-key playback showed RFC 8693 even though the
+gateway returns from that dispatch after Authorize and calls the backend with
+`X-API-Key`. The protected API playback pointed at that API-key service while
+claiming bearer authorization, and the direct MCP playback did not identify
+that it represented the local Compose listener rather than hosted routing.
+
+**What was fixed:** the API-key playback now ends at the direct backend call;
+the bearer-protected MCP route ends at the BFF API called by
+`BankingAPIClient`; and the direct MCP playback is labeled local, with the
+hosted PingGateway route explained separately. The topology exports, assessment,
+and workplan now match those paths.
+
+**Do not break:** keep Authorize before the API-key dispatch, keep that branch
+free of RFC 8693 and bearer credentials at the backend, retain RFC 8693 on
+token-authenticated MCP routes, and preserve the local/hosted route distinction.
+
+**Verify:** `npx vitest run
+src/components/__tests__/ServerTopologyPage.playbacks.test.jsx` (10 passed),
+`npm run build`, `npm run topology:verify`, and `npm run
+demo:readiness:contract` (46 Demo Steps / 800 matrix rows).
+
+### 2026-09-28 — Show conditional provider-specific MCP Step 9 in protected API playback
+
+**Files:** `demo_api_ui/src/components/serverTopologyData.js`,
+`demo_api_ui/src/components/__tests__/ServerTopologyPage.playbacks.test.jsx`,
+`docs/exports/server-topology-details.csv`,
+`docs/exports/server-topology-lucidchart.csv`,
+`docs/SECURITY_NETWORKING_ASSESSMENT.md`,
+`docs/SECURITY_NETWORKING_REMEDIATION_WORKPLAN.md`.
+
+**What was missing:** the protected BFF API playback showed the Node gateway's
+RFC 8693 exchange and then the MCP server's BFF call, but omitted the optional
+MCP Step 9 exchange performed for configured non-vertical banking data tools.
+That exchange selects the matching issuer from the validated agent token
+presented to OAuth MCP.
+
+**What was fixed:** the Node Gateway path now has a conditional PingOne Step 9
+variant, while the PF Step 9 edge is used only by the direct local WebSocket
+path that supplies a PF-issued bearer. The existing playback explicitly covers
+the no-Step-9 passthrough case. The audit, workplan, and both exports now record
+all three paths accurately.
+
+**Do not break:** keep MCP Step 9 separate from the Node gateway's PingOne
+exchange; do not pair the PF Step 9 edge with that PingOne-issued token; keep
+the PF variant on the direct local WebSocket path unless the HTTP issuer
+allowlist or another real ingress path is changed to accept PF-issued tokens.
+Require `BANKING_API_RESOURCE_URI` to match the BFF resource audience for both
+provider variants; the env refresh helper aligns them by default. Preserve
+passthrough only for deployments where Step 9 is not configured.
+
+**Verify:** focused `ServerTopologyPage.playbacks.test.jsx`, UI build, topology
+verification, contract verification, and export consistency checks.
+
+### 2026-09-28 — Admin Reset Demo repair confirmation hid its audit findings
+
+**Files changed:** `demo_api_server/services/demoReadinessRunner.js`,
+`demo_api_server/tests/demoReadinessRunner.test.js`,
+`demo_api_ui/src/components/AdminSideNav.jsx`,
+`demo_api_ui/src/components/__tests__/AdminSideNav.resetDemo.test.jsx`,
+`docs/demo-readiness.md`, `REGRESSION_PLAN.md`.
+
+**What was broken:** the runner published the repair preview before it waited
+for the administrator, but the progress snapshot omitted the prerequisite and
+initial-audit rows. The Admin sidebar only rendered findings from the terminal
+report, which did not exist until that confirmation wait ended. In the same
+preview, blocked object values were joined as strings and displayed as
+`[object Object]`, hiding their identifiers.
+
+**What was fixed:** `repair-preview-ready` now includes the sanitized check and
+row snapshots already collected by the runner. The Admin sidebar uses those
+rows while no report exists and displays object-valued blocked identities as
+JSON, matching proposed changes. The master guide records this pre-confirmation
+review requirement.
+
+**Do not break:** the confirmation remains bound to the exact preview digest;
+only the existing READY gate can call reset, clear local history, or sign out.
+Dashboard/customer reset and logout paths remain unchanged.
+
+**Verify:** `CI=true npx jest tests/demoReadinessRunner.test.js
+tests/demoReadiness.route.test.js --runInBand --forceExit` (35 passed);
+`npx vitest run src/components/__tests__/AdminSideNav.resetDemo.test.jsx`
+(10 passed); `npm run build` (passed, 46 Demo Steps / 800 matrix rows);
+rendered finding/preview text contrast (0 failures in light and dark, minimum
+6.80:1 / 8.47:1); `git diff --check`. The broader `npm run test:unit` run did
+not finish after seven minutes with one worker still active and was stopped
+without a suite result.
+
 ### 2026-09-28 — DaVinci widget runtime followed PF instead of the PingOne region
 
 **Files:** `demo_api_server/routes/davinciLogin.js`,
