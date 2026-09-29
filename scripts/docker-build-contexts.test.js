@@ -31,19 +31,19 @@ test('BFF build context includes the readiness audit helper scripts', () => {
       );
     }
 
-    const runtimeRoot = path.join(outputRoot, 'runtime');
-    const serviceDirectory = path.join(runtimeRoot, 'app', 'services');
-    fs.mkdirSync(serviceDirectory, { recursive: true });
-    fs.cpSync(path.join(outputRoot, 'bff', 'scripts'), path.join(runtimeRoot, 'scripts'), { recursive: true });
-    const probePath = path.join(serviceDirectory, 'readiness-import-probe.js');
-    fs.writeFileSync(probePath, [
-      "module.exports = [require('../../scripts/check-demo-health-gate'), require('../../scripts/check-mcp-preflight')];",
-      '',
-    ].join('\n'));
-
-    const [healthGate, mcpPreflight] = require(probePath);
-    assert.equal(typeof healthGate.fetchJson, 'function');
-    assert.equal(typeof mcpPreflight.probe, 'function');
+    const stagedBff = path.join(outputRoot, 'bff');
+    fs.symlinkSync(
+      path.join(repoRoot, 'demo_api_server', 'node_modules'),
+      path.join(stagedBff, 'demo_api_server', 'node_modules'),
+      'dir',
+    );
+    const auditService = require(path.join(
+      stagedBff,
+      'demo_api_server',
+      'services',
+      'demoReadinessAuditService.js',
+    ));
+    assert.equal(typeof auditService.createAuditService, 'function');
   } finally {
     fs.rmSync(outputRoot, { recursive: true, force: true });
   }
