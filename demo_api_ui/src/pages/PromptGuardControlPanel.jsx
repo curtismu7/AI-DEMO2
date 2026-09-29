@@ -3,6 +3,8 @@ import Check from '../components/common/Check';
 
 const SIDECAR_URL = 'http://localhost:8086';
 const STORAGE_KEY = 'promptguard-sidecar-config-draft';
+const REFRESH_MS = 15000;
+const READ_TIMEOUT_MS = 5000;
 const ENGINE_NAMES = { classifier: 'Built-in classifier', nemo: 'NeMo Guardrails' };
 const DEFAULT_CONFIG = {
   engine: 'classifier',
@@ -50,24 +52,59 @@ export default function PromptGuardControlPanel() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const lifecycle = useRef(null);
+  const refreshState = useRef(null);
+  const applyingRef = useRef(false);
 
   useEffect(() => {
     const controller = new AbortController();
     lifecycle.current = controller;
-    const options = { method: 'GET', signal: controller.signal };
-    Promise.all([request('/health', options), request('/demo/config', options)])
-      .then(([health, data]) => {
-        if (controller.signal.aborted) return;
-        if (!health.ok) throw new Error('Sidecar is not healthy');
-        setActive(data.config);
-        setEngines(data.engines);
-        if (!savedDraft) setDraft(data.config);
-        setConnection('Connected');
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setConnection('Disconnected');
-      });
-    return () => controller.abort();
+    let readController;
+    let readTimeout;
+    let pending;
+    async function refresh(initializeDraft = false) {
+      if (pending) return pending;
+      readController = new AbortController();
+      readTimeout = setTimeout(() => readController.abort(), READ_TIMEOUT_MS);
+      const options = { method: 'GET', signal: readController.signal };
+      pending = Promise.all([request('/health', options), request('/demo/config', options)])
+        .then(([health, data]) => {
+          if (controller.signal.aborted) return;
+          if (!health.ok) throw new Error('Sidecar is not healthy');
+          setActive(data.config);
+          setEngines(data.engines);
+          if (initializeDraft && !savedDraft) setDraft(data.config);
+          setConnection('Connected');
+        })
+        .catch(() => {
+          if (!controller.signal.aborted) setConnection('Disconnected');
+        })
+        .finally(() => {
+          clearTimeout(readTimeout);
+          readController.abort();
+          pending = null;
+        });
+      return pending;
+    }
+    refreshState.current = async () => {
+      // A read begun before a rejected PUT may contain stale capabilities.
+      if (pending) await pending;
+      if (!controller.signal.aborted) await refresh();
+    };
+    let pollTimer;
+    async function poll() {
+      if (!applyingRef.current) await refresh();
+      if (!controller.signal.aborted) pollTimer = setTimeout(poll, REFRESH_MS);
+    }
+    refresh(true).then(() => {
+      if (!controller.signal.aborted) pollTimer = setTimeout(poll, REFRESH_MS);
+    });
+    return () => {
+      controller.abort();
+      readController?.abort();
+      clearTimeout(readTimeout);
+      clearTimeout(pollTimer);
+      refreshState.current = null;
+    };
   }, [savedDraft]);
 
   const nemo = engines.find((engine) => engine.id === 'nemo');
@@ -92,6 +129,7 @@ export default function PromptGuardControlPanel() {
     if (!canApply) return;
     const controller = lifecycle.current;
     const submitted = draft;
+    applyingRef.current = true;
     setApplying(true);
     setError('');
     setNotice('');
@@ -116,11 +154,14 @@ export default function PromptGuardControlPanel() {
       }
     } catch (failure) {
       if (controller.signal.aborted) return;
+      if (failure.status === 409) await refreshState.current?.();
+      if (controller.signal.aborted) return;
       if (sent || !failure.status) setConnection('Disconnected');
       setError(sent
         ? `Apply was sent, but active configuration could not be refreshed: ${failure.message}`
         : `Apply failed: ${failure.message}`);
     } finally {
+      applyingRef.current = false;
       if (!controller.signal.aborted) setApplying(false);
     }
   }
@@ -135,7 +176,7 @@ export default function PromptGuardControlPanel() {
       </div>
       <p className="lgw-sidecar__note">Choose the detector and a demo override for matching prompts. Changes affect the shared sidecar only after Apply.</p>
       {connection === 'Disconnected' && (
-        <p className="lgw-sidecar__problem">The local port-forward is not responding at {SIDECAR_URL}. Check the tunnel, then reload to reconnect. Your draft is retained.</p>
+        <p className="lgw-sidecar__problem">The local port-forward is not responding at {SIDECAR_URL}. Check the tunnel; the panel retries automatically. Your draft is retained.</p>
       )}
       <form onSubmit={apply}>
         <div className="lgw-sidecar__fields">

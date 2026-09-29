@@ -185,6 +185,39 @@ def test_manager_shutdown_failure_restores_usable_previous_runtime():
     assert manager.check("after later switch") == ALLOWED
 
 
+def test_failed_restoration_reports_unavailable_and_can_reinitialize():
+    attempts = [0]
+
+    def classifier():
+        attempts[0] += 1
+        if attempts[0] == 2:
+            raise RuntimeError("prior runtime reload failed")
+        return FakeDetector(ALLOWED)
+
+    def broken_nemo():
+        raise RuntimeError("target initialization failed")
+
+    manager = fake_manager({"classifier": classifier, "nemo": broken_nemo})
+    with running_sidecar(manager) as base:
+        status, _, body = http_call(base, "/demo/config", "PUT", demo_config(engine="nemo"))
+        assert status == 409
+        assert "prior runtime reload failed" in body["message"]
+        state = http_call(base, "/demo/config")[2]
+        assert state["config"] == DEFAULT_CONFIG
+        assert not state["engines"][0]["available"]
+        assert "prior runtime reload failed" in state["engines"][0]["reason"]
+        assert not state["engines"][1]["available"]
+        status, _, body = http_call(base, "/inspect", "POST", {"units": [{"text": "hello"}]}, origin=None)
+        assert status == 502
+        assert body["error"] == "inspect_failed"
+        assert "prior runtime reload failed" in body["message"]
+        assert "AttributeError" not in body["message"] and "NoneType" not in body["message"]
+        status, _, body = http_call(base, "/demo/config", "PUT", DEFAULT_CONFIG)
+        assert status == 200 and body["engines"][0]["available"]
+        assert manager.check("after recovery") == ALLOWED
+        assert http_call(base, "/inspect", "POST", {"units": [{"text": "hello"}]}, origin=None)[2] == {"findings": []}
+
+
 def test_manager_switch_waits_for_inflight_check():
     checking, release, switch_started, switched = (threading.Event() for _ in range(4))
     errors = []

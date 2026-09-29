@@ -69,10 +69,17 @@ The sidecar exposes these local endpoints on port 8086:
   `http://localhost:8086/demo/config`.
 
 For the UI to reach the sidecar, start the login LaunchAgent port-forward. It
-keeps `localhost:8086` forwarded to the sidecar after login. The UI keeps edits
-as a localStorage draft until Save sends the config to the running sidecar; a
-new browser or storage reset starts with a blank client draft and reads the
-active config from the endpoint.
+keeps `localhost:8086` forwarded to the sidecar after login. Apply sends the
+edited config to the running sidecar. Only successfully applied values are
+saved as a localStorage draft; unsaved edits may be lost on reload. A new browser
+or storage reset reads the active config from the endpoint. While open, the panel
+checks connection and shared state every 15 seconds, with a 5-second read timeout,
+and preserves the draft through outages and sidecar restarts without applying it.
+
+If a detector switch and restoration both fail, the config endpoint returns
+409 and reports the previous detector unavailable. Inspections return 502
+until recovery. Restart the sidecar, or retry initialization by sending
+`PUT /demo/config` with the previous engine and a valid demo config.
 
 The configurable trigger phrase is a demo-only override. It applies to matching
 request-direction user prompts and is process-global to this sidecar instance,

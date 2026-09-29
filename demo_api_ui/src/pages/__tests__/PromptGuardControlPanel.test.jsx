@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import PromptGuardControlPanel from '../PromptGuardControlPanel';
 
 const STORAGE_KEY = 'promptguard-sidecar-config-draft';
@@ -51,8 +51,73 @@ async function connectedPanel() {
 beforeEach(() => localStorage.clear());
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+});
+
+it('refreshes engine readiness after a rejected NeMo activation while retaining edited and saved drafts', async () => {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_CONFIG));
+  let failed = false;
+  vi.stubGlobal('fetch', vi.fn(async (url, options = {}) => {
+    if (options.method === 'PUT') {
+      failed = true;
+      return response({ error: 'engine_unavailable', message: 'NeMo initialization failed' }, 409);
+    }
+    if (url.endsWith('/health')) return response({ ok: true });
+    return response({ config: DEFAULT_CONFIG, engines: failed ? ENGINES
+      : ENGINES.map((engine) => ({ ...engine, available: true, reason: null })) });
+  }));
+  await connectedPanel();
+  fireEvent.change(screen.getByLabelText('Detector'), { target: { value: 'nemo' } });
+  fireEvent.click(screen.getByRole('switch', { name: 'Demo override' }));
+  fireEvent.change(screen.getByLabelText('Literal trigger phrase'), { target: { value: 'EDITED_TRIGGER' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('NeMo initialization failed');
+  expect(screen.getByRole('option', { name: 'NeMo Guardrails' })).toBeDisabled();
+  expect(screen.queryByText('NeMo Guardrails is ready.')).not.toBeInTheDocument();
+  expect(screen.getByText(/optional_dependency_missing/)).toBeInTheDocument();
+  expect(screen.getByLabelText('Detector')).toHaveValue('nemo');
+  expect(screen.getByLabelText('Literal trigger phrase')).toHaveValue('EDITED_TRIGGER');
+  expect(screen.getByRole('button', { name: 'Apply' })).toBeDisabled();
+  expect(localStorage.getItem(STORAGE_KEY)).toBe(JSON.stringify(DEFAULT_CONFIG));
+});
+
+it('refreshes an open panel across tunnel outage and sidecar restart without applying its draft', async () => {
+  vi.useFakeTimers();
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(SAVED_CONFIG));
+  let outage = false;
+  let active = SAVED_CONFIG;
+  const fetchMock = vi.fn(async (url, options = {}) => {
+    if (options.method === 'PUT') throw new Error('Refresh must not apply config');
+    if (outage) throw new Error('Tunnel unavailable');
+    return response(url.endsWith('/health') ? { ok: true } : { config: active, engines: ENGINES });
+  });
+  vi.stubGlobal('fetch', fetchMock);
+  const { unmount } = render(<PromptGuardControlPanel />);
+  await act(async () => {});
+  expect(screen.getByText('Connected')).toBeInTheDocument();
+  expect(screen.getByLabelText('Active shared sidecar state')).toHaveTextContent(/Demo override allow/);
+  fireEvent.change(screen.getByLabelText('Literal trigger phrase'), { target: { value: 'UNSAVED_EDIT' } });
+  outage = true;
+  await act(async () => { await vi.advanceTimersByTimeAsync(15000); });
+  expect(screen.getByText('Disconnected')).toBeInTheDocument();
+  expect(screen.getByLabelText('Active shared sidecar state')).toHaveTextContent(/Last observed/);
+  expect(screen.getByRole('button', { name: 'Apply' })).toBeDisabled();
+  outage = false;
+  active = DEFAULT_CONFIG;
+  await act(async () => { await vi.advanceTimersByTimeAsync(15000); });
+  expect(screen.getByText('Connected')).toBeInTheDocument();
+  expect(screen.getByLabelText('Active shared sidecar state')).toHaveTextContent(/Built-in classifier.*Demo override disabled/);
+  expect(screen.getByLabelText('Literal trigger phrase')).toHaveValue('UNSAVED_EDIT');
+  expect(screen.getByLabelText('Detector')).toHaveValue('nemo');
+  expect(localStorage.getItem(STORAGE_KEY)).toBe(JSON.stringify(SAVED_CONFIG));
+  expect(fetchMock.mock.calls.every(([, options]) => options.method === 'GET')).toBe(true);
+  unmount();
+  expect(vi.getTimerCount()).toBe(0);
+  const requestCount = fetchMock.mock.calls.length;
+  await vi.advanceTimersByTimeAsync(60000);
+  expect(fetchMock.mock.calls).toHaveLength(requestCount);
 });
 
 it('loads the built-in detector with demo overrides off and explains unavailable NeMo', async () => {
@@ -171,6 +236,7 @@ it('ignores malformed browser storage and does not persist merely loading active
 });
 
 it('aborts outstanding mount requests when unmounted', () => {
+  vi.useFakeTimers();
   const fetchMock = vi.fn(() => new Promise(() => {}));
   vi.stubGlobal('fetch', fetchMock);
   const { unmount } = render(<PromptGuardControlPanel />);
@@ -178,6 +244,7 @@ it('aborts outstanding mount requests when unmounted', () => {
   unmount();
   expect(signals).toHaveLength(2);
   expect(signals.every((signal) => signal?.aborted)).toBe(true);
+  expect(vi.getTimerCount()).toBe(0);
 });
 
 

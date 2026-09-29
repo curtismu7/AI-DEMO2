@@ -132,6 +132,16 @@ class DetectorManager:
         with self._lock:
             if engine not in self._factories:
                 raise DetectorUnavailable("Unknown detector engine")
+            if engine == self._active and self._detector is None:
+                # A failed rollback leaves no runtime. Explicitly reselecting
+                # the previous engine retries its initialization.
+                try:
+                    self._detector = self._factories[engine]()
+                except Exception as error:
+                    self._reasons[engine] = f"Detector reinitialization failed: {error}"
+                    raise DetectorUnavailable(self._reasons[engine]) from error
+                self._reasons[engine] = None
+                return
             if self._reasons[engine] is not None:
                 raise DetectorUnavailable(self._reasons[engine])
             if engine == self._active:
@@ -149,10 +159,19 @@ class DetectorManager:
                 reason = f"Detector {stage} failed: {error}"
                 if stage == "initialization":
                     self._reasons[engine] = reason
-                self._detector = self._factories[previous]()
+                try:
+                    self._detector = self._factories[previous]()
+                except Exception as restoration_error:
+                    self._reasons[previous] = (
+                        f"Detector restoration failed: {restoration_error}. "
+                        f"Reselect {previous} to retry initialization or restart the sidecar."
+                    )
+                    raise DetectorUnavailable(f"{reason}; {self._reasons[previous]}") from restoration_error
                 raise DetectorUnavailable(reason) from error
             self._active = engine
 
     def check(self, text):
         with self._lock:
+            if self._detector is None:
+                raise DetectorUnavailable(self._reasons[self._active] or "No detector runtime is available")
             return self._detector.check(text)
