@@ -46,6 +46,8 @@ service has three functions rather than one parameterised call.
    ```
 
    The gateway URL takes no trailing slash — one is stripped if present.
+   Opening the gateway origin at `/` currently shows an MCP/OAuth information
+   page. LLM calls use the provider routes above.
 
 3. **Docker** needs nothing further. These arrive through
    `env_file: ./demo_api_server/.env`. They are deliberately **not** listed under
@@ -53,11 +55,19 @@ service has three functions rather than one parameterised call.
    for the same key, even when that key is unset, so a `${VAR:-}` default there
    would replace a real virtual key with an empty string.
 
+   **Optional agent-mode path:** `demo_agent_service` reads its own
+   `demo_agent_service/.env`; it does not inherit the BFF's `.env`. If enabling
+   `ff_privilege_llm_first` for requests handled by that service, set the same
+   gateway URL plus the Anthropic and Google virtual keys there. The variable
+   names are listed in [`demo_agent_service/.env.example`](../demo_agent_service/.env.example).
+
 4. **Kubernetes**: all four are declared **empty** in
    [`k8s/03-secrets.yaml.template`](../k8s/03-secrets.yaml.template) — they are
    credentials, and a populated template would commit them.
    [`k8s/create-secrets.sh`](../k8s/create-secrets.sh) mirrors the real values
-   from `demo_api_server/.env` into `ai-demo-secrets`, which the BFF mounts.
+   from `demo_api_server/.env` into `ai-demo-secrets`, which the BFF mounts. The
+   optional agent-mode path uses a separate `agent-secrets` secret and needs its
+   own values when enabled.
 
 5. **Verify the process actually has them** — a template naming a key does not
    prove the container received it:
@@ -67,6 +77,14 @@ service has three functions rather than one parameterised call.
    ```
 
    Expected: `4`. Check the **count**, never the values.
+
+   For the optional agent-mode path, check the separate container too:
+
+   ```bash
+   docker exec ai-demo-agent-service printenv | grep -c '^PRIVILEGE_LLM_'
+   ```
+
+   Expected: at least `3` when that path is configured.
 
 > **Never paste a virtual key into a doc, a ticket, a log line or a commit.**
 > `create-secrets.sh` logs that the mirror happened, not what it mirrored.
@@ -126,11 +144,28 @@ The raw equivalent, if you would rather show the wire than the console, is the
 **AI Guard — Raw Request** tab on the same page: the request body is free-text
 JSON and prints the gateway's untouched response.
 
-### What the keys allow today
+### Current lane connectivity check
 
-Verified live against `mcpgw.ai-demo.ping-devops.com`, **2026-09-09**. The
-allowlist is Privilege console config, so re-check before a demo rather than
-trusting this table.
+Verified **2026-09-29** against the running local BFF using
+`GET /api/privilege-mcp/llm/models?provider=<lane>`:
+
+| Lane | Result |
+|---|---|
+| Anthropic | `200`, 13 models returned |
+| OpenAI | `200`, 132 models returned |
+| Google | `401 invalid_api_key` |
+
+The local BFF has all three virtual-key variables set. The Google key currently
+does not authenticate on its lane; check its provider association and credential
+in the Privilege console, then update the local value. A successful catalog
+request confirms that lane's key and provider route; it does not test a chat
+completion, model allowlist, or policy denial.
+
+### Historical model allowlist snapshot
+
+Verified live against `mcpgw.ai-demo.ping-devops.com`, **2026-09-09**. This is a
+historical snapshot; the allowlist is Privilege console config, so re-check
+before a demo.
 
 | Lane | Answers | Refused `403` |
 |---|---|---|
@@ -141,22 +176,12 @@ trusting this table.
 The latency gap is the line to say out loud: the allowed call took ~2–8 s, the
 refusal ~40 ms. Nothing left the gateway, so there was nothing to wait for.
 
-> **The Google virtual key is misconfigured in the Privilege console — it is not
-> a per-model allowlist gap.** Every call on the `google` lane, including
-> `GET /llm/models`, answers `403 wrong_provider`: *"key not valid for provider
-> 'google'"*. The same key IS accepted on the `openai` route (no `wrong_provider`
-> there), which reached the real OpenAI API and got `401 invalid_api_key —
-> Incorrect API key provided: **lm-studio**`. So the virtual key configured for
-> `PRIVILEGE_LLM_VIRTUAL_KEY_GOOGLE` is actually a Privilege key registered
-> against the **OpenAI** provider, backed by the literal placeholder string
-> `lm-studio` as its real upstream credential — not a Google key at all.
-> Verified live 2026-09-09 against both the local stack and the SE cluster
-> (`mcpgw.ai-demo.ping-devops.com`), same result on both — this is the key
-> object itself, not an environment drift. Fix in the Privilege console: create
-> or repoint a virtual key that is actually provider=Google, backed by a real
-> Gemini API key, and update `PRIVILEGE_LLM_VIRTUAL_KEY_GOOGLE` (local `.env`
-> and the SE cluster's `demo-api-server` secret) to that key's value. Demo
-> Anthropic and OpenAI until then.
+> **Historical Google-key diagnosis from 2026-09-09:** the Google lane returned
+> `403 wrong_provider`, while the same virtual key was accepted on the OpenAI
+> route and reached an upstream API-key failure. That pointed to a provider
+> association mismatch in the Privilege console. The current check above now
+> returns `401 invalid_api_key`; verify the Google virtual key and its provider
+> credential in the console before using that lane.
 
 ## What a failure means
 
