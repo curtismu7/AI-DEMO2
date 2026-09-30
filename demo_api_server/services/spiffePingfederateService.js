@@ -8,7 +8,8 @@
  * token exchange against PingFederate with the SVID as actor_token. PF's JWT
  * Token Processor 2.0 validates the SVID (issuer = SPIRE OIDC discovery
  * provider, JWKS over mkcert TLS) and lands the workload identity
- * (spiffe://bxfinance.demo/bff) as the `spiffeId` claim on the issued token.
+ * (spiffe://bxfinance.demo/ns/ai-agents/sa/workforce-ai-agent) as the issued
+ * token's `client_id` and `act.sub` (see spiffe/pingfederate/spiffe-te-atm-mapping.json).
  *
  * Unlike services/mockSpiffeWorkloadApi.js this is not a mock: the SVID comes
  * from a real SPIRE server that attested this container. Unlike the locked
@@ -65,7 +66,9 @@ function redactSecrets(err, secrets) {
 }
 
 /**
- * Mint a JWT-SVID for the BFF workload with the requested audience by calling
+ * Mint a JWT-SVID for the workforce-ai-agent workload (spiffe://bxfinance.demo/
+ * ns/ai-agents/sa/workforce-ai-agent — the identity this exchange acts as, not the
+ * BFF's own `bff` SVID) with the requested audience by calling
  * the SPIRE agent Workload API. The agent's docker.sock mount lets a sibling
  * container present this container's docker labels, so the same one-shot
  * `spire-agent api fetch jwt` invocation that verified the integration works
@@ -79,7 +82,7 @@ function mintJwtSvid(audience) {
         'run', '--rm',
         '-v', '/var/run/docker.sock:/var/run/docker.sock',
         '-v', 'ai-demo_spiffe-agent-socket:/agent-sock',
-        '--label', 'com.ai-demo.spiffe-workload=bff',
+        '--label', 'com.ai-demo.spiffe-workload=workforce-agent',
         '--entrypoint', '/opt/spire/bin/spire-agent',
         SPIRE_AGENT_IMAGE,
         'api', 'fetch', 'jwt',

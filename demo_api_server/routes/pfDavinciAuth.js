@@ -126,9 +126,12 @@ async function callback(req, res) {
     if (!claims.sub || claims.nonce !== pending.nonce || !Number.isFinite(claims.exp)) {
       throw new Error('PF nonce, subject, or expiry invalid');
     }
+    // Kept server-side only, beside (never inside) the PingOne oauthTokens, so
+    // it can be the subject token for the ID-JAG exchange below.
     req.session.pfDavinciProof = {
       issuer: config.issuer,
       expiresAt: Math.min(claims.exp * 1000, Date.now() + PROOF_MAX_AGE_MS),
+      idToken: tokens.id_token,
     };
     req.session.save((error) => {
       if (error) return failure();
@@ -140,4 +143,36 @@ async function callback(req, res) {
   }
 }
 
-module.exports = { status, login, callback };
+// RFC 8693 exchange of the session's PF ID token for an ID-JAG at PF's token
+// endpoint. Returns null when there is no live PF sign-in (caller may fall
+// back); { error } when PF refuses; the token response fields otherwise.
+async function exchangeIdJag(req, { audience, resource, scope }) {
+  const config = settings();
+  const idToken = config.configured && proof(req) ? req.session.pfDavinciProof.idToken : null;
+  if (!idToken) return null;
+  const metadata = await discovery(config.issuer);
+  const body = new URLSearchParams({
+    grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
+    requested_token_type: 'urn:ietf:params:oauth:token-type:id-jag',
+    subject_token: idToken,
+    subject_token_type: 'urn:ietf:params:oauth:token-type:id_token',
+    audience,
+  });
+  if (resource) body.set('resource', resource);
+  if (scope) body.set('scope', scope);
+  const tokenResponse = await fetch(metadata.token_endpoint, {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${Buffer.from(`${config.clientId}:${config.clientSecret}`).toString('base64')}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body,
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  });
+  const result = await tokenResponse.json().catch(() => ({}));
+  if (!tokenResponse.ok) return { error: typeof result.error === 'string' ? result.error : 'id_jag_exchange_failed' };
+  const { access_token, issued_token_type, token_type, expires_in } = result;
+  return { access_token, issued_token_type, token_type, expires_in };
+}
+
+module.exports = { status, login, callback, exchangeIdJag };

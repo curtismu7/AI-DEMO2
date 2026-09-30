@@ -25,6 +25,7 @@ const jwt = require('jsonwebtoken');
 // Simple in-memory JWKS cache — refreshed after TTL
 const jwksCache = new Map();
 const JWKS_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const SAFE_JWT_ALGORITHMS = new Set(['RS256', 'RS384', 'RS512', 'ES256', 'ES384', 'ES512']);
 
 /**
  * Fetch PingOne JWKS and cache the result.
@@ -85,7 +86,7 @@ async function fetchJwks(jwksUri, { allowHttp = false } = {}) {
 }
 
 /**
- * Convert a JWK (RS256) to a PEM public key string.
+ * Convert an RSA or EC JWK to a PEM public key string.
  * @param {object} jwk
  * @returns {string} PEM
  */
@@ -122,14 +123,19 @@ function getPemForJwk(jwksUri, jwk) {
  * @param {string} opts.jwksUri   e.g. https://auth.pingone.com/{envId}/as/jwks
  * @param {string} [opts.issuer]  Expected issuer (optional but recommended)
  * @param {string} [opts.audience] Expected audience (optional)
+ * @param {string[]} [opts.algorithms] Fixed server-side allowlist; defaults to RS256.
  * @param {boolean} [opts.allowHttp] See fetchJwks — internal oauth-mcp JWKS only.
  * @returns {Promise<object>} decoded JWT payload
  */
-async function validateToken(token, { jwksUri, issuer, audience, allowHttp = false } = {}) {
+async function validateToken(token, { jwksUri, issuer, audience, allowHttp = false, algorithms = ['RS256'] } = {}) {
   // Decode header to get kid
   const decoded = jwt.decode(token, { complete: true });
   if (!decoded || !decoded.header) {
     throw new Error('Invalid JWT: cannot decode header');
+  }
+  if (!Array.isArray(algorithms) || algorithms.length === 0
+    || algorithms.some((algorithm) => !SAFE_JWT_ALGORITHMS.has(algorithm))) {
+    throw new Error('JWT verification algorithms must be a non-empty fixed asymmetric allowlist');
   }
   const { kid } = decoded.header;
 
@@ -167,14 +173,10 @@ async function validateToken(token, { jwksUri, issuer, audience, allowHttp = fal
 
   const pem = getPemForJwk(jwksUri, jwk);
 
-  // Verify options — the allow-list is a fixed, server-controlled value.
-  // NEVER derive it from the token's own (unverified) header: doing so lets
-  // an attacker pick their own verification algorithm (CWE-347, the classic
-  // RS256->HS256 signing-key confusion attack). PingOne only ever issues
-  // RS256-signed tokens (see jwkToPem above and jwksService.js), so RS256 is
-  // the only algorithm this server will accept.
+  // The allow-list is fixed by the server-side caller, never by this
+  // token's unverified header. Access-token callers retain the RS256 default.
   const verifyOptions = {
-    algorithms: ['RS256'],
+    algorithms,
   };
   if (issuer) verifyOptions.issuer = issuer;
   if (audience) verifyOptions.audience = audience;
