@@ -16,6 +16,42 @@ function harness(overrides = {}) {
 }
 
 describe('startReadinessRun', () => {
+  test('default prerequisites name missing target and isolated-worker settings before any audit', async () => {
+    const names = [
+      'DEMO_READINESS_LOCAL_BFF_URL', 'DEMO_READINESS_LOCAL_GATEWAY_URL', 'DEMO_READINESS_LOCAL_AUTHORIZE_URL', 'DEMO_READINESS_LOCAL_EXPECTED_REVISION',
+      'DEMO_READINESS_SE_BFF_URL', 'DEMO_READINESS_SE_GATEWAY_URL', 'DEMO_READINESS_SE_AUTHORIZE_URL', 'DEMO_READINESS_SE_EXPECTED_REVISION',
+      ...['LOCAL', 'SE'].flatMap((target) => ['PINGONE', 'PINGFEDERATE'].flatMap((provider) => [
+        `DEMO_READINESS_${target}_${provider}_WORKER_URL`,
+        `DEMO_READINESS_${target}_${provider}_WORKER_TOKEN`,
+        `DEMO_READINESS_${target}_${provider}_IDENTITY_REF`,
+      ])),
+    ];
+    const previous = new Map(names.map((name) => [name, process.env[name]]));
+    for (const name of names) delete process.env[name];
+
+    try {
+      const result = await startReadinessRun();
+
+      expect(result.checks).toContainEqual(expect.objectContaining({
+        id: 'target:local:bff-url',
+        status: 'blocked',
+        evidence: expect.stringContaining('DEMO_READINESS_LOCAL_BFF_URL'),
+      }));
+      expect(result.checks).toContainEqual(expect.objectContaining({
+        id: 'worker:se:pingfederate',
+        status: 'blocked',
+        evidence: expect.stringContaining('DEMO_READINESS_SE_PINGFEDERATE_IDENTITY_REF'),
+      }));
+      expect(result.checks).toContainEqual(expect.objectContaining({ id: 'provider-workers', status: 'blocked' }));
+      expect(result.ready).toBe(false);
+    } finally {
+      for (const [name, value] of previous) {
+        if (value === undefined) delete process.env[name];
+        else process.env[name] = value;
+      }
+    }
+  });
+
   test('empty prerequisite inventories block readiness before audit', async () => {
     const { calls, adapters } = harness({ checkPrerequisites: async () => [] });
 

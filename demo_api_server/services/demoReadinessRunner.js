@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const { createAuditService } = require('./demoReadinessAuditService');
 const { createRepairService } = require('./demoReadinessRepairService');
 const { createReadinessExecutionService } = require('./demoReadinessExecutionService');
+const { loadDemoReadinessRuntimeConfig } = require('./demoReadinessRuntimeConfig');
 const { HARD_DEADLINE_MS, redactReadinessValue } = require('./demoReadinessReport');
 
 const DEFAULT_TARGETS = Object.freeze(['local', 'se']);
@@ -62,8 +63,16 @@ function createDefaultAdapters(clock = Date.now) {
   const audit = createAuditService();
   const repairs = createRepairService({ now: () => nowFrom(clock) });
   const execution = createReadinessExecutionService();
+  const runtimeConfig = loadDemoReadinessRuntimeConfig();
   return {
-    checkPrerequisites: async () => [{ id: 'provider-workers', status: 'blocked', evidence: 'No production provider-isolated worker runtime or named readiness identities are configured.' }],
+    checkPrerequisites: async ({ targets = DEFAULT_TARGETS } = {}) => {
+      const selectedTargets = new Set(targets);
+      const configFindings = runtimeConfig.findings.filter((finding) => selectedTargets.has(finding.id.split(':')[1]));
+      return [
+        ...configFindings,
+        { id: 'provider-workers', status: 'blocked', evidence: 'The production provider-isolated worker runtime is not integrated; no presenter or administrator session will be reused.' },
+      ];
+    },
     audit: async ({ targets, deadlineAt, phase, signal }) => {
       const rows = [];
       for (const targetId of targets) {
