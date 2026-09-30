@@ -18,6 +18,11 @@ const request = require('supertest');
 // replaces every export with a jest.fn(); only exchangeCodeForToken/getUserInfo
 // are exercised on the callback path up to (and just past) the nonce gate.
 jest.mock('../services/oauthUserService');
+// validateIdToken verifies the ID token signature against the provider's JWKS
+// before it looks at the nonce. Stub only that signature step (returning the
+// token's own claims) so the REAL validateIdToken still runs and the nonce gate
+// is what these tests reach.
+jest.mock('../services/tokenValidationService', () => ({ validateToken: jest.fn() }));
 jest.mock('../services/configStore', () => ({
   getOAuthProvider: jest.fn(() => 'pingone'),
   getEffective: jest.fn(() => ''),
@@ -26,10 +31,23 @@ jest.mock('../services/configStore', () => ({
 
 const oauthService = require('../services/oauthUserService');
 const configStore = require('../services/configStore');
+const { validateToken } = require('../services/tokenValidationService');
 
-/** header.payload.sig with the given claims as the base64url payload. */
-const idToken = (claims) =>
-  'h.' + Buffer.from(JSON.stringify(claims)).toString('base64url') + '.s';
+const OIDC_CONFIG = {
+  jwksEndpoint: 'https://idp.example/jwks',
+  issuer: 'https://idp.example/as',
+  clientId: 'test-client',
+};
+
+/** header.payload.sig with an RS256 header and the claims as the base64url payload. */
+const b64 = (value) => Buffer.from(JSON.stringify(value)).toString('base64url');
+const idToken = (claims) => `${b64({ alg: 'RS256', typ: 'JWT' })}.${b64(claims)}.s`;
+
+/** Claims that pass every check in validateIdToken except the ones a test varies. */
+const baseClaims = (extra = {}) => {
+  const now = Math.floor(Date.now() / 1000);
+  return { iss: OIDC_CONFIG.issuer, sub: 'u1', aud: OIDC_CONFIG.clientId, iat: now, exp: now + 300, ...extra };
+};
 
 function makeApp(seed) {
   const app = express();
@@ -50,12 +68,15 @@ const SEED = {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  oauthService.config = OIDC_CONFIG;
+  validateToken.mockImplementation(async (token) =>
+    JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString()));
 });
 
 test('FAILS the callback when a nonce was requested but the ID token omits it', async () => {
   oauthService.exchangeCodeForToken.mockResolvedValue({
     access_token: 'at',
-    id_token: idToken({ sub: 'u1' }), // no `nonce` claim
+    id_token: idToken(baseClaims()), // no `nonce` claim
   });
 
   const res = await request(makeApp(SEED))
@@ -69,7 +90,7 @@ test('FAILS the callback when a nonce was requested but the ID token omits it', 
 test('does NOT emit a nonce error when the ID token carries the matching nonce', async () => {
   oauthService.exchangeCodeForToken.mockResolvedValue({
     access_token: 'at',
-    id_token: idToken({ sub: 'u1', nonce: 'expected-nonce' }),
+    id_token: idToken(baseClaims({ nonce: 'expected-nonce' })),
   });
   // Force a downstream failure AFTER the nonce gate so the flow ends in the
   // generic callback catch — proving the nonce gate itself was passed, not that
