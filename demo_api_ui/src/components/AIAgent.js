@@ -10163,6 +10163,7 @@ export default function BankingAgent({
         persistOpenState={splitChrome ? null : showDemoSteps}
         showTrigger={false}
         showFloatingButton={!isInline}
+        placement={splitChrome ? "drawer" : "floating"}
         onOpenChange={(next) => {
           setShowDemoSteps(next);
           if (!next) setFloatingDemoStepsOpen(false);

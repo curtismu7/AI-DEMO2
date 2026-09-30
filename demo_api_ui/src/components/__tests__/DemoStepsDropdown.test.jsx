@@ -157,6 +157,30 @@ describe('DemoStepsDropdown', () => {
     expect(onStopAgentClick).toHaveBeenCalledTimes(1);
   });
 
+  it('drawer placement pins to the right edge, resizes by its west edge only, and still closes and pops out', async () => {
+    const onOpenChange = vi.fn();
+    render(
+      <DemoStepsDropdown
+        open
+        placement="drawer"
+        onOpenChange={onOpenChange}
+        onSelect={() => {}}
+      />,
+    );
+    const panel = await screen.findByTestId('demo-steps-popout');
+    expect(panel).toHaveAttribute('data-placement', 'drawer');
+    expect(panel.className).toContain('fp-panel--drawer');
+    expect(panel.style.right).toBe('0px');
+    expect(panel.style.top).toBe('0px');
+    expect(screen.getByRole('separator', { name: 'Resize west' })).toBeInTheDocument();
+    expect(screen.queryAllByRole('separator')).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: /collapse/i })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Pop out Demo Steps' })).toBeInTheDocument();
+
+    fireEvent.click(within(panel).getByRole('button', { name: 'Close panel', exact: true }));
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
   it('closes from the title bar and keeps the pop-out and resize affordances when open', async () => {
     const onOpenChange = vi.fn();
     render(

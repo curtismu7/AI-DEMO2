@@ -262,6 +262,27 @@ flow-only mode's active route legible.
 **Verify:** `cd demo_api_ui && CI=true npx vitest run
 src/components/__tests__/ServerTopologyPage.playbacks.test.jsx`; `cd demo_api_ui
 && npm run build`; inspect the selected diagram in both themes.
+### 2026-09-30 — Dashboard Demo steps panel slides out from the right edge
+
+**Files:** `demo_api_ui/src/components/FloatingPanel.jsx`,
+`demo_api_ui/src/components/FloatingPanel.css`,
+`demo_api_ui/src/components/DemoStepsDropdown.jsx`,
+`demo_api_ui/src/components/AIAgent.js`, `REGRESSION_PLAN.md`.
+
+**What was changed:** on split-column dashboards the Demo steps panel opens as a
+drawer pinned to the right edge (full height, slides in, resized by its left
+edge, pop-out and close kept) instead of a free-floating window. `FloatingPanel`
+gained an opt-in `placement="drawer"`; the default `floating` placement and its
+other users are unchanged. Other pages keep the floating window.
+
+**Do not break:** `FloatingPanel` default drag, 8-way resize, collapse and
+pop-out for its other users; the Demo Steps selection flow; the header button's
+`agent-demo-steps-open` wiring.
+
+**Verify:** `cd demo_api_ui && npm run build`; Demo Steps vitest; on `/dashboard`
+the header button opens a right-edge drawer that resizes from its left edge, in
+light and dark themes.
+
 ### 2026-09-30 — Dashboard Demo Steps button belongs beside Favorites and its pop-out nearly filled the screen
 
 **Files:** `demo_api_ui/src/components/AIAgent.js`,

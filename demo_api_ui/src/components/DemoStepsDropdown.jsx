@@ -202,6 +202,7 @@ export default function DemoStepsDropdown({
   showFloatingButton = false,
   persistOpenState = open,
   onFloatingOpen,
+  placement = 'floating',
 }) {
   const [primarySteps, setPrimarySteps] = useState([]);
   const [advancedSteps, setAdvancedSteps] = useState([]);
@@ -557,11 +558,12 @@ export default function DemoStepsDropdown({
         <FloatingPanel
           title="Demo Steps"
           className="ba-demo-steps-float"
-          defaultWidth={panelWidth}
+          placement={placement}
+          defaultWidth={placement === 'drawer' ? Math.min(560, window.innerWidth - 16) : panelWidth}
           defaultHeight={panelHeight}
           defaultX={panelX}
           defaultY={64}
-          minWidth={320}
+          minWidth={placement === 'drawer' ? 360 : 320}
           minHeight={240}
           zIndex={100061}
           onClose={() => onOpenChange(false)}
@@ -569,7 +571,7 @@ export default function DemoStepsDropdown({
           aria-label="Demo steps"
           aria-modal="false"
           data-testid="demo-steps-popout"
-          data-placement="floating"
+          data-placement={placement}
         >
           <div className="ba-demo-steps-float__content">
           <div className="ba-demo-steps-popout__header">
