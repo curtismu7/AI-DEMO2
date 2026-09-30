@@ -35,4 +35,19 @@ describe('provider-specific user redirect URI', () => {
 
     expect(getUserRedirectUri(req)).toBe('https://local.ping-devops.com:4000/api/auth/oauth/user/callback');
   });
+
+  test.each([
+    ['pingone', 'user_redirect_uri', 'pf_user_redirect_uri'],
+    ['pingfederate', 'pf_user_redirect_uri', 'user_redirect_uri'],
+  ])('%s does not fall back to the other provider override', (provider, selectedKey, otherKey) => {
+    jest.spyOn(configStore, 'getOAuthProvider').mockReturnValue(provider);
+    const effective = jest.spyOn(configStore, 'getEffective').mockImplementation((key) =>
+      key === otherKey ? 'https://other.example.test/callback' : '',
+    );
+    process.env.PUBLIC_APP_URL = 'https://local.ping-devops.com:4000/';
+
+    expect(getUserRedirectUri(req)).toBe('https://local.ping-devops.com:4000/api/auth/oauth/user/callback');
+    expect(effective).toHaveBeenCalledWith(selectedKey);
+    expect(effective).not.toHaveBeenCalledWith(otherKey);
+  });
 });
