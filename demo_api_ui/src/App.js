@@ -178,6 +178,7 @@ import LlamaVscodeGuidePage from "./components/LlamaVscodeGuidePage";
 import AgenticAccessConsolePage from "./pages/AgenticAccessConsolePage";
 import PingAiProductPage from "./pages/PingAiProductPage";
 import PingOneProtectBrowserDemo from "./pages/PingOneProtectBrowserDemo";
+import PingOneVerifyRecognizePage from "./pages/PingOneVerifyRecognizePage";
 import AdminRoute from "./routes/AdminRoute";
 import HostedRegistrationPage from "./pages/HostedRegistrationPage";
 import HostedRegistrationAdminPage from "./pages/HostedRegistrationAdminPage";
@@ -1040,6 +1041,16 @@ function AppWithAuth() {
                         </main>
                       </>
                     )
+                  }
+                />
+                <Route
+                  path="/ping-products/verify-recognize"
+                  element={
+                    <AppShell user={user} logout={logout}>
+                      <main className="ai-product-main">
+                        <PingOneVerifyRecognizePage />
+                      </main>
+                    </AppShell>
                   }
                 />
                 <Route
