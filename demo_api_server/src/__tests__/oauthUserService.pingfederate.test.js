@@ -48,13 +48,13 @@ describe('OAuthUserService PingFederate browser flow', () => {
   });
 
   test('exchanges the code at PF with server-side client authentication', async () => {
-    await service.exchangeCodeForToken('code', 'verifier');
+    await service.exchangeCodeForToken('code', 'v'.repeat(43));
     const [url, bodyText, options] = axios.post.mock.calls[0];
     const body = new URLSearchParams(bodyText);
     expect(url).toBe('https://pf.example.test/as/token.oauth2');
     expect(body.get('grant_type')).toBe('authorization_code');
     expect(body.get('client_id')).toBe('pf-user-client');
-    expect(body.get('code_verifier')).toBe('verifier');
+    expect(body.get('code_verifier')).toBe('v'.repeat(43));
     expect(options.headers.Authorization).toMatch(/^Basic /);
     expect(body.has('client_secret')).toBe(false);
   });

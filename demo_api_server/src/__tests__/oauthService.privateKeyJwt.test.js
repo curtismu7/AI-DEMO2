@@ -44,7 +44,7 @@ const svc = require('../../services/oauthService');
 test('exchangeCodeForToken sends client_assertion and no secret when flag ON', async () => {
   axios.post.mockResolvedValue({ data: { access_token: 'not-a-jwt', expires_in: 3600 } });
 
-  await svc.exchangeCodeForToken('auth-code', 'verifier', MOCK_CONFIG.redirectUri);
+  await svc.exchangeCodeForToken('auth-code', 'v'.repeat(43), MOCK_CONFIG.redirectUri);
 
   expect(axios.post).toHaveBeenCalledTimes(1);
   const [url, bodyStr, opts] = axios.post.mock.calls[0];
