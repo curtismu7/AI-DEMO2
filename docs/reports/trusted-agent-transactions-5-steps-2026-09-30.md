@@ -95,7 +95,7 @@ Findings:
 ### 5.3 Side findings during the run
 
 - **UI 404 was a stray port-forward.** A `kubectl port-forward -n ai-demo svc/frontend 4000:4000` (PID 6418, started 08:03) was bound to `127.0.0.1:4000` and shadowed Docker's forward, so the browser reached the k8s frontend. It was stopped with the user's approval. `ai-demo-ui` was also restarted (its Vite process had stopped answering `docker exec`).
-- **Unauthenticated writes to `/api/admin/config`.** A `POST` with no session returned 200 with the full config, and a POST of `oauth_provider` changed the live provider. `requireAdminOrUnconfigured` appears not to enforce admin on this stack. Not investigated further; should be added to TECH_DEBT.md and checked.
+- **`/api/admin/config` is open on the local stack by design.** An unauthenticated POST returned 200 and could flip the provider, which first looked like a hole. It is not: `requireAdminOrUnconfigured` (`routes/adminConfig.js:71`) lets every request through when `NODE_ENV !== production`, and the local Docker BFF runs `development`. In production it requires an admin session (401 otherwise). No defect; an earlier draft of this report and a TECH_DEBT.md entry said otherwise and were retracted.
 - **Provider lock drift.** `.demo-provider-intent.json` still says `pingone` while the live provider is `pingfederate`; `scripts/pingone/demo-provider-lock.js verify` and the health gate's provider-lock row will report drift until one is changed.
 - **PF admin login failing in spec harness.** The spec's headless admin login logs `PingFederate rejected the credentials` and falls back to the LMDB session store; not relevant to FM1-FM3 but noisy.
 
