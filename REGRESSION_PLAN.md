@@ -5,6 +5,46 @@ Canonical do-not-break contract for the Super Banking demo. The
 layer that points here; `CLAUDE.md` also points here. This file is the source of
 truth — if the skill and this file disagree, this file wins.
 
+### 2026-09-27 — Bind login callbacks and refresh to the recorded provider
+
+**Files changed:** `demo_api_server/routes/oauth.js`,
+`demo_api_server/routes/oauthUser.js`,
+`demo_api_server/services/pkceStateCookie.js`,
+`demo_api_server/services/oauthEndpointResolver.js`,
+`demo_api_server/middleware/tokenRefresh.js`, and focused auth regression tests.
+
+**What was broken:** Login state did not consistently retain the provider that
+started the flow, allowing provider configuration changes to redirect a pending
+callback into another provider's token endpoint. The refresh middleware let a
+concurrent request continue with a refresh token already rotated by another
+request, and PingFederate preflight could resolve PingOne endpoints when the
+global provider was PingOne.
+
+**What was fixed:** PKCE state and server sessions now retain the login provider;
+callbacks fail closed and clear pending login state when provider configuration
+changes or the recorded provider is absent. PF preflight validates discovery
+metadata and issuer, then persists discovered values under PF-specific keys as
+part of the switch. Selected-PF runtime resolution ignores shared endpoint
+settings and discovery cache data that may belong to PingOne.
+Every code-flow entry point, including normal login, silent re-authentication,
+and MFA step-up, records the same provider in the session and signed PKCE cookie.
+Concurrent refresh requests wait for the single refresh operation and reload its
+durably saved tokens before continuing. Stale sessions from a previous provider
+are cleared before their refresh token can be sent elsewhere.
+
+**Do not break:** Preserve PKCE/state/nonce validation and callback host
+preservation. The BFF remains the sole browser-token custodian. Refresh tokens
+must be persisted before concurrent requests continue, and provider-specific
+callbacks and endpoint resolution must stay bound to the provider recorded when
+login began.
+
+**Verify:** Focused BFF auth/session Jest suites covering callback provider
+mismatch and missing-provider callbacks, PKCE provider round-trip, PingFederate
+preflight and runtime endpoint resolution in the presence of shared PingOne
+settings, preflight metadata validation and PF-specific persistence, concurrent
+refresh, stale-provider session clearing, and a step-up check asserting the
+provider marker in both session and PKCE cookie.
+
 ---
 
 ## §0 — UI style rules (hard)
