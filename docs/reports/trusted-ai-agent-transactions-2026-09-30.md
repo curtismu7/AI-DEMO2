@@ -1,0 +1,75 @@
+# AI-DEMO2 against the five-part Trusted AI Agent Transactions flow
+
+**Assessment date:** 2026-09-30
+
+**Repository snapshot:** `34ea8ebc6` (`docs/trusted-agent-five-part-report`)
+
+**Method:** Static review of tracked code, configuration, documentation, and tests. No live stack, PingFederate, PingAuthorize, or SPIRE exchange was exercised for this report. “Implemented” below means present in this snapshot, not proven active in a deployed environment.
+
+The comparison uses the five articles as one target flow: [1. identity](https://dev.to/darkedges/trusted-ai-agent-transactions-part-1-the-identity-problem-17aa), [2. token exchange](https://dev.to/darkedges/trusted-ai-agent-transactions-part-2-pingfederate-token-exchange-35pn), [3. SPIRE](https://dev.to/darkedges/trusted-ai-agent-transactions-part-3-spire-workload-identity-1gfb), [4. policy](https://dev.to/darkedges/trusted-ai-agent-transactions-part-4-pingauthorize-policy-decisions-3ik8), and [5. end-to-end proof](https://dev.to/darkedges/trusted-ai-agent-transactions-part-5-end-to-end-proof-44b5). This assesses parity with their **target architecture**, not whether their reference repository has finished its own Transaction Tokens migration.
+
+## Executive assessment
+
+**AI-DEMO2 has useful pieces of the architecture, but does not yet run its normal agent tool call as the article's trusted transaction flow.** The governed path uses user and agent OAuth tokens, RFC 8693 exchange, gateway authorization, and audit correlation. An opt-in SPIRE/PingFederate path can exchange a JWT-SVID actor. Those paths are separate: the SPIFFE exchange uses a machine subject and ends at a demo route; the governed path carries bearer access tokens and may re-exchange them at later hops. There is no evidenced, immutable `Txn-Token` plus authenticated immediate SPIFFE caller on every hop. [Governed exchange](../../demo_api_server/services/mcpToolPipeline.js#L280), [SPIFFE demo exchange](../../demo_api_server/services/spiffePingfederateService.js#L4), [gateway re-exchange](../../demo_mcp_gateway/src/auth/McpTokenExchangeClient.ts#L324), [MCP server re-exchange](../../oauth-mcp/src/tools/TokenResolver.ts#L189).
+
+| Part | Assessment | What exists | Main missing link |
+| --- | --- | --- | --- |
+| 1. Separate identities | **Partial** | User `sub`, OAuth agent `act`, opt-in SPIFFE IDs, correlation IDs | No single signed context binding user, approved logical agent, agent execution, attested original workload, transaction, and purpose. |
+| 2. PingFederate exchange | **Partial, isolated** | Real SPIRE JWT-SVID actor exchange code and PF processor/policy artifacts | SPIFFE demo uses a client-credentials subject and issues an access token; normal tool flow does not consume it or request a Txn-Token. |
+| 3. SPIRE workload and hop identity | **Partial, opt-in** | SPIRE profile, Docker selectors, SVID helpers, optional gateway-to-MCP mTLS | No complete agent-to-gateway-to-MCP-to-API SPIFFE mTLS chain; BFF-to-gateway and gateway-to-MCP default to plaintext. |
+| 4. PingAuthorize policy tuple | **Partial** | Gateways send verified OAuth subject/actor, scope, audience, tool and business inputs to a PDP | They cannot evaluate original and immediate SPIFFE callers, transaction ID, or agent instance. |
+| 5. End-to-end proof | **Not demonstrated** | Focused unit tests, token-chain UI, and cross-service correlation | No test in this snapshot proves the entire reference flow and its negative matrix against live components. |
+
+## Findings by part
+
+### 1. Identity model — partial
+
+The normal exchange has the right **user versus actor** distinction: the user's access token is the RFC 8693 subject, and an agent client-credentials access token can be the actor. The gateway builds policy input from decoded `sub`, `act`, scopes, audience, and tool name. [OAuth exchange](../../demo_api_server/services/oauthService.js#L657), [policy parameters](../../demo_mcp_gateway/src/auth/PingOneAuthorizeClient.ts#L209). SPIRE registration also names BFF, agent, gateway, and MCP workloads separately. [Registration entries](../../spiffe/docker-compose/entries.sh#L83).
+
+The separation does not survive as one verified transaction record. The PF/SPIRE demo identifies the **BFF** workload and starts with a **machine** subject token, rather than the signed-in user's token. Its processor copies the actor `sub` into a `spiffeId` attribute, but the shown mapping has no trusted SPIFFE-ID-to-logical-agent mapping. [Demo service](../../demo_api_server/services/spiffePingfederateService.js#L140), [PF policy](../../spiffe/pingfederate/spiffe-te-policy.json#L12), [PF mapping](../../spiffe/pingfederate/spiffe-te-atm-mapping.json#L15). The regular request's `X-Correlation-ID` helps reconstruct logs, but it is not the article's issuer-signed `txn` claim. [Gateway client](../../demo_api_server/services/mcpGatewayClient.js#L325).
+
+**Result:** user and OAuth actor are represented; attested workload, logical agent binding, agent instance, purpose, and transaction are not jointly proven on a governed call.
+
+### 2. Delegation boundary — partial, isolated
+
+The repository has a concrete SPIRE-to-PF proof of concept: the BFF obtains a JWT-SVID and sends it as `actor_token_type=jwt` to PF. The code requests `access_token`, authenticates with a client secret, and first obtains the subject via `client_credentials`. The endpoint is flag-gated and explicitly described as separate from the governed delegation chain; it returns the issued access token to its demo caller. [PF exchange](../../demo_api_server/services/spiffePingfederateService.js#L105), [demo route](../../demo_api_server/routes/spiffeDemo.js#L144). Existing tests mock the token endpoint and SVID minting; they validate request shape and error redaction, not a live PF policy result. [Service test](../../demo_api_server/tests/spiffePingfederateService.test.js#L80).
+
+The regular tool path performs a PingOne/PF RFC 8693 exchange for an **access token**, forwards it in `Authorization: Bearer`, and the gateway and MCP server have further resource-token exchanges. [OAuth request](../../demo_api_server/services/oauthService.js#L665), [BFF forwarding](../../demo_api_server/services/mcpGatewayClient.js#L317), [gateway exchange](../../demo_mcp_gateway/src/auth/McpTokenExchangeClient.ts#L331), [MCP exchange](../../oauth-mcp/src/tools/TokenResolver.ts#L189). The TraT feature either reads extra claims from the bearer token or sends an explicitly marked `X-TraT-Context` simulation header; this is not a dedicated, immutable Txn-Token. [TraT branch](../../demo_api_server/services/agentMcpTokenService.js#L2281), [extractor](../../oauth-mcp/src/auth/TratClaimsExtractor.ts#L9).
+
+**Result:** RFC 8693 and SVID actor validation are present, but the article's user-token-plus-SVID exchange, Txn-Token type/claims/header, and unchanged propagation are not one executable path.
+
+### 3. SPIRE and immediate caller — partial, opt-in
+
+Compose has an opt-in SPIRE server/agent, Docker workload selectors, BFF and Node-gateway SVID helpers, and an OIDC discovery provider. The MCP server can accept a gateway or BFF SPIFFE URI in a client certificate, and the Node gateway can load an SVID for its upstream connection. [SPIRE profile](../../docker-compose.yml#L699), [helpers](../../docker-compose.yml#L757), [gateway SVID loader](../../demo_mcp_gateway/src/index.ts#L129), [MCP mTLS verifier](../../oauth-mcp/src/auth/mtlsMiddleware.ts#L39).
+
+This covers only an optional portion of the reference chain. Default Compose uses HTTP from BFF to gateway and `ws://` to MCP; `MCP_MTLS_ON` is opt-in. The Node gateway's inbound TLS server config presents a server certificate but does not request or verify client certificates, so it has no cryptographically verified immediate SPIFFE caller there. The MCP server still accepts a static certificate pin for PingGateway, and the MCP-to-Banking-API hop obtains another bearer token. [Default routes](../../docker-compose.yml#L428), [mTLS switch](../../docker-compose.yml#L943), [gateway listener](../../demo_mcp_gateway/src/server/GatewayServer.ts#L251), [MCP accepted peers](../../oauth-mcp/src/server/DemoMCPServer.ts#L170), [last-hop exchange](../../oauth-mcp/src/tools/TokenResolver.ts#L189).
+
+One specific guard needs correction before treating the optional mTLS path as reference-equivalent: the MCP verifier accepts a matching SPIFFE URI even when no SPIRE trust bundle was loaded; bundle chain verification runs only when the bundle list is nonempty. A URI SAN alone is not workload attestation. [Verifier branch](../../oauth-mcp/src/auth/mtlsMiddleware.ts#L73).
+
+**Result:** real workload identity foundations exist; independent caller authentication on every hop is not in place.
+
+### 4. Policy decision — partial
+
+The **default PingGateway** routes to real PingOne Authorize unless a trusted internal caller explicitly selects the mock; real-to-mock failover is off by default. Its PDP parameters include user, OAuth actor chain, scope, audience, tool, and transaction business fields. The alternative Node gateway validates inbound bearer tokens before policy evaluation, sends similar parameters, recognizes consent/step-up obligations, and denies unclassified `INDETERMINATE` results. [Gateway selection](../../docs/ARCHITECTURE-TRUTHS.md#L574), [PingGateway backend selection](../../ping-gateway/scripts/groovy/p1az-decision.groovy#L89), [PingGateway parameters](../../ping-gateway/scripts/groovy/p1az-decision.groovy#L911), [PingGateway failover default](../../ping-gateway/scripts/groovy/p1az-decision.groovy#L1039), [Node token validation](../../demo_mcp_gateway/src/server/GatewayServer.ts#L723), [Node decision handling](../../demo_mcp_gateway/src/auth/PingOneAuthorizeClient.ts#L601).
+
+The reference policy's exact tuple is unavailable on either gateway because neither PDP request includes a verified original workload, immediate SPIFFE caller, signed transaction ID, or agent instance. The alternative Node-gateway Compose endpoint is the **mock** authz service over HTTP; if pointed at real P1AZ, tools/call can fail over to that mock on an outage. This is useful demo resilience, but it does not meet the reference's strict “verified tuple and authoritative decision” claim. [Node PDP parameters](../../demo_mcp_gateway/src/auth/PingOneAuthorizeClient.ts#L209), [Compose PDP settings](../../docker-compose.yml#L1261), [Node failover](../../demo_mcp_gateway/src/auth/PingOneAuthorizeClient.ts#L686). The optional unsigned TraT header is consumed only with an explicit demo flag, which correctly keeps that simulation distinct from trusted identity evidence. [Gateway guard](../../demo_mcp_gateway/src/pingAuthorizeGuard.ts#L296).
+
+**Result:** strong OAuth-based tool authorization, but no policy decision over the reference transaction-plus-mTLS tuple.
+
+### 5. End-to-end proof — not demonstrated
+
+The UI token events sanitize decoded claims and avoid sending raw JWT strings; request correlation also crosses BFF, gateway, and MCP. [Claim allowlist](../../demo_api_server/services/agentMcpTokenService.js#L420), [event construction](../../demo_api_server/services/agentMcpTokenService.js#L492), [correlation forwarding](../../demo_api_server/services/mcpGatewayClient.js#L325). There are useful local tests, including SVID exchange request-shape tests and a mismatched TraT tool denial. [SVID test](../../demo_api_server/tests/spiffePingfederateService.test.js#L80), [tool binding test](../../oauth-mcp/tests/authz-last-hop.test.ts#L595).
+
+Those tests do not establish the article's complete success case or denials for a stolen Txn-Token on the wrong mTLS caller, wrong trust-domain audience, direct agent-to-API access, and one signed transaction ID at all hops. The self-contained transaction-token route also **re-mints** a token during propagation, so it is a teaching fixture rather than evidence for immutable forwarding. [Demo route](../../demo_api_server/routes/txnTokenDemo.js#L3), [propagate handler](../../demo_api_server/routes/txnTokenDemo.js#L46).
+
+The reference calls for secrets to stay outside Git. The repository's PF client configuration contains a literal `clientAuth.secret` value, identified as local-demo-only. Treat it as a fixture; do not reuse it as a live credential. [PF client artifact](../../spiffe/pingfederate/spiffe-te-client.json#L14).
+
+## Shortest path to the reference flow
+
+1. **Choose one governed route for the proof.** Use a real user session as the PF exchange subject and a SPIRE SVID for the actual agent workload as actor. Bind its SPIFFE ID to an approved logical agent in trusted PF policy; issue an instance ID and immutable transaction ID there. Keep the existing PingOne demo as a separate mode.
+2. **Mint and validate a dedicated transaction token.** Request the Transaction Token type, define the required claims and trust-domain audience, carry it in `Txn-Token`, and keep the exact JWT bytes unchanged across deterministic hops. Validate signature, type, issuer, audience, expiry, and tool/target context at every consumer.
+3. **Complete and enforce caller identity.** Require SPIFFE mTLS at agent→gateway, gateway→MCP, and MCP→API; map the verified peer at each hop. Fail closed when a configured SPIRE bundle is absent and do not allow the static certificate pin to satisfy the SPIFFE-only proof case.
+4. **Make policy consume verified facts.** Send the complete user, logical agent, agent instance, original workload, immediate caller, transaction, purpose, scope, target, and tool tuple to an explicitly selected authoritative PDP. Disable mock/local permit failover for the proof run.
+5. **Add a live negative matrix.** Prove success and rejection for forged agent/workload, wrong or expired token, wrong audience/tool/target, stolen token from a different mTLS peer, direct agent-to-API, and malformed PDP replies. Assert one transaction ID across all hops and scan captured logs for raw credentials.
+
+**Verification boundary:** This report does not assert that the opt-in SPIRE/PF profile or real PingAuthorize is currently running. Their local runbooks record prior live observations, but this assessment relies on the tracked snapshot and the cited test code.
