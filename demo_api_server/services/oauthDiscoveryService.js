@@ -101,19 +101,20 @@ function extractEndpoints(metadata) {
  * After successful OIDC discovery, write endpoints so they're cached
  * and don't require re-discovery on every startup.
  */
-function persistDiscoveredEndpoints(endpoints) {
+function persistDiscoveredEndpoints(endpoints, provider) {
   if (!endpoints) return;
 
   const _lmdbConfig = require('./lmdb/configStore.lmdb');
+  const oauthPrefix = provider === 'pingfederate' ? 'pf_' : 'oauth_';
   const mapping = {
-    'authorization_endpoint': 'oauth_authorization_endpoint',
-    'token_endpoint': 'oauth_token_endpoint',
-    'userinfo_endpoint': 'oauth_userinfo_endpoint',
-    'jwks_uri': 'oauth_jwks_uri',
-    'introspection_endpoint': 'oauth_introspection_endpoint',
-    'revocation_endpoint': 'oauth_revocation_endpoint',
-    'issuer': 'oauth_issuer',
-    'pushed_authorization_request_endpoint': 'oauth_par_endpoint',
+    'authorization_endpoint': `${oauthPrefix}authorization_endpoint`,
+    'token_endpoint': `${oauthPrefix}token_endpoint`,
+    'userinfo_endpoint': `${oauthPrefix}userinfo_endpoint`,
+    'jwks_uri': `${oauthPrefix}jwks_uri`,
+    'introspection_endpoint': `${oauthPrefix}introspection_endpoint`,
+    'revocation_endpoint': `${oauthPrefix}revocation_endpoint`,
+    'issuer': `${oauthPrefix}issuer`,
+    'pushed_authorization_request_endpoint': `${oauthPrefix}par_endpoint`,
   };
 
   let persisted = 0;

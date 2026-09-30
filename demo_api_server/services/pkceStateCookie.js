@@ -103,6 +103,7 @@ function setPkceCookie(res, data, isProduction) {
     cv: data.codeVerifier,
     ru: data.redirectUri,
     n:  data.nonce || null,
+    op: data.oauthProvider || null,
     e:  Date.now() + MAX_AGE_MS,
   });
   const signed = _sign(payload);
@@ -145,7 +146,13 @@ function readPkceCookie(req) {
   try {
     const obj = JSON.parse(payload);
     if (!obj.e || Date.now() > obj.e) return null; // expired
-    return { state: obj.s, codeVerifier: obj.cv, redirectUri: obj.ru, nonce: obj.n || null };
+    return {
+      state: obj.s,
+      codeVerifier: obj.cv,
+      redirectUri: obj.ru,
+      nonce: obj.n || null,
+      ...(obj.op ? { oauthProvider: obj.op } : {}),
+    };
   } catch {
     return null;
   }
