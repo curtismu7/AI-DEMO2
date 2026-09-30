@@ -400,7 +400,7 @@ function validateDemoReadinessCatalog(sources, { uiInventory, educationPanelIds 
   const requiredA2aChecks = ['A2A-FM1', 'A2A-FM2', 'A2A-FM3'];
   if (featureCheckConfig.countsTowardDemoSteps !== false
       || requiredA2aChecks.some((id) => !featureCheckIds.includes(id))) {
-    pushIssue(issues, 'The separate feature-check inventory must contain A2A FM1, FM2, and FM3 without changing the 46 Demo Steps count');
+    pushIssue(issues, 'The separate feature-check inventory must contain A2A FM1, FM2, and FM3 without changing the Demo Steps count');
   }
   if (new Set(featureCheckIds).size !== featureCheckIds.length) {
     pushIssue(issues, 'Provider feature-check IDs must be unique');
@@ -536,15 +536,15 @@ function validateDemoReadinessCatalog(sources, { uiInventory, educationPanelIds 
     ], id)),
     ...executableAdminIds,
   ];
-  if (caseIds.length !== 46 || new Set(caseIds).size !== 46) {
-    pushIssue(issues, `Expected exactly 46 executable Demo Steps entries; found ${caseIds.length} entries (${new Set(caseIds).size} unique)`);
+  if (caseIds.length !== 47 || new Set(caseIds).size !== 47) {
+    pushIssue(issues, `Expected exactly 47 executable Demo Steps entries; found ${caseIds.length} entries (${new Set(caseIds).size} unique)`);
   }
   const ciAmCount = (inventoryConfig.ciam || []).filter((id) => !seenIn(inventoryConfig.primary, id)).length;
   const privilegeCount = (inventoryConfig.privilege || []).filter((id) => !seenIn([
     ...(inventoryConfig.primary || []), ...(inventoryConfig.ciam || []),
   ], id)).length;
-  if ((inventoryConfig.primary || []).length !== 24 || ciAmCount !== 4 || privilegeCount !== 6 || executableAdminIds.length !== 12) {
-    pushIssue(issues, `Expected lane counts 24 + 4 + 6 + 12; found ${(inventoryConfig.primary || []).length} + ${ciAmCount} + ${privilegeCount} + ${executableAdminIds.length}`);
+  if ((inventoryConfig.primary || []).length !== 25 || ciAmCount !== 4 || privilegeCount !== 6 || executableAdminIds.length !== 12) {
+    pushIssue(issues, `Expected lane counts 25 + 4 + 6 + 12; found ${(inventoryConfig.primary || []).length} + ${ciAmCount} + ${privilegeCount} + ${executableAdminIds.length}`);
   }
 
   const useCaseById = new Map(useCases.map((item) => [item.id, item]));

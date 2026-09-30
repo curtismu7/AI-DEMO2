@@ -80,6 +80,22 @@ describe('DemoStepsDropdown', () => {
     expect(screen.getByTestId('demo-steps-trigger')).toHaveTextContent(/Demo steps/);
   });
 
+  it('places UC46 at step 25 in the numbered primary Demo Steps sequence', async () => {
+    const onSelect = vi.fn();
+    render(
+      <DemoStepsDropdown
+        open
+        onOpenChange={() => {}}
+        onSelect={onSelect}
+      />,
+    );
+
+    fireEvent.click(await screen.findByTestId('demo-step-UC46'));
+
+    expect(onSelect.mock.calls[0][0].id).toBe('UC46');
+    expect(onSelect.mock.calls[0][1]).toBe(25);
+  });
+
   it('aborts an outstanding catalog request when unmounted', () => {
     let requestSignal;
     apiClient.get.mockImplementationOnce((_url, config) => {

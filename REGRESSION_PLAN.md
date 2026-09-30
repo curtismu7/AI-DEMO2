@@ -188,6 +188,30 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-30 — UC46 is numbered step 25 in Demo Steps
+
+**Files:** `demo_api_server/config/useCases.js`,
+`demo_api_server/config/auth-requirements.json`,
+`demo_api_server/config/demoReadinessInventory.json`,
+`demo_api_server/services/demoReadinessCatalog.js`,
+`demo_api_ui/src/config/demoUseCaseSteps.js`, and their API/readiness/UI tests.
+
+**What was missing:** the Privilege A2A page link was listed only as an extra
+Privilege-lane action with a non-numeric ID, outside the numbered primary
+presenter sequence.
+
+**What changed:** the catalog now identifies it as `UC46` and places it at
+step 25 in the primary Demo Steps sequence. It appears once, remains
+user-session-gated, and opens the A2A tab without sending a question.
+
+**Do not break:** preserve `ADMIN13`'s `/privilege-mcp-client` destination, the
+separate MainAgent → WorkerAgent → MCP topology, the BFF session boundary,
+banking A2A, OAuth/token exchange, and existing MCP Inspect tabs.
+
+**Verify:** focused API/readiness Jest and UI Vitest suites;
+`npm run authz:verify`; `node scripts/check-demo-readiness-contract.mjs`;
+`cd demo_api_ui && npm run build`.
+
 ### 2026-09-29 — UI image omitted demo-readiness contract inputs
 
 **Files:** `demo_api_ui/Dockerfile`, `demo_api_ui/Dockerfile.dockerignore`,
@@ -239,7 +263,68 @@ file semantics, including nested runtime paths.
 **Verify:** `node --test scripts/docker-build-contexts.test.js`; `cd demo_api_ui
 && npm run build`; `docker buildx build --load -f demo_api_ui/Dockerfile -t
 ai-demo-ui-readiness-contract-test:latest .` from the repo root.
+### 2026-09-29 — Privilege A2A access review is available as a Demo Step
 
+**Files:** `demo_api_server/config/useCases.js`,
+`demo_api_server/config/demoReadinessInventory.json`,
+`demo_api_server/config/auth-requirements.json`,
+`demo_api_server/services/demoReadinessCatalog.js`,
+`demo_api_server/services/demoReadinessAuditService.js`,
+`demo_api_ui/src/config/demoUseCaseSteps.js`,
+`demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`,
+`demo_api_ui/src/pages/PrivilegeMcpClientPage.css`,
+`demo_api_ui/src/components/AdminSideNav.jsx`,
+`docs/demo-readiness.md`, and the corresponding readiness/UI contract tests.
+
+**What was missing:** the Privilege A2A demo had an A2A tab, but presenters
+could only reach it by opening the client page and selecting the tab themselves.
+
+**What was added:** a user-session-gated Privilege lane Demo Step opens the
+existing client at `?view=demo&tab=a2a`. An explicit view/tab deep link overrides
+the saved page preference and selects the A2A tab; it does not send a prompt.
+The readiness catalog now checks 47 Demo Steps and the Privilege count is 7.
+
+**Do not break:** preserve `ADMIN13`'s existing `/privilege-mcp-client`
+destination and keep this as a navigation step. Preserve the separate
+MainAgent → WorkerAgent → MCP topology, BFF session boundary, banking A2A,
+OAuth/token exchange, and existing MCP Inspect tabs.
+
+**Verify:** focused catalog Jest and UI Vitest tests; `npm run authz:verify`;
+`node scripts/check-demo-readiness-contract.mjs`; `cd demo_api_ui && npm run
+build`; check the Privilege client page in both themes.
+
+### 2026-09-29 — Privilege A2A tab route mounts and BFF boundary
+
+**Files:** `standalone/privilege-a2a-anthropic-demo/src/worker-agent/index.ts`,
+`standalone/privilege-a2a-anthropic-demo/src/main-agent/index.ts`,
+`standalone/privilege-a2a-anthropic-demo/src/config.ts`,
+`demo_api_server/routes/privilegeA2aClient.js`,
+`demo_api_server/server.js`,
+`demo_api_ui/src/features/privilegeA2aClient/PrivilegeA2aTab.jsx`,
+`demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`.
+
+**What was broken:** the A2A SDK handlers were mounted with Express route
+methods at the full endpoint path even though their internal routers match `/`,
+so the worker's agent-card route returned 404. The AI Guard Client also had no
+session-gated relay for this three-process demo.
+
+**What was fixed:** mount the SDK routers at their endpoint prefixes, add the
+shared-secret check on integrated main-agent chat, and relay the A2A SSE stream
+through a session-gated BFF route that forwards only message and session ID.
+Add the A2A tab to Demo mode with an incremental text-only stream consumer.
+Give each chat turn a fresh opaque A2A context ID and filter worker traces by
+that ID, preventing concurrent chats from receiving one another's entitlement
+details.
+
+**Do not break:** keep the separate main → worker → MCP process topology and
+per-agent keys; never forward browser authorization, cookies, or user identity
+to the agents. Preserve banking A2A, OAuth/token exchange, and existing MCP
+tabs.
+
+**Verify:** backend `npm test` (including concurrent trace isolation) and
+`npm run build`; BFF focused Jest route test;
+AI Guard Client focused Vitest tests and `npm run build`; run the A2A tab
+contrast check in both page themes.
 ### 2026-09-29 — BFF readiness catalog could not load gateway scope topology
 
 **Files:** `demo_api_server/Dockerfile`, `scripts/docker-build-contexts.js`,
