@@ -188,6 +188,35 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-30 — Readiness provider login lacked a fresh isolated client and subject proof
+
+**Files changed:** `demo_api_server/services/demoReadinessProviderLoginClient.js`,
+`demo_api_server/routes/oauthUser.js`, focused protocol/status tests,
+`docs/demo-readiness.md`, this plan, and the implementation plan.
+
+**What was broken:** readiness had no fresh provider login client. The existing
+shared test helper could reuse cached or LMDB sessions, and user status did not
+expose the verified provider subject needed to bind a dedicated identity.
+
+**What was fixed:** a client now starts a fresh PingOne or PingFederate user
+authorization-code login through an explicitly supplied dedicated BFF URL,
+keeps cookies in memory per session, validates callback origin and authenticated
+status provider/issuer/subject, and clears the jar on disposal. Authenticated
+user status includes `user.providerSubject` from `oauthTokens.subjectSub`.
+
+**Do not break:** keep BFF-only token custody, process-wide provider selection,
+callback-origin validation, status expiry/stale checks, role behavior, and
+PingOne resource/scope behavior. Credentials come from protected worker runtime
+configuration; dedicated BFF/session-store packaging remains Task 6.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest
+tests/demoReadinessProviderLoginClient.test.js
+src/__tests__/oauthStatus.integration.test.js
+src/__tests__/configStore-providerMode.test.js
+tests/oauthRedirectUris-providerMode.test.js
+src/__tests__/oauth-redirect-uri.test.js tests/oauthUser.test.js
+--runInBand --forceExit`; `git diff --check`.
+
 ### 2026-09-30 — PingFederate user login used PingOne readiness and redirect settings
 
 **Files changed:** `demo_api_server/services/configStore.js`,

@@ -1242,6 +1242,8 @@ router.get('/status', (req, res) => {
       role: session.user.role,
       oauthProvider: session.user.oauthProvider || null,
       oauthIssuer: session.user.oauthIssuer || null,
+      ...(session.oauthType === 'user' && typeof session.oauthTokens?.subjectSub === 'string' && session.oauthTokens.subjectSub
+        ? { providerSubject: session.oauthTokens.subjectSub } : {}),
       phone: session.user.phone || null,
       hideSuccessScreen: session.user.hideSuccessScreen || false,
       notificationPrefs: session.user.notificationPrefs || null

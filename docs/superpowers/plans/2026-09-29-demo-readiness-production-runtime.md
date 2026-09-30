@@ -118,10 +118,34 @@
 - [x] Update the master guide, this plan, and `REGRESSION_PLAN.md` §4 with the fixed PF login seam and remaining isolated-worker blocker.
 - [x] Stage only Task 4 paths, inspect the staged diff, self-review, and commit Task 4 independently; the task reviewer reads the post-commit implementer report.
 
+## Task 5: Fresh provider login session client
+
+**Files:**
+- Create: `demo_api_server/services/demoReadinessProviderLoginClient.js`
+- Create: `demo_api_server/tests/demoReadinessProviderLoginClient.test.js`
+- Modify: `demo_api_server/routes/oauthUser.js`
+- Test: `demo_api_server/src/__tests__/oauthStatus.integration.test.js`
+- Modify: `docs/demo-readiness.md`, `REGRESSION_PLAN.md` §4, and this plan
+
+**Interfaces and limits:**
+- `createDemoReadinessProviderLoginClient({ provider, dedicatedBffUrl, identityRef, username, password, expectedIssuer, expectedSubject, transport })` starts a fresh user authorization-code login at the explicitly supplied dedicated provider-configured BFF URL. It does not read global demo-user credentials or change process-wide provider configuration.
+- Implement the existing PingOne flow API and PingFederate hosted-form/optional-consent paths using a private in-memory cookie jar per session. Do not import or reuse `tests/real/helpers/session.js`: the readiness path must not inspect `.test-session.json` or the shared LMDB session store, and must never fall back to an existing cookie.
+- After callback, verify `/api/auth/oauth/user/status` reports authenticated, the selected provider, the expected issuer, and the configured identity subject. Add authenticated-user-only `user.providerSubject` from `session.oauthTokens.subjectSub`; never return access or ID tokens. Reject a cross-origin callback or status response. Return only a private session handle and safe metadata; keep cookie values, codes, tokens, credentials, usernames, email, and provider subject out of logs/reports.
+- Preserve OAuth status expiry/stale-session checks, role behavior, token custody, and all existing response fields; `user.providerSubject` is populated only for an authenticated user session.
+- The caller supplies credentials from protected runtime configuration; this task does not create a secret backend, provision identities, or claim that the supplied BFF URL has a private session store. Task 6 must wire only dedicated lane BFF runtimes.
+- `dispose()` drops the in-memory cookie jar and invalidates the handle. HTTP transport is injectable for mocked protocol tests; no live PingOne/PF calls are part of this task.
+
+- [x] Add protocol tests for fresh PingOne and PF logins, consent, wrong provider/issuer/subject, rejected callback origin, no cached/shared session fallback, cookie isolation, and disposal; prove the new module tests fail first.
+- [x] Implement the minimal client and private session handle.
+- [x] Run the new tests plus Task 4 provider and user-login suites; inspect `git diff --check`.
+- [x] Document the credential input and remaining dedicated-BFF/runtime blockers.
+- [ ] Stage only Task 5 paths, inspect the staged diff, obtain task review, and commit Task 5 independently.
+
 ## Remaining tasks
 
-5. Build the deployable worker runtime and isolated provider session adapter contract. Provide four independently configured target/provider lanes. Each lane must establish its own PingOne or PingFederate user login and private browser/cookie/session stores. Resolve BFF's process-wide OAuth provider selection with a separate provider-configured readiness BFF runtime per lane; do not mutate the presenter BFF. Do not invent an identity-secret backend: use only an existing protected runtime source or keep unresolved mappings explicitly blocked.
-6. Implement the exact 46 Demo Steps triggers and all feature-family probes, including a PingFederate login session and UC40 native ID-JAG through PingFederate. Verify every adapter uses the declared provider and target revision.
-7. Wire target-specific PingOne, PingFederate, Agent Gateway, and Authorize readbacks. Keep unsupported Authorize tree parity under the approved waiver only.
-8. Configure local Docker workers and the authorized SE read/execute workers, then run all expected rows, prove PingOne/PF sessions and UC40 ID-JAG, and measure the 12/15-minute gates.
-9. Remove blockers one by one, updating this plan and `docs/demo-readiness.md` in each task commit. Never claim operational readiness until the complete local+SE run passes.
+6. Build the bootable lane worker and its dedicated provider-configured BFF runtime packaging. Wire four isolated local/SE × PingOne/PingFederate lanes, private LMDB/session secrets, worker tokens, and lane-only user credentials from existing protected runtime configuration. Do not deploy to SE or use live secrets in code tests.
+7. Implement the exact 46 Demo Steps triggers and all feature-family probes, including a PingFederate login session and UC40 native ID-JAG through PingFederate. Verify every adapter uses the declared provider and target revision; unresolved PF contracts remain blocked.
+8. Wire target-specific PingOne, PingFederate, Agent Gateway, and Authorize readbacks. Keep unsupported Authorize tree parity under the approved waiver only.
+9. Run the configured local Docker matrix, prove all required rows and timing gates, and fix configuration-only drift through the approved preview/confirm path. Never edit application source from the readiness reset.
+10. Use the user-authorized hosted SE read/execute worker path and run its full matrix; keep remote repair/deployment disabled. Do not claim operational readiness unless both targets pass and the 12/15-minute gates are measured.
+11. Remove blockers one by one, updating this plan and `docs/demo-readiness.md` in each task commit. Never claim operational readiness until the complete local+SE run passes.
