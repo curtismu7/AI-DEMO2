@@ -228,6 +228,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-30 — Push-to-main CI ran every suite on every merge, queuing the single self-hosted runner solid
+
+**Files:** `.github/workflows/ci.yml`.
+
+**What was broken:** `pull_request` events already path-filtered which test suites ran (`dorny/paths-filter`), but `push` (i.e. every merge to `main`) unconditionally forced every suite (`api-server`, `decision-services`, `ui`, `unwired-services`, `python-agents`) regardless of what the merge actually touched. With 126 merges to `main` in 24 hours and exactly one registered self-hosted runner (`cmuir-dev-mac`, confirmed via the Actions API — a second/third runner was tried before per the leftover `actions-runner-2`/`-3` installs on that Mac and abandoned, and the machine's load average was already ~57 on 16 cores with only one runner active), every merge queued up to ~195 serialized minutes of jobs (api-server 60m + ui 30m + unwired 30m + python-agents 45m + decision-services 30m timeouts), so PRs sat `queued` for 30+ minutes waiting for the backlog to clear.
+
+**What was fixed:** `push` now uses the same `dorny/paths-filter` step as `pull_request` (added to that step's `if`), so a merge only reruns the suites its own changed files actually touch. The nightly cron (`schedule`) was upgraded from UI-only to running every suite, becoming the full-coverage safety net for cross-PR interactions that path-filtering on individual merges could otherwise miss. `workflow_dispatch` (manual runs) is unchanged — still forces every suite.
+
+**Do not break:** keep nightly (`schedule`) running every suite — it is the only remaining always-full run once push is filtered. Do not add more self-hosted runners to this Mac without checking load average first; that path was already tried and reverted.
+
+**Verify:** `actionlint .github/workflows/ci.yml` passed. Not yet observed against a live merge to `main` — confirm the next merge's `changes` job outputs reflect the changed paths, not `true` across the board, and that unrelated jobs report `skipping` rather than running.
+
 ### 2026-09-28 — OAuth callbacks accepted unvalidated identity claims and logged transaction credentials
 
 **Files:** `demo_api_server/routes/oauth.js`,

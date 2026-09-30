@@ -46,8 +46,8 @@ jobs:
             echo "::error::target_ref must be a full 40-character commit SHA"
             exit 1
           fi
-      - name: Run every suite on main and manual CI
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+      - name: Run every suite on manual CI
+        if: github.event_name == 'workflow_dispatch'
         id: all
         run: |
           {
@@ -57,25 +57,29 @@ jobs:
             echo "unwired-services=true"
             echo "python-agents=true"
           } >> "$GITHUB_OUTPUT"
-      - name: Run the full UI suite in nightly CI
+      - name: Run every suite in nightly CI
+        # Nightly is the full-coverage safety net now that push-to-main is
+        # path-filtered below like pull_request — see 2026-09-30 CI queue note.
         if: github.event_name == 'schedule'
         id: nightly
         run: |
           {
-            echo "api-server=false"
-            echo "decision-services=false"
+            echo "api-server=true"
+            echo "decision-services=true"
             echo "ui=true"
-            echo "unwired-services=false"
-            echo "python-agents=false"
+            echo "unwired-services=true"
+            echo "python-agents=true"
           } >> "$GITHUB_OUTPUT"
-      - name: Select suites affected by this PR
-        if: github.event_name == 'pull_request'
+      - name: Select suites affected by this PR or push
+        if: github.event_name == 'pull_request' || github.event_name == 'push'
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
         id: filter
         with:
           # CI workflow edits are checked by actionlint and the always-on gates
           # below; they do not by themselves require every product test suite.
-          # Main and manual runs select every suite; nightly selects the UI suite.
+          # Manual runs select every suite; nightly selects every suite as the
+          # full-coverage safety net for the same-day merges this filtering
+          # might otherwise combine without a dedicated full run.
           filters: |
             api-server:
               - 'demo_api_server/**'
