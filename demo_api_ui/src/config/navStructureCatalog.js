@@ -68,7 +68,7 @@ export const NAV_STRUCTURE_CATALOG = [
     "Token Chain Architecture (Node)", "Interactive Flow (Node)", "Sequence Diagram (Node)", "Canvas Diagram (Node)",
     "Delegated Access Proof",
     "Invest Dual-Auth (MM)", "AI Gateway (MM)",
-    "AI Gateway Enforcement (Node)", "Gateway vs P1AZ Enforcement (MM)", "Resource Server Placement (MM)", "Learning Hub",
+    "AI Gateway Enforcement (Node)", "Gateway vs P1AZ Enforcement (MM)", "Resource Server Placement (MM)", "Learning Hub", "Page Catalog",
     "SPIFFE → PingOne Bridge (TODO)", "llama-vscode Guide",
   ] },
   { label: "Administration", children: [

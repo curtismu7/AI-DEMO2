@@ -1452,6 +1452,7 @@ export default function AdminSideNav({
       "Gateway vs P1AZ Enforcement (MM)",
       "Resource Server Placement (MM)",
       "Learning Hub",
+      { label: "Page Catalog", path: "/page-catalog" },
       "SPIFFE → PingOne Bridge (TODO)",
       "llama-vscode Guide",
     ], "arc"),
