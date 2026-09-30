@@ -150,7 +150,6 @@ app.post('/chat', async (req: Request, res: Response) => {
       const stream = config.anthropic.messages.stream({
         model: config.model,
         max_tokens: MAX_OUTPUT_TOKENS,
-        thinking: { type: 'adaptive' },
         system: SYSTEM_PROMPT,
         tools: [DELEGATE_TOOL],
         tool_choice: { type: 'auto', disable_parallel_tool_use: true },
@@ -177,6 +176,7 @@ app.post('/chat', async (req: Request, res: Response) => {
       }
 
       const results: Anthropic.ToolResultBlockParam[] = [];
+      let delegatedAnswer = '';
       for (const call of calls) {
         if (call.name !== DELEGATE_TOOL.name) {
           results.push({ type: 'tool_result', tool_use_id: call.id, content: `Unknown tool: ${call.name}`, is_error: true });
@@ -194,6 +194,7 @@ app.post('/chat', async (req: Request, res: Response) => {
           const answer = await worker.sendQuestion(question, traceId);
           sendSse(res, 'trace', { kind: 'result', text: 'analyst_agent returned', detail: answer, at: at() });
           results.push({ type: 'tool_result', tool_use_id: call.id, content: answer });
+          delegatedAnswer = answer;
         } catch (error) {
           const detail = messageError(error);
           sendSse(res, 'trace', { kind: 'error', text: 'A2A delegation failed', detail, at: at() });
@@ -201,13 +202,18 @@ app.post('/chat', async (req: Request, res: Response) => {
         }
       }
       messages.push({ role: 'user', content: results });
+      if (delegatedAnswer) {
+        sendSse(res, 'token', { text: delegatedAnswer });
+        messages.push({ role: 'assistant', content: delegatedAnswer });
+        completed = true;
+        break;
+      }
     }
 
     if (!completed && !abort.signal.aborted) {
       const finalStream = config.anthropic.messages.stream({
         model: config.model,
         max_tokens: MAX_OUTPUT_TOKENS,
-        thinking: { type: 'adaptive' },
         system: `${SYSTEM_PROMPT}\n\nDo not delegate again. Summarize only what is already established in this conversation.`,
         messages,
       });

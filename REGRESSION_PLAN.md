@@ -232,6 +232,34 @@ FloatingPanel title-bar close.
 **Verify:** `cd demo_api_ui && npm run build`; check `/admin` in light and dark
 themes with the §1.4 computed-style contrast auditor.
 
+### 2026-09-30 — UC46 now visibly selects A2A and offers demo questions
+
+**Files:** `demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`,
+`demo_api_ui/src/pages/PrivilegeMcpClientPage.css`,
+`demo_api_ui/src/features/privilegeA2aClient/PrivilegeA2aTab.jsx`, and
+`demo_api_ui/src/features/privilegeA2aClient/PrivilegeA2aTab.css`, plus the
+standalone demo's MainAgent and WorkerAgent request loops.
+
+**What was broken:** UC46 opened the correct A2A content, but the selected tab
+used only the page's subtle bottom rule and manual tab changes did not retain
+the A2A deep link in the URL. The composer also required presenters to remember
+the seeded access-review data and type a suitable question.
+
+**What was fixed:** selected tabs now have a complete blue border and expose
+their selection state to assistive technology. Tab choices update the deep-link
+query, and the A2A composer offers seeded demo questions that populate the
+existing editable question field before submission.
+The two agents no longer force adaptive thinking, so the same Privilege key can
+use its permitted Haiku model while newer models retain their server defaults.
+After a successful delegation, MainAgent streams the WorkerAgent's grounded
+answer directly instead of making a redundant fourth model call.
+
+**Do not break:** keep UC46 on `/privilege-mcp-client?view=demo&tab=a2a`, keep
+the browser-to-BFF session boundary, and preserve the separate MainAgent →
+WorkerAgent → MCP topology and every existing MCP Inspect tab.
+
+**Verify:** UI build and a live UC46 navigation with both page themes.
+
 ### 2026-09-30 — UC46 is numbered step 25 in Demo Steps
 
 **Files:** `demo_api_server/config/useCases.js`,
