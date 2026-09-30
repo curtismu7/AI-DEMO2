@@ -8,6 +8,7 @@ import { agentFlowDiagram } from '../services/agentFlowDiagramService';
 import bffAxios from '../services/bffAxios';
 
 const originalBffGet = bffAxios.get;
+const originalFetch = global.fetch;
 
 // AgentFlowSection (rendered on the default 'flow' tab, mounted before the
 // Token Transform tab is clicked) calls useExchangeMode(), which throws
@@ -27,9 +28,16 @@ beforeEach(() => {
       ? { authenticated: false }
       : { tokenEvents: [] },
   }));
+  global.fetch = vi.fn(() => Promise.resolve({
+    ok: true,
+    json: () => Promise.resolve({ currentTokens: [] }),
+  }));
 });
 
-afterEach(() => { bffAxios.get = originalBffGet; });
+afterEach(() => {
+  bffAxios.get = originalBffGet;
+  global.fetch = originalFetch;
+});
 
 describe('UnifiedTokenFlowInspector — Token Transform tab', () => {
   it('shows a Token Transform tab that renders the gateway-in vs backend-out audience', () => {
@@ -57,9 +65,6 @@ describe('UnifiedTokenFlowInspector — Flow & Tokens tab (hybrid tree)', () => 
   beforeEach(() => {
     agentFlowDiagram.reset();
     agentFlowDiagram.close();
-    global.fetch = vi.fn(() =>
-      Promise.resolve({ ok: true, json: () => Promise.resolve({ currentTokens: [] }) })
-    );
   });
 
   it('shows an empty-state hint when no steps have run yet', () => {
