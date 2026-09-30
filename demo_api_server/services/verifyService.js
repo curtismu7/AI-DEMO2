@@ -1,6 +1,7 @@
 'use strict';
 
 const axios = require('axios');
+const { isIP } = require('node:net');
 const configStore = require('./configStore');
 const pingOneClientService = require('./pingOneClientService');
 
@@ -15,6 +16,7 @@ const VERIFY_WEB_HOSTS = new Set([
   'apps.pingone.asia',
   'apps.pingone.com.au',
 ]);
+const HOST_LABEL_RE = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
 const ALLOWED_STATUSES = new Set([
   'APPROVED_MANUALLY',
   'APPROVED_NO_REQUEST',
@@ -43,11 +45,23 @@ function settings() {
   const environmentId = String(configStore.getEffective('pingone_environment_id') || '').trim();
   const region = String(configStore.getEffective('pingone_region') || 'com').trim();
   const policyId = String(configStore.getEffective('pingone_verify_policy_id') || '').trim();
+  const verifyWebHost = String(process.env.PINGONE_VERIFY_WEB_HOST || '').trim().toLowerCase();
 
   if (!UUID_RE.test(environmentId) || !UUID_RE.test(policyId) || !ALLOWED_REGIONS.has(region.toLowerCase())) {
     throw new VerifyServiceError('VERIFY_NOT_CONFIGURED', 'PingOne Verify is not configured');
   }
-  return { environmentId, region: region.toLowerCase(), policyId };
+  if (verifyWebHost) {
+    const labels = verifyWebHost.split('.');
+    if (
+      verifyWebHost.length > 253
+      || labels.length < 2
+      || labels.some((label) => label.length > 63 || !HOST_LABEL_RE.test(label))
+      || isIP(verifyWebHost)
+    ) {
+      throw new VerifyServiceError('VERIFY_INVALID_WEB_HOST', 'PingOne Verify web host is invalid');
+    }
+  }
+  return { environmentId, region: region.toLowerCase(), policyId, verifyWebHost };
 }
 
 function isConfigured() {
@@ -128,7 +142,9 @@ function parseTransaction(data, { cfg, expectedId, expectedUserId, requireWebUrl
   if (requireWebUrl) {
     try {
       webUrl = new URL(String(webVerificationUrl || ''));
-      if (webUrl.protocol !== 'https:' || webUrl.username || webUrl.password || (webUrl.port && webUrl.port !== '443') || !VERIFY_WEB_HOSTS.has(webUrl.hostname.toLowerCase())) throw new Error('invalid');
+      const allowedHosts = new Set(VERIFY_WEB_HOSTS);
+      if (cfg?.verifyWebHost) allowedHosts.add(cfg.verifyWebHost);
+      if (webUrl.protocol !== 'https:' || webUrl.username || webUrl.password || (webUrl.port && webUrl.port !== '443') || !allowedHosts.has(webUrl.hostname.toLowerCase())) throw new Error('invalid');
     } catch {
       throw new VerifyServiceError('VERIFY_INVALID_PROVIDER_RESPONSE', 'PingOne Verify returned an invalid handoff URL');
     }

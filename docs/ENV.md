@@ -123,9 +123,14 @@ policy and worker permissions have been checked:
 ```dotenv
 PINGONE_VERIFY_ENABLED=false
 PINGONE_VERIFY_POLICY_ID=<verify-policy-uuid>
+# Optional, only for a tenant-configured custom Verify web domain:
+PINGONE_VERIFY_WEB_HOST=<custom-verify-hostname>
 ```
 
 The existing PingOne Management API worker credentials are used server-side.
+The optional web host must be the exact hostname configured for PingOne Verify
+(for example, `verify.example.com`), without a scheme or path. The BFF accepts
+only that configured host or PingOne's standard regional Verify hosts.
 Grant that worker `idverifications:create:verifyTransactions` and
 `idverifications:read:verifyTransactions`. Set the BFF's canonical
 `PUBLIC_APP_URL` to the browser app origin; the handoff returns to

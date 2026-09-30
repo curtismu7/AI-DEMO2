@@ -144,13 +144,15 @@ describe('/api/verify', () => {
     expect(mockReadTransaction).not.toHaveBeenCalled();
   });
 
-  test('marks an expired transaction expired without an upstream read', async () => {
-    mockMemory.set('transaction-789', { id: 'transaction-789', appUserId: USER_ID, pingOneUserId: USER_ID, expiresAt: '2000-01-01T00:00:00.000Z', verifiedAt: null });
+  test('reads provider status after the data-collection deadline so late processing can complete', async () => {
+    mockMemory.set('transaction-789', { id: 'transaction-789', appUserId: USER_ID, pingOneUserId: USER_ID, status: 'IN_PROGRESS', expiresAt: '2000-01-01T00:00:00.000Z', verifiedAt: null });
+    mockReadTransaction.mockResolvedValue({ id: 'transaction-789', status: 'SUCCESS', expiresAt: '2000-01-01T00:00:00.000Z' });
     const res = await request(makeApp()).get('/api/verify/transactions/transaction-789');
     expect(res.status).toBe(200);
-    expect(res.body.status).toBe('EXPIRED');
+    expect(res.body.status).toBe('SUCCESS');
+    expect(res.body.verifiedAt).toEqual(expect.any(String));
     expect(res.body.canEnrollRecognize).toBe(false);
-    expect(mockReadTransaction).not.toHaveBeenCalled();
+    expect(mockReadTransaction).toHaveBeenCalledWith({ pingOneUserId: USER_ID, transactionId: 'transaction-789' });
   });
 
   test('disabled feature and incomplete config fail closed', async () => {

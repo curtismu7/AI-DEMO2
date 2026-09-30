@@ -122,13 +122,10 @@ router.get('/transactions/:transactionId', authenticateToken, async (req, res) =
   }
   if (record.status === 'SUCCESS' && record.verifiedAt) return res.json(publicRecord(record, false));
   if (TERMINAL_STATUSES.has(record.status) && record.status !== 'SUCCESS') return res.json(publicRecord(record, false));
-  const expiry = Date.parse(record.expiresAt || '');
-  if (!Number.isFinite(expiry) || expiry <= Date.now()) {
-    const expired = transactionStore.save({ ...record, status: 'EXPIRED', verifiedAt: null, updatedAt: new Date().toISOString() });
-    return res.json(publicRecord(expired, false));
-  }
 
   try {
+    // expiresAt limits data collection. PingOne may continue processing data
+    // submitted before that deadline, so only its transaction status is final.
     const current = await verifyService.readTransaction({
       pingOneUserId: identity.pingOneUserId,
       transactionId,

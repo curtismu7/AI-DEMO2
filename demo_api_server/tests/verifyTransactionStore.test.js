@@ -34,10 +34,12 @@ describe('verifyTransactionStore', () => {
     expect(store.get(base.id)).toEqual(base);
   });
 
-  test('isolates transaction identifiers and prunes expired lifecycle records', () => {
-    store.save({ ...base, id: 'verify-store-expired', expiresAt: '2000-01-01T00:00:00.000Z' });
+  test('retains expired pending records for provider processing and prunes expired terminal records', () => {
+    store.save({ ...base, id: 'verify-store-pending', status: 'IN_PROGRESS', expiresAt: '2000-01-01T00:00:00.000Z' });
+    store.save({ ...base, id: 'verify-store-terminal', status: 'FAIL', expiresAt: '2000-01-01T00:00:00.000Z' });
     expect(store.get('verify-store-transaction').appUserId).toBe('app-user-1');
     expect(store.pruneExpired(Date.parse('2026-09-29T20:00:00.000Z'))).toBe(1);
-    expect(store.get('verify-store-expired')).toBeNull();
+    expect(store.get('verify-store-pending').status).toBe('IN_PROGRESS');
+    expect(store.get('verify-store-terminal')).toBeNull();
   });
 });

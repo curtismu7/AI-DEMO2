@@ -5,7 +5,7 @@ import './VerifyCard.css';
 const ACTIVE_TRANSACTION_KEY = 'pingone.verify.activeTransactionId';
 const LAST_TRANSACTION_KEY = 'pingone.verify.lastTransactionId';
 const CSRF_HEADER = { 'x-pingone-verify-csrf': '1' };
-const POLL_DELAYS_MS = [1500, 2500, 4000, 6000, 8000, 10000, 12000, 15000];
+const POLL_DELAYS_MS = [1500, 2500, 4000, 6000, 8000, 10000, 15000, 30000];
 const TERMINAL = new Set(['SUCCESS', 'FAIL', 'APPROVED_MANUALLY', 'APPROVED_NO_REQUEST', 'NOT_REQUIRED', 'UNKNOWN', 'EXPIRED']);
 
 function isTerminal(status) {
@@ -60,12 +60,26 @@ export default function VerifyCard({ compact = false, showDisabled = false }) {
           window.sessionStorage.setItem(LAST_TRANSACTION_KEY, transactionId);
           return;
         }
-      } catch {
-        if (!disposed) setStatusError('We could not check the verification status. Try again in a moment.');
+      } catch (error) {
+        if (disposed) return;
+        const responseStatus = Number(error?.response?.status);
+        if (responseStatus >= 400 && responseStatus < 500 && ![408, 429].includes(responseStatus)) {
+          if (responseStatus === 404) {
+            window.sessionStorage.removeItem(ACTIVE_TRANSACTION_KEY);
+            window.sessionStorage.removeItem(LAST_TRANSACTION_KEY);
+            setTransaction(null);
+            setTransactionId(null);
+            setStatusError('This verification request is no longer available. Start a new verification.');
+          } else {
+            setStatusError('We could not check this verification status. Sign in again and reload this page.');
+          }
+          return;
+        }
+        setStatusError('We could not check the verification status. We will try again automatically.');
       }
 
-      if (attempt >= POLL_DELAYS_MS.length) return;
-      const delay = POLL_DELAYS_MS[attempt++];
+      const delay = POLL_DELAYS_MS[Math.min(attempt, POLL_DELAYS_MS.length - 1)];
+      attempt = Math.min(attempt + 1, POLL_DELAYS_MS.length - 1);
       pollTimer.current = window.setTimeout(poll, delay);
     };
 

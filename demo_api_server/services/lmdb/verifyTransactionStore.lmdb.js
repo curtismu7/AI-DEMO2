@@ -5,6 +5,15 @@ const { openEnv } = require('./openEnv');
 const DB_NAME = 'verify_transactions';
 const KEY_PREFIX = 'verify:';
 const KEY_END = 'verify;';
+const TERMINAL_STATUSES = new Set([
+  'SUCCESS',
+  'FAIL',
+  'APPROVED_MANUALLY',
+  'APPROVED_NO_REQUEST',
+  'NOT_REQUIRED',
+  'UNKNOWN',
+  'EXPIRED',
+]);
 const FIELDS = new Set([
   'id',
   'appUserId',
@@ -48,7 +57,8 @@ function pruneExpired(now = Date.now()) {
   const expiredKeys = [];
   for (const { key, value } of database.getRange({ start: KEY_PREFIX, end: KEY_END })) {
     const expiry = Date.parse(value?.expiresAt || '');
-    if (!Number.isFinite(expiry) || expiry <= now) expiredKeys.push(key);
+    const terminal = TERMINAL_STATUSES.has(String(value?.status || '').toUpperCase());
+    if (!Number.isFinite(expiry) || (terminal && expiry <= now)) expiredKeys.push(key);
   }
   for (const key of expiredKeys) database.removeSync(key);
   return expiredKeys.length;
