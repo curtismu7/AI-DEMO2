@@ -254,6 +254,64 @@ while PingOne runs `pi.flow`.
 in light and dark themes; confirm an active Admin token is displayed, sign-in
 uses `response_mode=pi.flow`, and the browser does not navigate to PingOne.
 
+### 2026-09-30 — Readiness provider login lacked a fresh isolated client and subject proof
+
+**Files changed:** `demo_api_server/services/demoReadinessProviderLoginClient.js`,
+`demo_api_server/routes/oauthUser.js`, focused protocol/status tests,
+`docs/demo-readiness.md`, this plan, and the implementation plan.
+
+**What was broken:** readiness had no fresh provider login client. The existing
+shared test helper could reuse cached or LMDB sessions, and user status did not
+expose the verified provider subject needed to bind a dedicated identity.
+
+**What was fixed:** a client now starts a fresh PingOne or PingFederate user
+authorization-code login through an explicitly supplied dedicated BFF URL,
+keeps cookies in memory per session, validates callback origin and authenticated
+status provider/issuer/subject, and clears the jar on disposal. Authenticated
+user status includes `user.providerSubject` from `oauthTokens.subjectSub`.
+
+**Do not break:** keep BFF-only token custody, process-wide provider selection,
+callback-origin validation, status expiry/stale checks, role behavior, and
+PingOne resource/scope behavior. Credentials come from protected worker runtime
+configuration; dedicated BFF/session-store packaging remains Task 6.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest
+tests/demoReadinessProviderLoginClient.test.js
+src/__tests__/oauthStatus.integration.test.js
+src/__tests__/configStore-providerMode.test.js
+tests/oauthRedirectUris-providerMode.test.js
+src/__tests__/oauth-redirect-uri.test.js tests/oauthUser.test.js
+--runInBand --forceExit`; `git diff --check`.
+
+### 2026-09-30 — PingFederate user login used PingOne readiness and redirect settings
+
+**Files changed:** `demo_api_server/services/configStore.js`,
+`demo_api_server/services/oauthRedirectUris.js`, provider-mode readiness and
+redirect tests, `docs/demo-readiness.md`, this plan, and the implementation plan.
+
+**What was broken:** in PingFederate mode, the existing BFF user-login route
+checked PingOne's environment ID and user client ID for readiness. It also
+selected PingOne's user redirect override, even when a PF redirect was
+configured. A PF-only configuration could be rejected before authorization;
+a mixed configuration could send an unregistered redirect URI.
+
+**What was fixed:** readiness checks the selected provider's issuer or
+environment and user client ID. The user redirect URI reads only that
+provider's override, then falls back to the canonical public origin and
+existing callback path. Public PKCE clients do not require a secret.
+
+**Do not break:** preserve authorization code with PKCE, state/nonce checks,
+provider-matched sessions, callback-origin validation, callback session
+regeneration, and PingOne resource/scope behavior. Do not change the
+presenter's process-wide provider or treat this as isolated worker login or
+live PF registration proof.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest
+src/__tests__/configStore-providerMode.test.js
+tests/oauthRedirectUris-providerMode.test.js
+src/__tests__/oauth-redirect-uri.test.js tests/oauthUser.test.js --runInBand
+--forceExit` (4 suites, 57 tests passed); `git diff --check`.
+
 ### 2026-09-30 — Agent Identity Academy mock reel read as a stub
 
 **Files:** `demo_api_ui/public/academy-identity-preview.html`, `demo_api_ui/src/__tests__/AcademyIdentityPreviewStatic.test.js`.
