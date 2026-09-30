@@ -1917,8 +1917,13 @@ class ConfigStore {
     return !!(envId && adminId);
   }
 
-  /** True when end-user OAuth (user_client_id) + environment id are present. */
+  /** True when the selected provider has its issuer/environment and user client ID. */
   isUserOAuthConfigured() {
+    if (this.getOAuthProvider() === 'pingfederate') {
+      const issuer = String(this.getEffective('pf_issuer') || '').trim();
+      const userId = String(this.getEffective('pf_user_client_id') || '').trim();
+      return !!(issuer && userId);
+    }
     const envId = String(this.getEffective('pingone_environment_id') || '').trim();
     const userId = String(this.getEffective('user_client_id') || '').trim();
     return !!(envId && userId);

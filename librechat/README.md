@@ -94,11 +94,9 @@ below.
 
    Three ways users find the prompts:
    - **Demos menu** — the model selector lists agents in nested folders
-     (`modelSpecs` in `librechat.yaml`): `Demo Steps / <vertical> / Façade`,
-     `Agents / <vertical> / Direct|Façade`, `Connections / Privilege / ...`,
-     `Security & Policy / <vertical>`, and `Agent to Agent / <vertical>`.
-     Mac-only choices are under `Connections / Mac Agent` (the host-local
-     OpenSearch path and local model proxy).
+     (`modelSpecs` in `librechat.yaml`): `Sports`, `Sports / Direct`,
+     `Sports / Demo Steps`, `Sports / Local Model` (the host-local model
+     proxy) and `OpenSearch`.
      Picking one opens it on a new chat with its starters. The specs hold agent
      ids from this machine's Mongo volume: after a fresh volume, copy the ids
      the seed prints into that list.
