@@ -28,11 +28,22 @@ describe('OAuthUserService.generateAuthorizationUrl', () => {
     expect(url).not.toContain('response_mode=pi.flow');
   });
 
-  it('uses pi.flow when forcePiFlow is true even if global authorizeUsesPiFlow is false', () => {
+  it('opens a pi.flow with response_type=code + response_mode=pi.flow when forcePiFlow is true', () => {
     const url = oauthUserService.generateAuthorizationUrl({ state: 'state-2', codeVerifier: verifier, forcePiFlow: true });
-    expect(url).toContain('response_type=pi.flow');
+    expect(url).toContain('response_type=code');
+    expect(url).not.toContain('response_type=pi.flow');
     expect(url).toContain('response_mode=pi.flow');
     expect(url).toContain('code_challenge=');
+  });
+
+  it('does not rewrite a plain redirect login when only the global authorizeUsesPiFlow flag is on', () => {
+    MOCK_USER_CONFIG.authorizeUsesPiFlow = true;
+    try {
+      const url = oauthUserService.generateAuthorizationUrl({ state: 'state-3', codeVerifier: verifier });
+      expect(url).not.toContain('response_mode=pi.flow');
+    } finally {
+      MOCK_USER_CONFIG.authorizeUsesPiFlow = false;
+    }
   });
 });
 

@@ -463,6 +463,7 @@ app.use('/api/auth/oauth/login', authLimiter);
 app.use('/api/auth/oauth/callback', authLimiter);
 app.use('/api/auth/oauth/user/login', authLimiter);
 app.use('/api/auth/oauth/user/callback', authLimiter);
+app.use('/api/auth/oauth/user/pi-flow', authLimiter);
 
 // CR-02 fix: per-session agent message rate limiter.
 // /api/demo-agent is excluded from the global IP limiter (it has per-user
