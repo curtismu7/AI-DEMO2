@@ -238,7 +238,9 @@ read the configured host. A new browser origin must be added to ALL of:
 
 **Do not break:** The default redirect login (flag off, PingFederate, or `force`/`silent-reauth`/step-up paths), the `/callback` PKCE, nonce and session creation, admin login, and that no PingOne worker token is held for this flow. The password is forwarded to PingOne and never logged or stored.
 
-**Verify:** `cd demo_api_server && CI=true node_modules/.bin/jest tests/oauthUserPiFlow.test.js tests/oauthUser.test.js tests/oauthUserLoginTrace.test.js src/__tests__/oauthUserService.test.js src/__tests__/oauth-login-resilience.test.js --forceExit`; `cd demo_api_ui && npx vitest run src/components/__tests__/PiFlowSignInModal.test.jsx && npm run build`. Not yet verified: a real COMPLETED flow through `/as/resume` into `/callback` (needs the flag on and a real customer password).
+**Verify:** `cd demo_api_server && CI=true node_modules/.bin/jest tests/oauthUserPiFlow.test.js tests/oauthUser.test.js tests/oauthUserLoginTrace.test.js src/__tests__/oauthUserService.test.js src/__tests__/oauth-login-resilience.test.js --forceExit`; `cd demo_api_ui && npx vitest run src/components/__tests__/PiFlowSignInModal.test.jsx && npm run build`. Verified live 2026-09-30 against the running stack with the worktree served and the flag on: open flow 200, password accepted, callback 302 to `/dashboard?oauth=success`, `/status` authenticated via `pingone`.
+
+**Gotcha found live:** PingOne binds the flow to an `ST` session cookie that the password step replaces. `/as/resume` rejects the flow ("Session token cookie value does not match the value in the current session") unless the cookie from each response is replayed, so the BFF keeps a cookie jar in `session.oauthPiFlow` across authorize, credentials and resume. The authorize response sets no cookies, which is why this only showed up on the real password step; `tests/oauthUserPiFlow.test.js` pins the replay.
 
 ### 2026-09-30 — Active PingOne sessions were hidden by inconsistent session checks
 

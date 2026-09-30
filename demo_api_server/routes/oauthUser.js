@@ -311,6 +311,21 @@ router.post('/id-jag/cancel', (req, res) => {
 // the ordinary redirect login instead.
 const PI_FLOW_TIMEOUT_MS = 10_000;
 
+// PingOne binds the flow to an ST session cookie that changes as the flow
+// advances: the password step issues a new one, and /as/resume rejects the flow
+// ("Session token cookie value does not match") unless it is replayed. Keep a
+// name->value jar in the BFF session and merge every response's Set-Cookie.
+function mergePiFlowCookies(jar, response) {
+  const next = { ...jar };
+  for (const c of response.headers.getSetCookie?.() || []) {
+    const [pair] = c.split(';');
+    const i = pair.indexOf('=');
+    if (i > 0) next[pair.slice(0, i).trim()] = pair.slice(i + 1);
+  }
+  return next;
+}
+const piFlowCookieHeader = (jar) => Object.entries(jar || {}).map(([k, v]) => `${k}=${v}`).join('; ');
+
 function piFlowBase() {
   return String(oauthUserConfig.authorizationEndpoint || '').replace(/\/as\/authorize.*$/, '');
 }
@@ -325,7 +340,7 @@ async function openPiFlow(req, res, authorizeUrl) {
       console.warn('[oauth/user/pi-flow] authorize did not open a flow: HTTP %s', r.status);
       return res.status(502).json({ error: 'pi_flow_unavailable' });
     }
-    req.session.oauthPiFlow = { flowId: flow.id, startedAt: Date.now() };
+    req.session.oauthPiFlow = { flowId: flow.id, startedAt: Date.now(), cookies: mergePiFlowCookies({}, r) };
     return req.session.save((err) => {
       if (err) return res.status(500).json({ error: 'session_save_failed' });
       return res.json({ flowId: flow.id, status: flow.status });
@@ -349,10 +364,15 @@ router.post('/pi-flow/credentials', async (req, res) => {
   try {
     const step = await fetch(`${base}/flows/${pending.flowId}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/vnd.pingidentity.usernamePassword.check+json', Accept: '*/*' },
+      headers: {
+        'Content-Type': 'application/vnd.pingidentity.usernamePassword.check+json',
+        Accept: '*/*',
+        Cookie: piFlowCookieHeader(pending.cookies),
+      },
       body: JSON.stringify({ username, password }),
       signal: AbortSignal.timeout(PI_FLOW_TIMEOUT_MS),
     });
+    const cookies = mergePiFlowCookies(pending.cookies, step);
     const body = await step.json().catch(() => ({}));
     if (step.status === 400 && body?.details?.some((d) => d.code === 'INVALID_CREDENTIALS')) {
       return res.status(401).json({ error: 'invalid_credentials', message: 'Username or password is incorrect.' });
@@ -361,7 +381,9 @@ router.post('/pi-flow/credentials', async (req, res) => {
     if (body.status !== 'COMPLETED') return res.json({ fallback: true, status: body.status });
 
     const resume = await fetch(`${base}/as/resume?flowId=${pending.flowId}`, {
-      headers: { Accept: '*/*' }, redirect: 'manual', signal: AbortSignal.timeout(PI_FLOW_TIMEOUT_MS),
+      headers: { Accept: '*/*', Cookie: piFlowCookieHeader(cookies) },
+      redirect: 'manual',
+      signal: AbortSignal.timeout(PI_FLOW_TIMEOUT_MS),
     });
     let code = '';
     if ((resume.headers.get('content-type') || '').includes('json')) {

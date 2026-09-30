@@ -32,10 +32,13 @@ app.use(session({ secret: 'test-secret', resave: false, saveUninitialized: true 
 app.use(express.json());
 app.use('/api/auth/oauth/user', router);
 
-const json = (status, body, headers = {}) => ({
+const json = (status, body, headers = {}, setCookies = []) => ({
   status,
   ok: status >= 200 && status < 300,
-  headers: { get: (h) => ({ 'content-type': 'application/json', ...headers })[h.toLowerCase()] ?? null },
+  headers: {
+    get: (h) => ({ 'content-type': 'application/json', ...headers })[h.toLowerCase()] ?? null,
+    getSetCookie: () => setCookies,
+  },
   json: async () => body,
 });
 
@@ -88,6 +91,18 @@ describe('customer pi.flow sign-in', () => {
     expect(postUrl).toMatch(/\/flows\/flow-1$/);
     expect(postInit.headers['Content-Type']).toBe('application/vnd.pingidentity.usernamePassword.check+json');
     expect(String(fetchMock.mock.calls[2][0])).toMatch(/\/as\/resume\?flowId=flow-1$/);
+  });
+
+  test('replays the ST cookie issued by the password step on /as/resume (PingOne rejects a stale one)', async () => {
+    const agent = request.agent(app);
+    fetchMock.mockResolvedValueOnce(json(200, { id: 'flow-1', status: 'USERNAME_PASSWORD_REQUIRED' }, {}, ['ST=first; Path=/; HttpOnly']));
+    await agent.get('/api/auth/oauth/user/login?pi_flow=1').expect(200);
+    fetchMock
+      .mockResolvedValueOnce(json(200, { status: 'COMPLETED' }, {}, ['ST=second; Path=/; HttpOnly']))
+      .mockResolvedValueOnce(json(200, { authorizeResponse: { code: 'c' } }));
+    await agent.post('/api/auth/oauth/user/pi-flow/credentials').send({ username: 'u', password: 'p' }).expect(200);
+    expect(fetchMock.mock.calls[1][1].headers.Cookie).toBe('ST=first');
+    expect(fetchMock.mock.calls[2][1].headers.Cookie).toBe('ST=second');
   });
 
   test('bad password -> 401 invalid_credentials', async () => {
