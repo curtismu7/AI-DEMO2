@@ -228,6 +228,28 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-30 — Topology selection keeps the active flow legible
+
+**Files:** `demo_api_ui/src/components/ServerTopologyPage.jsx`,
+`demo_api_ui/src/components/ServerTopologyPage.css`,
+`demo_api_ui/src/components/__tests__/ServerTopologyPage.playbacks.test.jsx`,
+`REGRESSION_PLAN.md`.
+
+**What was broken:** a selected server outside the current request route could
+dim every node and connection after switching to flow-only mode, leaving the
+route nearly unreadable while its stale selection remained in the detail pane.
+
+**What was fixed:** flow-only activation clears selections that are outside the
+active route. Selected-node connections now stand out with stronger paths and
+labels while unrelated diagram content fades into the background.
+
+**Do not break:** keep the selected server's incoming and outgoing connections
+prominent, keep unrelated content subdued, and keep every connection in
+flow-only mode's active route legible.
+
+**Verify:** `cd demo_api_ui && CI=true npx vitest run
+src/components/__tests__/ServerTopologyPage.playbacks.test.jsx`; `cd demo_api_ui
+&& npm run build`; inspect the selected diagram in both themes.
 ### 2026-09-30 — Dashboard Demo Steps button belongs beside Favorites and its pop-out nearly filled the screen
 
 **Files:** `demo_api_ui/src/components/AIAgent.js`,
@@ -274,7 +296,6 @@ FloatingPanel title-bar close.
 
 **Verify:** `cd demo_api_ui && npm run build`; check `/admin` in light and dark
 themes with the §1.4 computed-style contrast auditor.
-
 ### 2026-09-30 — UC46 now visibly selects A2A and offers demo questions
 
 **Files:** `demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`,
