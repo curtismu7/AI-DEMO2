@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { JSDOM } from "jsdom";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 const previewPath = path.resolve(
   process.cwd(),
@@ -210,6 +210,33 @@ describe("ID4AI Academy HTML preview", () => {
     expect(document.querySelector("[data-frame-evidence]").textContent.length).toBeGreaterThan(
       40,
     );
+  });
+
+  it("plays the mock through the frames and shows the token claims that moved", () => {
+    vi.useFakeTimers();
+    try {
+      const dom = loadPreview();
+      const { document } = dom.window;
+
+      document.querySelector('[data-lesson-target="delegation"]').click();
+      document.querySelector("[data-run-action]").click();
+      expect(document.querySelector("[data-run-action]").textContent).toBe("Pause");
+
+      vi.advanceTimersByTime(2200 * 2);
+
+      expect(document.querySelector("[data-reel-counter]").textContent).toContain("3 /");
+      const moved = [...document.querySelectorAll('.claim-diff tr[data-change="changed"] td:first-child')]
+        .map((cell) => cell.textContent);
+      expect(moved).toEqual(expect.arrayContaining(["aud", "scope", "exp"]));
+      expect(document.querySelector('.claim-diff tr[data-change="added"] td').textContent).toBe("act");
+      expect(document.querySelector('[data-frame-index="3"]').dataset.state).toBe("pending");
+
+      vi.advanceTimersByTime(2200);
+      expect(document.querySelector("[data-run-action]").textContent).toBe("Run mock");
+      expect(document.querySelector("[data-run-status]").textContent).toContain("Mock complete");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("bounds reel navigation and preserves accessible frame focus", () => {
