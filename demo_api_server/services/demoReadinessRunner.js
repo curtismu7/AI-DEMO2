@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const { createAuditService } = require('./demoReadinessAuditService');
 const { createRepairService } = require('./demoReadinessRepairService');
 const { createReadinessExecutionService } = require('./demoReadinessExecutionService');
+const { createReadinessWorkerFactory } = require('./demoReadinessWorkerClient');
 const { loadDemoReadinessRuntimeConfig } = require('./demoReadinessRuntimeConfig');
 const { HARD_DEADLINE_MS, redactReadinessValue } = require('./demoReadinessReport');
 
@@ -59,56 +60,121 @@ function matrixCoverageError(result) {
   return null;
 }
 
-function createDefaultAdapters(clock = Date.now) {
-  const audit = createAuditService();
-  const repairs = createRepairService({ now: () => nowFrom(clock) });
-  const execution = createReadinessExecutionService();
-  const runtimeConfig = loadDemoReadinessRuntimeConfig();
+function createDefaultAdapters(clock = Date.now, {
+  audit = createAuditService(),
+  repairs = createRepairService({ now: () => nowFrom(clock) }),
+  execution,
+  runtimeConfig = loadDemoReadinessRuntimeConfig(),
+  fetchImpl = globalThis.fetch,
+  workerRuntime,
+} = {}) {
+  const workers = workerRuntime || createReadinessWorkerFactory({ config: runtimeConfig, fetchImpl });
+  const readinessExecution = execution || createReadinessExecutionService({ productionWorkerAdapter: workers.createWorker });
   return {
-    checkPrerequisites: async ({ targets = DEFAULT_TARGETS } = {}) => {
+    checkPrerequisites: async ({ targets = DEFAULT_TARGETS, deadlineAt, signal } = {}) => {
       const selectedTargets = new Set(targets);
       const configFindings = runtimeConfig.findings.filter((finding) => selectedTargets.has(finding.id.split(':')[1]));
-      return [
-        ...configFindings,
-        { id: 'provider-workers', status: 'blocked', evidence: 'The production provider-isolated worker runtime is not integrated; no presenter or administrator session will be reused.' },
-      ];
+      const workerFindings = await workers.checkWorkers({ targets, deadlineAt, signal });
+      return [...configFindings, ...workerFindings];
     },
     audit: async ({ targets, deadlineAt, phase, signal }) => {
       const rows = [];
       for (const targetId of targets) {
         if (nowFrom(clock) >= deadlineAt || signal?.aborted) break;
-        rows.push(...await audit.auditTarget({ targetId, targetConfig: { kind: targetId === 'se' ? 'se' : 'local' }, deadlineAt, signal }));
+        const target = runtimeConfig.targets[targetId];
+        const runtime = target ? {
+          bffUrl: target.bffUrl,
+          gatewayUrl: target.gatewayUrl,
+          authorizeUrl: target.authorizeUrl,
+          expectedRevision: target.expectedRevision,
+        } : {};
+        rows.push(...await audit.auditTarget({
+          targetId,
+          targetConfig: { kind: targetId === 'se' ? 'se' : 'local', runtime },
+          deadlineAt,
+          signal,
+        }));
       }
       return rows.map((row) => ({ ...row, phase }));
     },
     planRepairs: (args) => repairs.planRepairs(args),
     applyRepairs: (args) => repairs.applyRepairs(args),
     execute: async ({ targets, deadlineAt, startedAt, onProgress, signal }) => {
-      const result = await execution.runManifest({
-        targets: targets.map((target) => target === 'se' ? 'hosted' : target),
-        deadlineAt,
-        startedAt,
-        commit: process.env.GIT_COMMIT || process.env.COMMIT_SHA,
-        onProgress,
-        signal,
-      });
+      let result;
+      let runError;
+      let cleanup;
+      try {
+        result = await readinessExecution.runManifest({
+          targets: targets.map((target) => target === 'se' ? 'hosted' : target),
+          deadlineAt,
+          startedAt,
+          commit: process.env.GIT_COMMIT || process.env.COMMIT_SHA,
+          onProgress,
+          signal,
+        });
+      } catch {
+        runError = new Error('Readiness scenario execution failed.');
+      } finally {
+        try {
+          cleanup = await readinessExecution.dispose();
+        } catch {
+          cleanup = { status: 'fail', failures: [] };
+        }
+      }
+      if (runError) {
+        if (cleanup.status === 'fail') throw new Error('Readiness scenario execution and provider context cleanup failed.');
+        throw runError;
+      }
       const manifestRows = [...result.manifest.core, ...result.manifest.variants, ...result.manifest.feature, ...result.manifest.attackLab];
+      const rowIds = manifestRows.map((row, index) => [row.kind, row.caseRow?.id || row.check?.id, row.targetId, row.provider, row.behavior?.variant || row.vertical || index].filter(Boolean).join(':'));
+      const cleanupFailures = Array.isArray(cleanup?.failures) ? cleanup.failures : [];
+      const validCleanupFailures = cleanupFailures.filter((failure) => failure?.targetId && ['pingone', 'pingfederate'].includes(failure.provider));
+      const allManifestLanes = new Set(manifestRows.map((row) => `${row.targetId}:${row.provider}`));
+      const cleanupFailed = cleanup?.status === 'fail' || cleanupFailures.length > 0;
+      const unmappedCleanupFailure = validCleanupFailures.length !== cleanupFailures.length
+        || validCleanupFailures.some((failure) => !allManifestLanes.has(`${failure.targetId}:${failure.provider}`));
+      const unknownCleanupFailure = cleanupFailed && (validCleanupFailures.length === 0 || unmappedCleanupFailure);
+      const failedLanes = new Set(unknownCleanupFailure
+        ? allManifestLanes
+        : validCleanupFailures.map((failure) => `${failure.targetId}:${failure.provider}`));
+      const failedRowIds = new Set(manifestRows.flatMap((row, index) => failedLanes.has(`${row.targetId}:${row.provider}`) ? [rowIds[index]] : []));
+      const rows = result.results.map((item, index) => {
+        const row = manifestRows[index] || {};
+        const mapped = {
+          ...item,
+          id: rowIds[index],
+          target: row.targetId,
+          userSessionProvider: item.evidence?.userSessionProvider || row.provider,
+          useCaseId: row.caseRow?.id || row.check?.id,
+          sourceRef: row.caseRow?.sourceRef || row.check?.sourceRef,
+        };
+        return failedRowIds.has(mapped.id) ? {
+          ...mapped,
+          status: 'blocked',
+          observed: 'context-cleanup-failed',
+          evidence: { ...(mapped.evidence || {}), reason: 'provider worker context cleanup failed' },
+        } : mapped;
+      });
+      const executionReport = { ...result.report };
+      if (failedRowIds.size) {
+        executionReport.ready = false;
+        executionReport.status = 'not-ready';
+        if (Array.isArray(executionReport.checks)) {
+          executionReport.checks = executionReport.checks.map((check) => failedRowIds.has(check.id) ? {
+            ...check,
+            status: 'blocked',
+            observed: 'context-cleanup-failed',
+            evidence: { ...(check.evidence || {}), reason: 'provider worker context cleanup failed' },
+          } : check);
+        }
+      }
       return {
-        rows: result.results.map((item, index) => {
-          const row = manifestRows[index] || {};
-          return {
-            ...item,
-            id: [row.kind, row.caseRow?.id || row.check?.id, row.targetId, row.provider, row.behavior?.variant || row.vertical || index].filter(Boolean).join(':'),
-            target: row.targetId,
-            userSessionProvider: item.evidence?.userSessionProvider || row.provider,
-            useCaseId: row.caseRow?.id || row.check?.id,
-            sourceRef: row.caseRow?.sourceRef || row.check?.sourceRef,
-          };
-        }),
-        expectedRowIds: manifestRows.map((row, index) => [row.kind, row.caseRow?.id || row.check?.id, row.targetId, row.provider, row.behavior?.variant || row.vertical || index].filter(Boolean).join(':')),
+        rows,
+        expectedRowIds: rowIds,
         categoryCounts: result.categoryCounts,
         timing: result.timing,
-        executionReport: result.report,
+        executionReport,
+        workerCleanup: { status: cleanupFailed ? 'fail' : 'pass', failures: cleanupFailures },
       };
     },
   };
@@ -225,7 +291,7 @@ async function startReadinessRun({
       },
     });
   };
-  const runAdapter = async (phase, work, { drainOnTimeout = false } = {}) => {
+  const runAdapter = async (phase, work, { drainOnTimeout = false, drainTimeoutMs } = {}) => {
     if (expired()) return { timedOut: true };
     const progressResult = await waitUntilDeadline(() => progress(phase));
     if (progressResult.timedOut || expired()) return { timedOut: true };
@@ -235,14 +301,26 @@ async function startReadinessRun({
     try {
       const operationResult = await waitUntilDeadline(() => operation, () => controller.abort());
       if (operationResult.timedOut && drainOnTimeout) {
+        let drainTimer;
         try {
-          return { timedOut: true, completedResult: redactReadinessValue(await operation) };
+          const drained = await (Number.isFinite(drainTimeoutMs)
+            ? Promise.race([
+              operation.then((value) => ({ value }), (error) => ({ error })),
+              new Promise((resolve) => { drainTimer = setTimeout(() => resolve({ drainTimedOut: true }), drainTimeoutMs); }),
+            ])
+            : operation.then((value) => ({ value }), (error) => ({ error })));
+          if (drainTimer) clearTimeout(drainTimer);
+          if (drained.drainTimedOut) return { timedOut: true, adapterError: 'scenario execution or worker cleanup did not settle within the bounded drain' };
+          if (drained.error) throw drained.error;
+          return { timedOut: true, completedResult: redactReadinessValue(drained.value) };
         } catch (error) {
           return {
             timedOut: true,
             adapterError: redactReadinessValue(error?.message || 'adapter failed'),
             ...(Array.isArray(error?.repairEvidence) ? { repairEvidence: redactReadinessValue(error.repairEvidence) } : {}),
           };
+        } finally {
+          if (drainTimer) clearTimeout(drainTimer);
         }
       }
       if (operationResult.error) return {
@@ -385,8 +463,24 @@ async function startReadinessRun({
   }
 
   matrixAttempted = true;
-  const executionResult = await runAdapter('scenario-matrix', ({ signal }) => adapters.execute({ targets: selectedTargets, deadlineAt, startedAt, onProgress, signal }));
-  if (executionResult?.timedOut || expired()) return finishDeadline();
+  const executionResult = await runAdapter('scenario-matrix', ({ signal }) => adapters.execute({ targets: selectedTargets, deadlineAt, startedAt, onProgress, signal }), { drainOnTimeout: true, drainTimeoutMs: 10_500 });
+  if (executionResult?.timedOut || expired()) {
+    const completed = executionResult?.completedResult;
+    if (completed && Array.isArray(completed.rows)) {
+      const completedRows = normalizeRows(completed.rows, 'scenario-matrix');
+      matrixDetails = {
+        categoryCounts: completed.categoryCounts,
+        timing: completed.timing,
+        report: completed.executionReport,
+      };
+      rows.push(...completedRows);
+      const coverageError = matrixCoverageError(completed);
+      if (coverageError) rows.push({ id: 'scenario-matrix:coverage', status: 'blocked', required: true, phase: 'scenario-matrix', evidence: coverageError });
+    } else if (executionResult?.adapterError) {
+      rows.push({ id: 'scenario-matrix:adapter', status: 'blocked', required: true, phase: 'scenario-matrix', evidence: executionResult.adapterError });
+    }
+    return finishDeadline();
+  }
   if (executionResult?.adapterError) {
     rows.push({ id: 'scenario-matrix:adapter', status: 'blocked', required: true, phase: 'scenario-matrix', evidence: executionResult.adapterError });
     return makeResult();
@@ -404,4 +498,4 @@ async function startReadinessRun({
   return makeResult();
 }
 
-module.exports = { DEFAULT_TARGETS, startReadinessRun };
+module.exports = { DEFAULT_TARGETS, createDefaultAdapters, startReadinessRun };

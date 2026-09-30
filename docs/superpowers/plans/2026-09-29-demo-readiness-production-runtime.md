@@ -46,10 +46,36 @@
 - [x] Run the focused config and runner suites (5/5 and 26/26), `git diff --check`, and `graphify extract . --code-only --no-cluster --timing` (AST 155.5s; total 164.7s).
 - [x] Stage only the paths listed for this task and commit on `feat/demo-readiness-production-runtime`.
 
+## Task 2: Authenticated worker protocol client and execution lifecycle
+
+**Files:**
+- Create: `demo_api_server/services/demoReadinessWorkerClient.js`
+- Create: `demo_api_server/tests/demoReadinessWorkerClient.test.js`
+- Modify: `demo_api_server/services/demoReadinessExecutionService.js`
+- Modify: `demo_api_server/tests/demoReadinessProviderIsolation.test.js`
+- Modify: `demo_api_server/services/demoReadinessRunner.js`
+- Modify: `demo_api_server/tests/demoReadinessRunner.test.js`
+- Modify: `docs/demo-readiness.md`
+- Modify: this plan
+
+**Interfaces:**
+- Worker URL is the HTTPS service base; the client uses `GET /api/demo-readiness/v1/health`, `POST /api/demo-readiness/v1/contexts`, `POST /api/demo-readiness/v1/contexts/:contextId/operations`, and `DELETE /api/demo-readiness/v1/contexts/:contextId`.
+- Every request uses the lane's bearer token. Health and context responses must echo exact target, provider, and `IDENTITY_REF`, plus unique opaque runtime, cookie-jar, and session-store IDs. The created context must prove an authenticated session for the selected provider. These IDs remain in worker-client memory and are never report evidence.
+- Operations are `verify-case-prerequisites`, `execute-case`, `verify-feature-prerequisites`, and `execute-feature`; the last carries the exact checked-in feature family. Request data contains catalog contracts and selectors only, never credentials or browser session data.
+- `createReadinessExecutionService({ productionWorkerAdapter })` may use only an explicitly injected server-side factory in production; its existing Jest-only `createWorker` injection remains unavailable outside tests.
+- `dispose()` releases every remote context after matrix completion or failure. A failed cleanup makes scenario execution NOT READY.
+
+- [x] Write tests for target/provider/identity handshake, rejected provider mismatches, duplicate isolation IDs, authenticated lane calls, bounded health aborts, sanitized errors, cleanup, runner health checks, target URL/revision wiring, and cleanup-failure matrix blocking. The missing runner integration and failed worker disposal tests were observed red before implementation.
+- [x] Run the worker client and provider-isolation tests; the initial worker client/module and adapter coverage failed before implementation, then passed after the client/lifecycle implementation.
+- [x] Implement the HTTPS client and production-only adapter injection, then wire target runtime URLs/revision and worker health into runner prerequisites. The runner retains a completed matrix inventory through a bounded 10.5-second cleanup drain after deadline; it remains NOT READY.
+- [x] Update the master guide with the protocol and the fact that a compatible worker service is still required.
+- [x] Run the four focused client, provider-isolation, execution, and runner suites together: 97 passed/1 skipped. `git diff --check` is clean. The CLI safely exits NOT READY in 13 ms with 12 missing configuration blockers and no audit or matrix attempt.
+- [x] Run `graphify extract . --code-only --no-cluster --timing` after final source changes (AST 5.7s; total 22.1s; no clustering).
+- [x] Stage only Task 2 paths, inspect the staged diff, and commit Task 2 independently on `feat/demo-readiness-production-runtime`.
+
 ## Remaining tasks
 
-1. Implement and test the HTTPS worker protocol, with server-side context creation, provider/target/identity verification, unique runtime/cookie/session identifiers, bounded execution, and guaranteed context cleanup.
-2. Implement the provider-specific worker runtime using the existing OAuth routes without mutating the active BFF provider; dispatch the existing case and family-specific feature contracts through real demo paths.
-3. Wire target-specific PingOne, PingFederate, Gateway, Authorize, runtime-health, and deployed-revision readbacks. Keep unsupported Authorize tree parity under the approved waiver only.
-4. Configure local Docker workers and the authorized SE read/execute workers, then run all 800 expected rows, capture the live PingOne/PF/UC40 ID-JAG sessions, and measure the 12/15-minute gates.
-5. Remove blockers one by one, updating this plan and `docs/demo-readiness.md` in each task commit. Never claim operational readiness until the complete local+SE run passes.
+1. Implement the provider-specific worker service for the Task 2 HTTPS protocol. It must provide distinct local/SE × PingOne/PF service identities, private cookie/session stores, bounded run contexts with expiry on lost connections, actual provider login paths, and dispatch of existing case/family-specific contracts through real demo paths without mutating the active BFF provider.
+2. Wire target-specific PingOne, PingFederate, Gateway, and Authorize readbacks. Keep unsupported Authorize tree parity under the approved waiver only.
+3. Configure local Docker workers and the authorized SE read/execute workers, then run all 800 expected rows, capture the live PingOne/PF/UC40 ID-JAG sessions, and measure the 12/15-minute gates.
+4. Remove blockers one by one, updating this plan and `docs/demo-readiness.md` in each task commit. Never claim operational readiness until the complete local+SE run passes.

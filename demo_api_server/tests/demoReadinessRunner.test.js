@@ -1,6 +1,23 @@
 'use strict';
 
-const { startReadinessRun } = require('../services/demoReadinessRunner');
+const { createDefaultAdapters, startReadinessRun } = require('../services/demoReadinessRunner');
+const { loadDemoReadinessRuntimeConfig } = require('../services/demoReadinessRuntimeConfig');
+
+function configuredRuntime() {
+  const env = {};
+  for (const [target, host] of [['LOCAL', 'local.ping-devops.com'], ['SE', 'ai-demo.ping-devops.com']]) {
+    env[`DEMO_READINESS_${target}_BFF_URL`] = `https://${host}:4000`;
+    env[`DEMO_READINESS_${target}_GATEWAY_URL`] = `https://${host}/gateway/health`;
+    env[`DEMO_READINESS_${target}_AUTHORIZE_URL`] = `https://${host}/authorize/health`;
+    env[`DEMO_READINESS_${target}_EXPECTED_REVISION`] = 'a'.repeat(40);
+    for (const provider of ['PINGONE', 'PINGFEDERATE']) {
+      env[`DEMO_READINESS_${target}_${provider}_WORKER_URL`] = `https://${target.toLowerCase()}-${provider.toLowerCase()}.example`;
+      env[`DEMO_READINESS_${target}_${provider}_WORKER_TOKEN`] = `${target}-${provider}-token`;
+      env[`DEMO_READINESS_${target}_${provider}_IDENTITY_REF`] = `identity://${target.toLowerCase()}/${provider.toLowerCase()}`;
+    }
+  }
+  return loadDemoReadinessRuntimeConfig(env);
+}
 
 function harness(overrides = {}) {
   const calls = [];
@@ -42,7 +59,7 @@ describe('startReadinessRun', () => {
         status: 'blocked',
         evidence: expect.stringContaining('DEMO_READINESS_SE_PINGFEDERATE_IDENTITY_REF'),
       }));
-      expect(result.checks).toContainEqual(expect.objectContaining({ id: 'provider-workers', status: 'blocked' }));
+      expect(result.checks).not.toContainEqual(expect.objectContaining({ id: 'provider-workers' }));
       expect(result.ready).toBe(false);
     } finally {
       for (const [name, value] of previous) {
@@ -50,6 +67,115 @@ describe('startReadinessRun', () => {
         else process.env[name] = value;
       }
     }
+  });
+
+  test('default prerequisites health-check only configured worker lanes for selected targets', async () => {
+    const runtimeConfig = configuredRuntime();
+    const fetchImpl = jest.fn(async (url, options) => {
+      const targetId = url.includes('se-') ? 'se' : 'local';
+      const provider = url.includes('pingfederate') ? 'pingfederate' : 'pingone';
+      return {
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify({
+          status: 'ready', targetId, provider,
+          identityRef: runtimeConfig.targets[targetId].workers[provider].identityRef,
+          workerId: `${targetId}-${provider}-process`,
+          capabilities: ['readiness-context-v1', 'readiness-case-v1', 'readiness-feature-v1'],
+        }),
+      };
+    });
+    const adapters = createDefaultAdapters(Date.now, { runtimeConfig, fetchImpl });
+
+    const rows = await adapters.checkPrerequisites({ targets: ['local'], deadlineAt: Date.now() + 5_000 });
+
+    expect(rows).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'worker-health:local:pingone', status: 'pass' }),
+      expect.objectContaining({ id: 'worker-health:local:pingfederate', status: 'pass' }),
+    ]));
+    expect(rows.some((row) => row.id.includes(':se:'))).toBe(false);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(JSON.stringify(rows)).not.toMatch(/LOCAL-PINGONE-token|LOCAL-PINGFEDERATE-token/);
+  });
+
+  test('target audits receive only the selected target URLs and revision', async () => {
+    const runtimeConfig = configuredRuntime();
+    const auditTarget = jest.fn(async () => [{ id: 'audit-row', status: 'pass' }]);
+    const adapters = createDefaultAdapters(Date.now, {
+      runtimeConfig,
+      audit: { auditTarget },
+      fetchImpl: jest.fn(),
+    });
+
+    await adapters.audit({ targets: ['se'], deadlineAt: Date.now() + 5_000, phase: 'initial' });
+
+    expect(auditTarget).toHaveBeenCalledWith(expect.objectContaining({
+      targetId: 'se',
+      targetConfig: {
+        kind: 'se',
+        runtime: {
+          bffUrl: runtimeConfig.targets.se.bffUrl,
+          gatewayUrl: runtimeConfig.targets.se.gatewayUrl,
+          authorizeUrl: runtimeConfig.targets.se.authorizeUrl,
+          expectedRevision: runtimeConfig.targets.se.expectedRevision,
+        },
+      },
+    }));
+    expect(JSON.stringify(auditTarget.mock.calls)).not.toContain(runtimeConfig.targets.se.workers.pingone.token);
+  });
+
+  test('worker context cleanup failure blocks its matrix row without changing manifest coverage', async () => {
+    const manifestRow = {
+      kind: 'core', caseRow: { id: 'UC40', sourceRef: 'demo steps' }, targetId: 'local',
+      provider: 'pingone', vertical: 'banking', behavior: { variant: 'normal' },
+    };
+    const execution = {
+      runManifest: jest.fn(async () => ({
+        manifest: { core: [manifestRow], variants: [], feature: [], attackLab: [] },
+        results: [{ status: 'pass', expected: 'PERMIT', observed: 'PERMIT', evidence: {} }],
+        categoryCounts: { total: 1 }, timing: { targetMet: true }, report: {
+          ready: true, status: 'ready', checks: [{ id: 'core:UC40:local:pingone:normal', target: 'local', userSessionProvider: 'pingone', status: 'pass' }],
+        },
+      })),
+      dispose: jest.fn(async () => ({ status: 'fail', failures: [{ targetId: 'local', provider: 'pingone' }] })),
+    };
+    const adapters = createDefaultAdapters(Date.now, { execution, runtimeConfig: configuredRuntime() });
+
+    const result = await adapters.execute({ targets: ['local'], deadlineAt: Date.now() + 5_000, startedAt: Date.now() });
+
+    expect(execution.dispose).toHaveBeenCalledTimes(1);
+    expect(result.expectedRowIds).toEqual(['core:UC40:local:pingone:normal']);
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]).toMatchObject({ status: 'blocked', observed: 'context-cleanup-failed' });
+    expect(result.executionReport).toMatchObject({ ready: false, status: 'not-ready' });
+    expect(result.executionReport.checks[0]).toMatchObject({ status: 'blocked' });
+
+    const unknownFailureExecution = {
+      ...execution,
+      dispose: jest.fn(async () => ({ status: 'fail', failures: [{ targetId: 'untracked-target', provider: 'pingone' }] })),
+    };
+    const unknownFailure = await createDefaultAdapters(Date.now, {
+      execution: unknownFailureExecution,
+      runtimeConfig: configuredRuntime(),
+    }).execute({ targets: ['local'], deadlineAt: Date.now() + 5_000, startedAt: Date.now() });
+    expect(unknownFailure.rows[0]).toMatchObject({ status: 'blocked', observed: 'context-cleanup-failed' });
+  });
+
+  test('scenario timeout drains bounded cleanup and retains the completed manifest inventory', async () => {
+    const { adapters } = harness({
+      audit: async () => [{ id: 'config', status: 'pass' }],
+      planRepairs: async () => ({ digest: 'empty', changes: [], blocked: [] }),
+      execute: async () => {
+        await new Promise((resolve) => setTimeout(resolve, 550));
+        return { rows: [{ id: 'required', status: 'not-run' }], expectedRowIds: ['required'], categoryCounts: { total: 1 } };
+      },
+    });
+
+    const result = await startReadinessRun({ targets: ['local', 'se'], adapters, deadlineMs: 500 });
+
+    expect(result.status).toBe('deadline-exceeded');
+    expect(result.rows).toContainEqual(expect.objectContaining({ id: 'required', status: 'not-run' }));
+    expect(result.rows).toContainEqual(expect.objectContaining({ id: 'run:deadline', status: 'not-run' }));
   });
 
   test('empty prerequisite inventories block readiness before audit', async () => {
