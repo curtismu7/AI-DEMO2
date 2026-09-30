@@ -86,7 +86,7 @@ body.admin-skin-p1 .admin-side-nav__quick-link {
   box-shadow: none;
   justify-content: flex-start;
   padding: 7px 8px;
-  font-size: 11px;
+  font-size: var(--font-size-sm);
 }
 :root[data-theme="dark"] body.admin-skin-p1 .admin-side-nav__quick-link {
   border-color: #fff;
@@ -127,7 +127,7 @@ body.admin-skin-p1 .admin-side-nav {
   --sidenav-filter-bg: var(--th-bg-inset);
   --sidenav-filter-border: var(--th-border);
   --sidenav-filter-fg: var(--th-text);
-  --sidenav-filter-placeholder: var(--th-text-faint);
+  --sidenav-filter-placeholder: var(--th-text-muted);
   --sidenav-filter-bg-hover: var(--th-bg-inset);
   --sidenav-filter-border-hover: var(--th-border-strong);
   --sidenav-filter-bg-focus: var(--th-bg-card);
@@ -210,7 +210,7 @@ body.admin-skin-p1 .admin-side-nav--collapsed .admin-side-nav__menu {
 body.admin-skin-p1 .admin-side-nav__section-label {
   padding: 14px 10px 7px;
   color: #91abc2;
-  font-size: 10px;
+  font-size: var(--font-size-2xs);
   font-weight: 800;
   letter-spacing: 0.16em;
   text-transform: uppercase;

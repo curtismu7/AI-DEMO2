@@ -143,7 +143,18 @@ describe("AdminSideNav — best-of-breed pass", () => {
 
     const shortcuts = document.querySelectorAll(".admin-side-nav__quick-link");
     expect(Array.from(shortcuts, (shortcut) => shortcut.textContent.trim()))
-      .toEqual(["A", "A", "S", "C", "D", "R"]);
+      .toEqual(["Ag", "Ad", "S", "C", "D", "R"]);
+  });
+
+  it("keeps sidebar readability styles on the shared theme scale", () => {
+    const skinCss = readFileSync(path.resolve(__dirname, "../adminSkinPing2026.css"), "utf8");
+    expect(skinCss).toMatch(
+      /body\.admin-skin-p1 \.admin-side-nav__quick-link \{[\s\S]*font-size: var\(--font-size-sm\)/,
+    );
+    expect(skinCss).toMatch(
+      /body\.admin-skin-p1 \.admin-side-nav__section-label \{[\s\S]*font-size: var\(--font-size-2xs\)/,
+    );
+    expect(skinCss).toContain("--sidenav-filter-placeholder: var(--th-text-muted);");
   });
 
   it("uses the compact PingOne platform rail hierarchy", () => {

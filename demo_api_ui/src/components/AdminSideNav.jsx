@@ -2089,7 +2089,7 @@ export default function AdminSideNav({
               navigate("/dashboard");
             }}
           >
-            {collapsed ? <span className="admin-side-nav__quick-initial" aria-hidden="true">A</span> : <MdDashboard size={16} aria-hidden="true" />}
+            {collapsed ? <span className="admin-side-nav__quick-initial" aria-hidden="true">Ag</span> : <MdDashboard size={16} aria-hidden="true" />}
             {!collapsed && <span>Agent</span>}
           </button>
           <button
@@ -2116,7 +2116,7 @@ export default function AdminSideNav({
                 );
             }}
           >
-            {collapsed ? <span className="admin-side-nav__quick-initial" aria-hidden="true">A</span> : <MdSecurity size={16} aria-hidden="true" />}
+            {collapsed ? <span className="admin-side-nav__quick-initial" aria-hidden="true">Ad</span> : <MdSecurity size={16} aria-hidden="true" />}
             {!collapsed && <span>Admin</span>}
           </button>
           <Link
