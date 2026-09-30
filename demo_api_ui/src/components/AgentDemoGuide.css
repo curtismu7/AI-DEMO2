@@ -728,6 +728,7 @@
 }
 
 :root[data-theme="dark"] .adg-applicable-steps {
+  color: var(--th-status-info-text);
   background: var(--th-status-info-bg);
   border-color: var(--th-status-info-border);
 }
@@ -754,6 +755,7 @@
 }
 
 :root[data-theme="dark"] .adg-watch-box {
+  color: var(--th-status-warning-text);
   background: var(--th-status-warning-bg);
   border-color: var(--th-status-warning-border);
 }
@@ -763,6 +765,7 @@
 }
 
 :root[data-theme="dark"] .adg-presenter-audience {
+  color: var(--th-text);
   background: var(--th-status-success-bg);
 }
 

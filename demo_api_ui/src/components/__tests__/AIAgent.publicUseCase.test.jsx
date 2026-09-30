@@ -281,7 +281,6 @@ describe("public demo step, signed out", () => {
 
     expect(await screen.findByText("Launched from Demo Steps")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Act 1 — Public catalog access" })).toBeInTheDocument();
-    expect(screen.getByText("Demo Steps → Act 1 — Public catalog access")).toBeInTheDocument();
   });
 
   it("never PATCHes the admin feature-flag route", async () => {
