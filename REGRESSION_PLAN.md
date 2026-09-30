@@ -308,6 +308,25 @@ FloatingPanel title-bar close.
 
 **Verify:** `cd demo_api_ui && npm run build`; check `/admin` in light and dark
 themes with the §1.4 computed-style contrast auditor.
+### 2026-09-30 — Privilege chat allows dynamic OAuth client registration
+
+**Files:** `demo_api_server/routes/privilegeMcpClient.js`,
+`demo_api_server/tests/routes/privilegeMcpClient.authStartNoClientId.test.js`.
+
+**What was broken:** Chat rejected an empty OAuth Client ID before starting
+OAuth, even though the shipped gateway registers the client dynamically and
+the Settings UI says the ID is supplied automatically.
+
+**What was fixed:** Chat now lets `beginOAuthFlow` perform DCR or return its
+existing actionable error when a gateway requires an operator-supplied ID.
+
+**Do not break:** Preserve Procyon’s no-OAuth path, DCR registration, the
+manual Client ID fallback, and OAuth session/token handling.
+
+**Verify:** `cd demo_api_server && CI=true npx jest
+tests/routes/privilegeMcpClient.authStartNoClientId.test.js
+tests/routes/privilegeMcpClient.procyon.test.js --forceExit`.
+
 ### 2026-09-30 — UC46 now visibly selects A2A and offers demo questions
 
 **Files:** `demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`,
