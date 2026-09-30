@@ -607,6 +607,16 @@ function ServerTopologyContent() {
   const selectNode = useCallback((id) => { setPlaying(false); setSelectedNode(id); setSelectedEdge(null); setDetailsOpen(true); }, []);
   const selectEdge = useCallback((id) => { setPlaying(false); setSelectedNode(null); setSelectedEdge(id); setDetailsOpen(true); }, []);
   const clearSelection = useCallback(() => { setPlaying(false); setSelectedNode(null); setSelectedEdge(null); }, []);
+  const toggleFlowOnly = useCallback((event) => {
+    const enabled = event.target.checked;
+    if (enabled) {
+      const routeNodes = flowNodeIds(playback.steps);
+      const routeEdges = new Set(playback.steps.map((step) => step.edgeId));
+      if (selectedNode && !routeNodes.has(selectedNode)) setSelectedNode(null);
+      if (selectedEdge && !routeEdges.has(selectedEdge)) setSelectedEdge(null);
+    }
+    setFlowOnly(enabled);
+  }, [playback.steps, selectedEdge, selectedNode]);
   const selectScenario = useCallback((event) => {
     setScenario(event.target.value);
     setStepIndex(0);
@@ -680,7 +690,7 @@ function ServerTopologyContent() {
             {LAYER_OPTIONS.map(([key, label]) => <button key={key} type="button" aria-pressed={activeLayer === key} onClick={() => setActiveLayer(key)}>{label}</button>)}
           </div>
           <label className="stm-flow-toggle" htmlFor="stm-flow-only">
-            <input id="stm-flow-only" type="checkbox" checked={flowOnly} onChange={(event) => setFlowOnly(event.target.checked)} />
+            <input id="stm-flow-only" type="checkbox" checked={flowOnly} onChange={toggleFlowOnly} />
             <span>Flow boxes only</span>
           </label>
           <ServerTopologyExportControls />
