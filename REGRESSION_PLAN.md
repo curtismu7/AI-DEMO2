@@ -336,6 +336,31 @@ WorkerAgent → MCP topology and every existing MCP Inspect tab.
 
 **Verify:** UI build and a live UC46 navigation with both page themes.
 
+### 2026-09-30 — OrbStack K8 could not complete PingFederate login
+
+**Files:** `run-k8.sh`, `scripts/k8-docker-cleanup.sh` and its test,
+`k8s/deploy.sh`, and `k8s/overlays/orbstack-pf/`.
+
+**What was broken:** local K8 cleanup selected every `ai-demo-*` Docker
+container, disabled its restart policy, and stopped it, including the
+standalone PF container. The in-cluster BFF also resolved its browser-facing PF
+issuer to its own loopback address; its egress policy denied port 9031, and the
+pod did not trust the mkcert CA for the PF token exchange.
+
+**What changed:** cleanup preserves `ai-demo-pingfederate`. OrbStack deploys add
+a BFF-only host-gateway alias and egress rule for PF on TCP 9031, and configure
+Node to trust the existing mkcert CA bundle. Cleanup also keeps PF's named
+Docker network while its container exists, avoiding stale network IDs after a
+stop. Other cluster contexts do not receive this local-only route.
+
+**Do not break:** keep PF's public issuer hostname, redirect URIs, clients, and
+persistent data unchanged. Keep the OrbStack host route scoped to the BFF and
+preserve the default external egress restrictions.
+
+**Verify:** `bash scripts/k8-docker-cleanup.test.sh`; shell syntax checks;
+server-side dry-run of the BFF host alias; local PF JWKS returns HTTP 200 from
+both the host and the K8 BFF pod.
+
 ### 2026-09-30 — UC46 is numbered step 25 in Demo Steps
 
 **Files:** `demo_api_server/config/useCases.js`,
