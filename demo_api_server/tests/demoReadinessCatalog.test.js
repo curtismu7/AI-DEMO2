@@ -9,7 +9,7 @@ const {
 const EXPECTED_IDS = [
   'UC24', 'UC1', 'UC8', 'UC7', 'UC14b', 'UC14', 'UC12', 'UC6', 'UC2',
   'UC2.5', 'UC2.7', 'UC22', 'UC5', 'UC10', 'UC13', 'UC11', 'UC20', 'UC18',
-  'UC30', 'UC31', 'UC32', 'UC40', 'UC38', 'UC-TOOL1',
+  'UC30', 'UC31', 'UC32', 'UC40', 'UC38', 'UC-TOOL1', 'UC46',
   'UC43', 'UC44', 'UC45', 'UC2.6',
   'UC17', 'UC25', 'UC-PAM-SETUP', 'UC-PAM-SCRIPT', 'UC-LEARN11', 'UC-TOOL3',
   'ADMIN1', 'ADMIN2', 'ADMIN3', 'ADMIN4', 'ADMIN5', 'ADMIN6', 'ADMIN7',
@@ -17,11 +17,11 @@ const EXPECTED_IDS = [
 ];
 
 describe('demo readiness catalog', () => {
-  test('builds the 46 executable Demo Steps entries in lane order', () => {
+  test('builds the 47 executable Demo Steps entries in lane order', () => {
     const rows = buildDemoReadinessCatalog();
 
     expect(rows.map((row) => row.id)).toEqual(EXPECTED_IDS);
-    expect(rows).toHaveLength(46);
+    expect(rows).toHaveLength(47);
     expect(rows.some((row) => row.id === 'ADMIN13')).toBe(false);
   });
 
@@ -33,8 +33,8 @@ describe('demo readiness catalog', () => {
       0,
     ), 0);
 
-    expect(runtimeGroups).toBe(184);
-    expect(coreRows).toBe(734);
+    expect(runtimeGroups).toBe(185);
+    expect(coreRows).toBe(738);
     expect(rows.find((row) => row.id === 'UC40').runtimeVerticalGroups).toHaveLength(1);
   });
 
@@ -76,6 +76,15 @@ describe('demo readiness catalog', () => {
       kind: 'page-load',
       pathname: '/llm-gateway',
       searchParams: { attack: 'prompt_injection' },
+    });
+    expect(byId.get('UC46')).toMatchObject({
+      executionMode: 'page',
+      auth: 'user',
+      expectedBehavior: {
+        kind: 'page-load',
+        pathname: '/privilege-mcp-client',
+        searchParams: { view: 'demo', tab: 'a2a' },
+      },
     });
   });
 
@@ -124,7 +133,7 @@ describe('demo readiness catalog', () => {
     ]);
   });
 
-  test('keeps PF A2A and DaVinci feature probes outside the 46 Demo Steps count', () => {
+  test('keeps PF A2A and DaVinci feature probes outside the Demo Steps count', () => {
     const sources = loadDemoReadinessSources();
 
     expect(sources.featureChecks.countsTowardDemoSteps).toBe(false);

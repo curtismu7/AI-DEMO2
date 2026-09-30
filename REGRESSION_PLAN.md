@@ -188,6 +188,60 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-30 — UC46 is numbered step 25 in Demo Steps
+
+**Files:** `demo_api_server/config/useCases.js`,
+`demo_api_server/config/auth-requirements.json`,
+`demo_api_server/config/demoReadinessInventory.json`,
+`demo_api_server/services/demoReadinessCatalog.js`,
+`demo_api_ui/src/config/demoUseCaseSteps.js`, and their API/readiness/UI tests.
+
+**What was missing:** the Privilege A2A page link was listed only as an extra
+Privilege-lane action with a non-numeric ID, outside the numbered primary
+presenter sequence.
+
+**What changed:** the catalog now identifies it as `UC46` and places it at
+step 25 in the primary Demo Steps sequence. It appears once, remains
+user-session-gated, and opens the A2A tab without sending a question.
+
+**Do not break:** preserve `ADMIN13`'s `/privilege-mcp-client` destination, the
+separate MainAgent → WorkerAgent → MCP topology, the BFF session boundary,
+banking A2A, OAuth/token exchange, and existing MCP Inspect tabs.
+
+**Verify:** focused API/readiness Jest and UI Vitest suites;
+`npm run authz:verify`; `node scripts/check-demo-readiness-contract.mjs`;
+`cd demo_api_ui && npm run build`.
+
+### 2026-09-29 — Privilege A2A access review is available as a Demo Step
+
+**Files:** `demo_api_server/config/useCases.js`,
+`demo_api_server/config/demoReadinessInventory.json`,
+`demo_api_server/config/auth-requirements.json`,
+`demo_api_server/services/demoReadinessCatalog.js`,
+`demo_api_server/services/demoReadinessAuditService.js`,
+`demo_api_ui/src/config/demoUseCaseSteps.js`,
+`demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`,
+`demo_api_ui/src/pages/PrivilegeMcpClientPage.css`,
+`demo_api_ui/src/components/AdminSideNav.jsx`,
+`docs/demo-readiness.md`, and the corresponding readiness/UI contract tests.
+
+**What was missing:** the Privilege A2A demo had an A2A tab, but presenters
+could only reach it by opening the client page and selecting the tab themselves.
+
+**What was added:** a user-session-gated Privilege lane Demo Step opens the
+existing client at `?view=demo&tab=a2a`. An explicit view/tab deep link overrides
+the saved page preference and selects the A2A tab; it does not send a prompt.
+The readiness catalog now checks 47 Demo Steps and the Privilege count is 7.
+
+**Do not break:** preserve `ADMIN13`'s existing `/privilege-mcp-client`
+destination and keep this as a navigation step. Preserve the separate
+MainAgent → WorkerAgent → MCP topology, BFF session boundary, banking A2A,
+OAuth/token exchange, and existing MCP Inspect tabs.
+
+**Verify:** focused catalog Jest and UI Vitest tests; `npm run authz:verify`;
+`node scripts/check-demo-readiness-contract.mjs`; `cd demo_api_ui && npm run
+build`; check the Privilege client page in both themes.
+
 ### 2026-09-29 — Privilege A2A tab route mounts and BFF boundary
 
 **Files:** `standalone/privilege-a2a-anthropic-demo/src/worker-agent/index.ts`,

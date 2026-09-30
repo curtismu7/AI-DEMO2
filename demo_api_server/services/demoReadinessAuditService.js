@@ -133,7 +133,7 @@ function repositoryValues() {
     scopeTopology: { status: Object.keys(topology.scopes || {}).length ? 'pass' : 'fail', observed: { scopeCount: Object.keys(topology.scopes || {}).length } },
     verticalManifests: { status: Object.keys(sources.verticalManifests || {}).length ? 'pass' : 'fail' },
     routeAuth: { status: catalog.every((entry) => entry.auth) ? 'pass' : 'fail', observed: { catalogCount: catalog.length } },
-    prerequisiteParity: { status: catalog.length === 46 && requirements.every((item) => Array.isArray(item.flags)) ? 'pass' : 'fail', observed: { cases: requirements.length } },
+    prerequisiteParity: { status: catalog.length === 47 && requirements.every((item) => Array.isArray(item.flags)) ? 'pass' : 'fail', observed: { cases: requirements.length } },
     registeredTools: { status: requirements.filter((item) => item.tool && !toolNames.includes(item.tool)).length ? 'fail' : 'pass' },
     gatewayConfig: { status: semanticEqual(gateway.scopes || {}, topology.scopes || {}) ? 'pass' : 'fail' },
     authorizeReferences: { status: Boolean(sources.repairability.driftClasses?.['authorize-endpoint-reference']) ? 'pass' : 'fail' },
