@@ -38,7 +38,6 @@ const logTokenInfo = (token, context = '') => {
     verboseOAuthLog(`   Type: ${header.typ}`);
     if (header.kid) verboseOAuthLog(`   Key ID: ${header.kid}`);
 
-    verboseOAuthLog(`   Subject: ${payload.sub || 'N/A'}`);
     verboseOAuthLog(`   Issuer: ${payload.iss || 'N/A'}`);
     verboseOAuthLog(`   Audience: ${Array.isArray(payload.aud) ? payload.aud.join(', ') : payload.aud || 'N/A'}`);
 
@@ -54,17 +53,6 @@ const logTokenInfo = (token, context = '') => {
       verboseOAuthLog(`   Issued At: ${iatDate.toISOString()}`);
     }
 
-    if (payload.preferred_username) verboseOAuthLog(`   Username: ${payload.preferred_username}`);
-    if (payload.email) verboseOAuthLog(`   Email: ${payload.email}`);
-    if (payload.given_name) verboseOAuthLog(`   First Name: ${payload.given_name}`);
-    if (payload.family_name) verboseOAuthLog(`   Last Name: ${payload.family_name}`);
-
-    if (payload.realm_access?.roles) {
-      verboseOAuthLog(`   Realm Roles: ${payload.realm_access.roles.join(', ')}`);
-    }
-    if (payload.resource_access) {
-      verboseOAuthLog(`   Resource Access: ${JSON.stringify(payload.resource_access)}`);
-    }
     if (payload.scope) {
       verboseOAuthLog(`   Scopes: ${payload.scope}`);
     }
@@ -237,11 +225,12 @@ class OAuthService {
     }
 
     const authUrl = `${this.config.authorizationEndpoint}?${params.toString()}`;
-    console.log('[oauthService.generateAuthorizationUrl] Generated URL with:', {
+    console.log('[oauthService.generateAuthorizationUrl] Generated OAuth authorization request:', {
       redirect_uri: redirectUri || this.config.redirectUri,
       authorizationEndpoint: this.config.authorizationEndpoint,
       client_id: this.config.clientId?.slice(0, 8) + '...',
-      state: state?.slice(0, 8) + '...',
+      hasState: !!state,
+      hasNonce: !!nonce,
     });
     return authUrl;
   }
@@ -253,6 +242,10 @@ class OAuthService {
    */
   async exchangeCodeForToken(code, codeVerifier, redirectUri, resources = null) {
     try {
+      if (typeof codeVerifier !== 'string'
+        || !/^[A-Za-z0-9._~-]{43,128}$/.test(codeVerifier)) {
+        throw new Error('Missing or invalid PKCE code_verifier');
+      }
       const body = new URLSearchParams({
         grant_type: 'authorization_code',
         code: code,
@@ -260,10 +253,8 @@ class OAuthService {
         client_id: this.config.clientId,
       });
       
-      // PKCE code_verifier goes in the body regardless of client type (RFC 7636).
-      if (codeVerifier) {
-        body.set('code_verifier', codeVerifier);
-      }
+      // This flow always sends an S256 challenge, so the matching verifier is mandatory.
+      body.set('code_verifier', codeVerifier);
       
       // Add RFC 8707 resource indicators if provided
       if (resources && Array.isArray(resources) && resources.length > 0) {
@@ -284,15 +275,14 @@ class OAuthService {
       
       const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
       const clientAuthMethod = applyAdminTokenEndpointClientAuth(this.config, body, headers);
-      const bodyObj = Object.fromEntries(body);
-      console.log('[oauthService.exchangeCodeForToken] Posting to PingOne:', {
+      console.log('[oauthService.exchangeCodeForToken] Posting authorization-code exchange:', {
         tokenEndpoint: this.config.tokenEndpoint,
         redirect_uri: redirectUri || this.config.redirectUri,
-        code: code?.slice(0, 8) + '...',
         client_id: this.config.clientId?.slice(0, 8) + '...',
         clientAuthMethod,
-        allBodyParams: bodyObj,
-        headers,
+        hasAuthorizationCode: !!code,
+        hasPkceVerifier: true,
+        resourceCount: Array.isArray(resources) ? resources.length : 0,
       });
       const tokenResponse = await axios.post(this.config.tokenEndpoint, body.toString(), {
         headers,
@@ -337,19 +327,16 @@ class OAuthService {
       return tokenResponse.data;
     } catch (error) {
       const pingoneError = error.response?.data?.error;
-      const pingoneDesc  = error.response?.data?.error_description;
       console.error('[exchangeCodeForToken] Failed:', {
         status: error.response?.status,
-        data: error.response?.data,
-        fullError: error.message,
+        error: pingoneError || 'token_exchange_failed',
         tokenEndpoint: this.config.tokenEndpoint,
       });
       const msg = pingoneError
-        ? `Token exchange failed: ${pingoneError}${pingoneDesc ? ' — ' + pingoneDesc : ''}`
+        ? `Token exchange failed: ${pingoneError}`
         : 'Failed to exchange authorization code for token';
       const err = new Error(msg);
       err.pingoneError = pingoneError || 'token_exchange_failed';
-      err.pingoneDesc  = pingoneDesc  || '';
       throw err;
     }
   }
@@ -1282,7 +1269,10 @@ class OAuthService {
 
       return userInfoResponse.data;
     } catch (error) {
-      console.error('User info error:', error.response?.data || error.message);
+      console.error('User info request failed:', {
+        status: error.response?.status,
+        error: error.response?.data?.error || 'userinfo_failed',
+      });
       throw new Error('Failed to get user information', { cause: sanitizeAxiosCause(error) });
     }
   }

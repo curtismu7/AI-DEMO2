@@ -188,6 +188,53 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-28 — OAuth callbacks accepted unvalidated identity claims and logged transaction credentials
+
+**Files:** `demo_api_server/routes/oauth.js`,
+`demo_api_server/routes/oauthUser.js`,
+`demo_api_server/routes/hostedAccess.js`,
+`demo_api_server/routes/davinciLogin.js`,
+`demo_api_server/services/oauthService.js`,
+`demo_api_server/services/oauthUserService.js`,
+`demo_api_server/services/hostedAccessOAuthService.js`,
+`demo_api_server/services/oidcIdTokenValidationService.js`,
+`demo_api_server/services/tokenValidationService.js`,
+`demo_api_server/services/authAccessAuditService.js`,
+`oauth-mcp/src/server/HttpMCPTransport.ts`, `docker-compose.yml`,
+`oauth-mcp/.env.example`,
+`k8s/30-mcp-server-deployment.yaml`,
+`privilege/ai-demo-whole-stack/ai-demo-stack/templates/30-mcp-server-deployment.yaml`,
+`docs/ENV.md`, `docs/SECURITY_NETWORKING_REMEDIATION_WORKPLAN.md`,
+`docs/MCP_COMPLIANCE_DIAGRAM.drawio`,
+`docs/MCP_COMPLIANCE_DIAGRAM_V2.drawio`.
+
+**What was broken:** Admin, user, hosted-access, and DaVinci callbacks did not
+consistently validate the ID-token signature and required OIDC claims or bind
+UserInfo to the ID-token subject. The step-up callback did not validate
+freshness or the requested ACR. Token exchange
+logging exposed request parameters and authentication headers; admin login audit
+events also recorded decoded ID-token claims. MCP Streamable HTTP treated an
+empty Origin allowlist as unrestricted.
+
+**What was fixed:** Validate ID-token signature and issuer/client claims using
+issuer JWKS on the admin, user, hosted-access, and DaVinci login paths; require
+expiry/issue-time/subject/nonce claims and match UserInfo `sub`. Check step-up
+`auth_time` and requested ACR, and reject missing/invalid PKCE verifiers on
+authorization-code exchanges. Remove credentials, session fragments, and decoded ID-token
+claims from OAuth logs. Reject every supplied MCP Origin that is not an exact
+configured origin while allowing clients that omit Origin; configure local,
+hosted Kubernetes, and Helm-hosted origins.
+
+**Do not break:** Admin and user login state validation, S256 PKCE, nonce
+binding, redirect origin checks, session rotation/persistence, admin role
+resolution, customer-only authorization, and Origin-less server-to-server MCP
+clients.
+
+**Verify:** BFF `node --check`, MCP `npm run build`, scoped ESLint for the
+changed transport, `git diff --check`, and Graphify extraction passed. Repo-wide
+`npm run lint` reports 30 errors in untouched files. BFF and MCP test suites
+were not run.
+
 ### 2026-09-28 — BFF routed banking balance aliases as unknown MCP tools
 
 **Files:** `demo_api_server/server.js`,

@@ -50,6 +50,15 @@ PF mode is intentionally fail-closed: the ID-JAG is redeemed only at the
 explicit downstream endpoint. It is never treated as a final MCP bearer and
 does not fall back to the PingOne or local mock exchange.
 
+## MCP Streamable HTTP Origin allowlist
+
+`MCP_ALLOWED_ORIGINS` is a comma-separated list of exact browser origins
+(scheme, host, and optional port; no paths). Docker Compose defaults to
+`https://local.ping-devops.com:4000`; the hosted Kubernetes deployment allows
+`https://ai-demo.ping-devops.com`. Requests with a supplied Origin outside the
+list receive HTTP 403. Requests without an Origin remain available to CLI and
+server-to-server MCP clients. An empty list denies all supplied Origins.
+
 ## PingFederate AI Agent feature demos
 
 The separate `/pingfederate-ai-agent` page exercises PingFederate CIMD,
