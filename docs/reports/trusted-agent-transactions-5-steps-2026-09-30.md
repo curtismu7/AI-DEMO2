@@ -59,8 +59,49 @@ Switching provider is a live-stack change and is protected (REGRESSION_PLAN §1:
 
 Caution: the provider intent file records an earlier finding that "A2A requires PingOne-minted act claims". The 2026-09-27 handoff reports that PF now mints them; step 4 is the check that settles it.
 
-## 5. Not done in this report
+## 5. Live PingFederate run (2026-09-30, after the flip)
 
-- No PF token was decoded, no exchange was run, and the FM1-FM3 spec was not re-run.
+Setup: provider flipped with `POST /api/admin/config {oauth_provider: pingfederate}` (the admin UI toggle was unusable, see 5.3). The running server then reported `pingfederate`. Stack generation was pinned before and unchanged after, so the run is valid. Login and the A2A call used the demo customer through `local.ping-devops.com:4000`.
+
+### 5.1 FM1-FM3 (`a2a-failure-modes.real.spec.js`): 2 passed, 1 failed
+
+| Test | Result |
+|---|---|
+| FM1 out-of-allowlist tool refused, allowlist named | ✅ pass |
+| FM2 act-less bearer refused by the A2A wire gate | ✅ pass |
+| FM3 happy path stays green | ❌ `sensitive_passenger_record failed: mcp_error` (final hop) |
+
+### 5.2 Decoded tokens from one real delegation (sanitized claims; raw tokens never printed)
+
+All tokens are issued by PingFederate (`iss` = `https://local.ping-devops.com:9031`), so PF is the live issuer.
+
+| Hop | sub | act | aud | scope |
+|---|---|---|---|---|
+| user token | `demouser` | empty | `enduser.ping.demo` | openid profile email offline_access accounts:read ai:agent:read mcp:invoke |
+| agent 1 actor (CC) | absent | none | `enduser.ping.demo` | agent:invoke |
+| Exchange #1 | `demouser` | `{sub: 0b412e8b-...}` | `https://a2a-intermediate-passenger.ping.demo` | agent:invoke:passenger |
+| agent 2 actor (CC) | absent | none | `https://agentgateway.ping.demo` | agent:invoke:passenger |
+| Exchange #2 | **absent** | `{sub: 7f598698-...}`, single level | `https://agentgateway.ping.demo` | gateway:mcp:invoke pnr:read |
+| A2A protocol message | failed | | | |
+
+Findings:
+
+1. **UserID (✅ through Exchange #1).** `sub=demouser` is preserved by Exchange #1, then **not visible in Exchange #2** (no `sub` in the sanitized claims; the event list is filtered by `sanitizeClaims`, so this needs a raw-claim check).
+2. **AgentID (⚠️ confirmed).** `act.sub` at Exchange #1 is `0b412e8b-...`, which equals `PF_AI_AGENT_ACTOR_CLIENT_ID` (the generalist client). That matches the hard-coded TEXT `act` in the SP-connection mapping, so it names the generalist, not the calling specialist.
+3. **Nested act (❌ for the article's chain).** Exchange #2 carries a single `act`, no `act.act`. The Exchange #1 actor is not nested under the Exchange #2 actor, so the user -> generalist -> specialist chain is not present in the final token as decoded.
+4. **AgentInstanceID, SPIFFEID, TransactionID (❌ on this path).** No such claim is visible on any hop. The sanitized view may hide claims (only some events list hidden claim names), so absence of a claim here is "not shown", not proof the token lacks it.
+5. **FM3 root cause (matches the handoff).** The final token's `aud` is `https://agentgateway.ping.demo`, and the last hop fails with `mcp_error`. The handoff's open item (BFF requires `https://api.ping.demo:3036/mcp`) is still the likely cause; the call was not traced to the exact rejecting check.
+
+### 5.3 Side findings during the run
+
+- **UI 404 was a stray port-forward.** A `kubectl port-forward -n ai-demo svc/frontend 4000:4000` (PID 6418, started 08:03) was bound to `127.0.0.1:4000` and shadowed Docker's forward, so the browser reached the k8s frontend. It was stopped with the user's approval. `ai-demo-ui` was also restarted (its Vite process had stopped answering `docker exec`).
+- **Unauthenticated writes to `/api/admin/config`.** A `POST` with no session returned 200 with the full config, and a POST of `oauth_provider` changed the live provider. `requireAdminOrUnconfigured` appears not to enforce admin on this stack. Not investigated further; should be added to TECH_DEBT.md and checked.
+- **Provider lock drift.** `.demo-provider-intent.json` still says `pingone` while the live provider is `pingfederate`; `scripts/pingone/demo-provider-lock.js verify` and the health gate's provider-lock row will report drift until one is changed.
+- **PF admin login failing in spec harness.** The spec's headless admin login logs `PingFederate rejected the credentials` and falls back to the LMDB session store; not relevant to FM1-FM3 but noisy.
+
+## 6. Not done
+
+- Raw (unsanitized) token claims were not inspected, so `spiffeId`, instance and transaction claims are unconfirmed either way.
 - PF admin config (SP connections, clients, ATM) was not inspected; it is not tracked in the repo.
 - mTLS per hop was not checked.
+- The provider was left on `pingfederate` at the end of this run.

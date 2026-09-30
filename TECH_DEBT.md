@@ -16,6 +16,22 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-09-30 — POST /api/admin/config accepted with no session and changed the live OAuth provider
+
+**What's wrong.** On the local Docker stack, an unauthenticated
+`POST /api/admin/config` returned 200 with the full config, and a POST of
+`{"oauth_provider":"pingfederate"}` flipped the live provider (confirmed by a
+follow-up GET). `requireAdminOrUnconfigured` (`routes/adminConfig.js`) appears
+not to enforce an admin session on this stack; `OAuthProviderToggle.jsx` handles
+a `not_authorized` response, so the intended gate exists. Found while running the
+trusted-agent report (`docs/reports/trusted-agent-transactions-5-steps-2026-09-30.md`).
+
+**Why not fixed now.** Out of scope for the report; the cause (unconfigured-bootstrap
+branch vs a missing session check) was not traced.
+
+**Real fix.** Trace why the guard passes, require an admin session whenever the
+app is configured, add a route test that an anonymous POST gets 401/403.
+
 ### [ ] 2026-09-28 — Graphify requeues intentionally skipped JSON on every refresh
 
 **What's wrong.** Graphify `0.9.71`'s zero-node recovery check re-queues
