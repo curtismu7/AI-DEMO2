@@ -150,8 +150,12 @@ class OAuthUserService {
         : (configStore.getOAuthProvider?.() === 'pingfederate' ? 'demouser' : 'demoUser');
     console.log('[oauth-auth-url] authorizationEndpoint:', this.config.authorizationEndpoint);
     console.log('[oauth-auth-url] Generated with:', { redirectUri, nonce, acr_values, prompt, max_age });
-    const usePiFlow = Boolean(forcePiFlow) || Boolean(this.config.authorizeUsesPiFlow);
-    const responseType = usePiFlow ? 'pi.flow' : 'code';
+    // pi.flow is a response_MODE. PingOne answers response_type=pi.flow with 400;
+    // the flow is opened with response_type=code&response_mode=pi.flow. Only an
+    // explicit forcePiFlow opens one: authorizeUsesPiFlow used to rewrite every
+    // redirect login, which would land the browser on raw flow JSON.
+    const usePiFlow = Boolean(forcePiFlow);
+    const responseType = 'code';
     const finalRedirectUri = redirectUri || this.config.redirectUri;
     console.log('[oauth-auth-url] Final redirect_uri:', finalRedirectUri);
     const params = new URLSearchParams({

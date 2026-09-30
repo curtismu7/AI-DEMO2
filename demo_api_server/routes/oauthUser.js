@@ -303,6 +303,86 @@ router.post('/id-jag/cancel', (req, res) => {
     : res.json({ ok: true }));
 });
 
+// --- Redirect-free (pi.flow) customer sign-in, PingOne only -----------------
+// /login?pi_flow=1 opens the flow; POST /pi-flow/credentials drives it and hands
+// the browser to the UNCHANGED /callback with ?code&state, so PKCE, nonce and
+// session creation all stay where they already are. Anything the password step
+// can't finish (MFA, a policy screen) returns {fallback:true} and the SPA starts
+// the ordinary redirect login instead.
+const PI_FLOW_TIMEOUT_MS = 10_000;
+
+function piFlowBase() {
+  return String(oauthUserConfig.authorizationEndpoint || '').replace(/\/as\/authorize.*$/, '');
+}
+
+async function openPiFlow(req, res, authorizeUrl) {
+  try {
+    const r = await fetch(authorizeUrl, {
+      headers: { Accept: '*/*' }, redirect: 'manual', signal: AbortSignal.timeout(PI_FLOW_TIMEOUT_MS),
+    });
+    const flow = await r.json().catch(() => null);
+    if (!r.ok || !flow?.id) {
+      console.warn('[oauth/user/pi-flow] authorize did not open a flow: HTTP %s', r.status);
+      return res.status(502).json({ error: 'pi_flow_unavailable' });
+    }
+    req.session.oauthPiFlow = { flowId: flow.id, startedAt: Date.now() };
+    return req.session.save((err) => {
+      if (err) return res.status(500).json({ error: 'session_save_failed' });
+      return res.json({ flowId: flow.id, status: flow.status });
+    });
+  } catch (error) {
+    console.warn('[oauth/user/pi-flow] authorize failed:', error.message);
+    return res.status(502).json({ error: 'pi_flow_unavailable' });
+  }
+}
+
+router.post('/pi-flow/credentials', async (req, res) => {
+  const pending = req.session.oauthPiFlow;
+  const { username, password } = req.body || {};
+  if (!pending?.flowId || !req.session.oauthState || Date.now() - pending.startedAt > 5 * 60 * 1000) {
+    return res.status(409).json({ error: 'pi_flow_not_started' });
+  }
+  if (typeof username !== 'string' || typeof password !== 'string' || !username || !password) {
+    return res.status(400).json({ error: 'invalid_request' });
+  }
+  const base = piFlowBase();
+  try {
+    const step = await fetch(`${base}/flows/${pending.flowId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/vnd.pingidentity.usernamePassword.check+json', Accept: '*/*' },
+      body: JSON.stringify({ username, password }),
+      signal: AbortSignal.timeout(PI_FLOW_TIMEOUT_MS),
+    });
+    const body = await step.json().catch(() => ({}));
+    if (step.status === 400 && body?.details?.some((d) => d.code === 'INVALID_CREDENTIALS')) {
+      return res.status(401).json({ error: 'invalid_credentials', message: 'Username or password is incorrect.' });
+    }
+    if (!step.ok) return res.status(502).json({ error: 'pi_flow_failed' });
+    if (body.status !== 'COMPLETED') return res.json({ fallback: true, status: body.status });
+
+    const resume = await fetch(`${base}/as/resume?flowId=${pending.flowId}`, {
+      headers: { Accept: '*/*' }, redirect: 'manual', signal: AbortSignal.timeout(PI_FLOW_TIMEOUT_MS),
+    });
+    let code = '';
+    if ((resume.headers.get('content-type') || '').includes('json')) {
+      code = (await resume.json().catch(() => ({})))?.authorizeResponse?.code || '';
+    }
+    if (!code && resume.headers.get('location')) {
+      try { code = new URL(resume.headers.get('location')).searchParams.get('code') || ''; } catch (_) { /* not a URL */ }
+    }
+    if (!code) return res.status(502).json({ error: 'pi_flow_no_code' });
+
+    delete req.session.oauthPiFlow;
+    const callback = new URL(req.session.oauthRedirectUri);
+    callback.searchParams.set('code', code);
+    callback.searchParams.set('state', req.session.oauthState);
+    return req.session.save(() => res.json({ redirectTo: callback.toString() }));
+  } catch (error) {
+    console.warn('[oauth/user/pi-flow] credentials step failed:', error.message);
+    return res.status(502).json({ error: 'pi_flow_failed' });
+  }
+});
+
 router.get('/login', (req, res) => {
   try {
     const continuingIdJag = !!req.session.pendingIdJagNonce && !!req.session.oauthState
@@ -337,6 +417,11 @@ router.get('/login', (req, res) => {
 
     const forceLogin = req.query.force === 'true' || liveIdJag;
     const selectedProvider = configStore.getOAuthProvider?.() || 'pingone';
+    // Opt-in redirect-free sign-in: the SPA asks for ?pi_flow=1 and gets flow JSON
+    // back instead of a 302. Off unless PINGONE_USER_AUTHORIZE_PI_FLOW is on; the
+    // SPA falls back to the plain redirect login when this returns 404/502.
+    const piFlowLogin = req.query.pi_flow === '1' && !liveIdJag
+      && selectedProvider === 'pingone' && oauthUserConfig.authorizeUsesPiFlow;
     const sessionProvider = req.session.user?.oauthProvider;
     const sessionProviderMatches = selectedProvider === 'pingfederate'
       ? sessionProvider === 'pingfederate'
@@ -471,12 +556,13 @@ router.get('/login', (req, res) => {
         redirectUri,
         nonce,
         ...(forceLogin ? { prompt: 'login' } : {}),
+        ...(piFlowLogin ? { forcePiFlow: true } : {}),
       }) + resourceParam;
 
     loginFlowTrace.addStep(loginTraceId, {
       actor: 'bff',
       toActor: 'pingone',
-      title: "BFF redirects you to PingOne's hosted login",
+      title: piFlowLogin ? 'BFF opens a PingOne pi.flow (no redirect)' : "BFF redirects you to PingOne's hosted login",
       detail: '302 to PingOne /authorize carrying response_type, redirect_uri, and the code_challenge.',
       protocolDetail: [
         ['response_type', 'code'],
@@ -504,6 +590,9 @@ router.get('/login', (req, res) => {
     req.session.save((err) => {
       if (err) {
         console.warn('[oauth/user] Session save failed before PingOne redirect (PKCE cookie is fallback):', err.message);
+      }
+      if (piFlowLogin) {
+        return openPiFlow(req, res, url);
       }
       console.log('Redirecting end user to PingOne SSO:', url);
       appEventService.logEvent('oauth', 'info', 'Redirecting → PingOne Authorization', { tag: 'oauth/user/login', redirect_uri: redirectUri });
