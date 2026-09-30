@@ -6517,30 +6517,6 @@ body > .banking-agent-float-root .banking-agent-panel {
   line-height: 1.45;
 }
 
-.ba-demo-steps-float__close {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  width: 30px;
-  height: 30px;
-  padding: 0;
-  border: 1px solid var(--th-border-strong);
-  border-radius: 7px;
-  color: var(--th-text);
-  background: transparent;
-  cursor: pointer;
-  font-size: var(--font-size-sm);
-}
-
-.ba-demo-steps-float__close:hover,
-.ba-demo-steps-float__close:focus-visible {
-  border-color: var(--th-status-info);
-  background: var(--th-bg-hover);
-  color: var(--th-text);
-  outline: none;
-}
-
 .ba-demo-steps-float__progress-row {
   display: flex;
   align-items: center;

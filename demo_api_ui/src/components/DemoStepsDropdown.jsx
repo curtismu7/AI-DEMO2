@@ -554,6 +554,7 @@ export default function DemoStepsDropdown({
           minWidth={320}
           minHeight={240}
           zIndex={100061}
+          onClose={() => onOpenChange(false)}
           role="dialog"
           aria-label="Demo steps"
           aria-modal="false"
@@ -568,15 +569,6 @@ export default function DemoStepsDropdown({
                 <h2 className="ba-demo-steps-float__title">Mission Control</h2>
                 <p className="ba-demo-steps-float__subtitle">Run the trust story one proof at a time.</p>
               </div>
-              <button
-                type="button"
-                className="ba-demo-steps-float__close"
-                onClick={() => onOpenChange(false)}
-                aria-label="Close Demo steps"
-                data-testid="demo-steps-close"
-              >
-                ✕
-              </button>
           </div>
           {primarySteps.length > 0 && (
               <div className="ba-demo-steps-float__progress-row">
