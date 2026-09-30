@@ -324,7 +324,7 @@ deploy() {
 
   install_procyon_nodesensor
 
-  success "All available product deployments ready (${AGENT_SELECTION}-agent is the default route)."
+  success "Product deployment steps complete (${AGENT_SELECTION}-agent is the default route); components with readiness warnings may still be starting."
   show_status
   # run-k8.sh owns the final "next step" line (it points at ./run-k8.sh forward),
   # so suppress ours when invoked through it — otherwise the user sees two
