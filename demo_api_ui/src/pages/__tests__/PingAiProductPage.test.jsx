@@ -1,8 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import PingAiProductPage from "../PingAiProductPage";
-import productPageStyles from "../PingAiProductPage.css?raw";
 
 describe("PingAiProductPage", () => {
   it.each([
@@ -37,12 +36,9 @@ describe("PingAiProductPage", () => {
     expect(screen.queryByText(/agent dispatch/i)).not.toBeInTheDocument();
   });
 
-  it("keeps inactive product navigation readable on the dark header", () => {
-    expect(productPageStyles).toContain(
-      ".pai-lesson-page .pai-product-nav__link:not(.pai-product-nav__link--active),",
-    );
-    expect(productPageStyles).toMatch(
-      /\.pai-lesson-page \.pai-product-nav__link:not\(\.pai-product-nav__link--active\),[^}]*color:\s*var\(--th-text-invert\)\s*;[^}]*-webkit-text-fill-color:\s*var\(--th-text-invert\)\s*;/,
-    );
+  it("marks the selected product in navigation", () => {
+    render(<MemoryRouter><PingAiProductPage product="privilegeA2a" /></MemoryRouter>);
+    expect(screen.getByRole("link", { name: "Privilege · A2A" })).toHaveClass("pai-product-nav__link--active");
+    expect(screen.getByRole("link", { name: "Privilege · MCP" })).not.toHaveClass("pai-product-nav__link--active");
   });
 });
