@@ -76,6 +76,9 @@ body.admin-skin-p1 .admin-side-nav__quick-links {
   padding: 10px 16px 14px;
   gap: 6px;
 }
+body.admin-skin-p1 .admin-side-nav--collapsed .admin-side-nav__quick-links {
+  padding: 10px 8px 14px;
+}
 body.admin-skin-p1 .admin-side-nav__quick-link {
   background: transparent;
   border: 1px solid #000;
@@ -102,6 +105,11 @@ body.admin-skin-p1 .admin-side-nav__quick-link--active {
   border: 1px solid #000;
   color: #fff !important;
   box-shadow: none;
+}
+body.admin-skin-p1 .admin-side-nav--collapsed .admin-side-nav__quick-link {
+  color: #fff !important;
+  font-size: var(--font-size-lg);
+  justify-content: center;
 }
 :root[data-theme="dark"] body.admin-skin-p1 .admin-side-nav__quick-link--active {
   border-color: #fff;
@@ -195,6 +203,9 @@ body.admin-skin-p1 .admin-side-nav__item--child {
 /* ── Compact platform hierarchy ─────────────────────────────────────────── */
 body.admin-skin-p1 .admin-side-nav__menu {
   padding: 12px 16px 24px;
+}
+body.admin-skin-p1 .admin-side-nav--collapsed .admin-side-nav__menu {
+  padding: 64px 8px 24px;
 }
 body.admin-skin-p1 .admin-side-nav__section-label {
   padding: 14px 10px 7px;

@@ -137,6 +137,15 @@ describe("AdminSideNav — best-of-breed pass", () => {
     expect(screen.getByRole("navigation", { name: /primary navigation/i })).toBeTruthy();
   });
 
+  it("shows shortcut initials on the collapsed rail", () => {
+    window.localStorage.setItem("adminSideNav.collapsed", "true");
+    renderNav();
+
+    const shortcuts = document.querySelectorAll(".admin-side-nav__quick-link");
+    expect(Array.from(shortcuts, (shortcut) => shortcut.textContent.trim()))
+      .toEqual(["A", "A", "S", "C", "D", "R"]);
+  });
+
   it("uses the compact PingOne platform rail hierarchy", () => {
     renderNav();
     expect(screen.getByText("Super Banking")).toBeInTheDocument();

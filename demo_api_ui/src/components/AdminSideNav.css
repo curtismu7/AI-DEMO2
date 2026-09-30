@@ -196,8 +196,12 @@
 
 .admin-side-nav--collapsed .admin-side-nav__quick-link {
   padding: 8px;
-  font-size: 16px;
+  font-size: var(--font-size-lg);
   justify-content: center;
+}
+
+.admin-side-nav__quick-initial {
+  font-weight: 700;
 }
 
 :root[data-theme="dark"] .admin-side-nav__quick-link {

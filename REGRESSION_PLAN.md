@@ -1057,6 +1057,24 @@ homepage's separate ingress uses HTTP only for its static in-cluster service.
 **Verify:** `helm lint` and rendered enabled/disabled chart checks;
 `npm run topology:verify`; `npm run authz:verify`; desktop and mobile browser previews.
 
+### 2026-09-30 — Collapsed side navigation shortcuts overlapped the expand arrow
+
+**Files:** `demo_api_ui/src/components/AdminSideNav.jsx`,
+`AdminSideNav.css`, `adminSkinPing2026.css`, and `adminSideNav.test.jsx`.
+
+**What was broken:** the Ping skin placed the collapsed menu beneath the expand
+arrow and squeezed shortcut buttons to roughly 18px wide. Icons did not show the
+requested shortcut initials.
+
+**What changed:** the collapsed menu clears the arrow, shortcuts have 47px of
+width, and they show their first letter with readable color in both themes.
+
+**Do not break:** keep the existing shortcut destinations, actions, accessible
+names, and expanded-sidebar labels.
+
+**Verify:** sidebar unit test; UI unit suite and build; computed shortcut
+contrast and arrow clearance in light and dark themes.
+
 ### 2026-09-30 — OrbStack K8 could not complete PingFederate login
 
 **Files:** `run-k8.sh`, `scripts/k8-docker-cleanup.sh` and its test,
