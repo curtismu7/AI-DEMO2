@@ -81,4 +81,24 @@ describe('OAuth provider mode', () => {
     expect(userOAuth.redirectUri).toBe('https://local.ping-devops.com:4000/pf-callback');
     expect(userOAuth.tokenEndpointAuthMethod).toBe('post');
   });
+
+  describe('user OAuth readiness', () => {
+    afterEach(() => jest.restoreAllMocks());
+
+    test.each([
+      [{ oauth_provider: 'pingone', pingone_environment_id: 'env', user_client_id: 'user' }, true],
+      [{ oauth_provider: 'pingone', pingone_environment_id: '', user_client_id: 'user' }, false],
+      [{ oauth_provider: 'pingone', pingone_environment_id: 'env', user_client_id: '' }, false],
+      [{ oauth_provider: 'pingone', pingone_environment_id: '', user_client_id: '', pf_issuer: 'https://pf.example.test', pf_user_client_id: 'pf-user' }, false],
+      [{ oauth_provider: 'pingfederate', pf_issuer: 'https://pf.example.test', pf_user_client_id: 'pf-user' }, true],
+      [{ oauth_provider: 'pingfederate', pf_issuer: '', pf_user_client_id: 'pf-user' }, false],
+      [{ oauth_provider: 'pingfederate', pf_issuer: 'https://pf.example.test', pf_user_client_id: '' }, false],
+      [{ oauth_provider: 'pingfederate', pf_issuer: '', pf_user_client_id: '', pingone_environment_id: 'env', user_client_id: 'user' }, false],
+    ])('requires the selected provider configuration: %p', (settings, expected) => {
+      const configStore = require('../../services/configStore');
+      jest.spyOn(configStore, 'getEffective').mockImplementation((key) => settings[key] || '');
+
+      expect(configStore.isUserOAuthConfigured()).toBe(expected);
+    });
+  });
 });

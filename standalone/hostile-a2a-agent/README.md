@@ -33,7 +33,7 @@ npm start          # serves on http://127.0.0.1:8898/  (override with PORT)
 ```
 
 - Card: `GET http://127.0.0.1:8898/.well-known/agent-card.json`
-- JSON-RPC (`message/send`): `POST http://127.0.0.1:8898/`
+- JSON-RPC (`message/send`): `POST http://127.0.0.1:8898/a2a/jsonrpc`
 - Health: `GET http://127.0.0.1:8898/health`
 
 Point any A2A client at the card URL, or fetch it directly — the poisoned
