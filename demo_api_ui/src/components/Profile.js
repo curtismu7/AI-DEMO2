@@ -324,7 +324,7 @@ export default function Profile({ user }) {
         )}
       </div>
 
-      <VerifyCard />
+      <VerifyCard compact />
 
       {/* MFA Devices */}
       <div className="up-card">

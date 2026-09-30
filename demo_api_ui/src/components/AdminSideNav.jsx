@@ -179,7 +179,7 @@ const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "local.ping-devops.co
 const AUTO_EXPAND_SECTIONS = [
   { id: "ai-gateway", paths: ["/ai-gateway/shadow-ai-detector", "/privilege-mcp-client", "/llm-gateway", "/agent-gateway-authorization", "/code-search"] },
   { id: "davinci", paths: ["/davinci-sdk", "/davinci-widget", "/davinci-orchestration-sdk", "/pingfederate-davinci-kit"] },
-  { id: "pingone-products", paths: ["/pingcli", "/sdk-login", "/samples/m2m-credentials", "/samples/custom-admin-role"] },
+  { id: "ping-products", paths: ["/ping-products/verify-recognize", "/pingcli", "/sdk-login", "/samples/m2m-credentials", "/samples/custom-admin-role"] },
   { id: "identity-journeys", paths: ["/self-service", "/samples/user-registration", "/samples/mfa-demo", "/login-flow", "/oauth-academy", "/oas-demo"] },
   { id: "ai-experiences", paths: ["/delegated-commerce", "/use-cases", "/use-cases/live", "/demo-track", "/group-policy", "/agent-lifecycle", "/delegation-chain-value", "/a2a-protocol-learning", "/control-plane", "/ai-control-plane", "/agent-registry", "/agent-builder", "/agent-flow-inspector", "/agent-onboarding-flow", "/agent-onboarding-flow-subway", "/langchain", "/ungoverned-agent", "/servers", "/autonomous-agents", "/personal-agent", "/privilege-for-ai"] },
   { id: "mcp-integrations", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/demo/enterprise-mcp", "/ping-ai-test-lab", "/agent-gateway-inspector", "/agent-gateway-capabilities", "/webmcp", "/mcp-scanner", "/personal-agent"] },
@@ -1299,6 +1299,7 @@ export default function AdminSideNav({
     ], "doc"),
     productGroup("Ping products", [
       { from: "PingOne Protect", rename: "PingOne Protect", path: "/ai-products/protect" },
+      { label: "PingOne Verify & Recognize", path: "/ping-products/verify-recognize", icon: "doc" },
       { from: "Headless Identity Demo", rename: "Headless Identity / PingCLI" },
       "SDK Login",
       "M2M Client Credentials",
