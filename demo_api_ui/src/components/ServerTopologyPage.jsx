@@ -405,18 +405,27 @@ function TopologyCanvas({
   const routeEdges = useMemo(() => new Set(playbackSteps.map((step) => step.edgeId)), [playbackSteps]);
   const routeNodes = useMemo(() => flowNodeIds(playbackSteps), [playbackSteps]);
   const graphNodes = useMemo(() => {
+    const connectedNodeIds = new Set(selectedNode ? SERVER_EDGES.flatMap((item) => (
+      item.source === selectedNode ? [item.target] : item.target === selectedNode ? [item.source] : []
+    )) : []);
     const serviceNodes = SERVER_MAP.filter((node) => !flowOnly || routeNodes.has(node.id)).map((node) => {
       const isSelected = node.id === selectedNode;
       const inScope = isSelected || flowOnly || (filter === "all" ? routeNodes.has(node.id) : matchesFilter(node, filter));
+      const opacity = selectedNode
+        ? (isSelected ? 1 : connectedNodeIds.has(node.id) ? 0.58 : 0.018)
+        : (inScope ? 1 : 0.035);
       return {
         ...node,
         selected: isSelected,
         zIndex: isSelected ? 10 : (node.zIndex ?? 0),
         data: { ...node.data, endpoint: endpointFor(node, deployment) },
-        style: { opacity: inScope ? 1 : 0.035 },
+        style: { opacity },
       };
     });
-    return flowOnly ? serviceNodes : [...SERVER_ZONES, ...serviceNodes];
+    const zones = selectedNode
+      ? SERVER_ZONES.map((zone) => ({ ...zone, style: { ...zone.style, opacity: 0.12 } }))
+      : SERVER_ZONES;
+    return flowOnly ? serviceNodes : [...zones, ...serviceNodes];
   }, [deployment, filter, flowOnly, routeNodes, selectedNode]);
 
   const graphEdges = useMemo(() => SERVER_EDGES.filter((item) => !flowOnly || routeEdges.has(item.id)).map((item) => {
@@ -451,8 +460,8 @@ function TopologyCanvas({
       label: `${isIncomingToSelection ? "IN · " : isOutgoingFromSelection ? "OUT · " : ""}${isOnPlayback ? `${String(stepIndex + 1).padStart(2, "0")} · ` : ""}${label}`.slice(0, 48),
       style: {
         stroke,
-        strokeWidth: isFocusedCommunication ? 5.5 : active ? 3.2 : 1.8,
-        opacity: isSelectedEdge || isFocusedCommunication ? 0.98 : !visible ? 0.035 : selectedNode || isOffRoute ? 0.035 : 0.96,
+        strokeWidth: isFocusedCommunication ? 7 : active ? 3.2 : 1.8,
+        opacity: isSelectedEdge || isFocusedCommunication ? 1 : !visible ? 0.018 : selectedNode || isOffRoute ? 0.018 : 0.96,
         strokeDasharray: item.data.kind === "telemetry" ? "6 5" : item.data.profile ? "6 5" : undefined,
       },
       markerEnd: { type: MarkerType.ArrowClosed, color: stroke },
