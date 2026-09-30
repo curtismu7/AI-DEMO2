@@ -146,15 +146,20 @@ router.get('/session', (req, res) => {
   const cookieOnlyBffSession =
     req.session._restoredFromCookie === true ||
     req.session.oauthTokens?.accessToken === '_cookie_session';
+  const wasOAuthLogin = req.session.oauthType === 'user' || req.session.oauthType === 'admin'
+    || (!req.session.oauthType && u.role === 'admin' && req.session.tokenType !== 'local_session');
+  const oauthToken = req.session.oauthTokens?.accessToken;
+  const expiresAt = req.session.oauthTokens?.expiresAt;
+  const staleOAuthSession = wasOAuthLogin && (!oauthToken || (expiresAt && Date.now() >= expiresAt));
   // A cookie-only stub session has no OAuth token — callers that check
   // `authenticated` must treat this as not signed in and prompt re-auth.
   // cookieOnlyBffSession:true is still included so the P1 polling loop
   // in BankingAgent can detect when the Redis session propagates.
-  if (cookieOnlyBffSession) {
+  if (cookieOnlyBffSession || staleOAuthSession) {
     return res.json({
       authenticated: false,
       user: null,
-      cookieOnlyBffSession: true,
+      cookieOnlyBffSession,
       sessionStoreError: req._sessionStoreError ?? null,
       sessionStoreHealthy: req._sessionStoreHealthy ?? null,
     });

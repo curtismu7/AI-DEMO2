@@ -228,6 +228,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-30 — Active PingOne sessions were hidden by inconsistent session checks
+
+**Files:** `demo_api_server/routes/auth.js`, `demo_api_server/services/agentMcpTokenService.js`, `demo_api_ui/src/hooks/useAuth.js`, `demo_api_ui/src/services/sessionResolver.js`, `demo_api_ui/src/components/UserDashboardPing2026.js`, `demo_api_ui/src/components/SecurityCenter.js`, `demo_api_ui/src/components/UnifiedTokenFlowInspector.jsx`, `demo_api_ui/src/components/education/TokenExchangePanel.js`, and focused tests.
+
+**What was broken:** An error from the admin status endpoint stopped the app shell before it checked a valid customer session. Admin pages waited for all three status probes and reported no session when one hung, even if another had confirmed the user; the token expiry indicator waited for both OAuth probes. The generic status endpoint reported stale OAuth user records as authenticated after their token was lost or expired. The dashboard treated a status request error as signed out even when the app shell had confirmed the user. Security Center classified BFF `authType: user/admin` as a local account. Token panels expected raw OAuth status tokens or an old `decoded` event shape, hiding real BFF session-preview claims. The education panel also treated active opaque tokens as signed out.
+
+**What changed:** The app shell checks admin and customer OAuth status concurrently, continues after individual failures, and attempts the existing PingOne `prompt=none` route once for a stale customer OAuth session. It retries a stale customer status once when generic status shows that a concurrent refresh completed. When only generic status restores a session, it emits a provisional auth signal that preserves PF ID-JAG handoff state; provider confirmation later validates the callback or clears that state for an ordinary login. It does not accept a generic user record as proof of a valid OAuth token. Admin pages and the token expiry indicator use a confirmed session without waiting for unrelated probes. Generic status requires a live token for OAuth sessions, including legacy admin sessions, while retaining local session behavior. The dashboard uses its confirmed user prop to try the normal protected data request when status is unavailable. Security Center recognizes both BFF OAuth auth types. Session preview omits expired stored bearers; token panels read its sanitized event shape and recognize active opaque tokens only after expiry-aware generic status confirms the session. The education panel no longer infers `may_act` from filtered claims.
+
+**Do not break:** Preserve confirmed OAuth status over generic OAuth fallback, local username/password sessions, PF ID-JAG handoff validation, the BFF's token and role enforcement, the dashboard's one-redirect reauth guard, and server-side custody of raw tokens. Silent recovery must be one-shot and must not start for PingFederate or after a `login_required` callback.
+
+**Verify:** `CI=true npx jest src/__tests__/authSession.test.js tests/oauthUser.test.js src/__tests__/agentMcpTokenService.test.js --forceExit` in `demo_api_server`; focused UI Vitest regressions for each path; `cd demo_api_ui && npm run test:unit && npm run build`.
+
 ### 2026-09-30 — Topology selection keeps the active flow legible
 
 **Files:** `demo_api_ui/src/components/ServerTopologyPage.jsx`,
