@@ -58,7 +58,7 @@ if [ -n "$DERIVED_TOUCHED" ] && [ -f "$SNAPSHOT_TEST" ]; then
     echo "[pre-commit]    Regenerate: node snapshots/gen-authorize-snapshot.js --check, then update the test's expected total."
     exit 1
   fi
-  if ! node --test demo_api_server/tests/serverInventory.test.js >/dev/null 2>&1; then
+  if ! (cd demo_api_server && CI=true node_modules/.bin/jest tests/serverInventory.test.js --forceExit) >/dev/null 2>&1; then
     echo "[pre-commit] ❌ demo_api_server/tests/serverInventory.test.js failed — serverInventory.js drifted from its test."
     exit 1
   fi

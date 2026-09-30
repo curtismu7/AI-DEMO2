@@ -17,9 +17,9 @@
 
 .otdp-header h2 {
   margin: 0;
-  font-size: 1.5rem;
+  font-size: var(--font-size-2xl);
   font-weight: 700;
-  color: #1e293b;
+  color: var(--th-text);
 }
 
 .otdp-status {
@@ -33,31 +33,31 @@
   align-items: center;
   padding: 0.25rem 0.75rem;
   border-radius: 9999px;
-  font-size: 0.75rem;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   letter-spacing: 0.02em;
 }
 
 .otdp-badge--active {
-  background: #dcfce7;
-  color: #166534;
+  background: var(--th-status-success-bg);
+  color: var(--th-status-success-text);
 }
 
 .otdp-badge--expired {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
 }
 
 .otdp-badge--provider {
-  background: #e0f2fe;
-  color: #075985;
+  background: var(--th-status-info-bg);
+  color: var(--th-status-info-text);
 }
 
 .otdp-loading {
   text-align: center;
   padding: 4rem 0;
-  color: #64748b;
-  font-size: 1rem;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-md);
 }
 
 .otdp-grid {
@@ -68,8 +68,9 @@
 }
 
 .otdp-card {
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: var(--th-bg-card);
+  color: var(--th-text-body);
+  border: 1px solid var(--th-border);
   border-radius: 0.75rem;
   padding: 1.25rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
@@ -84,11 +85,11 @@
 
 .otdp-card--error h3 {
   margin: 0.75rem 0 0.5rem;
-  color: #1e293b;
+  color: var(--th-text);
 }
 
 .otdp-card--error p {
-  color: #64748b;
+  color: var(--th-text-muted);
   margin: 0;
 }
 
@@ -103,7 +104,7 @@
   border: none;
   padding: 0.6rem 1.75rem;
   border-radius: 0.5rem;
-  font-size: 0.9375rem;
+  font-size: var(--font-size-base);
   font-weight: 600;
   cursor: pointer;
   transition: background 0.2s;
@@ -114,14 +115,14 @@
 }
 
 .otdp-card-title {
-  font-size: 0.875rem;
+  font-size: var(--font-size-body);
   font-weight: 700;
   color: var(--th-text);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 0.75rem;
   padding-bottom: 0.5rem;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--th-border);
 }
 
 /* ── Collapsible card header ── */
@@ -142,12 +143,12 @@
 }
 
 .otdp-card-header:hover {
-  background-color: #f8fafc;
+  background-color: var(--th-bg-hover);
 }
 
 .otdp-toggle-icon {
-  font-size: 0.75rem;
-  color: #94a3b8;
+  font-size: var(--font-size-2xs);
+  color: var(--th-text-faint);
   margin-left: 0.5rem;
   flex-shrink: 0;
   transition: transform 0.15s;
@@ -178,21 +179,21 @@
 }
 
 .otdp-claim-row + .otdp-claim-row {
-  border-top: 1px solid #f8fafc;
+  border-top: 1px solid var(--th-border);
 }
 
 .otdp-claim-key {
   flex-shrink: 0;
   width: 120px;
-  color: #64748b;
+  color: var(--th-text-muted);
   font-weight: 500;
 }
 
 .otdp-claim-value {
-  color: #1e293b;
+  color: var(--th-text-body);
   word-break: break-all;
   font-family: inherit;
-  font-size: 0.75rem;
+  font-size: var(--font-size-2xs);
 }
 
 .otdp-scopes {
@@ -204,28 +205,28 @@
 .otdp-scope-badge {
   display: inline-block;
   padding: 0.125rem 0.5rem;
-  background: #f0f9ff;
-  color: #0369a1;
-  border: 1px solid #bae6fd;
+  background: var(--th-status-info-bg);
+  color: var(--th-status-info-text);
+  border: 1px solid var(--th-status-info-border);
   border-radius: 4px;
-  font-size: 0.6875rem;
+  font-size: var(--font-size-xs);
   font-weight: 500;
   font-family: inherit;
 }
 
 .otdp-muted {
-  color: #94a3b8;
+  color: var(--th-text-muted);
   font-style: italic;
-  font-size: 0.75rem;
+  font-size: var(--font-size-2xs);
 }
 
 .otdp-expired-text {
-  color: #dc2626;
+  color: var(--th-status-error-text);
   font-weight: 600;
 }
 
 .otdp-active-text {
-  color: #16a34a;
+  color: var(--th-status-success-text);
   font-weight: 600;
 }
 
@@ -241,30 +242,48 @@
   margin: 2rem auto;
 }
 
+.otdp-flow-start-card label {
+  color: var(--th-text);
+}
+
+.otdp-flow-start-card input {
+  width: min(100%, 22rem);
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--th-border-strong);
+  border-radius: 0.45rem;
+  background: var(--th-bg-inset);
+  color: var(--th-text-body);
+}
+
+.otdp-flow-start-card input:focus-visible {
+  outline: 2px solid var(--th-status-info);
+  outline-offset: 2px;
+}
+
 .otdp-flow-icon {
-  font-size: 2.5rem;
+  font-size: var(--font-size-4xl);
   margin-bottom: 0.5rem;
 }
 
 .otdp-flow-start-card h3 {
   margin: 0 0 0.75rem;
-  color: #1e293b;
-  font-size: 1.25rem;
+  color: var(--th-text);
+  font-size: var(--font-size-xl);
 }
 
 .otdp-flow-desc {
-  color: var(--th-text);
-  font-size: 0.9rem;
+  color: var(--th-text-body);
+  font-size: var(--font-size-body);
   line-height: 1.6;
   margin: 0 0 1.75rem;
 }
 
 .otdp-flow-desc code {
-  background: #f1f5f9;
+  background: var(--th-code-bg);
   padding: 0.1em 0.4em;
   border-radius: 3px;
   font-size: 0.875em;
-  color: var(--th-text);
+  color: var(--th-code-text);
 }
 
 /* Step indicators */
@@ -282,31 +301,31 @@
   align-items: flex-start;
   gap: 0.6rem;
   padding: 0.6rem 0.875rem;
-  border: 1.5px solid #e2e8f0;
+  border: 1.5px solid var(--th-border);
   border-radius: 0.625rem;
-  background: #f8fafc;
+  background: var(--th-bg-inset);
   text-align: left;
   min-width: 140px;
   transition: border-color 0.25s, background 0.25s;
 }
 
 .otdp-flow-step--active {
-  border-color: #3b82f6;
-  background: #eff6ff;
+  border-color: var(--th-status-info-border);
+  background: var(--th-status-info-bg);
 }
 
 .otdp-flow-step--warn {
-  border-color: #f59e0b;
-  background: #fffbeb;
+  border-color: var(--th-status-warning-border);
+  background: var(--th-status-warning-bg);
 }
 
 .otdp-flow-step--ok {
-  border-color: #10b981;
-  background: #ecfdf5;
+  border-color: var(--th-status-success-border);
+  background: var(--th-status-success-bg);
 }
 
 .otdp-flow-step--done {
-  border-color: #10b981;
+  border-color: var(--th-status-success-border);
   opacity: 0.75;
 }
 
@@ -317,8 +336,8 @@
   width: 1.5rem;
   height: 1.5rem;
   border-radius: 50%;
-  background: #e2e8f0;
-  font-size: 0.75rem;
+  background: var(--th-bg-hover);
+  font-size: var(--font-size-2xs);
   font-weight: 700;
   color: var(--th-text);
   flex-shrink: 0;
@@ -326,41 +345,41 @@
 }
 
 .otdp-flow-step--active .otdp-flow-step-num {
-  background: #3b82f6;
-  color: #fff;
+  background: var(--th-status-info);
+  color: var(--th-text-invert);
 }
 
 .otdp-flow-step--warn .otdp-flow-step-num {
-  background: #f59e0b;
-  color: #fff;
+  background: var(--th-status-warning);
+  color: var(--th-text-invert);
 }
 
 .otdp-flow-step--ok .otdp-flow-step-num,
 .otdp-flow-step--done .otdp-flow-step-num {
-  background: #10b981;
-  color: #fff;
+  background: var(--th-status-success);
+  color: var(--th-text-invert);
 }
 
 .otdp-flow-step-title {
-  font-size: 0.8125rem;
+  font-size: var(--font-size-sm);
   font-weight: 600;
-  color: #1e293b;
+  color: var(--th-text);
 }
 
 .otdp-flow-step-sub {
-  font-size: 0.75rem;
-  color: #64748b;
+  font-size: var(--font-size-2xs);
+  color: var(--th-text-muted);
   margin-top: 0.1rem;
 }
 
 .otdp-flow-arrow {
-  font-size: 1.125rem;
-  color: #94a3b8;
+  font-size: var(--font-size-h3);
+  color: var(--th-text-faint);
   flex-shrink: 0;
 }
 
 .otdp-flow-status {
-  font-size: 0.875rem;
+  font-size: var(--font-size-body);
   font-weight: 600;
   min-height: 1.5rem;
   margin-bottom: 1rem;
@@ -372,7 +391,7 @@
   border: none;
   padding: 0.7rem 2rem;
   border-radius: 0.5rem;
-  font-size: 0.9375rem;
+  font-size: var(--font-size-base);
   font-weight: 600;
   cursor: pointer;
   transition: background 0.2s;
@@ -390,16 +409,16 @@
 
 .otdp-raw-json {
   margin-top: 0.75rem;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--th-code-bg);
+  border: 1px solid var(--th-border);
   border-radius: 0.5rem;
   padding: 1rem;
-  font-size: 0.75rem;
+  font-size: var(--font-size-2xs);
   line-height: 1.6;
   overflow-x: auto;
   max-height: 400px;
   overflow-y: auto;
-  color: #334155;
+  color: var(--th-code-text);
   font-family: inherit;
 }
 
@@ -410,25 +429,25 @@
 }
 
 .otdp-raw-json::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: var(--th-bg-inset);
   border-radius: 0.5rem;
 }
 
 .otdp-raw-json::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: var(--th-border-strong);
   border-radius: 0.5rem;
-  border: 2px solid #f8fafc;
+  border: 2px solid var(--th-code-bg);
   transition: background 0.2s;
 }
 
 .otdp-raw-json::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: var(--th-text-faint);
 }
 
 /* PingOne Enrichment source label */
 .otdp-source-label {
-  font-size: 0.75rem;
+  font-size: var(--font-size-2xs);
   font-weight: 400;
-  color: #94a3b8;
+  color: var(--th-text-faint);
   margin-left: 0.5rem;
 }

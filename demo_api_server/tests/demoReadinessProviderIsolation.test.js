@@ -94,6 +94,48 @@ describe('demo readiness provider isolation', () => {
     expect(result).toMatchObject({ status: 'blocked', observed: 'not-dispatched' });
   });
 
+  test('production worker adapters are explicitly injected and their contexts are disposed', async () => {
+    const worker = providerWorker('pingone');
+    worker.dispose = jest.fn();
+    const service = createReadinessExecutionService({
+      productionWorkerAdapter: async ({ targetId, provider }) => {
+        expect(targetId).toBe('local');
+        expect(provider).toBe('pingone');
+        return worker;
+      },
+    });
+
+    const context = await service.createWorkerContext({ targetId: 'local', provider: 'pingone', identityRef: 'readiness:p1' });
+    expect(context).toEqual({});
+    expect(Object.isFrozen(context)).toBe(true);
+    const cleanup = await service.dispose();
+
+    expect(cleanup).toEqual({ status: 'pass', failures: [] });
+    expect(worker.dispose).toHaveBeenCalledTimes(1);
+  });
+
+  test('disposes a production worker when it is invalid or finishes setup after its deadline', async () => {
+    const invalidWorker = providerWorker('pingfederate');
+    invalidWorker.dispose = jest.fn();
+    const invalid = createReadinessExecutionService({
+      productionWorkerAdapter: async () => invalidWorker,
+    });
+    await expect(invalid.createWorkerContext({ targetId: 'local', provider: 'pingone', identityRef: 'p1' }))
+      .rejects.toThrow(/provider/i);
+    expect(invalidWorker.dispose).toHaveBeenCalledTimes(1);
+
+    let now = 0;
+    const lateWorker = providerWorker('pingone');
+    lateWorker.dispose = jest.fn();
+    const late = createReadinessExecutionService({
+      now: () => now,
+      productionWorkerAdapter: async () => { now = 2; return lateWorker; },
+    });
+    await expect(late.createWorkerContext({ targetId: 'local', provider: 'pingone', identityRef: 'p1', deadlineAt: 1 }))
+      .rejects.toThrow(/deadline exceeded while creating/i);
+    expect(lateWorker.dispose).toHaveBeenCalledTimes(1);
+  });
+
   test('a failed provider lane does not hide another lane result in a manifest run', async () => {
     const caseRow = { ...CASE, id: 'UC6', providerFlows: { pingone: 'pingone-standard', pingfederate: 'pingfederate-standard' }, runtimeVerticalGroups: [{ vertical: 'banking', verticals: ['banking'] }] };
     const service = createReadinessExecutionService({
