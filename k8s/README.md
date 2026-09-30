@@ -37,6 +37,28 @@ kubectl -n ai-demo rollout restart deployment/demo-api-server deployment/agent-s
 
 On remote clusters (no Mac host), leave the URL as-is — the mode stays unavailable.
 
+## Procyon Node Sensor on OrbStack
+
+The full `./k8s/deploy.sh` deploy installs or upgrades the Procyon Node Sensor
+by default when the current Kubernetes context is `orbstack`. It uses the
+registered Privilege NHI with subject
+`system:serviceaccount:ai-demo:privilege-sensor`, audience configured by
+`PROCYON_NODESENSOR_AUDIENCE`, and cluster ID `k8-orbstack`. The chart is pinned
+to version `0.1.11`; the controller endpoint defaults to
+`hydra.privilege.pingone.com:443`.
+
+Set `PROCYON_NODESENSOR_AUDIENCE` before deploying if the registered NHI has a
+different audience. The other `PROCYON_NODESENSOR_*` values can also be
+overridden. To skip the sensor for one deploy, run
+`PROCYON_NODESENSOR_ENABLED=0 ./k8s/deploy.sh`.
+
+The sensor reports detected workload traffic; it does not start an LLM model.
+The full deploy warms `llama-tier1` before waiting for the LLM proxy to become
+ready. OrbStack scales the tier from the deploy host because pods cannot reach
+OrbStack's Kubernetes API; other clusters use the tier manager. Other tiers
+remain demand-loaded. To generate model traffic for discovery, send a real
+inference request through an agent that uses the in-cluster LLM proxy.
+
 ## Overview
 
 This guide provides complete instructions for deploying the AI Demo platform (a multi-vertical AI agent security demo — banking, healthcare, retail, workforce, and more) on Kubernetes using the provided manifests and Docker images.
