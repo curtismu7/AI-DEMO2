@@ -355,6 +355,27 @@ WorkerAgent → MCP topology and every existing MCP Inspect tab.
 
 **Verify:** UI build and a live UC46 navigation with both page themes.
 
+### 2026-09-30 — Privilege gateway homepage gave clients stale instructions
+
+**Files:** `pingone-privgateway-helm-main/agentless/agentless-mcpgw/files/homepage.html`,
+`templates/homepage.yaml`, `values.yaml`, `sidecars.values.yaml`, and the
+repackaged chart.
+
+**What was broken:** the gateway binary's sample page omitted a UTF-8 declaration,
+listed demo tools that are not this deployment's tool catalog, and told public
+clients to connect to `localhost:8080/sse`.
+
+**What changed:** the AI Demo Helm overlay serves an accurate gateway introduction
+at the exact `/` path. It shows the registered app URL pattern and explains that
+tools come from each app after access is granted.
+
+**Do not break:** keep `/.well-known/`, `/authorize`, `/token`, `/callback`,
+`/register`, and registered MCP app paths on the gateway's HTTPS backend. The
+homepage's separate ingress uses HTTP only for its static in-cluster service.
+
+**Verify:** `helm lint` and rendered enabled/disabled chart checks;
+`npm run topology:verify`; `npm run authz:verify`; desktop and mobile browser previews.
+
 ### 2026-09-30 — OrbStack K8 could not complete PingFederate login
 
 **Files:** `run-k8.sh`, `scripts/k8-docker-cleanup.sh` and its test,
