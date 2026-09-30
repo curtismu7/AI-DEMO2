@@ -88,13 +88,7 @@ export async function resolveSessionExpiry() {
     const sessionType = genericData.authType === 'admin' || genericData.user?.role === 'admin'
       ? 'admin'
       : 'user';
-    return {
-      expiresAt: genericData.expiresAt,
-      sessionType,
-      staleSession: false,
-      hasRefreshToken: genericData.hasRefreshToken ?? false,
-      oauthProvider: genericData.oauthProvider ?? null,
-    };
+    return { expiresAt: genericData.expiresAt, sessionType, staleSession: false };
   }
 
   // No active access token — retain the refresh-token signal for a still-live
