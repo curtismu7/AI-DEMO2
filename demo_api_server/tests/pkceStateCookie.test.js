@@ -54,6 +54,14 @@ describe('pkceStateCookie.readPkceCookie', () => {
     });
   });
 
+  it('round-trips the provider used to start the authorization flow', () => {
+    const cookie = issueCookie({
+      state: 'st-2', codeVerifier: 'cv-2', redirectUri: 'https://app.example/cb',
+      oauthProvider: 'pingfederate',
+    });
+    expect(readPkceCookie(reqWith(cookie)).oauthProvider).toBe('pingfederate');
+  });
+
   it('returns null, and does NOT throw, when the signature segment is the wrong length', () => {
     // The RangeError case: timingSafeEqual requires equal byte lengths, and a
     // real signature is 43 base64url chars. This is the shape that 500'd.

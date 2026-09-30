@@ -18,8 +18,14 @@ const request = require('supertest');
 // replaces every export with a jest.fn(); only exchangeCodeForToken/getUserInfo
 // are exercised on the callback path up to (and just past) the nonce gate.
 jest.mock('../services/oauthUserService');
+jest.mock('../services/configStore', () => ({
+  getOAuthProvider: jest.fn(() => 'pingone'),
+  getEffective: jest.fn(() => ''),
+  isUserOAuthConfigured: jest.fn(() => true),
+}));
 
 const oauthService = require('../services/oauthUserService');
+const configStore = require('../services/configStore');
 
 /** header.payload.sig with the given claims as the base64url payload. */
 const idToken = (claims) =>
@@ -39,6 +45,7 @@ const SEED = {
   oauthNonce: 'expected-nonce',
   oauthCodeVerifier: 'cv-1',
   oauthRedirectUri: 'https://api.ping.demo:4000/api/auth/oauth/user/callback',
+  oauthLoginProvider: 'pingone',
 };
 
 beforeEach(() => {
@@ -76,4 +83,26 @@ test('does NOT emit a nonce error when the ID token carries the matching nonce',
   expect(res.status).toBe(302);
   expect(res.headers.location).not.toContain('error=nonce_missing');
   expect(res.headers.location).not.toContain('error=nonce_mismatch');
+});
+
+test('does not redeem a callback with the provider changed since login began', async () => {
+  configStore.getOAuthProvider.mockReturnValue('pingone');
+  const res = await request(makeApp({ ...SEED, oauthLoginProvider: 'pingfederate' }))
+    .get('/api/auth/oauth/user/callback')
+    .query({ code: 'c', state: 'st-1' });
+
+  expect(res.status).toBe(302);
+  expect(res.headers.location).toContain('error=provider_changed');
+  expect(oauthService.exchangeCodeForToken).not.toHaveBeenCalled();
+});
+
+test('does not redeem a callback without a recorded login provider', async () => {
+  const { oauthLoginProvider: _ignored, ...legacySeed } = SEED;
+  const res = await request(makeApp(legacySeed))
+    .get('/api/auth/oauth/user/callback')
+    .query({ code: 'c', state: 'st-1' });
+
+  expect(res.status).toBe(302);
+  expect(res.headers.location).toContain('error=provider_changed');
+  expect(oauthService.exchangeCodeForToken).not.toHaveBeenCalled();
 });

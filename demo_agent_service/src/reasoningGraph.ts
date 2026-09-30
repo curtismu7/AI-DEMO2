@@ -65,7 +65,7 @@ function toAnthropicMessages(messages: ReasonMessage[]): Anthropic.MessageParam[
 
 const DEFAULT_MODELS: Record<string, string> = {
   helix: 'gpt-4o-mini',
-  anthropic: 'claude-sonnet-4-6',
+  anthropic: 'claude-sonnet-5-5',
   // llama-server serves whatever model it was launched with; this is only a
   // last-resort fallback when /v1/models can't be reached and no env override.
   llamacpp: 'local-model',
@@ -224,7 +224,7 @@ export async function reasonOnce(req: ReasonRequest): Promise<ReasonResponse> {
       const anthropicMessages = toAnthropicMessages(req.messages);
       const response = await client.messages.create({
         model,
-        max_tokens: 4096,
+        max_tokens: 16000,
         tools,
         messages: anthropicMessages,
         ...(req.systemPrompt ? { system: req.systemPrompt } : {}),
@@ -234,7 +234,7 @@ export async function reasonOnce(req: ReasonRequest): Promise<ReasonResponse> {
       // Emitted via STATE_DELTA in agentRunHandler so the UI can show "why this tool".
       const inputTokens = response.usage?.input_tokens ?? 0;
       const outputTokens = response.usage?.output_tokens ?? 0;
-      const contextWindow = 200000; // Claude 3.5 context size (actual model window)
+      const contextWindow = 1000000; // Sonnet 5.5 default model window
       const estimatedTotal = inputTokens + outputTokens;
       const pctWindow = estimatedTotal > 0 ? Math.round((estimatedTotal / contextWindow) * 100) : 0;
 
@@ -286,7 +286,7 @@ export async function reasonOnce(req: ReasonRequest): Promise<ReasonResponse> {
         messages: [...req.messages, { role: 'assistant', content: answer }],
         // Anthropic's own stop signal — this path uses the SDK directly, not
         // LangChain, so there is no response_metadata.finish_reason to read.
-        // max_tokens: 4096 above can truncate here too.
+        // max_tokens: 16000 above can truncate here too.
         truncated: response.stop_reason === 'max_tokens' || undefined,
         inputTokens,
         outputTokens,
@@ -454,7 +454,7 @@ export async function reasonOnce(req: ReasonRequest): Promise<ReasonResponse> {
         temperature: 0,
         apiKey: 'llama-cpp', // llama-server ignores the key, but the SDK requires one
         // Bound generation. This was the ONLY provider branch with no token cap
-        // (the anthropic branch above uses max_tokens: 4096), so gpt-oss — a
+        // (the anthropic branch above uses max_tokens: 16000), so gpt-oss — a
         // reasoning model — could reason until it exhausted llama-server's
         // context slot. Measured live against the real banking tools: a single
         // call generated 7412 tokens in 155s and ended `truncated = 1` (the
