@@ -250,6 +250,24 @@ function firstLine(text) {
   return line.length > 80 ? `${line.slice(0, 80)}…` : line;
 }
 
+function repeatComparisonLabel(comparison) {
+  if (comparison === 'same') return 'Same response';
+  if (comparison === 'changed') return 'Different response';
+  if (comparison === 'first') return 'First matching run';
+  return '';
+}
+
+function repeatComparisonSummary(turn) {
+  if (turn.tone !== 'ok') return `No model reply to compare (${turn.decision.verdict}).`;
+  if (turn.repeatComparison === 'same') {
+    return 'The exact reply text matches the previous successful run for this prompt, provider, and model.';
+  }
+  if (turn.repeatComparison === 'changed') {
+    return 'The reply text differs from the previous successful run for this prompt, provider, and model.';
+  }
+  return 'No previous successful run used this exact prompt, provider, and model.';
+}
+
 function payloadFor(id) {
   return (GUARDRAIL_ATTACKS.find((a) => a.id === id) || {}).payload || '';
 }
@@ -315,6 +333,7 @@ export default function LlmGatewayPage() {
   const [busy, setBusy] = useState(false);
   const [turns, setTurns] = useState([]);
   const [decision, setDecision] = useState(null);
+  const [runStatus, setRunStatus] = useState(null);
   const [decisionView, setDecisionView] = useState('form');
   const [showBlockAgreement, setShowBlockAgreement] = useState(false);
   const [limitsByLane, setLimitsByLane] = useState({});
@@ -346,6 +365,8 @@ export default function LlmGatewayPage() {
   // most recent, but clicking an older model turn re-points it there.
   const [selectedTurnId, setSelectedTurnId] = useState(null);
   const nextTurnId = useRef(0);
+  const nextRunNumber = useRef(0);
+  const previousResponses = useRef(new Map());
 
   useEffect(() => {
     let cancelled = false;
@@ -392,6 +413,18 @@ export default function LlmGatewayPage() {
     if (d.providerLimits) setLimitsByLane((prev) => ({ ...prev, [provider]: d.providerLimits }));
   }, []);
 
+  const markRepeatComparison = useCallback((turn, submittedPrompt) => {
+    if (turn.tone !== 'ok') return turn;
+    const key = JSON.stringify([submittedPrompt, turn.provider, turn.decision.model || '']);
+    const responses = previousResponses.current;
+    const comparison = responses.has(key)
+      ? responses.get(key) === turn.text ? 'same' : 'changed'
+      : 'first';
+    responses.set(key, turn.text);
+    if (responses.size > 30) responses.delete(responses.keys().next().value);
+    return { ...turn, repeatComparison: comparison };
+  }, []);
+
   // Nothing here clears itself — turns, the last decision and the provider
   // limits meters all only ever append/replace, so a long demo session (or
   // firing several attacks from the library) leaves the conversation growing
@@ -399,6 +432,7 @@ export default function LlmGatewayPage() {
   const reset = useCallback(() => {
     setTurns([]);
     setDecision(null);
+    setRunStatus(null);
     setSelectedTurnId(null);
     setScorecard(null);
     setScorePick(null);
@@ -406,6 +440,8 @@ export default function LlmGatewayPage() {
     setPrompt('');
     setSelectedAttack('');
     setSendError('');
+    previousResponses.current.clear();
+    nextRunNumber.current = 0;
     window.localStorage.removeItem('lgw-attack-choice');
   }, []);
 
@@ -465,6 +501,13 @@ export default function LlmGatewayPage() {
     // still holds that attack's payload untouched — otherwise an edited or
     // hand-typed prompt would wrongly borrow another attack's explanation.
     const attackId = selectedAttack && payloadFor(selectedAttack) === text ? selectedAttack : null;
+    const runNumber = ++nextRunNumber.current;
+    const providerTitle = TITLES[selected] || selected;
+    const modelTitle = model || (lanes.find((lane) => lane.provider === selected) || {}).model || 'lane default';
+    setRunStatus({
+      state: 'running',
+      message: `Run ${runNumber} in progress through ${providerTitle} · ${modelTitle}`,
+    });
     setBusy(true);
     // Every run starts from a clean slate: the transcript shows only this call,
     // and the band drops back to resting until its result lands.
@@ -480,26 +523,38 @@ export default function LlmGatewayPage() {
         // All at once: the local sides have no gateway in front of them, so
         // running them in turn would only make the guarded one look slower.
         const localProviders = LOCAL_COMPARE_PROVIDERS.filter((provider) => lanes.some((l) => l.provider === provider));
-        const [guarded, ...locals] = await Promise.all([
+        const [guardedResult, ...localResults] = await Promise.all([
           callLane(selected, model, text, attackId),
           ...localProviders.map((provider) => callLane(provider, '', text, attackId)),
         ]);
+        const guarded = markRepeatComparison(guardedResult, text);
+        const locals = localResults.map((turn) => markRepeatComparison(turn, text));
         setTurns((t) => [...t, {
           id: nextTurnId.current++, role: 'pair', guarded,
           locals: localProviders.map((provider, i) => ({ provider, turn: locals[i] })),
         }]);
         setSelectedTurnId(guarded.id);
         record(selected, guarded.decision);
+        setRunStatus({
+          state: 'complete',
+          message: `Run ${runNumber} complete through ${providerTitle} · ${repeatComparisonSummary(guarded)}`,
+        });
       } else {
-        const turn = await callLane(selected, model, text, attackId);
+        const turn = markRepeatComparison(await callLane(selected, model, text, attackId), text);
         setTurns((t) => [...t, turn]);
         setSelectedTurnId(turn.id);
         record(selected, turn.decision);
+        setRunStatus({
+          state: 'complete',
+          message: `Run ${runNumber} complete through ${providerTitle} · ${repeatComparisonSummary(turn)}`,
+        });
       }
+    } catch (err) {
+      setRunStatus({ state: 'error', message: `Run ${runNumber} failed: ${err.message || 'request error'}.` });
     } finally {
       setBusy(false);
     }
-  }, [prompt, busy, selected, modelByLane, selectedAttack, record, compareOn, callLane]);
+  }, [prompt, busy, selected, modelByLane, selectedAttack, record, compareOn, callLane, lanes, markRepeatComparison]);
 
   // Run all chat-compatible attacks through the selected lane, then llama.cpp.
   // Tool/A2A threats remain visible in the scorecard with links to their proper
@@ -507,7 +562,10 @@ export default function LlmGatewayPage() {
   const runAll = useCallback(async () => {
     if (busy || !canRunAll) return;
     const model = (modelByLane[selected] || '').trim();
+    const runNumber = ++nextRunNumber.current;
+    const providerTitle = TITLES[selected] || selected;
     stopRef.current = false;
+    setRunStatus({ state: 'running', message: `Run ${runNumber}: attack sweep in progress through ${providerTitle}.` });
     setBusy(true);
     setTurns([]);
     setDecision(null);
@@ -527,17 +585,25 @@ export default function LlmGatewayPage() {
         const { attack } = rows[i];
         if (attack.demoPath) continue;
         if (stopRef.current) break;
-        const guarded = await callLane(selected, model, attack.payload, attack.id);
+        const guarded = markRepeatComparison(await callLane(selected, model, attack.payload, attack.id), attack.payload);
         put(i, 'guarded', guarded);
         record(selected, guarded.decision);
         if (stopRef.current) break;
-        put(i, 'unguarded', await callLane(UNGUARDED_LANE, '', attack.payload, attack.id));
+        put(i, 'unguarded', markRepeatComparison(
+          await callLane(UNGUARDED_LANE, '', attack.payload, attack.id),
+          attack.payload,
+        ));
       }
     } finally {
       setScorecard({ provider: selected, rows: [...rows], done: true });
+      const checked = rows.filter((row) => row.guarded).length;
+      setRunStatus({
+        state: 'complete',
+        message: `Run ${runNumber}: attack sweep ${stopRef.current ? 'stopped' : 'complete'} · ${checked} prompts checked. Repeat results are marked in the table.`,
+      });
       setBusy(false);
     }
-  }, [busy, canRunAll, modelByLane, selected, callLane, record]);
+  }, [busy, canRunAll, modelByLane, selected, callLane, record, markRepeatComparison]);
 
   const active = lanes.find((l) => l.provider === selected);
   // In a compare run the band stays on the guarded call — it is the story the
@@ -568,6 +634,7 @@ export default function LlmGatewayPage() {
         {side === 'guarded'
           ? scoreLabel(turn.decision)
           : turn.tone === 'ok' ? firstLine(turn.text) : turn.decision.verdict}
+        {turn.repeatComparison ? <span className={`lgw-repeat lgw-repeat--${turn.repeatComparison}`}>{repeatComparisonLabel(turn.repeatComparison)}</span> : null}
         {mismatch ? <span className="lgw-score__flag"> ⚠️ expected {EFFECT_LABEL[attack.effect]}</span> : null}
         {ms !== undefined && ms !== null ? <span className="lgw-score__ms"> · {ms} ms</span> : null}
       </button>
@@ -585,6 +652,7 @@ export default function LlmGatewayPage() {
       onClick={() => { setDecision(t.decision); setSelectedTurnId(t.id); }}
     >
       <span className="lgw-turn__who">{TITLES[t.provider] || 'Gateway'}</span>
+      {t.repeatComparison ? <span className={`lgw-repeat lgw-repeat--${t.repeatComparison}`}>{repeatComparisonLabel(t.repeatComparison)}</span> : null}
       <div className={`lgw-turn__body${t.tone && t.tone !== 'ok' ? ` is-${t.tone}` : ''}`}>
         {renderReply(t.text)}
         {/* The page swallowed nothing — the body is still one click away,
@@ -629,11 +697,11 @@ export default function LlmGatewayPage() {
             className="lgw-theme"
             onClick={reset}
             // Not while a call is in flight: its result would land after the
-            // reset and silently put back what Reset just cleared.
-            disabled={busy || (turns.length === 0 && !decision)}
-            title="Clear the conversation and start over"
+            // clear and silently put back what Clear just removed.
+            disabled={busy || (!prompt.trim() && !selectedAttack && turns.length === 0 && !decision && !scorecard && !runStatus && Object.keys(limitsByLane).length === 0)}
+            title="Clear the prompt, conversation, decision, and response comparisons"
           >
-            Reset
+            Clear
           </button>
           <button
             type="button"
@@ -650,7 +718,8 @@ export default function LlmGatewayPage() {
       {/* Placement B — the at-a-glance band. Full width so the boxes never wrap
           and a denial is readable from across a room, which the Last Decision
           column could not manage at its width. The only reel on the page — each
-          Send clears the previous run, so there is no history to repeat it for.
+          Send replaces the displayed run while the status compares its reply
+          with previous matching responses.
           Same guard the Path row used: a transport failure has no chain to draw. */}
       {/* Present from page load, not conditional on a call having happened: the
           band shows the shape of the call it is ABOUT to make, then the same
@@ -738,6 +807,11 @@ export default function LlmGatewayPage() {
 
         <section className="lgw-main" aria-label="Conversation">
           <h2 className="lgw-rail__k lgw-main__k">Request</h2>
+          {runStatus ? (
+            <p className={`lgw-run-status is-${runStatus.state}`} role="status" aria-live="polite" data-testid="lgw-run-status">
+              {runStatus.message}
+            </p>
+          ) : null}
           <div className="lgw-turns">
             {turns.length === 0 && !scorecard ? (
               <p className="lgw-empty">
@@ -826,7 +900,7 @@ export default function LlmGatewayPage() {
             ) : null}
             {busy ? (
               <p className="lgw-empty lgw-busy">
-                <PingIdentitySpinner size={22} label={`Sending through ${TITLES[selected] || selected}…`} />
+                <PingIdentitySpinner size={22} label={runStatus?.message || `Sending through ${TITLES[selected] || selected}…`} />
               </p>
             ) : null}
           </div>
@@ -982,7 +1056,7 @@ export default function LlmGatewayPage() {
               Compare local models
             </button>
             <button type="button" className="lgw-send" onClick={send} disabled={busy || !(active?.isLocal || active?.keyConfigured)}>
-              {busy ? 'Sending…' : 'Send'}
+              {busy ? 'Running…' : 'Send'}
             </button>
           </div>
         </section>

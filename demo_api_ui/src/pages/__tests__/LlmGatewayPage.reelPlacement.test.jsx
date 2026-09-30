@@ -2,8 +2,8 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import LlmGatewayPage from "../LlmGatewayPage";
 
 // The reel sits in ONE place: the full-width band under the header. Each Send
-// clears the previous run, so a per-reply copy only repeated the band, and the
-// Last Decision panel does not carry one either.
+// replaces the displayed run; response equality lives in run status, and the
+// Last Decision panel does not carry a second copy of the reel.
 
 const CONFIG = {
   lanes: [{ provider: "anthropic", route: "/llm/anthropic/v1/messages", keyConfigured: true }],

@@ -83,13 +83,13 @@ describe("LLM Gateway console - layout and local models", () => {
     });
   });
 
-  describe("reset", () => {
+  describe("clear", () => {
     it("is disabled with an empty conversation", async () => {
       mockFetch(() => new Promise(() => {}));
       render(<LlmGatewayPage />);
       await screen.findByText("/llm/anthropic/v1/messages");
 
-      expect(screen.getByRole("button", { name: /^reset$/i })).toBeDisabled();
+      expect(screen.getByRole("button", { name: /^clear$/i })).toBeDisabled();
     });
 
     it("clears the turns, the last decision and the prompt, so a long session or a fired attack does not accumulate forever", async () => {
@@ -106,16 +106,16 @@ describe("LLM Gateway console - layout and local models", () => {
       await screen.findByText("Paris.");
       await screen.findByTestId("lgw-decision");
 
-      const resetBtn = screen.getByRole("button", { name: /^reset$/i });
-      expect(resetBtn).not.toBeDisabled();
-      fireEvent.click(resetBtn);
+      const clearBtn = screen.getByRole("button", { name: /^clear$/i });
+      expect(clearBtn).not.toBeDisabled();
+      fireEvent.click(clearBtn);
 
       expect(screen.queryByText("Paris.")).not.toBeInTheDocument();
       expect(screen.queryByText("capital of France?")).not.toBeInTheDocument();
       expect(screen.queryByTestId("lgw-decision")).not.toBeInTheDocument();
       // Back to the empty-conversation prompt, and the button is disabled again.
       expect(await screen.findByText(/Ask something through/i)).toBeInTheDocument();
-      expect(resetBtn).toBeDisabled();
+      expect(clearBtn).toBeDisabled();
     });
   });
 
