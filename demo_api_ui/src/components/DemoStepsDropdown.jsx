@@ -29,6 +29,7 @@ import {
 const RAR_QUICK_RESULT_KEY = 'rar_intent_quick_result';
 const DEMO_STEPS_DRAWER_OPEN_KEY = 'demo_steps_drawer_open_v1';
 const DEMO_STEPS_FLOATING_BUTTON_POS_KEY = 'demo_steps_floating_button_pos_v1';
+const DEMO_STEPS_FLOATING_BUTTON_SIZE = 48;
 const AGENT_TYPE_GROUP_ID = 'agent-types';
 const PRIVILEGE_GROUP_ID = 'privilege';
 
@@ -41,7 +42,12 @@ export function readStoredDemoStepsOpen() {
   }
 }
 
-function clampFloatingButtonPosition(x, y, width = 150, height = 48) {
+function clampFloatingButtonPosition(
+  x,
+  y,
+  width = DEMO_STEPS_FLOATING_BUTTON_SIZE,
+  height = DEMO_STEPS_FLOATING_BUTTON_SIZE,
+) {
   const pad = 8;
   return {
     x: Math.min(Math.max(x, pad), Math.max(pad, window.innerWidth - width - pad)),
@@ -155,7 +161,10 @@ export function DemoStepsFloatingButton({ open = false, disabled = false, onOpen
       title="Demo steps — drag to move; click to open"
       data-testid="demo-steps-floating-trigger"
     >
-      Demo steps
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M9 6h12M9 12h12M9 18h12" />
+        <path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01" />
+      </svg>
     </button>
   );
 }
@@ -297,6 +306,7 @@ export default function DemoStepsDropdown({
   }, [open, onOpenChange]);
 
   useEffect(() => {
+    if (persistOpenState == null) return;
     try {
       window.localStorage.setItem(DEMO_STEPS_DRAWER_OPEN_KEY, String(persistOpenState));
     } catch {
@@ -420,9 +430,9 @@ export default function DemoStepsDropdown({
   const showAdvanced = q ? filteredAdvanced.length > 0 : advancedOpen;
   const noMatches =
     q && filteredPrimary.length === 0 && filteredAdvanced.length === 0 && filteredCiam.length === 0 && filteredPrivilege.length === 0;
-  const panelWidth = Math.min(900, Math.max(320, window.innerWidth - 32));
-  const panelHeight = Math.min(820, Math.max(280, window.innerHeight - 72));
-  const panelX = Math.max(8, window.innerWidth - panelWidth - 24);
+  const panelWidth = Math.min(760, Math.max(320, window.innerWidth - 32));
+  const panelHeight = Math.min(660, Math.max(280, window.innerHeight - 72));
+  const panelX = Math.max(8, Math.round((window.innerWidth - panelWidth) / 2));
 
   /**
    * Render one demo-step card (box style matching Actions grid).
@@ -554,6 +564,7 @@ export default function DemoStepsDropdown({
           minWidth={320}
           minHeight={240}
           zIndex={100061}
+          onClose={() => onOpenChange(false)}
           role="dialog"
           aria-label="Demo steps"
           aria-modal="false"
@@ -568,15 +579,6 @@ export default function DemoStepsDropdown({
                 <h2 className="ba-demo-steps-float__title">Mission Control</h2>
                 <p className="ba-demo-steps-float__subtitle">Run the trust story one proof at a time.</p>
               </div>
-              <button
-                type="button"
-                className="ba-demo-steps-float__close"
-                onClick={() => onOpenChange(false)}
-                aria-label="Close Demo steps"
-                data-testid="demo-steps-close"
-              >
-                ✕
-              </button>
           </div>
           {primarySteps.length > 0 && (
               <div className="ba-demo-steps-float__progress-row">

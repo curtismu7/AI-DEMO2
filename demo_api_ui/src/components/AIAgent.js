@@ -634,7 +634,9 @@ export default function BankingAgent({
   /** Discovery popout — "All actions" overlay. */
   const [showDiscovery, setShowDiscovery] = useState(false);
   /** Demo steps popout — same list as /use-cases Demo section. */
-  const [showDemoSteps, setShowDemoSteps] = useState(readStoredDemoStepsOpen);
+  const [showDemoSteps, setShowDemoSteps] = useState(() =>
+    splitChrome ? false : readStoredDemoStepsOpen(),
+  );
   const [floatingDemoStepsOpen, setFloatingDemoStepsOpen] = useState(false);
   /** Admin tools popout — PingOne ops + banking customer-CRUD, admin-only. */
   const [showAdminTools, setShowAdminTools] = useState(false);
@@ -10159,7 +10161,7 @@ export default function BankingAgent({
         disabled={consentBlocked}
         onStopAgentClick={onStopAgentClick}
         open={showDemoSteps && (effectiveIsOpen || floatingDemoStepsOpen)}
-        persistOpenState={showDemoSteps}
+        persistOpenState={splitChrome ? null : showDemoSteps}
         showTrigger={false}
         showFloatingButton={!isInline}
         onOpenChange={(next) => {
@@ -10844,15 +10846,17 @@ export default function BankingAgent({
                     )}
                   </div>
                   <div className="ba-header-tools cmd-dock-tools">
-                    <DemoStepsTrigger
-                      open={showDemoSteps && (effectiveIsOpen || floatingDemoStepsOpen)}
-                      disabled={consentBlocked}
-                      onOpenChange={(next) => {
-                        setShowDemoSteps(next);
-                        if (!next) setFloatingDemoStepsOpen(false);
-                        if (next) setShowDiscovery(false);
-                      }}
-                    />
+                    {!splitChrome && (
+                      <DemoStepsTrigger
+                        open={showDemoSteps && (effectiveIsOpen || floatingDemoStepsOpen)}
+                        disabled={consentBlocked}
+                        onOpenChange={(next) => {
+                          setShowDemoSteps(next);
+                          if (!next) setFloatingDemoStepsOpen(false);
+                          if (next) setShowDiscovery(false);
+                        }}
+                      />
+                    )}
                     {/* Split-column (dashboard) controls that live outside the dock
                         children in float mode — same handlers as the classic header. */}
                     {splitChrome && (
@@ -11480,15 +11484,17 @@ export default function BankingAgent({
                     shows ADMIN1-7 (forceVertical pingone-admin), which belongs
                     WITH the admin agent — the page strip carries the guided
                     Demo Track instead (2026-08-10 layout decision). */}
-                <DemoStepsTrigger
-                  open={showDemoSteps && (effectiveIsOpen || floatingDemoStepsOpen)}
-                  disabled={consentBlocked}
-                  onOpenChange={(next) => {
-                    setShowDemoSteps(next);
-                    if (!next) setFloatingDemoStepsOpen(false);
-                    if (next) setShowDiscovery(false);
-                  }}
-                />
+                {!splitChrome && (
+                  <DemoStepsTrigger
+                    open={showDemoSteps && (effectiveIsOpen || floatingDemoStepsOpen)}
+                    disabled={consentBlocked}
+                    onOpenChange={(next) => {
+                      setShowDemoSteps(next);
+                      if (!next) setFloatingDemoStepsOpen(false);
+                      if (next) setShowDiscovery(false);
+                    }}
+                  />
+                )}
                 {/* Live Use-Case Workbench — same catalog, live/interactive mode */}
                 {splitChrome && (
                   <button

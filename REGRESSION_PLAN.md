@@ -228,6 +228,53 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-30 — Dashboard Demo Steps button belongs beside Favorites and its pop-out nearly filled the screen
+
+**Files:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/components/DemoStepsDropdown.jsx`,
+`demo_api_ui/src/components/AIAgent.css`,
+`demo_api_ui/src/components/TopNav.js`,
+`demo_api_ui/src/components/TopNav.css`, `REGRESSION_PLAN.md`.
+
+**What was broken:** split-column dashboard mode hid the floating Demo Steps
+launcher and left its trigger inside Demo Controls instead of the main header
+beside Favorites. The default panel height could reach 820px, and the browser
+pop-out added another 80px, making it nearly full-screen on a typical desktop
+viewport.
+
+**What changed:** add a Demo Steps button beside Favorites in the main header
+for split-column dashboards, start the panel closed there, and use a smaller
+default panel size. The panel remains draggable, resizable in eight directions,
+and its browser pop-out remains resizable.
+
+**Do not break:** preserve the agent's own drag/resize/pop-out behavior and the
+Demo Steps selection flow.
+
+**Verify:** `cd demo_api_ui && npm run build`; check `/dashboard` in light and
+dark themes with the §1.4 computed-style contrast auditor; verify the header
+button opens the panel and the pop-out opens below full-screen height.
+
+### 2026-09-30 — Admin Demo Steps opened at the screen edge and academy links lost contrast in dark mode
+
+**Files:** `demo_api_ui/src/components/DemoStepsDropdown.jsx`,
+`demo_api_ui/src/components/AIAgent.css`, `REGRESSION_PLAN.md`.
+
+**What was broken:** the floating Demo Steps panel opened against the viewport's
+right edge on wide screens. Academy links and the explain control could also
+render with low-contrast colors in dark mode.
+
+**What changed:** center the panel when it first opens and pair the academy
+links and explain control with theme-aware foreground/background tokens. The panel remains
+draggable, resizable in eight directions, and pop-out capable, with its title-bar
+close control.
+
+**Do not break:** preserve the Admin1-7 vertical and agent selection behavior,
+the floating agent's existing drag/resize/pop-out controls, and the shared
+FloatingPanel title-bar close.
+
+**Verify:** `cd demo_api_ui && npm run build`; check `/admin` in light and dark
+themes with the §1.4 computed-style contrast auditor.
+
 ### 2026-09-30 — UC46 now visibly selects A2A and offers demo questions
 
 **Files:** `demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`,
