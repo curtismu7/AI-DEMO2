@@ -110,6 +110,19 @@ describe("Server topology use-case playback", () => {
     expect(offPathEdge.className).toContain("stm-edge--dimmed");
   });
 
+  it("keeps a selected edge outside the current playback visible", () => {
+    render(<ServerTopologyPage />);
+
+    const offPlaybackEdge = reactFlowMocks.edges.find((edge) => edge.id === "spire-mcpmcp");
+    fireEvent.click(screen.getAllByRole("button", { name: offPlaybackEdge.label })[0]);
+
+    const selectedEdge = reactFlowMocks.edges.find((edge) => edge.id === "spire-mcpmcp");
+    expect(selectedEdge.selected).toBe(true);
+    expect(selectedEdge.style.opacity).toBeGreaterThan(0.9);
+    expect(selectedEdge.className).not.toContain("stm-edge--off-route");
+    expect(selectedEdge.className).not.toContain("stm-edge--dimmed");
+  });
+
   it("raises a selected server and emphasizes its incoming and outgoing traffic labels", () => {
     render(<ServerTopologyPage />);
 

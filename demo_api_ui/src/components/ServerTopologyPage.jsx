@@ -425,11 +425,12 @@ function TopologyCanvas({
     const isIncomingToSelection = selectedNode && item.target === selectedNode;
     const isOutgoingFromSelection = selectedNode && item.source === selectedNode;
     const isFocusedCommunication = isIncomingToSelection || isOutgoingFromSelection;
+    const isSelectedEdge = selectedEdge === item.id;
     const matchesCategory = filter === "all" || matchesFilter(NODE_BY_ID[item.source], filter) || matchesFilter(NODE_BY_ID[item.target], filter) || (filter === "optional" && item.data.profile);
-    const visible = flowOnly ? routeEdges.has(item.id) : matchesCategory || isFocusedCommunication;
-    const isOffRoute = filter === "all" && !isOnPlayback && !isFocusedCommunication;
-    const isDimmed = !visible || Boolean(selectedNode && !isFocusedCommunication) || isOffRoute;
-    const active = activePlaybackEdge === item.id || selectedEdge === item.id || isFocusedCommunication || isOnPlayback;
+    const visible = isSelectedEdge || (flowOnly ? routeEdges.has(item.id) : matchesCategory || isFocusedCommunication);
+    const isOffRoute = filter === "all" && !isOnPlayback && !isFocusedCommunication && !isSelectedEdge;
+    const isDimmed = !isSelectedEdge && (!visible || Boolean(selectedNode && !isFocusedCommunication) || isOffRoute);
+    const active = activePlaybackEdge === item.id || isSelectedEdge || isFocusedCommunication || isOnPlayback;
     const stroke = isIncomingToSelection ? "#bc8cff" : isOutgoingFromSelection ? "#58a6ff" : EDGE_COLORS[item.data.kind] || EDGE_COLORS.mcp;
     const standards = [...(item.data.rfcs || []), ...(item.data.specs || [])];
     const label = labelForEdge(item, activeLayer);
@@ -451,7 +452,7 @@ function TopologyCanvas({
       style: {
         stroke,
         strokeWidth: isFocusedCommunication ? 5.5 : active ? 3.2 : 1.8,
-        opacity: !visible ? 0.035 : isFocusedCommunication ? 0.98 : selectedNode || isOffRoute ? 0.035 : 0.96,
+        opacity: isSelectedEdge || isFocusedCommunication ? 0.98 : !visible ? 0.035 : selectedNode || isOffRoute ? 0.035 : 0.96,
         strokeDasharray: item.data.kind === "telemetry" ? "6 5" : item.data.profile ? "6 5" : undefined,
       },
       markerEnd: { type: MarkerType.ArrowClosed, color: stroke },
