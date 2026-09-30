@@ -18,6 +18,7 @@ import { useSearchParams } from 'react-router-dom';
 import LlmGatewayPage from './LlmGatewayPage';
 import LlmTestPage from './LlmTestPage';
 import HostileMcpTab from './HostileMcpTab';
+import HostileA2aTab from './HostileA2aTab';
 import AttackLabTab from './AttackLabTab';
 import './LlmGatewayCombinedPage.css';
 
@@ -25,6 +26,7 @@ const TABS = [
   { key: 'chat', label: 'Chat console' },
   { key: 'raw', label: 'Raw request' },
   { key: 'hostile', label: 'Malicious MCP' },
+  { key: 'a2a', label: 'Malicious A2A' },
   { key: 'attacks', label: 'Attack Lab' },
 ];
 
@@ -138,6 +140,7 @@ export default function LlmGatewayCombinedPage({ defaultTab = 'chat' }) {
       </div>
       {tab === 'chat' ? <LlmGatewayPage />
         : tab === 'hostile' ? <HostileMcpTab />
+          : tab === 'a2a' ? <HostileA2aTab />
           : tab === 'attacks' ? <AttackLabTab />
             : <LlmTestPage />}
     </div>

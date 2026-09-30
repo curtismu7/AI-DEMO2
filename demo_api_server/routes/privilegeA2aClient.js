@@ -102,4 +102,55 @@ router.post('/chat', requireSession, express.json({ limit: '64kb' }), async (req
   }
 });
 
+// Fetch a live A2A Agent Card over the wire so the /llm-gateway "Malicious A2A"
+// tab can scan the real card a hostile specialist serves (not a bundled copy).
+// Read-only: it GETs the card and returns it verbatim; the UI does the scanning.
+// SSRF guard: http(s) only, path must be the A2A well-known card, and the cloud
+// metadata address is blocked. Internal svc / localhost targets ARE allowed on
+// purpose — reaching an in-cluster or local agent card is the whole point.
+router.post('/scan-card', requireSession, express.json({ limit: '8kb' }), async (req, res) => {
+  const raw = req.body && typeof req.body.url === 'string' ? req.body.url.trim() : '';
+  let url;
+  try {
+    url = new URL(raw);
+  } catch {
+    res.status(400).json({ error: 'A valid card URL is required' });
+    return;
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    res.status(400).json({ error: 'Only http(s) URLs are allowed' });
+    return;
+  }
+  if (!/\/\.well-known\/agent-card\.json$/.test(url.pathname)) {
+    res.status(400).json({ error: 'URL must end with /.well-known/agent-card.json' });
+    return;
+  }
+  if (url.hostname === '169.254.169.254') {
+    res.status(400).json({ error: 'Blocked host' });
+    return;
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  try {
+    const upstream = await fetch(url.toString(), { signal: controller.signal, redirect: 'error' });
+    const text = await upstream.text();
+    if (!upstream.ok) {
+      res.status(502).json({ error: `Agent Card fetch failed: HTTP ${upstream.status}` });
+      return;
+    }
+    let card;
+    try {
+      card = JSON.parse(text);
+    } catch {
+      res.status(502).json({ error: 'Agent Card was not valid JSON' });
+      return;
+    }
+    res.json({ url: url.toString(), card });
+  } catch (err) {
+    res.status(502).json({ error: `Could not reach the agent: ${err.name === 'AbortError' ? 'timed out' : err.message}` });
+  } finally {
+    clearTimeout(timer);
+  }
+});
+
 module.exports = router;
