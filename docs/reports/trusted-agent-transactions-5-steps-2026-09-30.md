@@ -104,4 +104,4 @@ Findings:
 - Raw (unsanitized) token claims were not inspected, so `spiffeId`, instance and transaction claims are unconfirmed either way.
 - PF admin config (SP connections, clients, ATM) was not inspected; it is not tracked in the repo.
 - mTLS per hop was not checked.
-- The provider was left on `pingfederate` at the end of this run.
+- The provider was flipped back to `pingone` after the run (confirmed by GET `/api/admin/config`), matching `.demo-provider-intent.json`.
