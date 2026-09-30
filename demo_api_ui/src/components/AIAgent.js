@@ -10163,7 +10163,7 @@ export default function BankingAgent({
         open={showDemoSteps && (effectiveIsOpen || floatingDemoStepsOpen)}
         persistOpenState={splitChrome ? null : showDemoSteps}
         showTrigger={false}
-        showFloatingButton={!isInline || splitChrome}
+        showFloatingButton={!isInline}
         onOpenChange={(next) => {
           setShowDemoSteps(next);
           if (!next) setFloatingDemoStepsOpen(false);
@@ -11484,15 +11484,17 @@ export default function BankingAgent({
                     shows ADMIN1-7 (forceVertical pingone-admin), which belongs
                     WITH the admin agent — the page strip carries the guided
                     Demo Track instead (2026-08-10 layout decision). */}
-                <DemoStepsTrigger
-                  open={showDemoSteps && (effectiveIsOpen || floatingDemoStepsOpen)}
-                  disabled={consentBlocked}
-                  onOpenChange={(next) => {
-                    setShowDemoSteps(next);
-                    if (!next) setFloatingDemoStepsOpen(false);
-                    if (next) setShowDiscovery(false);
-                  }}
-                />
+                {!splitChrome && (
+                  <DemoStepsTrigger
+                    open={showDemoSteps && (effectiveIsOpen || floatingDemoStepsOpen)}
+                    disabled={consentBlocked}
+                    onOpenChange={(next) => {
+                      setShowDemoSteps(next);
+                      if (!next) setFloatingDemoStepsOpen(false);
+                      if (next) setShowDiscovery(false);
+                    }}
+                  />
+                )}
                 {/* Live Use-Case Workbench — same catalog, live/interactive mode */}
                 {splitChrome && (
                   <button

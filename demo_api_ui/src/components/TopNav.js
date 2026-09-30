@@ -348,6 +348,26 @@ export default function TopNav({ user, onLogout }) {
               overflow clipping would hide it after the trigger opens it. */}
           <FavoritesMenu />
 
+          {/* In split dashboard mode the Demo Steps panel is opened from the
+              page header, beside Favorites, while the panel itself stays in
+              the same draggable/resizable floating window. */}
+          {dockOwnsDashboardControls && (
+            <button
+              type="button"
+              className="topnav-demo-steps-btn"
+              onClick={() => window.dispatchEvent(new CustomEvent('agent-demo-steps-open'))}
+              title="Open Demo steps"
+              aria-label="Demo steps"
+              data-testid="topnav-demo-steps-trigger"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M9 6h12M9 12h12M9 18h12" />
+                <path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01" />
+              </svg>
+              <span>Demo steps</span>
+            </button>
+          )}
+
           {/* OAuth provider toggle — visible to everyone. Switches the BFF's
               login provider (PingOne ⇄ PingFederate) at runtime; no restart
               needed because every OAuth config getter reads the provider
