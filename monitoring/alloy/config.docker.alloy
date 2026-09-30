@@ -28,6 +28,12 @@ discovery.relabel "containers" {
     regex         = "/(?:ai-demo-)?(.*)"
     target_label  = "service"
   }
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/procyon-nodesensor"
+    target_label  = "component"
+    replacement   = "privilege-sensor"
+  }
 }
 
 loki.source.docker "containers" {
