@@ -453,6 +453,15 @@ function sanitizeReturnTo(value) {
 // agent's DNS proxy is invisible — dial host.docker.internal instead — and the
 // listener serves a procyon TenantRoot chain no CA store trusts.
 // ---------------------------------------------------------------------------
+// Ping's `mcp/openapi` adapter (the banking-openapi door) is a Go binary whose
+// built-in cross-origin check answers 403 to any request whose Origin does not
+// match its own Host. The gateway forwards our Origin to a backend whose Host
+// is localhost:8080, so the header every other door tolerates fails here.
+// Server-to-server calls need no Origin for CORS, so this door gets none.
+function originHeader(targetUrl) {
+  return /\/banking-openapi\//.test(`${targetUrl.pathname}/`) ? {} : { Origin: targetUrl.origin };
+}
+
 function isProcyonAgentUrl(url) {
   try {
     return new URL(url).hostname.endsWith('.applications.procyon.ai');
@@ -777,7 +786,7 @@ async function fetchMcp(session, pathname, body, withAuth = true, allowRefreshRe
   const headers = {
     'Content-Type': 'application/json',
     Accept: 'application/json, text/event-stream',
-    Origin: targetUrl.origin,
+    ...originHeader(targetUrl),
   };
   if (withAuth && session.oauth.accessToken) {
     headers.Authorization = `Bearer ${session.oauth.accessToken}`;
@@ -993,7 +1002,7 @@ async function openMcpEventStream(session) {
     Accept: 'text/event-stream',
     'MCP-Session-Id': session.mcpSession.sessionId,
     'MCP-Protocol-Version': session.mcpSession.protocolVersion || LEGACY_MCP_PROTOCOL_VERSION,
-    Origin: targetUrl.origin,
+    ...originHeader(targetUrl),
   };
   const procyon = isProcyonAgentUrl(session.config.mcpUrl);
   if (!procyon && session.oauth.accessToken) headers.Authorization = `Bearer ${session.oauth.accessToken}`;
@@ -1059,7 +1068,7 @@ async function startModernSubscription(session, types) {
   }, session.mcpSession.protocolVersion);
   const targetUrl = new URL(toInternalMcpUrl(session.config.mcpUrl));
   const headers = {
-    'Content-Type': 'application/json', Accept: 'text/event-stream', Origin: targetUrl.origin,
+    'Content-Type': 'application/json', Accept: 'text/event-stream', ...originHeader(targetUrl),
   };
   addModernHeaders(headers, session, rpc);
   const procyon = isProcyonAgentUrl(session.config.mcpUrl);
@@ -3953,6 +3962,7 @@ module.exports.decodeMcpBody = decodeMcpBody;
 
 /** Test hooks — session-scoped SSE isolation canary. */
 module.exports.__test = {
+  originHeader,
   emitEvent,
   getClientSession,
   envFallbackVars,
