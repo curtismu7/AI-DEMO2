@@ -43,7 +43,7 @@ describe('admin OAuth hosted access', () => {
     app.use((req, _res, next) => {
       req.sessionID = 'session-1';
       req.session = {
-        oauthState: 'state-1', oauthNonce: 'nonce-1', oauthCodeVerifier: 'verifier',
+        oauthState: 'state-1', oauthNonce: 'nonce-1', oauthCodeVerifier: 'verifier', oauthLoginProvider: 'pingone',
         oauthRedirectUri: 'https://ai-demo.ping-devops.com/api/auth/oauth/callback',
         hostedLoginAudit: { loginType: 'admin', startedAt: Date.now(), terminal: false },
         save(cb) { cb(null); }, regenerate(cb) { cb(null); }, destroy(cb) { cb(null); },

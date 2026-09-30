@@ -150,6 +150,23 @@ class TestConfigManager:
             assert config.langchain.openai_api_key == "test-openai-key"
             assert config.chat.agui_http_port == 8080
 
+    def test_model_name_unset_defers_to_provider_default(self):
+        """No LANGCHAIN_MODEL_NAME -> empty, so get_llm uses the provider's own default
+        (a stale 'llama3.2' used to override llamacpp's phi-4-mini-instruct)."""
+        env_vars = {
+            "ENVIRONMENT": "development",
+            "PINGONE_BASE_URL": "https://test.forgeblocks.com",
+            "PINGONE_CLIENT_REGISTRATION_ENDPOINT": "https://test.forgeblocks.com/register",
+            "PINGONE_TOKEN_ENDPOINT": "https://test.forgeblocks.com/token",
+            "PINGONE_AUTHORIZATION_ENDPOINT": "https://test.forgeblocks.com/auth",
+            "PINGONE_REDIRECT_URI": "http://localhost:8080/callback",
+        }
+
+        with patch.dict(os.environ, env_vars, clear=True):
+            config = ConfigManager().load_config()
+
+        assert config.langchain.model_name == ""
+
     def test_loads_direct_a2a_configuration(self):
         env_vars = {
             "ENVIRONMENT": "development",

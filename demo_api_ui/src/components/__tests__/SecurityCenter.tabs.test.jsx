@@ -78,6 +78,15 @@ describe('SecurityCenter tabs', () => {
     expect(link).toHaveAttribute('href', 'https://apps.pingone.com/env-123/myaccount');
   });
 
+  it.each(['user', 'admin'])('recognizes the BFF %s OAuth session as federated', async (authType) => {
+    mockFetch({ session: { authType } });
+    render(<SecurityCenter user={USER} />);
+
+    await waitFor(() => expect(screen.getByText('PingOne (OAuth / OIDC)')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'Password' }));
+    expect(await screen.findByRole('link', { name: /Manage password in PingOne/ })).toBeInTheDocument();
+  });
+
   it('sessions tab shows the current session and is explicit that it is the only one', async () => {
     render(<SecurityCenter user={USER} />);
     fireEvent.click(screen.getByRole('button', { name: 'Sessions' }));

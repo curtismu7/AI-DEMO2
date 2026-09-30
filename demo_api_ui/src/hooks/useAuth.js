@@ -14,55 +14,121 @@ import { isNativeIdJagTrace } from '../services/tokenChainTrace/buildTraceSteps'
 // Module-level flag mirrors the _didLogOut pattern — survives React
 // re-renders, reset only on explicit logout.
 let _didLogOut = false;
+const PINGONE_SILENT_REAUTH_KEY = 'p1-silent-reauth-attempted';
 
 export function useAuth() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sessionReauth, setSessionReauth] = useState(null);
   const sessionEstablishedRef = useRef(null);
+  const idJagResolvedRef = useRef(false);
   const hadUserRef = useRef(false);
   const completedIdJagRunRef = useRef(null);
 
-  const checkOAuthSession = useCallback(async () => {
+  const checkOAuthSession = useCallback(async ({ allowSilentReauth = false, silentReauthFailed = false, returnPath = '/dashboard' } = {}) => {
     const applyUser = (u, status = {}) => {
       setUser(u);
-      if (!sessionEstablishedRef.current) {
-        sessionEstablishedRef.current = true;
-        const run = status.oauthProvider === 'pingfederate' ? status.idJagRunIntent : null;
-        const validated = run?.useCaseId === ID_JAG_USE_CASE_ID && run.mode === RUN_MODES.LIVE_ID_JAG
-          && typeof run.message === 'string' && !!run.message.trim();
+      try { sessionStorage.removeItem(PINGONE_SILENT_REAUTH_KEY); } catch { /* storage can be disabled */ }
+      const wasIdJagResolved = idJagResolvedRef.current;
+      const run = status.oauthProvider === 'pingfederate' ? status.idJagRunIntent : null;
+      const validated = run?.useCaseId === ID_JAG_USE_CASE_ID && run.mode === RUN_MODES.LIVE_ID_JAG
+        && typeof run.message === 'string' && !!run.message.trim();
+      let detail;
+      // Generic status confirms an identity but cannot carry the server's
+      // PF ID-JAG intent. Defer clearing local handoff state until an OAuth
+      // status (or a known local login) resolves that question.
+      if (!idJagResolvedRef.current && (validated || status.oauthProvider || status.authType === 'local_session')) {
+        idJagResolvedRef.current = true;
         if (!validated) clearIdJagRunState();
-        const detail = validated ? {
-          idJagCallbackValidated: true, useCaseId: ID_JAG_USE_CASE_ID,
-          mode: RUN_MODES.LIVE_ID_JAG, message: run.message,
-        } : undefined;
-        if (detail) {
+        else {
+          detail = {
+            idJagCallbackValidated: true, useCaseId: ID_JAG_USE_CASE_ID,
+            mode: RUN_MODES.LIVE_ID_JAG, message: run.message,
+          };
           try { sessionStorage.setItem(ID_JAG_VALIDATED_CALLBACK_KEY, JSON.stringify(detail)); }
           catch { /* event still works without storage */ }
         }
+      }
+      // Other auth listeners clear pending ID-JAG state on an ordinary login.
+      // Generic status has no provider intent, so mark that first event as
+      // provisional until a provider-specific status confirms the boundary.
+      if (!idJagResolvedRef.current) detail = { authSessionProvisional: true };
+      if (!sessionEstablishedRef.current) {
+        sessionEstablishedRef.current = true;
         window.dispatchEvent(new CustomEvent("userAuthenticated", { detail }));
         nrLog('ui.login', { username: u?.username || u?.email || 'unknown' });
+      } else if (!wasIdJagResolved && idJagResolvedRef.current) {
+        window.dispatchEvent(new CustomEvent("userAuthenticated", { detail }));
       }
       setLoading(false);
     };
 
     try {
-      const adminResponse = await getCachedJson("/api/auth/oauth/status");
-      if (adminResponse.data.authenticated) {
-        applyUser(adminResponse.data.user, adminResponse.data);
+      const checkStatus = async (url) => {
+        try {
+          return (await getCachedJson(url))?.data || null;
+        } catch (error) {
+          console.warn(`Session status unavailable at ${url}:`, error.message);
+          return null;
+        }
+      };
+      const adminStatus = checkStatus('/api/auth/oauth/status');
+      const customerStatus = checkStatus('/api/auth/oauth/user/status');
+      const genericStatus = checkStatus('/api/auth/session');
+      const oauthResolution = new Promise((resolve) => {
+        let pending = 2;
+        for (const probe of [adminStatus, customerStatus]) {
+          probe.then((status) => {
+            if (status?.authenticated) resolve(status);
+            pending -= 1;
+            if (pending === 0) resolve(null);
+          });
+        }
+      });
+      const firstAuthenticated = await Promise.race([
+        oauthResolution,
+        genericStatus.then((status) => status?.authenticated && status.authType === 'local_session'
+          ? status : oauthResolution),
+      ]);
+      if (firstAuthenticated) {
+        applyUser(firstAuthenticated.user, firstAuthenticated);
         return true;
       }
 
-      const userResponse = await getCachedJson("/api/auth/oauth/user/status");
-      if (userResponse.data.authenticated) {
-        applyUser(userResponse.data.user, userResponse.data);
+      const customer = await customerStatus;
+      const recoverablePingOneSession = customer?.staleSession
+        && customer.sessionType === 'user' && customer.loginProvider === 'pingone_sso';
+      const generic = await genericStatus;
+      // Concurrent status requests can overlap a BFF token refresh: the user
+      // probe may read the old expiry while another probe refreshes it. A live
+      // generic OAuth session is a reason to retry the user probe once.
+      if (recoverablePingOneSession && generic?.authenticated && generic.authType !== 'local_session') {
+        clearStatusCache();
+        const refreshedCustomer = await checkStatus('/api/auth/oauth/user/status');
+        if (refreshedCustomer?.authenticated) {
+          applyUser(refreshedCustomer.user, refreshedCustomer);
+          return true;
+        }
+      }
+      // A generic user record cannot restore a missing OAuth credential.
+      // Older BFFs may still report that stale OAuth record as authenticated.
+      if (generic?.authenticated && (!recoverablePingOneSession || generic.authType === 'local_session')) {
+        applyUser(generic.user, generic);
         return true;
       }
 
-      const sessionResponse = await getCachedJson("/api/auth/session");
-      if (sessionResponse.data.authenticated) {
-        applyUser(sessionResponse.data.user, sessionResponse.data);
-        return true;
+      if (allowSilentReauth && recoverablePingOneSession && !silentReauthFailed) {
+        let firstAttempt = false;
+        try {
+          if (sessionStorage.getItem(PINGONE_SILENT_REAUTH_KEY) !== '1') {
+            sessionStorage.setItem(PINGONE_SILENT_REAUTH_KEY, '1');
+            firstAttempt = true;
+          }
+        } catch { /* no durable loop guard, so leave manual sign-in available */ }
+        if (firstAttempt) {
+          window.location.href = `/api/auth/oauth/user/silent-reauth?return_to=${encodeURIComponent(returnPath)}`;
+          return true;
+        }
       }
 
       setLoading(false);
@@ -232,7 +298,11 @@ export function useAuth() {
 
     const runCheck = async () => {
       if (cancelled) return;
-      const ok = await checkOAuthSession();
+      const ok = await checkOAuthSession({
+        allowSilentReauth: true,
+        silentReauthFailed: params?.has('silent_reauth_failed') || false,
+        returnPath: pathname || '/dashboard',
+      });
       if (cancelled || ok) return;
       if (!oauthSuccess || retryIndex >= RETRY_DELAYS_MS.length) return;
       const delay = RETRY_DELAYS_MS[retryIndex++];
@@ -261,6 +331,7 @@ export function useAuth() {
       if (!d || typeof d.message !== "string" || !d.message.trim()) return;
       if (d.invalidateSession) {
         sessionEstablishedRef.current = false;
+        idJagResolvedRef.current = false;
         clearStatusCache();
         setUser(null);
       }
