@@ -78,6 +78,64 @@ describe("Server topology use-case playback", () => {
     }
   });
 
+  it("keeps off-filter service cards barely visible", () => {
+    render(<ServerTopologyPage />);
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Filter servers by category" }), { target: { value: "core" } });
+
+    const frontend = reactFlowMocks.nodes.find((node) => node.id === "frontend");
+    const pingOne = reactFlowMocks.nodes.find((node) => node.id === "pingone");
+    expect(frontend.style.opacity).toBe(1);
+    expect(pingOne.style.opacity).toBeLessThanOrEqual(0.05);
+  });
+
+  it("keeps the chosen request path clear and nearly hides off-path services and links", () => {
+    render(<ServerTopologyPage />);
+
+    fireEvent.change(screen.getByLabelText("Choose a request flow"), { target: { value: "apiKeyBackend" } });
+
+    const apiResource = reactFlowMocks.nodes.find((node) => node.id === "apiresource");
+    const mcpServer = reactFlowMocks.nodes.find((node) => node.id === "mcpmcp");
+    const spire = reactFlowMocks.nodes.find((node) => node.id === "spire");
+    const routeEdge = reactFlowMocks.edges.find((edge) => edge.id === "nodegw-apiresource-apikey");
+    const offPathEdge = reactFlowMocks.edges.find((edge) => edge.id === "spire-mcpmcp");
+
+    expect(apiResource.style.opacity).toBe(1);
+    expect(mcpServer.style.opacity).toBeLessThanOrEqual(0.05);
+    expect(spire.style.opacity).toBeLessThanOrEqual(0.05);
+    expect(routeEdge.style.opacity).toBeGreaterThan(0.9);
+    expect(routeEdge.className).toContain("stm-edge--route");
+    expect(offPathEdge.style.opacity).toBeLessThanOrEqual(0.05);
+    expect(offPathEdge.className).toContain("stm-edge--off-route");
+    expect(offPathEdge.className).toContain("stm-edge--dimmed");
+  });
+
+  it("raises a selected server and emphasizes its incoming and outgoing traffic labels", () => {
+    render(<ServerTopologyPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Demo Agent Gateway" }));
+
+    const selected = reactFlowMocks.nodes.find((node) => node.id === "nodegw");
+    const other = reactFlowMocks.nodes.find((node) => node.id === "bff");
+    const incoming = reactFlowMocks.edges.filter((edge) => edge.target === "nodegw");
+    const outgoing = reactFlowMocks.edges.filter((edge) => edge.source === "nodegw");
+    const unrelated = reactFlowMocks.edges.find((edge) => edge.source !== "nodegw" && edge.target !== "nodegw");
+
+    expect(selected.selected).toBe(true);
+    expect(selected.zIndex).toBeGreaterThan(other.zIndex || 0);
+    expect(incoming.length).toBeGreaterThan(0);
+    expect(outgoing.length).toBeGreaterThan(0);
+    expect(incoming.every((edge) => edge.className.includes("stm-edge--incoming"))).toBe(true);
+    expect(outgoing.every((edge) => edge.className.includes("stm-edge--outgoing"))).toBe(true);
+    expect([...incoming, ...outgoing].every((edge) => edge.className.includes("stm-edge--focused"))).toBe(true);
+    expect([...incoming, ...outgoing].every((edge) => edge.style.strokeWidth >= 5)).toBe(true);
+    expect([...incoming, ...outgoing].every((edge) => edge.data.emphasized)).toBe(true);
+    expect(incoming.every((edge) => edge.label.startsWith("IN · "))).toBe(true);
+    expect(outgoing.every((edge) => edge.label.startsWith("OUT · "))).toBe(true);
+    expect(unrelated.style.opacity).toBeLessThanOrEqual(0.05);
+    expect(unrelated.className).toContain("stm-edge--dimmed");
+  });
+
   it("keeps visible edge labels outside server cards", () => {
     render(<ServerTopologyPage />);
 
@@ -352,6 +410,7 @@ describe("Server topology use-case playback", () => {
   it("shows PDF and Lucidchart downloads on the topology page", () => {
     render(<ServerTopologyPage />);
 
+    fireEvent.click(screen.getByText("Export", { selector: "summary" }));
     const exports = screen.getByRole("group", { name: "Export server topology" });
     expect(within(exports).getByRole("button", { name: "Save as PDF" })).toBeInTheDocument();
     expect(within(exports).getByRole("link", { name: "Download Lucidchart CSV" })).toHaveAttribute(
