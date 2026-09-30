@@ -556,6 +556,8 @@ export default function BankingAgent({
   // Freshest handleDemoStepSelect for the strip's event bridge (the listener
   // is registered once with [] deps, so it must read through a ref).
   const demoStepSelectRef = useRef(null);
+  /** Demo steps panel currently lives in a pop-out window; a step run must not close it. */
+  const demoStepsPoppedOutRef = useRef(false);
   // Same pattern for the guided Demo Track picks arriving from the /admin
   // page strip's DemoTrackAgentControl (agent-track-step-pick/-complete).
   const trackStepPickRef = useRef(null);
@@ -8378,8 +8380,10 @@ export default function BankingAgent({
 
   async function handleDemoStepSelect(uc, stepNumber, opts) {
     if (!uc) return;
-    setShowDemoSteps(false);
-    setFloatingDemoStepsOpen(false);
+    if (!demoStepsPoppedOutRef.current) {
+      setShowDemoSteps(false);
+      setFloatingDemoStepsOpen(false);
+    }
     setShowDiscovery(false);
     if (launchIdJagDemoStep(uc)) return;
     if (isAgentBlockedByConsentDecline()) {
@@ -10164,6 +10168,7 @@ export default function BankingAgent({
         showTrigger={false}
         showFloatingButton={!isInline}
         placement={splitChrome ? "drawer" : "floating"}
+        onPopOutChange={(v) => { demoStepsPoppedOutRef.current = v; }}
         onOpenChange={(next) => {
           setShowDemoSteps(next);
           if (!next) setFloatingDemoStepsOpen(false);

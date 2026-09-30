@@ -72,6 +72,7 @@ export default function FloatingPanel({
   zIndex = 9000,
   onClose = null,
   placement = 'floating',
+  onPopOutChange = null,
   ...rest
 }) {
   const [pos, setPos] = useState({ x: defaultX, y: defaultY });
@@ -229,6 +230,14 @@ export default function FloatingPanel({
 
     setPopoutWin(win);
   }, [popoutWin, size, pos, title, isDrawer]);
+
+  // Tell the owner whether the panel currently lives in a pop-out window, so it
+  // can avoid closing (and thereby killing) the pop-out on an in-panel action.
+  useEffect(() => {
+    onPopOutChange?.(!!popoutWin);
+    return () => onPopOutChange?.(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [popoutWin]);
 
   // Close pop-out on unmount
   useEffect(() => {

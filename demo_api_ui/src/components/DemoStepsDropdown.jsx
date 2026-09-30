@@ -203,7 +203,11 @@ export default function DemoStepsDropdown({
   persistOpenState = open,
   onFloatingOpen,
   placement = 'floating',
+  onPopOutChange,
 }) {
+  // True while the panel lives in a pop-out window: running a step must not
+  // close the panel, or the pop-out window dies with it.
+  const poppedOutRef = useRef(false);
   const [primarySteps, setPrimarySteps] = useState([]);
   const [advancedSteps, setAdvancedSteps] = useState([]);
   const [ciamSteps, setCiamSteps] = useState([]);
@@ -317,7 +321,7 @@ export default function DemoStepsDropdown({
 
   /** Run a demo step and refresh checkmarks. */
   function handleSelect(uc, stepNumber) {
-    onOpenChange(false);
+    if (!poppedOutRef.current) onOpenChange(false);
     if (uc.id === 'UC40' && uc.useCaseId === ID_JAG_USE_CASE_ID) {
       requestLiveIdJagRun({
         mode: RUN_MODES.LIVE_ID_JAG,
@@ -559,6 +563,7 @@ export default function DemoStepsDropdown({
           title="Demo Steps"
           className="ba-demo-steps-float"
           placement={placement}
+          onPopOutChange={(v) => { poppedOutRef.current = v; onPopOutChange?.(v); }}
           defaultWidth={placement === 'drawer' ? Math.min(560, window.innerWidth - 16) : panelWidth}
           defaultHeight={panelHeight}
           defaultX={panelX}

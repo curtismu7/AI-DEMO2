@@ -181,6 +181,60 @@ describe('DemoStepsDropdown', () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
+  describe('running a step', () => {
+    // A pop-out renders the steps into the popup's own document; give it a real
+    // container (attached to body so screen queries reach it).
+    function mockPopOut() {
+      const container = document.createElement('div');
+      container.id = 'fp-popout-root';
+      document.body.appendChild(container);
+      const win = {
+        closed: false,
+        close: vi.fn(),
+        addEventListener: vi.fn(),
+        history: { pushState: vi.fn() },
+        document: { write: vi.fn(), close: vi.fn(), getElementById: () => container },
+      };
+      const openSpy = vi.spyOn(window, 'open').mockReturnValue(win);
+      return { win, container, openSpy };
+    }
+
+    it('closes the panel when a step runs from the in-page panel', async () => {
+      const onOpenChange = vi.fn();
+      const onSelect = vi.fn();
+      render(<DemoStepsDropdown open onOpenChange={onOpenChange} onSelect={onSelect} />);
+      fireEvent.click(await screen.findByTestId('demo-step-UC1'));
+      expect(onSelect).toHaveBeenCalledTimes(1);
+      expect(onOpenChange).toHaveBeenCalledWith(false);
+    });
+
+    it('keeps the panel open when a step runs from the pop-out window', async () => {
+      const onOpenChange = vi.fn();
+      const onSelect = vi.fn();
+      const onPopOutChange = vi.fn();
+      const { win, container, openSpy } = mockPopOut();
+      try {
+        render(
+          <DemoStepsDropdown
+            open
+            onOpenChange={onOpenChange}
+            onSelect={onSelect}
+            onPopOutChange={onPopOutChange}
+          />,
+        );
+        fireEvent.click(await screen.findByRole('button', { name: 'Pop out Demo Steps' }));
+        await waitFor(() => expect(onPopOutChange).toHaveBeenCalledWith(true));
+        fireEvent.click(await within(container).findByTestId('demo-step-UC1'));
+        expect(onSelect).toHaveBeenCalledTimes(1);
+        expect(onOpenChange).not.toHaveBeenCalledWith(false);
+        expect(win.close).not.toHaveBeenCalled();
+      } finally {
+        openSpy.mockRestore();
+        container.remove();
+      }
+    });
+  });
+
   it('closes from the title bar and keeps the pop-out and resize affordances when open', async () => {
     const onOpenChange = vi.fn();
     render(
