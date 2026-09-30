@@ -99,6 +99,28 @@ Findings:
 - **Provider lock drift.** `.demo-provider-intent.json` still says `pingone` while the live provider is `pingfederate`; `scripts/pingone/demo-provider-lock.js verify` and the health gate's provider-lock row will report drift until one is changed.
 - **PF admin login failing in spec harness.** The spec's headless admin login logs `PingFederate rejected the credentials` and falls back to the LMDB session store; not relevant to FM1-FM3 but noisy.
 
+### 5.4 Investigation of the two open items (read-only; no PF or code changes)
+
+**FM3 root cause: the audience fix from the handoff is not live.** Read-only PF admin GETs (one login) show:
+
+| PF object | Value |
+|---|---|
+| ATM `aiDemoPfAgentGwJwtAtm` Audience Claim Value | `https://agentgateway.ping.demo` (handoff section 4 says it was set to `https://api.ping.demo:3036/mcp`) |
+| ATM `aiDemoPfMcpGatewayJwtAtm` Audience Claim Value | `https://api.ping.demo:3036/mcp` (already exists) |
+| ATM `aiDemoPfJwtAtm` (user tokens) | `enduser.ping.demo` (correct; the handoff's mistaken edit is reverted) |
+| Specialist client `7f598698-...` (PASSENGER) | default ATM `aiDemoPfAgentGwJwtAtm`, restrict-to-default = true |
+| TE mappings for `aiDemoStandardTePolicy` | to `aiDemoPfAgentGwJwtAtm`, `aiDemoPfJwtAtm` and `aiDemoPfMcpGatewayJwtAtm` |
+
+Because the specialist client is restricted to `aiDemoPfAgentGwJwtAtm`, Exchange #2 mints with that ATM, so the final `aud` is `https://agentgateway.ping.demo`, which the BFF rejects (it requires `https://api.ping.demo:3036/mcp`). The handoff's hypotheses 1 (PF cache) and 3 (half-reverted edit) are ruled out for the user ATM; the actual state is that the AgentGw ATM edit is absent (never persisted, lost in a profile rebuild, or applied to a different environment: not determinable from here).
+
+Two candidate fixes, both changes to live PF config that is not tracked in this repo:
+- (a) Set `aiDemoPfAgentGwJwtAtm` Audience Claim Value to `https://api.ping.demo:3036/mcp`. One edit, but it also changes the audience of every token that ATM mints, including the agent actor tokens; the JWT processor's allowed-audiences list already contains both strings per the handoff.
+- (b) Repoint the 11 specialist clients' default ATM to `aiDemoPfMcpGatewayJwtAtm` (audience already correct). More edits, scoped to A2A, and leaves the AgentGw ATM untouched for any other user.
+
+Neither has been applied. Verification once applied: rerun FM3, then decode Exchange #2 and check `aud`.
+
+**Admin-login noise is expected under PF.** `tests/real/helpers/session.js` logs in the admin persona with `DEMO_ADMIN_*` / `PINGONE_TEST_ADMIN_*` credentials against whichever provider is active. Under `pingfederate` those PingOne admin credentials are sent to PF's form, which rejects them, and the helper falls back to the LMDB session store (`session.js:246-256`). It does not affect FM1-FM3 and does not occur under PingOne. Inferred from the code path; the specific env vars in use were not printed or checked.
+
 ## 6. Not done
 
 - Raw (unsanitized) token claims were not inspected, so `spiffeId`, instance and transaction claims are unconfirmed either way.
