@@ -12,11 +12,13 @@ const axios = require('axios');
 const configStore = require('../../services/configStore');
 const dpop = require('../../services/dpopKeyService');
 const { callToolViaGateway } = require('../../services/mcpGatewayClient');
+const previousPingGatewayUrl = process.env.MCP_PINGGATEWAY_URL;
 
 const encode = (value) => Buffer.from(JSON.stringify(value)).toString('base64url');
 const subjectToken = `${encode({ alg: 'none' })}.${encode({ sub: 'user-1', aud: 'mcpgateway.ping.demo', exp: Math.floor(Date.now() / 1000) + 3600 })}.sig`;
 
 beforeEach(() => {
+  process.env.MCP_PINGGATEWAY_URL = 'https://api.ping.demo:3005';
   jest.clearAllMocks();
   configStore.getEffective.mockImplementation((key) => ({
     pingone_resource_mcp_server_uri: 'mcpserver.ping.demo',
@@ -30,6 +32,11 @@ beforeEach(() => {
       : { status: 200, headers: {}, data: { jsonrpc: '2.0', result: { ok: true } } };
   });
   axios.observedHeaders = observedHeaders;
+});
+
+afterAll(() => {
+  if (previousPingGatewayUrl === undefined) delete process.env.MCP_PINGGATEWAY_URL;
+  else process.env.MCP_PINGGATEWAY_URL = previousPingGatewayUrl;
 });
 
 test('a retried idempotent read gets a fresh DPoP proof for each HTTP attempt', async () => {

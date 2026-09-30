@@ -14,6 +14,7 @@
 #
 # Usage:
 #   ./run.sh              # start all services (optional: tail prompt at end if TTY)
+#   ./run.sh basic        # use the lean local Compose dashboard/admin profile
 #   ./run.sh stop         # stop all services (process trees + listeners)
 #   ./run.sh restart      # stop then start
 #   ./run.sh status       # live service health check
@@ -47,6 +48,10 @@ case "${1:-}" in
   machine|specs)
     demo_machine_banner native
     exit 0
+    ;;
+  basic)
+    shift || true
+    exec "${BASEDIR}/run-docker.sh" basic "$@"
     ;;
 esac
 
@@ -1025,6 +1030,7 @@ cmd_help() {
   echo ""
   echo -e "${WHITE}${BOLD}  Commands:${RESET}"
   echo "    (default)  Start all services (${PROTO_LABEL} on ${API_HOST})"
+  echo "    basic      Start dashboard/admin + login services; stop local model tiers"
   echo "    stop       Stop all services gracefully (process tree + port sweep)"
   echo "    restart    Stop then start all services"
   echo "    status     Show running/stopped status with ports and URLs"
@@ -1153,6 +1159,10 @@ case "${COMMAND}" in
     ;;
   start)
     # fall through to start below
+    ;;
+  basic)
+    shift || true
+    exec "${BASEDIR}/run-docker.sh" basic "$@"
     ;;
   *)
     err "Unknown command: ${COMMAND}"

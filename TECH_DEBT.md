@@ -16,6 +16,24 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-09-28 — Graphify requeues intentionally skipped JSON on every refresh
+
+**What's wrong.** Graphify `0.9.71`'s zero-node recovery check re-queues
+manifest-stamped `.json` files with no graph nodes even when the JSON extractor
+intentionally returns `skipped: data json`. Excluding the large
+`step-verification`, `goldens`, and generated `visualizations` directories
+removes 891 of these files; 176 are still re-queued and parsed on a warm
+refresh.
+
+**Why it wasn't fixed now.** The recovery logic belongs to the installed
+third-party Graphify package. Excluding every remaining JSON path at the repo
+level would also keep application configs and docs out of a future semantic
+build, while patching site-packages would not be reproducible from this repo.
+
+**Real fix.** Have Graphify's recovery check honor the extractor's intentional
+`skipped` result (or persist that outcome in the AST cache), while keeping the
+files available to semantic extraction.
+
 ### [ ] 2026-09-27 — Hosted Kubernetes restricted admission and egress scope remain open
 
 **What's wrong.** Third-party image references in the hosted deployment path have been pinned to observed runtime digests (M-04); a deploy-time guard now blocks new mutable external references. Restricted Pod Security compatibility and per-workload egress remain unresolved. Read-only inspection on 2026-09-27 found no namespace Pod Security labels or namespaced NetworkPolicies in `ping-devops-cmuir` or `ping-devops-curtismuir`; cluster-level admission/network controls and CNI enforcement were not inspected. See `docs/security/SECURITY_REVIEW_2026-09-26.md` (L-01, L-02).

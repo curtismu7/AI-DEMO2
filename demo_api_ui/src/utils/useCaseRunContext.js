@@ -169,6 +169,7 @@ export function useUseCaseRunContext(location) {
     };
     const onAuthBoundary = (event) => {
       const detail = event.detail;
+      if (event.type === 'userAuthenticated' && detail?.authSessionProvisional === true) return;
       const validCallback = event.type === 'userAuthenticated'
         && detail?.idJagCallbackValidated === true
         && detail?.useCaseId === ID_JAG_USE_CASE_ID

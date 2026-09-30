@@ -18,6 +18,16 @@ jest.mock('../../services/configStore', () => ({
 const axios = require('axios');
 const { callToolViaGateway } = require('../../services/mcpGatewayClient');
 const { runMcpToolPipeline } = require('../../services/mcpToolPipeline');
+const previousPingGatewayUrl = process.env.MCP_PINGGATEWAY_URL;
+
+beforeAll(() => {
+  process.env.MCP_PINGGATEWAY_URL = 'https://api.ping.demo:3005';
+});
+
+afterAll(() => {
+  if (previousPingGatewayUrl === undefined) delete process.env.MCP_PINGGATEWAY_URL;
+  else process.env.MCP_PINGGATEWAY_URL = previousPingGatewayUrl;
+});
 
 function makeDeps(over = {}) {
   return {

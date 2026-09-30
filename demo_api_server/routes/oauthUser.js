@@ -490,12 +490,12 @@ router.get('/login', (req, res) => {
     req.session.oauthRedirectUri = redirectUri;
     req.session.oauthNonce = nonce;
     req.session.oauthType = 'user'; // Distinguish from admin OAuth
-    req.session.oauthLoginProvider = configStore.getOAuthProvider?.() || 'pingone';
+    req.session.oauthLoginProvider = selectedProvider;
     req.session.oauthLoginTraceId = loginTraceId;
 
     // Vercel / serverless: also persist PKCE data in a signed cookie so the
     // callback can recover it when the in-memory session is on a different instance.
-    setPkceCookie(res, { state, codeVerifier, redirectUri, nonce }, _isProd());
+    setPkceCookie(res, { state, codeVerifier, redirectUri, nonce, oauthProvider: selectedProvider }, _isProd());
 
     // Persist PKCE state before redirecting so the callback can validate.
     // Non-fatal: state/verifier are already in the signed PKCE cookie (setPkceCookie above),
@@ -573,8 +573,12 @@ router.get('/silent-reauth', (req, res) => {
     req.session.oauthRedirectUri = redirectUri;
     req.session.oauthNonce = nonce;
     req.session.oauthType = 'user';
+    req.session.oauthLoginProvider = configStore.getOAuthProvider?.() || 'pingone';
     req.session.oauthLoginStartedAt = Date.now();
-    setPkceCookie(res, { state, codeVerifier, redirectUri, nonce }, _isProd());
+    setPkceCookie(res, {
+      state, codeVerifier, redirectUri, nonce,
+      oauthProvider: req.session.oauthLoginProvider,
+    }, _isProd());
 
     req.session.save((err) => {
       if (err) {
@@ -666,6 +670,21 @@ router.get('/callback', async (req, res) => {
       // This handles the multi-tab race where tab B's login overwrites tab A's PKCE state.
       console.log('[oauth/user/callback] Auto-retrying login after invalid_state (multi-tab race)');
       return res.redirect(`${req.baseUrl}/login`);
+    }
+
+    const loginProvider = req.session.oauthLoginProvider || pkceCookie?.oauthProvider;
+    const selectedProvider = configStore.getOAuthProvider?.() || 'pingone';
+    if (!loginProvider || loginProvider !== selectedProvider) {
+      clearPendingIdJagRun(req);
+      clearIdJagCookie(res);
+      clearPkceCookie(res, _isProd());
+      delete req.session.oauthState;
+      delete req.session.oauthCodeVerifier;
+      delete req.session.oauthRedirectUri;
+      delete req.session.oauthNonce;
+      delete req.session.oauthLoginProvider;
+      finishLoginAudit(req, { outcome: 'failure', reasonCode: 'oauth_provider_error' });
+      return redirectEndUserOAuthSpaFailure(req, res, { error: 'provider_changed' });
     }
 
     // Validate code parameter
@@ -914,9 +933,9 @@ router.get('/callback', async (req, res) => {
     // Preserve step-up return destination across session regeneration
     const stepUpReturnTo = req.session.stepUpReturnTo || null;
     const postLoginReturnToPath = sanitizePostLoginReturnPath(req.session.postLoginReturnToPath) || null;
-    const loginProvider = req.session.oauthLoginProvider || configStore.getOAuthProvider?.() || 'pingone';
+    const resolvedLoginProvider = loginProvider || selectedProvider;
     const hadIdJagHandoff = !!req.session.pendingIdJagNonce;
-    const validatedIdJagIntent = hadIdJagHandoff && loginProvider === 'pingfederate'
+    const validatedIdJagIntent = hadIdJagHandoff && resolvedLoginProvider === 'pingfederate'
       && configStore.getOAuthProvider?.() === 'pingfederate'
       && pendingIdJagRun(req)?.returnTo === postLoginReturnToPath
       ? consumePendingIdJagRun(req) : null;
@@ -978,7 +997,7 @@ router.get('/callback', async (req, res) => {
       req.session.user = authedUser;
       req.session.clientType = clientType;
       req.session.oauthType = 'user';
-      req.session.oauthProvider = loginProvider;
+      req.session.oauthProvider = resolvedLoginProvider;
       if (validatedIdJagIntent) req.session.idJagRunIntent = validatedIdJagIntent;
       if (hostedLoginAudit) req.session.hostedLoginAudit = hostedLoginAudit;
       if (hostedLoginAudits) req.session.hostedLoginAudits = hostedLoginAudits;
@@ -1142,6 +1161,7 @@ router.get('/stepup', (req, res) => {
     // after MFA (callback does res.redirect(stepUpReturnTo)).
     const returnTo = sanitizeStepUpReturnTo(req.query.return_to);
     const stepUpSep = returnTo.includes('?') ? '&' : '?';
+    const loginProvider = configStore.getOAuthProvider?.() || 'pingone';
 
     const state = oauthService.generateState();
     const codeVerifier = oauthService.generateCodeVerifier();
@@ -1162,10 +1182,11 @@ router.get('/stepup', (req, res) => {
     req.session.oauthRedirectUri = redirectUri;
     req.session.oauthNonce = nonce;
     req.session.oauthType = 'user';
+    req.session.oauthLoginProvider = loginProvider;
     req.session.stepUpReturnTo = `${returnTo}${stepUpSep}stepup=done`;
 
     // Vercel / serverless: PKCE cookie fallback
-    setPkceCookie(res, { state, codeVerifier, redirectUri, nonce }, _isProd());
+    setPkceCookie(res, { state, codeVerifier, redirectUri, nonce, oauthProvider: loginProvider }, _isProd());
 
     console.log(`[StepUp] Initiating MFA step-up with acr_values=${acrValue}`);
     req.session.save((err) => {
@@ -1185,15 +1206,18 @@ router.get('/stepup', (req, res) => {
  * Get current OAuth session status for end users
  */
 router.get('/status', (req, res) => {
-  const token = req.session.oauthTokens?.accessToken;
+  // A destroyed session can leave a request without req.session at all. Status
+  // is a public signed-out probe, so treat that state as an empty session.
+  const session = req.session || {};
+  const token = session.oauthTokens?.accessToken;
   const hasOAuthToken = !!(token && token !== '_cookie_session');
   // Check expiry so that an expired session token does not report authenticated:true
   // and then cause every downstream API call to return 401 (producing a redirect loop).
   // refreshIfExpiring middleware runs first; if refresh succeeded the token is already
   // updated in req.session before we get here, so this check is transparent for valid sessions.
-  const expiresAt = req.session.oauthTokens?.expiresAt;
+  const expiresAt = session.oauthTokens?.expiresAt;
   const tokenNotExpired = !expiresAt || Date.now() < expiresAt;
-  const isAuthenticated = !!(req.session.user && hasOAuthToken && tokenNotExpired && (req.session.oauthType === 'user' || req.session.oauthType === 'admin'));
+  const isAuthenticated = !!(session.user && hasOAuthToken && tokenNotExpired && (session.oauthType === 'user' || session.oauthType === 'admin'));
 
   // Stale session: the user DID complete an OAuth login (session.user + oauthType
   // survive), but the tokens are gone or expired and could not be refreshed
@@ -1201,7 +1225,7 @@ router.get('/status', (req, res) => {
   // flag the UI cannot distinguish "never logged in" from "sign-in went stale" —
   // generic reads keep working off the session record, so the dashboard looks
   // signed in while every agent/MCP call fails (2026-06-12 incident).
-  const wasOAuthLogin = !!(req.session.user && (req.session.oauthType === 'user' || req.session.oauthType === 'admin'));
+  const wasOAuthLogin = !!(session.user && (session.oauthType === 'user' || session.oauthType === 'admin'));
   const staleSession = wasOAuthLogin && !isAuthenticated;
   const staleReason = !staleSession ? null
     : !hasOAuthToken ? 'tokens_missing'
@@ -1217,9 +1241,9 @@ router.get('/status', (req, res) => {
       return false;
     }
   })();
-  const enterprisePolicy = req.session?.enterpriseMcpPolicy || null;
+  const enterprisePolicy = session.enterpriseMcpPolicy || null;
   const consentGiven = isAuthenticated && (
-    req.session.agentConsentGiven === true ||
+    session.agentConsentGiven === true ||
     (enterpriseManagedMode && enterprisePolicy?.allowed === true)
   );
 
@@ -1231,38 +1255,38 @@ router.get('/status', (req, res) => {
     enterpriseManagedMode,
     enterpriseMcpPolicy: enterprisePolicy,
     user: isAuthenticated ? {
-      id: req.session.user.id,
-      username: req.session.user.username,
-      email: req.session.user.email,
-      firstName: req.session.user.firstName,
-      lastName: req.session.user.lastName,
-      role: req.session.user.role,
-      oauthProvider: req.session.user.oauthProvider || null,
-      oauthIssuer: req.session.user.oauthIssuer || null,
-      phone: req.session.user.phone || null,
-      hideSuccessScreen: req.session.user.hideSuccessScreen || false,
-      notificationPrefs: req.session.user.notificationPrefs || null
+      id: session.user.id,
+      username: session.user.username,
+      email: session.user.email,
+      firstName: session.user.firstName,
+      lastName: session.user.lastName,
+      role: session.user.role,
+      oauthProvider: session.user.oauthProvider || null,
+      oauthIssuer: session.user.oauthIssuer || null,
+      phone: session.user.phone || null,
+      hideSuccessScreen: session.user.hideSuccessScreen || false,
+      notificationPrefs: session.user.notificationPrefs || null
     } : null,
-    oauthProvider: isAuthenticated ? (req.session.oauthProvider || req.session.user.oauthProvider) : null,
-    oauthIssuer: isAuthenticated ? (req.session.user.oauthIssuer || null) : null,
-    idJagRunIntent: isAuthenticated && req.session.oauthType === 'user'
-      && req.session.oauthProvider === 'pingfederate'
+    oauthProvider: isAuthenticated ? (session.oauthProvider || session.user.oauthProvider) : null,
+    oauthIssuer: isAuthenticated ? (session.user.oauthIssuer || null) : null,
+    idJagRunIntent: isAuthenticated && session.oauthType === 'user'
+      && session.oauthProvider === 'pingfederate'
       && configStore.getOAuthProvider?.() === 'pingfederate'
-      && req.session.idJagRunIntent?.mode === 'live-id-jag'
-      && Date.now() - req.session.idJagRunIntent.createdAt < ID_JAG_RUN_TTL_MS
-      ? { useCaseId: ID_JAG_USE_CASE, mode: 'live-id-jag', message: req.session.idJagRunIntent.message,
-          returnTo: req.session.idJagRunIntent.returnTo }
+      && session.idJagRunIntent?.mode === 'live-id-jag'
+      && Date.now() - session.idJagRunIntent.createdAt < ID_JAG_RUN_TTL_MS
+      ? { useCaseId: ID_JAG_USE_CASE, mode: 'live-id-jag', message: session.idJagRunIntent.message,
+          returnTo: session.idJagRunIntent.returnTo }
       : null,
     // accessToken intentionally omitted — token stays on the backend (Backend-for-Frontend (BFF) pattern)
-    tokenType: isAuthenticated ? req.session.oauthTokens.tokenType : null,
-    expiresAt: isAuthenticated ? req.session.oauthTokens.expiresAt : null,
-    hasRefreshToken: wasOAuthLogin && !!req.session.oauthTokens?.refreshToken,
-    sessionType: wasOAuthLogin ? req.session.oauthType : null,
-    clientType: isAuthenticated ? req.session.clientType : null,
+    tokenType: isAuthenticated ? session.oauthTokens.tokenType : null,
+    expiresAt: isAuthenticated ? session.oauthTokens.expiresAt : null,
+    hasRefreshToken: wasOAuthLogin && !!session.oauthTokens?.refreshToken,
+    sessionType: wasOAuthLogin ? session.oauthType : null,
+    clientType: isAuthenticated ? session.clientType : null,
     // In-app consent gate field — consumed by BankingAgent.js and agentMcpTokenService
     consentGiven,
-    consentedAt: isAuthenticated ? (req.session.agentConsentedAt || null) : null,
-    mayAct: isAuthenticated ? (req.session.mayAct || null) : null,
+    consentedAt: isAuthenticated ? (session.agentConsentedAt || null) : null,
+    mayAct: isAuthenticated ? (session.mayAct || null) : null,
   });
 });
 

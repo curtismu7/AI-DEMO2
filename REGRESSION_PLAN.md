@@ -5,6 +5,46 @@ Canonical do-not-break contract for the Super Banking demo. The
 layer that points here; `CLAUDE.md` also points here. This file is the source of
 truth — if the skill and this file disagree, this file wins.
 
+### 2026-09-27 — Bind login callbacks and refresh to the recorded provider
+
+**Files changed:** `demo_api_server/routes/oauth.js`,
+`demo_api_server/routes/oauthUser.js`,
+`demo_api_server/services/pkceStateCookie.js`,
+`demo_api_server/services/oauthEndpointResolver.js`,
+`demo_api_server/middleware/tokenRefresh.js`, and focused auth regression tests.
+
+**What was broken:** Login state did not consistently retain the provider that
+started the flow, allowing provider configuration changes to redirect a pending
+callback into another provider's token endpoint. The refresh middleware let a
+concurrent request continue with a refresh token already rotated by another
+request, and PingFederate preflight could resolve PingOne endpoints when the
+global provider was PingOne.
+
+**What was fixed:** PKCE state and server sessions now retain the login provider;
+callbacks fail closed and clear pending login state when provider configuration
+changes or the recorded provider is absent. PF preflight validates discovery
+metadata and issuer, then persists discovered values under PF-specific keys as
+part of the switch. Selected-PF runtime resolution ignores shared endpoint
+settings and discovery cache data that may belong to PingOne.
+Every code-flow entry point, including normal login, silent re-authentication,
+and MFA step-up, records the same provider in the session and signed PKCE cookie.
+Concurrent refresh requests wait for the single refresh operation and reload its
+durably saved tokens before continuing. Stale sessions from a previous provider
+are cleared before their refresh token can be sent elsewhere.
+
+**Do not break:** Preserve PKCE/state/nonce validation and callback host
+preservation. The BFF remains the sole browser-token custodian. Refresh tokens
+must be persisted before concurrent requests continue, and provider-specific
+callbacks and endpoint resolution must stay bound to the provider recorded when
+login began.
+
+**Verify:** Focused BFF auth/session Jest suites covering callback provider
+mismatch and missing-provider callbacks, PKCE provider round-trip, PingFederate
+preflight and runtime endpoint resolution in the presence of shared PingOne
+settings, preflight metadata validation and PF-specific persistence, concurrent
+refresh, stale-provider session clearing, and a step-up check asserting the
+provider marker in both session and PKCE cookie.
+
 ---
 
 ## §0 — UI style rules (hard)
@@ -188,50 +228,1128 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
-### 2026-09-27 — MCP gateway audience routing failed before dispatch
+### 2026-09-30 — Active PingOne sessions were hidden by inconsistent session checks
 
-**Files:** `demo_api_server/services/mcpToolPipeline.js`,
+**Files:** `demo_api_server/routes/auth.js`, `demo_api_server/services/agentMcpTokenService.js`, `demo_api_ui/src/hooks/useAuth.js`, `demo_api_ui/src/services/sessionResolver.js`, `demo_api_ui/src/components/UserDashboardPing2026.js`, `demo_api_ui/src/components/SecurityCenter.js`, `demo_api_ui/src/components/UnifiedTokenFlowInspector.jsx`, `demo_api_ui/src/components/education/TokenExchangePanel.js`, and focused tests.
+
+**What was broken:** An error from the admin status endpoint stopped the app shell before it checked a valid customer session. Admin pages waited for all three status probes and reported no session when one hung, even if another had confirmed the user; the token expiry indicator waited for both OAuth probes. The generic status endpoint reported stale OAuth user records as authenticated after their token was lost or expired. The dashboard treated a status request error as signed out even when the app shell had confirmed the user. Security Center classified BFF `authType: user/admin` as a local account. Token panels expected raw OAuth status tokens or an old `decoded` event shape, hiding real BFF session-preview claims. The education panel also treated active opaque tokens as signed out.
+
+**What changed:** The app shell checks admin and customer OAuth status concurrently, continues after individual failures, and attempts the existing PingOne `prompt=none` route once for a stale customer OAuth session. It retries a stale customer status once when generic status shows that a concurrent refresh completed. When only generic status restores a session, it emits a provisional auth signal that preserves PF ID-JAG handoff state; provider confirmation later validates the callback or clears that state for an ordinary login. It does not accept a generic user record as proof of a valid OAuth token. Admin pages and the token expiry indicator use a confirmed session without waiting for unrelated probes. Generic status requires a live token for OAuth sessions, including legacy admin sessions, while retaining local session behavior. The dashboard uses its confirmed user prop to try the normal protected data request when status is unavailable. Security Center recognizes both BFF OAuth auth types. Session preview omits expired stored bearers; token panels read its sanitized event shape and recognize active opaque tokens only after expiry-aware generic status confirms the session. The education panel no longer infers `may_act` from filtered claims.
+
+**Do not break:** Preserve confirmed OAuth status over generic OAuth fallback, local username/password sessions, PF ID-JAG handoff validation, the BFF's token and role enforcement, the dashboard's one-redirect reauth guard, and server-side custody of raw tokens. Silent recovery must be one-shot and must not start for PingFederate or after a `login_required` callback.
+
+**Verify:** `CI=true npx jest src/__tests__/authSession.test.js tests/oauthUser.test.js src/__tests__/agentMcpTokenService.test.js --forceExit` in `demo_api_server`; focused UI Vitest regressions for each path; `cd demo_api_ui && npm run test:unit && npm run build`.
+
+### 2026-09-30 — Topology selection keeps the active flow legible
+
+**Files:** `demo_api_ui/src/components/ServerTopologyPage.jsx`,
+`demo_api_ui/src/components/ServerTopologyPage.css`,
+`demo_api_ui/src/components/__tests__/ServerTopologyPage.playbacks.test.jsx`,
+`REGRESSION_PLAN.md`.
+
+**What was broken:** a selected server outside the current request route could
+dim every node and connection after switching to flow-only mode, leaving the
+route nearly unreadable while its stale selection remained in the detail pane.
+
+**What was fixed:** flow-only activation clears selections that are outside the
+active route. Selected-node connections now stand out with stronger paths and
+labels while unrelated diagram content fades into the background.
+
+**Do not break:** keep the selected server's incoming and outgoing connections
+prominent, keep unrelated content subdued, and keep every connection in
+flow-only mode's active route legible.
+
+**Verify:** `cd demo_api_ui && CI=true npx vitest run
+src/components/__tests__/ServerTopologyPage.playbacks.test.jsx`; `cd demo_api_ui
+&& npm run build`; inspect the selected diagram in both themes.
+### 2026-09-30 — Dashboard Demo steps panel slides out from the right edge
+
+**Files:** `demo_api_ui/src/components/FloatingPanel.jsx`,
+`demo_api_ui/src/components/FloatingPanel.css`,
+`demo_api_ui/src/components/DemoStepsDropdown.jsx`,
+`demo_api_ui/src/components/AIAgent.js`, `REGRESSION_PLAN.md`.
+
+**What was changed:** on split-column dashboards the Demo steps panel opens as a
+drawer pinned to the right edge (full height, slides in, resized by its left
+edge, pop-out and close kept) instead of a free-floating window. `FloatingPanel`
+gained an opt-in `placement="drawer"`; the default `floating` placement and its
+other users are unchanged. Other pages keep the floating window.
+
+**Do not break:** `FloatingPanel` default drag, 8-way resize, collapse and
+pop-out for its other users; the Demo Steps selection flow; the header button's
+`agent-demo-steps-open` wiring.
+
+**Verify:** `cd demo_api_ui && npm run build`; Demo Steps vitest; on `/dashboard`
+the header button opens a right-edge drawer that resizes from its left edge, in
+light and dark themes.
+
+### 2026-09-30 — Dashboard Demo Steps button belongs beside Favorites and its pop-out nearly filled the screen
+
+**Files:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/components/DemoStepsDropdown.jsx`,
+`demo_api_ui/src/components/AIAgent.css`,
+`demo_api_ui/src/components/TopNav.js`,
+`demo_api_ui/src/components/TopNav.css`, `REGRESSION_PLAN.md`.
+
+**What was broken:** split-column dashboard mode hid the floating Demo Steps
+launcher and left its trigger inside Demo Controls instead of the main header
+beside Favorites. The default panel height could reach 820px, and the browser
+pop-out added another 80px, making it nearly full-screen on a typical desktop
+viewport.
+
+**What changed:** add a Demo Steps button beside Favorites in the main header
+for split-column dashboards, start the panel closed there, and use a smaller
+default panel size. The panel remains draggable, resizable in eight directions,
+and its browser pop-out remains resizable.
+
+**Do not break:** preserve the agent's own drag/resize/pop-out behavior and the
+Demo Steps selection flow.
+
+**Verify:** `cd demo_api_ui && npm run build`; check `/dashboard` in light and
+dark themes with the §1.4 computed-style contrast auditor; verify the header
+button opens the panel and the pop-out opens below full-screen height.
+
+### 2026-09-30 — Admin Demo Steps opened at the screen edge and academy links lost contrast in dark mode
+
+**Files:** `demo_api_ui/src/components/DemoStepsDropdown.jsx`,
+`demo_api_ui/src/components/AIAgent.css`, `REGRESSION_PLAN.md`.
+
+**What was broken:** the floating Demo Steps panel opened against the viewport's
+right edge on wide screens. Academy links and the explain control could also
+render with low-contrast colors in dark mode.
+
+**What changed:** center the panel when it first opens and pair the academy
+links and explain control with theme-aware foreground/background tokens. The panel remains
+draggable, resizable in eight directions, and pop-out capable, with its title-bar
+close control.
+
+**Do not break:** preserve the Admin1-7 vertical and agent selection behavior,
+the floating agent's existing drag/resize/pop-out controls, and the shared
+FloatingPanel title-bar close.
+
+**Verify:** `cd demo_api_ui && npm run build`; check `/admin` in light and dark
+themes with the §1.4 computed-style contrast auditor.
+### 2026-09-30 — Privilege chat allows dynamic OAuth client registration
+
+**Files:** `demo_api_server/routes/privilegeMcpClient.js`,
+`demo_api_server/tests/routes/privilegeMcpClient.authStartNoClientId.test.js`.
+
+**What was broken:** Chat rejected an empty OAuth Client ID before starting
+OAuth, even though the shipped gateway registers the client dynamically and
+the Settings UI says the ID is supplied automatically.
+
+**What was fixed:** Chat now lets `beginOAuthFlow` perform DCR or return its
+existing actionable error when a gateway requires an operator-supplied ID.
+
+**Do not break:** Preserve Procyon’s no-OAuth path, DCR registration, the
+manual Client ID fallback, and OAuth session/token handling.
+
+**Verify:** `cd demo_api_server && CI=true npx jest
+tests/routes/privilegeMcpClient.authStartNoClientId.test.js
+tests/routes/privilegeMcpClient.procyon.test.js --forceExit`.
+
+### 2026-09-30 — UC46 now visibly selects A2A and offers demo questions
+
+**Files:** `demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`,
+`demo_api_ui/src/pages/PrivilegeMcpClientPage.css`,
+`demo_api_ui/src/features/privilegeA2aClient/PrivilegeA2aTab.jsx`, and
+`demo_api_ui/src/features/privilegeA2aClient/PrivilegeA2aTab.css`, plus the
+standalone demo's MainAgent and WorkerAgent request loops.
+
+**What was broken:** UC46 opened the correct A2A content, but the selected tab
+used only the page's subtle bottom rule and manual tab changes did not retain
+the A2A deep link in the URL. The composer also required presenters to remember
+the seeded access-review data and type a suitable question.
+
+**What was fixed:** selected tabs now have a complete blue border and expose
+their selection state to assistive technology. Tab choices update the deep-link
+query, and the A2A composer offers seeded demo questions that populate the
+existing editable question field before submission.
+The two agents no longer force adaptive thinking, so the same Privilege key can
+use its permitted Haiku model while newer models retain their server defaults.
+After a successful delegation, MainAgent streams the WorkerAgent's grounded
+answer directly instead of making a redundant fourth model call.
+
+**Do not break:** keep UC46 on `/privilege-mcp-client?view=demo&tab=a2a`, keep
+the browser-to-BFF session boundary, and preserve the separate MainAgent →
+WorkerAgent → MCP topology and every existing MCP Inspect tab.
+
+**Verify:** UI build and a live UC46 navigation with both page themes.
+
+### 2026-09-30 — Privilege gateway homepage gave clients stale instructions
+
+**Files:** `pingone-privgateway-helm-main/agentless/agentless-mcpgw/files/homepage.html`,
+`templates/homepage.yaml`, `values.yaml`, `sidecars.values.yaml`, and the
+repackaged chart.
+
+**What was broken:** the gateway binary's sample page omitted a UTF-8 declaration,
+listed demo tools that are not this deployment's tool catalog, and told public
+clients to connect to `localhost:8080/sse`.
+
+**What changed:** the AI Demo Helm overlay serves an accurate gateway introduction
+at the exact `/` path. It shows the registered app URL pattern and explains that
+tools come from each app after access is granted.
+
+**Do not break:** keep `/.well-known/`, `/authorize`, `/token`, `/callback`,
+`/register`, and registered MCP app paths on the gateway's HTTPS backend. The
+homepage's separate ingress uses HTTP only for its static in-cluster service.
+
+**Verify:** `helm lint` and rendered enabled/disabled chart checks;
+`npm run topology:verify`; `npm run authz:verify`; desktop and mobile browser previews.
+
+### 2026-09-30 — OrbStack K8 could not complete PingFederate login
+
+**Files:** `run-k8.sh`, `scripts/k8-docker-cleanup.sh` and its test,
+`k8s/deploy.sh`, and `k8s/overlays/orbstack-pf/`.
+
+**What was broken:** local K8 cleanup selected every `ai-demo-*` Docker
+container, disabled its restart policy, and stopped it, including the
+standalone PF container. The in-cluster BFF also resolved its browser-facing PF
+issuer to its own loopback address; its egress policy denied port 9031, and the
+pod did not trust the mkcert CA for the PF token exchange.
+
+**What changed:** cleanup preserves `ai-demo-pingfederate`. OrbStack deploys add
+a BFF-only host-gateway alias and egress rule for PF on TCP 9031, and configure
+Node to trust the existing mkcert CA bundle. Cleanup also keeps PF's named
+Docker network while its container exists, avoiding stale network IDs after a
+stop. Other cluster contexts do not receive this local-only route.
+
+**Do not break:** keep PF's public issuer hostname, redirect URIs, clients, and
+persistent data unchanged. Keep the OrbStack host route scoped to the BFF and
+preserve the default external egress restrictions.
+
+**Verify:** `bash scripts/k8-docker-cleanup.test.sh`; shell syntax checks;
+server-side dry-run of the BFF host alias; local PF JWKS returns HTTP 200 from
+both the host and the K8 BFF pod.
+
+### 2026-09-30 — P1/PF provider switch hidden in dashboard layout
+
+**Files:** `demo_api_ui/src/components/TopNav.js`,
+`demo_api_ui/src/components/AIAgent.js`, and
+`demo_api_ui/src/components/__tests__/TopNavFavoritesLayout.test.jsx`.
+
+**What was broken:** the dashboard middle layout hid the top-nav provider
+switch and mounted it only inside the collapsed Command Dock, making the P1/PF
+choice hard to find while PingFederate could remain selected by default.
+
+**What changed:** keep the single provider switch in the shared top bar and
+remove its Command Dock copy. It is directly available on the dashboard even
+when the agent dock is collapsed.
+
+**Do not break:** preserve provider-switch authorization, OAuth endpoint
+selection, session clearing, sign-out, and the next-login behavior.
+
+**Verify:** focused TopNav and OAuth-provider UI Vitest suites;
+`cd demo_api_ui && npm run build`.
+
+### 2026-09-30 — UC46 is numbered step 25 in Demo Steps
+
+**Files:** `demo_api_server/config/useCases.js`,
+`demo_api_server/config/auth-requirements.json`,
+`demo_api_server/config/demoReadinessInventory.json`,
+`demo_api_server/services/demoReadinessCatalog.js`,
+`demo_api_ui/src/config/demoUseCaseSteps.js`, and their API/readiness/UI tests.
+
+**What was missing:** the Privilege A2A page link was listed only as an extra
+Privilege-lane action with a non-numeric ID, outside the numbered primary
+presenter sequence.
+
+**What changed:** the catalog now identifies it as `UC46` and places it at
+step 25 in the primary Demo Steps sequence. It appears once, remains
+user-session-gated, and opens the A2A tab without sending a question.
+
+**Do not break:** preserve `ADMIN13`'s `/privilege-mcp-client` destination, the
+separate MainAgent → WorkerAgent → MCP topology, the BFF session boundary,
+banking A2A, OAuth/token exchange, and existing MCP Inspect tabs.
+
+**Verify:** focused API/readiness Jest and UI Vitest suites;
+`npm run authz:verify`; `node scripts/check-demo-readiness-contract.mjs`;
+`cd demo_api_ui && npm run build`.
+
+### 2026-09-29 — UI image omitted demo-readiness contract inputs
+
+**Files:** `demo_api_ui/Dockerfile`, `demo_api_ui/Dockerfile.dockerignore`,
+`scripts/docker-build-contexts.test.js`, `REGRESSION_PLAN.md`.
+
+**What was broken:** the UI package's `prebuild` checks the cross-repo demo
+readiness contract, but the UI Dockerfile's scoped build context excluded the
+root checker and its BFF, topology, and feature-test inputs. The production
+frontend image therefore failed before Vite could build. Copying the whole BFF
+directory also admitted local dependencies and runtime data into the context.
+
+**What was fixed:** run the contract from a temporary read-only BuildKit mount
+of its allowlisted repo inputs, then run the UI topology sync and Vite directly
+so the container does not repeat the host-oriented prebuild after that mount is
+gone. Added a regression test tying the Dockerfile command and context allowlist
+to all registered readiness feature sources while keeping BFF dependencies,
+runtime data, and environment files excluded.
+
+**Do not break:** keep ordinary local `npm run build` running the full readiness
+contract; keep the contract mount temporary and the published image UI-only; do
+not admit BFF `node_modules`, runtime data, or `.env` files into the UI context.
+
+**Verify:** `node --test scripts/docker-build-contexts.test.js`; `cd demo_api_ui
+&& npm run build`; `docker buildx build --load -f demo_api_ui/Dockerfile -t
+ai-demo-ui-readiness-contract-test:latest .` from the repo root.
+
+### 2026-09-29 — UI Docker context re-included unrelated files
+
+**Files:** `demo_api_ui/Dockerfile.dockerignore`,
+`scripts/docker-build-contexts.test.js`, `REGRESSION_PLAN.md`.
+
+**What was broken:** Docker treats a negated directory rule such as
+`!demo_api_server/` as allowing its descendants. The broad directory exceptions
+therefore sent unrelated scripts and local BFF logs, nested data, and env files
+to the UI image builder. A test that only collected `!` lines as literal paths
+did not model this behavior.
+
+**What was fixed:** exclude direct children after reopening each needed parent,
+then allow only the checker, its referenced sources/tests, and the two topology
+exports. Added recursive runtime-artifact and secret exclusions. A BuildKit
+fixture test now copies the filtered context out and checks required files are
+present while unrelated scripts, runtime files, env files, UI tests, and docs
+are absent.
+
+**Do not break:** do not replace narrow directory exceptions with broad subtree
+negations. Keep the Docker-backed fixture test exercising the actual ignore
+file semantics, including nested runtime paths.
+
+**Verify:** `node --test scripts/docker-build-contexts.test.js`; `cd demo_api_ui
+&& npm run build`; `docker buildx build --load -f demo_api_ui/Dockerfile -t
+ai-demo-ui-readiness-contract-test:latest .` from the repo root.
+### 2026-09-29 — Privilege A2A access review is available as a Demo Step
+
+**Files:** `demo_api_server/config/useCases.js`,
+`demo_api_server/config/demoReadinessInventory.json`,
+`demo_api_server/config/auth-requirements.json`,
+`demo_api_server/services/demoReadinessCatalog.js`,
+`demo_api_server/services/demoReadinessAuditService.js`,
+`demo_api_ui/src/config/demoUseCaseSteps.js`,
+`demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`,
+`demo_api_ui/src/pages/PrivilegeMcpClientPage.css`,
+`demo_api_ui/src/components/AdminSideNav.jsx`,
+`docs/demo-readiness.md`, and the corresponding readiness/UI contract tests.
+
+**What was missing:** the Privilege A2A demo had an A2A tab, but presenters
+could only reach it by opening the client page and selecting the tab themselves.
+
+**What was added:** a user-session-gated Privilege lane Demo Step opens the
+existing client at `?view=demo&tab=a2a`. An explicit view/tab deep link overrides
+the saved page preference and selects the A2A tab; it does not send a prompt.
+The readiness catalog now checks 47 Demo Steps and the Privilege count is 7.
+
+**Do not break:** preserve `ADMIN13`'s existing `/privilege-mcp-client`
+destination and keep this as a navigation step. Preserve the separate
+MainAgent → WorkerAgent → MCP topology, BFF session boundary, banking A2A,
+OAuth/token exchange, and existing MCP Inspect tabs.
+
+**Verify:** focused catalog Jest and UI Vitest tests; `npm run authz:verify`;
+`node scripts/check-demo-readiness-contract.mjs`; `cd demo_api_ui && npm run
+build`; check the Privilege client page in both themes.
+
+### 2026-09-29 — Privilege A2A tab route mounts and BFF boundary
+
+**Files:** `standalone/privilege-a2a-anthropic-demo/src/worker-agent/index.ts`,
+`standalone/privilege-a2a-anthropic-demo/src/main-agent/index.ts`,
+`standalone/privilege-a2a-anthropic-demo/src/config.ts`,
+`demo_api_server/routes/privilegeA2aClient.js`,
+`demo_api_server/server.js`,
+`demo_api_ui/src/features/privilegeA2aClient/PrivilegeA2aTab.jsx`,
+`demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`.
+
+**What was broken:** the A2A SDK handlers were mounted with Express route
+methods at the full endpoint path even though their internal routers match `/`,
+so the worker's agent-card route returned 404. The AI Guard Client also had no
+session-gated relay for this three-process demo.
+
+**What was fixed:** mount the SDK routers at their endpoint prefixes, add the
+shared-secret check on integrated main-agent chat, and relay the A2A SSE stream
+through a session-gated BFF route that forwards only message and session ID.
+Add the A2A tab to Demo mode with an incremental text-only stream consumer.
+Give each chat turn a fresh opaque A2A context ID and filter worker traces by
+that ID, preventing concurrent chats from receiving one another's entitlement
+details.
+
+**Do not break:** keep the separate main → worker → MCP process topology and
+per-agent keys; never forward browser authorization, cookies, or user identity
+to the agents. Preserve banking A2A, OAuth/token exchange, and existing MCP
+tabs.
+
+**Verify:** backend `npm test` (including concurrent trace isolation) and
+`npm run build`; BFF focused Jest route test;
+AI Guard Client focused Vitest tests and `npm run build`; run the A2A tab
+contrast check in both page themes.
+### 2026-09-29 — BFF readiness catalog could not load gateway scope topology
+
+**Files:** `demo_api_server/Dockerfile`, `scripts/docker-build-contexts.js`,
+`scripts/docker-build-contexts.test.js`, `REGRESSION_PLAN.md`.
+
+**What was broken:** the BFF readiness catalog imports
+`../../ping-gateway/config/scope-topology.json`, which resolves to
+`/ping-gateway/config/scope-topology.json` in the container. The staged BFF
+build context omitted this file, and the image's code-search copy placed the
+gateway tree only under `/repo/ping-gateway`; the BFF therefore crash-looped
+when the readiness routes loaded.
+
+**What was fixed:** explicitly stage the topology file and copy it into the
+runtime path consumed by the catalog. Added a runtime-layout regression check
+that applies the Dockerfile copy destinations and asks Node to resolve the
+catalog's actual relative import.
+
+**Do not break:** keep the readiness catalog's existing use-case, scope, and
+audience validation unchanged; preserve the separate `/repo/ping-gateway` tree
+used by code search.
+
+**Verify:** `PATH=/opt/homebrew/opt/node@22/bin:$PATH node --test
+scripts/docker-build-contexts.test.js`; build the BFF image and run
+`require('/app/services/demoReadinessCatalog').loadDemoReadinessSources()` in
+the image; `cd demo_api_server && CI=true npx jest
+tests/demoReadinessAuditService.test.js --forceExit`.
+
+### 2026-09-28 — Dashboard session and greeting contrast
+
+**Files:** `demo_api_ui/src/components/TopNav.css`,
+`demo_api_ui/src/components/AgentGreetingHero.module.css`,
+`demo_api_ui/src/components/__tests__/DashboardContrast.test.js`,
+`demo_api_ui/src/components/ServerTopologyPage.css`, `REGRESSION_PLAN.md`.
+
+**What was broken:** the customer session label and View Token action were too
+dim against the blue top navigation. The greeting overlay also left white hero
+text below the large-text contrast threshold over bright image areas. The
+topology communication label used an undefined font-size token.
+
+**What was fixed:** the session label and token action use the vertical's
+`--brand-topnav-text` color, with an underline hover state that retains the same
+contrast. The hero image overlay is stronger at both gradient stops so the
+greeting remains readable over bright pixels. The topology label now uses the
+defined 10px `--font-size-3xs` token.
+
+**Do not break:** preserve the top navigation's theme-driven background and the
+hero image/greeting layout; keep these fixes limited to contrast styling and
+the defined topology font-size scale.
+
+**Verify:** `cd demo_api_ui && npm run test:unit --
+src/__tests__/signinAccentTokens.test.js
+src/components/__tests__/DashboardContrast.test.js
+src/components/__tests__/AIAgent.headerControls.test.js
+src/components/__tests__/AIAgent.surfaceSelectorLayout.test.js` (29/29); `cd
+demo_api_ui && npm run build`; inspect contrast in the rendered dashboard in
+light and dark themes.
+
+### 2026-09-28 — Server topology edge labels collided and flow controls used excess height
+
+**Files:** `demo_api_ui/src/components/ServerTopologyPage.jsx`,
+`demo_api_ui/src/components/ServerTopologyPage.css`,
+`demo_api_ui/src/components/topologyEdgeLabelLayout.js`,
+`demo_api_ui/src/components/__tests__/ServerTopologyPage.playbacks.test.jsx`,
+`demo_api_ui/src/components/__tests__/topologyEdgeLabelLayout.test.js`.
+
+**What was broken:** edge labels shared route midpoints and could overlap one
+another, route strokes, or visible service cards. The playback/result controls
+also used enough vertical space to hide most of the map in a short viewport.
+
+**What was fixed:** place padded labels in separate lanes clear of route
+midpoints and visible service cards. Compress the result strip, toolbar spacing,
+and default desktop playback height; preserve numbered steps, pane resizing, and
+any custom size saved by the user.
+
+**Do not break:** keep flow selection, step numbering, playback, filtering,
+exports, and resizable panes intact. Keep label rectangles separated and clear
+of routes and visible service cards.
+
+**Verify:** focused Vitest suites (20 tests passed) cover label/card separation
+and saved 150px pane preservation; UI production build passed. The broad local UI
+suite stopped at batch 34/58 when its RSS monitor's `ps` subprocess was
+terminated; required CI UI tests/build and topology gates passed before the latest
+merge-base update.
+
+### 2026-09-28 — Readiness modal body missed the shared scroll surface
+
+**Files:** `demo_api_ui/src/components/AdminSideNav.jsx`,
+`demo_api_server/tests/mcpGatewayConfig.test.js`.
+
+**What was broken:** The Admin Reset Demo readiness modal rendered its long
+preview and findings directly in the modal body without the required
+`.dm-scroll` wrapper. The body had no shared padding/scroll behavior, so longer
+reports could be clipped. The gateway-push persistence regression also lacked an
+assertion that the intended store write was attempted.
+
+**What was fixed:** Put the existing readiness content on the shared scroll
+surface. Keep the BFF store failure active through the request and assert the
+exact persisted payload and single call, so the test verifies the gateway-push
+write failure path explicitly.
+
+**Do not break:** Preserve the readiness/reset/repair flow and its admin
+confirmation, and keep PingOne/PingFederate login and audience handling
+unchanged.
+
+**Verify:** `dmScrollContract.test.js` (2/2), `mcpGatewayConfig.test.js` (16/16),
+UI production build, and rendered modal contrast audit in light and dark themes.
+
+### 2026-09-28 — PF active provider broke the PingOne MCP machine-token chain
+
+**Files:** `demo_api_server/services/oauthEndpointResolver.js`,
+`demo_api_server/services/agentCCTokenService.js`,
+`demo_api_server/middleware/auth.js`,
+`demo_api_server/src/__tests__/agentCCTokenService.scopeVertical.test.js`,
+`demo_api_server/tests/oauth-endpoint-config.test.js`,
+`demo_api_server/tests/verticalToolAudience.regression.test.js`.
+
+**What was broken:** when the BFF's active user provider was PingFederate,
+`agentCCTokenService` posted PingOne MCP token-exchanger credentials to the
+PingFederate token endpoint. PF rejected them as `invalid_client`, and the
+subject-token route surfaced a 502. OAuth error bodies and tokenless 2xx
+responses were also treated as successful responses until a later route check.
+After that endpoint mismatch was corrected, Step 9 successfully exchanged the
+machine token for `aud=enduser.ping.demo`, but the BFF still tried PF's JWKS for
+the PingOne signature and returned `invalid_token`.
+
+**What was fixed:** resolve the machine-token endpoint independently from the
+active interactive-login provider: use `PINGONE_TOKEN_ENDPOINT` when set, else
+derive the PingOne endpoint from the configured region and environment. Reject
+non-2xx OAuth responses, any response containing an OAuth `error` (including a
+malformed 2xx response that also includes `access_token`), and responses without
+`access_token` with a safe, actionable error. The BFF now also resolves PingOne
+issuer/JWKS independently and verifies a token against PingOne's JWKS when its
+exact configured issuer matches, while PF-issued tokens continue through PF's
+JWKS. This is an intentional PF/PingOne difference: interactive login can use
+PF, while this MCP machine credential and its resource token are PingOne-issued.
+
+**Do not break:** keep browser login and user-token provider selection tied to
+the active provider. Keep MCP machine credentials on the PingOne endpoint unless
+an explicit machine-token endpoint override is configured; never send those
+credentials to the active user's IdP by default. Validate PingOne tokens only
+against the exact configured PingOne issuer and its JWKS; preserve the PF issuer
+and JWKS path. Continue enforcing the BFF audience and scope checks after
+signature validation.
+
+**Verify:** from `demo_api_server`, `CI=true npx jest
+tests/verticalToolAudience.regression.test.js tests/oauth-endpoint-config.test.js
+src/__tests__/agentCCTokenService.scopeVertical.test.js
+tests/routes/demoSubjectToken.test.js --forceExit` (43 passed). In local Docker,
+the authenticated `/api/mcp/tool` request for `banking.get_balance` returned
+HTTP 200 with `result.isError=false` while PF was the active login provider.
+
+### 2026-09-28 — BFF routed banking balance aliases as unknown MCP tools
+
+**Files:** `demo_api_server/server.js`,
+`demo_api_server/services/bankingMcpToolAliases.js`,
 `demo_api_server/services/mcpGatewayClient.js`,
-`demo_api_server/src/__tests__/a2aDelegationService.test.js`,
+`demo_api_server/tests/bankingMcpToolAliases.test.js`,
+`demo_api_server/tests/mcpBankingToolAliasesRoute.test.js`.
+
+**What was broken:** `/api/mcp/tool` forwarded UI/parser names `get_balance`,
+`get_accounts`, and `get_transactions` (including `banking.*` forms) unchanged,
+but those names are not registered by the banking MCP. PingGateway therefore
+returned `Unknown tool` and the BFF surfaced a 502.
+
+**What was fixed:** resolve the explicit vertical first, then the session's
+active vertical (banking default), and normalize all three banking aliases
+before token intent minting and pipeline dispatch. Balance uses `get_my_accounts`
+without an `account_id` and `get_account_balance` with one; accounts maps to
+`get_my_accounts`; transactions maps to `get_my_transactions`. Arguments are
+preserved, and each alias keeps its matching intent. An explicit non-banking
+vertical takes precedence and is left unchanged. All calls pass through the
+existing session, token exchange, and gateway authorization path.
+
+**Do not break:** `requireSession`, transaction-turn middleware, session token
+selection, and gateway authorization remain unchanged.
+
+**Verify:** `cd demo_api_server && CI=true npx jest
+tests/bankingMcpToolAliases.test.js tests/mcpBankingToolAliasesRoute.test.js
+--forceExit` (16 passed). The separate
+`src/__tests__/mcpToolPipeline.characterization.test.js` suite remains red
+14/54 when run alone; its gateway-audit/HITL cases do not import the changed
+alias resolver.
+
+### 2026-09-28 — User status returned 500 after logout destroyed the session
+
+**Files:** `routes/oauthUser.js`,
+`src/__tests__/oauthStatus.integration.test.js`.
+
+**What was broken:** the signed-out status endpoint dereferenced `req.session`
+after logout had destroyed it, so a routine status probe returned HTTP 500.
+
+**What was fixed:** the status handler now treats a missing session object as
+empty and returns the existing unauthenticated response shape.
+
+**Do not break:** preserve token-expiry and stale-session reporting, the
+four-signal admin-role check, and the BFF-only ownership of OAuth tokens.
+
+**Verify:** focused OAuth status and end-to-end logout suites with Node 22.
+
+### 2026-09-28 — Embedded Token topology crowded the agent column
+
+**Files:** `demo_api_ui/src/components/TokenChainFilmstrip.css`,
+`demo_api_ui/src/components/TokenTopologyPanel.jsx`,
+`demo_api_ui/src/components/TokenTopologyPanel.css`,
+`demo_api_ui/src/components/UserDashboardPing2026.js`.
+
+**What was broken:** the embedded topology was auto-placed in the Focus Mode
+grid, where it could compete with the agent and spotlight columns. Selecting a
+node opened its detail inspector beside the graph and narrowed the topology.
+
+**What was fixed:** embedded topology now has a full-width row below the
+agent/spotlight columns. Selecting a node opens its detail inspector below the
+graph. The draggable pop-out retains its side inspector.
+
+**Do not break:** keep the agent and spotlight side by side above the embedded
+topology; keep details tied to the selected node; preserve the pop-out's
+resizable inspector and shared trace data.
+
+**Verify:** `cd demo_api_ui && npm run build`; inspect embedded and pop-out
+topology in light and dark themes.
+
+### 2026-09-28 — Quick Config floating title bar shrank to content width
+
+**Files:** `demo_api_ui/src/components/AIAgent.css`, `REGRESSION_PLAN.md`.
+
+**What was broken:** Quick Config's tray styles set `align-items: flex-start`.
+After the tray moved into the shared floating-panel shell, that alignment made
+the title bar use its content width, leaving the rest of the panel header
+without its background.
+
+**What was fixed:** the Quick Config floating-panel override now stretches its
+children across the panel width.
+
+**Do not break:** preserve Quick Config's inner content alignment and the
+floating panel's drag, resize, collapse, and pop-out controls. Keep the change
+scoped to Quick Config; do not change the shared floating-panel behavior.
+
+**Verify:** `cd demo_api_ui && npm run build`; inspect the Quick Config title
+bar in light and dark themes.
+### 2026-09-28 — Topology playback conflated bearer and API-key paths
+
+**Files:** `demo_api_ui/src/components/serverTopologyData.js`,
+`demo_api_ui/src/components/__tests__/ServerTopologyPage.playbacks.test.jsx`,
+`docs/exports/server-topology-details.csv`,
+`docs/exports/server-topology-lucidchart.csv`,
+`docs/SECURITY_NETWORKING_ASSESSMENT.md`,
+`docs/SECURITY_NETWORKING_REMEDIATION_WORKPLAN.md`.
+
+**What was broken:** the API-key playback showed RFC 8693 even though the
+gateway returns from that dispatch after Authorize and calls the backend with
+`X-API-Key`. The protected API playback pointed at that API-key service while
+claiming bearer authorization, and the direct MCP playback did not identify
+that it represented the local Compose listener rather than hosted routing.
+
+**What was fixed:** the API-key playback now ends at the direct backend call;
+the bearer-protected MCP route ends at the BFF API called by
+`BankingAPIClient`; and the direct MCP playback is labeled local, with the
+hosted PingGateway route explained separately. The topology exports, assessment,
+and workplan now match those paths.
+
+**Do not break:** keep Authorize before the API-key dispatch, keep that branch
+free of RFC 8693 and bearer credentials at the backend, retain RFC 8693 on
+token-authenticated MCP routes, and preserve the local/hosted route distinction.
+
+**Verify:** `npx vitest run
+src/components/__tests__/ServerTopologyPage.playbacks.test.jsx` (10 passed),
+`npm run build`, `npm run topology:verify`, and `npm run
+demo:readiness:contract` (46 Demo Steps / 800 matrix rows).
+
+### 2026-09-28 — Show conditional provider-specific MCP Step 9 in protected API playback
+
+**Files:** `demo_api_ui/src/components/serverTopologyData.js`,
+`demo_api_ui/src/components/__tests__/ServerTopologyPage.playbacks.test.jsx`,
+`docs/exports/server-topology-details.csv`,
+`docs/exports/server-topology-lucidchart.csv`,
+`docs/SECURITY_NETWORKING_ASSESSMENT.md`,
+`docs/SECURITY_NETWORKING_REMEDIATION_WORKPLAN.md`.
+
+**What was missing:** the protected BFF API playback showed the Node gateway's
+RFC 8693 exchange and then the MCP server's BFF call, but omitted the optional
+MCP Step 9 exchange performed for configured non-vertical banking data tools.
+That exchange selects the matching issuer from the validated agent token
+presented to OAuth MCP.
+
+**What was fixed:** the Node Gateway path now has a conditional PingOne Step 9
+variant, while the PF Step 9 edge is used only by the direct local WebSocket
+path that supplies a PF-issued bearer. The existing playback explicitly covers
+the no-Step-9 passthrough case. The audit, workplan, and both exports now record
+all three paths accurately.
+
+**Do not break:** keep MCP Step 9 separate from the Node gateway's PingOne
+exchange; do not pair the PF Step 9 edge with that PingOne-issued token; keep
+the PF variant on the direct local WebSocket path unless the HTTP issuer
+allowlist or another real ingress path is changed to accept PF-issued tokens.
+Require `BANKING_API_RESOURCE_URI` to match the BFF resource audience for both
+provider variants; the env refresh helper aligns them by default. Preserve
+passthrough only for deployments where Step 9 is not configured.
+
+**Verify:** focused `ServerTopologyPage.playbacks.test.jsx`, UI build, topology
+verification, contract verification, and export consistency checks.
+
+### 2026-09-28 — Admin Reset Demo repair confirmation hid its audit findings
+
+**Files changed:** `demo_api_server/services/demoReadinessRunner.js`,
+`demo_api_server/tests/demoReadinessRunner.test.js`,
+`demo_api_ui/src/components/AdminSideNav.jsx`,
+`demo_api_ui/src/components/__tests__/AdminSideNav.resetDemo.test.jsx`,
+`docs/demo-readiness.md`, `REGRESSION_PLAN.md`.
+
+**What was broken:** the runner published the repair preview before it waited
+for the administrator, but the progress snapshot omitted the prerequisite and
+initial-audit rows. The Admin sidebar only rendered findings from the terminal
+report, which did not exist until that confirmation wait ended. In the same
+preview, blocked object values were joined as strings and displayed as
+`[object Object]`, hiding their identifiers.
+
+**What was fixed:** `repair-preview-ready` now includes the sanitized check and
+row snapshots already collected by the runner. The Admin sidebar uses those
+rows while no report exists and displays object-valued blocked identities as
+JSON, matching proposed changes. The master guide records this pre-confirmation
+review requirement.
+
+**Do not break:** the confirmation remains bound to the exact preview digest;
+only the existing READY gate can call reset, clear local history, or sign out.
+Dashboard/customer reset and logout paths remain unchanged.
+
+**Verify:** `CI=true npx jest tests/demoReadinessRunner.test.js
+tests/demoReadiness.route.test.js --runInBand --forceExit` (35 passed);
+`npx vitest run src/components/__tests__/AdminSideNav.resetDemo.test.jsx`
+(10 passed); `npm run build` (passed, 46 Demo Steps / 800 matrix rows);
+rendered finding/preview text contrast (0 failures in light and dark, minimum
+6.80:1 / 8.47:1); `git diff --check`. The broader `npm run test:unit` run did
+not finish after seven minutes with one worker still active and was stopped
+without a suite result.
+
+### 2026-09-28 — DaVinci widget runtime followed PF instead of the PingOne region
+
+**Files:** `demo_api_server/routes/davinciLogin.js`,
+`demo_api_server/tests/routes/davinciLogin.test.js`.
+
+**What was broken:** the widget SDK's `apiRoot` was derived from the active
+OAuth discovery endpoint. With PF selected, that pointed `davinci.js` at the
+internal `pingfederate:9031` host, so the browser could not start the flow.
+
+**What was fixed:** the widget API root now uses the configured PingOne region,
+independent of which provider handles the app's OAuth login. The SDK token,
+flow policy, nonce, and login-provider selection remain unchanged.
+
+**Do not break:** keep the DaVinci runtime rooted at `auth.pingone.{region}`
+when PF is selected; keep nonce arming and policy selection in
+`routes/davinciLogin.js` unchanged.
+
+**Verify:** `cd demo_api_server && CI=true npx jest
+tests/routes/davinciLogin.test.js --forceExit` (32/32). The regression test
+first failed with `https://pingfederate:9031/`, then passed with the configured
+PingOne region.
+### 2026-09-28 — Vitest worker memory grew past 9 GB
+
+**Files:** `.github/workflows/ci.yml`, `demo_api_ui/vite.config.js`, and the
+oversized UI test suites.
+
+**What was broken:** Vitest's default fork pool reused workers across hundreds
+of jsdom files, while CI and the worker config each allowed a 14 GB V8 heap. A
+single worker reached over 4 GB RSS in a local UI run and 9.8 GB RSS in CI.
+Limiting the pool to two workers did not limit memory per worker. Vitest's
+`memoryLimit` tracks heap use and recycles only after a file finishes; its
+`vmForks` pool also fails to load the current React Router ESM/CJS boundary.
+The live-event path in `TokenChainDisplay` also built a new filtered event
+array on every render; an effect watched that array and updated state, causing
+an endless render loop that could exhaust a worker's heap inside one test file.
+The Agent Gateway tester also left its four startup requests active on unmount;
+a late tools failure attempted to update state after the test DOM was destroyed.
+
+**What was fixed:** remove the 14 GB heap overrides, cap each worker's V8 heap
+at 1.4 GB, and cap the pool at two workers. The full unit suite starts fresh
+workers every 12 test files. Route both UI test commands through a watchdog
+that samples every Vitest process's RSS every 100 ms and terminates the
+complete run if any process exceeds 4,000,000,000 bytes. The 4 GB ceiling is a
+hard stop; the measured full-suite peak before this increase was 1.86 GB. Split
+the remaining UI test files over 1,000 lines into focused suites while keeping
+their assertions intact. Keep the derived live-event list stable between
+renders so its state-setting effects run only when the underlying events
+change. Abort the Agent Gateway startup requests on unmount and ignore their
+late results.
+
+**Do not break:** preserve every UI test assertion and existing dev-proxy,
+OAuth, and session behavior. Stop the complete Vitest process tree when any
+process exceeds 4,000,000,000 bytes RSS; never scale the ceiling to the host's
+reported RAM.
+
+**Verify:** run the watchdog unit tests, split UI suites under `vmForks`,
+`npm run test:unit`, `npm run build`, and actionlint on
+`.github/workflows/ci.yml`; confirm no UI test file exceeds 1,000 lines and
+monitor the full run for RSS breaches below the 4 GB ceiling.
+
+### 2026-09-28 — Related UI tests on pull requests
+
+**Files:** `.github/workflows/ci.yml`, `demo_api_ui/package.json`, and
+`demo_api_ui/scripts/select-vitest-mode.mjs`.
+
+**What was broken:** every UI pull request selected the complete 690-file
+Vitest suite, even when a change touched one leaf component.
+
+**What was fixed:** pass the pull request's changed UI paths to the guarded
+Vitest launcher. Only explicitly verified leaf-component edits run
+`vitest related`; changed unit test files run directly. Shared or unverified
+components, the App shell, route-level pages, contexts, hooks, services,
+styles, test setup, config, deleted or renamed files, and unknown paths select
+the complete suite. `AgentRunTimeline.jsx` is currently the only allowlisted
+leaf: it has one production importer (`AgentFlowHistoryPage.jsx`) and focused
+tests. Pushes to main, manual runs, and the nightly schedule use the full
+suite; the nightly schedule runs the gates and UI suite without queuing the
+unrelated service suites.
+
+**Do not break:** Vitest related selection only follows static imports. Keep
+dynamic route and shared UI infrastructure changes on the full suite, and do
+not let an unavailable changed-file list turn into an empty green run.
+
+**Verify:** selector unit tests cover leaf components, shared contexts, the
+App shell, route pages, styles, and config. Validate selected tests against
+representative component changes and confirm main/manual execution still calls
+the guarded full-suite command.
+
+### 2026-09-28 — Graphify refresh cost and parser warnings
+
+**Files:** `CLAUDE.md`, `.graphifyignore`,
+`demo_api_server/services/agentRunContext.js`,
+`demo_api_ui/src/components/education/{AiPlatformLandscapePanel,IntentAuthStandardsPanel,LlmLandscapePanel}.js`.
+
+**What was broken:** the post-edit `graphify update .` instruction performed a
+full AST scan. Graphify also re-queued 1,068 JSON files that its extractor
+intentionally skipped as data, lacked the optional HCL grammar, and flagged
+literal NUL/JSX ampersands in four source files as partial parses.
+
+**What was fixed:** use manifest-backed `graphify extract . --code-only
+--no-cluster --timing`; exclude the large step-verification/golden data and
+generated execution traces; spell the run-key separator as `\u0000` and encode
+JSX ampersands as entities so displayed text stays the same. The local Graphify
+tool was upgraded to 0.9.71 and `tree-sitter-hcl` installed.
+
+**Do not break:** session+run scoped context keys and the `LLM token custody`
+invariant; preserve the current JSX text and keep application behavior
+independent of Graphify exclusions.
+
+**Verify:** `node --check demo_api_server/services/agentRunContext.js` passed;
+the Graphify extractor reported no parse errors for the four changed files;
+`cd demo_api_ui && npm run build` passed. The incremental no-cluster refresh
+processed 181 code files, kept 5,243 unchanged, and took 22.1s (7.9s detect,
+5.7s AST, 7.1s write), producing 66,751 nodes and 121,389 edges. All six
+Terraform/HCL files are represented; 176 intentionally skipped JSON files
+still re-queue, tracked in `TECH_DEBT.md`.
+
+### 2026-09-28 — Stable Token Chain events caused an unbounded UI test render loop
+
+**Files:** `demo_api_ui/src/components/TokenChainDisplay.jsx`,
+`demo_api_ui/src/components/__tests__/TokenChainDisplay.a2aProgress.test.jsx`,
+`demo_api_ui/src/components/__tests__/OAuthProviderToggle.idJagReset.test.jsx`.
+
+**What was broken:** Token Chain filtered the live event array during every
+render. An effect treated each newly allocated array as changed, called
+`setLastUpdated`, and triggered another render. The A2A handoff test then
+allocated indefinitely until the Vitest worker exhausted its heap. A separate
+provider-toggle test expected `/logout` navigation even though the component
+clears session state and reloads the current page.
+
+**What was fixed:** memoized the filtered live events against the context event
+array and added a render-settling regression test. Updated the provider-toggle
+test to assert the implemented page reload after state cleanup.
+
+**Do not break:** keep the filtered event reference stable while its source
+array is unchanged; refresh the Token Chain when the source array changes; keep
+provider-switch cleanup followed by a page reload.
+
+**Verify:** focused Token Chain unit test; full UI unit suite; `npm run build`.
+### 2026-09-28 — Shared-Mac CI contention from duplicate runner registrations and caches
+
+**Files:** `.github/workflows/ci.yml`, `demo_api_ui/vite.config.js`, and the AIAgent test suites.
+
+**What was broken:** multiple Actions runner registrations on the same Mac were
+treated as independent capacity. Their persistent workspaces held multi-gigabyte
+`node_modules` trees, so simultaneous `git clean -ffdx` operations competed for
+disk and CPU. The npm cache also exceeded 1 GiB; a canceled run left its cache
+extraction process running. The host still had 68% free memory during the
+observed contention, so memory exhaustion was not the cause of that run.
+
+**What was fixed:** route all CI jobs through the default self-hosted macOS
+labels so a single registered runner serializes them; run suite selection
+before repository gates and make expensive suites depend on the gates; disable
+the large npm cache; install pytest
+explicitly for llamaindex and fail on dependency-install errors.
+
+**Follow-up:** the cold BFF dependency install took nearly 30 minutes against
+its previous 30-minute job limit, and the grouped authz/gateway suites exceeded
+their 30-minute limit. Use lockfile-based `npm ci`, give the API and grouped
+service jobs 60 and 45 minutes, and cap CI Vitest workers at two on the shared
+Mac. The 14 GB heap override was later removed after a worker reached 9.8 GB;
+see the newer Vitest memory entry above. Split the 1,787-line AIAgent chips
+suite into four focused files while retaining all 88 tests.
+
+**Do not break:** do not require a special `ci-gates` runner label; keep npm
+caching disabled on self-hosted jobs; keep Python tests isolated in Python 3.12
+virtual environments.
+
+**Verify:** actionlint and a fresh full CI run on a single registered Mac
+runner; `llamaindex_agent` must report 10 passed, 1 skipped.
+
+### 2026-09-27 — BFF CI gateway routing failures
+
+**Files:** `.github/workflows/ci.yml`,
+`demo_api_server/services/mcpToolPipeline.js`,
+`demo_api_server/services/mcpGatewayClient.js`,
 `demo_api_server/src/__tests__/mcpGatewayClient.pinnedAudience.test.js`.
 
-**What was broken:** the A2A audience pin read `routingConfig` before its later
-`const` initialization, throwing a temporal-dead-zone error and returning 502
-for gateway-routed tool calls. The A2A unit fixtures also omitted the issuer
-required by the existing provider-drift guard, and an audience test still
-expected the retired resource-name fallback after PingOne was corrected to issue
-the configured URI.
+**What was broken:** the persistent CI runner inherited local PingGateway and
+Node gateway URL aliases, redirecting mocked gateway calls. The A2A token pin
+also used routing config before initialization, and the gateway client could
+re-route a selected Node gateway base to PingGateway.
 
-The A2A and native ID-JAG audience pins also depended on the caller initially
-passing PingGateway's URL. When callers already passed the Node gateway URL, the
-later regular-call guard rerouted those tokens back to PingGateway.
+**What was fixed:** the API test job clears inherited gateway URL aliases;
+routing tests set their own test endpoints. The pipeline initializes routing
+config before audience resolution. Recognized A2A and ID-JAG audiences keep the
+Node gateway destination when it is already selected, and A2A pinning accepts
+the configured audience or canonical resource name.
 
-**What was fixed:** read the existing config store at the pin check; provide a
-valid PingOne issuer in A2A fixtures; assert that the retired audience name does
-not activate the Node-gateway pin.
+**Do not break:** ordinary vertical tools continue to use PingGateway and its
+token audience. Missing required Node gateway configuration still fails
+closed. Preserve the gateway-authoritative `skipBffAuthorize` rule and RFC 8693
+token exchange flow.
 
-**Do not break:** keep strict issuer/provider matching, route gateway calls by
-the signed token audience, and do not restore the retired resource-name
-audience tolerance.
-Keep A2A and ID-JAG token pins effective even when the requested base is already
-the Node gateway; regular calls must not reroute those tokens to PingGateway.
+**Verify:** focused BFF routing and pipeline tests passed 28/28 before the
+single-runner merge; rerun in protected CI.
 
-**Verify:** focused A2A delegation tests pass 25/25, MCP pipeline
-characterization tests pass 54/54, and gateway audience-pin tests pass 15/15.
-The A2A and ID-JAG pin plus delegation regression set passes 46/46. The local
-full API suite still has unrelated failures; see the latest CI job for status.
+### 2026-09-27 — Third self-hosted runner could not take CI gates reliably
 
-### 2026-09-26 — Hosted BFF logs, sessions, CodeGraph abuse budget, and MCP ingress hardening
+**Superseded 2026-09-28:** the third registration shared the same physical
+Mac and did not add capacity. See the newer single-runner finding above.
 
-**Files changed:** `demo_api_server/server.js`, `k8s/20-api-server-deployment.yaml`, `k8s/01-namespace.yaml`, `k8s/04-network-policies.yaml`, `k8s/aws/deploy.sh`, `k8s/deploy.sh`, `k8s/security-hardening.test.sh`.
+**Files:** `.github/workflows/ci.yml`, `demo_api_ui/vite.config.js`.
 
-**What was wrong:** the access logger persisted query values, demo-mode `NODE_ENV=development` selected insecure session defaults, public CodeGraph routes had no route-specific cost budget, and the namespace-wide NetworkPolicy allowed any pod to reach the auth-disabled MCP server directly.
+**What was broken:** the third Mac runner shared the default labels and could
+take heavy suites, while the Python setup action's macOS distribution requires
+the hosted-runner path `/Users/runner/hostedtoolcache`. The previous writable
+cache override could not relocate that Python build. Vitest workers also
+reached their 12 GB V8 heap ceiling in the full CI run.
 
-**What was fixed:** request URLs and Referer values are logged without query strings; hosted BFF config independently requires a non-default session secret and Secure cookies; CodeGraph query and reindex have separate per-IP limits; `mcp-server` now accepts ingress only from PingGateway, the in-cluster MCP gateway, and ingress-nginx for the metadata route. Legacy same-namespace connectivity and prior egress rules remain for other workloads.
+**What was fixed:** route the selector and hygiene/topology jobs only to the
+`ci-gates` runner and use the runner's installed Python 3.12 in per-service
+virtual environments. The 14 GB Vitest heap workaround was superseded by the
+2026-09-28 worker-recycling fix above.
 
-**Do not break:** keep `NODE_ENV=development`, simulated Authorize, OAuth code/state validation, session persistence/regeneration, hosted admission, CodeGraph SSE behavior, and public MCP ingress/auth contracts unchanged. The optional manual `demo-mcpgw` install is not part of the hosted deploy path; add it to the MCP policy if that changes.
+**Do not break:** preserve the Python 3.12 environment details recorded here;
+runner routing is superseded by the newer single-runner finding above.
 
-**Verify:** `node --check demo_api_server/server.js`, `bash -n k8s/aws/deploy.sh k8s/deploy.sh`, YAML parsing for the touched manifests, and `git diff --check` passed. No tests, live requests, or deployment were run. Runtime policy enforcement and login/CodeGraph/MCP smoke behavior remain unverified.
+**Verify:** `actionlint` on `.github/workflows/ci.yml`; run the Python agent,
+Vitest, API and unwired-service CI jobs on the updated PR.
+
+The first rerun exposed a missing test dependency in `llamaindex_agent`: its
+runtime requirements do not include pytest, and the workflow suppressed pip
+installation errors. Install pytest explicitly for that suite and fail the job
+if either agent's requirements cannot be installed. Several Node jobs also
+retained automatic setup-node npm caching even though the shared-runner cache is
+over 1 GiB; disable it consistently across all jobs. The API/UI/unwired jobs
+were canceled while the PR merge ref was being superseded by updates to main.
+The selector and gate share one runner, so make the gate depend on selection to
+avoid a long gate install delaying suite dispatch. Their fresh run is needed
+before treating those suites as verified.
+
+### 2026-09-28 — Demo Steps use cases were clipped in a multi-column grid
+
+**Files:** `demo_api_ui/src/components/AIAgent.css`, `REGRESSION_PLAN.md`.
+
+**What was broken:** Mission Control auto-filled narrow columns and forced use
+case names onto one line with ellipses. A long ID-JAG card also stretched every
+card sharing its grid row.
+
+**What was fixed:** the use-case cards now render as a single full-width list,
+with wrapping labels and equal-height rows that grow together when longer text
+wraps, so each phrase stays readable.
+
+**Do not break:** keep the existing selection, completion, progress, explain,
+and workload-link behavior; this layout change does not alter auth or sessions.
+
+**Verify:** `cd demo_api_ui && npm run build`; run the `THEMING.md` §1.4
+contrast auditor on Mission Control in both themes.
+
+### 2026-09-28 — Demo Steps use cases were clipped in a multi-column grid
+
+**Files:** `demo_api_ui/src/components/AIAgent.css`, `REGRESSION_PLAN.md`.
+
+**What was broken:** Mission Control auto-filled narrow columns and forced use
+case names onto one line with ellipses. A long ID-JAG card also stretched every
+card sharing its grid row.
+
+**What was fixed:** the use-case cards now render as a single full-width list,
+with wrapping labels and equal-height rows that grow together when longer text
+wraps, so each phrase stays readable.
+
+**Do not break:** keep the existing selection, completion, progress, explain,
+and workload-link behavior; this layout change does not alter auth or sessions.
+
+**Verify:** `cd demo_api_ui && npm run build`; run the `THEMING.md` §1.4
+contrast auditor on Mission Control in both themes.
+
+### 2026-09-27 — Server topology was missing from customer navigation
+
+**Files:** `demo_api_ui/src/components/AdminSideNav.jsx`,
+`demo_api_ui/src/components/__tests__/adminSideNav.test.jsx`.
+
+**What was broken:** the sidebar's intent-based composition included most
+diagram routes under Architecture & Learning but omitted Server Topology. The
+route itself was public, but users could not find it through sidebar search.
+
+**What was fixed:** added Server Topology to the Architecture & Learning group
+and added a customer-role regression test that searches every diagram route,
+checks that no admin badge gates it, and keeps the routes public for guests.
+
+**Do not break:** keep all diagram routes visible to regular signed-in users;
+diagram links must not acquire an admin-only badge. Keep their public route
+policy so guest access remains available.
+
+**Verify:** `cd demo_api_ui && npx vitest run
+src/components/__tests__/adminSideNav.test.jsx`; `npm run build`; `npm run
+authz:verify`.
+### 2026-09-27 — oauth-mcp routed PF Step 9 subjects to PingOne
+
+**Files:** `oauth-mcp/src/tools/TokenResolver.ts`,
+`oauth-mcp/src/auth/PfStep9TokenExchangeService.ts`,
+`oauth-mcp/src/auth/TokenIntrospector.ts`, `oauth-mcp/src/auth/jwks.ts`,
+`oauth-mcp/tests/auth/TokenIntrospector.pfIssuer.test.ts`,
+`oauth-mcp/tests/auth/PfStep9TokenExchangeService.test.ts`,
+`demo_api_server/scripts/refresh-service-envs.js`,
+`demo_api_server/tests/refreshServiceEnvsPfGateway.test.js`,
+`oauth-mcp/.env.example`,
+`spiffe/pingfederate/pf-step9-te-policy.json`,
+`spiffe/pingfederate/pf-step9-atm-mapping.json`,
+`scripts/pingfederate/provision-pf-step9.sh`,
+`docs/superpowers/specs/2026-09-26-demo-readiness-and-repair-design.md`.
+
+**What was broken:** After PingGateway Exchange #3 returned a PF-issued agent
+token, `oauth-mcp` Step 9 used its single PingOne token-exchange service for
+every issuer. PingOne rejected the PF `subject_token` with “Cannot parse token
+claims,” so the registered Banking API MCP call failed at the final exchange
+and surfaced as an error/502. Local PF also had no dedicated Step 9 policy;
+the existing MCP actor client allowed only `CLIENT_CREDENTIALS`.
+
+**What was fixed:** `TokenResolver` now routes by the authenticated token's
+issuer. PingOne keeps its current endpoint, `resource` selector, scopes, and
+cache behavior. PF uses a separate service: it obtains the existing PF
+MCP-service client-credentials actor token, exchanges the PF subject token
+without a `resource` or `audience` selector, and checks issuer, subject,
+audience, scopes, and nested `act` before forwarding the result. A dedicated
+PF access-token-only policy and ATM mapping preserve the incoming subject and
+actor chain; the local provisioner extends the existing actor client while
+leaving `aiDemoStandardTePolicy` and its mapping unchanged. PF settings and the
+protected actor secret are generated only into `oauth-mcp/.env`.
+
+Inbound signature validation now selects the configured issuer's JWKS before
+Step 9 routing. A PF `iss` uses `PF_JWKS_URI`; missing or invalid PF JWKS
+configuration and JWKS outages fail closed regardless of global demo bypasses,
+and cannot fall back to PingOne keys. The Step 9 service also rejects a PF
+subject whose JWT header `typ` is exactly `oauth-id-jag+jwt`, because its policy
+accepts access-token subjects only. The
+provisioner reads the actor client ID from the same BFF configuration used by
+runtime and verifies the subject, scope, nested `act`, ATM, and grant contract
+on readback. When applying a client update, it supplies the protected runtime
+secret and validates that the configured client can still mint its PF actor
+token without logging that secret or token.
+
+This is a documented PF-specific Step 9 difference. The UC38 passenger A2A
+`invalid_target` remains a separate UC2 issue and is not part of the UC40 or
+Banking API Step 9 chain.
+
+**Do not break:** Keep provider routing tied to the authenticated issuer; do
+not send a PF subject token to PingOne or fall back to PingOne on PF
+configuration/exchange failure. Preserve PingOne's existing request and
+cache, self-issued token passthrough, vertical-tool behavior, subject and
+scope isolation, and the full nested `act` chain.
+
+**Verify:** `oauth-mcp` build and focused `TokenResolver`/PF exchange tests;
+`demo_api_server` PF env-generation test; local PF policy/mapping/client
+readback; then a fresh registered `get_my_accounts` or `get_account_balance`
+call through `/api/mcp/tool` plus a PingOne-lane call. Do not use the UI intent
+label `banking.get_balance` as the registered MCP tool name.
+
+### 2026-09-27 — PF Exchange #3 omitted its required MCP-service actor token
+
+**Files:** `demo_api_server/scripts/refresh-service-envs.js`,
+`demo_api_server/tests/refreshServiceEnvsPfGateway.test.js`,
+`demo_api_server/src/__tests__/olbTokenExchangeProviderRouting.test.js`,
+`ping-gateway/scripts/groovy/olb-token-exchange.groovy`,
+`ping-gateway/.env.example`,
+`docs/superpowers/specs/2026-09-26-demo-readiness-and-repair-design.md`.
+
+**What was broken:** after PF Exchange #3 began requesting only registered
+banking scopes, the request reached `aiDemoStandardTePolicy` and PF returned
+`invalid_request: actor_token is required`. PingGateway had no PF MCP-service
+actor-token hop, although the BFF's standard PF exchange service already uses
+the dedicated MCP-service actor client.
+
+**What was fixed:** generated PingGateway configuration now reuses the BFF's
+existing PF MCP-service actor ID, secret, auth method, and scope. For PF-issued
+subjects, PingGateway mints that actor's client-credentials access token and
+sends it as `actor_token` on Exchange #3 after checking it is an access-token
+JWT for the configured actor client and includes every requested actor scope.
+PingOne sends no actor token and keeps its existing Exchange #3 request. PF's
+nested `act` chain remains part of the verified end-to-end contract.
+
+**Do not break:** keep the actor token PF-only, preserve PF subject-token type,
+subject `sub`, nested `act`, PF's omitted `resource` and provider-specific
+scopes, and PingOne's existing resource/scope path. The passenger A2A
+`invalid_target` failure remains a separate UC2 issue.
+
+**Verify:** focused environment and provider-routing tests; `npm run
+topology:verify`; then recreate only local PingGateway and call a registered
+banking MCP tool through `/api/mcp/tool`, verifying the result and sanitized
+subject/actor/audience evidence.
+
+### 2026-09-27 — PF Exchange #3 requested an unregistered PingOne scope
+
+**Files:** `demo_api_server/scripts/refresh-service-envs.js`,
+`demo_api_server/tests/refreshServiceEnvsPfGateway.test.js`,
+`demo_api_server/src/__tests__/olbTokenExchangeProviderRouting.test.js`,
+`ping-gateway/scripts/groovy/olb-token-exchange.groovy`,
+`ping-gateway/.env.example`,
+`docs/superpowers/specs/2026-09-26-demo-readiness-and-repair-design.md`.
+
+**What was broken:** PingGateway used the shared `PG_OLB_SCOPE=read write
+code:search` for both providers. The local PF exchanger registers `read` and
+`write` but not `code:search`, so PF returned `invalid_scope` and the banking
+tool call surfaced from `/api/mcp/tool` as HTTP 502.
+
+**What was fixed:** the generated PingGateway environment now includes
+`PG_OLB_SCOPE_PF=read write`. Exchange #3 selects that list only for a
+PF-issued subject. PingOne continues to use `PG_OLB_SCOPE=read write
+code:search`. The readiness spec records this PF scope difference; PF
+code-search remains unsupported until its scope is explicitly provisioned.
+
+**Do not break:** preserve issuer-based provider selection, PF's omitted
+`resource` and default ATM, PF subject-token typing, the user's `sub` and
+nested `act` chain, and PingOne's unchanged resource/scope request. The
+passenger A2A `invalid_target` failure remains a separate UC2 issue.
+
+**Verify:** focused `refreshServiceEnvsPfGateway.test.js` and
+`olbTokenExchangeProviderRouting.test.js`; deploy only local PingGateway and
+call a registered banking MCP tool through `/api/mcp/tool`, confirming the PF
+exchange succeeds and returns the registered tool result.
+
+### 2026-09-27 — PF Exchange #3 omits the PingOne-only resource identifier
+
+**Files:** `ping-gateway/scripts/groovy/olb-token-exchange.groovy`,
+`demo_api_server/src/__tests__/olbTokenExchangeProviderRouting.test.js`,
+`docs/superpowers/specs/2026-09-26-demo-readiness-and-repair-design.md`.
+
+**What was broken:** Exchange #3 sent `PG_OLB_RESOURCE_URI=mcpserver.ping.demo`
+to PingFederate. That PingOne resource alias is not an absolute URI, so PF
+returned `invalid_target` and the registered MCP call failed before reaching
+the backend.
+
+**What was fixed:** PF subjects now omit `resource` and use the MCP exchanger's
+restricted default MCP-gateway ATM. PingOne subjects still send the configured
+resource selector to choose the backend resource.
+
+**Do not break:** Preserve issuer-based provider selection and fail-closed PF
+credential handling, PF subject-token typing, the user's `sub` and nested
+`act` chain, PingOne's `resource` and scope behavior, and the PF ATM's
+backend-accepted audience. Keep passenger A2A `invalid_target` under its
+separate UC2 path.
+
+**Verify:** Focused `olbTokenExchangeProviderRouting.test.js`; then call a
+registered banking MCP tool through the local `/api/mcp/tool` route after the
+targeted PingGateway deploy and confirm the PF exchange reaches the backend.
 
 ### 2026-09-27 — Demo Steps scrim escaped the Command Dock stacking context
 
@@ -299,6 +1417,72 @@ passes 108/108. The focused local API request and tool result are recorded below
 after deployment. The valid banking tools are `get_my_accounts` and
 `get_account_balance`; `banking.get_balance` is a UI intent label, not a
 registered MCP tool name.
+
+### 2026-09-27 — PingGateway routes PF-issued Exchange #3 subjects to PF
+
+**Files:** `demo_api_server/scripts/refresh-service-envs.js`,
+`demo_api_server/tests/refreshServiceEnvsPfGateway.test.js`,
+`demo_api_server/src/__tests__/olbTokenExchangeProviderRouting.test.js`,
+`ping-gateway/.env.example`,
+`ping-gateway/scripts/groovy/olb-token-exchange.groovy`, `REGRESSION_PLAN.md`,
+`UC40-PF-IDJAG-SESSION-HANDOFF.md`.
+
+**What was broken:** PingGateway already selected a PF token-exchange branch
+when the inbound subject token's `iss` matched `PF_ISSUER_URI`, but generated
+`ping-gateway/.env` omitted `PF_TOKEN_ENDPOINT` and `PF_TE_CLIENT_*`. With an
+empty PF endpoint the branch was disabled, so the PF-issued subject was posted
+to PingOne and Exchange #3 failed with “Cannot parse token claims for request
+param `subject_token`,” surfacing as HTTP 502.
+The same filter also labeled every PF subject as ID-JAG, although ordinary PF
+access tokens require `access_token` typing.
+
+**What was fixed:** The env generator now supplies the PF token endpoint and
+standard MCP exchanger credentials to PingGateway. It changes the endpoint
+host to the PF issuer host while preserving the token path, so the JVM uses a
+hostname covered by PF's TLS certificate. PingOne-issued subjects still use
+the existing PingOne endpoint and MCP Gateway client. This is a provider
+difference at PingGateway Exchange #3; it does not change BFF subject
+validation or the nested `act` contract. The PF request now uses `id-jag`
+typing only when the signed JWT header is `oauth-id-jag+jwt`; PF access tokens
+and all PingOne tokens remain `access_token`.
+
+**Do not break:** Keep provider selection tied to the signed issuer, fail
+closed when PF endpoint or credentials are missing, keep the PF standard MCP
+exchanger distinct from the PingOne MCP Gateway client, and preserve PingOne's
+existing Exchange #3 behavior. The UC38 passenger A2A
+`invalid_target` remains a separate UC2 issue outside the UC40 chain.
+
+**Verify:** focused Jest coverage for `refreshServiceEnvsPfGateway.test.js` and
+`olbTokenExchangeProviderRouting.test.js`; then run the valid local MCP tool through
+`/api/mcp/tool` and confirm PF Exchange #3 plus the backend tool call complete.
+
+### 2026-09-27 — PingGateway PF validation used the wrong JWKS URL
+
+**Files:** `demo_api_server/scripts/refresh-service-envs.js`,
+`demo_api_server/tests/refreshServiceEnvsPfGateway.test.js`,
+`ping-gateway/.env.example`,
+`ping-gateway/scripts/groovy/jwks-token-validation.groovy`,
+`docs/superpowers/specs/2026-09-26-demo-readiness-and-repair-design.md`.
+
+**What was broken:** The PF local-JWKS route was selected, but PingGateway had
+no `PF_JWKS_URI`. Its fallback requested `${PF_ISSUER_URI}/JWKS`, while this PF
+instance publishes signing keys at `/pf/JWKS`. Validation failed before
+PingGateway Exchange #3, surfacing as HTTP 502 from `/api/mcp/tool`.
+
+**What was fixed:** Service-env generation now emits `PF_JWKS_URI` on the PF
+issuer hostname, defaulting to `/pf/JWKS`, and rewrites configured JWKS URLs to
+that TLS hostname. The validator fallback uses the same local PF path. The
+readiness design now requires its PF-session MCP row to verify issuer-specific
+JWKS validation and PF Exchange #3 while preserving PingOne's existing
+introspection path.
+
+**Do not break:** Verify PF tokens against the configured PF JWKS and exact
+issuer; keep PingOne tokens on their existing validation path and fail closed
+when validation cannot complete.
+
+**Verify:** Focused `refreshServiceEnvsPfGateway.test.js`; local
+`get_my_accounts` through `/api/mcp/tool` returns a successful backend result
+after deployment.
 
 ### 2026-09-27 — Exchange diagnostics no longer mask the underlying failure
 

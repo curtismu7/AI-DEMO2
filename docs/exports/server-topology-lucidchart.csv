@@ -1,0 +1,227 @@
+ID,Name,Shape Library,Page ID,Contained By,Text Area 1,Line Source,Line Destination,Source Arrow,Destination Arrow
+1,Page,,1,,AI Demo Server Topology — Local Compose + Hosted Kubernetes (repo-declared; review caveats in workplan),,,,
+2,Process,Flowchart Shapes,1,,"Browser / MCP client
+external client
+HTTPS · browser session · OAuth redirects",,,,
+3,Process,Flowchart Shapes,1,,"Ingress / reverse proxy
+nginx ingress
+HTTPS → HTTP(S) service routes",,,,
+4,Process,Flowchart Shapes,1,,"Frontend
+demo_api_ui
+HTTPS · JSON/HTTP API · SSE where enabled",,,,
+5,Process,Flowchart Shapes,1,,"BFF / API server
+demo_api_server
+HTTPS · JSON/HTTP · WebSocket clients · SSE",,,,
+6,Process,Flowchart Shapes,1,,"PingOne
+Authorization server / policy
+OAuth 2.0 / OIDC · token endpoint · introspection",,,,
+7,Process,Flowchart Shapes,1,,"PingFederate
+Authorization server
+OAuth 2.0 / OIDC · authorization and token endpoints",,,,
+8,Process,Flowchart Shapes,1,,"PingGateway
+ping-gateway
+HTTP · MCP JSON-RPC · introspection / Authorize",,,,
+9,Process,Flowchart Shapes,1,,"AuthZ / PDP
+authz-server
+HTTP · policy decision / introspection · profile: demo-auth",,,,
+10,Process,Flowchart Shapes,1,,"Demo Agent Gateway
+demo_mcp_gateway
+MCP Streamable HTTP · JSON-RPC · WebSocket upstream",,,,
+11,Process,Flowchart Shapes,1,,"OAuth MCP server
+oauth-mcp / mcp-server
+MCP · JSON-RPC · WebSocket / HTTP endpoints",,,,
+12,Process,Flowchart Shapes,1,,"MCP resource server
+demo_mcp_resource_server
+MCP · JSON-RPC · WebSocket",,,,
+13,Process,Flowchart Shapes,1,,"API resource server
+api-resource-server
+HTTP · JSON REST",,,,
+14,Process,Flowchart Shapes,1,,"LangChain agent
+langchain_agent
+HTTP · AG-UI/SSE",,,,
+15,Process,Flowchart Shapes,1,,"Agent service
+demo_agent_service
+HTTP · agent API",,,,
+16,Process,Flowchart Shapes,1,,"LLM proxy
+demo_llm_proxy
+HTTP · model API · profile: llm-proxy",,,,
+17,Process,Flowchart Shapes,1,,"Model providers
+OpenAI · Anthropic · local models
+HTTPS · provider APIs",,,,
+18,Process,Flowchart Shapes,1,,"HITL service
+demo_hitl_service
+HTTP · JSON API · SSE/events",,,,
+19,Process,Flowchart Shapes,1,,"Weather MCP
+mcp-weather
+HTTP · tool backend · profile: mcp-extras",,,,
+20,Process,Flowchart Shapes,1,,"Brave MCP
+mcp-brave
+HTTP · tool backend · profile: mcp-extras",,,,
+21,Process,Flowchart Shapes,1,,"MCP proxy
+mcp-proxy
+HTTP REST → MCP",,,,
+22,Process,Flowchart Shapes,1,,"Code search / RAG
+demo-mcp-code-search · OpenSearch · Weaviate · embeddings · Tika
+HTTP APIs · embeddings · profile: rag",,,,
+23,Process,Flowchart Shapes,1,,"LlamaIndex agent
+llamaindex_agent
+HTTP · agent API · profile: agents",,,,
+24,Process,Flowchart Shapes,1,,"JWT verifier
+mcp-jwt-verifier
+HTTP · JWKS / verification API · profile: gateway-support",,,,
+25,Process,Flowchart Shapes,1,,"MCP audit
+mcp-audit
+HTTP · audit events",,,,
+26,Process,Flowchart Shapes,1,,"MCP discovery
+mcp-discovery-agent
+HTTP · discovery registry",,,,
+27,Process,Flowchart Shapes,1,,"OpenSearch MCP
+opensearch-mcp-server
+MCP · Streamable HTTP · profile: rag",,,,
+28,Process,Flowchart Shapes,1,,"Privilege MCP Gateway
+ping-mcpgw · mcpgw-nginx
+MCP · Streamable HTTP / SSE compatibility · profile: privilege",,,,
+29,Process,Flowchart Shapes,1,,"Auxiliary agents
+mastra_agent · openai_agent · pydantic_agent · tier-manager · ungoverned-agent · Promptfoo helpers
+HTTP · agent APIs · profile: agent-extras",,,,
+30,Process,Flowchart Shapes,1,,"Alertmanager
+alertmanager
+HTTP · Prometheus alert API",,,,
+31,Process,Flowchart Shapes,1,,"Grafana Alloy
+alloy
+OTLP · gRPC/HTTP · logs",,,,
+32,Process,Flowchart Shapes,1,,"Prometheus
+prometheus
+HTTP scrape · Prometheus exposition",,,,
+33,Process,Flowchart Shapes,1,,"Loki
+loki
+HTTP · log ingestion/query",,,,
+34,Process,Flowchart Shapes,1,,"Jaeger
+jaeger
+OTLP · gRPC/HTTP · trace query",,,,
+35,Process,Flowchart Shapes,1,,"Grafana
+grafana
+HTTPS ingress / HTTP service · dashboards",,,,
+36,Process,Flowchart Shapes,1,,"SPIRE workload identity
+spire-server · spire-agent · registration · SVID helpers
+SPIFFE Workload API · Unix socket · X.509-SVID · profile: spiffe",,,,
+37,Line,,1,,"HTTPS :443
+HTTPS · public edge",2,3,None,Arrow
+38,Line,,1,,"HTTP(S) :4000
+HTTP(S) · frontend route",3,4,None,Arrow
+39,Line,,1,,"HTTPS / JSON API
+HTTPS · JSON/HTTP",4,5,None,Arrow
+40,Line,,1,,"Login request → BFF
+HTTP(S) · GET /api/auth/oauth/user/login",3,5,None,Arrow
+41,Line,,1,,"302 · authorize URL
+HTTP · redirect response",5,2,None,Arrow
+42,Line,,1,,"Redirect → PingOne login
+HTTPS · OAuth/OIDC authorize",2,6,None,Arrow
+43,Line,,1,,"Redirect · authorization code
+HTTPS · OAuth/OIDC callback redirect",6,2,None,Arrow
+44,Line,,1,,"Callback → public ingress
+HTTPS · GET /api/auth/oauth/user/callback",2,3,None,Arrow
+45,Line,,1,,"Callback → BFF
+HTTP(S) · OAuth callback route",3,5,None,Arrow
+46,Line,,1,,"OAuth / OIDC
+OAuth 2.0 · OIDC",5,6,None,Arrow
+47,Line,,1,,"Code → tokens
+HTTPS · POST token endpoint",5,6,None,Arrow
+48,Line,,1,,"Session cookie response
+HTTPS · Set-Cookie response",5,2,None,Arrow
+49,Line,,1,,"Redirect → PingFederate login
+HTTPS · OAuth/OIDC authorize",2,7,None,Arrow
+50,Line,,1,,"Redirect · authorization code
+HTTPS · OAuth/OIDC callback redirect",7,2,None,Arrow
+51,Line,,1,,"Code → tokens
+HTTPS · POST token endpoint",5,7,None,Arrow
+52,Line,,1,,"MCP route A
+MCP · HTTP / JSON-RPC",5,8,None,Arrow
+53,Line,,1,,"MCP route B
+MCP Streamable HTTP",5,10,None,Arrow
+54,Line,,1,,"policy / introspection
+HTTP · PDP / introspection",8,9,None,Arrow
+55,Line,,1,,"MCP / HTTP or WS
+MCP · JSON-RPC · HTTP/WebSocket",8,11,None,Arrow
+56,Line,,1,,"MCP / Streamable HTTP
+MCP · JSON-RPC · Streamable HTTP",10,11,None,Arrow
+57,Line,,1,,"Authorize policy decision
+HTTPS · PingOne Authorize API",10,6,None,Arrow
+58,Line,,1,,"RFC 8693 token exchange (not API-key branch)
+OAuth 2.0 · Token Exchange",10,6,None,Arrow
+59,Line,,1,,"API-key backend call
+HTTP · REST/JSON · X-API-Key",10,13,None,Arrow
+60,Line,,1,,"Local direct MCP request
+MCP · JSON-RPC · HTTP/WebSocket",2,11,None,Arrow
+61,Line,,1,,"tool / data API
+HTTP · protected service call",11,12,None,Arrow
+62,Line,,1,,"BFF protected API · delegated bearer
+HTTP · REST/JSON · OAuth bearer",11,5,None,Arrow
+63,Line,,1,,"agent request
+HTTP · AG-UI/SSE",5,14,None,Arrow
+64,Line,,1,,"service discovery
+HTTP · discovery registry",5,26,None,Arrow
+65,Line,,1,,"model request
+HTTP · model API",14,16,None,Arrow
+66,Line,,1,,"HTTPS :443
+HTTPS · provider API",16,17,None,Arrow
+67,Line,,1,,"approval / challenge
+HTTP · JSON/events",5,18,None,Arrow
+68,Line,,1,,"JWKS / verify
+HTTP · verification",10,24,None,Arrow
+69,Line,,1,,"audit events
+HTTP · audit ingestion",10,25,None,Arrow
+70,Line,,1,,"REST to MCP
+HTTP REST → MCP",21,10,None,Arrow
+71,Line,,1,,"logs
+HTTP · log push",31,33,None,Arrow
+72,Line,,1,,"metrics query
+HTTP · PromQL",35,32,None,Arrow
+73,Line,,1,,"trace query
+HTTP · trace query",35,34,None,Arrow
+74,Line,,1,,"alert events
+HTTP · Prometheus alert API",32,30,None,Arrow
+75,Line,,1,,"SVID / trust bundle
+SPIFFE Workload API · X.509-SVID",36,11,None,Arrow
+76,Line,,1,,"agent / model
+HTTP · model API",15,16,None,Arrow
+77,Line,,1,,"tool backend
+HTTP · weather tool",11,19,None,Arrow
+78,Line,,1,,"tool backend
+HTTP · search tool",11,20,None,Arrow
+79,Line,,1,,"weather tool route
+MCP · JSON-RPC → HTTP tool backend",10,19,None,Arrow
+80,Line,,1,,"news search tool route
+MCP · JSON-RPC → HTTP tool backend",10,20,None,Arrow
+81,Line,,1,,"retrieval APIs
+HTTP · RAG APIs",23,22,None,Arrow
+82,Line,,1,,"search backend
+HTTP · OpenSearch API",27,22,None,Arrow
+83,Line,,1,,"optional public MCP route
+HTTPS → MCP Streamable HTTP",2,28,None,Arrow
+84,Line,,1,,"Privilege MCP backend
+MCP · Streamable HTTP",28,11,None,Arrow
+85,Line,,1,,"scrape metrics :8085
+HTTP · Prometheus scrape",32,8,None,Arrow
+86,Line,,1,,"scrape metrics :3005
+HTTP · Prometheus scrape",32,10,None,Arrow
+87,Line,,1,,"scrape metrics :8080
+HTTP · Prometheus scrape",32,11,None,Arrow
+88,Line,,1,,"scrape metrics :8081
+HTTP · Prometheus scrape",32,12,None,Arrow
+89,Line,,1,,"scrape metrics :8082
+HTTP · Prometheus scrape",32,13,None,Arrow
+90,Line,,1,,"scrape metrics :8895
+HTTP · Prometheus scrape",32,21,None,Arrow
+91,Line,,1,,"scrape metrics :8888
+HTTP · Prometheus scrape",32,14,None,Arrow
+92,Line,,1,,"scrape metrics :8090
+HTTP · Prometheus scrape",32,16,None,Arrow
+93,Line,,1,,"BFF workload identity
+SPIFFE Workload API · X.509-SVID",36,5,None,Arrow
+94,Line,,1,,"Gateway workload identity
+SPIFFE Workload API · X.509-SVID",36,10,None,Arrow
+95,Line,,1,,"Step 9 · PingOne token exchange
+OAuth 2.0 · RFC 8693",11,6,None,Arrow
+96,Line,,1,,"Step 9 · PingFederate token exchange · direct WebSocket path
+OAuth 2.0 · RFC 8693",11,7,None,Arrow

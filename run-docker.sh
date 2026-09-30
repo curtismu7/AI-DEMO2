@@ -114,8 +114,14 @@ fi
 CORE_SERVICES=(
   ui mcp-discovery-agent mcp-server mcp-resource-server mcp-weather mcp-brave api-resource-server mcp-proxy
   ping-gateway langchain-agent agent-service hitl-service llm-proxy
-  promptfoo-step-narration
+  promptfoo-step-narration mcp-promptguard
 )
+
+# Smallest Compose set for dashboard/admin and login flows. The MCP services
+# satisfy demo-api-server's declared startup dependencies; live agent, gateway,
+# and model services are not needed to render these pages.
+# Keep this explicit so adding a core service does not silently grow basic mode.
+BASIC_SERVICES=(ui demo-api-server mcp-discovery-agent mcp-server)
 
 # Optional groups — start on demand via `./run-docker.sh optional start <group>`.
 OPTIONAL_GROUP_NAMES=(rag tracing demo-auth mcpgw observability spiffe)
@@ -820,6 +826,7 @@ SERVICES=(
   "ui|UI (React / nginx)   |4000|https://local.ping-devops.com:4000"
   "mcp-discovery-agent|MCP Discovery Agent   |-|internal :3910"
   "mcp-server|MCP Server            |8080|http://localhost:8080"
+  "mcp-promptguard|PromptGuard sidecar |8086|http://localhost:8086/health"
   "mcp-gateway|MCP Gateway           |3005|http://localhost:3005"
   "mcp-proxy|MCP Proxy             |8895|http://localhost:8895"
   "ping-gateway|Ping Gateway          |3036|http://localhost:3036"
@@ -1314,8 +1321,8 @@ _prepare_docker_build_contexts() {
   [[ -z "${BUILD_CONTEXT_TMP}" ]] || return 0
 
   BUILD_CONTEXT_TMP="$(mktemp -d "${TMPDIR:-/tmp}/ai-demo-build-context.XXXXXX")"
-  node "${BASEDIR}/scripts/docker-build-contexts.js" "${BASEDIR}" "${BUILD_CONTEXT_TMP}" ${contexts[@]+"${contexts[@]}"}
   trap '[[ -z "${BUILD_CONTEXT_TMP}" ]] || rm -rf "${BUILD_CONTEXT_TMP}"' EXIT
+  node "${BASEDIR}/scripts/docker-build-contexts.js" "${BASEDIR}" "${BUILD_CONTEXT_TMP}" ${contexts[@]+"${contexts[@]}"}
 
   if [[ " ${contexts[*]} " == *" bff "* ]]; then
     export AI_DEMO_BFF_BUILD_CONTEXT="${BUILD_CONTEXT_TMP}/bff"
@@ -1689,6 +1696,7 @@ cmd_start() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --build) build_flag="--build"; shift ;;
+      basic) stack="basic"; shift ;;
       full|all) stack="full"; shift ;;
       core) stack="core"; shift ;;
       *) shift ;;
@@ -1701,8 +1709,16 @@ cmd_start() {
 
   demo_machine_banner docker
 
-  # Always stop first — clean slate
-  cmd_stop
+  # Always stop first — clean slate. Basic uses a project-scoped teardown so
+  # separately managed containers with ai-demo-* names (notably PingFederate)
+  # are left alone.
+  if [[ "${stack}" == "basic" ]]; then
+    echo "Stopping only Compose project ${COMPOSE_PROJECT_NAME} (preserving separate containers)..."
+    _compose_with_timeout 90 "${TEARDOWN_PROFILE_ARGS[@]}" down --timeout 5 --remove-orphans \
+      || { err "Could not stop Compose project ${COMPOSE_PROJECT_NAME}; basic start aborted."; return 1; }
+  else
+    cmd_stop
+  fi
 
   # Defense-in-depth: a container left over from a different Compose project
   # (e.g. a prior run under a different cwd, or a manual `docker run` using the
@@ -1759,19 +1775,36 @@ cmd_start() {
   node demo_api_server/scripts/ensure-service-keys.js
   echo ""
 
-  # Host llama.cpp must be up + bound 0.0.0.0 before the BFF starts so it isn't
-  # reported "not configured" on the first request.
-  start_llamacpp
+  # Dashboard/admin pages do not need a local model. Stop host tiers in basic
+  # mode to free their RAM; the other profiles start llama.cpp before the BFF.
+  if [[ "${stack}" == "basic" ]]; then
+    stop_llamacpp
+  else
+    start_llamacpp
+  fi
   echo ""
 
-  _CORE_UP=($(_effective_core_services))
+  if [[ "${stack}" == "basic" ]]; then
+    _CORE_UP=()
+    for _svc in "${BASIC_SERVICES[@]}"; do
+      [[ ("${_LLM_BACKEND}" == "omlx" || "${_LLM_BACKEND}" == "mlx") && "${_svc}" == "llm-proxy" ]] && continue
+      _CORE_UP+=("${_svc}")
+    done
+  else
+    _CORE_UP=($(_effective_core_services))
+  fi
   _export_llamacpp_base_url
-  # cmd_stop ran above, so Loki is down here unless this start brings the group up.
+  # The teardown ran above, so Loki is down here unless this start brings the group up.
   if [[ "${stack}" == "full" ]]; then _export_loki_url on; else _export_loki_url; fi
-  # shellcheck disable=SC2206
-  _DEFAULT_PROFILES=($(_optional_profile_args "${DEFAULT_OPTIONAL_GROUPS[@]}"))
-  # shellcheck disable=SC2206
-  _DEFAULT_OPTIONAL_SVCS=($(_optional_resolve_groups "${DEFAULT_OPTIONAL_GROUPS[@]}"))
+  if [[ "${stack}" == "basic" ]]; then
+    _DEFAULT_PROFILES=()
+    _DEFAULT_OPTIONAL_SVCS=()
+  else
+    # shellcheck disable=SC2206
+    _DEFAULT_PROFILES=($(_optional_profile_args "${DEFAULT_OPTIONAL_GROUPS[@]}"))
+    # shellcheck disable=SC2206
+    _DEFAULT_OPTIONAL_SVCS=($(_optional_resolve_groups "${DEFAULT_OPTIONAL_GROUPS[@]}"))
+  fi
 
   # Clear any stale bare-metal listener (e.g. a leftover ./run.sh vite on :4000)
   # that would silently shadow a Docker container's published port.
@@ -1782,7 +1815,9 @@ cmd_start() {
     ok "Rebuilding images..."
     echo ""
     _prepare_docker_build_contexts bff langchain
-    if [[ "${stack}" == "full" ]]; then
+    if [[ "${stack}" == "basic" ]]; then
+      docker compose "${COMPOSE_FILES[@]}" up --build -d "${_CORE_UP[@]}"
+    elif [[ "${stack}" == "full" ]]; then
       docker compose "${COMPOSE_FILES[@]}" "${FULL_STACK_PROFILE_ARGS[@]}" up --build -d
     else
       docker compose "${COMPOSE_FILES[@]}" "${_DEFAULT_PROFILES[@]}" up --build -d \
@@ -1799,6 +1834,9 @@ cmd_start() {
     if [[ "${stack}" == "full" ]]; then
       ok "Starting full stack (core + all compose profiles)..."
       docker compose "${COMPOSE_FILES[@]}" "${FULL_STACK_PROFILE_ARGS[@]}" up -d
+    elif [[ "${stack}" == "basic" ]]; then
+      ok "Starting basic dashboard/admin + login services: ${_CORE_UP[*]}"
+      docker compose "${COMPOSE_FILES[@]}" up -d "${_CORE_UP[@]}"
     else
       if [[ "${_LLM_BACKEND}" == "omlx" ]]; then
         ok "Starting core + Code Search (${#_CORE_UP[@]} services + BFF + rag, llm-proxy skipped — host oMLX on :8090) — real P1AZ + PingGateway; demo-auth profile off until FF flipped."
@@ -1813,17 +1851,33 @@ cmd_start() {
     fi
   fi
 
+  # Compose starts optional `depends_on` services when the BFF is targeted,
+  # even when `required: false`. Tracing is outside the basic profile; stop its
+  # Jaeger dependency after the selected dashboard/login services are up.
+  if [[ "${stack}" == "basic" ]]; then
+    docker compose "${COMPOSE_FILES[@]}" stop jaeger \
+      || { err "Could not stop Jaeger; basic mode left an unselected service running."; return 1; }
+  fi
+
   _prune_build_leftovers
 
   echo ""
-  cmd_demo_sync
+  if [[ "${stack}" != "basic" ]]; then
+    cmd_demo_sync
+  else
+    ok "Basic mode leaves all unselected services and feature groups stopped."
+  fi
 
   # Runs AFTER demo-sync: that step recreates instrumented services (mcp-server
   # among them) with its errors suppressed, so this is the first point where the
   # real end state is known.
   echo ""
   _verify_core_running || true
-  _run_demo_health_gate
+  if [[ "${stack}" != "basic" ]]; then
+    _run_demo_health_gate
+  else
+    ok "Basic mode skips the full-stack health gate."
+  fi
 
   echo ""
   echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
@@ -1989,6 +2043,7 @@ cmd_help() {
   echo ""
   echo -e "${WHITE}${BOLD}  Commands:${RESET}"
   echo "    (default)             Stop existing containers, then start core + Code Search (rag)"
+  echo "    basic                 Start dashboard/admin + login services; stop local model tiers"
   echo "    start full            Stop existing containers, then start every compose service"
   echo "    all                   Same as 'start full'"
   echo "    optional start <grp>  Start optional group(s) on a running stack (no teardown)"
@@ -2037,6 +2092,7 @@ cmd_help() {
   echo ""
   echo -e "${WHITE}${BOLD}  Examples:${RESET}"
   echo "    ./run-docker.sh                             # start core + Code Search (rag)"
+  echo "    ./run-docker.sh basic                      # dashboard/admin + login, model tiers and optional groups off"
   echo "    ./run-docker.sh start full                  # start every compose service"
   echo "    ./run-docker.sh demo-sync                   # apply Quick Flag toggles to containers"
   echo "    ./run-docker.sh optional stop rag           # free Code Search RAM when unused"
@@ -2143,6 +2199,9 @@ case "${COMMAND}" in
     ;;
   start)
     cmd_start "$@"
+    ;;
+  basic)
+    cmd_start basic "$@"
     ;;
   all)
     cmd_start full "$@"

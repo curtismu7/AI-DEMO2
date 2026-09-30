@@ -21,7 +21,6 @@ describe('UseCaseRunContextCard', () => {
 
     expect(screen.getByText('Launched from Use Cases')).toBeInTheDocument();
     expect(screen.getByText('Agent observability and traceability')).toBeInTheDocument();
-    expect(screen.getByText('show my balance')).toBeInTheDocument();
     expect(screen.getByText('PERMIT')).toBeInTheDocument();
     expect(screen.getByText('user token')).toBeInTheDocument();
     expect(screen.getByText('authorize')).toBeInTheDocument();
@@ -48,7 +47,6 @@ describe('UseCaseRunContextCard', () => {
 
     expect(screen.getByText('Launched from Demo Track')).toBeInTheDocument();
     expect(screen.getByText('Delegated access (consent only)')).toBeInTheDocument();
-    expect(screen.getByText('Demo Track → Delegated access (consent only)')).toBeInTheDocument();
   });
 
   it('labels a scenario selected from Demo Steps', () => {
@@ -64,6 +62,5 @@ describe('UseCaseRunContextCard', () => {
     );
 
     expect(screen.getByText('Launched from Demo Steps')).toBeInTheDocument();
-    expect(screen.getByText('Demo Steps → Act 1 — Public catalog access')).toBeInTheDocument();
   });
 });

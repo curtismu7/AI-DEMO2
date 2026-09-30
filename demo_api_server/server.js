@@ -63,6 +63,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const safeRequestLogUrl = require('./utils/safeRequestLogUrl');
 const rateLimit = require('express-rate-limit');
 const session = require('express-session');
 
@@ -142,6 +143,7 @@ const sensitiveBankingRoutes = require('./routes/sensitiveBanking');
 const transactionRoutes = require('./routes/transactions');
 const demoScenarioRoutes = require('./routes/demoScenario');
 const adminRoutes = require('./routes/admin');
+const demoReadinessRoutes = require('./routes/demoReadiness');
 const pingcliRoutes = require('./routes/pingcli');
 const promptfooRoutes = require('./routes/promptfoo');
 const mgmtApiRoutes = require('./routes/mgmtApi');
@@ -235,6 +237,7 @@ const {
 const appConfigRoutes = require('./routes/appConfig');
 const configCredentialsRoutes = require('./routes/configCredentials');
 const thresholdsRoutes = require('./routes/thresholds');
+const { verticalManifest } = require('./services/verticalManifest');
 const verticalManifestRoutes = require('./routes/verticalManifest');
 const groupMembershipRoutes = require('./routes/groupMembership');
 const pingoneAuditRoutes = require('./routes/pingoneAudit');
@@ -755,6 +758,8 @@ app.use(
 const TRACKING_SKIP_PREFIXES = [
     '/api-calls', '/tokens/session-preview', '/tokens/agent-cc-preview',
     '/healthz', '/health', '/mcp/traffic', '/oauth/monitor',
+    // PF AI callback URLs carry OAuth codes; RAR forms can carry user identifiers.
+    '/pf-ai-agent/',
     // Swagger UI: one page load pulls a dozen static assets plus the spec, which
     // would bury real traffic in the API Explorer.
     '/docs', '/openapi.json', '/reference',
@@ -774,7 +779,7 @@ app.use('/api', (req, res, next) => {
         trackApiCall({
             sessionId: req.session?.id || 'default',
             method: req.method,
-            url: req.originalUrl,
+            url: safeRequestLogUrl(req),
             requestHeaders: req.headers,
             requestBody: req.body && Object.keys(req.body).length ? req.body : null,
             responseStatus: res.statusCode,
@@ -1460,6 +1465,7 @@ app.use('/api/davinci-sdk-login', require('./routes/davinciSdkLogin'));
 app.use('/api/auth', authRoutes);
 app.use('/api/auth/oauth', oauthRoutes);
 app.use('/api/auth/oauth/user', oauthUserRoutes);
+app.use('/api/pf-ai-agent', require('./routes/pfAiAgent'));
 registerCallbacks(app, oauthRoutes, oauthUserRoutes, authLimiter);
 app.use('/api/auth/ciba', cibaRoutes);
 app.use('/api/auth', parRequestRoutes);
@@ -1535,6 +1541,7 @@ app.use('/api/mcp/inspector/pingone-admin', mcpPingOneAdminAuthRoutes);
 app.use('/api/mcp/inspector/privilege', mcpPrivilegeAuthRoutes);
 // Privilege MCP Client — relay for the chat-first Privilege Gateway MCP client page
 app.use('/api/privilege-mcp', require('./routes/privilegeMcpClient'));
+app.use('/api/privilege-a2a', require('./routes/privilegeA2aClient'));
 // Minimal machine-to-machine sibling of the above: client_credentials token in,
 // MCP JSON-RPC out. Separate route on purpose — the interactive flow is untouched.
 app.use('/api/privilege-mcp-simple', require('./routes/privilegeMcpSimple'));
@@ -1770,6 +1777,7 @@ app.get('/api/demo-scenario', (req, res, next) => {
 });
 app.use('/api/demo-scenario', authenticateToken, demoScenarioRoutes);
 app.use('/api/admin/demo-users', adminDemoUsersRoutes);
+app.use('/api/admin/demo-readiness', demoReadinessRoutes);
 app.use('/api/admin/agent', authenticateToken, adminAgentToolsRoutes);
 app.use('/api/admin', authenticateToken, require('./routes/opsAssistantRoutes'));
 app.use('/api/admin', authenticateToken, require('./routes/adminVerticals'));
@@ -2217,6 +2225,7 @@ function publishTokenEventsToSse(flowTraceId, tokenEvents) {
 const { publishMcpResultToSse } = require('./services/mcpSsePublisher');
 
 const { runMcpToolPipeline } = require('./services/mcpToolPipeline');
+const { isBankingMcpToolAlias, resolveBankingMcpToolAlias } = require('./services/bankingMcpToolAliases');
 const { createPendingDecision: _createPendingDecision } = require('./routes/mcpDecisionPolling');
 const _hitlServiceClient = require('./services/hitlServiceClient');
 const { decodeJwtClaims: _decodeJwtClaims } = require('./services/agentMcpTokenService');
@@ -2365,10 +2374,17 @@ app.post('/api/mcp/tool', express.json(), requireSession, transactionTurnMiddlew
         console.warn('[/api/mcp/tool] Middleware did not parse body, but stream claims data. Using middleware result.');
     }
     const {
-        tool,
+        tool: requestedTool,
         params,
         flowTraceId: bodyFlowTrace
     } = parsedBody;
+    const isBankingToolAlias = isBankingMcpToolAlias(requestedTool);
+    const bodyVertical = typeof parsedBody.vertical === 'string' ? parsedBody.vertical.trim() : '';
+    const aliasVertical = bodyVertical
+      || (isBankingToolAlias ? verticalManifest.resolver.activeIdFor(req) : null)
+      || (isBankingToolAlias ? 'banking' : null);
+    const toolAlias = resolveBankingMcpToolAlias(requestedTool, params, aliasVertical);
+    const tool = toolAlias?.tool || requestedTool;
     const useCaseId = typeof parsedBody.useCaseId === 'string' ? parsedBody.useCaseId.trim() : '';
     const flowTraceId = typeof bodyFlowTrace === 'string' ? bodyFlowTrace.trim() : '';
 
@@ -2544,8 +2560,8 @@ app.post('/api/mcp/tool', express.json(), requireSession, transactionTurnMiddlew
           // Manufacturing
           show_work_order: 'view_work_orders',
         };
-        _itIntent = _TOOL_TO_INTENT[tool] || tool;
-        _itConf = _TOOL_TO_INTENT[tool] ? 0.97 : 0.50;
+        _itIntent = toolAlias?.intent || _TOOL_TO_INTENT[tool] || tool;
+        _itConf = (toolAlias?.intent || _TOOL_TO_INTENT[tool]) ? 0.97 : 0.50;
         const { token: _it } = mintIntentToken({
           userId: req.session.user.id,
           sessionId: req.session.id,

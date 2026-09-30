@@ -23,6 +23,15 @@ docs/scope-topology.md:generic-api-key:184
 docs/scope-topology.md:generic-api-key:205
 .claude/HANDOFF-2026-08-17-apikey-tools.md:generic-api-key:93
 
+# False positives — a fabricated JWT test fixture (decodes to
+# {"alg":"HS256"}.{"sub":"alice"|"repair"}.signature, not a real token) and a
+# React localStorage storageKey string that happens to trip the JWT/entropy
+# heuristics. Both already live on main; only newly flagged here because this
+# merge stages the whole combined diff at once.
+demo_api_server/tests/demoReadinessReport.test.js:jwt:133
+demo_api_server/tests/demoReadinessReport.test.js:jwt:205
+demo_api_ui/src/pages/LlmGatewayPage.jsx:generic-api-key:291
+
 # False positives — Glean image content ids in two <img src> URLs
 # (pingidentity-be.glean.com/api/v1/images?key=...). The `key=` parameter
 # identifies the image, it is not an API credential, and the images resolve

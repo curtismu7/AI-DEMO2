@@ -8,6 +8,7 @@
 #
 # Required env vars:
 #   GITHUB_OWNER     — GitHub username or org (images at ghcr.io/OWNER/...)
+#   GHCR_USERNAME    — GitHub login used for the pull secret (defaults to gh login)
 #   IMAGE_TAG        — Docker image tag to deploy (default: sha-<current commit>)
 #
 # AWS EKS-only env vars:
@@ -189,10 +190,12 @@ apply_patched "$K8S_DIR/04-network-policies.yaml"
 # Create a GHCR pull secret so containerd (OrbStack/EKS) can pull private images.
 # Uses gh CLI token — idempotent (--dry-run + apply).
 if command -v gh &>/dev/null; then
+  GHCR_USERNAME="${GHCR_USERNAME:-$(gh api user -q .login 2>/dev/null || true)}"
+  [ -n "$GHCR_USERNAME" ] || die "Could not determine GitHub login for GHCR pull secret; set GHCR_USERNAME"
   info "Creating GHCR pull secret..."
   kubectl create secret docker-registry ghcr-pull-secret \
     --docker-server=ghcr.io \
-    --docker-username="$GITHUB_OWNER" \
+    --docker-username="$GHCR_USERNAME" \
     --docker-password="$(gh auth token)" \
     -n "$NS" --dry-run=client -o yaml | kubectl apply -f -
   kubectl patch serviceaccount default -n "$NS" \

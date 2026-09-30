@@ -55,6 +55,28 @@
   max-height: calc(100dvh - var(--ud-focus-chrome, 94px));
 }
 
+/* Embedded Token topology is a full-width row after the agent/spotlight pair.
+   Keeping it in the dashboard grid gives the diagram the whole content width
+   without covering or shrinking the agent column. The grid scrolls when the
+   topology and chain need more height than the viewport. */
+.user-dashboard--2026
+  .dashboard-content.ud-body.ud-focus-mode.ud-token-topology-active:not(.ud-middle-collapsed) {
+  grid-template-areas:
+    "strip strip"
+    "agent spotlight"
+    "topology topology"
+    "resize resize"
+    "chain chain";
+  grid-template-rows: auto minmax(220px, 1fr) minmax(360px, auto) auto minmax(0, auto);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.dashboard-content.ud-body.ud-focus-mode.ud-token-topology-active > .ttp-inline {
+  grid-area: topology;
+  min-width: 0;
+}
+
 /* The strip spans both columns and is only as tall as its controls. */
 .dashboard-content.ud-body.ud-focus-mode > .ud-dashboard-config-strip {
   grid-area: strip;
@@ -324,6 +346,17 @@ body:has(.dashboard-content.ud-body.ud-focus-mode) .footer {
   }
   .tcfs-spotlight { border-left: 0; border-top: 1px solid var(--th-border); }
   .ud-focus-chain-resize { display: none; }
+
+  .user-dashboard--2026
+    .dashboard-content.ud-body.ud-focus-mode.ud-token-topology-active:not(.ud-middle-collapsed) {
+    grid-template-areas:
+      "strip"
+      "agent"
+      "spotlight"
+      "topology"
+      "chain";
+    grid-template-rows: auto minmax(220px, auto) auto minmax(360px, auto) minmax(0, auto);
+  }
 }
 
 /* Phone: the rule above still loses grid-template-columns to
@@ -342,6 +375,12 @@ body:has(.dashboard-content.ud-body.ud-focus-mode) .footer {
     grid-template-columns: 1fr !important;
     grid-template-areas: "strip" "agent" "spotlight" "resize" "chain" !important;
     height: auto !important;
+  }
+
+  .dashboard-content.ud-focus-mode.ud-token-topology-active {
+    grid-template-areas: "strip" "agent" "spotlight" "topology" "resize" "chain" !important;
+    grid-template-rows: auto minmax(220px, auto) auto minmax(360px, auto) auto minmax(0, auto);
+    overflow: visible;
   }
 }
 

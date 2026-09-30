@@ -67,6 +67,9 @@ const ENV_SCOPED_KEYS = new Set([
   'pingone_holdings_agent_client_id', 'pingone_holdings_agent_client_secret',
   'pingone_passenger_agent_client_id', 'pingone_passenger_agent_client_secret',
   'pingone_identity_agent_client_id', 'pingone_identity_agent_client_secret',
+  // PingOne agent clients belong to the active environment.
+  'pingone_fraud_watch_agent_client_id', 'pingone_fraud_watch_agent_client_secret',
+  'pingone_balance_sweep_agent_client_id', 'pingone_balance_sweep_agent_client_secret',
   // copilot (copilot_agent_client_id/secret — copilot Studio auth to PingOne, env-specific)
   'copilot_agent_client_id', 'copilot_agent_client_secret',
   // resource/audience URIs (env-scoped resource servers)
@@ -93,6 +96,8 @@ const ENV_SCOPED_KEYS = new Set([
   // private_key_jwt credentials for the dedicated token-exchange app (also PingOne-env-specific)
   'pingone_private_key_jwt_exchanger_client_id',
   'pingone_private_key_jwt_exchanger_private_key', 'pingone_private_key_jwt_exchanger_kid',
+  // SPIFFE bridge credentials authenticate a mapped client in the active PingOne environment.
+  'spiffe_bridge_private_key', 'spiffe_bridge_kid', 'spiffe_pingone_client_map',
 ]);
 
 // Keys that SURVIVE an env change (flags, thresholds, UI, deployment topology, internal secrets,
@@ -189,12 +194,29 @@ const ENV_AGNOSTIC_KEYS = new Set([
   'pf_token_exchange_token_endpoint_auth_method',
   'pf_standard_token_exchange_client_id', 'pf_standard_token_exchange_client_secret',
   'pf_standard_token_exchange_token_endpoint_auth_method', 'pf_standard_token_exchange_actor_scope',
+  'pf_standard_agent_exchange_client_id', 'pf_standard_agent_exchange_client_secret',
+  'pf_standard_agent_exchange_token_endpoint_auth_method', 'pf_standard_intermediate_audience',
+  'pf_mcp_service_actor_client_id', 'pf_mcp_service_actor_client_secret',
+  'pf_mcp_service_actor_token_endpoint_auth_method', 'pf_standard_mcp_actor_scope',
+  // SPIFFE workload identity and its PF bridge settings are provider/deployment
+  // configuration, independent of a PingOne environment-id switch.
+  'spiffe_svid_path', 'spiffe_key_path', 'spiffe_bundle_path', 'spiffe_trust_domain',
+  'spiffe_pf_issuer', 'spiffe_pf_token_endpoint', 'spiffe_pf_svid_audience', 'spiffe_pf_ca_path',
+  'spiffe_pf_exchange_client_id', 'spiffe_pf_exchange_client_secret',
+  'spiffe_pf_subject_client_id', 'spiffe_pf_subject_client_secret',
   'pf_ai_agent_actor_client_id', 'pf_ai_agent_actor_client_secret',
   'pf_ai_agent_actor_token_endpoint_auth_method',
   'pf_id_jag_enabled', 'pf_id_jag_audience', 'pf_id_jag_resource',
   'pf_id_jag_scope', 'pf_id_jag_subject_token_type',
   'pf_id_jag_redemption_token_endpoint', 'pf_id_jag_redemption_client_id',
   'pf_id_jag_redemption_client_secret', 'pf_id_jag_redemption_auth_method',
+  'pf_ai_cimd_enabled', 'pf_ai_cross_domain_enabled',
+  'pf_ai_cross_domain_client_id', 'pf_ai_cross_domain_client_secret',
+  'pf_ai_cross_domain_token_endpoint_auth_method', 'pf_ai_cross_domain_audience',
+  'pf_ai_cross_domain_resource', 'pf_ai_cross_domain_scope',
+  'pf_ai_third_party_token_endpoint', 'pf_ai_third_party_client_id',
+  'pf_ai_third_party_client_secret', 'pf_ai_third_party_token_endpoint_auth_method',
+  'pf_ai_third_party_resource', 'pf_ai_third_party_scope', 'pf_ai_rar_enabled',
   // ciba
   'ciba_enabled', 'ciba_token_delivery_mode', 'ciba_binding_message',
   'ciba_poll_interval_ms', 'ciba_auth_request_expiry',

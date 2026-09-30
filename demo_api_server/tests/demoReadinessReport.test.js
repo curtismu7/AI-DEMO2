@@ -1,0 +1,415 @@
+'use strict';
+
+const {
+  HARD_DEADLINE_MS,
+  TARGET_WARNING_MS,
+  createReadinessReport,
+  recordCheck,
+  redactReadinessValue,
+  remainingBudget,
+} = require('../services/demoReadinessReport');
+
+const STARTED_AT = 1_000_000;
+const DEADLINE_AT = STARTED_AT + HARD_DEADLINE_MS;
+
+function makeReport() {
+  return createReadinessReport({
+    runId: 'run-1',
+    commit: 'abc123',
+    targets: ['local'],
+    startedAt: STARTED_AT,
+    deadlineAt: DEADLINE_AT,
+  });
+}
+
+describe('demo readiness report', () => {
+  test('creates a stable empty report with the exact hard deadline and target warning', () => {
+    const report = makeReport();
+
+    expect(HARD_DEADLINE_MS).toBe(900_000);
+    expect(TARGET_WARNING_MS).toBe(720_000);
+    expect(report).toMatchObject({
+      runId: 'run-1',
+      commit: 'abc123',
+      targets: ['local'],
+      startedAt: STARTED_AT,
+      deadlineAt: DEADLINE_AT,
+      status: 'running',
+      ready: false,
+      elapsedMs: 0,
+      targetWarning: false,
+      inventory: { total: 0, pass: 0, fail: 0, blocked: 0, 'not-run': 0 },
+      checks: [],
+      repairs: [],
+      unfinished: [],
+    });
+  });
+
+  test.each(['pass', 'fail', 'blocked', 'not-run'])('records the %s status and stable counts', (status) => {
+    const report = makeReport();
+
+    recordCheck(report, { id: `check-${status}`, target: 'local', status, expected: 'works', observed: 'result' });
+
+    expect(report.checks).toHaveLength(1);
+    expect(report.checks[0]).toMatchObject({ id: `check-${status}`, status, required: true });
+    expect(report.inventory).toEqual({
+      total: 1,
+      pass: status === 'pass' ? 1 : 0,
+      fail: status === 'fail' ? 1 : 0,
+      blocked: status === 'blocked' ? 1 : 0,
+      'not-run': status === 'not-run' ? 1 : 0,
+    });
+  });
+
+  test('records provider attribution and applicability independently for each role', () => {
+    const report = makeReport();
+    const attribution = {
+      userSessionProvider: 'pingone',
+      agentIdentityProvider: 'pingfederate',
+      tokenIssuer: 'https://pf.example/as',
+      exchangeService: 'third-party-authorization-server',
+      resourceServer: 'banking-mcp',
+      providerApplicability: {
+        userLogin: { status: 'required' },
+        agentIdentity: { status: 'required' },
+        tokenIssuer: { status: 'required' },
+        exchangeService: { status: 'required' },
+        resourceServer: { status: 'required' },
+        alternateUserLogin: {
+          status: 'not-applicable',
+          reason: 'This feature requires the PingOne user session.',
+        },
+      },
+    };
+
+    recordCheck(report, { id: 'cross-domain-feature', status: 'pass', ...attribution });
+
+    expect(report.checks[0]).toMatchObject(attribution);
+    expect(report.checks[0]).not.toHaveProperty('provider');
+    expect(JSON.parse(JSON.stringify(report)).checks[0]).toMatchObject(attribution);
+
+    report.checks[0].userSessionProvider = 'Bearer raw-session-provider';
+    expect(report.checks[0].userSessionProvider).toBe('[REDACTED]');
+    expect(JSON.stringify(report)).not.toContain('raw-session-provider');
+  });
+
+  test('rejects a check status outside the report contract', () => {
+    expect(() => recordCheck(makeReport(), { id: 'bad', status: 'queued' })).toThrow(/invalid readiness check status/i);
+  });
+
+  test('is ready only when every required row passes', () => {
+    const report = makeReport();
+    recordCheck(report, { id: 'required-pass', status: 'pass' });
+    recordCheck(report, { id: 'optional-failure', status: 'fail', required: false });
+
+    expect(report.ready).toBe(true);
+    expect(report.status).toBe('ready');
+
+    recordCheck(report, { id: 'required-blocked', status: 'blocked' });
+    expect(report.ready).toBe(false);
+    expect(report.status).toBe('not-ready');
+  });
+
+  test('preserves an explicit waiver in a blocked optional finding', () => {
+    const report = makeReport();
+    const waiver = 'Temporary waiver: live Authorize policy-tree parity is unverified.';
+
+    recordCheck(report, { id: 'authorize-policy-tree', status: 'blocked', required: false, waiver, evidence: 'Readback is unavailable.' });
+
+    expect(report.checks[0]).toEqual(expect.objectContaining({ status: 'blocked', required: false, waiver }));
+    expect(JSON.parse(JSON.stringify(report)).checks[0]).toEqual(expect.objectContaining({ status: 'blocked', required: false, waiver }));
+  });
+
+  test.each(['fail', 'blocked', 'not-run'])('a required %s row keeps the report not ready', (status) => {
+    const report = makeReport();
+    recordCheck(report, { id: `required-${status}`, status });
+
+    expect(report.ready).toBe(false);
+    expect(report.status).toBe('not-ready');
+  });
+
+  test('redacts nested bearer, JWT, password, cookie, authorization, and session values before serialization', () => {
+    const bearer = 'Bearer raw-bearer-token';
+    const jwt = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhbGljZSJ9.c2lnbmF0dXJl';
+    const password = 'open-sesame';
+    const cookie = 'sid=raw-cookie-value';
+    const authorization = 'Basic raw-auth-value';
+    const session = 'sess_1234567890abcdef';
+    const value = {
+      evidence: {
+        request: { authorization: bearer, cookie },
+        nested: [{ password, jwt, sessionId: session }],
+        response: { headers: { 'set-cookie': cookie }, authorization },
+      },
+    };
+
+    const redacted = redactReadinessValue(value);
+    const serialized = JSON.stringify(redacted);
+
+    for (const secret of [bearer, jwt, password, cookie, authorization, session]) {
+      expect(serialized).not.toContain(secret);
+    }
+    expect(redacted.evidence.nested[0].jwt).toBe('[REDACTED_JWT]');
+    expect(redacted.evidence.nested[0].sessionId).toBe('[REDACTED]');
+  });
+
+  test('redacts check evidence as it is recorded', () => {
+    const report = makeReport();
+    recordCheck(report, {
+      id: 'safe-evidence',
+      status: 'pass',
+      evidence: { sessionId: 'session-secret', observed: 'Bearer secret-value' },
+    });
+
+    expect(JSON.stringify(report)).not.toContain('session-secret');
+    expect(JSON.stringify(report)).not.toContain('secret-value');
+  });
+
+  test('redacts direct nested check mutations before callers can read them', () => {
+    const report = makeReport();
+    const check = recordCheck(report, { id: 'direct-check', status: 'pass', evidence: {} });
+
+    report.checks[0].evidence.authorization = 'Bearer direct-check-secret';
+    check.evidence.sessionId = 'direct-check-session';
+
+    expect(report.checks[0].evidence.authorization).toBe('[REDACTED]');
+    expect(check.evidence.sessionId).toBe('[REDACTED]');
+  });
+
+  test('redacts opaque tokens under camelCase and generic token keys', () => {
+    const report = makeReport();
+    const check = recordCheck(report, {
+      id: 'opaque-tokens',
+      status: 'pass',
+      evidence: {
+        accessToken: 'opaque-access-token',
+        subjectToken: 'opaque-subject-token',
+        idJagToken: 'opaque-id-jag-token',
+        token: 'opaque-generic-token',
+      },
+    });
+
+    for (const key of ['accessToken', 'subjectToken', 'idJagToken', 'token']) {
+      expect(report.checks[0].evidence[key]).toBe('[REDACTED]');
+      expect(check.evidence[key]).toBe('[REDACTED]');
+    }
+    const serialized = JSON.stringify(report);
+    for (const secret of ['opaque-access-token', 'opaque-subject-token', 'opaque-id-jag-token', 'opaque-generic-token']) {
+      expect(serialized).not.toContain(secret);
+    }
+  });
+
+  test('redacts nested secret fixtures inserted into repairs and unfinished rows before report serialization', () => {
+    const report = makeReport();
+    const bearer = 'Bearer repair-bearer-token';
+    const jwt = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJyZXBhaXIifQ.c2lnbmF0dXJl';
+    const password = 'repair-password';
+    const cookie = 'sid=repair-cookie';
+    const authorization = 'Basic repair-authorization';
+    const session = 'repair-session-id';
+
+    report.repairs.push({
+      before: { authorization, nested: [{ password, jwt }] },
+      after: { cookie, sessionId: session },
+    });
+    report.unfinished.push({
+      id: 'queued-secret-row',
+      status: 'queued',
+      evidence: { bearer, headers: { authorization, cookie }, sessionId: session },
+    });
+
+    const serialized = JSON.stringify(report);
+    for (const secret of [bearer, jwt, password, cookie, authorization, session]) {
+      expect(serialized).not.toContain(secret);
+    }
+  });
+
+  test('redacts direct nested repair mutations before callers can read them', () => {
+    const report = makeReport();
+    report.repairs.push({ before: {} });
+
+    report.repairs[0].before.authorization = 'Bearer direct-read-secret';
+    report.repairs[0].before.sessionId = 'direct-read-session';
+
+    expect(report.repairs[0].before.authorization).toBe('[REDACTED]');
+    expect(report.repairs[0].before.sessionId).toBe('[REDACTED]');
+  });
+
+  test('sanitizes defineProperty values and rejects accessor properties in report rows', () => {
+    const report = makeReport();
+    report.repairs.push({ before: {} });
+
+    Object.defineProperty(report.repairs[0].before, 'authorization', {
+      value: 'Bearer define-property-secret',
+      enumerable: true,
+    });
+
+    expect(report.repairs[0].before.authorization).toBe('[REDACTED]');
+    expect(() => Object.defineProperty(report.repairs[0].before, 'token', {
+      get: () => 'Bearer accessor-secret',
+    })).toThrow(/accessor/i);
+  });
+
+  test('rejects prototype changes that could expose inherited readiness secrets', () => {
+    const report = makeReport();
+    report.repairs.push({ before: {} });
+    const inheritedSecrets = { authorization: 'Bearer inherited-secret', sessionId: 'inherited-session' };
+
+    expect(Reflect.setPrototypeOf(report.repairs[0].before, inheritedSecrets)).toBe(false);
+    expect(() => Object.setPrototypeOf(report.targets, inheritedSecrets)).toThrow(/prototype/i);
+    expect(report.repairs[0].before.authorization).toBeUndefined();
+    expect(report.targets.authorization).toBeUndefined();
+  });
+
+  test('rejects __proto__ assignments that could expose inherited readiness secrets', () => {
+    const report = makeReport();
+    report.repairs.push({ before: {} });
+
+    expect(Reflect.set(report.repairs[0].before, '__proto__', {
+      authorization: 'Bearer proto-assignment-secret',
+    })).toBe(false);
+    expect(report.repairs[0].before.authorization).toBeUndefined();
+  });
+
+  test('redacts compound cookie, authorization, and password field names recursively', () => {
+    const report = makeReport();
+    report.repairs.push({
+      evidence: {
+        cookieHeader: 'compound-cookie-secret',
+        authorizationHeader: 'Basic compound-authorization-secret',
+        passwordValue: 'compound-password-secret',
+      },
+    });
+
+    const serialized = JSON.stringify(report);
+    for (const secret of ['compound-cookie-secret', 'compound-authorization-secret', 'compound-password-secret']) {
+      expect(serialized).not.toContain(secret);
+    }
+  });
+
+  test('redacts auth, client-secret, and API-key credential variants recursively', () => {
+    const report = makeReport();
+    report.repairs.push({
+      evidence: {
+        auth: 'Basic raw-auth',
+        authHeader: 'Basic raw-auth-header',
+        clientSecret: 'raw-client-secret',
+        clientSecretValue: 'raw-client-secret-value',
+        apiKey: 'raw-api-key',
+        apiKeyValue: 'raw-api-key-value',
+      },
+    });
+
+    const serialized = JSON.stringify(report);
+    for (const secret of [
+      'raw-auth', 'raw-auth-header', 'raw-client-secret', 'raw-client-secret-value', 'raw-api-key', 'raw-api-key-value',
+    ]) {
+      expect(serialized).not.toContain(secret);
+    }
+  });
+
+  test('rejects symbol-keyed writes and drops symbols from inserted report payloads', () => {
+    const report = makeReport();
+    const tokenKey = Symbol('accessToken');
+    report.repairs.push({ evidence: { [tokenKey]: 'inserted-symbol-token' } });
+
+    expect(report.repairs[0].evidence[tokenKey]).toBeUndefined();
+    expect(Reflect.set(report.repairs[0].evidence, tokenKey, 'direct-symbol-token')).toBe(false);
+    expect(() => Object.defineProperty(report.repairs[0].evidence, tokenKey, {
+      value: 'descriptor-symbol-token',
+    })).toThrow();
+  });
+
+  test('rejects incoming accessor payloads before they can expose direct-read secrets', () => {
+    const report = makeReport();
+    const evidence = {};
+    Object.defineProperty(evidence, 'detail', {
+      enumerable: true,
+      get: () => 'accessor-raw-secret',
+    });
+
+    expect(() => report.repairs.push({ evidence })).toThrow(/accessor/i);
+    expect(JSON.stringify(report)).not.toContain('accessor-raw-secret');
+  });
+
+  test('preserves the internal report serializer while excluding arbitrary root fields', () => {
+    const report = makeReport();
+    report.extra = 'outside-contract';
+
+    expect(typeof report.toJSON).toBe('function');
+    expect(JSON.parse(JSON.stringify(report))).not.toHaveProperty('extra');
+  });
+
+  test('rejects __proto__ keys in incoming report payloads before redaction', () => {
+    const payload = {};
+    Object.defineProperty(payload, '__proto__', { enumerable: true, value: { authorization: 'proto-secret' } });
+
+    expect(() => redactReadinessValue(payload)).toThrow(/__proto__/i);
+  });
+
+  test('redacts function-valued report payloads before direct reads', () => {
+    const report = makeReport();
+    const evidence = () => {};
+    evidence.authorization = 'Bearer function-property-secret';
+    report.repairs.push({ evidence });
+
+    expect(report.repairs[0].evidence).toBe('[REDACTED]');
+    expect(JSON.stringify(report)).not.toContain('function-property-secret');
+  });
+
+  test('redacts direct root, target, and inventory mutations before callers can read them', () => {
+    const report = makeReport();
+
+    report.commit = 'Bearer root-commit-secret';
+    report.targets.push('Bearer root-target-secret');
+    report.inventory.evidence = { sessionId: 'root-session-secret' };
+
+    expect(report.commit).toBe('Bearer [REDACTED]');
+    expect(report.targets[1]).toBe('Bearer [REDACTED]');
+    expect(report.inventory.evidence.sessionId).toBe('[REDACTED]');
+  });
+
+  test('updates elapsed time and target warning without expiring before the exact deadline', () => {
+    const report = makeReport();
+
+    expect(remainingBudget(report, STARTED_AT + TARGET_WARNING_MS)).toBe(HARD_DEADLINE_MS - TARGET_WARNING_MS);
+    expect(report.elapsedMs).toBe(TARGET_WARNING_MS);
+    expect(report.targetWarning).toBe(true);
+    expect(report.status).toBe('running');
+
+    expect(remainingBudget(report, DEADLINE_AT - 1)).toBe(1);
+    expect(report.status).toBe('running');
+  });
+
+  test('expires queued and active rows at the hard deadline', () => {
+    const report = makeReport();
+    report.unfinished.push(
+      { id: 'queued-row', status: 'queued', evidence: { sessionId: 'queued-session-secret' } },
+      { id: 'active-row', status: 'active' },
+    );
+
+    expect(remainingBudget(report, DEADLINE_AT)).toBe(0);
+    expect(report.elapsedMs).toBe(HARD_DEADLINE_MS);
+    expect(report.status).toBe('deadline_exceeded');
+    expect(report.unfinished).toEqual([
+      {
+        id: 'queued-row',
+        status: 'not-run',
+        reason: 'deadline_exceeded',
+        evidence: { sessionId: '[REDACTED]' },
+      },
+      { id: 'active-row', status: 'blocked', reason: 'deadline_exceeded' },
+    ]);
+    expect(JSON.stringify(report)).not.toContain('queued-session-secret');
+  });
+
+  test('keeps deadline expiry terminal when later checks pass', () => {
+    const report = makeReport();
+    remainingBudget(report, DEADLINE_AT);
+
+    recordCheck(report, { id: 'late-pass', status: 'pass' });
+
+    expect(report.ready).toBe(false);
+    expect(report.status).toBe('deadline_exceeded');
+  });
+});

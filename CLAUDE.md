@@ -60,6 +60,8 @@ PingOne lifecycle (`setup:fresh`, `pingone:bootstrap`, import/export/reset) muta
 - `langchain_agent/` — Python+LangGraph+pytest · own `CLAUDE.md`; `openai_agent/`, `pydantic_agent/` — Python+pytest; `mastra_agent/` — Node
 - `demo_llm_proxy/`, `scripts/`, `docs/`, `planning/`
 
+Project skills live in [`.claude/skills/`](.claude/skills/); Ping product packages for sharing live in [`se-skills-export/`](se-skills-export/). Use the narrowest matching skill for product-specific work.
+
 **Root stays limited to** the service/infra dirs above, root-level docs (`README.md`, `CHANGELOG.md`, etc.), top-level run/install scripts, and compose/k8s config — nothing else lands at repo root. A new export, mock, report, or one-off script belongs under `scripts/`, `docs/`, `planning/`, or the owning service directory instead. [`scripts/root-allowlist.txt`](scripts/root-allowlist.txt) is the enforced source of truth — CI's `root:allowlist:check` fails a PR that adds an unlisted top-level entry; add a genuine new one there in the same PR.
 
 ## Watch out
@@ -68,7 +70,7 @@ PingOne lifecycle (`setup:fresh`, `pingone:bootstrap`, import/export/reset) muta
 - **Which use case / tile / route needs sign-in is declared in `demo_api_server/config/auth-requirements.json`** (`public` | `user` | `admin`), served to the UI as `uc.auth` on `/api/use-cases`. Gate on that, never on a fresh `isLoggedIn` check. `npm run authz:verify` fails on an unlisted use case, a drifted guest allowlist, or an App.js route guard that disagrees with the file — add a route or change a guard and update the SoT in the same commit.
 - **Sign-in only works on `local.ping-devops.com:4000`** (passkey rp.id must match the serving host). `api.ping.demo:4000` serves the app but the session cookie lives on the other host, so it shows "Please sign in." Point `E2E_BASE_URL` there too, or every `*.real.spec.js` 401s in a way that looks like broken auth.
 - Match existing conventions (error shapes, date handling, import paths) — don't invent.
-- After code edits, run `graphify update .` (AST-only). Prefer `graphify query|path|explain` over raw grep when `graphify-out/graph.json` exists; use `graphify-out/wiki/index.md` for broad navigation when present.
+- After code edits, run `graphify extract . --code-only --no-cluster --timing` to refresh code from the manifest without LLM extraction or community clustering. Run `graphify cluster-only .` when community, report, or visualization outputs need refreshing. Prefer `graphify query|path|explain` over raw grep when `graphify-out/graph.json` exists; use `graphify-out/wiki/index.md` for broad navigation when present.
 - **Ping product docs: start from <https://docs.pingidentity.com/llms.txt>.** Fetch that index first, then follow it to the specific page — don't guess a docs.pingidentity.com URL directly or fall back to general web search.
 
 ## Knowledge bundles

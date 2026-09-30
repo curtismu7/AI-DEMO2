@@ -94,15 +94,43 @@ function requireAdminOrUnconfigured(req, res, next) {
  * "reachable here" means "the switch will actually work".
  * Never throws — returns { ok, error }.
  */
-async function probePingFederateReachability() {
+async function probePingFederateReachability(overrides = {}) {
   const { getDiscoveryEndpoint } = require('../services/oauthEndpointResolver');
-  const discoveryUrl = getDiscoveryEndpoint();
+  const configuredIssuer = overrides.PF_ISSUER || configStore.getEffective?.('pf_issuer');
+  const discoveryUrl = overrides.PF_DISCOVERY_ENDPOINT
+    || configStore.getEffective?.('pf_discovery_endpoint')
+    || (overrides.PF_ISSUER
+      ? `${String(overrides.PF_ISSUER).replace(/\/+$/, '')}/.well-known/openid-configuration`
+      : getDiscoveryEndpoint('pingfederate'));
   if (!discoveryUrl) {
     return { ok: false, error: 'PF discovery endpoint is not configured (PF_ISSUER / PF_DISCOVERY_ENDPOINT missing)' };
   }
   try {
-    await axios.get(discoveryUrl, { timeout: 5000, validateStatus: (s) => s < 500 });
-    return { ok: true, error: null };
+    const response = await axios.get(discoveryUrl, { timeout: 5000, validateStatus: (s) => s < 500 });
+    const metadata = response.data;
+    const required = ['issuer', 'authorization_endpoint', 'token_endpoint', 'jwks_uri'];
+    if (!metadata || required.some((key) => !metadata[key])) {
+      return { ok: false, error: 'invalid_discovery_metadata' };
+    }
+
+    const normalizeIssuer = (issuer) => String(issuer).trim().replace(/\/+$/, '');
+    if (configuredIssuer && normalizeIssuer(metadata.issuer) !== normalizeIssuer(configuredIssuer)) {
+      return { ok: false, error: 'issuer_mismatch' };
+    }
+
+    const { extractEndpoints } = require('../services/oauthDiscoveryService');
+    const endpoints = extractEndpoints(metadata);
+    const settings = {
+      PF_ISSUER: endpoints.issuer,
+      PF_AUTHORIZATION_ENDPOINT: endpoints.authorization_endpoint,
+      PF_TOKEN_ENDPOINT: endpoints.token_endpoint,
+      PF_USERINFO_ENDPOINT: endpoints.userinfo_endpoint,
+      PF_JWKS_URI: endpoints.jwks_uri,
+      PF_INTROSPECTION_ENDPOINT: endpoints.introspection_endpoint,
+      PF_REVOCATION_ENDPOINT: endpoints.revocation_endpoint,
+      PF_PAR_ENDPOINT: endpoints.pushed_authorization_request_endpoint,
+    };
+    return { ok: true, error: null, settings };
   } catch (err) {
     return { ok: false, error: err.code || err.message };
   }
@@ -187,12 +215,21 @@ router.post('/', requireAdminOrUnconfigured, async (req, res) => {
     // gated: saving other keys and switching BACK to pingone are unaffected.
     const requestedProvider = String(filtered.OAUTH_PROVIDER || '').trim().toLowerCase();
     if (requestedProvider === 'pingfederate') {
-      const preflight = await probePingFederateReachability();
+      const preflight = await probePingFederateReachability(filtered);
       if (!preflight.ok) {
         return res.status(422).json({
           error:   'pf_unreachable',
           message: `PingFederate is not reachable (${preflight.error}) — refusing to switch the login provider. Check PF_ISSUER / PF_DISCOVERY_ENDPOINT or stay on PingOne.`,
         });
+      }
+
+      // Persist discovery results to provider-specific keys before switching.
+      // A server that started as PingOne has no PF discovery cache, and shared
+      // oauth_* keys may still point to PingOne. Preserve existing explicit PF
+      // configuration; use discovery only to fill gaps.
+      for (const [key, value] of Object.entries(preflight.settings || {})) {
+        if (!value || filtered[key] || configStore.getEffective?.(key)) continue;
+        filtered[key] = value;
       }
     }
 

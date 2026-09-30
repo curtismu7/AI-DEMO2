@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const oauthConfig = require('../config/oauth');
 const configStore = require('../services/configStore');
+const oauthEndpointResolver = require('../services/oauthEndpointResolver');
 const { validateToken: validatePingOneToken } = require('../services/tokenValidationService');
 const { getJwtClaim } = require('../utils/jwtDecoder');
 const { 
@@ -563,21 +564,33 @@ const validatePingOneCoreToken = async (token, requestContext = {}) => {
     // matches PF_ISSUER_URI verify against the PF JWKS — PingOne's JWKS cannot
     // verify a PF signature. Mirrors the Node gateway's dual-issuer branches.
     const PF_ISSUER_URI_AUTH = process.env.PF_ISSUER_URI || process.env.PF_ISSUER || '';
-    const payload = unverifiedIss === OAUTH_MCP_ID_JAG_ISSUER
-      ? await validatePingOneToken(token, {
-          jwksUri: OAUTH_MCP_ID_JAG_JWKS_URL,
-          issuer: OAUTH_MCP_ID_JAG_ISSUER,
-          allowHttp: true,
-        })
-      : PF_ISSUER_URI_AUTH && unverifiedIss === PF_ISSUER_URI_AUTH
-        ? await validatePingOneToken(token, {
-            jwksUri: process.env.PF_JWKS_URI || `${PF_ISSUER_URI_AUTH}/JWKS`,
-            issuer: PF_ISSUER_URI_AUTH,
-          })
-        : await validatePingOneToken(token, {
-            jwksUri: oauthConfig.jwksEndpoint,
-            issuer: oauthConfig.issuer,
-          });
+    const PINGONE_ISSUER_URI_AUTH = oauthEndpointResolver.getPingOneIssuer();
+    let payload;
+    if (unverifiedIss === OAUTH_MCP_ID_JAG_ISSUER) {
+      payload = await validatePingOneToken(token, {
+        jwksUri: OAUTH_MCP_ID_JAG_JWKS_URL,
+        issuer: OAUTH_MCP_ID_JAG_ISSUER,
+        allowHttp: true,
+      });
+    } else if (PF_ISSUER_URI_AUTH && unverifiedIss === PF_ISSUER_URI_AUTH) {
+      payload = await validatePingOneToken(token, {
+        jwksUri: process.env.PF_JWKS_URI || `${PF_ISSUER_URI_AUTH}/JWKS`,
+        issuer: PF_ISSUER_URI_AUTH,
+      });
+    } else if (PINGONE_ISSUER_URI_AUTH && unverifiedIss === PINGONE_ISSUER_URI_AUTH) {
+      // MCP machine tokens can stay PingOne-issued while browser login uses PF.
+      // Verify only when the unverified issuer exactly matches the configured
+      // PingOne issuer; audience and scope checks below still apply afterwards.
+      payload = await validatePingOneToken(token, {
+        jwksUri: oauthEndpointResolver.getPingOneJwksUri(),
+        issuer: PINGONE_ISSUER_URI_AUTH,
+      });
+    } else {
+      payload = await validatePingOneToken(token, {
+        jwksUri: oauthConfig.jwksEndpoint,
+        issuer: oauthConfig.issuer,
+      });
+    }
 
     // ── Audience validation (always-on when BFF_RESOURCE_URI is configured) ────
     // Tokens arriving at the BFF must be targeted at this service's resource URI.

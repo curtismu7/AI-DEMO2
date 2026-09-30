@@ -119,7 +119,7 @@ const BRAVE_TOOLS = new Set([
  *
  * @param {string} gatewayUrl   Base URL of the gateway (no trailing slash)
  * @param {string} bearerToken  Access token scoped to the gateway audience (MCP_GW_RESOURCE_URI)
- * @param {string} tool         MCP tool name (e.g. "get_accounts")
+ * @param {string} tool         Registered MCP tool name (e.g. "get_my_accounts")
  * @param {object} params       Tool arguments
  * @param {object} [opts]
  * @param {string} [opts.correlationId]  Forwarded as JSON-RPC id for tracing
@@ -131,7 +131,6 @@ const BRAVE_TOOLS = new Set([
  * @throws {Error} with `.code` and `.httpStatus` for 401/403/5xx
  */
 async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, opts = {}) {
-    let base = (gatewayUrl || getMcpGatewayHttpUrl()).replace(/\/$/, '');
     // Attack-sim escape hatch: the caller has deliberately constructed a token
     // and headers for the EXACT gateway named by gatewayUrl (e.g. the DPoP
     // replay sim's cnf.jkt-bound token only makes sense at the Node gateway,
@@ -143,10 +142,18 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     // to the dedicated /mcp/apikey route (vault-key credential mediation); every
     // other tool (and the Node gateway) uses /mcp.
     const pgUrl = (process.env.MCP_PINGGATEWAY_URL || configStore.getEffective('mcp_pinggateway_url') || '').replace(/\/$/, '');
+    const nodeUrl = (process.env.MCP_DEMO_GATEWAY_URL || configStore.getEffective('mcp_demo_gateway_url') || '').replace(/\/$/, '');
+    if (pinNodeGateway && !gatewayUrl && !nodeUrl) {
+        const err = new Error('Pinned MCP calls require the Node gateway, but its HTTP URL is not configured.');
+        err.code = 'GATEWAY_UNREACHABLE';
+        err.httpStatus = 503;
+        throw err;
+    }
+    let base = (gatewayUrl || (pinNodeGateway ? nodeUrl : getMcpGatewayHttpUrl())).replace(/\/$/, '');
+    const isConfiguredGatewayBase = (base === pgUrl && !!pgUrl) || (base === nodeUrl && !!nodeUrl);
     // Explicit Node-only tools always use the Node gateway, regardless of the
     // caller's default base. They must not leak to PingGateway when Node is down.
     if (isNodeGatewayOnlyTool(tool)) {
-        const nodeUrl = (process.env.MCP_DEMO_GATEWAY_URL || configStore.getEffective('mcp_demo_gateway_url') || '').replace(/\/$/, '');
         if (!nodeUrl) {
             const err = new Error(`Node gateway is required for Node-only MCP tool ${tool}, but its HTTP URL is not configured.`);
             err.code = 'GATEWAY_UNREACHABLE';
@@ -183,17 +190,18 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     // bearers to the Node gateway, same Node-only routing as Path B/C above and
     // the RAR sims (#603). mcp_demo_gateway_url, not MCP_GATEWAY_HTTP_URL — the
     // latter is baked per-container and may point at IG (#375).
-    if (pgUrl && !pinNodeGateway) {
-        const a2aAud = process.env.A2A_GATEWAY_AUDIENCE
-            || configStore.getEffective('a2a_gateway_audience') || '';
-        if (a2aAud) {
+    if (isConfiguredGatewayBase && !pinNodeGateway) {
+        const { A2A_GATEWAY_RESOURCE_NAME } = require('../config/a2aSpecialists');
+        const a2aAuds = [
+            process.env.A2A_GATEWAY_AUDIENCE || configStore.getEffective('a2a_gateway_audience'),
+            A2A_GATEWAY_RESOURCE_NAME,
+        ].filter(Boolean).flatMap((value) => String(value).split(',').map((part) => part.trim()).filter(Boolean));
+        if (a2aAuds.length) {
             const claims = decodeJwt(bearerToken)?.claims;
             const audList = Array.isArray(claims?.aud) ? claims.aud.map(String)
                 : (claims?.aud != null ? [String(claims.aud)] : []);
-            const a2aAuds = [a2aAud].map((v) => String(v).trim());
-            if (audList.some((a) => a2aAuds.includes(a))) {
-                const nodeUrl = (process.env.MCP_DEMO_GATEWAY_URL
-                    || configStore.getEffective('mcp_demo_gateway_url') || '').replace(/\/$/, '');
+            const matchedAud = audList.find((audience) => a2aAuds.includes(audience));
+            if (matchedAud) {
                 if (!nodeUrl) {
                     const err = new Error('A2A MCP calls require the Node gateway, but its HTTP URL is not configured.');
                     err.code = 'GATEWAY_UNREACHABLE';
@@ -202,9 +210,8 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
                 }
                 base = nodeUrl;
                 // The aud that CAUSED the redirect — the URI normally, but the
-                // drifted NAME form when that is what the token carries (a pin
-                // only fires when the token already contains the value).
-                pinnedAud = audList.find((a) => a2aAuds.includes(a)) || a2aAud;
+                // drifted resource-name form when that is what the token carries.
+                pinnedAud = matchedAud;
             }
         }
     }
@@ -218,7 +225,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     // (verifies against oauth-mcp's own signing key, not PingOne's) both cover
     // it — so pin these bearers there, same Node-only routing as Path B/C and
     // A2A above.
-    if (pgUrl && !pinNodeGateway) {
+    if (isConfiguredGatewayBase && !pinNodeGateway) {
         const olbAud = process.env.PINGONE_RESOURCE_MCP_SERVER_URI
             || configStore.getEffective('pingone_resource_mcp_server_uri') || '';
         if (olbAud) {
@@ -226,8 +233,6 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
             const audList = Array.isArray(claims?.aud) ? claims.aud.map(String)
                 : (claims?.aud != null ? [String(claims.aud)] : []);
             if (audList.includes(olbAud)) {
-                const nodeUrl = (process.env.MCP_DEMO_GATEWAY_URL
-                    || configStore.getEffective('mcp_demo_gateway_url') || '').replace(/\/$/, '');
                 if (!nodeUrl) {
                     const err = new Error('Native ID-JAG MCP calls require the Node gateway, but its HTTP URL is not configured.');
                     err.code = 'GATEWAY_UNREACHABLE';
@@ -800,6 +805,23 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
         // Log only structured error fields — not the full body which may echo
         // parts of the Authorization header in some gateway implementations.
         const body403 = response.data || {};
+        const rpcErr403 = body403.error;
+
+        // PingGateway can preserve an upstream MCP scope denial as a JSON-RPC
+        // -32005 envelope while keeping the required HTTP 403 status. Translate
+        // it to the same BFF error used by the direct MCP client so the pipeline
+        // returns its structured mcp_scope_denied response with scope details.
+        if (rpcErr403 && typeof rpcErr403 === 'object' && rpcErr403.code === -32005) {
+            throw Object.assign(
+                new Error('insufficient_scope'),
+                {
+                    code: 'mcp_insufficient_scope',
+                    httpStatus: 403,
+                    mcpErrorData: rpcErr403.data || {},
+                    gwAuditTrail: _parseGwAuditTrail(response),
+                },
+            );
+        }
 
         // HITL obligation on the HTTP path: the gateway returns 403 with
         // { error:'hitl_required', hitl:true, challengeId, challenge_type, ... }
@@ -940,6 +962,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     if (response.data?.error != null && response.data?.result === undefined) {
         const rpcErr = response.data.error;
         const msg = (typeof rpcErr === 'object' ? rpcErr.message : String(rpcErr)) || 'MCP tool call failed';
+        const isInsufficientScope = typeof rpcErr === 'object' && rpcErr.code === -32005;
         // Preserve the JSON-RPC error `data` block so HITL signals survive. The
         // gateway returns code -32002 with data { hitl:true, challengeId,
         // challenge_type, ... } when PingAuthorize requires human approval;
@@ -950,10 +973,11 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
         throw Object.assign(
             new Error(msg),
             {
-                code: isWeatherScope ? 'gateway_policy_denied' : 'mcp_tool_error',
-                httpStatus: isWeatherScope ? 403 : 200,
+                code: isInsufficientScope ? 'mcp_insufficient_scope' : (isWeatherScope ? 'gateway_policy_denied' : 'mcp_tool_error'),
+                httpStatus: isInsufficientScope || isWeatherScope ? 403 : 200,
                 rpcCode: typeof rpcErr === 'object' ? rpcErr.code : undefined,
                 rpcData,
+                mcpErrorData: isInsufficientScope ? rpcData : undefined,
                 hitl: !!(rpcData && rpcData.hitl),
                 gatewayMessage: msg,
                 gatewayErrorCode: isWeatherScope ? 'weather_scope_denied' : undefined,

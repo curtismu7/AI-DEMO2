@@ -977,6 +977,9 @@ services:
       #
       # Its three settings are NOT declared here on purpose:
       #   PINGONE_MCP_EXCHANGER_CLIENT_ID / _SECRET / BANKING_API_RESOURCE_URI
+      # PF Step 9 additionally reads PF_ISSUER_URI, PF_TOKEN_ENDPOINT, and the
+      # existing PF_MCP_SERVICE_ACTOR_CLIENT_ID / _SECRET / auth-method / scope
+      # from oauth-mcp/.env. PF subjects never use the PingOne exchanger above.
       # They come from this service's env_file (oauth-mcp/.env). A compose
       # `environment:` entry OVERRIDES env_file, so declaring them here with a
       # "${VAR:-}" default blanked the real secret that env_file already supplied
@@ -2439,6 +2442,26 @@ services:
       OPENAI_API_BASE_URL: http://host.docker.internal:8090/v1
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    networks:
+      - ai-demo
+    restart: unless-stopped
+
+  # ── PromptGuard sidecar (core; UI controls are on /llm-gateway) ────────────
+  # NeMo is installed by default so either engine can be selected in the UI.
+  # Set PROMPTGUARD_INSTALL_NEMO=0 when building for a classifier-only setup.
+  mcp-promptguard:
+    build:
+      context: ./demo_mcp_promptguard
+      args:
+        PROMPTGUARD_INSTALL_NEMO: "${PROMPTGUARD_INSTALL_NEMO:-1}"
+    image: ai-demo-mcp-promptguard:local
+    # Reuse the existing manual-run name so run-docker.sh clears it before
+    # replacing the old standalone container with this Compose service.
+    container_name: ai-demo-promptguard-local
+    environment:
+      PORT: "8086"
+    ports:
+      - "127.0.0.1:8086:8086"
     networks:
       - ai-demo
     restart: unless-stopped

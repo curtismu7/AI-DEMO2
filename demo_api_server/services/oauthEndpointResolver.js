@@ -11,6 +11,7 @@ const configStore = require('./configStore');
 
 // Module-level sync cache populated by initializeDiscovery()
 let _discoveryCache = null;
+let _discoveryCacheProvider = null;
 
 function _pingOneBase() {
   const region = configStore.getEffective('pingone_region') || 'com';
@@ -19,11 +20,14 @@ function _pingOneBase() {
   return `https://auth.pingone.${region}/${envId}/as`;
 }
 
-function _fromCache(field) {
+function _fromCache(field, provider) {
+  const expectedProvider = provider || configStore.getOAuthProvider?.();
+  if (_discoveryCacheProvider && expectedProvider && _discoveryCacheProvider !== expectedProvider) return null;
   return _discoveryCache?.[field] ?? null;
 }
 
-function _isPingFederate() {
+function _isPingFederate(provider) {
+  if (provider !== undefined) return provider === 'pingfederate';
   return typeof configStore.getOAuthProvider === 'function'
     && configStore.getOAuthProvider() === 'pingfederate';
 }
@@ -34,13 +38,13 @@ function _configured(key, fallbackKey) {
 
 function getAuthorizationEndpoint() {
   if (_isPingFederate()) {
-    return _configured('pf_authorization_endpoint', 'oauth_authorization_endpoint')
-      || _fromCache('authorization_endpoint')
+    return configStore.getEffective('pf_authorization_endpoint')
+      || _fromCache('authorization_endpoint', 'pingfederate')
       || '';
   }
   const explicit = configStore.getEffective('oauth_authorization_endpoint');
   if (explicit) return explicit;
-  const cached = _fromCache('authorization_endpoint');
+  const cached = _fromCache('authorization_endpoint', 'pingone');
   if (cached) return cached;
   const base = _pingOneBase();
   return base ? `${base}/authorize` : '';
@@ -48,29 +52,74 @@ function getAuthorizationEndpoint() {
 
 function getTokenEndpoint() {
   if (_isPingFederate()) {
-    return _configured('pf_token_endpoint', 'oauth_token_endpoint')
-      || _fromCache('token_endpoint')
+    return configStore.getEffective('pf_token_endpoint')
+      || _fromCache('token_endpoint', 'pingfederate')
       || '';
   }
   const explicit = configStore.getEffective('oauth_token_endpoint');
   if (explicit) return explicit;
-  const cached = _fromCache('token_endpoint');
+  const cached = _fromCache('token_endpoint', 'pingone');
   if (cached) return cached;
   const base = _pingOneBase();
   return base ? `${base}/token` : '';
 }
 
+/**
+ * Resolve PingOne's token endpoint independently of the active user-login IdP.
+ * Machine clients configured with PingOne credentials must never send them to
+ * the shared PF endpoint when OAUTH_PROVIDER=pingfederate.
+ */
+function getPingOneTokenEndpoint() {
+  const explicit = String(process.env.PINGONE_TOKEN_ENDPOINT || '').trim();
+  if (explicit) return explicit;
+  const base = _pingOneBase();
+  return base ? `${base}/token` : '';
+}
+
+/**
+ * Resolve PingOne's issuer independently of the active interactive-login IdP.
+ * MCP machine tokens can still be PingOne-issued when browser login uses PF.
+ */
+function getPingOneIssuer() {
+  const explicit = String(process.env.PINGONE_ISSUER_URI || process.env.PINGONE_ISSUER || '').trim();
+  if (explicit) return _normalizePingOneIssuer(explicit.replace(/\/+$/, ''));
+
+  const tokenEndpoint = getPingOneTokenEndpoint();
+  if (tokenEndpoint) {
+    try {
+      const endpoint = new URL(tokenEndpoint);
+      const path = endpoint.pathname.replace(/\/+$/, '');
+      if (path.endsWith('/token')) {
+        return `${endpoint.origin}${path.slice(0, -'/token'.length)}`;
+      }
+    } catch {
+      // Fall through to the environment-derived PingOne base when the override
+      // is not a valid URL.
+    }
+  }
+
+  return _pingOneBase();
+}
+
+/** Resolve the JWKS endpoint for PingOne-issued tokens, regardless of login IdP. */
+function getPingOneJwksUri() {
+  const explicit = String(process.env.PINGONE_JWKS_URI || process.env.PINGONE_JWKS_ENDPOINT || '').trim();
+  if (explicit) return explicit;
+  const issuer = getPingOneIssuer();
+  return issuer ? `${issuer.replace(/\/+$/, '')}/jwks` : '';
+}
+
 /** RFC 9126 PAR endpoint — same priority chain as getTokenEndpoint. */
 function getParEndpoint() {
   if (_isPingFederate()) {
-    return _configured('pf_par_endpoint', 'oauth_par_endpoint')
-      || _fromCache('pushed_authorization_request_endpoint')
+    return configStore.getEffective('pf_par_endpoint')
+      || _fromCache('pushed_authorization_request_endpoint', 'pingfederate')
       || '';
   }
   const explicit = configStore.getEffective('oauth_par_endpoint')
     || configStore.getEffective('pingone_par_endpoint');
   if (explicit) return explicit;
-  const cached = _fromCache('pushed_authorization_request_endpoint');
+  const cached = _fromCache('pushed_authorization_request_endpoint', 'pingone');
   if (cached) return cached;
   const base = _pingOneBase();
   return base ? `${base}/par` : '';
@@ -78,13 +127,13 @@ function getParEndpoint() {
 
 function getUserInfoEndpoint() {
   if (_isPingFederate()) {
-    return _configured('pf_userinfo_endpoint', 'oauth_userinfo_endpoint')
-      || _fromCache('userinfo_endpoint')
+    return configStore.getEffective('pf_userinfo_endpoint')
+      || _fromCache('userinfo_endpoint', 'pingfederate')
       || '';
   }
   const explicit = configStore.getEffective('oauth_userinfo_endpoint');
   if (explicit) return explicit;
-  const cached = _fromCache('userinfo_endpoint');
+  const cached = _fromCache('userinfo_endpoint', 'pingone');
   if (cached) return cached;
   const base = _pingOneBase();
   return base ? `${base}/userinfo` : '';
@@ -92,13 +141,13 @@ function getUserInfoEndpoint() {
 
 function getJwksUri() {
   if (_isPingFederate()) {
-    return _configured('pf_jwks_uri', 'oauth_jwks_uri')
-      || _fromCache('jwks_uri')
+    return configStore.getEffective('pf_jwks_uri')
+      || _fromCache('jwks_uri', 'pingfederate')
       || '';
   }
   const explicit = configStore.getEffective('oauth_jwks_uri');
   if (explicit) return explicit;
-  const cached = _fromCache('jwks_uri');
+  const cached = _fromCache('jwks_uri', 'pingone');
   if (cached) return cached;
   const base = _pingOneBase();
   return base ? `${base}/jwks` : '';
@@ -106,13 +155,13 @@ function getJwksUri() {
 
 function getIntrospectionEndpoint() {
   if (_isPingFederate()) {
-    return _configured('pf_introspection_endpoint', 'oauth_introspection_endpoint')
-      || _fromCache('introspection_endpoint')
+    return configStore.getEffective('pf_introspection_endpoint')
+      || _fromCache('introspection_endpoint', 'pingfederate')
       || '';
   }
   const explicit = configStore.getEffective('oauth_introspection_endpoint');
   if (explicit) return explicit;
-  const cached = _fromCache('introspection_endpoint');
+  const cached = _fromCache('introspection_endpoint', 'pingone');
   if (cached) return cached;
   const base = _pingOneBase();
   return base ? `${base}/introspect` : '';
@@ -121,7 +170,7 @@ function getIntrospectionEndpoint() {
 function getEndSessionEndpoint() {
   if (_isPingFederate()) {
     return _configured('pf_end_session_endpoint')
-      || _fromCache('end_session_endpoint')
+      || _fromCache('end_session_endpoint', 'pingfederate')
       || `${getIssuer().replace(/\/+$/, '')}/idp/init_logout.openid`;
   }
   return '';
@@ -129,13 +178,13 @@ function getEndSessionEndpoint() {
 
 function getRevocationEndpoint() {
   if (_isPingFederate()) {
-    return _configured('pf_revocation_endpoint', 'oauth_revocation_endpoint')
-      || _fromCache('revocation_endpoint')
+    return configStore.getEffective('pf_revocation_endpoint')
+      || _fromCache('revocation_endpoint', 'pingfederate')
       || `${getIssuer().replace(/\/+$/, '')}/as/revoke_token.oauth2`;
   }
   const explicit = configStore.getEffective('oauth_revocation_endpoint');
   if (explicit) return explicit;
-  const cached = _fromCache('revocation_endpoint');
+  const cached = _fromCache('revocation_endpoint', 'pingone');
   if (cached) return cached;
   const base = _pingOneBase();
   return base ? `${base}/revoke` : '';
@@ -167,24 +216,29 @@ function _normalizePingOneIssuer(issuer) {
   return issuer;
 }
 
-function getIssuer() {
-  if (_isPingFederate()) {
-    return _configured('pf_issuer', 'oauth_issuer')
-      || _fromCache('issuer')
+function getIssuer(provider) {
+  if (_isPingFederate(provider)) {
+    return configStore.getEffective('pf_issuer')
+      || _fromCache('issuer', 'pingfederate')
       || '';
   }
   const explicit = configStore.getEffective('oauth_issuer');
   if (explicit) return _normalizePingOneIssuer(explicit);
-  const cached = _fromCache('issuer');
+  const cached = _fromCache('issuer', 'pingone');
   if (cached) return _normalizePingOneIssuer(cached);
   return _pingOneBase();
 }
 
-function getDiscoveryEndpoint() {
-  if (_isPingFederate()) {
-    const explicit = _configured('pf_discovery_endpoint', 'oauth_discovery_endpoint');
+function getDiscoveryEndpoint(provider) {
+  if (_isPingFederate(provider)) {
+    // An explicit provider override is used by PF preflight even while
+    // PingOne is globally selected. Shared OAUTH_* values may belong to
+    // PingOne, so only trust PF-specific settings in that case.
+    const explicit = configStore.getEffective('pf_discovery_endpoint');
     if (explicit) return explicit;
-    const issuer = getIssuer();
+    const cached = _fromCache('discovery_endpoint', 'pingfederate');
+    if (cached) return cached;
+    const issuer = getIssuer('pingfederate');
     return issuer ? `${issuer.replace(/\/+$/, '')}/.well-known/openid-configuration` : '';
   }
   const explicit = configStore.getEffective('oauth_discovery_endpoint');
@@ -239,7 +293,8 @@ async function initializeDiscovery() {
     }
 
     _discoveryCache = extractEndpoints(metadata);
-    persistDiscoveredEndpoints(_discoveryCache);
+    _discoveryCacheProvider = configStore.getOAuthProvider?.() || 'pingone';
+    persistDiscoveredEndpoints(_discoveryCache, _discoveryCacheProvider);
     console.log('[oauth-resolver] OIDC discovery cache populated and persisted to LMDB');
   } catch (err) {
     console.warn('[oauth-resolver] Discovery initialization failed:', err.message);
@@ -249,11 +304,15 @@ async function initializeDiscovery() {
 /** Clears the discovery cache (used in tests). */
 function _resetDiscoveryCache() {
   _discoveryCache = null;
+  _discoveryCacheProvider = null;
 }
 
 module.exports = {
   getAuthorizationEndpoint,
   getTokenEndpoint,
+  getPingOneTokenEndpoint,
+  getPingOneIssuer,
+  getPingOneJwksUri,
   getParEndpoint,
   getUserInfoEndpoint,
   getJwksUri,

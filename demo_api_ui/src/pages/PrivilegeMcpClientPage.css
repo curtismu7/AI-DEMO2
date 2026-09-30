@@ -602,6 +602,7 @@ select.cur-input { cursor: pointer; }
    (0,1,1). Anything here that styles a button, input, textarea or select needs
    the .cur-ide prefix for the same reason. */
 .cur-ide .cur-tab {
+  box-sizing: border-box;
   padding: 0 18px;
   height: 100%;
   background: transparent;
@@ -618,7 +619,7 @@ select.cur-input { cursor: pointer; }
   transition: color 0.15s;
 }
 .cur-tab:hover { color: #ccc; }
-.cur-ide .cur-tab--active { color: #fff; border-bottom-color: #007acc; background: #1e1e1e; }
+.cur-ide .cur-tab--active { color: #fff; border: 2px solid #007acc; background: #1e1e1e; }
 
 /* Editor area */
 .cur-editor-area {
@@ -1081,10 +1082,10 @@ select.cur-input { cursor: pointer; }
    renders as an illegible blob rather than a gear, so the button now says what
    it does. Its neighbours (Clear, Guide, Flow) are words too. */
 .cur-settings-gear {
-  color: #ff3b30 !important;
-  border-color: #ff3b30 !important;
+  color: #ff6b63 !important;
+  border-color: #ff6b63 !important;
 }
-.cur-settings-gear:hover { color: #ff6b63 !important; border-color: #ff6b63 !important; } .cur-flow-modal {
+.cur-settings-gear:hover { color: #ff8078 !important; border-color: #ff8078 !important; } .cur-flow-modal {
   background: #161b22;
   border: 1px solid #30363d;
   border-radius: 12px;
