@@ -114,14 +114,14 @@ describe("PrivilegeMcpClientPage — no auto-discovery on sign-in return", () =>
     localStorage.setItem("cur_priv_view", "demo");
     renderAfterSignIn();
 
-    const a2aTab = await screen.findByRole("button", { name: "A2A" });
+    const a2aTab = await screen.findByRole("tab", { name: "A2A" });
     fireEvent.click(a2aTab);
     await screen.findByRole("heading", { name: "A2A access review" });
 
     fireEvent.click(screen.getByRole("button", { name: "Inspect" }));
-    expect(await screen.findByRole("button", { name: "MCP Explorer" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Raw RPC" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Policies" })).toBeTruthy();
+    expect(await screen.findByRole("tab", { name: "MCP Explorer" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Raw RPC" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Policies" })).toBeTruthy();
     localStorage.removeItem("cur_priv_view");
   });
 
@@ -135,7 +135,7 @@ describe("PrivilegeMcpClientPage — no auto-discovery on sign-in return", () =>
     );
 
     expect(await screen.findByRole("heading", { name: "A2A access review" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "A2A" })).toHaveClass("cur-tab--active");
+    expect(screen.getByRole("tab", { name: "A2A" })).toHaveClass("cur-tab--active");
     expect(screen.getByLabelText("Your question")).toHaveValue("");
     expect(screen.getByRole("button", { name: "Send question" })).toBeDisabled();
     expect(global.fetch.mock.calls.some(([url]) => String(url) === "/api/privilege-a2a/chat")).toBe(false);
@@ -152,11 +152,11 @@ describe("PrivilegeMcpClientPage — no auto-discovery on sign-in return", () =>
       </MemoryRouter>,
     );
 
-    expect(await screen.findByRole("button", { name: "MCP Explorer" })).toBeTruthy();
+    expect(await screen.findByRole("tab", { name: "MCP Explorer" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Open A2A Demo Step" }));
 
     expect(await screen.findByRole("heading", { name: "A2A access review" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "A2A" })).toHaveClass("cur-tab--active");
+    expect(screen.getByRole("tab", { name: "A2A" })).toHaveClass("cur-tab--active");
     localStorage.removeItem("cur_priv_view");
   });
 });
