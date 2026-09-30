@@ -63,7 +63,7 @@ beforeEach(() => {
 describe('exchangeCodeForToken — client authentication', () => {
   it('sends client_secret when a secret is set and no auth method is configured (unchanged behaviour)', async () => {
     mockStore[SECRET_KEY] = 'a-real-secret';
-    await svc.exchangeCodeForToken('code-1', 'verifier-1');
+    await svc.exchangeCodeForToken('code-1', 'v'.repeat(43));
     expect(sentParams().get('client_secret')).toBe('a-real-secret');
   });
 
@@ -71,12 +71,12 @@ describe('exchangeCodeForToken — client authentication', () => {
   it('does NOT send client_secret when the app is PKCE-only (none), even though a secret exists', async () => {
     mockStore[SECRET_KEY] = 'a-stale-secret';
     mockStore[AUTH_METHOD_KEY] = 'none';
-    await svc.exchangeCodeForToken('code-1', 'verifier-1');
+    await svc.exchangeCodeForToken('code-1', 'v'.repeat(43));
 
     const p = sentParams();
     expect(p.has('client_secret')).toBe(false);
     // Dropping client auth must not drop PKCE with it.
-    expect(p.get('code_verifier')).toBe('verifier-1');
+    expect(p.get('code_verifier')).toBe('v'.repeat(43));
     expect(p.get('client_id')).toBe('client-abc');
     expect(p.get('grant_type')).toBe('authorization_code');
   });
@@ -84,7 +84,7 @@ describe('exchangeCodeForToken — client authentication', () => {
   it.each(['none', 'NONE', ' None '])('treats %j case- and whitespace-insensitively', async (method) => {
     mockStore[SECRET_KEY] = 'a-stale-secret';
     mockStore[AUTH_METHOD_KEY] = method;
-    await svc.exchangeCodeForToken('code-1', 'verifier-1');
+    await svc.exchangeCodeForToken('code-1', 'v'.repeat(43));
     expect(sentParams().has('client_secret')).toBe(false);
   });
 
@@ -92,14 +92,14 @@ describe('exchangeCodeForToken — client authentication', () => {
   // configured" must mean the parameter is absent, not blank.
   it('never sends an empty client_secret parameter when no secret is configured', async () => {
     mockStore[SECRET_KEY] = '';
-    await svc.exchangeCodeForToken('code-1', 'verifier-1');
+    await svc.exchangeCodeForToken('code-1', 'v'.repeat(43));
     expect(sentParams().has('client_secret')).toBe(false);
   });
 
   it('leaves a confidential app alone when the method is something other than none', async () => {
     mockStore[SECRET_KEY] = 'a-real-secret';
     mockStore[AUTH_METHOD_KEY] = 'basic';
-    await svc.exchangeCodeForToken('code-1', 'verifier-1');
+    await svc.exchangeCodeForToken('code-1', 'v'.repeat(43));
     expect(sentParams().get('client_secret')).toBe('a-real-secret');
   });
 });

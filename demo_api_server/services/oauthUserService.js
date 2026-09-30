@@ -185,11 +185,11 @@ class OAuthUserService {
    * confidential clients should keep the secret only on this server (never in the browser).
    */
   async exchangeCodeForToken(code, codeVerifier, redirectUri) {
+    if (typeof codeVerifier !== 'string'
+      || !/^[A-Za-z0-9._~-]{43,128}$/.test(codeVerifier)) {
+      throw new Error('Missing or invalid PKCE code_verifier');
+    }
     try {
-      if (typeof codeVerifier !== 'string'
-        || !/^[A-Za-z0-9._~-]{43,128}$/.test(codeVerifier)) {
-        throw new Error('Missing or invalid PKCE code_verifier');
-      }
       const params = new URLSearchParams({
         grant_type: 'authorization_code',
         code: String(code),

@@ -241,11 +241,11 @@ class OAuthService {
    * Enhanced to support RFC 8707 resource indicators.
    */
   async exchangeCodeForToken(code, codeVerifier, redirectUri, resources = null) {
+    if (typeof codeVerifier !== 'string'
+      || !/^[A-Za-z0-9._~-]{43,128}$/.test(codeVerifier)) {
+      throw new Error('Missing or invalid PKCE code_verifier');
+    }
     try {
-      if (typeof codeVerifier !== 'string'
-        || !/^[A-Za-z0-9._~-]{43,128}$/.test(codeVerifier)) {
-        throw new Error('Missing or invalid PKCE code_verifier');
-      }
       const body = new URLSearchParams({
         grant_type: 'authorization_code',
         code: code,
