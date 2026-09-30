@@ -2,6 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import './PrivilegeA2aTab.css';
 
 const API_URL = '/api/privilege-a2a/chat';
+const DEMO_QUESTIONS = [
+  'Review access on prod-db-primary.',
+  'List all entitlements for Carol Nguyen.',
+  'Who has the prod-db-admin role?',
+  'Who is offboarding and still has active access?',
+];
 
 function readEvent(frame) {
   let event = 'message';
@@ -20,6 +26,7 @@ function readEvent(frame) {
 
 export default function PrivilegeA2aTab() {
   const [input, setInput] = useState('');
+  const [selectedQuestion, setSelectedQuestion] = useState('');
   const [turns, setTurns] = useState([]);
   const [trace, setTrace] = useState([]);
   const [sessionId, setSessionId] = useState('');
@@ -66,6 +73,7 @@ export default function PrivilegeA2aTab() {
     setTrace([]);
     setTurns(current => [...current, { question: message, answer: '' }]);
     setInput('');
+    setSelectedQuestion('');
 
     try {
       const body = { message };
@@ -186,18 +194,34 @@ export default function PrivilegeA2aTab() {
       </div>
 
       <form className="privilege-a2a__composer" onSubmit={submitQuestion}>
+        <label htmlFor="privilege-a2a-demo-question">Demo question</label>
+        <select
+          id="privilege-a2a-demo-question"
+          value={selectedQuestion}
+          onChange={event => {
+            setSelectedQuestion(event.target.value);
+            setInput(event.target.value);
+          }}
+          disabled={busy}
+        >
+          <option value="">Choose an A2A access-review question</option>
+          {DEMO_QUESTIONS.map(question => <option key={question} value={question}>{question}</option>)}
+        </select>
         <label htmlFor="privilege-a2a-question">Your question</label>
         <textarea
           id="privilege-a2a-question"
           value={input}
-          onChange={event => setInput(event.target.value)}
+          onChange={event => {
+            setInput(event.target.value);
+            if (event.target.value !== selectedQuestion) setSelectedQuestion('');
+          }}
           maxLength={4000}
           rows={3}
           placeholder="For example: Review Carol Nguyen's current entitlements."
           disabled={busy}
         />
         <div className="privilege-a2a__actions">
-          <span>Answers are grounded in access-review tool results.</span>
+          <span>Send a question to trigger Main agent → A2A → Analyst → MCP tools.</span>
           {busy && <button className="privilege-a2a__cancel" type="button" onClick={cancelRequest}>Cancel</button>}
           <button className="privilege-a2a__send" type="submit" disabled={busy || !input.trim()}>
             {busy ? 'Reviewing…' : 'Send question'}

@@ -83,7 +83,6 @@ async function runAnalyst(question: string, contextId: string): Promise<string> 
       const response = await config.anthropic.messages.create({
         model: config.model,
         max_tokens: MAX_OUTPUT_TOKENS,
-        thinking: { type: 'adaptive' },
         system: INSTRUCTION,
         tools: toolDefinitions,
         tool_choice: { type: 'auto', disable_parallel_tool_use: true },
@@ -131,7 +130,6 @@ async function runAnalyst(question: string, contextId: string): Promise<string> 
     const finalResponse = await config.anthropic.messages.create({
       model: config.model,
       max_tokens: MAX_OUTPUT_TOKENS,
-      thinking: { type: 'adaptive' },
       system: `${INSTRUCTION}\n\nNo more tool calls are available. Summarize only findings already returned by tools.`,
       messages,
     });

@@ -606,6 +606,10 @@ export default function PrivilegeMcpClientPage() {
   const chooseTab = (tab) => {
     setActiveTab(tab);
     setLastTab((prev) => ({ ...prev, [viewMode]: tab }));
+    const next = new URLSearchParams(searchParams);
+    next.set('view', viewMode);
+    next.set('tab', tab);
+    setSearchParams(next, { replace: true });
   };
   const switchViewMode = (next) => {
     if (next === viewMode) return;
@@ -2387,10 +2391,13 @@ export default function PrivilegeMcpClientPage() {
 
         {/* Main editor area */}
         <main className="cur-main">
-          <div className="cur-tabs">
+          <div className="cur-tabs" role="tablist" aria-label={`${viewMode === 'demo' ? 'Demo' : 'Inspect'} tabs`}>
             {TAB_LABELS.filter(([key]) => VIEW_TABS[viewMode].includes(key)).map(([key, label]) => (
               <button
                 key={key}
+                type="button"
+                role="tab"
+                aria-selected={visibleTab === key}
                 className={`cur-tab ${visibleTab === key ? 'cur-tab--active' : ''}`}
                 onClick={() => chooseTab(key)}
               >{label}</button>
