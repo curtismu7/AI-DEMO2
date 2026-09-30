@@ -4,6 +4,7 @@ import '@testing-library/jest-dom';
 import UnifiedTokenFlowInspector from './UnifiedTokenFlowInspector';
 import { ExchangeModeProvider } from '../context/ExchangeModeContext';
 import { agentFlowDiagram } from '../services/agentFlowDiagramService';
+import bffAxios from '../services/bffAxios';
 
 // AgentFlowSection (rendered on the default 'flow' tab, mounted before the
 // Token Transform tab is clicked) calls useExchangeMode(), which throws
@@ -27,6 +28,25 @@ describe('UnifiedTokenFlowInspector — Token Transform tab', () => {
 });
 
 describe('UnifiedTokenFlowInspector — OAuth Token Inspector error handling', () => {
+  it('shows the current user claims from the BFF session preview shape', async () => {
+    const get = vi.spyOn(bffAxios, 'get').mockImplementation(async (url) => {
+      if (url === '/api/auth/oauth/user/status') {
+        return { data: { authenticated: true, oauthProvider: 'pingone', user: { username: 'demo' } } };
+      }
+      if (url === '/api/tokens/session-preview') {
+        return { data: { tokenEvents: [{ id: 'user-token', status: 'active', claims: { sub: 'session-sub-123', scope: 'read' }, jwtFullDecode: { header: { alg: 'RS256' }, claims: { sub: 'session-sub-123', scope: 'read' } } }] } };
+      }
+      return { data: {} };
+    });
+    try {
+      renderInspector();
+      expect((await screen.findAllByText('session-sub-123')).length).toBeGreaterThan(0);
+      expect(screen.queryByText(/No Active OAuth Session/i)).not.toBeInTheDocument();
+    } finally {
+      get.mockRestore();
+    }
+  });
+
   it('offers a retry button when the token fetch fails, instead of a dead end', async () => {
     // bffAxios has no server to talk to in this test environment, so
     // fetchTokenData's real request genuinely fails and lands in the
