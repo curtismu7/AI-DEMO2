@@ -254,6 +254,61 @@ while PingOne runs `pi.flow`.
 in light and dark themes; confirm an active Admin token is displayed, sign-in
 uses `response_mode=pi.flow`, and the browser does not navigate to PingOne.
 
+### 2026-09-30 — Active PingOne sessions were hidden by inconsistent session checks
+
+**Files:** `demo_api_server/routes/auth.js`, `demo_api_server/services/agentMcpTokenService.js`, `demo_api_ui/src/hooks/useAuth.js`, `demo_api_ui/src/services/sessionResolver.js`, `demo_api_ui/src/components/UserDashboardPing2026.js`, `demo_api_ui/src/components/SecurityCenter.js`, `demo_api_ui/src/components/UnifiedTokenFlowInspector.jsx`, `demo_api_ui/src/components/education/TokenExchangePanel.js`, and focused tests.
+
+**What was broken:** An error from the admin status endpoint stopped the app shell before it checked a valid customer session. Admin pages waited for all three status probes and reported no session when one hung, even if another had confirmed the user; the token expiry indicator waited for both OAuth probes. The generic status endpoint reported stale OAuth user records as authenticated after their token was lost or expired. The dashboard treated a status request error as signed out even when the app shell had confirmed the user. Security Center classified BFF `authType: user/admin` as a local account. Token panels expected raw OAuth status tokens or an old `decoded` event shape, hiding real BFF session-preview claims. The education panel also treated active opaque tokens as signed out.
+
+**What changed:** The app shell checks admin and customer OAuth status concurrently, continues after individual failures, and attempts the existing PingOne `prompt=none` route once for a stale customer OAuth session. It retries a stale customer status once when generic status shows that a concurrent refresh completed. When only generic status restores a session, it emits a provisional auth signal that preserves PF ID-JAG handoff state; provider confirmation later validates the callback or clears that state for an ordinary login. It does not accept a generic user record as proof of a valid OAuth token. Admin pages and the token expiry indicator use a confirmed session without waiting for unrelated probes. Generic status requires a live token for OAuth sessions, including legacy admin sessions, while retaining local session behavior. The dashboard uses its confirmed user prop to try the normal protected data request when status is unavailable. Security Center recognizes both BFF OAuth auth types. Session preview omits expired stored bearers; token panels read its sanitized event shape and recognize active opaque tokens only after expiry-aware generic status confirms the session. The education panel no longer infers `may_act` from filtered claims.
+
+**Do not break:** Preserve confirmed OAuth status over generic OAuth fallback, local username/password sessions, PF ID-JAG handoff validation, the BFF's token and role enforcement, the dashboard's one-redirect reauth guard, and server-side custody of raw tokens. Silent recovery must be one-shot and must not start for PingFederate or after a `login_required` callback.
+
+**Verify:** `CI=true npx jest src/__tests__/authSession.test.js tests/oauthUser.test.js src/__tests__/agentMcpTokenService.test.js --forceExit` in `demo_api_server`; focused UI Vitest regressions for each path; `cd demo_api_ui && npm run test:unit && npm run build`.
+
+### 2026-09-30 — Topology selection keeps the active flow legible
+
+**Files:** `demo_api_ui/src/components/ServerTopologyPage.jsx`,
+`demo_api_ui/src/components/ServerTopologyPage.css`,
+`demo_api_ui/src/components/__tests__/ServerTopologyPage.playbacks.test.jsx`,
+`REGRESSION_PLAN.md`.
+
+**What was broken:** a selected server outside the current request route could
+dim every node and connection after switching to flow-only mode, leaving the
+route nearly unreadable while its stale selection remained in the detail pane.
+
+**What was fixed:** flow-only activation clears selections that are outside the
+active route. Selected-node connections now stand out with stronger paths and
+labels while unrelated diagram content fades into the background.
+
+**Do not break:** keep the selected server's incoming and outgoing connections
+prominent, keep unrelated content subdued, and keep every connection in
+flow-only mode's active route legible.
+
+**Verify:** `cd demo_api_ui && CI=true npx vitest run
+src/components/__tests__/ServerTopologyPage.playbacks.test.jsx`; `cd demo_api_ui
+&& npm run build`; inspect the selected diagram in both themes.
+### 2026-09-30 — Dashboard Demo steps panel slides out from the right edge
+
+**Files:** `demo_api_ui/src/components/FloatingPanel.jsx`,
+`demo_api_ui/src/components/FloatingPanel.css`,
+`demo_api_ui/src/components/DemoStepsDropdown.jsx`,
+`demo_api_ui/src/components/AIAgent.js`, `REGRESSION_PLAN.md`.
+
+**What was changed:** on split-column dashboards the Demo steps panel opens as a
+drawer pinned to the right edge (full height, slides in, resized by its left
+edge, pop-out and close kept) instead of a free-floating window. `FloatingPanel`
+gained an opt-in `placement="drawer"`; the default `floating` placement and its
+other users are unchanged. Other pages keep the floating window.
+
+**Do not break:** `FloatingPanel` default drag, 8-way resize, collapse and
+pop-out for its other users; the Demo Steps selection flow; the header button's
+`agent-demo-steps-open` wiring.
+
+**Verify:** `cd demo_api_ui && npm run build`; Demo Steps vitest; on `/dashboard`
+the header button opens a right-edge drawer that resizes from its left edge, in
+light and dark themes.
+
 ### 2026-09-30 — Dashboard Demo Steps button belongs beside Favorites and its pop-out nearly filled the screen
 
 **Files:** `demo_api_ui/src/components/AIAgent.js`,
@@ -300,6 +355,24 @@ FloatingPanel title-bar close.
 
 **Verify:** `cd demo_api_ui && npm run build`; check `/admin` in light and dark
 themes with the §1.4 computed-style contrast auditor.
+### 2026-09-30 — Privilege chat allows dynamic OAuth client registration
+
+**Files:** `demo_api_server/routes/privilegeMcpClient.js`,
+`demo_api_server/tests/routes/privilegeMcpClient.authStartNoClientId.test.js`.
+
+**What was broken:** Chat rejected an empty OAuth Client ID before starting
+OAuth, even though the shipped gateway registers the client dynamically and
+the Settings UI says the ID is supplied automatically.
+
+**What was fixed:** Chat now lets `beginOAuthFlow` perform DCR or return its
+existing actionable error when a gateway requires an operator-supplied ID.
+
+**Do not break:** Preserve Procyon’s no-OAuth path, DCR registration, the
+manual Client ID fallback, and OAuth session/token handling.
+
+**Verify:** `cd demo_api_server && CI=true npx jest
+tests/routes/privilegeMcpClient.authStartNoClientId.test.js
+tests/routes/privilegeMcpClient.procyon.test.js --forceExit`.
 
 ### 2026-09-30 — UC46 now visibly selects A2A and offers demo questions
 
@@ -328,6 +401,72 @@ the browser-to-BFF session boundary, and preserve the separate MainAgent →
 WorkerAgent → MCP topology and every existing MCP Inspect tab.
 
 **Verify:** UI build and a live UC46 navigation with both page themes.
+
+### 2026-09-30 — Privilege gateway homepage gave clients stale instructions
+
+**Files:** `pingone-privgateway-helm-main/agentless/agentless-mcpgw/files/homepage.html`,
+`templates/homepage.yaml`, `values.yaml`, `sidecars.values.yaml`, and the
+repackaged chart.
+
+**What was broken:** the gateway binary's sample page omitted a UTF-8 declaration,
+listed demo tools that are not this deployment's tool catalog, and told public
+clients to connect to `localhost:8080/sse`.
+
+**What changed:** the AI Demo Helm overlay serves an accurate gateway introduction
+at the exact `/` path. It shows the registered app URL pattern and explains that
+tools come from each app after access is granted.
+
+**Do not break:** keep `/.well-known/`, `/authorize`, `/token`, `/callback`,
+`/register`, and registered MCP app paths on the gateway's HTTPS backend. The
+homepage's separate ingress uses HTTP only for its static in-cluster service.
+
+**Verify:** `helm lint` and rendered enabled/disabled chart checks;
+`npm run topology:verify`; `npm run authz:verify`; desktop and mobile browser previews.
+
+### 2026-09-30 — OrbStack K8 could not complete PingFederate login
+
+**Files:** `run-k8.sh`, `scripts/k8-docker-cleanup.sh` and its test,
+`k8s/deploy.sh`, and `k8s/overlays/orbstack-pf/`.
+
+**What was broken:** local K8 cleanup selected every `ai-demo-*` Docker
+container, disabled its restart policy, and stopped it, including the
+standalone PF container. The in-cluster BFF also resolved its browser-facing PF
+issuer to its own loopback address; its egress policy denied port 9031, and the
+pod did not trust the mkcert CA for the PF token exchange.
+
+**What changed:** cleanup preserves `ai-demo-pingfederate`. OrbStack deploys add
+a BFF-only host-gateway alias and egress rule for PF on TCP 9031, and configure
+Node to trust the existing mkcert CA bundle. Cleanup also keeps PF's named
+Docker network while its container exists, avoiding stale network IDs after a
+stop. Other cluster contexts do not receive this local-only route.
+
+**Do not break:** keep PF's public issuer hostname, redirect URIs, clients, and
+persistent data unchanged. Keep the OrbStack host route scoped to the BFF and
+preserve the default external egress restrictions.
+
+**Verify:** `bash scripts/k8-docker-cleanup.test.sh`; shell syntax checks;
+server-side dry-run of the BFF host alias; local PF JWKS returns HTTP 200 from
+both the host and the K8 BFF pod.
+
+### 2026-09-30 — P1/PF provider switch hidden in dashboard layout
+
+**Files:** `demo_api_ui/src/components/TopNav.js`,
+`demo_api_ui/src/components/AIAgent.js`, and
+`demo_api_ui/src/components/__tests__/TopNavFavoritesLayout.test.jsx`.
+
+**What was broken:** the dashboard middle layout hid the top-nav provider
+switch and mounted it only inside the collapsed Command Dock, making the P1/PF
+choice hard to find while PingFederate could remain selected by default.
+
+**What changed:** keep the single provider switch in the shared top bar and
+remove its Command Dock copy. It is directly available on the dashboard even
+when the agent dock is collapsed.
+
+**Do not break:** preserve provider-switch authorization, OAuth endpoint
+selection, session clearing, sign-out, and the next-login behavior.
+
+**Verify:** focused TopNav and OAuth-provider UI Vitest suites;
+`cd demo_api_ui && npm run build`.
 
 ### 2026-09-30 — UC46 is numbered step 25 in Demo Steps
 

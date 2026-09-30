@@ -107,7 +107,6 @@ import CommandDock from "./CommandDock";
 import VerticalSwitcher from "./VerticalSwitcher";
 import QuickFlagsPill from "./QuickFlagsPill";
 import ThresholdControls from "./ThresholdControls";
-import OAuthProviderToggle from "./OAuthProviderToggle";
 import ElicitationDialog from "./ElicitationDialog";
 import UseCaseExplainModal from "./UseCaseExplainModal";
 import { shouldAutoOpenA2a, buildA2aExplainUc } from "./a2aAutoOpen";
@@ -557,6 +556,8 @@ export default function BankingAgent({
   // Freshest handleDemoStepSelect for the strip's event bridge (the listener
   // is registered once with [] deps, so it must read through a ref).
   const demoStepSelectRef = useRef(null);
+  /** Demo steps panel currently lives in a pop-out window; a step run must not close it. */
+  const demoStepsPoppedOutRef = useRef(false);
   // Same pattern for the guided Demo Track picks arriving from the /admin
   // page strip's DemoTrackAgentControl (agent-track-step-pick/-complete).
   const trackStepPickRef = useRef(null);
@@ -8379,8 +8380,10 @@ export default function BankingAgent({
 
   async function handleDemoStepSelect(uc, stepNumber, opts) {
     if (!uc) return;
-    setShowDemoSteps(false);
-    setFloatingDemoStepsOpen(false);
+    if (!demoStepsPoppedOutRef.current) {
+      setShowDemoSteps(false);
+      setFloatingDemoStepsOpen(false);
+    }
     setShowDiscovery(false);
     if (launchIdJagDemoStep(uc)) return;
     if (isAgentBlockedByConsentDecline()) {
@@ -10164,6 +10167,8 @@ export default function BankingAgent({
         persistOpenState={splitChrome ? null : showDemoSteps}
         showTrigger={false}
         showFloatingButton={!isInline}
+        placement={splitChrome ? "drawer" : "floating"}
+        onPopOutChange={(v) => { demoStepsPoppedOutRef.current = v; }}
         onOpenChange={(next) => {
           setShowDemoSteps(next);
           if (!next) setFloatingDemoStepsOpen(false);
@@ -10282,10 +10287,9 @@ export default function BankingAgent({
                   onOpenChange={setCommandDockOpen}
                 >
                   <div className="ba-header-tools cmd-dock-tools">
-                    {/* Dashboard top-bar controls — relocated into the dock on
-                        split-column. TopNav hides its copies on /dashboard +
-                        middle placement, so the gate must mirror that (splitChrome,
-                        NOT plain float mode) or the controls would appear twice. */}
+                    {/* Dashboard controls — relocated into the dock on
+                        split-column. The OAuth provider switch stays in TopNav
+                        so it remains available while this dock is collapsed. */}
                     {splitChrome && (
                       <>
                         <VerticalSwitcher variant="nav" />
@@ -10301,7 +10305,6 @@ export default function BankingAgent({
                             Reset Demo
                           </button>
                         </div>
-                        <OAuthProviderToggle />
                       </>
                     )}
                     {!pageOwnsAgentChrome && (

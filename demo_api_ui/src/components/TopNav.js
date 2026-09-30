@@ -373,9 +373,10 @@ export default function TopNav({ user, onLogout }) {
               needed because every OAuth config getter reads the provider
               lazily. Changing provider invalidates the current token chain,
               so the user is signed out after the switch. The component hides
-              itself if the BFF config endpoint is unreachable. Hidden on the
-              dashboard split-column layout (Command Dock hosts it). */}
-          {!dockOwnsDashboardControls && <OAuthProviderToggle />}
+              itself if the BFF config endpoint is unreachable. Keep it in the
+              shared top bar so it remains available when the dashboard agent
+              dock is collapsed. */}
+          <OAuthProviderToggle />
 
           {/* Theme toggle — always visible (outside the scroll area) so it never
               scrolls off, and available to every page since TopNav is app-wide. */}

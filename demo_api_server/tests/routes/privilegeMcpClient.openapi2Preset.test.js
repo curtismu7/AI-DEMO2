@@ -62,4 +62,13 @@ describe('privilege-mcp /state — openapi2 probe preset', () => {
     const preset = (res.body.presets || []).find((p) => OPENAPI2_PRESET.test(p.label || ''));
     expect(preset.url).toBe('https://gw.example.test/openapi2/mcp');
   });
+
+  it('offers a banking-openapi door beside it', async () => {
+    process.env.PRIVILEGE_MCPGW_URL = 'https://gw.example.test/some-app/mcp';
+    const res = await request(buildApp()).get('/api/privilege-mcp/state');
+    const preset = (res.body.presets || []).find((p) => /banking-openapi/.test(p.label || ''));
+    expect(preset).toBeDefined();
+    expect(preset.mode).toBe('privilege');
+    expect(preset.url).toBe('https://gw.example.test/banking-openapi/mcp');
+  });
 });

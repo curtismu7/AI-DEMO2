@@ -26,7 +26,6 @@ export default function UseCaseRunContextCard({ runContext }) {
   const launchedFromUseCases = runContext?.source === 'use-cases';
   const launchedFromDemoTrack = runContext?.source === 'demo-track';
   const launchedFromDemoSteps = runContext?.source === 'demo-steps';
-  const launchedFromDashboard = !launchedFromUseCases && !launchedFromDemoTrack && !launchedFromDemoSteps;
   const evidence = evidenceItems(runContext?.evidence);
 
   return (
@@ -60,16 +59,6 @@ export default function UseCaseRunContextCard({ runContext }) {
           <p className="ba-run-context-card__summary">
             This dashboard is executing the selected scenario and collecting the evidence shown below.
           </p>
-          <dl className="ba-run-context-card__facts">
-            <div>
-              <dt>Trigger</dt>
-              <dd>{runContext.triggerText || 'Dashboard interaction'}</dd>
-            </div>
-            <div>
-              <dt>Source</dt>
-              <dd>{launchedFromDemoTrack ? 'Demo Track' : launchedFromDemoSteps ? 'Demo Steps' : launchedFromDashboard ? 'Dashboard' : 'Use Cases'} → {runContext.useCaseLabel || runContext.useCaseId}</dd>
-            </div>
-          </dl>
           {evidence.length > 0 && (
             <div className="ba-run-context-card__evidence">
               <div className="ba-run-context-card__label">Evidence expected in this run</div>
