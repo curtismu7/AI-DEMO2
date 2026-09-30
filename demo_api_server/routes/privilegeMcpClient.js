@@ -1912,6 +1912,18 @@ router.get('/state', (req, res) => {
       url: privilegeDoorUrl('openapi2'),
     },
     {
+      // `banking-openapi`, the OpenAPI MCP Agentic App that DOES discover tools
+      // (call_api, get_endpoint, listUsers, list_endpoints — the first three
+      // are Ping's generic adapter tools, listUsers comes from the sidecar's
+      // simple-users spec). Backend is the demo_mcp_banking_rest sidecar on
+      // localhost:8080/mcp in the agentless-mcpgw pod, Auth Mode None.
+      // Pinned for the same reason as `openapi2`: it only reaches the picker
+      // through console discovery otherwise.
+      label: 'Privilege — banking-openapi (OpenAPI MCP app)',
+      mode: 'privilege',
+      url: privilegeDoorUrl('banking-openapi'),
+    },
+    {
       // THE Privilege-first MCP door: Privilege in front of the REAL PingGateway
       // (Agentic App `agent-gateway`, backend
       // ping-gateway.ping-devops-cmuir.svc.cluster.local:8080/mcp).
