@@ -88,12 +88,17 @@ ensure_entry "75faf632-fbf5-4715-a3b8-e82eda4fc663" \
   spiffe://bxfinance.demo/mcp-gateway docker:label:com.ai-demo.spiffe-workload:mcp-gateway
 ensure_entry "7f484bba-3c2a-428b-8114-0726e3f2d8a0" \
   spiffe://bxfinance.demo/mcp-server docker:label:com.ai-demo.spiffe-workload:mcp-server
+# Identity the SPIFFE -> PingFederate exchange presents (services/spiffePingfederateService.js).
+# Only that flow mints an SVID with this label; no compose service carries it.
+ensure_entry "d40c260d-e253-4db3-b646-d9a72093c128" \
+  spiffe://bxfinance.demo/ns/ai-agents/sa/workforce-ai-agent docker:label:com.ai-demo.spiffe-workload:workforce-agent
 
 for ENTRY_ID in \
   1239638f-e0d4-464c-b222-b5c9a603bad7 \
   45b76c4f-409b-41f4-8a87-d12743c75140 \
   75faf632-fbf5-4715-a3b8-e82eda4fc663 \
-  7f484bba-3c2a-428b-8114-0726e3f2d8a0; do
+  7f484bba-3c2a-428b-8114-0726e3f2d8a0 \
+  d40c260d-e253-4db3-b646-d9a72093c128; do
   spire-server entry show -socketPath "$SERVER_SOCKET" -entryID "$ENTRY_ID"
 done
 
@@ -105,3 +110,5 @@ verify_entry "75faf632-fbf5-4715-a3b8-e82eda4fc663" \
   spiffe://bxfinance.demo/mcp-gateway docker:label:com.ai-demo.spiffe-workload:mcp-gateway
 verify_entry "7f484bba-3c2a-428b-8114-0726e3f2d8a0" \
   spiffe://bxfinance.demo/mcp-server docker:label:com.ai-demo.spiffe-workload:mcp-server
+verify_entry "d40c260d-e253-4db3-b646-d9a72093c128" \
+  spiffe://bxfinance.demo/ns/ai-agents/sa/workforce-ai-agent docker:label:com.ai-demo.spiffe-workload:workforce-agent
