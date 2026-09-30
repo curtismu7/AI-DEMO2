@@ -237,6 +237,45 @@
   display: none;
 }
 
+/* Pair with Favorites on the dashboard; the dialog itself stays draggable
+   and resizable in the content area. */
+.topnav .topnav-demo-steps-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  flex-shrink: 0;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.topnav .topnav-demo-steps-btn:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+.topnav-demo-steps-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.topnav .topnav-demo-steps-btn:focus-visible {
+  outline: 2px solid var(--th-status-info);
+  outline-offset: 2px;
+}
+
 /* Items in the scroll row must not shrink — a squashed item paints its
    nowrap content over its neighbors (overflow is visible on them). Keeping
    them full-size makes the row scroll instead, which is its designed job. */

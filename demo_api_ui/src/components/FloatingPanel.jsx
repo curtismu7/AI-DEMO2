@@ -308,7 +308,15 @@ export default function FloatingPanel({
           </button>
           <button className="fp-btn" onClick={handlePopOut} title="Pop out to new window" aria-label={`Pop out ${title}`}>🪟</button>
           {onClose && (
-            <button type="button" className="fp-btn" onClick={onClose} title="Close">✕</button>
+            <button
+              type="button"
+              className="fp-btn"
+              onClick={onClose}
+              title="Close"
+              aria-label="Close panel"
+            >
+              ✕
+            </button>
           )}
         </div>
       </div>

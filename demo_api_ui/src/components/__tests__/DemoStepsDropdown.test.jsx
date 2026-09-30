@@ -4,7 +4,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import DemoStepsDropdown from '../DemoStepsDropdown';
 import apiClient from '../../services/apiClient';
 import {
@@ -157,19 +157,26 @@ describe('DemoStepsDropdown', () => {
     expect(onStopAgentClick).toHaveBeenCalledTimes(1);
   });
 
-  it('renders the floating panel close and resize affordances when open', async () => {
+  it('closes from the title bar and keeps the pop-out and resize affordances when open', async () => {
+    const onOpenChange = vi.fn();
     render(
       <DemoStepsDropdown
         open
-        onOpenChange={() => {}}
+        onOpenChange={onOpenChange}
         onSelect={() => {}}
       />,
     );
     await waitFor(() => expect(screen.getByTestId('demo-steps-popout')).toBeInTheDocument());
 
-    expect(screen.getByTestId('demo-steps-close')).toBeInTheDocument();
+    const panel = screen.getByRole('dialog', { name: 'Demo steps' });
+    const closeButton = within(panel).getByRole('button', { name: 'Close panel', exact: true });
+    expect(closeButton).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Pop out Demo Steps' })).toBeInTheDocument();
     expect(screen.getByRole('separator', { name: 'Resize east' })).toBeInTheDocument();
     expect(screen.getByTestId('demo-steps-popout')).toHaveAttribute('data-placement', 'floating');
+
+    fireEvent.click(closeButton);
+    expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
   it('launches Agent Identity Academy from Demo steps', async () => {

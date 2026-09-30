@@ -211,6 +211,14 @@ deploy() {
   kubectl apply -f "$SCRIPT_DIR/72-rag-stack.yaml"           # RAG (starts by default; use `rag off` to stop)
   # BFF (token custodian)
   kubectl apply -f "$SCRIPT_DIR/20-api-server-deployment.yaml"
+  # Local OrbStack's PF listener runs as a host Docker container on :9031.
+  # The overlay preserves the public issuer hostname while routing BFF traffic
+  # to the host gateway, trusts the mkcert CA, and allows only BFF→PF egress.
+  if [[ "$(kubectl config current-context)" == "orbstack" && "$NS" == "ai-demo" ]]; then
+    kubectl apply -f "$SCRIPT_DIR/overlays/orbstack-pf/pf-egress-policy.yaml"
+    kubectl patch deployment/demo-api-server -n "$NS" --type=strategic \
+      --patch-file "$SCRIPT_DIR/overlays/orbstack-pf/bff-host-aliases.yaml"
+  fi
   # Gateway + agent runtimes (mcp-gateway starts at replicas:0; demo-sync scales it)
   kubectl apply -f "$SCRIPT_DIR/60-mcp-gateway-deployment.yaml"
   kubectl apply -f "$SCRIPT_DIR/71-ping-gateway-deployment.yaml"   # real PingGateway (IG)

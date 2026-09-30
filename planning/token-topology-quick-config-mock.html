@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Quick Config · Token topology mock</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --page: #0b1017;
+      --panel: #111923;
+      --panel-raised: #172231;
+      --panel-deep: #0c121b;
+      --border: #334155;
+      --text: #f1f5f9;
+      --muted: #cbd5e1;
+      --subtle: #94a3b8;
+      --blue: #60a5fa;
+      --green: #4ade80;
+      --amber: #fbbf24;
+      --mono: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font: 14px/1.45 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--page);
+      color: var(--text);
+    }
+
+    * { box-sizing: border-box; }
+    body { min-width: 360px; min-height: 100vh; margin: 0; background: var(--page); }
+    button, select { color: inherit; font: inherit; }
+    button:focus-visible, select:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+    .page { width: min(1440px, 100%); min-height: 100vh; margin: 0 auto; padding: 0 22px 30px; }
+    .page-header {
+      display: flex; align-items: center; justify-content: space-between; gap: 18px;
+      min-height: 56px; border-bottom: 1px solid #1e293b; color: var(--muted); font-size: 12px;
+    }
+    .breadcrumbs { display: flex; align-items: center; gap: 9px; }
+    .breadcrumbs strong { color: var(--text); font-size: 13px; }
+    .page-state { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+    .run-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+
+    .columns { display: grid; grid-template-columns: minmax(0, 1.12fr) minmax(320px, .88fr); gap: 16px; margin: 18px 0 20px; }
+    .panel { min-width: 0; overflow: hidden; border: 1px solid var(--border); border-radius: 11px; background: var(--panel); }
+    .panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; padding: 11px 15px; border-bottom: 1px solid var(--border); }
+    .panel-heading h1, .panel-heading h2 { margin: 0; font-size: 14px; line-height: 1.25; }
+    .panel-heading small { color: var(--subtle); font-size: 11px; }
+
+    .agent-panel { display: flex; min-height: 274px; flex-direction: column; }
+    .agent-status { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: 11px; }
+    .agent-status .run-dot { width: 7px; height: 7px; }
+    .conversation { display: flex; flex: 1; flex-direction: column; justify-content: center; gap: 12px; padding: 18px; }
+    .message { max-width: 84%; padding: 10px 12px; border: 1px solid #2b3b4e; border-radius: 9px; background: #121d2a; }
+    .message.user { align-self: flex-end; border-color: #244974; background: #142943; }
+    .message-label { display: block; margin-bottom: 4px; color: var(--subtle); font-size: 10px; }
+    .message p { margin: 0; color: var(--text); font-size: 12px; }
+    .composer { display: flex; align-items: center; gap: 10px; margin: 0 14px 14px; padding: 9px 11px; border: 1px solid #344458; border-radius: 7px; color: var(--subtle); font-size: 12px; }
+    .composer span { margin-left: auto; color: #bfdbfe; font-size: 11px; }
+
+    .config-panel { min-height: 274px; }
+    .config-content { padding: 14px 15px 16px; }
+    .config-intro { margin: 0 0 14px; color: var(--muted); font-size: 12px; }
+    .config-label { display: block; margin: 14px 0 7px; color: var(--subtle); font-size: 11px; }
+    .config-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+    .config-option { min-height: 48px; padding: 8px 9px; border: 1px solid #3a4b60; border-radius: 6px; background: var(--panel-raised); text-align: left; }
+    .config-option strong { display: block; font-size: 11px; }
+    .config-option span { display: block; margin-top: 2px; color: var(--subtle); font-size: 10px; }
+    .config-option.selected { border-color: var(--blue); background: #142b45; }
+    .surface-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0 0; border-top: 1px solid #263445; }
+    .surface-row label { font-size: 12px; font-weight: 650; }
+    .surface-row select { min-height: 33px; max-width: 190px; padding: 5px 9px; border: 1px solid #3a4b60; border-radius: 6px; background: #121d2a; font-size: 11px; }
+
+    .topology { overflow: hidden; border: 1px solid #3b5068; border-radius: 11px; background: var(--panel); box-shadow: 0 14px 34px #0003; }
+    .topology-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; min-height: 58px; padding: 10px 15px; border-bottom: 1px solid var(--border); }
+    .topology-toolbar h2 { margin: 0 auto 0 0; font-size: 16px; }
+    .run-state { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: 11px; white-space: nowrap; }
+    .topology-toolbar button { min-height: 32px; padding: 5px 9px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-raised); font-size: 11px; cursor: pointer; }
+    .topology-toolbar button.primary { border-color: #2563eb; background: #1d4ed8; }
+    .run-context { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 20px; padding: 9px 15px; border-bottom: 1px solid #273444; background: #0f1722; }
+    .run-context strong { font-size: 11px; }
+    .run-context span { color: var(--muted); font-size: 10px; }
+    .context-label { color: var(--subtle) !important; font: 10px var(--mono) !important; text-transform: uppercase; }
+
+    .map-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 7px 12px; padding: 11px 15px 9px; }
+    .map-heading strong { font-size: 12px; }
+    .map-heading span { color: var(--muted); font-size: 10px; }
+    .map-heading .map-hint { margin-left: auto; color: var(--subtle); }
+    .path-viewport { min-width: 0; overflow-x: auto; overflow-y: hidden; background-color: var(--panel-deep); scrollbar-color: #50657d #111923; }
+    .path-track {
+      display: flex; align-items: center; gap: 10px; width: max-content; min-width: 100%; min-height: 185px; padding: 18px 15px;
+      background-image: radial-gradient(#263548 1px, transparent 1px); background-size: 22px 22px;
+    }
+    .step {
+      display: flex; flex: 0 0 190px; flex-direction: column; min-height: 132px; padding: 12px;
+      border: 1px solid #475569; border-radius: 8px; background: var(--panel-raised); text-align: left;
+      cursor: pointer; box-shadow: 0 5px 14px #0004;
+    }
+    .step:hover { border-color: #93c5fd; }
+    .step[aria-pressed="true"] { border: 2px solid var(--blue); box-shadow: 0 0 0 3px #3b82f633, 0 5px 14px #0004; }
+    .step-status { display: flex; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 10px; }
+    .step-status b { color: var(--green); font-weight: 700; }
+    .step[aria-pressed="true"] .step-status b { color: var(--amber); }
+    .step strong { margin: 12px 0 5px; font-size: 13px; line-height: 1.25; }
+    .step small { margin-top: auto; color: var(--muted); font: 10px var(--mono); }
+    .flow-arrow { flex: 0 0 auto; color: var(--blue); font-size: 20px; }
+
+    .step-details { display: grid; grid-template-columns: minmax(190px, .7fr) minmax(0, 1.3fr); gap: 18px; padding: 14px 15px 16px; border-top: 1px solid var(--border); background: #121b27; }
+    .detail-heading { min-width: 0; }
+    .detail-kicker { color: var(--subtle); font: 10px var(--mono); text-transform: uppercase; }
+    .detail-heading h3 { margin: 4px 0 5px; font-size: 14px; }
+    .detail-heading p { margin: 0; color: var(--muted); font-size: 11px; }
+    .detail-content { min-width: 0; }
+    .detail-tabs { display: flex; gap: 5px; margin-bottom: 9px; }
+    .detail-tabs button { padding: 5px 8px; border: 0; border-radius: 5px; background: transparent; color: var(--muted); font-size: 10px; cursor: pointer; }
+    .detail-tabs button[aria-selected="true"] { background: #1d3552; color: #bfdbfe; }
+    .detail-panel { min-height: 48px; padding: 10px 11px; border: 1px solid #2d3d50; border-radius: 6px; background: #0e1620; }
+    .detail-panel p { margin: 0; font-size: 11px; overflow-wrap: anywhere; }
+    .detail-claims { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0; }
+    .detail-claims div { min-width: 0; }
+    .detail-claims dt { margin-bottom: 3px; color: #93c5fd; font: 10px var(--mono); }
+    .detail-claims dd { margin: 0; font: 10px var(--mono); overflow-wrap: anywhere; }
+    .detail-panel pre { margin: 0; color: #dbeafe; font: 10px/1.5 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+    .evidence { padding: 10px 15px; border-top: 1px solid var(--border); color: var(--muted); }
+    .evidence summary { width: fit-content; color: var(--text); cursor: pointer; font-size: 11px; font-weight: 650; }
+    .evidence p { margin: 7px 0 1px; font-size: 11px; }
+
+    @media (max-width: 780px) {
+      .page { padding-inline: 14px; }
+      .columns { grid-template-columns: minmax(0, 1fr); }
+      .agent-panel, .config-panel { min-height: auto; }
+      .agent-panel { min-height: 246px; }
+    }
+    @media (max-width: 520px) {
+      .page { padding-inline: 10px; }
+      .page-header { min-height: 48px; }
+      .page-state { display: none; }
+      .columns { gap: 11px; margin: 12px 0 14px; }
+      .panel-heading, .config-content { padding-inline: 12px; }
+      .conversation { padding: 14px 12px; }
+      .config-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .topology-toolbar { padding-inline: 11px; }
+      .topology-toolbar h2 { flex-basis: 100%; }
+      .run-context { padding-inline: 11px; }
+      .map-heading { align-items: flex-start; flex-direction: column; padding-inline: 11px; }
+      .map-heading .map-hint { display: none; }
+      .path-track { padding-inline: 11px; }
+      .step-details { grid-template-columns: minmax(0, 1fr); gap: 10px; padding-inline: 11px; }
+      .detail-claims { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="page-header">
+      <nav class="breadcrumbs" aria-label="Breadcrumb">
+        <span>Agent workspace</span><span aria-hidden="true">/</span><strong>Quick Config</strong>
+      </nav>
+      <span class="page-state"><i class="run-dot" aria-hidden="true"></i>Run in progress</span>
+    </header>
+
+    <section class="columns" aria-label="Quick Config and agent">
+      <section class="panel agent-panel" aria-label="Agent conversation">
+        <header class="panel-heading">
+          <h1>Agent</h1>
+          <span class="agent-status"><i class="run-dot" aria-hidden="true"></i>Ready</span>
+        </header>
+        <div class="conversation">
+          <div class="message user">
+            <span class="message-label">You</span>
+            <p>Find the customer’s order status.</p>
+          </div>
+          <div class="message">
+            <span class="message-label">Agent</span>
+            <p>I’m checking the order service with delegated access.</p>
+          </div>
+        </div>
+        <div class="composer" aria-label="Message input mock">Ask the agent…<span>Send</span></div>
+      </section>
+
+      <section class="panel config-panel" aria-label="Quick Config controls">
+        <header class="panel-heading">
+          <h2>Quick Config</h2>
+          <small>Demo controls</small>
+        </header>
+        <div class="config-content">
+          <p class="config-intro">Choose a trace view, then tune only that view.</p>
+          <span class="config-label">Trace evidence views</span>
+          <div class="config-options" role="group" aria-label="Trace evidence views">
+            <button class="config-option" type="button"><strong>Movie reel</strong><span>Step by step</span></button>
+            <button class="config-option" type="button"><strong>Sequence</strong><span>Message flow</span></button>
+            <button class="config-option selected" type="button" aria-pressed="true"><strong>Token topology</strong><span>Selected view</span></button>
+          </div>
+          <div class="surface-row">
+            <label for="surface">Token topology</label>
+            <select id="surface" aria-label="Token topology display location">
+              <option selected>Embedded below workspace</option>
+              <option>Pop-out window</option>
+            </select>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <section class="topology" aria-label="Token topology for the active run">
+      <header class="topology-toolbar">
+        <h2>Token topology</h2>
+        <span class="run-state"><i class="run-dot" aria-hidden="true"></i>Live · 8 of 14 steps</span>
+        <button type="button">Follow current step</button>
+        <button type="button">Fit full path</button>
+        <button class="primary" type="button">Pause</button>
+      </header>
+
+      <div class="run-context" aria-label="Run context">
+        <span class="context-label">Delegation chain</span>
+        <strong>Customer request → protected MCP tool</strong>
+        <span>Current step: Token exchange</span>
+        <span>Mode: PingOne</span>
+      </div>
+
+      <div class="map-heading">
+        <strong>Observed token path</strong>
+        <span>Scroll horizontally to follow the full run.</span>
+        <span class="map-hint">Select a step to see its details below</span>
+      </div>
+      <div class="path-viewport" tabindex="0" aria-label="Scrollable token path">
+        <div class="path-track">
+          <button class="step" type="button" data-step="request" aria-pressed="false">
+            <span class="step-status"><span>01 · Browser</span><b>Done</b></span>
+            <strong>User request</strong>
+            <small>Prompt received</small>
+          </button>
+          <span class="flow-arrow" aria-hidden="true">→</span>
+          <button class="step" type="button" data-step="agent" aria-pressed="false">
+            <span class="step-status"><span>02 · BFF</span><b>Done</b></span>
+            <strong>Agent processing</strong>
+            <small>Tools selected</small>
+          </button>
+          <span class="flow-arrow" aria-hidden="true">→</span>
+          <button class="step" type="button" data-step="exchange" aria-pressed="true">
+            <span class="step-status"><span>08 · PingOne</span><b>Current</b></span>
+            <strong>Token exchange</strong>
+            <small>RFC 8693</small>
+          </button>
+          <span class="flow-arrow" aria-hidden="true">→</span>
+          <button class="step" type="button" data-step="authorize" aria-pressed="false">
+            <span class="step-status"><span>09 · Gateway</span><b>Waiting</b></span>
+            <strong>Authorization decision</strong>
+            <small>Policy check</small>
+          </button>
+          <span class="flow-arrow" aria-hidden="true">→</span>
+          <button class="step" type="button" data-step="tool" aria-pressed="false">
+            <span class="step-status"><span>10 · MCP</span><b>Waiting</b></span>
+            <strong>Tool call</strong>
+            <small>Protected resource</small>
+          </button>
+        </div>
+      </div>
+
+      <section class="step-details" aria-live="polite" aria-label="Selected step details">
+        <div class="detail-heading">
+          <span class="detail-kicker" id="detail-kicker">Step 08 · PingOne · Current</span>
+          <h3 id="detail-title">Token exchange</h3>
+          <p id="detail-summary">Exchange the subject token for a token scoped to the next resource.</p>
+        </div>
+        <div class="detail-content">
+          <nav class="detail-tabs" role="tablist" aria-label="Selected step information">
+            <button type="button" role="tab" aria-selected="true" data-tab="details">Details</button>
+            <button type="button" role="tab" aria-selected="false" data-tab="claims">Claims</button>
+            <button type="button" role="tab" aria-selected="false" data-tab="request">Request</button>
+            <button type="button" role="tab" aria-selected="false" data-tab="raw">Raw</button>
+          </nav>
+          <div class="detail-panel" id="detail-panel" role="tabpanel" tabindex="0">
+            <p>Exchanges the user token for a resource-scoped token.</p>
+          </div>
+        </div>
+      </section>
+
+      <details class="evidence">
+        <summary>Related A2A evidence</summary>
+        <p>Identity and wire-protocol paths for this run appear here when present.</p>
+      </details>
+    </section>
+  </main>
+
+  <script>
+    const steps = {
+      request: {
+        kicker: "Step 01 · Browser · Done",
+        title: "User request",
+        summary: "The signed-in user asks the agent to look up an order.",
+        details: "The request starts in the browser session and is passed to the agent.",
+        claims: { actor: "signed-in user", audience: "agent", scope: "orders:read" },
+        request: "POST /api/agent/message\nPrompt: Find the customer’s order status.",
+        raw: '{\n  "step": "user_request",\n  "status": "complete"\n}'
+      },
+      agent: {
+        kicker: "Step 02 · BFF · Done",
+        title: "Agent processing",
+        summary: "The agent selects the order lookup tool for the request.",
+        details: "The BFF routes the user request and records the selected tool call.",
+        claims: { actor: "agent-client", audience: "orders-mcp", scope: "orders:read" },
+        request: "tool: orders.lookup\ninput: { customer: current user }",
+        raw: '{\n  "step": "agent_processing",\n  "tool": "orders.lookup"\n}'
+      },
+      exchange: {
+        kicker: "Step 08 · PingOne · Current",
+        title: "Token exchange",
+        summary: "Exchange the subject token for a token scoped to the next resource.",
+        details: "Exchanges the user token for a resource-scoped token.",
+        claims: { aud: "mcp-gateway", scope: "orders:read", act: "agent-client" },
+        request: "grant_type: token-exchange\nrequested_token_type: access_token\naudience: mcp-gateway",
+        raw: '{\n  "step": "token_exchange",\n  "protocol": "RFC 8693",\n  "status": "current"\n}'
+      },
+      authorize: {
+        kicker: "Step 09 · Gateway · Waiting",
+        title: "Authorization decision",
+        summary: "The gateway checks the delegated token against resource policy.",
+        details: "Policy evaluates the token audience, scope, and delegated actor before forwarding.",
+        claims: { aud: "mcp-gateway", scope: "orders:read", decision: "pending" },
+        request: "POST /mcp\nmethod: tools/call\ntool: orders.lookup",
+        raw: '{\n  "step": "authorization",\n  "status": "waiting"\n}'
+      },
+      tool: {
+        kicker: "Step 10 · MCP · Waiting",
+        title: "Tool call",
+        summary: "The protected order service receives the authorized request.",
+        details: "The MCP server returns the order status to the agent after authorization succeeds.",
+        claims: { resource: "orders-mcp", tool: "orders.lookup", status: "waiting" },
+        request: "tools/call\nname: orders.lookup\narguments: { customer: current user }",
+        raw: '{\n  "step": "tool_call",\n  "status": "waiting"\n}'
+      }
+    };
+
+    let selectedStep = "exchange";
+    let selectedTab = "details";
+    const panel = document.querySelector("#detail-panel");
+
+    function renderPanel() {
+      const step = steps[selectedStep];
+      panel.replaceChildren();
+      if (selectedTab === "details") {
+        const text = document.createElement("p");
+        text.textContent = step.details;
+        panel.append(text);
+      } else if (selectedTab === "claims") {
+        const list = document.createElement("dl");
+        list.className = "detail-claims";
+        for (const [key, value] of Object.entries(step.claims)) {
+          const pair = document.createElement("div");
+          const name = document.createElement("dt");
+          const content = document.createElement("dd");
+          name.textContent = key;
+          content.textContent = value;
+          pair.append(name, content);
+          list.append(pair);
+        }
+        panel.append(list);
+      } else {
+        const content = document.createElement("pre");
+        content.textContent = selectedTab === "request" ? step.request : step.raw;
+        panel.append(content);
+      }
+    }
+
+    document.querySelectorAll(".step").forEach((button) => {
+      button.addEventListener("click", () => {
+        selectedStep = button.dataset.step;
+        document.querySelectorAll(".step").forEach((item) => item.setAttribute("aria-pressed", String(item === button)));
+        document.querySelector("#detail-kicker").textContent = steps[selectedStep].kicker;
+        document.querySelector("#detail-title").textContent = steps[selectedStep].title;
+        document.querySelector("#detail-summary").textContent = steps[selectedStep].summary;
+        renderPanel();
+      });
+    });
+
+    document.querySelectorAll("[data-tab]").forEach((button) => {
+      button.addEventListener("click", () => {
+        selectedTab = button.dataset.tab;
+        document.querySelectorAll("[data-tab]").forEach((item) => item.setAttribute("aria-selected", String(item === button)));
+        renderPanel();
+      });
+    });
+  </script>
+</body>
+</html>
