@@ -6,7 +6,7 @@
 
 **Architecture:** App API operations go through authenticated BFF routes. The React UI opens PingOne Verify's hosted web experience and uses the official Recognize Web SDK directly. The BFF creates and checks Verify transactions using the PingOne Management API token provider already in the server. After an authoritative Verify `SUCCESS`, the browser may start Recognize. The BFF issues Recognize's short-lived user-authorization JWT and verifies SDK-signed enrollment/authentication results using the vendor's documented backend verification contract. Transfers continue to use the existing immutable consent challenge and OTP fallback; a browser callback alone never approves a challenge.
 
-**Tech Stack:** Node.js 22+ / Express / CommonJS BFF, existing LMDB stores, React / TypeScript UI, PingOne Verify REST API, PingOne Recognize Web SDK and its supported backend API.
+**Tech Stack:** Node.js 22+ / Express / CommonJS BFF, existing LMDB stores, React JSX UI, PingOne Verify REST API, PingOne Recognize Web SDK and its supported backend API.
 
 **Spec:** This plan's “User flows,” “Trust and data rules,” and “Acceptance criteria” sections are the implementation specification.
 
@@ -26,7 +26,7 @@ Use direct product integration in the existing React/BFF app; do not route these
 - The browser necessarily navigates to the Verify hosted experience and the Recognize Web SDK communicates with the Recognize service. It never receives Management API credentials, Recognize API keys, private signing keys, or authority to mark a transaction verified/approved.
 - DaVinci Verify and Recognize connectors remain a separate future architecture option, not a dependency or fallback in this implementation plan.
 
-## Current Repository State
+## Repository Context Before Implementation
 
 - `demo_api_server/routes/recognize.js` currently accepts live/image enrollment and unenrollment requests. Do not keep the image payload path as the browser integration.
 - `demo_api_server/services/recognizeService.js` and the existing Recognize branch in `transactionConsentChallenge.js` use a session/API shape and `X-API-Key` assumptions from an older design. Reconcile these with the current official Web SDK and vendor backend-operation contract before reusing them.
@@ -34,6 +34,27 @@ Use direct product integration in the existing React/BFF app; do not route these
 - The BFF already exposes `/api/transactions/consent-challenge/:challengeId/verify-recognize` and an OTP fallback route. Reuse the established challenge lifecycle after reviewing its ownership, expiry, and state checks.
 - `pingOneClientService.getManagementToken()` obtains Management API credentials server-side. Use this for Verify, subject to the worker app having the Verify permissions.
 - No PingOne Verify workflow is currently present in the app.
+
+## Implementation Status — 2026-09-29
+
+### Verify
+
+- Implemented the authenticated BFF create/status routes, Management API calls, per-user LMDB ownership records, disabled-by-default feature flag, and profile handoff/polling UI.
+- The server accepts only the validated PingOne issuer and customer user UUID as the app-to-PingOne mapping. It validates PingOne's documented `_links.user.href` relation against the configured API region/environment and allowlists PingOne hosted verification domains. The browser cannot choose the user, redirect destination, or result status.
+- Only an authoritative PingOne `transactionStatus.status === SUCCESS` result records `verifiedAt`. This does not enable Recognize until its backend validation contract is implemented.
+- The feature remains off until Verify is enabled in the target non-production environment, a policy is selected, worker permissions are granted, and the canonical HTTPS app origin is configured.
+
+### Recognize
+
+- The old guessed `X-API-Key` endpoints, raw-image enrollment route, unversioned SDK loader, and admin API-key configuration UI have been retired. Legacy server routes fail closed, and a previously saved transfer mode resolves to the existing one-time OTP flow.
+- The direct React Web SDK and BFF signed-result verifier are not enabled. Public Web SDK documentation available during implementation does not specify enough of the tenant's backend verification and one-operation binding contract to authorize enrollment or a transfer challenge safely.
+- The repository-local `pingone/pingone-recognize/SKILL.md` still contains the retired protocol examples. Do not reuse its endpoints, headers, CDN URL, or callback assumptions for Tasks 4–5; this plan and `docs/ENV.md` carry the current gate.
+- Before implementing Tasks 4–5, obtain the Recognize tenant/customer name, regional service URL, approved package/version access, user-authorization/JWKS setup, and exact signed-result validation contract. See “External Setup Gate” and `docs/ENV.md`.
+
+### Deployment
+
+- No PingOne tenant was provisioned or changed, no real identity evidence was used, and no environment has been enabled or deployed. Keep the deployment gates below in place.
+- Focused Verify/contract-gate tests and the UI build are recorded below. Broader suite and hygiene results are also recorded there; resolve the noted runner and repository-baseline issues before treating this as rollout-ready.
 
 ## User Flows
 
@@ -90,7 +111,7 @@ Complete these checks in a non-production PingOne/Recognize tenant before applic
 | `demo_api_server/services/lmdb/verifyTransactionStore.lmdb.js` | Create | Persist per-user Verify transaction ID, PingOne user ID, normalized status, expiry, and verified timestamp only. |
 | `demo_api_server/routes/verify.js` | Create | Authenticated create/status routes with transaction ownership checks. |
 | `demo_api_server/services/configStore.js` | Modify | Add the Verify policy ID and a default-off Verify feature flag; reuse the existing PingOne environment, region, and worker credentials. Add/retain dedicated server-only Recognize signing config only after the key-management contract is settled. |
-| `demo_api_server/.env.example` | Modify | Document new non-secret Verify/Recognize config keys and secret names without values. |
+| `demo_api_server/env.example` | Modify | Document new non-secret Verify config keys without values. |
 | `docs/ENV.md` | Modify | Document config source, secrecy, and local setup requirements. |
 | `demo_api_server/server.js` | Modify | Mount the Verify router and a public Recognize JWKS endpoint that exposes public keys only, if the existing server has no suitable endpoint. |
 | `demo_api_server/routes/recognize.js` | Modify | Replace raw-image/client-assertion enrollment with start/complete APIs that use an authenticated identity and signed SDK result. |
@@ -126,23 +147,24 @@ Complete these checks in a non-production PingOne/Recognize tenant before applic
 
 **Files:** `demo_api_server/services/verifyService.js`, `demo_api_server/services/lmdb/verifyTransactionStore.lmdb.js`, `demo_api_server/services/configStore.js`, `demo_api_server/tests/verifyService.test.js`.
 
-- [ ] Write failing service/store tests for create, read, allowed status normalization, missing policy/config, upstream timeout/error, per-user isolation, and expiry cleanup.
-- [ ] Implement Verify `POST /v1/environments/{environmentID}/users/{userID}/verifyTransactions` with `verifyPolicy.id` and a fixed canonical redirect URL. Use `pingOneClientService.getManagementToken()` and the environment/region already configured in the BFF.
-- [ ] Implement status read from the user-scoped `verifyTransactions/{transactionID}` resource. Map only documented terminal and pending states; preserve `SUCCESS` as the sole automatic enrollment gate.
-- [ ] Implement the LMDB record with app user ID, PingOne user ID, Verify transaction ID, normalized status, `expiresAt`, and `verifiedAt`. Do not store request PII, provider response bodies, images, or credentials.
-- [ ] Make local lookup require both the authenticated app user and their PingOne user ID. Expire records at the provider expiry plus only the minimum operational cleanup interval.
-- [ ] Run `cd demo_api_server && CI=true npx jest tests/verifyService.test.js --forceExit` after dependencies are installed.
+- [x] Write failing service/store tests for create, read, allowed status normalization, missing policy/config, upstream timeout/error, per-user isolation, and expiry cleanup.
+- [x] Implement Verify `POST /v1/environments/{environmentID}/users/{userID}/verifyTransactions` with `verifyPolicy.id` and a fixed canonical redirect URL. Use `pingOneClientService.getManagementToken()` and the environment/region already configured in the BFF.
+- [x] Implement status read from the user-scoped `verifyTransactions/{transactionID}` resource. Map only documented terminal and pending states; preserve `SUCCESS` as the sole automatic enrollment gate.
+- [x] Implement the LMDB record with app user ID, PingOne user ID, Verify transaction ID, normalized status, `expiresAt`, and `verifiedAt`. Do not store request PII, provider response bodies, images, or credentials.
+- [x] Make local lookup require both the authenticated app user and their PingOne user ID. Expire records at the provider expiry plus only the minimum operational cleanup interval.
+- [x] Run the Verify service/store tests after dependencies are installed.
 
 ### Task 3: Expose authenticated Verify API and onboarding handoff
 
 **Files:** `demo_api_server/routes/verify.js`, `demo_api_server/server.js`, `demo_api_server/routes/featureFlags.js`, `demo_api_ui/src/pages/HostedRegistrationPage.jsx` or authenticated customer profile, its focused page test, `demo_api_ui/src/components/Profile.js`.
 
-- [ ] Write failing route tests for unauthenticated denial, create/status success, attempt to read another customer's transaction, forged return URL/status, terminal status, and expired transaction.
-- [ ] Add `POST /api/verify/transactions` returning `{ id, webVerificationUrl, expiresAt, status }`; derive user identity server-side and persist ownership before returning the handoff URL.
-- [ ] Add `GET /api/verify/transactions/:transactionId` returning only `{ id, status, expiresAt, verifiedAt, canEnrollRecognize }` after an authoritative provider read. Never accept a client status as an update.
-- [ ] Add onboarding/profile UI that opens the returned hosted URL, resumes after redirect, polls with bounded backoff, renders pending/success/failure/expired states, and only exposes Recognize after BFF-confirmed `SUCCESS`.
-- [ ] Add `pingone_verify_enabled` default false; avoid showing the flow when configuration is incomplete or feature is disabled. Keep public signup unauthenticated and do not pass unverified PII through it.
-- [ ] Run `cd demo_api_server && CI=true npx jest tests/verifyRoutes.test.js --forceExit` and `cd demo_api_ui && npm run test:unit && npm run build`.
+- [x] Write failing route tests for unauthenticated denial, create/status success, attempt to read another customer's transaction, forged return URL/status, terminal status, and expired transaction.
+- [x] Add `POST /api/verify/transactions` returning `{ id, webVerificationUrl, expiresAt, status }`; derive user identity server-side and persist ownership before returning the handoff URL.
+- [x] Add `GET /api/verify/transactions/:transactionId` returning only `{ id, status, expiresAt, verifiedAt, canEnrollRecognize }` after an authoritative provider read. Never accept a client status as an update.
+- [x] Add authenticated profile UI that opens the returned hosted URL, resumes after redirect/reload, polls with bounded backoff, and renders pending/success/failure/expired states.
+- [ ] Expose Recognize enrollment only after BFF-confirmed `SUCCESS` and its confirmed server-side result-validation contract; this remains gated in this implementation.
+- [x] Add `pingone_verify_enabled` default false; avoid showing the flow when configuration is incomplete or feature is disabled. Keep public signup unauthenticated and do not pass unverified PII through it.
+- [x] Run focused Verify BFF tests and the UI unit/build checks.
 
 ### Task 4: Replace the Recognize assumed contract with supported Web SDK flows
 
@@ -179,6 +201,17 @@ Complete these checks in a non-production PingOne/Recognize tenant before applic
 - [ ] Run `cd demo_api_server && CI=true npm test -- --forceExit`, `cd demo_api_ui && npm run test:unit && npm run build`, and repository checks required for touched surfaces. For any UI edit, preserve the project's emoji allowlist and run the UI build.
 - [ ] Before running service checks, run `npm ci` in each service whose dependencies are missing; do not let `npx` install an unpinned toolchain.
 - [ ] Deploy only to the local Docker stack under current repository policy. Do not run `docker compose` from the worktree; use `npm run serve:worktree here` when the shared stack must serve worktree code. Any remote production deployment needs separate explicit authorization and a production-specific release plan.
+
+## Verification Record — 2026-09-29
+
+- **Focused BFF:** `CI=true npx jest tests/verifyRoutes.test.js tests/verifyService.test.js tests/verifyTransactionStore.test.js tests/featureFlags.pingoneVerify.test.js tests/recognizeRoutes.contractGate.test.js src/__tests__/recognizeService.test.js src/__tests__/recognizeConsent.regression.test.js --runInBand --forceExit` — 7 suites, 40 tests passed. `node --check` passed for the changed BFF entry point, auth middleware, Verify route/service, and Recognize service.
+- **Focused UI:** `npm run test:unit -- --run src/components/VerifyCard.test.jsx src/__tests__/FeatureFlagsPage.test.js` — 2 files, 17 tests passed. `npm run build` passed. Vite reported the existing missing local mkcert files and a large-chunk warning; the build completed successfully.
+- **Full UI attempt:** `npm run test:unit && npm run build` ran batches 1–53 of 59 with passing tests, then the memory guard stopped Vitest when its `ps` process-inspection command received SIGTERM. Reported peak RSS was 1.80 GB against a 4.00 GB limit. Since Vitest did not finish, this is not a passing full-suite result; the chained build was run separately and passed.
+- **Full BFF attempt:** 1,129 suites passed; 5 suites failed and 2 were skipped (12,707 tests passed, 6 failed, 123 skipped). The five failed suites were rerun individually and each passed: scope integration (49), agent invoke (26), privilege facade link (21), runtime settings API (16), and rotation container paths (9). Treat the full run as flaky/inconclusive, not fully green.
+- **Repository checks:** `npm run authz:verify` passed (81 use cases / 238 routes), and `npm run topology:verify` passed all 10 steps. `npm run hygiene:check` stopped at the mock-drift preflight with 1,744 findings; no hygiene pass is claimed.
+- **Rendered contrast:** headless Chromium checked 8 Verify/profile text elements in each light and dark theme; no contrast failures were found.
+- **Diff hygiene:** `git diff --check` passed. No PingOne tenant was provisioned or changed, and nothing was deployed.
+- **Remaining rollout blockers:** Confirm the external setup gates, implement Tasks 4–5 only after the tenant-specific Recognize signed-result and one-operation binding contract is documented, resolve or classify the broader-check failures, and complete the rollout checklist before enabling either production flow.
 
 ## Acceptance Criteria
 
