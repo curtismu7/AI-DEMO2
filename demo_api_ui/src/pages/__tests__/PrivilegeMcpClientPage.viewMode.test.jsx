@@ -63,9 +63,9 @@ describe("Demo / Inspect", () => {
     renderPage();
     await ready();
 
-    expect(tabNames()).toEqual(["Agent Chat", "Tools"]);
-    // Tools stays in Demo on purpose: its Run buttons and Present mode are a
-    // demo move, not an inspection one.
+    expect(tabNames()).toEqual(["Agent Chat", "A2A", "Tools"]);
+    // A2A and Tools stay in Demo on purpose: their demo flows and Run buttons
+    // are for presenting, not just inspection.
     expect(screen.getByRole("button", { name: "Tools" })).toBeInTheDocument();
   });
 
