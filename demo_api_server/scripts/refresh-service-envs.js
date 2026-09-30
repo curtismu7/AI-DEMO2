@@ -906,8 +906,7 @@ async function main(deps = {}) {
     // Banking Gateway" PingOne app; it is a client ID, never a client secret.
     // Keep this in the generated gateway env or refresh-service-envs.js will
     // silently remove it from demo_mcp_gateway/.env.
-    GATEWAY_OAUTH_BROKER_PINGONE_CLIENT_ID: fb('GATEWAY_OAUTH_BROKER_PINGONE_CLIENT_ID')
-      || 'c8392dc4-2d82-4e49-92a8-79a78401faf5',
+    GATEWAY_OAUTH_BROKER_PINGONE_CLIENT_ID: fb('GATEWAY_OAUTH_BROKER_PINGONE_CLIENT_ID'),
     GW_INTROSPECTION_CLIENT_ID:        creds.mcpExchangerClientId,
     GW_INTROSPECTION_CLIENT_SECRET:    creds.mcpExchangerSecret,
     GW_INTROSPECTION_ENDPOINT:         `${asBase}/introspect`,
