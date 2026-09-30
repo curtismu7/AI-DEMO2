@@ -1408,6 +1408,28 @@ describe('resolveMcpAccessTokenWithEvents — 2-exchange delegation (ff_two_exch
     expect(err.error || err.code || err.message).toBeDefined();
   });
 
+  it('Exchange #1 preserves PingFederate invalid_scope instead of reporting invalid_grant', async () => {
+    const exchangeErr = Object.assign(new Error('Token exchange failed: requested scope is not allowed'), {
+      httpStatus: 400,
+      pingoneError: 'invalid_scope',
+      pingoneErrorDescription: 'The requested scope is invalid, unknown, malformed, or exceeds that which the client is permitted to request.',
+    });
+    mockGetClientCredentialsTokenAs.mockReset().mockResolvedValueOnce(agentActorJwt);
+    mockPerformTokenExchangeAs.mockReset().mockRejectedValueOnce(exchangeErr);
+
+    let resultError;
+    try {
+      await resolveMcpAccessTokenWithEvents(makeReq2ex(sampleJwtUserAccessToken), 'get_my_accounts');
+    } catch (err) {
+      resultError = err;
+    }
+
+    expect(resultError).toMatchObject({
+      error: 'invalid_scope',
+      exchangeContext: { exchangeStep: '1-exchange' },
+    });
+  });
+
   it('subject-token rejection keeps its exchange error and identifies the requested tool', async () => {
     const exchangeErr = Object.assign(new Error('token exchange rejected'), {
       httpStatus: 400,
