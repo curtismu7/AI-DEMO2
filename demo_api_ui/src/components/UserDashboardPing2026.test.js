@@ -157,6 +157,15 @@ describe("UserDashboardPing2026", () => {
     expect(() => renderDashboard(null)).not.toThrow();
   });
 
+  it("loads customer data when the status check fails but the app has a confirmed user", async () => {
+    vi.mocked(getCachedJson).mockRejectedValue(new Error("status unavailable"));
+    vi.mocked(apiClient.get).mockClear();
+
+    renderDashboard();
+
+    await waitFor(() => expect(apiClient.get).toHaveBeenCalledWith("/api/accounts/my"));
+  });
+
   it("shows the policy_not_found friendly message (not a generic failure) when the real Authorize engine returns 503", async () => {
     const accounts = [
       { id: "acc-1", accountType: "checking", accountNumber: "1111", balance: 500 },

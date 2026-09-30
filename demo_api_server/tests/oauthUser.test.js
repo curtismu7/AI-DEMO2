@@ -3,6 +3,7 @@ const express = require('express');
 const session = require('express-session');
 const router = require('../routes/oauthUser');
 const configStore = require('../services/configStore');
+const { getFrontendOrigin } = require('../services/oauthRedirectUris');
 
 // Mock configStore to ensure user OAuth is configured
 jest.mock('../services/configStore', () => ({
@@ -72,6 +73,19 @@ app.use('/api/auth/oauth/user', router);
 describe('OAuth User Login', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  test('silent reauth requests prompt=none and returns to the page after login_required', async () => {
+    const agent = request.agent(app);
+    const start = await agent.get('/api/auth/oauth/user/silent-reauth?return_to=%2Fdashboard').expect(302);
+    const authorizeUrl = new URL(start.headers.location);
+    expect(authorizeUrl.searchParams.get('prompt')).toBe('none');
+    const state = authorizeUrl.searchParams.get('state');
+    expect(state).toBeTruthy();
+
+    const callback = await agent.get('/api/auth/oauth/user/callback')
+      .query({ error: 'login_required', state }).expect(302);
+    expect(callback.headers.location).toBe(`${getFrontendOrigin()}/dashboard?silent_reauth_failed=1`);
   });
 
   test('should include correct redirect_uri in authorization URL', async () => {

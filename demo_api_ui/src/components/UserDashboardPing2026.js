@@ -573,6 +573,9 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
           }
         } catch (sessionErr) {
           console.warn("Session check failed:", sessionErr.message);
+          // The app shell already confirmed this identity. Let the protected
+          // data request decide whether its token is still usable.
+          if (propUser) sessionUser = propUser;
         }
 
         if (!sessionUser) {

@@ -102,9 +102,13 @@
 .stm-canvas .react-flow__edge-textbg { rx: 5; ry: 5; fill: var(--stm-edge-label-bg); stroke: var(--stm-canvas-border); stroke-width: .7; }
 .stm-canvas .react-flow__edge-text { fill: var(--stm-edge-label); font-family: var(--font-mono); font-size: var(--font-size-3xs); }
 .stm-canvas .react-flow__edge.stm-edge--dimmed { opacity: .035; }
-.stm-canvas .react-flow__edge.stm-edge--focused .react-flow__edge-text { font-size: var(--font-size-md); font-weight: 800; }
-.stm-canvas .react-flow__edge.stm-edge--incoming .react-flow__edge-textbg { stroke: #bc8cff; stroke-width: 1.6; }
-.stm-canvas .react-flow__edge.stm-edge--outgoing .react-flow__edge-textbg { stroke: #58a6ff; stroke-width: 1.6; }
+.stm-canvas .react-flow__edge.stm-edge--focused .react-flow__edge-path { filter: drop-shadow(0 0 4px #e6edf388); }
+.stm-canvas .react-flow__edge.stm-edge--incoming .react-flow__edge-path { filter: drop-shadow(0 0 6px #bc8cffcc); }
+.stm-canvas .react-flow__edge.stm-edge--outgoing .react-flow__edge-path { filter: drop-shadow(0 0 6px #58a6ffcc); }
+.stm-canvas .react-flow__edge.stm-edge--focused .react-flow__edge-text { fill: var(--stm-canvas-text); font-size: var(--font-size-md); font-weight: 800; }
+.stm-canvas .react-flow__edge.stm-edge--focused .react-flow__edge-textbg { stroke-width: 2; }
+.stm-canvas .react-flow__edge.stm-edge--incoming .react-flow__edge-textbg { stroke: #bc8cff; stroke-width: 2.5; }
+.stm-canvas .react-flow__edge.stm-edge--outgoing .react-flow__edge-textbg { stroke: #58a6ff; stroke-width: 2.5; }
 .stm-canvas .react-flow__edge.stm-edge--route:not(.stm-edge--focused) .react-flow__edge-path { filter: drop-shadow(0 0 2px #388bfd88); }
 .stm-canvas .react-flow__edge.selected .react-flow__edge-path { stroke-width: 3.5; filter: drop-shadow(0 0 4px #388bfd88); }
 .stm-canvas .react-flow__handle { width: 8px; height: 8px; border: 2px solid #070a0e; background: #388bfd; }

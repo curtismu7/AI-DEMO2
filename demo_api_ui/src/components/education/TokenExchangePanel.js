@@ -1,6 +1,6 @@
 // banking_api_ui/src/components/education/TokenExchangePanel.js
 import React, { useState, useEffect } from 'react';
-import { getCachedJson } from '../../services/cachedStatusService';
+import bffAxios from '../../services/bffAxios';
 import { useEducationUI } from '../../context/EducationUIContext';
 import EducationDrawer from '../shared/EducationDrawer';
 import JsonHighlight from '../shared/JsonHighlight';
@@ -10,12 +10,6 @@ import {
   SNIP_RESOLVE_MCP_TOKEN,
   SNIP_TOKEN_EXCHANGE_PINGONE,
 } from './educationImplementationSnippets';
-
-// JWTs use base64url (-/_), but atob() only accepts standard base64 (+//).
-function base64UrlToBase64(str) {
-  const padded = str.replace(/-/g, '+').replace(/_/g, '/');
-  return padded + '='.repeat((4 - (padded.length % 4)) % 4);
-}
 
 // ─── See Also: Token Flow Panel link ────────────────────────────────────────
 function TokenFlowLink({ onClick }) {
@@ -247,16 +241,17 @@ export default function TokenExchangePanel({ isOpen, onClose, initialTabId }) {
     (async () => {
       setLive((s) => ({ ...s, loading: true, error: null }));
       try {
-        let r = await getCachedJson('/api/auth/oauth/status');
-        if (!r.data?.authenticated) r = await getCachedJson('/api/auth/oauth/user/status');
+        const session = await bffAxios.get('/api/auth/session');
         if (cancelled) return;
-        if (r.data?.authenticated && r.data?.accessToken) {
-          const parts = r.data.accessToken.split('.');
-          let payload = null;
-          if (parts.length === 3) {
-            try { payload = JSON.parse(atob(base64UrlToBase64(parts[1]))); } catch (_) {}
-          }
-          setLive({ loading: false, error: null, userToken: { raw: r.data.accessToken, payload, expiresAt: r.data.expiresAt } });
+        if (!session.data?.authenticated) {
+          setLive({ loading: false, error: 'No session token available — please sign in.', userToken: null });
+          return;
+        }
+        const { data } = await bffAxios.get('/api/tokens/session-preview');
+        const userToken = data?.tokenEvents?.find((event) => event.id === 'user-token' && event.status === 'active');
+        if (cancelled) return;
+        if (userToken) {
+          setLive({ loading: false, error: null, userToken: { payload: userToken.claims || null } });
         } else {
           setLive({ loading: false, error: 'No session token available — please sign in.', userToken: null });
         }
@@ -556,10 +551,13 @@ BFF_CLIENT_ID=<your-bff-oauth-client-id>`}</pre>
           <h3>Your current User Token</h3>
           <p>
             The User Token is stored in the Backend-for-Frontend (BFF) session (httpOnly cookie). It is never stored in the React app.
-            The Backend-for-Frontend (BFF) exposes only the decoded payload here for educational purposes.
+            The Backend-for-Frontend (BFF) exposes only filtered decoded claims here for educational purposes.
           </p>
           {live.loading && <p>Loading…</p>}
           {live.error && <p style={{ color: '#b91c1c' }}>{live.error}</p>}
+          {!live.loading && live.userToken && !live.userToken.payload && (
+            <p>Active user token; decoded claims are unavailable.</p>
+          )}
           {!live.loading && live.userToken?.payload && (
             <>
               <p><strong>User Token — decoded claims</strong></p>
@@ -569,16 +567,6 @@ BFF_CLIENT_ID=<your-bff-oauth-client-id>`}</pre>
                 stored in the browser. To see the MCP Token claims, make a banking request via the AI Agent panel
                 and watch the Token Chain display on your dashboard.
               </p>
-              {live.userToken.payload.may_act ? (
-                <div style={{ marginTop: '10px', padding: '10px', background: '#1e3a5f', borderRadius: '6px', color: '#93c5fd', fontSize: '0.83rem' }}>
-                  ✅ <strong>may_act is present</strong> — PingOne will allow the Backend-for-Frontend (BFF) to exchange this token.
-                  <pre className="jh-dark" style={{ margin: '6px 0 0', background: 'none', padding: 0 }}><JsonHighlight value={live.userToken.payload.may_act} /></pre>
-                </div>
-              ) : (
-                <div style={{ marginTop: '10px', padding: '10px', background: '#7f1d1d', borderRadius: '6px', color: '#fca5a5', fontSize: '0.83rem' }}>
-                  ⚠️ <strong>may_act is absent</strong> — configure the may_act claim in PingOne token policy to enable token exchange.
-                </div>
-              )}
               <TokenFlowLink onClick={() => openEdu(EDU.TOKEN_FLOW, 'what-changed')} />
             </>
           )}
