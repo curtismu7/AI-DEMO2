@@ -97,9 +97,31 @@
 - [x] Stage only Task 3 paths, inspect the staged diff, and obtain follow-up review.
 - [x] Commit Task 3 independently on `feat/demo-readiness-production-runtime`.
 
+## Task 4: Provider-aware PingFederate user-session configuration
+
+**Files:**
+- Modify: `demo_api_server/services/configStore.js`
+- Modify: `demo_api_server/services/oauthRedirectUris.js`
+- Modify: `demo_api_server/src/__tests__/configStore-providerMode.test.js`
+- Create: `demo_api_server/tests/oauthRedirectUris-providerMode.test.js`
+- Modify: this plan, `docs/demo-readiness.md`, and `REGRESSION_PLAN.md` §4
+
+**Interfaces and limits:**
+- `configStore.isUserOAuthConfigured()` uses the selected provider's configuration: PingOne continues to require its environment ID and user client ID; PingFederate requires its issuer and PF user client ID. Do not require a client secret because public PKCE clients are valid.
+- `getUserRedirectUri()` selects `pf_user_redirect_uri` only in PingFederate mode and retains the existing PingOne redirect key and canonical-origin fallback in PingOne mode.
+- Preserve authorization-code + PKCE, state/nonce checks, session provider matching, callback-origin validation, callback session regeneration, and PingOne's resource/scope behavior. Do not change the presenter's process-wide provider setting or live IdP configuration.
+- This fixes the existing PF login route's local readiness/configuration seam. It does not claim a real isolated worker login or live PF registration verification.
+
+- [x] Add tests for PingOne/PF readiness requirements, provider-specific redirect overrides, and canonical fallback; the new PF readiness test failed before implementation.
+- [x] Implement only the selected-provider config and redirect lookup.
+- [x] Run the focused config/provider and redirect tests plus `tests/oauthUser.test.js` (4 suites, 57 tests passed); inspect `git diff --check`.
+- [x] Update the master guide, this plan, and `REGRESSION_PLAN.md` §4 with the fixed PF login seam and remaining isolated-worker blocker.
+- [x] Stage only Task 4 paths, inspect the staged diff, self-review, and commit Task 4 independently; the task reviewer reads the post-commit implementer report.
+
 ## Remaining tasks
 
-1. Build the actual provider-bound session adapters and worker process packaging. Provide four independently configured target/provider lanes. Each lane must establish its own PingOne or PingFederate user login and private browser/cookie/session stores. Resolve BFF's process-wide OAuth provider selection with a separate provider-configured readiness BFF runtime per lane; do not mutate the presenter BFF. Implement the exact 46 Demo Steps triggers and all feature-family probes, including a PingFederate login session and UC40 native ID-JAG through PingFederate. Verify every adapter uses the declared provider and target revision.
-2. Wire target-specific PingOne, PingFederate, Agent Gateway, and Authorize readbacks. Keep unsupported Authorize tree parity under the approved waiver only.
-3. Configure local Docker workers and the authorized SE read/execute workers, then run all expected rows, prove PingOne/PF sessions and UC40 ID-JAG, and measure the 12/15-minute gates.
-4. Remove blockers one by one, updating this plan and `docs/demo-readiness.md` in each task commit. Never claim operational readiness until the complete local+SE run passes.
+5. Build the deployable worker runtime and isolated provider session adapter contract. Provide four independently configured target/provider lanes. Each lane must establish its own PingOne or PingFederate user login and private browser/cookie/session stores. Resolve BFF's process-wide OAuth provider selection with a separate provider-configured readiness BFF runtime per lane; do not mutate the presenter BFF. Do not invent an identity-secret backend: use only an existing protected runtime source or keep unresolved mappings explicitly blocked.
+6. Implement the exact 46 Demo Steps triggers and all feature-family probes, including a PingFederate login session and UC40 native ID-JAG through PingFederate. Verify every adapter uses the declared provider and target revision.
+7. Wire target-specific PingOne, PingFederate, Agent Gateway, and Authorize readbacks. Keep unsupported Authorize tree parity under the approved waiver only.
+8. Configure local Docker workers and the authorized SE read/execute workers, then run all expected rows, prove PingOne/PF sessions and UC40 ID-JAG, and measure the 12/15-minute gates.
+9. Remove blockers one by one, updating this plan and `docs/demo-readiness.md` in each task commit. Never claim operational readiness until the complete local+SE run passes.
