@@ -422,7 +422,7 @@ export default function DemoStepsDropdown({
     q && filteredPrimary.length === 0 && filteredAdvanced.length === 0 && filteredCiam.length === 0 && filteredPrivilege.length === 0;
   const panelWidth = Math.min(900, Math.max(320, window.innerWidth - 32));
   const panelHeight = Math.min(820, Math.max(280, window.innerHeight - 72));
-  const panelX = Math.max(8, window.innerWidth - panelWidth - 24);
+  const panelX = Math.max(8, Math.round((window.innerWidth - panelWidth) / 2));
 
   /**
    * Render one demo-step card (box style matching Actions grid).

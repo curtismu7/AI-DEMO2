@@ -6316,7 +6316,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .ba-demo-steps-popout__mission-link-list a {
-  color: var(--signin-accent, #6366f1);
+  color: var(--th-status-info-text);
   font-size: var(--font-size-3xs);
   text-decoration: none;
 }
@@ -6489,6 +6489,17 @@ body > .banking-agent-float-root .banking-agent-panel {
   color: var(--th-text);
   background: var(--th-bg-card);
   border-bottom: 1px solid var(--th-border);
+}
+
+.ba-demo-steps-float__content .ba-demo-steps-popout__academy-links .ba-actions-trigger {
+  border-color: var(--th-status-info);
+  color: var(--th-status-info-text);
+  background: var(--th-bg-card);
+}
+
+.ba-demo-steps-float__content .ba-demo-steps-popout__academy-links .ba-actions-trigger:hover {
+  color: var(--th-status-info-text);
+  background: var(--th-bg-hover);
 }
 
 .ba-demo-steps-float__kicker,
@@ -6711,6 +6722,19 @@ body > .banking-agent-float-root .banking-agent-panel {
   position: absolute;
   right: 8px;
   bottom: 8px;
+}
+
+.ba-demo-steps-float__body .ba-demo-steps-popout__explain {
+  border-color: var(--th-border-strong);
+  color: var(--th-text-muted);
+  background: var(--th-bg-card);
+}
+
+.ba-demo-steps-float__body .ba-demo-steps-popout__explain:hover,
+.ba-demo-steps-float__body .ba-demo-steps-popout__explain:focus-visible {
+  border-color: var(--th-status-info-border);
+  color: var(--th-status-info-text);
+  background: var(--th-status-info-bg);
 }
 
 .ba-demo-steps-float__body .ba-demo-steps-popout__advanced {

@@ -188,6 +188,27 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-30 — Admin Demo Steps opened at the screen edge and academy links lost contrast in dark mode
+
+**Files:** `demo_api_ui/src/components/DemoStepsDropdown.jsx`,
+`demo_api_ui/src/components/AIAgent.css`, `REGRESSION_PLAN.md`.
+
+**What was broken:** the floating Demo Steps panel opened against the viewport's
+right edge on wide screens. Academy links and the explain control could also
+render with low-contrast colors in dark mode.
+
+**What changed:** center the panel when it first opens and pair the academy
+links and explain control with theme-aware foreground/background tokens. The panel remains
+draggable, resizable in eight directions, and pop-out capable, with its title-bar
+close control.
+
+**Do not break:** preserve the Admin1-7 vertical and agent selection behavior,
+the floating agent's existing drag/resize/pop-out controls, and the shared
+FloatingPanel title-bar close.
+
+**Verify:** `cd demo_api_ui && npm run build`; check `/admin` in light and dark
+themes with the §1.4 computed-style contrast auditor.
+
 ### 2026-09-30 — UC46 is numbered step 25 in Demo Steps
 
 **Files:** `demo_api_server/config/useCases.js`,
