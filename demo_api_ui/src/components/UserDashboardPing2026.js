@@ -3885,7 +3885,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
       {/* User Session Token Modal */}
       {showTokenModal && (
         <FloatingPanel
-          title="User Session Token"
+          title="Session Token"
           onClose={() => setShowTokenModal(false)}
           defaultWidth={820}
           defaultHeight={Math.min(window.innerHeight - 80, 940)}
