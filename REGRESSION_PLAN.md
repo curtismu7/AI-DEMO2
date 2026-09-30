@@ -228,6 +228,32 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-30 — Session token modal missed Admin sessions and sent sign-in through a browser redirect
+
+**Files:** `demo_api_ui/src/components/OAuthTokenDisplayPage.jsx`,
+`demo_api_ui/src/lib/embeddedPiFlow.js`, `demo_api_server/routes/oauthUser.js`,
+`demo_api_ui/src/components/Dashboard.js`,
+`demo_api_ui/src/components/UserDashboardPing2026.js`, `REGRESSION_PLAN.md`.
+
+**What was broken:** the modal checked only the end-user OAuth status and showed
+“No Active Session” for some Admin sessions. Its login action posted an MCP
+request and then navigated to the end-user OAuth route, which can clear an
+existing Admin session.
+
+**What changed:** check Admin and end-user session status before displaying the
+decoded session token; label Admin tokens correctly; replace the MCP 401 and
+browser redirect with an in-page PingOne `response_mode=pi.flow` flow. The BFF
+keeps the PKCE verifier and exchanges the returned authorization code. The
+PiFlow start route refuses to replace an Admin session.
+
+**Do not break:** keep access and refresh tokens in the BFF, preserve Admin
+session state when the modal starts sign-in, and keep the browser on the app
+while PingOne runs `pi.flow`.
+
+**Verify:** `cd demo_api_ui && npm run build`; inspect `/admin` and `/dashboard`
+in light and dark themes; confirm an active Admin token is displayed, sign-in
+uses `response_mode=pi.flow`, and the browser does not navigate to PingOne.
+
 ### 2026-09-30 — Readiness provider login lacked a fresh isolated client and subject proof
 
 **Files changed:** `demo_api_server/services/demoReadinessProviderLoginClient.js`,
