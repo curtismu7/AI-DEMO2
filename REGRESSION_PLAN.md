@@ -254,6 +254,18 @@ while PingOne runs `pi.flow`.
 in light and dark themes; confirm an active Admin token is displayed, sign-in
 uses `response_mode=pi.flow`, and the browser does not navigate to PingOne.
 
+### 2026-09-30 — Agent Identity Academy mock reel read as a stub
+
+**Files:** `demo_api_ui/public/academy-identity-preview.html`, `demo_api_ui/src/__tests__/AcademyIdentityPreviewStatic.test.js`.
+
+**What was broken:** On `/academy/identity`, "Run mock" only selected frame 1 and each frame's evidence was a two-line `key=value` block, so the reel looked nothing like the live token chain.
+
+**What changed:** The reel section moved above the "Identity control room" so it is on screen without scrolling (`[data-run-action]` stays in the run panel below it). "Run mock" plays the frames on a timer (pause or pick a frame to stop it). Cards show done/active/waiting and a what-changed chip. Frames that carry tokens (login, delegation, MCP, authorize) open a sheet with tokens in play, a before/after claim diff and the request/response. Claims are labelled "sample claims"; no token is issued or read. Other lessons keep the old evidence block. Real mode mirrors the last real run: `AgentIdentityAcademyPage.jsx` posts the dashboard reel's steps (`academy-trace`) into the iframe, and the four token lessons (login, delegation, MCP, authorize) replace their mock frames with the hops that run recorded, however many. A lesson the run never reached says so; sample claims never appear under a REAL label.
+
+**Do not break:** the mock's four frames per lesson, the standalone page (no trace message means Real behaves as before), the `data-*` hooks the static test and journey flow use (`data-frame-index`, `data-stage`, `data-run-action`, `data-reel-counter`, `data-frame-evidence`), Real/Recorded staying unavailable for the mock runner, and both themes (tokens only, no inline colour).
+
+**Verify:** `cd demo_api_ui && npm run test:unit -- src/__tests__/AcademyIdentityPreviewStatic.test.js && npm run build`; open `/academy/identity`, lesson "Delegated access", press Run mock.
+
 ### 2026-09-30 — Active PingOne sessions were hidden by inconsistent session checks
 
 **Files:** `demo_api_server/routes/auth.js`, `demo_api_server/services/agentMcpTokenService.js`, `demo_api_ui/src/hooks/useAuth.js`, `demo_api_ui/src/services/sessionResolver.js`, `demo_api_ui/src/components/UserDashboardPing2026.js`, `demo_api_ui/src/components/SecurityCenter.js`, `demo_api_ui/src/components/UnifiedTokenFlowInspector.jsx`, `demo_api_ui/src/components/education/TokenExchangePanel.js`, and focused tests.

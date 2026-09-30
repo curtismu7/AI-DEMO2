@@ -29,6 +29,19 @@ describe("AgentIdentityAcademyPage", () => {
     );
   });
 
+  it("sends the last real run to the embedded Academy for Real mode", () => {
+    render(<AgentIdentityAcademyPage />);
+    const frame = screen.getByTitle("Agent Identity Academy lessons");
+    const postMessage = vi.spyOn(frame.contentWindow, "postMessage");
+
+    fireEvent.load(frame);
+
+    expect(postMessage).toHaveBeenCalledWith(
+      { type: "academy-trace", steps: expect.any(Array) },
+      window.location.origin,
+    );
+  });
+
   it("synchronizes the app theme into the embedded Academy", () => {
     themeState.darkMode = true;
     render(<AgentIdentityAcademyPage />);
