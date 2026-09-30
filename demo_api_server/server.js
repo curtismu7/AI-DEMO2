@@ -161,6 +161,7 @@ const adminManagementRoutes = require('./routes/adminManagement');
 const cibaRoutes = require('./routes/ciba');
 const mfaRoutes = require('./routes/mfa');
 const recognizeRoutes = require('./routes/recognize');
+const verifyRoutes = require('./routes/verify');
 const mfaTestRoutes = require('./routes/mfaTest');
 const authorizeRoutes = require('./routes/authorize');
 const authorizeConfigRoutes = require('./routes/authorizeConfig');
@@ -307,10 +308,10 @@ app.use(helmet({
             // internet. Nothing else served by this app loads from jsdelivr —
             // the UI's Monaco loader does, but the UI is served by its own
             // container under its own headers, not by this CSP.
-            scriptSrc: ["'self'", "'unsafe-inline'", 'https://cdn.keyless.technology'], // CRA requires unsafe-inline in prod build
+            scriptSrc: ["'self'", "'unsafe-inline'"], // CRA requires unsafe-inline in prod build
             styleSrc: ["'self'", "'unsafe-inline'", "https://assets.pingone.com"],
             imgSrc: ["'self'", 'data:', 'https:'],
-            connectSrc: ["'self'", 'https://*.pingone.com', 'https://*.pingidentity.com', 'wss:', 'https://*.keyless.technology'],
+            connectSrc: ["'self'", 'https://*.pingone.com', 'https://*.pingidentity.com', 'wss:'],
             // https://fonts.scalar.com: Scalar's bundle fetches its Inter and
             // mono webfonts from there — measured on the live page 2026-09-05,
             // 14 blocked font loads naming that exact host. #2811 had guessed
@@ -1435,6 +1436,7 @@ app.use('/api/auth', parRequestRoutes);
 app.use('/api/auth', dpopRequestRoutes);
 app.use('/api/auth/mfa', mfaRoutes);
 app.use('/api/recognize', recognizeRoutes);
+app.use('/api/verify', verifyRoutes);
 app.use('/api/mfa/test', mfaTestRoutes);
 app.use('/api/agent', agentIdentityRoutes);
 app.use('/api/agent', agentDelegationRoutes);
