@@ -143,6 +143,7 @@ const sensitiveBankingRoutes = require('./routes/sensitiveBanking');
 const transactionRoutes = require('./routes/transactions');
 const demoScenarioRoutes = require('./routes/demoScenario');
 const adminRoutes = require('./routes/admin');
+const demoReadinessRoutes = require('./routes/demoReadiness');
 const pingcliRoutes = require('./routes/pingcli');
 const promptfooRoutes = require('./routes/promptfoo');
 const mgmtApiRoutes = require('./routes/mgmtApi');
@@ -1503,6 +1504,7 @@ app.use('/api/mcp/inspector/pingone-admin', mcpPingOneAdminAuthRoutes);
 app.use('/api/mcp/inspector/privilege', mcpPrivilegeAuthRoutes);
 // Privilege MCP Client — relay for the chat-first Privilege Gateway MCP client page
 app.use('/api/privilege-mcp', require('./routes/privilegeMcpClient'));
+app.use('/api/privilege-a2a', require('./routes/privilegeA2aClient'));
 // Minimal machine-to-machine sibling of the above: client_credentials token in,
 // MCP JSON-RPC out. Separate route on purpose — the interactive flow is untouched.
 app.use('/api/privilege-mcp-simple', require('./routes/privilegeMcpSimple'));
@@ -1738,6 +1740,7 @@ app.get('/api/demo-scenario', (req, res, next) => {
 });
 app.use('/api/demo-scenario', authenticateToken, demoScenarioRoutes);
 app.use('/api/admin/demo-users', adminDemoUsersRoutes);
+app.use('/api/admin/demo-readiness', demoReadinessRoutes);
 app.use('/api/admin/agent', authenticateToken, adminAgentToolsRoutes);
 app.use('/api/admin', authenticateToken, require('./routes/opsAssistantRoutes'));
 app.use('/api/admin', authenticateToken, require('./routes/adminVerticals'));

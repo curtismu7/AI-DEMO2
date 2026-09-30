@@ -2,7 +2,9 @@ import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "
 import {
   Background,
   BackgroundVariant,
+  BaseEdge,
   Controls,
+  getSmoothStepPath,
   Handle,
   MarkerType,
   Position,
@@ -14,6 +16,7 @@ import "@xyflow/react/dist/style.css";
 import { DEMO_STEP_USE_CASES, GROUPS, PLAYBACKS, RFC, SERVER_EDGES, SERVER_MAP, SERVER_ZONES, SPECS } from "./serverTopologyData";
 import "./ServerTopologyPage.css";
 import ServerTopologyExportControls from "./ServerTopologyExportControls";
+import { layoutEdgeLabels } from "./topologyEdgeLabelLayout";
 
 const LAYER_OPTIONS = [
   ["protocol", "Protocols"], ["network", "Network"], ["security", "Security"], ["standards", "RFCs & specs"],
@@ -33,6 +36,10 @@ const NODE_TYPE_LABELS = [
 ];
 const NODE_BY_ID = Object.fromEntries(SERVER_MAP.map((node) => [node.id, node]));
 const EDGE_BY_ID = Object.fromEntries(SERVER_EDGES.map((item) => [item.id, item]));
+// Keep these aligned with the .stm-node width and minimum height in the stylesheet.
+const NODE_CARD_WIDTH = 218;
+const NODE_CARD_HEIGHT = 104;
+const SELECTED_NODE_SCALE = 1.1;
 
 function flowNodeIds(steps) {
   return new Set(steps.flatMap(({ edgeId }) => {
@@ -85,8 +92,44 @@ const ZoneNode = memo(function ZoneNode({ data }) {
 
 const nodeTypes = { server: ServerCardNode, zone: ZoneNode };
 
+const TopologyLabeledEdge = memo(function TopologyLabeledEdge({
+  id, sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, label,
+  style, markerStart, markerEnd, interactionWidth, pathOptions, data,
+}) {
+  const [path, fallbackLabelX, fallbackLabelY] = getSmoothStepPath({
+    sourceX,
+    sourceY,
+    sourcePosition,
+    targetX,
+    targetY,
+    targetPosition,
+    borderRadius: pathOptions?.borderRadius,
+    offset: pathOptions?.offset,
+    stepPosition: pathOptions?.stepPosition,
+  });
+  const labelPosition = data?.labelPosition;
+
+  return (
+    <BaseEdge
+      id={id}
+      path={path}
+      labelX={labelPosition?.x ?? fallbackLabelX}
+      labelY={labelPosition?.y ?? fallbackLabelY}
+      label={label}
+      labelShowBg
+      labelBgPadding={data?.emphasized ? [16, 10] : [9, 6]}
+      labelBgBorderRadius={5}
+      style={style}
+      markerStart={markerStart}
+      markerEnd={markerEnd}
+      interactionWidth={interactionWidth}
+    />
+  );
+});
+const edgeTypes = { topologyLabeled: TopologyLabeledEdge };
+
 const PANE_SIZE_LIMITS = {
-  flow: { initial: 150, min: 112, max: 300 },
+  flow: { initial: 92, min: 88, max: 300 },
   flowNarrow: { initial: 220, min: 180, max: 340 },
   detailsWidth: { initial: 340, min: 280, max: 520 },
   detailsHeight: { initial: 320, min: 220, max: 500 },
@@ -98,7 +141,8 @@ function clampPaneSize(value, min, max) {
   return Math.max(min, Math.min(max, Math.round(value)));
 }
 
-function readPaneSize(key, { initial, min, max }) {
+function readPaneSize(key, limits) {
+  const { initial, min, max } = limits;
   if (typeof window === "undefined") return initial;
   try {
     const stored = window.localStorage.getItem(key);
@@ -361,45 +405,115 @@ function TopologyCanvas({
   const routeEdges = useMemo(() => new Set(playbackSteps.map((step) => step.edgeId)), [playbackSteps]);
   const routeNodes = useMemo(() => flowNodeIds(playbackSteps), [playbackSteps]);
   const graphNodes = useMemo(() => {
-    const serviceNodes = SERVER_MAP.filter((node) => !flowOnly || routeNodes.has(node.id)).map((node) => ({
-      ...node,
-      selected: node.id === selectedNode,
-      data: { ...node.data, endpoint: endpointFor(node, deployment) },
-      style: { opacity: flowOnly || matchesFilter(node, filter) ? 1 : 0.22 },
-    }));
-    return flowOnly ? serviceNodes : [...SERVER_ZONES, ...serviceNodes];
+    const connectedNodeIds = new Set(selectedNode ? SERVER_EDGES.flatMap((item) => (
+      item.source === selectedNode ? [item.target] : item.target === selectedNode ? [item.source] : []
+    )) : []);
+    const serviceNodes = SERVER_MAP.filter((node) => !flowOnly || routeNodes.has(node.id)).map((node) => {
+      const isSelected = node.id === selectedNode;
+      const inScope = isSelected || flowOnly || (filter === "all" ? routeNodes.has(node.id) : matchesFilter(node, filter));
+      const opacity = selectedNode
+        ? (isSelected ? 1 : connectedNodeIds.has(node.id) ? 0.58 : 0.018)
+        : (inScope ? 1 : 0.035);
+      return {
+        ...node,
+        selected: isSelected,
+        zIndex: isSelected ? 10 : (node.zIndex ?? 0),
+        data: { ...node.data, endpoint: endpointFor(node, deployment) },
+        style: { opacity },
+      };
+    });
+    const zones = selectedNode
+      ? SERVER_ZONES.map((zone) => ({ ...zone, style: { ...zone.style, opacity: 0.12 } }))
+      : SERVER_ZONES;
+    return flowOnly ? serviceNodes : [...zones, ...serviceNodes];
   }, [deployment, filter, flowOnly, routeNodes, selectedNode]);
 
   const graphEdges = useMemo(() => SERVER_EDGES.filter((item) => !flowOnly || routeEdges.has(item.id)).map((item) => {
-    const visible = flowOnly || filter === "all" || matchesFilter(NODE_BY_ID[item.source], filter) || matchesFilter(NODE_BY_ID[item.target], filter) || (filter === "optional" && item.data.profile);
     const stepIndex = playbackSteps.findIndex((step) => step.edgeId === item.id);
     const isOnPlayback = stepIndex >= 0;
     const isIncomingToSelection = selectedNode && item.target === selectedNode;
     const isOutgoingFromSelection = selectedNode && item.source === selectedNode;
     const isFocusedCommunication = isIncomingToSelection || isOutgoingFromSelection;
-    const active = activePlaybackEdge === item.id || selectedEdge === item.id || isFocusedCommunication;
+    const isSelectedEdge = selectedEdge === item.id;
+    const matchesCategory = filter === "all" || matchesFilter(NODE_BY_ID[item.source], filter) || matchesFilter(NODE_BY_ID[item.target], filter) || (filter === "optional" && item.data.profile);
+    const visible = isSelectedEdge || (flowOnly ? routeEdges.has(item.id) : matchesCategory || isFocusedCommunication);
+    const isOffRoute = filter === "all" && !isOnPlayback && !isFocusedCommunication && !isSelectedEdge;
+    const isDimmed = !isSelectedEdge && (!visible || Boolean(selectedNode && !isFocusedCommunication) || isOffRoute);
+    const active = activePlaybackEdge === item.id || isSelectedEdge || isFocusedCommunication || isOnPlayback;
     const stroke = isIncomingToSelection ? "#bc8cff" : isOutgoingFromSelection ? "#58a6ff" : EDGE_COLORS[item.data.kind] || EDGE_COLORS.mcp;
     const standards = [...(item.data.rfcs || []), ...(item.data.specs || [])];
     const label = labelForEdge(item, activeLayer);
+    const className = [
+      isFocusedCommunication && "stm-edge--focused",
+      isIncomingToSelection && "stm-edge--incoming",
+      isOutgoingFromSelection && "stm-edge--outgoing",
+      isOnPlayback && "stm-edge--route",
+      isOffRoute && "stm-edge--off-route",
+      isDimmed && "stm-edge--dimmed",
+    ].filter(Boolean).join(" ");
     return {
       ...item,
+      className,
       selected: selectedEdge === item.id,
       animated: activePlaybackEdge === item.id,
       hidden: !visible,
       label: `${isIncomingToSelection ? "IN · " : isOutgoingFromSelection ? "OUT · " : ""}${isOnPlayback ? `${String(stepIndex + 1).padStart(2, "0")} · ` : ""}${label}`.slice(0, 48),
-      labelBgPadding: [6, 4],
-      style: { stroke, strokeWidth: active ? 4 : 1.8, opacity: visible ? (selectedNode && !isFocusedCommunication ? 0.16 : 0.96) : 0.08, strokeDasharray: item.data.kind === "telemetry" ? "6 5" : item.data.profile ? "6 5" : undefined },
+      style: {
+        stroke,
+        strokeWidth: isFocusedCommunication ? 7 : active ? 3.2 : 1.8,
+        opacity: isSelectedEdge || isFocusedCommunication ? 1 : !visible ? 0.018 : selectedNode || isOffRoute ? 0.018 : 0.96,
+        strokeDasharray: item.data.kind === "telemetry" ? "6 5" : item.data.profile ? "6 5" : undefined,
+      },
       markerEnd: { type: MarkerType.ArrowClosed, color: stroke },
-      data: { ...item.data, standards },
+      data: { ...item.data, standards, emphasized: Boolean(isFocusedCommunication) },
     };
   }), [activeLayer, activePlaybackEdge, filter, flowOnly, playbackSteps, routeEdges, selectedEdge, selectedNode]);
+
+  const positionedEdges = useMemo(() => {
+    const visibleLabels = graphEdges.filter((item) => !item.hidden).map((item) => {
+      const source = NODE_BY_ID[item.source];
+      const target = NODE_BY_ID[item.target];
+      const sourceScale = source.id === selectedNode ? SELECTED_NODE_SCALE : 1;
+      const targetScale = target.id === selectedNode ? SELECTED_NODE_SCALE : 1;
+      const sourceWidth = NODE_CARD_WIDTH * sourceScale;
+      const targetWidth = NODE_CARD_WIDTH * targetScale;
+      const [, x, y] = getSmoothStepPath({
+        sourceX: source.position.x + NODE_CARD_WIDTH + (sourceWidth - NODE_CARD_WIDTH) / 2,
+        sourceY: source.position.y + NODE_CARD_HEIGHT / 2,
+        sourcePosition: Position.Right,
+        targetX: target.position.x - (targetWidth - NODE_CARD_WIDTH) / 2,
+        targetY: target.position.y + NODE_CARD_HEIGHT / 2,
+        targetPosition: Position.Left,
+      });
+      return { id: item.id, text: item.label, emphasized: item.data.emphasized, x, y };
+    });
+    const serviceObstacles = graphNodes
+      .filter((node) => node.type === "server")
+      .map((node) => {
+        const scale = node.id === selectedNode ? SELECTED_NODE_SCALE : 1;
+        return {
+          x: node.position.x + NODE_CARD_WIDTH / 2,
+          y: node.position.y + NODE_CARD_HEIGHT / 2,
+          width: NODE_CARD_WIDTH * scale,
+          height: NODE_CARD_HEIGHT * scale,
+        };
+      });
+    const labelPositions = new Map(layoutEdgeLabels(visibleLabels, serviceObstacles).map((label) => [label.id, label]));
+
+    return graphEdges.map((item) => ({
+      ...item,
+      type: "topologyLabeled",
+      data: { ...item.data, labelPosition: labelPositions.get(item.id) },
+    }));
+  }, [graphEdges, graphNodes, selectedNode]);
 
   return (
     <div className="stm-canvas" aria-label="Interactive server topology graph">
       <ReactFlow
         nodes={graphNodes}
-        edges={graphEdges}
+        edges={positionedEdges}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         fitView
         fitViewOptions={{ padding: 0.08, minZoom: 0.2, maxZoom: 1 }}
         minZoom={0.12}
@@ -411,7 +525,7 @@ function TopologyCanvas({
         onEdgeClick={(_, item) => onSelectEdge(item.id)}
         onPaneClick={onClearSelection}
         proOptions={{ hideAttribution: true }}
-        defaultEdgeOptions={{ type: "smoothstep" }}
+        defaultEdgeOptions={{ type: "topologyLabeled" }}
       >
         <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="var(--stm-dot)" />
         <Controls position="top-right" showInteractive={false} />
@@ -493,6 +607,16 @@ function ServerTopologyContent() {
   const selectNode = useCallback((id) => { setPlaying(false); setSelectedNode(id); setSelectedEdge(null); setDetailsOpen(true); }, []);
   const selectEdge = useCallback((id) => { setPlaying(false); setSelectedNode(null); setSelectedEdge(id); setDetailsOpen(true); }, []);
   const clearSelection = useCallback(() => { setPlaying(false); setSelectedNode(null); setSelectedEdge(null); }, []);
+  const toggleFlowOnly = useCallback((event) => {
+    const enabled = event.target.checked;
+    if (enabled) {
+      const routeNodes = flowNodeIds(playback.steps);
+      const routeEdges = new Set(playback.steps.map((step) => step.edgeId));
+      if (selectedNode && !routeNodes.has(selectedNode)) setSelectedNode(null);
+      if (selectedEdge && !routeEdges.has(selectedEdge)) setSelectedEdge(null);
+    }
+    setFlowOnly(enabled);
+  }, [playback.steps, selectedEdge, selectedNode]);
   const selectScenario = useCallback((event) => {
     setScenario(event.target.value);
     setStepIndex(0);
@@ -550,21 +674,27 @@ function ServerTopologyContent() {
           <div className="stm-segmented" role="group" aria-label="Deployment view">
             {[ ["local", "Local Docker"], ["k8s", "Hosted Kubernetes"] ].map(([key, label]) => <button key={key} type="button" aria-pressed={deployment === key} onClick={() => setDeployment(key)}>{label}</button>)}
           </div>
+          {!flowOnly && <>
+            <label className="stm-service-filter" htmlFor="stm-service-filter">
+              <span>Show</span>
+              <select id="stm-service-filter" aria-label="Filter servers by category" value={filter} onChange={(event) => setFilter(event.target.value)}>
+                {FILTER_OPTIONS.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+              </select>
+            </label>
+            <span className="stm-service-count" aria-live="polite">
+              {filter === "all" ? `${SERVER_MAP.length} services` : `${SERVER_MAP.filter((node) => matchesFilter(node, filter)).length} shown`}
+            </span>
+          </>}
           <div className="stm-toolbar__spacer" />
           <div className="stm-layers" role="group" aria-label="Connection label detail">
             {LAYER_OPTIONS.map(([key, label]) => <button key={key} type="button" aria-pressed={activeLayer === key} onClick={() => setActiveLayer(key)}>{label}</button>)}
           </div>
           <label className="stm-flow-toggle" htmlFor="stm-flow-only">
-            <input id="stm-flow-only" type="checkbox" checked={flowOnly} onChange={(event) => setFlowOnly(event.target.checked)} />
+            <input id="stm-flow-only" type="checkbox" checked={flowOnly} onChange={toggleFlowOnly} />
             <span>Flow boxes only</span>
           </label>
           <ServerTopologyExportControls />
         </div>
-        {!flowOnly && <nav className="stm-filters" aria-label="Filter servers by category">
-          <span>Show</span>
-          {FILTER_OPTIONS.map(([key, label]) => <button key={key} type="button" aria-pressed={filter === key} onClick={() => setFilter(key)}>{label}</button>)}
-          <strong>{filter === "all" ? `${SERVER_MAP.length} services` : `${SERVER_MAP.filter((node) => matchesFilter(node, filter)).length} shown`}</strong>
-        </nav>}
       </header>
 
       <section id="stm-topology-flow-pane" className="stm-flow-pane" aria-label="Playback and selected flow">
@@ -580,7 +710,7 @@ function ServerTopologyContent() {
           <button type="button" onClick={restart}>Restart</button>
         </section>
         <section className="stm-flow-summary" aria-label="Selected flow and expected result" aria-live="polite">
-          <div className="stm-flow-summary__outcome"><strong>Expected result</strong><span>{playback.result}</span></div>
+          <div className="stm-flow-summary__outcome"><strong>Expected result</strong><span title={playback.result}>{playback.result}</span></div>
           <ol className="stm-flow-summary__steps" aria-label="Numbered flow steps">
             {playback.steps.map((step, index) => <li key={`${step.edgeId}-${index}`} aria-current={index === stepIndex ? "step" : undefined}><button type="button" aria-label={`Step ${String(index + 1).padStart(2, "0")}: ${step.title}`} onClick={() => selectPlaybackStep(index)}><span>{String(index + 1).padStart(2, "0")}</span>{step.title}</button></li>)}
           </ol>

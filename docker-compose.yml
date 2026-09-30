@@ -2447,6 +2447,26 @@ services:
       - ai-demo
     restart: unless-stopped
 
+  # ── PromptGuard sidecar (core; UI controls are on /llm-gateway) ────────────
+  # NeMo is installed by default so either engine can be selected in the UI.
+  # Set PROMPTGUARD_INSTALL_NEMO=0 when building for a classifier-only setup.
+  mcp-promptguard:
+    build:
+      context: ./demo_mcp_promptguard
+      args:
+        PROMPTGUARD_INSTALL_NEMO: "${PROMPTGUARD_INSTALL_NEMO:-1}"
+    image: ai-demo-mcp-promptguard:local
+    # Reuse the existing manual-run name so run-docker.sh clears it before
+    # replacing the old standalone container with this Compose service.
+    container_name: ai-demo-promptguard-local
+    environment:
+      PORT: "8086"
+    ports:
+      - "127.0.0.1:8086:8086"
+    networks:
+      - ai-demo
+    restart: unless-stopped
+
 networks:
   ai-demo:
     driver: bridge

@@ -121,6 +121,7 @@
 }
 
 .pfj-diagram {
+  color: var(--th-text);
   position: relative;
   height: clamp(390px, 54vh, 560px);
   min-height: 370px;
@@ -242,6 +243,7 @@
 }
 
 .pfj-chain span {
+  color: var(--th-text);
   padding: 5px 8px;
   border: 1px solid var(--th-border);
   border-radius: var(--radius-sm);
@@ -258,12 +260,14 @@
 }
 
 .pfj-diagram .react-flow__controls-button {
+  color: var(--th-text);
   border-bottom-color: var(--th-border);
   background: var(--th-bg-card);
   fill: var(--th-text);
 }
 
 .pfj-guide {
+  color: var(--th-text);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -327,7 +331,10 @@
   cursor: pointer;
 }
 
-.pfj-step-nav button:hover:not(:disabled) { background: var(--th-bg-hover); }
+.pfj-step-nav button:hover:not(:disabled) {
+  color: var(--th-text);
+  background: var(--th-bg-hover);
+}
 .pfj-step-nav button.is-current { border-color: #087d76; background: #087d76; color: #fff; }
 .pfj-step-nav button:disabled { opacity: 0.42; cursor: default; }
 .pfj-step-nav button:focus-visible { outline: 3px solid var(--th-status-info); outline-offset: 2px; }
@@ -370,6 +377,7 @@
 
 .pfj-protocol__token,
 .pfj-protocol__exchange article {
+  color: var(--th-text);
   min-width: 0;
   padding: 13px;
   border: 1px solid var(--th-border);

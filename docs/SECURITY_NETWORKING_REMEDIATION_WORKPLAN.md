@@ -21,7 +21,7 @@ The editable diagram input and its detailed data companion are in [`docs/exports
 ### Import the topology into Lucidchart
 
 1. Open the Shapes panel, click **Import Data**, choose **Process diagram**, then click **Import Your Data**.
-2. Select [`server-topology-lucidchart.csv`](exports/server-topology-lucidchart.csv). It contains 35 service boxes and 58 directed connections.
+2. Select [`server-topology-lucidchart.csv`](exports/server-topology-lucidchart.csv). It contains 35 service boxes and 60 directed connections.
 3. Keep [`server-topology-details.csv`](exports/server-topology-details.csv) as the companion inventory for RFCs/specifications, network/security notes, deployment endpoints, playback scenarios, Demo Step IDs, candidate/optional security approaches, outline/line color keys, audit caveats, and matching Lucidchart import IDs.
 
 Lucid documents [Process diagram CSV import](https://help.lucid.co/hc/en-us/articles/15927090927508-Create-a-process-diagram-from-CSV-import) as an experimental importer. It places shapes automatically and does not import shape colors/styles, so expect to adjust the layout and apply the colored outlines in Lucidchart. Lucid also supports importing Draw.io diagrams, but the CSV here uses Lucidchart's documented process-diagram schema directly.
@@ -156,9 +156,10 @@ Assessment: [`N-09`](SECURITY_NETWORKING_ASSESSMENT.md#n-09--medium-api-key-back
 
 These items prevent the topology from overstating the security boundary. Update source topology/playbacks and exported diagrams alongside the corresponding service/configuration changes.
 
-- [ ] **Hosted direct MCP route:** show local Compose direct publishing separately from hosted routing. In the audited hosted ingress, regular MCP calls route through PingGateway; only Protected Resource Metadata routes directly to `mcp-server`.
-- [ ] **API-key branch:** remove RFC 8693 exchange from the API-key playback. The branch makes an Authorize decision and calls the backend with `X-API-Key`; it returns before the generic token-exchange branch.
-- [ ] **Distinct API paths:** distinguish the API-key MCP tool call from `BankingAPIClient` calls to BFF APIs using a bearer token. Do not label the API-key resource-server hop as bearer-protected.
+- [x] **Hosted direct MCP route:** `directMcp` now names the local Compose listener; hosted `/mcp` remains in the PingGateway playback, with only Protected Resource Metadata routed directly to `mcp-server`. Evidence: [playback source](../demo_api_ui/src/components/serverTopologyData.js) and [Lucidchart export](exports/server-topology-lucidchart.csv).
+- [x] **API-key branch:** `apiKeyBackend` ends after Authorize at the direct `X-API-Key` backend call; it has no RFC 8693 exchange step. Evidence: [playback regression test](../demo_api_ui/src/components/__tests__/ServerTopologyPage.playbacks.test.jsx).
+- [x] **Distinct API paths:** the protected API playback now shows `BankingAPIClient` calling a BFF API with the delegated user bearer, separate from the gateway's API-key route. The API resource server is no longer labeled as bearer-protected. Evidence: [playback source](../demo_api_ui/src/components/serverTopologyData.js) and [Lucidchart export](exports/server-topology-lucidchart.csv).
+- [x] **Conditional MCP Step 9:** the Node Gateway protected BFF playback distinguishes passthrough from configured PingOne exchange; PF Step 9 appears only on the direct local WebSocket route that receives a PF-issued bearer. Both paths require `BANKING_API_RESOURCE_URI` to match the BFF resource audience; the env refresh helper aligns them by default. Evidence: [TokenResolver](../oauth-mcp/src/tools/TokenResolver.ts), [playback regression test](../demo_api_ui/src/components/__tests__/ServerTopologyPage.playbacks.test.jsx), and [Lucidchart export](exports/server-topology-lucidchart.csv).
 - [ ] **mTLS state:** label SPIFFE/workload mTLS as optional or candidate unless the selected deployment configures and verifies it at both endpoints. RFC 8705 applies to OAuth client authentication/certificate-bound tokens; it is not a general workload-mTLS mandate.
 - [ ] **Audit and discovery:** remove “secret-guarded” from the MCP audit edge unless inbound authentication is implemented. Mark `mcp-audit` and `mcp-discovery-agent` as having no matching checked-in Kubernetes Service/Deployment.
 - [ ] **PingGateway backend routes:** represent its direct resource/weather/Brave routes separately from the path through the OAuth MCP server.

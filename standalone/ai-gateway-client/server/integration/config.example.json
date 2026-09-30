@@ -1,0 +1,16 @@
+{
+  "allowed": {
+    "url": "https://staging.example.test/app-allow/mcp",
+    "tool": { "name": "safe_read", "arguments": {} }
+  },
+  "deniedDoor": { "url": "https://staging.example.test/app-deny/mcp" },
+  "filteredTool": {
+    "url": "https://staging.example.test/app-tool-policy/mcp",
+    "name": "safe_denied_stub",
+    "arguments": { "fixture": "gateway-integration" }
+  },
+  "aggregate": {
+    "url": "https://staging.example.test/aggregate/mcp",
+    "tool": { "name": "member_alias__safe_read", "arguments": {} }
+  }
+}

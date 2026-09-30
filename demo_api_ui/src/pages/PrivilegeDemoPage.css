@@ -14,7 +14,7 @@
   background: linear-gradient(to bottom, var(--brand-navy, #0f2744) 0%, #1a3a5c 100%);
   color: #fff;
   padding: 1.25rem 0;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-sm);
 }
 
 .pd-page__header-inner {

@@ -310,9 +310,10 @@ router.get('/login', (req, res) => {
     delete req.session.oauthStepUpRequested;
     delete req.session.stepUpReturnTo;
 
+    const piFlowMode = req.query.mode === 'pi.flow';
     const continuingIdJag = !!req.session.pendingIdJagNonce && !!req.session.oauthState
       && pendingIdJagRun(req)?.nonce === req.session.pendingIdJagNonce;
-    const liveIdJag = req.query.mode === 'live-id-jag' || continuingIdJag;
+    const liveIdJag = !piFlowMode && (req.query.mode === 'live-id-jag' || continuingIdJag);
     const claimedIdJag = liveIdJag
       ? claimPendingIdJagRunForLogin(req, req.query.return_to || req.session.postLoginReturnToPath)
       : null;
@@ -337,12 +338,28 @@ router.get('/login', (req, res) => {
     // Guard: end-user flow needs user client + env (not admin_client_id)
     if (!configStore.isUserOAuthConfigured()) {
       if (liveIdJag) { clearPendingIdJagRun(req); clearIdJagCookie(res); }
+      if (piFlowMode) {
+        return res.status(400).json({ error: 'not_configured', message: 'End-user PingOne sign-in is not configured.' });
+      }
       return res.redirect(`${getFrontendOrigin()}/config?error=not_configured`);
     }
 
     const forceLogin = req.query.force === 'true' || liveIdJag;
     const selectedProvider = configStore.getOAuthProvider?.() || 'pingone';
     const sessionProvider = req.session.user?.oauthProvider;
+    const isAdminSession = req.session?.oauthType === 'admin' || req.session?.user?.role === 'admin';
+    if (piFlowMode && isAdminSession) {
+      return res.status(409).json({
+        error: 'admin_session_active',
+        message: 'An Admin session is present. Refresh the Admin session status instead of starting a User sign-in.',
+      });
+    }
+    if (piFlowMode && oauthService.identifyProvider() !== 'pingone_sso') {
+      return res.status(400).json({
+        error: 'pi_flow_provider_unsupported',
+        message: 'PingOne pi.flow is available only when the end-user provider is PingOne.',
+      });
+    }
     const sessionProviderMatches = selectedProvider === 'pingfederate'
       ? sessionProvider === 'pingfederate'
       : sessionProvider === 'pingone_sso';
@@ -390,7 +407,6 @@ router.get('/login', (req, res) => {
     }
 
     // Drop any prior admin session so Customer sign-in starts fresh.
-    const isAdminSession = req.session?.oauthType === 'admin' || req.session?.user?.role === 'admin';
     if (isAdminSession) {
       delete req.session.oauthTokens;
       delete req.session.user;
@@ -469,7 +485,7 @@ router.get('/login', (req, res) => {
 
     // force=true must send prompt=login — clearing the BFF session alone does not
     // stop PingOne SSO from silently re-auth'ing and bouncing the SPA to `/`.
-    const url =
+    let url =
       oauthService.generateAuthorizationUrl({
         state,
         codeVerifier,
@@ -477,12 +493,23 @@ router.get('/login', (req, res) => {
         nonce,
         ...(forceLogin ? { prompt: 'login' } : {}),
       }) + resourceParam;
+    if (piFlowMode) {
+      const piFlowUrl = new URL(url);
+      // The modal uses an authorization code so the BFF callback can exchange
+      // it with the server-held PKCE verifier. pi.flow changes response
+      // delivery to JSON; token exchange stays on the server.
+      piFlowUrl.searchParams.set('response_type', 'code');
+      piFlowUrl.searchParams.set('response_mode', 'pi.flow');
+      url = piFlowUrl.toString();
+    }
 
     loginFlowTrace.addStep(loginTraceId, {
       actor: 'bff',
       toActor: 'pingone',
-      title: "BFF redirects you to PingOne's hosted login",
-      detail: '302 to PingOne /authorize carrying response_type, redirect_uri, and the code_challenge.',
+      title: piFlowMode ? 'Browser starts PingOne pi.flow' : "BFF redirects you to PingOne's hosted login",
+      detail: piFlowMode
+        ? 'The browser requests /as/authorize with response_mode=pi.flow and stays on this page.'
+        : '302 to PingOne /authorize carrying response_type, redirect_uri, and the code_challenge.',
       protocolDetail: [
         ['response_type', 'code'],
         ['redirect_uri', redirectUri],
@@ -495,12 +522,12 @@ router.get('/login', (req, res) => {
     req.session.oauthRedirectUri = redirectUri;
     req.session.oauthNonce = nonce;
     req.session.oauthType = 'user'; // Distinguish from admin OAuth
-    req.session.oauthLoginProvider = configStore.getOAuthProvider?.() || 'pingone';
+    req.session.oauthLoginProvider = selectedProvider;
     req.session.oauthLoginTraceId = loginTraceId;
 
     // Vercel / serverless: also persist PKCE data in a signed cookie so the
     // callback can recover it when the in-memory session is on a different instance.
-    setPkceCookie(res, { state, codeVerifier, redirectUri, nonce }, _isProd());
+    setPkceCookie(res, { state, codeVerifier, redirectUri, nonce, oauthProvider: selectedProvider }, _isProd());
 
     // Persist PKCE state before redirecting so the callback can validate.
     // Non-fatal: state/verifier are already in the signed PKCE cookie (setPkceCookie above),
@@ -510,8 +537,18 @@ router.get('/login', (req, res) => {
       if (err) {
         console.warn('[oauth/user] Session save failed before PingOne redirect (PKCE cookie is fallback):', err.message);
       }
-      console.log('Redirecting end user to PingOne SSO');
-      appEventService.logEvent('oauth', 'info', 'Redirecting → PingOne Authorization', { tag: 'oauth/user/login', redirect_uri: redirectUri });
+      if (piFlowMode) console.log('Starting end-user PingOne pi.flow.');
+      else console.log('Redirecting end user to PingOne SSO');
+      appEventService.logEvent(
+        'oauth',
+        'info',
+        piFlowMode ? 'Starting PingOne pi.flow without browser navigation' : 'Redirecting → PingOne Authorization',
+        { tag: 'oauth/user/login', redirect_uri: redirectUri }
+      );
+      if (piFlowMode) {
+        res.set('Cache-Control', 'no-store');
+        return res.json({ authorizeUrl: url, callbackPath: new URL(redirectUri).pathname });
+      }
       res.redirect(url);
     });
   } catch (error) {
@@ -578,8 +615,12 @@ router.get('/silent-reauth', (req, res) => {
     req.session.oauthRedirectUri = redirectUri;
     req.session.oauthNonce = nonce;
     req.session.oauthType = 'user';
+    req.session.oauthLoginProvider = configStore.getOAuthProvider?.() || 'pingone';
     req.session.oauthLoginStartedAt = Date.now();
-    setPkceCookie(res, { state, codeVerifier, redirectUri, nonce }, _isProd());
+    setPkceCookie(res, {
+      state, codeVerifier, redirectUri, nonce,
+      oauthProvider: req.session.oauthLoginProvider,
+    }, _isProd());
 
     req.session.save((err) => {
       if (err) {
@@ -675,6 +716,21 @@ router.get('/callback', async (req, res) => {
       // This handles the multi-tab race where tab B's login overwrites tab A's PKCE state.
       console.log('[oauth/user/callback] Auto-retrying login after invalid_state (multi-tab race)');
       return res.redirect(`${req.baseUrl}/login`);
+    }
+
+    const loginProvider = req.session.oauthLoginProvider || pkceCookie?.oauthProvider;
+    const selectedProvider = configStore.getOAuthProvider?.() || 'pingone';
+    if (!loginProvider || loginProvider !== selectedProvider) {
+      clearPendingIdJagRun(req);
+      clearIdJagCookie(res);
+      clearPkceCookie(res, _isProd());
+      delete req.session.oauthState;
+      delete req.session.oauthCodeVerifier;
+      delete req.session.oauthRedirectUri;
+      delete req.session.oauthNonce;
+      delete req.session.oauthLoginProvider;
+      finishLoginAudit(req, { outcome: 'failure', reasonCode: 'oauth_provider_error' });
+      return redirectEndUserOAuthSpaFailure(req, res, { error: 'provider_changed' });
     }
 
     // Validate code parameter
@@ -924,9 +980,9 @@ router.get('/callback', async (req, res) => {
     }
     const origin = getFrontendOrigin();
     const postLoginReturnToPath = sanitizePostLoginReturnPath(req.session.postLoginReturnToPath) || null;
-    const loginProvider = req.session.oauthLoginProvider || configStore.getOAuthProvider?.() || 'pingone';
+    const resolvedLoginProvider = loginProvider || selectedProvider;
     const hadIdJagHandoff = !!req.session.pendingIdJagNonce;
-    const validatedIdJagIntent = hadIdJagHandoff && loginProvider === 'pingfederate'
+    const validatedIdJagIntent = hadIdJagHandoff && resolvedLoginProvider === 'pingfederate'
       && configStore.getOAuthProvider?.() === 'pingfederate'
       && pendingIdJagRun(req)?.returnTo === postLoginReturnToPath
       ? consumePendingIdJagRun(req) : null;
@@ -988,7 +1044,7 @@ router.get('/callback', async (req, res) => {
       req.session.user = authedUser;
       req.session.clientType = clientType;
       req.session.oauthType = 'user';
-      req.session.oauthProvider = loginProvider;
+      req.session.oauthProvider = resolvedLoginProvider;
       if (validatedIdJagIntent) req.session.idJagRunIntent = validatedIdJagIntent;
       if (hostedLoginAudit) req.session.hostedLoginAudit = hostedLoginAudit;
       if (hostedLoginAudits) req.session.hostedLoginAudits = hostedLoginAudits;
@@ -1147,6 +1203,7 @@ router.get('/stepup', (req, res) => {
     // after MFA (callback does res.redirect(stepUpReturnTo)).
     const returnTo = sanitizeStepUpReturnTo(req.query.return_to);
     const stepUpSep = returnTo.includes('?') ? '&' : '?';
+    const loginProvider = configStore.getOAuthProvider?.() || 'pingone';
 
     const state = oauthService.generateState();
     const codeVerifier = oauthService.generateCodeVerifier();
@@ -1168,10 +1225,11 @@ router.get('/stepup', (req, res) => {
     req.session.oauthNonce = nonce;
     req.session.oauthType = 'user';
     req.session.oauthStepUpRequested = true;
+    req.session.oauthLoginProvider = loginProvider;
     req.session.stepUpReturnTo = `${returnTo}${stepUpSep}stepup=done`;
 
     // Vercel / serverless: PKCE cookie fallback
-    setPkceCookie(res, { state, codeVerifier, redirectUri, nonce }, _isProd());
+    setPkceCookie(res, { state, codeVerifier, redirectUri, nonce, oauthProvider: loginProvider }, _isProd());
 
     console.log(`[StepUp] Initiating MFA step-up with acr_values=${acrValue}`);
     req.session.save((err) => {
@@ -1248,6 +1306,8 @@ router.get('/status', (req, res) => {
       role: session.user.role,
       oauthProvider: session.user.oauthProvider || null,
       oauthIssuer: session.user.oauthIssuer || null,
+      ...(session.oauthType === 'user' && typeof session.oauthTokens?.subjectSub === 'string' && session.oauthTokens.subjectSub
+        ? { providerSubject: session.oauthTokens.subjectSub } : {}),
       phone: session.user.phone || null,
       hideSuccessScreen: session.user.hideSuccessScreen || false,
       notificationPrefs: session.user.notificationPrefs || null

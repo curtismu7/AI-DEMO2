@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: demo-api-server-orbstack-pf-egress
+  namespace: ai-demo
+spec:
+  podSelector:
+    matchLabels:
+      app: ai-demo
+      component: api-server
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.250.250.254/32
+      ports:
+        - protocol: TCP
+          port: 9031

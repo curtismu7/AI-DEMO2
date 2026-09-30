@@ -573,6 +573,9 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
           }
         } catch (sessionErr) {
           console.warn("Session check failed:", sessionErr.message);
+          // The app shell already confirmed this identity. Let the protected
+          // data request decide whether its token is still usable.
+          if (propUser) sessionUser = propUser;
         }
 
         if (!sessionUser) {
@@ -3885,7 +3888,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
       {/* User Session Token Modal */}
       {showTokenModal && (
         <FloatingPanel
-          title="User Session Token"
+          title="Session Token"
           onClose={() => setShowTokenModal(false)}
           defaultWidth={820}
           defaultHeight={Math.min(window.innerHeight - 80, 940)}

@@ -3,6 +3,7 @@
 const inventory = require('../config/demoReadinessInventory.json');
 const repairability = require('../config/demoReadinessRepairability.json');
 const featureChecks = require('../config/demoReadinessFeatureChecks.json');
+const pingFederateProfiles = require('../config/demoReadinessPingFederateProfiles.json');
 const { USE_CASES, VERTICALS, resolveUseCase } = require('../config/useCases');
 const { ADMIN_DEMO_STEPS } = require('../config/admin/demoSteps');
 const authRequirements = require('../config/auth-requirements.json');
@@ -23,6 +24,7 @@ function loadDemoReadinessSources() {
     inventory,
     repairability,
     featureChecks,
+    pingFederateProfiles,
     useCases: USE_CASES,
     adminSteps: ADMIN_DEMO_STEPS,
     authRequirements,
@@ -35,6 +37,35 @@ function loadDemoReadinessSources() {
 
 function pushIssue(issues, message) {
   issues.push(message);
+}
+
+function hasSourceBackedCredentialRoles(contract) {
+  return Array.isArray(contract?.credentialRoles)
+    && contract.credentialRoles.length > 0
+    && contract.credentialRoles.every((role) => typeof role?.roleId === 'string' && role.roleId
+      && typeof role?.sourceRef === 'string' && role.sourceRef
+      && Array.isArray(role.configurationKeys));
+}
+
+function hasActionablePfSourceGap(contract) {
+  return contract?.status === 'blocked'
+    && typeof contract.sourceGap?.code === 'string' && contract.sourceGap.code
+    && typeof contract.sourceGap?.reason === 'string' && contract.sourceGap.reason
+    && typeof contract.sourceGap?.remediation === 'string' && contract.sourceGap.remediation
+    && hasSourceBackedCredentialRoles(contract);
+}
+
+function hasExactPfFeatureContract(contract, exchangeBacked) {
+  if (hasActionablePfSourceGap(contract)) {
+    return !exchangeBacked || Boolean(
+      contract.issuer?.configurationKey && contract.issuer?.sourceRef
+      && contract.endpoint?.configurationKey && contract.endpoint?.sourceRef,
+    );
+  }
+  if (contract?.status !== 'ready' || !hasSourceBackedCredentialRoles(contract)) return false;
+  if (!exchangeBacked) return true;
+  return typeof contract.issuer === 'string' && Boolean(contract.issuerSourceRef)
+    && typeof contract.endpoint === 'string' && Boolean(contract.endpointSourceRef);
 }
 
 function duplicateValues(values) {
@@ -82,6 +113,63 @@ function providerFlowFor(id, isAdmin, provider) {
   if (['UC2', 'UC2.5'].includes(id)) return 'pingfederate-a2a';
   if (['UC38', 'UC44'].includes(id)) return 'pingfederate-workload';
   return 'pingfederate-standard';
+}
+
+function pfCredentialRoleIdsFor(id, flowId) {
+  if (flowId === 'pingfederate-native-id-jag') return ['uc40-native-id-jag'];
+  if (flowId === 'pingfederate-a2a') return ['standard-agent-exchanger', 'ai-agent-actor', 'a2a-specialist'];
+  if (flowId === 'pingfederate-workload') {
+    return ['standard-agent-exchanger', 'standard-mcp-exchanger', 'ai-agent-actor', 'mcp-service-actor'];
+  }
+  if (flowId === 'pingfederate-admin-mcp') return ['standard-agent-exchanger', 'standard-mcp-exchanger'];
+  return ['standard-agent-exchanger', 'standard-mcp-exchanger', 'ai-agent-actor', 'mcp-service-actor'];
+}
+
+/**
+ * The BFF's ordinary PF issuer and endpoint are intentionally runtime-configured
+ * (`pf_issuer` and `pf_token_endpoint`), while the checked-in profile currently
+ * has no committed PF Admin API readback. Keep the source/key/role mapping on
+ * every PF row, and make the missing literal contract an explicit blocker rather
+ * than letting a worker invent endpoint or credential values.
+ */
+function pfExchangeContractFor({ id, flowId, profiles = pingFederateProfiles }) {
+  const roleIds = pfCredentialRoleIdsFor(id, flowId);
+  const roles = profiles?.roles || {};
+  const credentialRoles = roleIds.map((roleId) => ({
+    roleId,
+    objectId: roles[roleId]?.objectId || null,
+    sourceRef: roles[roleId]?.sourceRef || null,
+    configurationKeys: roles[roleId]?.configurationKeys || [],
+    unresolved: roles[roleId]?.unresolved !== false,
+  }));
+  const unresolved = credentialRoles.filter((role) => role.unresolved || !role.objectId);
+  const sourceGap = unresolved.length
+    ? {
+      code: 'pf_exact_exchange_contract_source_gap',
+      reason: 'A committed PingFederate provisioner or supported PF Admin API readback must record the literal PF issuer, token endpoint, and registered credential roles before this lane can run.',
+      missingRoleIds: unresolved.map((role) => role.roleId),
+      remediation: 'Record the readback in demoReadinessPingFederateProfiles.json, including the resolved issuer, endpoint, and role registration, then mark the role resolved.',
+    }
+    : null;
+  return {
+    status: sourceGap ? 'blocked' : 'ready',
+    issuer: { configurationKey: 'pf_issuer', sourceRef: 'demo_api_server/services/oauthEndpointResolver.js#issuer' },
+    endpoint: { configurationKey: 'pf_token_endpoint', sourceRef: 'demo_api_server/services/pfStandardTokenExchangeService.js#resolveConfig' },
+    credentialRoles,
+    sourceGap,
+  };
+}
+
+function providerRoleApplicabilityFor({ id, providerFlows }) {
+  return {
+    userSession: id === 'UC40' ? 'pingfederate-required' : 'provider-bound',
+    agentIdentity: 'provider-bound',
+    tokenIssuer: 'provider-bound',
+    exchangeService: 'provider-flow-bound',
+    resourceServer: 'vertical-contract-bound',
+    pingone: providerFlows.pingone ? 'applicable' : 'not-applicable',
+    pingfederate: providerFlows.pingfederate ? 'applicable' : 'not-applicable',
+  };
 }
 
 function authorizationContractFor(step, sources, issues, useCaseId, vertical) {
@@ -312,7 +400,7 @@ function validateDemoReadinessCatalog(sources, { uiInventory, educationPanelIds 
   const requiredA2aChecks = ['A2A-FM1', 'A2A-FM2', 'A2A-FM3'];
   if (featureCheckConfig.countsTowardDemoSteps !== false
       || requiredA2aChecks.some((id) => !featureCheckIds.includes(id))) {
-    pushIssue(issues, 'The separate feature-check inventory must contain A2A FM1, FM2, and FM3 without changing the 46 Demo Steps count');
+    pushIssue(issues, 'The separate feature-check inventory must contain A2A FM1, FM2, and FM3 without changing the Demo Steps count');
   }
   if (new Set(featureCheckIds).size !== featureCheckIds.length) {
     pushIssue(issues, 'Provider feature-check IDs must be unique');
@@ -341,6 +429,33 @@ function validateDemoReadinessCatalog(sources, { uiInventory, educationPanelIds 
       } else if (drift.repairMode === 'automatic' && (!drift.configurationOnly || !drift.operation || !drift.readback)) {
         pushIssue(issues, `${dependency} is automatic but lacks a config-only operation and readback`);
       }
+    }
+    const contract = featureCheckConfig.contracts?.[check.id];
+    if (!contract || !contract.featureFamily || !contract.familyContract
+        || !contract.providerFlows || !contract.exchangeService || !contract.resourceServer
+        || !Array.isArray(contract.audiences) || !Array.isArray(contract.requiredScopes)
+        || !Array.isArray(contract.behaviorStages) || !Object.hasOwn(contract, 'selectedTool')
+        || !Object.hasOwn(contract, 'expectedDecision')) {
+      pushIssue(issues, `${check.id} has no complete family-specific feature contract`);
+      continue;
+    }
+    for (const provider of check.providers || []) {
+      if (!contract.providerFlows[provider]) {
+        pushIssue(issues, `${check.id} has no ${provider} feature flow contract`);
+      }
+      if (provider === 'pingfederate' && contract.exchangeService === 'token-exchange') {
+        const pfContract = contract.pfExchangeContract;
+        if (!hasExactPfFeatureContract(pfContract, true)) {
+          pushIssue(issues, `${check.id} PingFederate exchange probe lacks an exact contract or actionable source gap`);
+        }
+      }
+      if (provider === 'pingfederate' && contract.exchangeService !== 'token-exchange'
+          && !hasExactPfFeatureContract(contract.pfCredentialContract, false)) {
+        pushIssue(issues, `${check.id} PingFederate feature probe lacks an exact credential contract or actionable source gap`);
+      }
+    }
+    if (contract.selectedTool && (contract.gateway?.applicable === false || contract.authorize?.applicable === false)) {
+      pushIssue(issues, `${check.id} is exchange-backed and must not declare Gateway or Authorize not applicable`);
     }
   }
   for (const check of featureChecks) {
@@ -421,15 +536,15 @@ function validateDemoReadinessCatalog(sources, { uiInventory, educationPanelIds 
     ], id)),
     ...executableAdminIds,
   ];
-  if (caseIds.length !== 46 || new Set(caseIds).size !== 46) {
-    pushIssue(issues, `Expected exactly 46 executable Demo Steps entries; found ${caseIds.length} entries (${new Set(caseIds).size} unique)`);
+  if (caseIds.length !== 47 || new Set(caseIds).size !== 47) {
+    pushIssue(issues, `Expected exactly 47 executable Demo Steps entries; found ${caseIds.length} entries (${new Set(caseIds).size} unique)`);
   }
   const ciAmCount = (inventoryConfig.ciam || []).filter((id) => !seenIn(inventoryConfig.primary, id)).length;
   const privilegeCount = (inventoryConfig.privilege || []).filter((id) => !seenIn([
     ...(inventoryConfig.primary || []), ...(inventoryConfig.ciam || []),
   ], id)).length;
-  if ((inventoryConfig.primary || []).length !== 24 || ciAmCount !== 4 || privilegeCount !== 6 || executableAdminIds.length !== 12) {
-    pushIssue(issues, `Expected lane counts 24 + 4 + 6 + 12; found ${(inventoryConfig.primary || []).length} + ${ciAmCount} + ${privilegeCount} + ${executableAdminIds.length}`);
+  if ((inventoryConfig.primary || []).length !== 25 || ciAmCount !== 4 || privilegeCount !== 6 || executableAdminIds.length !== 12) {
+    pushIssue(issues, `Expected lane counts 25 + 4 + 6 + 12; found ${(inventoryConfig.primary || []).length} + ${ciAmCount} + ${privilegeCount} + ${executableAdminIds.length}`);
   }
 
   const useCaseById = new Map(useCases.map((item) => [item.id, item]));
@@ -601,6 +716,14 @@ function validateDemoReadinessCatalog(sources, { uiInventory, educationPanelIds 
           pushIssue(issues, `${dependency} is automatic but lacks a config-only operation and readback`);
         }
       }
+      if (provider === 'pingfederate') {
+        const pfContract = pfExchangeContractFor({ id, flowId, profiles: sources.pingFederateProfiles });
+        if (pfContract.issuer?.configurationKey !== 'pf_issuer'
+            || pfContract.endpoint?.configurationKey !== 'pf_token_endpoint'
+            || !Array.isArray(pfContract.credentialRoles) || pfContract.credentialRoles.length === 0) {
+          pushIssue(issues, `${id} PingFederate flow lacks its checked-in issuer, endpoint-key, and credential-role contract`);
+        }
+      }
     }
 
     rows.push({
@@ -615,6 +738,10 @@ function validateDemoReadinessCatalog(sources, { uiInventory, educationPanelIds 
       alternateBehaviors,
       providerFlows,
       providerNotApplicableReasons,
+      providerRoleApplicability: providerRoleApplicabilityFor({ id, providerFlows }),
+      pfExchangeContract: providerFlows.pingfederate
+        ? pfExchangeContractFor({ id, flowId: providerFlows.pingfederate, profiles: sources.pingFederateProfiles })
+        : null,
       auth: auth.useCases?.[id] || auth.defaultLevel || null,
       verticals: isAdmin ? ['pingone-admin'] : [...verticals],
       runtimeVerticalGroups,
@@ -652,5 +779,7 @@ module.exports = {
   buildDemoReadinessCatalog,
   loadDemoReadinessSources,
   validateDemoReadinessCatalog,
+  pfExchangeContractFor,
+  providerRoleApplicabilityFor,
   routePath,
 };

@@ -1,0 +1,17 @@
+models: []
+rails:
+  config:
+    hf_classifier:
+      promptguard:
+        engine: local
+        model: protectai/deberta-v3-base-prompt-injection-v2
+        task: text-classification
+        threshold: 0.9
+        blocked_labels:
+          - INJECTION
+        parameters:
+          top_k: null
+          truncation: true
+  input:
+    flows:
+      - hf classifier check input $classifier=promptguard

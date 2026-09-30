@@ -15,23 +15,43 @@
 // requiring auth.js (env is read at module load).
 process.env.SKIP_TOKEN_SIGNATURE_VALIDATION = 'false';
 process.env.ENDUSER_AUDIENCE = 'enduser.ping.demo';
+process.env.PINGONE_RESOURCE_BFF_URI = 'enduser.ping.demo';
 process.env.MCP_GW_RESOURCE_URI = 'mcpgateway.ping.demo';
+process.env.PF_ISSUER_URI = 'https://pf.example/as';
+process.env.PF_JWKS_URI = 'https://pf.example/as/JWKS';
+process.env.PINGONE_ISSUER_URI = 'https://auth.pingone.com/env-test/as';
 
 let mockPayload;
 jest.mock('../services/tokenValidationService', () => ({
   validateToken: jest.fn(async () => mockPayload),
 }));
+jest.mock('../services/oauthEndpointResolver', () => ({
+  getPingOneIssuer: jest.fn(() => 'https://auth.pingone.com/env-test/as'),
+  getPingOneJwksUri: jest.fn(() => 'https://auth.pingone.com/env-test/as/jwks'),
+}));
+jest.mock('../config/oauth', () => ({
+  get issuer() { return 'https://pf.example/as'; },
+  get jwksEndpoint() { return 'https://pf.example/as/JWKS'; },
+}));
 
 const { authenticateToken } = require('../middleware/auth');
+const { validateToken } = require('../services/tokenValidationService');
+
+function createTestToken(payload) {
+  const header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');
+  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  return `${header}.${body}.test-signature`;
+}
 
 function invoke(path, aud, opts = {}) {
   mockPayload = {
     sub: 'demo',
     scope: 'read write admin',
     aud,
-    iss: 'test',
+    iss: opts.iss || 'test',
     exp: Math.floor(Date.now() / 1000) + 3600,
   };
+  const bearerToken = opts.token || createTestToken(mockPayload);
   return new Promise((resolve) => {
     const req = {
       method: opts.method || 'POST',
@@ -39,7 +59,7 @@ function invoke(path, aud, opts = {}) {
       baseUrl: opts.baseUrl || '',
       originalUrl: (opts.baseUrl || '') + path,
       url: path,
-      headers: { authorization: 'Bearer x.y.z', 'user-agent': 'axios/1.16.0' },
+      headers: { authorization: `Bearer ${bearerToken}`, 'user-agent': 'axios/1.16.0' },
       ip: '127.0.0.1',
       socket: { remoteAddress: '127.0.0.1' },
       connection: { remoteAddress: '127.0.0.1' },
@@ -61,12 +81,40 @@ function invoke(path, aud, opts = {}) {
   });
 }
 
+beforeEach(() => {
+  jest.clearAllMocks();
+});
+
 const isAudience401 = (r) =>
   r.outcome === 'response' &&
   r.statusCode === 401 &&
   /does not match this service's audience/.test(JSON.stringify(r.body));
 
 describe('vertical-tool callback audience acceptance', () => {
+  test('validates PingOne-issued callback tokens with PingOne JWKS while PF is active', async () => {
+    const pingOneIssuer = 'https://auth.pingone.com/env-test/as';
+    const token = createTestToken({ iss: pingOneIssuer });
+    const r = await invoke('/my', 'enduser.ping.demo', { method: 'GET', iss: pingOneIssuer, token });
+
+    expect(r.outcome).toBe('next');
+    expect(validateToken).toHaveBeenCalledWith(token, {
+      jwksUri: 'https://auth.pingone.com/env-test/as/jwks',
+      issuer: pingOneIssuer,
+    });
+  });
+
+  test('keeps PF-issued tokens on PF JWKS while PF is active', async () => {
+    const pfIssuer = 'https://pf.example/as';
+    const token = createTestToken({ iss: pfIssuer });
+    const r = await invoke('/my', 'enduser.ping.demo', { method: 'GET', iss: pfIssuer, token });
+
+    expect(r.outcome).toBe('next');
+    expect(validateToken).toHaveBeenCalledWith(token, {
+      jwksUri: 'https://pf.example/as/JWKS',
+      issuer: pfIssuer,
+    });
+  });
+
   test('accepts MCP gateway audience on /vertical-tool (router-relative path)', async () => {
     const r = await invoke('/vertical-tool', 'mcpgateway.ping.demo');
     expect(isAudience401(r)).toBe(false);

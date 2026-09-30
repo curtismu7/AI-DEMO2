@@ -28,6 +28,7 @@ jest.mock('../../services/configStore', () => {
     getStorageType:    jest.fn().mockReturnValue('lmdb'),
     isReadOnly:        jest.fn().mockReturnValue(false),
     setConfig:         jest.fn().mockResolvedValue(undefined),
+    getEffective:      jest.fn((key) => key === 'pf_issuer' ? 'https://pf.example.com' : ''),
     FIELD_DEFS,
   };
 });
@@ -108,7 +109,15 @@ describe('POST /api/admin/config — PingFederate pre-flight reachability gate',
   });
 
   test('accepts oauth_provider=pingfederate when PF discovery responds', async () => {
-    mockAxios.get.mockResolvedValue({ status: 200, data: {} });
+    mockAxios.get.mockResolvedValue({
+      status: 200,
+      data: {
+        issuer: 'https://pf.example.com',
+        authorization_endpoint: 'https://pf.example.com/authorize',
+        token_endpoint: 'https://pf.example.com/token',
+        jwks_uri: 'https://pf.example.com/jwks',
+      },
+    });
 
     const res = await request(app)
       .post('/api/admin/config')
@@ -116,7 +125,15 @@ describe('POST /api/admin/config — PingFederate pre-flight reachability gate',
 
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
-    expect(configStore.setConfig.mock.calls).toContainEqual([{ OAUTH_PROVIDER: 'pingfederate' }]);
+    expect(configStore.setConfig).toHaveBeenCalledWith(expect.objectContaining({
+      OAUTH_PROVIDER: 'pingfederate',
+      PF_ISSUER: 'https://pf.example.com',
+      PF_AUTHORIZATION_ENDPOINT: 'https://pf.example.com/authorize',
+      PF_TOKEN_ENDPOINT: 'https://pf.example.com/token',
+      PF_JWKS_URI: 'https://pf.example.com/jwks',
+    }));
+    expect(require('../../services/oauthEndpointResolver').getDiscoveryEndpoint)
+      .toHaveBeenCalledWith('pingfederate');
   });
 
   test('does NOT probe when switching back to pingone', async () => {
@@ -150,6 +167,38 @@ describe('POST /api/admin/config — PingFederate pre-flight reachability gate',
 
     expect(res.status).toBe(422);
     expect(res.body.error).toBe('pf_unreachable');
+  });
+
+  test('rejects a successful HTTP response that is not valid OIDC metadata', async () => {
+    mockAxios.get.mockResolvedValue({ status: 200, data: {} });
+
+    const res = await request(app)
+      .post('/api/admin/config')
+      .send({ oauth_provider: 'pingfederate' });
+
+    expect(res.status).toBe(422);
+    expect(res.body.error).toBe('pf_unreachable');
+    expect(configStore.setConfig).not.toHaveBeenCalled();
+  });
+
+  test('rejects discovery metadata whose issuer differs from the configured PF issuer', async () => {
+    mockAxios.get.mockResolvedValue({
+      status: 200,
+      data: {
+        issuer: 'https://auth.pingone.com/env-1/as',
+        authorization_endpoint: 'https://auth.pingone.com/env-1/as/authorize',
+        token_endpoint: 'https://auth.pingone.com/env-1/as/token',
+        jwks_uri: 'https://auth.pingone.com/env-1/as/jwks',
+      },
+    });
+
+    const res = await request(app)
+      .post('/api/admin/config')
+      .send({ oauth_provider: 'pingfederate' });
+
+    expect(res.status).toBe(422);
+    expect(res.body.error).toBe('pf_unreachable');
+    expect(configStore.setConfig).not.toHaveBeenCalled();
   });
 
   test('rejects when PF discovery endpoint is not configured at all', async () => {

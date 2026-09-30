@@ -22,6 +22,33 @@
   height: auto !important;
 }
 
+/* Drawer placement: pinned to the right edge, slides in, resized by its left edge */
+.fp-panel--drawer {
+  max-width: calc(100vw - 16px);
+  border-width: 0 0 0 1px;
+  border-radius: 0;
+  box-shadow: -4px 0 16px rgba(0,0,0,0.12);
+  animation: fp-drawer-in 0.22s ease-out;
+}
+
+.fp-panel--drawer .fp-titlebar {
+  cursor: default;
+}
+
+.fp-panel--drawer .fp-handle-w {
+  top: 0;
+  bottom: 0;
+}
+
+@keyframes fp-drawer-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fp-panel--drawer { animation: none; }
+}
+
 /* Title bar */
 .fp-titlebar {
   display: flex;
