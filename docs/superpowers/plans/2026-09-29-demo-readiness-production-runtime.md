@@ -73,9 +73,33 @@
 - [x] Run `graphify extract . --code-only --no-cluster --timing` after final source changes (AST 5.7s; total 22.1s; no clustering).
 - [x] Stage only Task 2 paths, inspect the staged diff, and commit Task 2 independently on `feat/demo-readiness-production-runtime`.
 
+## Task 3: Authenticated isolated-worker HTTP service boundary
+
+**Files:**
+- Create: `demo_api_server/services/demoReadinessWorkerServer.js`
+- Create: `demo_api_server/tests/demoReadinessWorkerServer.test.js`
+- Modify: `docs/demo-readiness.md`
+- Modify: this plan
+
+**Interfaces and limits:**
+- `createReadinessWorkerHttpService({ targetId, provider, identityRef, workerToken, createSession, ...limits })` returns an Express app, worker ID, expiry sweep, and async close hook. This is a protocol/service factory, not yet a standalone worker process.
+- The process pins its target, provider, and identity reference. Every endpoint requires a bearer token checked with constant-time digest comparison. JSON requests and evidence responses have a 512 KiB limit.
+- Context creation is idempotent per run ID, concurrency-safe for retries, capacity-limited, and expires after a bounded TTL. Setup timeout/cancellation aborts the adapter signal and keeps its slot reserved until setup and late-session cleanup settle. If cancellation cannot be confirmed within the cleanup bound, the worker latches unavailable and rejects new sessions. A real adapter must provide an authenticated lane-matching session and distinct opaque runtime, cookie-jar, and session-store IDs.
+- Only the four client operations and checked-in `FEATURE_DISPATCHERS` families are accepted. PingFederate-only feature families cannot dispatch from PingOne. Results are redacted before returning; raw adapter errors and credentials do not cross the service boundary.
+- Cleanup failures make the worker unavailable. Request cancellation, operation timeout, TTL expiry, and service close attempt session disposal.
+- This boundary intentionally accepts a trusted `createSession` adapter. It does not supply actual PingOne/PF login, browser/process isolation, the 46 step triggers, feature adapters, or local/SE packaging. Before those adapters are written, resolve the process-wide OAuth provider setting by giving each lane its own provider-configured BFF runtime; never toggle the presenter BFF.
+
+- [x] Add tests first; the initial test run failed because `demoReadinessWorkerServer` did not exist.
+- [x] Implement bearer authentication, lane handshake, waiter-aware retry coalescing, bounded contexts, source-validated operation inputs, allowlisted feature dispatch, redaction, expiry, timeouts, safe errors, and fail-closed cleanup behavior.
+- [x] Run the worker service test suite (20/20), then run it with the existing worker-client, provider-isolation, execution, and runner suites (5 suites; 117 passed, 1 skipped).
+- [x] Update this guide to distinguish the service boundary from missing provider login adapters and deployable worker processes.
+- [x] Run `git diff --check` and `graphify extract . --code-only --no-cluster --timing` after final source changes; Graphify completed with AST extraction 21.3s, total 83.8s, and 44,698 nodes/100,969 edges.
+- [x] Stage only Task 3 paths, inspect the staged diff, and obtain follow-up review.
+- [x] Commit Task 3 independently on `feat/demo-readiness-production-runtime`.
+
 ## Remaining tasks
 
-1. Implement the provider-specific worker service for the Task 2 HTTPS protocol. It must provide distinct local/SE × PingOne/PF service identities, private cookie/session stores, bounded run contexts with expiry on lost connections, actual provider login paths, and dispatch of existing case/family-specific contracts through real demo paths without mutating the active BFF provider.
-2. Wire target-specific PingOne, PingFederate, Gateway, and Authorize readbacks. Keep unsupported Authorize tree parity under the approved waiver only.
-3. Configure local Docker workers and the authorized SE read/execute workers, then run all 800 expected rows, capture the live PingOne/PF/UC40 ID-JAG sessions, and measure the 12/15-minute gates.
+1. Build the actual provider-bound session adapters and worker process packaging. Provide four independently configured target/provider lanes. Each lane must establish its own PingOne or PingFederate user login and private browser/cookie/session stores. Resolve BFF's process-wide OAuth provider selection with a separate provider-configured readiness BFF runtime per lane; do not mutate the presenter BFF. Implement the exact 46 Demo Steps triggers and all feature-family probes, including a PingFederate login session and UC40 native ID-JAG through PingFederate. Verify every adapter uses the declared provider and target revision.
+2. Wire target-specific PingOne, PingFederate, Agent Gateway, and Authorize readbacks. Keep unsupported Authorize tree parity under the approved waiver only.
+3. Configure local Docker workers and the authorized SE read/execute workers, then run all expected rows, prove PingOne/PF sessions and UC40 ID-JAG, and measure the 12/15-minute gates.
 4. Remove blockers one by one, updating this plan and `docs/demo-readiness.md` in each task commit. Never claim operational readiness until the complete local+SE run passes.
