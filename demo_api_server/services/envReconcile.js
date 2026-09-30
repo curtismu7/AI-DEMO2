@@ -86,7 +86,7 @@ const ENV_SCOPED_KEYS = new Set([
   'oauth_jwks_uri', 'oauth_issuer', 'oauth_discovery_endpoint',
   'oauth_par_endpoint', 'pingone_par_endpoint',
   // per-env identity data
-  'admin_population_id', 'pingone_mfa_policy_id',
+  'admin_population_id', 'pingone_mfa_policy_id', 'pingone_verify_policy_id',
   // private_key_jwt credentials for BFF admin client (tied to the PingOne app's JWK config)
   'pingone_client_jwt_private_key', 'pingone_client_jwt_kid',
   // private_key_jwt credential for the Management API worker (same reasoning:
@@ -133,6 +133,7 @@ const ENV_AGNOSTIC_KEYS = new Set([
   // thresholds / step-up
   'confirm_threshold_usd', 'mfa_threshold_usd', 'step_up_amount_threshold',
   'confirm_stepup_threshold_usd',
+  'pingone_verify_enabled',
   'step_up_method', 'step_up_acr_value',
   // HITL consent challenge UX mode ('onetime' | 'multi') — behaviour, not env identity
   'hitl_consent_mfa_mode',
@@ -250,7 +251,8 @@ const ENV_AGNOSTIC_KEYS = new Set([
   // copilot configuration (Microsoft Entra / Copilot Studio, not PingOne env identity)
   'copilot_mode_enabled', 'copilot_entra_client_id', 'copilot_entra_tenant_id',
   'copilot_environment_id', 'copilot_agent_schema_name',
-  // PingOne Recognize (separate Recognize service, not tied to PingOne env_id)
+  // Retired Recognize values remain classified so old deployments keep
+  // treating a saved API key as secret while the direct Web SDK contract is gated.
   'recognize_api_key', 'recognize_tenant_name',
   // NOTE: all ff_* feature-flag ids are env-agnostic (not listed above). isEnvScoped
   // only does a Set lookup; the completeness guard treats ff_* as agnostic. Flags

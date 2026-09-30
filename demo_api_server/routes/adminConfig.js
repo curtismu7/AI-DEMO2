@@ -340,27 +340,6 @@ router.post('/generate-keypair', requireAdminOrUnconfigured, async (req, res) =>
 });
 
 // ---------------------------------------------------------------------------
-// GET /api/admin/config/recognize-status — PingOne Recognize credential status
-// Returns whether credentials are set (never returns the key value itself).
-// ---------------------------------------------------------------------------
-
-router.get('/recognize-status', configReadLimiter, async (req, res) => {
-  try {
-    await configStore.ensureInitialized();
-    const apiKey     = configStore.getEffective('RECOGNIZE_API_KEY')     || '';
-    const tenantName = configStore.getEffective('RECOGNIZE_TENANT_NAME') || '';
-    res.json({
-      apiKeySet:      apiKey.length > 0,
-      tenantNameSet:  tenantName.length > 0,
-      tenantName:     tenantName || null,
-    });
-  } catch (err) {
-    console.error('[adminConfig] recognize-status error:', err.message);
-    res.status(500).json({ error: 'recognize_status_error', message: err.message });
-  }
-});
-
-// ---------------------------------------------------------------------------
 // GET /api/admin/scope-vocabulary — Canonical scope registry (Phase 146)
 // ---------------------------------------------------------------------------
 

@@ -248,11 +248,11 @@ Three ways to supply `HELIX_API_KEY` (priority order):
 
 ### PingOne Recognize  (biometric face auth)
 
-| Variable | Description |
-|---|---|
-| `RECOGNIZE_API_KEY` | API key from Recognize tenant dashboard |
-| `RECOGNIZE_TENANT_NAME` | Tenant name |
-| `RECOGNIZE_BASE_URL` | Base URL (defaults to US region if unset) |
+The previous API-key/session integration has been retired. Do not configure
+`RECOGNIZE_API_KEY`, `RECOGNIZE_TENANT_NAME`, or `RECOGNIZE_BASE_URL` for the
+current app. Direct Web SDK enrollment and transfer step-up remain disabled
+until the tenant's signed-result validation and operation-binding contract is
+confirmed. See [PingOne Recognize readiness](../ENV.md#pingone-recognize-readiness).
 
 ### Session store  (for multi-process / Vercel deployments)
 
