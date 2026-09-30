@@ -234,9 +234,9 @@ read the configured host. A new browser origin must be added to ALL of:
 
 **What was broken:** On `/academy/identity`, "Run mock" only selected frame 1 and each frame's evidence was a two-line `key=value` block, so the reel looked nothing like the live token chain.
 
-**What changed:** "Run mock" plays the frames on a timer (pause or pick a frame to stop it). Cards show done/active/waiting and a what-changed chip. Frames that carry tokens (login, delegation, MCP, authorize) open a sheet with tokens in play, a before/after claim diff and the request/response. Claims are labelled "sample claims"; no token is issued or read. Other lessons keep the old evidence block.
+**What changed:** "Run mock" plays the frames on a timer (pause or pick a frame to stop it). Cards show done/active/waiting and a what-changed chip. Frames that carry tokens (login, delegation, MCP, authorize) open a sheet with tokens in play, a before/after claim diff and the request/response. Claims are labelled "sample claims"; no token is issued or read. Other lessons keep the old evidence block. Real mode mirrors the last real run: `AgentIdentityAcademyPage.jsx` posts the dashboard reel's steps (`academy-trace`) into the iframe, and the four token lessons (login, delegation, MCP, authorize) replace their mock frames with the hops that run recorded, however many. A lesson the run never reached says so; sample claims never appear under a REAL label.
 
-**Do not break:** the standalone page, the `data-*` hooks the static test and journey flow use (`data-frame-index`, `data-stage`, `data-run-action`, `data-reel-counter`, `data-frame-evidence`), Real/Recorded staying unavailable for the mock runner, and both themes (tokens only, no inline colour).
+**Do not break:** the mock's four frames per lesson, the standalone page (no trace message means Real behaves as before), the `data-*` hooks the static test and journey flow use (`data-frame-index`, `data-stage`, `data-run-action`, `data-reel-counter`, `data-frame-evidence`), Real/Recorded staying unavailable for the mock runner, and both themes (tokens only, no inline colour).
 
 **Verify:** `cd demo_api_ui && npm run test:unit -- src/__tests__/AcademyIdentityPreviewStatic.test.js && npm run build`; open `/academy/identity`, lesson "Delegated access", press Run mock.
 

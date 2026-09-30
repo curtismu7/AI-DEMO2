@@ -239,6 +239,59 @@ describe("ID4AI Academy HTML preview", () => {
     }
   });
 
+  it("mirrors the last real run in Real mode without touching the four mock frames", async () => {
+    vi.useFakeTimers();
+    try {
+      const dom = loadPreview();
+      const { document } = dom.window;
+      dom.window.fetch = async (url) => ({
+        json: async () => (url === "/api/health/readiness" ? { configured: true } : { status: "connected" }),
+      });
+      const post = (steps) => dom.window.dispatchEvent(new dom.window.MessageEvent("message", {
+        origin: dom.window.location.origin,
+        source: dom.window.parent,
+        data: { type: "academy-trace", steps },
+      }));
+      const steps = [
+        { id: "agent-token", status: "done", title: "Agent token — client credentials", lane: "BFF",
+          detail: { kv: [["sub", "banking-assistant"]], facts: ["agent token minted"], request: { text: "POST /as/token" }, response: { text: "200 ok" } } },
+        { id: "exchange", status: "done", title: "Token exchange", lane: "PINGONE",
+          detail: { scopeDiff: { before: ["a", "b", "c"], after: ["a"] },
+            beforeAfter: { before: { text: '{"scope":"a b c"}' }, after: { text: '{"scope":"a","act":"x"}' } } } },
+        { id: "gateway", status: "pending", title: "Gateway", lane: "GATEWAY", detail: {} },
+      ];
+
+      document.querySelector('[data-lesson-target="delegation"]').click();
+      post(steps);
+      document.querySelector('[data-source-target="real"]').click();
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(document.querySelector("[data-readiness-title]").textContent).toBe("Real run loaded");
+      // only hops that ran and belong to this lesson; the pending gateway hop is left out
+      expect(document.querySelectorAll("[data-frame-index]")).toHaveLength(2);
+      expect(document.querySelector('[data-frame-index="1"]').textContent).toContain("scope narrowed 3 → 1");
+
+      document.querySelector("[data-run-action]").click();
+      vi.advanceTimersByTime(2200);
+      expect(document.querySelector("[data-frame-evidence]").textContent).toContain("REAL");
+      expect(document.querySelector("[data-frame-evidence]").textContent).not.toContain("sample claims");
+      expect(document.querySelector('.claim-diff tr[data-change="changed"] td').textContent).toBe("scope");
+      expect(document.querySelector('.claim-diff tr[data-change="added"] td').textContent).toBe("act");
+
+      document.querySelector('[data-source-target="mock"]').click();
+      expect(document.querySelectorAll("[data-frame-index]")).toHaveLength(4);
+
+      // a lesson the run never reached has no real frames and no sample claims under a REAL label
+      document.querySelector('[data-source-target="real"]').click();
+      await vi.advanceTimersByTimeAsync(0);
+      document.querySelector('[data-lesson-target="login"]').click();
+      expect(document.querySelector("[data-readiness-title]").textContent).toBe("No real run for this lesson yet");
+      expect(document.querySelector("[data-run-action]").disabled).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("bounds reel navigation and preserves accessible frame focus", () => {
     const dom = loadPreview();
     const { document } = dom.window;

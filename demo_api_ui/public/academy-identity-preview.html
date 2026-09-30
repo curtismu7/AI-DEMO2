@@ -1911,6 +1911,93 @@
           return "MOCK";
         }
 
+        // Real mode mirrors the last run the agent made in the application: the shell posts
+        // that run's steps (same store the dashboard reel reads) and they replace the mock
+        // frames, however many hops the run actually had. Only token lessons have a real source.
+        let realTrace = null;
+        const REAL_STEP_IDS = {
+          login: ["website", "signin"],
+          delegation: ["agent-token", "exchange-1", "exchange", "id-jag-issued", "id-jag-redeemed"],
+          mcp: ["tools-list-challenge", "tools-list", "tools-call-challenge", "gateway", "vault-key-inject", "api-key-swap", "mcp", "api", "database"],
+          authorize: ["authorize", "stepup", "intent-binding"],
+        };
+        const REAL_STAGE = {
+          website: "authenticate", signin: "authenticate", "agent-token": "authenticate", "exchange-1": "authenticate",
+          exchange: "authorize", "id-jag-issued": "authorize", "id-jag-redeemed": "authorize",
+          authorize: "authorize", stepup: "authorize", "intent-binding": "authorize",
+          "tools-list-challenge": "discover", "tools-list": "discover",
+        };
+        const REAL_RAN = ["done", "active", "denied", "error"];
+        const realFrameCache = new Map();
+
+        function parseClaims(textValue) {
+          try {
+            const value = JSON.parse(textValue);
+            return value && typeof value === "object" && !Array.isArray(value) ? value : null;
+          } catch {
+            return null;
+          }
+        }
+
+        function stringifyValue(value) {
+          return value && typeof value === "object" ? JSON.stringify(value) : String(value);
+        }
+
+        function realFrame(step) {
+          const d = step.detail || {};
+          const kv = Array.isArray(d.kv) ? Object.fromEntries(d.kv.map(([k, v]) => [k, stringifyValue(v)])) : null;
+          const before = parseClaims(d.beforeAfter?.before?.text);
+          const after = parseClaims(d.beforeAfter?.after?.text) || (before ? null : kv);
+          const scopeDiff = d.scopeDiff;
+          const narrowed = Array.isArray(scopeDiff?.before) && Array.isArray(scopeDiff?.after) &&
+            scopeDiff.after.length < scopeDiff.before.length;
+          const failed = step.status === "denied" || step.status === "error";
+          const fact = (Array.isArray(d.facts) && d.facts[0]) ||
+            (narrowed ? `scope narrowed ${scopeDiff.before.length} → ${scopeDiff.after.length}` : "") ||
+            (failed ? step.status : "done");
+          const title = esc(String(step.title || step.id).split(" — ")[0]);
+          return [
+            REAL_STAGE[step.baseId || step.id] || "govern",
+            title,
+            esc(d.narrative || step.title || ""),
+            esc(kv ? Object.entries(kv).map(([k, v]) => `${k}=${v}`).join("\n") : "no claims recorded"),
+            {
+              fact, fc: failed ? "deny" : narrowed ? "narrowed" : "ok",
+              tokens: d.inspectToken ? [`${d.inspectToken} token`] : [],
+              before: before, after: after,
+              req: d.request?.text || "—", res: d.response?.text || "—",
+            },
+            step.lane,
+          ];
+        }
+
+        // Steps that ran and belong to this lesson; null when Real has nothing for it.
+        function realFramesFor(lesson) {
+          const ids = REAL_STEP_IDS[lesson.id];
+          if (!ids || !realReady || !realTrace) return null;
+          const key = `${lesson.id}:${realTrace.stamp}`;
+          if (!realFrameCache.has(key)) {
+            realFrameCache.set(key, realTrace.steps
+              .filter((step) => ids.includes(step.baseId || step.id) && REAL_RAN.includes(step.status))
+              .map(realFrame));
+          }
+          const frames = realFrameCache.get(key);
+          return frames.length ? frames : null;
+        }
+
+        // Sample claims belong to Mock only; a real frame carries its own 6th element (lane).
+        function frameDetail(frame) {
+          return document.body.dataset.runSource === "mock" || frame.length > 5 ? frame[4] : undefined;
+        }
+
+        function lessonFrames() {
+          if (document.body.dataset.runSource === "real") {
+            const real = realFramesFor(activeLesson);
+            if (real) return real;
+          }
+          return activeLesson.frames;
+        }
+
         function readyStatus() {
           if (document.body.dataset.runSource === "real") {
             return realReady
@@ -1924,7 +2011,7 @@
         }
 
         function activeStages() {
-          const frameStages = activeLesson.frames.map((frame) => frame[0]);
+          const frameStages = lessonFrames().map((frame) => frame[0]);
           return stageOrder.filter((stage) =>
             activeLesson.stages.includes(stage) || frameStages.includes(stage),
           );
@@ -1960,11 +2047,11 @@
           document.querySelector("[data-product-chips]").innerHTML = activeLesson.products.map((product) => `
             <span class="product-chip">${product}</span>
           `).join("");
-          document.querySelector("[data-product-map]").innerHTML = activeLesson.frames.map((frame, index) => `
+          document.querySelector("[data-product-map]").innerHTML = lessonFrames().map((frame, index) => `
             <li data-frame-product="${index}">
               <span>${String(index + 1).padStart(2, "0")} · ${frame[1]}</span>
               <span aria-hidden="true">→</span>
-              <strong>${activeLesson.frameProducts[index]}</strong>
+              <strong>${frame[5] ?? activeLesson.frameProducts[index]}</strong>
             </li>
           `).join("");
           text("[data-product-map-copy]", `This lesson crosses ${activeStages().map((stage) => stage[0].toUpperCase() + stage.slice(1)).join(", ")}. Each frame names the product or standard responsible for the control.`);
@@ -1974,10 +2061,10 @@
           const filmstrip = document.querySelector("[data-filmstrip]");
           // Once a run has started, frames behind the playhead read as done and
           // frames ahead of it as waiting, the way the live reel shows a run.
-          const tracking = startedLessons.has(activeLesson.id) && activeFrame >= 0;
-          filmstrip.innerHTML = activeLesson.frames.map((frame, index) => {
+          const tracking = (startedLessons.has(activeLesson.id) || document.body.dataset.runSource === "real") && activeFrame >= 0;
+          filmstrip.innerHTML = lessonFrames().map((frame, index) => {
             const state = !tracking ? "" : index < activeFrame ? "done" : index === activeFrame ? "active" : "pending";
-            const detail = frame[4];
+            const detail = frameDetail(frame);
             const factText = state === "pending" ? "waiting" : detail?.fact;
             const factKind = state === "pending" ? "" : detail?.fc || "";
             return `
@@ -1992,9 +2079,9 @@
           filmstrip.querySelectorAll("[data-frame-index]").forEach((button) => {
             button.addEventListener("click", () => selectFrame(Number(button.dataset.frameIndex), true));
           });
-          text("[data-reel-counter]", `${activeFrame < 0 ? 0 : activeFrame + 1} / ${activeLesson.frames.length}`);
+          text("[data-reel-counter]", `${activeFrame < 0 ? 0 : activeFrame + 1} / ${lessonFrames().length}`);
           document.querySelector('[data-reel-action="previous"]').disabled = activeFrame <= 0;
-          document.querySelector('[data-reel-action="next"]').disabled = activeFrame === activeLesson.frames.length - 1;
+          document.querySelector('[data-reel-action="next"]').disabled = activeFrame === lessonFrames().length - 1;
         }
 
         function renderEvidence() {
@@ -2004,8 +2091,8 @@
             drawer.innerHTML = `<span class="frame-source">${sourceLabel()}</span><h3>Evidence appears here</h3><p>Run the lesson, then select a frame to inspect the redacted proof.</p><pre class="evidence-code">No run started.</pre>`;
             return;
           }
-          const frame = activeLesson.frames[activeFrame];
-          const detail = frame[4];
+          const frame = lessonFrames()[activeFrame];
+          const detail = frameDetail(frame);
           if (!detail) {
             drawer.innerHTML = `<span class="frame-source">${sourceLabel()}</span><h3>${frame[1]}</h3><p>${frame[2]}</p><pre class="evidence-code">${sourceLabel()}\n${frame[3]}</pre>`;
             return;
@@ -2059,18 +2146,21 @@
           if (playTimer) window.clearInterval(playTimer);
           playTimer = null;
           const runAction = document.querySelector("[data-run-action]");
-          if (runAction && document.body.dataset.runSource === "mock") runAction.textContent = "Run mock";
+          if (!runAction) return;
+          if (document.body.dataset.runSource === "mock") runAction.textContent = "Run mock";
+          else if (realFramesFor(activeLesson)) runAction.textContent = "Replay real run";
         }
 
         function startPlayback() {
           stopPlayback();
           document.querySelector("[data-run-action]").textContent = "Pause";
           playTimer = window.setInterval(() => {
-            if (activeFrame >= activeLesson.frames.length - 1) {
+            if (activeFrame >= lessonFrames().length - 1) {
               stopPlayback();
               return;
             }
-            text("[data-run-status]", `Running mock · Frame ${activeFrame + 2} selected.`);
+            const running = document.body.dataset.runSource === "real" ? "Replaying real run" : "Running mock";
+            text("[data-run-status]", `${running} · Frame ${activeFrame + 2} selected.`);
             selectFrame(activeFrame + 1, false, true);
           }, PLAY_INTERVAL_MS);
         }
@@ -2082,7 +2172,20 @@
           const sourceBadge = document.querySelector("[data-source-badge]");
           sourceBadge.textContent = sourceLabel();
           runAction.disabled = source !== "mock";
-          if (source === "real" && realReady) {
+          const realCount = source === "real" ? realFramesFor(activeLesson)?.length : 0;
+          if (realCount) {
+            readiness.dataset.state = "ready";
+            text("[data-readiness-title]", "Real run loaded");
+            text("[data-readiness-copy]", `${realCount} hop${realCount === 1 ? "" : "s"} from the last run in the application. Replay to walk through them.`);
+            runAction.textContent = playTimer ? "Pause" : "Replay real run";
+            runAction.disabled = false;
+          } else if (source === "real" && realReady && REAL_STEP_IDS[activeLesson.id]) {
+            readiness.dataset.state = "ready";
+            text("[data-readiness-title]", "No real run for this lesson yet");
+            text("[data-readiness-copy]", "Run an agent request in the application, then return here. The hops appear as the run records them.");
+            runAction.textContent = "Waiting for a real run";
+            runAction.disabled = true;
+          } else if (source === "real" && realReady) {
             readiness.dataset.state = "ready";
             text("[data-readiness-title]", "Real tenant is ready");
             text("[data-readiness-copy]", "PingOne tenant is configured. Open the Guided Journey or the 15-min demo for live evidence.");
@@ -2194,14 +2297,14 @@
         }
 
         function selectFrame(index, focusFrame = false, auto = false) {
-          if (index < 0 || index >= activeLesson.frames.length) return;
+          if (index < 0 || index >= lessonFrames().length) return;
           // A manual pick takes over from playback; the last auto frame ends it.
-          if (!auto || index === activeLesson.frames.length - 1) stopPlayback();
+          if (!auto || index === lessonFrames().length - 1) stopPlayback();
           activeFrame = index;
           renderFrames();
           renderEvidence();
           const selected = document.querySelector(`[data-frame-index="${index}"]`);
-          if (activeFrame === activeLesson.frames.length - 1 && document.body.dataset.runSource === "mock") {
+          if (activeFrame === lessonFrames().length - 1 && document.body.dataset.runSource === "mock") {
             if (startedLessons.has(activeLesson.id)) {
               text("[data-run-status]", "Mock complete · Final frame selected.");
             } else {
@@ -2210,16 +2313,32 @@
             if (document.body.dataset.mode === "guided" && startedLessons.has(activeLesson.id)) {
               journeyResults.set(activeLesson.id, {
                 source: "MOCK",
-                outcome: activeLesson.frames[activeFrame][1],
+                outcome: lessonFrames()[activeFrame][1],
               });
               renderJourney();
             }
+          }
+          if (activeFrame === lessonFrames().length - 1 && document.body.dataset.runSource === "real") {
+            text("[data-run-status]", "Real run replay complete · Final hop selected.");
           }
           if (selected && focusFrame) selected.focus();
           if (selected && typeof selected.scrollIntoView === "function") {
             const reduceMotion = typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
             selected.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", inline: "center", block: "nearest" });
           }
+        }
+
+        // A new real run, or a finished tenant probe, changes what Real shows: redraw it.
+        function refreshReal() {
+          if (document.body.dataset.runSource !== "real") return;
+          stopPlayback();
+          activeFrame = -1;
+          renderStages();
+          renderProducts();
+          renderFrames();
+          renderEvidence();
+          renderReadiness();
+          text("[data-run-status]", realFramesFor(activeLesson) ? "Real run loaded. Replay it to walk through each hop." : readyStatus());
         }
 
         function selectSource(source) {
@@ -2229,6 +2348,8 @@
             button.setAttribute("aria-pressed", String(button.dataset.sourceTarget === source));
           });
           activeFrame = -1;
+          renderStages();
+          renderProducts();
           renderFrames();
           renderEvidence();
           renderReadiness();
@@ -2260,8 +2381,10 @@
           }
           if (token !== realProbeToken || document.body.dataset.runSource !== "real") return;
           realReady = configured;
+          realFrameCache.clear();
           renderReadiness();
           text("[data-run-status]", readyStatus());
+          if (realReady && realTrace) refreshReal();
         }
 
         function selectMode(mode) {
@@ -2319,18 +2442,19 @@
         });
 
         document.querySelector("[data-run-action]").addEventListener("click", () => {
-          if (document.body.dataset.runSource !== "mock") return;
+          const source = document.body.dataset.runSource;
+          if (source !== "mock" && !(source === "real" && realFramesFor(activeLesson))) return;
           if (playTimer) {
             stopPlayback();
             text("[data-run-status]", `Paused · Frame ${activeFrame + 1} selected.`);
             return;
           }
-          startedLessons.add(activeLesson.id);
+          if (source === "mock") startedLessons.add(activeLesson.id);
           activeFrame = 0;
-          text("[data-run-status]", "Running mock · Frame 1 selected.");
+          text("[data-run-status]", source === "mock" ? "Running mock · Frame 1 selected." : "Replaying real run · Frame 1 selected.");
           renderFrames();
           renderEvidence();
-          if (activeLesson.frames.length > 1) startPlayback();
+          if (lessonFrames().length > 1) startPlayback();
         });
 
         document.querySelector('[data-reel-action="previous"]').addEventListener("click", () => {
@@ -2338,7 +2462,7 @@
           selectFrame(activeFrame - 1);
         });
         document.querySelector('[data-reel-action="next"]').addEventListener("click", () => {
-          const next = activeFrame < 0 ? 0 : Math.min(activeFrame + 1, activeLesson.frames.length - 1);
+          const next = activeFrame < 0 ? 0 : Math.min(activeFrame + 1, lessonFrames().length - 1);
           selectFrame(next);
         });
 
@@ -2356,6 +2480,16 @@
           if (persist) localStorage.setItem("ba_dark_mode", String(dark));
         }
         themeToggle.addEventListener("click", () => setTheme(document.documentElement.dataset.theme !== "dark"));
+        // The application shell posts the last real run (same steps its dashboard reel draws).
+        let traceStamp = 0;
+        window.addEventListener("message", (event) => {
+          if (event.origin !== window.location.origin || event.source !== window.parent) return;
+          if (event.data?.type !== "academy-trace" || !Array.isArray(event.data.steps)) return;
+          traceStamp += 1;
+          realTrace = event.data.steps.length ? { steps: event.data.steps, stamp: traceStamp } : null;
+          realFrameCache.clear();
+          refreshReal();
+        });
         window.addEventListener("message", (event) => {
           if (event.origin !== window.location.origin) return;
           if (event.data?.type !== "academy-theme") return;
