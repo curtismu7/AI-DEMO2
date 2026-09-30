@@ -188,6 +188,29 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-30 — Dashboard Demo Steps launcher was hidden in the control dock and its pop-out nearly filled the screen
+
+**Files:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/components/DemoStepsDropdown.jsx`,
+`demo_api_ui/src/components/AIAgent.css`, `REGRESSION_PLAN.md`.
+
+**What was broken:** split-column dashboard mode hid the floating Demo Steps
+launcher and left its trigger inside Demo Controls. The default panel height
+could reach 820px, and the browser pop-out added another 80px, making it nearly
+full-screen on a typical desktop viewport.
+
+**What changed:** show a draggable, icon-only Demo Steps launcher on split-column
+dashboards, start the panel closed there, and use a smaller default panel size.
+The panel remains resizable in eight directions and its browser pop-out remains
+resizable.
+
+**Do not break:** preserve the agent's own drag/resize/pop-out behavior and the
+Demo Steps selection flow.
+
+**Verify:** `cd demo_api_ui && npm run build`; check `/dashboard` in light and
+dark themes with the §1.4 computed-style contrast auditor; verify the pop-out
+opens below full-screen height.
+
 ### 2026-09-30 — Admin Demo Steps opened at the screen edge and academy links lost contrast in dark mode
 
 **Files:** `demo_api_ui/src/components/DemoStepsDropdown.jsx`,

@@ -6753,27 +6753,38 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 /* Floating launcher follows the agent's theme tokens and stays clear of its FAB. */
-.ba-demo-steps-floating-trigger {
+/* `.end-user-nano button` squares every button, so raise selector specificity
+   to keep this icon's intentionally circular launcher shape on dashboards. */
+.end-user-nano .ba-demo-steps-floating-trigger {
   position: fixed;
   right: 28px;
   bottom: 96px;
   z-index: 100062;
   display: inline-flex;
-  min-height: 46px;
+  width: 48px;
+  height: 48px;
+  min-height: 48px;
   align-items: center;
   justify-content: center;
-  padding: 0 16px;
+  padding: 0;
   border: 1px solid var(--th-border-strong);
-  border-radius: 24px;
+  border-radius: 50%;
   color: var(--th-text-on-emphasis);
   background: var(--th-bg-emphasis);
   box-shadow: 0 3px 14px rgb(0 0 0 / 0.2);
   cursor: grab;
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  white-space: nowrap;
   touch-action: none;
   user-select: none;
+}
+
+.ba-demo-steps-floating-trigger svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .ba-demo-steps-floating-trigger:hover:not(:disabled) {
