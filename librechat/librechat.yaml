@@ -61,7 +61,7 @@ modelSpecs:
 
     - {name: super-sports-policy-guardrails, label: 'AgentGateway Success / Authz Denied', group: 'Sports', description: 'Use list_rentals for success and extend_rental for the authorization denial. Tools: list_rentals, loyalty_balance, extend_rental, sensitive_membership_details.', preset: {endpoint: agents, agent_id: agent_dHaKLN_ZFfdoLchcFIQmO}}
 
-    - {name: handoff-super-sports-checkout, label: 'Checkout → Payment', group: 'Sports / A2A', description: 'Reads orders, then delegates payment. Tools: list_gear, gear_order_status. Handoff: Money Movement.', preset: {endpoint: agents, agent_id: agent_C9N3qmt_WMkGCgorfjC7z}}
+    - {name: handoff-super-sports-checkout, label: 'Checkout → Payment', group: 'Sports / A2A', description: 'Reads gear orders and their status. Tools: list_gear, gear_order_status.', preset: {endpoint: agents, agent_id: agent_C9N3qmt_WMkGCgorfjC7z}}
 
     - {name: super-sports-stores-code-local-model, label: 'Stores & Code · Local model', group: 'Sports / Local Model', description: 'Local-model store/code path on the Mac LLM proxy. Tools: get_branch_hours, code_search.', preset: {endpoint: agents, agent_id: agent_qjrE2h4KCo7zfMWaJZKFU}}
 

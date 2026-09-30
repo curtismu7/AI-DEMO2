@@ -2372,7 +2372,7 @@ export default function AdminSideNav({
       >
         <div className="dm-scroll admin-side-nav__readiness-content" aria-live="polite">
           <p className="admin-side-nav__readiness-intro">
-            Checking all 46 Demo Steps against local Docker and hosted SE, with PingOne and PingFederate sessions and UC40 ID-JAG coverage.
+            Checking all 47 Demo Steps against local Docker and hosted SE, with PingOne and PingFederate sessions and UC40 ID-JAG coverage.
           </p>
           <p className={`admin-side-nav__readiness-status${readinessStatusTone ? ` admin-side-nav__readiness-status--${readinessStatusTone}` : ""}`}>
             {readinessJob?.cleanup === "running"

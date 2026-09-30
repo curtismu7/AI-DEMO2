@@ -85,10 +85,10 @@ try {
   const rows = checkDemoReadinessContract();
   console.log(
     `Demo readiness contract passed: ${rows.length} executable Demo Steps entries `
-    + '(24 primary, 4 CIAM, 6 Privilege, 12 Admin).',
+    + '(25 primary, 4 CIAM, 6 Privilege, 12 Admin).',
   );
   const sources = loadDemoReadinessSources();
-  console.log(`${sources.featureChecks.checks.length} provider feature checks are registered separately from the 46 UI entries`);
+  console.log(`${sources.featureChecks.checks.length} provider feature checks are registered separately from the ${rows.length} UI entries`);
   console.log('UI, BFF, and readiness prerequisite flags match for every case and vertical.');
   console.log(
     `Provider flows: ${Object.keys(sources.repairability.providerFlows).length}; `

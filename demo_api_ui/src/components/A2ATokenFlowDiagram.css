@@ -7,15 +7,17 @@
  */
 
 .a2t {
+  color: var(--th-text);
   background: var(--th-bg-card);
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   margin-top: 12px;
   overflow: hidden;
   width: 100%;
 }
 
 .a2t-controls {
+  color: var(--th-text);
   display: flex;
   align-items: center;
   gap: 12px;
@@ -40,13 +42,16 @@
   background: var(--th-bg-card);
   color: var(--th-text);
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 6px 12px;
   font-size: var(--font-size-sm);
   font-weight: 600;
   cursor: pointer;
 }
-.a2t-btn:hover { background: var(--th-bg-hover); }
+.a2t-btn:hover {
+  color: var(--th-text);
+  background: var(--th-bg-hover);
+}
 .a2t-btn--primary { font-weight: 700; }
 .a2t-counter-label { color: var(--th-text); font-weight: 600; }
 
@@ -64,6 +69,7 @@
 /* ── Actor nodes: large and readable (232×92, ~13px+ text) ────────────────── */
 
 .a2t-node {
+  color: var(--th-text);
   position: relative;
   width: 232px;
   border: 1.5px solid var(--th-border-strong);
@@ -106,7 +112,7 @@
 .a2t-node__token {
   margin-top: 8px;
   border: 1px dashed var(--actor-color);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 3px 8px;
   font-size: 0.7rem;
   color: var(--th-text-body);
@@ -133,6 +139,7 @@
 /* ── Inspector ────────────────────────────────────────────────────────────── */
 
 .a2t-inspector {
+  color: var(--th-text);
   border-top: 1px solid var(--th-border);
   background: var(--th-bg-inset);
   padding: 14px 16px;
@@ -164,7 +171,7 @@
   background: var(--th-code-bg);
   color: var(--th-code-text);
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 10px 12px;
   overflow: auto;
   max-height: 400px;
@@ -181,7 +188,7 @@
 }
 .a2t-canvas .react-flow__minimap {
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   overflow: hidden;
 }
 

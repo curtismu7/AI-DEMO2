@@ -302,14 +302,14 @@ describe('demo readiness execution service', () => {
     expect(service.deriveExecutionManifest({ targets: ['local', 'hosted'] }).counts).toEqual({ core: 6, variants: 0, feature: 6, attackLab: 4, total: 16 });
   });
 
-  test('derives the full current inventory: 182 unexpanded, 184 groups, and 800 rows with required feature probes', () => {
+  test('derives the full current inventory: 186 unexpanded, 185 groups, and 804 rows with required feature probes', () => {
     const { buildDemoReadinessCatalog } = require('../services/demoReadinessCatalog');
     const catalog = buildDemoReadinessCatalog();
     const unexpanded = catalog.reduce((count, row) => count + (row.providerFlows.pingone ? 2 : 0) + (row.providerFlows.pingfederate ? 2 : 0), 0);
-    expect(unexpanded).toBe(182);
-    expect(catalog.reduce((count, row) => count + row.runtimeVerticalGroups.length, 0)).toBe(184);
+    expect(unexpanded).toBe(186);
+    expect(catalog.reduce((count, row) => count + row.runtimeVerticalGroups.length, 0)).toBe(185);
     expect(createReadinessExecutionService({ catalog }).deriveExecutionManifest().counts)
-      .toEqual({ core: 734, variants: 4, feature: 42, attackLab: 20, total: 800 });
+      .toEqual({ core: 738, variants: 4, feature: 42, attackLab: 20, total: 804 });
   });
 
   test('executes every manifest category, preserves UC14b full-page behavior, and records report rows', async () => {

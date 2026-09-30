@@ -88,7 +88,7 @@ export function loadConfig(): AgentConfig {
     mcpGatewayResourceUri: optional('PINGONE_RESOURCE_MCP_GATEWAY_URI', optional('MCP_GW_RESOURCE_URI', '')),
     llmProvider: llmProviderRaw as AgentConfig['llmProvider'],
     llmApiKey: optional('LLM_API_KEY', ''),
-    llmModel: optional('LLM_MODEL', 'claude-sonnet-4.6'),
+    llmModel: optional('LLM_MODEL', 'claude-sonnet-5-5'),
     usePkiCreds: optional('USE_PKI_AGENT_CREDS', 'false') === 'true',
     agentCertPath: optional('AGENT_CERT_PATH', ''),
   };

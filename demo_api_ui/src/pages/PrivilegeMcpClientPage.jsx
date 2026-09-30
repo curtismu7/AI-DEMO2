@@ -1,9 +1,10 @@
 // demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx
 // Cursor-IDE-styled MCP client for PingOne Privilege MCP Gateway.
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useLocation, useSearchParams, useNavigate } from 'react-router-dom';
 import { FootprintSkinPicker } from '../components/aiFootprintMocks/FootprintSkinPicker';
 import { KIBANA_URL } from '../config/observabilityLinks';
+import PrivilegeA2aTab from '../features/privilegeA2aClient/PrivilegeA2aTab';
 import ToolsTable from '../components/privilege/ToolsTable';
 import JsonHighlight from '../components/shared/JsonHighlight';
 import JsonFormView from '../components/shared/JsonFormView';
@@ -252,7 +253,7 @@ const LLM_PATHS = {
 // Present mode ARE a demo move) and RESULTS (the returned data is half of what
 // you are showing), so the split is narrower than "chat vs everything else".
 const VIEW_TABS = {
-  demo: ['chat', 'tools'],
+  demo: ['chat', 'a2a', 'tools'],
   inspect: ['mcp', 'rpc', 'policies'],
 };
 const VIEW_TERMINAL_TABS = {
@@ -261,6 +262,7 @@ const VIEW_TERMINAL_TABS = {
 };
 const TAB_LABELS = [
   ['chat', 'Agent Chat'],
+  ['a2a', 'A2A'],
   ['tools', 'Tools'],
   ['mcp', 'MCP Explorer'],
   ['rpc', 'Raw RPC'],
@@ -317,7 +319,17 @@ export default function PrivilegeMcpClientPage() {
   // shared `?auth=success` link suppressed silent sign-in permanently and went
   // straight to a sign-in prompt on a session that was perfectly able to sign in
   // by itself. It is consumed once, then stripped.
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const requestedView = searchParams.get('view');
+  const storedView = (() => {
+    try { return localStorage.getItem('cur_priv_view') === 'inspect' ? 'inspect' : 'demo'; } catch { return 'demo'; }
+  })();
+  const initialViewMode = Object.hasOwn(VIEW_TABS, requestedView) ? requestedView : storedView;
+  const requestedTab = searchParams.get('tab');
+  const initialTab = VIEW_TABS[initialViewMode].includes(requestedTab)
+    ? requestedTab
+    : (initialViewMode === 'demo' ? 'chat' : 'mcp');
   const navigate = useNavigate();
   const [config, setConfig] = useState({ mcpUrl: '', clientId: '', scopes: 'openid profile email offline_access', llmUrl: 'http://127.0.0.1:11434', llmModel: 'llama3.2:1b' });
   // Per-mode "what actually supplies the OAuth client", from /state. Only read
@@ -461,7 +473,7 @@ export default function PrivilegeMcpClientPage() {
   const [showSettings, setShowSettings] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
   const [toolSearch, setToolSearch] = useState('');
-  const [activeTab, setActiveTab] = useState('chat');
+  const [activeTab, setActiveTab] = useState(initialTab);
   // How hard the MCP OAuth brokers make PingOne re-authenticate. Server-owned
   // (BFF key mcp_broker_prompt) because BOTH brokers read it — including the one
   // LM Studio talks to, which never loads this page.
@@ -580,25 +592,48 @@ export default function PrivilegeMcpClientPage() {
   // Persisted for the same reason pageTheme is: a mode that resets on every
   // reload gets re-clicked on every reload, which reads as broken rather than
   // minimal. `mode` is already taken by the gateway path above.
-  const [viewMode, setViewMode] = useState(() => {
-    try { return localStorage.getItem('cur_priv_view') === 'inspect' ? 'inspect' : 'demo'; } catch { return 'demo'; }
-  });
+  const [viewMode, setViewMode] = useState(initialViewMode);
   useEffect(() => {
     try { localStorage.setItem('cur_priv_view', viewMode); } catch { /* storage disabled */ }
   }, [viewMode]);
   const inspecting = viewMode === 'inspect';
   // Each mode remembers where you were, so flipping across to check a policy
   // and back does not dump you on Agent Chat with your place lost.
-  const [lastTab, setLastTab] = useState({ demo: 'chat', inspect: 'mcp' });
+  const [lastTab, setLastTab] = useState({
+    demo: initialViewMode === 'demo' ? initialTab : 'chat',
+    inspect: initialViewMode === 'inspect' ? initialTab : 'mcp',
+  });
   const chooseTab = (tab) => {
     setActiveTab(tab);
     setLastTab((prev) => ({ ...prev, [viewMode]: tab }));
+    const next = new URLSearchParams(searchParams);
+    next.set('view', viewMode);
+    next.set('tab', tab);
+    setSearchParams(next, { replace: true });
   };
   const switchViewMode = (next) => {
     if (next === viewMode) return;
     setViewMode(next);
     setActiveTab(lastTab[next]);
   };
+
+  // A Demo Step can navigate to this URL while the page is already mounted.
+  // Apply its view/tab on router navigation as well as during initial state
+  // setup, while leaving manual tab clicks alone until the next navigation.
+  useEffect(() => {
+    const routeView = Object.hasOwn(VIEW_TABS, requestedView) ? requestedView : null;
+    if (routeView === null && requestedTab === null) return;
+
+    const nextView = routeView || viewMode;
+    const defaultTab = nextView === 'demo' ? 'chat' : 'mcp';
+    const nextTab = VIEW_TABS[nextView].includes(requestedTab) ? requestedTab : defaultTab;
+    if (routeView) setViewMode(routeView);
+    setActiveTab(nextTab);
+    setLastTab((prev) => ({ ...prev, [nextView]: nextTab }));
+    // The URL owns the view only when navigation changes; including viewMode
+    // here would undo a presenter's manual tab choice on every state update.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.key, requestedView, requestedTab]);
 
   const [terminalTab, setTerminalTab] = useState('events');
   // Derived rather than corrected, so nothing has to police setActiveTab /
@@ -2356,10 +2391,13 @@ export default function PrivilegeMcpClientPage() {
 
         {/* Main editor area */}
         <main className="cur-main">
-          <div className="cur-tabs">
+          <div className="cur-tabs" role="tablist" aria-label={`${viewMode === 'demo' ? 'Demo' : 'Inspect'} tabs`}>
             {TAB_LABELS.filter(([key]) => VIEW_TABS[viewMode].includes(key)).map(([key, label]) => (
               <button
                 key={key}
+                type="button"
+                role="tab"
+                aria-selected={visibleTab === key}
                 className={`cur-tab ${visibleTab === key ? 'cur-tab--active' : ''}`}
                 onClick={() => chooseTab(key)}
               >{label}</button>
@@ -2383,6 +2421,7 @@ export default function PrivilegeMcpClientPage() {
           </div>
 
           <div className="cur-editor-area">
+            {visibleTab === 'a2a' && <PrivilegeA2aTab />}
             {visibleTab === 'chat' && (
               <>
                 <div className="cur-chat-panel">
