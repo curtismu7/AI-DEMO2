@@ -107,7 +107,6 @@ import CommandDock from "./CommandDock";
 import VerticalSwitcher from "./VerticalSwitcher";
 import QuickFlagsPill from "./QuickFlagsPill";
 import ThresholdControls from "./ThresholdControls";
-import OAuthProviderToggle from "./OAuthProviderToggle";
 import ElicitationDialog from "./ElicitationDialog";
 import UseCaseExplainModal from "./UseCaseExplainModal";
 import { shouldAutoOpenA2a, buildA2aExplainUc } from "./a2aAutoOpen";
@@ -10282,10 +10281,9 @@ export default function BankingAgent({
                   onOpenChange={setCommandDockOpen}
                 >
                   <div className="ba-header-tools cmd-dock-tools">
-                    {/* Dashboard top-bar controls — relocated into the dock on
-                        split-column. TopNav hides its copies on /dashboard +
-                        middle placement, so the gate must mirror that (splitChrome,
-                        NOT plain float mode) or the controls would appear twice. */}
+                    {/* Dashboard controls — relocated into the dock on
+                        split-column. The OAuth provider switch stays in TopNav
+                        so it remains available while this dock is collapsed. */}
                     {splitChrome && (
                       <>
                         <VerticalSwitcher variant="nav" />
@@ -10301,7 +10299,6 @@ export default function BankingAgent({
                             Reset Demo
                           </button>
                         </div>
-                        <OAuthProviderToggle />
                       </>
                     )}
                     {!pageOwnsAgentChrome && (

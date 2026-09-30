@@ -361,6 +361,26 @@ preserve the default external egress restrictions.
 server-side dry-run of the BFF host alias; local PF JWKS returns HTTP 200 from
 both the host and the K8 BFF pod.
 
+### 2026-09-30 — P1/PF provider switch hidden in dashboard layout
+
+**Files:** `demo_api_ui/src/components/TopNav.js`,
+`demo_api_ui/src/components/AIAgent.js`, and
+`demo_api_ui/src/components/__tests__/TopNavFavoritesLayout.test.jsx`.
+
+**What was broken:** the dashboard middle layout hid the top-nav provider
+switch and mounted it only inside the collapsed Command Dock, making the P1/PF
+choice hard to find while PingFederate could remain selected by default.
+
+**What changed:** keep the single provider switch in the shared top bar and
+remove its Command Dock copy. It is directly available on the dashboard even
+when the agent dock is collapsed.
+
+**Do not break:** preserve provider-switch authorization, OAuth endpoint
+selection, session clearing, sign-out, and the next-login behavior.
+
+**Verify:** focused TopNav and OAuth-provider UI Vitest suites;
+`cd demo_api_ui && npm run build`.
+
 ### 2026-09-30 — UC46 is numbered step 25 in Demo Steps
 
 **Files:** `demo_api_server/config/useCases.js`,
