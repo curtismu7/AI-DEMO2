@@ -227,6 +227,7 @@ import PublicRoutes, {
   PingFederateIdJagDiagramPageRoute,
   PingFederateAiAgentPageRoute,
   GroupPolicyBoardPageRoute,
+  PageCatalogPageRoute,
   PrivilegeMcpClientPageRoute,
   LlmGatewayPageRoute,
   LlmTestPageRoute,
@@ -1325,6 +1326,17 @@ function AppWithAuth() {
                   element={
                     loading ? null : user ? (
                       <GroupPolicyBoardPageRoute user={user} logout={logout} />
+                    ) : (
+                      <SignInRequired />
+                    )
+                  }
+                />
+                {/* Page catalog — signed-in users only (it edits their own side-nav prefs). */}
+                <Route
+                  path="/page-catalog"
+                  element={
+                    loading ? null : user ? (
+                      <PageCatalogPageRoute user={user} logout={logout} />
                     ) : (
                       <SignInRequired />
                     )

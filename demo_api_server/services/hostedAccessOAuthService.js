@@ -3,7 +3,7 @@
 const axios = require('axios');
 const crypto = require('crypto');
 const config = require('../config/hostedAccess');
-const { validateToken } = require('./tokenValidationService');
+const { validateIdToken, assertUserInfoSubjectMatches } = require('./oidcIdTokenValidationService');
 const { sanitizeAxiosCause } = require('../utils/sanitizeAxiosCause');
 
 function generateState() {
@@ -34,6 +34,12 @@ function generateAuthorizationUrl({ state, codeVerifier, redirectUri, nonce, log
 }
 
 async function exchangeCodeForToken(code, codeVerifier, redirectUri) {
+  if (typeof codeVerifier !== 'string'
+    || !/^[A-Za-z0-9._~-]{43,128}$/.test(codeVerifier)) {
+    const error = new Error('Missing or invalid PKCE code_verifier');
+    error.reasonCode = 'token_exchange_failed';
+    throw error;
+  }
   const body = new URLSearchParams({
     grant_type: 'authorization_code',
     code: String(code),
@@ -58,35 +64,30 @@ async function exchangeCodeForToken(code, codeVerifier, redirectUri) {
   }
 }
 
-async function validateIdentity(tokenData) {
+async function validateIdentity(tokenData, expectedNonce) {
   if (!tokenData?.id_token || !tokenData?.access_token) {
     const error = new Error('Hosted front-door identity response was incomplete');
     error.reasonCode = 'userinfo_failed';
     throw error;
   }
-  let idTokenClaims;
-  try {
-    idTokenClaims = await validateToken(tokenData.id_token, {
-      jwksUri: config.jwksEndpoint,
-      issuer: config.issuer,
-      audience: config.clientId,
-    });
-  } catch (error) {
-    const wrapped = new Error('Hosted front-door identity validation failed', { cause: error });
-    wrapped.reasonCode = 'userinfo_failed';
-    throw wrapped;
-  }
+  const idTokenClaims = await validateIdToken(tokenData.id_token, {
+    config,
+    expectedNonce,
+  });
+  let userInfo;
   try {
     const response = await axios.get(config.userInfoEndpoint, {
       headers: { Authorization: `Bearer ${tokenData.access_token}` },
       timeout: 10000,
     });
-    return { idTokenClaims, userInfo: response.data };
+    userInfo = response.data;
   } catch (error) {
     const wrapped = new Error('Hosted front-door userinfo failed', { cause: sanitizeAxiosCause(error) });
     wrapped.reasonCode = 'userinfo_failed';
     throw wrapped;
   }
+  assertUserInfoSubjectMatches(userInfo, idTokenClaims);
+  return { idTokenClaims, userInfo };
 }
 
 module.exports = {

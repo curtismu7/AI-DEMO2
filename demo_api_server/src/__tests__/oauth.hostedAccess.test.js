@@ -4,6 +4,13 @@ const express = require('express');
 const request = require('supertest');
 
 jest.mock('../../services/oauthService');
+// The hosted-access gate is under test here; ID-token signature validation is covered
+// by the validator's own tests, so decode the payload without verifying it.
+jest.mock('../../services/oidcIdTokenValidationService', () => ({
+  validateIdToken: jest.fn(async (idToken) => JSON.parse(Buffer.from(idToken.split('.')[1], 'base64url').toString())),
+  assertUserInfoSubjectMatches: jest.fn(),
+}));
+
 jest.mock('../../services/authAccessAuditService', () => ({ startLoginAudit: jest.fn(), resumeLoginAudit: jest.fn(), finishLoginAudit: jest.fn() }));
 jest.mock('../../services/oauthRedirectUris', () => ({
   getFrontendOrigin: () => 'https://ai-demo.ping-devops.com',
