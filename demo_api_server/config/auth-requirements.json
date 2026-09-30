@@ -260,6 +260,7 @@
     "/personal-agent": "public",
     "/personal-agent/client": "public",
     "/ping-ai-test-lab": "public",
+    "/ping-products/verify-recognize": "public",
     "/pingfederate-id-jag": "public",
     "/pingfederate-id-jag/demo": "public",
     "/pingfederate-id-jag/diagram": "public",
