@@ -40,6 +40,7 @@ const AUTH_MIDDLEWARE = {
     requireAdminRoleForReset: 'admin',
     requireAuthorizeAdmin: 'admin',
     requireMfaAdminSession: 'admin',
+    requireQueueStatsAdmin: 'admin',
 };
 
 const SECURITY_SCHEMES = {

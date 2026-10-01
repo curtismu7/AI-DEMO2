@@ -76,6 +76,7 @@ describe('auth inference', () => {
     ['post', '/api/authorize/bootstrap-demo-endpoints'],
     ['get', '/api/auth/mfa/ensure-fido2-rp'],
     ['post', '/api/auth/mfa/ensure-fido2-rp'],
+    ['get', '/api/conversations/admin/queue-stats'],
   ])('%s %s reports admin now that its inline role check is a named guard', (verb, path) => {
     // Each was `if (<user>.role !== 'admin') return res.status(403)...` as the
     // handler's first statement and reported session-only. POST /api/accounts
