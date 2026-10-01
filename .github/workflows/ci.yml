@@ -518,7 +518,10 @@ jobs:
     # branch protection — it makes "main is red" un-missable in the run list.
     name: Main is red (alert)
     needs: [changes, gates, api-server-tests, ui-tests, unwired-service-suites, python-agent-suites, authz-decision-tests]
-    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # A newer merge cancels this run (the concurrency group above), which makes
+    # the upstream jobs "cancelled" — not red. Alerting on that is a false
+    # positive, so stay quiet unless every upstream job actually finished.
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(needs.*.result, 'cancelled')
     runs-on: [self-hosted, macOS]
     timeout-minutes: 5
     steps:
