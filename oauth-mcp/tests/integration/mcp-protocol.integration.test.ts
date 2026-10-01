@@ -336,7 +336,9 @@ describe('MCP Protocol End-to-End Integration Tests', () => {
           protocolVersion: '2024-11-05',
           capabilities: { tools: { listChanged: false } },
           clientInfo: { name: 'Test Client', version: '1.0.0' },
-          agentToken: makeAgentJwt({ client_id: 'test-client-id', scope: 'read write' })
+          // accounts:read included — this agent lists tools and expects to see
+          // get_my_accounts, which requires accounts:read specifically.
+          agentToken: makeAgentJwt({ client_id: 'test-client-id', scope: 'read write accounts:read' })
         }
       };
 
@@ -384,7 +386,8 @@ describe('MCP Protocol End-to-End Integration Tests', () => {
         description: expect.any(String),
         inputSchema: expect.any(Object),
         requiresUserAuth: true,
-        requiredScopes: expect.arrayContaining(['read'])
+        // accounts:read, not bare read — matches scope-topology.json (the SSOT).
+        requiredScopes: expect.arrayContaining(['accounts:read'])
       });
     });
 
@@ -435,7 +438,9 @@ describe('MCP Protocol End-to-End Integration Tests', () => {
           protocolVersion: '2024-11-05',
           capabilities: { tools: { listChanged: false } },
           clientInfo: { name: 'Test Client', version: '1.0.0' },
-          agentToken: makeAgentJwt({ client_id: 'test-client-id', scope: 'read write' })
+          // accounts:read included — this connection calls get_my_accounts below,
+          // which requires accounts:read specifically, not bare read.
+          agentToken: makeAgentJwt({ client_id: 'test-client-id', scope: 'read write accounts:read' })
         }
       };
 
@@ -701,11 +706,13 @@ describe('MCP Protocol End-to-End Integration Tests', () => {
         });
 
         // Mock agent token introspection — one per handshake.
+        // accounts:read included — this agent calls get_my_accounts directly below,
+        // which requires accounts:read specifically, not bare read.
         mockedAxios.post.mockResolvedValueOnce({
           data: {
             active: true,
             client_id: 'test-client-id',
-            scope: 'read write',
+            scope: 'read write accounts:read',
             exp: Math.floor(Date.now() / 1000) + 3600
           }
         });
@@ -717,7 +724,7 @@ describe('MCP Protocol End-to-End Integration Tests', () => {
             protocolVersion: '2024-11-05',
             capabilities: { tools: { listChanged: false } },
             clientInfo: { name: `Agent ${i}`, version: '1.0.0' },
-            agentToken: makeAgentJwt({ sub: `concurrent-test-${i}`, client_id: 'test-client-id', scope: 'read write' })
+            agentToken: makeAgentJwt({ sub: `concurrent-test-${i}`, client_id: 'test-client-id', scope: 'read write accounts:read' })
           }
         };
 
@@ -978,7 +985,8 @@ describe('MCP Protocol End-to-End Integration Tests', () => {
         refresh_token: `user-refresh-token-${index}`,
         token_type: 'Bearer',
         expires_in: 3600,
-        scope: 'read write sensitive:read'
+        // accounts:read included — get_my_accounts requires it specifically, not bare read.
+        scope: 'read write sensitive:read accounts:read'
       }
     });
 

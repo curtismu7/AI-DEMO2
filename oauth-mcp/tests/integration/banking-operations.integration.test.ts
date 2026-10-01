@@ -129,7 +129,8 @@ describe('Banking Operations Integration Tests', () => {
       refreshToken: 'test-user-refresh-token',
       tokenType: 'Bearer',
       expiresIn: 3600,
-      scope: 'read write sensitive:read',
+      // accounts:read included — get_my_accounts requires it specifically, not bare read.
+      scope: 'read write sensitive:read accounts:read',
       issuedAt: new Date()
     };
   });

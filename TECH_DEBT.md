@@ -16,6 +16,45 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-10-01 — oauth-mcp's BankingToolRegistry.ts has drifted from scope-topology.json for 5 more tools
+
+**What's wrong.** `oauth-mcp/src/tools/BankingToolRegistry.ts`'s hand-maintained
+`requiredScopes` per tool is a SEPARATE copy of what `scope-topology.json` (the
+documented SSOT) declares for the same tool, and the two have drifted. Fixed
+`get_my_accounts` (`'read'` → `['accounts:read']`) in the commit this entry
+ships with, because it was live-blocking the new Agent Gateway delegated-
+exchange path (facade→gateway→backend, 2026-10-01) — every prior caller's
+token carried bare `read` anyway, so the gap never discriminated before this
+new, narrowly-scoped path existed. A repo-wide scan found 5 more:
+
+| tool | registry `requiredScopes` | SSOT `requiredScopes` |
+|---|---|---|
+| `get_sensitive_account_details` | `['read']` | `['read', 'sensitive:read']` — **looser than SSOT: this one may let callers through SSOT means to gate behind `sensitive:read`** |
+| `create_transfer` | `['write']` | `['transfer', 'write']` — **same direction: money-movement tool, looser than SSOT** |
+| `query_user_by_email` | `['ai_agent']` | `['read']` — opposite direction, may be deliberate (admin/agent-only tool) |
+| `get_branch_hours` | `[]` (no gate) | `['read']` |
+| `sequential_think` | `[]` (no gate) | `['read']` |
+
+**Why it wasn't fixed now.** `create_transfer` is a money-movement tool and
+`get_sensitive_account_details` gates PII — both are `REGRESSION_PLAN.md` §1
+territory, and both current registry values are LOOSER than the SSOT (a real
+caller could pass the registry's gate without the scope the SSOT says it
+should need). Widening either tool's effective scope requirement needs its own
+reasoning and live verification, not a same-night sweep alongside an unrelated
+PingOne delegated-exchange fix. The two empty-array tools may be intentionally
+public — needs product confirmation, not an assumption.
+
+**Real fix.** Either make `BankingToolRegistry.ts` generate its
+`requiredScopes` FROM `scope-topology.json` (removing the second copy
+entirely, matching how `demo_mcp_gateway/src/auth/toolScopes.ts` already does
+it via `import manifest from '../../../scope-topology.json'`), or extend
+`npm run topology:verify` to diff per-tool scopes between the two, not just
+tool existence (`oauth-mcp/CLAUDE.md` currently only documents the
+existence check).
+(not always what the entry guessed), and what the fix was. Entries are not
+deleted on resolution — the wrong guess is often the more useful half of the
+record.
+
 ### [ ] 2026-09-28 — Graphify requeues intentionally skipped JSON on every refresh
 
 **What's wrong.** Graphify `0.9.71`'s zero-node recovery check re-queues

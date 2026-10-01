@@ -114,7 +114,8 @@ describe('BankingToolRegistry', () => {
       expect(tool?.name).toBe('get_my_accounts');
       expect(tool?.title).toBe('My Bank Accounts');
       expect(tool?.requiresUserAuth).toBe(true);
-      expect(tool?.requiredScopes).toEqual(['read']);
+      // accounts:read, not bare read — matches scope-topology.json (the SSOT).
+      expect(tool?.requiredScopes).toEqual(['accounts:read']);
       expect(tool?.handler).toBe('executeGetMyAccounts');
       expect(tool?.readOnly).toBe(true);
     });
@@ -145,11 +146,15 @@ describe('BankingToolRegistry', () => {
   describe('scope and safety helpers', () => {
     it('should return read tools with read scope', () => {
       // Phase 210+: scope model is flat (read / write / sensitive:read).
+      // get_my_accounts needs accounts:read specifically, not bare read.
       const tools = BankingToolRegistry.getToolsByScope('read');
       const names = tools.map((t) => t.name);
 
-      expect(names).toEqual(
-        expect.arrayContaining(['get_my_accounts', 'get_account_balance', 'get_my_transactions'])
+      expect(names).toEqual(expect.arrayContaining(['get_account_balance', 'get_my_transactions']));
+
+      const accountsReadTools = BankingToolRegistry.getToolsByScope('accounts:read');
+      expect(accountsReadTools.map((t) => t.name)).toEqual(
+        expect.arrayContaining(['get_my_accounts'])
       );
     });
 
