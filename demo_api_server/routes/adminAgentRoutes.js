@@ -32,7 +32,7 @@ async function requirePingOneAdminGroup(req, res, response = {}) {
   if (Array.isArray(req.agentContext?.tokenEvents)) {
     for (const step of trace) {
       req.agentContext.tokenEvents.push(
-        buildTokenEvent(step.id, step.label, step.status, step.decoded, step.explanation),
+        buildTokenEvent(step.id, step.label, step.status, step.decoded, step.explanation, step.extra),
       );
     }
   }

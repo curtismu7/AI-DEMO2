@@ -58,7 +58,11 @@ beforeEach(() => {
   membershipService.listUserGroupNamesForVertical.mockResolvedValue(['pingone-admin']);
   fetchPingOneUserByUsername.mockResolvedValue({ user: { id: 'p1-user-uuid' }, error: null });
   pfExchange.performExchange.mockResolvedValueOnce('hop1-token').mockResolvedValueOnce(FINAL_TOKEN);
-  pingOneAuthorizeService.evaluateMcpToolDelegation.mockResolvedValue({ decision: 'PERMIT' });
+  pingOneAuthorizeService.evaluateMcpToolDelegation.mockResolvedValue({
+    decision: 'PERMIT',
+    decisionId: 'decision-1',
+    _debug: { request: { method: 'POST', url: 'https://az.example.test/decision', body: { parameters: { ToolName: 'pingone_admin_access' } } }, response: { decision: 'PERMIT' } },
+  });
 });
 
 test('checks the PingOne account with the same username and exchanges at PingFederate', async () => {
@@ -124,9 +128,19 @@ test('records the steps it ran, under the token-chain event ids', async () => {
   await checkAccess({ ...pfSession, trace });
 
   expect(trace.map((step) => step.id)).toEqual([
-    'user-token', 'two-ex-agent-actor', 'two-ex-exchange1', 'two-ex-final-token', 'pingone-admin-authorize',
+    'user-token', 'two-ex-agent-actor', 'two-ex-exchange1', 'two-ex-final-token', 'authorize-decision',
   ]);
-  expect(trace.at(-1)).toMatchObject({ status: 'permit' });
+  // The fields the token chain's Authorize card reads off this event.
+  expect(trace.at(-1)).toMatchObject({
+    status: 'permit',
+    extra: {
+      authorizeDecision: 'PERMIT',
+      authorizeEngine: 'pingone',
+      authorizeDecisionId: 'decision-1',
+      authorizeRequest: { body: { parameters: { ToolName: 'pingone_admin_access' } } },
+      authorizeResponse: { decision: 'PERMIT' },
+    },
+  });
   // Decoded claims only — a raw token must never ride along in the trace.
   expect(JSON.stringify(trace)).not.toContain('pf-session-token');
   expect(trace.find((step) => step.id === 'two-ex-final-token').decoded.claims.act.sub).toBe('pf-mcp-actor');
