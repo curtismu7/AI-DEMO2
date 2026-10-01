@@ -111,6 +111,28 @@
         </section>
       </section>
 
+      <section id="deploy-panel" class="deploy-panel" aria-labelledby="deploy-heading" hidden>
+        <div class="section-heading">
+          <div>
+            <h2 id="deploy-heading">Deploy queue</h2>
+            <p>What is merged but not yet deployed to this Mac's Docker stack, and the image builds on GitHub. Read-only.</p>
+          </div>
+          <span id="deploy-state" class="section-count">—</span>
+        </div>
+        <div class="deploy-grid">
+          <div>
+            <h3 class="deploy-subheading">Local Docker stack</h3>
+            <div id="deploy-local" class="deploy-list"></div>
+            <h3 class="deploy-subheading">Recent deploys</h3>
+            <div id="deploy-recent" class="deploy-list"></div>
+          </div>
+          <div>
+            <h3 class="deploy-subheading">Image builds</h3>
+            <div id="deploy-builds" class="deploy-list"></div>
+          </div>
+        </div>
+      </section>
+
       <section class="runner-lane" aria-labelledby="runner-heading">
         <div class="section-heading runner-heading-row">
           <div>
