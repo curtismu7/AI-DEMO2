@@ -114,7 +114,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
     };
   }, [workloadContextKey]);
 
-  const executeWorkload = useCallback((uc) => {
+  const executeWorkload = useCallback((uc, approvedChallengeId = null) => {
     if (!uc?.runPrompt || !uc?.useCaseId) return;
     activeWorkloadRun.current?.abort();
     const controller = new AbortController();
@@ -128,7 +128,8 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       signal: controller.signal,
-      body: JSON.stringify({ prompt: uc.runPrompt, vertical, useCaseId: uc.useCaseId }),
+      // An approved challenge id is what lets the retry through the gateway's approval gate.
+      body: JSON.stringify({ prompt: uc.runPrompt, vertical, useCaseId: uc.useCaseId, ...(approvedChallengeId ? { hitlChallengeId: approvedChallengeId } : {}) }),
     }).then(async (response) => {
       const data = await response.json().catch(() => ({}));
       if (!isCurrentRun()) return null;
@@ -139,6 +140,10 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
       if (!isCurrentRun()) return;
       // The BFF answers 200 with step_up_required when the sign-in had no MFA.
       if (data.step_up_required) setRunState({ status: 'step-up', prompt: true, text: data.reply || 'Complete multi-factor authentication to continue.' });
+      // Human approval: the reply carries the challenge to approve or decline.
+      else if (data.error === 'hitl_required' && (data.hitlChallengeId || data.challengeId)) setRunState({ status: 'approval', prompt: true, challengeId: data.hitlChallengeId || data.challengeId, text: data.reply || 'This action requires your approval.' });
+      // success:false is a refusal or a failed run, not a completed action.
+      else if (data.success === false) setRunState({ status: 'error', text: data.reply || 'The workload agent could not complete the request.' });
       else setRunState({ status: 'complete', text: data.reply || 'The workload agent completed the request.' });
     }).catch((error) => {
       if (isCurrentRun()) setRunState({ status: 'error', text: error.message || 'The workload agent could not complete the request.' });
@@ -216,6 +221,19 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
     setRunState((state) => ({ ...state, prompt: false }));
     startChallenge().catch(hostedStepUp);
   };
+  // Approve or decline through the same decision endpoint the chat agent uses,
+  // then retry the action carrying the approved challenge.
+  const decideApproval = (decision) => {
+    const { challengeId } = runState;
+    setRunState({ status: 'running', text: '' });
+    fetch(`/api/mcp/decision/${encodeURIComponent(challengeId)}/${decision}`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' } })
+      .then(async (response) => {
+        if (!response.ok) throw new Error((await response.json().catch(() => ({}))).message || `The decision could not be recorded (${response.status})`);
+        if (decision === 'approve') executeWorkload(workloadScenario, challengeId);
+        else setRunState({ status: 'error', text: 'Declined. The action was not run.' });
+      })
+      .catch((error) => setRunState({ status: 'error', text: error.message }));
+  };
   const finishStepUp = () => {
     setMfaChallenge(null);
     executeWorkload(workloadScenario);
@@ -246,10 +264,19 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
       <p>Action: <strong>{workloadScenario.primaryTool}</strong> · Prompt: <strong>{workloadScenario.runPrompt}</strong></p>
       <button type="button" disabled={runState.status === 'running'} onClick={() => executeWorkload(workloadScenario)}>Run {workloadScenario.id} action</button>
       <button type="button" onClick={() => window.open(`/personal-agent/client?skin=${activeSkin}&theme=${theme}&useCase=${workloadScenario.id}&vertical=${encodeURIComponent(vertical)}`, '_blank', 'width=480,height=700,left=200,top=100,resizable=yes')}>🪟 Open client window</button>
-      <p role="status" className="workload-agents__status">{runState.status === 'running' ? 'Running the selected action…' : runState.text || 'Ready to run the selected catalog action.'}</p>
+      <p role={runState.status === 'error' ? 'alert' : 'status'} className={`workload-agents__status${runState.status === 'error' ? ' workload-agents__status--error' : ''}`}>{runState.status === 'running' ? 'Running the selected action…' : runState.text || 'Ready to run the selected catalog action.'}</p>
       {runState.status === 'step-up' && (
         <button type="button" onClick={startStepUp}>Verify with MFA and run again</button>
       )}
+      <ConfirmModal
+        isOpen={runState.status === 'approval' && runState.prompt === true}
+        title="Approval required"
+        message={`${runState.text} ${workloadScenario.runPrompt}`}
+        confirmLabel="Approve"
+        cancelLabel="Decline"
+        onConfirm={() => decideApproval('approve')}
+        onCancel={() => decideApproval('deny')}
+      />
       <ConfirmModal
         isOpen={runState.status === 'step-up' && runState.prompt === true}
         title="MFA required"
