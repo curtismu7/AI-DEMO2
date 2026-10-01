@@ -72,7 +72,48 @@
     return groups;
   }
 
-  const model = { classifyRuns, runTimingKind, runnerDetails, estimateRemainingMs, runDurations, executionDurationMs };
+  function stepKey(run, job, step) {
+    return `${run.workflowId || run.workflow}|${job.name}|${step.name}`;
+  }
+
+  // Typical (median) duration of each step, from the completed runs on screen.
+  function stepBaselines(runs) {
+    const samples = new Map();
+    for (const run of Array.isArray(runs) ? runs : []) {
+      if (run.status !== 'completed') continue;
+      for (const job of Array.isArray(run.jobs) ? run.jobs : []) {
+        for (const step of Array.isArray(job.steps) ? job.steps : []) {
+          if (step.conclusion !== 'success') continue;
+          const duration = durationMs(step.startedAt, step.completedAt);
+          if (duration === null) continue;
+          const key = stepKey(run, job, step);
+          samples.set(key, [...(samples.get(key) || []), duration]);
+        }
+      }
+    }
+    const baselines = new Map();
+    for (const [key, values] of samples) {
+      values.sort((a, b) => a - b);
+      const middle = Math.floor(values.length / 2);
+      baselines.set(key, values.length % 2 ? values[middle] : (values[middle - 1] + values[middle]) / 2);
+    }
+    return baselines;
+  }
+
+  // The step that has taken longest in a job so far, with its typical duration
+  // when one is known. `slow` means well over typical, not merely the longest.
+  function slowestStep(run, job, baselines, nowMs = Date.now()) {
+    let slowest = null;
+    for (const step of Array.isArray(job.steps) ? job.steps : []) {
+      const elapsedMs = executionDurationMs(step, nowMs);
+      if (elapsedMs === null || (slowest && elapsedMs <= slowest.elapsedMs)) continue;
+      const typicalMs = baselines?.get(stepKey(run, job, step)) ?? null;
+      slowest = { name: step.name || 'Step', elapsedMs, typicalMs, slow: typicalMs !== null && elapsedMs > typicalMs * 1.5 && elapsedMs - typicalMs > 30000 };
+    }
+    return slowest;
+  }
+
+  const model = { classifyRuns, runTimingKind, runnerDetails, estimateRemainingMs, runDurations, executionDurationMs, stepBaselines, stepKey, slowestStep };
   if (typeof module === 'object' && module.exports) module.exports = model;
   else root.CiQueueDashboardModel = model;
 })(typeof window === 'undefined' ? globalThis : window);

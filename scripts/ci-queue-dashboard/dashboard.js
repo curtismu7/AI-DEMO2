@@ -3,6 +3,7 @@
 const POLL_INTERVAL_MS = 15000;
 let refreshInProgress = false;
 let currentSnapshot = null;
+let currentInsights = null;
 let selectedRunId = null;
 let detailTrigger = null;
 
@@ -36,6 +37,21 @@ const elements = {
   queuedRuns: document.getElementById('queued-runs'),
   completedEmpty: document.getElementById('completed-empty'),
   completedRuns: document.getElementById('completed-runs'),
+  mainHealth: document.getElementById('main-health'),
+  staleRuns: document.getElementById('stale-runs'),
+  staleSummary: document.getElementById('stale-summary'),
+  staleCancel: document.getElementById('stale-cancel'),
+  hostLoad: document.getElementById('host-load'),
+  hostLoadFigure: document.getElementById('host-load-figure'),
+  hostLoadContent: document.getElementById('host-load-content'),
+  workflowLog: document.getElementById('workflow-log'),
+  waitTrend: document.getElementById('wait-trend'),
+  waitTrendContent: document.getElementById('wait-trend-content'),
+  deployPanel: document.getElementById('deploy-panel'),
+  deployState: document.getElementById('deploy-state'),
+  deployLocal: document.getElementById('deploy-local'),
+  deployRecent: document.getElementById('deploy-recent'),
+  deployBuilds: document.getElementById('deploy-builds'),
 };
 
 function node(tag, className, text) {
@@ -148,6 +164,12 @@ function currentStepTimings(run) {
       row.append(node('span', 'run-current-step-time', `Elapsed: ${formatElapsed(model.executionDurationMs(step, nowMs))}`));
       rows.push(row);
     }
+    const slowest = model.slowestStep(run, job, model.stepBaselines(currentSnapshot?.runs), nowMs);
+    if (slowest) {
+      const typical = slowest.typicalMs === null ? '' : ` (typically ${formatElapsed(slowest.typicalMs)})`;
+      rows.push(node('div', `run-slowest-step${slowest.slow ? ' run-slowest-step--slow' : ''}`,
+        `Slowest step in ${job.name || 'Job'}: ${slowest.name}, ${formatElapsed(slowest.elapsedMs)}${typical}`));
+    }
   }
   if (rows.length === 0) return null;
   const summary = node('div', 'run-current-steps');
@@ -236,6 +258,10 @@ function createRunArticle(run, compact = false, history = []) {
   metadata.append(node('span', 'run-event', String(run.event || 'Event unavailable').replaceAll('_', ' ')));
   metadata.append(node('span', 'run-timing', runTiming(run)));
   if (normalized(run.status) === 'in_progress') metadata.append(node('span', 'run-eta', estimatedRemaining(run, history)));
+  const stale = currentInsights?.staleRuns?.find((item) => item.id === run.id);
+  if (stale) metadata.append(node('span', 'run-flag run-flag--stale', `Stale: PR #${stale.pr} is ${stale.state}`));
+  const duplicate = currentInsights?.duplicateRuns?.find((item) => item.id === run.id);
+  if (duplicate) metadata.append(node('span', 'run-flag run-flag--duplicate', `Duplicate of run ${duplicate.duplicateOf} (same commit)`));
 
   article.append(header, metadata);
   const activeSteps = currentStepTimings(run);
@@ -284,6 +310,8 @@ function renderRunDetails() {
       section.append(node('p', 'job-unavailable', 'Step details are unavailable.'));
     } else {
       const steps = node('ol', 'detail-steps');
+      const baselines = model.stepBaselines(currentSnapshot.runs);
+      const slowest = model.slowestStep(run, job, baselines, nowMs);
       for (const step of job.steps) {
         const current = normalized(step.status) === 'in_progress';
         const row = node('li', `detail-step${current ? ' detail-step--current' : ''}`);
@@ -291,6 +319,11 @@ function renderRunDetails() {
         row.append(node('span', 'detail-step-name', step.name || 'Step'), makeStatus(step.status, step.conclusion));
         if (current) row.append(node('strong', 'detail-current', 'Current step'));
         row.append(node('span', 'job-timing', `Elapsed: ${formatElapsed(model.executionDurationMs(step, nowMs))}`));
+        const typicalMs = baselines.get(model.stepKey(run, job, step));
+        if (typicalMs !== undefined) row.append(node('span', 'job-timing', `Typical: ${formatElapsed(typicalMs)}`));
+        if (slowest && slowest.name === (step.name || 'Step') && slowest.elapsedMs > 0) {
+          row.append(node('strong', `detail-slowest${slowest.slow ? ' detail-slowest--slow' : ''}`, slowest.slow ? 'Slowest step, over typical' : 'Slowest step'));
+        }
         steps.append(row);
       }
       section.append(steps);
@@ -317,7 +350,155 @@ function closeRunDetails() {
   (detailTrigger || elements.refresh).focus();
 }
 
+function renderWorkflowLog(controls) {
+  const entries = Array.isArray(controls?.workflowLog) ? controls.workflowLog : [];
+  elements.workflowLog.replaceChildren(...entries.slice(0, 5).map((entry) => node('li', `workflow-log-entry workflow-log-entry--${entry.source === 'dashboard' ? 'dashboard' : 'outside'}`,
+    `${formatLocalTime(entry.at)}: ${entry.workflow} ${entry.change} ${entry.source === 'dashboard' ? 'from this dashboard' : 'outside this dashboard (gh, GitHub, or another session)'}`)));
+}
+
+function renderMainHealth(main) {
+  elements.mainHealth.replaceChildren();
+  elements.mainHealth.hidden = main?.state !== 'red';
+  if (main?.state !== 'red') return;
+  const jobs = Array.isArray(main.failedJobs) && main.failedJobs.length ? main.failedJobs.join(', ') : 'job names unavailable';
+  elements.mainHealth.append(node('strong', 'main-health-title', `${main.branch} is red: ${main.workflow}`));
+  elements.mainHealth.append(node('span', 'main-health-detail', `Failing: ${jobs}`));
+  const first = main.firstBad;
+  if (first) {
+    const source = first.pr ? `PR #${first.pr}` : first.sha ? `commit ${first.sha}` : 'an earlier run';
+    elements.mainHealth.append(node('span', 'main-health-detail', `Red since ${source}: ${first.title}`));
+  }
+  const url = safeGitHubUrl(main.latest?.url);
+  if (url) {
+    const link = node('a', 'run-link', 'Open failing run');
+    link.href = url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    elements.mainHealth.append(link);
+  }
+}
+
+function renderStaleRuns(insights) {
+  const active = new Set((currentSnapshot?.runs || []).map((run) => run.id));
+  const stale = (insights?.staleRuns || []).filter((item) => active.has(item.id));
+  elements.staleRuns.hidden = stale.length === 0;
+  elements.staleCancel.dataset.runIds = stale.map((item) => item.id).join(',');
+  const pulls = [...new Set(stale.map((item) => `#${item.pr}`))].join(', ');
+  elements.staleSummary.textContent = stale.length
+    ? `${stale.length} queued or running ${stale.length === 1 ? 'run is' : 'runs are'} for pull requests that already merged or closed (${pulls}).`
+    : '';
+}
+
+function renderHostLoad(host) {
+  elements.hostLoad.hidden = !host;
+  if (!host) return;
+  const ratio = host.cores ? host.load1 / host.cores : 0;
+  elements.hostLoadFigure.textContent = `Load ${host.load1} on ${host.cores} cores`;
+  elements.hostLoad.dataset.pressure = ratio >= 2 ? 'high' : ratio >= 1 ? 'raised' : 'normal';
+  elements.hostLoadContent.replaceChildren();
+  if (ratio >= 1) {
+    elements.hostLoadContent.append(node('p', 'host-load-note',
+      `This Mac has ${ratio.toFixed(1)} times more runnable work than cores, so CI jobs will run slower than usual.`));
+  }
+  const list = node('ul', 'host-load-list');
+  for (const item of Array.isArray(host.top) ? host.top : []) {
+    list.append(node('li', 'host-load-item', `${item.name}: ${Math.round(item.cpuPercent)}% CPU, ${item.memMb} MB`));
+  }
+  elements.hostLoadContent.append(list);
+}
+
+function renderWaitTrend(trend) {
+  const days = Array.isArray(trend) ? trend : [];
+  elements.waitTrend.hidden = days.length === 0;
+  const longest = Math.max(1, ...days.map((day) => day.medianMs));
+  elements.waitTrendContent.replaceChildren(...days.map((day) => {
+    const row = node('div', 'wait-trend-row');
+    row.append(node('span', 'wait-trend-day', day.day));
+    const bar = node('span', 'wait-trend-bar');
+    // Width as a data attribute (CSP forbids inline styles); CSS maps it.
+    bar.dataset.width = String(Math.max(1, Math.round((day.medianMs / longest) * 10)));
+    row.append(bar);
+    row.append(node('span', 'wait-trend-value', `${formatElapsed(day.medianMs)} median, ${day.runs} ${day.runs === 1 ? 'run' : 'runs'}`));
+    return row;
+  }));
+}
+
+function serviceSummary(services) {
+  const shown = services.slice(0, 4).join(', ');
+  return services.length > 4 ? `${shown} and ${services.length - 4} more` : shown;
+}
+
+function renderDeploy(deploy, builds) {
+  const local = deploy?.available ? deploy : null;
+  const buildList = Array.isArray(builds) ? builds : [];
+  elements.deployPanel.hidden = !local && buildList.length === 0;
+  if (elements.deployPanel.hidden) return;
+
+  const pending = (local?.groups || []).filter((group) => group.commitsSince > 0);
+  const running = Boolean(local?.lock?.running);
+  elements.deployState.textContent = !local ? 'Local state unavailable'
+    : running ? `Deploy running${local.lock.pid ? ` (process ${local.lock.pid})` : ''}`
+      : pending.length ? 'Not fully deployed' : 'Up to date';
+  elements.deployPanel.dataset.state = running ? 'running' : pending.length ? 'pending' : 'current';
+
+  elements.deployLocal.replaceChildren();
+  if (local) {
+    const offMain = (local.served || []).filter((mount) => !mount.isMain);
+    if (offMain.length) {
+      elements.deployLocal.append(node('p', 'deploy-note deploy-note--warn',
+        `Serving a worktree, not main: ${offMain.map((mount) => `${mount.mount} from ${mount.checkout}`).join(', ')}.`));
+    }
+    if (local.lock?.stale) elements.deployLocal.append(node('p', 'deploy-note deploy-note--warn', 'A deploy lock is left over from a process that has exited.'));
+    for (const group of local.groups || []) {
+      const row = node('div', `deploy-row${group.commitsSince > 0 ? ' deploy-row--pending' : ''}`);
+      row.append(node('span', 'deploy-services', serviceSummary(group.services)));
+      row.title = group.services.join(', ');
+      const since = group.commitsSince === null ? 'commit count unavailable'
+        : group.commitsSince === 0 ? `at the current commit (${group.sha})`
+          : `deployed at ${group.sha}, ${group.commitsSince} ${group.commitsSince === 1 ? 'commit' : 'commits'} on disk since`;
+      row.append(node('span', 'deploy-detail', since));
+      elements.deployLocal.append(row);
+    }
+    if (pending.length) {
+      elements.deployLocal.append(node('p', 'deploy-note', 'Counts every commit since the service was last deployed; not all of them touch it. Run scripts/deploy-live.sh --dry-run to see what would restart.'));
+    }
+    if (!(local.groups || []).length) elements.deployLocal.append(node('p', 'placeholder', 'No per-service deploy records on this machine.'));
+  } else {
+    elements.deployLocal.append(node('p', 'placeholder', 'Local deploy state is unavailable.'));
+  }
+
+  const recent = local?.recent || [];
+  elements.deployRecent.replaceChildren(...(recent.length
+    ? recent.map((entry) => node('div', 'deploy-row', `${formatLocalTime(entry.at)}: ${entry.sha} restarted ${entry.services.join(', ') || 'no services'}`))
+    : [node('p', 'placeholder', 'No deploys recorded.')]));
+
+  elements.deployBuilds.replaceChildren(...(buildList.length ? buildList.map((build) => {
+    const row = node('div', 'deploy-row');
+    row.append(makeStatus(build.status, build.conclusion));
+    row.append(node('span', 'deploy-services', build.title));
+    row.append(node('span', 'deploy-detail', `${build.sha}, ${formatLocalTime(build.createdAt)}`));
+    const url = safeGitHubUrl(build.url);
+    if (url) {
+      const link = node('a', 'run-link', 'Open run');
+      link.href = url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      row.append(link);
+    }
+    return row;
+  }) : [node('p', 'placeholder', 'No image builds in the 100 most recent runs.')]));
+}
+
+function renderInsights(insights) {
+  renderMainHealth(insights?.main);
+  renderStaleRuns(insights);
+  renderHostLoad(insights?.host);
+  renderWaitTrend(insights?.turnaroundTrend);
+  renderDeploy(insights?.deploy, insights?.imageBuilds);
+}
+
 function renderWorkflowControls(controls) {
+  renderWorkflowLog(controls);
   elements.workflowControls.replaceChildren();
   elements.workflowControlNote.textContent = controls?.error || '';
   const workflows = Array.isArray(controls?.workflows) ? controls.workflows : [];
@@ -364,11 +545,11 @@ function renderRunnerControls(controls) {
       if (button.disabled) button.title = busy ? 'Wait for the assigned job to finish.' : 'This runner must be online to pause.';
       row.append(button);
     } else {
-      row.append(node('span', 'control-state', 'No matching local service'));
+      row.append(node('span', 'control-state', runner.localInstalled ? 'Stopped on this Mac' : 'Runs on another machine'));
     }
     elements.runnerControls.append(row);
   }
-  if (!hasLocalControl) elements.runnerControlNote.textContent = 'Runner controls appear on the Mac that hosts the matching launchd service.';
+  if (!hasLocalControl) elements.runnerControlNote.textContent = 'Pause and resume appear only for runners whose service is loaded on this Mac.';
 }
 
 function renderControls(controls) {
@@ -417,8 +598,10 @@ function renderRunner(snapshot) {
   }
 }
 
-function render(snapshot, controls) {
+function render(snapshot, controls, insights = null) {
   currentSnapshot = snapshot;
+  currentInsights = insights;
+  renderInsights(insights);
   if (selectedRunId !== null) detailTrigger = null;
   elements.repository.textContent = snapshot.repository || 'GitHub repository';
   elements.freshness.textContent = `Updated ${formatLocalTime(snapshot.updatedAt)}`;
@@ -527,7 +710,13 @@ async function refresh() {
     } catch (error) {
       controls = { error: error instanceof Error ? error.message : 'Workflow and runner controls could not be loaded.' };
     }
-    render(body, controls);
+    // Insights are extra: if they fail, the queue still renders without them.
+    let insights = null;
+    try {
+      const insightsResponse = await fetch('/api/insights', { cache: 'no-store', headers: { Accept: 'application/json' } });
+      if (insightsResponse.ok) insights = await insightsResponse.json();
+    } catch {}
+    render(body, controls, insights);
   } catch (error) {
     showRefreshError(error instanceof Error ? error.message : 'GitHub Actions data could not be loaded.');
   } finally {
@@ -537,9 +726,32 @@ async function refresh() {
   }
 }
 
+async function cancelStaleRuns() {
+  const ids = String(elements.staleCancel.dataset.runIds || '').split(',').map(Number).filter((id) => Number.isSafeInteger(id) && id > 0);
+  if (!ids.length || !window.confirm(`Stop ${ids.length} ${ids.length === 1 ? 'run' : 'runs'} for pull requests that already merged or closed?`)) return;
+  elements.staleCancel.disabled = true;
+  setActionFeedback('Stopping stale runs…');
+  let stopped = 0;
+  for (const id of ids) {
+    try {
+      const response = await fetch('/api/actions', {
+        method: 'POST',
+        cache: 'no-store',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'run', action: 'cancel', id }),
+      });
+      if (response.ok) stopped += 1;
+    } catch {}
+  }
+  setActionFeedback(`Stop request sent for ${stopped} of ${ids.length} stale runs.`, stopped !== ids.length);
+  elements.staleCancel.disabled = false;
+  await refresh();
+}
+
 elements.refresh.addEventListener('click', refresh);
 document.addEventListener('click', (event) => {
   if (event.target === elements.detailClose) { closeRunDetails(); return; }
+  if (event.target === elements.staleCancel) { cancelStaleRuns(); return; }
   const details = event.target.closest('button[data-detail-run-id]');
   if (details) { openRunDetails(details); return; }
   const button = event.target.closest('button[data-action-type]');

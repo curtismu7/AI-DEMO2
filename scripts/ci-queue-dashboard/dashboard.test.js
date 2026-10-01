@@ -8,7 +8,7 @@ const test = require('node:test');
 
 // Small DOM adapter for the standalone script's public DOM operations. The
 // production renderer and event handlers run unchanged; only browser IO is fake.
-async function dashboard(runs, nowMs = Date.now()) {
+async function dashboard(runs, nowMs = Date.now(), { insights = null, controls = { workflows: [], runners: [] }, confirm } = {}) {
   const ids = new Map();
   const listeners = {};
   const requests = [];
@@ -45,11 +45,13 @@ async function dashboard(runs, nowMs = Date.now()) {
   class DashboardDate extends Date {
     static now() { return nowMs; }
   }
-  const window = { CiQueueDashboardModel: require('./dashboard-model'), setInterval() {}, confirm() { assert.fail('Details must not ask for action confirmation'); } };
+  const window = { CiQueueDashboardModel: require('./dashboard-model'), setInterval() {}, confirm: confirm || (() => { assert.fail('Details must not ask for action confirmation'); }) };
   const context = vm.createContext({ document, window, URL, Intl, Date: DashboardDate, fetch: async (url, options) => {
     requests.push({ url, options });
-    assert.ok(['/api/snapshot', '/api/control-state'].includes(url), `Unexpected request: ${url}`);
-    return { ok: true, json: async () => url === '/api/snapshot' ? { runs, repository: 'owner/repo', summary: {}, updatedAt: '2026-09-28T10:06:00Z' } : { workflows: [], runners: [] } };
+    assert.ok(['/api/snapshot', '/api/control-state', '/api/insights', '/api/actions'].includes(url), `Unexpected request: ${url}`);
+    if (url === '/api/insights') return { ok: insights !== null, json: async () => insights || { error: {} } };
+    if (url === '/api/actions') return { ok: true, json: async () => ({ ok: true }) };
+    return { ok: true, json: async () => url === '/api/snapshot' ? { runs, repository: 'owner/repo', summary: {}, updatedAt: '2026-09-28T10:06:00Z' } : controls };
   } });
   vm.runInContext(fs.readFileSync(path.join(__dirname, 'dashboard.js'), 'utf8'), context);
   await new Promise((resolve) => setImmediate(resolve));
@@ -131,4 +133,122 @@ test('details labels missing jobs, steps and timestamps unavailable without a gu
   ui.click(buttons[1]);
   assert.match(ui.ids.get('run-detail-content').textContent, /Elapsed: Time unavailable/);
   assert.match(ui.ids.get('run-detail-content').textContent, /Step details are unavailable/);
+});
+
+test('insights render the main-red banner, stale and duplicate flags, host load, wait trend and workflow log', async () => {
+  const nowMs = Date.parse('2026-10-01T12:00:00Z');
+  const runs = [
+    { id: 21, title: 'PR run', workflow: 'CI', status: 'queued', createdAt: '2026-10-01T11:50:00Z', jobs: [] },
+    { id: 22, title: 'Manual run', workflow: 'CI', status: 'queued', createdAt: '2026-10-01T11:55:00Z', jobs: [] },
+  ];
+  const insights = {
+    staleRuns: [{ id: 21, pr: 457, state: 'merged' }, { id: 999, pr: 400, state: 'closed' }],
+    duplicateRuns: [{ id: 22, duplicateOf: 21 }],
+    main: { state: 'red', branch: 'main', workflow: 'CI', failedJobs: ['API server tests (Jest)'],
+      latest: { id: 5, url: 'https://github.com/o/r/actions/runs/5' }, firstBad: { title: 'Merge pull request #456 from a/b', pr: 456, sha: 'abc123def' } },
+    turnaroundTrend: [{ day: '2026-09-30', medianMs: 60000, runs: 3 }, { day: '2026-10-01', medianMs: 1200000, runs: 8 }],
+    host: { load1: 48.5, cores: 16, top: [{ name: 'OrbStack', cpuPercent: 122.2, memMb: 14053 }] },
+  };
+  const controls = { workflows: [], runners: [], workflowLog: [{ at: '2026-10-01T11:26:00Z', workflow: 'CI', change: 'resumed', source: 'outside' }] };
+  const ui = await dashboard(runs, nowMs, { insights, controls });
+
+  const banner = ui.ids.get('main-health');
+  assert.equal(banner.hidden, false);
+  for (const expected of ['main is red: CI', 'API server tests (Jest)', 'PR #456', 'Open failing run']) assert.ok(banner.textContent.includes(expected), expected);
+
+  const queued = ui.ids.get('queued-runs').textContent;
+  assert.ok(queued.includes('Stale: PR #457 is merged'));
+  assert.ok(queued.includes('Duplicate of run 21 (same commit)'));
+
+  assert.equal(ui.ids.get('stale-runs').hidden, false);
+  assert.ok(ui.ids.get('stale-summary').textContent.startsWith('1 queued or running run is'), 'a stale id that is no longer in the queue is not counted');
+  assert.equal(ui.ids.get('stale-cancel').dataset.runIds, '21');
+
+  assert.equal(ui.ids.get('host-load').hidden, false);
+  assert.equal(ui.ids.get('host-load').dataset.pressure, 'high');
+  assert.ok(ui.ids.get('host-load-figure').textContent.includes('Load 48.5 on 16 cores'));
+  assert.ok(ui.ids.get('host-load-content').textContent.includes('OrbStack: 122% CPU, 14053 MB'));
+
+  assert.equal(ui.ids.get('wait-trend').hidden, false);
+  assert.ok(ui.ids.get('wait-trend-content').textContent.includes('20m 0s median, 8 runs'));
+  assert.ok(ui.ids.get('workflow-log').textContent.includes('CI resumed outside this dashboard'));
+});
+
+test('stop stale runs asks once and cancels only the flagged runs', async () => {
+  let prompts = 0;
+  const runs = [
+    { id: 21, title: 'Stale', workflow: 'CI', status: 'queued', createdAt: '2026-10-01T11:50:00Z', jobs: [] },
+    { id: 23, title: 'Live', workflow: 'CI', status: 'queued', createdAt: '2026-10-01T11:51:00Z', jobs: [] },
+  ];
+  const ui = await dashboard(runs, Date.parse('2026-10-01T12:00:00Z'), {
+    insights: { staleRuns: [{ id: 21, pr: 457, state: 'merged' }] },
+    confirm: () => { prompts += 1; return true; },
+  });
+  ui.click(ui.ids.get('stale-cancel'));
+  await new Promise((resolve) => setImmediate(resolve));
+  await new Promise((resolve) => setImmediate(resolve));
+  const actions = ui.requests.filter((request) => request.url === '/api/actions').map((request) => JSON.parse(request.options.body));
+  assert.equal(prompts, 1);
+  assert.deepEqual(actions, [{ type: 'run', action: 'cancel', id: 21 }]);
+});
+
+test('the queue still renders when insights are unavailable', async () => {
+  const ui = await dashboard([{ id: 7, title: 'Run', workflow: 'CI', status: 'queued', createdAt: '2026-10-01T11:50:00Z', jobs: [] }]);
+  assert.ok(ui.ids.get('queued-runs').textContent.includes('Run'));
+  for (const id of ['main-health', 'stale-runs', 'host-load', 'wait-trend']) assert.equal(ui.ids.get(id).hidden, true, id);
+});
+
+test('a running job names its slowest step against the typical duration from recent runs', async () => {
+  const nowMs = Date.parse('2026-10-01T12:10:00Z');
+  const step = (name, start, end) => ({ name, status: end ? 'completed' : 'in_progress', conclusion: end ? 'success' : null, startedAt: start, completedAt: end || null });
+  const runs = [
+    { id: 1, workflow: 'CI', title: 'Earlier', status: 'completed', conclusion: 'success', createdAt: '2026-10-01T10:00:00Z', jobs: [
+      { name: 'Gates', status: 'completed', conclusion: 'success', steps: [step('Install deps', '2026-10-01T10:00:00Z', '2026-10-01T10:00:30Z')] }] },
+    { id: 2, workflow: 'CI', title: 'Now', status: 'in_progress', createdAt: '2026-10-01T12:00:00Z', startedAt: '2026-10-01T12:00:00Z', jobs: [
+      { name: 'Gates', status: 'in_progress', startedAt: '2026-10-01T12:00:00Z', steps: [
+        step('Checkout', '2026-10-01T12:00:00Z', '2026-10-01T12:00:05Z'),
+        step('Install deps', '2026-10-01T12:00:05Z', null)] }] },
+  ];
+  const ui = await dashboard(runs, nowMs);
+  const card = ui.ids.get('active-runs').children[0];
+  assert.ok(card.textContent.includes('Slowest step in Gates: Install deps, 9m 55s (typically 30s)'), card.textContent);
+  const slow = ui.descendants(card).find((item) => String(item.className || '').includes('run-slowest-step--slow'));
+  assert.ok(slow, 'a step far over its typical time is marked slow');
+});
+
+test('the deploy queue shows what is not yet deployed, a running deploy, a served worktree and image builds', async () => {
+  const deploy = {
+    available: true, head: 'ccccccccc', serviceCount: 6,
+    lock: { running: true, pid: 4242, stale: false },
+    groups: [
+      { sha: 'bbbbbbbbb', services: ['a', 'b', 'c', 'd', 'e'], commitsSince: 312 },
+      { sha: 'ccccccccc', services: ['ui'], commitsSince: 0 },
+    ],
+    served: [{ mount: 'BFF', checkout: 'main checkout', isMain: true }, { mount: 'UI', checkout: 'my-worktree', isMain: false }],
+    recent: [{ at: '2026-10-01T12:02:56Z', sha: '93919932e', services: ['ui', 'demo-api-server'] }],
+  };
+  const imageBuilds = [{ id: 9, title: 'Merge pull request #466', sha: 'abcdef123', status: 'queued', conclusion: null, createdAt: '2026-10-01T12:12:51Z', url: 'https://github.com/o/r/actions/runs/9' }];
+  const ui = await dashboard([], Date.parse('2026-10-01T12:30:00Z'), { insights: { deploy, imageBuilds } });
+
+  const panel = ui.ids.get('deploy-panel');
+  assert.equal(panel.hidden, false);
+  assert.equal(panel.dataset.state, 'running');
+  assert.equal(ui.ids.get('deploy-state').textContent, 'Deploy running (process 4242)');
+  const local = ui.ids.get('deploy-local').textContent;
+  for (const expected of ['a, b, c, d and 1 more', 'deployed at bbbbbbbbb, 312 commits on disk since', 'at the current commit (ccccccccc)', 'Serving a worktree, not main: UI from my-worktree', 'not all of them touch it']) {
+    assert.ok(local.includes(expected), expected);
+  }
+  assert.ok(ui.ids.get('deploy-recent').textContent.includes('93919932e restarted ui, demo-api-server'));
+  const builds = ui.ids.get('deploy-builds').textContent;
+  for (const expected of ['Queued', 'Merge pull request #466', 'abcdef123', 'Open run']) assert.ok(builds.includes(expected), expected);
+  assert.equal(ui.descendants(panel).some((item) => item.dataset.actionType), false, 'the deploy queue is read-only');
+});
+
+test('the deploy queue reads up to date when nothing is pending and hides when there is no data', async () => {
+  const current = await dashboard([], Date.now(), { insights: { deploy: { available: true, lock: { running: false }, groups: [{ sha: 'c', services: ['ui'], commitsSince: 0 }], served: [], recent: [] }, imageBuilds: [] } });
+  assert.equal(current.ids.get('deploy-state').textContent, 'Up to date');
+  assert.equal(current.ids.get('deploy-panel').dataset.state, 'current');
+
+  const none = await dashboard([], Date.now(), { insights: { deploy: { available: false }, imageBuilds: [] } });
+  assert.equal(none.ids.get('deploy-panel').hidden, true);
 });

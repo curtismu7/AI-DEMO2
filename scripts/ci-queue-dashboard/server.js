@@ -3,7 +3,10 @@
 const fs = require('node:fs');
 const http = require('node:http');
 const path = require('node:path');
+const { readDeployState } = require('./deploy-state');
 const { createGitHubReader } = require('./github');
+const { readHostLoad } = require('./host-load');
+const { createControlLog } = require('./insights');
 const { createRunnerController } = require('./runner-control');
 
 const DEFAULT_DASHBOARD_PORT = 57500;
@@ -127,7 +130,7 @@ function errorResponse(error) {
   return { status: safe.status, body: { error: { code: SAFE_ERRORS[error?.code] ? error.code : 'ACTION_FAILED', message: safe.message } } };
 }
 
-function createDashboardServer({ getSnapshot, getControlState, performAction, performRunnerAction, host = '127.0.0.1', port = 0, assetDirectory = __dirname } = {}) {
+function createDashboardServer({ getSnapshot, getControlState, getInsights, performAction, performRunnerAction, host = '127.0.0.1', port = 0, assetDirectory = __dirname } = {}) {
   if (host !== '127.0.0.1') throw new TypeError('Dashboard server must bind to 127.0.0.1.');
   if (typeof getSnapshot !== 'function') throw new TypeError('getSnapshot must be a function.');
 
@@ -226,6 +229,20 @@ function createDashboardServer({ getSnapshot, getControlState, performAction, pe
       return;
     }
 
+    if (pathname === '/api/insights') {
+      if (typeof getInsights !== 'function') {
+        jsonResponse(response, 503, { error: { code: 'INSIGHTS_UNAVAILABLE', message: 'Queue insights are unavailable.' } }, request.method === 'HEAD');
+        return;
+      }
+      try {
+        jsonResponse(response, 200, await getInsights(), request.method === 'HEAD');
+      } catch (error) {
+        const safe = errorResponse(error);
+        jsonResponse(response, safe.status, safe.body, request.method === 'HEAD');
+      }
+      return;
+    }
+
     if (pathname === '/api/snapshot') {
       try {
         const snapshot = await getSnapshot();
@@ -271,14 +288,27 @@ function startDashboard({ port = DEFAULT_DASHBOARD_PORT, log = console.log, erro
 
   const reader = createGitHubReader();
   const runnerController = createRunnerController();
+  const controlLog = createControlLog();
   const getControlState = async () => {
     const state = await reader.getControlState();
-    return { ...state, runners: await runnerController.inspect(state.repository, state.runners) };
+    return {
+      ...state,
+      runners: await runnerController.inspect(state.repository, state.runners),
+      workflowLog: controlLog.observe(state.workflows),
+    };
   };
   const server = createDashboardServer({
     getSnapshot: reader.getSnapshot,
     getControlState,
-    performAction: reader.performAction,
+    getInsights: async () => {
+      const [insights, host, deploy] = await Promise.all([reader.getInsights(), readHostLoad(), readDeployState()]);
+      return { ...insights, host, deploy };
+    },
+    performAction: async (input) => {
+      const result = await reader.performAction(input);
+      if (input.type === 'workflow') controlLog.noteDashboardAction(input.id);
+      return result;
+    },
     performRunnerAction: runnerController.perform,
   });
   const onError = (error) => {

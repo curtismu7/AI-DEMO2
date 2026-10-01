@@ -46,6 +46,24 @@
       </section>
 
       <div id="queue-view">
+      <div id="main-health" class="main-health" role="status" aria-live="polite" hidden></div>
+
+      <div id="stale-runs" class="stale-runs" role="status" hidden>
+        <p id="stale-summary" class="stale-summary"></p>
+        <button id="stale-cancel" class="control-button control-button--danger" type="button">Stop stale runs</button>
+      </div>
+
+      <section id="host-load" class="host-load" aria-labelledby="host-load-heading" hidden>
+        <div class="section-heading">
+          <div>
+            <h2 id="host-load-heading">This Mac</h2>
+            <p>Load on the Mac serving this page. It slows CI only for runners hosted here.</p>
+          </div>
+          <span id="host-load-figure" class="section-count">—</span>
+        </div>
+        <div id="host-load-content" class="host-load-content"></div>
+      </section>
+
       <section class="summary-strip" aria-label="Workflow run totals">
         <div class="summary-item summary-queued">
           <span id="summary-queued" class="summary-value">—</span>
@@ -77,19 +95,42 @@
             <p class="placeholder">Loading workflows.</p>
           </div>
           <p id="workflow-control-note" class="control-note" role="status"></p>
+          <ul id="workflow-log" class="workflow-log" aria-label="Recent workflow pause and resume changes"></ul>
         </section>
         <section class="control-panel" aria-labelledby="runner-controls-heading">
           <div class="section-heading">
             <div>
-              <h2 id="runner-controls-heading">Local runners</h2>
-              <p>Pausing takes an idle runner offline so it receives no new jobs.</p>
+              <h2 id="runner-controls-heading">Runners</h2>
+              <p>Every runner registered for this repository. Pausing takes an idle runner on this Mac offline so it receives no new jobs.</p>
             </div>
           </div>
           <div id="runner-controls" class="control-list">
-            <p class="placeholder">Checking local runner services.</p>
+            <p class="placeholder">Checking runners.</p>
           </div>
           <p id="runner-control-note" class="control-note" role="status"></p>
         </section>
+      </section>
+
+      <section id="deploy-panel" class="deploy-panel" aria-labelledby="deploy-heading" hidden>
+        <div class="section-heading">
+          <div>
+            <h2 id="deploy-heading">Deploy queue</h2>
+            <p>What is merged but not yet deployed to this Mac's Docker stack, and the image builds on GitHub. Read-only.</p>
+          </div>
+          <span id="deploy-state" class="section-count">—</span>
+        </div>
+        <div class="deploy-grid">
+          <div>
+            <h3 class="deploy-subheading">Local Docker stack</h3>
+            <div id="deploy-local" class="deploy-list"></div>
+            <h3 class="deploy-subheading">Recent deploys</h3>
+            <div id="deploy-recent" class="deploy-list"></div>
+          </div>
+          <div>
+            <h3 class="deploy-subheading">Image builds</h3>
+            <div id="deploy-builds" class="deploy-list"></div>
+          </div>
+        </div>
       </section>
 
       <section class="runner-lane" aria-labelledby="runner-heading">
@@ -138,6 +179,16 @@
         </div>
         <div id="completed-empty" class="empty-state" hidden>No completed runs are available yet.</div>
         <div id="completed-runs" class="run-list run-list--completed"></div>
+      </section>
+
+      <section id="wait-trend" class="wait-trend" aria-labelledby="wait-trend-heading" hidden>
+        <div class="section-heading">
+          <div>
+            <h2 id="wait-trend-heading">Time to result by day</h2>
+            <p>Median time from trigger to pass or fail (queue wait plus run time), from the 100 most recent runs.</p>
+          </div>
+        </div>
+        <div id="wait-trend-content" class="wait-trend-content"></div>
       </section>
 
       </div>

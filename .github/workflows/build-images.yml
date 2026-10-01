@@ -102,6 +102,27 @@ jobs:
       matrix: ${{ fromJSON(needs.build-images.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v7
+      # The runner's own ~/.docker/config.json has `credsStore: osxkeychain`, and
+      # a launchd runner service cannot write to the login keychain: the login
+      # step below died with "error storing credentials ... User interaction is
+      # not allowed. (-25308)" on every self-hosted Mac. A job-scoped config
+      # keeps the token in a file under RUNNER_TEMP, which the runner wipes after
+      # the job (login-action also logs out in its post step).
+      # cli-plugins is linked so `docker compose` and buildx still resolve.
+      #
+      # The placeholder `auths` entry is load-bearing. An empty `{}` is NOT
+      # enough: when the config holds no auth and docker-credential-osxkeychain
+      # is on PATH, the CLI picks the keychain as its default store anyway and
+      # fails identically (#484 shipped `{}`; all 12 jobs failed). One existing
+      # auth entry makes it keep using the file.
+      - name: Use a job-scoped Docker config (no keychain)
+        run: |
+          set -euo pipefail
+          cfg="$RUNNER_TEMP/docker-config"
+          mkdir -p "$cfg"
+          ln -s "$HOME/.docker/cli-plugins" "$cfg/cli-plugins"
+          echo '{"auths":{"placeholder.invalid":{}}}' > "$cfg/config.json"
+          echo "DOCKER_CONFIG=$cfg" >> "$GITHUB_ENV"
       - uses: docker/setup-buildx-action@v4
       # GITHUB_TOKEN — short-lived and repository-scoped. A classic PAT was used
       # briefly (#2540, reverted by #2548, restored here) while the real cause was

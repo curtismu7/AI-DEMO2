@@ -2,7 +2,10 @@
 
 const { spawn: nodeSpawn } = require('node:child_process');
 const path = require('node:path');
+const { imageBuilds } = require('./deploy-state');
+const { duplicateRuns, failedJobNames, mainHealth, staleRuns, turnaroundTrend } = require('./insights');
 
+const INSIGHTS_TTL_MS = 30_000;
 const PAGE_SIZE = 100;
 const MAX_PAGES = 100;
 const MAX_OUTPUT_BYTES = 2 * 1024 * 1024;
@@ -106,7 +109,14 @@ function buildSnapshot({ repository, queuedRuns = [], runningRuns = [], complete
       seen.add(run.id);
       return true;
     })
-    .map((run) => ({ ...run, jobs: jobsByRun[run.id] || [] }));
+    .map((run) => {
+      const jobs = jobsByRun[run.id] || [];
+      // GitHub keeps a run "queued" while any of its jobs still waits for a
+      // runner, even when another job is already executing.
+      const executing = run.status !== 'completed' && jobs.some((job) => job.status === 'in_progress');
+      return { ...run, status: executing ? 'in_progress' : run.status, jobs };
+    });
+  const promoted = runs.filter((run) => run.status === 'in_progress').length - running.length;
 
   const completedCounts = completed.reduce((counts, run) => {
     if (run.conclusion === 'success') counts.succeeded += 1;
@@ -118,8 +128,8 @@ function buildSnapshot({ repository, queuedRuns = [], runningRuns = [], complete
     repository,
     updatedAt: now.toISOString(),
     summary: {
-      queued: queued.length,
-      inProgress: running.length,
+      queued: queued.length - promoted,
+      inProgress: running.length + promoted,
       ...completedCounts,
     },
     runs,
@@ -378,7 +388,39 @@ function createGitHubReader({
     });
   }
 
-  return { getSnapshot, getControlState, performAction };
+  let insightsCache = null;
+
+  // Queue insights (stale and duplicate runs, default-branch health,
+  // turnaround trend). Separate from getSnapshot so a failure here never blanks the queue.
+  // ponytail: reads only the newest 100 runs, so an active run older than that
+  // is not flagged; page further if the queue ever gets that deep.
+  async function getInsights() {
+    const current = now().getTime();
+    if (insightsCache && current - insightsCache.at < INSIGHTS_TTL_MS) return insightsCache.value;
+    const repository = await getRepository();
+    const [runsResponse, openPulls, closedPulls] = await Promise.all([
+      callGh(['api', `repos/${repository}/actions/runs?per_page=${PAGE_SIZE}&page=1`]).then(parseJson),
+      callGh(['api', `repos/${repository}/pulls?state=open&per_page=${PAGE_SIZE}`]).then(parseJson),
+      callGh(['api', `repos/${repository}/pulls?state=closed&sort=updated&direction=desc&per_page=50`]).then(parseJson),
+    ]);
+    if (!Array.isArray(runsResponse.workflow_runs) || !Array.isArray(openPulls) || !Array.isArray(closedPulls)) {
+      throw new DashboardDataError('GH_RESPONSE', 'GitHub returned an unexpected insights response.');
+    }
+    const runs = runsResponse.workflow_runs;
+    const main = mainHealth(runs);
+    if (main.state === 'red') main.failedJobs = failedJobNames(await readJobs(repository, main.latest.id));
+    const value = {
+      staleRuns: staleRuns(runs, openPulls, closedPulls),
+      duplicateRuns: duplicateRuns(runs),
+      main,
+      turnaroundTrend: turnaroundTrend(runs),
+      imageBuilds: imageBuilds(runs),
+    };
+    insightsCache = { at: current, value };
+    return value;
+  }
+
+  return { getSnapshot, getControlState, getInsights, performAction };
 }
 
 module.exports = {

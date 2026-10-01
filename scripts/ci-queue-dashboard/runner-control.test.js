@@ -38,13 +38,25 @@ test('inspect marks a matching launchd runner available and reports paused state
   const { spawn } = fakeSpawner(({ args }) => ({
     stdout: args[0] === 'list' ? `PID\tStatus\tLabel\n-\t0\t${label}\n` : '',
   }));
-  const controller = createRunnerController({ spawn, platform: 'darwin' });
+  const controller = createRunnerController({ spawn, platform: 'darwin', serviceFileExists: () => true });
 
   assert.deepEqual(await controller.inspect(repository, [runner]), [{
     ...runner,
     localControlAvailable: true,
     localPaused: true,
+    localInstalled: true,
   }]);
+});
+
+test('inspect tells a runner stopped on this Mac apart from one hosted elsewhere', async () => {
+  const { spawn } = fakeSpawner(() => ({ stdout: 'PID\tStatus\tLabel\n' }));
+  const controller = createRunnerController({ spawn, platform: 'darwin', serviceFileExists: (name) => name === label });
+  const remote = { ...runner, id: 24, name: 'cmuir-air' };
+
+  assert.deepEqual(await controller.inspect(repository, [runner, remote]), [
+    { ...runner, localControlAvailable: false, localPaused: false, localInstalled: true },
+    { ...remote, localControlAvailable: false, localPaused: false, localInstalled: false },
+  ]);
 });
 
 test('pause stops only an idle matching runner service', async () => {
@@ -98,6 +110,7 @@ test('runner control is unavailable on non-macOS hosts', async () => {
     ...runner,
     localControlAvailable: false,
     localPaused: false,
+    localInstalled: false,
   }]);
   await assert.rejects(controller.perform(repository, runner, 'pause'), { code: 'RUNNER_CONTROL_UNAVAILABLE' });
   assert.equal(calls.length, 0);

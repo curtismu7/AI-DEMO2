@@ -64,6 +64,51 @@ test('rejects a callback on another origin before sending a code', async () => {
   expect(calls.some(call => new URL(call.url).pathname.endsWith('/callback'))).toBe(false);
 });
 
+test('accepts the PingOne sign-on page on another host and still posts credentials only to the authorize origin', async () => {
+  const { calls, transport: inner } = pingOneTransport();
+  // Real PingOne: auth.pingone.com/<env>/as/authorize -> apps.pingone.com/<env>/signon/?flowId=…
+  const transport = async (request) => (new URL(request.url).pathname.endsWith('/authorize')
+    ? { status: 302, headers: { location: 'https://apps.example.test/env/signon/?flowId=flow-one' } }
+    : inner(request));
+  const handle = await createDemoReadinessProviderLoginClient({ ...BASE, provider: 'pingone', transport });
+  expect(handle.authenticated).toBe(true);
+  const hosts = calls.map(call => new URL(call.url).host);
+  expect(hosts).not.toContain('apps.example.test');
+  expect(calls.find(call => call.body?.password).url).toBe('https://auth.example.test/env/flows/flow-one');
+});
+
+test('accepts a required agreement once on the flow URL, then completes', async () => {
+  const { calls, transport: inner } = pingOneTransport();
+  const flow = 'https://auth.example.test/env/flows/flow-one';
+  const transport = async (request) => {
+    if (request.url !== flow) return inner(request);
+    calls.push(request);
+    return request.body?.accept === true
+      ? { status: 200, body: { status: 'COMPLETED' } }
+      : { status: 200, body: { status: 'AGREEMENT_CONSENT_REQUIRED', _links: { 'agreement.accept': { href: flow } } } };
+  };
+  const handle = await createDemoReadinessProviderLoginClient({ ...BASE, provider: 'pingone', transport });
+  expect(handle.authenticated).toBe(true);
+  const consent = calls.find(call => call.body?.accept === true);
+  expect(consent.headers['Content-Type']).toBe('application/vnd.pingidentity.user.consent+json');
+});
+
+test('does not accept an agreement whose accept link is on another URL', async () => {
+  const { transport: inner } = pingOneTransport();
+  const transport = async (request) => (request.url === 'https://auth.example.test/env/flows/flow-one'
+    ? { status: 200, body: { status: 'AGREEMENT_CONSENT_REQUIRED', _links: { 'agreement.accept': { href: 'https://other.example.test/env/flows/flow-one' } } } }
+    : inner(request));
+  await expect(createDemoReadinessProviderLoginClient({ ...BASE, provider: 'pingone', transport })).rejects.toThrow('protocol');
+});
+
+test('rejects a non-HTTPS sign-on redirect', async () => {
+  const { transport: inner } = pingOneTransport();
+  const transport = async (request) => (new URL(request.url).pathname.endsWith('/authorize')
+    ? { status: 302, headers: { location: 'http://apps.example.test/env/signon/?flowId=flow-one' } }
+    : inner(request));
+  await expect(createDemoReadinessProviderLoginClient({ ...BASE, provider: 'pingone', transport })).rejects.toThrow('origin');
+});
+
 test('rejects a redirected status response from another origin', async () => {
   const { transport } = pingOneTransport({ responseUrl: 'https://other.example.test/status' });
   await expect(createDemoReadinessProviderLoginClient({ ...BASE, provider: 'pingone', transport })).rejects.toThrow('origin');

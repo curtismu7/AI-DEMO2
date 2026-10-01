@@ -27,6 +27,30 @@ The command starts the dashboard server. Then open <http://127.0.0.1:57500/>. Ke
 - **Pause runner** stops this Mac's matching launchd runner service so it no longer accepts jobs. It is disabled while GitHub reports the runner busy. **Resume runner** starts a service paused from this dashboard.
 - The page asks for confirmation before a change. The server rechecks current run/workflow/runner state before dispatching it. If GitHub denies write access, it shows a permission error and does not echo CLI output.
 
+## Insights
+
+These come from a separate `/api/insights` request. If it fails, the queue still renders without them.
+
+- **Main is red** names the failing jobs of the latest completed CI run on `main`, and the oldest failure since the last green run (the merge to look at first). Cancelled runs are ignored. A newer run still in progress is not reflected until it finishes.
+- **Stale runs** are queued or running `pull_request` runs whose pull request has already merged or closed. **Stop stale runs** asks once, then cancels only those.
+- **Duplicate** marks a later active run of the same workflow on the same commit, for example a manual run next to the PR run.
+- **This Mac** shows the 1-minute load average against the core count and the five busiest processes. Load well above the core count slows every job.
+- **Slowest step** on a running job compares each step with its typical duration, taken from the completed runs on screen. It turns red when a step is well over typical.
+- **Time to result by day** is the median time from trigger to pass or fail. GitHub's run list does not say when a runner picked a run up, so queue wait and run time are not separated.
+- **Workflow log** (under Workflows) records pause and resume changes, and whether each came from this dashboard or from outside it (`gh`, the GitHub UI, another session). It is kept in memory and resets when the server restarts.
+
+Insights read the 100 most recent runs and are cached for 30 seconds.
+
+## Deploy queue
+
+A read-only panel. It never runs a deploy, takes the deploy lock, or writes anything.
+
+- **Local Docker stack** reads `scripts/deploy-live.sh`'s own state under `.git/`: the per-service markers in `deploy-live/services/`, the `deploy-live.lock` directory, and which checkout `scripts/serve-worktree.sh` reports as served. Services deployed at the same commit are grouped. "Commits on disk since" counts every commit after a service's marker, not only the ones that touch that service: the path-to-service map lives in `deploy-live.sh`, and `scripts/deploy-live.sh --dry-run` is the way to see what would actually restart.
+- **Recent deploys** are the last five entries in `.git/deploy-live.restarts`.
+- **Image builds** are the five newest `Build images` workflow runs.
+
+The header reads `Deploy running` while the lock is held by a live process, `Not fully deployed` when any service is behind the checkout, and `Up to date` otherwise. A markers-versus-history disagreement (a service restarted recently but its marker is old) is shown as it is recorded; the panel does not reconcile the two.
+
 ## Authentication and local access
 
 The server calls the installed `gh` command using fixed argument arrays. It does not read or copy the CLI credential, and the browser receives only workflow and job metadata. GitHub changes happen only after you confirm an action in the page. Runner controls use fixed `launchctl` operations for the matching repository runner service and are unavailable on other operating systems or when that service is not loaded. The server listens only on `127.0.0.1` and rejects foreign host/origin headers. Nothing is deployed or shared with another machine.

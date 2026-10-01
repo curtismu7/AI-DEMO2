@@ -11,14 +11,21 @@ on:
   pull_request:
     # ready_for_review is not a default type; without it a draft marked ready
     # would get no CI run, because the jobs below skip while the PR is a draft.
-    types: [opened, synchronize, reopened, ready_for_review]
+    # closed: a merged or closed PR's run used to keep its place in the queue
+    # and then run for a result nobody reads. The closed event starts a run in
+    # the same concurrency group, which cancels the stale one; that run's own
+    # jobs all skip (see `changes`), so it never takes a runner.
+    types: [opened, synchronize, reopened, ready_for_review, closed]
   push:
     branches: [main]
   schedule:
     - cron: '17 9 * * *'
 
 concurrency:
-  group: ci-${{ inputs.target_ref || github.ref }}-${{ github.event_name == 'schedule' && 'nightly' || 'interactive' }}
+  # PR runs are keyed by PR NUMBER, not github.ref: on a merged PR's closed
+  # event the ref is not guaranteed to be the PR's merge ref, and a group that
+  # fell back to the base branch would cancel main's run instead.
+  group: ci-${{ inputs.target_ref || (github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number)) || github.ref }}-${{ github.event_name == 'schedule' && 'nightly' || 'interactive' }}
   # Superseding is safe here: this workflow only runs tests. Image builds live
   # in build-images.yml, which keys its own group by github.sha precisely so a
   # merge's build can never be evicted by a later merge — see that file.
@@ -35,7 +42,8 @@ jobs:
     # Every other job descends from this one (gates needs changes; the suites
     # need gates), so skipping it skips the whole run. Skipped required checks
     # count as passing, and a draft cannot be merged anyway.
-    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    # A closed PR event exists only to cancel the PR's earlier run (see `on`).
+    if: github.event_name != 'pull_request' || (!github.event.pull_request.draft && github.event.action != 'closed')
     runs-on: [self-hosted, macOS]
     outputs:
       api-server: ${{ steps.all.outputs['api-server'] || steps.nightly.outputs['api-server'] || steps.filter.outputs['api-server'] }}
@@ -78,6 +86,15 @@ jobs:
             echo "unwired-services=true"
             echo "python-agents=true"
           } >> "$GITHUB_OUTPUT"
+      # On a push the path filter diffs with git, so it needs a real checkout
+      # and its credentials. Without this step it ran `git fetch` in whatever
+      # checkout an earlier job left on the persistent runner, with no
+      # credentials ("could not read Username for 'https://github.com'"), and
+      # failed whenever the previous commit was not already there — which
+      # skipped every suite on main. Pull requests use the API and need none.
+      - name: Check out for the push path filter
+        if: github.event_name == 'push'
+        uses: actions/checkout@v7
       - name: Select suites affected by this PR or push
         if: github.event_name == 'pull_request' || github.event_name == 'push'
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
@@ -172,9 +189,9 @@ jobs:
       # node_modules — so installing first costs a cache-warm minute and
       # removes a whole class of "gate is red for a reason unrelated to the PR".
       - name: Install demo_api_server deps (hygiene + topology gates both need them)
-        run: npm ci --prefix demo_api_server --no-audit --no-fund
+        run: bash scripts/ci-cached-npm-ci.sh demo_api_server
       - name: Install demo_mcp_gateway deps (topology step 6 runs toolSchemaDrift jest)
-        run: npm ci --prefix demo_mcp_gateway --no-audit --no-fund
+        run: bash scripts/ci-cached-npm-ci.sh demo_mcp_gateway
       - name: Mock-drift gate (jest.mock missing load-bearing exports)
         run: node scripts/check-mock-drift.js
       - name: Fresh-clone hygiene
@@ -226,7 +243,7 @@ jobs:
           # Shares the oversized npm cache with the gates job.
           package-manager-cache: false
       - name: Install deps
-        run: npm ci --prefix demo_api_server --no-audit --no-fund
+        run: bash scripts/ci-cached-npm-ci.sh demo_api_server
       - name: Run Jest suite
         # The persistent runner can inherit local gateway aliases; unit tests
         # configure their own endpoints and must not be redirected to live URLs.
@@ -379,7 +396,7 @@ jobs:
       # sibling's deps is the smallest honest fix; the cross-package import
       # itself is logged in TECH_DEBT.
       - name: Install demo_api_server deps (demo_agent_service's vault suite imports its lib)
-        run: npm ci --prefix demo_api_server --no-audit --no-fund
+        run: bash scripts/ci-cached-npm-ci.sh demo_api_server
       - name: demo_agent_service (blocking)
         run: SUITE_BLOCKING=1 bash scripts/test-service-suite.sh agent-service
       - name: demo_hitl_service (blocking)
@@ -471,13 +488,13 @@ jobs:
           # Keep the large shared-runner npm cache out of this grouped suite.
           package-manager-cache: false
       - name: Install demo_authz_server deps
-        run: npm ci --prefix demo_authz_server --no-audit --no-fund
+        run: bash scripts/ci-cached-npm-ci.sh demo_authz_server
       - name: Install demo_mcp_gateway deps
-        run: npm ci --prefix demo_mcp_gateway --no-audit --no-fund
+        run: bash scripts/ci-cached-npm-ci.sh demo_mcp_gateway
       - name: Install oauth-mcp deps
-        run: npm ci --prefix oauth-mcp --no-audit --no-fund
+        run: bash scripts/ci-cached-npm-ci.sh oauth-mcp
       - name: Install demo_mcp_resource_server deps
-        run: npm ci --prefix demo_mcp_resource_server --no-audit --no-fund
+        run: bash scripts/ci-cached-npm-ci.sh demo_mcp_resource_server
       # node --test recursion differs by Node major; keep both globs so the
       # tests/ suites (UC16, tier) are never silently skipped.
       # BLOCKING as of 2026-09-07: the tolerance below was for pre-existing

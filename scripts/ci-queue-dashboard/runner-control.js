@@ -1,6 +1,9 @@
 'use strict';
 
 const { spawn: nodeSpawn } = require('node:child_process');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 
 class RunnerControlError extends Error {
   constructor(code, message) {
@@ -56,16 +59,20 @@ function parseServiceRows(output) {
   }).filter(Boolean);
 }
 
-function createRunnerController({ spawn = nodeSpawn, platform = process.platform } = {}) {
+// The runner's svc.sh leaves its plist behind when it stops (unloads) the service.
+function launchAgentExists(label) {
+  return fs.existsSync(path.join(os.homedir(), 'Library', 'LaunchAgents', `${label}.plist`));
+}
+
+function createRunnerController({ spawn = nodeSpawn, platform = process.platform, serviceFileExists = launchAgentExists } = {}) {
   async function inspect(repository, runners) {
-    if (platform !== 'darwin') {
-      return runners.map((runner) => ({ ...runner, localControlAvailable: false, localPaused: false }));
-    }
+    const notLocal = (runner) => ({ ...runner, localControlAvailable: false, localPaused: false, localInstalled: false });
+    if (platform !== 'darwin') return runners.map(notLocal);
     let services;
     try {
       services = parseServiceRows(await runLaunchctl(spawn, ['list']));
     } catch {
-      return runners.map((runner) => ({ ...runner, localControlAvailable: false, localPaused: false }));
+      return runners.map(notLocal);
     }
     return runners.map((runner) => {
       const label = runnerServiceLabel(repository, runner.name);
@@ -74,6 +81,7 @@ function createRunnerController({ spawn = nodeSpawn, platform = process.platform
         ...runner,
         localControlAvailable: Boolean(service),
         localPaused: Boolean(service && service.pid === '-'),
+        localInstalled: Boolean(service) || Boolean(label && serviceFileExists(label)),
       };
     });
   }

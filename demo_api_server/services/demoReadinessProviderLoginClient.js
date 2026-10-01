@@ -107,19 +107,31 @@ async function createDemoReadinessProviderLoginClient({ provider, dedicatedBffUr
         callback = locationOf(approved, consent.action);
       } else throw new Error('Provider login protocol failed.');
     } else {
+      // PingOne serves the sign-on PAGE from a different host than the
+      // authorization server (auth.pingone.* -> apps.pingone.*/<env>/signon/).
+      // Only the flowId is read from that redirect; credentials are posted to
+      // the flow API built on the /as/authorize origin below, so the page's
+      // origin must be HTTPS but need not match.
       let flowRedirect = locationOf(first, authorize);
-      sameOrigin(flowRedirect, providerOrigin);
+      if (flowRedirect.protocol !== 'https:') throw new Error('Provider login origin mismatch.');
       if (!flowRedirect.searchParams.get('flowId')) {
+        sameOrigin(flowRedirect, providerOrigin);
         const intermediate = await send('GET', flowRedirect.href);
         flowRedirect = locationOf(intermediate, flowRedirect);
-        sameOrigin(flowRedirect, providerOrigin);
+        if (flowRedirect.protocol !== 'https:') throw new Error('Provider login origin mismatch.');
       }
       const flowId = flowRedirect.searchParams.get('flowId');
       const segments = authorize.pathname.split('/').filter(Boolean);
       const env = segments[0];
       if (!flowId || !env) throw new Error('Provider login protocol failed.');
       const flowUrl = new URL(`/${encodeURIComponent(env)}/flows/${encodeURIComponent(flowId)}`, authorize);
-      const checked = await send('POST', flowUrl.href, { username, password }, 'application/vnd.pingidentity.usernamePassword.check+json');
+      let checked = await send('POST', flowUrl.href, { username, password }, 'application/vnd.pingidentity.usernamePassword.check+json');
+      // A readiness identity that has never signed in is asked to accept the
+      // environment's agreement once. Accept it on the same flow URL only.
+      if (checked.status === 200 && checked.body?.status === 'AGREEMENT_CONSENT_REQUIRED'
+        && checked.body?._links?.['agreement.accept']?.href === flowUrl.href) {
+        checked = await send('POST', flowUrl.href, { accept: true }, 'application/vnd.pingidentity.user.consent+json');
+      }
       if (checked.status !== 200 || checked.body?.status !== 'COMPLETED') throw new Error('Provider login protocol failed.');
       const resumeUrl = new URL(`/${encodeURIComponent(env)}/as/resume`, authorize);
       resumeUrl.searchParams.set('flowId', flowId);
