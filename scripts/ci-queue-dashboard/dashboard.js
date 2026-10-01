@@ -47,6 +47,11 @@ const elements = {
   workflowLog: document.getElementById('workflow-log'),
   waitTrend: document.getElementById('wait-trend'),
   waitTrendContent: document.getElementById('wait-trend-content'),
+  deployPanel: document.getElementById('deploy-panel'),
+  deployState: document.getElementById('deploy-state'),
+  deployLocal: document.getElementById('deploy-local'),
+  deployRecent: document.getElementById('deploy-recent'),
+  deployBuilds: document.getElementById('deploy-builds'),
 };
 
 function node(tag, className, text) {
@@ -418,11 +423,78 @@ function renderWaitTrend(trend) {
   }));
 }
 
+function serviceSummary(services) {
+  const shown = services.slice(0, 4).join(', ');
+  return services.length > 4 ? `${shown} and ${services.length - 4} more` : shown;
+}
+
+function renderDeploy(deploy, builds) {
+  const local = deploy?.available ? deploy : null;
+  const buildList = Array.isArray(builds) ? builds : [];
+  elements.deployPanel.hidden = !local && buildList.length === 0;
+  if (elements.deployPanel.hidden) return;
+
+  const pending = (local?.groups || []).filter((group) => group.commitsSince > 0);
+  const running = Boolean(local?.lock?.running);
+  elements.deployState.textContent = !local ? 'Local state unavailable'
+    : running ? `Deploy running${local.lock.pid ? ` (process ${local.lock.pid})` : ''}`
+      : pending.length ? 'Not fully deployed' : 'Up to date';
+  elements.deployPanel.dataset.state = running ? 'running' : pending.length ? 'pending' : 'current';
+
+  elements.deployLocal.replaceChildren();
+  if (local) {
+    const offMain = (local.served || []).filter((mount) => !mount.isMain);
+    if (offMain.length) {
+      elements.deployLocal.append(node('p', 'deploy-note deploy-note--warn',
+        `Serving a worktree, not main: ${offMain.map((mount) => `${mount.mount} from ${mount.checkout}`).join(', ')}.`));
+    }
+    if (local.lock?.stale) elements.deployLocal.append(node('p', 'deploy-note deploy-note--warn', 'A deploy lock is left over from a process that has exited.'));
+    for (const group of local.groups || []) {
+      const row = node('div', `deploy-row${group.commitsSince > 0 ? ' deploy-row--pending' : ''}`);
+      row.append(node('span', 'deploy-services', serviceSummary(group.services)));
+      row.title = group.services.join(', ');
+      const since = group.commitsSince === null ? 'commit count unavailable'
+        : group.commitsSince === 0 ? `at the current commit (${group.sha})`
+          : `deployed at ${group.sha}, ${group.commitsSince} ${group.commitsSince === 1 ? 'commit' : 'commits'} on disk since`;
+      row.append(node('span', 'deploy-detail', since));
+      elements.deployLocal.append(row);
+    }
+    if (pending.length) {
+      elements.deployLocal.append(node('p', 'deploy-note', 'Counts every commit since the service was last deployed; not all of them touch it. Run scripts/deploy-live.sh --dry-run to see what would restart.'));
+    }
+    if (!(local.groups || []).length) elements.deployLocal.append(node('p', 'placeholder', 'No per-service deploy records on this machine.'));
+  } else {
+    elements.deployLocal.append(node('p', 'placeholder', 'Local deploy state is unavailable.'));
+  }
+
+  const recent = local?.recent || [];
+  elements.deployRecent.replaceChildren(...(recent.length
+    ? recent.map((entry) => node('div', 'deploy-row', `${formatLocalTime(entry.at)}: ${entry.sha} restarted ${entry.services.join(', ') || 'no services'}`))
+    : [node('p', 'placeholder', 'No deploys recorded.')]));
+
+  elements.deployBuilds.replaceChildren(...(buildList.length ? buildList.map((build) => {
+    const row = node('div', 'deploy-row');
+    row.append(makeStatus(build.status, build.conclusion));
+    row.append(node('span', 'deploy-services', build.title));
+    row.append(node('span', 'deploy-detail', `${build.sha}, ${formatLocalTime(build.createdAt)}`));
+    const url = safeGitHubUrl(build.url);
+    if (url) {
+      const link = node('a', 'run-link', 'Open run');
+      link.href = url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      row.append(link);
+    }
+    return row;
+  }) : [node('p', 'placeholder', 'No image builds in the 100 most recent runs.')]));
+}
+
 function renderInsights(insights) {
   renderMainHealth(insights?.main);
   renderStaleRuns(insights);
   renderHostLoad(insights?.host);
   renderWaitTrend(insights?.turnaroundTrend);
+  renderDeploy(insights?.deploy, insights?.imageBuilds);
 }
 
 function renderWorkflowControls(controls) {

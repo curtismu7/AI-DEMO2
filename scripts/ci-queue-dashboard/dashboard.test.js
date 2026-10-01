@@ -215,3 +215,40 @@ test('a running job names its slowest step against the typical duration from rec
   const slow = ui.descendants(card).find((item) => String(item.className || '').includes('run-slowest-step--slow'));
   assert.ok(slow, 'a step far over its typical time is marked slow');
 });
+
+test('the deploy queue shows what is not yet deployed, a running deploy, a served worktree and image builds', async () => {
+  const deploy = {
+    available: true, head: 'ccccccccc', serviceCount: 6,
+    lock: { running: true, pid: 4242, stale: false },
+    groups: [
+      { sha: 'bbbbbbbbb', services: ['a', 'b', 'c', 'd', 'e'], commitsSince: 312 },
+      { sha: 'ccccccccc', services: ['ui'], commitsSince: 0 },
+    ],
+    served: [{ mount: 'BFF', checkout: 'main checkout', isMain: true }, { mount: 'UI', checkout: 'my-worktree', isMain: false }],
+    recent: [{ at: '2026-10-01T12:02:56Z', sha: '93919932e', services: ['ui', 'demo-api-server'] }],
+  };
+  const imageBuilds = [{ id: 9, title: 'Merge pull request #466', sha: 'abcdef123', status: 'queued', conclusion: null, createdAt: '2026-10-01T12:12:51Z', url: 'https://github.com/o/r/actions/runs/9' }];
+  const ui = await dashboard([], Date.parse('2026-10-01T12:30:00Z'), { insights: { deploy, imageBuilds } });
+
+  const panel = ui.ids.get('deploy-panel');
+  assert.equal(panel.hidden, false);
+  assert.equal(panel.dataset.state, 'running');
+  assert.equal(ui.ids.get('deploy-state').textContent, 'Deploy running (process 4242)');
+  const local = ui.ids.get('deploy-local').textContent;
+  for (const expected of ['a, b, c, d and 1 more', 'deployed at bbbbbbbbb, 312 commits on disk since', 'at the current commit (ccccccccc)', 'Serving a worktree, not main: UI from my-worktree', 'not all of them touch it']) {
+    assert.ok(local.includes(expected), expected);
+  }
+  assert.ok(ui.ids.get('deploy-recent').textContent.includes('93919932e restarted ui, demo-api-server'));
+  const builds = ui.ids.get('deploy-builds').textContent;
+  for (const expected of ['Queued', 'Merge pull request #466', 'abcdef123', 'Open run']) assert.ok(builds.includes(expected), expected);
+  assert.equal(ui.descendants(panel).some((item) => item.dataset.actionType), false, 'the deploy queue is read-only');
+});
+
+test('the deploy queue reads up to date when nothing is pending and hides when there is no data', async () => {
+  const current = await dashboard([], Date.now(), { insights: { deploy: { available: true, lock: { running: false }, groups: [{ sha: 'c', services: ['ui'], commitsSince: 0 }], served: [], recent: [] }, imageBuilds: [] } });
+  assert.equal(current.ids.get('deploy-state').textContent, 'Up to date');
+  assert.equal(current.ids.get('deploy-panel').dataset.state, 'current');
+
+  const none = await dashboard([], Date.now(), { insights: { deploy: { available: false }, imageBuilds: [] } });
+  assert.equal(none.ids.get('deploy-panel').hidden, true);
+});

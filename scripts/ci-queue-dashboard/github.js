@@ -2,6 +2,7 @@
 
 const { spawn: nodeSpawn } = require('node:child_process');
 const path = require('node:path');
+const { imageBuilds } = require('./deploy-state');
 const { duplicateRuns, failedJobNames, mainHealth, staleRuns, turnaroundTrend } = require('./insights');
 
 const INSIGHTS_TTL_MS = 30_000;
@@ -406,6 +407,7 @@ function createGitHubReader({
       duplicateRuns: duplicateRuns(runs),
       main,
       turnaroundTrend: turnaroundTrend(runs),
+      imageBuilds: imageBuilds(runs),
     };
     insightsCache = { at: current, value };
     return value;

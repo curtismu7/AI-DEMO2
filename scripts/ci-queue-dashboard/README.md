@@ -41,6 +41,16 @@ These come from a separate `/api/insights` request. If it fails, the queue still
 
 Insights read the 100 most recent runs and are cached for 30 seconds.
 
+## Deploy queue
+
+A read-only panel. It never runs a deploy, takes the deploy lock, or writes anything.
+
+- **Local Docker stack** reads `scripts/deploy-live.sh`'s own state under `.git/`: the per-service markers in `deploy-live/services/`, the `deploy-live.lock` directory, and which checkout `scripts/serve-worktree.sh` reports as served. Services deployed at the same commit are grouped. "Commits on disk since" counts every commit after a service's marker, not only the ones that touch that service: the path-to-service map lives in `deploy-live.sh`, and `scripts/deploy-live.sh --dry-run` is the way to see what would actually restart.
+- **Recent deploys** are the last five entries in `.git/deploy-live.restarts`.
+- **Image builds** are the five newest `Build images` workflow runs.
+
+The header reads `Deploy running` while the lock is held by a live process, `Not fully deployed` when any service is behind the checkout, and `Up to date` otherwise. A markers-versus-history disagreement (a service restarted recently but its marker is old) is shown as it is recorded; the panel does not reconcile the two.
+
 ## Authentication and local access
 
 The server calls the installed `gh` command using fixed argument arrays. It does not read or copy the CLI credential, and the browser receives only workflow and job metadata. GitHub changes happen only after you confirm an action in the page. Runner controls use fixed `launchctl` operations for the matching repository runner service and are unavailable on other operating systems or when that service is not loaded. The server listens only on `127.0.0.1` and rejects foreign host/origin headers. Nothing is deployed or shared with another machine.

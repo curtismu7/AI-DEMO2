@@ -3,6 +3,7 @@
 const fs = require('node:fs');
 const http = require('node:http');
 const path = require('node:path');
+const { readDeployState } = require('./deploy-state');
 const { createGitHubReader } = require('./github');
 const { readHostLoad } = require('./host-load');
 const { createControlLog } = require('./insights');
@@ -299,7 +300,10 @@ function startDashboard({ port = DEFAULT_DASHBOARD_PORT, log = console.log, erro
   const server = createDashboardServer({
     getSnapshot: reader.getSnapshot,
     getControlState,
-    getInsights: async () => ({ ...await reader.getInsights(), host: await readHostLoad() }),
+    getInsights: async () => {
+      const [insights, host, deploy] = await Promise.all([reader.getInsights(), readHostLoad(), readDeployState()]);
+      return { ...insights, host, deploy };
+    },
     performAction: async (input) => {
       const result = await reader.performAction(input);
       if (input.type === 'workflow') controlLog.noteDashboardAction(input.id);
