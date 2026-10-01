@@ -108,6 +108,7 @@ import SecuritySettings from "./components/SecuritySettings";
 import ServerRestartModal from "./components/ServerRestartModal";
 import AuthorizeFallbackListener from "./components/AuthorizeFallbackListener";
 import SessionReauthBanner from "./components/SessionReauthBanner";
+import PiFlowSignInModal from "./components/PiFlowSignInModal";
 import SportingGoodsAdminOps from "./components/SportingGoodsAdminOps";
 import SpinnerHost from "./components/shared/SpinnerHost";
 import PingIdentitySpinner from "./components/shared/PingIdentitySpinner";
@@ -178,6 +179,7 @@ import LlamaVscodeGuidePage from "./components/LlamaVscodeGuidePage";
 import AgenticAccessConsolePage from "./pages/AgenticAccessConsolePage";
 import PingAiProductPage from "./pages/PingAiProductPage";
 import PingOneProtectBrowserDemo from "./pages/PingOneProtectBrowserDemo";
+import PingOneVerifyRecognizePage from "./pages/PingOneVerifyRecognizePage";
 import AdminRoute from "./routes/AdminRoute";
 import HostedRegistrationPage from "./pages/HostedRegistrationPage";
 import HostedRegistrationAdminPage from "./pages/HostedRegistrationAdminPage";
@@ -678,6 +680,7 @@ function AppWithAuth() {
                 pauseOnHover
                 draggable
               />
+              <PiFlowSignInModal />
               {sessionReauth && (
                 <SessionReauthBanner
                   message={sessionReauth.message}
@@ -1041,6 +1044,16 @@ function AppWithAuth() {
                         </main>
                       </>
                     )
+                  }
+                />
+                <Route
+                  path="/ping-products/verify-recognize"
+                  element={
+                    <AppShell user={user} logout={logout}>
+                      <main className="ai-product-main">
+                        <PingOneVerifyRecognizePage />
+                      </main>
+                    </AppShell>
                   }
                 />
                 <Route

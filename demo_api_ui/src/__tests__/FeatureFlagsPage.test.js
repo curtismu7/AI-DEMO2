@@ -64,6 +64,21 @@ function mockFetchError(status = 500, error = "server_error") {
   });
 }
 
+function mockToggleFetch(patchResponse) {
+  global.fetch = vi.fn((url, init = {}) => {
+    if (url === "/api/admin/config") {
+      return Promise.resolve({ ok: true, json: async () => ({ config: {} }) });
+    }
+    if (url === "/api/admin/feature-flags" && init.method === "PATCH") {
+      return Promise.resolve(patchResponse);
+    }
+    if (url === "/api/admin/feature-flags") {
+      return Promise.resolve({ ok: true, json: async () => MOCK_RESPONSE });
+    }
+    return Promise.resolve({ ok: false, status: 404, json: async () => ({ error: "not_found" }) });
+  });
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
 });
@@ -148,15 +163,10 @@ describe("FeatureFlagsPage — flag toggle", () => {
     const confirmedFlags = MOCK_FLAGS.map((f) =>
       f.id === "ff_authorize_real" ? { ...f, value: true } : f,
     );
-    global.fetch = vi
-      .fn()
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ apiKeySet: false, tenantNameSet: false, tenantName: null }) })
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ config: {} }) })
-      .mockResolvedValueOnce({ ok: true, json: async () => MOCK_RESPONSE })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ flags: confirmedFlags }),
-      });
+    mockToggleFetch({
+      ok: true,
+      json: async () => ({ flags: confirmedFlags }),
+    });
 
     render(<FeatureFlagsPage />);
     await screen.findByText("Real PingOne Authorize");
@@ -165,27 +175,21 @@ describe("FeatureFlagsPage — flag toggle", () => {
       screen.getByRole("button", { name: /enable real pingone authorize/i }),
     );
 
-    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(4));
+    await waitFor(() => expect(global.fetch.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(true));
 
-    const [patchUrl, patchInit] = global.fetch.mock.calls[3];
+    const [, patchInit] = global.fetch.mock.calls.find(([, init]) => init?.method === "PATCH");
     expect(patchInit.method).toBe("PATCH");
     expect(JSON.parse(patchInit.body)).toEqual({
       updates: { ff_authorize_real: true },
     });
-    void patchUrl; // path tested by method alone
   });
 
   it("rolls back flag and shows error when PATCH fails", async () => {
-    global.fetch = vi
-      .fn()
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ apiKeySet: false, tenantNameSet: false, tenantName: null }) })
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ config: {} }) })
-      .mockResolvedValueOnce({ ok: true, json: async () => MOCK_RESPONSE })
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        json: async () => ({ error: "save_error" }),
-      });
+    mockToggleFetch({
+      ok: false,
+      status: 500,
+      json: async () => ({ error: "save_error" }),
+    });
 
     render(<FeatureFlagsPage />);
     await screen.findByText("Real PingOne Authorize");
@@ -208,15 +212,10 @@ describe("FeatureFlagsPage — flag toggle", () => {
     const confirmedFlags = MOCK_FLAGS.map((f) =>
       f.id === "ff_authorize_real" ? { ...f, value: true } : f,
     );
-    global.fetch = vi
-      .fn()
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ apiKeySet: false, tenantNameSet: false, tenantName: null }) })
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ config: {} }) })
-      .mockResolvedValueOnce({ ok: true, json: async () => MOCK_RESPONSE })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ flags: confirmedFlags }),
-      });
+    mockToggleFetch({
+      ok: true,
+      json: async () => ({ flags: confirmedFlags }),
+    });
 
     render(<FeatureFlagsPage />);
     await screen.findByText("Real PingOne Authorize");
@@ -234,15 +233,10 @@ describe("FeatureFlagsPage — flag toggle", () => {
     const confirmedFlags = MOCK_FLAGS.map((f) =>
       f.id === "ff_authorize_real" ? { ...f, value: true } : f,
     );
-    global.fetch = vi
-      .fn()
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ apiKeySet: false, tenantNameSet: false, tenantName: null }) })
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ config: {} }) })
-      .mockResolvedValueOnce({ ok: true, json: async () => MOCK_RESPONSE })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ flags: confirmedFlags }),
-      });
+    mockToggleFetch({
+      ok: true,
+      json: async () => ({ flags: confirmedFlags }),
+    });
 
     render(<FeatureFlagsPage />);
 
