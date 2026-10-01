@@ -148,13 +148,15 @@ jobs:
     name: Hygiene + topology gates
     needs: changes
     # Run selection first, then run repository gates on the single CI runner.
+    # Jobs pin to the event SHA: queued jobs can start after a merge removes
+    # the mutable refs/pull/<number>/merge ref used by github.ref.
     runs-on: [self-hosted, macOS]
     # 15 was too tight: a slow-network `npm ci` alone took 17.5 min and timed out an all-green run.
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.target_ref || github.ref }}
+          ref: ${{ inputs.target_ref || github.sha }}
       - name: Lint GitHub Actions workflows
         run: /opt/homebrew/bin/actionlint .github/workflows/ci.yml
       - uses: actions/setup-node@v7
@@ -219,7 +221,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.target_ref || github.ref }}
+          ref: ${{ inputs.target_ref || github.sha }}
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -285,7 +287,7 @@ jobs:
           cp _ci-workflow/demo_api_ui/scripts/vitest-memory-guard.config.mjs "$RUNNER_TEMP/ci-ui-guard/"
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.target_ref || github.ref }}
+          ref: ${{ inputs.target_ref || github.sha }}
       - name: Restore current UI memory guard
         if: github.event_name == 'workflow_dispatch' && inputs.target_ref != ''
         run: |
@@ -366,7 +368,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.target_ref || github.ref }}
+          ref: ${{ inputs.target_ref || github.sha }}
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -409,7 +411,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.target_ref || github.ref }}
+          ref: ${{ inputs.target_ref || github.sha }}
       - name: Use the runner's installed Python 3.12
         run: |
           python="$HOME/.local/bin/python3.12"
@@ -464,7 +466,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.target_ref || github.ref }}
+          ref: ${{ inputs.target_ref || github.sha }}
       - uses: actions/setup-node@v7
         with:
           node-version: 22
