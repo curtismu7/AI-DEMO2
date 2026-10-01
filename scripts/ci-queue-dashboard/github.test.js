@@ -94,6 +94,20 @@ test('buildSnapshot orders queued runs oldest-first and limits completed history
   assert.equal(snapshot.updatedAt, '2026-09-28T10:03:00.000Z');
 });
 
+test('buildSnapshot treats a queued run with an executing job as in progress', () => {
+  const snapshot = buildSnapshot({
+    repository: 'cmuir_pingcorp/AI-DEMO2',
+    queuedRuns: [run(11, '2026-09-28T10:01:00Z'), run(12, '2026-09-28T10:02:00Z')],
+    jobsByRun: {
+      11: [{ id: 4, name: 'Gates', status: 'in_progress', runnerName: 'cmuir-air' }, { id: 5, name: 'UI', status: 'queued' }],
+      12: [{ id: 6, name: 'Gates', status: 'queued' }],
+    },
+  });
+
+  assert.deepEqual(snapshot.runs.map((item) => [item.id, item.status]), [[11, 'in_progress'], [12, 'queued']]);
+  assert.deepEqual(snapshot.summary, { queued: 1, inProgress: 1, succeeded: 0, failed: 0 });
+});
+
 test('buildSnapshot does not count skipped or neutral runs as failures', () => {
   const snapshot = buildSnapshot({
     repository: 'cmuir_pingcorp/AI-DEMO2',
