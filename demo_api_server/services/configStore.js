@@ -1227,6 +1227,10 @@ const ENV_FALLBACK_MAP = {
   // needs an explicit single-resource scope or PingOne rejects with
   // invalid_scope: "May not request scopes for multiple resources".
   agent_gateway_cc_scope: ['AGENT_GATEWAY_CC_SCOPE'],
+  // Audience of the resource a customer's WORKLOAD agent exchanges against
+  // (UC38/UC44). Its act claim names the agent that presented the actor token.
+  // Unset = workload runs use the shared Agent Gateway resource, as before.
+  workload_agent_gateway_audience: ['WORKLOAD_AGENT_GATEWAY_AUDIENCE'],
   two_exchange_intermediate_scope: ['TWO_EXCHANGE_INTERMEDIATE_SCOPE'],
   mcp_gateway_cc_scope:   ['MCP_GATEWAY_CC_SCOPE'],
   marketing_customer_login_mode: ['MARKETING_CUSTOMER_LOGIN_MODE'],

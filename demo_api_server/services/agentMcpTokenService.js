@@ -2631,8 +2631,16 @@ async function _performTwoExchangeDelegation(
   const mcpExchangerClient    = provider ? providerConfig.mcpActorClientId : configResult.credentials.mcpClientId;
   const exchange1Client       = provider ? providerConfig.agentExchangeClientId : aiAgentClientId;
   const exchange2Client       = provider ? providerConfig.mcpExchangeClientId : mcpExchangerClient;
-  const agentGatewayAud       = provider ? '(provider-defined)' : configResult.audiences.agentGatewayAud;
-  const intermediateAud       = provider ? providerConfig.intermediateAudience : configResult.audiences.intermediateAud;
+  // A customer's workload agent (UC38/UC44) exchanges against its own resource
+  // when one is configured. On the shared Agent Gateway resource `act` is copied
+  // from the user's may_act, which names the built-in AI Agent, so the run was
+  // recorded under the wrong agent; the workload resource mints `act` from the
+  // actor token instead. Unset = the shared resource, unchanged.
+  const workloadAud = !provider && req?.workloadAgentRuntime?.clientId
+    ? configStore.getEffective('workload_agent_gateway_audience') || null
+    : null;
+  const agentGatewayAud       = provider ? '(provider-defined)' : workloadAud || configResult.audiences.agentGatewayAud;
+  const intermediateAud       = provider ? providerConfig.intermediateAudience : workloadAud || configResult.audiences.intermediateAud;
   const mcpGatewayAud         = provider ? '(provider-defined)' : configResult.audiences.mcpGatewayAud;
   const mcpServerAudForFallback = configStore.getEffective('pingone_resource_mcp_server_uri') || process.env.PINGONE_RESOURCE_MCP_SERVER_URI || '';
   // forceDirectMcpAudience: caller dials the MCP server directly — skip the gateway
