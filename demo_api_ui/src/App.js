@@ -1478,7 +1478,7 @@ function AppWithAuth() {
                   path="/workload-agents"
                   element={
                     <AppShell user={user} logout={logout}>
-                      <WorkloadAgentsPage />
+                      <WorkloadAgentsPage user={user} />
                     </AppShell>
                   }
                 />
