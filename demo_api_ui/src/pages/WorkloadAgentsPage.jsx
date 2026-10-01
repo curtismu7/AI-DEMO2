@@ -17,9 +17,10 @@ const SUPPORTED_VERTICALS = new Set([
 export default function WorkloadAgentsPage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { activeId } = useVertical();
+  const { activeId, refetch } = useVertical();
   const params = new URLSearchParams(location.search);
-  const vertical = params.get('vertical') || activeId || 'banking';
+  // The active vertical can be one this page has no actions for (pingone-admin).
+  const vertical = params.get('vertical') || (SUPPORTED_VERTICALS.has(activeId) ? activeId : 'banking');
   const selectedId = params.get('useCase') === 'UC44' ? 'UC44' : 'UC38';
   const [verticals, setVerticals] = useState([]);
   const [catalog, setCatalog] = useState({ vertical: null, cases: {} });
@@ -51,7 +52,12 @@ export default function WorkloadAgentsPage() {
   const selected = cases[selectedId];
 
   function updateSelection(id, nextVertical = vertical) {
-    if (nextVertical !== vertical) setRequestedRun({ id: null, nonce: 0 });
+    if (nextVertical !== vertical) {
+      setRequestedRun({ id: null, nonce: 0 });
+      // Save the pick on the session too, so the rest of the app (branding,
+      // agent) follows it instead of staying on the server's default.
+      apiClient.post('/api/verticals/active', { id: nextVertical }).then(() => refetch?.()).catch(() => {});
+    }
     navigate(`/workload-agents?useCase=${id}&vertical=${encodeURIComponent(nextVertical)}`);
   }
 
