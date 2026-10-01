@@ -20,7 +20,7 @@ const bankingScenarios = {
 };
 
 vi.mock('../../services/apiClient', () => ({
-  default: { get: vi.fn() },
+  default: { get: vi.fn(), post: vi.fn(() => Promise.resolve({})) },
 }));
 vi.mock('../../context/TokenChainContext', () => ({ useTokenChainOptional: () => ({ events: [] }) }));
 
@@ -45,6 +45,12 @@ describe('WorkloadAgentsPage', () => {
     renderPage('/workload-agents?useCase=UC44', 'healthcare');
     expect((await screen.findByRole('combobox', { name: /vertical/i })).value).toBe('healthcare');
     expect(apiClient.get).toHaveBeenCalledWith('/api/use-cases/UC44?vertical=healthcare');
+  });
+
+  it('ignores an active vertical the page has no actions for', async () => {
+    renderPage('/workload-agents?useCase=UC38', 'pingone-admin');
+    expect((await screen.findByRole('combobox', { name: /vertical/i })).value).toBe('banking');
+    expect(apiClient.get).toHaveBeenCalledWith('/api/use-cases/UC38?vertical=banking');
   });
 
   it('uses banking when a direct link has no vertical and no active selection', async () => {
@@ -103,6 +109,7 @@ describe('WorkloadAgentsPage', () => {
     const selector = await screen.findByRole('combobox', { name: /vertical/i });
     await screen.findByText('list_gear');
     fireEvent.change(selector, { target: { value: 'banking' } });
+    expect(apiClient.post).toHaveBeenCalledWith('/api/verticals/active', { id: 'banking' });
     expect((await screen.findAllByText('create_transfer')).length).toBeGreaterThan(0);
     expect(screen.getByText('get_account_balance')).toBeTruthy();
     expect(screen.getAllByText('transfer $600 from checking to savings').length).toBeGreaterThan(0);

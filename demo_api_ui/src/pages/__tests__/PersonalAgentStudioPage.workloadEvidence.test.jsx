@@ -88,6 +88,19 @@ describe('PersonalAgentStudioPage workload evidence', () => {
     expect(tokenChainTraceStore.getState().trace.tokenEvents.map((event) => event.id)).toContain('mcp-exchange');
   });
 
+  it('offers MFA step-up when the BFF answers 200 with step_up_required', async () => {
+    vi.stubGlobal('fetch', vi.fn((url) => Promise.resolve(url === '/api/agent/invoke'
+      ? { ok: true, status: 200, json: async () => ({ success: false, step_up_required: true, reply: 'Please complete multi-factor authentication.' }) }
+      : { ok: false, status: 401, json: async () => ({}) })));
+    const assign = vi.fn();
+    vi.stubGlobal('location', { ...window.location, assign });
+    renderWorkload();
+    expect(screen.queryByRole('button', { name: /Verify with MFA/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Run UC44 action' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Verify with MFA/ }));
+    expect(assign).toHaveBeenCalledWith(expect.stringMatching(/^\/api\/auth\/oauth\/user\/stepup\?return_to=/));
+  });
+
   it('keeps token evidence from a structured HTTP error response', async () => {
     vi.stubGlobal('fetch', vi.fn((url) => Promise.resolve(url === '/api/agent/invoke'
       ? { ok: false, status: 428, json: async () => ({ error: 'step_up_required', message: 'Complete MFA.', tokenEvents: [{ id: 'mfa', status: 'required' }] }) }
