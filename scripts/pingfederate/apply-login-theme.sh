@@ -8,6 +8,7 @@ set -euo pipefail
 
 container="${1:-pf-client-migration-admin}"
 css_dir="$(cd "$(dirname "$0")/assets" && pwd)"
+script_dir="$(cd "$(dirname "$0")" && pwd)"
 
 for c in "$container" ai-demo-pingfederate; do
   if docker exec "$c" test -d /opt/out/instance/server/default/conf/template 2>/dev/null; then
@@ -34,4 +35,15 @@ docker exec -u 0 "$container" sh -c 'chown 9031:0 "$1" && chmod 644 "$1"' sh "$c
 docker exec -u 0 "$container" sh -c 'grep -q "ai-demo: send the user back" /opt/out/instance/server/default/conf/template/idp.slo.success.page.template.html 2>/dev/null && exit 0
   sed -i "s|<meta http-equiv=\"x-ua-compatible\" content=\"IE=edge\" />|<meta http-equiv=\"x-ua-compatible\" content=\"IE=edge\" />\n    <!-- ai-demo: send the user back to the app after SLO; LogoutPage continues the ID-JAG handoff -->\n    <meta http-equiv=\"refresh\" content=\"1;url=https://local.ping-devops.com:4000/logout\" />|" /opt/out/instance/server/default/conf/template/idp.slo.success.page.template.html
   chown 9031:0 /opt/out/instance/server/default/conf/template/idp.slo.success.page.template.html && chmod 644 /opt/out/instance/server/default/conf/template/idp.slo.success.page.template.html'
-echo "Applied demo login theme (header + Ping logo + SLO redirect) to $container"
+
+# The stock PF forgot-password action is conditional on a reset-capable
+# validator and notification publisher. The local demo intentionally keeps its
+# simple in-PF validator, so add an explicit recovery link that never submits
+# PF's unsupported passwordReset action.
+template_tmp="$(mktemp)"
+trap 'rm -f "$template_tmp"' EXIT
+docker cp "$container:/opt/out/instance/server/default/conf/template/html.form.login.template.html" "$template_tmp"
+python3 "$script_dir/patch_login_template.py" "$template_tmp"
+docker cp "$template_tmp" "$container:/opt/out/instance/server/default/conf/template/html.form.login.template.html"
+docker exec -u 0 "$container" sh -c 'chown 9031:0 /opt/out/instance/server/default/conf/template/html.form.login.template.html && chmod 644 /opt/out/instance/server/default/conf/template/html.form.login.template.html'
+echo "Applied demo login theme and local password recovery link to $container"

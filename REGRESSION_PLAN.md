@@ -5,6 +5,34 @@ Canonical do-not-break contract for the Super Banking demo. The
 layer that points here; `CLAUDE.md` also points here. This file is the source of
 truth — if the skill and this file disagree, this file wins.
 
+### 2026-10-01 — PingFederate demo admin recovery link and credential reset
+
+**Files changed:** `scripts/pingfederate/provision_demo_admin_login.py`,
+`scripts/pingfederate/patch_login_template.py`,
+`scripts/pingfederate/apply-login-theme.sh`, `scripts/pingfederate/README.md`,
+and the static PF recovery page.
+
+**What was broken:** The PF HTML Form adapter had no visible forgot-password
+link because its local Simple Username Password validator does not support
+password reset, and the environment has no notification publisher. The local
+`demoadmin` account was also absent from that validator.
+
+**What changed:** The provisioning script now idempotently adds or updates the
+PF `demoadmin` row from the configured local credential. The login template gets
+a visible recovery link that opens a same-origin help page; it does not submit
+PF's unsupported native reset action. Native email/OTP recovery remains
+disabled until PF is configured with a reset-capable validator and notification
+publisher.
+
+**Do not break:** Preserve PF's existing sign-in form, CSRF handling, native
+change-password behavior, and the BFF's browser-token custody. Never print the
+configured password or put it in the adapter template.
+
+**Verify:** Run the two focused Python unit suites, apply the local PF
+provisioning/template scripts, read back the PF user and rendered login HTML,
+reset the PingOne `demoAdmin` password through the worker API, and run the UI
+unit/build checks for the static recovery page.
+
 ### 2026-09-27 — Bind login callbacks and refresh to the recorded provider
 
 **Files changed:** `demo_api_server/routes/oauth.js`,

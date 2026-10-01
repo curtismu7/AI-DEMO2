@@ -71,6 +71,26 @@ the existing BFF PF setting as fallback. Restart `oauth-mcp` after refreshing
 service environments. The PF request omits `resource` and `audience`; the
 dedicated processor-policy mapping selects the Banking API ATM.
 
+## Demo administrator recovery
+
+The local HTML Form adapter uses the simple in-PF credential validator. It does
+not support PF's native email/OTP reset flow, so `apply-login-theme.sh` adds a
+safe `Forgot password?` link to the login template that opens the demo recovery
+page. It never submits PF's unsupported `passwordReset` action.
+
+Provision or reset the local PF `demoadmin` row from the configured credential
+with a dry run first:
+
+```bash
+export DEMO_ADMIN_PASSWORD='<value from demo_api_server/.env>'
+python3 scripts/pingfederate/provision_demo_admin_login.py
+python3 scripts/pingfederate/provision_demo_admin_login.py --apply
+scripts/pingfederate/apply-login-theme.sh ai-demo-pingfederate
+```
+
+Native PF reset remains disabled until a reset-capable validator and notification
+publisher are configured.
+
 ## AI Agent RAR processor
 
 The PF AI Agent page includes CIMD, third-party ID-JAG exchange, and a custom
