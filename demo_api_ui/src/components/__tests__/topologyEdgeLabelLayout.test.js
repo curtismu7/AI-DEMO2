@@ -33,6 +33,18 @@ describe("topology edge label layout", () => {
     expect(laidOut.map(({ y }) => y)).toEqual([61, 61]);
   });
 
+  it("reserves more space for emphasized incoming and outgoing labels", () => {
+    const [regular] = layoutEdgeLabels([
+      { id: "regular", text: "IN · HTTPS / JSON API", x: 200, y: 100 },
+    ]);
+    const [emphasized] = layoutEdgeLabels([
+      { id: "emphasized", text: "IN · HTTPS / JSON API", x: 200, y: 100, emphasized: true },
+    ]);
+
+    expect(emphasized.width).toBeGreaterThan(regular.width);
+    expect(emphasized.height).toBeGreaterThan(regular.height);
+  });
+
   it("moves labels outside server card rectangles", () => {
     const obstacle = { id: "bff", x: 300, y: 200, width: 218, height: 104 };
     const [label] = layoutEdgeLabels(

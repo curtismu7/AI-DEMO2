@@ -22,7 +22,7 @@ const { trackTokenEvent } = require('../services/tokenChainService');
 const { trackToken } = require('../services/apiCallTrackerService');
 const { logEvent: logAppEvent } = require('../services/appEventService');
 const tokenIntrospectionService = require('../services/tokenIntrospectionService');
-const { decodeJwt } = require('../utils/tokenUtils');
+const { validateIdToken, assertUserInfoSubjectMatches } = require('../services/oidcIdTokenValidationService');
 const posthog = require('../services/posthog');
 const archEmit = require('../services/archEventEmitter');
 const { terminateAllUserSessions } = require('../services/pingOneSessionService');
@@ -72,6 +72,7 @@ router.get('/login', (req, res) => {
     // Generate state parameter for CSRF protection
     const state = oauthService.generateState();
     startLoginAudit(req, 'admin', Date.now(), state);
+    const loginProvider = configStore.getOAuthProvider?.() || 'pingone';
 
     // Generate PKCE code_verifier and store in session
     const codeVerifier = oauthService.generateCodeVerifier();
@@ -79,7 +80,6 @@ router.get('/login', (req, res) => {
     console.log('[oauth/login] Redirect URI obtained:', {
       redirectUri,
       fromConfigStore: configStore.getEffective('admin_redirect_uri'),
-      sessionId: req.sessionID?.slice(0, 8) + '...',
     });
 
     // Validate redirect_uri domain matches the expected deployment origin
@@ -93,6 +93,7 @@ router.get('/login', (req, res) => {
     req.session.oauthState = state;
     req.session.oauthCodeVerifier = codeVerifier;
     req.session.oauthRedirectUri = redirectUri;
+    req.session.oauthLoginProvider = loginProvider;
     console.log('[oauth/login] Stored in session - redirectUri:', redirectUri);
 
     // Same-origin SPA path to land on after admin login (e.g. the admin link a
@@ -165,7 +166,7 @@ router.get('/login', (req, res) => {
 
     // Vercel / serverless: also store PKCE data in a signed cookie so the
     // callback can recover it if the in-memory session is on a different instance.
-    setPkceCookie(res, { state, codeVerifier, redirectUri, nonce }, _isProd());
+    setPkceCookie(res, { state, codeVerifier, redirectUri, nonce, oauthProvider: loginProvider }, _isProd());
 
     // Explicitly save before redirecting — required with async stores (Redis/Upstash)
     // so the state/verifier are persisted before PingOne sends the callback.
@@ -228,7 +229,11 @@ router.get('/callback', async (req, res) => {
     const resolvedState = sessionState || pkceCookie?.state;
 
     if (!state || state !== resolvedState) {
-      console.error('[oauth/callback] Invalid state parameter. session:', sessionState, 'cookie:', pkceCookie?.state, 'received:', state);
+      console.error('[oauth/callback] Invalid state parameter.', {
+        sessionStatePresent: !!sessionState,
+        pkceCookiePresent: !!pkceCookie?.state,
+        receivedStatePresent: !!state,
+      });
       logAppEvent('oauth', 'warning', 'OAuth state mismatch — possible multi-tab race or CSRF attempt',
         { tag: 'oauth/state-mismatch', metadata: { sessionStatePresent: !!sessionState, cookieStatePresent: !!pkceCookie?.state } });
       clearPkceCookie(res, _isProd());
@@ -236,6 +241,21 @@ router.get('/callback', async (req, res) => {
       // Auto-retry login instead of showing error (multi-tab race)
       console.log('[oauth/callback] Auto-retrying login after invalid_state (multi-tab race)');
       return res.redirect(`${req.baseUrl}/login`);
+    }
+
+    const loginProvider = req.session.oauthLoginProvider || pkceCookie?.oauthProvider;
+    const selectedProvider = configStore.getOAuthProvider?.() || 'pingone';
+    if (!loginProvider || loginProvider !== selectedProvider) {
+      clearPkceCookie(res, _isProd());
+      delete req.session.oauthState;
+      delete req.session.oauthCodeVerifier;
+      delete req.session.oauthRedirectUri;
+      delete req.session.oauthNonce;
+      delete req.session.oauthLoginProvider;
+      finishLoginAudit(req, { outcome: 'failure', reasonCode: 'oauth_provider_error' });
+      return req.session.save(() => {
+        res.redirect(`${getFrontendOrigin()}/login?error=provider_changed`);
+      });
     }
 
     if (!code) {
@@ -248,12 +268,12 @@ router.get('/callback', async (req, res) => {
     const codeVerifier = req.session.oauthCodeVerifier || pkceCookie?.codeVerifier;
     const redirectUri   = req.session.oauthRedirectUri  || pkceCookie?.redirectUri;
     const expectedNonce = req.session.oauthNonce         || pkceCookie?.nonce;
-    console.log('[oauth/callback] Retrieved redirect_uri for token exchange:', {
+    console.log('[oauth/callback] Retrieved OAuth transaction:', {
       redirectUri,
-      fromSession: req.session.oauthRedirectUri,
-      fromCookie: pkceCookie?.redirectUri,
-      sessionId: req.sessionID?.slice(0, 8) + '...',
-      code: code?.slice(0, 8) + '...',
+      pkceCookieFallback: !req.session.oauthRedirectUri && !!pkceCookie?.redirectUri,
+      hasCode: !!code,
+      hasCodeVerifier: !!codeVerifier,
+      hasNonce: !!expectedNonce,
     });
     
     // Get RFC 9728 resources from session
@@ -266,11 +286,9 @@ router.get('/callback', async (req, res) => {
     clearPkceCookie(res, _isProd());
 
     // Exchange authorization code for access token (with PKCE verifier and resource indicators)
-    console.log('[oauth/callback] Calling exchangeCodeForToken with:', {
+    console.log('[oauth/callback] Starting authorization-code exchange:', {
       redirectUri,
-      code: code?.slice(0, 8) + '...',
-      codeVerifier: codeVerifier?.slice(0, 8) + '...',
-      resources: sessionResources,
+      resourceCount: sessionResources.length,
       configuredAdminRedirectUri: configStore.getEffective('admin_redirect_uri'),
       tokenEndpoint: configStore.getEffective('PINGONE_TOKEN_ENDPOINT'),
       oauthServiceConfig: {
@@ -281,27 +299,33 @@ router.get('/callback', async (req, res) => {
     const tokenData = await oauthService.exchangeCodeForToken(code, codeVerifier, redirectUri, sessionResources);
     archEmit({ nodeId: 'n-bff', edgeId: 'e-browser-bff', label: 'OAuth callback: code exchange complete' });
 
-    // Verify nonce in ID token to prevent ID token replay attacks (OIDC Core §3.1.2.7)
-    let idTokenClaims = {};
-    if (tokenData.id_token) {
-      try {
-        idTokenClaims = JSON.parse(Buffer.from(tokenData.id_token.split('.')[1], 'base64url').toString());
-        if (expectedNonce && !idTokenClaims.nonce) {
-          finishLoginAudit(req, { outcome: 'failure', reasonCode: 'nonce_missing' });
-          return res.redirect(`${getFrontendOrigin()}/login?error=nonce_missing`);
-        } else if (expectedNonce && idTokenClaims.nonce !== expectedNonce) {
-          console.error('[oauth/callback] Nonce mismatch — possible ID token replay attack');
-          logAppEvent('oauth', 'error', 'OAuth nonce mismatch — possible ID token replay attack',
-            { tag: 'oauth/nonce-mismatch' });
-          finishLoginAudit(req, { outcome: 'failure', reasonCode: 'nonce_mismatch' });
-          return res.redirect(`${getFrontendOrigin()}/login?error=nonce_mismatch`);
-        }
-      } catch (e) {
-        console.warn('[oauth/callback] Could not decode ID token for nonce verification:', e.message);
-      }
+    let idTokenClaims;
+    try {
+      idTokenClaims = await validateIdToken(tokenData.id_token, {
+        config: oauthService.config,
+        expectedNonce,
+      });
+    } catch (validationError) {
+      const reasonCode = validationError.reasonCode || 'id_token_invalid';
+      console.error('[oauth/callback] OIDC identity validation failed:', reasonCode);
+      finishLoginAudit(req, { outcome: 'failure', reasonCode });
+      return res.redirect(`${getFrontendOrigin()}/login?error=${encodeURIComponent(reasonCode)}`);
     }
     const userInfo = await oauthService.getUserInfo(tokenData.access_token);
-    const mergedUserInfo = { ...idTokenClaims, ...userInfo };
+    try {
+      assertUserInfoSubjectMatches(userInfo, idTokenClaims);
+    } catch (validationError) {
+      const reasonCode = validationError.reasonCode || 'userinfo_subject_mismatch';
+      console.error('[oauth/callback] OIDC UserInfo subject validation failed:', reasonCode);
+      finishLoginAudit(req, { outcome: 'failure', reasonCode });
+      return res.redirect(`${getFrontendOrigin()}/login?error=${encodeURIComponent(reasonCode)}`);
+    }
+    const mergedUserInfo = {
+      ...idTokenClaims,
+      ...userInfo,
+      iss: idTokenClaims.iss,
+      sub: idTokenClaims.sub,
+    };
 
     const hostedAccessPolicy = loadHostedAccessPolicy();
     const hostedIdentityClaims = coherentHostedIdentityClaims(idTokenClaims, userInfo);
@@ -381,6 +405,7 @@ router.get('/callback', async (req, res) => {
     // this afterwards always lost the /login route's return_to and every admin
     // login landed on /admin. Mirrors the end-user callback (oauthUser.js).
     const postLoginReturnToPath = sanitizePostLoginReturnPath(req.session.postLoginReturnToPath) || null;
+    const resolvedLoginProvider = loginProvider || selectedProvider;
     const hostedLoginAudit = req.session.hostedLoginAudit || null;
     const hostedLoginAudits = req.session.hostedLoginAudits || null;
 
@@ -399,6 +424,7 @@ router.get('/callback', async (req, res) => {
       req.session.oauthTokens = oauthTokens;
       req.session.user = authedUser;
       req.session.clientType = clientType;
+      req.session.oauthProvider = resolvedLoginProvider;
       if (hostedLoginAudit) req.session.hostedLoginAudit = hostedLoginAudit;
       if (hostedLoginAudits) req.session.hostedLoginAudits = hostedLoginAudits;
       if (hostedAccessDecision) {
@@ -461,20 +487,18 @@ router.get('/callback', async (req, res) => {
             return res.redirect(`${redirectOrigin}/login?error=session_persist_failed`);
           });
         }
-        console.debug('[oauth/callback] Session saved OK sid=' + (req.session?.id || '').slice(0, 8) + '…');
+        console.debug('[oauth/callback] Session saved OK');
         finishLoginAudit(req, {
           outcome: 'success',
           reasonCode: 'allowed',
           identity: hostedAccessDecision || {},
         });
-        const _idTokenDecoded = decodeJwt(oauthTokens?.idToken);
         logAppEvent('oauth', 'info', `OAuth admin login success: ${authedUser?.username || authedUser?.email || 'unknown'}`,
           { tag: 'oauth/callback-success', username: authedUser?.username,
-            metadata: { role: authedUser?.role, clientType, hasIdToken: !!(oauthTokens?.idToken), jwtFullDecode: _idTokenDecoded || undefined, response: { hasAccessToken: !!(oauthTokens?.accessToken), hasIdToken: !!(oauthTokens?.idToken), tokenType: oauthTokens?.tokenType || 'Bearer' }, pkce: { code_challenge_method: 'S256', code_challenge_length: codeVerifier ? String(codeVerifier).length : 0 }, idTokenClaims: { sub: _idTokenDecoded?.claims?.sub || undefined, email: _idTokenDecoded?.claims?.email || undefined, acr: _idTokenDecoded?.claims?.acr || undefined } } });
-        const _sessionHash = crypto.createHash('sha256').update(req.session.id || '').digest('hex').slice(0, 8);
+            metadata: { role: authedUser?.role, clientType, hasIdToken: !!(oauthTokens?.idToken), response: { hasAccessToken: !!(oauthTokens?.accessToken), hasIdToken: !!(oauthTokens?.idToken), tokenType: oauthTokens?.tokenType || 'Bearer' }, pkce: { code_challenge_method: 'S256' } } });
         logAppEvent('auth_lifecycle', 'info', 'Session snapshot: admin login', {
           tag: 'auth_lifecycle/session-snapshot',
-          metadata: { sessionId_hash: _sessionHash, event: 'login', role: authedUser?.role, hasAccessToken: !!(req.session.oauthTokens?.accessToken || oauthTokens?.accessToken), hasIdToken: !!(req.session.oauthTokens?.idToken || oauthTokens?.idToken), hasRefreshToken: !!(req.session.oauthTokens?.refreshToken) },
+          metadata: { event: 'login', role: authedUser?.role, hasAccessToken: !!(req.session.oauthTokens?.accessToken || oauthTokens?.accessToken), hasIdToken: !!(req.session.oauthTokens?.idToken || oauthTokens?.idToken), hasRefreshToken: !!(req.session.oauthTokens?.refreshToken) },
         });
         // Set a signed auth-state cookie so the session-restore middleware can
         // answer /status and /nl requests even when the session hits a different

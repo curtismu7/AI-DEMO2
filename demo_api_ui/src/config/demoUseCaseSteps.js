@@ -37,6 +37,7 @@ export const DEMO_PRIMARY_USE_CASE_IDS = [
   'UC40',  // Enterprise-Managed MCP Authorization — native ID-JAG walkthrough
   'UC38',  // Workload Agent: Digital Assistant — MFA + RFC 8693 delegation
   'UC-TOOL1', // Protected RAG — code:search + PingOne Authorize
+  'UC46',  // Privilege A2A access review — step 25 in the presenter sequence
 ];
 
 export const DEMO_ADVANCED_USE_CASE_IDS = [];
@@ -86,6 +87,7 @@ export const DEMO_USE_CASE_SEARCH_TERMS = {
   UC25: ['privilege', 'enterprise managed mcp', 'id-jag', 'centralized access', 'group policy'],
   'UC-LEARN11': ['privilege', 'privilege ai', 'llm gateway', 'prompt injection'],
   'UC-TOOL3': ['privilege', 'privilege ai', 'llm gateway', 'prompt injection', 'virtual key'],
+  UC46: ['privilege', 'a2a', 'agent-to-agent', 'access review', 'anthropic', 'worker agent'],
 };
 
 /** Existing Privilege lanes grouped for the presenter, without inventing routes. */
@@ -127,7 +129,7 @@ export const DEMO_MATURITY_GROUPS = [
     label: 'Authorize agent actions',
     shortLabel: 'Authorize',
     description: 'Apply least privilege, policy, and intent controls.',
-    useCaseIds: ['UC2', 'UC2.5', 'UC2.7', 'UC5', 'UC6', 'UC10', 'UC13', 'UC14b', 'UC14'],
+    useCaseIds: ['UC2', 'UC2.5', 'UC2.7', 'UC5', 'UC6', 'UC10', 'UC13', 'UC14b', 'UC14', 'UC46'],
   },
   {
     id: 'protect',
@@ -214,14 +216,14 @@ export const DEMO_JOURNEY_GROUPS = [
     label: 'A2A delegation',
     shortLabel: 'A2A',
     description: 'Agent-to-agent delegation, specialist handoff, and nested identity.',
-    useCaseIds: ['UC2', 'UC2.5', 'UC2.6', 'UC2.7'],
+    useCaseIds: ['UC2', 'UC2.5', 'UC2.6', 'UC2.7', 'UC46'],
   },
   {
     id: 'j-privilege-mcp',
     label: 'Privilege MCP',
     shortLabel: 'Privilege',
     description: 'Privilege-protected MCP access — time-bound, scoped, auditable.',
-    useCaseIds: PRIVILEGE_USE_CASE_IDS,
+    useCaseIds: [...PRIVILEGE_USE_CASE_IDS, 'UC46'],
   },
   {
     id: 'j-threat-defense',
@@ -292,7 +294,7 @@ export const DEMO_MISSION_GROUPS = [
     label: 'Agent Network',
     shortLabel: 'Agent Network',
     description: 'A2A delegation, specialist scope narrowing, and actor mismatch denial.',
-    useCaseIds: ['UC2', 'UC2.5', 'UC2.6', 'UC2.7'],
+    useCaseIds: ['UC2', 'UC2.5', 'UC2.6', 'UC2.7', 'UC46'],
   },
   {
     id: 'discover',
@@ -327,7 +329,7 @@ export const DEMO_MISSION_GROUPS = [
     label: 'Privilege & JIT',
     shortLabel: 'Privilege & JIT',
     description: 'Request, approve, broker, observe, and revoke privileged access.',
-    useCaseIds: PRIVILEGE_USE_CASE_IDS,
+    useCaseIds: [...PRIVILEGE_USE_CASE_IDS, 'UC46'],
   },
   {
     id: 'govern',

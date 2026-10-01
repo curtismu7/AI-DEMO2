@@ -1,7 +1,7 @@
-const FONT_HEIGHT = 10;
-const CHARACTER_WIDTH = 6;
-const HORIZONTAL_PADDING = 9;
-const VERTICAL_PADDING = 6;
+const LABEL_METRICS = {
+  regular: { fontHeight: 10, characterWidth: 6, horizontalPadding: 9, verticalPadding: 6 },
+  emphasized: { fontHeight: 16, characterWidth: 9.6, horizontalPadding: 16, verticalPadding: 10 },
+};
 const LABEL_GAP = 8;
 const ROUTE_GAP = 8;
 
@@ -14,12 +14,13 @@ function boxesOverlap(a, b) {
 
 export function layoutEdgeLabels(labels, obstacles = []) {
   const placed = [];
-  const labelHeight = FONT_HEIGHT + VERTICAL_PADDING * 2;
-  const firstLaneOffset = labelHeight / 2 + ROUTE_GAP;
-  const laneSpacing = labelHeight + LABEL_GAP;
 
   return labels.map((label) => {
-    const width = Math.ceil(label.text.length * CHARACTER_WIDTH) + HORIZONTAL_PADDING * 2;
+    const metrics = LABEL_METRICS[label.emphasized ? "emphasized" : "regular"];
+    const width = Math.ceil(label.text.length * metrics.characterWidth) + metrics.horizontalPadding * 2;
+    const height = metrics.fontHeight + metrics.verticalPadding * 2;
+    const firstLaneOffset = height / 2 + ROUTE_GAP;
+    const laneSpacing = height + LABEL_GAP;
     let lane = 0;
     let candidate;
 
@@ -31,7 +32,7 @@ export function layoutEdgeLabels(labels, obstacles = []) {
         x: label.x,
         y: label.y + direction * distance,
         width,
-        height: labelHeight,
+        height,
       };
       lane += 1;
     } while (

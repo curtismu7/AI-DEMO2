@@ -338,10 +338,10 @@ describe('demo readiness audit service', () => {
     }
   });
 
-  test('emits all 46 repository rows and blocks A2A or PAR fields pending live readback', async () => {
+  test('emits all 47 repository rows and blocks A2A or PAR fields pending live readback', async () => {
     const checks = await createAuditService({ pfProfiles: { roles: {} } }).auditRepositoryContracts();
     const cases = checks.filter((row) => row.id.startsWith('repository:case:'));
-    expect(cases).toHaveLength(46);
+    expect(cases).toHaveLength(47);
     expect(cases.some((row) => row.status === 'blocked' && /A2A|PAR/.test(row.evidence || ''))).toBe(true);
     expect(cases.every((row) => row.observed && Array.isArray(row.observed.flags))).toBe(true);
   });

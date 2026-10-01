@@ -55,6 +55,7 @@ import PingFederateIdJagExplainerPage from '../pages/PingFederateIdJagExplainerP
 import PingFederateIdJagPage from '../components/PingFederateIdJagPage';
 import PingFederateAiAgentPage from '../pages/PingFederateAiAgentPage';
 import GroupPolicyBoardPage from '../pages/GroupPolicyBoardPage';
+import PageCatalogPage from '../pages/PageCatalogPage';
 import PrivilegeMcpClientPage from "../pages/PrivilegeMcpClientPage";
 import LlmGatewayCombinedPage from '../pages/LlmGatewayCombinedPage';
 import IntentInspectorPage from '../pages/IntentInspectorPage';
@@ -349,6 +350,15 @@ export function GroupPolicyBoardPageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <GroupPolicyBoardPage />
+    </AppShell>
+  );
+}
+
+/** Page catalog — what every page does/teaches/demos, with per-user side-nav show/hide. */
+export function PageCatalogPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <PageCatalogPage />
     </AppShell>
   );
 }

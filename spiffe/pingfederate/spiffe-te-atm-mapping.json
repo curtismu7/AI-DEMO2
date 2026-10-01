@@ -15,7 +15,11 @@
   "attributeContractFulfillment": {
     "Username": { "source": { "type": "TOKEN_EXCHANGE_PROCESSOR_POLICY" }, "value": "subject" },
     "scope": { "source": { "type": "TOKEN_EXCHANGE_PROCESSOR_POLICY" }, "value": "scope" },
-    "client_id": { "source": { "type": "TOKEN_EXCHANGE_PROCESSOR_POLICY" }, "value": "client_id" }
+    "client_id": { "source": { "type": "TOKEN_EXCHANGE_PROCESSOR_POLICY" }, "value": "spiffeId" },
+    "act": {
+      "source": { "type": "EXPRESSION" },
+      "value": "#{\"sub\": #this.get(\"tepp.spiffeId\").toString()}"
+    }
   },
   "issuanceCriteria": { "conditionalCriteria": [] }
 }

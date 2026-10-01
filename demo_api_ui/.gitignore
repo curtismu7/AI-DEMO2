@@ -5,3 +5,6 @@ tests/e2e/.env.e2e
 # Cached auth sessions from saveCustomerSession()
 tests/e2e/.auth/
 playwright-report-real/
+# Default Playwright HTML report (`playwright test` writes it here). Untracked and
+# unignored, it made scripts/sync-main-checkout.sh back off on every run.
+playwright-report/

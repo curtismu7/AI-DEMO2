@@ -102,9 +102,8 @@ export interface HttpMCPTransportConfig {
   authServerUrl: string;
 
   /**
-   * Allowed HTTP Origin values.  An empty array means any origin is permitted
-   * (suitable for demo / server-to-server clients).  Set MCP_ALLOWED_ORIGINS to
-   * restrict for production.
+   * Exact browser Origin allowlist. An empty array rejects every supplied
+   * Origin; requests without Origin remain supported for non-browser clients.
    */
   allowedOrigins: string[];
 }
@@ -1339,15 +1338,12 @@ export class HttpMCPTransport {
   }
 
   private isOriginAllowed(req: IncomingMessage): boolean {
-    const origin = req.headers['origin'] as string | undefined;
-    if (!origin) {
-      // No Origin header — non-browser client (CLI, MCP Inspector, server-to-server); allow.
+    const origin = req.headers.origin;
+    if (origin === undefined) {
+      // Origin-less CLI and server-to-server clients remain supported.
       return true;
     }
-    if (this.config.allowedOrigins.length === 0) {
-      // No restriction configured — allow all.
-      return true;
-    }
+    if (typeof origin !== 'string' || origin.length === 0) return false;
     return this.config.allowedOrigins.includes(origin);
   }
 

@@ -14,6 +14,22 @@
 const realApi = process.env.ATTACK_SIM_REAL_API === 'true';
 const describeIf = realApi ? describe : describe.skip;
 
+// Structural tests exercise sim dispatch and error mapping without calling a
+// real gateway. Live gateway behavior belongs in the guarded real-API tests.
+jest.mock('../../services/mcpGatewayClient', () => {
+  const actual = jest.requireActual('../../services/mcpGatewayClient');
+  return {
+    ...actual,
+    callToolViaGateway: jest.fn().mockImplementation(async () => {
+      const error = new Error('mock gateway unavailable');
+      error.code = 'GATEWAY_UNREACHABLE';
+      error.httpStatus = 503;
+      throw error;
+    }),
+  };
+});
+
+const mcpGatewayClient = require('../../services/mcpGatewayClient');
 const { runAttackSim, __test } = require('../../services/attackSimulatorService');
 const { _resolveForeignAccountId } = __test;
 
@@ -145,6 +161,15 @@ describe('AttackSimulator — structural (no creds needed)', () => {
       expect(result.useCaseId).toBe(expectedSlug);
       expect(result.errorCode).not.toBe('unknown_sim');
       expect(Array.isArray(result.tokenChainEvents)).toBe(true);
+      if (sim === 'replayed-token') {
+        expect(mcpGatewayClient.callToolViaGateway).toHaveBeenCalledWith(
+          null,
+          'not-a-real-jwt',
+          'get_my_accounts',
+          {},
+          { simulatedAttack: true },
+        );
+      }
     },
   );
 

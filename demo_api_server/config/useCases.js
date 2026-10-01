@@ -1566,6 +1566,33 @@ const RAW_USE_CASES = [
     productRoles: {},
     primaryTool: null,
   },
+  {
+    id: 'UC46',
+    useCaseId: 'privilege-a2a-access-review',
+    track: 'tools',
+    title: 'Privilege A2A access review',
+    buyerStory: 'Security analysts want to ask an agent to review access and follow how a delegated worker gathers evidence through Privilege-protected tools.',
+    pingOneSolution: 'A MainAgent delegates the analyst request to a WorkerAgent over A2A; the worker uses MCP through PingOne Privilege Gateway and returns an evidence-backed answer.',
+    trigger: { type: 'link', path: '/privilege-mcp-client?view=demo&tab=a2a', label: 'Open A2A access review' },
+    expectedOutcome: 'A2A_ACCESS_REVIEW',
+    evidence: { tokenChain: [], activity: ['a2a', 'mcp', 'llm'] },
+    codeRefs: [
+      'standalone/privilege-a2a-anthropic-demo/src/main-agent/index.ts',
+      'standalone/privilege-a2a-anthropic-demo/src/worker-agent/index.ts',
+      'demo_api_server/routes/privilegeA2aClient.js',
+    ],
+    maturity: 'works',
+    owasp: { threats: [], sections: [] },
+    whatToSay: 'Send an access-review question in the A2A tab. The MainAgent delegates to the WorkerAgent, which gathers evidence through Privilege-protected MCP tools.',
+    advanced: false,
+    whatLong: 'A three-process agent-to-agent demo. The browser sends the analyst question through the BFF to a MainAgent, which delegates over A2A to a WorkerAgent. The worker calls MCP through PingOne Privilege Gateway and returns an evidence-backed access review. The BFF session protects the browser endpoint; the A2A message does not carry a user token or represent RFC 8693 delegation.',
+    businessValue: 'Show how an agent can delegate an access-review task to a specialist worker while Privilege governs the worker’s LLM and MCP calls and leaves visible evidence for the analyst.',
+    productRoles: {
+      privilege: 'Validates each agent’s Agent Access key and applies gateway policy to its LLM and MCP requests.',
+      bff: 'Requires the browser session and relays chat to MainAgent without forwarding browser identity or tokens.',
+    },
+    primaryTool: null,
+  },
 
   // --- NHI GOVERNANCE --- (link-type cards; AI Control Plane's own pages own the actual behavior)
   {

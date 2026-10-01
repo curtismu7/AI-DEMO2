@@ -1912,6 +1912,18 @@ router.get('/state', (req, res) => {
       url: privilegeDoorUrl('openapi2'),
     },
     {
+      // `banking-openapi`, the OpenAPI MCP Agentic App that DOES discover tools
+      // (call_api, get_endpoint, listUsers, list_endpoints — the first three
+      // are Ping's generic adapter tools, listUsers comes from the sidecar's
+      // simple-users spec). Backend is the demo_mcp_banking_rest sidecar on
+      // localhost:8080/mcp in the agentless-mcpgw pod, Auth Mode None.
+      // Pinned for the same reason as `openapi2`: it only reaches the picker
+      // through console discovery otherwise.
+      label: 'Privilege — banking-openapi (OpenAPI MCP app)',
+      mode: 'privilege',
+      url: privilegeDoorUrl('banking-openapi'),
+    },
+    {
       // THE Privilege-first MCP door: Privilege in front of the REAL PingGateway
       // (Agentic App `agent-gateway`, backend
       // ping-gateway.ping-devops-cmuir.svc.cluster.local:8080/mcp).
@@ -3514,9 +3526,8 @@ router.post('/chat', express.json(), async (req, res) => {
     // Procyon frontends need no OAuth client and no sign-in — the Priv Agent
     // on the workstation supplies the identity.
     const procyon = isProcyonAgentUrl(session.config.mcpUrl);
-    if (!session.config.clientId && !procyon) {
-      return res.json({ reply: 'OAuth Client ID is missing. Set Client ID and click Sign In.', steps: ['missing_client_id'] });
-    }
+    // A blank clientId is expected for gateways that advertise DCR.
+    // beginOAuthFlow registers those clients and reports when a manual id is needed.
     if (!session.oauth.accessToken && !procyon) {
       // Need OAuth first — build auth URL for redirect
       const authUrl = await beginOAuthFlow(session, req);

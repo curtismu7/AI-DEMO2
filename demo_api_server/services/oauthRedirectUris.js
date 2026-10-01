@@ -54,7 +54,10 @@ function getAdminRedirectUri(req, opts) {
  * Detects actual request domain if called with req; otherwise reads from configStore.
  */
 function getUserRedirectUri(req, opts) {
-  const override = configStore.getEffective('user_redirect_uri');
+  const redirectKey = configStore.getOAuthProvider() === 'pingfederate'
+    ? 'pf_user_redirect_uri'
+    : 'user_redirect_uri';
+  const override = configStore.getEffective(redirectKey);
   if (override) return override;
 
   const origin = getCanonicalPublicOrigin(req, opts);

@@ -13,6 +13,21 @@ const normalizeWs = (u) =>
 const env = (name) => process.env[name] || null;
 
 const candidates = (...urls) => urls.filter(Boolean);
+const isKubernetes = Boolean(process.env.KUBERNETES_SERVICE_HOST);
+
+// The Kubernetes tiers are demand-loaded Deployments and normally have zero
+// replicas until inference needs them. They are not part of the always-on
+// server check; the LLM proxy's /readyz reports whether a model is loaded.
+// Docker/native use host-side llama-server processes and retain their probes.
+const llamaTiers = isKubernetes
+  ? [
+    { number: 1, port: 8091, service: 'llama-tier1', model: 'small / Phi-4-mini' },
+    { number: 5, port: 8096, service: 'llama-tier5', model: 'big / gpt-oss-20b' },
+  ]
+  : [
+    { number: 1, port: 8091, model: 'small / Phi-4-mini' },
+    { number: 6, port: 8096, model: 'big / gpt-oss-20b' },
+  ];
 
 const SERVER_INVENTORY = [
   {
@@ -144,6 +159,10 @@ const SERVER_INVENTORY = [
   {
     key: 'llm-proxy', name: 'LLM Proxy (router)', container: 'ai-demo-llm-proxy',
     hostPort: 8090, internalPort: 8090, lang: 'Node', category: 'ai-infra', sourceDir: 'demo_llm_proxy', probe: true,
+    // The router is an always-on service even while every model tier is idle.
+    // Its /health readiness endpoint correctly returns 503 until a model loads;
+    // /livez answers the process check used by this inventory.
+    healthPath: '/livez',
     candidates: candidates(env('LLAMACPP_BASE_URL'), 'http://llm-proxy:8090', 'http://localhost:8090'),
     purpose: 'Smart router — classifies each LLM request onto the smallest capable host llama tier.',
   },
@@ -177,13 +196,20 @@ const SERVER_INVENTORY = [
     hostPort: null, internalPort: null, lang: 'Node + headless browser', category: 'demo-prop', sourceDir: 'demo_ungoverned_agent', probe: false,
     purpose: 'Demo attack prop — on-demand only (profile demo-attack); rides a logged-in bank session via the UI.',
   },
-  // Two local llama-server tiers: small (Phi-4-mini on :8091) and big
+  // Two llama-server tiers: small (Phi-4-mini on :8091) and big
   // (gpt-oss-20b on :8096). :8095 is the mcp-code-search container.
-  ...[1, 6].map((n) => ({
-    key: `llama-tier-${n}`, name: `llama-server tier ${n}`, container: null, sourceDir: null,
-    hostPort: 8090 + n, internalPort: 8090 + n, lang: 'llama.cpp server', category: 'ai-infra', probe: true,
-    candidates: candidates(`http://host.docker.internal:${8090 + n}`, `http://localhost:${8090 + n}`),
-    purpose: `Host-side local LLM backend (${n === 1 ? 'small / Phi-4-mini' : 'big / gpt-oss-20b'}) — target of llm-proxy. Not in compose; start via demo_llm_proxy/start-local-models.sh.`,
+  ...llamaTiers.map(({ number, port, service, model }) => ({
+    key: `llama-tier-${number}`, name: `llama-server tier ${number}`, container: null, sourceDir: null,
+    hostPort: port, internalPort: port, lang: 'llama.cpp server', category: 'ai-infra',
+    probe: !isKubernetes, optional: isKubernetes,
+    candidates: candidates(
+      isKubernetes ? `http://${service}:${port}` : null,
+      !isKubernetes ? `http://host.docker.internal:${port}` : null,
+      !isKubernetes ? `http://localhost:${port}` : null,
+    ),
+    purpose: isKubernetes
+      ? `Demand-loaded in-cluster LLM backend (${model}) — readiness is reported by llm-proxy.`
+      : `Host-side local LLM backend (${model}) — target of llm-proxy. Not in compose; start via demo_llm_proxy/start-local-models.sh.`,
   })),
 ];
 
