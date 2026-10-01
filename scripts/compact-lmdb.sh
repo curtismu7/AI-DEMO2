@@ -88,7 +88,12 @@ STAMP="$(timestamp)"
 echo "[*] Rebuilding $VOLUME:$IN_VOLUME_DIR into a compacted copy"
 
 # 1. Copy live data out, entry-by-entry into a fresh env (drop freelist).
-docker run --rm -v "$VOLUME":/data --entrypoint node "$IMAGE" -e "
+# --user root: the app image runs as USER appuser (uid 1001) by default, which
+# cannot mkdir inside this one-off container's own /data mount even though the
+# same uid owns the real files at runtime (hit live 2026-10-01, right after
+# fixing the node:22-alpine platform mismatch below). Root sidesteps it; step 2
+# already chowns the compacted data.mdb to 1001:1001 before swap-in regardless.
+docker run --rm --user root -v "$VOLUME":/data --entrypoint node "$IMAGE" -e "
 const lmdb = require('/app/node_modules/lmdb');
 const fs = require('fs');
 const src = lmdb.open({ path: '/data/persistent/lmdb', maxDbs: 40, mapSize: 1024*1024*1024 });

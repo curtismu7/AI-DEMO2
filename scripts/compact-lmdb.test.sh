@@ -64,6 +64,10 @@ if [[ "$COPY_RUN" != *"--entrypoint node"* ]]; then
   echo "FAIL: copy step must override the BFF image's entrypoint to run node directly" >&2
   exit 1
 fi
+if [[ "$COPY_RUN" != *"--user root"* ]]; then
+  echo "FAIL: copy step must run as root — the image's own USER (uid 1001) can't mkdir in this one-off mount" >&2
+  exit 1
+fi
 if [[ "$COPY_RUN" == *":/repo:ro"* ]]; then
   echo "FAIL: copy step should no longer need the read-only host repo mount" >&2
   exit 1
