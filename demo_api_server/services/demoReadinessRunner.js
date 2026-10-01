@@ -2,6 +2,7 @@
 
 const crypto = require('crypto');
 const { createAuditService } = require('./demoReadinessAuditService');
+const { createPingOneReader } = require('./demoReadinessPingOneReader');
 const { createRepairService } = require('./demoReadinessRepairService');
 const { createReadinessExecutionService } = require('./demoReadinessExecutionService');
 const { createReadinessWorkerFactory } = require('./demoReadinessWorkerClient');
@@ -61,11 +62,11 @@ function matrixCoverageError(result) {
 }
 
 function createDefaultAdapters(clock = Date.now, {
-  audit = createAuditService(),
+  fetchImpl = globalThis.fetch,
+  audit = createAuditService({ adapters: { pingOne: { readConfiguration: createPingOneReader({ fetchImpl }) } } }),
   repairs = createRepairService({ now: () => nowFrom(clock) }),
   execution,
   runtimeConfig = loadDemoReadinessRuntimeConfig(),
-  fetchImpl = globalThis.fetch,
   workerRuntime,
 } = {}) {
   const workers = workerRuntime || createReadinessWorkerFactory({ config: runtimeConfig, fetchImpl });
