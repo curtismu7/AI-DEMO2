@@ -118,3 +118,24 @@ test('a PingOne session never takes the PingFederate path', async () => {
   expect(pfExchange.performExchange).not.toHaveBeenCalled();
   expect(oauthService.performTokenExchangeAs).toHaveBeenCalledTimes(2);
 });
+
+test('records the steps it ran, under the token-chain event ids', async () => {
+  const trace = [];
+  await checkAccess({ ...pfSession, trace });
+
+  expect(trace.map((step) => step.id)).toEqual([
+    'user-token', 'two-ex-agent-actor', 'two-ex-exchange1', 'two-ex-final-token', 'pingone-admin-authorize',
+  ]);
+  expect(trace.at(-1)).toMatchObject({ status: 'permit' });
+  // Decoded claims only — a raw token must never ride along in the trace.
+  expect(JSON.stringify(trace)).not.toContain('pf-session-token');
+  expect(trace.find((step) => step.id === 'two-ex-final-token').decoded.claims.act.sub).toBe('pf-mcp-actor');
+});
+
+test('records the failed exchange instead of a final token', async () => {
+  pfExchange.performExchange.mockReset().mockRejectedValue(new Error('invalid_grant'));
+  const trace = [];
+  await checkAccess({ ...pfSession, trace });
+
+  expect(trace.map((step) => step.id)).toEqual(['user-token', 'two-ex-agent-actor', 'exchange-failed']);
+});

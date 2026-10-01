@@ -16,6 +16,7 @@ const scopeTopology = require('../services/scopeTopology');
 const { verticalManifest } = require('../services/verticalManifest');
 const { requireSession } = require('../middleware/auth');
 const { provisionVerticalGroups } = require('../services/pingOneGroupProvisionService');
+const { fetchPingOneUserByUsername } = require('../services/pingOneUserLookupService');
 
 const router = express.Router();
 
@@ -36,10 +37,25 @@ function requireAdmin(req, res, next) {
   return next();
 }
 
-/** Resolve PingOne user id from session (PingOne sub, not legacy numeric id). */
-function resolvePingOneUserId(sessionUser) {
-  if (!sessionUser) return null;
-  return sessionUser.oauthId || sessionUser.sub || null;
+/**
+ * The PingOne user behind the session: { pingOneUserId, pingOneUsername }.
+ *
+ * A PingOne session's subject is that user (PingOne sub, not legacy numeric id).
+ * A PingFederate session's subject is a PingFederate username, so the PingOne
+ * account with the same username is used — its id for the directory calls, and
+ * its own spelling of the username, which is what the toggle allowlist holds.
+ * No such account means no live lookup, never the PingFederate subject.
+ */
+// ponytail: one PingOne user search per request under PingFederate; cache the
+// id on the session if this panel is ever polled.
+async function resolvePingOneUser(session) {
+  const user = session?.user;
+  if (!user) return { pingOneUserId: null, pingOneUsername: null };
+  if (session.oauthProvider !== 'pingfederate') {
+    return { pingOneUserId: user.oauthId || user.sub || null, pingOneUsername: user.username || null };
+  }
+  const { user: linked } = await fetchPingOneUserByUsername(user.username);
+  return { pingOneUserId: linked?.id || null, pingOneUsername: linked?.username || null };
 }
 
 function resolveVerticalId(req) {
@@ -60,7 +76,7 @@ router.get('/membership', requireSession, async (req, res) => {
 
     const verticalId = resolveVerticalId(req);
     const username = req.session?.user?.username || null;
-    const pingOneUserId = resolvePingOneUserId(req.session?.user);
+    const { pingOneUserId } = await resolvePingOneUser(req.session);
     const manifest = verticalManifest.resolver.resolve(verticalId);
     if (!manifest) {
       return res.status(404).json({ error: 'unknown_vertical', verticalId });
@@ -131,7 +147,7 @@ router.get('/decision-board', requireSession, async (req, res) => {
     verticalManifest.init();
 
     const username = req.session?.user?.username || null;
-    const pingOneUserId = resolvePingOneUserId(req.session?.user);
+    const { pingOneUserId } = await resolvePingOneUser(req.session);
 
     // Every vertical that declares a group-gated tool, straight from the
     // manifests — so a vertical added later appears here with no code change.
@@ -380,7 +396,7 @@ router.post('/membership/toggle', requireSession, async (req, res) => {
 
     const verticalId = resolveVerticalId(req);
     const username = req.session?.user?.username || null;
-    const pingOneUserId = resolvePingOneUserId(req.session?.user);
+    const { pingOneUserId, pingOneUsername } = await resolvePingOneUser(req.session);
     if (!verticalManifest.resolver.resolve(verticalId)) {
       return res.status(404).json({ error: 'unknown_vertical', verticalId });
     }
@@ -400,7 +416,7 @@ router.post('/membership/toggle', requireSession, async (req, res) => {
     }
 
     const result = await pingOneGroupMembershipService.setUserGroupMembership({
-      username, pingOneUserId, groupName, inGroup,
+      username: pingOneUsername, pingOneUserId, groupName, inGroup,
     });
 
     // Read back from PingOne rather than echoing the request. A toggle that

@@ -10,7 +10,7 @@ const request = require('supertest');
 
 jest.mock('../../middleware/agentSessionMiddleware', () => ({
   agentSessionMiddleware: (req, res, next) => {
-    req.agentContext = { userId: 'demoadmin', accessToken: 'tok' };
+    req.agentContext = { userId: 'demoadmin', accessToken: 'tok', tokenEvents: [] };
     next();
   },
 }));
@@ -27,7 +27,13 @@ jest.mock('../../services/appEventService', () => ({ logEvent: jest.fn() }));
 jest.mock('../../services/lmdb/conversationStore.lmdb', () => ({ saveMessage: jest.fn() }));
 jest.mock('../../services/lmdb/reportStore.lmdb', () => ({ saveRun: jest.fn() }));
 
+jest.mock('../../services/agentMcpTokenService', () => ({
+  prependRefreshEvent: (req, events) => events,
+  buildTokenEvent: (id, label, status, decoded, explanation) => ({ id, label, status, claims: decoded?.claims || null, explanation }),
+}));
+
 const adminAgentRoutes = require('../../routes/adminAgentRoutes');
+const { processAdminMessage } = require('../../services/adminAgentService');
 const { checkAccess } = require('../../services/pingOneAdminAccessService');
 
 function buildApp(session) {
@@ -57,4 +63,17 @@ test('an unlinked PingFederate user gets a 403 that names the cause', async () =
 
   expect(res.body).toMatchObject({ error: 'pingone_admin_user_not_linked', success: false });
   expect(res.body.reply).toContain("PingOne has no account with that username");
+});
+
+test('the gate\'s recorded steps reach the run\'s token events', async () => {
+  checkAccess.mockImplementation(async ({ trace }) => {
+    trace.push({ id: 'two-ex-final-token', label: 'Final', status: 'exchanged', decoded: { claims: { aud: 'x' } }, explanation: 'e' });
+    return { allowed: true };
+  });
+  const app = buildApp({ id: 's', oauthProvider: 'pingfederate', user: { username: 'demoadmin' } });
+
+  await request(app).post('/api/admin-agent/message').send({ message: 'list users' }).expect(200);
+
+  const { tokenEvents } = processAdminMessage.mock.calls.at(-1)[0];
+  expect(tokenEvents).toEqual([expect.objectContaining({ id: 'two-ex-final-token', status: 'exchanged', claims: { aud: 'x' } })]);
 });

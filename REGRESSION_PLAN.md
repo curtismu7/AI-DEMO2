@@ -249,6 +249,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-01 — Group panel was not live under PingFederate; PingOne Admin gate left no trace
+
+**Files:** `demo_api_server/routes/groupMembership.js`, `demo_api_server/services/pingOneAdminAccessService.js`, `demo_api_server/routes/adminAgentRoutes.js`, tests `tests/routes/groupMembership.pf.test.js` (new), `tests/routes/adminAgentRoutes.pfProvider.test.js`, `tests/pingOneAdminAccessService.pf.test.js`.
+
+**What was broken:** (1) `/api/groups/membership`, the decision board and `/membership/toggle` used the session subject as a PingOne user id. Under PingFederate that is a username, so the panel read "Source: manifest (not live)" while its own copy promised a live read, and the toggle wrote to `/users/<username>/memberOfGroups`. (2) The PingOne Admin gate ran a two-hop exchange and a PingOne Authorize decision on every prompt but recorded none of it, so the `/admin` token chain showed sign-in and token exchange as "Not in path".
+
+**What changed:** (1) For a PingFederate session the route uses the PingOne account with the same username: its id for the directory calls, its own username for the toggle allowlist. (2) `checkAccess` fills an optional `trace` with the steps it ran, under the existing token-chain event ids (`user-token`, `two-ex-agent-actor`, `two-ex-exchange1`, `two-ex-final-token`, `exchange-failed`), plus `pingone-admin-authorize`; the route turns them into the run's token events.
+
+**Do not break:** No PingOne account for the PingFederate username means no live lookup and no write — never the PingFederate subject as an id. The toggle allowlist is checked against the PingOne username. The gate's trace carries decoded claims only, never a raw token. The gate's decision is unchanged by the trace.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/routes/groupMembership.pf.test.js tests/routes/adminAgentRoutes.pfProvider.test.js tests/pingOneAdminAccessService.pf.test.js tests/pingOneAdminAccessService.test.js --forceExit`.
+
 ### 2026-10-01 — Sign-in modal secondary button was white on white in light theme
 
 **Files:** `demo_api_ui/src/App.css`.
