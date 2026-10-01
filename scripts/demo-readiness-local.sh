@@ -16,7 +16,8 @@ set -euo pipefail
 
 MAIN="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
 ENV_FILE="$MAIN/demo_api_server/.env"
-env_value() { grep -m1 "^$1=" "$2" 2>/dev/null | cut -d= -f2- | sed 's/^"//; s/"$//'; }
+# `|| true`: a setting that is absent is an empty value, not a script failure.
+env_value() { { grep -m1 "^$1=" "$2" 2>/dev/null || true; } | cut -d= -f2- | sed 's/^"//; s/"$//'; }
 
 PINGONE_ENV_ID="$(env_value PINGONE_ENVIRONMENT_ID "$ENV_FILE")"
 PINGONE_REGION="$(env_value PINGONE_REGION "$ENV_FILE")"
@@ -24,9 +25,13 @@ VAULT_PASSWORD_VALUE="$(env_value VAULT_PASSWORD "$ENV_FILE")"
 [ -n "$PINGONE_ENV_ID" ] || { echo "[demo-readiness-local] PINGONE_ENVIRONMENT_ID is not set in demo_api_server/.env" >&2; exit 1; }
 [ -n "$VAULT_PASSWORD_VALUE" ] || { echo "[demo-readiness-local] VAULT_PASSWORD is not set in demo_api_server/.env" >&2; exit 1; }
 
-WORKER_TOKEN="$(VAULT_PASSWORD="$VAULT_PASSWORD_VALUE" VAULT_PATH="$MAIN/secrets.vault" \
-  node "$MAIN/demo_api_server/scripts/vault.js" get DEMO_READINESS_LOCAL_PINGONE_WORKER_TOKEN 2>/dev/null)" \
-  || { echo "[demo-readiness-local] could not read the worker token from the vault" >&2; exit 1; }
+vault_get() {
+  VAULT_PASSWORD="$VAULT_PASSWORD_VALUE" VAULT_PATH="$MAIN/secrets.vault" \
+    node "$MAIN/demo_api_server/scripts/vault.js" get "$1" 2>/dev/null \
+    || { echo "[demo-readiness-local] could not read $1 from the vault" >&2; exit 1; }
+}
+WORKER_TOKEN="$(vault_get DEMO_READINESS_LOCAL_PINGONE_WORKER_TOKEN)"
+PF_WORKER_TOKEN="$(vault_get DEMO_READINESS_LOCAL_PINGFEDERATE_WORKER_TOKEN)"
 
 export DEMO_READINESS_LOCAL_BFF_URL="https://api.ping.demo:3001"
 export DEMO_READINESS_LOCAL_GATEWAY_URL="https://api.ping.demo:3036"
@@ -37,6 +42,11 @@ export DEMO_READINESS_LOCAL_PINGONE_WORKER_TOKEN="$WORKER_TOKEN"
 export DEMO_READINESS_LOCAL_PINGONE_IDENTITY_REF="$(env_value DEMO_READINESS_LOCAL_PINGONE_IDENTITY_REF "$MAIN/.env")"
 : "${DEMO_READINESS_LOCAL_PINGONE_IDENTITY_REF:=readiness-pingone-local}"
 export DEMO_READINESS_LOCAL_PINGONE_IDENTITY_REF
+export DEMO_READINESS_LOCAL_PINGFEDERATE_WORKER_URL="https://api.ping.demo:4445"
+export DEMO_READINESS_LOCAL_PINGFEDERATE_WORKER_TOKEN="$PF_WORKER_TOKEN"
+DEMO_READINESS_LOCAL_PINGFEDERATE_IDENTITY_REF="$(env_value DEMO_READINESS_LOCAL_PINGFEDERATE_IDENTITY_REF "$MAIN/.env")"
+: "${DEMO_READINESS_LOCAL_PINGFEDERATE_IDENTITY_REF:=readiness-pingfederate-local}"
+export DEMO_READINESS_LOCAL_PINGFEDERATE_IDENTITY_REF
 # The local stack's certificates are issued by mkcert's CA.
 export NODE_EXTRA_CA_CERTS="$MAIN/certs/mkcert-rootCA.pem"
 
