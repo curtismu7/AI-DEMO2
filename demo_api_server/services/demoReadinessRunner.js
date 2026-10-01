@@ -3,6 +3,7 @@
 const crypto = require('crypto');
 const { createAuditService } = require('./demoReadinessAuditService');
 const { createPingOneReader, pingOneManagementAccess, managementApiBase } = require('./demoReadinessPingOneReader');
+const { createPingFederateReader } = require('./demoReadinessPingFederateReader');
 const { buildPingGatewayPfExchangeEnv } = require('../scripts/refresh-service-envs');
 const { createRepairService } = require('./demoReadinessRepairService');
 const { createReadinessExecutionService } = require('./demoReadinessExecutionService');
@@ -94,7 +95,10 @@ async function authorizeReadHeaders(authorizeUrl, { env, fetchImpl, signal }) {
 function createDefaultAdapters(clock = Date.now, {
   env = process.env,
   fetchImpl = globalThis.fetch,
-  audit = createAuditService({ adapters: { pingOne: { readConfiguration: createPingOneReader({ env, fetchImpl }) } } }),
+  audit = createAuditService({ adapters: {
+    pingOne: { readConfiguration: createPingOneReader({ env, fetchImpl }) },
+    pingFederate: createPingFederateReader({ env }),
+  } }),
   repairs = createRepairService({ now: () => nowFrom(clock) }),
   execution,
   runtimeConfig = loadDemoReadinessRuntimeConfig(),
