@@ -318,3 +318,34 @@ test('normalizeRun retains an explicit completion separately from the existing u
   assert.equal(run.runCompletedAt, null);
   assert.equal(normalizeRun({ id: 10, run_completed_at: '2026-09-28T10:03:00Z' }).runCompletedAt, '2026-09-28T10:03:00Z');
 });
+
+test('getInsights reads runs and pulls once per cache window and fetches jobs only when main is red', async () => {
+  let clock = Date.parse('2026-10-01T12:00:00Z');
+  const stale = { ...run(41, '2026-10-01T11:50:00Z'), head_branch: 'merged-branch', head_sha: 'aaa' };
+  const redMain = { ...run(39, '2026-10-01T11:00:00Z', 'completed', 'failure'), head_branch: 'main', event: 'push', head_sha: 'bbb', display_title: 'Merge pull request #456 from a/b' };
+  const { spawn, calls } = fakeSpawner(({ args }) => {
+    if (args[0] === 'repo') return { stdout: 'cmuir_pingcorp/AI-DEMO2\n' };
+    const endpoint = args[1];
+    if (endpoint.includes('/actions/runs?per_page=100&page=1')) return { stdout: JSON.stringify({ workflow_runs: [stale, redMain] }) };
+    if (endpoint.includes('/pulls?state=open')) return { stdout: '[]' };
+    if (endpoint.includes('/pulls?state=closed')) return { stdout: JSON.stringify([{ number: 457, head: { ref: 'merged-branch' }, merged_at: '2026-10-01T11:30:00Z' }]) };
+    if (endpoint.endsWith('/39/jobs?per_page=100&page=1')) return { stdout: JSON.stringify({ jobs: [{ id: 1, name: 'API server tests (Jest)', conclusion: 'failure' }, { id: 2, name: 'Gates', conclusion: 'success' }] }) };
+    assert.fail(`unexpected gh api endpoint: ${endpoint}`);
+  });
+  const reader = createGitHubReader({ spawn, now: () => new Date(clock) });
+
+  const insights = await reader.getInsights();
+
+  assert.deepEqual(insights.staleRuns, [{ id: 41, pr: 457, state: 'merged' }]);
+  assert.equal(insights.main.state, 'red');
+  assert.equal(insights.main.firstBad.pr, 456);
+  assert.deepEqual(insights.main.failedJobs, ['API server tests (Jest)']);
+  assert.ok(calls.every((call) => call.command === 'gh' && call.options.shell === false));
+
+  const callsAfterFirst = calls.length;
+  await reader.getInsights();
+  assert.equal(calls.length, callsAfterFirst, 'a second read inside the cache window makes no GitHub calls');
+  clock += 31_000;
+  await reader.getInsights();
+  assert.ok(calls.length > callsAfterFirst, 'the cache expires');
+});
