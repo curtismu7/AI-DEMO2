@@ -34,7 +34,10 @@ WORKER_TOKEN="$(vault_get DEMO_READINESS_LOCAL_PINGONE_WORKER_TOKEN)"
 PF_WORKER_TOKEN="$(vault_get DEMO_READINESS_LOCAL_PINGFEDERATE_WORKER_TOKEN)"
 
 export DEMO_READINESS_LOCAL_BFF_URL="https://api.ping.demo:3001"
-export DEMO_READINESS_LOCAL_GATEWAY_URL="https://api.ping.demo:3036"
+# The MCP route, not the gateway root: the root has no route (404), while /mcp
+# answers 401 without a token — reachable and enforcing, which is what the
+# audit's route probe looks for.
+export DEMO_READINESS_LOCAL_GATEWAY_URL="https://api.ping.demo:3036/mcp"
 export DEMO_READINESS_LOCAL_AUTHORIZE_URL="https://api.pingone.${PINGONE_REGION:-com}/v1/environments/${PINGONE_ENV_ID}/decisionEndpoints"
 export DEMO_READINESS_LOCAL_EXPECTED_REVISION="$(git -C "$MAIN" rev-parse HEAD)"
 export DEMO_READINESS_LOCAL_PINGONE_WORKER_URL="https://api.ping.demo:4444"

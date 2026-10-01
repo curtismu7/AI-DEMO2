@@ -2,7 +2,7 @@
 
 const crypto = require('crypto');
 const { createAuditService } = require('./demoReadinessAuditService');
-const { createPingOneReader } = require('./demoReadinessPingOneReader');
+const { createPingOneReader, pingOneManagementAccess, managementApiBase } = require('./demoReadinessPingOneReader');
 const { buildPingGatewayPfExchangeEnv } = require('../scripts/refresh-service-envs');
 const { createRepairService } = require('./demoReadinessRepairService');
 const { createReadinessExecutionService } = require('./demoReadinessExecutionService');
@@ -78,6 +78,19 @@ function pfExchangeExpectation(env) {
   }
 }
 
+// The declared Authorize URL is a PingOne Management API read, which answers 401
+// without a bearer. Send one only to this environment's own API, never to
+// whatever host a target setting names.
+async function authorizeReadHeaders(authorizeUrl, { env, fetchImpl, signal }) {
+  const base = managementApiBase(env);
+  if (!base || !String(authorizeUrl || '').startsWith(base + '/')) return undefined;
+  try {
+    return { Authorization: 'Bearer ' + (await pingOneManagementAccess({ env, fetchImpl, signal })).token };
+  } catch {
+    return undefined; // the read then reports its own failure
+  }
+}
+
 function createDefaultAdapters(clock = Date.now, {
   env = process.env,
   fetchImpl = globalThis.fetch,
@@ -101,11 +114,13 @@ function createDefaultAdapters(clock = Date.now, {
       for (const targetId of targets) {
         if (nowFrom(clock) >= deadlineAt || signal?.aborted) break;
         const target = runtimeConfig.targets[targetId];
+        const headers = target && await authorizeReadHeaders(target.authorizeUrl, { env, fetchImpl, signal });
         const runtime = target ? {
           bffUrl: target.bffUrl,
           gatewayUrl: target.gatewayUrl,
           authorizeUrl: target.authorizeUrl,
           expectedRevision: target.expectedRevision,
+          ...(headers && { headers }),
         } : {};
         rows.push(...await audit.auditTarget({
           targetId,

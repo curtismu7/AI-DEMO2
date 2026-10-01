@@ -124,6 +124,34 @@ describe('startReadinessRun', () => {
     expect(JSON.stringify(auditTarget.mock.calls)).not.toContain(runtimeConfig.targets.se.workers.pingone.token);
   });
 
+  describe('authorize read bearer', () => {
+    const env = { PINGONE_ENVIRONMENT_ID: 'env-1', PINGONE_WORKER_CLIENT_ID: 'worker', PINGONE_WORKER_CLIENT_SECRET: 'worker-secret' };
+    const tokenFetch = () => jest.fn(async () => ({ ok: true, status: 200, json: async () => ({ access_token: 'mgmt-token' }) }));
+    const runtimeFor = async (authorizeUrl, fetchImpl) => {
+      const runtimeConfig = configuredRuntime();
+      runtimeConfig.targets.local.authorizeUrl = authorizeUrl;
+      const auditTarget = jest.fn(async () => []);
+      await createDefaultAdapters(Date.now, { runtimeConfig, audit: { auditTarget }, fetchImpl, env })
+        .audit({ targets: ['local'], deadlineAt: Date.now() + 5_000, phase: 'initial' });
+      return auditTarget.mock.calls[0][0].targetConfig.runtime;
+    };
+
+    test('is sent when the Authorize URL is this environment\'s own Management API', async () => {
+      const runtime = await runtimeFor('https://api.pingone.com/v1/environments/env-1/decisionEndpoints', tokenFetch());
+      expect(runtime.headers).toEqual({ Authorization: 'Bearer mgmt-token' });
+    });
+
+    test('is never requested or sent for any other host or environment', async () => {
+      for (const url of ['https://evil.example/v1/environments/env-1/decisionEndpoints',
+        'https://api.pingone.com/v1/environments/env-2/decisionEndpoints',
+        'https://api.pingone.com/v1/environments/env-1-other/decisionEndpoints']) {
+        const fetchImpl = tokenFetch();
+        expect(await runtimeFor(url, fetchImpl)).not.toHaveProperty('headers');
+        expect(fetchImpl).not.toHaveBeenCalled();
+      }
+    });
+  });
+
   test('the local audit receives the Gateway Exchange #3 expectation the env generator would write', async () => {
     const auditTarget = jest.fn(async () => []);
     const adapters = createDefaultAdapters(Date.now, {
