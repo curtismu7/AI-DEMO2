@@ -149,6 +149,12 @@ services:
       - readiness-bff-pingfederate-data:/app/data/persistent
     environment:
       OAUTH_PROVIDER: pingfederate
+      # Both lanes share the presenter's PingGateway. Its introspection route
+      # asks PingOne, which rejects a PingFederate-issued token (401
+      # invalid_token on every tool step). Its JWKS route verifies the token
+      # locally against the issuer named in the token, and PF_ISSUER_URI is
+      # already configured there, so this lane asks for that route.
+      FF_MCP_GATEWAY_JWKS: "true"
       PUBLIC_APP_URL: "https://readiness-bff-pingfederate:3001"
       PINGONE_PUBLIC_APP_URL: "https://readiness-bff-pingfederate:3001"
       PF_USER_REDIRECT_URI: "https://readiness-bff-pingfederate:3001/api/auth/oauth/user/callback"
