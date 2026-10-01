@@ -276,3 +276,31 @@ test('server refuses a non-loopback bind address', () => {
     /127\.0\.0\.1/,
   );
 });
+
+test('GET /api/insights serves injected insights, hides provider errors, and is optional', async (t) => {
+  let fail = false;
+  const insights = { staleRuns: [{ id: 1, pr: 2, state: 'merged' }], host: { load1: 3, cores: 8, top: [] } };
+  const server = createDashboardServer({
+    getSnapshot: async () => ({}),
+    getInsights: async () => {
+      if (fail) throw Object.assign(new Error('token=private-value'), { code: 'GH_API' });
+      return insights;
+    },
+  });
+  const baseUrl = await listen(server);
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const ok = await fetch(`${baseUrl}/api/insights`);
+  assert.equal(ok.status, 200);
+  assert.deepEqual(await ok.json(), insights);
+
+  fail = true;
+  const failed = await fetch(`${baseUrl}/api/insights`);
+  assert.equal(failed.status, 502);
+  assert.doesNotMatch(JSON.stringify(await failed.json()), /private-value/);
+
+  const bare = createDashboardServer({ getSnapshot: async () => ({}) });
+  const bareUrl = await listen(bare);
+  t.after(() => new Promise((resolve) => bare.close(resolve)));
+  assert.equal((await fetch(`${bareUrl}/api/insights`)).status, 503);
+});
