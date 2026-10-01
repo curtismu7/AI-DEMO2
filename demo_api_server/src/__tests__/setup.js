@@ -18,6 +18,20 @@ process.env.OAUTH_CLIENT_ID = 'test-client-id';
 process.env.OAUTH_CLIENT_SECRET = 'test-client-secret';
 process.env.OAUTH_ISSUER = 'https://auth.pingone.com/test-env';
 
+// ── One retry, on GitHub Actions only ────────────────────────────────────────
+// The shared self-hosted runner is routinely at 0% idle CPU. Under that load a
+// loopback request between supertest and its ephemeral server dies with
+// `read ECONNRESET` / `socket hang up` — a different handful of suites each
+// run, all green alone (2026-10-01: 5 suites, then 3 others, out of ~13,100
+// tests). Each one failed the whole 8-minute job and cost a full re-run.
+// The first failure is still printed (logErrorsBeforeRetry), so a test that
+// needs its retry is visible in the log, not hidden. Local runs are not
+// retried: `CI=true` alone does not enable this.
+// ponytail: retries every failure, not only socket errors (jest cannot filter
+// by error). If a real intermittent bug starts hiding here, count retried
+// tests in the reporter and fail the job above a small threshold.
+if (process.env.GITHUB_ACTIONS === 'true') jest.retryTimes(1, { logErrorsBeforeRetry: true });
+
 // ── No real outbound network from a unit test ────────────────────────────────
 // Measured 2026-09-09 over one full in-band run: the suite made ~4,000 real
 // outbound connection attempts — 1,801 ENOTFOUND, 1,991 UND_ERR_SOCKET, 185
