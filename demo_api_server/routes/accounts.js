@@ -78,6 +78,14 @@ function requireAdminRole(req, res, next) {
   next();
 }
 
+// Same gate with the shorter body POST /reset-all-demo has always returned.
+function requireAdminRoleForReset(req, res, next) {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin role required.' });
+  }
+  next();
+}
+
 // Get all accounts (admin only)
 router.get('/', authenticateToken, requireScopes(['read']), requireAdminRole, async (req, res) => {
   try {
@@ -327,11 +335,8 @@ router.post('/reset-demo', authenticateToken, async (req, res) => {
 });
 
 // Admin: reset ALL demo-provisioned OAuth accounts back to $5,000 starting balances
-router.post('/reset-all-demo', authenticateToken, requireScopes(['write']), async (req, res) => {
+router.post('/reset-all-demo', authenticateToken, requireScopes(['write']), requireAdminRoleForReset, async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Admin role required.' });
-    }
     // Find all OAuth-provisioned accounts (deterministic IDs start with chk- or sav-)
     const allAccounts = dataStore.getAllAccounts();
     const demoAccounts = allAccounts.filter(a => a.id.startsWith('chk-') || a.id.startsWith('sav-'));
@@ -354,13 +359,8 @@ router.post('/reset-all-demo', authenticateToken, requireScopes(['write']), asyn
 });
 
 // Get account by ID (admin only)
-router.get('/:id', authenticateToken, requireScopes(['read']), async (req, res) => {
+router.get('/:id', authenticateToken, requireScopes(['read']), requireAdminRole, async (req, res) => {
   try {
-    // Check if user is admin
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Access denied. Admin role required.' });
-    }
-    
     const account = dataStore.getAccountById(req.params.id);
     if (!account) {
       return res.status(404).json({ error: 'Account not found' });
@@ -403,13 +403,8 @@ router.get('/:id/balance', authenticateToken, requireScopes(['read']), async (re
 });
 
 // Create new account (admin only)
-router.post('/', blockInDemoMode('account creation'), authenticateToken, requireScopes(['write']), requireNotBankDelegate('account creation'), async (req, res) => {
+router.post('/', blockInDemoMode('account creation'), authenticateToken, requireScopes(['write']), requireNotBankDelegate('account creation'), requireAdminRole, async (req, res) => {
   try {
-    // Check if user is admin
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Access denied. Admin role required.' });
-    }
-
     const account = await dataStore.createAccount(req.body);
     // Save snapshot for cold-start recovery
     await saveAccountSnapshot(account.userId);
@@ -421,13 +416,8 @@ router.post('/', blockInDemoMode('account creation'), authenticateToken, require
 });
 
 // Update account (admin only)
-router.put('/:id', blockInDemoMode('account update'), authenticateToken, requireScopes(['write']), requireNotBankDelegate('account update'), async (req, res) => {
+router.put('/:id', blockInDemoMode('account update'), authenticateToken, requireScopes(['write']), requireNotBankDelegate('account update'), requireAdminRole, async (req, res) => {
   try {
-    // Check if user is admin
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Access denied. Admin role required.' });
-    }
-
     const account = await dataStore.updateAccount(req.params.id, req.body);
     if (!account) {
       return res.status(404).json({ error: 'Account not found' });
@@ -442,13 +432,8 @@ router.put('/:id', blockInDemoMode('account update'), authenticateToken, require
 });
 
 // Delete account (admin only)
-router.delete('/:id', blockInDemoMode('account deletion'), authenticateToken, requireScopes(['write']), requireNotBankDelegate('account deletion'), async (req, res) => {
+router.delete('/:id', blockInDemoMode('account deletion'), authenticateToken, requireScopes(['write']), requireNotBankDelegate('account deletion'), requireAdminRole, async (req, res) => {
   try {
-    // Check if user is admin
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Access denied. Admin role required.' });
-    }
-
     // Get account before deletion to know which user to update snapshot for
     const account = dataStore.getAccountById(req.params.id);
     const deleted = await dataStore.deleteAccount(req.params.id);

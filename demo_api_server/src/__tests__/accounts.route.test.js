@@ -187,6 +187,7 @@ describe('GET /api/accounts/:id — get by ID', () => {
     const app = buildApp();
     const res = await request(app).get('/api/accounts/acct-1').set('x-test-user', userHeader());
     expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: 'Access denied. Admin role required.' });
   });
 });
 
@@ -247,6 +248,7 @@ describe('POST /api/accounts — create account', () => {
       .set('x-test-user', userHeader())
       .send({ userId: 'user-1', accountType: 'savings' });
     expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: 'Access denied. Admin role required.' });
   });
 
   it('returns 403 in demo mode', async () => {
@@ -281,6 +283,7 @@ describe('PUT /api/accounts/:id — update account', () => {
       .set('x-test-user', userHeader())
       .send({ name: 'hacked' });
     expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: 'Access denied. Admin role required.' });
   });
 
   it('returns 404 for unknown account', async () => {
@@ -309,6 +312,7 @@ describe('DELETE /api/accounts/:id — delete account', () => {
     const app = buildApp();
     const res = await request(app).delete('/api/accounts/acct-1').set('x-test-user', userHeader());
     expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: 'Access denied. Admin role required.' });
   });
 
   it('returns 404 for unknown account', async () => {
@@ -343,5 +347,6 @@ describe('POST /api/accounts/reset-all-demo — admin reset all', () => {
     const app = buildApp();
     const res = await request(app).post('/api/accounts/reset-all-demo').set('x-test-user', userHeader());
     expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: 'Admin role required.' });
   });
 });

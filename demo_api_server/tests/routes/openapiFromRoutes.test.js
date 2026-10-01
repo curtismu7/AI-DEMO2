@@ -63,6 +63,30 @@ describe('auth inference', () => {
     expect(spec.paths['/api/accounts'].get.security).toEqual([{ admin: [] }]);
   });
 
+  test.each([
+    ['get', '/api/accounts/{id}'],
+    ['put', '/api/accounts/{id}'],
+    ['delete', '/api/accounts/{id}'],
+    ['post', '/api/accounts'],
+    ['post', '/api/accounts/reset-all-demo'],
+  ])('%s %s reports admin now that its inline role check is a named guard', (verb, path) => {
+    // Each was `if (<user>.role !== 'admin') return res.status(403)...` as the
+    // handler's first statement and reported session-only. POST /api/accounts
+    // already read admin, but only because express-list-endpoints merges a
+    // path's middleware across methods and GET / carried the guard.
+    expect(spec.paths[path][verb].security).toEqual([{ admin: [] }]);
+  });
+
+  test('a per-path merge does not promote customer routes that share a router with admin ones', () => {
+    // security is computed per PATH, not per method. A guard on one verb marks
+    // every verb on that path, which is why the admin-only verbs on
+    // /api/transactions and /api/transactions/{id} still use inline checks:
+    // naming them would document customer POST and owner GET as admin-only.
+    expect(spec.paths['/api/transactions'].post.security).toEqual([{ session: [] }]);
+    expect(spec.paths['/api/transactions/{id}'].get.security).toEqual([{ session: [] }]);
+    expect(spec.paths['/api/accounts/{id}/balance'].get.security).toEqual([{ session: [] }]);
+  });
+
   test('a mount-level requireAdmin gate is reported as admin', () => {
     // /api/admin/mgmt-api is gated ONLY by app.use(..., requireAdmin, ...).
     // Verified by disabling collectMountGates: this goes red with

@@ -37,6 +37,7 @@ const AUTH_MIDDLEWARE = {
     requireAdminWrite: 'admin',
     requireAdminOrUnconfigured: 'admin',
     requireAdminRole: 'admin',
+    requireAdminRoleForReset: 'admin',
 };
 
 const SECURITY_SCHEMES = {
