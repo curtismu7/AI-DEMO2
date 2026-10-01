@@ -234,7 +234,15 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
 
       // UC38 requires MFA — acr claim set by PingOne when acr_values was honoured.
       const tokenAcr = req.user.acr || '';
-      const hasMfa = /multi.factor|multi_factor|mfa/i.test(String(tokenAcr));
+      // In-app MFA (routes/mfa.js) proves the same thing without a new sign-in:
+      // it sets a short-lived session marker only after PingOne reports the
+      // challenge COMPLETED. A passkey registered for this app's domain works
+      // there and cannot work on PingOne's hosted page. Single use, as in
+      // routes/transactions.js.
+      const sessionMfaFresh = !/multi.factor|multi_factor|mfa/i.test(String(tokenAcr))
+        && req.session?.stepUpVerified > Date.now();
+      if (sessionMfaFresh) req.session.stepUpVerified = 0;
+      const hasMfa = sessionMfaFresh || /multi.factor|multi_factor|mfa/i.test(String(tokenAcr));
       if ((requestedUseCaseId === 'personal-agent-concierge' || requestedUseCaseId === 'saas-embedded-worker') && !hasMfa) {
         const stepUpAcr = configStore.getEffective('stepUpAcrValue') || 'Multi_Factor';
         appEventService.logEvent('personal_agent', 'info', 'UC38: MFA step-up required before delegation',

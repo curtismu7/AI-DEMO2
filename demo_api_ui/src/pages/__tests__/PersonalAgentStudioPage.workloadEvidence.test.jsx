@@ -88,22 +88,34 @@ describe('PersonalAgentStudioPage workload evidence', () => {
     expect(tokenChainTraceStore.getState().trace.tokenEvents.map((event) => event.id)).toContain('mcp-exchange');
   });
 
-  it('offers MFA step-up when the BFF answers 200 with step_up_required', async () => {
-    vi.stubGlobal('fetch', vi.fn((url) => Promise.resolve(url === '/api/agent/invoke'
+  it('opens the in-app MFA challenge when the BFF answers 200 with step_up_required', async () => {
+    const fetchMock = vi.fn((url) => Promise.resolve(url === '/api/agent/invoke'
       ? { ok: true, status: 200, json: async () => ({ success: false, step_up_required: true, reply: 'Please complete multi-factor authentication.' }) }
-      : { ok: false, status: 401, json: async () => ({}) })));
-    const assign = vi.fn();
-    vi.stubGlobal('location', { ...window.location, assign });
+      : url === '/api/auth/mfa/challenge'
+        ? { ok: true, status: 200, json: async () => ({ daId: 'da-1', devices: [] }) }
+        : { ok: false, status: 401, json: async () => ({}) }));
+    vi.stubGlobal('fetch', fetchMock);
     renderWorkload();
-    expect(screen.queryByRole('button', { name: /Verify with MFA/ })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Run UC44 action' }));
     // The prompt is a modal so it cannot be missed; "Not now" leaves the inline button.
     expect(await screen.findByText('MFA required')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
     await waitFor(() => expect(screen.queryByText('MFA required')).toBeNull());
     fireEvent.click(screen.getByRole('button', { name: 'Verify with MFA and run again' }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/auth/mfa/challenge', expect.objectContaining({ method: 'POST' })));
+  });
+
+  it('falls back to the hosted step-up when the in-app challenge cannot start', async () => {
+    vi.stubGlobal('fetch', vi.fn((url) => Promise.resolve(url === '/api/agent/invoke'
+      ? { ok: true, status: 200, json: async () => ({ success: false, step_up_required: true, reply: 'Please complete multi-factor authentication.' }) }
+      : { ok: false, status: 500, json: async () => ({}) })));
+    const assign = vi.fn();
+    vi.stubGlobal('location', { ...window.location, assign });
+    renderWorkload();
+    fireEvent.click(screen.getByRole('button', { name: 'Run UC44 action' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Verify with MFA' }));
     // An absolute same-origin URL: the BFF drops the query from a bare path and falls back to /dashboard.
-    expect(assign).toHaveBeenCalledWith(expect.stringMatching(/^\/api\/auth\/oauth\/user\/stepup\?return_to=http/));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith(expect.stringMatching(/^\/api\/auth\/oauth\/user\/stepup\?return_to=http/)));
   });
 
   it('keeps token evidence from a structured HTTP error response', async () => {

@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import apiClient from '../services/apiClient';
 import AgentClientSkin from '../components/AgentClientSkin';
 import ConfirmModal from '../components/ConfirmModal';
+import OtpStepUpModal from '../components/OtpStepUpModal';
 import PersonalAgentClientCards from '../components/learning/PersonalAgentClientCards';
 import SecurityRail from '../components/SecurityRail';
 import TokenChainFilmstrip from '../components/TokenChainFilmstrip';
@@ -77,6 +78,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
   const [catalogLoadError, setCatalogLoadError] = useState(null);
   const [catalogLoadAttempt, setCatalogLoadAttempt] = useState(0);
   const [runState, setRunState] = useState({ status: 'idle', text: '' });
+  const [mfaChallenge, setMfaChallenge] = useState(null);
   const [layoutState, setLayoutState] = useState('full');
   const [activeSkin, setActiveSkin] = useState('privilege');
   const [theme, setTheme] = useState('dark');
@@ -197,8 +199,27 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
     });
   }
 
-  // An absolute same-origin URL: the BFF drops the query from a bare path.
-  const startStepUp = () => window.location.assign(`/api/auth/oauth/user/stepup?return_to=${encodeURIComponent(`${window.location.origin}${location.pathname}${location.search}`)}`);
+  // Fallback only: PingOne's hosted page. An absolute same-origin URL, because
+  // the BFF drops the query from a bare path.
+  const hostedStepUp = () => window.location.assign(`/api/auth/oauth/user/stepup?return_to=${encodeURIComponent(`${window.location.origin}${location.pathname}${location.search}`)}`);
+  // In-app MFA: a passkey registered for this app's domain works here and
+  // cannot work on PingOne's hosted page.
+  const startChallenge = async () => {
+    const response = await fetch('/api/auth/mfa/challenge', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' } });
+    if (!response.ok) throw new Error(`MFA initiation failed: ${response.status}`);
+    const { daId, devices } = await response.json();
+    const challenge = { daId, devices: devices || [] };
+    setMfaChallenge(challenge);
+    return challenge;
+  };
+  const startStepUp = () => {
+    setRunState((state) => ({ ...state, prompt: false }));
+    startChallenge().catch(hostedStepUp);
+  };
+  const finishStepUp = () => {
+    setMfaChallenge(null);
+    executeWorkload(workloadScenario);
+  };
 
   const layout = LAYOUT_STYLES[layoutState] || LAYOUT_STYLES.full;
   const workloadGates = workloadScenario && gates.map((gate, index) => {
@@ -237,6 +258,18 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
         cancelLabel="Not now"
         onConfirm={startStepUp}
         onCancel={() => setRunState((state) => ({ ...state, prompt: false }))}
+      />
+      <OtpStepUpModal
+        show={Boolean(mfaChallenge)}
+        mode="p1mfa"
+        allowFido
+        contextLine={`${workloadScenario.id}: ${workloadScenario.runPrompt}`}
+        daId={mfaChallenge?.daId}
+        devices={mfaChallenge?.devices}
+        onP1MfaComplete={finishStepUp}
+        onPasskeyRegistered={startChallenge}
+        onSubmit={() => {}}
+        onCancel={() => setMfaChallenge(null)}
       />
       <SecurityRail gates={workloadGates} actClaim={actClaim} tokenEvents={events} />
       {/* The filmstrip's two halves place themselves by grid-area name. */}
