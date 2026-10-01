@@ -1,12 +1,29 @@
-# Demo-readiness lane runtime — LOCAL target, PINGONE lane. Opt-in overlay:
+# Demo-readiness lane runtime — LOCAL target. Opt-in, PINGONE + PINGFEDERATE lanes.
 #
-#   docker compose -f docker-compose.yml -f docker-compose.readiness.yml \
+# Run it as its OWN compose project, NOT merged into the presenter's project:
+#
+#   docker compose -p ai-demo-readiness -f docker-compose.readiness.yml \
 #     up -d readiness-bff-pingone readiness-worker-pingone
 #
-# (run from the main checkout with --project-directory pointing at it; never
-# from a worktree — see CLAUDE.md "Working practice").
+# WHY a separate project (-p ai-demo-readiness) and NOT `-f docker-compose.yml
+# -f docker-compose.readiness.yml`: when the lanes lived in the shared `ai-demo`
+# project, every lane `up`/`down` reconciled that project's networking and
+# OrbStack reassigned the PRESENTER's published :3001 forward to a lane BFF — so
+# host api.ping.demo:3001 (and the UI, via its proxy) silently answered from the
+# wrong BFF with the wrong oauth_provider (a login provider that "reverts"). The
+# published-port guard (`ports: !reset []`) and alias guard (`networks:
+# !override`) were already correct and applied — the collision was the shared
+# PROJECT being reconciled, not a per-service misconfig. A separate project that
+# attaches to the presenter's network as `external` (see networks: below) never
+# touches the presenter's services or ports, so it cannot steal :3001.
 #
-# Why two services: the BFF's OAuth provider is process-wide, so each
+# Run from the main checkout (it has the gitignored env_file + certs + vault);
+# never from a worktree — see CLAUDE.md "Working practice".
+#
+# BOTH lanes below (pingone and pingfederate) follow this separate-project +
+# external-network shape. Any new lane MUST too, or it reintroduces the collision.
+#
+# Why two services per lane: the BFF's OAuth provider is process-wide, so each
 # target/provider lane needs its OWN BFF with its OWN cookie/session store, and
 # the presenter BFF (demo-api-server) must never be reconfigured. The worker
 # owns the lane identity and talks only to its lane BFF.
@@ -37,6 +54,11 @@ services:
       - "local.ping-devops.com:host-gateway"
     networks: !override
       ai-demo: {}
+    # !override, not merge: `extends` carries the presenter's depends_on
+    # (mcp-server, jaeger, mcp-discovery-agent) which live in the presenter's
+    # project, not this one. The lane reaches them over the external network at
+    # runtime; waiting on them here would fail as "undefined service".
+    depends_on: !override []
     volumes:
       - readiness-bff-pingone-data:/app/data/persistent
     environment:
@@ -119,6 +141,10 @@ services:
       - "local.ping-devops.com:host-gateway"
     networks: !override
       ai-demo: {}
+    # See readiness-bff-pingone: clear the extends-inherited depends_on so this
+    # lane resolves as its own project (its deps run in the presenter project and
+    # are reached over the external network at runtime).
+    depends_on: !override []
     volumes:
       - readiness-bff-pingfederate-data:/app/data/persistent
     environment:
@@ -175,6 +201,32 @@ services:
       retries: 3
       start_period: 10s
 
+networks:
+  # Attach to the presenter's EXISTING network without owning it. `external: true`
+  # means this project joins the network and never creates or reconciles it —
+  # the crux of not disturbing the presenter's published ports. `name` is the
+  # presenter's network as Docker actually names it: compose project `ai-demo`
+  # (how run-docker.sh / run.sh bring up the stack) → network `ai-demo_ai-demo`.
+  # If the presenter runs under a different project name, update this.
+  ai-demo:
+    external: true
+    name: ai-demo_ai-demo
+
 volumes:
+  # Lane-private LMDB + sessions (never share the presenter's ai-demo-bff-data).
   readiness-bff-pingone-data:
   readiness-bff-pingfederate-data:
+  # The lane BFFs `extends` the presenter, which mounts these named volumes.
+  # Standalone (no docker-compose.yml merged) they are not declared elsewhere, so
+  # reuse the presenter's existing volumes by their Docker names rather than
+  # creating empty project-prefixed copies. spiffe is inert here (ff_spiffe_*
+  # off), but the mounts must still resolve.
+  spiffe-agent-socket:
+    external: true
+    name: ai-demo_spiffe-agent-socket
+  spiffe-bff-output:
+    external: true
+    name: ai-demo_spiffe-bff-output
+  ai-demo-bff-data:
+    external: true
+    name: ai-demo_ai-demo-bff-data
