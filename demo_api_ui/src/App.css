@@ -2038,20 +2038,6 @@
   color: var(--th-text);
 }
 
-/* The interrupt lives inside DraggableModal's dark footer. Keep its secondary
-   action on the same quiet control surface in both themes instead of relying
-   on a transparent button over a theme-dependent footer. */
-.signin-modal .signin-prompt__btn--ghost {
-  background: var(--modal-btn-bg);
-  border-color: var(--modal-btn-bg-hover);
-  color: var(--modal-header-text);
-}
-
-.signin-modal .signin-prompt__btn--ghost:hover {
-  background: var(--modal-btn-bg-hover);
-  color: var(--modal-header-text);
-}
-
 /* Strip: same design as the card, for content that still renders below it.
    One colour for every sign-in surface — never the red/orange error palette,
    because needing to sign in is not a failure. */

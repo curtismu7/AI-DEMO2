@@ -228,6 +228,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-01 — Sign-in modal secondary button was white on white in light theme
+
+**Files:** `demo_api_ui/src/App.css`.
+
+**What was broken:** `.signin-modal .signin-prompt__btn--ghost` forced white text on a translucent-white fill, on the stated assumption that the modal footer is dark. The footer follows the theme, so in light theme the session-expired modal's Dismiss button and the pi.flow modal's Cancel button were white on a near-white footer (measured 1.0:1) and effectively invisible. Dark theme was fine (17.9:1). REGRESSION_PLAN §0 forbids low-contrast text in modals.
+
+**What changed:** Deleted the two override rules (base and `:hover`). The base `.signin-prompt__btn--ghost` rule directly above them already uses theme tokens (`--th-text`, `--th-border-strong`, `--th-bg-hover`) and is correct in both themes. Measured live after the change: 17.1:1 light and 17.9:1 dark for both modals.
+
+**Do not break:** Keep the ghost button's ink and ground drawn from theme tokens, never a fixed white-on-translucent pair, and do not assume a modal footer's theme. The pi.flow modal on PR #468 carries its own `.pi-flow-signin` ghost override that is now redundant and can be dropped when it merges.
+
+**Verify:** `cd demo_api_ui && npx vitest run src/components/__tests__/themingRatchet.test.js src/components/__tests__/SessionReauthBanner.test.jsx src/components/__tests__/PiFlowSignInModal.test.jsx && npm run build`.
+
 ### 2026-10-01 — P1/PF toggle did not show which provider was selected
 
 **Files:** `demo_api_ui/src/components/OAuthProviderToggle.css`.
