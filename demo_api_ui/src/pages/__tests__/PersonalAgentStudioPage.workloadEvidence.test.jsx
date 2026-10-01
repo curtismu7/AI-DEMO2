@@ -98,7 +98,8 @@ describe('PersonalAgentStudioPage workload evidence', () => {
     expect(screen.queryByRole('button', { name: /Verify with MFA/ })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Run UC44 action' }));
     fireEvent.click(await screen.findByRole('button', { name: /Verify with MFA/ }));
-    expect(assign).toHaveBeenCalledWith(expect.stringMatching(/^\/api\/auth\/oauth\/user\/stepup\?return_to=/));
+    // An absolute same-origin URL: the BFF drops the query from a bare path and falls back to /dashboard.
+    expect(assign).toHaveBeenCalledWith(expect.stringMatching(/^\/api\/auth\/oauth\/user\/stepup\?return_to=http/));
   });
 
   it('keeps token evidence from a structured HTTP error response', async () => {

@@ -223,7 +223,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
       <button type="button" onClick={() => window.open(`/personal-agent/client?skin=${activeSkin}&theme=${theme}&useCase=${workloadScenario.id}&vertical=${encodeURIComponent(vertical)}`, '_blank', 'width=480,height=700,left=200,top=100,resizable=yes')}>🪟 Open client window</button>
       <p role="status" className="workload-agents__status">{runState.status === 'running' ? 'Running the selected action…' : runState.text || 'Ready to run the selected catalog action.'}</p>
       {runState.status === 'step-up' && (
-        <button type="button" onClick={() => window.location.assign(`/api/auth/oauth/user/stepup?return_to=${encodeURIComponent(`${location.pathname}${location.search}`)}`)}>Verify with MFA and run again</button>
+        <button type="button" onClick={() => window.location.assign(`/api/auth/oauth/user/stepup?return_to=${encodeURIComponent(`${window.location.origin}${location.pathname}${location.search}`)}`)}>Verify with MFA and run again</button>
       )}
       <SecurityRail gates={workloadGates} actClaim={actClaim} tokenEvents={events} />
       {/* The filmstrip's two halves place themselves by grid-area name. */}
