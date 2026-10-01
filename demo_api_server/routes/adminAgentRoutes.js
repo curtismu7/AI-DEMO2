@@ -7,7 +7,7 @@ const { requestEventEmitterMiddleware } = require('../services/requestEventEmitt
 const { processAdminMessage } = require('../services/adminAgentService');
 const { buildAdminToolSchemas } = require('../config/admin/tools');
 const appEventService = require('../services/appEventService');
-const { prependRefreshEvent } = require('../services/agentMcpTokenService');
+const { prependRefreshEvent, buildTokenEvent } = require('../services/agentMcpTokenService');
 const conversationStore = require('../services/lmdb/conversationStore.lmdb');
 const reportStore = require('../services/lmdb/reportStore.lmdb');
 const pingOneAdminAccessService = require('../services/pingOneAdminAccessService');
@@ -17,7 +17,9 @@ router.use(agentSessionMiddleware);
 router.use(requestEventEmitterMiddleware);
 
 async function requirePingOneAdminGroup(req, res, response = {}) {
+  const trace = [];
   const access = await pingOneAdminAccessService.checkAccess({
+    trace,
     username: req.session?.user?.username || null,
     pingOneUserId: req.agentContext?.userId || null,
     accessToken: req.agentContext?.accessToken || null,
@@ -25,6 +27,15 @@ async function requirePingOneAdminGroup(req, res, response = {}) {
     // 'pingone_sso' on the user whichever provider signed them in.
     oauthProvider: req.session?.oauthProvider || req.session?.user?.oauthProvider || null,
   });
+  // The gate's exchange and decision are part of this run; without them the
+  // token chain showed sign-in and token exchange as "not in path".
+  if (Array.isArray(req.agentContext?.tokenEvents)) {
+    for (const step of trace) {
+      req.agentContext.tokenEvents.push(
+        buildTokenEvent(step.id, step.label, step.status, step.decoded, step.explanation),
+      );
+    }
+  }
   if (access.allowed) return true;
 
   const lookupUnavailable = access.status === 503;

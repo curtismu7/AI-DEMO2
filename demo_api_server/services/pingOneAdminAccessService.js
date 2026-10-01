@@ -13,7 +13,15 @@ const { fetchPingOneUserByUsername } = require('./pingOneUserLookupService');
 const VERTICAL_ID = 'pingone-admin';
 const GROUP_CATEGORY = 'privileged';
 
-async function checkAccess({ username, pingOneUserId, accessToken, oauthProvider }) {
+/**
+ * @param {Array} [p.trace] Filled with { id, label, status, decoded, explanation }
+ *   for each step the gate really ran, using the token-chain event ids, so the
+ *   caller can show the exchange and the decision instead of leaving them blank.
+ */
+async function checkAccess({ username, pingOneUserId, accessToken, oauthProvider, trace = [] }) {
+  const note = (id, label, status, token, explanation) => trace.push({
+    id, label, status, decoded: token ? decodeJwt(token) : null, explanation,
+  });
   const viaPingFederate = oauthProvider === 'pingfederate';
   // The session token's own subject; under PingFederate that is a PingFederate
   // username, which the exchanged token must still carry.
@@ -91,6 +99,10 @@ async function checkAccess({ username, pingOneUserId, accessToken, oauthProvider
   // docs/superpowers/specs/2026-08-10-pingone-admin-real-p1az-design.md.
   const intermediateAud = configStore.getEffective('ai_agent_intermediate_audience');
   const mcpResourceUri = resolveExpectedMcpResourceUri();
+  const issuer = viaPingFederate ? 'PingFederate' : 'PingOne';
+  note('user-token', 'User access token', 'active', accessToken,
+    `The admin's own ${issuer} session token — the subject of exchange #1.`);
+  let hop1Token;
   let finalToken;
   try {
     if (viaPingFederate) {
@@ -102,7 +114,9 @@ async function checkAccess({ username, pingOneUserId, accessToken, oauthProvider
         || configStore.getEffective('pinggateway_invoke_scope')
         || 'gateway:mcp:invoke'];
       const agentActorToken = await pfExchange.getActorToken(pf, 'agent');
-      const hop1Token = await pfExchange.performExchange(
+      note('two-ex-agent-actor', '2-Exchange #1 — AI Agent Actor Token (CC)', 'active', agentActorToken,
+        'The AI Agent client\'s own client-credentials token, used as actor_token in exchange #1.');
+      hop1Token = await pfExchange.performExchange(
         pf, 'agent', accessToken, agentActorToken, pf.intermediateAudience, [pf.agentActorScope],
       );
       const mcpActorToken = await pfExchange.getActorToken(pf, 'mcp');
@@ -115,7 +129,7 @@ async function checkAccess({ username, pingOneUserId, accessToken, oauthProvider
     } else {
       const aiAgentActorClientId = configStore.getEffective('pingone_ai_agent_actor_client_id');
       const aiAgentActorClientSecret = configStore.getEffective('pingone_ai_agent_actor_client_secret');
-      const hop1Token = await oauthService.performTokenExchangeAs(
+      hop1Token = await oauthService.performTokenExchangeAs(
         accessToken, null, aiAgentActorClientId, aiAgentActorClientSecret,
         intermediateAud, ['read'], 'post',
       );
@@ -128,6 +142,8 @@ async function checkAccess({ username, pingOneUserId, accessToken, oauthProvider
       );
     }
   } catch (err) {
+    note('exchange-failed', 'Token exchange failed', 'failed', null,
+      `The PingOne Admin gate could not exchange the admin's token at ${issuer}, so access was refused.`);
     console.warn('[pingOneAdminAccessService] MCP token exchange failed (denying):', err.message);
     return {
       allowed: false,
@@ -136,6 +152,11 @@ async function checkAccess({ username, pingOneUserId, accessToken, oauthProvider
       requiredGroup,
     };
   }
+
+  note('two-ex-exchange1', '2-Exchange #1 — Agent Exchanged Token', 'exchanged', hop1Token,
+    `Exchange #1 at ${issuer}: the admin's token exchanged for the agent gateway audience.`);
+  note('two-ex-final-token', '2-Exchange: Final MCP Token', 'exchanged', finalToken,
+    `Exchange #2 at ${issuer}: the delegated token whose audience and act chain PingOne Authorize evaluates.`);
 
   const decoded = decodeJwt(finalToken);
   const aud = decoded?.claims?.aud;
@@ -185,6 +206,9 @@ async function checkAccess({ username, pingOneUserId, accessToken, oauthProvider
   }
 
   const allowed = decision === 'PERMIT';
+  note('pingone-admin-authorize', 'PingOne Authorize — PingOne Admin access', allowed ? 'permit' : 'deny', null,
+    `PingOne Authorize decision: ${decision}. Required group '${requiredGroup}'; `
+    + `'${username}' is ${inRequiredGroup ? '' : 'not '}a member in PingOne.`);
   return {
     allowed,
     error: allowed ? null : 'pingone_admin_group_required',
