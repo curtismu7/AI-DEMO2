@@ -228,6 +228,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-01 — pi.flow sign-in drives the passkey (ASSERTION_REQUIRED) step
+
+**Files:** `demo_api_server/routes/oauthUser.js`, `demo_api_ui/src/components/PiFlowSignInModal.jsx`, and focused tests.
+
+**What was broken:** The redirect-free sign-in only handled the password step; any other flow status, including a passkey challenge, fell back to the redirect login. Measured against the live environment: a Multi_Factor step-up for the demo user returns `ASSERTION_REQUIRED` after the password, with `assertion.check` and `device.select` links, FIDO2, SMS and EMAIL devices, the WebAuthn request options in the response, and `rpId` `ping-devops.com`.
+
+**What changed:** `POST /api/auth/oauth/user/pi-flow/credentials` now returns `{ step: 'passkey', publicKeyCredentialRequestOptions }` for `ASSERTION_REQUIRED`. New `POST /pi-flow/assertion` posts `application/vnd.pingidentity.assertion.check+json` with `{ origin, assertion (JSON string), compatibility: 'FULL' }` to the flow, replaying the `ST` cookie jar, then completes through `/as/resume` into the unchanged `/callback`. Password and assertion share one step-and-respond helper. The client origin is accepted only if it is in `KNOWN_REDIRECT_ORIGINS`. The modal shows a "Verify with passkey" button (a fresh click, because some browsers require a user gesture for WebAuthn), reuses `authenticateWebAuthn`, keeps the user on the step on a dismissed prompt or rejected assertion, and offers "Use another method" (the redirect login). Other statuses (SMS/email OTP, device selection) still fall back.
+
+**Do not break:** The password-only path, the `ST` cookie replay across steps, the `/callback` PKCE/nonce/session creation, the default redirect login (flag off, PingFederate, `force`, `silent-reauth`, step-up), and that the BFF holds no worker token for this flow.
+
+**Verify:** `cd demo_api_server && CI=true node_modules/.bin/jest tests/oauthUserPiFlow.test.js tests/oauthUser.test.js --forceExit`; `cd demo_api_ui && npx vitest run src/components/__tests__/PiFlowSignInModal.test.jsx && npm run build`. Not verified: a real authenticator assertion through `assertion.check` (needs a browser and the user's passkey on `local.ping-devops.com:4000`), and a normal `/login` reaching this step (the demo user's plain login completes on the password alone; the step-up route does not use pi.flow).
+
 ### 2026-09-30 — Customer pi.flow sign-in (PingOne) and a broken pi.flow authorize URL
 
 **Files:** `demo_api_server/services/oauthUserService.js`, `demo_api_server/routes/oauthUser.js`, `demo_api_server/server.js`, `demo_api_ui/src/utils/authUi.js`, `demo_api_ui/src/components/PiFlowSignInModal.jsx`, `demo_api_ui/src/App.js`, `demo_api_ui/src/App.css`, and focused tests.

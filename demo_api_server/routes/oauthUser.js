@@ -1,4 +1,5 @@
 const express = require('express');
+const { KNOWN_REDIRECT_ORIGINS } = require('../services/knownRedirectOrigins');
 const crypto = require('crypto');
 const router = express.Router();
 const oauthService = require('../services/oauthUserService');
@@ -352,56 +353,110 @@ async function openPiFlow(req, res, authorizeUrl) {
   }
 }
 
-router.post('/pi-flow/credentials', async (req, res) => {
-  const pending = req.session.oauthPiFlow;
-  const { username, password } = req.body || {};
-  if (!pending?.flowId || !req.session.oauthState || Date.now() - pending.startedAt > 5 * 60 * 1000) {
-    return res.status(409).json({ error: 'pi_flow_not_started' });
+// Posts one step to the open flow with the current cookie jar; returns the
+// parsed body and the updated jar. Never throws on a non-2xx: callers branch on it.
+async function postPiFlowStep(pending, contentType, payload) {
+  const step = await fetch(`${piFlowBase()}/flows/${pending.flowId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': contentType, Accept: '*/*', Cookie: piFlowCookieHeader(pending.cookies) },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(PI_FLOW_TIMEOUT_MS),
+  });
+  return { step, body: await step.json().catch(() => ({})), cookies: mergePiFlowCookies(pending.cookies, step) };
+}
+
+// COMPLETED flow -> /as/resume -> authorization code -> the unchanged /callback.
+async function completePiFlow(req, res, pending, cookies) {
+  const resume = await fetch(`${piFlowBase()}/as/resume?flowId=${pending.flowId}`, {
+    headers: { Accept: '*/*', Cookie: piFlowCookieHeader(cookies) },
+    redirect: 'manual',
+    signal: AbortSignal.timeout(PI_FLOW_TIMEOUT_MS),
+  });
+  let code = '';
+  if ((resume.headers.get('content-type') || '').includes('json')) {
+    code = (await resume.json().catch(() => ({})))?.authorizeResponse?.code || '';
   }
+  if (!code && resume.headers.get('location')) {
+    try { code = new URL(resume.headers.get('location')).searchParams.get('code') || ''; } catch (_) { /* not a URL */ }
+  }
+  if (!code) return res.status(502).json({ error: 'pi_flow_no_code' });
+
+  delete req.session.oauthPiFlow;
+  const callback = new URL(req.session.oauthRedirectUri);
+  callback.searchParams.set('code', code);
+  callback.searchParams.set('state', req.session.oauthState);
+  return req.session.save(() => res.json({ redirectTo: callback.toString() }));
+}
+
+// What to do with the flow's status after a step. Steps this BFF cannot drive
+// (SMS/email OTP, device selection, policy screens) return fallback:true and the
+// SPA restarts the ordinary redirect login — a sign-in never dead-ends here.
+async function respondAfterPiFlowStep(req, res, pending, body, cookies) {
+  if (body.status === 'COMPLETED') return completePiFlow(req, res, pending, cookies);
+  if (body.status === 'ASSERTION_REQUIRED' && body.publicKeyCredentialRequestOptions) {
+    req.session.oauthPiFlow = { ...pending, cookies };
+    const options = typeof body.publicKeyCredentialRequestOptions === 'string'
+      ? JSON.parse(body.publicKeyCredentialRequestOptions) : body.publicKeyCredentialRequestOptions;
+    return req.session.save(() => res.json({ step: 'passkey', publicKeyCredentialRequestOptions: options }));
+  }
+  return res.json({ fallback: true, status: body.status });
+}
+
+function openPiFlowOrReject(req, res) {
+  const pending = req.session.oauthPiFlow;
+  if (!pending?.flowId || !req.session.oauthState || Date.now() - pending.startedAt > 5 * 60 * 1000) {
+    res.status(409).json({ error: 'pi_flow_not_started' });
+    return null;
+  }
+  return pending;
+}
+
+router.post('/pi-flow/credentials', async (req, res) => {
+  const pending = openPiFlowOrReject(req, res);
+  if (!pending) return undefined;
+  const { username, password } = req.body || {};
   if (typeof username !== 'string' || typeof password !== 'string' || !username || !password) {
     return res.status(400).json({ error: 'invalid_request' });
   }
-  const base = piFlowBase();
   try {
-    const step = await fetch(`${base}/flows/${pending.flowId}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/vnd.pingidentity.usernamePassword.check+json',
-        Accept: '*/*',
-        Cookie: piFlowCookieHeader(pending.cookies),
-      },
-      body: JSON.stringify({ username, password }),
-      signal: AbortSignal.timeout(PI_FLOW_TIMEOUT_MS),
-    });
-    const cookies = mergePiFlowCookies(pending.cookies, step);
-    const body = await step.json().catch(() => ({}));
+    const { step, body, cookies } = await postPiFlowStep(
+      pending, 'application/vnd.pingidentity.usernamePassword.check+json', { username, password },
+    );
     if (step.status === 400 && body?.details?.some((d) => d.code === 'INVALID_CREDENTIALS')) {
       return res.status(401).json({ error: 'invalid_credentials', message: 'Username or password is incorrect.' });
     }
     if (!step.ok) return res.status(502).json({ error: 'pi_flow_failed' });
-    if (body.status !== 'COMPLETED') return res.json({ fallback: true, status: body.status });
-
-    const resume = await fetch(`${base}/as/resume?flowId=${pending.flowId}`, {
-      headers: { Accept: '*/*', Cookie: piFlowCookieHeader(cookies) },
-      redirect: 'manual',
-      signal: AbortSignal.timeout(PI_FLOW_TIMEOUT_MS),
-    });
-    let code = '';
-    if ((resume.headers.get('content-type') || '').includes('json')) {
-      code = (await resume.json().catch(() => ({})))?.authorizeResponse?.code || '';
-    }
-    if (!code && resume.headers.get('location')) {
-      try { code = new URL(resume.headers.get('location')).searchParams.get('code') || ''; } catch (_) { /* not a URL */ }
-    }
-    if (!code) return res.status(502).json({ error: 'pi_flow_no_code' });
-
-    delete req.session.oauthPiFlow;
-    const callback = new URL(req.session.oauthRedirectUri);
-    callback.searchParams.set('code', code);
-    callback.searchParams.set('state', req.session.oauthState);
-    return req.session.save(() => res.json({ redirectTo: callback.toString() }));
+    return await respondAfterPiFlowStep(req, res, pending, body, cookies);
   } catch (error) {
     console.warn('[oauth/user/pi-flow] credentials step failed:', error.message);
+    return res.status(502).json({ error: 'pi_flow_failed' });
+  }
+});
+
+// Passkey step: the browser ran navigator.credentials.get on the options returned
+// above and posts the formatted assertion plus the origin the ceremony ran on.
+// PingOne checks that origin against the clientDataJSON, so it must be the real
+// page origin — but only a known deployment origin is accepted from the client.
+router.post('/pi-flow/assertion', async (req, res) => {
+  const pending = openPiFlowOrReject(req, res);
+  if (!pending) return undefined;
+  const { assertion, origin } = req.body || {};
+  if (!assertion || typeof assertion !== 'object' || !KNOWN_REDIRECT_ORIGINS.includes(origin)) {
+    return res.status(400).json({ error: 'invalid_request' });
+  }
+  try {
+    const { step, body, cookies } = await postPiFlowStep(
+      pending, 'application/vnd.pingidentity.assertion.check+json',
+      // PingOne requires `assertion` as a JSON string, not an object.
+      { origin, assertion: JSON.stringify(assertion), compatibility: 'FULL' },
+    );
+    if (step.status === 400) {
+      return res.status(401).json({ error: 'assertion_failed', message: 'The passkey could not be verified.' });
+    }
+    if (!step.ok) return res.status(502).json({ error: 'pi_flow_failed' });
+    return await respondAfterPiFlowStep(req, res, pending, body, cookies);
+  } catch (error) {
+    console.warn('[oauth/user/pi-flow] assertion step failed:', error.message);
     return res.status(502).json({ error: 'pi_flow_failed' });
   }
 });

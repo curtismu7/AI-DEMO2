@@ -4,6 +4,7 @@ import {
   PI_FLOW_SIGNIN_EVENT,
   setPiFlowSignInAvailable,
 } from "../utils/authUi";
+import { authenticateWebAuthn } from "../utils/passkeyCeremony";
 
 const apiBase = () =>
   process.env.REACT_APP_API_URL ||
@@ -23,8 +24,9 @@ function redirectLogin(returnTo) {
  * Mounted once in App. It enables itself only when the BFF reports
  * PINGONE_USER_AUTHORIZE_PI_FLOW on AND the provider is PingOne; otherwise
  * navigateToCustomerOAuthLogin keeps doing the ordinary redirect.
- * Anything the password step cannot finish (MFA, a policy screen, an error
- * opening the flow) falls back to that redirect login.
+ * After the password, a passkey (ASSERTION_REQUIRED) step is driven here too.
+ * Anything else (SMS/email codes, a policy screen, an error opening the flow)
+ * falls back to that redirect login.
  */
 export default function PiFlowSignInModal() {
   const [open, setOpen] = useState(false);
@@ -32,6 +34,9 @@ export default function PiFlowSignInModal() {
   const [error, setError] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  // "password" -> "passkey" when the flow asks for a passkey assertion.
+  const [step, setStep] = useState("password");
+  const passkeyOptionsRef = useRef(null);
   const returnToRef = useRef(undefined);
 
   useEffect(() => {
@@ -54,6 +59,8 @@ export default function PiFlowSignInModal() {
 
   const begin = useCallback(async (target) => {
     returnToRef.current = target;
+    setStep("password");
+    passkeyOptionsRef.current = null;
     setError("");
     setUsername("");
     setPassword("");
@@ -103,7 +110,55 @@ export default function PiFlowSignInModal() {
         window.location.assign(body.redirectTo);
         return;
       }
-      // fallback:true (needs MFA or another screen), 409 (flow expired), 5xx
+      if (res.ok && body.step === "passkey") {
+        passkeyOptionsRef.current = body.publicKeyCredentialRequestOptions;
+        setPassword("");
+        setStep("passkey");
+        setBusy(false);
+        return;
+      }
+      // fallback:true (another MFA method or screen), 409 (flow expired), 5xx
+      redirectLogin(returnToRef.current);
+    } catch {
+      redirectLogin(returnToRef.current);
+    }
+  };
+
+  const verifyPasskey = async () => {
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    let assertionValue;
+    try {
+      ({ assertionValue } = await authenticateWebAuthn(passkeyOptionsRef.current));
+    } catch (err) {
+      // Dismissed prompt or no passkey on this device: stay here so the user can
+      // retry, or leave for the hosted login (which offers every other method).
+      setError(
+        err?.name === "NotAllowedError"
+          ? "No passkey was used. Try again, or use another sign-in method."
+          : "The passkey could not be used on this device."
+      );
+      setBusy(false);
+      return;
+    }
+    try {
+      const res = await fetch(`${apiBase()}/api/auth/oauth/user/pi-flow/assertion`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assertion: assertionValue, origin: window.location.origin }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (res.status === 401) {
+        setError(body.message || "The passkey could not be verified.");
+        setBusy(false);
+        return;
+      }
+      if (res.ok && body.redirectTo) {
+        window.location.assign(body.redirectTo);
+        return;
+      }
       redirectLogin(returnToRef.current);
     } catch {
       redirectLogin(returnToRef.current);
@@ -123,14 +178,34 @@ export default function PiFlowSignInModal() {
       minHeight={260}
       footer={
         <div className="signin-modal__actions">
-          <button
-            type="submit"
-            form="pi-flow-signin-form"
-            className="signin-prompt__btn"
-            disabled={busy || !username || !password}
-          >
-            {busy ? "Signing in" : "Sign in"}
-          </button>
+          {step === "passkey" ? (
+            <>
+              <button
+                type="button"
+                className="signin-prompt__btn signin-prompt__btn--ghost"
+                onClick={() => redirectLogin(returnToRef.current)}
+              >
+                Use another method
+              </button>
+              <button
+                type="button"
+                className="signin-prompt__btn"
+                disabled={busy}
+                onClick={verifyPasskey}
+              >
+                {busy ? "Waiting for passkey" : "Verify with passkey"}
+              </button>
+            </>
+          ) : (
+            <button
+              type="submit"
+              form="pi-flow-signin-form"
+              className="signin-prompt__btn"
+              disabled={busy || !username || !password}
+            >
+              {busy ? "Signing in" : "Sign in"}
+            </button>
+          )}
           <button
             type="button"
             className="signin-prompt__btn signin-prompt__btn--ghost"
@@ -142,6 +217,16 @@ export default function PiFlowSignInModal() {
       }
     >
       <div className="dm-scroll">
+        {step === "passkey" ? (
+          <div className="pi-flow-signin__form">
+            <p className="signin-modal__text">Verify it is you with your passkey.</p>
+            {error ? (
+              <p className="signin-modal__text" role="alert">
+                ❌ {error}
+              </p>
+            ) : null}
+          </div>
+        ) : (
         <form id="pi-flow-signin-form" className="pi-flow-signin__form" onSubmit={submit}>
           <label className="pi-flow-signin__label" htmlFor="pi-flow-username">
             Username
@@ -175,6 +260,7 @@ export default function PiFlowSignInModal() {
             No PingOne hosted page: this sign-in runs as a pi.flow.
           </p>
         </form>
+        )}
       </div>
     </DraggableModal>
   );

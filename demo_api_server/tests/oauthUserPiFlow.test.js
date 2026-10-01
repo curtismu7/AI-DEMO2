@@ -124,6 +124,64 @@ describe('customer pi.flow sign-in', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  describe('passkey step (ASSERTION_REQUIRED)', () => {
+    const OPTIONS = { challenge: 'Y2hhbGw', rpId: 'ping-devops.com', allowCredentials: [{ type: 'public-key', id: 'aWQ' }] };
+    const ORIGIN = 'https://local.ping-devops.com:4000';
+    const ASSERTION = { id: 'cred', rawId: 'cmF3', type: 'public-key', response: { clientDataJSON: 'Y2Q=', authenticatorData: 'YWQ=', signature: 'c2ln', userHandle: null } };
+
+    async function toPasskeyStep(agent) {
+      await openFlow(agent);
+      fetchMock.mockResolvedValueOnce(json(200, {
+        status: 'ASSERTION_REQUIRED',
+        publicKeyCredentialRequestOptions: JSON.stringify(OPTIONS), // PingOne sends it as a string
+      }, {}, ['ST=after-password; Path=/']));
+      return agent.post('/api/auth/oauth/user/pi-flow/credentials').send({ username: 'u', password: 'p' }).expect(200);
+    }
+
+    test('password step returns the passkey step with parsed request options instead of falling back', async () => {
+      const res = await toPasskeyStep(request.agent(app));
+      expect(res.body).toEqual({ step: 'passkey', publicKeyCredentialRequestOptions: OPTIONS });
+    });
+
+    test('assertion.check posts origin + JSON-STRING assertion + FULL with the password-step cookie, then resumes', async () => {
+      const agent = request.agent(app);
+      await toPasskeyStep(agent);
+      fetchMock
+        .mockResolvedValueOnce(json(200, { status: 'COMPLETED' }, {}, ['ST=after-assertion; Path=/']))
+        .mockResolvedValueOnce(json(200, { authorizeResponse: { code: 'the-code' } }));
+      const res = await agent.post('/api/auth/oauth/user/pi-flow/assertion').send({ assertion: ASSERTION, origin: ORIGIN }).expect(200);
+      const [url, init] = fetchMock.mock.calls[2];
+      expect(url).toMatch(/\/flows\/flow-1$/);
+      expect(init.headers['Content-Type']).toBe('application/vnd.pingidentity.assertion.check+json');
+      expect(init.headers.Cookie).toBe('ST=after-password');
+      expect(JSON.parse(init.body)).toEqual({ origin: ORIGIN, assertion: JSON.stringify(ASSERTION), compatibility: 'FULL' });
+      expect(fetchMock.mock.calls[3][1].headers.Cookie).toBe('ST=after-assertion');
+      expect(new URL(res.body.redirectTo).searchParams.get('code')).toBe('the-code');
+    });
+
+    test('rejects an origin that is not a known deployment origin without calling PingOne', async () => {
+      const agent = request.agent(app);
+      await toPasskeyStep(agent);
+      const calls = fetchMock.mock.calls.length;
+      await agent.post('/api/auth/oauth/user/pi-flow/assertion').send({ assertion: ASSERTION, origin: 'https://evil.example' }).expect(400);
+      await agent.post('/api/auth/oauth/user/pi-flow/assertion').send({ assertion: 'not-an-object', origin: ORIGIN }).expect(400);
+      expect(fetchMock.mock.calls.length).toBe(calls);
+    });
+
+    test('a rejected assertion -> 401 assertion_failed', async () => {
+      const agent = request.agent(app);
+      await toPasskeyStep(agent);
+      fetchMock.mockResolvedValueOnce(json(400, { code: 'INVALID_DATA' }));
+      const res = await agent.post('/api/auth/oauth/user/pi-flow/assertion').send({ assertion: ASSERTION, origin: ORIGIN }).expect(401);
+      expect(res.body.error).toBe('assertion_failed');
+    });
+
+    test('assertion without an open flow -> 409', async () => {
+      await request(app).post('/api/auth/oauth/user/pi-flow/assertion').send({ assertion: ASSERTION, origin: ORIGIN }).expect(409);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+  });
+
   test('credentials without an open flow -> 409, PingOne never called', async () => {
     await request(app).post('/api/auth/oauth/user/pi-flow/credentials')
       .send({ username: 'u', password: 'p' }).expect(409);
