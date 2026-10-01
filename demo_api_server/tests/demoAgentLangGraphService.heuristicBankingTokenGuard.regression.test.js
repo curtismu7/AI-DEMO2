@@ -139,4 +139,22 @@ describe('processAgentMessage — heuristic banking token guard (regression)', (
     expect(result.need_auth).toBeUndefined();
     expect(result.error).not.toBe('need_auth');
   });
+
+  test('an MCP scope denial names the tool and the missing scope instead of the bare code', async () => {
+    executeBffTool.mockResolvedValueOnce(JSON.stringify({
+      error: 'mcp_scope_denied', tool: 'get_my_accounts', requiredScopes: ['accounts:read'], missingScopes: ['accounts:read'],
+    }));
+
+    const result = await processAgentMessage({
+      message: 'show my balance',
+      userId: 'u1',
+      userToken: 'session-access-token',
+      req: { body: {}, tokenEvents: [] },
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.reply).toMatch(/refused get_my_accounts/);
+    expect(result.reply).toContain('accounts:read');
+    expect(result.reply).not.toContain('mcp_scope_denied');
+  });
 });
