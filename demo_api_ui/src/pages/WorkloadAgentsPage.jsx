@@ -14,13 +14,13 @@ const SUPPORTED_VERTICALS = new Set([
   'university', 'workforce', 'sporting-goods', 'manufacturing', 'investment', 'airlines',
 ]);
 
-export default function WorkloadAgentsPage() {
+export default function WorkloadAgentsPage({ user = null }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { activeId, refetch } = useVertical();
   const params = new URLSearchParams(location.search);
   // The active vertical can be one this page has no actions for (pingone-admin).
-  const vertical = params.get('vertical') || (SUPPORTED_VERTICALS.has(activeId) ? activeId : 'banking');
+  const vertical = params.get('vertical') || (SUPPORTED_VERTICALS.has(activeId) ? activeId : 'sporting-goods');
   const selectedId = params.get('useCase') === 'UC44' ? 'UC44' : 'UC38';
   const [verticals, setVerticals] = useState([]);
   const [catalog, setCatalog] = useState({ vertical: null, cases: {} });
@@ -98,7 +98,7 @@ export default function WorkloadAgentsPage() {
       </div>
 
       <section ref={executionRef} className="workload-agents__execution" aria-label="Selected workload agent run">
-        <div className="workload-agents__execution-head"><div><h2>Selected run</h2><p>{selectedId} · {verticalName} · {selected?.primaryTool || 'Loading action'}</p></div><p>{selectedId === 'UC38' ? 'MFA-protected write' : 'OBO customer-data read'}</p></div>
+        <div className="workload-agents__execution-head"><div><h2>Selected run</h2><p>{selectedId} · {verticalName} · {selected?.primaryTool || 'Loading action'} · {user?.username ? `signed in as ${user.username}` : 'not signed in'}</p></div><p>{selectedId === 'UC38' ? 'MFA-protected write' : 'OBO customer-data read'}</p></div>
         {selected && <PersonalAgentStudioPage key={`${vertical}:${selectedId}`} scenario={selected} vertical={vertical} runNonce={requestedRun.id === selected.id ? requestedRun.nonce : 0} />}
       </section>
     </main>

@@ -20,6 +20,7 @@ jest.mock('../middleware/agentSessionMiddleware', () => ({
       id: 'session-1',
       user: req.user ? { sub: req.user.sub, email: 'customer@example.test' } : undefined,
       oauthTokens: req.user ? { accessToken: 'session-token' } : undefined,
+      stepUpVerified: Number(req.headers['x-test-step-up-verified'] || 0),
     };
     req.agentContext = req.user ? { tokenEvents: [] } : null;
     req.tokenEvents = [];
@@ -88,6 +89,21 @@ describe('workload agent invoke contract', () => {
     const res = await request(app).post('/api/agent/invoke').set('Authorization', 'Bearer plain').send(invoke('UC38'));
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ error: 'step_up_required', step_up_required: true, toolsCalled: [] });
+    expect(processAgentMessage).not.toHaveBeenCalled();
+  });
+
+  test('UC38 accepts a fresh in-app MFA marker on the session in place of an MFA sign-in', async () => {
+    const res = await request(app).post('/api/agent/invoke').set('Authorization', 'Bearer plain')
+      .set('x-test-step-up-verified', String(Date.now() + 60000)).send(invoke('UC38'));
+    expect(res.status).toBe(200);
+    expect(res.body.error).toBeUndefined();
+    expect(processAgentMessage).toHaveBeenCalled();
+  });
+
+  test('UC38 still requires step-up when the in-app MFA marker has expired', async () => {
+    const res = await request(app).post('/api/agent/invoke').set('Authorization', 'Bearer plain')
+      .set('x-test-step-up-verified', String(Date.now() - 1000)).send(invoke('UC38'));
+    expect(res.body).toMatchObject({ error: 'step_up_required', step_up_required: true });
     expect(processAgentMessage).not.toHaveBeenCalled();
   });
 

@@ -26,8 +26,8 @@ vi.mock('../../context/TokenChainContext', () => ({ useTokenChainOptional: () =>
 
 import apiClient from '../../services/apiClient';
 
-function renderPage(route = '/workload-agents?useCase=UC38&vertical=sporting-goods', activeId = null) {
-  return render(<MemoryRouter initialEntries={[route]}><VerticalContext.Provider value={{ activeId }}><WorkloadAgentsPage /></VerticalContext.Provider></MemoryRouter>);
+function renderPage(route = '/workload-agents?useCase=UC38&vertical=sporting-goods', activeId = null, user = null) {
+  return render(<MemoryRouter initialEntries={[route]}><VerticalContext.Provider value={{ activeId }}><WorkloadAgentsPage user={user} /></VerticalContext.Provider></MemoryRouter>);
 }
 
 beforeEach(() => {
@@ -47,16 +47,26 @@ describe('WorkloadAgentsPage', () => {
     expect(apiClient.get).toHaveBeenCalledWith('/api/use-cases/UC44?vertical=healthcare');
   });
 
-  it('ignores an active vertical the page has no actions for', async () => {
-    renderPage('/workload-agents?useCase=UC38', 'pingone-admin');
-    expect((await screen.findByRole('combobox', { name: /vertical/i })).value).toBe('banking');
-    expect(apiClient.get).toHaveBeenCalledWith('/api/use-cases/UC38?vertical=banking');
+  it('names the signed-in account on the selected run, since only that account\'s agent is used', async () => {
+    renderPage(undefined, null, { username: 'demoAdmin' });
+    expect(await screen.findByText(/signed in as demoAdmin/)).toBeTruthy();
   });
 
-  it('uses banking when a direct link has no vertical and no active selection', async () => {
+  it('says so when nobody is signed in', async () => {
+    renderPage();
+    expect(await screen.findByText(/not signed in/)).toBeTruthy();
+  });
+
+  it('ignores an active vertical the page has no actions for', async () => {
+    renderPage('/workload-agents?useCase=UC38', 'pingone-admin');
+    expect((await screen.findByRole('combobox', { name: /vertical/i })).value).toBe('sporting-goods');
+    expect(apiClient.get).toHaveBeenCalledWith('/api/use-cases/UC38?vertical=sporting-goods');
+  });
+
+  it('uses Super Sports when a direct link has no vertical and no active selection', async () => {
     renderPage('/workload-agents');
-    expect((await screen.findByRole('combobox', { name: /vertical/i })).value).toBe('banking');
-    expect(apiClient.get).toHaveBeenCalledWith('/api/use-cases/UC38?vertical=banking');
+    expect((await screen.findByRole('combobox', { name: /vertical/i })).value).toBe('sporting-goods');
+    expect(apiClient.get).toHaveBeenCalledWith('/api/use-cases/UC38?vertical=sporting-goods');
   });
 
   it('offers all 11 supported verticals and respects the explicit deep link', async () => {

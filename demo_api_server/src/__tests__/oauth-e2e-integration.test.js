@@ -423,14 +423,14 @@ describe('End-to-End OAuth Integration Tests', () => {
   });
 
   describe('Error Handling in E2E Flow', () => {
-    it('should handle OAuth provider errors gracefully', async () => {
-      // Callback with mismatched state auto-retries login (multi-tab race handling)
+    it('does not launch another login when a callback has invalid state', async () => {
+      // A callback from a stale or competing tab must not start a third flow.
       const callbackResponse = await agent
         .get('/api/auth/oauth/user/callback?code=invalid-code&state=test-state-123')
         .expect(302);
 
-      // Auto-retry: redirects to login instead of showing error
-      expect(callbackResponse.headers.location).toContain('/login');
+      expect(callbackResponse.headers.location).not.toContain('/login');
+      expect(callbackResponse.headers.location).toContain('error=invalid_state');
     });
 
     it('should handle invalid authorization codes', async () => {
@@ -438,7 +438,8 @@ describe('End-to-End OAuth Integration Tests', () => {
         .get('/api/auth/oauth/user/callback?code=invalid-code&state=test-state-123')
         .expect(302);
 
-      expect(callbackResponse.headers.location).toContain('/login');
+      expect(callbackResponse.headers.location).not.toContain('/login');
+      expect(callbackResponse.headers.location).toContain('error=invalid_state');
     });
 
     it('should handle state mismatch in OAuth callback', async () => {
@@ -446,17 +447,18 @@ describe('End-to-End OAuth Integration Tests', () => {
         .get('/api/auth/oauth/user/callback?code=valid-code&state=wrong-state')
         .expect(302);
 
-      expect(callbackResponse.headers.location).toContain('/login');
+      expect(callbackResponse.headers.location).not.toContain('/login');
+      expect(callbackResponse.headers.location).toContain('error=invalid_state');
     });
 
     it('should handle missing authorization code', async () => {
-      // Without a prior login step, the session has no oauthState, so state validation
-      // fires before the code check → auto-retries login
+      // Without a prior login step, state validation fails before the code check.
       const callbackResponse = await agent
         .get('/api/auth/oauth/user/callback?state=test-state-123')
         .expect(302);
 
-      expect(callbackResponse.headers.location).toContain('/login');
+      expect(callbackResponse.headers.location).not.toContain('/login');
+      expect(callbackResponse.headers.location).toContain('error=invalid_state');
     });
 
     it('should provide detailed error information for scoped endpoints (collection, not /my)', async () => {

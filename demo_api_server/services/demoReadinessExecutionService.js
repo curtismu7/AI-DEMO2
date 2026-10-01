@@ -284,6 +284,18 @@ function deriveExecutionManifest({ catalog = buildDemoReadinessCatalog(), featur
 
 function evidenceFailures({ evidence, provider, authorization, expected, caseRow }) {
   const failures = []; const require = (condition, message) => { if (!condition) failures.push(message); };
+  // A public-catalog tool (catalog `enforcement`, from the use case's declared
+  // evidence) is served with no user token, exchange or Authorize call. Its
+  // contract is that the tool ran on that public path and nothing else was
+  // claimed — not the delegated-call contract below.
+  if (authorization?.enforcement === 'public-catalog') {
+    require(evidence.selectedTool === authorization.primaryTool, 'selected tool does not match catalog contract');
+    require(evidence.publicCatalog === true, 'public-catalog tool must be served on the public path, with token exchange and Authorize skipped');
+    require(evidence.gateway?.applicable === false, 'public-catalog tool must declare Gateway evidence not applicable');
+    require(evidence.authorize?.applicable === false, 'public-catalog tool must declare Authorize evidence not applicable');
+    return failures;
+  }
+  const gatewayPolicy = authorization?.enforcement === 'gateway-policy';
   require(evidence.userSessionProvider === provider, 'user-session provider is missing or does not match provider lane');
   const expectedAgentProvider = caseRow.agentIdentityProviderByProvider?.[provider] || provider;
   require(evidence.agentIdentityProvider === expectedAgentProvider, 'agent identity provider does not match static provider-role contract');
@@ -329,13 +341,23 @@ function evidenceFailures({ evidence, provider, authorization, expected, caseRow
   }
   if (authorization?.primaryTool) {
     require(evidence.selectedTool === authorization.primaryTool, 'selected tool does not match catalog contract');
-    require(exactValues(evidence.audiences, authorization.scopeResources?.map((item) => item.audience)), 'audience set does not match catalog contract');
+    // Each required scope must be seen on the audience of the resource that
+    // owns it, or on one that scope-topology.json declares as its mirror, and
+    // no other audience may be reported.
+    const observedAudiences = (Array.isArray(evidence.audiences) ? evidence.audiences : []).map(String);
+    const allowedAudiences = (authorization.scopeResources || []).map((item) => [item.audience, ...(item.mirrorAudiences || [])].filter(Boolean));
+    require(observedAudiences.length > 0
+      && allowedAudiences.every((allowed) => allowed.some((audience) => observedAudiences.includes(audience)))
+      && observedAudiences.every((audience) => allowedAudiences.some((allowed) => allowed.includes(audience))), 'audience set does not match catalog contract');
     require(exactValues(evidence.scopes, authorization.requiredScopes), 'scope set does not match catalog contract');
     require(Boolean(evidence.gateway?.route && evidence.gateway?.verdict), 'Gateway evidence is required for an exchanged tool call');
-    require(Boolean(evidence.authorize?.reference && evidence.authorize?.decision), 'Authorize evidence is required for an exchanged tool call');
+    // A gateway-policy tool is decided by the gateway's own filter; PingOne
+    // Authorize is not called, so a reported Authorize decision would be wrong.
+    if (gatewayPolicy) require(evidence.authorize?.applicable === false, 'gateway-policy tool must declare Authorize evidence not applicable');
+    else require(Boolean(evidence.authorize?.reference && evidence.authorize?.decision), 'Authorize evidence is required for an exchanged tool call');
     if (['PERMIT', 'DENY', 'STEP_UP', 'HITL_REQUIRED'].includes(expected)) {
       require(evidence.gateway?.verdict === expected, 'Gateway verdict does not match declared outcome');
-      require(evidence.authorize?.decision === expected, 'Authorize decision does not match declared outcome');
+      if (!gatewayPolicy) require(evidence.authorize?.decision === expected, 'Authorize decision does not match declared outcome');
     }
   } else {
     require(evidence.gateway?.applicable === false, 'non-exchange case must declare Gateway evidence not applicable');

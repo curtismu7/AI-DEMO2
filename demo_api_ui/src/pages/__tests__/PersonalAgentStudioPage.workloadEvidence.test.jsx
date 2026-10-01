@@ -88,22 +88,97 @@ describe('PersonalAgentStudioPage workload evidence', () => {
     expect(tokenChainTraceStore.getState().trace.tokenEvents.map((event) => event.id)).toContain('mcp-exchange');
   });
 
-  it('offers MFA step-up when the BFF answers 200 with step_up_required', async () => {
-    vi.stubGlobal('fetch', vi.fn((url) => Promise.resolve(url === '/api/agent/invoke'
+  it('opens the in-app MFA challenge when the BFF answers 200 with step_up_required', async () => {
+    const fetchMock = vi.fn((url) => Promise.resolve(url === '/api/agent/invoke'
       ? { ok: true, status: 200, json: async () => ({ success: false, step_up_required: true, reply: 'Please complete multi-factor authentication.' }) }
-      : { ok: false, status: 401, json: async () => ({}) })));
-    const assign = vi.fn();
-    vi.stubGlobal('location', { ...window.location, assign });
+      : url === '/api/auth/mfa/challenge'
+        ? { ok: true, status: 200, json: async () => ({ daId: 'da-1', devices: [] }) }
+        : { ok: false, status: 401, json: async () => ({}) }));
+    vi.stubGlobal('fetch', fetchMock);
     renderWorkload();
-    expect(screen.queryByRole('button', { name: /Verify with MFA/ })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Run UC44 action' }));
     // The prompt is a modal so it cannot be missed; "Not now" leaves the inline button.
     expect(await screen.findByText('MFA required')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
     await waitFor(() => expect(screen.queryByText('MFA required')).toBeNull());
     fireEvent.click(screen.getByRole('button', { name: 'Verify with MFA and run again' }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/auth/mfa/challenge', expect.objectContaining({ method: 'POST' })));
+  });
+
+  it('falls back to the hosted step-up when the in-app challenge cannot start', async () => {
+    vi.stubGlobal('fetch', vi.fn((url) => Promise.resolve(url === '/api/agent/invoke'
+      ? { ok: true, status: 200, json: async () => ({ success: false, step_up_required: true, reply: 'Please complete multi-factor authentication.' }) }
+      : { ok: false, status: 500, json: async () => ({}) })));
+    const assign = vi.fn();
+    vi.stubGlobal('location', { ...window.location, assign });
+    renderWorkload();
+    fireEvent.click(screen.getByRole('button', { name: 'Run UC44 action' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Verify with MFA' }));
     // An absolute same-origin URL: the BFF drops the query from a bare path and falls back to /dashboard.
-    expect(assign).toHaveBeenCalledWith(expect.stringMatching(/^\/api\/auth\/oauth\/user\/stepup\?return_to=http/));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith(expect.stringMatching(/^\/api\/auth\/oauth\/user\/stepup\?return_to=http/)));
+  });
+
+  it('moves the security gates on the status words the BFF really sends', async () => {
+    const run = (authorize) => vi.stubGlobal('fetch', vi.fn((url) => Promise.resolve(url === '/api/agent/invoke'
+      ? { ok: true, status: 200, json: async () => ({ success: true, reply: 'Done.', tokenEvents: [
+        { id: 'personal-agent-lookup', status: 'active' },
+        { id: 'gw-introspection', status: 'valid' },
+        { id: 'gw-authorize', status: authorize },
+      ] }) }
+      : { ok: false, status: 401, json: async () => ({}) })));
+    run('permit');
+    renderWorkload();
+    expect(screen.getAllByText('WAITING')).toHaveLength(3);
+    fireEvent.click(screen.getByRole('button', { name: 'Run UC44 action' }));
+    await waitFor(() => expect(screen.getAllByText('PERMIT')).toHaveLength(3));
+    // A held call (human approval, step-up) is neither permit nor deny.
+    run('indeterminate');
+    fireEvent.click(screen.getByRole('button', { name: 'Run UC44 action' }));
+    await waitFor(() => expect(screen.getAllByText('PERMIT')).toHaveLength(2));
+    expect(screen.getByText('CHECKING…')).toBeTruthy();
+  });
+
+  it('asks for approval, records it, and retries with the approved challenge', async () => {
+    const calls = [];
+    vi.stubGlobal('fetch', vi.fn((url, options) => {
+      calls.push([url, options?.body ? JSON.parse(options.body) : null]);
+      if (url === '/api/agent/invoke') {
+        const approved = JSON.parse(options.body).hitlChallengeId === 'challenge-1';
+        return Promise.resolve({ ok: true, status: 200, json: async () => (approved
+          ? { success: true, reply: 'Rental extended.' }
+          : { success: false, error: 'hitl_required', hitlChallengeId: 'challenge-1', reply: 'This action requires your approval.' }) });
+      }
+      return Promise.resolve({ ok: url === '/api/mcp/decision/challenge-1/approve', status: 200, json: async () => ({}) });
+    }));
+    renderWorkload();
+    fireEvent.click(screen.getByRole('button', { name: 'Run UC44 action' }));
+    expect(await screen.findByText('Approval required')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
+    expect(await screen.findByText('Rental extended.')).toBeTruthy();
+    const relevant = calls.filter(([url]) => url === '/api/agent/invoke' || url.startsWith('/api/mcp/decision/'));
+    expect(relevant.map(([url]) => url)).toEqual(['/api/agent/invoke', '/api/mcp/decision/challenge-1/approve', '/api/agent/invoke']);
+    expect(relevant[2][1].hitlChallengeId).toBe('challenge-1');
+  });
+
+  it('declining records the denial and does not retry', async () => {
+    const fetchMock = vi.fn((url) => Promise.resolve(url === '/api/agent/invoke'
+      ? { ok: true, status: 200, json: async () => ({ success: false, error: 'hitl_required', hitlChallengeId: 'challenge-2', reply: 'This action requires your approval.' }) }
+      : { ok: url === '/api/mcp/decision/challenge-2/deny', status: 200, json: async () => ({}) }));
+    vi.stubGlobal('fetch', fetchMock);
+    renderWorkload();
+    fireEvent.click(screen.getByRole('button', { name: 'Run UC44 action' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Decline' }));
+    expect((await screen.findByRole('alert')).textContent).toMatch(/Declined/);
+    expect(fetchMock.mock.calls.filter(([url]) => url === '/api/agent/invoke')).toHaveLength(1);
+  });
+
+  it('shows a refused run as an error, not as a completed action', async () => {
+    vi.stubGlobal('fetch', vi.fn((url) => Promise.resolve(url === '/api/agent/invoke'
+      ? { ok: true, status: 200, json: async () => ({ success: false, error: 'agent_not_registered', reply: 'No personal agent is registered for your account.' }) }
+      : { ok: false, status: 401, json: async () => ({}) })));
+    renderWorkload();
+    fireEvent.click(screen.getByRole('button', { name: 'Run UC44 action' }));
+    expect((await screen.findByRole('alert')).textContent).toMatch(/No personal agent is registered/);
   });
 
   it('keeps token evidence from a structured HTTP error response', async () => {

@@ -21,19 +21,27 @@ async function requirePingOneAdminGroup(req, res, response = {}) {
     username: req.session?.user?.username || null,
     pingOneUserId: req.agentContext?.userId || null,
     accessToken: req.agentContext?.accessToken || null,
+    // The session's provider, not the user record's: the admin sign-in stores
+    // 'pingone_sso' on the user whichever provider signed them in.
+    oauthProvider: req.session?.oauthProvider || req.session?.user?.oauthProvider || null,
   });
   if (access.allowed) return true;
 
   const lookupUnavailable = access.status === 503;
+  const notLinked = access.error === 'pingone_admin_user_not_linked';
   res.status(access.status).json({
     ...response,
     error: access.error,
-    message: lookupUnavailable
-      ? `Could not verify membership in '${access.requiredGroup}'.`
-      : `Membership in '${access.requiredGroup}' is required to use the PingOne Admin Assistant.`,
-    reply: lookupUnavailable
-      ? `I could not verify your '${access.requiredGroup}' group membership. Try again after PingOne is available.`
-      : `Access denied. Add the signed-in user to '${access.requiredGroup}', then run the query again.`,
+    message: notLinked
+      ? `No PingOne account matches the PingFederate user '${access.username}'.`
+      : lookupUnavailable
+        ? `Could not verify membership in '${access.requiredGroup}'.`
+        : `Membership in '${access.requiredGroup}' is required to use the PingOne Admin Assistant.`,
+    reply: notLinked
+      ? `Access denied. You signed in through PingFederate as '${access.username}', and PingOne has no account with that username. Create one and add it to '${access.requiredGroup}', then run the query again.`
+      : lookupUnavailable
+        ? `I could not verify your '${access.requiredGroup}' group membership. Try again after PingOne is available.`
+        : `Access denied. Add the signed-in user to '${access.requiredGroup}', then run the query again.`,
     requiredGroup: access.requiredGroup,
     success: false,
   });

@@ -5,6 +5,27 @@ Canonical do-not-break contract for the Super Banking demo. The
 layer that points here; `CLAUDE.md` also points here. This file is the source of
 truth — if the skill and this file disagree, this file wins.
 
+### 2026-10-01 — Do not restart login after an invalid callback state
+
+**Files changed:** `demo_api_server/routes/oauthUser.js` and OAuth callback tests.
+
+**What was broken:** A callback with stale or mismatched state cleared PKCE and
+ID-JAG state, then automatically redirected to `/login`. That opened another
+PingFederate prompt and could overwrite the state belonging to a still-active
+login in another tab.
+
+**What was fixed:** Invalid-state callbacks now return to the SPA with an
+`invalid_state` error for the existing OAuth error toast. They leave any newer
+PKCE state untouched and require the user to start another login deliberately.
+
+**Do not break:** State mismatch must still fail closed; never redeem its code.
+Callbacks from a valid concurrent login must retain their state, verifier,
+redirect URI, nonce, and provider binding.
+
+**Verify:** Focused `oauth-e2e-integration` tests reject invalid states without
+redirecting to `/login`; `oauth-callback` verifies a stale callback leaves the
+current login redeemable.
+
 ### 2026-09-27 — Bind login callbacks and refresh to the recorded provider
 
 **Files changed:** `demo_api_server/routes/oauth.js`,
@@ -236,9 +257,73 @@ read the configured host. A new browser origin must be added to ALL of:
 
 **What changed:** Deleted the two override rules (base and `:hover`). The base `.signin-prompt__btn--ghost` rule directly above them already uses theme tokens (`--th-text`, `--th-border-strong`, `--th-bg-hover`) and is correct in both themes. Measured live after the change: 17.1:1 light and 17.9:1 dark for both modals.
 
-**Do not break:** Keep the ghost button's ink and ground drawn from theme tokens, never a fixed white-on-translucent pair, and do not assume a modal footer's theme. The pi.flow modal on PR #468 carries its own `.pi-flow-signin` ghost override that is now redundant and can be dropped when it merges.
+**Do not break:** Keep the ghost button's ink and ground drawn from theme tokens, never a fixed white-on-translucent pair, and do not assume a modal footer's theme. The pi.flow modal's own `.pi-flow-signin` ghost override (added by #468 as a local workaround for this same bug) became redundant and is removed in this change; both modals now rely on the base rule. `signinAccentTokens.test.js` guards it: it asserts the ghost button's ink and border come from theme tokens and that nothing re-pins it to the `--modal-header-text` pair (verified to fail on the old CSS).
 
 **Verify:** `cd demo_api_ui && npx vitest run src/components/__tests__/themingRatchet.test.js src/components/__tests__/SessionReauthBanner.test.jsx src/components/__tests__/PiFlowSignInModal.test.jsx && npm run build`.
+
+### 2026-10-01 — PingOne Admin gate refused every PingFederate sign-in
+
+**Files:** `demo_api_server/services/pingOneAdminAccessService.js`, `demo_api_server/routes/adminAgentRoutes.js`, `demo_api_server/tests/pingOneAdminAccessService.pf.test.js` (new).
+
+**What was broken:** `checkAccess` assumed a PingOne session three times over. It read groups with the session subject (a PingFederate username, so PingOne answered 400), ran both exchange hops with PingOne clients against a PingFederate-issued token, and reported the result as "could not verify group membership — try again after PingOne is available". The `pingone-admin` vertical was unusable for every PingFederate admin.
+
+**What changed:** For a PingFederate session the gate checks the PingOne account with the same username, runs both hops through `pfStandardTokenExchangeService` (the chain the agent's own tool calls already use), validates the result, and asks PingOne Authorize as before. No PingOne account with that username is its own denial, `pingone_admin_user_not_linked` (403).
+
+**Do not break:** A PingOne session takes the original path untouched — same two hops, same arguments. The PingFederate path fails closed: a failed lookup, exchange or validation is a 503, never a fallback to the PingFederate subject and never a JS-side permit. The decision is still PingOne Authorize's.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/pingOneAdminAccessService.pf.test.js tests/pingOneAdminAccessService.test.js --forceExit`.
+
+### 2026-10-01 — pi.flow sign-in drives the passkey (ASSERTION_REQUIRED) step
+
+**Files:** `demo_api_server/routes/oauthUser.js`, `demo_api_ui/src/components/PiFlowSignInModal.jsx`, and focused tests.
+
+**What was broken:** The redirect-free sign-in only handled the password step; any other flow status, including a passkey challenge, fell back to the redirect login. Measured against the live environment: a Multi_Factor step-up for the demo user returns `ASSERTION_REQUIRED` after the password, with `assertion.check` and `device.select` links, FIDO2, SMS and EMAIL devices, the WebAuthn request options in the response, and `rpId` `ping-devops.com`.
+
+**What changed:** `POST /api/auth/oauth/user/pi-flow/credentials` now returns `{ step: 'passkey', publicKeyCredentialRequestOptions }` for `ASSERTION_REQUIRED`. New `POST /pi-flow/assertion` posts `application/vnd.pingidentity.assertion.check+json` with `{ origin, assertion (JSON string), compatibility: 'FULL' }` to the flow, replaying the `ST` cookie jar, then completes through `/as/resume` into the unchanged `/callback`. Password and assertion share one step-and-respond helper. The client origin is accepted only if it is in `KNOWN_REDIRECT_ORIGINS`. The modal shows a "Verify with passkey" button (a fresh click, because some browsers require a user gesture for WebAuthn), reuses `authenticateWebAuthn`, keeps the user on the step on a dismissed prompt or rejected assertion, and offers "Use another method" (the redirect login). Other statuses (SMS/email OTP, device selection) still fall back.
+
+**PingFederate (same entry):** `/login?pi_flow=1` and the modal now also run for the PingFederate provider. PF differs from PingOne and was probed live against an isolated test client (`ai-demo-pf-user-piflow`): authorize with `Accept: application/json` returns `USERNAME_PASSWORD_REQUIRED` with a `/pf-ws/authn/flows/{id}` link and a `PF` cookie; the password step posts `application/vnd.pingidentity.checkUsernamePassword+json` with an `X-XSRF-Header` and the cookie jar; bad credentials are HTTP 400 `CREDENTIAL_VALIDATION_FAILED`; a correct password returns `COMPLETED` with `authorizeResponse.{code,state}` inline, so there is NO `/as/resume`. The BFF refuses an `authorizeResponse.state` that is not the session state, validates the flow id before it goes into a URL path, and closes `/pi-flow/assertion` to PF flows. Statuses other than COMPLETED fall back to the redirect login. **Needs PF setup that is not in code (see TECH_DEBT 2026-10-01):** server `apiEnabled`, and the real `ai-demo-pf-user` client's `allowAuthenticationApiInit` with a full allowed-scope list. Until then the PF flow fails to open and the modal falls back to the redirect login. **Two findings from the live PF check (same entry):** (1) The BFF must call PF at the address it uses for token exchange (the token endpoint's origin, `https://pingfederate:9031` in Docker), not the browser-facing authorization endpoint's origin (`https://local.ping-devops.com:9031`, which is the host's loopback from inside the container); the PF flow driver derives its base from `tokenEndpoint` and re-points the authorize URL at it. (2) PF binds the flow to the authorize request's `login_hint` (the BFF sends `demouser` in PF mode): any other username is rejected with `Username must match the provided username hint`, which maps to a 401. `/login?pi_flow=1` therefore returns `usernameHint` for PingFederate and the modal prefills it, as the hosted page does. **Verified live against the real client:** flow opens through the BFF, a wrong password is a 401, the live client's settings and normal login are intact. **Not verified:** the final leg of a PF sign-in through the BFF `/callback` (PF's COMPLETED response was verified directly against PF with the test client and the readiness user; completing through the BFF needs `demouser`'s password, because the hint locks the flow to that user).
+
+**Do not break:** The password-only path, the `ST` cookie replay across steps, the `/callback` PKCE/nonce/session creation, the default redirect login (flag off, PingFederate, `force`, `silent-reauth`, step-up), and that the BFF holds no worker token for this flow.
+
+**Verify:** `cd demo_api_server && CI=true node_modules/.bin/jest tests/oauthUserPiFlow.test.js tests/oauthUser.test.js --forceExit`; `cd demo_api_ui && npx vitest run src/components/__tests__/PiFlowSignInModal.test.jsx && npm run build`. Not verified: a real authenticator assertion through `assertion.check` (needs a browser and the user's passkey on `local.ping-devops.com:4000`), and a normal `/login` reaching this step (the demo user's plain login completes on the password alone; the step-up route does not use pi.flow).
+
+**Also in this change (branding):** `PiFlowSignInModal` shows the active vertical's logo and name (`pageManifest.identity.logoPath` / `headerTitle` / `displayName`, read from `VerticalContext` so the modal needs no Router) on a band using `--brand-dashboard-header-start`/`-end` and `--brand-dashboard-header-text`; PingOne Admin's manifest already points at `/branding/ping-logo.svg`, and a test pins that and that every declared `logoPath` exists under `public/`. Every vertical now declares a `logoPath`: six had none (Super Sports, United Airlines, CivicPermit, Meridian Wealth, Precision Works, Super University), so the modal fell back to the name alone; each now has a white-tile SVG in its own colors under `public/branding/` (basketball, paper plane, civic building, rising chart, gear, graduation cap), and a test fails if any vertical lacks one. These logos also appear in the top nav, which reads the same field. The modal still tolerates a vertical with no logo (name only). The primary button and input focus ring use the same header start/text pair, **not** `--app-primary-red`: Great Buy's primary is yellow `#FFE000` (1.3:1 against white). Fixed in the same stylesheet: the Cancel button was white on white in light theme (~1:1) because the modal reuses `.signin-modal`, whose ghost-button rule assumes a dark footer; `.pi-flow-signin .signin-prompt__btn--ghost` now uses `--th-text`/`--th-border-strong` (17.1:1 light, 17.9:1 dark). Verified in a real browser with computed styles for PingOne Admin, Great Buy, Super Sports and CareConnect (API responses faked, no live config changed). **Do not break:** the header/button pairing (never mix a vertical's primary with a fixed ink), and the 10px type floor and `--th-*` tokens (no inline colors). `SignInModal` (the session-expired interrupt) still has the dark-footer ghost-button rule and was not changed.
+
+### 2026-10-01 — PingFederate sign-on page: Ping logo and branded card
+
+**Files:** `scripts/pingfederate/assets/login-main.css`, `scripts/pingfederate/assets/ping-identity-logo.png` (new), `scripts/pingfederate/apply-login-theme.sh`.
+
+**What was broken:** PF's sign-on page showed only a tiny white "ping" wordmark with a stray red dot in the top bar and nothing in the card; the field labels were centered over left-aligned inputs; PF's footer logo is white and was invisible on the light page; and the footer sat 20px past the viewport (absolute `left: 20px` with a full-width box), causing a horizontal scrollbar. The template's own `company-logo` slot was hidden.
+
+**What changed:** A scoped "Login page v2" block at the end of the shared stylesheet: the real Ping Identity logo in the top bar and as a centered hero in the card (the `company-logo` slot is shown without needing `has-logo`), a Ping-red card edge, title and subtitle, left-aligned labels, a full-width Ping-red Sign On button and link (6.4:1 with white), a red focus ring, the footer pinned with `left: 0; right: 0`, and the footer logo rendered as a muted grey. `apply-login-theme.sh` now also copies the PNG into PF's template images. CSS only: PF's field names, hidden controls and submit script are untouched.
+
+**Do not break:** Every new rule is scoped to `.ping-container.login-template` (or `body:has(.login-template)` for the bar). The same stylesheet styles PF's consent/approval and SLO pages, whose side-by-side buttons and bar are defined earlier in the file and must not change; never add an unscoped rule or restyle `.ping-buttons` globally. PF's template volume is live state (it is not recreated from this repo): after editing `login-main.css` or recreating the PF volume, re-run `scripts/pingfederate/apply-login-theme.sh`. Keep the block last in the file.
+
+**Verify:** `bash scripts/pingfederate/apply-login-theme.sh`, then load PF's sign-on page (any authorize request) and check the logo is 72x72, `#signOnButton` is `rgb(179, 40, 45)`, and `document.documentElement.scrollWidth` equals `clientWidth`. Verified live on 2026-10-01 (logo, button, footer, no scrollbar, form controls intact). **Not verified:** the consent/approval page (it needs a consent flow; protected only by the scoping above) and the wrong-password error state.
+
+### 2026-10-01 — In-app MFA, OTP email and agent authorization failed in PingFederate mode
+
+**Files:** `demo_api_server/services/mfaService.js`, `demo_api_server/services/emailService.js`, `demo_api_server/services/pingOneUserService.js`.
+
+**What was broken:** These three get a PingOne worker token with `getTokenEndpoint()`, which follows the active login provider. With the provider switched to PingFederate they posted PingOne worker credentials to PingFederate's token endpoint and got `invalid_client`: the step-up dialog showed "Passkey registration failed — MFA operation failed", no OTP email was sent, and the agent-authorization grant could not write `mayAct`.
+
+**What changed:** All three use `getPingOneTokenEndpoint()`, which exists for exactly this ("machine clients configured with PingOne credentials must never send them to the shared PF endpoint").
+
+**Do not break:** A service that authenticates with PingOne worker or management credentials must resolve PingOne's token endpoint, never the provider-aware one. `tests/pingOneWorkerTokenInPfMode.test.js` fails if any of the three goes back.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/pingOneWorkerTokenInPfMode.test.js src/__tests__/pingOneUserService.authFallback.test.js --forceExit`.
+
+### 2026-10-01 — UC38 step-up could not be completed with the app's passkey
+
+**Files:** `demo_api_server/routes/agentInvokeRoute.js`, `demo_api_ui/src/pages/PersonalAgentStudioPage.jsx`.
+
+**What was broken:** UC38 only accepted MFA proven by the sign-in token's `acr`, so the Workload Agents page sent the customer to PingOne's hosted sign-on page. A passkey enrolled in this app is bound to `ping-devops.com` and the browser will not offer it on PingOne's domain; the hosted page reported "Authentication cancelled". Email and SMS worked; passkey needed a second passkey enrolled on PingOne's page.
+
+**What changed:** The UC38 pre-check also accepts the session's in-app MFA marker (`req.session.stepUpVerified`, set by `routes/mfa.js` only after PingOne reports the challenge COMPLETED, 5 minutes, single use as in `routes/transactions.js`). The page opens the existing `OtpStepUpModal` in `p1mfa` mode and re-runs the action on completion; the hosted step-up remains as the fallback when the in-app challenge cannot start.
+
+**Do not break:** UC38 must still refuse to delegate without fresh MFA: an absent or expired marker with a non-MFA `acr` returns `step_up_required`. The marker is consumed when it is the proof used. UC44 has no MFA gate and must not gain one.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/agentInvokeRoute.workloadAgents.test.js --forceExit`; `cd demo_api_ui && npx vitest run src/pages/__tests__/PersonalAgentStudioPage.workloadEvidence.test.jsx && npm run build`.
 
 ### 2026-10-01 — P1/PF toggle did not show which provider was selected
 
