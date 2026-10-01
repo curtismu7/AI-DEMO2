@@ -545,11 +545,11 @@ function renderRunnerControls(controls) {
       if (button.disabled) button.title = busy ? 'Wait for the assigned job to finish.' : 'This runner must be online to pause.';
       row.append(button);
     } else {
-      row.append(node('span', 'control-state', 'No matching local service'));
+      row.append(node('span', 'control-state', runner.localInstalled ? 'Stopped on this Mac' : 'Runs on another machine'));
     }
     elements.runnerControls.append(row);
   }
-  if (!hasLocalControl) elements.runnerControlNote.textContent = 'Runner controls appear on the Mac that hosts the matching launchd service.';
+  if (!hasLocalControl) elements.runnerControlNote.textContent = 'Pause and resume appear only for runners whose service is loaded on this Mac.';
 }
 
 function renderControls(controls) {
