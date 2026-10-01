@@ -275,6 +275,11 @@ function authorizationContractFor(step, sources, issues, useCaseId, vertical) {
       canonicalScope,
       resource: resourceName,
       audience: resource?.uri || null,
+      // Resources that declare this scope as a mirror. PingOne mints a scope
+      // the user's own token does not carry on one of these at the exchange.
+      mirrorAudiences: Object.values(topology.resources || {})
+        .filter((item) => item?.uri && Array.isArray(item.mirroredScopes) && item.mirroredScopes.includes(canonicalScope))
+        .map((item) => item.uri),
     };
   });
   const restrictedRole = manifest?.groups?.restrictedTools?.[toolName] || null;

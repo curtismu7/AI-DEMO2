@@ -20,9 +20,9 @@ function invokeResponse({ decision = 'PERMIT', tool = authorization.primaryTool,
     ...(error ? { error } : {}),
     toolsCalled: [tool],
     tokenEvents: [
-      { id: 'user-token', status: 'active', claims: { sub: 'user-1', iss: ISSUER, aud: ['enduser.ping.demo'] } },
+      { id: 'user-token', status: 'active', claims: { sub: 'user-1', iss: ISSUER, aud: ['enduser.ping.demo'], scope: 'openid read write' } },
       { id: 'two-ex-agent-actor', status: 'active', claims: { iss: ISSUER, aud: ['agentgateway.ping.demo'] } },
-      { id: 'two-ex-exchange1', status: 'exchanged', claims: { sub: 'user-1', iss: ISSUER, scope: 'read agent:invoke' } },
+      { id: 'two-ex-exchange1', status: 'exchanged', claims: { sub: 'user-1', iss: ISSUER, aud: ['agentgateway.ping.demo'], scope: 'read agent:invoke' } },
       { id: 'two-ex-final-token', status: 'exchanged', claims: { sub: 'user-1', iss: ISSUER, aud: ['https://api.ping.demo:3036/mcp'] } },
       { id: 'gw-authorize', status: decision.toLowerCase(), decision, url: 'https://api.example.test/decision-endpoints/1' },
       { id: 'gw-mcp-audit', mcpAudit: { who: { userSub: 'user-1', agentSub: 'agent-1' }, what: { tool }, where: { routePath: '/mcp' }, how: { decision } } },
@@ -125,6 +125,17 @@ const validateRow = (id, result, expected) => {
     ...evidenceFailures({ evidence: result.evidence, provider: PROVIDER, authorization: contract, expected, caseRow: row }),
   ];
 };
+
+test('UC-TOOL1: a scope the user token lacks is accepted on a declared mirror audience, and on no other', () => {
+  const { authorization: contract } = rowFor('UC-TOOL1');
+  const response = invokeResponse({ tool: contract.primaryTool });
+  response.tokenEvents[2].claims.scope = 'code:search agent:invoke';
+  const run = () => evidenceFromAgentInvoke({ response, provider: PROVIDER, expectedIssuer: ISSUER, authorization: contract });
+  expect(run().evidence.audiences).toEqual(['agentgateway.ping.demo']);
+  expect(validateRow('UC-TOOL1', run(), 'PERMIT')).toEqual([]);
+  response.tokenEvents[2].claims.aud = ['enduser.ping.demo'];
+  expect(validateRow('UC-TOOL1', run(), 'PERMIT').join(' ; ')).toMatch(/audience set/);
+});
 
 test('the catalog derives each step\'s enforcement from its declared evidence chain', () => {
   const enforcement = (id) => rowFor(id).authorization.enforcement;

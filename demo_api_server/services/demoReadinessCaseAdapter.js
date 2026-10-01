@@ -86,7 +86,12 @@ function evidenceFromAgentInvoke({ response, provider, expectedIssuer, authoriza
     subject: finalToken?.claims?.sub || null,
     actorChain: auditActors.length ? auditActors : audit ? tokenActors : heldByAuthorize ? decisionActors : [],
     selectedTool,
-    audiences: list(userToken?.claims?.aud),
+    // Where each required scope was actually held: the user's own token when
+    // it carries the scope, otherwise the first exchange that minted it.
+    audiences: [...new Set((authorization?.requiredScopes?.length ? authorization.requiredScopes : [null]).flatMap((scope) => {
+      const holds = (event) => scope === null || String(event?.claims?.scope || '').split(/\s+/).includes(scope);
+      return list((holds(userToken) ? userToken : holds(exchange1) ? exchange1 : null)?.claims?.aud);
+    }))],
     scopes: list(String(exchange1?.claims?.scope || '').split(/\s+/)).filter((scope) => scope !== AGENT_SCOPE),
     roleApplicability: { userLogin: Boolean(userToken), agentIdentity: Boolean(agentActor), tokenExchange: Boolean(standardExchange) },
   };

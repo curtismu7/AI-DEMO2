@@ -341,7 +341,14 @@ function evidenceFailures({ evidence, provider, authorization, expected, caseRow
   }
   if (authorization?.primaryTool) {
     require(evidence.selectedTool === authorization.primaryTool, 'selected tool does not match catalog contract');
-    require(exactValues(evidence.audiences, authorization.scopeResources?.map((item) => item.audience)), 'audience set does not match catalog contract');
+    // Each required scope must be seen on the audience of the resource that
+    // owns it, or on one that scope-topology.json declares as its mirror, and
+    // no other audience may be reported.
+    const observedAudiences = (Array.isArray(evidence.audiences) ? evidence.audiences : []).map(String);
+    const allowedAudiences = (authorization.scopeResources || []).map((item) => [item.audience, ...(item.mirrorAudiences || [])].filter(Boolean));
+    require(observedAudiences.length > 0
+      && allowedAudiences.every((allowed) => allowed.some((audience) => observedAudiences.includes(audience)))
+      && observedAudiences.every((audience) => allowedAudiences.some((allowed) => allowed.includes(audience))), 'audience set does not match catalog contract');
     require(exactValues(evidence.scopes, authorization.requiredScopes), 'scope set does not match catalog contract');
     require(Boolean(evidence.gateway?.route && evidence.gateway?.verdict), 'Gateway evidence is required for an exchanged tool call');
     // A gateway-policy tool is decided by the gateway's own filter; PingOne
