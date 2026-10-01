@@ -106,6 +106,26 @@ describe('PersonalAgentStudioPage workload evidence', () => {
     expect(assign).toHaveBeenCalledWith(expect.stringMatching(/^\/api\/auth\/oauth\/user\/stepup\?return_to=http/));
   });
 
+  it('moves the security gates on the status words the BFF really sends', async () => {
+    const run = (authorize) => vi.stubGlobal('fetch', vi.fn((url) => Promise.resolve(url === '/api/agent/invoke'
+      ? { ok: true, status: 200, json: async () => ({ success: true, reply: 'Done.', tokenEvents: [
+        { id: 'personal-agent-lookup', status: 'active' },
+        { id: 'gw-introspection', status: 'valid' },
+        { id: 'gw-authorize', status: authorize },
+      ] }) }
+      : { ok: false, status: 401, json: async () => ({}) })));
+    run('permit');
+    renderWorkload();
+    expect(screen.getAllByText('WAITING')).toHaveLength(3);
+    fireEvent.click(screen.getByRole('button', { name: 'Run UC44 action' }));
+    await waitFor(() => expect(screen.getAllByText('PERMIT')).toHaveLength(3));
+    // A held call (human approval, step-up) is neither permit nor deny.
+    run('indeterminate');
+    fireEvent.click(screen.getByRole('button', { name: 'Run UC44 action' }));
+    await waitFor(() => expect(screen.getAllByText('PERMIT')).toHaveLength(2));
+    expect(screen.getByText('CHECKING…')).toBeTruthy();
+  });
+
   it('keeps token evidence from a structured HTTP error response', async () => {
     vi.stubGlobal('fetch', vi.fn((url) => Promise.resolve(url === '/api/agent/invoke'
       ? { ok: false, status: 428, json: async () => ({ error: 'step_up_required', message: 'Complete MFA.', tokenEvents: [{ id: 'mfa', status: 'required' }] }) }
