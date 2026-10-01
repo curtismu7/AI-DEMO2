@@ -5,6 +5,27 @@ Canonical do-not-break contract for the Super Banking demo. The
 layer that points here; `CLAUDE.md` also points here. This file is the source of
 truth — if the skill and this file disagree, this file wins.
 
+### 2026-10-01 — Do not restart login after an invalid callback state
+
+**Files changed:** `demo_api_server/routes/oauthUser.js` and OAuth callback tests.
+
+**What was broken:** A callback with stale or mismatched state cleared PKCE and
+ID-JAG state, then automatically redirected to `/login`. That opened another
+PingFederate prompt and could overwrite the state belonging to a still-active
+login in another tab.
+
+**What was fixed:** Invalid-state callbacks now return to the SPA with an
+`invalid_state` error for the existing OAuth error toast. They leave any newer
+PKCE state untouched and require the user to start another login deliberately.
+
+**Do not break:** State mismatch must still fail closed; never redeem its code.
+Callbacks from a valid concurrent login must retain their state, verifier,
+redirect URI, nonce, and provider binding.
+
+**Verify:** Focused `oauth-e2e-integration` tests reject invalid states without
+redirecting to `/login`; `oauth-callback` verifies a stale callback leaves the
+current login redeemable.
+
 ### 2026-09-27 — Bind login callbacks and refresh to the recorded provider
 
 **Files changed:** `demo_api_server/routes/oauth.js`,

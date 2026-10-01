@@ -930,19 +930,16 @@ router.get('/callback', async (req, res) => {
     const resolvedState = sessionState || pkceCookie?.state;
 
     if (!state || state !== resolvedState) {
-      clearPendingIdJagRun(req);
-      clearIdJagCookie(res);
       console.error('[oauth/user/callback] Invalid state.', {
         sessionStatePresent: !!sessionState,
         pkceCookiePresent: !!pkceCookie?.state,
         receivedStatePresent: !!state,
       });
-      clearPkceCookie(res, _isProd());
       finishLoginAudit(req, { outcome: 'failure', reasonCode: 'invalid_state' });
-      // Instead of showing an error, auto-retry login — the user clearly intended to sign in.
-      // This handles the multi-tab race where tab B's login overwrites tab A's PKCE state.
-      console.log('[oauth/user/callback] Auto-retrying login after invalid_state (multi-tab race)');
-      return res.redirect(`${req.baseUrl}/login`);
+      // An invalid callback may be from an older tab while a newer login is
+      // still in flight. Do not clear its PKCE/ID-JAG state or start another
+      // login, which would overwrite the state the valid callback needs.
+      return redirectEndUserOAuthSpaFailure(req, res, { error: 'invalid_state' });
     }
 
     const loginProvider = req.session.oauthLoginProvider || pkceCookie?.oauthProvider;
