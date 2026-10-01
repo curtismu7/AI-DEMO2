@@ -34,15 +34,15 @@ describe('facade upstream token exchange', () => {
     saved.cid = process.env.PINGONE_MCP_GATEWAY_CLIENT_ID;
     saved.sec = process.env.PINGONE_MCP_GATEWAY_CLIENT_SECRET;
     saved.region = process.env.PINGONE_REGION;
-    saved.agentId = process.env.PINGONE_AI_AGENT_ACTOR_CLIENT_ID;
-    saved.agentSecret = process.env.PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET;
+    saved.agentId = process.env.PINGONE_TOKEN_EXCHANGER_CLIENT_ID;
+    saved.agentSecret = process.env.PINGONE_TOKEN_EXCHANGER_CLIENT_SECRET;
     saved.facadeAgentGatewayResource = process.env.MCP_FACADE_AGENT_GATEWAY_RESOURCE_URI;
     process.env.PINGONE_ENVIRONMENT_ID = ENV;
     process.env.PINGONE_MCP_GATEWAY_CLIENT_ID = '6586d3de-b916-454c-84e5-6d21b572a534';
     process.env.PINGONE_MCP_GATEWAY_CLIENT_SECRET = 'shhh';
     process.env.PINGONE_REGION = 'com';
-    process.env.PINGONE_AI_AGENT_ACTOR_CLIENT_ID = 'agent-client';
-    process.env.PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET = 'agent-secret';
+    process.env.PINGONE_TOKEN_EXCHANGER_CLIENT_ID = 'exchanger-client';
+    process.env.PINGONE_TOKEN_EXCHANGER_CLIENT_SECRET = 'exchanger-secret';
     process.env.MCP_FACADE_AGENT_GATEWAY_RESOURCE_URI = MCP_GATEWAY_AUD;
     svc.__test.cache.clear();
   });
@@ -53,8 +53,8 @@ describe('facade upstream token exchange', () => {
       ['PINGONE_MCP_GATEWAY_CLIENT_ID', saved.cid],
       ['PINGONE_MCP_GATEWAY_CLIENT_SECRET', saved.sec],
       ['PINGONE_REGION', saved.region],
-      ['PINGONE_AI_AGENT_ACTOR_CLIENT_ID', saved.agentId],
-      ['PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET', saved.agentSecret],
+      ['PINGONE_TOKEN_EXCHANGER_CLIENT_ID', saved.agentId],
+      ['PINGONE_TOKEN_EXCHANGER_CLIENT_SECRET', saved.agentSecret],
       ['MCP_FACADE_AGENT_GATEWAY_RESOURCE_URI', saved.facadeAgentGatewayResource],
     ];
     for (const [k, v] of pairs) {
@@ -145,8 +145,8 @@ describe('facade upstream token exchange', () => {
 
     const actorBody = new URLSearchParams(axios.post.mock.calls[0][1]);
     expect(actorBody.get('grant_type')).toBe('client_credentials');
-    expect(actorBody.get('client_id')).toBe('agent-client');
-    expect(actorBody.get('client_secret')).toBe('agent-secret');
+    expect(actorBody.get('client_id')).toBe('exchanger-client');
+    expect(actorBody.get('client_secret')).toBe('exchanger-secret');
     expect(actorBody.get('audience')).toBe(AGENT_GATEWAY_AUD);
     expect(actorBody.get('scope')).toBe('agent:invoke');
 
@@ -157,8 +157,8 @@ describe('facade upstream token exchange', () => {
     expect(exchangeBody.get('audience')).toBe(MCP_GATEWAY_AUD);
     expect(exchangeBody.get('resource')).toBeNull();
     expect(exchangeBody.get('scope')).toBe('mcp:invoke write transfer');
-    expect(exchangeBody.get('client_id')).toBe('agent-client');
-    expect(exchangeBody.get('client_secret')).toBe('agent-secret');
+    expect(exchangeBody.get('client_id')).toBe('exchanger-client');
+    expect(exchangeBody.get('client_secret')).toBe('exchanger-secret');
   });
 
   test('caches the delegated gateway token without re-minting the actor', async () => {
