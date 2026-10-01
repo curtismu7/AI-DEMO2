@@ -21,7 +21,7 @@ jest.mock('../../middleware/auth');
 const mockOAuthService = require('../../services/oauthService');
 const mockOAuthUserService = require('../../services/oauthUserService');
 const mockConfigStore = require('../../services/configStore');
-const { readPkceCookie } = require('../../services/pkceStateCookie');
+const { readPkceCookie, setPkceCookie } = require('../../services/pkceStateCookie');
 const mockDataStore = require('../../data/store');
 const mockAuth = require('../../middleware/auth');
 
@@ -39,6 +39,29 @@ describe('OAuth Callback Token Storage (Task 7)', () => {
 
     app.get('/__test/user-login-provider', (req, res) => {
       res.json({ loginProvider: req.session.oauthLoginProvider || null });
+    });
+
+    app.get('/__test/user-login-session', (req, res) => {
+      Object.assign(req.session, {
+        oauthType: 'user',
+        oauthState: 'current-state',
+        oauthCodeVerifier: 'current-verifier',
+        oauthRedirectUri: 'https://local.ping-devops.com:4000/api/auth/oauth/user/callback',
+        oauthNonce: 'current-nonce',
+        oauthLoginProvider: 'pingone',
+      });
+      req.session.save((err) => res.sendStatus(err ? 500 : 204));
+    });
+
+    app.get('/__test/user-pkce-cookie', (req, res) => {
+      setPkceCookie(res, {
+        state: 'cookie-current-state',
+        codeVerifier: 'cookie-current-verifier',
+        redirectUri: 'https://local.ping-devops.com:4000/api/auth/oauth/user/callback',
+        nonce: 'cookie-current-nonce',
+        oauthProvider: 'pingone',
+      }, false);
+      req.session.save((err) => res.sendStatus(err ? 500 : 204));
     });
 
     app.get('/__test/admin-login-session', (req, res) => {
@@ -221,6 +244,45 @@ describe('OAuth Callback Token Storage (Task 7)', () => {
     expect(response.status).toBe(302);
     expect(response.headers.location).toContain('error=provider_changed');
     expect(mockOAuthService.exchangeCodeForToken).not.toHaveBeenCalled();
+  });
+
+  test('stale callback does not clear the current login state or launch another login', async () => {
+    const agent = request.agent(app);
+    await agent.get('/__test/user-login-session').expect(204);
+
+    const stale = await agent.get('/api/auth/oauth/user/callback')
+      .query({ code: 'stale-code', state: 'older-tab-state' });
+    expect(stale.status).toBe(302);
+    expect(stale.headers.location).toContain('error=invalid_state');
+    expect(stale.headers.location).not.toContain('/login');
+
+    const current = await agent.get('/api/auth/oauth/user/callback')
+      .query({ code: 'current-code', state: 'current-state' });
+    expect(current.headers.location).not.toContain('error=invalid_state');
+    expect(mockOAuthUserService.exchangeCodeForToken).toHaveBeenCalledWith(
+      'current-code', 'current-verifier',
+      'https://local.ping-devops.com:4000/api/auth/oauth/user/callback',
+    );
+  });
+
+  test('stale callback preserves the active signed PKCE cookie fallback', async () => {
+    const agent = request.agent(app);
+    await agent.get('/__test/user-pkce-cookie').expect(204);
+
+    const stale = await agent.get('/api/auth/oauth/user/callback')
+      .query({ code: 'stale-code', state: 'older-tab-state' });
+    expect(stale.headers.location).toContain('error=invalid_state');
+    expect(stale.headers.location).not.toContain('/login');
+    expect(stale.headers['set-cookie'] || []).not.toEqual(
+      expect.arrayContaining([expect.stringMatching(/^_pkce=;/)]),
+    );
+
+    await agent.get('/api/auth/oauth/user/callback')
+      .query({ code: 'cookie-current-code', state: 'cookie-current-state' });
+    expect(mockOAuthUserService.exchangeCodeForToken).toHaveBeenCalledWith(
+      'cookie-current-code', 'cookie-current-verifier',
+      'https://local.ping-devops.com:4000/api/auth/oauth/user/callback',
+    );
   });
 
   test('step-up stores the selected provider in both session and PKCE fallback cookie', async () => {
