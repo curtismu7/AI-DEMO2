@@ -8,6 +8,11 @@ const SENSITIVE_BODY_FIELDS = new Set([
   'password',
   'newpassword',
   'currentpassword',
+  'current_password',
+  'api_key',
+  'api_secret',
+  'apikey',
+  'apisecret',
   'confirmpassword',
   'clientsecret',
   'client_secret',
@@ -16,14 +21,15 @@ const SENSITIVE_BODY_FIELDS = new Set([
 ]);
 
 const redactSensitiveFields = (body) => {
+  if (Array.isArray(body)) return body.map(redactSensitiveFields);
   if (!body || typeof body !== 'object') {
     return body;
   }
   const redacted = { ...body };
   for (const key of Object.keys(redacted)) {
-    if (SENSITIVE_BODY_FIELDS.has(key.toLowerCase())) {
-      redacted[key] = '[REDACTED]';
-    }
+    redacted[key] = SENSITIVE_BODY_FIELDS.has(key.toLowerCase())
+      ? '[REDACTED]'
+      : redactSensitiveFields(redacted[key]);
   }
   return redacted;
 };

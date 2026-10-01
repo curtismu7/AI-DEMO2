@@ -5,6 +5,7 @@ import bffAxios from '../services/bffAxios';
 import AgentAccessCard from './AgentAccessCard';
 import AgentPermissionsCard from './AgentPermissionsCard';
 import SignInPrompt from './SignInPrompt';
+import VerifyCard from './VerifyCard';
 import { useThemeOptional } from '../context/ThemeContext';
 import './Profile.css';
 
@@ -322,6 +323,8 @@ export default function Profile({ user }) {
           </div>
         )}
       </div>
+
+      <VerifyCard compact />
 
       {/* MFA Devices */}
       <div className="up-card">
