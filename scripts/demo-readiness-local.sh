@@ -56,6 +56,11 @@ PINGONE_WORKER_CLIENT_SECRET="$(vault_get PINGONE_WORKER_CLIENT_SECRET)"
 export PINGONE_WORKER_CLIENT_SECRET
 export PINGONE_AUTHORIZE_DECISION_ENDPOINT_ID="$(env_value PINGONE_AUTHORIZE_DECISION_ENDPOINT_ID "$ENV_FILE")"
 export PINGONE_AUTHORIZE_MCP_DECISION_ENDPOINT_ID="$(env_value PINGONE_AUTHORIZE_MCP_DECISION_ENDPOINT_ID "$ENV_FILE")"
+# Non-secret PingFederate settings: the declared side of the Gateway Exchange #3
+# readback (what refresh-service-envs.js generates for PingGateway).
+for name in PF_ISSUER PF_ISSUER_URI PF_TOKEN_ENDPOINT PF_STANDARD_TOKEN_EXCHANGE_CLIENT_ID; do
+  export "$name=$(env_value "$name" "$ENV_FILE")"
+done
 # The local stack's certificates are issued by mkcert's CA.
 export NODE_EXTRA_CA_CERTS="$MAIN/certs/mkcert-rootCA.pem"
 
