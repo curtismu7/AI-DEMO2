@@ -812,6 +812,7 @@ const authenticateToken = async (req, res, next) => {
           req.user = {
             id: decoded.sub,
             sub: decoded.sub,
+            issuer: decoded.iss || null,
             username: decoded.preferred_username || decoded.sub,
             email: decoded.email,
             firstName: decoded.given_name || null,
@@ -934,6 +935,7 @@ const authenticateToken = async (req, res, next) => {
       req.user = {
         id: decoded.sub,
         sub: decoded.sub,
+        issuer: decoded.iss || null,
         username: decoded.preferred_username || decoded.sub,
         email: decoded.email,
         firstName: decoded.given_name || null,

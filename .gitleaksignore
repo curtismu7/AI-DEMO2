@@ -40,3 +40,6 @@ demo_api_ui/src/pages/LlmGatewayPage.jsx:generic-api-key:291
 # mistake in #3164 and is the source for `npm run publish:agent-guardrails`).
 ping_agent_guardrails_diagram.html:generic-api-key:632
 ping_agent_guardrails_diagram.html:generic-api-key:638
+
+# False positive: "storageKey" + "lgw-lanes-width-v2" is a localStorage key name, not a secret.
+demo_api_ui/src/pages/LlmGatewayPage.jsx:generic-api-key:291

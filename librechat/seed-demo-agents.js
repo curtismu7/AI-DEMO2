@@ -366,19 +366,18 @@ AGENTS.push({
     'When is my next appointment?',
   ],
 });
+// The handoff to Money Movement was dropped on 2026-09-30: 4e0aee902 removed the
+// Banking agents from the seeded set, leaving this edge pointing at a deleted
+// agent (the seed then exited 1 and the transfer tool failed at demo time).
 AGENTS.push({
   name: 'Handoff · Super Sports Checkout',
-  description: 'Reads Super Sports gear orders, then hands payment to the Money Movement agent: one chat reaches two business units.',
-  instructions: `You are the Super Sports checkout demo assistant. ${SS_IDS} Look up gear orders yourself. When the user wants to pay for an order, hand off to Money Movement with the order and its amount. Keep answers short.`,
+  description: 'Reads Super Sports gear orders and their status.',
+  instructions: `You are the Super Sports checkout demo assistant. ${SS_IDS} Look up gear orders and their status yourself. Keep answers short.`,
   tools: ['list_gear', 'gear_order_status'],
-  handoffs: [{ to: 'Money Movement', description: 'Pay from a bank account: withdrawals and transfers.' }],
   conversation_starters: [
     'Show my gear orders',
     'Where is my Garmin Forerunner 265 order (2002)?',
-    // A bare "pay for my order" made Money Movement call create_transfer with an
-    // invented payee account ("To account not found", 2/2 on 2026-09-14, even
-    // with the handoff description saying withdrawal) — name the withdrawal.
-    'Withdraw $449 from checking to pay for order 2002',
+    'Which of my gear orders have shipped?',
   ],
 });
 
@@ -387,13 +386,9 @@ AGENTS.push({
 // MCP sign-in; LibreChat checks the agent's MCP servers before every run.
 const TIMEZONE = 'America/Chicago';
 const SCHEDULES = [
-  { name: 'Morning balance report', agent: 'Everyday Banking', prompt: 'Summarize my balances and my last 5 transactions.', cadence: { frequency: 'daily', hour: 8, minute: 0 } },
   // super-sports-gateway needs this seed account to Connect once (PingOne login)
   // before a run can pass the MCP check.
   { name: 'Daily rentals check', agent: 'Super Sports Policy Guardrails', prompt: 'Show my active equipment rentals.', cadence: { frequency: 'daily', hour: 9, minute: 0 } },
-  // $750 is above the demo's consent and step-up thresholds, so the run should
-  // stop at human consent (hitl_required) instead of moving money unattended.
-  { name: 'Weekly savings sweep', agent: 'Money Movement', prompt: 'Transfer $750 from checking to savings.', cadence: { frequency: 'weekly', hour: 7, minute: 0, daysOfWeek: [1] } },
 ];
 
 // Keep the seeded UI focused on the two active demo areas. The underlying

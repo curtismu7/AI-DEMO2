@@ -2125,6 +2125,30 @@
   flex-wrap: wrap;
 }
 
+/* Redirect-free sign-in form (PiFlowSignInModal). */
+.pi-flow-signin__form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.25rem 0.1rem;
+}
+
+.pi-flow-signin__label {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--th-text);
+}
+
+.pi-flow-signin__input {
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--th-border-strong);
+  border-radius: 6px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-family: inherit;
+  font-size: var(--font-size-body);
+}
+
 /* Shared split-pane divider handle (useDividerDrag consumers). Grid pages give
    it a 6px track; flex pages get the flex-basis here. Hide it wherever the
    page's own media query stacks its columns. */

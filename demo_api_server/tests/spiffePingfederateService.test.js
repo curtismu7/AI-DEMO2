@@ -16,7 +16,7 @@ jest.mock('axios', () => {
   return { __esModule: true, default: { post }, post };
 });
 
-const SVID_PAYLOAD = { iss: 'https://local.ping-devops.com:8443', sub: 'spiffe://bxfinance.demo/bff', aud: ['https://local.ping-devops.com:9031'] };
+const SVID_PAYLOAD = { iss: 'https://local.ping-devops.com:8443', sub: 'spiffe://bxfinance.demo/ns/ai-agents/sa/workforce-ai-agent', aud: ['https://local.ping-devops.com:9031'] };
 const SVID = [
   Buffer.from(JSON.stringify({ alg: 'RS256', kid: 'k1', typ: 'JWT' })).toString('base64url'),
   Buffer.from(JSON.stringify(SVID_PAYLOAD)).toString('base64url'),
@@ -88,7 +88,7 @@ describe('spiffePingfederateService', () => {
 
     const result = await spiffePingfederateService.exchangeWithPingFederate({});
 
-    expect(result.spiffeId).toBe('spiffe://bxfinance.demo/bff');
+    expect(result.spiffeId).toBe('spiffe://bxfinance.demo/ns/ai-agents/sa/workforce-ai-agent');
     expect(result.accessToken).toBe('pf-token-1');
     expect(mintSpy).toHaveBeenCalledWith('https://local.ping-devops.com:9031');
     const exchangeCall = postSpy.mock.calls.find(([, body]) => String(body).includes('grant_type=urn'));

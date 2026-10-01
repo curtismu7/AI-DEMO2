@@ -293,7 +293,7 @@
     <mxCell id="r14d" value="✔ DONE" style="text;html=1;strokeColor=#0d6b3e;fillColor=#d4edda;align=center;verticalAlign=middle;fontSize=10;fontStyle=1;fontColor=#0d6b3e;rounded=1;" vertex="1" parent="1">
       <mxGeometry x="830" y="776" width="120" height="38" as="geometry" />
     </mxCell>
-    <mxCell id="r14e" value="Phase D. MCP_ALLOWED_ORIGINS env var; blank = allow all (demo/server-to-server mode)." style="text;html=1;strokeColor=#cccccc;fillColor=#ffffff;align=left;verticalAlign=middle;fontSize=10;spacingLeft=6;whiteSpace=wrap;" vertex="1" parent="1">
+    <mxCell id="r14e" value="Phase D. MCP_ALLOWED_ORIGINS exact allowlist; blank rejects supplied Origins; Origin-less clients remain supported." style="text;html=1;strokeColor=#cccccc;fillColor=#ffffff;align=left;verticalAlign=middle;fontSize=10;spacingLeft=6;whiteSpace=wrap;" vertex="1" parent="1">
       <mxGeometry x="960" y="776" width="620" height="38" as="geometry" />
     </mxCell>
 
