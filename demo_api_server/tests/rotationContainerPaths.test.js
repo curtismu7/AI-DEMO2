@@ -136,12 +136,16 @@ describe('refresh-service-envs.js — loadVaultSecrets requires lib/vault throug
 
   beforeEach(() => {
     jest.resetModules();
+    // Not `virtual`: lib/vault exists. As a virtual mock it was missed by the
+    // script's require whenever refreshEnvsVaultFirst (which loads the real
+    // module) ran earlier in the same jest worker — the real vault opened and
+    // both tests failed: red in CI's full run, green alone.
     jest.doMock(VAULT_MODULE_PATH, () => ({
       openVault: async () => ({
         read: async (name) => (name === 'PROBE_KEY' ? 'via-api-root' : ''),
         close() {},
       }),
-    }), { virtual: true });
+    }));
   });
 
   afterEach(() => {
