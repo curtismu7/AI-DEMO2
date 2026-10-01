@@ -761,12 +761,22 @@ app.use(
 // endpoints opt out so user records never enter its shared in-memory buffer.
 app.use('/api', createApiCallTrackingMiddleware({ trackApiCall, safeRequestLogUrl }));
 
+// The commit this PROCESS loaded, read once at startup — not the checkout's
+// current HEAD. The bind mount moves with a sync while node keeps its old module
+// cache, so a later HEAD is exactly the staleness the readiness audit's
+// runtime:revision check exists to catch.
+const SERVED_REVISION = (() => {
+    const { resolveRepositoryRoot, readRepositoryRevision } = require('./utils/repositoryRoot');
+    return readRepositoryRevision(resolveRepositoryRoot(path.join(__dirname, 'utils'))) || undefined;
+})();
+
 // Health check endpoint
 app.get('/api/healthz', (req, res) => {
     res.json({
         status: 'ok',
         timestamp: new Date().toISOString(),
-        port: PORT
+        port: PORT,
+        revision: SERVED_REVISION
     });
 });
 

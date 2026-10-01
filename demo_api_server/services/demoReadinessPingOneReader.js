@@ -30,16 +30,26 @@ async function managementToken({ fetchImpl, environmentId, region, clientId, cli
   throw new Error('PingOne Management API token request was rejected');
 }
 
+/** This environment's Management API base URL, or null when no environment is configured. */
+function managementApiBase(env = process.env) {
+  return env.PINGONE_ENVIRONMENT_ID
+    ? 'https://api.pingone.' + (env.PINGONE_REGION || 'com') + '/v1/environments/' + encodeURIComponent(env.PINGONE_ENVIRONMENT_ID)
+    : null;
+}
+
+// The base URL and a read token for it.
+async function pingOneManagementAccess({ env = process.env, fetchImpl = globalThis.fetch, signal } = {}) {
+  const environmentId = env.PINGONE_ENVIRONMENT_ID;
+  const clientId = env.PINGONE_WORKER_CLIENT_ID;
+  const clientSecret = env.PINGONE_WORKER_CLIENT_SECRET;
+  if (!environmentId || !clientId || !clientSecret) throw new Error('PingOne Management API credentials are unavailable');
+  const token = await managementToken({ fetchImpl, environmentId, region: env.PINGONE_REGION || 'com', clientId, clientSecret, signal });
+  return { token, base: managementApiBase(env) };
+}
+
 function createPingOneReader({ env = process.env, fetchImpl = globalThis.fetch, manifest = scopeTopology._manifest() } = {}) {
   return async function readConfiguration({ signal, targetId } = {}) {
-    const environmentId = env.PINGONE_ENVIRONMENT_ID;
-    const clientId = env.PINGONE_WORKER_CLIENT_ID;
-    const clientSecret = env.PINGONE_WORKER_CLIENT_SECRET;
-    const region = env.PINGONE_REGION || 'com';
-    if (!environmentId || !clientId || !clientSecret) throw new Error('PingOne Management API credentials are unavailable');
-
-    const token = await managementToken({ fetchImpl, environmentId, region, clientId, clientSecret, signal });
-    const base = 'https://api.pingone.' + region + '/v1/environments/' + encodeURIComponent(environmentId);
+    const { token, base } = await pingOneManagementAccess({ env, fetchImpl, signal });
     const headers = { Authorization: 'Bearer ' + token };
     async function list(path, key) {
       const items = [];
@@ -144,4 +154,4 @@ function createPingOneReader({ env = process.env, fetchImpl = globalThis.fetch, 
   };
 }
 
-module.exports = { createPingOneReader };
+module.exports = { createPingOneReader, pingOneManagementAccess, managementApiBase };
