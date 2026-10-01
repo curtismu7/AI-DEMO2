@@ -36,7 +36,7 @@ jobs:
     # need gates), so skipping it skips the whole run. Skipped required checks
     # count as passing, and a draft cannot be merged anyway.
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
-    runs-on: [self-hosted, macOS]
+    runs-on: ubuntu-latest
     outputs:
       api-server: ${{ steps.all.outputs['api-server'] || steps.nightly.outputs['api-server'] || steps.filter.outputs['api-server'] }}
       decision-services: ${{ steps.all.outputs['decision-services'] || steps.nightly.outputs['decision-services'] || steps.filter.outputs['decision-services'] }}
@@ -147,8 +147,9 @@ jobs:
   gates:
     name: Hygiene + topology gates
     needs: changes
-    # Run selection first, then run repository gates on the single CI runner.
-    runs-on: [self-hosted, macOS]
+    # GitHub-hosted Linux: nothing here needs macOS, and the shared self-hosted
+    # Mac (which also runs the demo stack) is kept for the UI/Playwright job.
+    runs-on: ubuntu-latest
     # 15 was too tight: a slow-network `npm ci` alone took 17.5 min and timed out an all-green run.
     timeout-minutes: 30
     steps:
@@ -156,12 +157,15 @@ jobs:
         with:
           ref: ${{ inputs.target_ref || github.ref }}
       - name: Lint GitHub Actions workflows
-        run: /opt/homebrew/bin/actionlint .github/workflows/ci.yml
+        run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.7 .github/workflows/ci.yml
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-          # Skip restoring the >1 GiB npm cache on this shared-runner gate.
-          package-manager-cache: false
+          # Hosted runners start empty, so the npm cache pays for itself here.
+          cache: npm
+          cache-dependency-path: |
+            demo_api_server/package-lock.json
+            demo_mcp_gateway/package-lock.json
       # Deps install FIRST. hygiene:check used to run against a bare checkout,
       # which worked only while every command in the chain was dependency-free.
       # 04487cdf appended `gen-intent-topology.js check`, and that one loads
@@ -206,16 +210,14 @@ jobs:
       - name: Build cwd guard — own tests
         run: bash scripts/test-k8-build-cwd.sh
 
-  # The repository has one registered self-hosted Mac runner. Chain test jobs
-  # so one workflow does not leave several 30-minute jobs aging in its runner
-  # queue at the same time. `always()` lets later independent suites run after
-  # an earlier suite fails or is filtered out, while every suite still requires
-  # the shared gates to pass.
+  # Suites run in PARALLEL after the gates. They used to be chained one after
+  # another because everything shared one self-hosted Mac; every suite except
+  # ui-tests now runs on GitHub-hosted Linux, so chaining only added latency.
   api-server-tests:
     name: API server tests (Jest)
     needs: [changes, gates]
     if: needs.changes.outputs['api-server'] == 'true'
-    runs-on: [self-hosted, macOS]
+    runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
@@ -224,8 +226,8 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-          # Shares the oversized npm cache with the gates job.
-          package-manager-cache: false
+          cache: npm
+          cache-dependency-path: demo_api_server/package-lock.json
       - name: Install deps
         run: npm ci --prefix demo_api_server --no-audit --no-fund
       - name: Run Jest suite
@@ -259,8 +261,10 @@ jobs:
     # module that fails `vite build` is exactly the false pass demo_api_ui's
     # CLAUDE.md warns about.
     name: UI tests (Vitest) + build
-    needs: [changes, gates, api-server-tests]
-    if: always() && needs.gates.result == 'success' && needs.changes.outputs['ui'] == 'true' && needs.api-server-tests.result != 'cancelled'
+    needs: [changes, gates]
+    if: needs.changes.outputs['ui'] == 'true'
+    # Stays on the self-hosted Mac for now (Playwright/chromium + the memory
+    # guard were tuned there); move it last, once the Linux jobs are proven.
     runs-on: [self-hosted, macOS]
     timeout-minutes: 30
     steps:
@@ -360,9 +364,9 @@ jobs:
     # the distinction it exists to draw — "0 tests ran" must not look like
     # "all tests passed".
     name: Unwired service suites (agent, hitl, code-search, token, resource-server)
-    needs: [changes, gates, ui-tests]
-    if: always() && needs.gates.result == 'success' && needs.changes.outputs['unwired-services'] == 'true' && needs.ui-tests.result != 'cancelled'
-    runs-on: [self-hosted, macOS]
+    needs: [changes, gates]
+    if: needs.changes.outputs['unwired-services'] == 'true'
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
@@ -371,7 +375,8 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-          package-manager-cache: false
+          cache: npm
+          cache-dependency-path: demo_api_server/package-lock.json
       # demo_agent_service/tests/vault.test.ts imports ACROSS the package
       # boundary — ../demo_api_server/lib/vault/ — which requires argon2, a
       # demo_api_server dependency. Locally that resolves because the sibling's
@@ -403,23 +408,21 @@ jobs:
     #   langchain_agent   834 passed          -> BLOCKING
     #   llamaindex_agent    9 passed, 1 skip  -> BLOCKING
     name: Python agent suites (langchain, llamaindex)
-    needs: [changes, gates, unwired-service-suites]
-    if: always() && needs.gates.result == 'success' && needs.changes.outputs['python-agents'] == 'true' && needs.unwired-service-suites.result != 'cancelled'
-    runs-on: [self-hosted, macOS]
+    needs: [changes, gates]
+    if: needs.changes.outputs['python-agents'] == 'true'
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.target_ref || github.ref }}
-      - name: Use the runner's installed Python 3.12
-        run: |
-          python="$HOME/.local/bin/python3.12"
-          if [ ! -x "$python" ]; then
-            echo "Python 3.12 is not installed at $python" >&2
-            exit 1
-          fi
-          "$python" --version
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: |
+            langchain_agent/requirements.txt
+            llamaindex_agent/requirements.txt
       - name: langchain_agent (blocking — 834 passing)
         run: |
           cd langchain_agent
@@ -458,9 +461,9 @@ jobs:
     # constraint — a separate job means another runner and another npm install
     # for ~90s of tests. Bundling is why this job already spans three services.
     name: Service suites (authz-server + mcp-gateway + mcp-server + mcp-resource-server)
-    needs: [changes, gates, python-agent-suites]
-    if: always() && needs.gates.result == 'success' && needs.changes.outputs['decision-services'] == 'true' && needs.python-agent-suites.result != 'cancelled'
-    runs-on: [self-hosted, macOS]
+    needs: [changes, gates]
+    if: needs.changes.outputs['decision-services'] == 'true'
+    runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
@@ -469,8 +472,12 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-          # Keep the large shared-runner npm cache out of this grouped suite.
-          package-manager-cache: false
+          cache: npm
+          cache-dependency-path: |
+            demo_authz_server/package-lock.json
+            demo_mcp_gateway/package-lock.json
+            oauth-mcp/package-lock.json
+            demo_mcp_resource_server/package-lock.json
       - name: Install demo_authz_server deps
         run: npm ci --prefix demo_authz_server --no-audit --no-fund
       - name: Install demo_mcp_gateway deps
@@ -520,7 +527,7 @@ jobs:
     name: Main is red (alert)
     needs: [changes, gates, api-server-tests, ui-tests, unwired-service-suites, python-agent-suites, authz-decision-tests]
     if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: [self-hosted, macOS]
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Evaluate upstream jobs
@@ -537,12 +544,15 @@ jobs:
             echo "| python-agent-suites | ${{ contains(needs.python-agent-suites.result, 'success') && '✅' || '❌ ' }} ${{ needs.python-agent-suites.result }} |"
             echo "| authz-decision-tests | ${{ contains(needs.authz-decision-tests.result, 'success') && '✅' || '❌ ' }} ${{ needs.authz-decision-tests.result }} |"
           } >> "$GITHUB_STEP_SUMMARY"
-          if [[ "${{ needs.gates.result }}" != "success" \
-             || "${{ needs.api-server-tests.result }}" != "success" \
-             || "${{ needs.ui-tests.result }}" != "success" \
-             || "${{ needs.unwired-service-suites.result }}" != "success" \
-             || "${{ needs.python-agent-suites.result }}" != "success" \
-             || "${{ needs.authz-decision-tests.result }}" != "success" ]]; then
+          # Push-to-main is path-filtered, so a suite the merge did not touch
+          # is `skipped` — that is not red. Gates always run and must pass.
+          ok() { [[ "$1" == "success" || "$1" == "skipped" ]]; }
+          if [[ "${{ needs.gates.result }}" != "success" ]] \
+             || ! ok "${{ needs.api-server-tests.result }}" \
+             || ! ok "${{ needs.ui-tests.result }}" \
+             || ! ok "${{ needs.unwired-service-suites.result }}" \
+             || ! ok "${{ needs.python-agent-suites.result }}" \
+             || ! ok "${{ needs.authz-decision-tests.result }}"; then
             echo "::error::main is RED — every job above must be green on main. This alert exists because 32 consecutive red runs on main went unnoticed (2026-09-26 postmortem). Fix or revert before merging further."
             exit 1
           fi
