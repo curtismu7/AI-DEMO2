@@ -7,8 +7,10 @@ const { promisify } = require('util');
 const { redactReadinessValue } = require('./demoReadinessReport');
 const PF_PROFILES = require('../config/demoReadinessPingFederateProfiles.json');
 const { getReadinessToolMetadata } = require('../config/verticals/pingone-admin/tools');
-const healthGate = require('../../scripts/check-demo-health-gate');
-const mcpPreflight = require('../../scripts/check-mcp-preflight');
+const { resolveRepositoryRoot } = require('../utils/repositoryRoot');
+const REPOSITORY_ROOT = resolveRepositoryRoot(__dirname);
+const healthGate = require(path.join(REPOSITORY_ROOT, 'scripts/check-demo-health-gate'));
+const mcpPreflight = require(path.join(REPOSITORY_ROOT, 'scripts/check-mcp-preflight'));
 
 // Keep the waiver limited to the known unsupported full-tree read. Remove it
 // when a supported exact read path is available; never use it for read errors
@@ -112,7 +114,7 @@ function blocked(names, reason) {
 }
 
 function repositoryValues() {
-  const root = path.resolve(__dirname, '..', '..');
+  const root = REPOSITORY_ROOT;
   const topology = JSON.parse(fs.readFileSync(path.join(root, 'scope-topology.json'), 'utf8'));
   const gateway = JSON.parse(fs.readFileSync(path.join(root, 'ping-gateway/config/scope-topology.json'), 'utf8'));
   const { buildDemoReadinessCatalog, loadDemoReadinessSources } = require('./demoReadinessCatalog');

@@ -1,5 +1,7 @@
 'use strict';
 
+const fs = require('node:fs');
+const path = require('node:path');
 const inventory = require('../config/demoReadinessInventory.json');
 const repairability = require('../config/demoReadinessRepairability.json');
 const featureChecks = require('../config/demoReadinessFeatureChecks.json');
@@ -7,15 +9,17 @@ const pingFederateProfiles = require('../config/demoReadinessPingFederateProfile
 const { USE_CASES, VERTICALS, resolveUseCase } = require('../config/useCases');
 const { ADMIN_DEMO_STEPS } = require('../config/admin/demoSteps');
 const authRequirements = require('../config/auth-requirements.json');
-const scopeTopology = require('../../scope-topology.json');
-const gatewayScopeTopology = require('../../ping-gateway/config/scope-topology.json');
+const { resolveRepositoryRoot } = require('../utils/repositoryRoot');
+const repositoryRoot = resolveRepositoryRoot(__dirname);
 const {
   requiredFlagsForUseCase,
   needsA2aCredentials,
   needsParConfig,
 } = require('./demoStepPrerequisites');
 
-function loadDemoReadinessSources() {
+function loadDemoReadinessSources({ repositoryRoot: sourceRoot = repositoryRoot } = {}) {
+  const scopeTopology = JSON.parse(fs.readFileSync(path.join(sourceRoot, 'scope-topology.json'), 'utf8'));
+  const gatewayScopeTopology = JSON.parse(fs.readFileSync(path.join(sourceRoot, 'ping-gateway/config/scope-topology.json'), 'utf8'));
   const verticalManifests = Object.fromEntries(VERTICALS.map((vertical) => [
     vertical,
     require(`../config/verticals/${vertical}/manifest.json`),
