@@ -46,6 +46,15 @@ const { evaluateLearningDemo, LEARNING_DEMO_TYPES } = require('../services/autho
 
 const router = express.Router();
 
+// Named (not inline) so lib/openapiFromRoutes.js can see it via AUTH_MIDDLEWARE
+// and document these routes as admin-gated.
+function requireAuthorizeAdmin(req, res, next) {
+  if (req.user?.role !== 'admin') {
+    return res.status(403).json({ error: 'admin_only', message: 'This endpoint requires admin role.' });
+  }
+  next();
+}
+
 /**
  * POST /api/authorize/warmup
  * Pre-warm the PingOne Authorize worker token + connection so the first real
@@ -71,10 +80,7 @@ router.post('/warmup', authenticateToken, async (_req, res) => {
  * policy_not_found here means a configured endpoint id is missing from P1AZ —
  * fix PingOne Authorize before the demo. Admin-only; never throws.
  */
-router.get('/policy-readiness', authenticateToken, async (req, res) => {
-  if (req.user?.role !== 'admin') {
-    return res.status(403).json({ error: 'admin_only', message: 'This endpoint requires admin role.' });
-  }
+router.get('/policy-readiness', authenticateToken, requireAuthorizeAdmin, async (req, res) => {
   const result = await checkPolicyReadiness();
   return res.json(result);
 });
@@ -84,11 +90,7 @@ router.get('/policy-readiness', authenticateToken, async (req, res) => {
  * List all PingOne Authorize decision endpoints in the configured environment.
  * Admin-only; used by the Config UI and education panel.
  */
-router.get('/decision-endpoints', authenticateToken, async (req, res) => {
-  if (req.user?.role !== 'admin') {
-    return res.status(403).json({ error: 'admin_only', message: 'This endpoint requires admin role.' });
-  }
-
+router.get('/decision-endpoints', authenticateToken, requireAuthorizeAdmin, async (req, res) => {
   if (!isConfigured()) {
     return res.status(422).json({
       error: 'authorize_not_configured',
@@ -136,11 +138,7 @@ router.get('/recent-decisions', optionalAuthenticateToken, async (req, res) => {
  * GET /api/authorize/simulated-recent-decisions?limit=
  * In-memory decisions from Simulated Authorize (education). Parity with PingOne recent decisions UI.
  */
-router.get('/simulated-recent-decisions', authenticateToken, async (req, res) => {
-  if (req.user?.role !== 'admin') {
-    return res.status(403).json({ error: 'admin_only', message: 'This endpoint requires admin role.' });
-  }
-
+router.get('/simulated-recent-decisions', authenticateToken, requireAuthorizeAdmin, async (req, res) => {
   const parsedLimit = Math.min(parseInt(req.query.limit, 10) || 20, 50);
   try {
     const decisions = getSimulatedRecentDecisions(parsedLimit);
@@ -184,10 +182,7 @@ router.get('/rules', async (_req, res) => {
  * GET /api/authorize/evaluation-status
  * Which engine would run for transaction auth (no secrets).
  */
-router.get('/evaluation-status', authenticateToken, async (req, res) => {
-  if (req.user?.role !== 'admin') {
-    return res.status(403).json({ error: 'admin_only', message: 'This endpoint requires admin role.' });
-  }
+router.get('/evaluation-status', authenticateToken, requireAuthorizeAdmin, async (req, res) => {
   try {
     return res.json({
       ...getAuthorizationStatusSummary(),
@@ -207,11 +202,7 @@ router.get('/evaluation-status', authenticateToken, async (req, res) => {
  *
  * Body (optional): { policyId?, authorizationVersionId?, enableLiveAuthorize?, enableMcpFirstTool? }
  */
-router.post('/bootstrap-demo-endpoints', authenticateToken, async (req, res) => {
-  if (req.user?.role !== 'admin') {
-    return res.status(403).json({ error: 'admin_only', message: 'This endpoint requires admin role.' });
-  }
-
+router.post('/bootstrap-demo-endpoints', authenticateToken, requireAuthorizeAdmin, async (req, res) => {
   if (!isWorkerCredentialReady()) {
     return res.status(422).json({
       error: 'worker_not_configured',

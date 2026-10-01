@@ -38,6 +38,7 @@ const AUTH_MIDDLEWARE = {
     requireAdminOrUnconfigured: 'admin',
     requireAdminRole: 'admin',
     requireAdminRoleForReset: 'admin',
+    requireAuthorizeAdmin: 'admin',
 };
 
 const SECURITY_SCHEMES = {

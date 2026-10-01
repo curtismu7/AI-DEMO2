@@ -69,6 +69,11 @@ describe('auth inference', () => {
     ['delete', '/api/accounts/{id}'],
     ['post', '/api/accounts'],
     ['post', '/api/accounts/reset-all-demo'],
+    ['get', '/api/authorize/policy-readiness'],
+    ['get', '/api/authorize/decision-endpoints'],
+    ['get', '/api/authorize/simulated-recent-decisions'],
+    ['get', '/api/authorize/evaluation-status'],
+    ['post', '/api/authorize/bootstrap-demo-endpoints'],
   ])('%s %s reports admin now that its inline role check is a named guard', (verb, path) => {
     // Each was `if (<user>.role !== 'admin') return res.status(403)...` as the
     // handler's first statement and reported session-only. POST /api/accounts
