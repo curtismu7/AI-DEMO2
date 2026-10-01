@@ -2823,7 +2823,10 @@ async function _performTwoExchangeDelegation(
       message: `[2-Exchange#1] Failed — error_code=${ex1Code} — ${err.message}`,
       error_code: ex1Code, oauth_error: ex1Details.oauth_error, http_status: ex1Details.http_status,
       category: ex1Details.category, exchangeStep: '1', pingoneError: err.pingoneError });
-    throw createTokenExchangeError('invalid_grant', {
+    // Preserve PF/PingOne's precise scope failure instead of replacing it with
+    // invalid_grant. Other first-hop failures keep the established mapping.
+    const reportedErrorCode = ex1Code === 'invalid_scope' ? ex1Code : 'invalid_grant';
+    throw createTokenExchangeError(reportedErrorCode, {
       exchangeType: 'double',
       exchangeStep: '1-exchange',
       actorPresent: true,

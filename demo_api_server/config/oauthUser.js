@@ -60,11 +60,13 @@ const config = {
    * "May not request scopes for multiple resources" when * lives on a Resource Server.
    */
   get scopes() {
-    // PingFederate user client is an OIDC-only app: requesting the PingOne
-    // banking scopes makes PF reject the authorize request with invalid_scope
-    // before the login page ever renders.
+    // PingFederate user client does not accept the PingOne banking scopes.
+    // The Airlines PF setup explicitly registers airlines:read on its AS so
+    // the user token can be narrowed for reservation lookups.
     if (isPingFederate()) {
-      return ['openid', 'profile', 'email', 'offline_access'];
+      const oidcScopes = ['openid', 'profile', 'email', 'offline_access'];
+      const activeVertical = verticalManifest.resolver.activeId();
+      return activeVertical === 'airlines' ? [...oidcScopes, 'airlines:read'] : oidcScopes;
     }
     const oidcOnly =
       configStore.getEffective('ff_oidc_only_authorize') === true ||

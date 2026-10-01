@@ -37,7 +37,7 @@
    - `ai-demo-pf-standard-agent-exchanger` — secret `dd53ddf4b2e95dc0266b3229d5b2291f0cd39c9a51c8de79040bb8f6db4dde29` (from BFF `pf_standard_agent_exchange_client_secret`), with `defaultAccessTokenManagerRef = aiDemoPfAgentGwJwtAtm` and `restrictToDefaultAccessTokenManager = true`
    - All three grant types: `["CLIENT_CREDENTIALS", "TOKEN_EXCHANGE"]`, `requireProofKeyForCodeExchange: false`.
 
-4. **Missing AS scopes** — added to `/oauth/authServerSettings` scopes list: `agent:invoke`, `read`, `write`, `transfer`, `admin:read`, `sensitive:read`. (`read`/`write` are injected by the BFF when `ff_inject_scopes` is ON; `agent:invoke` is the actor CC scope.)
+4. **Missing AS scopes** — added to `/oauth/authServerSettings` scopes list: `agent:invoke`, `read`, `write`, `transfer`, `admin:read`, `sensitive:read`, `airlines:read`. (`read`/`write` are injected by the BFF when `ff_inject_scopes` is ON; `agent:invoke` is the actor CC scope; `airlines:read` enables delegated reservation lookups.)
 
 5. **Stale JWT Token Processor (`aiDemoPfAccessSubjectProcessor`)** — its Allowed Issuers table still had `https://localhost:9031`; updated issuer to `https://local.ping-devops.com:9031` + JWKS URL, and added audience `enduser.ping.demo` (kept `ai-demo-pf-id-jag`).
 
@@ -186,7 +186,7 @@ The chain now runs **end-to-end green**: policy PERMIT → `pf-id-jag-issued` �
 - TE policy: `aiDemoStandardTePolicy` (`SUBJECT_TOKEN.Username` → `subject`; `ACTOR_TOKEN.client_id` → `spiffeId` for access-token and ID-JAG subject types)
 - ATM mappings: the agent-gateway mapping emits the prior agent actor as `act`; the dedicated MCP gateway mapping emits `act = {sub: MCP actor, act: prior agent act}` using an OGNL expression. `ai-demo-pf-standard-agent-exchanger` and `ai-demo-pf-standard-mcp-exchanger` are pinned to their respective ATMs.
 - Local actor identities: BFF client IDs use the registered PingOne Authorize IDs shown in §4a. Keep those IDs synchronized with the local `demo_api_server/.env` values; they are not PF client secrets.
-- AS scopes added: `agent:invoke`, `read`, `write`, `transfer`, `admin:read`, `sensitive:read`
+- AS scopes added: `agent:invoke`, `read`, `write`, `transfer`, `admin:read`, `sensitive:read`, `airlines:read`
 - Modified: `aiDemoPfJwtAtm` (issuer/audience), `aiDemoPfAccessSubjectProcessor` (issuer/JWKS/audiences)
 
 ## 8. Operational traps learned (do not rediscover these)
