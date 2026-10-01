@@ -228,6 +228,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-01 — P1/PF toggle did not show which provider was selected
+
+**Files:** `demo_api_ui/src/components/OAuthProviderToggle.css`.
+
+**What was broken:** The selected side of the P1/PF pill was a fixed blue chip (`#2767d2`). On a blue top nav (PingOne Admin, Government, Banking) it disappeared into the bar, and the unselected side was only dimmed, so P1 and PF looked the same and you could not tell which provider was active. PF's selected chip was white on amber (about 3.2:1 at 10px).
+
+**What changed:** The selected side is now an inverted chip: fill `var(--brand-topnav-text)`, ink `var(--brand-topnav-bg-start)`, the same pair the nav is drawn from, so it contrasts with the bar in every vertical. PF keeps its amber tint on the pill. CSS only: the click handling, `aria-pressed`, title and provider-switch behavior are unchanged.
+
+**Do not break:** Pair the chip fill and ink from the nav's own tokens (never a fixed color or a vertical's primary), keep exactly one side filled, and keep the 10px type floor and no inline colors. Verified in a real browser with computed styles and screenshots for PingOne Admin, Great Buy and Super Sports in both provider states (chip ink on fill 10.4, 16.9 and 6.5 to 1).
+
+**Verify:** `cd demo_api_ui && npx vitest run src/components/__tests__/themingRatchet.test.js src/components/__tests__/OAuthProviderToggle.idJagReset.test.jsx && npm run build`.
+
 ### 2026-09-30 — Customer pi.flow sign-in (PingOne) and a broken pi.flow authorize URL
 
 **Files:** `demo_api_server/services/oauthUserService.js`, `demo_api_server/routes/oauthUser.js`, `demo_api_server/server.js`, `demo_api_ui/src/utils/authUi.js`, `demo_api_ui/src/components/PiFlowSignInModal.jsx`, `demo_api_ui/src/App.js`, `demo_api_ui/src/App.css`, and focused tests.

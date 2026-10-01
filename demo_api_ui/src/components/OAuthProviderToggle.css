@@ -32,20 +32,21 @@
   display: none;
 }
 
-.oauth-provider-toggle--pingone .oauth-provider-toggle__option:first-child {
-  background: #2767d2;
-  color: #fff;
+/* The selected side is an INVERTED chip: the nav's own text color as the fill and
+   the nav's own background as the ink. The nav is drawn from this same pair, so
+   the chip contrasts with the bar in every vertical. It used to be a fixed blue
+   (#2767d2), which vanished on blue navs (PingOne Admin, Government,
+   Banking), leaving P1 and PF looking identical. */
+.oauth-provider-toggle--pingone .oauth-provider-toggle__option:first-child,
+.oauth-provider-toggle--pingfederate .oauth-provider-toggle__option:last-child {
+  background: var(--brand-topnav-text, #fff);
+  color: var(--brand-topnav-bg-start, #1e293b);
 }
 
-/* PingFederate active: amber tint so the less-common mode is obvious. */
+/* PingFederate active: amber tint on the pill so the less-common mode is obvious. */
 .oauth-provider-toggle--pingfederate {
   background: rgba(217, 119, 6, 0.25);
   border-color: rgba(217, 119, 6, 0.6);
-}
-
-.oauth-provider-toggle--pingfederate .oauth-provider-toggle__option:last-child {
-  background: #d97706;
-  color: #fff;
 }
 
 .oauth-provider-toggle:disabled .oauth-provider-toggle__option {
