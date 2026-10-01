@@ -172,9 +172,9 @@ jobs:
       # node_modules — so installing first costs a cache-warm minute and
       # removes a whole class of "gate is red for a reason unrelated to the PR".
       - name: Install demo_api_server deps (hygiene + topology gates both need them)
-        run: npm ci --prefix demo_api_server --no-audit --no-fund
+        run: bash scripts/ci-cached-npm-ci.sh demo_api_server
       - name: Install demo_mcp_gateway deps (topology step 6 runs toolSchemaDrift jest)
-        run: npm ci --prefix demo_mcp_gateway --no-audit --no-fund
+        run: bash scripts/ci-cached-npm-ci.sh demo_mcp_gateway
       - name: Mock-drift gate (jest.mock missing load-bearing exports)
         run: node scripts/check-mock-drift.js
       - name: Fresh-clone hygiene
@@ -226,7 +226,7 @@ jobs:
           # Shares the oversized npm cache with the gates job.
           package-manager-cache: false
       - name: Install deps
-        run: npm ci --prefix demo_api_server --no-audit --no-fund
+        run: bash scripts/ci-cached-npm-ci.sh demo_api_server
       - name: Run Jest suite
         # The persistent runner can inherit local gateway aliases; unit tests
         # configure their own endpoints and must not be redirected to live URLs.
@@ -379,7 +379,7 @@ jobs:
       # sibling's deps is the smallest honest fix; the cross-package import
       # itself is logged in TECH_DEBT.
       - name: Install demo_api_server deps (demo_agent_service's vault suite imports its lib)
-        run: npm ci --prefix demo_api_server --no-audit --no-fund
+        run: bash scripts/ci-cached-npm-ci.sh demo_api_server
       - name: demo_agent_service (blocking)
         run: SUITE_BLOCKING=1 bash scripts/test-service-suite.sh agent-service
       - name: demo_hitl_service (blocking)
@@ -471,13 +471,13 @@ jobs:
           # Keep the large shared-runner npm cache out of this grouped suite.
           package-manager-cache: false
       - name: Install demo_authz_server deps
-        run: npm ci --prefix demo_authz_server --no-audit --no-fund
+        run: bash scripts/ci-cached-npm-ci.sh demo_authz_server
       - name: Install demo_mcp_gateway deps
-        run: npm ci --prefix demo_mcp_gateway --no-audit --no-fund
+        run: bash scripts/ci-cached-npm-ci.sh demo_mcp_gateway
       - name: Install oauth-mcp deps
-        run: npm ci --prefix oauth-mcp --no-audit --no-fund
+        run: bash scripts/ci-cached-npm-ci.sh oauth-mcp
       - name: Install demo_mcp_resource_server deps
-        run: npm ci --prefix demo_mcp_resource_server --no-audit --no-fund
+        run: bash scripts/ci-cached-npm-ci.sh demo_mcp_resource_server
       # node --test recursion differs by Node major; keep both globs so the
       # tests/ suites (UC16, tier) are never silently skipped.
       # BLOCKING as of 2026-09-07: the tolerance below was for pre-existing
