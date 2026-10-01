@@ -893,13 +893,21 @@ router.post(['/:door/mcp', '/:door/:app/mcp'], express.json({ limit: '1mb', type
     && typeof upstreamExchange.isAgentGatewayConfigured === 'function'
     && upstreamExchange.isAgentGatewayConfigured()) {
     const delegatedScopes = [
-      // The AI Agent actor app is granted `agent:invoke`, not `mcp:invoke` —
-      // 4e0aee902 swapped this by mistake (an unrelated stray hunk in a
-      // LibreChat config commit) and PingOne's token-exchange grant has
-      // refused every delegated call since with "At least one scope must be
-      // granted". `mcp:invoke` alone was already known insufficient here
-      // (seen live 2026-08-24, see facadeUpstreamExchange.js's comment).
-      'agent:invoke',
+      // mcp:invoke is the scope actually granted on the TARGET resource of this
+      // call (Demo MCP Gateway, mcpgateway.ping.demo) — agent:invoke only exists
+      // on the actor-mint resource (Demo Agent Gateway, agentgateway.ping.demo)
+      // and has no place in this request. A prior fix here (PR #451, 2026-10-01)
+      // reverted 4e0aee902's mcp:invoke -> agent:invoke to clear PingOne's "At
+      // least one scope must be granted" — which worked only because the CLIENT
+      // making this call was also wrong at the time (the AI Agent Actor app,
+      // granted agent:invoke/agentgateway.ping.demo only): PingOne silently fell
+      // back to issuing for that one granted resource instead of erroring, which
+      // read as success but wasn't — the issued token's aud was never
+      // mcpgateway.ping.demo (caught live 2026-10-01 as an invalid_aud 401 one
+      // hop downstream). The real fix is in facadeUpstreamExchange.js's
+      // resolveAgentGatewayClient(): use the Token Exchanger app, which holds
+      // mcp:invoke on Demo MCP Gateway — restore mcp:invoke here to match.
+      'mcp:invoke',
       ...(toolName ? scopeTopology.toolScopes(toolName) : []),
     ];
     const xStart = Date.now();

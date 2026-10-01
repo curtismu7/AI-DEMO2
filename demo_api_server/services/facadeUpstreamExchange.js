@@ -165,10 +165,19 @@ async function exchangeForUpstream(subjectToken, audience, scopes = []) {
 function resolveAgentGatewayClient() {
   const region = process.env.PINGONE_REGION || configStore.getEffective('PINGONE_REGION') || 'com';
   const envId = process.env.PINGONE_ENVIRONMENT_ID || configStore.getEffective('PINGONE_ENVIRONMENT_ID');
-  const clientId = process.env.PINGONE_AI_AGENT_ACTOR_CLIENT_ID
-    || configStore.getEffective('pingone_ai_agent_actor_client_id');
-  const clientSecret = process.env.PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET
-    || configStore.getEffective('pingone_ai_agent_actor_client_secret');
+  // "Demo AI App - Token Exchanger" (PINGONE_TOKEN_EXCHANGER_CLIENT_ID), not the
+  // AI Agent Actor app: the Token Exchanger is the one actually granted both
+  // legs of this two-exchange chain — agent:invoke on Agent Gateway AND
+  // mcp:invoke (+ tool scopes) on MCP Gateway — per twoExchangeReconciler.js's
+  // own provisioning (and docs/token-flow-audit.md's original two-app design).
+  // The AI Agent Actor app only has the Agent Gateway leg, so using it here
+  // left PingOne no grant to honor for the `audience=mcpgateway.ping.demo`
+  // request; it silently fell back to issuing for the one resource it DOES
+  // hold (agentgateway.ping.demo) instead of erroring — hit live 2026-10-01.
+  const clientId = process.env.PINGONE_TOKEN_EXCHANGER_CLIENT_ID
+    || configStore.getEffective('pingone_token_exchanger_client_id');
+  const clientSecret = process.env.PINGONE_TOKEN_EXCHANGER_CLIENT_SECRET
+    || configStore.getEffective('pingone_token_exchanger_client_secret');
   if (!envId || !clientId || !clientSecret) return null;
   return {
     tokenEndpoint: `https://auth.pingone.${region}/${envId}/as/token`,
