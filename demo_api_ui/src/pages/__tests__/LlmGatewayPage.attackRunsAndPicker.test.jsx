@@ -223,8 +223,8 @@ describe("LLM Gateway console - attack runs and model picker", () => {
       expect(within(card).queryByRole("columnheader", { name: /through google/i })).not.toBeInTheDocument();
     });
 
-    // Reset mid-run cleared the screen, then the still-running loop refilled it.
-    it("can't Reset while a run is still in flight", async () => {
+    // Clear mid-run would let the active loop refill the screen afterward.
+    it("can't Clear while a run is still in flight", async () => {
       const calls = [];
       global.fetch = vi.fn((url, init) => {
         const u = String(url);
@@ -246,7 +246,7 @@ describe("LLM Gateway console - attack runs and model picker", () => {
       await waitFor(() => expect(calls).toHaveLength(2));
       await screen.findByTestId("lgw-decision");
 
-      expect(screen.getByRole("button", { name: /^reset$/i })).toBeDisabled();
+      expect(screen.getByRole("button", { name: /^clear$/i })).toBeDisabled();
     });
   });
 
