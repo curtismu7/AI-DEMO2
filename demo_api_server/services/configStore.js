@@ -1783,7 +1783,16 @@ class ConfigStore {
   getMasked() {
     const result = {};
     for (const key of Object.keys(FIELD_DEFS)) {
-      if (SECRET_KEYS.has(String(key).toUpperCase())) {
+      // Mask SECRET_KEYS (encrypted-at-rest) AND anything whose NAME marks it a
+      // secret by convention. SECRET_KEYS alone under-masks: a field can be a
+      // real secret and still be sent to the browser in plaintext just because
+      // it was never added to that list (e.g. anthropic_api_key,
+      // pingone_mgmt_client_secret). The suffix test closes that gap for the
+      // browser payload regardless of SECRET_KEYS membership — it changes only
+      // what getMasked() emits, never getEffective()/get() (the real values) or
+      // encryption-at-rest. Mirrors the same `_secret|_password|_api_key` rule
+      // already used for provenance redaction below.
+      if (SECRET_KEYS.has(String(key).toUpperCase()) || (/(_secret|_password|_api_key)$/i).test(key)) {
         const isSet = String(this.getEffective(key) || '').trim() !== '';
         result[key] = isSet ? '••••••••' : '';
         result[`${key}_set`] = isSet;

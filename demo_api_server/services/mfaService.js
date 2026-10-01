@@ -1,6 +1,6 @@
 const axios = require("axios");
 const configStore = require("./configStore");
-const { getTokenEndpoint } = require("./oauthEndpointResolver");
+const { getPingOneTokenEndpoint } = require("./oauthEndpointResolver");
 const { sanitizeAxiosCause } = require("../utils/sanitizeAxiosCause");
 const oauthService = require("./oauthService");
 
@@ -45,7 +45,7 @@ async function _getWorkerToken() {
     throw new Error(
       "PingOne worker credentials not configured. Set PINGONE_WORKER_TOKEN_CLIENT_ID/SECRET or pingone_mgmt_client_id/secret via the Worker App tab at /config.",
     );
-  const tokenUrl = getTokenEndpoint();
+  const tokenUrl = getPingOneTokenEndpoint();
   const body = new URLSearchParams({ grant_type: "client_credentials" });
   const reqConfig = {
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
