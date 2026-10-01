@@ -6,7 +6,8 @@
     "headerTitle": "Precision Works",
     "documentTitle": "Precision Works · PingOne AI IAM Core",
     "logoAlt": "Precision Works logo",
-    "tagline": "AI-Powered Manufacturing Demo"
+    "tagline": "AI-Powered Manufacturing Demo",
+    "logoPath": "/branding/precision-works-logo.svg"
   },
   "theme": {
     "cssVars": {

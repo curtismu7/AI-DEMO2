@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# Applies the demo login theme (dark PingOne AI IAM Demo header with Ping logo,
-# editable password field styling) to the running PingFederate container's
-# persistent template volume. Run after recreating the PF volume from scratch.
+# Applies the demo login theme (dark PingOne AI IAM Demo header and a Ping-branded
+# sign-on card, both with the real Ping Identity logo; editable password field
+# styling) to the running PingFederate container's persistent template volume.
+# Run after recreating the PF volume from scratch, or after editing
+# assets/login-main.css. Re-running is safe (it overwrites the same files).
 #
 # Usage: ./apply-login-theme.sh [container-name]
 set -euo pipefail
@@ -26,6 +28,10 @@ docker exec -i -u 0 "$container" sh -c 'cat > /opt/out/instance/server/default/c
 docker cp "$css_dir/ping-logo.svg" "$container:/opt/out/instance/server/default/conf/template/assets/images/ping-logo.svg"
 docker exec -u 0 "$container" sh -c 'chown 9031:0 "$1" && chmod 644 "$1"' sh "$css_dir/ping-logo.svg" 2>/dev/null || \
   docker exec -u 0 "$container" sh -c 'chown 9031:0 /opt/out/instance/server/default/conf/template/assets/images/ping-logo.svg && chmod 644 /opt/out/instance/server/default/conf/template/assets/images/ping-logo.svg'
+
+# The real Ping Identity logo used by the login page (top bar + card).
+docker cp "$css_dir/ping-identity-logo.png" "$container:/opt/out/instance/server/default/conf/template/assets/images/ping-identity-logo.png"
+docker exec -u 0 "$container" sh -c 'chown 9031:0 /opt/out/instance/server/default/conf/template/assets/images/ping-identity-logo.png && chmod 644 /opt/out/instance/server/default/conf/template/assets/images/ping-identity-logo.png'
 
 # SLO success page must return the user to the app: without this the UC40
 # logout handoff strands the user on PF's static "Sign Off Successful" page

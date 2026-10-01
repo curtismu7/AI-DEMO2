@@ -2,6 +2,8 @@
 
 const crypto = require('crypto');
 const { createAuditService } = require('./demoReadinessAuditService');
+const { createPingOneReader, pingOneManagementAccess, managementApiBase } = require('./demoReadinessPingOneReader');
+const { buildPingGatewayPfExchangeEnv } = require('../scripts/refresh-service-envs');
 const { createRepairService } = require('./demoReadinessRepairService');
 const { createReadinessExecutionService } = require('./demoReadinessExecutionService');
 const { createReadinessWorkerFactory } = require('./demoReadinessWorkerClient');
@@ -60,12 +62,42 @@ function matrixCoverageError(result) {
   return null;
 }
 
+// The Gateway Exchange #3 settings refresh-service-envs.js generates from the
+// BFF's PingFederate settings — the declared side of the local Gateway readback.
+function pfExchangeExpectation(env) {
+  try {
+    const generated = buildPingGatewayPfExchangeEnv(env);
+    return {
+      issuer: generated.PF_ISSUER_URI,
+      tokenEndpoint: generated.PF_TOKEN_ENDPOINT,
+      clientId: generated.PF_TE_CLIENT_ID,
+      provenanceContains: 'ping-gateway',
+    };
+  } catch {
+    return undefined; // unusable PF settings: the audit reports the missing expectation
+  }
+}
+
+// The declared Authorize URL is a PingOne Management API read, which answers 401
+// without a bearer. Send one only to this environment's own API, never to
+// whatever host a target setting names.
+async function authorizeReadHeaders(authorizeUrl, { env, fetchImpl, signal }) {
+  const base = managementApiBase(env);
+  if (!base || !String(authorizeUrl || '').startsWith(base + '/')) return undefined;
+  try {
+    return { Authorization: 'Bearer ' + (await pingOneManagementAccess({ env, fetchImpl, signal })).token };
+  } catch {
+    return undefined; // the read then reports its own failure
+  }
+}
+
 function createDefaultAdapters(clock = Date.now, {
-  audit = createAuditService(),
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+  audit = createAuditService({ adapters: { pingOne: { readConfiguration: createPingOneReader({ env, fetchImpl }) } } }),
   repairs = createRepairService({ now: () => nowFrom(clock) }),
   execution,
   runtimeConfig = loadDemoReadinessRuntimeConfig(),
-  fetchImpl = globalThis.fetch,
   workerRuntime,
 } = {}) {
   const workers = workerRuntime || createReadinessWorkerFactory({ config: runtimeConfig, fetchImpl });
@@ -82,15 +114,18 @@ function createDefaultAdapters(clock = Date.now, {
       for (const targetId of targets) {
         if (nowFrom(clock) >= deadlineAt || signal?.aborted) break;
         const target = runtimeConfig.targets[targetId];
+        const headers = target && await authorizeReadHeaders(target.authorizeUrl, { env, fetchImpl, signal });
         const runtime = target ? {
           bffUrl: target.bffUrl,
           gatewayUrl: target.gatewayUrl,
           authorizeUrl: target.authorizeUrl,
           expectedRevision: target.expectedRevision,
+          ...(headers && { headers }),
         } : {};
         rows.push(...await audit.auditTarget({
           targetId,
-          targetConfig: { kind: targetId === 'se' ? 'se' : 'local', runtime },
+          targetConfig: targetId === 'se' ? { kind: 'se', runtime }
+            : { kind: 'local', runtime, gateway: { expected: pfExchangeExpectation(env) } },
           deadlineAt,
           signal,
         }));

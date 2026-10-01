@@ -6878,3 +6878,111 @@ body::before {
   box-shadow: none;
   text-decoration: none;
 }
+
+/* ── Login page v2 ───────────────────────────────────────────────────────────
+ * Ping branding for PF's sign-on page. Every rule is scoped to the login
+ * template (`.ping-container.login-template`) because this stylesheet is shared
+ * with the consent/approval and SLO pages, whose buttons and bar are styled
+ * above and must not change. Ping red (#b3282d) is the accent; white on it is
+ * 6.4:1. The logo is the real Ping Identity logo (assets/images/
+ * ping-identity-logo.png, copied in by apply-login-theme.sh). The template's
+ * `.company-logo` slot is hidden by default; it is shown here without needing
+ * the `has-logo` class. Keep this block last. */
+
+/* Top bar: the real logo instead of the white "ping" wordmark + red dot. */
+body:has(.login-template)::before {
+  background-image: url("../images/ping-identity-logo.png");
+  background-size: 36px 36px;
+  background-position: left 24px center;
+  padding: 0 24px 0 76px !important;
+}
+
+body .ping-container.login-template {
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+}
+
+/* Card header: Ping red edge, centered logo, title, subtitle. */
+body .ping-container.login-template .ping-header {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  padding: 36px 40px 4px;
+  border-top: 4px solid #b3282d;
+  font-size: 26px;
+  box-shadow: none;
+}
+
+body .ping-container.login-template .ping-header .company-logo {
+  display: block;
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 18px;
+  border-radius: 14px;
+  background: url("../images/ping-identity-logo.png") center / contain no-repeat;
+  box-shadow: 0 8px 18px -8px rgba(179, 40, 45, 0.6);
+}
+
+body .ping-container.login-template .ping-header::after {
+  content: "Sign in to the PingOne AI IAM Demo";
+  display: block;
+  margin-top: 8px;
+  color: #475569;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+body .ping-container.login-template .ping-body-container {
+  box-shadow: 0 14px 24px -14px rgba(15, 23, 42, 0.2);
+}
+
+/* Labels sit left over left-aligned inputs (the bundled theme centers them). */
+body .ping-container.login-template .ping-input-label {
+  text-align: left;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+body .ping-container.login-template .ping-input-container input[type=text]:focus,
+body .ping-container.login-template .ping-input-container input[type=password]:focus {
+  border-color: #b3282d;
+  box-shadow: 0 0 0 3px rgba(179, 40, 45, 0.18);
+}
+
+/* Sign On: full width, Ping red. (The consent buttons above are side by side
+ * and untouched; this only applies inside the login template.) */
+body .ping-container.login-template .ping-buttons {
+  display: block;
+  width: 100%;
+  margin: 8px 0 0;
+}
+
+body .ping-container.login-template .ping-buttons .ping-button,
+body .ping-container.login-template .ping-buttons .ping-button.normal,
+body .ping-container.login-template .ping-buttons .ping-button.allow {
+  width: 100%;
+  background: #b3282d;
+}
+
+body .ping-container.login-template .ping-buttons .ping-button:hover,
+body .ping-container.login-template .ping-buttons .ping-button.normal:hover,
+body .ping-container.login-template .ping-buttons .ping-button.allow:hover {
+  background: #991f24;
+  box-shadow: 0 4px 10px rgba(179, 40, 45, 0.28);
+}
+
+body .ping-container.login-template .ping-input-link a {
+  color: #b3282d;
+}
+
+/* Footer: pinned to the container's edges (it was shifted 20px past the
+ * viewport, which caused a horizontal scrollbar), and PF's white footer logo,
+ * which is invisible on this light page, rendered as a muted grey. */
+body .ping-container.login-template .ping-footer-container {
+  left: 0;
+  right: 0;
+  width: auto;
+}
+
+body .ping-container.login-template .ping-footer-container .ping-footer .ping-credits {
+  filter: brightness(0) opacity(0.4);
+}

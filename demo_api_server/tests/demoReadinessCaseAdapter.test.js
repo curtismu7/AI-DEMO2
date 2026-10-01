@@ -267,11 +267,55 @@ test('a CIBA step is blocked, not run: it needs an approval on a device', async 
   expect(request).not.toHaveBeenCalled();
 });
 
+// Shape of a real UC2 response (local PingOne lane, 2026-10-01, values replaced).
+function a2aResponse({ decision = 'PERMIT', agent2 = 'acquired' } = {}) {
+  const nested = { sub: 'specialist-1', act: { sub: 'generalist-1' } };
+  return {
+    success: decision === 'PERMIT',
+    toolsCalled: ['delegate_to_specialist'],
+    tokenEvents: [
+      { type: 'mcp_challenge', phase: 'tools/call', url: 'http://mcp-gateway:3005/mcp', status: 401 },
+      { id: 'user-token', status: 'active', claims: { sub: 'user-1', iss: ISSUER, aud: ['enduser.ping.demo'], scope: 'openid read' } },
+      { id: 'a2a-agent1-actor', status: 'acquired', claims: { iss: ISSUER, client_id: 'generalist-1' } },
+      { id: 'a2a-exchange1', status: 'exchanged', claims: { sub: 'user-1', iss: ISSUER, aud: ['a2a-intermediate-membership.ping.demo'], scope: 'agent:invoke:membership', act: { sub: 'generalist-1' } } },
+      { id: 'a2a-agent2-actor', status: agent2, claims: { iss: ISSUER, client_id: 'specialist-1' } },
+      { id: 'a2a-exchange2', status: 'exchanged', claims: { sub: 'user-1', iss: ISSUER, aud: ['mcpgateway-a2a.ping.demo'], scope: 'membership:read', act: nested } },
+      { id: 'gw-authorize', status: decision.toLowerCase(), decision, authorizeEngine: 'mock', decisionId: 'decision-1', url: null },
+      { id: 'gw-filter-chain', status: 'active', tool: 'sensitive_membership_details' },
+    ],
+  };
+}
+
+test('UC2: an A2A run is judged on the specialist scope, its gateway audience and the nested actor chain', () => {
+  const { authorization: contract } = rowFor('UC2');
+  const result = evidenceFromAgentInvoke({ response: a2aResponse(), provider: PROVIDER, expectedIssuer: ISSUER, authorization: contract });
+  expect(result.evidence).toMatchObject({
+    exchangePath: 'a2a-access-token',
+    actorChain: ['user-1', 'specialist-1', 'generalist-1'],
+    scopes: ['membership:read'],
+    audiences: ['mcpgateway-a2a.ping.demo'],
+    authorize: { decision: 'PERMIT', engine: 'mock' },
+  });
+  // The tool is restricted to a PingOne group. This path's decision carries no
+  // request parameters, so the run gives no evidence the group rule applied,
+  // and the adapter does not claim it: that one check is left failing.
+  expect(validateRow('UC2', result, 'PERMIT')).toEqual(['role applicability does not match Authorize role contract']);
+});
+
+test('UC2: a wrong audience, or a specialist that never authenticated, fails', () => {
+  const { authorization: contract } = rowFor('UC2');
+  const wrongAudience = a2aResponse();
+  wrongAudience.tokenEvents[5].claims.aud = ['agentgateway.ping.demo'];
+  expect(validateRow('UC2', evidenceFromAgentInvoke({ response: wrongAudience, provider: PROVIDER, expectedIssuer: ISSUER, authorization: contract }), 'PERMIT').join(' ; ')).toMatch(/audience set/);
+  const noSpecialist = evidenceFromAgentInvoke({ response: a2aResponse({ agent2: 'failed' }), provider: PROVIDER, expectedIssuer: ISSUER, authorization: contract });
+  expect(noSpecialist.evidence.roleApplicability.agentIdentity).toBe(false);
+});
+
 test('prerequisites the worker cannot verify are blocked without touching the BFF', async () => {
   const request = jest.fn();
   const operations = createCaseOperations({ request, provider: PROVIDER, expectedIssuer: ISSUER });
-  const result = await operations.verifyPrerequisites({ caseRow, vertical: VERTICAL, prerequisites: { ...prerequisites, a2aCredentials: true } });
-  expect(result).toEqual({ status: 'blocked', reason: 'worker cannot yet verify: A2A credentials' });
+  const result = await operations.verifyPrerequisites({ caseRow, vertical: VERTICAL, prerequisites: { ...prerequisites, parConfig: true } });
+  expect(result).toEqual({ status: 'blocked', reason: 'worker cannot yet verify: PAR configuration' });
   expect(request).not.toHaveBeenCalled();
 });
 

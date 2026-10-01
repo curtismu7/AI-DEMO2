@@ -484,4 +484,4 @@ function createAuditService({ adapters = {}, pfProfiles = PF_PROFILES, fetch = g
   return { auditTarget, auditRepositoryContracts, auditPingOneConfiguration, auditPingFederateConfiguration, auditRuntimeTarget, auditLocalDockerConfiguration };
 }
 const defaults = createAuditService();
-module.exports = { createAuditService, ...defaults, inspectEnv, semanticEqual };
+module.exports = { createAuditService, ...defaults, inspectEnv, semanticEqual, AUTHORIZE_POLICY_TREE_WAIVER_ID };

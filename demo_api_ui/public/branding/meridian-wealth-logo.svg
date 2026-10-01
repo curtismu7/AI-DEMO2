@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Meridian Wealth">
+  <rect x="1" y="1" width="62" height="62" rx="13" fill="#fff" stroke="#064e3b" stroke-width="2"/>
+  <rect x="14" y="37" width="8" height="13" fill="#047857"/>
+  <rect x="27" y="29" width="8" height="21" fill="#047857"/>
+  <rect x="40" y="21" width="8" height="29" fill="#047857"/>
+  <polyline points="12,33 26,24 38,27 50,13" fill="none" stroke="#ca8a04" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <polygon points="53,10 44,12 51,19" fill="#ca8a04"/>
+</svg>

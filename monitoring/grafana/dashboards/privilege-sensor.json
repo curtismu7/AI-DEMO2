@@ -1,0 +1,53 @@
+{
+  "uid": "ai-demo-privilege-sensor",
+  "title": "Privilege Sensor",
+  "description": "Process and network findings plus controller delivery status from the Procyon Privilege node sensor. Filtered by the component=privilege-sensor Loki label.",
+  "tags": ["ai-demo", "privilege", "security"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "refresh": "15s",
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Reports to the controller",
+      "description": "Accepted vs rejected report flushes. Rejected with nothing accepted means the pinned JWKS, subject or audience no longer matches the sensor's key. No series at all means the sensor is not running.",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "type": "loki", "uid": "ai-demo-loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time({component=\"privilege-sensor\"} |= \"reported findings\" [$__interval]))",
+          "legendFormat": "accepted"
+        },
+        {
+          "refId": "B",
+          "expr": "sum(count_over_time({component=\"privilege-sensor\"} |= \"report failed\" [$__interval]))",
+          "legendFormat": "rejected"
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "type": "logs",
+      "title": "Privilege sensor events",
+      "description": "Raw sensor output: detected activity, policy notices, and whether findings were accepted by the controller.",
+      "gridPos": { "h": 20, "w": 24, "x": 0, "y": 8 },
+      "datasource": { "type": "loki", "uid": "ai-demo-loki" },
+      "targets": [
+        { "refId": "A", "expr": "{component=\"privilege-sensor\"}" }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "dedupStrategy": "none"
+      }
+    }
+  ],
+  "links": []
+}

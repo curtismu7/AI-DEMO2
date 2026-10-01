@@ -6,7 +6,8 @@
     "headerTitle": "Super University",
     "documentTitle": "Super University · PingOne AI IAM Core",
     "logoAlt": "Super University logo",
-    "tagline": "AI-Powered Campus Registrar Demo"
+    "tagline": "AI-Powered Campus Registrar Demo",
+    "logoPath": "/branding/super-university-logo.svg"
   },
   "theme": {
     "cssVars": {

@@ -6,7 +6,8 @@
     "headerTitle": "Meridian Wealth",
     "documentTitle": "Meridian Wealth · PingOne AI IAM Core",
     "logoAlt": "Meridian Wealth logo",
-    "tagline": "AI-Powered Portfolio & Wealth Management Demo"
+    "tagline": "AI-Powered Portfolio & Wealth Management Demo",
+    "logoPath": "/branding/meridian-wealth-logo.svg"
   },
   "theme": {
     "cssVars": {

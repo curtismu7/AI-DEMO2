@@ -32,6 +32,14 @@ describe('configStore getMasked() masks secrets by naming convention', () => {
     expect(configStore.getEffective('pingone_mgmt_client_secret')).toBe('mgmt-secret-value');
   });
 
+  it('masks demo *_key fixtures (end in _key, not _api_key)', async () => {
+    const configStore = require('../services/configStore');
+    await configStore.setConfig({ demo_apikey_backend_service_key: 'demo-api-key-0000' });
+    const masked = configStore.getMasked();
+    expect(masked.demo_apikey_backend_service_key).toBe('••••••••');
+    expect(configStore.getEffective('demo_apikey_backend_service_key')).toBe('demo-api-key-0000');
+  });
+
   it('does not over-mask: a client_id stays visible', async () => {
     // The suffix rule is anchored to _secret/_password/_api_key, so a sibling
     // _id field (same prefix as a masked secret) must still show its value.

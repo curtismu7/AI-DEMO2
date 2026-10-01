@@ -1790,9 +1790,10 @@ class ConfigStore {
       // pingone_mgmt_client_secret). The suffix test closes that gap for the
       // browser payload regardless of SECRET_KEYS membership — it changes only
       // what getMasked() emits, never getEffective()/get() (the real values) or
-      // encryption-at-rest. Mirrors the same `_secret|_password|_api_key` rule
-      // already used for provenance redaction below.
-      if (SECRET_KEYS.has(String(key).toUpperCase()) || (/(_secret|_password|_api_key)$/i).test(key)) {
+      // encryption-at-rest. `_key$` (not just `_api_key$`) also covers the demo
+      // resource/service keys (demo_*_key) and private keys; every FIELD_DEFS
+      // key ending in _key is a secret, so this never over-masks a visible field.
+      if (SECRET_KEYS.has(String(key).toUpperCase()) || (/(_secret|_password|_key)$/i).test(key)) {
         const isSet = String(this.getEffective(key) || '').trim() !== '';
         result[key] = isSet ? '••••••••' : '';
         result[`${key}_set`] = isSet;

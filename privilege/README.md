@@ -26,6 +26,7 @@ including Ping's SE enablement storyboards and the code paths, is
 | [`PRIVILEGE-MCP.md`](PRIVILEGE-MCP.md) | The canonical record. Architecture, protocol per hop, every blocker and how it was ruled out, dated newest-last. Long, but the trap list at the end of each section is what saves the time |
 | [`PRIVILEGE-MCP-CONSOLE-STEPS.md`](PRIVILEGE-MCP-CONSOLE-STEPS.md) | Doing console work. These steps cannot be automated or tested from this repo |
 | [`runbooks/ping-mcpgw.md`](runbooks/ping-mcpgw.md) | Standing the gateway up locally |
+| [`SENSOR-DOCKER-GATEWAY.md`](SENSOR-DOCKER-GATEWAY.md) | Setting up or debugging the Privilege node sensor on a Docker host, and how a call loops Docker → local gateway → Docker |
 | `.claude/skills/privilege-cloud-mcp/` | The condensed operator version. If it disagrees with `PRIVILEGE-MCP.md`, **the doc wins** |
 | `~/Downloads/priv_for_ai_image_first_se_storyboard_v2_corrected.html` | Ping's SE storyboard — architecture, flows, troubleshooting order. Not committed (~13 MB of embedded images) |
 
