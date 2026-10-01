@@ -8,7 +8,9 @@ Reverse-chronological, newest first. Each entry: what's wrong, why it wasn't
 fixed now, what the real fix looks like. Every entry heading carries a status
 checkbox — `[x]` = paid off (has a RESOLVED/FIXED block), `[ ]` = still open
 (PARTLY RESOLVED stays unchecked). Tick the box in the same commit that adds
-the resolution block.
+the resolution block. Two other markers are in use: `[wontfix]` = accepted, no
+change planned in this repo (the entry says what would reopen it), and `[~]` =
+in progress, or waiting on something outside the repo.
 
 An entry that has since been paid off keeps its original text and gains a
 **RESOLVED** block naming the branch, what the issue actually turned out to be
@@ -109,7 +111,9 @@ provider toggle: refuse to flip to PingFederate, and warn when it is selected,
 if PF's discovery document is unreachable (the toggle already checks this at
 flip time; nothing re-checks it afterwards).
 
-### [ ] 2026-10-01 — PingFederate pi.flow depends on PF settings that live only in PF
+### [x] 2026-10-01 — PingFederate pi.flow depends on PF settings that live only in PF
+
+**RESOLVED 2026-10-01 (commit `214b53f09`, the same commit that added this entry).** The script this entry asks for exists: `scripts/pingfederate/enable-pi-flow-user-client.js` sets `apiEnabled`, `restrictAccessToRedirectlessMode`, `allowAuthenticationApiInit` and the allowed-scope list on `ai-demo-pf-user`, runs both post-checks named below (plain authorize returns the login page; pi.flow returns `USERNAME_PASSWORD_REQUIRED`) and reverts on failure. Dry run by default, `--apply` to change PF. Confirmed by reading the script, not by running it. What is left is making it run after a PF rebuild — nothing calls it and `scripts/pingfederate/README.md` does not mention it — and that is step (2) of the "launcher can remove PingFederate" entry above.
 
 **What's wrong.** The PingFederate half of the redirect-free sign-in needs PF-side
 configuration that is not provisioned by any script in this repo: the server-wide
@@ -220,7 +224,9 @@ cases above — `requiresUserAuth: false` tools and policy-gated tools aren't
 expressible as "the registry's requiredScopes must equal the SSOT's" without
 that nuance.
 
-### [ ] 2026-09-28 — Graphify requeues intentionally skipped JSON on every refresh
+### [wontfix] 2026-09-28 — Graphify requeues intentionally skipped JSON on every refresh
+
+**TRIAGE 2026-10-01 (checked against main `fdd04bf12`, static read only).** Third-party package behaviour; not fixable from this repo without excluding application JSON from a semantic build. `.graphifyignore` still carries only the three bulk directories. Reopen if a Graphify release honours the extractor's `skipped` result.
 
 **What's wrong.** Graphify `0.9.71`'s zero-node recovery check re-queues
 manifest-stamped `.json` files with no graph nodes even when the JSON extractor
@@ -651,7 +657,9 @@ gaps fixed as scoped, no surprises:
 Full relevant test surface green (70/70 across 8 suites) — see the fix-wave
 PR for the exact command.
 
-### [ ] 2026-09-11 — A2A wire hop has no proof-of-possession
+### [wontfix] 2026-09-11 — A2A wire hop has no proof-of-possession
+
+**TRIAGE 2026-10-01 (checked against main `fdd04bf12`, static read only).** Nothing to do in this repo: `middleware/a2aPingOneBearer.js` has no DPoP/`cnf` check because PingOne still issues no sender-constrained token. Reopen if PingOne adds `cnf`, or if the issuing leg moves to PingFederate / Advanced Identity Cloud.
 
 **What's wrong.** The bearer `verifyA2aBearer` validates is a plain, bearer
 access token: PingOne issues neither DPoP (RFC 9449) nor certificate-bound
@@ -723,7 +731,9 @@ what the JWKS endpoint already serves. Confirmed red first (all 7 failed with
 `tests/a2aCardSigning.test.js` (JWKS shape, card signing/verification, jku
 pinning) passes unchanged — 2 suites / 15 tests total.
 
-### [ ] 2026-09-11 — `POST /a2a/specialists/:vertical` now requires a delegated token
+### [wontfix] 2026-09-11 — `POST /a2a/specialists/:vertical` now requires a delegated token
+
+**TRIAGE 2026-10-01 (checked against main `fdd04bf12`, static read only).** Accepted as the entry itself concludes ("none needed unless a real external A2A client shows up"). The Agent Card already says so: `services/a2aAgentCardService.js:84` describes the bearer as "the caller's own RFC 8693 delegated token". It does not spell out the `act` depth of exactly 1; add that if an external client ever appears.
 
 **What's wrong.** `verifyA2aBearer`'s actor check requires `act` present and
 the actor to be the registered generalist, so a caller presenting a bare
@@ -1078,6 +1088,8 @@ explains each entry in that list.
 
 ### [ ] 2026-09-11 — LLM token custody: what the fix deliberately left open
 
+**TRIAGE 2026-10-01 (checked against main `fdd04bf12`, static read only).** One bullet is done: callbacks now carry a run id (`demo_agent_service/src/agentRunHandler.ts:208`, `langchain_agent/src/agui/bff_tool_adapter.py:197`, read in `routes/agentTool.js:103-104`). `services/agentRunContext.js` still falls back to the session's latest run when a callback has none. Unchanged: the default secret is refused only under `VAULT_INTERNAL_STRICT=true` (set in k8s, not in `docker-compose.yml`); `call_pingone_tool` still calls the hosted PingOne MCP directly; `POST /api/agent/langchain/run` still exists with no caller.
+
 **What's wrong.** The LLM-custody fix (branch `fix/llm-token-custody`, plan
 `docs/superpowers/plans/2026-09-11-user-token-custody.md`) closed every path
 where model output could pick a credential, a destination, or a route around the
@@ -1284,6 +1296,8 @@ Most sections now fetch real endpoints instead of importing a local constant:
   replicates).
 
 ### [ ] 2026-09-09 — the jest suite is still flaky after the network guard: LMDB reader exhaustion and loopback ECONNRESET
+
+**TRIAGE 2026-10-01 (checked against main `fdd04bf12`, static read only).** Neither cause is fixed. `src/__tests__/setup.js:33` now retries once on GitHub Actions (`cb2c84cbb`), which hides the loopback resets in CI rather than removing them. No `maxReaders` change and no LMDB close in teardown.
 
 **What's wrong.** Blocking outbound network in unit tests (PR for
 `src/__tests__/setup.js`, 2026-09-09) removed the dominant cause of random
@@ -1535,6 +1549,8 @@ or retire UC29 from the Demo Steps script. Decide before a demo that leans on
 that step.
 
 ### [ ] 2026-09-08 — A non-admin cannot see their own MCP audit trail (external-door movie reel)
+
+**TRIAGE 2026-10-01 (checked against main `fdd04bf12`, static read only).** The premise changed and opened a new gap. `/api/mcp/audit` is no longer admin-only: `server.js:1543` mounts it behind `requireSession` (commit `d9692cdc4`), and `routes/mcpAudit.js` passes no user filter to `mcpAuditStore.query()`. So any signed-in user can now read every user's audit events from the API, while the only page that shows them (`/audit`) is still `admin` in `auth-requirements.json`. The fix is the per-user filter this entry already describes (`event.userId === req.session.user.id`, admins see all), applied to the existing route rather than a separate `/mine`. Still no reel component.
 
 `/api/mcp/audit` is admin-only, so the external-door movie reel — the view that
 shows an LM Studio → Agent Gateway call as it happens — has nothing to read for a
@@ -2166,6 +2182,8 @@ is why that was accepted rather than escalated.
 
 ### [ ] 2026-08-29 — "the vault is authoritative" was wrong on 3 of 3 keys checked
 
+**TRIAGE 2026-10-01 (checked against main `fdd04bf12`, static read only).** The audit tooling half is done: `scripts/vault-audit.js` (#2607). The guard half is not: `k8s/create-secrets.sh:266` still says "The vault is authoritative" and names the side to correct.
+
 **What's wrong.** `k8s/create-secrets.sh:210` refuses to deploy when a service
 `.env` holds a non-empty value that differs from the vault:
 
@@ -2716,6 +2734,8 @@ host oMLX owns `:8090` rather than silently omitting the service. Then
 
 ### [ ] 2026-08-28 — a failure class: "logged as handled, fatal anyway"
 
+**TRIAGE 2026-10-01 (checked against main `fdd04bf12`, static read only).** 2 of 5 long-lived Node services have an `unhandledRejection` handler (`demo_api_server/server.js`, `oauth-mcp/src/index.ts`). Missing in `demo_agent_service`, `demo_llm_proxy` and `demo_mcp_gateway`.
+
 **What's wrong.** Three separate incidents in one day shared one shape: a
 failure was caught and logged as non-fatal, while the damage happened on a path
 nobody printed. Each cost hours, and each was initially misdiagnosed as
@@ -2764,6 +2784,8 @@ instance (1) and (2) are why its root cause took three sessions and two wrong
 theories to reach.
 
 ### [ ] 2026-08-28 — BFF_INTERNAL_SECRET: two call sites disagree about where the vault lands
+
+**TRIAGE 2026-10-01 (checked against main `fdd04bf12`, static read only).** Mostly converged. `routes/agentRun.js`, `routes/codegraphProxy.js` and `routes/mcpInspector.js` now use `utils/internalSecret.js` (#2567), and `services/vaultLoader.js` exports the vault value into `process.env`, so that resolver's premise now holds. Left: `services/agentReasoningClient.js:51` still reads configStore first under the contradicting comment; `demo_agent_service` has no startup refusal for an `encrypted:` value; `transactionHop.ts:37` reads `process.env` directly. Whether the deployed value is still ciphertext was not checked (needs the running containers).
 
 **What's wrong.** The BFF↔`agent-service` shared secret is resolved two
 incompatible ways, and two authoritative comments assert opposite things:
@@ -2897,6 +2919,8 @@ which is easy to re-run past without reading.
 
 
 ### [ ] 2026-08-28 — design-token adoption is partial: colour, shadow, radius, weight
+
+**TRIAGE 2026-10-01 (checked against main `fdd04bf12`, static read only).** Colour has moved a long way: 9,087 hard-coded hex occurrences (1,412 distinct) against 10,150 `var(--th-` uses in `demo_api_ui/src/**/*.css`, from 16,486 against 2,411. Shadows have not: 353 distinct literals across 615 declarations.
 
 Found while converting components onto `--th-*`. Each is measured on main
 AFTER that work, so these are the numbers that remain, not the ones we started
@@ -3172,6 +3196,8 @@ image and is permanently unpromotable.
 
 ### [ ] 2026-08-28 — two parallel module trees in demo_api_server (`X.js` vs `src/X.js`)
 
+**TRIAGE 2026-10-01 (checked against main `fdd04bf12`, static read only).** Much reduced: `demo_api_server/src/` now holds only `services/` (3 files) and `__tests__/`. The remaining both-depths names are `services/errorSchemaService.js` (the two copies differ in size) and `__tests__/tokenIntrospection.test.js`. No hygiene assertion exists yet.
+
 `demo_api_server` carries near-duplicate copies of several modules at two
 depths: `middleware/tokenErrorMiddleware.js` and
 `src/middleware/tokenErrorMiddleware.js`, `services/errorMessageBuilder.js` and
@@ -3281,6 +3307,8 @@ assertion; current signal is 5 unreferenced of 1775 (`demo_api_server`) and 15 o
 1253 (`demo_api_ui/src`). Those are reported, not deleted — several are
 manually-run tools.
 ### [ ] 2026-08-28 — `demo_api_server` dependencies never re-verified after the dead-code removal
+
+**TRIAGE 2026-10-01 (checked against main `fdd04bf12`, static read only).** Candidates with no `require`/`import` anywhere in `demo_api_server`: `@langchain/langgraph-checkpoint`, `@langchain/openai`, `connect-redis`, `express-async-errors`, `langchain`. Peer-dependency use was not checked (needs `npm ls` / a clean `npm ci`). Zero static hits but in use, do not remove: the three `@opentelemetry/*` packages (preloaded via `NODE_OPTIONS`), `@scalar/api-reference` (`require.resolve`), `pino-pretty` (transport target).
 
 PR #2521 deleted 27 modules but deliberately left `package.json` untouched. The
 parked sweep it replaced also stripped 8 dependencies and 2,895 lock lines,
@@ -4215,7 +4243,9 @@ the native path too. That needs the invest resource allow-listed on both legs
 (`ENTERPRISE_MCP_RESOURCE_URIS` and `MCP_SERVER_RESOURCE_URI`) and a per-tool
 resource resolution in the mint — a bigger change than restoring the demo warranted.
 
-### [ ] 2026-08-26 — `ig_mcp_error_total` does not count schema-invalid JSON-RPC envelopes
+### [wontfix] 2026-08-26 — `ig_mcp_error_total` does not count schema-invalid JSON-RPC envelopes
+
+**TRIAGE 2026-10-01 (checked against main `fdd04bf12`, static read only).** Upstream PingGateway behaviour; nothing to change here. `routes/gatewayMetrics.js:18-21` still documents the figure as a floor. Raise with Ping if anyone builds alerting on it.
 
 PingGateway's `McpValidationFilter` publishes `ig_mcp_error_total` on the admin
 connector, labelled by JSON-RPC error code. It counts most rejections but not
@@ -4441,7 +4471,9 @@ key-parity check is still worth adding. And `SESSION_SECRET` in
 consistent key is a valid key) but the same trap for any future consumer that reads
 it from `process.env`.
 
-### [ ] 2026-09-01 — the facade's `agentless` (banking) door is dark, and two agent doors have no gateway
+### [~] 2026-09-01 — the facade's `agentless` (banking) door is dark, and two agent doors have no gateway
+
+**TRIAGE 2026-10-01 (checked against main `fdd04bf12`, static read only).** Repo side is done: the `agentless` door defaults to `banking-mcp` on the current gateway (`routes/mcpFacade.js:101-104`) and the two agent doors are deleted. The one thing left is the `tools/call` platform blocker recorded in the 2026-09-09 update, which is with Ping; `privilege/CURRENT-CONFIGURATION.md` records no change to it since. Marked `[~]`: waiting on something outside the repo.
 
 **Where:** `demo_api_server/routes/mcpFacade.js` doors `agentless`, `agent`,
 `agent-cmuir`; env `PRIVILEGE_AGENTLESS_MCPGW_URL_BANKING`.
@@ -4664,6 +4696,8 @@ backend, or stop installing `ping-mcpgw` from `deploy.sh` altogether.
 
 ### [ ] 2026-08-24 — `mcpPrivilegeAuth.js`'s cached DCR client can't serve a callback origin discovered after registration
 
+**TRIAGE 2026-10-01 (checked against main `fdd04bf12`, static read only).** "Keyed by nothing" is stale: `_clientCache` is now a `Map` keyed by `profileId` (`routes/mcpPrivilegeAuth.js:34-36`, #2911). The defect itself stands — still process-lifetime, not keyed by callback origin, no re-register on a miss.
+
 **Where:** `demo_api_server/routes/mcpPrivilegeAuth.js`'s `ensureClient()` —
 `_clientCache` is process-lifetime, keyed by nothing (one client for the whole
 process), registered once against `inspectorCallbackUrls(req)`'s snapshot at
@@ -4693,6 +4727,8 @@ isn't, instead of caching one client unconditionally for the process
 lifetime.
 
 ### [ ] 2026-08-25 — `demo_mcp_gateway`'s RFC 8693 client duplicates `oauthService.js`'s request-building
+
+**TRIAGE 2026-10-01 (checked against main `fdd04bf12`, static read only).** This entry's own trigger ("if a third RFC 8693 client shows up") fired long ago. Token-exchange requests are now built in at least nine `demo_api_server` service/route files (`facadeUpstreamExchange`, `a2aDelegationService`, `agentMcpTokenService`, `idJagService`, `pfAiAgentCrossDomainExchangeService`, `spiffePingfederateService`, `pfDavinciAuth`, `tokens`, `pingoneTestRoutes`), four `oauth-mcp` files and two PingGateway Groovy scripts, and the PingOne multi-resource quirk is re-explained in several of them. Not to be closed as accepted; the in-BFF copies can share one builder without any cross-service package.
 
 **Where:** `demo_mcp_gateway/src/auth/McpTokenExchangeClient.ts` vs.
 `demo_api_server/services/oauthService.js`.
@@ -5463,6 +5499,8 @@ all.
 
 ### [ ] 2026-08-19 — nothing protects a live UI drive from another session recreating the stack under it
 
+**TRIAGE 2026-10-01 (checked against main `fdd04bf12`, static read only).** Beyond step 1, `scripts/deploy-live.sh` now prints a warning before restarting a drive-affecting service and logs to `.git/deploy-live.restarts` — but only on its own terminal. `run-docker.sh restart <svc>` still recreates containers with no notice. No cross-session announcement and no lease.
+
 **Where:** `scripts/deploy-live.sh` (the `.git/deploy-live.lock` it already
 takes), `run-docker.sh restart <svc>`, and any session invoking either. The two
 services that matter are `ai-demo-ui` and `demo-api-server` — the only ones that
@@ -5777,6 +5815,8 @@ literals are equal, which is small and catches occurrence three.
 already caught this.
 
 ### [ ] 2026-08-18 — customer-dashboard banking column is the one dashboard pane without a resize handle
+
+**TRIAGE 2026-10-01 (checked against main `fdd04bf12`, static read only).** Still no banking handle. `UserDashboard.js` no longer exists, so the fix applies to `UserDashboardPing2026.js` only, not "both dashboard variants".
 
 **Where:** `demo_api_ui/src/components/UserDashboard.css` `.ud-body--dashboard-split3`
 (first grid track, `minmax(240px, 260px)`), rendered by `UserDashboard.js` /
@@ -6878,6 +6918,8 @@ already closed earlier the same day. Root `CLAUDE.md` has no
 
 ### [ ] 2026-08-18 — `INDETERMINATE` means "evaluation failed" from the cloud and "pause for step-up" locally
 
+**TRIAGE 2026-10-01 (checked against main `fdd04bf12`, static read only).** The header of this entry is out of date: all five phases of `docs/superpowers/plans/2026-08-18-indeterminate-rework.md` are marked done there, and `demo_authz_server/routes/decision.js` no longer emits `decision: 'INDETERMINATE'` (0 occurrences). Kept open for what the plan itself lists as remaining: `mcpToolPipeline.js` still uses `'INDETERMINATE'` as the BFF's own enforced-pause label (`gatewayBlockAuthEval`, the `mcp_step_up_required` / `mcp_hitl_required` mapping), the UI decision surfaces still branch on `decision`/`statements`, and the Groovy fail-closed line surfaces no diagnostics. So the PDP half of the overload is retired and the BFF/UI half is not.
+
 **PHASE 2 SHIPPED 2026-08-18 (branch `worktree-indeterminate-phase2`) — entry
 stays open; phases 3–5 remain.** Per the plan's Option B sequence, the PDP now
 emits `obligations: [{ id, type, obligatory: true, fulfilled: false }]` on every
@@ -7230,6 +7272,8 @@ The remaining LMDB `mapSize` headroom concern is real but unrelated to this 500 
 see that entry at the top of the file; it is deliberately *not* fixed here.
 
 ### [ ] 2026-08-18 — The launcher's sign-in prompt is nearly unreachable, so nothing in the product exercises it
+
+**TRIAGE 2026-10-01 (checked against main `fdd04bf12`, static read only).** "`UC-NHI2` is the only [admin use case]" is no longer true: `ADMIN1`–`ADMIN13` in `config/admin/demoSteps.js` are admin-level with `chip` triggers, served for `vertical=pingone-admin`. So the admin branch of `ChipLoginPrompt` may now be reachable by a signed-in customer. The live walk this entry asks for has still not been done.
 
 **Where:** `demo_api_ui/src/pages/UseCaseLauncherPage.js` — `ChipLoginPrompt`
 (#1952), rendered when `/api/use-cases/demo/run` refuses with `requiresLogin`.
@@ -8117,6 +8161,8 @@ flattened the signal.
 
 ### [ ] 2026-08-18 — Agent tests pass `user` at first render, so a whole class of auth-timing bug is invisible
 
+**TRIAGE 2026-10-01 (checked against main `fdd04bf12`, static read only).** 2 of 13 `AIAgent.*.test.jsx` specs use `renderAgentHydrating` (`protectedStepLogin`, `cookieOnlySlowRecheck`); 11 still mount with `user` resolved.
+
 **FURTHER 2026-08-18 (branch `worktree-test-trust`):** the hydrating harness is
 now a SHARED util — `demo_api_ui/src/test-utils/renderAgentHydrating.jsx`
 (component passed in so each spec keeps its own vi.mock graph) — and
@@ -8277,6 +8323,8 @@ arm it, rather than running it degraded.
 
 ### [ ] 2026-08-18 — `renderActionGroups()` never mounted on `/dashboard` for either role
 
+**TRIAGE 2026-10-01 (checked against main `fdd04bf12`, static read only).** The ancestor gating this entry could not find is now identified. The single call site (`AIAgent.js:13054`) sits inside `{!useActionsPopout && (`, and `useActionsPopout = !isInline`, so `.ba-action-group` mounts only when the agent is inline. On `/dashboard` that is only when `agentPlacement === "middle"` (`App.js:625-651`); with a floating placement the count is 0 by construction, not by regression. What is left is the decision this entry asks for (is `/dashboard` meant to show them in floating placement) and one live count to confirm.
+
 **Where:** `demo_api_ui/src/components/AIAgent.js:10866` —
 `{isLoggedIn && renderActionGroups()}`.
 
@@ -8382,6 +8430,8 @@ Failing that, at minimum name the paths distinctly in code so nobody reads one
 as the whole.
 
 ### [ ] 2026-08-17 — Every migrated vertical now has two seed stores and nothing keeps them agreeing
+
+**TRIAGE 2026-10-01 (checked against main `fdd04bf12`, static read only).** Write migration status: airlines writes run on the resource server (`pay_airline_fee`, `cancel_airline_reservation`, `redeem_miles`); retail has `checkout` there and workforce has `submit_expense`, with their other writes still on the BFF; the remaining verticals are read-only on the resource server. `seed/abercrombie-fitch.mock.json` is still present and referenced by nothing.
 
 **SEED-FILE HALF RESOLVED 2026-08-18 (branch `worktree-seed-single-source`) —
 entry stays OPEN for runtime write-divergence.** The resource-server seeds are
@@ -8923,6 +8973,8 @@ preference. Both assert through `localStorage.getItem` — deliberately **not** 
 spy, per the Node 22 CI / Node 26 local storage-spy trap.
 
 ### [ ] 2026-08-17 — `demo_agent_service` tests import `demo_api_server`'s vault across the package boundary
+
+**TRIAGE 2026-10-01 (checked against main `fdd04bf12`, static read only).** The cross-package import is gone (#2085): `tests/vault.test.ts` imports only `../src/vault`, and `src/vault.ts` reads the service's own `.env` through dotenvx. All that remains is the now unnecessary CI step — `.github/workflows/ci.yml:400-401` still installs `demo_api_server` deps for this job under a comment that is no longer true. Remove it and confirm on a CI run, then tick this.
 
 **Where:** `demo_agent_service/tests/vault.test.ts` requires
 `../demo_api_server/lib/vault/index.js`, which requires `argon2`.
