@@ -124,6 +124,26 @@ describe('PiFlowSignInModal', () => {
     await waitFor(() => expect(assign).toHaveBeenCalledWith('https://app.test/api/auth/oauth/user/callback?code=c&state=s'));
   });
 
+  test('PingFederate: the username hint from the BFF prefills the username box', async () => {
+    mockBff({
+      config: { ...ON, oauth_provider: 'pingfederate' },
+      login: () => ok({ flowId: 'f1', status: 'USERNAME_PASSWORD_REQUIRED', usernameHint: 'demouser' }),
+      credentials: () => ok({}),
+    });
+    await mountAndClick();
+    expect(await screen.findByLabelText('Username')).toHaveValue('demouser');
+  });
+
+  test('no hint (PingOne): the username box starts empty', async () => {
+    mockBff({
+      config: ON,
+      login: () => ok({ flowId: 'f1', status: 'USERNAME_PASSWORD_REQUIRED' }),
+      credentials: () => ok({}),
+    });
+    await mountAndClick();
+    expect(await screen.findByLabelText('Username')).toHaveValue('');
+  });
+
   test('any other provider stays on the redirect login even with the flag on', async () => {
     mockBff({ config: { ...ON, oauth_provider: 'something-else' }, login: () => ok({}), credentials: () => ok({}) });
     await mountAndClick();

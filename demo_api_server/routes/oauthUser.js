@@ -333,9 +333,16 @@ const piFlowCookieHeader = (jar) => Object.entries(jar || {}).map(([k, v]) => `$
 // authorization response inline on COMPLETED (no resume step).
 const piFlowProvider = () => (configStore.getOAuthProvider?.() === 'pingfederate' ? 'pingfederate' : 'pingone');
 
+// PingFederate is reached by the BFF at an address the container can resolve (the
+// token endpoint's, e.g. https://pingfederate:9031), NOT at the browser-facing
+// authorization endpoint's (e.g. https://local.ping-devops.com:9031): from inside
+// Docker the latter is the host's loopback and every call fails with `fetch failed`.
 function piFlowBase(provider) {
-  const endpoint = String(oauthUserConfig.authorizationEndpoint || '');
-  return provider === 'pingfederate' ? new URL(endpoint).origin : endpoint.replace(/\/as\/authorize.*$/, '');
+  if (provider === 'pingfederate') {
+    const server = String(oauthUserConfig.tokenEndpoint || oauthUserConfig.authorizationEndpoint || '');
+    return new URL(server).origin;
+  }
+  return String(oauthUserConfig.authorizationEndpoint || '').replace(/\/as\/authorize.*$/, '');
 }
 
 const piFlowStepUrl = (pending) => (pending.provider === 'pingfederate'
@@ -347,7 +354,16 @@ const PI_FLOW_ID = /^[A-Za-z0-9_-]{6,64}$/;
 
 async function openPiFlow(req, res, authorizeUrl, provider) {
   try {
-    const r = await fetch(authorizeUrl, {
+    let target = authorizeUrl;
+    if (provider === 'pingfederate') {
+      // Same request, but sent to the server-reachable origin (see piFlowBase).
+      const u = new URL(authorizeUrl);
+      const base = new URL(piFlowBase(provider));
+      u.protocol = base.protocol;
+      u.host = base.host;
+      target = u.toString();
+    }
+    const r = await fetch(target, {
       headers: { Accept: provider === 'pingfederate' ? 'application/json' : '*/*' },
       redirect: 'manual',
       signal: AbortSignal.timeout(PI_FLOW_TIMEOUT_MS),
@@ -358,9 +374,13 @@ async function openPiFlow(req, res, authorizeUrl, provider) {
       return res.status(502).json({ error: 'pi_flow_unavailable' });
     }
     req.session.oauthPiFlow = { flowId: flow.id, provider, startedAt: Date.now(), cookies: mergePiFlowCookies({}, r) };
+    // PingFederate binds the flow to the authorize request's login_hint ("Username must
+    // match the provided username hint"), so hand it to the SPA to prefill, as the hosted
+    // login page does. PingOne does not bind it, so nothing is sent for PingOne.
+    const usernameHint = provider === 'pingfederate' ? new URL(authorizeUrl).searchParams.get('login_hint') : null;
     return req.session.save((err) => {
       if (err) return res.status(500).json({ error: 'session_save_failed' });
-      return res.json({ flowId: flow.id, status: flow.status });
+      return res.json({ flowId: flow.id, status: flow.status, ...(usernameHint ? { usernameHint } : {}) });
     });
   } catch (error) {
     console.warn('[oauth/user/pi-flow] authorize failed:', error.message);

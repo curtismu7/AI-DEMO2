@@ -79,6 +79,9 @@ export default function PiFlowSignInModal() {
       if (target) qs.set("return_to", target);
       const res = await fetch(`${apiBase()}/api/auth/oauth/user/login?${qs}`, { credentials: "include" });
       if (!res.ok) throw new Error("pi.flow unavailable");
+      // PingFederate locks the flow to a username hint; prefill it like the hosted page does.
+      const flow = await res.json().catch(() => ({}));
+      if (flow && typeof flow.usernameHint === "string") setUsername(flow.usernameHint);
       setBusy(false);
     } catch {
       setOpen(false);

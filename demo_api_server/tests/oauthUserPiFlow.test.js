@@ -12,6 +12,8 @@ jest.mock('../services/configStore', () => ({
     user_client_secret: 'test-secret',
     user_pingone_authorize_pi_flow: 'true',
     pf_authorization_endpoint: 'https://pf.example:9031/as/authorization.oauth2',
+    // The address the BFF itself can reach PF at (differs from the browser-facing one above).
+    pf_token_endpoint: 'https://pingfederate.internal:9031/as/token.oauth2',
     pf_user_client_id: 'pf-client',
   })[key]),
   isUserOAuthConfigured: jest.fn(() => true),
@@ -59,6 +61,7 @@ describe('customer pi.flow sign-in', () => {
 
   test('opens the flow with response_type=code + response_mode=pi.flow and returns JSON, not a redirect', async () => {
     const res = await openFlow(request.agent(app));
+    // PingOne does not bind login_hint, so no usernameHint is sent.
     expect(res.body).toEqual({ flowId: 'flow-1', status: 'USERNAME_PASSWORD_REQUIRED' });
     const url = new URL(fetchMock.mock.calls[0][0]);
     expect(url.searchParams.get('response_type')).toBe('code');
@@ -198,9 +201,11 @@ describe('customer pi.flow sign-in', () => {
     test('opens the flow on PF with response_type=code + response_mode=pi.flow and Accept: application/json', async () => {
       const res = await openPfFlow(request.agent(app)).then((r) => r);
       expect(res.status).toBe(200);
-      expect(res.body).toEqual({ flowId: PF_FLOW, status: 'USERNAME_PASSWORD_REQUIRED' });
+      // PF locks the flow to the login_hint, so the SPA is told which username to prefill.
+      expect(res.body).toEqual({ flowId: PF_FLOW, status: 'USERNAME_PASSWORD_REQUIRED', usernameHint: 'demouser' });
       const [url, init] = fetchMock.mock.calls[0];
-      expect(url).toMatch(/^https:\/\/pf\.example:9031\/as\/authorization\.oauth2\?/);
+      // Sent to the server-reachable PF address, not the browser-facing one the redirect login uses.
+      expect(url).toMatch(/^https:\/\/pingfederate\.internal:9031\/as\/authorization\.oauth2\?/);
       expect(new URL(url).searchParams.get('response_mode')).toBe('pi.flow');
       expect(new URL(url).searchParams.get('response_type')).toBe('code');
       expect(init.headers.Accept).toBe('application/json');
@@ -212,7 +217,7 @@ describe('customer pi.flow sign-in', () => {
       fetchMock.mockResolvedValueOnce(json(200, { status: 'COMPLETED', authorizeResponse: { code: 'pf-code' } }, {}, ['pf-hfa-exp-pwd=x; Path=/']));
       const res = await agent.post('/api/auth/oauth/user/pi-flow/credentials').send({ username: 'u', password: 'p' }).expect(200);
       const [url, init] = fetchMock.mock.calls[1];
-      expect(url).toBe(`https://pf.example:9031/pf-ws/authn/flows/${PF_FLOW}`);
+      expect(url).toBe(`https://pingfederate.internal:9031/pf-ws/authn/flows/${PF_FLOW}`);
       expect(init.headers['Content-Type']).toBe('application/vnd.pingidentity.checkUsernamePassword+json');
       expect(init.headers['X-XSRF-Header']).toBeTruthy();
       expect(init.headers.Cookie).toBe('PF=first');
