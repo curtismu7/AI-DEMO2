@@ -328,21 +328,36 @@ function mergePiFlowCookies(jar, response) {
 }
 const piFlowCookieHeader = (jar) => Object.entries(jar || {}).map(([k, v]) => `${k}=${v}`).join('; ');
 
-function piFlowBase() {
-  return String(oauthUserConfig.authorizationEndpoint || '').replace(/\/as\/authorize.*$/, '');
+// pi.flow runs against whichever provider is selected. PingOne drives /flows/{id}
+// then /as/resume; PingFederate drives /pf-ws/authn/flows/{id} and returns the
+// authorization response inline on COMPLETED (no resume step).
+const piFlowProvider = () => (configStore.getOAuthProvider?.() === 'pingfederate' ? 'pingfederate' : 'pingone');
+
+function piFlowBase(provider) {
+  const endpoint = String(oauthUserConfig.authorizationEndpoint || '');
+  return provider === 'pingfederate' ? new URL(endpoint).origin : endpoint.replace(/\/as\/authorize.*$/, '');
 }
 
-async function openPiFlow(req, res, authorizeUrl) {
+const piFlowStepUrl = (pending) => (pending.provider === 'pingfederate'
+  ? `${piFlowBase(pending.provider)}/pf-ws/authn/flows/${pending.flowId}`
+  : `${piFlowBase(pending.provider)}/flows/${pending.flowId}`);
+
+// The flow id goes into a URL path, so only accept the shapes the providers issue.
+const PI_FLOW_ID = /^[A-Za-z0-9_-]{6,64}$/;
+
+async function openPiFlow(req, res, authorizeUrl, provider) {
   try {
     const r = await fetch(authorizeUrl, {
-      headers: { Accept: '*/*' }, redirect: 'manual', signal: AbortSignal.timeout(PI_FLOW_TIMEOUT_MS),
+      headers: { Accept: provider === 'pingfederate' ? 'application/json' : '*/*' },
+      redirect: 'manual',
+      signal: AbortSignal.timeout(PI_FLOW_TIMEOUT_MS),
     });
     const flow = await r.json().catch(() => null);
-    if (!r.ok || !flow?.id) {
+    if (!r.ok || !PI_FLOW_ID.test(String(flow?.id || ''))) {
       console.warn('[oauth/user/pi-flow] authorize did not open a flow: HTTP %s', r.status);
       return res.status(502).json({ error: 'pi_flow_unavailable' });
     }
-    req.session.oauthPiFlow = { flowId: flow.id, startedAt: Date.now(), cookies: mergePiFlowCookies({}, r) };
+    req.session.oauthPiFlow = { flowId: flow.id, provider, startedAt: Date.now(), cookies: mergePiFlowCookies({}, r) };
     return req.session.save((err) => {
       if (err) return res.status(500).json({ error: 'session_save_failed' });
       return res.json({ flowId: flow.id, status: flow.status });
@@ -356,28 +371,43 @@ async function openPiFlow(req, res, authorizeUrl) {
 // Posts one step to the open flow with the current cookie jar; returns the
 // parsed body and the updated jar. Never throws on a non-2xx: callers branch on it.
 async function postPiFlowStep(pending, contentType, payload) {
-  const step = await fetch(`${piFlowBase()}/flows/${pending.flowId}`, {
+  const pf = pending.provider === 'pingfederate';
+  const step = await fetch(piFlowStepUrl(pending), {
     method: 'POST',
-    headers: { 'Content-Type': contentType, Accept: '*/*', Cookie: piFlowCookieHeader(pending.cookies) },
+    headers: {
+      'Content-Type': contentType,
+      Accept: pf ? 'application/json' : '*/*',
+      Cookie: piFlowCookieHeader(pending.cookies),
+      // PingFederate rejects any request without a CSRF header, whatever its value.
+      ...(pf ? { 'X-XSRF-Header': 'PingFederate' } : {}),
+    },
     body: JSON.stringify(payload),
     signal: AbortSignal.timeout(PI_FLOW_TIMEOUT_MS),
   });
   return { step, body: await step.json().catch(() => ({})), cookies: mergePiFlowCookies(pending.cookies, step) };
 }
 
-// COMPLETED flow -> /as/resume -> authorization code -> the unchanged /callback.
-async function completePiFlow(req, res, pending, cookies) {
-  const resume = await fetch(`${piFlowBase()}/as/resume?flowId=${pending.flowId}`, {
-    headers: { Accept: '*/*', Cookie: piFlowCookieHeader(cookies) },
-    redirect: 'manual',
-    signal: AbortSignal.timeout(PI_FLOW_TIMEOUT_MS),
-  });
+// COMPLETED flow -> authorization code -> the unchanged /callback.
+// PingOne: the code comes from /as/resume. PingFederate: it is already in the
+// COMPLETED response as authorizeResponse.{code,state}.
+async function completePiFlow(req, res, pending, cookies, body) {
   let code = '';
-  if ((resume.headers.get('content-type') || '').includes('json')) {
-    code = (await resume.json().catch(() => ({})))?.authorizeResponse?.code || '';
-  }
-  if (!code && resume.headers.get('location')) {
-    try { code = new URL(resume.headers.get('location')).searchParams.get('code') || ''; } catch (_) { /* not a URL */ }
+  if (pending.provider === 'pingfederate') {
+    const ar = body?.authorizeResponse || {};
+    // PF echoes the state it was given; refuse a response for some other request.
+    code = ar.state === undefined || ar.state === req.session.oauthState ? (ar.code || '') : '';
+  } else {
+    const resume = await fetch(`${piFlowBase(pending.provider)}/as/resume?flowId=${pending.flowId}`, {
+      headers: { Accept: '*/*', Cookie: piFlowCookieHeader(cookies) },
+      redirect: 'manual',
+      signal: AbortSignal.timeout(PI_FLOW_TIMEOUT_MS),
+    });
+    if ((resume.headers.get('content-type') || '').includes('json')) {
+      code = (await resume.json().catch(() => ({})))?.authorizeResponse?.code || '';
+    }
+    if (!code && resume.headers.get('location')) {
+      try { code = new URL(resume.headers.get('location')).searchParams.get('code') || ''; } catch (_) { /* not a URL */ }
+    }
   }
   if (!code) return res.status(502).json({ error: 'pi_flow_no_code' });
 
@@ -392,8 +422,9 @@ async function completePiFlow(req, res, pending, cookies) {
 // (SMS/email OTP, device selection, policy screens) return fallback:true and the
 // SPA restarts the ordinary redirect login — a sign-in never dead-ends here.
 async function respondAfterPiFlowStep(req, res, pending, body, cookies) {
-  if (body.status === 'COMPLETED') return completePiFlow(req, res, pending, cookies);
-  if (body.status === 'ASSERTION_REQUIRED' && body.publicKeyCredentialRequestOptions) {
+  if (body.status === 'COMPLETED') return completePiFlow(req, res, pending, cookies, body);
+  // Passkey (ASSERTION_REQUIRED) is driven for PingOne only; PF statuses differ.
+  if (pending.provider !== 'pingfederate' && body.status === 'ASSERTION_REQUIRED' && body.publicKeyCredentialRequestOptions) {
     req.session.oauthPiFlow = { ...pending, cookies };
     const options = typeof body.publicKeyCredentialRequestOptions === 'string'
       ? JSON.parse(body.publicKeyCredentialRequestOptions) : body.publicKeyCredentialRequestOptions;
@@ -419,10 +450,14 @@ router.post('/pi-flow/credentials', async (req, res) => {
     return res.status(400).json({ error: 'invalid_request' });
   }
   try {
+    const pf = pending.provider === 'pingfederate';
     const { step, body, cookies } = await postPiFlowStep(
-      pending, 'application/vnd.pingidentity.usernamePassword.check+json', { username, password },
+      pending,
+      pf ? 'application/vnd.pingidentity.checkUsernamePassword+json' : 'application/vnd.pingidentity.usernamePassword.check+json',
+      { username, password },
     );
-    if (step.status === 400 && body?.details?.some((d) => d.code === 'INVALID_CREDENTIALS')) {
+    const badCredentials = pf ? 'CREDENTIAL_VALIDATION_FAILED' : 'INVALID_CREDENTIALS';
+    if (step.status === 400 && body?.details?.some((d) => d.code === badCredentials)) {
       return res.status(401).json({ error: 'invalid_credentials', message: 'Username or password is incorrect.' });
     }
     if (!step.ok) return res.status(502).json({ error: 'pi_flow_failed' });
@@ -440,6 +475,7 @@ router.post('/pi-flow/credentials', async (req, res) => {
 router.post('/pi-flow/assertion', async (req, res) => {
   const pending = openPiFlowOrReject(req, res);
   if (!pending) return undefined;
+  if (pending.provider === 'pingfederate') return res.status(409).json({ error: 'pi_flow_step_unsupported' });
   const { assertion, origin } = req.body || {};
   if (!assertion || typeof assertion !== 'object' || !KNOWN_REDIRECT_ORIGINS.includes(origin)) {
     return res.status(400).json({ error: 'invalid_request' });
@@ -507,7 +543,8 @@ router.get('/login', (req, res) => {
     // back instead of a 302. Off unless PINGONE_USER_AUTHORIZE_PI_FLOW is on; the
     // SPA falls back to the plain redirect login when this returns 404/502.
     const piFlowLogin = req.query.pi_flow === '1' && !liveIdJag && !piFlowMode
-      && selectedProvider === 'pingone' && oauthUserConfig.authorizeUsesPiFlow;
+      && (selectedProvider === 'pingone' || selectedProvider === 'pingfederate')
+      && oauthUserConfig.authorizeUsesPiFlow;
     const sessionProvider = req.session.user?.oauthProvider;
     const isAdminSession = req.session?.oauthType === 'admin' || req.session?.user?.role === 'admin';
     if (piFlowMode && isAdminSession) {
@@ -705,7 +742,7 @@ router.get('/login', (req, res) => {
         console.warn('[oauth/user] Session save failed before PingOne redirect (PKCE cookie is fallback):', err.message);
       }
       if (piFlowLogin) {
-        return openPiFlow(req, res, url);
+        return openPiFlow(req, res, url, piFlowProvider());
       }
       if (piFlowMode) console.log('Starting end-user PingOne pi.flow.');
       else console.log('Redirecting end user to PingOne SSO');

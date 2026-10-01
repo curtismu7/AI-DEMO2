@@ -3,6 +3,7 @@ const request = require('supertest');
 const express = require('express');
 const session = require('express-session');
 const router = require('../routes/oauthUser');
+const configStore = require('../services/configStore');
 
 jest.mock('../services/configStore', () => ({
   getEffective: jest.fn((key) => ({
@@ -10,6 +11,8 @@ jest.mock('../services/configStore', () => ({
     user_client_id: 'test-client-id',
     user_client_secret: 'test-secret',
     user_pingone_authorize_pi_flow: 'true',
+    pf_authorization_endpoint: 'https://pf.example:9031/as/authorization.oauth2',
+    pf_user_client_id: 'pf-client',
   })[key]),
   isUserOAuthConfigured: jest.fn(() => true),
   getOAuthProvider: jest.fn(() => 'pingone'),
@@ -179,6 +182,85 @@ describe('customer pi.flow sign-in', () => {
     test('assertion without an open flow -> 409', async () => {
       await request(app).post('/api/auth/oauth/user/pi-flow/assertion').send({ assertion: ASSERTION, origin: ORIGIN }).expect(409);
       expect(fetchMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('PingFederate (provider = pingfederate)', () => {
+    const PF_FLOW = 'flowPF1abc';
+    beforeEach(() => { configStore.getOAuthProvider.mockReturnValue('pingfederate'); });
+    afterEach(() => { configStore.getOAuthProvider.mockReturnValue('pingone'); });
+
+    async function openPfFlow(agent, id = PF_FLOW) {
+      fetchMock.mockResolvedValueOnce(json(200, { id, status: 'USERNAME_PASSWORD_REQUIRED' }, {}, ['PF=first; Path=/; Secure; HttpOnly']));
+      return agent.get('/api/auth/oauth/user/login?pi_flow=1');
+    }
+
+    test('opens the flow on PF with response_type=code + response_mode=pi.flow and Accept: application/json', async () => {
+      const res = await openPfFlow(request.agent(app)).then((r) => r);
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ flowId: PF_FLOW, status: 'USERNAME_PASSWORD_REQUIRED' });
+      const [url, init] = fetchMock.mock.calls[0];
+      expect(url).toMatch(/^https:\/\/pf\.example:9031\/as\/authorization\.oauth2\?/);
+      expect(new URL(url).searchParams.get('response_mode')).toBe('pi.flow');
+      expect(new URL(url).searchParams.get('response_type')).toBe('code');
+      expect(init.headers.Accept).toBe('application/json');
+    });
+
+    test('password step posts the PF content type + CSRF header + cookie to /pf-ws/authn/flows, and takes the code inline (no resume)', async () => {
+      const agent = request.agent(app);
+      await openPfFlow(agent);
+      fetchMock.mockResolvedValueOnce(json(200, { status: 'COMPLETED', authorizeResponse: { code: 'pf-code' } }, {}, ['pf-hfa-exp-pwd=x; Path=/']));
+      const res = await agent.post('/api/auth/oauth/user/pi-flow/credentials').send({ username: 'u', password: 'p' }).expect(200);
+      const [url, init] = fetchMock.mock.calls[1];
+      expect(url).toBe(`https://pf.example:9031/pf-ws/authn/flows/${PF_FLOW}`);
+      expect(init.headers['Content-Type']).toBe('application/vnd.pingidentity.checkUsernamePassword+json');
+      expect(init.headers['X-XSRF-Header']).toBeTruthy();
+      expect(init.headers.Cookie).toBe('PF=first');
+      expect(JSON.parse(init.body)).toEqual({ username: 'u', password: 'p' });
+      expect(fetchMock).toHaveBeenCalledTimes(2); // authorize + password only: no /as/resume on PF
+      const target = new URL(res.body.redirectTo);
+      expect(target.pathname).toBe('/api/auth/oauth/user/callback');
+      expect(target.searchParams.get('code')).toBe('pf-code');
+      expect(target.searchParams.get('state')).toBeTruthy();
+    });
+
+    test('an authorize response whose state is not the session state is refused', async () => {
+      const agent = request.agent(app);
+      await openPfFlow(agent);
+      fetchMock.mockResolvedValueOnce(json(200, { status: 'COMPLETED', authorizeResponse: { code: 'pf-code', state: 'someone-elses-state' } }));
+      const res = await agent.post('/api/auth/oauth/user/pi-flow/credentials').send({ username: 'u', password: 'p' }).expect(502);
+      expect(res.body.error).toBe('pi_flow_no_code');
+    });
+
+    test('bad credentials (CREDENTIAL_VALIDATION_FAILED) -> 401 invalid_credentials', async () => {
+      const agent = request.agent(app);
+      await openPfFlow(agent);
+      fetchMock.mockResolvedValueOnce(json(400, { code: 'VALIDATION_ERROR', details: [{ code: 'CREDENTIAL_VALIDATION_FAILED' }] }));
+      const res = await agent.post('/api/auth/oauth/user/pi-flow/credentials').send({ username: 'u', password: 'bad' }).expect(401);
+      expect(res.body.error).toBe('invalid_credentials');
+    });
+
+    test('a status this BFF cannot drive falls back to the redirect login', async () => {
+      const agent = request.agent(app);
+      await openPfFlow(agent);
+      fetchMock.mockResolvedValueOnce(json(200, { status: 'MFA_REQUIRED' }));
+      const res = await agent.post('/api/auth/oauth/user/pi-flow/credentials').send({ username: 'u', password: 'p' }).expect(200);
+      expect(res.body).toEqual({ fallback: true, status: 'MFA_REQUIRED' });
+    });
+
+    test('the passkey endpoint is closed to a PF flow', async () => {
+      const agent = request.agent(app);
+      await openPfFlow(agent);
+      const calls = fetchMock.mock.calls.length;
+      await agent.post('/api/auth/oauth/user/pi-flow/assertion')
+        .send({ assertion: { id: 'x' }, origin: 'https://local.ping-devops.com:4000' }).expect(409);
+      expect(fetchMock.mock.calls.length).toBe(calls);
+    });
+
+    test('a flow id that is not a plain token is rejected before it can reach a URL path', async () => {
+      const res = await openPfFlow(request.agent(app), '../../admin');
+      expect(res.status).toBe(502);
+      expect(res.body.error).toBe('pi_flow_unavailable');
     });
   });
 

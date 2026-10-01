@@ -23,7 +23,7 @@ function redirectLogin(returnTo) {
  * browser goes straight to the BFF callback — no PingOne hosted page.
  *
  * Mounted once in App. It enables itself only when the BFF reports
- * PINGONE_USER_AUTHORIZE_PI_FLOW on AND the provider is PingOne; otherwise
+ * PINGONE_USER_AUTHORIZE_PI_FLOW on AND the provider is PingOne or PingFederate; otherwise
  * navigateToCustomerOAuthLogin keeps doing the ordinary redirect.
  * After the password, a passkey (ASSERTION_REQUIRED) step is driven here too.
  * Anything else (SMS/email codes, a policy screen, an error opening the flow)
@@ -52,7 +52,9 @@ export default function PiFlowSignInModal() {
         const res = await fetch(`${apiBase()}/api/admin/config`, { credentials: "include" });
         const cfg = (await res.json())?.config || {};
         const on = ["true", "1"].includes(String(cfg.PINGONE_USER_AUTHORIZE_PI_FLOW).toLowerCase());
-        if (!cancelled) setPiFlowSignInAvailable(on && (cfg.oauth_provider || "pingone") === "pingone");
+        // Both providers the BFF can drive (PingOne, PingFederate); anything else keeps the redirect.
+        const provider = cfg.oauth_provider || "pingone";
+        if (!cancelled) setPiFlowSignInAvailable(on && (provider === "pingone" || provider === "pingfederate"));
       } catch {
         /* keep the redirect login */
       }
@@ -275,7 +277,7 @@ export default function PiFlowSignInModal() {
             </p>
           ) : null}
           <p className="signin-modal__hint">
-            No PingOne hosted page: this sign-in runs as a pi.flow.
+            No hosted login page: this sign-in runs as a pi.flow.
           </p>
         </form>
         )}

@@ -110,8 +110,22 @@ describe('PiFlowSignInModal', () => {
     expect(screen.queryByLabelText('Username')).toBeNull();
   });
 
-  test('PingFederate selected: stays on the redirect login even with the flag on', async () => {
-    mockBff({ config: { ...ON, oauth_provider: 'pingfederate' }, login: () => ok({}), credentials: () => ok({}) });
+  test('PingFederate selected: opens the same form (the BFF drives the PF flow)', async () => {
+    mockBff({
+      config: { ...ON, oauth_provider: 'pingfederate' },
+      login: () => ok({ flowId: 'f1', status: 'USERNAME_PASSWORD_REQUIRED' }),
+      credentials: () => ok({ redirectTo: 'https://app.test/api/auth/oauth/user/callback?code=c&state=s' }),
+    });
+    await mountAndClick();
+    expect(window.location.href).toBe('');
+    fireEvent.change(await screen.findByLabelText('Username'), { target: { value: 'demouser' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith('https://app.test/api/auth/oauth/user/callback?code=c&state=s'));
+  });
+
+  test('any other provider stays on the redirect login even with the flag on', async () => {
+    mockBff({ config: { ...ON, oauth_provider: 'something-else' }, login: () => ok({}), credentials: () => ok({}) });
     await mountAndClick();
     expect(window.location.href).toContain('/api/auth/oauth/user/login?return_to=%2Fdashboard');
     expect(screen.queryByLabelText('Username')).toBeNull();
