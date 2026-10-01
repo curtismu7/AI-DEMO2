@@ -246,6 +246,18 @@ test('exchange hops report each token\'s own act chain, so a missing act fails a
   expect(validateRow('UC44', run(), 'PERMIT')).toEqual([]);
 });
 
+test('a STEP_UP step is blocked when the MFA service cannot serve the identity, and runs when it can', async () => {
+  const row = buildDemoReadinessCatalog().find((item) => item.expectedBehaviorByVertical?.[VERTICAL]?.expectedOutcome === 'STEP_UP');
+  const stepUpPrerequisites = row.runtimePrerequisitesByVertical[VERTICAL];
+  const lane = (mfaStatus) => jest.fn(async (path) => (path === '/api/auth/mfa/devices'
+    ? { status: mfaStatus, body: mfaStatus === 200 ? { devices: [] } : { error: 'list_devices_failed' } }
+    : { status: 200, body: { success: true, flags: stepUpPrerequisites.requiredFlags } }));
+  const verify = (request) => createCaseOperations({ request, provider: PROVIDER, expectedIssuer: ISSUER })
+    .verifyPrerequisites({ caseRow: row, vertical: VERTICAL, prerequisites: stepUpPrerequisites });
+  expect(await verify(lane(500))).toEqual({ status: 'blocked', reason: expect.stringMatching(/MFA service.*HTTP 500: list_devices_failed/) });
+  expect(await verify(lane(200))).toEqual({ status: 'pass' });
+});
+
 test('a CIBA step is blocked, not run: it needs an approval on a device', async () => {
   const request = jest.fn();
   const operations = createCaseOperations({ request, provider: PROVIDER, expectedIssuer: ISSUER });

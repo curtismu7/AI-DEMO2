@@ -9,7 +9,7 @@ const axios = require('axios');
 const configStore = require('./configStore');
 const { sanitizeAxiosCause } = require('../utils/sanitizeAxiosCause');
 const { logger, LOG_CATEGORIES } = require('../utils/logger');
-const { getTokenEndpoint } = require('./oauthEndpointResolver');
+const { getPingOneTokenEndpoint } = require('./oauthEndpointResolver');
 const { authMethodOrder, isInvalidClientError } = require('./pingOneTokenAuth');
 
 // PingOne admin roles every demo login persona needs. Without one, PingOne
@@ -67,7 +67,7 @@ class PingOneUserService {
     }
 
     try {
-      const tokenEndpoint = getTokenEndpoint();
+      const tokenEndpoint = getPingOneTokenEndpoint();
       const configured = (process.env.PINGONE_WORKER_TOKEN_AUTH_METHOD || configStore.getEffective('pingone_mgmt_token_auth_method') || 'basic').toLowerCase();
       const order = authMethodOrder(configured);
 
