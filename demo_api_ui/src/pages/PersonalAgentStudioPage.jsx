@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import apiClient from '../services/apiClient';
 import AgentClientSkin from '../components/AgentClientSkin';
+import ConfirmModal from '../components/ConfirmModal';
 import PersonalAgentClientCards from '../components/learning/PersonalAgentClientCards';
 import SecurityRail from '../components/SecurityRail';
 import TokenChainFilmstrip from '../components/TokenChainFilmstrip';
@@ -135,7 +136,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
     }).then((data) => {
       if (!isCurrentRun()) return;
       // The BFF answers 200 with step_up_required when the sign-in had no MFA.
-      if (data.step_up_required) setRunState({ status: 'step-up', text: data.reply || 'Complete multi-factor authentication to continue.' });
+      if (data.step_up_required) setRunState({ status: 'step-up', prompt: true, text: data.reply || 'Complete multi-factor authentication to continue.' });
       else setRunState({ status: 'complete', text: data.reply || 'The workload agent completed the request.' });
     }).catch((error) => {
       if (isCurrentRun()) setRunState({ status: 'error', text: error.message || 'The workload agent could not complete the request.' });
@@ -196,6 +197,9 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
     });
   }
 
+  // An absolute same-origin URL: the BFF drops the query from a bare path.
+  const startStepUp = () => window.location.assign(`/api/auth/oauth/user/stepup?return_to=${encodeURIComponent(`${window.location.origin}${location.pathname}${location.search}`)}`);
+
   const layout = LAYOUT_STYLES[layoutState] || LAYOUT_STYLES.full;
   const workloadGates = workloadScenario && gates.map((gate, index) => {
     if (index === 0 && workloadScenario.id === 'UC44') return { ...gate, name: 'Customer attribution', desc: 'Customer remains sub; workload agent appears in act' };
@@ -223,8 +227,17 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
       <button type="button" onClick={() => window.open(`/personal-agent/client?skin=${activeSkin}&theme=${theme}&useCase=${workloadScenario.id}&vertical=${encodeURIComponent(vertical)}`, '_blank', 'width=480,height=700,left=200,top=100,resizable=yes')}>🪟 Open client window</button>
       <p role="status" className="workload-agents__status">{runState.status === 'running' ? 'Running the selected action…' : runState.text || 'Ready to run the selected catalog action.'}</p>
       {runState.status === 'step-up' && (
-        <button type="button" onClick={() => window.location.assign(`/api/auth/oauth/user/stepup?return_to=${encodeURIComponent(`${location.pathname}${location.search}`)}`)}>Verify with MFA and run again</button>
+        <button type="button" onClick={startStepUp}>Verify with MFA and run again</button>
       )}
+      <ConfirmModal
+        isOpen={runState.status === 'step-up' && runState.prompt === true}
+        title="MFA required"
+        message={runState.text}
+        confirmLabel="Verify with MFA"
+        cancelLabel="Not now"
+        onConfirm={startStepUp}
+        onCancel={() => setRunState((state) => ({ ...state, prompt: false }))}
+      />
       <SecurityRail gates={workloadGates} actClaim={actClaim} tokenEvents={events} />
       {/* The filmstrip's two halves place themselves by grid-area name. */}
       <div className="workload-agents__chain"><TokenChainFilmstrip /></div>
