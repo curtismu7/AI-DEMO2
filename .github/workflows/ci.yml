@@ -86,6 +86,15 @@ jobs:
             echo "unwired-services=true"
             echo "python-agents=true"
           } >> "$GITHUB_OUTPUT"
+      # On a push the path filter diffs with git, so it needs a real checkout
+      # and its credentials. Without this step it ran `git fetch` in whatever
+      # checkout an earlier job left on the persistent runner, with no
+      # credentials ("could not read Username for 'https://github.com'"), and
+      # failed whenever the previous commit was not already there — which
+      # skipped every suite on main. Pull requests use the API and need none.
+      - name: Check out for the push path filter
+        if: github.event_name == 'push'
+        uses: actions/checkout@v7
       - name: Select suites affected by this PR or push
         if: github.event_name == 'pull_request' || github.event_name == 'push'
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
