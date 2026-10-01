@@ -138,6 +138,45 @@ function evidenceFromAgentInvoke({ response, provider, expectedIssuer, authoriza
     evidence.gateway = { applicable: false };
     evidence.authorize = { applicable: false };
   }
+  // A2A delegation (UC2): the generalist exchanges for the specialist's
+  // intermediate audience, the specialist exchanges again under its own
+  // identity, and its call goes through the A2A gateway. Those are the a2a-*
+  // events; the specialist's actor token being acquired is what proves its
+  // credentials, so nothing is read from configuration.
+  const a2aExchange1 = eventById(events, 'a2a-exchange1');
+  const a2aExchange2 = eventById(events, 'a2a-exchange2');
+  if (a2aExchange1?.status === 'exchanged' && a2aExchange2?.status === 'exchanged') {
+    const claims = a2aExchange2.claims || {};
+    const actors = [];
+    for (let act = claims.act; act?.sub; act = act.act) actors.push(act.sub);
+    const a2aTool = eventById(events, 'gw-filter-chain')?.tool || null;
+    Object.assign(evidence, {
+      agentIdentityProvider: providerOf(eventById(events, 'a2a-agent1-actor')?.claims?.iss, lane),
+      tokenIssuer: providerOf(claims.iss, lane),
+      subject: claims.sub || null,
+      // Subject, then the specialist, then the generalist it acts for.
+      actorChain: [claims.sub, ...actors].filter(Boolean),
+      selectedTool: a2aTool,
+      audiences: list(claims.aud),
+      scopes: list(String(claims.scope || '').split(/\s+/)),
+      roleApplicability: { userLogin: Boolean(userToken), agentIdentity: eventById(events, 'a2a-agent2-actor')?.status === 'acquired', tokenExchange: true },
+      exchangeService: 'token-exchange',
+      exchangeProvenance: `${provider}-a2a`,
+      exchangePath: 'a2a-access-token',
+      subjectTokenType: 'access_token',
+    });
+    if (a2aTool && a2aTool === authorization?.primaryTool) evidence.resourceServer = authorization.resourceServer;
+    if (authorization?.primaryTool) {
+      evidence.gateway = { route: challengedRoute, verdict: gatewayAuthorize?.decision || null };
+      // `engine` says who decided: this path is decided by the gateway's
+      // built-in policy engine unless real PingOne Authorize is wired to it.
+      evidence.authorize = {
+        reference: gatewayAuthorize?.url || gatewayAuthorize?.decisionId || null,
+        decision: gatewayAuthorize?.decision || null,
+        engine: gatewayAuthorize?.authorizeEngine || null,
+      };
+    }
+  }
   return { observed: outcomeFromAgentResponse(response), evidence };
 }
 
@@ -159,8 +198,9 @@ function createCaseOperations({ request, provider, expectedIssuer }) {
         return { status: 'blocked', reason: 'no workload agent is registered for the readiness identity' };
       }
     }
+    // A2A credentials are not checked here: the run itself acquires the
+    // specialist's actor token, and the evidence fails without it.
     const unsupported = [
-      prerequisites?.a2aCredentials && 'A2A credentials',
       prerequisites?.parConfig && 'PAR configuration',
       prerequisites?.groupRequirement && 'group membership',
     ].filter(Boolean);

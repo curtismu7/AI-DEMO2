@@ -282,6 +282,19 @@ function authorizationContractFor(step, sources, issues, useCaseId, vertical) {
         .map((item) => item.uri),
     };
   });
+  // An a2aDelegated tool is reached with the specialist's own scope, minted on
+  // the A2A gateway audience, not with the tool's base scope on the user token.
+  const a2aScope = tool?.a2aDelegated ? tool.a2aDelegatedScope || null : null;
+  const a2aCanonicalScope = a2aScope ? topology.aliases?.[a2aScope] || a2aScope : null;
+  const a2aOwner = a2aCanonicalScope ? topology.resources?.[topology.scopes?.[a2aCanonicalScope]?.resource] : null;
+  const a2aScopeResources = a2aScope ? [{
+    scope: a2aScope,
+    canonicalScope: a2aCanonicalScope,
+    audience: a2aOwner?.uri || null,
+    mirrorAudiences: Object.values(topology.resources || {})
+      .filter((item) => item?.uri && item !== a2aOwner && [...(item.scopes || []), ...(item.mirroredScopes || [])].includes(a2aCanonicalScope))
+      .map((item) => item.uri),
+  }] : null;
   const restrictedRole = manifest?.groups?.restrictedTools?.[toolName] || null;
   const restrictedRoleConfig = restrictedRole ? manifest?.groups?.categories?.[restrictedRole] : null;
   if (restrictedRole && !restrictedRoleConfig?.name) {
@@ -303,6 +316,7 @@ function authorizationContractFor(step, sources, issues, useCaseId, vertical) {
     } : null,
     requiredScopes,
     scopeResources,
+    ...(a2aScopeResources ? { a2aScopeResources } : {}),
     authorizeToolGroup: restrictedRole ? {
       role: restrictedRole,
       groupName: restrictedRoleConfig?.name || null,
