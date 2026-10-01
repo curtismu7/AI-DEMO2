@@ -6,6 +6,7 @@ import AgentAccessCard from './AgentAccessCard';
 import AgentPermissionsCard from './AgentPermissionsCard';
 import SignInPrompt from './SignInPrompt';
 import VerifyCard from './VerifyCard';
+import PingOneProviderGuard from './PingOneProviderGuard';
 import { useThemeOptional } from '../context/ThemeContext';
 import './Profile.css';
 
@@ -47,7 +48,7 @@ function DeviceIcon({ type }) {
   );
 }
 
-export default function Profile({ user }) {
+function ProfileContent({ user }) {
   const { darkMode, toggleDarkMode } = useThemeOptional();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -495,5 +496,16 @@ export default function Profile({ user }) {
       <AgentAccessCard />
       <AgentPermissionsCard user={user} />
     </div>
+  );
+}
+
+export default function Profile({ user }) {
+  return (
+    <PingOneProviderGuard
+      returnTo="/profile"
+      description="The MFA device section uses PingOne APIs and needs a PingOne user session. You can cancel and keep using the other profile features."
+    >
+      <ProfileContent user={user} />
+    </PingOneProviderGuard>
   );
 }

@@ -20,6 +20,8 @@ export const USE_CASE_RUN_CONTEXT_KEY = 'bx_run_context';
 export const ID_JAG_PRE_RUN_PROVIDER_KEY = 'bx_id_jag_pre_run_provider';
 
 let liveLaunchPending = false;
+let providerRestoreGeneration = 0;
+const providerRestorePromises = new Set();
 
 /**
  * Mirrors the BFF's ID_JAG_RUN_TTL_MS (routes/oauthUser.js) — a pending intent
@@ -112,10 +114,17 @@ export function requestLiveIdJagRun(detail) {
 }
 
 /** Release the client handoff guard after a validated callback; retain run context. */
-export function completeIdJagRunHandoff() {
+export function completeIdJagRunHandoff({ restoreProvider = true } = {}) {
+  const generation = ++providerRestoreGeneration;
   liveLaunchPending = false;
   try { sessionStorage.removeItem(ID_JAG_PENDING_INTENT_KEY); } catch { /* storage unavailable */ }
-  void restorePreRunProvider();
+  if (!restoreProvider) {
+    try { sessionStorage.removeItem(ID_JAG_PRE_RUN_PROVIDER_KEY); } catch { /* storage unavailable */ }
+    return;
+  }
+  const restorePromise = restorePreRunProvider(generation);
+  providerRestorePromises.add(restorePromise);
+  void restorePromise.finally(() => providerRestorePromises.delete(restorePromise));
 }
 
 /**
@@ -124,12 +133,13 @@ export function completeIdJagRunHandoff() {
  * provider toggle uses; a failed read simply means nothing to restore.
  */
 async function capturePreRunProvider() {
+  const generation = providerRestoreGeneration;
   try {
     const res = await fetch('/api/admin/config', { credentials: 'same-origin' });
     if (!res.ok) return;
     const body = await res.json();
     const provider = body?.config?.oauth_provider;
-    if (provider === 'pingone' || provider === 'pingfederate') {
+    if (generation === providerRestoreGeneration && (provider === 'pingone' || provider === 'pingfederate')) {
       sessionStorage.setItem(ID_JAG_PRE_RUN_PROVIDER_KEY, provider);
     }
   } catch { /* capture is best-effort — the run proceeds regardless */ }
@@ -140,7 +150,8 @@ async function capturePreRunProvider() {
  * caller should expect a reload). Silent no-ops: nothing captured, provider
  * already matches, config write rejected (non-admin), or storage unavailable.
  */
-async function restorePreRunProvider() {
+async function restorePreRunProvider(generation) {
+  if (generation !== providerRestoreGeneration) return false;
   let previous = null;
   try { previous = sessionStorage.getItem(ID_JAG_PRE_RUN_PROVIDER_KEY); } catch { return false; }
   if (previous !== 'pingone' && previous !== 'pingfederate') return false;
@@ -149,6 +160,7 @@ async function restorePreRunProvider() {
     const res = await fetch('/api/admin/config', { credentials: 'same-origin' });
     if (!res.ok) return false;
     const body = await res.json();
+    if (generation !== providerRestoreGeneration) return false;
     const current = body?.config?.oauth_provider;
     if (!current || current === previous) return false;
     const write = await fetch('/api/admin/config', {
@@ -158,7 +170,9 @@ async function restorePreRunProvider() {
       body: JSON.stringify({ oauth_provider: previous }),
     });
     if (!write.ok) return false;
+    if (generation !== providerRestoreGeneration) return false;
     await fetch('/api/auth/clear-session', { method: 'POST', credentials: 'same-origin' });
+    if (generation !== providerRestoreGeneration) return false;
     window.dispatchEvent(new CustomEvent('userLoggedOut'));
     window.location.reload();
     return true;
@@ -171,8 +185,7 @@ export function requestMockIdJagReplay() {
   return trace;
 }
 
-export function clearIdJagRunState({ preservePending = false } = {}) {
-  if (!preservePending) completeIdJagRunHandoff();
+function clearIdJagRunStorage() {
   try { sessionStorage.removeItem(ID_JAG_REPLAYED_KEY); } catch { /* storage unavailable */ }
   try { sessionStorage.removeItem(ID_JAG_VALIDATED_CALLBACK_KEY); } catch { /* storage unavailable */ }
   try {
@@ -190,4 +203,17 @@ export function clearIdJagRunState({ preservePending = false } = {}) {
     // Storage can be disabled; the event still clears in-memory subscribers.
   }
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('id-jag-run-cleared'));
+}
+
+export function clearIdJagRunState({ preservePending = false } = {}) {
+  if (!preservePending) completeIdJagRunHandoff();
+  clearIdJagRunStorage();
+}
+
+/** Clear a handoff before switching providers without restoring its saved provider. */
+export async function clearIdJagRunStateForProviderSwitch() {
+  completeIdJagRunHandoff({ restoreProvider: false });
+  await Promise.allSettled([...providerRestorePromises]);
+  try { sessionStorage.removeItem(ID_JAG_PRE_RUN_PROVIDER_KEY); } catch { /* storage unavailable */ }
+  clearIdJagRunStorage();
 }

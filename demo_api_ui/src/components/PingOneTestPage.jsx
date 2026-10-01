@@ -17,6 +17,7 @@ import "./PingOneTestPage.css";
 import PingOneApiPanel from "./PingOneApiPanel";
 import ApiCallPreviewCard from "./ApiCallPreviewCard";
 import PingIdentitySpinner from "./shared/PingIdentitySpinner";
+import PingOneProviderGuard from "./PingOneProviderGuard";
 
 // Configuration details for each test - what users need to verify in PingOne
 const TEST_CONFIG = {
@@ -207,7 +208,7 @@ function CollapsibleSection({ title, defaultOpen = false, children }) {
  * Tests: APIs, Token exchange, Configuration (Apps, Scopes, Resources, Users)
  * Chase.com-style UI with fix buttons for each test
  */
-export default function PingOneTestPage() {
+function PingOneTestPageContent() {
 	const tokenChainCtx = useTokenChainOptional();
 	const { darkMode, toggleDarkMode } = useThemeOptional();
 	// Ref holding the active EventSource so it can be closed and replaced per run.
@@ -2612,6 +2613,17 @@ Authorization: Basic ${workerConfig.clientId && workerConfig.clientSecret ? "***
 				</CollapsibleSection>
 			</div>
 		</div>
+	);
+}
+
+export default function PingOneTestPage() {
+	return (
+		<PingOneProviderGuard
+			returnTo="/pingone-test"
+			description="This page tests PingOne and needs a PingOne user session."
+		>
+			<PingOneTestPageContent />
+		</PingOneProviderGuard>
 	);
 }
 

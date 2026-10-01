@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { notifySuccess, notifyError } from '../utils/appToast';
 import { navigateToCustomerOAuthLogin } from '../utils/authUi';
 import SignInPrompt from './SignInPrompt';
+import PingOneProviderGuard from './PingOneProviderGuard';
 import { loadPublicConfig } from '../services/configService';
 import { describePasskeyRegistrationError } from '../utils/mfaEnrollment';
 import { COUNTRY_CODES, DEFAULT_COUNTRY_CODE, composePhone } from '../utils/countryCodes';
@@ -20,7 +21,7 @@ function deviceTypeLabel(type) {
   return map[type] || type;
 }
 
-export default function SecurityCenter({ user }) {
+function SecurityCenterContent({ user }) {
   const { darkMode, toggleDarkMode } = useThemeOptional();
   const [activeTab, setActiveTab] = useState('overview');
 
@@ -1136,5 +1137,16 @@ export default function SecurityCenter({ user }) {
         }
       `}</style>
     </div>
+  );
+}
+
+export default function SecurityCenter({ user }) {
+  return (
+    <PingOneProviderGuard
+      returnTo="/security"
+      description="MFA device management on this page uses PingOne APIs and needs a PingOne user session."
+    >
+      <SecurityCenterContent user={user} />
+    </PingOneProviderGuard>
   );
 }
