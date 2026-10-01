@@ -448,6 +448,8 @@ const NL_FAILURE_MESSAGES = {
     "PingOne Authorize denied this — its group-membership policy requires the signed-in user to be in the 'pingone-admin' group, which this session isn't. Add the user to that group, then try again.",
   pingone_admin_group_lookup_unavailable:
     "PingOne Authorize couldn't verify the 'pingone-admin' group membership needed for this policy check right now. Try again in a moment.",
+  pingone_admin_user_not_linked:
+    "You signed in through PingFederate, and PingOne has no account with that username. Create one in PingOne and add it to the 'pingone-admin' group, then try again.",
 };
 const NL_FAILURE_FALLBACK =
   "That step couldn't be completed. Try again, or pick another demo step.";
