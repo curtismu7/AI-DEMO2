@@ -59,7 +59,7 @@ export const NAV_STRUCTURE_CATALOG = [
     "Code Explorer", "Graphify", "Postman Collections", "API Docs (Swagger)", "API Reference (Scalar)", "llama-vscode Guide", "PromptFoo Evals",
   ] },
   { label: "Observability", children: [
-    "Audit Trail", "Learning Log", "Activity Log", "API Activity", "Run Reports", "Error Audit Log", "New Relic",
+    "Audit Trail", "Learning Log", "Activity Log", "API Activity", "Run Reports", "Error Audit Log", "New Relic", "CI Queue Dashboard",
     "PingOne Events", "PingOne Authorize Decisions", "Token Exchange", "System Flow", "Service Graph", "Tracing",
     "Transaction Trace", "MCP Observability", "Grafana",
   ] },

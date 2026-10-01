@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <title>GitHub Actions queue</title>
+    <link rel="stylesheet" href="/dashboard.css">
+    <script src="/dashboard-model.js" defer></script>
+    <script src="/dashboard.js" defer></script>
+  </head>
+  <body>
+    <main class="dashboard-shell">
+      <header class="page-header">
+        <div class="brand-lockup" aria-label="Local Actions monitor">
+          <span class="brand-mark" aria-hidden="true">CI</span>
+          <span class="brand-name">Actions monitor</span>
+        </div>
+        <div class="header-tools">
+          <p id="freshness" class="freshness">Connecting to GitHub</p>
+          <button id="refresh-button" class="refresh-button" type="button">Refresh now</button>
+        </div>
+      </header>
+
+      <section class="intro" aria-labelledby="page-title">
+        <div>
+          <p id="repository-name" class="repository-name">Repository</p>
+          <h1 id="page-title">Runner queue</h1>
+          <p class="intro-copy">See what is waiting, what is running, and what finished.</p>
+        </div>
+        <p id="live-state" class="live-state" role="status" aria-live="polite">
+          <span class="live-indicator" aria-hidden="true"></span>
+          <span>Loading queue</span>
+        </p>
+      </section>
+
+      <div id="error-banner" class="error-banner" role="alert" hidden></div>
+      <div id="action-feedback" class="action-feedback" role="status" aria-live="polite" hidden></div>
+
+      <section id="run-detail-panel" class="run-detail-panel" aria-labelledby="run-detail-title" hidden>
+        <div class="section-heading">
+          <h2 id="run-detail-title" tabindex="-1">Run details</h2>
+          <button id="run-detail-close" class="control-button" type="button">Close run details</button>
+        </div>
+        <div id="run-detail-content"></div>
+      </section>
+
+      <div id="queue-view">
+      <section class="summary-strip" aria-label="Workflow run totals">
+        <div class="summary-item summary-queued">
+          <span id="summary-queued" class="summary-value">—</span>
+          <span class="summary-label">Queued workflows</span>
+        </div>
+        <div class="summary-item summary-running">
+          <span id="summary-running" class="summary-value">—</span>
+          <span class="summary-label">In progress</span>
+        </div>
+        <div class="summary-item summary-passed">
+          <span id="summary-passed" class="summary-value">—</span>
+          <span class="summary-label">Passed</span>
+        </div>
+        <div class="summary-item summary-failed">
+          <span id="summary-failed" class="summary-value">—</span>
+          <span class="summary-label">Failed or cancelled</span>
+        </div>
+      </section>
+
+      <section class="control-grid" aria-label="Workflow and runner controls">
+        <section class="control-panel" aria-labelledby="workflow-controls-heading">
+          <div class="section-heading">
+            <div>
+              <h2 id="workflow-controls-heading">Workflows</h2>
+              <p>Pause blocks new runs. Existing runs continue.</p>
+            </div>
+          </div>
+          <div id="workflow-controls" class="control-list">
+            <p class="placeholder">Loading workflows.</p>
+          </div>
+          <p id="workflow-control-note" class="control-note" role="status"></p>
+        </section>
+        <section class="control-panel" aria-labelledby="runner-controls-heading">
+          <div class="section-heading">
+            <div>
+              <h2 id="runner-controls-heading">Local runners</h2>
+              <p>Pausing takes an idle runner offline so it receives no new jobs.</p>
+            </div>
+          </div>
+          <div id="runner-controls" class="control-list">
+            <p class="placeholder">Checking local runner services.</p>
+          </div>
+          <p id="runner-control-note" class="control-note" role="status"></p>
+        </section>
+      </section>
+
+      <section class="runner-lane" aria-labelledby="runner-heading">
+        <div class="section-heading runner-heading-row">
+          <div>
+            <h2 id="runner-heading">Runner in use</h2>
+            <p>The job GitHub has assigned right now.</p>
+          </div>
+          <span id="runner-count" class="runner-count">Checking</span>
+        </div>
+        <div id="runner-content" class="runner-content">
+          <p class="placeholder">Waiting for the first queue update.</p>
+        </div>
+      </section>
+
+      <section class="queue-section" aria-labelledby="active-heading">
+        <div class="section-heading queue-heading-row">
+          <div>
+            <h2 id="active-heading">In progress</h2>
+            <p>Jobs and workflows currently running on a runner.</p>
+          </div>
+          <span id="active-count" class="section-count">—</span>
+        </div>
+        <div id="active-empty" class="empty-state" hidden>No workflow runs are in progress.</div>
+        <div id="active-runs" class="run-list"></div>
+      </section>
+
+      <section class="queue-section" aria-labelledby="queue-heading">
+        <div class="section-heading queue-heading-row">
+          <div>
+            <h2 id="queue-heading">Waiting for a runner</h2>
+            <p>Oldest queued runs appear first. GitHub controls actual scheduling.</p>
+          </div>
+          <span id="queue-count" class="section-count">—</span>
+        </div>
+        <div id="queue-empty" class="empty-state" hidden>No workflow runs are waiting for a runner.</div>
+        <div id="queued-runs" class="run-list"></div>
+      </section>
+
+      <section class="recent-section" aria-labelledby="recent-heading">
+        <div class="section-heading">
+          <div>
+            <h2 id="recent-heading">Recent results</h2>
+            <p>The five most recently completed workflow runs.</p>
+          </div>
+        </div>
+        <div id="completed-empty" class="empty-state" hidden>No completed runs are available yet.</div>
+        <div id="completed-runs" class="run-list run-list--completed"></div>
+      </section>
+
+      </div>
+
+      <footer class="page-footer">
+        <span>Actions use this machine’s GitHub CLI login</span>
+        <span>Updates every 15 seconds</span>
+        <span>GitHub CLI login stays on this machine</span>
+      </footer>
+    </main>
+  </body>
+</html>

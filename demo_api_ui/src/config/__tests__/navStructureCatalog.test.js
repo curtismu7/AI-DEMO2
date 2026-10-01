@@ -101,6 +101,7 @@ describe("PingOne platform navigation", () => {
       "System Flow",
       "Service Graph",
       "MCP Observability",
+      "CI Queue Dashboard",
     ]));
   });
 

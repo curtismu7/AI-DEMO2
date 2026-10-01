@@ -96,6 +96,24 @@ const renderNavAsUser = (user, path = "/") =>
   );
 
 describe("AdminSideNav — best-of-breed pass", () => {
+  it("opens the local CI dashboard in a separate tab", () => {
+    const opened = vi.spyOn(window, "open").mockImplementation(() => null);
+    try {
+      renderNav();
+      fireEvent.change(screen.getByLabelText(/search navigation/i), {
+        target: { value: "CI Queue Dashboard" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "CI Queue Dashboard" }));
+      expect(opened).toHaveBeenCalledWith(
+        "http://127.0.0.1:57500/",
+        "_blank",
+        "noopener,noreferrer",
+      );
+    } finally {
+      opened.mockRestore();
+    }
+  });
+
   it("lets a signed-in customer search and open every diagram without an admin gate", () => {
     renderNavAsUser(customerUser);
     const navigation = screen.getByRole("navigation", { name: /primary navigation/i });

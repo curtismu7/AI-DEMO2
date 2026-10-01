@@ -8,6 +8,8 @@
   },
   "scripts": {
     "spiffe:validate": "node scripts/validate-spiffe-profile.mjs",
+    "ci:dashboard": "node scripts/ci-queue-dashboard/server.js",
+    "test:ci-dashboard": "node --test scripts/ci-queue-dashboard/*.test.js",
     "lmstudio:sync-mcp": "node scripts/lmstudio-mcp-sync.js",
     "demo:launcher": "node scripts/demo-launcher-server.mjs",
     "demo:preflight": "node scripts/check-mcp-preflight.js",

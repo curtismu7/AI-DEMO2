@@ -1028,6 +1028,13 @@ export default function AdminSideNav({
           icon: "log",
         },
         {
+          label: "CI Queue Dashboard",
+          icon: "log",
+          action: () => {
+            window.open("http://127.0.0.1:57500/", "_blank", "noopener,noreferrer");
+          },
+        },
+        {
           label: "PingOne Events",
           path: "/monitoring/pingone-events",
           icon: "log",
@@ -1426,6 +1433,7 @@ export default function AdminSideNav({
       "Run Reports",
       "Error Audit Log",
       "New Relic",
+      "CI Queue Dashboard",
       "PingOne Events",
       { from: "PingOne Authorize", rename: "PingOne Authorize Decisions", path: "/monitoring/p1az" },
       "Token Exchange",
