@@ -7,6 +7,30 @@ const mfaService = require('../services/mfaService');
 const oauthService = require('../services/oauthService');
 const posthog = require('../services/posthog');
 const configStore = require('../services/configStore');
+const { fetchPingOneUserByUsername } = require('../services/pingOneUserLookupService');
+
+/**
+ * The PingOne user MFA runs against.
+ *
+ * MFA is always PingOne's. A PingOne session's subject already is that user.
+ * A PingFederate session's subject is a PingFederate username, so the PingOne
+ * account with the same username is used (PingOne matches it case-insensitively)
+ * and remembered on the session. No match means there is nobody to challenge:
+ * that is an error, never a fallback to the PingFederate subject.
+ */
+async function mfaUserId(req) {
+  const user = req.session?.user;
+  if (!user) return null;
+  if (user.oauthProvider !== 'pingfederate') return user.oauthId || user.id;
+  if (user.pingOneMfaUserId) return user.pingOneMfaUserId;
+  const username = user.username || user.oauthId;
+  const { user: linked } = await fetchPingOneUserByUsername(username);
+  if (!linked?.id) {
+    throw Object.assign(new Error(`No PingOne account matches the PingFederate user "${username}", so PingOne MFA cannot run for this sign-in.`), { status: 409, code: 'mfa_user_not_linked' });
+  }
+  user.pingOneMfaUserId = linked.id;
+  return linked.id;
+}
 
 // ── MFA-specific rate limiting ──
 // Prevents OTP brute-force: max 10 challenge submission attempts per minute per IP.
@@ -101,7 +125,7 @@ router.post('/challenge', mfaInitLimiter, authenticateToken, async (req, res) =>
     // PingOne MFA APIs key on the PingOne user UUID (oauthId/sub), NOT the
     // local datastore id (ARCHITECTURE-TRUTH T-6). Using .id makes PingOne 404
     // the user — the cause of FIDO2/SMS enroll + device-challenge failures.
-    const userId = req.session.user?.oauthId || req.session.user?.id;
+    const userId = await mfaUserId(req);
     const userAccessToken = req.session.oauthTokens?.accessToken;
     if (!userId || !userAccessToken) {
       return res.status(401).json({ error: 'no_session', message: 'Not authenticated.' });
@@ -130,7 +154,7 @@ router.post('/challenge', mfaInitLimiter, authenticateToken, async (req, res) =>
     if (err.code === 'token_expired') {
       try {
         const newToken = await _tryRefresh(req);
-        const retryUserId = req.session.user?.oauthId || req.session.user?.id;
+        const retryUserId = await mfaUserId(req);
         const result = await mfaService.initiateDeviceAuth(retryUserId, newToken);
         return res.json({ daId: result.id, status: result.status, devices: result._embedded?.devices || [] });
       } catch (_) {
@@ -334,7 +358,7 @@ router.post('/test/otp-verify', mfaSubmitLimiter, authenticateToken, async (req,
 // Returns devices with masked contact (email masked, phone last-4 only).
 router.get('/devices', authenticateToken, async (req, res) => {
   try {
-    const userId = req.session.user?.oauthId || req.session.user?.id;
+    const userId = await mfaUserId(req);
     if (!userId) {
       return res.status(401).json({ error: 'no_session', message: 'Not authenticated.' });
     }
@@ -378,7 +402,7 @@ router.get('/devices', authenticateToken, async (req, res) => {
 // Remove a registered MFA device from PingOne.
 router.delete('/devices/:deviceId', authenticateToken, async (req, res) => {
   try {
-    const userId = req.session.user?.oauthId || req.session.user?.id;
+    const userId = await mfaUserId(req);
     const { deviceId } = req.params;
     if (!userId) {
       return res.status(401).json({ error: 'no_session', message: 'Not authenticated.' });
@@ -398,7 +422,7 @@ router.delete('/devices/:deviceId', authenticateToken, async (req, res) => {
 // Update the nickname for a registered MFA device.
 router.patch('/devices/:deviceId/nickname', authenticateToken, async (req, res) => {
   try {
-    const userId = req.session.user?.oauthId || req.session.user?.id;
+    const userId = await mfaUserId(req);
     const { deviceId } = req.params;
     const { nickname } = req.body;
     if (!userId) {
@@ -426,7 +450,7 @@ router.post('/enroll/sms-init', authenticateToken, async (req, res) => {
     // PingOne MFA APIs key on the PingOne user UUID (oauthId/sub), NOT the
     // local datastore id (ARCHITECTURE-TRUTH T-6). Using .id makes PingOne 404
     // the user — the cause of FIDO2/SMS enroll + device-challenge failures.
-    const userId = req.session.user?.oauthId || req.session.user?.id;
+    const userId = await mfaUserId(req);
     const userAccessToken = req.session.oauthTokens?.accessToken;
     const { phone } = req.body;
     if (!userId) {
@@ -455,7 +479,7 @@ router.post('/enroll/sms-complete', authenticateToken, async (req, res) => {
     // PingOne MFA APIs key on the PingOne user UUID (oauthId/sub), NOT the
     // local datastore id (ARCHITECTURE-TRUTH T-6). Using .id makes PingOne 404
     // the user — the cause of FIDO2/SMS enroll + device-challenge failures.
-    const userId = req.session.user?.oauthId || req.session.user?.id;
+    const userId = await mfaUserId(req);
     const { deviceId, otp } = req.body;
     if (!userId) {
       return res.status(401).json({ error: 'no_session', message: 'Not authenticated.' });
@@ -478,7 +502,7 @@ router.post('/enroll/sms-complete', authenticateToken, async (req, res) => {
 // Returns { deviceId, type, email }
 router.post('/enroll/email', authenticateToken, async (req, res) => {
   try {
-    const userId = req.session.user?.oauthId || req.session.user?.id;
+    const userId = await mfaUserId(req);
     const email = req.body.email || req.session.user?.email;
     if (!userId || !email) {
       return res.status(401).json({ error: 'no_session', message: 'Not authenticated.' });
@@ -498,7 +522,7 @@ router.post('/enroll/email', authenticateToken, async (req, res) => {
 // Returns { deviceId, status }
 router.post('/enroll/email/verify', authenticateToken, async (req, res) => {
   try {
-    const userId = req.session.user?.oauthId || req.session.user?.id;
+    const userId = await mfaUserId(req);
     const { deviceId, otp } = req.body;
     if (!userId) {
       return res.status(401).json({ error: 'no_session', message: 'Not authenticated.' });
@@ -525,7 +549,7 @@ router.post('/enroll/fido2-init', authenticateToken, async (req, res) => {
     // PingOne MFA APIs key on the PingOne user UUID (oauthId/sub), NOT the
     // local datastore id (ARCHITECTURE-TRUTH T-6). Using .id makes PingOne 404
     // the user — the cause of FIDO2/SMS enroll + device-challenge failures.
-    const userId = req.session.user?.oauthId || req.session.user?.id;
+    const userId = await mfaUserId(req);
     if (!userId) {
       return res.status(401).json({ error: 'no_session', message: 'Not authenticated.' });
     }
@@ -546,7 +570,7 @@ router.post('/enroll/fido2-complete', authenticateToken, async (req, res) => {
     // PingOne MFA APIs key on the PingOne user UUID (oauthId/sub), NOT the
     // local datastore id (ARCHITECTURE-TRUTH T-6). Using .id makes PingOne 404
     // the user — the cause of FIDO2/SMS enroll + device-challenge failures.
-    const userId = req.session.user?.oauthId || req.session.user?.id;
+    const userId = await mfaUserId(req);
     const { deviceId, attestation, origin } = req.body;
     if (!userId) {
       return res.status(401).json({ error: 'no_session', message: 'Not authenticated.' });

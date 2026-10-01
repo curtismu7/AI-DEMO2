@@ -228,6 +228,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-01 — In-app MFA had no PingOne user for a PingFederate session
+
+**Files:** `demo_api_server/routes/mfa.js`.
+
+**What was broken:** The MFA routes passed the session subject to PingOne's MFA APIs. For a PingFederate sign-in that subject is a PingFederate username (`demouser`), not a PingOne user id, so PingOne rejected every challenge, enrolment and device call. Step-up could not be completed in a PingFederate session.
+
+**What changed:** `mfaUserId(req)` resolves the PingOne user for all eleven call sites. A PingOne session uses its own subject, unchanged. A PingFederate session uses the PingOne account with the same username (PingOne matches it case-insensitively), looked up once and kept on the session.
+
+**Do not break:** No match must be an error (409 `mfa_user_not_linked`), never a fallback to the PingFederate subject. The link is by username only and exists because both directories in this demo are administered together; do not reuse it to decide authorization.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/mfa.pfUserLink.test.js tests/mfaDevices.route.test.js --forceExit`.
+
 ### 2026-10-01 — In-app MFA, OTP email and agent authorization failed in PingFederate mode
 
 **Files:** `demo_api_server/services/mfaService.js`, `demo_api_server/services/emailService.js`, `demo_api_server/services/pingOneUserService.js`.
