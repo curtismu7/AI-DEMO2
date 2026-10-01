@@ -16,6 +16,30 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-10-01 — PingFederate pi.flow depends on PF settings that live only in PF
+
+**What's wrong.** The PingFederate half of the redirect-free sign-in needs PF-side
+configuration that is not provisioned by any script in this repo: the server-wide
+Authentication API (`/authenticationApi/settings`: `apiEnabled: true`,
+`restrictAccessToRedirectlessMode: true`) and, on the real `ai-demo-pf-user` client,
+`allowAuthenticationApiInit: true`. PF forces `restrictScopes: true` when that client
+flag is on, so the client also needs an allowed-scope list that covers every scope
+the BFF (and the client's token-exchange grant) requests, or the NORMAL PF login
+fails with `invalid_scope`. That client is created by hand in PF's console (the
+readiness profile marks it "unresolved"), so a PF profile rebuild loses all of this
+and the modal silently falls back to the redirect login.
+
+**Why it wasn't fixed now.** There is no PF client provisioning to extend, and
+widening a live client's scopes is a change to make deliberately, not as a side
+effect of a UI feature.
+
+**What the real fix looks like.** A provisioning script next to
+`scripts/pingfederate/provision-*.sh` that sets the three settings, with a
+post-check that a plain authorize for `openid profile email offline_access`
+still returns the login page, and that the pi.flow authorize returns
+`USERNAME_PASSWORD_REQUIRED`. Facts and traps are in the 2026-10-01 PF notes in
+`REGRESSION_PLAN.md` §4.
+
 ### [x] 2026-10-01 — oauth-mcp's BankingToolRegistry.ts has drifted from scope-topology.json for 5 more tools
 
 **What's wrong.** `oauth-mcp/src/tools/BankingToolRegistry.ts`'s hand-maintained
