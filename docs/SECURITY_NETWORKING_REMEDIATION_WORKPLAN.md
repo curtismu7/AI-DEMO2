@@ -131,9 +131,9 @@ Assessment: [`N-07`](SECURITY_NETWORKING_ASSESSMENT.md#n-07--medium-several-kube
 
 Assessment: [`N-08`](SECURITY_NETWORKING_ASSESSMENT.md#n-08--medium-mcp-streamable-http-accepts-every-browser-origin-by-default)
 
-- [ ] List the exact browser origins for each supported local and hosted deployment.
-- [ ] Set `MCP_ALLOWED_ORIGINS` explicitly in each deployment; reject a supplied unlisted Origin with 403.
-- [ ] Preserve supported non-browser clients that omit Origin.
+- [x] List the exact browser origins for each supported local and hosted deployment: local Compose `https://local.ping-devops.com:4000`; hosted Kubernetes/Helm `https://ai-demo.ping-devops.com`.
+- [x] Set `MCP_ALLOWED_ORIGINS` explicitly in local Compose and both checked-in Kubernetes deployment templates; reject a supplied unlisted Origin with 403.
+- [x] Preserve supported non-browser clients that omit Origin.
 - [ ] Confirm the raw MCP listener is not unintentionally exposed by the active ingress or Compose profile.
 - [ ] Verify allowed origin, denied origin, and absent Origin behavior.
 

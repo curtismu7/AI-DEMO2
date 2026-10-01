@@ -8,9 +8,11 @@ describe('envReconcile.isEnvScoped', () => {
     expect(er.isEnvScoped('pingone_ai_agent_client_secret')).toBe(true);        // vault-only key
     expect(er.isEnvScoped('pingone_environment_id')).toBe(true);
     expect(er.isEnvScoped('pingone_resource_mcp_server_uri')).toBe(true);
+    expect(er.isEnvScoped('pingone_verify_policy_id')).toBe(true);
   });
   test('flags/thresholds/deployment keys are NOT env-scoped', () => {
     expect(er.isEnvScoped('ff_hitl_enabled')).toBe(false);
+    expect(er.isEnvScoped('pingone_verify_enabled')).toBe(false);
     expect(er.isEnvScoped('confirm_threshold_usd')).toBe(false);
     expect(er.isEnvScoped('session_secret')).toBe(false);
     expect(er.isEnvScoped('mcp_server_url')).toBe(false);

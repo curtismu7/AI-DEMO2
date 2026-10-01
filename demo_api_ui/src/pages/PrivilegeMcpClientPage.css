@@ -2005,3 +2005,61 @@ select.cur-input { cursor: pointer; }
 .cur-ide[data-cur-theme="light"] .cur-viewmode button { background: #f0f0f0; color: #666; }
 .cur-ide[data-cur-theme="light"] .cur-viewmode button:hover { background: #e4e4e4; color: #222; }
 .cur-ide[data-cur-theme="light"] .cur-viewmode button.is-active { background: #fff; color: #000; }
+
+/* User API credentials stay inside this scrolling editor surface. */
+.cur-ide .cur-user-api {
+  min-width: 0;
+  overflow: auto;
+  padding: 20px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: var(--font-size-base);
+  line-height: 1.5;
+}
+.cur-user-api h3 { margin: 0; font-size: var(--font-size-lg); }
+.cur-user-api h4 { margin: 0 0 12px; font-size: var(--font-size-md); }
+.cur-user-api p { max-width: 78ch; }
+.cur-user-api__section { padding: 18px 0; border-top: 1px solid var(--th-border); }
+.cur-user-api__fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 12px; margin-bottom: 12px; }
+.cur-user-api__fields .cur-field { min-width: 0; margin: 0; }
+.cur-ide .cur-user-api .cur-field-label { color: var(--th-text); font-size: var(--font-size-sm); }
+.cur-ide .cur-user-api .cur-input,
+.cur-ide .cur-user-api .cur-btn {
+  box-sizing: border-box;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  border: 1px solid var(--th-border-strong);
+  font-size: var(--font-size-sm);
+}
+.cur-ide .cur-user-api .cur-input { width: 100%; }
+.cur-ide .cur-user-api .cur-btn:hover { background: var(--th-bg-hover); color: var(--th-text); }
+.cur-ide .cur-user-api .cur-btn--primary { background: var(--th-bg-emphasis); color: var(--th-text-on-emphasis); }
+.cur-ide .cur-user-api .cur-input:focus-visible,
+.cur-ide .cur-user-api .cur-btn:focus-visible,
+.cur-ide .cur-tab:focus-visible { outline: 2px solid var(--th-text); outline-offset: 2px; }
+.cur-user-api__vault { display: flex; flex-wrap: wrap; gap: 16px 40px; }
+.cur-user-api__vault dt { font-weight: 600; }
+.cur-user-api__vault dd { margin: 0; overflow-wrap: anywhere; }
+.cur-user-api__commands { padding-left: 24px; }
+.cur-user-api__commands li { margin-bottom: 16px; }
+.cur-user-api__commands pre,
+.cur-user-api__users {
+  overflow: auto;
+  padding: 12px;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  border: 1px solid var(--th-border);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.cur-user-api__progress { padding-left: 24px; }
+.cur-ide .cur-user-api__error { color: var(--th-status-error-text); }
+/* The third demo tab must remain reachable when the editor is narrow. */
+.cur-ide .cur-tabs { height: auto; min-height: 44px; flex-wrap: wrap; }
+.cur-ide .cur-tab { min-height: 44px; }
+@media (max-width: 640px) {
+  .cur-ide .cur-user-api { padding: 12px; }
+  .cur-ide .cur-tabs .cur-tab { padding: 0 10px; font-size: var(--font-size-sm); }
+}

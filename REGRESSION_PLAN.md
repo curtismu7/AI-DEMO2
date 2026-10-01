@@ -228,6 +228,79 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-30 — Customer pi.flow sign-in (PingOne) and a broken pi.flow authorize URL
+
+**Files:** `demo_api_server/services/oauthUserService.js`, `demo_api_server/routes/oauthUser.js`, `demo_api_server/server.js`, `demo_api_ui/src/utils/authUi.js`, `demo_api_ui/src/components/PiFlowSignInModal.jsx`, `demo_api_ui/src/App.js`, `demo_api_ui/src/App.css`, and focused tests.
+
+**What was broken:** `PINGONE_USER_AUTHORIZE_PI_FLOW` built `response_type=pi.flow`, which PingOne rejects with 400 (verified live); pi.flow is `response_type=code` plus `response_mode=pi.flow`. The flag also rewrote every redirect login, and the route still 302'd the browser to the flow URL, so nothing could ever complete the flow. The UI's `use_pi_flow=1` query was never read by the BFF.
+
+**What changed:** `forcePiFlow` now sends `response_type=code&response_mode=pi.flow`, and the global flag no longer rewrites plain logins. `GET /api/auth/oauth/user/login?pi_flow=1` (PingOne provider and flag on only) opens the flow server-side with the usual PKCE/state/nonce session setup and returns flow JSON. `POST /api/auth/oauth/user/pi-flow/credentials` posts the password to `/flows/{id}`, calls `/as/resume`, and returns a redirect to the unchanged `/callback?code&state`. Any state beyond the password step returns `fallback:true` and the SPA starts the ordinary redirect login. `PiFlowSignInModal` renders the form; `navigateToCustomerOAuthLogin` opens it only when the modal has confirmed the flag and provider, otherwise it redirects as before. The credentials path has the same rate limiter as login.
+
+**Do not break:** The default redirect login (flag off, PingFederate, or `force`/`silent-reauth`/step-up paths), the `/callback` PKCE, nonce and session creation, admin login, and that no PingOne worker token is held for this flow. The password is forwarded to PingOne and never logged or stored.
+
+**Verify:** `cd demo_api_server && CI=true node_modules/.bin/jest tests/oauthUserPiFlow.test.js tests/oauthUser.test.js tests/oauthUserLoginTrace.test.js src/__tests__/oauthUserService.test.js src/__tests__/oauth-login-resilience.test.js --forceExit`; `cd demo_api_ui && npx vitest run src/components/__tests__/PiFlowSignInModal.test.jsx && npm run build`. Verified live 2026-09-30 against the running stack with the worktree served and the flag on: open flow 200, password accepted, callback 302 to `/dashboard?oauth=success`, `/status` authenticated via `pingone`.
+
+**Gotcha found live:** PingOne binds the flow to an `ST` session cookie that the password step replaces. `/as/resume` rejects the flow ("Session token cookie value does not match the value in the current session") unless the cookie from each response is replayed, so the BFF keeps a cookie jar in `session.oauthPiFlow` across authorize, credentials and resume. The authorize response sets no cookies, which is why this only showed up on the real password step; `tests/oauthUserPiFlow.test.js` pins the replay.
+
+### 2026-09-30 — Push-to-main CI ran every suite on every merge, queuing the single self-hosted runner solid
+
+**Files:** `.github/workflows/ci.yml`.
+
+**What was broken:** `pull_request` events already path-filtered which test suites ran (`dorny/paths-filter`), but `push` (i.e. every merge to `main`) unconditionally forced every suite (`api-server`, `decision-services`, `ui`, `unwired-services`, `python-agents`) regardless of what the merge actually touched. With 126 merges to `main` in 24 hours and exactly one registered self-hosted runner (`cmuir-dev-mac`, confirmed via the Actions API — a second/third runner was tried before per the leftover `actions-runner-2`/`-3` installs on that Mac and abandoned, and the machine's load average was already ~57 on 16 cores with only one runner active), every merge queued up to ~195 serialized minutes of jobs (api-server 60m + ui 30m + unwired 30m + python-agents 45m + decision-services 30m timeouts), so PRs sat `queued` for 30+ minutes waiting for the backlog to clear.
+
+**What was fixed:** `push` now uses the same `dorny/paths-filter` step as `pull_request` (added to that step's `if`), so a merge only reruns the suites its own changed files actually touch. The nightly cron (`schedule`) was upgraded from UI-only to running every suite, becoming the full-coverage safety net for cross-PR interactions that path-filtering on individual merges could otherwise miss. `workflow_dispatch` (manual runs) is unchanged — still forces every suite.
+
+**Do not break:** keep nightly (`schedule`) running every suite — it is the only remaining always-full run once push is filtered. Do not add more self-hosted runners to this Mac without checking load average first; that path was already tried and reverted.
+
+**Verify:** `actionlint .github/workflows/ci.yml` passed. Not yet observed against a live merge to `main` — confirm the next merge's `changes` job outputs reflect the changed paths, not `true` across the board, and that unrelated jobs report `skipping` rather than running.
+
+### 2026-09-28 — OAuth callbacks accepted unvalidated identity claims and logged transaction credentials
+
+**Files:** `demo_api_server/routes/oauth.js`,
+`demo_api_server/routes/oauthUser.js`,
+`demo_api_server/routes/hostedAccess.js`,
+`demo_api_server/routes/davinciLogin.js`,
+`demo_api_server/services/oauthService.js`,
+`demo_api_server/services/oauthUserService.js`,
+`demo_api_server/services/hostedAccessOAuthService.js`,
+`demo_api_server/services/oidcIdTokenValidationService.js`,
+`demo_api_server/services/tokenValidationService.js`,
+`demo_api_server/services/authAccessAuditService.js`,
+`oauth-mcp/src/server/HttpMCPTransport.ts`, `docker-compose.yml`,
+`oauth-mcp/.env.example`,
+`k8s/30-mcp-server-deployment.yaml`,
+`privilege/ai-demo-whole-stack/ai-demo-stack/templates/30-mcp-server-deployment.yaml`,
+`docs/ENV.md`, `docs/SECURITY_NETWORKING_REMEDIATION_WORKPLAN.md`,
+`docs/MCP_COMPLIANCE_DIAGRAM.drawio`,
+`docs/MCP_COMPLIANCE_DIAGRAM_V2.drawio`.
+
+**What was broken:** Admin, user, hosted-access, and DaVinci callbacks did not
+consistently validate the ID-token signature and required OIDC claims or bind
+UserInfo to the ID-token subject. The step-up callback did not validate
+freshness or the requested ACR. Token exchange
+logging exposed request parameters and authentication headers; admin login audit
+events also recorded decoded ID-token claims. MCP Streamable HTTP treated an
+empty Origin allowlist as unrestricted.
+
+**What was fixed:** Validate ID-token signature and issuer/client claims using
+issuer JWKS on the admin, user, hosted-access, and DaVinci login paths; require
+expiry/issue-time/subject/nonce claims and match UserInfo `sub`. Check step-up
+`auth_time` and requested ACR, and reject missing/invalid PKCE verifiers on
+authorization-code exchanges. Remove credentials, session fragments, and decoded ID-token
+claims from OAuth logs. Reject every supplied MCP Origin that is not an exact
+configured origin while allowing clients that omit Origin; configure local,
+hosted Kubernetes, and Helm-hosted origins.
+
+**Do not break:** Admin and user login state validation, S256 PKCE, nonce
+binding, redirect origin checks, session rotation/persistence, admin role
+resolution, customer-only authorization, and Origin-less server-to-server MCP
+clients.
+
+**Verify:** BFF `node --check`, MCP `npm run build`, scoped ESLint for the
+changed transport, `git diff --check`, and Graphify extraction passed. Repo-wide
+`npm run lint` reports 30 errors in untouched files. BFF and MCP test suites
+were not run.
+
 ### 2026-09-30 — Session token modal missed Admin sessions and sent sign-in through a browser redirect
 
 **Files:** `demo_api_ui/src/components/OAuthTokenDisplayPage.jsx`,
