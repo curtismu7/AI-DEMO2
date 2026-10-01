@@ -98,14 +98,20 @@ describe('sign-in surfaces use one defined accent', () => {
     }
   });
 
-  it('keeps the sign-in modal secondary action readable in dark mode', () => {
+  it('keeps the sign-in modal secondary action readable in BOTH themes', () => {
     const app = fs.readFileSync(path.join(SRC, 'App.css'), 'utf8');
+
+    // The ghost button draws its ink and border from theme tokens, so it flips
+    // with the theme: dark ink on the light footer, light ink on the dark one.
+    expect(app).toMatch(/\.signin-prompt__btn--ghost\s*\{[^}]*color:\s*var\(--th-text\)/);
     expect(app).toMatch(
-      /\.signin-modal \.signin-prompt__btn--ghost\s*\{[^}]*background:\s*var\(--modal-btn-bg\)/,
+      /\.signin-prompt__btn--ghost\s*\{[^}]*border:\s*1px solid var\(--th-border-strong\)/,
     );
-    expect(app).toMatch(
-      /\.signin-modal \.signin-prompt__btn--ghost\s*\{[^}]*color:\s*var\(--modal-header-text\)/,
-    );
+
+    // Nothing may re-pin it to the dark-footer pair (white ink on a
+    // translucent-white fill). The modal footer follows the theme, so that pair
+    // was white on a near-white footer (~1:1, measured) in light theme.
+    expect(app).not.toMatch(/\.signin-modal \.signin-prompt__btn--ghost\s*\{[^}]*--modal-header-text/);
   });
 
   it('uses a text icon for the draggable modal pop-out control', () => {
