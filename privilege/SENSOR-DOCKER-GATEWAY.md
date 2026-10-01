@@ -2,6 +2,31 @@
 
 Oct 1, 2026 · Curtis Muir
 
+## Contents
+
+- [Overview](#overview)
+- [Setting up the sensor on your own Docker host](#setting-up-the-sensor-on-your-own-docker-host)
+- [Getting more logging from the sensor](#getting-more-logging-from-the-sensor)
+- [Topology](#topology)
+- [Request path](#request-path)
+- [Identity and tokens](#identity-and-tokens)
+- [Configuration](#configuration)
+  - [Gateway and front door (compose profile `mcpgw`)](#gateway-and-front-door-compose-profile-mcpgw)
+  - [Backends in the same stack](#backends-in-the-same-stack)
+  - [Privilege console](#privilege-console)
+  - [Pointing the BFF at the local gateway](#pointing-the-bff-at-the-local-gateway)
+  - [Sensor](#sensor)
+  - [Sensor identity: where the sub comes from](#sensor-identity-where-the-sub-comes-from)
+- [Verifying it works](#verifying-it-works)
+- [Known failure modes](#known-failure-modes)
+- [Sensor startup failure: how it was found and fixed](#sensor-startup-failure-how-it-was-found-and-fixed)
+  - [Symptom](#symptom)
+  - [How it was found](#how-it-was-found)
+  - [Fix, part 1: writable key directory](#fix-part-1-writable-key-directory)
+  - [Fix, part 2: re-pin the key](#fix-part-2-re-pin-the-key)
+  - [This can happen again](#this-can-happen-again)
+  - [Lasting fix: key on a named volume](#lasting-fix-key-on-a-named-volume)
+
 ## Overview
 
 The sensor watches; the gateway carries. An MCP call leaves one container in our Docker stack, passes through the Privilege gateway running in the same stack, and lands on an MCP server container beside it. The Privilege sensor sits outside that path and reports what it sees to the Privilege controller.
