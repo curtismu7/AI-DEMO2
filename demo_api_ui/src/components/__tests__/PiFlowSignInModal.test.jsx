@@ -110,6 +110,14 @@ describe('PiFlowSignInModal', () => {
     expect(screen.queryByLabelText('Username')).toBeNull();
   });
 
+  test('?signin=mfa on the page adds mfa=1 to the BFF login call', async () => {
+    window.location.search = '?signin=mfa';
+    mockBff({ config: ON, login: () => ok({ flowId: 'f1', status: 'USERNAME_PASSWORD_REQUIRED' }), credentials: () => ok({}) });
+    await mountAndClick();
+    await screen.findByLabelText('Username');
+    expect(global.fetch.mock.calls.some(([u]) => String(u).includes('/login?') && String(u).includes('mfa=1'))).toBe(true);
+  });
+
   test('PingFederate selected: opens the same form (the BFF drives the PF flow)', async () => {
     mockBff({
       config: { ...ON, oauth_provider: 'pingfederate' },
