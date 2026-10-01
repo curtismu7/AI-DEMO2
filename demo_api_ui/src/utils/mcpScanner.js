@@ -11,7 +11,7 @@
 const INSTRUCTION_TAG = /<\/?\s*(important|system|secret|instructions?|admin)\s*>/i;
 const SECRECY = /\bdo not (tell|mention|inform|reveal|disclose|notify)\b/i;
 const AGENT_IMPERATIVE = /\b(ignore (all )?previous|before (calling|using) (any|another) tool|you must (always|first)|always call)\b/i;
-const LEAK_HINT = /\b(full (conversation )?context|credential|api[- ]?key|secret|password|auth(entication)? token)\b/i;
+const LEAK_HINT = /\b(full (conversation )?context|credentials?|api[- ]?keys?|secrets?|passwords?|bearer|auth(entication)? tokens?|tokens?)\b/i;
 const SENSITIVE_ACTION = /\b(transfer|payment|payout|wire|remit)\b/i;
 const APPROVAL_BYPASS = /\b(bypass|skip|without|no)\b[^.\n]{0,40}\b(approval|consent|authorization)\b/i;
 
@@ -55,6 +55,23 @@ function scanContent(label, text) {
   if (why) findings.push({ tool: label, kind: "hidden-instruction", detail: why });
   if (SENSITIVE_ACTION.test(text)) findings.push({ tool: label, kind: "sensitive-action", detail: "content directs the agent toward a fund-moving or payment action" });
   if (APPROVAL_BYPASS.test(text)) findings.push({ tool: label, kind: "sensitive-action", detail: "content instructs the agent to bypass approval or consent" });
+  return findings;
+}
+
+// scanAgentCard(card) -> [{ tool, kind, detail }]. The A2A analog of scan():
+// flags a hidden instruction in the card description and an exfil/hidden
+// instruction in any skill description. Mirrors standalone/mcp-scanner.
+export function scanAgentCard(card) {
+  const findings = [];
+  if (!card || typeof card !== "object") return findings;
+  const why = describeInstruction(card.description || "");
+  if (why) findings.push({ tool: `card:${card.name || "agent"}`, kind: "hidden-instruction", detail: why });
+  for (const s of card.skills || []) {
+    const label = `skill:${s.id || s.name || "(unnamed)"}`;
+    const sWhy = describeInstruction(s.description || "");
+    if (sWhy) findings.push({ tool: label, kind: "hidden-instruction", detail: sWhy });
+    if (LEAK_HINT.test(s.description || "")) findings.push({ tool: label, kind: "exfil-sink", detail: "skill description instructs including sensitive context (credentials/tokens/full context)" });
+  }
   return findings;
 }
 

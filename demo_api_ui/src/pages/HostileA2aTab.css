@@ -1,0 +1,141 @@
+/* Malicious A2A tab (/llm-gateway). Themed via --th-* (both modes; dark is
+   data-theme="dark" only). Every rule with a --th background sets a --th color on
+   its own line (THEMING ratchet). Code/URLs use var(--font-mono), never a literal
+   family. Font sizes from the scale. */
+
+.ha2 {
+  color: var(--th-text);
+  font-family: var(--font-primary);
+}
+
+.ha2-bar { margin-bottom: 20px; }
+.ha2-bar h1 { margin: 0 0 6px; font-size: var(--font-size-h2); color: var(--th-text); }
+.ha2-storyline { margin: 0; max-width: 70ch; font-size: var(--font-size-sm); line-height: 1.55; color: var(--th-text-muted); }
+
+.ha2-run {
+  padding: 16px 18px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md, 10px);
+}
+.ha2-label { display: block; font-size: var(--font-size-xs); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--th-text-muted); margin-bottom: 6px; }
+.ha2-run-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.ha2-input {
+  flex: 1;
+  min-width: 320px;
+  padding: 9px 12px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  background: var(--th-code-bg);
+  color: var(--th-code-text);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-sm, 6px);
+}
+.ha2-btn {
+  font-family: var(--font-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  padding: 9px 16px;
+  cursor: pointer;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-sm, 6px);
+}
+.ha2-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.ha2-btn:focus-visible { outline: 2px solid var(--th-status-info); outline-offset: 2px; }
+.ha2-btn--danger {
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
+  border-color: var(--th-status-error, var(--th-border-strong));
+}
+.ha2-note { margin: 10px 0 0; font-size: var(--font-size-xs); color: var(--th-text-muted); }
+.ha2-note code, .ha2-storyline code { font-family: var(--font-mono); font-size: var(--font-size-3xs); }
+
+.ha2-error {
+  margin: 16px 0 0;
+  padding: 12px 16px;
+  font-size: var(--font-size-sm);
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
+  border: 1px solid var(--th-status-error, var(--th-border));
+  border-radius: var(--radius-sm, 6px);
+}
+
+.ha2-body { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 20px; }
+@media (max-width: 820px) { .ha2-body { grid-template-columns: 1fr; } }
+.ha2-pane {
+  padding: 16px 18px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md, 10px);
+}
+.ha2-k { margin: 0 0 12px; font-size: var(--font-size-md); font-weight: 700; color: var(--th-text); }
+
+.ha2-field { display: flex; gap: 10px; padding: 4px 0; font-size: var(--font-size-sm); }
+.ha2-field__k { min-width: 92px; color: var(--th-text-muted); }
+.ha2-field__v { color: var(--th-text); }
+.ha2-desc { margin-top: 8px; }
+.ha2-desc .ha2-field__k, .ha2-skills .ha2-field__k { display: block; margin-bottom: 4px; }
+.ha2-pre {
+  margin: 4px 0 0;
+  padding: 10px 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  line-height: 1.5;
+  background: var(--th-code-bg);
+  color: var(--th-code-text);
+  border-radius: var(--radius-sm, 6px);
+}
+.ha2-skills { margin-top: 12px; }
+.ha2-skill {
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-sm, 6px);
+}
+.ha2-skill__name { font-size: var(--font-size-sm); font-weight: 600; color: var(--th-text); }
+
+.ha2-clean {
+  padding: 14px 16px;
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  background: var(--th-status-success-bg);
+  color: var(--th-status-success-text);
+  border: 1px solid var(--th-status-success, var(--th-border));
+  border-radius: var(--radius-md, 10px);
+}
+.ha2-findings { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.ha2-finding {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  border: 1px solid var(--th-border);
+  border-left: 4px solid var(--ha2-edge, var(--th-border));
+  border-radius: var(--radius-md, 10px);
+}
+.ha2-kind-hidden-instruction { --ha2-edge: var(--th-status-error); }
+.ha2-kind-exfil-sink { --ha2-edge: var(--th-status-warning); }
+.ha2-finding__head { font-size: var(--font-size-sm); color: var(--th-text); }
+.ha2-finding__detail { font-family: var(--font-mono); font-size: var(--font-size-2xs); color: var(--th-text-muted); }
+.ha2-verdict { margin: 14px 0 0; font-size: var(--font-size-sm); font-weight: 600; color: var(--th-status-error-text); }
+
+.ha2-priv {
+  margin: 16px 0 0;
+  padding: 12px 14px;
+  font-size: var(--font-size-sm);
+  line-height: 1.55;
+  background: var(--th-status-warning-bg);
+  color: var(--th-text);
+  border: 1px solid var(--th-status-warning, var(--th-border));
+  border-radius: var(--radius-md, 10px);
+}
