@@ -259,6 +259,18 @@ describe('PiFlowSignInModal', () => {
       expect(fs.existsSync(path.join(root, 'demo_api_ui/public', manifest.identity.logoPath))).toBe(true);
     });
 
+    test('every vertical declares a logo (none falls back to name-only in the sign-in modal)', () => {
+      const root = path.resolve(__dirname, '../../../..');
+      const dir = path.join(root, 'demo_api_server/config/verticals');
+      const missing = [];
+      for (const id of fs.readdirSync(dir)) {
+        const file = path.join(dir, id, 'manifest.json');
+        if (!fs.existsSync(file)) continue;
+        if (!JSON.parse(fs.readFileSync(file, 'utf8')).identity?.logoPath) missing.push(id);
+      }
+      expect(missing).toEqual([]);
+    });
+
     test('every vertical that declares a logo points at a file that exists', () => {
       const root = path.resolve(__dirname, '../../../..');
       const dir = path.join(root, 'demo_api_server/config/verticals');

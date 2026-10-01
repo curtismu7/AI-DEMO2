@@ -6,7 +6,8 @@
     "headerTitle": "Super Sports",
     "documentTitle": "Super Sports · PingOne AI IAM Core",
     "logoAlt": "Super Sports logo",
-    "tagline": "AI-Powered Sporting Goods Demo"
+    "tagline": "AI-Powered Sporting Goods Demo",
+    "logoPath": "/branding/supersports-logo.svg"
   },
   "theme": {
     "cssVars": {

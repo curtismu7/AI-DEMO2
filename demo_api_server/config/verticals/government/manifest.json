@@ -6,7 +6,8 @@
     "headerTitle": "CivicPermit",
     "documentTitle": "CivicPermit · PingOne AI IAM Core",
     "logoAlt": "CivicPermit logo",
-    "tagline": "AI-Powered Citizen Permitting Demo"
+    "tagline": "AI-Powered Citizen Permitting Demo",
+    "logoPath": "/branding/civicpermit-logo.svg"
   },
   "theme": {
     "cssVars": {
