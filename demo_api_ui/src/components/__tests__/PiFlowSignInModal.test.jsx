@@ -3,8 +3,11 @@
  * config says pi.flow is on for PingOne; every failure falls back to the plain
  * redirect login.
  */
+import fs from 'node:fs';
+import path from 'node:path';
 import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import PiFlowSignInModal from '../PiFlowSignInModal';
+import { VerticalContext } from '../../vertical/VerticalProvider';
 import { navigateToCustomerOAuthLogin } from '../../utils/authUi';
 import { authenticateWebAuthn } from '../../utils/passkeyCeremony';
 
@@ -34,8 +37,17 @@ describe('PiFlowSignInModal', () => {
     });
   });
 
-  async function mountAndClick() {
-    render(<PiFlowSignInModal />);
+  // identity: the active vertical's manifest identity block, or undefined for no provider.
+  async function mountAndClick(identity) {
+    render(
+      identity === undefined ? (
+        <PiFlowSignInModal />
+      ) : (
+        <VerticalContext.Provider value={{ pageManifest: { identity } }}>
+          <PiFlowSignInModal />
+        </VerticalContext.Provider>
+      ),
+    );
     await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/admin/config'), expect.anything()));
     await act(async () => { await Promise.resolve(); });
     await act(async () => { navigateToCustomerOAuthLogin('/dashboard'); });
@@ -165,6 +177,63 @@ describe('PiFlowSignInModal', () => {
       await toPasskeyStep({ assertion: () => ok({}) });
       fireEvent.click(screen.getByRole('button', { name: 'Use another method' }));
       expect(window.location.href).toContain('/api/auth/oauth/user/login?return_to=%2Fdashboard');
+    });
+  });
+
+  describe('vertical branding', () => {
+    const open = () => ({
+      config: ON,
+      login: () => ok({ flowId: 'f1' }),
+      credentials: () => ok({}),
+    });
+
+    test('shows the active vertical logo and name in the header', async () => {
+      mockBff(open());
+      await mountAndClick({ displayName: 'PingOne Admin', logoPath: '/branding/ping-logo.svg' });
+      expect(await screen.findByText('PingOne Admin')).toBeInTheDocument();
+      // alt="" on purpose: the name is printed beside it, so the image is decorative.
+      expect(document.querySelector('.pi-flow-signin__logo')).toHaveAttribute('src', '/branding/ping-logo.svg');
+    });
+
+    test('headerTitle wins over displayName, like the top nav', async () => {
+      mockBff(open());
+      await mountAndClick({ displayName: 'Super Sports', headerTitle: 'Super Sports Pro' });
+      expect(await screen.findByText('Super Sports Pro')).toBeInTheDocument();
+      expect(screen.queryByText('Super Sports')).toBeNull();
+    });
+
+    test('a vertical with no logo shows its name only, no broken image', async () => {
+      mockBff(open());
+      await mountAndClick({ displayName: 'CivicPermit' });
+      expect(await screen.findByText('CivicPermit')).toBeInTheDocument();
+      expect(document.querySelector('.pi-flow-signin__logo')).toBeNull();
+    });
+
+    test('no vertical provider (or no identity): no header, form still works', async () => {
+      mockBff(open());
+      await mountAndClick();
+      expect(await screen.findByLabelText('Username')).toBeInTheDocument();
+      expect(document.querySelector('.pi-flow-signin__brand')).toBeNull();
+    });
+
+    test('the PingOne Admin vertical is wired to the Ping logo, and the file exists', () => {
+      const root = path.resolve(__dirname, '../../../..');
+      const manifest = JSON.parse(
+        fs.readFileSync(path.join(root, 'demo_api_server/config/verticals/pingone-admin/manifest.json'), 'utf8'),
+      );
+      expect(manifest.identity.logoPath).toBe('/branding/ping-logo.svg');
+      expect(fs.existsSync(path.join(root, 'demo_api_ui/public', manifest.identity.logoPath))).toBe(true);
+    });
+
+    test('every vertical that declares a logo points at a file that exists', () => {
+      const root = path.resolve(__dirname, '../../../..');
+      const dir = path.join(root, 'demo_api_server/config/verticals');
+      for (const id of fs.readdirSync(dir)) {
+        const file = path.join(dir, id, 'manifest.json');
+        if (!fs.existsSync(file)) continue;
+        const logoPath = JSON.parse(fs.readFileSync(file, 'utf8')).identity?.logoPath;
+        if (logoPath) expect(fs.existsSync(path.join(root, 'demo_api_ui/public', logoPath)), `${id}: ${logoPath}`).toBe(true);
+      }
     });
   });
 });

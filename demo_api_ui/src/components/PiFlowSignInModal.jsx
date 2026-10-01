@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import DraggableModal from "./DraggableModal";
 import {
   PI_FLOW_SIGNIN_EVENT,
   setPiFlowSignInAvailable,
 } from "../utils/authUi";
 import { authenticateWebAuthn } from "../utils/passkeyCeremony";
+import { VerticalContext } from "../vertical/VerticalProvider";
 
 const apiBase = () =>
   process.env.REACT_APP_API_URL ||
@@ -29,6 +30,11 @@ function redirectLogin(returnTo) {
  * falls back to that redirect login.
  */
 export default function PiFlowSignInModal() {
+  // The context directly, not useVertical(): this mounts above the pages that
+  // need a Router, and signed-out visitors still get identity + theme from
+  // /api/verticals/me, which is all the header needs.
+  const identity = useContext(VerticalContext)?.pageManifest?.identity;
+  const brandName = identity?.headerTitle || identity?.displayName || "";
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -174,8 +180,8 @@ export default function PiFlowSignInModal() {
       title="Sign in"
       className="signin-modal pi-flow-signin"
       defaultWidth={420}
-      defaultHeight={330}
-      minHeight={260}
+      defaultHeight={410}
+      minHeight={320}
       footer={
         <div className="signin-modal__actions">
           {step === "passkey" ? (
@@ -217,6 +223,18 @@ export default function PiFlowSignInModal() {
       }
     >
       <div className="dm-scroll">
+        {identity?.logoPath || brandName ? (
+          <div className="pi-flow-signin__brand">
+            {identity?.logoPath ? (
+              <img
+                className="pi-flow-signin__logo"
+                src={identity.logoPath}
+                alt={identity.logoAlt || ""}
+              />
+            ) : null}
+            {brandName ? <span className="pi-flow-signin__brand-name">{brandName}</span> : null}
+          </div>
+        ) : null}
         {step === "passkey" ? (
           <div className="pi-flow-signin__form">
             <p className="signin-modal__text">Verify it is you with your passkey.</p>
