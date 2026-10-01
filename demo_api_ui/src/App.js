@@ -47,7 +47,6 @@ import PrivilegeAiDemoPage from "./pages/PrivilegeAiDemoPage";
 import McpScannerPage from "./pages/McpScannerPage";
 import UngovernedAgentPage from "./components/UngovernedAgentPage";
 import AIAgent from "./components/AIAgent";
-import AIAgentFull from "./components/AIAgentFull";
 import ErrorBoundary from "./components/ErrorBoundary";
 import OfflineBanner from "./components/OfflineBanner";
 import ApiKeyPathPage from "./components/ApiKeyPathPage";
@@ -271,7 +270,6 @@ import {
   isMonitoringRoute,
   isPublicMarketingAgentPath,
   isPingOneAdminAgentRoute,
-  isFullAgentRoute,
 } from "./utils/embeddedAgentFabVisibility";
 import { VerticalEditorPage } from "./vertical/AdminEditor/VerticalEditorPage";
 import { VerticalProvider } from "./vertical/VerticalProvider";
@@ -635,7 +633,6 @@ function AppWithAuth() {
     onLiveWorkbenchRoute ||
     onAgentLifecycleRoute ||
     onEnterpriseMcpDemoRoute;
-  const AgentComponent = isFullAgentRoute(pathname) ? AIAgentFull : AIAgent;
 
   // Inline chrome (no floating frame/drag) for the surfaces that host the agent
   // in a column; float and everything else keep the default floating chrome.
@@ -2318,7 +2315,7 @@ function AppWithAuth() {
               </Routes>
               {shouldMountSingleAgent && (
                 <ErrorBoundary>
-                  <AgentComponent
+                  <AIAgent
                     user={user}
                     onLogout={logout}
                     embeddedFocus={resolveEmbeddedFocus(pathname)}

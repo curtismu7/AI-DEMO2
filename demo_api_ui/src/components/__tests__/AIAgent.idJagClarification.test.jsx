@@ -80,7 +80,6 @@ vi.mock('../../vertical/useVertical', () => ({
 }));
 
 import AIAgent from '../AIAgent';
-import AIAgentFull from '../AIAgentFull';
 
 function AuthSubscriber() { useAuth(); return null; }
 const jsonResponse = (body) => ({ ok: true, status: 200, json: async () => body });
@@ -120,7 +119,7 @@ async function typeReply(text) {
   await act(async () => { fireEvent.keyDown(input, { key: 'Enter' }); });
 }
 
-for (const [name, Agent] of [['compact', AIAgent], ['full', AIAgentFull]]) {
+for (const [name, Agent] of [['compact', AIAgent]]) {
   test(`${name} typed clarification keeps the PF grant until the UC40 tool completes`, async () => {
     renderAgent(Agent);
     await screen.findByText(/Which account would you like to check the balance for/i);
