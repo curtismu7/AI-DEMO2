@@ -36,7 +36,7 @@ jobs:
     # need gates), so skipping it skips the whole run. Skipped required checks
     # count as passing, and a draft cannot be merged anyway.
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, macOS]
     outputs:
       api-server: ${{ steps.all.outputs['api-server'] || steps.nightly.outputs['api-server'] || steps.filter.outputs['api-server'] }}
       decision-services: ${{ steps.all.outputs['decision-services'] || steps.nightly.outputs['decision-services'] || steps.filter.outputs['decision-services'] }}
@@ -147,9 +147,8 @@ jobs:
   gates:
     name: Hygiene + topology gates
     needs: changes
-    # GitHub-hosted Linux: nothing here needs macOS, and the shared self-hosted
-    # Mac (which also runs the demo stack) is kept for the UI/Playwright job.
-    runs-on: ubuntu-latest
+    # Run selection first, then run repository gates on the single CI runner.
+    runs-on: [self-hosted, macOS]
     # 15 was too tight: a slow-network `npm ci` alone took 17.5 min and timed out an all-green run.
     timeout-minutes: 30
     steps:
@@ -157,15 +156,12 @@ jobs:
         with:
           ref: ${{ inputs.target_ref || github.ref }}
       - name: Lint GitHub Actions workflows
-        run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.7 .github/workflows/ci.yml
+        run: /opt/homebrew/bin/actionlint .github/workflows/ci.yml
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-          # Hosted runners start empty, so the npm cache pays for itself here.
-          cache: npm
-          cache-dependency-path: |
-            demo_api_server/package-lock.json
-            demo_mcp_gateway/package-lock.json
+          # Skip restoring the >1 GiB npm cache on this shared-runner gate.
+          package-manager-cache: false
       # Deps install FIRST. hygiene:check used to run against a bare checkout,
       # which worked only while every command in the chain was dependency-free.
       # 04487cdf appended `gen-intent-topology.js check`, and that one loads
@@ -210,14 +206,15 @@ jobs:
       - name: Build cwd guard — own tests
         run: bash scripts/test-k8-build-cwd.sh
 
-  # Suites run in PARALLEL after the gates. They used to be chained one after
-  # another because everything shared one self-hosted Mac; every suite except
-  # ui-tests now runs on GitHub-hosted Linux, so chaining only added latency.
+  # Suites run in PARALLEL after the gates. They used to be chained when the
+  # repo had ONE self-hosted Mac runner; with two registered, one PR can use
+  # both instead of waiting on a serial chain. (GitHub-hosted runners are
+  # disabled for this repo by the enterprise, so everything stays self-hosted.)
   api-server-tests:
     name: API server tests (Jest)
     needs: [changes, gates]
     if: needs.changes.outputs['api-server'] == 'true'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, macOS]
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
@@ -226,8 +223,8 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: demo_api_server/package-lock.json
+          # Shares the oversized npm cache with the gates job.
+          package-manager-cache: false
       - name: Install deps
         run: npm ci --prefix demo_api_server --no-audit --no-fund
       - name: Run Jest suite
@@ -263,8 +260,6 @@ jobs:
     name: UI tests (Vitest) + build
     needs: [changes, gates]
     if: needs.changes.outputs['ui'] == 'true'
-    # Stays on the self-hosted Mac for now (Playwright/chromium + the memory
-    # guard were tuned there); move it last, once the Linux jobs are proven.
     runs-on: [self-hosted, macOS]
     timeout-minutes: 30
     steps:
@@ -366,7 +361,7 @@ jobs:
     name: Unwired service suites (agent, hitl, code-search, token, resource-server)
     needs: [changes, gates]
     if: needs.changes.outputs['unwired-services'] == 'true'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, macOS]
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
@@ -375,8 +370,7 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: demo_api_server/package-lock.json
+          package-manager-cache: false
       # demo_agent_service/tests/vault.test.ts imports ACROSS the package
       # boundary — ../demo_api_server/lib/vault/ — which requires argon2, a
       # demo_api_server dependency. Locally that resolves because the sibling's
@@ -410,19 +404,21 @@ jobs:
     name: Python agent suites (langchain, llamaindex)
     needs: [changes, gates]
     if: needs.changes.outputs['python-agents'] == 'true'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, macOS]
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.target_ref || github.ref }}
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
-          cache: pip
-          cache-dependency-path: |
-            langchain_agent/requirements.txt
-            llamaindex_agent/requirements.txt
+      - name: Use the runner's installed Python 3.12
+        run: |
+          python="$HOME/.local/bin/python3.12"
+          if [ ! -x "$python" ]; then
+            echo "Python 3.12 is not installed at $python" >&2
+            exit 1
+          fi
+          "$python" --version
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: langchain_agent (blocking — 834 passing)
         run: |
           cd langchain_agent
@@ -463,7 +459,7 @@ jobs:
     name: Service suites (authz-server + mcp-gateway + mcp-server + mcp-resource-server)
     needs: [changes, gates]
     if: needs.changes.outputs['decision-services'] == 'true'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, macOS]
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
@@ -472,12 +468,8 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: |
-            demo_authz_server/package-lock.json
-            demo_mcp_gateway/package-lock.json
-            oauth-mcp/package-lock.json
-            demo_mcp_resource_server/package-lock.json
+          # Keep the large shared-runner npm cache out of this grouped suite.
+          package-manager-cache: false
       - name: Install demo_authz_server deps
         run: npm ci --prefix demo_authz_server --no-audit --no-fund
       - name: Install demo_mcp_gateway deps
@@ -527,7 +519,7 @@ jobs:
     name: Main is red (alert)
     needs: [changes, gates, api-server-tests, ui-tests, unwired-service-suites, python-agent-suites, authz-decision-tests]
     if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, macOS]
     timeout-minutes: 5
     steps:
       - name: Evaluate upstream jobs
