@@ -1,0 +1,101 @@
+# Demo-readiness lane runtime — LOCAL target, PINGONE lane. Opt-in overlay:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.readiness.yml \
+#     up -d readiness-bff-pingone readiness-worker-pingone
+#
+# (run from the main checkout with --project-directory pointing at it; never
+# from a worktree — see CLAUDE.md "Working practice").
+#
+# Why two services: the BFF's OAuth provider is process-wide, so each
+# target/provider lane needs its OWN BFF with its OWN cookie/session store, and
+# the presenter BFF (demo-api-server) must never be reconfigured. The worker
+# owns the lane identity and talks only to its lane BFF.
+#
+# Lane BFF = the presenter BFF definition with: its own container/hostname, no
+# published ports, no `api.ping.demo` alias (that alias would round-robin the
+# presenter's traffic to it), and a private data volume (LMDB + sessions).
+#
+# REGISTRATION PREREQUISITE (not done here): the PingOne user app must list
+#   https://readiness-bff-pingone:3001/api/auth/oauth/user/callback
+# as a redirect URI, or login fails at the provider. Nothing in this file
+# changes PingOne.
+#
+# Secrets: the worker reads its bearer token and identity credentials from the
+# vault by name (DEMO_READINESS_LOCAL_PINGONE_{WORKER_TOKEN,USERNAME,PASSWORD,
+# EXPECTED_SUBJECT}); none are listed here.
+
+services:
+  readiness-bff-pingone:
+    extends:
+      file: docker-compose.yml
+      service: demo-api-server
+    container_name: ai-demo-readiness-bff-pingone
+    hostname: readiness-bff-pingone
+    ports: !reset []
+    extra_hosts: !override
+      - "api.ping.demo:host-gateway"
+      - "local.ping-devops.com:host-gateway"
+    networks: !override
+      ai-demo: {}
+    volumes:
+      - readiness-bff-pingone-data:/app/data/persistent
+    environment:
+      OAUTH_PROVIDER: pingone
+      # The lane BFF is reached by the worker at this origin; the callback the
+      # provider redirects to must be on the same origin (the login client
+      # refuses a cross-origin callback).
+      PUBLIC_APP_URL: "https://readiness-bff-pingone:3001"
+      PINGONE_PUBLIC_APP_URL: "https://readiness-bff-pingone:3001"
+      PINGONE_USER_REDIRECT_URI: "https://readiness-bff-pingone:3001/api/auth/oauth/user/callback"
+      # Never listen on the presenter's loopback ports.
+      MCP_FACADE_HTTP_PORT: ""
+      PINGONE_MCP_ADMIN_LOOPBACK_PORT: ""
+      VAULT_AUDIT_LOG_PATH: "/app/data/persistent/secrets.vault.audit.log"
+
+  readiness-worker-pingone:
+    extends:
+      file: docker-compose.yml
+      service: demo-api-server
+    container_name: ai-demo-readiness-worker-pingone
+    hostname: readiness-worker-pingone
+    command: node scripts/demo-readiness-worker.js
+    ports: !reset []
+    extra_hosts: !override
+      - "api.ping.demo:host-gateway"
+    networks: !override
+      ai-demo: {}
+    depends_on: !override
+      readiness-bff-pingone:
+        condition: service_healthy
+    # !override, not merge: the inherited list carries the presenter's
+    # ai-demo-bff-data volume, and two processes must never share an LMDB.
+    volumes: !override
+      - ./demo_api_server:/app
+      - /app/node_modules
+      - ./certs:/certs:ro
+      - .:/repo:ro
+    environment:
+      NODE_ENV: development
+      # Same local-only posture as the presenter BFF: the lane BFF's hostname is
+      # not in the mkcert cert SANs.
+      NODE_TLS_REJECT_UNAUTHORIZED: "0"
+      NODE_OPTIONS: ""
+      VAULT_PATH: "/repo/secrets.vault"
+      VAULT_AUDIT_LOG_PATH: "/tmp/secrets.vault.audit.log"
+      DEMO_READINESS_WORKER_TARGET: local
+      DEMO_READINESS_WORKER_PROVIDER: pingone
+      DEMO_READINESS_WORKER_IDENTITY_REF: "${DEMO_READINESS_LOCAL_PINGONE_IDENTITY_REF:-readiness-pingone-local}"
+      DEMO_READINESS_WORKER_BFF_URL: "https://readiness-bff-pingone:3001"
+      DEMO_READINESS_WORKER_EXPECTED_ISSUER: "${DEMO_READINESS_LOCAL_PINGONE_EXPECTED_ISSUER:-}"
+      DEMO_READINESS_WORKER_TLS_CERT: /certs/api.ping.demo+2.pem
+      DEMO_READINESS_WORKER_TLS_KEY: /certs/api.ping.demo+2-key.pem
+      DEMO_READINESS_WORKER_PORT: "4443"
+    healthcheck: !override
+      test: ["CMD", "node", "-e", "require('net').connect(4443,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  readiness-bff-pingone-data:
