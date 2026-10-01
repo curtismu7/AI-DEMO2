@@ -66,6 +66,17 @@ if ! docker volume inspect "$VOLUME" >/dev/null 2>&1; then
   exit 1
 fi
 
+# Resolve the BFF's own image (even if stopped below, `docker inspect` still
+# answers for a non-removed container) rather than a generic node:22-alpine:
+# alpine's musl libc can't load the native lmdb binding that was installed for
+# the HOST's platform in a bind-mounted node_modules — the app image already
+# carries a build of lmdb that actually works on its own runtime.
+if ! docker inspect "$CONTAINER" >/dev/null 2>&1; then
+  echo "✕ Container $CONTAINER not found — is the stack running?" >&2
+  exit 1
+fi
+IMAGE="$(docker inspect "$CONTAINER" --format '{{.Config.Image}}')"
+
 WAS_RUNNING=0
 if docker ps --format '{{.Names}}' | grep -qx "$CONTAINER"; then
   WAS_RUNNING=1
@@ -77,11 +88,8 @@ STAMP="$(timestamp)"
 echo "[*] Rebuilding $VOLUME:$IN_VOLUME_DIR into a compacted copy"
 
 # 1. Copy live data out, entry-by-entry into a fresh env (drop freelist).
-docker run --rm -v "$VOLUME":/data -v "$(cd "$(dirname "$0")/.." && pwd)":/repo:ro \
-  node:22-alpine sh -c "mkdir -p /data/persistent/lmdb-compacted-$STAMP && cd /repo/demo_api_server && \
-  test -d node_modules/lmdb || { echo '✕ node_modules not in repo checkout — run npm ci first'; exit 1; } && \
-  node -e \"
-const lmdb = require('lmdb');
+docker run --rm -v "$VOLUME":/data --entrypoint node "$IMAGE" -e "
+const lmdb = require('/app/node_modules/lmdb');
 const fs = require('fs');
 const src = lmdb.open({ path: '/data/persistent/lmdb', maxDbs: 40, mapSize: 1024*1024*1024 });
 const dstPath = '/data/persistent/lmdb-compacted-$STAMP';
@@ -101,7 +109,7 @@ const names = ['agentLifecycleEvents','autonomousRuns','cimd','config','conversa
   console.log('COPY DONE');
   process.exit(0);
 })().catch(e => { console.error(e); process.exit(1); });
-\""
+"
 
 # 2. Swap: old aside, compacted in, prune expired sessions on the way.
 docker run --rm -v "$VOLUME":/data alpine sh -c "
