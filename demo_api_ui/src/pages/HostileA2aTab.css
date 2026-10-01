@@ -32,6 +32,19 @@
   border: 1px solid var(--th-border);
   border-radius: var(--radius-sm, 6px);
 }
+.ha2-select {
+  flex: 1;
+  min-width: 320px;
+  padding: 9px 12px;
+  font-family: var(--font-primary);
+  font-size: var(--font-size-sm);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-sm, 6px);
+}
+.ha2-select:focus-visible { outline: 2px solid var(--th-status-info); outline-offset: 2px; }
+.ha2-input { margin-top: 10px; }
 .ha2-btn {
   font-family: var(--font-primary);
   font-size: var(--font-size-sm);
