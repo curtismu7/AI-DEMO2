@@ -56,6 +56,21 @@ const mockResolver = {
 jest.mock('axios', () => mockAxios);
 jest.mock('../services/configStore', () => mockConfigStore);
 jest.mock('../services/oauthEndpointResolver', () => mockResolver);
+// Signature/issuer checks are covered by oidcIdTokenValidationService's own
+// tests; here the validator decodes but still enforces the nonce, which is what
+// this suite proves the route wires through.
+jest.mock('../services/oidcIdTokenValidationService', () => ({
+  ...jest.requireActual('../services/oidcIdTokenValidationService'),
+  validateIdToken: jest.fn(async (idToken, { expectedNonce } = {}) => {
+    const fail = (reasonCode) => Object.assign(new Error('OIDC identity validation failed'), { reasonCode });
+    if (typeof expectedNonce !== 'string' || !expectedNonce) throw fail('nonce_missing');
+    let claims;
+    try { claims = JSON.parse(Buffer.from(String(idToken).split('.')[1], 'base64url').toString()); } catch (_) { throw fail('id_token_invalid'); }
+    if (typeof claims.nonce !== 'string' || !claims.nonce) throw fail('nonce_missing');
+    if (claims.nonce !== expectedNonce) throw fail('nonce_mismatch');
+    return claims;
+  }),
+}));
 
 const DAVINCI_ENV = {
   PINGONE_DAVINCI_LOGIN_COMPANY_ID: 'co-1',
@@ -100,23 +115,24 @@ function mockExchange(claims) {
     refresh_token: 'rt',
     expires_in: 3600,
   });
-  mockOauthService.getUserInfo.mockResolvedValue({ preferred_username: 'demouser' });
+  mockOauthService.getUserInfo.mockResolvedValue({ sub: claims.sub, preferred_username: 'demouser' });
   mockOauthService.createUserFromOAuth.mockReturnValue({ username: 'demouser' });
   mockDataStore.getUserByUsername.mockReturnValue({ id: 'u-1', username: 'demouser', role: 'customer' });
 }
 
-const WIDGET_BODY = { idToken: 'id-w', accessToken: 'at-w' };
+let WIDGET_BODY;
 
 /** Both widget tokens JWKS-verify; the ID token carries `idClaims`. */
 function mockWidgetTokens(idClaims) {
+  WIDGET_BODY = { idToken: idToken(idClaims), accessToken: 'at-w' };
   mockVerifier.verifyExchangedToken.mockImplementation(async (token) => ({
     verified: true,
     fallbackMethod: 'jwks',
-    claims: token === WIDGET_BODY.idToken
-      ? idClaims
-      : { sub: 'p1-u1', aud: ['enduser.ping.demo'], exp: Math.floor(Date.now() / 1000) + 3600, scope: 'openid read' },
+    claims: token === WIDGET_BODY.accessToken
+      ? { sub: 'p1-u1', aud: ['enduser.ping.demo'], exp: Math.floor(Date.now() / 1000) + 3600, scope: 'openid read' }
+      : idClaims,
   }));
-  mockOauthService.getUserInfo.mockResolvedValue({ preferred_username: 'demouser' });
+  mockOauthService.getUserInfo.mockResolvedValue({ sub: idClaims.sub, preferred_username: 'demouser' });
   mockOauthService.createUserFromOAuth.mockReturnValue({ username: 'demouser' });
   mockDataStore.getUserByUsername.mockReturnValue({ id: 'u-1', username: 'demouser', role: 'customer' });
 }

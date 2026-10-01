@@ -8,6 +8,7 @@ jest.mock('../../services/configStore', () => ({
     pingone_public_app_url: 'https://local.ping-devops.com:4000',
     public_app_url: 'https://local.ping-devops.com:4000',
   })[key]),
+  getOAuthProvider: jest.fn(() => 'pingone'),
 }));
 jest.mock('../../services/appEventService', () => ({ logEvent: jest.fn() }));
 
