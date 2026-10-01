@@ -7,11 +7,17 @@ const pingOneAuthorizeService = require('./pingOneAuthorizeService');
 const { resolveExpectedMcpResourceUri } = require('./mcpToolAuthorizationService');
 const { decodeJwt } = require('../utils/tokenUtils');
 const configStore = require('./configStore');
+const pfExchange = require('./pfStandardTokenExchangeService');
+const { fetchPingOneUserByUsername } = require('./pingOneUserLookupService');
 
 const VERTICAL_ID = 'pingone-admin';
 const GROUP_CATEGORY = 'privileged';
 
-async function checkAccess({ username, pingOneUserId, accessToken }) {
+async function checkAccess({ username, pingOneUserId, accessToken, oauthProvider }) {
+  const viaPingFederate = oauthProvider === 'pingfederate';
+  // The session token's own subject; under PingFederate that is a PingFederate
+  // username, which the exchanged token must still carry.
+  const tokenSubject = pingOneUserId;
   const requiredGroup = groupPolicy.groupNameForCategory(VERTICAL_ID, GROUP_CATEGORY);
   if (!requiredGroup) {
     return {
@@ -28,6 +34,25 @@ async function checkAccess({ username, pingOneUserId, accessToken }) {
       status: 503,
       requiredGroup,
     };
+  }
+
+  // The group and the policy are PingOne's. A PingFederate session's subject is
+  // not a PingOne user id, so the PingOne account with the same username is the
+  // one checked. No such account is a denial, never a fallback to the
+  // PingFederate subject.
+  if (viaPingFederate) {
+    const { user: linked, error: lookupError } = await fetchPingOneUserByUsername(username);
+    if (!linked?.id) {
+      const notFound = lookupError === 'not_found';
+      return {
+        allowed: false,
+        error: notFound ? 'pingone_admin_user_not_linked' : 'pingone_admin_group_lookup_unavailable',
+        status: notFound ? 403 : 503,
+        requiredGroup,
+        username,
+      };
+    }
+    pingOneUserId = linked.id;
   }
 
   const groups = await membershipService.listUserGroupNamesForVertical(
@@ -68,19 +93,40 @@ async function checkAccess({ username, pingOneUserId, accessToken }) {
   const mcpResourceUri = resolveExpectedMcpResourceUri();
   let finalToken;
   try {
-    const aiAgentActorClientId = configStore.getEffective('pingone_ai_agent_actor_client_id');
-    const aiAgentActorClientSecret = configStore.getEffective('pingone_ai_agent_actor_client_secret');
-    const hop1Token = await oauthService.performTokenExchangeAs(
-      accessToken, null, aiAgentActorClientId, aiAgentActorClientSecret,
-      intermediateAud, ['read'], 'post',
-    );
+    if (viaPingFederate) {
+      // PingFederate issued the session token, so PingFederate runs both hops:
+      // the same exchanger and actor clients, in the same order and with the
+      // same scopes, as the agent's own tool calls (agentMcpTokenService).
+      const pf = pfExchange.resolveConfig();
+      const finalScopes = [configStore.getEffective('gateway_mcp_invoke_scope')
+        || configStore.getEffective('pinggateway_invoke_scope')
+        || 'gateway:mcp:invoke'];
+      const agentActorToken = await pfExchange.getActorToken(pf, 'agent');
+      const hop1Token = await pfExchange.performExchange(
+        pf, 'agent', accessToken, agentActorToken, pf.intermediateAudience, [pf.agentActorScope],
+      );
+      const mcpActorToken = await pfExchange.getActorToken(pf, 'mcp');
+      finalToken = await pfExchange.performExchange(
+        pf, 'mcp', hop1Token, mcpActorToken, mcpResourceUri, finalScopes,
+      );
+      pfExchange.validateFinalToken(finalToken, {
+        userSub: tokenSubject, audience: mcpResourceUri, scopes: finalScopes, agentActorToken, mcpActorToken,
+      });
+    } else {
+      const aiAgentActorClientId = configStore.getEffective('pingone_ai_agent_actor_client_id');
+      const aiAgentActorClientSecret = configStore.getEffective('pingone_ai_agent_actor_client_secret');
+      const hop1Token = await oauthService.performTokenExchangeAs(
+        accessToken, null, aiAgentActorClientId, aiAgentActorClientSecret,
+        intermediateAud, ['read'], 'post',
+      );
 
-    const exchangerClientId = configStore.getEffective('pingone_mcp_token_exchanger_client_id');
-    const exchangerClientSecret = configStore.getEffective('pingone_mcp_token_exchanger_client_secret');
-    finalToken = await oauthService.performTokenExchangeAs(
-      hop1Token, null, exchangerClientId, exchangerClientSecret,
-      mcpResourceUri, ['read'], 'post',
-    );
+      const exchangerClientId = configStore.getEffective('pingone_mcp_token_exchanger_client_id');
+      const exchangerClientSecret = configStore.getEffective('pingone_mcp_token_exchanger_client_secret');
+      finalToken = await oauthService.performTokenExchangeAs(
+        hop1Token, null, exchangerClientId, exchangerClientSecret,
+        mcpResourceUri, ['read'], 'post',
+      );
+    }
   } catch (err) {
     console.warn('[pingOneAdminAccessService] MCP token exchange failed (denying):', err.message);
     return {

@@ -249,6 +249,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-01 — PingOne Admin gate refused every PingFederate sign-in
+
+**Files:** `demo_api_server/services/pingOneAdminAccessService.js`, `demo_api_server/routes/adminAgentRoutes.js`, `demo_api_server/tests/pingOneAdminAccessService.pf.test.js` (new).
+
+**What was broken:** `checkAccess` assumed a PingOne session three times over. It read groups with the session subject (a PingFederate username, so PingOne answered 400), ran both exchange hops with PingOne clients against a PingFederate-issued token, and reported the result as "could not verify group membership — try again after PingOne is available". The `pingone-admin` vertical was unusable for every PingFederate admin.
+
+**What changed:** For a PingFederate session the gate checks the PingOne account with the same username, runs both hops through `pfStandardTokenExchangeService` (the chain the agent's own tool calls already use), validates the result, and asks PingOne Authorize as before. No PingOne account with that username is its own denial, `pingone_admin_user_not_linked` (403).
+
+**Do not break:** A PingOne session takes the original path untouched — same two hops, same arguments. The PingFederate path fails closed: a failed lookup, exchange or validation is a 503, never a fallback to the PingFederate subject and never a JS-side permit. The decision is still PingOne Authorize's.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/pingOneAdminAccessService.pf.test.js tests/pingOneAdminAccessService.test.js --forceExit`.
+
 ### 2026-10-01 — pi.flow sign-in drives the passkey (ASSERTION_REQUIRED) step
 
 **Files:** `demo_api_server/routes/oauthUser.js`, `demo_api_ui/src/components/PiFlowSignInModal.jsx`, and focused tests.
