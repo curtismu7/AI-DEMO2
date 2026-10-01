@@ -75,7 +75,7 @@ function selfAdvertisingGateway({ issuedClientIds }) {
   });
 }
 
-describe('POST /auth/start with no configured client id', () => {
+describe('Privilege MCP routes with no configured client id', () => {
   const originalFetch = global.fetch;
 
   afterEach(() => {
@@ -96,6 +96,25 @@ describe('POST /auth/start with no configured client id', () => {
     const res = await request(app).post('/api/privilege-mcp/auth/start').send({}).expect(200);
 
     // The guard used to make this a 400 before DCR ever ran.
+    expect(res.body.authUrl).toBeTruthy();
+    expect(issuedClientIds).toHaveLength(1);
+    expect(new URL(res.body.authUrl).searchParams.get('client_id')).toBe(issuedClientIds[0]);
+  });
+
+  test('chat starts DCR sign-in instead of rejecting the blank client id', async () => {
+    const app = buildApp();
+    const issuedClientIds = [];
+    global.fetch = selfAdvertisingGateway({ issuedClientIds });
+
+    await request(app).post('/api/privilege-mcp/config')
+      .send({ mcpUrl: MCP_URL })
+      .expect(200);
+
+    const res = await request(app).post('/api/privilege-mcp/chat')
+      .send({ prompt: 'what is cluster health' })
+      .expect(200);
+
+    expect(res.body.steps).toEqual(['oauth_required']);
     expect(res.body.authUrl).toBeTruthy();
     expect(issuedClientIds).toHaveLength(1);
     expect(new URL(res.body.authUrl).searchParams.get('client_id')).toBe(issuedClientIds[0]);

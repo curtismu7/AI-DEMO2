@@ -618,10 +618,10 @@ export default function SecurityCenter({ user }) {
     || session?.user?.email
     || 'this account';
 
-  // authType comes straight from /api/auth/session: 'oauth' for a PingOne
-  // federated sign-in, 'session' for a seeded local user.
+  // authType comes straight from /api/auth/session: OAuth sessions use
+  // 'user' or 'admin'; older sessions may use 'oauth'.
   const authType = session?.authType || null;
-  const isFederated = authType === 'oauth';
+  const isFederated = ['oauth', 'user', 'admin'].includes(authType);
   const deviceCount = devices === null ? null : devices.length;
 
   function renderOverviewTab() {

@@ -2,7 +2,7 @@
 
 /**
  * Use-Case Catalog API (read-only) — Plan A · Phase A1.
- *   GET /api/use-cases            → all 22 use cases, resolved for ?vertical (default banking)
+ *   GET /api/use-cases            → all 69 use cases, resolved for ?vertical (default banking)
  *   GET /api/use-cases/:id        → one resolved use case
  * The catalog is the SoT in config/useCases.js; this is a thin read surface.
  */

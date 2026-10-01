@@ -9,6 +9,7 @@ import {
   DEMO_USE_CASE_SEARCH_TERMS,
   DEMO_MATURITY_GROUPS,
   DEMO_MISSION_GROUPS,
+  DEMO_JOURNEY_GROUPS,
   PRIVILEGE_USE_CASE_IDS,
 } from '../demoUseCaseSteps';
 
@@ -39,6 +40,7 @@ describe('demoUseCaseSteps', () => {
       'UC40',
       'UC38',
       'UC-TOOL1',
+      'UC46',
     ]);
   });
 
@@ -63,6 +65,9 @@ describe('demoUseCaseSteps', () => {
     );
     expect(DEMO_USE_CASE_SEARCH_TERMS.UC45).toEqual(
       expect.arrayContaining(['saas embedded', 'website worker', 'embedded agent', 'customer tenant']),
+    );
+    expect(DEMO_USE_CASE_SEARCH_TERMS.UC46).toEqual(
+      expect.arrayContaining(['privilege', 'a2a', 'access review', 'worker agent']),
     );
   });
 
@@ -90,6 +95,12 @@ describe('demoUseCaseSteps', () => {
     ]);
     expect(DEMO_MISSION_GROUPS.find((group) => group.id === 'personal-agent').useCaseIds)
       .toEqual(['UC43', 'UC44', 'UC38']);
+  });
+
+  it('keeps UC46 available through the A2A and Privilege journey filters', () => {
+    expect(DEMO_JOURNEY_GROUPS.find((group) => group.id === 'j-a2a').useCaseIds).toContain('UC46');
+    expect(DEMO_JOURNEY_GROUPS.find((group) => group.id === 'j-privilege-mcp').useCaseIds).toContain('UC46');
+    expect(DEMO_MISSION_GROUPS.find((group) => group.id === 'privilege').useCaseIds).toContain('UC46');
   });
 
   it('exports the Privilege & JIT access lanes', () => {
@@ -147,8 +158,8 @@ describe('demoUseCaseSteps', () => {
     }
   });
 
-  it('primary list has 24 steps (all use cases visible)', () => {
-    expect(DEMO_PRIMARY_USE_CASE_IDS).toHaveLength(24);
+  it('primary list has 25 steps (all use cases visible)', () => {
+    expect(DEMO_PRIMARY_USE_CASE_IDS).toHaveLength(25);
   });
 
   // UC29 cannot fire on this deployment (Node gateway validates by JWKS, no

@@ -50,6 +50,15 @@ PF mode is intentionally fail-closed: the ID-JAG is redeemed only at the
 explicit downstream endpoint. It is never treated as a final MCP bearer and
 does not fall back to the PingOne or local mock exchange.
 
+## MCP Streamable HTTP Origin allowlist
+
+`MCP_ALLOWED_ORIGINS` is a comma-separated list of exact browser origins
+(scheme, host, and optional port; no paths). Docker Compose defaults to
+`https://local.ping-devops.com:4000`; the hosted Kubernetes deployment allows
+`https://ai-demo.ping-devops.com`. Requests with a supplied Origin outside the
+list receive HTTP 403. Requests without an Origin remain available to CLI and
+server-to-server MCP clients. An empty list denies all supplied Origins.
+
 ## PingFederate AI Agent feature demos
 
 The separate `/pingfederate-ai-agent` page exercises PingFederate CIMD,
@@ -112,6 +121,56 @@ served at `/api/pf-ai-agent/cimd/client-metadata.json` and
 
 - **Worker**: `PINGONE_WORKER_CLIENT_ID` + `PINGONE_WORKER_CLIENT_SECRET`
   - Used by: Token introspection worker
+
+## PingOne Verify Identity Proofing
+
+The signed-in customer profile can start a PingOne Verify hosted web transaction
+through the BFF. The feature flag defaults off. Configure these non-secret
+values only after the non-production tenant has Verify enabled and the selected
+policy and worker permissions have been checked:
+
+```dotenv
+PINGONE_VERIFY_ENABLED=false
+PINGONE_VERIFY_POLICY_ID=<verify-policy-uuid>
+# Optional, only for a tenant-configured custom Verify web domain:
+PINGONE_VERIFY_WEB_HOST=<custom-verify-hostname>
+```
+
+The existing PingOne Management API worker credentials are used server-side.
+The optional web host must be the exact hostname configured for PingOne Verify
+(for example, `verify.example.com`), without a scheme or path. The BFF accepts
+only that configured host or PingOne's standard regional Verify hosts.
+Grant that worker `idverifications:create:verifyTransactions` and
+`idverifications:read:verifyTransactions`. Set the BFF's canonical
+`PUBLIC_APP_URL` to the browser app origin; the handoff returns to
+`/profile?verify=return` on that origin. Never add a localhost redirect.
+
+The first implementation accepts only a customer access token whose validated
+issuer is the configured PingOne issuer and whose `sub` is the PingOne
+environment user UUID. PingFederate, local sessions, delegated tokens, admin
+tokens, and open-access demo bindings fail closed until a trusted mapping to a
+PingOne user UUID is designed and confirmed. The browser cannot choose the
+PingOne user ID, submit proofing PII, or set a verification result. Only the
+server's read of `transactionStatus.status === SUCCESS` records completion;
+manual approval, `NOT_REQUIRED`, and unknown states do not unlock proofing.
+
+Enable `pingone_verify_enabled` in the authenticated Feature Flags page for a
+non-production pilot, or set `PINGONE_VERIFY_ENABLED=true` as a deployment
+override. Keep it off until the Verify service/BOM, policy, required API
+permissions, identity mapping, and canonical origin are confirmed. The BFF
+persists only transaction ownership and lifecycle metadata, not documents,
+selfies, submitted identity values, or upstream response bodies.
+
+## PingOne Recognize Readiness
+
+The direct React integration uses the PingOne Recognize Web SDK. Do not enable
+the current integration until Ping/Keyless confirms the tenant's customer name,
+regional Authentication Service URL, approved package version, and complete
+backend JWT result-validation contract (JWKS/issuer/algorithm, required claims,
+user/operation binding, key rotation, and enrollment removal behavior). The SDK
+success callback alone is not proof. Keep transfer approval tied to the existing
+server challenge and OTP fallback; do not claim transaction signing from the
+Web SDK unless Ping confirms the exact supported Web flow and signed claims.
 
 ### A2A Specialist Agents (8 verticals)
 

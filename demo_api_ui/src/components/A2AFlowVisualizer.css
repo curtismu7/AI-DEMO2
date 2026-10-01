@@ -6,9 +6,10 @@
  */
 
 .a2fv {
+  color: var(--th-text);
   background: var(--th-bg-card);
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 16px;
   margin-top: 12px;
   overflow: hidden;
@@ -27,13 +28,16 @@
   background: var(--th-bg-inset);
   color: var(--th-text);
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 6px 12px;
   font-size: var(--font-size-sm);
   font-weight: 600;
   cursor: pointer;
 }
-.a2fv-replay:hover { background: var(--th-bg-hover); }
+.a2fv-replay:hover {
+  color: var(--th-text);
+  background: var(--th-bg-hover);
+}
 
 .a2fv-legend { display: inline-flex; gap: 8px; flex-wrap: wrap; }
 
@@ -60,7 +64,7 @@
 .a2fv-mode {
   display: inline-flex;
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   overflow: hidden;
   margin-left: auto;
 }
@@ -138,7 +142,7 @@
   gap: 2px;
   text-align: left;
   padding: 6px 10px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   border: 1.5px solid var(--th-border-strong);
   background: var(--th-bg-inset);
   color: var(--th-text);
@@ -156,14 +160,17 @@
 }
 
 .a2fv-packet--identity {
+  color: var(--th-text);
   background: var(--th-status-warning-bg);
   border-color: var(--th-status-warning);
 }
 .a2fv-packet--wire {
+  color: var(--th-text);
   background: var(--th-status-info-bg);
   border-color: var(--th-status-info);
 }
 .a2fv-packet--error {
+  color: var(--th-text);
   background: var(--th-status-error-bg);
   border-color: var(--th-status-error);
 }
@@ -197,7 +204,7 @@
 .a2fv-depth {
   font-size: 0.68rem;
   padding: 1px 6px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-card);
   border: 1px solid var(--th-border);
   color: var(--th-text-muted);
@@ -207,14 +214,15 @@
 /* ── Expanded evidence ────────────────────────────────────────────────────── */
 
 .a2fv-detail {
+  color: var(--th-text);
   position: absolute;
   left: 8px;
   right: 8px;
   z-index: 3;
   background: var(--th-bg-card);
   border: 1px solid var(--th-border-strong);
-  border-radius: 8px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
   padding: 10px 12px;
 }
 .a2fv-detail-head {
@@ -236,7 +244,7 @@
   background: var(--th-code-bg);
   color: var(--th-code-text);
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 10px 12px;
   overflow: auto;
   max-height: 260px;

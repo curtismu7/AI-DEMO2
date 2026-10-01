@@ -1,9 +1,14 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { afterEach, beforeEach, vi } from 'vitest';
 import UnifiedTokenFlowInspector from './UnifiedTokenFlowInspector';
 import { ExchangeModeProvider } from '../context/ExchangeModeContext';
 import { agentFlowDiagram } from '../services/agentFlowDiagramService';
+import bffAxios from '../services/bffAxios';
+
+const originalBffGet = bffAxios.get;
+const originalFetch = global.fetch;
 
 // AgentFlowSection (rendered on the default 'flow' tab, mounted before the
 // Token Transform tab is clicked) calls useExchangeMode(), which throws
@@ -17,6 +22,23 @@ function renderInspector() {
   );
 }
 
+beforeEach(() => {
+  bffAxios.get = vi.fn((path) => Promise.resolve({
+    data: path === '/api/auth/oauth/user/status'
+      ? { authenticated: false }
+      : { tokenEvents: [] },
+  }));
+  global.fetch = vi.fn(() => Promise.resolve({
+    ok: true,
+    json: () => Promise.resolve({ currentTokens: [] }),
+  }));
+});
+
+afterEach(() => {
+  bffAxios.get = originalBffGet;
+  global.fetch = originalFetch;
+});
+
 describe('UnifiedTokenFlowInspector — Token Transform tab', () => {
   it('shows a Token Transform tab that renders the gateway-in vs backend-out audience', () => {
     renderInspector();
@@ -28,25 +50,33 @@ describe('UnifiedTokenFlowInspector — Token Transform tab', () => {
 
 describe('UnifiedTokenFlowInspector — OAuth Token Inspector error handling', () => {
   it('offers a retry button when the token fetch fails, instead of a dead end', async () => {
-    // bffAxios has no server to talk to in this test environment, so
-    // fetchTokenData's real request genuinely fails and lands in the
-    // fetch_failed branch — exercising the real error path, not a mock.
-    //
-    // That real request is also why the waits below are explicit. How long jsdom
-    // takes to reject an XHR to a nonexistent server is not controlled by this
-    // test, and findBy*/waitFor default to 1000ms: idle, the rejection lands in
-    // a few ms and the test passes; under a full-suite run sharing CPU it can
-    // exceed a second, and the test failed while passing in isolation — which
-    // reads as pollution and is really just the clock.
+    const getSpy = bffAxios.get.mockRejectedValue(new Error('Request failed'));
     renderInspector();
-    const retryBtn = await screen.findByRole('button', { name: 'Try again' }, { timeout: 15000 });
+    const retryBtn = await screen.findByRole('button', { name: 'Try again' });
     expect(screen.getByText(/Failed to Load Token Data/i)).toBeInTheDocument();
 
-    // Clicking it re-triggers the fetch without throwing.
     fireEvent.click(retryBtn);
-    await waitFor(() => {
-      expect(screen.getByText(/Failed to Load Token Data/i)).toBeInTheDocument();
-    }, { timeout: 15000 });
+    await screen.findByRole('button', { name: 'Try again' });
+    expect(getSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('shows current user claims from the sanitized BFF session preview shape', async () => {
+    const get = vi.spyOn(bffAxios, 'get').mockImplementation(async (url) => {
+      if (url === '/api/auth/oauth/user/status') {
+        return { data: { authenticated: true, oauthProvider: 'pingone', user: { username: 'demo' } } };
+      }
+      if (url === '/api/tokens/session-preview') {
+        return { data: { tokenEvents: [{ id: 'user-token', status: 'active', claims: { sub: 'session-sub-123', scope: 'read' }, jwtFullDecode: { header: { alg: 'RS256' }, claims: { sub: 'session-sub-123', scope: 'read' } } }] } };
+      }
+      return { data: {} };
+    });
+    try {
+      renderInspector();
+      expect((await screen.findAllByText('session-sub-123')).length).toBeGreaterThan(0);
+      expect(screen.queryByText(/No Active OAuth Session/i)).not.toBeInTheDocument();
+    } finally {
+      get.mockRestore();
+    }
   });
 });
 
@@ -54,9 +84,6 @@ describe('UnifiedTokenFlowInspector — Flow & Tokens tab (hybrid tree)', () => 
   beforeEach(() => {
     agentFlowDiagram.reset();
     agentFlowDiagram.close();
-    global.fetch = vi.fn(() =>
-      Promise.resolve({ ok: true, json: () => Promise.resolve({ currentTokens: [] }) })
-    );
   });
 
   it('shows an empty-state hint when no steps have run yet', () => {

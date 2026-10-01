@@ -82,7 +82,7 @@ class ApiClient {
       (response) => {
         const cfg = response.config || {};
         const url = cfg.url || '';
-        if (url.startsWith('/api/')) {
+        if (url.startsWith('/api/') && !cfg._skipTrafficCapture) {
           let reqBody = cfg.data;
           if (typeof reqBody === 'string') reqBody = tryParseJson(reqBody) ?? reqBody;
           if (reqBody && typeof reqBody === 'object') reqBody = redactBody(reqBody);
@@ -104,7 +104,7 @@ class ApiClient {
       async (error) => {
         const cfg = error.config || {};
         const url = cfg.url || '';
-        if (url.startsWith('/api/')) {
+        if (url.startsWith('/api/') && !cfg._skipTrafficCapture) {
           let errReqBody = cfg.data ? (tryParseJson(cfg.data) ?? cfg.data) : null;
           if (errReqBody && typeof errReqBody === 'object') errReqBody = redactBody(errReqBody);
           appendTrafficEntry({
