@@ -11,6 +11,7 @@ const privilegeDoorStore = require('../services/lmdb/privilegeDoorStore.lmdb');
 const guardrailAttemptLog = require('../services/guardrailAttemptLog');
 const externalGuardrailForwarder = require('../services/externalGuardrailForwarder');
 const { requireSession } = require('../middleware/auth');
+const { resolveActingIdentity } = require('../middleware/transactionTurn');
 const router = express.Router();
 
 // Same marker the LLM Gateway console (LlmGatewayPage.jsx) uses to detect a
@@ -3453,6 +3454,7 @@ router.post('/llm/call', express.json(), async (req, res) => {
       prompt,
       verdict: redactionCount > 0 ? 'SANITIZED' : 'PASSED',
       reason: redactionCount > 0 ? `${redactionCount} value(s) redacted` : null,
+      sub: resolveActingIdentity(req),
     });
     return res.json({
       reply,
@@ -3475,6 +3477,7 @@ router.post('/llm/call', express.json(), async (req, res) => {
         prompt,
         verdict: 'BLOCKED',
         reason: err.reason || err.message,
+        sub: resolveActingIdentity(req),
       });
       // Fire-and-forget: an external inspector outage must never affect the
       // denial response the caller already gets from AI Guard.
@@ -3518,9 +3521,11 @@ router.post('/llm/call', express.json(), async (req, res) => {
 // GET /api/privilege-mcp/llm/guardrail-attempts — read-only recent Privilege
 // verdicts from POST /llm/call above (services/guardrailAttemptLog.js).
 // Entries carry real user-typed prompt text, so this is signed-in only — see
-// the Agentic Access Console's public-page privacy rule.
+// the Agentic Access Console's public-page privacy rule — and a non-admin sees
+// only their own attempts (same ownership rule as /agent-gateway/decisions).
 router.get('/llm/guardrail-attempts', requireSession, (req, res) => {
-  res.json({ attempts: guardrailAttemptLog.list() });
+  const principal = req.session.user.role === 'admin' ? undefined : resolveActingIdentity(req);
+  res.json({ attempts: guardrailAttemptLog.list(principal) });
 });
 
 router.post('/chat', express.json(), async (req, res) => {

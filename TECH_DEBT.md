@@ -338,7 +338,16 @@ protects.
 Drop `jwtFullDecode`, `subjectToken` and `resultToken` from the SSE payload,
 and send only what `useTokenChainSSE` renders.
 
-### [ ] 2026-09-13 — `/llm/guardrail-attempts` returns every user's prompts
+### [x] 2026-09-13 — `/llm/guardrail-attempts` returns every user's prompts
+
+**RESOLVED 2026-10-01 (branch `worktree-techdebt-wave1-route-exposure`).** As
+the entry describes: `POST /llm/call` now records the caller's PingOne sub on
+each attempt (`resolveActingIdentity`, null when anonymous), and the read route
+passes a non-admin's own sub to `guardrailAttemptLog.list()`; admins see all. A
+signed-in caller with no resolvable sub gets an empty list rather than the
+anonymous attempts. The sub is not echoed in the response, so the panel's
+payload shape is unchanged. Tests: `tests/services/guardrailAttemptLog.test.js`
+(4 new, red before the change). Not driven against the live stack.
 
 **What's wrong.** `GET /api/privilege-mcp/llm/guardrail-attempts`
 (`demo_api_server/routes/privilegeMcpClient.js:3336`) is gated by
@@ -1548,7 +1557,21 @@ introspection client credentials and accepts the per-call PingOne round trip)
 or retire UC29 from the Demo Steps script. Decide before a demo that leans on
 that step.
 
-### [ ] 2026-09-08 — A non-admin cannot see their own MCP audit trail (external-door movie reel)
+### [x] 2026-09-08 — A non-admin cannot see their own MCP audit trail (external-door movie reel)
+
+**RESOLVED 2026-10-01 (branch `worktree-techdebt-wave1-route-exposure`).** Both
+halves, on the existing route rather than a separate `/mine`: `GET
+/api/mcp/audit` (events and `?summary=1`) now filters a non-admin to events the
+gateway stamped with their own PingOne sub (`mcpAuditStore.query`/`summary`
+take a `userId`); admins still see every caller, and a non-admin with no
+resolvable sub gets an empty result. That closes the exposure the triage note
+below found, and gives a regular signed-in user their own trail through the
+page that already reads this route (`/mcp-observability`, `user` level). The
+identity is `resolveActingIdentity` (session `oauthId`), the same rule
+`/api/admin/agent-gateway/decisions` uses, not `session.user.id` as sketched
+below. Tests: `tests/routes/mcpAuditAccess.test.js` (4, red before the change).
+Not driven against the live stack. The reel component itself was never built;
+the per-user feed now exists if one is wanted.
 
 **TRIAGE 2026-10-01 (checked against main `fdd04bf12`, static read only).** The premise changed and opened a new gap. `/api/mcp/audit` is no longer admin-only: `server.js:1543` mounts it behind `requireSession` (commit `d9692cdc4`), and `routes/mcpAudit.js` passes no user filter to `mcpAuditStore.query()`. So any signed-in user can now read every user's audit events from the API, while the only page that shows them (`/audit`) is still `admin` in `auth-requirements.json`. The fix is the per-user filter this entry already describes (`event.userId === req.session.user.id`, admins see all), applied to the existing route rather than a separate `/mine`. Still no reel component.
 

@@ -77,6 +77,7 @@ function _prune(db) {
  * @param {string} [filters.outcome]
  * @param {string} [filters.agentId]   substring match
  * @param {string} [filters.operation] substring match (tool name)
+ * @param {string} [filters.userId]    exact match on the PingOne sub the gateway stamped
  * @param {number} [filters.limit=200]
  * @returns {object[]}
  */
@@ -89,6 +90,7 @@ function query(filters = {}) {
     if (filters.outcome && value.outcome !== filters.outcome) continue;
     if (filters.agentId && !String(value.agentId || '').includes(filters.agentId)) continue;
     if (filters.operation && !String(value.operation || '').includes(filters.operation)) continue;
+    if (filters.userId && value.userId !== filters.userId) continue;
     out.push(value);
     if (out.length >= limit) break;
   }
@@ -98,13 +100,15 @@ function query(filters = {}) {
 /**
  * Aggregate counts for the summary header. Shape matches AuditPage.js:
  * { totalEvents, byEventType: {type: n}, byOutcome: {outcome: n} }.
+ * @param {string} [userId] count only this PingOne sub's events
  */
-function summary() {
+function summary(userId) {
   const db = _db();
   const byEventType = {};
   const byOutcome = {};
   let totalEvents = 0;
   for (const { value } of db.getRange()) {
+    if (userId && value.userId !== userId) continue;
     totalEvents++;
     const t = value.eventType || 'unknown';
     const o = value.outcome || 'unknown';
