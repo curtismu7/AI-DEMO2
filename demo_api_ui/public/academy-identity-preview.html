@@ -844,8 +844,7 @@
 
       .reel-grid {
         display: grid;
-        grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
-        min-height: 330px;
+        grid-template-columns: minmax(0, 1fr);
       }
 
       .filmstrip {
@@ -854,13 +853,13 @@
         min-width: 0;
         padding: 18px;
         overflow-x: auto;
-        border-right: 1px solid var(--th-line);
+        border-bottom: 1px solid var(--th-line);
         scroll-snap-type: x mandatory;
       }
 
       .frame-card {
         flex: 0 0 176px;
-        min-height: 222px;
+        min-height: 150px;
         padding: 13px;
         border: 1px solid var(--th-line);
         border-top: 4px solid var(--th-line-strong);
@@ -883,6 +882,49 @@
 
       .frame-card[data-stage="govern"] {
         border-top-color: var(--th-teal);
+      }
+
+      .frame-card[data-stage="discover"] {
+        border-top-color: var(--th-violet);
+      }
+
+      .frame-card[data-stage="register"] {
+        border-top-color: var(--th-amber);
+      }
+
+      /* Run progress: frames the run has not reached yet read as waiting. */
+      .frame-card[data-state="pending"] {
+        opacity: 0.6;
+      }
+
+      .frame-card[data-state="active"] {
+        box-shadow: 0 0 0 3px var(--th-amber-soft);
+      }
+
+      .frame-card .frame-fact {
+        display: inline-block;
+        margin-top: 10px;
+        padding: 1px 8px;
+        border-radius: 99px;
+        background: var(--th-surface);
+        color: var(--th-surface-soft-ink);
+        font-size: var(--font-size-2xs);
+        font-style: normal;
+      }
+
+      .frame-card .frame-fact[data-fact="narrowed"] {
+        background: var(--th-amber-soft);
+        color: var(--th-amber-soft-ink);
+      }
+
+      .frame-card .frame-fact[data-fact="ok"] {
+        background: var(--th-teal-soft);
+        color: var(--th-teal-soft-ink);
+      }
+
+      .frame-card .frame-fact[data-fact="deny"] {
+        background: var(--th-red-soft);
+        color: var(--th-red-soft-ink);
       }
 
       .frame-card span,
@@ -943,6 +985,104 @@
         line-height: 1.6;
         white-space: pre-wrap;
         word-break: break-word;
+      }
+
+      /* Step sheet: what happened, what changed in the token, the wire exchange. */
+      .evidence-drawer[data-detail="true"] {
+        display: grid;
+        grid-template-columns: minmax(200px, 0.8fr) minmax(0, 1.7fr);
+        gap: 4px 24px;
+      }
+
+      .sheet-label {
+        margin: 16px 0 6px;
+        color: var(--th-surface-strong-ink);
+        font-size: var(--font-size-2xs);
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      .sheet-label:first-child {
+        margin-top: 0;
+      }
+
+      .sheet-tokens {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .sheet-token {
+        padding: 4px 9px;
+        border: 1px solid var(--th-line-strong);
+        background: var(--th-surface-soft);
+        color: var(--th-surface-soft-ink);
+        font-family: var(--font-code);
+        font-size: var(--font-size-2xs);
+      }
+
+      .claim-diff {
+        width: 100%;
+        border-collapse: collapse;
+        background: var(--th-surface-soft);
+        color: var(--th-surface-soft-ink);
+        font-family: var(--font-code);
+        font-size: var(--font-size-xs);
+      }
+
+      .claim-diff th,
+      .claim-diff td {
+        padding: 5px 10px;
+        border-top: 1px solid var(--th-line);
+        text-align: left;
+        vertical-align: top;
+        word-break: break-word;
+      }
+
+      .claim-diff th {
+        border-top: 0;
+        color: var(--th-muted);
+        font-size: var(--font-size-2xs);
+        text-transform: uppercase;
+      }
+
+      .claim-diff td:first-child {
+        width: 92px;
+        font-weight: 700;
+      }
+
+      .claim-diff tr[data-change="same"] td {
+        color: var(--th-muted);
+      }
+
+      .claim-diff tr[data-change="removed"] td:nth-child(2) {
+        color: var(--th-red-soft-ink);
+        text-decoration: line-through;
+      }
+
+      .claim-diff tr[data-change="added"] td:nth-child(3),
+      .claim-diff tr[data-change="changed"] td:nth-child(3) {
+        background: var(--th-amber-soft);
+        color: var(--th-amber-soft-ink);
+        font-weight: 700;
+      }
+
+      .sheet-io {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .sheet-io .evidence-code {
+        margin: 0;
+      }
+
+      @media (max-width: 900px) {
+        .evidence-drawer[data-detail="true"],
+        .sheet-io {
+          grid-template-columns: minmax(0, 1fr);
+        }
       }
 
       .learning-section {
@@ -1297,6 +1437,29 @@
           </div>
         </section>
 
+        <section class="reel-section">
+          <header class="panel-head">
+            <div>
+              <h2>Agent movie reel</h2>
+              <p>One action, every identity decision in sequence.</p>
+            </div>
+            <div class="reel-toolbar">
+              <button class="reel-action" type="button" data-reel-action="previous" aria-label="Previous frame">‹</button>
+              <span class="reel-count" data-reel-counter>0 / 0</span>
+              <button class="reel-action" type="button" data-reel-action="next" aria-label="Next frame">›</button>
+            </div>
+          </header>
+          <div class="reel-grid">
+            <div class="filmstrip" data-filmstrip aria-label="Lesson frames"></div>
+            <aside class="evidence-drawer" data-frame-evidence aria-live="polite">
+              <span class="frame-source">MOCK</span>
+              <h3>Evidence appears here</h3>
+              <p>Run the lesson, then select a frame to inspect the redacted proof.</p>
+              <pre class="evidence-code">No run started.</pre>
+            </aside>
+          </div>
+        </section>
+
         <section class="workspace">
           <article class="workspace-panel">
             <header class="panel-head">
@@ -1347,28 +1510,6 @@
           </aside>
         </section>
 
-        <section class="reel-section">
-          <header class="panel-head">
-            <div>
-              <h2>Agent movie reel</h2>
-              <p>One action, every identity decision in sequence.</p>
-            </div>
-            <div class="reel-toolbar">
-              <button class="reel-action" type="button" data-reel-action="previous" aria-label="Previous frame">‹</button>
-              <span class="reel-count" data-reel-counter>0 / 0</span>
-              <button class="reel-action" type="button" data-reel-action="next" aria-label="Next frame">›</button>
-            </div>
-          </header>
-          <div class="reel-grid">
-            <div class="filmstrip" data-filmstrip aria-label="Lesson frames"></div>
-            <aside class="evidence-drawer" data-frame-evidence aria-live="polite">
-              <span class="frame-source">MOCK</span>
-              <h3>Evidence appears here</h3>
-              <p>Run the lesson, then select a frame to inspect the redacted proof.</p>
-              <pre class="evidence-code">No run started.</pre>
-            </aside>
-          </div>
-        </section>
 
         <section class="learning-section">
           <article class="product-map">
@@ -1400,6 +1541,23 @@
     <script>
       (() => {
         const stageOrder = ["discover", "register", "authenticate", "authorize", "govern"];
+
+        // Sample claims for the mock reel. They follow the shapes the live token chain
+        // records (user token -> agent token -> RFC 8693 exchange: scope narrows, act
+        // appears, aud rebinds, exp shortens) but no real token is issued or read.
+        const ISS = "https://auth.pingone.com/<env-id>/as";
+        const USER_TOKEN = {
+          iss: ISS, sub: "customer-1042", aud: "banking_api",
+          scope: "openid accounts:read accounts:transfer", client_id: "banking-web", exp: "+3600s", jti: "f7d2…41ab",
+        };
+        const AGENT_TOKEN = {
+          iss: ISS, sub: "banking-assistant", aud: "token-exchange",
+          scope: "exchange", client_id: "banking-assistant", exp: "+600s", jti: "0c9e…77d3",
+        };
+        const EXCHANGED_TOKEN = {
+          iss: ISS, sub: "customer-1042", aud: "mcp-resource",
+          scope: "accounts:read", act: '{ "sub": "banking-assistant" }', client_id: "banking-assistant", exp: "+300s", jti: "b81a…e5f0",
+        };
         const lessons = [
           {
             id: "landscape",
@@ -1447,7 +1605,24 @@
             frameProducts: ["OIDC + PKCE", "PingOne Authentication", "OAuth authorization-code exchange", "BFF session boundary"],
             presenter: "The browser participates in the redirect, but the BFF owns the sensitive exchange and session.",
             deepDive: "/oauth-academy",
-            frames: [["authenticate", "Authorization request", "The browser starts an OIDC authorization-code flow with PKCE.", "response_type=code\ncode_challenge=[redacted]"], ["authenticate", "PingOne sign-in", "PingOne authenticates the customer and returns a one-time code.", "issuer=PingOne\nresult=authenticated"], ["authenticate", "Server-side exchange", "The BFF redeems the code and does not return tokens to browser JavaScript.", "custodian=BFF\ncode=[redacted]"], ["govern", "Session established", "The application records a bounded authenticated session.", "session=active\ntokens=server-side"]],
+            frames: [["authenticate", "Authorization request", "The browser starts an OIDC authorization-code flow with PKCE.", "response_type=code\ncode_challenge=[redacted]", {
+            fact: "PKCE S256", fc: "ok", tokens: [], before: null, after: null,
+            req: "GET /as/authorize\n  response_type=code\n  code_challenge_method=S256\n  code_challenge=[redacted]\n  scope=openid accounts:read accounts:transfer",
+            res: "302 to the PingOne sign-in page\n  no token issued yet",
+          }], ["authenticate", "PingOne sign-in", "PingOne authenticates the customer and returns a one-time code.", "issuer=PingOne\nresult=authenticated", {
+            fact: "code issued", fc: "ok", tokens: ["Authorization code (one-time)"], before: null, after: null,
+            req: "POST sign-in\n  credentials=[redacted]\n  mfa=satisfied",
+            res: "302 /callback?code=[redacted]\n  code is single-use and bound to the PKCE challenge",
+          }], ["authenticate", "Server-side exchange", "The BFF redeems the code and does not return tokens to browser JavaScript.", "custodian=BFF\ncode=[redacted]", {
+            fact: "user token issued", fc: "ok", tokens: ["User access token", "ID token"], before: null, after: USER_TOKEN,
+            req: "POST /as/token\n  grant_type=authorization_code\n  code=[redacted]\n  code_verifier=[redacted]",
+            res: "200 from PingOne to the BFF\n  access_token (JWT), id_token, expires_in: 3600\n  the browser never sees these",
+          }], ["govern", "Session established", "The application records a bounded authenticated session.", "session=active\ntokens=server-side", {
+            fact: "browser holds cookie only", fc: "ok", tokens: ["Session cookie (HttpOnly)"], before: null,
+            after: { sid: "s-8e21…", sub: "customer-1042", cookie: "HttpOnly; Secure; SameSite", tokens: "held server-side by the BFF" },
+            req: "GET /api/auth/session\n  Cookie: session=[redacted]",
+            res: "200 { authenticated: true, sub: \"customer-1042\" }\n  no bearer token in the response body",
+          }]],
           },
           {
             id: "delegation",
@@ -1467,7 +1642,25 @@
             presenter: "The customer remains visible in the chain; the agent gains only the authority required for this hop.",
             deepDive: "/token-exchange-tester",
             demoBeat: { deepDive: "/use-cases/live", action: "Step 2 · delegated balance read (UC1)", say: "No password handed over. The agent got a token that says it acts for me - the act claim. Every step is attributable to me." },
-            frames: [["authenticate", "Customer subject", "The BFF retrieves the customer's server-side token.", "sub=customer-1042\nscope=openid accounts"], ["authenticate", "Agent actor", "The controlled assistant proves its own client identity.", "act.sub=banking-assistant"], ["authorize", "Token exchange", "PingOne mints a resource-specific delegated token.", "aud=mcp-resource\nscope=accounts:read"], ["govern", "Attributable result", "The tool result stays connected to both customer and acting agent.", "outcome=completed\nactor_chain=preserved"]],
+            frames: [["authenticate", "Customer subject", "The BFF retrieves the customer's server-side token.", "sub=customer-1042\nscope=openid accounts", {
+            fact: "user token held", fc: "ok", tokens: ["User access token"], before: null, after: USER_TOKEN,
+            req: "BFF reads the server-side session\n  access_token for sub=customer-1042",
+            res: "token stays in the BFF; the agent receives no credential yet",
+          }], ["authenticate", "Agent actor", "The controlled assistant proves its own client identity.", "act.sub=banking-assistant", {
+            fact: "agent token minted", fc: "ok", tokens: ["Agent access token"], before: null, after: AGENT_TOKEN,
+            req: "POST /as/token\n  grant_type=client_credentials\n  client_id=banking-assistant\n  scope=exchange",
+            res: "200 { access_token (JWT), expires_in: 600 }\n  says who the actor is; says nothing about the customer",
+          }], ["authorize", "Token exchange", "PingOne mints a resource-specific delegated token.", "aud=mcp-resource\nscope=accounts:read", {
+            fact: "scope narrowed 3 → 1", fc: "narrowed",
+            tokens: ["User access token (subject)", "Agent access token (actor)", "Exchanged token (issued)"],
+            before: USER_TOKEN, after: EXCHANGED_TOKEN,
+            req: "POST /as/token\n  grant_type=urn:ietf:params:oauth:grant-type:token-exchange\n  subject_token=<user token>\n  actor_token=<agent token>\n  audience=mcp-resource\n  scope=accounts:read",
+            res: "200\n  issued_token_type: access_token\n  expires_in: 300\n  transfer rights dropped; lifetime cut from 1 hour to 5 minutes",
+          }], ["govern", "Attributable result", "The tool result stays connected to both customer and acting agent.", "outcome=completed\nactor_chain=preserved", {
+            fact: "actor chain kept", fc: "ok", tokens: ["Exchanged token"], before: EXCHANGED_TOKEN, after: EXCHANGED_TOKEN,
+            req: "tools/call get_account_balance\n  Authorization: Bearer <exchanged token>",
+            res: "{ \"balance\": 4218.60 }\naudit: customer-1042 acted through banking-assistant",
+          }]],
           },
           {
             id: "personal-agent",
@@ -1524,7 +1717,23 @@
             frameProducts: ["MCP initialize", "MCP tools/list", "Agent Gateway + PingOne Authorize", "MCP tools/call + Audit"],
             presenter: "A tool appearing in tools/list is discovery evidence. The later policy decision is execution authority.",
             deepDive: "/mcp-discovery",
-            frames: [["discover", "Initialize MCP", "The client and server establish protocol capabilities.", "method=initialize\nstatus=ready"], ["discover", "List tools", "The agent receives names, descriptions, and input schemas.", "method=tools/list\ntools=12"], ["authorize", "Check invocation", "Gateway and policy validate identity, scope, tool, and arguments.", "tool=get_account_balance\ndecision=PERMIT"], ["govern", "Return and audit", "The tool result is returned with correlated execution evidence.", "method=tools/call\noutcome=completed"]],
+            frames: [["discover", "Initialize MCP", "The client and server establish protocol capabilities.", "method=initialize\nstatus=ready", {
+            fact: "capabilities agreed", fc: "ok", tokens: ["Exchanged token"], before: EXCHANGED_TOKEN, after: EXCHANGED_TOKEN,
+            req: "POST /mcp  Authorization: Bearer <exchanged token>\n  method: initialize\n  protocolVersion: 2025-06-18",
+            res: "200 { serverInfo, capabilities: { tools } }",
+          }], ["discover", "List tools", "The agent receives names, descriptions, and input schemas.", "method=tools/list\ntools=12", {
+            fact: "listed, not permitted", fc: "narrowed", tokens: ["Exchanged token"], before: EXCHANGED_TOKEN, after: EXCHANGED_TOKEN,
+            req: "POST /mcp\n  method: tools/list",
+            res: "200 { tools: [ get_account_balance, create_transfer, … ] }\n  a schema in this list is discovery evidence, not execution authority",
+          }], ["authorize", "Check invocation", "Gateway and policy validate identity, scope, tool, and arguments.", "tool=get_account_balance\ndecision=PERMIT", {
+            fact: "PERMIT", fc: "ok", tokens: ["Exchanged token"], before: EXCHANGED_TOKEN, after: EXCHANGED_TOKEN,
+            req: "decision request\n  subject: customer-1042\n  actor: banking-assistant\n  resource: mcp-resource\n  action: tools/call get_account_balance",
+            res: "decision: PERMIT\n  checks: signature, exp, aud=mcp-resource, scope covers accounts:read",
+          }], ["govern", "Return and audit", "The tool result is returned with correlated execution evidence.", "method=tools/call\noutcome=completed", {
+            fact: "audit linked", fc: "ok", tokens: ["Exchanged token"], before: EXCHANGED_TOKEN, after: EXCHANGED_TOKEN,
+            req: "tools/call get_account_balance\n  arguments: { account: \"checking\" }",
+            res: "{ \"balance\": 4218.60 }\naudit: trace-id linked to sub and act",
+          }]],
           },
           {
             id: "authorize",
@@ -1544,7 +1753,20 @@
             presenter: "The agent may request either action. Only the independently evaluated policy result reaches the protected tool.",
             demoBeat: { deepDive: "/use-cases/live", action: "Step 4 · transfer $2500 over the ceiling (UC6)", say: "Money now. $2500. PingOne Authorize returns DENY before the transfer runs - over the ceiling. The agent can't argue." },
             deepDive: "/agent-gateway-authorization",
-            frames: [["authenticate", "Same identities", "Both requests carry the same customer and agent relationship.", "sub=customer\nact.sub=assistant"], ["authorize", "Permit account read", "The read action matches scope and policy context.", "action=accounts:read\ndecision=PERMIT"], ["authorize", "Deny large transfer", "The transfer exceeds the policy threshold.", "action=transfer\namount=12500\ndecision=DENY"], ["govern", "Enforce both", "The gateway dispatches the read and blocks the transfer before tool execution.", "read=dispatched\ntransfer=not reached"]],
+            frames: [["authenticate", "Same identities", "Both requests carry the same customer and agent relationship.", "sub=customer\nact.sub=assistant", {
+            fact: "same customer + agent", fc: "ok", tokens: ["Exchanged token"], before: EXCHANGED_TOKEN, after: EXCHANGED_TOKEN,
+            req: "both requests present the same exchanged token",
+            res: "sub: customer-1042\nact.sub: banking-assistant",
+          }], ["authorize", "Permit account read", "The read action matches scope and policy context.", "action=accounts:read\ndecision=PERMIT", {
+            fact: "PERMIT", fc: "ok", tokens: ["Exchanged token"], before: EXCHANGED_TOKEN, after: EXCHANGED_TOKEN,
+            req: "decision request\n  action: accounts:read\n  amount: n/a",
+            res: "decision: PERMIT\n  policy: read-only-agent-access",
+          }], ["authorize", "Deny large transfer", "The transfer exceeds the policy threshold.", "action=transfer\namount=12500\ndecision=DENY", {
+            fact: "DENY", fc: "deny", tokens: ["Exchanged token"],
+            before: EXCHANGED_TOKEN, after: EXCHANGED_TOKEN,
+            req: "decision request\n  action: transfer\n  amount: 12500",
+            res: "decision: DENY\n  reason: amount over threshold; scope lacks accounts:transfer",
+          }], ["govern", "Enforce both", "The gateway dispatches the read and blocks the transfer before tool execution.", "read=dispatched\ntransfer=not reached"]],
           },
           {
             id: "human-approval",
@@ -1690,6 +1912,93 @@
           return "MOCK";
         }
 
+        // Real mode mirrors the last run the agent made in the application: the shell posts
+        // that run's steps (same store the dashboard reel reads) and they replace the mock
+        // frames, however many hops the run actually had. Only token lessons have a real source.
+        let realTrace = null;
+        const REAL_STEP_IDS = {
+          login: ["website", "signin"],
+          delegation: ["agent-token", "exchange-1", "exchange", "id-jag-issued", "id-jag-redeemed"],
+          mcp: ["tools-list-challenge", "tools-list", "tools-call-challenge", "gateway", "vault-key-inject", "api-key-swap", "mcp", "api", "database"],
+          authorize: ["authorize", "stepup", "intent-binding"],
+        };
+        const REAL_STAGE = {
+          website: "authenticate", signin: "authenticate", "agent-token": "authenticate", "exchange-1": "authenticate",
+          exchange: "authorize", "id-jag-issued": "authorize", "id-jag-redeemed": "authorize",
+          authorize: "authorize", stepup: "authorize", "intent-binding": "authorize",
+          "tools-list-challenge": "discover", "tools-list": "discover",
+        };
+        const REAL_RAN = ["done", "active", "denied", "error"];
+        const realFrameCache = new Map();
+
+        function parseClaims(textValue) {
+          try {
+            const value = JSON.parse(textValue);
+            return value && typeof value === "object" && !Array.isArray(value) ? value : null;
+          } catch {
+            return null;
+          }
+        }
+
+        function stringifyValue(value) {
+          return value && typeof value === "object" ? JSON.stringify(value) : String(value);
+        }
+
+        function realFrame(step) {
+          const d = step.detail || {};
+          const kv = Array.isArray(d.kv) ? Object.fromEntries(d.kv.map(([k, v]) => [k, stringifyValue(v)])) : null;
+          const before = parseClaims(d.beforeAfter?.before?.text);
+          const after = parseClaims(d.beforeAfter?.after?.text) || (before ? null : kv);
+          const scopeDiff = d.scopeDiff;
+          const narrowed = Array.isArray(scopeDiff?.before) && Array.isArray(scopeDiff?.after) &&
+            scopeDiff.after.length < scopeDiff.before.length;
+          const failed = step.status === "denied" || step.status === "error";
+          const fact = (Array.isArray(d.facts) && d.facts[0]) ||
+            (narrowed ? `scope narrowed ${scopeDiff.before.length} → ${scopeDiff.after.length}` : "") ||
+            (failed ? step.status : "done");
+          const title = esc(String(step.title || step.id).split(" — ")[0]);
+          return [
+            REAL_STAGE[step.baseId || step.id] || "govern",
+            title,
+            esc(d.narrative || step.title || ""),
+            esc(kv ? Object.entries(kv).map(([k, v]) => `${k}=${v}`).join("\n") : "no claims recorded"),
+            {
+              fact, fc: failed ? "deny" : narrowed ? "narrowed" : "ok",
+              tokens: d.inspectToken ? [`${d.inspectToken} token`] : [],
+              before: before, after: after,
+              req: d.request?.text || "—", res: d.response?.text || "—",
+            },
+            step.lane,
+          ];
+        }
+
+        // Steps that ran and belong to this lesson; null when Real has nothing for it.
+        function realFramesFor(lesson) {
+          const ids = REAL_STEP_IDS[lesson.id];
+          if (!ids || !realReady || !realTrace) return null;
+          const key = `${lesson.id}:${realTrace.stamp}`;
+          if (!realFrameCache.has(key)) {
+            realFrameCache.set(key, realTrace.steps
+              .filter((step) => ids.includes(step.baseId || step.id) && REAL_RAN.includes(step.status))
+              .map(realFrame));
+          }
+          const frames = realFrameCache.get(key);
+          return frames.length ? frames : null;
+        }
+
+        // Sample claims belong to Mock only; a real frame carries its own 6th element (lane).
+        function frameDetail(frame) {
+          return document.body.dataset.runSource === "mock" || frame.length > 5 ? frame[4] : undefined;
+        }
+
+        function lessonFrames() {
+          if (document.body.dataset.runSource === "real") {
+            const real = realFramesFor(activeLesson);
+            if (real) return real;
+          }
+          return activeLesson.frames;
+        }
+
         function readyStatus() {
           if (document.body.dataset.runSource === "real") {
             return realReady
@@ -1703,7 +2012,7 @@
         }
 
         function activeStages() {
-          const frameStages = activeLesson.frames.map((frame) => frame[0]);
+          const frameStages = lessonFrames().map((frame) => frame[0]);
           return stageOrder.filter((stage) =>
             activeLesson.stages.includes(stage) || frameStages.includes(stage),
           );
@@ -1739,11 +2048,11 @@
           document.querySelector("[data-product-chips]").innerHTML = activeLesson.products.map((product) => `
             <span class="product-chip">${product}</span>
           `).join("");
-          document.querySelector("[data-product-map]").innerHTML = activeLesson.frames.map((frame, index) => `
+          document.querySelector("[data-product-map]").innerHTML = lessonFrames().map((frame, index) => `
             <li data-frame-product="${index}">
               <span>${String(index + 1).padStart(2, "0")} · ${frame[1]}</span>
               <span aria-hidden="true">→</span>
-              <strong>${activeLesson.frameProducts[index]}</strong>
+              <strong>${frame[5] ?? activeLesson.frameProducts[index]}</strong>
             </li>
           `).join("");
           text("[data-product-map-copy]", `This lesson crosses ${activeStages().map((stage) => stage[0].toUpperCase() + stage.slice(1)).join(", ")}. Each frame names the product or standard responsible for the control.`);
@@ -1751,29 +2060,110 @@
 
         function renderFrames() {
           const filmstrip = document.querySelector("[data-filmstrip]");
-          filmstrip.innerHTML = activeLesson.frames.map((frame, index) => `
-            <button class="frame-card" type="button" data-frame-index="${index}" data-stage="${frame[0]}" data-selected="${index === activeFrame}" aria-pressed="${index === activeFrame}">
+          // Once a run has started, frames behind the playhead read as done and
+          // frames ahead of it as waiting, the way the live reel shows a run.
+          const tracking = (startedLessons.has(activeLesson.id) || document.body.dataset.runSource === "real") && activeFrame >= 0;
+          filmstrip.innerHTML = lessonFrames().map((frame, index) => {
+            const state = !tracking ? "" : index < activeFrame ? "done" : index === activeFrame ? "active" : "pending";
+            const detail = frameDetail(frame);
+            const factText = state === "pending" ? "waiting" : detail?.fact;
+            const factKind = state === "pending" ? "" : detail?.fc || "";
+            return `
+            <button class="frame-card" type="button" data-frame-index="${index}" data-stage="${frame[0]}" data-state="${state}" data-selected="${index === activeFrame}" aria-pressed="${index === activeFrame}">
               <span>${String(index + 1).padStart(2, "0")} · ${frame[0]}</span>
               <strong>${frame[1]}</strong>
               <small>${frame[2]}</small>
+              ${factText ? `<em class="frame-fact" data-fact="${factKind}">${esc(factText)}</em>` : ""}
             </button>
-          `).join("");
+          `;
+          }).join("");
           filmstrip.querySelectorAll("[data-frame-index]").forEach((button) => {
             button.addEventListener("click", () => selectFrame(Number(button.dataset.frameIndex), true));
           });
-          text("[data-reel-counter]", `${activeFrame < 0 ? 0 : activeFrame + 1} / ${activeLesson.frames.length}`);
+          text("[data-reel-counter]", `${activeFrame < 0 ? 0 : activeFrame + 1} / ${lessonFrames().length}`);
           document.querySelector('[data-reel-action="previous"]').disabled = activeFrame <= 0;
-          document.querySelector('[data-reel-action="next"]').disabled = activeFrame === activeLesson.frames.length - 1;
+          document.querySelector('[data-reel-action="next"]').disabled = activeFrame === lessonFrames().length - 1;
         }
 
         function renderEvidence() {
           const drawer = document.querySelector("[data-frame-evidence]");
+          drawer.dataset.detail = "false";
           if (activeFrame < 0) {
             drawer.innerHTML = `<span class="frame-source">${sourceLabel()}</span><h3>Evidence appears here</h3><p>Run the lesson, then select a frame to inspect the redacted proof.</p><pre class="evidence-code">No run started.</pre>`;
             return;
           }
-          const frame = activeLesson.frames[activeFrame];
-          drawer.innerHTML = `<span class="frame-source">${sourceLabel()}</span><h3>${frame[1]}</h3><p>${frame[2]}</p><pre class="evidence-code">${sourceLabel()}\n${frame[3]}</pre>`;
+          const frame = lessonFrames()[activeFrame];
+          const detail = frameDetail(frame);
+          if (!detail) {
+            drawer.innerHTML = `<span class="frame-source">${sourceLabel()}</span><h3>${frame[1]}</h3><p>${frame[2]}</p><pre class="evidence-code">${sourceLabel()}\n${frame[3]}</pre>`;
+            return;
+          }
+          drawer.dataset.detail = "true";
+          const tokens = detail.tokens.length
+            ? `<div class="sheet-label">Tokens in play</div><div class="sheet-tokens">${detail.tokens.map((t) => `<span class="sheet-token">${esc(t)}</span>`).join("")}</div>`
+            : "";
+          const changes = detail.before || detail.after
+            ? claimDiff(detail.before, detail.after)
+            : `<p>No token at this step.</p>`;
+          drawer.innerHTML = `
+            <div>
+              <span class="frame-source">${sourceLabel()}${sourceLabel() === "MOCK" ? " · sample claims" : ""}</span>
+              <h3>${frame[1]}</h3>
+              <div class="sheet-label">What happened</div>
+              <p>${frame[2]}</p>
+              ${tokens}
+            </div>
+            <div>
+              <div class="sheet-label">What changed</div>
+              ${changes}
+              <div class="sheet-label">Request and response</div>
+              <div class="sheet-io">
+                <pre class="evidence-code">${esc(detail.req)}</pre>
+                <pre class="evidence-code">${esc(detail.res)}</pre>
+              </div>
+            </div>`;
+        }
+
+        function esc(value) {
+          return String(value).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+        }
+
+        // Every claim of both tokens, with only the ones that moved marked.
+        function claimDiff(before, after) {
+          const keys = [...new Set([...Object.keys(before || {}), ...Object.keys(after || {})])];
+          const rows = keys.map((key) => {
+            const b = before?.[key];
+            const a = after?.[key];
+            const change = b === undefined ? "added" : a === undefined ? "removed" : b !== a ? "changed" : "same";
+            return `<tr data-change="${change}"><td>${esc(key)}</td><td>${b === undefined ? "—" : esc(b)}</td><td>${a === undefined ? "—" : esc(a)}</td></tr>`;
+          }).join("");
+          return `<table class="claim-diff"><thead><tr><th>Claim</th><th>Before</th><th>After</th></tr></thead><tbody>${rows}</tbody></table>`;
+        }
+
+        let playTimer = null;
+        const PLAY_INTERVAL_MS = 2200;
+
+        function stopPlayback() {
+          if (playTimer) window.clearInterval(playTimer);
+          playTimer = null;
+          const runAction = document.querySelector("[data-run-action]");
+          if (!runAction) return;
+          if (document.body.dataset.runSource === "mock") runAction.textContent = "Run mock";
+          else if (realFramesFor(activeLesson)) runAction.textContent = "Replay real run";
+        }
+
+        function startPlayback() {
+          stopPlayback();
+          document.querySelector("[data-run-action]").textContent = "Pause";
+          playTimer = window.setInterval(() => {
+            if (activeFrame >= lessonFrames().length - 1) {
+              stopPlayback();
+              return;
+            }
+            const running = document.body.dataset.runSource === "real" ? "Replaying real run" : "Running mock";
+            text("[data-run-status]", `${running} · Frame ${activeFrame + 2} selected.`);
+            selectFrame(activeFrame + 1, false, true);
+          }, PLAY_INTERVAL_MS);
         }
 
         function renderReadiness() {
@@ -1783,7 +2173,20 @@
           const sourceBadge = document.querySelector("[data-source-badge]");
           sourceBadge.textContent = sourceLabel();
           runAction.disabled = source !== "mock";
-          if (source === "real" && realReady) {
+          const realCount = source === "real" ? realFramesFor(activeLesson)?.length : 0;
+          if (realCount) {
+            readiness.dataset.state = "ready";
+            text("[data-readiness-title]", "Real run loaded");
+            text("[data-readiness-copy]", `${realCount} hop${realCount === 1 ? "" : "s"} from the last run in the application. Replay to walk through them.`);
+            runAction.textContent = playTimer ? "Pause" : "Replay real run";
+            runAction.disabled = false;
+          } else if (source === "real" && realReady && REAL_STEP_IDS[activeLesson.id]) {
+            readiness.dataset.state = "ready";
+            text("[data-readiness-title]", "No real run for this lesson yet");
+            text("[data-readiness-copy]", "Run an agent request in the application, then return here. The hops appear as the run records them.");
+            runAction.textContent = "Waiting for a real run";
+            runAction.disabled = true;
+          } else if (source === "real" && realReady) {
             readiness.dataset.state = "ready";
             text("[data-readiness-title]", "Real tenant is ready");
             text("[data-readiness-copy]", "PingOne tenant is configured. Open the Guided Journey or the 15-min demo for live evidence.");
@@ -1884,6 +2287,7 @@
         function selectLesson(id) {
           const lesson = byId.get(id);
           if (!lesson) return;
+          stopPlayback();
           activeLesson = lesson;
           activeFrame = -1;
           journeyComplete = false;
@@ -1893,13 +2297,15 @@
           renderLesson();
         }
 
-        function selectFrame(index, focusFrame = false) {
-          if (index < 0 || index >= activeLesson.frames.length) return;
+        function selectFrame(index, focusFrame = false, auto = false) {
+          if (index < 0 || index >= lessonFrames().length) return;
+          // A manual pick takes over from playback; the last auto frame ends it.
+          if (!auto || index === lessonFrames().length - 1) stopPlayback();
           activeFrame = index;
           renderFrames();
           renderEvidence();
           const selected = document.querySelector(`[data-frame-index="${index}"]`);
-          if (activeFrame === activeLesson.frames.length - 1 && document.body.dataset.runSource === "mock") {
+          if (activeFrame === lessonFrames().length - 1 && document.body.dataset.runSource === "mock") {
             if (startedLessons.has(activeLesson.id)) {
               text("[data-run-status]", "Mock complete · Final frame selected.");
             } else {
@@ -1908,10 +2314,13 @@
             if (document.body.dataset.mode === "guided" && startedLessons.has(activeLesson.id)) {
               journeyResults.set(activeLesson.id, {
                 source: "MOCK",
-                outcome: activeLesson.frames[activeFrame][1],
+                outcome: lessonFrames()[activeFrame][1],
               });
               renderJourney();
             }
+          }
+          if (activeFrame === lessonFrames().length - 1 && document.body.dataset.runSource === "real") {
+            text("[data-run-status]", "Real run replay complete · Final hop selected.");
           }
           if (selected && focusFrame) selected.focus();
           if (selected && typeof selected.scrollIntoView === "function") {
@@ -1920,12 +2329,28 @@
           }
         }
 
+        // A new real run, or a finished tenant probe, changes what Real shows: redraw it.
+        function refreshReal() {
+          if (document.body.dataset.runSource !== "real") return;
+          stopPlayback();
+          activeFrame = -1;
+          renderStages();
+          renderProducts();
+          renderFrames();
+          renderEvidence();
+          renderReadiness();
+          text("[data-run-status]", realFramesFor(activeLesson) ? "Real run loaded. Replay it to walk through each hop." : readyStatus());
+        }
+
         function selectSource(source) {
+          stopPlayback();
           document.body.dataset.runSource = source;
           sourceButtons.forEach((button) => {
             button.setAttribute("aria-pressed", String(button.dataset.sourceTarget === source));
           });
           activeFrame = -1;
+          renderStages();
+          renderProducts();
           renderFrames();
           renderEvidence();
           renderReadiness();
@@ -1957,8 +2382,10 @@
           }
           if (token !== realProbeToken || document.body.dataset.runSource !== "real") return;
           realReady = configured;
+          realFrameCache.clear();
           renderReadiness();
           text("[data-run-status]", readyStatus());
+          if (realReady && realTrace) refreshReal();
         }
 
         function selectMode(mode) {
@@ -2016,12 +2443,19 @@
         });
 
         document.querySelector("[data-run-action]").addEventListener("click", () => {
-          if (document.body.dataset.runSource !== "mock") return;
-          startedLessons.add(activeLesson.id);
+          const source = document.body.dataset.runSource;
+          if (source !== "mock" && !(source === "real" && realFramesFor(activeLesson))) return;
+          if (playTimer) {
+            stopPlayback();
+            text("[data-run-status]", `Paused · Frame ${activeFrame + 1} selected.`);
+            return;
+          }
+          if (source === "mock") startedLessons.add(activeLesson.id);
           activeFrame = 0;
-          text("[data-run-status]", "Running mock · Frame 1 selected.");
+          text("[data-run-status]", source === "mock" ? "Running mock · Frame 1 selected." : "Replaying real run · Frame 1 selected.");
           renderFrames();
           renderEvidence();
+          if (lessonFrames().length > 1) startPlayback();
         });
 
         document.querySelector('[data-reel-action="previous"]').addEventListener("click", () => {
@@ -2029,7 +2463,7 @@
           selectFrame(activeFrame - 1);
         });
         document.querySelector('[data-reel-action="next"]').addEventListener("click", () => {
-          const next = activeFrame < 0 ? 0 : Math.min(activeFrame + 1, activeLesson.frames.length - 1);
+          const next = activeFrame < 0 ? 0 : Math.min(activeFrame + 1, lessonFrames().length - 1);
           selectFrame(next);
         });
 
@@ -2047,6 +2481,16 @@
           if (persist) localStorage.setItem("ba_dark_mode", String(dark));
         }
         themeToggle.addEventListener("click", () => setTheme(document.documentElement.dataset.theme !== "dark"));
+        // The application shell posts the last real run (same steps its dashboard reel draws).
+        let traceStamp = 0;
+        window.addEventListener("message", (event) => {
+          if (event.origin !== window.location.origin || event.source !== window.parent) return;
+          if (event.data?.type !== "academy-trace" || !Array.isArray(event.data.steps)) return;
+          traceStamp += 1;
+          realTrace = event.data.steps.length ? { steps: event.data.steps, stamp: traceStamp } : null;
+          realFrameCache.clear();
+          refreshReal();
+        });
         window.addEventListener("message", (event) => {
           if (event.origin !== window.location.origin) return;
           if (event.data?.type !== "academy-theme") return;

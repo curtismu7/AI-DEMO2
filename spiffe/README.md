@@ -45,7 +45,11 @@ PF 13 side (recreate with `spiffe/pingfederate/*.json` against
 - Access token mapping: POST `/oauth/accessTokenMappings` with
   `spiffe-te-atm-mapping.json` (context `TOKEN_EXCHANGE_PROCESSOR_POLICY`,
   ATM `aiDemoPfJwtAtm`; the context prefix PF prepends is the token-exchange
-  grant URI).
+  grant URI). It emits the actor's SPIFFE ID as `client_id` and `act.sub`
+  (`spiffe://bxfinance.demo/ns/ai-agents/sa/workforce-ai-agent`, the SVID the
+  BFF mints for label `workforce-agent`). The mapping is per-policy, so other
+  PF exchanges keep their own shape. To apply a change to a running PF, PUT
+  the mapping to `/oauth/accessTokenMappings/<id>` instead of POSTing.
 - `spiffe-te-client.json` → POST `/oauth/clients` (client
   `ai-demo-spiffe-te`, TOKEN_EXCHANGE only).
 

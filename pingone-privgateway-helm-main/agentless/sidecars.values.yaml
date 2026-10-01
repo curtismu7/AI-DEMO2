@@ -35,6 +35,11 @@
 imagePullSecrets:
   - name: ghcr-pull-secret
 
+# The gateway binary's sample page has no UTF-8 declaration, advertises demo
+# tools, and points public clients to localhost. Route only / to our page.
+landingPage:
+  enabled: true
+
 extraContainers:
   # Moved 8080 -> 8084 on 2026-09-09 to free 8080 for mcp-openapi-banking.
   #

@@ -82,23 +82,21 @@ below.
    ```bash
    node librechat/seed-demo-agents.js
    ```
-   Creates public agents — Everyday Banking, Money Movement, Support and
-   Fees, Super Sports, Super Sports Gear & Rentals, Super Sports Orders &
-   Loyalty, Super Sports Stores & Code — each on PingOne Privilege (OpenAI) /
-   `gpt-4o-mini` with a few `aidemo-mcp` tools and four clickable starter
-   prompts. Pick one in the agent selector and click a prompt. Re-run it to
-   update them in place. The three "Super Sports …" data agents read the
-   seeded Super Sports store through the BFF vertical-tool relay.
-   Every click is a real OpenAI call billed to the Privilege virtual key, and
-   Money Movement changes the demo balances.
+   Creates public agents — the Super Sports, OpenSearch and Privilege ones
+   only; `UI_AGENT_NAME` in the seed filters the rest out, so the Banking and
+   CareConnect definitions it still carries are source history and are never
+   recreated (4e0aee902). Each runs on PingOne Privilege (OpenAI) /
+   `gpt-4o-mini` with a few MCP tools and clickable starter prompts. Pick one
+   in the agent selector and click a prompt. Re-run it to update them in
+   place. The "Super Sports …" data agents read the seeded Super Sports store
+   through the BFF vertical-tool relay. Every click is a real OpenAI call
+   billed to the Privilege virtual key.
 
    Three ways users find the prompts:
    - **Demos menu** — the model selector lists agents in nested folders
-     (`modelSpecs` in `librechat.yaml`): `Demo Steps / <vertical> / Façade`,
-     `Agents / <vertical> / Direct|Façade`, `Connections / Privilege / ...`,
-     `Security & Policy / <vertical>`, and `Agent to Agent / <vertical>`.
-     Mac-only choices are under `Connections / Mac Agent` (the host-local
-     OpenSearch path and local model proxy).
+     (`modelSpecs` in `librechat.yaml`): `Sports`, `Sports / Direct`,
+     `Sports / Demo Steps`, `Sports / Local Model` (the host-local model
+     proxy) and `OpenSearch`.
      Picking one opens it on a new chat with its starters. The specs hold agent
      ids from this machine's Mongo volume: after a fresh volume, copy the ids
      the seed prints into that list.
@@ -111,50 +109,39 @@ below.
    inside an existing chat switches that chat's agent with no starters — open
    a new chat first.
 
-   **Same agent, two model paths.** Everyday Banking · Local model and Super
-   Sports Stores & Code · Local model copy those agents onto the Local LLM
-   Proxy (`gpt-oss-20b`), with no Privilege in front. Run the same starter on
-   each pair in two new chats: Everyday Banking answers on both paths, while
-   "What Super Sports stores are near me?" can be blocked on the Privilege
-   lane (data exfiltration on the store list) and is answered locally. The
-   block is not every time — 3/3 blocked on 2026-09-13, passed on 2026-09-14 —
-   so run it before a demo rather than promising it. The local copies need the
-   host model tiers running, and gpt-oss-20b can take several minutes to
-   answer.
+   **Same agent, two model paths.** Super Sports Stores & Code · Local model
+   copies that agent onto the Local LLM Proxy (`gpt-oss-20b`), with no
+   Privilege in front. Run the same starter on both in two new chats: "What
+   Super Sports stores are near me?" can be blocked on the Privilege lane
+   (data exfiltration on the store list) and is answered locally. The block is
+   not every time — 3/3 blocked on 2026-09-13, passed on 2026-09-14 — so run
+   it before a demo rather than promising it. The local copy needs the host
+   model tiers running, and gpt-oss-20b can take several minutes to answer.
 
-   **Agent-to-agent handoffs.** Three agents carry LibreChat handoff edges
-   (`handoffs` in the seed); the source agent gets an `lc_transfer_to_<agent>`
-   tool, and once it transfers, the target agent's own tools run in the same
-   chat with no new sign-in or consent:
-   - **Handoff · Account Viewer** — read-only; "Move $50 from checking to
-     savings" transfers to Money Movement, which runs `create_transfer`.
-   - **Handoff · Front Desk** — no tools; routes to Everyday Banking, Super
-     Sports Gear & Rentals or CareConnect Health Data.
-   - **Handoff · Super Sports Checkout** — reads gear orders, then hands
-     payment to Money Movement, so one chat reaches two business units.
-     "Withdraw $449 from checking to pay for order 2002" runs
-     `create_withdrawal` and stops at the demo's human-consent step
-     (`hitl_required`) — approve it on the web dashboard.
-
-   Account Viewer and Checkout change the demo balances. To see each step,
-   look for `Transferred to <agent>` between the two agents' tool calls.
+   **Agent-to-agent handoffs.** The seed can give an agent LibreChat handoff
+   edges (`handoffs`): the source agent gets an `lc_transfer_to_<agent>` tool,
+   and once it transfers, the target agent's own tools run in the same chat
+   with no new sign-in or consent. Proven live on 2026-09-14 (Account Viewer →
+   Money Movement ran `create_transfer`; a front-desk agent routed to three
+   specialists). **No handoff demo is seeded today:** 4e0aee902 removed the
+   Banking and CareConnect agents, so every remaining handoff target was gone —
+   Handoff · Super Sports Checkout now just reads gear orders and their status.
+   Re-adding one means seeding a target agent the source may hand off to.
 
    **Unattended runs.** Scheduling is switched on in `librechat.yaml`
    (`interface.schedules`, at most 3 schedules per user, hourly at most); without
-   that key LibreChat answers 403 "Scheduled chats are disabled". The seed also
-   creates three schedules owned by the seed account (sign in as it to see them
-   under Schedules), all **disabled** so nothing fires by surprise. Each run acts as the schedule's owner with
-   nobody present, reusing the owner's stored MCP sign-in; LibreChat checks the
-   agent's MCP servers before every run. Use **Run now** to demo one:
-   - **Morning balance report** — Everyday Banking reads balances and
-     transactions (daily 08:00 when enabled).
+   that key LibreChat answers 403 "Scheduled chats are disabled". The seed
+   creates one schedule owned by the seed account (sign in as it to see it
+   under Schedules), **disabled** so nothing fires by surprise. Each run acts
+   as the schedule's owner with nobody present, reusing the owner's stored MCP
+   sign-in; LibreChat checks the agent's MCP servers before every run. Use
+   **Run now** to demo it:
    - **Daily rentals check** — Super Sports Policy Guardrails on
      `Sports` (`super-sports-gateway`, daily 09:00). Sign in once; LibreChat
      reconnects the stored session on startup. With no stored sign-in the run
-     fails the MCP check.
-   - **Weekly savings sweep** — Money Movement, "Transfer $750 from checking to
-     savings" (Mondays 07:00). The amount is above the consent threshold, so
-     the run stops at human consent instead of moving money.
+     fails the MCP check (`mcp_reauth_required`, recorded on the run) — which
+     is itself the demo: an unattended agent cannot use a door its owner never
+     signed in to.
 
    It also creates Super Sports Policy Guardrails (on `Sports`)
    and three OpenSearch agents — OpenSearch · Direct, OpenSearch · via

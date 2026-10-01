@@ -32,10 +32,9 @@ async function readJson(res) {
   }
 }
 
-export async function startEmbeddedSignIn(client) {
-  const url = await client.authorize.url();
+export async function startEmbeddedSignInFromUrl(url, { allowImmediateCompletion = false } = {}) {
   if (typeof url !== "string") {
-    throw new EmbeddedSignInError("start_failed", url?.error || "Could not build the authorization URL.");
+    throw new EmbeddedSignInError("start_failed", "Could not build the authorization URL.");
   }
   const authorizeUrl = new URL(url);
   authorizeUrl.searchParams.set("response_mode", "pi.flow");
@@ -44,6 +43,15 @@ export async function startEmbeddedSignIn(client) {
   const flow = await readJson(res);
   if (!res.ok || !flow.id) {
     throw new EmbeddedSignInError("start_failed", flow.message || `PingOne did not start a flow (HTTP ${res.status}).`);
+  }
+  if (flow.status === "COMPLETED" && flow.authorizeResponse?.code && flow.authorizeResponse?.state) {
+    if (!allowImmediateCompletion) {
+      throw new EmbeddedSignInError("unsupported_step", "PingOne completed sign-in without a username and password step.", flow.status);
+    }
+    return {
+      code: flow.authorizeResponse.code,
+      state: flow.authorizeResponse.state,
+    };
   }
   if (flow.status !== "USERNAME_PASSWORD_REQUIRED") {
     throw new EmbeddedSignInError("unsupported_step", `PingOne asked for ${flow.status}, which this form does not handle.`, flow.status);
@@ -57,6 +65,14 @@ export async function startEmbeddedSignIn(client) {
     checkUrl,
     resumeBase: `${authorizeUrl.origin}${authorizeUrl.pathname.replace(/\/as\/authorize$/, "")}`,
   };
+}
+
+export async function startEmbeddedSignIn(client) {
+  const url = await client.authorize.url();
+  if (typeof url !== "string") {
+    throw new EmbeddedSignInError("start_failed", url?.error || "Could not build the authorization URL.");
+  }
+  return startEmbeddedSignInFromUrl(url);
 }
 
 export async function submitPassword(flow, username, password) {

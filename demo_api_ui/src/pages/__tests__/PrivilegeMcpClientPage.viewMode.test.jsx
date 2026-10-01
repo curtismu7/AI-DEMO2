@@ -63,10 +63,9 @@ describe("Demo / Inspect", () => {
     renderPage();
     await ready();
 
-    expect(tabNames()).toEqual(["Agent Chat", "A2A", "Tools"]);
-    // A2A and Tools stay in Demo on purpose: their demo flows and Run buttons
-    // are for presenting, not just inspection.
-    expect(screen.getByRole("button", { name: "Tools" })).toBeInTheDocument();
+    expect(tabNames()).toEqual(["Agent Chat", "A2A", "Tools", "User API Key & Secrets"]);
+    // A2A and Tools stay in Demo on purpose: their flows are for presenting.
+    expect(screen.getByRole("tab", { name: "Tools" })).toBeInTheDocument();
   });
 
   it("keeps TRACE and RESULTS in Demo, and adds RELAY LOG and SCOPES in Inspect", async () => {
@@ -85,9 +84,9 @@ describe("Demo / Inspect", () => {
     renderPage();
     await ready();
 
-    expect(screen.queryByRole("button", { name: "MCP Explorer" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Raw RPC" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Policies" })).toBeNull();
+    expect(screen.queryByRole("tab", { name: "MCP Explorer" })).toBeNull();
+    expect(screen.queryByRole("tab", { name: "Raw RPC" })).toBeNull();
+    expect(screen.queryByRole("tab", { name: "Policies" })).toBeNull();
     expect(screen.queryByRole("button", { name: /probe other doors/i })).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Inspect" }));
@@ -138,9 +137,9 @@ describe("Demo / Inspect", () => {
     renderPage();
     await ready();
 
-    fireEvent.click(screen.getByRole("button", { name: "Tools" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Tools" }));
     fireEvent.click(screen.getByRole("button", { name: "Inspect" }));
-    fireEvent.click(screen.getByRole("button", { name: "Policies" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Policies" }));
 
     // Back to Demo: not Agent Chat, the tab we actually left.
     fireEvent.click(screen.getByRole("button", { name: "Demo" }));

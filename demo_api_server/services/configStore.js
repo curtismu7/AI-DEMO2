@@ -112,6 +112,8 @@ const _SECRET_KEYS_RAW = [
   'demo_password',
   'demo_admin_password',
   'mcp_gw_client_secret',
+  // Legacy retired Recognize key: keep existing stored values encrypted even
+  // though no route or service reads or exposes this configuration anymore.
   'RECOGNIZE_API_KEY',
   'gw_introspection_client_secret',
   'pingone_client_jwt_private_key',
@@ -392,6 +394,8 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   ff_agent_clinical_split:   { public: true, default: 'false' }, // 2B refined clinical-split dashboard layout (chat-left, audit-timeline-right) behind feature flag
   llm_framework:             { public: true, default: 'langchain' }, // Agent framework — langchain/auto (see routes/featureFlags.js)
   ff_davinci_orchestration:  { public: true, default: 'false' }, // DaVinci multi-connector showcase (transaction step-up + widget login)
+  pingone_verify_enabled:    { public: true, default: 'false' }, // PingOne Verify customer proofing; remains disabled until tenant setup is confirmed
+  pingone_verify_policy_id:  { public: true, default: '' }, // Least-scope Verify policy selected by the tenant operator
   // Feature-flag registry IDs that were missing from FIELD_DEFS — without an
   // entry getEffective() can't resolve them and the env-override fallback below
   // never applies. defaults MUST match routes/featureFlags.js FLAG_REGISTRY.
@@ -411,7 +415,7 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   ff_rfc9470_challenge:      { public: true, default: 'true'  }, // RFC 9470 step-up challenge support in authorization
   hitl_consent_mfa_mode:     { public: true, default: 'device_picker' }, // HITL consent MFA: 'device_picker' (SMS/email/passkey list, only at/above the
                                                                   // step-up threshold — the demo default so $500+ shows the device picker), 'onetime' (a single PingOne email/SMS code), 'recognize'
-                                                                  // (face auth). Any other value safely falls back to PingOne one-time MFA.
+                                                                  // (retired legacy mode; contract gate forces OTP fallback). Any other value safely falls back to PingOne one-time MFA.
   step_up_enabled:                 { public: true, default: 'false' }, // Step-up MFA gate; mirrored into runtimeSettings.stepUpEnabled (runtimeKey)
   ff_trat_mode:                    { public: true, default: 'true'  }, // Enrich RFC 8693 exchange with Transaction Token (TraT) claims — draft-oauth-transaction-tokens-for-agents-00
   mcp_step9_resource_uri:          { public: true, default: ''     }, // MCP server BANKING_API_RESOURCE_URI mirror — when set, Step 9 exchange event appears in token chain
@@ -883,10 +887,6 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   demo_api_resource_server_key:             { public: false, default: 'demo-mortgage-key-0000' },
   demo_invest_service_key:               { public: false, default: 'demo-mortgage-key-0000' },
 
-  // PingOne Recognize — biometric / device intelligence
-  RECOGNIZE_API_KEY:    { public: false, default: '' },
-  RECOGNIZE_TENANT_NAME: { public: true,  default: '' },
-
   // MCP Gateway token introspection credentials (GW_INTROSPECTION_*).
   // Consumed by demo_mcp_gateway/src/config.ts via process.env; registered here
   // so the shared .env coverage guard can verify they are reachable via configStore.
@@ -1119,6 +1119,8 @@ const ENV_FALLBACK_MAP = {
   authorize_mcp_decision_endpoint_id: ['PINGONE_AUTHORIZE_MCP_DECISION_ENDPOINT_ID'],
   debug_oauth:                      ['DEBUG_OAUTH'],
   ciba_enabled:           ['CIBA_ENABLED'],
+  pingone_verify_enabled: ['PINGONE_VERIFY_ENABLED'],
+  pingone_verify_policy_id: ['PINGONE_VERIFY_POLICY_ID'],
   step_up_method:         ['STEP_UP_METHOD'],
   step_up_amount_threshold: ['STEP_UP_AMOUNT_THRESHOLD'],
   confirm_threshold_usd:    ['CONFIRM_THRESHOLD_USD', 'STEP_UP_AMOUNT_THRESHOLD'],
@@ -1670,6 +1672,14 @@ class ConfigStore {
     return envVal;
   }
 
+  /** Read a non-empty value only when the vault owns its cached provenance. */
+  getVaultValue(name) {
+    const key = String(name).toUpperCase();
+    if (this._provenance[key] !== 'vault') return null;
+    const value = this._cache[key];
+    return typeof value === 'string' && value.trim() !== '' ? value : null;
+  }
+
   /**
    * Persist new configuration values.
    * Accepts partial updates — only sets keys that are provided and non-empty.
@@ -1917,8 +1927,13 @@ class ConfigStore {
     return !!(envId && adminId);
   }
 
-  /** True when end-user OAuth (user_client_id) + environment id are present. */
+  /** True when the selected provider has its issuer/environment and user client ID. */
   isUserOAuthConfigured() {
+    if (this.getOAuthProvider() === 'pingfederate') {
+      const issuer = String(this.getEffective('pf_issuer') || '').trim();
+      const userId = String(this.getEffective('pf_user_client_id') || '').trim();
+      return !!(issuer && userId);
+    }
     const envId = String(this.getEffective('pingone_environment_id') || '').trim();
     const userId = String(this.getEffective('user_client_id') || '').trim();
     return !!(envId && userId);

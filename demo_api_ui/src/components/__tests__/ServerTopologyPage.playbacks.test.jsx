@@ -149,6 +149,22 @@ describe("Server topology use-case playback", () => {
     expect(unrelated.className).toContain("stm-edge--dimmed");
   });
 
+  it("clears an off-flow server selection when switching to flow-only mode", () => {
+    render(<ServerTopologyPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "LangChain agent" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Flow boxes only" }));
+
+    const langchain = reactFlowMocks.nodes.find((node) => node.id === "langchain");
+    const bff = reactFlowMocks.nodes.find((node) => node.id === "bff");
+    const routeEdge = reactFlowMocks.edges.find((edge) => edge.id === "browser-ingress");
+
+    expect(langchain).toBeUndefined();
+    expect(bff.style.opacity).toBeGreaterThan(0.9);
+    expect(routeEdge.style.opacity).toBeGreaterThan(0.9);
+    expect(screen.getByText("Select a server or connection")).toBeInTheDocument();
+  });
+
   it("keeps visible edge labels outside server cards", () => {
     render(<ServerTopologyPage />);
 

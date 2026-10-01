@@ -8,6 +8,8 @@ Each folder in this directory is an independently installable skill package cont
 |---|---|
 | [`pingdirectory-ai-demo/`](pingdirectory-ai-demo/) | PingDirectory LDAP integration, schema, groups, TLS, and operations |
 | [`pingaccess-ai-demo/`](pingaccess-ai-demo/) | PingAccess web/API enforcement and distinguishing it from PingGateway |
+| [`pingfederate-install/`](pingfederate-install/) | Install and first-run PingFederate (Docker, zip, or Kubernetes) |
+| [`pingfederate-id-jag/`](pingfederate-id-jag/) | PingFederate 13.1+ ID-JAG issuance via OAuth token exchange (refresh-token or ID-token subject), and the resource-side bearer grant |
 | [`pingid-ai-demo/`](pingid-ai-demo/) | PingID MFA integration, enrollment, and authentication policy |
 | [`pingauthorize-aam-ai-demo/`](pingauthorize-aam-ai-demo/) | PingOne Authorize API Access Management, Sideband, API services, and the demo's AAM path |
 | [`pingone-protect-ai-demo/`](pingone-protect-ai-demo/) | PingOne Protect and Signals risk-evaluation integration |

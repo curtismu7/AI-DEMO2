@@ -34,7 +34,9 @@ vi.mock("../TokenCard", () => ({
   default: ({ title }) => <div data-testid="token-card">{title}</div>,
 }));
 
+const ADMIN_STATUS_URL = "/api/auth/oauth/status";
 const STATUS_URL = "/api/auth/oauth/user/status";
+const CLAIMS_URL = "/api/auth/oauth/token-claims";
 const PREVIEW_URL = "/api/tokens/session-preview";
 
 const AUTHED_STATUS = {
@@ -55,7 +57,10 @@ const PREVIEW_WITH_USER_TOKEN = {
 
 function wireSuccess() {
   bffAxios.get.mockImplementation((url) => {
+    if (url === ADMIN_STATUS_URL) return Promise.resolve({ data: { authenticated: false } });
     if (url === STATUS_URL) return Promise.resolve({ data: AUTHED_STATUS });
+    // No decoded claims here, so the page falls back to the session preview.
+    if (url === CLAIMS_URL) return Promise.resolve({ data: { authenticated: false } });
     if (url === PREVIEW_URL) return Promise.resolve({ data: PREVIEW_WITH_USER_TOKEN });
     return Promise.reject(new Error(`unexpected url ${url}`));
   });
@@ -67,8 +72,8 @@ beforeEach(() => {
 });
 
 test("recovers from a transient fetch failure when Try Again is clicked", async () => {
-  // First mount: the status request rejects (transient network failure).
-  bffAxios.get.mockRejectedValueOnce(new Error("Network Error"));
+  // First mount: both status requests reject (transient network failure).
+  bffAxios.get.mockRejectedValue(new Error("Network Error"));
 
   render(<OAuthTokenDisplayPage />);
 

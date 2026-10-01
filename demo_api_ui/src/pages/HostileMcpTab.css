@@ -38,6 +38,7 @@
 .hmc-bar code {
   font-family: var(--font-mono);
   background: var(--th-bg-inset);
+  color: var(--th-text);
   border: 1px solid var(--th-border);
   border-radius: var(--radius-sm);
   padding: 0 0.25rem;
