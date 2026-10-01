@@ -126,7 +126,14 @@ function evidenceFromAgentInvoke({ response, provider, expectedIssuer, authoriza
  * `request(path, { method, body })` is the login handle's same-origin request.
  */
 function createCaseOperations({ request, provider, expectedIssuer }) {
-  async function verifyPrerequisites({ caseRow, prerequisites }) {
+  async function verifyPrerequisites({ caseRow, vertical, prerequisites }) {
+    // Workload-agent steps (UC38, UC44) are driven from their own page, as a
+    // customer who has registered a workload agent, and UC38 also needs that
+    // customer to pass MFA. The readiness identity has no agent and cannot do
+    // MFA, so the chip adapted from the link is blocked rather than run.
+    if (caseRow?.expectedBehaviorByVertical?.[vertical]?.adaptedFromLink) {
+      return { status: 'blocked', reason: 'needs a workload agent registered for the readiness identity (and MFA for step-up), which this worker does not have' };
+    }
     const unsupported = [
       prerequisites?.a2aCredentials && 'A2A credentials',
       prerequisites?.parConfig && 'PAR configuration',

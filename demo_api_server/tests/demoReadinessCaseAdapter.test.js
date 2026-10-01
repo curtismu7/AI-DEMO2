@@ -201,6 +201,16 @@ test('an Authorize-backed step still fails when the Authorize decision is missin
   expect(validate(result).join(' ; ')).toMatch(/Authorize evidence is required/);
 });
 
+test.each(['UC38', 'UC44'])('workload-agent step %s is blocked, not run: the readiness identity has no agent', async (id) => {
+  const request = jest.fn();
+  const operations = createCaseOperations({ request, provider: PROVIDER, expectedIssuer: ISSUER });
+  const row = buildDemoReadinessCatalog().find((item) => item.id === id);
+  const result = await operations.verifyPrerequisites({ caseRow: row, vertical: VERTICAL, prerequisites: row.runtimePrerequisitesByVertical[VERTICAL] });
+  expect(result.status).toBe('blocked');
+  expect(result.reason).toMatch(/workload agent/);
+  expect(request).not.toHaveBeenCalled();
+});
+
 test('a CIBA step is blocked, not run: it needs an approval on a device', async () => {
   const request = jest.fn();
   const operations = createCaseOperations({ request, provider: PROVIDER, expectedIssuer: ISSUER });
