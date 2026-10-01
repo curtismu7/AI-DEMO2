@@ -29,6 +29,20 @@ jest.mock('../../services/oauthEndpointResolver', () => ({
     () => 'https://auth.pingone.com/env-1/as/.well-known/openid-configuration'
   ),
 }));
+// Signature/issuer checks are covered by oidcIdTokenValidationService's own
+// tests; here the validator decodes but still enforces the nonce.
+jest.mock('../../services/oidcIdTokenValidationService', () => ({
+  ...jest.requireActual('../../services/oidcIdTokenValidationService'),
+  validateIdToken: jest.fn(async (idToken, { expectedNonce } = {}) => {
+    const fail = (reasonCode) => Object.assign(new Error('OIDC identity validation failed'), { reasonCode });
+    if (typeof expectedNonce !== 'string' || !expectedNonce) throw fail('nonce_missing');
+    let claims;
+    try { claims = JSON.parse(Buffer.from(String(idToken).split('.')[1], 'base64url').toString()); } catch (_) { throw fail('id_token_invalid'); }
+    if (typeof claims.nonce !== 'string' || !claims.nonce) throw fail('nonce_missing');
+    if (claims.nonce !== expectedNonce) throw fail('nonce_mismatch');
+    return claims;
+  }),
+}));
 
 const axios = require('axios');
 const configStore = require('../../services/configStore');
@@ -74,7 +88,7 @@ describe('POST /api/davinci-login/callback', () => {
   test('valid code exchanges tokens and establishes a session for an existing demo user', async () => {
     // Real oauthService.exchangeCodeForToken shape: raw PingOne token response
     // (snake_case), no `.claims` property.
-    const idToken = idTokenWithNonce('nonce-1');
+    const idToken = idTokenWithNonce('nonce-1', { sub: 'u1' });
     oauthService.exchangeCodeForToken.mockResolvedValue({
       access_token: 'at-1',
       id_token: idToken,
@@ -134,7 +148,7 @@ describe('POST /api/davinci-login/callback', () => {
   test('unknown demo user is rejected, not auto-created', async () => {
     oauthService.exchangeCodeForToken.mockResolvedValue({
       access_token: 'at-2',
-      id_token: idTokenWithNonce('nonce-2'),
+      id_token: idTokenWithNonce('nonce-2', { sub: 'u2' }),
       refresh_token: 'rt-2',
       expires_in: 3600,
       token_type: 'Bearer',
@@ -158,7 +172,7 @@ describe('POST /api/davinci-login/callback', () => {
   test('session regenerate failure aborts login', async () => {
     oauthService.exchangeCodeForToken.mockResolvedValue({
       access_token: 'at-3',
-      id_token: idTokenWithNonce('nonce-3'),
+      id_token: idTokenWithNonce('nonce-3', { sub: 'u3' }),
       refresh_token: 'rt-3',
       expires_in: 3600,
       token_type: 'Bearer',
@@ -195,7 +209,7 @@ describe('POST /api/davinci-login/callback', () => {
 // here. They crossed the browser, so every check below must hold before a
 // session exists — each test breaks exactly one.
 describe('POST /api/davinci-login/widget-session', () => {
-  const BODY = { idToken: 'id-w', accessToken: 'at-w' };
+  const BODY = { idToken: idTokenWithNonce('nonce-w', { sub: 'p1-user-1', aud: 'client-1' }), accessToken: 'at-w' };
   const EXP = Math.floor(Date.now() / 1000) + 3600;
   const ID_CLAIMS = { sub: 'p1-user-1', aud: 'client-1', nonce: 'nonce-w' };
   const AT_CLAIMS = { sub: 'p1-user-1', aud: ['enduser.ping.demo'], exp: EXP, scope: 'openid profile email read write ai:agent:read' };
@@ -205,7 +219,7 @@ describe('POST /api/davinci-login/widget-session', () => {
   // Keyed by the raw token so a test can break one side only.
   function tokensVerifyAs(idResult, atResult) {
     tokenVerificationService.verifyExchangedToken.mockImplementation(async (token) =>
-      (token === BODY.idToken ? idResult : atResult));
+      (token === BODY.accessToken ? atResult : idResult));
   }
 
   beforeEach(() => {
@@ -229,12 +243,12 @@ describe('POST /api/davinci-login/widget-session', () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ ok: true, username: 'demoUser' });
-    expect(tokenVerificationService.verifyExchangedToken).toHaveBeenCalledWith('id-w');
+    expect(tokenVerificationService.verifyExchangedToken).toHaveBeenCalledWith(BODY.idToken);
     expect(tokenVerificationService.verifyExchangedToken).toHaveBeenCalledWith('at-w');
     expect(oauthService.getUserInfo).toHaveBeenCalledWith('at-w');
     expect(sess.oauthTokens).toEqual({
       accessToken: 'at-w',
-      idToken: 'id-w',
+      idToken: BODY.idToken,
       refreshToken: null,
       expiresAt: EXP * 1000,
       tokenType: 'Bearer',
@@ -249,7 +263,7 @@ describe('POST /api/davinci-login/widget-session', () => {
   test('400 with nothing verified when a token is missing', async () => {
     const res = await request(buildApp({ davinciLoginNonce: 'nonce-w' }))
       .post('/api/davinci-login/widget-session')
-      .send({ idToken: 'id-w' });
+      .send({ idToken: BODY.idToken });
 
     expect(res.status).toBe(400);
     expect(res.body.error).toBe('invalid_request');
@@ -380,7 +394,7 @@ describe('POST /api/davinci-login/widget-session', () => {
 
     const res = await request(app)
       .post('/api/davinci-login/widget-session')
-      .send({ idToken: 'id-w', accessToken: 'at-w' });
+      .send({ idToken: idTokenWithNonce('nonce-refresh', { sub: 'p1-user-1', aud: 'client-1' }), accessToken: 'at-w' });
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ ok: true, username: 'demoUser' });
@@ -487,14 +501,15 @@ describe('silent widget session refresh (2026-09-13 tech debt)', () => {
     expect(nonce).toMatch(/^[0-9a-f]{32}$/);
 
     // Step 2: the flow's success node hands back fresh tokens echoing that nonce.
+    const idToken = idTokenWithNonce(nonce, { sub: 'p1-user-1', aud: 'client-1' });
     tokenVerificationService.verifyExchangedToken.mockImplementation(async (token) =>
-      (token === 'id-w' ? jwks({ sub: 'p1-user-1', aud: 'client-1', nonce }) : jwks({
+      (token === idToken ? jwks({ sub: 'p1-user-1', aud: 'client-1', nonce }) : jwks({
         sub: 'p1-user-1', aud: ['enduser.ping.demo'],
         exp: Math.floor(Date.now() / 1000) + 3600, scope: 'openid profile email read write ai:agent:read',
       })));
     const wsRes = await request(app)
       .post('/api/davinci-login/widget-session')
-      .send({ idToken: 'id-w', accessToken: 'at-w' });
+      .send({ idToken, accessToken: 'at-w' });
 
     expect(wsRes.status).toBe(200);
     expect(wsRes.body).toEqual({ ok: true, username: 'demoUser' });
