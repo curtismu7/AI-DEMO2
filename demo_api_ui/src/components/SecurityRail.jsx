@@ -2,7 +2,7 @@ import React from 'react';
 
 const STATUS_LABELS = { waiting: 'WAITING', checking: 'CHECKING…', permit: 'PERMIT', deny: 'DENY' };
 const STATUS_COLORS = {
-  waiting:  { bg: 'rgba(100,100,120,0.12)', color: '#8892a4', iconBg: 'rgba(100,100,120,0.12)' },
+  waiting:  { bg: 'rgba(100,100,120,0.12)', color: 'var(--muted, #8892a4)', iconBg: 'rgba(100,100,120,0.12)' },
   checking: { bg: 'rgba(79,142,247,0.15)',  color: '#4f8ef7', iconBg: 'rgba(79,142,247,0.15)' },
   permit:   { bg: 'rgba(34,197,94,0.15)',   color: '#22c55e', iconBg: 'rgba(34,197,94,0.15)' },
   deny:     { bg: 'rgba(239,68,68,0.15)',   color: '#ef4444', iconBg: 'rgba(239,68,68,0.15)' },
