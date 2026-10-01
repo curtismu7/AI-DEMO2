@@ -26,8 +26,8 @@ vi.mock('../../context/TokenChainContext', () => ({ useTokenChainOptional: () =>
 
 import apiClient from '../../services/apiClient';
 
-function renderPage(route = '/workload-agents?useCase=UC38&vertical=sporting-goods', activeId = null) {
-  return render(<MemoryRouter initialEntries={[route]}><VerticalContext.Provider value={{ activeId }}><WorkloadAgentsPage /></VerticalContext.Provider></MemoryRouter>);
+function renderPage(route = '/workload-agents?useCase=UC38&vertical=sporting-goods', activeId = null, user = null) {
+  return render(<MemoryRouter initialEntries={[route]}><VerticalContext.Provider value={{ activeId }}><WorkloadAgentsPage user={user} /></VerticalContext.Provider></MemoryRouter>);
 }
 
 beforeEach(() => {
@@ -45,6 +45,16 @@ describe('WorkloadAgentsPage', () => {
     renderPage('/workload-agents?useCase=UC44', 'healthcare');
     expect((await screen.findByRole('combobox', { name: /vertical/i })).value).toBe('healthcare');
     expect(apiClient.get).toHaveBeenCalledWith('/api/use-cases/UC44?vertical=healthcare');
+  });
+
+  it('names the signed-in account on the selected run, since only that account\'s agent is used', async () => {
+    renderPage(undefined, null, { username: 'demoAdmin' });
+    expect(await screen.findByText(/signed in as demoAdmin/)).toBeTruthy();
+  });
+
+  it('says so when nobody is signed in', async () => {
+    renderPage();
+    expect(await screen.findByText(/not signed in/)).toBeTruthy();
   });
 
   it('ignores an active vertical the page has no actions for', async () => {
