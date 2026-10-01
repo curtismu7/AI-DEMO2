@@ -109,7 +109,14 @@ function buildSnapshot({ repository, queuedRuns = [], runningRuns = [], complete
       seen.add(run.id);
       return true;
     })
-    .map((run) => ({ ...run, jobs: jobsByRun[run.id] || [] }));
+    .map((run) => {
+      const jobs = jobsByRun[run.id] || [];
+      // GitHub keeps a run "queued" while any of its jobs still waits for a
+      // runner, even when another job is already executing.
+      const executing = run.status !== 'completed' && jobs.some((job) => job.status === 'in_progress');
+      return { ...run, status: executing ? 'in_progress' : run.status, jobs };
+    });
+  const promoted = runs.filter((run) => run.status === 'in_progress').length - running.length;
 
   const completedCounts = completed.reduce((counts, run) => {
     if (run.conclusion === 'success') counts.succeeded += 1;
@@ -121,8 +128,8 @@ function buildSnapshot({ repository, queuedRuns = [], runningRuns = [], complete
     repository,
     updatedAt: now.toISOString(),
     summary: {
-      queued: queued.length,
-      inProgress: running.length,
+      queued: queued.length - promoted,
+      inProgress: running.length + promoted,
       ...completedCounts,
     },
     runs,
