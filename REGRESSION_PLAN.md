@@ -228,6 +228,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-01 — UC38 step-up could not be completed with the app's passkey
+
+**Files:** `demo_api_server/routes/agentInvokeRoute.js`, `demo_api_ui/src/pages/PersonalAgentStudioPage.jsx`.
+
+**What was broken:** UC38 only accepted MFA proven by the sign-in token's `acr`, so the Workload Agents page sent the customer to PingOne's hosted sign-on page. A passkey enrolled in this app is bound to `ping-devops.com` and the browser will not offer it on PingOne's domain; the hosted page reported "Authentication cancelled". Email and SMS worked; passkey needed a second passkey enrolled on PingOne's page.
+
+**What changed:** The UC38 pre-check also accepts the session's in-app MFA marker (`req.session.stepUpVerified`, set by `routes/mfa.js` only after PingOne reports the challenge COMPLETED, 5 minutes, single use as in `routes/transactions.js`). The page opens the existing `OtpStepUpModal` in `p1mfa` mode and re-runs the action on completion; the hosted step-up remains as the fallback when the in-app challenge cannot start.
+
+**Do not break:** UC38 must still refuse to delegate without fresh MFA: an absent or expired marker with a non-MFA `acr` returns `step_up_required`. The marker is consumed when it is the proof used. UC44 has no MFA gate and must not gain one.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/agentInvokeRoute.workloadAgents.test.js --forceExit`; `cd demo_api_ui && npx vitest run src/pages/__tests__/PersonalAgentStudioPage.workloadEvidence.test.jsx && npm run build`.
+
 ### 2026-10-01 — P1/PF toggle did not show which provider was selected
 
 **Files:** `demo_api_ui/src/components/OAuthProviderToggle.css`.
