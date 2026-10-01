@@ -805,6 +805,14 @@ async function buildSessionPreviewTokenEvents(req) {
   if (!userToken) {
     return { tokenEvents: [] };
   }
+  const storedExpiry = req?.session?.oauthTokens?.expiresAt;
+  const jwtExpiry = decodeJwtClaims(userToken)?.claims?.exp;
+  // Refresh middleware runs before this route. If it could not renew an
+  // expired bearer, the preview must not advertise it as an active session.
+  if ((Number.isFinite(storedExpiry) && Date.now() >= storedExpiry)
+    || (Number.isFinite(jwtExpiry) && Date.now() >= jwtExpiry * 1000)) {
+    return { tokenEvents: [] };
+  }
 
   appendUserTokenEvent(tokenEvents, userToken, req);
 

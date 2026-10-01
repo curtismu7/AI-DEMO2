@@ -24,9 +24,9 @@ const express = require('express');
 const axios = require('axios');
 const davinciConfig = require('../config/davinci');
 const configStore = require('../services/configStore');
-const { getDiscoveryEndpoint } = require('../services/oauthEndpointResolver');
 const oauthService = require('../services/oauthService');
 const tokenVerificationService = require('../services/tokenVerificationService');
+const { validateIdToken, assertUserInfoSubjectMatches } = require('../services/oidcIdTokenValidationService');
 const dataStore = require('../data/store');
 const { determineClientType } = require('../middleware/auth');
 const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
@@ -47,8 +47,13 @@ function armLoginNonce(req, cb) {
 // Looks up an EXISTING demo user for the tokens and starts a fresh session
 // holding them. Shared by /callback and /widget-session so the two sign-ins
 // cannot drift apart.
-async function establishSession(req, res, tokens, label) {
+async function establishSession(req, res, tokens, label, expectedNonce) {
+  const idTokenClaims = await validateIdToken(tokens.idToken, {
+    config: oauthService.config,
+    expectedNonce,
+  });
   const userInfo = await oauthService.getUserInfo(tokens.accessToken);
+  assertUserInfoSubjectMatches(userInfo, idTokenClaims);
   const oauthUser = oauthService.createUserFromOAuth(userInfo);
 
   // This is a demo customer-login sandbox — authenticate an EXISTING demo user only
@@ -185,7 +190,10 @@ router.post('/sdk-token', async (req, res) => {
         companyId,
         policyId,
         flowVersion: version,
-        apiRoot: `${new URL(getDiscoveryEndpoint()).origin}/`,
+        // DaVinci's runtime is hosted by PingOne even when this demo has PF
+        // selected as its OAuth provider. Keep the SDK on the configured P1
+        // region rather than deriving its host from the active OIDC issuer.
+        apiRoot: `https://auth.pingone.${configStore.getEffective('pingone_region') || 'com'}/`,
       });
     } catch (e) {
       const normalized = normalizeAxiosError(e, { label: 'DaVinci SDK token', timeoutMs: 10_000 });
@@ -281,8 +289,11 @@ router.post('/widget-session', async (req, res) => {
       expiresAt: atClaims.exp * 1000,
       tokenType: 'Bearer',
       scope: atClaims.scope || null,
-    }, 'widget-session');
+    }, 'widget-session', expectedNonce);
   } catch (err) {
+    if (err.reasonCode) {
+      return res.status(401).json({ error: err.reasonCode, message: 'Sign-in identity could not be validated. Restart the sign-in.' });
+    }
     const normalized = normalizeAxiosError(err, { label: 'DaVinci widget session' });
     const status = Number.isInteger(normalized.httpStatus) ? normalized.httpStatus : 502;
     return res.status(status).json({ error: 'davinci_widget_session_failed', message: normalized.message });
@@ -312,19 +323,6 @@ router.post('/callback', async (req, res) => {
     // which does `return tokenResponse.data;`. No `.claims` property exists on this.
     const tokenData = await oauthService.exchangeCodeForToken(code, codeVerifier, redirectUri);
 
-    // OIDC Core §3.1.3.7: we sent a nonce on the authorize request, so the ID
-    // token MUST carry the same one back. Missing or mismatched = possible
-    // replayed/substituted token — fail, never warn-and-proceed (same rule as
-    // routes/oauthUser.js post-#2043).
-    let idNonce = null;
-    try {
-      idNonce = JSON.parse(Buffer.from(String(tokenData.id_token || '').split('.')[1] || '', 'base64url').toString()).nonce || null;
-    } catch (_) { /* unparseable ID token → idNonce stays null → rejected below */ }
-    if (idNonce !== expectedNonce) {
-      console.error('[davinci-login/callback] ID token nonce %s — possible replay', idNonce ? 'mismatch' : 'missing');
-      return res.status(401).json({ error: idNonce ? 'nonce_mismatch' : 'nonce_missing', message: 'ID token failed replay verification. Restart the sign-in.' });
-    }
-
     await establishSession(req, res, {
       accessToken: tokenData.access_token,
       idToken: tokenData.id_token || null,
@@ -332,8 +330,11 @@ router.post('/callback', async (req, res) => {
       expiresAt: Date.now() + (tokenData.expires_in * 1000),
       tokenType: tokenData.token_type || 'Bearer',
       scope: tokenData.scope || null,
-    }, 'callback');
+    }, 'callback', expectedNonce);
   } catch (err) {
+    if (err.reasonCode) {
+      return res.status(401).json({ error: err.reasonCode, message: 'Sign-in identity could not be validated. Restart the sign-in.' });
+    }
     const normalized = normalizeAxiosError(err, { label: 'DaVinci login token exchange' });
     return res.status(normalized.httpStatus).json({ error: 'davinci_login_exchange_failed', message: normalized.message });
   }

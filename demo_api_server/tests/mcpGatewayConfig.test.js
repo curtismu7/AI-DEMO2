@@ -342,7 +342,7 @@ describe('POST /config — setRaw persistence', () => {
         httpSpy = stubHttpRequestSuccess();
 
         const configStore = require('../services/configStore');
-        configStore.setRaw.mockRejectedValueOnce(new Error('LMDB write failed'));
+        configStore.setRaw.mockRejectedValue(new Error('LMDB write failed'));
 
         const app = buildApp();
         const res = await supertest(app)
@@ -351,5 +351,7 @@ describe('POST /config — setRaw persistence', () => {
 
         expect(res.status).toBe(502);
         expect(res.body.ok).toBe(false);
+        expect(configStore.setRaw).toHaveBeenCalledTimes(1);
+        expect(configStore.setRaw).toHaveBeenCalledWith({ mcp_gw_client_id: 'test-client' });
     });
 });

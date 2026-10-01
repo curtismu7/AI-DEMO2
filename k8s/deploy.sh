@@ -3,6 +3,7 @@
 #
 # Usage:
 #   ./k8s/deploy.sh                       # full deploy (langchain agent on by default)
+#                                             installs Procyon Node Sensor on OrbStack
 #   ./k8s/deploy.sh status                # show pod/service/ingress status
 #   ./k8s/deploy.sh forward               # port-forward running services to localhost
 #   ./k8s/deploy.sh forward-api           # BFF only (3001) — auto-respawn supervisor
@@ -48,6 +49,17 @@ EXTRA_SERVICES="mcp-resource-server api-resource-server"
 RAG_SERVICES="weaviate embeddings mcp-code-search llamaindex-agent"
 DEFAULT_YOTUO_PATH="${LLM_MODELS_HOST_PATH:-$(cd "$SCRIPT_DIR/.." && pwd)/.local/models}"
 
+# Privilege Node Sensor defaults for the local OrbStack cluster. The audience
+# is the NHI federation audience created in PingOne Privilege; it is an
+# identifier, not a secret. Override these values in the environment when the
+# registered NHI changes.
+PROCYON_NODESENSOR_ENABLED="${PROCYON_NODESENSOR_ENABLED:-1}"
+PROCYON_NODESENSOR_CLUSTER_ID="${PROCYON_NODESENSOR_CLUSTER_ID:-k8-orbstack}"
+PROCYON_NODESENSOR_AUDIENCE="${PROCYON_NODESENSOR_AUDIENCE:-priv-nhi-ov4dgloai7iwbgu4heeonwn2763trc3x}"
+PROCYON_NODESENSOR_SERVICE_ACCOUNT="${PROCYON_NODESENSOR_SERVICE_ACCOUNT:-privilege-sensor}"
+PROCYON_NODESENSOR_CONTROLLER_ENDPOINT="${PROCYON_NODESENSOR_CONTROLLER_ENDPOINT:-hydra.privilege.pingone.com:443}"
+PROCYON_NODESENSOR_CHART_VERSION="${PROCYON_NODESENSOR_CHART_VERSION:-0.1.11}"
+
 info()    { demo_info "$@"; }
 success() { demo_success "$@"; }
 warn()    { demo_warn "$@"; }
@@ -55,8 +67,18 @@ die()     { demo_err "$@"; exit 1; }
 
 check_prereqs() {
   command -v kubectl &>/dev/null || die "kubectl not found"
+  local context
+  context="$(kubectl config current-context 2>/dev/null || true)"
+  # run-k8.sh se-basic reuses this script with an explicitly selected SE
+  # namespace after switching to `us`; keep that separate from local ai-demo.
+  if [[ "$NS" == "ai-demo" ]]; then
+    case "$context" in
+      orbstack|docker-desktop) ;;
+      *) die "Refusing local K8 operation on context '${context:-unknown}'. Switch to OrbStack (kubectl config use-context orbstack) or Docker Desktop first." ;;
+    esac
+  fi
   kubectl cluster-info &>/dev/null || die "Cannot reach K8s cluster. Enable K8s in OrbStack Settings."
-  info "K8s cluster reachable."
+  info "K8s cluster reachable (context: $context)."
 }
 
 # The seed Job's own "Complete" status is ephemeral (ttlSecondsAfterFinished:
@@ -90,7 +112,23 @@ models_seeded_on_disk() {
 deploy() {
   info "Deploying AI Demo to namespace: $NS"
 
+  local context
+  context="$(kubectl config current-context 2>/dev/null || true)"
+  if [[ "$NS" == "ai-demo" && "$context" == "orbstack" && "$PROCYON_NODESENSOR_ENABLED" != "0" ]]; then
+    command -v helm &>/dev/null || die "helm not found — install Helm to deploy the OrbStack Privilege Node Sensor"
+  fi
+
   kubectl apply -f "$SCRIPT_DIR/01-namespace.yaml"
+
+  # The shared namespace manifest is also used by the AWS deploy path. Raise
+  # the quota only for the guarded local ai-demo deployment, whose full manifest
+  # set needs 34 Services (25 already present plus 9 added by deploy) and
+  # 22 CPU in aggregate container limits, including one on-demand LLM tier. The OrbStack node remains capped at
+  # 16 CPUs; the namespace CPU quota allows those limits to be oversubscribed.
+  if [[ "$NS" == "ai-demo" ]]; then
+    kubectl patch resourcequota ai-demo-quota -n "$NS" --type=merge \
+      -p '{"spec":{"hard":{"limits.cpu":"22","services":"34"}}}'
+  fi
 
   # Images are tagged ai-demo-k8-*:latest with imagePullPolicy: IfNotPresent. When
   # only the image *contents* change (a rebuild), the Deployment spec is
@@ -129,6 +167,9 @@ deploy() {
   kubectl apply -f "$SCRIPT_DIR/73-jaeger-deployment.yaml"
   # Backend tool servers
   kubectl apply -f "$SCRIPT_DIR/30-mcp-server-deployment.yaml"
+  # PromptGuard is port-forwarded from its Deployment directly, so it does not
+  # need a ClusterIP Service of its own.
+  kubectl apply -f "$SCRIPT_DIR/65-promptguard-deployment.yaml"
   kubectl apply -f "$SCRIPT_DIR/63-mcp-resource-server-deployment.yaml"
   kubectl apply -f "$SCRIPT_DIR/64-api-resource-server-deployment.yaml"
   kubectl apply -f "$SCRIPT_DIR/57-mcp-weather-deployment.yaml"
@@ -170,6 +211,14 @@ deploy() {
   kubectl apply -f "$SCRIPT_DIR/72-rag-stack.yaml"           # RAG (starts by default; use `rag off` to stop)
   # BFF (token custodian)
   kubectl apply -f "$SCRIPT_DIR/20-api-server-deployment.yaml"
+  # Local OrbStack's PF listener runs as a host Docker container on :9031.
+  # The overlay preserves the public issuer hostname while routing BFF traffic
+  # to the host gateway, trusts the mkcert CA, and allows only BFF→PF egress.
+  if [[ "$(kubectl config current-context)" == "orbstack" && "$NS" == "ai-demo" ]]; then
+    kubectl apply -f "$SCRIPT_DIR/overlays/orbstack-pf/pf-egress-policy.yaml"
+    kubectl patch deployment/demo-api-server -n "$NS" --type=strategic \
+      --patch-file "$SCRIPT_DIR/overlays/orbstack-pf/bff-host-aliases.yaml"
+  fi
   # Gateway + agent runtimes (mcp-gateway starts at replicas:0; demo-sync scales it)
   kubectl apply -f "$SCRIPT_DIR/60-mcp-gateway-deployment.yaml"
   kubectl apply -f "$SCRIPT_DIR/71-ping-gateway-deployment.yaml"   # real PingGateway (IG)
@@ -218,7 +267,7 @@ deploy() {
   # and exit codes, then report any failures at the end.
   info "Waiting for rollouts in parallel (timeout 3m each)..."
   local _pids=() _deps=()
-  for dep in jaeger mcp-server mcp-resource-server api-resource-server mcp-weather mcp-brave mcp-jwt-verifier hitl-service \
+  for dep in jaeger mcp-server mcp-promptguard mcp-resource-server api-resource-server mcp-weather mcp-brave mcp-jwt-verifier hitl-service \
              demo-api-server ping-gateway agent-service \
              langchain-agent frontend \
              weaviate embeddings mcp-code-search llamaindex-agent; do
@@ -236,21 +285,29 @@ deploy() {
   done
   [ "$_failed" -eq 0 ] || die "$_failed deployment(s) failed to roll out — check: kubectl get pods -n $NS"
 
-  # llama.cpp is waited on separately and non-fatally: its readiness gates on the
-  # GGUF model being downloaded (~2GB), which on a cold network can exceed the
-  # 180s used above. A slow download should not fail the whole deploy — the rest
-  # of the stack is already up; the llama.cpp agent mode just becomes usable once
-  # the download finishes.
-  # LLM stack: tier-manager + proxy start quickly; tier1 downloads Phi-4 on first
-  # boot (~2GB). Non-fatal if slow — agents become usable once /health passes.
-  info "Waiting for LLM stack (tier-manager, llm-proxy, llama-tier1; up to 10m for first model download)..."
-  for dep in tier-manager llm-proxy; do
-    kubectl rollout status "deployment/$dep" -n "$NS" --timeout=120s \
-      || warn "$dep not ready — check: kubectl logs deploy/$dep -n $NS"
-  done
+  # llm-proxy readiness intentionally waits for a loaded model (/readyz). Warm
+  # the small tier before waiting for the proxy, or a cold deploy has no proxy
+  # Service endpoint. OrbStack pods cannot reach its API server, so scale from
+  # this host; other clusters use the in-cluster tier-manager first.
+  info "Warming llama-tier1 (up to 10m for model load)..."
+  if [[ "$context" == "orbstack" ]]; then
+    kubectl scale deployment/llama-tier1 -n "$NS" --replicas=1 \
+      || warn "could not start llama-tier1 — check: kubectl describe deploy/llama-tier1 -n $NS"
+  else
+    kubectl rollout status deployment/tier-manager -n "$NS" --timeout=120s \
+      || warn "tier-manager not ready — check: kubectl logs deploy/tier-manager -n $NS"
+    if ! kubectl exec -n "$NS" deploy/tier-manager -- wget -qO- --post-data='' \
+        "http://127.0.0.1:8097/ensure?port=8091"; then
+      warn "tier-manager could not warm llama-tier1 — scaling it directly from the deploy host"
+      kubectl scale deployment/llama-tier1 -n "$NS" --replicas=1 \
+        || warn "could not start llama-tier1 — check: kubectl describe deploy/llama-tier1 -n $NS"
+    fi
+  fi
   if ! kubectl rollout status deployment/llama-tier1 -n "$NS" --timeout=600s; then
     warn "llama-tier1 not ready yet — model may still be downloading. Check: kubectl logs deploy/llama-tier1 -n $NS"
   fi
+  kubectl rollout status deployment/llm-proxy -n "$NS" --timeout=120s \
+    || warn "llm-proxy not ready — check: kubectl logs deploy/llm-proxy -n $NS"
 
   _maybe_apply_yotuo_models
 
@@ -273,13 +330,42 @@ deploy() {
       || die "ping-mcpgw failed to roll out"
   fi
 
-  success "All available product deployments ready (${AGENT_SELECTION}-agent is the default route)."
+  install_procyon_nodesensor
+
+  success "Product deployment steps complete (${AGENT_SELECTION}-agent is the default route); components with readiness warnings may still be starting."
   show_status
   # run-k8.sh owns the final "next step" line (it points at ./run-k8.sh forward),
   # so suppress ours when invoked through it — otherwise the user sees two
   # forward instructions pointing at two different scripts. Direct callers of
   # this script still get the hint.
   [ -n "${RUNK8:-}" ] || success "Deploy complete — to open the UI, run:  ./k8s/deploy.sh forward   (https://local.ping-devops.com:4000)"
+}
+
+install_procyon_nodesensor() {
+  local context
+  context="$(kubectl config current-context 2>/dev/null || true)"
+  if [[ "$NS" != "ai-demo" || "$context" != "orbstack" ]]; then
+    return
+  fi
+  if [[ "$PROCYON_NODESENSOR_ENABLED" == "0" ]]; then
+    info "Procyon Node Sensor disabled (PROCYON_NODESENSOR_ENABLED=0)."
+    return
+  fi
+
+  info "Installing Procyon Node Sensor on OrbStack (cluster ${PROCYON_NODESENSOR_CLUSTER_ID})..."
+  helm upgrade --install procyon-nodesensor \
+    oci://public.ecr.aws/v2s2h8i9/procyon-nodesensor-chart \
+    --version "$PROCYON_NODESENSOR_CHART_VERSION" \
+    --namespace "$NS" \
+    --set-string "clusterID=$PROCYON_NODESENSOR_CLUSTER_ID" \
+    --set-string "auth.audience=$PROCYON_NODESENSOR_AUDIENCE" \
+    --set controller.enabled=true \
+    --set-string "serviceAccount.name=$PROCYON_NODESENSOR_SERVICE_ACCOUNT" \
+    --set-string "controller.endpoint=$PROCYON_NODESENSOR_CONTROLLER_ENDPOINT"
+  kubectl rollout status daemonset/procyon-nodesensor-procyon-nodesensor-chart \
+    -n "$NS" --timeout=180s \
+    || die "Procyon Node Sensor failed to become ready — check: kubectl get pods -n $NS -l app.kubernetes.io/name=procyon-nodesensor-chart"
+  success "Procyon Node Sensor ready."
 }
 
 show_commands() {
@@ -289,6 +375,7 @@ show_commands() {
   demo_box_open "${WHITE}" "COMMANDS"
   demo_box_row "${WHITE}" "${BOLD}./k8s/deploy.sh${RESET}                       full deploy"
   demo_box_row "${WHITE}" "${BOLD}./k8s/deploy.sh status${RESET}            pod and agent health"
+  demo_box_row "${WHITE}" "${BOLD}./k8s/deploy.sh mode basic${RESET}       scale to dashboard/admin + login only"
   demo_box_row "${WHITE}" "${BOLD}./k8s/deploy.sh forward${RESET}           port-forward to localhost"
   demo_box_row "${WHITE}" "${BOLD}./k8s/deploy.sh forward-api${RESET}       BFF :3001 only (auto-respawn)"
   demo_box_row "${WHITE}" "${BOLD}./k8s/deploy.sh forward-bg [api]${RESET}  detached forward supervisor"
@@ -704,6 +791,7 @@ stop_cluster() {
 }
 
 # Switch between predefined pod subsets without a full redeploy.
+#   mode basic  — dashboard/admin + login only; scale agent and showcase backends off
 #   mode demo   — minimal set for dashboard + token-chain demos:
 #                 frontend, demo-api-server, mcp-server, mcp-gateway, ping-gateway
 #   mode mcpgw  — only ping-mcpgw + mcp-server (mcpgw proxies to mcp-server)
@@ -711,6 +799,26 @@ stop_cluster() {
 mode_cmd() {
   local target="${1:-}"
   case "$target" in
+    basic)
+      local basic_deployments=(frontend demo-api-server)
+      local dep existing=()
+      info "Switching to basic mode (dashboard/admin + login only)..."
+      # Check every required deployment before scaling anything down. This mode
+      # operates on an existing full deployment; it does not apply manifests.
+      for dep in "${basic_deployments[@]}"; do
+        kubectl get deployment "$dep" -n "$NS" >/dev/null 2>&1 \
+          || die "Required deployment/$dep is missing in namespace $NS. Deploy the full stack first."
+      done
+      while IFS= read -r dep; do
+        [ -n "$dep" ] && existing+=("$dep")
+      done < <(kubectl get deployments -n "$NS" -l app=ai-demo -o name)
+      [ "${#existing[@]}" -gt 0 ] || die "No app=ai-demo deployments found in namespace $NS."
+      kubectl scale -n "$NS" "${existing[@]}" --replicas=0
+      for dep in "${basic_deployments[@]}"; do
+        kubectl scale "deployment/$dep" -n "$NS" --replicas=1
+      done
+      success "Basic mode scaled up: ${basic_deployments[*]}"
+      ;;
     demo)
       info "Switching to demo mode (dashboards + token chain)..."
       # Full stack scaled to 0 first; only then the demo pods come up.
@@ -732,7 +840,7 @@ mode_cmd() {
       deploy
       ;;
     *)
-      die "Usage: mode <demo|mcpgw|full>"
+      die "Usage: mode <basic|demo|mcpgw|full>"
       ;;
   esac
 }

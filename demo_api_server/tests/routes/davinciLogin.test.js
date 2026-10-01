@@ -32,6 +32,7 @@ jest.mock('../../services/oauthEndpointResolver', () => ({
 
 const axios = require('axios');
 const configStore = require('../../services/configStore');
+const oauthEndpointResolver = require('../../services/oauthEndpointResolver');
 const oauthService = require('../../services/oauthService');
 const tokenVerificationService = require('../../services/tokenVerificationService');
 const dataStore = require('../../data/store');
@@ -563,6 +564,23 @@ describe('POST /api/davinci-login/sdk-token', () => {
       parameters: { nonce: sess.davinciLoginNonce },
     });
     expect(opts.headers['X-SK-API-KEY']).toBe('sk-secret-key');
+  });
+
+  test('keeps the DaVinci runtime on the PingOne region when PF is the selected OAuth provider', async () => {
+    axios.post.mockResolvedValue({ data: { access_token: 'sdk-tok-1' } });
+    configStore.getEffective.mockImplementation((key) => {
+      if (key === 'pingone_davinci_api_key') return 'sk-secret-key';
+      if (key === 'pingone_region') return 'eu';
+      return '';
+    });
+    oauthEndpointResolver.getDiscoveryEndpoint.mockReturnValue(
+      'https://pingfederate:9031/.well-known/openid-configuration'
+    );
+
+    const res = await request(buildApp({})).post('/api/davinci-login/sdk-token');
+
+    expect(res.status).toBe(200);
+    expect(res.body.apiRoot).toBe('https://auth.pingone.eu/');
   });
 
   test('includes username in parameters when the caller supplies one', async () => {

@@ -714,6 +714,22 @@ describe('buildSessionPreviewTokenEvents', () => {
     expect(tokenEvents).toEqual([]);
   });
 
+  it('does not mark an expired stored OAuth bearer as active', async () => {
+    const req = makeReq(sampleJwtUserAccessToken);
+    req.session.oauthTokens = { accessToken: sampleJwtUserAccessToken, expiresAt: Date.now() - 1000 };
+
+    const { tokenEvents } = await buildSessionPreviewTokenEvents(req);
+    expect(tokenEvents).toEqual([]);
+  });
+
+  it('does not mark an expired JWT as active when session expiry is unavailable', async () => {
+    const expiredJwt = makeJwt({ sub: USER_SUB, exp: Math.floor(Date.now() / 1000) - 60 });
+    const req = makeReq(expiredJwt);
+
+    const { tokenEvents } = await buildSessionPreviewTokenEvents(req);
+    expect(tokenEvents).toEqual([]);
+  });
+
   it('returns user-token plus exchange-required failed when MCP_RESOURCE_URI is unset', async () => {
     configStore.getEffective.mockImplementation((key) => {
       if (key === 'pingone_resource_mcp_server_uri' || key === 'mcp_resource_uri') return '';

@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Server topology · compact header concepts</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #182238;
+      --muted: #627087;
+      --line: #d8dfeb;
+      --ground: #f3f5f9;
+      --panel: #fff;
+      --navy: #112b50;
+      --blue: #2873f0;
+      --blue-pale: #edf4ff;
+      --green: #176b3a;
+      font-family: Inter, "Avenir Next", Avenir, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--ink); background: var(--ground); }
+    button, select { font: inherit; color: inherit; }
+    button, select, summary { -webkit-tap-highlight-color: transparent; }
+    button:focus-visible, select:focus-visible, summary:focus-visible {
+      outline: 3px solid #83b4ff;
+      outline-offset: 2px;
+    }
+    .page { max-width: 1540px; margin: 0 auto; padding: 24px 28px 44px; }
+    .page-head { display: flex; justify-content: space-between; align-items: end; gap: 20px; margin: 0 0 18px; }
+    .page-head h1 { margin: 0; font-size: 23px; line-height: 1.2; font-weight: 630; letter-spacing: -.025em; }
+    .page-head p { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
+    .baseline { flex: none; border: 1px solid #efc76f; color: #854500; background: #fff7df; border-radius: 999px; padding: 6px 10px; font-size: 12px; font-weight: 650; }
+    .proposal { margin: 0 0 19px; }
+    .proposal-head { display: flex; align-items: baseline; gap: 10px; margin: 0 0 7px; }
+    .proposal-head h2 { margin: 0; font-size: 15px; font-weight: 650; }
+    .proposal-head p { margin: 0; color: var(--muted); font-size: 12px; }
+    .saving { margin-left: auto !important; color: #245b38 !important; font-weight: 650; }
+    .mock { overflow: hidden; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); box-shadow: 0 1px 2px #1625440a; }
+    .mock-title { min-height: 31px; display: flex; align-items: center; padding: 0 10px; gap: 9px; }
+    .mock-title strong { font-size: 14px; font-weight: 560; }
+    .mock-title span { color: var(--muted); font-size: 11px; }
+    .health { margin-left: auto; color: #8e4700 !important; background: #fff4d1; border: 1px solid #f0ce78; padding: 2px 7px; border-radius: 999px; font-size: 10px !important; font-weight: 650; }
+    .tools { display: flex; align-items: center; gap: 5px; padding: 3px 9px 6px; border-top: 1px solid #edf0f5; }
+    .segmented { display: inline-flex; align-items: center; gap: 2px; padding: 2px; border: 1px solid var(--line); border-radius: 7px; background: #f8f9fc; }
+    .btn, .pill, .seg, .select {
+      min-height: 27px; display: inline-flex; align-items: center; justify-content: center;
+      border: 1px solid var(--line); border-radius: 6px; background: #fff; padding: 0 8px;
+      font-size: 11px; white-space: nowrap;
+    }
+    .seg { min-height: 24px; border-color: transparent; background: transparent; color: #526078; }
+    .seg.active { border-color: #274c7c; color: #fff; background: var(--navy); }
+    .btn.primary { border-color: #2356a7; color: #fff; background: var(--navy); font-weight: 620; }
+    .btn.subtle { color: #48566b; }
+    .pill { min-height: 24px; padding: 0 7px; }
+    .pill.active { border-color: #284d7e; color: #fff; background: var(--navy); }
+    .filter-pills { display: inline-flex; align-items: center; gap: 3px; }
+    .filter-pills .pill { min-height: 23px; padding: 0 6px; font-size: 10px; }
+    .select { min-width: 0; justify-content: space-between; gap: 9px; color: #36455c; background: #fff; }
+    .select.wide { flex: 1; }
+    .select.short { min-width: 104px; }
+    .tool-label { margin: 0 2px 0 0; color: var(--muted); font-size: 10px; }
+    .tool-spacer { flex: 1; }
+    .switch-label { display: inline-flex; align-items: center; gap: 5px; color: #4b596d; font-size: 11px; white-space: nowrap; }
+    .switch { position: relative; width: 25px; height: 14px; border-radius: 8px; background: #c4cede; }
+    .switch::after { content: ""; position: absolute; width: 10px; height: 10px; top: 2px; left: 2px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px #20314b44; }
+    .switch.on { background: #2d6dd3; }
+    .switch.on::after { left: 13px; }
+    .flow-row { display: flex; align-items: center; gap: 6px; min-height: 36px; padding: 2px 9px 6px; }
+    .flow-row .select { min-height: 30px; font-size: 11px; }
+    .flow-label { color: #59667a; font-size: 10px; white-space: nowrap; }
+    .step-count { color: #53627a; font-size: 10px; white-space: nowrap; }
+    .transport { display: flex; gap: 4px; }
+    .transport .btn { min-width: 32px; }
+    .result-row { display: flex; align-items: center; min-height: 37px; gap: 8px; border-top: 1px solid #edf0f5; padding: 4px 9px; }
+    .result-label { flex: none; color: var(--green); font-size: 11px; font-weight: 700; }
+    .result-copy { width: 205px; flex: none; overflow: hidden; color: #58667c; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+    .steps { display: flex; min-width: 0; flex: 1; align-items: center; gap: 4px; overflow: hidden; }
+    .step { min-width: 118px; display: flex; align-items: center; gap: 5px; height: 26px; padding: 0 7px; overflow: hidden; border: 1px solid #d8dfeb; border-radius: 6px; background: #f7f8fb; color: #46546a; font-size: 10px; white-space: nowrap; }
+    .step.current { border-color: var(--blue); background: var(--blue-pale); color: #143d80; }
+    .step-no { flex: none; color: #235db7; font-size: 9px; font-weight: 750; }
+    .step span:last-child { overflow: hidden; text-overflow: ellipsis; }
+    .track { flex: none; color: #748097; font-size: 10px; }
+    .track b { color: var(--ink); }
+
+    /* Option 2: keep the request and playback controls on one line. */
+    .compact-tools { min-height: 30px; display: flex; align-items: center; gap: 6px; padding: 3px 9px 5px; border-top: 1px solid #edf0f5; }
+    .compact-tools .segmented { padding: 1px; }
+    .compact-tools .seg { min-height: 22px; padding: 0 6px; font-size: 10px; }
+    .compact-tools .pill { min-height: 22px; font-size: 10px; }
+    .flow-main { display: flex; align-items: center; gap: 6px; padding: 3px 9px 6px; }
+    .flow-main .flow-label { display: none; }
+    .flow-main .select { min-height: 30px; }
+    .result-slim { display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 3px 9px; border-top: 1px solid #edf0f5; }
+    .result-slim .result-copy { width: 176px; }
+    .result-slim .steps { gap: 3px; }
+    .result-slim .step { min-width: 102px; height: 23px; padding: 0 5px; }
+
+    /* Option 3: the map can keep its full controls without showing every control row. */
+    .settings { position: relative; margin-left: 1px; }
+    .settings summary { display: flex; align-items: center; gap: 6px; min-height: 27px; padding: 0 9px; list-style: none; border: 1px solid var(--line); border-radius: 6px; color: #42516a; background: #fff; cursor: pointer; font-size: 11px; }
+    .settings summary::-webkit-details-marker { display: none; }
+    .settings summary::after { content: "⌄"; color: #627087; }
+    .settings[open] summary { border-color: #7c9ecb; background: #f5f8fd; }
+    .settings[open] .settings-pop { display: flex; }
+    .settings-pop { position: absolute; z-index: 2; top: 32px; right: 0; display: none; width: min(930px, calc(100vw - 40px)); flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px; border: 1px solid #cbd4e3; border-radius: 8px; background: #fff; box-shadow: 0 8px 22px #17264224; }
+    .option3-head { display: flex; align-items: center; justify-content: space-between; min-height: 29px; padding: 0 9px; }
+    .option3-head .mock-title { padding: 0; }
+    .option3-head .settings { flex: none; }
+    .option3-flow { display: flex; align-items: center; gap: 7px; padding: 3px 9px 6px; }
+    .option3-flow .select { min-height: 30px; }
+    .option3-flow .flow-label { display: none; }
+    .option3-flow .track { margin-left: 1px; }
+    .option3-result { min-height: 31px; gap: 7px; padding: 3px 9px; }
+    .option3-result .result-label { font-size: 10px; }
+    .option3-result .result-copy { width: 164px; font-size: 10px; }
+    .option3-result .step { min-width: 92px; height: 22px; }
+    .option3-result .track { display: none; }
+    .note { margin: 4px 1px 0; color: #6e7a8f; font-size: 10px; }
+    @media (max-width: 900px) {
+      .page { padding: 18px 12px 32px; }
+      .page-head { align-items: flex-start; flex-direction: column; }
+      .tools, .compact-tools { overflow-x: auto; }
+      .flow-row, .flow-main, .option3-flow { flex-wrap: wrap; }
+      .result-copy { width: 112px; }
+      .steps { overflow-x: auto; }
+      .step { min-width: 122px; }
+      .settings-pop { position: fixed; left: 12px; right: 12px; top: 115px; min-width: 0; flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="page-head">
+      <div>
+        <h1>Three tighter server topology headers</h1>
+        <p>Compare how the map tools, request playback and numbered path can share less vertical space.</p>
+      </div>
+      <div class="baseline">Current section: about 230 px</div>
+    </header>
+
+    <section class="proposal" aria-labelledby="option-one">
+      <div class="proposal-head">
+        <h2 id="option-one">1. Everything visible in one tool rail</h2>
+        <p>Familiar controls, grouped onto one compact row.</p>
+        <p class="saving">About 150 px · 35% less</p>
+      </div>
+      <div class="mock">
+        <div class="mock-title"><strong>Server topology</strong><span>Configured services and their network paths across local Docker and hosted Kubernetes.</span><span class="health">Static map · not live health</span></div>
+        <div class="tools">
+          <div class="segmented"><span class="seg active">Local Docker</span><span class="seg">Hosted Kubernetes</span></div>
+          <div class="filter-pills" aria-label="Service category filters">
+            <span class="pill active">All services</span><span class="pill">App &amp; MCP</span><span class="pill">Identity &amp; policy</span><span class="pill">AI &amp; data</span><span class="pill">Observability</span><span class="pill">Optional profiles</span>
+          </div>
+          <div class="tool-spacer"></div>
+          <div class="segmented"><span class="seg active">Protocols</span><span class="seg">Network</span><span class="seg">Security</span><span class="seg">RFCs &amp; specs</span></div>
+          <span class="switch-label"><span class="switch"></span>Flow boxes only</span>
+          <span class="pill">Export ⌄</span>
+        </div>
+        <div class="flow-row">
+          <span class="flow-label">Request flow</span>
+          <span class="select wide">Agent → Demo Agent Gateway → protected BFF API · Step 9 passthrough <span>⌄</span></span>
+          <span class="track"><b>Step 1</b> of 9</span>
+          <div class="transport"><span class="btn">Previous</span><span class="btn primary">Play</span><span class="btn">Next</span><span class="btn">Restart</span></div>
+        </div>
+        <div class="result-row">
+          <span class="result-label">Expected result</span>
+          <span class="result-copy">Authorized API data returned.</span>
+          <div class="steps">
+            <span class="step current"><span class="step-no">01</span><span>User / agent client → ingress</span></span>
+            <span class="step"><span class="step-no">02</span><span>Ingress → frontend</span></span>
+            <span class="step"><span class="step-no">03</span><span>Frontend → BFF agent runtime</span></span>
+            <span class="step"><span class="step-no">04</span><span>BFF → PingOne</span></span>
+            <span class="step"><span class="step-no">05</span><span>BFF agent → protected API</span></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="proposal" aria-labelledby="option-two">
+      <div class="proposal-head">
+        <h2 id="option-two">2. Playback first, map tools condensed</h2>
+        <p>Use a service filter and export menu; keep the path controls easy to scan.</p>
+        <p class="saving">About 138 px · 40% less</p>
+      </div>
+      <div class="mock">
+        <div class="mock-title"><strong>Server topology</strong><span>Configured services and their network paths</span><span class="health">Static map · not live health</span></div>
+        <div class="compact-tools">
+          <div class="segmented"><span class="seg active">Local Docker</span><span class="seg">Hosted Kubernetes</span></div>
+          <span class="pill active">All services ⌄</span>
+          <div class="tool-spacer"></div>
+          <div class="segmented"><span class="seg active">Protocols</span><span class="seg">Network</span><span class="seg">Security</span><span class="seg">RFCs &amp; specs</span></div>
+          <span class="switch-label"><span class="switch"></span>Flow only</span>
+          <span class="pill">Export ⌄</span>
+        </div>
+        <div class="flow-main">
+          <span class="select wide">Agent → Demo Agent Gateway → protected BFF API · Authorized API data returned <span>⌄</span></span>
+          <span class="track"><b>1</b> / 9</span>
+          <div class="transport"><span class="btn">Prev</span><span class="btn primary">Play</span><span class="btn">Next</span><span class="btn">Restart</span></div>
+        </div>
+        <div class="result-slim">
+          <span class="result-label">Expected result</span>
+          <span class="result-copy">Authorized API data returned.</span>
+          <div class="steps">
+            <span class="step current"><span class="step-no">01</span><span>User → ingress</span></span>
+            <span class="step"><span class="step-no">02</span><span>Ingress → frontend</span></span>
+            <span class="step"><span class="step-no">03</span><span>Frontend → BFF</span></span>
+            <span class="step"><span class="step-no">04</span><span>BFF → PingOne</span></span>
+            <span class="step"><span class="step-no">05</span><span>BFF → protected API</span></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="proposal" aria-labelledby="option-three">
+      <div class="proposal-head">
+        <h2 id="option-three">3. Keep the path open, tuck map settings away</h2>
+        <p>Best when the diagram is the main task. Open “Map controls” to change environment, filters, overlays or exports.</p>
+        <p class="saving">About 100 px · 57% less</p>
+      </div>
+      <div class="mock">
+        <div class="option3-head">
+          <div class="mock-title"><strong>Server topology</strong><span>Configured services and their network paths</span><span class="health">Static map · not live health</span></div>
+          <details class="settings">
+            <summary>Map controls</summary>
+            <div class="settings-pop">
+              <div class="segmented"><span class="seg active">Local Docker</span><span class="seg">Hosted Kubernetes</span></div>
+              <div class="filter-pills" aria-label="Service category filters">
+                <span class="pill active">All services</span><span class="pill">App &amp; MCP</span><span class="pill">Identity &amp; policy</span><span class="pill">AI &amp; data</span><span class="pill">Observability</span><span class="pill">Optional profiles</span>
+              </div>
+              <div class="segmented"><span class="seg active">Protocols</span><span class="seg">Network</span><span class="seg">Security</span><span class="seg">RFCs &amp; specs</span></div>
+              <span class="switch-label"><span class="switch"></span>Flow boxes only</span>
+              <span class="pill">PDF · Lucidchart CSV · Details CSV</span>
+            </div>
+          </details>
+        </div>
+        <div class="option3-flow">
+          <span class="select wide">Agent → Demo Agent Gateway → protected BFF API · Authorized API data returned <span>⌄</span></span>
+          <span class="track"><b>1</b> / 9</span>
+          <div class="transport"><span class="btn">Prev</span><span class="btn primary">Play</span><span class="btn">Next</span><span class="btn">Restart</span></div>
+        </div>
+        <div class="result-row option3-result">
+          <span class="result-label">Expected result</span>
+          <span class="result-copy">Authorized API data returned.</span>
+          <div class="steps">
+            <span class="step current"><span class="step-no">01</span><span>User → ingress</span></span>
+            <span class="step"><span class="step-no">02</span><span>Ingress → frontend</span></span>
+            <span class="step"><span class="step-no">03</span><span>Frontend → BFF</span></span>
+            <span class="step"><span class="step-no">04</span><span>BFF → PingOne</span></span>
+            <span class="step"><span class="step-no">05</span><span>BFF → protected API</span></span>
+          </div>
+        </div>
+      </div>
+      <p class="note">The step strip scrolls horizontally on narrower screens. Select “Map controls” to preview the expanded settings row.</p>
+    </section>
+  </main>
+</body>
+</html>

@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Secret-free PingFederate readiness contracts. An unresolved role blocks readiness until a committed provisioner and supported PF Admin API readback establish its exact settings.",
+  "roles": {
+    "standard-agent-exchanger": {
+      "kind": "oauth-client",
+      "objectId": "PF_STANDARD_AGENT_EXCHANGE_CLIENT_ID",
+      "configurationKeys": ["pf_standard_agent_exchange_client_id", "pf_standard_agent_exchange_token_endpoint_auth_method"],
+      "expected": { "grantTypes": "undocumented", "defaultAccessTokenManagerRef": "undocumented", "restrictToDefaultAccessTokenManager": "undocumented" },
+      "unresolved": true,
+      "sourceRef": "demo_api_server/services/pfStandardTokenExchangeService.js"
+    },
+    "standard-mcp-exchanger": {
+      "kind": "oauth-client",
+      "objectId": "PF_STANDARD_TOKEN_EXCHANGE_CLIENT_ID",
+      "configurationKeys": ["pf_standard_token_exchange_client_id", "pf_standard_token_exchange_token_endpoint_auth_method"],
+      "expected": { "grantTypes": "undocumented", "tokenExchangeProcessorPolicyRef": "undocumented" },
+      "unresolved": true,
+      "sourceRef": "demo_api_server/services/pfStandardTokenExchangeService.js"
+    },
+    "ai-agent-actor": {
+      "kind": "oauth-client",
+      "objectId": "PF_AI_AGENT_ACTOR_CLIENT_ID",
+      "configurationKeys": ["pf_ai_agent_actor_client_id", "pf_ai_agent_actor_token_endpoint_auth_method"],
+      "expected": { "grantTypes": "undocumented" },
+      "unresolved": true,
+      "sourceRef": "demo_api_server/services/pfStandardTokenExchangeService.js"
+    },
+    "mcp-service-actor": {
+      "kind": "oauth-client",
+      "objectId": "PF_MCP_SERVICE_ACTOR_CLIENT_ID",
+      "configurationKeys": ["pf_mcp_service_actor_client_id", "pf_mcp_service_actor_token_endpoint_auth_method"],
+      "expected": { "grantTypes": ["client_credentials"], "processorPolicyRef": "undocumented" },
+      "unresolved": true,
+      "sourceRef": "demo_api_server/services/agentMcpTokenService.js"
+    },
+    "a2a-specialist": {
+      "kind": "service-provider",
+      "objectId": "A2A_SPECIALIST_CLIENTS",
+      "configurationKeys": ["pf_standard_agent_exchange_client_id", "a2a_intermediate_audience_<specialist>", "a2a_gateway_audience"],
+      "expected": { "resourceUris": "undocumented", "idJag": "undocumented" },
+      "unresolved": true,
+      "sourceRef": "demo_api_server/config/a2aSpecialists.js"
+    },
+    "uc40-native-id-jag": {
+      "kind": "oauth-client",
+      "objectId": "ai-demo-pf-id-jag",
+      "configurationKeys": ["pf_token_exchange_client_id", "pf_token_exchange_token_endpoint_auth_method", "pf_id_jag_audience", "pf_id_jag_resource", "pf_id_jag_subject_token_type"],
+      "expected": { "idJagAudience": "environment-configured", "idJagResource": "environment-configured", "idJagSubjectTokenType": "environment-configured" },
+      "unresolved": true,
+      "sourceRef": "demo_api_server/services/agentMcpTokenService.js"
+    },
+    "davinci-login": {
+      "kind": "oauth-client",
+      "objectId": "ai-demo-pf-user",
+      "configurationKeys": ["pf_user_client_id", "pf_user_token_endpoint_auth_method"],
+      "expected": { "authenticationPolicyAdapter": "undocumented" },
+      "unresolved": true,
+      "sourceRef": "demo_api_server/routes/pfDavinciAuth.js"
+    },
+    "cimd": {
+      "kind": "oauth-client",
+      "objectId": "PF_CIMD_CLIENT",
+      "configurationKeys": [],
+      "expected": { "cimdPolicy": "undocumented", "issuer": "environment-configured", "jwksUri": "environment-configured" },
+      "unresolved": true,
+      "sourceRef": "demo_api_server/routes/cimdAgentMetadata.js"
+    },
+    "third-party-authorization-server": {
+      "kind": "oauth-client",
+      "objectId": "PF_THIRD_PARTY_AS_CLIENT",
+      "configurationKeys": [],
+      "expected": { "thirdPartyAuthorizationServer": "undocumented" },
+      "unresolved": true,
+      "sourceRef": "docs/superpowers/specs/2026-09-26-demo-readiness-and-repair-design.md"
+    },
+    "rar": {
+      "kind": "oauth-client",
+      "objectId": "PF_RAR_CLIENT",
+      "configurationKeys": [],
+      "expected": { "rarProcessor": "undocumented", "authorizationDetailsTypes": "undocumented" },
+      "unresolved": true,
+      "sourceRef": "docs/superpowers/specs/2026-09-26-demo-readiness-and-repair-design.md"
+    }
+  }
+}

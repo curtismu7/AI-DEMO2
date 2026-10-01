@@ -71,6 +71,8 @@ export default function FloatingPanel({
   minHeight = 200,
   zIndex = 9000,
   onClose = null,
+  placement = 'floating',
+  onPopOutChange = null,
   ...rest
 }) {
   const [pos, setPos] = useState({ x: defaultX, y: defaultY });
@@ -83,10 +85,13 @@ export default function FloatingPanel({
   const resizeRef = useRef(null);
 
   const isPoppedOut = !!popoutWin;
+  // 'drawer' pins the panel to the right edge, full height: no drag, only the
+  // west handle (resizes width), no collapse. Pop-out and close are unchanged.
+  const isDrawer = placement === 'drawer';
 
   // --- Drag logic (pointer capture allows dragging onto a second monitor) ---
   const onDragStart = useCallback((e) => {
-    if (e.button !== 0) return;
+    if (isDrawer || e.button !== 0) return;
     if (e.target.closest('.fp-btn') || e.target.closest('.fp-handle')) return;
     e.preventDefault();
     setIsDragging(true);
@@ -111,7 +116,7 @@ export default function FloatingPanel({
     target.addEventListener('pointermove', onMove);
     target.addEventListener('pointerup', onUp);
     target.addEventListener('pointercancel', onUp);
-  }, [pos]);
+  }, [pos, isDrawer]);
 
   // (pointer capture approach above; no separate isDragging effect needed)
   useEffect(() => {
@@ -180,8 +185,8 @@ export default function FloatingPanel({
 
     const w = size.w + 40;
     const h = size.h + 80;
-    const left = window.screenX + pos.x;
-    const top = window.screenY + pos.y;
+    const left = window.screenX + (isDrawer ? window.innerWidth - size.w : pos.x);
+    const top = window.screenY + (isDrawer ? 0 : pos.y);
     const win = window.open('about:blank', `panel_${title}`, `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`);
     if (!win) return;
 
@@ -224,7 +229,15 @@ export default function FloatingPanel({
     });
 
     setPopoutWin(win);
-  }, [popoutWin, size, pos, title]);
+  }, [popoutWin, size, pos, title, isDrawer]);
+
+  // Tell the owner whether the panel currently lives in a pop-out window, so it
+  // can avoid closing (and thereby killing) the pop-out on an in-panel action.
+  useEffect(() => {
+    onPopOutChange?.(!!popoutWin);
+    return () => onPopOutChange?.(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [popoutWin]);
 
   // Close pop-out on unmount
   useEffect(() => {
@@ -268,23 +281,25 @@ export default function FloatingPanel({
   const panel = (
     <div
       ref={panelRef}
-      className={`fp-panel ${className} ${isDragging ? 'fp-dragging' : ''} ${isCollapsed ? 'fp-collapsed' : ''}`}
+      className={`fp-panel ${isDrawer ? 'fp-panel--drawer' : ''} ${className} ${isDragging ? 'fp-dragging' : ''} ${isCollapsed ? 'fp-collapsed' : ''}`}
       {...rest}
       style={{
         position: 'fixed',
-        ...(bottomDock && isCollapsed
+        ...(isDrawer
+          ? { top: 0, right: 0, bottom: 0, width: size.w }
+          : bottomDock && isCollapsed
           ? { bottom: 0, left: 0, right: 0, width: '100%' }
           : bottomDock
           ? { bottom: 0, left: pos.x, width: size.w }
           : { top: pos.y, left: pos.x, width: size.w }),
-        height: isCollapsed ? 'auto' : size.h,
+        height: isDrawer || isCollapsed ? 'auto' : size.h,
         zIndex,
       }}
     >
       {/* 8 resize handles */}
       {!isCollapsed && (
         <>
-          {['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'].map((dir) => (
+          {(isDrawer ? ['w'] : ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']).map((dir) => (
             <div
               key={dir}
               className={`fp-handle fp-handle-${dir}`}
@@ -303,12 +318,22 @@ export default function FloatingPanel({
       <div className="fp-titlebar" onPointerDown={onDragStart} aria-label={`Move ${title}`}>
         <span className="fp-title">{title}</span>
         <div className="fp-controls">
-          <button className="fp-btn" onClick={() => setIsCollapsed((c) => !c)} title={isCollapsed ? 'Expand' : 'Collapse'}>
-            {isCollapsed ? '▼' : '▲'}
-          </button>
+          {!isDrawer && (
+            <button className="fp-btn" onClick={() => setIsCollapsed((c) => !c)} title={isCollapsed ? 'Expand' : 'Collapse'}>
+              {isCollapsed ? '▼' : '▲'}
+            </button>
+          )}
           <button className="fp-btn" onClick={handlePopOut} title="Pop out to new window" aria-label={`Pop out ${title}`}>🪟</button>
           {onClose && (
-            <button type="button" className="fp-btn" onClick={onClose} title="Close">✕</button>
+            <button
+              type="button"
+              className="fp-btn"
+              onClick={onClose}
+              title="Close"
+              aria-label="Close panel"
+            >
+              ✕
+            </button>
           )}
         </div>
       </div>

@@ -133,17 +133,19 @@ function checkLabels(map) {
 /**
  * Guard the assumption the gate above is built on.
  *
- * `checkLabels` derives the Dockerfile as `<sourceDir>/Dockerfile`, but CI does
- * not build that path - it builds through docker compose, which owns
- * `context:`, `dockerfile:` and `target:`. ci-build-matrix.js says so outright:
- * those "are NOT derivable from sourceDir". Today every service happens to
- * agree, which is exactly what makes the drift dangerous - the day one adopts
+ * `checkLabels` derives the Dockerfile as `<sourceDir>/Dockerfile`, but CI builds
+ * through docker compose, which owns `context:`, `dockerfile:` and `target:`.
+ * Compose fields may use `${VAR:-default}` interpolation; resolve those using
+ * the same process environment and fallback values the build job receives
+ * before comparing the effective path. Today every service happens to agree,
+ * which is exactly what makes the drift dangerous - the day one adopts
  * `dockerfile: Dockerfile.tier-manager` or a build `target:`, the gate would
  * read a different file than CI pushes, print OK, and hand back the ambiguous
  * "write_package" error it exists to eliminate.
  *
- * So rather than reimplement compose resolution, assert the assumption and fail
- * loudly the moment it stops holding.
+ * This intentionally resolves only environment interpolation; it does not
+ * reimplement Compose YAML parsing. Unsupported or unresolved path shapes fail
+ * the agreement check instead of silently inspecting a different Dockerfile.
  *
  * Text-parsed, not YAML-parsed: root node_modules is not installed in CI's
  * hygiene job, the same constraint the rest of this file works under.
@@ -170,7 +172,26 @@ function checkComposeAgreement(map, composeText) {
     if (current) blocks.get(current).push(line);
   }
 
-  const value = (raw) => raw.replace(/#.*$/, '').trim().replace(/^["']|["']$/g, '');
+  const value = (raw) => {
+    const scalar = raw.replace(/#.*$/, '').trim();
+    const singleQuoted = scalar.startsWith("'") && scalar.endsWith("'");
+    const unquotedValue = singleQuoted || (scalar.startsWith('"') && scalar.endsWith('"'))
+      ? scalar.slice(1, -1)
+      : scalar;
+
+    // Compose interpolates unquoted and double-quoted scalars. Single-quoted
+    // values are literal, so leave their `${...}` text untouched; the path
+    // agreement check will then fail closed if it differs from the build map.
+    if (singleQuoted) return unquotedValue;
+
+    return unquotedValue.replace(/\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-(.*?))?\}/g, (expression, name, fallback) => {
+      const configured = process.env[name];
+      if (fallback !== undefined) {
+        return configured === undefined || configured === '' ? fallback : configured;
+      }
+      return configured === undefined ? expression : configured;
+    });
+  };
 
   for (const entry of map) {
     if (!entry.sourceDir || !entry.ghcrImage || !entry.composeService) continue;

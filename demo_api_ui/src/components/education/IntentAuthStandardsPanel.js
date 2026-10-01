@@ -77,7 +77,7 @@ export default function IntentAuthStandardsPanel({ isOpen, onClose, initialTabId
             </a>
           </p>
 
-          <h3>Identity Chaining & Act Claims (Drafts)</h3>
+          <h3>Identity Chaining &amp; Act Claims (Drafts)</h3>
           <p>
             Emerging drafts (e.g., <code>oauth-identity-chaining</code>) define how nested
             <code>act</code> claims chain across multiple agents. Each hop adds an <code>act</code> record:
@@ -672,7 +672,7 @@ export default function IntentAuthStandardsPanel({ isOpen, onClose, initialTabId
     <EducationDrawer
       isOpen={isOpen}
       onClose={onClose}
-      title="Intent Authorization & Industry Standards"
+      title="Intent Authorization &amp; Industry Standards"
       tabs={tabs}
       initialTabId={initialTabId}
     />

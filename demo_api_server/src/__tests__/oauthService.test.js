@@ -222,19 +222,19 @@ describe('exchangeCodeForToken — request body', () => {
   }
 
   test('always sends grant_type=authorization_code', async () => {
-    await svc.exchangeCodeForToken('code-abc', 'verifier-123');
+    await svc.exchangeCodeForToken('code-abc', 'v'.repeat(43));
     const body = getCallBody();
     expect(body.grant_type).toBe('authorization_code');
   });
 
   test('always sends the correct client_id', async () => {
-    await svc.exchangeCodeForToken('code-abc', 'verifier-123');
+    await svc.exchangeCodeForToken('code-abc', 'v'.repeat(43));
     const body = getCallBody();
     expect(body.client_id).toBe(MOCK_CONFIG.clientId);
   });
 
   test('sends the provided code', async () => {
-    await svc.exchangeCodeForToken('my-auth-code', 'verifier-123');
+    await svc.exchangeCodeForToken('my-auth-code', 'v'.repeat(43));
     const body = getCallBody();
     expect(body.code).toBe('my-auth-code');
   });
@@ -242,13 +242,13 @@ describe('exchangeCodeForToken — request body', () => {
   // --- PKCE + confidential client (has secret) ----------------------------
   describe('PKCE path with client_secret configured (confidential client)', () => {
     test('sends code_verifier in body', async () => {
-      await svc.exchangeCodeForToken('code', 'my-verifier');
-      expect(getCallBody().code_verifier).toBe('my-verifier');
+      await svc.exchangeCodeForToken('code', 'v'.repeat(43));
+      expect(getCallBody().code_verifier).toBe('v'.repeat(43));
     });
 
     test('sends client_secret via Basic Auth header (not in body)', async () => {
       // config.clientSecret is set to 'test-admin-client-secret' in MOCK_CONFIG
-      await svc.exchangeCodeForToken('code', 'my-verifier');
+      await svc.exchangeCodeForToken('code', 'v'.repeat(43));
       const body = getCallBody();
       const headers = getCallHeaders();
       // Secret must NOT appear in body
@@ -263,7 +263,7 @@ describe('exchangeCodeForToken — request body', () => {
       const prev = MOCK_CONFIG.tokenEndpointAuthMethod;
       MOCK_CONFIG.tokenEndpointAuthMethod = 'post';
       try {
-        await svc.exchangeCodeForToken('code', 'my-verifier');
+        await svc.exchangeCodeForToken('code', 'v'.repeat(43));
         const body = getCallBody();
         const headers = getCallHeaders();
         expect(body.client_secret).toBe(MOCK_CONFIG.clientSecret);
@@ -283,12 +283,12 @@ describe('exchangeCodeForToken — request body', () => {
     afterEach(() => restoreService());
 
     test('sends code_verifier in body', async () => {
-      await svc.exchangeCodeForToken('code', 'my-verifier');
-      expect(getCallBody().code_verifier).toBe('my-verifier');
+      await svc.exchangeCodeForToken('code', 'v'.repeat(43));
+      expect(getCallBody().code_verifier).toBe('v'.repeat(43));
     });
 
     test('does NOT send Authorization header', async () => {
-      await svc.exchangeCodeForToken('code', 'my-verifier');
+      await svc.exchangeCodeForToken('code', 'v'.repeat(43));
       expect(getCallHeaders()['Authorization']).toBeUndefined();
     });
   });
@@ -296,14 +296,18 @@ describe('exchangeCodeForToken — request body', () => {
   // --- non-PKCE, secret configured -----------------------------------------
   describe('non-PKCE path, secret configured', () => {
     test('sends client_secret via Basic Auth header', async () => {
-      await svc.exchangeCodeForToken('code', null);
+      await svc.exchangeCodeForToken('code', 'v'.repeat(43));
       const headers = getCallHeaders();
       expect(headers['Authorization']).toMatch(/^Basic /);
     });
 
-    test('does NOT send code_verifier', async () => {
-      await svc.exchangeCodeForToken('code', null);
-      expect(getCallBody().code_verifier).toBeUndefined();
+    test('rejects a missing code_verifier before calling PingOne', async () => {
+      await expect(svc.exchangeCodeForToken('code', null)).rejects.toThrow(/PKCE code_verifier/);
+      expect(axios.post).not.toHaveBeenCalled();
+    });
+
+    test('rejects a malformed code_verifier', async () => {
+      await expect(svc.exchangeCodeForToken('code', 'too-short')).rejects.toThrow(/PKCE code_verifier/);
     });
   });
 
@@ -315,12 +319,11 @@ describe('exchangeCodeForToken — request body', () => {
     });
     afterEach(() => restoreService());
 
-    test('sends neither Authorization header nor code_verifier', async () => {
-      await svc.exchangeCodeForToken('code', undefined);
+    test('sends no Authorization header and no client_secret', async () => {
+      await svc.exchangeCodeForToken('code', 'v'.repeat(43));
       const body = getCallBody();
       const headers = getCallHeaders();
       expect(body.client_secret).toBeUndefined();
-      expect(body.code_verifier).toBeUndefined();
       expect(headers['Authorization']).toBeUndefined();
     });
   });
@@ -329,13 +332,13 @@ describe('exchangeCodeForToken — request body', () => {
   describe('redirect_uri resolution', () => {
     test('uses provided redirectUri', async () => {
       const custom = 'https://custom.example.com/cb';
-      await svc.exchangeCodeForToken('code', 'v', custom);
+      await svc.exchangeCodeForToken('code', 'v'.repeat(43), custom);
       const body = getCallBody();
       expect(body.redirect_uri).toBe(custom);
     });
 
     test('falls back to config.redirectUri when not provided', async () => {
-      await svc.exchangeCodeForToken('code', 'v');
+      await svc.exchangeCodeForToken('code', 'v'.repeat(43));
       const body = getCallBody();
       expect(body.redirect_uri).toBe(MOCK_CONFIG.redirectUri);
     });
@@ -343,13 +346,13 @@ describe('exchangeCodeForToken — request body', () => {
 
   // --- token endpoint -------------------------------------------------------
   test('POSTs to the configured tokenEndpoint', async () => {
-    await svc.exchangeCodeForToken('code', 'v');
+    await svc.exchangeCodeForToken('code', 'v'.repeat(43));
     expect(axios.post.mock.calls[0][0]).toBe(MOCK_CONFIG.tokenEndpoint);
   });
 
   // --- return value ---------------------------------------------------------
   test('returns the full token response data', async () => {
-    const result = await svc.exchangeCodeForToken('code', 'v');
+    const result = await svc.exchangeCodeForToken('code', 'v'.repeat(43));
     expect(result.access_token).toBe('mock-access-token');
     expect(result.refresh_token).toBe('mock-refresh-token');
     expect(result.expires_in).toBe(3600);
@@ -378,39 +381,36 @@ describe('exchangeCodeForToken — error handling', () => {
       },
     });
 
-    await expect(svc.exchangeCodeForToken('c', 'v')).rejects.toMatchObject({
+    await expect(svc.exchangeCodeForToken('c', 'v'.repeat(43))).rejects.toMatchObject({
       pingoneError: 'invalid_client',
-      pingoneDesc: 'The client authentication was invalid.',
     });
   });
 
-  test('error message includes the PingOne error code and description', async () => {
+  test('error message includes the PingOne error code but not its description', async () => {
     axios.post.mockRejectedValue({
       response: { data: { error: 'invalid_grant', error_description: 'Code expired.' } },
     });
 
-    await expect(svc.exchangeCodeForToken('c', 'v')).rejects.toThrow(
-      /invalid_grant.*Code expired/
-    );
+    const err = await svc.exchangeCodeForToken('c', 'v'.repeat(43)).catch((e) => e);
+    expect(err.message).toMatch(/invalid_grant/);
+    expect(err.message).not.toMatch(/Code expired/);
   });
 
   test('falls back gracefully when PingOne provides no error body', async () => {
     axios.post.mockRejectedValue(new Error('Network error'));
 
-    const err = await svc.exchangeCodeForToken('c', 'v').catch((e) => e);
+    const err = await svc.exchangeCodeForToken('c', 'v'.repeat(43)).catch((e) => e);
     expect(err.pingoneError).toBe('token_exchange_failed');
-    expect(err.pingoneDesc).toBe('');
     expect(err.message).toMatch(/Failed to exchange/);
   });
 
-  test('pingoneDesc is empty string when error_description is absent', async () => {
+  test('surfaces the PingOne error code when error_description is absent', async () => {
     axios.post.mockRejectedValue({
       response: { data: { error: 'server_error' } },
     });
 
-    const err = await svc.exchangeCodeForToken('c', 'v').catch((e) => e);
+    const err = await svc.exchangeCodeForToken('c', 'v'.repeat(43)).catch((e) => e);
     expect(err.pingoneError).toBe('server_error');
-    expect(err.pingoneDesc).toBe('');
   });
 });
 

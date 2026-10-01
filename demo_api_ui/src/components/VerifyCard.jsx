@@ -1,0 +1,167 @@
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import bffAxios from '../services/bffAxios';
+import './VerifyCard.css';
+
+const ACTIVE_TRANSACTION_KEY = 'pingone.verify.activeTransactionId';
+const LAST_TRANSACTION_KEY = 'pingone.verify.lastTransactionId';
+const CSRF_HEADER = { 'x-pingone-verify-csrf': '1' };
+const POLL_DELAYS_MS = [1500, 2500, 4000, 6000, 8000, 10000, 15000, 30000];
+const TERMINAL = new Set(['SUCCESS', 'FAIL', 'APPROVED_MANUALLY', 'APPROVED_NO_REQUEST', 'NOT_REQUIRED', 'UNKNOWN', 'EXPIRED']);
+
+function isTerminal(status) {
+  return TERMINAL.has(String(status || '').toUpperCase());
+}
+
+export default function VerifyCard({ compact = false, showDisabled = false }) {
+  const [availability, setAvailability] = useState(null);
+  const [transactionId, setTransactionId] = useState(null);
+  const [transaction, setTransaction] = useState(null);
+  const [starting, setStarting] = useState(false);
+  const [statusError, setStatusError] = useState('');
+  const pollTimer = useRef(null);
+
+  const loadAvailability = useCallback(async () => {
+    try {
+      const { data } = await bffAxios.get('/api/verify/availability');
+      setAvailability(data);
+    } catch {
+      setAvailability({ enabled: false, available: false, error: true });
+    }
+  }, []);
+
+  useEffect(() => {
+    loadAvailability();
+    const params = new URLSearchParams(window.location.search);
+    const activeId = window.sessionStorage.getItem(ACTIVE_TRANSACTION_KEY);
+    const id = activeId || (compact ? window.sessionStorage.getItem(LAST_TRANSACTION_KEY) : null);
+    if (params.get('verify') === 'return') {
+      params.delete('verify');
+      const query = params.toString();
+      window.history.replaceState({}, '', `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`);
+    }
+    if (id) setTransactionId(id);
+    return undefined;
+  }, [compact, loadAvailability]);
+
+  useEffect(() => {
+    if (!transactionId) return undefined;
+    let disposed = false;
+    let attempt = 0;
+
+    const poll = async () => {
+      if (disposed) return;
+      try {
+        const { data } = await bffAxios.get(`/api/verify/transactions/${encodeURIComponent(transactionId)}`);
+        if (disposed) return;
+        setTransaction(data);
+        setStatusError('');
+        if (isTerminal(data.status)) {
+          window.sessionStorage.removeItem(ACTIVE_TRANSACTION_KEY);
+          window.sessionStorage.setItem(LAST_TRANSACTION_KEY, transactionId);
+          return;
+        }
+      } catch (error) {
+        if (disposed) return;
+        const responseStatus = Number(error?.response?.status);
+        if (responseStatus >= 400 && responseStatus < 500 && ![408, 429].includes(responseStatus)) {
+          if (responseStatus === 404) {
+            window.sessionStorage.removeItem(ACTIVE_TRANSACTION_KEY);
+            window.sessionStorage.removeItem(LAST_TRANSACTION_KEY);
+            setTransaction(null);
+            setTransactionId(null);
+            setStatusError('This verification request is no longer available. Start a new verification.');
+          } else {
+            setStatusError('We could not check this verification status. Sign in again and reload this page.');
+          }
+          return;
+        }
+        setStatusError('We could not check the verification status. We will try again automatically.');
+      }
+
+      const delay = POLL_DELAYS_MS[Math.min(attempt, POLL_DELAYS_MS.length - 1)];
+      attempt = Math.min(attempt + 1, POLL_DELAYS_MS.length - 1);
+      pollTimer.current = window.setTimeout(poll, delay);
+    };
+
+    poll();
+    return () => {
+      disposed = true;
+      if (pollTimer.current) window.clearTimeout(pollTimer.current);
+    };
+  }, [transactionId]);
+
+  const handleStart = async () => {
+    setStarting(true);
+    setStatusError('');
+    try {
+      const { data } = await bffAxios.post('/api/verify/transactions', {}, { headers: CSRF_HEADER });
+      if (!data?.id || !data?.webVerificationUrl) throw new Error('Invalid verification response');
+      window.sessionStorage.setItem(ACTIVE_TRANSACTION_KEY, data.id);
+      window.sessionStorage.removeItem(LAST_TRANSACTION_KEY);
+      window.location.assign(data.webVerificationUrl);
+    } catch {
+      setStatusError('We could not start identity verification. Please try again later.');
+      setStarting(false);
+    }
+  };
+
+  if (!availability?.enabled && !showDisabled && !compact) return null;
+
+  return (
+    <section className={`up-card up-verify-card${compact ? ' up-verify-card--compact' : ''}`} aria-labelledby="up-verify-title">
+      <div className="up-card__header">
+        <span className="up-card__title" id="up-verify-title">Identity verification</span>
+      </div>
+      {!availability && (
+        <p className="up-verify-card__message" aria-live="polite">Checking PingOne Verify availability…</p>
+      )}
+      {availability?.error && (
+        <p className="up-verify-card__message">We could not check PingOne Verify availability. Sign in and try again.</p>
+      )}
+      {availability && !availability.error && !availability.enabled && (
+        <p className="up-verify-card__message">PingOne Verify is disabled for this environment.</p>
+      )}
+      {availability?.enabled && !availability.available && (
+        <p className="up-verify-card__message">Identity verification is not available for this account or environment.</p>
+      )}
+      {availability?.available && !transaction && !transactionId && (
+        <>
+          <p className="up-verify-card__message">Verify your identity through PingOne's hosted verification experience.</p>
+          {!compact && (
+            <button type="button" className="up-btn up-btn--edit" onClick={handleStart} disabled={starting}>
+              {starting ? 'Starting verification…' : 'Verify identity'}
+            </button>
+          )}
+          {compact && <p className="up-verify-card__message">No verification is in progress. Start one from the product page.</p>}
+        </>
+      )}
+      {availability?.available && !transaction && transactionId && (
+        <p className="up-verify-card__message" aria-live="polite">Checking your existing verification status with PingOne…</p>
+      )}
+      {transaction && (
+        <div aria-live="polite">
+          <p className={`up-verify-card__status up-verify-card__status--${String(transaction.status || '').toLowerCase()}`}>
+            {transaction.status === 'SUCCESS' && 'Identity verification complete.'}
+            {transaction.status === 'FAIL' && 'Identity verification was not successful.'}
+            {transaction.status === 'EXPIRED' && 'This verification request expired.'}
+            {!isTerminal(transaction.status) && `Verification status: ${transaction.status || 'pending'}.`}
+            {['APPROVED_MANUALLY', 'APPROVED_NO_REQUEST', 'NOT_REQUIRED', 'UNKNOWN'].includes(transaction.status) && ' This status does not complete automated identity proofing.'}
+          </p>
+          {!isTerminal(transaction.status) && (
+            <p className="up-verify-card__message">Checking with PingOne… This page will update when the transaction finishes.</p>
+          )}
+          {transaction.status === 'SUCCESS' && !transaction.canEnrollRecognize && (
+            <p className="up-verify-card__message">Recognize enrollment will be available after its tenant setup and result-validation contract are confirmed.</p>
+          )}
+        </div>
+      )}
+      {statusError && <p className="up-verify-card__error" role="alert">{statusError}</p>}
+      {!compact && transaction && isTerminal(transaction.status) && transaction.status !== 'SUCCESS' && availability?.available && (
+        <button type="button" className="up-btn up-btn--secondary" onClick={() => { setTransaction(null); setTransactionId(null); }}>
+          Start a new verification
+        </button>
+      )}
+      {compact && <a className="up-verify-card__link" href="/ping-products/verify-recognize">Open PingOne Verify &amp; Recognize</a>}
+    </section>
+  );
+}

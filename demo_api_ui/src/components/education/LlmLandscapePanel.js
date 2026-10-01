@@ -497,7 +497,7 @@ learned from data          responses                   more aligned`}</Code>
         </li>
         <li>
           <strong>Trade-off:</strong> Higher latency and cost (thinking tokens
-          count against context and billing); not worth it for simple Q&A or
+          count against context and billing); not worth it for simple Q&amp;A or
           classification.
         </li>
         <li>

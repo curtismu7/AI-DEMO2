@@ -1,0 +1,104 @@
+{{- $landingPage := .Values.landingPage | default dict -}}
+{{- if $landingPage.enabled -}}
+{{- $page := .Files.Get "files/homepage.html" | replace "__GATEWAY_HOST__" .Values.hostname -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "agentless-mcpgw.name" . }}-homepage
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "agentless-mcpgw.labels" . | nindent 4 }}
+data:
+  index.html: |
+{{ $page | indent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "agentless-mcpgw.name" . }}-homepage
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "agentless-mcpgw.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ include "agentless-mcpgw.name" . }}-homepage
+  template:
+    metadata:
+      labels:
+        app: {{ include "agentless-mcpgw.name" . }}-homepage
+      annotations:
+        checksum/page: {{ $page | sha256sum }}
+    spec:
+      containers:
+        - name: homepage
+          image: {{ $landingPage.image | default "nginx:stable-alpine" }}
+          ports:
+            - containerPort: 80
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          volumeMounts:
+            - name: page
+              mountPath: /usr/share/nginx/html
+              readOnly: true
+      volumes:
+        - name: page
+          configMap:
+            name: {{ include "agentless-mcpgw.name" . }}-homepage
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "agentless-mcpgw.name" . }}-homepage
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "agentless-mcpgw.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: {{ include "agentless-mcpgw.name" . }}-homepage
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+---
+# A separate ingress keeps the gateway's HTTPS backend annotation on every
+# OAuth and MCP route while this static page uses plain HTTP in-cluster.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "agentless-mcpgw.name" . }}-homepage
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "agentless-mcpgw.labels" . | nindent 4 }}
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+spec:
+  ingressClassName: {{ .Values.ingressClassName }}
+  tls:
+    - hosts:
+        - {{ .Values.hostname }}
+      secretName: {{ include "agentless-mcpgw.name" . }}-tls
+  rules:
+    - host: {{ .Values.hostname }}
+      http:
+        paths:
+          - path: /
+            pathType: Exact
+            backend:
+              service:
+                name: {{ include "agentless-mcpgw.name" . }}-homepage
+                port:
+                  number: 80
+{{- end }}

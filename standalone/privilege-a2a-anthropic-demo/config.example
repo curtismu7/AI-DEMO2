@@ -1,0 +1,47 @@
+# Node.js 22 or later. Copy this file to .env before starting the demo.
+
+# Process ports. Worker and MCP bind to loopback. For native AI-DEMO2, the main
+# process also binds to loopback; use 0.0.0.0 only when its BFF runs in Docker.
+MAIN_AGENT_HOST=127.0.0.1
+MAIN_AGENT_PORT=3300
+WORKER_AGENT_PORT=3301
+MCP_SERVER_PORT=3302
+
+# Required when using AI Guard Client. Set the same random value on the BFF as
+# PRIVILEGE_A2A_BFF_SECRET. Keep this server-side; never put it in the UI.
+A2A_BFF_SHARED_SECRET=
+
+# Model traffic uses Anthropic's native Messages API. To route through Privilege,
+# use https://<gateway>/llm/anthropic (the SDK appends /v1/messages).
+# Leave blank to call Anthropic directly with the per-agent provider API keys.
+ANTHROPIC_BASE_URL=
+MAIN_AGENT_MODEL=claude-sonnet-5
+WORKER_AGENT_MODEL=claude-opus-5
+
+# Privilege Agent Access keys. In gateway mode each key is reused by only its
+# owning agent on its Anthropic and A2A/MCP legs.
+MAIN_AGENT_KEY=
+WORKER_AGENT_KEY=
+
+# Direct-provider credentials, used only when ANTHROPIC_BASE_URL is blank.
+# A shared key is allowed for local development; agent-specific keys take priority.
+MAIN_AGENT_ANTHROPIC_API_KEY=
+WORKER_AGENT_ANTHROPIC_API_KEY=
+ANTHROPIC_API_KEY=
+
+# Outbound service URLs. The gateway form is https://<gateway>/<app>/a2a,
+# https://<gateway>/<app>/trace, and https://<gateway>/<app>/mcp.
+WORKER_A2A_URL=http://127.0.0.1:3301/a2a
+WORKER_TRACE_URL=http://127.0.0.1:3301/trace
+MCP_URL=http://127.0.0.1:3302/mcp
+
+# Optional local header-presence checks. These only verify that a Bearer header
+# arrived; Privilege is the component that validates Agent Access keys.
+WORKER_REQUIRE_BEARER=false
+MCP_REQUIRE_BEARER=false
+
+# MCP transport settings and demo data behavior.
+MCP_JSON_RESPONSE=false
+MCP_STATEFUL=true
+MCP_SESSION_TTL_MS=300000
+MCP_DEMO_INJECTION=false

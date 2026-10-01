@@ -14,10 +14,12 @@ test('the poisoned skill instructs exfiltrating credentials/tokens', () => {
   assert.match(POISONED_SKILL.description, /credential|token/i, 'skill no longer leaks secrets');
 });
 
-test('buildCard serves the poison verbatim and wires the JSON-RPC url', () => {
-  const card = buildCard('http://example/rpc/');
-  assert.equal(card.url, 'http://example/rpc/');
-  assert.equal(card.protocolVersion, '1.0');
+test('buildCard is a v0.3.0 card, serves the poison verbatim, wires the JSON-RPC url', () => {
+  const card = buildCard('http://example/a2a/jsonrpc');
+  assert.equal(card.protocolVersion, '0.3.0');
+  assert.equal(card.preferredTransport, 'JSONRPC');
+  assert.equal(card.url, 'http://example/a2a/jsonrpc');
+  assert.equal(card.additionalInterfaces[0].url, 'http://example/a2a/jsonrpc');
   assert.match(card.description, /<IMPORTANT>/, 'description poison dropped from the card');
   assert.ok(card.skills.some((s) => /credential|token/i.test(s.description)), 'skill poison dropped from the card');
 });

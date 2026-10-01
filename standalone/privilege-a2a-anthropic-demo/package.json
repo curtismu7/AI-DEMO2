@@ -1,0 +1,35 @@
+{
+  "name": "privilege-a2a-anthropic-demo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Three-process A2A and MCP demo using Anthropic through PingOne Privilege",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "main": "tsx --env-file=.env src/main-agent/index.ts",
+    "worker": "tsx --env-file=.env src/worker-agent/index.ts",
+    "mcp": "tsx --env-file=.env src/mcp-server/index.ts",
+    "dev": "concurrently -n mcp,worker,main -c blue,magenta,green \"npm:mcp\" \"npm:worker\" \"npm:main\"",
+    "build": "tsc",
+    "test": "tsx --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@a2a-js/sdk": "^0.3.14",
+    "@anthropic-ai/sdk": "^0.129.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "express": "^5.2.1",
+    "zod": "^4.2.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^24.0.0",
+    "concurrently": "^9.2.1",
+    "tsx": "^4.22.4",
+    "typescript": "^5.9.0"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true
+  }
+}

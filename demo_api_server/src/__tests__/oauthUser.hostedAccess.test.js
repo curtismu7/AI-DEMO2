@@ -4,6 +4,13 @@ const express = require('express');
 const request = require('supertest');
 
 jest.mock('../../services/oauthUserService');
+// The hosted-access gate is under test here; ID-token signature validation is covered
+// by the validator's own tests, so decode the payload without verifying it.
+jest.mock('../../services/oidcIdTokenValidationService', () => ({
+  validateIdToken: jest.fn(async (idToken) => JSON.parse(Buffer.from(idToken.split('.')[1], 'base64url').toString())),
+  assertUserInfoSubjectMatches: jest.fn(),
+}));
+
 jest.mock('../../services/authAccessAuditService', () => ({
   startLoginAudit: jest.fn(),
   resumeLoginAudit: jest.fn(),
@@ -56,7 +63,7 @@ describe('customer OAuth hosted access', () => {
     });
 
     const res = await request(appFor({
-      oauthState: 'state-1', oauthNonce: 'nonce-1', oauthCodeVerifier: 'verifier',
+      oauthState: 'state-1', oauthNonce: 'nonce-1', oauthCodeVerifier: 'verifier', oauthLoginProvider: 'pingone',
       oauthRedirectUri: 'https://ai-demo.ping-devops.com/api/auth/oauth/user/callback',
       hostedLoginAudit: { loginType: 'user', startedAt: Date.now(), terminal: false },
     })).get('/api/auth/oauth/user/callback').query({ code: 'code-1', state: 'state-1' });
@@ -76,7 +83,7 @@ describe('customer OAuth hosted access', () => {
     });
     oauthService.getUserInfo.mockResolvedValue({ sub: 'user-1', email: 'person@pingone.com' });
     const res = await request(appFor({
-      oauthState: 'state-1', oauthNonce: 'nonce-1', oauthCodeVerifier: 'verifier',
+      oauthState: 'state-1', oauthNonce: 'nonce-1', oauthCodeVerifier: 'verifier', oauthLoginProvider: 'pingone',
       oauthRedirectUri: 'https://ai-demo.ping-devops.com/api/auth/oauth/user/callback',
       hostedLoginAudit: { loginType: 'user', startedAt: Date.now(), terminal: false },
     })).get('/api/auth/oauth/user/callback').query({ code: 'code-1', state: 'state-1' });
