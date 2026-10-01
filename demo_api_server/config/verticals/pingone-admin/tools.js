@@ -153,6 +153,25 @@ const tools = [
   { name: 'dual_token_demo', description: 'Demo access and ID token path.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
 ];
 
+// The readiness audit consumes this metadata instead of inferring a contract
+// from demo-step text. Only the two operational wrappers are valid Demo Step
+// actions; the API-key and dual-token entries are intentionally unavailable in
+// this vertical's execute() path.
+const READINESS_ACTIONS = Object.freeze({
+  list_pingone_tools: Object.freeze({ expectsHostedTool: false }),
+  call_pingone_tool: Object.freeze({ expectsHostedTool: true, hostedTools: Object.freeze([...CALLABLE_TOOLS]) }),
+});
+
+function getReadinessToolMetadata() {
+  const registered = new Set(tools.map((tool) => tool.name));
+  return Object.fromEntries(Object.entries(READINESS_ACTIONS)
+    .filter(([action]) => registered.has(action))
+    .map(([action, contract]) => [action, {
+      expectsHostedTool: contract.expectsHostedTool,
+      hostedTools: contract.hostedTools ? [...contract.hostedTools] : [],
+    }]));
+}
+
 // MCP tools/call results arrive as { content: [{ type:'text', text }] } where
 // text is usually JSON; tolerate plain objects and non-JSON text.
 function parseMcpResult(raw) {
@@ -499,4 +518,4 @@ async function execute(name, params, ctx) {
   }
 }
 
-module.exports = { tools, execute };
+module.exports = { tools, execute, getReadinessToolMetadata };

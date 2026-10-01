@@ -7,6 +7,11 @@
 !scope-topology.json
 !service-topology.json
 !llm-timeouts.json
+!scripts/
+!scripts/check-demo-health-gate.js
+!scripts/check-mcp-preflight.js
+!scripts/lib/
+!scripts/lib/preflightRows.js
 !docs/
 !docs/**
 !graphify-out/

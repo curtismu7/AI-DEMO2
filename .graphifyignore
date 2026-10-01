@@ -1,0 +1,5 @@
+# Bulk fixtures and generated traces. Graphify's JSON extractor intentionally
+# skips their data-shaped JSON, so indexing them only causes repeated rescans.
+demo_api_server/data/step-verification/
+demo_api_server/data/goldens/
+langchain_agent/visualizations/

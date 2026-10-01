@@ -110,6 +110,16 @@ describe('demo readiness report', () => {
     expect(report.status).toBe('not-ready');
   });
 
+  test('preserves an explicit waiver in a blocked optional finding', () => {
+    const report = makeReport();
+    const waiver = 'Temporary waiver: live Authorize policy-tree parity is unverified.';
+
+    recordCheck(report, { id: 'authorize-policy-tree', status: 'blocked', required: false, waiver, evidence: 'Readback is unavailable.' });
+
+    expect(report.checks[0]).toEqual(expect.objectContaining({ status: 'blocked', required: false, waiver }));
+    expect(JSON.parse(JSON.stringify(report)).checks[0]).toEqual(expect.objectContaining({ status: 'blocked', required: false, waiver }));
+  });
+
   test.each(['fail', 'blocked', 'not-run'])('a required %s row keeps the report not ready', (status) => {
     const report = makeReport();
     recordCheck(report, { id: `required-${status}`, status });

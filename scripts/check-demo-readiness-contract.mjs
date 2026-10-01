@@ -49,18 +49,34 @@ function checkDemoReadinessContract() {
     throw new Error(`UI/BFF/readiness prerequisites drifted:\n- ${prerequisiteMismatches.join('\n- ')}`);
   }
   const projectRoot = new URL('../', import.meta.url);
-  const missingFeatureTests = sources.featureChecks.checks.flatMap((check) => [
-    { id: check.id, sourceRef: check.sourceRef, testTitle: check.testTitle },
+  const missingFeatureSources = sources.featureChecks.checks.filter((check) => {
+    try {
+      readFileSync(new URL(check.sourceRef, projectRoot), 'utf8');
+      return false;
+    } catch {
+      return true;
+    }
+  });
+  const isTestFile = (sourceRef) => {
+    const sourcePath = String(sourceRef || '').split('#', 1)[0];
+    return sourcePath.includes('/__tests__/') || /\.(?:test|spec)\.[cm]?[jt]sx?$/.test(sourcePath);
+  };
+  const featureTestRefs = sources.featureChecks.checks.flatMap((check) => [
+    ...(isTestFile(check.sourceRef) ? [{ id: check.id, sourceRef: check.sourceRef, testTitle: check.testTitle }] : []),
     ...(check.relatedTests || []).map((test) => ({ id: check.id, ...test })),
-  ]).filter((test) => {
+  ]);
+  const missingFeatureTests = featureTestRefs.filter((test) => {
     try {
       return !readFileSync(new URL(test.sourceRef, projectRoot), 'utf8').includes(test.testTitle);
     } catch {
       return true;
     }
   });
+  if (missingFeatureSources.length) {
+    throw new Error(`Feature-check source files are missing: ${missingFeatureSources.map((check) => `${check.id} (${check.sourceRef})`).join(', ')}`);
+  }
   if (missingFeatureTests.length) {
-    throw new Error(`Feature-check tests are missing: ${missingFeatureTests.map((test) => `${test.id} (${test.sourceRef})`).join(', ')}`);
+    throw new Error(`Feature-check test references are missing or stale: ${missingFeatureTests.map((test) => `${test.id} (${test.sourceRef})`).join(', ')}`);
   }
   return rows;
 }
@@ -69,10 +85,10 @@ try {
   const rows = checkDemoReadinessContract();
   console.log(
     `Demo readiness contract passed: ${rows.length} executable Demo Steps entries `
-    + '(24 primary, 4 CIAM, 6 Privilege, 12 Admin).',
+    + '(25 primary, 4 CIAM, 6 Privilege, 12 Admin).',
   );
   const sources = loadDemoReadinessSources();
-  console.log(`${sources.featureChecks.checks.length} provider feature checks are registered separately from the 46 UI entries`);
+  console.log(`${sources.featureChecks.checks.length} provider feature checks are registered separately from the ${rows.length} UI entries`);
   console.log('UI, BFF, and readiness prerequisite flags match for every case and vertical.');
   console.log(
     `Provider flows: ${Object.keys(sources.repairability.providerFlows).length}; `

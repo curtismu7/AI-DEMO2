@@ -40,6 +40,10 @@ spec:
         # mcp-secrets is a fatal boot guard outside development (validator.ts).
         - name: NODE_ENV
           value: "development"
+        # Exact hosted browser origin for Streamable HTTP MCP requests.
+        # Origin-less CLI and server-to-server clients remain supported.
+        - name: MCP_ALLOWED_ORIGINS
+          value: "https://ai-demo.ping-devops.com"
         - name: OTEL_EXPORTER_OTLP_ENDPOINT
           value: "http://jaeger:4317"
         - name: OTEL_SERVICE_NAME

@@ -23,6 +23,13 @@ clusterIssuer: letsencrypt-pdo
 # Nginx ingress class
 ingressClassName: nginx-public
 
+# Serve a clear gateway introduction at / without changing OAuth or MCP paths.
+# Enabled by the AI Demo values overlay; other chart installations keep the
+# gateway's built-in page unless they opt in.
+landingPage:
+  enabled: false
+  image: nginx:stable-alpine
+
 resources:
   requests:
     memory: "2Gi"

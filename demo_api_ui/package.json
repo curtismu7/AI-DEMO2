@@ -36,11 +36,12 @@
   },
   "scripts": {
     "start": "vite",
-    "prebuild": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON ../scripts/check-demo-readiness-contract.mjs",
+    "prebuild": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON ../scripts/check-demo-readiness-contract.mjs && node scripts/sync-topology-exports.mjs",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest --reporter=verbose",
-    "test:unit": "vitest run",
+    "test": "node scripts/run-vitest-with-memory-guard.mjs --reporter=verbose",
+    "test:unit": "node scripts/run-vitest-with-memory-guard.mjs unit",
+    "test:unit:pr": "node scripts/run-vitest-with-memory-guard.mjs pr-related",
     "test:vite": "node scripts/vite-resolve-smoke.mjs",
     "test:e2e": "playwright test",
     "test:e2e:ci": "CI=true playwright test",
@@ -65,7 +66,8 @@
     "test:e2e:usecases": "playwright test tests/e2e/use-cases-agent.real.spec.js --config=playwright.real.config.js --reporter=list",
     "test:e2e:real:demo-steps": "playwright test tests/e2e/demo-steps-outcomes.real.spec.js --config=playwright.real.config.js --reporter=list",
     "test:e2e:real:local": "E2E_BASE_URL=http://localhost:3000 playwright test --config=playwright.real.config.js --reporter=list",
-    "test:e2e:smoke": "playwright test tests/e2e/url-smoke.spec.js"
+    "test:e2e:smoke": "playwright test tests/e2e/url-smoke.spec.js",
+    "prestart": "node scripts/sync-topology-exports.mjs"
   },
   "lint:modal-overlay-pattern": "node ../../.agents/skills/modal-overlay-pattern/lint-modal-overlay-pattern.js",
   "devDependencies": {

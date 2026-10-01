@@ -46,6 +46,7 @@
 }
 
 .setup-step-item:hover:not(.locked) {
+  color: var(--th-text);
   background: var(--th-bg-hover);
 }
 
@@ -119,6 +120,7 @@
 }
 
 .setup-download-btn:hover {
+  color: var(--th-text);
   background: var(--th-bg-hover);
 }
 

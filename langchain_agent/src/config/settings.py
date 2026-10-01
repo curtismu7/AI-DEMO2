@@ -95,7 +95,10 @@ class A2AConfig:
 @dataclass
 class LangChainConfig:
     """Configuration for LangChain agent."""
-    model_name: str = "llama3.2"
+    # Empty = let llm_factory.get_llm pick each provider's own default. A stale
+    # "llama3.2" here overrode llamacpp's phi-4-mini-instruct (a model the proxy
+    # never loaded) and cost an 81s swap on the first request.
+    model_name: str = ""
     temperature: float = 0.7
     # See llm_factory.get_llm: 1000 let gpt-oss spend the whole budget on reasoning
     # and return an EMPTY answer. Matches llamaindex_agent's AGENT_MAX_TOKENS.
@@ -206,7 +209,7 @@ class DevelopmentConfig(BaseEnvironmentConfig):
             "DEBUG": "true",
             "LOG_LEVEL": "DEBUG",
             "LANGCHAIN_VERBOSE": "true",
-            "LANGCHAIN_MODEL_NAME": "llama3.2",
+            "LANGCHAIN_MODEL_NAME": "",
             "PINGONE_REDIRECT_URI": "http://localhost:8889/auth/callback",
             "SESSION_TIMEOUT_MINUTES": "30",  # Shorter timeout for development
         }
@@ -234,7 +237,7 @@ class StagingConfig(BaseEnvironmentConfig):
             "DEBUG": "false",
             "LOG_LEVEL": "INFO",
             "LANGCHAIN_VERBOSE": "false",
-            "LANGCHAIN_MODEL_NAME": "llama3.2",
+            "LANGCHAIN_MODEL_NAME": "",
             "SESSION_TIMEOUT_MINUTES": "60",
             "MAX_RETRY_ATTEMPTS": "5",  # More retries in staging
         }
@@ -287,7 +290,7 @@ class TestConfig(BaseEnvironmentConfig):
             "DEBUG": "true",
             "LOG_LEVEL": "DEBUG",
             "LANGCHAIN_VERBOSE": "false",  # Keep test output clean
-            "LANGCHAIN_MODEL_NAME": "llama3.2",
+            "LANGCHAIN_MODEL_NAME": "",
             "PINGONE_BASE_URL": "https://test.forgeblocks.com",
             "SESSION_TIMEOUT_MINUTES": "5",  # Short timeout for tests
             "MCP_CONNECTION_TIMEOUT_SECONDS": "5",  # Fast timeouts for tests
@@ -480,7 +483,7 @@ class ConfigManager:
 
         # LangChain configuration
         langchain_config = LangChainConfig(
-            model_name=get_env_value("LANGCHAIN_MODEL_NAME", "llama3.2"),
+            model_name=get_env_value("LANGCHAIN_MODEL_NAME", ""),
             temperature=float(get_env_value("LANGCHAIN_TEMPERATURE", "0.7")),
             max_tokens=int(get_env_value("LANGCHAIN_MAX_TOKENS", "3000")),
             openai_api_key=get_env_value("OPENAI_API_KEY", ""),

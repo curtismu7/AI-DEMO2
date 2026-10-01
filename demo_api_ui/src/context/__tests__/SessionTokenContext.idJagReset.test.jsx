@@ -7,6 +7,8 @@ vi.mock('../../services/tokenChainTrace/tokenChainTraceStore', () => ({
   tokenChainTraceStore: { getState: vi.fn(), reset: vi.fn() },
 }));
 
+beforeEach(() => vi.clearAllMocks());
+
 test('ordinary login and logout clear ID-JAG visual state while a validated callback preserves it', () => {
   tokenChainTraceStore.getState.mockReturnValue({ trace: { mode: 'mock-id-jag', provenance: 'mock-id-jag' } });
   render(<SessionTokenProvider><div>child</div></SessionTokenProvider>);
@@ -16,4 +18,11 @@ test('ordinary login and logout clear ID-JAG visual state while a validated call
   expect(tokenChainTraceStore.reset).toHaveBeenCalledTimes(1);
   act(() => window.dispatchEvent(new Event('userLoggedOut')));
   expect(tokenChainTraceStore.reset).toHaveBeenCalledTimes(2);
+});
+
+test('a provisional generic OAuth restore preserves ID-JAG visuals pending provider status', () => {
+  tokenChainTraceStore.getState.mockReturnValue({ trace: { mode: 'mock-id-jag', provenance: 'mock-id-jag' } });
+  render(<SessionTokenProvider><div>child</div></SessionTokenProvider>);
+  act(() => window.dispatchEvent(new CustomEvent('userAuthenticated', { detail: { authSessionProvisional: true } })));
+  expect(tokenChainTraceStore.reset).not.toHaveBeenCalled();
 });

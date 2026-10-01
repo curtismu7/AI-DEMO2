@@ -46,6 +46,7 @@ import TokenChainFilmstrip from "./TokenChainFilmstrip";
 import ReelDock from "./ReelDock";
 import SequenceReelDiagram from "./SequenceReelDiagram";
 import TokenTopologyPanel from "./TokenTopologyPanel";
+import ServerTopologyStory from "./ServerTopologyStory";
 import StepDetailPanel from "./StepDetailPanel";
 import CollapsibleStepDetail from "./CollapsibleStepDetail";
 import SimpleStepperBar from "./SimpleStepperBar";
@@ -269,6 +270,17 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
     const handler = (e) => setShowTokenTopology(!!e.detail?.on);
     window.addEventListener("agent-token-topology-toggle", handler);
     return () => window.removeEventListener("agent-token-topology-toggle", handler);
+  }, []);
+  const [showServerTopology, setShowServerTopology] = useState(() => {
+    try {
+      const surface = localStorage.getItem("ba_server_topology_surface");
+      return surface === "embedded" || surface === "both";
+    } catch { return false; }
+  });
+  useEffect(() => {
+    const handler = (event) => setShowServerTopology(!!event.detail?.on);
+    window.addEventListener("agent-server-topology-toggle", handler);
+    return () => window.removeEventListener("agent-server-topology-toggle", handler);
   }, []);
   // The step a user clicked on in the diagram, rendered below it via
   // StepDetailPanel — the same narrative/RFC/request-response detail the
@@ -561,6 +573,9 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
           }
         } catch (sessionErr) {
           console.warn("Session check failed:", sessionErr.message);
+          // The app shell already confirmed this identity. Let the protected
+          // data request decide whether its token is still usable.
+          if (propUser) sessionUser = propUser;
         }
 
         if (!sessionUser) {
@@ -3873,7 +3888,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
       {/* User Session Token Modal */}
       {showTokenModal && (
         <FloatingPanel
-          title="User Session Token"
+          title="Session Token"
           onClose={() => setShowTokenModal(false)}
           defaultWidth={820}
           defaultHeight={Math.min(window.innerHeight - 80, 940)}
@@ -3938,9 +3953,10 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               reel at all. .agent-clinical-host is display:block over a 100vh
               shell, the same shape as float mode, so .tcfs-float-host's
               position:sticky/bottom:0 pins it without any clinical-specific CSS. */}
-          {showFilmstrip && !showSequenceDiagram && <ReelDock />}
-          {showTokenTopology && !showSequenceDiagram && <TokenTopologyPanel inline />}
-          {showSequenceDiagram && (
+          {showFilmstrip && !showSequenceDiagram && !showServerTopology && <ReelDock />}
+          {showTokenTopology && !showSequenceDiagram && !showServerTopology && <TokenTopologyPanel inline />}
+          {showServerTopology && <ServerTopologyStory />}
+          {showSequenceDiagram && !showServerTopology && (
             <SequenceReelDiagram
               onSelectStep={setSelectedSeqStep}
               onReset={() => setSelectedSeqStep(null)}
@@ -3997,7 +4013,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
           // and banking-column states keep their existing rules.
           className={`dashboard-content ud-body ud-body--2026 ud-focus-mode ${splitGridClass(
             showBankingInMiddle,
-          )}${middleAgentOpen ? "" : " ud-middle-collapsed"}${showSequenceDiagram ? " ud-sequence-view-active" : ""}${showSequenceDiagram && slowMode ? " ud-slow-mode-active" : ""}`}
+          )}${middleAgentOpen ? "" : " ud-middle-collapsed"}${showSequenceDiagram ? " ud-sequence-view-active" : ""}${showSequenceDiagram && slowMode ? " ud-slow-mode-active" : ""}${showTokenTopology && !showSequenceDiagram && !showServerTopology ? " ud-token-topology-active" : ""}`}
           style={{
             '--ud-agent-col-width': `${agentColWidth}px`,
             '--ud-focus-agent-frac': `${agentFrac}fr`,            ...(focusChainHeight != null
@@ -4111,9 +4127,10 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               data-testid="dashboard-focus-chain-resize"
             />
           )}
-          {showFilmstrip && !showSequenceDiagram && <TokenChainFilmstrip />}
-          {showTokenTopology && !showSequenceDiagram && <TokenTopologyPanel inline />}
-          {showSequenceDiagram && (
+          {showFilmstrip && !showSequenceDiagram && !showServerTopology && <TokenChainFilmstrip />}
+          {showTokenTopology && !showSequenceDiagram && !showServerTopology && <TokenTopologyPanel inline />}
+          {showServerTopology && <ServerTopologyStory />}
+          {showSequenceDiagram && !showServerTopology && (
             <SequenceReelDiagram
               onSelectStep={setSelectedSeqStep}
               onReset={() => setSelectedSeqStep(null)}
@@ -4196,9 +4213,10 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
             {/* Response mirror — shows last agent reply on main page when toggled on */}
             <AgentResponseMirror />
             {/* Movie reel filmstrip — toggled via More › Movie reel in the agent header */}
-            {showFilmstrip && !showSequenceDiagram && <ReelDock />}
-            {showTokenTopology && !showSequenceDiagram && <TokenTopologyPanel inline />}
-          {showSequenceDiagram && (
+            {showFilmstrip && !showSequenceDiagram && !showServerTopology && <ReelDock />}
+            {showTokenTopology && !showSequenceDiagram && !showServerTopology && <TokenTopologyPanel inline />}
+            {showServerTopology && <ServerTopologyStory />}
+          {showSequenceDiagram && !showServerTopology && (
             <SequenceReelDiagram
               onSelectStep={setSelectedSeqStep}
               onReset={() => setSelectedSeqStep(null)}

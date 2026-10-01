@@ -2,7 +2,7 @@
 
 /**
  * Use-Case Catalog API (read-only) — Plan A · Phase A1.
- *   GET /api/use-cases            → all 22 use cases, resolved for ?vertical (default banking)
+ *   GET /api/use-cases            → all 69 use cases, resolved for ?vertical (default banking)
  *   GET /api/use-cases/:id        → one resolved use case
  * The catalog is the SoT in config/useCases.js; this is a thin read surface.
  */
@@ -55,6 +55,72 @@ function pickVertical(req, res) {
     return null;
   }
   return vertical;
+}
+
+/**
+ * Readiness-only dispatch adapter.  It deliberately receives a worker-owned
+ * runtime rather than an Express request, so it cannot use a presenter cookie
+ * or the BFF's process-wide OAuth-provider setting.  The agent branch reuses
+ * the same outcome vocabulary as the conformance route below.
+ */
+function createReadinessExecutionAdapter(dispatchers = {}) {
+  const byKind = {
+    'agent-outcome': dispatchers.agent,
+    'attack-outcome': dispatchers.attack,
+    'page-load': dispatchers.page,
+    'education-panel': dispatchers.education,
+    'admin-mcp': dispatchers.admin,
+    a2a: dispatchers.a2a,
+    'intent-binding-quick': dispatchers.intentBinding,
+    'id-jag': dispatchers.idJag,
+  };
+  return async ({ behavior, authorization, context, caseRow, vertical, deadlineAt }) => {
+    const dispatch = byKind[behavior?.kind];
+    if (typeof dispatch !== 'function') throw new Error('readiness dispatch is unavailable for ' + behavior?.kind);
+    const response = await dispatch({ behavior, authorization, context, caseRow, vertical, deadlineAt });
+    const observed = behavior.kind === 'agent-outcome'
+      ? outcomeFromAgentResponse(response)
+      : (response?.observed || response?.outcome || response?.decision || 'UNKNOWN');
+    return { observed, evidence: response?.evidence || {} };
+  };
+}
+
+/**
+ * Readiness feature probes are kept separate from UI request handling.  Each
+ * family maps to one explicit runtime action so a worker cannot pass by
+ * returning manifest labels through a catch-all feature callback.  The
+ * execution service verifies the structured result against the checked-in
+ * family contract before it can be reported as a pass.
+ */
+function createReadinessFeatureExecutionAdapter(dispatchers = {}) {
+  const byFamily = {
+    'a2a-fm1': dispatchers.a2aFm1,
+    'a2a-fm2': dispatchers.a2aFm2,
+    'a2a-fm3': dispatchers.a2aFm3,
+    'pf-davinci-login': dispatchers.pfDavinciLogin,
+    'attack-tool-abuse': dispatchers.attackToolAbuse,
+    'attack-tool-poisoning': dispatchers.attackToolPoisoning,
+    'attack-schema-violation': dispatchers.attackSchemaViolation,
+    'attack-inter-agent-abuse': dispatchers.attackInterAgentAbuse,
+    'attack-malicious-content': dispatchers.attackMaliciousContent,
+    'agent-iam-core': dispatchers.agentIamCore,
+    'pf-cimd': dispatchers.pfCimd,
+    'pf-third-party-as': dispatchers.pfThirdPartyAuthorizationServer,
+    'pf-native-id-jag': dispatchers.pfNativeIdJag,
+    'pf-rar': dispatchers.pfRar,
+    'uc2-passenger-invalid-target': dispatchers.uc2PassengerInvalidTarget,
+    'prompt-injection': dispatchers.promptInjection,
+  };
+  return async ({ check, contract, context, deadlineAt, abortSignal }) => {
+    const family = contract?.featureFamily;
+    const dispatch = byFamily[family];
+    if (typeof dispatch !== 'function') throw new Error('readiness feature dispatch is unavailable for ' + family);
+    const response = await dispatch({ check, contract, context, deadlineAt, abortSignal });
+    return {
+      observed: response?.observed || response?.outcome || 'UNKNOWN',
+      evidence: response?.evidence || {},
+    };
+  };
 }
 
 // GET /api/use-cases  → list
@@ -529,3 +595,5 @@ router.get('/golden/:vertical/:useCaseId', (req, res) => {
 module.exports = router;
 module.exports._cibaRequestsForTest = cibaRequests;
 module.exports._sweepExpiredCibaRequestsForTest = _sweepExpiredCibaRequests;
+module.exports.createReadinessExecutionAdapter = createReadinessExecutionAdapter;
+module.exports.createReadinessFeatureExecutionAdapter = createReadinessFeatureExecutionAdapter;

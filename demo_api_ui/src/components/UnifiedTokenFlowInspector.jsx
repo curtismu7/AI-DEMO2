@@ -111,6 +111,14 @@ function hasAnyField(data) {
   return Object.values(data).some((v) => v !== undefined && v !== null);
 }
 
+function withDecodedClaims(event) {
+  if (event.decoded) return event;
+  const decoded = event.jwtFullDecode || (event.claims ? { header: null, claims: event.claims } : null);
+  return decoded?.claims
+    ? { ...event, decoded: { header: decoded.header || {}, payload: decoded.claims } }
+    : event;
+}
+
 // Tool -> gateway route category, mirroring the five routes documented in
 // GatewayRoutingDiagram.jsx (itself sourced from demo_mcp_gateway/src/router.ts,
 // the real routing source of truth). Only two of the five categories are a
@@ -492,7 +500,7 @@ function OAuthInspectorSection({ selectedToken, onOpenClaimsModal, activeTab }) 
       }
 
       const previewRes = await bffAxios.get('/api/tokens/session-preview');
-      const events = previewRes.data?.tokenEvents || [];
+      const events = (previewRes.data?.tokenEvents || []).map(withDecodedClaims);
       const userTokenEvent = events.find(
         (e) => e.decoded && (e.id === 'user-token' || e.label?.toLowerCase().includes('user'))
       );
@@ -615,7 +623,7 @@ function OAuthInspectorSection({ selectedToken, onOpenClaimsModal, activeTab }) 
       const detail = e.detail || {};
       if (detail.tokenEvents && Array.isArray(detail.tokenEvents)) {
         setTokenExchangeEvents(prev => {
-          const merged = [...(prev || []), ...detail.tokenEvents];
+          const merged = [...(prev || []), ...detail.tokenEvents.map(withDecodedClaims)];
           // Keep last 20 events
           return merged.slice(-20);
         });
@@ -632,7 +640,7 @@ function OAuthInspectorSection({ selectedToken, onOpenClaimsModal, activeTab }) 
       bffAxios.get('/api/tokens/session-preview')
         .then(res => {
           if (res.data?.tokenEvents) {
-            setTokenExchangeEvents(res.data.tokenEvents);
+            setTokenExchangeEvents(res.data.tokenEvents.map(withDecodedClaims));
           }
         })
         .catch(() => {});

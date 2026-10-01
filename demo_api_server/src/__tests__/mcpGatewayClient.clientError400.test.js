@@ -7,6 +7,16 @@ jest.mock('../../services/configStore', () => ({
 
 const axios = require('axios');
 const { callToolViaGateway } = require('../../services/mcpGatewayClient');
+const previousPingGatewayUrl = process.env.MCP_PINGGATEWAY_URL;
+
+beforeAll(() => {
+  process.env.MCP_PINGGATEWAY_URL = 'https://api.ping.demo:3005';
+});
+
+afterAll(() => {
+  if (previousPingGatewayUrl === undefined) delete process.env.MCP_PINGGATEWAY_URL;
+  else process.env.MCP_PINGGATEWAY_URL = previousPingGatewayUrl;
+});
 
 test('a 400 with a JSON-RPC error envelope surfaces the real message, not a generic "Gateway returned HTTP 400"', async () => {
   axios.post = jest.fn().mockResolvedValue({

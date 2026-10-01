@@ -19,7 +19,7 @@ export const NAV_STRUCTURE_CATALOG = [
     "DaVinci Orchestration SDK", "Orchestration SDK Guide", "DaVinci Orchestration Overview",
   ] },
   { label: "Ping products", children: [
-    "PingOne Protect", "Headless Identity / PingCLI", "SDK Login", "M2M Client Credentials", "Custom Admin Role",
+    "PingOne Protect", "PingOne Verify & Recognize", "Headless Identity / PingCLI", "SDK Login", "M2M Client Credentials", "Custom Admin Role",
   ] },
   { label: "Identity Journeys", children: [
     "Self-Service Registration", "User Registration", "Login with MFA", "Identity Journey Map", "OAuth Academy", "OAS Demo",
@@ -68,7 +68,7 @@ export const NAV_STRUCTURE_CATALOG = [
     "Token Chain Architecture (Node)", "Interactive Flow (Node)", "Sequence Diagram (Node)", "Canvas Diagram (Node)",
     "Delegated Access Proof",
     "Invest Dual-Auth (MM)", "AI Gateway (MM)",
-    "AI Gateway Enforcement (Node)", "Gateway vs P1AZ Enforcement (MM)", "Resource Server Placement (MM)", "Learning Hub",
+    "AI Gateway Enforcement (Node)", "Gateway vs P1AZ Enforcement (MM)", "Resource Server Placement (MM)", "Learning Hub", "Page Catalog",
     "SPIFFE → PingOne Bridge (TODO)", "llama-vscode Guide",
   ] },
   { label: "Administration", children: [

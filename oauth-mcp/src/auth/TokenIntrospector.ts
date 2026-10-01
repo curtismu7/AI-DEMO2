@@ -39,13 +39,10 @@ export function audienceAccepted(tokenAud: string | string[], resourceUriEnv: st
 export class TokenIntrospector {
   private httpClient: AxiosInstance;
   private config: PingOneConfig;
-  // Memoised JWKS keyset — created lazily on first signature verification.
-  private jwksKeySet: Awaited<ReturnType<JoseModule['createRemoteJWKSet']>> | null = null;
-  // Last keyset that successfully verified a token. Retained across JWKS outages
-  // (unlike jwksKeySet, which is dropped on fetch failure to force a refetch) so a
-  // transient endpoint blip can still verify legitimately-signed tokens — and reject
-  // forged ones — instead of failing open.
-  private lastKnownGoodJwks: Awaited<ReturnType<JoseModule['createRemoteJWKSet']>> | null = null;
+  // Keep keysets and last-known-good fallbacks isolated by issuer/JWKS URI. A
+  // PingFederate token must never be checked with PingOne keys (or vice versa).
+  private jwksKeySets = new Map<string, Awaited<ReturnType<JoseModule['createRemoteJWKSet']>> | null>();
+  private lastKnownGoodJwksByUri = new Map<string, Awaited<ReturnType<JoseModule['createRemoteJWKSet']>>>();
 
   constructor(config: PingOneConfig) {
     this.config = config;
@@ -292,34 +289,36 @@ export class TokenIntrospector {
   }
 
   /**
-   * Resolve PingOne's JWKS URI from env (same precedence as JwtClaimVerifier).
+   * Resolve the configured issuer JWKS URI from env. PingOne uses the shared
+   * resolver; PingFederate passes its explicit JWKS URI to keep keysets isolated.
    * Returns null when no JWKS endpoint is configured.
    */
-  private async getJwksKeySet(): Promise<Awaited<ReturnType<JoseModule['createRemoteJWKSet']>> | null> {
-    if (this.jwksKeySet) return this.jwksKeySet;
-    this.jwksKeySet = await createJwksKeySet();
-    return this.jwksKeySet;
+  private async getJwksKeySet(
+    jwksUri?: string,
+  ): Promise<Awaited<ReturnType<JoseModule['createRemoteJWKSet']>> | null> {
+    const cacheKey = jwksUri || 'pingone-configured-jwks';
+    if (this.jwksKeySets.has(cacheKey)) return this.jwksKeySets.get(cacheKey) ?? null;
+    const keySet = await createJwksKeySet(jwksUri);
+    this.jwksKeySets.set(cacheKey, keySet);
+    return keySet;
   }
 
   /**
    * Cryptographically verify the inbound agent token's signature (RFC 7515)
-   * against PingOne's published JWKS. Verifies the signature only — claim checks
-   * (aud / may_act / act / exp) are enforced separately by the caller.
+   * against the configured issuer's published JWKS. For PF, also requires the
+   * configured issuer claim. Other claim checks (aud / may_act / act / exp) are
+   * enforced separately by the caller.
    *
-   * Fail-closed when JWKS is configured: a token whose signature does not verify
-   * is rejected. The dev-only escape hatch SKIP_TOKEN_SIGNATURE_VALIDATION=true
-   * (already fatal outside development via ConfigManager) downgrades a failure to
-   * a warning. When no JWKS endpoint is configured there is nothing to verify
-   * against, so the decode-only path is preserved with a prominent warning.
+   * PF signatures always fail closed, including during JWKS outages; the global
+   * development bypasses are not allowed to skip PF issuer verification. For
+   * other issuers, existing development and outage overrides remain unchanged.
    *
    * @returns true when the signature was cryptographically verified; false when
-   *          the token was accepted WITHOUT verification (no JWKS configured, the
-   *          SKIP escape hatch, or the ALLOW_JWKS_FAILOPEN outage path). Throws
-   *          when verification ran and failed.
+   *          the token was accepted WITHOUT verification (no PingOne JWKS, the
+   *          SKIP escape hatch, or the ALLOW_JWKS_FAILOPEN outage path). PF tokens
+   *          throw whenever signature verification cannot be completed.
    */
   private async verifyTokenSignature(token: string): Promise<boolean> {
-    const skip = process.env.SKIP_TOKEN_SIGNATURE_VALIDATION === 'true';
-
     // Peek `iss` (unverified — just routing which key to check against, not
     // trusting the claim yet). A self-issued token from oauth-mcp's own
     // embedded AS verifies against its local RSA key, no network involved.
@@ -331,7 +330,13 @@ export class TokenIntrospector {
       }
     } catch { /* malformed — fall through to the existing PingOne path, which will reject it */ }
 
-    if (peekedIss && peekedIss === resolveEmbeddedIssuer()) {
+    const configuredPfIssuer = process.env.PF_ISSUER_URI || process.env.PF_ISSUER;
+    const isPfIssuer = typeof peekedIss === 'string'
+      && Boolean(configuredPfIssuer)
+      && peekedIss === configuredPfIssuer;
+    const skip = !isPfIssuer && process.env.SKIP_TOKEN_SIGNATURE_VALIDATION === 'true';
+
+    if (peekedIss && peekedIss === resolveEmbeddedIssuer() && !isPfIssuer) {
       const { jwtVerify } = await getJose();
       try {
         const embedded = await getEmbeddedSigningKeyManager();
@@ -349,7 +354,23 @@ export class TokenIntrospector {
       }
     }
 
-    const jwks = await this.getJwksKeySet();
+    // The unverified issuer claim selects only which configured trust key to try.
+    // It does not establish trust: jwtVerify below must verify the signature.
+    // PF's JWKS is explicit and isolated; missing PF key configuration fails
+    // closed rather than falling back to PingOne's resolver or decode-only mode.
+    const providerLabel = isPfIssuer ? 'PingFederate' : 'PingOne';
+    const jwksUri = isPfIssuer ? process.env.PF_JWKS_URI?.trim() : undefined;
+    if (isPfIssuer && !jwksUri) {
+      teachLog.error('PF issuer configured but PF_JWKS_URI is missing — refusing an unverifiable agent token', undefined, { operation: 'jwks_verify' });
+      throw new AuthenticationError('Agent token signature cannot be verified (PF JWKS not configured)', AuthErrorCodes.INVALID_AGENT_TOKEN);
+    }
+
+    const keysetCacheKey = jwksUri || 'pingone-configured-jwks';
+    const jwks = await this.getJwksKeySet(jwksUri);
+    if (isPfIssuer && !jwks) {
+      teachLog.error('PF_JWKS_URI is invalid — refusing an unverifiable agent token', undefined, { operation: 'jwks_verify' });
+      throw new AuthenticationError('Agent token signature cannot be verified (PF JWKS is invalid)', AuthErrorCodes.INVALID_AGENT_TOKEN);
+    }
     if (!jwks) {
       // STRICT_AUTH must not accept an unverifiable token: no JWKS = no way to detect
       // a forged signature. Gated on STRICT_AUTH (not NODE_ENV) because the local demo
@@ -362,10 +383,16 @@ export class TokenIntrospector {
       return false;
     }
     const { jwtVerify } = await getJose();
+    const verifyAgainstIssuerKeys = (keySet: Awaited<ReturnType<JoseModule['createRemoteJWKSet']>>) => {
+      if (isPfIssuer && configuredPfIssuer) {
+        return jwtVerify(token, keySet, { issuer: configuredPfIssuer });
+      }
+      return jwtVerify(token, keySet);
+    };
     try {
-      await jwtVerify(token, jwks);
-      this.lastKnownGoodJwks = jwks;
-      teachLog.info('agent token signature verified (JWKS)');
+      await verifyAgainstIssuerKeys(jwks);
+      this.lastKnownGoodJwksByUri.set(keysetCacheKey, jwks);
+      teachLog.info(`agent token signature verified (${providerLabel} JWKS)`);
       return true;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -385,13 +412,13 @@ export class TokenIntrospector {
       // Authorization Server (introspection + policy), so retry once with a fresh
       // keyset; if the endpoint is still unreachable, warn and accept rather than
       // fail-closed.
-      this.jwksKeySet = null; // drop the memoised keyset so the retry re-fetches
+      this.jwksKeySets.delete(keysetCacheKey); // drop the memoised keyset so the retry re-fetches
       try {
-        const fresh = await this.getJwksKeySet();
+        const fresh = await this.getJwksKeySet(jwksUri);
         if (fresh) {
-          await jwtVerify(token, fresh);
-          this.lastKnownGoodJwks = fresh;
-          teachLog.info('agent token signature verified (JWKS, after retry)');
+          await verifyAgainstIssuerKeys(fresh);
+          this.lastKnownGoodJwksByUri.set(keysetCacheKey, fresh);
+          teachLog.info(`agent token signature verified (${providerLabel} JWKS, after retry)`);
           return true;
         }
       } catch (retryErr) {
@@ -405,31 +432,31 @@ export class TokenIntrospector {
       // last-known-good keyset from a previous successful verification — keys rarely
       // rotate, so a transient endpoint blip should still verify a legitimately-signed
       // token (and reject a forged one) rather than skip verification entirely.
-      if (this.lastKnownGoodJwks) {
+      const lastKnownGoodJwks = this.lastKnownGoodJwksByUri.get(keysetCacheKey);
+      if (lastKnownGoodJwks) {
         try {
-          await jwtVerify(token, this.lastKnownGoodJwks);
-          teachLog.warn(`JWKS endpoint unavailable (${msg}) — verified against last-known-good keyset instead`);
+          await verifyAgainstIssuerKeys(lastKnownGoodJwks);
+          teachLog.warn(`${providerLabel} JWKS endpoint unavailable (${msg}) — verified against last-known-good keyset instead`);
           return true;
         } catch (lkgErr) {
           if (!isJwksUnavailableError(lkgErr)) {
             const lmsg = lkgErr instanceof Error ? lkgErr.message : String(lkgErr);
-            teachLog.error('agent token signature verification failed (last-known-good JWKS)', undefined, { operation: 'jwks_verify', detail: lmsg });
+            teachLog.error(`agent token signature verification failed (${providerLabel} last-known-good JWKS)`, undefined, { operation: 'jwks_verify', detail: lmsg });
             throw new AuthenticationError('Agent token signature verification failed', AuthErrorCodes.INVALID_AGENT_TOKEN);
           }
           // last-known-good also couldn't resolve keys — fall through to fail-closed.
         }
       }
-      // No verifiable keyset and JWKS unreachable. FAIL CLOSED by default: an
-      // unverifiable signature must not pass (the previous default silently accepted,
-      // so an attacker who could force/await a JWKS outage got a forged JWT accepted).
-      // STRICT_AUTH always fails closed; an operator who knowingly runs a demo box with
-      // a flaky JWKS endpoint can restore accept-on-gateway-authorization by setting
-      // ALLOW_JWKS_FAILOPEN=true.
-      if (process.env.STRICT_AUTH === 'true' || process.env.ALLOW_JWKS_FAILOPEN !== 'true') {
-        teachLog.error(`JWKS endpoint unavailable (${msg}) and no verifiable keyset — failing closed (set ALLOW_JWKS_FAILOPEN=true to accept on gateway authorization)`, undefined, { operation: 'jwks_verify', detail: msg });
+      // No verifiable keyset and JWKS unreachable. PF always fails closed. Other
+      // issuers retain the existing default and explicit demo override behavior.
+      if (isPfIssuer || process.env.STRICT_AUTH === 'true' || process.env.ALLOW_JWKS_FAILOPEN !== 'true') {
+        const failureReason = isPfIssuer
+          ? ' — PF issuer signatures must be verifiable'
+          : ' — failing closed (set ALLOW_JWKS_FAILOPEN=true to accept on gateway authorization)';
+        teachLog.error(`${providerLabel} JWKS endpoint unavailable (${msg}) and no verifiable keyset${failureReason}`, undefined, { operation: 'jwks_verify', detail: msg });
         throw new AuthenticationError('Agent token signature verification unavailable (JWKS unreachable)', AuthErrorCodes.INVALID_AGENT_TOKEN);
       }
-      teachLog.warn(`JWKS endpoint unavailable (${msg}) and ALLOW_JWKS_FAILOPEN=true — agent token signature NOT verified; accepting on gateway authorization. Fix PINGONE_JWKS_URI to restore signature checks.`);
+      teachLog.warn(`${providerLabel} JWKS endpoint unavailable (${msg}) and ALLOW_JWKS_FAILOPEN=true — agent token signature NOT verified; accepting on gateway authorization. Fix its JWKS URI to restore signature checks.`);
       return false;
     }
   }

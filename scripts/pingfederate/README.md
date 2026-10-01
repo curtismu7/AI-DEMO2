@@ -36,6 +36,41 @@ Then point `PINGFEDERATE_PROFILE_PATH` at `~/pingfederate-profile`.
 - `npm run demo:health-gate` checks the container is up and healthy and will
   print this recovery path when it is missing.
 
+## oauth-mcp Banking API Step 9
+
+`oauth-mcp` runs a second RFC 8693 exchange for banking data tools. PingOne
+subjects continue through PingOne's existing Step 9 client and `resource`
+selector. PF subjects use a separate PF policy and ATM mapping; they do not
+reuse or modify `aiDemoStandardTePolicy`, which remains the BFF and
+PingGateway standard-exchange policy.
+
+The committed PF contract is in
+`spiffe/pingfederate/pf-step9-te-policy.json` and
+`spiffe/pingfederate/pf-step9-atm-mapping.json`. It requires an access-token
+actor, targets `aiDemoPfJwtAtm`, retains the incoming subject's `act`, and
+builds a nested actor chain for the PF MCP-service actor. The provisioner adds
+`TOKEN_EXCHANGE` to the PF MCP actor client configured in
+`demo_api_server/.env`, preserving its `CLIENT_CREDENTIALS` grant, default ATM,
+and protected secret.
+
+Preview the local PF changes, then apply and read them back:
+
+```bash
+python3 scripts/pingfederate/provision-pf-step9.sh
+python3 scripts/pingfederate/provision-pf-step9.sh --apply
+```
+
+The script defaults to dry-run. It reads the admin password from the running
+PF container unless `PINGFEDERATE_ADMIN_PASSWORD` is supplied, never prints
+the password or client secret, and changes only the dedicated Step 9 policy,
+its ATM mapping, and the existing MCP actor client.
+
+`demo_api_server/scripts/refresh-service-envs.js` writes PF Step 9 settings
+only to `oauth-mcp/.env`, sourcing the actor secret from the vault first and
+the existing BFF PF setting as fallback. Restart `oauth-mcp` after refreshing
+service environments. The PF request omits `resource` and `audience`; the
+dedicated processor-policy mapping selects the Banking API ATM.
+
 ## AI Agent RAR processor
 
 The PF AI Agent page includes CIMD, third-party ID-JAG exchange, and a custom

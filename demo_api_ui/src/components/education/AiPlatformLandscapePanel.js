@@ -43,7 +43,7 @@ function AwsContent() {
       <ToolCard name="Amazon SageMaker" category="ML Platform" color={c}
         description="End-to-end ML lifecycle: data prep, training, deployment, monitoring. Supports custom models, distributed training, real-time and batch inference. JumpStart library for pre-trained models." />
       <ToolCard name="Amazon Q" category="Enterprise AI Assistant" color={c}
-        description="Generative AI assistant for developers (Q Developer, integrated in VS Code/JetBrains) and business users (Q Business for document Q&A). Fine-tunable on company data." />
+        description="Generative AI assistant for developers (Q Developer, integrated in VS Code/JetBrains) and business users (Q Business for document Q&amp;A). Fine-tunable on company data." />
       <ToolCard name="Amazon Rekognition" category="Vision AI" color={c}
         description="Image/video analysis: object detection, facial recognition, content moderation, text in image. REST API, no ML expertise required." />
       <ToolCard name="Amazon Comprehend" category="NLP" color={c}
@@ -52,7 +52,7 @@ function AwsContent() {
         description="Build chatbots and voice bots with NLU. Integrates with Lambda for fulfilment. Powers Alexa." />
       <ToolCard name="Amazon Kendra" category="Enterprise Search" color={c}
         description="Intelligent search backed by NLP. Connects to S3, SharePoint, Salesforce. Bedrock Knowledge Bases is the newer evolution for RAG workloads." />
-      <ToolCard name="Amazon Polly / Transcribe / Translate" category="Speech & Language" color={c}
+      <ToolCard name="Amazon Polly / Transcribe / Translate" category="Speech &amp; Language" color={c}
         description="Polly: text-to-speech. Transcribe: speech-to-text with custom vocabulary. Translate: 75+ language pairs with neural machine translation." />
       <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 6, padding: '0.65rem 0.85rem', marginTop: '0.5rem', fontSize: '0.82rem', color: '#9a3412' }}>
         <strong>Key note:</strong> AWS Bedrock Agents support multi-step agentic workflows with tool use; integrate with Step Functions for orchestration. IAM-native auth — no separate identity layer needed for AWS-internal agents.
@@ -76,7 +76,7 @@ function MicrosoftContent() {
         description="Vector + keyword hybrid search with integrated chunking, embedding, and reranking. Core component of RAG pipelines on Azure. Semantic ranker powered by Microsoft's Bing ranking models." />
       <ToolCard name="Azure Machine Learning" category="ML Platform" color={c}
         description="End-to-end ML: experiments, pipelines, model registry, deployment to managed endpoints. MLflow integration." />
-      <ToolCard name="Azure AI Content Safety" category="Safety & Moderation" color={c}
+      <ToolCard name="Azure AI Content Safety" category="Safety &amp; Moderation" color={c}
         description="API for detecting harmful content (hate, violence, sexual, self-harm) in text and images. Used to gate LLM inputs/outputs in production." />
       <ToolCard name="Microsoft Semantic Kernel" category="Agent SDK" color={c}
         description="Open-source SDK (C#, Python, Java) for building LLM-powered apps and agents. Plugin/tool model, memory connectors, planner. Microsoft's answer to LangChain." />
@@ -98,7 +98,7 @@ function GoogleContent() {
       <ToolCard name="Vertex AI Agent Builder" category="Agent Framework" color={c}
         description="Build grounded agents with RAG (data store connectors), multi-turn conversation, and Google Search grounding. Replaces CCAI and Dialogflow CX for new projects." />
       <ToolCard name="Gemini for Google Workspace" category="Enterprise Copilot" color={c}
-        description="AI embedded in Gmail, Docs, Sheets, Meet. NotebookLM for document-grounded Q&A. Summarise, draft, and analyse directly in productivity tools." />
+        description="AI embedded in Gmail, Docs, Sheets, Meet. NotebookLM for document-grounded Q&amp;A. Summarise, draft, and analyse directly in productivity tools." />
       <ToolCard name="Google Cloud Natural Language API" category="NLP" color={c}
         description="Syntax analysis, entity recognition, sentiment, content classification. Pre-trained REST API with Healthcare NL and multilingual support." />
       <ToolCard name="Vision AI / Document AI / Video AI" category="Multimodal AI" color={c}
@@ -128,7 +128,7 @@ function IbmContent() {
         description="Enterprise chatbot builder. Integrates with watsonx.ai for LLM backbone. Deploys to web, phone, Slack, Salesforce." />
       <ToolCard name="Watson Discovery" category="Enterprise Search" color={c}
         description="AI-powered document search and NLP enrichment. RAG-ready with watsonx.ai integration." />
-      <ToolCard name="IBM OpenScale / OpenPages" category="Risk & Compliance" color={c}
+      <ToolCard name="IBM OpenScale / OpenPages" category="Risk &amp; Compliance" color={c}
         description="OpenScale: AI fairness, bias, and explainability monitoring. OpenPages: integrated risk management platform with AI for regulated industries." />
       <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 6, padding: '0.65rem 0.85rem', marginTop: '0.5rem', fontSize: '0.82rem', color: 'var(--brand-navy)' }}>
         <strong>IBM differentiator:</strong> IBM's focus is enterprise governance and transparency — auditability, bias monitoring, and compliance for regulated industries (banking, healthcare, insurance). Granite models publish full data lineage.
@@ -152,7 +152,7 @@ function AnthropicContent() {
         description="Claude 5 family available via Vertex AI Model Garden. GCP-native auth, compliance, and private networking." />
       <ToolCard name="Constitutional AI (CAI)" category="Safety Technique" color={c}
         description="Anthropic's training methodology: models are trained to follow a 'constitution' of principles (harmlessness, helpfulness, honesty). RLHF guided by AI feedback rather than purely human labels — more scalable." />
-      <ToolCard name="Model Card & Eval Transparency" category="Safety & Research" color={c}
+      <ToolCard name="Model Card &amp; Eval Transparency" category="Safety &amp; Research" color={c}
         description="Published evals for jailbreaks, CBRN risk, autonomy, deception. Responsible Scaling Policy: capability thresholds trigger additional safety work before deployment." />
       <div style={{ background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 6, padding: '0.65rem 0.85rem', marginTop: '0.5rem', fontSize: '0.82rem', color: '#4c1d95' }}>
         <strong>Important note:</strong> Anthropic does not offer a full cloud AI platform — they are a model company. Their competitive advantage is frontier capability with safety-first training. Integrations via AWS Bedrock and Google Vertex AI cover enterprise deployment needs.

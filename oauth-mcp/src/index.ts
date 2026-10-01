@@ -21,6 +21,7 @@ import { BankingSessionManager } from './storage/BankingSessionManager';
 import { BankingToolProvider } from './tools/BankingToolProvider';
 import { BankingAPIClient } from './banking/BankingAPIClient';
 import { TokenExchangeService } from './auth/TokenExchangeService';
+import { PfStep9TokenExchangeService } from './auth/PfStep9TokenExchangeService';
 import { Logger, createDefaultLoggerConfig } from './utils/Logger';
 
 // Export all types and interfaces for library usage
@@ -147,6 +148,35 @@ async function main(): Promise<void> {
       }, logger);
       toolProvider.setTokenExchangeService(tokenExchangeService);
       console.log(`[MCP] Step 9 token exchange enabled — audience: ${bankingApiResourceUri}`);
+    }
+
+    const pfStep9Config = {
+      issuerUri: process.env.PF_ISSUER_URI || process.env.PF_ISSUER || '',
+      tokenEndpoint: process.env.PF_TOKEN_ENDPOINT || '',
+      clientId: process.env.PF_MCP_SERVICE_ACTOR_CLIENT_ID || '',
+      clientSecret: process.env.PF_MCP_SERVICE_ACTOR_CLIENT_SECRET || '',
+      authMethod: (process.env.PF_MCP_SERVICE_ACTOR_TOKEN_ENDPOINT_AUTH_METHOD || 'basic').toLowerCase(),
+      actorScope: process.env.PF_STANDARD_MCP_ACTOR_SCOPE || 'mcp:invoke',
+      resourceUri: bankingApiResourceUri || '',
+    };
+    const missingPfStep9Config = Object.entries({
+      PF_ISSUER_URI: pfStep9Config.issuerUri,
+      PF_TOKEN_ENDPOINT: pfStep9Config.tokenEndpoint,
+      PF_MCP_SERVICE_ACTOR_CLIENT_ID: pfStep9Config.clientId,
+      PF_MCP_SERVICE_ACTOR_CLIENT_SECRET: pfStep9Config.clientSecret,
+      BANKING_API_RESOURCE_URI: pfStep9Config.resourceUri,
+    }).filter(([, value]) => !value).map(([key]) => key);
+    if (!missingPfStep9Config.length && ['basic', 'post'].includes(pfStep9Config.authMethod)) {
+      toolProvider.setPfTokenExchangeService(new PfStep9TokenExchangeService({
+        ...pfStep9Config,
+        authMethod: pfStep9Config.authMethod as 'basic' | 'post',
+      }));
+      console.log(`[MCP] PF Step 9 token exchange enabled — policy-bound audience: ${bankingApiResourceUri}`);
+    } else if (pfStep9Config.issuerUri) {
+      const missing = missingPfStep9Config.length
+        ? missingPfStep9Config.join(', ')
+        : 'PF_MCP_SERVICE_ACTOR_TOKEN_ENDPOINT_AUTH_METHOD must be basic or post';
+      console.warn(`[MCP] PF Step 9 token exchange unavailable; missing/invalid configuration: ${missing}`);
     }
     
     // Initialize and start MCP server
