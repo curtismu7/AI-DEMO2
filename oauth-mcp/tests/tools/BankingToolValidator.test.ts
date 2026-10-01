@@ -278,10 +278,11 @@ describe('BankingToolValidator', () => {
     });
 
     it('should reject multiple missing scopes', () => {
+      // create_transfer requires both write and transfer (scope-topology.json, the SSOT).
       const result = BankingToolValidator.validateScopes('create_transfer', []);
 
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Missing required scopes: write');
+      expect(result.errors).toContain('Missing required scopes: write, transfer');
     });
 
     it('should reject unknown tool for scope validation', () => {

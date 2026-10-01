@@ -24,7 +24,9 @@ export const TOOL_SCOPES: Record<string, string[]> = {
   // Write tools
   create_deposit: ['write'],
   create_withdrawal: ['write'],
-  create_transfer: ['write'],
+  // transfer, not just write — a narrowed exchange that dropped transfer would
+  // fail BankingToolRegistry's requiredScopes check for this tool.
+  create_transfer: ['write', 'transfer'],
 
   // Admin / user lookup tools
   query_user_by_email: ['read'],

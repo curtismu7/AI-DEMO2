@@ -450,7 +450,9 @@ export class BankingToolRegistry {
       title: 'Transfer Money',
       description: 'Transfer money between accounts. Use account IDs (not account numbers) from get_my_accounts response. Amounts over $250 require human consent on the web dashboard first (returns hitl_required if attempted without it).',
       requiresUserAuth: true,
-      requiredScopes: ['write'],
+      // transfer, not just write — matches scope-topology.json (the SSOT); a
+      // real end-user token always carries both together (oauthUser.js).
+      requiredScopes: ['write', 'transfer'],
       handler: 'executeCreateTransfer',
       readOnly: false,
       icons: [

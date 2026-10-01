@@ -56,10 +56,11 @@ describe('BankingToolProvider', () => {
       tokenType: 'Bearer',
       expiresIn: 3600,
       // Phase 210+: flat scope model (read, write, sensitive:read).
-      // accounts:read included too — a real end-user token always carries both
-      // together (demo_api_server/config/oauthUser.js), and get_my_accounts
-      // requires accounts:read specifically, not bare read.
-      scope: 'read write sensitive:read accounts:read',
+      // accounts:read and transfer included too — a real end-user token always
+      // carries all of these together (demo_api_server/config/oauthUser.js):
+      // get_my_accounts requires accounts:read specifically, and create_transfer
+      // requires transfer alongside write.
+      scope: 'read write sensitive:read accounts:read transfer',
       issuedAt: new Date()
     };
 
