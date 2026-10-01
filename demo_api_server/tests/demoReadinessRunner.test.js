@@ -124,6 +124,44 @@ describe('startReadinessRun', () => {
     expect(JSON.stringify(auditTarget.mock.calls)).not.toContain(runtimeConfig.targets.se.workers.pingone.token);
   });
 
+  test('the local audit receives the Gateway Exchange #3 expectation the env generator would write', async () => {
+    const auditTarget = jest.fn(async () => []);
+    const adapters = createDefaultAdapters(Date.now, {
+      runtimeConfig: configuredRuntime(),
+      audit: { auditTarget },
+      fetchImpl: jest.fn(),
+      env: {
+        PF_ISSUER: 'https://pf.example.test:9031',
+        // Docker-alias host: the generator rewrites it to the issuer's authority.
+        PF_TOKEN_ENDPOINT: 'https://pingfederate:9031/as/token.oauth2',
+        PF_STANDARD_TOKEN_EXCHANGE_CLIENT_ID: 'exchanger',
+        PF_STANDARD_TOKEN_EXCHANGE_CLIENT_SECRET: 'exchanger-secret',
+      },
+    });
+
+    await adapters.audit({ targets: ['local'], deadlineAt: Date.now() + 5_000, phase: 'initial' });
+
+    expect(auditTarget.mock.calls[0][0].targetConfig.gateway).toEqual({ expected: {
+      issuer: 'https://pf.example.test:9031',
+      tokenEndpoint: 'https://pf.example.test:9031/as/token.oauth2',
+      clientId: 'exchanger',
+      provenanceContains: 'ping-gateway',
+    } });
+    expect(JSON.stringify(auditTarget.mock.calls)).not.toContain('exchanger-secret');
+  });
+
+  test('the local audit gets no Gateway expectation when the PingFederate settings are unusable', async () => {
+    const auditTarget = jest.fn(async () => []);
+    const adapters = createDefaultAdapters(Date.now, {
+      runtimeConfig: configuredRuntime(), audit: { auditTarget }, fetchImpl: jest.fn(),
+      env: { PF_ISSUER: 'not a url' },
+    });
+
+    await adapters.audit({ targets: ['local'], deadlineAt: Date.now() + 5_000, phase: 'initial' });
+
+    expect(auditTarget.mock.calls[0][0].targetConfig.gateway).toEqual({ expected: undefined });
+  });
+
   test('worker context cleanup failure blocks its matrix row without changing manifest coverage', async () => {
     const manifestRow = {
       kind: 'core', caseRow: { id: 'UC40', sourceRef: 'demo steps' }, targetId: 'local',

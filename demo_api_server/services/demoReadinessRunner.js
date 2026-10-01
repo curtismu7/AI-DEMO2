@@ -2,6 +2,8 @@
 
 const crypto = require('crypto');
 const { createAuditService } = require('./demoReadinessAuditService');
+const { createPingOneReader } = require('./demoReadinessPingOneReader');
+const { buildPingGatewayPfExchangeEnv } = require('../scripts/refresh-service-envs');
 const { createRepairService } = require('./demoReadinessRepairService');
 const { createReadinessExecutionService } = require('./demoReadinessExecutionService');
 const { createReadinessWorkerFactory } = require('./demoReadinessWorkerClient');
@@ -60,12 +62,29 @@ function matrixCoverageError(result) {
   return null;
 }
 
+// The Gateway Exchange #3 settings refresh-service-envs.js generates from the
+// BFF's PingFederate settings — the declared side of the local Gateway readback.
+function pfExchangeExpectation(env) {
+  try {
+    const generated = buildPingGatewayPfExchangeEnv(env);
+    return {
+      issuer: generated.PF_ISSUER_URI,
+      tokenEndpoint: generated.PF_TOKEN_ENDPOINT,
+      clientId: generated.PF_TE_CLIENT_ID,
+      provenanceContains: 'ping-gateway',
+    };
+  } catch {
+    return undefined; // unusable PF settings: the audit reports the missing expectation
+  }
+}
+
 function createDefaultAdapters(clock = Date.now, {
-  audit = createAuditService(),
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+  audit = createAuditService({ adapters: { pingOne: { readConfiguration: createPingOneReader({ env, fetchImpl }) } } }),
   repairs = createRepairService({ now: () => nowFrom(clock) }),
   execution,
   runtimeConfig = loadDemoReadinessRuntimeConfig(),
-  fetchImpl = globalThis.fetch,
   workerRuntime,
 } = {}) {
   const workers = workerRuntime || createReadinessWorkerFactory({ config: runtimeConfig, fetchImpl });
@@ -90,7 +109,8 @@ function createDefaultAdapters(clock = Date.now, {
         } : {};
         rows.push(...await audit.auditTarget({
           targetId,
-          targetConfig: { kind: targetId === 'se' ? 'se' : 'local', runtime },
+          targetConfig: targetId === 'se' ? { kind: 'se', runtime }
+            : { kind: 'local', runtime, gateway: { expected: pfExchangeExpectation(env) } },
           deadlineAt,
           signal,
         }));
