@@ -47,52 +47,24 @@ describe("LLM Gateway console - layout and local models", () => {
   // after it — previously invisible because the payload only ever sat in an
   // <input> value, which text queries can't see; the new prompt-reveal <pre>
   // renders that same text as real DOM content, exposing the leak.
-  afterEach(() => { window.localStorage.clear(); });  describe("resizable columns", () => {
-    // The Last Decision column previously defaulted to a fixed 15rem
-    // (~240px); its dt/dd rows wrapped hard at that width.
-    it("defaults the Last Decision column wider than the old fixed 15rem, with two resize-handle tracks", () => {
+  afterEach(() => { window.localStorage.clear(); });
+
+  describe("resizable lanes and request layout", () => {
+    it("defaults to wider Lanes and Request columns with one divider", () => {
       mockFetch(() => new Promise(() => {}));
       const { container } = render(<LlmGatewayPage />);
 
       const grid = container.querySelector(".lgw-body");
-      // "minmax(0, 1fr)" has an internal space, so a plain split(" ") over-counts —
-      // pull out just the trailing px value, which is the decision column.
-      const decisionWidth = parseInt(grid.style.gridTemplateColumns.match(/(\d+)px$/)[1], 10);
-      expect(decisionWidth).toBeGreaterThan(240);
-      expect(container.querySelectorAll(".lgw-resize-handle")).toHaveLength(2);
-    });
+      const lanes = container.querySelector('[aria-label="Lanes"]');
+      const request = container.querySelector('[aria-label="Conversation"]');
+      const decision = container.querySelector('[aria-label="Last decision"]');
 
-    it("defaults to its own max — already at the drag ceiling, so growing further does nothing", () => {
-      mockFetch(() => new Promise(() => {}));
-      const { container } = render(<LlmGatewayPage />);
-      const [, decisionHandle] = container.querySelectorAll(".lgw-resize-handle");
-      const grid = container.querySelector(".lgw-body");
-      const readDecisionWidth = () => parseInt(grid.style.gridTemplateColumns.match(/(\d+)px$/)[1], 10);
-      expect(readDecisionWidth()).toBe(560);
-
-      // invert:true — dragging LEFT would grow the right-hand pane, but it
-      // is already clamped at max, so this must be a no-op, not 560+60.
-      fireEvent.mouseDown(decisionHandle, { clientX: 800 });
-      fireEvent.mouseMove(document, { clientX: 740 });
-      fireEvent.mouseUp(document);
-
-      expect(readDecisionWidth()).toBe(560);
-    });
-
-    it("dragging the right handle right shrinks the Last Decision column back down", () => {
-      mockFetch(() => new Promise(() => {}));
-      const { container } = render(<LlmGatewayPage />);
-      const [, decisionHandle] = container.querySelectorAll(".lgw-resize-handle");
-      const grid = container.querySelector(".lgw-body");
-      const readDecisionWidth = () => parseInt(grid.style.gridTemplateColumns.match(/(\d+)px$/)[1], 10);
-      const before = readDecisionWidth();
-
-      // invert:true — dragging RIGHT (away from the middle column) shrinks it.
-      fireEvent.mouseDown(decisionHandle, { clientX: 800 });
-      fireEvent.mouseMove(document, { clientX: 860 });
-      fireEvent.mouseUp(document);
-
-      expect(readDecisionWidth()).toBe(before - 60);
+      expect(parseInt(grid.style.gridTemplateColumns.split(" ")[0], 10)).toBe(360);
+      expect(grid.style.gridTemplateColumns).toBe("360px 6px minmax(0, 1fr)");
+      expect(container.querySelectorAll(".lgw-resize-handle")).toHaveLength(1);
+      expect(lanes.compareDocumentPosition(request) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(request.compareDocumentPosition(decision) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(decision).toHaveClass("lgw-decision-panel");
     });
 
     it("dragging the left handle resizes the Lanes column", () => {
@@ -102,8 +74,8 @@ describe("LLM Gateway console - layout and local models", () => {
       const grid = container.querySelector(".lgw-body");
       const before = parseInt(grid.style.gridTemplateColumns.split(" ")[0], 10);
 
-      fireEvent.mouseDown(railHandle, { clientX: 272 });
-      fireEvent.mouseMove(document, { clientX: 320 });
+      fireEvent.mouseDown(railHandle, { clientX: 360 });
+      fireEvent.mouseMove(document, { clientX: 408 });
       fireEvent.mouseUp(document);
 
       const after = parseInt(grid.style.gridTemplateColumns.split(" ")[0], 10);

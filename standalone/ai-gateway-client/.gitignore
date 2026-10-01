@@ -2,3 +2,4 @@ node_modules/
 web/dist/
 .env
 *.log
+server/integration/config.local.json

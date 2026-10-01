@@ -9,10 +9,12 @@
 .cursor
 .cursorrules
 .dockerignore
+.graphifyignore
 .editorconfig
 .github
 .gitignore
 .gitleaksignore
+.graphifyignore
 .husky
 .idea
 .local

@@ -1,19 +1,130 @@
-# The UI Dockerfile uses the repo root as context only for llm-timeouts.json.
-# Keep this context scoped to the UI build inputs; the root .dockerignore must
-# remain broader for other services that build from the repo root.
+# The UI Dockerfile uses the repo root for llm-timeouts.json and topology exports.
+# Keep this context limited to the UI plus inputs required by the readiness check.
+# The root .dockerignore remains independent for other service builds.
 **
+
+# UI sources are the main build input. Exclude local secrets, tests, and generated
+# output below, then allow back only the provider test referenced by the contract.
 !demo_api_ui
 !demo_api_ui/**
 !llm-timeouts.json
+!scope-topology.json
+!ping-gateway/
+ping-gateway/*
+!ping-gateway/config/
+ping-gateway/config/*
+!ping-gateway/config/scope-topology.json
+demo_api_ui/.env*
+demo_api_ui/**/.env*
 
-# The UI image build does not consume local dependencies or generated/test data.
+# The contract needs only these two topology exports from docs/.
+!docs/
+docs/*
+!docs/exports/
+docs/exports/*
+!docs/exports/server-topology-lucidchart.csv
+!docs/exports/server-topology-details.csv
+
+# The cross-repo checker is the only root script used by this build.
+!scripts/
+scripts/*
+!scripts/check-demo-readiness-contract.mjs
+
+# The readiness contract imports a bounded set of BFF config, runtime, route,
+# and test sources. Re-open those directories, then re-include only required files.
+!demo_api_server/
+demo_api_server/*
+!demo_api_server/config/
+demo_api_server/config/*
+!demo_api_server/config/a2aSpecialists.js
+!demo_api_server/config/auth-requirements.json
+!demo_api_server/config/demoReadinessFeatureChecks.json
+!demo_api_server/config/demoReadinessInventory.json
+!demo_api_server/config/demoReadinessPingFederateProfiles.json
+!demo_api_server/config/demoReadinessRepairability.json
+!demo_api_server/config/useCases.js
+!demo_api_server/config/admin/
+demo_api_server/config/admin/*
+!demo_api_server/config/admin/demoSteps.js
+!demo_api_server/config/verticals/
+demo_api_server/config/verticals/*
+!demo_api_server/config/verticals/abercrombie-fitch/
+demo_api_server/config/verticals/abercrombie-fitch/*
+!demo_api_server/config/verticals/abercrombie-fitch/manifest.json
+!demo_api_server/config/verticals/airlines/
+demo_api_server/config/verticals/airlines/*
+!demo_api_server/config/verticals/airlines/manifest.json
+!demo_api_server/config/verticals/banking/
+demo_api_server/config/verticals/banking/*
+!demo_api_server/config/verticals/banking/manifest.json
+!demo_api_server/config/verticals/government/
+demo_api_server/config/verticals/government/*
+!demo_api_server/config/verticals/government/manifest.json
+!demo_api_server/config/verticals/healthcare/
+demo_api_server/config/verticals/healthcare/*
+!demo_api_server/config/verticals/healthcare/manifest.json
+!demo_api_server/config/verticals/investment/
+demo_api_server/config/verticals/investment/*
+!demo_api_server/config/verticals/investment/manifest.json
+!demo_api_server/config/verticals/manufacturing/
+demo_api_server/config/verticals/manufacturing/*
+!demo_api_server/config/verticals/manufacturing/manifest.json
+!demo_api_server/config/verticals/retail/
+demo_api_server/config/verticals/retail/*
+!demo_api_server/config/verticals/retail/manifest.json
+!demo_api_server/config/verticals/sporting-goods/
+demo_api_server/config/verticals/sporting-goods/*
+!demo_api_server/config/verticals/sporting-goods/manifest.json
+!demo_api_server/config/verticals/university/
+demo_api_server/config/verticals/university/*
+!demo_api_server/config/verticals/university/manifest.json
+!demo_api_server/config/verticals/workforce/
+demo_api_server/config/verticals/workforce/*
+!demo_api_server/config/verticals/workforce/manifest.json
+
+!demo_api_server/services/
+demo_api_server/services/*
+!demo_api_server/services/agentMcpTokenService.js
+!demo_api_server/services/agentRegistryService.js
+!demo_api_server/services/demoReadinessCatalog.js
+!demo_api_server/services/demoStepPrerequisites.js
+!demo_api_server/services/groupPolicy.js
+!demo_api_server/services/oauthClientRegistry.js
+!demo_api_server/services/rfcCompliantErrorHandler.js
+!demo_api_server/services/scopeTopology.js
+
+!demo_api_server/routes/
+demo_api_server/routes/*
+!demo_api_server/routes/intentBinding.js
+
+!demo_api_server/tests/
+demo_api_server/tests/*
+!demo_api_server/tests/demoReadinessExecutionService.test.js
+!demo_api_server/tests/routes/
+demo_api_server/tests/routes/*
+!demo_api_server/tests/routes/pfDavinciAuth.test.js
+
+# These files are not needed by the contract and can contain local runtime state.
+demo_api_server/**/data
+demo_api_server/**/logs
+demo_api_server/**/node_modules
+demo_api_server/**/.env
+demo_api_server/**/.env.*
+demo_api_server/**/test-results
+
+# The UI contract refers to one provider integration test under tests/.
+demo_api_ui/tests/**
+!demo_api_ui/tests/e2e/
+demo_api_ui/tests/e2e/*
+!demo_api_ui/tests/e2e/a2a-failure-modes.real.spec.js
+
+# The UI image does not consume local dependencies, test outputs, docs, or evidence.
 demo_api_ui/node_modules
 demo_api_ui/build
 demo_api_ui/dist
 demo_api_ui/.vite
 demo_api_ui/coverage
 demo_api_ui/e2e
-demo_api_ui/tests
 demo_api_ui/docs
 demo_api_ui/test-results
 demo_api_ui/design

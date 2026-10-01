@@ -892,6 +892,7 @@ services:
       NODE_OPTIONS: "-r /otel/otel-instrument.js"
       MCP_RESOURCE_URL: "http://localhost:8080"
       HTTP_MCP_TRANSPORT_ENABLED: "true"
+      MCP_ALLOWED_ORIGINS: "${MCP_ALLOWED_ORIGINS:-https://local.ping-devops.com:4000}"
       # embeddedIssuer.ts defaults to https://localhost:<MCP_SERVER_PORT> when
       # unset, but MCP_TLS_ENABLED defaults off — so an external client (e.g.
       # MCP Inspector) that follows the discovery document literally gets a
@@ -2442,6 +2443,26 @@ services:
       OPENAI_API_BASE_URL: http://host.docker.internal:8090/v1
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    networks:
+      - ai-demo
+    restart: unless-stopped
+
+  # ── PromptGuard sidecar (core; UI controls are on /llm-gateway) ────────────
+  # NeMo is installed by default so either engine can be selected in the UI.
+  # Set PROMPTGUARD_INSTALL_NEMO=0 when building for a classifier-only setup.
+  mcp-promptguard:
+    build:
+      context: ./demo_mcp_promptguard
+      args:
+        PROMPTGUARD_INSTALL_NEMO: "${PROMPTGUARD_INSTALL_NEMO:-1}"
+    image: ai-demo-mcp-promptguard:local
+    # Reuse the existing manual-run name so run-docker.sh clears it before
+    # replacing the old standalone container with this Compose service.
+    container_name: ai-demo-promptguard-local
+    environment:
+      PORT: "8086"
+    ports:
+      - "127.0.0.1:8086:8086"
     networks:
       - ai-demo
     restart: unless-stopped

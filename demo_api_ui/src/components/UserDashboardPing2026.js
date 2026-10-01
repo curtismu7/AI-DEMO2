@@ -573,6 +573,9 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
           }
         } catch (sessionErr) {
           console.warn("Session check failed:", sessionErr.message);
+          // The app shell already confirmed this identity. Let the protected
+          // data request decide whether its token is still usable.
+          if (propUser) sessionUser = propUser;
         }
 
         if (!sessionUser) {
@@ -3885,7 +3888,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
       {/* User Session Token Modal */}
       {showTokenModal && (
         <FloatingPanel
-          title="User Session Token"
+          title="Session Token"
           onClose={() => setShowTokenModal(false)}
           defaultWidth={820}
           defaultHeight={Math.min(window.innerHeight - 80, 940)}
@@ -4010,7 +4013,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
           // and banking-column states keep their existing rules.
           className={`dashboard-content ud-body ud-body--2026 ud-focus-mode ${splitGridClass(
             showBankingInMiddle,
-          )}${middleAgentOpen ? "" : " ud-middle-collapsed"}${showSequenceDiagram ? " ud-sequence-view-active" : ""}${showSequenceDiagram && slowMode ? " ud-slow-mode-active" : ""}`}
+          )}${middleAgentOpen ? "" : " ud-middle-collapsed"}${showSequenceDiagram ? " ud-sequence-view-active" : ""}${showSequenceDiagram && slowMode ? " ud-slow-mode-active" : ""}${showTokenTopology && !showSequenceDiagram && !showServerTopology ? " ud-token-topology-active" : ""}`}
           style={{
             '--ud-agent-col-width': `${agentColWidth}px`,
             '--ud-focus-agent-frac': `${agentFrac}fr`,            ...(focusChainHeight != null

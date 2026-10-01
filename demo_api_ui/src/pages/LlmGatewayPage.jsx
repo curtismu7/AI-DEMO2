@@ -20,6 +20,7 @@ import { ATTACK_CATEGORIES, GUARDRAIL_ATTACKS } from '../config/guardrailAttackC
 import { KIBANA_URL } from '../config/observabilityLinks';
 import BlockAgreementModal from '../components/BlockAgreementModal';
 import LlmGatewayReel from './LlmGatewayReel';
+import PromptGuardControlPanel from './PromptGuardControlPanel';
 import JsonHighlight from '../components/shared/JsonHighlight';
 import PingIdentitySpinner from '../components/shared/PingIdentitySpinner';
 import GatewayVerdicts from '../components/GatewayVerdicts';
@@ -283,17 +284,11 @@ function Meter({ label, remaining, limit, reset }) {
 export default function LlmGatewayPage() {
   const { darkMode, toggleDarkMode } = useThemeOptional();
   const initialAttack = attackFromUrl() || window.localStorage.getItem('lgw-attack-choice') || '';
-  // Column widths, drag-to-resize, persisted — same primitive InspectorShell
-  // already uses, not a page-local reimplementation. Right column defaults
-  // wider than the old fixed 15rem (~240px): "Refused by / Route / Reached
-  // the model / Reason" definition rows wrapped hard at that width.
-  const { size: railWidth, handleProps: railHandleProps } = useDividerDrag({
-    min: 220, max: 420, initial: 272, storageKey: 'lgw-rail-width',
-  });
-  const { size: decisionWidth, handleProps: decisionHandleProps } = useDividerDrag({
-    // Defaults to the drag ceiling itself — widest by default, drag it
-    // smaller if you want the room back for the conversation column.
-    min: 260, max: 560, initial: 560, storageKey: 'lgw-decision-width', invert: true,
+  // The lanes keep a drag divider, with more width for provider details. The
+  // request column takes the remaining space; Last decision now spans both
+  // columns below them.
+  const { size: lanesWidth, handleProps: lanesHandleProps } = useDividerDrag({
+    min: 280, max: 520, initial: 360, storageKey: 'lgw-lanes-width-v2',
   });
   const [gatewayUrl, setGatewayUrl] = useState('');
   const [lanes, setLanes] = useState([]);
@@ -672,11 +667,13 @@ export default function LlmGatewayPage() {
         />
       </section>
 
+      <PromptGuardControlPanel />
+
       {loadError ? <p className="lgw-error" role="alert">{loadError}</p> : null}
 
       <div
         className="lgw-body"
-        style={{ gridTemplateColumns: `${railWidth}px 6px minmax(0, 1fr) 6px ${decisionWidth}px` }}
+        style={{ gridTemplateColumns: `${lanesWidth}px 6px minmax(0, 1fr)` }}
       >
         <section className="lgw-rail" aria-label="Lanes">
           <h2 className="lgw-rail__k">Lanes</h2>
@@ -737,7 +734,7 @@ export default function LlmGatewayPage() {
           </p>
         </section>
 
-        <div className="lgw-resize-handle" aria-label="Resize lanes column" {...railHandleProps} />
+        <div className="lgw-resize-handle" aria-label="Resize lanes column" {...lanesHandleProps} />
 
         <section className="lgw-main" aria-label="Conversation">
           <h2 className="lgw-rail__k lgw-main__k">Request</h2>
@@ -990,9 +987,7 @@ export default function LlmGatewayPage() {
           </div>
         </section>
 
-        <div className="lgw-resize-handle" aria-label="Resize last decision column" {...decisionHandleProps} />
-
-        <section className="lgw-rail lgw-rail--right" aria-label="Last decision">
+        <section className="lgw-rail lgw-decision-panel" aria-label="Last decision">
           <div className="lgw-rail__head">
             <h2 className="lgw-rail__k">Last decision</h2>
             {decision ? (

@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Connect an MCP client to a protected app through the PingOne Privilege AI Gateway.">
+  <link rel="icon" href="data:,">
+  <title>AI Gateway | PingOne Privilege</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #12313f;
+      --quiet: #45616d;
+      --blue: #076f84;
+      --blue-deep: #07556b;
+      --paper: #fbfdfd;
+      --mist: #eaf3f5;
+      --line: #c9dce1;
+      --font: "Avenir Next", "Segoe UI", sans-serif;
+      --mono: ui-monospace, "SFMono-Regular", Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--font); line-height: 1.55; }
+    a { color: var(--blue-deep); text-underline-offset: 3px; }
+    a:focus-visible { outline: 3px solid var(--blue); outline-offset: 4px; }
+    code { font-family: var(--mono); }
+    .wrap { width: min(100% - 40px, 1080px); margin-inline: auto; }
+
+    header { background: var(--ink); color: #fff; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding-block: 22px; border-bottom: 1px solid #51717e; }
+    .brand { font-weight: 700; font-size: 1rem; letter-spacing: .01em; }
+    nav { display: flex; flex-wrap: wrap; gap: 20px; }
+    nav a { color: #e1f3f6; font-size: .93rem; }
+    .hero { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(280px, .7fr); gap: clamp(32px, 7vw, 100px); align-items: end; padding-block: clamp(68px, 10vw, 120px); }
+    h1 { margin: 0 0 20px; max-width: 8ch; font-size: clamp(3.4rem, 8vw, 6.6rem); line-height: .98; letter-spacing: -.065em; }
+    .hero p { margin: 0; max-width: 55ch; color: #d1e4e9; font-size: clamp(1.08rem, 2vw, 1.25rem); }
+    .hero-note { padding: 24px 0 4px 22px; border-left: 3px solid #71c5d3; }
+    .hero-note strong { display: block; margin-bottom: 8px; font-size: 1.06rem; }
+    .hero-note p { font-size: .98rem; }
+
+    main { padding-block: 72px 100px; }
+    section + section { margin-top: 88px; }
+    h2 { margin: 0 0 14px; font-size: clamp(2rem, 4vw, 3.15rem); line-height: 1.08; letter-spacing: -.045em; }
+    .section-intro { max-width: 65ch; margin: 0 0 30px; color: var(--quiet); font-size: 1.08rem; }
+    .endpoint { max-width: 100%; padding: 24px 28px; background: var(--mist); border-left: 4px solid var(--blue); }
+    .endpoint span { display: block; margin-bottom: 8px; color: var(--quiet); font-size: .91rem; }
+    .endpoint code { display: block; overflow-wrap: anywhere; font-size: clamp(.96rem, 2vw, 1.24rem); font-weight: 600; }
+    .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; margin: 34px 0 0; padding: 0; list-style: none; counter-reset: step; }
+    .steps li { padding-top: 14px; border-top: 1px solid var(--line); counter-increment: step; }
+    .steps li::before { content: counter(step, decimal-leading-zero); display: block; margin-bottom: 10px; color: var(--blue-deep); font-size: 1.04rem; font-weight: 700; }
+    .steps strong { display: block; margin-bottom: 5px; }
+    .steps p { margin: 0; color: var(--quiet); }
+    .steps code { font-size: .92em; }
+
+    .route { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; padding: 30px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .route div { position: relative; min-width: 0; padding: 10px 24px 10px 0; }
+    .route div + div { padding-left: 24px; border-left: 1px solid var(--line); }
+    .route div + div::before { content: ""; position: absolute; top: 24px; left: -5px; width: 9px; height: 9px; border-radius: 50%; background: var(--blue); }
+    .route strong { display: block; margin-bottom: 7px; line-height: 1.25; }
+    .route span { color: var(--quiet); font-size: .94rem; }
+    .route div:nth-child(2) strong { color: var(--blue-deep); }
+    .clarity { max-width: 70ch; margin: 28px 0 0; color: var(--quiet); }
+    .clarity strong { color: var(--ink); }
+
+    footer { border-top: 1px solid var(--line); padding-block: 24px 36px; color: var(--quiet); font-size: .93rem; }
+    footer p { margin: 0; }
+
+    @media (max-width: 720px) {
+      .hero { grid-template-columns: 1fr; gap: 40px; }
+      .hero-note { max-width: 44ch; }
+      .steps { grid-template-columns: 1fr; gap: 22px; }
+      .route { grid-template-columns: 1fr 1fr; gap: 16px 0; }
+      .route div:nth-child(3) { padding-left: 0; border-left: 0; }
+      .route div:nth-child(3)::before { display: none; }
+    }
+
+    @media (max-width: 460px) {
+      .topbar { align-items: start; flex-direction: column; gap: 12px; }
+      .hero { padding-block: 64px; }
+      main { padding-block: 60px 80px; }
+      section + section { margin-top: 72px; }
+      .route { grid-template-columns: 1fr; padding-block: 16px; }
+      .route div, .route div + div { padding: 14px 0; border-left: 0; border-top: 1px solid var(--line); }
+      .route div:first-child { border-top: 0; }
+      .route div + div::before { display: none; }
+    }
+
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <div class="topbar">
+        <div class="brand">PingOne Privilege</div>
+        <nav aria-label="Page navigation">
+          <a href="#connect">Connect a client</a>
+          <a href="#architecture">How it works</a>
+        </nav>
+      </div>
+      <div class="hero">
+        <div>
+          <h1>AI Gateway</h1>
+          <p>A protected entry point for MCP clients and the apps they use.</p>
+        </div>
+        <div class="hero-note">
+          <strong>This is the gateway host.</strong>
+          <p>The banking resource server is a separate backend. Connect through a registered app path to reach its tools.</p>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section id="connect" aria-labelledby="connect-title">
+      <h2 id="connect-title">Connect an MCP client</h2>
+      <p class="section-intro">Each registered Agentic App has its own MCP URL. The bare gateway address is an introduction, not a tool endpoint.</p>
+      <div class="endpoint">
+        <span>Typical client URL</span>
+        <code>https://__GATEWAY_HOST__/&lt;app-name&gt;/mcp</code>
+      </div>
+      <ol class="steps">
+        <li><strong>Choose an app</strong><p>Get the Agentic App URL from your gateway admin and confirm its registered entry path.</p></li>
+        <li><strong>Add the URL</strong><p>Enter that app's HTTPS MCP URL in a client that supports remote MCP.</p></li>
+        <li><strong>Sign in</strong><p>Complete the gateway's OAuth flow. Available tools appear after access is granted through <code>tools/list</code>.</p></li>
+      </ol>
+    </section>
+
+    <section id="architecture" aria-labelledby="architecture-title">
+      <h2 id="architecture-title">How it works</h2>
+      <p class="section-intro">The gateway handles the client connection, authentication, and access policy. The selected backend supplies its own tools and data.</p>
+      <div class="route" aria-label="Request path from client to resource server">
+        <div><strong>MCP client</strong><span>Connects to an app URL</span></div>
+        <div><strong>AI Gateway</strong><span>Authenticates and enforces policy</span></div>
+        <div><strong>Registered app</strong><span>Routes to its MCP backend</span></div>
+        <div><strong>Resource server</strong><span>Provides tools and data</span></div>
+      </div>
+      <p class="clarity"><strong>About the tool list:</strong> tools vary by app and granted access. A fixed list on this page would be misleading; your MCP client retrieves the current list from the app.</p>
+    </section>
+  </main>
+
+  <footer><div class="wrap"><p>Gateway: <code>https://__GATEWAY_HOST__</code></p></div></footer>
+</body>
+</html>

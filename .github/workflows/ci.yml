@@ -2,14 +2,23 @@ name: CI
 
 on:
   workflow_dispatch:
+    inputs:
+      target_ref:
+        description: Full commit SHA to test; leave blank to test the selected ref
+        type: string
+        required: false
+        default: ''
   pull_request:
+    # ready_for_review is not a default type; without it a draft marked ready
+    # would get no CI run, because the jobs below skip while the PR is a draft.
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
   schedule:
     - cron: '17 9 * * *'
 
 concurrency:
-  group: ci-${{ github.ref }}-${{ github.event_name == 'schedule' && 'nightly' || 'interactive' }}
+  group: ci-${{ inputs.target_ref || github.ref }}-${{ github.event_name == 'schedule' && 'nightly' || 'interactive' }}
   # Superseding is safe here: this workflow only runs tests. Image builds live
   # in build-images.yml, which keys its own group by github.sha precisely so a
   # merge's build can never be evicted by a later merge — see that file.
@@ -22,6 +31,11 @@ permissions:
 jobs:
   changes:
     name: Select affected test suites
+    # Draft PRs skip CI to keep the single self-hosted runner's queue short.
+    # Every other job descends from this one (gates needs changes; the suites
+    # need gates), so skipping it skips the whole run. Skipped required checks
+    # count as passing, and a draft cannot be merged anyway.
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: [self-hosted, macOS]
     outputs:
       api-server: ${{ steps.all.outputs['api-server'] || steps.nightly.outputs['api-server'] || steps.filter.outputs['api-server'] }}
@@ -31,8 +45,17 @@ jobs:
       unwired-services: ${{ steps.all.outputs['unwired-services'] || steps.nightly.outputs['unwired-services'] || steps.filter.outputs['unwired-services'] }}
       python-agents: ${{ steps.all.outputs['python-agents'] || steps.nightly.outputs['python-agents'] || steps.filter.outputs['python-agents'] }}
     steps:
-      - name: Run every suite on main and manual CI
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+      - name: Validate optional target commit SHA
+        if: github.event_name == 'workflow_dispatch' && inputs.target_ref != ''
+        env:
+          TARGET_REF: ${{ inputs.target_ref }}
+        run: |
+          if ! [[ "$TARGET_REF" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "::error::target_ref must be a full 40-character commit SHA"
+            exit 1
+          fi
+      - name: Run every suite on manual CI
+        if: github.event_name == 'workflow_dispatch'
         id: all
         run: |
           {
@@ -42,25 +65,29 @@ jobs:
             echo "unwired-services=true"
             echo "python-agents=true"
           } >> "$GITHUB_OUTPUT"
-      - name: Run the full UI suite in nightly CI
+      - name: Run every suite in nightly CI
+        # Nightly is the full-coverage safety net now that push-to-main is
+        # path-filtered below like pull_request — see 2026-09-30 CI queue note.
         if: github.event_name == 'schedule'
         id: nightly
         run: |
           {
-            echo "api-server=false"
-            echo "decision-services=false"
+            echo "api-server=true"
+            echo "decision-services=true"
             echo "ui=true"
-            echo "unwired-services=false"
-            echo "python-agents=false"
+            echo "unwired-services=true"
+            echo "python-agents=true"
           } >> "$GITHUB_OUTPUT"
-      - name: Select suites affected by this PR
-        if: github.event_name == 'pull_request'
+      - name: Select suites affected by this PR or push
+        if: github.event_name == 'pull_request' || github.event_name == 'push'
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
         id: filter
         with:
           # CI workflow edits are checked by actionlint and the always-on gates
           # below; they do not by themselves require every product test suite.
-          # Main and manual runs select every suite; nightly selects the UI suite.
+          # Manual runs select every suite; nightly selects every suite as the
+          # full-coverage safety net for the same-day merges this filtering
+          # might otherwise combine without a dedicated full run.
           filters: |
             api-server:
               - 'demo_api_server/**'
@@ -125,6 +152,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.target_ref || github.ref }}
       - name: Lint GitHub Actions workflows
         run: /opt/homebrew/bin/actionlint .github/workflows/ci.yml
       - uses: actions/setup-node@v7
@@ -189,6 +218,8 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.target_ref || github.ref }}
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -200,10 +231,13 @@ jobs:
         # The persistent runner can inherit local gateway aliases; unit tests
         # configure their own endpoints and must not be redirected to live URLs.
         run: |
-          env -u MCP_GATEWAY_HTTP_URL \
+          env -u BFF_BASE_URL \
+            -u MCP_GATEWAY_HTTP_URL \
             -u MCP_PINGGATEWAY_URL \
             -u MCP_DEMO_GATEWAY_URL \
+            -u MCP_PRIVILEGE_GATEWAY_URL \
             -u PINGGATEWAY_URL \
+            ATTACK_SIM_REAL_API=false \
             npm test --prefix demo_api_server
 
   ui-tests:
@@ -229,7 +263,36 @@ jobs:
     runs-on: [self-hosted, macOS]
     timeout-minutes: 30
     steps:
+      # Older target commits predate the 4 GB Vitest RSS guard. Preserve the
+      # current guard from this workflow revision, then check out the target.
+      - name: Checkout current UI memory guard
+        if: github.event_name == 'workflow_dispatch' && inputs.target_ref != ''
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          path: _ci-workflow
+          sparse-checkout: |
+            demo_api_ui/scripts/run-vitest-with-memory-guard.mjs
+            demo_api_ui/scripts/select-vitest-mode.mjs
+            demo_api_ui/scripts/vitest-memory-guard.config.mjs
+          sparse-checkout-cone-mode: false
+      - name: Preserve current UI memory guard
+        if: github.event_name == 'workflow_dispatch' && inputs.target_ref != ''
+        run: |
+          mkdir -p "$RUNNER_TEMP/ci-ui-guard"
+          cp _ci-workflow/demo_api_ui/scripts/run-vitest-with-memory-guard.mjs "$RUNNER_TEMP/ci-ui-guard/"
+          cp _ci-workflow/demo_api_ui/scripts/select-vitest-mode.mjs "$RUNNER_TEMP/ci-ui-guard/"
+          cp _ci-workflow/demo_api_ui/scripts/vitest-memory-guard.config.mjs "$RUNNER_TEMP/ci-ui-guard/"
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.target_ref || github.ref }}
+      - name: Restore current UI memory guard
+        if: github.event_name == 'workflow_dispatch' && inputs.target_ref != ''
+        run: |
+          mkdir -p demo_api_ui/scripts
+          cp "$RUNNER_TEMP/ci-ui-guard/run-vitest-with-memory-guard.mjs" demo_api_ui/scripts/
+          cp "$RUNNER_TEMP/ci-ui-guard/select-vitest-mode.mjs" demo_api_ui/scripts/
+          cp "$RUNNER_TEMP/ci-ui-guard/vitest-memory-guard.config.mjs" demo_api_ui/scripts/
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -248,8 +311,14 @@ jobs:
         env:
           CI: 'true'
           VITEST_RELATED_FILES_JSON: ${{ needs.changes.outputs['ui-changed-files'] }}
-      - name: Full Vitest unit suite on main, nightly, and manual runs
-        if: github.event_name != 'pull_request'
+      - name: Full Vitest suite for pinned target refs (4 GB guarded)
+        if: github.event_name == 'workflow_dispatch' && inputs.target_ref != ''
+        working-directory: demo_api_ui
+        run: node scripts/run-vitest-with-memory-guard.mjs unit
+        env:
+          CI: 'true'
+      - name: Full Vitest unit suite on main, nightly, and ordinary manual runs
+        if: github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.target_ref == '')
         run: npm --prefix demo_api_ui run test:unit
         env:
           CI: 'true'
@@ -292,6 +361,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.target_ref || github.ref }}
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -333,6 +404,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.target_ref || github.ref }}
       - name: Use the runner's installed Python 3.12
         run: |
           python="$HOME/.local/bin/python3.12"
@@ -386,6 +459,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.target_ref || github.ref }}
       - uses: actions/setup-node@v7
         with:
           node-version: 22

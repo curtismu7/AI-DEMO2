@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import TokenChainDisplay, { getTokenChainProgress } from '../TokenChainDisplay';
 
@@ -66,6 +66,22 @@ describe('Token Chain A2A progress controls', () => {
     expect(getTokenChainProgress([], false).state).toBe('idle');
   });
 
+  it('settles when live events stay unchanged', async () => {
+    global.fetch = vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) });
+    const onRender = vi.fn();
+    render(
+      <React.Profiler id="token-chain-display" onRender={onRender}>
+        <TokenChainDisplay />
+      </React.Profiler>,
+    );
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+
+    expect(onRender.mock.calls.length).toBeLessThan(10);
+  }, 5000);
+
   it('makes the second-agent call explicit and opens its details modal', () => {
     global.fetch = vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) });
     render(<TokenChainDisplay />);
@@ -105,6 +121,17 @@ describe('A2A mismatch-probe event', () => {
   it('renders the probe event', () => {
     withProbe();
     render(<TokenChainDisplay />);
+
+    expect(screen.getByText(PROBE_LABEL)).toBeInTheDocument();
+  });
+
+  it('refreshes when the live event array changes', () => {
+    CURRENT_EVENTS = EVENTS;
+    global.fetch = vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) });
+    const { rerender } = render(<TokenChainDisplay />);
+
+    withProbe();
+    act(() => rerender(<TokenChainDisplay />));
 
     expect(screen.getByText(PROBE_LABEL)).toBeInTheDocument();
   });

@@ -119,7 +119,7 @@ const BRAVE_TOOLS = new Set([
  *
  * @param {string} gatewayUrl   Base URL of the gateway (no trailing slash)
  * @param {string} bearerToken  Access token scoped to the gateway audience (MCP_GW_RESOURCE_URI)
- * @param {string} tool         MCP tool name (e.g. "get_accounts")
+ * @param {string} tool         Registered MCP tool name (e.g. "get_my_accounts")
  * @param {object} params       Tool arguments
  * @param {object} [opts]
  * @param {string} [opts.correlationId]  Forwarded as JSON-RPC id for tracing
@@ -805,6 +805,23 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
         // Log only structured error fields — not the full body which may echo
         // parts of the Authorization header in some gateway implementations.
         const body403 = response.data || {};
+        const rpcErr403 = body403.error;
+
+        // PingGateway can preserve an upstream MCP scope denial as a JSON-RPC
+        // -32005 envelope while keeping the required HTTP 403 status. Translate
+        // it to the same BFF error used by the direct MCP client so the pipeline
+        // returns its structured mcp_scope_denied response with scope details.
+        if (rpcErr403 && typeof rpcErr403 === 'object' && rpcErr403.code === -32005) {
+            throw Object.assign(
+                new Error('insufficient_scope'),
+                {
+                    code: 'mcp_insufficient_scope',
+                    httpStatus: 403,
+                    mcpErrorData: rpcErr403.data || {},
+                    gwAuditTrail: _parseGwAuditTrail(response),
+                },
+            );
+        }
 
         // HITL obligation on the HTTP path: the gateway returns 403 with
         // { error:'hitl_required', hitl:true, challengeId, challenge_type, ... }
@@ -945,6 +962,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     if (response.data?.error != null && response.data?.result === undefined) {
         const rpcErr = response.data.error;
         const msg = (typeof rpcErr === 'object' ? rpcErr.message : String(rpcErr)) || 'MCP tool call failed';
+        const isInsufficientScope = typeof rpcErr === 'object' && rpcErr.code === -32005;
         // Preserve the JSON-RPC error `data` block so HITL signals survive. The
         // gateway returns code -32002 with data { hitl:true, challengeId,
         // challenge_type, ... } when PingAuthorize requires human approval;
@@ -955,10 +973,11 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
         throw Object.assign(
             new Error(msg),
             {
-                code: isWeatherScope ? 'gateway_policy_denied' : 'mcp_tool_error',
-                httpStatus: isWeatherScope ? 403 : 200,
+                code: isInsufficientScope ? 'mcp_insufficient_scope' : (isWeatherScope ? 'gateway_policy_denied' : 'mcp_tool_error'),
+                httpStatus: isInsufficientScope || isWeatherScope ? 403 : 200,
                 rpcCode: typeof rpcErr === 'object' ? rpcErr.code : undefined,
                 rpcData,
+                mcpErrorData: isInsufficientScope ? rpcData : undefined,
                 hitl: !!(rpcData && rpcData.hitl),
                 gatewayMessage: msg,
                 gatewayErrorCode: isWeatherScope ? 'weather_scope_denied' : undefined,

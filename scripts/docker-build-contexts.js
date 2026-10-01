@@ -133,6 +133,12 @@ function stageBff(destination) {
     ]),
   });
   for (const file of ['scope-topology.json', 'service-topology.json', 'llm-timeouts.json']) copyFile(file, destination);
+  copyFile('ping-gateway/config/scope-topology.json', destination);
+  for (const file of [
+    'scripts/check-demo-health-gate.js',
+    'scripts/check-mcp-preflight.js',
+    'scripts/lib/preflightRows.js',
+  ]) copyFile(file, destination);
   copyTree(path.join(repoRoot, 'docs'), path.join(destination, 'docs'));
   ensureDir(path.join(destination, 'graphify-out'));
   for (const name of fs.readdirSync(path.join(repoRoot, 'graphify-out'))) {

@@ -8,7 +8,7 @@
 //
 // "Get MCP Tools" is now the only control that discovers.
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useNavigate } from "react-router-dom";
 import PrivilegeMcpClientPage from "../PrivilegeMcpClientPage";
 
 vi.mock("../../services/apiClient", () => ({
@@ -62,6 +62,15 @@ function renderAfterSignIn() {
   );
 }
 
+function NavigateToA2ADemoStep() {
+  const navigate = useNavigate();
+  return (
+    <button type="button" onClick={() => navigate("/privilege-mcp-client?view=demo&tab=a2a")}>
+      Open A2A Demo Step
+    </button>
+  );
+}
+
 describe("PrivilegeMcpClientPage — no auto-discovery on sign-in return", () => {
   test("returning from OAuth does NOT call tools/list", async () => {
     mockState();
@@ -98,5 +107,56 @@ describe("PrivilegeMcpClientPage — no auto-discovery on sign-in return", () =>
     // The button is the ONE path that discovers — removing auto-discovery must
     // not have removed discovery.
     await waitFor(() => expect(toolsListCalls).toBe(1));
+  });
+
+  test("A2A is available in Demo while the existing MCP Inspect tabs remain available", async () => {
+    mockState();
+    localStorage.setItem("cur_priv_view", "demo");
+    renderAfterSignIn();
+
+    const a2aTab = await screen.findByRole("tab", { name: "A2A" });
+    fireEvent.click(a2aTab);
+    await screen.findByRole("heading", { name: "A2A access review" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Inspect" }));
+    expect(await screen.findByRole("tab", { name: "MCP Explorer" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Raw RPC" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Policies" })).toBeTruthy();
+    localStorage.removeItem("cur_priv_view");
+  });
+
+  test("the A2A Demo Step deep link overrides the saved view and selects its tab", async () => {
+    mockState();
+    localStorage.setItem("cur_priv_view", "inspect");
+    render(
+      <MemoryRouter initialEntries={["/privilege-mcp-client?view=demo&tab=a2a"]}>
+        <PrivilegeMcpClientPage />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole("heading", { name: "A2A access review" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "A2A" })).toHaveClass("cur-tab--active");
+    expect(screen.getByLabelText("Your question")).toHaveValue("");
+    expect(screen.getByRole("button", { name: "Send question" })).toBeDisabled();
+    expect(global.fetch.mock.calls.some(([url]) => String(url) === "/api/privilege-a2a/chat")).toBe(false);
+    localStorage.removeItem("cur_priv_view");
+  });
+
+  test("navigating to the A2A Demo Step updates an already-mounted client page", async () => {
+    mockState();
+    localStorage.setItem("cur_priv_view", "inspect");
+    render(
+      <MemoryRouter initialEntries={["/privilege-mcp-client"]}>
+        <NavigateToA2ADemoStep />
+        <PrivilegeMcpClientPage />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole("tab", { name: "MCP Explorer" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Open A2A Demo Step" }));
+
+    expect(await screen.findByRole("heading", { name: "A2A access review" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "A2A" })).toHaveClass("cur-tab--active");
+    localStorage.removeItem("cur_priv_view");
   });
 });

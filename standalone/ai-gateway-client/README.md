@@ -28,13 +28,17 @@ Then open http://127.0.0.1:3910. It defaults to the **Privilege** door on the pu
 - **OAuth PKCE + DCR** — discovers the gateway's own authorization server (RFC 9728 protected-resource metadata, or a `WWW-Authenticate` challenge), registers itself as a client if the gateway doesn't already trust one (RFC 7591), and runs the PKCE Authorization Code flow. Falls back to plain PingOne OIDC discovery if you point it at an environment id instead.
 - **Tools** — `tools/list` / `tools/call`, with a policy summary (how many tools were filtered by the gateway vs. permitted).
 - **Raw MCP requests** — anything that isn't `tools/call`: resources, prompts, completion, tasks.
-- **Doors probe** — "denied here — does this identity work anywhere else?" Tries the same token against every other configured door in one click, since a policy denial often comes back as a bare 403 with no detail.
+- **Doors probe** — "denied here — does this identity work anywhere else?" Tries the current token against every other configured door in one click. A `401` can mark a different OAuth audience; a `403` can indicate a policy denial.
 - **Relay log** — every request/response this tool sends and receives, live over SSE, so you can see exactly what went over the wire.
 - **Privilege console door discovery** (optional) — paste your Privilege console session's `auth_token` cookie to pull in every Agentic App and policy registered on your environment as selectable doors, no code change or redeploy needed.
 
 ## Config
 
 Copy `server/.env.example` to `server/.env`. Nothing is required to try either door against the public demo — set `PRIVILEGE_GATEWAY_HOST` (and friends) to point Privilege mode at your own Privilege AI Gateway, or `DIRECT_MCP_URL` to point Direct mode at any other MCP server you run.
+
+### Live integration tests
+
+The opt-in live suite checks configured Gateway allow/deny behavior with door-scoped OAuth tokens. The interactive runner signs in to both app audiences with the same test identity and keeps each bearer in memory. For setup and safe fixture requirements, see [`server/INTEGRATION_TESTS.md`](server/INTEGRATION_TESTS.md).
 
 ### Red-team demo: the hostile MCP server
 

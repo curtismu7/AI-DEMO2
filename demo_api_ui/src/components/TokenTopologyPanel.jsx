@@ -803,6 +803,7 @@ export default function TokenTopologyPanel({ isOpen, onClose, inline = false }) 
       || a2aNodes.find((node) => node.sourceId === expandedId)?.step
       || null
     : null;
+  const showInspector = inline ? Boolean(selectedStep) : inspectorVisible;
 
   useEffect(() => {
     if (revealCount == null) setRevealCount(totalNodes);
@@ -879,26 +880,31 @@ export default function TokenTopologyPanel({ isOpen, onClose, inline = false }) 
             <button className="ttp-clear-btn" onClick={handleClear} title="Clear and restart">
               <span className="ttp-clear-icon">↺</span> Clear
             </button>
-            <button
-              type="button"
-              className="ttp-inspector-toggle"
-              onClick={handleInspectorToggle}
-              disabled={!hasActivity}
-              aria-label={inspectorVisible ? 'Hide details' : 'Show details'}
-              title={inspectorVisible ? 'Hide details' : 'Show details'}
-            >
-              <span aria-hidden="true">🔍</span>
-            </button>
+            {!inline && (
+              <button
+                type="button"
+                className="ttp-inspector-toggle"
+                onClick={handleInspectorToggle}
+                disabled={!hasActivity}
+                aria-label={inspectorVisible ? 'Hide details' : 'Show details'}
+                title={inspectorVisible ? 'Hide details' : 'Show details'}
+              >
+                <span aria-hidden="true">🔍</span>
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Keep the inspector beside the full-width context and topology canvas. */}
+        {/* Inline details follow the graph; the pop-out keeps its resizable side inspector. */}
         <div className={`ttp-body${selectedStep ? ' has-insp' : ''}`}>
-          {inspectorVisible && hasActivity && selectedStep ? (
-            <div className="ttp-insp-pane" style={{ width: inspWidth }}><div className="ttp-resize-handle" {...inspHandleProps} /><Inspector step={selectedStep} topologyNodes={topologyNodes} onClose={handleInspectorClose} fontSize={fontSize} setFontSize={setFontSize} /></div>
-          ) : inspectorVisible && hasActivity && (
+          {showInspector && hasActivity && selectedStep ? (
+            <div className={`ttp-insp-pane${inline ? ' ttp-insp-pane--inline' : ''}`} style={inline ? undefined : { width: inspWidth }}>
+              {!inline && <div className="ttp-resize-handle" {...inspHandleProps} />}
+              <Inspector step={selectedStep} topologyNodes={topologyNodes} onClose={handleInspectorClose} fontSize={fontSize} setFontSize={setFontSize} />
+            </div>
+          ) : showInspector && hasActivity && !inline ? (
             <div className="ttp-insp-pane" style={{ width: inspWidth }}><div className="ttp-resize-handle" {...inspHandleProps} /><div className="ttp-insp-empty"><div className="ttp-insp-empty-icon">🔑</div><div className="ttp-insp-empty-text">Click a node to inspect its token details</div></div></div>
-          )}
+          ) : null}
           <div className="ttp-main">
             <div className="ttp-diagram">
             {hasActivity && (

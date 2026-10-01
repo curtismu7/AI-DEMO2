@@ -107,6 +107,8 @@ source "${BASEDIR}/scripts/demo-terminal.sh"
 demo_init_terminal
 # shellcheck source=scripts/ping-email.sh
 source "$BASEDIR/scripts/ping-email.sh"
+# shellcheck source=scripts/k8-docker-cleanup.sh
+source "$BASEDIR/scripts/k8-docker-cleanup.sh"
 
 # Strip --agent=<name> from $@ before the case statement sees it.
 # Exported so k8s/deploy.sh inherits it without any extra plumbing.
@@ -145,8 +147,14 @@ check_docker() {
 check_prereqs() {
   command -v kubectl &>/dev/null   || die "kubectl not found — install via: brew install kubectl"
   check_docker
+  local context
+  context="$(kubectl config current-context 2>/dev/null || true)"
+  case "$context" in
+    orbstack|docker-desktop) ;;
+    *) die "Refusing local K8 operation on context '${context:-unknown}'. Switch to OrbStack (kubectl config use-context orbstack) or Docker Desktop first." ;;
+  esac
   kubectl cluster-info &>/dev/null || die "Cannot reach K8s cluster. For local dev: enable Kubernetes in OrbStack/Docker Desktop Settings."
-  info "K8s cluster reachable."
+  info "K8s cluster reachable (context: $context)."
   # llama.cpp runs as an in-cluster 2-tier stack (k8s/56-llm-stack.yaml) — no host
   # install is required. The llm-proxy pod routes to llama-tier1/llama-tier5.
   info "LLM: in-cluster 2-tier stack — no host llama-server install required."
@@ -165,23 +173,23 @@ kill_all() {
   bash "$K8S_DIR/deploy.sh" stop-forward >/dev/null 2>&1 || true
   pkill -f "kubectl port-forward -n ai-demo" 2>/dev/null || true
 
-  # Stop auto-restarting Docker containers (llm-proxy, librechat stack). Both
-  # are `restart: unless-stopped`, so they resurrect whenever the Docker daemon
-  # (OrbStack) restarts and squat demo ports / the ai-demo_ai-demo network.
-  # Disable the policy so they stay down. Also remove leftover ai-demo compose
-  # networks. Never touches volumes, images, worktrees, or any user data.
+  # Stop Docker Compose containers that conflict with local K8. Preserve the
+  # standalone PF container: the K8 BFF reaches its host-published :9031 port.
+  # Disable restart for the stopped containers. Preserve PF's shared network
+  # even when PF is stopped; deleting it leaves the container with a stale ID.
+  # Volumes and images are untouched.
   if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
     local containers
-    containers="$(docker ps -aq --filter "name=^ai-demo-" --filter "name=^librechat" 2>/dev/null || true)"
+    containers="$(k8_docker_cleanup_container_ids)"
     if [[ -n "${containers}" ]]; then
       # shellcheck disable=SC2086
       docker update --restart=no ${containers} >/dev/null 2>&1 || true
       # shellcheck disable=SC2086
       docker stop ${containers} >/dev/null 2>&1 || true
-      info "Stopped auto-restart Docker containers (ai-demo-*, librechat*)."
+      info "Stopped conflicting Docker containers (preserved ai-demo-pingfederate)."
     fi
     local net
-    for net in $(docker network ls -q --filter "name=ai-demo" 2>/dev/null || true); do
+    for net in $(k8_docker_cleanup_network_ids); do
       docker network rm "$net" >/dev/null 2>&1 || true
     done
   fi
@@ -292,6 +300,12 @@ tag_k8_images() {
       info "Tagged ${src}:latest → ${dst}:latest"
     fi
   done
+  # PromptGuard pins its Compose image tag to :local, so retag it explicitly
+  # for the local K8 manifest after the project-scoped build.
+  if docker image inspect "ai-demo-mcp-promptguard:local" &>/dev/null; then
+    docker tag "ai-demo-mcp-promptguard:local" "ai-demo-k8-promptguard:latest"
+    info "Tagged ai-demo-mcp-promptguard:local → ai-demo-k8-promptguard:latest"
+  fi
   docker image inspect "ai-demo-k8-api-server:latest" &>/dev/null \
     || warn "Missing ai-demo-k8-api-server:latest — build demo-api-server first"
 }
@@ -316,7 +330,7 @@ build() {
     COMPOSE_PARALLEL_LIMIT=1 docker compose -p "$K8_COMPOSE_PROJECT" -f docker-compose.yml build \
       demo-api-server ui mcp-server langchain-agent agent-service \
       hitl-service mcp-resource-server api-resource-server mcp-proxy authz-server mcp-gateway \
-      mcp-weather mcp-brave
+      mcp-weather mcp-brave mcp-promptguard
     COMPOSE_PARALLEL_LIMIT=1 docker compose -p "$K8_COMPOSE_PROJECT" -f docker-compose.yml --profile demo-auth build mcp-jwt-verifier
     COMPOSE_PARALLEL_LIMIT=1 docker compose -p "$K8_COMPOSE_PROJECT" -f docker-compose.yml --profile k8-build build tier-manager-k8 llm-proxy
   ) || die "image build failed"

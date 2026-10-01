@@ -185,9 +185,18 @@ export async function monitorVitest(child, didFailToSpawn, {
 
 async function runVitest(vitestArgs, { captureStdout = false } = {}) {
   const vitestCli = fileURLToPath(new URL('../node_modules/vitest/vitest.mjs', import.meta.url))
+  const guardedConfig = fileURLToPath(new URL('./vitest-memory-guard.config.mjs', import.meta.url))
+  const [command = 'run', ...args] = vitestArgs
   const child = spawn(
     process.execPath,
-    [`--max-old-space-size=${VITEST_HEAP_LIMIT_MB}`, vitestCli, ...vitestArgs],
+    [
+      `--max-old-space-size=${VITEST_HEAP_LIMIT_MB}`,
+      vitestCli,
+      command,
+      '--config',
+      guardedConfig,
+      ...args,
+    ],
     {
       cwd: fileURLToPath(new URL('../', import.meta.url)),
       detached: true,

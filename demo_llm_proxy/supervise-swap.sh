@@ -25,7 +25,7 @@ SMALLEST_PORT="${SMALLEST_TIER_PORT:-${TIERS[0]:-8091}}"
 if ! curl -sf --max-time 2 http://127.0.0.1:8097/health >/dev/null 2>&1; then
   LLM_PROXY_RESIDENT_TIERS="${LLM_PROXY_RESIDENT_TIERS}" \
   LLAMA_ARG_HOST="${LLAMA_ARG_HOST}" \
-    nohup node "$DIR/tier-manager.js" > /tmp/demo-tier-manager.log 2>&1 &
+    bash "$DIR/start-detached.sh" node "$DIR/tier-manager.js" > /tmp/demo-tier-manager.log 2>&1 &
   echo $! > /tmp/demo-tier-manager.pid
   echo "supervise-swap: started tier-manager (pid $(cat /tmp/demo-tier-manager.pid))"
 fi
