@@ -893,7 +893,13 @@ router.post(['/:door/mcp', '/:door/:app/mcp'], express.json({ limit: '1mb', type
     && typeof upstreamExchange.isAgentGatewayConfigured === 'function'
     && upstreamExchange.isAgentGatewayConfigured()) {
     const delegatedScopes = [
-      'mcp:invoke',
+      // The AI Agent actor app is granted `agent:invoke`, not `mcp:invoke` —
+      // 4e0aee902 swapped this by mistake (an unrelated stray hunk in a
+      // LibreChat config commit) and PingOne's token-exchange grant has
+      // refused every delegated call since with "At least one scope must be
+      // granted". `mcp:invoke` alone was already known insufficient here
+      // (seen live 2026-08-24, see facadeUpstreamExchange.js's comment).
+      'agent:invoke',
       ...(toolName ? scopeTopology.toolScopes(toolName) : []),
     ];
     const xStart = Date.now();
