@@ -8,6 +8,7 @@ const { redactReadinessValue } = require('./demoReadinessReport');
 const PF_PROFILES = require('../config/demoReadinessPingFederateProfiles.json');
 const { getReadinessToolMetadata } = require('../config/verticals/pingone-admin/tools');
 const { resolveRepositoryRoot } = require('../utils/repositoryRoot');
+const { baselineMismatches } = require('./demoReadinessPingFederateReader');
 const REPOSITORY_ROOT = resolveRepositoryRoot(__dirname);
 const healthGate = require(path.join(REPOSITORY_ROOT, 'scripts/check-demo-health-gate'));
 const mcpPreflight = require(path.join(REPOSITORY_ROOT, 'scripts/check-mcp-preflight'));
@@ -309,6 +310,14 @@ async function pfRead({ baseUrl, credentials = {}, fetchImpl, deadlineAt, signal
 }
 function profileResult(profile, actual) {
   if (!actual) return { status: 'blocked', reason: 'PF Admin API did not return the declared role object' };
+  // A committed baseline is comparable on its own. `unresolved` still gates
+  // Demo Step execution in the catalog and is not consulted for it.
+  if (profile.baseline) {
+    const mismatched = baselineMismatches(profile.baseline, actual);
+    return mismatched.length
+      ? { status: 'fail', observed: Object.fromEntries(mismatched.map((name) => [name, actual[name] ?? null])) }
+      : true;
+  }
   if (profile.unresolved) return { status: 'blocked', reason: 'committed role contract is unresolved' };
   for (const [field, expected] of Object.entries(profile.expected || {})) {
     if (Array.isArray(expected) ? !exactArray(actual[field], expected) : actual[field] !== expected) return false;

@@ -61,9 +61,17 @@ export PINGONE_AUTHORIZE_DECISION_ENDPOINT_ID="$(env_value PINGONE_AUTHORIZE_DEC
 export PINGONE_AUTHORIZE_MCP_DECISION_ENDPOINT_ID="$(env_value PINGONE_AUTHORIZE_MCP_DECISION_ENDPOINT_ID "$ENV_FILE")"
 # Non-secret PingFederate settings: the declared side of the Gateway Exchange #3
 # readback (what refresh-service-envs.js generates for PingGateway).
-for name in PF_ISSUER PF_ISSUER_URI PF_TOKEN_ENDPOINT PF_STANDARD_TOKEN_EXCHANGE_CLIENT_ID; do
+for name in PF_ISSUER PF_ISSUER_URI PF_TOKEN_ENDPOINT PF_STANDARD_TOKEN_EXCHANGE_CLIENT_ID \
+  PF_STANDARD_AGENT_EXCHANGE_CLIENT_ID PF_AI_AGENT_ACTOR_CLIENT_ID PF_MCP_SERVICE_ACTOR_CLIENT_ID; do
   export "$name=$(env_value "$name" "$ENV_FILE")"
 done
+# PingFederate Admin API readback for the audit (read-only GETs). The local
+# admin console serves a self-signed certificate, so verification is skipped for
+# those reads alone — never process-wide.
+export PINGFEDERATE_ADMIN_API_BASE="https://local.ping-devops.com:9999/pf-admin-api/v1"
+PINGFEDERATE_ADMIN_PASSWORD="$(vault_get PF_ADMIN_CONSOLE_PASSWORD)"
+export PINGFEDERATE_ADMIN_PASSWORD
+export PINGFEDERATE_ADMIN_TLS_INSECURE=1
 # The local stack's certificates are issued by mkcert's CA.
 export NODE_EXTRA_CA_CERTS="$MAIN/certs/mkcert-rootCA.pem"
 
