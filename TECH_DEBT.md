@@ -16,6 +16,51 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-10-01 — The launcher can remove PingFederate and has no way to start it
+
+**What's wrong.** PF is deliberately outside the demo compose project (its own
+`scripts/pingfederate/docker-compose.local.yml`, `name: ai-demo-pingfederate`),
+but its container is named `ai-demo-pingfederate`, and `run-docker.sh`'s
+`_purge_leftover_stack` runs `docker rm -f` on **every** container matching
+`name=ai-demo-` and then removes the shared `ai-demo_ai-demo` network. That
+sweep is reached by `stop`, `down` and a non-`basic` `start` (via
+`_compose_down`); a bare `restart` is a full `start`, so it counts too. Only
+`start basic` and the subset paths (`restart <svc>`, `demo-sync`) avoid it. The sweep does not look at the compose project label, so
+it cannot tell the demo's own leftovers from a separately managed container like
+PF. A code comment in `cmd_start` already says `basic` "preserves separate
+containers (notably PingFederate)", which is the same hazard. Nothing in the
+launcher starts PF afterwards, and the repo hook blocks a raw
+`docker compose up`, so the only recovery is the README command with the hook's
+`# force-compose` override.
+
+Observed 2026-10-01: the `ai-demo-pingfederate` container vanished entirely (not
+stopped; its volumes survived) minutes after the provider toggle was flipped to
+PingFederate, while the BFF kept running on `oauth_provider=pingfederate`. PF
+sign-in then failed with `fetch failed` and nothing said why. **Not confirmed:**
+the purge is the only repo code that removes that container name and is a
+plausible cause, but the removal itself was not observed (the
+`ai-demo-readiness-*` containers survived, and may simply have started later).
+
+**Why it wasn't fixed now.** `run-docker.sh` is shared start/stop machinery that
+every session uses, and the right behavior is a choice (exempt PF from the sweep
+vs. make the launcher own PF), not a one-line patch found while adding a login
+page.
+
+**What the real fix looks like.** (1) Make `_purge_leftover_stack` remove only
+containers carrying this project's compose label (the squatter case is already
+covered by `_purge_foreign_container_names`, which works from the compose
+config's own `container_name` values), or at least skip an explicit allowlist
+containing `ai-demo-pingfederate`. (2) Add a launcher entry for PF
+(`./run-docker.sh pf start`) that wraps the README command (profile path default
+`~/pingfederate-profile`, `--env-file scripts/pingfederate/.env`), so nobody
+needs the hook override, and finishes with the checks the PF recovery already
+needs: a plain authorize for `openid profile email offline_access` returns the
+login page, and the PF Authentication API settings are intact (see the
+"PingFederate pi.flow depends on PF settings" entry). (3) Consider a guard in the
+provider toggle: refuse to flip to PingFederate, and warn when it is selected,
+if PF's discovery document is unreachable (the toggle already checks this at
+flip time; nothing re-checks it afterwards).
+
 ### [ ] 2026-10-01 — PingFederate pi.flow depends on PF settings that live only in PF
 
 **What's wrong.** The PingFederate half of the redirect-free sign-in needs PF-side
