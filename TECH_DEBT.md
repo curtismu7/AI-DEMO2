@@ -44,7 +44,7 @@ and the bridge header together, and make the readiness contract for UC38/UC44
 require the workload agent's client id in the actor chain. Found 2026-10-01
 while running UC44 through demo readiness.
 
-### [ ] 2026-10-01 — The PingFederate readiness lane cannot pass a gateway tool step
+### [ ] 2026-10-01 — The PingFederate readiness lane cannot pass a gateway tool step (PARTLY RESOLVED)
 
 **What's wrong.** The PF lane signs in and both RFC 8693 exchanges succeed with
 PingFederate-issued tokens, then PingGateway answers 401 `invalid_token`. Both
@@ -65,6 +65,16 @@ validates PingFederate tokens; then a PF Admin API readback recorded in the
 profiles file for the four standard-exchange roles; then PF evidence in the
 adapter (`pfExchange`: issuer, endpoint, credential roles, subject-token type).
 Measured 2026-10-01: PF lane 1 of 16 (UC24, the public path).
+
+**PARTLY RESOLVED 2026-10-01 (`fix/readiness-pf-lane-jwks`).** The gateway half
+of this entry guessed wrong. No second gateway is needed: the shared PingGateway
+already has `PF_ISSUER_URI` set and a JWKS validation route that verifies a token
+against the issuer it names. The lane BFF simply was not asking for it. With
+`FF_MCP_GATEWAY_JWKS=true` on `readiness-bff-pingfederate`, PF-lane tool steps
+reach the MCP server (UC1 returns data, Authorize PERMIT). What remains is the
+other half, unchanged: the PF exchange contract is still a declared source gap
+and the adapter has no `pfExchange` evidence, so those rows fail on contract
+checks only.
 
 ### [ ] 2026-10-01 — The launcher can remove PingFederate and has no way to start it
 
