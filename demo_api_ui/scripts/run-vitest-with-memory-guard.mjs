@@ -9,7 +9,11 @@ export const VITEST_RSS_LIMIT_BYTES = 4_000_000_000
 const VITEST_HEAP_LIMIT_MB = 1_400
 const POLL_INTERVAL_MS = 100
 const TERMINATE_GRACE_MS = 250
-const TEST_FILES_PER_BATCH = 12
+// Each batch pays a cold Vitest/jsdom start-up (~7s on the shared CI Mac), so
+// 12 meant ~59 start-ups per full run. Peak worker RSS at 12 was 1.86 GB of the
+// 4 GB guard; the guard still stops the run if a larger batch ever crosses it.
+// ponytail: fixed size; derive from measured RSS if 48 ever trips the guard.
+const TEST_FILES_PER_BATCH = 48
 const execFileAsync = promisify(execFile)
 
 export function parseProcessTable(output) {
