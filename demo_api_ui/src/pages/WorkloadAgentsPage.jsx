@@ -20,7 +20,7 @@ export default function WorkloadAgentsPage() {
   const { activeId, refetch } = useVertical();
   const params = new URLSearchParams(location.search);
   // The active vertical can be one this page has no actions for (pingone-admin).
-  const vertical = params.get('vertical') || (SUPPORTED_VERTICALS.has(activeId) ? activeId : 'banking');
+  const vertical = params.get('vertical') || (SUPPORTED_VERTICALS.has(activeId) ? activeId : 'sporting-goods');
   const selectedId = params.get('useCase') === 'UC44' ? 'UC44' : 'UC38';
   const [verticals, setVerticals] = useState([]);
   const [catalog, setCatalog] = useState({ vertical: null, cases: {} });

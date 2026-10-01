@@ -49,14 +49,14 @@ describe('WorkloadAgentsPage', () => {
 
   it('ignores an active vertical the page has no actions for', async () => {
     renderPage('/workload-agents?useCase=UC38', 'pingone-admin');
-    expect((await screen.findByRole('combobox', { name: /vertical/i })).value).toBe('banking');
-    expect(apiClient.get).toHaveBeenCalledWith('/api/use-cases/UC38?vertical=banking');
+    expect((await screen.findByRole('combobox', { name: /vertical/i })).value).toBe('sporting-goods');
+    expect(apiClient.get).toHaveBeenCalledWith('/api/use-cases/UC38?vertical=sporting-goods');
   });
 
-  it('uses banking when a direct link has no vertical and no active selection', async () => {
+  it('uses Super Sports when a direct link has no vertical and no active selection', async () => {
     renderPage('/workload-agents');
-    expect((await screen.findByRole('combobox', { name: /vertical/i })).value).toBe('banking');
-    expect(apiClient.get).toHaveBeenCalledWith('/api/use-cases/UC38?vertical=banking');
+    expect((await screen.findByRole('combobox', { name: /vertical/i })).value).toBe('sporting-goods');
+    expect(apiClient.get).toHaveBeenCalledWith('/api/use-cases/UC38?vertical=sporting-goods');
   });
 
   it('offers all 11 supported verticals and respects the explicit deep link', async () => {
