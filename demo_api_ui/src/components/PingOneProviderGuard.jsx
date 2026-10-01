@@ -40,9 +40,11 @@ export default function PingOneProviderGuard({ children, returnTo, description }
     setSwitching(true);
     setSwitchError(null);
     try {
-      await clearIdJagRunStateForProviderSwitch();
-      await apiClient.post("/api/admin/config", { oauth_provider: "pingone" });
-      if (hasActivePfSession) {
+      const idJagRestore = await clearIdJagRunStateForProviderSwitch();
+      if (idJagRestore?.provider !== "pingone") {
+        await apiClient.post("/api/admin/config", { oauth_provider: "pingone" });
+      }
+      if (hasActivePfSession && !idJagRestore?.sessionCleared) {
         await apiClient.post("/api/auth/clear-session");
       }
       window.location.href = `/api/auth/oauth/user/login?return_to=${returnTo}`;

@@ -204,6 +204,10 @@ export function useAuth() {
         notifyError('A PingFederate ID-JAG login is already in progress — finish or cancel it first.');
         return;
       }
+      if (reason === 'provider_restore_in_progress') {
+        notifyError('The previous PingFederate ID-JAG run is still restoring the login provider. Try again in a moment.');
+        return;
+      }
       // intent_pending: the stored intent cannot be redeemed (its handoff
       // chain died before the login claimed it). Cancel it server-side and
       // locally, then tell the user to click again.

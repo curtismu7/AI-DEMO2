@@ -21,6 +21,7 @@ export const ID_JAG_PRE_RUN_PROVIDER_KEY = 'bx_id_jag_pre_run_provider';
 
 let liveLaunchPending = false;
 let providerRestoreGeneration = 0;
+let completedHandoffGeneration = null;
 const providerRestorePromises = new Set();
 
 /**
@@ -84,6 +85,10 @@ export function createIdJagLaunchIntent({ mode, message, returnTo } = {}) {
 export function requestLiveIdJagRun(detail) {
   const intent = createIdJagLaunchIntent(detail);
   if (intent.mode !== RUN_MODES.LIVE_ID_JAG) throw new Error('Live ID-JAG mode required');
+  if (providerRestorePromises.size > 0) {
+    notifyLaunchBlocked('provider_restore_in_progress');
+    return null;
+  }
   // Recovery path: a stale pending intent (crashed launch, TTL exceeded,
   // pre-fix page) can never be redeemed server-side — drop it and proceed
   // instead of deadlocking every future click.
@@ -108,6 +113,7 @@ export function requestLiveIdJagRun(detail) {
   } catch {
     // The in-memory guard still prevents duplicate launches in this page.
   }
+  completedHandoffGeneration = null;
   liveLaunchPending = true;
   window.dispatchEvent(new CustomEvent('id-jag-run-requested', { detail: intent }));
   return intent;
@@ -115,7 +121,16 @@ export function requestLiveIdJagRun(detail) {
 
 /** Release the client handoff guard after a validated callback; retain run context. */
 export function completeIdJagRunHandoff({ restoreProvider = true } = {}) {
+  // The auth hook and agent replay hook both observe the validated callback.
+  // Treat their completion calls as one handoff so the later listener cannot
+  // invalidate the restore started by the first one.
+  if (restoreProvider && completedHandoffGeneration === providerRestoreGeneration) {
+    liveLaunchPending = false;
+    try { sessionStorage.removeItem(ID_JAG_PENDING_INTENT_KEY); } catch { /* storage unavailable */ }
+    return;
+  }
   const generation = ++providerRestoreGeneration;
+  completedHandoffGeneration = generation;
   liveLaunchPending = false;
   try { sessionStorage.removeItem(ID_JAG_PENDING_INTENT_KEY); } catch { /* storage unavailable */ }
   if (!restoreProvider) {
@@ -146,9 +161,10 @@ async function capturePreRunProvider() {
 }
 
 /**
- * Put the pre-run provider back. Returns true when a restore was issued (the
- * caller should expect a reload). Silent no-ops: nothing captured, provider
- * already matches, config write rejected (non-admin), or storage unavailable.
+ * Put the pre-run provider back. A completed provider write returns the
+ * restored provider and whether its session clear succeeded. Silent no-ops:
+ * nothing captured, provider already matches, config write rejected
+ * (non-admin), or storage unavailable.
  */
 async function restorePreRunProvider(generation) {
   if (generation !== providerRestoreGeneration) return false;
@@ -156,6 +172,8 @@ async function restorePreRunProvider(generation) {
   try { previous = sessionStorage.getItem(ID_JAG_PRE_RUN_PROVIDER_KEY); } catch { return false; }
   if (previous !== 'pingone' && previous !== 'pingfederate') return false;
   try { sessionStorage.removeItem(ID_JAG_PRE_RUN_PROVIDER_KEY); } catch { /* leave it; restore is one-shot */ }
+  let restoredProvider = null;
+  let sessionCleared = false;
   try {
     const res = await fetch('/api/admin/config', { credentials: 'same-origin' });
     if (!res.ok) return false;
@@ -170,13 +188,17 @@ async function restorePreRunProvider(generation) {
       body: JSON.stringify({ oauth_provider: previous }),
     });
     if (!write.ok) return false;
-    if (generation !== providerRestoreGeneration) return false;
-    await fetch('/api/auth/clear-session', { method: 'POST', credentials: 'same-origin' });
-    if (generation !== providerRestoreGeneration) return false;
+    restoredProvider = previous;
+    if (generation !== providerRestoreGeneration) return { provider: restoredProvider, sessionCleared };
+    const clearSession = await fetch('/api/auth/clear-session', { method: 'POST', credentials: 'same-origin' });
+    sessionCleared = clearSession.ok;
+    if (generation !== providerRestoreGeneration) return { provider: restoredProvider, sessionCleared };
     window.dispatchEvent(new CustomEvent('userLoggedOut'));
     window.location.reload();
-    return true;
-  } catch { return false; }
+    return { provider: restoredProvider, sessionCleared };
+  } catch {
+    return restoredProvider ? { provider: restoredProvider, sessionCleared } : false;
+  }
 }
 
 export function requestMockIdJagReplay() {
@@ -212,8 +234,13 @@ export function clearIdJagRunState({ preservePending = false } = {}) {
 
 /** Clear a handoff before switching providers without restoring its saved provider. */
 export async function clearIdJagRunStateForProviderSwitch() {
+  const pendingRestores = [...providerRestorePromises];
   completeIdJagRunHandoff({ restoreProvider: false });
-  await Promise.allSettled([...providerRestorePromises]);
+  const restoreResults = await Promise.allSettled(pendingRestores);
   try { sessionStorage.removeItem(ID_JAG_PRE_RUN_PROVIDER_KEY); } catch { /* storage unavailable */ }
   clearIdJagRunStorage();
+  const completedRestore = restoreResults
+    .reverse()
+    .find((result) => result.status === 'fulfilled' && result.value?.provider);
+  return completedRestore?.value ?? null;
 }

@@ -623,18 +623,24 @@ choice to switch providers before trying them.
 `/pingone-test`, `/mfa-test`, `/security`, and `/profile`. When PF is selected,
 the modal explains the PingOne requirement. Continue switches the shared
 provider to PingOne, clears stale ID-JAG state without restoring its saved
-provider, clears an active PF BFF session if present, and starts PingOne login
-back to the current route. Page content waits for the provider check; a failed
-check shows a retry action without mounting PingOne-specific requests. Cancel
-closes the modal and leaves the page usable. `/profile` explains that its MFA
-section needs PingOne while preserving its other profile features.
+provider, and reuses a completed ID-JAG restore when it already switched to
+PingOne or cleared the BFF session. Otherwise it switches the provider, clears
+an active PF BFF session if present, and starts PingOne login back to the
+current route. Page content waits for the provider check; a failed check shows
+a retry action without mounting PingOne-specific requests. Cancel closes the
+modal and leaves the page usable. `/profile` explains that its MFA section
+needs PingOne while preserving its other profile features.
 
 **Do not break:** Keep configured provider authority, provider-bound
 PKCE/state/nonce, and BFF-only browser token custody. Clear only a confirmed
 active PF app session, and leave provider/session state untouched on Cancel.
 The guard's ID-JAG cleanup must never restore the previous provider. Keep
 separate PingOne MCP/sample auth flows and provider-neutral token exchange
-outside this guard.
+outside this guard. If an ID-JAG provider restore was already in progress when
+the user continues, use its completed provider/session result to avoid a second
+admin config write after its session clear. Duplicate validated-callback
+listeners must not invalidate the same handoff's provider restore, and a new
+live ID-JAG launch must wait until a previous provider restore settles.
 
 **Verify:** `cd demo_api_ui && npm run build`.
 
