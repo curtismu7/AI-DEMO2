@@ -16,6 +16,54 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-10-01 — A workload agent's run is recorded as the built-in AI Agent
+
+**What's wrong.** UC38 and UC44 exist to show which workload agent acted. The
+customer's own Agent Builder app does perform Exchange #1 (it is the token's
+`client_id`), but the `act` claim on the Agent Gateway resource is
+`${subjectToken.may_act}`, and the user's `mayAct` names the built-in AI Agent.
+So the exchanged tokens, the gateway audit and the PingOne Authorize request all
+record the built-in agent. The BFF's actor bridge (`services/mcpActorBridge.js`)
+sends the same built-in id in `X-Act-Client-Id` on every call.
+
+**Why not fixed now.** Making `act` name the real actor means composing it from
+the actor token on a PingOne resource every flow uses, and that removes the
+property the current design leans on: an ungranted user gets no `act`, so
+`REQUIRE_ACT_FOR_AGENT_TOOLS` denies. The authorization check would have to move
+to an explicit "is this actor the one `may_act` names" rule, and `mayAct` holds a
+single agent, so a customer could not authorize both the chat agent and a
+workload agent. That is a PingOne resource attribute, a provisioner step and an
+Authorize policy change in the protected token-exchange path.
+
+**The real fix.** Decide the model first: either `mayAct` becomes a list the
+policy checks membership in, or workload runs use their own resource whose `act`
+is composed from the actor token. Then change the provisioner, the live tenant
+and the bridge header together, and make the readiness contract for UC38/UC44
+require the workload agent's client id in the actor chain. Found 2026-10-01
+while running UC44 through demo readiness.
+
+### [ ] 2026-10-01 — The PingFederate readiness lane cannot pass a gateway tool step
+
+**What's wrong.** The PF lane signs in and both RFC 8693 exchanges succeed with
+PingFederate-issued tokens, then PingGateway answers 401 `invalid_token`. Both
+provider lanes share the presenter's one PingGateway, which validates tokens for
+the presenter's active provider. While the presenter is on PingOne, every PF-lane
+tool step fails at the gateway, whatever the lane does. Separately, the PF rows'
+exchange contract is still a declared source gap
+(`config/demoReadinessPingFederateProfiles.json`, every role `unresolved`), and
+the adapter has no PingFederate evidence mapping.
+
+**Why not fixed now.** Recording the PF contract alone would not produce one
+passing row: the gateway rejection comes first. Giving the PF lane a gateway that
+trusts PingFederate is a topology decision (a lane-private gateway, or one
+gateway trusting both issuers).
+
+**The real fix.** A PingGateway instance or route set for the PF lane that
+validates PingFederate tokens; then a PF Admin API readback recorded in the
+profiles file for the four standard-exchange roles; then PF evidence in the
+adapter (`pfExchange`: issuer, endpoint, credential roles, subject-token type).
+Measured 2026-10-01: PF lane 1 of 16 (UC24, the public path).
+
 ### [ ] 2026-10-01 — The launcher can remove PingFederate and has no way to start it
 
 **What's wrong.** PF is deliberately outside the demo compose project (its own

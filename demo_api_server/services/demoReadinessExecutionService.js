@@ -345,11 +345,15 @@ function evidenceFailures({ evidence, provider, authorization, expected, caseRow
     // owns it, or on one that scope-topology.json declares as its mirror, and
     // no other audience may be reported.
     const observedAudiences = (Array.isArray(evidence.audiences) ? evidence.audiences : []).map(String);
-    const allowedAudiences = (authorization.scopeResources || []).map((item) => [item.audience, ...(item.mirrorAudiences || [])].filter(Boolean));
+    // An A2A run is judged on the specialist's scope and where it was minted.
+    const a2aRun = Boolean(authorization.a2aScopeResources) && String(evidence.exchangePath || '').startsWith('a2a-');
+    const scopeResources = a2aRun ? authorization.a2aScopeResources : authorization.scopeResources;
+    const requiredScopes = a2aRun ? authorization.a2aScopeResources.map((item) => item.scope) : authorization.requiredScopes;
+    const allowedAudiences = (scopeResources || []).map((item) => [item.audience, ...(item.mirrorAudiences || [])].filter(Boolean));
     require(observedAudiences.length > 0
       && allowedAudiences.every((allowed) => allowed.some((audience) => observedAudiences.includes(audience)))
       && observedAudiences.every((audience) => allowedAudiences.some((allowed) => allowed.includes(audience))), 'audience set does not match catalog contract');
-    require(exactValues(evidence.scopes, authorization.requiredScopes), 'scope set does not match catalog contract');
+    require(exactValues(evidence.scopes, requiredScopes), 'scope set does not match catalog contract');
     require(Boolean(evidence.gateway?.route && evidence.gateway?.verdict), 'Gateway evidence is required for an exchanged tool call');
     // A gateway-policy tool is decided by the gateway's own filter; PingOne
     // Authorize is not called, so a reported Authorize decision would be wrong.
