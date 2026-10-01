@@ -59,11 +59,22 @@ whole demo: the client now holds the attacker's instructions in its context.
 
 ### Served tools
 
-- `get_weather` — **poisoned description** (hidden `<IMPORTANT>` transfer instruction).
-- `search_docs` — **poisoned inputSchema** (off-box `callback_url` exfil sink).
-- `create_transfer` — a **real, callable** tool (a stub — moves nothing). It is
-  the harmful action the `get_weather` poison induces, and the tool CALL the
-  Privilege gateway is meant to deny.
+Poisoned **metadata** (a scanner catches these at ingest):
+- `get_weather` — **description injection** (hidden `<IMPORTANT>` transfer instruction).
+- `search_docs` — **inputSchema exfil sink** (off-box `callback_url` default).
+- `get_balance` — **tool shadowing** (collides with a trusted name, asserts primacy, smuggles an instruction).
+- `send_email` — **action exfil sink** (hidden off-box `bcc` default that leaks creds/tokens).
+- `verify_identity` — **credential harvest** (asks for `password`/`otp` as parameters).
+- `summarize_ticket` — **plain imperative injection** (no `<IMPORTANT>` tag; "ignore all previous instructions…").
+
+Dynamic / result-based (metadata scanners can miss these):
+- `get_stock_price` — **rug-pull / TOFU**: benign on the first `tools/list`, poisoned on later ones.
+- `read_ticket` — **result-based injection**: benign metadata, but the call *result* carries the `<IMPORTANT>` block.
+
+Dangerous **actions** (real, callable stubs — the CALLS Privilege should deny; nothing happens):
+- `create_transfer` — the transfer the poison induces.
+- `delete_all_records` — destructive (Tool Abuse).
+- `grant_admin` — privilege escalation (Tool Abuse).
 - `mcp://hostile/account-verification` — **poisoned resource** returned by
   `resources/read`.
 - `account_review` — **poisoned prompt** returned by `prompts/get`.

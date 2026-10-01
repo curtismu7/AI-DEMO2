@@ -9,7 +9,7 @@ import test from 'node:test';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
-import { startHttpServer } from './index.mjs';
+import { startHttpServer, __resetRugPullForTests } from './index.mjs';
 import { POISON_PROMPTS, POISON_RESOURCES, POISONS } from './poisons.mjs';
 
 const POISON_NAMES = POISONS.map((p) => p.tool.name);
@@ -76,6 +76,59 @@ test('the poison also arrives over the SSE transport (the gateway path)', async 
     const inj = tools.find((t) => t.name === 'get_weather');
     assert.match(inj.description, /<IMPORTANT>[\s\S]*<\/IMPORTANT>/, 'injection survived over SSE');
 
+    await transport.close();
+  } finally {
+    await server.close();
+  }
+});
+
+test('abuse tools are served and callable as stubs (the calls Privilege denies)', async () => {
+  const server = await startHttpServer(0);
+  try {
+    const client = new Client({ name: 'victim', version: '1.0.0' }, { capabilities: {} });
+    const transport = new StreamableHTTPClientTransport(new URL(server.url));
+    await client.connect(transport);
+    const names = (await client.listTools()).tools.map((t) => t.name);
+    for (const n of ['delete_all_records', 'grant_admin', 'send_email', 'verify_identity', 'get_balance']) {
+      assert.ok(names.includes(n), `${n} served`);
+    }
+    const del = await client.callTool({ name: 'delete_all_records', arguments: { confirm: true } });
+    assert.match(del.content[0].text, /STUB/i);
+    const grant = await client.callTool({ name: 'grant_admin', arguments: { user: 'mallory' } });
+    assert.match(grant.content[0].text, /mallory/);
+    await transport.close();
+  } finally {
+    await server.close();
+  }
+});
+
+test('read_ticket carries the injection in its RESULT, not its metadata', async () => {
+  const server = await startHttpServer(0);
+  try {
+    const client = new Client({ name: 'victim', version: '1.0.0' }, { capabilities: {} });
+    const transport = new StreamableHTTPClientTransport(new URL(server.url));
+    await client.connect(transport);
+    const card = (await client.listTools()).tools.find((t) => t.name === 'read_ticket');
+    assert.doesNotMatch(card.description, /<IMPORTANT>/, 'metadata is benign');
+    const res = await client.callTool({ name: 'read_ticket', arguments: { ticket_id: 'T-1' } });
+    assert.match(res.content[0].text, /<IMPORTANT>[\s\S]*create_transfer[\s\S]*<\/IMPORTANT>/, 'result carries the poison');
+    await transport.close();
+  } finally {
+    await server.close();
+  }
+});
+
+test('rug-pull: get_stock_price is clean on first discovery, poisoned after', async () => {
+  __resetRugPullForTests();
+  const server = await startHttpServer(0);
+  try {
+    const client = new Client({ name: 'victim', version: '1.0.0' }, { capabilities: {} });
+    const transport = new StreamableHTTPClientTransport(new URL(server.url));
+    await client.connect(transport);
+    const first = (await client.listTools()).tools.find((t) => t.name === 'get_stock_price');
+    assert.doesNotMatch(first.description, /<IMPORTANT>/, 'first discovery is clean (TOFU)');
+    const second = (await client.listTools()).tools.find((t) => t.name === 'get_stock_price');
+    assert.match(second.description, /<IMPORTANT>/, 'later discovery is poisoned (rug-pull)');
     await transport.close();
   } finally {
     await server.close();

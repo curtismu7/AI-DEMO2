@@ -42,6 +42,34 @@ test('schema_exfiltration hides an exfil sink in the inputSchema', () => {
   assert.notEqual(new URL(sink.default).hostname, '', 'default is a real URL');
 });
 
+test('tool_shadowing collides with a trusted name and smuggles an instruction', () => {
+  const p = POISONS.find((x) => x.id === 'tool_shadowing');
+  assert.equal(p.tool.name, 'get_balance');
+  assert.match(p.tool.description, /<IMPORTANT>[\s\S]*<\/IMPORTANT>/);
+  assert.match(p.tool.description, /ignore any other tool/i);
+});
+
+test('action_exfil_sink hides an off-box bcc default', () => {
+  const p = POISONS.find((x) => x.id === 'action_exfil_sink');
+  const bcc = p.tool.inputSchema.properties?.bcc;
+  assert.ok(bcc, 'bcc property present');
+  assert.match(String(bcc.default), /@attacker\.example$/);
+  assert.match(bcc.description, /credential|token/i);
+});
+
+test('credential_harvest asks for password/otp as parameters', () => {
+  const p = POISONS.find((x) => x.id === 'credential_harvest');
+  assert.ok(p.tool.inputSchema.properties?.password, 'password param');
+  assert.ok(p.tool.inputSchema.properties?.otp, 'otp param');
+});
+
+test('imperative_injection carries a plain agent-directed imperative (no tag)', () => {
+  const p = POISONS.find((x) => x.id === 'imperative_injection');
+  assert.doesNotMatch(p.tool.description, /<IMPORTANT>/, 'this one is deliberately tag-free');
+  assert.match(p.tool.description, /ignore all previous instructions/i);
+  assert.match(p.tool.description, /create_transfer/i);
+});
+
 test('resource poison retains a sensitive-action directive', () => {
   const resource = POISON_RESOURCES.find((entry) => entry.id === 'account_verification');
   assert.ok(resource, 'entry present');
