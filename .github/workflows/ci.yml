@@ -11,14 +11,21 @@ on:
   pull_request:
     # ready_for_review is not a default type; without it a draft marked ready
     # would get no CI run, because the jobs below skip while the PR is a draft.
-    types: [opened, synchronize, reopened, ready_for_review]
+    # closed: a merged or closed PR's run used to keep its place in the queue
+    # and then run for a result nobody reads. The closed event starts a run in
+    # the same concurrency group, which cancels the stale one; that run's own
+    # jobs all skip (see `changes`), so it never takes a runner.
+    types: [opened, synchronize, reopened, ready_for_review, closed]
   push:
     branches: [main]
   schedule:
     - cron: '17 9 * * *'
 
 concurrency:
-  group: ci-${{ inputs.target_ref || github.ref }}-${{ github.event_name == 'schedule' && 'nightly' || 'interactive' }}
+  # PR runs are keyed by PR NUMBER, not github.ref: on a merged PR's closed
+  # event the ref is not guaranteed to be the PR's merge ref, and a group that
+  # fell back to the base branch would cancel main's run instead.
+  group: ci-${{ inputs.target_ref || (github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number)) || github.ref }}-${{ github.event_name == 'schedule' && 'nightly' || 'interactive' }}
   # Superseding is safe here: this workflow only runs tests. Image builds live
   # in build-images.yml, which keys its own group by github.sha precisely so a
   # merge's build can never be evicted by a later merge — see that file.
@@ -35,7 +42,8 @@ jobs:
     # Every other job descends from this one (gates needs changes; the suites
     # need gates), so skipping it skips the whole run. Skipped required checks
     # count as passing, and a draft cannot be merged anyway.
-    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    # A closed PR event exists only to cancel the PR's earlier run (see `on`).
+    if: github.event_name != 'pull_request' || (!github.event.pull_request.draft && github.event.action != 'closed')
     runs-on: [self-hosted, macOS]
     outputs:
       api-server: ${{ steps.all.outputs['api-server'] || steps.nightly.outputs['api-server'] || steps.filter.outputs['api-server'] }}
