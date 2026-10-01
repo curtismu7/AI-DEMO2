@@ -21,7 +21,9 @@ async function requirePingOneAdminGroup(req, res, response = {}) {
     username: req.session?.user?.username || null,
     pingOneUserId: req.agentContext?.userId || null,
     accessToken: req.agentContext?.accessToken || null,
-    oauthProvider: req.session?.user?.oauthProvider || req.session?.oauthProvider || null,
+    // The session's provider, not the user record's: the admin sign-in stores
+    // 'pingone_sso' on the user whichever provider signed them in.
+    oauthProvider: req.session?.oauthProvider || req.session?.user?.oauthProvider || null,
   });
   if (access.allowed) return true;
 
