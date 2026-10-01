@@ -6,6 +6,7 @@ import { FootprintSkinPicker } from '../components/aiFootprintMocks/FootprintSki
 import { KIBANA_URL } from '../config/observabilityLinks';
 import PrivilegeA2aTab from '../features/privilegeA2aClient/PrivilegeA2aTab';
 import ToolsTable from '../components/privilege/ToolsTable';
+import PrivilegeUserApiKeysPanel from '../components/privilege/PrivilegeUserApiKeysPanel';
 import JsonHighlight from '../components/shared/JsonHighlight';
 import JsonFormView from '../components/shared/JsonFormView';
 import PingIdentitySpinner from '../components/shared/PingIdentitySpinner';
@@ -253,7 +254,7 @@ const LLM_PATHS = {
 // Present mode ARE a demo move) and RESULTS (the returned data is half of what
 // you are showing), so the split is narrower than "chat vs everything else".
 const VIEW_TABS = {
-  demo: ['chat', 'a2a', 'tools'],
+  demo: ['chat', 'a2a', 'tools', 'user-api-keys'],
   inspect: ['mcp', 'rpc', 'policies'],
 };
 const VIEW_TERMINAL_TABS = {
@@ -264,6 +265,7 @@ const TAB_LABELS = [
   ['chat', 'Agent Chat'],
   ['a2a', 'A2A'],
   ['tools', 'Tools'],
+  ['user-api-keys', 'User API Key & Secrets'],
   ['mcp', 'MCP Explorer'],
   ['rpc', 'Raw RPC'],
   ['policies', 'Policies'],
@@ -2487,6 +2489,8 @@ export default function PrivilegeMcpClientPage() {
                 selectNonce={toolSelectNonce}
               />
             )}
+
+            {visibleTab === 'user-api-keys' && <PrivilegeUserApiKeysPanel />}
 
             {visibleTab === 'mcp' && (
               <div className="cur-rpc-panel cur-mcp-explorer">

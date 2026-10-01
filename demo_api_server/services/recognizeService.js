@@ -1,57 +1,37 @@
 'use strict';
 
-const axios = require('axios');
-const configStore = require('./configStore');
-
-const DEFAULT_BASE_URL = 'https://authentication-service.eks.core-production.saas-us-east.keyless.technology';
-
-function getConfig() {
-  const apiKey = configStore.getEffective('RECOGNIZE_API_KEY');
-  const tenantName = configStore.getEffective('RECOGNIZE_TENANT_NAME');
-  const baseUrl = configStore.getEffective('RECOGNIZE_BASE_URL') || DEFAULT_BASE_URL;
-  if (!apiKey) throw new Error('RECOGNIZE_API_KEY is not configured');
-  if (!tenantName) throw new Error('RECOGNIZE_TENANT_NAME is not configured');
-  return { apiKey, tenantName, baseUrl };
+// The previous implementation guessed at private Authentication Service
+// endpoints and accepted client-provided session/image data. Keep every entry
+// point closed until Ping/Keyless confirms the Web SDK's backend result and
+// enrollment lifecycle contract for this tenant.
+class RecognizeContractUnavailable extends Error {
+  constructor() {
+    super('PingOne Recognize Web SDK result validation is not configured');
+    this.name = 'RecognizeContractUnavailable';
+    this.code = 'RECOGNIZE_CONTRACT_UNAVAILABLE';
+  }
 }
 
-function headers(apiKey) {
-  return { 'X-API-Key': apiKey, 'Content-Type': 'application/json' };
+function unavailable() {
+  throw new RecognizeContractUnavailable();
 }
 
-async function initiateSession(userId) {
-  const { apiKey, tenantName, baseUrl } = getConfig();
-  const url = `${baseUrl}/v1/customers/${tenantName}/sessions`;
-  const { data } = await axios.post(url, { username: userId }, { headers: headers(apiKey) });
-  return { sessionToken: data.sessionToken, sessionId: data.sessionId };
+function isConfigured() {
+  return false;
 }
 
-async function verifySession(sessionId, sdkResult) {
-  const { apiKey, tenantName, baseUrl } = getConfig();
-  const url = `${baseUrl}/v1/customers/${tenantName}/sessions/${sessionId}/verify`;
-  const { data } = await axios.post(url, sdkResult || {}, { headers: headers(apiKey) });
-  return data.status === 'ACCEPTED';
-}
+async function initiateSession() { return unavailable(); }
+async function verifySession() { return unavailable(); }
+async function enrollUser() { return unavailable(); }
+async function enrollFromImage() { return unavailable(); }
+async function unenrollUser() { return unavailable(); }
 
-async function enrollUser(userId) {
-  const { apiKey, tenantName, baseUrl } = getConfig();
-  const url = `${baseUrl}/v1/customers/${tenantName}/enrollments`;
-  await axios.post(url, { username: userId }, { headers: headers(apiKey) });
-}
-
-async function enrollFromImage(userId, imageBase64, scenario) {
-  const { apiKey, tenantName, baseUrl } = getConfig();
-  const url = `${baseUrl}/v1/customers/${tenantName}/enrollments`;
-  await axios.post(
-    url,
-    { username: userId, image: imageBase64, scenario: scenario || 'TRUSTED_SOURCE' },
-    { headers: headers(apiKey) },
-  );
-}
-
-async function unenrollUser(userId) {
-  const { apiKey, tenantName, baseUrl } = getConfig();
-  const url = `${baseUrl}/v1/customers/${tenantName}/enrollments/${userId}`;
-  await axios.delete(url, { headers: headers(apiKey) });
-}
-
-module.exports = { initiateSession, verifySession, enrollUser, enrollFromImage, unenrollUser };
+module.exports = {
+  isConfigured,
+  initiateSession,
+  verifySession,
+  enrollUser,
+  enrollFromImage,
+  unenrollUser,
+  RecognizeContractUnavailable,
+};
