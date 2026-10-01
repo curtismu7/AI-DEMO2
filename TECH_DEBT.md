@@ -34,6 +34,14 @@ build, while patching site-packages would not be reproducible from this repo.
 `skipped` result (or persist that outcome in the AST cache), while keeping the
 files available to semantic extraction.
 
+### [ ] 2026-09-27 — Hosted Kubernetes restricted admission and egress scope remain open
+
+**What's wrong.** Third-party image references in the hosted deployment path have been pinned to observed runtime digests (M-04); a deploy-time guard now blocks new mutable external references. Restricted Pod Security compatibility and per-workload egress remain unresolved. Read-only inspection on 2026-09-27 found no namespace Pod Security labels or namespaced NetworkPolicies in `ping-devops-cmuir` or `ping-devops-curtismuir`; cluster-level admission/network controls and CNI enforcement were not inspected. See `docs/security/SECURITY_REVIEW_2026-09-26.md` (L-01, L-02).
+
+**Why it wasn't fixed now.** Enabling Restricted admission can reject or break workloads that lack explicit security contexts or need the seed Job's root write behavior. Egress narrowing needs confirmed provider destinations and CNI enforcement details. These shared namespace controls remain unchanged until compatibility and operator evidence are established.
+
+**Real fix.** Audit deployed pod violations and writable paths, migrate workloads to Restricted-compatible security contexts, confirm namespace enforcement with its administrator, and narrow per-workload egress only after the provider/DNS inventory and CNI capability are confirmed.
+
 ### [ ] 2026-09-14 — AIAgentFull Privilege MCP transport bypasses token exchange and authz gates
 
 **What's wrong.** The new `AIAgentFull` component's "Via Privilege Gateway" MCP transport calls `POST /api/privilege-mcp-simple/tools/call` (pre-existing, not introduced in this plan) which dispatches MCP tools directly without running the banking demo's RFC 8693 token exchange, PingOne Authorize gate, HITL interceptor, or kill-switch. All four live in `demo_api_server/services/mcpToolPipeline.js`, the protected core per `REGRESSION_PLAN.md` §1. Other MCP transports in the stack route through `mcpToolPipeline`, ensuring consistent authz policy and audit. The privilege-mcp endpoint is intentionally simple to serve as a policy-comparison tool (e.g., "see what an agent does when it ignores authorization"): not a production-equivalent path.

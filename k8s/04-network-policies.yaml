@@ -1,0 +1,108 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ai-demo-internal
+  namespace: ai-demo
+spec:
+  # Preserve existing same-namespace connectivity for the legacy workloads,
+  # while excluding oauth-mcp so its gateway boundary can be enforced below.
+  podSelector:
+    matchExpressions:
+    - key: component
+      operator: NotIn
+      values:
+      - mcp-server
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    # A podSelector without a namespaceSelector is scoped to this policy's
+    # namespace, including when the manifest is rewritten for shared SE.
+    - podSelector: {}
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: ingress-nginx
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: ingress-nginx-public
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/role: ingress-nginx-public
+  egress:
+  - to:
+    - podSelector: {}
+  # Preserve configured PingOne/provider access and the existing metadata exclusions.
+  - to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+        except:
+        - 169.254.169.254/32
+        - 169.254.170.2/32
+    ports:
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 80
+    - protocol: TCP
+      port: 53
+    - protocol: UDP
+      port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mcp-server-ingress
+  namespace: ai-demo
+spec:
+  podSelector:
+    matchLabels:
+      app: ai-demo
+      component: mcp-server
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: ingress-nginx
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: ingress-nginx-public
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/role: ingress-nginx-public
+    ports:
+    - protocol: TCP
+      port: 8080
+  - from:
+    - podSelector:
+        matchLabels:
+          app: ai-demo
+          component: ping-gateway
+    - podSelector:
+        matchLabels:
+          app: ai-demo
+          component: mcp-gateway
+    ports:
+    - protocol: TCP
+      port: 8080
+  egress:
+  - to:
+    - podSelector: {}
+  - to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+        except:
+        - 169.254.169.254/32
+        - 169.254.170.2/32
+    ports:
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 80
+    - protocol: TCP
+      port: 53
+    - protocol: UDP
+      port: 53

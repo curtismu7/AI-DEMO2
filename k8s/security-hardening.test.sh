@@ -25,9 +25,9 @@ grep -q 'SECURITY_HARDENED_DEPLOYMENT=true' "$HERE/aws/deploy.sh" \
 grep -q 'GRAFANA_ADMIN_PASSWORD must be set' "$HERE/create-secrets.sh" \
   || fail "hardened deployments must fail without a Grafana admin password"
 
-grep -q '169.254.169.254/32' "$HERE/01-namespace.yaml" \
+grep -q '169.254.169.254/32' "$HERE/04-network-policies.yaml" \
   || fail "network policy must exclude the AWS instance metadata endpoint"
-grep -q '169.254.170.2/32' "$HERE/01-namespace.yaml" \
+grep -q '169.254.170.2/32' "$HERE/04-network-policies.yaml" \
   || fail "network policy must exclude the container metadata endpoint"
 
 grep -q 'DISABLE_RATE_LIMIT' "$HERE/20-api-server-deployment.yaml" \

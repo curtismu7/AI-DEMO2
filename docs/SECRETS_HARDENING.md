@@ -75,6 +75,7 @@ Deploy:
 ```bash
 # Create namespace if not already done
 kubectl apply -f k8s/01-namespace.yaml
+kubectl apply -f k8s/04-network-policies.yaml
 
 # Apply sealed-secrets controller (one-time setup)
 kubectl apply -f k8s/00-sealed-secrets-install.yaml
@@ -96,6 +97,7 @@ k8s/sealed-secrets.sh
 ```bash
 # Apply namespace + secrets + deployments
 kubectl apply -f k8s/01-namespace.yaml
+kubectl apply -f k8s/04-network-policies.yaml
 kubectl apply -f k8s/04-sealed-secrets.yaml
 kubectl apply -f k8s/05-deployments.yaml  # references sealed secret
 ```

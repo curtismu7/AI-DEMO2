@@ -119,6 +119,7 @@ deploy() {
   fi
 
   kubectl apply -f "$SCRIPT_DIR/01-namespace.yaml"
+  kubectl apply -f "$SCRIPT_DIR/04-network-policies.yaml"
 
   # The shared namespace manifest is also used by the AWS deploy path. Raise
   # the quota only for the guarded local ai-demo deployment, whose full manifest

@@ -39,6 +39,12 @@ spec:
         env:
         - name: NODE_ENV
           value: "development"
+        # Keep the simulated Authorize runtime, but retain production session
+        # safeguards independently of NODE_ENV in this hosted deployment.
+        - name: SESSION_SECRET_REQUIRED
+          value: "true"
+        - name: SESSION_COOKIE_SECURE
+          value: "true"
         # Demo hardening Phase 4: with NODE_ENV=development (required by the
         # simulated Authorize service), CRASH_GUARD=1 makes unhandled rejections
         # log-and-continue instead of restarting the pod mid-demo.

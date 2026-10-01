@@ -23,7 +23,7 @@ spec:
     spec:
       containers:
         - name: tika
-          image: apache/tika:3.2.2.0-full
+          image: apache/tika@sha256:ffab324253edc54706e8882dd28190b1e6559c344b5315ae8a74b9efda9e7291
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 9998
@@ -119,7 +119,7 @@ spec:
     spec:
       containers:
         - name: weaviate
-          image: semitechnologies/weaviate:latest
+          image: semitechnologies/weaviate@sha256:ac7f9f124f9b3cd18d1977c8117a2d382618196f68b44cbc1686c25a3f3a66bd
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -218,7 +218,7 @@ spec:
     spec:
       containers:
         - name: embeddings
-          image: ghcr.io/ggml-org/llama.cpp:server
+          image: ghcr.io/ggml-org/llama.cpp@sha256:6257697a7f5d034b8fb499ddb07af3e250506352f94102054252a23f3b85e0af
           imagePullPolicy: IfNotPresent
           args:
             - "--host"

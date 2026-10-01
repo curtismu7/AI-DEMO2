@@ -309,7 +309,7 @@ async function runMcpToolPipeline(ctx) {
         // restricting the check to ctx.suppliedToken left that path unrouted.
         if (useGateway && mcpAccessToken) {
             const a2aGwAuds = [
-                process.env.A2A_GATEWAY_AUDIENCE || routingConfig.getEffective('a2a_gateway_audience') || 'mcpgateway-a2a.ping.demo',
+                process.env.A2A_GATEWAY_AUDIENCE || require('./configStore').getEffective('a2a_gateway_audience') || 'mcpgateway-a2a.ping.demo',
             ].map((v) => String(v).trim());
             const claims = require('../utils/tokenUtils').decodeJwt(mcpAccessToken)?.claims || null;
             const aud = Array.isArray(claims?.aud) ? claims.aud.map(String) : (claims?.aud != null ? [String(claims.aud)] : []);
