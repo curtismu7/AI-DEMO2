@@ -158,6 +158,73 @@ test('UI Docker build can run the cross-repo readiness contract against its cont
   }
 });
 
+// The test above checks the allowlist against a hand-kept list, which drifts the
+// same way the allowlist does: 72968b68b made demoReadinessCatalog.js require
+// ../utils/repositoryRoot, neither list gained it, and every frontend image
+// build died with MODULE_NOT_FOUND while this file stayed green. These two run
+// the contract itself with only the allowlisted files present.
+//
+// ponytail: not a dockerignore matcher. It reads the shapes the file uses —
+// `!<file>` re-includes, the wholesale `!demo_api_ui`, plain `demo_api_ui/<dir>`
+// exclusions — and treats everything else as NOT allowed, so it can only be
+// stricter than Docker. If the file grows glob re-includes, swap in a matcher.
+function runReadinessContractInUiContext(dockerignore) {
+  const lines = dockerignore.split(/\r?\n/).map((line) => line.trim())
+    .filter((line) => line && !line.startsWith('#'));
+  const included = new Set(lines.filter((line) => line.startsWith('!')).map((line) => line.slice(1)));
+  const uiWholesale = included.has('demo_api_ui') || included.has('demo_api_ui/**');
+  const uiExcluded = lines.filter((line) => line.startsWith('demo_api_ui/'))
+    .map((line) => line.replace(/\/\*\*?$/, ''))
+    .filter((prefix) => !prefix.includes('*'))
+    .map((prefix) => `${prefix}/`);
+  const tracked = spawnSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], {
+    cwd: repoRoot, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024,
+  });
+  assert.equal(tracked.status, 0, tracked.stderr);
+
+  const contextRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-demo-ui-contract-'));
+  try {
+    for (const file of tracked.stdout.split('\n').filter(Boolean)) {
+      const allowed = included.has(file) || (uiWholesale && file.startsWith('demo_api_ui/')
+        && !uiExcluded.some((prefix) => `${file}/`.startsWith(prefix)));
+      const source = path.join(repoRoot, file);
+      if (!allowed || !fs.existsSync(source)) continue;
+      const target = path.join(contextRoot, file);
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.copyFileSync(source, target, fs.constants.COPYFILE_FICLONE);
+    }
+    return spawnSync(process.execPath, [
+      path.join(contextRoot, 'scripts', 'check-demo-readiness-contract.mjs'),
+    ], { cwd: contextRoot, encoding: 'utf8' });
+  } finally {
+    fs.rmSync(contextRoot, { recursive: true, force: true });
+  }
+}
+
+const uiDockerignore = () => fs.readFileSync(
+  path.join(repoRoot, 'demo_api_ui', 'Dockerfile.dockerignore'),
+  'utf8',
+);
+
+test('readiness contract passes with only the files the UI Docker context allows', () => {
+  const result = runReadinessContractInUiContext(uiDockerignore());
+  assert.equal(
+    result.status,
+    0,
+    `${result.stderr || result.stdout}\nThe frontend image build will fail the same way. `
+      + 'Add the missing file to demo_api_ui/Dockerfile.dockerignore.',
+  );
+});
+
+test('that check fails when a file the contract imports leaves the allowlist', () => {
+  const rule = '!demo_api_server/utils/repositoryRoot.js';
+  const dockerignore = uiDockerignore();
+  assert.ok(dockerignore.includes(rule), `${rule} is no longer in the allowlist; pick another imported file`);
+  const result = runReadinessContractInUiContext(dockerignore.replace(rule, ''));
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Cannot find module '\.\.\/utils\/repositoryRoot'/);
+});
+
 test('UI Docker context uses Docker ignore semantics to exclude runtime and unrelated files', {
   skip: (() => {
     const result = spawnSync('docker', ['buildx', 'version'], { encoding: 'utf8', timeout: 5000 });
