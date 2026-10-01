@@ -307,6 +307,9 @@ async function runFullUnitSuite(options) {
     `[vitest-memory-guard] Running ${files.length} UI test files in ${batches.length} batches of at most ${TEST_FILES_PER_BATCH}; each batch starts fresh workers.`,
   )
 
+  // EXPERIMENT: run every batch so the log shows the full set of files that
+  // break without isolation, then fail at the end.
+  let failedBatches = 0
   for (const [index, batch] of batches.entries()) {
     const batchNames = batch.map((file) => file.split(/[\\/]/).at(-1)).join(', ')
     console.log(
@@ -315,10 +318,12 @@ async function runFullUnitSuite(options) {
     const result = await runVitest(['run', ...options, ...batch])
     peakProcess = largerProcess(peakProcess, result.monitorFailure?.peakProcess)
     printPeakRss(peakProcess, 'Overall')
-    if (result.code !== 0) return result.code
+    if (['memory-limit', 'monitor-error'].includes(result.monitorFailure?.type)) return result.code
+    if (result.code !== 0) failedBatches += 1
   }
 
-  return 0
+  console.log(`[vitest-memory-guard] EXPERIMENT: ${failedBatches} of ${batches.length} batches had failures.`)
+  return failedBatches ? 1 : 0
 }
 
 function parseRelatedFileList(raw) {

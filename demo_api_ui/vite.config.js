@@ -259,6 +259,9 @@ export default defineConfig(({ mode }) => {
       // Cap each fork's V8 heap and let the test:unit launcher enforce the
       // stricter 4 GB RSS ceiling continuously, including during a test file.
       pool: 'forks',
+      // EXPERIMENT: reuse one jsdom environment per worker instead of building
+      // one per test file (the largest cost in the full run).
+      isolate: false,
       poolOptions: {
         forks: {
           execArgv: ['--max-old-space-size=1400'],
