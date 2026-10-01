@@ -2,6 +2,7 @@
 
 const crypto = require('node:crypto');
 const { createDemoReadinessProviderLoginClient } = require('./demoReadinessProviderLoginClient');
+const { createCaseOperations } = require('./demoReadinessCaseAdapter');
 
 const TARGETS = ['local', 'se'];
 const PROVIDERS = ['pingone', 'pingfederate'];
@@ -70,6 +71,11 @@ function createLaneSessionFactory(settings, { loginClient = createDemoReadinessP
       cookieJarId: `${targetId}-${provider}-cookies-${id()}`,
       sessionStoreId: `${targetId}-${provider}-store-${id()}`,
       async dispose() { await handle.dispose(); },
+      ...createCaseOperations({
+        request: (path, options) => handle.request(path, options),
+        provider,
+        expectedIssuer: settings.expectedIssuer,
+      }),
     };
     Object.defineProperty(session, 'login', { value: handle, enumerable: false });
     return session;

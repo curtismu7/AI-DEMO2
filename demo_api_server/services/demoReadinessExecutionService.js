@@ -293,7 +293,9 @@ function evidenceFailures({ evidence, provider, authorization, expected, caseRow
   if (caseRow.id === 'UC38' || caseRow.id === 'UC44') require(Array.isArray(evidence.actorChain) && evidence.actorChain.length >= 2, 'actor-bound standard exchange requires the retained user and agent chain');
   require(evidence.exchangeService === (caseRow.exchangeService || 'token-exchange'), 'exchange service does not match static contract');
   require(typeof evidence.exchangeProvenance === 'string' && evidence.exchangeProvenance === caseRow.providerFlows?.[provider], 'exchange provenance does not match provider flow');
-  if (authorization?.resourceServer) require(evidence.resourceServer === authorization.resourceServer, 'resource server does not match catalog contract');
+  // Compared by value: evidence from a real worker arrives over HTTP, so an
+  // object-shaped resource server is never the same reference as the contract's.
+  if (authorization?.resourceServer) require(evidence.resourceServer != null && sameObject({ value: evidence.resourceServer }, { value: authorization.resourceServer }), 'resource server does not match catalog contract');
   else require(typeof evidence.resourceServer === 'string' && evidence.resourceServer, 'resource server is missing');
   require(evidence.roleApplicability && typeof evidence.roleApplicability === 'object' && !Array.isArray(evidence.roleApplicability), 'role applicability is missing');
   if (authorization?.authorizeToolGroup?.role) require(evidence.roleApplicability?.authorizeRole === authorization.authorizeToolGroup.role, 'role applicability does not match Authorize role contract');
@@ -607,4 +609,4 @@ function requireFeatureEvidence(failures, evidence, check, provider) {
   require(Array.isArray(evidence.behaviorStages) && JSON.stringify(evidence.behaviorStages) === JSON.stringify(contract?.behaviorStages), 'feature behavior stages do not match static execution contract');
 }
 
-module.exports = { createReadinessExecutionService, deriveExecutionManifest, expectedExchangePath, FEATURE_DISPATCHERS, validateFeatureFamilyEvidence };
+module.exports = { createReadinessExecutionService, deriveExecutionManifest, evidenceFailures, expectedExchangePath, FEATURE_DISPATCHERS, validateFeatureFamilyEvidence };
