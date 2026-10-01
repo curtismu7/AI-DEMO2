@@ -84,6 +84,7 @@ docker-compose.k8s-bff.yml
 docker-compose.lan-remote.yml
 docker-compose.no-gateway.yml
 docker-compose.override.yml
+docker-compose.readiness.yml
 docker-compose.worktree.yml
 docker-compose.yml
 docs
