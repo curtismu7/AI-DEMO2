@@ -19,7 +19,7 @@
 const axios = require('axios');
 const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 const configStore = require('./configStore');
-const { getTokenEndpoint } = require('./oauthEndpointResolver');
+const { getPingOneTokenEndpoint } = require('./oauthEndpointResolver');
 
 const PING_IDENTITY_LOGO_URL = process.env.PING_IDENTITY_LOGO_URL
   || 'https://ai-demo.ping-devops.com/assets/ping-identity-logo.png';
@@ -51,7 +51,7 @@ async function getManagementToken() {
     return null;
   }
 
-  const tokenUrl = getTokenEndpoint();
+  const tokenUrl = getPingOneTokenEndpoint();
   const response = await axios.post(
     tokenUrl,
     'grant_type=client_credentials',

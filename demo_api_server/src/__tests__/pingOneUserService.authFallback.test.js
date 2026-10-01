@@ -6,7 +6,7 @@
 'use strict';
 
 jest.mock('axios', () => ({ post: jest.fn() }));
-jest.mock('../../services/oauthEndpointResolver', () => ({ getTokenEndpoint: () => 'https://auth.example/as/token' }));
+jest.mock('../../services/oauthEndpointResolver', () => ({ getPingOneTokenEndpoint: () => 'https://auth.example/as/token' }));
 jest.mock('../../services/configStore', () => ({ getEffective: jest.fn() }));
 jest.mock('../../utils/logger', () => ({
   logger: { debug: jest.fn(), warn: jest.fn(), error: jest.fn(), info: jest.fn() },
