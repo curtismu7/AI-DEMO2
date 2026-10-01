@@ -244,6 +244,30 @@ read the configured host. A new browser origin must be added to ALL of:
 
 **Also in this change (branding):** `PiFlowSignInModal` shows the active vertical's logo and name (`pageManifest.identity.logoPath` / `headerTitle` / `displayName`, read from `VerticalContext` so the modal needs no Router) on a band using `--brand-dashboard-header-start`/`-end` and `--brand-dashboard-header-text`; PingOne Admin's manifest already points at `/branding/ping-logo.svg`, and a test pins that and that every declared `logoPath` exists under `public/`. Verticals with no logo show the name only. The primary button and input focus ring use the same header start/text pair, **not** `--app-primary-red`: Great Buy's primary is yellow `#FFE000` (1.3:1 against white). Fixed in the same stylesheet: the Cancel button was white on white in light theme (~1:1) because the modal reuses `.signin-modal`, whose ghost-button rule assumes a dark footer; `.pi-flow-signin .signin-prompt__btn--ghost` now uses `--th-text`/`--th-border-strong` (17.1:1 light, 17.9:1 dark). Verified in a real browser with computed styles for PingOne Admin, Great Buy, Super Sports and CareConnect (API responses faked, no live config changed). **Do not break:** the header/button pairing (never mix a vertical's primary with a fixed ink), and the 10px type floor and `--th-*` tokens (no inline colors). `SignInModal` (the session-expired interrupt) still has the dark-footer ghost-button rule and was not changed.
 
+### 2026-10-01 — UC38 step-up could not be completed with the app's passkey
+
+**Files:** `demo_api_server/routes/agentInvokeRoute.js`, `demo_api_ui/src/pages/PersonalAgentStudioPage.jsx`.
+
+**What was broken:** UC38 only accepted MFA proven by the sign-in token's `acr`, so the Workload Agents page sent the customer to PingOne's hosted sign-on page. A passkey enrolled in this app is bound to `ping-devops.com` and the browser will not offer it on PingOne's domain; the hosted page reported "Authentication cancelled". Email and SMS worked; passkey needed a second passkey enrolled on PingOne's page.
+
+**What changed:** The UC38 pre-check also accepts the session's in-app MFA marker (`req.session.stepUpVerified`, set by `routes/mfa.js` only after PingOne reports the challenge COMPLETED, 5 minutes, single use as in `routes/transactions.js`). The page opens the existing `OtpStepUpModal` in `p1mfa` mode and re-runs the action on completion; the hosted step-up remains as the fallback when the in-app challenge cannot start.
+
+**Do not break:** UC38 must still refuse to delegate without fresh MFA: an absent or expired marker with a non-MFA `acr` returns `step_up_required`. The marker is consumed when it is the proof used. UC44 has no MFA gate and must not gain one.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/agentInvokeRoute.workloadAgents.test.js --forceExit`; `cd demo_api_ui && npx vitest run src/pages/__tests__/PersonalAgentStudioPage.workloadEvidence.test.jsx && npm run build`.
+
+### 2026-10-01 — P1/PF toggle did not show which provider was selected
+
+**Files:** `demo_api_ui/src/components/OAuthProviderToggle.css`.
+
+**What was broken:** The selected side of the P1/PF pill was a fixed blue chip (`#2767d2`). On a blue top nav (PingOne Admin, Government, Banking) it disappeared into the bar, and the unselected side was only dimmed, so P1 and PF looked the same and you could not tell which provider was active. PF's selected chip was white on amber (about 3.2:1 at 10px).
+
+**What changed:** The selected side is now an inverted chip: fill `var(--brand-topnav-text)`, ink `var(--brand-topnav-bg-start)`, the same pair the nav is drawn from, so it contrasts with the bar in every vertical. PF keeps its amber tint on the pill. CSS only: the click handling, `aria-pressed`, title and provider-switch behavior are unchanged.
+
+**Do not break:** Pair the chip fill and ink from the nav's own tokens (never a fixed color or a vertical's primary), keep exactly one side filled, and keep the 10px type floor and no inline colors. Verified in a real browser with computed styles and screenshots for PingOne Admin, Great Buy and Super Sports in both provider states (chip ink on fill 10.4, 16.9 and 6.5 to 1).
+
+**Verify:** `cd demo_api_ui && npx vitest run src/components/__tests__/themingRatchet.test.js src/components/__tests__/OAuthProviderToggle.idJagReset.test.jsx && npm run build`.
+
 ### 2026-09-30 — Customer pi.flow sign-in (PingOne) and a broken pi.flow authorize URL
 
 **Files:** `demo_api_server/services/oauthUserService.js`, `demo_api_server/routes/oauthUser.js`, `demo_api_server/server.js`, `demo_api_ui/src/utils/authUi.js`, `demo_api_ui/src/components/PiFlowSignInModal.jsx`, `demo_api_ui/src/App.js`, `demo_api_ui/src/App.css`, and focused tests.

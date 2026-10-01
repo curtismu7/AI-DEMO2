@@ -1,12 +1,29 @@
-# Demo-readiness lane runtime — LOCAL target, PINGONE lane. Opt-in overlay:
+# Demo-readiness lane runtime — LOCAL target. Opt-in, PINGONE + PINGFEDERATE lanes.
 #
-#   docker compose -f docker-compose.yml -f docker-compose.readiness.yml \
+# Run it as its OWN compose project, NOT merged into the presenter's project:
+#
+#   docker compose -p ai-demo-readiness -f docker-compose.readiness.yml \
 #     up -d readiness-bff-pingone readiness-worker-pingone
 #
-# (run from the main checkout with --project-directory pointing at it; never
-# from a worktree — see CLAUDE.md "Working practice").
+# WHY a separate project (-p ai-demo-readiness) and NOT `-f docker-compose.yml
+# -f docker-compose.readiness.yml`: when the lanes lived in the shared `ai-demo`
+# project, every lane `up`/`down` reconciled that project's networking and
+# OrbStack reassigned the PRESENTER's published :3001 forward to a lane BFF — so
+# host api.ping.demo:3001 (and the UI, via its proxy) silently answered from the
+# wrong BFF with the wrong oauth_provider (a login provider that "reverts"). The
+# published-port guard (`ports: !reset []`) and alias guard (`networks:
+# !override`) were already correct and applied — the collision was the shared
+# PROJECT being reconciled, not a per-service misconfig. A separate project that
+# attaches to the presenter's network as `external` (see networks: below) never
+# touches the presenter's services or ports, so it cannot steal :3001.
 #
-# Why two services: the BFF's OAuth provider is process-wide, so each
+# Run from the main checkout (it has the gitignored env_file + certs + vault);
+# never from a worktree — see CLAUDE.md "Working practice".
+#
+# BOTH lanes below (pingone and pingfederate) follow this separate-project +
+# external-network shape. Any new lane MUST too, or it reintroduces the collision.
+#
+# Why two services per lane: the BFF's OAuth provider is process-wide, so each
 # target/provider lane needs its OWN BFF with its OWN cookie/session store, and
 # the presenter BFF (demo-api-server) must never be reconfigured. The worker
 # owns the lane identity and talks only to its lane BFF.
@@ -37,6 +54,11 @@ services:
       - "local.ping-devops.com:host-gateway"
     networks: !override
       ai-demo: {}
+    # !override, not merge: `extends` carries the presenter's depends_on
+    # (mcp-server, jaeger, mcp-discovery-agent) which live in the presenter's
+    # project, not this one. The lane reaches them over the external network at
+    # runtime; waiting on them here would fail as "undefined service".
+    depends_on: !override []
     volumes:
       - readiness-bff-pingone-data:/app/data/persistent
     environment:
@@ -59,7 +81,11 @@ services:
     container_name: ai-demo-readiness-worker-pingone
     hostname: readiness-worker-pingone
     command: node scripts/demo-readiness-worker.js
-    ports: !reset []
+    # Loopback only: `npm run demo:ready:local` on this Mac reaches the worker
+    # at https://api.ping.demo:4444 (the mkcert cert names api.ping.demo, and
+    # /etc/hosts maps it to 127.0.0.1). Every call still needs the bearer token.
+    ports: !override
+      - "127.0.0.1:4444:4443"
     extra_hosts: !override
       - "api.ping.demo:host-gateway"
     networks: !override
@@ -97,5 +123,110 @@ services:
       retries: 3
       start_period: 10s
 
+  # ── PingFederate lane ──────────────────────────────────────────────────────
+  # Same shape as the PingOne lane, with the lane BFF's process-wide provider
+  # set to PingFederate. Prepare the local PingFederate first:
+  #   node scripts/pingfederate/provision-readiness-lane.js --apply
+  # (adds this BFF's redirect URI to the PF user client, one readiness user,
+  # and the lane's vault entries).
+  readiness-bff-pingfederate:
+    extends:
+      file: docker-compose.yml
+      service: demo-api-server
+    container_name: ai-demo-readiness-bff-pingfederate
+    hostname: readiness-bff-pingfederate
+    ports: !reset []
+    extra_hosts: !override
+      - "api.ping.demo:host-gateway"
+      - "local.ping-devops.com:host-gateway"
+    networks: !override
+      ai-demo: {}
+    # See readiness-bff-pingone: clear the extends-inherited depends_on so this
+    # lane resolves as its own project (its deps run in the presenter project and
+    # are reached over the external network at runtime).
+    depends_on: !override []
+    volumes:
+      - readiness-bff-pingfederate-data:/app/data/persistent
+    environment:
+      OAUTH_PROVIDER: pingfederate
+      PUBLIC_APP_URL: "https://readiness-bff-pingfederate:3001"
+      PINGONE_PUBLIC_APP_URL: "https://readiness-bff-pingfederate:3001"
+      PF_USER_REDIRECT_URI: "https://readiness-bff-pingfederate:3001/api/auth/oauth/user/callback"
+      MCP_FACADE_HTTP_PORT: ""
+      PINGONE_MCP_ADMIN_LOOPBACK_PORT: ""
+      VAULT_AUDIT_LOG_PATH: "/app/data/persistent/secrets.vault.audit.log"
+
+  readiness-worker-pingfederate:
+    extends:
+      file: docker-compose.yml
+      service: demo-api-server
+    container_name: ai-demo-readiness-worker-pingfederate
+    hostname: readiness-worker-pingfederate
+    command: node scripts/demo-readiness-worker.js
+    ports: !override
+      - "127.0.0.1:4445:4443"
+    # local.ping-devops.com: the worker follows the BFF's redirect to the
+    # PingFederate engine, which is published on the host at :9031.
+    extra_hosts: !override
+      - "api.ping.demo:host-gateway"
+      - "local.ping-devops.com:host-gateway"
+    networks: !override
+      ai-demo: {}
+    depends_on: !override
+      readiness-bff-pingfederate:
+        condition: service_healthy
+    volumes: !override
+      - ./demo_api_server:/app
+      - /app/node_modules
+      - ./certs:/certs:ro
+      - .:/repo:ro
+    environment:
+      NODE_ENV: development
+      NODE_TLS_REJECT_UNAUTHORIZED: "0"
+      NODE_OPTIONS: ""
+      VAULT_PATH: "/repo/secrets.vault"
+      VAULT_AUDIT_LOG_PATH: "/tmp/secrets.vault.audit.log"
+      DEMO_READINESS_WORKER_TARGET: local
+      DEMO_READINESS_WORKER_PROVIDER: pingfederate
+      DEMO_READINESS_WORKER_IDENTITY_REF: "${DEMO_READINESS_LOCAL_PINGFEDERATE_IDENTITY_REF:-readiness-pingfederate-local}"
+      DEMO_READINESS_WORKER_BFF_URL: "https://readiness-bff-pingfederate:3001"
+      DEMO_READINESS_WORKER_EXPECTED_ISSUER: "${DEMO_READINESS_LOCAL_PINGFEDERATE_EXPECTED_ISSUER:-https://local.ping-devops.com:9031}"
+      DEMO_READINESS_WORKER_TLS_CERT: /certs/api.ping.demo+2.pem
+      DEMO_READINESS_WORKER_TLS_KEY: /certs/api.ping.demo+2-key.pem
+      DEMO_READINESS_WORKER_PORT: "4443"
+    healthcheck: !override
+      test: ["CMD", "node", "-e", "require('net').connect(4443,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+networks:
+  # Attach to the presenter's EXISTING network without owning it. `external: true`
+  # means this project joins the network and never creates or reconciles it —
+  # the crux of not disturbing the presenter's published ports. `name` is the
+  # presenter's network as Docker actually names it: compose project `ai-demo`
+  # (how run-docker.sh / run.sh bring up the stack) → network `ai-demo_ai-demo`.
+  # If the presenter runs under a different project name, update this.
+  ai-demo:
+    external: true
+    name: ai-demo_ai-demo
+
 volumes:
+  # Lane-private LMDB + sessions (never share the presenter's ai-demo-bff-data).
   readiness-bff-pingone-data:
+  readiness-bff-pingfederate-data:
+  # The lane BFFs `extends` the presenter, which mounts these named volumes.
+  # Standalone (no docker-compose.yml merged) they are not declared elsewhere, so
+  # reuse the presenter's existing volumes by their Docker names rather than
+  # creating empty project-prefixed copies. spiffe is inert here (ff_spiffe_*
+  # off), but the mounts must still resolve.
+  spiffe-agent-socket:
+    external: true
+    name: ai-demo_spiffe-agent-socket
+  spiffe-bff-output:
+    external: true
+    name: ai-demo_spiffe-bff-output
+  ai-demo-bff-data:
+    external: true
+    name: ai-demo_ai-demo-bff-data

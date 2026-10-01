@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import apiClient from '../services/apiClient';
 import { useVertical } from '../vertical/useVertical';
@@ -14,17 +14,19 @@ const SUPPORTED_VERTICALS = new Set([
   'university', 'workforce', 'sporting-goods', 'manufacturing', 'investment', 'airlines',
 ]);
 
-export default function WorkloadAgentsPage() {
+export default function WorkloadAgentsPage({ user = null }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { activeId } = useVertical();
+  const { activeId, refetch } = useVertical();
   const params = new URLSearchParams(location.search);
-  const vertical = params.get('vertical') || activeId || 'banking';
+  // The active vertical can be one this page has no actions for (pingone-admin).
+  const vertical = params.get('vertical') || (SUPPORTED_VERTICALS.has(activeId) ? activeId : 'sporting-goods');
   const selectedId = params.get('useCase') === 'UC44' ? 'UC44' : 'UC38';
   const [verticals, setVerticals] = useState([]);
   const [catalog, setCatalog] = useState({ vertical: null, cases: {} });
   const [error, setError] = useState('');
   const [requestedRun, setRequestedRun] = useState({ id: null, nonce: 0 });
+  const executionRef = useRef(null);
 
   useEffect(() => {
     let live = true;
@@ -51,7 +53,12 @@ export default function WorkloadAgentsPage() {
   const selected = cases[selectedId];
 
   function updateSelection(id, nextVertical = vertical) {
-    if (nextVertical !== vertical) setRequestedRun({ id: null, nonce: 0 });
+    if (nextVertical !== vertical) {
+      setRequestedRun({ id: null, nonce: 0 });
+      // Save the pick on the session too, so the rest of the app (branding,
+      // agent) follows it instead of staying on the server's default.
+      apiClient.post('/api/verticals/active', { id: nextVertical }).then(() => refetch?.()).catch(() => {});
+    }
     navigate(`/workload-agents?useCase=${id}&vertical=${encodeURIComponent(nextVertical)}`);
   }
 
@@ -80,13 +87,18 @@ export default function WorkloadAgentsPage() {
             <p>{detail}</p>
             <p className="workload-agents__cue">{cue}</p>
             <dl className="workload-agents__action"><div><dt>Catalog action</dt><dd>{uc?.primaryTool || 'Loading…'}</dd></div><div><dt>Run prompt</dt><dd>{uc?.runPrompt || 'Loading…'}</dd></div></dl>
-            <button type="button" disabled={!uc?.runPrompt} onClick={() => { updateSelection(id); setRequestedRun((last) => ({ id, nonce: last.nonce + 1 })); }}>Run this demo: {id}</button>
+            <button type="button" disabled={!uc?.runPrompt} onClick={() => {
+              updateSelection(id);
+              setRequestedRun((last) => ({ id, nonce: last.nonce + 1 }));
+              // The outcome, and the MFA button, render in the run panel below the fold.
+              executionRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+            }}>Run this demo: {id}</button>
           </article>;
         })}
       </div>
 
-      <section className="workload-agents__execution" aria-label="Selected workload agent run">
-        <div className="workload-agents__execution-head"><div><h2>Selected run</h2><p>{selectedId} · {verticalName} · {selected?.primaryTool || 'Loading action'}</p></div><p>{selectedId === 'UC38' ? 'MFA-protected write' : 'OBO customer-data read'}</p></div>
+      <section ref={executionRef} className="workload-agents__execution" aria-label="Selected workload agent run">
+        <div className="workload-agents__execution-head"><div><h2>Selected run</h2><p>{selectedId} · {verticalName} · {selected?.primaryTool || 'Loading action'} · {user?.username ? `signed in as ${user.username}` : 'not signed in'}</p></div><p>{selectedId === 'UC38' ? 'MFA-protected write' : 'OBO customer-data read'}</p></div>
         {selected && <PersonalAgentStudioPage key={`${vertical}:${selectedId}`} scenario={selected} vertical={vertical} runNonce={requestedRun.id === selected.id ? requestedRun.nonce : 0} />}
       </section>
     </main>

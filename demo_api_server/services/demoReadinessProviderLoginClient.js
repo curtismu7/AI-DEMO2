@@ -83,6 +83,11 @@ async function createDemoReadinessProviderLoginClient({ provider, dedicatedBffUr
     const authorize = locationOf(login, bff);
     if (authorize.protocol !== 'https:' || authorize.origin === bff.origin) throw new Error('Provider login origin mismatch.');
     const providerOrigin = authorize.origin;
+    // The BFF adds login_hint=<demo user> for the presenter. PingFederate then
+    // makes the username field read-only and signs in as THAT user, ignoring
+    // the one posted. This client signs in as the lane identity, so it drops
+    // the hint, as a browser user would by choosing another account.
+    authorize.searchParams.delete('login_hint');
     const first = await send('GET', authorize.href);
     let callback;
 

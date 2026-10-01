@@ -101,6 +101,18 @@ test('does not accept an agreement whose accept link is on another URL', async (
   await expect(createDemoReadinessProviderLoginClient({ ...BASE, provider: 'pingone', transport })).rejects.toThrow('protocol');
 });
 
+test('drops the BFF login_hint so the provider signs in the lane identity, not the demo user', async () => {
+  const { calls, transport: inner } = pingOneTransport();
+  const transport = async (request) => (new URL(request.url).pathname.endsWith('/login')
+    ? { status: 302, headers: { location: 'https://auth.example.test/env/as/authorize?client_id=c&login_hint=demouser&state=s', 'set-cookie': ['connect.sid=pre; Path=/'] } }
+    : inner(request));
+  await createDemoReadinessProviderLoginClient({ ...BASE, provider: 'pingone', transport });
+  const authorize = new URL(calls.find(call => new URL(call.url).pathname.endsWith('/authorize')).url);
+  expect(authorize.searchParams.has('login_hint')).toBe(false);
+  expect(authorize.searchParams.get('client_id')).toBe('c');
+  expect(authorize.searchParams.get('state')).toBe('s');
+});
+
 test('rejects a non-HTTPS sign-on redirect', async () => {
   const { transport: inner } = pingOneTransport();
   const transport = async (request) => (new URL(request.url).pathname.endsWith('/authorize')

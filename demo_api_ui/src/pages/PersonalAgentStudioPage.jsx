@@ -2,6 +2,8 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import apiClient from '../services/apiClient';
 import AgentClientSkin from '../components/AgentClientSkin';
+import ConfirmModal from '../components/ConfirmModal';
+import OtpStepUpModal from '../components/OtpStepUpModal';
 import PersonalAgentClientCards from '../components/learning/PersonalAgentClientCards';
 import SecurityRail from '../components/SecurityRail';
 import TokenChainFilmstrip from '../components/TokenChainFilmstrip';
@@ -27,25 +29,25 @@ function deriveGates(events) {
   const ids = new Set(events.map((e) => e.id));
   const statuses = Object.fromEntries(events.map((e) => [e.id, e.status]));
 
-  // Gate 0 — MFA
-  if (events.some((e) => (e.id === 'personal-agent-lookup' || e.id === 'mfa') && (e.status === 'success' || e.status === 'valid'))) {
-    gates[0].status = 'permit';
-  }
-  // Gate 1 — Gateway
+  // Status words are the ones the BFF actually sends: the agent lookup is
+  // `active`, gateway introspection is `valid`, the Authorize verdict is
+  // `permit` or `deny`.
+  const ok = (status) => ['success', 'valid', 'active', 'permit'].includes(status);
+
+  // Gate 0 — MFA. The BFF only looks the agent up after the MFA check passes.
+  if (ok(statuses['personal-agent-lookup']) || ok(statuses.mfa)) gates[0].status = 'permit';
+
+  // Gate 1 — Gateway token validation (introspection).
   if (ids.has('mcp-tool-invoked')) gates[1].status = 'checking';
-  if (ids.has('gw-introspection') || ids.has('gw-authorize')) {
-    const azStatus = statuses['gw-authorize'];
-    const intrStatus = statuses['gw-introspection'];
-    if (azStatus === 'deny') {
-      gates[1].status = 'deny';
-    } else if (azStatus === 'permit' || azStatus === 'active' || intrStatus === 'permit' || intrStatus === 'active') {
-      gates[1].status = 'permit';
-    }
+  if (ids.has('gw-introspection')) gates[1].status = ok(statuses['gw-introspection']) ? 'permit' : 'deny';
+
+  // Gate 2 — PingOne Authorize. A verdict that is neither permit nor deny is a
+  // held call (step-up or human approval), shown as still checking.
+  if (ids.has('gw-authorize')) {
+    const verdict = statuses['gw-authorize'];
+    gates[2].status = verdict === 'permit' ? 'permit' : verdict === 'deny' ? 'deny' : 'checking';
   }
-  // Gate 2 — Authz / result
-  if (ids.has('resource-server-reply') || ids.has('mcp-tool-result')) {
-    gates[2].status = 'permit';
-  }
+  if (ids.has('resource-server-reply') || ids.has('mcp-tool-result')) gates[2].status = 'permit';
   return gates;
 }
 
@@ -76,6 +78,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
   const [catalogLoadError, setCatalogLoadError] = useState(null);
   const [catalogLoadAttempt, setCatalogLoadAttempt] = useState(0);
   const [runState, setRunState] = useState({ status: 'idle', text: '' });
+  const [mfaChallenge, setMfaChallenge] = useState(null);
   const [layoutState, setLayoutState] = useState('full');
   const [activeSkin, setActiveSkin] = useState('privilege');
   const [theme, setTheme] = useState('dark');
@@ -111,7 +114,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
     };
   }, [workloadContextKey]);
 
-  const executeWorkload = useCallback((uc) => {
+  const executeWorkload = useCallback((uc, approvedChallengeId = null) => {
     if (!uc?.runPrompt || !uc?.useCaseId) return;
     activeWorkloadRun.current?.abort();
     const controller = new AbortController();
@@ -125,7 +128,8 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       signal: controller.signal,
-      body: JSON.stringify({ prompt: uc.runPrompt, vertical, useCaseId: uc.useCaseId }),
+      // An approved challenge id is what lets the retry through the gateway's approval gate.
+      body: JSON.stringify({ prompt: uc.runPrompt, vertical, useCaseId: uc.useCaseId, ...(approvedChallengeId ? { hitlChallengeId: approvedChallengeId } : {}) }),
     }).then(async (response) => {
       const data = await response.json().catch(() => ({}));
       if (!isCurrentRun()) return null;
@@ -133,15 +137,24 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
       if (!response.ok) throw new Error(data.message || data.error || `Request failed (${response.status})`);
       return data;
     }).then((data) => {
-      if (isCurrentRun()) setRunState({ status: 'complete', text: data.reply || 'The workload agent completed the request.' });
+      if (!isCurrentRun()) return;
+      // The BFF answers 200 with step_up_required when the sign-in had no MFA.
+      if (data.step_up_required) setRunState({ status: 'step-up', prompt: true, text: data.reply || 'Complete multi-factor authentication to continue.' });
+      // Human approval: the reply carries the challenge to approve or decline.
+      else if (data.error === 'hitl_required' && (data.hitlChallengeId || data.challengeId)) setRunState({ status: 'approval', prompt: true, challengeId: data.hitlChallengeId || data.challengeId, text: data.reply || 'This action requires your approval.' });
+      // success:false is a refusal or a failed run, not a completed action.
+      else if (data.success === false) setRunState({ status: 'error', text: data.reply || 'The workload agent could not complete the request.' });
+      else setRunState({ status: 'complete', text: data.reply || 'The workload agent completed the request.' });
     }).catch((error) => {
       if (isCurrentRun()) setRunState({ status: 'error', text: error.message || 'The workload agent could not complete the request.' });
     });
   }, [vertical, setTokenEvents]);
 
   useEffect(() => {
-    if (runNonce > 0 && scenario) executeWorkload(scenario);
-  }, [runNonce, scenario, executeWorkload]);
+    // stepup=done is what the BFF's step-up route appends on the way back.
+    if (scenario && (runNonce > 0 || query.get('stepup') === 'done')) executeWorkload(scenario);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- query is derived from location.search
+  }, [runNonce, scenario, executeWorkload, location.search]);
 
   const handleSend = useCallback((text) => {
     setMessages((prev) => [...prev, { role: 'user', text }]);
@@ -191,6 +204,41 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
     });
   }
 
+  // Fallback only: PingOne's hosted page. An absolute same-origin URL, because
+  // the BFF drops the query from a bare path.
+  const hostedStepUp = () => window.location.assign(`/api/auth/oauth/user/stepup?return_to=${encodeURIComponent(`${window.location.origin}${location.pathname}${location.search}`)}`);
+  // In-app MFA: a passkey registered for this app's domain works here and
+  // cannot work on PingOne's hosted page.
+  const startChallenge = async () => {
+    const response = await fetch('/api/auth/mfa/challenge', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' } });
+    if (!response.ok) throw new Error(`MFA initiation failed: ${response.status}`);
+    const { daId, devices } = await response.json();
+    const challenge = { daId, devices: devices || [] };
+    setMfaChallenge(challenge);
+    return challenge;
+  };
+  const startStepUp = () => {
+    setRunState((state) => ({ ...state, prompt: false }));
+    startChallenge().catch(hostedStepUp);
+  };
+  // Approve or decline through the same decision endpoint the chat agent uses,
+  // then retry the action carrying the approved challenge.
+  const decideApproval = (decision) => {
+    const { challengeId } = runState;
+    setRunState({ status: 'running', text: '' });
+    fetch(`/api/mcp/decision/${encodeURIComponent(challengeId)}/${decision}`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' } })
+      .then(async (response) => {
+        if (!response.ok) throw new Error((await response.json().catch(() => ({}))).message || `The decision could not be recorded (${response.status})`);
+        if (decision === 'approve') executeWorkload(workloadScenario, challengeId);
+        else setRunState({ status: 'error', text: 'Declined. The action was not run.' });
+      })
+      .catch((error) => setRunState({ status: 'error', text: error.message }));
+  };
+  const finishStepUp = () => {
+    setMfaChallenge(null);
+    executeWorkload(workloadScenario);
+  };
+
   const layout = LAYOUT_STYLES[layoutState] || LAYOUT_STYLES.full;
   const workloadGates = workloadScenario && gates.map((gate, index) => {
     if (index === 0 && workloadScenario.id === 'UC44') return { ...gate, name: 'Customer attribution', desc: 'Customer remains sub; workload agent appears in act' };
@@ -216,9 +264,43 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
       <p>Action: <strong>{workloadScenario.primaryTool}</strong> · Prompt: <strong>{workloadScenario.runPrompt}</strong></p>
       <button type="button" disabled={runState.status === 'running'} onClick={() => executeWorkload(workloadScenario)}>Run {workloadScenario.id} action</button>
       <button type="button" onClick={() => window.open(`/personal-agent/client?skin=${activeSkin}&theme=${theme}&useCase=${workloadScenario.id}&vertical=${encodeURIComponent(vertical)}`, '_blank', 'width=480,height=700,left=200,top=100,resizable=yes')}>🪟 Open client window</button>
-      <p role="status">{runState.status === 'running' ? 'Running the selected action…' : runState.text || 'Ready to run the selected catalog action.'}</p>
+      <p role={runState.status === 'error' ? 'alert' : 'status'} className={`workload-agents__status${runState.status === 'error' ? ' workload-agents__status--error' : ''}`}>{runState.status === 'running' ? 'Running the selected action…' : runState.text || 'Ready to run the selected catalog action.'}</p>
+      {runState.status === 'step-up' && (
+        <button type="button" onClick={startStepUp}>Verify with MFA and run again</button>
+      )}
+      <ConfirmModal
+        isOpen={runState.status === 'approval' && runState.prompt === true}
+        title="Approval required"
+        message={`${runState.text} ${workloadScenario.runPrompt}`}
+        confirmLabel="Approve"
+        cancelLabel="Decline"
+        onConfirm={() => decideApproval('approve')}
+        onCancel={() => decideApproval('deny')}
+      />
+      <ConfirmModal
+        isOpen={runState.status === 'step-up' && runState.prompt === true}
+        title="MFA required"
+        message={runState.text}
+        confirmLabel="Verify with MFA"
+        cancelLabel="Not now"
+        onConfirm={startStepUp}
+        onCancel={() => setRunState((state) => ({ ...state, prompt: false }))}
+      />
+      <OtpStepUpModal
+        show={Boolean(mfaChallenge)}
+        mode="p1mfa"
+        allowFido
+        contextLine={`${workloadScenario.id}: ${workloadScenario.runPrompt}`}
+        daId={mfaChallenge?.daId}
+        devices={mfaChallenge?.devices}
+        onP1MfaComplete={finishStepUp}
+        onPasskeyRegistered={startChallenge}
+        onSubmit={() => {}}
+        onCancel={() => setMfaChallenge(null)}
+      />
       <SecurityRail gates={workloadGates} actClaim={actClaim} tokenEvents={events} />
-      <TokenChainFilmstrip />
+      {/* The filmstrip's two halves place themselves by grid-area name. */}
+      <div className="workload-agents__chain"><TokenChainFilmstrip /></div>
     </div>
   );
 

@@ -473,7 +473,12 @@ async function dispatchBankingAction(action, params, userId, ctx) {
       // accounts yet" success branch below — masking an auth failure as success (D-2).
       // Detect it here and surface the real error, mirroring the write/sensitive path.
       if (!parsed2 || parsed2.error || parsed2.isError) {
-        const errMsg = parsed2?.content?.[0]?.text || parsed2?.error_description || parsed2?.message || parsed2?.error || 'Tool call failed.';
+        // A scope denial arrives as a bare code plus the scope lists; say which
+        // scope the token was missing instead of printing the code.
+        const missingScopes = Array.isArray(parsed2?.missingScopes) ? parsed2.missingScopes.join(', ') : '';
+        const errMsg = parsed2?.error === 'mcp_scope_denied'
+          ? `The MCP server refused ${parsed2.tool || toolName}: the delegated token does not carry the scope it requires${missingScopes ? ` (${missingScopes})` : ''}.`
+          : parsed2?.content?.[0]?.text || parsed2?.error_description || parsed2?.message || parsed2?.error || 'Tool call failed.';
         return { reply: `❌ ${errMsg}`, success: false, toolsCalled: [toolName], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
       }
 

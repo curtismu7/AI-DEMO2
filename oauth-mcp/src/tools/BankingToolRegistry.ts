@@ -87,7 +87,13 @@ export class BankingToolRegistry {
       title: 'My Bank Accounts',
       description: 'Retrieve the user\'s bank accounts with full account details including account type, name, masked account number, balance, currency, holder name, SWIFT/BIC code, IBAN, branch, and opening date. Use this for any request about account information, account details, or account overview. When the user asks about a specific account type (e.g. "my checking", "savings account", "car loan"), pass account_type to filter the results.',
       requiresUserAuth: true,
-      requiredScopes: ['read'],
+      // scope-topology.json (the SSOT) declares accounts:read, not read — this
+      // registry had drifted from it. Only surfaced live 2026-10-01: the new
+      // Agent Gateway delegated-exchange path (facadeUpstreamExchange.js) is
+      // the first caller to ever present a narrowly-scoped token (mcp:invoke
+      // accounts:read, no bare read) — every prior caller's token carried
+      // read anyway, so this gate never actually discriminated before.
+      requiredScopes: ['accounts:read'],
       handler: 'executeGetMyAccounts',
       readOnly: true,
       icons: [
@@ -444,7 +450,9 @@ export class BankingToolRegistry {
       title: 'Transfer Money',
       description: 'Transfer money between accounts. Use account IDs (not account numbers) from get_my_accounts response. Amounts over $250 require human consent on the web dashboard first (returns hitl_required if attempted without it).',
       requiresUserAuth: true,
-      requiredScopes: ['write'],
+      // transfer, not just write — matches scope-topology.json (the SSOT); a
+      // real end-user token always carries both together (oauthUser.js).
+      requiredScopes: ['write', 'transfer'],
       handler: 'executeCreateTransfer',
       readOnly: false,
       icons: [

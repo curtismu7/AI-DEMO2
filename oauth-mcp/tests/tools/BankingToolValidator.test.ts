@@ -256,7 +256,8 @@ describe('BankingToolValidator', () => {
   describe('validateScopes', () => {
     // Phase 210+: flat scope model — read / write / sensitive:read.
     it('should validate sufficient scopes for get_my_accounts', () => {
-      const result = BankingToolValidator.validateScopes('get_my_accounts', ['read']);
+      // get_my_accounts requires accounts:read specifically, not bare read.
+      const result = BankingToolValidator.validateScopes('get_my_accounts', ['accounts:read']);
 
       expect(result.isValid).toBe(true);
       expect(result.errors).toHaveLength(0);
@@ -273,14 +274,15 @@ describe('BankingToolValidator', () => {
       const result = BankingToolValidator.validateScopes('get_my_accounts', ['write']);
 
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Missing required scopes: read');
+      expect(result.errors).toContain('Missing required scopes: accounts:read');
     });
 
     it('should reject multiple missing scopes', () => {
+      // create_transfer requires both write and transfer (scope-topology.json, the SSOT).
       const result = BankingToolValidator.validateScopes('create_transfer', []);
 
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Missing required scopes: write');
+      expect(result.errors).toContain('Missing required scopes: write, transfer');
     });
 
     it('should reject unknown tool for scope validation', () => {

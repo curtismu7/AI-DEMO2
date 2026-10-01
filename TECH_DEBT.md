@@ -40,6 +40,93 @@ still returns the login page, and that the pi.flow authorize returns
 `USERNAME_PASSWORD_REQUIRED`. Facts and traps are in the 2026-10-01 PF notes in
 `REGRESSION_PLAN.md` §4.
 
+### [x] 2026-10-01 — oauth-mcp's BankingToolRegistry.ts has drifted from scope-topology.json for 5 more tools
+
+**What's wrong.** `oauth-mcp/src/tools/BankingToolRegistry.ts`'s hand-maintained
+`requiredScopes` per tool is a SEPARATE copy of what `scope-topology.json` (the
+documented SSOT) declares for the same tool, and the two have drifted. Fixed
+`get_my_accounts` (`'read'` → `['accounts:read']`) in the commit this entry
+shipped with, because it was live-blocking the new Agent Gateway delegated-
+exchange path (facade→gateway→backend, 2026-10-01) — every prior caller's
+token carried bare `read` anyway, so the gap never discriminated before this
+new, narrowly-scoped path existed. A repo-wide scan found 5 more, compared
+here by registry `requiredScopes` column alone:
+
+| tool | registry `requiredScopes` | SSOT `requiredScopes` |
+|---|---|---|
+| `get_sensitive_account_details` | `['read']` | `['read', 'sensitive:read']` — **looser than SSOT: this one may let callers through SSOT means to gate behind `sensitive:read`** |
+| `create_transfer` | `['write']` | `['transfer', 'write']` — **same direction: money-movement tool, looser than SSOT** |
+| `query_user_by_email` | `['ai_agent']` | `['read']` — opposite direction, may be deliberate (admin/agent-only tool) |
+| `get_branch_hours` | `[]` (no gate) | `['read']` |
+| `sequential_think` | `[]` (no gate) | `['read']` |
+
+**Why it wasn't fixed now.** `create_transfer` is a money-movement tool and
+`get_sensitive_account_details` gates PII — both are `REGRESSION_PLAN.md` §1
+territory, and both current registry values are LOOSER than the SSOT (a real
+caller could pass the registry's gate without the scope the SSOT says it
+should need). Widening either tool's effective scope requirement needs its own
+reasoning and live verification, not a same-night sweep alongside an unrelated
+PingOne delegated-exchange fix. The two empty-array tools may be intentionally
+public — needs product confirmation, not an assumption.
+
+**RESOLVED — branch `worktree-fix-banking-tool-registry-scope-drift`.** The
+comparison above was wrong for 4 of the 5 rows: it diffed the SSOT against
+`BankingToolRegistry.ts`'s pre-check gate alone, without checking whether that
+gate was the thing meant to enforce the SSOT's value for that tool. Only
+`create_transfer` was real drift.
+
+- **`get_sensitive_account_details` — NOT drift, deliberate.** The existing
+  test (`tests/tools/BankingToolRegistry.test.ts`, "should require read scope
+  for sensitive account details") says outright: *"After scope rename:
+  sensitive:read was removed; tool uses only 'read' scope. Sensitive access is
+  gated by PingAuthorize policy, not scope enforcement."* This predates
+  2026-10-01 by months (traced via `git log -S`). The SSOT's `sensitive:read`
+  is the gateway/P1AZ-layer requirement (`demo_mcp_gateway/src/auth/toolScopes.ts`
+  already derives from the SSOT directly, so it already enforces it); the
+  backend's own pre-check was deliberately loosened once policy-based consent
+  took over as the real gate. Left unchanged.
+- **`get_branch_hours` / `sequential_think` — NOT drift, deliberately public.**
+  Both declare `requiresUserAuth: false` with descriptions saying so explicitly
+  (`get_branch_hours`: *"No sign-in required — read-only marketing data only"*;
+  `sequential_think` is a generic reasoning tool that never touches account
+  data). `BankingToolProvider.ts`'s gate is `if (tool.requiresUserAuth &&
+  tool.requiredScopes.length > 0)` — with `requiresUserAuth: false`, the
+  `requiredScopes` value is inert for the pre-check either way. The SSOT's
+  `['read']` for both is correctly mirrored in `src/tools/toolScopeMap.ts`
+  (`TOOL_SCOPES.sequential_think = ['read']`, `.get_branch_hours = []` — also
+  already right), the map `TokenResolver.ts` actually uses for narrowed-token
+  exchange (D-03). That map, not the pre-check registry, was the thing being
+  compared; it was never wrong. Left unchanged.
+- **`query_user_by_email` — NOT new, already tracked.** This is the exact gap
+  the 2026-09-09 entry above ("`query_user_by_email` declares a scope it can
+  never exchange") already found and deliberately left alone, for the same
+  reason given there: `BankingToolRegistry.ts` still disagreeing with
+  `toolScopeMap.ts` (`['read']` there too) is an MCP-server dispatch-behaviour
+  change (`requiresUserAuth: true` makes the agent-token dispatch branch in
+  `BankingToolProvider.ts` unreachable), not a manifest-drift fix. Still left
+  alone; see that entry for the full reasoning.
+- **`create_transfer` — real drift, fixed.** `requiredScopes: ['write']` →
+  `['write', 'transfer']` in `BankingToolRegistry.ts`, matching the SSOT. Also
+  fixed the same gap in `src/tools/toolScopeMap.ts` (`TOOL_SCOPES.create_transfer`
+  was also `['write']`) — leaving it would have let a narrowed token exchange
+  (D-03) hand back a `write`-only token that then failed the new pre-check's
+  `transfer` requirement. A real end-user token already carries `transfer`
+  alongside `write` (`demo_api_server/config/oauthUser.js`), so no real caller
+  is affected; only test fixtures asserting the old single-scope shape needed
+  updating. Full oauth-mcp suite: 99/99 suites, 1240/1240 tests pass.
+
+**Real fix, still open for what's left.** Either make `BankingToolRegistry.ts`
+generate its `requiredScopes` FROM `scope-topology.json` (removing the second
+copy entirely, matching how `demo_mcp_gateway/src/auth/toolScopes.ts` already
+does it via `import manifest from '../../../scope-topology.json'`), or extend
+`npm run topology:verify` to diff per-tool scopes between the two, not just
+tool existence (`oauth-mcp/CLAUDE.md` currently only documents the existence
+check). That would have caught `create_transfer` immediately and would have
+needed a documented exemption (not silent passing) for the three deliberate
+cases above — `requiresUserAuth: false` tools and policy-gated tools aren't
+expressible as "the registry's requiredScopes must equal the SSOT's" without
+that nuance.
+
 ### [ ] 2026-09-28 — Graphify requeues intentionally skipped JSON on every refresh
 
 **What's wrong.** Graphify `0.9.71`'s zero-node recovery check re-queues

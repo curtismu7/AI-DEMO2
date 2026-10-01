@@ -93,6 +93,10 @@ demo_api_server/services/*
 !demo_api_server/services/rfcCompliantErrorHandler.js
 !demo_api_server/services/scopeTopology.js
 
+!demo_api_server/utils/
+demo_api_server/utils/*
+!demo_api_server/utils/repositoryRoot.js
+
 !demo_api_server/routes/
 demo_api_server/routes/*
 !demo_api_server/routes/intentBinding.js

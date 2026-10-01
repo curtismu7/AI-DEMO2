@@ -49,7 +49,11 @@ describe('filterToolsByScope — privilege isolation', () => {
   });
 
   it('exposes basic read tools (get_my_accounts, get_my_transactions) to read scope', () => {
-    const visible = filterToolsByScope(allTools, ['read']);
+    // get_my_accounts needs accounts:read specifically (scope-topology.json's
+    // declared requirement — this registry had drifted to a bare 'read' until
+    // 2026-10-01). A real end-user token always carries both together
+    // (demo_api_server/config/oauthUser.js), so this fixture does too.
+    const visible = filterToolsByScope(allTools, ['read', 'accounts:read']);
     expect(visible.find(t => t.name === 'get_my_accounts')).toBeDefined();
     expect(visible.find(t => t.name === 'get_my_transactions')).toBeDefined();
     expect(visible.find(t => t.name === 'get_account_nickname')).toBeDefined();
