@@ -228,6 +228,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-01 — PingFederate sign-on page: Ping logo and branded card
+
+**Files:** `scripts/pingfederate/assets/login-main.css`, `scripts/pingfederate/assets/ping-identity-logo.png` (new), `scripts/pingfederate/apply-login-theme.sh`.
+
+**What was broken:** PF's sign-on page showed only a tiny white "ping" wordmark with a stray red dot in the top bar and nothing in the card; the field labels were centered over left-aligned inputs; PF's footer logo is white and was invisible on the light page; and the footer sat 20px past the viewport (absolute `left: 20px` with a full-width box), causing a horizontal scrollbar. The template's own `company-logo` slot was hidden.
+
+**What changed:** A scoped "Login page v2" block at the end of the shared stylesheet: the real Ping Identity logo in the top bar and as a centered hero in the card (the `company-logo` slot is shown without needing `has-logo`), a Ping-red card edge, title and subtitle, left-aligned labels, a full-width Ping-red Sign On button and link (6.4:1 with white), a red focus ring, the footer pinned with `left: 0; right: 0`, and the footer logo rendered as a muted grey. `apply-login-theme.sh` now also copies the PNG into PF's template images. CSS only: PF's field names, hidden controls and submit script are untouched.
+
+**Do not break:** Every new rule is scoped to `.ping-container.login-template` (or `body:has(.login-template)` for the bar). The same stylesheet styles PF's consent/approval and SLO pages, whose side-by-side buttons and bar are defined earlier in the file and must not change; never add an unscoped rule or restyle `.ping-buttons` globally. PF's template volume is live state (it is not recreated from this repo): after editing `login-main.css` or recreating the PF volume, re-run `scripts/pingfederate/apply-login-theme.sh`. Keep the block last in the file.
+
+**Verify:** `bash scripts/pingfederate/apply-login-theme.sh`, then load PF's sign-on page (any authorize request) and check the logo is 72x72, `#signOnButton` is `rgb(179, 40, 45)`, and `document.documentElement.scrollWidth` equals `clientWidth`. Verified live on 2026-10-01 (logo, button, footer, no scrollbar, form controls intact). **Not verified:** the consent/approval page (it needs a consent flow; protected only by the scoping above) and the wrong-password error state.
+
 ### 2026-10-01 — In-app MFA, OTP email and agent authorization failed in PingFederate mode
 
 **Files:** `demo_api_server/services/mfaService.js`, `demo_api_server/services/emailService.js`, `demo_api_server/services/pingOneUserService.js`.
