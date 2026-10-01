@@ -149,7 +149,8 @@ jobs:
     needs: changes
     # Run selection first, then run repository gates on the single CI runner.
     runs-on: [self-hosted, macOS]
-    timeout-minutes: 15
+    # 15 was too tight: a slow-network `npm ci` alone took 17.5 min and timed out an all-green run.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
         with:
