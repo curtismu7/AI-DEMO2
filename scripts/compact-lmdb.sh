@@ -21,9 +21,18 @@
 # ai-demo-api-server afterwards (script does this when it stopped it).
 set -euo pipefail
 
+# The volume IS the container's /app/data/persistent — not a parent of it — so
+# the live dir sits at the volume's own root + /lmdb, not /persistent/lmdb.
+# That extra /persistent segment was wrong from the start (pre-dates both fixes
+# below) and went unnoticed because the script never ran this far before: it
+# silently compacted an empty, unrelated path and swapped empty files in,
+# every DB reporting 0 entries (hit live 2026-10-01, right after fixing
+# --user root above). The entry-count guard before the swap step is the real
+# fix for THIS class of bug — a future path mistake fails loudly instead of
+# swapping empty data in again.
 VOLUME="ai-demo_ai-demo-bff-data"
 CONTAINER="ai-demo-api-server"
-IN_VOLUME_DIR="/data/persistent/lmdb"
+IN_VOLUME_DIR="/data/lmdb"
 
 HOST_MODE=0
 [[ "${1:-}" == "--host" ]] && HOST_MODE=1
@@ -91,17 +100,18 @@ echo "[*] Rebuilding $VOLUME:$IN_VOLUME_DIR into a compacted copy"
 # --user root: the app image runs as USER appuser (uid 1001) by default, which
 # cannot mkdir inside this one-off container's own /data mount even though the
 # same uid owns the real files at runtime (hit live 2026-10-01, right after
-# fixing the node:22-alpine platform mismatch below). Root sidesteps it; step 2
+# fixing the node:22-alpine platform mismatch above). Root sidesteps it; step 2
 # already chowns the compacted data.mdb to 1001:1001 before swap-in regardless.
 docker run --rm --user root -v "$VOLUME":/data --entrypoint node "$IMAGE" -e "
 const lmdb = require('/app/node_modules/lmdb');
 const fs = require('fs');
-const src = lmdb.open({ path: '/data/persistent/lmdb', maxDbs: 40, mapSize: 1024*1024*1024 });
-const dstPath = '/data/persistent/lmdb-compacted-$STAMP';
+const src = lmdb.open({ path: '/data/lmdb', maxDbs: 40, mapSize: 1024*1024*1024 });
+const dstPath = '/data/lmdb-compacted-$STAMP';
 fs.mkdirSync(dstPath, { recursive: true });
 const dst = lmdb.open({ path: dstPath, maxDbs: 40, mapSize: 256*1024*1024 });
 const names = ['agentLifecycleEvents','autonomousRuns','cimd','config','conversations','davinciEvents','delegated_commerce_registrations','delegations','demo_scenarios','demo_track','hostedRegistrations','mcpAudit','mcp_oauth_config','mcp_profiles','navConfigs','oauth_clients','personal_agent_cimd','pingoneEvents','privilegeDoors','privilegeGatewaySessions','report_shares','reports','sdk_demo_tokens','security_monitoring','sessions','transactionLedger','verticals','banking_accounts','banking_transactions'];
 (async () => {
+  let total = 0;
   for (const name of names) {
     const sdb = src.openDB(name, { encoding: 'json' });
     const ddb = dst.openDB(name, { encoding: 'json' });
@@ -109,16 +119,35 @@ const names = ['agentLifecycleEvents','autonomousRuns','cimd','config','conversa
     for (const { key, value } of sdb.getRange()) entries.push([key, value]);
     await dst.batch(() => { for (const [k, v] of entries) ddb.put(k, v); }).done;
     console.log(name, entries.length);
+    total += entries.length;
   }
   await dst.flushed;
-  console.log('COPY DONE');
+  fs.writeFileSync(dstPath + '/.entry-count', String(total));
+  console.log('COPY DONE, total entries:', total);
   process.exit(0);
 })().catch(e => { console.error(e); process.exit(1); });
 "
 
+# Refuse to swap a copy that found nothing — the exact failure mode above: a
+# wrong source path compacts an empty, unrelated directory and would otherwise
+# swap that empty result in as if it were real, discarding nothing-looking-like
+# live data only because it silently never touched it. Fail loud instead.
+ENTRY_COUNT="$(docker run --rm -v "$VOLUME":/data alpine cat "/data/lmdb-compacted-$STAMP/.entry-count" 2>/dev/null || echo 0)"
+if [[ "$ENTRY_COUNT" -eq 0 ]]; then
+  echo "✕ Copy produced ZERO entries across every DB — refusing to swap." >&2
+  echo "  This is what a wrong source path looks like, not empty live data." >&2
+  echo "  Live data.mdb left untouched. Stray copy at $VOLUME:/lmdb-compacted-$STAMP — safe to remove." >&2
+  if [[ $WAS_RUNNING == 1 ]]; then
+    echo "[*] Restarting $CONTAINER (swap was skipped, nothing else to do)"
+    docker start "$CONTAINER" >/dev/null
+  fi
+  exit 1
+fi
+echo "[*] Copy produced $ENTRY_COUNT entries across all DBs — proceeding to swap"
+
 # 2. Swap: old aside, compacted in, prune expired sessions on the way.
 docker run --rm -v "$VOLUME":/data alpine sh -c "
-  cd /data/persistent/lmdb
+  cd /data/lmdb
   mv data.mdb data.mdb.bak-$STAMP
   mv lock.mdb lock.mdb.bak-$STAMP 2>/dev/null || true
   mv ../lmdb-compacted-$STAMP/data.mdb ./data.mdb
