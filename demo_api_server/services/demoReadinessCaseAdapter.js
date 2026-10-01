@@ -45,6 +45,20 @@ function evidenceFromAgentInvoke({ response, provider, expectedIssuer, authoriza
   const audit = eventById(events, 'gw-mcp-audit')?.mcpAudit || null;
   const selectedTool = list(response?.toolsCalled)[0] || audit?.what?.tool || null;
 
+  // PingOne Authorize answers a step-up or approval requirement as
+  // INDETERMINATE plus an obligation; the BFF records its reading of that as
+  // mcpAuthorizeEvaluation.outcome (STEP_UP, HITL_REQUIRED). That reading is
+  // the decision the demo acts on, so it is the one reported. When the
+  // gateway's Authorize filter holds the call it writes no audit event, so the
+  // route and actors for a held call come from the challenge and the decision
+  // request the BFF recorded.
+  const evaluation = response?.mcpAuthorizeEvaluation?.outcome ? response.mcpAuthorizeEvaluation : null;
+  const heldByAuthorize = !audit && gatewayAuthorize?.denyingFilter === 'P1AZDecision' && Boolean(evaluation);
+  const challenge = events.find((event) => event?.type === 'mcp_challenge' && event.phase === 'tools/call');
+  let challengedRoute = null;
+  try { challengedRoute = challenge?.url ? new URL(challenge.url).pathname : null; } catch { /* left null */ }
+  const decisionActors = [evaluation?.request?.parameters?.UserId, evaluation?.request?.parameters?.ActClientId].filter(Boolean);
+
   // Two completed RFC 8693 exchanges on access tokens, no ID-JAG hop.
   const standardExchange = exchange1?.status === 'exchanged' && finalToken?.status === 'exchanged'
     && !events.some((event) => /id-?jag/i.test(String(event?.id || '')));
@@ -54,7 +68,7 @@ function evidenceFromAgentInvoke({ response, provider, expectedIssuer, authoriza
     agentIdentityProvider: providerOf(agentActor?.claims?.iss, lane),
     tokenIssuer: providerOf(finalToken?.claims?.iss, lane),
     subject: finalToken?.claims?.sub || null,
-    actorChain: [audit?.who?.userSub, audit?.who?.agentSub].filter(Boolean),
+    actorChain: audit ? [audit.who?.userSub, audit.who?.agentSub].filter(Boolean) : heldByAuthorize ? decisionActors : [],
     selectedTool,
     audiences: list(userToken?.claims?.aud),
     scopes: list(String(exchange1?.claims?.scope || '').split(/\s+/)).filter((scope) => scope !== AGENT_SCOPE),
@@ -70,8 +84,14 @@ function evidenceFromAgentInvoke({ response, provider, expectedIssuer, authoriza
   // claimed when the tool that actually ran is the one the contract names.
   if (selectedTool && selectedTool === authorization?.primaryTool) evidence.resourceServer = authorization.resourceServer;
   if (authorization?.primaryTool) {
-    evidence.gateway = { route: audit?.where?.routePath || null, verdict: audit?.how?.decision || null };
-    evidence.authorize = { reference: gatewayAuthorize?.url || null, decision: gatewayAuthorize?.decision || null };
+    evidence.gateway = audit
+      ? { route: audit.where?.routePath || null, verdict: audit.how?.decision || null }
+      : { route: heldByAuthorize ? challengedRoute : null, verdict: heldByAuthorize ? evaluation.outcome : null };
+    evidence.authorize = {
+      reference: gatewayAuthorize?.url || evaluation?.decisionId || null,
+      decision: evaluation?.outcome || gatewayAuthorize?.decision || null,
+      ...(evaluation && gatewayAuthorize?.decision && evaluation.outcome !== gatewayAuthorize.decision ? { rawDecision: gatewayAuthorize.decision } : {}),
+    };
   } else {
     evidence.gateway = { applicable: false };
     evidence.authorize = { applicable: false };
@@ -92,6 +112,12 @@ function createCaseOperations({ request, provider, expectedIssuer }) {
     ].filter(Boolean);
     if (unsupported.length) {
       return { status: 'blocked', reason: `worker cannot yet verify: ${unsupported.join(', ')}` };
+    }
+    // CIBA completes only after a person approves on their own device. A
+    // headless worker reaches the challenge and no further, so the step is
+    // blocked rather than run and reported as a wrong outcome.
+    if (list(prerequisites?.requiredFlags).includes('ciba_enabled')) {
+      return { status: 'blocked', reason: 'CIBA needs an out-of-band approval on a device, which this worker cannot give' };
     }
     if (!list(prerequisites?.requiredFlags).length) return { status: 'pass' };
     // Arms only this lane's BFF, which has its own config store. The endpoint

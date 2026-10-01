@@ -73,6 +73,55 @@ test('prerequisites arm flags through the lane BFF by use-case slug and pass onl
   await expect(partial.verifyPrerequisites({ caseRow, vertical: VERTICAL, prerequisites })).resolves.toMatchObject({ status: 'blocked' });
 });
 
+// Shape of a real held call (captured 2026-10-01): PingOne Authorize answers
+// INDETERMINATE with an obligation, the gateway's Authorize filter holds the
+// call and writes no audit event, and the BFF records its reading as `outcome`.
+function heldResponse(outcome, error) {
+  const response = invokeResponse();
+  response.success = false;
+  response.error = error;
+  response.tokenEvents = response.tokenEvents
+    .filter((event) => event.id !== 'gw-mcp-audit')
+    .map((event) => (event.id === 'gw-authorize'
+      ? { id: 'gw-authorize', status: 'indeterminate', decision: 'INDETERMINATE', denyingFilter: 'P1AZDecision' }
+      : event));
+  response.tokenEvents.push({ type: 'mcp_challenge', phase: 'tools/call', url: 'http://ping-gateway:8080/mcp', status: 401 });
+  response.mcpAuthorizeEvaluation = {
+    decision: 'INDETERMINATE', outcome, engine: 'pingone', decisionId: 'decision-1',
+    request: { parameters: { UserId: 'user-1', ActClientId: 'agent-1' } },
+  };
+  return response;
+}
+
+test.each([
+  ['STEP_UP', 'step_up_required'],
+  ['HITL_REQUIRED', 'hitl_required'],
+])('a call held by Authorize reports the interpreted %s outcome and satisfies the contract', (outcome, error) => {
+  const result = evidenceFromAgentInvoke({ response: heldResponse(outcome, error), provider: PROVIDER, expectedIssuer: ISSUER, authorization });
+  expect(result.observed).toBe(outcome);
+  expect(result.evidence.authorize).toEqual({ reference: 'decision-1', decision: outcome, rawDecision: 'INDETERMINATE' });
+  expect(result.evidence.gateway).toEqual({ route: '/mcp', verdict: outcome });
+  expect(result.evidence.actorChain).toEqual(['user-1', 'agent-1']);
+  expect(validate(result, outcome)).toEqual([]);
+});
+
+test('an INDETERMINATE decision the BFF did not interpret is not promoted to an outcome', () => {
+  const response = heldResponse('STEP_UP', 'step_up_required');
+  delete response.mcpAuthorizeEvaluation;
+  const result = evidenceFromAgentInvoke({ response, provider: PROVIDER, expectedIssuer: ISSUER, authorization });
+  expect(result.evidence.authorize.decision).toBe('INDETERMINATE');
+  expect(validate(result, 'STEP_UP').join(' ; ')).toMatch(/Authorize decision/);
+});
+
+test('a CIBA step is blocked, not run: it needs an approval on a device', async () => {
+  const request = jest.fn();
+  const operations = createCaseOperations({ request, provider: PROVIDER, expectedIssuer: ISSUER });
+  const result = await operations.verifyPrerequisites({ caseRow, vertical: VERTICAL, prerequisites: { ...prerequisites, requiredFlags: ['ciba_enabled', ...prerequisites.requiredFlags] } });
+  expect(result.status).toBe('blocked');
+  expect(result.reason).toMatch(/CIBA/);
+  expect(request).not.toHaveBeenCalled();
+});
+
 test('prerequisites the worker cannot verify are blocked without touching the BFF', async () => {
   const request = jest.fn();
   const operations = createCaseOperations({ request, provider: PROVIDER, expectedIssuer: ISSUER });
