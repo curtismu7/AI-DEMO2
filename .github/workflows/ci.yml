@@ -318,8 +318,12 @@ jobs:
         run: node scripts/run-vitest-with-memory-guard.mjs unit
         env:
           CI: 'true'
-      - name: Full Vitest unit suite on main, nightly, and ordinary manual runs
-        if: github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.target_ref == '')
+      # Not on push to main: the merged PR already ran its Vitest step on this
+      # code, and the full 704-file jsdom suite took 7-12 min per merge on the
+      # shared self-hosted Mac, backing up the whole queue. Nightly (schedule)
+      # stays the full-coverage net for same-day merge combinations.
+      - name: Full Vitest unit suite on nightly and ordinary manual runs
+        if: github.event_name != 'pull_request' && github.event_name != 'push' && (github.event_name != 'workflow_dispatch' || inputs.target_ref == '')
         run: npm --prefix demo_api_ui run test:unit
         env:
           CI: 'true'
