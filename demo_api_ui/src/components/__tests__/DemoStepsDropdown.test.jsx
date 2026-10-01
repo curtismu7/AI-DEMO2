@@ -4,7 +4,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import DemoStepsDropdown from '../DemoStepsDropdown';
 import apiClient from '../../services/apiClient';
 import {
@@ -157,19 +157,104 @@ describe('DemoStepsDropdown', () => {
     expect(onStopAgentClick).toHaveBeenCalledTimes(1);
   });
 
-  it('renders the floating panel close and resize affordances when open', async () => {
+  it('drawer placement pins to the right edge, resizes by its west edge only, and still closes and pops out', async () => {
+    const onOpenChange = vi.fn();
     render(
       <DemoStepsDropdown
         open
-        onOpenChange={() => {}}
+        placement="drawer"
+        onOpenChange={onOpenChange}
+        onSelect={() => {}}
+      />,
+    );
+    const panel = await screen.findByTestId('demo-steps-popout');
+    expect(panel).toHaveAttribute('data-placement', 'drawer');
+    expect(panel.className).toContain('fp-panel--drawer');
+    expect(panel.style.right).toBe('0px');
+    expect(panel.style.top).toBe('0px');
+    expect(screen.getByRole('separator', { name: 'Resize west' })).toBeInTheDocument();
+    expect(screen.queryAllByRole('separator')).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: /collapse/i })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Pop out Demo Steps' })).toBeInTheDocument();
+
+    fireEvent.click(within(panel).getByRole('button', { name: 'Close panel', exact: true }));
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  describe('running a step', () => {
+    // A pop-out renders the steps into the popup's own document; give it a real
+    // container (attached to body so screen queries reach it).
+    function mockPopOut() {
+      const container = document.createElement('div');
+      container.id = 'fp-popout-root';
+      document.body.appendChild(container);
+      const win = {
+        closed: false,
+        close: vi.fn(),
+        addEventListener: vi.fn(),
+        history: { pushState: vi.fn() },
+        document: { write: vi.fn(), close: vi.fn(), getElementById: () => container },
+      };
+      const openSpy = vi.spyOn(window, 'open').mockReturnValue(win);
+      return { win, container, openSpy };
+    }
+
+    it('closes the panel when a step runs from the in-page panel', async () => {
+      const onOpenChange = vi.fn();
+      const onSelect = vi.fn();
+      render(<DemoStepsDropdown open onOpenChange={onOpenChange} onSelect={onSelect} />);
+      fireEvent.click(await screen.findByTestId('demo-step-UC1'));
+      expect(onSelect).toHaveBeenCalledTimes(1);
+      expect(onOpenChange).toHaveBeenCalledWith(false);
+    });
+
+    it('keeps the panel open when a step runs from the pop-out window', async () => {
+      const onOpenChange = vi.fn();
+      const onSelect = vi.fn();
+      const onPopOutChange = vi.fn();
+      const { win, container, openSpy } = mockPopOut();
+      try {
+        render(
+          <DemoStepsDropdown
+            open
+            onOpenChange={onOpenChange}
+            onSelect={onSelect}
+            onPopOutChange={onPopOutChange}
+          />,
+        );
+        fireEvent.click(await screen.findByRole('button', { name: 'Pop out Demo Steps' }));
+        await waitFor(() => expect(onPopOutChange).toHaveBeenCalledWith(true));
+        fireEvent.click(await within(container).findByTestId('demo-step-UC1'));
+        expect(onSelect).toHaveBeenCalledTimes(1);
+        expect(onOpenChange).not.toHaveBeenCalledWith(false);
+        expect(win.close).not.toHaveBeenCalled();
+      } finally {
+        openSpy.mockRestore();
+        container.remove();
+      }
+    });
+  });
+
+  it('closes from the title bar and keeps the pop-out and resize affordances when open', async () => {
+    const onOpenChange = vi.fn();
+    render(
+      <DemoStepsDropdown
+        open
+        onOpenChange={onOpenChange}
         onSelect={() => {}}
       />,
     );
     await waitFor(() => expect(screen.getByTestId('demo-steps-popout')).toBeInTheDocument());
 
-    expect(screen.getByTestId('demo-steps-close')).toBeInTheDocument();
+    const panel = screen.getByRole('dialog', { name: 'Demo steps' });
+    const closeButton = within(panel).getByRole('button', { name: 'Close panel', exact: true });
+    expect(closeButton).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Pop out Demo Steps' })).toBeInTheDocument();
     expect(screen.getByRole('separator', { name: 'Resize east' })).toBeInTheDocument();
     expect(screen.getByTestId('demo-steps-popout')).toHaveAttribute('data-placement', 'floating');
+
+    fireEvent.click(closeButton);
+    expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
   it('launches Agent Identity Academy from Demo steps', async () => {

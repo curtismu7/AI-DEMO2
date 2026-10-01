@@ -108,15 +108,7 @@ router.get('/callback', async (req, res) => {
 
   try {
     const tokenData = await hostedOAuth.exchangeCodeForToken(code, session.hostedOAuthCodeVerifier, session.hostedOAuthRedirectUri);
-    const { idTokenClaims, userInfo } = await hostedOAuth.validateIdentity(tokenData);
-    if (!idTokenClaims?.nonce) {
-      finishFailure(req, 'nonce_missing');
-      return destroyAndReply(403);
-    }
-    if (idTokenClaims.nonce !== session.hostedOAuthNonce) {
-      finishFailure(req, 'nonce_mismatch');
-      return destroyAndReply(403);
-    }
+    const { idTokenClaims, userInfo } = await hostedOAuth.validateIdentity(tokenData, session.hostedOAuthNonce);
     const policy = loadHostedAccessPolicy();
     const claims = coherentHostedIdentityClaims(idTokenClaims, userInfo);
     const decision = evaluateHostedIdentity(claims, policy);

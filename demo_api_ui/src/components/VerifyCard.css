@@ -1,0 +1,23 @@
+.up-verify-card__message,
+.up-verify-card__status,
+.up-verify-card__error {
+  margin: 0 0 0.9rem;
+  color: var(--th-text-body);
+  font-size: var(--font-size-sm);
+}
+
+.up-verify-card__status--success {
+  color: var(--th-status-success-text);
+  font-weight: 600;
+}
+
+.up-verify-card__status--fail,
+.up-verify-card__status--expired {
+  color: var(--th-status-error-text);
+  font-weight: 600;
+}
+
+.up-verify-card__error {
+  margin-top: 0.9rem;
+  color: var(--th-status-error-text);
+}

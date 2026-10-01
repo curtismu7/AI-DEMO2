@@ -3,7 +3,7 @@
  * Tests for App.js session detection logic
  *
  * Covers:
- *   - checkOAuthSession calls all 3 endpoints in parallel
+ *   - checkOAuthSession checks up to 3 endpoints in priority order
  *   - Priority order: admin → end-user → generic session
  *   - Returns true / sets user when any endpoint responds authenticated: true
  *   - Returns false when all endpoints return unauthenticated

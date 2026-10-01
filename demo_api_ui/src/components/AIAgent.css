@@ -6316,7 +6316,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .ba-demo-steps-popout__mission-link-list a {
-  color: var(--signin-accent, #6366f1);
+  color: var(--th-status-info-text);
   font-size: var(--font-size-3xs);
   text-decoration: none;
 }
@@ -6491,6 +6491,17 @@ body > .banking-agent-float-root .banking-agent-panel {
   border-bottom: 1px solid var(--th-border);
 }
 
+.ba-demo-steps-float__content .ba-demo-steps-popout__academy-links .ba-actions-trigger {
+  border-color: var(--th-status-info);
+  color: var(--th-status-info-text);
+  background: var(--th-bg-card);
+}
+
+.ba-demo-steps-float__content .ba-demo-steps-popout__academy-links .ba-actions-trigger:hover {
+  color: var(--th-status-info-text);
+  background: var(--th-bg-hover);
+}
+
 .ba-demo-steps-float__kicker,
 .ba-demo-steps-float__act-heading {
   color: var(--th-status-info-text);
@@ -6515,30 +6526,6 @@ body > .banking-agent-float-root .banking-agent-panel {
   color: var(--th-text-muted);
   font-size: var(--font-size-xs);
   line-height: 1.45;
-}
-
-.ba-demo-steps-float__close {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  width: 30px;
-  height: 30px;
-  padding: 0;
-  border: 1px solid var(--th-border-strong);
-  border-radius: 7px;
-  color: var(--th-text);
-  background: transparent;
-  cursor: pointer;
-  font-size: var(--font-size-sm);
-}
-
-.ba-demo-steps-float__close:hover,
-.ba-demo-steps-float__close:focus-visible {
-  border-color: var(--th-status-info);
-  background: var(--th-bg-hover);
-  color: var(--th-text);
-  outline: none;
 }
 
 .ba-demo-steps-float__progress-row {
@@ -6737,6 +6724,19 @@ body > .banking-agent-float-root .banking-agent-panel {
   bottom: 8px;
 }
 
+.ba-demo-steps-float__body .ba-demo-steps-popout__explain {
+  border-color: var(--th-border-strong);
+  color: var(--th-text-muted);
+  background: var(--th-bg-card);
+}
+
+.ba-demo-steps-float__body .ba-demo-steps-popout__explain:hover,
+.ba-demo-steps-float__body .ba-demo-steps-popout__explain:focus-visible {
+  border-color: var(--th-status-info-border);
+  color: var(--th-status-info-text);
+  background: var(--th-status-info-bg);
+}
+
 .ba-demo-steps-float__body .ba-demo-steps-popout__advanced {
   margin-top: 18px;
   border-top-color: var(--th-border);
@@ -6753,27 +6753,38 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 /* Floating launcher follows the agent's theme tokens and stays clear of its FAB. */
-.ba-demo-steps-floating-trigger {
+/* `.end-user-nano button` squares every button, so raise selector specificity
+   to keep this icon's intentionally circular launcher shape on dashboards. */
+.end-user-nano .ba-demo-steps-floating-trigger {
   position: fixed;
   right: 28px;
   bottom: 96px;
   z-index: 100062;
   display: inline-flex;
-  min-height: 46px;
+  width: 48px;
+  height: 48px;
+  min-height: 48px;
   align-items: center;
   justify-content: center;
-  padding: 0 16px;
+  padding: 0;
   border: 1px solid var(--th-border-strong);
-  border-radius: 24px;
+  border-radius: 50%;
   color: var(--th-text-on-emphasis);
   background: var(--th-bg-emphasis);
   box-shadow: 0 3px 14px rgb(0 0 0 / 0.2);
   cursor: grab;
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  white-space: nowrap;
   touch-action: none;
   user-select: none;
+}
+
+.ba-demo-steps-floating-trigger svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .ba-demo-steps-floating-trigger:hover:not(:disabled) {

@@ -330,6 +330,15 @@ export function errorMessageSuggestsLogin(message) {
   );
 }
 
+/** Dispatched by navigateToCustomerOAuthLogin; PiFlowSignInModal sets `detail.handled = true`. */
+export const PI_FLOW_SIGNIN_EVENT = 'banking-pi-flow-signin';
+
+let piFlowSignInAvailable = false;
+/** Set by PiFlowSignInModal once it has read the BFF config and is listening. */
+export function setPiFlowSignInAvailable(value) {
+  piFlowSignInAvailable = Boolean(value);
+}
+
 /**
  * Redirect to customer (end-user) OAuth Backend-for-Frontend (BFF) route.
  * @param {string} [returnTo] - app path to land on after login (BFF `return_to`).
@@ -343,6 +352,15 @@ export function navigateToCustomerOAuthLogin(returnTo) {
   if (!destination && typeof window !== 'undefined') {
     const currentPath = window.location.pathname;
     destination = currentPath === '/' ? '/dashboard' : currentPath;
+  }
+
+  // Redirect-free sign-in: PiFlowSignInModal (mounted in App) flips this on when
+  // the BFF has pi.flow enabled for PingOne. If nothing handles the event, fall
+  // through to the ordinary redirect below.
+  if (piFlowSignInAvailable && typeof window !== 'undefined') {
+    const detail = { returnTo: destination, handled: false };
+    window.dispatchEvent(new CustomEvent(PI_FLOW_SIGNIN_EVENT, { detail }));
+    if (detail.handled) return;
   }
 
   const suffix = destination ? `?return_to=${encodeURIComponent(destination)}` : '';

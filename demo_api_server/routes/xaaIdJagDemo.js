@@ -2,7 +2,8 @@
 
 /**
  * XAA / ID-JAG (draft-ietf-oauth-identity-chaining) demo routes —
- * self-contained mock. PingOne does not yet issue Identity Assertion JWT
+ * a mock, except POST /id-jag uses a real PingFederate exchange when the session
+ * has a PF sign-in (see pfDavinciAuth.exchangeIdJag). PingOne does not yet issue Identity Assertion JWT
  * Authorization Grants; this simulates the two-hop cross-domain exchange —
  * home IdP vouches for the user's identity to a foreign domain's AS, which
  * then trades that assertion for an access token scoped to its own resource.
@@ -10,6 +11,7 @@
 const express = require('express');
 const router = express.Router();
 const { mintDemoJwt, decodeDemoJwt } = require('../utils/demoJwt');
+const { exchangeIdJag } = require('./pfDavinciAuth');
 
 /**
  * Client exchanges its home-domain ID token for an ID-JAG assertion scoped
@@ -26,13 +28,22 @@ const { mintDemoJwt, decodeDemoJwt } = require('../utils/demoJwt');
  * @step 1
  * @body {"subject_token":"demo-id-token","subject_token_type":"urn:ietf:params:oauth:token-type:id_token","requested_token_type":"urn:ietf:params:oauth:token-type:id-jag","audience":"domain-b-as"}
  */
-router.post('/id-jag', express.json(), (req, res) => {
-  const { subject_token, requested_token_type, audience } = req.body || {};
+router.post('/id-jag', express.json(), async (req, res) => {
+  const { subject_token, requested_token_type, audience, resource, scope } = req.body || {};
   if (!subject_token || requested_token_type !== 'urn:ietf:params:oauth:token-type:id-jag' || !audience) {
     return res.status(400).json({
       error: 'invalid_request',
       error_description: 'subject_token, requested_token_type=...id-jag, and audience are required',
     });
+  }
+  // Real path: with a live PingFederate sign-in, the session's PF ID token (never
+  // the client-supplied subject_token) is exchanged at PF. Otherwise fall to the mock.
+  try {
+    const real = await exchangeIdJag(req, { audience, resource, scope });
+    if (real) return real.error ? res.status(502).json({ error: real.error }) : res.json(real);
+  } catch (err) {
+    console.warn('[xaa/id-jag] PF exchange failed:', err.message);
+    return res.status(502).json({ error: 'id_jag_exchange_failed' });
   }
   const id_jag = mintDemoJwt({
     iss: 'demo-idp-a',

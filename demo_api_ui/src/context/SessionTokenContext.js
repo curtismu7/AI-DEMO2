@@ -55,7 +55,8 @@ export function SessionTokenProvider({ children }) {
   useEffect(() => {
     refreshTokenStatus();
     const clearIdJagVisuals = (event) => {
-      if (event.type === 'userAuthenticated' && event.detail?.idJagCallbackValidated === true) return;
+      if (event.type === 'userAuthenticated'
+        && (event.detail?.idJagCallbackValidated === true || event.detail?.authSessionProvisional === true)) return;
       const current = tokenChainTraceStore.getState().trace;
       if (isMockIdJagTrace(current) || isNativeIdJagTrace(current)) tokenChainTraceStore.reset();
     };

@@ -130,6 +130,12 @@ cp k8s/03-secrets.yaml.template k8s/03-secrets.yaml
 > only the core services (Redis, api-server, mcp-server, langchain-agent, frontend)
 > — use `kubectl apply -f k8s/` or `deploy.sh` to apply the full set.
 
+On OrbStack, `deploy.sh` also configures the BFF to reach the host PingFederate
+listener on `:9031`, trusts its mkcert CA, and grants only the BFF that egress
+path. PF remains the host Docker container described in
+[`spiffe/README.md`](../spiffe/README.md); `run-k8.sh` preserves it and its
+network during K8 cleanup.
+
 ### 1. Create Namespace and Infrastructure
 ```bash
 kubectl apply -f k8s/01-namespace.yaml

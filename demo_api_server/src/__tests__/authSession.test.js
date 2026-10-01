@@ -183,6 +183,14 @@ describe('GET /api/auth/session — local session (username+password)', () => {
 
 });
 
+it('keeps a local admin session authenticated without an OAuth token', async () => {
+  const agent = agentWith(buildAppWithSession());
+  await agent.post('/__set-session').send({ user: OAUTH_ADMIN_USER, tokenType: 'local_session' });
+  const res = await agent.get('/api/auth/session');
+  expect(res.body.authenticated).toBe(true);
+  expect(res.body.authType).toBe('local_session');
+});
+
 describe('GET /api/auth/session — OAuth admin session', () => {
   let agent;
 
@@ -250,6 +258,40 @@ describe('GET /api/auth/session — OAuth end-user session', () => {
   it('returns cookieOnlyBffSession: false when a real OAuth token is present', async () => {
     const res = await agent.get('/api/auth/session');
     expect(res.body.cookieOnlyBffSession).toBe(false);
+  });
+});
+
+describe('GET /api/auth/session — stale OAuth session', () => {
+  it.each([
+    ['user', 'missing token', {}],
+    ['user', 'expired token', { accessToken: 'expired', expiresAt: Date.now() - 1000 }],
+    ['admin', 'missing token', {}],
+    ['admin', 'expired token', { accessToken: 'expired', expiresAt: Date.now() - 1000 }],
+  ])('does not report an OAuth %s as signed in with a %s', async (oauthType, _, oauthTokens) => {
+    const agent = agentWith(buildAppWithSession());
+    await agent.post('/__set-session').send({
+      user: oauthType === 'admin' ? OAUTH_ADMIN_USER : LOCAL_USER,
+      oauthType,
+      oauthTokens,
+    });
+
+    const res = await agent.get('/api/auth/session');
+    expect(res.status).toBe(200);
+    expect(res.body.authenticated).toBe(false);
+    expect(res.body.user).toBeNull();
+    expect(res.body.cookieOnlyBffSession).toBe(false);
+  });
+
+  it('rejects an expired legacy admin OAuth session without oauthType', async () => {
+    const agent = agentWith(buildAppWithSession());
+    await agent.post('/__set-session').send({
+      user: OAUTH_ADMIN_USER,
+      oauthTokens: { accessToken: 'expired', expiresAt: Date.now() - 1000 },
+    });
+
+    const res = await agent.get('/api/auth/session');
+    expect(res.body.authenticated).toBe(false);
+    expect(res.body.user).toBeNull();
   });
 });
 

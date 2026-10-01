@@ -108,6 +108,7 @@ import SecuritySettings from "./components/SecuritySettings";
 import ServerRestartModal from "./components/ServerRestartModal";
 import AuthorizeFallbackListener from "./components/AuthorizeFallbackListener";
 import SessionReauthBanner from "./components/SessionReauthBanner";
+import PiFlowSignInModal from "./components/PiFlowSignInModal";
 import SportingGoodsAdminOps from "./components/SportingGoodsAdminOps";
 import SpinnerHost from "./components/shared/SpinnerHost";
 import PingIdentitySpinner from "./components/shared/PingIdentitySpinner";
@@ -178,6 +179,7 @@ import LlamaVscodeGuidePage from "./components/LlamaVscodeGuidePage";
 import AgenticAccessConsolePage from "./pages/AgenticAccessConsolePage";
 import PingAiProductPage from "./pages/PingAiProductPage";
 import PingOneProtectBrowserDemo from "./pages/PingOneProtectBrowserDemo";
+import PingOneVerifyRecognizePage from "./pages/PingOneVerifyRecognizePage";
 import AdminRoute from "./routes/AdminRoute";
 import HostedRegistrationPage from "./pages/HostedRegistrationPage";
 import HostedRegistrationAdminPage from "./pages/HostedRegistrationAdminPage";
@@ -227,6 +229,7 @@ import PublicRoutes, {
   PingFederateIdJagDiagramPageRoute,
   PingFederateAiAgentPageRoute,
   GroupPolicyBoardPageRoute,
+  PageCatalogPageRoute,
   PrivilegeMcpClientPageRoute,
   LlmGatewayPageRoute,
   LlmTestPageRoute,
@@ -677,6 +680,7 @@ function AppWithAuth() {
                 pauseOnHover
                 draggable
               />
+              <PiFlowSignInModal />
               {sessionReauth && (
                 <SessionReauthBanner
                   message={sessionReauth.message}
@@ -1043,6 +1047,16 @@ function AppWithAuth() {
                   }
                 />
                 <Route
+                  path="/ping-products/verify-recognize"
+                  element={
+                    <AppShell user={user} logout={logout}>
+                      <main className="ai-product-main">
+                        <PingOneVerifyRecognizePage />
+                      </main>
+                    </AppShell>
+                  }
+                />
+                <Route
                   path="/ai-products/core"
                   element={
                     <AppShell user={user} logout={logout}>
@@ -1325,6 +1339,17 @@ function AppWithAuth() {
                   element={
                     loading ? null : user ? (
                       <GroupPolicyBoardPageRoute user={user} logout={logout} />
+                    ) : (
+                      <SignInRequired />
+                    )
+                  }
+                />
+                {/* Page catalog — signed-in users only (it edits their own side-nav prefs). */}
+                <Route
+                  path="/page-catalog"
+                  element={
+                    loading ? null : user ? (
+                      <PageCatalogPageRoute user={user} logout={logout} />
                     ) : (
                       <SignInRequired />
                     )

@@ -375,24 +375,49 @@ function featureContract(check, provider) {
   };
 }
 
-function createReadinessExecutionService({ createWorker: testWorkerAdapter, catalog = buildDemoReadinessCatalog(), featureChecks = featureCheckSource.checks || [], now = () => Date.now(), inventorySink: configuredInventorySink = defaultInventorySink } = {}) {
-  // There is deliberately no production worker factory. Jest may inject this
-  // adapter directly; request data can never enable it in a running BFF.
-  const workerAdapter = process.env.NODE_ENV === 'test' ? testWorkerAdapter : null;
-  const contexts = new WeakMap(); const identities = new Map();
-  async function createWorkerContext({ targetId, provider, identityRef, deadlineAt, abortSignal }) {
+function createReadinessExecutionService({ createWorker: testWorkerAdapter, productionWorkerAdapter, catalog = buildDemoReadinessCatalog(), featureChecks = featureCheckSource.checks || [], now = () => Date.now(), inventorySink: configuredInventorySink = defaultInventorySink } = {}) {
+  // Only server construction can inject the production worker factory. Request
+  // data cannot enable or replace it in a running BFF.
+  const workerAdapter = process.env.NODE_ENV === 'test'
+    ? (testWorkerAdapter || productionWorkerAdapter)
+    : (productionWorkerAdapter || null);
+  const isProductionWorkerAdapter = Boolean(productionWorkerAdapter && workerAdapter === productionWorkerAdapter);
+  const contexts = new WeakMap(); const identities = new Map(); const activeContexts = new Map(); const pendingSetups = new Map();
+  async function createWorkerContextImpl({ targetId, provider, identityRef, deadlineAt, abortSignal }) {
     if (!targetId || !PROVIDERS.has(provider)) throw providerIsolationError('target and supported provider are required');
     if (abortSignal?.aborted || expired(deadlineAt, now())) throw new Error('deadline exceeded before provider worker creation');
     if (typeof workerAdapter !== 'function') throw providerIsolationError('no private separate provider-configured worker runtime is available');
-    const worker = await workerAdapter({ targetId, provider, identityRef, deadlineAt, abortSignal });
-    validateWorker(worker, provider, identities, laneKey(targetId, provider));
-    if (abortSignal?.aborted || expired(deadlineAt, now())) throw new Error('deadline exceeded while creating provider worker');
-    const context = Object.freeze({}); contexts.set(context, { worker, targetId, provider }); return context;
+    let worker;
+    try {
+      worker = await workerAdapter({ targetId, provider, identityRef, deadlineAt, abortSignal });
+      validateWorker(worker, provider, identities, laneKey(targetId, provider));
+      if (isProductionWorkerAdapter && typeof worker.dispose !== 'function') throw providerIsolationError('production worker has no context cleanup adapter');
+      if (abortSignal?.aborted || expired(deadlineAt, now())) throw new Error('deadline exceeded while creating provider worker');
+      const context = Object.freeze({});
+      const saved = { worker, targetId, provider, disposed: false };
+      contexts.set(context, saved);
+      activeContexts.set(context, saved);
+      return context;
+    } catch (error) {
+      // A remote context can exist even when its handshake or final deadline
+      // check fails. Close it before returning the setup error.
+      if (isProductionWorkerAdapter && typeof worker?.dispose === 'function') {
+        try { await worker.dispose(); } catch { /* setup failure remains blocking */ }
+      }
+      throw error;
+    }
+  }
+  function createWorkerContext(options) {
+    const pending = createWorkerContextImpl(options);
+    const lane = { targetId: options?.targetId, provider: options?.provider };
+    pendingSetups.set(pending, lane);
+    pending.then(() => pendingSetups.delete(pending), () => pendingSetups.delete(pending));
+    return pending;
   }
   async function executeReadinessCase({ context, caseRow, vertical, mode, deadlineAt, behavior: override, abortSignal }) {
     if (expired(deadlineAt, now())) return redactReadinessValue({ status: 'not-run', expected: null, observed: 'deadline-expired', evidence: { reason: 'deadline exceeded before dispatch' } });
     const saved = contexts.get(context); const behavior = override || caseRow?.expectedBehaviorByVertical?.[vertical]; const authorization = caseRow?.authorizationContractByVertical?.[vertical]; const prerequisites = caseRow?.runtimePrerequisitesByVertical?.[vertical]; const expected = outcomeFor(behavior);
-    if (!saved) return redactReadinessValue({ status: 'blocked', expected, observed: 'not-dispatched', evidence: { reason: 'unknown or forged readiness worker context' } });
+    if (!saved || saved.disposed) return redactReadinessValue({ status: 'blocked', expected, observed: 'not-dispatched', evidence: { reason: 'unknown, forged, or closed readiness worker context' } });
     if (!behavior || !authorization || !prerequisites) return redactReadinessValue({ status: 'blocked', expected, observed: 'not-dispatched', evidence: { reason: 'catalog has no complete contract for vertical ' + vertical } });
     const sourceGap = saved.provider === 'pingfederate' && (caseRow.exchangeService || 'token-exchange') === 'token-exchange'
       ? pfSourceGap(caseRow.pfExchangeContract)
@@ -408,7 +433,7 @@ function createReadinessExecutionService({ createWorker: testWorkerAdapter, cata
   }
   async function executeReadinessFeature({ context, check, deadlineAt, abortSignal }) {
     const saved = contexts.get(context); const expected = check.expectedByProvider?.[saved?.provider] || check.expectedOutcome;
-    if (!saved || !expected) return redactReadinessValue({ status: 'blocked', expected: expected || null, observed: 'not-dispatched', evidence: { reason: 'feature contract or worker context is unavailable' } });
+    if (!saved || saved.disposed || !expected) return redactReadinessValue({ status: 'blocked', expected: expected || null, observed: 'not-dispatched', evidence: { reason: 'feature contract or worker context is unavailable' } });
     const staticCase = featureContract(check, saved.provider);
     if (!staticCase) return redactReadinessValue({ status: 'blocked', expected, observed: 'not-dispatched', evidence: { reason: 'feature manifest has no complete family-specific execution contract' } });
     if (staticCase.sourceGap) return redactReadinessValue({
@@ -536,7 +561,35 @@ function createReadinessExecutionService({ createWorker: testWorkerAdapter, cata
     const elapsedMs = Math.max(0, now() - startedAt); const timing = { elapsedMs, targetMs: TARGET_WARNING_MS, hardLimitMs: HARD_DEADLINE_MS, targetMet: elapsedMs < TARGET_WARNING_MS && results.every((result) => result.status !== 'not-run'), deadlineExceeded: elapsedMs >= HARD_DEADLINE_MS || results.some((result) => result.status === 'not-run') }; report.elapsedMs = elapsedMs; report.targetWarning = elapsedMs >= TARGET_WARNING_MS; if (timing.deadlineExceeded) { report.status = 'deadline_exceeded'; report.ready = false; } else if (!timing.targetMet) { report.status = 'not-ready'; report.ready = false; }
     return { manifest, categoryCounts: manifest.counts, results, report, timing };
   }
-  return { createWorkerContext, executeReadinessCase, executeReadinessFeature, runManifest, deriveExecutionManifest: (options) => deriveExecutionManifest({ catalog, featureChecks, ...options }) };
+  async function dispose() {
+    const failures = [];
+    if (pendingSetups.size) {
+      const pending = [...pendingSetups.keys()];
+      let timer;
+      const timedOut = await Promise.race([
+        Promise.allSettled(pending).then(() => false),
+        new Promise((resolve) => { timer = setTimeout(() => resolve(true), 5_000); }),
+      ]);
+      if (timer) clearTimeout(timer);
+      if (timedOut) {
+        failures.push(...pendingSetups.values());
+      }
+    }
+    const cleanupResults = await Promise.all([...activeContexts].map(async ([context, saved]) => {
+      try {
+        if (typeof saved.worker.dispose === 'function') await saved.worker.dispose({ context });
+        saved.disposed = true;
+        activeContexts.delete(context);
+        return null;
+      } catch {
+        return { targetId: saved.targetId, provider: saved.provider };
+      }
+    }));
+    failures.push(...cleanupResults.filter(Boolean));
+    return { status: failures.length ? 'fail' : 'pass', failures };
+  }
+
+  return { createWorkerContext, executeReadinessCase, executeReadinessFeature, runManifest, dispose, deriveExecutionManifest: (options) => deriveExecutionManifest({ catalog, featureChecks, ...options }) };
 }
 
 function requireFeatureEvidence(failures, evidence, check, provider) {

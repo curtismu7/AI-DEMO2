@@ -199,6 +199,11 @@ const REDACT_BODY_KEYS = new Set([
   'client_credentials',
   'code_verifier',
   'currentpassword',
+  'current_password',
+  'api_key',
+  'api_secret',
+  'apikey',
+  'apisecret',
   'newpassword',
 ]);
 

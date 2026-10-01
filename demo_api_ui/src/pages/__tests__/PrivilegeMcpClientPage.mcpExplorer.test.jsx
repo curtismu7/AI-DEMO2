@@ -42,7 +42,7 @@ test('discovers prompts/resources and supports modern input-required continuatio
   fireEvent.click(await screen.findByRole('button', { name: 'Get MCP Tools' }));
   // MCP Explorer is an Inspect surface; the page opens in Demo.
   fireEvent.click(await screen.findByRole('button', { name: 'Inspect' }));
-  fireEvent.click(await screen.findByRole('button', { name: 'MCP Explorer' }));
+  fireEvent.click(await screen.findByRole('tab', { name: 'MCP Explorer' }));
   expect(await screen.findByText('Demo MCP')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'summarize' })).toBeInTheDocument();
   fireEvent.click(screen.getAllByRole('button', { name: 'Guide' }).at(-1));

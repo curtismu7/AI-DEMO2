@@ -107,6 +107,11 @@ const REDACT_BODY_KEYS = new Set([
   "client_credentials",
   "code_verifier",
   "currentpassword",
+  "current_password",
+  "api_key",
+  "api_secret",
+  "apikey",
+  "apisecret",
   "newpassword", // Phase 269.1 — /api/admin/vault/rotate body
 ]);
 
@@ -120,12 +125,13 @@ export function redactHeaders(headers = {}) {
   return out;
 }
 
-/** Shallow-redact known sensitive keys in a JSON body object. */
+/** Recursively redact known sensitive keys in JSON objects and arrays. */
 export function redactBody(body) {
-  if (!body || typeof body !== "object" || Array.isArray(body)) return body;
+  if (Array.isArray(body)) return body.map(redactBody);
+  if (!body || typeof body !== "object") return body;
   const out = {};
   for (const [k, v] of Object.entries(body)) {
-    out[k] = REDACT_BODY_KEYS.has(String(k).toLowerCase()) ? "***" : v;
+    out[k] = REDACT_BODY_KEYS.has(String(k).toLowerCase()) ? "***" : redactBody(v);
   }
   return out;
 }
@@ -161,8 +167,8 @@ export function appendTrafficEntry(entry) {
   const cappedEntry = {
     ...entry,
     id: ++seq,
-    responseBody: capJsonBody(entry.responseBody),
-    requestBody: capJsonBody(entry.requestBody),
+    responseBody: capJsonBody(redactBody(entry.responseBody)),
+    requestBody: capJsonBody(redactBody(entry.requestBody)),
     turnId: _currentTurnId || entry.turnId || null,
     turnLabel: _currentTurnLabel || entry.turnLabel || null,
   };

@@ -41,6 +41,10 @@ spec:
         # mcp-secrets is a fatal boot guard outside development (validator.ts).
         - name: NODE_ENV
           value: "development"
+        # Only the hosted app origin may make browser-originated MCP requests.
+        # Server-to-server MCP clients omit Origin and remain supported.
+        - name: MCP_ALLOWED_ORIGINS
+          value: "https://ai-demo.ping-devops.com"
         # environments.ts defaults development mode to a relative
         # './dev-data/tokens' path that is never created and unwritable under
         # this container's non-root user (runAsUser 1001) — the Dockerfile

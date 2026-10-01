@@ -9,9 +9,21 @@
 const request = require('supertest');
 const express = require('express');
 
+// The audit route self-fetches via BFF_BASE_URL. This suite mounts its router
+// on an in-memory Express app, so direct those checks to a closed loopback port
+// instead of any live BFF port-forward that may be running on the test host.
+const previousBffBaseUrl = process.env.BFF_BASE_URL;
+process.env.BFF_BASE_URL = 'http://127.0.0.1:1';
+
 // Import the routes to test
 const protectedResourceMetadata = require('../../routes/protectedResourceMetadata');
 const rfc9728ComplianceAudit = require('../../routes/rfc9728ComplianceAudit');
+
+if (previousBffBaseUrl === undefined) {
+  delete process.env.BFF_BASE_URL;
+} else {
+  process.env.BFF_BASE_URL = previousBffBaseUrl;
+}
 
 describe('RFC 9728 Integration Tests', () => {
   let app;
