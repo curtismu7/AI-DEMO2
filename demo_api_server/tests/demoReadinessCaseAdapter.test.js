@@ -113,6 +113,94 @@ test('an INDETERMINATE decision the BFF did not interpret is not promoted to an 
   expect(validate(result, 'STEP_UP').join(' ; ')).toMatch(/Authorize decision/);
 });
 
+// ── Enforcement profiles derived from the use case's declared evidence ───────
+const rowFor = (id) => {
+  const row = buildDemoReadinessCatalog().find((item) => item.id === id);
+  return { row, behavior: row.expectedBehaviorByVertical[VERTICAL], authorization: row.authorizationContractByVertical[VERTICAL] };
+};
+const validateRow = (id, result, expected) => {
+  const { row, authorization: contract } = rowFor(id);
+  return [
+    ...(result.observed === expected ? [] : ['observed outcome']),
+    ...evidenceFailures({ evidence: result.evidence, provider: PROVIDER, authorization: contract, expected, caseRow: row }),
+  ];
+};
+
+test('the catalog derives each step\'s enforcement from its declared evidence chain', () => {
+  const enforcement = (id) => rowFor(id).authorization.enforcement;
+  expect(enforcement('UC24')).toBe('public-catalog');
+  expect(enforcement('UC30')).toBe('gateway-policy');
+  expect(enforcement('UC31')).toBe('gateway-policy');
+  // The chain is a floor: these omit authorize-decision but are Authorize-backed.
+  for (const id of ['UC1', 'UC6', 'UC7', 'UC17', 'UC25', 'UC-TOOL1']) expect(enforcement(id)).toBe('authorize');
+});
+
+// Real UC24 shape (2026-10-01): exchange and Authorize reported skipped.
+function publicCatalogResponse(tool) {
+  return {
+    success: true,
+    toolsCalled: [tool],
+    tokenEvents: [
+      { id: 'intent-token', status: 'active' },
+      { id: 'token-exchange', status: 'skipped' },
+      { id: 'authorize-decision', status: 'skipped' },
+      { id: 'tool-dispatched', status: 'success' },
+    ],
+  };
+}
+
+test('UC24: a public-catalog tool passes on the public path and claims nothing else', () => {
+  const { authorization: contract } = rowFor('UC24');
+  const result = evidenceFromAgentInvoke({ response: publicCatalogResponse(contract.primaryTool), provider: PROVIDER, expectedIssuer: ISSUER, authorization: contract });
+  expect(result.evidence).toMatchObject({ publicCatalog: true, gateway: { applicable: false }, authorize: { applicable: false } });
+  expect(validateRow('UC24', result, 'PERMIT')).toEqual([]);
+});
+
+test('UC24: a delegated call, a wrong tool or a failed dispatch does not satisfy the public-catalog contract', () => {
+  const { authorization: contract } = rowFor('UC24');
+  const run = (response) => validateRow('UC24', evidenceFromAgentInvoke({ response, provider: PROVIDER, expectedIssuer: ISSUER, authorization: contract }), 'PERMIT').join(' ; ');
+  expect(run(invokeResponse({ tool: contract.primaryTool }))).toMatch(/public path/);
+  expect(run(publicCatalogResponse('other_tool'))).toMatch(/selected tool/);
+  const failed = publicCatalogResponse(contract.primaryTool);
+  failed.tokenEvents[3].status = 'error';
+  expect(run(failed)).toMatch(/public path/);
+});
+
+// Real UC30/UC31 shape: exchanged token, gateway filter audit with no caller
+// and no route under `routePath`, and no Authorize event at all.
+function gatewayPolicyResponse(tool, decision) {
+  const response = invokeResponse({ tool });
+  response.success = decision === 'PERMIT';
+  if (decision === 'DENY') response.error = 'gateway_policy_denied';
+  response.tokenEvents = response.tokenEvents.filter((event) => !['gw-authorize', 'gw-mcp-audit'].includes(event.id));
+  response.tokenEvents.find((event) => event.id === 'two-ex-agent-actor').claims.client_id = 'agent-1';
+  response.tokenEvents.push({ id: 'gw-mcp-audit', mcpAudit: { who: {}, what: { tool }, where: { route: '/mcp/weather', filter: 'tx-weather-scope.groovy' }, how: { decision, policy: 'ff_weather_mcp_allowed_state' } } });
+  return response;
+}
+
+test.each([['UC30', 'PERMIT'], ['UC31', 'DENY']])('%s: a gateway-policy %s passes without an Authorize decision', (id, decision) => {
+  const { authorization: contract } = rowFor(id);
+  const result = evidenceFromAgentInvoke({ response: gatewayPolicyResponse(contract.primaryTool, decision), provider: PROVIDER, expectedIssuer: ISSUER, authorization: contract });
+  expect(result.evidence.gateway).toEqual({ route: '/mcp/weather', verdict: decision });
+  expect(result.evidence.authorize).toEqual({ applicable: false, decidedBy: 'ff_weather_mcp_allowed_state' });
+  expect(result.evidence.actorChain).toEqual(['user-1', 'agent-1']);
+  expect(validateRow(id, result, decision)).toEqual([]);
+});
+
+test('gateway-policy: the wrong verdict, or an Authorize decision that should not exist, fails', () => {
+  const { authorization: contract } = rowFor('UC31');
+  const wrongVerdict = evidenceFromAgentInvoke({ response: gatewayPolicyResponse(contract.primaryTool, 'PERMIT'), provider: PROVIDER, expectedIssuer: ISSUER, authorization: contract });
+  expect(validateRow('UC31', wrongVerdict, 'DENY').join(' ; ')).toMatch(/Gateway verdict/);
+  const withAuthorize = evidenceFromAgentInvoke({ response: invokeResponse({ tool: contract.primaryTool, decision: 'DENY', error: 'gateway policy denied' }), provider: PROVIDER, expectedIssuer: ISSUER, authorization: contract });
+  expect(validateRow('UC31', withAuthorize, 'DENY').join(' ; ')).toMatch(/gateway-policy tool must declare Authorize evidence not applicable/);
+});
+
+test('an Authorize-backed step still fails when the Authorize decision is missing', () => {
+  const response = gatewayPolicyResponse(authorization.primaryTool, 'PERMIT');
+  const result = evidenceFromAgentInvoke({ response, provider: PROVIDER, expectedIssuer: ISSUER, authorization });
+  expect(validate(result).join(' ; ')).toMatch(/Authorize evidence is required/);
+});
+
 test('a CIBA step is blocked, not run: it needs an approval on a device', async () => {
   const request = jest.fn();
   const operations = createCaseOperations({ request, provider: PROVIDER, expectedIssuer: ISSUER });

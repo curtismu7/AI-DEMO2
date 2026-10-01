@@ -59,6 +59,22 @@ function evidenceFromAgentInvoke({ response, provider, expectedIssuer, authoriza
   try { challengedRoute = challenge?.url ? new URL(challenge.url).pathname : null; } catch { /* left null */ }
   const decisionActors = [evaluation?.request?.parameters?.UserId, evaluation?.request?.parameters?.ActClientId].filter(Boolean);
 
+  // The public path (progressive trust, UC24): the BFF reports the exchange
+  // and Authorize as skipped and the tool as dispatched, with no user token.
+  const publicCatalog = eventById(events, 'token-exchange')?.status === 'skipped'
+    && eventById(events, 'authorize-decision')?.status === 'skipped'
+    && eventById(events, 'tool-dispatched')?.status === 'success'
+    && !userToken && !exchange1 && !finalToken;
+
+  // The gateway's own policy filters (the weather route) audit the call
+  // without naming the caller. The actors are then the ones on the tokens the
+  // gateway was sent: the exchanged token's subject and the agent actor.
+  const auditActors = [audit?.who?.userSub, audit?.who?.agentSub].filter(Boolean);
+  const tokenActors = [finalToken?.claims?.sub, agentActor?.claims?.client_id].filter(Boolean);
+  // Decided by the gateway alone: an audit verdict, and neither a gateway
+  // Authorize event nor an Authorize reading from the BFF.
+  const decidedByGatewayPolicy = Boolean(audit?.how?.decision) && !gatewayAuthorize && !evaluation;
+
   // Two completed RFC 8693 exchanges on access tokens, no ID-JAG hop.
   const standardExchange = exchange1?.status === 'exchanged' && finalToken?.status === 'exchanged'
     && !events.some((event) => /id-?jag/i.test(String(event?.id || '')));
@@ -68,7 +84,7 @@ function evidenceFromAgentInvoke({ response, provider, expectedIssuer, authoriza
     agentIdentityProvider: providerOf(agentActor?.claims?.iss, lane),
     tokenIssuer: providerOf(finalToken?.claims?.iss, lane),
     subject: finalToken?.claims?.sub || null,
-    actorChain: audit ? [audit.who?.userSub, audit.who?.agentSub].filter(Boolean) : heldByAuthorize ? decisionActors : [],
+    actorChain: auditActors.length ? auditActors : audit ? tokenActors : heldByAuthorize ? decisionActors : [],
     selectedTool,
     audiences: list(userToken?.claims?.aud),
     scopes: list(String(exchange1?.claims?.scope || '').split(/\s+/)).filter((scope) => scope !== AGENT_SCOPE),
@@ -83,15 +99,21 @@ function evidenceFromAgentInvoke({ response, provider, expectedIssuer, authoriza
   // The resource server is defined by which server owns the tool. It is only
   // claimed when the tool that actually ran is the one the contract names.
   if (selectedTool && selectedTool === authorization?.primaryTool) evidence.resourceServer = authorization.resourceServer;
-  if (authorization?.primaryTool) {
+  if (publicCatalog) {
+    evidence.publicCatalog = true;
+    evidence.gateway = { applicable: false };
+    evidence.authorize = { applicable: false };
+  } else if (authorization?.primaryTool) {
     evidence.gateway = audit
-      ? { route: audit.where?.routePath || null, verdict: audit.how?.decision || null }
+      ? { route: audit.where?.routePath || audit.where?.route || null, verdict: audit.how?.decision || null }
       : { route: heldByAuthorize ? challengedRoute : null, verdict: heldByAuthorize ? evaluation.outcome : null };
-    evidence.authorize = {
-      reference: gatewayAuthorize?.url || evaluation?.decisionId || null,
-      decision: evaluation?.outcome || gatewayAuthorize?.decision || null,
-      ...(evaluation && gatewayAuthorize?.decision && evaluation.outcome !== gatewayAuthorize.decision ? { rawDecision: gatewayAuthorize.decision } : {}),
-    };
+    evidence.authorize = decidedByGatewayPolicy
+      ? { applicable: false, decidedBy: audit.how.policy || audit.where?.filter || 'gateway policy' }
+      : {
+        reference: gatewayAuthorize?.url || evaluation?.decisionId || null,
+        decision: evaluation?.outcome || gatewayAuthorize?.decision || null,
+        ...(evaluation && gatewayAuthorize?.decision && evaluation.outcome !== gatewayAuthorize.decision ? { rawDecision: gatewayAuthorize.decision } : {}),
+      };
   } else {
     evidence.gateway = { applicable: false };
     evidence.authorize = { applicable: false };

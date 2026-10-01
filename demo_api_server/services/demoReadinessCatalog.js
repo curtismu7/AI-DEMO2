@@ -176,6 +176,25 @@ function providerRoleApplicabilityFor({ id, providerFlows }) {
   };
 }
 
+/**
+ * Which control decides a tool step, read from the use case's own declared
+ * evidence (`config/useCases.js` evidence.tokenChain). Two narrow profiles are
+ * recognised; everything else keeps the full exchange-plus-Authorize contract.
+ *   public-catalog  the chain declares only `tool-dispatched`: the tool is
+ *                   served without a user token, an exchange or Authorize.
+ *   gateway-policy  the chain declares only `user-token` and `tool-dispatched`:
+ *                   the token is exchanged and the gateway's own policy
+ *                   decides; PingOne Authorize is not called.
+ * The chain is a floor, not a full list (some Authorize-backed steps omit
+ * `authorize-decision`), so a step is narrowed only on an exact match.
+ */
+function enforcementFor(step) {
+  const chain = [...new Set(Array.isArray(step?.evidence?.tokenChain) ? step.evidence.tokenChain : [])].sort();
+  if (chain.length === 1 && chain[0] === 'tool-dispatched') return 'public-catalog';
+  if (chain.length === 2 && chain[0] === 'tool-dispatched' && chain[1] === 'user-token') return 'gateway-policy';
+  return 'authorize';
+}
+
 function authorizationContractFor(step, sources, issues, useCaseId, vertical) {
   const toolName = step.primaryTool || null;
   const resourceServer = step.resourceServer || null;
@@ -267,6 +286,7 @@ function authorizationContractFor(step, sources, issues, useCaseId, vertical) {
   return {
     primaryTool: toolName,
     resourceServer,
+    enforcement: enforcementFor(step),
     a2aDelegated: Boolean(step.a2aDelegated),
     gatewayTool: tool ? {
       surface: tool.surface || null,
