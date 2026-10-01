@@ -21,6 +21,7 @@ const INVOKE_PATH = '/api/agent/invoke';
 const FLAG_ENABLE_PATH = '/api/demo-flags/enable';
 const AGENT_SCOPE = 'agent:invoke';
 const AGENT_STATE_PATH = '/api/agent-builder/state';
+const MFA_DEVICES_PATH = '/api/auth/mfa/devices';
 // UC38's flag: the route behind it refuses to delegate without an MFA acr.
 const MFA_GATED_FLAG = 'ff_personal_agent_concierge';
 
@@ -171,6 +172,16 @@ function createCaseOperations({ request, provider, expectedIssuer }) {
     // blocked rather than run and reported as a wrong outcome.
     if (list(prerequisites?.requiredFlags).includes('ciba_enabled')) {
       return { status: 'blocked', reason: 'CIBA needs an out-of-band approval on a device, which this worker cannot give' };
+    }
+    // A step that ends in STEP_UP is only demo-ready if the MFA behind the
+    // prompt can run. The device list is the cheapest call that needs the MFA
+    // service's PingOne worker token and a PingOne user for this identity;
+    // the ceremony itself (passkey, code entry) needs a person.
+    if (caseRow?.expectedBehaviorByVertical?.[vertical]?.expectedOutcome === 'STEP_UP') {
+      const devices = await request(MFA_DEVICES_PATH, { method: 'GET' });
+      if (devices.status !== 200) {
+        return { status: 'blocked', reason: `MFA service cannot serve this identity (HTTP ${devices.status}${devices.body?.error ? `: ${devices.body.error}` : ''}), so the step-up could not be completed` };
+      }
     }
     if (!list(prerequisites?.requiredFlags).length) return { status: 'pass' };
     // Arms only this lane's BFF, which has its own config store. The endpoint

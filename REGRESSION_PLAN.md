@@ -228,6 +228,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-01 — In-app MFA, OTP email and agent authorization failed in PingFederate mode
+
+**Files:** `demo_api_server/services/mfaService.js`, `demo_api_server/services/emailService.js`, `demo_api_server/services/pingOneUserService.js`.
+
+**What was broken:** These three get a PingOne worker token with `getTokenEndpoint()`, which follows the active login provider. With the provider switched to PingFederate they posted PingOne worker credentials to PingFederate's token endpoint and got `invalid_client`: the step-up dialog showed "Passkey registration failed — MFA operation failed", no OTP email was sent, and the agent-authorization grant could not write `mayAct`.
+
+**What changed:** All three use `getPingOneTokenEndpoint()`, which exists for exactly this ("machine clients configured with PingOne credentials must never send them to the shared PF endpoint").
+
+**Do not break:** A service that authenticates with PingOne worker or management credentials must resolve PingOne's token endpoint, never the provider-aware one. `tests/pingOneWorkerTokenInPfMode.test.js` fails if any of the three goes back.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/pingOneWorkerTokenInPfMode.test.js src/__tests__/pingOneUserService.authFallback.test.js --forceExit`.
+
 ### 2026-10-01 — UC38 step-up could not be completed with the app's passkey
 
 **Files:** `demo_api_server/routes/agentInvokeRoute.js`, `demo_api_ui/src/pages/PersonalAgentStudioPage.jsx`.
