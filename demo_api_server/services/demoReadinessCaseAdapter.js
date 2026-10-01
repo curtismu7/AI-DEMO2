@@ -20,6 +20,9 @@ const slugFor = (caseRow) => USE_CASES.find((useCase) => useCase.id === caseRow?
 const INVOKE_PATH = '/api/agent/invoke';
 const FLAG_ENABLE_PATH = '/api/demo-flags/enable';
 const AGENT_SCOPE = 'agent:invoke';
+const AGENT_STATE_PATH = '/api/agent-builder/state';
+// UC38's flag: the route behind it refuses to delegate without an MFA acr.
+const MFA_GATED_FLAG = 'ff_personal_agent_concierge';
 
 const eventById = (events, id) => events.find((event) => event && event.id === id) || null;
 const list = (value) => (Array.isArray(value) ? value : value == null ? [] : [value]).filter(Boolean).map(String);
@@ -96,9 +99,20 @@ function evidenceFromAgentInvoke({ response, provider, expectedIssuer, authoriza
     roleApplicability: { userLogin: Boolean(userToken), agentIdentity: Boolean(agentActor), tokenExchange: Boolean(standardExchange) },
   };
   if (standardExchange) {
+    // Each exchanged token as issued: its subject, then the actors named in
+    // its own nested `act` claim. Nothing is taken from the gateway's audit.
+    evidence.exchangeHops = [exchange1, finalToken].map((hop) => {
+      const actors = [];
+      for (let act = hop.claims?.act; act?.sub; act = act.act) actors.push(act.sub);
+      return { subject: hop.claims?.sub || null, actorChain: [hop.claims?.sub, ...actors].filter(Boolean) };
+    });
     evidence.exchangeService = 'token-exchange';
     evidence.exchangeProvenance = `${provider}-standard`;
-    evidence.exchangePath = 'standard-access-token';
+    // Actor-bound when the BFF verified a customer-owned workload agent and
+    // used it, not the built-in agent, as the actor of the first exchange.
+    evidence.exchangePath = eventById(events, 'personal-agent-lookup')?.status === 'active'
+      ? 'actor-bound-standard-two-exchange'
+      : 'standard-access-token';
     evidence.subjectTokenType = 'access_token';
   }
   // The resource server is defined by which server owns the tool. It is only
@@ -132,12 +146,17 @@ function evidenceFromAgentInvoke({ response, provider, expectedIssuer, authoriza
  */
 function createCaseOperations({ request, provider, expectedIssuer }) {
   async function verifyPrerequisites({ caseRow, vertical, prerequisites }) {
-    // Workload-agent steps (UC38, UC44) are driven from their own page, as a
-    // customer who has registered a workload agent, and UC38 also needs that
-    // customer to pass MFA. The readiness identity has no agent and cannot do
-    // MFA, so the chip adapted from the link is blocked rather than run.
+    // Workload-agent steps (UC38, UC44) run as a customer who has registered a
+    // workload agent. UC38 also needs that customer to pass MFA, which a
+    // headless worker cannot do, so it is blocked rather than run.
     if (caseRow?.expectedBehaviorByVertical?.[vertical]?.adaptedFromLink) {
-      return { status: 'blocked', reason: 'needs a workload agent registered for the readiness identity (and MFA for step-up), which this worker does not have' };
+      if (list(prerequisites?.requiredFlags).includes(MFA_GATED_FLAG)) {
+        return { status: 'blocked', reason: 'needs the customer to pass MFA step-up, which this worker cannot do' };
+      }
+      const state = await request(AGENT_STATE_PATH, { method: 'GET' });
+      if (state.status !== 200 || !state.body?.agent) {
+        return { status: 'blocked', reason: 'no workload agent is registered for the readiness identity' };
+      }
     }
     const unsupported = [
       prerequisites?.a2aCredentials && 'A2A credentials',

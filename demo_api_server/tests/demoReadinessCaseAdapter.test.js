@@ -212,14 +212,38 @@ test('an Authorize-backed step still fails when the Authorize decision is missin
   expect(validate(result).join(' ; ')).toMatch(/Authorize evidence is required/);
 });
 
-test.each(['UC38', 'UC44'])('workload-agent step %s is blocked, not run: the readiness identity has no agent', async (id) => {
-  const request = jest.fn();
-  const operations = createCaseOperations({ request, provider: PROVIDER, expectedIssuer: ISSUER });
+const workloadPrerequisites = (id, request) => {
   const row = buildDemoReadinessCatalog().find((item) => item.id === id);
-  const result = await operations.verifyPrerequisites({ caseRow: row, vertical: VERTICAL, prerequisites: row.runtimePrerequisitesByVertical[VERTICAL] });
-  expect(result.status).toBe('blocked');
-  expect(result.reason).toMatch(/workload agent/);
+  return createCaseOperations({ request, provider: PROVIDER, expectedIssuer: ISSUER })
+    .verifyPrerequisites({ caseRow: row, vertical: VERTICAL, prerequisites: row.runtimePrerequisitesByVertical[VERTICAL] });
+};
+
+test('UC38 is blocked without touching the BFF: it needs MFA step-up', async () => {
+  const request = jest.fn();
+  const result = await workloadPrerequisites('UC38', request);
+  expect(result).toEqual({ status: 'blocked', reason: expect.stringMatching(/MFA/) });
   expect(request).not.toHaveBeenCalled();
+});
+
+test('UC44 is blocked until a workload agent is registered, then runs', async () => {
+  const flags = buildDemoReadinessCatalog().find((item) => item.id === 'UC44').runtimePrerequisitesByVertical[VERTICAL].requiredFlags;
+  const lane = (agent) => jest.fn(async (path) => (path === '/api/agent-builder/state'
+    ? { status: 200, body: { agent } }
+    : { status: 200, body: { success: true, flags } }));
+  expect(await workloadPrerequisites('UC44', lane(null))).toEqual({ status: 'blocked', reason: expect.stringMatching(/no workload agent/) });
+  expect(await workloadPrerequisites('UC44', lane({ id: 'agent-app' }))).toEqual({ status: 'pass' });
+});
+
+test('exchange hops report each token\'s own act chain, so a missing act fails an actor-bound step', () => {
+  const { authorization: contract } = rowFor('UC44');
+  const response = invokeResponse({ tool: contract.primaryTool });
+  const run = () => evidenceFromAgentInvoke({ response, provider: PROVIDER, expectedIssuer: ISSUER, authorization: contract });
+  expect(validateRow('UC44', run(), 'PERMIT').join(' ; ')).toMatch(/actor-bound exchanges/);
+  response.tokenEvents.unshift({ id: 'personal-agent-lookup', status: 'active' });
+  response.tokenEvents[3].claims.act = { sub: 'agent-1' };
+  response.tokenEvents[4].claims.act = { sub: 'agent-1' };
+  expect(run().evidence.exchangeHops).toEqual([{ subject: 'user-1', actorChain: ['user-1', 'agent-1'] }, { subject: 'user-1', actorChain: ['user-1', 'agent-1'] }]);
+  expect(validateRow('UC44', run(), 'PERMIT')).toEqual([]);
 });
 
 test('a CIBA step is blocked, not run: it needs an approval on a device', async () => {
