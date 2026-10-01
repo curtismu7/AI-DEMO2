@@ -1910,6 +1910,50 @@ way `accounts.js`'s `GET /` was — mechanical, one file at a time, verified per
 file against `openapiFromRoutes.test.js`'s existing pattern of asserting the
 generated `security` field for a specific path.
 
+**PARTLY RESOLVED 2026-10-01 — branch `worktree-agent-ac2203070665e6dd5`.**
+Stays unchecked: three `transactions.js` sites are plain admin gates and remain
+inline, for a reason the entry above did not know about.
+
+Converted (inline check was the handler's first statement; the non-admin status
+and body are unchanged and now pinned by route tests; each path's generated
+`security` is asserted `admin` in `openapiFromRoutes.test.js`):
+
+- `accounts.js` — `GET /:id`, `POST /`, `PUT /:id`, `DELETE /:id` onto the
+  existing `requireAdminRole`; `POST /reset-all-demo` onto a new
+  `requireAdminRoleForReset`, because its body is `Admin role required.` rather
+  than `Access denied. Admin role required.`
+- `authorize.js` — `policy-readiness`, `decision-endpoints`,
+  `simulated-recent-decisions`, `evaluation-status`,
+  `bootstrap-demo-endpoints` onto `requireAuthorizeAdmin` (reads `req.user?.role`).
+- `mfa.js` — `GET` and `POST /ensure-fido2-rp` onto `requireMfaAdminSession`
+  (reads `req.session.user?.role`, as before).
+- `conversations.js` — `GET /admin/queue-stats` onto `requireQueueStatsAdmin`.
+
+Still inline, and why:
+
+- `transactions.js` `GET /`, `PUT /:id`, `DELETE /:id` — straight admin gates,
+  safe to extract at runtime, but **the generator computes `security` per path,
+  not per method**: `express-list-endpoints` merges a path's middleware across
+  verbs (this is why `POST /api/accounts` already read `admin` before it had a
+  guard of its own). Naming these would document `POST /api/transactions`
+  (customers create transactions) and `GET /api/transactions/:id`
+  (owner-or-admin) as admin-only — wrong docs in place of understated docs.
+  Needs a per-method route walk in `lib/openapiFromRoutes.js` first; a test now
+  pins those two operations at `session` so the trap is visible.
+- `transactions.js` `GET /my`, `POST /consent-challenge`, `POST /` (two sites)
+  and `users.js` `PUT /:userId` — not gates. The role test picks a branch
+  (snapshot re-hydrate, own-account validation, stripping `role`/`isActive`),
+  it rejects nobody.
+- `accounts.js` `GET /:id/balance`, `transactions.js` `GET /:id` —
+  ownership-or-admin, decided after the record is loaded.
+- `selfServiceUsers.js` `DELETE /:userId`, `GET /` — the role check follows a
+  401 authentication check and throws an `OAuthError` into the handler's own
+  catch rather than responding; `POST /` only gates when the body asks for
+  `role: 'admin'`.
+- `groupMembership.js`, `lighthouseRoute.js`, `verticalManifest.js` — nothing
+  to do. Each grep hit is already the body of a named route-level
+  `requireAdmin`, and their admin routes already generate `admin`.
+
 ### [x] 2026-09-05 — Landing hero CTAs still graze the fixed FAB/Demo Script on ~830-950px-tall phones
 
 `LandingPage.js`'s hero CTA row (Admin/Customer Dashboard, Use Cases, Setup)
