@@ -3284,6 +3284,73 @@ hostile-content scenario behavior, and denial evidence semantics independent.
 **Verify:** Focused Privilege panel/theme Vitest tests, `npm run build`, and a
 live Playwright computed-style check in both page themes.
 
+### 2026-09-20 — Use-case login challenges no longer clear valid sessions
+
+**Files changed:** `demo_api_ui/src/utils/authUi.js` and
+`demo_api_ui/src/utils/__tests__/authUi.test.js`.
+
+**What was broken:** UC7/UC8 returned a typed `requiresLogin` response. The
+global 401 handler treated that access-level challenge as an expired session,
+cleared the current React session, and then sent the user into the PingOne
+login flow without the original session state.
+
+**What was fixed:** Typed use-case challenges carrying `useCaseId` and
+`requiredAuth` remain inline login prompts. Genuine expired-session responses
+still invalidate the session and show re-authentication.
+
+**Do not break:** Keep the distinction between an access-level mismatch and an
+expired token; preserve admin/customer login routing and the existing OAuth
+session cookie.
+
+**Verify:** `authUi` Vitest, use-case login-prompt Vitest, and the UI build.
+
+### 2026-09-20 — Top-menu session countdown restored
+
+**Files changed:** `demo_api_ui/src/services/sessionResolver.js`,
+`demo_api_ui/src/services/__tests__/sessionResolver.test.js`,
+`demo_api_server/routes/auth.js`, and
+`demo_api_server/src/__tests__/authSession.test.js`.
+
+**What was broken:** The global TopNav countdown only read expiry from the two
+OAuth status endpoints. Sessions resolved through the generic auth endpoint
+therefore appeared signed in but had no remaining-time value to display.
+
+**What was fixed:** The generic session response now includes the effective
+OAuth or session-cookie expiry, and the shared resolver uses it as a fallback
+after the OAuth-specific status endpoints.
+
+**Do not break:** OAuth-specific expiry and silent refresh precedence remain
+unchanged; the generic endpoint still exposes no access token or cookie value.
+
+**Verify:** Session resolver Vitest and BFF auth-session Jest suites, plus the
+UI build.
+
+### 2026-09-20 — Movie reel selection and local session persistence
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/__tests__/FocusModeFilmstripGuard.test.js`,
+`demo_api_server/server.js`, `demo_api_server/tests/sessionBootPersistence.test.js`,
+and the session-operation documentation/check comment updates.
+
+**What was broken:** Choosing Movie reel from the evidence-view picker never
+enabled it when it was off because an unreachable duplicate `movie-reel` branch
+contained the activation call. Separately, the BFF cleared every LMDB session
+on startup unless an opt-out variable was set, so ordinary local restarts made
+the browser log in again.
+
+**What was fixed:** The reachable Movie reel branch now restores its embedded
+surface when selected. Session-store wiping is now an explicit
+`CLEAR_SESSIONS_ON_BOOT=true` operation; normal restarts preserve the session
+cookie and LMDB session.
+
+**Do not break:** Keep the Movie reel surface choices (`none`, `embedded`,
+`popout`, `both`) and explicit off preference behavior. Keep deliberate boot
+session clearing available for incident response and clean demo runs. Do not
+change browser token custody or OAuth redirect origins.
+
+**Verify:** Focused Filmstrip Guard Vitest, session boot persistence Jest, full
+UI unit suite, and `npm run build`.
+
 ### 2026-09-20 — Guided Journey restart invalidates pending lesson evidence
 
 **Files changed:** `demo_api_ui/src/pages/GuidedJourneyPage.jsx` and

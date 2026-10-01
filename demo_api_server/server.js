@@ -112,11 +112,11 @@ try {
     console.warn('[session-store] sessionConfig shim unavailable:', sessionConfigErr.message);
 }
 
-// Demo: force a fresh token after every restart. LMDB persists sessions (and the
-// stored access token) on disk, so without this a user keeps their pre-restart
-// token. Wiping sessions on boot makes the next request re-authenticate (silently
-// via PingOne SSO) and mint a brand-new token. Opt out with CLEAR_SESSIONS_ON_BOOT=false.
-if (sessionStore && typeof sessionStore.clear === 'function' && process.env.NODE_ENV !== 'test' && process.env.CLEAR_SESSIONS_ON_BOOT !== 'false') {
+// Demo: optionally force a fresh token after every restart. LMDB persists sessions
+// (and the stored access token) on disk, so normal restarts preserve the browser's
+// session cookie. Set CLEAR_SESSIONS_ON_BOOT=true for an intentional fresh-login
+// reset, such as token-compromise response or a deliberately clean demo run.
+if (sessionStore && typeof sessionStore.clear === 'function' && process.env.NODE_ENV !== 'test' && process.env.CLEAR_SESSIONS_ON_BOOT === 'true') {
     sessionStore.clear((clearErr) => {
         if (clearErr) console.warn('[session-store] boot clear failed:', clearErr.message);
         else console.log('[session-store] Cleared all persisted sessions on boot (CLEAR_SESSIONS_ON_BOOT) — users get a fresh token on next request');

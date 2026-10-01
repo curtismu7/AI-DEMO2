@@ -484,10 +484,11 @@ describe("App — regular page load does not retry", () => {
     const authCalls = axios.get.mock.calls
       .map((c) => c[0])
       .filter((u) => u.startsWith("/api/auth"));
-    // 3 calls = one round-trip from checkOAuthSession; if retry fired we'd see 6+.
+    // 3 calls = one round-trip from checkOAuthSession, plus 3 from resolveSessionExpiry
+    // (admin, user, generic session). If retry fired we'd see 9+.
     // A small number of extra /api/auth calls from other mounted (non-mocked) components
-    // is acceptable — the key invariant is "far fewer than 6".
-    expect(authCalls.length).toBeLessThan(6);
+    // is acceptable — the key invariant is "far fewer than 9".
+    expect(authCalls.length).toBeLessThan(7);
   });
 });
 
@@ -620,11 +621,12 @@ describe("App — userLoggedOut localStorage flag skips check", () => {
     );
 
     // Auth endpoints should NOT have been called by checkOAuthSession (logout path skips it).
-    // A single incidental /api/auth call from a mounted non-mocked component is allowed;
-    // the critical invariant is that checkOAuthSession's 3-endpoint round was NOT triggered.
+    // resolveSessionExpiry's own 3 probes (admin, user, generic session) are allowed;
+    // the critical invariant is that checkOAuthSession's 3-endpoint round was NOT triggered
+    // on top of them (that would make 6).
     const authCalls = axios.get.mock.calls
       .map((c) => c[0])
       .filter((u) => u.startsWith("/api/auth"));
-    expect(authCalls.length).toBeLessThan(3);
+    expect(authCalls.length).toBeLessThan(4);
   });
 });

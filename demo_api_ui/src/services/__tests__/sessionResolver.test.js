@@ -28,6 +28,22 @@ describe('resolveSessionUser timer cleanup', () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
+  it('uses the generic authenticated session expiry when OAuth status has no expiry', async () => {
+    const expiresAt = Date.now() + 60 * 60 * 1000;
+    getCachedJson.mockImplementation((url) => {
+      if (url === '/api/auth/session') {
+        return Promise.resolve({ data: { authenticated: true, authType: 'user', expiresAt } });
+      }
+      return Promise.resolve({ data: { authenticated: false } });
+    });
+
+    await expect(resolveSessionExpiry()).resolves.toEqual({
+      expiresAt,
+      sessionType: 'user',
+      staleSession: false,
+    });
+  });
+
   it('returns a confirmed customer while an unrelated status request hangs', async () => {
     const customer = { id: 'customer-1', role: 'customer' };
     getCachedJson.mockImplementation((url) => {

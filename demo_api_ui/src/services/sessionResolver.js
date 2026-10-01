@@ -58,10 +58,20 @@ export async function resolveSessionExpiry() {
   try {
     return await new Promise((resolve) => {
       const results = {};
-      let pending = 2;
+      let pending = 3;
       const finish = () => {
+        // The generic session endpoint also covers local sessions and cookie-backed
+        // auth paths that do not report through either OAuth status endpoint.
+        const genericData = results.generic;
+        if (genericData?.authenticated && genericData.expiresAt) {
+          const sessionType = genericData.authType === 'admin' || genericData.user?.role === 'admin'
+            ? 'admin'
+            : 'user';
+          resolve({ expiresAt: genericData.expiresAt, sessionType, staleSession: false });
+          return;
+        }
         // No active access token — retain the refresh-token signal for a
-        // still-live login session after both probes settle or time out.
+        // still-live login session after all probes settle or time out.
         const staleData = results.admin?.staleSession ? results.admin
           : results.user?.staleSession ? results.user : null;
         resolve(staleData ? {
@@ -76,11 +86,13 @@ export async function resolveSessionExpiry() {
       for (const [url, type] of [
         ['/api/auth/oauth/status', 'admin'],
         ['/api/auth/oauth/user/status', 'user'],
+        ['/api/auth/session', 'generic'],
       ]) {
         Promise.resolve().then(() => getCachedJson(url))
           .then(({ data }) => {
             results[type] = data;
-            if (data?.authenticated && data.expiresAt) {
+            // OAuth status wins as soon as it reports; generic is only a fallback.
+            if (type !== 'generic' && data?.authenticated && data.expiresAt) {
               resolve({
                 expiresAt: data.expiresAt,
                 sessionType: data.sessionType || type,

@@ -146,8 +146,8 @@ if (fs.existsSync(path.join(ROOT, '.mcp.json'))) {
 }
 
 // ── Check 7: sessions survive restarts in every deploy path ──
-// The BFF wipes all persisted sessions on boot unless CLEAR_SESSIONS_ON_BOOT
-// is "false" (server.js). A pod restart/redeploy or compose recreate is a
+// The BFF wipes all persisted sessions on boot only when CLEAR_SESSIONS_ON_BOOT
+// is "true" (server.js). A pod restart/redeploy or compose recreate is a
 // "boot", so an unset/true value logs out every user on each rollout. Pin
 // "false" in both deploy surfaces.
 for (const [file, label] of [['docker-compose.yml', 'docker'], ['k8s/02-configmap.yaml', 'k8s']]) {

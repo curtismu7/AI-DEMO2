@@ -76,6 +76,15 @@ describe("Focus Mode filmstrip guard", () => {
     expect(aiAgent).toMatch(/saved === null \? true : saved === "1"/);
   });
 
+  test("choosing Movie reel activates it when it was previously off", () => {
+    const chooseEvidenceView = aiAgent.match(
+      /const chooseEvidenceView = useCallback\(\(view\) => \{[\s\S]*?\n  \}, \[chooseMovieReelSurface,/,
+    )?.[0];
+    expect(chooseEvidenceView).toMatch(
+      /if \(view === "movie-reel"\)[\s\S]*chooseMovieReelSurface\(movieReelSurface === "none" \? "embedded" : movieReelSurface\)/,
+    );
+  });
+
   test("an explicit Movie reel off preference remains off after reload", () => {
     expect(aiAgent).not.toMatch(/removeItem\(\s*["']ba_show_filmstrip["']\s*\)/);
   });
