@@ -29,25 +29,25 @@ function deriveGates(events) {
   const ids = new Set(events.map((e) => e.id));
   const statuses = Object.fromEntries(events.map((e) => [e.id, e.status]));
 
-  // Gate 0 — MFA
-  if (events.some((e) => (e.id === 'personal-agent-lookup' || e.id === 'mfa') && (e.status === 'success' || e.status === 'valid'))) {
-    gates[0].status = 'permit';
-  }
-  // Gate 1 — Gateway
+  // Status words are the ones the BFF actually sends: the agent lookup is
+  // `active`, gateway introspection is `valid`, the Authorize verdict is
+  // `permit` or `deny`.
+  const ok = (status) => ['success', 'valid', 'active', 'permit'].includes(status);
+
+  // Gate 0 — MFA. The BFF only looks the agent up after the MFA check passes.
+  if (ok(statuses['personal-agent-lookup']) || ok(statuses.mfa)) gates[0].status = 'permit';
+
+  // Gate 1 — Gateway token validation (introspection).
   if (ids.has('mcp-tool-invoked')) gates[1].status = 'checking';
-  if (ids.has('gw-introspection') || ids.has('gw-authorize')) {
-    const azStatus = statuses['gw-authorize'];
-    const intrStatus = statuses['gw-introspection'];
-    if (azStatus === 'deny') {
-      gates[1].status = 'deny';
-    } else if (azStatus === 'permit' || azStatus === 'active' || intrStatus === 'permit' || intrStatus === 'active') {
-      gates[1].status = 'permit';
-    }
+  if (ids.has('gw-introspection')) gates[1].status = ok(statuses['gw-introspection']) ? 'permit' : 'deny';
+
+  // Gate 2 — PingOne Authorize. A verdict that is neither permit nor deny is a
+  // held call (step-up or human approval), shown as still checking.
+  if (ids.has('gw-authorize')) {
+    const verdict = statuses['gw-authorize'];
+    gates[2].status = verdict === 'permit' ? 'permit' : verdict === 'deny' ? 'deny' : 'checking';
   }
-  // Gate 2 — Authz / result
-  if (ids.has('resource-server-reply') || ids.has('mcp-tool-result')) {
-    gates[2].status = 'permit';
-  }
+  if (ids.has('resource-server-reply') || ids.has('mcp-tool-result')) gates[2].status = 'permit';
   return gates;
 }
 
