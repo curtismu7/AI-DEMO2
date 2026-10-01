@@ -39,6 +39,7 @@ const AUTH_MIDDLEWARE = {
     requireAdminRole: 'admin',
     requireAdminRoleForReset: 'admin',
     requireAuthorizeAdmin: 'admin',
+    requireMfaAdminSession: 'admin',
 };
 
 const SECURITY_SCHEMES = {

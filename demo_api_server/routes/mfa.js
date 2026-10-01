@@ -574,12 +574,20 @@ router.post('/enroll/fido2-complete', authenticateToken, async (req, res) => {
 });
 
 
-// GET /api/auth/mfa/ensure-fido2-rp — dry-run: show the env's FIDO2 policies and
-// whether their relying-party id matches this origin (diagnostic; admin only).
-router.get('/ensure-fido2-rp', authenticateToken, async (req, res) => {
+// Named (not inline) so lib/openapiFromRoutes.js can see it via AUTH_MIDDLEWARE
+// and document these routes as admin-gated. Reads the SESSION user, as the
+// inline check did. async so a throw stays a rejected promise, exactly as it
+// was inside the async handlers.
+async function requireMfaAdminSession(req, res, next) {
   if (req.session.user?.role !== 'admin') {
     return res.status(403).json({ error: 'admin_required', message: 'Admin session required.' });
   }
+  next();
+}
+
+// GET /api/auth/mfa/ensure-fido2-rp — dry-run: show the env's FIDO2 policies and
+// whether their relying-party id matches this origin (diagnostic; admin only).
+router.get('/ensure-fido2-rp', authenticateToken, requireMfaAdminSession, async (req, res) => {
   try {
     const rpId = resolveFido2RpId();
     const result = await mfaService.ensureFido2RelyingParty(rpId, { dryRun: true });
@@ -591,10 +599,7 @@ router.get('/ensure-fido2-rp', authenticateToken, async (req, res) => {
 
 // POST /api/auth/mfa/ensure-fido2-rp — apply: set the FIDO2 policy relying-party
 // id to this origin so passkey registration works (admin only).
-router.post('/ensure-fido2-rp', authenticateToken, async (req, res) => {
-  if (req.session.user?.role !== 'admin') {
-    return res.status(403).json({ error: 'admin_required', message: 'Admin session required.' });
-  }
+router.post('/ensure-fido2-rp', authenticateToken, requireMfaAdminSession, async (req, res) => {
   try {
     const rpId = req.body?.rpId || resolveFido2RpId();
     const result = await mfaService.ensureFido2RelyingParty(rpId);
