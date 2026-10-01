@@ -96,6 +96,19 @@ const FLAG_REGISTRY = [
     docsUrl:      'https://developer.pingidentity.com/pingone-api/authorize/authorization-decisions/decision-evaluation/execute-a-bulk-decision-request.html',
   },
 
+  // ── PingOne Verify ─────────────────────────────────────────────────────────
+  {
+    id:           'pingone_verify_enabled',
+    name:         'PingOne Verify identity proofing',
+    category:     'PingOne Verify',
+    description:  'Enable the authenticated customer identity-proofing handoff to PingOne Verify. Requires a Verify policy, worker permissions, a canonical app origin, and direct PingOne user UUID identities.',
+    impact:       'OFF (default) = the Verify endpoints and profile card stay unavailable. ON = eligible customers can start Verify and resume by checking the provider transaction status.',
+    type:         'boolean',
+    defaultValue: false,
+    warnIfEnabled: true,
+    docsUrl:      'https://developer.pingidentity.com/pingone-api/verify/introduction.html',
+  },
+
   // ── Step-Up Auth ───────────────────────────────────────────────────────────
   {
     id:           'step_up_enabled',
@@ -145,14 +158,14 @@ const FLAG_REGISTRY = [
       '**onetime** (default) — PingOne sends the OTP directly to the user\'s registered email or phone; no device enrollment required. ' +
       '**device_picker** — full PingOne MFA with device selection (requires enrolled devices + MFA policy). ' +
       '**homegrown** — BFF-generated OTP delivered via the app\'s own email service (no PingOne MFA). ' +
-      '**recognize** — PingOne Recognize biometric / device-intelligence verification (requires RECOGNIZE_API_KEY + RECOGNIZE_TENANT_NAME on the Feature Flags page).',
+      '**recognize** — retired pending the confirmed Web SDK backend result-validation contract; selecting a previously saved value falls back to PingOne one-time OTP.',
     impact:
       'onetime (default) = PingOne one-time OTP, works for any user with an email or phone on record. ' +
       'device_picker = enrolled-device flow with amount step-up threshold (confirm_stepup_threshold_usd). ' +
       'homegrown = legacy BFF email OTP. ' +
-      'recognize = PingOne Recognize biometric challenge; set credentials in the Recognize Configuration section below.',
+      'recognize = not selectable until the direct Web SDK integration and tenant result-validation contract are confirmed; a legacy saved value uses PingOne one-time OTP.',
     type:         'enum',
-    options:      ['onetime', 'device_picker', 'homegrown', 'recognize'],
+    options:      ['onetime', 'device_picker', 'homegrown'],
     defaultValue: 'onetime',
   },
 
@@ -1055,6 +1068,10 @@ function resolveFlag(flag) {
   }
   const raw = configStore.getEffective(flag.id);
   if (raw === null || raw === undefined) return flag.defaultValue;
+  // Legacy deployments may still have this value stored. The old guessed
+  // Recognize protocol is disabled; its runtime path falls back to PingOne OTP,
+  // so report the effective customer experience rather than a dead option.
+  if (flag.id === 'hitl_consent_mfa_mode' && raw === 'recognize') return 'onetime';
   // Enum flags: treat empty-string as unset. configStore lowercases keys, so
   // camelCase FIELD_DEFS defaults (e.g. introspectionProvider) are unreachable
   // and getEffective returns '' on a fresh store — fall back to the registry
@@ -1079,6 +1096,7 @@ const PINNED_ENV_ALIASES = {
   ff_heuristic_enabled:       'FF_HEURISTIC_ENABLED',
   ff_helix_lmstudio_fallback: 'FF_HELIX_LMSTUDIO_FALLBACK',
   ciba_enabled:               'CIBA_ENABLED',
+  pingone_verify_enabled:     'PINGONE_VERIFY_ENABLED',
 };
 
 /** Serialize a flag + its current value for the API response. */
