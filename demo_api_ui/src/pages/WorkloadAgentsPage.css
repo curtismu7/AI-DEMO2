@@ -29,4 +29,7 @@
 .workload-agents__run { display: grid; gap: 12px; padding: 24px; background: var(--th-bg-card); color: var(--th-text); }
 .workload-agents__run h3, .workload-agents__run p { margin: 0; }
 .workload-agents__run p { color: var(--th-text-body); }
+.workload-agents__run button { justify-self: start; }
+.workload-agents__status { padding: 12px 16px; border: 1px solid var(--th-border); border-radius: var(--radius-md); font-weight: 600; }
+.workload-agents__chain { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "chain" "spotlight"; min-width: 0; border: 1px solid var(--th-border); border-radius: var(--radius-md); overflow: hidden; }
 @media (max-width: 800px) { .workload-agents h1 { font-size: var(--font-size-3xl); } .workload-agents__intro { align-items: stretch; flex-direction: column; } .workload-agents__choices { grid-template-columns: 1fr; } .workload-agents__execution-head { flex-direction: column; } }

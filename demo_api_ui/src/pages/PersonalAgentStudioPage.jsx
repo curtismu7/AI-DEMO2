@@ -133,15 +133,20 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
       if (!response.ok) throw new Error(data.message || data.error || `Request failed (${response.status})`);
       return data;
     }).then((data) => {
-      if (isCurrentRun()) setRunState({ status: 'complete', text: data.reply || 'The workload agent completed the request.' });
+      if (!isCurrentRun()) return;
+      // The BFF answers 200 with step_up_required when the sign-in had no MFA.
+      if (data.step_up_required) setRunState({ status: 'step-up', text: data.reply || 'Complete multi-factor authentication to continue.' });
+      else setRunState({ status: 'complete', text: data.reply || 'The workload agent completed the request.' });
     }).catch((error) => {
       if (isCurrentRun()) setRunState({ status: 'error', text: error.message || 'The workload agent could not complete the request.' });
     });
   }, [vertical, setTokenEvents]);
 
   useEffect(() => {
-    if (runNonce > 0 && scenario) executeWorkload(scenario);
-  }, [runNonce, scenario, executeWorkload]);
+    // stepup=done is what the BFF's step-up route appends on the way back.
+    if (scenario && (runNonce > 0 || query.get('stepup') === 'done')) executeWorkload(scenario);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- query is derived from location.search
+  }, [runNonce, scenario, executeWorkload, location.search]);
 
   const handleSend = useCallback((text) => {
     setMessages((prev) => [...prev, { role: 'user', text }]);
@@ -216,9 +221,13 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
       <p>Action: <strong>{workloadScenario.primaryTool}</strong> · Prompt: <strong>{workloadScenario.runPrompt}</strong></p>
       <button type="button" disabled={runState.status === 'running'} onClick={() => executeWorkload(workloadScenario)}>Run {workloadScenario.id} action</button>
       <button type="button" onClick={() => window.open(`/personal-agent/client?skin=${activeSkin}&theme=${theme}&useCase=${workloadScenario.id}&vertical=${encodeURIComponent(vertical)}`, '_blank', 'width=480,height=700,left=200,top=100,resizable=yes')}>🪟 Open client window</button>
-      <p role="status">{runState.status === 'running' ? 'Running the selected action…' : runState.text || 'Ready to run the selected catalog action.'}</p>
+      <p role="status" className="workload-agents__status">{runState.status === 'running' ? 'Running the selected action…' : runState.text || 'Ready to run the selected catalog action.'}</p>
+      {runState.status === 'step-up' && (
+        <button type="button" onClick={() => window.location.assign(`/api/auth/oauth/user/stepup?return_to=${encodeURIComponent(`${location.pathname}${location.search}`)}`)}>Verify with MFA and run again</button>
+      )}
       <SecurityRail gates={workloadGates} actClaim={actClaim} tokenEvents={events} />
-      <TokenChainFilmstrip />
+      {/* The filmstrip's two halves place themselves by grid-area name. */}
+      <div className="workload-agents__chain"><TokenChainFilmstrip /></div>
     </div>
   );
 
