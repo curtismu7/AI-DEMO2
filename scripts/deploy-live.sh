@@ -185,7 +185,6 @@ add_restart() {
 add_build()   { [ -z "${CURRENT_SERVICE:-}" ] || [ "$1" = "$CURRENT_SERVICE" ] || return 0; case " $BUILD_SET "   in *" $1 "*) ;; *) BUILD_SET="$BUILD_SET $1"   ;; esac; }
 note()        { NOTES="${NOTES}[deploy-live] note: $1"$'\n'; }
 
-MANUAL_FILE="$(mktemp)"
 UNINITIALIZED_FILE="$(mktemp)"
 SERVICES_TO_STAMP=""
 for CURRENT_SERVICE in $SERVICE_CANDIDATES; do
@@ -278,8 +277,10 @@ while IFS= read -r f; do
     monitoring/grafana/dashboards/*)
       : ;; # self-polled every 30s — see the block comment above
     # ── needs a human decision ───────────────────────────────────────────────
+    # Note only — never withhold the stamp for this. The diff is repo-wide, so
+    # doing that marked EVERY service, nothing was stamped, and the next run
+    # saw the same compose change again: a permanent full-backlog redeploy.
     docker-compose.yml|docker-compose.*.yml)
-      echo "$CURRENT_SERVICE" >> "$MANUAL_FILE"
       note "compose file changed ($f) — decide the blast radius yourself (./run-docker.sh restart <svc> or full restart)" ;;
     *) : ;; # docs, tests, host-only scripts, snapshots — nothing to deploy
   esac
@@ -347,7 +348,7 @@ all_containers="$(docker ps -a --format '{{.Names}}' 2>/dev/null || true)"
 BROKEN_FILE="$(mktemp)"
 SKIP_NOTES_FILE="$(mktemp)"
 UNAVAILABLE_FILE="$(mktemp)"
-trap 'rm -rf "$LOCK" "$BROKEN_FILE" "$SKIP_NOTES_FILE" "$UNAVAILABLE_FILE" "$MANUAL_FILE" "$UNINITIALIZED_FILE"' EXIT
+trap 'rm -rf "$LOCK" "$BROKEN_FILE" "$SKIP_NOTES_FILE" "$UNAVAILABLE_FILE" "$UNINITIALIZED_FILE"' EXIT
 
 filter_running() {
   local out="" svc name
@@ -380,7 +381,6 @@ done
 [ -n "$NOTES" ] && printf '%s' "$NOTES"
 [ -s "$SKIP_NOTES_FILE" ] && cat "$SKIP_NOTES_FILE"
 BROKEN_SET="$(sort -u "$BROKEN_FILE" 2>/dev/null | tr '\n' ' ' | sed 's/ *$//')"
-MANUAL_SET="$(sort -u "$MANUAL_FILE" 2>/dev/null | tr '\n' ' ' | sed 's/ *$//')"
 UNAVAILABLE_SET="$(sort -u "$UNAVAILABLE_FILE" 2>/dev/null | tr '\n' ' ' | sed 's/ *$//')"
 UNINITIALIZED_SET="$(sort -u "$UNINITIALIZED_FILE" 2>/dev/null | tr '\n' ' ' | sed 's/ *$//')"
 NOT_UP=""
@@ -389,14 +389,14 @@ stamp_successful_services() {
   local svc
   [ "$DRY_RUN" = "1" ] && return 0
   for svc in $SERVICES_TO_STAMP; do
-    case " $BROKEN_SET $MANUAL_SET $UNAVAILABLE_SET $UNINITIALIZED_SET $NOT_UP " in
+    case " $BROKEN_SET $UNAVAILABLE_SET $UNINITIALIZED_SET $NOT_UP " in
       *" $svc "*) continue ;;
     esac
     deploy_live_write_service_stamp "$STATE_ROOT" "$svc" "$NEW"
   done
   # Keep the legacy marker useful for older checkouts and as the migration
   # fallback, but never let a targeted deployment claim the whole stack.
-  if [ "$TARGET_MODE" = "0" ] && [ -z "${BROKEN_SET// /}" ] && [ -z "${MANUAL_SET// /}" ] && [ -z "${UNAVAILABLE_SET// /}" ] && [ -z "${UNINITIALIZED_SET// /}" ] && [ -z "${NOT_UP// /}" ]; then
+  if [ "$TARGET_MODE" = "0" ] && [ -z "${BROKEN_SET// /}" ] && [ -z "${UNAVAILABLE_SET// /}" ] && [ -z "${UNINITIALIZED_SET// /}" ] && [ -z "${NOT_UP// /}" ]; then
     printf '%s\n' "$NEW" > "$STAMP"
   fi
 }
@@ -407,7 +407,7 @@ if [ -z "${RESTART_SET// /}" ] && [ -z "${BUILD_SET// /}" ]; then
   # would record those changes as deployed and every later run would skip them —
   # the stale-under-a-success-line failure this script exists to end.
   if [ -n "${BROKEN_SET// /}" ]; then
-    echo "[deploy-live] NOT stamping:${BROKEN_SET:+ $BROKEN_SET changed but is not running.}${MANUAL_SET:+ $MANUAL_SET requires manual recreation.}"
+    echo "[deploy-live] NOT stamping:${BROKEN_SET:+ $BROKEN_SET changed but is not running.}"
     echo "[deploy-live] Start it, then re-run — until then this range is undeployed:"
     [ -n "${BROKEN_SET// /}" ] && echo "[deploy-live]   ./run-docker.sh restart $BROKEN_SET"
     exit 1

@@ -154,6 +154,24 @@ else
   bad "a no-op deployment exited non-zero"
 fi
 
+# A compose-file change in the range must not withhold the stamp. It did once:
+# every service was marked "manual", nothing was stamped, the next run diffed
+# from the same old commit and saw the same compose change — so every deploy
+# from 2026-09-29 on redid the whole backlog while printing "done".
+printf 'services: {}\n' > "$fixture/docker-compose.yml"
+printf 'bff2\n' > "$fixture/demo_api_server/server.js"
+git -C "$fixture" add .
+git -C "$fixture" commit -qm "compose and bff"
+compose_sha="$(git -C "$fixture" rev-parse HEAD)"
+compose_output="$(cd "$fixture" && PATH="$fixture:$PATH" bash scripts/deploy-live.sh --services=demo-api-server 2>&1)"
+[ "$(cat "$fixture/.git/deploy-live/services/demo-api-server.sha")" = "$compose_sha" ] \
+  && ok "a compose-file change in the range still advances the service stamp" \
+  || bad "a compose-file change in the range withheld the service stamp"
+case "$compose_output" in
+  *"compose file changed (docker-compose.yml)"*) ok "the compose-file change is still reported" ;;
+  *) bad "the compose-file change was not reported" ;;
+esac
+
 echo
 [ "$fails" -eq 0 ] && { echo "all checks passed"; exit 0; }
 echo "$fails check(s) failed"; exit 1
