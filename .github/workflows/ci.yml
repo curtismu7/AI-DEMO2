@@ -231,10 +231,13 @@ jobs:
         # The persistent runner can inherit local gateway aliases; unit tests
         # configure their own endpoints and must not be redirected to live URLs.
         run: |
-          env -u MCP_GATEWAY_HTTP_URL \
+          env -u BFF_BASE_URL \
+            -u MCP_GATEWAY_HTTP_URL \
             -u MCP_PINGGATEWAY_URL \
             -u MCP_DEMO_GATEWAY_URL \
+            -u MCP_PRIVILEGE_GATEWAY_URL \
             -u PINGGATEWAY_URL \
+            ATTACK_SIM_REAL_API=false \
             npm test --prefix demo_api_server
 
   ui-tests:

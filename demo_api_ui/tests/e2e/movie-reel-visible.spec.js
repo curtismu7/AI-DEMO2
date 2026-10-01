@@ -48,7 +48,34 @@ const PLACEMENTS = ['middle', 'none'];
  * matches routes newest-first — without editing a helper five other specs use.
  */
 async function mockDashboardWithReel(page, placement, { clinicalSplit = false } = {}) {
+  // The Vite server has no BFF behind it in CI. Fail unmocked API calls fast
+  // instead of letting its proxy hit whatever happens to listen on localhost:3001.
+  // The specific mocks below are registered later and take precedence.
+  await page.route('**/api/**', (route) =>
+    route.fulfill({
+      status: 404,
+      contentType: 'application/json',
+      body: JSON.stringify({ error: 'not mocked' }),
+    }),
+  );
   await mockCustomerDashboard(page);
+  await page.route('**/api/verticals/me', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        activeId: 'banking',
+        pageManifest: {
+          id: 'banking',
+          identity: { displayName: 'Banking', documentTitle: 'Banking' },
+          theme: { cssVars: {} },
+        },
+        pageMockData: {},
+        adminManifest: null,
+        isAdmin: false,
+      }),
+    }),
+  );
   await page.route('**/api/admin/feature-flags**', (route) =>
     route.fulfill({
       status: 200,

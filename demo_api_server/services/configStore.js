@@ -1670,6 +1670,14 @@ class ConfigStore {
     return envVal;
   }
 
+  /** Read a non-empty value only when the vault owns its cached provenance. */
+  getVaultValue(name) {
+    const key = String(name).toUpperCase();
+    if (this._provenance[key] !== 'vault') return null;
+    const value = this._cache[key];
+    return typeof value === 'string' && value.trim() !== '' ? value : null;
+  }
+
   /**
    * Persist new configuration values.
    * Accepts partial updates — only sets keys that are provided and non-empty.
