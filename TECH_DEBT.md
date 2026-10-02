@@ -291,7 +291,9 @@ does not exist yet.
 check that fails loudly when it is missing), and add a new deployment origin to
 the list when one appears.
 
-### [ ] 2026-09-13 — Raw PingGateway log window is open to any signed-in user
+### [wontfix] 2026-09-13 — Raw PingGateway log window is open to any signed-in user
+
+**ACCEPTED / WON'T FIX 2026-10-01 (owner decision).** The log window stays open to any signed-in user: two panels on public pages (`AgentGatewayLogPanel`, the Agentic Access Console's Security section) read it, and an admin guard would take the window away from a signed-in customer, who is the usual demo persona. The contradicting header in `services/agentGatewayLogs.js` ("logs are admin-only") was corrected in the same commit; the route's own header was already right. Reopen if the demo is ever run with more than one real user's traffic in the gateway log.
 
 **What's wrong.** `GET /api/admin/agent-gateway/logs`
 (`demo_api_server/routes/agentGatewayLogs.js:22`) sits under `/api/admin`
@@ -311,7 +313,9 @@ change a BFF route in that PR.
 to the caller's sub the way `/decisions` already does. Correct whichever
 header comment turns out to be wrong.
 
-### [ ] 2026-09-13 — `/api/app-events` and its SSE stream have no auth
+### [wontfix] 2026-09-13 — `/api/app-events` and its SSE stream have no auth
+
+**ACCEPTED / WON'T FIX 2026-10-01 (owner decision).** The endpoint stays as it is, unauthenticated and unfiltered. Know what that accepts: the feed includes the `token_exchange` category, whose success event carries `jwtFullDecode` (the decoded claims of each exchanged token: sub, `act`, aud, scope), so anyone who can reach the BFF can read them for every user. `/api/token-chain/events`, the signed-in stream of the same events, was removed on 2026-10-01 as unused; this public feed is now the only one. Reopen before the BFF is exposed to anyone outside the demo audience.
 
 **What's wrong.** `demo_api_server/server.js:1491-1517` mounts
 `GET /api/app-events` and `GET /api/app-events/stream` with no auth
@@ -363,7 +367,9 @@ decision.
 **Real fix.** Record the caller's sub on each attempt and filter `list()` to
 it, with admins seeing all, matching `/api/admin/agent-gateway/decisions`.
 
-### [ ] 2026-09-13 — `/api/newrelic/view/:view` has no auth
+### [wontfix] 2026-09-13 — `/api/newrelic/view/:view` has no auth
+
+**ACCEPTED / WON'T FIX 2026-10-01 (owner decision).** Public by declaration, not by omission: the mount comment in `server.js` says "public, same posture as /api/nr-log", and the page it backs (`/monitoring/p1az`) is `public` in `config/auth-requirements.json`. Adding auth would change that page. It runs named queries only and returns data only when New Relic is configured. Reopen if `/monitoring/p1az` is ever moved to `user` or `admin`.
 
 **What's wrong.** `demo_api_server/server.js:1589` mounts
 `routes/newRelicQuery.js` with no auth middleware.
