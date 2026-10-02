@@ -8,7 +8,7 @@
 // Inputs (PingOne ids from list-pingone-mfa-inputs.js), overridable by env:
 //   P1_POPULATION_ID  default a7349e04-... "Sample Users"  (PF users get provisioned here on first MFA)
 //   P1_APPLICATION_ID default 160cc22f-... "Demo AI App - PKCE"
-//   P1_MFA_POLICY_ID  default 9e94e3ca-... "Default MFA Policy"
+//   P1_MFA_POLICY_NAME default "Default MFA Policy" (PF stores the name)
 //   PF_P1_CONNECTION_NAME default "AI Demo PingOne"
 'use strict';
 
@@ -22,7 +22,7 @@ const DESCRIPTOR = 'com.pingidentity.adapters.pingone.mfa.PingOneMfaIdpAdapter';
 const CONN_NAME = process.env.PF_P1_CONNECTION_NAME || 'AI Demo PingOne';
 const POPULATION = process.env.P1_POPULATION_ID || 'a7349e04-08ef-4225-8b75-7ec4bb4bc127';
 const APPLICATION = process.env.P1_APPLICATION_ID || '160cc22f-ccc4-4fef-8470-c9094c8a9afa';
-const MFA_POLICY = process.env.P1_MFA_POLICY_ID || '9e94e3ca-9536-06a9-016a-b2baa39b363f';
+const MFA_POLICY = process.env.P1_MFA_POLICY_NAME || 'Default MFA Policy'; // PF stores the policy NAME, not its id
 
 function adminPassword() {
   if (process.env.PINGFEDERATE_ADMIN_PASSWORD) return process.env.PINGFEDERATE_ADMIN_PASSWORD;
@@ -49,7 +49,7 @@ function adminPassword() {
   const values = {};
   for (const f of desc.configDescriptor.fields) if (f.required !== false && f.defaultValue !== undefined) values[f.name] = f.defaultValue;
   Object.assign(values, {
-    'PingOne Environment': env.id,
+    'PingOne Environment': `${conn.id}|${env.id}`, // PF stores <connectionId>|<environmentId>
     'PingOne Population': POPULATION,
     Application: APPLICATION,
     'MFA policy for registration': MFA_POLICY,
