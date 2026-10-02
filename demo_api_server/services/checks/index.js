@@ -3,6 +3,10 @@
 require('./serversCheck');
 require('./authorizeCheck');
 require('./configCheck');
+// The embedded /sdk-login sign-in depends on a hand-set PingOne corsSettings
+// that no script provisions; a re-created app breaks it in a way that reads
+// like a bad password (TECH_DEBT 2026-09-14). Read-only.
+require('./pkceAppCorsCheck');
 require('./flagOverrideCheck');
 require('./llmCheck');
 require('./llmDeepCheck');

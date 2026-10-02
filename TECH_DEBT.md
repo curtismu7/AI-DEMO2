@@ -303,6 +303,21 @@ does not exist yet.
 check that fails loudly when it is missing), and add a new deployment origin to
 the list when one appears.
 
+**PARTLY RESOLVED 2026-10-02 (`worktree-agent-a04a99f8321e29948`).** The detect
+half exists: check `pingone.pkce_app_cors`
+(`demo_api_server/services/checks/pkceAppCorsCheck.js`) reads the app named by
+`PINGONE_SDK_DEMO_CLIENT_ID` with the worker token, read-only, and fails when
+`corsSettings` is null, is not `ALLOW_SPECIFIC_ORIGINS`, or omits a served
+origin (`KNOWN_PUBLIC_ORIGINS` plus `PUBLIC_APP_URL` and `CORS_ORIGIN`), naming
+the missing origins and the app. It warns instead when the app id or worker
+credentials are not configured or PingOne cannot be read. It runs while PingOne
+is the active provider and surfaces in the Preflight modal and `/check` page
+(`POST /api/check/run`), category "Config / Secrets", advisory severity. The
+provision half is still open: nothing SETS the value, so a re-created app is
+now reported but still has to be fixed by hand, and a new deployment origin
+still means updating the app by hand (and adding it to `KNOWN_PUBLIC_ORIGINS`
+or the deployment's `PUBLIC_APP_URL` / `CORS_ORIGIN` for the check to require it).
+
 ### [wontfix] 2026-09-13 — Raw PingGateway log window is open to any signed-in user
 
 **ACCEPTED / WON'T FIX 2026-10-01 (owner decision).** The log window stays open to any signed-in user: two panels on public pages (`AgentGatewayLogPanel`, the Agentic Access Console's Security section) read it, and an admin guard would take the window away from a signed-in customer, who is the usual demo persona. The contradicting header in `services/agentGatewayLogs.js` ("logs are admin-only") was corrected in the same commit; the route's own header was already right. Reopen if the demo is ever run with more than one real user's traffic in the gateway log.
