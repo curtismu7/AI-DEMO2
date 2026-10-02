@@ -442,7 +442,8 @@ try {
         cached   : false,
     ]
 } catch (Exception e) {
-    logger.warn('[OlbExchange] could not describe the issued token for the audit trail (' + e.message + ')')
+    // No exception text: this script never logs e.message (it can carry token data).
+    logger.warn('[OlbExchange] could not describe the issued token for the audit trail')
 }
 
 
