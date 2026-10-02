@@ -1,5 +1,5 @@
 {
-  "description": "Source of truth for the PingOne user gate on PingFederate's standard two-exchange policy. Applied and checked by scripts/pingfederate/provision-pf-pingone-user-gate.sh. PingOne stays the system of record for who may be acted for: on every exchange PingFederate looks up the PingOne account with the subject's username and refuses unless it is enabled and its mayAct names the AI agent actor. No secret lives in this file.",
+  "description": "Source of truth for the PingOne user gate on PingFederate's standard two-exchange policy. Applied and checked by scripts/pingfederate/provision-pf-pingone-user-gate.sh. PingOne stays the system of record for who may be acted for: on every exchange PingFederate looks up the PingOne account with the subject's username and refuses unless it is enabled and its mayAct names the agent acting in that exchange. No secret lives in this file.",
   "policyId": "aiDemoStandardTePolicy",
   "subjectTokenTypes": ["urn:ietf:params:oauth:token-type:access_token"],
   "notGated": "The policy's ID-JAG subject mapping is deliberately left alone: the lookup keys on subjecttoken.Username, which was proven for access-token subjects only. Gate it here once an ID-JAG exchange has been tested with the lookup attached.",
@@ -31,10 +31,9 @@
       "errorResult": "user_disabled_in_pingone"
     },
     {
-      "attributeName": "mayActSub",
-      "condition": "EQUALS",
-      "valueEnv": "PF_AI_AGENT_ACTOR_CLIENT_ID",
-      "errorResult": "agent_not_authorized_by_user"
+      "expression": "#g = #this.get(\"ds.p1user.mayActSub\"), #g = (#g == null ? \"\" : #g.toString()), #p = #this.get(\"subjecttoken.act\"), #p = (#p == null ? \"\" : #p.toString()), #a = #this.get(\"actortoken.client_id\"), #a = (#a == null ? \"\" : #a.toString()), #g.length() > 0 && (#p.contains(\"sub\") ? #p.contains(#g) : #g.equals(#a))",
+      "errorResult": "agent_not_authorized_by_user",
+      "meaning": "The PingOne user's mayAct must name the agent in THIS chain, whichever agent that is. On the first exchange the subject token carries no actor yet, so the agent is the actor token's client_id. On later exchanges the actor is the MCP service, so the agent is whoever the subject token's act already names. Written with string tests because PingFederate hands a subject token's act to OGNL as a string ('{}' when empty), not a map."
     }
   ]
 }

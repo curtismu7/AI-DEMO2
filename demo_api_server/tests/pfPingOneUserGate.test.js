@@ -48,8 +48,20 @@ describe('contract and BFF agree', () => {
     // ${Username} alone is an unknown key to PingFederate: the lookup throws and
     // every exchange is refused (measured 2026-10-02).
     expect(contract.attributeSource.resourcePath).toContain('${subjecttoken.Username}');
-    expect(contract.criteria.find((c) => c.attributeName === 'mayActSub').valueEnv).toBe('PF_AI_AGENT_ACTOR_CLIENT_ID');
     expect(contract.criteria.find((c) => c.attributeName === 'p1Enabled').value).toBe('true');
+  });
+
+  test('the grant rule names no particular agent', () => {
+    // It compares the PingOne user's mayAct with the agent in the chain: the
+    // actor token's client on the first exchange, the subject token's existing
+    // act afterwards. A fixed agent id here would lock out every other agent a
+    // user may grant (delegated commerce registers one per shopper).
+    const grant = contract.criteria.find((c) => c.errorResult === 'agent_not_authorized_by_user');
+    expect(grant.expression).toContain('ds.p1user.mayActSub');
+    expect(grant.expression).toContain('actortoken.client_id');
+    expect(grant.expression).toContain('subjecttoken.act');
+    expect(grant.expression).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-/);
+    expect(grant).not.toHaveProperty('valueEnv');
   });
 });
 

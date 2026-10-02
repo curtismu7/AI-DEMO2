@@ -176,6 +176,8 @@ def gate_source(contract: dict[str, Any]) -> dict[str, Any]:
 def gate_criteria(contract: dict[str, Any], env: dict[str, str]) -> list[dict[str, Any]]:
     out = []
     for item in contract["criteria"]:
+        if "expression" in item:
+            continue
         value = item.get("value")
         if value is None:
             value = env.get(item["valueEnv"])
@@ -189,12 +191,26 @@ def gate_criteria(contract: dict[str, Any], env: dict[str, str]) -> list[dict[st
     return out
 
 
-def mapping_gate(mapping: dict[str, Any], source_id: str) -> dict[str, Any]:
+def gate_expressions(contract: dict[str, Any]) -> list[dict[str, str]]:
+    """The contract's OGNL criteria. An expression criterion has no source id, so it
+    is recognised as this gate's by its errorResult."""
+    return [{"expression": item["expression"], "errorResult": item["errorResult"]}
+            for item in contract["criteria"] if "expression" in item]
+
+
+def gate_reasons(contract: dict[str, Any]) -> set[str]:
+    return {item["errorResult"] for item in contract["criteria"]}
+
+
+def mapping_gate(mapping: dict[str, Any], source_id: str, reasons: set[str]) -> dict[str, Any]:
     """This gate's footprint on one processor mapping, normalised for comparison."""
     sources = [s for s in mapping.get("attributeSources", []) if s.get("id") == source_id]
-    criteria = [c for c in (mapping.get("issuanceCriteria") or {}).get("conditionalCriteria", [])
+    issuance = mapping.get("issuanceCriteria") or {}
+    criteria = [c for c in issuance.get("conditionalCriteria", [])
                 if (c.get("source") or {}).get("id") == source_id]
+    expressions = [c for c in issuance.get("expressionCriteria") or [] if c.get("errorResult") in reasons]
     return {
+        "expressions": [{k: c.get(k) for k in ("expression", "errorResult")} for c in expressions],
         "source": [{
             "dataStore": (s.get("dataStoreRef") or {}).get("id"),
             "resourcePath": next((f.get("value") for f in s.get("filterFields", [])
@@ -206,6 +222,7 @@ def mapping_gate(mapping: dict[str, Any], source_id: str) -> dict[str, Any]:
 
 def with_gate(policy: dict[str, Any], contract: dict[str, Any], env: dict[str, str], present: bool) -> dict[str, Any]:
     source_id = contract["attributeSource"]["id"]
+    reasons = gate_reasons(contract)
     out = json.loads(json.dumps(policy))
     for mapping in out.get("processorMappings", []):
         if mapping.get("subjectTokenType") not in contract["subjectTokenTypes"]:
@@ -214,12 +231,18 @@ def with_gate(policy: dict[str, Any], contract: dict[str, Any], env: dict[str, s
         kept = [c for c in (mapping.get("issuanceCriteria") or {}).get("conditionalCriteria", [])
                 if (c.get("source") or {}).get("id") != source_id]
         criteria = dict(mapping.get("issuanceCriteria") or {})
+        kept_expressions = [c for c in criteria.get("expressionCriteria") or [] if c.get("errorResult") not in reasons]
         if present:
             mapping["attributeSources"] = others + [gate_source(contract)]
             criteria["conditionalCriteria"] = kept + gate_criteria(contract, env)
+            kept_expressions = kept_expressions + gate_expressions(contract)
         else:
             mapping["attributeSources"] = others
             criteria["conditionalCriteria"] = kept
+        if kept_expressions:
+            criteria["expressionCriteria"] = kept_expressions
+        else:
+            criteria.pop("expressionCriteria", None)
         mapping["issuanceCriteria"] = criteria
     return out
 
@@ -274,19 +297,21 @@ def main() -> int:
         "source": [{"dataStore": contract["dataStore"]["id"], "resourcePath": contract["attributeSource"]["resourcePath"]}],
         "criteria": [{k: c.get(k) for k in ("attributeName", "condition", "value", "errorResult")}
                      for c in gate_criteria(contract, env)],
+        "expressions": gate_expressions(contract),
     }
-    nothing = {"source": [], "criteria": []}
+    nothing = {"source": [], "criteria": [], "expressions": []}
+    reasons = gate_reasons(contract)
 
     def expected(mapping: dict[str, Any]) -> dict[str, Any]:
         return wanted_gate if mapping.get("subjectTokenType") in contract["subjectTokenTypes"] else nothing
 
     for index, mapping in enumerate(policy.get("processorMappings", [])):
-        have = mapping_gate(mapping, source_id)
+        have = mapping_gate(mapping, source_id, reasons)
         label = f"mapping {index + 1} ({mapping.get('subjectTokenType', '?').rsplit(':', 1)[-1]})"
         if expected(mapping) == nothing and have == nothing:
             print(f"-- {label} is not gated, by contract")
         elif args.remove:
-            if have["source"] or have["criteria"]:
+            if have != nothing:
                 print(f"REMOVE gate from {label}")
         elif have != expected(mapping):
             drift.append(f"{label} does not carry the gate" if not have["source"] else f"{label} gate differs")
@@ -315,8 +340,8 @@ def main() -> int:
     if status != 200 or not isinstance(after, dict):
         raise RuntimeError(f"PF readback: GET {policy_path} returned HTTP {status}")
     for index, mapping in enumerate(after.get("processorMappings", [])):
-        have = mapping_gate(mapping, source_id)
-        if args.remove and (have["source"] or have["criteria"]):
+        have = mapping_gate(mapping, source_id, reasons)
+        if args.remove and have != nothing:
             raise RuntimeError(f"PF readback: mapping {index + 1} still carries the gate")
         if args.apply and have != expected(mapping):
             raise RuntimeError(f"PF readback: mapping {index + 1} does not match the contract")

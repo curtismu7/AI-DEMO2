@@ -249,6 +249,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-02 — PingFederate's user gate could only ever authorize one fixed agent
+
+**Files:** `spiffe/pingfederate/pf-pingone-user-gate.json`, `scripts/pingfederate/provision-pf-pingone-user-gate.sh`, `scripts/pingfederate/README.md`, `demo_api_server/tests/pfPingOneUserGate.test.js`.
+
+**What was limiting:** The gate's grant criterion was `mayActSub EQUALS <PF_AI_AGENT_ACTOR_CLIENT_ID>`. A user could grant only the built-in agent; any other agent (delegated commerce registers one per shopper) could never be authorized under a PingFederate sign-in, and granting one would have locked out the built-in agent.
+
+**What changed:** The criterion is an OGNL expression that compares the PingOne user's `mayAct` with the agent in the chain — the actor token's client on the first exchange, the subject token's existing `act` afterwards. The provisioner now manages `expressionCriteria` as well as conditional ones, recognising this gate's by `errorResult`.
+
+**Do not break:** No agent id in the contract's grant rule (`pfPingOneUserGate.test.js`). The second exchange's actor is the MCP service, so the rule must keep reading the subject token's `act` there — comparing `mayAct` with the actor alone refuses every tool call at hop 2. Keep the string tests: PingFederate gives OGNL a subject token's `act` as a string. The two `errorResult` values are how the provisioner recognises its own criteria and how the BFF names a refusal; change them in the contract and in `PF_USER_GATE_ERRORS` together.
+
+**Verify:** `npm run pf:user-gate:check`; `cd demo_api_server && CI=true npx jest tests/pfPingOneUserGate.test.js --forceExit`.
+
 ### 2026-10-02 — PingGateway forwarded every tool with the whole configured scope list
 
 **Files:** `ping-gateway/scripts/groovy/olb-token-exchange.groovy`, `demo_api_server/services/demoReadinessCatalog.js`, `services/demoReadinessExecutionService.js`, tests `tests/demoReadinessCaseAdapter.test.js`, `src/__tests__/olbTokenExchangeProviderRouting.test.js`.
