@@ -256,9 +256,12 @@ async function evaluate({ req, tool, params = {}, hitlChallengeId = null }) {
     };
   }
 
-  // Unexpected gate shape — PERMIT with fallback flag
+  // Unexpected gate shape — the gate ran but gave no decision. Fail closed unless fail-open is on.
   console.warn('[AgentPreflight] Unexpected gate result shape for tool=%s', tool);
-  return { decision: 'PERMIT', fallback: true, reason: 'unexpected_gate_result', tokenEvents };
+  if (FAIL_OPEN) {
+    return { decision: 'PERMIT', fallback: true, reason: 'unexpected_gate_result', tokenEvents };
+  }
+  return { decision: 'DENY', reason: 'unexpected_gate_result', tokenEvents };
 }
 
 /**

@@ -52,8 +52,9 @@ describe('authorizeCheck', () => {
     expect(r.status).toBe('warn');
   });
 
-  test('failOpen warns when fail-open is off', async () => {
-    expect((await failOpen.run({ flags: { ff_authorize_fail_open: false } })).status).toBe('warn');
-    expect((await failOpen.run({ flags: { ff_authorize_fail_open: true } })).status).toBe('pass');
+  test('failOpen warns when fail-open is ON (the unsafe state)', async () => {
+    expect((await failOpen.run({ flags: { ff_authorize_fail_open: true } })).status).toBe('warn');
+    expect((await failOpen.run({ flags: { ff_authorize_fail_open: false } })).status).toBe('pass');
+    expect((await failOpen.run({ flags: {} })).status).toBe('pass');
   });
 });

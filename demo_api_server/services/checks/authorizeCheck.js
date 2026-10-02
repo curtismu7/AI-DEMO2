@@ -56,12 +56,14 @@ const realDecision = {
 };
 
 const failOpen = {
-  id: 'authorize.fail_open', name: 'Fail-open awareness', category: 'PingOne Authorize',
+  id: 'authorize.fail_open', name: 'Fail-closed', category: 'PingOne Authorize',
   severity: 'advisory',
+  // ON is the unsafe state: an Authorize error permits the call with no decision,
+  // so no policy rule (actor chain included) is evaluated.
   async run({ flags }) {
-    return flags.ff_authorize_fail_open === false
-      ? { status: 'warn', detail: 'Fail-open is OFF — Authorize errors will hard-deny mid-demo' }
-      : { status: 'pass', detail: 'Fail-open is on' };
+    return flags.ff_authorize_fail_open === true
+      ? { status: 'warn', detail: 'Fail-open is ON — an Authorize error permits the call with no decision. Turn ff_authorize_fail_open off.' }
+      : { status: 'pass', detail: 'Fail-closed — every call needs an Authorize decision' };
   },
 };
 
