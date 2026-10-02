@@ -64,3 +64,27 @@ test('rogue actor (non-allowlisted ActClientId) is DENIED on an MCP tool call', 
   });
   assert.strictEqual(body.decision, 'DENY');
 });
+
+test('a named customer workload agent is accepted as the actor; an unnamed one is still DENIED', async () => {
+  process.env.PINGONE_WORKLOAD_AGENT_CLIENT_IDS = 'workload-agent-1, workload-agent-2';
+  fresh();
+  const call = (ActClientId) => decide({
+    DecisionContext: 'McpToolCall',
+    ToolName: 'get_my_accounts',
+    ClientId: 'user-1',
+    TokenScopes: 'read',
+    TokenAudience: 'test-aud',
+    TransactionAmount: '',
+    ActClientId,
+  });
+  try {
+    const named = await call('workload-agent-2');
+    // Whatever later rules decide, it must not be refused as an invalid actor.
+    assert.ok(!JSON.stringify(named).includes('mcp-invalid-actor'), JSON.stringify(named));
+    const unnamed = await call('workload-agent-3');
+    assert.strictEqual(unnamed.decision, 'DENY');
+    assert.ok(JSON.stringify(unnamed).includes('mcp-invalid-actor'), JSON.stringify(unnamed));
+  } finally {
+    delete process.env.PINGONE_WORKLOAD_AGENT_CLIENT_IDS;
+  }
+});

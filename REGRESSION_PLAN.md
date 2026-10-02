@@ -249,6 +249,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-02 — PingOne Authorize refused a customer's workload agent as the actor
+
+**Files:** `snapshots/gen-authorize-snapshot.js`, `snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json`, `demo_authz_server/routes/decision.js`.
+
+**What was broken:** Once a workload run was recorded under the agent that actually acted (the workload resource, #527/#530), PingOne Authorize denied it with `mcp-invalid-actor`: `HasValidActorChain` is a closed list of registered client ids and no customer workload agent was on it. Before that change the run only passed because it was recorded as the built-in AI Agent.
+
+**What changed:** The generator unions `PINGONE_WORKLOAD_AGENT_CLIENT_IDS` (comma-separated) into the list, and the mock engine accepts the same ids. Two agents added: the readiness agent and `demoUser`'s.
+
+**Do not break:** The rule must stay a closed list of named ids. Do not replace it with a flag, a pattern or an "any verified agent" branch without an explicit decision: that was considered on 2026-10-02 and declined. The list never shrinks on regeneration.
+
+**Verify:** `node --test demo_authz_server/decision.confused-deputy.test.js`; `npm run snapshot:check`; after the console import, run UC44 on the PingOne readiness lane and expect PERMIT with the workload agent as `ActClientId`.
+
 ### 2026-10-01 — PingGateway's own token exchange was invisible
 
 **Files:** `ping-gateway/scripts/groovy/olb-token-exchange.groovy`, `ping-gateway/scripts/groovy/p1az-decision.groovy`, `demo_api_server/services/mcpToolPipeline.js`.
