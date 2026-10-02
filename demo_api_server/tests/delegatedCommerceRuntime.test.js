@@ -37,6 +37,33 @@ beforeEach(() => {
   jest.clearAllMocks();
 });
 
+describe('which user a registration is bound to', () => {
+  // A claim is recorded under the token subject. /api/mcp/tool carries only a
+  // session, whose user.id is the local store id; the subject is session.user.oauthId.
+  const sessionOnly = (user) => ({ session: { delegatedCommerceRegistrationId: 'reg-1', user } });
+
+  it('matches a session-only request by the subject, not only by the local store id', () => {
+    activeReg(['read']);
+    runtime.holdCredentials('reg-1', { clientSecret: 'server-only-secret' });
+    expect(runtime.resolveAgentRuntime(sessionOnly({ id: 'local-store-id', oauthId: 'user-1' })))
+      .toEqual(expect.objectContaining({ clientId: 'agent-new' }));
+    expect(runtime.resolveConsentContext(sessionOnly({ id: 'local-store-id', oauthId: 'user-1' }), 'get_my_accounts'))
+      .toEqual(expect.objectContaining({ sufficient: true }));
+  });
+
+  it('still refuses a different user', () => {
+    activeReg(['read']);
+    expect(() => runtime.resolveAgentRuntime(sessionOnly({ id: 'local-store-id', oauthId: 'someone-else' })))
+      .toThrow(/not bound to this session user/);
+    expect(runtime.resolveConsentContext(sessionOnly({ id: 'local-store-id', oauthId: 'someone-else' }), 'get_my_accounts')).toBeNull();
+  });
+
+  it('never matches an unclaimed registration against a session with no ids', () => {
+    store.get.mockReturnValue({ id: 'reg-1', applicationId: 'agent-new', claimedByUserId: null, status: 'active', expiresAt: Date.now() + 60000 });
+    expect(() => runtime.resolveAgentRuntime(sessionOnly({}))).toThrow(/not bound to this session user/);
+  });
+});
+
 it('resolves request-scoped credentials for the claimed active registration', () => {
   store.get.mockReturnValue({
     id: 'reg-1',

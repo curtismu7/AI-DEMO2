@@ -34,6 +34,16 @@ function removeCredentials(registrationId) {
   credentialVault.delete(registrationId);
 }
 
+// Every identifier this request carries for its own signed-in user. A claim is
+// recorded under req.user.id (the token subject) by the commerce routes, which
+// sit behind authenticateToken. /api/mcp/tool has only a session, and
+// session.user.id is the local store id, which need not equal the subject — so
+// comparing one fixed field refused the registration's own owner there.
+function isSessionUser(req, userId) {
+  if (!userId) return false;
+  return [req?.user?.id, req?.session?.user?.oauthId, req?.session?.user?.id].includes(userId);
+}
+
 function resolveAgentRuntime(req, { requireActive = true, fallbackToDefault = false } = {}) {
   // agentInvokeRoute sets this only after authenticating the customer and
   // resolving the exact customer-owned Agent Builder application. Its
@@ -47,8 +57,7 @@ function resolveAgentRuntime(req, { requireActive = true, fallbackToDefault = fa
   if (!registrationId) return null;
 
   const registration = store.get(registrationId);
-  const userId = req.user?.id || req.session?.user?.id || req.session?.user?.oauthId;
-  if (!registration || registration.claimedByUserId !== userId) {
+  if (!registration || !isSessionUser(req, registration.claimedByUserId)) {
     const err = new Error('The delegated agent registration is not bound to this session user.');
     err.code = 'delegated_agent_binding_invalid';
     err.httpStatus = 403;
@@ -103,8 +112,7 @@ function resolveConsentContext(req, tool) {
   // the default banking/MCP agent path.
   if (!registration) return null;
 
-  const userId = req.user?.id || req.session?.user?.id || req.session?.user?.oauthId;
-  if (registration.claimedByUserId !== userId) return null;
+  if (!isSessionUser(req, registration.claimedByUserId)) return null;
 
   // Claimed/staged means the customer has not consented yet. Token minting
   // falls back to the configured agent (fallbackToDefault); the consent gate
