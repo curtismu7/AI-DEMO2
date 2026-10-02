@@ -1,12 +1,10 @@
-# Privilege Sensor: Docker to Docker through the Privilege Gateway
+# Privilege Sensor and Gateway on Docker: Our Environment
 
 Oct 1, 2026 · Curtis Muir
 
 ## Contents
 
 - [Overview](#overview)
-- [Setting up the sensor on your own Docker host](#setting-up-the-sensor-on-your-own-docker-host)
-- [Getting more logging from the sensor](#getting-more-logging-from-the-sensor)
 - [Topology](#topology)
 - [Request path](#request-path)
 - [Identity and tokens](#identity-and-tokens)
@@ -29,6 +27,8 @@ Oct 1, 2026 · Curtis Muir
 
 ## Overview
 
+This is the record of our own setup: the local gateway loop, our values, and the 2026-10-01 sensor failure and fix. For setup steps, how the sensor works and generic troubleshooting, use *Privilege Sensor on Docker: Guide*.
+
 The sensor watches; the gateway carries. An MCP call leaves one container in our Docker stack, passes through the Privilege gateway running in the same stack, and lands on an MCP server container beside it. The Privilege sensor sits outside that path and reports what it sees to the Privilege controller.
 
 State measured on 2026-10-01:
@@ -43,80 +43,6 @@ State measured on 2026-10-01:
 Two things to carry away. The Docker-to-same-Docker loop exists but is not what the BFF calls by default. And the sensor only authenticates while its signing key file survives; the key now lives on a named volume after a startup failure traced to that file (see Sensor startup failure).
 
 The sensor container is not defined anywhere in the repo. It was started by hand on 2026-10-01; the only sensor install in the repo is the Helm daemonset in `k8s/deploy.sh`, for the OrbStack Kubernetes copy that is currently scaled to zero.
-
-## Setting up the sensor on your own Docker host
-
-Four things have to line up: a persistent writable key, the right key pinned in the console, the same `-cluster` value in both commands, and the audience Privilege generates. Most failures are one of these being off.
-
-Replace `<your-cluster-label>` with any label for your host. It does not have to match a gateway name.
-
-1. **Check the host can run the sensor.** Expect `bpf=true perfmon=true`.
-
-   ```bash
-   docker run --rm --pid=host --cap-add BPF --cap-add PERFMON --cap-add KILL \
-     -v /sys:/sys:ro public.ecr.aws/v2s2h8i9/procyon-nodesensor -docker -probe
-   ```
-2. **Create a named volume for the key, and print the registration details from it.** The sensor writes its signing key to `/etc/procyon` on first use. A read-only mount makes it crash-loop, and a host path under OrbStack is lost on restart.
-
-   ```bash
-   docker volume create procyon-nodesensor-key
-   docker run --rm -v procyon-nodesensor-key:/etc/procyon \
-     public.ecr.aws/v2s2h8i9/procyon-nodesensor \
-     -docker -cluster <your-cluster-label> -mint-jwks
-   ```
-3. **Register the identity in the Privilege console.** Token issuer type: Docker Host, Self-Signed Token. Key source: Paste Keys. Copy the Issuer, Subject and JWKS exactly as printed. Reporting findings needs only the `shadowai:write` permission.
-4. **Copy the audience the console generates.** It looks like `priv-nhi-...` and goes into the run command as `-mint-audience`.
-5. **Run the sensor on the same volume with the same `-cluster`.** The subject is `nodesensor:<cluster>`, so a different value here changes the subject and the token is rejected.
-
-   ```bash
-   docker run -d --name procyon-nodesensor --restart always --pid=host \
-     --cap-add BPF --cap-add PERFMON --cap-add KILL --security-opt label=disable \
-     -v /sys:/sys:ro \
-     -v /var/lib/docker/containers:/var/lib/docker/containers:ro \
-     -v procyon-nodesensor-key:/etc/procyon \
-     public.ecr.aws/v2s2h8i9/procyon-nodesensor \
-     -docker -cluster <your-cluster-label> \
-     -controller hydra.privilege.pingone.com:443 \
-     -mint-audience <priv-nhi-audience-from-console>
-   ```
-6. **Confirm it reports.** Expect `reported findings sent=N accepted=N`.
-
-   ```bash
-   docker logs --tail 20 procyon-nodesensor
-   ```
-
-If it does not work, the log says which step is off:
-
-| What you see | What is wrong | Fix |
-| --- | --- | --- |
-| Container `Restarting`, log says `read-only file system` | Key directory is not writable (step 2) | Recreate with the volume mounted without `:ro` |
-| Running, log repeats `report failed ... Unauthenticated` | Pinned key, subject or audience does not match (steps 3 to 5) | Re-run step 2 on the same volume and compare each value with the console |
-| Worked before, `Unauthenticated` after a restart | Key was not on persistent storage, so the sensor made a new one | Move to a named volume, re-run step 2, paste the new JWKS |
-| `reported findings sent=N accepted=N` | Working | Nothing |
-
-Two traps. If `-mint-jwks` ran in a throwaway container with no volume, the key you registered no longer exists. And with `--restart always` a crash-looping container still appears in `docker ps`; read the status column.
-
-The rest of this document records our own setup, where each of these went wrong, and how it was traced.
-
-## Getting more logging from the sensor
-
-The sensor has no log-level or verbose setting. Three options increase what it logs, and they exist both as Helm values (chart 0.1.11, the Kubernetes install) and as plain flags (the Docker install).
-
-| What it does | Helm: add to `helm upgrade --install` | Docker: add to `docker run` |
-| --- | --- | --- |
-| Reports every process exec, bypassing the in-kernel filter. Marked as a debug flag in the sensor's help; noisy | `--set flags.reportAll=true` | `-report-all` |
-| Emits events as JSON instead of one-line text; easier to query in Loki | `--set flags.json=true` | `-json` |
-| Copies more pod label keys onto each event. Default is `app`, `team`, `app-id` | `--set "flags.labels={app,team,app-id,<your-label>}"` | `-labels app,team,app-id,<your-label>` |
-
-For a sensor flag the chart does not map, `--set "extraArgs={-flag=value}"` appends raw flags, and `extraEnv` adds environment variables.
-
-Three cautions:
-
-- **`reportAll` findings also go to the controller,** not only to the log. Turn it on to debug, then off again.
-- **Leave `flags.noDestinations` at `false`.** Outbound AI-endpoint reporting is on by default, and that setting turns it off.
-- **`flags.probe=true` is a one-shot diagnostic, not logging.** The sensor prints its capability check and exits, so the daemonset does not stay up with it set.
-
-The repo's Helm install is `install_procyon_nodesensor` in `k8s/deploy.sh`. It passes none of these, so add them by hand or edit that function. Chart 0.1.12 is published; the repo pins 0.1.11, and only 0.1.11's values were read for this section.
 
 ## Topology
 
@@ -225,6 +151,10 @@ Running container, as recreated on 2026-10-01 at 20:26 UTC:
 | Restart policy | always |
 
 The `-cluster` value does not need to match the gateway's mesh cluster (`ai-demo-mine`). It is only a label stamped on events, and the source of the identity's subject, as the next section shows.
+
+**Our sensor is under an enforce-mode policy.** It was started with enforcement off, and ten seconds later logged `applied enforcement policy mode=enforce rules=2`, sent from the Privilege console. It reports `tier=terminate`, so it can terminate processes on this host that match those two rules. As of 2026-10-02 it had terminated none (`killed=0 would_kill=0`). The rules themselves are only visible in the console and were not reviewed.
+
+Most of its connection findings here are metrics scrapes: Prometheus polling the containers named `llm-proxy` and `langchain-agent` is flagged as LLM traffic on the host name alone.
 
 ### Sensor identity: where the sub comes from
 

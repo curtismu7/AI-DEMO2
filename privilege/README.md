@@ -26,8 +26,10 @@ including Ping's SE enablement storyboards and the code paths, is
 | [`PRIVILEGE-MCP.md`](PRIVILEGE-MCP.md) | The canonical record. Architecture, protocol per hop, every blocker and how it was ruled out, dated newest-last. Long, but the trap list at the end of each section is what saves the time |
 | [`PRIVILEGE-MCP-CONSOLE-STEPS.md`](PRIVILEGE-MCP-CONSOLE-STEPS.md) | Doing console work. These steps cannot be automated or tested from this repo |
 | [`runbooks/ping-mcpgw.md`](runbooks/ping-mcpgw.md) | Standing the gateway up locally |
-| [`SENSOR-DOCKER-GATEWAY.md`](SENSOR-DOCKER-GATEWAY.md) | Setting up or debugging the Privilege node sensor on a Docker host, and how a call loops Docker → local gateway → Docker |
-| [`SENSOR-KUBERNETES.md`](SENSOR-KUBERNETES.md) | Installing or debugging the Privilege node sensor on a Kubernetes cluster; covers what differs from the Docker setup |
+| [`SENSOR-DOCKER-GUIDE.md`](SENSOR-DOCKER-GUIDE.md) | Setting up or debugging the Privilege node sensor on any Docker host: setup, how it works, identity, logging, failure modes |
+| [`SENSOR-KUBERNETES-GUIDE.md`](SENSOR-KUBERNETES-GUIDE.md) | The same for any Kubernetes cluster: Helm install, ServiceAccount-token identity, chart values |
+| [`SENSOR-DOCKER-OUR-ENVIRONMENT.md`](SENSOR-DOCKER-OUR-ENVIRONMENT.md) | Our Docker setup: the Docker → local gateway → Docker loop, our values, the 2026-10-01 sensor failure and fix |
+| [`SENSOR-KUBERNETES-OUR-ENVIRONMENT.md`](SENSOR-KUBERNETES-OUR-ENVIRONMENT.md) | Our Kubernetes setup: our values, how `k8s/deploy.sh` installs the sensor, open questions |
 | `.claude/skills/privilege-cloud-mcp/` | The condensed operator version. If it disagrees with `PRIVILEGE-MCP.md`, **the doc wins** |
 | `~/Downloads/priv_for_ai_image_first_se_storyboard_v2_corrected.html` | Ping's SE storyboard — architecture, flows, troubleshooting order. Not committed (~13 MB of embedded images) |
 
