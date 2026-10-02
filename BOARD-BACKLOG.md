@@ -51,9 +51,10 @@ Raw feedback from the board for ai-demo.ping-devops.com, triaged into work items
 - Add a spinner while code is uploading.
 - Make the agent look like the OAuth Academy page.
 
-### E6. Consistent "Exploring" section
+### E6. Consistent "Exploring" section — menu group DONE, visual consistency still open
 - Code Explorer, OAuth Academy, Code Search, and OAS Demo should be visually consistent pages/agents.
-- Move all of them under a new menu group named **"Exploring"**.
+- Move all of them under a new menu group named **"Exploring"**. Done: the group sits before "Developer Tools" in the side nav. "Demo mode" hides it; "Learning" shows it.
+- Not done: making the four pages look alike (overlaps E5).
 
 ### E7. `/agent-studio-preview` — needs to be greatly enhanced
 - URL: https://local.ping-devops.com:4000/agent-studio-preview

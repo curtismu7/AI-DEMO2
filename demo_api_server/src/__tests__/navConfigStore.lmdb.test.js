@@ -9,7 +9,7 @@ const KNOWN_NAV_LABELS = [
   "PingOne Demo Apps", "Delegation & Consent", "Authorize", "OAuth & Identity",
   "Industry Verticals", "Users & Accounts", "AI Attack Demos", "Monitoring",
   "Telemetry", "Diagrams", "Agent Studio (Preview)", "Learn & Present",
-  "Developer Tools", "System Tools", "Integration Tests",
+  "Exploring", "Developer Tools", "System Tools", "Integration Tests",
 ];
 
 describe('navConfigStore.lmdb', () => {
