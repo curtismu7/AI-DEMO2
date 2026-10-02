@@ -260,6 +260,17 @@ read the configured host. A new browser origin must be added to ALL of:
 **Do not break:** The narrowing only ever picks a subset of the configured list — never add a scope the operator did not configure. When no configured scope matches the tool (or the body or topology cannot be read) the whole configured list is kept; do not turn that into an omitted `scope` — what PingOne issues then has not been measured. `resource=` targeting and the PingFederate branch are unchanged.
 
 **Verify:** `cd demo_api_server && CI=true npx jest tests/demoReadinessCaseAdapter.test.js src/__tests__/olbTokenExchangeProviderRouting.test.js --forceExit`; live: a readiness run prints `gateway to MCP server  scopes read => read`.
+### 2026-10-02 — PingGateway enforced a stale, hand-maintained copy of the scope topology
+
+**Files:** `scripts/sync-gateway-scope-topology.js` (new), `scripts/sync-gateway-scope-topology.test.js` (new), `scripts/topology-verify.sh`, `ping-gateway/config/scope-topology.json`, `scripts/check-demo-health-gate.js`, `package.json`.
+
+**What was broken:** PingGateway mounts `ping-gateway/config/scope-topology.json` and `p1az-decision.groovy` reads it for the tool → requiredScopes backstop. That file was a hand-maintained twin of the root `scope-topology.json`; nothing generated it and `topology:verify` did not compare the two. It had fallen about 190 lines behind (missing the `accounts:read` grants and every A2A specialist's mapped claims). The `tools` section happened to still match, so the backstop was not yet wrong — but nothing would have noticed when it became so.
+
+**What changed:** The copy is generated, byte for byte, by `npm run topology:gateway:sync`. `topology:verify` step 11 runs it with `--check` and fails on any difference, so CI blocks a PR that edits the root topology without re-syncing.
+
+**Do not break:** Never hand-edit `ping-gateway/config/scope-topology.json`; edit the root file and run the sync. Restart `ping-gateway` after a sync. The BFF's admin UI can rewrite the root file at runtime; that does not update the gateway's copy until the sync is run.
+
+**Verify:** `node scripts/sync-gateway-scope-topology.js --check`; `node --test scripts/sync-gateway-scope-topology.test.js`.
 
 ### 2026-10-02 — PingFederate token chain: a broken actor chain or a wrong issuer passed validation
 

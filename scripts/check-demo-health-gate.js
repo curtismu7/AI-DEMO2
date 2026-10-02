@@ -339,7 +339,7 @@ function checkGatewayScopeParity() {
     missingScoped.length
       ? `fail-open drift: ${missingScoped.map((t) => t.name).join(', ')}`
       : (missingUnscoped.length ? `ok (${missingUnscoped.length} scope-less tools absent — backstop no-op for them)` : `ok (${gwSurface.length} gateway tools covered)`),
-    missingScoped.length ? `Copy the missing tool entries into ping-gateway/config/scope-topology.json (it is a hand-maintained copy, NOT regenerated) and restart ping-gateway. Missing tools silently skip the Groovy scope backstop.` : '',
+    missingScoped.length ? `Run 'npm run topology:gateway:sync' (the copy is generated from the root scope-topology.json) and restart ping-gateway. Missing tools silently skip the Groovy scope backstop.` : '',
   );
 }
 
