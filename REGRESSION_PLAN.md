@@ -261,6 +261,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 **Verify:** `cd demo_mcp_gateway && npm test -- --testPathPattern=tokenValidator`; `npm --prefix demo_api_server run verify:authorize-parity` (live); `node --test scripts/check-demo-health-gate.loadedConfig.test.js`.
 
+### 2026-10-02 — PingFederate login redirected to a dead :9031 after the PF container vanished
+
+**Files:** `run-docker.sh`, `demo_api_server/routes/oauthUser.js`, `demo_api_server/services/pingfederateReachability.js`.
+
+**What was broken:** UC1 sign-in under PingFederate failed with a browser connection error. `ai-demo-pingfederate` (its own compose project, `scripts/pingfederate`) no longer existed. The likely cause is `_purge_leftover_stack`, which `docker rm -f`'d every `ai-demo-*` container with no PF exemption; this could not be proven afterwards. Nothing told the user why.
+
+**What changed:** `_purge_leftover_stack` skips `ai-demo-pingfederate`. `GET /api/auth/oauth/user/login` under PingFederate probes the host:port of `PF_TOKEN_ENDPOINT` first and, on a refused or unresolvable connection, returns to the SPA with `error=oauth_provider&idp_error=pingfederate_unreachable` and a readable `error_description`. `run-docker.sh start` warns when the PF volume exists but the container is not running.
+
+**Do not break:** The probe fails open — timeouts, unset or unparseable `PF_TOKEN_ENDPOINT`, and every other error mean "reachable". It must never block a working login. It runs only on the browser-redirect branch under PingFederate; the `pi.flow` JSON branch and every PingOne login are untouched. Keep PF out of every `ai-demo-*` purge; `k8-docker-cleanup.sh` and the basic-start path already exclude it.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/pingfederateReachability.test.js tests/oauthUser.test.js --forceExit`. Live check of the down path not run (provider was PingOne).
+
 ### 2026-10-02 — PingGateway's decision filter was outside the request contract; its only check was unwired and stale
 
 **Files:** `snapshots/p1azRequestContract.js`, `ping-gateway/scripts/groovy/p1az-decision.groovy`, `ping-gateway/scripts/check-groovy-params.sh`, `scripts/topology-verify.sh`.

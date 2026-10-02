@@ -321,6 +321,17 @@ provider_lock_preflight() {
   fi
 }
 
+# PingFederate is a separate compose project, so this launcher never recreates it.
+# A leftover PF volume with no running container means PF was set up here and has
+# gone missing — selecting PingFederate would then redirect logins to a dead :9031.
+# Quiet when PF was never provisioned. Soft — warns, never aborts.
+pingfederate_preflight() {
+  [[ -n "$(docker volume ls -q --filter name='^ai-demo-pingfederate-out-classic$' 2>/dev/null)" ]] || return 0
+  [[ -n "$(docker ps -q --filter name='^ai-demo-pingfederate$' 2>/dev/null)" ]] && return 0
+  warn "PingFederate is provisioned here but ai-demo-pingfederate is not running; PF logins will fail."
+  warn "Start it: see scripts/pingfederate/README.md (docker compose -f scripts/pingfederate/docker-compose.local.yml up -d)."
+}
+
 vault_preflight() {
   local vault_file="${VAULT_PATH:-$BASEDIR/secrets.vault}"
   [[ -f "$vault_file" ]] || { ok "No secrets.vault — BFF uses .env / process.env values."; return 0; }
@@ -1281,7 +1292,7 @@ cmd_restart_one() {
   echo ""
   git_sync_check; echo ""
   _needs_tls_bind_mounts "$@" && { ensure_bind_mounts; echo ""; }
-  _includes_bff "$@" && { vault_preflight; provider_lock_preflight; dotenvx_preflight; echo ""; }
+  _includes_bff "$@" && { vault_preflight; provider_lock_preflight; pingfederate_preflight; dotenvx_preflight; echo ""; }
   _purge_foreign_container_names
   _export_llamacpp_base_url
   _export_loki_url
