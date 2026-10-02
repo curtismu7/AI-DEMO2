@@ -1,5 +1,6 @@
 'use strict';
 
+const crypto = require('crypto');
 const express = require('express');
 const configStore = require('../services/configStore');
 const { getFrontendOrigin } = require('../services/oauthRedirectUris');
@@ -9,7 +10,7 @@ const {
 } = require('../services/pfAiAgentFeatureConfig');
 const { metadataDocument, beginCimd, completeCimd } = require('../services/pfAiAgentCimdService');
 const { exchangeForThirdPartyAccessToken } = require('../services/pfAiAgentCrossDomainExchangeService');
-const { beginRar, completeRar } = require('../services/pfAiAgentRarService');
+const { beginRar, completeRar, userLimits } = require('../services/pfAiAgentRarService');
 
 function sessionProvider(req) {
   return String(req.session?.oauthProvider || req.session?.user?.oauthProvider || '').toLowerCase();
@@ -31,7 +32,7 @@ function errorCode(error, fallback) {
   return /^[A-Z0-9_]+$/.test(String(error?.code || '')) ? error.code : fallback;
 }
 
-function createPfAiAgentRouter({ configStore: store = configStore, fetchImpl = fetch } = {}) {
+function createPfAiAgentRouter({ configStore: store = configStore, fetchImpl = fetch, dataStore } = {}) {
   const router = express.Router();
 
   router.get('/status', (req, res) => {
@@ -98,12 +99,28 @@ function createPfAiAgentRouter({ configStore: store = configStore, fetchImpl = f
     }
   });
 
+  // Called by the PingFederate banking_transaction processor after sign-in, not
+  // by a browser: it has no session, so it presents a shared credential.
+  router.get('/rar/user-limits', (req, res) => {
+    const expected = String(store.getEffective('pf_ai_rar_lookup_secret') || '');
+    const presented = Buffer.from(String(req.get('authorization') || '').replace(/^Bearer /, ''));
+    if (!expected || presented.length !== Buffer.byteLength(expected)
+      || !crypto.timingSafeEqual(presented, Buffer.from(expected))) {
+      return res.status(401).json({ error: 'pf_ai_rar_lookup_unauthorized' });
+    }
+    const limits = userLimits(req.query.username, dataStore);
+    if (!limits) return res.status(404).json({ error: 'pf_ai_rar_user_unknown' });
+    res.set('Cache-Control', 'no-store');
+    return res.json(limits);
+  });
+
   router.post('/rar/start', requireApplicationSession, async (req, res) => {
     try {
       const { redirectUrl } = await beginRar(req, {
         scenario: req.body?.scenario || 'allowed',
         userKey: req.body?.userKey,
         store,
+        dataStore,
         fetchImpl,
       });
       return res.redirect(302, redirectUrl);
