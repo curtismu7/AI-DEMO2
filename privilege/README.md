@@ -26,6 +26,7 @@ including Ping's SE enablement storyboards and the code paths, is
 | [`PRIVILEGE-MCP.md`](PRIVILEGE-MCP.md) | The canonical record. Architecture, protocol per hop, every blocker and how it was ruled out, dated newest-last. Long, but the trap list at the end of each section is what saves the time |
 | [`PRIVILEGE-MCP-CONSOLE-STEPS.md`](PRIVILEGE-MCP-CONSOLE-STEPS.md) | Doing console work. These steps cannot be automated or tested from this repo |
 | [`runbooks/ping-mcpgw.md`](runbooks/ping-mcpgw.md) | Standing the gateway up locally |
+| [`GATEWAY-REGISTERING-AN-MCP-SERVER.md`](GATEWAY-REGISTERING-AN-MCP-SERVER.md) | Registering an MCP server on the AI Gateway: app fields, entry path, Auth Mode, policy, and what was tested live on 2026-10-02 |
 | [`SENSOR-DOCKER-GUIDE.md`](SENSOR-DOCKER-GUIDE.md) | Setting up or debugging the Privilege node sensor on any Docker host: setup, how it works, identity, logging, failure modes |
 | [`SENSOR-KUBERNETES-GUIDE.md`](SENSOR-KUBERNETES-GUIDE.md) | The same for any Kubernetes cluster: Helm install, ServiceAccount-token identity, chart values |
 | [`SENSOR-DOCKER-OUR-ENVIRONMENT.md`](SENSOR-DOCKER-OUR-ENVIRONMENT.md) | Our Docker setup: the Docker → local gateway → Docker loop, our values, the 2026-10-01 sensor failure and fix |
