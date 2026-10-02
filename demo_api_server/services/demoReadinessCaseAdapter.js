@@ -187,7 +187,11 @@ function evidenceFromAgentInvoke({ response, provider, expectedIssuer, authoriza
       };
     }
   }
-  return { observed: outcomeFromAgentResponse(response), evidence };
+  // UC2.6 is two decisions: the real delegated call, then a probe of the same
+  // decision endpoint with an unregistered generalist. Both are reported.
+  const mismatchProbe = eventById(events, 'a2a-mismatch-probe');
+  const outcome = outcomeFromAgentResponse(response);
+  return { observed: mismatchProbe ? `${outcome}_THEN_${mismatchProbe.decision || 'UNKNOWN'}` : outcome, evidence };
 }
 
 /**

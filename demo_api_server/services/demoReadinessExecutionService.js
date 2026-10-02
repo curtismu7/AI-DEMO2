@@ -74,7 +74,7 @@ function raceDeadline(task, deadlineAt, now, controller) {
 
 function expectedExchangePath(caseRow, provider) {
   if (caseRow.id === 'UC40') return 'native-id-jag';
-  if (caseRow.id === 'UC2' || caseRow.id === 'UC2.5') return provider === 'pingfederate' ? 'a2a-id-jag-then-access' : 'a2a-access-token';
+  if (['UC2', 'UC2.5', 'UC2.6'].includes(caseRow.id)) return provider === 'pingfederate' ? 'a2a-id-jag-then-access' : 'a2a-access-token';
   if (caseRow.id === 'UC38' || caseRow.id === 'UC44') return 'actor-bound-standard-two-exchange';
   return 'standard-access-token';
 }
@@ -310,7 +310,9 @@ function evidenceFailures({ evidence, provider, authorization, expected, caseRow
   if (authorization?.resourceServer) require(evidence.resourceServer != null && sameObject({ value: evidence.resourceServer }, { value: authorization.resourceServer }), 'resource server does not match catalog contract');
   else require(typeof evidence.resourceServer === 'string' && evidence.resourceServer, 'resource server is missing');
   require(evidence.roleApplicability && typeof evidence.roleApplicability === 'object' && !Array.isArray(evidence.roleApplicability), 'role applicability is missing');
-  if (authorization?.authorizeToolGroup?.role) require(evidence.roleApplicability?.authorizeRole === authorization.authorizeToolGroup.role, 'role applicability does not match Authorize role contract');
+  // A use-case step states whether it applies group policy; a feature contract
+  // (no `enforced` key) always does.
+  if (authorization?.authorizeToolGroup?.role && authorization.authorizeToolGroup.enforced !== false) require(evidence.roleApplicability?.authorizeRole === authorization.authorizeToolGroup.role, 'role applicability does not match Authorize role contract');
   require(evidence.exchangePath === expectedExchangePath(caseRow, provider), 'exchange path does not match case/provider contract');
   if (provider === 'pingfederate' && (caseRow.exchangeService || 'token-exchange') === 'token-exchange') {
     const exchange = evidence.pfExchange || {};

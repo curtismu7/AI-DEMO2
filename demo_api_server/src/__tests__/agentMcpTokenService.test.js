@@ -160,6 +160,8 @@ jest.mock('../../services/idJagService', () => ({
 const configStore = require('../../services/configStore');
 const enterpriseMcpPolicy = require('../../services/enterpriseMcpPolicyService');
 const { resolveMcpAccessTokenWithEvents, buildSessionPreviewTokenEvents } = require('../../services/agentMcpTokenService');
+// Same instance the service uses: required here, at load, not inside a test.
+const commerceStore = require('../../services/lmdb/delegatedCommerceStore.lmdb');
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -284,6 +286,42 @@ describe('resolveMcpAccessTokenWithEvents — PingFederate standard exchange aud
   });
 
   afterEach(() => configStore.getOAuthProvider.mockReturnValue('pingone'));
+
+  it('a registered delegated-commerce agent is the actor under PingFederate, not the built-in agent', async () => {
+    // The registration used to be dropped for PingFederate: the built-in agent
+    // acted, and the registration's consent and revocation were never consulted.
+    const getRegistration = jest.spyOn(commerceStore, 'get').mockReturnValue({
+      id: 'reg-1', applicationId: 'commerce-agent', claimedByUserId: 'cust-1', status: 'active',
+      expiresAt: Date.now() + 60_000, tokenEndpointAuthMethod: 'post', scopes: ['read'],
+    });
+    const decrypt = jest.spyOn(commerceStore, 'decryptClientSecret').mockReturnValue('commerce-secret');
+    mockGetAiAgentClientCredentialsToken.mockReset();
+    mockGetAiAgentClientCredentialsToken
+      .mockResolvedValueOnce(makeJwt({ sub: 'commerce-agent', client_id: 'commerce-agent', scope: 'agent:invoke' }))
+      .mockResolvedValueOnce(sampleJwtPfMcpActorToken);
+    mockPerformTokenExchangeAs.mockImplementation((subjectToken, actorToken, clientId, clientSecret, audience, scopes) => {
+      const subjectClaims = JSON.parse(Buffer.from(subjectToken.split('.')[1], 'base64url').toString('utf8'));
+      const actorClaims = JSON.parse(Buffer.from(actorToken.split('.')[1], 'base64url').toString('utf8'));
+      return Promise.resolve(makeJwt(clientId === 'pf-agent-hop-client'
+        ? { sub: subjectClaims.sub, aud: 'https://pf.example.test/agent-intermediate', scope: scopes.join(' '), act: { sub: actorClaims.client_id } }
+        : { sub: subjectClaims.sub, aud: audience, scope: scopes.join(' '), act: { sub: actorClaims.sub, act: { sub: 'commerce-agent' } } }));
+    });
+    const req = { ...makeReq(sampleJwtUserAccessToken), user: { id: 'cust-1' } };
+    req.session.delegatedCommerceRegistrationId = 'reg-1';
+
+    try {
+      const result = await resolveMcpAccessTokenWithEvents(req, 'get_my_accounts');
+
+      expect(mockGetAiAgentClientCredentialsToken).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        clientId: 'commerce-agent', clientSecret: 'commerce-secret', authMethod: 'post',
+      }));
+      const finalClaims = JSON.parse(Buffer.from(result.token.split('.')[1], 'base64url').toString('utf8'));
+      expect(finalClaims.act).toEqual({ sub: 'pf-mcp-actor', act: { sub: 'commerce-agent' } });
+    } finally {
+      getRegistration.mockRestore();
+      decrypt.mockRestore();
+    }
+  });
 
   it('uses two PF access-token exchanges and derives both audiences from the assigned policies', async () => {
     const result = await resolveMcpAccessTokenWithEvents(makeReq(sampleJwtUserAccessToken), 'get_my_accounts');

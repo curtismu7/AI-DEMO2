@@ -400,7 +400,9 @@ function permittedToolsForIntent(intent, vertical) {
   // UC2.5: delegate_to_specialist is not a gateway tool — the A2A specialist
   // runs the vertical's sensitive read on the user's behalf, so permit exactly
   // the tools that specialist is provisioned for (config/a2aSpecialists.js).
-  if (intent === 'delegate_to_specialist') {
+  // UC2.6 (a2a_generalist_mismatch) runs that same real delegation first, then
+  // its probe, so it needs the same tools.
+  if (intent === 'delegate_to_specialist' || intent === 'a2a_generalist_mismatch') {
     const { specialistForVertical } = require('../config/a2aSpecialists');
     const tools = specialistForVertical(vertical)?.tools;
     if (Array.isArray(tools) && tools.length) return tools;

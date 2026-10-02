@@ -96,6 +96,23 @@ test('depth 2 with wrong NestedActClientId is DENIED when generalist is configur
   assert.match(body.reason, /invalid_a2a_generalist/);
 });
 
+// Live 2026-10-02: the stack sets only PINGONE_AI_AGENT_ACTOR_CLIENT_ID, so the
+// check above was skipped and UC2.6's fabricated generalist was PERMITTED.
+test('depth 2 with an unregistered generalist is DENIED when only the ACTOR name is configured', async () => {
+  const prev = process.env.PINGONE_AI_AGENT_ACTOR_CLIENT_ID;
+  process.env.PINGONE_AI_AGENT_ACTOR_CLIENT_ID = '71e878ea-2d79-4760-b570-66f00cbeffe7';
+  fresh();
+  try {
+    const call = (NestedActClientId) => decide(a2aParams({ ActChainDepth: '2', ActClientId: 'investment-specialist', NestedActClientId }));
+    const forged = await call('unregistered-simulated-agent');
+    assert.strictEqual(forged.decision, 'DENY');
+    assert.match(forged.reason, /invalid_a2a_generalist/);
+    assert.strictEqual((await call('71e878ea-2d79-4760-b570-66f00cbeffe7')).decision, 'PERMIT');
+  } finally {
+    if (prev === undefined) delete process.env.PINGONE_AI_AGENT_ACTOR_CLIENT_ID; else process.env.PINGONE_AI_AGENT_ACTOR_CLIENT_ID = prev;
+  }
+});
+
 test('depth 2 with matching NestedActClientId is PERMITTED when generalist is configured', async () => {
   process.env.PINGONE_AI_AGENT_CLIENT_ID = '71e878ea-2d79-4760-b570-66f00cbeffe7';
   fresh();
