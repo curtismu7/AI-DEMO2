@@ -4,6 +4,7 @@ const { createPingFederateReader, baselineMismatches } = require('../services/de
 const { createAuditService } = require('../services/demoReadinessAuditService');
 
 const BASE = 'https://pf.example.test:9999/pf-admin-api/v1';
+const ISSUER = 'https://pf.example.test:9031';
 const ENV = {
   PINGFEDERATE_ADMIN_API_BASE: BASE,
   PINGFEDERATE_ADMIN_PASSWORD: 'admin-password',
@@ -48,6 +49,10 @@ function live(overrides = {}) {
 function reader(state, { env = ENV, calls = [] } = {}) {
   const get = async (url, options) => {
     calls.push({ url, options });
+    // The runtime's discovery document, served by the issuer rather than the admin API.
+    if (url === ISSUER + '/.well-known/openid-configuration') {
+      return state.discovery ? { status: 200, body: state.discovery } : { status: 503, body: {} };
+    }
     const resource = url.slice(BASE.length + 1);
     if (!(resource in state)) return { status: 404, body: {} };
     // Lists come back wrapped in items; the CIMD settings are a single object.
@@ -64,7 +69,7 @@ describe('demoReadinessPingFederateReader', () => {
     expect(baselineMismatches(PROFILES.roles.exchanger.baseline, await role('exchanger'))).toEqual([]);
     expect(await role('a2a-specialist')).toEqual({ present: true, resourceUris: ['https://a.example.test', 'https://b.example.test'], idJagEnabled: true });
     expect(await role('davinci-login')).toEqual({ present: true, davinciAdapterConfigured: false });
-    expect(await role('rar')).toEqual({ present: false, rarDetailTypes: [] });
+    expect(await role('rar')).toEqual({ present: false, rarDetailTypes: [], advertisedDetailTypes: null });
     expect(JSON.stringify([await role('exchanger'), await pf.readConfiguration()])).not.toMatch(/ENCRYPTED-SECRET|admin-password/);
   });
 
@@ -146,9 +151,45 @@ describe('demoReadinessPingFederateReader', () => {
 
     it('match the baseline once provisioned, ignoring disabled policies and inactive types', async () => {
       const cimd = await role(provisioned(), 'cimd');
-      expect(cimd).toEqual({ present: true, cimdEnabled: true, metadataUrls: [URL], pkceRequired: true });
+      expect(cimd).toEqual({ present: true, cimdEnabled: true, metadataUrls: [URL], pkceRequired: true, advertised: null });
       expect(baselineMismatches(PROFILES.roles.cimd.baseline, cimd)).toEqual([]);
-      expect(await role(provisioned(), 'rar')).toEqual({ present: true, rarDetailTypes: ['banking_transaction'] });
+      expect(await role(provisioned(), 'rar')).toEqual({ present: true, rarDetailTypes: ['banking_transaction'], advertisedDetailTypes: null });
+    });
+
+    // Found live: the admin API accepted CIMD settings and a policy while the
+    // discovery document still said client_id_metadata_document_supported: false.
+    describe('what the runtime advertises', () => {
+      const env = { ...ENV, PF_ISSUER: ISSUER };
+      const advertising = (discovery) => ({ ...provisioned(), discovery });
+      const view = (state, name, calls) => reader(state, { env, calls }).readProfile({ role: name, profile: PROFILES.roles[name] });
+      const baseline = { ...PROFILES.roles.cimd.baseline, advertised: true };
+
+      it('fails CIMD when it is configured but the discovery document says it is unsupported', async () => {
+        const cimd = await view(advertising({ client_id_metadata_document_supported: false }), 'cimd');
+        expect(cimd).toMatchObject({ present: true, cimdEnabled: true, advertised: false });
+        expect(baselineMismatches(baseline, cimd)).toEqual(['advertised']);
+      });
+
+      it('passes CIMD when the discovery document advertises it', async () => {
+        expect(baselineMismatches(baseline, await view(advertising({ client_id_metadata_document_supported: true }), 'cimd'))).toEqual([]);
+      });
+
+      it('does not pass when the discovery document cannot be read', async () => {
+        expect(baselineMismatches(baseline, await view(provisioned(), 'cimd'))).toEqual(['advertised']);
+      });
+
+      it('reports the authorization detail types the runtime advertises', async () => {
+        const rar = await view(advertising({ authorization_details_types_supported: ['banking_transaction'] }), 'rar');
+        expect(rar.advertisedDetailTypes).toEqual(['banking_transaction']);
+      });
+
+      it('never sends the admin credentials to the issuer', async () => {
+        const calls = [];
+        await view(advertising({}), 'cimd', calls);
+        const discoveryCalls = calls.filter(({ url }) => url.startsWith(ISSUER));
+        expect(discoveryCalls).toHaveLength(1);
+        expect(discoveryCalls[0].options.headers).toEqual({});
+      });
     });
 
     it('fail CIMD when it is switched off, when a wider URL pattern is enabled, or when PKCE is not required', async () => {

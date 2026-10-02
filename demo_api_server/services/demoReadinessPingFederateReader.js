@@ -59,6 +59,15 @@ function createPingFederateReader({ env = process.env, get = adminGet, profiles 
       items('idp/adapters'), items('oauth/authorizationDetailTypes'),
       one('oauth/cimd/settings'), items('oauth/cimd/policies'),
     ]);
+    // What the runtime ADVERTISES, from its discovery document. The admin API
+    // accepts CIMD settings that the engine then does not serve (CIMD needs
+    // external OAuth client storage), so configuration alone is not evidence a
+    // feature is on. null = the document could not be read.
+    const issuer = String(env.PF_ISSUER_URI || env.PF_ISSUER || '').replace(/\/$/, '');
+    const discovery = issuer
+      ? await get(issuer + '/.well-known/openid-configuration', { headers: {}, insecure, signal })
+        .then((response) => (response.status === 200 ? response.body : null), () => null)
+      : null;
     const managerField = (manager, name) => (manager.configuration?.fields || []).find((field) => field.name === name)?.value || null;
     return {
       clients: Object.fromEntries(clients.map((client) => [client.clientId, {
@@ -85,7 +94,9 @@ function createPingFederateReader({ env = process.env, get = adminGet, profiles 
         // Only enabled policies admit a client; their URL patterns are the allowlist.
         metadataUrls: cimdPolicies.filter((policy) => policy.enabled).flatMap((policy) => policy.metadataUrls || []).sort(),
         pkceRequired: cimdPolicies.filter((policy) => policy.enabled).every((policy) => policy.requireProofKeyForCodeExchange),
+        advertised: discovery ? discovery.client_id_metadata_document_supported === true : null,
       },
+      advertisedDetailTypes: discovery ? [...(discovery.authorization_details_types_supported || [])].sort() : null,
     };
   }
 
@@ -122,7 +133,7 @@ function createPingFederateReader({ env = process.env, get = adminGet, profiles 
     // enabled policy whose pattern matches is what admits it.
     if (role === 'cimd') return { present: view.cimd.cimdEnabled && view.cimd.metadataUrls.length > 0, ...view.cimd };
     // RAR rides on the CIMD client; what PingFederate itself must hold is the type.
-    if (role === 'rar') return { present: view.rarDetailTypes.length > 0, rarDetailTypes: view.rarDetailTypes };
+    if (role === 'rar') return { present: view.rarDetailTypes.length > 0, rarDetailTypes: view.rarDetailTypes, advertisedDetailTypes: view.advertisedDetailTypes };
     return { present: Boolean(client), ...client };
   }
 

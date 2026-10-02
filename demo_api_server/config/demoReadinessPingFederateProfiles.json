@@ -87,7 +87,7 @@
       "objectId": "PF_CIMD_CLIENT",
       "configurationKeys": [],
       "expected": { "cimdPolicy": "undocumented", "issuer": "environment-configured", "jwksUri": "environment-configured" },
-      "baseline": { "present": true, "cimdEnabled": true, "metadataUrls": ["https://local.ping-devops.com:4000/api/pf-ai-agent/cimd/client-metadata.json"], "pkceRequired": true },
+      "baseline": { "present": true, "cimdEnabled": true, "metadataUrls": ["https://local.ping-devops.com:4000/api/pf-ai-agent/cimd/client-metadata.json"], "pkceRequired": true, "advertised": true },
       "unresolved": true,
       "sourceRef": "scripts/pingfederate/provision-ai-agent-features.js"
     },
@@ -105,7 +105,7 @@
       "objectId": "PF_RAR_CLIENT",
       "configurationKeys": [],
       "expected": { "rarProcessor": "undocumented", "authorizationDetailsTypes": "undocumented" },
-      "baseline": { "present": true, "rarDetailTypes": ["banking_transaction"] },
+      "baseline": { "present": true, "rarDetailTypes": ["banking_transaction"], "advertisedDetailTypes": ["banking_transaction"] },
       "unresolved": true,
       "sourceRef": "scripts/pingfederate/provision-ai-agent-features.js"
     }
