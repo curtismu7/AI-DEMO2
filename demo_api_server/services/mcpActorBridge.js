@@ -23,10 +23,21 @@
 const configStore = require('./configStore');
 
 /**
+ * @param {{ workloadActorClientId?: string|null }} [opts] the customer-owned workload
+ *   agent the BFF verified for this request, if any
  * @returns {Record<string,string>} headers to merge onto the outbound MCP request
- *   (`X-Act-Client-Id` and `X-May-Act-Sub`, both the AI Agent), or {} when unconfigured.
+ *   (`X-Act-Client-Id` and `X-May-Act-Sub`, both the acting agent), or {} when unconfigured.
  */
-function buildActorBridgeHeaders() {
+function buildActorBridgeHeaders({ workloadActorClientId = null } = {}) {
+  // A workload run on the workload resource: the token's own `act` names the
+  // customer's workload agent, so the delegate the gateway is told about must be
+  // that same agent. The BFF only sets workloadActorClientId after verifying the
+  // signed-in customer owns that agent (routes/agentInvokeRoute.js). On the shared
+  // Agent Gateway resource `act` still names the built-in agent, so the bridge
+  // must too — hence the audience check.
+  if (workloadActorClientId && configStore.getEffective('workload_agent_gateway_audience')) {
+    return { 'X-Act-Client-Id': workloadActorClientId, 'X-May-Act-Sub': workloadActorClientId };
+  }
   // The AI Agent (the user's delegate) is the actor. Same resolution order provisioning
   // used, so the bridged value matches the exchanged token's audience.
   const aiAgentClientId =

@@ -242,6 +242,9 @@ test('exchange hops report each token\'s own act chain, so a missing act fails a
   response.tokenEvents.unshift({ id: 'personal-agent-lookup', status: 'active' });
   response.tokenEvents[3].claims.act = { sub: 'agent-1' };
   response.tokenEvents[4].claims.act = { sub: 'agent-1' };
+  // Recorded under an agent other than the one that presented the actor token.
+  expect(validateRow('UC44', run(), 'PERMIT').join(' ; ')).toMatch(/must name the workload agent/);
+  response.tokenEvents[2].claims.client_id = 'agent-1';
   expect(run().evidence.exchangeHops).toEqual([{ subject: 'user-1', actorChain: ['user-1', 'agent-1'] }, { subject: 'user-1', actorChain: ['user-1', 'agent-1'] }]);
   expect(validateRow('UC44', run(), 'PERMIT')).toEqual([]);
 });
