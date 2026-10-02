@@ -997,7 +997,9 @@ _compose_with_timeout() {
 # Force-remove containers/network left when profiled services keep ai-demo_ai-demo alive.
 _purge_leftover_stack() {
   local ids cnt
-  ids="$(docker ps -aq --filter "name=ai-demo-" 2>/dev/null || true)"
+  # PingFederate is its own compose project (scripts/pingfederate); never purge it.
+  ids="$(docker ps -a --filter "name=ai-demo-" --format '{{.ID}} {{.Names}}' 2>/dev/null \
+    | awk '$2 != "ai-demo-pingfederate" { print $1 }' || true)"
   if [[ -n "${ids}" ]]; then
     cnt="$(wc -w <<< "${ids}" | tr -d ' ')"
     warn "Purging ${cnt} leftover ai-demo container(s)..."

@@ -217,6 +217,23 @@ describe('OAuth User Login', () => {
     expect(authorizationUrl.searchParams.get('client_id')).toBe('test-pf-client-id');
   });
 
+  test('PingFederate selected but not running sends the user back with a clear error, not to a dead port', async () => {
+    configStore.getOAuthProvider.mockReturnValue('pingfederate');
+    const net = require('net');
+    const srv = net.createServer().listen(0);
+    const { port } = srv.address();
+    await new Promise((r) => srv.close(r));
+    process.env.PF_TOKEN_ENDPOINT = `https://127.0.0.1:${port}/as/token.oauth2`;
+    try {
+      const res = await request.agent(app).get('/api/auth/oauth/user/login').expect(302);
+      const back = new URL(res.headers.location);
+      expect(back.origin).toBe('http://localhost:3000');
+      expect(back.searchParams.get('idp_error')).toBe('pingfederate_unreachable');
+    } finally {
+      delete process.env.PF_TOKEN_ENDPOINT;
+    }
+  });
+
   test('a valid PingFederate session is reused while PingFederate is selected', async () => {
     configStore.getOAuthProvider.mockReturnValue('pingfederate');
     const browser = request.agent(app);
