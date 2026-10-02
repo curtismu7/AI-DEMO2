@@ -734,7 +734,11 @@ module.exports = async function decisionHandler(req, res) {
   } else if (ActClientId) {
     const isAuthorizedActor = !!authorizedActor && ActClientId === authorizedActor;
     const isAuthorizedAiAgent = !!authorizedAiAgent && ActClientId === authorizedAiAgent;
-    if (!isAuthorizedActor && !isAuthorizedAiAgent) {
+    // Named customer workload agents (UC38 / UC44), the same closed list the
+    // cloud policy's HasValidActorChain gets from PINGONE_WORKLOAD_AGENT_CLIENT_IDS.
+    const isNamedWorkloadAgent = (process.env.PINGONE_WORKLOAD_AGENT_CLIENT_IDS || '')
+      .split(',').map((id) => id.trim()).filter(Boolean).includes(ActClientId);
+    if (!isAuthorizedActor && !isAuthorizedAiAgent && !isNamedWorkloadAgent) {
       warn(`[AuthzServer/decision] DENY — act.sub "${ActClientId}" != authorized actor "${authorizedActor || '(none configured)'}" or AI Agent "${authorizedAiAgent || '(none configured)'}"`);
       // Explicit code: this reason has no "prefix:" shape to derive from.
       return deny(res, `act.sub "${ActClientId}" is not an authorized actor`, 'mcp-invalid-actor');

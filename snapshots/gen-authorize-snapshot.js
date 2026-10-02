@@ -738,17 +738,23 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
         || k === 'PINGONE_AI_AGENT_ACTOR_CLIENT_ID')
       .map((k) => (process.env[k] || '').trim())
       .filter(Boolean);
+    // Named customer workload agents (UC38 / UC44): Agent Builder apps that act
+    // under their own client id on the workload resource. Listed one by one, on
+    // purpose — the rule stays a closed list of known ids. A new customer agent
+    // needs its id added here and the snapshot re-imported.
+    const workloadAgents = (process.env.PINGONE_WORKLOAD_AGENT_CLIENT_IDS || '')
+      .split(',').map((id) => id.trim()).filter(Boolean);
 
-    const actors = [...new Set([...existing, ...fromEnv])].sort();
+    const actors = [...new Set([...existing, ...fromEnv, ...workloadAgents])].sort();
     if (actors.length > existing.length) {
       console.log(`  actor chain: +${actors.length - existing.length} actor id(s) from env`);
     }
     actorCond.description =
       `ActClientId is one of the registered chain identities (${actors.length}): the MCP Token `
-      + `Exchanger, the AI Agent, and each A2A specialist. A two-hop chain whose specialist is not `
+      + `Exchanger, the AI Agent, each A2A specialist, and each named customer workload agent. A two-hop chain whose specialist is not `
       + `listed here is denied as an invalid actor, regardless of chain depth. Union of the ids `
-      + `already in the snapshot, PINGONE_AI_AGENT_ACTOR_CLIENT_ID and `
-      + `PINGONE_A2A_*_AGENT_CLIENT_ID — never shrinks.`
+      + `already in the snapshot, PINGONE_AI_AGENT_ACTOR_CLIENT_ID, `
+      + `PINGONE_A2A_*_AGENT_CLIENT_ID and PINGONE_WORKLOAD_AGENT_CLIENT_IDS — never shrinks.`
       + (externalDoorAudience
         ? ` PLUS an external-door exemption: an ABSENT actor (ActClientId '') is accepted ONLY when `
           + `TokenIss is one of ${externalDoorIssuers.join(', ')}. That route has no exchange step by `
@@ -762,7 +768,7 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
     if (actorRule) {
       actorRule.description =
         `DENY when ActClientId is not one of the ${actors.length} registered chain identities `
-        + `(the MCP Token Exchanger, the AI Agent, and each A2A specialist). Validates the RFC 8693 `
+        + `(the MCP Token Exchanger, the AI Agent, each A2A specialist, and each named customer workload agent). Validates the RFC 8693 `
         + `delegation chain has a known registered actor. Generated — do not hand-edit the list.`;
       // The count in this description is exactly what a console reader trusts
       // ("a stale count is how nobody noticed") — content-derive so it lands.
