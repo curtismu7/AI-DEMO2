@@ -1089,7 +1089,7 @@ async function runMcpToolPipeline(ctx) {
                     ({ groups: gatewayUserGroups } = await groupPolicy.groupsForUser(
                         req.session?.user?.username,
                         sessionVertical,
-                        { pingOneUserId: req.session?.user?.oauthId || req.session?.user?.sub || null },
+                        { pingOneUserId: await require('./pingOneSessionUser').pingOneUserIdFor(req, req.session?.user?.oauthId || req.session?.user?.sub || null) },
                     ));
                 }
             } catch (_) { /* best-effort */ }

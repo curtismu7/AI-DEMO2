@@ -16,6 +16,7 @@ const dataStore = require('../data/store');
 const configStore = require('./configStore');
 const { resolveAccountId } = require('../utils/accountUtils');
 const mfaService = require('./mfaService');
+const { pingOneUserIdFor } = require('./pingOneSessionUser');
 const recognizeService = require('./recognizeService');
 const { roundToCents } = require('../utils/money');
 const scopeTopology = require('./scopeTopology');
@@ -442,7 +443,7 @@ async function _confirmChallengeImpl(req, challengeId, opts = {}) {
   if (mfaMode === 'device_picker' && ch.snapshot.amount >= getStepUpThreshold()) {
     let daId, devices;
     try {
-      const initiated = await mfaService.initiateDeviceAuth(req.user.id, userAccessToken);
+      const initiated = await mfaService.initiateDeviceAuth(await pingOneUserIdFor(req, req.user.id), userAccessToken);
       daId = initiated.id;
       devices = initiated._embedded?.devices || [];
     } catch (err) {
@@ -469,7 +470,7 @@ async function _confirmChallengeImpl(req, challengeId, opts = {}) {
     // PingOne's MFA policy, lockout, and audit boundary.
     let contact, deliveryType;
     try {
-      const { email, mobilePhone } = await mfaService.getPingOneUserContact(req.user.id);
+      const { email, mobilePhone } = await mfaService.getPingOneUserContact(await pingOneUserIdFor(req, req.user.id));
       if (email) { deliveryType = 'EMAIL'; contact = email; }
       else if (mobilePhone) { deliveryType = 'SMS'; contact = mobilePhone; }
     } catch (err) {
@@ -484,7 +485,7 @@ async function _confirmChallengeImpl(req, challengeId, opts = {}) {
       return { ok: true, challengeId, needsContact: true };
     }
 
-    return _initiateOnetimeOtp(ch, challengeId, deliveryType, contact, userAccessToken, req.user.id, now);
+    return _initiateOnetimeOtp(ch, challengeId, deliveryType, contact, userAccessToken, await pingOneUserIdFor(req, req.user.id), now);
 
   } else if (mfaMode === 'recognize') {
     // ── PingOne Recognize: face auth branch ───────────────────────────────
@@ -503,7 +504,7 @@ async function _confirmChallengeImpl(req, challengeId, opts = {}) {
     // Fallback: one-time OTP when Recognize is unavailable
     let contact, deliveryType;
     try {
-      const p = await mfaService.getPingOneUserContact(req.user.id);
+      const p = await mfaService.getPingOneUserContact(await pingOneUserIdFor(req, req.user.id));
       if (p.email) { deliveryType = 'EMAIL'; contact = p.email; }
       else if (p.mobilePhone) { deliveryType = 'SMS'; contact = p.mobilePhone; }
     } catch (err) {
@@ -515,7 +516,7 @@ async function _confirmChallengeImpl(req, challengeId, opts = {}) {
       ch.pendingContact = true;
       return { ok: true, challengeId, mode: 'onetime_fallback', needsContact: true };
     }
-    const otpResult = await _initiateOnetimeOtp(ch, challengeId, deliveryType, contact, req.session?.oauthTokens?.accessToken, req.user.id, now);
+    const otpResult = await _initiateOnetimeOtp(ch, challengeId, deliveryType, contact, req.session?.oauthTokens?.accessToken, await pingOneUserIdFor(req, req.user.id), now);
     if (!otpResult.ok) return otpResult;
     return { ...otpResult, mode: 'onetime_fallback' };
   }
@@ -526,7 +527,7 @@ async function _confirmChallengeImpl(req, challengeId, opts = {}) {
   // lockout, and audit boundary.
   let contact, deliveryType;
   try {
-    const p = await mfaService.getPingOneUserContact(req.user.id);
+    const p = await mfaService.getPingOneUserContact(await pingOneUserIdFor(req, req.user.id));
     if (p.email) { deliveryType = 'EMAIL'; contact = p.email; }
     else if (p.mobilePhone) { deliveryType = 'SMS'; contact = p.mobilePhone; }
   } catch (err) {
@@ -538,7 +539,7 @@ async function _confirmChallengeImpl(req, challengeId, opts = {}) {
     ch.pendingContact = true;
     return { ok: true, challengeId, needsContact: true };
   }
-  return _initiateOnetimeOtp(ch, challengeId, deliveryType, contact, userAccessToken, req.user.id, now);
+  return _initiateOnetimeOtp(ch, challengeId, deliveryType, contact, userAccessToken, await pingOneUserIdFor(req, req.user.id), now);
 
 }
 
@@ -675,7 +676,7 @@ async function confirmOnetimeContact(req, challengeId, contact) {
   }
 
   const userAccessToken = req.session?.oauthTokens?.accessToken;
-  return _initiateOnetimeOtp(ch, challengeId, deliveryType, contactValue, userAccessToken, req.user.id, Date.now());
+  return _initiateOnetimeOtp(ch, challengeId, deliveryType, contactValue, userAccessToken, await pingOneUserIdFor(req, req.user.id), Date.now());
 }
 
 /**
@@ -962,7 +963,7 @@ async function recognizeFallback(req, challengeId) {
 
   let contact, deliveryType;
   try {
-    const p = await mfaService.getPingOneUserContact(req.user.id);
+    const p = await mfaService.getPingOneUserContact(await pingOneUserIdFor(req, req.user.id));
     if (p.email) { deliveryType = 'EMAIL'; contact = p.email; }
     else if (p.mobilePhone) { deliveryType = 'SMS'; contact = p.mobilePhone; }
   } catch (err) {
@@ -976,7 +977,7 @@ async function recognizeFallback(req, challengeId) {
     return { ok: true, challengeId, mode: 'onetime_fallback', needsContact: true };
   }
 
-  const otpResult = await _initiateOnetimeOtp(ch, challengeId, deliveryType, contact, req.session?.oauthTokens?.accessToken, req.user.id, Date.now());
+  const otpResult = await _initiateOnetimeOtp(ch, challengeId, deliveryType, contact, req.session?.oauthTokens?.accessToken, await pingOneUserIdFor(req, req.user.id), Date.now());
   if (!otpResult.ok) return otpResult;
   return { ...otpResult, mode: 'onetime_fallback' };
 }
@@ -1079,7 +1080,7 @@ async function reinitMfaDevices(req, challengeId) {
 
   let initiated;
   try {
-    initiated = await mfaService.initiateDeviceAuth(req.user.id, req.session?.oauthTokens?.accessToken);
+    initiated = await mfaService.initiateDeviceAuth(await pingOneUserIdFor(req, req.user.id), req.session?.oauthTokens?.accessToken);
   } catch (err) {
     console.warn(`[ConsentChallenge] reinit initiateDeviceAuth failed: ${err.message}`);
     return _mfaInitFailureResult(err, req.session?.oauthTokens?.expiresAt);
