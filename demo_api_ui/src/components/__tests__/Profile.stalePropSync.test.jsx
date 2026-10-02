@@ -21,6 +21,15 @@ vi.mock("../../services/bffAxios", () => ({
   },
 }));
 
+// Profile sits behind PingOneProviderGuard, which renders nothing until the
+// login-provider check resolves; PingOne selected means no warning.
+vi.mock("../../services/apiClient", () => ({
+  default: {
+    get: vi.fn().mockResolvedValue({ data: { loginProvider: "pingone" } }),
+    post: vi.fn().mockResolvedValue({ data: {} }),
+  },
+}));
+
 afterEach(() => {
   cleanup();
 });
@@ -33,10 +42,10 @@ const REAL_USER = {
   username: "realuser",
 };
 
-it("picks up the real user once auth resolves, instead of locking onto the null-user mount", () => {
+it("picks up the real user once auth resolves, instead of locking onto the null-user mount", async () => {
   const { rerender } = render(<Profile user={null} />);
   // First render: session check still in flight, matches SignInPrompt branch.
-  expect(screen.getByText(/Sign in to view and manage your profile/i)).toBeInTheDocument();
+  expect(await screen.findByText(/Sign in to view and manage your profile/i)).toBeInTheDocument();
 
   // useAuth resolves on the next render of the same mounted instance.
   rerender(<Profile user={REAL_USER} />);
@@ -49,9 +58,9 @@ it("picks up the real user once auth resolves, instead of locking onto the null-
   expect(screen.getByLabelText(/phone/i)).toHaveValue("555-0100");
 });
 
-it("does not clobber an in-progress edit if the user prop is re-delivered", () => {
+it("does not clobber an in-progress edit if the user prop is re-delivered", async () => {
   const { rerender } = render(<Profile user={REAL_USER} />);
-  fireEvent.click(screen.getByRole("button", { name: /Edit Profile/i }));
+  fireEvent.click(await screen.findByRole("button", { name: /Edit Profile/i }));
   fireEvent.change(screen.getByLabelText(/first name/i), { target: { value: "Draft" } });
 
   // Same user object re-delivered (e.g. an unrelated parent re-render) must

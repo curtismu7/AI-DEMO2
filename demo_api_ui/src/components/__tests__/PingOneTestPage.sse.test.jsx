@@ -10,10 +10,12 @@
  * corresponding React state (reflected in the DOM).
  */
 import React from "react";
-import { render, act } from "@testing-library/react";
+import { fireEvent, render, screen, act, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { MemoryRouter } from "react-router-dom";
 import apiClient from "../../services/apiClient";
+
+const originalLocation = window.location;
 
 // ─── window.EventSource mock ─────────────────────────────────────────────────
 
@@ -42,6 +44,14 @@ beforeAll(() => {
 });
 beforeEach(() => {
   MockEventSource.reset();
+});
+
+afterEach(() => {
+  Object.defineProperty(window, "location", {
+    value: originalLocation,
+    configurable: true,
+    writable: true,
+  });
 });
 
 // ─── Heavy dependency mocks ───────────────────────────────────────────────────
@@ -87,11 +97,13 @@ vi.mock("../PingOneTestPage.css", () => ({}), { virtual: true });
 
 beforeEach(() => {
   if (apiClient && typeof apiClient.get === "function") {
+    apiClient.get.mockClear();
     apiClient.get.mockImplementation(() =>
       Promise.resolve({ data: { success: false, error: "no session" } }),
     );
   }
   if (apiClient && typeof apiClient.post === "function") {
+    apiClient.post.mockClear();
     apiClient.post.mockImplementation(() => Promise.resolve({ data: {} }));
   }
 });
@@ -100,12 +112,115 @@ beforeEach(() => {
 
 async function renderPage() {
   const { default: PingOneTestPage } = await import("../PingOneTestPage");
-  return render(
-    <MemoryRouter>
-      <PingOneTestPage />
-    </MemoryRouter>,
-  );
+  let rendered;
+  await act(async () => {
+    rendered = render(
+      <MemoryRouter>
+        <PingOneTestPage />
+      </MemoryRouter>,
+    );
+  });
+  return rendered;
 }
+
+describe("PingOneTestPage — PingFederate provider warning", () => {
+  function selectPingFederate({ authenticated = false } = {}) {
+    apiClient.get.mockImplementation((url) => {
+      if (url === "/api/pingone-test/config") {
+        return Promise.resolve({ data: { success: true, config: {} } });
+      }
+      if (url === "/api/auth/oauth/user/status") {
+        return Promise.resolve({
+          data: {
+            authenticated,
+            loginProvider: "pingfederate",
+            oauthProvider: authenticated ? "pingfederate" : null,
+          },
+        });
+      }
+      return Promise.resolve({ data: { success: false, error: "no session" } });
+    });
+  }
+
+  function stubLocation() {
+    Object.defineProperty(window, "location", {
+      value: { ...originalLocation, href: "" },
+      configurable: true,
+      writable: true,
+    });
+  }
+
+  it("shows a provider warning on entry and keeps the page when the user cancels", async () => {
+    selectPingFederate();
+    await renderPage();
+
+    expect(await screen.findByRole("dialog", { name: "PingOne sign-in required" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "PingOne sign-in required" })).not.toBeInTheDocument());
+    expect(apiClient.post).not.toHaveBeenCalled();
+  });
+
+  it("does not interrupt users when PingOne is selected", async () => {
+    apiClient.get.mockImplementation((url) => {
+      if (url === "/api/pingone-test/config") {
+        return Promise.resolve({ data: { success: true, config: {} } });
+      }
+      if (url === "/api/auth/oauth/user/status") {
+        return Promise.resolve({
+          data: { authenticated: false, loginProvider: "pingone", oauthProvider: null },
+        });
+      }
+      return Promise.resolve({ data: { success: false, error: "no session" } });
+    });
+
+    await renderPage();
+
+    expect(screen.queryByRole("dialog", { name: "PingOne sign-in required" })).not.toBeInTheDocument();
+    expect(apiClient.post).not.toHaveBeenCalled();
+  });
+
+  it("switches to PingOne, clears an active PF session, then redirects to PingOne sign-in", async () => {
+    stubLocation();
+    selectPingFederate({ authenticated: true });
+    await renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Continue to PingOne" }));
+    await waitFor(() => expect(window.location.href).toBe("/api/auth/oauth/user/login?return_to=/pingone-test"));
+
+    expect(apiClient.post.mock.calls).toEqual([
+      ["/api/admin/config", { oauth_provider: "pingone" }],
+      ["/api/auth/clear-session"],
+    ]);
+  });
+
+  it("starts PingOne sign-in without clearing when there is no active PF session", async () => {
+    stubLocation();
+    selectPingFederate();
+    await renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Continue to PingOne" }));
+    await waitFor(() => expect(window.location.href).toBe("/api/auth/oauth/user/login?return_to=/pingone-test"));
+
+    expect(apiClient.post.mock.calls).toEqual([
+      ["/api/admin/config", { oauth_provider: "pingone" }],
+    ]);
+  });
+
+  it("leaves the PF session intact when switching providers is rejected", async () => {
+    selectPingFederate({ authenticated: true });
+    apiClient.post.mockRejectedValueOnce({
+      response: { data: { message: "Admin session required" } },
+    });
+    await renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Continue to PingOne" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Admin session required");
+    expect(apiClient.post).toHaveBeenCalledTimes(1);
+    expect(apiClient.post).toHaveBeenCalledWith("/api/admin/config", { oauth_provider: "pingone" });
+  });
+});
 
 // ─── EventSource connection ───────────────────────────────────────────────────
 

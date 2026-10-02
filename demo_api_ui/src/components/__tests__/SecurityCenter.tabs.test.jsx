@@ -12,7 +12,21 @@ vi.mock('../../utils/appToast', () => ({
   notifyError: vi.fn(),
 }));
 
+// SecurityCenter sits behind PingOneProviderGuard, which renders nothing until
+// the login-provider check resolves; PingOne selected means no warning.
+vi.mock('../../services/apiClient', () => ({
+  default: {
+    get: vi.fn().mockResolvedValue({ data: { loginProvider: 'pingone' } }),
+    post: vi.fn().mockResolvedValue({ data: {} }),
+  },
+}));
+
 const USER = { firstName: 'Ada', lastName: 'Byron', username: 'ada' };
+
+async function renderCenter() {
+  render(<SecurityCenter user={USER} />);
+  await screen.findByRole('button', { name: 'Overview' });
+}
 
 // The component talks to the BFF with bare fetch, so route by URL.
 function mockFetch({ devices = [], session = {} } = {}) {
@@ -46,7 +60,7 @@ describe('SecurityCenter tabs', () => {
   // The defect this pins: only the MFA tab was implemented, so Overview,
   // Password and Sessions all fell through to the placeholder.
   it('renders no "not available" placeholder on any tab', async () => {
-    render(<SecurityCenter user={USER} />);
+    await renderCenter();
     await waitFor(() => expect(screen.getByText('Signed in as')).toBeInTheDocument());
 
     for (const tab of ['Password', 'Sessions', 'MFA', 'Overview']) {
@@ -57,7 +71,7 @@ describe('SecurityCenter tabs', () => {
 
   it('overview reports the real device count and sign-in method', async () => {
     mockFetch({ devices: [{ id: 'd1', type: 'TOTP' }, { id: 'd2', type: 'SMS' }] });
-    render(<SecurityCenter user={USER} />);
+    await renderCenter();
 
     await waitFor(() => expect(screen.getByText('2 devices registered')).toBeInTheDocument());
     expect(screen.getByText('PingOne (OAuth / OIDC)')).toBeInTheDocument();
@@ -66,12 +80,12 @@ describe('SecurityCenter tabs', () => {
 
   it('overview warns when no MFA device is registered', async () => {
     mockFetch({ devices: [] });
-    render(<SecurityCenter user={USER} />);
+    await renderCenter();
     await waitFor(() => expect(screen.getByText('No devices registered')).toBeInTheDocument());
   });
 
   it('password tab links to PingOne self-service for a federated user', async () => {
-    render(<SecurityCenter user={USER} />);
+    await renderCenter();
     fireEvent.click(screen.getByRole('button', { name: 'Password' }));
 
     const link = await screen.findByRole('link', { name: /Manage password in PingOne/ });
@@ -80,7 +94,7 @@ describe('SecurityCenter tabs', () => {
 
   it.each(['user', 'admin'])('recognizes the BFF %s OAuth session as federated', async (authType) => {
     mockFetch({ session: { authType } });
-    render(<SecurityCenter user={USER} />);
+    await renderCenter();
 
     await waitFor(() => expect(screen.getByText('PingOne (OAuth / OIDC)')).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: 'Password' }));
@@ -88,7 +102,7 @@ describe('SecurityCenter tabs', () => {
   });
 
   it('sessions tab shows the current session and is explicit that it is the only one', async () => {
-    render(<SecurityCenter user={USER} />);
+    await renderCenter();
     fireEvent.click(screen.getByRole('button', { name: 'Sessions' }));
 
     await waitFor(() => expect(screen.getByText('Signed in')).toBeInTheDocument());
@@ -97,7 +111,7 @@ describe('SecurityCenter tabs', () => {
 
   it('surfaces a degraded session store rather than claiming healthy', async () => {
     mockFetch({ session: { sessionStoreHealthy: false } });
-    render(<SecurityCenter user={USER} />);
+    await renderCenter();
     fireEvent.click(screen.getByRole('button', { name: 'Sessions' }));
 
     await waitFor(() => expect(screen.getByText('Degraded')).toBeInTheDocument());
@@ -107,7 +121,7 @@ describe('SecurityCenter tabs', () => {
   // reported" — painting that green would claim a health check that never ran.
   it('shows unknown, not healthy, when the BFF reports null store health', async () => {
     mockFetch({ session: { sessionStoreHealthy: null } });
-    render(<SecurityCenter user={USER} />);
+    await renderCenter();
     fireEvent.click(screen.getByRole('button', { name: 'Sessions' }));
 
     await waitFor(() => expect(screen.getByText('Unknown')).toBeInTheDocument());
@@ -116,7 +130,7 @@ describe('SecurityCenter tabs', () => {
 
   it('shows healthy only on an explicit true', async () => {
     mockFetch({ session: { sessionStoreHealthy: true } });
-    render(<SecurityCenter user={USER} />);
+    await renderCenter();
     fireEvent.click(screen.getByRole('button', { name: 'Sessions' }));
 
     await waitFor(() => expect(screen.getByText('Healthy')).toBeInTheDocument());

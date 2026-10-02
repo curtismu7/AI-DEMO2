@@ -620,6 +620,68 @@ dead when the main window sits behind the pop-out.
 **Do not break:** Pair the chip fill and ink from the nav's own tokens (never a fixed color or a vertical's primary), keep exactly one side filled, and keep the 10px type floor and no inline colors. Verified in a real browser with computed styles and screenshots for PingOne Admin, Great Buy and Super Sports in both provider states (chip ink on fill 10.4, 16.9 and 6.5 to 1).
 
 **Verify:** `cd demo_api_ui && npx vitest run src/components/__tests__/themingRatchet.test.js src/components/__tests__/OAuthProviderToggle.idJagReset.test.jsx && npm run build`.
+### 2026-10-01 — PingOne MFA pages now explain PingFederate incompatibility
+
+**Files:** `demo_api_ui/src/components/PingOneProviderGuard.jsx` and its CSS,
+`PingOneTestPage.jsx`, `MFATestPage.tsx`, `SecurityCenter.js`, `Profile.js`,
+`demo_api_ui/src/utils/idJagRunMode.js`, and this regression plan.
+
+**What was broken:** The MFA test, Security Center, and User Portal use PingOne
+MFA APIs with the shared end-user session. With PingFederate selected, those
+PingOne-specific operations could not use the PF session, and the pages gave no
+choice to switch providers before trying them.
+
+**What changed:** A shared guard now checks the selected provider on
+`/pingone-test`, `/mfa-test`, `/security`, and `/profile`. When PF is selected,
+the modal explains the PingOne requirement. Continue switches the shared
+provider to PingOne, clears stale ID-JAG state without restoring its saved
+provider, and reuses a completed ID-JAG restore when it already switched to
+PingOne or cleared the BFF session. Otherwise it switches the provider, clears
+an active PF BFF session if present, and starts PingOne login back to the
+current route. Page content waits for the provider check; a failed check shows
+a retry action without mounting PingOne-specific requests. Cancel closes the
+modal and leaves the page usable. `/profile` explains that its MFA section
+needs PingOne while preserving its other profile features.
+
+**Do not break:** Keep configured provider authority, provider-bound
+PKCE/state/nonce, and BFF-only browser token custody. Clear only a confirmed
+active PF app session, and leave provider/session state untouched on Cancel.
+The guard's ID-JAG cleanup must never restore the previous provider. Keep
+separate PingOne MCP/sample auth flows and provider-neutral token exchange
+outside this guard. If an ID-JAG provider restore was already in progress when
+the user continues, use its completed provider/session result to avoid a second
+admin config write after its session clear. Duplicate validated-callback
+listeners must not invalidate the same handoff's provider restore, and a new
+live ID-JAG launch must wait until a previous provider restore settles.
+
+**Verify:** `cd demo_api_ui && npm run build`.
+
+### 2026-10-01 — PingOne test page offered PF sign-in when PingFederate was selected
+
+**Files:** `demo_api_ui/src/components/PingOneTestPage.jsx`,
+`demo_api_ui/src/components/PingOneTestPage.css`, its focused UI test, and this
+regression plan.
+
+**What was broken:** The PingOne integration page's login links always used the
+shared BFF login route. When PingFederate was selected, that route started PF
+sign-in even though the page needs a PingOne session, with no warning or
+PingOne choice.
+
+**What changed:** On page entry, the UI checks the BFF's selected login
+provider. If PF is selected, a shared `DraggableModal` offers Cancel or
+Continue to PingOne. Continue changes the shared provider to PingOne, clears
+the active PF BFF session when present, clears stale ID-JAG run state, and
+starts the existing BFF user login back to `/pingone-test`. A rejected provider
+change leaves the session intact and reports the error.
+
+**Do not break:** Keep the configured provider authoritative for login, retain
+the standard provider-bound PKCE/state/nonce and BFF token custody, clear only
+an active PF app session, and make Cancel leave the provider and session alone.
+
+**Verify:** `cd demo_api_ui && npx vitest run
+src/components/__tests__/PingOneTestPage.sse.test.jsx`; `cd demo_api_ui && npm
+run test:unit && npm run build`; run the contrast auditor on `/pingone-test` in
+light and dark themes.
 
 ### 2026-09-30 — Customer pi.flow sign-in (PingOne) and a broken pi.flow authorize URL
 

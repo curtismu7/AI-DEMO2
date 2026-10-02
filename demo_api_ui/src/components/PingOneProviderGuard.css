@@ -1,0 +1,27 @@
+.pingone-provider-check-status,
+.pingone-provider-check-error {
+  width: min(48rem, calc(100% - 2rem));
+  margin: 2rem auto;
+  padding: 1rem;
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md, 8px);
+}
+
+.pingone-provider-check-error p {
+  margin: 0 0 1rem;
+  color: var(--th-text);
+}
+
+/* Keep the secondary modal action readable with DraggableModal's themed footer. */
+.dm-panel.pingone-provider-warning .pingone-provider-warning__cancel {
+  color: var(--modal-body-text);
+  background: var(--modal-footer-bg);
+  border-color: var(--modal-footer-border);
+}
+
+.dm-panel.pingone-provider-warning .pingone-provider-warning__cancel:hover:not(:disabled) {
+  color: var(--modal-body-text);
+  background: var(--th-bg-hover);
+}

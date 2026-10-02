@@ -12,6 +12,7 @@ import PingOneApiPanel from "./PingOneApiPanel";
 import MFALogsModal from "./MFALogsModal";
 import { useThemeOptional } from "../context/ThemeContext";
 import PingIdentitySpinner from "./shared/PingIdentitySpinner";
+import PingOneProviderGuard from "./PingOneProviderGuard";
 
 interface PingOneUser {
   id: string;
@@ -45,7 +46,7 @@ interface PingOneResponse {
   [key: string]: any;
 }
 
-const MFATestPage: FC = () => {
+const MFATestPageContent: FC = () => {
   const { darkMode, toggleDarkMode } = useThemeOptional();
   const [config, setConfig] = useState<MFAConfig | null>(null);
   const [loading, setLoading] = useState(true);
@@ -2392,6 +2393,15 @@ const MFATestPage: FC = () => {
     </div>
   );
 };
+
+const MFATestPage: FC = () => (
+  <PingOneProviderGuard
+    returnTo="/mfa-test"
+    description="The MFA test page uses PingOne device-authentication APIs and needs a PingOne user session."
+  >
+    <MFATestPageContent />
+  </PingOneProviderGuard>
+);
 
 export default MFATestPage;
 
