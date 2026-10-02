@@ -387,7 +387,7 @@ function evidenceFailures({ evidence, provider, authorization, expected, caseRow
  * Expected against observed audience and scopes for each hop of one run, for
  * the report. Read-only: evidenceFailures decides pass or fail.
  */
-function audienceScopeSummary({ evidence = {}, authorization }) {
+function audienceScopeSummary({ evidence = {}, authorization, expected }) {
   if (!authorization?.primaryTool || evidence.publicCatalog) return [];
   const a2aRun = Boolean(authorization.a2aScopeResources) && String(evidence.exchangePath || '').startsWith('a2a-');
   const scopeResources = (a2aRun ? authorization.a2aScopeResources : authorization.scopeResources) || [];
@@ -405,7 +405,10 @@ function audienceScopeSummary({ evidence = {}, authorization }) {
     observedAudiences: evidence.gatewayHop?.audiences || [],
     observedScopes: evidence.gatewayHop?.scopes || [],
   });
-  if (!a2aRun && authorization.backendHop) hops.push({
+  // Only a permitted call that PingOne Authorize decides is forwarded to the main
+  // MCP server; a denied, held or gateway-policy call has no such hop to show.
+  const forwarded = expected === 'PERMIT' && authorization.enforcement !== 'gateway-policy';
+  if (!a2aRun && authorization.backendHop && (forwarded || evidence.backendHop)) hops.push({
     hop: 'gateway to MCP server',
     expectedAudiences: [authorization.backendHop.audience],
     expectedScopes: null,
@@ -502,7 +505,7 @@ function createReadinessExecutionService({ createWorker: testWorkerAdapter, prod
     const prerequisite = typeof saved.worker.verifyPrerequisites === 'function' ? await saved.worker.verifyPrerequisites({ caseRow, vertical, prerequisites, deadlineAt }) : { status: 'blocked', reason: 'worker cannot verify runtime prerequisites' };
     if (prerequisite?.status !== 'pass') return redactReadinessValue({ status: 'blocked', expected, observed: 'not-dispatched', evidence: { reason: prerequisite?.reason || 'runtime prerequisites unavailable', prerequisites } });
     if (expired(deadlineAt, now())) return redactReadinessValue({ status: 'not-run', expected, observed: 'deadline-expired', evidence: { reason: 'deadline exceeded before dispatch' } });
-    try { const execution = await saved.worker.executeReadinessCase({ context, caseRow, vertical, mode, behavior, authorization, deadlineAt, abortSignal }); const evidence = execution?.evidence || {}; const observed = execution?.observed || 'UNKNOWN'; const failures = [...(observed === expected ? [] : ['observed outcome does not match declared outcome']), ...evidenceFailures({ evidence, provider: saved.provider, authorization, expected, caseRow })]; if (failures.length) evidence.contractFailures = failures; evidence.audienceScope = audienceScopeSummary({ evidence, authorization }); return redactReadinessValue({ status: failures.length ? 'fail' : 'pass', expected, observed, evidence }); } catch (error) { return redactReadinessValue({ status: 'fail', expected, observed: 'execution-error', evidence: { reason: error?.message || 'worker execution failed' } }); }
+    try { const execution = await saved.worker.executeReadinessCase({ context, caseRow, vertical, mode, behavior, authorization, deadlineAt, abortSignal }); const evidence = execution?.evidence || {}; const observed = execution?.observed || 'UNKNOWN'; const failures = [...(observed === expected ? [] : ['observed outcome does not match declared outcome']), ...evidenceFailures({ evidence, provider: saved.provider, authorization, expected, caseRow })]; if (failures.length) evidence.contractFailures = failures; evidence.audienceScope = audienceScopeSummary({ evidence, authorization, expected }); return redactReadinessValue({ status: failures.length ? 'fail' : 'pass', expected, observed, evidence }); } catch (error) { return redactReadinessValue({ status: 'fail', expected, observed: 'execution-error', evidence: { reason: error?.message || 'worker execution failed' } }); }
   }
   async function executeReadinessFeature({ context, check, deadlineAt, abortSignal }) {
     const saved = contexts.get(context); const expected = check.expectedByProvider?.[saved?.provider] || check.expectedOutcome;
