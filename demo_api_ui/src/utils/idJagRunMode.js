@@ -137,6 +137,11 @@ export function completeIdJagRunHandoff({ restoreProvider = true } = {}) {
     try { sessionStorage.removeItem(ID_JAG_PRE_RUN_PROVIDER_KEY); } catch { /* storage unavailable */ }
     return;
   }
+  // Nothing saved means nothing to wait for; tracking it would block the next
+  // launch for a microtask.
+  let hasSavedProvider = false;
+  try { hasSavedProvider = Boolean(sessionStorage.getItem(ID_JAG_PRE_RUN_PROVIDER_KEY)); } catch { /* storage unavailable */ }
+  if (!hasSavedProvider) return;
   const restorePromise = restorePreRunProvider(generation);
   providerRestorePromises.add(restorePromise);
   void restorePromise.finally(() => providerRestorePromises.delete(restorePromise));
