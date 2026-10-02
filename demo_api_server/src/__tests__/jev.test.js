@@ -48,6 +48,37 @@ describe('jev route', () => {
     expect(cfg.headers.Authorization).toBe('Bearer test-key');
   });
 
+  test('JEV_ENDPOINT with a key set: key is not sent to the custom endpoint', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    process.env.JEV_ENDPOINT = 'http://von.local:8000/v1/systemone';
+    try {
+      const { app, axios } = load();
+      axios.post.mockResolvedValue({ data: { answers: { q: { type: 'noul', noul: 0.5 } } } });
+      await request(app).post('/api/demo/jev/evaluate').send({ scenario: 'injection', state: 'x' });
+      expect(axios.post.mock.calls[0][2].headers.Authorization).toBeUndefined();
+    } finally {
+      delete process.env.JEV_ENDPOINT;
+    }
+  });
+
+  test('JEV_ENDPOINT with no key: live, posts to that URL with no Authorization header', async () => {
+    delete process.env.OPENROUTER_API_KEY;
+    process.env.JEV_ENDPOINT = 'http://von.local:8000/v1/systemone';
+    process.env.JEV_MODEL = 'von-1.3.0';
+    try {
+      const { app, axios } = load();
+      axios.post.mockResolvedValue({ data: { answers: { q: { type: 'noul', noul: 0.83 } } } });
+      const res = await request(app).post('/api/demo/jev/evaluate').send({ scenario: 'injection', state: 'x' });
+      expect(res.body.jev).toMatchObject({ mode: 'live', model: 'von-1.3.0' });
+      const [url, , cfg] = axios.post.mock.calls[0];
+      expect(url).toBe('http://von.local:8000/v1/systemone');
+      expect(cfg.headers.Authorization).toBeUndefined();
+    } finally {
+      delete process.env.JEV_ENDPOINT;
+      delete process.env.JEV_MODEL;
+    }
+  });
+
   test('choice answer keeps probabilities and confidence', async () => {
     process.env.OPENROUTER_API_KEY = 'test-key';
     const { app, axios } = load();

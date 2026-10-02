@@ -36,11 +36,11 @@ function headline(answer) {
   return `P(yes) = ${answer.probability.toFixed(2)}`;
 }
 
-function ModeBadge({ mode }) {
+function ModeBadge({ mode, model }) {
   return mode === 'live' ? (
-    <span className="jev-badge jev-badge--live">Live Jev</span>
+    <span className="jev-badge jev-badge--live">{`Live: ${model}`}</span>
   ) : (
-    <span className="jev-badge jev-badge--sim">Simulated - no API key</span>
+    <span className="jev-badge jev-badge--sim">Simulated - not configured</span>
   );
 }
 
@@ -114,12 +114,12 @@ function LivePanel({ onRisk }) {
             <p className="jev-meta">{result.heuristic.latencyMs} ms - always 0 or 1, never unsure</p>
           </div>
           <div className="jev-col">
-            <h3 className="jev-h3">Jev <ModeBadge mode={result.jev.mode} /></h3>
+            <h3 className="jev-h3">Jev <ModeBadge mode={result.jev.mode} model={result.jev.model} /></h3>
             <p className="jev-big">{headline(result.jev.answer)}</p>
             <p className="jev-meta">{result.jev.latencyMs} ms - model {result.jev.model}</p>
             {result.jev.mode === 'simulated' && (
               <p className="jev-meta">
-                No OPENROUTER_API_KEY on the server, so this column is the same keyword rules. It says nothing about Jev.
+                No OPENROUTER_API_KEY or JEV_ENDPOINT on the server, so this column is the same keyword rules. It says nothing about Jev.
               </p>
             )}
           </div>
@@ -186,7 +186,7 @@ function Bakeoff() {
       const out = [];
       for (const item of BAKEOFF) {
         const r = await evaluate('injection', item.text);
-        out.push({ ...item, rules: r.heuristic.answer.probability >= 0.5, jev: r.jev.answer.probability, mode: r.jev.mode });
+        out.push({ ...item, rules: r.heuristic.answer.probability >= 0.5, jev: r.jev.answer.probability, mode: r.jev.mode, model: r.jev.model });
       }
       setRows(out);
     } catch (e) {
@@ -200,7 +200,7 @@ function Bakeoff() {
     if (!rows) return null;
     const rulesRight = rows.filter((r) => r.rules === r.bad).length;
     const jevRight = rows.filter((r) => (r.jev >= 0.5) === r.bad).length;
-    return { rulesRight, jevRight, total: rows.length, mode: rows[0].mode };
+    return { rulesRight, jevRight, total: rows.length, mode: rows[0].mode, model: rows[0].model };
   }, [rows]);
 
   return (
@@ -231,7 +231,7 @@ function Bakeoff() {
             </tbody>
           </table>
           <p className="jev-big">
-            Rules {score.rulesRight}/{score.total} - Jev {score.jevRight}/{score.total} <ModeBadge mode={score.mode} />
+            Rules {score.rulesRight}/{score.total} - Jev {score.jevRight}/{score.total} <ModeBadge mode={score.mode} model={score.model} />
           </p>
         </>
       )}
