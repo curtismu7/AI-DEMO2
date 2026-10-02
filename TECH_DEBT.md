@@ -2547,7 +2547,12 @@ the expression is
 `groups && (contains(groups, 'grafana-admins') && 'Admin' || 'Viewer')`, which
 returns nothing when there is no `groups` claim. This answers the open question
 above: the claim has to come from userinfo. A re-created app needs that mapping
-again by hand; nothing provisions it. The PingOne half was confirmed by reading the released claims; the Grafana half needs the sign-in re-run once this is deployed.
+again by hand; nothing provisions it. The PingOne half was confirmed by reading
+the released claims.
+
+**VERIFIED LIVE 2026-10-02, local stack.** After #557 deployed, a scripted
+sign-in through PingOne SSO landed `demoAdmin` as Grafana Admin and `demoUser`
+as Viewer. Not checked on SE, which has not been redeployed since.
 
 **Step 4 is untouched and stays untouched** until that live check passes:
 `GF_AUTH_DISABLE_LOGIN_FORM` is still `false` in both files, and the local
@@ -9348,7 +9353,21 @@ crossing as the only one. (b) is much the smaller change and removes the CI
 install; it costs a second implementation of the vault write path used only by
 tests.
 
-### [ ] 2026-08-17 — `PG_GATEWAY_RESOURCE_ID` is both the token audience and the advertised RFC 9728 metadata URL
+### [wontfix] 2026-08-17 — `PG_GATEWAY_RESOURCE_ID` is both the token audience and the advertised RFC 9728 metadata URL
+
+**ACCEPTED / WON'T FIX 2026-10-02 (owner decision, branch
+`worktree-techdebt-wave3-gateway-metadata-accept`).** The role split stays
+undone. On the main MCP route the 401 challenge is emitted by PingGateway's own
+`McpProtectionFilter`, which has no setting for a separate metadata base;
+splitting the roles means replacing that product filter's challenge with our
+Groovy in the protected gateway chain, which has no test harness and can only
+be verified live. That would also make the demo less representative of the
+product. The advertisement is true today (PR #1938). What keeps it true is the
+check added on 2026-08-18, `gateway.metadata_reachable`, which this decision
+raises from `advisory` to `blocking`: a discovery URL that stops resolving now
+makes the readiness verdict not ready instead of a red row. Reopen if
+PingGateway gains a metadata-base setting, or if the audience and the listener
+ever have to differ.
 
 **PARTLY RESOLVED 2026-08-18 (branch `worktree-gateway-metadata-check`) — the
 entry's "regression test worth having" now exists.**
