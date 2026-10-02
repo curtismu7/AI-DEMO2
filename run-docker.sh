@@ -823,6 +823,12 @@ is_known_service() {
   for svc in $(_optional_group_services all); do
     [[ "${svc}" == "${want}" ]] && return 0
   done
+  # llm-proxy is a real, targetable compose service that is deliberately NOT in
+  # SERVICES: clear_stale_host_listeners() kills whatever listens on every port in
+  # that table, and :8090 may be held by a host LLM backend. Targeted build/restart
+  # never runs that sweep (only `start` does), so accepting it here is safe — and
+  # refusing it left llm-proxy undeployable by deploy-live.sh and by hand.
+  [[ "${want}" == "llm-proxy" ]] && return 0
   return 1
 }
 

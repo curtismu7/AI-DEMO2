@@ -1091,6 +1091,18 @@ per socket and does a synchronous `fs.appendFileSync` per error perturbs timing
 enough to CREATE failures (it produced 2,594 MaxListeners warnings and one
 otherwise-unreproducible `scope-integration` 401→200 in this session).
 
+**PARTLY RESOLVED 2026-10-02 — (1) fixed, (2) still open.** The leak was
+`setup.js`'s own `afterEach(jest.resetModules)`: every test re-required
+`services/lmdb/openEnv.js` (module-private `_env`) and opened a fresh LMDB env on
+the same path, never closing the last. Reproduced outside jest: 126 unclosed
+reopen cycles → `MDB_READERS_FULL`; 400 with a `close()` between them. `setup.js`
+now hands every `open()` of an already-open path the same environment (and
+closes whatever is left in `afterAll`), so reader slots no longer accumulate;
+`tests/services/lmdbReopenCycles.test.js` (200 tests > 126) fails without it.
+Full suite after the fix: 1039/1042 suites, no `MDB_READERS_FULL`; the one red
+suite (`vault.failClosed`) asserts a `chmod 0444` file is unwritable, which is
+false as root in this container. Loopback `ECONNRESET` (2) was not touched.
+
 ### [ ] 2026-09-09 — UC14b intermittently DENYs with `rar_unexpected_deny`, but only in a multi-vertical Demo Steps run
 
 **What's wrong.** `UC14b` ("PAR + RAR intent verified — PERMIT") posts a

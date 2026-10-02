@@ -175,20 +175,14 @@ RESTART_SET=""
 BUILD_SET=""
 NOTES=""
 
-# Compose services that run-docker.sh deliberately does NOT manage.
+# Compose services run-docker.sh cannot take as a build/restart target.
 #
-# llm-proxy is a real compose service, but run-docker.sh keeps it out of its
-# SERVICES table on purpose: clear_stale_host_listeners() kills whatever listens
-# on every port in that table, and with LLM_BACKEND=omlx|mlx the HOST owns
-# :8090 — listing it would make run-docker.sh shoot the host LLM backend.
-#
-# Both places that can schedule work must consult this. The path-based dispatch
-# below always knew; the compose-env diff did not, and called
-# `./run-docker.sh restart llm-proxy` whenever an env block of its changed.
-# run-docker.sh answers "Unknown service" and exits 1, which aborted the ENTIRE
-# deploy — after earlier services had already been rebuilt, so the deploy
-# half-applied and stopped. Seen live 2026-09-08 (BFF never restarted).
-UNMANAGED_BY_RUN_DOCKER=" llm-proxy "
+# Empty since 2026-10-02: llm-proxy used to be listed, because run-docker.sh answered
+# "Unknown service" and exits 1 for it — which, under `set -e`, aborted the ENTIRE
+# deploy after earlier services had already been rebuilt (seen live 2026-09-08, BFF
+# never restarted). The guard below stays so a service run-docker.sh refuses is
+# skipped with a note instead of aborting; llm-proxy simply no longer needs it.
+UNMANAGED_BY_RUN_DOCKER=" "
 is_unmanaged_by_run_docker() { case "$UNMANAGED_BY_RUN_DOCKER" in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
 
 # Returns non-zero, and schedules nothing, for a service run-docker.sh cannot
@@ -239,13 +233,10 @@ while IFS= read -r f; do
     demo_hitl_service/*)          add_build hitl-service ;;
     langchain_agent/*)            add_build langchain-agent ;;
     llamaindex_agent/*)           add_build llamaindex-agent ;;
-    # llm-proxy is handled by is_unmanaged_by_run_docker() above — see the
-    # reason there. Route it through docker compose directly, not run-docker.sh.
-    demo_llm_proxy/*)
-      if [ -z "${LLM_PROXY_NOTED:-}" ]; then
-        LLM_PROXY_NOTED=1
-        note "demo_llm_proxy changed — run-docker.sh does not manage llm-proxy (see its SERVICES table); rebuild it directly: docker compose up -d --build llm-proxy"
-      fi ;;
+    # llm-proxy bakes its source (COPY), so it needs a rebuild. Only touched if its
+    # container is running: under LLM_BACKEND=omlx|mlx the host owns :8090 and the
+    # container is deliberately stopped, which filter_running reads as "leave it".
+    demo_llm_proxy/*)             add_build llm-proxy ;;
     mastra_agent/*)               add_build mastra-agent ;;
     demo_mcp_brave/*)             add_build mcp-brave ;;
     demo_mcp_gateway/*)           add_build mcp-gateway ;;
