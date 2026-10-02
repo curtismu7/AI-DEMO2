@@ -341,6 +341,19 @@ function inspectEnv(stdout) {
     const index = line.indexOf('=');
     return [line.slice(0, index), line.slice(index + 1)];
   }));
+  return gatewayView(env, (item.Mounts || []).map((mount) => String(mount.Source || '')));
+}
+// The file refresh-service-envs.js generates and compose loads into PingGateway.
+// Read only where there is no docker CLI (inside the BFF container). It is what
+// the gateway loads at its next start, not what the running one holds.
+const GENERATED_GATEWAY_ENV = 'ping-gateway/.env';
+function generatedGatewayEnv(root = REPOSITORY_ROOT) {
+  const env = Object.fromEntries(fs.readFileSync(path.join(root, GENERATED_GATEWAY_ENV), 'utf8').split('\n')
+    .map((line) => line.match(/^([A-Z0-9_]+)=(.*)$/)).filter(Boolean)
+    .map(([, name, value]) => [name, value.replace(/^"(.*)"$/, '$1')]));
+  return gatewayView(env, [GENERATED_GATEWAY_ENV]);
+}
+function gatewayView(env, mountSources) {
   let authority = false; let pathPresent = false;
   try {
     const issuer = new URL(env.PF_ISSUER_URI || '');
@@ -350,8 +363,8 @@ function inspectEnv(stdout) {
   } catch { /* finding below */ }
   return { issuer: Boolean(env.PF_ISSUER_URI), issuerValue: env.PF_ISSUER_URI || '', endpointValue: env.PF_TOKEN_ENDPOINT || '', clientId: env.PF_TE_CLIENT_ID || '', authority, pathPresent,
     credentials: Boolean(env.PF_TE_CLIENT_ID && env.PF_TE_CLIENT_SECRET),
-    mountSources: (item.Mounts || []).map((mount) => String(mount.Source || '')),
-    provenance: (item.Mounts || []).some((mount) => String(mount.Source || '').includes('ping-gateway')) };
+    mountSources,
+    provenance: mountSources.some((source) => source.includes('ping-gateway')) };
 }
 function gatewayComparison(actual, expected) {
   if (!expected || typeof expected !== 'object' || Array.isArray(expected)) {
@@ -488,7 +501,19 @@ function createAuditService({ adapters = {}, pfProfiles = PF_PROFILES, fetch = g
       if (!listed) return [auditRow('gateway:pf-exchange3', { status: 'blocked', reason: 'PingGateway container is not running' }, { target: targetId, sourceRef: 'docker ps/inspect' })];
       const config = inspectEnv(String(inspect.stdout || ''));
       return afterRead([auditRow('gateway:pf-exchange3', gatewayComparison(config, hostedConfig?.expected), { target: targetId, sourceRef: 'docker ps/inspect Gateway Exchange #3 environment' })], deadlineAt, signal);
-    } catch (error) { return [auditRow('gateway:pf-exchange3', { status: 'blocked', reason: error.message }, { target: targetId, sourceRef: 'docker ps/inspect Gateway Exchange #3 environment' })]; }
+    } catch (error) {
+      // No docker CLI in this process (the BFF container): compare the generated
+      // env file instead, and say so in the row's source.
+      if (error.code === 'ENOENT') {
+        const sourceRef = 'generated ' + GENERATED_GATEWAY_ENV + ' (no docker CLI in this process; not the running gateway\'s loaded values)';
+        try {
+          return afterRead([auditRow('gateway:pf-exchange3', gatewayComparison(generatedGatewayEnv(adapters.repositoryRoot), hostedConfig?.expected), { target: targetId, sourceRef })], deadlineAt, signal);
+        } catch (fileError) {
+          return [auditRow('gateway:pf-exchange3', { status: 'blocked', reason: 'generated Gateway environment file is unreadable: ' + (fileError.code || fileError.message) }, { target: targetId, sourceRef })];
+        }
+      }
+      return [auditRow('gateway:pf-exchange3', { status: 'blocked', reason: error.message }, { target: targetId, sourceRef: 'docker ps/inspect Gateway Exchange #3 environment' })];
+    }
   }
   async function auditTarget({ targetId, targetConfig = {}, deadlineAt, signal } = {}) {
     if (expired(deadlineAt, signal)) return [auditRow('target:' + targetId + ':deadline', { status: 'not-run', reason: 'deadline exceeded or aborted' }, { target: targetId })];
