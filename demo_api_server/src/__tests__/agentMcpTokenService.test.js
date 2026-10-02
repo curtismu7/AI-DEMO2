@@ -1531,6 +1531,33 @@ describe('resolveMcpAccessTokenWithEvents — 2-exchange delegation (ff_two_exch
     expect(mockGetAiAgentClientCredentialsToken).not.toHaveBeenCalled();
   });
 
+  it('workload agent exchanges against its own resource when one is configured', async () => {
+    const previous = configStore.getEffective.getMockImplementation();
+    configStore.getEffective.mockImplementation((key) => (key === 'workload_agent_gateway_audience' ? 'workloadgateway.test' : previous(key)));
+    const req = makeReq(sampleJwtUserAccessToken);
+    req.workloadAgentRuntime = { clientId: 'personal-agent-client', clientSecret: 'personal-agent-secret', authMethod: 'post' };
+
+    await resolveMcpAccessTokenWithEvents(req, 'get_my_accounts');
+
+    // The actor token and Exchange #1 both target the workload resource.
+    expect(mockGetClientCredentialsTokenAs.mock.calls[0][2]).toBe('workloadgateway.test');
+    expect(mockPerformTokenExchangeAs.mock.calls[0][4]).toEqual(['workloadgateway.test']);
+    configStore.getEffective.mockImplementation(previous);
+  });
+
+  it('the built-in agent never uses the workload resource', async () => {
+    const previous = configStore.getEffective.getMockImplementation();
+    configStore.getEffective.mockImplementation((key) => (key === 'workload_agent_gateway_audience' ? 'workloadgateway.test' : previous(key)));
+    const req = makeReq(sampleJwtUserAccessToken);
+    req.session.mcpExchangeMode = 'double';
+
+    await resolveMcpAccessTokenWithEvents(req, 'get_my_accounts');
+
+    expect(mockGetClientCredentialsTokenAs.mock.calls[0][2]).not.toBe('workloadgateway.test');
+    expect(mockPerformTokenExchangeAs.mock.calls[0][4]).not.toEqual(['workloadgateway.test']);
+    configStore.getEffective.mockImplementation(previous);
+  });
+
   it('workload agent skips native enterprise ID-JAG so its actor uses two-exchange', async () => {
     mockIsNativeIdJagEnabled.mockReturnValue(true);
     const policySpy = jest.spyOn(enterpriseMcpPolicy, 'checkPolicy').mockResolvedValue({ allowed: true });

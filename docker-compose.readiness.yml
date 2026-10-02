@@ -63,6 +63,10 @@ services:
       - readiness-bff-pingone-data:/app/data/persistent
     environment:
       OAUTH_PROVIDER: pingone
+      # The readiness workload agent holds its scopes on the workload resource
+      # (scripts/provision-workload-agent-gateway.js), whose act claim names the
+      # agent that presented the actor token. Only this lane uses it for now.
+      WORKLOAD_AGENT_GATEWAY_AUDIENCE: "workloadgateway.ping.demo"
       # The lane BFF is reached by the worker at this origin; the callback the
       # provider redirects to must be on the same origin (the login client
       # refuses a cross-origin callback).
