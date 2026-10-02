@@ -11,6 +11,8 @@ const runtime = require('./delegatedCommerceRuntime');
 const delegationStore = require('./lmdb/delegationStore.lmdb');
 const delegationService = require('./delegationService');
 const pingOneUserService = require('./pingOneUserService');
+const pingFederateClientService = require('./pingFederateClientService');
+const pfExchange = require('./pfStandardTokenExchangeService');
 
 const REGISTRATION_TTL_MS = 60 * 60 * 1000;
 const DEMO_MARKER = 'A&F delegated-commerce demo';
@@ -37,6 +39,7 @@ function safeRegistration(record) {
     consentedAt: record.consentedAt || null,
     revokedAt: record.revokedAt || null,
     tokenEndpointAuthMethod: record.tokenEndpointAuthMethod,
+    pfClient: record.pfClient === true,
   };
 }
 
@@ -54,7 +57,14 @@ async function register({ name, creatorUserId }) {
   const registrationId = crypto.randomUUID();
   const claimCode = createClaimCode();
   const displayName = `${String(name || 'A&F Personal Shopping Agent').trim()} [${registrationId.slice(0, 8)}]`;
+  // Under a PingFederate sign-in the agent acts through a PingFederate client, so
+  // without one the registration would be unusable: it is required there. Under
+  // PingOne it is created when PingFederate's Admin API is configured, so the
+  // same registration keeps working if the provider is switched, and skipped
+  // (not failed) when PingFederate is unreachable.
+  const viaPingFederate = configStore.getOAuthProvider?.() === 'pingfederate';
   let app = null;
+  let pfClient = false;
   try {
     app = await pingOneClientService.createApplication({
       client_name: displayName,
@@ -70,15 +80,33 @@ async function register({ name, creatorUserId }) {
     }
 
     await pingOneClientService.cloneApplicationGrants(sourceApplicationId, app.id);
+    if (viaPingFederate || pingFederateClientService.isConfigured()) {
+      try {
+        await pingFederateClientService.createAgentClient({ clientId: app.id, clientSecret: app.clientSecret, name: displayName });
+        pfClient = true;
+      } catch (pfErr) {
+        if (viaPingFederate) throw pfErr;
+        console.warn('[delegated-commerce] PingFederate client not created (agent will work under PingOne only):', pfErr.message);
+      }
+    }
     const actorScope = configStore.getEffective('agent_gateway_cc_scope') || 'agent:invoke';
     const actorAudience = scopeTopology.resourceUri('Super Banking Agent Gateway');
-    const actorToken = await oauthService.getClientCredentialsTokenAs(
-      app.id,
-      app.clientSecret,
-      actorAudience,
-      'post',
-      actorScope,
-    );
+    // Prove the new agent can mint its own actor token at whichever provider
+    // issues this deployment's tokens right now.
+    const actorToken = viaPingFederate
+      ? await pfExchange.getActorToken({
+        ...pfExchange.resolveConfig(),
+        agentActorClientId: app.id,
+        agentActorClientSecret: app.clientSecret,
+        agentActorAuthMethod: 'post',
+      }, 'agent')
+      : await oauthService.getClientCredentialsTokenAs(
+        app.id,
+        app.clientSecret,
+        actorAudience,
+        'post',
+        actorScope,
+      );
     const actorClaims = jwt.decode(actorToken) || {};
     const actorId = actorClaims.client_id || actorClaims.sub;
     if (actorId !== app.id) {
@@ -97,6 +125,7 @@ async function register({ name, creatorUserId }) {
       status: 'staged',
       scopes: [],
       tokenEndpointAuthMethod: 'post',
+      pfClient,
       encryptedClientSecret: store.encryptClientSecret(app.clientSecret),
       createdAt: now,
       expiresAt: now + REGISTRATION_TTL_MS,
@@ -116,6 +145,11 @@ async function register({ name, creatorUserId }) {
       await pingOneClientService.deleteApplication(app.id).catch((cleanupErr) => {
         console.error('[delegated-commerce] partial application cleanup failed:', cleanupErr.message);
       });
+      if (pfClient) {
+        await pingFederateClientService.deleteClient(app.id).catch((cleanupErr) => {
+          console.error('[delegated-commerce] partial PingFederate client cleanup failed:', cleanupErr.message);
+        });
+      }
     }
     throw err;
   }
@@ -146,10 +180,14 @@ function claim({ claimCode, userId }) {
   return safeRegistration(claimed);
 }
 
-function updateConsent(registrationId, scopes) {
+function updateConsent(registrationId, scopes, pingOneUserId = null) {
   const record = store.get(registrationId);
   const updated = {
     ...record,
+    // The PingOne account whose mayAct names this agent. Under PingFederate it
+    // is not the session subject, and cleanup runs in an admin's session, so
+    // it has to be remembered here.
+    ...(pingOneUserId ? { claimedByPingOneUserId: pingOneUserId } : {}),
     status: 'active',
     scopes: scopes.slice(),
     consentedAt: Date.now(),
@@ -180,7 +218,7 @@ async function cleanup(registrationId, creatorUserId) {
     // Only clear mayAct when it still names THIS registration's agent. Cleaning
     // up an older registration must not revoke a newer agent's authorization.
     await pingOneUserService.clearMayActIfMatches(
-      record.claimedByUserId,
+      record.claimedByPingOneUserId || record.claimedByUserId,
       record.applicationId,
     );
     let delegation = delegationStore.findActiveByActorAndGrantor(
@@ -196,6 +234,7 @@ async function cleanup(registrationId, creatorUserId) {
     }
   }
   await pingOneClientService.deleteApplication(record.applicationId);
+  if (record.pfClient) await pingFederateClientService.deleteClient(record.applicationId);
   runtime.removeCredentials(registrationId);
   store.remove(registrationId);
 }

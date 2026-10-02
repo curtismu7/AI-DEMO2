@@ -10,6 +10,8 @@ const delegationService = require('../services/delegationService');
 const pingOneUserService = require('../services/pingOneUserService');
 const mcpAuditStore = require('../services/lmdb/mcpAuditStore.lmdb');
 const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
+const { pingOneUserIdFor } = require('../services/pingOneSessionUser');
+const configStore = require('../services/configStore');
 
 const ALLOWED_SCOPES = new Set(['read', 'write']);
 
@@ -91,6 +93,25 @@ router.post('/consent', requireNotAdmin, async (req, res) => {
     return res.status(410).json({ error: 'agent_registration_expired' });
   }
 
+  // Under PingFederate the agent acts through its own PingFederate client. A
+  // registration made without one cannot act there; consenting to it would
+  // replace the user's grant with an agent PingFederate will always refuse.
+  if (configStore.getOAuthProvider?.() === 'pingfederate' && !registration.pfClient) {
+    return res.status(409).json({
+      error: 'delegated_agent_pf_client_missing',
+      message: 'This agent was registered without a PingFederate client. Register it again while PingFederate is reachable.',
+    });
+  }
+  // mayAct is the PingOne account's. Under PingFederate that is the account with
+  // the same username, not the session subject.
+  const pingOneUserId = await pingOneUserIdFor(req, userId);
+  if (!pingOneUserId) {
+    return res.status(409).json({
+      error: 'pingone_user_not_linked',
+      message: 'No PingOne account matches this PingFederate user, so there is nowhere to record the agent authorization.',
+    });
+  }
+
   let granted = null;
   let priorMayAct = null;
   let wroteMayAct = false;
@@ -98,8 +119,8 @@ router.post('/consent', requireNotAdmin, async (req, res) => {
     pingOneUserService.initialize();
     // Capture pre-request mayAct so failed consent restores it instead of wiping
     // a still-valid authorization for another (or prior) agent.
-    priorMayAct = await pingOneUserService.getMayActAttribute(userId);
-    await pingOneUserService.setMayActAttribute(userId, { sub: registration.applicationId });
+    priorMayAct = await pingOneUserService.getMayActAttribute(pingOneUserId);
+    await pingOneUserService.setMayActAttribute(pingOneUserId, { sub: registration.applicationId });
     wroteMayAct = true;
     granted = delegationStore.grantDelegation({
       delegator_user_id: userId,
@@ -108,7 +129,7 @@ router.post('/consent', requireNotAdmin, async (req, res) => {
       scopes,
       access_token: req.session?.oauthTokens?.accessToken || null,
     });
-    const updated = delegatedCommerceService.updateConsent(registration.id, scopes);
+    const updated = delegatedCommerceService.updateConsent(registration.id, scopes, pingOneUserId);
     require('../services/agentTokenCache').clear(req.session);
     await saveSession(req);
     await revokeActiveDelegations(registration.applicationId, userId, granted.id);
@@ -122,7 +143,7 @@ router.post('/consent', requireNotAdmin, async (req, res) => {
     try {
       pingOneUserService.initialize();
       if (wroteMayAct) {
-        await pingOneUserService.setMayActAttribute(userId, priorMayAct);
+        await pingOneUserService.setMayActAttribute(pingOneUserId, priorMayAct);
       }
       if (typeof granted?.id === 'string') {
         await delegationService.revokeDelegation(granted.id, userId);
@@ -163,7 +184,10 @@ router.post('/revoke', requireNotAdmin, async (req, res) => {
   }
   try {
     pingOneUserService.initialize();
-    await pingOneUserService.clearMayActIfMatches(userId, registration.applicationId);
+    await pingOneUserService.clearMayActIfMatches(
+      registration.claimedByPingOneUserId || await pingOneUserIdFor(req, userId),
+      registration.applicationId,
+    );
     await revokeActiveDelegations(registration.applicationId, userId);
     const revoked = delegatedCommerceService.revoke(registration.id);
     require('../services/agentTokenCache').clear(req.session);

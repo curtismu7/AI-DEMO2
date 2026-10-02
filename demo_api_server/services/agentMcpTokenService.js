@@ -2625,8 +2625,20 @@ async function _performTwoExchangeDelegation(
 
   // Extract validated configuration - no hard-coded defaults
   const provider = opts.exchangeProvider || null;
-  const providerConfig = opts.providerConfig || null;
-  const agentRuntime = provider ? null : resolveAgentRuntime(req, { fallbackToDefault: true });
+  // A registered agent (delegated commerce) acts as itself under either provider.
+  // Under PingFederate it has a client with the same id and secret as its PingOne
+  // application (pingFederateClientService), so it replaces the built-in actor in
+  // the provider config. This used to be skipped for PingFederate: the generic
+  // agent acted while the registration's consent and revocation were ignored.
+  const agentRuntime = resolveAgentRuntime(req, { fallbackToDefault: true });
+  const providerConfig = (provider && agentRuntime)
+    ? {
+      ...opts.providerConfig,
+      agentActorClientId: agentRuntime.clientId,
+      agentActorClientSecret: agentRuntime.clientSecret,
+      agentActorAuthMethod: agentRuntime.authMethod === 'post' ? 'post' : 'basic',
+    }
+    : (opts.providerConfig || null);
   const aiAgentClientId       = provider ? providerConfig.agentActorClientId : agentRuntime?.clientId || configResult.credentials.aiAgentClientId;
   const mcpExchangerClient    = provider ? providerConfig.mcpActorClientId : configResult.credentials.mcpClientId;
   const exchange1Client       = provider ? providerConfig.agentExchangeClientId : aiAgentClientId;
