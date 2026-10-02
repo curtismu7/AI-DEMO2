@@ -80,8 +80,11 @@ The contract is `spiffe/pingfederate/pf-pingone-user-gate.json`. With it applied
 every exchange on an access-token subject looks up the PingOne account that has
 the subject's username (REST data store `aiDemoPingOneUsersRest`, authenticated
 as the PingOne worker) and is refused unless that account is enabled
-(`user_disabled_in_pingone`) and its `mayAct` names the AI agent actor
-(`agent_not_authorized_by_user`). PingOne is therefore the system of record
+(`user_disabled_in_pingone`) and its `mayAct` names the agent acting in that
+exchange (`agent_not_authorized_by_user`). The grant rule names no particular
+agent: it compares `mayAct` with the actor token's client on the first exchange
+and with the subject token's existing `act` afterwards, so a user can grant any
+agent that has a PingFederate client. PingOne is therefore the system of record
 under both login providers: the BFF's agent grant, revoke and kill switch all
 act on the PingOne account, and PingFederate honours the result on the next
 exchange.
@@ -100,6 +103,10 @@ Things to know:
   check cannot compare it; rotate the worker and you must re-run `--apply`.
 - The ID-JAG subject mapping is deliberately not gated (see `notGated` in the
   contract): the lookup was proven for access-token subjects only.
+- The grant rule is an OGNL expression, so it depends on PingFederate having
+  expressions enabled (they are: the token mappings build `act` with one).
+  PingFederate hands a subject token's `act` to OGNL as a string (`{}` when
+  empty), not a map; calling `.get("sub")` on it throws and refuses everything.
 - The lookup variable is `${subjecttoken.Username}`. A bare `${Username}` is an
   unknown key to PingFederate, the lookup throws, and every exchange is refused.
 - Each exchange costs one PingOne Management API call, so a tool call makes two.
