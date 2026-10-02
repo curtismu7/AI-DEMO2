@@ -296,6 +296,19 @@ bring back and close it — one `.banking-agent-float-root` throughout.
 
 **Verify:** `cd demo_api_server && CI=true npx jest tests/pfPingOneUserGate.test.js --forceExit`; live: `npm run pf:user-gate:check`.
 
+**Same entry — one header for every float state:** the popped-out agent used
+the classic full header and the expanded agent lost its window buttons under
+the Demo Controls pill (its centring `transform` re-anchored the fixed pill to
+the panel). Now normal, expanded and popped-out all use the Command Dock header
+plus the window buttons: expanded centres with inset + auto margins, the dock
+opens inside the pop-out window (`CommandDock`/`FloatingPanel` `win` prop), and
+the pill flows in the header there. Demo Steps opens in the space left of the
+floating agent (`DemoStepsDropdown` `reserveRight`) instead of on top of it.
+Also touches `CommandDock.jsx`/`.css`, `FloatingPanel.jsx`,
+`DemoStepsDropdown.jsx` and its test. **Do not break:** no `transform` on the
+float panel outside its open animation; `FloatingPanel` `win` defaults to
+`window`; `reserveRight` of 0 keeps Demo Steps centred.
+
 ### 2026-10-01 — PingGateway's own token exchange was invisible
 
 **Files:** `ping-gateway/scripts/groovy/olb-token-exchange.groovy`, `ping-gateway/scripts/groovy/p1az-decision.groovy`, `demo_api_server/services/mcpToolPipeline.js`.

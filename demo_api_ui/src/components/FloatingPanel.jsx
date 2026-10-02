@@ -73,6 +73,9 @@ export default function FloatingPanel({
   onClose = null,
   placement = 'floating',
   onPopOutChange = null,
+  // Window the panel lives in. An owner that is itself rendered inside a
+  // pop-out window passes that window so the panel opens there, not in the opener.
+  win = window,
   ...rest
 }) {
   const [pos, setPos] = useState({ x: defaultX, y: defaultY });
@@ -128,10 +131,10 @@ export default function FloatingPanel({
     e.preventDefault();
     e.stopPropagation();
     resizeRef.current = { dir, mx: e.clientX, my: e.clientY, w: size.w, h: size.h, px: pos.x, py: pos.y };
-    document.body.style.userSelect = 'none';
+    win.document.body.style.userSelect = 'none';
     const cursors = { n:'n-resize', ne:'ne-resize', e:'e-resize', se:'nwse-resize',
                       s:'s-resize', sw:'sw-resize', w:'w-resize', nw:'nw-resize' };
-    document.body.style.cursor = cursors[dir] || 'nwse-resize';
+    win.document.body.style.cursor = cursors[dir] || 'nwse-resize';
 
     const onMove = (ev) => {
       const { dir: d, mx, my, w, h, px, py } = resizeRef.current;
@@ -147,14 +150,14 @@ export default function FloatingPanel({
     };
     const onUp = () => {
       resizeRef.current = null;
-      document.body.style.userSelect = '';
-      document.body.style.cursor = '';
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
+      win.document.body.style.userSelect = '';
+      win.document.body.style.cursor = '';
+      win.removeEventListener('mousemove', onMove);
+      win.removeEventListener('mouseup', onUp);
     };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-  }, [size, pos, minWidth, minHeight]);
+    win.addEventListener('mousemove', onMove);
+    win.addEventListener('mouseup', onUp);
+  }, [size, pos, minWidth, minHeight, win]);
 
   const onResizeKeyDown = useCallback((e, dir) => {
     if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) return;
@@ -347,5 +350,5 @@ export default function FloatingPanel({
     </div>
   );
 
-  return ReactDOM.createPortal(panel, document.body);
+  return ReactDOM.createPortal(panel, win.document.body);
 }

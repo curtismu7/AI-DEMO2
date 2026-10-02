@@ -1789,10 +1789,10 @@ export default function BankingAgent({
   // Command Dock hosts the secondary header controls in float mode AND in the
   // dashboard's inline split-column chrome (decluttering the tools rows above
   // the chat column — 2026-09-26 follow-up to the original float-only dock).
-  // Bare inline surfaces (test mounts, non-split embeds) and the popped-out
-  // agent window keep the classic header: the dock's FloatingPanel portal is
-  // meaningless inside a pop-out window's own chrome.
-  const useCommandDock = (!isInline || splitChrome) && !poppedOutWin;
+  // Bare inline surfaces (test mounts, non-split embeds) keep the classic
+  // header. The popped-out agent uses the dock too, opened inside its own
+  // window (CommandDock `win`), so every float state has the same header.
+  const useCommandDock = !isInline || splitChrome;
   // On the /agent route the inline/full-page instance is shown — hide duplicate float
   const isAgentPage = location.pathname === "/agent";
   /** Landing `/`: agent success/info/error toasts use longer autoClose (readable for guests). */
@@ -3733,15 +3733,19 @@ export default function BankingAgent({
     ? {}
     : isExpanded
       ? {
-          left: "50%",
-          top: "50%",
-          transform: "translate(-50%, -50%)",
+          // Centred with inset + auto margins, not a transform: a transformed
+          // panel becomes the containing block for its fixed descendants, which
+          // dropped the Demo Controls pill onto the window buttons.
+          left: 0,
+          top: 0,
+          right: 0,
+          bottom: 0,
+          margin: "auto",
+          transform: "none",
           width: "min(94vw, 520px)",
           height: "min(85vh, 720px)",
           maxWidth: 560,
           maxHeight: "85vh",
-          right: "auto",
-          bottom: "auto",
         }
       : dragPos
         ? {
@@ -10179,6 +10183,11 @@ export default function BankingAgent({
         showTrigger={false}
         showFloatingButton={!isInline}
         placement={splitChrome ? "drawer" : "floating"}
+        reserveRight={
+          !isInline && isOpen && !poppedOutWin && !isExpanded
+            ? dragPos ? Math.max(0, window.innerWidth - dragPos.x) : panelSize.width + 16
+            : 0
+        }
         onPopOutChange={(v) => { demoStepsPoppedOutRef.current = v; }}
         onOpenChange={(next) => {
           setShowDemoSteps(next);
@@ -10296,6 +10305,7 @@ export default function BankingAgent({
                 <CommandDock
                   open={commandDockOpen}
                   onOpenChange={setCommandDockOpen}
+                  win={poppedOutWin || window}
                 >
                   <div className="ba-header-tools cmd-dock-tools">
                     {/* Dashboard controls — relocated into the dock on

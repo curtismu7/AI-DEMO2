@@ -2914,11 +2914,11 @@ body > .banking-agent-float-root .banking-agent-panel {
 
 /* ─── Expanded: large centered window (inline style sets size; fallback if no JS) ─ */
 .banking-agent-panel.ba-expanded {
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  right: auto;
-  bottom: auto;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  margin: auto;
   width: min(94vw, 520px);
   height: min(85vh, 720px);
   max-width: 560px;
