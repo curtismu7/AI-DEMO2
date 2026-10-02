@@ -6,6 +6,7 @@
 const axios = require('axios');
 const configStore = require('./configStore');
 const { redactMessage } = require('../utils/logRedact');
+const { internalSecret } = require('../utils/internalSecret');
 const { REASON_LOOP_TIMEOUT_MS } = require('../../llm-timeouts.json');
 
 const REASON_URL =
@@ -44,11 +45,10 @@ function resolveGroqApiKey(override) {
 }
 
 async function runReasonLoop(p) {
-  // Prefer configStore (vault-loaded value) over process.env so that the vault
-  // secret for BFF_INTERNAL_SECRET reaches :3006 correctly. The vault loads
-  // into configStore (not process.env) at BFF startup, so process.env holds
-  // only the .env fallback value which may differ from what :3006 loaded.
-  const secret = configStore.getEffective('BFF_INTERNAL_SECRET') || process.env.BFF_INTERNAL_SECRET || '';
+  // Same resolver as every other internal hop (/run, /internal/agent-tool), so
+  // the three cannot disagree. It reads process.env per call; the vault loader
+  // exports BFF_INTERNAL_SECRET there (vaultLoader ENV_EXPORT_ALLOWLIST).
+  const secret = internalSecret();
   let messages = p.messages;
   // Loop guard: terminate the moment a tool result is TERMINAL (e.g. an admin
   // token hit a customer tool), or the model re-issues an IDENTICAL tool call

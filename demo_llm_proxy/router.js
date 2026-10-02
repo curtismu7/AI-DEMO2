@@ -756,6 +756,13 @@ process.on('SIGTERM', () => {
     process.exit(0);
   });
 });
+
+// Node already exits on an unhandled rejection; this names the service and the
+// cause first, so the crash is not a bare stack with no attribution.
+process.on('unhandledRejection', (reason) => {
+  console.error('[llm-proxy] unhandledRejection — exiting:', reason);
+  process.exit(1);
+});
 } // end require.main === module
 
 // Exported for unit tests only (no effect on `node router.js`).
