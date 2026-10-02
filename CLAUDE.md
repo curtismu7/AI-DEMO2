@@ -94,7 +94,8 @@ Use **Super Sports** as the default vertical for manual validation and tests tha
    - UI → `cd demo_api_ui && npm run test:unit && npm run build`; cross-service → `npm run topology:verify` (run these only if you touched that surface).
    - A single-route fix, copy change, or one isolated test file needs the scoped run only. Say which scope you ran.
 2. **Never conclude from a piped command's exit status.** `cmd | tail` exits with `tail`'s status, so a `deploy-live.sh` run that aborted with exit 1 reads as exit 0 — every "verified, exit 0" claim made through a pipe is unfounded, and the failure is silent by construction. Redirect to a file and read the file, or check `${PIPESTATUS[0]}`. Scripts under `scripts/` that run a subcommand whose failure should matter set `-o pipefail`.
-3. State ✅ or ❌ — no bare "done": tests/build green (evidence, not assertion) · every changed line traces to the request · staged explicitly on a worktree branch · emoji allowlist respected.
+3. If the diff touches auth, token exchange (RFC 8693) or the BFF (`demo_api_server/` session/auth/token code), run the `code-review` skill on it before declaring done and report its findings.
+4. State ✅ or ❌ — no bare "done": tests/build green (evidence, not assertion) · every changed line traces to the request · staged explicitly on a worktree branch · emoji allowlist respected.
 
 ## AI-DLC (opt-in only)
 
