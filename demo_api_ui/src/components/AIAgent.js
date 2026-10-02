@@ -6,7 +6,7 @@ import React, {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
-import FloatingPanel, { PopOutPortal } from "./FloatingPanel";
+import FloatingPanel from "./FloatingPanel";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useEducationUIOptional } from "../context/EducationUIContext";
 import { useIndustryBranding } from "../context/IndustryBrandingContext";
@@ -646,6 +646,9 @@ export default function BankingAgent({
     splitChrome ? false : readStoredDemoStepsOpen(),
   );
   const [floatingDemoStepsOpen, setFloatingDemoStepsOpen] = useState(false);
+  // Demo Steps was opened from inside the popped-out agent, so it opens in that
+  // window: the main window may sit behind it and script cannot raise it.
+  const [demoStepsInPopout, setDemoStepsInPopout] = useState(false);
   /** Admin tools popout — PingOne ops + banking customer-CRUD, admin-only. */
   const [showAdminTools, setShowAdminTools] = useState(false);
   const [discoverySearch, setDiscoverySearch] = useState("");
@@ -3648,10 +3651,11 @@ export default function BankingAgent({
 
   // Pop out: opens the panel in its own real browser window (native OS drag/resize
   // takes over there), or closes it and returns the panel to this window. Copies
-  // this document's stylesheets so the popup renders with the same styles — same
-  // approach as FloatingPanel's PopOutPortal (a separate React root is required in
-  // the popup document; a bare createPortal there leaves synthetic events bound to
-  // this window's root).
+  // this document's stylesheets so the popup renders with the same styles. The
+  // panel is portalled there, NOT rendered by a separate React root: a separate
+  // root has none of this tree's context providers, so the first step that
+  // rendered a context consumer (useProofOfEnforcement) threw and blanked the
+  // pop-out window.
   const handlePopOutWindow = useCallback(() => {
     if (poppedOutWin) {
       if (!poppedOutWin.closed) poppedOutWin.close();
@@ -10161,7 +10165,9 @@ export default function BankingAgent({
           if (!next) setFloatingDemoStepsOpen(false);
           if (next) setShowDiscovery(false);
         }}
+        win={(demoStepsInPopout && poppedOutWin) || window}
         onFloatingOpen={() => {
+          setDemoStepsInPopout(false);
           setShowDemoSteps(true);
           setFloatingDemoStepsOpen(true);
           setShowDiscovery(false);
@@ -10843,6 +10849,7 @@ export default function BankingAgent({
                         disabled={consentBlocked}
                         onOpenChange={(next) => {
                           setShowDemoSteps(next);
+                          if (next) setDemoStepsInPopout(true);
                           if (!next) setFloatingDemoStepsOpen(false);
                           if (next) setShowDiscovery(false);
                         }}
@@ -11616,19 +11623,19 @@ export default function BankingAgent({
                   them and the open agent could not be closed or popped out. */}
               {!isInline && (
                 <div className="ba-window-btns">
-                  {/* Popped out: Demo Steps opens in the main window, which may
-                      sit behind this one — open it and bring that window forward. */}
+                  {/* Popped out: open Demo Steps in this window, over the agent.
+                      Picking a step closes it again. */}
                   {poppedOutWin && (
                     <button
                       type="button"
                       className="ba-demo-steps-trigger"
                       disabled={consentBlocked}
-                      title="Open Demo steps in the main window"
+                      title="Open Demo steps"
                       onClick={() => {
+                        setDemoStepsInPopout(true);
                         setShowDemoSteps(true);
                         setFloatingDemoStepsOpen(true);
                         setShowDiscovery(false);
-                        window.focus();
                       }}
                     >
                       Demo steps
@@ -13941,7 +13948,7 @@ export default function BankingAgent({
         );
         return poppedOutWin && !poppedOutWin.closed ? (
           <>
-            <PopOutPortal win={poppedOutWin}>{panelEl}</PopOutPortal>
+            {createPortal(panelEl, poppedOutWin.document.getElementById("fp-popout-root"))}
             <div className="ba-popout-placeholder">
               <span>🪟 {brandShortName} AI Agent — popped out</span>
               <button

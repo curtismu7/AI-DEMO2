@@ -249,6 +249,30 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-02 — Running a demo step blanked the popped-out agent
+
+**Files:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/components/DemoStepsDropdown.jsx`, `REGRESSION_PLAN.md`.
+
+**What was broken:** the popped-out agent was rendered by a separate React root
+in the pop-out window, which has none of the app's context providers. The first
+step that rendered a context consumer threw `useProofOfEnforcement must be used
+within ProofOfEnforcementProvider` and unmounted the root, leaving the window
+blank. Separately, the pop-out's "Demo steps" button opened the panel in the
+main window, which script cannot raise, so the click looked dead.
+
+**What was fixed:** the agent is portalled into the pop-out window
+(`createPortal`), so it keeps every provider. Demo Steps opened from inside the
+pop-out opens in that window (`DemoStepsDropdown` `win`); the main-window
+launcher still opens it in the main window.
+
+**Do not break:** do not render the popped-out agent with `PopOutPortal` or any
+separate root; `DemoStepsDropdown` `win` defaults to `window`.
+
+**Verify:** `cd demo_api_ui && npm run build`; pop the agent out, click "Demo
+steps" in its header, pick a step — the panel closes and the result appears in
+the pop-out; bring the agent back.
+
 ### 2026-10-02 — Delegated commerce under PingFederate: the generic agent acted in the shopper's agent's place
 
 **Files:** `demo_api_server/services/pingFederateClientService.js` (new), `services/delegatedCommerceService.js`, `services/agentMcpTokenService.js`, `routes/delegatedCommerce.js`, tests `tests/delegatedCommercePingFederate.test.js` (new), `tests/delegatedCommerceRoutes.pf.test.js` (new), `src/__tests__/agentMcpTokenService.test.js`.
