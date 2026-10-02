@@ -263,7 +263,11 @@ secret_from_envfile() {
       local vault_v
       vault_v="$(vault_get "$k")"
       if [ -n "$env_v" ] && [ "$env_v" != "$vault_v" ]; then
-        die "SECURITY: $k is vault-managed and $env_file has a DIFFERENT non-empty value for it. The vault is authoritative — update $k in $env_file to match the vault value (or leave it blank), never leave a stale copy. (This is exactly the drift class that broke SE introspection on 2026-08-25 — see docs/superpowers/specs/2026-08-25-vault-in-k8s-design.md.)"
+        # Refuses the mismatch without naming a winner. This message used to
+        # say "the vault is authoritative"; on 2026-08-29 the vault was the
+        # stale side for 3 of 3 keys checked, and obeying it would have pointed
+        # introspection at a client id that does not exist (TECH_DEBT.md).
+        die "SECURITY: $k is vault-managed and $env_file has a DIFFERENT non-empty value for it. One of the two is stale and this script cannot tell which — do not assume it is the .env. Run 'node scripts/vault-audit.js' to see which services agree with each other, and for a *_CLIENT_ID check in PingOne that the id is an application of the expected type. Then correct the stale side (the vault, or $k in $env_file) so they match, or blank the .env copy if the vault is right. (Deploying a mismatch is what broke SE introspection on 2026-08-25 — see docs/superpowers/specs/2026-08-25-vault-in-k8s-design.md.)"
       fi
       [ -n "$vault_v" ] && args+=(--from-literal="${k}=${vault_v}")
       dry_run_report+=("$k -> vault")

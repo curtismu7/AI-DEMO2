@@ -2406,6 +2406,17 @@ is why that was accepted rather than escalated.
 
 ### [ ] 2026-08-29 — "the vault is authoritative" was wrong on 3 of 3 keys checked
 
+**PARTLY RESOLVED 2026-10-02 (branch `worktree-techdebt-wave3-vault-guard`).**
+The guard in `k8s/create-secrets.sh` keeps its refusal but no longer names a
+winner: it now says one of the two values is stale and it cannot tell which,
+points at `node scripts/vault-audit.js` for which services agree with each
+other, and tells the operator to check a `*_CLIENT_ID` against PingOne before
+correcting either side. Message only; which value is used when they match is
+unchanged. `bash -n` clean; not run against a cluster. Still open: the guard
+does not itself ask PingOne whether an id is a real application of the right
+type, and does not weigh an N-services-versus-vault split. Those remain manual
+steps the message now asks for.
+
 **TRIAGE 2026-10-01 (checked against main `fdd04bf12`, static read only).** The audit tooling half is done: `scripts/vault-audit.js` (#2607). The guard half is not: `k8s/create-secrets.sh:266` still says "The vault is authoritative" and names the side to correct.
 
 **What's wrong.** `k8s/create-secrets.sh:210` refuses to deploy when a service
