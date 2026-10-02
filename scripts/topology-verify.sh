@@ -14,6 +14,8 @@
 #   7. tool scope-audience coverage              (allowedScopesByAudience.parity)
 #   8. hand-authored PaC policy tool lists       (check-pac-policy-drift.js)
 #   9. invest resource-server audience env        (check-resource-server-audience-drift.js)
+#  10. resource-server tool scopes registered    (check-tool-scope-registration.js)
+#  11. PingGateway's scope-topology copy          (sync-gateway-scope-topology.js --check)
 #
 # The LIVE PingOne diff (needs worker creds + network) is intentionally NOT here.
 # Run it deliberately with:  npm run topology:verify:live
@@ -33,10 +35,10 @@ export VERTICAL_MANIFEST_EPHEMERAL=1
 fail=0
 step() { printf '\n\033[36m── %s ──\033[0m\n' "$1"; }
 
-step "1/10 vertical manifests -> topology (verticals:check)"
+step "1/11 vertical manifests -> topology (verticals:check)"
 ( cd demo_api_server && npm run --silent verticals:check ) || fail=1
 
-step "2/10 schema + running code + referential integrity + P1AZ constants"
+step "2/11 schema + running code + referential integrity + P1AZ constants"
 # --runTestsByPath runs ONLY this exact file (no directory scan, so it can never
 # collect another checkout's copy), and the ignore override keeps it runnable
 # inside .claude/worktrees — the repo's jest config ignores that path, which would
@@ -44,7 +46,7 @@ step "2/10 schema + running code + referential integrity + P1AZ constants"
 # keeps it fast.
 ( cd demo_api_server && npx --no-install jest --runTestsByPath src/__tests__/scopeTopology.regression.test.js --testPathIgnorePatterns='/node_modules/' --no-coverage --forceExit ) || fail=1
 
-step "3/10 P1AZ cloud policy snapshot (snapshot:check)"
+step "3/11 P1AZ cloud policy snapshot (snapshot:check)"
 # snapshots/ is gitignored (local-only import artifact). Only verify it where it
 # exists (developer/main checkout); skip gracefully on a fresh clone / CI / worktree.
 if [ -f snapshots/gen-authorize-snapshot.js ]; then
@@ -53,27 +55,27 @@ else
   echo "[skip] snapshots/gen-authorize-snapshot.js not present (gitignored local artifact) — skipping P1AZ snapshot check."
 fi
 
-step "4/10 PingGateway env/config parity"
+step "4/11 PingGateway env/config parity"
 node scripts/verify-pinggateway-parity.js || fail=1
 
-step "5/10 mock PingOne Authorize rule-store parity"
+step "5/11 mock PingOne Authorize rule-store parity"
 ( cd demo_authz_server && node --test topology.parity.test.js ) || fail=1
 
-step "6/10 PingGateway tool-schema drift (mcp-tool-schemas.json)"
+step "6/11 PingGateway tool-schema drift (mcp-tool-schemas.json)"
 # mcp-tool-schemas.json (what PingGateway reads to know which MCP tools exist) is
 # generated from the tool registry by `gen:tool-schemas`. Fails if a tool was
 # added/renamed/removed without regenerating — PingGateway would then reject it
 # with "Unknown tool". Fix: npm --prefix demo_mcp_gateway run gen:tool-schemas
 ( cd demo_mcp_gateway && npm test -- --testPathPattern=toolSchemaDrift --testPathIgnorePatterns='/node_modules/' --no-coverage --forceExit ) || fail=1
 
-step "7/10 tool scope-audience coverage (configStore allowlist)"
+step "7/11 tool scope-audience coverage (configStore allowlist)"
 # Every gateway-surface tool's requiredScopes must be present in the RFC 8707
 # scope-audience allowlist for the MCP Gateway (and MCP Server, minus gateway-only
 # scopes). A missing scope = SCOPE_MISMATCH at token exchange before the gateway.
 # Fix: add the scope to buildAllowedScopesByAudience() in configStore.js.
 ( cd demo_api_server && npx --no-install jest --runTestsByPath src/__tests__/allowedScopesByAudience.parity.test.js --testPathIgnorePatterns='/node_modules/' --no-coverage --forceExit ) || fail=1
 
-step "8/10 hand-authored PaC policy tool lists (pac/policies/*.yaml)"
+step "8/11 hand-authored PaC policy tool lists (pac/policies/*.yaml)"
 # pac/policies/*.yaml is the one link in this chain with no generator: its rule
 # tool lists are hand-typed. #1279 added sensitive_passenger_record as an
 # a2aDelegated tool and nobody added it to DenyA2aDelegationRequired, so the rule
@@ -82,7 +84,7 @@ step "8/10 hand-authored PaC policy tool lists (pac/policies/*.yaml)"
 # scripts/check-pac-policy-drift.test.js
 node scripts/check-pac-policy-drift.js || fail=1
 
-step "9/10 invest resource-server accepted-audience env"
+step "9/11 invest resource-server accepted-audience env"
 # MCP_SERVER_RESOURCE_URI means the BANKING MCP server's audience list, but
 # k8s/02-configmap.yaml is a shared map that mcp-resource-server pulls in via
 # envFrom — so the invest server inherited the banking value and rejected every
@@ -92,13 +94,22 @@ step "9/10 invest resource-server accepted-audience env"
 # scripts/check-resource-server-audience-drift.test.js
 node scripts/check-resource-server-audience-drift.js || fail=1
 
-step "10/10 resource-server tool scopes registered in topology"
+step "10/11 resource-server tool scopes registered in topology"
 # Every Phase-1 SQLite tool shipped requiring an invented `<vertical>:read` that
 # was never registered anywhere, so routing one 403s on a scope no token can
 # carry. The migration fixed each only as its tool was routed; the unrouted half
 # still carries it. This fails the build instead of the call. Self-test: node
 # --test scripts/check-tool-scope-registration.test.js
 node scripts/check-tool-scope-registration.js || fail=1
+
+step "11/11 PingGateway's scope-topology copy"
+# ping-gateway/config/scope-topology.json is what PingGateway mounts and what
+# p1az-decision.groovy reads for its tool -> requiredScopes backstop. It is a
+# generated byte-for-byte copy of the root file; a stale copy means the gateway
+# enforces old scopes while the BFF and the PDP enforce new ones. It was
+# hand-maintained and ~190 lines behind before this step existed.
+# Fix: node scripts/sync-gateway-scope-topology.js
+node scripts/sync-gateway-scope-topology.js --check || fail=1
 
 printf '\n'
 if [ "$fail" -ne 0 ]; then
