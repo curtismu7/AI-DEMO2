@@ -181,7 +181,7 @@ const AUTO_EXPAND_SECTIONS = [
   { id: "davinci", paths: ["/davinci-sdk", "/davinci-widget", "/davinci-orchestration-sdk", "/pingfederate-davinci-kit"] },
   { id: "ping-products", paths: ["/ping-products/verify-recognize", "/pingcli", "/sdk-login", "/samples/m2m-credentials", "/samples/custom-admin-role"] },
   { id: "identity-journeys", paths: ["/self-service", "/samples/user-registration", "/samples/mfa-demo", "/login-flow", "/oauth-academy", "/oas-demo"] },
-  { id: "ai-experiences", paths: ["/delegated-commerce", "/use-cases", "/use-cases/live", "/demo-track", "/group-policy", "/agent-lifecycle", "/delegation-chain-value", "/a2a-protocol-learning", "/control-plane", "/ai-control-plane", "/agent-registry", "/agent-builder", "/agent-flow-inspector", "/agent-onboarding-flow", "/agent-onboarding-flow-subway", "/langchain", "/ungoverned-agent", "/servers", "/autonomous-agents", "/personal-agent", "/privilege-for-ai"] },
+  { id: "ai-experiences", paths: ["/delegated-commerce", "/use-cases", "/use-cases/live", "/demo-track", "/group-policy", "/agent-lifecycle", "/delegation-chain-value", "/a2a-protocol-learning", "/jev-learning", "/control-plane", "/ai-control-plane", "/agent-registry", "/agent-builder", "/agent-flow-inspector", "/agent-onboarding-flow", "/agent-onboarding-flow-subway", "/langchain", "/ungoverned-agent", "/servers", "/autonomous-agents", "/personal-agent", "/privilege-for-ai"] },
   { id: "mcp-integrations", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/demo/enterprise-mcp", "/ping-ai-test-lab", "/agent-gateway-inspector", "/agent-gateway-capabilities", "/webmcp", "/mcp-scanner", "/personal-agent"] },
   { id: "pingfederate-id-jag", paths: ["/pingfederate-id-jag"] },
   { id: "pingfederate-ai-agent", paths: ["/pingfederate-ai-agent"] },
@@ -586,6 +586,7 @@ export default function AdminSideNav({
         { label: "Guided Demo Track", path: "/demo-track", icon: "demo" },
         { label: "Delegation Chain Value", path: "/delegation-chain-value", icon: "demo" },
         { label: "A2A Protocol & Identity", path: "/a2a-protocol-learning", icon: "demo" },
+        { label: "Jev Decision Model", path: "/jev-learning", icon: "demo" },
         { label: "Group Policy Board", path: "/group-policy", icon: "demo" },
         {
           label: "Demo Script",

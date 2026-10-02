@@ -38,7 +38,7 @@ export const NAV_STRUCTURE_CATALOG = [
   ] },
   { label: "AI Experiences", children: [
     "Weather MCP", "Brave Search MCP", "Use Cases", "Use Cases (Live)", "Guided Demo Track",
-    "Delegation Chain Value", "A2A Protocol & Identity", "Group Policy Board", "Demo Script",
+    "Delegation Chain Value", "A2A Protocol & Identity", "Jev Decision Model", "Group Policy Board", "Demo Script",
     "Agentic Control Plane", "Agent Kill Switch", "Agent Registry", "PingOne Agent Builder",
     "Agent & Token Flow History", "Autonomous Agents", "Personal Agent",
     "Agent Onboarding Flow (Node)", "Agent Onboarding Flow Subway (Node)",

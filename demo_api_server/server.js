@@ -1919,6 +1919,9 @@ app.use('/api/demo/attack-sim', express.json(), attackSimulatorRoutes);
 const intentBindingRoutes = require('./routes/intentBinding');
 app.use('/api/demo/intent-binding', express.json(), intentBindingRoutes);
 
+const jevRoutes = require('./routes/jev');
+app.use('/api/demo/jev', express.json({ limit: '16kb' }), jevRoutes);
+
 // Protocol Playground mocks for specs PingOne does not natively implement.
 const pkceDemoRoutes = require('./routes/pkceDemo');
 app.use('/api/demo/pkce', pkceDemoRoutes);
