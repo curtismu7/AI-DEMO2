@@ -359,6 +359,12 @@ services:
       # MCP clients re-authenticate and the broker-chained sign-in restores it.
       # Unset = the old 503 + "sign in at /privilege-mcp-client" remedy.
       MCP_FACADE_PRIVILEGE_LINK: "true"
+      # Refuse to START on the committed public BFF_INTERNAL_SECRET (:3001 is
+      # published, so that default would let anyone on the network drive
+      # /internal/agent-tool). Same opt-in k8s sets. Safe on a fresh clone only
+      # because run-docker.sh start runs ensure-service-keys.js first, which
+      # mints a real secret for the BFF and every service that shares it.
+      VAULT_INTERNAL_STRICT: "true"
       # The opensearch door's code default is the SE cluster's in-cluster DNS
       # name, which is EAI_AGAIN from a local BFF container — the Direct door
       # answered a bare 502 "upstream_unavailable" on every request. Locally the
