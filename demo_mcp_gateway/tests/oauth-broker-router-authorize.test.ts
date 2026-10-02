@@ -208,11 +208,17 @@ describe('OAuthBrokerRouter — Privilege gateway link', () => {
     return `pgw_link_${linkCookieId}=${nonce}`;
   }
 
-  async function callbackFor(resource?: string) {
+  // PingOne access tokens are JWTs; the link reads the subject out of one.
+  function pingOneToken(claims: Record<string, unknown> = { sub: 'user-1' }) {
+    const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString('base64url');
+    return `${b64({ alg: 'RS256' })}.${b64(claims)}.sig`;
+  }
+
+  async function callbackFor(resource?: string, accessToken: string = pingOneToken()) {
     const { clientRegistry, tokenStore, server } = makeRouterAndServer();
     const client = clientRegistry.registerClient({ client_name: 'LM Studio', redirect_uris: [REDIRECT] });
     const relayState = pendingFor(tokenStore, client.client_id, resource);
-    mockedAxios.post.mockResolvedValueOnce({ data: { access_token: 'REAL-PINGONE-TOKEN', expires_in: 3600 } });
+    mockedAxios.post.mockResolvedValueOnce({ data: { access_token: accessToken, expires_in: 3600 } });
     const res = await supertest(server).get('/oauth/callback').query({ code: 'pingone-code', state: relayState });
     return { res, tokenStore };
   }
@@ -242,7 +248,7 @@ describe('OAuthBrokerRouter — Privilege gateway link', () => {
     expect(resume.searchParams.get('rs')).toBeTruthy();
   });
 
-  it('the link the broker issues carries a signature over its app and resume id', async () => {
+  it('the link the broker issues carries a signature over its app, resume id and user', async () => {
     process.env.BFF_PRIVILEGE_LINK_URL = LINK_URL;
     process.env.BFF_PRIVILEGE_LINK_COMMIT_URL = COMMIT_URL;
     const { res } = await callbackFor(DOOR);
@@ -253,9 +259,100 @@ describe('OAuthBrokerRouter — Privilege gateway link', () => {
     // does, so this signature is never an oracle against the secret itself.
     const signingKey = crypto.createHmac('sha256', 'test-internal-secret').update('privilege-link-v1').digest();
     const expected = crypto.createHmac('sha256', signingKey)
-      .update(`opensearch|${resumeId}`)
+      .update(`opensearch|${resumeId}|user-1`)
       .digest('base64url');
+    expect(link.searchParams.get('sub')).toBe('user-1');
     expect(link.searchParams.get('sig')).toBe(expected);
+  });
+
+  it('refuses to chain the link when the PingOne token names no user', async () => {
+    process.env.BFF_PRIVILEGE_LINK_URL = LINK_URL;
+    process.env.BFF_PRIVILEGE_LINK_COMMIT_URL = COMMIT_URL;
+    const { res } = await callbackFor(DOOR, pingOneToken({ aud: 'x' }));
+
+    // A gateway session with no owner would have to be shared; fail instead.
+    expect(res.status).toBe(502);
+    expect(res.headers.location).toBeUndefined();
+  });
+
+  describe('/oauth/link-verify — is this the browser that started the authorize?', () => {
+    const BIND = 'b'.repeat(43);
+    const signingKey = crypto.createHmac('sha256', 'test-internal-secret').update('privilege-link-v1').digest();
+
+    beforeEach(() => {
+      process.env.BFF_PRIVILEGE_LINK_URL = LINK_URL;
+      process.env.BFF_PRIVILEGE_LINK_COMMIT_URL = COMMIT_URL;
+    });
+
+    it('with the authorize cookie, sends the browser back to the BFF with a signed answer bound to its bind', async () => {
+      const { tokenStore, server } = makeRouterAndServer();
+      const rs = parked(tokenStore, 'nonce-1');
+
+      const res = await supertest(server).get('/oauth/link-verify')
+        .set('Cookie', linkCookieHeader('nonce-1'))
+        .query({ rs, bind: BIND });
+
+      expect(res.status).toBe(302);
+      const back = new URL(res.headers.location);
+      expect(back.origin + back.pathname).toBe(`${LINK_URL}/verified`);
+      expect(back.searchParams.get('rs')).toBe(rs);
+      expect(back.searchParams.get('bind')).toBe(BIND);
+      expect(back.searchParams.get('vsig')).toBe(
+        crypto.createHmac('sha256', signingKey).update(`verified|${rs}|${BIND}`).digest('base64url'),
+      );
+    });
+
+    it('does not consume the authorization — /oauth/resume still needs it', async () => {
+      const { tokenStore, server } = makeRouterAndServer();
+      const rs = parked(tokenStore, 'nonce-1');
+
+      await supertest(server).get('/oauth/link-verify').set('Cookie', linkCookieHeader('nonce-1')).query({ rs, bind: BIND });
+
+      expect(tokenStore.consumeResume(rs)).not.toBeNull();
+    });
+
+    it('a browser without the cookie — a mailed link — is refused and gets no signed answer', async () => {
+      const { tokenStore, server } = makeRouterAndServer();
+      const rs = parked(tokenStore, 'nonce-1');
+
+      const res = await supertest(server).get('/oauth/link-verify').query({ rs, bind: BIND });
+
+      expect(res.status).toBe(403);
+      expect(res.headers.location).toBeUndefined();
+    });
+
+    it('a browser holding a different nonce is refused', async () => {
+      const { tokenStore, server } = makeRouterAndServer();
+      const rs = parked(tokenStore, 'nonce-1');
+
+      const res = await supertest(server).get('/oauth/link-verify')
+        .set('Cookie', linkCookieHeader('someone-elses-nonce'))
+        .query({ rs, bind: BIND });
+
+      expect(res.status).toBe(403);
+    });
+
+    it('an authorization parked with no nonce is refused, never waved through', async () => {
+      const { tokenStore, server } = makeRouterAndServer();
+      const rs = parked(tokenStore);
+
+      const res = await supertest(server).get('/oauth/link-verify').query({ rs, bind: BIND });
+
+      expect(res.status).toBe(403);
+    });
+
+    it('an unknown resume id or a malformed bind is a 400', async () => {
+      const { tokenStore, server } = makeRouterAndServer();
+      const rs = parked(tokenStore, 'nonce-1');
+
+      const unknown = await supertest(server).get('/oauth/link-verify')
+        .set('Cookie', linkCookieHeader('nonce-1')).query({ rs: 'nope', bind: BIND });
+      const badBind = await supertest(server).get('/oauth/link-verify')
+        .set('Cookie', linkCookieHeader('nonce-1')).query({ rs, bind: 'short' });
+
+      expect(unknown.status).toBe(400);
+      expect(badBind.status).toBe(400);
+    });
   });
 
   it('does not chain the link when only one leg is configured', async () => {

@@ -3,7 +3,7 @@
  * /internal/privilege-link/commit — the broker confirming that the browser which
  * finished the Privilege gateway sign-in is the one that started the authorize
  * (it checks its own browser-bound cookie first). Only then does the parked
- * token become the app's shared session. The broker also calls this with
+ * token become that user's session for the app. The broker also calls this with
  * `action: 'discard'` when it denies a resume, so a token nobody will ever
  * commit does not sit parked until its TTL.
  *

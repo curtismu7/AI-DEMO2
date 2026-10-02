@@ -136,7 +136,7 @@ describe('opensearch door — façade-enforced bearer', () => {
         { get: () => `Bearer ${makeToken({ aud: 'mcpgateway.ping.demo' })}` },
         DOORS.opensearch,
       );
-      expect(res).toEqual({ ok: true });
+      expect(res).toMatchObject({ ok: true });
     } finally {
       process.env.MCP_FACADE_OPENSEARCH_AUD = prevAud;
       process.env.MCP_GW_RESOURCE_URI = prevGw;

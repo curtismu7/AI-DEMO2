@@ -23,9 +23,9 @@ const AUD = 'mcpgateway.ping.demo';
 const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
 const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
 
-function callerToken() {
+function callerToken(sub = 'user-1') {
   const head = b64({ alg: 'RS256', kid: 'k1', typ: 'JWT' });
-  const body = b64({ aud: AUD, iss: 'https://auth.pingone.com/env/as', exp: Math.floor(Date.now() / 1000) + 3600 });
+  const body = b64({ sub, aud: AUD, iss: 'https://auth.pingone.com/env/as', exp: Math.floor(Date.now() / 1000) + 3600 });
   const sig = crypto.createSign('RSA-SHA256').update(`${head}.${body}`).sign(privateKey).toString('base64url');
   return `${head}.${body}.${sig}`;
 }
@@ -67,6 +67,7 @@ describe('mcp-facade multi-app door', () => {
     jwksService.getPublicKey.mockResolvedValue({ keyObject: publicKey, alg: 'RS256' });
     for (const appName of ['opensearch22', 'banking-mcp', 'git_server.v2']) {
       gatewaySession.remember({
+        sub: 'user-1',
         app: appName,
         accessToken: 'gateway-token',
         expiresIn: 3600,
@@ -150,6 +151,7 @@ describe('mcp-facade multi-app DELETE', () => {
     jwksService.getPublicKey.mockResolvedValue({ keyObject: publicKey, alg: 'RS256' });
     for (const appName of ['opensearch22', 'banking-mcp']) {
       gatewaySession.remember({
+        sub: 'user-1',
         app: appName,
         accessToken: 'gateway-token',
         expiresIn: 3600,
@@ -183,7 +185,7 @@ describe('mcp-facade multi-app DELETE', () => {
   });
 
   test('tears down locally without calling upstream when no gateway session exists', async () => {
-    gatewaySession.clear('banking-mcp');
+    gatewaySession.clear('banking-mcp', 'user-1');
 
     const res = await request(app())
       .delete('/api/mcp-facade/privilege-gateway/banking-mcp/mcp')

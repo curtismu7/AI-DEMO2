@@ -49,7 +49,7 @@ async function runPrivilegeMcpFirstCheck() {
     };
   }
 
-  const session = privilegeGatewaySession.status();
+  const session = privilegeGatewaySession.statusAny();
   if (!session.ready) {
     return {
       status: 'warn',
@@ -60,7 +60,7 @@ async function runPrivilegeMcpFirstCheck() {
     };
   }
 
-  const token = await privilegeGatewaySession.getAccessToken();
+  const token = await privilegeGatewaySession.getAnyAccessToken();
   if (!token) {
     return {
       status: 'warn',

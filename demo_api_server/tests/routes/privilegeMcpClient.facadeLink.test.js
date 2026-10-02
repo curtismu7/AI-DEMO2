@@ -27,10 +27,16 @@ const INTERNAL_SECRET = 'test-facade-link-internal-secret';
 function linkSigningKey() {
   return crypto.createHmac('sha256', INTERNAL_SECRET).update('privilege-link-v1').digest();
 }
-function sigFor(app, resume) {
+// The PingOne user the MCP client authorized as; the broker signs it into the link.
+const SUB = 'user-1';
+function sigFor(app, resume, sub = SUB) {
   let rs = '';
   try { rs = new URL(resume).searchParams.get('rs') || ''; } catch { /* resume invalid; sig is irrelevant */ }
-  return crypto.createHmac('sha256', linkSigningKey()).update(`${app}|${rs}`).digest('base64url');
+  return crypto.createHmac('sha256', linkSigningKey()).update(`${app}|${rs}|${sub}`).digest('base64url');
+}
+// What the broker's /oauth/link-verify signs once it has seen its own cookie.
+function vsigFor(rs, bind) {
+  return crypto.createHmac('sha256', linkSigningKey()).update(`verified|${rs}|${bind}`).digest('base64url');
 }
 
 const mockRemember = jest.fn();
@@ -96,13 +102,40 @@ function buildApp(sessionStore) {
 // Auto-signs unless the caller already supplied a `sig` (so a test asserting
 // an invalid/absent signature can override it) or opts out entirely with
 // `{ sign: false }` (the "no sig at all" case).
-function startLink(app, query, { sign = true } = {}) {
-  const q = { ...query };
+//
+// /facade-link no longer starts the gateway sign-in itself: it sends the browser
+// to the broker's /oauth/link-verify first. Unless `{ verify: false }`, this
+// helper plays the broker's part — it "saw its cookie" and answers with the
+// signed redirect to /facade-link/verified — and resolves to THAT response, so
+// a test reads the outcome of the whole start. Chainable like a supertest
+// request for the two calls the suite uses (.set, .expect).
+function startLink(app, query, { sign = true, verify = true } = {}) {
+  const q = { sub: SUB, ...query };
   if (sign && q.sig === undefined) {
     const rawApp = typeof q.app === 'string' ? q.app : '';
-    q.sig = sigFor(rawApp, q.resume || RESUME);
+    q.sig = sigFor(rawApp, q.resume || RESUME, q.sub);
   }
-  return request(app).get('/api/privilege-mcp/facade-link').query(q);
+  const headers = {};
+  let expectedStatus;
+  const withHeaders = (req) => Object.entries(headers).reduce((r, [k, v]) => r.set(k, v), req);
+  const run = async () => {
+    let res = await withHeaders(request(app).get('/api/privilege-mcp/facade-link').query(q));
+    const next = res.status === 302 ? new URL(res.headers.location) : null;
+    if (verify && next && next.pathname === '/oauth/link-verify') {
+      const rs = next.searchParams.get('rs');
+      const bind = next.searchParams.get('bind');
+      res = await withHeaders(request(app).get('/api/privilege-mcp/facade-link/verified')
+        .query({ rs, bind, vsig: vsigFor(rs, bind) }));
+    }
+    if (expectedStatus !== undefined) expect(res.status).toBe(expectedStatus);
+    return res;
+  };
+  const chain = {
+    set(name, value) { headers[name] = value; return chain; },
+    expect(status) { expectedStatus = status; return chain; },
+    then(resolve, reject) { return run().then(resolve, reject); },
+  };
+  return chain;
 }
 
 const origFetch = global.fetch;
@@ -303,6 +336,70 @@ describe('GET /api/privilege-mcp/facade-link', () => {
   });
 });
 
+// A signed link proves the broker issued it, not that this browser is the one it
+// was issued to. Mailed to a signed-in victim, their browser would sign in to
+// the gateway and park THEIR identity for whoever holds the resume. So the
+// gateway sign-in starts only after the broker has vouched for the browser.
+describe('the link is verified for this browser before any gateway sign-in', () => {
+  const verified = (app, query) => request(app).get('/api/privilege-mcp/facade-link/verified').query(query);
+
+  test('/facade-link sends the browser to the broker and contacts no gateway', async () => {
+    const res = await startLink(buildApp({}), { app: 'opensearch', resume: RESUME }, { verify: false });
+
+    expect(res.status).toBe(302);
+    const location = new URL(res.headers.location);
+    expect(location.origin + location.pathname).toBe('http://localhost:3005/oauth/link-verify');
+    expect(location.searchParams.get('rs')).toBe('parked-1');
+    expect(location.searchParams.get('bind')).toMatch(/^[A-Za-z0-9_-]{16,128}$/);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  test('a link with no user, or signed for a different user, is refused', async () => {
+    const noSub = await startLink(buildApp({}), { app: 'opensearch', resume: RESUME, sub: '' });
+    const otherSub = await startLink(buildApp({}), {
+      app: 'opensearch', resume: RESUME, sub: 'user-2', sig: sigFor('opensearch', RESUME, 'user-1'),
+    });
+
+    expect(noSub.status).toBe(400);
+    expect(otherSub.status).toBe(400);
+  });
+
+  test('the broker\'s answer does nothing in a browser that did not start the link', async () => {
+    // The attacker completes the verify hop in their own browser, then mails
+    // the resulting /facade-link/verified URL to someone else.
+    const attackerSession = {};
+    const first = await startLink(buildApp(attackerSession), { app: 'opensearch', resume: RESUME }, { verify: false });
+    const bind = new URL(first.headers.location).searchParams.get('bind');
+
+    const res = await verified(buildApp({}), { rs: 'parked-1', bind, vsig: vsigFor('parked-1', bind) });
+
+    expect(res.status).toBe(400);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  test('an answer the broker did not sign is refused', async () => {
+    const session = {};
+    const app = buildApp(session);
+    const first = await startLink(app, { app: 'opensearch', resume: RESUME }, { verify: false });
+    const bind = new URL(first.headers.location).searchParams.get('bind');
+
+    const res = await verified(app, { rs: 'parked-1', bind, vsig: 'forged' });
+
+    expect(res.status).toBe(400);
+    expect(session.privilegeFacadeLink).toBeUndefined();
+  });
+
+  test('the answer is single-use', async () => {
+    const app = buildApp({});
+    const first = await startLink(app, { app: 'opensearch', resume: RESUME }, { verify: false });
+    const bind = new URL(first.headers.location).searchParams.get('bind');
+    const answer = { rs: 'parked-1', bind, vsig: vsigFor('parked-1', bind) };
+
+    expect((await verified(app, answer)).status).toBe(302);
+    expect((await verified(app, answer)).status).toBe(400);
+  });
+});
+
 describe('GET /api/privilege-mcp/facade-link/callback', () => {
   async function linked({ tokenStatus } = {}) {
     global.fetch = gatewayFetch({ tokenStatus });
@@ -327,8 +424,9 @@ describe('GET /api/privilege-mcp/facade-link/callback', () => {
     expect(back.searchParams.get('link')).toBe('ok');
     // Parked, not committed — the broker commits at /oauth/resume once it has
     // checked its own browser-bound cookie (Greptile P1, PR #3140).
+    // ...and for the user the broker's link named, nobody else.
     expect(mockRememberPending).toHaveBeenCalledWith('parked-1', expect.objectContaining({
-      app: 'opensearch', accessToken: 'gateway-token', tokenUri: TOKEN_URI, clientId: 'dcr-link-1',
+      app: 'opensearch', sub: SUB, accessToken: 'gateway-token', tokenUri: TOKEN_URI, clientId: 'dcr-link-1',
     }));
     expect(mockRemember).not.toHaveBeenCalled();
   });

@@ -126,6 +126,14 @@ export class BrokerTokenStore {
     return id;
   }
 
+  /** Read a parked authorization WITHOUT consuming it. /oauth/link-verify checks
+   *  the browser against it before the BFF's gateway sign-in starts; the same
+   *  record must still be there for /oauth/resume afterwards. */
+  peekResume(id: string): ResumableAuthorization | null {
+    const entry = this.resumable.get(id);
+    return entry && Date.now() <= entry.expiresAt ? entry : null;
+  }
+
   consumeResume(id: string): ResumableAuthorization | null {
     const entry = this.resumable.get(id);
     if (!entry) return null;

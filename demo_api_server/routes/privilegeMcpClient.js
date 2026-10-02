@@ -1995,8 +1995,8 @@ router.get('/state', (req, res) => {
     // one per Agentic App, that expire hourly (services/privilegeGatewaySession.js).
     // Ship their state so the page can say so instead of the door failing
     // silently. gatewaySession stays the default app's — the page's banner reads it.
-    gatewaySession: privilegeGatewaySession.status(),
-    gatewaySessionsByApp: privilegeGatewaySession.statusAll(),
+    gatewaySession: privilegeGatewaySession.status(undefined, resolveActingIdentity(req)),
+    gatewaySessionsByApp: privilegeGatewaySession.statusAll(resolveActingIdentity(req)),
     // Where the sibling doors above came from. `persisted: false` means nobody
     // has connected the console yet and the picker is on the pre-W8 fallback.
     doorDiscovery: discoverySummary(discovery),
@@ -2275,6 +2275,9 @@ router.get('/auth/callback', async (req, res) => {
     if (tokenOrigin === gatewayOrigin) {
       privilegeGatewaySession.remember({
         app: gatewayAppFromUrl(session.config.mcpUrl),
+        // A gateway session serves only the user it was made for: the person
+        // signed in to this app in this browser, if anyone is.
+        sub: resolveActingIdentity(req),
         accessToken: session.oauth.accessToken,
         refreshToken: session.oauth.refreshToken,
         expiresIn: tokenData.expires_in,
@@ -2337,18 +2340,31 @@ function linkSigningKey() {
   return crypto.createHmac('sha256', internalSecret()).update('privilege-link-v1').digest();
 }
 
-// The link is unauthenticated and decides which identity lands in which app's
-// shared session, so only a link the broker actually issued may proceed. The
-// secret resolves per call on purpose: the vault sets it long after these
-// routes are required (see utils/internalSecret.js).
-function linkSignatureValid(rawApp, rs, presented) {
+function linkHmacValid(message, presented) {
   if (typeof presented !== 'string' || !presented) return false;
-  const expected = crypto.createHmac('sha256', linkSigningKey())
-    .update(`${rawApp}|${rs}`).digest('base64url');
+  const expected = crypto.createHmac('sha256', linkSigningKey()).update(message).digest('base64url');
   const a = Buffer.from(presented);
   const b = Buffer.from(expected);
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
+
+// The link is unauthenticated and decides whose gateway identity lands in which
+// app's session for which user, so only a link the broker actually issued may
+// proceed. The secret resolves per call on purpose: the vault sets it long
+// after these routes are required (see utils/internalSecret.js).
+function linkSignatureValid(rawApp, rs, sub, presented) {
+  return linkHmacValid(`${rawApp}|${rs}|${sub}`, presented);
+}
+
+// The broker's answer to /oauth/link-verify: this browser holds the cookie set
+// when the authorize began. Bound to the one-time `bind` this BFF put in that
+// browser's session, so the answer is worthless in any other browser.
+function linkVerifiedSignatureValid(rs, bind, presented) {
+  return linkHmacValid(`verified|${rs}|${bind}`, presented);
+}
+
+// The PingOne subject the MCP client authorized as. It names the session slot.
+const LINK_SUB = /^[A-Za-z0-9._:@-]{1,128}$/;
 
 function redirectToResume(res, resume, params) {
   const url = new URL(resume);
@@ -2371,13 +2387,38 @@ router.get('/facade-link', async (req, res) => {
   // Sign over the raw query value, not the resolved default, so the broker and
   // the BFF hash the same string for the bare door.
   const rawApp = (typeof req.query.app === 'string' && req.query.app) || '';
-  if (!linkSignatureValid(rawApp, new URL(resume).searchParams.get('rs'), req.query.sig)) {
+  const sub = typeof req.query.sub === 'string' && LINK_SUB.test(req.query.sub) ? req.query.sub : '';
+  const rs = new URL(resume).searchParams.get('rs');
+  if (!sub || !linkSignatureValid(rawApp, rs, sub, req.query.sig)) {
     // The one cause an operator cannot see from the 400: the broker captures
     // BFF_INTERNAL_SECRET once at startup while this side resolves it per call,
     // so a rotation leaves the two disagreeing and every link fails here.
     console.warn('[facade-link] link signature rejected — check BFF_INTERNAL_SECRET matches the broker\'s, and that the broker was restarted after any rotation');
     return res.status(400).json({ error: 'facade-link needs a plain app name and the broker\'s /oauth/resume URL.' });
   }
+  // A correctly signed link proves the broker issued it, not that THIS browser
+  // is the one it was issued to: the URL can be copied and mailed. Signing in
+  // here would mint the gateway identity of whoever opened it. So first send
+  // the browser to the broker, which checks the cookie it set when the
+  // authorize began, and continue only at /facade-link/verified.
+  const bind = randomString(32);
+  req.session.privilegeFacadeLinkBind = { bind, app, resume, sub };
+  const verify = new URL('/oauth/link-verify', new URL(resume).origin);
+  verify.searchParams.set('rs', rs);
+  verify.searchParams.set('bind', bind);
+  return res.redirect(verify.toString());
+});
+
+router.get('/facade-link/verified', async (req, res) => {
+  const pending = req.session?.privilegeFacadeLinkBind;
+  // Single use, whatever happens next.
+  if (req.session) req.session.privilegeFacadeLinkBind = null;
+  const rs = pending ? new URL(pending.resume).searchParams.get('rs') : null;
+  if (!pending || req.query.rs !== rs || req.query.bind !== pending.bind
+    || !linkVerifiedSignatureValid(rs, pending.bind, req.query.vsig)) {
+    return res.status(400).json({ error: 'This Privilege gateway link was not verified for this browser.' });
+  }
+  const { app, resume, sub } = pending;
   try {
     // A throwaway session: beginOAuthFlow reads config and writes pendingAuth,
     // and this flow must touch neither on the operator's real one. `_sid: null`
@@ -2395,7 +2436,7 @@ router.get('/facade-link', async (req, res) => {
     // No prompt=none: the person at the browser is signing in right now, and a
     // login_required dead end would only surface as an error in their MCP client.
     authUrl.searchParams.delete('prompt');
-    req.session.privilegeFacadeLink = { ...linkSession.pendingAuth, app, resume };
+    req.session.privilegeFacadeLink = { ...linkSession.pendingAuth, app, resume, sub };
     return res.redirect(authUrl.toString());
   } catch (err) {
     return redirectToResume(res, resume, { link: 'error', reason: String(err.message).slice(0, 300) });
@@ -2425,6 +2466,7 @@ router.get('/facade-link/callback', async (req, res) => {
     // browser-bound cookie it set at /oauth/authorize.
     privilegeGatewaySession.rememberPending(new URL(link.resume).searchParams.get('rs'), {
       app: link.app,
+      sub: link.sub,
       accessToken: tokenData.access_token,
       refreshToken: tokenData.refresh_token || null,
       expiresIn: tokenData.expires_in,

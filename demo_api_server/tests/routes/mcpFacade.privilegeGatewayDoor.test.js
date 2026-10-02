@@ -26,9 +26,9 @@ const AUD = 'mcpgateway.ping.demo';
 const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
 const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
 
-function callerToken() {
+function callerToken(sub = 'user-1') {
   const head = b64({ alg: 'RS256', kid: 'k1', typ: 'JWT' });
-  const body = b64({ aud: AUD, iss: 'https://auth.pingone.com/env/as', exp: Math.floor(Date.now() / 1000) + 3600 });
+  const body = b64({ sub, aud: AUD, iss: 'https://auth.pingone.com/env/as', exp: Math.floor(Date.now() / 1000) + 3600 });
   const sig = crypto.createSign('RSA-SHA256').update(`${head}.${body}`).sign(privateKey).toString('base64url');
   return `${head}.${body}.${sig}`;
 }
@@ -122,9 +122,32 @@ describe('mcp-facade privilege-gateway door', () => {
     expect(seenAuth).toBeUndefined();
   });
 
+  test("another user's gateway session is never used for this caller", async () => {
+    gatewaySession.remember({ sub: 'user-1', accessToken: 'gateway-token', expiresIn: 3600, tokenUri: TOKEN_URI });
+
+    const res = await request(buildApp()).post(DOOR)
+      .set('Authorization', `Bearer ${callerToken('user-2')}`)
+      .send(RPC);
+
+    expect(res.status).toBe(503);
+    expect(seenAuth).toBeUndefined();
+  });
+
+  test('a session remembered with no user is not used for a signed-in caller', async () => {
+    gatewaySession.remember({ accessToken: 'gateway-token', expiresIn: 3600, tokenUri: TOKEN_URI });
+
+    const res = await request(buildApp()).post(DOOR)
+      .set('Authorization', `Bearer ${callerToken()}`)
+      .send(RPC);
+
+    expect(res.status).toBe(503);
+    expect(seenAuth).toBeUndefined();
+  });
+
   test('sends the server-side gateway token upstream, never the caller bearer', async () => {
     const caller = callerToken();
     gatewaySession.remember({
+      sub: 'user-1',
       accessToken: 'gateway-token',
       refreshToken: 'r1',
       expiresIn: 3600,
@@ -143,6 +166,7 @@ describe('mcp-facade privilege-gateway door', () => {
 
   test('still refuses an unauthenticated caller, session or not', async () => {
     gatewaySession.remember({
+      sub: 'user-1',
       accessToken: 'gateway-token',
       expiresIn: 3600,
       tokenUri: 'https://mcpgw.example.com/opensearch22/token',
@@ -234,8 +258,8 @@ describe('mcp-facade privilege-gateway door', () => {
   });
 
   test('uses the session for the app in the URL, not another app', async () => {
-    gatewaySession.remember({ app: 'opensearch22', accessToken: 'os22-token', expiresIn: 3600, tokenUri: TOKEN_URI });
-    gatewaySession.remember({ app: 'opensearch', accessToken: 'os-token', expiresIn: 3600, tokenUri: TOKEN_URI });
+    gatewaySession.remember({ sub: 'user-1', app: 'opensearch22', accessToken: 'os22-token', expiresIn: 3600, tokenUri: TOKEN_URI });
+    gatewaySession.remember({ sub: 'user-1', app: 'opensearch', accessToken: 'os-token', expiresIn: 3600, tokenUri: TOKEN_URI });
 
     const res = await request(buildApp()).post(DOOR_APP)
       .set('Authorization', `Bearer ${callerToken()}`)
@@ -247,7 +271,7 @@ describe('mcp-facade privilege-gateway door', () => {
   });
 
   test('drops the app session when the gateway refuses its token', async () => {
-    gatewaySession.remember({ app: 'opensearch', accessToken: 'stale-token', expiresIn: 3600, tokenUri: TOKEN_URI });
+    gatewaySession.remember({ sub: 'user-1', app: 'opensearch', accessToken: 'stale-token', expiresIn: 3600, tokenUri: TOKEN_URI });
 
     const res = await request(buildApp()).post(DOOR_APP)
       .set('Authorization', `Bearer ${callerToken()}`)
@@ -255,6 +279,6 @@ describe('mcp-facade privilege-gateway door', () => {
 
     // The client is re-challenged; its next sign-in must start from a clean slate.
     expect(res.status).toBe(401);
-    expect(gatewaySession.status('opensearch')).toEqual({ ready: false, reason: 'no_session' });
+    expect(gatewaySession.status('opensearch', 'user-1')).toEqual({ ready: false, reason: 'no_session' });
   });
 });
