@@ -333,6 +333,15 @@ services:
       # audit's PingFederate reads only; the container already runs with
       # NODE_TLS_REJECT_UNAUTHORIZED=0 above.
       PINGFEDERATE_ADMIN_TLS_INSECURE: "1"
+      # PingFederate AI Agent demos (/pingfederate-ai-agent): CIMD and RAR. The
+      # local PingFederate is prepared for both by
+      # scripts/pingfederate/provision-ai-agent-features.js, and needs its OAuth
+      # clients in database storage for CIMD (see scripts/pingfederate/README.md).
+      # Not secrets. Overridable so a stack without that PingFederate setup can
+      # switch them off from the shell or the root .env.
+      PF_AI_CIMD_ENABLED: "${PF_AI_CIMD_ENABLED:-true}"
+      PF_AI_RAR_ENABLED: "${PF_AI_RAR_ENABLED:-true}"
+      PF_PAR_ENDPOINT: "${PF_PAR_ENDPOINT:-https://local.ping-devops.com:9031/as/par.oauth2}"
       # Plain-HTTP façade listener — see the 127.0.0.1:3002 port mapping above.
       MCP_FACADE_HTTP_PORT: "3002"
       # Enables the loopback callback listener — see the 127.0.0.1:7475 mapping
