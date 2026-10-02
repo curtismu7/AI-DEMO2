@@ -2844,6 +2844,14 @@ host oMLX owns `:8090` rather than silently omitting the service. Then
 
 ### [ ] 2026-08-28 — a failure class: "logged as handled, fatal anyway"
 
+**PARTLY RESOLVED 2026-10-01 (branch `worktree-techdebt-wave2-internal-secret`).**
+The second convention now holds everywhere: `demo_agent_service`,
+`demo_llm_proxy` and `demo_mcp_gateway` each register an `unhandledRejection`
+handler that logs the service name and the reason before exiting 1 (the same
+exit Node's default takes), joining `demo_api_server` and `oauth-mcp`. Still
+open: the first convention. Nothing sweeps or lints for a catch that logs
+`err.code` alone on an HTTP client error.
+
 **TRIAGE 2026-10-01 (checked against main `fdd04bf12`, static read only).** 2 of 5 long-lived Node services have an `unhandledRejection` handler (`demo_api_server/server.js`, `oauth-mcp/src/index.ts`). Missing in `demo_agent_service`, `demo_llm_proxy` and `demo_mcp_gateway`.
 
 **What's wrong.** Three separate incidents in one day shared one shape: a
@@ -2893,7 +2901,23 @@ an adopted promise rejection. Only the diagnostic *symptom* is common.
 instance (1) and (2) are why its root cause took three sessions and two wrong
 theories to reach.
 
-### [ ] 2026-08-28 — BFF_INTERNAL_SECRET: two call sites disagree about where the vault lands
+### [x] 2026-08-28 — BFF_INTERNAL_SECRET: two call sites disagree about where the vault lands
+
+**RESOLVED 2026-10-01 (branch `worktree-techdebt-wave2-internal-secret`).**
+- *Root cause (config):* already repaired before this branch. Checked in the
+  running stack on 2026-10-01: `BFF_INTERNAL_SECRET` in both `ai-demo-api-server`
+  and `ai-demo-agent-service` is plaintext of equal length, not `encrypted:`.
+- *Convergence:* `services/agentReasoningClient.js` was the last BFF call site
+  resolving it differently; it now uses `utils/internalSecret.js` like `/run`,
+  `codegraphProxy` and `mcpInspector` (#2567). The comment contradiction is
+  settled in the resolver's favour, because `vaultLoader`'s
+  `ENV_EXPORT_ALLOWLIST` now writes the vault value into `process.env`. Test:
+  `tests/agentReasoningClient.internalSecret.test.js` (2, red before).
+- *Loud failure:* `demo_agent_service` refuses to start when the value begins
+  with `encrypted:`, next to its existing dev-default check. Type-checked, not
+  exercised by starting the service with a bad value.
+- `transactionHop.ts` still reads `process.env` directly; that is the same
+  source as the inbound check, and the startup guard covers a ciphertext value.
 
 **TRIAGE 2026-10-01 (checked against main `fdd04bf12`, static read only).** Mostly converged. `routes/agentRun.js`, `routes/codegraphProxy.js` and `routes/mcpInspector.js` now use `utils/internalSecret.js` (#2567), and `services/vaultLoader.js` exports the vault value into `process.env`, so that resolver's premise now holds. Left: `services/agentReasoningClient.js:51` still reads configStore first under the contradicting comment; `demo_agent_service` has no startup refusal for an `encrypted:` value; `transactionHop.ts:37` reads `process.env` directly. Whether the deployed value is still ciphertext was not checked (needs the running containers).
 

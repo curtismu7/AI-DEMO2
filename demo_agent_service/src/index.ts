@@ -75,6 +75,17 @@ if (process.env.NODE_ENV === 'production' && INTERNAL_SECRET === DEFAULT_INTERNA
   );
   process.exit(1);
 }
+// `encrypted:` is the BFF configStore's own at-rest format. It belongs in LMDB
+// rows, never in an env file; this service cannot decrypt it, so the BFF's
+// plaintext would never match and every /reason call would 403 — which reaches
+// users as "the LLM could not complete this request".
+if (INTERNAL_SECRET.startsWith('encrypted:')) {
+  console.error(
+    '[Agent] FATAL: BFF_INTERNAL_SECRET is configStore ciphertext (starts with "encrypted:"), not the secret. ' +
+    'Refusing to start. Put the plaintext value in this service\'s env.',
+  );
+  process.exit(1);
+}
 app.post('/api/agent/reason', express.json({ limit: '256kb' }), makeReasonHandler(INTERNAL_SECRET));
 
 // AG-UI streaming endpoint (Step 1 of AG-UI integration)
@@ -127,4 +138,10 @@ const shutdown = (signal: string): void => {
 };
 process.on('SIGINT',  () => shutdown('SIGINT'));
 process.on('SIGTERM', () => shutdown('SIGTERM'));
+// Node already exits on an unhandled rejection; this names the service and the
+// cause first, so the crash is not a bare stack with no attribution.
+process.on('unhandledRejection', (reason) => {
+  console.error('[demo-agent-service] unhandledRejection — exiting:', reason);
+  process.exit(1);
+});
 })();

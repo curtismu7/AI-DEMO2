@@ -1332,4 +1332,10 @@ function shutdown(): void {
 }
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
+// Node already exits on an unhandled rejection; this names the service and the
+// cause first, so the crash is not a bare stack with no attribution.
+process.on('unhandledRejection', (reason) => {
+  console.error('[mcp-gateway] unhandledRejection — exiting:', reason);
+  process.exit(1);
+});
 })();
