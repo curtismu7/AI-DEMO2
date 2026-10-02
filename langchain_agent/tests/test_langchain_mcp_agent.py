@@ -471,8 +471,7 @@ class _FakeCheckpointer:
 
 
 class TestCheckpointerLifecycle:
-    """The agent-lifetime checkpointer must survive rebuilds and be cleaned
-    per-session by clear_session_memory."""
+    """The agent-lifetime checkpointer must survive rebuilds."""
 
     @pytest.mark.asyncio
     async def test_refresh_tools_reuses_checkpointer_and_keeps_history(self, agent, mock_tools):
@@ -502,22 +501,6 @@ class TestCheckpointerLifecycle:
         assert captured_checkpointers[0] is fake_saver
         assert captured_checkpointers[1] is fake_saver
         assert fake_saver.threads["session-keep"] == ["turn-1", "turn-2"]
-
-    @pytest.mark.asyncio
-    async def test_clear_session_memory_deletes_checkpointer_thread(self, agent):
-        """clear_session_memory deletes the LangGraph checkpoint thread for
-        the session (and only that session)."""
-        fake_saver = _FakeCheckpointer()
-        agent._checkpointer = fake_saver
-        fake_saver.threads["session-to-clear"] = ["history"]
-        fake_saver.threads["session-to-keep"] = ["history"]
-
-        await agent.clear_session_memory("session-to-clear")
-
-        assert "session-to-clear" not in fake_saver.threads, \
-            "checkpointer thread must be deleted on clear_session_memory"
-        assert "session-to-keep" in fake_saver.threads, \
-            "other sessions' threads must be untouched"
 
 
 # ---------------------------------------------------------------------------
@@ -1073,11 +1056,7 @@ class TestGetAgentStatus:
 # ---------------------------------------------------------------------------
 
 class TestPublicInterface:
-    """Tests for public methods that remain unchanged after migration.
-
-    clear_session_memory uses REAL ConversationMemory to verify actual state
-    change, not just that a mock was called.
-    """
+    """Tests for public methods that remain unchanged after migration."""
 
     @pytest.mark.asyncio
     async def test_execute_tool_success(self, agent, mock_tools):
@@ -1137,32 +1116,6 @@ class TestPublicInterface:
         await agent.refresh_tools()
 
         agent.initialize_tools.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_clear_session_memory_real(self, agent):
-        """clear_session_memory removes session data from real ConversationMemory."""
-        session_id = "real-session-clear"
-        # Use real ConversationMemory — add a message so the session exists
-        msg = ChatMessage(
-            id="csm-1",
-            session_id=session_id,
-            content="test content",
-            role="user",
-            timestamp=datetime.now(),
-            metadata={},
-        )
-        await agent.conversation_memory.add_message(session_id, msg)
-
-        # Verify session was actually created
-        assert session_id in agent.conversation_memory._sessions
-        assert session_id in agent.conversation_memory._messages
-
-        # clear_session_memory should delegate to real clear_session
-        await agent.clear_session_memory(session_id)
-
-        # Verify actual state change — not just a mock call
-        assert session_id not in agent.conversation_memory._sessions
-        assert session_id not in agent.conversation_memory._messages
 
     @pytest.mark.asyncio
     async def test_shutdown(self, agent):

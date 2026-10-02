@@ -821,8 +821,8 @@ For example: 123 Main St, New York, NY, 10001, USA"""
         Args:
             user_message: The user's input message
             session_id: The chat session ID
-            stream_context: Optional dict with websocket_handler for stream_event (tool + LLM token) streaming
-            
+            stream_context: Unused since the chat WebSocket was removed; kept for API symmetry.
+
         Returns:
             str: The agent's response
         """
@@ -1027,10 +1027,6 @@ What's your email address?"""
             estimated_input_tokens = len(prompt_text.split()) * 1.3
             self._log_llm_start(tracer, "Processing user request with LangGraph", prompt_text, int(estimated_input_tokens))
 
-            ws_handler = stream_context.get("websocket_handler") if stream_context else None
-            stream_tools = ws_handler and getattr(self.config.langchain, "stream_mcp_tool_events", True)
-            stream_tokens = ws_handler and getattr(self.config.langchain, "stream_llm_tokens", True)
-
             logger.info("Executing LangGraph agent via astream_events...")
             start_time = datetime.now()
             last_response = ""
@@ -1040,40 +1036,7 @@ What's your email address?"""
                 event_name = event.get("event")
                 event_data = event.get("data") or {}
 
-                if event_name == "on_tool_start" and stream_tools:
-                    await ws_handler.send_message_to_session(session_id, {
-                        "type": "stream_event",
-                        "session_id": session_id,
-                        "event": "tool_start",
-                        "tool": event.get("name", "unknown_tool"),
-                        "input": event_data.get("input"),
-                    })
-
-                elif event_name == "on_tool_end" and stream_tools:
-                    output = event_data.get("output", "")
-                    output_str = str(output) if not isinstance(output, str) else output
-                    preview = output_str[:400] + "..." if len(output_str) > 400 else output_str
-                    await ws_handler.send_message_to_session(session_id, {
-                        "type": "stream_event",
-                        "session_id": session_id,
-                        "event": "tool_end",
-                        "output_preview": preview,
-                    })
-
-                elif event_name == "on_chat_model_stream" and stream_tokens:
-                    chunk = event_data.get("chunk")
-                    # Anthropic-style providers stream list-of-blocks content;
-                    # flatten so the client always receives a plain string.
-                    token = _content_to_text(getattr(chunk, "content", "")) if chunk is not None else ""
-                    if token:
-                        await ws_handler.send_message_to_session(session_id, {
-                            "type": "stream_event",
-                            "session_id": session_id,
-                            "event": "llm_token",
-                            "token": token,
-                        })
-
-                elif event_name == "on_chain_end":
+                if event_name == "on_chain_end":
                     output = event_data.get("output")
                     if isinstance(output, dict) and "messages" in output:
                         msgs = output.get("messages", [])
@@ -1398,22 +1361,6 @@ What's your email address?"""
             identity.sub,
         )
 
-    async def clear_session_memory(self, session_id: str) -> None:
-        """
-        Clear conversation memory for a specific session.
-        
-        Args:
-            session_id: The session ID to clear
-        """
-        await self.conversation_memory.clear_session(session_id)
-        # Also drop the LangGraph checkpoint for this thread — otherwise the
-        # graph keeps replaying the "cleared" conversation on the next turn.
-        try:
-            self._checkpointer.delete_thread(session_id)
-        except Exception as e:
-            logger.warning(f"Failed to delete checkpointer thread for session {session_id}: {e}")
-        logger.info(f"Cleared memory for session {session_id}")
-    
     async def shutdown(self) -> None:
         """Shutdown the agent and clean up resources."""
         try:

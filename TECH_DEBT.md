@@ -937,6 +937,36 @@ the intended outcome once the dust settles.
 
 ### [ ] 2026-09-11 — LangChain's direct-MCP message pipeline has no production caller
 
+**UPDATE 2026-10-01 (branch `worktree-agent-a0f377774cb2ca371`).** The title is no
+longer true: `process_message` has had a production caller since the A2A surface
+landed (`langchain_agent/src/api/a2a_handler.py:188`, `POST /a2a/jsonrpc`
+`message/send`, wired in `src/main.py` via `set_a2a_agent`), and it delegates to
+`process_message_with_tracing`. Both are KEPT, and with them the direct-MCP graph
+and the startup PingOne registration that mints its agent token
+(`mcp_tool_provider.py` `get_client_credentials_token`).
+
+Removed, each with no caller outside tests: the `stream_context["websocket_handler"]`
+streaming branch (nothing passes a `stream_context`), `clear_session_memory` and its
+two tests, and the `stream_mcp_tool_events` setting / `LANGCHAIN_STREAM_MCP_TOOL_EVENTS`
+that only that branch read. The `stream_context` parameter itself stays (unused).
+
+Still open:
+- **Checkpoint eviction.** Nothing deletes MemorySaver threads. They are written by
+  the A2A path (one `a2a-<hash>` thread per caller, growing every turn) and by
+  `/run` when it takes the MCP-graph branch. The BFF-tool branch of `/run` passes
+  no checkpointer and stores nothing. Smallest fix: have
+  `ConversationMemory._cleanup_expired_sessions` (already running hourly, 24h idle
+  timeout) also call `agent._checkpointer.delete_thread(session_id)`; it needs a
+  callback because `ConversationMemory` holds no checkpointer reference.
+- **`/run` MCP-graph fallback.** `agui_run_handler.py` always resolves a
+  `bff_tool_url` (configured default), so the branch test
+  `if bff_tool_url and tool_schemas` falls through only when the BFF sends an empty
+  `tools` list. `routes/agentRun.js` is now the only BFF caller and normally sends
+  tools (gateway list or the local catalog).
+- **`PINGONE_REDIRECT_URI` default** still names `:8889`. It is sent as the
+  `redirect_uris` of the startup registration; no tracked compose or k8s file sets
+  the variable.
+
 **What's wrong.** Removing the legacy chat WebSocket on :8889 (branch
 `worktree-remove-langchain-ws-8889`) left `LangChainMCPAgent.process_message_with_tracing`,
 its `process_message` delegate, the `stream_context["websocket_handler"]` streaming
@@ -1130,6 +1160,16 @@ explains each entry in that list.
 ### [ ] 2026-09-11 — LLM token custody: what the fix deliberately left open
 
 **TRIAGE 2026-10-01 (checked against main `fdd04bf12`, static read only).** One bullet is done: callbacks now carry a run id (`demo_agent_service/src/agentRunHandler.ts:208`, `langchain_agent/src/agui/bff_tool_adapter.py:197`, read in `routes/agentTool.js:103-104`). `services/agentRunContext.js` still falls back to the session's latest run when a callback has none. Unchanged: the default secret is refused only under `VAULT_INTERNAL_STRICT=true` (set in k8s, not in `docker-compose.yml`); `call_pingone_tool` still calls the hosted PingOne MCP directly; `POST /api/agent/langchain/run` still exists with no caller.
+
+**UPDATE 2026-10-01 (branch `worktree-agent-a0f377774cb2ca371`), dead-path bullet only.**
+`POST /api/agent/langchain/run` is removed: `routes/agentLangchainRunRoute.js`, its
+`server.js` mount and its test, plus `services/aguiSseProxy.js` and its test, which
+only that route used. It was the one BFF path that sent a user-derived MCP token
+(`auth_token`) to the langchain agent. The agent still reads `auth_token` on `/run`
+(`agui_run_handler.py`, `process_agui_message`) but no BFF code sends it. The
+direct-MCP pipeline itself is not dead: the A2A surface uses it (see the LangChain
+entry above). Three comments still name `aguiSseProxy.js` (`k8s/02-configmap.yaml`,
+its Helm copy, `routes/mcpInspector.js`). Every other bullet here is unchanged.
 
 **What's wrong.** The LLM-custody fix (branch `fix/llm-token-custody`, plan
 `docs/superpowers/plans/2026-09-11-user-token-custody.md`) closed every path
