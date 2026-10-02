@@ -71,6 +71,41 @@ the existing BFF PF setting as fallback. Restart `oauth-mcp` after refreshing
 service environments. The PF request omits `resource` and `audience`; the
 dedicated processor-policy mapping selects the Banking API ATM.
 
+## PingOne user gate on the standard exchange
+
+Without this, `aiDemoStandardTePolicy` has no conditions: any PingFederate user
+can be acted for, and nothing a user or admin does in the demo can stop it.
+
+The contract is `spiffe/pingfederate/pf-pingone-user-gate.json`. With it applied,
+every exchange on an access-token subject looks up the PingOne account that has
+the subject's username (REST data store `aiDemoPingOneUsersRest`, authenticated
+as the PingOne worker) and is refused unless that account is enabled
+(`user_disabled_in_pingone`) and its `mayAct` names the AI agent actor
+(`agent_not_authorized_by_user`). PingOne is therefore the system of record
+under both login providers: the BFF's agent grant, revoke and kill switch all
+act on the PingOne account, and PingFederate honours the result on the next
+exchange.
+
+```bash
+python3 scripts/pingfederate/provision-pf-pingone-user-gate.sh            # dry-run
+python3 scripts/pingfederate/provision-pf-pingone-user-gate.sh --apply    # apply + read back
+npm run pf:user-gate:check                                                # exit 1 on drift
+python3 scripts/pingfederate/provision-pf-pingone-user-gate.sh --remove   # take the gate off
+```
+
+Things to know:
+
+- A PingFederate user with no PingOne account of the same username is refused.
+- The PingOne worker's client secret is stored in PingFederate's config. The
+  check cannot compare it; rotate the worker and you must re-run `--apply`.
+- The ID-JAG subject mapping is deliberately not gated (see `notGated` in the
+  contract): the lookup was proven for access-token subjects only.
+- The lookup variable is `${subjecttoken.Username}`. A bare `${Username}` is an
+  unknown key to PingFederate, the lookup throws, and every exchange is refused.
+- Each exchange costs one PingOne Management API call, so a tool call makes two.
+- Sign-in itself is not gated: a disabled user can still reach the PingFederate
+  login page and get a session. What stops is every delegated token.
+
 ## AI Agent RAR processor
 
 The PF AI Agent page includes CIMD, third-party ID-JAG exchange, and a custom

@@ -37,7 +37,7 @@ const hitlServiceClient = require('./hitlServiceClient');
 const oauthService = require('./oauthService');
 const clientAssertionService = require('./clientAssertionService');
 const { writeExchangeEvent } = require('./exchangeAuditStore');
-const { createTokenExchangeError, RFC8693_ERRORS } = require('./rfcCompliantErrorHandler');
+const { createTokenExchangeError, RFC8693_ERRORS, PF_USER_GATE_ERRORS } = require('./rfcCompliantErrorHandler');
 // Architecture-note R1 (2026-05-15) / T-2: the BFF no longer makes a local
 // authorization DECISION about whether a tool call is permitted. PingAuthorize
 // (`mcpToolAuthorizationService.evaluateMcpFirstToolGate`, server.js — runs
@@ -2833,7 +2833,10 @@ async function _performTwoExchangeDelegation(
       category: ex1Details.category, exchangeStep: '1', pingoneError: err.pingoneError });
     // Preserve PF/PingOne's precise scope failure instead of replacing it with
     // invalid_grant. Other first-hop failures keep the established mapping.
-    const reportedErrorCode = ex1Code === 'invalid_scope' ? ex1Code : 'invalid_grant';
+    // PingFederate's PingOne user gate refuses with access_denied and puts its own
+    // reason in error_description; report that reason, not a generic invalid_grant.
+    const gateReason = PF_USER_GATE_ERRORS.has(err.pingoneErrorDescription) ? err.pingoneErrorDescription : null;
+    const reportedErrorCode = gateReason || (ex1Code === 'invalid_scope' ? ex1Code : 'invalid_grant');
     throw createTokenExchangeError(reportedErrorCode, {
       exchangeType: 'double',
       exchangeStep: '1-exchange',

@@ -14,6 +14,7 @@
 const express = require('express');
 const router = express.Router();
 const pingOneUserService = require('../services/pingOneUserService');
+const { pingOneUserIdFor } = require('../services/pingOneSessionUser');
 const configStore = require('../services/configStore');
 const delegationStore = require('../services/lmdb/delegationStore.lmdb');
 const delegationService = require('../services/delegationService');
@@ -58,6 +59,14 @@ function isEnforced() {
   return true;
 }
 
+// A PingFederate sign-in with no PingOne account of the same username: there is
+// no PingOne record to carry the grant, and PingFederate's exchange policy reads
+// the grant from PingOne (spiffe/pingfederate/pf-pingone-user-gate.json).
+const NOT_LINKED = {
+  error: 'pingone_user_not_linked',
+  message: 'No PingOne account matches this PingFederate user, so there is nowhere to record the agent authorization.',
+};
+
 /** Read the may_act claim from the user's current session access token (PingOne GET omits custom attrs). */
 function sessionTokenMayAct(req) {
   const token = req.session?.oauthTokens?.accessToken;
@@ -74,8 +83,10 @@ router.post('/grant', async (req, res) => {
   const sub = agentMayActSub();
   if (!sub) return res.status(503).json({ error: 'agent_not_configured', message: 'AI Agent client id (ai_agent_client_id) not configured.' });
   try {
+    const pingOneUserId = await pingOneUserIdFor(req, req.user.id);
+    if (!pingOneUserId) return res.status(409).json(NOT_LINKED);
     pingOneUserService.initialize();
-    await pingOneUserService.setMayActAttribute(req.user.id, { sub });
+    await pingOneUserService.setMayActAttribute(pingOneUserId, { sub });
     const accessToken = req.session?.oauthTokens?.accessToken || null;
     const existing = delegationStore.findActiveByActorAndGrantor(sub, req.user.id);
     if (!existing) {
@@ -95,8 +106,10 @@ router.post('/grant', async (req, res) => {
 
 router.post('/revoke', async (req, res) => {
   try {
+    const pingOneUserId = await pingOneUserIdFor(req, req.user.id);
+    if (!pingOneUserId) return res.status(409).json(NOT_LINKED);
     pingOneUserService.initialize();
-    await pingOneUserService.setMayActAttribute(req.user.id, null);
+    await pingOneUserService.setMayActAttribute(pingOneUserId, null);
     res.json({ ok: true, reauthRequired: true });
   } catch (err) {
     res.status(502).json({ error: 'mayact_write_failed', message: 'Could not update agent authorization. Try again.' });

@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('../middleware/auth');
+const { pingOneUserIdFor } = require('../services/pingOneSessionUser');
 const demoAgentRoster = require('../services/controlPlane/demoAgentRoster');
 const { getLiveAgentRow } = require('../services/controlPlane/liveAgentInfo');
 const auditLogService = require('../services/auditLogService');
@@ -112,7 +113,7 @@ router.post('/reset', authenticateToken, (req, res) => {
  */
 router.post('/comprehensive-shutdown', authenticateToken, async (req, res) => {
   const reason = (req.body && req.body.reason) || 'comprehensive_shutdown';
-  const userId = req.session?.user?.oauthId || req.session?.user?.id || null;
+  const userId = await pingOneUserIdFor(req, req.session?.user?.oauthId || req.session?.user?.id || null);
   const oauthTokens = req.session?.oauthTokens || null;
   const agentId = 'demo-agent';
   const steps = [];

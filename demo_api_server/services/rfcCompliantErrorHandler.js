@@ -46,6 +46,11 @@ const RFC8693_ERRORS = {
   unauthorized_client: 'The authenticated client is not authorized to use this authorization grant type.',
   unsupported_grant_type: 'The authorization grant type is not supported by the authorization server.',
   invalid_scope: 'The requested scope is invalid, unknown, or malformed.',
+
+  // PingFederate's PingOne user gate (spiffe/pingfederate/pf-pingone-user-gate.json).
+  // The keys are that contract's errorResult values; pfUserGateErrors.test.js pins them.
+  agent_not_authorized_by_user: 'The signed-in user has not authorized this agent to act for them.',
+  user_disabled_in_pingone: 'The signed-in user\'s PingOne account is disabled.',
   
   // RFC 8693 specific errors
   invalid_target: 'The requested resource or token is not valid for the target resource server.',
@@ -281,6 +286,8 @@ function getHTTPStatusForError(errorCode) {
     unauthorized_client: 403,
     unsupported_grant_type: 400,
     invalid_scope: 400,
+    agent_not_authorized_by_user: 403,
+    user_disabled_in_pingone: 403,
     invalid_target: 400,
     invalid_token: 400,
     exchange_not_configured: 503,
@@ -356,7 +363,11 @@ function createTokenProvenanceEvent(tokenInfo, exchangeContext) {
   };
 }
 
+// The reasons PingFederate's PingOne user gate can refuse an exchange with.
+const PF_USER_GATE_ERRORS = new Set(['agent_not_authorized_by_user', 'user_disabled_in_pingone']);
+
 module.exports = {
+  PF_USER_GATE_ERRORS,
   RFCCompliantError,
   createRFCError,
   createTokenExchangeError,

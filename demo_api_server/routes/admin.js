@@ -931,7 +931,7 @@ router.post(
       }
 
       // Execute kill switch — pass userId and session tokens for revocation at PingOne
-      const userId = req.session?.user?.oauthId || req.session?.user?.id || null;
+      const userId = await require('../services/pingOneSessionUser').pingOneUserIdFor(req, req.session?.user?.oauthId || req.session?.user?.id || null);
       const oauthTokens = req.session?.oauthTokens || null;
       const result = await killSwitchService.killAgent(agentId, reason, userId, oauthTokens, scope, req.sessionID);
 
