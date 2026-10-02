@@ -53,6 +53,11 @@ the BFF reports only accepted/denied status and safe OIDC metadata.
 
 ## PingFederate setup
 
+Steps 1 and 2, the `transactions:write` scope, and the CIMD settings and policy
+the RAR client depends on are applied by
+`node scripts/pingfederate/provision-ai-agent-features.js --apply` (dry run
+without `--apply`). Steps 3 to 5 are still manual.
+
 After deployment:
 
 1. In **System → OAuth Settings → Authorization Detail Processors**, create an
