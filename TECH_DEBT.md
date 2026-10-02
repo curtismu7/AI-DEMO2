@@ -1554,6 +1554,16 @@ Full suite after the fix: 1039/1042 suites, no `MDB_READERS_FULL`; the one red
 suite (`vault.failClosed`) asserts a `chmod 0444` file is unwritable, which is
 false as root in this container. Loopback `ECONNRESET` (2) was not touched.
 
+**2026-10-02 — (2) narrowed, not closed.** A full default-worker run still failed
+4 of 1,190 suites; one was `rfc9728-integration-verification` (`read ECONNRESET`
+in the 20-concurrent-`request(app)` stress test), another `demoAgentNl`
+(`connect ETIMEDOUT 127.0.0.1:<ephemeral>`). Supertest starts one ephemeral
+server per `request(app)` call. That is the likely shape, but it did NOT
+reproduce on an idle host (5 x 300 concurrent, per-request vs one server: 0
+failures each), so it is unproven. The stress test now uses one listening
+server; `demoAgentNl`, `mcp-local-hitl` and `privilegeMcpClient.state` are
+unexamined. Re-run the full suite on a loaded host before calling (2) fixed.
+
 ### [ ] 2026-09-09 — UC14b intermittently DENYs with `rar_unexpected_deny`, but only in a multi-vertical Demo Steps run
 
 **What's wrong.** `UC14b` ("PAR + RAR intent verified — PERMIT") posts a
