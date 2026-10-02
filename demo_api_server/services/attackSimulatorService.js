@@ -1,5 +1,6 @@
 'use strict';
 
+const { AsyncLocalStorage } = require('node:async_hooks');
 const nrSegments = require('./nrSegments');
 const { gwAuthorizeEventFrom } = require('../utils/gwAuthorizeUtils');
 
@@ -157,6 +158,11 @@ function _wrongAud() {
  * @param {string[]} scopes - requested scopes
  * @returns {Promise<string>} exchanged access token
  */
+// Session tokens of the request being simulated; set at the two exported entry points.
+const _simSession = new AsyncLocalStorage();
+const _withSession = (fn) => (a, req, ...rest) =>
+  _simSession.run(req?.session?.oauthTokens, () => fn(a, req, ...rest));
+
 async function _exchangeSimToken(subjectToken, audience, scopes) {
   // PingFederate mode: the subject token is a PF session artifact (refresh
   // token), which PingOne cannot parse — route through the PF ID-JAG issuance
@@ -171,11 +177,16 @@ async function _exchangeSimToken(subjectToken, audience, scopes) {
     // downstream token carries the audience the sim's control proves against.
     const jagAud = configStore.getEffective('pf_id_jag_audience');
     const jagResource = configStore.getEffective('pf_id_jag_resource') || jagAud;
-    // runAttackSim hands us the session ACCESS token (not the refresh token),
-    // so the subject type must match — the refresh-token mapping would reject it.
+    // PF's ID-JAG policy maps only the refresh token (same as the live tool
+    // path, agentMcpTokenService). The sims carry the access token as
+    // subjectToken, so take the refresh token from the request's session.
+    const refreshToken = _simSession.getStore()?.refreshToken;
+    if (!refreshToken || refreshToken === '_cookie_session') {
+      throw new Error('PF ID-JAG subject token is not available for type urn:ietf:params:oauth:token-type:refresh_token');
+    }
     const idJag = await oauthService.performIdJagExchange(
-      subjectToken,
-      'urn:ietf:params:oauth:token-type:access_token',
+      refreshToken,
+      'urn:ietf:params:oauth:token-type:refresh_token',
       jagAud,
       jagResource,
       scopes,
@@ -2293,6 +2304,8 @@ async function _runRawUserTokenForwarding(subjectToken, useCaseId, tokenChainEve
 }
 
 module.exports = {
-  runAttackSim, runIntentBindingDemo, _exchangeSimToken,
+  runAttackSim: _withSession(runAttackSim),
+  runIntentBindingDemo: _withSession(runIntentBindingDemo),
+  _exchangeSimToken,
   __test: { _resolveForeignAccountId, _gatewayExchangeTarget, _denyFromGateway, _nodeGatewayUrl, IMPERSONATION_TRANSFER_ARGS, pickTransferAccounts, _approvalChallengeCode, _dpopReplayVerdict, _isDpopRejection },
 };
