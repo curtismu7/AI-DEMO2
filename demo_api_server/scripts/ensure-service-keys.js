@@ -54,6 +54,25 @@ const SERVICE_KEY_ENV_NAMES = [
   'DEMO_MCP_RESOURCE_SERVER_KEY',
 ];
 const ENV_KEY = 'API_RESOURCE_SERVER_API_KEY';
+
+// The shared secret behind every internal hop. docker-compose runs the BFF with
+// VAULT_INTERNAL_STRICT=true, so it refuses to START on the committed default;
+// this script therefore has to leave a real value behind before `compose up`.
+const INTERNAL_SECRET_KEY = 'BFF_INTERNAL_SECRET';
+// Must match demo_api_server/utils/internalSecret.js DEFAULT_INTERNAL_SECRET.
+const INTERNAL_SECRET_DEFAULT = 'dev-shared-secret-change-me';
+// The env file of every compose service whose code reads the secret. They must
+// all hold the SAME value as the BFF, so a mint goes to all of them at once.
+const INTERNAL_SECRET_ENV_FILES = [
+  'demo_agent_service/.env',
+  'demo_mcp_gateway/.env',
+  'ping-gateway/.env',
+  'oauth-mcp/.env',
+  'demo_hitl_service/.env',
+  'demo_mcp_resource_server/.env',
+  'langchain_agent/.env',
+  'demo_authz_server/.env',
+];
 // Committed defaults the mortgage service hard-rejects (see its boot guard).
 const KNOWN_DEFAULTS = new Set(['', 'demo-mortgage-key-0000', 'mortgage-compose-dev-key']);
 
@@ -78,7 +97,7 @@ function readEnvValue(file, key) {
   }
 }
 
-function upsertEnvValue(file, key, value) {
+function upsertEnvValue(file, key, value, comment = '# apikey-dispatch demo: auto-provisioned; must equal vault DEMO_API_RESOURCE_SERVER_KEY') {
   let s = '';
   try {
     s = fs.readFileSync(file, 'utf8');
@@ -95,7 +114,7 @@ function upsertEnvValue(file, key, value) {
   if (new RegExp(`^${key}=`, 'm').test(s)) {
     s = s.replace(new RegExp(`^${key}=.*$`, 'm'), `${key}=${value}`);
   } else {
-    s += `${s.endsWith('\n') || s === '' ? '' : '\n'}\n# apikey-dispatch demo: auto-provisioned; must equal vault DEMO_API_RESOURCE_SERVER_KEY\n${key}=${value}\n`;
+    s += `${s.endsWith('\n') || s === '' ? '' : '\n'}\n${comment}\n${key}=${value}\n`;
   }
   // 0600: a fresh .env holds the minted plaintext service key, and the default
   // umask made it world-readable (the vault itself is written 0600).
@@ -117,10 +136,10 @@ function vault(args, input) {
  * throws — a missing password / vault / entry returns null so the caller falls
  * through to the .env sources.
  */
-function defaultVaultGet() {
+function defaultVaultGet(name = VAULT_ENTRIES[0]) {
   if (!process.env.VAULT_PASSWORD) return null;
   try {
-    return vault(['get', VAULT_ENTRIES[0]]).replace(/\n$/, '');
+    return vault(['get', name]).replace(/\n$/, '');
   } catch (_) {
     return null;
   }
@@ -189,6 +208,40 @@ function upsertApiEnvServiceKeys(file, names, value) {
   fs.writeFileSync(file, s, { mode: 0o600 });
 }
 
+/**
+ * Leave a real BFF_INTERNAL_SECRET behind for the BFF, without ever rotating one.
+ *   - a real value already in demo_api_server/.env  → 'kept', nothing written
+ *     (a dotenvx-encrypted value is real: it is decrypted at container start)
+ *   - none there, but a real one in the vault       → 'copied-from-vault' into
+ *     the BFF env only. The BFF's strict check runs when its routes load, long
+ *     before the vault is opened, so a vault-only secret would still read as
+ *     the default at that moment.
+ *   - none anywhere (a fresh clone)                 → 'minted', and written to
+ *     the BFF env AND every consumer's env file, so they agree.
+ */
+function ensureInternalSecret({
+  apiEnvPath = API_SERVER_ENV,
+  consumerEnvPaths = INTERNAL_SECRET_ENV_FILES.map((rel) => path.join(REPO_ROOT, rel)),
+  vaultGet = () => defaultVaultGet(INTERNAL_SECRET_KEY),
+  mint = () => crypto.randomBytes(32).toString('base64url'),
+} = {}) {
+  const isReal = (v) => !!v && v !== INTERNAL_SECRET_DEFAULT;
+  const comment = '# Shared internal-hop secret: auto-provisioned on first start; every service must hold the same value.';
+  if (isReal(readEnvValue(apiEnvPath, INTERNAL_SECRET_KEY))) return { action: 'kept', written: [] };
+
+  let fromVault = null;
+  try { fromVault = vaultGet(); } catch (_) { /* vault is optional */ }
+  if (isReal(fromVault)) {
+    upsertEnvValue(apiEnvPath, INTERNAL_SECRET_KEY, fromVault, comment);
+    return { action: 'copied-from-vault', written: [apiEnvPath] };
+  }
+
+  const value = mint();
+  const written = [apiEnvPath, ...consumerEnvPaths];
+  for (const file of written) upsertEnvValue(file, INTERNAL_SECRET_KEY, value, comment);
+  return { action: 'minted', written };
+}
+
 // Export helpers for tests; only run provisioning when invoked directly
 // (node ensure-service-keys.js), never when required as a module.
 module.exports = {
@@ -196,7 +249,9 @@ module.exports = {
   resolveExistingServiceKey,
   decideNeedsMint,
   upsertApiEnvServiceKeys,
+  ensureInternalSecret,
   SERVICE_KEY_ENV_NAMES,
+  INTERNAL_SECRET_ENV_FILES,
   KNOWN_DEFAULTS,
 };
 
@@ -210,6 +265,20 @@ if (!process.env.VAULT_PASSWORD) {
   if (fromEnvFile) process.env.VAULT_PASSWORD = fromEnvFile;
 }
 const haveVaultPw = !!process.env.VAULT_PASSWORD;
+
+// First, and in its own try: the service-key step below exits the process on
+// failure, and this one must run regardless. It is not soft in effect — without
+// a real secret the BFF refuses to start — so a failure says exactly that.
+try {
+  const { action, written } = ensureInternalSecret();
+  if (action === 'minted') {
+    console.log(`[ensure-service-keys] Provisioned a fresh ${INTERNAL_SECRET_KEY} → ${written.length} env files (the BFF and every service that shares it).`);
+  } else if (action === 'copied-from-vault') {
+    console.log(`[ensure-service-keys] Copied ${INTERNAL_SECRET_KEY} from the vault → demo_api_server/.env (the BFF checks it before the vault opens).`);
+  }
+} catch (err) {
+  console.warn(`[ensure-service-keys] ⚠️  Could not provision ${INTERNAL_SECRET_KEY}: ${err.message} — the BFF refuses to start on the default secret (VAULT_INTERNAL_STRICT). Set a real value in demo_api_server/.env.`);
+}
 
 const force = process.env.ROTATE_SERVICE_KEYS === '1';
 const existing = resolveExistingServiceKey();

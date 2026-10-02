@@ -1248,6 +1248,21 @@ explains each entry in that list.
 
 ### [ ] 2026-09-11 — LLM token custody: what the fix deliberately left open
 
+**PARTLY RESOLVED 2026-10-02 (branch `worktree-techdebt-strict-internal-secret`)
+— the strict-secret half of the first bullet.** `docker-compose.yml` now runs the
+BFF with `VAULT_INTERNAL_STRICT=true`, as k8s already did, so the committed
+default `BFF_INTERNAL_SECRET` is refused. Strict mode makes the BFF refuse to
+START on the default (the check runs when its routes load), and nothing in the
+Docker path guaranteed a real value, so the launcher now does:
+`ensure-service-keys.js` (run by `run-docker.sh start` before `compose up`)
+keeps a real secret untouched, copies a vault-only one into the BFF env, and on
+a fresh clone mints one and writes the same value to the BFF and the eight
+other services that read it. Tests: `tests/scripts/ensure-service-keys.internalSecret.test.js`
+(12, red before). Checked against the real stack in a mode that cannot write:
+it reports "kept". Not exercised: an actual fresh-clone start. Still open from
+that bullet: `/internal/agent-tool` is still served on the published port. The
+other bullets are unchanged by this.
+
 **TRIAGE 2026-10-01 (checked against main `fdd04bf12`, static read only).** One bullet is done: callbacks now carry a run id (`demo_agent_service/src/agentRunHandler.ts:208`, `langchain_agent/src/agui/bff_tool_adapter.py:197`, read in `routes/agentTool.js:103-104`). `services/agentRunContext.js` still falls back to the session's latest run when a callback has none. Unchanged: the default secret is refused only under `VAULT_INTERNAL_STRICT=true` (set in k8s, not in `docker-compose.yml`); `call_pingone_tool` still calls the hosted PingOne MCP directly; `POST /api/agent/langchain/run` still exists with no caller.
 
 **UPDATE 2026-10-01 (branch `worktree-agent-a0f377774cb2ca371`), dead-path bullet only.**
