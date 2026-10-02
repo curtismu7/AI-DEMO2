@@ -25,6 +25,12 @@
   background: var(--th-bg-hover);
 }
 
+/* Inside the agent's pop-out window the agent fills the viewport, so a fixed
+   top-right pill would sit on its window buttons — flow it in the header. */
+#fp-popout-root .cmd-dock-pill {
+  position: static;
+}
+
 /* The panel mounts only while open — no hidden-state CSS needed. */
 
 .cmd-dock-body {

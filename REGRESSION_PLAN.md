@@ -249,6 +249,30 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-02 — Floating agent had no close, collapse or pop-out button
+
+**Files:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/components/AIAgent.css`,
+`demo_api_ui/src/components/__tests__/AIAgent.headerControls.test.js`.
+
+**What was broken:** the Command Dock change moved the float header's secondary
+controls into the dock, but the window buttons (expand, pop-out, close) stayed
+in the non-dock header branch, so an open floating agent rendered none of them.
+Vertical resize also started from the stored height rather than the rendered
+one, so on a 900px-tall viewport the first ~100px of a drag did nothing.
+
+**What was fixed:** the window buttons render in the float header itself,
+outside the dock/classic branch, and gained a collapse-to-title-bar button;
+close is `✕` and returns to the FAB. Resize starts from the rendered size.
+
+**Do not break:** window buttons stay outside the `useCommandDock` branch;
+resize caps (`MAX_W`/`MAX_H` 95%, `MIN_W`/`MIN_H` 280/220) and unclamped drag
+are unchanged; inline and split-column headers render no window buttons.
+
+**Verify:** `cd demo_api_ui && CI=true npx vitest run
+src/components/__tests__/AIAgent.headerControls.test.js`; `npm run build`; on
+`/demo/enterprise-mcp` open the agent, then collapse, drag, resize, pop out,
+bring back and close it — one `.banking-agent-float-root` throughout.
 ### 2026-10-02 — PingOne Authorize refused a customer's workload agent as the actor
 
 **Files:** `snapshots/gen-authorize-snapshot.js`, `snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json`, `demo_authz_server/routes/decision.js`.
@@ -271,6 +295,39 @@ read the configured host. A new browser origin must be added to ALL of:
 **Do not break:** The contract file is the source of truth for the live policy — change the gate there and run `--apply`, never in the PingFederate console; `npm run pf:user-gate:check` exits 1 on drift. `PF_USER_GATE_ERRORS` must equal the contract's `errorResult` values (`pfPingOneUserGate.test.js`). Never write a grant under the PingFederate username: no PingOne account is a 409. PingOne sessions are untouched (`pingOneUserIdFor` returns the caller's own id).
 
 **Verify:** `cd demo_api_server && CI=true npx jest tests/pfPingOneUserGate.test.js --forceExit`; live: `npm run pf:user-gate:check`.
+
+**Same entry — one header for every float state:** the popped-out agent used
+the classic full header and the expanded agent lost its window buttons under
+the Demo Controls pill (its centring `transform` re-anchored the fixed pill to
+the panel). Now normal, expanded and popped-out all use the Command Dock header
+plus the window buttons: expanded centres with inset + auto margins, the dock
+opens inside the pop-out window (`CommandDock`/`FloatingPanel` `win` prop), and
+the pill flows in the header there. Demo Steps opens in the space left of the
+floating agent (`DemoStepsDropdown` `reserveRight`) instead of on top of it.
+Also touches `CommandDock.jsx`/`.css`, `FloatingPanel.jsx`,
+`DemoStepsDropdown.jsx` and its test. **Do not break:** no `transform` on the
+float panel outside its open animation; `FloatingPanel` `win` defaults to
+`window`; `reserveRight` of 0 keeps Demo Steps centred.
+
+**Same entry — the `⊞` "expand" button is gone:** it switched to a fixed
+centred 520x720 window (smaller than the 620px default) and Demo Steps then
+re-centred on top of it, hiding every control. Free drag + 8-way resize cover
+the need, so the button, `isExpanded` and `.ba-expanded` were removed. The
+window buttons are collapse, pop-out, close. **Do not break:** do not bring
+back a centred "expanded" mode without placing Demo Steps clear of it.
+
+**Same entry — Demo Steps launcher and pop-out height:** the round Demo Steps
+launcher was positioned only under `.end-user-nano`, so on other pages it fell
+to the bottom-left corner under the side nav; it is now positioned wherever the
+float root renders. The pop-out window (440px wide) matched the narrow-viewport
+media queries, whose `!important` caps left the agent short of the window's
+bottom; the popped-out panel carries `ba-popped-out` and is exempt. **Do not
+break:** a narrow main-window agent keeps those caps.
+
+**Same entry — Demo steps from the pop-out:** the popped-out agent's header has
+a "Demo steps" button. Demo Steps opens in the main window, so the button also
+calls `window.focus()` to bring that window forward; without it the click looks
+dead when the main window sits behind the pop-out.
 
 ### 2026-10-01 — PingGateway's own token exchange was invisible
 

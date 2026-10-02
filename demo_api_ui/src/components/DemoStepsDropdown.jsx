@@ -204,10 +204,16 @@ export default function DemoStepsDropdown({
   onFloatingOpen,
   placement = 'floating',
   onPopOutChange,
+  reserveRight = 0,
 }) {
   // True while the panel lives in a pop-out window: running a step must not
   // close the panel, or the pop-out window dies with it.
   const poppedOutRef = useRef(false);
+  // Remount key for the panel: flips when the floating agent opens or closes so
+  // the panel re-places itself clear of it. Frozen while popped out — a remount
+  // would close the pop-out window.
+  const placeKeyRef = useRef(reserveRight > 0);
+  if (!poppedOutRef.current) placeKeyRef.current = reserveRight > 0;
   const [primarySteps, setPrimarySteps] = useState([]);
   const [advancedSteps, setAdvancedSteps] = useState([]);
   const [ciamSteps, setCiamSteps] = useState([]);
@@ -435,9 +441,13 @@ export default function DemoStepsDropdown({
   const showAdvanced = q ? filteredAdvanced.length > 0 : advancedOpen;
   const noMatches =
     q && filteredPrimary.length === 0 && filteredAdvanced.length === 0 && filteredCiam.length === 0 && filteredPrivilege.length === 0;
-  const panelWidth = Math.min(760, Math.max(320, window.innerWidth - 32));
+  // reserveRight is the strip the floating agent occupies: centre in what is
+  // left so the two never open on top of each other. Below ~320px of free
+  // width there is no room and the panel keeps its minimum at the left edge.
+  const availWidth = window.innerWidth - reserveRight;
+  const panelWidth = Math.min(760, Math.max(320, availWidth - 32));
   const panelHeight = Math.min(660, Math.max(280, window.innerHeight - 72));
-  const panelX = Math.max(8, Math.round((window.innerWidth - panelWidth) / 2));
+  const panelX = Math.max(8, Math.round((availWidth - panelWidth) / 2));
 
   /**
    * Render one demo-step card (box style matching Actions grid).
@@ -560,6 +570,7 @@ export default function DemoStepsDropdown({
       )}
       {open && (
         <FloatingPanel
+          key={placeKeyRef.current ? 'beside-agent' : 'centered'}
           title="Demo Steps"
           className="ba-demo-steps-float"
           placement={placement}

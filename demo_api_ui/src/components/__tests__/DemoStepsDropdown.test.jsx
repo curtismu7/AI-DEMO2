@@ -130,6 +130,21 @@ describe('DemoStepsDropdown', () => {
     expect(screen.queryByTestId('demo-steps-scrim')).not.toBeInTheDocument();
   });
 
+  it('opens clear of the strip the floating agent reserves on the right', async () => {
+    const reserveRight = 400;
+    render(
+      <DemoStepsDropdown
+        open
+        onOpenChange={() => {}}
+        onSelect={() => {}}
+        reserveRight={reserveRight}
+      />,
+    );
+    const panel = await screen.findByTestId('demo-steps-popout');
+    const right = parseFloat(panel.style.left) + parseFloat(panel.style.width);
+    expect(right).toBeLessThanOrEqual(window.innerWidth - reserveRight);
+  });
+
   it('does not render the legacy live-P1AZ arming button (flags are on by default)', async () => {
     render(
       <DemoStepsDropdown

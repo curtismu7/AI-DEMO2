@@ -41,10 +41,12 @@ export default function CommandDock({
   onOpenChange,
   title = "Demo Controls",
   children,
+  // The window the agent lives in — its pop-out window when popped out.
+  win = window,
 }) {
-  const width = Math.min(480, Math.max(340, window.innerWidth - 24));
-  const height = Math.min(620, Math.max(320, window.innerHeight - 24));
-  const defaultX = Math.max(8, window.innerWidth - width - 16);
+  const width = Math.min(480, Math.max(340, win.innerWidth - 24));
+  const height = Math.min(620, Math.max(320, win.innerHeight - 24));
+  const defaultX = Math.max(8, win.innerWidth - width - 16);
   const defaultY = 52;
 
   // Collapsed pill position — null means "use the CSS default top-right".
@@ -162,6 +164,7 @@ export default function CommandDock({
           minHeight={220}
           zIndex={100061}
           onClose={() => onOpenChange(false)}
+          win={win}
         >
           <div className="cmd-dock-body">{children}</div>
         </FloatingPanel>

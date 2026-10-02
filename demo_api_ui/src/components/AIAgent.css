@@ -1023,6 +1023,24 @@ body > .banking-agent-float-root .banking-agent-panel {
   color: #dc2626;
 }
 
+/* Float-mode window buttons (collapse / expand / pop-out / close) */
+.ba-window-btns {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+/* Collapsed to the title bar — !important beats the inline drag/resize height */
+.banking-agent-panel.ba-collapsed {
+  height: auto !important;
+  min-height: 0 !important;
+}
+.banking-agent-panel.ba-collapsed .ba-body,
+.banking-agent-panel.ba-collapsed .ba-resize-handle {
+  display: none;
+}
+
 /* Connected services chips row */
 .ba-server-chips {
   display: flex;
@@ -2505,7 +2523,9 @@ body > .banking-agent-float-root .banking-agent-panel {
 /* ─── Responsive ─────────────────────────────────────────────────────── */
 @media (max-width: 860px) {
   /* !important: panel uses inline width/height from React — cap size on tablets/narrow viewports */
-  .banking-agent-panel:not(.ba-mode-inline):not(.ba-expanded) {
+  /* Not when popped out: the pop-out window is narrow enough to match these
+     queries, and the caps left the agent short of the window's bottom edge. */
+  .banking-agent-panel:not(.ba-mode-inline):not(.ba-popped-out) {
     right: 8px !important;
     left: 8px !important;
     bottom: 0;
@@ -2522,7 +2542,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 @media (max-width: 600px) {
-  .banking-agent-panel:not(.ba-mode-inline):not(.ba-expanded) {
+  .banking-agent-panel:not(.ba-mode-inline):not(.ba-popped-out) {
     right: 0 !important;
     left: 0 !important;
     bottom: 0;
@@ -2892,20 +2912,6 @@ body > .banking-agent-float-root .banking-agent-panel {
   .banking-agent-results-panel {
     display: none;
   }
-}
-
-/* ─── Expanded: large centered window (inline style sets size; fallback if no JS) ─ */
-.banking-agent-panel.ba-expanded {
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  right: auto;
-  bottom: auto;
-  width: min(94vw, 520px);
-  height: min(85vh, 720px);
-  max-width: 560px;
-  max-height: 85vh;
-  border-radius: 12px;
 }
 
 /* ─── Inline / page-embedded mode (Claude-style full-page view) ──────────── */
@@ -6755,7 +6761,11 @@ body > .banking-agent-float-root .banking-agent-panel {
 /* Floating launcher follows the agent's theme tokens and stays clear of its FAB. */
 /* `.end-user-nano button` squares every button, so raise selector specificity
    to keep this icon's intentionally circular launcher shape on dashboards. */
-.end-user-nano .ba-demo-steps-floating-trigger {
+/* The second selector covers pages without `.end-user-nano`: with only the
+   first, the launcher was unpositioned there and fell to the bottom-left
+   corner underneath the side nav. */
+.end-user-nano .ba-demo-steps-floating-trigger,
+.banking-agent-float-root .ba-demo-steps-floating-trigger {
   position: fixed;
   right: 28px;
   bottom: 96px;
