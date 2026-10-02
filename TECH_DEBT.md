@@ -2535,6 +2535,20 @@ that a member signs in through SSO and lands as Admin, and a non-member as
 Viewer. Not verified: whether this Grafana version reads the claim from the ID
 token or only from userinfo, which decides where the mapping must be released.
 
+**CORRECTED 2026-10-02 after a failed live test (branch `worktree-techdebt-wave3-grafana-userinfo`).**
+The PingOne side is done (group `grafana-admins`, `demoAdmin` a member, the
+app's `groups` mapping) and the first live test failed: `demoAdmin` landed as
+Viewer. Cause: `demoAdmin` is in 43 groups, PingOne caps the claim in the ID
+token to `["SIZE_LIMIT_EXCEEDED"]` while userinfo carries the full list, and
+Grafana evaluates the ID token first. The expression above always returned
+something (its `'Viewer'` fallback), so Grafana never went on to userinfo. Fix,
+both halves: the PingOne mapping is now userinfo-only (`idToken: false`), and
+the expression is
+`groups && (contains(groups, 'grafana-admins') && 'Admin' || 'Viewer')`, which
+returns nothing when there is no `groups` claim. This answers the open question
+above: the claim has to come from userinfo. A re-created app needs that mapping
+again by hand; nothing provisions it. The PingOne half was confirmed by reading the released claims; the Grafana half needs the sign-in re-run once this is deployed.
+
 **Step 4 is untouched and stays untouched** until that live check passes:
 `GF_AUTH_DISABLE_LOGIN_FORM` is still `false` in both files, and the local
 admin form is still the only guaranteed way in.

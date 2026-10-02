@@ -209,14 +209,17 @@ spec:
               value: "email"
             - name: GF_AUTH_GENERIC_OAUTH_NAME_ATTRIBUTE_PATH
               value: "name"
-            # JMESPath over the token claims: members of the PingOne group
+            # JMESPath over the claims: members of the PingOne group
             # `grafana-admins` are Admin, everyone else a read-only Viewer.
-            # Needs the Grafana app in PingOne to send group names in a
-            # `groups` claim; with no such claim (or a null/empty one) this
-            # still yields Viewer, never an error. The local admin form below
-            # stays until an admin-mapped user has been seen to get Admin.
+            # The `groups` claim must come from USERINFO: PingOne caps it in
+            # the ID token (a user in many groups gets ["SIZE_LIMIT_EXCEEDED"]
+            # there), and Grafana reads the ID token first and stops at the
+            # first answer. So the app's `groups` mapping is userinfo-only, and
+            # this returns nothing when there is no `groups` claim, which is
+            # what sends Grafana on to userinfo. No claim anywhere leaves
+            # Grafana's default role, Viewer.
             - name: GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH
-              value: "contains(groups || `[]`, 'grafana-admins') && 'Admin' || 'Viewer'"
+              value: "groups && (contains(groups, 'grafana-admins') && 'Admin' || 'Viewer')"
             - name: GF_AUTH_GENERIC_OAUTH_ALLOW_SIGN_UP
               value: "true"
             # Keep the local admin form as the lockout fallback.
