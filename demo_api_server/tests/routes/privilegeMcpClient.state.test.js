@@ -51,6 +51,8 @@ describe('GET /api/privilege-mcp/state — mcpUrl default', () => {
     // default — an operator should not need to know an env var exists to pick
     // the banking door.
     delete process.env.PRIVILEGE_AGENTLESS_MCPGW_URL_BANKING;
+    // A developer's .env sets this, and the preset URL derives from it.
+    delete process.env.PRIVILEGE_MCPGW_URL;
 
     const res = await request(app).get('/api/privilege-mcp/state').expect(200);
 
