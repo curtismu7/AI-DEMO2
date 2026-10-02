@@ -5,6 +5,7 @@
 const axios = require('axios');
 const davinciConfig = require('../config/davinci');
 const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
+const { getPingOneTokenEndpoint } = require('./oauthEndpointResolver');
 
 const ORCHESTRATE_BASE = 'https://orchestrate-api.pingone.com/v1';
 
@@ -34,12 +35,49 @@ async function invokeFlow(flowKey, params) {
   }
 }
 
-// Placeholder client_credentials token fetch — same shape as other worker-token
-// call sites in this repo (e.g. mfaService's userAccessToken usage). Kept as its
-// own function so a future PINGONE_DAVINCI token-cache can slot in without
-// touching invokeFlow's call sites.
+// client_credentials token for the DaVinci API client, fetched the way
+// mfaService._getWorkerToken() does (PingOne token endpoint, client_secret_basic)
+// and cached until shortly before expiry. Errors thrown here are already
+// credential-safe; invokeFlow's normalizeAxiosError passes them through unchanged.
+const TOKEN_REFRESH_MARGIN_MS = 60_000;
+let _cachedToken = null;
+let _cachedTokenExpiresAt = 0;
+
 async function _getApiToken() {
-  return `${davinciConfig.apiClientId}:${davinciConfig.apiClientSecret}`;
+  if (_cachedToken && Date.now() < _cachedTokenExpiresAt - TOKEN_REFRESH_MARGIN_MS) {
+    return _cachedToken;
+  }
+  const clientId = davinciConfig.apiClientId;
+  const clientSecret = davinciConfig.apiClientSecret;
+  const tokenUrl = getPingOneTokenEndpoint();
+  if (!clientId || !clientSecret || !tokenUrl) {
+    const e = new Error(
+      'DaVinci API client not configured. Set PINGONE_DAVINCI_API_CLIENT_ID/SECRET and the PingOne environment id.',
+    );
+    e.code = 'davinci_not_configured';
+    e.httpStatus = 503;
+    throw e;
+  }
+  let resp;
+  try {
+    resp = await axios.post(tokenUrl, 'grant_type=client_credentials', {
+      auth: { username: clientId, password: clientSecret },
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      timeout: 10_000,
+    });
+  } catch (err) {
+    throw normalizeAxiosError(err, { label: 'DaVinci API token request', timeoutMs: 10_000 });
+  }
+  const token = resp.data && resp.data.access_token;
+  if (!token) {
+    const e = new Error('DaVinci API token request returned no access token');
+    e.code = 'davinci_token_missing';
+    e.httpStatus = 502;
+    throw e;
+  }
+  _cachedToken = token;
+  _cachedTokenExpiresAt = Date.now() + (Number(resp.data.expires_in) || 3600) * 1000;
+  return token;
 }
 
 module.exports = { invokeFlow };
