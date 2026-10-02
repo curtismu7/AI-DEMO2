@@ -634,7 +634,6 @@ export default function BankingAgent({
       /* private mode — size still works, just not remembered */
     }
   }, [chatZoom]);
-  const [isExpanded, setIsExpanded] = useState(false);
   /** Float mode: panel collapsed to its title bar (body hidden, still draggable). */
   const [isCollapsed, setIsCollapsed] = useState(false);
   /** Pop-out: the panel's Window object when popped out to its own browser window, else null. */
@@ -3518,9 +3517,7 @@ export default function BankingAgent({
       x: e.clientX - rect.left,
       y: e.clientY - rect.top,
     };
-    // Always anchor to current visual position and exit expanded mode so panelStyle
-    // uses the drag coordinates (isExpanded causes the centered style to win otherwise)
-    setIsExpanded(false);
+    // Always anchor to current visual position
     setDragPos({ x: rect.left, y: rect.top });
     e.preventDefault();
     document.body.style.userSelect = "none";
@@ -3582,9 +3579,6 @@ export default function BankingAgent({
       const rect = panelRef.current?.getBoundingClientRect();
       const startWidth = rect?.width || panelSize.width;
       const startHeight = rect?.height || panelSize.height;
-
-      // Exit expanded mode on resize (same as drag)
-      setIsExpanded(false);
 
       // Capture starting position from current dragPos or from getBoundingClientRect.
       // Must be done synchronously so onMove calculations are anchored correctly.
@@ -3731,23 +3725,7 @@ export default function BankingAgent({
       }
     : isInline
     ? {}
-    : isExpanded
-      ? {
-          // Centred with inset + auto margins, not a transform: a transformed
-          // panel becomes the containing block for its fixed descendants, which
-          // dropped the Demo Controls pill onto the window buttons.
-          left: 0,
-          top: 0,
-          right: 0,
-          bottom: 0,
-          margin: "auto",
-          transform: "none",
-          width: "min(94vw, 520px)",
-          height: "min(85vh, 720px)",
-          maxWidth: 560,
-          maxHeight: "85vh",
-        }
-      : dragPos
+    : dragPos
         ? {
             left: dragPos.x,
             top: dragPos.y,
@@ -3788,7 +3766,7 @@ export default function BankingAgent({
     update();
     return () => ro?.disconnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effectiveIsOpen, panelSize, isExpanded]);
+  }, [effectiveIsOpen, panelSize]);
 
   // Also update bounds on drag (ResizeObserver fires only on size changes, not position)
   useEffect(() => {
@@ -3871,19 +3849,8 @@ export default function BankingAgent({
         zIndex: 10058,
       };
     }
-    if (isExpanded) {
-      return {
-        position: "fixed",
-        left: `max(8px, calc(50vw - min(94vw, 520px) / 2 - ${gap}px - ${rpW}px))`,
-        top: "50vh",
-        transform: "translateY(-50%)",
-        bottom: "auto",
-        right: "auto",
-        zIndex: 10058,
-      };
-    }
     return undefined;
-  }, [dragPos, isExpanded, isInline, resultsPanelWidthPx, agentBounds]);
+  }, [dragPos, isInline, resultsPanelWidthPx, agentBounds]);
 
   function addMessage(role, content, tool, extra = {}) {
     const { id: exId, ...rest } = extra;
@@ -10184,7 +10151,7 @@ export default function BankingAgent({
         showFloatingButton={!isInline}
         placement={splitChrome ? "drawer" : "floating"}
         reserveRight={
-          !isInline && isOpen && !poppedOutWin && !isExpanded
+          !isInline && isOpen && !poppedOutWin
             ? dragPos ? Math.max(0, window.innerWidth - dragPos.x) : panelSize.width + 16
             : 0
         }
@@ -10232,7 +10199,7 @@ export default function BankingAgent({
       {effectiveIsOpen && (() => {
         const panelEl = (
         <div
-          className={`banking-agent-panel ba-mode-light${isExpanded && !isInline ? " ba-expanded" : ""}${isInline ? " ba-mode-inline" : ""}${isBottomDock ? " ba-embedded-bottom-dock" : ""}${splitChrome ? " ba-split-column" : ""}${distinctFloatingChrome && isInline ? " ba-popout-mode" : ""}${isCollapsed && !isInline && !poppedOutWin ? " ba-collapsed" : ""}`}
+          className={`banking-agent-panel ba-mode-light${isInline ? " ba-mode-inline" : ""}${isBottomDock ? " ba-embedded-bottom-dock" : ""}${splitChrome ? " ba-split-column" : ""}${distinctFloatingChrome && isInline ? " ba-popout-mode" : ""}${isCollapsed && !isInline && !poppedOutWin ? " ba-collapsed" : ""}`}
           role="dialog"
           aria-label={
             isConfigEmbeddedFocus
@@ -11662,20 +11629,6 @@ export default function BankingAgent({
                         title={isCollapsed ? "Expand" : "Collapse to title bar"}
                       >
                         {isCollapsed ? "+" : "−"}
-                      </button>
-                      <button
-                        type="button"
-                        className="ba-icon-btn"
-                        onClick={() => {
-                          setIsCollapsed(false);
-                          setIsExpanded((e) => !e);
-                          setDragPos(null);
-                        }}
-                        title={
-                          isExpanded ? "Restore size" : "Expand to larger window"
-                        }
-                      >
-                        {isExpanded ? "⊟" : "⊞"}
                       </button>
                     </>
                   )}

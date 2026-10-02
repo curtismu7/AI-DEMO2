@@ -309,6 +309,13 @@ Also touches `CommandDock.jsx`/`.css`, `FloatingPanel.jsx`,
 float panel outside its open animation; `FloatingPanel` `win` defaults to
 `window`; `reserveRight` of 0 keeps Demo Steps centred.
 
+**Same entry — the `⊞` "expand" button is gone:** it switched to a fixed
+centred 520x720 window (smaller than the 620px default) and Demo Steps then
+re-centred on top of it, hiding every control. Free drag + 8-way resize cover
+the need, so the button, `isExpanded` and `.ba-expanded` were removed. The
+window buttons are collapse, pop-out, close. **Do not break:** do not bring
+back a centred "expanded" mode without placing Demo Steps clear of it.
+
 ### 2026-10-01 — PingGateway's own token exchange was invisible
 
 **Files:** `ping-gateway/scripts/groovy/olb-token-exchange.groovy`, `ping-gateway/scripts/groovy/p1az-decision.groovy`, `demo_api_server/services/mcpToolPipeline.js`.

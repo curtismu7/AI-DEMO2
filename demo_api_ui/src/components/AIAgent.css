@@ -2912,20 +2912,6 @@ body > .banking-agent-float-root .banking-agent-panel {
   }
 }
 
-/* ─── Expanded: large centered window (inline style sets size; fallback if no JS) ─ */
-.banking-agent-panel.ba-expanded {
-  left: 0;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  margin: auto;
-  width: min(94vw, 520px);
-  height: min(85vh, 720px);
-  max-width: 560px;
-  max-height: 85vh;
-  border-radius: 12px;
-}
-
 /* ─── Inline / page-embedded mode (Claude-style full-page view) ──────────── */
 .banking-agent-panel.ba-mode-inline {
   position: relative !important;
