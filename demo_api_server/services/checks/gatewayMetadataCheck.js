@@ -52,7 +52,10 @@ register({
   id: 'gateway.metadata_reachable',
   name: 'RFC 9728 resource_metadata pointer answers 200',
   category: 'Agent Gateway',
-  severity: 'advisory',
+  // Blocking: the coupling itself is accepted (TECH_DEBT 2026-08-17, owner
+  // decision 2026-10-02), so this check is the only thing standing between a
+  // moved listener or audience and a discovery URL that silently stops working.
+  severity: 'blocking',
   appliesWhen: (flags) => flags.ff_mcp_gateway_pinggateway === true,
   async run() {
     // Unauthenticated on purpose: the 401 challenge IS the surface under test.
