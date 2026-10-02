@@ -121,3 +121,67 @@ PF_HOME=/path/to/pingfederate scripts/pingfederate/plugins/ai-agent-rar/build.sh
 See `plugins/ai-agent-rar/README.md` for policy fields, test instructions, and
 PF admin-console setup. The processor requires PF 13.1 or newer and the
 `transactions:write` scope. It uses only OAuth and JWT.
+
+## CIMD and RAR: PingFederate setup
+
+Two things are needed, in this order.
+
+### 1. OAuth clients in database storage (one-time, by hand)
+
+CIMD creates clients on the fly from a metadata URL, and PingFederate only does
+that when its OAuth clients are stored in a database. With the default file
+storage the admin API still accepts CIMD settings, and discovery keeps saying
+`client_id_metadata_document_supported: false` — nothing warns you.
+
+The local PingFederate was switched to its built-in database on 2026-10-02.
+That change lives in the container's data volume, not in Git. To do it again:
+
+1. Back up every client through the admin API (`GET /oauth/clients`) and export
+   a configuration archive (`GET /configArchive/export`). `encryptedSecret`
+   round-trips, so secrets survive the move.
+2. In `server/default/conf/service-points.conf` change
+   `client.manager=org.sourceid.oauth20.domain.ClientManagerXmlFileImpl` to
+   `...ClientManagerJdbcImpl`. **The file has Windows line endings**: a `sed`
+   pattern anchored with `$` matches nothing and reports no error. Check the
+   line afterwards.
+3. `docker restart ai-demo-pingfederate`. It comes up with zero clients —
+   PingFederate does not migrate clients between storage types.
+4. Re-create each backed-up client with `POST /oauth/clients`.
+
+No SQL is needed: the built-in `PFDefaultDS` already has the client tables and
+`config-store/org.sourceid.oauth20.domain.ClientManagerJdbcImpl.xml` already
+points at it. Ping's documentation allows the built-in database for trial and
+training use only.
+
+Things to know:
+
+- Rollback is the same line reversed plus a restart; the XML client files are
+  never deleted.
+- **A fresh data volume reverts to file storage.** The mounted profile still has
+  `XmlFileImpl`, and the profile is applied only on a first start, not on a
+  restart. It is left that way on purpose: database storage on an empty database
+  would start with no clients at all.
+- A client created after the switch exists only in the database.
+
+### 2. Scope, trust, CIMD policy and the RAR type (scripted)
+
+```bash
+node scripts/pingfederate/provision-ai-agent-features.js            # dry run
+node scripts/pingfederate/provision-ai-agent-features.js --apply
+```
+
+Idempotent; each step reads first and reads its change back. It adds the
+`transactions:write` scope, trusts the mkcert root so PingFederate can fetch
+the BFF's client metadata document, enables CIMD with one policy restricted to
+that exact document URL (PKCE required), and creates the `banking_transaction`
+authorization detail type on the deployed RAR processor.
+
+Check the result where it matters, in what PingFederate advertises:
+
+```bash
+curl -sk https://local.ping-devops.com:9031/.well-known/openid-configuration \
+  | grep -o '"client_id_metadata_document_supported":[a-z]*'
+```
+
+The BFF's switches (`PF_AI_CIMD_ENABLED`, `PF_AI_RAR_ENABLED`,
+`PF_PAR_ENDPOINT`) are set for the local stack in `docker-compose.yml`.

@@ -26,10 +26,19 @@ function assertHttpsEndpoint(rawValue, field, issuerOrigin, missing) {
   }
   let parsed;
   try { parsed = new URL(rawValue); } catch { missing.push(field); return ''; }
-  if (parsed.protocol !== 'https:' || parsed.username || parsed.password
-    || parsed.hash || (issuerOrigin && parsed.origin !== issuerOrigin)) {
+  if (parsed.protocol !== 'https:' || parsed.username || parsed.password || parsed.hash) {
     missing.push(field);
     return '';
+  }
+  // Inside Docker these settings name PingFederate by its network alias, a host
+  // that is not the issuer's. Keep the configured path but only ever on the
+  // issuer's own origin — the rule refresh-service-envs.js applies for
+  // PingGateway. A request can therefore never leave the issuer's host, which
+  // is what rejecting a foreign origin was protecting.
+  if (issuerOrigin && parsed.origin !== issuerOrigin) {
+    const issuer = new URL(issuerOrigin);
+    parsed.protocol = issuer.protocol;
+    parsed.host = issuer.host;
   }
   return parsed.toString();
 }
