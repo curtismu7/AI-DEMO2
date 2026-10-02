@@ -9,6 +9,7 @@ import {
 import { spinner } from '../services/spinnerService';
 import './CodebaseUploader.css';
 import { notifyError, notifyWarning } from '../utils/appToast';
+import ConfirmModal from './ConfirmModal';
 
 /** Spinner hold key — folder indexing runs alongside CodeSearchPage's zip upload. */
 const SPINNER_KEY = 'codebase-folder-index';
@@ -28,6 +29,17 @@ export default function CodebaseUploader({ onUpload, isLoading, onFolderIndexed 
   const [folderIndexed, setFolderIndexed] = useState(0);
   const [folderSkipped, setFolderSkipped] = useState(null);
   const [folderError, setFolderError] = useState('');
+  // Pending "split into packages?" question; `resolve` settles the awaiting
+  // handleFolderPicked. Cancel / close / backdrop all mean "index as one".
+  const [splitPrompt, setSplitPrompt] = useState(null);
+
+  const askSplit = (rootName, names) =>
+    new Promise((resolve) => setSplitPrompt({ rootName, names, resolve }));
+
+  const settleSplit = (answer) => {
+    splitPrompt?.resolve(answer);
+    setSplitPrompt(null);
+  };
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files?.[0];
@@ -71,12 +83,7 @@ export default function CodebaseUploader({ onUpload, isLoading, onFolderIndexed 
     let jobs;
     if (plan.mode === 'pieces') {
       const names = [...plan.groups.keys()];
-      const split = window.confirm(
-        `"${plan.rootName}" has ${names.length} top-level packages ` +
-          `(${names.slice(0, 6).join(', ')}${names.length > 6 ? ', …' : ''}).\n\n` +
-          `Index each package as its own searchable codebase?\n\n` +
-          `OK = split into pieces\nCancel = index everything as one codebase`
-      );
+      const split = await askSplit(plan.rootName, names);
       if (split) {
         jobs = names.map((name) => ({ name, files: plan.groups.get(name) }));
       } else {
@@ -216,6 +223,26 @@ export default function CodebaseUploader({ onUpload, isLoading, onFolderIndexed 
           {isFolderIndexing ? 'Indexing folder...' : 'Index a folder from your computer'}
         </button>
         {folderError && <div className="error-message">{folderError}</div>}
+        <ConfirmModal
+          isOpen={splitPrompt !== null}
+          title="Index each package separately?"
+          message={
+            splitPrompt && (
+              <>
+                <p>
+                  &quot;{splitPrompt.rootName}&quot; has {splitPrompt.names.length} top-level
+                  packages ({splitPrompt.names.slice(0, 6).join(', ')}
+                  {splitPrompt.names.length > 6 ? ', …' : ''}).
+                </p>
+                <p>Index each package as its own searchable codebase, or everything as one?</p>
+              </>
+            )
+          }
+          confirmLabel="Split into pieces"
+          cancelLabel="Index as one codebase"
+          onConfirm={() => settleSplit(true)}
+          onCancel={() => settleSplit(false)}
+        />
         {folderSkipped != null && (
           <div className="folder-skip-note">
             Indexed {folderIndexed} files, skipped {folderSkipped} (binary / too large / vendored).

@@ -45,11 +45,12 @@ Raw feedback from the board for ai-demo.ping-devops.com, triaged into work items
 - Show a message to the demo user with those credentials so they can log in and see delegation.
 - URL: https://ai-demo.ping-devops.com/delegation
 
-### E5. `/code-search` — real agent experience
+### E5. `/code-search` — real agent experience — treated as DONE (not verified on the live page)
 - Current "Ask the agent" is too small; make it feel like a real agent.
 - Use a system modal (native `confirm`/dialog) instead of the app modal for the file-size warning.
 - Add a spinner while code is uploading.
 - Make the agent look like the OAuth Academy page.
+- Status: spinner on ZIP upload and folder index was already in place; `CodeSearchAsk.jsx` is modeled on OAuth Academy. The size warnings are toasts. The folder-split question was a native `window.confirm`, which `demo_api_ui/CLAUDE.md` bans; it is now a `ConfirmModal`. Panel size and look were not re-checked against the live page.
 
 ### E6. Consistent "Exploring" section
 - Code Explorer, OAuth Academy, Code Search, and OAS Demo should be visually consistent pages/agents.
