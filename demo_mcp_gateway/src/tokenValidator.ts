@@ -422,8 +422,17 @@ export async function validateInboundToken(
   // (a different, deliberately different, issuer), and enforcing PingOne's
   // expected issuer against a genuinely non-PingOne token would reject every
   // native ID-JAG call this same check exists to let through.
+  //
+  // PingFederate-issued tokens are exempt on the same ground: _decodeAndVerify
+  // checks a token whose iss is PF_ISSUER_URI against PingFederate's JWKS, so
+  // its issuer is already cryptographically bound. Without this, configuring
+  // PINGONE_ISSUER_URI rejected every PingFederate token the gateway had just
+  // verified — the PingGateway JWKS filter accepts both issuers
+  // (jwks-token-validation.groovy), and the two gateways must agree.
   const expectedIss = (process.env.PINGONE_ISSUER_URI || '').trim();
-  if (expectedIss && !isIdJagIssuedToken(decoded) && decoded.iss !== expectedIss) {
+  const pfIssuer = (process.env.PF_ISSUER_URI || process.env.PF_ISSUER || '').trim();
+  const isPfIssued = pfIssuer !== '' && decoded.iss === pfIssuer;
+  if (expectedIss && !isIdJagIssuedToken(decoded) && !isPfIssued && decoded.iss !== expectedIss) {
     throw new TokenValidationError(
       `Issuer mismatch: got ${decoded.iss ?? '(none)'}, expected ${expectedIss}`,
       'invalid_iss',

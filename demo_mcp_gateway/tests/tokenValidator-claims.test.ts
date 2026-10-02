@@ -238,6 +238,34 @@ describe('validateInboundToken — kid-less token key selection (tokenValidator.
     expect(decoded.sub).toBe('user-1');
   });
 
+  test('accepts a PingFederate-issued token when the PingOne issuer check is on', async () => {
+    // A token whose iss is PF_ISSUER_URI is verified against PF's JWKS. The iss
+    // check then compared it with PingOne's issuer only, so configuring
+    // PINGONE_ISSUER_URI rejected every PingFederate token the gateway had just
+    // verified. The IG JWKS filter accepts both issuers.
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const jwt = require('jsonwebtoken');
+    const PF = 'https://pf.example.test:9031';
+    jwksKeys = [jwkOf(keyA, 'kid-a')];
+    process.env.PINGONE_ISSUER_URI = 'https://auth.pingone.com/env-1/as';
+    process.env.PF_ISSUER_URI = PF;
+    process.env.PF_JWKS_URI = jwksUrl;
+    const signAs = (iss: string) => jwt.sign(
+      { sub: 'user-1', aud: GW_AUD, iss },
+      keyA.privateKey.export({ type: 'pkcs8', format: 'pem' }),
+      { algorithm: 'RS256', expiresIn: '1h', keyid: 'kid-a' },
+    );
+    try {
+      const { validateInboundToken } = freshValidator();
+      expect((await validateInboundToken(signAs(PF), GW_AUD)).iss).toBe(PF);
+      // A third issuer is still refused, even though the same key signed it.
+      await expect(validateInboundToken(signAs('https://evil.example/as'), GW_AUD)).rejects.toThrow(/issuer/i);
+    } finally {
+      delete process.env.PF_ISSUER_URI;
+      delete process.env.PF_JWKS_URI;
+    }
+  });
+
   test('still selects by kid when the token carries one', async () => {
     jwksKeys = [jwkOf(keyA, 'kid-a'), jwkOf(keyB, 'kid-b')];
     const { validateInboundToken } = freshValidator();

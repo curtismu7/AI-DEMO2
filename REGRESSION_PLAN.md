@@ -249,6 +249,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-02 — Gateways disagreed on the issuer; the actor-chain rule and the running gateway had no check
+
+**Files:** `demo_mcp_gateway/src/tokenValidator.ts`, `demo_mcp_gateway/tests/tokenValidator-claims.test.ts`, `demo_api_server/scripts/verifyAuthorizeCloudParity.js`, `scripts/check-demo-health-gate.js`, `scripts/check-demo-health-gate.loadedConfig.test.js` (new), `package.json`.
+
+**What was wrong:** (1) The Node gateway verifies a PingFederate token against PingFederate's JWKS, then compared its `iss` with `PINGONE_ISSUER_URI` only. The check is off in the running stack (that variable is unset there), so nothing failed — but turning it on rejected every PingFederate token. PingGateway's JWKS filter accepts both issuers. (2) Neither gateway validates the `act` chain itself; both forward `ActClientId` and PingOne Authorize decides. Nothing proved that rule is enforced live on the main route. (3) PingGateway's config and filters are bind-mounted, so the files always match the repo, but nothing noticed a gateway still running what it loaded before a merge changed them.
+
+**What changed:** (1) A token whose `iss` is `PF_ISSUER_URI` is exempt from the PingOne issuer comparison, as ID-JAG tokens already are. (2) `verify:authorize-parity` gains a main-route probe: an unregistered actor must DENY with `mcp-invalid-actor`, the registered one must PERMIT. (3) The health gate gains `gateway:loaded-config`, failing when a config or filter file is newer than the gateway's start.
+
+**Do not break:** The PingFederate exemption is safe only because `_decodeAndVerify` routes a `PF_ISSUER_URI` token to PingFederate's JWKS first — never exempt an issuer the gateway has not verified against that issuer's own keys. Actor-chain enforcement lives in the policy, not the gateways: if `ff_authorize_fail_open` lets a call through without a decision, nothing has checked the actor.
+
+**Verify:** `cd demo_mcp_gateway && npm test -- --testPathPattern=tokenValidator`; `npm --prefix demo_api_server run verify:authorize-parity` (live); `node --test scripts/check-demo-health-gate.loadedConfig.test.js`.
+
 ### 2026-10-02 — PingGateway's decision filter was outside the request contract; its only check was unwired and stale
 
 **Files:** `snapshots/p1azRequestContract.js`, `ping-gateway/scripts/groovy/p1az-decision.groovy`, `ping-gateway/scripts/check-groovy-params.sh`, `scripts/topology-verify.sh`.

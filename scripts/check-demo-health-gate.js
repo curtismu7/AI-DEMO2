@@ -786,6 +786,51 @@ async function checkPingOneA2aAudForm() {
  *  the working tree — but node does not hot-reload, so the PROCESS can still
  *  be older than the code. Compare the node process's start time against the
  *  newest mtime among the A2A-critical files. */
+/** gateway:loaded-config — is the running PingGateway older than the files it loaded?
+ *  Its config and Groovy filters are bind-mounted from this checkout, so the
+ *  FILES can never differ from the repo; what can differ is what the process
+ *  loaded. A merge or sync changes the files under a gateway that started
+ *  earlier, and nothing compared the two. Conservative by design: it does not
+ *  try to know which files PingGateway re-reads on its own (scope-topology.json
+ *  is read per request), so the worst case is one restart that was not needed. */
+function gatewayLoadedConfigDrift(startedAtMs, files) {
+  const newer = files.filter((f) => f.mtimeMs > startedAtMs).sort((x, y) => y.mtimeMs - x.mtimeMs);
+  return { stale: newer.length > 0, newest: newer[0] || null, count: newer.length };
+}
+
+function checkGatewayLoadedConfig() {
+  const started = sh("docker inspect ai-demo-ping-gateway --format '{{.State.StartedAt}}'").out.trim();
+  const startedAtMs = Date.parse(started);
+  if (!started || Number.isNaN(startedAtMs)) return; // not running: checkContainers reports that
+  const files = [];
+  const walk = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      // scope-topology.json is re-read on every request, so a newer copy is already live.
+      else if (/\.(groovy|json)$/.test(entry.name) && entry.name !== 'scope-topology.json') {
+        files.push({ file: path.relative(REPO, full), mtimeMs: fs.statSync(full).mtimeMs });
+      }
+    }
+  };
+  try {
+    walk(path.join(REPO, 'ping-gateway', 'config'));
+    walk(path.join(REPO, 'ping-gateway', 'scripts', 'groovy'));
+  } catch (e) {
+    row('gateway:loaded-config', false, `could not read gateway files: ${e.message}`, '');
+    return;
+  }
+  const { stale, newest, count } = gatewayLoadedConfigDrift(startedAtMs, files);
+  row(
+    'gateway:loaded-config',
+    !stale,
+    stale
+      ? `${count} file(s) changed after the gateway started (${started}); newest: ${newest.file}`
+      : `gateway started after its ${files.length} config/filter files last changed`,
+    stale ? './run-docker.sh restart ping-gateway' : '',
+  );
+}
+
 function checkBffCodeDrift() {
   if (!sh("docker ps --format '{{.Names}}' | grep -qx ai-demo-api-server && echo yes").out.trim()) return;
   const procEtimeRaw = sh(`docker exec ai-demo-api-server sh -c 'ps -o pid,etime | awk "NR==2{print \\$2}"' 2>/dev/null`).out.trim();
@@ -1102,6 +1147,7 @@ async function main() {
   await checkExchangeClient();
   await checkGatewayMcpRoute();
   checkGatewayScopeParity();
+  checkGatewayLoadedConfig();
   await checkStep9Exchanger();
   await checkStep9Gate();
   await checkA2aChain();
@@ -1126,7 +1172,7 @@ async function main() {
   process.exit(failed ? 1 : 0);
 }
 
-module.exports = { fetchJson, checkContainers, checkNetworks, ensureMkcertRoot };
+module.exports = { fetchJson, checkContainers, checkNetworks, ensureMkcertRoot, gatewayLoadedConfigDrift };
 
 if (require.main === module) {
   main().catch((err) => {

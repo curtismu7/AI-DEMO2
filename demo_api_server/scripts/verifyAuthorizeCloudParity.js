@@ -86,6 +86,21 @@ const RULES = [
     },
   },
   {
+    // The main route, not A2A. No gateway validates the act chain locally: both
+    // forward ActClientId and this rule decides. So this probe is the only thing
+    // that shows an unregistered actor is refused. Measured live 2026-10-02:
+    // registered actor -> PERMIT, unregistered or absent -> DENY mcp-invalid-actor.
+    code: 'mcp-invalid-actor',
+    label: 'main route — actor is a registered chain identity',
+    mockRule: 'Rule 2 (act.sub is an authorized actor)',
+    deny: {
+      tool: 'get_my_accounts', vertical: 'banking', depth: 1,
+      extra: { ActClientId: '00000000-0000-4000-8000-0000000000ff' },
+    },
+    // The same request with the control's own registered actor put back.
+    permit: { ActClientId: params({ tool: 'get_my_accounts', vertical: 'banking', depth: 1 }).ActClientId },
+  },
+  {
     code: 'transaction-denied',
     label: 'amount ceiling',
     mockRule: 'Rule 3b',
