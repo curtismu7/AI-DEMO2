@@ -309,6 +309,23 @@ services:
       # reclaim memory otherwise leaves this dialling a name that no longer
       # resolves, once per app event, at a 5s timeout.
       LOKI_URL: "${LOKI_URL-http://loki:3100}"
+      # Demo readiness, LOCAL target, for runs started inside this BFF (Admin
+      # sidebar Reset Demo). Fixed compose addresses and identity labels — no
+      # secrets. The worker tokens and the PingFederate admin password come from
+      # the vault at run time, the Authorize URL from the PingOne environment,
+      # and the expected revision from the checkout's HEAD. The SE target has no
+      # settings here, so its rows report blocked.
+      DEMO_READINESS_LOCAL_BFF_URL: "https://api.ping.demo:3001"
+      DEMO_READINESS_LOCAL_GATEWAY_URL: "https://ping-gateway:8443/mcp"
+      DEMO_READINESS_LOCAL_PINGONE_WORKER_URL: "https://readiness-worker-pingone:4443"
+      DEMO_READINESS_LOCAL_PINGONE_IDENTITY_REF: "${DEMO_READINESS_LOCAL_PINGONE_IDENTITY_REF:-readiness-pingone-local}"
+      DEMO_READINESS_LOCAL_PINGFEDERATE_WORKER_URL: "https://readiness-worker-pingfederate:4443"
+      DEMO_READINESS_LOCAL_PINGFEDERATE_IDENTITY_REF: "${DEMO_READINESS_LOCAL_PINGFEDERATE_IDENTITY_REF:-readiness-pingfederate-local}"
+      PINGFEDERATE_ADMIN_API_BASE: "https://pingfederate:9999/pf-admin-api/v1"
+      # The local admin console is self-signed. This skips verification for the
+      # audit's PingFederate reads only; the container already runs with
+      # NODE_TLS_REJECT_UNAUTHORIZED=0 above.
+      PINGFEDERATE_ADMIN_TLS_INSECURE: "1"
       # Plain-HTTP façade listener — see the 127.0.0.1:3002 port mapping above.
       MCP_FACADE_HTTP_PORT: "3002"
       # Enables the loopback callback listener — see the 127.0.0.1:7475 mapping

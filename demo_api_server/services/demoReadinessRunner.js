@@ -11,6 +11,7 @@ const { createReadinessExecutionService } = require('./demoReadinessExecutionSer
 const { createReadinessWorkerFactory } = require('./demoReadinessWorkerClient');
 const { loadDemoReadinessRuntimeConfig } = require('./demoReadinessRuntimeConfig');
 const { HARD_DEADLINE_MS, redactReadinessValue } = require('./demoReadinessReport');
+const { resolveRepositoryRoot, readRepositoryRevision } = require('../utils/repositoryRoot');
 
 const DEFAULT_TARGETS = Object.freeze(['local', 'se']);
 const TERMINAL_BAD = new Set(['fail', 'blocked', 'unknown', 'not-run', 'queued', 'active']);
@@ -110,20 +111,59 @@ function createPingOneRows({ env, fetchImpl, configStore }) {
   };
 }
 
+// Settings a run started inside the BFF takes from the vault-loaded config
+// store rather than process env: setting name -> vault entry name.
+const VAULT_BACKED_SETTINGS = {
+  DEMO_READINESS_LOCAL_PINGONE_WORKER_TOKEN: 'DEMO_READINESS_LOCAL_PINGONE_WORKER_TOKEN',
+  DEMO_READINESS_LOCAL_PINGFEDERATE_WORKER_TOKEN: 'DEMO_READINESS_LOCAL_PINGFEDERATE_WORKER_TOKEN',
+  DEMO_READINESS_SE_PINGONE_WORKER_TOKEN: 'DEMO_READINESS_SE_PINGONE_WORKER_TOKEN',
+  DEMO_READINESS_SE_PINGFEDERATE_WORKER_TOKEN: 'DEMO_READINESS_SE_PINGFEDERATE_WORKER_TOKEN',
+  PINGFEDERATE_ADMIN_PASSWORD: 'PF_ADMIN_CONSOLE_PASSWORD',
+};
+
+/**
+ * The settings for a run. Outside the BFF (no config store) that is `env`
+ * untouched. Inside it, three things env cannot carry are filled in — never
+ * overriding a value env already has:
+ *   - secrets, from the vault the BFF has already loaded;
+ *   - the Authorize URL, from the PingOne environment this BFF is bound to;
+ *   - the LOCAL expected revision: the checkout's HEAD now. Docker serves that
+ *     checkout, so a process still on an older commit is exactly the staleness
+ *     runtime:revision exists to report.
+ */
+function inProcessSettings(env, configStore, { readRevision = readRepositoryRevision } = {}) {
+  if (!configStore) return env;
+  const settings = { ...env };
+  for (const [name, entry] of Object.entries(VAULT_BACKED_SETTINGS)) {
+    if (!settings[name]) {
+      const value = configStore.getEffective(entry) || (typeof configStore.get === 'function' ? configStore.get(entry) : null);
+      if (value) settings[name] = value;
+    }
+  }
+  const authorizeBase = managementApiBase(settings);
+  if (!settings.DEMO_READINESS_LOCAL_AUTHORIZE_URL && authorizeBase) settings.DEMO_READINESS_LOCAL_AUTHORIZE_URL = authorizeBase + '/decisionEndpoints';
+  if (!settings.DEMO_READINESS_LOCAL_EXPECTED_REVISION) {
+    const head = readRevision(resolveRepositoryRoot(__dirname), { env: {} });
+    if (head) settings.DEMO_READINESS_LOCAL_EXPECTED_REVISION = head;
+  }
+  return settings;
+}
+
 function createDefaultAdapters(clock = Date.now, {
   env = process.env,
   fetchImpl = globalThis.fetch,
   // The BFF's loaded config store. Only the BFF process supplies it; without
   // it the configuration rows report blocked.
   configStore,
+  settings = inProcessSettings(env, configStore),
   audit = createAuditService({ adapters: {
-    pingOne: { readConfiguration: createPingOneRows({ env, fetchImpl, configStore }) },
-    pingFederate: createPingFederateReader({ env }),
+    pingOne: { readConfiguration: createPingOneRows({ env: settings, fetchImpl, configStore }) },
+    pingFederate: createPingFederateReader({ env: settings }),
     configStore,
   } }),
   repairs = createRepairService({ now: () => nowFrom(clock) }),
   execution,
-  runtimeConfig = loadDemoReadinessRuntimeConfig(),
+  runtimeConfig = loadDemoReadinessRuntimeConfig(settings),
   workerRuntime,
 } = {}) {
   const workers = workerRuntime || createReadinessWorkerFactory({ config: runtimeConfig, fetchImpl });
@@ -140,7 +180,7 @@ function createDefaultAdapters(clock = Date.now, {
       for (const targetId of targets) {
         if (nowFrom(clock) >= deadlineAt || signal?.aborted) break;
         const target = runtimeConfig.targets[targetId];
-        const headers = target && await authorizeReadHeaders(target.authorizeUrl, { env, fetchImpl, signal });
+        const headers = target && await authorizeReadHeaders(target.authorizeUrl, { env: settings, fetchImpl, signal });
         const runtime = target ? {
           bffUrl: target.bffUrl,
           gatewayUrl: target.gatewayUrl,
@@ -151,7 +191,7 @@ function createDefaultAdapters(clock = Date.now, {
         rows.push(...await audit.auditTarget({
           targetId,
           targetConfig: targetId === 'se' ? { kind: 'se', runtime }
-            : { kind: 'local', runtime, gateway: { expected: pfExchangeExpectation(env) } },
+            : { kind: 'local', runtime, gateway: { expected: pfExchangeExpectation(settings) } },
           deadlineAt,
           signal,
         }));
@@ -560,4 +600,4 @@ async function startReadinessRun({
   return makeResult();
 }
 
-module.exports = { DEFAULT_TARGETS, createDefaultAdapters, startReadinessRun };
+module.exports = { DEFAULT_TARGETS, createDefaultAdapters, startReadinessRun, inProcessSettings };
