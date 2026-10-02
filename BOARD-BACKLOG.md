@@ -21,8 +21,10 @@ Raw feedback from the board for ai-demo.ping-devops.com, triaged into work items
 - Fix: bake DB in setup/run/se-update; bake current `scripts/build-codegraph.py` to `/app/indexer`; `ensure_index` promotes legacy → query path on startup + every query + Refresh; startup auto-builds when still empty (`build_query_index_sync`); Refresh fails closed if query DB still empty.
 - Verify: rebuild/redeploy agent, ask "How does the MCP gateway work?" on `/code-explorer` — expect SSE answer, not 503. Pod restart must keep working without a manual copy.
 
-### B6. `/code-search` — button CSS broken
+### B6. `/code-search` — button CSS broken — FIXED (not verified on the live page)
 - URL: https://ai-demo.ping-devops.com/code-search
+- Buttons are styled by rules scoped under `.code-search-page` (`CodeSearchPage.css`, `CodebaseUploader.css`) so global button resets cannot flatten them. Landed in #3287.
+- Checked by reading the stylesheets only; confirm with `getComputedStyle` on the deployed page.
 
 ## Enhancements
 
