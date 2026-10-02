@@ -42,7 +42,7 @@ const source = (id) => ({ type: 'IDP_ADAPTER', sourceRef: { id } });
 const done = (context) => ({ action: { type: 'DONE', context }, children: [] });
 const passwordOnly = (context) => ({
   action: { type: 'AUTHN_SOURCE', context, authenticationSource: source(PASSWORD_ADAPTER) },
-  children: [done('Success'), done('Fail')],
+  children: [done('Fail'), done('Success')], // PF requires Fail first, Success last
 });
 
 (async () => {
@@ -115,11 +115,11 @@ const passwordOnly = (context) => ({
           {
             action: { type: 'AUTHN_SOURCE', context: MFA_VALUE, authenticationSource: source(PASSWORD_ADAPTER) },
             children: [
+              done('Fail'),
               {
                 action: { type: 'AUTHN_SOURCE', context: 'Success', authenticationSource: source(MFA_ADAPTER) },
-                children: [done('Success'), done('Fail')],
+                children: [done('Fail'), done('Success')],
               },
-              done('Fail'),
             ],
           },
           passwordOnly('No Match'),
