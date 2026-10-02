@@ -14,13 +14,13 @@ const VERTICAL_ID = 'pingone-admin';
 const GROUP_CATEGORY = 'privileged';
 
 /**
- * @param {Array} [p.trace] Filled with { id, label, status, decoded, explanation }
+ * @param {Array} [p.trace] Filled with { id, label, status, decoded, explanation, extra }
  *   for each step the gate really ran, using the token-chain event ids, so the
  *   caller can show the exchange and the decision instead of leaving them blank.
  */
 async function checkAccess({ username, pingOneUserId, accessToken, oauthProvider, trace = [] }) {
-  const note = (id, label, status, token, explanation) => trace.push({
-    id, label, status, decoded: token ? decodeJwt(token) : null, explanation,
+  const note = (id, label, status, token, explanation, extra = {}) => trace.push({
+    id, label, status, decoded: token ? decodeJwt(token) : null, explanation, extra,
   });
   const viaPingFederate = oauthProvider === 'pingfederate';
   // The session token's own subject; under PingFederate that is a PingFederate
@@ -174,8 +174,10 @@ async function checkAccess({ username, pingOneUserId, accessToken, oauthProvider
 
   let decision;
   let policyNotFound;
+  let decisionId;
+  let decisionDebug;
   try {
-    ({ decision, policyNotFound } = await pingOneAuthorizeService.evaluateMcpToolDelegation({
+    ({ decision, policyNotFound, decisionId, _debug: decisionDebug } = await pingOneAuthorizeService.evaluateMcpToolDelegation({
       userId: pingOneUserId,
       toolName: 'pingone_admin_access',
       verticalId: VERTICAL_ID,
@@ -206,9 +208,19 @@ async function checkAccess({ username, pingOneUserId, accessToken, oauthProvider
   }
 
   const allowed = decision === 'PERMIT';
-  note('pingone-admin-authorize', 'PingOne Authorize — PingOne Admin access', allowed ? 'permit' : 'deny', null,
+  // 'authorize-decision' is the id the token chain builds its Authorize card
+  // from when a run carries no separate evaluation object.
+  note('authorize-decision', 'PingOne Authorize — PingOne Admin access', allowed ? 'permit' : 'deny', null,
     `PingOne Authorize decision: ${decision}. Required group '${requiredGroup}'; `
-    + `'${username}' is ${inRequiredGroup ? '' : 'not '}a member in PingOne.`);
+    + `'${username}' is ${inRequiredGroup ? '' : 'not '}a member in PingOne.`,
+    {
+      authorizeDecision: decision,
+      authorizeEngine: 'pingone',
+      authorizeDecisionId: decisionId || null,
+      decisionContext: 'McpToolCall',
+      authorizeRequest: decisionDebug?.request || null,
+      authorizeResponse: decisionDebug?.response || null,
+    });
   return {
     allowed,
     error: allowed ? null : 'pingone_admin_group_required',

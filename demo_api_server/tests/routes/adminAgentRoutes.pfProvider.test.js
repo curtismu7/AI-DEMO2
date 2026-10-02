@@ -29,7 +29,7 @@ jest.mock('../../services/lmdb/reportStore.lmdb', () => ({ saveRun: jest.fn() })
 
 jest.mock('../../services/agentMcpTokenService', () => ({
   prependRefreshEvent: (req, events) => events,
-  buildTokenEvent: (id, label, status, decoded, explanation) => ({ id, label, status, claims: decoded?.claims || null, explanation }),
+  buildTokenEvent: (id, label, status, decoded, explanation, extra = {}) => ({ id, label, status, claims: decoded?.claims || null, explanation, ...extra }),
 }));
 
 const adminAgentRoutes = require('../../routes/adminAgentRoutes');
@@ -67,7 +67,7 @@ test('an unlinked PingFederate user gets a 403 that names the cause', async () =
 
 test('the gate\'s recorded steps reach the run\'s token events', async () => {
   checkAccess.mockImplementation(async ({ trace }) => {
-    trace.push({ id: 'two-ex-final-token', label: 'Final', status: 'exchanged', decoded: { claims: { aud: 'x' } }, explanation: 'e' });
+    trace.push({ id: 'two-ex-final-token', label: 'Final', status: 'exchanged', decoded: { claims: { aud: 'x' } }, explanation: 'e', extra: { authorizeDecision: 'PERMIT' } });
     return { allowed: true };
   });
   const app = buildApp({ id: 's', oauthProvider: 'pingfederate', user: { username: 'demoadmin' } });
@@ -75,5 +75,5 @@ test('the gate\'s recorded steps reach the run\'s token events', async () => {
   await request(app).post('/api/admin-agent/message').send({ message: 'list users' }).expect(200);
 
   const { tokenEvents } = processAdminMessage.mock.calls.at(-1)[0];
-  expect(tokenEvents).toEqual([expect.objectContaining({ id: 'two-ex-final-token', status: 'exchanged', claims: { aud: 'x' } })]);
+  expect(tokenEvents).toEqual([expect.objectContaining({ id: 'two-ex-final-token', status: 'exchanged', claims: { aud: 'x' }, authorizeDecision: 'PERMIT' })]);
 });
