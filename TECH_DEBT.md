@@ -914,7 +914,19 @@ suites / 51 tests: `a2aCardSigning`, `a2aSpecialistRouterContext`,
 `demoAgentLangGraph.pluginRoute`, `a2aProtocolCards`, `a2aExecution`,
 `a2aProtocolClient`) passes unchanged.
 
-### [ ] 2026-09-11 — A lost or slow commit response can commit a sign-in the client was told had failed
+### [x] 2026-09-11 — A lost or slow commit response can commit a sign-in the client was told had failed
+
+**RESOLVED 2026-10-01 (branch `worktree-techdebt-wave2-privilege-link`).** Took
+the second option below, the conditional rollback, because it needs no broker
+change: the broker already sends a discard when it denies. `commitPending` now
+keeps a 60-second undo record per resume id, and a discard for an id that was
+committed restores the session that commit replaced (or removes it when there
+was none) — but only while the app still holds exactly the token that commit
+installed, and only once. Tests: five in
+`tests/services/privilegeGatewaySession.test.js`; the two undo cases were red
+before the change. The test this entry asks for is covered at the store level
+(commit, then discard) rather than by delaying a real HTTP response; not driven
+through the broker or the live stack. REGRESSION_PLAN §4, 2026-10-01.
 
 **What's wrong.** `/oauth/resume`'s `commitPrivilegeLink` posts to
 `/internal/privilege-link/commit` with a 3s timeout. If the BFF applies the commit

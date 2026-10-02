@@ -227,11 +227,21 @@ const pendingLinks = new Map();
 // uncommittable, until its TTL.
 const discardedLinks = new Map();
 
-/** Drop expired entries from both maps — parks and the tombstones that block
- *  a late park. Runs on both write paths so neither can grow unbounded. */
+// A commit can be applied here while its answer never reaches the broker (lost,
+// or past the broker's 3s timeout). The broker then tells the client sign-in
+// failed and sends a discard. Remember each commit briefly — what it installed
+// and what it replaced — so that discard can put the app's session back instead
+// of leaving it holding an identity the client was told it did not get.
+const COMMIT_UNDO_MS = 60_000;
+const committedLinks = new Map();
+
+/** Drop expired entries from all three maps — parks, the tombstones that block
+ *  a late park, and undo records. Runs on both write paths so none can grow
+ *  unbounded. */
 function sweepLinks(now) {
   for (const [key, parked] of pendingLinks) if (parked.expiresAt <= now) pendingLinks.delete(key);
   for (const [key, until] of discardedLinks) if (until <= now) discardedLinks.delete(key);
+  for (const [key, committed] of committedLinks) if (committed.until <= now) committedLinks.delete(key);
 }
 
 /** Park a link's gateway token under its broker resume id. */
@@ -261,16 +271,31 @@ function commitPending(id) {
   if (parked.expiresAt <= Date.now()) return null;
   const { expiresAt, tokenExpiresAt, ...record } = parked;
   const remainingSec = Math.max(1, Math.round((tokenExpiresAt - Date.now()) / 1000));
+  const key = keyFor(record.app);
+  ensureLoaded();
+  const previous = sessions.get(key) || null;
   remember({ ...record, expiresIn: remainingSec });
-  return { app: keyFor(record.app) };
+  committedLinks.set(id, { key, accessToken: record.accessToken, previous, until: Date.now() + COMMIT_UNDO_MS });
+  return { app: key };
 }
 
-/** Drop a parked token — the broker refused to commit this link. */
+/** Drop a parked token — the broker refused to commit this link. If the link
+ *  was in fact committed moments ago, undo that commit: the broker has told the
+ *  client the sign-in failed. */
 function discardPending(id) {
   if (!id) return;
   sweepLinks(Date.now());
   pendingLinks.delete(id);
   discardedLinks.set(id, Date.now() + PENDING_TTL_MS);
+  const committed = committedLinks.get(id);
+  if (!committed) return;
+  committedLinks.delete(id);
+  // Only while the app still holds exactly what that commit installed — a
+  // sign-in that happened since is not ours to remove.
+  if (sessions.get(committed.key)?.accessToken !== committed.accessToken) return;
+  if (committed.previous) sessions.set(committed.key, committed.previous);
+  else sessions.delete(committed.key);
+  persist(committed.key);
 }
 
 /** Test seam: current tombstone count, so a sweep-on-discard test doesn't

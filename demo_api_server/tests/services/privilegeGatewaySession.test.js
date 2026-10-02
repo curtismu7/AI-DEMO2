@@ -316,3 +316,71 @@ describe('privilege gateway session — parked links (browser-bound commit)', ()
     jest.useRealTimers();
   });
 });
+
+// The broker gives up on a commit after 3s and then denies + discards. If the
+// BFF had already applied that commit (the response was lost or late), the
+// client is told sign-in failed while the app's session was replaced. A discard
+// that arrives for a link we committed must put the session back.
+describe('privilege gateway session — a discard after a commit undoes it', () => {
+  const park = (session, id, accessToken) =>
+    session.rememberPending(id, { app: 'opensearch', accessToken, refreshToken: null, expiresIn: 3600, tokenUri: TOKEN_URI });
+
+  test('with no earlier session, the app goes back to having none', async () => {
+    const session = load();
+    park(session, 'rs-1', 'linked-token');
+    session.commitPending('rs-1');
+
+    session.discardPending('rs-1');
+
+    expect(await session.getAccessToken('opensearch')).toBeNull();
+    expect(session.status('opensearch')).toEqual({ ready: false, reason: 'no_session' });
+  });
+
+  test('the session that was there before the commit is restored', async () => {
+    const session = load();
+    remembered(session, { app: 'opensearch', accessToken: 'earlier-token' });
+    park(session, 'rs-1', 'linked-token');
+    session.commitPending('rs-1');
+    expect(await session.getAccessToken('opensearch')).toBe('linked-token');
+
+    session.discardPending('rs-1');
+
+    expect(await session.getAccessToken('opensearch')).toBe('earlier-token');
+  });
+
+  test('a session established after the commit is left alone', async () => {
+    const session = load();
+    park(session, 'rs-1', 'linked-token');
+    session.commitPending('rs-1');
+    remembered(session, { app: 'opensearch', accessToken: 'newer-token' });
+
+    session.discardPending('rs-1');
+
+    expect(await session.getAccessToken('opensearch')).toBe('newer-token');
+  });
+
+  test('the undo window closes, so a stray late discard cannot drop a settled session', async () => {
+    jest.useFakeTimers();
+    const session = load();
+    park(session, 'rs-1', 'linked-token');
+    session.commitPending('rs-1');
+
+    jest.advanceTimersByTime(60_001);
+    session.discardPending('rs-1');
+
+    expect(await session.getAccessToken('opensearch')).toBe('linked-token');
+    jest.useRealTimers();
+  });
+
+  test('the undo is applied once', async () => {
+    const session = load();
+    park(session, 'rs-1', 'linked-token');
+    session.commitPending('rs-1');
+    session.discardPending('rs-1');
+    remembered(session, { app: 'opensearch', accessToken: 'fresh-token' });
+
+    session.discardPending('rs-1');
+
+    expect(await session.getAccessToken('opensearch')).toBe('fresh-token');
+  });
+});

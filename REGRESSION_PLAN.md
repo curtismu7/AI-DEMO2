@@ -263,6 +263,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 **Verify:** `cd demo_api_server && CI=true npx jest tests/pingOneSessionUser.test.js src/__tests__/hitlPingOneMfa.integration.test.js --forceExit`.
 
+### 2026-10-01 — Privilege link: a commit whose answer was lost left the app holding a sign-in the client was told had failed
+
+**Files:** `demo_api_server/services/privilegeGatewaySession.js`, test `tests/services/privilegeGatewaySession.test.js`.
+
+**What was broken:** The broker's `/oauth/resume` posts to `/internal/privilege-link/commit` with a 3s timeout. If the BFF applied the commit but the response was lost or late, the broker denied the sign-in and sent a discard, which could not undo the commit: the park was already consumed. The app's shared gateway session was replaced while the MCP client was told sign-in failed.
+
+**What changed:** `commitPending` keeps a 60-second undo record per resume id (what it installed and what it replaced). A `discardPending` for a committed id restores the earlier session, or removes the session when there was none. No change to the broker or to the commit route's responses.
+
+**Do not break:** The undo applies only while the app still holds exactly the token that commit installed; a sign-in made since must not be removed. It applies once, and only inside the window. A successful link is never discarded by the broker, so the success path is unaffected.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/services/privilegeGatewaySession.test.js tests/routes/privilegeLinkCommit.test.js --forceExit`.
+
 ### 2026-10-01 — In-app MFA had no PingOne user for a PingFederate session
 
 **Files:** `demo_api_server/routes/mfa.js`.
