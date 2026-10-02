@@ -156,6 +156,16 @@ describe('register', () => {
     expect(pingOneClientService.deleteApplication).not.toHaveBeenCalled();
   });
 
+  test('the PingOne application name and description use only characters PingOne accepts', async () => {
+    await delegatedCommerceService.register({ name: 'A&F Shopper [beta]; v=2', creatorUserId: 'admin-1' });
+
+    const sent = pingOneClientService.createApplication.mock.calls[0][0];
+    const allowed = /^[\p{L}\p{M}\p{N} /.'_-]+$/u;
+    expect(sent.client_name).toMatch(allowed);
+    expect(sent.client_description).toMatch(allowed);
+    expect(sent.client_name).toMatch(/^A F Shopper beta v 2 [0-9a-f]{8}$/);
+  });
+
   test('under PingOne with no PingFederate configured, PingFederate is never called', async () => {
     delete process.env.PINGFEDERATE_ADMIN_API_BASE;
 

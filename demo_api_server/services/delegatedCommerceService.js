@@ -17,6 +17,14 @@ const pfExchange = require('./pfStandardTokenExchangeService');
 const REGISTRATION_TTL_MS = 60 * 60 * 1000;
 const DEMO_MARKER = 'A&F delegated-commerce demo';
 
+// PingOne rejects an application whose name or description holds anything but
+// letters, marks, numbers, spaces and / . ' _ - (400 "Validation Error",
+// measured 2026-10-02). The old "Name [abcd1234]" and "A&F ...; registration=..."
+// both failed it, so every registration did.
+function pingOneText(value) {
+  return String(value).replace(/[^\p{L}\p{M}\p{N} /.'_-]+/gu, ' ').replace(/\s+/g, ' ').trim();
+}
+
 function claimCodeHash(code) {
   return crypto.createHash('sha256').update(String(code).trim().toUpperCase()).digest('hex');
 }
@@ -56,7 +64,7 @@ async function register({ name, creatorUserId }) {
 
   const registrationId = crypto.randomUUID();
   const claimCode = createClaimCode();
-  const displayName = `${String(name || 'A&F Personal Shopping Agent').trim()} [${registrationId.slice(0, 8)}]`;
+  const displayName = pingOneText(`${name || 'A and F Personal Shopping Agent'} ${registrationId.slice(0, 8)}`);
   // Under a PingFederate sign-in the agent acts through a PingFederate client, so
   // without one the registration would be unusable: it is required there. Under
   // PingOne it is created when PingFederate's Admin API is configured, so the
@@ -68,7 +76,7 @@ async function register({ name, creatorUserId }) {
   try {
     app = await pingOneClientService.createApplication({
       client_name: displayName,
-      client_description: `${DEMO_MARKER}; registration=${registrationId}; expires=${new Date(Date.now() + REGISTRATION_TTL_MS).toISOString()}`,
+      client_description: pingOneText(`${DEMO_MARKER} registration ${registrationId} expires ${new Date(Date.now() + REGISTRATION_TTL_MS).toISOString()}`),
       application_type: 'web',
       grant_types: ['client_credentials', 'urn:ietf:params:oauth:grant-type:token-exchange'],
       response_types: [],

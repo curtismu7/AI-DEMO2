@@ -23,7 +23,12 @@ const TIMEOUT_MS = 15_000;
 
 function settings() {
   const base = String(process.env.PINGFEDERATE_ADMIN_API_BASE || '').replace(/\/$/, '');
-  const password = process.env.PINGFEDERATE_ADMIN_PASSWORD || configStore.getEffective('PF_ADMIN_CONSOLE_PASSWORD') || '';
+  // Same two reads as demoReadinessRunner's inProcessSettings: the vault loader
+  // caches an entry under its own name, which get() finds.
+  const password = process.env.PINGFEDERATE_ADMIN_PASSWORD
+    || configStore.getEffective('PF_ADMIN_CONSOLE_PASSWORD')
+    || configStore.get?.('PF_ADMIN_CONSOLE_PASSWORD')
+    || '';
   return {
     base,
     password,
