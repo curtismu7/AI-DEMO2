@@ -249,6 +249,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-02 — PingGateway forwarded every tool with the whole configured scope list
+
+**Files:** `ping-gateway/scripts/groovy/olb-token-exchange.groovy`, `demo_api_server/services/demoReadinessCatalog.js`, `services/demoReadinessExecutionService.js`, tests `tests/demoReadinessCaseAdapter.test.js`, `src/__tests__/olbTokenExchangeProviderRouting.test.js`.
+
+**What was broken:** Exchange #3 always requested `PG_OLB_SCOPE` (`read write code:search`), so a read-only tool reached the MCP server with a token that also carried `write`. Readiness reported the scopes but did not check them.
+
+**What changed:** The gateway requests only the configured scopes the called tool requires (`scope-topology.json` `tools[name].requiredScopes`). Readiness fails a permitted call whose backend token does not carry exactly the tool's scopes.
+
+**Do not break:** The narrowing only ever picks a subset of the configured list — never add a scope the operator did not configure. When no configured scope matches the tool (or the body or topology cannot be read) the whole configured list is kept; do not turn that into an omitted `scope` — what PingOne issues then has not been measured. `resource=` targeting and the PingFederate branch are unchanged.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/demoReadinessCaseAdapter.test.js src/__tests__/olbTokenExchangeProviderRouting.test.js --forceExit`; live: a readiness run prints `gateway to MCP server  scopes read => read`.
+
 ### 2026-10-02 — PingFederate token chain: a broken actor chain or a wrong issuer passed validation
 
 **Files:** `demo_api_server/services/pfStandardTokenExchangeService.js`, `services/agentMcpTokenService.js`, `services/pingOneAdminAccessService.js`, `services/startupConfigGuard.js`, tests `src/__tests__/pfStandardTokenExchangeService.test.js`, `src/__tests__/agentMcpTokenService.test.js`, `tests/startupConfigGuard.pfContract.test.js` (new).

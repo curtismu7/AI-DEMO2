@@ -276,6 +276,21 @@ def exClientSecret = isPfSubject ? pfTeClientSecret : teClientSecret
 // narrower provider-specific scope list only for PF-issued subjects. The
 // PG_OLB_SCOPE setting is PingOne-specific; PG_OLB_SCOPE_PF configures PF.
 def requestedOlbScope = isPfSubject ? pfOlbScope : olbScope
+// Least privilege: of the configured scopes, ask only for the ones this tool
+// requires (scope-topology.json), so a read tool is not forwarded with `write`.
+// ponytail: a tool none of whose scopes is configured here (accounts:read,
+// airlines:*, ...) keeps the whole configured list, as before — granting those
+// scopes to the exchanger in PingOne is the upgrade path. FAIL-SAFE: any
+// problem reading the body or topology leaves the configured list untouched.
+try {
+    def rpc = new JsonSlurper().parseText(request.entity.string ?: '{}')
+    def topologyFile = new File('/var/gateway/config/scope-topology.json')
+    if (rpc?.method == 'tools/call' && rpc?.params?.name instanceof String && topologyFile.exists()) {
+        def toolScopes = new JsonSlurper().parse(topologyFile).tools?.get(rpc.params.name)?.requiredScopes ?: []
+        def narrowed = requestedOlbScope.trim().split(/\s+/).findAll { it && toolScopes.contains(it) }
+        if (narrowed) requestedOlbScope = narrowed.join(' ')
+    }
+} catch (Exception ignored) {}
 // PF's standard exchange policy requires an MCP-service actor. Mint it with
 // the same dedicated client-credentials profile used by the BFF PF exchange
 // service; never substitute the user subject or the exchanger client itself.
