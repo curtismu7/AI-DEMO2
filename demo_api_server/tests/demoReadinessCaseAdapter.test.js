@@ -46,11 +46,20 @@ test('a standard two-exchange PERMIT satisfies the runner contract, including af
 
 test('the report lists expected against observed audience and scopes for each hop', () => {
   const { evidence } = evidenceFromAgentInvoke({ response: invokeResponse(), provider: PROVIDER, expectedIssuer: ISSUER, authorization });
-  expect(audienceScopeSummary({ evidence, authorization })).toEqual([
+  expect(audienceScopeSummary({ evidence, authorization, expected: 'PERMIT' })).toEqual([
     expect.objectContaining({ hop: 'tool scope', expectedScopes: authorization.requiredScopes, observedScopes: ['read'], observedAudiences: ['enduser.ping.demo'] }),
     { hop: 'gateway token', expectedAudiences: ['https://api.ping.demo:3036/mcp'], expectedScopes: ['gateway:mcp:invoke'], observedAudiences: ['https://api.ping.demo:3036/mcp'], observedScopes: ['gateway:mcp:invoke'] },
     { hop: 'gateway to MCP server', expectedAudiences: ['mcpserver.ping.demo'], expectedScopes: null, observedAudiences: ['mcpserver.ping.demo'], observedScopes: ['read'] },
   ]);
+});
+
+test('the report shows no gateway-to-server hop for a call that was never forwarded', () => {
+  const denied = evidenceFromAgentInvoke({ response: invokeResponse({ decision: 'DENY', error: 'gateway policy denied' }), provider: PROVIDER, expectedIssuer: ISSUER, authorization });
+  expect(audienceScopeSummary({ evidence: denied.evidence, authorization, expected: 'DENY' }).map((hop) => hop.hop)).toEqual(['tool scope', 'gateway token']);
+  // A permitted call with no reported exchange still lists the hop, so the gap is visible.
+  const permitted = evidenceFromAgentInvoke({ response: invokeResponse(), provider: PROVIDER, expectedIssuer: ISSUER, authorization });
+  delete permitted.evidence.backendHop;
+  expect(audienceScopeSummary({ evidence: permitted.evidence, authorization, expected: 'PERMIT' }).map((hop) => hop.hop)).toContain('gateway to MCP server');
 });
 
 test('a DENY is reported from the gateway and Authorize decisions', () => {
