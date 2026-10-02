@@ -62,7 +62,7 @@ function adminPassword() {
     name: 'AI Demo PingOne MFA',
     pluginDescriptorRef: { id: DESCRIPTOR },
     configuration: { tables: [], fields: Object.entries(values).map(([name, value]) => ({ name, value: String(value) })) },
-    attributeContract: { coreAttributes: [{ name: 'username' }], extendedAttributes: [] },
+    attributeContract: { coreAttributes: [{ name: 'username', pseudonym: true }], extendedAttributes: [] },
   };
   console.log(`Would create adapter ${ADAPTER_ID} on connection "${CONN_NAME}" (env ${env.id}). Fields:`);
   for (const f of body.configuration.fields) console.log(`  ${f.name} = ${f.value}`);
