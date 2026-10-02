@@ -80,6 +80,42 @@ function collectMountGates(app) {
     return gates;
 }
 
+/**
+ * Route-level middleware names per operation, keyed "METHOD /path".
+ *
+ * express-list-endpoints keeps one middleware list per PATH — the first route
+ * registered for it — so `GET /x` with a guard marked every verb on `/x`, and a
+ * guard on a later verb was not seen at all. Walk the same stack per route
+ * instead. Each route's path still comes from express-list-endpoints (run over
+ * a one-route copy of its mount chain), so keys match its output exactly.
+ */
+const NESTED_LAYERS = ['router', 'bound dispatch', 'mounted_app'];
+function collectRouteGuards(app) {
+    const guards = new Map();
+    const walk = (stack, wrap) => {
+        for (const layer of stack || []) {
+            if (layer.route) {
+                for (const { path } of listEndpoints(wrap({ stack: [{ route: layer.route }] }))) {
+                    for (const method of Object.keys(layer.route.methods)) {
+                        const key = `${method.toUpperCase()} ${path}`;
+                        // Express dispatches to the first match; a later duplicate never runs first.
+                        if (guards.has(key)) continue;
+                        guards.set(key, layer.route.stack
+                            .filter((l) => !l.method || l.method === method)
+                            .map((l) => l.handle.name));
+                    }
+                }
+            } else if (NESTED_LAYERS.includes(layer.name)) {
+                const { regexp, keys, path } = layer;
+                walk(layer.handle.stack || layer.handle._router?.stack,
+                    (handle) => wrap({ stack: [{ name: 'router', regexp, keys, path, handle }] }));
+            }
+        }
+    };
+    walk(app?._router?.stack, (x) => x);
+    return guards;
+}
+
 /** `/api/accounts/:id` -> `/api/accounts/{id}` */
 function toOpenApiPath(expressPath) {
     return expressPath.replace(/:([A-Za-z0-9_]+)\??/g, '{$1}');
@@ -102,9 +138,9 @@ function tagFor(openApiPath) {
     return tag.startsWith('{') ? 'root' : tag;
 }
 
-function securityFor(endpoint, gates, openApiPath) {
+function securityFor(endpoint, gates, middlewares) {
     const kinds = new Set();
-    for (const name of endpoint.middlewares || []) {
+    for (const name of middlewares || []) {
         if (AUTH_MIDDLEWARE[name]) kinds.add(AUTH_MIDDLEWARE[name]);
     }
     for (const gate of gates) {
@@ -138,6 +174,7 @@ function isPlainObject(value) {
 function buildSpec(app, options = {}) {
     const overlay = options.overlay || {};
     const gates = collectMountGates(app);
+    const guards = collectRouteGuards(app);
     const paths = {};
     // Express supports wildcards and raw regexp mounts; OpenAPI has no way to
     // express them. Skipping is right, but silently skipping would read as
@@ -161,13 +198,13 @@ function buildSpec(app, options = {}) {
         }
         const openApiPath = toOpenApiPath(endpoint.path);
         const parameters = pathParameters(openApiPath);
-        const security = securityFor(endpoint, gates, openApiPath);
         const tag = tagFor(openApiPath);
 
         paths[openApiPath] = paths[openApiPath] || {};
         for (const method of endpoint.methods) {
             const verb = method.toLowerCase();
             if (verb === 'head') continue; // Express registers HEAD alongside GET
+            const security = securityFor(endpoint, gates, guards.get(`${method} ${endpoint.path}`));
             const operation = {
                 tags: [tag],
                 summary: `${method} ${openApiPath}`,
