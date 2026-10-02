@@ -411,6 +411,27 @@ describe('a2aDelegationService.probeGeneralistMismatch', () => {
     expect(tokenEvents[0].decision).toBe('DENY');
   });
 
+  it('sends the PingOne sub from the session token, not the local session id', async () => {
+    const fakeAxios = { post: jest.fn().mockResolvedValue({ data: { decision: 'DENY', reason: 'invalid_a2a_generalist' } }) };
+    const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
+    const jwt = `${b64({ alg: 'none' })}.${b64({ sub: 'p1-uuid-1583' })}.sig`;
+    await a2a.probeGeneralistMismatch(
+      { session: { user: { id: '5' } } },
+      {
+        vertical: 'investment',
+        tool: 'get_portfolio_summary',
+        tokenEvents: [],
+        deps: {
+          axios: fakeAxios,
+          configStore: makeConfig(),
+          scopeTopology: makeScopeTopology(),
+          getSessionBearerForMcp: () => jwt,
+        },
+      },
+    );
+    expect(fakeAxios.post.mock.calls[0][1].parameters.ClientId).toBe('p1-uuid-1583');
+  });
+
   it('returns an error when no specialist is configured for the vertical', async () => {
     const result = await a2a.probeGeneralistMismatch(
       { session: { user: { id: 'user-1' } } },

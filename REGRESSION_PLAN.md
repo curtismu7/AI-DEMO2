@@ -285,6 +285,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 **Verify:** `node --test snapshots/authorizeSnapshotRequestContract.test.js`; `bash ping-gateway/scripts/check-groovy-params.sh`.
 
+### 2026-10-02 — UC2.6's mismatch probe was denied for the wrong reason (`unknown_sub`)
+
+**Files:** `demo_api_server/services/a2aDelegationService.js` (`probeGeneralistMismatch`), test `src/__tests__/a2aDelegationService.test.js`.
+
+**What was broken:** The probe sent `ClientId = req.session.user.id` (the local id, e.g. `5`). The decision endpoint resolves `ClientId` as a PingOne user before it reaches the A2A generalist rule, so it DENIED `unknown_sub` and the actor check never ran — the demo showed a denial that did not prove what it claims.
+
+**What changed:** The probe sends the PingOne `sub` decoded from the session bearer (the same token the real delegation leg uses), falling back to the old value only when no token is present.
+
+**Do not break:** The probe's actor stays the fabricated, unregistered `unregistered-simulated-agent`; never register it. The probe must send the same user identity the real leg did, or Rule 0 swallows the generalist check again.
+
+**Verify:** `cd demo_api_server && CI=true npx jest src/__tests__/a2aDelegationService.test.js tests/agentTool.a2aGeneralistMismatch.test.js --forceExit`; live, the authz log for UC2.6's probe says `invalid_a2a_generalist`, not `unknown_sub`.
+
 ### 2026-10-02 — Running a demo step blanked the popped-out agent
 
 **Files:** `demo_api_ui/src/components/AIAgent.js`,
