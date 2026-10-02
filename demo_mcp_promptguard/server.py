@@ -16,7 +16,7 @@ import os
 import http.server
 import threading
 
-from detectors import DetectorManager, DetectorUnavailable
+from detectors import DEFAULT_RAILS, DetectorManager, DetectorUnavailable
 
 # Tunable at deploy time — the model, its benign label(s) and the block point all
 # vary by classifier, so none of them is hardcoded. Default is ProtectAI's public
@@ -32,7 +32,7 @@ BENIGN_LABELS = {
 }
 PORT = int(os.environ.get("PORT", "8086"))
 
-_CATEGORY = {"jailbreak": "jailbreak", "injection": "prompt_injection"}
+_CATEGORY = {"jailbreak": "jailbreak", "injection": "prompt_injection", "pii": "pii"}
 
 
 def category_for(label):
@@ -50,9 +50,13 @@ MAX_CONFIG_BYTES = 4096
 
 def validate_config(value):
     """Validate the exact control schema before changing any shared state."""
-    if not isinstance(value, dict) or set(value) != {"engine", "demo"}:
-        raise ValueError("Config must contain exactly engine and demo")
+    if not isinstance(value, dict) or not {"engine", "demo"} <= set(value) <= {"engine", "demo", "rails"}:
+        raise ValueError("Config must contain engine and demo, and optionally rails")
     engine, demo = value["engine"], value["demo"]
+    rails = value.get("rails")
+    if rails is not None and (not isinstance(rails, dict) or set(rails) != set(DEFAULT_RAILS)
+                              or not all(isinstance(on, bool) for on in rails.values())):
+        raise ValueError("Rails must set each of " + ", ".join(DEFAULT_RAILS) + " to a boolean")
     if engine not in ("classifier", "nemo"):
         raise ValueError("Unknown detector engine")
     if not isinstance(demo, dict) or set(demo) != {"enabled", "triggerPhrase", "outcome"}:
@@ -68,10 +72,11 @@ def validate_config(value):
     if demo["outcome"] not in ("allow", "block"):
         raise ValueError("Unknown demo outcome")
     return {"engine": engine, "demo": {"enabled": demo["enabled"],
-            "triggerPhrase": phrase, "outcome": demo["outcome"]}}
+            "triggerPhrase": phrase, "outcome": demo["outcome"]},
+            "rails": dict(rails) if rails is not None else None}
 
 
-def to_findings(units, manager, demo=None):
+def to_findings(units, manager, demo=None, rails=None):
     """Map normalized detector verdicts (or a scoped demo override) to findings."""
     demo = demo or {"enabled": False}
     findings = []
@@ -89,9 +94,12 @@ def to_findings(units, manager, demo=None):
             result = {"blocked": True, "label": "INJECTION", "score": 1.0}
             message = "Prompt-Guard demo override: block"
         else:
-            result = manager.check(text)
+            result = (manager.check(text) if rails is None else
+                      manager.check(text, direction=unit.get("direction"), rails=rails))
             label, score = result["label"], result["score"]
             message = f"Prompt-Guard flagged {label}"
+            if result.get("rails"):
+                message += " (rails: " + ", ".join(result["rails"]) + ")"
             if score is not None:
                 message += f" ({score:.2f})"
         if not result["blocked"]:
@@ -108,14 +116,16 @@ def to_findings(units, manager, demo=None):
 
 
 def make_handler(manager):
-    config = {"engine": "classifier", "demo": {"enabled": False, "triggerPhrase": "", "outcome": "block"}}
+    config = {"engine": "classifier", "demo": {"enabled": False, "triggerPhrase": "", "outcome": "block"},
+              "rails": dict(DEFAULT_RAILS)}
     # Serialize entire inspections with engine/config changes, so every unit of
     # an inspection sees one active engine and one complete demo rule.
     lock = threading.RLock()
 
     def snapshot():
-        return {"config": {"engine": manager.active_engine(), "demo": dict(config["demo"])},
-                "engines": manager.engines()}
+        return {"config": {"engine": manager.active_engine(), "demo": dict(config["demo"]),
+                           "rails": dict(config["rails"])},
+                "engines": manager.engines(), "rails": manager.rails()}
 
     class H(http.server.BaseHTTPRequestHandler):
         def log_message(self, *a):
@@ -181,8 +191,11 @@ def make_handler(manager):
             except (ValueError, UnicodeError, RecursionError) as error:
                 return self._send(400, {"error": "invalid_config", "message": str(error)})
             with lock:
+                if new_config["rails"] is None:
+                    new_config["rails"] = dict(config["rails"])
                 try:
                     manager.select_engine(new_config["engine"])
+                    manager.configure_rails(new_config["rails"])
                 except DetectorUnavailable as error:
                     return self._send(409, {"error": "engine_unavailable", "message": str(error)})
                 config = new_config
@@ -209,7 +222,7 @@ def make_handler(manager):
                 req = json.loads(self.rfile.read(n) or b"{}")
                 units = req.get("units") or []
                 with lock:
-                    findings = to_findings(units, manager, config["demo"])
+                    findings = to_findings(units, manager, config["demo"], config["rails"])
                     engine = manager.active_engine()
             except Exception as e:  # gateway's Fail Closed setting decides what a 5xx means
                 print("promptguard: inspect_failed", flush=True)

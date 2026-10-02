@@ -6,6 +6,12 @@ const DEFAULT_CONFIG = {
   engine: 'classifier',
   demo: { enabled: false, triggerPhrase: '', outcome: 'block' },
 };
+const DEFAULT_RAILS = { injection: true, regex_pii: false, presidio_pii: false };
+const RAILS = [
+  { id: 'injection', label: 'Prompt injection (classifier)', directions: ['request', 'response'], available: true, reason: null },
+  { id: 'regex_pii', label: 'PII patterns (regex)', directions: ['request', 'response'], available: true, reason: null },
+  { id: 'presidio_pii', label: 'PII entities (Presidio)', directions: ['request', 'response'], available: false, reason: 'Presidio is not installed' },
+];
 const SAVED_CONFIG = {
   engine: 'nemo',
   demo: { enabled: true, triggerPhrase: 'DEMO_TRIGGER', outcome: 'allow' },
@@ -167,13 +173,13 @@ it('applies the exact NeMo config with omitted credentials and refreshes active 
   expect(fetchMock).toHaveBeenCalledWith('http://localhost:8086/demo/config', expect.objectContaining({
     method: 'PUT', mode: 'cors', credentials: 'omit',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ engine: 'nemo', demo: { enabled: true, triggerPhrase: 'DEMO_TRIGGER', outcome: 'block' } }),
+    body: JSON.stringify({ engine: 'nemo', demo: { enabled: true, triggerPhrase: 'DEMO_TRIGGER', outcome: 'block' }, rails: DEFAULT_RAILS }),
   }));
   expect(screen.getByLabelText('Active shared sidecar state')).toHaveTextContent(/NeMo Guardrails.*block.*DEMO_TRIGGER/);
   const putIndex = fetchMock.mock.calls.findIndex(([, options]) => options.method === 'PUT');
   expect(fetchMock.mock.calls[putIndex + 1]).toEqual(['http://localhost:8086/demo/config', expect.objectContaining({ method: 'GET' })]);
   expect(JSON.parse(localStorage.getItem(STORAGE_KEY))).toEqual({
-    engine: 'nemo', demo: { enabled: true, triggerPhrase: 'DEMO_TRIGGER', outcome: 'block' },
+    engine: 'nemo', demo: { enabled: true, triggerPhrase: 'DEMO_TRIGGER', outcome: 'block' }, rails: DEFAULT_RAILS,
   });
   for (const [url, options] of fetchMock.mock.calls) {
     expect(url).toMatch(/^http:\/\/localhost:8086\/(health|demo\/config)$/);
@@ -259,7 +265,7 @@ it('saves the successfully applied normalized config rather than the untrimmed r
   await screen.findByText(/Configuration applied/);
   expect(screen.getByLabelText('Literal trigger phrase')).toHaveValue('DEMO_TRIGGER');
   expect(JSON.parse(localStorage.getItem(STORAGE_KEY))).toEqual({
-    engine: 'classifier', demo: { enabled: true, triggerPhrase: 'DEMO_TRIGGER', outcome: 'block' },
+    engine: 'classifier', demo: { enabled: true, triggerPhrase: 'DEMO_TRIGGER', outcome: 'block' }, rails: DEFAULT_RAILS,
   });
 });
 
@@ -275,4 +281,62 @@ it('reports an unconfirmed Apply when its followup GET fails without replacing t
   expect(screen.getByLabelText('Active shared sidecar state')).toHaveTextContent(/Last observed/);
   expect(screen.getByRole('button', { name: 'Apply' })).toBeDisabled();
   expect(localStorage.getItem(STORAGE_KEY)).toBe(JSON.stringify(DEFAULT_CONFIG));
+});
+
+function mockRailsSidecar() {
+  let active = { ...structuredClone(DEFAULT_CONFIG), rails: { ...DEFAULT_RAILS } };
+  const engines = ENGINES.map((engine) => ({ ...engine, available: true, reason: null }));
+  const fetchMock = vi.fn(async (url, options = {}) => {
+    const path = new URL(url).pathname;
+    if (path === '/health') return response({ ok: true });
+    if (path === '/inspect') {
+      const unit = JSON.parse(options.body).units[0];
+      return { ok: true, status: 200, headers: { get: () => 'nemo' },
+        json: async () => ({ findings: unit.direction === 'response'
+          ? [{ category: 'pii', severity: 'high', messages: ['Prompt-Guard flagged PII (rails: regex_pii)'] }] : [] }) };
+    }
+    if (options.method === 'PUT') active = JSON.parse(options.body);
+    return response({ config: active, engines, rails: RAILS });
+  });
+  vi.stubGlobal('fetch', fetchMock);
+  return fetchMock;
+}
+
+it('lists every rail, disables unavailable ones, and keeps rails off until NeMo is selected', async () => {
+  mockRailsSidecar();
+  await connectedPanel();
+  const injection = screen.getByRole('checkbox', { name: 'Prompt injection (classifier)' });
+  const regex = screen.getByRole('checkbox', { name: 'PII patterns (regex)' });
+  expect(injection).toBeChecked();
+  expect(regex).not.toBeChecked();
+  expect(regex).toBeDisabled();
+  expect(screen.getByText(/Rails run on the NeMo Guardrails detector only/)).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('Detector'), { target: { value: 'nemo' } });
+  expect(regex).toBeEnabled();
+  expect(screen.getByRole('checkbox', { name: 'PII entities (Presidio)' })).toBeDisabled();
+  expect(screen.getByText(/Unavailable: Presidio is not installed/)).toBeInTheDocument();
+});
+
+it('sends the toggled rails on Apply and reports them in the active state', async () => {
+  const fetchMock = mockRailsSidecar();
+  await connectedPanel();
+  fireEvent.change(screen.getByLabelText('Detector'), { target: { value: 'nemo' } });
+  fireEvent.click(screen.getByRole('checkbox', { name: 'PII patterns (regex)' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+  await screen.findByText(/Configuration applied/);
+  const put = fetchMock.mock.calls.find(([, options]) => options?.method === 'PUT');
+  expect(JSON.parse(put[1].body).rails).toEqual({ injection: true, regex_pii: true, presidio_pii: false });
+  expect(screen.getByLabelText('Active shared sidecar state')).toHaveTextContent(/Rails: Prompt injection \(classifier\), PII patterns \(regex\)\./);
+  expect(JSON.parse(localStorage.getItem(STORAGE_KEY)).rails.regex_pii).toBe(true);
+});
+
+it('inspects text as a model reply when the direction is switched to response', async () => {
+  const fetchMock = mockRailsSidecar();
+  await connectedPanel();
+  fireEvent.change(screen.getByLabelText('Text direction'), { target: { value: 'response' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Check prompt' }));
+  expect(await screen.findByText('Flagged')).toBeInTheDocument();
+  expect(screen.getByText(/rails: regex_pii/)).toBeInTheDocument();
+  const inspect = fetchMock.mock.calls.find(([url]) => url.endsWith('/inspect'));
+  expect(JSON.parse(inspect[1].body).units[0]).toMatchObject({ role: 'user_prompt', direction: 'response' });
 });

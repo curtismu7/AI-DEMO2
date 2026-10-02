@@ -3,6 +3,62 @@ import asyncio
 import importlib.util
 import threading
 
+# Rails the NeMo engine can run. Order is the order verdicts are reported in.
+# "injection" is the always-on baseline (the classifier in nemo_config/config.yml);
+# the rest run only when enabled in the control config.
+RAILS = (
+    {"id": "injection", "label": "Prompt injection (classifier)", "directions": ("request", "response")},
+    {"id": "regex_pii", "label": "PII patterns (regex)", "directions": ("request", "response")},
+    {"id": "presidio_pii", "label": "PII entities (Presidio)", "directions": ("request", "response")},
+)
+DEFAULT_RAILS = {"injection": True, "regex_pii": False, "presidio_pii": False}
+_RAIL_LABELS = {"injection": "INJECTION", "regex_pii": "PII", "presidio_pii": "PII"}
+
+_PII_PATTERNS = [
+    r"\b\d{3}-\d{2}-\d{4}\b",                         # US SSN
+    r"\b(?:\d[ -]?){13,16}\b",                          # payment card number
+    r"\b[\w.+-]+@[\w-]+(?:\.[\w-]+)+\b",                # email address
+    r"\b(?:\+?1[ -.]?)?\(?\d{3}\)?[ -.]?\d{3}[ -.]?\d{4}\b",  # US phone number
+]
+_PRESIDIO_ENTITIES = ["US_SSN", "CREDIT_CARD", "EMAIL_ADDRESS", "PHONE_NUMBER", "IBAN_CODE", "US_BANK_NUMBER"]
+
+
+def _presidio_unavailable():
+    if importlib.util.find_spec("presidio_analyzer") is None or importlib.util.find_spec("spacy") is None:
+        return "Presidio is not installed; rebuild the sidecar with PROMPTGUARD_INSTALL_NEMO=1."
+    import spacy
+    if not spacy.util.is_package("en_core_web_lg"):
+        return "The spaCy model en_core_web_lg is not installed in the sidecar image."
+    return None
+
+
+def rail_catalog():
+    """Static rail list with availability; never loads a model."""
+    out = []
+    for rail in RAILS:
+        reason = None
+        if importlib.util.find_spec("nemoguardrails") is None:
+            reason = "NeMo Guardrails is not installed; rebuild with PROMPTGUARD_INSTALL_NEMO=1."
+        elif rail["id"] == "presidio_pii":
+            reason = _presidio_unavailable()
+        out.append({"id": rail["id"], "label": rail["label"], "directions": list(rail["directions"]),
+                    "available": reason is None, "reason": reason})
+    return out
+
+
+def _pii_rail_config(rail_id):
+    if rail_id == "regex_pii":
+        options = {"patterns": _PII_PATTERNS}
+        return {"models": [], "rails": {
+            "config": {"regex_detection": {"input": options, "output": options}},
+            "input": {"flows": ["regex check input"]},
+            "output": {"flows": ["regex check output"]}}}
+    options = {"entities": _PRESIDIO_ENTITIES, "score_threshold": 0.5}
+    return {"models": [], "rails": {
+        "config": {"sensitive_data_detection": {"input": options, "output": options}},
+        "input": {"flows": ["detect sensitive data on input"]},
+        "output": {"flows": ["detect sensitive data on output"]}}}
+
 
 class DetectorUnavailable(Exception):
     """The requested detector could not be activated."""
@@ -17,7 +73,7 @@ class ClassifierDetector:
         self._threshold = threshold
         self._benign_labels = {label.lower() for label in benign_labels}
 
-    def check(self, text):
+    def check(self, text, direction=None, rails=None):
         scores = self._classifier(text)
         if scores and isinstance(scores[0], list):
             scores = scores[0]
@@ -50,7 +106,9 @@ class NeMoDetector:
             "blocked_labels": sorted({label for label in labels if label.lower() not in benign}),
             "parameters": {"top_k": None, "truncation": True},
         }
+        self._RailsConfig, self._IORails = RailsConfig, IORails
         self._rails = IORails(RailsConfig.from_content(config=config))
+        self._extra = {}  # optional rails, built on first enable (Presidio loads a ~500MB model)
         self._internal_error_message = INTERNAL_ERROR_MESSAGE
         self._loop = asyncio.new_event_loop()
         self._thread = threading.Thread(target=self._run_loop, name="promptguard-nemo", daemon=True)
@@ -71,8 +129,8 @@ class NeMoDetector:
     def _run(self, coroutine):
         return asyncio.run_coroutine_threadsafe(coroutine, self._loop).result()
 
-    def check(self, text):
-        result = self._run(self._rails.check_async([{"role": "user", "content": text}]))
+    def _blocked(self, rails, messages):
+        result = self._run(rails.check_async(messages))
         status = getattr(result.status, "value", result.status)
         # 0.24.1 represents failed rail actions as BLOCKED with this content.
         # Propagate a failure so Privilege's failure policy remains authoritative.
@@ -80,15 +138,50 @@ class NeMoDetector:
             raise RuntimeError("NeMo Guardrails classifier check failed")
         if status not in {"blocked", "passed", "modified"}:
             raise RuntimeError("NeMo Guardrails returned an unknown check status")
-        blocked = status == "blocked"
+        return status == "blocked"
+
+    def configure(self, enabled):
+        """Build and warm any enabled optional rail that is not running yet."""
+        for rail in rail_catalog():
+            if enabled.get(rail["id"]) and rail["id"] != "injection" and rail["id"] not in self._extra:
+                if not rail["available"]:
+                    raise DetectorUnavailable(f"{rail['label']}: {rail['reason']}")
+                rails = self._IORails(self._RailsConfig.from_content(config=_pii_rail_config(rail["id"])))
+                try:
+                    self._run(rails.start())
+                    self._blocked(rails, [{"role": "user", "content": "PromptGuard startup check"}])
+                except Exception as error:
+                    raise DetectorUnavailable(f"{rail['label']} failed to start: {error}") from error
+                self._extra[rail["id"]] = rails
+
+    def check(self, text, direction=None, rails=None):
+        selected = {"injection": True} if rails is None else rails
+        fired = []
+        for rail in RAILS:
+            if not selected.get(rail["id"]):
+                continue
+            if rail["id"] == "injection":
+                engine, messages = self._rails, [{"role": "user", "content": text}]
+            else:
+                if rail["id"] not in self._extra:
+                    raise RuntimeError(f"Rail {rail['id']} is enabled but not started")
+                engine = self._extra[rail["id"]]
+                messages = ([{"role": "user", "content": "-"}, {"role": "assistant", "content": text}]
+                            if direction == "response" else [{"role": "user", "content": text}])
+            if self._blocked(engine, messages):
+                fired.append(rail["id"])
         # RailsResult exposes a rail verdict rather than classifier probabilities.
-        return {"blocked": blocked, "label": "INJECTION" if blocked else None, "score": None}
+        result = {"blocked": bool(fired), "label": _RAIL_LABELS[fired[0]] if fired else None, "score": None}
+        if rails is not None:
+            result["rails"] = fired
+        return result
 
     def close(self):
         if self._loop.is_closed():
             return
         try:
-            self._run(self._rails.stop())
+            for engine in [self._rails, *self._extra.values()]:
+                self._run(engine.stop())
         finally:
             async def finish():
                 await self._loop.shutdown_asyncgens()
@@ -170,8 +263,18 @@ class DetectorManager:
                 raise DetectorUnavailable(reason) from error
             self._active = engine
 
-    def check(self, text):
+    def check(self, text, **options):
         with self._lock:
             if self._detector is None:
                 raise DetectorUnavailable(self._reasons[self._active] or "No detector runtime is available")
-            return self._detector.check(text)
+            return self._detector.check(text, **options)
+
+    def rails(self):
+        return rail_catalog()
+
+    def configure_rails(self, enabled):
+        """Start the enabled optional rails; only the NeMo engine has any."""
+        with self._lock:
+            configure = getattr(self._detector, "configure", None)
+            if configure:
+                configure(enabled)

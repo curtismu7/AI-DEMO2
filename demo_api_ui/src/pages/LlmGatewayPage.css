@@ -1138,9 +1138,36 @@
   color: var(--th-text);
 }
 
+.lgw-sidecar__rails {
+  margin: 0.75rem 0 0;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-sm);
+  color: var(--th-text);
+}
+
+.lgw-sidecar__rails legend {
+  padding: 0 0.3rem;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--th-text);
+}
+
+.lgw-sidecar__rail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem 0.75rem;
+  min-height: 2rem;
+}
+
+.lgw-sidecar__rail .lgw-sidecar__note {
+  margin: 0;
+}
+
 .lgw-sidecar__inspection-form {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(10rem, auto) auto;
   gap: 0.75rem;
   align-items: end;
   margin-top: 0.7rem;

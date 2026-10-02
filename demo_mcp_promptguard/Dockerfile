@@ -12,7 +12,8 @@ ARG PROMPTGUARD_INSTALL_NEMO=0
 COPY requirements-nemo.txt ./
 RUN if [ "$PROMPTGUARD_INSTALL_NEMO" = "1" ]; then \
       pip install --no-cache-dir -r requirements-nemo.txt && \
-      python -c "import nemoguardrails"; \
+      pip install --no-cache-dir https://github.com/explosion/spacy-models/releases/download/en_core_web_lg-3.8.0/en_core_web_lg-3.8.0-py3-none-any.whl && \
+      python -c "import nemoguardrails, presidio_analyzer, spacy; spacy.load('en_core_web_lg')"; \
     fi
 
 # Bake the weights into the image so the pod starts offline and fast. The default
