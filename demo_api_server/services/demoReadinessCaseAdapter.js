@@ -115,6 +115,9 @@ function evidenceFromAgentInvoke({ response, provider, expectedIssuer, authoriza
       ? 'actor-bound-standard-two-exchange'
       : 'standard-access-token';
     evidence.subjectTokenType = 'access_token';
+    // The agent that presented the actor token on a workload run. The runner
+    // requires it in the actor chain: a run recorded under another agent fails.
+    if (evidence.exchangePath === 'actor-bound-standard-two-exchange') evidence.workloadAgentClientId = agentActor?.claims?.client_id || null;
   }
   // The resource server is defined by which server owns the tool. It is only
   // claimed when the tool that actually ran is the one the contract names.

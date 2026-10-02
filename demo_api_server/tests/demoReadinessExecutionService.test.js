@@ -642,7 +642,7 @@ describe('demo readiness execution service', () => {
     const service = createReadinessExecutionService({ createWorker: createTrustedWorkerFactory(async () => worker({
       async executeReadinessCase() {
         const result = await worker().executeReadinessCase();
-        return { observed: 'DENY', evidence: { ...result.evidence, actorChain: ['user-1', 'agent-1'], exchangePath: 'actor-bound-standard-two-exchange', exchangeHops: [{ subject: 'user-1', actorChain: ['user-1', 'agent-1'] }, { subject: 'user-1', actorChain: ['user-1', 'agent-1'] }] } };
+        return { observed: 'DENY', evidence: { ...result.evidence, actorChain: ['user-1', 'agent-1'], workloadAgentClientId: 'agent-1', exchangePath: 'actor-bound-standard-two-exchange', exchangeHops: [{ subject: 'user-1', actorChain: ['user-1', 'agent-1'] }, { subject: 'user-1', actorChain: ['user-1', 'agent-1'] }] } };
       },
     })) });
     const context = await service.createWorkerContext({ targetId: 'local', provider: 'pingone', identityRef: 'mocked-p1' });

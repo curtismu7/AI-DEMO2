@@ -338,6 +338,7 @@ function evidenceFailures({ evidence, provider, authorization, expected, caseRow
   if (caseRow.id === 'UC38' || caseRow.id === 'UC44') {
     const hops = evidence.exchangeHops || [];
     require(hops.length === 2 && hops.every((hop) => hop?.subject === evidence.subject && orderedValues(hop?.actorChain, evidence.actorChain)), 'actor-bound exchanges must retain the same subject and ordered actor chain at every hop');
+    require(Boolean(evidence.workloadAgentClientId) && evidence.actorChain.includes(evidence.workloadAgentClientId), 'actor chain must name the workload agent that presented the actor token');
   }
   if (authorization?.primaryTool) {
     require(evidence.selectedTool === authorization.primaryTool, 'selected tool does not match catalog contract');
