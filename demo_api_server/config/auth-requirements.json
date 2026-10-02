@@ -211,6 +211,7 @@
     "/iga-for-ai": "public",
     "/intent-binding-learning": "public",
     "/invest-dual-auth": "public",
+    "/jev-learning": "public",
     "/langchain": "public",
     "/learning": "public",
     "/learning-lab/:lab": "public",

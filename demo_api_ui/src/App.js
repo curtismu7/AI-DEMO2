@@ -214,6 +214,7 @@ import PublicRoutes, {
   StandaloneDemoLauncherRoute,
   IntentBindingLearningPageRoute,
   A2AProtocolLearningPageRoute,
+  JevLearningPageRoute,
   LiveUseCaseWorkbenchPageRoute,
   MFATestPageRoute,
   OASDemoPageRoute,
@@ -841,6 +842,10 @@ function AppWithAuth() {
                   element={
                     <IntentBindingLearningPageRoute user={user} logout={logout} />
                   }
+                />
+                <Route
+                  path="/jev-learning"
+                  element={<JevLearningPageRoute user={user} logout={logout} />}
                 />
                 {/* Public: the concept, the Agent Card and the no-bearer probe
                     all render signed out. The delegation run inside is

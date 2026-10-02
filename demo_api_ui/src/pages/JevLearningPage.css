@@ -1,0 +1,60 @@
+/* demo_api_ui/src/pages/JevLearningPage.css
+ *
+ * --th-* tokens only (they flip under :root[data-theme="dark"]); no dark block,
+ * no prefers-color-scheme. Font sizes come from the --font-size-* scale.
+ */
+
+.jev-page { max-width: 1040px; margin: 0 auto; padding: 24px; color: var(--th-text); }
+.jev-h1 { font-size: var(--font-size-h1); margin: 0 0 8px; color: var(--th-text); }
+.jev-sub { margin: 0 0 16px; max-width: 70ch; color: var(--th-text-body); }
+.jev-card {
+  margin: 0 0 20px; padding: 20px;
+  background: var(--th-bg-card); border: 1px solid var(--th-border); border-radius: var(--radius-md);
+}
+.jev-h2 { font-size: var(--font-size-h3); margin: 0 0 6px; color: var(--th-text); }
+.jev-h3 { font-size: var(--font-size-body); margin: 0 0 6px; color: var(--th-text); display: flex; gap: 8px; align-items: center; }
+.jev-lead { margin: 0 0 14px; max-width: 78ch; color: var(--th-text-muted); }
+.jev-meta { margin: 6px 0 0; color: var(--th-text-muted); font-size: var(--font-size-sm); }
+.jev-big { margin: 0; font-size: var(--font-size-body); font-weight: 600; color: var(--th-text); }
+
+.jev-tabs, .jev-examples { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
+.jev-tab, .jev-chip {
+  padding: 6px 12px; border-radius: var(--radius-md); cursor: pointer;
+  border: 1px solid var(--th-border-strong); background: var(--th-bg-inset); color: var(--th-text);
+  font-size: var(--font-size-sm);
+}
+.jev-tab--on { border-color: var(--th-text); font-weight: 600; }
+.jev-chip { text-align: left; }
+.jev-chip:hover, .jev-tab:hover { background: var(--th-bg-hover); color: var(--th-text); }
+
+.jev-input {
+  width: 100%; min-height: 72px; padding: 10px; margin: 0 0 10px; box-sizing: border-box;
+  border: 1px solid var(--th-border-strong); border-radius: var(--radius-md);
+  background: var(--th-bg-inset); color: var(--th-text); font-size: var(--font-size-body);
+}
+.jev-run {
+  padding: 8px 18px; border-radius: var(--radius-md); cursor: pointer; font-weight: 600;
+  border: 1px solid var(--th-border-strong); background: var(--th-bg-inset); color: var(--th-text);
+}
+.jev-run:disabled { cursor: not-allowed; opacity: 0.6; }
+
+.jev-error { margin: 10px 0 0; color: var(--th-status-error-text); }
+
+.jev-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 16px; }
+.jev-col { padding: 14px; background: var(--th-bg-inset); border: 1px solid var(--th-border); border-radius: var(--radius-md); }
+
+.jev-badge { padding: 2px 8px; border-radius: 999px; font-size: var(--font-size-2xs); font-weight: 600; }
+.jev-badge--live { background: var(--th-status-success-bg); color: var(--th-status-success-text); }
+.jev-badge--sim { background: var(--th-status-warning-bg); color: var(--th-status-warning-text); }
+
+.jev-slider { display: block; margin: 0 0 10px; color: var(--th-text-body); }
+.jev-slider input { display: block; width: 100%; max-width: 420px; }
+
+.jev-outcomes { list-style: none; padding: 0; margin: 12px 0; display: grid; gap: 8px; }
+.jev-outcome { padding: 10px 12px; border: 1px solid var(--th-border); border-radius: var(--radius-md); color: var(--th-text-muted); }
+.jev-outcome--on { color: var(--th-text); border-color: var(--th-text); background: var(--th-bg-inset); }
+
+.jev-table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: var(--font-size-sm); }
+.jev-table th, .jev-table td { text-align: left; padding: 8px; border-bottom: 1px solid var(--th-border); color: var(--th-text); }
+.jev-right { color: var(--th-status-success-text); font-weight: 600; }
+.jev-wrong { color: var(--th-status-error-text); font-weight: 600; }
