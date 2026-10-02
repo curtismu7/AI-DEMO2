@@ -370,11 +370,18 @@ kubectl scale deployment/weaviate deployment/embeddings deployment/mcp-code-sear
 
 info "Waiting for rollouts (timeout 3m each)..."
 for dep in jaeger mcp-server mcp-resource-server api-resource-server mcp-weather mcp-brave hitl-service \
-           llm-proxy tier-manager demo-api-server mcp-gateway agent-service langchain-agent \
+           tier-manager demo-api-server mcp-gateway agent-service langchain-agent \
            mastra-agent openai-agent pydantic-agent frontend weaviate embeddings \
            mcp-code-search llamaindex-agent; do
   kubectl rollout status "deployment/$dep" -n "$NS" --timeout=180s
 done
+# llm-proxy reports NotReady (/health 503) until a model tier is loaded — up to
+# ~11 minutes on a cold 20B pull — so a 180s wait here times out on a perfectly
+# healthy rollout, and with `set -e` that aborted the script before everything
+# after it was verified. Warn like k8s/deploy.sh does; post-deploy smoke checks
+# assert it is serving.
+kubectl rollout status "deployment/llm-proxy" -n "$NS" --timeout=180s \
+  || info "WARNING: llm-proxy not ready yet — a model tier may still be loading; check: kubectl logs deploy/llm-proxy -n $NS"
 kubectl rollout status "deployment/llama-tier1" -n "$NS" --timeout=900s \
   || info "WARNING: llama-tier1 not ready yet — model may still be downloading from HuggingFace"
 

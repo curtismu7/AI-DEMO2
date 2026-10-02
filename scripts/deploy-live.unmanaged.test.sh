@@ -42,6 +42,9 @@ grep -q 'is_unmanaged_by_run_docker' <(sed -n "${use_line},\$p" "$SCRIPT" | head
 
 # Behaviour, against the real definitions lifted out of the script.
 eval "$(sed -n '/^UNMANAGED_BY_RUN_DOCKER=/p; /^is_unmanaged_by_run_docker()/p' "$SCRIPT")"
+# The shipped list is empty (llm-proxy became a valid run-docker.sh target), so
+# the guard is exercised with a stand-in for "a service run-docker.sh refuses".
+UNMANAGED_BY_RUN_DOCKER=" unmanaged-svc "
 NOTES=""
 note() { NOTES="${NOTES}$1"$'\n'; }
 
@@ -64,18 +67,27 @@ else
   bad "add_restart returned non-zero for a managed service"
 fi
 
-if add_restart llm-proxy; then
-  bad "add_restart returned 0 for llm-proxy — the caller would schedule it and abort the deploy"
+if add_restart unmanaged-svc; then
+  bad "add_restart returned 0 for an unmanaged service — the caller would schedule it and abort the deploy"
 else
   case " $RESTART_SET " in
-    *" llm-proxy "*) bad "llm-proxy was scheduled anyway — run-docker.sh will exit 1 on it" ;;
-    *) ok "llm-proxy is refused and never scheduled" ;;
+    *" unmanaged-svc "*) bad "an unmanaged service was scheduled anyway — run-docker.sh will exit 1 on it" ;;
+    *) ok "an unmanaged service is refused and never scheduled" ;;
   esac
   case "$NOTES" in
-    *"docker compose up -d llm-proxy"*) ok "the refusal names the direct command to run instead" ;;
+    *"unmanaged-svc needs recreating"*) ok "the refusal tells the operator how to recreate it" ;;
     *) bad "refusal did not tell the operator how to recreate it" ;;
   esac
 fi
+
+# llm-proxy must actually be deployable: scheduled as a build by deploy-live, and
+# accepted as a target by run-docker.sh (it answered "Unknown service" before).
+grep -qE '^[[:space:]]*demo_llm_proxy/\*\)[[:space:]]+add_build llm-proxy' "$SCRIPT" \
+  && ok "demo_llm_proxy/* schedules a llm-proxy build" \
+  || bad "demo_llm_proxy/* no longer schedules a llm-proxy build"
+grep -q '"${want}" == "llm-proxy" \]\] && return 0' "$HERE/../run-docker.sh" \
+  && ok "run-docker.sh accepts llm-proxy as a build/restart target" \
+  || bad "run-docker.sh would answer 'Unknown service: llm-proxy'"
 
 # Idempotence, unchanged by the guard.
 add_restart demo-api-server >/dev/null 2>&1

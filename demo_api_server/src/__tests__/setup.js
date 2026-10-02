@@ -154,6 +154,43 @@ console.log = (...args) => {
   }
 };
 
+// ── One LMDB environment per path per test file ──────────────────────────────
+// The afterEach below calls jest.resetModules(), so every test re-requires
+// services/lmdb/openEnv.js and gets a module-private `_env = null` — a brand-new
+// open() of the same LMDB path, with the previous one never closed. Each open
+// holds reader slots, and the pool is 126 per environment (reproduced: 126
+// unclosed reopen cycles → `MDB_READERS_FULL: Environment maxreaders limit
+// reached`; 400 cycles are fine with a close() between them). The leak is per
+// worker process, so it lands on whichever suite runs when the pool runs out —
+// green in isolation.
+// Hand every open() of an already-open path the same environment instead of a
+// new one (closing per test would break suites holding modules required at file
+// scope), forget it when anyone closes it, and close whatever is left when the
+// file finishes.
+const mockLmdbEnvs = new Map();
+jest.doMock('lmdb', () => {
+  const actual = jest.requireActual('lmdb');
+  return {
+    ...actual,
+    open: (...args) => {
+      const opts = args.find((a) => a && typeof a === 'object' && a.path) || {};
+      const key = `${opts.path}|${opts.readOnly ? 'ro' : 'rw'}`;
+      const cached = mockLmdbEnvs.get(key);
+      if (cached) return cached;
+      const env = actual.open(...args);
+      const close = env.close.bind(env);
+      env.close = (...a) => { mockLmdbEnvs.delete(key); return close(...a); };
+      mockLmdbEnvs.set(key, env);
+      return env;
+    },
+  };
+});
+afterAll(() => {
+  for (const env of [...mockLmdbEnvs.values()]) {
+    try { env.close(); } catch { /* already closed by the suite itself */ }
+  }
+});
+
 // Restore console methods after tests
 afterAll(() => {
   console.error = originalConsoleError;
