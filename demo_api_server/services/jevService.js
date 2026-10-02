@@ -7,7 +7,11 @@
  * page may only pick a scenario and supply the text to judge, so this route can
  * not be used as an open proxy to the paid OpenRouter key.
  *
- * Without OPENROUTER_API_KEY every call returns `mode: 'simulated'` from a
+ * Local alternative: set JEV_ENDPOINT=http://host:port/v1/systemone and
+ * JEV_MODEL=von-1.3.0 for an open-source Von container (no key; same wire shape,
+ * confirmed against a running von-1.3.0).
+ *
+ * Without OPENROUTER_API_KEY or JEV_ENDPOINT every call returns `mode: 'simulated'` from a
  * keyword heuristic — the same heuristic the page shows as the "brittle rules"
  * column, so a simulated Jev result is NOT evidence about Jev. The page labels it.
  *
@@ -94,8 +98,10 @@ function normalizeAnswer(raw) {
   throw new Error(`Unexpected Jev answer type: ${raw && raw.type}`);
 }
 
+// Live when there is an OpenRouter key, or when JEV_ENDPOINT points at a
+// TypeSafe-compatible server that needs none (e.g. a local Von container).
 function isConfigured() {
-  return Boolean(process.env.OPENROUTER_API_KEY);
+  return Boolean(process.env.OPENROUTER_API_KEY || process.env.JEV_ENDPOINT);
 }
 
 /**
@@ -119,7 +125,10 @@ async function evaluate(scenarioKey, state) {
     { model: MODEL, state: text, questions: { q: scenario.question } },
     {
       timeout: TIMEOUT_MS,
-      headers: { Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`, 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(process.env.OPENROUTER_API_KEY && { Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}` }),
+      },
     }
   );
   return {
