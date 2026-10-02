@@ -273,6 +273,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 **Verify:** `node --test demo_authz_server/`; `cd demo_api_server && CI=true npx jest tests/intentToken.a2aDelegation.regression.test.js tests/demoReadinessCaseAdapter.test.js --forceExit`.
 
+### 2026-10-02 — Delegated commerce under PingFederate: the generic agent acted in the shopper's agent's place
+
+**Files:** `demo_api_server/services/pingFederateClientService.js` (new), `services/delegatedCommerceService.js`, `services/agentMcpTokenService.js`, `routes/delegatedCommerce.js`, tests `tests/delegatedCommercePingFederate.test.js` (new), `tests/delegatedCommerceRoutes.pf.test.js` (new), `src/__tests__/agentMcpTokenService.test.js`.
+
+**What was broken:** A delegated-commerce agent is its own PingOne application so that IT is the actor in the token chain. PingFederate had no client for it, and `_performTwoExchangeDelegation` set `agentRuntime = provider ? null : resolveAgentRuntime(...)`, so under a PingFederate sign-in the built-in agent acted instead and the registration's consent, expiry and revocation were never consulted. Consent itself failed with a 502 (it wrote `mayAct` under the PingFederate username), and cleanup could not clear `mayAct` for the same reason.
+
+**What changed:** Registration also creates a PingFederate client with the agent's own id and secret, cloned from the built-in AI-agent actor client. Under PingFederate the registered agent replaces the built-in actor in the exchange. Consent and revoke write `mayAct` on the PingOne account behind the session and remember that account on the registration, so an admin's cleanup can clear it. PingFederate's user gate already authorizes whichever agent the user granted (2026-10-02 entry above).
+
+**Do not break:** Under PingFederate, never fall back to the built-in actor for a session that has a registration — that is the silent substitution this fixed. A registration without `pfClient` must be refused at consent under PingFederate, before `mayAct` is touched: otherwise the user's working grant is replaced by an agent PingFederate can never issue a token for. Under PingOne a PingFederate outage must not fail registration. `pingFederateClientService` must never rethrow an axios error (it carries the admin credentials) or log a client representation (it carries secret fields). The BFF's PingFederate admin settings are the readiness audit's: `PINGFEDERATE_ADMIN_API_BASE` and the vault entry `PF_ADMIN_CONSOLE_PASSWORD`.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/delegatedCommercePingFederate.test.js tests/delegatedCommerceRoutes.pf.test.js tests/delegatedCommerceRoutes.test.js src/__tests__/agentMcpTokenService.test.js --forceExit`.
+
 ### 2026-10-02 — PingFederate's user gate could only ever authorize one fixed agent
 
 **Files:** `spiffe/pingfederate/pf-pingone-user-gate.json`, `scripts/pingfederate/provision-pf-pingone-user-gate.sh`, `scripts/pingfederate/README.md`, `demo_api_server/tests/pfPingOneUserGate.test.js`.
