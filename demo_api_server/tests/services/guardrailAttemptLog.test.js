@@ -29,4 +29,30 @@ describe('guardrailAttemptLog', () => {
     expect(entries[0].prompt).toBe('p24');
     expect(entries[19].prompt).toBe('p5');
   });
+
+  describe('who sees which attempts', () => {
+    function seeded() {
+      const log = require('../../services/guardrailAttemptLog');
+      log.record({ provider: 'anthropic', prompt: 'anon', verdict: 'PASSED' });
+      log.record({ provider: 'anthropic', prompt: 'mine', verdict: 'PASSED', sub: 'user-1' });
+      log.record({ provider: 'anthropic', prompt: 'theirs', verdict: 'BLOCKED', sub: 'user-2' });
+      return log;
+    }
+
+    test('a sub sees only its own attempts', () => {
+      expect(seeded().list('user-1').map((e) => e.prompt)).toEqual(['mine']);
+    });
+
+    test('no argument (admin) sees every attempt', () => {
+      expect(seeded().list().map((e) => e.prompt)).toEqual(['theirs', 'mine', 'anon']);
+    });
+
+    test('a caller with no resolvable sub sees nothing, not the anonymous attempts', () => {
+      expect(seeded().list(null)).toEqual([]);
+    });
+
+    test('the sub is not echoed back in the entries', () => {
+      expect(seeded().list()[0]).not.toHaveProperty('sub');
+    });
+  });
 });
