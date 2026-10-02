@@ -36,6 +36,7 @@ jest.mock('../../services/pingOneAuthorizeService', () => ({
   provisionDemoDecisionEndpoints: jest.fn(),
   evaluateDecisionEndpoint: jest.fn(),
   setEndpointRecording: jest.fn(),
+  checkPolicyReadiness: jest.fn(),
 }));
 
 const configStore = require('../../services/configStore');
@@ -58,7 +59,7 @@ describe('authorize routes (admin)', () => {
       .get('/api/authorize/simulated-recent-decisions')
       .set('X-Test-User', JSON.stringify({ role: 'user', scopes: ['openid'], id: 'u1' }));
     expect(res.status).toBe(403);
-    expect(res.body.error).toBe('admin_only');
+    expect(res.body).toEqual({ error: 'admin_only', message: 'This endpoint requires admin role.' });
   });
 
   it('GET simulated-recent-decisions returns decisions for admin', async () => {
@@ -99,6 +100,36 @@ describe('authorize routes (admin)', () => {
       .get('/api/authorize/evaluation-status')
       .set('X-Test-User', JSON.stringify({ role: 'user', scopes: ['openid'] }));
     expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: 'admin_only', message: 'This endpoint requires admin role.' });
+  });
+
+  it.each(['policy-readiness', 'decision-endpoints'])('GET %s returns 403 for non-admin', async (path) => {
+    const app = createApp();
+    const res = await request(app)
+      .get(`/api/authorize/${path}`)
+      .set('X-Test-User', JSON.stringify({ role: 'user', scopes: ['openid'] }));
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: 'admin_only', message: 'This endpoint requires admin role.' });
+  });
+
+  it('GET policy-readiness lets an admin past the role gate', async () => {
+    pingOneAuthorizeService.checkPolicyReadiness.mockResolvedValue({ status: 'not_configured' });
+    const app = createApp();
+    const res = await request(app)
+      .get('/api/authorize/policy-readiness')
+      .set('X-Test-User', JSON.stringify({ role: 'admin', scopes: ['openid'] }));
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ status: 'not_configured' });
+  });
+
+  it('GET decision-endpoints lets an admin past the role gate', async () => {
+    pingOneAuthorizeService.isConfigured.mockReturnValue(false);
+    const app = createApp();
+    const res = await request(app)
+      .get('/api/authorize/decision-endpoints')
+      .set('X-Test-User', JSON.stringify({ role: 'admin', scopes: ['openid'] }));
+    expect(res.status).toBe(422);
+    expect(res.body.error).toBe('authorize_not_configured');
   });
 
   describe('POST bootstrap-demo-endpoints', () => {
@@ -120,6 +151,7 @@ describe('authorize routes (admin)', () => {
         .set('X-Test-User', JSON.stringify({ role: 'user', scopes: ['openid'] }))
         .send({});
       expect(res.status).toBe(403);
+      expect(res.body).toEqual({ error: 'admin_only', message: 'This endpoint requires admin role.' });
       expect(pingOneAuthorizeService.provisionDemoDecisionEndpoints).not.toHaveBeenCalled();
     });
 

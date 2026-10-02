@@ -209,6 +209,14 @@ router.get('/:userId/:vertical/summaries', (req, res) => {
   }
 });
 
+// Named (not inline) so lib/openapiFromRoutes.js can see it via AUTH_MIDDLEWARE.
+function requireQueueStatsAdmin(req, res, next) {
+  if (!req.user || req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'forbidden: admin only' });
+  }
+  next();
+}
+
 /**
  * GET /admin/queue-stats
  * Check summarization queue status (admin/monitoring endpoint).
@@ -216,10 +224,7 @@ router.get('/:userId/:vertical/summaries', (req, res) => {
  * Admin-only: this route has no :userId param, so the router.param ownership
  * guard never fires — gate on role explicitly.
  */
-router.get('/admin/queue-stats', (req, res) => {
-  if (!req.user || req.user.role !== 'admin') {
-    return res.status(403).json({ error: 'forbidden: admin only' });
-  }
+router.get('/admin/queue-stats', requireQueueStatsAdmin, (req, res) => {
   try {
     const stats = summarizationQueue.getStats();
     return res.json({ queueStats: stats });

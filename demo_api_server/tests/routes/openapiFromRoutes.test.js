@@ -63,6 +63,45 @@ describe('auth inference', () => {
     expect(spec.paths['/api/accounts'].get.security).toEqual([{ admin: [] }]);
   });
 
+  test.each([
+    ['get', '/api/accounts/{id}'],
+    ['put', '/api/accounts/{id}'],
+    ['delete', '/api/accounts/{id}'],
+    ['post', '/api/accounts'],
+    ['post', '/api/accounts/reset-all-demo'],
+    ['get', '/api/authorize/policy-readiness'],
+    ['get', '/api/authorize/decision-endpoints'],
+    ['get', '/api/authorize/simulated-recent-decisions'],
+    ['get', '/api/authorize/evaluation-status'],
+    ['post', '/api/authorize/bootstrap-demo-endpoints'],
+    ['get', '/api/auth/mfa/ensure-fido2-rp'],
+    ['post', '/api/auth/mfa/ensure-fido2-rp'],
+    ['get', '/api/conversations/admin/queue-stats'],
+    ['get', '/api/transactions'],
+    ['put', '/api/transactions/{id}'],
+    ['delete', '/api/transactions/{id}'],
+  ])('%s %s reports admin now that its inline role check is a named guard', (verb, path) => {
+    // Each was `if (<user>.role !== 'admin') return res.status(403)...` as the
+    // handler's first statement and reported session-only.
+    expect(spec.paths[path][verb].security).toEqual([{ admin: [] }]);
+  });
+
+  test('security is per operation: a guard on one verb does not mark its siblings', () => {
+    // express-list-endpoints keeps ONE middleware list per path (the first
+    // route registered for it). Read at face value, GET /api/transactions'
+    // admin guard documented customer POST as admin-only, and the guards on
+    // PUT/DELETE /api/transactions/{id} were not seen at all behind GET's.
+    expect(spec.paths['/api/transactions'].post.security).toEqual([{ session: [] }]);
+    expect(spec.paths['/api/transactions/{id}'].get.security).toEqual([{ session: [] }]);
+    expect(spec.paths['/api/accounts/{id}/balance'].get.security).toEqual([{ session: [] }]);
+    // The same leak in the other direction, on routes nobody touched: the
+    // collector is any-session by design, the reader beside it is admin.
+    expect(spec.paths['/api/admin/app-events'].get.security).toEqual([{ admin: [] }]);
+    expect(spec.paths['/api/admin/app-events'].post.security).toEqual([{ session: [] }]);
+    expect(spec.paths['/api/users/{userId}'].get.security).toEqual([{ session: [] }]);
+    expect(spec.paths['/api/users/{userId}'].delete.security).toEqual([{ admin: [] }]);
+  });
+
   test('a mount-level requireAdmin gate is reported as admin', () => {
     // /api/admin/mgmt-api is gated ONLY by app.use(..., requireAdmin, ...).
     // Verified by disabling collectMountGates: this goes red with
