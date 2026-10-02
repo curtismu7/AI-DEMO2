@@ -106,8 +106,6 @@ export const NAV_STRUCTURE_CATALOG = [
       "PingOne Test",
       "MFA Test",
       "Token Exchange Tester",
-      "OAuth Academy",
-      "OAS Demo",
       "Privilege Demo",
       "SDK Login",
       "DaVinci Widget",
@@ -250,10 +248,17 @@ export const NAV_STRUCTURE_CATALOG = [
     ],
   },
   {
-    label: "Developer Tools",
+    label: "Exploring",
     children: [
       "Code Explorer",
+      "OAuth Academy",
       "Protected RAG",
+      "OAS Demo",
+    ],
+  },
+  {
+    label: "Developer Tools",
+    children: [
       "Graphify",
       "Mgmt API Runner",
     ],

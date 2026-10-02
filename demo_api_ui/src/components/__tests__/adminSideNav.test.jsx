@@ -155,6 +155,29 @@ describe("AdminSideNav — best-of-breed pass", () => {
     expect(liveLink).toHaveAttribute("href", "/use-cases/live");
   });
 
+  // Board E6: the four exploration pages share one group and keep their routes.
+  it("groups Code Explorer, OAuth Academy, Protected RAG and OAS Demo under Exploring", () => {
+    renderNav();
+    fireEvent.click(screen.getByRole("button", { name: /^Exploring/ }));
+    const routes = {
+      "Code Explorer": "/code-explorer",
+      "OAuth Academy": "/oauth-academy",
+      "Protected RAG": "/code-search",
+      "OAS Demo": "/oas-demo",
+    };
+    for (const [label, href] of Object.entries(routes)) {
+      expect(screen.getByText(label).closest("a")).toHaveAttribute("href", href);
+    }
+    const catalog = Object.fromEntries(
+      NAV_STRUCTURE_CATALOG.map((group) => [group.label, group.children ?? []]),
+    );
+    expect(catalog["Exploring"]).toEqual(Object.keys(routes));
+    for (const label of Object.keys(routes)) {
+      expect(catalog["PingOne Demo Apps"]).not.toContain(label);
+      expect(catalog["Developer Tools"]).not.toContain(label);
+    }
+  });
+
   it("includes Delegated Commerce in the AI Flows customization catalog", () => {
     const flows = NAV_STRUCTURE_CATALOG.find((group) => group.label === "AI Flows");
     expect(flows.children).toContain("Delegated Commerce (guided demo)");

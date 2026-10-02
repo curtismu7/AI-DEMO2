@@ -38,6 +38,7 @@ export const NAV_ITEM_CATALOG = [
   "Diagrams",
   "Agent Studio (Preview)",
   "Learn & Present",
+  "Exploring",
   "Developer Tools",
   "System Tools",
   "Integration Tests",
