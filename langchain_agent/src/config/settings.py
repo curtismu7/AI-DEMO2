@@ -107,8 +107,6 @@ class LangChainConfig:
     verbose: bool = False
     max_iterations: int = 10
     max_execution_time: int = 60  # seconds
-    # WebSocket streaming: MCP tool lifecycle + optional LLM token deltas
-    stream_mcp_tool_events: bool = True
     stream_llm_tokens: bool = True
     agui_enabled: bool = False  # Phase 1: dual-emit AG-UI events alongside WS (default off)
     # LLM provider — "none" (default, heuristic routing only), "helix", "lmstudio", "anthropic-lmstudio", "llamacpp"
@@ -490,7 +488,6 @@ class ConfigManager:
             verbose=get_env_value("LANGCHAIN_VERBOSE", "false").lower() == "true",
             max_iterations=int(get_env_value("LANGCHAIN_MAX_ITERATIONS", "10")),
             max_execution_time=int(get_env_value("LANGCHAIN_MAX_EXECUTION_TIME", "60")),
-            stream_mcp_tool_events=get_env_value("LANGCHAIN_STREAM_MCP_TOOL_EVENTS", "true").lower() == "true",
             stream_llm_tokens=get_env_value("LANGCHAIN_STREAM_LLM_TOKENS", "true").lower() == "true",
             agui_enabled=get_env_value("LANGCHAIN_AGUI_ENABLED", "false").lower() == "true",
             # LLM provider — defaults to "none" (heuristic-only, no LLM required)
