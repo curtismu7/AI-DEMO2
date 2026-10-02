@@ -612,7 +612,7 @@ test('kid: exactly one rule carries the invalid-kid statement, as a conditional 
 // Structure — exactly the intended delta, idempotent, committed
 // ─────────────────────────────────────────────────────────────────────────────
 
-test('structure: the committed snapshot carries all 38 new objects (155 total) and is reconciled', () => {
+test('structure: the committed snapshot carries all 38 new objects (157 total) and is reconciled', () => {
   const committed = readSnapshot();
   // +1 (2026-08-26): the TokenIss ATTRIBUTE for HasValidMcpAudience's
   // external-door exemption — 10 attrs now. No new condition/statement/rule:
@@ -622,9 +622,14 @@ test('structure: the committed snapshot carries all 38 new objects (155 total) a
   // twin of mock Rule 0m in demo_authz_server/routes/decision.js.
   // +1 (2026-09-16, 1a13c1aa2): the AccountId ATTRIBUTE for selected-account
   // context resolution — 11 attrs now. No new condition/statement/rule.
-  assert.strictEqual(committed.length, 155,
+  // +2 (2026-10-02): the Banking Account Context SERVICE and the AccountContext
+  // ATTRIBUTE it resolves. They were made in the PingOne console and existed
+  // only there; copied in from an export, ids and versions unchanged, so the
+  // file is the whole policy. The generator does not own them.
+  assert.strictEqual(committed.length, 157,
     '73 pre-delta + 12 attrs + 9 conds + 9 stmts + 9 rules = 112, plus Agent Intent Governance ' +
-    '(14 attrs + 11 conds + 8 stmts + 8 rules + 1 policy = 42) folded into the root set');
+    '(14 attrs + 11 conds + 8 stmts + 8 rules + 1 policy = 42) folded into the root set, ' +
+    'plus 2 console-made objects (AccountContext attribute and its service)');
   assert.deepStrictEqual(reconcile(clone(committed), loadSot()), committed,
     'committed snapshot is out of date — run: node snapshots/gen-authorize-snapshot.js');
 
