@@ -77,6 +77,8 @@ export default function PiFlowSignInModal() {
     try {
       const qs = new URLSearchParams({ pi_flow: "1" });
       if (target) qs.set("return_to", target);
+      // Test hook: any page opened with ?signin=mfa makes this sign-in request MFA.
+      if (new URLSearchParams(window.location.search).get("signin") === "mfa") qs.set("mfa", "1");
       const res = await fetch(`${apiBase()}/api/auth/oauth/user/login?${qs}`, { credentials: "include" });
       if (!res.ok) throw new Error("pi.flow unavailable");
       // PingFederate locks the flow to a username hint; prefill it like the hosted page does.

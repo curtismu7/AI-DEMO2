@@ -713,6 +713,8 @@ router.get('/login', (req, res) => {
         nonce,
         ...(forceLogin ? { prompt: 'login' } : {}),
         ...(piFlowLogin ? { forcePiFlow: true } : {}),
+        // Test hook: the only acr the modal login may request, so MFA can be exercised on demand.
+        ...(piFlowLogin && req.query.mfa === '1' ? { acr_values: 'Multi_Factor' } : {}),
       }) + resourceParam;
     if (piFlowMode) {
       const piFlowUrl = new URL(url);

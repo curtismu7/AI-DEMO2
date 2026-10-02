@@ -69,6 +69,15 @@ describe('customer pi.flow sign-in', () => {
     expect(url.searchParams.get('code_challenge_method')).toBe('S256');
   });
 
+  test('mfa=1 asks for acr_values=Multi_Factor; nothing else can set acr', async () => {
+    fetchMock.mockResolvedValueOnce(json(200, { id: 'flow-1', status: 'USERNAME_PASSWORD_REQUIRED' }));
+    await request.agent(app).get('/api/auth/oauth/user/login?pi_flow=1&mfa=1&acr_values=Other').expect(200);
+    expect(new URL(fetchMock.mock.calls[0][0]).searchParams.get('acr_values')).toBe('Multi_Factor');
+    fetchMock.mockClear();
+    await openFlow(request.agent(app));
+    expect(new URL(fetchMock.mock.calls[0][0]).searchParams.get('acr_values')).toBeNull();
+  });
+
   test('plain /login is still a redirect without response_mode', async () => {
     const res = await request(app).get('/api/auth/oauth/user/login').expect(302);
     expect(res.headers.location).not.toContain('response_mode=pi.flow');
