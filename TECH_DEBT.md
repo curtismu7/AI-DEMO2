@@ -9406,6 +9406,25 @@ nonce before the widget starts, store it in `req.session`/PKCE cookie, and verif
 
 ### [ ] 2026-08-17 — `davinciFlowClient._getApiToken()` is a placeholder, not a real token fetch
 
+**RESOLVED 2026-10-02 in code (branch `worktree-agent-a151d3ec191062131`); box left
+unticked because the last sentence of "What's wrong" is still true.**
+`_getApiToken()` now does a real client_credentials grant, following
+`mfaService._getWorkerToken()`: POST to `oauthEndpointResolver.getPingOneTokenEndpoint()`
+(region/environment-derived, `PINGONE_TOKEN_ENDPOINT` override), client_secret_basic
+with the existing `PINGONE_DAVINCI_API_CLIENT_ID`/`_SECRET`. The token is cached at
+module scope and refetched 60s before `expires_in`. Missing credentials or token
+endpoint throw `davinci_not_configured` (503) without any request; token-endpoint
+failures go through `normalizeAxiosError`; a 2xx with no `access_token` throws
+`davinci_token_missing` (502) instead of sending `Bearer undefined`. Covered by
+`tests/services/davinciFlowClient.test.js`.
+
+**Still open:** this fetch has NOT been exercised against a live PingOne
+environment — mocked HTTP only. Unverified live: that the orchestrate API accepts
+this client's client_credentials token, that the client's token-endpoint auth
+method is basic (there is no basic/post switch here, unlike mfaService), and that
+the hardcoded `.com` `ORCHESTRATE_BASE` matches the environment's region. Tick
+this entry after one successful live `invokeFlow()`. Original entry below.
+
 **Where:** `demo_api_server/services/davinciFlowClient.js` (`_getApiToken()`).
 
 **What's wrong:** returns `` `${apiClientId}:${apiClientSecret}` `` and sends it
