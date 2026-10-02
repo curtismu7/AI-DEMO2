@@ -83,7 +83,14 @@ function issuerForProfile(profile) {
 
 /** Discover profileId's door's OAuth endpoints, then register a public PKCE client for it. */
 async function ensureClient(req, profileId) {
-  if (_clientCache.has(profileId)) return _clientCache.get(profileId);
+  // Reuse the cached client unless PUBLIC_APP_URL now names a callback it was
+  // never registered with — the gateway would reject that redirect until the
+  // process restarted. Only the configured origin can trigger this: a
+  // request-derived one (no PUBLIC_APP_URL, so callbackUrl() reads Host) would
+  // let any caller mint a client per forged Host.
+  const cached = _clientCache.get(profileId);
+  const configured = configStore.getEffective('PUBLIC_APP_URL') || process.env.PUBLIC_APP_URL;
+  if (cached && (!configured || cached.redirectUris.includes(callbackUrl(req)))) return cached;
 
   const profile = mcpProfileStore.getProfile(profileId);
   if (!profile || profile.transport !== 'privilege' || !profile.url) {
@@ -92,6 +99,7 @@ async function ensureClient(req, profileId) {
     throw err;
   }
   const issuer = issuerForProfile(profile);
+  const redirectUris = inspectorCallbackUrls(req);
 
   const { data: metadata } = await axios.get(
     `${issuer}/.well-known/oauth-authorization-server`,
@@ -100,7 +108,7 @@ async function ensureClient(req, profileId) {
   const { data: registration } = await axios.post(
     metadata.registration_endpoint,
     {
-      redirect_uris: inspectorCallbackUrls(req),
+      redirect_uris: redirectUris,
       grant_types: ['authorization_code', 'refresh_token'],
       response_types: ['code'],
       token_endpoint_auth_method: 'none',
@@ -113,6 +121,7 @@ async function ensureClient(req, profileId) {
     clientId: registration.client_id,
     authorizationEndpoint: metadata.authorization_endpoint,
     tokenEndpoint: metadata.token_endpoint,
+    redirectUris,
   };
   _clientCache.set(profileId, client);
   return client;

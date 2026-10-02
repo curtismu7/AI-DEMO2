@@ -1499,6 +1499,7 @@ async function discoverAuth(session) {
 // Observed 2026-09-02 after a gateway restart. isDcrClientStillKnown() below is
 // what lets the cache recover on its own.
 const dcrClientCache = new Map();
+const DCR_CLIENT_CACHE_MAX = 100;
 
 // Ask the gateway whether it still knows a client, without a user present.
 //
@@ -1575,6 +1576,10 @@ async function getOrRegisterDcrClient(authorizationUri, redirectUri, tokenEndpoi
   if (!data.client_id) throw new Error('DCR response missing client_id.');
 
   const client = { clientId: data.client_id, clientSecret: data.client_secret || null };
+  // The register URL comes from a door the caller names (POST /config), so the
+  // key space is not closed by configuration. Oldest out; an evicted client
+  // that is needed again costs one more registration.
+  if (dcrClientCache.size >= DCR_CLIENT_CACHE_MAX) dcrClientCache.delete(dcrClientCache.keys().next().value);
   dcrClientCache.set(cacheKey, client);
   return client;
 }
@@ -1589,6 +1594,21 @@ function hasMainAppSession(req) {
   );
 }
 
+// The callback origin decides where the gateway delivers the authorization
+// code, and each distinct one costs a gateway /register call and a
+// dcrClientCache entry. X-Forwarded-Host/-Proto are caller-controlled, so they
+// may only choose among origins configuration already names (the SE ingress and
+// the UI's nginx set them for real); anything else gets the configured host.
+function trustedCallbackOrigin(req) {
+  const allowed = new Set([linkCallbackOrigin(), 'https://local.ping-devops.com:4000', 'https://api.ping.demo:4000']);
+  for (const value of [process.env.PUBLIC_APP_URL, ...String(process.env.CORS_ORIGIN || '').split(',')]) {
+    try { allowed.add(new URL(String(value).trim()).origin); } catch { /* unset or malformed */ }
+  }
+  const forwardedHost = req.get('x-forwarded-host');
+  const forwarded = forwardedHost && `${req.get('x-forwarded-proto') || req.protocol || 'https'}://${forwardedHost}`;
+  return allowed.has(forwarded) ? forwarded : linkCallbackOrigin();
+}
+
 // Shared by /auth/start and /chat's inline re-auth path — discovers the auth
 // endpoints, registers a DCR client if the gateway is self-advertising, and
 // builds the PKCE authorization URL. Does not set pendingAuth.returnTo —
@@ -1599,14 +1619,7 @@ async function beginOAuthFlow(session, req, { callbackPath, callbackOrigin } = {
   const challenge = sha256Base64Url(verifier);
   const oauthState = randomString(24);
 
-  let redirectUri;
-  if (callbackOrigin) {
-    redirectUri = `${callbackOrigin}${callbackPath || '/api/privilege-mcp/auth/callback'}`;
-  } else {
-    const host = req.get('x-forwarded-host') || process.env.PRIVILEGE_MCP_CALLBACK_HOST || 'local.ping-devops.com:4000';
-    const protocol = req.get('x-forwarded-proto') || req.protocol || 'https';
-    redirectUri = `${protocol}://${host}${callbackPath || '/api/privilege-mcp/auth/callback'}`;
-  }
+  const redirectUri = `${callbackOrigin || trustedCallbackOrigin(req)}${callbackPath || '/api/privilege-mcp/auth/callback'}`;
 
   let clientId = session.config.clientId;
   let dcrClientId = null;
@@ -3967,6 +3980,7 @@ module.exports.decodeMcpBody = decodeMcpBody;
 
 /** Test hooks — session-scoped SSE isolation canary. */
 module.exports.__test = {
+  dcrClientCache,
   originHeader,
   emitEvent,
   getClientSession,

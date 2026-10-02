@@ -171,6 +171,58 @@ describe('mcpPrivilegeAuth', () => {
       expect(mockAxiosPost).toHaveBeenCalledTimes(1);
     });
 
+    describe('a callback origin the cached client was not registered with', () => {
+      const registerCalls = () => mockAxiosPost.mock.calls.filter(([url]) => url === `${BANKING_ISSUER}/register`);
+
+      beforeEach(() => {
+        let issued = 0;
+        mockAxiosPost.mockImplementation(() => {
+          issued += 1;
+          return Promise.resolve({ data: { client_id: `dcr-client-${issued}` } });
+        });
+      });
+
+      it('re-registers exactly once when PUBLIC_APP_URL moves outside the registered set, and returns the new client', async () => {
+        const { app } = buildApp();
+        await request(app).get(`/login?profile=${BANKING_PROFILE_ID}`);
+
+        process.env.PUBLIC_APP_URL = 'https://ai-demo.ping-devops.com';
+        const res = await request(app).get(`/login?profile=${BANKING_PROFILE_ID}`);
+        await request(app).get(`/login?profile=${BANKING_PROFILE_ID}`);
+
+        expect(registerCalls()).toHaveLength(2);
+        expect(registerCalls()[1][1].redirect_uris).toContain(
+          'https://ai-demo.ping-devops.com/api/mcp/inspector/privilege/callback',
+        );
+        const location = new URL(res.headers.location);
+        expect(location.searchParams.get('client_id')).toBe('dcr-client-2');
+        expect(location.searchParams.get('redirect_uri')).toBe(
+          'https://ai-demo.ping-devops.com/api/mcp/inspector/privilege/callback',
+        );
+      });
+
+      it('does not re-register when PUBLIC_APP_URL moves to an origin already in the registered set', async () => {
+        const { app } = buildApp();
+        await request(app).get(`/login?profile=${BANKING_PROFILE_ID}`);
+
+        process.env.PUBLIC_APP_URL = 'https://local.ping-devops.com:4000';
+        const res = await request(app).get(`/login?profile=${BANKING_PROFILE_ID}`);
+
+        expect(registerCalls()).toHaveLength(1);
+        expect(new URL(res.headers.location).searchParams.get('client_id')).toBe('dcr-client-1');
+      });
+
+      it('does not re-register for a request-derived origin (no PUBLIC_APP_URL): a caller-chosen Host cannot mint clients', async () => {
+        delete process.env.PUBLIC_APP_URL;
+        const { app } = buildApp();
+        await request(app).get(`/login?profile=${BANKING_PROFILE_ID}`).set('Host', 'first.example.com');
+        await request(app).get(`/login?profile=${BANKING_PROFILE_ID}`).set('Host', 'second.example.com');
+        await request(app).get(`/login?profile=${BANKING_PROFILE_ID}`).set('Host', 'third.example.com');
+
+        expect(registerCalls()).toHaveLength(1);
+      });
+    });
+
     it('discovers and registers SEPARATELY for a different door — no cross-door reuse', async () => {
       const { app } = buildApp();
       await request(app).get(`/login?profile=${BANKING_PROFILE_ID}`);
