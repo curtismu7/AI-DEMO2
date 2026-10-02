@@ -249,6 +249,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-02 — PingFederate token chain: a broken actor chain or a wrong issuer passed validation
+
+**Files:** `demo_api_server/services/pfStandardTokenExchangeService.js`, `services/agentMcpTokenService.js`, `services/pingOneAdminAccessService.js`, `services/startupConfigGuard.js`, tests `src/__tests__/pfStandardTokenExchangeService.test.js`, `src/__tests__/agentMcpTokenService.test.js`, `tests/startupConfigGuard.pfContract.test.js` (new).
+
+**What was broken:** The BFF's checks on PingFederate-exchanged tokens were looser than the chain they protect. (1) `validateFinalToken` accepted a FLAT `act` naming only the AI agent as well as the nested MCP-service → AI-agent chain, so losing the second actor passed silently — a leftover from 2026-09, when nobody could inspect PingFederate's policy. (2) Neither validator checked `iss`. (3) The intermediate token's `act` was not checked at all. (4) Nothing compared the BFF's PingFederate audiences and issuer with what PingFederate's token managers emit; `scope-topology.json` names the PingOne audience `agentgateway.ping.demo` while PingFederate emits `https://agentgateway.ping.demo`, and the first sign of a mismatch was a failed exchange.
+
+**What changed:** The final token must carry exactly the nested chain. Both validators check `iss` against `pf_issuer`. The intermediate token's `act.sub` must be the AI-agent actor. `warnIfPingFederateContractDrifts()` compares `PF_ISSUER`, `PF_STANDARD_INTERMEDIATE_AUDIENCE` and the expected final audience with `config/demoReadinessPingFederateProfiles.json` at startup and warns.
+
+**Do not break:** Do not re-admit a flat `act` on the final token; live PingFederate emits the nested chain (measured 2026-10-02) and PingOne Authorize reads both levels. The startup comparison is a warning by design — that profiles file describes the LOCAL PingFederate and the provider is switched at runtime — the per-exchange validators are what refuse a wrong token. `config/demoReadinessPingFederateProfiles.json` is the single record of PingFederate's audiences and issuer; do not add a second one.
+
+**Verify:** `cd demo_api_server && CI=true npx jest src/__tests__/pfStandardTokenExchangeService.test.js tests/startupConfigGuard.pfContract.test.js --forceExit`.
+
 ### 2026-10-02 — Floating agent had no close, collapse or pop-out button
 
 **Files:** `demo_api_ui/src/components/AIAgent.js`,

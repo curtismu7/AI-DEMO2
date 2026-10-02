@@ -124,13 +124,60 @@ describe('PF standard token-exchange provider adapter', () => {
       sub: 'user-123', aud: 'https://api.ping.demo:3036/mcp', scope: 'airlines:read mcp:invoke',
       act: { sub: 'pf-agent-actor' },
     });
-    expect(service.validateFinalToken(flatAct, {
+    // A flat act — the agent alone, the MCP service missing — is a broken chain,
+    // not an alternative shape. It used to pass.
+    expect(() => service.validateFinalToken(flatAct, {
       userSub: 'user-123', audience: 'https://api.ping.demo:3036/mcp',
       scopes: ['airlines:read', 'mcp:invoke'], agentActorToken: agentActor, mcpActorToken: mcpActor,
-    }).claims.act).toEqual({ sub: 'pf-agent-actor' });
+    })).toThrow(/not the nested MCP-service → AI-agent chain/);
     expect(() => service.validateFinalToken(final, {
       userSub: 'user-123', audience: 'https://wrong.example/mcp',
       scopes: ['airlines:read', 'mcp:invoke'], agentActorToken: agentActor, mcpActorToken: mcpActor,
     })).toThrow(/final audience mismatch/i);
+  });
+
+  describe('claims the chain depends on', () => {
+    const ISS = 'https://pf.example.test';
+    const agentActor = jwt({ sub: 'pf-agent-actor', client_id: 'pf-agent-actor', scope: 'agent:invoke' });
+    const mcpActor = jwt({ sub: 'pf-mcp-actor', client_id: 'pf-mcp-actor', scope: 'mcp:invoke' });
+    const AUD = 'https://api.ping.demo:3036/mcp';
+    const finalClaims = { iss: ISS, sub: 'user-123', aud: AUD, scope: 'mcp:invoke', act: { sub: 'pf-mcp-actor', act: { sub: 'pf-agent-actor' } } };
+    const finalOpts = { userSub: 'user-123', audience: AUD, scopes: ['mcp:invoke'], issuer: ISS, agentActorToken: agentActor, mcpActorToken: mcpActor };
+    const intClaims = { iss: ISS, sub: 'user-123', aud: 'https://agentgw.example.test', scope: 'agent:invoke', act: { sub: 'pf-agent-actor' } };
+    const intOpts = { userSub: 'user-123', audience: 'https://agentgw.example.test', scopes: ['agent:invoke'], issuer: ISS, agentActorToken: agentActor };
+
+    test('resolveConfig carries the issuer the validators enforce', () => {
+      mockGetEffective.mockImplementation((key) => (key === 'pf_issuer' ? ISS : values[key] || ''));
+      expect(service.resolveConfig().issuer).toBe(ISS);
+    });
+
+    test('a correct intermediate and final token pass', () => {
+      expect(service.validateIntermediateToken(jwt(intClaims), intOpts).claims.act.sub).toBe('pf-agent-actor');
+      expect(service.validateFinalToken(jwt(finalClaims), finalOpts).claims.aud).toBe(AUD);
+    });
+
+    test.each([
+      ['intermediate', () => service.validateIntermediateToken(jwt({ ...intClaims, iss: 'https://evil.example' }), intOpts), /first exchange issuer mismatch/],
+      ['final', () => service.validateFinalToken(jwt({ ...finalClaims, iss: 'https://evil.example' }), finalOpts), /second exchange issuer mismatch/],
+    ])('a %s token signed by a different issuer is refused', (_name, run, message) => {
+      expect(run).toThrow(message);
+    });
+
+    test.each([
+      ['no act at all', undefined],
+      ['an act naming someone else', { sub: 'some-other-client' }],
+    ])('an intermediate token with %s is refused', (_name, act) => {
+      expect(() => service.validateIntermediateToken(jwt({ ...intClaims, act }), intOpts))
+        .toThrow(/does not name the AI-agent actor/);
+    });
+
+    test.each([
+      ['the actors swapped', { sub: 'pf-agent-actor', act: { sub: 'pf-mcp-actor' } }],
+      ['the inner actor wrong', { sub: 'pf-mcp-actor', act: { sub: 'some-other-client' } }],
+      ['no act', undefined],
+    ])('a final token with %s is refused', (_name, act) => {
+      expect(() => service.validateFinalToken(jwt({ ...finalClaims, act }), finalOpts))
+        .toThrow(/not the nested MCP-service → AI-agent chain/);
+    });
   });
 });

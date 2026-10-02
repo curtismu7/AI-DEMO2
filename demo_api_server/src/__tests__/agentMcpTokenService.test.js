@@ -272,7 +272,7 @@ describe('resolveMcpAccessTokenWithEvents — PingFederate standard exchange aud
       const subject = subjectClaims.sub || subjectClaims.Username;
       const actorClaims = JSON.parse(Buffer.from(actorToken.split('.')[1], 'base64url').toString('utf8'));
       if (clientId === 'pf-agent-hop-client') {
-        return Promise.resolve(makeJwt({ sub: subject, aud: 'https://pf.example.test/agent-intermediate', scope: scopes.join(' ') }));
+        return Promise.resolve(makeJwt({ sub: subject, aud: 'https://pf.example.test/agent-intermediate', scope: scopes.join(' '), act: { sub: 'pf-agent-actor' } }));
       }
       return Promise.resolve(makeJwt({
         sub: subject,
