@@ -39,6 +39,28 @@ function safeJson(value, space = 2) {
   return JSON.stringify(redactReadinessValue(value), null, space);
 }
 
+/**
+ * Expected against observed audience and scopes, one line per hop of each step
+ * that ran. A mismatch is marked; the pass or fail verdict is the runner's.
+ */
+function audienceScopeTable(checks = []) {
+  const same = (a, b) => JSON.stringify([...(a || [])].sort()) === JSON.stringify([...(b || [])].sort());
+  const lines = [];
+  for (const check of checks) {
+    for (const hop of check?.evidence?.audienceScope || []) {
+      const audienceOk = (hop.observedAudiences || []).length > 0 && hop.observedAudiences.every((value) => hop.expectedAudiences.includes(value));
+      const scopesOk = hop.expectedScopes === null || same(hop.expectedScopes, hop.observedScopes);
+      lines.push([
+        audienceOk && scopesOk ? 'ok      ' : 'MISMATCH',
+        check.id, check.target, check.userSessionProvider, hop.hop,
+        'scopes ' + (hop.expectedScopes === null ? '(not asserted)' : hop.expectedScopes.join(' ') || '-') + ' => ' + ((hop.observedScopes || []).join(' ') || '-'),
+        'audience ' + hop.expectedAudiences.join(' | ') + ' => ' + ((hop.observedAudiences || []).join(' ') || '-'),
+      ].join('  '));
+    }
+  }
+  return lines.length ? 'Audience and scope by step (expected => observed):\n' + lines.join('\n') + '\n' : '';
+}
+
 async function terminalConfirm(promptText, input = stdin, output = stderr) {
   const interfaceHandle = readline.createInterface({ input, output, terminal: Boolean(input.isTTY && output.isTTY) });
   try { return await interfaceHandle.question(promptText); }
@@ -82,7 +104,7 @@ async function runCli(argv = process.argv.slice(2), options = {}) {
     (parsed.json ? err : out).write('Complete repair preview:\n' + safeJson(result.repairPreview) + '\n');
   }
   if (parsed.json) out.write(safeJson(result) + '\n');
-  else out.write((result.label || result.status || 'NOT READY') + '\n' + safeJson(result) + '\n');
+  else out.write((result.label || result.status || 'NOT READY') + '\n' + audienceScopeTable(result.checks) + safeJson(result) + '\n');
 
   return result.ready === true && result.status === 'ready'
     && parsed.targets.length === 2 && parsed.targets.includes('local') && parsed.targets.includes('se') ? 0 : 1;
@@ -95,4 +117,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { HELP, parseArgs, runCli, safeJson, terminalConfirm };
+module.exports = { HELP, audienceScopeTable, parseArgs, runCli, safeJson, terminalConfirm };

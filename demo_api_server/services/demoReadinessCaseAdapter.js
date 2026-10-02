@@ -26,6 +26,8 @@ const MFA_DEVICES_PATH = '/api/auth/mfa/devices';
 const MFA_GATED_FLAG = 'ff_personal_agent_concierge';
 
 const eventById = (events, id) => events.find((event) => event && event.id === id) || null;
+// A scope claim is a space-delimited string from PingOne and a list from PingFederate.
+const scopesOf = (value) => (Array.isArray(value) ? value.map(String) : String(value || '').split(/\s+/)).filter(Boolean);
 const list = (value) => (Array.isArray(value) ? value : value == null ? [] : [value]).filter(Boolean).map(String);
 
 // A token belongs to the lane's provider only if its issuer is the exact
@@ -93,12 +95,17 @@ function evidenceFromAgentInvoke({ response, provider, expectedIssuer, authoriza
     // Where each required scope was actually held: the user's own token when
     // it carries the scope, otherwise the first exchange that minted it.
     audiences: [...new Set((authorization?.requiredScopes?.length ? authorization.requiredScopes : [null]).flatMap((scope) => {
-      const holds = (event) => scope === null || String(event?.claims?.scope || '').split(/\s+/).includes(scope);
+      const holds = (event) => scope === null || scopesOf(event?.claims?.scope).includes(scope);
       return list((holds(userToken) ? userToken : holds(exchange1) ? exchange1 : null)?.claims?.aud);
     }))],
-    scopes: list(String(exchange1?.claims?.scope || '').split(/\s+/)).filter((scope) => scope !== AGENT_SCOPE),
+    scopes: scopesOf(exchange1?.claims?.scope).filter((scope) => scope !== AGENT_SCOPE),
     roleApplicability: { userLogin: Boolean(userToken), agentIdentity: Boolean(agentActor), tokenExchange: Boolean(standardExchange) },
   };
+  // The token the gateway was sent, and the exchange the gateway reports making
+  // for the MCP server. Named `hop`, not `token`: these are claims, not tokens.
+  if (finalToken?.claims) evidence.gatewayHop = { audiences: list(finalToken.claims.aud), scopes: scopesOf(finalToken.claims.scope) };
+  const backendExchange = eventById(events, 'gw-backend-exchange');
+  if (backendExchange?.exchanged) evidence.backendHop = { audience: backendExchange.audience || null, scopes: scopesOf(backendExchange.scope) };
   if (standardExchange) {
     // Each exchanged token as issued: its subject, then the actors named in
     // its own nested `act` claim. Nothing is taken from the gateway's audit.

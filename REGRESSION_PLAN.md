@@ -249,6 +249,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-01 — PingGateway's own token exchange was invisible
+
+**Files:** `ping-gateway/scripts/groovy/olb-token-exchange.groovy`, `ping-gateway/scripts/groovy/p1az-decision.groovy`, `demo_api_server/services/mcpToolPipeline.js`.
+
+**What was broken:** PingGateway exchanges the inbound gateway token for one audienced to the MCP server (Exchange #3) and reported nothing about it. The Node gateway reports the same step as `backend` on `X-Gw-Audit-Trail`, which the BFF turns into `gw-backend-exchange`. On the PingGateway path nobody could see, or check, which audience and scope the MCP server was sent.
+
+**What changed:** `olb-token-exchange.groovy` records the issued token's `aud` and `scope` (claims only, never the token) in `attributes['backendExchange']`; `p1az-decision.groovy` adds it to the trail as `backend` next to `mtls`; the BFF event carries `scope`.
+
+**Do not break:** Reporting is fail-safe on both sides: an error describing the token, or attaching it, must leave the tool call and the pre-call trail untouched. Never put a token value in the trail.
+
+**Verify:** compile both scripts with the gateway's compiler (`docker exec ai-demo-ping-gateway java -cp "/opt/gateway/lib/*" org.codehaus.groovy.tools.FileSystemCompiler -d /tmp/gc <files>`), restart `ping-gateway`, run a permitted tool call and confirm a `gw-backend-exchange` token event with audience `mcpserver.ping.demo`.
+
 ### 2026-10-01 — In-app MFA had no PingOne user for a PingFederate session
 
 **Files:** `demo_api_server/routes/mfa.js`.

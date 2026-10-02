@@ -354,6 +354,18 @@ function evidenceFailures({ evidence, provider, authorization, expected, caseRow
       && allowedAudiences.every((allowed) => allowed.some((audience) => observedAudiences.includes(audience)))
       && observedAudiences.every((audience) => allowedAudiences.some((allowed) => allowed.includes(audience))), 'audience set does not match catalog contract');
     require(exactValues(evidence.scopes, requiredScopes), 'scope set does not match catalog contract');
+    // The token sent to the gateway must be for the gateway resource and carry
+    // only its inbound scope. An A2A run goes to the A2A gateway instead and is
+    // judged above.
+    if (!a2aRun && authorization.gatewayHop) {
+      require(exactValues(evidence.gatewayHop?.audiences, [authorization.gatewayHop.audience])
+        && exactValues(evidence.gatewayHop?.scopes, authorization.gatewayHop.scopes), 'gateway token audience or scope does not match the gateway resource');
+    }
+    // A permitted call to the main MCP server is made with a token the gateway
+    // exchanged for that server's audience; the gateway reports that exchange.
+    if (!a2aRun && !gatewayPolicy && authorization.backendHop && expected === 'PERMIT') {
+      require(evidence.backendHop?.audience === authorization.backendHop.audience, 'gateway did not report an exchange for the MCP server audience');
+    }
     require(Boolean(evidence.gateway?.route && evidence.gateway?.verdict), 'Gateway evidence is required for an exchanged tool call');
     // A gateway-policy tool is decided by the gateway's own filter; PingOne
     // Authorize is not called, so a reported Authorize decision would be wrong.
@@ -368,6 +380,38 @@ function evidenceFailures({ evidence, provider, authorization, expected, caseRow
     require(evidence.authorize?.applicable === false, 'non-exchange case must declare Authorize evidence not applicable');
   }
   return failures;
+}
+
+/**
+ * Expected against observed audience and scopes for each hop of one run, for
+ * the report. Read-only: evidenceFailures decides pass or fail.
+ */
+function audienceScopeSummary({ evidence = {}, authorization }) {
+  if (!authorization?.primaryTool || evidence.publicCatalog) return [];
+  const a2aRun = Boolean(authorization.a2aScopeResources) && String(evidence.exchangePath || '').startsWith('a2a-');
+  const scopeResources = (a2aRun ? authorization.a2aScopeResources : authorization.scopeResources) || [];
+  const hops = [{
+    hop: a2aRun ? 'specialist exchange' : 'tool scope',
+    expectedAudiences: [...new Set(scopeResources.flatMap((item) => [item.audience, ...(item.mirrorAudiences || [])].filter(Boolean)))],
+    expectedScopes: a2aRun ? scopeResources.map((item) => item.scope) : authorization.requiredScopes || [],
+    observedAudiences: evidence.audiences || [],
+    observedScopes: evidence.scopes || [],
+  }];
+  if (!a2aRun && authorization.gatewayHop) hops.push({
+    hop: 'gateway token',
+    expectedAudiences: [authorization.gatewayHop.audience],
+    expectedScopes: authorization.gatewayHop.scopes,
+    observedAudiences: evidence.gatewayHop?.audiences || [],
+    observedScopes: evidence.gatewayHop?.scopes || [],
+  });
+  if (!a2aRun && authorization.backendHop) hops.push({
+    hop: 'gateway to MCP server',
+    expectedAudiences: [authorization.backendHop.audience],
+    expectedScopes: null,
+    observedAudiences: evidence.backendHop?.audience ? [evidence.backendHop.audience] : [],
+    observedScopes: evidence.backendHop?.scopes || [],
+  });
+  return hops;
 }
 
 function featureContract(check, provider) {
@@ -457,7 +501,7 @@ function createReadinessExecutionService({ createWorker: testWorkerAdapter, prod
     const prerequisite = typeof saved.worker.verifyPrerequisites === 'function' ? await saved.worker.verifyPrerequisites({ caseRow, vertical, prerequisites, deadlineAt }) : { status: 'blocked', reason: 'worker cannot verify runtime prerequisites' };
     if (prerequisite?.status !== 'pass') return redactReadinessValue({ status: 'blocked', expected, observed: 'not-dispatched', evidence: { reason: prerequisite?.reason || 'runtime prerequisites unavailable', prerequisites } });
     if (expired(deadlineAt, now())) return redactReadinessValue({ status: 'not-run', expected, observed: 'deadline-expired', evidence: { reason: 'deadline exceeded before dispatch' } });
-    try { const execution = await saved.worker.executeReadinessCase({ context, caseRow, vertical, mode, behavior, authorization, deadlineAt, abortSignal }); const evidence = execution?.evidence || {}; const observed = execution?.observed || 'UNKNOWN'; const failures = [...(observed === expected ? [] : ['observed outcome does not match declared outcome']), ...evidenceFailures({ evidence, provider: saved.provider, authorization, expected, caseRow })]; if (failures.length) evidence.contractFailures = failures; return redactReadinessValue({ status: failures.length ? 'fail' : 'pass', expected, observed, evidence }); } catch (error) { return redactReadinessValue({ status: 'fail', expected, observed: 'execution-error', evidence: { reason: error?.message || 'worker execution failed' } }); }
+    try { const execution = await saved.worker.executeReadinessCase({ context, caseRow, vertical, mode, behavior, authorization, deadlineAt, abortSignal }); const evidence = execution?.evidence || {}; const observed = execution?.observed || 'UNKNOWN'; const failures = [...(observed === expected ? [] : ['observed outcome does not match declared outcome']), ...evidenceFailures({ evidence, provider: saved.provider, authorization, expected, caseRow })]; if (failures.length) evidence.contractFailures = failures; evidence.audienceScope = audienceScopeSummary({ evidence, authorization }); return redactReadinessValue({ status: failures.length ? 'fail' : 'pass', expected, observed, evidence }); } catch (error) { return redactReadinessValue({ status: 'fail', expected, observed: 'execution-error', evidence: { reason: error?.message || 'worker execution failed' } }); }
   }
   async function executeReadinessFeature({ context, check, deadlineAt, abortSignal }) {
     const saved = contexts.get(context); const expected = check.expectedByProvider?.[saved?.provider] || check.expectedOutcome;
@@ -635,4 +679,4 @@ function requireFeatureEvidence(failures, evidence, check, provider) {
   require(Array.isArray(evidence.behaviorStages) && JSON.stringify(evidence.behaviorStages) === JSON.stringify(contract?.behaviorStages), 'feature behavior stages do not match static execution contract');
 }
 
-module.exports = { createReadinessExecutionService, deriveExecutionManifest, evidenceFailures, expectedExchangePath, FEATURE_DISPATCHERS, validateFeatureFamilyEvidence };
+module.exports = { audienceScopeSummary, createReadinessExecutionService, deriveExecutionManifest, evidenceFailures, expectedExchangePath, FEATURE_DISPATCHERS, validateFeatureFamilyEvidence };

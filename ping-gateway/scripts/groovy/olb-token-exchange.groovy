@@ -421,6 +421,30 @@ if (!issuedToken) {
 }
 logger.info('[OlbExchange] Exchange #3 succeeded — token_type=' + (exchangeParsed?.token_type ?: '?'))
 
+// Report what this exchange actually issued — audience and scope read from the
+// token itself, never the token — so p1az-decision.groovy can put it on
+// X-Gw-Audit-Trail as `backend`, the key the BFF already turns into the
+// gw-backend-exchange event for the Node gateway. Without it this hop is
+// invisible: nothing downstream of the gateway can check the audience the MCP
+// server is sent. FAIL-SAFE: reporting must never break the tool call.
+try {
+    def issuedParts = issuedToken.split('\\.', -1)
+    def issuedClaims = issuedParts.length == 3
+        ? new JsonSlurper().parseText(new String(java.util.Base64.getUrlDecoder().decode(issuedParts[1]), 'UTF-8'))
+        : [:]
+    def issuedAud = issuedClaims.aud instanceof Collection ? issuedClaims.aud.collect { it?.toString() } : [issuedClaims.aud?.toString()].findAll { it }
+    def issuedScope = issuedClaims.scope instanceof Collection ? issuedClaims.scope.collect { it?.toString() }.join(' ') : (issuedClaims.scope ?: '').toString()
+    attributes['backendExchange'] = [
+        target   : 'olb',
+        audience : issuedAud.join(' '),
+        scope    : issuedScope,
+        exchanged: true,
+        cached   : false,
+    ]
+} catch (Exception e) {
+    logger.warn('[OlbExchange] could not describe the issued token for the audit trail (' + e.message + ')')
+}
+
 
 // ── MCP session: send initialize to get Mcp-Session-Id ───────────────────────
 def initHdrs = [

@@ -317,6 +317,15 @@ function authorizationContractFor(step, sources, issues, useCaseId, vertical) {
     requiredScopes,
     scopeResources,
     ...(a2aScopeResources ? { a2aScopeResources } : {}),
+    // The token sent to the gateway, and the one the gateway exchanges for to
+    // call the MCP server. Both from scope-topology.json `servers`.
+    gatewayHop: topology.servers?.ping_gateway ? {
+      audience: topology.servers.ping_gateway.validatesAudience || null,
+      scopes: [...(topology.resources?.[topology.servers.ping_gateway.resource]?.scopes || [])],
+    } : null,
+    backendHop: resourceServer?.id === 'olb' ? {
+      audience: topology.resources?.[topology.servers?.demo_mcp_server?.resource]?.uri || null,
+    } : null,
     authorizeToolGroup: restrictedRole ? {
       role: restrictedRole,
       groupName: restrictedRoleConfig?.name || null,

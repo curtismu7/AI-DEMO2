@@ -1287,8 +1287,13 @@ if (outcome == 'PERMIT' && !obligationKind) {
         def finalJson = auditTrailJson
         try {
             def mtlsRes = attributes['mtlsResult']
-            if (mtlsRes != null) {
-                finalJson = JsonOutput.toJson(auditTrail + [mtls: mtlsRes])
+            // The gateway's own Exchange #3 (olb-token-exchange.groovy), reported
+            // under the same `backend` key the Node gateway uses.
+            def backendRes = attributes['backendExchange']
+            if (mtlsRes != null || backendRes != null) {
+                finalJson = JsonOutput.toJson(auditTrail
+                    + (mtlsRes != null ? [mtls: mtlsRes] : [:])
+                    + (backendRes != null ? [backend: backendRes] : [:]))
             }
         } catch (Exception e) {
             logger.warn('[P1AZDecision] could not attach mtls to audit trail (' +
