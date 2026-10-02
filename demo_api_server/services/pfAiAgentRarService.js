@@ -2,6 +2,7 @@
 
 const crypto = require('crypto');
 const configStore = require('./configStore');
+const defaultDataStore = require('../data/store');
 const { getFeatureStatus, resolveCimdConfig } = require('./pfAiAgentFeatureConfig');
 const {
   oauthError,
@@ -13,6 +14,8 @@ const {
 
 const RAR_TYPE = 'banking_transaction';
 const RAR_SCOPE = 'openid profile email transactions:write';
+// The daily domestic transfer limit (graphify-out/banking-domain.kb.json).
+const RAR_TRANSACTION_LIMIT = 5000;
 const FLOW_TTL_MS = 5 * 60 * 1000;
 const REQUEST_URI_PREFIX = 'urn:ietf:params:oauth:request_uri:';
 
@@ -33,20 +36,48 @@ function sessionUserKey(req, requested) {
   return candidate;
 }
 
-function buildAuthorizationDetail(scenario, userKey) {
+/**
+ * What the PingFederate processor checks a banking_transaction against, for one
+ * banking user: their own accounts, the daily domestic transfer limit and the
+ * currency. Null when the user or their accounts are unknown.
+ */
+function userLimits(username, dataStore = defaultDataStore) {
+  const user = typeof username === 'string' && username ? dataStore.getUserByUsername(username) : null;
+  const accounts = user ? dataStore.getAccountsByUserId(user.id) : [];
+  if (!accounts.length) return null;
+  return {
+    user_id: username,
+    account_ids: accounts.map((account) => String(account.id)),
+    transaction_limit: RAR_TRANSACTION_LIMIT,
+    currency: accounts[0].currency || 'USD',
+  };
+}
+
+function buildAuthorizationDetail(scenario, userKey, limits = null) {
   const allowed = scenario === 'allowed';
   if (!allowed && scenario !== 'denied') {
     throw oauthError('PF_AI_RAR_SCENARIO_INVALID', 'RAR scenario must be allowed or denied', 400);
   }
+  // The user's own first two accounts when they have them; otherwise the fixed
+  // pair, which only passes a processor fed matching sign-in attributes.
+  const [source, destination] = limits?.account_ids?.length >= 2
+    ? limits.account_ids
+    : ['checking-100', 'savings-200'];
   return {
     type: RAR_TYPE,
     user_id: allowed ? userKey : `${userKey}-outside-policy`,
     actions: ['transfer'],
-    source_account: 'checking-100',
-    destination_account: 'savings-200',
+    source_account: source,
+    destination_account: destination,
     amount: 125,
-    currency: 'USD',
+    currency: limits?.currency || 'USD',
   };
+}
+
+// PingFederate 13.1 gives a CIMD client no authorization detail types, so RAR
+// uses its own registered client when one is configured.
+function rarClientId(store, config) {
+  return String(store.getEffective('pf_ai_rar_client_id') || '').trim() || config.clientMetadataUrl;
 }
 
 async function pushParRequest(config, metadata, values, fetchImpl) {
@@ -54,7 +85,7 @@ async function pushParRequest(config, metadata, values, fetchImpl) {
   if (!parEndpoint) throw oauthError('PF_AI_RAR_CONFIG_INVALID', 'PF PAR is not configured', 503);
   const body = new URLSearchParams({
     response_type: 'code',
-    client_id: config.clientMetadataUrl,
+    client_id: values.clientId,
     redirect_uri: config.redirectUri,
     scope: RAR_SCOPE,
     state: values.state,
@@ -89,7 +120,7 @@ async function pushParRequest(config, metadata, values, fetchImpl) {
     throw oauthError('PF_AI_RAR_PAR_RESPONSE_INVALID', 'PingFederate PAR response was invalid');
   }
   const authorizationUrl = new URL(metadata.authorizationEndpoint);
-  authorizationUrl.searchParams.set('client_id', config.clientMetadataUrl);
+  authorizationUrl.searchParams.set('client_id', values.clientId);
   authorizationUrl.searchParams.set('request_uri', requestUri);
   return authorizationUrl.toString();
 }
@@ -98,6 +129,7 @@ async function beginRar(req, {
   scenario,
   userKey: requestedUserKey,
   store = configStore,
+  dataStore = defaultDataStore,
   fetchImpl = fetch,
   now = Date.now,
 } = {}) {
@@ -116,7 +148,7 @@ async function beginRar(req, {
   }
   const config = resolveCimdConfig(store);
   const userKey = sessionUserKey(req, requestedUserKey);
-  const authorizationDetail = buildAuthorizationDetail(scenario, userKey);
+  const authorizationDetail = buildAuthorizationDetail(scenario, userKey, userLimits(userKey, dataStore));
   const metadata = await discoverPf(config, fetchImpl);
   if (!metadata.parEndpoint && !config.parEndpoint) {
     throw oauthError('PF_AI_RAR_CONFIG_INVALID', 'PF PAR is not configured', 503);
@@ -126,7 +158,7 @@ async function beginRar(req, {
   const nonce = crypto.randomBytes(32).toString('base64url');
   const { verifier, challenge } = createPkce();
   const redirectUrl = await pushParRequest(config, metadata, {
-    state, nonce, challenge, authorizationDetail,
+    state, nonce, challenge, authorizationDetail, clientId: rarClientId(store, config),
   }, fetchImpl);
   const createdAt = now();
   featureSession.rarPending = {
@@ -185,7 +217,7 @@ async function completeRar(req, { store = configStore, fetchImpl = fetch, now = 
   const { identity } = await exchangeAuthorizationCode({
     config,
     metadata,
-    clientId: config.clientMetadataUrl,
+    clientId: rarClientId(store, config),
     redirectUri: config.redirectUri,
     code: req.query.code,
     verifier: pending.verifier,
@@ -201,6 +233,7 @@ module.exports = {
   RAR_SCOPE,
   FLOW_TTL_MS,
   buildAuthorizationDetail,
+  userLimits,
   beginRar,
   completeRar,
 };

@@ -53,4 +53,54 @@ describe('PF AI Agent RAR route', () => {
       .toBe('banking_transaction');
     expect(response.headers.location).not.toContain('oauth/callback');
   });
+
+  describe('user limits lookup for the PingFederate processor', () => {
+    const dataStore = {
+      getUserByUsername: (username) => (username === 'demouser' ? { id: 'u1' } : undefined),
+      getAccountsByUserId: () => [{ id: 'acct-a', currency: 'USD' }, { id: 'acct-b', currency: 'USD' }],
+    };
+    const appWith = (values) => {
+      const app = express();
+      app.use('/api/pf-ai-agent', createPfAiAgentRouter({
+        configStore: { getEffective: (key) => values[String(key).toLowerCase()] || '' }, dataStore,
+      }));
+      return app;
+    };
+    const url = '/api/pf-ai-agent/rar/user-limits?username=demouser';
+
+    test('returns the user\'s own accounts, limit and currency to a caller with the credential', async () => {
+      const response = await request(appWith({ pf_ai_rar_lookup_secret: 'lookup-credential' }))
+        .get(url).set('Authorization', 'Bearer lookup-credential').expect(200);
+      expect(response.body).toEqual({
+        user_id: 'demouser', account_ids: ['acct-a', 'acct-b'], transaction_limit: 5000, currency: 'USD',
+      });
+    });
+
+    test('refuses a missing or wrong credential, and refuses everyone when none is configured', async () => {
+      const app = appWith({ pf_ai_rar_lookup_secret: 'lookup-credential' });
+      await request(app).get(url).expect(401);
+      await request(app).get(url).set('Authorization', 'Bearer wrong-credential!').expect(401);
+      await request(appWith({})).get(url).set('Authorization', 'Bearer ').expect(401);
+    });
+
+    test('answers 404 for a user with no banking record', async () => {
+      await request(appWith({ pf_ai_rar_lookup_secret: 'lookup-credential' }))
+        .get('/api/pf-ai-agent/rar/user-limits?username=nobody')
+        .set('Authorization', 'Bearer lookup-credential').expect(404);
+    });
+  });
+
+  test('builds the detail from the user\'s own accounts, falling back to the fixed pair', async () => {
+    const { buildAuthorizationDetail, userLimits } = require('../../services/pfAiAgentRarService');
+    const limits = userLimits('demouser', {
+      getUserByUsername: () => ({ id: 'u1' }),
+      getAccountsByUserId: () => [{ id: 'acct-a', currency: 'USD' }, { id: 'acct-b', currency: 'USD' }],
+    });
+    expect(buildAuthorizationDetail('allowed', 'demouser', limits)).toMatchObject({
+      user_id: 'demouser', source_account: 'acct-a', destination_account: 'acct-b',
+    });
+    expect(buildAuthorizationDetail('allowed', 'demouser')).toMatchObject({
+      source_account: 'checking-100', destination_account: 'savings-200',
+    });
+  });
 });

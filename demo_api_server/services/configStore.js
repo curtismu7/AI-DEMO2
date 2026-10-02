@@ -129,6 +129,7 @@ const _SECRET_KEYS_RAW = [
   'PF_ID_JAG_REDEMPTION_CLIENT_SECRET',
   'PF_AI_CROSS_DOMAIN_CLIENT_SECRET',
   'PF_AI_THIRD_PARTY_CLIENT_SECRET',
+  'PF_AI_RAR_LOOKUP_SECRET',
   'pingone_fraud_watch_agent_client_secret',
   'pingone_balance_sweep_agent_client_secret',
   'spiffe_bridge_private_key',
@@ -214,6 +215,7 @@ const BOOTSTRAP_ALLOWLIST = new Set([
   'pf_id_jag_redemption_client_secret',
   'pf_ai_cross_domain_client_secret',
   'pf_ai_third_party_client_secret',
+  'pf_ai_rar_lookup_secret',
 ]);
 
 // All known config keys with their defaults and whether they are public
@@ -653,6 +655,8 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   PF_AI_THIRD_PARTY_RESOURCE: { public: true, default: '' },
   PF_AI_THIRD_PARTY_SCOPE: { public: true, default: '' },
   PF_AI_RAR_ENABLED: { public: true, default: 'false' },
+  PF_AI_RAR_CLIENT_ID: { public: true, default: '' },
+  PF_AI_RAR_LOOKUP_SECRET: { public: false, default: '' },
   oauth_admin_callback_path:     { public: true,  default: '/api/auth/oauth/callback' },
   oauth_user_callback_path:      { public: true,  default: '/api/auth/oauth/user/callback' },
   // Role claim mapping — which token claim contains role/group info?
@@ -1307,6 +1311,8 @@ const ENV_FALLBACK_MAP = {
   pf_ai_third_party_resource: ['PF_AI_THIRD_PARTY_RESOURCE'],
   pf_ai_third_party_scope: ['PF_AI_THIRD_PARTY_SCOPE'],
   pf_ai_rar_enabled: ['PF_AI_RAR_ENABLED'],
+  pf_ai_rar_client_id: ['PF_AI_RAR_CLIENT_ID'],
+  pf_ai_rar_lookup_secret: ['PF_AI_RAR_LOOKUP_SECRET'],
   oauth_admin_callback_path:       ['OAUTH_ADMIN_CALLBACK_PATH'],
   oauth_user_callback_path:        ['OAUTH_USER_CALLBACK_PATH'],
   oauth_role_claim_name:           ['OAUTH_ROLE_CLAIM_NAME'],

@@ -67,6 +67,22 @@ describe('PF AI Agent RAR service', () => {
     expect(JSON.stringify(result)).not.toContain('p1-session-token');
   });
 
+  test('pushes and redirects with the dedicated RAR client when one is configured', async () => {
+    const fetchImpl = jest.fn()
+      .mockResolvedValueOnce(jsonResponse(discovery()))
+      .mockResolvedValueOnce(jsonResponse({
+        request_uri: 'urn:ietf:params:oauth:request_uri:opaque-value', expires_in: 90,
+      }));
+    const req = { session: { oauthProvider: 'pingone', oauthTokens: { accessToken: 't' }, user: { username: 'demouser' } } };
+
+    const result = await beginRar(req, {
+      scenario: 'allowed', store: makeStore({ pf_ai_rar_client_id: 'ai-demo-pf-rar' }), fetchImpl,
+    });
+
+    expect(fetchImpl.mock.calls[1][1].body.get('client_id')).toBe('ai-demo-pf-rar');
+    expect(new URL(result.redirectUrl).searchParams.get('client_id')).toBe('ai-demo-pf-rar');
+  });
+
   test('consumes a denied PF callback as safe metadata without changing the active session', async () => {
     const session = {
       oauthProvider: 'pingone',

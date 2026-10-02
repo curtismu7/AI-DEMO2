@@ -341,6 +341,7 @@ services:
       # switch them off from the shell or the root .env.
       PF_AI_CIMD_ENABLED: "${PF_AI_CIMD_ENABLED:-true}"
       PF_AI_RAR_ENABLED: "${PF_AI_RAR_ENABLED:-true}"
+      PF_AI_RAR_CLIENT_ID: "${PF_AI_RAR_CLIENT_ID:-ai-demo-pf-rar}"
       PF_PAR_ENDPOINT: "${PF_PAR_ENDPOINT:-https://local.ping-devops.com:9031/as/par.oauth2}"
       # Plain-HTTP façade listener — see the 127.0.0.1:3002 port mapping above.
       MCP_FACADE_HTTP_PORT: "3002"

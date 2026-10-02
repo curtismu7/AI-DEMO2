@@ -71,6 +71,25 @@ public final class AiAgentAuthorizationDetailPolicyTest {
                 "demouser", Set.of("transactions:write"), USER_INFO),
                 "larger transfer must not be a subset of smaller accepted transfer");
 
+        // Push time: no user has signed in yet, so only the shape is checked.
+        check(AiAgentAuthorizationDetailPolicy.validateShape(validTransferDetail(),
+                Set.of("transactions:write")).isValid(),
+                "well-formed transaction should pass the shape check without a user");
+        check(AiAgentAuthorizationDetailPolicy.validateShape(otherUser, Set.of("transactions:write")).isValid(),
+                "the shape check cannot judge the user; that is left to the user-bound check");
+        check(!AiAgentAuthorizationDetailPolicy.validateShape(unknownField, Set.of("transactions:write")).isValid(),
+                "unknown field must fail the shape check");
+        check(!AiAgentAuthorizationDetailPolicy.validateShape(validTransferDetail(),
+                Set.of("accounts:read")).isValid(),
+                "missing write scope must fail the shape check");
+        Map<String, Object> negativeAmount = new java.util.HashMap<>(validTransferDetail());
+        negativeAmount.put("amount", new BigDecimal("-1"));
+        check(!AiAgentAuthorizationDetailPolicy.validateShape(negativeAmount, Set.of("transactions:write")).isValid(),
+                "non-positive amount must fail the shape check");
+        check(!AiAgentAuthorizationDetailPolicy.validate(validTransferDetail(), null,
+                Set.of("transactions:write"), USER_INFO).isValid(),
+                "the full check must still refuse when there is no user");
+
         System.out.println("PF AI Agent RAR policy tests passed");
     }
 }

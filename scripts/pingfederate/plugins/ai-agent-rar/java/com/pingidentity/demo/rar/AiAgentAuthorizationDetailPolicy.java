@@ -21,14 +21,13 @@ public final class AiAgentAuthorizationDetailPolicy {
         static ValidationResult deny(String reason) { return new ValidationResult(false, reason); }
     }
 
-    public static ValidationResult validate(
-            Map<String, Object> detail,
-            String authenticatedUserKey,
-            Set<String> requestedScopes,
-            Map<String, Object> mappedUserInfo) {
-        if (detail == null || authenticatedUserKey == null || authenticatedUserKey.isBlank()
-                || requestedScopes == null || mappedUserInfo == null) {
-            return ValidationResult.deny("authenticated transaction context is unavailable");
+    /**
+     * Checks that need no user: what PingFederate can decide when the request is
+     * pushed, before anyone has signed in.
+     */
+    public static ValidationResult validateShape(Map<String, Object> detail, Set<String> requestedScopes) {
+        if (detail == null || requestedScopes == null) {
+            return ValidationResult.deny("authorization detail or requested scope is unavailable");
         }
         if (!DETAIL_TYPE.equals(detail.get("type"))) {
             return ValidationResult.deny("unsupported authorization detail type");
@@ -39,36 +38,57 @@ public final class AiAgentAuthorizationDetailPolicy {
         if (!requestedScopes.contains(REQUIRED_SCOPE)) {
             return ValidationResult.deny("transactions:write scope is required");
         }
-
-        String userId = cleanString(detail.get("user_id"));
-        String mappedUserId = cleanString(mappedUserInfo.get("user_id"));
-        if (userId == null || !authenticatedUserKey.equals(userId)
-                || !authenticatedUserKey.equals(mappedUserId)) {
-            return ValidationResult.deny("authorization detail user does not match the authenticated user");
+        if (cleanString(detail.get("user_id")) == null) {
+            return ValidationResult.deny("authorization detail user is missing");
         }
-
         List<String> actions = stringList(detail.get("actions"));
         if (actions == null || !actions.equals(List.of("transfer"))) {
             return ValidationResult.deny("only the transfer action is supported");
         }
-
         String sourceAccount = cleanString(detail.get("source_account"));
         String destinationAccount = cleanString(detail.get("destination_account"));
+        if (sourceAccount == null || destinationAccount == null || sourceAccount.equals(destinationAccount)) {
+            return ValidationResult.deny("transaction accounts are missing or identical");
+        }
+        BigDecimal amount = decimal(detail.get("amount"));
+        if (amount == null || amount.signum() <= 0) {
+            return ValidationResult.deny("transaction amount must be a positive number");
+        }
+        if (cleanString(detail.get("currency")) == null) {
+            return ValidationResult.deny("transaction currency is missing");
+        }
+        return ValidationResult.allow();
+    }
+
+    public static ValidationResult validate(
+            Map<String, Object> detail,
+            String authenticatedUserKey,
+            Set<String> requestedScopes,
+            Map<String, Object> mappedUserInfo) {
+        if (detail == null || authenticatedUserKey == null || authenticatedUserKey.isBlank()
+                || requestedScopes == null || mappedUserInfo == null) {
+            return ValidationResult.deny("authenticated transaction context is unavailable");
+        }
+        ValidationResult shape = validateShape(detail, requestedScopes);
+        if (!shape.isValid()) return shape;
+
+        String mappedUserId = cleanString(mappedUserInfo.get("user_id"));
+        if (!authenticatedUserKey.equals(detail.get("user_id")) || !authenticatedUserKey.equals(mappedUserId)) {
+            return ValidationResult.deny("authorization detail user does not match the authenticated user");
+        }
+
         List<String> accountIds = stringList(mappedUserInfo.get("account_ids"));
-        if (sourceAccount == null || destinationAccount == null || sourceAccount.equals(destinationAccount)
-                || accountIds == null || !accountIds.contains(sourceAccount) || !accountIds.contains(destinationAccount)) {
+        if (accountIds == null || !accountIds.contains(detail.get("source_account"))
+                || !accountIds.contains(detail.get("destination_account"))) {
             return ValidationResult.deny("transaction accounts are not mapped to the authenticated user");
         }
 
-        BigDecimal amount = decimal(detail.get("amount"));
         BigDecimal maximum = decimal(mappedUserInfo.get("transaction_limit"));
-        if (amount == null || maximum == null || amount.signum() <= 0 || amount.compareTo(maximum) > 0) {
+        if (maximum == null || decimal(detail.get("amount")).compareTo(maximum) > 0) {
             return ValidationResult.deny("transaction amount is outside the user's mapped limit");
         }
 
-        String currency = cleanString(detail.get("currency"));
-        String mappedCurrency = cleanString(mappedUserInfo.get("currency"));
-        if (currency == null || mappedCurrency == null || !currency.equals(mappedCurrency)) {
+        if (!detail.get("currency").equals(cleanString(mappedUserInfo.get("currency")))) {
             return ValidationResult.deny("transaction currency does not match the user's mapped currency");
         }
         return ValidationResult.allow();

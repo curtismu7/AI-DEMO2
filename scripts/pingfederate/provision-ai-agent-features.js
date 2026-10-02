@@ -12,15 +12,18 @@
  *   2. the mkcert root as a trusted CA, so PingFederate can fetch the BFF's
  *      client metadata document over HTTPS
  *   3. CIMD enabled, with one policy restricted to that exact document URL
- *   4. a `banking_transaction` authorization detail type, handled by an
+ *   4. a lookup credential in the vault (PF_AI_RAR_LOOKUP_SECRET), created
+ *      once, which the RAR processor presents to the BFF
+ *   5. a `banking_transaction` authorization detail type, handled by an
  *      instance of the processor in plugins/ai-agent-rar (its JAR must already
- *      be in PingFederate's deploy directory — see that plugin's README)
+ *      be in PingFederate's deploy directory — see that plugin's README),
+ *      configured to look the signed-in user's accounts and limit up from the BFF
+ *   6. the public PKCE client `ai-demo-pf-rar`, allowed that detail type
  *
  * NOT done here, because each is a decision or needs a running browser login:
  *   - the BFF's own switches (PF_AI_CIMD_ENABLED, PF_AI_RAR_ENABLED,
- *     PF_PAR_ENDPOINT) — docs/ENV.md
- *   - the user attributes the RAR processor reads (user_id, account_ids,
- *     transaction_limit, currency) and consent rendering — plugin README §3-4
+ *     PF_AI_RAR_CLIENT_ID, PF_PAR_ENDPOINT) — docs/ENV.md
+ *   - consent rendering — plugin README
  *   - the third-party authorization server exchange and the DaVinci login
  *
  * Dry run by default: prints what WOULD change. --apply makes the changes and
@@ -53,17 +56,46 @@ const CIMD_POLICY = {
   requireProofKeyForCodeExchange: true,
   defaultAccessTokenManagerRef: { id: 'aiDemoPfJwtAtm' },
 };
+// Where the processor looks up the signed-in user's accounts and limit, and the
+// vault entry holding the credential it presents there. The BFF reads the same
+// entry (PF_AI_RAR_LOOKUP_SECRET) to check it.
+const RAR_LIMITS_URL = `${PUBLIC_APP_URL}/api/pf-ai-agent/rar/user-limits`;
+const RAR_LOOKUP_SECRET = 'PF_AI_RAR_LOOKUP_SECRET';
 const RAR_PROCESSOR = {
   id: 'aiDemoBankingTxnProcessor', // PingFederate caps plugin IDs at 32 alphanumerics
   name: 'AI Demo banking_transaction processor',
   pluginDescriptorRef: { id: 'com.pingidentity.demo.rar.AiAgentAuthorizationDetailProcessor' },
-  configuration: { tables: [], fields: [] },
 };
 const RAR_TYPE = {
   type: 'banking_transaction',
   description: 'AI Demo banking transaction authorization detail',
   authorizationDetailProcessorRef: { id: RAR_PROCESSOR.id },
 };
+// PingFederate 13.1 gives a CIMD client no authorization detail types and has
+// no setting to change that, so RAR gets its own registered public client.
+const RAR_CLIENT = {
+  clientId: 'ai-demo-pf-rar',
+  name: 'AI Demo PF RAR (public PKCE)',
+  enabled: true,
+  redirectUris: [`${PUBLIC_APP_URL}/api/pf-ai-agent/cimd/callback`],
+  grantTypes: ['AUTHORIZATION_CODE'],
+  clientAuth: { type: 'NONE' },
+  requireProofKeyForCodeExchange: true,
+  restrictScopes: true,
+  restrictedScopes: ['email', 'openid', 'profile', SCOPE.name],
+  authorizationDetailTypes: [RAR_TYPE.type],
+  defaultAccessTokenManagerRef: { id: 'aiDemoPfJwtAtm' },
+};
+
+const VAULT_JS = path.join(MAIN, 'demo_api_server', 'scripts', 'vault.js');
+function vault(args, input) {
+  const envText = fs.readFileSync(path.join(MAIN, 'demo_api_server', '.env'), 'utf8');
+  const password = (envText.match(/^VAULT_PASSWORD=(.*)$/m) || [])[1]?.trim().replace(/^"|"$/g, '');
+  return execFileSync(process.execPath, [VAULT_JS, ...args], {
+    env: { ...process.env, VAULT_PASSWORD: password, VAULT_PATH: path.join(MAIN, 'secrets.vault') },
+    input, encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'],
+  }).trim().split('\n');
+}
 
 function adminPassword() {
   if (process.env.PINGFEDERATE_ADMIN_PASSWORD) return process.env.PINGFEDERATE_ADMIN_PASSWORD;
@@ -128,14 +160,46 @@ async function main() {
       ? api('PUT', `oauth/cimd/policies/${CIMD_POLICY.id}`, CIMD_POLICY)
       : api('POST', 'oauth/cimd/policies', CIMD_POLICY)));
 
+  // The lookup credential is created once and kept; an existing one is never replaced.
+  await step(`vault ${RAR_LOOKUP_SECRET}`,
+    async () => !vault(['list']).includes(RAR_LOOKUP_SECRET),
+    async () => { vault(['set', RAR_LOOKUP_SECRET], crypto.randomBytes(32).toString('hex')); });
+
+  // PingFederate never returns the credential, so "in place" means the instance
+  // exists and points at the lookup URL. Applying sends both fields.
+  const findProcessor = async () => ((await api('GET', 'oauth/authorizationDetailProcessors')).items || []).find((item) => item.id === RAR_PROCESSOR.id);
+  const limitsUrlOf = (processor) => (processor?.configuration?.fields || []).find((field) => field.name === 'User Limits URL')?.value;
   await step(`RAR processor ${RAR_PROCESSOR.id}`,
-    async () => !((await api('GET', 'oauth/authorizationDetailProcessors')).items || []).some((item) => item.id === RAR_PROCESSOR.id),
-    () => api('POST', 'oauth/authorizationDetailProcessors', RAR_PROCESSOR));
+    async () => limitsUrlOf(await findProcessor()) !== RAR_LIMITS_URL,
+    async () => {
+      const body = {
+        ...RAR_PROCESSOR,
+        configuration: { tables: [], fields: [
+          { name: 'User Limits URL', value: RAR_LIMITS_URL },
+          { name: 'User Limits Credential', value: vault(['get', RAR_LOOKUP_SECRET]).pop() },
+        ] },
+      };
+      return (await findProcessor())
+        ? api('PUT', `oauth/authorizationDetailProcessors/${RAR_PROCESSOR.id}`, body)
+        : api('POST', 'oauth/authorizationDetailProcessors', body);
+    });
 
   await step(`RAR type ${RAR_TYPE.type}`,
     async () => !((await api('GET', 'oauth/authorizationDetailTypes')).items || [])
       .some((item) => item.type === RAR_TYPE.type && item.active && item.authorizationDetailProcessorRef?.id === RAR_PROCESSOR.id),
     () => api('POST', 'oauth/authorizationDetailTypes', RAR_TYPE));
+
+  const findClient = async () => ((await api('GET', 'oauth/clients')).items || []).find((item) => item.clientId === RAR_CLIENT.clientId);
+  await step(`RAR client ${RAR_CLIENT.clientId}`,
+    async () => {
+      const client = await findClient();
+      return !(client && client.enabled && client.requireProofKeyForCodeExchange
+        && (client.authorizationDetailTypes || []).includes(RAR_TYPE.type)
+        && (client.redirectUris || []).includes(RAR_CLIENT.redirectUris[0]));
+    },
+    async () => (await findClient()
+      ? api('PUT', `oauth/clients/${RAR_CLIENT.clientId}`, RAR_CLIENT)
+      : api('POST', 'oauth/clients', RAR_CLIENT)));
 }
 
 main().catch((error) => { console.error(`[pf-agent-features] failed: ${error.message}`); process.exit(1); });
