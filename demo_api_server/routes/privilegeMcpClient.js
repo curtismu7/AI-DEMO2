@@ -691,6 +691,19 @@ function mcpRelayError(status, text) {
 }
 
 /**
+ * Names an error status that is an expected outcome rather than a fault, so
+ * the Request Trace can label it for what it is: the modern handshake probe
+ * an older server refuses (ensureMcpSessionInitialized then falls back to
+ * `initialize`), and a Privilege policy denial.
+ * @returns {'handshake_fallback'|'policy_denied'|null}
+ */
+function relayNote(session, requestBody, status) {
+  if (requestBody?.method === 'server/discover' && [400, 404, 405].includes(status)) return 'handshake_fallback';
+  if (status === 403 && session.gatewayMode === 'privilege') return 'policy_denied';
+  return null;
+}
+
+/**
  * Status a relay handler should answer with. An upstream 4xx is the caller's
  * problem and must survive the hop — Privilege Cloud replying "401 User is not
  * authorized for privilege.pingone.com/api/mcp" as a 500 told the operator the
@@ -862,9 +875,11 @@ async function fetchMcp(session, pathname, body, withAuth = true, allowRefreshRe
     emitEvent(session, 'mcp', { phase: 'session_attached', sessionId: responseSessionId });
   }
 
+  const note = relayNote(session, requestBody, response.status);
   emitEvent(session, 'relay', {
     direction: 'mcp->client',
     status: response.status,
+    ...(note ? { note } : {}),
     headers: { 'www-authenticate': response.headers.get('www-authenticate'), 'mcp-session-id': responseSessionId },
     body: parsed,
   });
@@ -2502,7 +2517,7 @@ router.post('/tools/list', express.json(), async (req, res) => {
     res.json({ tools: session.tools, policy: publicPolicySummary(session) });
   } catch (err) {
     resetMcpState(session);
-    emitEvent(session, 'error', { scope: 'tools_list', message: err.message });
+    emitEvent(session, 'error', { scope: 'tools_list', message: err.message, note: relayNote(session, null, err.upstreamStatus) });
     // pingoneAdminLocalHandler's own auth requirement — a separate, delegated-
     // PKCE login (routes/mcpPingOneAdminAuth.js), not this page's own OAuth
     // flow. Surface the loginUrl alongside the standard `error` string (never
@@ -2534,7 +2549,7 @@ router.post('/tools/call', express.json(), async (req, res) => {
     const data = await callMcp(session, 'tools/call', { name, arguments: args || {} });
     res.json(data);
   } catch (err) {
-    emitEvent(session, 'error', { scope: 'tools_call', message: err.message });
+    emitEvent(session, 'error', { scope: 'tools_call', message: err.message, note: relayNote(session, null, err.upstreamStatus) });
     const loginUrl = err.rpcError?.data?.reason === 'pingone_admin_login_required'
       ? err.rpcError.data.loginUrl : null;
     res.status(relayFailureStatus(err)).json({ error: err.message, ...(loginUrl ? { loginUrl } : {}) });
@@ -4029,6 +4044,7 @@ module.exports.__test = {
   envFallbackVars,
   listAllMcpPages,
   gatewayAppFromUrl,
+  relayNote,
   /** @param {string} sid @param {{ write: Function }} res */
   subscribeSse(sid, res) {
     let clients = sseClients.get(sid);

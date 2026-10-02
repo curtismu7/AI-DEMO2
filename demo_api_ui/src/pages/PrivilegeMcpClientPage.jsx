@@ -2870,12 +2870,16 @@ export default function PrivilegeMcpClientPage() {
                     if (e.type === 'mcp') { label = `MCP: ${e.phase}`; tone = 'mcp'; }
                     if (e.type === 'error') { label = `ERROR: ${e.scope}`; tone = 'error'; }
                     if (e.type === 'config') { label = 'Config updated'; tone = 'config'; }
+                    // Expected outcomes the relay tags (relayNote) — not faults, so not red.
+                    // Tones reuse the existing grey and amber label colours.
+                    if (e.note === 'handshake_fallback') { label = `← MCP ${e.status} older handshake, falling back`; tone = 'config'; }
+                    if (e.note === 'policy_denied') { label = e.type === 'error' ? `DENIED: ${e.scope} — Privilege policy` : `← MCP ${e.status} denied by Privilege policy`; tone = 'oauth'; }
                     return (
                       <details key={i} style={{borderBottom:'1px solid #222',padding:'2px 0'}}>
                         <summary className="cur-trace-summary">
                           <span className="cur-trace-ts">{e.ts?.slice(11,23)||''}</span>
                           <span className={`cur-trace-label cur-trace-label--${tone}`}>{label}</span>
-                          {e.type === 'error' && <span className="cur-trace-error">{e.message}</span>}
+                          {e.type === 'error' && e.note !== 'policy_denied' && <span className="cur-trace-error">{e.message}</span>}
                         </summary>
                         <pre className="cur-trace-json">
                           {JSON.stringify(rest, null, 2)}
