@@ -1564,6 +1564,21 @@ failures each), so it is unproven. The stress test now uses one listening
 server; `demoAgentNl`, `mcp-local-hitl` and `privilegeMcpClient.state` are
 unexamined. Re-run the full suite on a loaded host before calling (2) fixed.
 
+**2026-10-02 (later) — the other failures were not flakes.** Two of the three
+"unexamined" suites fail deterministically on the main checkout and pass in CI
+and in a clean worktree: both read gitignored local state.
+- `privilegeMcpClient.state` — the banking-preset test did not clear
+  `PRIVILEGE_MCPGW_URL`, which a developer's `.env` sets. Fixed (proved: fails
+  with the var set, passes with the one-line delete).
+- `mcp-local-hitl` — `data/store.js` loads `data/runtimeData.json` (the live
+  demo's accounts), so `sav-4` / `chk-4` do not exist and the transfer returns
+  "Source account sav-4 not found". NOT fixed: giving the store a test-isolated
+  data path is a shared change to every suite that touches it. Any test using
+  hardcoded seed account ids is exposed on a checkout that has run the demo.
+`demoAgentNl` (`connect ETIMEDOUT` on a loopback port) passes alone; it is the
+same unreproduced loopback class as the RFC 9728 reset. Items still open: the
+store/`runtimeData.json` isolation, and the loopback resets themselves.
+
 ### [ ] 2026-09-09 — UC14b intermittently DENYs with `rar_unexpected_deny`, but only in a multi-vertical Demo Steps run
 
 **What's wrong.** `UC14b` ("PAR + RAR intent verified — PERMIT") posts a
