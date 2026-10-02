@@ -366,6 +366,7 @@ function evidenceFailures({ evidence, provider, authorization, expected, caseRow
     // exchanged for that server's audience; the gateway reports that exchange.
     if (!a2aRun && !gatewayPolicy && authorization.backendHop && expected === 'PERMIT') {
       require(evidence.backendHop?.audience === authorization.backendHop.audience, 'gateway did not report an exchange for the MCP server audience');
+      require(exactValues(evidence.backendHop?.scopes, authorization.backendHop.scopes), 'gateway token for the MCP server does not carry exactly the tool scopes');
     }
     require(Boolean(evidence.gateway?.route && evidence.gateway?.verdict), 'Gateway evidence is required for an exchanged tool call');
     // A gateway-policy tool is decided by the gateway's own filter; PingOne
@@ -411,7 +412,7 @@ function audienceScopeSummary({ evidence = {}, authorization, expected }) {
   if (!a2aRun && authorization.backendHop && (forwarded || evidence.backendHop)) hops.push({
     hop: 'gateway to MCP server',
     expectedAudiences: [authorization.backendHop.audience],
-    expectedScopes: null,
+    expectedScopes: authorization.backendHop.scopes || null,
     observedAudiences: evidence.backendHop?.audience ? [evidence.backendHop.audience] : [],
     observedScopes: evidence.backendHop?.scopes || [],
   });

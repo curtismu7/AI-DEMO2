@@ -85,6 +85,10 @@ describe.each(FILTERS)('PingGateway $name Exchange #3 provider contract', (filte
       expect(text).toMatch(/def requestedOlbScope\s*=\s*isPfSubject\s*\?\s*pfOlbScope\s*:\s*olbScope/);
       expect(text).toMatch(/if\s*\(requestedOlbScope\?\.trim\(\)\)\s*\{\s*params\['scope'\]\s*=\s*requestedOlbScope\.trim\(\)/);
       expect(text).toMatch(/if\s*\(!isPfSubject\)\s*\{\s*params\['resource'\]\s*=\s*olbAudience/);
+      // Narrowed to the tool's scopes, only ever to a subset of the configured list.
+      expect(text).toMatch(/def narrowed\s*=\s*requestedOlbScope\.trim\(\)\.split\([^)]*\)\.findAll\s*\{\s*it\s*&&\s*toolScopes\.contains\(it\)\s*\}/);
+      expect(text).toMatch(/if\s*\(narrowed\)\s*requestedOlbScope\s*=\s*narrowed\.join\(' '\)/);
+      expect(text.indexOf('def narrowed')).toBeLessThan(text.indexOf("params['scope']"));
     } else {
       expect(text).toMatch(/def wantScope\s*=\s*SCOPE_FOR_TOOL\[toolName\]/);
       expect(text).toMatch(/if\s*\(wantScope\)\s*params\['scope'\]\s*=\s*wantScope/);

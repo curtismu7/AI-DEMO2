@@ -49,7 +49,7 @@ test('the report lists expected against observed audience and scopes for each ho
   expect(audienceScopeSummary({ evidence, authorization, expected: 'PERMIT' })).toEqual([
     expect.objectContaining({ hop: 'tool scope', expectedScopes: authorization.requiredScopes, observedScopes: ['read'], observedAudiences: ['enduser.ping.demo'] }),
     { hop: 'gateway token', expectedAudiences: ['https://api.ping.demo:3036/mcp'], expectedScopes: ['gateway:mcp:invoke'], observedAudiences: ['https://api.ping.demo:3036/mcp'], observedScopes: ['gateway:mcp:invoke'] },
-    { hop: 'gateway to MCP server', expectedAudiences: ['mcpserver.ping.demo'], expectedScopes: null, observedAudiences: ['mcpserver.ping.demo'], observedScopes: ['read'] },
+    { hop: 'gateway to MCP server', expectedAudiences: ['mcpserver.ping.demo'], expectedScopes: ['read'], observedAudiences: ['mcpserver.ping.demo'], observedScopes: ['read'] },
   ]);
 });
 
@@ -78,6 +78,7 @@ test.each([
   ['a gateway token carrying a tool scope', (r) => { r.tokenEvents[3].claims.scope = 'gateway:mcp:invoke read'; }, /gateway token audience or scope/],
   ['no gateway exchange for the MCP server', (r) => { r.tokenEvents = r.tokenEvents.filter((event) => event.id !== 'gw-backend-exchange'); }, /MCP server audience/],
   ['a gateway exchange for the wrong audience', (r) => { r.tokenEvents[6].audience = 'enduser.ping.demo'; }, /MCP server audience/],
+  ['a gateway exchange carrying more than the tool scopes', (r) => { r.tokenEvents[6].scope = 'write read code:search'; }, /exactly the tool scopes/],
 ])('%s fails the contract instead of being filled in', (_label, mutate, expectedFailure) => {
   const response = invokeResponse();
   mutate(response);
@@ -154,6 +155,7 @@ test('UC-TOOL1: a scope the user token lacks is accepted on a declared mirror au
   const { authorization: contract } = rowFor('UC-TOOL1');
   const response = invokeResponse({ tool: contract.primaryTool });
   response.tokenEvents[2].claims.scope = 'code:search agent:invoke';
+  response.tokenEvents[6].scope = 'code:search';
   const run = () => evidenceFromAgentInvoke({ response, provider: PROVIDER, expectedIssuer: ISSUER, authorization: contract });
   expect(run().evidence.audiences).toEqual(['agentgateway.ping.demo']);
   expect(validateRow('UC-TOOL1', run(), 'PERMIT')).toEqual([]);

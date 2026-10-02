@@ -325,6 +325,8 @@ function authorizationContractFor(step, sources, issues, useCaseId, vertical) {
     } : null,
     backendHop: resourceServer?.id === 'olb' ? {
       audience: topology.resources?.[topology.servers?.demo_mcp_server?.resource]?.uri || null,
+      // Least privilege: the gateway asks the MCP server for this tool's scopes only.
+      scopes: requiredScopes,
     } : null,
     authorizeToolGroup: restrictedRole ? {
       role: restrictedRole,
