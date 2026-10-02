@@ -139,6 +139,12 @@ const Header = ({ user, onLogout }) => {
                 My Dashboard
               </NavLink>
             )}
+            <NavLink
+              to="/oauth/token-display"
+              className={`nav-link ${location.pathname === '/oauth/token-display' ? 'active' : ''}`}
+            >
+              Inspect
+            </NavLink>
             <div className="app-top-header__user">
               <HeaderSessionTimer user={user} />
               <span>Welcome, {user.firstName} {user.lastName}</span>

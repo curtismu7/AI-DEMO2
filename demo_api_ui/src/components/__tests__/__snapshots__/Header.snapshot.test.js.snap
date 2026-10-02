@@ -72,6 +72,13 @@ exports[`Header snapshot > renders admin nav without change 1`] = `
         >
           Postman
         </a>
+        <a
+          class="nav-link "
+          data-discover="true"
+          href="/oauth/token-display"
+        >
+          Inspect
+        </a>
         <div
           class="app-top-header__user"
         >
@@ -128,6 +135,13 @@ exports[`Header snapshot > renders user nav without change 1`] = `
           href="/dashboard"
         >
           My Dashboard
+        </a>
+        <a
+          class="nav-link "
+          data-discover="true"
+          href="/oauth/token-display"
+        >
+          Inspect
         </a>
         <div
           class="app-top-header__user"
