@@ -25,7 +25,10 @@ KEYS=(
 missing=0
 echo "== Groovy parameter-key parity =="
 for k in "${KEYS[@]}"; do
-  if grep -qE "^[[:space:]]*${k}[[:space:]]*:" "$GROOVY"; then
+  # A key is sent either as a map literal entry (`Key:`) or by assignment
+  # (`parameters.Key =`) — the filter sets the two audience keys the second way,
+  # conditionally, and matching only the first reported them missing.
+  if grep -qE "^[[:space:]]*${k}[[:space:]]*:|parameters\.${k}[[:space:]]*=" "$GROOVY"; then
     echo "  ok   $k"
   else
     echo "  MISSING $k"
@@ -44,7 +47,11 @@ else
 fi
 # Real backend: PingOne Authorize Decision Endpoints API. Ignore comment lines so
 # only an actual URL-construction reference counts.
-if grep -vE '^[[:space:]]*(//|\*|/\*)' "$GROOVY" | grep -q "/decisionEndpoints/"; then
+# Not `grep -v ... | grep -q`: under pipefail, grep -q exiting on its first match
+# kills the upstream grep with SIGPIPE and the pipeline reports failure — a
+# false MISSING that depends on timing (passed locally, failed in CI).
+non_comment="$(grep -vE '^[[:space:]]*(//|\*|/\*)' "$GROOVY")"
+if grep -q "/decisionEndpoints/" <<<"$non_comment"; then
   echo "  ok   real backend builds /decisionEndpoints/<id> URL"
 else
   echo "  MISSING real backend decisionEndpoints URL construction"

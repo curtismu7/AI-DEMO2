@@ -974,6 +974,16 @@ if (intentValid != null) {
     parameters.IntentMatchesTool = String.valueOf(intentMatches)
     if (intentError) parameters.IntentTokenError = intentError
 }
+// The intent action/payee binding is not evaluated on this route: PingGateway
+// holds no consented grant to compare the request against (the Node gateway
+// does — PingOneAuthorizeClient.ts). Sent as '' so the request has the same
+// shape as every other PEP's (snapshots/p1azRequestContract.js, decision
+// 2026-09-09). '' is what the policy defaults them to, so no decision changes,
+// and it is not a fabricated value: it states "not applicable here".
+parameters.IntentRequestAction = ''
+parameters.IntentGrantAction   = ''
+parameters.IntentRequestPayee  = ''
+parameters.IntentGrantPayee    = ''
 if (rarAuthzDetails) parameters.RarAuthorizationDetails = rarAuthzDetails
 if (rarMaxAmount)    parameters.RarMaxAmount = rarMaxAmount
 if (rarPermittedPayees) parameters.RarPermittedPayees = rarPermittedPayees
