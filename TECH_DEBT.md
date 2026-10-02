@@ -1911,8 +1911,21 @@ file against `openapiFromRoutes.test.js`'s existing pattern of asserting the
 generated `security` field for a specific path.
 
 **PARTLY RESOLVED 2026-10-01 — branch `worktree-agent-ac2203070665e6dd5`.**
-Stays unchecked: three `transactions.js` sites are plain admin gates and remain
-inline, for a reason the entry above did not know about.
+Stays unchecked: two `selfServiceUsers.js` routes are admin-only in code and
+still generate `session` (below).
+
+The generator had a second blind spot the entry above did not know about:
+`express-list-endpoints` keeps ONE middleware list per path — the first route
+registered for it — so a guard on `GET /x` marked every verb on `/x`, and a
+guard on a later verb was not seen at all. `collectRouteGuards` in
+`lib/openapiFromRoutes.js` now reads middleware per operation. That alone
+changed nine generated rows and nothing else in the document: eight were
+understated (`DELETE /api/users/{userId}`, `POST`/`DELETE
+/api/verticals/{id}/logo`, `POST /api/admin/agent-gateway/files/{id}`,
+`POST /api/admin/config`, `POST /api/config/thresholds` now `admin`;
+`POST /api/mcp/inspector/profiles`, `PUT /api/authorize/mock-authz-rules` now
+`session`) and one was overstated (`POST /api/admin/app-events`, any-session
+by design, had inherited `admin` from the `GET` beside it).
 
 Converted (inline check was the handler's first statement; the non-admin status
 and body are unchanged and now pinned by route tests; each path's generated
@@ -1928,28 +1941,26 @@ and body are unchanged and now pinned by route tests; each path's generated
 - `mfa.js` — `GET` and `POST /ensure-fido2-rp` onto `requireMfaAdminSession`
   (reads `req.session.user?.role`, as before).
 - `conversations.js` — `GET /admin/queue-stats` onto `requireQueueStatsAdmin`.
+- `transactions.js` — `GET /`, `PUT /:id`, `DELETE /:id` onto a local
+  `requireAdminRole` (same body as the one in `accounts.js`). Only possible
+  after the per-operation fix: before it, the guard on `GET /` would have
+  documented customer `POST /api/transactions` as admin-only. `POST /` and
+  `GET /:id` are asserted to stay `session`.
 
 Still inline, and why:
 
-- `transactions.js` `GET /`, `PUT /:id`, `DELETE /:id` — straight admin gates,
-  safe to extract at runtime, but **the generator computes `security` per path,
-  not per method**: `express-list-endpoints` merges a path's middleware across
-  verbs (this is why `POST /api/accounts` already read `admin` before it had a
-  guard of its own). Naming these would document `POST /api/transactions`
-  (customers create transactions) and `GET /api/transactions/:id`
-  (owner-or-admin) as admin-only — wrong docs in place of understated docs.
-  Needs a per-method route walk in `lib/openapiFromRoutes.js` first; a test now
-  pins those two operations at `session` so the trap is visible.
+- `selfServiceUsers.js` `DELETE /:userId`, `GET /` — **the remaining real gap.**
+  Both are admin-only, but the role check follows a 401 authentication check
+  and throws an `OAuthError` into the handler's own catch rather than
+  responding, so it is not a first-statement extraction. They still generate
+  `session`. `POST /` in the same file only gates when the body asks for
+  `role: 'admin'`.
 - `transactions.js` `GET /my`, `POST /consent-challenge`, `POST /` (two sites)
   and `users.js` `PUT /:userId` — not gates. The role test picks a branch
   (snapshot re-hydrate, own-account validation, stripping `role`/`isActive`),
   it rejects nobody.
 - `accounts.js` `GET /:id/balance`, `transactions.js` `GET /:id` —
   ownership-or-admin, decided after the record is loaded.
-- `selfServiceUsers.js` `DELETE /:userId`, `GET /` — the role check follows a
-  401 authentication check and throws an `OAuthError` into the handler's own
-  catch rather than responding; `POST /` only gates when the body asks for
-  `role: 'admin'`.
 - `groupMembership.js`, `lighthouseRoute.js`, `verticalManifest.js` — nothing
   to do. Each grep hit is already the body of a named route-level
   `requireAdmin`, and their admin routes already generate `admin`.
