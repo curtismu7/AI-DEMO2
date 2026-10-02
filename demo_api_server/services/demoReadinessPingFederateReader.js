@@ -48,14 +48,16 @@ function createPingFederateReader({ env = process.env, get = adminGet, profiles 
     // The local admin console serves a self-signed certificate; verification is
     // skipped only when the operator says so, and only for these reads.
     const insecure = env.PINGFEDERATE_ADMIN_TLS_INSECURE === '1';
-    const items = async (resource) => {
+    const one = async (resource) => {
       const { status, body } = await get(base + '/' + resource, { headers, insecure, signal });
       if (status !== 200) throw new Error('PingFederate Admin API read returned HTTP ' + status);
-      return body.items || [];
+      return body;
     };
-    const [clients, managers, connections, adapters, detailTypes] = await Promise.all([
+    const items = async (resource) => (await one(resource)).items || [];
+    const [clients, managers, connections, adapters, detailTypes, cimdSettings, cimdPolicies] = await Promise.all([
       items('oauth/clients'), items('oauth/accessTokenManagers'), items('idp/spConnections'),
       items('idp/adapters'), items('oauth/authorizationDetailTypes'),
+      one('oauth/cimd/settings'), items('oauth/cimd/policies'),
     ]);
     const managerField = (manager, name) => (manager.configuration?.fields || []).find((field) => field.name === name)?.value || null;
     return {
@@ -77,7 +79,13 @@ function createPingFederateReader({ env = process.env, get = adminGet, profiles 
         policies: (connection.oauthTokenExchangeSettings?.processorPolicyMappings || []).map((mapping) => mapping.processorPolicyRef?.id),
       })),
       adapterPlugins: adapters.map((adapter) => adapter.pluginDescriptorRef?.id || ''),
-      rarDetailTypes: detailTypes.map((item) => item.type || item.name || item.id).filter(Boolean).sort(),
+      rarDetailTypes: detailTypes.filter((item) => item.active !== false).map((item) => item.type).filter(Boolean).sort(),
+      cimd: {
+        cimdEnabled: Boolean(cimdSettings.cimdEnabled),
+        // Only enabled policies admit a client; their URL patterns are the allowlist.
+        metadataUrls: cimdPolicies.filter((policy) => policy.enabled).flatMap((policy) => policy.metadataUrls || []).sort(),
+        pkceRequired: cimdPolicies.filter((policy) => policy.enabled).every((policy) => policy.requireProofKeyForCodeExchange),
+      },
     };
   }
 
@@ -110,7 +118,11 @@ function createPingFederateReader({ env = process.env, get = adminGet, profiles 
     if (role === 'davinci-login') {
       return { present: Boolean(client), davinciAdapterConfigured: view.adapterPlugins.some((id) => /davinci/i.test(id)) };
     }
-    if (role === 'rar') return { present: Boolean(client), rarDetailTypes: view.rarDetailTypes };
+    // CIMD has no pre-registered client: the client is its metadata URL, and an
+    // enabled policy whose pattern matches is what admits it.
+    if (role === 'cimd') return { present: view.cimd.cimdEnabled && view.cimd.metadataUrls.length > 0, ...view.cimd };
+    // RAR rides on the CIMD client; what PingFederate itself must hold is the type.
+    if (role === 'rar') return { present: view.rarDetailTypes.length > 0, rarDetailTypes: view.rarDetailTypes };
     return { present: Boolean(client), ...client };
   }
 

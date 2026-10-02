@@ -18,6 +18,7 @@ const PROFILES = {
       baseline: { present: true, resourceUris: ['https://a.example.test', 'https://b.example.test'], idJagEnabled: true } },
     'davinci-login': { kind: 'oauth-client', objectId: 'user-client', baseline: { present: true, davinciAdapterConfigured: true } },
     rar: { kind: 'oauth-client', objectId: 'PF_RAR_CLIENT', baseline: { present: true, rarDetailTypes: ['banking_transaction'] } },
+    cimd: { kind: 'oauth-client', objectId: 'PF_CIMD_CLIENT', baseline: { present: true, cimdEnabled: true, metadataUrls: ['https://app.example.test/client-metadata.json'], pkceRequired: true } },
   },
 };
 
@@ -38,6 +39,8 @@ function live(overrides = {}) {
     ],
     'idp/adapters': [{ id: 'form', pluginDescriptorRef: { id: 'com.pingidentity.adapters.htmlform.idp.HtmlFormIdpAuthnAdapter' } }],
     'oauth/authorizationDetailTypes': [],
+    'oauth/cimd/settings': { cimdEnabled: false },
+    'oauth/cimd/policies': [],
     ...overrides,
   };
 }
@@ -46,7 +49,9 @@ function reader(state, { env = ENV, calls = [] } = {}) {
   const get = async (url, options) => {
     calls.push({ url, options });
     const resource = url.slice(BASE.length + 1);
-    return resource in state ? { status: 200, body: { items: state[resource] } } : { status: 404, body: {} };
+    if (!(resource in state)) return { status: 404, body: {} };
+    // Lists come back wrapped in items; the CIMD settings are a single object.
+    return { status: 200, body: Array.isArray(state[resource]) ? { items: state[resource] } : state[resource] };
   };
   return createPingFederateReader({ env, get, profiles: PROFILES });
 }
@@ -90,7 +95,7 @@ describe('demoReadinessPingFederateReader', () => {
     await pf.readConfiguration();
     for (const [role, profile] of Object.entries(PROFILES.roles)) await pf.readProfile({ role, profile });
 
-    expect(calls).toHaveLength(5);
+    expect(calls).toHaveLength(7);
     for (const { options } of calls) {
       expect(options.insecure).toBe(false);
       expect(options.headers.Authorization).toBe('Basic ' + Buffer.from('administrator:admin-password').toString('base64'));
@@ -125,5 +130,36 @@ describe('demoReadinessPingFederateReader', () => {
     expect(rows['pingfederate:profile:rar']).toMatchObject({ status: 'fail', observed: { present: false, rarDetailTypes: [] } });
     expect(rows['pingfederate:davinciClientAdapter'].status).toBe('fail');
     expect(rows).not.toHaveProperty('pingfederate:admin-api');
+  });
+
+  describe('CIMD and RAR, which have no pre-registered client', () => {
+    const URL = 'https://app.example.test/client-metadata.json';
+    const provisioned = () => live({
+      'oauth/cimd/settings': { cimdEnabled: true },
+      'oauth/cimd/policies': [
+        { id: 'demo', enabled: true, metadataUrls: [URL], requireProofKeyForCodeExchange: true },
+        { id: 'off', enabled: false, metadataUrls: ['https://*.example.test/*'], requireProofKeyForCodeExchange: false },
+      ],
+      'oauth/authorizationDetailTypes': [{ id: 'x', type: 'banking_transaction', active: true }, { id: 'y', type: 'retired', active: false }],
+    });
+    const role = (state, name) => reader(state).readProfile({ role: name, profile: PROFILES.roles[name] });
+
+    it('match the baseline once provisioned, ignoring disabled policies and inactive types', async () => {
+      const cimd = await role(provisioned(), 'cimd');
+      expect(cimd).toEqual({ present: true, cimdEnabled: true, metadataUrls: [URL], pkceRequired: true });
+      expect(baselineMismatches(PROFILES.roles.cimd.baseline, cimd)).toEqual([]);
+      expect(await role(provisioned(), 'rar')).toEqual({ present: true, rarDetailTypes: ['banking_transaction'] });
+    });
+
+    it('fail CIMD when it is switched off, when a wider URL pattern is enabled, or when PKCE is not required', async () => {
+      const mismatches = async (change) => {
+        const state = provisioned();
+        change(state);
+        return baselineMismatches(PROFILES.roles.cimd.baseline, await role(state, 'cimd'));
+      };
+      expect(await mismatches((state) => { state['oauth/cimd/settings'].cimdEnabled = false; })).toEqual(['present', 'cimdEnabled']);
+      expect(await mismatches((state) => { state['oauth/cimd/policies'][1].enabled = true; })).toEqual(['metadataUrls', 'pkceRequired']);
+      expect(await mismatches((state) => { state['oauth/cimd/policies'][0].requireProofKeyForCodeExchange = false; })).toEqual(['pkceRequired']);
+    });
   });
 });

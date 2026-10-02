@@ -87,13 +87,13 @@
       "objectId": "PF_CIMD_CLIENT",
       "configurationKeys": [],
       "expected": { "cimdPolicy": "undocumented", "issuer": "environment-configured", "jwksUri": "environment-configured" },
-      "baseline": { "present": true },
+      "baseline": { "present": true, "cimdEnabled": true, "metadataUrls": ["https://local.ping-devops.com:4000/api/pf-ai-agent/cimd/client-metadata.json"], "pkceRequired": true },
       "unresolved": true,
-      "sourceRef": "demo_api_server/routes/cimdAgentMetadata.js"
+      "sourceRef": "scripts/pingfederate/provision-ai-agent-features.js"
     },
     "third-party-authorization-server": {
       "kind": "oauth-client",
-      "objectId": "PF_THIRD_PARTY_AS_CLIENT",
+      "objectId": "PF_AI_CROSS_DOMAIN_CLIENT_ID",
       "configurationKeys": [],
       "expected": { "thirdPartyAuthorizationServer": "undocumented" },
       "baseline": { "present": true },
@@ -107,7 +107,7 @@
       "expected": { "rarProcessor": "undocumented", "authorizationDetailsTypes": "undocumented" },
       "baseline": { "present": true, "rarDetailTypes": ["banking_transaction"] },
       "unresolved": true,
-      "sourceRef": "docs/superpowers/specs/2026-09-26-demo-readiness-and-repair-design.md"
+      "sourceRef": "scripts/pingfederate/provision-ai-agent-features.js"
     }
   }
 }
