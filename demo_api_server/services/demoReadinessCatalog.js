@@ -112,9 +112,10 @@ function executionModeFor(id, trigger, isAdmin) {
 function providerFlowFor(id, isAdmin, provider) {
   if (isAdmin) return provider === 'pingone' ? 'pingone-admin-mcp' : 'pingfederate-admin-mcp';
   if (id === 'UC40' && provider === 'pingone') return null;
-  if (provider === 'pingone') return ['UC2', 'UC2.5'].includes(id) ? 'pingone-a2a' : 'pingone-standard';
+  // UC2.6 runs the same real delegation as UC2 before its mismatch probe.
+  if (provider === 'pingone') return ['UC2', 'UC2.5', 'UC2.6'].includes(id) ? 'pingone-a2a' : 'pingone-standard';
   if (id === 'UC40') return 'pingfederate-native-id-jag';
-  if (['UC2', 'UC2.5'].includes(id)) return 'pingfederate-a2a';
+  if (['UC2', 'UC2.5', 'UC2.6'].includes(id)) return 'pingfederate-a2a';
   if (['UC38', 'UC44'].includes(id)) return 'pingfederate-workload';
   return 'pingfederate-standard';
 }
@@ -331,6 +332,9 @@ function authorizationContractFor(step, sources, issues, useCaseId, vertical) {
     authorizeToolGroup: restrictedRole ? {
       role: restrictedRole,
       groupName: restrictedRoleConfig?.name || null,
+      // Group policy is opt-in per step (`requiresGroup`); the manifest listing
+      // a tool as restricted does not by itself make Authorize check the group.
+      enforced: Boolean(step.requiresGroup),
       userMemberships: manifest?.groups?.userMemberships || {},
     } : null,
   };

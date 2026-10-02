@@ -706,7 +706,9 @@ module.exports = async function decisionHandler(req, res) {
       warn(`[AuthzServer/decision] DENY — a2a_delegation_required: "${ToolName}" needs a specialist delegation (act chain depth ${chainDepth} < 2)`);
       return deny(res, `a2a_delegation_required: "${ToolName}" must be delegated to a specialist agent (act chain depth ${chainDepth} < 2)`);
     }
-    const authorizedGeneralist = process.env.PINGONE_AI_AGENT_CLIENT_ID || '';
+    // The deployed stack sets only the ACTOR name (the same client, read by
+    // Rule 2 below); reading just the first name left this check skipped.
+    const authorizedGeneralist = process.env.PINGONE_AI_AGENT_CLIENT_ID || process.env.PINGONE_AI_AGENT_ACTOR_CLIENT_ID || '';
     if (authorizedGeneralist && NestedActClientId !== authorizedGeneralist) {
       warn(`[AuthzServer/decision] DENY — invalid_a2a_generalist: nested act.sub "${NestedActClientId}" is not the registered AI Agent "${authorizedGeneralist}"`);
       return deny(res, `invalid_a2a_generalist: nested act.sub "${NestedActClientId}" is not the authorized generalist`);

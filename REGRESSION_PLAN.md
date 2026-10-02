@@ -261,6 +261,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 **Verify:** `cd demo_api_server && CI=true npx jest tests/delegatedCommercePingFederate.test.js tests/delegatedCommerceRoutes.pf.test.js tests/delegatedCommerceRoutes.test.js src/__tests__/agentMcpTokenService.test.js --forceExit`.
 
+### 2026-10-02 — A2A generalist check was skipped; UC2.6 real delegation was denied
+
+**Files:** `demo_authz_server/routes/decision.js`, `demo_api_server/services/intentTokenService.js`, `services/demoReadinessCatalog.js`, `services/demoReadinessExecutionService.js`, `services/demoReadinessCaseAdapter.js`, tests `demo_authz_server/decision.a2a.test.js`, `demo_api_server/tests/intentToken.a2aDelegation.regression.test.js`, `tests/demoReadinessCaseAdapter.test.js`.
+
+**What was broken:** (1) The mock Authorize engine's A2A rule compares the nested actor with the registered generalist read from `PINGONE_AI_AGENT_CLIENT_ID`. The stack sets only `PINGONE_AI_AGENT_ACTOR_CLIENT_ID`, so the comparison was skipped and any nested actor at depth 2 was permitted — UC2.6's unregistered generalist included. (2) The `a2a_generalist_mismatch` intent permitted none of the specialist's tools, so UC2.6's real delegation was denied `intent_mismatch` before the demo's point was reached.
+
+**What changed:** The rule falls back to the ACTOR variable. `permittedToolsForIntent` gives `a2a_generalist_mismatch` the same specialist tools as `delegate_to_specialist`. Readiness judges UC2.6 as an A2A run with outcome `PERMIT_THEN_DENY`, and asks for group evidence only on a step that opts into group policy.
+
+**Do not break:** With neither variable set the generalist check is still skipped — that is the unconfigured-stack behaviour, not a licence to drop the fallback. Do not widen the mismatch intent beyond the vertical specialist's own tools.
+
+**Verify:** `node --test demo_authz_server/`; `cd demo_api_server && CI=true npx jest tests/intentToken.a2aDelegation.regression.test.js tests/demoReadinessCaseAdapter.test.js --forceExit`.
+
 ### 2026-10-02 — PingFederate's user gate could only ever authorize one fixed agent
 
 **Files:** `spiffe/pingfederate/pf-pingone-user-gate.json`, `scripts/pingfederate/provision-pf-pingone-user-gate.sh`, `scripts/pingfederate/README.md`, `demo_api_server/tests/pfPingOneUserGate.test.js`.
