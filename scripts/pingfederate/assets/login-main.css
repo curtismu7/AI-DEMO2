@@ -6986,3 +6986,65 @@ body .ping-container.login-template .ping-footer-container {
 body .ping-container.login-template .ping-footer-container .ping-footer .ping-credits {
   filter: brightness(0) opacity(0.4);
 }
+
+/* ── Branding for every other main.css page ──────────────────────────────────
+ * Consent/approval, change/forgot password, errors and SLO share the login
+ * page's markup (.ping-header + .company-logo) but not its `.login-template`
+ * class, so the block above skips them. This carries the same Ping branding
+ * (real logo, red edge, light ground, red accents) to them. Layout rules from
+ * the login block (full-width Sign On, the subtitle) are NOT repeated: consent
+ * keeps its side-by-side Allow/Cancel. Keep this block last. */
+body:has(.ping-container:not(.login-template))::before {
+  background-image: url("../images/ping-identity-logo.png");
+  background-size: 36px 36px;
+  background-position: left 24px center;
+  padding: 0 24px 0 76px !important;
+}
+
+body .ping-container:not(.login-template) {
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+}
+
+body .ping-container:not(.login-template) .ping-header {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  padding: 36px 40px 4px;
+  border-top: 4px solid #b3282d;
+  box-shadow: none;
+}
+
+body .ping-container:not(.login-template) .ping-header .company-logo {
+  display: block;
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 18px;
+  border-radius: 14px;
+  background: url("../images/ping-identity-logo.png") center / contain no-repeat;
+  box-shadow: 0 8px 18px -8px rgba(179, 40, 45, 0.6);
+}
+
+body .ping-container:not(.login-template) .ping-input-container input[type=text]:focus,
+body .ping-container:not(.login-template) .ping-input-container input[type=password]:focus,
+body .ping-container:not(.login-template) .ping-input-container input[type=email]:focus {
+  border-color: #b3282d;
+  box-shadow: 0 0 0 3px rgba(179, 40, 45, 0.18);
+}
+
+body .ping-container:not(.login-template) .ping-buttons .ping-button.normal,
+body .ping-container:not(.login-template) .ping-buttons .ping-button.allow {
+  background: #b3282d;
+}
+
+body .ping-container:not(.login-template) .ping-buttons .ping-button.normal:hover,
+body .ping-container:not(.login-template) .ping-buttons .ping-button.allow:hover {
+  background: #991f24;
+}
+
+body .ping-container:not(.login-template) .ping-input-link a {
+  color: #b3282d;
+}
+
+body .ping-container:not(.login-template) .ping-footer-container .ping-footer .ping-credits {
+  filter: brightness(0) opacity(0.4);
+}

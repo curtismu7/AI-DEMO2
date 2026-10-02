@@ -40,4 +40,11 @@ docker exec -u 0 "$container" sh -c 'chown 9031:0 /opt/out/instance/server/defau
 docker exec -u 0 "$container" sh -c 'grep -q "ai-demo: send the user back" /opt/out/instance/server/default/conf/template/idp.slo.success.page.template.html 2>/dev/null && exit 0
   sed -i "s|<meta http-equiv=\"x-ua-compatible\" content=\"IE=edge\" />|<meta http-equiv=\"x-ua-compatible\" content=\"IE=edge\" />\n    <!-- ai-demo: send the user back to the app after SLO; LogoutPage continues the ID-JAG handoff -->\n    <meta http-equiv=\"refresh\" content=\"1;url=https://local.ping-devops.com:4000/logout\" />|" /opt/out/instance/server/default/conf/template/idp.slo.success.page.template.html
   chown 9031:0 /opt/out/instance/server/default/conf/template/idp.slo.success.page.template.html && chmod 644 /opt/out/instance/server/default/conf/template/idp.slo.success.page.template.html'
+# PingOne MFA adapter pages load end-user.css + pingone-mfa.css instead of main.css. Theme them with a
+# separate file imported once from the top of pingone-mfa.css (re-running is safe).
+tpl=/opt/out/instance/server/default/conf/template
+if docker exec "$container" test -f "$tpl/assets/css/pingone-mfa.css" 2>/dev/null; then
+  docker exec -i -u 0 "$container" sh -c "cat > $tpl/assets/css/ai-demo-mfa-theme.css && chown 9031:0 $tpl/assets/css/ai-demo-mfa-theme.css && chmod 644 $tpl/assets/css/ai-demo-mfa-theme.css" < "$css_dir/pingone-mfa-theme.css"
+  docker exec -u 0 "$container" sh -c "grep -q 'ai-demo-mfa-theme.css' $tpl/assets/css/pingone-mfa.css || { printf '@import url(\"ai-demo-mfa-theme.css\");\n' | cat - $tpl/assets/css/pingone-mfa.css > /tmp/pf-mfa.css && cat /tmp/pf-mfa.css > $tpl/assets/css/pingone-mfa.css && rm /tmp/pf-mfa.css; }; chown 9031:0 $tpl/assets/css/pingone-mfa.css && chmod 644 $tpl/assets/css/pingone-mfa.css"
+fi
 echo "Applied demo login theme (header + Ping logo + SLO redirect) to $container"
