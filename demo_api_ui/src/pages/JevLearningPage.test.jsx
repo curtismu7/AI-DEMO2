@@ -28,7 +28,7 @@ describe('JevLearningPage', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(reply(1, 'simulated')));
     render(<JevLearningPage />);
     fireEvent.click(screen.getByRole('button', { name: 'Decide' }));
-    await waitFor(() => expect(screen.getByText(/Simulated - no API key/)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/Simulated - not configured/)).toBeTruthy());
     expect(screen.getByText(/says nothing about Jev/)).toBeTruthy();
   });
 

@@ -40,7 +40,7 @@ function ModeBadge({ mode, model }) {
   return mode === 'live' ? (
     <span className="jev-badge jev-badge--live">{`Live: ${model}`}</span>
   ) : (
-    <span className="jev-badge jev-badge--sim">Simulated - no API key</span>
+    <span className="jev-badge jev-badge--sim">Simulated - not configured</span>
   );
 }
 

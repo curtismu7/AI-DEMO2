@@ -127,7 +127,8 @@ async function evaluate(scenarioKey, state) {
       timeout: TIMEOUT_MS,
       headers: {
         'Content-Type': 'application/json',
-        ...(process.env.OPENROUTER_API_KEY && { Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}` }),
+        // never send the OpenRouter key to a custom endpoint
+        ...(process.env.OPENROUTER_API_KEY && !process.env.JEV_ENDPOINT && { Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}` }),
       },
     }
   );
