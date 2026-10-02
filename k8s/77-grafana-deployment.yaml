@@ -209,12 +209,14 @@ spec:
               value: "email"
             - name: GF_AUTH_GENERIC_OAUTH_NAME_ATTRIBUTE_PATH
               value: "name"
-            # A JMESPath literal, not a claim lookup: every PingOne user who
-            # signs in is a read-only Viewer. Editing is deliberately reserved
-            # to the local admin, and dashboards are provisioned from files
-            # anyway, so Editor would buy nothing.
+            # JMESPath over the token claims: members of the PingOne group
+            # `grafana-admins` are Admin, everyone else a read-only Viewer.
+            # Needs the Grafana app in PingOne to send group names in a
+            # `groups` claim; with no such claim (or a null/empty one) this
+            # still yields Viewer, never an error. The local admin form below
+            # stays until an admin-mapped user has been seen to get Admin.
             - name: GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH
-              value: "'Viewer'"
+              value: "contains(groups || `[]`, 'grafana-admins') && 'Admin' || 'Viewer'"
             - name: GF_AUTH_GENERIC_OAUTH_ALLOW_SIGN_UP
               value: "true"
             # Keep the local admin form as the lockout fallback.

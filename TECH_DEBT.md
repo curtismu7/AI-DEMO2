@@ -2520,6 +2520,25 @@ old agent secret is not lost: it remains under `PINGONE_AGENT_CLIENT_SECRET`
 clears every `SECURITY:` guard.
 ### [ ] 2026-08-29 — Grafana: SSO-only is blocked by its own role mapping (default-password half FIXED 2026-09-02)
 
+**STEP 3, CONFIG HALF, 2026-10-02 (branch `worktree-techdebt-wave3-grafana-roles`).**
+`GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH` is no longer the literal `'Viewer'`
+in `docker-compose.yml` and `k8s/77-grafana-deployment.yaml`. It is now
+``contains(groups || `[]`, 'grafana-admins') && 'Admin' || 'Viewer'``. Evaluated
+against sample claims with a JMESPath reference implementation: no `groups`
+claim, a null or empty one, or other groups all give Viewer; membership gives
+Admin. So until PingOne sends the claim, behaviour is unchanged.
+
+**Still to do in PingOne, by hand:** create the group `grafana-admins`, add the
+admin user(s), and give the app "Demo AI App - Grafana Login" an attribute
+mapping named `groups` carrying the user's group names. **Then verify live**
+that a member signs in through SSO and lands as Admin, and a non-member as
+Viewer. Not verified: whether this Grafana version reads the claim from the ID
+token or only from userinfo, which decides where the mapping must be released.
+
+**Step 4 is untouched and stays untouched** until that live check passes:
+`GF_AUTH_DISABLE_LOGIN_FORM` is still `false` in both files, and the local
+admin form is still the only guaranteed way in.
+
 **FIXED 2026-09-02 (PR #2709) — steps 1 and 2 below are done.**
 `create-secrets.sh` now reads both Grafana secrets from `secrets.vault` when the
 env var is empty, the same env-then-vault precedence `secret_from_envfile()`
