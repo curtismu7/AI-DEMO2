@@ -1,7 +1,7 @@
 'use strict';
 
 const { createCaseOperations, evidenceFromAgentInvoke } = require('../services/demoReadinessCaseAdapter');
-const { evidenceFailures } = require('../services/demoReadinessExecutionService');
+const { audienceScopeSummary, evidenceFailures } = require('../services/demoReadinessExecutionService');
 const { buildDemoReadinessCatalog } = require('../services/demoReadinessCatalog');
 
 const ISSUER = 'https://auth.example.test/env/as';
@@ -23,9 +23,11 @@ function invokeResponse({ decision = 'PERMIT', tool = authorization.primaryTool,
       { id: 'user-token', status: 'active', claims: { sub: 'user-1', iss: ISSUER, aud: ['enduser.ping.demo'], scope: 'openid read write' } },
       { id: 'two-ex-agent-actor', status: 'active', claims: { iss: ISSUER, aud: ['agentgateway.ping.demo'] } },
       { id: 'two-ex-exchange1', status: 'exchanged', claims: { sub: 'user-1', iss: ISSUER, aud: ['agentgateway.ping.demo'], scope: 'read agent:invoke' } },
-      { id: 'two-ex-final-token', status: 'exchanged', claims: { sub: 'user-1', iss: ISSUER, aud: ['https://api.ping.demo:3036/mcp'] } },
+      { id: 'two-ex-final-token', status: 'exchanged', claims: { sub: 'user-1', iss: ISSUER, aud: ['https://api.ping.demo:3036/mcp'], scope: 'gateway:mcp:invoke' } },
       { id: 'gw-authorize', status: decision.toLowerCase(), decision, url: 'https://api.example.test/decision-endpoints/1' },
       { id: 'gw-mcp-audit', mcpAudit: { who: { userSub: 'user-1', agentSub: 'agent-1' }, what: { tool }, where: { routePath: '/mcp' }, how: { decision } } },
+      // The gateway's own exchange for the MCP server, reported only when it forwards.
+      ...(decision === 'PERMIT' ? [{ id: 'gw-backend-exchange', status: 'active', exchanged: true, audience: 'mcpserver.ping.demo', scope: 'read' }] : []),
     ],
   };
 }
@@ -42,6 +44,15 @@ test('a standard two-exchange PERMIT satisfies the runner contract, including af
   expect(validate(JSON.parse(JSON.stringify(result)))).toEqual([]);
 });
 
+test('the report lists expected against observed audience and scopes for each hop', () => {
+  const { evidence } = evidenceFromAgentInvoke({ response: invokeResponse(), provider: PROVIDER, expectedIssuer: ISSUER, authorization });
+  expect(audienceScopeSummary({ evidence, authorization })).toEqual([
+    expect.objectContaining({ hop: 'tool scope', expectedScopes: authorization.requiredScopes, observedScopes: ['read'], observedAudiences: ['enduser.ping.demo'] }),
+    { hop: 'gateway token', expectedAudiences: ['https://api.ping.demo:3036/mcp'], expectedScopes: ['gateway:mcp:invoke'], observedAudiences: ['https://api.ping.demo:3036/mcp'], observedScopes: ['gateway:mcp:invoke'] },
+    { hop: 'gateway to MCP server', expectedAudiences: ['mcpserver.ping.demo'], expectedScopes: null, observedAudiences: ['mcpserver.ping.demo'], observedScopes: ['read'] },
+  ]);
+});
+
 test('a DENY is reported from the gateway and Authorize decisions', () => {
   const result = evidenceFromAgentInvoke({ response: invokeResponse({ decision: 'DENY', error: 'gateway policy denied' }), provider: PROVIDER, expectedIssuer: ISSUER, authorization });
   expect(result.observed).toBe('DENY');
@@ -54,6 +65,10 @@ test.each([
   ['a different tool than the contract names', (r) => { r.toolsCalled = ['other_tool']; }, /selected tool|resource server/],
   ['no gateway audit', (r) => { r.tokenEvents = r.tokenEvents.filter((event) => event.id !== 'gw-mcp-audit'); }, /actor chain|Gateway evidence/],
   ['an Authorize decision that differs from the outcome', (r) => { r.tokenEvents[4].decision = 'INDETERMINATE'; }, /Authorize decision/],
+  ['a gateway token for another audience', (r) => { r.tokenEvents[3].claims.aud = ['mcpgateway.ping.demo']; }, /gateway token audience or scope/],
+  ['a gateway token carrying a tool scope', (r) => { r.tokenEvents[3].claims.scope = 'gateway:mcp:invoke read'; }, /gateway token audience or scope/],
+  ['no gateway exchange for the MCP server', (r) => { r.tokenEvents = r.tokenEvents.filter((event) => event.id !== 'gw-backend-exchange'); }, /MCP server audience/],
+  ['a gateway exchange for the wrong audience', (r) => { r.tokenEvents[6].audience = 'enduser.ping.demo'; }, /MCP server audience/],
 ])('%s fails the contract instead of being filled in', (_label, mutate, expectedFailure) => {
   const response = invokeResponse();
   mutate(response);

@@ -1278,7 +1278,7 @@ async function runMcpToolPipeline(ctx) {
                     backendRes.exchanged ? 'active' : 'deny',
                     null,
                     exchangeDesc,
-                    { target: backendRes.target, audience: backendRes.audience, cached: backendRes.cached, exchanged: backendRes.exchanged, error: backendRes.error }
+                    { target: backendRes.target, audience: backendRes.audience, scope: backendRes.scope, cached: backendRes.cached, exchanged: backendRes.exchanged, error: backendRes.error }
                 );
                 tokenEvents.push(gwBackendExchangeEvent);
                 gwEvents.push(gwBackendExchangeEvent);
