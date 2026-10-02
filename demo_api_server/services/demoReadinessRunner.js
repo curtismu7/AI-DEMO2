@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const { createAuditService } = require('./demoReadinessAuditService');
 const { createPingOneReader, pingOneManagementAccess, managementApiBase } = require('./demoReadinessPingOneReader');
 const { createPingFederateReader } = require('./demoReadinessPingFederateReader');
+const scopeTopology = require('./scopeTopology');
 const { effectiveConfigValues, toolScopeParity } = require('./demoReadinessLocalReader');
 const { buildPingGatewayPfExchangeEnv } = require('../scripts/refresh-service-envs');
 const { createRepairService } = require('./demoReadinessRepairService');
@@ -63,6 +64,13 @@ function matrixCoverageError(result) {
   }
   if (expectedIds.length !== ids.length || expectedIds.some((id) => !ids.includes(id))) return 'scenario result IDs do not match the expected manifest';
   return null;
+}
+
+// What scope-topology.json says PingGateway enforces on an inbound MCP call:
+// the audience it validates and the native scope of its resource.
+function gatewayAudienceScopeExpectation(topology = scopeTopology) {
+  const server = topology.serverEntry('ping_gateway');
+  return server ? { audience: server.validatesAudience, scopes: topology.resourceNativeScopes(server.resource) } : undefined;
 }
 
 // The Gateway Exchange #3 settings refresh-service-envs.js generates from the
@@ -187,6 +195,7 @@ function createDefaultAdapters(clock = Date.now, {
           authorizeUrl: target.authorizeUrl,
           expectedRevision: target.expectedRevision,
           ...(headers && { headers }),
+          ...(targetId !== 'se' && { expectedAudienceScopes: gatewayAudienceScopeExpectation() }),
         } : {};
         rows.push(...await audit.auditTarget({
           targetId,

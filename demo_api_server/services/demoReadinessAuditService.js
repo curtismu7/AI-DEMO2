@@ -363,6 +363,9 @@ function gatewayView(env, mountSources) {
   } catch { /* finding below */ }
   return { issuer: Boolean(env.PF_ISSUER_URI), issuerValue: env.PF_ISSUER_URI || '', endpointValue: env.PF_TOKEN_ENDPOINT || '', clientId: env.PF_TE_CLIENT_ID || '', authority, pathPresent,
     credentials: Boolean(env.PF_TE_CLIENT_ID && env.PF_TE_CLIENT_SECRET),
+    // What the gateway enforces on an inbound MCP call.
+    inboundAudience: env.PG_GATEWAY_RESOURCE_ID || '',
+    inboundScopes: String(env.PG_INBOUND_SCOPE || '').split(/\s+/).filter(Boolean),
     mountSources,
     provenance: mountSources.some((source) => source.includes('ping-gateway')) };
 }
@@ -450,6 +453,23 @@ function createAuditService({ adapters = {}, pfProfiles = PF_PROFILES, fetch = g
     }
     return afterRead(checks, args.deadlineAt, args.signal);
   }
+  // The audience and inbound scope the local gateway enforces: from the running
+  // container's environment, or — with no docker CLI (the BFF container) — from
+  // the generated env file. null when neither can be read; the row then reports
+  // the readback as unavailable rather than guessing.
+  async function localGatewayAudienceScopes({ deadlineAt, signal } = {}) {
+    let view;
+    try {
+      const timeout = Math.max(1, (deadlineAt || (Date.now() + 15_000)) - Date.now());
+      const inspect = await boundedRead(() => runExecFile('docker', ['inspect', 'ai-demo-ping-gateway'],
+        { encoding: 'utf8', timeout, signal: readSignal(deadlineAt, signal) }), { deadlineAt, signal });
+      view = inspectEnv(String(inspect.stdout || ''));
+    } catch (error) {
+      if (error.code !== 'ENOENT') return null;
+      try { view = generatedGatewayEnv(adapters.repositoryRoot); } catch { return null; }
+    }
+    return view.inboundAudience ? { audience: view.inboundAudience, scopes: view.inboundScopes } : null;
+  }
   async function auditRuntimeTarget(args = {}) {
     try {
       const values = adapters.runtime?.readTarget ? await boundedRead(() => adapters.runtime.readTarget(adapterArgs(args)), args) : await (async () => {
@@ -461,7 +481,9 @@ function createAuditService({ adapters = {}, pfProfiles = PF_PROFILES, fetch = g
         const routeReady = [200, 401, 403].includes(routeStatus);
         return { health: routeReady && health.status === 200
           ? { status: 'pass', observed: { bffStatus: health.status, gatewayStatus: routeStatus } }
-          : { status: 'blocked', reason: routeStatus ? 'Gateway probe returned HTTP ' + routeStatus : 'Gateway probe returned no status' }, revision: health.body?.revision || health.body?.commit, audienceScopes: health.body?.audienceScopes || authorize.audienceScopes };
+          : { status: 'blocked', reason: routeStatus ? 'Gateway probe returned HTTP ' + routeStatus : 'Gateway probe returned no status' }, revision: health.body?.revision || health.body?.commit,
+          audienceScopes: health.body?.audienceScopes || authorize.audienceScopes
+            || (args.targetKind === 'local' ? await localGatewayAudienceScopes(args) : undefined) };
       })();
       return afterRead([
         auditRow('runtime:health', runtimeHealth(values.health), { sourceRef: 'health and reachable route probes' }),
@@ -521,7 +543,7 @@ function createAuditService({ adapters = {}, pfProfiles = PF_PROFILES, fetch = g
     const batches = await Promise.all([
       auditRepositoryContracts(common), auditPingOneConfiguration({ ...targetConfig.pingOne, targetId, ...common }),
       auditPingFederateConfiguration({ ...targetConfig.pingFederate, ...common }),
-      auditRuntimeTarget({ ...targetConfig.runtime, ...common }),
+      auditRuntimeTarget({ ...targetConfig.runtime, targetKind: targetConfig.kind, ...common }),
       auditLocalDockerConfiguration({ targetId, targetKind: targetConfig.kind, hostedConfig: targetConfig.gateway, ...common }),
     ]);
     return afterRead(batches.flat().map((item) => ({ ...item, target: item.target || targetId })), deadlineAt, signal);
