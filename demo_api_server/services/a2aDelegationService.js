@@ -731,11 +731,17 @@ async function probeGeneralistMismatch(req, opts = {}) {
   const specialistScopes = deriveSpecialistScopes(specialist, scopeTopo);
   const c = resolveA2aConfig(cfg, specialist, scopeTopo);
 
+  // The decision endpoint resolves ClientId as a PingOne user BEFORE it reaches the
+  // generalist rule, so the session's local id ("5") would DENY unknown_sub and the
+  // probe would never exercise the actor check. Use the same sub the real leg used.
+  const sessionBearer = deps.getSessionBearerForMcp || defaultSessionBearer();
+  const userSub = decodeJwt(sessionBearer(req))?.claims?.sub || null;
+
   const parameters = {
     DecisionContext: 'McpToolCall',
     McpMethod: 'tools/call',
     ToolName: tool,
-    ClientId: req?.session?.user?.id || 'demo-user',
+    ClientId: userSub || req?.session?.user?.id || 'demo-user',
     ActClientId: c.agent2ClientId || '',
     TokenScopes: specialistScopes.join(' '),
     TokenAudience: c.specialistAud || 'mcpgateway.ping.demo',
