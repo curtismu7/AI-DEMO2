@@ -264,6 +264,8 @@ files available to semantic extraction.
 
 ### [ ] 2026-09-14 — AIAgentFull Privilege MCP transport bypasses token exchange and authz gates
 
+**Update 2026-10-01.** `AIAgentFull` was removed (owner decision), together with `FULL_AGENT_ROUTES`/`isFullAgentRoute`, `hooks/useMcpToolTransport.js` and `services/privilegeMcpService.js`, which nothing else imported. That closes the duplication and bundling gaps below. The remaining gap is server-side only: `POST /api/privilege-mcp-simple/tools/call` still dispatches without `mcpToolPipeline`, but it no longer has any UI caller (the UI only reads `/api/privilege-mcp-simple/status`, from `lessonExecutionService.js`).
+
 **What's wrong.** The new `AIAgentFull` component's "Via Privilege Gateway" MCP transport calls `POST /api/privilege-mcp-simple/tools/call` (pre-existing, not introduced in this plan) which dispatches MCP tools directly without running the banking demo's RFC 8693 token exchange, PingOne Authorize gate, HITL interceptor, or kill-switch. All four live in `demo_api_server/services/mcpToolPipeline.js`, the protected core per `REGRESSION_PLAN.md` §1. Other MCP transports in the stack route through `mcpToolPipeline`, ensuring consistent authz policy and audit. The privilege-mcp endpoint is intentionally simple to serve as a policy-comparison tool (e.g., "see what an agent does when it ignores authorization"): not a production-equivalent path.
 
 Two more gaps from the same plan, found in final review:
