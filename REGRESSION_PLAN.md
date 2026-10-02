@@ -249,6 +249,30 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-02 — Floating agent had no close, collapse or pop-out button
+
+**Files:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/components/AIAgent.css`,
+`demo_api_ui/src/components/__tests__/AIAgent.headerControls.test.js`.
+
+**What was broken:** the Command Dock change moved the float header's secondary
+controls into the dock, but the window buttons (expand, pop-out, close) stayed
+in the non-dock header branch, so an open floating agent rendered none of them.
+Vertical resize also started from the stored height rather than the rendered
+one, so on a 900px-tall viewport the first ~100px of a drag did nothing.
+
+**What was fixed:** the window buttons render in the float header itself,
+outside the dock/classic branch, and gained a collapse-to-title-bar button;
+close is `✕` and returns to the FAB. Resize starts from the rendered size.
+
+**Do not break:** window buttons stay outside the `useCommandDock` branch;
+resize caps (`MAX_W`/`MAX_H` 95%, `MIN_W`/`MIN_H` 280/220) and unclamped drag
+are unchanged; inline and split-column headers render no window buttons.
+
+**Verify:** `cd demo_api_ui && CI=true npx vitest run
+src/components/__tests__/AIAgent.headerControls.test.js`; `npm run build`; on
+`/demo/enterprise-mcp` open the agent, then collapse, drag, resize, pop out,
+bring back and close it — one `.banking-agent-float-root` throughout.
 ### 2026-10-02 — PingOne Authorize refused a customer's workload agent as the actor
 
 **Files:** `snapshots/gen-authorize-snapshot.js`, `snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json`, `demo_authz_server/routes/decision.js`.

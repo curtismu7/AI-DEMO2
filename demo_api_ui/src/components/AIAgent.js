@@ -635,6 +635,8 @@ export default function BankingAgent({
     }
   }, [chatZoom]);
   const [isExpanded, setIsExpanded] = useState(false);
+  /** Float mode: panel collapsed to its title bar (body hidden, still draggable). */
+  const [isCollapsed, setIsCollapsed] = useState(false);
   /** Pop-out: the panel's Window object when popped out to its own browser window, else null. */
   const [poppedOutWin, setPoppedOutWin] = useState(null);
   const [showResourceServerInterstitial, resourceServerInterstitialEl] = useResourceServerInterstitial();
@@ -3574,8 +3576,12 @@ export default function BankingAgent({
 
       const startX = e.clientX;
       const startY = e.clientY;
-      const startWidth = panelSize.width;
-      const startHeight = panelSize.height;
+      // Start from the rendered size, not the stored one: CSS max-height caps
+      // the panel below the stored height on short viewports, and starting
+      // from the stored value left the first ~100px of a vertical drag dead.
+      const rect = panelRef.current?.getBoundingClientRect();
+      const startWidth = rect?.width || panelSize.width;
+      const startHeight = rect?.height || panelSize.height;
 
       // Exit expanded mode on resize (same as drag)
       setIsExpanded(false);
@@ -3583,7 +3589,6 @@ export default function BankingAgent({
       // Capture starting position from current dragPos or from getBoundingClientRect.
       // Must be done synchronously so onMove calculations are anchored correctly.
       let startPosX, startPosY;
-      const rect = panelRef.current?.getBoundingClientRect();
       if (dragPos) {
         startPosX = dragPos.x;
         startPosY = dragPos.y;
@@ -10218,7 +10223,7 @@ export default function BankingAgent({
       {effectiveIsOpen && (() => {
         const panelEl = (
         <div
-          className={`banking-agent-panel ba-mode-light${isExpanded && !isInline ? " ba-expanded" : ""}${isInline ? " ba-mode-inline" : ""}${isBottomDock ? " ba-embedded-bottom-dock" : ""}${splitChrome ? " ba-split-column" : ""}${distinctFloatingChrome && isInline ? " ba-popout-mode" : ""}`}
+          className={`banking-agent-panel ba-mode-light${isExpanded && !isInline ? " ba-expanded" : ""}${isInline ? " ba-mode-inline" : ""}${isBottomDock ? " ba-embedded-bottom-dock" : ""}${splitChrome ? " ba-split-column" : ""}${distinctFloatingChrome && isInline ? " ba-popout-mode" : ""}${isCollapsed && !isInline && !poppedOutWin ? " ba-collapsed" : ""}`}
           role="dialog"
           aria-label={
             isConfigEmbeddedFocus
@@ -11613,27 +11618,60 @@ export default function BankingAgent({
                 >
                   {darkMode ? "☀️" : "🌙"}
                 </button>
-                {/* Expand/restore — float mode only, hidden when popped out
-                    (the OS window controls size there instead) */}
-                {!isInline && !poppedOutWin && (
+                {/* System graph link — float mode only; on /admin the strip has it */}
+                {!isInline && !pageOwnsAgentChrome && (
                   <button
                     type="button"
-                    className="ba-icon-btn"
-                    onClick={() => {
-                      setIsExpanded((e) => !e);
-                      setDragPos(null);
-                    }}
-                    title={
-                      isExpanded ? "Restore size" : "Expand to larger window"
-                    }
+                    className="ba-icon-btn ba-graph-link-btn"
+                    onClick={() => navigate("/telemetry")}
+                    aria-label="View system graph"
+                    title="View system graph"
                   >
-                    {isExpanded ? "⊟" : "⊞"}
+                    Graph
                   </button>
                 )}
-                {/* Pop out — float mode only. Moves the panel into its own real
-                    browser window so it stops covering the page; click again
-                    (from either window) to bring it back. */}
-                {!isInline && (
+              </div>
+              )}
+              </MaybePortal>
+              {/* Agent window buttons — float mode only. Kept outside the
+                  Command Dock branch above: they lived only in the classic
+                  header branch, so the docked float header rendered none of
+                  them and the open agent could not be closed or popped out. */}
+              {!isInline && (
+                <div className="ba-window-btns">
+                  {/* Collapse to the title bar / expand-restore — hidden when
+                      popped out (the OS window controls size there instead) */}
+                  {!poppedOutWin && (
+                    <>
+                      <button
+                        type="button"
+                        className="ba-icon-btn"
+                        onClick={() => setIsCollapsed((c) => !c)}
+                        aria-label={isCollapsed ? "Expand agent" : "Collapse agent"}
+                        aria-expanded={!isCollapsed}
+                        title={isCollapsed ? "Expand" : "Collapse to title bar"}
+                      >
+                        {isCollapsed ? "+" : "−"}
+                      </button>
+                      <button
+                        type="button"
+                        className="ba-icon-btn"
+                        onClick={() => {
+                          setIsCollapsed(false);
+                          setIsExpanded((e) => !e);
+                          setDragPos(null);
+                        }}
+                        title={
+                          isExpanded ? "Restore size" : "Expand to larger window"
+                        }
+                      >
+                        {isExpanded ? "⊟" : "⊞"}
+                      </button>
+                    </>
+                  )}
+                  {/* Pop out — moves the panel into its own real browser window
+                      so it stops covering the page; click again (from either
+                      window) to bring it back. */}
                   <button
                     type="button"
                     className="ba-icon-btn ba-popout-btn"
@@ -11647,21 +11685,7 @@ export default function BankingAgent({
                   >
                     🪟
                   </button>
-                )}
-                {/* System graph link — float mode only; on /admin the strip has it */}
-                {!isInline && !pageOwnsAgentChrome && (
-                  <button
-                    type="button"
-                    className="ba-icon-btn ba-graph-link-btn"
-                    onClick={() => navigate("/telemetry")}
-                    aria-label="View system graph"
-                    title="View system graph"
-                  >
-                    Graph
-                  </button>
-                )}
-                {/* Close — float mode only */}
-                {!isInline && (
+                  {/* Close — back to the FAB */}
                   <button
                     type="button"
                     className="ba-icon-btn ba-close-btn"
@@ -11675,12 +11699,10 @@ export default function BankingAgent({
                     aria-label="Close agent"
                     title="Close"
                   >
-                    −
+                    ✕
                   </button>
-                )}
-              </div>
+                </div>
               )}
-              </MaybePortal>
             </div>
           </div>
           {/* Two-column body */}

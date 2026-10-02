@@ -286,6 +286,26 @@ describe("Header controls after the Actions dropdown removal", () => {
     );
   }
 
+  // The window buttons once lived only in the non-dock header branch, so the
+  // open float agent had no close, collapse or pop-out control at all.
+  it("float mode: the header keeps collapse, pop-out and close with the dock closed", async () => {
+    renderThemedAgent({ user: customerUser, mode: "float" });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
+    });
+    const panel = await screen.findByRole("dialog", { name: /AI Agent/i });
+    expect(screen.getByRole("button", { name: "Pop out to new window" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Collapse agent" }));
+    expect(panel).toHaveClass("ba-collapsed");
+    fireEvent.click(screen.getByRole("button", { name: "Expand agent" }));
+    expect(panel).not.toHaveClass("ba-collapsed");
+
+    fireEvent.click(screen.getByRole("button", { name: "Close agent" }));
+    expect(screen.queryByRole("dialog", { name: /AI Agent/i })).not.toBeInTheDocument();
+    expect(document.querySelectorAll(".banking-agent-fab")).toHaveLength(1);
+  });
+
   it("always offers an Approval button that opens the safe demo drawer", async () => {
     await openFloatAgentWithDock(renderThemedAgent, { user: customerUser, mode: "float" });
 

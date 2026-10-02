@@ -1023,6 +1023,24 @@ body > .banking-agent-float-root .banking-agent-panel {
   color: #dc2626;
 }
 
+/* Float-mode window buttons (collapse / expand / pop-out / close) */
+.ba-window-btns {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+/* Collapsed to the title bar — !important beats the inline drag/resize height */
+.banking-agent-panel.ba-collapsed {
+  height: auto !important;
+  min-height: 0 !important;
+}
+.banking-agent-panel.ba-collapsed .ba-body,
+.banking-agent-panel.ba-collapsed .ba-resize-handle {
+  display: none;
+}
+
 /* Connected services chips row */
 .ba-server-chips {
   display: flex;
