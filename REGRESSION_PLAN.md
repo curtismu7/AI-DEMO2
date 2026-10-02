@@ -275,6 +275,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 **Verify:** `cd demo_api_server && CI=true npx jest tests/services/privilegeGatewaySession.test.js tests/routes/privilegeLinkCommit.test.js --forceExit`.
 
+### 2026-10-01 — Privilege OAuth callback origin came from a request header; inspector DCR client went stale on a new callback origin
+
+**Files changed:** `demo_api_server/routes/privilegeMcpClient.js`, `demo_api_server/routes/mcpPrivilegeAuth.js`, `demo_api_server/tests/routes/privilegeMcpClient.callbackOrigin.test.js` (new), `demo_api_server/src/__tests__/mcpPrivilegeAuth.test.js`.
+
+**What was broken:** (1) `beginOAuthFlow` built the gateway `redirect_uri` for `/api/privilege-mcp/auth/start` and `/chat` from `X-Forwarded-Host`/`-Proto`. Neither route needs a session, so a caller chose where the gateway delivers the authorization code, and each distinct host or scheme cost one gateway `/register` call and one `dcrClientCache` entry that was never evicted. (2) `mcpPrivilegeAuth.js` cached one DCR client per door for the process lifetime; after `PUBLIC_APP_URL` changed to an origin outside the registered `redirect_uris`, the gateway rejected the redirect until restart.
+
+**What was fixed:** (1) `trustedCallbackOrigin(req)` accepts the forwarded origin only when it equals one configuration names (`PRIVILEGE_MCP_CALLBACK_HOST`, `PUBLIC_APP_URL`, `CORS_ORIGIN`, `https://local.ping-devops.com:4000`, `https://api.ping.demo:4000`); anything else gets `linkCallbackOrigin()`. `dcrClientCache` is capped at 100 entries, oldest out, because the register URL is still caller-named through `POST /config`. (2) `ensureClient()` stores the registered `redirect_uris` and registers again, replacing the entry, when `PUBLIC_APP_URL` is configured and its callback is not among them.
+
+**Do not break:** The forwarded header must stay honoured for configured origins: the SE deployment sets no `PRIVILEGE_MCP_CALLBACK_HOST` and reaches `https://ai-demo.ping-devops.com/api/privilege-mcp/auth/callback` only through `X-Forwarded-Host` plus `PUBLIC_APP_URL`. Never compare by host alone; the scheme is caller-controlled too. `/facade-link` keeps passing its own `callbackOrigin` and never reads the header. In `mcpPrivilegeAuth.js`, a request-derived callback (no `PUBLIC_APP_URL`) must never trigger a re-registration, or a forged `Host` mints a gateway client per request.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/routes/privilegeMcpClient src/__tests__/mcpPrivilegeAuth --forceExit` — 36 suites / 237 tests passed.
+
 ### 2026-10-01 — In-app MFA had no PingOne user for a PingFederate session
 
 **Files:** `demo_api_server/routes/mfa.js`.

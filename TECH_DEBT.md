@@ -1058,6 +1058,20 @@ trusted local stack.
 **Real fix.** Build the callback host from configuration (`PRIVILEGE_MCP_CALLBACK_HOST`
 or the public app origin) instead of the request header, or bound the cache.
 
+**PARTLY RESOLVED 2026-10-01** (branch `worktree-agent-aabb9b7a9a2fb363f`). `beginOAuthFlow` no longer
+takes the callback origin from the request on any path (`/auth/start`, `/chat`): `trustedCallbackOrigin(req)`
+accepts `X-Forwarded-Host`/`-Proto` only when the resulting origin is one configuration names
+(`PRIVILEGE_MCP_CALLBACK_HOST`, `PUBLIC_APP_URL`, `CORS_ORIGIN`, plus the two local hosts) and otherwise uses
+the `PRIVILEGE_MCP_CALLBACK_HOST` origin `/facade-link` already used. The header was not dropped outright
+because the SE deployment sets no `PRIVILEGE_MCP_CALLBACK_HOST` and gets `ai-demo.ping-devops.com` from it.
+A forged host or scheme no longer picks the `redirect_uri`, costs no `/register` call and adds no cache
+entry. `dcrClientCache` is also capped at 100 entries, oldest out. Pinned by
+`tests/routes/privilegeMcpClient.callbackOrigin.test.js`.
+Still true, so the box stays unticked: the register URL comes from a door the caller names through the
+unauthenticated `POST /config`, so distinct door URLs still cost one `/register` each (now against a bounded
+cache, and against whatever host the caller named, not necessarily the gateway); and the allowlist reads
+`PUBLIC_APP_URL` from the process environment only, not from a config-store override.
+
 ### [ ] 2026-09-11 — An unauthenticated /facade-link can replace an app's shared gateway identity — NARROWED, not closed
 
 **What's wrong.** `/api/privilege-mcp/facade-link` is unauthenticated and stores the resulting gateway token in
@@ -4921,6 +4935,17 @@ fix landed in this same PR.
 in the cached client's registered set) and re-run `ensureClient` when it
 isn't, instead of caching one client unconditionally for the process
 lifetime.
+
+**PARTLY RESOLVED 2026-10-01** (branch `worktree-agent-aabb9b7a9a2fb363f`). `ensureClient()` now keeps the
+`redirect_uris` each client was registered with and, when `PUBLIC_APP_URL` is configured and the current
+`callbackUrl(req)` is not among them, registers again and replaces the cache entry — one registration per
+door per configuration change, none while the callback is still in the registered set. Pinned in
+`src/__tests__/mcpPrivilegeAuth.test.js`.
+Still true, so the box stays unticked: with no `PUBLIC_APP_URL` at all, `callbackUrl()` falls back to the
+request's `Host`, and a login from a host outside the registered set still gets the stale client. That is
+deliberate — re-registering there would let any signed-in caller mint one gateway client per forged `Host`.
+Also, a `PUBLIC_APP_URL` change that lands between `/login` and `/callback` re-registers at the callback,
+so that one in-flight code exchange fails and the user signs in again.
 
 ### [ ] 2026-08-25 — `demo_mcp_gateway`'s RFC 8693 client duplicates `oauthService.js`'s request-building
 
