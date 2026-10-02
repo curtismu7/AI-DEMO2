@@ -10914,6 +10914,14 @@ export default function BankingAgent({
                           >
                             Agent Gateway Inspector
                           </button>
+                          <button
+                            type="button"
+                            className="ba-insp-btn"
+                            onClick={() => navigate("/oauth/token-display")}
+                            title="Open the OAuth token inspector"
+                          >
+                            Token Inspector
+                          </button>
                         </div>
                       </span>
                     )}
@@ -11551,6 +11559,14 @@ export default function BankingAgent({
                       title="Open the Agent Gateway Inspector"
                     >
                       Agent Gateway Inspector
+                    </button>
+                    <button
+                      type="button"
+                      className="ba-insp-btn"
+                      onClick={() => navigate("/oauth/token-display")}
+                      title="Open the OAuth token inspector"
+                    >
+                      Token Inspector
                     </button>
                     </div>
                     <span className="ba-hg-divider" />
