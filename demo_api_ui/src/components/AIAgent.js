@@ -10199,7 +10199,7 @@ export default function BankingAgent({
       {effectiveIsOpen && (() => {
         const panelEl = (
         <div
-          className={`banking-agent-panel ba-mode-light${isInline ? " ba-mode-inline" : ""}${isBottomDock ? " ba-embedded-bottom-dock" : ""}${splitChrome ? " ba-split-column" : ""}${distinctFloatingChrome && isInline ? " ba-popout-mode" : ""}${isCollapsed && !isInline && !poppedOutWin ? " ba-collapsed" : ""}`}
+          className={`banking-agent-panel ba-mode-light${isInline ? " ba-mode-inline" : ""}${isBottomDock ? " ba-embedded-bottom-dock" : ""}${splitChrome ? " ba-split-column" : ""}${distinctFloatingChrome && isInline ? " ba-popout-mode" : ""}${isCollapsed && !isInline && !poppedOutWin ? " ba-collapsed" : ""}${poppedOutWin ? " ba-popped-out" : ""}`}
           role="dialog"
           aria-label={
             isConfigEmbeddedFocus

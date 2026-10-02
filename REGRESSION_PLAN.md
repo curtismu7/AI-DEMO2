@@ -316,6 +316,14 @@ the need, so the button, `isExpanded` and `.ba-expanded` were removed. The
 window buttons are collapse, pop-out, close. **Do not break:** do not bring
 back a centred "expanded" mode without placing Demo Steps clear of it.
 
+**Same entry — Demo Steps launcher and pop-out height:** the round Demo Steps
+launcher was positioned only under `.end-user-nano`, so on other pages it fell
+to the bottom-left corner under the side nav; it is now positioned wherever the
+float root renders. The pop-out window (440px wide) matched the narrow-viewport
+media queries, whose `!important` caps left the agent short of the window's
+bottom; the popped-out panel carries `ba-popped-out` and is exempt. **Do not
+break:** a narrow main-window agent keeps those caps.
+
 ### 2026-10-01 — PingGateway's own token exchange was invisible
 
 **Files:** `ping-gateway/scripts/groovy/olb-token-exchange.groovy`, `ping-gateway/scripts/groovy/p1az-decision.groovy`, `demo_api_server/services/mcpToolPipeline.js`.

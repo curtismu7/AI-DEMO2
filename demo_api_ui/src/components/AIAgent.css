@@ -2523,7 +2523,9 @@ body > .banking-agent-float-root .banking-agent-panel {
 /* ─── Responsive ─────────────────────────────────────────────────────── */
 @media (max-width: 860px) {
   /* !important: panel uses inline width/height from React — cap size on tablets/narrow viewports */
-  .banking-agent-panel:not(.ba-mode-inline):not(.ba-expanded) {
+  /* Not when popped out: the pop-out window is narrow enough to match these
+     queries, and the caps left the agent short of the window's bottom edge. */
+  .banking-agent-panel:not(.ba-mode-inline):not(.ba-popped-out) {
     right: 8px !important;
     left: 8px !important;
     bottom: 0;
@@ -2540,7 +2542,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 @media (max-width: 600px) {
-  .banking-agent-panel:not(.ba-mode-inline):not(.ba-expanded) {
+  .banking-agent-panel:not(.ba-mode-inline):not(.ba-popped-out) {
     right: 0 !important;
     left: 0 !important;
     bottom: 0;
@@ -6759,7 +6761,11 @@ body > .banking-agent-float-root .banking-agent-panel {
 /* Floating launcher follows the agent's theme tokens and stays clear of its FAB. */
 /* `.end-user-nano button` squares every button, so raise selector specificity
    to keep this icon's intentionally circular launcher shape on dashboards. */
-.end-user-nano .ba-demo-steps-floating-trigger {
+/* The second selector covers pages without `.end-user-nano`: with only the
+   first, the launcher was unpositioned there and fell to the bottom-left
+   corner underneath the side nav. */
+.end-user-nano .ba-demo-steps-floating-trigger,
+.banking-agent-float-root .ba-demo-steps-floating-trigger {
   position: fixed;
   right: 28px;
   bottom: 96px;
