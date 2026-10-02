@@ -13,12 +13,12 @@ import urllib.error
 import http.server
 from contextlib import contextmanager
 
-from detectors import ClassifierDetector, DetectorManager, DetectorUnavailable, NeMoDetector
+from detectors import DEFAULT_RAILS, ClassifierDetector, DetectorManager, DetectorUnavailable, NeMoDetector
 
 
 def fake_checks(results_by_text):
     class Manager:
-        def check(self, text):
+        def check(self, text, **options):
             return results_by_text[text]
     return Manager()
 
@@ -66,7 +66,7 @@ class FakeDetector:
         self.result = result
         self.closed = False
 
-    def check(self, text):
+    def check(self, text, **options):
         assert not self.closed, "using a closed runtime"
         return dict(self.result)
 
@@ -223,7 +223,7 @@ def test_manager_switch_waits_for_inflight_check():
     errors = []
 
     class WaitingDetector(FakeDetector):
-        def check(self, text):
+        def check(self, text, **options):
             checking.set()
             assert release.wait(2), "check timed out"
             return super().check(text)
@@ -333,7 +333,8 @@ def test_nemo_normalizes_verdicts_on_one_managed_loop():
 
 
 ORIGIN = "https://local.ping-devops.com:4000"
-DEFAULT_CONFIG = {"engine": "classifier", "demo": {"enabled": False, "triggerPhrase": "", "outcome": "block"}}
+DEFAULT_CONFIG = {"engine": "classifier", "demo": {"enabled": False, "triggerPhrase": "", "outcome": "block"},
+                  "rails": dict(DEFAULT_RAILS)}
 
 
 class ControlManager:
@@ -342,7 +343,7 @@ class ControlManager:
         self.engine = "classifier"
         self.nemo_available = nemo_available
 
-    def check(self, text):
+    def check(self, text, **options):
         return dict(self.result)
 
     def active_engine(self):
@@ -358,9 +359,17 @@ class ControlManager:
             raise DetectorUnavailable("NeMo is unavailable")
         self.engine = engine
 
+    def rails(self):
+        return [{"id": rail_id, "label": rail_id, "directions": ["request", "response"],
+                 "available": True, "reason": None} for rail_id in DEFAULT_RAILS]
 
-def demo_config(enabled=True, phrase="demo phrase", outcome="block", engine="classifier"):
-    return {"engine": engine, "demo": {"enabled": enabled, "triggerPhrase": phrase, "outcome": outcome}}
+    def configure_rails(self, enabled):
+        self.configured = dict(enabled)
+
+
+def demo_config(enabled=True, phrase="demo phrase", outcome="block", engine="classifier", rails=None):
+    return {"engine": engine, "demo": {"enabled": enabled, "triggerPhrase": phrase, "outcome": outcome},
+            "rails": rails or dict(DEFAULT_RAILS)}
 
 
 @contextmanager
@@ -536,7 +545,7 @@ def test_unavailable_engine_leaves_previous_configuration_unchanged():
 
 def test_inspect_failure_returns_5xx_without_fabricated_findings():
     class FailedManager(ControlManager):
-        def check(self, text):
+        def check(self, text, **options):
             raise RuntimeError("detector failed")
 
     with running_sidecar(FailedManager()) as base:
@@ -560,7 +569,7 @@ def test_config_switch_waits_for_entire_inspection():
     results, errors = {}, []
 
     class WaitingManager(ControlManager):
-        def check(self, text):
+        def check(self, text, **options):
             if text == "first demo phrase":
                 checking.set()
                 if not release.wait(3):
@@ -604,6 +613,104 @@ def test_config_switch_waits_for_entire_inspection():
         assert results["put"][0] == 200
         assert http_call(base, "/inspect", "POST", {"units": [
             {"role": "user_prompt", "direction": "request", "text": "demo phrase"}]}, origin=None)[2] == {"findings": []}
+
+
+def test_rails_config_is_validated_and_kept_when_omitted():
+    with running_sidecar() as base:
+        bad = [{"injection": True}, {**DEFAULT_RAILS, "regex_pii": "yes"}, {**DEFAULT_RAILS, "extra": True}, []]
+        for rails in bad:
+            status, _, body = http_call(base, "/demo/config", "PUT", demo_config(rails=rails) | {"rails": rails})
+            assert status == 400 and body["error"] == "invalid_config", rails
+        enabled = {**DEFAULT_RAILS, "regex_pii": True}
+        assert http_call(base, "/demo/config", "PUT", demo_config(rails=enabled))[0] == 200
+        legacy = {key: value for key, value in demo_config(engine="nemo").items() if key != "rails"}
+        status, _, body = http_call(base, "/demo/config", "PUT", legacy)
+        assert status == 200 and body["config"]["rails"] == enabled
+        assert [rail["id"] for rail in body["rails"]] == list(DEFAULT_RAILS)
+
+
+def test_enabled_rails_reach_the_detector_with_the_unit_direction():
+    seen = []
+
+    class RecordingManager(ControlManager):
+        def check(self, text, **options):
+            seen.append(options)
+            return {"blocked": True, "label": "PII", "score": None, "rails": ["regex_pii", "presidio_pii"]}
+
+    rails = {**DEFAULT_RAILS, "regex_pii": True}
+    findings = to_findings([{"role": "user_prompt", "direction": "response", "text": "ssn 123-45-6789"}],
+                           RecordingManager(), None, rails)
+    assert seen == [{"direction": "response", "rails": rails}]
+    assert findings[0]["category"] == "pii"
+    assert "regex_pii, presidio_pii" in findings[0]["messages"][0]
+
+
+def test_nemo_optional_rails_start_lazily_and_pick_the_message_shape_by_direction():
+    started, calls = [], []
+
+    class FakeConfig:
+        @staticmethod
+        def from_path(path):
+            return SimpleNamespace(model_dump=lambda **kw: {"rails": {"config": {"hf_classifier": {"promptguard": {}}}}})
+
+        @staticmethod
+        def from_content(config):
+            return config
+
+    class FakeRails:
+        def __init__(self, config):
+            self.name = next(iter(config["rails"]["config"]))
+
+        async def start(self):
+            started.append(self.name)
+
+        async def check_async(self, messages):
+            calls.append((self.name, [message["role"] for message in messages]))
+            text = messages[-1]["content"]
+            return SimpleNamespace(status="blocked" if "123-45-6789" in text else "passed", content=text)
+
+        async def stop(self):
+            pass
+
+    modules = {
+        "nemoguardrails": SimpleNamespace(RailsConfig=FakeConfig),
+        "nemoguardrails.guardrails.iorails": SimpleNamespace(IORails=FakeRails, INTERNAL_ERROR_MESSAGE="internal error"),
+        "transformers": SimpleNamespace(AutoConfig=SimpleNamespace(from_pretrained=lambda model: SimpleNamespace(id2label={0: "SAFE", 1: "INJECTION"}))),
+    }
+    with patch.dict("sys.modules", modules):
+        detector = NeMoDetector("test-model", 0.9, {"safe"}, "nemo_config")
+        assert started == ["hf_classifier"]
+        assert detector.check("123-45-6789", rails={**DEFAULT_RAILS, "injection": False}) == {
+            "blocked": False, "label": None, "score": None, "rails": []}
+        try:
+            detector.check("123-45-6789", rails={**DEFAULT_RAILS, "regex_pii": True})
+        except RuntimeError:
+            pass
+        else:
+            assert False, "an enabled rail that was never configured must not be skipped silently"
+        enabled = {**DEFAULT_RAILS, "regex_pii": True}
+        with patch("detectors.rail_catalog", lambda: [
+                {"id": "injection", "label": "i", "available": True, "reason": None},
+                {"id": "regex_pii", "label": "r", "available": True, "reason": None},
+                {"id": "presidio_pii", "label": "p", "available": False, "reason": "not installed"}]):
+            detector.configure(enabled)
+            assert started == ["hf_classifier", "regex_detection"]
+            detector.configure(enabled)
+            assert started == ["hf_classifier", "regex_detection"], "a running rail is not rebuilt"
+            try:
+                detector.configure({**enabled, "presidio_pii": True})
+            except DetectorUnavailable as error:
+                assert "not installed" in str(error)
+            else:
+                assert False, "an unavailable rail must be refused"
+        calls.clear()
+        verdict = detector.check("my ssn is 123-45-6789", direction="response", rails={**enabled, "injection": False})
+        assert verdict == {"blocked": True, "label": "PII", "score": None, "rails": ["regex_pii"]}
+        assert ("regex_detection", ["user", "assistant"]) in calls
+        calls.clear()
+        detector.check("hello", direction="request", rails=enabled)
+        assert ("regex_detection", ["user"]) in calls
+        detector.close()
 
 
 if __name__ == "__main__":

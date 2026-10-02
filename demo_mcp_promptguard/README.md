@@ -62,6 +62,23 @@ The config panel is on the AI Demo's **LLM Gateway** page at
 apply the change there. The panel also controls the demo trigger phrase and its
 allow/block outcome. It does not require a separate NeMo account or console.
 
+## NeMo rails
+
+With the NeMo engine selected, the panel enables each rail separately. None needs an LLM.
+
+| Rail | Detects | Applies to | Category |
+|---|---|---|---|
+| `injection` (default on) | Prompt injection, via the DeBERTa classifier | request and response text | `prompt_injection` |
+| `regex_pii` | SSN, card number, email, US phone, by regex | request and response | `pii` |
+| `presidio_pii` | SSN, card, email, phone, IBAN, US bank number, via Presidio + spaCy `en_core_web_lg` | request and response | `pii` |
+
+`PUT /demo/config` takes an optional `rails` object with all three booleans; omitting it keeps the current
+selection. Optional rails start on Apply (Presidio loads a ~500MB model on first use) and stay running until the
+engine is switched. A response-direction unit is checked as model output.
+
+Not included: jailbreak heuristics (needs `gpt2-large`, about 3GB, loaded at import) and the LLM-backed rails
+(self-check, content safety, topic control, fact-check, hallucination).
+
 ## Local runtime profiles
 
 Direct Docker builds default to the built-in classifier only; add the build arg
