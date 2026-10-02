@@ -10281,6 +10281,9 @@ export default function BankingAgent({
                   win={poppedOutWin || window}
                 >
                   <div className="ba-header-tools cmd-dock-tools">
+                    <section className="cmd-dock-sec" aria-label="Session">
+                      <h3 className="cmd-dock-sec__label">Session</h3>
+                      <div className="cmd-dock-sec__body">
                     {/* Dashboard controls — relocated into the dock on
                         split-column. The OAuth provider switch stays in TopNav
                         so it remains available while this dock is collapsed. */}
@@ -10301,13 +10304,6 @@ export default function BankingAgent({
                         </div>
                       </>
                     )}
-                    {!pageOwnsAgentChrome && (
-                    <DemoTrackAgentControl onPickStep={handleTrackStepPick} onStepComplete={handleTrackStepComplete} />
-                    )}
-                    <AgentModeSelector
-                      heuristicFallback={heuristicEnabled}
-                      onHeuristicFallbackChange={setHeuristicEnabled}
-                    />
                     {/* Session + text-size — relocated from the float header top
                         row (same handlers, unchanged behavior). */}
                     {isLoggedIn && (effectiveUser?.id || effectiveUser?.username) && (
@@ -10319,41 +10315,6 @@ export default function BankingAgent({
                         />
                       </span>
                     )}
-                    <div className="ba-textsize" role="group" aria-label="Response text size">
-                      <button
-                        type="button"
-                        className="ba-textsize-btn"
-                        onClick={() =>
-                          setChatZoom((z) => Math.max(CHAT_ZOOM_MIN, +(z - CHAT_ZOOM_STEP).toFixed(2)))
-                        }
-                        disabled={chatZoom <= CHAT_ZOOM_MIN}
-                        title="Smaller response text"
-                        aria-label="Decrease response text size"
-                      >
-                        A−
-                      </button>
-                      <button
-                        type="button"
-                        className="ba-textsize-pct"
-                        onClick={() => setChatZoom(CHAT_ZOOM_DEFAULT)}
-                        disabled={chatZoom === CHAT_ZOOM_DEFAULT}
-                        title="Reset response text size"
-                      >
-                        {Math.round(chatZoom * 100)}%
-                      </button>
-                      <button
-                        type="button"
-                        className="ba-textsize-btn"
-                        onClick={() =>
-                          setChatZoom((z) => Math.min(CHAT_ZOOM_MAX, +(z + CHAT_ZOOM_STEP).toFixed(2)))
-                        }
-                        disabled={chatZoom >= CHAT_ZOOM_MAX}
-                        title="Bigger response text"
-                        aria-label="Increase response text size"
-                      >
-                        A+
-                      </button>
-                    </div>
                     {isLoggedIn && (
                       <button
                         type="button"
@@ -10362,6 +10323,25 @@ export default function BankingAgent({
                       >
                         Sign out
                       </button>
+                    )}
+                      </div>
+                    </section>
+                    <section className="cmd-dock-sec" aria-label="Agent">
+                      <h3 className="cmd-dock-sec__label">Agent</h3>
+                      <div className="cmd-dock-sec__body">
+                    {!pageOwnsAgentChrome && (
+                    <DemoTrackAgentControl onPickStep={handleTrackStepPick} onStepComplete={handleTrackStepComplete} />
+                    )}
+                    <AgentModeSelector
+                      heuristicFallback={heuristicEnabled}
+                      onHeuristicFallbackChange={setHeuristicEnabled}
+                    />
+                    {isLoggedIn && !pageOwnsAgentChrome && (
+                      <ScopePicker
+                        allowWrite={agentAllowWrite}
+                        disabled={agentToolsLoading}
+                        onChange={setAgentAllowWrite}
+                      />
                     )}
                     {modelAdvisory && (
                       <span
@@ -10402,6 +10382,63 @@ export default function BankingAgent({
                         >×</button>
                       </span>
                     )}
+                      </div>
+                    </section>
+                    <section className="cmd-dock-sec" aria-label="Display">
+                      <h3 className="cmd-dock-sec__label">Display</h3>
+                      <div className="cmd-dock-sec__body">
+                    <div className="ba-textsize" role="group" aria-label="Response text size">
+                      <button
+                        type="button"
+                        className="ba-textsize-btn"
+                        onClick={() =>
+                          setChatZoom((z) => Math.max(CHAT_ZOOM_MIN, +(z - CHAT_ZOOM_STEP).toFixed(2)))
+                        }
+                        disabled={chatZoom <= CHAT_ZOOM_MIN}
+                        title="Smaller response text"
+                        aria-label="Decrease response text size"
+                      >
+                        A−
+                      </button>
+                      <button
+                        type="button"
+                        className="ba-textsize-pct"
+                        onClick={() => setChatZoom(CHAT_ZOOM_DEFAULT)}
+                        disabled={chatZoom === CHAT_ZOOM_DEFAULT}
+                        title="Reset response text size"
+                      >
+                        {Math.round(chatZoom * 100)}%
+                      </button>
+                      <button
+                        type="button"
+                        className="ba-textsize-btn"
+                        onClick={() =>
+                          setChatZoom((z) => Math.min(CHAT_ZOOM_MAX, +(z + CHAT_ZOOM_STEP).toFixed(2)))
+                        }
+                        disabled={chatZoom >= CHAT_ZOOM_MAX}
+                        title="Bigger response text"
+                        aria-label="Increase response text size"
+                      >
+                        A+
+                      </button>
+                    </div>
+                    {/* Dark/light toggle — shared app theme (ThemeProvider), same
+                        control the "Dark mode" switch in Quick Config drives. */}
+                    <button
+                      type="button"
+                      className="ba-icon-btn"
+                      onClick={toggleDarkMode}
+                      aria-label="Toggle dark mode"
+                      aria-pressed={darkMode}
+                      title="Switch this agent between light and dark"
+                    >
+                      {darkMode ? "☀️" : "🌙"}
+                    </button>
+                      </div>
+                    </section>
+                    <section className="cmd-dock-sec" aria-label="Tools">
+                      <h3 className="cmd-dock-sec__label">Tools</h3>
+                      <div className="cmd-dock-sec__body">
                     {!pageOwnsAgentChrome && (
                     <button
                       type="button"
@@ -10841,8 +10878,13 @@ export default function BankingAgent({
                       Guide
                     </button>
                     )}
+                      </div>
+                    </section>
                   </div>
                   <div className="ba-header-tools cmd-dock-tools">
+                    <section className="cmd-dock-sec" aria-label="Demo">
+                      <h3 className="cmd-dock-sec__label">Demo</h3>
+                      <div className="cmd-dock-sec__body">
                     {!splitChrome && (
                       <DemoStepsTrigger
                         open={showDemoSteps && (effectiveIsOpen || floatingDemoStepsOpen)}
@@ -10867,6 +10909,17 @@ export default function BankingAgent({
                         Live Use Cases
                       </button>
                     )}
+                    <button
+                      type="button"
+                      className="ba-actions-trigger ba-header-toggle-label"
+                      onClick={() => clearCompletedUseCases()}
+                      title="Clear checkmarks for a fresh demo pass"
+                      data-testid="header-clear-progress"
+                    >
+                      Clear progress
+                    </button>
+                      </div>
+                    </section>
                     {splitChrome && (
                       <span
                         className={`ba-hg-sub${inspectorsOpen ? "" : " ba-hg-sub--collapsed"}`}
@@ -10938,34 +10991,6 @@ export default function BankingAgent({
                         onSelect={handleAdminToolSelect}
                       />
                     )}
-                    {isLoggedIn && !pageOwnsAgentChrome && (
-                      <ScopePicker
-                        allowWrite={agentAllowWrite}
-                        disabled={agentToolsLoading}
-                        onChange={setAgentAllowWrite}
-                      />
-                    )}
-                    <button
-                      type="button"
-                      className="ba-actions-trigger ba-header-toggle-label"
-                      onClick={() => clearCompletedUseCases()}
-                      title="Clear checkmarks for a fresh demo pass"
-                      data-testid="header-clear-progress"
-                    >
-                      Clear progress
-                    </button>
-                    {/* Dark/light toggle — shared app theme (ThemeProvider), same
-                        control the "Dark mode" switch in Quick Config drives. */}
-                    <button
-                      type="button"
-                      className="ba-icon-btn"
-                      onClick={toggleDarkMode}
-                      aria-label="Toggle dark mode"
-                      aria-pressed={darkMode}
-                      title="Switch this agent between light and dark"
-                    >
-                      {darkMode ? "☀️" : "🌙"}
-                    </button>
                   </div>
                 </CommandDock>
               ) : (
