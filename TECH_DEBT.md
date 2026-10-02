@@ -18,6 +18,28 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-10-02 — The session token modal's pi.flow sign-in is blocked by CORS on the end-user app
+
+**What's wrong.** `OAuthTokenDisplayPage` starts sign-in with
+`/login?mode=pi.flow`, then the browser `fetch`es PingOne `/as/authorize`
+directly. Driven live on P1 (2026-10-02), that fetch fails with a CORS block
+for origin `local.ping-devops.com:4000`, so no credential form appears and the
+modal shows "Failed to fetch". Unit tests and the server tests mock this leg, so
+nothing in the repo catches it. Same cause as the PKCE app on 2026-09-14: a
+PingOne app with `corsSettings: null` allows the preflight but not the real
+request.
+
+**Why not fixed now.** The fix is a live PingOne change (set the end-user
+app's `corsSettings` to `ALLOW_SPECIFIC_ORIGINS` for `local.ping-devops.com:4000`,
+`api.ping.demo:4000` and `ai-demo.ping-devops.com`, backing up the app first),
+not a repo change, and the demo is shared. Not yet applied.
+
+**Real fix.** Apply that CORS setting, then rerun the §4 verify steps for the
+modal on P1 (credentials, `/as/resume`, code exchange, token shown). A bootstrap
+or readiness check that asserts the end-user app's CORS origins would stop this
+recurring; the PKCE app has the same dependency
+(`tests/checks/pkceAppCorsCheck.test.js`).
+
 ### [ ] 2026-10-01 — A workload agent's run is recorded as the built-in AI Agent (PARTLY RESOLVED)
 
 **What's wrong.** UC38 and UC44 exist to show which workload agent acted. The
