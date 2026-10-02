@@ -205,6 +205,8 @@ export default function DemoStepsDropdown({
   placement = 'floating',
   onPopOutChange,
   reserveRight = 0,
+  // Window the panel opens in — the agent's pop-out window when opened from there.
+  win = window,
 }) {
   // True while the panel lives in a pop-out window: running a step must not
   // close the panel, or the pop-out window dies with it.
@@ -444,9 +446,9 @@ export default function DemoStepsDropdown({
   // reserveRight is the strip the floating agent occupies: centre in what is
   // left so the two never open on top of each other. Below ~320px of free
   // width there is no room and the panel keeps its minimum at the left edge.
-  const availWidth = window.innerWidth - reserveRight;
+  const availWidth = win.innerWidth - reserveRight;
   const panelWidth = Math.min(760, Math.max(320, availWidth - 32));
-  const panelHeight = Math.min(660, Math.max(280, window.innerHeight - 72));
+  const panelHeight = Math.min(660, Math.max(280, win.innerHeight - 72));
   const panelX = Math.max(8, Math.round((availWidth - panelWidth) / 2));
 
   /**
@@ -570,7 +572,8 @@ export default function DemoStepsDropdown({
       )}
       {open && (
         <FloatingPanel
-          key={placeKeyRef.current ? 'beside-agent' : 'centered'}
+          key={`${placeKeyRef.current ? 'beside-agent' : 'centered'}${win === window ? '' : '-popout'}`}
+          win={win}
           title="Demo Steps"
           className="ba-demo-steps-float"
           placement={placement}
