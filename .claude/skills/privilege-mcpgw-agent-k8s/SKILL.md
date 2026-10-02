@@ -28,42 +28,55 @@ Nothing Privilege-related installs into `ping-devops-cmuir` any more, and
 `k8s/aws/deploy.sh` no longer tries — the gateway is a deliberate manual install,
 because `ENV_PROXY_TOKEN` is single-use and ~2h-lived.
 
-## Register the MCP server with `/sse`, not `/mcp`
+## Register the MCP server with `/mcp`, not `/sse`
 
-This is the trap that cost the most time. In the console (Agentic Apps → Add
-Application → MCP Server):
+This section said the opposite until 2026-10-02. In the console (Agentic Apps →
+Add Application → MCP Server):
 
 ```
 Application Name  opensearch22
-MCP Server URL    http://opensearch-mcp-server.ping-devops-curtismuir.svc.cluster.local/sse
+MCP Server URL    http://opensearch-mcp-server.ping-devops-curtismuir.svc.cluster.local/mcp
 Mesh Cluster      ai-demo-cmuir
 Auth Mode         None
 ```
 
-**The gateway speaks the SSE transport.** Its discovery client issues a bare
-`GET` and waits for the SSE `endpoint` event; it never POSTs `initialize`.
-FastMCP serves both transports, so `/mcp` *is* reachable and answers `GET` with
-200 — the handshake simply never completes. The console then reports:
+**Current gateway builds discover by POSTing `initialize` to the registered
+path.** Confirmed in the gateway's own log on v1.260906 and v1.260925:
+
+```
+Error discovering MCP server: calling "initialize": sending "initialize":
+rejected by transport: Post "http://<backend>/mcp": ...
+```
+
+A FastMCP-style `/sse` endpoint is GET-only and answers that POST with 405, so
+an `/sse` registration fails discovery and every JSON-RPC call. The registered
+path also becomes the only client-facing path: a client calling `/mcp` on an app
+registered on `/sse` gets a bare 404 once signed in
+(`rejecting /mcp on app <name>: outside entry path "/sse"`).
+
+**Earlier builds (August 2026) behaved the other way** — a bare `GET`, then a
+wait for the SSE `endpoint` event — which is why this skill used to say `/sse`.
+That is from notes, not re-measured. If discovery fails on a build you have not
+seen before, read the `Error discovering MCP server` line: it names the method
+and path the gateway actually used.
+
+Whatever the cause, a discovery failure shows in the console as
 
 ```
 Gateway Unreachable — Error discovering MCP server:
 calling "initialize": sending "initialize": Unauthorized
 ```
 
-which reads like an auth fault and is not one. Proof, from inside the cluster:
-
-```bash
-# /sse announces the endpoint event the gateway needs
-curl -sN http://opensearch-mcp-server/sse       # event: endpoint  data: /messages/?session_id=…
-# /mcp is streamable-HTTP: 200, but no endpoint event
-```
-
-Tools stay empty and **policy creation is disabled** until discovery succeeds.
-After changing the backend, restart the gateway so discovery re-runs:
+which reads like an auth fault and usually is not one. Tools stay empty and
+**policy creation is disabled** until discovery succeeds. Discovery re-runs when
+the gateway restarts or a re-scan is forced (`MCP force-sync app=<name>` in the
+log):
 
 ```bash
 kubectl rollout restart deployment/agentless-mcpgw -n ping-devops-curtismuir
 ```
+
+Full test record: `privilege/GATEWAY-REGISTERING-AN-MCP-SERVER.md`.
 
 **Backend vs client URL are different ends of the hop.** `svc.cluster.local`
 resolves only inside the cluster — Postman/LM Studio failing on it is correct,
@@ -119,7 +132,7 @@ kubectl rollout status deployment/agentless-mcpgw -n ping-devops-curtismuir
 ```
 
 Then register it in the Privilege console as its own Agentic App pointing at
-`http://localhost:<its-port>/sse` (not `/mcp` — see the SSE-transport trap
+`http://localhost:<its-port>/mcp` (not `/sse` — see the registration section
 above), Mesh Cluster `ai-demo-cmuir`, Auth Mode None.
 
 ## Deploy
@@ -227,7 +240,7 @@ modes with the log lines that distinguish them.
 
 | Symptom | Cause |
 |---|---|
-| Console "Gateway Unreachable … initialize: Unauthorized", Tools empty, policy disabled | backend registered with `/mcp`; use `/sse` |
+| Console "Gateway Unreachable … initialize: Unauthorized", Tools empty, policy disabled | discovery failed: backend registered on `/sse` (use `/mcp` on current builds), wrong hostname, or an expired policy reported misleadingly — read the `Error discovering MCP server` log line |
 | `Unknown client` page at `/authorize` | gateway restarted and forgot the DCR client; re-register |
 | `Error finding next hop to <cluster>. Cluster not found` | app's Mesh Cluster names a torn-down gateway; set it to `ai-demo-cmuir` |
 | MCP client hangs forever | pointed at `svc.cluster.local`, or at a `*.applications.procyon.ai:8643` agent frontend (this chart exposes no inbound mesh port) |

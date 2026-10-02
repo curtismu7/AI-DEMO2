@@ -142,21 +142,26 @@ currently pinned to `/sse`, pasting that snippet into a client produces the
 exact 404-after-auth trap above. **Verify the live entry path with a probe,
 never trust the console-rendered snippet.**
 
-### Registering the backend as `/mcp` normally breaks discovery — unless your backend answers both
+### Register the backend on `/mcp` — the `/sse` advice here was for older builds
 
-The gateway's discovery client issues a bare `GET` and waits for an SSE
-`endpoint` event; it never POSTs `initialize`. A plain streamable-HTTP server
-answers `GET /mcp` with `200` but never emits that event, so discovery fails
-outright: `Gateway Unreachable — calling "initialize": Unauthorized`, the app
-gets no tools and policy creation is disabled.
+**Corrected 2026-10-02.** This entry used to say that registering on `/mcp`
+breaks discovery, because the gateway issued a bare `GET` and waited for an SSE
+`endpoint` event. That described the August 2026 builds and was not re-measured.
 
-`demo_mcp_pingone/server.js` and `demo_mcp_brave/server.js` sidestep this by
-answering the SSE handshake on **both** `/sse` and `/mcp`. That makes the
-Backend Name a genuinely free choice for those two servers — pick `/mcp`, since
-it is what the console's generated config and door-discovery report. It is
-**not** free for every server: `opensearch22`'s backend is the OpenSearch MCP
-server itself, not one of these bridges, and may only speak the handshake on
-one path. Don't assume the fix transfers without testing it separately.
+On v1.260906 and v1.260925 the gateway's own log shows discovery POSTing
+`initialize` to the registered path:
+
+```
+Error discovering MCP server: calling "initialize": sending "initialize":
+rejected by transport: Post "http://<backend>/mcp": ...
+```
+
+A legacy `/sse` endpoint is GET-only and answers that POST with 405, so on
+current builds an `/sse` registration is the one that fails. Register on `/mcp`.
+
+`demo_mcp_pingone/server.js` and `demo_mcp_brave/server.js` answer the handshake
+on **both** `/sse` and `/mcp`, which is why they worked under either behaviour.
+A backend that only speaks one transport does not have that freedom.
 
 ### The gateway does not follow the SSE spec's "POST to the announced endpoint" pattern
 
@@ -170,15 +175,21 @@ own 404 for every real call, indistinguishable from the entry-path trap above
 except that it comes from your own server rather than the gateway. Handle
 `POST` on the registered path itself, not just `GET`.
 
-### `server/discover` is a gateway extension, not part of MCP
+### `server/discover` is not part of MCP — and a backend refusing it was harmless on 2026-10-02
 
-The gateway issues `server/discover` to enumerate a backend's tools for policy
-authoring. It is not in the MCP spec, and a compliant backend correctly
-answers `JSON RPC not handled: "server/discover" unsupported`. Forwarding that
-error to the gateway breaks the session for every subsequent call on that
-connection — a backend fronting a third-party MCP server needs to intercept
-`server/discover` itself and answer with the tool inventory (e.g. by internally
-calling its own `tools/list`), not pass it through.
+`server/discover` is not in the MCP spec, and a compliant backend refuses it.
+This entry used to say the gateway issues it to enumerate tools, and that
+passing the backend's error through breaks the session for every later call.
+
+Measured 2026-10-02 on v1.260925: the call arrived at the gateway **from our
+own client** (`ensureMcpSessionInitialized` in `routes/privilegeMcpClient.js`
+tries it first as the newer handshake), the gateway forwarded it, the backend
+answered 400, the client fell back to `initialize`, and the session carried on
+normally. A client that never sends it worked too.
+
+Whether the gateway also sends it during its own discovery was not observed.
+Treat the "intercept it or the session breaks" advice as unconfirmed on current
+builds, and do not build an interceptor on the strength of it.
 
 ## Client registration (well-known clients, DCR)
 
