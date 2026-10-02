@@ -1334,7 +1334,7 @@
     },
     "get_my_accounts": {
       "requiredScopes": [
-        "read"
+        "accounts:read"
       ],
       "surface": "gateway"
     },
@@ -1754,9 +1754,10 @@
     },
     "query_user_by_email": {
       "requiredScopes": [
-        "ai_agent"
+        "read"
       ],
-      "surface": "exchange-only"
+      "surface": "exchange-only",
+      "requiresAgentMediation": true
     },
     "admin_list_all_users": {
       "requiredScopes": [
