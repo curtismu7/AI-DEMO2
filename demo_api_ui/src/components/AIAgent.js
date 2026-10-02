@@ -11616,6 +11616,24 @@ export default function BankingAgent({
                   them and the open agent could not be closed or popped out. */}
               {!isInline && (
                 <div className="ba-window-btns">
+                  {/* Popped out: Demo Steps opens in the main window, which may
+                      sit behind this one — open it and bring that window forward. */}
+                  {poppedOutWin && (
+                    <button
+                      type="button"
+                      className="ba-demo-steps-trigger"
+                      disabled={consentBlocked}
+                      title="Open Demo steps in the main window"
+                      onClick={() => {
+                        setShowDemoSteps(true);
+                        setFloatingDemoStepsOpen(true);
+                        setShowDiscovery(false);
+                        window.focus();
+                      }}
+                    >
+                      Demo steps
+                    </button>
+                  )}
                   {/* Collapse to the title bar / expand-restore — hidden when
                       popped out (the OS window controls size there instead) */}
                   {!poppedOutWin && (

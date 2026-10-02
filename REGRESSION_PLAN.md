@@ -324,6 +324,11 @@ media queries, whose `!important` caps left the agent short of the window's
 bottom; the popped-out panel carries `ba-popped-out` and is exempt. **Do not
 break:** a narrow main-window agent keeps those caps.
 
+**Same entry — Demo steps from the pop-out:** the popped-out agent's header has
+a "Demo steps" button. Demo Steps opens in the main window, so the button also
+calls `window.focus()` to bring that window forward; without it the click looks
+dead when the main window sits behind the pop-out.
+
 ### 2026-10-01 — PingGateway's own token exchange was invisible
 
 **Files:** `ping-gateway/scripts/groovy/olb-token-exchange.groovy`, `ping-gateway/scripts/groovy/p1az-decision.groovy`, `demo_api_server/services/mcpToolPipeline.js`.
