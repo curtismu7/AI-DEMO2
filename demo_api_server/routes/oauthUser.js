@@ -27,6 +27,7 @@ const { loadHostedAccessPolicy, evaluateHostedIdentity, coherentHostedIdentityCl
 const { startLoginAudit, resumeLoginAudit, finishLoginAudit } = require('../services/authAccessAuditService');
 const { sendAccessRestricted } = require('../middleware/hostedAccessGate');
 const pfDavinciAuth = require('./pfDavinciAuth');
+const { isPingFederateDown } = require('../services/pingfederateReachability');
 
 const STEP_UP_TTL_MS = 5 * 60 * 1000; // 5 min step-up validity
 const ID_JAG_RUN_TTL_MS = 5 * 60 * 1000;
@@ -779,7 +780,16 @@ router.get('/login', (req, res) => {
         res.set('Cache-Control', 'no-store');
         return res.json({ authorizeUrl: url, callbackPath: new URL(redirectUri).pathname });
       }
-      res.redirect(url);
+      if (selectedProvider !== 'pingfederate') return res.redirect(url);
+      isPingFederateDown().then((down) => {
+        if (!down) return res.redirect(url);
+        console.error('[oauth/user/login] PingFederate is not reachable at PF_TOKEN_ENDPOINT; not redirecting');
+        redirectEndUserOAuthSpaFailure(req, res, {
+          error: 'oauth_provider',
+          idp_error: 'pingfederate_unreachable',
+          error_description: 'PingFederate is not running or not reachable. Start it, then sign in again.',
+        });
+      });
     });
   } catch (error) {
     console.error('OAuth login error:', error?.stack || String(error));
