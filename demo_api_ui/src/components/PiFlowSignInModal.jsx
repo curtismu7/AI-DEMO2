@@ -11,10 +11,13 @@ const apiBase = () =>
   process.env.REACT_APP_API_URL ||
   (typeof window !== "undefined" ? window.location.origin : "");
 
-/** Plain redirect login — the path every failure here falls back to. */
+/** Test hook: any page opened with ?signin=mfa asks this sign-in for MFA. */
+const mfaRequested = () => new URLSearchParams(window.location.search).get("signin") === "mfa";
+
+/** Plain redirect login — the path every failure here falls back to. An MFA request keeps its MFA (the step-up route). */
 function redirectLogin(returnTo) {
   const suffix = returnTo ? `?return_to=${encodeURIComponent(returnTo)}` : "";
-  window.location.href = `${apiBase()}/api/auth/oauth/user/login${suffix}`;
+  window.location.href = `${apiBase()}/api/auth/oauth/user/${mfaRequested() ? "stepup" : "login"}${suffix}`;
 }
 
 /**
@@ -44,6 +47,7 @@ export default function PiFlowSignInModal() {
   const [step, setStep] = useState("password");
   const passkeyOptionsRef = useRef(null);
   const returnToRef = useRef(undefined);
+  const providerRef = useRef("pingone");
 
   useEffect(() => {
     let cancelled = false;
@@ -54,6 +58,7 @@ export default function PiFlowSignInModal() {
         const on = ["true", "1"].includes(String(cfg.PINGONE_USER_AUTHORIZE_PI_FLOW).toLowerCase());
         // Both providers the BFF can drive (PingOne, PingFederate); anything else keeps the redirect.
         const provider = cfg.oauth_provider || "pingone";
+        providerRef.current = provider;
         if (!cancelled) setPiFlowSignInAvailable(on && (provider === "pingone" || provider === "pingfederate"));
       } catch {
         /* keep the redirect login */
@@ -67,6 +72,12 @@ export default function PiFlowSignInModal() {
 
   const begin = useCallback(async (target) => {
     returnToRef.current = target;
+    // PF's MFA steps are not driven in the modal yet: go straight to the hosted step-up login rather than
+    // asking for the password here and then again there.
+    if (mfaRequested() && providerRef.current === "pingfederate") {
+      redirectLogin(target);
+      return;
+    }
     setStep("password");
     passkeyOptionsRef.current = null;
     setError("");
@@ -77,8 +88,7 @@ export default function PiFlowSignInModal() {
     try {
       const qs = new URLSearchParams({ pi_flow: "1" });
       if (target) qs.set("return_to", target);
-      // Test hook: any page opened with ?signin=mfa makes this sign-in request MFA.
-      if (new URLSearchParams(window.location.search).get("signin") === "mfa") qs.set("mfa", "1");
+      if (mfaRequested()) qs.set("mfa", "1");
       const res = await fetch(`${apiBase()}/api/auth/oauth/user/login?${qs}`, { credentials: "include" });
       if (!res.ok) throw new Error("pi.flow unavailable");
       // PingFederate locks the flow to a username hint; prefill it like the hosted page does.

@@ -118,6 +118,15 @@ describe('PiFlowSignInModal', () => {
     expect(global.fetch.mock.calls.some(([u]) => String(u).includes('/login?') && String(u).includes('mfa=1'))).toBe(true);
   });
 
+  test('?signin=mfa on PingFederate goes straight to the hosted step-up login (no second password page)', async () => {
+    window.location.search = '?signin=mfa';
+    mockBff({ config: { ...ON, oauth_provider: 'pingfederate' }, login: () => ok({ flowId: 'f1' }), credentials: () => ok({}) });
+    await mountAndClick();
+    await waitFor(() => expect(window.location.href).toContain('/api/auth/oauth/user/stepup?return_to=%2Fdashboard'));
+    expect(screen.queryByLabelText('Username')).toBeNull();
+    expect(global.fetch.mock.calls.some(([u]) => String(u).includes('/login?'))).toBe(false);
+  });
+
   test('PingFederate selected: opens the same form (the BFF drives the PF flow)', async () => {
     mockBff({
       config: { ...ON, oauth_provider: 'pingfederate' },
