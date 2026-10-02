@@ -36,6 +36,7 @@ function live(overrides = {}) {
       { resource: { id: 'res-gw' }, scopes: [{ id: 's-invoke' }] },
     ] },
     decisionEndpoints: [{ id: 'endpoint-1' }],
+    groups: [{ id: 'g-1', name: 'Demo_PremiumTier' }, { id: 'g-2', name: 'Unrelated_Group' }],
     ...overrides,
   };
 }
@@ -50,20 +51,35 @@ function fakeFetch(state, calls = []) {
     if (path === '/resources') return json({ _embedded: { resources: state.resources } });
     if (path === '/applications') return json({ _embedded: { applications: state.applications } });
     if (path === '/decisionEndpoints') return json({ _embedded: { decisionEndpoints: state.decisionEndpoints } });
+    if (path === '/groups') return json({ _embedded: { groups: state.groups } });
     if ((match = path.match(/^\/resources\/([^/]+)\/scopes$/))) return json({ _embedded: { scopes: state.scopes[match[1]] || [] } });
     if ((match = path.match(/^\/applications\/([^/]+)\/grants$/))) return json({ _embedded: { grants: state.grants[match[1]] || [] } });
     return json({}, false, 404);
   };
 }
 
-const read = (state, env = ENV, calls) => createPingOneReader({ env, manifest: MANIFEST, fetchImpl: fakeFetch(state, calls) })({ targetId: 'local' });
+const read = (state, env = ENV, calls, groupNames = ['Demo_PremiumTier']) => createPingOneReader({
+  env, manifest: MANIFEST, groupNames, fetchImpl: fakeFetch(state, calls),
+})({ targetId: 'local' });
 
 describe('demoReadinessPingOneReader', () => {
   it('passes the live-readable families when PingOne matches the topology, ignoring unrelated objects', async () => {
     const values = await read(live());
-    for (const name of ['audience', 'scope', 'mirror', 'appGrant', 'authorizeEndpoint']) {
+    for (const name of ['audience', 'scope', 'mirror', 'appGrant', 'authorizeEndpoint', 'groupMembership']) {
       expect(values[name]).toMatchObject({ status: 'pass' });
     }
+  });
+
+  it('fails groupMembership when a declared group does not exist, and blocks when none is declared', async () => {
+    expect((await read(live({ groups: [] }))).groupMembership).toEqual({ status: 'fail', observed: { declared: 1, missing: ['Demo_PremiumTier'] } });
+    expect((await read(live(), ENV, undefined, [])).groupMembership.status).toBe('blocked');
+  });
+
+  it('declares the group names from the vertical manifests by default', async () => {
+    const values = await createPingOneReader({ env: ENV, manifest: MANIFEST, fetchImpl: fakeFetch(live()) })({ targetId: 'local' });
+    expect(values.groupMembership.status).toBe('fail');
+    expect(values.groupMembership.observed.declared).toBeGreaterThan(1);
+    expect(values.groupMembership.observed.missing).toContain('Banking_PremiumTier');
   });
 
   it('only reads: one token POST, every other call a GET with the bearer token', async () => {

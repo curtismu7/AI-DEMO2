@@ -3,8 +3,14 @@
 const express = require('express');
 const { authenticateToken, requireAdmin, requireScopes } = require('../middleware/auth');
 const { createDemoReadinessJobStore, DemoReadinessJobError } = require('../services/demoReadinessJobStore');
+const { startReadinessRun } = require('../services/demoReadinessRunner');
+const configStore = require('../services/configStore');
 
-const defaultStore = createDemoReadinessJobStore();
+// This route runs inside the BFF — the one process holding the loaded config
+// store — so its runs can audit effective flags, A2A credentials and PAR settings.
+const defaultStore = createDemoReadinessJobStore({
+  runReadiness: (args) => startReadinessRun({ ...args, configStore }),
+});
 
 function sendJobError(res, error) {
   if (error instanceof DemoReadinessJobError) {

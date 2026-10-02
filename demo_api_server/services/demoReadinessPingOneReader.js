@@ -47,7 +47,16 @@ async function pingOneManagementAccess({ env = process.env, fetchImpl = globalTh
   return { token, base: managementApiBase(env) };
 }
 
-function createPingOneReader({ env = process.env, fetchImpl = globalThis.fetch, manifest = scopeTopology._manifest() } = {}) {
+/** Every PingOne group name the vertical manifests declare (`groups.categories.*.name`). */
+function declaredGroupNames() {
+  const { loadDemoReadinessSources } = require('./demoReadinessCatalog');
+  const manifests = Object.values(loadDemoReadinessSources().verticalManifests || {});
+  return [...new Set(manifests.flatMap((item) => Object.values(item.groups?.categories || {}).map((category) => category?.name)).filter(Boolean))];
+}
+
+function createPingOneReader({
+  env = process.env, fetchImpl = globalThis.fetch, manifest = scopeTopology._manifest(), groupNames = declaredGroupNames(),
+} = {}) {
   return async function readConfiguration({ signal, targetId } = {}) {
     const { token, base } = await pingOneManagementAccess({ env, fetchImpl, signal });
     const headers = { Authorization: 'Bearer ' + token };
@@ -70,8 +79,9 @@ function createPingOneReader({ env = process.env, fetchImpl = globalThis.fetch, 
       return scopeCache.get(resourceId);
     };
 
-    const [resources, applications, decisionEndpoints] = await Promise.all([
+    const [resources, applications, decisionEndpoints, groups] = await Promise.all([
       list('/resources', 'resources'), list('/applications', 'applications'), list('/decisionEndpoints', 'decisionEndpoints'),
+      list('/groups', 'groups'),
     ]);
     const resourceNames = manifest.provisioning?.resourceNames || {};
     const appNames = manifest.provisioning?.appNames || {};
@@ -128,6 +138,7 @@ function createPingOneReader({ env = process.env, fetchImpl = globalThis.fetch, 
 
     const configuredEndpoints = DECISION_ENDPOINT_KEYS.filter((key) => env[key]);
     const liveEndpointIds = decisionEndpoints.map((item) => item.id);
+    const liveGroupNames = groups.map((item) => item.name);
     const absentEndpoints = configuredEndpoints.filter((key) => !liveEndpointIds.includes(env[key]));
     const result = (ok, observed, extra = {}) => ({ status: ok ? 'pass' : 'fail', observed, ...extra });
 
@@ -139,11 +150,16 @@ function createPingOneReader({ env = process.env, fetchImpl = globalThis.fetch, 
       authorizeEndpoint: configuredEndpoints.length
         ? result(!absentEndpoints.length, { configured: configuredEndpoints, notLive: absentEndpoints })
         : { status: 'blocked', reason: 'no decision endpoint ID is configured (' + DECISION_ENDPOINT_KEYS.join(', ') + ')' },
-      // Not readable from the Management API; each needs its own source.
+      // Every group a vertical manifest names must exist. Who is in a group is
+      // not checked: no contract declares it, and the in/out Demo Steps change
+      // membership during a run.
+      groupMembership: groupNames.length
+        ? result(groupNames.every((name) => liveGroupNames.includes(name)), { declared: groupNames.length, missing: groupNames.filter((name) => !liveGroupNames.includes(name)) })
+        : { status: 'blocked', reason: 'no vertical manifest declares a group' },
+      // Not PingOne reads; demoReadinessLocalReader.js supplies these.
       requiredFlag: { status: 'blocked', reason: 'effective flag readback requires authenticated BFF configuration access' },
       a2aCredential: { status: 'blocked', reason: 'credential presence is not returned by PingOne Management API' },
       parSetting: { status: 'blocked', reason: 'PAR setting readback requires declared application configuration' },
-      groupMembership: { status: 'blocked', reason: 'group membership readback requires declared subject/group contracts' },
       registeredToolScope: { status: 'blocked', reason: 'registered Agent Gateway tool scope API is unavailable' },
       policyReadback: {
         status: 'blocked',

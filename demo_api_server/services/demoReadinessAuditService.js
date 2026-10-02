@@ -9,6 +9,7 @@ const PF_PROFILES = require('../config/demoReadinessPingFederateProfiles.json');
 const { getReadinessToolMetadata } = require('../config/verticals/pingone-admin/tools');
 const { resolveRepositoryRoot } = require('../utils/repositoryRoot');
 const { baselineMismatches } = require('./demoReadinessPingFederateReader');
+const { missingCaseConfiguration, IN_PROCESS_ONLY } = require('./demoReadinessLocalReader');
 const REPOSITORY_ROOT = resolveRepositoryRoot(__dirname);
 const healthGate = require(path.join(REPOSITORY_ROOT, 'scripts/check-demo-health-gate'));
 const mcpPreflight = require(path.join(REPOSITORY_ROOT, 'scripts/check-mcp-preflight'));
@@ -114,7 +115,7 @@ function blocked(names, reason) {
   return Object.fromEntries(names.map((name) => [name, { status: 'blocked', reason }]));
 }
 
-function repositoryValues() {
+function repositoryValues(configStore) {
   const root = REPOSITORY_ROOT;
   const topology = JSON.parse(fs.readFileSync(path.join(root, 'scope-topology.json'), 'utf8'));
   const gateway = JSON.parse(fs.readFileSync(path.join(root, 'ping-gateway/config/scope-topology.json'), 'utf8'));
@@ -182,9 +183,19 @@ function repositoryValues() {
       && item.providerFlows?.pingfederate === 'pingfederate-admin-mcp');
     const staticContract = Boolean(item.auth && toolContract && prerequisiteParity && adminContract && (!item.tool || toolNames.includes(item.tool)));
     const deferred = item.a2a || item.par;
-    values['case:' + item.id] = deferred
-      ? { status: staticContract ? 'blocked' : 'fail', reason: staticContract ? (item.a2a ? 'A2A credential/profile parity requires live target readback' : 'PAR application configuration requires live target readback') : 'checked-in UI/backend prerequisite or authorization contract disagrees', observed: { flags: item.flags, a2a: item.a2a, par: item.par, tool: item.tool, prerequisiteParity, toolContract, adminContract, adminSourceContract, registeredAdminOperation, verticalContracts: prerequisiteContracts.length }, sourceRef: item.sourceRef }
-      : { status: staticContract ? 'pass' : 'fail', observed: { flags: item.flags, a2a: item.a2a, par: item.par, tool: item.tool, prerequisiteParity, toolContract, adminContract, adminSourceContract, registeredAdminOperation, verticalContracts: prerequisiteContracts.length }, sourceRef: item.sourceRef };
+    const observed = { flags: item.flags, a2a: item.a2a, par: item.par, tool: item.tool, prerequisiteParity, toolContract, adminContract, adminSourceContract, registeredAdminOperation, verticalContracts: prerequisiteContracts.length };
+    if (!staticContract) {
+      values['case:' + item.id] = { status: 'fail', reason: deferred ? 'checked-in UI/backend prerequisite or authorization contract disagrees' : undefined, observed, sourceRef: item.sourceRef };
+    } else if (!deferred) {
+      values['case:' + item.id] = { status: 'pass', observed, sourceRef: item.sourceRef };
+    } else if (!configStore) {
+      values['case:' + item.id] = { status: 'blocked', reason: (item.a2a ? 'A2A credential' : 'PAR application') + ' configuration' + IN_PROCESS_ONLY, observed, sourceRef: item.sourceRef };
+    } else {
+      // The step's A2A credentials / PAR settings, read from this BFF's
+      // effective configuration for every vertical the step runs in.
+      const missingConfiguration = missingCaseConfiguration({ a2a: item.a2a, par: item.par, verticals: Object.keys(item.prerequisites || {}) }, configStore);
+      values['case:' + item.id] = { status: missingConfiguration.length ? 'fail' : 'pass', observed: { ...observed, missingConfiguration }, sourceRef: item.sourceRef };
+    }
   }
   return values;
 }
@@ -389,7 +400,7 @@ function createAuditService({ adapters = {}, pfProfiles = PF_PROFILES, fetch = g
   async function auditRepositoryContracts({ deadlineAt, signal } = {}) {
     try {
       const args = { deadlineAt, signal };
-      const values = adapters.repository?.readContracts ? await boundedRead(() => adapters.repository.readContracts(adapterArgs(args)), args) : repositoryValues();
+      const values = adapters.repository?.readContracts ? await boundedRead(() => adapters.repository.readContracts(adapterArgs(args)), args) : repositoryValues(adapters.configStore);
       return afterRead(Object.entries(values).map(([name, value]) => auditRow('repository:' + name, value, { sourceRef: value?.sourceRef || 'checked-in source contract' })), deadlineAt, signal);
     } catch (error) { return [auditRow('repository:contracts', { status: 'blocked', reason: error.message }, { sourceRef: 'checked-in source contract' })]; }
   }

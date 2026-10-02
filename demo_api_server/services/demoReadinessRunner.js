@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const { createAuditService } = require('./demoReadinessAuditService');
 const { createPingOneReader, pingOneManagementAccess, managementApiBase } = require('./demoReadinessPingOneReader');
 const { createPingFederateReader } = require('./demoReadinessPingFederateReader');
+const { effectiveConfigValues, toolScopeParity } = require('./demoReadinessLocalReader');
 const { buildPingGatewayPfExchangeEnv } = require('../scripts/refresh-service-envs');
 const { createRepairService } = require('./demoReadinessRepairService');
 const { createReadinessExecutionService } = require('./demoReadinessExecutionService');
@@ -92,12 +93,33 @@ async function authorizeReadHeaders(authorizeUrl, { env, fetchImpl, signal }) {
   }
 }
 
+const PINGONE_API_ROWS = ['audience', 'scope', 'mirror', 'appGrant', 'groupMembership', 'authorizeEndpoint', 'policyReadback'];
+
+// The pingone:* rows come from two places: the Management API, and this
+// process/checkout (effective configuration, the gateway's tool-scope copy).
+// A failed API read must not take the local rows down with it.
+function createPingOneRows({ env, fetchImpl, configStore }) {
+  const readApi = createPingOneReader({ env, fetchImpl });
+  return async (args) => {
+    const local = { ...effectiveConfigValues(configStore), registeredToolScope: toolScopeParity() };
+    try {
+      return { ...await readApi(args), ...local };
+    } catch (error) {
+      return { ...Object.fromEntries(PINGONE_API_ROWS.map((name) => [name, { status: 'blocked', reason: error.message }])), ...local };
+    }
+  };
+}
+
 function createDefaultAdapters(clock = Date.now, {
   env = process.env,
   fetchImpl = globalThis.fetch,
+  // The BFF's loaded config store. Only the BFF process supplies it; without
+  // it the configuration rows report blocked.
+  configStore,
   audit = createAuditService({ adapters: {
-    pingOne: { readConfiguration: createPingOneReader({ env, fetchImpl }) },
+    pingOne: { readConfiguration: createPingOneRows({ env, fetchImpl, configStore }) },
     pingFederate: createPingFederateReader({ env }),
+    configStore,
   } }),
   repairs = createRepairService({ now: () => nowFrom(clock) }),
   execution,
@@ -219,8 +241,8 @@ function createDefaultAdapters(clock = Date.now, {
   };
 }
 
-function coerceAdapters(adapters = {}, clock) {
-  return { ...createDefaultAdapters(clock), ...adapters };
+function coerceAdapters(adapters = {}, clock, options) {
+  return { ...createDefaultAdapters(clock, options), ...adapters };
 }
 
 function confirmationDigest(answer, digest) {
@@ -236,13 +258,14 @@ async function startReadinessRun({
   clock = Date.now,
   adapters: suppliedAdapters = {},
   deadlineMs = HARD_DEADLINE_MS,
+  configStore,
 } = {}) {
   const selectedTargets = [...new Set(targets || [])];
   const startedAt = nowFrom(clock);
   const deadlineAt = startedAt + Math.min(HARD_DEADLINE_MS, Math.max(1, deadlineMs));
   const runId = crypto.randomUUID();
   const commit = process.env.GIT_COMMIT || process.env.COMMIT_SHA || undefined;
-  const adapters = coerceAdapters(suppliedAdapters, clock);
+  const adapters = coerceAdapters(suppliedAdapters, clock, { configStore });
   const checks = [];
   const rows = [];
   const phases = [];
