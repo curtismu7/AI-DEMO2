@@ -14,7 +14,8 @@
  *   [ STREAM_TYPE(1) | 0 0 0 | SIZE(4, big-endian) ][ payload(SIZE bytes) ]
  * demuxStream() reassembles the payloads back into plain log text.
  *
- * SECURITY: logs are admin-only (guarded at the route). As defence-in-depth we
+ * SECURITY: logs are open to any signed-in user (the route applies no role
+ * guard — an accepted decision, see TECH_DEBT.md). So we
  * still redact anything that looks like a bearer token / access_token before it
  * leaves the process — the IG groovy does not print raw tokens, but a future
  * log line must never leak one through this window.
