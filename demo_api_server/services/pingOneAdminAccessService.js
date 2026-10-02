@@ -124,7 +124,7 @@ async function checkAccess({ username, pingOneUserId, accessToken, oauthProvider
         pf, 'mcp', hop1Token, mcpActorToken, mcpResourceUri, finalScopes,
       );
       pfExchange.validateFinalToken(finalToken, {
-        userSub: tokenSubject, audience: mcpResourceUri, scopes: finalScopes, agentActorToken, mcpActorToken,
+        userSub: tokenSubject, audience: mcpResourceUri, scopes: finalScopes, issuer: pf.issuer, agentActorToken, mcpActorToken,
       });
     } else {
       const aiAgentActorClientId = configStore.getEffective('pingone_ai_agent_actor_client_id');

@@ -2772,7 +2772,10 @@ async function _performTwoExchangeDelegation(
         userToken, agentActorToken, aiAgentClientId, aiAgentClientSecret, [intermediateAud], exchange1Scopes, aiAgentAuthMethod
       );
     const agentExchangedDecoded = decodeJwtClaims(agentExchangedToken);
-    if (provider) provider.validateIntermediateToken(agentExchangedToken, { userSub, audience: intermediateAud, scopes: exchange1Scopes });
+    if (provider) provider.validateIntermediateToken(agentExchangedToken, {
+      userSub, audience: intermediateAud, scopes: exchange1Scopes,
+      issuer: providerConfig.issuer, agentActorToken,
+    });
     const agentExchangedClaims = agentExchangedDecoded?.claims;
     // Preserve exchangeRequest from the in-progress card before splice — TraceRail /
     // TokenChain teaching JSON would otherwise vanish on success (1-exchange keeps it).
@@ -3061,7 +3064,7 @@ async function _performTwoExchangeDelegation(
     const finalClaims  = finalDecoded?.claims;
     if (provider) provider.validateFinalToken(finalToken, {
       userSub, audience: finalAudTarget, scopes: ex2Scopes,
-      agentActorToken, mcpActorToken,
+      issuer: providerConfig.issuer, agentActorToken, mcpActorToken,
     });
     // Preserve exchangeRequest across splice so TraceRail's exchange step keeps
     // its coloured request JSON (buildTraceSteps reads two-ex-final-token only).

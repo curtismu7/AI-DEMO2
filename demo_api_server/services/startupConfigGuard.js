@@ -276,6 +276,50 @@ function warnIfAuthorizeFailOpen() {
 // regresses it on the next `compose up`. Catch the two smoking guns of that
 // regression at boot so a broken recreate is loud, not a mystery 401.
 // See privilege/PRIVILEGE-MCP.md + REGRESSION_PLAN §4 (2026-08-10).
+/**
+ * The BFF's PingFederate settings vs config/demoReadinessPingFederateProfiles.json,
+ * the committed record of what PingFederate's token managers sign and emit.
+ *
+ * A warning, not a fatal: that file describes the LOCAL PingFederate, so another
+ * environment legitimately differs; and the provider is switched at runtime, so
+ * this runs whenever PingFederate is configured, not only when it is active at
+ * boot. The per-exchange validators in pfStandardTokenExchangeService are what
+ * refuse a wrong token; this says why, before the first exchange fails.
+ * @returns {string[]} the mismatches found (also logged)
+ */
+function warnIfPingFederateContractDrifts() {
+  const issues = [];
+  try {
+    const profiles = require('../config/demoReadinessPingFederateProfiles.json');
+    const managers = profiles.accessTokenManagers || {};
+    const issuer = effective('PF_ISSUER');
+    if (!issuer) return issues; // PingFederate is not configured here
+    const issuers = [...new Set(Object.values(managers).map((m) => m.issuer).filter(Boolean))];
+    if (issuers.length && !issuers.includes(issuer)) {
+      issues.push(`PF_ISSUER="${issuer}" but PingFederate's token managers sign as ${issuers.join(', ')} — every exchanged token would fail the issuer check`);
+    }
+    const managerOf = (role) => profiles.roles?.[role]?.baseline?.defaultAccessTokenManagerRef;
+    const intermediate = effective('PF_STANDARD_INTERMEDIATE_AUDIENCE');
+    const wantIntermediate = managers[managerOf('standard-agent-exchanger')]?.audience;
+    if (intermediate && wantIntermediate && intermediate !== wantIntermediate) {
+      issues.push(`PF_STANDARD_INTERMEDIATE_AUDIENCE="${intermediate}" but the agent exchanger's token manager emits aud "${wantIntermediate}" — exchange #1 would fail the audience check`);
+    }
+    const wantFinal = managers[managerOf('standard-mcp-exchanger')]?.audience;
+    let expectedFinal = '';
+    try { expectedFinal = require('./mcpToolAuthorizationService').resolveExpectedMcpResourceUri() || ''; } catch { /* resolver unavailable at boot */ }
+    if (expectedFinal && wantFinal && expectedFinal !== wantFinal) {
+      issues.push(`the BFF expects the final token's aud to be "${expectedFinal}" but the MCP exchanger's token manager emits "${wantFinal}" — exchange #2 would fail the audience check`);
+    }
+  } catch (err) {
+    console.warn(`[STARTUP GUARD] PingFederate contract check skipped: ${err.message}`);
+    return issues;
+  }
+  if (issues.length) {
+    console.warn(`[WARN] [STARTUP GUARD] PingFederate settings differ from config/demoReadinessPingFederateProfiles.json:\n  - ${issues.join('\n  - ')}`);
+  }
+  return issues;
+}
+
 function warnIfPrivilegeConfigRegressed() {
   try {
     const gwUrl = process.env.PRIVILEGE_MCPGW_URL || '';
@@ -328,6 +372,7 @@ function runStartupConfigGuard() {
   warnIfAuthorizeModeUnconfigured();
   warnIfAuthorizeFailOpen();
   warnIfPrivilegeConfigRegressed();
+  warnIfPingFederateContractDrifts();
   let issues;
   try {
     issues = collectIssues();
@@ -350,4 +395,4 @@ function runStartupConfigGuard() {
   process.exit(1);
 }
 
-module.exports = { runStartupConfigGuard, collectIssues, warnIfAuthorizeModeUnconfigured, warnIfAuthorizeFailOpen, warnIfPrivilegeConfigRegressed };
+module.exports = { runStartupConfigGuard, collectIssues, warnIfPingFederateContractDrifts, warnIfAuthorizeModeUnconfigured, warnIfAuthorizeFailOpen, warnIfPrivilegeConfigRegressed };

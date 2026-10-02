@@ -24,6 +24,9 @@ function resolveConfig(store = configStore) {
     mcpActorScope: get('pf_standard_mcp_actor_scope') || 'mcp:invoke',
     intermediateAudience: get('pf_standard_intermediate_audience'),
     tokenEndpoint: get('pf_token_endpoint'),
+    // Who must have signed every exchanged token. Not in the `missing` list:
+    // startupConfigGuard already requires PF_ISSUER in PingFederate mode.
+    issuer: get('pf_issuer') || null,
   };
   const missing = Object.entries({
     PF_STANDARD_AGENT_EXCHANGE_CLIENT_ID: config.agentExchangeClientId,
@@ -134,27 +137,45 @@ function performExchange(config, hop, subjectToken, actorToken, audience, scopes
   );
 }
 
-function validateIntermediateToken(token, { userSub, audience, scopes }) {
+// A token minted by anyone but the configured PingFederate is not this chain's token,
+// whatever its other claims say.
+function assertIssuer(decoded, issuer, step) {
+  if (issuer && decoded.claims.iss !== issuer) throw new Error(`PingFederate ${step} issuer mismatch`);
+}
+
+function validateIntermediateToken(token, { userSub, audience, scopes, issuer, agentActorToken }) {
   const decoded = assertAccessToken(token, 'first exchange');
+  assertIssuer(decoded, issuer, 'first exchange');
   if (decoded.claims.sub !== userSub) throw new Error('PingFederate first exchange did not preserve the user subject');
   if (!includesAudience(decoded.claims.aud, audience)) throw new Error('PingFederate intermediate audience mismatch');
   if (!sameScopes(decoded.claims.scope, scopes)) throw new Error('PingFederate intermediate scope mismatch');
+  // The first hop is where the agent becomes the actor. If act is missing or
+  // names someone else here, the nested chain on the final token is fiction.
+  if (agentActorToken) {
+    const agentActor = assertAccessToken(agentActorToken, 'AI-agent actor-token request');
+    if (decoded.claims.act?.sub !== actorIdentity(agentActor)) {
+      throw new Error('PingFederate intermediate act claim does not name the AI-agent actor');
+    }
+  }
   return decoded;
 }
 
-function validateFinalToken(token, { userSub, audience, scopes, agentActorToken, mcpActorToken }) {
+function validateFinalToken(token, { userSub, audience, scopes, issuer, agentActorToken, mcpActorToken }) {
   const decoded = assertAccessToken(token, 'second exchange');
+  assertIssuer(decoded, issuer, 'second exchange');
   const agentActor = assertAccessToken(agentActorToken, 'AI-agent actor-token request');
   const mcpActor = assertAccessToken(mcpActorToken, 'MCP-service actor-token request');
   if (decoded.claims.sub !== userSub) throw new Error('PingFederate exchange did not preserve the user subject');
   if (!includesAudience(decoded.claims.aud, audience)) throw new Error('PingFederate final audience mismatch');
   if (!sameScopes(decoded.claims.scope, scopes)) throw new Error('PingFederate exchange scope mismatch');
-  const nestedActMatches = decoded.claims.act?.sub === actorIdentity(mcpActor)
-    && decoded.claims.act?.act?.sub === actorIdentity(agentActor);
-  const supportedFlatActMatches = decoded.claims.act?.sub === actorIdentity(agentActor)
-    && !decoded.claims.act?.act?.sub;
-  if (!nestedActMatches && !supportedFlatActMatches) {
-    throw new Error('PingFederate final act claim does not match a supported MCP-service/AI-agent delegation shape');
+  // Nested only: act.sub is the MCP service, act.act.sub is the AI agent. A flat
+  // act naming just the agent used to pass too — accepted in 2026-09 when nobody
+  // could inspect PingFederate's policy — which meant losing the second actor went
+  // unnoticed. Live PingFederate emits the nested chain (measured 2026-10-02), and
+  // PingOne Authorize reads both levels as ActClientId / NestedActClientId.
+  if (decoded.claims.act?.sub !== actorIdentity(mcpActor)
+    || decoded.claims.act?.act?.sub !== actorIdentity(agentActor)) {
+    throw new Error('PingFederate final act claim is not the nested MCP-service → AI-agent chain');
   }
   return decoded;
 }
