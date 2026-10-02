@@ -26,9 +26,12 @@
  * /api/privilege-mcp/facade-link (see
  * docs/superpowers/specs/2026-09-11-lmstudio-privilege-gateway-link-design.md).
  *
- * ONE PER APP. The gateway binds a token to the Agentic App it was minted for,
- * so each app keeps its own session. A call with no app means the default door
- * app, which keeps every caller written before this split working unchanged.
+ * ONE PER APP AND USER. The gateway binds a token to the Agentic App it was
+ * minted for, so each app keeps its own session; and a session serves only the
+ * PingOne user it was linked for (`sub`), so one person's gateway identity is
+ * never the credential another caller's tools run under. A call with no app
+ * means the default door app. A call with no sub reads the slot a sign-in with
+ * no known user wrote — no façade caller, who always has a sub, can reach it.
  *
  * PERSISTED. This used to be deliberately in-memory, "a credential at rest for
  * no demo benefit". The benefit turned out to be real: several sessions share
@@ -37,9 +40,6 @@
  * store (CLEAR_SESSIONS_ON_BOOT=false) and lives at most an hour, so this copy
  * adds no new kind of secret at rest. Writes are best-effort: LMDB near its
  * mapSize must not break the in-memory session.
- *
- * ponytail: one operator identity per app; key it per user if a second identity
- * ever needs this door.
  */
 
 // Refresh this far before expiry so a call never races the clock.
@@ -54,8 +54,10 @@ function defaultApp() {
   return process.env.MCP_FACADE_PRIVILEGE_GATEWAY_APP || 'opensearch22';
 }
 
-function keyFor(app) {
-  return app || defaultApp();
+// App names are [A-Za-z0-9._-], so `|` cannot collide with one.
+function keyFor(app, sub) {
+  const name = app || defaultApp();
+  return sub ? `${name}|${sub}` : name;
 }
 
 function store() {
@@ -73,24 +75,25 @@ function ensureLoaded() {
   const s = store();
   if (!s) return;
   try {
-    for (const [app, record] of Object.entries(s.loadAll())) {
+    for (const [key, record] of Object.entries(s.loadAll())) {
       // A session past expiry with no refresh token can never serve a call
       // again; do not resurrect it into a fresh process.
       const dead = record && !record.refreshToken && record.expiresAt <= Date.now();
-      if (record?.accessToken && record.tokenUri && !dead) sessions.set(app, record);
+      // Records written before sessions were per user carry no `app`; their key is it.
+      if (record?.accessToken && record.tokenUri && !dead) sessions.set(key, { app: key, ...record });
     }
   } catch (err) {
     console.warn('[privilegeGatewaySession] could not load persisted sessions:', err.message);
   }
 }
 
-function persist(app) {
+function persist(key) {
   const s = store();
   if (!s) return;
   try {
-    const record = sessions.get(app);
-    if (record) s.save(app, record);
-    else s.remove(app);
+    const record = sessions.get(key);
+    if (record) s.save(key, record);
+    else s.remove(key);
   } catch (err) {
     console.warn('[privilegeGatewaySession] could not persist session:', err.message);
   }
@@ -100,11 +103,13 @@ function persist(app) {
  * Record a gateway session established by an interactive sign-in.
  * Called on every successful authorization-code exchange and refresh.
  */
-function remember({ app, accessToken, refreshToken, expiresIn, tokenUri, clientId, clientSecret }) {
+function remember({ app, sub, accessToken, refreshToken, expiresIn, tokenUri, clientId, clientSecret }) {
   if (!accessToken || !tokenUri) return;
   ensureLoaded();
-  const key = keyFor(app);
+  const key = keyFor(app, sub);
   sessions.set(key, {
+    app: app || defaultApp(),
+    sub: sub || null,
     accessToken,
     refreshToken: refreshToken || null,
     tokenUri,
@@ -116,21 +121,21 @@ function remember({ app, accessToken, refreshToken, expiresIn, tokenUri, clientI
   persist(key);
 }
 
-/** Drop one app's session — the default app's when none is named. */
-function clear(app) {
-  ensureLoaded();
-  const key = keyFor(app);
+function drop(key) {
   sessions.delete(key);
   persist(key);
+}
+
+/** Drop one user's session for an app — the default app's when none is named. */
+function clear(app, sub) {
+  ensureLoaded();
+  drop(keyFor(app, sub));
 }
 
 /** Drop every app's session. */
 function clearAll() {
   ensureLoaded();
-  for (const key of [...sessions.keys()]) {
-    sessions.delete(key);
-    persist(key);
-  }
+  for (const key of [...sessions.keys()]) drop(key);
 }
 
 function statusOf(current) {
@@ -140,15 +145,35 @@ function statusOf(current) {
 }
 
 /** What the door reports when it cannot serve a request, for the operator. */
-function status(app) {
+function status(app, sub) {
   ensureLoaded();
-  return statusOf(sessions.get(keyFor(app)));
+  return statusOf(sessions.get(keyFor(app, sub)));
 }
 
-/** status() for every app that holds a session. */
-function statusAll() {
+/** status() for every app this user holds a session for, keyed by app. */
+function statusAll(sub) {
   ensureLoaded();
-  return Object.fromEntries([...sessions].map(([app, record]) => [app, statusOf(record)]));
+  return Object.fromEntries([...sessions.values()]
+    .filter((record) => (record.sub || null) === (sub || null))
+    .map((record) => [record.app, statusOf(record)]));
+}
+
+// Operator diagnostics only (the readiness check): whichever user's session for
+// this app is usable. Never a path a façade caller's tool call takes.
+function anyKeyFor(app) {
+  const name = app || defaultApp();
+  for (const [key, record] of sessions) if (record.app === name && statusOf(record).ready) return key;
+  return name;
+}
+
+function statusAny(app) {
+  ensureLoaded();
+  return statusOf(sessions.get(anyKeyFor(app)));
+}
+
+function getAnyAccessToken(app) {
+  ensureLoaded();
+  return tokenFor(anyKeyFor(app));
 }
 
 async function refresh(key) {
@@ -177,7 +202,7 @@ async function refresh(key) {
     // The gateway restarted (client gone) or the refresh token expired. Either
     // way this session can never be revived; drop it so status() tells the
     // operator to sign in again instead of failing opaquely forever.
-    clear(key);
+    drop(key);
     return null;
   }
   let data;
@@ -185,7 +210,8 @@ async function refresh(key) {
   if (!data.access_token) return null;
 
   remember({
-    app: key,
+    app: current.app,
+    sub: current.sub,
     accessToken: data.access_token,
     refreshToken: data.refresh_token || current.refreshToken,
     expiresIn: data.expires_in,
@@ -196,14 +222,17 @@ async function refresh(key) {
   return sessions.get(key).accessToken;
 }
 
-/** A usable gateway access token for an app, or null when a human must sign in again. */
-async function getAccessToken(app) {
-  ensureLoaded();
-  const key = keyFor(app);
+async function tokenFor(key) {
   const current = sessions.get(key);
   if (!current) return null;
   if (current.expiresAt - REFRESH_SKEW_MS > Date.now()) return current.accessToken;
   return refresh(key);
+}
+
+/** A usable gateway access token for this user on an app, or null when they must sign in again. */
+async function getAccessToken(app, sub) {
+  ensureLoaded();
+  return tokenFor(keyFor(app, sub));
 }
 
 /** Test seam: back the module with a fake store (`undefined` restores the default). */
@@ -271,12 +300,12 @@ function commitPending(id) {
   if (parked.expiresAt <= Date.now()) return null;
   const { expiresAt, tokenExpiresAt, ...record } = parked;
   const remainingSec = Math.max(1, Math.round((tokenExpiresAt - Date.now()) / 1000));
-  const key = keyFor(record.app);
+  const key = keyFor(record.app, record.sub);
   ensureLoaded();
   const previous = sessions.get(key) || null;
   remember({ ...record, expiresIn: remainingSec });
   committedLinks.set(id, { key, accessToken: record.accessToken, previous, until: Date.now() + COMMIT_UNDO_MS });
-  return { app: key };
+  return { app: record.app || defaultApp() };
 }
 
 /** Drop a parked token — the broker refused to commit this link. If the link
@@ -305,6 +334,6 @@ function __discardedLinksSize() {
 }
 
 module.exports = {
-  remember, clear, clearAll, status, statusAll, getAccessToken, defaultApp, __setStore,
+  remember, clear, clearAll, status, statusAll, statusAny, getAccessToken, getAnyAccessToken, defaultApp, __setStore,
   rememberPending, commitPending, discardPending, __discardedLinksSize,
 };

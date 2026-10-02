@@ -60,6 +60,18 @@ describe('GatewayServer OAuth broker wiring', () => {
     expect(res.body.error).toBe('invalid_grant');
   });
 
+  it('GET /oauth/link-verify is served by the gateway, not its catch-all 404', async () => {
+    // Same trap as /oauth/resume above: the BFF sends the browser here before
+    // it starts the gateway sign-in, and an unlisted path would 404 live while
+    // every router-level test stayed green.
+    const server = new GatewayServer({ config: stubConfig, upstreamMcpUrl: 'ws://localhost:9' });
+    const res = await supertest(server.httpServer)
+      .get('/oauth/link-verify')
+      .query({ rs: 'never-issued', bind: 'b'.repeat(43) });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('invalid_request');
+  });
+
   it('the existing RFC 9728 protected-resource metadata points authorization_servers at THIS gateway\'s reachable base URL, not the audience string', async () => {
     const server = new GatewayServer({ config: stubConfig, upstreamMcpUrl: 'ws://localhost:9' });
     const res = await supertest(server.httpServer).get('/.well-known/oauth-protected-resource');

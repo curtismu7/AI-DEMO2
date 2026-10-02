@@ -1072,7 +1072,45 @@ unauthenticated `POST /config`, so distinct door URLs still cost one `/register`
 cache, and against whatever host the caller named, not necessarily the gateway); and the allowlist reads
 `PUBLIC_APP_URL` from the process environment only, not from a config-store override.
 
-### [ ] 2026-09-11 — An unauthenticated /facade-link can replace an app's shared gateway identity — NARROWED, not closed
+### [x] 2026-09-11 — An unauthenticated /facade-link can replace an app's shared gateway identity — NARROWED, not closed
+
+**RESOLVED 2026-10-02 (branch `worktree-techdebt-wave2-gateway-identity`) — with
+two changes, because the "Real fix" recorded below does not close the attack it
+describes.** Keying the gateway session per user only moves where a mailed
+link's stolen identity lands: under the attacker's own key instead of the
+app-wide one. The attacker still ends up calling tools as the victim. What
+closes it is proving the gateway-sign-in browser is the authorize browser
+BEFORE any gateway identity is minted. Both shipped (owner decision):
+
+1. *Browser check before the sign-in.* `/facade-link` no longer starts the
+   gateway sign-in. It puts a one-time `bind` in the browser's BFF session and
+   sends the browser to the broker's new `/oauth/link-verify`, which checks the
+   authorization's own nonce cookie (read-only, nothing consumed) and answers
+   with a redirect to `/facade-link/verified` carrying an HMAC over
+   `verified|rs|bind`. Only that route starts the gateway sign-in. A mailed
+   `/facade-link` URL fails at the broker (no cookie); a mailed
+   `/facade-link/verified` URL fails at the BFF (no `bind` in that browser's
+   session); a mailed gateway authorize URL already failed at the callback (no
+   link in progress in that browser).
+2. *One session per app and user.* The broker signs the MCP client's PingOne
+   `sub` into the link (`app|rs|sub`); the BFF parks and commits under it;
+   `privilegeGatewaySession` keys by app and sub; the façade looks up the
+   verified caller's own session (POST and DELETE), and a caller with no
+   verified subject gets none.
+
+**What this changes for operators.** One sign-in at `/privilege-mcp-client` no
+longer serves every façade caller: it serves the PingOne user signed in to the
+app in that browser. With no one signed in it lands in a slot no façade caller
+can reach. The readiness check (`gateway.privilege_first`) now reports on
+whichever user's session exists, through `statusAny` / `getAnyAccessToken`.
+
+**Deploy note.** The BFF and the broker (`mcp-gateway`, image-built) must go out
+together: a new BFF against an old broker redirects to a route that 404s.
+`/oauth/link-verify` is listed in `GatewayServer.isOAuthBrokerPath`, with a
+wiring test, for the same reason `/oauth/resume` is.
+
+**Verified by tests, not yet against the live gateway:** the whole chain needs
+one real Privilege sign-in from an MCP client. REGRESSION_PLAN §4, 2026-10-02.
 
 **What's wrong.** `/api/privilege-mcp/facade-link` is unauthenticated and stores the resulting gateway token in
 the single per-app session every façade caller of that app uses. Someone who starts a broker authorization can send

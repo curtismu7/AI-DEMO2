@@ -37,6 +37,17 @@ function readIdentityClaims(idToken?: string): Record<string, unknown> {
   }
 }
 
+/** `sub` of a JWT access token: who the façade will see this caller as, and so
+ *  whose gateway session the link creates. Empty when there is none to read. */
+function tokenSubject(token: string): string {
+  try {
+    const claims = JSON.parse(Buffer.from(token.split('.')[1] || '', 'base64url').toString('utf8')) as Record<string, unknown>;
+    return typeof claims.sub === 'string' ? claims.sub : '';
+  } catch {
+    return '';
+  }
+}
+
 /** Façade Privilege door paths: /mcp-facade/privilege-gateway[/<app>]/mcp. */
 const PRIVILEGE_DOOR_PATH = /^\/mcp-facade\/privilege-gateway(?:\/([A-Za-z0-9._-]{1,64}))?\/mcp$/;
 
@@ -111,6 +122,8 @@ export class OAuthBrokerRouter {
         return this.handleAuthorize(req, res, url);
       case '/oauth/callback':
         return this.handleCallback(req, res, url);
+      case '/oauth/link-verify':
+        return this.handleLinkVerify(req, res, url);
       case '/oauth/resume':
         return this.handleResume(req, res, url);
       case '/oauth/token':
@@ -398,6 +411,13 @@ export class OAuthBrokerRouter {
     const linkApp = privilegeLinkApp(pending.resource);
     const linkUrl = process.env.BFF_PRIVILEGE_LINK_URL;
     if (linkApp !== null && linkUrl && privilegeLinkConfigured()) {
+      // The gateway session this link creates serves one user only: the one the
+      // façade will see behind this very token.
+      const linkSub = tokenSubject(pingOneAccessToken);
+      if (!linkSub) {
+        this.json(res, 502, { error: 'server_error', error_description: 'PingOne access token carried no subject; a Privilege gateway session cannot be linked to a user' });
+        return true;
+      }
       const resumeId = this.tokenStore.createResume({
         clientId: pending.clientId,
         redirectUri: pending.redirectUri,
@@ -414,14 +434,15 @@ export class OAuthBrokerRouter {
       const link = new URL(linkUrl);
       if (linkApp) link.searchParams.set('app', linkApp);
       link.searchParams.set('resume', `${this.issuer(req)}/oauth/resume?rs=${encodeURIComponent(resumeId)}`);
+      link.searchParams.set('sub', linkSub);
       // The BFF cannot tell a link we issued from one a caller typed, and it is
-      // unauthenticated by design. Sign the two fields that decide where the
-      // token lands: which app it is minted for, and which parked slot it fills.
-      // Signed over the RAW app (empty for the bare door) so both sides agree
-      // before the BFF resolves its default.
+      // unauthenticated by design. Sign the fields that decide where the token
+      // lands: which app it is minted for, which parked slot it fills, and
+      // which user's session it becomes. Signed over the RAW app (empty for the
+      // bare door) so both sides agree before the BFF resolves its default.
       link.searchParams.set('sig', crypto
         .createHmac('sha256', this.linkSigningKey())
-        .update(`${linkApp}|${resumeId}`)
+        .update(`${linkApp}|${resumeId}|${linkSub}`)
         .digest('base64url'));
       res.writeHead(302, { Location: link.toString() });
       res.end();
@@ -502,6 +523,41 @@ export class OAuthBrokerRouter {
     if (method !== 'S256') return false;
     const computed = crypto.createHash('sha256').update(verifier).digest('base64url');
     return computed === challenge;
+  }
+
+  // --- Asked by the BFF's /facade-link BEFORE it starts the gateway sign-in:
+  // is this the browser that began the authorize? The link URL is signed but
+  // copyable; mailed to someone else, their browser would sign in to the gateway
+  // and their identity would be parked for whoever holds the resume. Only the
+  // authorizing browser has this authorization's nonce cookie, so only it gets
+  // the signed answer the BFF waits for. Read-only: nothing is consumed.
+  private handleLinkVerify(req: IncomingMessage, res: ServerResponse, url: URL): boolean {
+    const resumeId = url.searchParams.get('rs') || '';
+    const bind = url.searchParams.get('bind') || '';
+    const linkUrl = process.env.BFF_PRIVILEGE_LINK_URL;
+    const parked = resumeId ? this.tokenStore.peekResume(resumeId) : null;
+    if (!parked || !linkUrl || !/^[A-Za-z0-9_-]{16,128}$/.test(bind)) {
+      this.json(res, 400, { error: 'invalid_request', error_description: 'Unknown or expired authorization request' });
+      return true;
+    }
+    const cookie = readCookie(req.headers.cookie, linkNonceCookieName(parked.linkCookieId || ''));
+    if (!parked.linkNonce || cookie !== parked.linkNonce) {
+      this.json(res, 403, { error: 'access_denied', error_description: 'This sign-in link was not opened in the browser that started it' });
+      return true;
+    }
+    const back = new URL(linkUrl);
+    back.pathname = `${back.pathname.replace(/\/$/, '')}/verified`;
+    back.searchParams.set('rs', resumeId);
+    back.searchParams.set('bind', bind);
+    // Bound to the BFF's one-time `bind`, which lives in that browser's BFF
+    // session — so this answer is useless pasted into any other browser.
+    back.searchParams.set('vsig', crypto
+      .createHmac('sha256', this.linkSigningKey())
+      .update(`verified|${resumeId}|${bind}`)
+      .digest('base64url'));
+    res.writeHead(302, { Location: back.toString() });
+    res.end();
+    return true;
   }
 
   // --- Back from the BFF's Privilege gateway sign-in (see handleCallback) ---

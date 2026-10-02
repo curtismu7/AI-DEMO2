@@ -442,6 +442,7 @@ export class GatewayServer {
       || pathname === '/oauth/register'
       || pathname === '/oauth/authorize'
       || pathname === '/oauth/callback'
+      || pathname === '/oauth/link-verify'
       || pathname === '/oauth/resume'
       || pathname === '/oauth/token';
   }

@@ -260,6 +260,19 @@ read the configured host. A new browser origin must be added to ALL of:
 **Do not break:** Reporting is fail-safe on both sides: an error describing the token, or attaching it, must leave the tool call and the pre-call trail untouched. Never put a token value in the trail.
 
 **Verify:** compile both scripts with the gateway's compiler (`docker exec ai-demo-ping-gateway java -cp "/opt/gateway/lib/*" org.codehaus.groovy.tools.FileSystemCompiler -d /tmp/gc <files>`), restart `ping-gateway`, run a permitted tool call and confirm a `gw-backend-exchange` token event with audience `mcpserver.ping.demo`.
+
+### 2026-10-02 — Privilege link: a mailed sign-in link could park someone else's gateway identity; gateway sessions were app-wide
+
+**Files:** `demo_mcp_gateway/src/oauth/OAuthBrokerRouter.ts`, `src/oauth/BrokerTokenStore.ts`, `src/server/GatewayServer.ts`; `demo_api_server/routes/privilegeMcpClient.js`, `routes/mcpFacade.js`, `services/privilegeGatewaySession.js`, `services/checks/privilegeMcpFirstCheck.js`; tests in both services.
+
+**What was broken:** The link the broker issues to `/api/privilege-mcp/facade-link` is signed but copyable. Opened in another person's browser, it ran the gateway sign-in there and parked that person's Privilege identity for whoever held the resume. The committed token then became the credential for every façade caller of that app.
+
+**What changed:** (1) `/facade-link` first sends the browser to the broker's `/oauth/link-verify`, which checks the authorization's nonce cookie and answers with a signed redirect to `/facade-link/verified`, bound to a one-time value in that browser's BFF session; only then does the gateway sign-in start. (2) The broker signs the user's PingOne `sub` into the link, and gateway sessions are keyed by app and sub; the façade uses the verified caller's own session.
+
+**Do not break:** The gateway sign-in must never start from `/facade-link` itself, only from `/facade-link/verified` after both checks (session `bind` and the broker's `vsig`). `/oauth/link-verify` must stay read-only (`peekResume`) and must refuse a parked record with no nonce. The façade must never fall back from a caller's own session to another user's or to the no-user slot. A new broker route must be added to `GatewayServer.isOAuthBrokerPath` or it 404s live. BFF and `mcp-gateway` deploy together.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/routes/privilegeMcpClient.facadeLink.test.js tests/services/privilegeGatewaySession.test.js tests/routes/mcpFacade.privilegeGatewayDoor.test.js tests/routes/mcpFacade.multiApp.test.js --forceExit` and `cd demo_mcp_gateway && npx jest tests/oauth-broker-router-authorize.test.ts tests/gateway-oauth-broker-wiring.test.ts --forceExit`. Then one real sign-in from an MCP client through the Privilege door.
+
 ### 2026-10-01 — PingFederate sessions sent their username to PingOne as a user id (step-up MFA, OTP, group lookups)
 
 **Files:** `demo_api_server/services/pingOneSessionUser.js` (new), `services/transactionConsentChallenge.js`, `routes/oauthUser.js`, `services/mcpToolAuthorizationService.js`, `services/agentPreflightService.js`, `services/mcpToolPipeline.js`, tests `tests/pingOneSessionUser.test.js` (new), `src/__tests__/hitlPingOneMfa.integration.test.js`.

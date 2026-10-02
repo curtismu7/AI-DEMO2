@@ -384,3 +384,88 @@ describe('privilege gateway session — a discard after a commit undoes it', () 
     expect(await session.getAccessToken('opensearch')).toBe('fresh-token');
   });
 });
+
+// A gateway session is one person's Privilege identity. It must only ever be
+// the credential for that person's own calls, never app-wide.
+describe('privilege gateway session — one per app and user', () => {
+  test('a session serves only the user it was remembered for', async () => {
+    const session = load();
+    remembered(session, { app: 'opensearch', sub: 'user-1', accessToken: 'token-1' });
+
+    expect(await session.getAccessToken('opensearch', 'user-1')).toBe('token-1');
+    expect(await session.getAccessToken('opensearch', 'user-2')).toBeNull();
+    expect(await session.getAccessToken('opensearch')).toBeNull();
+    expect(session.status('opensearch', 'user-2')).toEqual({ ready: false, reason: 'no_session' });
+  });
+
+  test('two users hold separate sessions on the same app', async () => {
+    const session = load();
+    remembered(session, { app: 'opensearch', sub: 'user-1', accessToken: 'token-1' });
+    remembered(session, { app: 'opensearch', sub: 'user-2', accessToken: 'token-2' });
+
+    expect(await session.getAccessToken('opensearch', 'user-1')).toBe('token-1');
+    expect(await session.getAccessToken('opensearch', 'user-2')).toBe('token-2');
+  });
+
+  test('a sign-in with no known user is not reachable by any user', async () => {
+    const session = load();
+    remembered(session, { app: 'opensearch', accessToken: 'anonymous-token' });
+
+    expect(await session.getAccessToken('opensearch', 'user-1')).toBeNull();
+    expect(await session.getAccessToken('opensearch')).toBe('anonymous-token');
+  });
+
+  test('a committed link lands under the user the link was issued for', async () => {
+    const session = load();
+    session.rememberPending('rs-1', { app: 'opensearch', sub: 'user-1', accessToken: 'linked', tokenUri: TOKEN_URI });
+
+    expect(session.commitPending('rs-1')).toEqual({ app: 'opensearch' });
+
+    expect(await session.getAccessToken('opensearch', 'user-1')).toBe('linked');
+    expect(await session.getAccessToken('opensearch', 'user-2')).toBeNull();
+  });
+
+  test('clear drops only that user', async () => {
+    const session = load();
+    remembered(session, { app: 'opensearch', sub: 'user-1', accessToken: 'token-1' });
+    remembered(session, { app: 'opensearch', sub: 'user-2', accessToken: 'token-2' });
+
+    session.clear('opensearch', 'user-1');
+
+    expect(await session.getAccessToken('opensearch', 'user-1')).toBeNull();
+    expect(await session.getAccessToken('opensearch', 'user-2')).toBe('token-2');
+  });
+
+  test('a refresh keeps the session under the same user', async () => {
+    const session = load();
+    remembered(session, { app: 'opensearch', sub: 'user-1', accessToken: 'old', expiresIn: 1 });
+    global.fetch = jest.fn(async () => ({
+      ok: true,
+      text: async () => JSON.stringify({ access_token: 'refreshed', expires_in: 3600 }),
+    }));
+    try {
+      expect(await session.getAccessToken('opensearch', 'user-1')).toBe('refreshed');
+      expect(await session.getAccessToken('opensearch', 'user-1')).toBe('refreshed');
+      expect(await session.getAccessToken('opensearch')).toBeNull();
+    } finally {
+      delete global.fetch;
+    }
+  });
+
+  test('statusAll lists only the asking user, by app name', () => {
+    const session = load();
+    remembered(session, { app: 'opensearch', sub: 'user-1' });
+    remembered(session, { app: 'grafana', sub: 'user-2' });
+
+    expect(session.statusAll('user-1')).toEqual({ opensearch: { ready: true } });
+  });
+
+  test('the readiness helpers find a usable session whoever holds it', async () => {
+    const session = load();
+    expect(session.statusAny('opensearch')).toEqual({ ready: false, reason: 'no_session' });
+    remembered(session, { app: 'opensearch', sub: 'user-1', accessToken: 'token-1' });
+
+    expect(session.statusAny('opensearch')).toEqual({ ready: true });
+    expect(await session.getAnyAccessToken('opensearch')).toBe('token-1');
+  });
+});

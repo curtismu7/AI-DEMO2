@@ -48,7 +48,7 @@ describe('gateway.privilege_first', () => {
   });
 
   test('warns — not fails — when no one is signed in, and names the remedy', async () => {
-    privilegeGatewaySession.status.mockReturnValue({ ready: false, reason: 'no_session' });
+    privilegeGatewaySession.statusAny.mockReturnValue({ ready: false, reason: 'no_session' });
     global.fetch = fetchReturning();
 
     const out = await runPrivilegeMcpFirstCheck();
@@ -62,7 +62,7 @@ describe('gateway.privilege_first', () => {
   });
 
   test('warns when the session exists but has expired beyond refresh', async () => {
-    privilegeGatewaySession.status.mockReturnValue({ ready: false, reason: 'expired' });
+    privilegeGatewaySession.statusAny.mockReturnValue({ ready: false, reason: 'expired' });
     global.fetch = fetchReturning();
 
     const out = await runPrivilegeMcpFirstCheck();
@@ -72,8 +72,8 @@ describe('gateway.privilege_first', () => {
   });
 
   test('fails with the policy remedy on 403', async () => {
-    privilegeGatewaySession.status.mockReturnValue({ ready: true });
-    privilegeGatewaySession.getAccessToken.mockResolvedValue('tok-abc');
+    privilegeGatewaySession.statusAny.mockReturnValue({ ready: true });
+    privilegeGatewaySession.getAnyAccessToken.mockResolvedValue('tok-abc');
     global.fetch = fetchReturning({ status: 403, body: { error: 'forbidden' } });
 
     const out = await runPrivilegeMcpFirstCheck();
@@ -85,8 +85,8 @@ describe('gateway.privilege_first', () => {
   });
 
   test('passes when an authenticated tools/list returns at least one tool', async () => {
-    privilegeGatewaySession.status.mockReturnValue({ ready: true });
-    privilegeGatewaySession.getAccessToken.mockResolvedValue('tok-abc');
+    privilegeGatewaySession.statusAny.mockReturnValue({ ready: true });
+    privilegeGatewaySession.getAnyAccessToken.mockResolvedValue('tok-abc');
     global.fetch = fetchReturning({
       status: 200,
       body: { jsonrpc: '2.0', id: 1, result: { tools: [{ name: 'get_weather' }, { name: 'brave_search' }] } },
@@ -106,8 +106,8 @@ describe('gateway.privilege_first', () => {
   });
 
   test('fails when the app answers 200 but exposes no tools', async () => {
-    privilegeGatewaySession.status.mockReturnValue({ ready: true });
-    privilegeGatewaySession.getAccessToken.mockResolvedValue('tok-abc');
+    privilegeGatewaySession.statusAny.mockReturnValue({ ready: true });
+    privilegeGatewaySession.getAnyAccessToken.mockResolvedValue('tok-abc');
     global.fetch = fetchReturning({ status: 200, body: { result: { tools: [] } } });
 
     const out = await runPrivilegeMcpFirstCheck();
@@ -120,7 +120,7 @@ describe('gateway.privilege_first', () => {
     // getMcpGatewayHttpUrl() logs and falls through to the next lane in exactly
     // this case, so the posture run must say so rather than dial `undefined`.
     for (const k of URL_KEYS) delete process.env[k];
-    privilegeGatewaySession.status.mockReturnValue({ ready: true });
+    privilegeGatewaySession.statusAny.mockReturnValue({ ready: true });
     global.fetch = fetchReturning();
 
     const out = await runPrivilegeMcpFirstCheck();

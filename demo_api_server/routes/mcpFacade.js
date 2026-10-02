@@ -622,7 +622,8 @@ router.get(['/:door/.well-known/oauth-protected-resource', '/:door/:app/.well-kn
  * caller turns a denial into the RFC 9728 challenge that starts the OAuth
  * dance, so a denial is a recoverable "go authenticate", not a dead end.
  *
- * @returns {Promise<{ok: true} | {ok: false, reason: string}>}
+ * @returns {Promise<{ok: true, sub: string|null} | {ok: false, reason: string}>}
+ *   `sub` is the verified token's subject — who the caller is.
  */
 async function verifyDoorBearer(req, door) {
   const raw = String(req.get('authorization') || '');
@@ -687,7 +688,7 @@ async function verifyDoorBearer(req, door) {
     const aud = Array.isArray(claims.aud) ? claims.aud : [claims.aud].filter(Boolean);
     if (!aud.some((a) => expectedList.includes(a))) return { ok: false, reason: 'audience_mismatch' };
   }
-  return { ok: true };
+  return { ok: true, sub: typeof claims.sub === 'string' && claims.sub ? claims.sub : null };
 }
 
 // The façade cannot read the broker's env, so it asks: the broker advertises
@@ -836,6 +837,9 @@ router.post(['/:door/mcp', '/:door/:app/mcp'], express.json({ limit: '1mb', type
   // RFC 9728 challenge the upstream-401 path builds means an unauthenticated
   // client discovers the AS and completes OAuth exactly as it does elsewhere;
   // the door behaves like every other one from the client's side.
+  // Who the verified caller is. A door that holds its own upstream credential
+  // serves each caller only the gateway session linked for THEM.
+  let callerSub = null;
   if (door.requireBearer) {
     const verdict = await verifyDoorBearer(req, door);
     if (!verdict.ok) {
@@ -846,6 +850,7 @@ router.post(['/:door/mcp', '/:door/:app/mcp'], express.json({ limit: '1mb', type
         error: { code: -32001, message: 'Unauthorized', data: { reason: verdict.reason } },
       });
     }
+    callerSub = verdict.sub;
   }
 
   if (isCall) {
@@ -959,7 +964,9 @@ router.post(['/:door/mcp', '/:door/:app/mcp'], express.json({ limit: '1mb', type
   }
 
   if (door.ownsUpstreamAuth) {
-    const upstreamToken = await privilegeGatewaySession.getAccessToken(req.params.app);
+    // No verified subject means no session: a caller we cannot name must not
+    // fall through to the slot a sign-in with no known user wrote.
+    const upstreamToken = callerSub ? await privilegeGatewaySession.getAccessToken(req.params.app, callerSub) : null;
     if (!upstreamToken) {
       const linkFlagOn = process.env.MCP_FACADE_PRIVILEGE_LINK === 'true';
       const advert = linkFlagOn ? await brokerAdvertisesLink() : null;
@@ -973,7 +980,7 @@ router.post(['/:door/mcp', '/:door/:app/mcp'], express.json({ limit: '1mb', type
             message: 'Unauthorized',
             data: {
               reason: 'gateway_session_unavailable',
-              remedy: 'Authenticate again in your MCP client, or sign in once at /privilege-mcp-client.',
+              remedy: 'Authenticate again in your MCP client, or sign in at /privilege-mcp-client as the same user.',
             },
           },
         });
@@ -987,12 +994,12 @@ router.post(['/:door/mcp', '/:door/:app/mcp'], express.json({ limit: '1mb', type
           data: {
             reason: linkFlagOn
               ? (advert.reachable ? 'gateway_link_not_configured' : 'gateway_link_unreachable')
-              : privilegeGatewaySession.status(req.params.app).reason,
+              : privilegeGatewaySession.status(req.params.app, callerSub).reason,
             remedy: linkFlagOn
               ? (advert.reachable
                 ? 'Set BFF_PRIVILEGE_LINK_URL and BFF_PRIVILEGE_LINK_COMMIT_URL on the broker (mcp-gateway), or unset MCP_FACADE_PRIVILEGE_LINK on the BFF.'
                 : 'The broker (mcp-gateway) did not answer its metadata endpoint — check it is running and that MCP_FACADE_AGENT_GATEWAY_AS_INTERNAL points at it.')
-              : 'Sign in once at /privilege-mcp-client — the gateway forgets its clients on restart.',
+              : 'Sign in at /privilege-mcp-client as the same user — a gateway session serves only the user it was made for, and the gateway forgets its clients on restart.',
           },
         },
       });
@@ -1134,7 +1141,7 @@ router.post(['/:door/mcp', '/:door/:app/mcp'], express.json({ limit: '1mb', type
     // The gateway refused the session's token (it restarted, or the token was
     // minted for another app). Drop it so the client's re-authentication
     // starts from a clean slate instead of replaying a dead token.
-    if (door.ownsUpstreamAuth) privilegeGatewaySession.clear(req.params.app);
+    if (door.ownsUpstreamAuth) privilegeGatewaySession.clear(req.params.app, callerSub);
     res.set('WWW-Authenticate', rewriteChallenge(upstream.headers.get('www-authenticate'), `${facadeBase(req)}/.well-known/oauth-protected-resource`, door.scopes));
   }
 
@@ -1289,7 +1296,12 @@ router.delete(['/:door/mcp', '/:door/:app/mcp'], async (req, res) => {
   // credential for this upstream and is rejected by it.
   let headers = forwardHeaders(req, null);
   if (req.door.ownsUpstreamAuth) {
-    const upstreamToken = await privilegeGatewaySession.getAccessToken(req.params.app);
+    // The caller's own gateway session, as on POST — so the bearer is verified
+    // here too rather than trusted for its subject.
+    const verdict = req.door.requireBearer ? await verifyDoorBearer(req, req.door) : { ok: false };
+    const upstreamToken = verdict.ok && verdict.sub
+      ? await privilegeGatewaySession.getAccessToken(req.params.app, verdict.sub)
+      : null;
     if (!upstreamToken) {
       // Unlike the POST path, a missing gateway session is not worth a 503: the
       // client is tearing its side down either way, and the upstream session
