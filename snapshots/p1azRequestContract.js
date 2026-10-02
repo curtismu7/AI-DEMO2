@@ -59,6 +59,11 @@ const PEP_SOURCES = [
   // The unattended-agent PEP: builds its own request (no session to borrow one
   // from), so it is a source this contract must know about.
   'demo_api_server/services/autonomousAuthorize.js',
+  // PingGateway's own decision filter — the PEP on the main MCP route. It was
+  // missing from this list; its only parity check was an unwired shell script
+  // with a hand-typed key list that had gone stale (it reported two keys
+  // missing that the filter does send).
+  'ping-gateway/scripts/groovy/p1az-decision.groovy',
 ];
 
 function loadSnapshot(file = SNAPSHOT) {

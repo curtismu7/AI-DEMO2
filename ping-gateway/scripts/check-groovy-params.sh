@@ -25,7 +25,10 @@ KEYS=(
 missing=0
 echo "== Groovy parameter-key parity =="
 for k in "${KEYS[@]}"; do
-  if grep -qE "^[[:space:]]*${k}[[:space:]]*:" "$GROOVY"; then
+  # A key is sent either as a map literal entry (`Key:`) or by assignment
+  # (`parameters.Key =`) — the filter sets the two audience keys the second way,
+  # conditionally, and matching only the first reported them missing.
+  if grep -qE "^[[:space:]]*${k}[[:space:]]*:|parameters\.${k}[[:space:]]*=" "$GROOVY"; then
     echo "  ok   $k"
   else
     echo "  MISSING $k"

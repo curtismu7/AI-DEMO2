@@ -249,6 +249,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-02 — PingGateway's decision filter was outside the request contract; its only check was unwired and stale
+
+**Files:** `snapshots/p1azRequestContract.js`, `ping-gateway/scripts/groovy/p1az-decision.groovy`, `ping-gateway/scripts/check-groovy-params.sh`, `scripts/topology-verify.sh`.
+
+**What was broken:** The PingOne Authorize request contract (derived from the policy snapshot, enforced in CI per PEP source) listed four request builders but not `p1az-decision.groovy`, the PEP on the main MCP route. Its only parity check, `check-groovy-params.sh`, ran nowhere and had gone stale: it reported `TokenAudience` and `TokenAudActual` missing, although the filter sends both by conditional assignment. Added to the contract, the filter turned out to omit four attributes every other PEP sends: `IntentRequestAction`, `IntentGrantAction`, `IntentRequestPayee`, `IntentGrantPayee`.
+
+**What changed:** The filter is in `PEP_SOURCES`. It sends the four attributes as `''`, as three of the other four PEPs do. The shell check recognises the assignment form and runs as `topology:verify` step 12.
+
+**Do not break:** The four intent attributes are `''` on this route because PingGateway holds no consented grant — the action/payee binding is NOT enforced here (the Node gateway enforces it). Never send a non-empty stand-in: see the contract file on `ResourceOwnerId`. `''` equals the policy default, so no decision changed. Restart `ping-gateway` after editing the filter.
+
+**Verify:** `node --test snapshots/authorizeSnapshotRequestContract.test.js`; `bash ping-gateway/scripts/check-groovy-params.sh`.
+
 ### 2026-10-02 — Running a demo step blanked the popped-out agent
 
 **Files:** `demo_api_ui/src/components/AIAgent.js`,
