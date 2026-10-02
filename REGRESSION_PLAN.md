@@ -260,6 +260,17 @@ read the configured host. A new browser origin must be added to ALL of:
 **Do not break:** The rule must stay a closed list of named ids. Do not replace it with a flag, a pattern or an "any verified agent" branch without an explicit decision: that was considered on 2026-10-02 and declined. The list never shrinks on regeneration.
 
 **Verify:** `node --test demo_authz_server/decision.confused-deputy.test.js`; `npm run snapshot:check`; after the console import, run UC44 on the PingOne readiness lane and expect PERMIT with the workload agent as `ActClientId`.
+### 2026-10-02 — PingFederate let any user be acted for; kill switch could not disable a user
+
+**Files:** `spiffe/pingfederate/pf-pingone-user-gate.json` (new), `scripts/pingfederate/provision-pf-pingone-user-gate.sh` (new), `demo_api_server/routes/agentAuthorization.js`, `routes/controlPlane.js`, `routes/admin.js`, `services/killSwitchService.js`, `services/agentMcpTokenService.js`, `services/rfcCompliantErrorHandler.js`, `demo_api_ui/src/components/AIAgent.js`, `demo_api_server/tests/pfPingOneUserGate.test.js` (new).
+
+**What was broken:** (1) PingFederate's standard exchange policy had no conditions, so under a PingFederate sign-in the agent could act for any user and the demo's grant / revoke had nothing to control — the buttons wrote `mayAct` to PingOne under the PingFederate username and failed with 502. (2) The kill switch's user-disable step sent `PATCH /users/{id} {enabled:false}`, which PingOne rejects as "enabled is immutable", under EITHER provider.
+
+**What changed:** (1) The gate contract makes PingFederate look up the PingOne account with the subject's username on every exchange and refuse unless it is enabled and its `mayAct` names the AI agent actor. Grant and revoke write `mayAct` on that PingOne account. A refusal reaches the UI as `agent_not_authorized_by_user` or `user_disabled_in_pingone`, not a generic `invalid_grant`. (2) The disable step uses `PUT /users/{id}/enabled` and targets the PingOne account behind the session.
+
+**Do not break:** The contract file is the source of truth for the live policy — change the gate there and run `--apply`, never in the PingFederate console; `npm run pf:user-gate:check` exits 1 on drift. `PF_USER_GATE_ERRORS` must equal the contract's `errorResult` values (`pfPingOneUserGate.test.js`). Never write a grant under the PingFederate username: no PingOne account is a 409. PingOne sessions are untouched (`pingOneUserIdFor` returns the caller's own id).
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/pfPingOneUserGate.test.js --forceExit`; live: `npm run pf:user-gate:check`.
 
 ### 2026-10-01 — PingGateway's own token exchange was invisible
 

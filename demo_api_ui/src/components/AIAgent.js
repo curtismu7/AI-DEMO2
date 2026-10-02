@@ -450,6 +450,10 @@ const NL_FAILURE_MESSAGES = {
     "PingOne Authorize couldn't verify the 'pingone-admin' group membership needed for this policy check right now. Try again in a moment.",
   pingone_admin_user_not_linked:
     "You signed in through PingFederate, and PingOne has no account with that username. Create one in PingOne and add it to the 'pingone-admin' group, then try again.",
+  agent_not_authorized_by_user:
+    "You haven't authorized this agent to act for you, so PingFederate refused to issue it a token. Authorize the agent, then try again.",
+  user_disabled_in_pingone:
+    "Your PingOne account is disabled, so PingFederate refused to issue the agent a token.",
 };
 const NL_FAILURE_FALLBACK =
   "That step couldn't be completed. Try again, or pick another demo step.";

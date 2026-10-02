@@ -100,7 +100,9 @@ async function disableUserAtPingOne(userId) {
   }
   try {
     pingOneUserService.initialize();
-    await pingOneUserService.makeRequest('PATCH', `/users/${userId}`, { enabled: false });
+    // PUT /users/{id}/enabled, not PATCH /users/{id}: PingOne answers the PATCH with
+    // 400 "enabled is immutable and cannot be updated" (measured 2026-10-02).
+    await pingOneUserService.makeRequest('PUT', `/users/${userId}/enabled`, { enabled: false });
     console.log(`[killSwitch] PingOne user ${userId} disabled via Management API`);
     return { disabled: true };
   } catch (err) {
@@ -759,6 +761,7 @@ module.exports = {
   startAutoResetSweep,
   AUTO_RESET_MS,
   revokeTokenAtPingOne,
+  disableUserAtPingOne,
   disableAgentApplicationsAtPingOne,
   enableAgentApplicationsAtPingOne,
   invalidateSessionsInRedis,
