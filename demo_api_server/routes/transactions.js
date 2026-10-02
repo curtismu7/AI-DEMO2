@@ -73,14 +73,18 @@ async function saveTransactionSnapshot(userId) {
   }
 }
 
+// Named (not inline) so lib/openapiFromRoutes.js can see it via AUTH_MIDDLEWARE
+// and document the admin-only routes below as admin-gated.
+function requireAdminRole(req, res, next) {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Access denied. Admin role required.' });
+  }
+  next();
+}
+
 // Get all transactions (admin only)
-router.get('/', authenticateToken, requireScopes(['read']), async (req, res) => {
+router.get('/', authenticateToken, requireScopes(['read']), requireAdminRole, async (req, res) => {
   try {
-    // Check if user is admin
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Access denied. Admin role required.' });
-    }
-    
     const allTransactions = dataStore.getAllTransactions();
     const total = allTransactions.length;
     const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
@@ -976,13 +980,8 @@ router.post('/', authenticateToken, idempotency, async (req, res) => {
 });
 
 // Update transaction (admin only)
-router.put('/:id', blockInDemoMode('transaction update'), authenticateToken, requireScopes(['write']), async (req, res) => {
+router.put('/:id', blockInDemoMode('transaction update'), authenticateToken, requireScopes(['write']), requireAdminRole, async (req, res) => {
   try {
-    // Check if user is admin
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Access denied. Admin role required.' });
-    }
-    
     const transaction = await dataStore.updateTransaction(req.params.id, req.body);
     if (!transaction) {
       return res.status(404).json({ error: 'Transaction not found' });
@@ -995,13 +994,8 @@ router.put('/:id', blockInDemoMode('transaction update'), authenticateToken, req
 });
 
 // Delete transaction (admin only)
-router.delete('/:id', blockInDemoMode('transaction deletion'), authenticateToken, requireScopes(['write']), async (req, res) => {
+router.delete('/:id', blockInDemoMode('transaction deletion'), authenticateToken, requireScopes(['write']), requireAdminRole, async (req, res) => {
   try {
-    // Check if user is admin
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Access denied. Admin role required.' });
-    }
-    
     const deleted = await dataStore.deleteTransaction(req.params.id);
     if (!deleted) {
       return res.status(404).json({ error: 'Transaction not found' });
