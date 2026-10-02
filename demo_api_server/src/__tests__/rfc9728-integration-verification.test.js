@@ -356,11 +356,17 @@ describe('RFC 9728 Integration Verification Tests', () => {
 
     test('should handle requests during simulated system stress', async () => {
       // Simulate system stress with concurrent requests
-      const stressRequests = Array(20).fill(null).map(() =>
-        request(app).get('/.well-known/oauth-protected-resource')
-      );
-
-      const responses = await Promise.all(stressRequests);
+      // One listening server for all 20: request(app) would start 20 ephemeral
+      // servers at once, and a loaded host resets some of those connections.
+      const server = require('http').createServer(app).listen(0);
+      let responses;
+      try {
+        responses = await Promise.all(Array(20).fill(null).map(() =>
+          request(server).get('/.well-known/oauth-protected-resource')
+        ));
+      } finally {
+        server.close();
+      }
 
       // All requests should succeed even under stress
       responses.forEach(response => {
