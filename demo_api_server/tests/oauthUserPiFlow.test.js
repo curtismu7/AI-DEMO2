@@ -284,3 +284,48 @@ describe('customer pi.flow sign-in', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+// The session-token modal's sign-in: /login?mode=pi.flow returns the authorize URL as JSON
+// (no 302), and must never replace an Admin session.
+describe('/login?mode=pi.flow (session token modal)', () => {
+  const oauthUserService = require('../services/oauthUserService');
+  const seeded = { session: {} };
+  const modeApp = express();
+  modeApp.use(session({ secret: 'test-secret', resave: false, saveUninitialized: true }));
+  modeApp.use((req, _res, next) => { Object.assign(req.session, seeded.session); next(); });
+  modeApp.use('/api/auth/oauth/user', router);
+
+  beforeEach(() => { seeded.session = {}; });
+  afterEach(() => jest.restoreAllMocks());
+
+  test('returns the authorize URL as JSON with response_type=code + response_mode=pi.flow', async () => {
+    const res = await request(modeApp).get('/api/auth/oauth/user/login?mode=pi.flow').expect(200);
+    expect(res.headers['cache-control']).toBe('no-store');
+    expect(res.body.callbackPath).toBe('/api/auth/oauth/user/callback');
+    const url = new URL(res.body.authorizeUrl);
+    expect(url.searchParams.get('response_type')).toBe('code');
+    expect(url.searchParams.get('response_mode')).toBe('pi.flow');
+    expect(url.searchParams.get('code_challenge_method')).toBe('S256');
+  });
+
+  test.each([
+    ['oauthType admin', { oauthType: 'admin' }],
+    ['user role admin', { user: { role: 'admin' } }],
+  ])('409 admin_session_active when %s', async (_n, seed) => {
+    seeded.session = seed;
+    const res = await request(modeApp).get('/api/auth/oauth/user/login?mode=pi.flow').expect(409);
+    expect(res.body.error).toBe('admin_session_active');
+  });
+
+  test('400 pi_flow_provider_unsupported when the end-user provider is not PingOne', async () => {
+    jest.spyOn(oauthUserService, 'identifyProvider').mockReturnValue('pingfederate');
+    const res = await request(modeApp).get('/api/auth/oauth/user/login?mode=pi.flow').expect(400);
+    expect(res.body.error).toBe('pi_flow_provider_unsupported');
+  });
+
+  test('400 not_configured as JSON, not a redirect, when end-user OAuth is unset', async () => {
+    configStore.isUserOAuthConfigured.mockReturnValueOnce(false);
+    const res = await request(modeApp).get('/api/auth/oauth/user/login?mode=pi.flow').expect(400);
+    expect(res.body.error).toBe('not_configured');
+  });
+});
