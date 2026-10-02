@@ -216,9 +216,10 @@ pod goes 3/4 containers, not 4/4.
   not resolve from a laptop, so curling it from your Mac proves nothing. Test it
   from inside the gateway pod (`kubectl exec … -c log-tailer -- wget -qO-
   http://grafana.ping-devops-cmuir.svc.cluster.local:3000/api/health` → 200).
-- Grafana **service accounts require Admin**, and this deployment pins every
-  PingOne SSO user to Viewer (`GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH:
-  'Viewer'`). Create the token signed in through the **local admin form**, not SSO.
+- Grafana **service accounts require Admin**, and this deployment makes a
+  PingOne SSO user a Viewer unless they are in the PingOne group
+  `grafana-admins` (`GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH`). Create the
+  token signed in through the **local admin form**, or as a member of that group.
 - The gateway only probes the backend when the console triggers discovery
   (the app's refresh control). Until then "Tools" stays empty and the gateway log
   shows no discovery attempt — that is not a failure.
