@@ -332,7 +332,21 @@ what that page may show while signed out.
 **Real fix.** Either require auth and filter events to the caller, or serve
 the public page a stripped copy with event shape only and no identity metadata.
 
-### [ ] 2026-09-13 — `/api/token-chain/events` streams every user's token-exchange claims
+### [x] 2026-09-13 — `/api/token-chain/events` streams every user's token-exchange claims
+
+**RESOLVED 2026-10-01 (branch `worktree-techdebt-wave1-token-chain-sse`) — by
+removal, not by the filter proposed below.** The stream had no live consumer.
+Its only caller was `useTokenChainSSE`, used only by `TokenExchangeInspector`,
+rendered only by `TokenExchangeModal`, which nothing imports. A per-user filter
+would also have needed identity added at the emit sites, because
+`token_exchange` app events carry no session or user id today. So the
+`GET /events` route was deleted from `routes/tokenChain.js` together with the
+dead UI island it served (`TokenExchangeModal`, `TokenExchangeInspector`,
+`ExchangeBox`, `TokenInspectModal`, `useTokenChainSSE` and their two tests).
+`GET /api/token-chain` and `/current` are unchanged. **Still true, and tracked
+by the `/api/app-events` entry above, not here:** the same `token_exchange`
+events, `jwtFullDecode` included, are readable unauthenticated through
+`/api/app-events` and its stream.
 
 **What's wrong.** `demo_api_server/routes/tokenChain.js:108` (mounted with
 `authenticateToken` at `server.js:1708`) subscribes to *all* `token_exchange`
