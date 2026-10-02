@@ -31,6 +31,7 @@ const {
 } = require('./pingOneAuthorizeService');
 const simulatedAuthorizeService = require('./simulatedAuthorizeService');
 const groupPolicy = require('./groupPolicy');
+const { pingOneUserIdFor } = require('./pingOneSessionUser');
 const { verticalManifest } = require('./verticalManifest');
 const hitlServiceClient = require('./hitlServiceClient');
 // agentMcpTokenService is required lazily inside evaluate()/evaluateBatch() so that
@@ -348,7 +349,7 @@ async function evaluateBatch({ req, tools }) {
     ({ groups: userGroups } = await groupPolicy.groupsForUser(
       req.session?.user?.username,
       activeVerticalId,
-      { pingOneUserId: facts.subjectId || req.session?.user?.oauthId || req.session?.user?.sub || null },
+      { pingOneUserId: await pingOneUserIdFor(req, facts.subjectId || req.session?.user?.oauthId || req.session?.user?.sub || null) },
     ));
     userTier = groupPolicy.resolveUserTier(userGroups, activeVerticalId);
   }

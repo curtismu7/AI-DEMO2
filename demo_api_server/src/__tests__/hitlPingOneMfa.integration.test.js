@@ -21,6 +21,11 @@ jest.mock('../../services/mfaService', () => ({
   submitFido2Assertion: jest.fn(),
 }));
 
+// PingFederate sessions resolve the PingOne account by username (Test 1b).
+jest.mock('../../services/pingOneUserLookupService', () => ({
+  fetchPingOneUserByUsername: jest.fn(async () => ({ user: { id: 'p1-uuid-integ' }, error: null })),
+}));
+
 // Mock data store to avoid touching real database.
 jest.mock('../../data/store', () => ({
   getAccountById: jest.fn((id) => {
@@ -137,6 +142,24 @@ describe('PingOne MFA HITL — full flow (flag on)', () => {
     const ch = req.session.txConsentChallenges[challengeId];
     expect(ch.daId).toBe('da-integ-001');
     expect(ch.mfaPath).toBe(true);
+  });
+
+  // ── Test 1b: a PingFederate session challenges the linked PingOne account ──
+
+  test('Test 1b: a PingFederate session runs step-up MFA against the PingOne account with the same username', async () => {
+    mfaService.initiateDeviceAuth.mockResolvedValue({
+      id: 'da-integ-pf', status: 'DEVICE_SELECTION_REQUIRED', _embedded: { devices: [] },
+    });
+    // Under PingFederate req.user.id is the PingFederate username, which still
+    // owns the local accounts — only the PingOne call must change target.
+    const req = makeReq({ session: { oauthProvider: 'pingfederate', user: { username: 'user-integ' } } });
+
+    const { challengeId } = txConsent.createChallenge(req, {
+      type: 'withdrawal', amount: 600, fromAccountId: 'acc1', description: 'Test',
+    });
+    await txConsent.confirmChallenge(req, challengeId);
+
+    expect(mfaService.initiateDeviceAuth).toHaveBeenCalledWith('p1-uuid-integ', 'integ-user-token');
   });
 
   // ── Test 2: select-device triggers PingOne and refreshes otpExpiresAt ────

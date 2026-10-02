@@ -260,6 +260,19 @@ read the configured host. A new browser origin must be added to ALL of:
 **Do not break:** Reporting is fail-safe on both sides: an error describing the token, or attaching it, must leave the tool call and the pre-call trail untouched. Never put a token value in the trail.
 
 **Verify:** compile both scripts with the gateway's compiler (`docker exec ai-demo-ping-gateway java -cp "/opt/gateway/lib/*" org.codehaus.groovy.tools.FileSystemCompiler -d /tmp/gc <files>`), restart `ping-gateway`, run a permitted tool call and confirm a `gw-backend-exchange` token event with audience `mcpserver.ping.demo`.
+### 2026-10-01 — PingFederate sessions sent their username to PingOne as a user id (step-up MFA, OTP, group lookups)
+
+**Files:** `demo_api_server/services/pingOneSessionUser.js` (new), `services/transactionConsentChallenge.js`, `routes/oauthUser.js`, `services/mcpToolAuthorizationService.js`, `services/agentPreflightService.js`, `services/mcpToolPipeline.js`, tests `tests/pingOneSessionUser.test.js` (new), `src/__tests__/hitlPingOneMfa.integration.test.js`.
+
+**What was broken:** Under a PingFederate sign-in the session subject is a PingFederate username. These call sites passed it to PingOne per-user APIs as a user id: step-up / consent MFA on transfers failed (502), step-up OTP delivery failed, and the tool-authorization group lookups failed quietly and fell back to manifest groups, so the UC9 in-group / out-of-group toggle changed nothing.
+
+**What changed:** One helper, `pingOneUserIdFor(req, sessionId)`. A PingOne session gets back exactly the id the caller already used. A PingFederate session gets the id of the PingOne account with the same username, looked up once and cached on `session.user.pingOneUserId`. The call sites above pass their existing id through it.
+
+**Do not break:** PingOne sessions must be untouched — the helper returns the caller's own id and makes no lookup. Local data (accounts, challenges, delegation records) stays keyed by `req.user.id`; only the argument to the PingOne call changes. A PingFederate user with no PingOne account yields null, never the PingFederate subject. Read the provider from `session.oauthProvider` first: the admin sign-in stores `pingone_sso` on the user record under either provider.
+
+**Deliberately not changed:** `mayAct` writes (`routes/agentAuthorization.js`, `routes/delegatedCommerce.js`), user disable (`killSwitchService.js`), SSO-session termination and `delegatedTo` sync still use the session subject. Pointing them at the linked PingOne account would turn a visible error into a write that succeeds and does nothing for a PingFederate session — PingFederate, not PingOne, issues that session's tokens. They need a decision about what those features mean under PingFederate, not an id swap.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/pingOneSessionUser.test.js src/__tests__/hitlPingOneMfa.integration.test.js --forceExit`.
 
 ### 2026-10-01 — In-app MFA had no PingOne user for a PingFederate session
 

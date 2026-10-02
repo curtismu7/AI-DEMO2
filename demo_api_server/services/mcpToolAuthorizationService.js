@@ -21,6 +21,7 @@ const cibaTransactionReceipt = require('./cibaTransactionReceipt');
 const hitlCredit = require('./hitlCredit');
 const dataStore = require('../data/store');
 const groupPolicy = require('./groupPolicy');
+const { pingOneUserIdFor } = require('./pingOneSessionUser');
 const {
   resolveActiveUseCaseId,
   resolveDemoUserGroupsForUseCase,
@@ -800,7 +801,7 @@ async function buildMcpFirstToolGateInputs({ req, tool, agentToken, userSub, use
     ({ groups: userGroups } = await groupPolicy.groupsForUser(
       req.session?.user?.username,
       verticalId,
-      { pingOneUserId: subjectId || req.session?.user?.oauthId || req.session?.user?.sub || null },
+      { pingOneUserId: await pingOneUserIdFor(req, subjectId || req.session?.user?.oauthId || req.session?.user?.sub || null) },
     ));
     userGroups = resolveDemoUserGroupsForUseCase(useCaseId, userGroups);
     // Resolve the tier BEFORE any suppression check. The tier is derived from

@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const router = express.Router();
 const oauthService = require('../services/oauthUserService');
 const { fetchPingOneUserById } = require('../services/pingOneUserLookupService');
+const { pingOneUserIdFor } = require('../services/pingOneSessionUser');
 const mfaService = require('../services/mfaService');
 const oauthUserConfig = require('../config/oauthUser');
 const configStore = require('../services/configStore');
@@ -1791,7 +1792,7 @@ router.post('/initiate-otp', async (req, res) => {
 
     const user = req.session.user;
     // oauthId is the PingOne UUID; id may be a legacy numeric key on bootstrap users
-    const pingoneUserId = user?.oauthId || user?.id;
+    const pingoneUserId = await pingOneUserIdFor(req, user?.oauthId || user?.id);
     console.log(`[OTP] Generated step-up OTP for user ${pingoneUserId} — code=${code}`);
 
     const method = (req.body && req.body.method === 'sms') ? 'sms' : 'email';
@@ -1849,7 +1850,7 @@ router.post('/initiate-otp', async (req, res) => {
     // best-effort local lookup below.
     let maskedContact = pingMaskedContact;
     try {
-      const pingoneUserId = user?.oauthId || user?.id;
+      const pingoneUserId = await pingOneUserIdFor(req, user?.oauthId || user?.id);
       if (!maskedContact && pingoneUserId) {
         const { user: p1User } = await fetchPingOneUserById(pingoneUserId);
         if (method === 'sms' && p1User?.mobilePhone) {

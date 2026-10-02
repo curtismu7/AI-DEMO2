@@ -18,7 +18,7 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
-### [ ] 2026-10-01 — A workload agent's run is recorded as the built-in AI Agent
+### [ ] 2026-10-01 — A workload agent's run is recorded as the built-in AI Agent (PARTLY RESOLVED)
 
 **What's wrong.** UC38 and UC44 exist to show which workload agent acted. The
 customer's own Agent Builder app does perform Exchange #1 (it is the token's
@@ -43,6 +43,16 @@ is composed from the actor token. Then change the provisioner, the live tenant
 and the bridge header together, and make the readiness contract for UC38/UC44
 require the workload agent's client id in the actor chain. Found 2026-10-01
 while running UC44 through demo readiness.
+
+**PARTLY RESOLVED 2026-10-01 (`feat/workload-agent-actor`, `fix/workload-actor-bridge`).**
+Chosen model: a separate resource for workload runs. `Demo Workload Agent
+Gateway` mints `act` from the actor token; a workload run targets it when
+`WORKLOAD_AGENT_GATEWAY_AUDIENCE` is set, and the bridge then names the same
+verified workload agent. No Authorize policy change was needed: the policy
+compares the actor with the delegate the bridge reports. Still open: only the
+PingOne readiness lane and the readiness agent use it; `demoUser`'s agent and the
+presenter are on the shared resource; `scope-topology.json` and the main
+provisioner do not know the resource; the actor token carries `act: {sub: null}`.
 
 ### [ ] 2026-10-01 — The PingFederate readiness lane cannot pass a gateway tool step (PARTLY RESOLVED)
 
