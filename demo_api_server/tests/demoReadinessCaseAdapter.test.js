@@ -325,10 +325,27 @@ test('UC2: an A2A run is judged on the specialist scope, its gateway audience an
     audiences: ['mcpgateway-a2a.ping.demo'],
     authorize: { decision: 'PERMIT', engine: 'mock' },
   });
-  // The tool is restricted to a PingOne group. This path's decision carries no
-  // request parameters, so the run gives no evidence the group rule applied,
-  // and the adapter does not claim it: that one check is left failing.
-  expect(validateRow('UC2', result, 'PERMIT')).toEqual(['role applicability does not match Authorize role contract']);
+  // The manifest lists the tool as group-restricted, but group policy is opt-in
+  // per step (UC9, UC21, or the global flag) and UC2 does not opt in, so no
+  // group evidence is owed. A step that does opt in still owes it.
+  expect(contract.authorizeToolGroup.enforced).toBe(false);
+  expect(validateRow('UC2', result, 'PERMIT')).toEqual([]);
+  const optedIn = { ...contract, authorizeToolGroup: { ...contract.authorizeToolGroup, enforced: true } };
+  expect(evidenceFailures({ evidence: result.evidence, provider: PROVIDER, authorization: optedIn, expected: 'PERMIT', caseRow: rowFor('UC2').row }))
+    .toEqual(['role applicability does not match Authorize role contract']);
+});
+
+test('UC2.6: the real delegation is permitted, then the unregistered generalist is denied', () => {
+  const { authorization: contract } = rowFor('UC2.6');
+  const run = (probeDecision) => {
+    const response = a2aResponse();
+    response.tokenEvents.push({ id: 'a2a-mismatch-probe', status: 'denied', decision: probeDecision });
+    return evidenceFromAgentInvoke({ response, provider: PROVIDER, expectedIssuer: ISSUER, authorization: contract });
+  };
+  expect(run('DENY').observed).toBe('PERMIT_THEN_DENY');
+  expect(validateRow('UC2.6', run('DENY'), 'PERMIT_THEN_DENY')).toEqual([]);
+  // The defect seen live on 2026-10-02: the probe was permitted.
+  expect(validateRow('UC2.6', run('PERMIT'), 'PERMIT_THEN_DENY')).toEqual(['observed outcome']);
 });
 
 test('UC2: a wrong audience, or a specialist that never authenticated, fails', () => {

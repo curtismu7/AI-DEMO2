@@ -38,6 +38,14 @@ describe('intent token for the A2A demo steps', () => {
     expect(permittedToolsForIntent('delegate_to_specialist', 'banking')).toContain('get_portfolio_summary');
   });
 
+  // UC2.6 (live, 2026-10-02): its real delegation leg was denied with
+  //   intent_mismatch: tool "sensitive_membership_details" not permitted for intent "a2a_generalist_mismatch"
+  test('UC2.6 chip: the mismatch demo mints an intent that permits the specialist tools', () => {
+    const { intent } = extractIntentAndConfidence('simulate an agent identity mismatch', 'sporting-goods');
+    expect(intent).toBe('a2a_generalist_mismatch');
+    expect(permittedToolsForIntent(intent, 'sporting-goods')).toEqual(['sensitive_membership_details']);
+  });
+
   test('a minted UC2 token carries the specialist tool in permitted_tools', () => {
     const prompt = 'show my sensitive membership details';
     const { intent, confidence } = extractIntentAndConfidence(prompt, 'sporting-goods');
