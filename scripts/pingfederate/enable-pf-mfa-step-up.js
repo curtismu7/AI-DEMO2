@@ -117,7 +117,14 @@ const passwordOnly = (context) => ({
             children: [
               done('Fail'),
               {
-                action: { type: 'AUTHN_SOURCE', context: 'Success', authenticationSource: source(MFA_ADAPTER) },
+                action: {
+                  type: 'AUTHN_SOURCE',
+                  context: 'Success',
+                  authenticationSource: source(MFA_ADAPTER),
+                  // The MFA adapter needs to know who just signed in; without this PF prunes the node at run time
+                  // ("next action has been pruned ... Failing authentication", seen in server.log 2026-10-02).
+                  inputUserIdMapping: { source: { type: 'ADAPTER', id: PASSWORD_ADAPTER }, value: 'username' },
+                },
                 children: [done('Fail'), done('Success')],
               },
             ],
