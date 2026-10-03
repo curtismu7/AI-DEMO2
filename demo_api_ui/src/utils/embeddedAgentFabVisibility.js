@@ -132,10 +132,13 @@ const DEMO_CONTROLS_ROUTES = new Set([
   // use-case launch
   '/use-cases', '/demo-track',
   // inspector and token tools
-  '/mcp-inspector', '/agent-flow-inspector', '/token-exchange-tester',
+  '/mcp-inspector', '/pingone-mcp-inspector', '/agent-flow-inspector', '/token-exchange-tester',
   '/transaction-trace', '/policy-decision-trace', '/oauth/token-display',
   // setup and config
-  '/config', '/demo-config', '/pingone-setup', '/demo-data', '/feature-flags', '/llm-config',
+  '/config', '/configure', '/demo-config', '/pingone-setup', '/demo-data', '/feature-flags', '/llm-config',
+  // /config and /demo-data redirect to /configure, and /mcp-inspector to /pingone-mcp-inspector:
+  // the agent mounts from the pathname the app is actually on, so the destinations must be listed
+  // too (the aliases are kept for a first render before the redirect).
 ]);
 
 /**
