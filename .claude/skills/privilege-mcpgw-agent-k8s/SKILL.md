@@ -8,7 +8,7 @@ description: Deploy, repair and verify the PingOne Privilege AI Gateway (formerl
 Rebuilt end to end 2026-09-01/02 and proven from Postman, LM Studio and the demo's
 own client. Every command and error string here was observed, not inferred.
 
-## The one gateway
+## Gateway 1, the one that owns the apps
 
 | | |
 |---|---|
@@ -24,9 +24,58 @@ own client. Every command and error string here was observed, not inferred.
 chart did prefix (`cm-mcpgw-…`), and that release is gone; a `cm-mcpgw-*` or
 `ping-mcpgw-*` name anywhere is stale.
 
-Nothing Privilege-related installs into `ping-devops-cmuir` any more, and
-`k8s/aws/deploy.sh` no longer tries — the gateway is a deliberate manual install,
-because `ENV_PROXY_TOKEN` is single-use and ~2h-lived.
+`k8s/aws/deploy.sh` installs nothing Privilege-related — the gateway is a
+deliberate manual install, because `ENV_PROXY_TOKEN` is single-use and ~2h-lived.
+
+## Two gateways behind one URL (since 2026-10-03)
+
+The table above is gateway 1. There is now a second gateway and a load balancer.
+Full design, evidence and runbook: `privilege/GATEWAY-LOAD-BALANCER.md`. Read it
+before changing any of this.
+
+| | |
+|---|---|
+| Gateway 1 | release `agentless-mcpgw`, `ping-devops-curtismuir`, cluster `ai-demo-cmuir`. Owns every app and all sidecars. |
+| Gateway 2 | release `agentless-mcpgw2`, `ping-devops-cmuir`, cluster `ai-demo-cmuir2`. No apps, no sidecars; forwards over the mesh. Values: `gateway2-mesh.values.yaml` (its secrets live only in the release's stored values). |
+| Load balancer | part of the chart (`templates/loadbalancer.yaml`), enabled on gateway 1's release by `gateway1-lb.values.yaml`. Deployment/Service `mcpgw-lb`. |
+
+How it fits together, and the traps, each one hit on 2026-10-03:
+
+- **Apps are registered once.** An Agentic App is one tenant-wide object bound to
+  one Mesh Cluster. Editing its Mesh Cluster in the console MOVES it off the
+  other gateway; it does not copy it. Never "register it again" to test.
+- **The mesh forwards.** The gateway a client lands on forwards the call to the
+  cluster that owns the app, over port 8690. It works only because: `meshPort:
+  8690` is published on both Services, and gateway 2 advertises its in-cluster
+  Service name (`gatewayHostname`). A gateway dials its peer at the address the
+  peer ADVERTISES; a public hostname resolves to the HTTPS ingress, where 8690
+  is closed. Gateway 1 is the side that dials.
+- **Watch `Error connecting to <node>` for mesh health** (gateway 1's
+  `log-tailer`). `re-establishing link to node` and `has same NodeURL` are a
+  node handling its own record and mean nothing.
+- **Every client is pinned to one gateway** (hash on the client address).
+  Registrations, OAuth state and tokens live in each gateway's memory: a token
+  from one gateway gets 401 on the other. Round robin, even for `/mcp` only,
+  breaks every signed-in client. The ingress overwrites any client-supplied
+  `X-Forwarded-For`, and everyone behind one NAT hashes to the same gateway, so
+  to reach the other gateway from your own network you must park one
+  (`ownParked` / `parked` in `gateway1-lb.values.yaml`).
+- **Gateway 1 is a single point of failure for the apps** (about 55 s down on a
+  restart), and any failover costs the affected clients a sign-in. A failed
+  gateway is held out for `loadBalancer.failTimeout` (600 s); with 10 s clients
+  were bounced back and signed in twice.
+- **TLS follows `oidc.serverUrl` matching the certificate**, not `-hostname`.
+  Gateway 2's OAuth URL is the public one, so it serves plain HTTP and the load
+  balancer bridges to it.
+- **Helm on this machine is v4 and applies server-side.** Adopting objects that
+  were created with `kubectl apply` needs the ownership annotations/labels AND
+  `--force-conflicts`, or the upgrade fails half-way on a field-manager conflict.
+- **`--reuse-values` does not hand a release the chart's NEW default values.**
+  Spell out every key in the overlay file, and never read a new value in a
+  template without `| default`. Also never `--set` a list index with
+  `--reuse-values` (see the sidecar section below); edit the values file.
+- **Helm dry-runs and `helm get manifest` print the release's Secrets.** Write
+  them to a private file, never to a shared scratch directory, and remove them.
 
 ## Register the MCP server with `/mcp`, not `/sse`
 
@@ -242,6 +291,12 @@ modes with the log lines that distinguish them.
 |---|---|
 | Console "Gateway Unreachable … initialize: Unauthorized", Tools empty, policy disabled | discovery failed: backend registered on `/sse` (use `/mcp` on current builds), wrong hostname, or an expired policy reported misleadingly — read the `Error discovering MCP server` log line |
 | `Unknown client` page at `/authorize` | gateway restarted and forgot the DCR client; re-register |
+| LM Studio "This client's registration has expired" | same thing, or the client now lands on the OTHER gateway (one was parked, restarted or failed over). Remove the entry from `~/.lmstudio/mcp.json`, quit, re-add, sign in |
+| `401` on `/<app>/mcp` straight after a successful sign-in | the token came from one gateway and the call reached the other: pinning is broken. Compare `node=` on the `token` and `mcp` lines of the `mcpgw-lb` log |
+| `500` on `/<app>/mcp` while sign-in works | mesh link down: the gateway the client is pinned to does not own the app and cannot reach the owner. `Error connecting to <node>` on gateway 1 |
+| An app stops working on one gateway after a console edit | its Mesh Cluster was changed, which moves it. Set it back |
+| `helm upgrade` fails with `conflict with "kubectl-client-side-apply"` | Helm 4 server-side apply on an object first made with `kubectl apply`; add `--force-conflicts` |
+| A `400` right after every LM Studio connect | harmless: the client probes MCP protocol `2026-07-28`, the backend refuses, the client falls back |
 | `Error finding next hop to <cluster>. Cluster not found` | app's Mesh Cluster names a torn-down gateway; set it to `ai-demo-cmuir` |
 | MCP client hangs forever | pointed at `svc.cluster.local`, or at a `*.applications.procyon.ai:8643` agent frontend (this chart exposes no inbound mesh port) |
 | Authorize redirects with empty `client_id` | pod still running pre-`helm upgrade` OIDC config; restart |
