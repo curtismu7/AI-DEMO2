@@ -370,8 +370,47 @@ function getCacheStats() {
   };
 }
 
+/**
+ * Introspect a freshly issued login token for the session's token-chain card
+ * (`session.loginIntrospection`). Bounded and never throws: "not configured", a
+ * slow IdP or any failure returns null, so a login is never held up or broken by it.
+ *
+ * The caller must AWAIT this before saving the session and redirecting. The token
+ * chain fetches /api/tokens/session-preview once when the page mounts, so a result
+ * written after the redirect is never shown.
+ *
+ * @param {string} token
+ * @param {number} [timeoutMs]
+ * @returns {Promise<{active:boolean, sub:*, exp:*, aud:*, scopes:string[], client_id:*}|null>}
+ */
+async function introspectAtLogin(token, timeoutMs = 2000) {
+  let timer;
+  try {
+    const intro = await Promise.race([
+      validateToken(token),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`introspection took longer than ${timeoutMs}ms`)), timeoutMs);
+      }),
+    ]);
+    return {
+      active:    intro.valid,
+      sub:       intro.sub,
+      exp:       intro.exp,
+      aud:       intro.aud,
+      scopes:    intro.scopes,
+      client_id: intro.client_id,
+    };
+  } catch (err) {
+    logger.debug('Login introspection skipped', { reason: err.message });
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 module.exports = {
   validateToken,
+  introspectAtLogin,
   extractScopes,
   clearCache,
   getCacheStats,

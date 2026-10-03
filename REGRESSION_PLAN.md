@@ -249,6 +249,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-03 — The token display never showed the login introspection card (the result landed after the redirect)
+
+**Files:** `demo_api_server/routes/oauthUser.js`, `services/tokenIntrospectionService.js`, `services/agentMcpTokenService.js`, tests `src/__tests__/tokenIntrospectionService.loginIntrospection.test.js` (new) and `src/__tests__/agentMcpTokenService.test.js`.
+
+**What was broken:** After PF introspection worked, the Token Chain still showed no "Active-Token Introspection at Login" card. The session did hold the result (`loginIntrospection`, read from the session store). The end-user callback started the introspection fire-and-forget, saved the session and redirected at once; the result was written a few hundred ms later. The token chain fetches `/api/tokens/session-preview` ONCE when the page mounts, so it always fetched first and never refetched until an agent run. The card also hard-coded "PingOne" under a PingFederate sign-in.
+
+**What changed:** `introspectAtLogin(token, timeoutMs = 2000)` returns the session-shaped result or null and never throws. The end-user callback awaits it BEFORE `req.session.save` and the redirect, so the session already holds it when the page loads. The card names PingFederate when `session.oauthProvider === 'pingfederate'`.
+
+**Do not break:** The introspection is optional display data: it is bounded (2s) and any failure, timeout or "not configured" must leave the login exactly as it was. Keep the route's `introspectAtLogin` try/catch — an unhandled rejection there would take a login (and on Node 22 the process) down. Do not move it back after the redirect. The ADMIN callback (`routes/oauth.js`) still uses the old fire-and-forget and has the same race; it was left unchanged on purpose (its callback is one large synchronous `regenerate` callback).
+
+**Verify:** `cd demo_api_server && CI=true npx jest src/__tests__/tokenIntrospectionService.loginIntrospection.test.js src/__tests__/agentMcpTokenService.test.js --forceExit` (the PF-card test fails with the wording change reverted). Not unit-tested: the callback ordering itself (it needs the full user/session mocks) — verified live: sign in under PF, then the Token Chain shows the card immediately, without a reload.
+
 ### 2026-10-03 — PF introspection still skipped live: no PF introspection endpoint to call
 
 **Files:** `demo_api_server/services/oauthEndpointResolver.js`, `src/__tests__/oauthEndpointResolver.pfIntrospection.test.js` (new).
