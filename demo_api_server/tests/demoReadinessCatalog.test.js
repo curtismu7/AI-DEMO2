@@ -153,12 +153,12 @@ describe('demo readiness catalog', () => {
     ]);
   });
 
-  test('keeps PF A2A and DaVinci feature probes outside the Demo Steps count', () => {
+  test('keeps PF A2A feature probes outside the Demo Steps count', () => {
     const sources = loadDemoReadinessSources();
 
     expect(sources.featureChecks.countsTowardDemoSteps).toBe(false);
     expect(sources.featureChecks.checks.map((check) => check.id)).toEqual([
-      'A2A-FM1', 'A2A-FM2', 'A2A-FM3', 'PF-DAVINCI-IK',
+      'A2A-FM1', 'A2A-FM2', 'A2A-FM3',
       'PRIV-TOOL-ABUSE', 'PRIV-TOOL-POISONING', 'PRIV-SCHEMA-VIOLATION',
       'PRIV-INTER-AGENT-ABUSE', 'PRIV-MALICIOUS-CONTENT',
       'PINGONE-AGENT-IAM-CORE', 'PF-CIMD-VALID', 'PF-CIMD-REJECTED',
@@ -173,18 +173,6 @@ describe('demo readiness catalog', () => {
     ).toBe(true);
     expect(sources.featureChecks.checks[2].expectedByProvider.pingfederate)
       .toBe('id_jag_exchange1_nested_act_exchange2_permit');
-    expect(sources.featureChecks.checks[3]).toMatchObject({
-      providers: ['pingfederate'],
-      executionMode: 'pf-davinci-login-proof',
-      expectedOutcome: 'dedicated_pf_proof_with_pingone_session_preserved',
-      providerRoleApplicability: {
-        pingoneUserSession: 'preserved_if_present_but_not_accepted_as_the_pf_proof',
-        pingfederateUserSession: 'required',
-      },
-      relatedTests: [{
-        sourceRef: 'demo_api_server/tests/routes/pfDavinciAuth.test.js',
-      }],
-    });
   });
 
   test('declares a structured family contract and an exact-or-blocked PF exchange contract for every feature probe', () => {

@@ -73,15 +73,6 @@
       "unresolved": true,
       "sourceRef": "demo_api_server/services/agentMcpTokenService.js"
     },
-    "davinci-login": {
-      "kind": "oauth-client",
-      "objectId": "ai-demo-pf-user",
-      "configurationKeys": ["pf_user_client_id", "pf_user_token_endpoint_auth_method"],
-      "expected": { "authenticationPolicyAdapter": "undocumented" },
-      "baseline": { "present": true, "davinciAdapterConfigured": true },
-      "unresolved": true,
-      "sourceRef": "demo_api_server/routes/pfDavinciAuth.js"
-    },
     "cimd": {
       "kind": "oauth-client",
       "objectId": "PF_CIMD_CLIENT",
