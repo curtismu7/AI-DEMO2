@@ -76,11 +76,42 @@ version (`Mcp-Protocol-Version: 2026-07-28`, `Mcp-Method: server/discover`). The
 MCP backend (`Server: uvicorn`) answers `400`, and the client falls back to `2024-11-05`.
 It is client-to-backend version negotiation, not the load balancer or the mesh.
 
+**Failover drill (2026-10-03, 23:00 to 23:13 UTC).** Each gateway's pod was deleted while two
+unauthenticated probes, one pinned to each gateway, sent a request a second through the load
+balancer.
+
+| Scenario | Load balancer | Recovery | Real impact |
+| --- | --- | --- | --- |
+| Gateway 2 killed | Its clients moved to gateway 1 in under 1 s; no failed request | Pod ready in 43 s; mesh back in 32 to 44 s | Those clients sign in once on gateway 1. Apps keep working: gateway 1 owns them. |
+| Gateway 1 killed | Its clients moved to gateway 2 in under 1 s; no failed request | Pod (9 containers) ready in 52 s; mesh back in 55 s | **Every app down for about 55 s**: gateway 1 owns every app and sidecar, and gateway 2 can only forward to it. Then every client signs in again. Inferred from how forwarding works; the probes cannot see it. |
+
+**Gateway 1 is a single point of failure for the apps.** Gateway 2 is a second front door,
+not a second copy of the apps. Removing that needs gateway 2 to own its own apps and
+sidecars, or shared state in the gateway from Ping.
+
+**What the drill changed (PR #658, live as release revision 43).** With the original
+`fail_timeout=10s` the load balancer moved a client back to the restarted gateway after about
+45 s, and the first request back hung against a gateway that was not yet answering. Each
+gateway only accepts its own tokens, so a signed-in client would have signed in twice. The
+chart now holds a failed gateway out for `loadBalancer.failTimeout` (600 s) and uses a 3 s
+connect timeout. Re-test with gateway 2 killed again: moved in under 1 s, 158 requests in a
+row on gateway 1, no return within the test and no hung request.
+
+| | Before (`fail_timeout=10s`) | After (`600s`) |
+| --- | --- | --- |
+| Moved to the surviving gateway | under 1 s | under 1 s |
+| Requests that failed or hung | 1 (hung on the way back) | 0 |
+| Moved back | after about 45 s | not within 158 s; after the 10-minute hold |
+| Forced sign-ins for a signed-in client | 2 (inferred) | 1 (inferred) |
+
 **Still not verified.**
 
-- Tokens do not cross gateways, so pinning stays and a client signs in again if its gateway
-  dies. Automatic failover by killing a gateway has not been exercised; parking one in the
-  load balancer has (clients re-sign-in on the other).
+- The signed-in view of a failover. The probes were unauthenticated, so the forced sign-ins
+  and the app outage while gateway 1 is down are reasoned from the token and forwarding
+  behaviour, not observed.
+- A gateway that accepts a connection and then stalls. The read timeout stays at 3600 s for
+  long MCP streams, so such a request can still hang.
+- The two load balancer pods keep separate failure state and may disagree for a few seconds.
 - Sidecar-backed apps (Brave, Grafana, banking-rest, ...) through gateway 2. Their backends
   are `localhost` in gateway 1's pod, reached over the mesh like `opensearch22`; not tested.
 - Whether Ping supports gateway-to-gateway mesh inside one tenant. It works; ask anyway.
