@@ -1,0 +1,18 @@
+# Gateway 2 mesh + rotation overlay (no secrets). Applied on top of gw2-values.yaml.
+#
+# Mesh address: gateway 1 is the side that dials, and it dials the address gateway 2
+# ADVERTISES, <-hostname>:8690. A public hostname resolves to the HTTPS ingress, where
+# 8690 is closed, so gateway 2 advertises its in-cluster Service name. Gateway 1
+# resolves that with no host alias and therefore no restart.
+gatewayHostname: agentless-mcpgw.ping-devops-cmuir.svc.cluster.local
+meshPort: 8690
+# The other direction: gateway 2 dialing gateway 1's advertised name.
+hostAliases:
+  - ip: 172.20.78.201          # gateway 1 Service, ping-devops-curtismuir
+    hostnames:
+      - mcpgw.ai-demo.ping-devops.com
+# Clients pinned to gateway 2 must see the public URL in its OAuth metadata.
+# Side effect (observed): SERVER_URL no longer matches this gateway's certificate
+# (mcpgw2...), so it serves plain HTTP; the load balancer's bridge speaks HTTP to it.
+oidc:
+  serverUrl: https://mcpgw.ai-demo.ping-devops.com

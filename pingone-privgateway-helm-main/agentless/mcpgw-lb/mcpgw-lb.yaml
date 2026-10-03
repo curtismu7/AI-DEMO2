@@ -9,28 +9,28 @@
 # agentless-mcpgw release. Roll back with `--set frontService=` (empty).
 #
 # Routing: EVERY path is pinned per client (consistent hash on the client address
-# from X-Forwarded-For). Nothing is round robin. Tested 2026-10-03: each gateway
-# keeps its DCR client registry, OAuth state and issued tokens in its own memory,
-# and the two gateways cannot reach each other on the mesh port (8690), so a token
+# from X-Forwarded-For; the ingress overwrites any client-supplied value with the
+# real address). Nothing is round robin. Tested 2026-10-03: each gateway keeps its
+# DCR client registry, OAuth state and issued tokens in its own memory, so a token
 # issued by one is rejected (401) by the other. A client therefore signs in on one
 # gateway and stays on it. If that gateway dies the client is retried on the other
 # one and must sign in again, same as after a gateway restart today.
 #
-# Each gateway must own the Agentic Apps it serves. An app is ONE tenant-wide object
-# bound to ONE Mesh Cluster: editing it in the console MOVES it (tested 2026-10-03),
-# it does not create a second copy. Gateway 2 therefore needs its own, differently
-# named copy of each app, and this file does not yet map the public path to that
-# name. Keep gateway 2 `down` below until that exists, or a client hashed to it would
-# reach a gateway that does not know the app.
+# Apps are registered ONCE. An Agentic App is one tenant-wide object bound to one
+# Mesh Cluster (editing it in the console MOVES it). The two gateways are linked
+# over the mesh (port 8690; chart values meshPort, gatewayHostname, hostAliases), so
+# the gateway a client is pinned to forwards the call to the cluster that owns the
+# app. If the mesh link is down, a client pinned to the non-owning gateway gets 500s:
+# park gateway 2 with `down` below until it is back.
 #
 # Why HTTPS with the gateway's own cert: the chart's ingresses carry
 # backend-protocol HTTPS, so the hop into this pod has to be TLS. The cert is
 # the existing agentless-mcpgw-tls secret; the ingress does not verify it.
 #
 # Gateway 2 lives in another namespace (the chart prefixes nothing, so two
-# releases cannot share one). It answers to the shared hostname but its cert is
-# for its own, so it serves plain HTTP; the loopback bridge below lets one
-# upstream group hold both.
+# releases cannot share one). Its OAuth SERVER_URL is the public URL, which does not
+# match its own certificate, so it serves plain HTTP; the loopback bridge below lets
+# one upstream group hold both.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -42,7 +42,11 @@ data:
     error_log /dev/stderr warn;
     events { worker_connections 1024; }
     http {
-      access_log /dev/stdout;
+      # node= is the gateway that answered; xff= is the pin key. Without them the
+      # log cannot show which gateway a client landed on.
+      log_format lb '$remote_addr [$time_local] "$request" $status $body_bytes_sent '
+                    'node=$node xff="$http_x_forwarded_for"';
+      access_log /dev/stdout lb;
       client_body_temp_path /tmp/cb; proxy_temp_path /tmp/pt;
       fastcgi_temp_path /tmp/fc; uwsgi_temp_path /tmp/uw; scgi_temp_path /tmp/sc;
 
@@ -72,9 +76,9 @@ data:
       upstream gateways {
         hash $stick consistent;
         server agentless-mcpgw.ping-devops-curtismuir.svc.cluster.local:8623 max_fails=2 fail_timeout=10s;
-        # PARKED until every app is registered on cluster ai-demo-cmuir2.
-        # Remove `down` to put gateway 2 in rotation.
-        server 127.0.0.1:8444 max_fails=2 fail_timeout=10s down;
+        # In rotation since 2026-10-03: the mesh links the two gateways, so either
+        # can serve an app the other owns. Add `down` here to park gateway 2.
+        server 127.0.0.1:8444 max_fails=2 fail_timeout=10s;
       }
 
       server {
