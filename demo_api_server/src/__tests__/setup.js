@@ -13,6 +13,15 @@ process.env.SKIP_TOKEN_SIGNATURE_VALIDATION = 'true';
 // running app needs across restarts. Point every in-process LMDB consumer
 // (configStore, session store, bankingDb, …) at a per-worker throwaway dir.
 process.env.LMDB_PATH = process.env.LMDB_PATH || require('./setup/lmdbTestDir').workerDir();
+// Same for data/store.js: it loads and rewrites data/runtimeData.json (the live
+// demo's accounts), so a dev checkout saw different seed ids than CI and tests
+// could overwrite it. An empty dir falls through to bootstrapData.json, as in CI.
+process.env.DATA_STORE_DIR = process.env.DATA_STORE_DIR || (() => {
+  const { BASE } = require('./setup/lmdbTestDir');
+  const dir = require('path').join(BASE, 'store-' + (process.env.JEST_WORKER_ID || '1'));
+  require('fs').mkdirSync(dir, { recursive: true });
+  return dir;
+})();
 process.env.SESSION_SECRET = 'test-session-secret';
 process.env.OAUTH_CLIENT_ID = 'test-client-id';
 process.env.OAUTH_CLIENT_SECRET = 'test-client-secret';
