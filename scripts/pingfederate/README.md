@@ -113,6 +113,23 @@ Things to know:
 - Sign-in itself is not gated: a disabled user can still reach the PingFederate
   login page and get a session. What stops is every delegated token.
 
+## Token introspection client
+
+The BFF introspects PingFederate-issued access tokens (the token preview at login,
+`/api/introspect`) as a dedicated client, `ai-demo-pf-introspection`. PingFederate only
+answers `/as/introspect.oauth2` for a client holding the Access Token Validation grant,
+and no login or exchange client has it. One-time, idempotent, dry run by default:
+
+```bash
+node scripts/pingfederate/provision-introspection-client.js          # what would change
+node scripts/pingfederate/provision-introspection-client.js --apply  # create it + vault entry
+```
+
+The secret goes straight into the vault as `PF_INTROSPECTION_CLIENT_SECRET` and is never
+printed. A fresh PingFederate volume needs a re-run. Until it exists, PF introspection is
+skipped ("not configured"), as before. The client is created through the admin API, so it
+lives in the same client store as the others (see the database-storage note below).
+
 ## AI Agent RAR processor
 
 The PF AI Agent page includes CIMD, third-party ID-JAG exchange, and a custom

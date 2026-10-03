@@ -47,17 +47,49 @@ function hashToken(token) {
  * @param {string} token
  * @returns {string|null}
  */
-function extractTokenClientId(token) {
+function decodeJwtPayload(token) {
   if (typeof token !== 'string') return null;
   const parts = token.split('.');
   if (parts.length !== 3) return null;
   try {
     const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-    const payload = JSON.parse(Buffer.from(b64, 'base64').toString('utf8'));
-    return payload.client_id || payload.azp || null;
+    return JSON.parse(Buffer.from(b64, 'base64').toString('utf8'));
   } catch (_e) {
     return null;
   }
+}
+
+function extractTokenClientId(token) {
+  const payload = decodeJwtPayload(token);
+  return payload ? payload.client_id || payload.azp || null : null;
+}
+
+const trimSlash = (s) => String(s || '').replace(/\/+$/, '');
+
+/**
+ * True when the token was issued by PingFederate. Chosen by the token's own `iss`,
+ * NOT the active provider: admin sign-ins under a PingFederate provider still carry
+ * PingOne tokens, and PingFederate would report those inactive.
+ * @param {string} token
+ * @returns {boolean}
+ */
+function isPingFederateToken(token) {
+  const iss = decodeJwtPayload(token)?.iss;
+  const pfIssuer = oauthEndpointResolver.getIssuer?.('pingfederate');
+  return !!iss && !!pfIssuer && trimSlash(iss) === trimSlash(pfIssuer);
+}
+
+/**
+ * PingFederate's introspecting identity: a dedicated resource-server client with the
+ * Access Token Validation grant (scripts/pingfederate/provision-introspection-client.js).
+ * Missing either value makes validateToken report "not configured" (skip), as before.
+ */
+function pingFederateIntrospectionCredentials() {
+  return {
+    clientId: configStore.getEffective('pf_introspection_client_id') || undefined,
+    clientSecret: configStore.getEffective('pf_introspection_client_secret') || undefined,
+    authMethod: 'basic',
+  };
 }
 
 /**
@@ -135,8 +167,11 @@ async function validateToken(token, opts = {}) {
   // Cache key includes the introspecting client so a result from one client never
   // masks a different client's self-introspection result for the same token. Mirror
   // the identity resolution below (opts → dedicated introspection client → user app).
+  const isPf = isPingFederateToken(token);
+  const idpName = isPf ? 'PingFederate' : 'PingOne';
   const introspectingClient =
     opts.clientId ||
+    (isPf && configStore.getEffective('pf_introspection_client_id')) ||
     process.env.PINGONE_INTROSPECTION_CLIENT_ID ||
     process.env.PINGONE_USER_CLIENT_ID ||
     'unset';
@@ -150,10 +185,11 @@ async function validateToken(token, opts = {}) {
 
   try {
     // Prefer explicit env var; fall back to auto-derived PingOne endpoint ({base}/introspect)
-    const introspectionUrl =
-      process.env.PINGONE_INTROSPECTION_ENDPOINT ||
-      configStore.getEffective('pingone_introspection_endpoint') ||
-      (() => { const base = oauthEndpointResolver.getTokenEndpoint?.(); return base ? base.replace('/token', '/introspect') : ''; })();
+    const introspectionUrl = isPf
+      ? oauthEndpointResolver.getIntrospectionEndpoint('pingfederate')
+      : process.env.PINGONE_INTROSPECTION_ENDPOINT ||
+        configStore.getEffective('pingone_introspection_endpoint') ||
+        (() => { const base = oauthEndpointResolver.getTokenEndpoint?.(); return base ? base.replace('/token', '/introspect') : ''; })();
 
     // ── Introspection credentials — per-token-issuer selection ────────────────
     // PingOne enforces a same-client rule on RFC 7662: a client can only
@@ -167,6 +203,8 @@ async function validateToken(token, opts = {}) {
       clientId = opts.clientId;
       clientSecret = opts.clientSecret;
       authMethod = opts.authMethod || 'post';
+    } else if (isPf) {
+      ({ clientId, clientSecret, authMethod } = pingFederateIntrospectionCredentials());
     } else {
       ({ clientId, clientSecret, authMethod } = selectIntrospectionCredentials(token));
     }
@@ -248,7 +286,7 @@ async function validateToken(token, opts = {}) {
       client_id: result.client_id,
     });
     logAppEvent(EVENT_CATEGORIES.INTROSPECTION, result.valid ? 'info' : 'warning',
-      result.valid ? 'Token introspected — PingOne confirmed active' : 'Token introspected — PingOne returned inactive',
+      result.valid ? `Token introspected — ${idpName} confirmed active` : `Token introspected — ${idpName} returned inactive`,
       { tag: result.valid ? 'introspection/active' : 'introspection/inactive',
         metadata: { active: result.valid, sub: result.sub || null, client_id: result.client_id || null, scopeCount: (result.scopes || []).length, scopes: result.scopes || [], exp: result.exp || null } });
 
