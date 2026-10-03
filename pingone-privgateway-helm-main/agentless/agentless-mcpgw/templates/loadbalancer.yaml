@@ -21,9 +21,11 @@
   HTTP; each peer therefore gets a loopback bridge (TLS in, the peer's scheme
   out), which lets one https upstream group hold every gateway.
 */ -}}
-{{- if .Values.loadBalancer.enabled }}
-{{- $lb := .Values.loadBalancer }}
+{{- $lb := .Values.loadBalancer | default dict }}
+{{- if $lb.enabled }}
 {{- $name := include "agentless-mcpgw.lbName" . }}
+{{- $ownName := $lb.ownName | default "gateway-1" }}
+{{- $resources := $lb.resources | default (dict "requests" (dict "cpu" "50m" "memory" "32Mi") "limits" (dict "cpu" "500m" "memory" "128Mi")) }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -53,7 +55,7 @@ data:
         {{- range $i, $peer := $lb.peers }}
         ~127\.0\.0\.1:{{ add 8444 $i }}$ {{ $peer.name }};
         {{- end }}
-        default {{ $lb.ownName }};
+        default {{ $ownName }};
       }
 
       # Shared proxy settings (inherited by every server and location).
@@ -118,7 +120,7 @@ metadata:
   labels:
     app: {{ $name }}
 spec:
-  replicas: {{ $lb.replicas }}
+  replicas: {{ $lb.replicas | default 2 }}
   selector:
     matchLabels:
       app: {{ $name }}
@@ -132,7 +134,7 @@ spec:
     spec:
       containers:
         - name: nginx
-          image: {{ $lb.image }}
+          image: {{ $lb.image | default "nginx:stable-alpine" }}
           command: ["nginx", "-g", "daemon off;", "-c", "/etc/nginx/lb/nginx.conf"]
           ports:
             - containerPort: 8443
@@ -146,7 +148,7 @@ spec:
             httpGet: {path: /lb-health, port: 8081}
             periodSeconds: 30
           resources:
-            {{- toYaml $lb.resources | nindent 12 }}
+            {{- toYaml $resources | nindent 12 }}
           volumeMounts:
             - {name: conf, mountPath: /etc/nginx/lb, readOnly: true}
             - {name: tls, mountPath: /tls, readOnly: true}

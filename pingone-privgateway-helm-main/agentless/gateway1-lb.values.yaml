@@ -8,8 +8,16 @@
 # the same upgrade; the load balancer pods roll on their own.
 meshPort: 8690
 frontService: ""          # empty = the ingresses use the chart's load balancer
+# Every key is spelled out on purpose: --reuse-values may not pick up the chart's
+# new defaults, so nothing here relies on them.
 loadBalancer:
   enabled: true
+  name: mcpgw-lb
+  replicas: 2
+  image: nginx:stable-alpine
+  resources:
+    requests: {cpu: 50m, memory: 32Mi}
+    limits: {cpu: 500m, memory: 128Mi}
   ownName: gateway-1
   ownParked: false
   peers:
