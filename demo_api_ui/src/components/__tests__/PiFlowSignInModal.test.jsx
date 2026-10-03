@@ -68,6 +68,18 @@ describe('PiFlowSignInModal', () => {
     await waitFor(() => expect(assign).toHaveBeenCalledWith('https://app.test/api/auth/oauth/user/callback?code=c&state=s'));
   });
 
+  test('the sign-in form offers Forgot password? and it opens the reset form', async () => {
+    mockBff({
+      config: ON,
+      login: () => ok({ flowId: 'f1', status: 'USERNAME_PASSWORD_REQUIRED' }),
+      credentials: () => ok({}),
+    });
+    await mountAndClick();
+    fireEvent.click(await screen.findByRole('button', { name: 'Forgot password?' }));
+    expect(await screen.findByText('Reset your password')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Verify with MFA' })).toBeInTheDocument();
+  });
+
   test('wrong password shows the error and stays on the form', async () => {
     mockBff({
       config: ON,
