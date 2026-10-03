@@ -25,6 +25,9 @@
 {{- if $lb.enabled }}
 {{- $name := include "agentless-mcpgw.lbName" . }}
 {{- $ownName := $lb.ownName | default "gateway-1" }}
+{{- $maxFails := $lb.maxFails | default 2 }}
+{{- $failTimeout := $lb.failTimeout | default "600s" }}
+{{- $connectTimeout := $lb.connectTimeout | default "3s" }}
 {{- $resources := $lb.resources | default (dict "requests" (dict "cpu" "50m" "memory" "32Mi") "limits" (dict "cpu" "500m" "memory" "128Mi")) }}
 apiVersion: v1
 kind: ConfigMap
@@ -71,14 +74,26 @@ data:
       proxy_buffering off;
       proxy_read_timeout 3600s;
       proxy_send_timeout 3600s;
+      # Give up on a gateway that does not accept the connection quickly (the
+      # default is 60s). The read timeout stays long: MCP streams are long-lived.
+      proxy_connect_timeout {{ $connectTimeout }};
       proxy_next_upstream error timeout http_502 http_503 http_504;
       proxy_next_upstream_tries 2;
 
+      # fail_timeout is also how long a failed gateway is held OUT before it is
+      # tried again. Failover drill, 2026-10-03: with 10s a client was moved to the
+      # other gateway and back within a minute, which forces a signed-in client to
+      # sign in twice (each gateway only accepts its own tokens), and the first
+      # request back hit the restarting gateway before it could answer. Holding it
+      # out for minutes costs one sign-in and returns to a gateway that is long up.
+      # `zone` shares that state across this pod's workers; the other load balancer
+      # pod keeps its own, so the two can disagree for a few seconds at the edges.
       upstream gateways {
+        zone gateways 64k;
         hash $stick consistent;
-        server {{ include "agentless-mcpgw.name" . }}.{{ .Values.namespace }}.svc.cluster.local:8623 max_fails=2 fail_timeout=10s{{ if $lb.ownParked }} down{{ end }};
+        server {{ include "agentless-mcpgw.name" . }}.{{ .Values.namespace }}.svc.cluster.local:8623 max_fails={{ $maxFails }} fail_timeout={{ $failTimeout }}{{ if $lb.ownParked }} down{{ end }};
         {{- range $i, $peer := $lb.peers }}
-        server 127.0.0.1:{{ add 8444 $i }} max_fails=2 fail_timeout=10s{{ if $peer.parked }} down{{ end }};
+        server 127.0.0.1:{{ add 8444 $i }} max_fails={{ $maxFails }} fail_timeout={{ $failTimeout }}{{ if $peer.parked }} down{{ end }};
         {{- end }}
       }
 
