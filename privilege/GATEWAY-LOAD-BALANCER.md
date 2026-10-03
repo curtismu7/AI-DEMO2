@@ -337,6 +337,9 @@ Consequences:
 Also checked: the backend `http://opensearch-mcp-server.ping-devops-curtismuir.svc.cluster.local/sse`
 answers `200 text/event-stream` with an `event: endpoint` line from both the
 `ping-devops-curtismuir` and `ping-devops-cmuir` namespaces, so gateway 2 can reach it.
+That proves network reachability only. It is NOT the path to register: current gateway
+builds need the backend registered with `/mcp` (see the skill and
+`privilege/GATEWAY-REGISTERING-AN-MCP-SERVER.md`).
 
 ### 5.6 Smaller findings
 
@@ -349,6 +352,10 @@ answers `200 text/event-stream` with an `event: endpoint` line from both the
 
 ## 6. Bringing gateway 2 into rotation (runbook)
 
+> Superseded by section 0. With the mesh linked, gateway 2 needs NO copy of any app; it
+> forwards to the cluster that owns it. The steps below are kept as the record of the
+> fallback (a differently named copy per app), which was not needed.
+
 Prerequisite: every Agentic App that clients use needs a copy on cluster `ai-demo-cmuir2`.
 **Create a NEW app with a different name; never edit the existing one.** An app is a single
 tenant-wide object (5.5), so editing `opensearch22` and changing its Mesh Cluster moves it
@@ -360,8 +367,10 @@ only reach gateway 2 for apps that have the same name there, which the console d
    MCP Server, a NEW Application Name (for example `opensearch22b`), Mesh Cluster
    `ai-demo-cmuir2`, Auth Mode None.
    - Pilot with `opensearch22`. Its backend is an in-cluster Service reachable from gateway 2:
-     `http://opensearch-mcp-server.ping-devops-curtismuir.svc.cluster.local/sse`
-     (use `/sse`, not `/mcp`). No sidecar is needed.
+     `http://opensearch-mcp-server.ping-devops-curtismuir.svc.cluster.local/mcp`
+     (use `/mcp`; an earlier version of this document said `/sse`, which was wrong for
+     current gateway builds: an app registered on `/sse` answers `404` on `/mcp`).
+     No sidecar is needed.
    - Apps backed by sidecars (`http://localhost:808x`) need the same sidecar containers in
      gateway 2's pod, and copies of their secrets in `ping-devops-cmuir`. Not done.
    - Add a policy for the app on the new registration (policies are per app).

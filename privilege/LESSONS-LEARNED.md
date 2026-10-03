@@ -774,8 +774,57 @@ kubectl get pods -n <ns> --context us
 kubectl get ingress -n <ns> --context us -o custom-columns='NAME:.metadata.name,HOSTS:.spec.rules[*].host'
 ```
 
+## Two gateways behind one load balancer (2026-10-03)
+
+Full record: `privilege/GATEWAY-LOAD-BALANCER.md`. The mistakes, in the order they
+cost time:
+
+**Mistake 1 — treating an in-memory product as replicable.** Each gateway keeps its
+DCR registry, OAuth state and issued tokens in its own memory. `replicas: 2`, round
+robin, and "round robin just for `/mcp`" all fail the same way: a client registers
+or signs in on one gateway and its next request reaches the other (`Unknown client`,
+"registration has expired", or `401` straight after a `token 200`). Pin every path
+per client. The first sticky pattern also missed that sign-in arrives under the app
+name (`/<app>/authorize`), which is why "pin the OAuth paths" is the wrong shape:
+pin everything.
+
+**Mistake 2 — "register the app again on the second cluster".** An Agentic App is
+one tenant-wide object with one Mesh Cluster. The console edited the existing
+`opensearch22` and moved it off the live gateway. Nothing warns you.
+
+**Mistake 3 — concluding the mesh was blocked.** Port 8690 was closed on both public
+hostnames, so the write-up said "the gateways cannot mesh". Both pods were
+listening on 8690 the whole time. The real fault was addressing: a gateway dials the
+address its peer advertises, and a public hostname resolves to the HTTPS ingress.
+Check the pod before blaming the product.
+
+**Mistake 4 — fixing the wrong side.** The host alias went onto gateway 2, but
+gateway 1 is the one that dials (`Error connecting to <node>. Err: context deadline
+exceeded` in ITS log; gateway 2's log never mentioned its peer). And the lines being
+counted as the failure, `re-establishing link to node`, are a node handling its own
+record. Read which node id a log line names before counting it.
+
+**Mistake 5 — acting on a stale copy of the skill.** This session loaded the skill
+before its 2026-10-02 correction and told the user to register a backend with
+`/sse`. Current builds need `/mcp`; an `/sse` registration answers `404` on `/mcp`.
+The skill is edited by other sessions: re-read the file from `main` before repeating
+an instruction from it, especially one that names a path or a flag.
+
+**Mistake 6 — secrets in scratch files.** `helm upgrade --dry-run` and `helm get
+manifest` print the release's Secret objects. Six such dumps were written
+world-readable into a shared scratch directory before anyone noticed.
+
+**What the drill showed that the design discussion had not.** The load balancer
+fails over in under a second, but with `fail_timeout=10s` it also moved clients back
+within a minute, which would have cost a signed-in client two sign-ins and hung one
+request against a gateway that was still starting. And gateway 1 owns every app and
+sidecar, so a second gateway that only forwards is a second front door, not a second
+copy of the apps.
+
 ## Related
 
+- `privilege/GATEWAY-LOAD-BALANCER.md` — the two-gateway design, evidence, runbook
+  and failover drill behind the section above
 - `.claude/skills/privilege-mcpgw-agent-k8s/SKILL.md` — deploy mechanics, the
   `helm upgrade` sequencing this doc assumes, `extraContainers` list-replacement
   trap, SSE-vs-streamable-HTTP backend registration
