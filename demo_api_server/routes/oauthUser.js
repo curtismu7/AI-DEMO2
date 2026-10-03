@@ -1723,6 +1723,37 @@ router.post('/refresh', async (req, res) => {
 });
 
 /**
+ * POST /api/auth/oauth/user/revoke
+ * RFC 7009 demo: revoke this session's access token at PingOne, then introspect
+ * it (RFC 7662) to show what PingOne now says. oauthService.revokeToken swallows
+ * its own errors, so the introspection — not the revoke call — is the evidence.
+ * The session keeps its refresh token, so POST /refresh issues a working access
+ * token again. Never returns a token.
+ */
+router.post('/revoke', async (req, res) => {
+  const accessToken = req.session?.oauthTokens?.accessToken;
+  if (!req.session?.user || !accessToken || accessToken === '_cookie_session') {
+    return res.status(401).json({ error: 'no_session', message: 'No active user session' });
+  }
+  try {
+    await oauthService.revokeToken(accessToken, 'access_token');
+    // validateToken caches its answer; without this a pre-revoke "active" is replayed.
+    tokenIntrospectionService.clearCache();
+    const after = await tokenIntrospectionService.validateToken(accessToken);
+    if (after.error) {
+      return res.json({ revoked: null, activeAfterRevoke: null, message: 'Revocation was sent, but PingOne introspection could not confirm the result.' });
+    }
+    return res.json({ revoked: !after.valid, activeAfterRevoke: !!after.valid });
+  } catch (err) {
+    if (err.code === 'INTROSPECTION_NOT_CONFIGURED') {
+      return res.json({ revoked: null, activeAfterRevoke: null, message: 'Revocation was sent, but introspection is not configured, so the result cannot be confirmed.' });
+    }
+    console.error('[revoke] failed:', err.message);
+    return res.status(502).json({ error: 'revoke_failed', message: err.message });
+  }
+});
+
+/**
  * GET /api/auth/oauth/user/consent-url
  * @deprecated — In-app consent is now handled via POST /consent.
  * Kept for backwards-compat; signals caller to use the in-app modal.

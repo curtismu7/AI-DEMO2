@@ -7,9 +7,36 @@ import './OAuthTokenDisplayPage.css';
 import TokenCard from './TokenCard';
 import JsonHighlight from './shared/JsonHighlight';
 
+import ConfirmModal from './ConfirmModal';
+
 function hasAnyField(data) {
   if (!data) return false;
   return Object.values(data).some((v) => v !== undefined && v !== null);
+}
+
+function formatRemaining(ms) {
+  if (ms <= 0) return 'expired';
+  const total = Math.floor(ms / 1000);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  return `in ${h ? `${h}h ` : ''}${h || m ? `${m}m ` : ''}${s}s`;
+}
+
+// Claims worth comparing between the ID token and the userinfo response. Protocol
+// claims (iss, aud, exp, nonce, at_hash...) only exist on one side by design.
+const COMPARE_KEYS = ['sub', 'email', 'email_verified', 'given_name', 'family_name', 'name', 'preferred_username', 'phone_number', 'locale', 'updated_at'];
+
+function compareClaims(idPayload, userinfo) {
+  const show = (v) => (v === undefined ? null : typeof v === 'object' ? JSON.stringify(v) : String(v));
+  return COMPARE_KEYS
+    .filter((k) => idPayload?.[k] !== undefined || userinfo?.[k] !== undefined)
+    .map((k) => {
+      const a = show(idPayload?.[k]);
+      const b = show(userinfo?.[k]);
+      const status = a === null ? 'only in userinfo' : b === null ? 'only in ID token' : a === b ? 'match' : 'differs';
+      return { key: k, idValue: a, userinfoValue: b, status };
+    });
 }
 
 /** Step states for the unauthenticated in-page PingOne flow. */
@@ -29,6 +56,10 @@ export default function OAuthTokenDisplayPage() {
   const [enrichedLoading, setEnrichedLoading] = useState(false);
   const [idToken, setIdToken] = useState(null);
   const [refreshInfo, setRefreshInfo] = useState(null);
+  const [now, setNow] = useState(() => Date.now());
+  const [tokenAction, setTokenAction] = useState({ busy: null, message: null, error: false });
+  const [revokeOpen, setRevokeOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
   // Every section starts open; the headers still collapse them.
   const [expandedSections, setExpandedSections] = useState({ account: true, rawJson: true, refresh: true });
 
@@ -233,6 +264,54 @@ export default function OAuthTokenDisplayPage() {
     setPiFlowStep('idle');
     setPiFlowError(null);
     setPassword('');
+  }, []);
+
+  // Live countdown for the access token's expiry.
+  const expiresAt = refreshInfo?.expiresAt;
+  useEffect(() => {
+    if (!expiresAt) return undefined;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [expiresAt]);
+
+  const isAdminSession = sessionStatus?.sessionType === 'admin' || sessionStatus?.user?.role === 'admin';
+
+  const refreshNow = useCallback(async () => {
+    setTokenAction({ busy: 'refresh', message: null, error: false });
+    try {
+      await bffAxios.post(isAdminSession ? '/api/auth/oauth/refresh' : '/api/auth/oauth/user/refresh');
+      await fetchTokenData();
+      setTokenAction({ busy: null, message: 'Refreshed: the BFF exchanged the refresh token for a new access token.', error: false });
+    } catch (err) {
+      setTokenAction({ busy: null, message: err.response?.data?.message || err.message || 'Refresh failed.', error: true });
+    }
+  }, [fetchTokenData, isAdminSession]);
+
+  const revokeNow = useCallback(async () => {
+    setRevokeOpen(false);
+    setTokenAction({ busy: 'revoke', message: null, error: false });
+    try {
+      const { data } = await bffAxios.post('/api/auth/oauth/user/revoke');
+      const message = data.revoked === true
+        ? 'Revoked: PingOne now reports this access token as inactive. Use Refresh now to get a working one, or sign in again.'
+        : data.revoked === false
+          ? 'Revocation was sent, but PingOne still reports the access token as active.'
+          : data.message;
+      setTokenAction({ busy: null, message, error: data.revoked !== true });
+    } catch (err) {
+      setTokenAction({ busy: null, message: err.response?.data?.message || err.message || 'Revoke failed.', error: true });
+    }
+  }, []);
+
+  const copyClaims = useCallback(async (event, value) => {
+    event.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(value, null, 2));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setCopied(false);
+    }
   }, []);
 
   if (loading) {
@@ -447,13 +526,53 @@ export default function OAuthTokenDisplayPage() {
               {refreshInfo.expiresAt != null && (
                 <div className="otdp-claim-row">
                   <span className="otdp-claim-key">Access token expires</span>
-                  <span className="otdp-claim-value">{new Date(refreshInfo.expiresAt).toLocaleString()}</span>
+                  <span className="otdp-claim-value">
+                    {new Date(refreshInfo.expiresAt).toLocaleString()}{' '}
+                    <span className={refreshInfo.expiresAt <= now ? 'otdp-expired-text' : 'otdp-active-text'} data-testid="expiry-countdown">
+                      ({formatRemaining(refreshInfo.expiresAt - now)})
+                    </span>
+                  </span>
                 </div>
+              )}
+              <div className="otdp-actions">
+                {refreshInfo.present && (
+                  <button
+                    type="button"
+                    className="otdp-action-btn"
+                    onClick={refreshNow}
+                    disabled={tokenAction.busy !== null}
+                  >
+                    {tokenAction.busy === 'refresh' ? 'Refreshing…' : 'Refresh now'}
+                  </button>
+                )}
+                {!isAdminSession && (
+                  <button
+                    type="button"
+                    className="otdp-action-btn otdp-action-btn--danger"
+                    onClick={() => setRevokeOpen(true)}
+                    disabled={tokenAction.busy !== null}
+                  >
+                    {tokenAction.busy === 'revoke' ? 'Revoking…' : 'Revoke access token'}
+                  </button>
+                )}
+              </div>
+              {tokenAction.message && (
+                <p className={tokenAction.error ? 'otdp-flow-error' : 'otdp-action-note'} role="status">{tokenAction.message}</p>
               )}
             </div>
           )}
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={revokeOpen}
+        title="Revoke access token?"
+        message="PingOne will invalidate this session's access token (RFC 7009). The agent and any API call using it will start failing until you refresh the token or sign in again."
+        confirmLabel="Revoke"
+        danger
+        onConfirm={revokeNow}
+        onCancel={() => setRevokeOpen(false)}
+      />
 
       {/* PingOne Userinfo Enrichment — only render card if loading, error, or has data */}
       {(enrichedLoading || enrichedInfo?.error || hasAnyField(enrichedInfo?.data)) && (
@@ -531,11 +650,37 @@ export default function OAuthTokenDisplayPage() {
         </div>
       )}
 
+      {idToken && hasAnyField(enrichedInfo?.data) && (
+        <div className="otdp-card">
+          <div className="otdp-card-title">ID Token vs Userinfo</div>
+          <p className="otdp-muted">The ID token is a signed snapshot from sign-in; userinfo is fetched live. A difference means the profile changed since sign-in.</p>
+          <div className="otdp-compare" role="table" aria-label="ID token compared with userinfo">
+            <div className="otdp-compare-row otdp-compare-row--head" role="row">
+              <span role="columnheader">Claim</span>
+              <span role="columnheader">ID token</span>
+              <span role="columnheader">Userinfo</span>
+              <span role="columnheader">Result</span>
+            </div>
+            {compareClaims(idToken.payload, enrichedInfo.data).map((row) => (
+              <div className="otdp-compare-row" role="row" key={row.key}>
+                <span className="otdp-claim-key" role="cell">{row.key}</span>
+                <span className="otdp-claim-value" role="cell">{row.idValue ?? '-'}</span>
+                <span className="otdp-claim-value" role="cell">{row.userinfoValue ?? '-'}</span>
+                <span className={`otdp-compare-status otdp-compare-status--${row.status === 'match' ? 'ok' : row.status === 'differs' ? 'diff' : 'info'}`} role="cell">{row.status}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Raw payload toggle */}
       {Object.keys(payload).length > 0 && (
         <div className="otdp-card otdp-raw-section">
           <div className="otdp-card-header" onClick={() => toggleSection('rawJson')}>
             <div className="otdp-card-title">Raw JWT Claims (JSON)</div>
+            <button type="button" className="otdp-action-btn otdp-action-btn--small" onClick={(event) => copyClaims(event, payload)}>
+              {copied ? 'Copied' : 'Copy claims'}
+            </button>
             <span className="otdp-toggle-icon">{expandedSections.rawJson ? '▼' : '▶'}</span>
           </div>
           {expandedSections.rawJson && (
