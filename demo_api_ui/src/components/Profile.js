@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { MdCheckCircle } from 'react-icons/md';
 import { toast } from 'react-toastify';
 import bffAxios from '../services/bffAxios';
+import DraggableModal from './DraggableModal';
+import SignInBrand from './SignInBrand';
 import AgentAccessCard from './AgentAccessCard';
 import AgentPermissionsCard from './AgentPermissionsCard';
 import SignInPrompt from './SignInPrompt';
@@ -383,89 +385,87 @@ function ProfileContent({ user }) {
       </div>
 
       {enrollStep !== null && (
-        <div className="up-modal-backdrop">
-          <div
-            className="up-modal"
-            role="dialog"
-            aria-modal="true"
-          >
+        <DraggableModal
+          isOpen
+          onClose={() => { if (!enrollBusy) setEnrollStep(null); }}
+          title={enrollStep === 'email' ? 'Add Email OTP Device' : enrollStep === 'otp' ? 'Enter Verification Code' : 'Device Added'}
+          className="signin-modal pi-flow-signin"
+          defaultWidth={460}
+          defaultHeight={enrollStep === 'done' ? 320 : 440}
+          minHeight={260}
+          footer={
+            <div className="signin-modal__actions">
+              {enrollStep === 'email' && (
+                <button type="submit" form="enroll-email-form" className="signin-prompt__btn" disabled={enrollBusy || !enrollEmail.trim()}>
+                  {enrollBusy ? 'Sending' : 'Send OTP'}
+                </button>
+              )}
+              {enrollStep === 'otp' && (
+                <button type="submit" form="enroll-otp-form" className="signin-prompt__btn" disabled={enrollBusy || !enrollOtp.trim()}>
+                  {enrollBusy ? 'Verifying' : 'Verify'}
+                </button>
+              )}
+              {enrollStep === 'done' ? (
+                <button type="button" className="signin-prompt__btn" onClick={() => setEnrollStep(null)}>Done</button>
+              ) : (
+                <button
+                  type="button"
+                  className="signin-prompt__btn signin-prompt__btn--ghost"
+                  onClick={() => (enrollStep === 'otp' ? setEnrollStep('email') : setEnrollStep(null))}
+                  disabled={enrollBusy}
+                >
+                  {enrollStep === 'otp' ? 'Back' : 'Cancel'}
+                </button>
+              )}
+            </div>
+          }
+        >
+          <div className="dm-scroll">
+            <SignInBrand />
             {enrollStep === 'email' && (
-              <>
-                <div className="up-modal__header">
-                  <span className="up-modal__title">Add Email OTP Device</span>
-                  <button type="button" className="up-modal__close" onClick={() => setEnrollStep(null)} disabled={enrollBusy}>✕</button>
-                </div>
-                <form onSubmit={handleEnrollSendOtp} className="up-modal__body">
-                  <p className="up-modal__desc">We'll send a one-time code to this address to verify it.</p>
-                  <div className="up-form__field">
-                    <label htmlFor="enroll-email">EMAIL</label>
-                    <input
-                      id="enroll-email"
-                      type="email"
-                      value={enrollEmail}
-                      onChange={e => setEnrollEmail(e.target.value)}
-                      required
-                      disabled={enrollBusy}
-                    />
-                  </div>
-                  <div className="up-modal__actions">
-                    <button type="button" className="up-btn up-btn--secondary" onClick={() => setEnrollStep(null)} disabled={enrollBusy}>Cancel</button>
-                    <button type="submit" className="up-btn up-btn--edit" disabled={enrollBusy}>
-                      {enrollBusy ? 'Sending…' : 'Send OTP'}
-                    </button>
-                  </div>
-                </form>
-              </>
+              <form id="enroll-email-form" className="pi-flow-signin__form" onSubmit={handleEnrollSendOtp}>
+                <p className="signin-modal__text">We&apos;ll send a one-time code to this address to verify it.</p>
+                <label className="pi-flow-signin__label" htmlFor="enroll-email">Email</label>
+                <input
+                  id="enroll-email"
+                  className="pi-flow-signin__input"
+                  type="email"
+                  autoFocus
+                  value={enrollEmail}
+                  onChange={e => setEnrollEmail(e.target.value)}
+                  required
+                  disabled={enrollBusy}
+                />
+              </form>
             )}
-
             {enrollStep === 'otp' && (
-              <>
-                <div className="up-modal__header">
-                  <span className="up-modal__title">Enter Verification Code</span>
-                  <button type="button" className="up-modal__close" onClick={() => setEnrollStep(null)} disabled={enrollBusy}>✕</button>
-                </div>
-                <form onSubmit={handleEnrollVerifyOtp} className="up-modal__body">
-                  <p className="up-modal__desc">Code sent to <strong>{enrollEmail}</strong>. Enter it below.</p>
-                  <div className="up-form__field">
-                    <label htmlFor="enroll-otp">VERIFICATION CODE</label>
-                    <input
-                      id="enroll-otp"
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      maxLength={8}
-                      value={enrollOtp}
-                      onChange={e => setEnrollOtp(e.target.value.replace(/\D/g, ''))}
-                      required
-                      disabled={enrollBusy}
-                      placeholder="123456"
-                    />
-                  </div>
-                  <div className="up-modal__actions">
-                    <button type="button" className="up-btn up-btn--secondary" onClick={() => setEnrollStep('email')} disabled={enrollBusy}>Back</button>
-                    <button type="submit" className="up-btn up-btn--edit" disabled={enrollBusy}>
-                      {enrollBusy ? 'Verifying…' : 'Verify'}
-                    </button>
-                  </div>
-                </form>
-              </>
+              <form id="enroll-otp-form" className="pi-flow-signin__form" onSubmit={handleEnrollVerifyOtp}>
+                <p className="signin-modal__text">✓ Code sent to <strong>{enrollEmail}</strong>. Enter it below.</p>
+                <label className="pi-flow-signin__label" htmlFor="enroll-otp">Verification code</label>
+                <input
+                  id="enroll-otp"
+                  className="pi-flow-signin__input"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={8}
+                  autoFocus
+                  value={enrollOtp}
+                  onChange={e => setEnrollOtp(e.target.value.replace(/\D/g, ''))}
+                  required
+                  disabled={enrollBusy}
+                  placeholder="123456"
+                />
+              </form>
             )}
-
             {enrollStep === 'done' && (
-              <>
-                <div className="up-modal__header">
-                  <span className="up-modal__title">Device Added</span>
-                </div>
-                <div className="up-modal__body">
-                  <p className="up-modal__desc"><MdCheckCircle aria-hidden className="up-icon-success" style={{ verticalAlign: 'middle', marginRight: 6 }} /> Email OTP device enrolled successfully.</p>
-                  <div className="up-modal__actions">
-                    <button type="button" className="up-btn up-btn--edit" onClick={() => setEnrollStep(null)}>Done</button>
-                  </div>
-                </div>
-              </>
+              <p className="signin-modal__text">
+                <MdCheckCircle aria-hidden className="up-icon-success" style={{ verticalAlign: 'middle', marginRight: 6 }} />
+                Email OTP device enrolled successfully.
+              </p>
             )}
           </div>
-        </div>
+        </DraggableModal>
       )}
 
       {/* Login Preferences */}

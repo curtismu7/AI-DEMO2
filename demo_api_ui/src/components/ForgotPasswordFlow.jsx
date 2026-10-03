@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import DraggableModal from './DraggableModal';
 import OtpStepUpModal from './OtpStepUpModal';
+import SignInBrand from './SignInBrand';
 import './SecurityCenter.css';
 
 /**
@@ -8,7 +9,7 @@ import './SecurityCenter.css';
  * new password with its worker token (routes/mfa.js /forgot-password/*), and an
  * existing sign-in is never touched.
  */
-export default function ForgotPasswordFlow({ initialUsername = '' }) {
+function useForgotPassword(initialUsername = '') {
   const [step, setStep] = useState('idle'); // idle | mfa | set | done
   const [mfa, setMfa] = useState({ daId: null, devices: [] });
   const [username, setUsername] = useState(initialUsername);
@@ -52,70 +53,107 @@ export default function ForgotPasswordFlow({ initialUsername = '' }) {
     }
   }
 
+  return { step, setStep, mfa, username, setUsername, newPassword, setNewPassword, busy, error, setError, start, finish };
+}
+
+/** Username / new-password form, in the sign-in modal's field styling. */
+function ResetFields({ fp }) {
+  const { step, username, setUsername, newPassword, setNewPassword, busy, error, start, finish } = fp;
   return (
-    <div>
-      {step === 'done' && <p>✅ Password reset. Use the new password next time you sign in.</p>}
-      {error && <p className="sc-error-inline" style={{ margin: '0 0 0.5rem' }}>{error}</p>}
-      {(step === 'idle' || step === 'mfa') && (
+    <form
+      className="pi-flow-signin__form"
+      onSubmit={(e) => { e.preventDefault(); if (step === 'set') finish(); else if (step === 'idle') start(); }}
+    >
+      {step === 'done' ? (
+        <p className="signin-modal__text">✅ Password reset. Use the new password next time you sign in.</p>
+      ) : step === 'set' ? (
         <>
+          <p className="signin-modal__text">✓ MFA verified. Choose a new password.</p>
+          <label className="pi-flow-signin__label" htmlFor="forgot-new-password">New password</label>
           <input
-            type="text"
-            className="rename-input"
-            style={{ display: 'block', width: '100%', maxWidth: 260, boxSizing: 'border-box', marginBottom: '0.5rem' }}
-            placeholder="Username"
-            autoComplete="username"
-            value={username}
-            onChange={e => setUsername(e.target.value)}
-            disabled={busy}
-          />
-          <button type="button" className="btn btn-primary btn-sm" onClick={start} disabled={busy || !username.trim()}>
-            {busy ? 'Starting...' : 'Forgot password? Verify with MFA'}
-          </button>
-        </>
-      )}
-      {step === 'set' && (
-        <>
-          <p className="sc-hint" style={{ margin: '0 0 0.5rem' }}>✓ MFA verified. Choose a new password.</p>
-          <input
+            id="forgot-new-password"
+            className="pi-flow-signin__input"
             type="password"
-            className="rename-input"
-            style={{ display: 'block', width: '100%', maxWidth: 260, boxSizing: 'border-box' }}
-            placeholder="New password"
             autoComplete="new-password"
+            autoFocus
             value={newPassword}
             onChange={e => setNewPassword(e.target.value)}
             disabled={busy}
           />
-          <button
-            type="button"
-            className="btn btn-primary btn-sm"
-            style={{ marginTop: '0.5rem' }}
-            onClick={finish}
-            disabled={busy || !newPassword}
-          >
-            {busy ? 'Resetting...' : 'Reset password'}
-          </button>
+        </>
+      ) : (
+        <>
+          <p className="signin-modal__text">Enter your username. We will verify it is you with MFA.</p>
+          <label className="pi-flow-signin__label" htmlFor="forgot-username">Username</label>
+          <input
+            id="forgot-username"
+            className="pi-flow-signin__input"
+            type="text"
+            autoComplete="username"
+            autoFocus
+            value={username}
+            onChange={e => setUsername(e.target.value)}
+            disabled={busy}
+          />
         </>
       )}
-      <OtpStepUpModal
-        show={step === 'mfa'}
-        mode="p1mfa"
-        contextLine="Verify it is you to reset your password."
-        daId={mfa.daId}
-        devices={mfa.devices}
-        onP1MfaComplete={() => setStep('set')}
-        onP1MfaError={(msg) => { setError(msg || 'MFA failed.'); setStep('idle'); }}
-        onCancel={() => setStep('idle')}
-        onSubmit={() => {}}
-        userIdentity={{ name: username }}
-      />
+      {error ? <p className="signin-modal__text" role="alert">❌ {error}</p> : null}
+    </form>
+  );
+}
+
+function ResetMfaModal({ fp }) {
+  const email = fp.mfa.devices.find(d => String(d.type || '').toUpperCase() === 'EMAIL')?.email;
+  return (
+    <OtpStepUpModal
+      show={fp.step === 'mfa'}
+      mode="p1mfa"
+      compact
+      enrolledOnly
+      brand={<SignInBrand />}
+      contextLine="Verify it is you to reset your password."
+      daId={fp.mfa.daId}
+      devices={fp.mfa.devices}
+      maskedContact={email}
+      onP1MfaComplete={() => fp.setStep('set')}
+      onP1MfaError={(msg) => { fp.setError(msg || 'MFA failed.'); fp.setStep('idle'); }}
+      onCancel={() => fp.setStep('idle')}
+      onSubmit={() => {}}
+      userIdentity={{ name: fp.username }}
+    />
+  );
+}
+
+function primaryAction(fp) {
+  if (fp.step === 'set') {
+    return { label: fp.busy ? 'Resetting' : 'Reset password', onClick: fp.finish, disabled: fp.busy || !fp.newPassword };
+  }
+  return { label: fp.busy ? 'Starting' : 'Verify with MFA', onClick: fp.start, disabled: fp.busy || !fp.username.trim() };
+}
+
+/** Inline, for the Password tab of a signed-in user. */
+export default function ForgotPasswordFlow({ initialUsername = '' }) {
+  const fp = useForgotPassword(initialUsername);
+  const action = primaryAction(fp);
+  return (
+    <div>
+      <ResetFields fp={fp} />
+      {fp.step !== 'done' && (
+        <button type="button" className="btn btn-primary btn-sm" onClick={action.onClick} disabled={action.disabled}>
+          {action.label}
+        </button>
+      )}
+      <ResetMfaModal fp={fp} />
     </div>
   );
 }
 
-/** "Forgot password?" for the signed-out sign-in surfaces: opens the flow in a modal. */
+/** "Forgot password?" for the signed-out sign-in surfaces: a sign-in-styled modal. */
 export function ForgotPasswordLink() {
   const [open, setOpen] = useState(false);
+  const fp = useForgotPassword();
+  const action = primaryAction(fp);
+  const close = () => { setOpen(false); fp.setStep('idle'); fp.setError(null); };
   return (
     <>
       <button type="button" className="signin-prompt__btn signin-prompt__btn--ghost" onClick={() => setOpen(true)}>
@@ -124,17 +162,32 @@ export function ForgotPasswordLink() {
       {open && (
         <DraggableModal
           isOpen
-          onClose={() => setOpen(false)}
+          onClose={close}
           title="Reset your password"
+          className="signin-modal pi-flow-signin"
           defaultWidth={460}
-          defaultHeight={260}
-          minHeight={150}
+          defaultHeight={440}
+          minHeight={360}
+          footer={
+            <div className="signin-modal__actions">
+              {fp.step !== 'done' && (
+                <button type="button" className="signin-prompt__btn" onClick={action.onClick} disabled={action.disabled}>
+                  {action.label}
+                </button>
+              )}
+              <button type="button" className="signin-prompt__btn signin-prompt__btn--ghost" onClick={close}>
+                {fp.step === 'done' ? 'Close' : 'Cancel'}
+              </button>
+            </div>
+          }
         >
           <div className="dm-scroll">
-            <ForgotPasswordFlow />
+            <SignInBrand />
+            <ResetFields fp={fp} />
           </div>
         </DraggableModal>
       )}
+      <ResetMfaModal fp={fp} />
     </>
   );
 }

@@ -6,6 +6,7 @@ const express = require('express');
 
 jest.mock('../services/mfaService', () => ({
   initiateDeviceAuth: jest.fn(),
+  selectDevice: jest.fn(),
   submitOtp: jest.fn(),
 }));
 // Signed-out callers are rejected by the real guard; mirror that.
@@ -61,6 +62,18 @@ describe('forgot password (no sign-in)', () => {
     await complete().expect(200);
     expect(pingOneUserService.setUserPassword).toHaveBeenCalledWith('p1-uuid', 'Str0ng!Pass');
     await complete().expect(403);
+  });
+
+  test('a code PingOne already sent is not sent twice; Resend still sends', async () => {
+    mfaService.initiateDeviceAuth.mockResolvedValue({ id: 'da-1', status: 'OTP_REQUIRED', _embedded: { devices: [] } });
+    mfaService.selectDevice.mockResolvedValue({ status: 'OTP_REQUIRED' });
+    await start().expect(200);
+    const select = () => request(app).put('/api/auth/mfa/challenge/da-1').send({ deviceId: 'd' });
+    const first = await select().expect(200);
+    expect(first.body.status).toBe('OTP_REQUIRED');
+    expect(mfaService.selectDevice).not.toHaveBeenCalled();
+    await select().expect(200);
+    expect(mfaService.selectDevice).toHaveBeenCalledTimes(1);
   });
 
   test('the 123123 demo OTP does not pass a reset challenge', async () => {

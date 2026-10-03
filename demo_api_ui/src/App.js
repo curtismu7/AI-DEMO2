@@ -2303,7 +2303,9 @@ function AppWithAuth() {
                                 loading ? null : user ? (
                                   <SecurityCenter user={user} />
                                 ) : (
-                                  <SignInRequired />
+                                  /* This route sits inside the shell that already
+                                     renders TopNav; SignInRequired adds its own. */
+                                  <SignInPrompt message="This page needs a signed-in session." />
                                 )
                               }
                             />

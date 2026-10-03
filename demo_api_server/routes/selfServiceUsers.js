@@ -8,6 +8,7 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const pingOneUserService = require('../services/pingOneUserService');
+const mfaService = require('../services/mfaService');
 const { logger, LOG_CATEGORIES } = require('../utils/logger');
 const { OAuthError, OAUTH_ERROR_TYPES } = require('../middleware/oauthErrorHandler');
 
@@ -171,6 +172,20 @@ router.post('/',
         });
       }
 
+      // An MFA device is what lets the user reset a forgotten password (MFA-gated),
+      // so registration enrolls an email device unless they already have one.
+      // Non-fatal like the roles above; the outcome is in the response.
+      let mfaEmailDevice;
+      try {
+        mfaEmailDevice = await mfaService.ensureEmailDevice(user.id, email);
+      } catch (mfaError) {
+        logger.warn(LOG_CATEGORIES.USER_MANAGEMENT, 'Could not enroll email MFA device for new user', {
+          userId: user.id,
+          error: mfaError.message
+        });
+        mfaEmailDevice = { status: 'failed', error: mfaError.message };
+      }
+
       res.status(201).json({
         message: 'User created successfully',
         user: {
@@ -182,7 +197,8 @@ router.post('/',
           role,
           createdAt: user.createdAt
         },
-        adminRoles
+        adminRoles,
+        mfaEmailDevice
       });
     } catch (error) {
       logger.error(LOG_CATEGORIES.USER_MANAGEMENT, 'Failed to create user via self-service', {

@@ -141,6 +141,45 @@ describe('OtpStepUpModal method choice table', () => {
     );
   });
 
+  test('p1mfa says the email was sent, then resent after Resend code', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ status: 'OTP_REQUIRED' }),
+    });
+
+    render(
+      <OtpStepUpModal
+        {...baseProps}
+        mode="p1mfa"
+        daId="da-7"
+        maskedContact="cm****@pingone.com"
+        devices={[{ id: 'd-email', type: 'EMAIL', email: 'cm****@pingone.com' }]}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId('mfa-choose-otp'));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Email sent to cm****@pingone.com'));
+
+    fireEvent.click(screen.getByTestId('otp-resend'));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Email resent to cm****@pingone.com'));
+  });
+
+  test('enrolledOnly lists only methods the user already has (no signed-out enrolment)', () => {
+    render(
+      <OtpStepUpModal
+        {...baseProps}
+        mode="p1mfa"
+        enrolledOnly
+        daId="da-8"
+        devices={[{ id: 'd-email', type: 'EMAIL', email: 'cm****@pingone.com' }]}
+      />,
+    );
+
+    expect(screen.getByTestId('mfa-choose-otp')).toBeInTheDocument();
+    expect(screen.queryByTestId('mfa-choose-sms')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('mfa-choose-passkey')).not.toBeInTheDocument();
+  });
+
   test('p1mfa enrolled SMS selects the device and requests OTP', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,

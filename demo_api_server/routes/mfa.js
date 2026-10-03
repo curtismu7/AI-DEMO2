@@ -196,7 +196,15 @@ router.put('/challenge/:daId', mfaSubmitLimiter, authOrReset, async (req, res) =
         result = await mfaService.submitOtp(daId, deviceId, otp, userAccessToken);
       }
     } else if (deviceId) {
-      result = await mfaService.selectDevice(daId, deviceId, userAccessToken);
+      const pending = reset && activeReset(req);
+      if (pending?.autoSent) {
+        // PingOne already sent the code when it auto-selected the only device;
+        // selecting again would send a second one and cancel the first.
+        pending.autoSent = false;
+        result = { status: 'OTP_REQUIRED' };
+      } else {
+        result = await mfaService.selectDevice(daId, deviceId, userAccessToken);
+      }
     } else {
       return res.status(400).json({
         error: 'invalid_body',
@@ -386,7 +394,10 @@ router.post('/forgot-password/start', mfaInitLimiter, async (req, res) => {
     const { user } = await fetchPingOneUserByUsername(username);
     if (!user?.id) return res.status(404).json({ error: 'user_not_found', message: 'No account found for that username.' });
     const result = await mfaService.initiateDeviceAuth(user.id);
-    req.session.pwReset = { userId: user.id, daId: result.id, verified: false, expires: Date.now() + PW_RESET_TTL_MS };
+    req.session.pwReset = {
+      userId: user.id, daId: result.id, verified: false, expires: Date.now() + PW_RESET_TTL_MS,
+      autoSent: result.status === 'OTP_REQUIRED',
+    };
     await new Promise((resolve, reject) => req.session.save((e) => (e ? reject(e) : resolve())));
     res.json({ daId: result.id, status: result.status, devices: result._embedded?.devices || [] });
   } catch (err) {
