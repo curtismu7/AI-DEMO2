@@ -58,10 +58,25 @@ backend's `POST /a2a/jsonrpc` requires one of:
   path — `A2A_TENANT_REGISTRY_JSON` / `FederatedTokenValidator`), not
   relevant for an in-mesh peer call.
 
-**Pick "Pass Agent Token."** That's Privilege forwarding its own workload
-token as `txn-token` — exactly what the backend already validates. "Static
-Token" / "User Token" / "None" don't match anything this handler checks for
-an in-mesh call and would make `message/send` calls fail authentication.
+**Corrected 2026-10-03 after a live test** (full write-up:
+`privilege/GATEWAY-AGENT-TO-AGENT-A2A.md`). This section used to say "Pass
+Agent Token" is Privilege forwarding its *own* workload token. It is not: the
+gateway passes on the **caller's** workload identity and mints nothing.
+
+- With "Pass Agent Token", a person signed in at the gateway is refused after
+  policy passes — a bare 403, and the gateway log reads `app langchainagent
+  requires token-pass, but this session presented no workload assertion`.
+  Only a calling agent that holds a workload identity can use this mode.
+- With "None", the call reaches the backend with no credential (the gateway
+  never forwards the caller's sign-in token) and the handler answers
+  `Bearer authentication required`.
+- Still untested: a real agent-to-agent call under "Pass Agent Token", so it
+  is not yet proven that the token arrives as `txn-token` or passes
+  `validate_privilege_transaction_token()`. "User Token" and "Static Token"
+  are untested too.
+
+"Pass Agent Token" remains the right setting for agent callers and is what
+the app is set to; it just cannot be exercised by a human caller.
 
 ## What's NOT built (out of scope unless asked)
 
