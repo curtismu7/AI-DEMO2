@@ -228,6 +228,33 @@ test('tools/list separates permitted tools from gateway-filtered tools', async (
   });
 });
 
+test('tools/list falls back to the legacy handshake when server/discover gets a 200 with no JSON-RPC reply', async () => {
+  // An SSE-backed gateway door (hostile-mcp) sends its "Unknown method" error
+  // down the stream and answers the POST with an empty 200.
+  await withMockMcpServer(({ rpc }) => {
+    if (rpc.method === 'server/discover') return { status: 200, body: '' };
+    if (rpc.method === 'initialize') return { result: { protocolVersion: '2025-06-18', capabilities: { tools: {} } } };
+    if (rpc.method === 'notifications/initialized') return { status: 202, body: '' };
+    if (rpc.method === 'tools/list') return { result: { tools: [{ name: 'get_weather' }] } };
+    return { status: 400, body: `Unexpected MCP method: ${rpc.method}` };
+  }, async (mcpBase, requests) => {
+    await withServer(async (base) => {
+      await configureDoor(base, { mcpUrl: `${mcpBase}/hostile-mcp/mcp` });
+      const response = await fetch(`${base}/api/gateway/tools/list`, {
+        method: 'POST',
+        headers: { Authorization: 'Bearer demo-agent-token' },
+      });
+      const body = await response.json();
+
+      assert.equal(response.status, 200);
+      assert.deepEqual(body.tools.map((tool) => tool.name), ['get_weather']);
+      assert.deepEqual(requests.map((request) => request.rpc.method), [
+        'server/discover', 'initialize', 'notifications/initialized', 'tools/list',
+      ]);
+    });
+  });
+});
+
 test('doors/probe uses one agent token and keeps denied, unauthenticated, and unavailable doors distinct', async () => {
   await withMockMcpServer(({ pathname, rpc }) => {
     if (pathname === '/denied/mcp') return { status: 403, body: 'Forbidden by gateway policy' };
