@@ -28,7 +28,7 @@ including Ping's SE enablement storyboards and the code paths, is
 | [`runbooks/ping-mcpgw.md`](runbooks/ping-mcpgw.md) | Standing the gateway up locally |
 | [`GATEWAY-REGISTERING-AN-MCP-SERVER.md`](GATEWAY-REGISTERING-AN-MCP-SERVER.md) | Registering an MCP server on the AI Gateway: app fields, entry path, Auth Mode, policy, and what was tested live on 2026-10-02 |
 | [`GATEWAY-SIDECAR-MCP-SERVERS.md`](GATEWAY-SIDECAR-MCP-SERVERS.md) | Running an MCP server as a sidecar in the AI Gateway pod: ports, secrets, registering, verifying, and what was tested live on 2026-10-02 |
-| [`GATEWAY-AGENT-TO-AGENT-A2A.md`](GATEWAY-AGENT-TO-AGENT-A2A.md) | Fronting an A2A agent with the AI Gateway as a Remote Agent: agent card, auth modes, calling it, guardrails and NeMo, and what was tested live on 2026-10-03 |
+| [`GATEWAY-AGENT-TO-AGENT-A2A.md`](GATEWAY-AGENT-TO-AGENT-A2A.md) | A2A direct and through the AI Gateway: agent card, Remote Agent setup, calling agents and their keys, auth modes, Static Token, AIGuard and NeMo; agent-to-agent tested end to end on 2026-10-03 |
 | [`GATEWAY-READING-GATEWAY-ERRORS.md`](GATEWAY-READING-GATEWAY-ERRORS.md) | Reading AI Gateway errors: what each status code can mean, the log lines behind it, tracing one request, backend and guardrail errors; reproduced live on 2026-10-03 |
 | [`GATEWAY-CONNECTING-AN-MCP-CLIENT.md`](GATEWAY-CONNECTING-AN-MCP-CLIENT.md) | Connecting an MCP client to the AI Gateway: the app URL, discovery, self-registration, PKCE sign-in, tokens, client setup, and what was tested live on 2026-10-03 |
 | [`SENSOR-DOCKER-GUIDE.md`](SENSOR-DOCKER-GUIDE.md) | Setting up or debugging the Privilege node sensor on any Docker host: setup, how it works, identity, logging, failure modes |
