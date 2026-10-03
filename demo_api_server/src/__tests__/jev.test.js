@@ -46,6 +46,7 @@ describe('jev route', () => {
     const [, body, cfg] = axios.post.mock.calls[0];
     expect(body.questions.q.type).toBe('noul');
     expect(cfg.headers.Authorization).toBe('Bearer test-key');
+    expect(cfg.timeout).toBe(5000);
   });
 
   test('JEV_ENDPOINT with a key set: key is not sent to the custom endpoint', async () => {
@@ -73,6 +74,7 @@ describe('jev route', () => {
       const [url, , cfg] = axios.post.mock.calls[0];
       expect(url).toBe('http://von.local:8000/v1/systemone');
       expect(cfg.headers.Authorization).toBeUndefined();
+      expect(cfg.timeout).toBe(60000); // local server: allow for its cold-start weight load
     } finally {
       delete process.env.JEV_ENDPOINT;
       delete process.env.JEV_MODEL;
