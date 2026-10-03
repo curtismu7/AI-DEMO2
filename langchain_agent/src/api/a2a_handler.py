@@ -12,6 +12,7 @@ from typing import Any, Callable, Optional
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
+from agent import a2a_delegation
 from authentication.token_validator import (
     TokenValidationError,
     validate_privilege_transaction_token,
@@ -185,6 +186,31 @@ async def jsonrpc(request: Request) -> JSONResponse:
     text = _message_text(body.get("params"))
     if not text:
         return _error(request_id, -32602, "A text message is required", 400)
+
+    # Explicit hand-off: the caller names a configured specialist and this
+    # agent forwards the message to it through the gateway. No banking
+    # identification and no model involved, so it works on the first message.
+    delegate_to = _delegate_target(body.get("params"))
+    if delegate_to:
+        try:
+            delegated = await a2a_delegation.delegate(delegate_to, text)
+        except a2a_delegation.DelegationError as exc:
+            logger.warning("[A2A] delegation to %s failed: %s", delegate_to, exc)
+            return _error(request_id, -32003, f"Delegation failed: {exc}", 502)
+        return JSONResponse(
+            {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "result": {
+                    "kind": "message",
+                    "messageId": str(uuid.uuid4()),
+                    "role": "agent",
+                    "parts": [{"kind": "text", "text": delegated}],
+                    "metadata": {"delegatedTo": delegate_to, "delegatedBy": "langchainagent"},
+                },
+            }
+        )
+
     if _agent is None:
         return _error(request_id, -32002, "Agent is not ready", 503)
 
@@ -209,6 +235,18 @@ async def jsonrpc(request: Request) -> JSONResponse:
             },
         }
     )
+
+
+def _delegate_target(params: Any) -> str:
+    """The ``delegateTo`` name from the request's or the message's metadata, or ''."""
+
+    if not isinstance(params, dict):
+        return ""
+    message = params.get("message") if isinstance(params.get("message"), dict) else {}
+    for holder in (params.get("metadata"), message.get("metadata")):
+        if isinstance(holder, dict) and isinstance(holder.get("delegateTo"), str):
+            return holder["delegateTo"].strip()
+    return ""
 
 
 def _is_gateway_static_token(token: str) -> bool:

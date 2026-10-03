@@ -405,22 +405,27 @@ PY
   info "  GROQ_API_KEY mirrored into langchain-secrets from BFF .env"
 }
 
-# Mirror PRIVILEGE_A2A_STATIC_TOKEN from the vault into langchain-secrets. It is
-# the secret the Privilege gateway's Static Token auth mode sends to the agent's
-# /a2a/jsonrpc; it lives only in the vault (no .env declares it), so
-# secret_from_envfile cannot pick it up.
+# Mirror the Privilege A2A secrets from the vault into langchain-secrets. They
+# live only in the vault (no .env declares them), so secret_from_envfile cannot
+# pick them up:
+#   PRIVILEGE_A2A_STATIC_TOKEN  what the gateway's Static Token auth mode sends
+#                               to the agent's /a2a/jsonrpc (inbound)
+#   PRIVILEGE_A2A_AGENT_KEY     the agent's own gateway key, for calling other
+#                               agents through the gateway (outbound)
 mirror_privilege_a2a_static_token() {
-  vault_has_key PRIVILEGE_A2A_STATIC_TOKEN || return 0
-  [ "${DRY_RUN:-0}" = "1" ] && { printf '[dry-run] langchain-secrets:\n  PRIVILEGE_A2A_STATIC_TOKEN -> vault\n'; return 0; }
-  local a2a_token
-  a2a_token="$(vault_get PRIVILEGE_A2A_STATIC_TOKEN)"
-  export A2A_STATIC_TOKEN="$a2a_token"
-  python3 - <<'PY' | kubectl patch secret langchain-secrets --namespace="$NS" --type merge --patch-file /dev/stdin >/dev/null
+  local key
+  for key in PRIVILEGE_A2A_STATIC_TOKEN PRIVILEGE_A2A_AGENT_KEY; do
+    vault_has_key "$key" || continue
+    if [ "${DRY_RUN:-0}" = "1" ]; then
+      printf '[dry-run] langchain-secrets:\n  %s -> vault\n' "$key"
+      continue
+    fi
+    A2A_SECRET_NAME="$key" A2A_SECRET_VALUE="$(vault_get "$key")" python3 - <<'PY' | kubectl patch secret langchain-secrets --namespace="$NS" --type merge --patch-file /dev/stdin >/dev/null
 import json, os
-print(json.dumps({"stringData": {"PRIVILEGE_A2A_STATIC_TOKEN": os.environ["A2A_STATIC_TOKEN"]}}))
+print(json.dumps({"stringData": {os.environ["A2A_SECRET_NAME"]: os.environ["A2A_SECRET_VALUE"]}}))
 PY
-  unset A2A_STATIC_TOKEN
-  info "  PRIVILEGE_A2A_STATIC_TOKEN mirrored into langchain-secrets from the vault"
+    info "  $key mirrored into langchain-secrets from the vault"
+  done
 }
 
 # Mirror ANTHROPIC_API_KEY from the BFF .env into langchain-secrets so the agent
@@ -723,7 +728,7 @@ inject_helix_api_key                                                        # He
 mirror_google_api_key                                                       # BFF → langchain for Google/Gemini provider
 mirror_groq_api_key                                                          # BFF → langchain for Groq provider
 mirror_anthropic_api_key                                                    # BFF → langchain for Anthropic/Claude provider
-mirror_privilege_a2a_static_token                                           # vault → langchain for the Privilege gateway's Static Token mode
+mirror_privilege_a2a_static_token                                           # vault → langchain: Privilege A2A static token + the agent's own gateway key
 mirror_privilege_llm_config                                                 # BFF → ai-demo-secrets for Privilege LLM protection
 secret_from_envfile gateway-secrets   "$ASSET_ROOT/demo_mcp_gateway/.env"   # MCP gateway
 secret_from_envfile agent-secrets        "$ASSET_ROOT/demo_agent_service/.env" # Agent service
