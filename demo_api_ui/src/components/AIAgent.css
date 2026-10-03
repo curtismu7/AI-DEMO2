@@ -6557,6 +6557,15 @@ body > .banking-agent-float-root .banking-agent-panel {
   gap: 7px;
 }
 
+/* The academy/Jev links get their own full-width wrapping row; squeezed into the
+   1fr column they stacked and "Agent Identity Academy" ran under the search box. */
+.ba-demo-steps-float__content .ba-demo-steps-popout__academy-links {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
 .ba-demo-steps-float__content .ba-demo-steps-popout__search-input {
   min-height: 32px;
   color: var(--th-text);
