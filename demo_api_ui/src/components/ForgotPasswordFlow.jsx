@@ -109,6 +109,7 @@ function ResetMfaModal({ fp }) {
       show={fp.step === 'mfa'}
       mode="p1mfa"
       compact
+      enrolledOnly
       brand={<SignInBrand />}
       contextLine="Verify it is you to reset your password."
       daId={fp.mfa.daId}
@@ -164,9 +165,9 @@ export function ForgotPasswordLink() {
           onClose={close}
           title="Reset your password"
           className="signin-modal pi-flow-signin"
-          defaultWidth={420}
-          defaultHeight={380}
-          minHeight={300}
+          defaultWidth={460}
+          defaultHeight={440}
+          minHeight={360}
           footer={
             <div className="signin-modal__actions">
               {fp.step !== 'done' && (

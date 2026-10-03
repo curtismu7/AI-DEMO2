@@ -164,6 +164,22 @@ describe('OtpStepUpModal method choice table', () => {
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Email resent to cm****@pingone.com'));
   });
 
+  test('enrolledOnly lists only methods the user already has (no signed-out enrolment)', () => {
+    render(
+      <OtpStepUpModal
+        {...baseProps}
+        mode="p1mfa"
+        enrolledOnly
+        daId="da-8"
+        devices={[{ id: 'd-email', type: 'EMAIL', email: 'cm****@pingone.com' }]}
+      />,
+    );
+
+    expect(screen.getByTestId('mfa-choose-otp')).toBeInTheDocument();
+    expect(screen.queryByTestId('mfa-choose-sms')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('mfa-choose-passkey')).not.toBeInTheDocument();
+  });
+
   test('p1mfa enrolled SMS selects the device and requests OTP', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,

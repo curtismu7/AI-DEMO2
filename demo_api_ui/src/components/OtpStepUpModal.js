@@ -81,6 +81,8 @@ function MethodChoiceTable({
   onChooseSms,
   onChoosePasskey,
   extraRows = [],
+  enrolledOnly = false,
+  hasEmail = true,
 }) {
   const passkeyDetail = !passkeySupported
     ? 'Not available in this browser'
@@ -115,6 +117,7 @@ function MethodChoiceTable({
           </tr>
         </thead>
         <tbody>
+          {(!enrolledOnly || hasFido) && (
           <tr className={`otp-step-up-modal__method-row${hasFido ? '' : ' otp-step-up-modal__method-row--setup'}`}>
             <td>
               <span className="otp-step-up-modal__method-name">
@@ -136,6 +139,8 @@ function MethodChoiceTable({
               </button>
             </td>
           </tr>
+          )}
+          {(!enrolledOnly || hasEmail) && (
           <tr className="otp-step-up-modal__method-row">
             <td>
               <span className="otp-step-up-modal__method-name">
@@ -159,6 +164,8 @@ function MethodChoiceTable({
               </button>
             </td>
           </tr>
+          )}
+          {(!enrolledOnly || smsEnrolled) && (
           <tr className={`otp-step-up-modal__method-row${smsEnrolled ? '' : ' otp-step-up-modal__method-row--setup'}`}>
             <td>
               <span className="otp-step-up-modal__method-name">
@@ -178,6 +185,7 @@ function MethodChoiceTable({
               </button>
             </td>
           </tr>
+          )}
           {extraRows.map((row) => (
             <tr key={row.id} className="otp-step-up-modal__method-row">
               <td>
@@ -224,7 +232,7 @@ export default function OtpStepUpModal({
   mode = 'stub',
   daId, devices = [], onP1MfaComplete, onP1MfaError,
   userIdentity, onPasskeyRegistered, deliveryError,
-  brand = null, compact = false,
+  brand = null, compact = false, enrolledOnly = false,
 }) {
   const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
@@ -874,6 +882,8 @@ export default function OtpStepUpModal({
       onChooseSms={handleChooseSms}
       onChoosePasskey={handleChoosePasskey}
       extraRows={extraMethodRows}
+      enrolledOnly={enrolledOnly}
+      hasEmail={!!emailDevice}
     />
   );
 
@@ -1073,11 +1083,11 @@ export default function OtpStepUpModal({
         title="Verify Your Identity"
         footer={p1Footer}
         className="otp-step-up-draggable"
-        defaultWidth={compact ? 440 : 840}
-        defaultHeight={compact ? 470 : 760}
+        defaultWidth={compact ? 560 : 840}
+        defaultHeight={compact ? 640 : 760}
         minWidth={360}
         minHeight={360}
-        storageKey={compact ? 'otp-step-up-modal-p1mfa-compact-v1' : 'otp-step-up-modal-p1mfa-v3'}
+        storageKey={compact ? 'otp-step-up-modal-p1mfa-compact-v2' : 'otp-step-up-modal-p1mfa-v3'}
         zIndex={100080}
       >
         <div className="dm-scroll">
