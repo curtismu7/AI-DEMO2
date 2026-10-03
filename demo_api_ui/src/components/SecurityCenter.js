@@ -733,14 +733,12 @@ function SecurityCenterContent({ user }) {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message || 'Could not start MFA.');
-      if (mountedRef.current) {
-        setPwMfa({ daId: data.daId, devices: data.devices || [] });
-        setPwStep('mfa');
-      }
+      setPwMfa({ daId: data.daId, devices: data.devices || [] });
+      setPwStep('mfa');
     } catch (err) {
-      if (mountedRef.current) setPwError(err.message);
+      setPwError(err.message);
     } finally {
-      if (mountedRef.current) setPwBusy(false);
+      setPwBusy(false);
     }
   }
 
@@ -756,11 +754,12 @@ function SecurityCenterContent({ user }) {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message || 'Password reset failed.');
-      if (mountedRef.current) { setPwStep('done'); setPwNew(''); }
+      setPwStep('done');
+      setPwNew('');
     } catch (err) {
-      if (mountedRef.current) setPwError(err.message);
+      setPwError(err.message);
     } finally {
-      if (mountedRef.current) setPwBusy(false);
+      setPwBusy(false);
     }
   }
 
