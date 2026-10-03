@@ -10937,7 +10937,8 @@ export default function BankingAgent({
                     </button>
                       </div>
                     </section>
-                    {splitChrome && (
+                    {/* Inspect is on every dock, not just the split-column dashboard one: it is plain
+                        navigation, and the Demo Controls pill now also opens on the floating-agent pages. */}
                       <section className="cmd-dock-sec" aria-label="Inspect">
                         <h3 className="cmd-dock-sec__label">Inspect</h3>
                         <div className="cmd-dock-sec__body">
@@ -10981,7 +10982,6 @@ export default function BankingAgent({
                           </button>
                         </div>
                       </section>
-                    )}
                     {effectiveUser?.role === "admin" && (
                       <AdminToolsDropdown
                         open={showAdminTools}

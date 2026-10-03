@@ -249,6 +249,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-03 — The Demo Controls dock had no Inspect section outside the dashboard's split-column layout
+
+**Files:** `demo_api_ui/src/components/AIAgent.js`, `demo_api_ui/src/components/__tests__/AIAgent.headerControls.test.js`.
+
+**What was broken:** The dock's Inspect section (MCP Inspector, P1AZ Inspector, Agent Gateway Inspector, Token Inspector) sat inside `{splitChrome && ...}`, so only the dashboard's middle-placement dock had it. Every floating-agent page, signed in or not, opened a dock without it, including the pages where the Demo Controls pill now appears. It looked like a guest problem only because the check was made on a floating page.
+
+**What changed:** The Inspect section is no longer gated. The four buttons are plain `navigate()` calls with unchanged handlers.
+
+**Do not break:** The Inspect section must stay in the split-column dock with the same buttons. "Live Use Cases" is deliberately still split-column only (it was not part of the request). The `MCP Inspector` button needs an active vertical and shows its existing error modal without one.
+
+**Verify:** `cd demo_api_ui && npx vitest run src/components/__tests__/AIAgent.headerControls.test.js` (the new float-dock Inspect test fails with the gate restored); `npm run test:unit`; `npm run build`. Live: open the dock on `/use-cases` and see the Inspect section.
+
 ### 2026-10-03 — Demo Controls pill only existed where the agent happened to mount
 
 **Files:** `demo_api_ui/src/utils/embeddedAgentFabVisibility.js`, `demo_api_ui/src/App.js`, `demo_api_ui/src/utils/__tests__/embeddedAgentFabVisibility.test.js`.
