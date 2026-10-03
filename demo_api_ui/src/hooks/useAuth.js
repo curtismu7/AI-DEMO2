@@ -7,6 +7,7 @@ import { clearStatusCache } from "../services/cachedStatusService";
 import { nrLog } from "../utils/nrLog";
 import bffAxios from '../services/bffAxios';
 import { notifyError } from '../utils/appToast';
+import { navigateWithOverlay } from '../utils/navigateWithOverlay';
 import { clearIdJagRunState, ID_JAG_USE_CASE_ID, ID_JAG_VALIDATED_CALLBACK_KEY, RUN_MODES } from '../utils/idJagRunMode';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
 import { isNativeIdJagTrace } from '../services/tokenChainTrace/buildTraceSteps';
@@ -126,7 +127,9 @@ export function useAuth() {
           }
         } catch { /* no durable loop guard, so leave manual sign-in available */ }
         if (firstAttempt) {
-          window.location.href = `/api/auth/oauth/user/silent-reauth?return_to=${encodeURIComponent(returnPath)}`;
+          navigateWithOverlay(`/api/auth/oauth/user/silent-reauth?return_to=${encodeURIComponent(returnPath)}`, {
+            message: 'Refreshing your session...',
+          });
           return true;
         }
       }
@@ -177,7 +180,7 @@ export function useAuth() {
         const body = await response.json();
         if (!body.idJagHandoff || !body.logoutUrl) throw new Error('ID-JAG logout handoff was not accepted');
         window.dispatchEvent(new CustomEvent('userLoggedOut', { detail: { idJagHandoff: true } }));
-        window.location.href = body.logoutUrl;
+        navigateWithOverlay(body.logoutUrl, { message: 'Signing out...' });
       } catch (error) {
         if (intentPosted) await bffAxios.post('/api/auth/oauth/user/id-jag/cancel').catch(() => {});
         clearIdJagRunState();
@@ -392,7 +395,7 @@ export function useAuth() {
     }
     window.dispatchEvent(new CustomEvent("userLoggedOut"));
     localStorage.removeItem("tokenChainHistory");
-    window.location.href = "/api/auth/logout";
+    navigateWithOverlay("/api/auth/logout", { message: "Signing out..." });
   }, []);
 
   return { user, loading, logout, sessionReauth, setSessionReauth };

@@ -2,6 +2,7 @@
 /** Shared helpers for re-auth CTAs when the UI shows session/login errors. */
 
 import { clearStatusCache } from '../services/cachedStatusService';
+import { navigateWithOverlay } from './navigateWithOverlay';
 
 /** Dispatched with `detail: { message, role: 'admin' | 'customer' }` so `App` can show an on-page banner. */
 export const SESSION_REAUTH_EVENT = 'banking-session-reauth';
@@ -364,7 +365,7 @@ export function navigateToCustomerOAuthLogin(returnTo) {
   }
 
   const suffix = destination ? `?return_to=${encodeURIComponent(destination)}` : '';
-  window.location.href = `${apiUrl}/api/auth/oauth/user/login${suffix}`;
+  navigateWithOverlay(`${apiUrl}/api/auth/oauth/user/login${suffix}`, { message: 'Signing in...' });
 }
 
 /**
@@ -386,7 +387,7 @@ export function navigateToCustomerOAuthForceLogin(returnTo) {
 
   // force=true is already in the query, so return_to joins with &.
   const suffix = destination ? `&return_to=${encodeURIComponent(destination)}` : '';
-  window.location.href = `${apiUrl}/api/auth/oauth/user/login?force=true${suffix}`;
+  navigateWithOverlay(`${apiUrl}/api/auth/oauth/user/login?force=true${suffix}`, { message: 'Signing in...' });
 }
 
 /**
@@ -404,7 +405,7 @@ export function navigateToAdminOAuthLogin(returnTo) {
   }
 
   const suffix = destination ? `?return_to=${encodeURIComponent(destination)}` : '';
-  window.location.href = `${apiUrl}/api/auth/oauth/login${suffix}`;
+  navigateWithOverlay(`${apiUrl}/api/auth/oauth/login${suffix}`, { message: 'Signing in...' });
 }
 
 /**
@@ -421,5 +422,7 @@ export function requestSilentReauth(returnTo) {
     process.env.REACT_APP_API_URL || (typeof window !== 'undefined' ? window.location.origin : '');
   const rt =
     returnTo || (typeof window !== 'undefined' ? window.location.pathname : '/dashboard');
-  window.location.href = `${apiUrl}/api/auth/reauth?return_to=${encodeURIComponent(rt)}`;
+  navigateWithOverlay(`${apiUrl}/api/auth/reauth?return_to=${encodeURIComponent(rt)}`, {
+    message: 'Refreshing your session...',
+  });
 }

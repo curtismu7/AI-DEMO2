@@ -11,6 +11,7 @@ import JsonHighlight from '../components/shared/JsonHighlight';
 import JsonFormView from '../components/shared/JsonFormView';
 import PingIdentitySpinner from '../components/shared/PingIdentitySpinner';
 import DraggableModal from '../components/DraggableModal';
+import { navigateWithOverlay } from '../utils/navigateWithOverlay';
 import PrivilegeMcpLearningPage from './PrivilegeMcpLearningPage';
 import './PrivilegeMcpClientPage.css';
 
@@ -462,7 +463,7 @@ export default function PrivilegeMcpClientPage() {
     });
     if (kind === 'pingone-admin-login') {
       if (!silent) appendChat('system', 'Signing in for PingOne Admin access...');
-      window.location.href = err.loginUrl;
+      navigateWithOverlay(err.loginUrl, { message: 'Signing in...' });
       return true;
     }
     if (kind === 'gateway-signin') {
@@ -960,7 +961,14 @@ export default function PrivilegeMcpClientPage() {
       requestSignIn('The gateway cannot silently authorize this door from the current session. Sign in to connect it.');
       return false;
     }
-    window.location.href = data.authUrl;
+    // Clicking Sign in is explicit intent for this door, so finish the job on the
+    // way back: the ?auth=success effect discovers its tools once, instead of
+    // leaving the presenter to press "Get MCP Tools" right after signing in. Set
+    // here, past the silentOnly bail-out, so a sign-in that never leaves the page
+    // cannot leave the flag behind. A reload or stale ?auth=success carries no
+    // flag and still discovers nothing.
+    writeSessionFlag(SILENT_DOOR_SWITCH_KEY, true);
+    navigateWithOverlay(data.authUrl, { message: 'Signing in...' });
     return true;
   };
 
@@ -1195,7 +1203,7 @@ export default function PrivilegeMcpClientPage() {
       });
       if (challengeKind === 'pingone-admin-login') {
         if (!silent) appendChat('system', 'Signing in for PingOne Admin access...');
-        window.location.href = err.loginUrl;
+        navigateWithOverlay(err.loginUrl, { message: 'Signing in...' });
         return;
       }
       if (challengeKind === 'gateway-signin' || err.message?.toLowerCase().includes('not authenticated')) {
