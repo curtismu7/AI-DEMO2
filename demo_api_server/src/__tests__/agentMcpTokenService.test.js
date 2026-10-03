@@ -768,6 +768,31 @@ describe('buildSessionPreviewTokenEvents', () => {
     expect(tokenEvents).toEqual([]);
   });
 
+  it('names PingFederate on the login introspection card after a PingFederate sign-in', async () => {
+    const req = makeReq(sampleJwtUserAccessToken);
+    req.session.oauthProvider = 'pingfederate';
+    req.session.loginIntrospection = { active: true, sub: 'demouser', scopes: ['openid'], client_id: 'ai-demo-pf-user' };
+
+    const { tokenEvents } = await buildSessionPreviewTokenEvents(req);
+    const card = tokenEvents.find((e) => e.id === 'user-token-introspection');
+
+    expect(card.label).toBe('User Token — PingFederate Active-Token Introspection at Login (RFC 7662)');
+    expect(card.explanation).toMatch(/^PingFederate confirmed the user token is active/);
+    expect(JSON.stringify(card)).not.toMatch(/PingOne/);
+  });
+
+  it('keeps naming PingOne on the login introspection card for a PingOne sign-in', async () => {
+    const req = makeReq(sampleJwtUserAccessToken);
+    req.session.oauthProvider = 'pingone_sso';
+    req.session.loginIntrospection = { active: true, sub: 'p1-sub', scopes: ['openid'], client_id: 'p1-cid' };
+
+    const { tokenEvents } = await buildSessionPreviewTokenEvents(req);
+    const card = tokenEvents.find((e) => e.id === 'user-token-introspection');
+
+    expect(card.label).toBe('User Token — PingOne Active-Token Introspection at Login (RFC 7662)');
+    expect(card.explanation).toMatch(/^PingOne confirmed the user token is active/);
+  });
+
   it('returns user-token plus exchange-required failed when MCP_RESOURCE_URI is unset', async () => {
     configStore.getEffective.mockImplementation((key) => {
       if (key === 'pingone_resource_mcp_server_uri' || key === 'mcp_resource_uri') return '';

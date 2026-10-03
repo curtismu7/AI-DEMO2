@@ -1323,7 +1323,21 @@ router.get('/callback', async (req, res) => {
         }
       };
 
-      bootstrapEnterprise().finally(() => {
+      // RFC 7662 — introspect at login so /api/tokens/session-preview shows
+      // "active-token introspection" in the Token Chain before any tool call.
+      // Awaited (bounded, never throws) BEFORE the session is saved and the browser
+      // redirected: the token chain fetches once on mount, so a result written after
+      // the redirect (as the old fire-and-forget did) was never shown.
+      const introspectAtLogin = async () => {
+        try {
+          const loginIntrospection = await tokenIntrospectionService.introspectAtLogin(oauthTokens.accessToken);
+          if (loginIntrospection) req.session.loginIntrospection = loginIntrospection;
+        } catch (err) {
+          console.debug('[oauth/user/callback] loginIntrospection skipped:', err.message);
+        }
+      };
+
+      bootstrapEnterprise().then(introspectAtLogin).finally(() => {
       req.session.save((saveErr) => {
         if (saveErr) {
           console.error('[oauth/user/callback] Session save FAILED — aborting login (no _auth cookie):', saveErr.message);
@@ -1347,25 +1361,6 @@ router.get('/callback', async (req, res) => {
           reasonCode: 'allowed',
           identity: hostedAccessDecision || {},
         });
-
-        // RFC 7662 — introspect at login so /api/tokens/session-preview shows
-        // "active-token introspection" in the Token Chain before any tool call.
-        // Fire-and-forget: non-fatal, result stored in session for display only.
-        tokenIntrospectionService.validateToken(oauthTokens.accessToken)
-          .then((intro) => {
-            req.session.loginIntrospection = {
-              active:    intro.valid,
-              sub:       intro.sub,
-              exp:       intro.exp,
-              aud:       intro.aud,
-              scopes:    intro.scopes,
-              client_id: intro.client_id,
-            };
-            req.session.save((e) => { if (e) console.warn('[oauth/user/callback] loginIntrospection session save:', e.message); });
-          })
-          .catch((err) => {
-            console.debug('[oauth/user/callback] loginIntrospection skipped:', err.message);
-          });
 
         // Set a signed auth-state cookie so the session-restore middleware can
         // answer /status and /nl requests even when the session hits a different

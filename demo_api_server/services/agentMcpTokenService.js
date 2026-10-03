@@ -836,9 +836,10 @@ async function buildSessionPreviewTokenEvents(req) {
   const loginIntro = req.session && req.session.loginIntrospection;
   if (loginIntro) {
     const introStatus = loginIntro.active ? 'active' : 'failed';
+    const idp = req.session.oauthProvider === 'pingfederate' ? 'PingFederate' : 'PingOne';
     tokenEvents.push(buildTokenEvent(
       'user-token-introspection',
-      'User Token — PingOne Active-Token Introspection at Login (RFC 7662)',
+      `User Token — ${idp} Active-Token Introspection at Login (RFC 7662)`,
       introStatus,
       loginIntro.active
         ? {
@@ -854,8 +855,8 @@ async function buildSessionPreviewTokenEvents(req) {
           }
         : null,
       loginIntro.active
-        ? `PingOne confirmed the user token is active at login. sub=${loginIntro.sub} scope="${loginIntro.scopes || ''}". Introspection is called once per login and cached in the session.`
-        : `PingOne returned active=false at login — the token was already inactive when the session was established.`,
+        ? `${idp} confirmed the user token is active at login. sub=${loginIntro.sub} scope="${loginIntro.scopes || ''}". Introspection is called once per login and cached in the session.`
+        : `${idp} returned active=false at login — the token was already inactive when the session was established.`,
       {
         rfc: 'RFC 7662',
         introspectionResult: {
