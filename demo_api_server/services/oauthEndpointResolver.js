@@ -153,8 +153,8 @@ function getJwksUri() {
   return base ? `${base}/jwks` : '';
 }
 
-function getIntrospectionEndpoint() {
-  if (_isPingFederate()) {
+function getIntrospectionEndpoint(provider) {
+  if (_isPingFederate(provider)) {
     return configStore.getEffective('pf_introspection_endpoint')
       || _fromCache('introspection_endpoint', 'pingfederate')
       || '';

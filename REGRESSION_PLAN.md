@@ -249,6 +249,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-03 — PingFederate-issued tokens could not be introspected (login token preview skipped)
+
+**Files:** `demo_api_server/services/tokenIntrospectionService.js`, `services/oauthEndpointResolver.js`, `services/configStore.js`, `scripts/pingfederate/provision-introspection-client.js` (new), `scripts/pingfederate/README.md`, `src/__tests__/tokenIntrospectionService.pingfederate.test.js` (new).
+
+**What was broken:** `validateToken` only knew PingOne: its credential matrix held `PINGONE_*` clients, so a PF token (`client_id=ai-demo-pf-user`) matched none, the call was skipped as "not configured", and the PF login's token preview had no introspection step. PingFederate also only answers introspection for a client with the Access Token Validation grant, and none of the 23 PF clients had it.
+
+**What changed:** A PF-issued token is introspected at PF's introspection endpoint as `ai-demo-pf-introspection` (secret `PF_INTROSPECTION_CLIENT_SECRET` from the vault, HTTP Basic). That client is created by the idempotent `provision-introspection-client.js` (dry run by default, `--apply` creates it; never prints or rotates a secret).
+
+**Do not break:** The path is chosen by the TOKEN'S `iss` (`oauthEndpointResolver.getIssuer('pingfederate')`), NOT the active provider. Admin sign-ins under a PingFederate provider still carry PingOne tokens, and PingFederate reports those inactive — never key this on `getOAuthProvider()`. Missing PF credentials stay "not configured" (a skip, `INTROSPECTION_NOT_CONFIGURED`); a PF HTTP failure is `{ valid:false, error:'token_introspection_failed' }`, as the PingOne path already does. Because callers such as `tokenVerificationService` and `/api/introspect` act on `valid:false`, a wrong secret or a missing grant now surfaces as an inactive PF token rather than a skip. PingOne introspection is untouched.
+
+**Verify:** `cd demo_api_server && CI=true npx jest src/__tests__/tokenIntrospectionService.pingfederate.test.js src/__tests__/tokenIntrospectionService.test.js --forceExit` (2 PF tests fail with the service change reverted); `node scripts/pingfederate/provision-introspection-client.js` (dry run; reports the client as present). Live: sign in under PF, then the token preview shows the introspection step as active.
+
 ### 2026-10-03 — PingFederate-down sign-in: say it plainly and give the visitor a way out
 
 **Files:** `demo_api_server/routes/pingfederateRecovery.js` (new), `demo_api_server/server.js`, `demo_api_ui/src/components/PingFederateDownModal.jsx`, `demo_api_ui/src/utils/endUserOAuthErrorToast.js`, `demo_api_ui/src/utils/appToast.js`, `demo_api_ui/src/index.css`.
