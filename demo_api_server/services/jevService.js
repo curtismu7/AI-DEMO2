@@ -25,7 +25,10 @@ const axios = require('axios');
 
 const ENDPOINT = process.env.JEV_ENDPOINT || 'https://openrouter.ai/api/alpha/decisions';
 const MODEL = process.env.JEV_MODEL || 'typesafe/jev-1.13';
-const TIMEOUT_MS = 5000;
+// OpenRouter answers in well under a second, so 5s is a real fault. A local server
+// (Von) spends ~25s loading weights on its first calls after a cold start; a short
+// timeout turns every one of those into a "Jev did not answer" error.
+const TIMEOUT_MS = process.env.JEV_ENDPOINT ? 60000 : 5000;
 const MAX_STATE_CHARS = 2000;
 
 const SCENARIOS = {

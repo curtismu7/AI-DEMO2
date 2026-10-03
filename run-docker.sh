@@ -154,9 +154,10 @@ _optional_group_profiles() {
 
 # Build deduplicated `--profile` flags for the given group names.
 _optional_profile_args() {
-  local groups=("$@") seen="" args=() g p
+  local groups=("$@") seen="" args=() g p profiles
   for g in "${groups[@]}"; do
-    for p in $(_optional_group_profiles "${g}"); do
+    profiles="$(_optional_group_profiles "${g}")" || { echo "unknown optional group: ${g}" >&2; return 1; }
+    for p in ${profiles}; do
       [[ " ${seen} " == *" ${p} "* ]] || { seen+=" ${p}"; args+=(--profile "$p"); }
     done
   done
