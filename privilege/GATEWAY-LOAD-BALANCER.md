@@ -1,0 +1,303 @@
+# Privilege AI Gateway: load balancer and second gateway
+
+Status: staged, gateway 2 deliberately out of rotation. Last updated 2026-10-03.
+Audience: engineers and SEs reviewing how we show "two gateways behind one URL".
+Related: [CURRENT-CONFIGURATION.md](CURRENT-CONFIGURATION.md), [LESSONS-LEARNED.md](LESSONS-LEARNED.md),
+skill `.claude/skills/privilege-mcpgw-agent-k8s/SKILL.md`.
+
+## 1. Summary
+
+We want one public URL, `https://mcpgw.ai-demo.ping-devops.com`, served by two
+Privilege AI Gateways so we can show failover and "1 + 1" to customers.
+
+What we built and proved:
+
+- A 2-replica nginx **load balancer** in front of the existing gateway. The URL did not
+  change. A real LM Studio client registered, signed in through PingOne and ran a tool
+  call end to end through it.
+- A **second gateway** deployed and enrolled, parked (not receiving traffic).
+
+What we learned, and why the design is not round robin:
+
+- Each gateway keeps client registrations, OAuth state and issued tokens **in its own
+  memory**. A token issued by gateway 1 is rejected (401) by gateway 2.
+- The two gateways **cannot reach each other** on their mesh port (8690), so one cannot
+  forward a request to the other. A gateway can only serve apps registered on its own
+  mesh cluster.
+- Privilege's own HA guidance is "deploy at least two gateways per network", meaning two
+  gateways that each own their apps, not nodes forwarding to each other.
+
+The supported design is therefore: **two independent gateways, every Agentic App
+registered on both clusters, and a load balancer that pins each client to one gateway
+for everything (sign-in, token and MCP calls).**
+
+Decisions needed from reviewers are in section 9.
+
+## 2. Goals and non-goals
+
+Goals:
+
+1. One stable URL for MCP clients and the console. No client-side change.
+2. Two gateways able to serve any request for a client pinned to them.
+3. A visible way to show which gateway answered (the `X-Served-By` response header).
+4. Reversible in one command.
+
+Non-goals:
+
+- True per-request load balancing across gateways. Shown not to work (section 5).
+- Sharing sessions or tokens between gateways. Not supported by the product as deployed.
+- Changing the Privilege console model or the PingOne tenant.
+
+## 3. What is deployed
+
+| Piece | Namespace | Name | Notes |
+| --- | --- | --- | --- |
+| Gateway 1 | `ping-devops-curtismuir` | Helm release `agentless-mcpgw` | Mesh cluster `ai-demo-cmuir`. 9 containers: gateway plus 8 sidecars (Brave, Grafana, banking-rest, pingone, openapi-banking, promptguard, guardrail-probe, log-tailer). Owns all Agentic Apps today. |
+| Load balancer | `ping-devops-curtismuir` | Deployment `mcpgw-lb` (2 replicas) and Service `mcpgw-lb` | Source: `pingone-privgateway-helm-main/agentless/mcpgw-lb/mcpgw-lb.yaml`. The ingresses route to it via `frontService=mcpgw-lb`. |
+| Gateway 2 | `ping-devops-cmuir` | Helm release `agentless-mcpgw2` | Mesh cluster `ai-demo-cmuir2`. Gateway only: no sidecars, no OpenSearch. Currently `down` in the load balancer. |
+| Console entries | Privilege console, tenant `0428ba4f-...` | `ai-demo-cmuir`, `ai-demo-cmuir2` | Each gateway is its own entry (its own mesh cluster). |
+
+The chart is `pingone-privgateway-helm-main/agentless/agentless-mcpgw`. Two values were
+added, both defaulting to the old behaviour:
+
+- `gatewayHostname`: the `-hostname` the gateway process answers to (defaults to `hostname`).
+- `frontService`: the Service the ingresses route to (defaults to the gateway itself).
+
+### Request path
+
+```text
+MCP client / browser
+        |  https://mcpgw.ai-demo.ping-devops.com/<App>/...
+        v
+nginx-public ingress (curtismuir)            <- unchanged hostname
+        |  Service mcpgw-lb :8623
+        v
+mcpgw-lb pods (x2)  -- consistent hash on client address (X-Forwarded-For)
+        |                       |
+        v                       v
+gateway 1 (curtismuir)    loopback bridge :8444 -> gateway 2 (cmuir, plain HTTP)
+cluster ai-demo-cmuir     cluster ai-demo-cmuir2   [parked: `down`]
+        |                       |
+        v                       v
+sidecars on localhost     apps/sidecars it owns (must exist: section 6)
+```
+
+Why the loopback bridge: the chart's ingresses use `backend-protocol: HTTPS`, so the
+load balancer must speak TLS to its upstream group. Observed: with gateway 2 started as
+`-hostname mcpgw2...` (matching its certificate) it served TLS; started as
+`-hostname mcpgw...` (the shared name, certificate still `mcpgw2...`) it answered plain
+HTTP on the same port. We have not found the rule in vendor documentation, so treat
+"TLS only when the certificate matches `-hostname`" as an inference. The bridge takes TLS
+in and sends HTTP out so one upstream group can hold both gateways.
+
+## 4. How the load balancer behaves
+
+- **Pinning:** `hash $stick consistent`, where `$stick` is the `X-Forwarded-For` value
+  (client address) or the connection address if absent. One client always lands on the
+  same gateway while both are healthy. Adding or removing a gateway moves only a share of
+  clients (consistent hashing).
+- **Every path is pinned.** There is no round-robin path. Sign-in arrives both at the root
+  (`/authorize`) and under the app name (`/opensearch22/authorize`); a single `location /`
+  avoids the pattern-matching bug described in 5.1.
+- **Failover:** `proxy_next_upstream error timeout http_502 http_503 http_504` with
+  2 tries. If a pinned gateway is down, the request is retried on the other. That client
+  holds a token only the first gateway knows, so it must sign in again. Same as a gateway
+  restart today. Not yet exercised by killing a gateway (section 8).
+- **Header:** every response carries `X-Served-By: gateway-1` or `gateway-2`.
+- **Health:** the pods expose `/lb-health` on port 8081 for readiness and liveness.
+
+## 5. Evidence: what we tried and what it showed
+
+All measurements are from 2026-10-03 on the shared SE cluster.
+
+### 5.1 Sign-in paths under the app name were not pinned (fixed)
+
+First version pinned `^/(register|authorize|token|callback|consent|.well-known/)`. The
+MCP OAuth flow actually uses `/<App>/register`, `/<App>/authorize` and `/<App>/token`, which
+did not match, so they were round-robined. A client could register on one gateway and
+exchange its token on the other.
+
+- Symptom in LM Studio: "This client's registration has expired. Clear its saved
+  credentials for this server and reconnect."
+- Evidence: load balancer access log showed `GET /opensearch22/authorize` going through the
+  round-robin path.
+- Fix: pin everything. After the fix, `/opensearch22/authorize`, `/token`, `/register` all
+  returned `X-Served-By: gateway-1` on 4 of 4 requests each.
+
+### 5.2 A token from gateway 1 is rejected by gateway 2
+
+With MCP calls round-robined and sign-in pinned to gateway 1, the 12:15 UTC sequence was:
+
+```text
+POST /opensearch22/register   201
+GET  /opensearch22/authorize  302 (to PingOne)
+GET  /callback                302
+POST /opensearch22/token      200   <- token issued by gateway 1
+POST /opensearch22/mcp        200   <- served by gateway 1
+POST /opensearch22/mcp        401   <- landed on gateway 2
+```
+
+LM Studio reported "Authentication failed: Unauthorized". With gateway 2 parked, the same
+flow succeeded and a real tool call returned data (an OpenSearch cluster health result).
+
+### 5.3 The gateways cannot mesh with each other
+
+- Both gateway logs show two mesh nodes in the tenant: gateway 1 (`ClusterID ai-demo-cmuir`,
+  NodeURL `mcpgw.ai-demo.ping-devops.com:8690`) and gateway 2 (`ClusterID ai-demo-cmuir2`,
+  NodeURL `mcpgw2.ai-demo.ping-devops.com:8690`), each repeatedly logging
+  `re-establishing link to node`.
+- From inside the cluster, TCP 8690 is **closed** on `mcpgw.ai-demo...`,
+  `mcpgw2.ai-demo...` and gateway 2's in-cluster Service. TCP 443 on the same host is
+  open (control), so the test itself works.
+- The chart's Service and ingress publish only ports 80 and 8623. The mesh address shares
+  its hostname with the HTTPS ingress, so opening 8690 would need cluster-level load
+  balancer or DNS changes on the shared SE cluster, outside this namespace.
+- The log line `this node and ... has same NodeURL` is largely each node seeing its own
+  record and is documented as cosmetic. We saw it before gateway 2 existed.
+
+Consequence: gateway 2 cannot forward a request to gateway 1, cannot validate its tokens,
+and cannot reach its apps.
+
+### 5.4 Vendor documentation
+
+From the Privilege docs (gateway pages), paraphrased:
+
+- "To ensure high availability, we recommend deploying at least two gateways per network."
+- An MCP server application is bound to a gateway by selecting a **Mesh Cluster** in the
+  application configuration. The docs are silent on adding a second node to an existing
+  gateway, on two gateways sharing a hostname, and on scaling or load balancing a gateway.
+
+### 5.5 Smaller findings
+
+- We could not open a details page for a gateway in the console, so we found no route to
+  add a second node to `ai-demo-cmuir`. "Add New" creates a new cluster entry each time
+  (that is how `ai-demo-cmuir2` was made).
+- Gateway 2 needs the same hostname as gateway 1 to answer the shared URL (the gateway
+  routes by Host header). That makes the two NodeURLs identical. Because the mesh cannot
+  link anyway (5.3), this is harmless but untidy; see open questions.
+
+## 6. Bringing gateway 2 into rotation (runbook)
+
+Prerequisite: every Agentic App that clients use must exist on cluster `ai-demo-cmuir2`,
+with the same name as on `ai-demo-cmuir`, because the URL path is `/<AppName>/mcp`.
+
+1. **Register the app on the second cluster** in the Privilege console: Agentic Apps, add
+   MCP Server, same Application Name, Mesh Cluster `ai-demo-cmuir2`, Auth Mode None.
+   - Pilot with `opensearch22`. Its backend is an in-cluster Service reachable from gateway 2:
+     `http://opensearch-mcp-server.ping-devops-curtismuir.svc.cluster.local/sse`
+     (use `/sse`, not `/mcp`). No sidecar is needed.
+   - Apps backed by sidecars (`http://localhost:808x`) need the same sidecar containers in
+     gateway 2's pod, and copies of their secrets in `ping-devops-cmuir`. Not done.
+   - Add a policy for the app on the new registration (policies are per app).
+2. **Confirm gateway 2 knows the app.** Gateway 2 log: no `Cluster not found` for the app.
+3. **Take gateway 2 out of `down`** in `mcpgw-lb.yaml` (the `127.0.0.1:8444` line), then:
+
+   ```bash
+   kubectl --context us -n ping-devops-curtismuir apply -f pingone-privgateway-helm-main/agentless/mcpgw-lb/mcpgw-lb.yaml
+   kubectl --context us -n ping-devops-curtismuir rollout restart deploy/mcpgw-lb
+   ```
+
+4. **Verify** (section 7).
+
+### Roll back or park gateway 2
+
+Add `down` back to the `127.0.0.1:8444` line and repeat the apply and restart. All traffic
+returns to gateway 1 within seconds.
+
+### Remove the load balancer entirely
+
+```bash
+helm --kube-context us upgrade agentless-mcpgw \
+  pingone-privgateway-helm-main/agentless/agentless-mcpgw \
+  -n ping-devops-curtismuir --reuse-values --set frontService=
+```
+
+The ingresses route straight to gateway 1 again.
+
+### Tear down gateway 2
+
+```bash
+helm --kube-context us -n ping-devops-cmuir uninstall agentless-mcpgw2
+kubectl --context us -n ping-devops-cmuir delete pvc agentless-mcpgw-ssl
+```
+
+Then delete the `ai-demo-cmuir2` entry in the console. The SE cluster is shared; remove
+what you are not using.
+
+## 7. Verification
+
+Headers (no sign-in needed):
+
+```bash
+for i in 1 2 3 4; do curl -s -o /dev/null -D - https://mcpgw.ai-demo.ping-devops.com/opensearch22/mcp | grep -i x-served-by; done
+```
+
+Expected: gateway-1 only while gateway 2 is `down`; a mix across different client
+addresses once it is in rotation. One client always sees the same gateway.
+
+End to end (needs a person):
+
+1. In LM Studio remove the server entry from `~/.lmstudio/mcp.json`, quit with Cmd+Q,
+   reopen, re-add with just the URL `https://mcpgw.ai-demo.ping-devops.com/opensearch22/mcp`,
+   toggle on, complete the PingOne sign-in, run a tool call.
+2. Watch the load balancer log: `register`, `authorize` (302), `callback`, `token` (200),
+   then `mcp` 200s, with no 401.
+3. To show failover: delete one `mcpgw-lb` pod during a session (calls continue); then
+   park the client's gateway and show it re-signing in on the other.
+
+Self-test of the sign-in path without a browser: register a throwaway client at
+`/<App>/register` and `GET /<App>/authorize` with PKCE parameters. A `302` to
+`auth.pingone.com` means the load balancer and gateway are healthy.
+
+## 8. What is not verified
+
+- Gateway 2 has never completed a full sign-in and tool call for any app. Everything about
+  it serving traffic is design, not measurement.
+- Whether the console allows the same Application Name on two mesh clusters.
+- Whether the client address seen behind the ingress is the real client or a shared
+  address. If shared, consistent hashing sends everyone to one gateway and the spread is
+  poor. Check `X-Forwarded-For` in the load balancer log from two different networks.
+- Real failover by killing a gateway (retry then re-sign-in).
+- Load balancer behaviour on SSE streams long enough to hit the 3600 s timeouts.
+- The `Error sending message to nebula: EOF` lines in gateway 1's log (audit link to the
+  Privilege cloud). They did not affect calls; we did not establish whether they are new.
+
+## 9. Open questions and decisions for reviewers
+
+1. **Is a second set of app registrations acceptable?** It is the only supported way for
+   both gateways to serve. Cost: each app registered twice, sidecar-backed apps need their
+   sidecars on gateway 2, and policies are maintained twice. If not acceptable, the fallback
+   is one gateway behind the load balancer (stable URL and load balancer HA, no gateway HA).
+2. **Ask Ping (Privilege team):** is there a supported way to run two nodes in one mesh
+   cluster, or to publish the mesh port 8690 between gateways? If yes, the registration
+   duplication and the pinning both go away.
+3. **Hostname:** two gateways advertising the same hostname collide as mesh nodes. Is the
+   right fix distinct hostnames with the load balancer rewriting `Host`, at the cost of the
+   gateway advertising its own URL in OAuth metadata? We have not tried it.
+4. **Where should this live long term?** The load balancer is a plain manifest applied by
+   hand. Should it move into the Helm chart as an optional template?
+5. **Demo story:** is "client pinned to a gateway, re-sign-in on failure" a good enough
+   failover narrative for customers?
+
+## 10. Operational gotchas
+
+- A `helm upgrade` of the live gateway release **without `--reuse-values`** resets
+  `frontService` and sends traffic straight to gateway 1, bypassing the load balancer.
+- Restarting a gateway forgets every registered client; clients show "registration has
+  expired" until the saved credentials are cleared and the client reconnects.
+- Gateway enrollment tokens are single use and live about two hours.
+- `helm upgrade --reuse-values` replaces the whole `extraContainers` list; carry every
+  sidecar forward and repackage the chart tgz after any template edit
+  (see the skill for the dry-run check).
+- The shared SE cluster expects teardown when a demo ends.
+
+## 11. Change record
+
+| What | Where |
+| --- | --- |
+| Load balancer and chart values | PR #634 |
+| Pin-everything load balancer config and this document | this PR |
+| UI: themed boot screen, redirect overlay, discover tools after sign-in | PR #632 |
+
+Secrets are not recorded here. Enrollment tokens, OIDC client secrets and the generated
+values file live outside the repository.

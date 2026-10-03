@@ -1,24 +1,34 @@
 # Sticky load balancer in front of two Privilege agentless gateways, so one URL
 # (https://mcpgw.ai-demo.ping-devops.com) is served by either of them.
+# Design, evidence and runbook: privilege/GATEWAY-LOAD-BALANCER.md
 #
 # Apply into the namespace that owns the public ingress (ping-devops-curtismuir):
 #   kubectl apply -n ping-devops-curtismuir -f mcpgw-lb.yaml
+#   kubectl -n ping-devops-curtismuir rollout restart deploy/mcpgw-lb
 # then point the ingresses at it with `--set frontService=mcpgw-lb` on the
 # agentless-mcpgw release. Roll back with `--set frontService=` (empty).
 #
-# Hybrid routing: MCP calls rotate round robin, but the sign-in paths
-# (/register /authorize /token /callback /consent /.well-known/) are pinned per
-# client. Each gateway keeps its DCR client registry and OAuth state in memory,
-# so those must reach the same node. The pin key is the client address from
-# X-Forwarded-For. If a node dies its clients are retried on the other one and
-# must re-register, same as after a gateway restart today.
+# Routing: EVERY path is pinned per client (consistent hash on the client address
+# from X-Forwarded-For). Nothing is round robin. Tested 2026-10-03: each gateway
+# keeps its DCR client registry, OAuth state and issued tokens in its own memory,
+# and the two gateways cannot reach each other on the mesh port (8690), so a token
+# issued by one is rejected (401) by the other. A client therefore signs in on one
+# gateway and stays on it. If that gateway dies the client is retried on the other
+# one and must sign in again, same as after a gateway restart today.
+#
+# Each gateway must own the Agentic Apps it serves. Apps are bound to one Mesh
+# Cluster, so every app has to be registered on BOTH clusters (ai-demo-cmuir and
+# ai-demo-cmuir2) before gateway 2 is taken out of `down` below. Until then a
+# client hashed to gateway 2 would reach a gateway that does not know the app.
 #
 # Why HTTPS with the gateway's own cert: the chart's ingresses carry
 # backend-protocol HTTPS, so the hop into this pod has to be TLS. The cert is
 # the existing agentless-mcpgw-tls secret; the ingress does not verify it.
 #
-# The upstream names below are the two Services. The second lives in another
-# namespace (the chart prefixes nothing, so two releases cannot share one).
+# Gateway 2 lives in another namespace (the chart prefixes nothing, so two
+# releases cannot share one). It answers to the shared hostname but its cert is
+# for its own, so it serves plain HTTP; the loopback bridge below lets one
+# upstream group hold both.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -38,7 +48,7 @@ data:
       map $http_upgrade $conn_upgrade { default upgrade; "" ""; }
 
       # Friendly node name for the X-Served-By header. Gateway 2 is reached via
-      # the loopback hop below; the last address wins when a request was retried.
+      # the loopback bridge below; the last address wins when a request was retried.
       map $upstream_addr $node { ~127\.0\.0\.1:8444$ gateway-2; default gateway-1; }
 
       # Shared proxy settings (inherited by every server and location).
@@ -57,24 +67,12 @@ data:
       proxy_next_upstream error timeout http_502 http_503 http_504;
       proxy_next_upstream_tries 2;
 
-      # Gateway 1 (curtismuir) serves TLS. Gateway 2 (cmuir) answers to the shared
-      # hostname but its certificate is for its own, so it falls back to plain
-      # HTTP; the loopback server below bridges that so one upstream group can
-      # hold both.
-      # MCP calls: plain round robin.
-      upstream gateways_rr {
-        zone gateways_rr 64k;  # share the rotation across workers; else each starts on gateway 1
-        server agentless-mcpgw.ping-devops-curtismuir.svc.cluster.local:8623 max_fails=2 fail_timeout=10s;
-        # PARKED. Tested 2026-10-03: a token issued by gateway 1 is rejected (401)
-        # by gateway 2, so round robin on /mcp breaks every signed-in client.
-        server 127.0.0.1:8444 max_fails=2 fail_timeout=10s down;
-      }
-
-      # Sign-in: pinned per client, because DCR and OAuth state are per node.
-      upstream gateways_sticky {
+      upstream gateways {
         hash $stick consistent;
         server agentless-mcpgw.ping-devops-curtismuir.svc.cluster.local:8623 max_fails=2 fail_timeout=10s;
-        server 127.0.0.1:8444 max_fails=2 fail_timeout=10s down;  # PARKED, see above
+        # PARKED until every app is registered on cluster ai-demo-cmuir2.
+        # Remove `down` to put gateway 2 in rotation.
+        server 127.0.0.1:8444 max_fails=2 fail_timeout=10s down;
       }
 
       server {
@@ -82,7 +80,7 @@ data:
         location = /lb-health { return 200 "ok\n"; }
       }
 
-      # Loopback bridge: TLS in (so the upstream groups stay https), HTTP out.
+      # Loopback bridge: TLS in (so the upstream group stays https), HTTP out.
       server {
         listen 127.0.0.1:8444 ssl;
         ssl_certificate /tls/tls.crt;
@@ -100,13 +98,7 @@ data:
         add_header X-Served-By $node always;
 
         location / {
-          proxy_pass https://gateways_rr;
-        }
-
-        # Sign-in comes both at the root and under the app name
-        # (/opensearch22/authorize), so the app prefix is optional.
-        location ~ ^/([^/]+/)?(register|authorize|token|callback|consent)(/|$)|/\.well-known/ {
-          proxy_pass https://gateways_sticky;
+          proxy_pass https://gateways;
         }
       }
     }
