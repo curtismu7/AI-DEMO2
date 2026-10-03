@@ -66,6 +66,11 @@
   text-transform: uppercase;
   color: var(--th-text-muted);
 }
+/* .ba-textsize carries margin-left:auto for the header row; in a section it
+   should sit at the start with the other controls. */
+.cmd-dock-sec__body .ba-textsize {
+  margin-left: 0;
+}
 .cmd-dock-sec__body {
   display: flex;
   flex-wrap: wrap;
