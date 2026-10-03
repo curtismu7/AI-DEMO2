@@ -21,6 +21,7 @@ from models.auth import AccessToken
 from models.chat import ChatMessage, ChatSession
 from config.settings import get_config
 from .mcp_tool_provider import MCPToolProvider, build_auth_popup_message
+from .a2a_delegation import build_delegate_tools
 from .conversation_memory import ConversationMemory
 from .execution_tracer import AgentExecutionTracer, TracingMixin
 from .tracing_callback import DetailedTracingCallbackHandler
@@ -176,6 +177,8 @@ class LangChainMCPAgent(TracingMixin):
             try:
                 # Get available MCP tools
                 self._tools = await self.mcp_tool_provider.get_langchain_tools()
+                # Peer agents this agent may hand work to (empty unless configured).
+                self._tools = list(self._tools) + build_delegate_tools()
 
                 if not self._tools:
                     logger.warning("No MCP tools available for agent, using tool-less LangGraph agent")
