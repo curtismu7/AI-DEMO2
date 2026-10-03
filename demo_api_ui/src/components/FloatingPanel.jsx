@@ -121,6 +121,23 @@ export default function FloatingPanel({
     target.addEventListener('pointercancel', onUp);
   }, [pos, isDrawer]);
 
+  // The opening position is computed once from the window size at mount, so
+  // narrowing the window afterwards would leave the panel hanging off the edge.
+  // Pull it back on resize only — dragging past the edge stays allowed.
+  useEffect(() => {
+    if (isDrawer) return undefined;
+    const onResize = () =>
+      setPos((p) => {
+        // A null position means "let CSS place it" — leave those alone.
+        if (typeof p.x !== 'number' || typeof p.y !== 'number') return p;
+        const x = Math.max(0, Math.min(p.x, win.innerWidth - size.w));
+        const y = bottomDock ? p.y : Math.max(0, Math.min(p.y, win.innerHeight - size.h));
+        return x === p.x && y === p.y ? p : { x, y };
+      });
+    win.addEventListener('resize', onResize);
+    return () => win.removeEventListener('resize', onResize);
+  }, [isDrawer, bottomDock, win, size.w, size.h]);
+
   // (pointer capture approach above; no separate isDragging effect needed)
   useEffect(() => {
     // Keep isDragging in sync but don't add global listeners — pointer capture handles it
