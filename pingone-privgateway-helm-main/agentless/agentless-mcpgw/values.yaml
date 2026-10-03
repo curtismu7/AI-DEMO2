@@ -134,6 +134,9 @@ logShipping:
   enabled: true
   opensearchUrl: "http://opensearch:9200"
   index: gateway-events
+  # Name of a Secret with `username` and `password` keys. Set it when the
+  # target needs basic auth, e.g. opensearchUrl pointed at Elasticsearch.
+  authSecret: ""
 
 opensearchMcpServer:
   enabled: true

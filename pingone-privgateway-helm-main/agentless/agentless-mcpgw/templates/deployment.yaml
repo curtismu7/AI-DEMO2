@@ -131,9 +131,14 @@ spec:
                 echo "$line"
                 case "$line" in
                   *'"msg":"LLM request"'*|*'"msg":"AIGuard"'*)
-                    echo "$line" > /tmp/gw-event.json
+                    # VirtualKeyID is the working sk-orion- key, not an id for
+                    # it. Ship only its prefix and last four characters.
+                    echo "$line" | sed -E 's/("VirtualKeyID":"[^"]{0,9})[^"]*([^"]{4})"/\1...\2"/' > /tmp/gw-event.json
                     wget -q -O /dev/null -T 3 \
                       --header 'Content-Type: application/json' \
+                      {{- if $ls.authSecret }}
+                      --header "Authorization: Basic $(printf '%s:%s' "$LOG_SHIP_USERNAME" "$LOG_SHIP_PASSWORD" | base64 | tr -d '\n')" \
+                      {{- end }}
                       --post-file=/tmp/gw-event.json \
                       "{{ $ls.opensearchUrl | default "http://opensearch:9200" }}/{{ $ls.index | default "gateway-events" }}/_doc" \
                       2>/dev/null
@@ -143,6 +148,19 @@ spec:
               {{- else }}
               tail -F /var/log/procyon/cyonproxy.log
               {{- end }}
+          {{- if $ls.authSecret }}
+          env:
+            - name: LOG_SHIP_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $ls.authSecret }}
+                  key: username
+            - name: LOG_SHIP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $ls.authSecret }}
+                  key: password
+          {{- end }}
           volumeMounts:
             - name: logs
               mountPath: /var/log/procyon
