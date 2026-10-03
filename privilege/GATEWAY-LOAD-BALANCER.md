@@ -30,7 +30,7 @@ call across the mesh to the cluster that owns the app.
 | Gateway 2 advertises its in-cluster Service name, `agentless-mcpgw.ping-devops-cmuir.svc.cluster.local`, which gateway 1 resolves with no change to itself | chart value `gatewayHostname` on gateway 2 |
 | Gateway 2 can dial gateway 1's advertised public name | chart value `hostAliases` on gateway 2, pointing `mcpgw.ai-demo.ping-devops.com` at gateway 1's Service |
 | Gateway 2's OAuth metadata shows only the public URL | `oidc.serverUrl=https://mcpgw.ai-demo.ping-devops.com` on gateway 2 |
-| Gateway 2 in rotation | `down` removed in `mcpgw-lb.yaml` |
+| Gateway 2 in rotation | chart value `loadBalancer.peers[0].parked: false` on gateway 1's release |
 
 **Evidence.**
 
@@ -85,6 +85,40 @@ It is client-to-backend version negotiation, not the load balancer or the mesh.
   are `localhost` in gateway 1's pod, reached over the mesh like `opensearch22`; not tested.
 - Whether Ping supports gateway-to-gateway mesh inside one tenant. It works; ask anyway.
 
+**Decisions taken (2026-10-03).**
+
+- **Failover that makes the client sign in again is NOT acceptable.** The current design
+  cannot do better: registrations, OAuth state and tokens live in each gateway's memory, so
+  a client moved to the other gateway always signs in again. Only a gateway change (shared
+  or persistent session state) can fix it. This is now a requirement to raise with Ping,
+  together with the question of whether the mesh setup is supported. Until then, present
+  this as "two gateways serve one URL and one registration", not as seamless failover.
+- **The load balancer moves into the Helm chart.** Done: it is `templates/loadbalancer.yaml`,
+  switched on by `loadBalancer.enabled`; the hand-applied `mcpgw-lb/mcpgw-lb.yaml` is gone.
+
+**Operating the load balancer from the chart.** Gateway 1's settings are in
+`pingone-privgateway-helm-main/agentless/gateway1-lb.values.yaml`, gateway 2's in
+`gateway2-mesh.values.yaml` (plus a private file for its secrets).
+
+```bash
+# apply or change the load balancer (always --reuse-values: the sidecars live in the release values)
+helm --kube-context us upgrade agentless-mcpgw pingone-privgateway-helm-main/agentless/agentless-mcpgw \
+  -n ping-devops-curtismuir --reuse-values -f pingone-privgateway-helm-main/agentless/gateway1-lb.values.yaml
+
+```
+
+- **Park gateway 2:** set `parked: true` on its entry in `gateway1-lb.values.yaml` and run
+  the command above. Do not use `--set 'loadBalancer.peers[0]...'` with `--reuse-values`:
+  setting a list index that way has corrupted list entries on this chart before.
+- **Park gateway 1** (to force clients onto gateway 2 for a test): `ownParked: true`.
+- **Take the load balancer out:** `loadBalancer.enabled: false`; the ingresses go back to
+  gateway 1.
+
+The load balancer pods roll on their own after each change.
+
+The older runbook commands in sections 6 and 7 that edit `mcpgw-lb.yaml` and run
+`kubectl apply` are superseded by these.
+
 ## 1. Summary
 
 We want one public URL, `https://mcpgw.ai-demo.ping-devops.com`, served by two
@@ -136,7 +170,7 @@ Non-goals:
 | Piece | Namespace | Name | Notes |
 | --- | --- | --- | --- |
 | Gateway 1 | `ping-devops-curtismuir` | Helm release `agentless-mcpgw` | Mesh cluster `ai-demo-cmuir`. 9 containers: gateway plus 8 sidecars (Brave, Grafana, banking-rest, pingone, openapi-banking, promptguard, guardrail-probe, log-tailer). Owns all Agentic Apps today. |
-| Load balancer | `ping-devops-curtismuir` | Deployment `mcpgw-lb` (2 replicas) and Service `mcpgw-lb` | Source: `pingone-privgateway-helm-main/agentless/mcpgw-lb/mcpgw-lb.yaml`. The ingresses route to it via `frontService=mcpgw-lb`. |
+| Load balancer | `ping-devops-curtismuir` | Deployment `mcpgw-lb` (2 replicas) and Service `mcpgw-lb` | Source: the chart's `templates/loadbalancer.yaml`, switched on by `loadBalancer.enabled` (values in `gateway1-lb.values.yaml`). The ingresses route to it automatically when it is enabled. |
 | Gateway 2 | `ping-devops-cmuir` | Helm release `agentless-mcpgw2` | Mesh cluster `ai-demo-cmuir2`. Gateway only: no sidecars, no OpenSearch. Currently `down` in the load balancer. |
 | Console entries | Privilege console, tenant `0428ba4f-...` | `ai-demo-cmuir`, `ai-demo-cmuir2` | Each gateway is its own entry (its own mesh cluster). |
 
@@ -301,19 +335,15 @@ only reach gateway 2 for apps that have the same name there, which the console d
      gateway 2's pod, and copies of their secrets in `ping-devops-cmuir`. Not done.
    - Add a policy for the app on the new registration (policies are per app).
 2. **Confirm gateway 2 knows the app.** Gateway 2 log: no `Cluster not found` for the app.
-3. **Take gateway 2 out of `down`** in `mcpgw-lb.yaml` (the `127.0.0.1:8444` line), then:
-
-   ```bash
-   kubectl --context us -n ping-devops-curtismuir apply -f pingone-privgateway-helm-main/agentless/mcpgw-lb/mcpgw-lb.yaml
-   kubectl --context us -n ping-devops-curtismuir rollout restart deploy/mcpgw-lb
-   ```
+3. **Put gateway 2 in rotation** by setting its `parked: false` in `gateway1-lb.values.yaml`
+   (section 0, "Operating the load balancer from the chart").
 
 4. **Verify** (section 7).
 
 ### Roll back or park gateway 2
 
-Add `down` back to the `127.0.0.1:8444` line and repeat the apply and restart. All traffic
-returns to gateway 1 within seconds.
+Set gateway 2's `parked: true` in `gateway1-lb.values.yaml` and run the same `helm upgrade`
+(section 0). All traffic returns to gateway 1 once the load balancer pods have rolled.
 
 ### Remove the load balancer entirely
 

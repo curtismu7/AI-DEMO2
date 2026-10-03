@@ -1,0 +1,174 @@
+{{- /*
+  Optional load balancer in front of this gateway and its peers, so one URL is
+  served by several gateways. Off unless loadBalancer.enabled. Local addition to
+  the vendored chart. Design and evidence: privilege/GATEWAY-LOAD-BALANCER.md.
+
+  Routing: EVERY path is pinned per client (consistent hash on the client address
+  from X-Forwarded-For; the ingress overwrites any client-supplied value with the
+  real address). Nothing is round robin. Each gateway keeps its DCR client
+  registry, OAuth state and issued tokens in its own memory, so a token issued by
+  one is rejected (401) by another. A client signs in on one gateway and stays on
+  it; if that gateway dies the client is retried on another and must sign in again.
+
+  Apps are registered ONCE. The gateways are linked over the mesh (meshPort,
+  gatewayHostname, hostAliases), so the gateway a client is pinned to forwards the
+  call to the cluster that owns the app. If the mesh link is down, a client pinned
+  to a non-owning gateway gets 500s: set that peer's `parked: true`.
+
+  TLS: the chart's ingresses carry backend-protocol HTTPS, so the hop into this
+  pod is TLS, using this release's own certificate (the ingress does not verify
+  it). A peer whose OAuth SERVER_URL does not match its certificate serves plain
+  HTTP; each peer therefore gets a loopback bridge (TLS in, the peer's scheme
+  out), which lets one https upstream group hold every gateway.
+*/ -}}
+{{- if .Values.loadBalancer.enabled }}
+{{- $lb := .Values.loadBalancer }}
+{{- $name := include "agentless-mcpgw.lbName" . }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-config
+  namespace: {{ .Values.namespace }}
+data:
+  nginx.conf: |
+    worker_processes auto;
+    pid /tmp/nginx.pid;
+    error_log /dev/stderr warn;
+    events { worker_connections 1024; }
+    http {
+      # node= is the gateway that answered; xff= is the pin key. Without them the
+      # log cannot show which gateway a client landed on.
+      log_format lb '$remote_addr [$time_local] "$request" $status $body_bytes_sent '
+                    'node=$node xff="$http_x_forwarded_for"';
+      access_log /dev/stdout lb;
+      client_body_temp_path /tmp/cb; proxy_temp_path /tmp/pt;
+      fastcgi_temp_path /tmp/fc; uwsgi_temp_path /tmp/uw; scgi_temp_path /tmp/sc;
+
+      map $http_x_forwarded_for $stick { default $http_x_forwarded_for; "" $remote_addr; }
+      map $http_upgrade $conn_upgrade { default upgrade; "" ""; }
+
+      # Friendly node name for the X-Served-By header. Peers are reached via the
+      # loopback bridges below; the last address wins when a request was retried.
+      map $upstream_addr $node {
+        {{- range $i, $peer := $lb.peers }}
+        ~127\.0\.0\.1:{{ add 8444 $i }}$ {{ $peer.name }};
+        {{- end }}
+        default {{ $lb.ownName }};
+      }
+
+      # Shared proxy settings (inherited by every server and location).
+      proxy_http_version 1.1;
+      proxy_set_header Host $host;
+      proxy_set_header X-Forwarded-For $http_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection $conn_upgrade;
+      proxy_ssl_server_name on;
+      proxy_ssl_name $host;
+      proxy_ssl_verify off;
+      proxy_buffering off;
+      proxy_read_timeout 3600s;
+      proxy_send_timeout 3600s;
+      proxy_next_upstream error timeout http_502 http_503 http_504;
+      proxy_next_upstream_tries 2;
+
+      upstream gateways {
+        hash $stick consistent;
+        server {{ include "agentless-mcpgw.name" . }}.{{ .Values.namespace }}.svc.cluster.local:8623 max_fails=2 fail_timeout=10s{{ if $lb.ownParked }} down{{ end }};
+        {{- range $i, $peer := $lb.peers }}
+        server 127.0.0.1:{{ add 8444 $i }} max_fails=2 fail_timeout=10s{{ if $peer.parked }} down{{ end }};
+        {{- end }}
+      }
+
+      server {
+        listen 8081;
+        location = /lb-health { return 200 "ok\n"; }
+      }
+      {{- range $i, $peer := $lb.peers }}
+
+      # Loopback bridge to {{ $peer.name }}: TLS in, the peer's own scheme out.
+      server {
+        listen 127.0.0.1:{{ add 8444 $i }} ssl;
+        ssl_certificate /tls/tls.crt;
+        ssl_certificate_key /tls/tls.key;
+        location / {
+          proxy_pass {{ $peer.scheme | default "http" }}://{{ $peer.address }};
+        }
+      }
+      {{- end }}
+
+      server {
+        listen 8443 ssl;
+        ssl_certificate /tls/tls.crt;
+        ssl_certificate_key /tls/tls.key;
+
+        add_header X-Served-By $node always;
+
+        location / {
+          proxy_pass https://gateways;
+        }
+      }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ $name }}
+spec:
+  replicas: {{ $lb.replicas }}
+  selector:
+    matchLabels:
+      app: {{ $name }}
+  template:
+    metadata:
+      labels:
+        app: {{ $name }}
+      annotations:
+        # nginx reads its config once at start; roll the pods when it changes.
+        checksum/config: {{ toJson $lb | sha256sum }}
+    spec:
+      containers:
+        - name: nginx
+          image: {{ $lb.image }}
+          command: ["nginx", "-g", "daemon off;", "-c", "/etc/nginx/lb/nginx.conf"]
+          ports:
+            - containerPort: 8443
+              name: https
+            - containerPort: 8081
+              name: health
+          readinessProbe:
+            httpGet: {path: /lb-health, port: 8081}
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /lb-health, port: 8081}
+            periodSeconds: 30
+          resources:
+            {{- toYaml $lb.resources | nindent 12 }}
+          volumeMounts:
+            - {name: conf, mountPath: /etc/nginx/lb, readOnly: true}
+            - {name: tls, mountPath: /tls, readOnly: true}
+      volumes:
+        - name: conf
+          configMap: {name: {{ $name }}-config}
+        - name: tls
+          secret: {secretName: {{ include "agentless-mcpgw.name" . }}-tls}
+---
+# Port 8623 because the chart's ingresses hard-code it for the gateway Service.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ $name }}
+spec:
+  selector:
+    app: {{ $name }}
+  ports:
+    - name: https
+      port: 8623
+      targetPort: 8443
+{{- end }}

@@ -2,10 +2,20 @@
 agentless-mcpgw
 {{- end }}
 
-{{- /* Service the ingresses route to: the gateway itself unless frontService
-       names a load balancer in front of it. */ -}}
+{{- define "agentless-mcpgw.lbName" -}}
+{{ .Values.loadBalancer.name | default "mcpgw-lb" }}
+{{- end }}
+
+{{- /* Service the ingresses route to. An explicit frontService wins; otherwise the
+       chart's own load balancer when it is enabled; otherwise the gateway itself. */ -}}
 {{- define "agentless-mcpgw.front" -}}
-{{ default (include "agentless-mcpgw.name" .) .Values.frontService }}
+{{- if .Values.frontService -}}
+{{ .Values.frontService }}
+{{- else if .Values.loadBalancer.enabled -}}
+{{ include "agentless-mcpgw.lbName" . }}
+{{- else -}}
+{{ include "agentless-mcpgw.name" . }}
+{{- end -}}
 {{- end }}
 
 {{- define "agentless-mcpgw.labels" -}}

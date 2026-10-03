@@ -1,0 +1,21 @@
+# Gateway 1 overlay (no secrets): the load balancer in front, and the mesh port.
+# Apply on top of the release's existing values:
+#   helm upgrade agentless-mcpgw agentless-mcpgw/ -n ping-devops-curtismuir \
+#     --reuse-values -f gateway1-lb.values.yaml
+# --reuse-values matters: without it the sidecars and every other value are lost.
+#
+# To park a gateway for a test, set its `parked` (or `ownParked`) to true and run
+# the same upgrade; the load balancer pods roll on their own.
+meshPort: 8690
+frontService: ""          # empty = the ingresses use the chart's load balancer
+loadBalancer:
+  enabled: true
+  ownName: gateway-1
+  ownParked: false
+  peers:
+    - name: gateway-2
+      # Gateway 2's Service in the other namespace. It serves plain HTTP because
+      # its OAuth URL is the public one, which its own certificate does not match.
+      address: agentless-mcpgw.ping-devops-cmuir.svc.cluster.local:8623
+      scheme: http
+      parked: false
