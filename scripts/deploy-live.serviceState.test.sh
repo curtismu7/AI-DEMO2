@@ -41,7 +41,7 @@ deploy_live_service_selected ui \
   && bad "unselected service was accepted" \
   || ok "unselected service is excluded"
 
-for service in ai-demo-spire-server ai-demo-spire-agent ai-demo-spire-registration ai-demo-spiffe-helper-bff ai-demo-spiffe-oidc-provider; do
+for service in ai-demo-spire-server ai-demo-spire-agent ai-demo-spire-registration ai-demo-spiffe-helper-bff ai-demo-spiffe-oidc-provider ai-demo-von-jev; do
   deploy_live_created_service_is_optional_profile "$service" \
     && ok "$service is ignored only by the project-wide created-container check" \
     || bad "$service should be recognized as an optional SPIFFE profile container"

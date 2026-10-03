@@ -100,6 +100,28 @@ services:
     networks:
       - ai-demo
 
+  # Von (open-source TypeSafe-compatible "System One" model) — the keyless local
+  # backend for the /jev-learning page. Profile `jev`: OFF by default because it
+  # holds ~7 GiB RAM and runs under amd64 emulation on Apple Silicon (first call
+  # ~2 min while weights load). Start with `./run-docker.sh optional start jev`.
+  # The BFF reaches it through demo_api_server/.env:
+  #   JEV_ENDPOINT=http://host.docker.internal:8765/v1/systemone  JEV_MODEL=von-1.3.0
+  # (set it there, not under `environment:` — see .env.example). The image carries
+  # its own /health healthcheck. Weights live in the `von-hf` volume; the name is
+  # pinned so a hand-run `docker run -v von-hf:...` container and this one share it.
+  von-jev:
+    image: ghcr.io/wfzyx/von:cpu
+    platform: linux/amd64
+    container_name: ai-demo-von-jev
+    profiles: ["jev"]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8765:8000"
+    volumes:
+      - von-hf:/data/huggingface
+    networks:
+      - ai-demo
+
   # Prometheus + Grafana read the metrics PingGateway already publishes on its
   # admin connector (:8085). Profile `observability`, shared by alertmanager, loki,
   # alloy and grafana below: off by default, started with
@@ -2516,6 +2538,10 @@ networks:
     driver: bridge
 
 volumes:
+  # Von model weights (opt-in `jev` profile). Pinned name = adopts the volume a
+  # manual `docker run -v von-hf:/data/huggingface` already filled.
+  von-hf:
+    name: von-hf
   spiffe-server-data:
   spiffe-server-api-socket:
   spiffe-bootstrap:
