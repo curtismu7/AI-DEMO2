@@ -713,24 +713,25 @@ def test_nemo_optional_rails_start_lazily_and_pick_the_message_shape_by_directio
         detector.close()
 
 
-def test_when_injection_and_pii_both_fire_the_finding_is_prompt_injection():
-    # Pins a known limit: one finding carries one category, and the first rail
-    # in RAILS order (injection) names it. The message still lists every rail.
-    # The deberta model flags "..., please remember it." next to an SSN as INJECTION,
-    # so this is what a real SSN prompt like that returns; a bare SSN is pii.
+def test_when_injection_and_pii_both_fire_both_categories_are_flagged():
+    # Each category is its own finding so the gateway applies its own block
+    # threshold to it. The deberta model flags "..., please remember it." next
+    # to an SSN as INJECTION while the regex rail flags the SSN as PII.
     detector = object.__new__(NeMoDetector)
-    detector._rails, detector._extra = object(), {"regex_pii": object()}
+    detector._rails, detector._extra = object(), {"regex_pii": object(), "presidio_pii": object()}
     detector._blocked = lambda engine, messages: True
-    rails = {**DEFAULT_RAILS, "regex_pii": True}
+    rails = {"injection": True, "regex_pii": True, "presidio_pii": True}
     text = "My social security number is 123-45-6789, please remember it."
 
     result = detector.check(text, direction="request", rails=rails)
-    assert result["rails"] == ["injection", "regex_pii"] and result["label"] == "INJECTION"
+    assert result["rails"] == ["injection", "regex_pii", "presidio_pii"]
 
     manager = SimpleNamespace(check=lambda text, **options: result)
     findings = to_findings([{"role": "user_prompt", "direction": "request", "text": text}], manager, None, rails)
-    assert findings[0]["category"] == "prompt_injection"
-    assert "rails: injection, regex_pii" in findings[0]["messages"][0]
+    assert [f["category"] for f in findings] == ["prompt_injection", "pii"]
+    assert {f["location"]["index"] for f in findings} == {0}
+    assert "rails: injection)" in findings[0]["messages"][0]
+    assert "rails: regex_pii, presidio_pii)" in findings[1]["messages"][0], "one PII finding, not one per PII rail"
 
 
 if __name__ == "__main__":

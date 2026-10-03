@@ -16,7 +16,7 @@ import os
 import http.server
 import threading
 
-from detectors import DEFAULT_RAILS, DetectorManager, DetectorUnavailable
+from detectors import DEFAULT_RAILS, _RAIL_LABELS, DetectorManager, DetectorUnavailable
 
 # Tunable at deploy time — the model, its benign label(s) and the block point all
 # vary by classifier, so none of them is hardcoded. Default is ProtectAI's public
@@ -98,20 +98,27 @@ def to_findings(units, manager, demo=None, rails=None):
                       manager.check(text, direction=unit.get("direction"), rails=rails))
             label, score = result["label"], result["score"]
             message = f"Prompt-Guard flagged {label}"
-            if result.get("rails"):
-                message += " (rails: " + ", ".join(result["rails"]) + ")"
             if score is not None:
                 message += f" ({score:.2f})"
         if not result["blocked"]:
             continue
+        # One finding per category, so each meets its own gateway block threshold.
+        # Rails of one category (regex + Presidio PII) share a finding.
+        by_label = {}
+        for rail in result.get("rails") or []:
+            by_label.setdefault(_RAIL_LABELS[rail], []).append(rail)
+        flagged = ([(label, f"Prompt-Guard flagged {label} (rails: {', '.join(rails)})")
+                    for label, rails in by_label.items()]
+                   or [(result["label"], message)])
         score = result["score"]
-        findings.append({
-            "category": category_for(result["label"] or "MALICIOUS"),
-            "severity": "high" if score is None or score >= 0.9 else "medium",
-            "location": {"index": i},
-            "messages": [message],
-            "contents": [text[:200]],
-        })
+        for label, message in flagged:
+            findings.append({
+                "category": category_for(label or "MALICIOUS"),
+                "severity": "high" if score is None or score >= 0.9 else "medium",
+                "location": {"index": i},
+                "messages": [message],
+                "contents": [text[:200]],
+            })
     return findings
 
 

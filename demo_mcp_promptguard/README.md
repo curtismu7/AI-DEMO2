@@ -74,7 +74,9 @@ With the NeMo engine selected, the panel enables each rail separately. None need
 
 `PUT /demo/config` takes an optional `rails` object with all three booleans; omitting it keeps the current
 selection. Optional rails start on Apply (Presidio loads a ~500MB model on first use) and stay running until the
-engine is switched. A response-direction unit is checked as model output.
+engine is switched. A response-direction unit is checked as model output. When rails of different categories fire
+on the same text, each category is its own finding (the two PII rails share one), so the gateway applies each
+category's block threshold separately.
 
 Not included: jailbreak heuristics (needs `gpt2-large`, about 3GB, loaded at import) and the LLM-backed rails
 (self-check, content safety, topic control, fact-check, hallucination).
