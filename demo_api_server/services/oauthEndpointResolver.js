@@ -155,9 +155,16 @@ function getJwksUri() {
 
 function getIntrospectionEndpoint(provider) {
   if (_isPingFederate(provider)) {
-    return configStore.getEffective('pf_introspection_endpoint')
-      || _fromCache('introspection_endpoint', 'pingfederate')
-      || '';
+    const explicit = configStore.getEffective('pf_introspection_endpoint')
+      || _fromCache('introspection_endpoint', 'pingfederate');
+    if (explicit) return explicit;
+    // The discovery cache only holds the provider that was active at startup, and nothing
+    // sets PF_INTROSPECTION_ENDPOINT, so derive it from the token endpoint the way the
+    // PingOne branch does: .../as/token.oauth2 -> .../as/introspect.oauth2.
+    const tokenEndpoint = configStore.getEffective('pf_token_endpoint') || '';
+    return tokenEndpoint.includes('/token.oauth2')
+      ? tokenEndpoint.replace('/token.oauth2', '/introspect.oauth2')
+      : '';
   }
   const explicit = configStore.getEffective('oauth_introspection_endpoint');
   if (explicit) return explicit;

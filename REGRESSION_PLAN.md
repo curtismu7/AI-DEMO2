@@ -249,6 +249,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-03 — PF introspection still skipped live: no PF introspection endpoint to call
+
+**Files:** `demo_api_server/services/oauthEndpointResolver.js`, `src/__tests__/oauthEndpointResolver.pfIntrospection.test.js` (new).
+
+**What was broken:** After the PF-introspection change deployed, a PF sign-in still logged "Token introspection not configured" and PF saw no introspection call. `getIntrospectionEndpoint('pingfederate')` returned `''`: nothing sets `PF_INTROSPECTION_ENDPOINT`, and the discovery cache only holds the provider that was active when the BFF started (it started on PingOne, PF was selected afterwards).
+
+**What changed:** With no explicit or cached endpoint, the PF branch derives it from `pf_token_endpoint` (`.../as/token.oauth2` to `.../as/introspect.oauth2`), as the PingOne branch already derives `/introspect` from its token endpoint. A token endpoint that is not PF-shaped yields `''`, never a guess.
+
+**Do not break:** An explicit `pf_introspection_endpoint` (or the cache) still wins. The PingOne branch is untouched. Do not "fix" this by relying on the discovery cache: it is empty whenever the provider is switched after startup.
+
+**Verify:** `cd demo_api_server && CI=true npx jest src/__tests__/oauthEndpointResolver.pfIntrospection.test.js --forceExit` (the derive test fails with the change reverted). Live: sign in under PF, then PF's audit log shows an OAuth entry for `ai-demo-pf-introspection`.
+
 ### 2026-10-03 — PingFederate-issued tokens could not be introspected (login token preview skipped)
 
 **Files:** `demo_api_server/services/tokenIntrospectionService.js`, `services/oauthEndpointResolver.js`, `services/configStore.js`, `scripts/pingfederate/provision-introspection-client.js` (new), `scripts/pingfederate/README.md`, `src/__tests__/tokenIntrospectionService.pingfederate.test.js` (new).
