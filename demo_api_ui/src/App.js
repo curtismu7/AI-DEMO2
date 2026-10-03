@@ -269,6 +269,7 @@ import {
   isAgentLifecycleRoute,
   isEnterpriseMcpDemoRoute,
   isMonitoringRoute,
+  isDemoControlsRoute,
   isPublicMarketingAgentPath,
   isPingOneAdminAgentRoute,
 } from "./utils/embeddedAgentFabVisibility";
@@ -593,6 +594,11 @@ function AppWithAuth() {
 
   const onMonitoringRoute = isMonitoringRoute(pathname);
 
+  // Use-case launch, inspector / token tools and setup pages: the floating agent
+  // (and with it the Demo Controls pill) is available there too, signed-in only like
+  // the monitoring pages.
+  const onDemoControlsRoute = isDemoControlsRoute(pathname);
+
   const agentDisabled = appFlags.agentUiMode === "disabled";
 
   const showFloatingAgent =
@@ -601,6 +607,7 @@ function AppWithAuth() {
     (marketingAgentSurface ||
       (Boolean(user) && agentPlacement === "none") ||
       (Boolean(user) && onMonitoringRoute) ||
+      (Boolean(user) && onDemoControlsRoute) ||
       (Boolean(user) &&
         agentPlacement !== "none" &&
         onDashboardAgentRoute &&
