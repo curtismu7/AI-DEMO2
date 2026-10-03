@@ -224,6 +224,7 @@ export default function OtpStepUpModal({
   mode = 'stub',
   daId, devices = [], onP1MfaComplete, onP1MfaError,
   userIdentity, onPasskeyRegistered, deliveryError,
+  brand = null, compact = false,
 }) {
   const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
@@ -242,6 +243,9 @@ export default function OtpStepUpModal({
   const [selectedDeviceId, setSelectedDeviceId] = useState(null);
   const [p1Error, setP1Error] = useState('');
   const [otpResending, setOtpResending] = useState(false);
+  // 'sent' | 'resent' — tells the user the code is on its way (and that Resend did something).
+  const [sendNote, setSendNote] = useState('sent');
+  const resendingRef = useRef(false);
   const pollRef = useRef(null);
   // Keep a ref to the current daId so startPushPolling always polls the live value.
   const daIdRef = useRef(daId);
@@ -379,6 +383,7 @@ export default function OtpStepUpModal({
 
       switch (data.status) {
         case 'OTP_REQUIRED':
+          setSendNote(resendingRef.current ? 'resent' : 'sent');
           setP1Step('otp');
           break;
         case 'PUSH_CONFIRMATION_REQUIRED':
@@ -450,11 +455,13 @@ export default function OtpStepUpModal({
         return;
       }
       setOtpResending(true);
+      resendingRef.current = true;
       setError('');
       try {
         await handleSelectDevice(device);
         setOtp('');
       } finally {
+        resendingRef.current = false;
         setOtpResending(false);
       }
       return;
@@ -912,8 +919,11 @@ export default function OtpStepUpModal({
   const otpEntryPanel = (
     <>
       {deliveryBanner}
-      {!deliveryError && otpContactLabel && (
-        <div className="otp-step-up-modal__contact">A code was sent to {otpContactLabel}</div>
+      {!deliveryError && (otpContactLabel || mode === 'p1mfa') && (
+        <div className="otp-step-up-modal__contact" role="status">
+          ✓ {otpChannel === 'sms' ? 'Text message' : 'Email'} {sendNote === 'resent' ? 'resent' : 'sent'}
+          {otpContactLabel ? ` to ${otpContactLabel}` : ''}
+        </div>
       )}
       <input
         ref={inputRef}
@@ -1063,14 +1073,15 @@ export default function OtpStepUpModal({
         title="Verify Your Identity"
         footer={p1Footer}
         className="otp-step-up-draggable"
-        defaultWidth={840}
-        defaultHeight={760}
+        defaultWidth={compact ? 440 : 840}
+        defaultHeight={compact ? 470 : 760}
         minWidth={360}
         minHeight={360}
-        storageKey="otp-step-up-modal-p1mfa-v3"
+        storageKey={compact ? 'otp-step-up-modal-p1mfa-compact-v1' : 'otp-step-up-modal-p1mfa-v3'}
         zIndex={100080}
       >
         <div className="dm-scroll">
+          {brand}
           {identityHeader}
 
           <p className="otp-step-up-modal__lead">
