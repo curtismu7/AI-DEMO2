@@ -2299,7 +2299,13 @@ function AppWithAuth() {
                             />
                             <Route
                               path="/security"
-                              element={<SecurityCenter user={user} />}
+                              element={
+                                loading ? null : user ? (
+                                  <SecurityCenter user={user} />
+                                ) : (
+                                  <SignInRequired />
+                                )
+                              }
                             />
                             <Route
                               path="*"

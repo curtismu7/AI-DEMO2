@@ -1,5 +1,6 @@
 import { navigateToCustomerOAuthLogin } from "../utils/authUi";
 import { startRoleSwitch } from "../utils/roleSwitch";
+import { ForgotPasswordLink } from "./ForgotPasswordFlow";
 
 /**
  * The canonical "you need to sign in" affordance for content that still renders.
@@ -63,6 +64,7 @@ export default function SignInPrompt({
       <button type="button" className="signin-prompt__btn" onClick={handleSignIn}>
         {cta}
       </button>
+      {!admin && <ForgotPasswordLink />}
     </div>
   );
 }

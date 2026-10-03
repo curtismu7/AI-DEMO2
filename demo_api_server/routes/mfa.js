@@ -7,6 +7,7 @@ const mfaService = require('../services/mfaService');
 const oauthService = require('../services/oauthService');
 const posthog = require('../services/posthog');
 const configStore = require('../services/configStore');
+const pingOneUserService = require('../services/pingOneUserService');
 const { fetchPingOneUserByUsername } = require('../services/pingOneUserLookupService');
 
 /**
@@ -171,12 +172,13 @@ router.post('/challenge', mfaInitLimiter, authenticateToken, async (req, res) =>
 //   { deviceId, otp }        → submit OTP code (email OTP or TOTP)
 //   { assertion }            → relay FIDO2/WebAuthn assertion
 // Sets req.session.stepUpVerified = true on COMPLETED.
-router.put('/challenge/:daId', mfaSubmitLimiter, authenticateToken, async (req, res) => {
+router.put('/challenge/:daId', mfaSubmitLimiter, authOrReset, async (req, res) => {
   try {
     const { daId } = req.params;
     const { deviceId, otp, assertion, origin } = req.body;
+    const reset = isResetChallenge(req);
     const userAccessToken = req.session.oauthTokens?.accessToken;
-    if (!userAccessToken) {
+    if (!userAccessToken && !reset) {
       return res.status(401).json({ error: 'no_session', message: 'Not authenticated.' });
     }
 
@@ -187,7 +189,7 @@ router.put('/challenge/:daId', mfaSubmitLimiter, authenticateToken, async (req, 
       // Demo bypass — same code as stub /oauth/user/verify-otp and consent verifyMfa.
       // Device-list (PingOne) path used to call submitOtp only, so 123123 worked on
       // the old OTP-only screen but failed after picking Email/SMS from the list.
-      if (String(otp).trim() === '123123') {
+      if (!reset && String(otp).trim() === '123123') {
         console.log(`[MFA] demo bypass OTP accepted daId=${String(daId).slice(0, 8)}…`);
         result = { status: 'COMPLETED' };
       } else {
@@ -205,7 +207,7 @@ router.put('/challenge/:daId', mfaSubmitLimiter, authenticateToken, async (req, 
     const completed = result.status === 'COMPLETED';
     if (completed) {
       _warnIfMemoryStore(req);
-      req.session.stepUpVerified = Date.now() + STEP_UP_TTL_MS;
+      if (reset) activeReset(req).verified = true; else req.session.stepUpVerified = Date.now() + STEP_UP_TTL_MS;
       await new Promise((resolve, reject) =>
         req.session.save((err) => (err ? reject(err) : resolve()))
       );
@@ -257,17 +259,18 @@ router.put('/challenge/:daId', mfaSubmitLimiter, authenticateToken, async (req, 
 // Poll device authentication status.
 // Returns status and publicKeyCredentialRequestOptions when ASSERTION_REQUIRED (for FIDO2).
 // Also sets stepUpVerified = true when COMPLETED (covers push poll completion).
-router.get('/challenge/:daId/status', authenticateToken, async (req, res) => {
+router.get('/challenge/:daId/status', authOrReset, async (req, res) => {
   try {
     const { daId } = req.params;
+    const reset = isResetChallenge(req);
     const userAccessToken = req.session.oauthTokens?.accessToken;
-    if (!userAccessToken) {
+    if (!userAccessToken && !reset) {
       return res.status(401).json({ error: 'no_session', message: 'Not authenticated.' });
     }
     const result = await mfaService.getDeviceAuthStatus(daId, userAccessToken);
     const completed = result.status === 'COMPLETED';
     if (completed) {
-      req.session.stepUpVerified = Date.now() + STEP_UP_TTL_MS;
+      if (reset) activeReset(req).verified = true; else req.session.stepUpVerified = Date.now() + STEP_UP_TTL_MS;
       await new Promise((resolve, reject) =>
         req.session.save((err) => (err ? reject(err) : resolve()))
       );
@@ -350,6 +353,61 @@ router.post('/test/otp-verify', mfaSubmitLimiter, authenticateToken, async (req,
   } catch (err) {
     console.error('[MFA TEST MODE] POST /test/otp-verify failed:', err.message);
     res.status(err.status || 500).json({ error: 'otp_verify_failed', message: err.message });
+  }
+});
+
+// ── Forgot password (no sign-in) ──
+// The BFF drives MFA and the password set with its worker token, so the caller
+// needs no PingOne session. An anonymous session carries
+// req.session.pwReset = { userId, daId, verified, expires }; the challenge
+// routes accept it for that daId, and the reset only runs once MFA completed.
+// Never touches an existing sign-in.
+const PW_RESET_TTL_MS = 10 * 60 * 1000;
+
+function activeReset(req) {
+  const r = req.session?.pwReset;
+  return r && r.expires > Date.now() ? r : null;
+}
+
+function isResetChallenge(req) {
+  return !!req.params.daId && activeReset(req)?.daId === req.params.daId;
+}
+
+// The challenge routes serve a signed-in user or this reset session.
+function authOrReset(req, res, next) {
+  return isResetChallenge(req) ? next() : authenticateToken(req, res, next);
+}
+
+// POST /api/auth/mfa/forgot-password/start  { username } -> { daId, devices }
+router.post('/forgot-password/start', mfaInitLimiter, async (req, res) => {
+  try {
+    const username = String(req.body?.username || '').trim();
+    if (!username) return res.status(400).json({ error: 'missing_username', message: 'Username is required.' });
+    const { user } = await fetchPingOneUserByUsername(username);
+    if (!user?.id) return res.status(404).json({ error: 'user_not_found', message: 'No account found for that username.' });
+    const result = await mfaService.initiateDeviceAuth(user.id);
+    req.session.pwReset = { userId: user.id, daId: result.id, verified: false, expires: Date.now() + PW_RESET_TTL_MS };
+    await new Promise((resolve, reject) => req.session.save((e) => (e ? reject(e) : resolve())));
+    res.json({ daId: result.id, status: result.status, devices: result._embedded?.devices || [] });
+  } catch (err) {
+    console.error('[MFA route] POST /forgot-password/start failed:', err.message);
+    res.status(err.status || 500).json({ error: 'forgot_password_failed', message: err.message });
+  }
+});
+
+// POST /api/auth/mfa/forgot-password/complete  { newPassword }
+router.post('/forgot-password/complete', mfaSubmitLimiter, async (req, res) => {
+  try {
+    const { newPassword } = req.body || {};
+    if (!newPassword) return res.status(400).json({ error: 'missing_password', message: 'New password is required.' });
+    const reset = activeReset(req);
+    if (!reset?.verified) return res.status(403).json({ error: 'mfa_required', message: 'Verify with MFA before resetting your password.' });
+    delete req.session.pwReset;
+    await pingOneUserService.setUserPassword(reset.userId, newPassword);
+    res.json({ message: 'Password reset.' });
+  } catch (err) {
+    console.error('[MFA route] POST /forgot-password/complete failed:', err.message);
+    res.status(err.status || 500).json({ error: 'forgot_password_failed', message: err.message });
   }
 });
 

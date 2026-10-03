@@ -1,4 +1,5 @@
 import DraggableModal from "./DraggableModal";
+import { ForgotPasswordLink } from "./ForgotPasswordFlow";
 import {
   navigateToAdminOAuthLogin,
   navigateToCustomerOAuthForceLogin,
@@ -70,6 +71,7 @@ export default function SignInModal({
       footer={
         <div className="signin-modal__actions">
           {footerExtra}
+          {!admin && <ForgotPasswordLink />}
           <button
             type="button"
             className="signin-prompt__btn"

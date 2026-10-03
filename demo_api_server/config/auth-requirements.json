@@ -310,7 +310,7 @@
     "/sdk-login": "public",
     "/sdk-login/callback": "public",
     "/secret-rotation": "user",
-    "/security": "public",
+    "/security": "user",
     "/self-service": "public",
     "/sequence-diagram": "public",
     "/servers": "public",

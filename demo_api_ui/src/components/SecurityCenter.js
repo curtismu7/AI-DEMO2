@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { notifySuccess, notifyError } from '../utils/appToast';
 import { navigateToCustomerOAuthLogin } from '../utils/authUi';
 import SignInPrompt from './SignInPrompt';
+import ForgotPasswordFlow from './ForgotPasswordFlow';
 import PingOneProviderGuard from './PingOneProviderGuard';
 import { loadPublicConfig } from '../services/configService';
 import { describePasskeyRegistrationError } from '../utils/mfaEnrollment';
@@ -719,10 +720,11 @@ function SecurityCenterContent({ user }) {
         {isFederated || authType === null ? (
           <>
             <p>
-              Your password is managed by PingOne. This account signs in through
-              PingOne, so there is no separate password stored by this demo.
+              Your password is managed by PingOne. If you have forgotten it, verify
+              with MFA and set a new one.
             </p>
-            {envId ? (
+            <ForgotPasswordFlow initialUsername={session?.user?.username || ''} />
+            {envId && (
               <p>
                 <a
                   className="btn btn-outline"
@@ -732,10 +734,6 @@ function SecurityCenterContent({ user }) {
                 >
                   Manage password in PingOne
                 </a>
-              </p>
-            ) : (
-              <p className="demo-unavailable">
-                PingOne environment is not configured, so the self-service link is unavailable.
               </p>
             )}
           </>
