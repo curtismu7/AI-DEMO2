@@ -3,6 +3,9 @@
 
 import { notifyError } from './appToast';
 
+/** idp_error the BFF sends when PingFederate is the provider but not reachable. */
+export const PF_UNREACHABLE_ERROR = 'pingfederate_unreachable';
+
 /**
  * If URL carries BFF OAuth error query params, show a toast and return true.
  * @param {URLSearchParams} searchParams
@@ -18,13 +21,15 @@ export function showEndUserOAuthErrorToast(searchParams) {
   const info = (searchParams.get('info') || '').trim();
 
   let errorMessage = '';
+  let toastOptions = { autoClose: 10000 };
 
   switch (errorParam) {
     case 'oauth_provider':
-      if (idpError === 'pingfederate_unreachable') {
+      if (idpError === PF_UNREACHABLE_ERROR) {
         errorMessage =
-          'Sign-in could not start: **PingFederate is not running**. '
-          + 'Start PingFederate and try again, or switch the login provider back to **PingOne**.';
+          'Sign-in could not start: PingFederate is not running. '
+          + 'Start PingFederate and try again, or switch the login provider back to PingOne.';
+        toastOptions = { autoClose: 15000, className: 'toast--attention' };
       } else if (idpError === 'unsupported_response_type' || /unsupported_response_type/i.test(desc)) {
         errorMessage =
           'PingOne rejected the authorize request (often **pi.flow** is not enabled on this app). '
@@ -91,7 +96,7 @@ export function showEndUserOAuthErrorToast(searchParams) {
       errorMessage = 'Something went wrong during sign-in. Please try again.';
   }
 
-  notifyError(errorMessage, { autoClose: 10000 });
+  notifyError(errorMessage, toastOptions);
   return true;
 }
 

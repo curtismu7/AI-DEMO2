@@ -20,6 +20,13 @@ describe('showEndUserOAuthErrorToast', () => {
     expect(msg).not.toMatch(/PingOne returned|pingfederate_unreachable/);
   });
 
+  it('uses the larger attention toast for PF-unreachable only', () => {
+    showEndUserOAuthErrorToast(new URLSearchParams({ error: 'oauth_provider', idp_error: 'pingfederate_unreachable' }));
+    expect(notifyError.mock.calls[0][1]).toMatchObject({ className: 'toast--attention' });
+    showEndUserOAuthErrorToast(new URLSearchParams({ error: 'oauth_provider', idp_error: 'server_error' }));
+    expect(notifyError.mock.calls[1][1].className).toBeUndefined();
+  });
+
   it('still reports other IdP errors as returned by PingOne', () => {
     const q = new URLSearchParams({ error: 'oauth_provider', idp_error: 'server_error' });
     showEndUserOAuthErrorToast(q);
