@@ -257,6 +257,42 @@ describe("Discovery popout — '⊞ All actions' button (inline, non-popout fall
   });
 });
 
+describe("Demo Controls pill while the floating agent is collapsed", () => {
+  // The dock lives in the open panel's header, so by default the pill only appears
+  // once the agent is opened. `collapsedDockPill` (set by App.js on the demo pages)
+  // shows the real pill next to the collapsed agent button.
+  it("is shown without opening the agent when collapsedDockPill is set", () => {
+    renderThemedAgent({ user: customerUser, mode: "float", collapsedDockPill: true });
+
+    expect(screen.getByRole("button", { name: /Demo Controls/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Open.*AI Agent/i })).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: /AI Agent/i })).not.toBeInTheDocument();
+  });
+
+  it("is not shown while collapsed when the prop is not set (default unchanged)", () => {
+    renderThemedAgent({ user: customerUser, mode: "float" });
+
+    expect(screen.queryByRole("button", { name: /Demo Controls/i })).not.toBeInTheDocument();
+  });
+
+  it("opens the agent and the dock together when clicked", async () => {
+    renderThemedAgent({ user: customerUser, mode: "float", collapsedDockPill: true });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Demo Controls/i }));
+    });
+
+    await screen.findByRole("dialog", { name: /AI Agent/i });
+    await waitFor(() => expect(document.querySelector(".cmd-dock-body")).not.toBeNull());
+  });
+
+  it("is not added to an inline agent", () => {
+    renderAgent({ user: customerUser, mode: "inline", collapsedDockPill: true });
+
+    expect(screen.queryByRole("button", { name: /Demo Controls/i })).not.toBeInTheDocument();
+  });
+});
+
 describe("Header controls after the Actions dropdown removal", () => {
   // Float mode keeps only the title row and window buttons in the agent
   // header; the secondary controls live in the Command Dock tray. Tests in
