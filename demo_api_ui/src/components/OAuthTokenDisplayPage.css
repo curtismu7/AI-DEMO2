@@ -6,6 +6,12 @@
   padding: 2rem 1.5rem;
 }
 
+/* Signed-out / blocked states: keep the title and the card on one column so
+   the heading lines up with the card instead of floating at the page edge. */
+.otdp-container--narrow {
+  max-width: 640px;
+}
+
 .otdp-header {
   display: flex;
   align-items: center;
@@ -237,9 +243,8 @@
 /* ── No-session: MCP flow start card ── */
 .otdp-flow-start-card {
   text-align: center;
-  padding: 2.5rem 2rem;
-  max-width: 560px;
-  margin: 2rem auto;
+  padding: 2rem 2rem 2.25rem;
+  margin: 0 auto;
 }
 
 .otdp-flow-start-card label {
@@ -288,24 +293,27 @@
 
 /* Step indicators */
 .otdp-flow-steps {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.5rem;
-  flex-wrap: wrap;
-  margin-bottom: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 560px) {
+  .otdp-flow-steps {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .otdp-flow-step {
   display: flex;
   align-items: flex-start;
   gap: 0.6rem;
-  padding: 0.6rem 0.875rem;
+  padding: 0.75rem 0.875rem;
   border: 1.5px solid var(--th-border);
   border-radius: 0.625rem;
   background: var(--th-bg-inset);
   text-align: left;
-  min-width: 140px;
   transition: border-color 0.25s, background 0.25s;
 }
 
@@ -372,10 +380,60 @@
   margin-top: 0.1rem;
 }
 
+/* The numbered badges carry the order; arrows between grid cells just add noise. */
 .otdp-flow-arrow {
-  font-size: var(--font-size-h3);
-  color: var(--th-text-faint);
-  flex-shrink: 0;
+  display: none;
+}
+
+.otdp-flow-error {
+  margin: 0 0 1.25rem;
+  padding: 0.65rem 0.9rem;
+  border: 1px solid var(--th-status-error-border);
+  border-radius: 0.5rem;
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
+  font-size: var(--font-size-body);
+  text-align: left;
+}
+
+.otdp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin: 0 auto 1rem;
+  width: min(100%, 22rem);
+  text-align: left;
+}
+
+.otdp-field input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.otdp-flow-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.otdp-flow-link-btn {
+  background: none;
+  border: none;
+  padding: 0.25rem 0.5rem;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-sm);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.otdp-flow-link-btn:hover:not(:disabled) {
+  color: var(--th-text);
+}
+
+.otdp-flow-link-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
 .otdp-flow-status {
