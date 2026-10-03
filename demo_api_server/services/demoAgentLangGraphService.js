@@ -1137,6 +1137,15 @@ function buildA2aReplyEnvelope(a2aResult, tokenEvents) {
   let reply;
   if (toolOk) {
     reply = `Delegation complete — ${a2aResult.specialist} retrieved ${a2aResult.tool.replace(/_/g, ' ')} on your behalf (act-chain depth ${a2aResult.actChainDepth}).`;
+    // UC2.6: the point is the DENY that follows the permit, so the reply has to say it.
+    const probe = a2aResult.mismatchProbe;
+    if (probe) {
+      if (probe.decision === 'DENY') {
+        reply += ` ✅ Then an unregistered agent posing as the generalist was denied: ${probe.reason || 'actor mismatch'}.`;
+      } else {
+        reply += ` ❌ The unregistered-agent probe was NOT denied (${probe.decision || probe.error || 'no decision'}).`;
+      }
+    }
   } else if (a2aResult.delegated) {
     reply = `❌ Delegated to ${a2aResult.specialist}, but ${a2aResult.tool || 'the tool call'} failed: ${a2aResult.toolError || 'no result returned'}.`;
   } else {
@@ -2474,5 +2483,5 @@ module.exports = {
   // the same A2A fast-path as dispatchVerticalIntent for a2aDelegated tools.
   executeA2aDelegation,
   executeA2aGeneralistMismatch,
-  __test: { resolveToolSchemas, resolveExecuteTool, dispatchVerticalIntent, buildVerticalReply, executeA2aDelegation, executeA2aGeneralistMismatch, normalizeVerticalToolArgs, applyAdminCustomerContext, readPrimaryToolFor, formatBraveResults },
+  __test: { resolveToolSchemas, resolveExecuteTool, dispatchVerticalIntent, buildVerticalReply, executeA2aDelegation, executeA2aGeneralistMismatch, buildA2aReplyEnvelope, normalizeVerticalToolArgs, applyAdminCustomerContext, readPrimaryToolFor, formatBraveResults },
 };
