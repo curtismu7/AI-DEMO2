@@ -76,6 +76,17 @@ describe('OAuthUserService.createUserFromOAuth issuer identity', () => {
     expect(user.oauthIssuer).toBe('https://auth.pingone.com/env-x/as');
   });
 
+  it('falls back to sub for the username when the IdP sends no username or email claim (PingFederate)', () => {
+    const user = oauthUserService.createUserFromOAuth({ sub: 'demouser' });
+    expect(user.username).toBe('demouser');
+  });
+
+  it('keeps preferred_username, then username, then email ahead of sub', () => {
+    expect(oauthUserService.createUserFromOAuth({ sub: 's', preferred_username: 'p', username: 'u', email: 'e@x.io' }).username).toBe('p');
+    expect(oauthUserService.createUserFromOAuth({ sub: 's', username: 'u', email: 'e@x.io' }).username).toBe('u');
+    expect(oauthUserService.createUserFromOAuth({ sub: 's', email: 'e@x.io' }).username).toBe('e@x.io');
+  });
+
   it('does not label an unknown OIDC issuer as PingFederate', () => {
     MOCK_USER_CONFIG.issuer = 'https://login.example.test';
     MOCK_USER_CONFIG.authorizationEndpoint = 'https://login.example.test/oauth2/authorize';

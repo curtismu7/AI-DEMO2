@@ -356,7 +356,9 @@ class OAuthUserService {
     const oauthProvider = this.identifyProvider(oauthIssuer);
     return {
       id: userInfo.sub || userInfo.id,
-      username: userInfo.preferred_username || userInfo.username || userInfo.email,
+      // PingFederate's sub is the username and its claims carry no preferred_username/email;
+      // without the sub fallback the user is stored as `undefined` and every PF user shares one record.
+      username: userInfo.preferred_username || userInfo.username || userInfo.email || userInfo.sub,
       email: userInfo.email,
       firstName: userInfo.given_name || userInfo.first_name || userInfo.name?.split(' ')[0] || '',
       lastName: userInfo.family_name || userInfo.last_name || userInfo.name?.split(' ').slice(1).join(' ') || '',
