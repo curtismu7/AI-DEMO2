@@ -90,6 +90,40 @@ describe('PF AI Agent RAR route', () => {
     });
   });
 
+  // PingFederate signs a user in under its own spelling ("demouser"); the banking store
+  // holds "demoUser". The lookup has to bridge that, or a correct sign-in is refused.
+  describe('username matching for the user limits lookup', () => {
+    const users = [
+      { id: 'u1', username: 'demoUser' },
+      { id: 'u2', username: 'Ada' },
+      { id: 'u3', username: 'ada' },
+    ];
+    const store = {
+      getUserByUsername: (name) => users.find((user) => user.username === name),
+      getAllUsers: () => users,
+      getAccountsByUserId: (id) => [{ id: `${id}-acct`, currency: 'USD' }],
+    };
+    const { userLimits } = require('../../services/pfAiAgentRarService');
+
+    test('finds the store user ignoring case, answering with the name that was asked for', () => {
+      expect(userLimits('demouser', store)).toMatchObject({ user_id: 'demouser', account_ids: ['u1-acct'] });
+    });
+
+    test('an exact match wins over a case-insensitive one', () => {
+      expect(userLimits('ada', store).account_ids).toEqual(['u3-acct']);
+    });
+
+    test('refuses a case-insensitive match that is ambiguous', () => {
+      expect(userLimits('ADA', store)).toBeNull();
+    });
+
+    test('still works against a store that cannot list its users', () => {
+      const exactOnly = { getUserByUsername: store.getUserByUsername, getAccountsByUserId: store.getAccountsByUserId };
+      expect(userLimits('demoUser', exactOnly)).not.toBeNull();
+      expect(userLimits('demouser', exactOnly)).toBeNull();
+    });
+  });
+
   test('builds the detail from the user\'s own accounts, falling back to the fixed pair', async () => {
     const { buildAuthorizationDetail, userLimits } = require('../../services/pfAiAgentRarService');
     const limits = userLimits('demouser', {

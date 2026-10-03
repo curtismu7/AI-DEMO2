@@ -36,13 +36,24 @@ function sessionUserKey(req, requested) {
   return candidate;
 }
 
+// PingFederate signs a user in under its own spelling ("demouser"), the store holds
+// "demoUser". An exact match wins; otherwise a case-insensitive one counts only when it
+// is unambiguous, so two users that differ only by case never resolve to either.
+function findUser(username, dataStore) {
+  const exact = dataStore.getUserByUsername(username);
+  if (exact || typeof dataStore.getAllUsers !== 'function') return exact;
+  const wanted = username.toLowerCase();
+  const matches = dataStore.getAllUsers().filter((user) => String(user.username || '').toLowerCase() === wanted);
+  return matches.length === 1 ? matches[0] : undefined;
+}
+
 /**
  * What the PingFederate processor checks a banking_transaction against, for one
  * banking user: their own accounts, the daily domestic transfer limit and the
  * currency. Null when the user or their accounts are unknown.
  */
 function userLimits(username, dataStore = defaultDataStore) {
-  const user = typeof username === 'string' && username ? dataStore.getUserByUsername(username) : null;
+  const user = typeof username === 'string' && username ? findUser(username, dataStore) : null;
   const accounts = user ? dataStore.getAccountsByUserId(user.id) : [];
   if (!accounts.length) return null;
   return {
