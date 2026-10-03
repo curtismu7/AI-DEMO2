@@ -12,10 +12,11 @@
   background: var(--th-bg-card); border: 1px solid var(--th-border); border-radius: var(--radius-md);
 }
 .jev-h2 { font-size: var(--font-size-h3); margin: 0 0 6px; color: var(--th-text); }
-.jev-h3 { font-size: var(--font-size-body); margin: 0 0 6px; color: var(--th-text); display: flex; gap: 8px; align-items: center; }
+.jev-h3 { font-size: var(--font-size-xl); margin: 0 0 6px; color: var(--th-text); display: flex; gap: 8px; align-items: center; }
 .jev-lead { margin: 0 0 14px; max-width: 78ch; color: var(--th-text-muted); }
-.jev-meta { margin: 6px 0 0; color: var(--th-text-muted); font-size: var(--font-size-sm); }
-.jev-big { margin: 0; font-size: var(--font-size-body); font-weight: 600; color: var(--th-text); }
+.jev-meta { margin: 8px 0 0; color: var(--th-text-muted); font-size: var(--font-size-base); }
+.jev-big { margin: 0 0 8px; font-size: var(--font-size-2xl); font-weight: 600; color: var(--th-text); }
+.jev-explain { margin: 0 0 8px; color: var(--th-text-body); font-size: var(--font-size-md); }
 
 .jev-tabs, .jev-examples { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
 .jev-tab, .jev-chip {
@@ -73,3 +74,21 @@
 .jev-page .jev-slider input[type="range"] { display: block; width: 100%; max-width: none; margin: 8px 0 0; }
 .jev-page .jev-outcomes { margin: 20px 0; padding: 0; }
 .jev-page .jev-outcome { padding: 12px 16px; }
+
+/* Interactive affordance: numbered steps, and tabs/chips that visibly respond. */
+.jev-page .jev-step { display: flex; align-items: center; gap: 10px; margin: 18px 0 10px; font-size: var(--font-size-base); font-weight: 600; color: var(--th-text); }
+.jev-page .jev-step-n {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 24px; height: 24px; border-radius: 999px; font-size: var(--font-size-xs);
+  border: 1px solid var(--th-text); color: var(--th-text);
+}
+.jev-page .jev-tab, .jev-page .jev-chip {
+  cursor: pointer; font-size: var(--font-size-base);
+  transition: background-color 0.12s, border-color 0.12s, box-shadow 0.12s;
+}
+.jev-page .jev-chip { border-style: dashed; }
+.jev-page .jev-chip::before { content: "+ "; color: var(--th-text-muted); }
+.jev-page .jev-tab:hover, .jev-page .jev-chip:hover { border-color: var(--th-text); box-shadow: 0 1px 4px var(--th-border-strong); }
+.jev-page .jev-tab:focus-visible, .jev-page .jev-chip:focus-visible, .jev-page .jev-input:focus-visible { outline: 2px solid var(--th-text); outline-offset: 2px; }
+.jev-page .jev-tab--on { border-width: 2px; padding: 7px 13px; background: var(--th-bg-card); }
+.jev-page .jev-input:focus { border-color: var(--th-text); }

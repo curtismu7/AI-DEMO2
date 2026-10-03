@@ -36,6 +36,16 @@ function headline(answer) {
   return `P(yes) = ${answer.probability.toFixed(2)}`;
 }
 
+/** Plain-language reading of a live answer, shown under the number. */
+function explainJev(answer) {
+  if (!answer) return '';
+  if (answer.type === 'choice') {
+    return 'The model read the meaning of the text, picked the best-fitting option, and reports how confident it is in that pick.';
+  }
+  const pct = Math.round(answer.probability * 100);
+  return `The model read the meaning of the text and scored how likely the answer to the question above is "yes": about ${pct}%. Unlike the rules, it can say "probably" or "not sure", and a score near 50% means it is unsure.`;
+}
+
 function ModeBadge({ mode, model }) {
   return mode === 'live' ? (
     <span className="jev-badge jev-badge--live">{`Live: ${model}`}</span>
@@ -77,6 +87,7 @@ function LivePanel({ onRisk }) {
     <section className="jev-card" aria-labelledby="jev-live">
       <h2 id="jev-live" className="jev-h2">Same input, two deciders</h2>
       <p className="jev-lead">{SCENARIOS[scenario].question}</p>
+      <p className="jev-step"><span className="jev-step-n">1</span> Choose a scenario</p>
       <div className="jev-tabs" role="tablist">
         {Object.entries(SCENARIOS).map(([key, s]) => (
           <button
@@ -90,11 +101,13 @@ function LivePanel({ onRisk }) {
           </button>
         ))}
       </div>
+      <p className="jev-step"><span className="jev-step-n">2</span> Click an example to load it, or type your own below</p>
       <div className="jev-examples">
         {SCENARIOS[scenario].examples.map((ex) => (
           <button key={ex} className="jev-chip" onClick={() => setText(ex)}>{ex}</button>
         ))}
       </div>
+      <p className="jev-step"><span className="jev-step-n">3</span> Edit the text if you like, then press Decide to run both deciders on it</p>
       <textarea
         className="jev-input"
         aria-label="Text to judge"
@@ -111,11 +124,17 @@ function LivePanel({ onRisk }) {
           <div className="jev-col">
             <h3 className="jev-h3">Keyword rules</h3>
             <p className="jev-big">{headline(result.heuristic.answer)}</p>
+            <p className="jev-explain">
+              Scans for a fixed list of trigger words and phrases. Finds one: 1.00 (yes). Finds none: 0.00 (no).
+              It never reads the meaning and never says "maybe", so a reworded attack slips through and a
+              harmless message that contains a trigger word gets flagged.
+            </p>
             <p className="jev-meta">{result.heuristic.latencyMs} ms - always 0 or 1, never unsure</p>
           </div>
           <div className="jev-col">
             <h3 className="jev-h3">Jev <ModeBadge mode={result.jev.mode} model={result.jev.model} /></h3>
             <p className="jev-big">{headline(result.jev.answer)}</p>
+            {result.jev.mode === 'live' && <p className="jev-explain">{explainJev(result.jev.answer)}</p>}
             <p className="jev-meta">{result.jev.latencyMs} ms - model {result.jev.model}</p>
             {result.jev.mode === 'simulated' && (
               <p className="jev-meta">
