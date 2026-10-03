@@ -29,6 +29,7 @@ including Ping's SE enablement storyboards and the code paths, is
 | [`GATEWAY-REGISTERING-AN-MCP-SERVER.md`](GATEWAY-REGISTERING-AN-MCP-SERVER.md) | Registering an MCP server on the AI Gateway: app fields, entry path, Auth Mode, policy, and what was tested live on 2026-10-02 |
 | [`GATEWAY-SIDECAR-MCP-SERVERS.md`](GATEWAY-SIDECAR-MCP-SERVERS.md) | Running an MCP server as a sidecar in the AI Gateway pod: ports, secrets, registering, verifying, and what was tested live on 2026-10-02 |
 | [`GATEWAY-AGENT-TO-AGENT-A2A.md`](GATEWAY-AGENT-TO-AGENT-A2A.md) | Fronting an A2A agent with the AI Gateway as a Remote Agent: agent card, auth modes, calling it, guardrails and NeMo, and what was tested live on 2026-10-03 |
+| [`GATEWAY-READING-GATEWAY-ERRORS.md`](GATEWAY-READING-GATEWAY-ERRORS.md) | Reading AI Gateway errors: what each status code can mean, the log lines behind it, tracing one request, backend and guardrail errors; reproduced live on 2026-10-03 |
 | [`SENSOR-DOCKER-GUIDE.md`](SENSOR-DOCKER-GUIDE.md) | Setting up or debugging the Privilege node sensor on any Docker host: setup, how it works, identity, logging, failure modes |
 | [`SENSOR-KUBERNETES-GUIDE.md`](SENSOR-KUBERNETES-GUIDE.md) | The same for any Kubernetes cluster: Helm install, ServiceAccount-token identity, chart values |
 | [`SENSOR-DOCKER-OUR-ENVIRONMENT.md`](SENSOR-DOCKER-OUR-ENVIRONMENT.md) | Our Docker setup: the Docker → local gateway → Docker loop, our values, the 2026-10-01 sensor failure and fix |
