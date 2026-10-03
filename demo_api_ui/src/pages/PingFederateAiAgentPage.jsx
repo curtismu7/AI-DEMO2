@@ -135,7 +135,10 @@ export default function PingFederateAiAgentPage({ user }) {
   const [loadingStatus, setLoadingStatus] = useState(true);
   const [exchangeBusy, setExchangeBusy] = useState(false);
   const [exchangeResult, setExchangeResult] = useState(null);
-  const [rarUserKey, setRarUserKey] = useState(user?.username || "");
+  // Only what the user typed. `user` is null until the session check resolves, so a
+  // useState initialiser would freeze the empty value and hide the RAR buttons.
+  const [typedUserKey, setTypedUserKey] = useState(null);
+  const rarUserKey = typedUserKey ?? user?.username ?? "";
   const [exchangeError, setExchangeError] = useState(false);
   const queryStatus = useMemo(() => new URLSearchParams(window.location.search), []);
 
@@ -302,7 +305,7 @@ export default function PingFederateAiAgentPage({ user }) {
             PF user key for this request
             <input
               value={rarUserKey}
-              onChange={(event) => setRarUserKey(event.target.value)}
+              onChange={(event) => setTypedUserKey(event.target.value)}
               autoComplete="off"
               maxLength={256}
             />

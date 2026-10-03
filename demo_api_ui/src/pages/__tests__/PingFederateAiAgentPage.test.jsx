@@ -38,6 +38,24 @@ describe("PingFederate AI Agent page", () => {
     expect(screen.queryByText(/mocked.*PingOne/i)).not.toBeInTheDocument();
   });
 
+  // The page can mount before the session check resolves, so `user` is null on the first
+  // render. The key box used to capture that empty value once, which kept both RAR buttons
+  // hidden after a reload until someone typed a key.
+  it("follows the signed-in user when it arrives later, without overwriting what was typed", async () => {
+    const { rerender } = render(<PingFederateAiAgentPage user={null} />);
+    const input = await screen.findByLabelText(/PF user key for this request/i);
+    expect(input).toHaveValue("");
+    expect(screen.queryByRole("button", { name: /Run allowed RAR request/i })).not.toBeInTheDocument();
+
+    rerender(<PingFederateAiAgentPage user={{ username: "demouser" }} />);
+    expect(input).toHaveValue("demouser");
+    expect(await screen.findByRole("button", { name: /Run allowed RAR request/i })).toBeInTheDocument();
+
+    fireEvent.change(input, { target: { value: "someone-else" } });
+    rerender(<PingFederateAiAgentPage user={{ username: "demouser" }} />);
+    expect(input).toHaveValue("someone-else");
+  });
+
   it("sends only the active session provider to the isolated cross-domain endpoint", async () => {
     apiClient.post.mockResolvedValue({ data: {
       subjectProvider: "pingone",
