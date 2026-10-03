@@ -1922,9 +1922,13 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
     // Plugin LLM tool lists (e.g. CivicPermit) omit get_weather, so freeform
     // weather otherwise becomes a polite refusal instead of a gateway call.
     const weatherShowcase = /\bweather\b.*?\bin\s+\S/i.test(String(message || ''));
+    // UC2.6 showcase: its chip phrase always takes the A2A mismatch heuristic, even in
+    // LLM-only mode — a small local model answered it with a greeting. Only the chip's
+    // own phrase; other freeform text still goes to the model.
+    const mismatchShowcase = /\bagent\s+identity\s+mismatch\b/i.test(String(message || ''));
     const hitlChallengeId = (typeof req?.body?.hitlChallengeId === 'string' && req.body.hitlChallengeId) || null;
 
-    if (heuristicEnabled || forceHeuristic || weatherShowcase) {
+    if (heuristicEnabled || forceHeuristic || weatherShowcase || mismatchShowcase) {
       // Resolve the active vertical's context once so every heuristic-path
       // response (routing, reply headings, no-match catalog) speaks the
       // vertical's language. Absolute rule: heuristics must work for ALL
