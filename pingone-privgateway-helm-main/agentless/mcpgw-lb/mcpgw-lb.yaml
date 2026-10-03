@@ -16,10 +16,12 @@
 # gateway and stays on it. If that gateway dies the client is retried on the other
 # one and must sign in again, same as after a gateway restart today.
 #
-# Each gateway must own the Agentic Apps it serves. Apps are bound to one Mesh
-# Cluster, so every app has to be registered on BOTH clusters (ai-demo-cmuir and
-# ai-demo-cmuir2) before gateway 2 is taken out of `down` below. Until then a
-# client hashed to gateway 2 would reach a gateway that does not know the app.
+# Each gateway must own the Agentic Apps it serves. An app is ONE tenant-wide object
+# bound to ONE Mesh Cluster: editing it in the console MOVES it (tested 2026-10-03),
+# it does not create a second copy. Gateway 2 therefore needs its own, differently
+# named copy of each app, and this file does not yet map the public path to that
+# name. Keep gateway 2 `down` below until that exists, or a client hashed to it would
+# reach a gateway that does not know the app.
 #
 # Why HTTPS with the gateway's own cert: the chart's ingresses carry
 # backend-protocol HTTPS, so the hop into this pod has to be TLS. The cert is

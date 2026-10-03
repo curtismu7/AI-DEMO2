@@ -27,9 +27,12 @@ What we learned, and why the design is not round robin:
 - Privilege's own HA guidance is "deploy at least two gateways per network", meaning two
   gateways that each own their apps, not nodes forwarding to each other.
 
-The supported design is therefore: **two independent gateways, every Agentic App
-registered on both clusters, and a load balancer that pins each client to one gateway
-for everything (sign-in, token and MCP calls).**
+The supported design is therefore: **two independent gateways, each owning its own
+Agentic Apps, and a load balancer that pins each client to one gateway for everything
+(sign-in, token and MCP calls).** An app can exist on only one mesh cluster (5.5), so
+gateway 2 needs its own differently named copy of each app, and the load balancer maps the
+public path to it (options in section 9). The first version of this design assumed the same
+app name could be registered on both clusters; that was tested and is wrong.
 
 Decisions needed from reviewers are in section 9.
 
@@ -167,7 +170,30 @@ From the Privilege docs (gateway pages), paraphrased:
   application configuration. The docs are silent on adding a second node to an existing
   gateway, on two gateways sharing a hostname, and on scaling or load balancing a gateway.
 
-### 5.5 Smaller findings
+### 5.5 An Agentic App is one tenant-wide object bound to ONE mesh cluster
+
+Tested 2026-10-03 15:53 UTC while trying to register `opensearch22` on cluster
+`ai-demo-cmuir2`. The console did not create a second app. It **edited the existing one**.
+Both gateways' logs show the same object (`http-opensearch22`, `CreatedAt 2026-09-02`,
+`UpdatedAt 2026-10-03T15:53:11Z`) now carrying `Cluster:ai-demo-cmuir2`, followed by
+`MCP force-sync app=opensearch22: re-scanning`.
+
+Consequences:
+
+- The same Application Name **cannot** exist on two mesh clusters. Editing it moves the app
+  from one gateway to the other, so gateway 1 loses the app gateway 2 gains. This
+  invalidates the first version of the design in section 1 ("register every app on both
+  clusters, same name").
+- Anyone editing an app in the console while testing can silently take it away from the
+  gateway that serves live traffic. Revert the Mesh Cluster to `ai-demo-cmuir` to restore it.
+- The path clients use is `/<AppName>/mcp`, so a second copy needs a **different name** on
+  cluster 2 (for example `opensearch22b`). See the options in section 9.
+
+Also checked: the backend `http://opensearch-mcp-server.ping-devops-curtismuir.svc.cluster.local/sse`
+answers `200 text/event-stream` with an `event: endpoint` line from both the
+`ping-devops-curtismuir` and `ping-devops-cmuir` namespaces, so gateway 2 can reach it.
+
+### 5.6 Smaller findings
 
 - We could not open a details page for a gateway in the console, so we found no route to
   add a second node to `ai-demo-cmuir`. "Add New" creates a new cluster entry each time
@@ -178,11 +204,16 @@ From the Privilege docs (gateway pages), paraphrased:
 
 ## 6. Bringing gateway 2 into rotation (runbook)
 
-Prerequisite: every Agentic App that clients use must exist on cluster `ai-demo-cmuir2`,
-with the same name as on `ai-demo-cmuir`, because the URL path is `/<AppName>/mcp`.
+Prerequisite: every Agentic App that clients use needs a copy on cluster `ai-demo-cmuir2`.
+**Create a NEW app with a different name; never edit the existing one.** An app is a single
+tenant-wide object (5.5), so editing `opensearch22` and changing its Mesh Cluster moves it
+off gateway 1. This runbook step is not finished until the name-mapping option in section 9
+(A) is implemented in the load balancer; as written the public path `/<AppName>/mcp` will
+only reach gateway 2 for apps that have the same name there, which the console does not allow.
 
-1. **Register the app on the second cluster** in the Privilege console: Agentic Apps, add
-   MCP Server, same Application Name, Mesh Cluster `ai-demo-cmuir2`, Auth Mode None.
+1. **Register the copy on the second cluster** in the Privilege console: Agentic Apps, add
+   MCP Server, a NEW Application Name (for example `opensearch22b`), Mesh Cluster
+   `ai-demo-cmuir2`, Auth Mode None.
    - Pilot with `opensearch22`. Its backend is an in-cluster Service reachable from gateway 2:
      `http://opensearch-mcp-server.ping-devops-curtismuir.svc.cluster.local/sse`
      (use `/sse`, not `/mcp`). No sidecar is needed.
@@ -253,7 +284,8 @@ Self-test of the sign-in path without a browser: register a throwaway client at
 
 - Gateway 2 has never completed a full sign-in and tool call for any app. Everything about
   it serving traffic is design, not measurement.
-- Whether the console allows the same Application Name on two mesh clusters.
+- Whether a differently named copy on cluster 2 plus a load balancer path rewrite works
+  end to end (sign-in metadata will carry the second name).
 - Whether the client address seen behind the ingress is the real client or a shared
   address. If shared, consistent hashing sends everyone to one gateway and the spread is
   poor. Check `X-Forwarded-For` in the load balancer log from two different networks.
@@ -264,10 +296,16 @@ Self-test of the sign-in path without a browser: register a throwaway client at
 
 ## 9. Open questions and decisions for reviewers
 
-1. **Is a second set of app registrations acceptable?** It is the only supported way for
-   both gateways to serve. Cost: each app registered twice, sidecar-backed apps need their
-   sidecars on gateway 2, and policies are maintained twice. If not acceptable, the fallback
-   is one gateway behind the load balancer (stable URL and load balancer HA, no gateway HA).
+1. **How should gateway 2 get its apps?** An app lives on one cluster only (5.5). Options:
+   - **A. Differently named copy on cluster 2** (for example `opensearch22b`) plus a path
+     rewrite in the load balancer's gateway-2 bridge so clients keep using
+     `/opensearch22/mcp`. Cost: each app registered twice under two names, sidecar-backed
+     apps need their sidecars on gateway 2, policies maintained twice. Untested caveat: after
+     sign-in on gateway 2 the OAuth metadata it returns will contain the `b` name, so the
+     client sees it from then on.
+   - **B. Distinct public path per gateway** (clients choose `/opensearch22/...` or
+     `/opensearch22b/...`). Simplest, but the URL is no longer single.
+   - **C. One gateway behind the load balancer.** Stable URL and load balancer HA, no gateway HA.
 2. **Ask Ping (Privilege team):** is there a supported way to run two nodes in one mesh
    cluster, or to publish the mesh port 8690 between gateways? If yes, the registration
    duplication and the pinning both go away.
