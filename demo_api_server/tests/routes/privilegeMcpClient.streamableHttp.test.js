@@ -160,6 +160,38 @@ describe('Privilege MCP dual-era Streamable HTTP client', () => {
     ]);
   });
 
+  test('falls back to legacy lifecycle when server/discover gets a 200 with no JSON-RPC reply (SSE-backed gateway door)', async () => {
+    // The hostile-mcp door's backend speaks SSE: its "Unknown method" error goes
+    // out on the stream and the POST itself is answered with a bare 2xx, so the
+    // gateway hands back a 200 that carries neither a result nor an error.
+    const calls = [];
+    global.fetch = jest.fn(async (_url, options) => {
+      const rpc = JSON.parse(options.body);
+      calls.push({ options, rpc });
+      if (rpc.method === 'server/discover') return response({ status: 200, body: '' });
+      if (rpc.method === 'initialize') {
+        return rpcResponse(rpc, {
+          protocolVersion: '2025-06-18', capabilities: { tools: {} },
+          serverInfo: { name: 'totally-legit-mcp', version: '1.0.0' },
+        }, { headers: { 'MCP-Session-Id': 'sse-door-session' } });
+      }
+      if (rpc.method === 'notifications/initialized') return response({ status: 202 });
+      return rpcResponse(rpc, { tools: [{ name: 'get_weather' }] });
+    });
+
+    const app = buildApp('sse-door-fallback-test');
+    await request(app).post('/api/privilege-mcp/config').send({
+      gatewayMode: 'agentless', mcpUrl: MCP_URL, clientId: 'client-id',
+    });
+    const listed = await request(app).post('/api/privilege-mcp/tools/list')
+      .set('Authorization', 'Bearer test-token').send({}).expect(200);
+
+    expect(listed.body.tools.map((tool) => tool.name)).toEqual(['get_weather']);
+    expect(calls.map(({ rpc }) => rpc.method)).toEqual([
+      'server/discover', 'initialize', 'notifications/initialized', 'tools/list',
+    ]);
+  });
+
   test('does not misclassify a recognized modern protocol error as legacy', async () => {
     global.fetch = jest.fn(async (_url, options) => {
       const rpc = JSON.parse(options.body);

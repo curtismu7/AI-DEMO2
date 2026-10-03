@@ -916,7 +916,9 @@ async function fetchMcp(session, pathname, body, withAuth = true, allowRefreshRe
     throw err;
   }
   if (requestBody?.id !== undefined && parsed?.id !== requestBody.id) {
-    throw new Error(`MCP response id mismatch: expected ${requestBody.id}, received ${parsed?.id ?? 'none'}`);
+    const err = new Error(`MCP response id mismatch: expected ${requestBody.id}, received ${parsed?.id ?? 'none'}`);
+    err.noRpcReply = parsed?.id === undefined;
+    throw err;
   }
   return parsed;
 }
@@ -952,7 +954,10 @@ async function ensureMcpSessionInitialized(session) {
       // JSON-RPC error over HTTP 200 (pingone-admin's local handler) is just
       // as clear a signal to fall back as an HTTP 404 would be.
       const methodNotFound = err.rpcError?.code === -32601;
-      if (!methodNotFound && ![400, 404, 405].includes(err.upstreamStatus)) throw err;
+      // An SSE-backed gateway door (hostile-mcp) sends that "Method not found"
+      // down its stream and answers the POST with a 200 that carries no
+      // JSON-RPC reply at all — the same "doesn't speak modern" signal.
+      if (!methodNotFound && !err.noRpcReply && ![400, 404, 405].includes(err.upstreamStatus)) throw err;
       session.mcpSession.era = 'legacy';
       session.mcpSession.protocolVersion = null;
       session.mcpSession.nextRequestId = 1;
