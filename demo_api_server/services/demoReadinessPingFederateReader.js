@@ -54,9 +54,9 @@ function createPingFederateReader({ env = process.env, get = adminGet, profiles 
       return body;
     };
     const items = async (resource) => (await one(resource)).items || [];
-    const [clients, managers, connections, adapters, detailTypes, cimdSettings, cimdPolicies] = await Promise.all([
+    const [clients, managers, connections, detailTypes, cimdSettings, cimdPolicies] = await Promise.all([
       items('oauth/clients'), items('oauth/accessTokenManagers'), items('idp/spConnections'),
-      items('idp/adapters'), items('oauth/authorizationDetailTypes'),
+      items('oauth/authorizationDetailTypes'),
       one('oauth/cimd/settings'), items('oauth/cimd/policies'),
     ]);
     // What the runtime ADVERTISES, from its discovery document. The admin API
@@ -87,7 +87,6 @@ function createPingFederateReader({ env = process.env, get = adminGet, profiles 
         idJagEnabled: Boolean(connection.oauthTokenExchangeSettings?.idJagEnabled),
         policies: (connection.oauthTokenExchangeSettings?.processorPolicyMappings || []).map((mapping) => mapping.processorPolicyRef?.id),
       })),
-      adapterPlugins: adapters.map((adapter) => adapter.pluginDescriptorRef?.id || ''),
       rarDetailTypes: detailTypes.filter((item) => item.active !== false).map((item) => item.type).filter(Boolean).sort(),
       cimd: {
         cimdEnabled: Boolean(cimdSettings.cimdEnabled),
@@ -126,9 +125,6 @@ function createPingFederateReader({ env = process.env, get = adminGet, profiles 
       return { present: Boolean(client), ...client,
         ...connectionsWhere((connection) => Boolean(client) && connection.policies.includes(client.tokenExchangeProcessorPolicyRef)) };
     }
-    if (role === 'davinci-login') {
-      return { present: Boolean(client), davinciAdapterConfigured: view.adapterPlugins.some((id) => /davinci/i.test(id)) };
-    }
     // CIMD has no pre-registered client: the client is its metadata URL, and an
     // enabled policy whose pattern matches is what admits it.
     if (role === 'cimd') return { present: view.cimd.cimdEnabled && view.cimd.metadataUrls.length > 0, ...view.cimd };
@@ -158,7 +154,6 @@ function createPingFederateReader({ env = process.env, get = adminGet, profiles 
     return {
       clientGrantProcessorAtm: family(roles.filter(([, profile]) => profile.kind === 'oauth-client' && profile.baseline.grantTypes)),
       specialistResourceUriIdJag: family(roles.filter(([role]) => role === 'a2a-specialist')),
-      davinciClientAdapter: family(roles.filter(([role]) => role === 'davinci-login')),
       jwksAudience: managers.length
         ? { status: Object.keys(mismatchedManagers).length ? 'fail' : 'pass', observed: { mismatched: mismatchedManagers } }
         : { status: 'blocked', reason: 'no committed PingFederate baseline covers this family' },

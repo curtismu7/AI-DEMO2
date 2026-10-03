@@ -17,7 +17,6 @@ const PROFILES = {
       baseline: { present: true, grantTypes: ['CLIENT_CREDENTIALS', 'TOKEN_EXCHANGE'], defaultAccessTokenManagerRef: 'gatewayAtm', tokenExchangeProcessorPolicyRef: 'policy' } },
     'a2a-specialist': { kind: 'service-provider', objectId: 'A2A',
       baseline: { present: true, resourceUris: ['https://a.example.test', 'https://b.example.test'], idJagEnabled: true } },
-    'davinci-login': { kind: 'oauth-client', objectId: 'user-client', baseline: { present: true, davinciAdapterConfigured: true } },
     rar: { kind: 'oauth-client', objectId: 'PF_RAR_CLIENT', baseline: { present: true, rarDetailTypes: ['banking_transaction'] } },
     cimd: { kind: 'oauth-client', objectId: 'PF_CIMD_CLIENT', baseline: { present: true, cimdEnabled: true, metadataUrls: ['https://app.example.test/client-metadata.json'], pkceRequired: true } },
   },
@@ -38,7 +37,6 @@ function live(overrides = {}) {
       { id: 'aiDemoA2aTwoSp', oauthTokenExchangeSettings: { resourceUris: ['https://a.example.test'], idJagEnabled: true } },
       { id: 'unrelatedSp', oauthTokenExchangeSettings: { resourceUris: ['https://other.example.test'], idJagEnabled: false } },
     ],
-    'idp/adapters': [{ id: 'form', pluginDescriptorRef: { id: 'com.pingidentity.adapters.htmlform.idp.HtmlFormIdpAuthnAdapter' } }],
     'oauth/authorizationDetailTypes': [],
     'oauth/cimd/settings': { cimdEnabled: false },
     'oauth/cimd/policies': [],
@@ -68,16 +66,14 @@ describe('demoReadinessPingFederateReader', () => {
 
     expect(baselineMismatches(PROFILES.roles.exchanger.baseline, await role('exchanger'))).toEqual([]);
     expect(await role('a2a-specialist')).toEqual({ present: true, resourceUris: ['https://a.example.test', 'https://b.example.test'], idJagEnabled: true });
-    expect(await role('davinci-login')).toEqual({ present: true, davinciAdapterConfigured: false });
     expect(await role('rar')).toEqual({ present: false, rarDetailTypes: [], advertisedDetailTypes: null });
     expect(JSON.stringify([await role('exchanger'), await pf.readConfiguration()])).not.toMatch(/ENCRYPTED-SECRET|admin-password/);
   });
 
-  it('reports the four families against the baseline', async () => {
+  it('reports the three families against the baseline', async () => {
     expect(await reader(live()).readConfiguration()).toEqual({
       clientGrantProcessorAtm: { status: 'pass', observed: { mismatched: {} } },
       specialistResourceUriIdJag: { status: 'pass', observed: { mismatched: {} } },
-      davinciClientAdapter: { status: 'fail', observed: { mismatched: { 'davinci-login': ['davinciAdapterConfigured'] } } },
       jwksAudience: { status: 'pass', observed: { mismatched: {} } },
     });
   });
@@ -100,7 +96,7 @@ describe('demoReadinessPingFederateReader', () => {
     await pf.readConfiguration();
     for (const [role, profile] of Object.entries(PROFILES.roles)) await pf.readProfile({ role, profile });
 
-    expect(calls).toHaveLength(7);
+    expect(calls).toHaveLength(6);
     for (const { options } of calls) {
       expect(options.insecure).toBe(false);
       expect(options.headers.Authorization).toBe('Basic ' + Buffer.from('administrator:admin-password').toString('base64'));
@@ -118,10 +114,10 @@ describe('demoReadinessPingFederateReader', () => {
     await expect(reader(live(), { env: noPassword }).readConfiguration()).rejects.toThrow('PingFederate Admin API credentials are unavailable');
 
     const state = live();
-    delete state['idp/adapters'];
+    delete state['oauth/authorizationDetailTypes'];
     const pf = reader(state);
     await expect(pf.readConfiguration()).rejects.toThrow('PingFederate Admin API read returned HTTP 404');
-    state['idp/adapters'] = [];
+    state['oauth/authorizationDetailTypes'] = [];
     await expect(pf.readConfiguration()).resolves.toBeDefined();
   });
 
@@ -131,9 +127,7 @@ describe('demoReadinessPingFederateReader', () => {
 
     expect(rows['pingfederate:profile:exchanger'].status).toBe('pass');
     expect(rows['pingfederate:profile:a2a-specialist'].status).toBe('pass');
-    expect(rows['pingfederate:profile:davinci-login']).toMatchObject({ status: 'fail', observed: { davinciAdapterConfigured: false } });
     expect(rows['pingfederate:profile:rar']).toMatchObject({ status: 'fail', observed: { present: false, rarDetailTypes: [] } });
-    expect(rows['pingfederate:davinciClientAdapter'].status).toBe('fail');
     expect(rows).not.toHaveProperty('pingfederate:admin-api');
   });
 

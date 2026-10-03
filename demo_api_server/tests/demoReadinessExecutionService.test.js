@@ -90,15 +90,6 @@ const familyEvidenceFixtures = [
       ['dispatch missing', (f) => { delete f.exchange.toolDispatched; }, /specialist tool/],
     ],
   },
-  {
-    id: 'PF-DAVINCI-IK', provider: 'pingfederate',
-    feature: { family: 'pf-davinci-login', proof: { provider: 'pingfederate', verified: true }, pingoneSessionPreserved: true },
-    negatives: [
-      ['wrong identity provider', (f) => { f.proof.provider = 'pingone'; }, /dedicated PingFederate login/],
-      ['PingOne session replaced', (f) => { f.pingoneSessionPreserved = false; }, /preserve the observed PingOne session/],
-      ['session preservation evidence missing', (f) => { delete f.pingoneSessionPreserved; }, /preserve the observed PingOne session/],
-    ],
-  },
   // The attack samples and request lanes come from AttackLabTab.jsx and
   // toolAttackCatalog.js; Tool Poisoning reaches the normal 428 HITL gate.
   {
@@ -302,14 +293,14 @@ describe('demo readiness execution service', () => {
     expect(service.deriveExecutionManifest({ targets: ['local', 'hosted'] }).counts).toEqual({ core: 6, variants: 0, feature: 6, attackLab: 4, total: 16 });
   });
 
-  test('derives the full current inventory: 186 unexpanded, 185 groups, and 804 rows with required feature probes', () => {
+  test('derives the full current inventory: 186 unexpanded, 185 groups, and 802 rows with required feature probes', () => {
     const { buildDemoReadinessCatalog } = require('../services/demoReadinessCatalog');
     const catalog = buildDemoReadinessCatalog();
     const unexpanded = catalog.reduce((count, row) => count + (row.providerFlows.pingone ? 2 : 0) + (row.providerFlows.pingfederate ? 2 : 0), 0);
     expect(unexpanded).toBe(186);
     expect(catalog.reduce((count, row) => count + row.runtimeVerticalGroups.length, 0)).toBe(185);
     expect(createReadinessExecutionService({ catalog }).deriveExecutionManifest().counts)
-      .toEqual({ core: 738, variants: 4, feature: 42, attackLab: 20, total: 804 });
+      .toEqual({ core: 738, variants: 4, feature: 40, attackLab: 20, total: 802 });
   });
 
   test('executes every manifest category, preserves UC14b full-page behavior, and records report rows', async () => {

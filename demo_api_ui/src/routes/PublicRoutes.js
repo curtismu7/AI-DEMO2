@@ -48,6 +48,7 @@ import DavinciExplainerPage from "../pages/DavinciExplainerPage";
 import OrchestrationSdkExplainerPage from "../pages/OrchestrationSdkExplainerPage";
 import DavinciSdkLoginPage from "../pages/DavinciSdkLoginPage";
 import DavinciLoginGuidePage from "../pages/DavinciLoginGuidePage";
+import PingOneProviderGuard from "../components/PingOneProviderGuard";
 import PingFederateDavinciKitPage from "../pages/PingFederateDavinciKitPage";
 import CibaApprovalPage from "../pages/CibaApprovalPage";
 import PrivilegeDemoPage from "../pages/PrivilegeDemoPage";
@@ -557,7 +558,12 @@ export function OrchestrationSdkExplainerRoute({ user, logout }) {
 export function DavinciSdkLoginRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
-      <DavinciSdkLoginPage />
+      <PingOneProviderGuard
+        returnTo="/davinci-orchestration-sdk"
+        description="DaVinci sign-in here is a PingOne flow. PingFederate is currently selected for login, so switch to PingOne to try it."
+      >
+        <DavinciSdkLoginPage />
+      </PingOneProviderGuard>
     </AppShell>
   );
 }
@@ -569,7 +575,12 @@ export function DavinciSdkLoginRoute({ user, logout }) {
 export function DavinciLoginGuidePageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
-      <DavinciLoginGuidePage />
+      <PingOneProviderGuard
+        returnTo="/davinci-widget"
+        description="DaVinci sign-in here is a PingOne flow. PingFederate is currently selected for login, so switch to PingOne to try it."
+      >
+        <DavinciLoginGuidePage />
+      </PingOneProviderGuard>
     </AppShell>
   );
 }

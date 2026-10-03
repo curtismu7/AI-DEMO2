@@ -21,7 +21,7 @@ const AUTHORIZE_POLICY_TREE_WAIVER_ID = 'temporary-authorize-policy-tree-readbac
 const AUTHORIZE_POLICY_TREE_WAIVER = 'Temporary waiver: live Authorize policy-tree parity is unverified. Decision endpoint references and runtime Authorize decisions remain required.';
 const P1 = ['audience', 'scope', 'mirror', 'appGrant', 'requiredFlag', 'a2aCredential',
   'parSetting', 'groupMembership', 'registeredToolScope', 'authorizeEndpoint', 'policyReadback'];
-const PF = ['clientGrantProcessorAtm', 'specialistResourceUriIdJag', 'davinciClientAdapter', 'jwksAudience'];
+const PF = ['clientGrantProcessorAtm', 'specialistResourceUriIdJag', 'jwksAudience'];
 const APPLICABILITY = { userLogin: 'required', agentIdentity: 'required', tokenIssuer: 'required', exchangeService: 'required', resourceServer: 'required' };
 
 function expired(deadlineAt, signal) {
@@ -312,7 +312,6 @@ async function pfRead({ baseUrl, credentials = {}, fetchImpl, deadlineAt, signal
     return { clients, values: {
       clientGrantProcessorAtm: { status: 'blocked', reason: 'no authoritative client grant, processor-policy, and ATM contract is committed' },
       specialistResourceUriIdJag: { status: 'blocked', reason: 'specialist SP resource URI/ID-JAG endpoint is not documented in committed sources' },
-      davinciClientAdapter: { status: 'blocked', reason: (policies ? 'DaVinci adapter contract is undocumented' : 'authentication policy read unavailable') },
       jwksAudience: { status: 'blocked', reason: (atms ? 'JWT allowed-audience contract is undocumented' : 'access-token manager read unavailable') },
     } };
   } catch (error) {

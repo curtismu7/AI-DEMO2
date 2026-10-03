@@ -44,7 +44,7 @@ function passingAdapters(overrides = {}) {
     pingFederate: {
       readConfiguration: jest.fn(async () => ({
         clientGrantProcessorAtm: true, specialistResourceUriIdJag: true,
-        davinciClientAdapter: true, jwksAudience: true,
+        jwksAudience: true,
       })),
     },
     runtime: {
@@ -97,15 +97,15 @@ describe('demo readiness audit service', () => {
   test.each([
     'audience', 'scope', 'mirror', 'appGrant', 'requiredFlag', 'a2aCredential', 'parSetting',
     'groupMembership', 'registeredToolScope', 'gatewayConfig', 'authorizeEndpoint',
-    'clientGrantProcessorAtm', 'specialistResourceUriIdJag', 'davinciClientAdapter',
+    'clientGrantProcessorAtm', 'specialistResourceUriIdJag',
     'jwksAudience', 'health', 'revision',
   ])('reports a failed required %s check', async (family) => {
     const adapters = passingAdapters();
     if (family === 'gatewayConfig') adapters.repository.readContracts.mockReturnValue({ ...adapters.repository.readContracts(), gatewayConfig: false });
     else if (family === 'health') adapters.runtime.readTarget.mockResolvedValue({ health: { status: 'fail' }, revision: 'abc123', expectedRevision: 'abc123', audienceScopes: RUNTIME_AUDIENCE });
     else if (family === 'revision') adapters.runtime.readTarget.mockResolvedValue({ health: { status: 'pass' }, revision: 'old', expectedRevision: 'new', audienceScopes: RUNTIME_AUDIENCE });
-    else if (['clientGrantProcessorAtm', 'specialistResourceUriIdJag', 'davinciClientAdapter', 'jwksAudience'].includes(family)) {
-      adapters.pingFederate.readConfiguration.mockResolvedValue({ clientGrantProcessorAtm: true, specialistResourceUriIdJag: true, davinciClientAdapter: true, jwksAudience: true, [family]: false });
+    else if (['clientGrantProcessorAtm', 'specialistResourceUriIdJag', 'jwksAudience'].includes(family)) {
+      adapters.pingFederate.readConfiguration.mockResolvedValue({ clientGrantProcessorAtm: true, specialistResourceUriIdJag: true, jwksAudience: true, [family]: false });
     } else adapters.pingOne.readConfiguration.mockResolvedValue({ audience: true, scope: true, mirror: true, appGrant: true, requiredFlag: true, a2aCredential: true, parSetting: true, groupMembership: true, registeredToolScope: true, authorizeEndpoint: true, policyReadback: true, [family]: false });
 
     const checks = await createAuditService({ adapters, pfProfiles: { roles: {} } }).auditTarget({
