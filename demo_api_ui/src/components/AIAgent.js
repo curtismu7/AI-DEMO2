@@ -10921,22 +10921,9 @@ export default function BankingAgent({
                       </div>
                     </section>
                     {splitChrome && (
-                      <span
-                        className={`ba-hg-sub${inspectorsOpen ? "" : " ba-hg-sub--collapsed"}`}
-                      >
-                        <button
-                          type="button"
-                          className="ba-hg-label ba-hg-label--toggle"
-                          aria-expanded={inspectorsOpen}
-                          title={inspectorsOpen ? "Hide inspectors" : "Show inspectors"}
-                          onClick={() => setInspectorsOpen((open) => !open)}
-                        >
-                          <span className="ba-hg-label__chev" aria-hidden>
-                            {inspectorsOpen ? "▾" : "▸"}
-                          </span>
-                          Inspectors
-                        </button>
-                        <div className="ba-hg-body">
+                      <section className="cmd-dock-sec" aria-label="Inspect">
+                        <h3 className="cmd-dock-sec__label">Inspect</h3>
+                        <div className="cmd-dock-sec__body">
                           <button
                             type="button"
                             className="ba-insp-btn ba-insp-btn--mcp"
@@ -10976,7 +10963,7 @@ export default function BankingAgent({
                             Token Inspector
                           </button>
                         </div>
-                      </span>
+                      </section>
                     )}
                     {effectiveUser?.role === "admin" && (
                       <AdminToolsDropdown

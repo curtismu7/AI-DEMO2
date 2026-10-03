@@ -45,7 +45,7 @@ export default function CommandDock({
   win = window,
 }) {
   const width = Math.min(480, Math.max(340, win.innerWidth - 24));
-  const height = Math.min(620, Math.max(320, win.innerHeight - 24));
+  const height = Math.min(720, Math.max(320, win.innerHeight - 24));
   const defaultX = Math.max(8, win.innerWidth - width - 16);
   const defaultY = 52;
 
