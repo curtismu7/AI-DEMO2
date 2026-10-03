@@ -27,42 +27,42 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: {{ include "agentless-mcpgw.name" . }}
+                name: {{ include "agentless-mcpgw.front" . }}
                 port:
                   number: 8623
           - path: /authorize
             pathType: Prefix
             backend:
               service:
-                name: {{ include "agentless-mcpgw.name" . }}
+                name: {{ include "agentless-mcpgw.front" . }}
                 port:
                   number: 8623
           - path: /token
             pathType: Prefix
             backend:
               service:
-                name: {{ include "agentless-mcpgw.name" . }}
+                name: {{ include "agentless-mcpgw.front" . }}
                 port:
                   number: 8623
           - path: /callback
             pathType: Prefix
             backend:
               service:
-                name: {{ include "agentless-mcpgw.name" . }}
+                name: {{ include "agentless-mcpgw.front" . }}
                 port:
                   number: 8623
           - path: /consent
             pathType: Prefix
             backend:
               service:
-                name: {{ include "agentless-mcpgw.name" . }}
+                name: {{ include "agentless-mcpgw.front" . }}
                 port:
                   number: 8623
           - path: /register
             pathType: Prefix
             backend:
               service:
-                name: {{ include "agentless-mcpgw.name" . }}
+                name: {{ include "agentless-mcpgw.front" . }}
                 port:
                   number: 8623
           {{- range .Values.mcpServers }}
@@ -70,7 +70,7 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: {{ include "agentless-mcpgw.name" $ }}
+                name: {{ include "agentless-mcpgw.front" $ }}
                 port:
                   number: 8623
           {{- end }}
@@ -78,6 +78,6 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: {{ include "agentless-mcpgw.name" . }}
+                name: {{ include "agentless-mcpgw.front" . }}
                 port:
                   number: 8623

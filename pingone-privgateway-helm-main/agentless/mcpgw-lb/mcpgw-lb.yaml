@@ -1,0 +1,170 @@
+# Sticky load balancer in front of two Privilege agentless gateways, so one URL
+# (https://mcpgw.ai-demo.ping-devops.com) is served by either of them.
+#
+# Apply into the namespace that owns the public ingress (ping-devops-curtismuir):
+#   kubectl apply -n ping-devops-curtismuir -f mcpgw-lb.yaml
+# then point the ingresses at it with `--set frontService=mcpgw-lb` on the
+# agentless-mcpgw release. Roll back with `--set frontService=` (empty).
+#
+# Hybrid routing: MCP calls rotate round robin, but the sign-in paths
+# (/register /authorize /token /callback /consent /.well-known/) are pinned per
+# client. Each gateway keeps its DCR client registry and OAuth state in memory,
+# so those must reach the same node. The pin key is the client address from
+# X-Forwarded-For. If a node dies its clients are retried on the other one and
+# must re-register, same as after a gateway restart today.
+#
+# Why HTTPS with the gateway's own cert: the chart's ingresses carry
+# backend-protocol HTTPS, so the hop into this pod has to be TLS. The cert is
+# the existing agentless-mcpgw-tls secret; the ingress does not verify it.
+#
+# The upstream names below are the two Services. The second lives in another
+# namespace (the chart prefixes nothing, so two releases cannot share one).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mcpgw-lb-config
+data:
+  nginx.conf: |
+    worker_processes auto;
+    pid /tmp/nginx.pid;
+    error_log /dev/stderr warn;
+    events { worker_connections 1024; }
+    http {
+      access_log /dev/stdout;
+      client_body_temp_path /tmp/cb; proxy_temp_path /tmp/pt;
+      fastcgi_temp_path /tmp/fc; uwsgi_temp_path /tmp/uw; scgi_temp_path /tmp/sc;
+
+      map $http_x_forwarded_for $stick { default $http_x_forwarded_for; "" $remote_addr; }
+      map $http_upgrade $conn_upgrade { default upgrade; "" ""; }
+
+      # Friendly node name for the X-Served-By header. Gateway 2 is reached via
+      # the loopback hop below; the last address wins when a request was retried.
+      map $upstream_addr $node { ~127\.0\.0\.1:8444$ gateway-2; default gateway-1; }
+
+      # Shared proxy settings (inherited by every server and location).
+      proxy_http_version 1.1;
+      proxy_set_header Host $host;
+      proxy_set_header X-Forwarded-For $http_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection $conn_upgrade;
+      proxy_ssl_server_name on;
+      proxy_ssl_name $host;
+      proxy_ssl_verify off;
+      proxy_buffering off;
+      proxy_read_timeout 3600s;
+      proxy_send_timeout 3600s;
+      proxy_next_upstream error timeout http_502 http_503 http_504;
+      proxy_next_upstream_tries 2;
+
+      # Gateway 1 (curtismuir) serves TLS. Gateway 2 (cmuir) answers to the shared
+      # hostname but its certificate is for its own, so it falls back to plain
+      # HTTP; the loopback server below bridges that so one upstream group can
+      # hold both.
+      # MCP calls: plain round robin.
+      upstream gateways_rr {
+        zone gateways_rr 64k;  # share the rotation across workers; else each starts on gateway 1
+        server agentless-mcpgw.ping-devops-curtismuir.svc.cluster.local:8623 max_fails=2 fail_timeout=10s;
+        # PARKED. Tested 2026-10-03: a token issued by gateway 1 is rejected (401)
+        # by gateway 2, so round robin on /mcp breaks every signed-in client.
+        server 127.0.0.1:8444 max_fails=2 fail_timeout=10s down;
+      }
+
+      # Sign-in: pinned per client, because DCR and OAuth state are per node.
+      upstream gateways_sticky {
+        hash $stick consistent;
+        server agentless-mcpgw.ping-devops-curtismuir.svc.cluster.local:8623 max_fails=2 fail_timeout=10s;
+        server 127.0.0.1:8444 max_fails=2 fail_timeout=10s down;  # PARKED, see above
+      }
+
+      server {
+        listen 8081;
+        location = /lb-health { return 200 "ok\n"; }
+      }
+
+      # Loopback bridge: TLS in (so the upstream groups stay https), HTTP out.
+      server {
+        listen 127.0.0.1:8444 ssl;
+        ssl_certificate /tls/tls.crt;
+        ssl_certificate_key /tls/tls.key;
+        location / {
+          proxy_pass http://agentless-mcpgw.ping-devops-cmuir.svc.cluster.local:8623;
+        }
+      }
+
+      server {
+        listen 8443 ssl;
+        ssl_certificate /tls/tls.crt;
+        ssl_certificate_key /tls/tls.key;
+
+        add_header X-Served-By $node always;
+
+        location / {
+          proxy_pass https://gateways_rr;
+        }
+
+        # Sign-in comes both at the root and under the app name
+        # (/opensearch22/authorize), so the app prefix is optional.
+        location ~ ^/([^/]+/)?(register|authorize|token|callback|consent)(/|$)|/\.well-known/ {
+          proxy_pass https://gateways_sticky;
+        }
+      }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcpgw-lb
+  labels:
+    app: mcpgw-lb
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: mcpgw-lb
+  template:
+    metadata:
+      labels:
+        app: mcpgw-lb
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:stable-alpine
+          command: ["nginx", "-g", "daemon off;", "-c", "/etc/nginx/lb/nginx.conf"]
+          ports:
+            - containerPort: 8443
+              name: https
+            - containerPort: 8081
+              name: health
+          readinessProbe:
+            httpGet: {path: /lb-health, port: 8081}
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /lb-health, port: 8081}
+            periodSeconds: 30
+          resources:
+            requests: {cpu: 50m, memory: 32Mi}
+            limits: {cpu: 500m, memory: 128Mi}
+          volumeMounts:
+            - {name: conf, mountPath: /etc/nginx/lb, readOnly: true}
+            - {name: tls, mountPath: /tls, readOnly: true}
+      volumes:
+        - name: conf
+          configMap: {name: mcpgw-lb-config}
+        - name: tls
+          secret: {secretName: agentless-mcpgw-tls}
+---
+# Port 8623 because the chart's ingresses hard-code it for the gateway Service.
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcpgw-lb
+  labels:
+    app: mcpgw-lb
+spec:
+  selector:
+    app: mcpgw-lb
+  ports:
+    - name: https
+      port: 8623
+      targetPort: 8443
