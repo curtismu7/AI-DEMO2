@@ -90,6 +90,28 @@ public final class AiAgentAuthorizationDetailPolicyTest {
                 Set.of("transactions:write"), USER_INFO).isValid(),
                 "the full check must still refuse when there is no user");
 
+        // After consent PingFederate may call the subset check with no signed-in user: compare
+        // the details on their own (their user-bound checks already ran in enrich).
+        Set<String> writeScope = Set.of("transactions:write");
+        check(AiAgentAuthorizationDetailPolicy.isEqualOrSubset(
+                validTransferDetail(), validTransferDetail(), writeScope),
+                "identical approved and requested details should pass without a user");
+        check(AiAgentAuthorizationDetailPolicy.isEqualOrSubset(smallerTransfer, validTransferDetail(), writeScope),
+                "the user-less comparison must keep the same direction as the user-bound one");
+        check(!AiAgentAuthorizationDetailPolicy.isEqualOrSubset(validTransferDetail(), smallerTransfer, writeScope),
+                "the user-less comparison must still refuse the opposite direction");
+        Map<String, Object> otherDestination = new java.util.HashMap<>(validTransferDetail());
+        otherDestination.put("destination_account", "acct-other");
+        check(!AiAgentAuthorizationDetailPolicy.isEqualOrSubset(
+                validTransferDetail(), otherDestination, writeScope),
+                "a different destination must not pass the user-less comparison");
+        check(!AiAgentAuthorizationDetailPolicy.isEqualOrSubset(
+                validTransferDetail(), unknownField, writeScope),
+                "an approved detail with an unknown field must not pass the user-less comparison");
+        check(!AiAgentAuthorizationDetailPolicy.isEqualOrSubset(
+                validTransferDetail(), validTransferDetail(), Set.of("accounts:read")),
+                "the user-less comparison must still require the write scope");
+
         System.out.println("PF AI Agent RAR policy tests passed");
     }
 }
