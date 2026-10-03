@@ -128,6 +128,31 @@ export function isMonitoringRoute(pathname) {
   return MONITORING_PREFIXES.some(prefix => p === prefix || p.startsWith(prefix + '/'));
 }
 
+const DEMO_CONTROLS_ROUTES = new Set([
+  // use-case launch
+  '/use-cases', '/demo-track',
+  // inspector and token tools
+  '/mcp-inspector', '/agent-flow-inspector', '/token-exchange-tester',
+  '/transaction-trace', '/policy-decision-trace', '/oauth/token-display',
+  // setup and config
+  '/config', '/demo-config', '/pingone-setup', '/demo-data', '/feature-flags', '/llm-config',
+]);
+
+/**
+ * Pages where an operator launches, watches or sets up a demo, and so needs the floating
+ * agent and its Demo Controls pill: use-case launch, inspector / token tools, and setup /
+ * config. Learning, diagram, docs and admin-console pages deliberately are not here.
+ * Exact matches (plus the /demo/ shells), so e.g. /transaction-trace/embed/:id, an
+ * embedded iframe, does not get an agent.
+ * @param {string} [pathname]
+ * @returns {boolean}
+ */
+export function isDemoControlsRoute(pathname) {
+  if (pathname == null || typeof pathname !== 'string') return false;
+  const p = pathname.replace(/\/$/, '') || '/';
+  return DEMO_CONTROLS_ROUTES.has(p) || p.startsWith('/demo/');
+}
+
 /**
  * The live use-case workbench (/use-cases/live) — drawer + real Token Chain
  * rail driven by the single real agent squeezed into a narrow "middle" column,

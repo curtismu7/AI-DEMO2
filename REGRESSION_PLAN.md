@@ -249,6 +249,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-03 — Demo Controls pill only existed where the agent happened to mount
+
+**Files:** `demo_api_ui/src/utils/embeddedAgentFabVisibility.js`, `demo_api_ui/src/App.js`, `demo_api_ui/src/utils/__tests__/embeddedAgentFabVisibility.test.js`.
+
+**What was broken:** The floating "Demo Controls" pill is part of the single `AIAgent`, which only mounts on a short route list (home, dashboard, admin, the monitoring pages, the live workbench, agent lifecycle and the enterprise-MCP demos, or everywhere when agent placement is "none"). The pages where an operator launches a use case, watches a token or sets the demo up had no pill and no way to open the dock.
+
+**What changed:** `isDemoControlsRoute(pathname)` lists use-case launch (`/use-cases`, `/demo-track`, `/demo/` shells), inspector and token tools (`/mcp-inspector`, `/agent-flow-inspector`, `/token-exchange-tester`, `/transaction-trace`, `/policy-decision-trace`, `/oauth/token-display`) and setup pages (`/config`, `/demo-config`, `/pingone-setup`, `/demo-data`, `/feature-flags`, `/llm-config`). `App.js` adds `Boolean(user) && onDemoControlsRoute` to `showFloatingAgent`, beside the monitoring clause. The pill itself is unchanged.
+
+**Do not break:** There must still be exactly ONE `AIAgent` (`shouldMountSingleAgent`); do not mount a second one on these pages. The list is exact matches plus `/demo/`, so embedded iframes such as `/transaction-trace/embed/:id`, learning, diagram, docs and admin-console pages stay without an agent. It is signed-in only, like the monitoring pages. Mounting the agent on a page also brings its floating chat button there. `isEmbeddedAgentDockRoute` is unused, so `/config` having been "excluded from the FAB" was a comment, not behaviour.
+
+**Verify:** `cd demo_api_ui && npx vitest run src/utils/__tests__/embeddedAgentFabVisibility.test.js` (4 new tests fail without the predicate); `npm run test:unit`; `npm run build`. Live: signed in, open `/use-cases`, `/config` and `/mcp-inspector` and see the Demo Controls pill. The `App.js` wiring itself is not unit-tested (App needs the full provider tree).
+
 ### 2026-10-03 — The token display never showed the login introspection card (the result landed after the redirect)
 
 **Files:** `demo_api_server/routes/oauthUser.js`, `services/tokenIntrospectionService.js`, `services/agentMcpTokenService.js`, tests `src/__tests__/tokenIntrospectionService.loginIntrospection.test.js` (new) and `src/__tests__/agentMcpTokenService.test.js`.

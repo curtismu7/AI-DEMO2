@@ -10,6 +10,7 @@ import {
   isPingOneAdminAgentRoute,
   isTokenChainRoute,
   isMonitoringRoute,
+  isDemoControlsRoute,
 } from '../embeddedAgentFabVisibility';
 
 const customer = { role: 'customer', id: '1' };
@@ -20,6 +21,38 @@ describe('isMonitoringRoute', () => {
     expect(isMonitoringRoute('/api-traffic')).toBe(true);
     expect(isMonitoringRoute('/monitoring/token-chain')).toBe(true);
     expect(isMonitoringRoute('/transaction-trace')).toBe(false);
+  });
+});
+
+describe('isDemoControlsRoute', () => {
+  it('covers use-case launch, inspector / token tools and setup pages', () => {
+    for (const p of [
+      '/use-cases', '/demo-track', '/demo/footprint-picks',
+      '/mcp-inspector', '/agent-flow-inspector', '/token-exchange-tester',
+      '/transaction-trace', '/policy-decision-trace', '/oauth/token-display',
+      '/config', '/demo-config', '/pingone-setup', '/demo-data', '/feature-flags', '/llm-config',
+    ]) {
+      expect(isDemoControlsRoute(p)).toBe(true);
+    }
+  });
+
+  it('ignores a trailing slash', () => {
+    expect(isDemoControlsRoute('/use-cases/')).toBe(true);
+  });
+
+  it('leaves out learning, diagram, docs and admin-console pages, and the embedded trace iframe', () => {
+    for (const p of [
+      '/learning', '/academy/journey', '/sequence-diagram', '/owasp', '/pingfederate-id-jag/diagram',
+      '/admin/pingone', '/admin/banking', '/profile', '/security', '/transaction-trace/embed/abc',
+    ]) {
+      expect(isDemoControlsRoute(p)).toBe(false);
+    }
+  });
+
+  it('is false for a missing or non-string pathname', () => {
+    expect(isDemoControlsRoute(undefined)).toBe(false);
+    expect(isDemoControlsRoute(null)).toBe(false);
+    expect(isDemoControlsRoute(42)).toBe(false);
   });
 });
 
