@@ -1,68 +1,89 @@
-# Privilege OpenAPI MCP on Kubernetes: Working Pattern and Remaining Gap
+# Privilege OpenAPI MCP on Kubernetes: Working Patterns and Remaining Gap
 
-**Date:** 2026-10-01
+**Originally prepared:** 2026-10-01 · **Updated:** 2026-10-03
 
-**Purpose:** Explain the OpenAPI-to-MCP path in this repository and compare it with the supplied engineering ask, “Enable Kubernetes-Native Deployment for Generated OpenAPI MCP Apps.”
+**Purpose:** Explain the OpenAPI-to-MCP patterns recorded in this repository and compare them with the supplied engineering ask, “Enable Kubernetes-Native Deployment for Generated OpenAPI MCP Apps.”
 
 ## Summary
 
-The repository has a Kubernetes-native way to run Ping's OpenAPI MCP adapter: declare it as a **static sidecar in the Privilege gateway Pod** and register that sidecar as an MCP Server application. This lets the gateway reach the adapter over the Pod's shared `localhost` network. The gateway process does not need a Docker or containerd socket, nor permission to create Kubernetes resources.
+The repository records two different ways to make OpenAPI-described APIs available through Privilege:
 
-This is a working deployment pattern for a configured adapter. It is **not** a general controller that watches each generated app descriptor and creates a Deployment and Service for it. The supplied PDF's Petstore case therefore remains a separate, broader automation gap. The evidence in this repository is from the `ai-demo-cmuir` / `ping-devops-curtismuir` setup; the PDF describes `ping-devops-tarunmadiraju`, so the two environments should not be treated as the same live deployment.
+1. **Native Privilege OpenAPI app (`banking-rest`).** Privilege receives a REST API endpoint and an OpenAPI spec URL. A statically configured Kubernetes sidecar makes both reachable from the gateway Pod. Privilege turns the API operations into MCP tools.
+2. **Self-hosted OpenAPI adapter (`banking-openapi`).** The Ping `mcp/openapi` image runs as a configured sidecar. It reads an API and spec from another sidecar and exposes an MCP endpoint on the gateway Pod. The operator notes prescribe registering that endpoint as an MCP Server. The current BFF preset calls the same door an “OpenAPI MCP Agentic App”; because the live console record is not checked in, the repository does not settle that UI-type discrepancy.
 
-## What was failing
+Both patterns depend on workloads configured ahead of time through Helm and a manually configured Privilege app. Neither watches each generated descriptor and creates a Kubernetes Deployment and Service for it. The Petstore workflow in the supplied PDF therefore remains a separate automation gap. This report distinguishes the repository's `ai-demo-cmuir` / `ping-devops-curtismuir` setup from the PDF's `ping-devops-tarunmadiraju` environment.
 
-The original `openapi2` Agentic App used the Privilege-hosted `mcp/openapi` image. Investigation recorded that this image runs `/openapimcp` without the `mcp-shim` present in working catalog images. The adapter itself accepted MCP `initialize` and generated tools, but its `GET /mcp` response was `405`. The Privilege gateway's normal MCP Server discovery path uses a POST `initialize`; the OpenAPI app type followed a different, Privilege-managed container path and did not discover tools in this setup. See the investigation in [CURRENT-CONFIGURATION.md, lines 223–275](CURRENT-CONFIGURATION.md#L223-L275).
+| Pattern | Where OpenAPI becomes MCP | Kubernetes workload | Evidence and limit |
+|---|---|---|---|
+| `banking-rest` | Privilege's native **Add OpenAPI MCP** app | REST API sidecar on port `8082` | Operational notes record the app config and a live REST-path check. That check proves the API path, not a current Privilege tool invocation. |
+| `banking-openapi` | Self-hosted `mcp/openapi` sidecar | REST sidecar on `8082` plus MCP adapter on `8080` | Sidecar values and BFF preset record the config and discovered tools. The checked-in notes disagree on the app's exact console type. |
 
-The PDF reports a related but distinct failure: Privilege wrote a generated runtime descriptor for Petstore, but no Kubernetes workload appeared. It also records that the gateway's service account cannot create Pods or Deployments. The repo's workaround avoids asking the gateway process to launch containers at runtime.
+## What failed and what changed
 
-## How the repository path works
+The original `openapi2` app used the Privilege-managed `mcp/openapi` image. Investigation measured `POST /mcp initialize` returning `200` and producing tools when the image was run with valid configuration, while `GET /mcp` returned `405`; the image had no `mcp-shim`. The repository's investigation attributes the `openapi2` failure to the managed image packaging and runtime path. That is an observed result for this setup, not a claim about every Privilege installation. See [CURRENT-CONFIGURATION.md](CURRENT-CONFIGURATION.md#L223-L275).
 
-1. **Keep the OpenAPI-described API reachable in the gateway Pod.** The `demo_mcp_banking_rest` service runs as an `extraContainers` sidecar on port `8082`. It exposes a small self-contained `/users` API and `/openapi/simple-users.json` for a focused discovery probe, as well as proxy routes for the banking REST API. The banking proxy forwards the API key to the resource server; the OpenAPI document is fetched without that key. See [server.js](../demo_mcp_banking_rest/server.js#L1-L13) and its [route tests](../demo_mcp_banking_rest/test/server.test.js#L50-L149).
+The supplied PDF describes a related but different problem: Privilege wrote a runtime descriptor for Petstore, but no Kubernetes workload appeared, and the gateway service account could not create Pods or Deployments. The repository's approach keeps Kubernetes deployment under Helm/operator control. It does not grant the gateway process permission to launch containers at runtime.
 
-2. **Run the OpenAPI MCP adapter as another static sidecar.** The checked-in Helm values define `mcp-openapi-banking` with image `public.ecr.aws/n2z2g8w6/mcp/openapi:latest`, listener port `8080`, and these settings:
+## Pattern 1: Privilege's native OpenAPI app (`banking-rest`)
 
-   ```text
-   OPENAPIMCP_ENDPOINT=http://localhost:8082
-   OPENAPIMCP_SPEC_URL=http://localhost:8082/openapi/simple-users.json
-   OPENAPIMCP_TOOL_MODE=both
-   ```
+The operational notes describe a native **Add OpenAPI MCP** application named `banking-rest`. This app takes a REST API endpoint and an OpenAPI spec URL; Privilege creates the MCP tools. The Kubernetes sidecar remains an ordinary REST API and does not implement MCP JSON-RPC.
 
-   `OPENAPIMCP_ENDPOINT` is the REST API base URL, so it has no `/mcp` suffix. The endpoint and spec are on the `demo_mcp_banking_rest` sidecar in the same Pod. The values are in [sidecars.values.yaml](../pingone-privgateway-helm-main/agentless/sidecars.values.yaml#L176-L218).
+The recorded configuration is:
 
-3. **Register the adapter through the gateway's supported MCP Server path.** The recorded console configuration uses application type `MCP Server`, name `banking-openapi`, and backend `http://localhost:8080/mcp`. The gateway can then POST `initialize` to the adapter and discover tools through its standard MCP Server flow. The specific app registration is manual configuration; it is not generated from each OpenAPI descriptor. See [CURRENT-CONFIGURATION.md, lines 223–275](CURRENT-CONFIGURATION.md#L223-L275).
+| Setting | Value |
+|---|---|
+| Privilege app type/name | **Add OpenAPI MCP** / `banking-rest` |
+| REST API endpoint | `http://localhost:8082` |
+| OpenAPI spec URL | `http://localhost:8082/openapi/banking-rest.json` |
+| Mesh cluster | `ai-demo-cmuir` |
+| Sidecar | `mcp-banking-rest`, port `8082`, in the `agentless-mcpgw` Pod |
+| API key | Held by the REST sidecar; Privilege does not receive it |
 
-4. **Use a TCP readiness probe.** The adapter's `GET /mcp` returns `405`, while MCP initialization is a POST. An HTTP GET probe would report a healthy, running adapter as unready, so the sidecar uses `tcpSocket` on port `8080` instead.
+The sidecar proxies banking routes to `mcp-resource-server` and serves the OpenAPI document. The notes record a live request from inside the sidecar to `/banking` returning seeded accounts, which verifies the sidecar-to-Service route and API-key authentication. The source notes do not provide a captured request proving a current Privilege-generated tool call, so this report keeps those two verification claims separate. See [AGENTLESS-CONFIGURATION.md](AGENTLESS-CONFIGURATION.md#L77-L149) and [server.js](../demo_mcp_banking_rest/server.js#L1-L13).
 
-5. **Deploy through Helm, not from inside the gateway.** The vendored chart adds configured `extraContainers` to the gateway Pod template. Kubernetes schedules them as part of the Pod; containers share its network namespace, which makes the configured `localhost` URLs work. On Helm upgrades, `extraContainers` is a list and must be supplied in full so existing sidecars are not removed. The chart hook is a local change and is lost if the chart is re-vendored without carrying it forward. See [deployment.yaml](../pingone-privgateway-helm-main/agentless/agentless-mcpgw/templates/deployment.yaml#L140-L150) and the upgrade guidance at the top of [sidecars.values.yaml](../pingone-privgateway-helm-main/agentless/sidecars.values.yaml#L1-L30).
+This is the clearest native OpenAPI pattern in the repo: Privilege handles OpenAPI-to-tool conversion, and the cluster supplies a statically deployed REST endpoint and spec. The gateway Pod's shared network namespace lets the app use `localhost:8082`; the workload is not created from the generated app descriptor.
 
-```mermaid
-flowchart LR
-  G[Privilege MCP Gateway] -->|POST initialize / tools/list<br/>localhost:8080/mcp| A[OpenAPI MCP sidecar<br/>port 8080]
-  A -->|read spec and call REST<br/>localhost:8082| R[REST sidecar<br/>port 8082]
-  R -->|banking proxy routes| S[mcp-resource-server Service]
+## Pattern 2: Run Ping's OpenAPI adapter as a sidecar (`banking-openapi`)
+
+The other path runs Ping's `mcp/openapi` adapter in the gateway Pod and gives it a separate REST API sidecar. The checked-in Helm values configure:
+
+```text
+Adapter image:       public.ecr.aws/n2z2g8w6/mcp/openapi:latest
+Adapter listener:   8080
+REST API endpoint:   http://localhost:8082
+OpenAPI spec:        http://localhost:8082/openapi/simple-users.json
+Tool mode:           both
+Readiness check:     TCP port 8080
 ```
 
-## What is verified in the repository
+The adapter serves MCP on `http://localhost:8080/mcp`. Its current spec is the self-contained Simple User API, used as a controlled adapter/discovery probe; it is not the banking API spec from the `banking-rest` configuration. The TCP readiness probe is used because the adapter returns `405` to `GET /mcp` even though its MCP initialization is a POST. See [sidecars.values.yaml](../pingone-privgateway-helm-main/agentless/sidecars.values.yaml#L176-L218) and the [REST sidecar routes](../demo_mcp_banking_rest/test/server.test.js#L50-L149).
 
-- The REST sidecar serves the local `listUsers` example and OpenAPI 3.0.3 spec. Its unit tests cover those endpoints and the API-key-protected banking proxy. These tests do not run the OpenAPI MCP image or a Kubernetes deployment.
-- The operational notes record a live end-to-end check of the banking REST sidecar reaching seeded accounts through the resource-server Service and API-key authentication ([AGENTLESS-CONFIGURATION.md, lines 77–114](AGENTLESS-CONFIGURATION.md#L77-L114)).
-- The OpenAPI adapter investigation records successful `POST /mcp initialize` and tool generation when the image was run with a valid OpenAPI configuration; it also records the `405` GET behavior that motivates the TCP probe.
-- The checked-in OpenAPI sidecar configuration currently points to the **self-contained Simple User API** at `/openapi/simple-users.json`. It is a controlled adapter/discovery probe, not the Petstore URL from the PDF. The current file's `BANKING_UPSTREAM_URL` also differs from the cross-namespace target recorded in the operational notes. The local `/users` probe does not depend on that upstream, so the committed values alone do not establish that the present banking proxy target is correct.
+The operator instructions in `CURRENT-CONFIGURATION.md` specify a manually configured **MCP Server** app named `banking-openapi`, with URL `http://localhost:8080/mcp`. The BFF's current [Privilege door preset](../demo_api_server/routes/privilegeMcpClient.js#L1915-L1924) calls it an “OpenAPI MCP Agentic App” and records the tools `call_api`, `get_endpoint`, `listUsers`, and `list_endpoints`. These are different descriptions in checked-in records. Since the live console object is external to the repository, this report treats the MCP Server tile as the documented setup instructions and does not claim an independently verified current console type.
 
-The later `banking-mcp` entry in [CURRENT-CONFIGURATION.md, lines 277–310](CURRENT-CONFIGURATION.md#L277-L310) is a direct MCP Server integration. It may serve the banking demo, but it does not exercise OpenAPI conversion or solve generated-app deployment.
+This adapter-sidecar setup is separate from `banking-rest`: here the sidecar itself converts the OpenAPI spec into MCP, and the gateway reaches its `/mcp` endpoint. The supported static sidecar approach avoids requiring a Kubernetes API client or create permissions inside the gateway process.
 
-## Answer to the engineering ask
+## Kubernetes deployment mechanics
 
-The repository demonstrates that the OpenAPI MCP runtime can run on Kubernetes without granting the Privilege gateway Pod Kubernetes create permissions: deploy a preconfigured runtime sidecar with Helm, give it the spec and REST endpoint, and register its MCP endpoint with the gateway.
+The vendored Helm chart template adds configured `extraContainers` to the gateway Pod. Kubernetes schedules those containers with the Pod, and they share its network namespace. That makes the `localhost:8080` and `localhost:8082` endpoints available to the gateway without a separate Service between the containers. See [deployment.yaml](../pingone-privgateway-helm-main/agentless/agentless-mcpgw/templates/deployment.yaml#L140-L150).
 
-It does **not** yet provide automatic Kubernetes deployment for arbitrary generated OpenAPI apps. In particular, the code does not watch the generated descriptor, create a per-app Deployment and Service, or update the app's backend address to the resulting Kubernetes Service URL. Those capabilities are required to close the PDF's Petstore workflow. The static sidecar pattern is useful where the OpenAPI app is known at deploy time; it does not scale to dynamic app creation by itself.
+The local chart change must be preserved when the chart is re-vendored. Also, Helm replaces the `extraContainers` list as a whole; an upgrade must pass the complete list of sidecars or omitted containers can disappear. The repo keeps the sidecar definitions in [sidecars.values.yaml](../pingone-privgateway-helm-main/agentless/sidecars.values.yaml#L1-L30).
+
+## What this proves—and what remains
+
+- The `banking-rest` record shows how a native Privilege OpenAPI app can reach a REST API and its spec inside the gateway Pod. Its notes verify the REST route and API-key path.
+- The self-hosted adapter values show how to run Ping's OpenAPI MCP binary as a fixed sidecar, use a TCP probe for its POST-oriented endpoint, and connect it to an API/spec sidecar.
+- The BFF preset records that `banking-openapi` exposes generated and discovery tools. The repository has conflicting descriptions of its console app type and no checked-in live console export.
+- The current sidecar spec URL is `simple-users.json`. It does not prove that the current banking proxy target matches the separate cross-namespace target in older operational notes.
+- The later `banking-mcp` app is a direct MCP integration. It does not exercise OpenAPI conversion.
+
+The engineering ask calls for more: when Privilege produces an arbitrary OpenAPI app descriptor, a controller or deployment service would need to create/update a Kubernetes Deployment and Service, supply the API/spec configuration, publish a reachable backend URL, and reconcile deletion or descriptor changes. This repo contains static Helm sidecars and manual app registration; it does not contain that descriptor watcher or per-app lifecycle automation. The static patterns are useful for known APIs at deploy time, but they do not close the PDF's generated-app workflow.
 
 ## Source files
 
-- `privilege/CURRENT-CONFIGURATION.md` — observed failure, adapter behavior, MCP Server registration, and later banking integration status.
-- `privilege/AGENTLESS-CONFIGURATION.md` — original OpenAPI REST sidecar configuration and live REST-path verification.
-- `pingone-privgateway-helm-main/agentless/sidecars.values.yaml` — checked-in sidecar image, environment, port, and readiness settings.
-- `pingone-privgateway-helm-main/agentless/agentless-mcpgw/templates/deployment.yaml` — Helm template that injects `extraContainers` into the gateway Pod.
-- `demo_mcp_banking_rest/server.js` and `demo_mcp_banking_rest/test/server.test.js` — local OpenAPI probe and REST proxy implementation.
-- `demo_mcp_resource_server/openapi/banking-rest.openapi.json` and `demo_mcp_resource_server/src/index.ts` — banking REST OpenAPI document and server route.
+- [AGENTLESS-CONFIGURATION.md](AGENTLESS-CONFIGURATION.md) — native `banking-rest` OpenAPI app setup and recorded live REST-path check.
+- [CURRENT-CONFIGURATION.md](CURRENT-CONFIGURATION.md) — the original `openapi2` investigation and self-hosted adapter instructions.
+- [sidecars.values.yaml](../pingone-privgateway-helm-main/agentless/sidecars.values.yaml) — adapter and REST sidecar definitions, image, environment, ports, and probes.
+- [deployment.yaml](../pingone-privgateway-helm-main/agentless/agentless-mcpgw/templates/deployment.yaml) — Helm hook that injects `extraContainers`.
+- [privilegeMcpClient.js](../demo_api_server/routes/privilegeMcpClient.js) — current `banking-openapi` door preset and tool description.
+- [demo_mcp_banking_rest/server.js](../demo_mcp_banking_rest/server.js) and [server tests](../demo_mcp_banking_rest/test/server.test.js) — REST/OpenAPI probe and banking proxy.
+- [banking-rest.openapi.json](../demo_mcp_resource_server/openapi/banking-rest.openapi.json) and [resource server](../demo_mcp_resource_server/src/index.ts) — banking REST schema and implementation.
