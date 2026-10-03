@@ -216,4 +216,50 @@ describe('processAgentMessage — mode seams', () => {
     expect(result.reply).toContain('takes several minutes to load');
     expect(result.reply).not.toContain('Heuristics-only mode');
   });
+
+  describe('7. UC2.6 chip phrase in LLM-only mode', () => {
+    const MISMATCH = { kind: 'vertical', vertical: 'sporting-goods', action: 'a2a_generalist_mismatch', params: {} };
+
+    afterEach(() => jest.restoreAllMocks());
+
+    test('takes the heuristic path, not the model', async () => {
+      resetCfg({ agent_mode: 'llamacpp', ff_heuristic_enabled: 'false' });
+      nlIntentParser.parseHeuristic.mockReturnValue(MISMATCH);
+      const { runReasonLoop } = require('../services/agentReasoningClient');
+      const a2a = require('../services/a2aDelegationService');
+      const leg1 = jest.spyOn(a2a, 'exchangeAsGeneralist').mockResolvedValue({ error: 'stub', tokenEvents: [] });
+
+      await processAgentMessage({
+        message: 'simulate an agent identity mismatch',
+        userId: 'u1',
+        userToken: 'session-access-token',
+        vertical: 'sporting-goods',
+        langchainConfig: {},
+        req: { body: {} },
+      });
+
+      expect(leg1).toHaveBeenCalled();
+      expect(runReasonLoop).not.toHaveBeenCalled();
+    });
+
+    test('other wording in LLM-only mode still goes to the model', async () => {
+      resetCfg({ agent_mode: 'llamacpp', ff_heuristic_enabled: 'false' });
+      nlIntentParser.parseHeuristic.mockReturnValue(MISMATCH);
+      const { runReasonLoop } = require('../services/agentReasoningClient');
+      const a2a = require('../services/a2aDelegationService');
+      const leg1 = jest.spyOn(a2a, 'exchangeAsGeneralist').mockResolvedValue({ error: 'stub', tokenEvents: [] });
+
+      await processAgentMessage({
+        message: 'tell me about my loyalty points',
+        userId: 'u1',
+        userToken: 'session-access-token',
+        vertical: 'sporting-goods',
+        langchainConfig: {},
+        req: { body: {} },
+      });
+
+      expect(leg1).not.toHaveBeenCalled();
+      expect(runReasonLoop).toHaveBeenCalled();
+    });
+  });
 });
