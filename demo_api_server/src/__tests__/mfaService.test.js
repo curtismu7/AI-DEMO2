@@ -447,6 +447,34 @@ describe('enrollEmailDevice', () => {
   });
 });
 
+// ─── ensureEmailDevice ────────────────────────────────────────────────────────
+
+describe('ensureEmailDevice', () => {
+  it('enrolls an email device when the user has no active device', async () => {
+    mockWorkerTokenSuccess();
+    axios.get.mockResolvedValueOnce({ data: {} });
+    mockWorkerTokenSuccess();
+    axios.post.mockResolvedValueOnce({ data: { id: 'dev-new', type: 'EMAIL', status: 'ACTIVE' } });
+
+    const result = await mfaService.ensureEmailDevice('user-1', 'new@bank.com');
+
+    expect(result).toEqual({ status: 'created', deviceId: 'dev-new', deviceStatus: 'ACTIVE' });
+    const [url, body] = axios.post.mock.calls[2]; // [0] and [1] are worker tokens
+    expect(url).toContain('users/user-1/devices');
+    expect(body).toEqual({ type: 'EMAIL', email: 'new@bank.com' });
+  });
+
+  it('leaves a user who already has any device alone (it serves password reset)', async () => {
+    mockWorkerTokenSuccess();
+    axios.get.mockResolvedValueOnce({ data: { _embedded: { devices: [{ id: 'd1', type: 'SMS', status: 'ACTIVE' }] } } });
+
+    const result = await mfaService.ensureEmailDevice('user-1', 'new@bank.com');
+
+    expect(result).toEqual({ status: 'existing', count: 1 });
+    expect(axios.post).toHaveBeenCalledTimes(1); // the worker token only; no device created
+  });
+});
+
 // ─── initFido2Registration ────────────────────────────────────────────────────
 
 describe('initFido2Registration', () => {

@@ -653,6 +653,18 @@ async function enrollEmailDevice(userId, email) {
 }
 
 /**
+ * Make sure a user can pass MFA (and so reset a forgotten password): enroll an
+ * email OTP device unless they already have an active device of any type.
+ * @returns {{status: 'existing'|'created', count?: number, deviceId?: string, deviceStatus?: string}}
+ */
+async function ensureEmailDevice(userId, email) {
+  const { devices } = await listMfaDevices(userId);
+  if (devices.length > 0) return { status: 'existing', count: devices.length };
+  const device = await enrollEmailDevice(userId, email);
+  return { status: 'created', deviceId: device.id, deviceStatus: device.status };
+}
+
+/**
  * Enroll an SMS OTP device for a user.
  * When called with the user's own access token, PingOne uses the user-facing enrollment
  * flow which sends an OTP and returns ACTIVATION_REQUIRED (phone verification required).
@@ -1347,6 +1359,7 @@ module.exports = {
   getPingOneUserContact,
   listMfaDevices,
   enrollEmailDevice,
+  ensureEmailDevice,
   enrollSmsDevice,
   completeSmsEnrollment,
   completeEmailEnrollment,
