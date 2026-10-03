@@ -62,6 +62,13 @@ textarea {
 .Toastify__toast-body {
   color: #f1f5f9 !important;
 }
+/* Larger toast for errors the user must act on (e.g. PingFederate not running). */
+.Toastify__toast.toast--attention {
+  min-width: 420px;
+  padding: 16px 18px;
+  font-size: var(--font-size-md, 16px);
+  line-height: 1.5;
+}
 .Toastify__toast--success {
   border-left-color: #22c55e;
 }
