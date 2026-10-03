@@ -1630,6 +1630,15 @@ and in a clean worktree: both read gitignored local state.
 same unreproduced loopback class as the RFC 9728 reset. Items still open: the
 store/`runtimeData.json` isolation, and the loopback resets themselves.
 
+**2026-10-03 — store isolation fixed.** `data/store.js` now takes
+`DATA_STORE_DIR` (default unchanged); jest's `setup.js` points it at a
+per-worker temp dir, so tests no longer read or rewrite the live
+`data/runtimeData.json` / `data/backups/`. Proved: `mcp-local-hitl` fails with the
+live runtimeData.json when `DATA_STORE_DIR` is forced back to `data/`, passes
+with the isolation. Still open: the loopback resets (`demoAgentNl`, RFC 9728
+class), unreproduced; a full run still fails a different 1-5 suites each time,
+all green alone.
+
 ### [ ] 2026-09-09 — UC14b intermittently DENYs with `rar_unexpected_deny`, but only in a multi-vertical Demo Steps run
 
 **What's wrong.** `UC14b` ("PAR + RAR intent verified — PERMIT") posts a

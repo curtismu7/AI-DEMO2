@@ -14,8 +14,11 @@ const SEED_PROFILES = {
 };
 
 const DEFAULT_BOOTSTRAP_PATH = path.join(__dirname, 'bootstrapData.json');
-const RUNTIME_DATA_PATH = path.join(__dirname, 'runtimeData.json');
-const BACKUP_DIR = path.join(__dirname, 'backups');
+// DATA_STORE_DIR relocates the mutable runtime file + its backups (jest sets it
+// so tests never read or overwrite the operator's live data).
+const DATA_STORE_DIR = process.env.DATA_STORE_DIR || __dirname;
+const RUNTIME_DATA_PATH = path.join(DATA_STORE_DIR, 'runtimeData.json');
+const BACKUP_DIR = path.join(DATA_STORE_DIR, 'backups');
 const MAX_BACKUPS = 3;
 const MAX_ACTIVITY_LOGS = 1000;
 // ponytail: fixed-size window, not a TTL sweep. runtimeData.json is git-tracked,
