@@ -595,8 +595,9 @@ function AppWithAuth() {
   const onMonitoringRoute = isMonitoringRoute(pathname);
 
   // Use-case launch, inspector / token tools and setup pages: the floating agent
-  // (and with it the Demo Controls pill) is available there too, signed-in only like
-  // the monitoring pages.
+  // (and with it the Demo Controls pill) is available there too. NO Boolean(user)
+  // check, unlike the monitoring pages: the pill must be reachable before sign-in,
+  // same reasoning as onEnterpriseMcpDemoRoute.
   const onDemoControlsRoute = isDemoControlsRoute(pathname);
 
   const agentDisabled = appFlags.agentUiMode === "disabled";
@@ -607,7 +608,7 @@ function AppWithAuth() {
     (marketingAgentSurface ||
       (Boolean(user) && agentPlacement === "none") ||
       (Boolean(user) && onMonitoringRoute) ||
-      (Boolean(user) && onDemoControlsRoute) ||
+      onDemoControlsRoute ||
       (Boolean(user) &&
         agentPlacement !== "none" &&
         onDashboardAgentRoute &&
