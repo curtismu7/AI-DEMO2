@@ -2191,6 +2191,36 @@
   outline-offset: 1px;
 }
 
+/* Confirmation state (forgot-password done): check mark in the vertical's colour. */
+.pi-flow-signin__done {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 1rem 0.5rem 0.5rem;
+  text-align: center;
+}
+
+.pi-flow-signin__done-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  background: var(--brand-dashboard-header-start, var(--signin-accent));
+  color: var(--brand-dashboard-header-text, var(--th-text-invert));
+}
+
+.pi-flow-signin__done-title {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--th-text);
+}
+
 /* Shared split-pane divider handle (useDividerDrag consumers). Grid pages give
    it a 6px track; flex pages get the flex-basis here. Hide it wherever the
    page's own media query stacks its columns. */

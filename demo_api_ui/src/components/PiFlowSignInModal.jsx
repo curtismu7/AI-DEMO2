@@ -1,5 +1,6 @@
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import DraggableModal from "./DraggableModal";
+import { ForgotPasswordLink } from "./ForgotPasswordFlow";
 import {
   PI_FLOW_SIGNIN_EVENT,
   setPiFlowSignInAvailable,
@@ -220,14 +221,17 @@ export default function PiFlowSignInModal() {
               </button>
             </>
           ) : (
-            <button
-              type="submit"
-              form="pi-flow-signin-form"
-              className="signin-prompt__btn"
-              disabled={busy || !username || !password}
-            >
-              {busy ? "Signing in" : "Sign in"}
-            </button>
+            <>
+              <button
+                type="submit"
+                form="pi-flow-signin-form"
+                className="signin-prompt__btn"
+                disabled={busy || !username || !password}
+              >
+                {busy ? "Signing in" : "Sign in"}
+              </button>
+              <ForgotPasswordLink />
+            </>
           )}
           <button
             type="button"
