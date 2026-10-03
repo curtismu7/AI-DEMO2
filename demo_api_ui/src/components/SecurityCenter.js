@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { notifySuccess, notifyError } from '../utils/appToast';
 import { navigateToCustomerOAuthLogin } from '../utils/authUi';
 import SignInPrompt from './SignInPrompt';
-import OtpStepUpModal from './OtpStepUpModal';
+import ForgotPasswordFlow from './ForgotPasswordFlow';
 import PingOneProviderGuard from './PingOneProviderGuard';
 import { loadPublicConfig } from '../services/configService';
 import { describePasskeyRegistrationError } from '../utils/mfaEnrollment';
@@ -41,15 +41,6 @@ function SecurityCenterContent({ user }) {
   // PingOne environment id — only used to build the self-service link on the
   // Password tab. Absent config just drops the link, never blocks the panel.
   const [envId, setEnvId] = useState(null);
-
-  // Forgot password: needs no sign-in. The BFF runs the MFA challenge and sets
-  // the new password with its worker token; an existing session is never touched.
-  const [pwStep, setPwStep] = useState('idle'); // idle | mfa | set | done
-  const [pwMfa, setPwMfa] = useState({ daId: null, devices: [] });
-  const [pwNew, setPwNew] = useState('');
-  const [pwUser, setPwUser] = useState(null); // null = follow the signed-in username
-  const [pwBusy, setPwBusy] = useState(false);
-  const [pwError, setPwError] = useState(null);
 
   // Mounted guard — prevents setState on unmounted component during async operations
   const mountedRef = useRef(true);
@@ -719,50 +710,6 @@ function SecurityCenterContent({ user }) {
     );
   }
 
-  const pwUsername = (pwUser ?? session?.user?.username ?? '').trim();
-
-  async function startPasswordMfa() {
-    setPwBusy(true);
-    setPwError(null);
-    try {
-      const res = await fetch('/api/auth/mfa/forgot-password/start', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: pwUsername }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.message || 'Could not start MFA.');
-      setPwMfa({ daId: data.daId, devices: data.devices || [] });
-      setPwStep('mfa');
-    } catch (err) {
-      setPwError(err.message);
-    } finally {
-      setPwBusy(false);
-    }
-  }
-
-  async function submitNewPassword() {
-    setPwBusy(true);
-    setPwError(null);
-    try {
-      const res = await fetch('/api/auth/mfa/forgot-password/complete', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ newPassword: pwNew }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.message || 'Password reset failed.');
-      setPwStep('done');
-      setPwNew('');
-    } catch (err) {
-      setPwError(err.message);
-    } finally {
-      setPwBusy(false);
-    }
-  }
-
   function renderPasswordTab() {
     // A PingOne user has no local password to change — routes/oauthUser.js stores
     // `password: null` for them, so the BFF's change-password route can only ever
@@ -774,65 +721,9 @@ function SecurityCenterContent({ user }) {
           <>
             <p>
               Your password is managed by PingOne. If you have forgotten it, verify
-              with MFA and set a new one. No sign-in is needed.
+              with MFA and set a new one.
             </p>
-            {pwStep === 'done' && <p>✅ Password reset. Use the new password next time you sign in.</p>}
-            {pwError && <p className="sc-error-inline" style={{ margin: '0 0 0.5rem' }}>{pwError}</p>}
-            {(pwStep === 'idle' || pwStep === 'mfa') && (
-              <>
-                <input
-                  type="text"
-                  className="rename-input"
-                  style={{ display: 'block', width: '100%', maxWidth: 260, boxSizing: 'border-box', marginBottom: '0.5rem' }}
-                  placeholder="Username"
-                  autoComplete="username"
-                  value={pwUsername}
-                  onChange={e => setPwUser(e.target.value)}
-                  disabled={pwBusy}
-                />
-                <button type="button" className="btn btn-primary btn-sm" onClick={startPasswordMfa} disabled={pwBusy || !pwUsername}>
-                  {pwBusy ? 'Starting...' : 'Forgot password? Verify with MFA'}
-                </button>
-              </>
-            )}
-            {pwStep === 'set' && (
-              <>
-                <p className="sc-hint" style={{ margin: '0 0 0.5rem' }}>
-                  ✓ MFA verified. Choose a new password.
-                </p>
-                <input
-                  type="password"
-                  className="rename-input"
-                  style={{ display: 'block', width: '100%', maxWidth: 260, boxSizing: 'border-box' }}
-                  placeholder="New password"
-                  autoComplete="new-password"
-                  value={pwNew}
-                  onChange={e => setPwNew(e.target.value)}
-                  disabled={pwBusy}
-                />
-                <button
-                  type="button"
-                  className="btn btn-primary btn-sm"
-                  style={{ marginTop: '0.5rem' }}
-                  onClick={submitNewPassword}
-                  disabled={pwBusy || !pwNew}
-                >
-                  {pwBusy ? 'Resetting...' : 'Reset password'}
-                </button>
-              </>
-            )}
-            <OtpStepUpModal
-              show={pwStep === 'mfa'}
-              mode="p1mfa"
-              contextLine="Verify it is you to reset your password."
-              daId={pwMfa.daId}
-              devices={pwMfa.devices}
-              onP1MfaComplete={() => setPwStep('set')}
-              onP1MfaError={(msg) => { setPwError(msg || 'MFA failed.'); setPwStep('idle'); }}
-              onCancel={() => setPwStep('idle')}
-              onSubmit={() => {}}
-              userIdentity={{ name: session?.user?.username, email: session?.user?.email }}
-            />
+            <ForgotPasswordFlow initialUsername={session?.user?.username || ''} />
             {envId && (
               <p>
                 <a
