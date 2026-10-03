@@ -5,6 +5,7 @@
  * instead of `alert()`, inline banners, or calling `toast.*` directly (except `toast` for dismiss/update/loading patterns).
  * Session + “Sign in”: `dashboardToast.js` dispatches `SESSION_REAUTH_EVENT` → `SignInModal` (via `SessionReauthBanner` in App).
  */
+import { isValidElement } from 'react';
 import { toast } from 'react-toastify';
 
 const DEFAULT_SUCCESS = { autoClose: 4000 };
@@ -20,7 +21,8 @@ export function notifySuccess(message, options = {}) {
 /** Errors and failures (API, validation, permission). */
 export function notifyError(message, options = {}) {
   if (message == null || String(message).trim() === '') return;
-  toast.error(String(message), { ...DEFAULT_ERROR, ...options });
+  // A React element passes through so a toast can emphasise part of its text.
+  toast.error(isValidElement(message) ? message : String(message), { ...DEFAULT_ERROR, ...options });
 }
 
 /** Warnings (soft failures, attention needed, non-blocking issues). */
