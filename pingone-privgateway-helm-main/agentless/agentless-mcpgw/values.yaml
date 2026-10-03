@@ -1,6 +1,16 @@
 # Gateway hostname — used in deployment, ingress, and certificate
 hostname: cj-agentless-mcpgw.ping-devops.com
 
+# Name the gateway process answers to (-hostname; it routes by Host header).
+# Empty = `hostname`. Set it when this release is a second gateway behind
+# another gateway's URL: `hostname` still names this release's own ingress and
+# certificate, while the process answers to the shared name.
+gatewayHostname: ""
+
+# Service the ingresses route to. Empty = the gateway's own Service. Set it to a
+# load balancer Service to front more than one gateway.
+frontService: ""
+
 # Kubernetes namespace
 namespace: ping-devops-cjmuir
 

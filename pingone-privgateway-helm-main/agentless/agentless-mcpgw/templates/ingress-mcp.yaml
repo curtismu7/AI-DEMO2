@@ -28,7 +28,7 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: {{ include "agentless-mcpgw.name" $ }}
+                name: {{ include "agentless-mcpgw.front" $ }}
                 port:
                   number: 8623
     {{- end }}
@@ -39,6 +39,6 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: {{ include "agentless-mcpgw.name" . }}
+                name: {{ include "agentless-mcpgw.front" . }}
                 port:
                   number: 8623
