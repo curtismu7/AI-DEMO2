@@ -1,9 +1,71 @@
 # Privilege AI Gateway: load balancer and second gateway
 
-Status: staged, gateway 2 deliberately out of rotation. Last updated 2026-10-03.
+Status: both gateways in rotation, linked by the mesh; one app registration serves both.
+Last updated 2026-10-03 (evening). **Section 0 supersedes the parts of sections 1, 5.3, 6
+and 9 that say the gateways cannot mesh or that apps must be registered twice.**
 Audience: engineers and SEs reviewing how we show "two gateways behind one URL".
 Related: [CURRENT-CONFIGURATION.md](CURRENT-CONFIGURATION.md), [LESSONS-LEARNED.md](LESSONS-LEARNED.md),
 skill `.claude/skills/privilege-mcpgw-agent-k8s/SKILL.md`.
+
+## 0. Update: the mesh links, and one registration is enough
+
+Later on 2026-10-03 we got the two gateways to link over the mesh. An Agentic App stays
+registered once, on one mesh cluster. Whichever gateway a client is pinned to forwards the
+call across the mesh to the cluster that owns the app.
+
+**What was wrong.** The mesh was never blocked by the product; both gateways listen on
+8690 in their pods. It was addressing:
+
+- A gateway dials its peer at the address the peer advertises, `<-hostname>:8690`.
+- A public hostname resolves to the HTTPS ingress, where 8690 is closed.
+- Neither Service published 8690.
+- Gateway 1 is the side that dials gateway 2 (its log: `Error connecting to <gateway 2
+  node>. Err: context deadline exceeded`, 14 times in 8 minutes).
+
+**The fix (all inside our two namespaces, gateway 1 never restarted).**
+
+| Change | Where |
+| --- | --- |
+| Publish 8690 on each gateway's Service | chart value `meshPort: 8690`, both releases |
+| Gateway 2 advertises its in-cluster Service name, `agentless-mcpgw.ping-devops-cmuir.svc.cluster.local`, which gateway 1 resolves with no change to itself | chart value `gatewayHostname` on gateway 2 |
+| Gateway 2 can dial gateway 1's advertised public name | chart value `hostAliases` on gateway 2, pointing `mcpgw.ai-demo.ping-devops.com` at gateway 1's Service |
+| Gateway 2's OAuth metadata shows only the public URL | `oidc.serverUrl=https://mcpgw.ai-demo.ping-devops.com` on gateway 2 |
+| Gateway 2 in rotation | `down` removed in `mcpgw-lb.yaml` |
+
+**Evidence.**
+
+- Link: gateway 1 logged the peer certificate, then `established command stream to` and
+  `command stream connected from` gateway 2; its connection errors went from 2 per 30 s to 0.
+- Forward, with real client traffic: `opensearch22` was bound to `ai-demo-cmuir2` (gateway
+  2). Calls through gateway 1 returned `500` at 16:34 UTC and `200` (1469-byte tool list)
+  from 16:36:39, after the fix. Gateway 1 logged `Connect: to reach
+  ai-demo-cmuir2/opensearch-mcp-server..., connecting to ai-demo-cmuir2/<gateway 2>`;
+  gateway 2 logged `Connected to opensearch-mcp-server...:80`.
+- Gateway 2's sign-in front half: `register` 201, and `authorize` 302 to PingOne with the
+  callback set to the public `mcpgw.ai-demo.ping-devops.com/callback` (already registered,
+  so no PingOne change was needed).
+- Load balancer: 12 client keys split 6 and 6; for every key the MCP, authorize and
+  discovery paths landed on the same gateway. The pin key is the real client address: the
+  ingress overwrites any client-supplied `X-Forwarded-For`.
+
+**Corrections to earlier sections.**
+
+- "TLS only when the certificate matches `-hostname`" was wrong. TLS follows the OAuth
+  `SERVER_URL` matching the certificate: gateway 2 serves TLS with `SERVER_URL=mcpgw2...`
+  and plain HTTP with the public URL. It accepts the public `Host` whatever its `-hostname`.
+- The `re-establishing link to node` lines are a node handling its own record. They are
+  not a failed peer link; watch `Error connecting to <node>` instead.
+
+**Still not verified.**
+
+- A full sign-in and tool call by a client pinned to gateway 2 (every test client on our
+  network hashes to gateway 1).
+- The reverse forward: a client on gateway 2 calling an app owned by gateway 1.
+- Tokens still do not cross gateways, so pinning stays and a client signs in again if its
+  gateway dies.
+- Four `400` responses on `opensearch22` right after the link came up, each followed by a
+  successful call. Probably a stale MCP session; not confirmed.
+- Whether Ping supports gateway-to-gateway mesh inside one tenant. It works; ask anyway.
 
 ## 1. Summary
 

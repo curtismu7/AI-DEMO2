@@ -30,3 +30,14 @@ spec:
       port: 8623
       targetPort: {{ .Values.listenPort | default 443 }}
       protocol: TCP
+    {{- /*
+      Gateway-to-gateway mesh. Each gateway advertises <hostname>:8690 and already
+      listens on it in the pod, but nothing published it, so a peer gateway could
+      never connect. Off unless meshPort is set. Local addition to the vendored chart.
+    */}}
+    {{- if .Values.meshPort }}
+    - name: mesh
+      port: {{ .Values.meshPort }}
+      targetPort: {{ .Values.meshPort }}
+      protocol: TCP
+    {{- end }}

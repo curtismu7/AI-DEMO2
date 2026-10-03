@@ -28,6 +28,15 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- /*
+        The mesh dials a peer by its advertised hostname, which resolves to the
+        public HTTPS ingress where the mesh port is closed. hostAliases points
+        that name, inside this pod only, at the peer's Service. Local addition.
+      */}}
+      {{- with .Values.hostAliases }}
+      hostAliases:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       initContainers:
         # Copy TLS cert into the SSL PVC so the gateway can start in TLS mode
         - name: copy-mcpgw-cert

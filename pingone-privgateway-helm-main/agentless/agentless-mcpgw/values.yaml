@@ -11,6 +11,17 @@ gatewayHostname: ""
 # load balancer Service to front more than one gateway.
 frontService: ""
 
+# Gateway-to-gateway mesh port to publish on the Service (the gateway listens on
+# 8690). 0 = not published, the old behaviour.
+meshPort: 0
+
+# Pod-level /etc/hosts entries, passed through as-is. Used to point a peer
+# gateway's hostname at its in-cluster Service so the mesh can reach it, e.g.
+#   hostAliases:
+#     - ip: 172.20.78.201
+#       hostnames: [mcpgw.ai-demo.ping-devops.com]
+hostAliases: []
+
 # Kubernetes namespace
 namespace: ping-devops-cjmuir
 
