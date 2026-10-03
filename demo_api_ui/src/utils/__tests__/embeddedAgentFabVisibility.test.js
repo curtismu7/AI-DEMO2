@@ -36,6 +36,12 @@ describe('isDemoControlsRoute', () => {
     }
   });
 
+  it('includes the pages the alias routes redirect to (the app is on those, not the alias)', () => {
+    // /config and /demo-data redirect to /configure; /mcp-inspector to /pingone-mcp-inspector.
+    expect(isDemoControlsRoute('/configure')).toBe(true);
+    expect(isDemoControlsRoute('/pingone-mcp-inspector')).toBe(true);
+  });
+
   it('ignores a trailing slash', () => {
     expect(isDemoControlsRoute('/use-cases/')).toBe(true);
   });
