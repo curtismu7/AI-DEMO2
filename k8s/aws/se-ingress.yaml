@@ -223,6 +223,24 @@ spec:
 # and customer-IdP bearer contract cannot be confused with the Privilege MCP
 # gateway path above. Only the card and /a2a are routed here; health, metrics,
 # inspector, AG-UI /run, and MCP connections remain ClusterIP/internal.
+#
+# Needs its own cert: the controller's default *.ping-devops.com wildcard
+# matches one label only, so this two-level host got a name-mismatched cert
+# and every client refused it. letsencrypt-pdo is DNS-01 (see
+# mcpgw-wildcard-certificate.yaml).
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: langchain-a2a
+  namespace: <<NAMESPACE>>
+spec:
+  secretName: langchain-a2a-tls
+  issuerRef:
+    name: letsencrypt-pdo
+    kind: ClusterIssuer
+  dnsNames:
+    - langchain-a2a.ai-demo.ping-devops.com
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -236,6 +254,10 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
 spec:
   ingressClassName: nginx-public
+  tls:
+  - hosts:
+    - langchain-a2a.ai-demo.ping-devops.com
+    secretName: langchain-a2a-tls
   rules:
   - host: langchain-a2a.ai-demo.ping-devops.com
     http:
