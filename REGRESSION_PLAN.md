@@ -261,6 +261,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 **Verify:** `cd demo_api_server && CI=true npx jest src/__tests__/tokenIntrospectionService.pingfederate.test.js src/__tests__/tokenIntrospectionService.test.js --forceExit` (2 PF tests fail with the service change reverted); `node scripts/pingfederate/provision-introspection-client.js` (dry run; reports the client as present). Live: sign in under PF, then the token preview shows the introspection step as active.
 
+### 2026-10-03 — PingFederate sign-in stored the user with `username: undefined`
+
+**Files:** `demo_api_server/services/oauthUserService.js`, `demo_api_server/src/__tests__/oauthUserService.test.js`.
+
+**What was broken:** The end-user `createUserFromOAuth` took the username from `preferred_username`, `username` or `email`. PingFederate's claims carry none of them (its `sub` is the username), so the callback logged "Granting customer role to undefined" and stored the user with no username. `getUserByUsername(undefined)` then matches the first stored user that also has no username, so a second, different PF user would be matched to the first one's record and overwrite its name, email and role.
+
+**What changed:** `userInfo.sub` is the last fallback, as the admin `oauthService.createUserFromOAuth` already had.
+
+**Do not break:** Any login with `preferred_username`, `username` or `email` keeps the username it had. The order is preferred_username, username, email, sub; `sub` must stay last. Existing PF records stored with no username are not migrated: the next PF sign-in creates the record under the username.
+
+**Verify:** `cd demo_api_server && CI=true npx jest src/__tests__/oauthUserService.test.js --forceExit` (the sub-fallback test fails without the change).
+
 ### 2026-10-03 — PingFederate-down sign-in: say it plainly and give the visitor a way out
 
 **Files:** `demo_api_server/routes/pingfederateRecovery.js` (new), `demo_api_server/server.js`, `demo_api_ui/src/components/PingFederateDownModal.jsx`, `demo_api_ui/src/utils/endUserOAuthErrorToast.js`, `demo_api_ui/src/utils/appToast.js`, `demo_api_ui/src/index.css`.
