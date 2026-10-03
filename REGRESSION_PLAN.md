@@ -1057,6 +1057,44 @@ homepage's separate ingress uses HTTP only for its static in-cluster service.
 **Verify:** `helm lint` and rendered enabled/disabled chart checks;
 `npm run topology:verify`; `npm run authz:verify`; desktop and mobile browser previews.
 
+### 2026-09-30 — Sidebar readability follow-up
+
+**Files:** `demo_api_ui/src/components/AdminSideNav.jsx`,
+`adminSkinPing2026.css`, and `adminSideNav.test.jsx`.
+
+**What was broken:** expanded shortcut labels and section headings were too
+small, the light-theme search placeholder was only 2.34:1, and Agent/Admin
+both appeared as an ambiguous `A` in the collapsed rail.
+
+**What changed:** shortcut labels use the 13px scale, section headings use the
+12px scale, the placeholder uses the theme-aware muted text token, and the
+collapsed shortcuts show `Ag` and `Ad` while retaining their first-letter
+shortcut treatment.
+
+**Do not break:** keep shortcut destinations, accessible names, expanded labels,
+and dark-theme contrast intact.
+
+**Verify:** focused AdminSideNav tests; UI build; live light/dark computed
+contrast check; collapsed-rail screenshot.
+
+### 2026-09-30 — Collapsed side navigation shortcuts overlapped the expand arrow
+
+**Files:** `demo_api_ui/src/components/AdminSideNav.jsx`,
+`AdminSideNav.css`, `adminSkinPing2026.css`, and `adminSideNav.test.jsx`.
+
+**What was broken:** the Ping skin placed the collapsed menu beneath the expand
+arrow and squeezed shortcut buttons to roughly 18px wide. Icons did not show the
+requested shortcut initials.
+
+**What changed:** the collapsed menu clears the arrow, shortcuts have 47px of
+width, and they show their first letter with readable color in both themes.
+
+**Do not break:** keep the existing shortcut destinations, actions, accessible
+names, and expanded-sidebar labels.
+
+**Verify:** sidebar unit test; UI unit suite and build; computed shortcut
+contrast and arrow clearance in light and dark themes.
+
 ### 2026-09-30 — OrbStack K8 could not complete PingFederate login
 
 **Files:** `run-k8.sh`, `scripts/k8-docker-cleanup.sh` and its test,

@@ -2089,7 +2089,7 @@ export default function AdminSideNav({
               navigate("/dashboard");
             }}
           >
-            <MdDashboard size={16} aria-hidden="true" />
+            {collapsed ? <span className="admin-side-nav__quick-initial" aria-hidden="true">Ag</span> : <MdDashboard size={16} aria-hidden="true" />}
             {!collapsed && <span>Agent</span>}
           </button>
           <button
@@ -2116,7 +2116,7 @@ export default function AdminSideNav({
                 );
             }}
           >
-            <MdSecurity size={16} aria-hidden="true" />
+            {collapsed ? <span className="admin-side-nav__quick-initial" aria-hidden="true">Ad</span> : <MdSecurity size={16} aria-hidden="true" />}
             {!collapsed && <span>Admin</span>}
           </button>
           <Link
@@ -2124,7 +2124,7 @@ export default function AdminSideNav({
             className={`admin-side-nav__quick-link${location.pathname.startsWith("/configure") ? " admin-side-nav__quick-link--active" : ""}`}
             title="Setup"
           >
-            <MdSettings size={16} aria-hidden="true" />
+            {collapsed ? <span className="admin-side-nav__quick-initial" aria-hidden="true">S</span> : <MdSettings size={16} aria-hidden="true" />}
             {!collapsed && <span>Setup</span>}
           </Link>
           <Link
@@ -2132,7 +2132,7 @@ export default function AdminSideNav({
             className={`admin-side-nav__quick-link${location.pathname === "/admin/agentic-access-console" ? " admin-side-nav__quick-link--active" : ""}`}
             title="Agentic Access Console"
           >
-            <MdShield size={16} aria-hidden="true" />
+            {collapsed ? <span className="admin-side-nav__quick-initial" aria-hidden="true">C</span> : <MdShield size={16} aria-hidden="true" />}
             {!collapsed && <span>Console</span>}
           </Link>
           <button
@@ -2143,7 +2143,7 @@ export default function AdminSideNav({
               window.dispatchEvent(new CustomEvent("agent-command-dock-open"));
             }}
           >
-            🎛
+            {collapsed ? <span className="admin-side-nav__quick-initial" aria-hidden="true">D</span> : "🎛"}
             {!collapsed && <span>Demo Controls</span>}
           </button>
           {collapsed && (
@@ -2154,7 +2154,7 @@ export default function AdminSideNav({
               aria-label="Refresh sidebar"
               onClick={loadNavConfig}
             >
-              <MdRefresh size={16} aria-hidden="true" />
+              <span className="admin-side-nav__quick-initial" aria-hidden="true">R</span>
             </button>
           )}
         </div>
