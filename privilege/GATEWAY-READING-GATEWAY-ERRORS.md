@@ -220,7 +220,7 @@ Three things to know about guardrail blocks, from the model route where they wer
 
 If the gateway uses an external detector, its own log records each inspection as allowed or flagged with a category. When the detector itself fails, the gateway's fail-closed setting decides whether text is blocked or let through.
 
-For model calls the log also has one JSON line per call, `"msg":"LLM request"`, with `HTTPStatus` and `UpstreamStatus` side by side. Compare them to see whether the failure came from the model provider or was produced at the gateway.
+For model calls the log also has one JSON line per call, `"msg":"LLM request"`, with `HTTPStatus` and `UpstreamStatus` side by side. Do not use them to tell a gateway refusal from a provider error: on 3 October the two were equal on every line, including the gateway's own refusals. Use `LatencyMs` instead, which is `0` or close to it when the gateway answered without calling the provider, and read the response body at the client. A guardrail block also writes an `AIGuard` line, and a rate-limit refusal an `AIGuardControl` line, each with the reason.
 
 ## Quick lookup
 
