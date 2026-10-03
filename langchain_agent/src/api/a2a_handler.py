@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import logging
 import os
 import uuid
@@ -153,14 +154,20 @@ async def jsonrpc(request: Request) -> JSONResponse:
     caller_key: str
     if bearer:
         scheme, _, token = bearer.partition(" ")
-        if scheme.lower() != "bearer" or not token or _federated_validator is None:
+        if scheme.lower() == "bearer" and _is_gateway_static_token(token):
+            # ponytail: one shared token carries no caller identity, so every
+            # gateway caller shares one conversation; key the session on a
+            # gateway-supplied caller header if per-agent history matters.
+            caller_key = "privilege:static-token"
+        elif scheme.lower() != "bearer" or not token or _federated_validator is None:
             return _auth_error(request_id, "Bearer authentication is not configured", 401)
-        try:
-            caller = _federated_validator.validate(token)
-            caller_key = f"federated:{caller.tenant_id}:{caller.sub}"
-        except TokenValidationError as exc:
-            status = 403 if "required scope" in str(exc) else 401
-            return _auth_error(request_id, "Insufficient A2A scope" if status == 403 else "Bearer token rejected", status)
+        else:
+            try:
+                caller = _federated_validator.validate(token)
+                caller_key = f"federated:{caller.tenant_id}:{caller.sub}"
+            except TokenValidationError as exc:
+                status = 403 if "required scope" in str(exc) else 401
+                return _auth_error(request_id, "Insufficient A2A scope" if status == 403 else "Bearer token rejected", status)
     elif txn_token:
         try:
             txn_claims = _txn_validator(txn_token)
@@ -202,6 +209,13 @@ async def jsonrpc(request: Request) -> JSONResponse:
             },
         }
     )
+
+
+def _is_gateway_static_token(token: str) -> bool:
+    """True when ``token`` is the secret the Privilege gateway's Static Token mode sends."""
+
+    expected = os.environ.get("PRIVILEGE_A2A_STATIC_TOKEN", "")
+    return bool(expected) and hmac.compare_digest(token.encode(), expected.encode())
 
 
 def _auth_error(request_id: Any, message: str, status: int) -> JSONResponse:
