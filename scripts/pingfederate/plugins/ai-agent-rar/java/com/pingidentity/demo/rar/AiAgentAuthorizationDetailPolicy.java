@@ -104,6 +104,25 @@ public final class AiAgentAuthorizationDetailPolicy {
                 || !validate(accepted, authenticatedUserKey, scopes, mappedUserInfo).isValid()) {
             return false;
         }
+        return sameDetail(requested, accepted);
+    }
+
+    /**
+     * The same comparison for a call that carries no signed-in user: shape only. The
+     * user-bound checks already ran in enrich, before the user was asked to consent, so
+     * a request that failed them never reaches this point.
+     */
+    public static boolean isEqualOrSubset(
+            Map<String, Object> requested,
+            Map<String, Object> accepted,
+            Set<String> scopes) {
+        if (!validateShape(requested, scopes).isValid() || !validateShape(accepted, scopes).isValid()) {
+            return false;
+        }
+        return sameDetail(requested, accepted);
+    }
+
+    private static boolean sameDetail(Map<String, Object> requested, Map<String, Object> accepted) {
         if (!sameString(requested, accepted, "type")
                 || !sameString(requested, accepted, "user_id")
                 || !sameString(requested, accepted, "source_account")

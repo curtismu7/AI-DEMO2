@@ -114,14 +114,30 @@ public final class AiAgentAuthorizationDetailProcessor implements AuthorizationD
             AuthorizationDetail acceptedAuthorizationDetail,
             AuthorizationDetailContext context,
             Map<String, Object> inParameters) {
+        Set<String> scope = context == null ? null : context.getScope();
+        if (scope == null) {
+            LOG.info("banking_transaction subset check refused: no scope in the call");
+            return false;
+        }
+        // PingFederate runs this after consent, and on 13.1 that call may carry no signed-in user
+        // (only enrich did). The user-bound checks already ran there, so compare the details
+        // on their own when there is no user, and in full when there is one.
         String user = authenticatedUser(context, inParameters);
-        if (user == null || context.getScope() == null) return false;
-        return AiAgentAuthorizationDetailPolicy.isEqualOrSubset(
-                requestedAuthorizationDetail.getDetail(),
-                acceptedAuthorizationDetail.getDetail(),
-                user,
-                context.getScope(),
-                userLimits(user, inParameters));
+        boolean subset = user == null
+                ? AiAgentAuthorizationDetailPolicy.isEqualOrSubset(
+                        requestedAuthorizationDetail.getDetail(),
+                        acceptedAuthorizationDetail.getDetail(),
+                        scope)
+                : AiAgentAuthorizationDetailPolicy.isEqualOrSubset(
+                        requestedAuthorizationDetail.getDetail(),
+                        acceptedAuthorizationDetail.getDetail(),
+                        user,
+                        scope,
+                        userLimits(user, inParameters));
+        if (!subset) {
+            LOG.info("banking_transaction subset check refused (signed-in user in the call: " + (user != null) + ")");
+        }
+        return subset;
     }
 
     /** Full check when a user is signed in; shape only when PingFederate has not supplied one yet. */
