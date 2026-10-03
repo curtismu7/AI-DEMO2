@@ -40,6 +40,14 @@ describe('JevLearningPage', () => {
     await waitFor(() => expect(screen.getByText('0.97')).toBeTruthy());
   });
 
+  it('each result box explains itself, and the Jev box quotes its score in plain words', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(reply(0.84)));
+    render(<JevLearningPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Decide' }));
+    await waitFor(() => expect(screen.getByText(/fixed list of trigger words/)).toBeTruthy());
+    expect(screen.getByText(/about 84%/)).toBeTruthy();
+  });
+
   it('bake-off posts every corpus message and shows an inline error on failure', async () => {
     const f = vi.fn().mockResolvedValue({ ok: false, status: 429, json: async () => ({ message: 'Too many Jev requests.' }) });
     vi.stubGlobal('fetch', f);

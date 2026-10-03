@@ -12,10 +12,11 @@
   background: var(--th-bg-card); border: 1px solid var(--th-border); border-radius: var(--radius-md);
 }
 .jev-h2 { font-size: var(--font-size-h3); margin: 0 0 6px; color: var(--th-text); }
-.jev-h3 { font-size: var(--font-size-body); margin: 0 0 6px; color: var(--th-text); display: flex; gap: 8px; align-items: center; }
+.jev-h3 { font-size: var(--font-size-xl); margin: 0 0 6px; color: var(--th-text); display: flex; gap: 8px; align-items: center; }
 .jev-lead { margin: 0 0 14px; max-width: 78ch; color: var(--th-text-muted); }
-.jev-meta { margin: 6px 0 0; color: var(--th-text-muted); font-size: var(--font-size-sm); }
-.jev-big { margin: 0; font-size: var(--font-size-body); font-weight: 600; color: var(--th-text); }
+.jev-meta { margin: 8px 0 0; color: var(--th-text-muted); font-size: var(--font-size-base); }
+.jev-big { margin: 0 0 8px; font-size: var(--font-size-2xl); font-weight: 600; color: var(--th-text); }
+.jev-explain { margin: 0 0 8px; color: var(--th-text-body); font-size: var(--font-size-md); }
 
 .jev-tabs, .jev-examples { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
 .jev-tab, .jev-chip {
