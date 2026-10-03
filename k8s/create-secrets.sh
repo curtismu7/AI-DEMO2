@@ -405,6 +405,24 @@ PY
   info "  GROQ_API_KEY mirrored into langchain-secrets from BFF .env"
 }
 
+# Mirror PRIVILEGE_A2A_STATIC_TOKEN from the vault into langchain-secrets. It is
+# the secret the Privilege gateway's Static Token auth mode sends to the agent's
+# /a2a/jsonrpc; it lives only in the vault (no .env declares it), so
+# secret_from_envfile cannot pick it up.
+mirror_privilege_a2a_static_token() {
+  vault_has_key PRIVILEGE_A2A_STATIC_TOKEN || return 0
+  [ "${DRY_RUN:-0}" = "1" ] && { printf '[dry-run] langchain-secrets:\n  PRIVILEGE_A2A_STATIC_TOKEN -> vault\n'; return 0; }
+  local a2a_token
+  a2a_token="$(vault_get PRIVILEGE_A2A_STATIC_TOKEN)"
+  export A2A_STATIC_TOKEN="$a2a_token"
+  python3 - <<'PY' | kubectl patch secret langchain-secrets --namespace="$NS" --type merge --patch-file /dev/stdin >/dev/null
+import json, os
+print(json.dumps({"stringData": {"PRIVILEGE_A2A_STATIC_TOKEN": os.environ["A2A_STATIC_TOKEN"]}}))
+PY
+  unset A2A_STATIC_TOKEN
+  info "  PRIVILEGE_A2A_STATIC_TOKEN mirrored into langchain-secrets from the vault"
+}
+
 # Mirror ANTHROPIC_API_KEY from the BFF .env into langchain-secrets so the agent
 # can honor an explicit Anthropic/Claude provider selection.
 #
@@ -705,6 +723,7 @@ inject_helix_api_key                                                        # He
 mirror_google_api_key                                                       # BFF → langchain for Google/Gemini provider
 mirror_groq_api_key                                                          # BFF → langchain for Groq provider
 mirror_anthropic_api_key                                                    # BFF → langchain for Anthropic/Claude provider
+mirror_privilege_a2a_static_token                                           # vault → langchain for the Privilege gateway's Static Token mode
 mirror_privilege_llm_config                                                 # BFF → ai-demo-secrets for Privilege LLM protection
 secret_from_envfile gateway-secrets   "$ASSET_ROOT/demo_mcp_gateway/.env"   # MCP gateway
 secret_from_envfile agent-secrets        "$ASSET_ROOT/demo_agent_service/.env" # Agent service

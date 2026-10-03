@@ -142,3 +142,39 @@ def test_jsonrpc_message_send_runs_agent_without_echoing_transaction_token():
     assert "signed-gateway-token" not in response.text
     assert fake.calls[0][0] == "Summarize account access"
     assert fake.calls[0][1].startswith("a2a-")
+
+
+def _send(token):
+    return client().post(
+        "/a2a/jsonrpc",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "jsonrpc": "2.0",
+            "id": "static-1",
+            "method": "message/send",
+            "params": {"message": {"role": "user", "messageId": "m", "parts": [{"kind": "text", "text": "Hello"}]}},
+        },
+    )
+
+
+def test_jsonrpc_accepts_the_gateway_static_token(monkeypatch):
+    monkeypatch.setenv("PRIVILEGE_A2A_STATIC_TOKEN", "gateway-shared-secret")
+    set_federated_token_validator(None)
+    fake = FakeAgent()
+    set_agent(fake)
+
+    response = _send("gateway-shared-secret")
+
+    assert response.status_code == 200
+    assert "gateway-shared-secret" not in response.text
+    assert fake.calls[0][0] == "Hello"
+
+
+def test_jsonrpc_rejects_a_wrong_static_token_and_an_unset_one(monkeypatch):
+    set_federated_token_validator(None)
+    monkeypatch.setenv("PRIVILEGE_A2A_STATIC_TOKEN", "gateway-shared-secret")
+    assert _send("not-the-secret").status_code == 401
+
+    # Unset must never match, even against an empty bearer value.
+    monkeypatch.delenv("PRIVILEGE_A2A_STATIC_TOKEN")
+    assert _send("gateway-shared-secret").status_code == 401
