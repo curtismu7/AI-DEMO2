@@ -235,7 +235,7 @@ export default function OAuthTokenDisplayPage() {
     const adminSessionBlocked = sessionStatus?.sessionType === 'admin' && !sessionStatus.authenticated;
     const staleAdminSession = adminSessionBlocked && sessionStatus.staleSession;
     return (
-      <div className="otdp-container">
+      <div className="otdp-container otdp-container--narrow">
         <div className="otdp-header">
           <h2>OAuth Token Information</h2>
         </div>
@@ -283,14 +283,14 @@ export default function OAuthTokenDisplayPage() {
             </div>
           )}
 
-          {piFlowError && <p className="otdp-flow-desc" role="alert">{piFlowError}</p>}
+          {piFlowError && <p className="otdp-flow-error" role="alert">{piFlowError}</p>}
           {adminSessionBlocked ? (
             <button type="button" className="otdp-retry-btn" onClick={fetchTokenData}>Check Admin session again</button>
           ) : piFlowSession ? (
             <form onSubmit={submitPiFlowCredentials}>
               <p className="otdp-flow-desc">Enter your PingOne credentials. They are sent directly to PingOne from this browser.</p>
-              <p>
-                <label htmlFor="otdp-pi-flow-username">Username</label><br />
+              <div className="otdp-field">
+                <label htmlFor="otdp-pi-flow-username">Username</label>
                 <input
                   id="otdp-pi-flow-username"
                   autoComplete="username"
@@ -298,9 +298,9 @@ export default function OAuthTokenDisplayPage() {
                   value={username}
                   onChange={(event) => setUsername(event.target.value)}
                 />
-              </p>
-              <p>
-                <label htmlFor="otdp-pi-flow-password">Password</label><br />
+              </div>
+              <div className="otdp-field">
+                <label htmlFor="otdp-pi-flow-password">Password</label>
                 <input
                   id="otdp-pi-flow-password"
                   type="password"
@@ -309,23 +309,39 @@ export default function OAuthTokenDisplayPage() {
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                 />
-              </p>
-              <button type="submit" className="otdp-flow-login-btn" disabled={piFlowBusy}>
-                {piFlowBusy ? 'Signing in…' : 'Continue with PingOne'}
-              </button>{' '}
-              <button type="button" className="otdp-retry-btn" onClick={cancelPiFlow} disabled={piFlowBusy}>
-                Cancel
-              </button>
+              </div>
+              <div className="otdp-flow-actions">
+                <button type="submit" className="otdp-flow-login-btn" disabled={piFlowBusy}>
+                  {piFlowBusy ? 'Signing in…' : 'Continue with PingOne'}
+                </button>
+                <button type="button" className="otdp-flow-link-btn" onClick={cancelPiFlow} disabled={piFlowBusy}>
+                  Cancel
+                </button>
+              </div>
             </form>
           ) : (
-            <button
-              type="button"
-              className="otdp-flow-login-btn"
-              onClick={startPiFlow}
-              disabled={piFlowBusy}
-            >
-              {piFlowBusy ? 'Starting…' : 'Sign In with PingOne here'}
-            </button>
+            <div className="otdp-flow-actions">
+              {/* The redirect sign-in works everywhere; the in-page pi.flow one
+                  below needs CORS on the PingOne end-user app (TECH_DEBT.md). */}
+              <button
+                type="button"
+                className="otdp-flow-login-btn"
+                onClick={() => {
+                  window.location.assign(`/api/auth/oauth/user/login?return_to=${encodeURIComponent(window.location.pathname)}`);
+                }}
+                disabled={piFlowBusy}
+              >
+                Sign in with PingOne
+              </button>
+              <button
+                type="button"
+                className="otdp-flow-link-btn"
+                onClick={startPiFlow}
+                disabled={piFlowBusy}
+              >
+                {piFlowBusy ? 'Starting…' : 'Sign In with PingOne here'}
+              </button>
+            </div>
           )}
         </div>
       </div>
