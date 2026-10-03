@@ -1,15 +1,42 @@
 # Gateway hostname — used in deployment, ingress, and certificate
 hostname: cj-agentless-mcpgw.ping-devops.com
 
-# Name the gateway process answers to (-hostname; it routes by Host header).
-# Empty = `hostname`. Set it when this release is a second gateway behind
-# another gateway's URL: `hostname` still names this release's own ingress and
-# certificate, while the process answers to the shared name.
+# The gateway's -hostname, which is also the mesh address it ADVERTISES to peer
+# gateways (<gatewayHostname>:8690). Empty = `hostname`. A peer dials this name,
+# so for a gateway that must be reachable over the mesh set it to a name the peer
+# can resolve to this gateway's Service, e.g. the in-cluster Service DNS name.
+# (It does not control which Host the gateway accepts, nor TLS; TLS follows
+# oidc.serverUrl matching the certificate.)
 gatewayHostname: ""
 
-# Service the ingresses route to. Empty = the gateway's own Service. Set it to a
-# load balancer Service to front more than one gateway.
+# Service the ingresses route to. Empty = the chart's own load balancer when
+# loadBalancer.enabled, otherwise the gateway's own Service. Set it only to point
+# at a load balancer this chart does not manage.
 frontService: ""
+
+# Optional load balancer in front of this gateway and its peers (see
+# templates/loadbalancer.yaml). Every client is pinned to one gateway.
+loadBalancer:
+  enabled: false
+  name: mcpgw-lb
+  replicas: 2
+  image: nginx:stable-alpine
+  # Name shown in the X-Served-By header for this release's own gateway.
+  ownName: gateway-1
+  # true takes this release's own gateway out of rotation (testing a peer).
+  ownParked: false
+  # Other gateways to balance across. `scheme` is how the peer listens: http when
+  # its OAuth URL does not match its certificate, https otherwise. `parked: true`
+  # takes it out of rotation without removing it.
+  #   peers:
+  #     - name: gateway-2
+  #       address: agentless-mcpgw.ping-devops-cmuir.svc.cluster.local:8623
+  #       scheme: http
+  #       parked: false
+  peers: []
+  resources:
+    requests: {cpu: 50m, memory: 32Mi}
+    limits: {cpu: 500m, memory: 128Mi}
 
 # Gateway-to-gateway mesh port to publish on the Service (the gateway listens on
 # 8690). 0 = not published, the old behaviour.
