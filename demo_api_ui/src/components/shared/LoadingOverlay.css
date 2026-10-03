@@ -285,7 +285,10 @@
   background: #16202e;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
 }
-.lo-card--dark .lo-message { color: var(--th-text); }
+/* Ink is literal white, like the ground above is a literal: var(--th-text) is
+   near-black in the light theme, which made the message unreadable on this card. */
+.lo-card--dark .ping-spinner__label { color: #ffffff; }
+.lo-card--dark .lo-message { color: #ffffff; }
 .lo-card--dark .lo-sub { color: #94a3b8; }
 .lo-card--dark .lo-endpoint { background: #1e3a5f; color: #93c5fd; }
 .lo-card--dark .lo-activity-feed { border-top-color: rgba(255, 255, 255, 0.1); }
