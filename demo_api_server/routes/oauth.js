@@ -2,6 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const router = express.Router();
 const oauthService = require('../services/oauthService');
+const { decodeForBrowser } = require('../services/tokenDisplayService');
 const configStore = require('../services/configStore');
 const dataStore = require('../data/store');
 const { determineClientType } = require('../middleware/auth');
@@ -656,8 +657,11 @@ router.get('/token-claims', (req, res) => {
       tokenType:   tokens.tokenType || 'Bearer',
       expiresAt:   tokens.expiresAt || null,
       hasRefreshToken: !!tokens.refreshToken,
+      // Format only — the refresh token itself never leaves the session.
+      refreshTokenFormat: tokens.refreshToken ? (tokens.refreshToken.split('.').length === 3 ? 'jwt' : 'opaque') : null,
       user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role },
       decoded: { header, payload },
+      idToken: decodeForBrowser(tokens.idToken),
     });
   } catch {
     return res.json({ authenticated: true, decoded: null });

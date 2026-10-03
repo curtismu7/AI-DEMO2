@@ -27,7 +27,10 @@ export default function OAuthTokenDisplayPage() {
   const [error, setError] = useState(null);
   const [enrichedInfo, setEnrichedInfo] = useState(null);
   const [enrichedLoading, setEnrichedLoading] = useState(false);
-  const [expandedSections, setExpandedSections] = useState({ account: true, rawJson: false });
+  const [idToken, setIdToken] = useState(null);
+  const [refreshInfo, setRefreshInfo] = useState(null);
+  // Every section starts open; the headers still collapse them.
+  const [expandedSections, setExpandedSections] = useState({ account: true, rawJson: true, refresh: true });
 
   const toggleSection = (section) => {
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
@@ -70,6 +73,8 @@ export default function OAuthTokenDisplayPage() {
 
       if (!activeStatus) {
         setTokenClaims(null);
+        setIdToken(null);
+        setRefreshInfo(null);
         setEnrichedInfo(null);
         setError('no_session');
         setLoading(false);
@@ -98,6 +103,14 @@ export default function OAuthTokenDisplayPage() {
         }
       }
       setTokenClaims(decoded);
+      setIdToken(claimsRes.data?.idToken || null);
+      setRefreshInfo(claimsRes.data?.authenticated
+        ? {
+            present: !!claimsRes.data.hasRefreshToken,
+            format: claimsRes.data.refreshTokenFormat || null,
+            expiresAt: claimsRes.data.expiresAt || null,
+          }
+        : null);
       setLoading(false);
       return true;
     } catch (err) {
@@ -393,6 +406,54 @@ export default function OAuthTokenDisplayPage() {
         showScopes
         showRaw={false}
       />
+
+      {idToken && (
+        <TokenCard
+          decoded={idToken}
+          title="ID Token"
+          defaultExpanded
+          showHeader
+          showIdentity
+          showRaw={false}
+        />
+      )}
+
+      {refreshInfo && (
+        <div className="otdp-card">
+          <div className="otdp-card-header" onClick={() => toggleSection('refresh')}>
+            <div className="otdp-card-title">Refresh Token</div>
+            <span className="otdp-toggle-icon">{expandedSections.refresh ? '▼' : '▶'}</span>
+          </div>
+          {expandedSections.refresh && (
+            <div className="otdp-card-content">
+              <div className="otdp-claim-row">
+                <span className="otdp-claim-key">Issued</span>
+                <span className="otdp-claim-value">{refreshInfo.present ? 'Yes' : 'No (this session has no refresh token)'}</span>
+              </div>
+              {refreshInfo.present && (
+                <>
+                  <div className="otdp-claim-row">
+                    <span className="otdp-claim-key">Format</span>
+                    <span className="otdp-claim-value">
+                      {refreshInfo.format === 'jwt' ? 'JWT' : 'Opaque (not a JWT, so there are no claims to decode)'}
+                    </span>
+                  </div>
+                  <div className="otdp-claim-row">
+                    <span className="otdp-claim-key">Value</span>
+                    <span className="otdp-claim-value">Held by the BFF in the server session. It is never sent to the browser.</span>
+                  </div>
+                </>
+              )}
+              {refreshInfo.expiresAt != null && (
+                <div className="otdp-claim-row">
+                  <span className="otdp-claim-key">Access token expires</span>
+                  <span className="otdp-claim-value">{new Date(refreshInfo.expiresAt).toLocaleString()}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* PingOne Userinfo Enrichment — only render card if loading, error, or has data */}
       {(enrichedLoading || enrichedInfo?.error || hasAnyField(enrichedInfo?.data)) && (

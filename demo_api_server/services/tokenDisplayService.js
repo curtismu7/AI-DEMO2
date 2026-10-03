@@ -198,8 +198,19 @@ function formatTokenForDisplay(token, options = {}) {
   };
 }
 
+/**
+ * Header + payload only, for sending to the browser. decodeToken also returns the
+ * signature, and header + payload + signature is the raw token, which the token
+ * pages deliberately never expose.
+ */
+function decodeForBrowser(token) {
+  const decoded = decodeToken(token);
+  return decoded ? { header: decoded.header, payload: decoded.payload } : null;
+}
+
 module.exports = {
   decodeToken,
+  decodeForBrowser,
   formatClaims,
   getClaimDescription,
   getTokenSummary,
