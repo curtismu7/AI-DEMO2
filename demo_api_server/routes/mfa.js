@@ -7,6 +7,7 @@ const mfaService = require('../services/mfaService');
 const oauthService = require('../services/oauthService');
 const posthog = require('../services/posthog');
 const configStore = require('../services/configStore');
+const pingOneUserService = require('../services/pingOneUserService');
 const { fetchPingOneUserByUsername } = require('../services/pingOneUserLookupService');
 
 /**
@@ -350,6 +351,30 @@ router.post('/test/otp-verify', mfaSubmitLimiter, authenticateToken, async (req,
   } catch (err) {
     console.error('[MFA TEST MODE] POST /test/otp-verify failed:', err.message);
     res.status(err.status || 500).json({ error: 'otp_verify_failed', message: err.message });
+  }
+});
+
+// POST /api/auth/mfa/password-reset
+// Forgot-password: after the caller passes an MFA challenge (stepUpVerified,
+// single-use) the BFF sets the new password with its worker token. The session
+// is untouched, so the caller stays signed in (PingOne or PingFederate).
+router.post('/password-reset', authenticateToken, async (req, res) => {
+  try {
+    const { newPassword } = req.body || {};
+    if (!newPassword) {
+      return res.status(400).json({ error: 'missing_password', message: 'New password is required.' });
+    }
+    if (!(req.session?.stepUpVerified > Date.now())) {
+      return res.status(403).json({ error: 'mfa_required', message: 'Verify with MFA before resetting your password.' });
+    }
+    const userId = await mfaUserId(req);
+    if (!userId) return res.status(401).json({ error: 'no_session', message: 'Not authenticated.' });
+    req.session.stepUpVerified = 0;
+    await pingOneUserService.setUserPassword(userId, newPassword);
+    res.json({ message: 'Password reset.' });
+  } catch (err) {
+    console.error('[MFA route] POST /password-reset failed:', err.message);
+    res.status(err.status || 500).json({ error: 'password_reset_failed', message: err.message });
   }
 });
 
