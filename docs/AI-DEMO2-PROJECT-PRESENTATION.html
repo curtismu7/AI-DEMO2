@@ -271,11 +271,11 @@
   <main class="deck" aria-label="AI-DEMO2 code tour presentation">
     <section class="slide dark cover active" aria-label="Title slide">
       <div class="brand"><span class="brand-mark"></span>AI-DEMO2</div>
-      <p class="eyebrow">Code inventory · 27 September 2026</p>
+      <p class="eyebrow">Code inventory · 3 October 2026</p>
       <h1>AI-DEMO2<br>a governed AI agent demo stack</h1>
       <div class="rule"></div>
       <p class="dek">68 use cases, 43 servers, 11 verticals — every hop evidenced with token-chain views.</p>
-      <div class="stamp">Source: tracked code and commit history through 27 Sep 2026. Maturity and setup requirements called out.</div>
+      <div class="stamp">Source: tracked code and commit history through 3 Oct 2026. Maturity and setup requirements called out.</div>
       <div class="signature">49 slides · arrow keys · source links on every slide</div>
       <div class="source"><a href="../demo_api_server/config/useCases.js">Use-case source of truth</a><a href="../README.md">Repository README</a></div>
     </section>
@@ -1052,9 +1052,10 @@ sequenceDiagram
         <div class="date">1–30 Aug</div><div class="event"><b>Privilege, MCP and external clients</b><code>3f3436027</code> Privilege proxy with PingOne token exchange · <code>fdb5f7fd4</code> standalone LibreChat MCP OAuth proof · gateway inspector expanded.</div>
         <div class="date">11–24 Sep</div><div class="event"><b>Vertical architecture, token views and trust demos</b><code>967c7f33f</code> live identity chain · <code>20e277873</code> vertical manifest ops · <code>0d79eac39</code> attack lab · <code>9db694be1</code> cross-vertical consent coverage · <code>bc858fb6f</code> audience-aware MCP routing.</div>
         <div class="date">25–27 Sep</div><div class="event"><b>New workflows and operator tooling</b><code>5d71bdde1</code> public Access Console + delegation/security · <code>2fafb0f5b</code> A2A visualizer · <code>fc522171c</code> Command Dock · <code>3b7843723</code> UC38/44 agent runs · <code>b7cfee742</code> SPIRE/PF exchange · <code>97c4b84ba</code> optional mTLS · <code>b069a237c</code> silent door SSO · PF A2A provisioning.</div>
+        <div class="date">28 Sep–3 Oct</div><div class="event"><b>Readiness runner, PingFederate parity and CI on two Mac runners</b><code>#456</code> demo-readiness worker + local PingOne lane · <code>#504</code> audit reads PingOne live · <code>#520</code> audit reads PingFederate against an approved baseline · <code>#449</code> redirect-free customer sign-in via PingOne pi.flow · <code>#550</code> PingFederate CIMD and RAR provisioning · <code>#558</code> strict actor chain and issuer on PingFederate-exchanged tokens · <code>#527</code> workload exchange where act names the real actor · <code>#512</code> Privilege sensor dashboard · <code>#445</code> hostile A2A agent behind Privilege · <code>#552</code> Grafana admin from the PingOne grafana-admins group · <code>#462</code> CI suites run in parallel on two Mac runners. Source: merged pull requests, 272 since 28 Sep.</div>
       </div>
       <p class="small" style="margin-top:14px">Repo begins 25 Jun 2026. Features often span many commits across branches.</p>
-      <div class="source"><a href="../CHANGELOG.md">Changelog</a><span>Repository revision reviewed: f88461c7d · 27 Sep 2026</span></div>
+      <div class="source"><a href="../CHANGELOG.md">Changelog</a><span>Repository revision reviewed: dbef9911b · 3 Oct 2026</span></div>
     </section>
     <section class="slide dark">
       <div class="brand"><span class="brand-mark"></span>37 / Current vs incomplete</div>
@@ -1065,7 +1066,7 @@ sequenceDiagram
         <div class="panel"><div class="metric">2</div><h3>Needs build</h3><p>UC15 intent tampering; UC29 introspection fail-closed.</p></div>
       </div>
       <div class="panel" style="margin-top:18px"><h3>Open debt (<code>TECH_DEBT.md</code>)</h3><p>One Privilege transport bypasses the shared pipeline; <code>AIAgentFull</code> duplicates a large component; shared event feeds lack per-user filtering; SDK sign-in needs manually provisioned CORS.</p></div>
-      <p class="small" style="margin-top:12px"><b>Current:</b> LangChain active. Protected demos need a configured PingOne tenant; LLM routes need credentials or a local model. Stack reported down on 27 Sep; this is a code inventory, not a live-health claim.</p>
+      <p class="small" style="margin-top:12px"><b>Current:</b> LangChain active. Protected demos need a configured PingOne tenant; LLM routes need credentials or a local model. This is a code inventory, not a live-health claim.</p>
       <div class="source"><a href="../demo_api_server/config/useCases.js">Catalog maturity values</a><a href="../TECH_DEBT.md">Open and resolved debt ledger</a><a href="../planning/">Plans and handoffs</a><a href="../docs/superpowers/plans/2026-09-27-demo-readiness-and-repair.md">Readiness/repair plan (not shipped)</a></div>
     </section>
     <section class="slide">
