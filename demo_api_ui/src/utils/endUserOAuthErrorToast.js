@@ -1,6 +1,7 @@
 // banking_api_ui/src/utils/endUserOAuthErrorToast.js
 /** Toast + URL cleanup for end-user OAuth failures redirected from BFF (avoids /login where FAB is hidden). */
 
+import { createElement } from 'react';
 import { notifyError } from './appToast';
 
 /** idp_error the BFF sends when PingFederate is the provider but not reachable. */
@@ -26,9 +27,13 @@ export function showEndUserOAuthErrorToast(searchParams) {
   switch (errorParam) {
     case 'oauth_provider':
       if (idpError === PF_UNREACHABLE_ERROR) {
-        errorMessage =
-          'Sign-in could not start: PingFederate is not running. '
-          + 'Start PingFederate and try again, or switch the login provider back to PingOne.';
+        errorMessage = createElement(
+          'span',
+          null,
+          'Sign-in could not start: PingFederate is not responding. ',
+          createElement('strong', { className: 'pf-down-action' }, 'Start PingFederate'),
+          ' and try again, or switch the login provider back to PingOne.',
+        );
         toastOptions = { autoClose: 15000, className: 'toast--attention' };
       } else if (idpError === 'unsupported_response_type' || /unsupported_response_type/i.test(desc)) {
         errorMessage =

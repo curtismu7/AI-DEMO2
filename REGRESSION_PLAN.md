@@ -249,6 +249,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-03 — PingFederate-down sign-in: say it plainly and give the visitor a way out
+
+**Files:** `demo_api_server/routes/pingfederateRecovery.js` (new), `demo_api_server/server.js`, `demo_api_ui/src/components/PingFederateDownModal.jsx`, `demo_api_ui/src/utils/endUserOAuthErrorToast.js`, `demo_api_ui/src/utils/appToast.js`, `demo_api_ui/src/index.css`.
+
+**What was broken:** With PingFederate selected and PF down, the sign-in toast was small and read like a PingOne error, and gave the visitor nothing to do about it.
+
+**What changed:** The toast and a new modal say "PingFederate is not responding" with "Start PingFederate" in bold and highlighted. The modal has two buttons. `POST /api/auth/pingfederate/start` starts the container; the UI then polls `GET /api/auth/pingfederate/status` and continues to sign-in once PF answers. `POST /api/auth/pingfederate/use-pingone` switches the provider to PingOne. `notifyError` accepts a React element so a toast can carry the emphasis.
+
+**Do not break:** These routes are session-less ON PURPOSE — a visitor who hit a dead PF cannot sign in, so cannot be an admin. That is only safe because each is narrowed: `start` can only start the fixed container `ai-demo-pingfederate` (never a name from the request) and 404s without a docker socket (k8s / SE AWS); `use-pingone` can only set `OAUTH_PROVIDER` to `pingone`, never a value from the request, and 409s unless PF is actually unreachable (`isPingFederateDown`). Do not widen either (another container, another provider value, or dropping the PF-down check) without an admin gate. The BFF holds a read-write docker socket (see the compose comment) — keep this endpoint locked to one container. `notifyError` must stay `isValidElement`-only; passing any object through breaks callers that pass an `Error`.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/pingfederateRecovery.test.js tests/oauthUser.test.js --forceExit` (the 409 test fails with the PF-down check removed); `cd demo_api_ui && npx vitest run src/components/PingFederateDownModal.test.jsx src/utils/endUserOAuthErrorToast.test.js src/utils/appToast.element.test.js`; `npm run authz:verify`. Live click-through not run.
+
 ### 2026-10-02 — Gateways disagreed on the issuer; the actor-chain rule and the running gateway had no check
 
 **Files:** `demo_mcp_gateway/src/tokenValidator.ts`, `demo_mcp_gateway/tests/tokenValidator-claims.test.ts`, `demo_api_server/scripts/verifyAuthorizeCloudParity.js`, `scripts/check-demo-health-gate.js`, `scripts/check-demo-health-gate.loadedConfig.test.js` (new), `package.json`.

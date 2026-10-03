@@ -62,6 +62,20 @@ textarea {
 .Toastify__toast-body {
   color: #f1f5f9 !important;
 }
+/* The one thing to do, highlighted. Explicit ink + ground so it reads on both the
+   dark toast and the light modal surface in either theme. */
+.pf-down-action {
+  font-weight: 700;
+  background: #fde047;
+  color: #0f172a;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.pf-down-status {
+  font-weight: 600;
+}
+
 /* Larger toast for errors the user must act on (e.g. PingFederate not running). */
 .Toastify__toast.toast--attention {
   min-width: 420px;
