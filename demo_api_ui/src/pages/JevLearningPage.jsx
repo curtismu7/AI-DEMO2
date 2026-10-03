@@ -87,6 +87,7 @@ function LivePanel({ onRisk }) {
     <section className="jev-card" aria-labelledby="jev-live">
       <h2 id="jev-live" className="jev-h2">Same input, two deciders</h2>
       <p className="jev-lead">{SCENARIOS[scenario].question}</p>
+      <p className="jev-step"><span className="jev-step-n">1</span> Choose a scenario</p>
       <div className="jev-tabs" role="tablist">
         {Object.entries(SCENARIOS).map(([key, s]) => (
           <button
@@ -100,11 +101,13 @@ function LivePanel({ onRisk }) {
           </button>
         ))}
       </div>
+      <p className="jev-step"><span className="jev-step-n">2</span> Click an example to load it, or type your own below</p>
       <div className="jev-examples">
         {SCENARIOS[scenario].examples.map((ex) => (
           <button key={ex} className="jev-chip" onClick={() => setText(ex)}>{ex}</button>
         ))}
       </div>
+      <p className="jev-step"><span className="jev-step-n">3</span> Edit the text if you like, then press Decide to run both deciders on it</p>
       <textarea
         className="jev-input"
         aria-label="Text to judge"
