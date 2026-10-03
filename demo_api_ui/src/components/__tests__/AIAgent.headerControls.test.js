@@ -18,6 +18,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import AIAgent from "../AIAgent";
@@ -366,6 +367,22 @@ describe("Header controls after the Actions dropdown removal", () => {
   // The secondary controls moved into a "Quick Config" tray. Guide, Demo steps, the
   // scope picker and Clear progress deliberately did NOT move — the test above
   // is the 2026-07-24 Actions-dropdown-removal contract and still holds.
+  it("float mode: the dock has an Inspect section with the four inspectors, like the dashboard dock", async () => {
+    // Inspect was gated to the split-column dashboard layout, so a floating-agent page's
+    // dock (where the Demo Controls pill now also appears) had none.
+    renderAgent({ user: customerUser, mode: "float" });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
+    });
+    await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
+    await openDock();
+
+    const inspect = screen.getByRole("region", { name: "Inspect" });
+    for (const name of ["MCP Inspector", "P1AZ Inspector", "Agent Gateway Inspector", "Token Inspector"]) {
+      expect(within(inspect).getByRole("button", { name })).toBeInTheDocument();
+    }
+  });
+
   it("float mode: Topology and Script are in the Quick Config tray, not the header", async () => {
     renderAgent({ user: customerUser, mode: "float" });
     await act(async () => {
