@@ -21,7 +21,11 @@ export function showEndUserOAuthErrorToast(searchParams) {
 
   switch (errorParam) {
     case 'oauth_provider':
-      if (idpError === 'unsupported_response_type' || /unsupported_response_type/i.test(desc)) {
+      if (idpError === 'pingfederate_unreachable') {
+        errorMessage =
+          'Sign-in could not start: **PingFederate is not running**. '
+          + 'Start PingFederate and try again, or switch the login provider back to **PingOne**.';
+      } else if (idpError === 'unsupported_response_type' || /unsupported_response_type/i.test(desc)) {
         errorMessage =
           'PingOne rejected the authorize request (often **pi.flow** is not enabled on this app). '
           + 'In **Demo config** or **Application setup**, set **Customer login mode** to **Redirect** (standard code + PKCE), '
