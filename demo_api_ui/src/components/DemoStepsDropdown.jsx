@@ -639,6 +639,12 @@ export default function DemoStepsDropdown({
                 >
                   Agent Identity Academy
                 </a>
+                <a
+                  href="/jev-learning"
+                  className="ba-actions-trigger"
+                >
+                  Jev
+                </a>
               </div>
               <div className="ba-demo-steps-popout__search">
                 <input
