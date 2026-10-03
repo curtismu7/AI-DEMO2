@@ -56,15 +56,33 @@ call across the mesh to the cluster that owns the app.
 - The `re-establishing link to node` lines are a node handling its own record. They are
   not a failed peer link; watch `Error connecting to <node>` instead.
 
+**Verified end to end on gateway 2 (17:09 UTC).** Every test client on our network hashes
+to gateway 1, so gateway 1 was parked for about two minutes and a real LM Studio client
+signed in fresh. `opensearch22` had been moved back to `ai-demo-cmuir` by then, so this is
+the reverse direction of the first test.
+
+| Step | Result |
+| --- | --- |
+| Sign-in on gateway 2 | `register` 201, `authorize` 302, `callback` 302, `token` 200; user identity resolved |
+| Forward to the owning cluster | Gateway 2 logged `Connect: to reach ai-demo-cmuir/opensearch-mcp-server...` 7 times; gateway 1 logged `Connected to opensearch-mcp-server...:80` 7 times |
+| Client result | `200` with the 1469-byte tool list, every request `node=gateway-2` |
+
+Both directions are therefore proven: a client on either gateway can use an app registered
+once, on the other gateway's cluster. The run showed tool-list calls; a tool invocation
+returning data was seen only in the first direction (through gateway 1).
+
+**The `400` responses are explained.** LM Studio first probes with a newer MCP protocol
+version (`Mcp-Protocol-Version: 2026-07-28`, `Mcp-Method: server/discover`). The OpenSearch
+MCP backend (`Server: uvicorn`) answers `400`, and the client falls back to `2024-11-05`.
+It is client-to-backend version negotiation, not the load balancer or the mesh.
+
 **Still not verified.**
 
-- A full sign-in and tool call by a client pinned to gateway 2 (every test client on our
-  network hashes to gateway 1).
-- The reverse forward: a client on gateway 2 calling an app owned by gateway 1.
-- Tokens still do not cross gateways, so pinning stays and a client signs in again if its
-  gateway dies.
-- Four `400` responses on `opensearch22` right after the link came up, each followed by a
-  successful call. Probably a stale MCP session; not confirmed.
+- Tokens do not cross gateways, so pinning stays and a client signs in again if its gateway
+  dies. Automatic failover by killing a gateway has not been exercised; parking one in the
+  load balancer has (clients re-sign-in on the other).
+- Sidecar-backed apps (Brave, Grafana, banking-rest, ...) through gateway 2. Their backends
+  are `localhost` in gateway 1's pod, reached over the mesh like `opensearch22`; not tested.
 - Whether Ping supports gateway-to-gateway mesh inside one tenant. It works; ask anyway.
 
 ## 1. Summary
