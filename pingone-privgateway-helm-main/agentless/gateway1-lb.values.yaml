@@ -20,6 +20,11 @@ loadBalancer:
     limits: {cpu: 500m, memory: 128Mi}
   ownName: gateway-1
   ownParked: false
+  # A failed gateway is held out for 10 minutes before it is tried again
+  # (failover drill 2026-10-03: a 10s return made clients sign in twice).
+  maxFails: 2
+  failTimeout: 600s
+  connectTimeout: 3s
   peers:
     - name: gateway-2
       # Gateway 2's Service in the other namespace. It serves plain HTTP because

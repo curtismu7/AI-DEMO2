@@ -25,6 +25,13 @@ loadBalancer:
   ownName: gateway-1
   # true takes this release's own gateway out of rotation (testing a peer).
   ownParked: false
+  # A gateway is marked failed after maxFails errors within failTimeout, and is
+  # then held out of rotation for failTimeout before it is tried again. Keep
+  # failTimeout in minutes: a quick return forces signed-in clients to sign in
+  # twice. connectTimeout bounds how long a dead gateway can stall one request.
+  maxFails: 2
+  failTimeout: 600s
+  connectTimeout: 3s
   # Other gateways to balance across. `scheme` is how the peer listens: http when
   # its OAuth URL does not match its certificate, https otherwise. `parked: true`
   # takes it out of rotation without removing it.
