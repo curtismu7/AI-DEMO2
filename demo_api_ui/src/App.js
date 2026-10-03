@@ -2344,6 +2344,7 @@ function AppWithAuth() {
                     distinctFloatingChrome
                     surfaceHostEl={surfaceHostEl}
                     onStopAgentClick={openAdminStopAgent}
+                    collapsedDockPill={onDemoControlsRoute}
                     {...(isPingOneAdminAgentRoute(pathname)
                       ? { forceVertical: "pingone-admin" }
                       : {})}

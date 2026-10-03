@@ -511,6 +511,9 @@ export default function BankingAgent({
   surfaceHostEl = null,
   forceVertical = null,
   onStopAgentClick = null,
+  // Show the Demo Controls pill while the floating agent is collapsed. The dock lives in the
+  // open panel's header, so without this the pill only appears once the agent is opened.
+  collapsedDockPill = false,
 }) {
   const isInline = mode === "inline";
   const isBottomDock = isInline && embeddedDockBottom;
@@ -10190,6 +10193,20 @@ export default function BankingAgent({
           <span className="banking-agent-fab-icon"></span>
           <span className="banking-agent-fab-label">AI Agent</span>
         </button>
+      )}
+
+      {/* Demo Controls pill while the floating agent is collapsed. CommandDock renders only its
+          pill when `open` is false (children are not mounted), so this adds no controls; clicking
+          it opens the agent AND the dock, which then render in the panel as usual. */}
+      {collapsedDockPill && !isInline && !isOpen && (
+        <CommandDock
+          open={false}
+          onOpenChange={(next) => {
+            if (!next) return;
+            setIsOpen(true);
+            setCommandDockOpen(true);
+          }}
+        />
       )}
 
       {/* Results panel — sits to the left of the agent (portal-renders over page; works in all modes) */}
