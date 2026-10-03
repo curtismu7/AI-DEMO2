@@ -18,6 +18,36 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-10-03 — The BFF turns TLS certificate verification off for every outbound call
+
+**What's wrong.** `docker-compose.yml` sets `NODE_TLS_REJECT_UNAUTHORIZED: "0"` on
+`demo-api-server`, and Node prints its "makes TLS connections insecure" warning on
+every BFF process start. The compose comment gives the reason: "Allow self-signed
+TLS (host.docker.internal MCP server)". The setting is process-wide, so it also
+disables verification for every other HTTPS call the BFF makes: PingOne, PingFederate,
+the gateways, the other MCP servers, and anything added later.
+
+**Not needed for PingFederate.** Checked 2026-10-03 from inside the BFF with
+verification forced on (`docker exec -e NODE_TLS_REJECT_UNAUTHORIZED=1 ...`):
+`https://pingfederate:9031` and `https://local.ping-devops.com:9031` both returned 200,
+because `NODE_EXTRA_CA_CERTS=/certs/ca-bundle-with-mkcert.pem` already trusts the mkcert
+CA that signs them. The PF token-introspection call (`tokenIntrospectionService`) works
+without the bypass. The PF admin console on :9999 is the separate self-signed case; it
+already has its own scoped switch, `PINGFEDERATE_ADMIN_TLS_INSECURE`.
+
+**Why it wasn't fixed now.** It was found while verifying PF introspection, and nothing
+in that change depends on it. Removing it blind would break whichever callers rely on it,
+and only the `host.docker.internal` MCP server is documented as one. I did not
+enumerate the others.
+
+**The real fix.** Drop the global setting and give the one self-signed client its own
+`https.Agent({ rejectUnauthorized: false })`, as `PINGFEDERATE_ADMIN_TLS_INSECURE` already
+does for the PF admin API. Before removing it, list every outbound HTTPS host the BFF
+uses and run the suite and a live pass (sign-in, a tool call through each gateway,
+Reset Demo) with verification on, so a caller that only worked because of the bypass
+fails here and not in a demo. Check `docker-compose.yml` for the same setting on other
+services at the same time.
+
 ### [ ] 2026-10-02 — The session token modal's pi.flow sign-in is blocked by CORS on the end-user app (PARTLY RESOLVED)
 
 **APPLIED 2026-10-03 (live PingOne change, no repo change).** "Demo AI App - User
