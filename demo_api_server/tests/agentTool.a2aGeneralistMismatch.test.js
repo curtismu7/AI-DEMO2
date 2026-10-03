@@ -40,6 +40,30 @@ describe('executeA2aGeneralistMismatch', () => {
     expect(parsed.mismatchProbe.decision).toBe('DENY');
   });
 
+  describe('reply', () => {
+    const leg1 = { delegated: true, tool: 'get_portfolio_summary', specialist: 'Invest Specialist', actChainDepth: 2 };
+
+    it('says the unregistered agent was denied, with the reason', () => {
+      const { buildA2aReplyEnvelope } = require('../services/demoAgentLangGraphService').__test;
+      const { reply } = buildA2aReplyEnvelope(
+        { ...leg1, mismatchProbe: { decision: 'DENY', reason: 'invalid_a2a_generalist: not the authorized generalist' } }, [],
+      );
+      expect(reply).toMatch(/Delegation complete/);
+      expect(reply).toMatch(/was denied: invalid_a2a_generalist/);
+    });
+
+    it('flags a probe that was not denied', () => {
+      const { buildA2aReplyEnvelope } = require('../services/demoAgentLangGraphService').__test;
+      const { reply } = buildA2aReplyEnvelope({ ...leg1, mismatchProbe: { decision: 'PERMIT' } }, []);
+      expect(reply).toMatch(/NOT denied \(PERMIT\)/);
+    });
+
+    it('leaves the plain UC2 reply alone', () => {
+      const { buildA2aReplyEnvelope } = require('../services/demoAgentLangGraphService').__test;
+      expect(buildA2aReplyEnvelope(leg1, []).reply).not.toMatch(/denied|probe/i);
+    });
+  });
+
   it('skips the probe when leg 1 fails', async () => {
     const svc = require('../services/demoAgentLangGraphService');
     const a2a = require('../services/a2aDelegationService');
