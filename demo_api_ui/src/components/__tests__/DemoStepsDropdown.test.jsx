@@ -288,6 +288,19 @@ describe('DemoStepsDropdown', () => {
     );
   });
 
+  it('links to the Jev decision-model page from Demo steps', async () => {
+    render(
+      <DemoStepsDropdown
+        open
+        onOpenChange={() => {}}
+        onSelect={() => {}}
+      />,
+    );
+    await waitFor(() => expect(screen.getByTestId('demo-steps-popout')).toBeInTheDocument());
+
+    expect(screen.getByRole('link', { name: 'Jev' })).toHaveAttribute('href', '/jev-learning');
+  });
+
   it('stacks the floating panel search above its actions when the panel is narrow', () => {
     const css = fs.readFileSync(
       path.resolve(__dirname, '../AIAgent.css'),
