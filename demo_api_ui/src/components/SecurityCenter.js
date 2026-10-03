@@ -42,11 +42,12 @@ function SecurityCenterContent({ user }) {
   // Password tab. Absent config just drops the link, never blocks the panel.
   const [envId, setEnvId] = useState(null);
 
-  // Forgot password: pass an MFA challenge, then the BFF sets the new password
-  // with its worker token. The session is never touched.
+  // Forgot password: needs no sign-in. The BFF runs the MFA challenge and sets
+  // the new password with its worker token; an existing session is never touched.
   const [pwStep, setPwStep] = useState('idle'); // idle | mfa | set | done
   const [pwMfa, setPwMfa] = useState({ daId: null, devices: [] });
   const [pwNew, setPwNew] = useState('');
+  const [pwUser, setPwUser] = useState(null); // null = follow the signed-in username
   const [pwBusy, setPwBusy] = useState(false);
   const [pwError, setPwError] = useState(null);
 
@@ -718,11 +719,18 @@ function SecurityCenterContent({ user }) {
     );
   }
 
+  const pwUsername = (pwUser ?? session?.user?.username ?? '').trim();
+
   async function startPasswordMfa() {
     setPwBusy(true);
     setPwError(null);
     try {
-      const res = await fetch('/api/auth/mfa/challenge', { method: 'POST', credentials: 'include' });
+      const res = await fetch('/api/auth/mfa/forgot-password/start', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: pwUsername }),
+      });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message || 'Could not start MFA.');
       if (mountedRef.current) {
@@ -740,7 +748,7 @@ function SecurityCenterContent({ user }) {
     setPwBusy(true);
     setPwError(null);
     try {
-      const res = await fetch('/api/auth/mfa/password-reset', {
+      const res = await fetch('/api/auth/mfa/forgot-password/complete', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -767,14 +775,26 @@ function SecurityCenterContent({ user }) {
           <>
             <p>
               Your password is managed by PingOne. If you have forgotten it, verify
-              with MFA and set a new one — you stay signed in.
+              with MFA and set a new one. No sign-in is needed.
             </p>
             {pwStep === 'done' && <p>✅ Password reset. Use the new password next time you sign in.</p>}
             {pwError && <p className="sc-error-inline" style={{ margin: '0 0 0.5rem' }}>{pwError}</p>}
             {(pwStep === 'idle' || pwStep === 'mfa') && (
-              <button type="button" className="btn btn-primary btn-sm" onClick={startPasswordMfa} disabled={pwBusy}>
-                {pwBusy ? 'Starting...' : 'Forgot password? Verify with MFA'}
-              </button>
+              <>
+                <input
+                  type="text"
+                  className="rename-input"
+                  style={{ display: 'block', width: '100%', maxWidth: 260, boxSizing: 'border-box', marginBottom: '0.5rem' }}
+                  placeholder="Username"
+                  autoComplete="username"
+                  value={pwUsername}
+                  onChange={e => setPwUser(e.target.value)}
+                  disabled={pwBusy}
+                />
+                <button type="button" className="btn btn-primary btn-sm" onClick={startPasswordMfa} disabled={pwBusy || !pwUsername}>
+                  {pwBusy ? 'Starting...' : 'Forgot password? Verify with MFA'}
+                </button>
+              </>
             )}
             {pwStep === 'set' && (
               <>
