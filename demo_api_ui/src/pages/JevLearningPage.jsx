@@ -102,7 +102,7 @@ function LivePanel({ onRisk }) {
         maxLength={2000}
         onChange={(e) => setText(e.target.value)}
       />
-      <button className="jev-run" disabled={busy || !text.trim()} onClick={run}>
+      <button className="btn btn-primary" disabled={busy || !text.trim()} onClick={run}>
         {busy ? 'Deciding...' : 'Decide'}
       </button>
       {error && <p className="jev-error" role="alert">{error}</p>}
@@ -211,7 +211,7 @@ function Bakeoff() {
         score covers only these eight - it is a teaching exercise, not a benchmark of Jev, and it is
         separate from the gateway guardrail measurements.
       </p>
-      <button className="jev-run" disabled={busy} onClick={run}>{busy ? 'Running...' : 'Run bake-off'}</button>
+      <button className="btn btn-primary" disabled={busy} onClick={run}>{busy ? 'Running...' : 'Run bake-off'}</button>
       {error && <p className="jev-error" role="alert">{error}</p>}
       {rows && (
         <>
