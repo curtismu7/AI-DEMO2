@@ -65,7 +65,11 @@ function ResetFields({ fp }) {
       onSubmit={(e) => { e.preventDefault(); if (step === 'set') finish(); else if (step === 'idle') start(); }}
     >
       {step === 'done' ? (
-        <p className="signin-modal__text">✅ Password reset. Use the new password next time you sign in.</p>
+        <div className="pi-flow-signin__done" role="status">
+          <span className="pi-flow-signin__done-icon" aria-hidden>✓</span>
+          <h3 className="pi-flow-signin__done-title">Password reset</h3>
+          <p className="signin-modal__text">You can now sign in with your new password.</p>
+        </div>
       ) : step === 'set' ? (
         <>
           <p className="signin-modal__text">✓ MFA verified. Choose a new password.</p>
@@ -161,23 +165,30 @@ export function ForgotPasswordLink() {
       </button>
       {open && (
         <DraggableModal
+          key={fp.step === 'done' ? 'done' : 'form'}
           isOpen
           onClose={close}
           title="Reset your password"
           className="signin-modal pi-flow-signin"
           defaultWidth={460}
-          defaultHeight={440}
-          minHeight={360}
+          defaultHeight={fp.step === 'done' ? 340 : 440}
+          minHeight={fp.step === 'done' ? 280 : 360}
           footer={
             <div className="signin-modal__actions">
-              {fp.step !== 'done' && (
-                <button type="button" className="signin-prompt__btn" onClick={action.onClick} disabled={action.disabled}>
-                  {action.label}
+              {fp.step === 'done' ? (
+                <button type="button" className="signin-prompt__btn" onClick={close}>
+                  Back to sign in
                 </button>
+              ) : (
+                <>
+                  <button type="button" className="signin-prompt__btn" onClick={action.onClick} disabled={action.disabled}>
+                    {action.label}
+                  </button>
+                  <button type="button" className="signin-prompt__btn signin-prompt__btn--ghost" onClick={close}>
+                    Cancel
+                  </button>
+                </>
               )}
-              <button type="button" className="signin-prompt__btn signin-prompt__btn--ghost" onClick={close}>
-                {fp.step === 'done' ? 'Close' : 'Cancel'}
-              </button>
             </div>
           }
         >
