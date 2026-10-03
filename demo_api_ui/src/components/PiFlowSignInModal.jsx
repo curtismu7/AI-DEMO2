@@ -5,6 +5,7 @@ import {
   PI_FLOW_SIGNIN_EVENT,
   setPiFlowSignInAvailable,
 } from "../utils/authUi";
+import { navigateWithOverlay } from "../utils/navigateWithOverlay";
 import { authenticateWebAuthn } from "../utils/passkeyCeremony";
 import { VerticalContext } from "../vertical/VerticalProvider";
 
@@ -18,7 +19,9 @@ const mfaRequested = () => new URLSearchParams(window.location.search).get("sign
 /** Plain redirect login — the path every failure here falls back to. An MFA request keeps its MFA (the step-up route). */
 function redirectLogin(returnTo) {
   const suffix = returnTo ? `?return_to=${encodeURIComponent(returnTo)}` : "";
-  window.location.href = `${apiBase()}/api/auth/oauth/user/${mfaRequested() ? "stepup" : "login"}${suffix}`;
+  navigateWithOverlay(`${apiBase()}/api/auth/oauth/user/${mfaRequested() ? "stepup" : "login"}${suffix}`, {
+    message: "Signing in...",
+  });
 }
 
 /**
@@ -131,7 +134,7 @@ export default function PiFlowSignInModal() {
         return;
       }
       if (res.ok && body.redirectTo) {
-        window.location.assign(body.redirectTo);
+        navigateWithOverlay(body.redirectTo, { message: "Signing in...", assign: true });
         return;
       }
       if (res.ok && body.step === "passkey") {
@@ -180,7 +183,7 @@ export default function PiFlowSignInModal() {
         return;
       }
       if (res.ok && body.redirectTo) {
-        window.location.assign(body.redirectTo);
+        navigateWithOverlay(body.redirectTo, { message: "Signing in...", assign: true });
         return;
       }
       redirectLogin(returnToRef.current);
