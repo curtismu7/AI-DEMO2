@@ -18,7 +18,28 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
-### [ ] 2026-10-02 — The session token modal's pi.flow sign-in is blocked by CORS on the end-user app
+### [ ] 2026-10-02 — The session token modal's pi.flow sign-in is blocked by CORS on the end-user app (PARTLY RESOLVED)
+
+**APPLIED 2026-10-03 (live PingOne change, no repo change).** "Demo AI App - User
+Login" (`83572007-b2c7-4862-8197-dc225a9fb8e1`, the client `?mode=pi.flow` uses)
+now has `corsSettings` `ALLOW_SPECIFIC_ORIGINS` for `https://local.ping-devops.com:4000`,
+`https://api.ping.demo:4000` and `https://ai-demo.ping-devops.com` (it was null).
+Done with a one-off full-replace PUT using the same read-only-field strip as
+`pingoneProvisionService`; a read-back showed every other field unchanged.
+**Verified:** the app reads back with the setting, and a real
+`GET /as/authorize` sent with `Origin: https://local.ping-devops.com:4000` now
+returns `access-control-allow-origin` for that origin plus
+`access-control-allow-credentials: true` (it was the failing leg).
+**Not yet verified:** the credentialed legs after authorize (`POST` password,
+`GET /as/resume` returning the code with ACAO, BFF code exchange, token shown)
+need a real user in a browser. Browsers that block PingOne's third-party `ST`
+cookie (Safari, Firefox, Chrome with third-party cookies blocked) will still fail
+at `/as/resume`. **Rollback:** set the app's `corsSettings` back to null; the
+pre-change app definition was saved inside the `ai-demo-api-server` container at
+`/tmp/user-login-app-backup.json`, which does not survive a recreate.
+**Still open:** nothing provisions or asserts this setting. `services/checks/pkceAppCorsCheck.js`
+covers only the PKCE app, so a re-created User Login app comes back with null
+CORS and nothing flags it.
 
 **What's wrong.** `OAuthTokenDisplayPage` starts sign-in with
 `/login?mode=pi.flow`, then the browser `fetch`es PingOne `/as/authorize`
@@ -34,11 +55,11 @@ app's `corsSettings` to `ALLOW_SPECIFIC_ORIGINS` for `local.ping-devops.com:4000
 `api.ping.demo:4000` and `ai-demo.ping-devops.com`, backing up the app first),
 not a repo change, and the demo is shared. Not yet applied.
 
-**Real fix.** Apply that CORS setting, then rerun the §4 verify steps for the
-modal on P1 (credentials, `/as/resume`, code exchange, token shown). A bootstrap
-or readiness check that asserts the end-user app's CORS origins would stop this
-recurring; the PKCE app has the same dependency
-(`tests/checks/pkceAppCorsCheck.test.js`).
+**Real fix.** ~~Apply that CORS setting~~ (done, see above), then rerun the §4
+verify steps for the modal on P1 (credentials, `/as/resume`, code exchange,
+token shown). A bootstrap or readiness check that asserts the end-user app's
+CORS origins would stop this recurring; the PKCE app has the same dependency
+(`demo_api_server/services/checks/pkceAppCorsCheck.js`).
 
 ### [ ] 2026-10-01 — A workload agent's run is recorded as the built-in AI Agent (PARTLY RESOLVED)
 
