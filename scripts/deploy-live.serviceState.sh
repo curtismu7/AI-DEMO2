@@ -32,7 +32,7 @@ deploy_live_service_selected() {
 # own focused validator and startup checks.
 deploy_live_created_service_is_optional_profile() {
   case "$1" in
-    ai-demo-spire-server|ai-demo-spire-registration|ai-demo-spire-agent|ai-demo-spiffe-helper-bff|ai-demo-spiffe-oidc-provider)
+    ai-demo-spire-server|ai-demo-spire-registration|ai-demo-spire-agent|ai-demo-spiffe-helper-bff|ai-demo-spiffe-oidc-provider|ai-demo-von-jev)
       return 0 ;;
     *) return 1 ;;
   esac

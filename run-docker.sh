@@ -32,6 +32,7 @@
 #   demo-auth  Demo authz-server + demo mcp-gateway — started with core by default
 #   observability  Grafana + Prometheus + Loki + Alloy + Alertmanager — off by default
 #   spiffe     Local SPIRE workload identity stack — opt-in only
+#   jev        Von local model for /jev-learning (~7 GiB RAM) — opt-in only
 #
 # Single-service commands take one OR MORE service names, e.g.
 #   ./run-docker.sh restart ui demo-api-server
@@ -124,14 +125,14 @@ CORE_SERVICES=(
 BASIC_SERVICES=(ui demo-api-server mcp-discovery-agent mcp-server)
 
 # Optional groups — start on demand via `./run-docker.sh optional start <group>`.
-OPTIONAL_GROUP_NAMES=(rag tracing demo-auth mcpgw observability spiffe)
+OPTIONAL_GROUP_NAMES=(rag tracing demo-auth mcpgw observability spiffe jev)
 
 # Also brought up on every `start` / `restart` / `build` (core stack). Still
 # stoppable with `./run-docker.sh optional stop rag` without tearing down core.
 DEFAULT_OPTIONAL_GROUPS=(rag demo-auth)
 
 # Compose profiles matching OPTIONAL_GROUP_NAMES (also used for `start full`).
-FULL_STACK_PROFILE_ARGS=(--profile rag --profile tracing --profile demo-auth --profile mcpgw --profile observability --profile spiffe)
+FULL_STACK_PROFILE_ARGS=(--profile rag --profile tracing --profile demo-auth --profile mcpgw --profile observability --profile spiffe --profile jev)
 
 TEARDOWN_PROFILE_ARGS=("${FULL_STACK_PROFILE_ARGS[@]}")
 
@@ -145,7 +146,8 @@ _optional_group_profiles() {
     mcpgw)     echo "mcpgw" ;;
     observability) echo "observability" ;;
     spiffe)    echo "spiffe" ;;
-    all)       echo "rag agents tracing demo-auth mcpgw observability spiffe" ;;
+    jev)       echo "jev" ;;
+    all)       echo "rag agents tracing demo-auth mcpgw observability spiffe jev" ;;
     *) return 1 ;;
   esac
 }
@@ -170,6 +172,7 @@ _optional_group_services() {
     mcpgw)     echo "ping-mcpgw mcpgw-nginx opensearch opensearch-mcp-server" ;;
     observability) echo "prometheus alertmanager loki alloy grafana" ;;
     spiffe)    echo "spire-server spire-agent spire-registration spiffe-helper-bff spiffe-oidc-provider" ;;
+    jev)       echo "von-jev" ;;
     all)
       local g svc out=""
       for g in "${OPTIONAL_GROUP_NAMES[@]}"; do
@@ -191,6 +194,7 @@ _optional_group_desc() {
     mcpgw)     echo "PingOne Privilege MCPGW (JIT least-privilege + session recording) + OpenSearch sample backend" ;;
     observability) echo "Grafana + Prometheus + Loki + Alloy + Alertmanager (off by default)" ;;
     spiffe)    echo "Local SPIRE workload identity stack (opt-in only)" ;;
+    jev)       echo "Von local model backing /jev-learning (opt-in; ~7 GiB RAM, slow first call)" ;;
     all)       echo "Every optional group" ;;
     *)         echo "Unknown group" ;;
   esac
@@ -1690,7 +1694,9 @@ cmd_optional_help() {
   echo "    Observability and tracing:"
   echo "      observability — $(_optional_group_desc observability)"
   echo "      tracing       — $(_optional_group_desc tracing)"
-  echo "    all             — $(_optional_group_desc all)"
+  echo "    Models:"
+  echo "      jev           — $(_optional_group_desc jev)"
+  echo "    all           — $(_optional_group_desc all)"
   echo ""
   echo "  Note: rag starts with core by default; observability does not. Use optional stop/start to toggle."
   echo "        Starting or stopping observability can recreate the BFF (~35s) to switch its Loki push."
