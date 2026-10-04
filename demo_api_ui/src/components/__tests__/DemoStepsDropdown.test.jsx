@@ -563,17 +563,17 @@ describe('DemoStepsDropdown', () => {
     );
     await waitFor(() => expect(screen.getByTestId('demo-step-UC1')).toBeInTheDocument());
 
-    const total = screen.getByTestId('demo-steps-progress').textContent.match(/of (\d+) done/)[1];
-    expect(screen.getByTestId('demo-steps-progress')).toHaveTextContent(`0 of ${total} done`);
+    const total = screen.getByTestId('demo-steps-progress').textContent.match(/of (\d+) script steps done/)[1];
+    expect(screen.getByTestId('demo-steps-progress')).toHaveTextContent(`0 of ${total} script steps done`);
 
     // Mark one completed the way onSelect does, then click another step to
     // force the tick-driven re-render (same path the checkmarks use).
     sessionStorage.setItem('bx_uc_completed', JSON.stringify(['UC1']));
     fireEvent.click(screen.getByTestId(`demo-step-${DEMO_USE_CASE_IDS[1]}`));
-    expect(await screen.findByTestId('demo-steps-progress')).toHaveTextContent(`1 of ${total} done`);
+    expect(await screen.findByTestId('demo-steps-progress')).toHaveTextContent(`1 of ${total} script steps done`);
 
     fireEvent.click(screen.getByTestId('demo-steps-clear'));
-    expect(screen.getByTestId('demo-steps-progress')).toHaveTextContent(`0 of ${total} done`);
+    expect(screen.getByTestId('demo-steps-progress')).toHaveTextContent(`0 of ${total} script steps done`);
   });
 
   it('opens the explain modal from the per-step icon without closing Demo steps or running the step', async () => {

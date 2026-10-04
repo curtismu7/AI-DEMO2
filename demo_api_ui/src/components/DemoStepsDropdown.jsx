@@ -661,7 +661,7 @@ export default function DemoStepsDropdown({
                   }`}
                   data-testid="demo-steps-progress"
                 >
-                  {completedCount} of {primarySteps.length} done
+                  {completedCount} of {primarySteps.length} script steps done
                 </span>
                 <div className="ba-demo-steps-popout__track" aria-hidden="true">
                   <i style={{ width: `${progressPct}%` }} />
