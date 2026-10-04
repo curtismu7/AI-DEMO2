@@ -38,7 +38,7 @@ before changing any of this.
 | Gateway 1 | release `agentless-mcpgw`, `ping-devops-curtismuir`, cluster `ai-demo-cmuir`. Owns every app and all sidecars. |
 | Gateway 2 | release `agentless-mcpgw2`, `ping-devops-cmuir`. **Since 2026-10-04 a second node of gateway 1's cluster `ai-demo-cmuir`** (was its own cluster `ai-demo-cmuir2`, forwarding over the mesh). Serves every app itself, so it runs the same sidecars: upgrade it with `sidecars.values.yaml --set landingPage.enabled=false` as well as `gateway2-mesh.values.yaml` (its secrets live only in the release's stored values). |
 | Load balancer | part of the chart (`templates/loadbalancer.yaml`), enabled on gateway 1's release by `gateway1-lb.values.yaml`. Deployment/Service `mcpgw-lb`. |
-| Gateway 3 (installed 2026-10-04, in rotation) | release `agentless-mcpgw3` in gateway 1's namespace; its container is named `agentless-mcpgw3`, via the chart's `nameOverride` and `ingress.enabled: false` (`gateway3.values.yaml`). Install steps and findings: `privilege/GATEWAY-LOAD-BALANCER.md` section 00c. `scripts/se-gateways.sh` upgrades it. |
+| Gateway 3 (installed 2026-10-04, parked and scaled to 0: 1000m CPU starved the SE cluster) | release `agentless-mcpgw3` in gateway 1's namespace; its container is named `agentless-mcpgw3`, via the chart's `nameOverride` and `ingress.enabled: false` (`gateway3.values.yaml`). Install steps and findings: `privilege/GATEWAY-LOAD-BALANCER.md` section 00c. `scripts/se-gateways.sh` upgrades it. |
 
 **Two nodes in one cluster is the current layout** (`privilege/GATEWAY-LOAD-BALANCER.md`
 section 00). What it changes:

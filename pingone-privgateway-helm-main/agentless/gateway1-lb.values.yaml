@@ -34,8 +34,9 @@ loadBalancer:
       parked: false
     - name: gateway-3
       # Gateway 3 (release agentless-mcpgw3, gateway3.values.yaml) in THIS namespace. Installed
-      # and enrolled 2026-10-04; un-parked the same day. Plain HTTP for the same reason as
-      # gateway 2. Set `parked: true` and upgrade to take it out of rotation.
+      # and enrolled 2026-10-04, then parked and scaled to 0 the same day: its pod requests 1000m
+      # CPU, which starved the SE cluster. To bring it back: scale the Deployment to 1, wait for
+      # 9/9, set `parked: false` and upgrade. Plain HTTP for the same reason as gateway 2.
       address: agentless-mcpgw3.ping-devops-curtismuir.svc.cluster.local:8623
       scheme: http
-      parked: false
+      parked: true
