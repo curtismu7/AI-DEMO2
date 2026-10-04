@@ -229,10 +229,32 @@ restart drops registrations made before Redis was on.
 amount of persistence changes that. Not a documented Ping feature, so ask Ping whether
 `MCPGW_REDIS_URL` is supported and whether the exit after 6 failed attempts is intended.
 
-## 00c. Adding a third node in gateway 1's namespace (prepared, not installed)
+## 00c. A third node in gateway 1's namespace (installed 2026-10-04, then scaled to 0)
 
-Status: chart and values are ready and rendered; no release exists yet, and the load balancer
-lists gateway 3 as `parked: true` (not yet applied to the cluster).
+**Status: parked in the load balancer and scaled to 0.** Release `agentless-mcpgw3` is still
+installed in `ping-devops-curtismuir` with its enrollment volume (`agentless-mcpgw3-ssl`), so it
+can come back without a new token. It was removed from service the same day because its pod
+requests 1000m CPU (nine containers), which left the SE cluster with no node that had 750m
+free: SE's `demo-api-server` sat Pending for 36 minutes with "27 Insufficient cpu". Scaling
+gateway 3 to 0 let it schedule within seconds.
+
+What it had shown before that: enrolled in `ai-demo-cmuir` as a third node, pod 9/9, Redis
+connected on attempt 1/6, Certificate issued, in rotation. **It never served a request:**
+tests through the public URL land on whichever node the client address hashes to, and on
+2026-10-04 that was always gateway 1 (39 of 39 logged requests). It was not proven to serve apps.
+
+**To bring it back:** make room first (it needs 1000m of CPU requests on one node), then
+`kubectl scale deploy/agentless-mcpgw3 --replicas=1`, wait for 9/9 and the Redis line,
+set `parked: false` for `gateway-3` in `gateway1-lb.values.yaml`, and
+`scripts/se-gateways.sh upgrade --apply`. While the Deployment is at 0, `se-gateways.sh`
+skips gateway 3, because a Helm upgrade would scale it back to 1. Cheaper next time: trim the
+sidecars' CPU requests in `sidecars.values.yaml` (not measured, so not done).
+
+Read `node=` in `kubectl logs deploy/mcpgw-lb` to see which node answered a request; to force a
+node, park the others as in section 00.
+
+The container in gateway 3's pod is named `agentless-mcpgw3`, not `agentless-mcpgw`: use
+`kubectl exec deploy/agentless-mcpgw3 -c agentless-mcpgw3 ...` for its log.
 
 The chart named every resource `agentless-mcpgw`, so a second release in
 `ping-devops-curtismuir` would have collided with gateway 1 on the Deployment, Service,
@@ -258,11 +280,17 @@ peer parked the load balancer renders it as `down`.
 4. Set `parked: false` for `gateway-3` in `gateway1-lb.values.yaml`,
    `scripts/se-gateways.sh upgrade --apply`.
 
-**Not verified:** that the Certificate for `mcpgw3.ai-demo.ping-devops.com` issues (it
-needs DNS and the wildcard challenge to work for that name; gateway 2's `mcpgw2` name did);
-that a third node is accepted into the cluster; whether `meshPort` and `gatewayHostname` are
-needed (copied from gateway 2, itself untested). A third pod in the same namespace adds pod
-redundancy, not namespace redundancy.
+**Found on install:** the Certificate for `mcpgw3.ai-demo.ping-devops.com` issued, and the
+console accepted a third node with the existing Cluster ID. The first start took about 6
+minutes, almost all of it pulling the sidecar images onto a fresh node. Gateway 3 and gateway 1
+each log `Error connecting ... context deadline exceeded` when dialling the other's mesh
+address; gateway 2 has thousands of the same lines and serves apps, so it looks routine here, but
+it was not shown to be harmless for gateway 3. The overlay has no `hostAliases` (gateway 2
+has one); whether gateway 3 needs it is untested.
+
+**Not verified:** whether `meshPort` and `gatewayHostname` are needed (copied from gateway 2,
+itself untested). A third pod in the same namespace adds pod redundancy, not namespace
+redundancy.
 
 **Redis (section 00b):** gateway 3 uses the shared Redis too. `sidecars.values.yaml` carries
 `redis.urlSecret.name`, and the Secret `privilege-redis-url` already exists in

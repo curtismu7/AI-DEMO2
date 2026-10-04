@@ -28,7 +28,11 @@ GW1_NS="${GW1_NS:-ping-devops-curtismuir}"; GW1_REL="${GW1_RELEASE:-agentless-mc
 GW2_NS="${GW2_NS:-ping-devops-cmuir}";      GW2_REL="${GW2_RELEASE:-agentless-mcpgw2}"
 # Gateway 3 shares gateway 1's namespace (chart nameOverride); it is handled only if installed.
 GW3_REL="${GW3_RELEASE:-agentless-mcpgw3}"
-gw3_installed() { helm --kube-context "$CTX" -n "$GW1_NS" status "$GW3_REL" >/dev/null 2>&1; }
+# Present AND running: an upgrade would scale a Deployment someone set to 0 back up to 1.
+gw3_installed() {
+  helm --kube-context "$CTX" -n "$GW1_NS" status "$GW3_REL" >/dev/null 2>&1 || return 1
+  [[ "$(kubectl --context "$CTX" -n "$GW1_NS" get deploy "$GW3_REL" -o jsonpath='{.spec.replicas}' 2>/dev/null)" != 0 ]]
+}
 SECRETS=(brave-secrets banking-rest-secrets pingone-mcp-secrets mcp-grafana-secrets ghcr-pull-secret)
 
 # Sidecar containers the render must contain: read from the values file, so adding one
