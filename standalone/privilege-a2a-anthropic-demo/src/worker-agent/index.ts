@@ -238,7 +238,7 @@ app.get('/trace', (req: Request, res: Response) => {
 
 app.listen(config.port, '127.0.0.1', () => {
   console.log(`\n[worker] analyst_agent on http://127.0.0.1:${config.port}/a2a`);
-  console.log(`[worker] model: ${config.model} — ${describeMode()}`);
+  console.log(`[worker] model: ${config.model} — ${describeMode('WORKER_AGENT')}`);
   console.log(`[worker] MCP: ${config.mcpUrl}${config.bearer ? ' (Bearer set)' : ' (no Bearer)'}`);
   console.log(`[worker] inbound Bearer presence required: ${config.requireBearer}\n`);
 });
