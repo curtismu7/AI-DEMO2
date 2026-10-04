@@ -12,6 +12,7 @@ import {
   PRIVILEGE_USE_CASE_IDS,
 } from "../../config/demoUseCaseSteps";
 import { A2A_SEQUENCE, DEMO_STEP_GUIDES } from "../../config/demoStepGuides";
+import { A2A_REFERENCE } from "../../config/a2aReference";
 import { demoStepNumber, stepLabel } from "../../config/demoStepNumbers";
 
 const at = (path) => render(<MemoryRouter initialEntries={[path]}><PageGuide /></MemoryRouter>);
@@ -137,6 +138,27 @@ test("the dashboard guide leads with the A2A sequence, every step known", () => 
   const seq = screen.getByTestId("a2a-sequence");
   expect(seq.textContent).toContain("Step 11 · UC2.7");
   expect(seq.textContent).toContain("Step 26 · UC47");
+});
+
+test("the A2A reference covers the spec and the interfaces, and shows in both guides", () => {
+  const headings = A2A_REFERENCE.sections.map((s) => s.heading);
+  expect(headings).toEqual(expect.arrayContaining([
+    "Interfaces between agents (transports)", "Agent Card", "Operations",
+    "What this demo implements", "What this demo does not implement",
+  ]));
+  expect(A2A_REFERENCE.specVersion).toMatch(/1\.0/);
+  for (const s of A2A_REFERENCE.sections) expect(s.points.length, s.heading).toBeGreaterThan(0);
+
+  at("/a2a-protocol-learning");
+  fireEvent.click(screen.getByText("Guide"));
+  expect(screen.getByTestId("a2a-reference")).toBeTruthy();
+  expect(screen.getByText("Interfaces between agents (transports)")).toBeTruthy();
+});
+
+test("the dashboard guide also carries the A2A reference", () => {
+  at("/dashboard");
+  fireEvent.click(screen.getByText("Guide"));
+  expect(screen.getByTestId("a2a-reference")).toBeTruthy();
 });
 
 test("no button on an unmapped route", () => {

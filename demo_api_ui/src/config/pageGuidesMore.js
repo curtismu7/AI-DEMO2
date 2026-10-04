@@ -291,6 +291,7 @@ export const MORE_PAGE_GUIDES = {
   },
   "/a2a-protocol-learning": {
     title: "A2A Protocol Guide",
+    extra: "a2a-reference",
     talkingPoints: [
       "Two things are called A2A here: the Linux Foundation wire protocol (Agent Card plus bearer-gated JSON-RPC) and the RFC 8693 nested-act identity chain, and they use different credentials.",
       "The Agent Card is public capability metadata that grants no authority, while the endpoint it advertises refuses a call with no bearer.",

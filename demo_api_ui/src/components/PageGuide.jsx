@@ -5,6 +5,7 @@ import { getPageGuide } from "../config/pageGuides";
 import { headerButtonCount, onOpenPageGuide, subscribeHeaderButtons } from "./pageGuideStore";
 import { getLesson } from "../learning/lessonCatalog";
 import DemoStepsGuide from "./DemoStepsGuide";
+import A2aReference from "./A2aReference";
 import "./PageGuide.css";
 
 const IntentBindingLearningPage = lazy(() => import("../pages/IntentBindingLearningPage"));
@@ -72,6 +73,7 @@ export default function PageGuide() {
               <LessonGuide lesson={guide} heading={false} />
             )
           )}
+          {guide.extra === "a2a-reference" && <A2aReference />}
         </div>
       </DraggableModal>
     </>

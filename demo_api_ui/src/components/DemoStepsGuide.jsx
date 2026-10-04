@@ -8,6 +8,7 @@ import {
 } from "../config/demoUseCaseSteps";
 import { demoStepNumber, stepLabel } from "../config/demoStepNumbers";
 import { A2A_SEQUENCE, DEMO_STEP_GUIDES } from "../config/demoStepGuides";
+import A2aReference from "./A2aReference";
 
 const FIELDS = [
   ["what", "What"],
@@ -60,6 +61,7 @@ export default function DemoStepsGuide() {
           ))}
         </ol>
       </section>
+      <A2aReference />
       {GUIDE_GROUPS.map((group) => (
         <section key={group.label}>
           <h3>{group.label}</h3>
