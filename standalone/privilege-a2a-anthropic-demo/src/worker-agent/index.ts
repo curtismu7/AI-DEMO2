@@ -157,7 +157,7 @@ const card: AgentCard = {
   name: 'analyst_agent',
   description: 'Access-review analyst holding the entitlement tools.',
   version: '1.0.0',
-  url: `http://127.0.0.1:${config.port}/a2a/jsonrpc`,
+  url: config.publicUrl,
   preferredTransport: 'JSONRPC',
   capabilities: { streaming: false },
   defaultInputModes: ['text/plain'],
@@ -210,7 +210,9 @@ if (config.requireBearer) {
   });
 }
 
-app.use('/a2a/.well-known/agent-card.json', agentCardHandler({ agentCardProvider: async () => card }));
+// Privilege's "Discover A2A agent card" fetches the card from the root of the
+// Backend URL; A2A clients given the /a2a base look under it. Serve both.
+app.use(['/.well-known/agent-card.json', '/a2a/.well-known/agent-card.json'], agentCardHandler({ agentCardProvider: async () => card }));
 app.use('/a2a/jsonrpc', jsonRpcHandler({ requestHandler, userBuilder: UserBuilder.noAuthentication }));
 
 app.get('/trace', (req: Request, res: Response) => {

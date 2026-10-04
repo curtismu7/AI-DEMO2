@@ -195,7 +195,9 @@ Register both backends in PingOne Privilege, using the reference demo's names:
 Register the worker as a **Remote Agent** (Agentic Apps, Add Application), not
 as an HTTP or MCP app: only Remote Agent apps appear in an agent key's Remote
 Agents list, and an app registered as MCP gets an MCP `initialize` sent to its
-`/a2a` path. Leave agent-card discovery off until the backend is running.
+`/a2a` path. Turn on **Discover A2A agent card** once the backend is running:
+the worker serves its card at `/.well-known/agent-card.json` on the Backend
+URL, and `WORKER_PUBLIC_URL` sets the address that card advertises.
 
 Set the MCP backend's `AuthMode` to `none`. The gateway authenticates the
 worker's Agent Access key before proxying the request.
