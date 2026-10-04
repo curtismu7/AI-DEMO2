@@ -1,4 +1,5 @@
 const test = require('node:test');
+const { after } = test;
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -78,12 +79,36 @@ test('forbidden-string gate fails without printing the string', () => {
   } finally { delete process.env.EDITION_FORBIDDEN_STRINGS; }
 });
 
+const withForbidden = (v, fn) => {
+  if (v === undefined) delete process.env.EDITION_FORBIDDEN_STRINGS; else process.env.EDITION_FORBIDDEN_STRINGS = v;
+  try { fn(); } finally { delete process.env.EDITION_FORBIDDEN_STRINGS; }
+};
+
+test('forbidden-string gate fails closed when the list is unset or empty', () => {
+  const d = tree({ 'a.js': '1' });
+  for (const v of [undefined, '', ' , ']) {
+    withForbidden(v, () => assert.throws(() => runGates(d, mf(), okRunner), /EDITION_FORBIDDEN_STRINGS not set/));
+  }
+});
+
+test('forbidden-string scan covers build/, dist/ and symlink targets', () => {
+  const d = tree({ 'build/x.txt': 'zz-needle-zz', 'dist/y.js': 'zz-needle-zz', 'ok.js': '1' });
+  withForbidden('zz-needle-zz', () => assert.throws(() => runGates(d, mf(), okRunner), (e) => /build\/x\.txt/.test(e.message) && /dist\/y\.js/.test(e.message)));
+  const l = tree({ 'ok.js': '1' });
+  fs.symlinkSync('/somewhere/zz-needle-zz/target', path.join(l, 'link'));
+  withForbidden('zz-needle-zz', () => assert.throws(() => runGates(l, mf(), okRunner), /link/));
+});
+
 test('gitleaks gate fails on a planted secret', () => {
+  process.env.EDITION_FORBIDDEN_STRINGS = 'unused-placeholder-xyz';
+  after(() => delete process.env.EDITION_FORBIDDEN_STRINGS);
   const d = tree({ 'k.js': 'const t = "ghp_' + 'aB3dE5gH7jK9mN1pQ3sT5vW7yZ9bD1fH3jK5";\n' });
   assert.throws(() => runGates(d, mf(), okRunner), /gitleaks/);
 });
 
 test('clean tree passes scan gates and runs build/test gates through the runner', () => {
+  process.env.EDITION_FORBIDDEN_STRINGS = 'unused-placeholder-xyz';
+  after(() => delete process.env.EDITION_FORBIDDEN_STRINGS);
   const d = tree({ 'a.js': 'module.exports = 1;', 'b.js': "require('./a');" });
   const calls = [];
   runGates(d, mf(), (cmd, args, opts) => calls.push(`${opts.cwd.replace(d, '.')}:${cmd} ${args.join(' ')}`));
@@ -92,6 +117,8 @@ test('clean tree passes scan gates and runs build/test gates through the runner'
 });
 
 test('a failing runner step names its gate', () => {
+  process.env.EDITION_FORBIDDEN_STRINGS = 'unused-placeholder-xyz';
+  after(() => delete process.env.EDITION_FORBIDDEN_STRINGS);
   const d = tree({ 'a.js': '1' });
   assert.throws(() => runGates(d, mf(), () => { throw new Error('boom'); }), /gate failed: ui-build/);
 });

@@ -90,13 +90,20 @@ function checkRelativeImports(dest, removed) {
 
 function checkForbidden(dest) {
   const list = (process.env.EDITION_FORBIDDEN_STRINGS || '').split(',').map((s) => s.trim()).filter(Boolean);
-  if (!list.length) return;
+  if (!list.length) throw new Error('gate failed: EDITION_FORBIDDEN_STRINGS not set');
   const needles = list.map((s) => Buffer.from(s));
   const hits = [];
-  walk(dest, (f) => {
-    const buf = fs.readFileSync(f);
-    if (needles.some((n) => buf.includes(n))) hits.push(path.relative(dest, f));
-  });
+  // scan every tracked path: skip only .git; a symlink is checked by its target text, not followed
+  const scan = (dir) => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (e.name === '.git') continue;
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) { scan(p); continue; }
+      const buf = e.isSymbolicLink() ? Buffer.from(fs.readlinkSync(p)) : fs.readFileSync(p);
+      if (needles.some((n) => buf.includes(n))) hits.push(path.relative(dest, p));
+    }
+  };
+  scan(dest);
   // never print the matched string - paths and count only
   if (hits.length) throw new Error(`gate failed: forbidden string found in ${hits.length} file(s)\n${hits.join('\n')}`);
 }
