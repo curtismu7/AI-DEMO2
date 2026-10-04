@@ -15,8 +15,21 @@
 #   6. Demo feature flags     gen-demo-flag-map.js --live — fails only when an AMBIENT
 #                             flag is wrong (including real Gateway + real P1AZ posture).
 #                             Per-step flags off is fine: they arm when the step runs.
+#   7. Cluster (opt-in)       PREFLIGHT_K8S_NAMESPACES="ns1 ns2": every deployment with
+#                             replicas > 0 is fully ready (context PREFLIGHT_K8S_CONTEXT,
+#                             default `us`). PREFLIGHT_PUBLIC_URLS="url1 url2": each
+#                             answers without a 5xx — a 302/401/404 is the ingress or
+#                             auth gate answering, which is what must be up.
 #
 #   PREFLIGHT_BASE_URL   default https://api.ping.demo:3001 (mkcert TLS → curl -k)
+#
+# SE cluster: the public host sits behind the ingress auth gate (302), so reach
+# the BFF through a port-forward instead:
+#   kubectl --context us -n ping-devops-cmuir port-forward deploy/demo-api-server 13001:3001 &
+#   PREFLIGHT_BASE_URL=https://localhost:13001 PREFLIGHT_SKIP_WARMUP=1 \
+#   PREFLIGHT_K8S_NAMESPACES="ping-devops-cmuir ping-devops-curtismuir" \
+#   PREFLIGHT_PUBLIC_URLS="https://ai-demo.ping-devops.com/ https://mcpgw.ai-demo.ping-devops.com/" \
+#     scripts/preflight-demo.sh
 #
 # The chip corpus is read from the repo manifests, so new verticals/chips are
 # covered automatically. mode:'llm' and mode:'direct' chips are skipped by design.
@@ -83,7 +96,9 @@ for name in ("agent_service","mcp_server","mcp_gateway","llm_proxy","hitl_servic
     if s.get("up"):
         print(f"OK|{name}|up")
     else:
-        print(f"FAIL|{name}|down: {s.get(chr(39)+"error"+chr(39), s.get("error","?")) if isinstance(s,dict) else "?"}")
+        # Nested same-type quotes inside an f-string need Python 3.12; macOS ships 3.9.
+        err=s.get("error","?") if isinstance(s,dict) else "?"
+        print(f"FAIL|{name}|down: {err}")
 prompts=(svcs.get("agent_service") or {}).get("checks",{}).get("prompts")
 if prompts is None:
     print("OK|agent prompts|not reported (older agent build)")
@@ -468,6 +483,30 @@ if [[ "${1:-}" == "--deep" ]]; then
     row FAIL "deep pipeline" "failed — see /tmp/preflight-deep.log"
   fi
 fi
+
+# ── 7. Cluster (opt-in) ──────────────────────────────────────────────────────
+K8S_CTX="${PREFLIGHT_K8S_CONTEXT:-us}"
+for ns in ${PREFLIGHT_K8S_NAMESPACES:-}; do
+  if deps="$(kubectl --context "$K8S_CTX" -n "$ns" get deploy --request-timeout=20s \
+      -o jsonpath='{range .items[*]}{.metadata.name}{" "}{.spec.replicas}{" "}{.status.readyReplicas}{"\n"}{end}' 2>/dev/null)"; then
+    not_ready="$(echo "$deps" | awk '$2 > 0 && $3 + 0 < $2 { printf "%s(%d/%d) ", $1, $3, $2 }')"
+    if [[ -z "$not_ready" ]]; then
+      row OK "Cluster ${ns}" "$(echo "$deps" | awk '$2 > 0' | wc -l | tr -d ' ') deployments ready"
+    else
+      row FAIL "Cluster ${ns}" "not ready: ${not_ready}"
+    fi
+  else
+    row FAIL "Cluster ${ns}" "kubectl --context ${K8S_CTX} could not list deployments"
+  fi
+done
+for url in ${PREFLIGHT_PUBLIC_URLS:-}; do
+  code="$(curl -s -o /dev/null --max-time 15 -w '%{http_code}' "$url" 2>/dev/null)"
+  if [[ "$code" == "000" || "$code" == 5* ]]; then
+    row FAIL "Public host" "${url} → ${code}"
+  else
+    row OK "Public host" "${url} → ${code}"
+  fi
+done
 
 # ── Table + verdict ───────────────────────────────────────────────────────────
 echo
