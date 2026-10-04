@@ -25,6 +25,7 @@ const JOURNEY_SEQUENCE = Object.freeze([
   ["hitl-step-up", "HITL and step-up"],
   ["a2a-delegation", "A2A delegation"],
   ["privilege-mcp", "Privilege MCP"],
+  ["privilege-a2a", "Privilege A2A"],
   ["threat-defense", "Attack defense"],
   ["lifecycle", "Agent lifecycle"],
   ["evidence-timeline", "Evidence summary"],

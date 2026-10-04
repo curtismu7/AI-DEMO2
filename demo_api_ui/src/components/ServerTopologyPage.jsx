@@ -14,6 +14,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { DEMO_STEP_USE_CASES, GROUPS, PLAYBACKS, RFC, SERVER_EDGES, SERVER_MAP, SERVER_ZONES, SPECS } from "./serverTopologyData";
+import { EDGE_COLORS, NODE_TYPE_COLORS } from "./serverTopologyExports";
 import "./ServerTopologyPage.css";
 import ServerTopologyExportControls from "./ServerTopologyExportControls";
 import { layoutEdgeLabels } from "./topologyEdgeLabelLayout";
@@ -25,11 +26,6 @@ const FILTER_OPTIONS = [
   ["all", "All services"], ["core", "App & MCP"], ["identity", "Identity & policy"],
   ["ai", "AI & data"], ["telemetry", "Observability"], ["optional", "Optional profiles"],
 ];
-const EDGE_COLORS = { mcp: "#388bfd", oauth: "#bc8cff", agent: "#d29922", data: "#f0883e", telemetry: "#3fb950", optional: "#788492" };
-const NODE_TYPE_COLORS = {
-  client: "#58a6ff", gateway: "#bc8cff", app: "#39c5cf", identity: "#db61a2",
-  data: "#f0883e", agent: "#d29922", telemetry: "#3fb950",
-};
 const NODE_TYPE_LABELS = [
   ["client", "Client"], ["gateway", "Gateway"], ["app", "App"], ["identity", "Identity"],
   ["data", "Data"], ["agent", "Agent"], ["telemetry", "Telemetry"],

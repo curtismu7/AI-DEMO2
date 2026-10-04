@@ -695,7 +695,7 @@ Use cases in the registry (`demo_api_server/config/useCases.js`):
 
 ### AI Security Academy
 - **Route:** `/academy/journey` · **Auth:** public
-- **What it does:** A 14-step guided customer journey with progress, skip, restart, tenant readiness strip, and a final evidence summary.
+- **What it does:** A 15-step guided customer journey with progress, skip, restart, tenant readiness strip, and a final evidence summary.
 - **What it teaches:** How one customer story goes from business risk to evidence that every agent action stayed governed, across login, delegation, MCP, Authorize, HITL, A2A and threat defense.
 - **What it demos:** Live or simulated lesson runs per step, labelled LIVE CLOUD, LIVE LOCAL, RECORDED or SIMULATED.
 
