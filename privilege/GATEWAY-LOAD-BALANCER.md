@@ -2,7 +2,9 @@
 
 Status: both gateways in rotation as two nodes of ONE mesh cluster (`ai-demo-cmuir`); one
 app registration serves both, and each node serves every app on its own. Both share one
-Redis (section 00b), so registered clients survive a restart and a switch.
+Redis (section 00b), so registered clients survive a gateway restart and are known to both
+gateways. A switch still costs the demo's Privilege page a fresh registration and sign-in
+(tested): the registry is shared, the tokens are not.
 Last updated 2026-10-04. **Section 00 below is the current layout.** It supersedes section 0
 (two clusters, forwarding over the mesh), which in turn superseded the parts of sections 1,
 5.3, 6 and 9 that say the gateways cannot mesh or that apps must be registered twice.
@@ -22,7 +24,7 @@ every app. Neither forwards to the other, and neither depends on the other.
 | Who serves a call | The owning cluster; the other gateway forwards | The node the client is pinned to |
 | Gateway 1 down | Every app down (~55 s) | Tested 2026-10-04 with gateway 1 scaled to 0: the load balancer moved to gateway 2 within one 10 s sample and two signed-in sidecar apps worked from the UI |
 | Sidecars | Gateway 1 only | Both pods |
-| Failover costs a sign-in | Yes | Registrations no longer (shared Redis, section 00b); whether the sign-in itself survives is not proven |
+| Failover costs a sign-in | Yes | Yes, still: tested with Redis on 2026-10-04, the demo page registered and signed in again on gateway 2 within seconds (section 00b). The registry is shared, the tokens are not |
 
 **How the node was added.** Console, Gateways, Add New, the **AI GW** form with a Docker
 command at the end (not the VM wizard, which produces a guest-agent env file the chart
@@ -69,9 +71,10 @@ On gateway 2, the old enrollment files in `/procyon/ssl` were moved into
   the probe still read `gateway-2` about a minute after gateway 1 was Ready.
 - Whether `gatewayHostname`, `hostAliases` and `meshPort` are still needed now that nothing
   is forwarded. They were left in place.
-- Whether a signed-in session (authorization codes and tokens) survives a switch now that
-  both gateways use Redis. Registrations do (section 00b). The stop test has not been
-  repeated on Redis, and the second key prefix `mcpgw:pl` is unexplained.
+- Whether MCP clients other than the demo page (for example LM Studio) keep working across a
+  switch. Their registration is known to both gateways, but they hold tokens issued by one
+  gateway, so they probably sign in again, as the demo page did. Not tested. The second
+  key prefix `mcpgw:pl` is unexplained.
 
 **What was done on 2026-10-04, in order.**
 
@@ -96,7 +99,7 @@ On gateway 2, the old enrollment files in `/procyon/ssl` were moved into
 | ~~Signed-in call to a sidecar app through gateway 2~~ | Done 2026-10-04 | `brave0local` and `opensearch22` both worked from the demo UI with gateway 1 stopped |
 | ~~Prove apps stay up with gateway 1 stopped~~ | Done 2026-10-04 | Scaled `agentless-mcpgw` to 0 for about 90 s and back to 1; probe every 10 s: `x-served-by` moved to `gateway-2` within one sample, gateway 2 stayed 9/9 |
 | ~~Registrations surviving a failover~~ | Done 2026-10-04 | Shared Redis (section 00b); restart and cross-gateway tests pass |
-| Signed-in session surviving a failover | Open | Repeat the stop test with the Privilege page signed in and count register, authorize and token events on the surviving gateway |
+| ~~Signed-in session surviving a failover~~ | Tested 2026-10-04: it does not | Registrations are shared, tokens are not; the demo page registered and signed in again. Ask Ping whether user tokens can be shared too |
 | Ask Ping | Open | Is a second node in one cluster the supported HA layout; is `MCPGW_REDIS_URL` supported, and is the exit after 6 failed Redis attempts intended; are `gatewayHostname`/`hostAliases`/`meshPort` still needed |
 | Old cluster `ai-demo-cmuir2` and its node | Open | Still listed in the console; delete once this layout is accepted, which also ends the rollback path |
 | Secrets shown in a console screenshot (tenant API key and secret, OIDC client secret) | Owner's decision | They were pasted into a chat during setup; rotate if that history is not private |
@@ -120,23 +123,31 @@ resource tokens are lost on restart)". The binary embeds a Redis client and a
 | --- | --- |
 | A gateway restart forgot every registered client; `/authorize` answered 400 "registration has expired" | Restart gateway 2, then ask it about a client registered before: 302 to PingOne, still known |
 | A client registered on gateway 1 was unknown to gateway 2 | Registered on either gateway, both gateways answer 302 (tested in both directions) |
-| Every switch (stop, restart, park, un-park) made the demo's Privilege page and every MCP client register again | Registrations survive the switch, so that cost is gone |
+| Every switch (stop, restart, park, un-park) made the demo's Privilege page and every MCP client register again | The registry survives, so a client that keeps its registration is still known to the other gateway. The demo's Privilege page still registered and signed in again on a switch (tested 2026-10-04): its tokens are not shared |
 | A Redis restart: not applicable | With the append-only file on a volume, restart the Redis pod and a client registered before is still known |
 
 Agent-key callers (the A2A apps) never depended on registrations, and A2A's five scenarios
 passed 7.5 minutes after Redis came back empty.
 
-**Not proven.** Whether a signed-in session (authorization codes and issued tokens), as
-opposed to the registration, survives a switch. The log line says the store holds "resource
-tokens", and Redis holds a second key prefix, `mcpgw:pl`, whose purpose we do not know.
-Repeat the stop test with the Privilege page signed in and count register, authorize and
-token events on the surviving gateway to find out.
+**Session survival, tested 2026-10-04: it does not survive.** The stop test was repeated with
+both gateways on Redis and the demo's Privilege page signed in (its traffic was pinned to
+gateway 1, which was scaled to 0 for about a minute). Both apps returned their tools. But
+gateway 2 recorded, within 2 to 22 seconds of the stop, two new client registrations, two
+authorizations, two callbacks, two token exchanges and eight MCP `initialize` calls: the same
+pattern as before Redis. So the registry is shared, but the page's access and refresh
+tokens, issued by gateway 1, were not honoured by gateway 2, and the page registered and
+signed in again. The whole sequence took about 20 s and each authorize-to-callback hop took
+one second (single sign-on), so a person may not see a prompt. The reason is our
+inference; the log does not say. Redis therefore holds a registered client, but apparently
+not the page's tokens. The "resource tokens" wording in the log line and the second key
+prefix `mcpgw:pl` are still unexplained.
 
 **Why we use it.**
 
-- A switch between gateways, or a gateway restart, no longer interrupts the demo's
-  Privilege page or an MCP client, which is what a customer demo of "two gateways behind
-  one URL" needs.
+- A gateway restart no longer forgets registered clients, so an MCP client that keeps its
+  registration is still known afterwards, to either gateway. A switch still costs the demo's
+  Privilege page an automatic re-registration and sign-in of about 20 seconds (tested),
+  because tokens are not shared.
 - It is the only way we found to share state between the gateways; the product offers no
   other setting, and the chart has no Redis value of its own (we added one).
 - It is cheap: one pod, 1Gi of disk.
