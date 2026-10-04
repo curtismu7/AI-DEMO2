@@ -76,6 +76,11 @@
     { "file": "ai-primer.html", "title": "AI Primer", "card": "AI Primer" },
 
     { "file": "glean-pingone.html", "title": "Glean + PingOne", "card": "Glean + PingOne" },
-    { "file": "authzen.html", "title": "AuthZEN", "card": "AuthZEN" }
+    { "file": "authzen.html", "title": "AuthZEN", "card": "AuthZEN" },
+
+    { "file": "agent-kill-switch.html", "title": "Agent Kill Switch", "card": "Agent Kill Switch" },
+    { "file": "spiffe-svid-workload-identity.html", "title": "SPIFFE / SVID Workload Identity", "card": "SPIFFE / SVID Workload Identity" },
+    { "file": "gateway-vs-p1az-decision-split.html", "title": "Gateway vs P1AZ Decision Split", "card": "Gateway vs P1AZ Decision Split" },
+    { "file": "vector-search-rag-weaviate.html", "title": "Vector Search & RAG (Weaviate)", "card": "Vector Search & RAG (Weaviate)" }
   ]
 }

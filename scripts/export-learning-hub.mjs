@@ -62,6 +62,15 @@ const KNOWN_APP_ONLY_CARDS = new Set([
   "OWASP Agentic",
   "Gartner Machine IAM Survey",
   "Jev: Decision Model", // routed page (/jev-learning) that needs the BFF and a local model
+  // Routed pages: the card navigates to an app route (no education drawer to capture).
+  "Agent-to-Agent (A2A)",
+  "Agent Gateway Authorization",
+  "Shadow AI Detector",
+  "Agent IAM Core",
+  "Privilege for AI — LLM",
+  "Privilege for AI — A2A",
+  "Privilege for AI — MCP",
+  "Agent Guardrails",
 ]);
 
 const CUSTOM_DRAWER_MAP = {
