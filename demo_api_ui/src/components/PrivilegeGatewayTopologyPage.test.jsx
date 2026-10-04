@@ -10,8 +10,8 @@ import { TABS, SEQUENCE_SOURCE } from "./PrivilegeGatewayTopologyPage";
 if (!window.CSS.supports) window.CSS.supports = () => true;
 
 describe("PrivilegeGatewayTopologyPage mermaid sources", () => {
-  it("has both deployment variants", () => {
-    expect(TABS.map((t) => t.id)).toEqual(["agent", "agentless"]);
+  it("has both deployment variants and the agent-to-agent layout", () => {
+    expect(TABS.map((t) => t.id)).toEqual(["agent", "agentless", "a2a"]);
   });
 
   it.each(TABS.map((t) => [t.id, t.source]))(
