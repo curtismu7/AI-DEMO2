@@ -12,8 +12,9 @@
  * (<ROLE>_CLIENT_SECRET), else from PF_SECRETS_FILE, else are generated into that
  * file (mode 600). Secrets are never printed.
  *
- * Env: PF_BASE (admin API), PINGFEDERATE_ADMIN_PASSWORD, PF_BASE_URL (public
- * origin, default https://local.ping-devops.com:9031), PF_SECRETS_FILE,
+ * Env: PF_BASE (admin API, REQUIRED, no default; port 9999 / container ai-demo-pingfederate also need
+ * I_KNOW_THIS_IS_THE_LIVE_PF=yes), PINGFEDERATE_ADMIN_PASSWORD, PF_BASE_URL (public origin; the PF base URL is
+ * only changed when this is set explicitly), PF_SECRETS_FILE,
  * PF_STANDARD_AGENT_EXCHANGE_CLIENT_ID, PF_STANDARD_TOKEN_EXCHANGE_CLIENT_ID,
  * PF_AI_AGENT_ACTOR_CLIENT_ID, PF_MCP_SERVICE_ACTOR_CLIENT_ID.
  */
@@ -21,8 +22,20 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; // local PF uses a self-signed chain
-const PF_BASE = process.env.PF_BASE || 'https://local.ping-devops.com:9999/pf-admin-api/v1';
+// Host allowlist for the self-signed local demo PF; any other host keeps TLS verification on.
+function insecureTlsAllowed(baseUrl) {
+  let host;
+  try { host = new URL(baseUrl).hostname; } catch { return false; }
+  return host === 'localhost' || host === '127.0.0.1' || host.endsWith('.ping-devops.com') || host.endsWith('.ping.demo');
+}
+// The live local PF: admin port 9999 or the ai-demo-pingfederate container. Needs an explicit flag.
+function isLiveTarget(baseUrl, container) {
+  let port = '';
+  try { port = new URL(baseUrl).port; } catch { /* checked by the caller */ }
+  return port === '9999' || container === 'ai-demo-pingfederate';
+}
+const PF_BASE = process.env.PF_BASE || '';
+const BASE_URL_EXPLICIT = Boolean(process.env.PF_BASE_URL);
 const PUBLIC_URL = process.env.PF_BASE_URL || 'https://local.ping-devops.com:9031';
 const PASSWORD = process.env.PINGFEDERATE_ADMIN_PASSWORD;
 const SECRETS_FILE = process.env.PF_SECRETS_FILE || path.join(__dirname, '.pf-client-secrets.env');
@@ -46,7 +59,6 @@ const ROLES = [
   { env: 'PF_MCP_SERVICE_ACTOR_CLIENT_ID', def: 'ai-demo-pf-mcp-actor', atm: BANKING_ATM },
 ];
 
-if (!PASSWORD) { console.error('[pf-core] PINGFEDERATE_ADMIN_PASSWORD is required'); process.exit(1); }
 const auth = 'Basic ' + Buffer.from(`administrator:${PASSWORD}`).toString('base64');
 
 async function api(method, resource, body, okStatuses = []) {
@@ -63,29 +75,58 @@ async function api(method, resource, body, okStatuses = []) {
   return { status: res.status, json };
 }
 
-// Create `body` at POST `collection` unless GET `collection/id` already finds it.
-async function ensure(collection, id, body, label = collection) {
+// Create `body` at POST `collection` unless GET `collection/id` already finds it. An existing
+// object is never edited; `differs(existing)` lists key fields that drift from the desired shape.
+async function ensure(collection, id, body, label = collection, differs = () => []) {
+  const name = decodeURIComponent(id);
   const found = await api('GET', `${collection}/${id}`, undefined, [404]);
-  if (found.status === 200) { console.log(`[pf-core] ${label} ${decodeURIComponent(id)}: exists`); return; }
+  if (found.status === 200) {
+    console.log(`[pf-core] ${label} ${name}: exists`);
+    const drift = differs(found.json);
+    if (drift.length) console.error(`[pf-core] WARNING ${label} ${name} differs from the desired shape (not changed): ${drift.join(', ')}`);
+    return;
+  }
   await api('POST', collection, body);
-  console.log(`[pf-core] ${label} ${decodeURIComponent(id)}: created`);
+  console.log(`[pf-core] ${label} ${name}: created`);
 }
 
-function secretFor(name) {
+function storedSecret(name) {
   if (process.env[name]) return process.env[name];
   const lines = fs.existsSync(SECRETS_FILE) ? fs.readFileSync(SECRETS_FILE, 'utf8').split('\n') : [];
   const hit = lines.find((l) => l.startsWith(`${name}=`));
-  if (hit) return hit.slice(name.length + 1);
+  return hit ? hit.slice(name.length + 1) : null;
+}
+function newSecret(name) {
   const secret = crypto.randomBytes(36).toString('base64url');
   fs.appendFileSync(SECRETS_FILE, `${name}=${secret}\n`, { mode: 0o600 });
   return secret;
 }
 
+// An existing client keeps its secret: PF never reveals it, so a missing stored value is reported, not regenerated.
+async function ensureClient(clientId, secretName, name, grantTypes, extra = {}) {
+  const found = await api('GET', `oauth/clients/${clientId}`, undefined, [404]);
+  if (found.status === 200) {
+    const c = found.json;
+    const drift = [];
+    if (JSON.stringify([...(c.grantTypes || [])].sort()) !== JSON.stringify([...grantTypes].sort())) drift.push('grantTypes');
+    if (extra.defaultAccessTokenManagerRef && c.defaultAccessTokenManagerRef?.id !== extra.defaultAccessTokenManagerRef.id) drift.push('defaultAccessTokenManagerRef');
+    if (extra.tokenExchangeProcessorPolicyRef && c.tokenExchangeProcessorPolicyRef?.id !== extra.tokenExchangeProcessorPolicyRef.id) drift.push('tokenExchangeProcessorPolicyRef');
+    console.log(`[pf-core] client ${clientId}: exists`);
+    if (drift.length) console.error(`[pf-core] WARNING client ${clientId} differs from the desired shape (not changed): ${drift.join(', ')}`);
+    if (!storedSecret(secretName)) console.error(`[pf-core] WARNING the secret for client ${clientId} cannot be recovered (${secretName} is not in the environment or ${SECRETS_FILE}); set it manually. No new secret was written.`);
+    return;
+  }
+  await api('POST', 'oauth/clients', clientBody(clientId, name, storedSecret(secretName) || newSecret(secretName), grantTypes, extra));
+  console.log(`[pf-core] client ${clientId}: created`);
+}
+
 const link = (collection, id) => ({ id, location: `${PF_BASE}/${collection}/${id}` });
 
+// Never overwrites an existing base URL unless PF_BASE_URL is given explicitly.
 async function baseUrl() {
   const { json } = await api('GET', 'serverSettings');
-  if (json.federationInfo.baseUrl === PUBLIC_URL) { console.log(`[pf-core] base URL: ${PUBLIC_URL} (already set)`); return; }
+  const current = json.federationInfo.baseUrl;
+  if (!BASE_URL_EXPLICIT || current === PUBLIC_URL) { console.log(`[pf-core] base URL: ${current} (left as is)`); return; }
   json.federationInfo.baseUrl = PUBLIC_URL;
   await api('PUT', 'serverSettings', json);
   console.log(`[pf-core] base URL: set to ${PUBLIC_URL}`);
@@ -182,6 +223,12 @@ function clientBody(clientId, name, secret, grantTypes, extra = {}) {
 }
 
 async function main() {
+  if (!PF_BASE) throw new Error('PF_BASE is required (no default: the default would be the live PF)');
+  if (!PASSWORD) throw new Error('PINGFEDERATE_ADMIN_PASSWORD is required');
+  if (isLiveTarget(PF_BASE, process.env.PINGFEDERATE_CONTAINER_NAME) && process.env.I_KNOW_THIS_IS_THE_LIVE_PF !== 'yes') {
+    throw new Error('refusing the live PF (admin port 9999 or container ai-demo-pingfederate) without I_KNOW_THIS_IS_THE_LIVE_PF=yes');
+  }
+  if (insecureTlsAllowed(PF_BASE)) process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; // local demo names use a self-signed chain
   console.log(`[pf-core] against ${PF_BASE}`);
   await baseUrl();
 
@@ -198,7 +245,12 @@ async function main() {
   }
 
   const atmIds = Object.keys(profiles.accessTokenManagers);
-  for (const id of atmIds) await ensure('oauth/accessTokenManagers', id, atmBody(id, profiles.accessTokenManagers[id].audience), 'token manager');
+  for (const id of atmIds) {
+    const want = atmBody(id, profiles.accessTokenManagers[id].audience);
+    const field = (atm, n) => (atm.configuration?.fields || []).find((f) => f.name === n)?.value;
+    await ensure('oauth/accessTokenManagers', id, want, 'token manager', (have) =>
+      ['Issuer Claim Value', 'Audience Claim Value'].filter((n) => field(have, n) !== field(want, n)));
+  }
   await ensure('idp/tokenProcessors', PROCESSOR, processorBody(), 'token processor');
   await ensure('oauth/tokenExchange/processor/policies', POLICY, policyBody(), 'exchange policy');
   for (const atm of atmIds) {
@@ -210,16 +262,16 @@ async function main() {
   for (const r of ROLES) {
     const clientId = process.env[r.env] || r.def;
     expected.push(clientId);
-    await ensure('oauth/clients', clientId, clientBody(clientId, `AI Demo PF ${r.env}`, secretFor(r.env.replace('_CLIENT_ID', '_CLIENT_SECRET')), ['CLIENT_CREDENTIALS', 'TOKEN_EXCHANGE'], {
+    await ensureClient(clientId, r.env.replace('_CLIENT_ID', '_CLIENT_SECRET'), `AI Demo PF ${r.env}`, ['CLIENT_CREDENTIALS', 'TOKEN_EXCHANGE'], {
       defaultAccessTokenManagerRef: link('oauth/accessTokenManagers', r.atm),
       restrictToDefaultAccessTokenManager: true,
       ...(r.policy ? { tokenExchangeProcessorPolicyRef: link('oauth/tokenExchange/processor/policies', r.policy) } : {}),
-    }), 'client');
+    });
   }
   if (WITH_INTROSPECTION) {
     const id = 'ai-demo-pf-introspection';
     expected.push(id);
-    await ensure('oauth/clients', id, clientBody(id, 'AI Demo token introspection', secretFor('PF_INTROSPECTION_CLIENT_SECRET'), ['ACCESS_TOKEN_VALIDATION']), 'client');
+    await ensureClient(id, 'PF_INTROSPECTION_CLIENT_SECRET', 'AI Demo token introspection', ['ACCESS_TOKEN_VALIDATION']);
   }
 
   // Readback: every expected object must be listed by the admin API.
@@ -229,4 +281,11 @@ async function main() {
   if (missing.length) throw new Error(`readback is missing: ${missing.join(', ')}`);
   console.log(`[pf-core] readback ok: ${expected.length} clients, ${atmIds.length} token managers`);
 }
-main().catch((e) => { console.error(`[pf-core] failed: ${e.message}`); process.exit(1); });
+module.exports = { insecureTlsAllowed, isLiveTarget };
+if (require.main === module) {
+  main().catch((e) => {
+    const why = e.cause?.code || e.cause?.message;
+    console.error(`[pf-core] failed: ${e.message}${why ? ` (${why}; TLS verification is on unless the host is a local demo name)` : ''}`);
+    process.exit(1);
+  });
+}
