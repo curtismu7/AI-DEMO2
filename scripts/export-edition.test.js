@@ -179,3 +179,48 @@ test('regenerates the use-case docs before authz:verify when use cases are dropp
   assert.strictEqual(calls.length, 7);
   assert.ok(calls[0].includes('gen-use-cases-audit.js generate') && calls[1].includes('gen-use-cases-docs.js generate'));
 });
+
+// ---- export-time substitution ----
+const { applySubstitutions } = require('./export-edition');
+const UUID = '11111111-2222-4333-8444-555555555555';
+const TOKEN = 'madeUpClientToken1234567890abcdef';
+const thrown = (fn) => { try { fn(); } catch (e) { return e; } return null; };
+
+test('substitution: text rewritten, same value same placeholder, binary untouched, mode kept', () => {
+  const d = tree({ 'a.env': `ENV=${UUID}\r\nX=${TOKEN}\r\n`, 'sub/b.md': `see ${UUID}`, 'ok.txt': 'nothing' });
+  fs.writeFileSync(path.join(d, 'bin.dat'), Buffer.concat([Buffer.from([0, 1, 2]), Buffer.from(UUID)]));
+  fs.writeFileSync(path.join(d, 'run.sh'), `#!/bin/sh\necho ${UUID}\n`, { mode: 0o755 });
+  const binBefore = fs.readFileSync(path.join(d, 'bin.dat'));
+  const r = applySubstitutions(d, [UUID, TOKEN]);
+  assert.deepStrictEqual(r, { files: 3, byArea: { '.': 2, sub: 1 } });
+  const a = fs.readFileSync(path.join(d, 'a.env'), 'utf8');
+  assert.ok(!a.includes(UUID) && !a.includes(TOKEN) && a.includes('\r\n'));
+  const ph = a.match(/ENV=(\S+)/)[1];
+  assert.strictEqual(ph, '00000000-0000-4000-8000-000000000001');
+  assert.ok(fs.readFileSync(path.join(d, 'sub/b.md'), 'utf8').includes(ph));
+  assert.strictEqual(a.match(/X=(\S+)/)[1].length, TOKEN.length);
+  assert.deepStrictEqual(fs.readFileSync(path.join(d, 'bin.dat')), binBefore);
+  assert.ok(fs.statSync(path.join(d, 'run.sh')).mode & 0o100);
+  assert.ok(!JSON.stringify(r).includes(UUID) && !JSON.stringify(r).includes(TOKEN));
+  // the gate still scans binaries, so it sees the one left behind, and passes once it is gone
+  withForbidden(`${UUID},${TOKEN}`, () => assert.throws(() => runGates(d, mf(), okRunner), /bin\.dat/));
+  fs.unlinkSync(path.join(d, 'bin.dat'));
+  withForbidden(`${UUID},${TOKEN}`, () => runGates(d, mf(), okRunner));
+});
+
+test('substitution: a value in a path or symlink target fails with the path only', () => {
+  const d = tree({ [`dir-${TOKEN}/x.txt`]: '1' });
+  const e1 = thrown(() => applySubstitutions(d, [TOKEN]));
+  assert.ok(e1 && /forbidden string in path dir-/.test(e1.message) && !e1.message.includes(TOKEN));
+  const l = tree({ 'ok.js': '1' });
+  fs.symlinkSync(`/x/${UUID}/y`, path.join(l, 'link'));
+  const e2 = thrown(() => applySubstitutions(l, [UUID]));
+  assert.ok(e2 && /forbidden string in path link/.test(e2.message) && !e2.message.includes(UUID));
+});
+
+test('substitution: empty list is a no-op and the gate still fails closed', () => {
+  const d = tree({ 'a.txt': UUID });
+  assert.deepStrictEqual(applySubstitutions(d, []), { files: 0, byArea: {} });
+  assert.strictEqual(fs.readFileSync(path.join(d, 'a.txt'), 'utf8'), UUID);
+  withForbidden('', () => assert.throws(() => runGates(d, mf(), okRunner), /EDITION_FORBIDDEN_STRINGS not set/));
+});

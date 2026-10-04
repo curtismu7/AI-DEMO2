@@ -1,6 +1,12 @@
 #!/usr/bin/env node
 /* Generate an edition (P1-AI-DEMO / PF-AI-DEMO) from a git ref. See
- * docs/superpowers/specs/2026-10-03-edition-split-design.md. */
+ * docs/superpowers/specs/2026-10-03-edition-split-design.md.
+ *
+ * Exported editions carry PLACEHOLDER PingOne IDs: every value in EDITION_FORBIDDEN_STRINGS
+ * (AI-DEMO2's own environment/client IDs) is replaced in the exported tree (fake UUIDs
+ * 00000000-0000-4000-8000-0000000000NN, or EDITION-PLACEHOLDER-N at the original length), then the
+ * forbidden-string gate proves none are left. An edition's real environment ID and client IDs come
+ * from its own .env, produced by its own PingOne bootstrap - never from this repo. */
 const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
@@ -120,8 +126,58 @@ function checkRemovedPathReferences(dest, removed, remove = []) {
   if (hits.length) throw new Error(`gate failed: removed-path-references (${hits.length} file(s))\n${hits.join('\n')}`);
 }
 
+const forbiddenList = () => (process.env.EDITION_FORBIDDEN_STRINGS || '').split(',').map((s) => s.trim()).filter(Boolean);
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// Stable fake for forbidden value i; a UUID stays UUID-shaped, anything else keeps its length.
+function placeholderFor(value, i) {
+  const n = i + 1;
+  if (UUID_RE.test(value)) return `00000000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`;
+  const fill = /^[^a-z]*[A-Z]/.test(value) && !/[a-z]/.test(value) ? 'X' : /^\d+$/.test(value) ? '0' : 'x';
+  return `EDITION-PLACEHOLDER-${n}`.padEnd(value.length, fill).slice(0, value.length);
+}
+
+// Replace each forbidden value with its placeholder in the content of every text file under dest.
+// Output (return value, errors) never contains a value: counts and paths only.
+function applySubstitutions(dest, values) {
+  const pairs = values.map((v, i) => [Buffer.from(v).toString('latin1'), placeholderFor(v, i)])
+    .sort((a, b) => b[0].length - a[0].length); // longest first: a value that contains another is replaced whole
+  const result = { files: 0, byArea: {} };
+  if (!pairs.length) return result;
+  const hasValue = (s) => pairs.some(([v]) => s.includes(v));
+  // the path itself would carry the value, so the error shows it with placeholders applied
+  const redact = (s) => pairs.reduce((t, [v, ph]) => t.split(v).join(ph), s);
+  const badPath = (rel) => new Error(`gate failed: forbidden string in path ${redact(rel)}`);
+  const scan = (dir) => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (e.name === '.git') continue;
+      const p = path.join(dir, e.name);
+      const rel = path.relative(dest, p);
+      if (hasValue(Buffer.from(e.name).toString('latin1'))) throw badPath(rel);
+      if (e.isSymbolicLink()) {
+        if (hasValue(Buffer.from(fs.readlinkSync(p)).toString('latin1'))) throw badPath(rel);
+        continue;
+      }
+      if (e.isDirectory()) { scan(p); continue; }
+      const buf = fs.readFileSync(p);
+      if (buf.subarray(0, 8192).includes(0)) continue;
+      // latin1 round-trips every byte, so a literal split/join never alters unrelated content
+      const text = buf.toString('latin1');
+      let out = text;
+      for (const [v, ph] of pairs) out = out.split(v).join(ph);
+      if (out === text) continue;
+      fs.writeFileSync(p, Buffer.from(out, 'latin1')); // rewrite in place: mode is kept
+      result.files++;
+      const area = rel.includes(path.sep) ? rel.split(path.sep)[0] : '.';
+      result.byArea[area] = (result.byArea[area] || 0) + 1;
+    }
+  };
+  scan(dest);
+  return result;
+}
+
 function checkForbidden(dest) {
-  const list = (process.env.EDITION_FORBIDDEN_STRINGS || '').split(',').map((s) => s.trim()).filter(Boolean);
+  const list = forbiddenList();
   if (!list.length) throw new Error('gate failed: EDITION_FORBIDDEN_STRINGS not set');
   const needles = list.map((s) => Buffer.from(s));
   const hits = [];
@@ -176,7 +232,7 @@ function runGates(dest, manifest, runner = defaultRunner, removed) {
   }
 }
 
-module.exports = { exportEdition, runGates, checkRelativeImports, checkRemovedPathReferences };
+module.exports = { exportEdition, runGates, applySubstitutions, forbiddenList, checkRelativeImports, checkRemovedPathReferences };
 
 if (require.main === module) {
   const [, , which, dest, ...rest] = process.argv;
@@ -188,6 +244,9 @@ if (require.main === module) {
   const manifest = JSON.parse(fs.readFileSync(path.join(repo, 'editions', `${which}.json`), 'utf8'));
   const { removedFiles, ...summary } = exportEdition({ manifest, ref, srcRepo: repo, dest });
   console.log(summary);
+  // placeholders go in before the forbidden-string scan, so the scan proves nothing was left
+  const subs = forbiddenList().length ? applySubstitutions(path.resolve(dest), forbiddenList()) : { files: 0, byArea: {} };
+  console.log(`substituted placeholder IDs in ${subs.files} file(s):`, subs.byArea);
   runGates(path.resolve(dest), manifest, undefined, removedFiles);
   console.log('all gates passed');
 }
