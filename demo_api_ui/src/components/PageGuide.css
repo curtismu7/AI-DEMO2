@@ -1,0 +1,26 @@
+/* Sits one FAB-height above the agent button so the two never overlap. */
+.page-guide__trigger {
+  position: fixed;
+  bottom: calc(var(--fab-bottom, 28px) + 64px);
+  right: var(--float-edge, 28px);
+  z-index: 10060;
+  padding: 6px 16px;
+  border-radius: 16px;
+  border: 1px solid var(--th-border-strong);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+.page-guide__trigger:hover { background: var(--th-bg-hover); }
+
+.page-guide__body {
+  color: var(--th-text-body);
+  font-size: var(--font-size-body);
+}
+.page-guide__lesson + .page-guide__lesson { margin-top: 24px; border-top: 1px solid var(--th-border); padding-top: 16px; }
+.page-guide__lesson h3 { margin: 0 0 8px; color: var(--th-text); font-size: var(--font-size-h3); }
+.page-guide__steps { padding-left: 20px; }
+.page-guide__steps p { margin: 4px 0; }
+.page-guide__demo { color: var(--th-text-muted); }

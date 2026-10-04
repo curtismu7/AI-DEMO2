@@ -16,6 +16,7 @@ import Accounts from "./components/Accounts";
 import { ActorTokenEducation } from "./components/ActorTokenEducation";
 import AdminErrorAuditLog from "./components/AdminErrorAuditLog";
 import AdminSideNav from "./components/AdminSideNav";
+import PageGuide from "./components/PageGuide";
 import { appRendersSideNav, isNoChromeRoute, normalizePath } from "./routes/sideNavOwner";
 import AdminTokenComplianceAudit from "./components/AdminTokenComplianceAudit";
 import AgentBuilderPage from "./components/AgentBuilderPage";
@@ -2335,6 +2336,7 @@ function AppWithAuth() {
                   }
                 />
               </Routes>
+              <PageGuide />
               {shouldMountSingleAgent && (
                 <ErrorBoundary>
                   <AIAgent
