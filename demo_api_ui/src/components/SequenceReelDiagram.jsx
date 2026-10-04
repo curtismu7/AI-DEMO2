@@ -28,7 +28,7 @@ import { deriveLifelineSteps, deriveLifelineParticipants } from "../services/tok
 import { laneLabel, isNativeIdJagTrace, isMockIdJagTrace, resolveTraceProvenance } from "../services/tokenChainTrace/buildTraceSteps";
 import { VerticalContext } from "../vertical/VerticalProvider";
 import { sequenceDiagramLabel } from "./sequenceDiagramLabels";
-import { buildA2aTokenChainSteps } from "./TokenChainTraceRail";
+import { buildA2aTokenChainSteps, buildPrivilegeA2aChainSteps } from "./TokenChainTraceRail";
 import TraceProvenanceBadge from "./TraceProvenanceBadge";
 import "./SequenceReelDiagram.css";
 
@@ -193,6 +193,9 @@ export default function SequenceReelDiagram({
   // in right after the tool choice, and this view draws them in the same place.
   const steps = useMemo(() => {
     if (Array.isArray(externalSteps)) return externalSteps;
+    // A Privilege chain run has no banking pipeline in it: draw its hops alone.
+    const chain = buildPrivilegeA2aChainSteps(snap.trace?.tokenEvents);
+    if (chain.length) return chain;
     const base = snap.steps || [];
     const a2a = buildA2aTokenChainSteps(snap.trace?.tokenEvents);
     if (!a2a.length) return base;

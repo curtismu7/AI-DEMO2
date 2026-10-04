@@ -39,7 +39,9 @@ const LANE_LABELS = {
   HEURISTICS: "BANKING AGENT",
 };
 export function laneLabel(lane) {
-  return LANE_LABELS[lane] || lane;
+  // Lane keys are CSS class and marker-id fragments, so multi-word lanes are
+  // hyphenated; show them with spaces.
+  return LANE_LABELS[lane] || String(lane ?? "").replace(/-/g, " ");
 }
 
 // The delegation-to-MCP portion of the pipeline, in order. Not derivable from
