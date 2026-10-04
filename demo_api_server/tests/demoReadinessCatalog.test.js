@@ -37,6 +37,20 @@ describe('demo readiness catalog', () => {
     }
   });
 
+  test('an edition that dropped a use case validates without it and keeps the full-inventory counts', () => {
+    const sources = loadDemoReadinessSources();
+    const edition = {
+      ...sources,
+      dropUseCases: ['UC40'],
+      useCases: sources.useCases.filter((u) => u.id !== 'UC40'),
+    };
+    const rows = validateDemoReadinessCatalog(edition);
+    expect(rows).toHaveLength(47);
+    expect(rows.some((row) => row.id === 'UC40')).toBe(false);
+    // no edition: UC40 absent from the backend catalog is still an error
+    expect(() => validateDemoReadinessCatalog({ ...edition, dropUseCases: [] })).toThrow(/UC40 is missing from the backend use-case catalog/);
+  });
+
   test('builds the 48 executable Demo Steps entries in lane order', () => {
     const rows = buildDemoReadinessCatalog();
 

@@ -7,6 +7,7 @@ const repairability = require('../config/demoReadinessRepairability.json');
 const featureChecks = require('../config/demoReadinessFeatureChecks.json');
 const pingFederateProfiles = require('../config/demoReadinessPingFederateProfiles.json');
 const { USE_CASES, VERTICALS, resolveUseCase } = require('../config/useCases');
+const { loadEdition } = require('../config/edition');
 const { ADMIN_DEMO_STEPS } = require('../config/admin/demoSteps');
 const authRequirements = require('../config/auth-requirements.json');
 const { resolveRepositoryRoot } = require('../utils/repositoryRoot');
@@ -30,6 +31,7 @@ function loadDemoReadinessSources({ repositoryRoot: sourceRoot = repositoryRoot 
     featureChecks,
     pingFederateProfiles,
     useCases: USE_CASES,
+    dropUseCases: loadEdition().dropUseCases,
     adminSteps: ADMIN_DEMO_STEPS,
     authRequirements,
     verticals: VERTICALS,
@@ -610,7 +612,10 @@ function validateDemoReadinessCatalog(sources, { uiInventory, educationPanelIds 
   const adminExpectations = inventoryConfig.adminExpectations || {};
   const rows = [];
 
-  for (const id of caseIds) {
+  // The inventory and UI lanes stay the full set (counts above are checked against it);
+  // an edition's dropped ids are simply not executable there, so no row is built for them.
+  const dropped = new Set(sources?.dropUseCases || []);
+  for (const id of caseIds.filter((caseId) => !dropped.has(caseId))) {
     const isAdmin = id.startsWith('ADMIN');
     const step = isAdmin ? adminById.get(id) : useCaseById.get(id);
     if (!step) {
