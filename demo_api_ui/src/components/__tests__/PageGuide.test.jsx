@@ -7,6 +7,7 @@ import {
   ADMIN_PRIMARY_USE_CASE_IDS,
   CIAM_AGENT_TYPE_USE_CASE_IDS,
   DEMO_PRIMARY_USE_CASE_IDS,
+  EXTRA_STEP_GROUPS,
   PRIVILEGE_USE_CASE_IDS,
 } from "../../config/demoUseCaseSteps";
 import { DEMO_STEP_GUIDES } from "../../config/demoStepGuides";
@@ -33,6 +34,7 @@ test("every demo step in the menu has a complete guide", () => {
     ...CIAM_AGENT_TYPE_USE_CASE_IDS,
     ...PRIVILEGE_USE_CASE_IDS,
     ...ADMIN_PRIMARY_USE_CASE_IDS,
+    ...EXTRA_STEP_GROUPS.flatMap((g) => g.ids),
   ];
   expect(ids.length).toBeGreaterThan(0);
   for (const id of ids) {
@@ -49,6 +51,8 @@ test("dashboard guide lists the demo steps", () => {
   expect(screen.getByText(/Step 27 · UC43: /)).toBeTruthy();
   expect(screen.getByText(/Step 32 · UC17: /)).toBeTruthy();
   expect(screen.getByText(/Step 13 · ADMIN13: /)).toBeTruthy();
+  expect(screen.getByText(/Step 43 · UC37: /)).toBeTruthy();
+  expect(screen.getByText(/Step 46 · UC4: /)).toBeTruthy();
 });
 
 test("step numbers match the menu, admin included, and skip non-steps", () => {
@@ -57,6 +61,9 @@ test("step numbers match the menu, admin included, and skip non-steps", () => {
   expect(demoStepNumber("ADMIN13")).toBe(13);
   expect(stepLabel("UC999")).toBe("UC999");
   expect(demoStepNumber("UC40")).toBe(22); // first appearance wins over its Privilege-group slot
+  expect(demoStepNumber("UC2")).toBe(9); // repeated in the A2A group, keeps its script number
+  expect(demoStepNumber("UC2.6")).toBe(31);
+  expect(demoStepNumber("UC37")).toBe(43);
 });
 
 test("no button on an unmapped route", () => {

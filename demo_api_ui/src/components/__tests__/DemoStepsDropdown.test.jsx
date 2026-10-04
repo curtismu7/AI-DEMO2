@@ -12,6 +12,7 @@ import {
   PRIVILEGE_USE_CASE_IDS,
   DEMO_USE_CASE_IDS,
   ADMIN_PRIMARY_USE_CASE_IDS,
+  EXTRA_STEP_GROUPS,
 } from '../../config/demoUseCaseSteps';
 import { clearIdJagRunState, ID_JAG_USE_CASE_ID } from '../../utils/idJagRunMode';
 import { startPrivilegeA2aChainRun } from '../../utils/privilegeA2aChainRun';
@@ -735,6 +736,30 @@ describe('DemoStepsDropdown — search', () => {
     expect(screen.getByTestId('demo-step-privilege-UC17')).toBeInTheDocument();
     // UC40 is already a scripted step, so it is not listed a second time.
     expect(screen.queryByTestId('demo-step-privilege-UC40')).not.toBeInTheDocument();
+  });
+
+  it('shows the themed groups in All; A2A repeats steps under their original numbers', async () => {
+    const ids = EXTRA_STEP_GROUPS.flatMap((g) => g.ids);
+    const catalog = [
+      ...CATALOG,
+      ...ids
+        .filter((id) => !CATALOG.some((u) => u.id === id))
+        .map((id) => ({ id, title: `Themed ${id}`, trigger: { type: 'link', text: `Open ${id}` } })),
+    ];
+    apiClient.get.mockResolvedValueOnce({ data: { useCases: catalog } });
+
+    render(
+      <DemoStepsDropdown open onOpenChange={() => {}} onSelect={() => {}} />,
+    );
+    await waitFor(() => expect(screen.getByTestId('demo-step-UC1')).toBeInTheDocument());
+
+    for (const g of EXTRA_STEP_GROUPS) {
+      expect(screen.getByTestId(`demo-steps-extra-${g.id}`)).toBeInTheDocument();
+    }
+    // UC2 is scripted step 9 and is listed again under A2A with the same number.
+    const a2a = screen.getByTestId('demo-steps-extra-a2a');
+    expect(within(a2a).getByTestId('demo-extra-a2a-UC2')).toHaveTextContent('9 · UC2');
+    expect(within(a2a).getByTestId('demo-extra-a2a-UC37')).toHaveTextContent('43 · UC37');
   });
 
   it('finds the CIAM group when searching for its group label', async () => {

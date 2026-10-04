@@ -3,6 +3,7 @@ import {
   CIAM_AGENT_TYPE_USE_CASE_IDS,
   DEMO_ADVANCED_USE_CASE_IDS,
   DEMO_PRIMARY_USE_CASE_IDS,
+  EXTRA_STEP_GROUPS,
   PRIVILEGE_USE_CASE_IDS,
 } from "../config/demoUseCaseSteps";
 import { demoStepNumber, stepLabel } from "../config/demoStepNumbers";
@@ -21,12 +22,20 @@ const inGroup = (ids, from, to) =>
 const script = [...DEMO_PRIMARY_USE_CASE_IDS, ...DEMO_ADVANCED_USE_CASE_IDS];
 const ciamEnd = script.length + CIAM_AGENT_TYPE_USE_CASE_IDS.length;
 
-export const GUIDE_GROUPS = [
+const base = [
   { label: "Presenter script", ids: inGroup(script, 0, script.length) },
   { label: "Agent types", ids: inGroup(CIAM_AGENT_TYPE_USE_CASE_IDS, script.length, ciamEnd) },
-  { label: "Privilege", ids: inGroup(PRIVILEGE_USE_CASE_IDS, ciamEnd, Infinity) },
+  { label: "Privilege", ids: inGroup(PRIVILEGE_USE_CASE_IDS, ciamEnd, ciamEnd + PRIVILEGE_USE_CASE_IDS.length) },
+  ...EXTRA_STEP_GROUPS.map((g) => ({ label: g.label, ids: g.ids.filter((id) => DEMO_STEP_GUIDES[id]) })),
   { label: "PingOne Admin vertical", ids: ADMIN_PRIMARY_USE_CASE_IDS.filter((id) => DEMO_STEP_GUIDES[id]) },
 ];
+
+// The menu repeats a step under every group it belongs to (A2A collects steps
+// listed elsewhere); the guide explains each step once, where it first appears.
+const shown = new Set();
+export const GUIDE_GROUPS = base
+  .map((g) => ({ ...g, ids: g.ids.filter((id) => !shown.has(id) && shown.add(id)) }))
+  .filter((g) => g.ids.length > 0);
 
 export default function DemoStepsGuide() {
   return (
