@@ -81,53 +81,44 @@ const AGENTLESS_SOURCE = `flowchart LR
     style device fill:#3d6ea514,stroke:#3d6ea580
     style k8s fill:#2e8b6a12,stroke:#2e8b6a80`;
 
+// Step numbers ride on the arrows here, not on separate badge nodes: the badges
+// widened the layout past the panel, so the whole diagram was scaled down to
+// about two-thirds and its labels became hard to read.
 const A2A_SOURCE = `flowchart TB
-    subgraph cloud["Priv Cloud"]
-        console["Priv Cloud Controller<br/>(Console)"]
-    end
-
-    subgraph device["User Device"]
-        main["Main agent<br/>chat UI and planner"]
-    end
+    console["Priv Cloud console"]
+    main["Main agent<br/>User device"]
 
     subgraph k8s["K8s cluster"]
-        subgraph gw["AI Gateway · https://‹gateway-host›"]
-            gwA2A["Agent-to-agent route<br/>/‹worker-app›/a2a<br/>key, a2a scope, policy, guardrail"]
-            gwLLM["Model route<br/>/llm/‹provider›<br/>key, allowed model, budget"]
-            gwMCP["Tool route<br/>/‹mcp-app›/mcp<br/>key, mcp scope, tool grants, guardrail"]
+        subgraph gw["AI Gateway"]
+            gwA2A["Agent route<br/>/‹worker-app›/a2a"]
+            gwLLM["Model route<br/>/llm/‹provider›"]
+            gwMCP["Tool route<br/>/‹mcp-app›/mcp"]
         end
-        worker["Worker agent<br/>Remote Agent app"]
-        mcp["MCP server<br/>MCP app"]
+        worker["Worker agent"]
+        mcp["MCP server"]
     end
 
-    subgraph provider["Model provider"]
-        model["Google, Anthropic or OpenAI"]
-    end
+    model["Model provider<br/>Google, Anthropic or OpenAI"]
 
-    console -.- s1(("1")) -. "agents, apps,<br/>policies, AIGuard" .-> gw
-    main --- s2(("2")) -- "model call<br/>main agent key" --> gwLLM
-    main --- s3(("3")) -- "A2A message/send<br/>main agent key" --> gwA2A
-    gwA2A --- s4(("4")) -- "forwarded" --> worker
-    worker --- s5(("5")) -- "model call<br/>worker agent key" --> gwLLM
-    worker --- s6(("6")) -- "MCP tools/call<br/>worker agent key" --> gwMCP
-    gwMCP --- s7(("7")) -- "permitted call;<br/>result screened" --> mcp
-    gwLLM --- s8(("8")) -- "real provider key<br/>swapped in" --> model
+    console -. "1 · config" .-> gwA2A
+    main -- "3 · A2A message" --> gwA2A
+    main -- "2 · model call" --> gwLLM
+    gwA2A -- "4 · forwarded" --> worker
+    worker -- "5 · model call" --> gwLLM
+    worker -- "6 · tool call" --> gwMCP
+    gwMCP -- "7 · screened" --> mcp
+    gwLLM -- "8 · provider key" --> model
 
     classDef cloudN fill:#f5d4d5,stroke:#b3282d,color:#4a1113
     classDef deviceN fill:#d5e2f2,stroke:#3d6ea5,color:#16324f
     classDef k8sN fill:#d2ecdf,stroke:#2e8b6a,color:#123f2f
     classDef mcpN fill:#e3dbf3,stroke:#6b4fa5,color:#2c1d4f
-    classDef stepN fill:#b3282d,stroke:#e4636a,color:#ffffff,font-size:20px,font-weight:bold
     class console,model cloudN
     class main deviceN
     class gwA2A,gwLLM,gwMCP,worker k8sN
     class mcp mcpN
-    class s1,s2,s3,s4,s5,s6,s7,s8 stepN
-    style cloud fill:#b3282d14,stroke:#b3282d80
-    style device fill:#3d6ea514,stroke:#3d6ea580
     style k8s fill:#2e8b6a12,stroke:#2e8b6a80
-    style gw fill:#2e8b6a22,stroke:#2e8b6a
-    style provider fill:#b3282d14,stroke:#b3282d80`;
+    style gw fill:#2e8b6a22,stroke:#2e8b6a`;
 
 const A2A_STEPS = [
   { heading: "Setup — happens once" },
@@ -300,7 +291,7 @@ export default function PrivilegeGatewayTopologyPage() {
     <>
     <div className="pmd-page pgt-page">
       <div className="pgt-archived">
-        <strong>Archived.</strong> See{" "}
+        <strong>The Agent-based and Agentless tabs are archived.</strong> The Agent-to-agent tab is current. See{" "}
         <a href="/privilege-first-gateway">Privilege first, Agent Gateway for the rest</a>{" "}
         for the current Privilege Agentic App gateway content, including the settled backend-hop
         Auth Mode findings.

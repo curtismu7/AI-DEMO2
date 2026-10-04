@@ -25,7 +25,10 @@ describe("PrivilegeGatewayTopologyPage mermaid sources", () => {
     for (const tab of TABS) {
       const numbered = tab.steps.filter((s) => s.n);
       for (const step of numbered) {
-        expect(tab.source).toContain(`s${step.n}(("${step.n}"))`);
+        // A numbered badge node, or the number at the start of an arrow label.
+        const badge = tab.source.includes(`s${step.n}(("${step.n}"))`);
+        const onArrow = tab.source.includes(`"${step.n} · `);
+        expect(badge || onArrow, `${tab.id} step ${step.n}`).toBe(true);
       }
     }
   });

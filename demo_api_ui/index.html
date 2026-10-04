@@ -64,8 +64,15 @@
        It sketches the app shell (top bar, side nav, content cards) so a full
        reload looks like the page loading, not a blank sheet. Every colour here
        is a literal pair on purpose: the --th-* tokens live in a stylesheet that
-       has not loaded yet, and ink/ground must not mix literals with tokens. */
-    #boot-spinner {
+       has not loaded yet, and ink/ground must not mix literals with tokens.
+
+       .boot-skeleton is the SAME skeleton, drawn by React (AuthLoadingScreen) while
+       the sign-in check is in flight. It shares every rule below, bar the CSS ring,
+       so the swap from this screen to that one is pixel-identical in light and dark.
+       Without that the refresh went skeleton, then a blank full-screen overlay, then
+       the chrome again: three near-white screens in a row, which read as flashes. */
+    #boot-spinner,
+    .boot-skeleton {
       position: fixed;
       inset: 0;
       display: grid;
@@ -117,7 +124,8 @@
       animation: boot-spin 0.8s linear infinite;
     }
 
-    :root[data-theme="dark"] #boot-spinner {
+    :root[data-theme="dark"] #boot-spinner,
+    :root[data-theme="dark"] .boot-skeleton {
       background-color: #0b1220;
     }
 
@@ -142,7 +150,8 @@
     }
 
     @media (max-width: 768px) {
-      #boot-spinner {
+      #boot-spinner,
+      .boot-skeleton {
         grid-template-columns: 1fr;
       }
 

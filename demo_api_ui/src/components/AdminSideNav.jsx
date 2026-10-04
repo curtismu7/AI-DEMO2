@@ -1299,6 +1299,8 @@ export default function AdminSideNav({
       { from: "PingOne Authorize", rename: "PingOne Authorize", path: "/ai-products/authorize" },
       { from: "Privilege · LLM", rename: "AI Gateway · LLM" },
       { from: "Privilege · A2A", rename: "AI Gateway · A2A" },
+      { label: "AI Gateway · A2A Review", path: "/privilege-mcp-client?view=demo&tab=a2a", icon: "lnk" },
+      { label: "AI Gateway Topologies", path: "/privilege-gateway-topologies", icon: "arc" },
       { from: "Privilege · MCP", rename: "AI Gateway · MCP" },
       "Protected RAG",
       { from: "Privilege Demo", rename: "AI Gateway Demo" },

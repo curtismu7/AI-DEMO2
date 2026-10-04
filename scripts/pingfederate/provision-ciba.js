@@ -92,7 +92,11 @@ const POLICY = {
   identityHintContract: { coreAttributes: [{ name: HINT_ATTRIBUTE }], extendedAttributes: [] },
   identityHintMapping: {
     attributeSources: [],
-    attributeContractFulfillment: { subject: { source: { type: 'REQUEST' }, value: HINT_ATTRIBUTE } },
+    // PF's request-policy contract also requires USER_KEY (the unique user id), which for a plain hint is the hint itself.
+    attributeContractFulfillment: {
+      subject: { source: { type: 'REQUEST' }, value: HINT_ATTRIBUTE },
+      USER_KEY: { source: { type: 'REQUEST' }, value: HINT_ATTRIBUTE },
+    },
     issuanceCriteria: { conditionalCriteria: [] },
   },
 };

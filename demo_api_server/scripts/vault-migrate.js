@@ -142,6 +142,8 @@ const ALLOWED_ENV_VARS = Object.freeze([
   // `kubectl set env` on the SE deployment (see privilege/AGENTLESS-
   // CONFIGURATION.md, 2026-09-06 banking-rest entry).
   'MCP_RESOURCE_SERVER_API_KEY',
+  // Privilege AI Gateway Static Token accepted by the resource server's /mcp.
+  'MCP_RESOURCE_SERVER_GATEWAY_STATIC_TOKEN',
   // Added 2026-09-14 (vault coverage audit): secret-shaped names present in
   // one or more service .env files but missing from this allowlist, found by
   // diffing every `*_SECRET`/`*_KEY`/`*_TOKEN`/`*_PASSWORD`-suffixed name

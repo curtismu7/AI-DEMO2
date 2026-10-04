@@ -111,7 +111,7 @@ import PiFlowSignInModal from "./components/PiFlowSignInModal";
 import PingFederateDownModal from "./components/PingFederateDownModal";
 import SportingGoodsAdminOps from "./components/SportingGoodsAdminOps";
 import SpinnerHost from "./components/shared/SpinnerHost";
-import PingIdentitySpinner from "./components/shared/PingIdentitySpinner";
+import AuthLoadingScreen from "./components/shared/AuthLoadingScreen";
 import DemoScriptLauncher from "./components/DemoScriptLauncher";
 import TokenSecurityTester from "./components/TokenSecurityTester";
 import TopNav from "./components/TopNav";
@@ -711,9 +711,7 @@ function AppWithAuth() {
                   Skip on / and /dashboard — those routes render immediately for guests. */}
               {loading && pathname !== "/" && pathname !== "/dashboard" && (
                 <main className="main-content main-content--auth-loading">
-                  <div className="auth-loading-card">
-                    <PingIdentitySpinner size={64} label="Loading Agent…" />
-                  </div>
+                  <AuthLoadingScreen label="Loading Agent…" />
                 </main>
               )}
               <Routes>
