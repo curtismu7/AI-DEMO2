@@ -22,6 +22,8 @@ export const NAV_PAGE_PATHS = {
   "Privilege · MCP": "/ai-products/privilege-mcp",
   "AI Gateway · LLM": "/ai-products/privilege-llm",
   "AI Gateway · A2A": "/ai-products/privilege-a2a",
+  "AI Gateway · A2A Review": "/privilege-mcp-client?view=demo&tab=a2a",
+  "AI Gateway Topologies": "/privilege-gateway-topologies",
   "AI Gateway · MCP": "/ai-products/privilege-mcp",
   "Protected RAG": "/code-search",
   "AI Gateway Demo": "/privilege-demo",
