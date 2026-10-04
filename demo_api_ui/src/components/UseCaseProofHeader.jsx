@@ -1,4 +1,5 @@
 import OWASPBadge from './OWASPBadge';
+import { stepLabel } from '../config/demoStepNumbers';
 import './UseCaseProofHeader.css';
 
 /**
@@ -17,7 +18,7 @@ export default function UseCaseProofHeader({ uc, beat }) {
   return (
     <div className="ucph" data-testid="uc-proof-header">
       <div className="ucph__top">
-        <span className="ucph__id">{uc.id}</span>
+        <span className="ucph__id">{stepLabel(uc.id)}</span>
         <p className="ucph__title">{uc.title}</p>
         <OWASPBadge owasp={uc.owasp} />
       </div>

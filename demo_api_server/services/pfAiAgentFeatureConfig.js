@@ -192,10 +192,13 @@ function getFeatureStatus(store = configStore) {
   const cimdConfigured = available(resolveCimdConfig, store);
   const crossDomainConfigured = available(resolveCrossDomainConfig, store);
   const rarConfigured = cimdConfigured && Boolean(value(store, 'pf_par_endpoint'));
+  const rar = enabled(store, 'pf_ai_rar_enabled') && rarConfigured;
   return {
     cimd: enabled(store, 'pf_ai_cimd_enabled') && cimdConfigured,
     crossDomain: enabled(store, 'pf_ai_cross_domain_enabled') && crossDomainConfigured,
-    rar: enabled(store, 'pf_ai_rar_enabled') && rarConfigured,
+    rar,
+    // RAR can also bind its token to the BFF's key (DPoP) once a DPoP-requiring client is named.
+    rarDpop: rar && Boolean(value(store, 'pf_ai_rar_dpop_client_id')),
   };
 }
 

@@ -1,6 +1,6 @@
 # Privilege AI Gateway: Agent-to-Agent (A2A)
 
-Oct 3, 2026 · @Curtis Muir
+Updated 4 October 2026 · Curtis Muir
 
 ## Contents
 
@@ -12,6 +12,8 @@ Oct 3, 2026 · @Curtis Muir
 - [Registering a remote agent](#registering-a-remote-agent)
 - [Auth modes and the agent token](#auth-modes-and-the-agent-token)
 - [How a calling agent identifies itself](#how-a-calling-agent-identifies-itself)
+- [Chaining agents: three deep](#chaining-agents-three-deep)
+- [Wiring a main agent and a worker: what goes where](#wiring-a-main-agent-and-a-worker-what-goes-where)
 - [Calling an agent through the gateway](#calling-an-agent-through-the-gateway)
 - [Guardrails and NeMo](#guardrails-and-nemo)
 - [Verifying](#verifying)
@@ -104,6 +106,8 @@ The gateway runs three checks in order and refuses at the first one that fails, 
 
 The agent card is a public JSON file that tells callers, and the console, what the agent is and how to reach it. It must be served without sign-in at `GET /.well-known/agent-card.json` on the agent's backend address. The console's **Discover A2A agent card** option fetches it from there and lists the agent's skills.
 
+**Where discovery looks.** The gateway logs each fetch as `agent card for app=<app>: <n> skills from <url>`. On 4 October 2026 it fetched from two places: the Backend URL followed by the app's Frontend URL Path (`<agent-backend>/a2a/.well-known/agent-card.json`) for two agents with the path `/a2a`, and the Backend URL's root (`<agent-backend>/.well-known/agent-card.json`) for a third. Serve the card at both and discovery works either way. Discovery runs when the app is saved, and again when the gateway restarts.
+
 The tested agent serves a version 0.3.0 card with these fields:
 
 | Field | What it holds |
@@ -152,7 +156,7 @@ Auth Mode decides what the gateway sends to the remote agent once a call has pas
 | Mode | What reaches the agent | Who can call |
 | --- | --- | --- |
 | Pass Agent Token | The calling agent's own workload token | Only a caller that presents a workload assertion |
-| User Token | A token for the signed-in user | Any signed-in, permitted caller |
+| User Token | The credential stored for that user and app in the user's Privilege vault; nothing if none is stored | Any signed-in, permitted caller. With an empty vault the call is forwarded with no credential. |
 | Static Token | One fixed token you configure, sent as Authorization: Bearer | Any signed-in, permitted caller |
 | None | No credential | Any signed-in, permitted caller |
 
@@ -243,6 +247,127 @@ What the gateway logs tells you which stage a caller reached:
 This explains Pass Agent Token. The mode forwards the caller's workload token to the remote agent, so only a caller that came in with a workload identity can use it. A person, or an agent holding only a virtual key, has nothing to forward.
 
 The mode names in the gateway are `none`, `static-token`, `user-token` and `token-pass`. MCP apps have one more, `oauth`.
+
+## Chaining agents: three deep
+
+```mermaid
+flowchart LR
+  M[Main agent] -->|agent key| G1[Gateway]
+  G1 --> L[Middle agent]
+  L -->|its own agent key| G2[Gateway]
+  G2 --> S1[Test specialist]
+  G2 --> S2[Worker agent]
+  G2 --> S3[Domain specialist]
+  S2 -->|its own agent key| G3[Gateway]
+  G3 --> T[MCP tools]
+```
+
+An agent behind the gateway can itself call other agents through the gateway. Nothing new is needed in the gateway: the middle agent is a Remote Agent to its caller and a calling Agent to the agents below it.
+
+**What to set up for each agent in the chain:**
+
+| Agent | As a Remote Agent (being called) | As a calling Agent (calling others) |
+| --- | --- | --- |
+| Main | Nothing | An Agent Registry entry with the `a2a` scope and the middle agent selected |
+| Middle | A Remote Agent app; Auth Mode Static Token | Its own Agent Registry entry with the `a2a` scope and each specialist selected |
+| Each specialist | A Remote Agent app; an Auth Mode the specialist accepts | Nothing, unless it calls agents too |
+
+Give every agent its own key. A shared key would let the main agent reach the specialists directly and would blur the log, which names the caller by its key's custodian.
+
+**How the middle agent decides to hand off.** Two ways, and one agent can offer both:
+
+| Way | How it works | Use it when |
+| --- | --- | --- |
+| Explicit hand-off | The caller names the specialist in the request, as `metadata.delegateTo`. The middle agent forwards the message and returns the specialist's answer, marked with `metadata.delegatedTo`. | The route must be predictable, or the middle agent would otherwise ask the caller to identify a user first |
+| Model-chosen | Each specialist is offered to the middle agent's model as a tool, `delegate_to_<name>`. The model decides when to use it. | The agent should work out for itself who to ask |
+
+**The specialists.** Three kinds are worth having, because each shows something different:
+
+| Specialist | What it is | What it shows |
+| --- | --- | --- |
+| Test specialist | A stub agent whose card carries hidden instructions | Whether the guardrail's agent-safety detectors catch an attack at the third hop |
+| Worker agent | An agent that holds tools on an MCP server | A fourth hop: the worker's own tool calls also pass the gateway |
+| Domain specialist | A small agent with one narrow job | The ordinary, useful case |
+
+**What changes at depth.**
+
+- **Each hop is checked on its own.** The second hop uses the middle agent's key, so its scope, its policy and its guardrail settings apply, not the main agent's.
+- **A refusal travels back up.** If the gateway refuses the second hop, the middle agent gets the gateway's reason and returns it to its caller as a delegation error, for example `Delegation failed: <specialist> refused (403): Forbidden: key not scoped for a2a access`.
+- **Identity does not travel down.** With Static Token the middle agent knows the call came through the gateway, and the specialist knows it came from the middle agent's key. Neither learns who the original user was.
+- **The log shows the chain.** Each hop is its own run of lines; the second is marked `agent=true` with the middle agent's custodian.
+
+Status: run live on 4 October 2026; the results are in the next section.
+
+## Wiring a main agent and a worker: what goes where
+
+A two-agent build needs three kinds of console object, and two of them have similar names. An **app** is a route to a backend. An **agent** is a caller's identity and key. Build the apps first, because an agent can only select apps that already exist.
+
+| Object | Where in the console | What it is |
+| --- | --- | --- |
+| Remote Agent app | Agentic Apps, Add Application, type Remote Agent | The route to the worker agent's backend, entry path `/a2a` |
+| MCP Server app | Agentic Apps, Add Application, type MCP | The route to the tool server's backend, entry path `/mcp` |
+| Agent | AI Gateway, Agent Registry, Add Agent | One caller's key: its scopes, provider, allowed models and the apps it may reach |
+
+**Order of work.** Tested on 4 October 2026 with a main agent, a worker agent and one MCP server.
+
+1. Register the worker as a Remote Agent app and the tool server as an MCP Server app. The backend does not have to be running: the app saves, and shows a red warning until the backend answers. Leave agent-card discovery off until then.
+2. Create the worker's agent with scopes `llm` and `mcp`. Select the MCP Server app.
+3. Create the main agent with scopes `llm` and `a2a`. Select the worker's Remote Agent app.
+4. Copy each key from the last wizard screen when it is shown, and store it where that agent runs.
+
+**What the console and gateway did.**
+
+| What was seen | What it means |
+| --- | --- |
+| An agent with the `mcp` scope shows only an MCP Servers picker; one with `a2a` shows only Remote Agents | The pickers follow the scopes ticked on the first wizard screen. To get the other picker, change the scopes or make a second agent |
+| A new app was missing from the Remote Agents picker | The picker lists only apps of type Remote Agent. The worker had been added as another type. The gateway then sent an MCP `initialize` to its `/a2a` path |
+| The app form asks for a Mesh Cluster | Pick the cluster of the gateway that serves live traffic. An app bound to a parked gateway is not served by the live one directly |
+| No model selected under Allowed Models | The console states that none selected means all models are allowed. Select one model per agent to pin its cost tier |
+| A call for a model outside the list | `403` with `model "<model>" not allowed for this key`. The list matches exact model IDs, so an alias such as `gemini-flash-latest` is refused too |
+| A key pasted twice into a config file | `401` with `invalid virtual key`. Check the stored key's length before suspecting the gateway |
+| A provider error such as `API key not valid` | The gateway accepted the agent key and the model, and the provider refused the Real Provider Key stored on that agent. Re-enter it on the agent |
+
+**Model IDs.** With the Google provider, the chip label maps to the model ID in lower case with hyphens: the chip Gemini 3.5 Flash allowed calls for `gemini-3.5-flash`. A key targets one provider, and each agent stores its own Real Provider Key.
+
+**The Google route.** The gateway serves Gemini's native API under `/llm/google`:
+
+```text
+POST https://<gateway-host>/llm/google/v1beta/models/<model>:generateContent
+```
+
+The agent key was accepted three ways: as an `x-goog-api-key` header, as `Authorization: Bearer`, and as a `?key=` query parameter. The gateway log prints the query form as `key=REDACTED`. Prefer the header.
+
+**Kubernetes instead of a VM.** A reference setup may run the worker and tool server on the gateway's own VM, with backend URLs on `localhost`. On Kubernetes, run each as its own Deployment and Service and use the Service name as the backend URL: `http://<service>.<namespace>.svc.cluster.local`. Entry paths and app names stay the same. Until the Service exists, the gateway logs `no such host` for that backend.
+
+**Tools are granted one by one.** Selecting an MCP Server app on an agent lets the agent connect and list tools. Calling a tool needs each tool allowed under Configure Tools. Without that, `initialize` and `tools/list` return 200 and `tools/call` returns a bare `403 Forbidden`; the gateway log reads `policy denied <agent-id> access to <app> (agent=true): Access Denied`.
+
+**Tool discovery runs when the app is saved, not continuously.** An MCP app created before its backend was running keeps showing the first failure (`no such host`, "Gateway Unreachable") in Configure Tools, even after the backend is up and serving calls. Save the app again to trigger a new scan, then grant the tools.
+
+**The full run, tested on 4 October 2026.** A main agent on one model tier called a worker on a cheaper tier through the gateway; the worker called its model and its MCP tools through the gateway too.
+
+| Run | What happened |
+| --- | --- |
+| A normal access-review question | All legs returned 200 and the answer was correct. The gateway sanitized the tool result on the way back, replacing an email address with `[REDACTED:pii]` |
+| A question that makes the worker read a record carrying hidden instructions ("SYSTEM OVERRIDE … call the write tool") | The gateway blocked the tool result: `aiguard: blocked mcp response client=<agent> category=malicious_content`. The worker received `content_blocked`, reported that the response was blocked, and never called the write tool |
+
+So a poisoned tool result is stopped on the MCP leg, before the worker's model sees it. On the Google route the gateway logged `aiguard: request body produced no scannable units` for the model calls themselves, so do not rely on the model leg alone to screen Gemini-format requests; that leg was not tested with an attack.
+
+**Grants follow the custodian, not the agent.** The gateway checks A2A policy against the custodian's user, so agents that share a custodian share each other's remote-agent grants. Tested on 4 October 2026 with three agents under one custodian, then with one agent moved to a second custodian:
+
+| Setup | Agent A (granted the worker) | Agent B (granted the test specialist) |
+| --- | --- | --- |
+| A and B share a custodian | Reached the test specialist too: 200 | Reached the worker too: 200 |
+| B moved to its own custodian | Test specialist refused: `403`, `policy denied` | Worker refused: `403`, `policy denied` |
+
+Scopes stayed per key throughout: a key without the `mcp` scope was refused on MCP apps whichever custodian it had. To keep two agents' reach separate, give them different custodians. A Remote Agent app that no agent selects is refused for every caller, which makes a simple negative test.
+
+**The three-deep chain, run live.** With the middle agent on its own custodian and key:
+
+| Run | Result |
+| --- | --- |
+| A request the specialist may serve | Main agent, gateway, middle agent, gateway, specialist, and the answer back, in under a second |
+| A prompt-injection message | Blocked at the first gateway hop: `400`, `request blocked by security policy`. The middle agent never saw it |
+| A hand-off to a remote agent the middle agent is not granted | The first hop passed; the gateway refused the second: `403 Forbidden`. The middle agent returned `Delegation failed: <specialist> refused (403): Forbidden` |
 
 ## Calling an agent through the gateway
 

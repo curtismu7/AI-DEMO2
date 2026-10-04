@@ -12,14 +12,17 @@ import {
   DEMO_JOURNEY_GROUPS,
   DEMO_PRIMARY_USE_CASE_IDS,
   DEMO_USE_CASE_SEARCH_TERMS,
+  EXTRA_STEP_GROUPS,
   PRIVILEGE_USE_CASE_IDS,
 } from '../config/demoUseCaseSteps';
 import { getMissionControlGroup } from '../config/missionControlCatalog';
+import { demoStepNumber } from '../config/demoStepNumbers';
 import apiClient from '../services/apiClient';
 import UseCaseExplainModal from './UseCaseExplainModal';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
 import { a2aEventsForExplain } from './demoStepsA2a';
 import { ID_JAG_USE_CASE_ID, RUN_MODES, requestLiveIdJagRun } from '../utils/idJagRunMode';
+import { PRIVILEGE_A2A_CHAIN_USE_CASE_ID, startPrivilegeA2aChainRun } from '../utils/privilegeA2aChainRun';
 import {
   clearCompletedUseCases,
   getCompletedUseCaseIds,
@@ -220,6 +223,7 @@ export default function DemoStepsDropdown({
   const [advancedSteps, setAdvancedSteps] = useState([]);
   const [ciamSteps, setCiamSteps] = useState([]);
   const [privilegeSteps, setPrivilegeSteps] = useState([]);
+  const [extraSteps, setExtraSteps] = useState({});
   const [activeGroup, setActiveGroup] = useState('all');
   const [rarQuickResult, setRarQuickResult] = useState(readRarQuickResult);
   const [advancedOpen, setAdvancedOpen] = useState(false);
@@ -268,9 +272,20 @@ export default function DemoStepsDropdown({
           mapIds(CIAM_AGENT_TYPE_USE_CASE_IDS, primaryIds.length + advancedIds.length)
             .filter(({ uc }) => !scriptedIds.has(uc.id)),
         );
-        setPrivilegeSteps(
-          mapIds(PRIVILEGE_USE_CASE_IDS, primaryIds.length + advancedIds.length + CIAM_AGENT_TYPE_USE_CASE_IDS.length),
-        );
+        const privilegeOffset = primaryIds.length + advancedIds.length + CIAM_AGENT_TYPE_USE_CASE_IDS.length;
+        setPrivilegeSteps(mapIds(PRIVILEGE_USE_CASE_IDS, privilegeOffset));
+        // Themed groups follow Privilege; each continues the step numbering.
+        let extraOffset = privilegeOffset + PRIVILEGE_USE_CASE_IDS.length;
+        const extra = {};
+        for (const group of EXTRA_STEP_GROUPS) {
+          // A step listed in more than one group keeps the number it got first.
+          extra[group.id] = mapIds(group.ids, extraOffset).map((row) => ({
+            ...row,
+            stepNumber: demoStepNumber(row.uc.id) ?? row.stepNumber,
+          }));
+          extraOffset += group.ids.length;
+        }
+        setExtraSteps(isAdmin ? {} : extra);
       })
       .catch((err) => {
         if (reqId !== loadStepsReqIdRef.current) return;
@@ -284,6 +299,7 @@ export default function DemoStepsDropdown({
         setAdvancedSteps([]);
         setCiamSteps([]);
         setPrivilegeSteps([]);
+        setExtraSteps({});
       })
       .finally(() => {
         if (reqId === loadStepsReqIdRef.current) {
@@ -328,7 +344,7 @@ export default function DemoStepsDropdown({
   }, [persistOpenState]);
 
   /** Run a demo step and refresh checkmarks. */
-  function handleSelect(uc, stepNumber) {
+  function handleSelect(uc, stepNumber, chainRun = uc.chainRuns?.[0]) {
     if (!poppedOutRef.current) onOpenChange(false);
     if (uc.id === 'UC40' && uc.useCaseId === ID_JAG_USE_CASE_ID) {
       requestLiveIdJagRun({
@@ -337,6 +353,13 @@ export default function DemoStepsDropdown({
         returnTo: '/dashboard',
       });
       return;
+    }
+    // The Privilege A2A agent chain starts here and plays in the reel: launch
+    // the run, then let the link trigger land the presenter on the dashboard.
+    // The run keeps streaming into the trace store across that navigation.
+    if (uc.useCaseId === PRIVILEGE_A2A_CHAIN_USE_CASE_ID && chainRun) {
+      const { message, specialist } = chainRun;
+      void startPrivilegeA2aChainRun({ message, specialist });
     }
     // UC38/UC44 run in the dashboard agent as a chip prompt (their dedicated
     // /workload-agents page is opened via the secondary workload button below),
@@ -416,8 +439,12 @@ export default function DemoStepsDropdown({
     ? ciamSteps.filter(({ uc }) => !activeGroupIds || activeGroupIds.has(uc.id))
     : [];
   const privilegeIds = new Set(PRIVILEGE_USE_CASE_IDS);
-  const scopedPrivilege = activeGroup === PRIVILEGE_GROUP_ID || activeMissionGroup?.useCaseIds?.some((id) => privilegeIds.has(id))
-    ? privilegeSteps.filter(({ uc }) => !activeGroupIds || activeGroupIds.has(uc.id))
+  // In the "all" view the group is shown too, minus anything already listed in
+  // the script above (UC40 is in both lists and keeps its script number).
+  const scriptedIds = new Set(primarySteps.map(({ uc }) => uc.id));
+  const scopedPrivilege = activeGroup === 'all' || activeGroup === PRIVILEGE_GROUP_ID || activeMissionGroup?.useCaseIds?.some((id) => privilegeIds.has(id))
+    ? privilegeSteps.filter(({ uc }) =>
+        (!activeGroupIds || activeGroupIds.has(uc.id)) && !(activeGroup === 'all' && scriptedIds.has(uc.id)))
     : [];
   const matches = ({ uc }) =>
     !q ||
@@ -441,8 +468,15 @@ export default function DemoStepsDropdown({
   const filteredPrivilege = privilegeGroupQuery ? scopedPrivilege : scopedPrivilege.filter(matches);
   // A query surfaces matches regardless of the collapsed "More demos" state.
   const showAdvanced = q ? filteredAdvanced.length > 0 : advancedOpen;
+  // The themed groups show in the All view only (the filter chips scope the
+  // script, not these); a search matches inside them, or by group name.
+  const filteredExtra = EXTRA_STEP_GROUPS.map((group) => {
+    const rows = activeGroup === 'all' ? extraSteps[group.id] || [] : [];
+    const byName = q && group.label.toLowerCase().includes(q);
+    return { group, rows: byName ? rows : rows.filter(matches) };
+  }).filter(({ rows }) => rows.length > 0);
   const noMatches =
-    q && filteredPrimary.length === 0 && filteredAdvanced.length === 0 && filteredCiam.length === 0 && filteredPrivilege.length === 0;
+    q && filteredPrimary.length === 0 && filteredAdvanced.length === 0 && filteredCiam.length === 0 && filteredPrivilege.length === 0 && filteredExtra.length === 0;
   // reserveRight is the strip the floating agent occupies: centre in what is
   // left so the two never open on top of each other. Below ~320px of free
   // width there is no room and the panel keeps its minimum at the left edge.
@@ -456,7 +490,9 @@ export default function DemoStepsDropdown({
    * @param {{ uc: object, stepNumber: number }} row
    * @param {{ markNext?: boolean }} [opts]
    */
-  function renderStep({ uc, stepNumber }, { markNext = false, testId } = {}) {
+  // scope: set for the themed groups, where a step can repeat a card shown
+  // earlier, so its extra test ids stay unique.
+  function renderStep({ uc, stepNumber }, { markNext = false, testId, scope = '' } = {}) {
     const completed = completedIds.has(uc.id);
     const isNext = markNext && !completed && uc.id === nextPrimaryId;
     const btnClass = [
@@ -486,7 +522,7 @@ export default function DemoStepsDropdown({
               ✓
             </span>
           )}
-          <span className="ba-demo-steps-popout__id">{uc.id}</span>
+          <span className="ba-demo-steps-popout__id">{stepNumber} · {uc.id}</span>
           <span className={`banking-chips-dropdown__chip-name${uc.id === 'UC40' ? ' banking-chips-dropdown__chip-name--id-jag' : ''}`}>
             {uc.id === 'UC40' ? 'Run PingFederate ID-JAG' : uc.demoLabel || uc.title}
             {uc.id === 'UC40' && (
@@ -525,6 +561,20 @@ export default function DemoStepsDropdown({
             🪟
           </button>
         )}
+        {/* The chain's other runs: the same hand-off, set up to be refused. */}
+        {uc.useCaseId === PRIVILEGE_A2A_CHAIN_USE_CASE_ID && (uc.chainRuns || []).slice(1).map((run) => (
+          <button
+            key={run.id}
+            type="button"
+            className="ba-demo-steps-popout__rar-toggle"
+            onClick={(e) => { e.stopPropagation(); handleSelect(uc, stepNumber, run); }}
+            aria-label={`Run the agent chain: ${run.label}`}
+            title={`Run the agent chain: ${run.label} — the gateway should refuse this one`}
+            data-testid={`chain-run-${scope}${run.id}`}
+          >
+            {run.label.charAt(0)}
+          </button>
+        ))}
         {uc.id === 'UC14b' && (
           <button
             type="button"
@@ -548,7 +598,7 @@ export default function DemoStepsDropdown({
           onClick={() => handleExplain(uc)}
           title="Explain this step"
           aria-label={`Explain step ${stepNumber}: ${uc.id} — ${uc.title}`}
-          data-testid={`demo-explain-${uc.id}`}
+          data-testid={`demo-explain-${scope}${uc.id}`}
         />
       </li>
     );
@@ -611,7 +661,7 @@ export default function DemoStepsDropdown({
                   }`}
                   data-testid="demo-steps-progress"
                 >
-                  {completedCount} of {primarySteps.length} done
+                  {completedCount} of {primarySteps.length} script steps done
                 </span>
                 <div className="ba-demo-steps-popout__track" aria-hidden="true">
                   <i style={{ width: `${progressPct}%` }} />
@@ -851,6 +901,24 @@ export default function DemoStepsDropdown({
                 </ul>
               </section>
             )}
+            {filteredExtra.map(({ group, rows }) => (
+              <section
+                key={group.id}
+                className="ba-demo-steps-popout__privilege"
+                data-testid={`demo-steps-extra-${group.id}`}
+              >
+                <div className="ba-demo-steps-popout__group-heading">
+                  <span>{group.label}</span>
+                  <span>{group.tagline}</span>
+                </div>
+                <p className="ba-demo-steps-popout__group-intro">{group.intro}</p>
+                <ul className="ba-demo-steps-popout__grid">
+                  {rows.map((row) =>
+                    renderStep(row, { testId: `demo-extra-${group.id}-${row.uc.id}`, scope: `${group.id}-` }),
+                  )}
+                </ul>
+              </section>
+            ))}
           </div>
           </div>
         </FloatingPanel>

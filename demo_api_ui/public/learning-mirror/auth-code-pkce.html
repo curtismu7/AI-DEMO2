@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Auth Code + PKCE — AI Demo Learning Hub</title>
+<link rel="stylesheet" href="assets/app.css">
+<link rel="stylesheet" href="assets/snapshot.css">
+</head><body>
+<div class="snap-top"><a href="index.html">← Learning Hub</a><span class="crumb">/ Auth Code + PKCE</span></div>
+<div class="edu-drawer snap-drawer">
+<div class="snap-title">Auth Code + PKCE</div>
+<nav class="snap-toc"><span class="snap-toc-label">On this page — 6 sections</span><ul><li><a href="#sec-what-happens">What happens</a></li><li><a href="#sec-approve-from-your-phone">Approve from your phone</a></li><li><a href="#sec-one-time-code-protection">One-time code protection</a></li><li><a href="#sec-what-gets-issued">What gets issued</a></li><li><a href="#sec-security-notes">Security notes</a></li><li><a href="#sec-in-this-repo">In this repo</a></li></ul></nav>
+<div class="edu-drawer-body">
+<section class="snap-tab" id="sec-what-happens"><h3 class="snap-tab-h">What happens</h3><h3>What happens when you click "Sign In"</h3><p>Signing in uses a modern-day <strong>security handshake</strong> between this app and PingOne (our identity provider). Here's the full journey — in plain English:</p><ol><li><strong>You click Sign In</strong> — the app generates a one-time secret code (a "code verifier") and stores it on the server. This code is never sent anywhere yet — it's like writing down a secret word before a quiz.</li><li><strong>You're sent to PingOne</strong> — the app redirects your browser to PingOne's login page. Only a scrambled (hashed) version of the code is included in this redirect — the original stays on the server.</li><li><strong>You enter your credentials</strong> — PingOne shows the login form. You type your email, password, and MFA code if required. PingOne verifies it all.</li><li><strong>PingOne sends you back</strong> — after successful login, PingOne redirects you back to the app with a temporary, one-time <em>authorization code</em> (like a numbered ticket at a deli counter).</li><li><strong>The app redeems the ticket — server-side</strong> — the app takes that authorization code and the original secret word and exchanges them with PingOne for real security tokens. The browser never touches these tokens.</li><li><strong>Your session begins</strong> — the tokens are stored securely on the server, and your browser only receives a session cookie — like a wristband that says "this person has already been verified."</li><li><strong>You land on your dashboard</strong> — every subsequent action uses that cookie. Your actual security tokens are never exposed to the browser.</li></ol><p style="color: rgb(55, 65, 81); margin-bottom: 1rem;">All client applications redirect to the <strong>same centralized PingOne sign-on UI</strong> — the app never renders its own login form. This means any change to authentication policy (new MFA requirement, new SSO provider, branding update) propagates automatically to every connected app without code changes.</p></section>
+<section class="snap-tab" id="sec-approve-from-your-phone"><h3 class="snap-tab-h">Approve from your phone</h3><h3>CIBA vs Authorization Code + PKCE</h3><p>Both are OAuth 2.0 / OIDC flows at PingOne. The key difference is <strong>where the user interaction happens</strong>.</p><h3>Authorization Code + PKCE (this app's login)</h3><pre class="edu-code">1. Backend-for-Frontend (BFF) generates code_verifier + code_challenge (S256)
+2. Browser → GET /as/authorize?response_type=code&amp;code_challenge=...
+   ↳ PingOne shows login UI in the BROWSER
+3. User enters credentials, MFA if required
+4. PingOne → 302 to redirect_uri?code=ABC&amp;state=XYZ
+5. Backend-for-Frontend (BFF) validates state, POST /as/token with code + code_verifier
+6. Tokens → Backend-for-Frontend (BFF) session; browser gets httpOnly cookie
+7. Page loads at /admin or /dashboard</pre><p><strong>Key property:</strong> the user <em>must</em> be at a browser to click through the redirect. The page navigates away and back — disruptive in agent/chat contexts.</p><h3>CIBA (backchannel)</h3><pre class="edu-code">1. Backend-for-Frontend (BFF) → POST /as/bc-authorize (login_hint, binding_message)
+2. PingOne → { auth_req_id, expires_in, interval }
+   ↳ PingOne delivers approval OUT-OF-BAND (email or push per your DaVinci config)
+3. Backend-for-Frontend (BFF) polls POST /as/token every ~5s
+   → authorization_pending until user acts
+4. User approves in email inbox OR on registered device
+5. Next poll returns tokens; Backend-for-Frontend (BFF) stores them server-side
+6. Chat / agent / dashboard continues with no page load</pre><p><strong>Key property:</strong> the user does <em>not</em> navigate away. No <code>redirect_uri</code> is needed for the approval step — user stays on the same page or chat the whole time.</p><h3>Side-by-side comparison</h3><pre class="edu-code">Feature                  Auth Code + PKCE          CIBA
+─────────────────────────────────────────────────────────────────
+Browser redirect         YES (to PingOne)           NO
+User interaction device  Same browser               Any (email, phone, push)
+Suitable for agents      No (needs browser)         Yes (out-of-band)
+Suitable for step-up     Disruptive (page reload)   Non-disruptive overlay
+redirect_uri required    YES                        NO (for approval step)
+PingOne setup            Standard PKCE app          CIBA grant + DaVinci flow
+Session established      Immediately on callback    After poll succeeds
+binding_message          N/A                        Shown to user on approval
+Token location           Backend-for-Frontend (BFF) session (httpOnly)     Backend-for-Frontend (BFF) session (httpOnly)</pre><h3>Email vs push — who decides?</h3><p>The delivery channel is controlled by your <strong>PingOne / DaVinci flow</strong>, not by this app. The Backend-for-Frontend (BFF) sends <code>login_hint</code> and <code>binding_message</code>; PingOne decides whether to send an email link or a push notification based on your DaVinci configuration and the user's registered authenticators.</p><ul><li><strong>Email-only</strong> — approval link in inbox; no push-capable MFA device or app required.</li><li><strong>Push</strong> — PingOne MFA policy + registered device (PingID, Microsoft Authenticator, etc.) required.</li></ul><p>For sequence diagrams and a live demo, open the floating <strong>CIBA guide</strong> (bottom-right of the screen, "Try It" tab).</p></section>
+<section class="snap-tab" id="sec-one-time-code-protection"><h3 class="snap-tab-h">One-time code protection</h3><h3>Why PKCE? (RFC 7636)</h3><p>PKCE (Proof Key for Code Exchange) prevents authorization code interception attacks. An attacker who intercepts the authorization code from the redirect cannot exchange it without the original <code>code_verifier</code> — which is only known to the server that started the flow.</p><p>PKCE also makes <em>public clients</em> (apps that cannot store a client secret) safe to use with the authorization code flow. Even for confidential clients (like this Backend-for-Frontend (BFF)), PKCE is required by OAuth 2.1.</p><h3>How the verifier/challenge pair works</h3><pre class="edu-code">Server generates:
+  code_verifier = base64url(random 32 bytes)   e.g. "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW..."
+  code_challenge = base64url(SHA-256(code_verifier))
+
+  The verifier is stored server-side (session).
+  Only the challenge is sent to PingOne in step 1.
+  The verifier is revealed only in step 2 (server-to-server).
+
+Attack scenario:
+  Attacker intercepts redirect: ?code=STOLEN&amp;state=...
+  Tries to POST /token with code=STOLEN  ← but has NO verifier
+  PingOne: SHA256(nothing) ≠ stored challenge → 400 invalid_grant ✓</pre><h3>Step 1 — Authorization request (browser redirect)</h3><pre class="edu-code">GET /as/authorize
+  ?response_type=code
+  &amp;client_id=&lt;your-client-id&gt;
+  &amp;redirect_uri=https%3A%2F%2Fapp.example.com%2Fapi%2Fauth%2Foauth%2Fcallback
+  &amp;scope=openid%20profile%20email%20banking%3Aread
+  &amp;state=&lt;random-csrf-token&gt;               ← CSRF protection; echoed back
+  &amp;code_challenge=&lt;BASE64URL(SHA256(verifier))&gt;
+  &amp;code_challenge_method=S256
+  &amp;resource=https%3A%2F%2Fapi.example.com%2F  ← RFC 8707 audience binding (optional)
+  HTTP/1.1 302 Found
+  Location: https://auth.pingone.com/.../as/authorize?... (PingOne login UI)</pre><h3>Step 2 — Authorization callback (PingOne → Backend-for-Frontend (BFF))</h3><pre class="edu-code">GET /api/auth/oauth/callback
+  ?code=&lt;authorization-code&gt;               ← short-lived, one-use
+  &amp;state=&lt;same-random-token-from-step-1&gt;   ← Backend-for-Frontend (BFF) validates: must match session
+  &amp;iss=https://auth.pingone.com/...        ← issuer identifier (RFC 9207)
+
+  Backend-for-Frontend (BFF) validation:
+    1. state matches → CSRF check passes
+    2. code is present
+    3. Proceed to token exchange</pre><h3>Step 3 — Token request (server-to-server, never in browser)</h3><pre class="edu-code">POST /as/token
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic &lt;base64(client_id:client_secret)&gt;
+
+grant_type=authorization_code
+&amp;code=&lt;authorization-code&gt;
+&amp;redirect_uri=https%3A%2F%2Fapp.example.com%2Fapi%2Fauth%2Foauth%2Fcallback
+&amp;code_verifier=&lt;original-code-verifier&gt;    ← PingOne hashes this; must match challenge
+&amp;resource=https%3A%2F%2Fapi.example.com%2F  ← RFC 8707 (if used in step 1)
+
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "scope": "openid profile email read",
+  "id_token": "eyJ...",
+  "refresh_token": "...",
+  "issued_token_type": "urn:ietf:params:oauth:token-type:access_token"
+}</pre><h3>Error responses</h3><pre class="edu-code">── Bad code_verifier ──
+HTTP/1.1 400 Bad Request
+{ "error": "invalid_grant", "error_description": "PKCE verification failed" }
+
+── Code already used ──
+HTTP/1.1 400 Bad Request
+{ "error": "invalid_grant", "error_description": "Authorization code already used" }
+
+── State mismatch (Backend-for-Frontend (BFF)-side check, never reaches PingOne) ──
+HTTP/1.1 400 Bad Request (from Backend-for-Frontend (BFF))
+{ "error": "invalid_state", "message": "OAuth state mismatch" }
+
+── Client auth failure ──
+HTTP/1.1 401 Unauthorized
+{ "error": "invalid_client", "error_description": "Client authentication failed" }</pre><h3>What PingOne validates</h3><ul><li><code>code</code> — exists, belongs to this client, not expired (usually 60s).</li><li><code>redirect_uri</code> — exactly matches the registered URI (no trailing slash differences).</li><li><code>code_verifier</code> — <code>BASE64URL(SHA256(verifier))</code> must equal the stored challenge.</li><li><code>client_id</code> / client auth — correct credentials.</li></ul><h3>Why the tokens are stored server-side</h3><p>After step 3, the Backend-for-Frontend (BFF) stores <code>access_token</code> and <code>refresh_token</code> in the <strong>server session</strong> and issues an <strong>httpOnly cookie</strong> to the browser. This means:</p><ul><li>XSS in the SPA cannot read the access token from JavaScript.</li><li>The token is never in <code>localStorage</code>, <code>sessionStorage</code>, or any JS variable.</li><li>Subsequent API calls use the session cookie; the Backend-for-Frontend (BFF) attaches the Bearer token server-side.</li></ul></section>
+<section class="snap-tab" id="sec-what-gets-issued"><h3 class="snap-tab-h">What gets issued</h3><h3>What's inside the security token</h3><p>After login, PingOne issues an <strong>access token</strong> — a tamper-proof digital document (called a JWT) that proves who you are and what you're allowed to do. Here's what it contains:</p><pre class="edu-code">{
+  "sub": "who you are (your unique user ID at PingOne)",
+  "aud": "which service this token is for",
+  "scope": "what you're allowed to do: read accounts, etc.",
+  "may_act": { ... },  // optional: which AI apps can act on your behalf
+  "exp": 1234567890,   // when this token expires (Unix timestamp)
+  "iss": "https://auth.pingone.com/..."  // issued by PingOne
+}</pre><ul><li><strong>sub</strong> — your unique, stable user identifier.</li><li><strong>aud</strong> — the specific service this token was issued for (it won't work anywhere else).</li><li><strong>scope</strong> — the list of things this token allows: read balances, make transfers, etc.</li><li><strong>may_act</strong> — an optional note saying which AI apps are pre-approved to act on your behalf.</li><li><strong>exp</strong> — the expiry time. After this, the token stops working automatically.</li></ul><p style="font-size: 0.82rem; color: rgb(55, 65, 81);">Your browser <strong>never sees this token</strong>. It lives on the server; your browser only has a session cookie.</p></section>
+<section class="snap-tab" id="sec-security-notes"><h3 class="snap-tab-h">Security notes</h3><h3>Why the User token never touches the browser</h3><p>Access tokens are stored in the Backend-for-Frontend (BFF) session (server memory / Redis / LMDB). The browser only holds an <strong>httpOnly, Secure</strong> session cookie. httpOnly means JavaScript cannot read it — <code>document.cookie</code> does not include it. This defeats a large class of XSS-based token theft.</p><pre class="edu-code">Set-Cookie: sessionId=abc123; HttpOnly; Secure; SameSite=Lax; Path=/
+
+// JavaScript in the browser:
+document.cookie  // → does NOT contain sessionId
+fetch('/api/auth/oauth/status', { credentials: 'include' })
+  // ↑ cookie is sent automatically by the browser
+  // ↓ server reads session, returns user info without exposing token</pre><h3>Session fixation defence</h3><p>On successful login, the server calls <code>session.regenerate()</code> to issue a new session ID. This prevents an attacker from pre-seeding a session ID (e.g. via a link) and then waiting for the victim to log in.</p><pre class="edu-code">// Express session-based pattern:
+req.session.regenerate((err) =&gt; {
+  // new session ID issued — old cookie invalid
+  req.session.user = userFromPingOne;
+  req.session.access_token = tokens.access_token;
+  res.redirect('/admin');
+});</pre><h3>State parameter (CSRF / mix-up defence)</h3><p>A random <code>state</code> value is generated per authorize request, stored in the session, and compared on callback. If the returned <code>state</code> does not match, the callback is rejected with 400. This prevents:</p><ul><li><strong>CSRF</strong> — attacker cannot force your session to link their OAuth code to your account.</li><li><strong>Mix-up attacks</strong> — malicious IDP cannot inject a code from a different provider.</li></ul><pre class="edu-code">// Generating state:
+const state = crypto.randomBytes(16).toString('hex');
+req.session.oauthState = state;
+
+// Validating on callback:
+if (req.query.state !== req.session.oauthState) {
+  return res.status(400).json({ error: 'invalid_state' });
+}
+delete req.session.oauthState;</pre><h3>PKCE vs implicit flow</h3><pre class="edu-code">Implicit flow (deprecated, OAuth 2.1 removed):
+  GET /authorize?response_type=token  ← returns access_token in URL fragment
+  → Token visible in browser history, referrer headers, server logs
+  → No code exchange, no code_verifier
+  → Vulnerable to token leakage
+
+Authorization Code + PKCE (current best practice):
+  GET /authorize?response_type=code   ← returns short-lived code, not token
+  → Token never appears in URL
+  → PKCE prevents code interception
+  → Code is one-use and expires quickly (typically 60s)</pre><h3>Scope minimisation</h3><p>Request only the scopes needed for the current flow. The Backend-for-Frontend (BFF) requests <code>openid profile email</code> for login, and adds <code>read</code> or <code>write</code> only when the session requires it. Wider scopes increase blast radius if tokens are ever compromised.</p><h3>Token lifetime and refresh</h3><pre class="edu-code">Access token:  typically 1h (expires_in=3600)
+Refresh token: 24h or longer (depends on PingOne policy)
+
+Backend-for-Frontend (BFF) refresh flow:
+  access_token expired → Backend-for-Frontend (BFF) calls POST /as/token
+    grant_type=refresh_token
+    &amp;refresh_token=&lt;stored RT&gt;
+    &amp;client_id=...
+    &amp;client_secret=...
+  → new access_token (+ possibly new refresh_token)
+  → silently; browser session cookie unchanged</pre></section>
+<section class="snap-tab" id="sec-in-this-repo"><h3 class="snap-tab-h">In this repo</h3><h3 style="margin-top: 0px;">Redeeming the authorization code</h3><p style="font-size: 0.82rem; color: rgb(71, 85, 105); margin-top: 0px; margin-bottom: 0.65rem; line-height: 1.55;"><strong style="color: rgb(22, 101, 52);">This repo</strong>: <code style="font-size: 0.85em; word-break: break-all;">banking_api_server/services/oauthUserService.js (and admin oauthService.js)</code> PingOne returns a <code>code</code> to the BFF callback; the server exchanges it with <code>code_verifier</code> (PKCE).</p><pre class="edu-code">// oauthUserService.js — redeem auth code + PKCE (BFF only)
+const params = new URLSearchParams({
+  grant_type: 'authorization_code',
+  code: String(code),
+  redirect_uri: redirectUri,
+  client_id: this.config.clientId,
+  code_verifier: codeVerifier,  // PKCE — proves same client started the flow
+});
+const response = await axios.post(this.config.tokenEndpoint, params.toString(), {
+  headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+});
+// → access_token stored in req.session (httpOnly cookie to browser)</pre><p style="color: rgb(55, 65, 81); margin-bottom: 1rem;">The redirect callback page (<code class="edu-code">/callback</code>) is intentionally minimal — static HTML with no JavaScript beyond the OAuth code exchange. Avoid rendering frameworks or lazy-loaded bundles on this page; delayed JavaScript execution can cause the auth code to expire before it's exchanged, producing silent login failures.</p></section>
+</div></div>
+<div class="snap-foot">The AI Demo Learning Hub · <a href="index.html">back to index</a></div>
+<style>
+#backToTop{position:fixed;right:22px;bottom:22px;z-index:50;background:#1c2230;color:#fff;border:0;border-radius:999px;padding:10px 18px;font:600 .9rem -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;cursor:pointer;box-shadow:0 4px 14px rgba(28,34,48,.35);opacity:0;visibility:hidden;transform:translateY(8px);transition:opacity .2s,transform .2s,visibility .2s}
+#backToTop.show{opacity:1;visibility:visible;transform:translateY(0)}
+#backToTop:hover{background:#39435c}
+</style>
+<button id="backToTop" type="button" aria-label="Back to top">↑ Top</button>
+<script>
+(function(){
+  var btn=document.getElementById('backToTop');
+  window.addEventListener('scroll',function(){btn.classList.toggle('show',window.scrollY>400);},{passive:true});
+  btn.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
+})();
+</script>
+</body></html>

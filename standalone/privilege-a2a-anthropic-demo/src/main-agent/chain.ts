@@ -6,7 +6,8 @@ import { randomUUID } from 'node:crypto';
  * No model is involved, so the route is the same every time.
  */
 
-export const PRIMARY = 'primary';
+/** This agent's name in the chain trace. Ping's reference demo calls it the main agent. */
+export const MAIN = 'main';
 export const MIDDLE = 'langchainagent';
 
 /** One step of the chain, as the trace pane and the reel draw it. */
@@ -63,7 +64,7 @@ function emitHops(hops: unknown, emit: ChainOptions['emit']): void {
 export async function runChain(options: ChainOptions): Promise<string> {
   const { url, bearer, message, specialist, emit, signal } = options;
   const fetchImpl = options.fetchImpl ?? fetch;
-  emit({ kind: 'delegate', from: PRIMARY, to: MIDDLE, text: `${PRIMARY} → ${MIDDLE}`, detail: message });
+  emit({ kind: 'delegate', from: MAIN, to: MIDDLE, text: `${MAIN} → ${MIDDLE}`, detail: message });
 
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (bearer) headers.Authorization = `Bearer ${bearer}`;
@@ -85,7 +86,7 @@ export async function runChain(options: ChainOptions): Promise<string> {
     });
   } catch (error) {
     const detail = error instanceof Error ? error.message : 'request failed';
-    emit({ kind: 'error', from: PRIMARY, to: MIDDLE, text: `${MIDDLE} unreachable`, detail });
+    emit({ kind: 'error', from: MAIN, to: MIDDLE, text: `${MIDDLE} unreachable`, detail });
     throw new Error(detail);
   }
 
@@ -98,7 +99,7 @@ export async function runChain(options: ChainOptions): Promise<string> {
   if (body?.result && response.ok) {
     emitHops(body.result.metadata?.hops, emit);
     const answer = (body.result.parts ?? []).map(part => text(part.text)).filter(Boolean).join('\n').trim();
-    emit({ kind: 'result', from: MIDDLE, to: PRIMARY, text: `${MIDDLE} returned`, detail: answer });
+    emit({ kind: 'result', from: MIDDLE, to: MAIN, text: `${MIDDLE} returned`, detail: answer });
     return answer;
   }
 
@@ -108,7 +109,7 @@ export async function runChain(options: ChainOptions): Promise<string> {
   emitHops(hops, emit);
   const detail = text(body?.error?.message) || raw.trim().slice(0, 200) || `HTTP ${response.status}`;
   if (!Array.isArray(hops) || hops.length === 0) {
-    emit({ kind: 'error', from: PRIMARY, to: MIDDLE, text: `${PRIMARY} → ${MIDDLE} refused`, detail: `${response.status}: ${detail}` });
+    emit({ kind: 'error', from: MAIN, to: MIDDLE, text: `${MAIN} → ${MIDDLE} refused`, detail: `${response.status}: ${detail}` });
   }
   throw new Error(detail);
 }

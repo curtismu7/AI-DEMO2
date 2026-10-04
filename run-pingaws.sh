@@ -17,6 +17,7 @@
 #   ./run-pingaws.sh update code [svc]  # rebuild/redeploy changed service(s)
 #   ./run-pingaws.sh update config      # push secrets/configmaps (no rebuild)
 #   ./run-pingaws.sh update pingone     # re-bootstrap PingOne redirect URIs
+#   ./run-pingaws.sh gateways ...       # Privilege gateway 1+2: secrets | upgrade [--apply] | status
 #   ./run-pingaws.sh kubeconfig         # install SE kubeconfig into ~/.kube
 #   ./run-pingaws.sh help
 #
@@ -29,7 +30,11 @@
 # App: https://ai-demo.ping-devops.com
 #
 # The Privilege AI Gateway is NOT deployed here — it is a manual Helm install
-# in ping-devops-curtismuir (pingone-privgateway-helm-main/agentless).
+# (pingone-privgateway-helm-main/agentless). Gateway 1 and the mcpgw-lb load
+# balancer are in ping-devops-curtismuir; gateway 2 (release agentless-mcpgw2)
+# is in ping-devops-cmuir, the same namespace as this app; the two are nodes of one
+# mesh cluster. Deploys leave them alone, and se-undeploy skips Helm-managed resources
+# and gateway 2's sidecar secrets. Upgrades: ./run-pingaws.sh gateways.
 #
 # Equivalent low-level commands (still work):
 #   ./run-k8.sh se-all | se-build | se-deploy | se-status | se-undeploy
@@ -64,15 +69,20 @@ Usage:
                                     rebuild/redeploy (all, or bff|frontend|mcp|…)
   ./run-pingaws.sh update config    push .env / configmaps (no image rebuild)
   ./run-pingaws.sh update pingone   re-register OAuth redirect URIs for SE URL
+  ./run-pingaws.sh gateways {secrets|upgrade [--apply]|status}
+                                    keep Privilege gateway 1 and 2 on the same sidecars and
+                                    secrets (scripts/se-gateways.sh; upgrade is a dry run
+                                    unless --apply)
   ./run-pingaws.sh kubeconfig       install SE kubeconfig (scripts/install-se-kubeconfig.sh)
   ./run-pingaws.sh machine          show machine specs and which launcher fits
   ./run-pingaws.sh help
 
 Prerequisites: Docker Desktop, kubectl context `us`, gh auth, SE namespace.
 
-The Privilege AI Gateway does not deploy from here: it is a deliberate manual
-Helm install in ping-devops-curtismuir (pingone-privgateway-helm-main/agentless),
-because its ENV_PROXY_TOKEN is single-use and ~2h-lived.
+The Privilege AI Gateway does not install from here: gateway 1 (ping-devops-curtismuir)
+and gateway 2 (ping-devops-cmuir) are deliberate manual Helm installs
+(pingone-privgateway-helm-main/agentless), because ENV_PROXY_TOKEN is single-use and
+~2h-lived. Once installed, `gateways` keeps their sidecars and secrets in step.
 
 Namespace is pinned once per checkout (written to demo_api_server/.env as
 SE_NAMESPACE=...) so every later run targets the same namespace by default —
@@ -166,6 +176,9 @@ case "$cmd" in
         exit 1
         ;;
     esac
+    ;;
+  gateways|gateway|gw)
+    exec "$BASEDIR/scripts/se-gateways.sh" "$@"
     ;;
   kubeconfig|kubectl-config|install-kubeconfig)
     exec "$BASEDIR/scripts/install-se-kubeconfig.sh" "$@"

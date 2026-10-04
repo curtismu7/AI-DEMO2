@@ -47,3 +47,16 @@ ping_agent_guardrails_diagram.html:generic-api-key:638
 
 # False positive: "storageKey" + "lgw-lanes-width-v2" is a localStorage key name, not a secret.
 demo_api_ui/src/pages/LlmGatewayPage.jsx:generic-api-key:291
+
+# False positives in demo_api_ui/public/learning-mirror/ (static copy of the public Learning Hub
+# mirror, already published openly). Checked one by one:
+#  - agent-guardrails.html 638/644: the same Glean image content ids as above (key= identifies the
+#    image, resolves only for a viewer signed in to Ping's Glean; owner-confirmed 2026-09-12).
+#  - pkce-deep-dive.html 56, auth-code-pkce.html 82: a 39-char RS256 JWT *header only* placeholder
+#    ("eyJhbGciOi...") shown as an example access_token - no payload, no signature.
+#  - intent-auth-standards.html 48: a did:key identifier (public by definition) in an example.
+demo_api_ui/public/learning-mirror/agent-guardrails.html:generic-api-key:638
+demo_api_ui/public/learning-mirror/agent-guardrails.html:generic-api-key:644
+demo_api_ui/public/learning-mirror/pkce-deep-dive.html:generic-api-key:56
+demo_api_ui/public/learning-mirror/auth-code-pkce.html:generic-api-key:82
+demo_api_ui/public/learning-mirror/intent-auth-standards.html:generic-api-key:48

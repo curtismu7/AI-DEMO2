@@ -143,3 +143,14 @@ test("the ID-JAG teaching page mounts without loading live trust flags", () => {
     window.history.replaceState({}, "", previousPath);
   }
 });
+
+test("a Privilege A2A chain run gets its own intro, not the token-exchange one", () => {
+  render(<TokenChainFilmstrip />);
+  act(() => {
+    tokenChainTraceStore.beginTrace({ prompt: "Refund order 7 (via refunds)" });
+    tokenChainTraceStore.ingestTokenEvent({ id: "pa2a-0", kind: "delegate", from: "main", to: "langchainagent", status: "ok" });
+  });
+
+  expect(screen.getByText(/sits between every pair of agents/)).toBeInTheDocument();
+  expect(screen.queryByText(/Token exchange means/)).not.toBeInTheDocument();
+});

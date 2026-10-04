@@ -1,0 +1,27 @@
+body{margin:0;background:#f4f6f8;color:#1c2230;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  display:flex;flex-direction:column;align-items:center;padding:18px 16px 70px}
+.snap-top{width:100%;max-width:920px;margin:0 auto 14px;display:flex;align-items:center;gap:10px;font-size:14px}
+.snap-top a{color:#6b46ff;text-decoration:none;font-weight:600}
+.snap-top a:hover{text-decoration:underline}
+.snap-top .crumb{color:#8a93a3}
+.snap-drawer{position:static!important;inset:auto!important;transform:none!important;
+  width:100%!important;max-width:920px!important;height:auto!important;max-height:none!important;
+  margin:0!important;box-shadow:0 6px 24px rgba(20,30,60,.07)!important;background:#fff!important;
+  border:1px solid #e3e6ec!important;border-radius:14px!important;overflow:visible!important}
+.edu-drawer-body,.scroll-area{max-height:none!important;height:auto!important;overflow:visible!important}
+.snap-title{margin:0;padding:20px 22px 14px;font-size:1.4rem;font-weight:700}
+/* On-this-page section nav */
+.snap-toc{margin:0 22px 6px;padding:14px 16px;background:#f7f8fb;border:1px solid #eceef4;border-radius:10px}
+.snap-toc-label{display:block;font-size:.72rem;letter-spacing:.07em;text-transform:uppercase;color:#8a93a3;font-weight:700;margin-bottom:8px}
+.snap-toc ul{margin:0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:6px}
+.snap-toc li a{display:inline-block;padding:4px 11px;background:#fff;border:1px solid #e3e6ec;border-radius:999px;
+  color:#4a4f5e;text-decoration:none;font-size:.83rem;font-weight:600}
+.snap-toc li a:hover{border-color:#6b46ff;color:#6b46ff}
+.snap-tab{padding:2px 22px 8px;scroll-margin-top:14px}
+.snap-tab-h{margin:0;padding:22px 0 10px;font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;
+  color:#6b46ff;border-top:1px solid #eef0f4;font-weight:700;display:flex;align-items:center;gap:8px}
+.snap-tab:first-of-type .snap-tab-h{border-top:none;padding-top:6px}
+.snap-tab-h::before{content:"";width:8px;height:8px;border-radius:50%;background:#6b46ff;flex:0 0 auto}
+.snap-foot{width:100%;max-width:920px;margin:26px auto 0;color:#1c2230;font-size:16px;font-weight:600;text-align:center}
+.snap-foot a{color:#6b46ff;text-decoration:none}

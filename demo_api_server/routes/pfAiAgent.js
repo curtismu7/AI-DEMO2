@@ -10,6 +10,7 @@ const {
 } = require('../services/pfAiAgentFeatureConfig');
 const { metadataDocument, beginCimd, completeCimd } = require('../services/pfAiAgentCimdService');
 const { exchangeForThirdPartyAccessToken } = require('../services/pfAiAgentCrossDomainExchangeService');
+const { redeemIdJag } = require('../services/pfAiAgentMockThirdPartyService');
 const { beginRar, completeRar, userLimits } = require('../services/pfAiAgentRarService');
 
 function sessionProvider(req) {
@@ -40,6 +41,9 @@ function createPfAiAgentRouter({ configStore: store = configStore, fetchImpl = f
       sessionProvider: sessionProvider(req) || 'none',
       features: getFeatureStatus(store),
       nativeIdJagPath: '/pingfederate-id-jag/demo',
+      // Safe metadata of this session's last RAR run (outcome, token type, DPoP key thumbprint);
+      // never a token, code, verifier or key.
+      rarResult: req.session?.pfAiAgent?.rarResult || null,
     });
   });
 
@@ -114,11 +118,24 @@ function createPfAiAgentRouter({ configStore: store = configStore, fetchImpl = f
     return res.json(limits);
   });
 
+  // A stand-in third-party authorization server for the cross-domain demo: redeems the
+  // PingFederate ID-JAG at the JWT-bearer grant. Not for browsers; the BFF's own exchange
+  // calls it. Answers 404 unless pf_ai_third_party_mock_enabled is true.
+  router.post('/mock-third-party/token', async (req, res) => {
+    const result = await redeemIdJag({ body: req.body || {}, headers: req.headers, store, fetchImpl });
+    if (!result) return res.status(404).json({ error: 'not_found' });
+    res.set('Cache-Control', 'no-store');
+    res.set('Pragma', 'no-cache');
+    if (result.challenge) res.set('WWW-Authenticate', 'Basic realm="mock-third-party"');
+    return res.status(result.status).json(result.body);
+  });
+
   router.post('/rar/start', requireApplicationSession, async (req, res) => {
     try {
       const { redirectUrl } = await beginRar(req, {
         scenario: req.body?.scenario || 'allowed',
         userKey: req.body?.userKey,
+        dpop: ['1', 'true', 'on'].includes(String(req.body?.dpop || '').toLowerCase()),
         store,
         dataStore,
         fetchImpl,

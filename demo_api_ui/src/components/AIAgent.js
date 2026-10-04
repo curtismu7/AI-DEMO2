@@ -81,6 +81,7 @@ import AgentGreetingHero from "./AgentGreetingHero";
 import AgentConsentModal from "./AgentConsentModal";
 import AgentDemoGuide from "./AgentDemoGuide";
 import DemoStepsDropdown, { DemoStepsTrigger, readStoredDemoStepsOpen } from "./DemoStepsDropdown";
+import { PRIVILEGE_A2A_CHAIN_USE_CASE_ID } from "../utils/privilegeA2aChainRun";
 import AdminToolsDropdown from "./AdminToolsDropdown";
 import { markUseCaseCompleted, clearCompletedUseCases } from "../utils/useCaseDemoProgress";
 import { requiredFlagsForUseCase } from "../utils/requiredDemoFlags";
@@ -8577,8 +8578,12 @@ export default function BankingAgent({
       addMessage("assistant", `${stepLabel} — opening ${trigger.path}.`);
       // This step runs on its own page. Clear the live trace first, or the
       // dashboard's sequence diagram keeps showing the previous run when the
-      // presenter comes back, as though it belonged to this step.
-      try { tokenChainTraceStore.reset(); } catch (_) {}
+      // presenter comes back, as though it belonged to this step. The Privilege
+      // A2A chain is the exception: its run has already started and is feeding
+      // this same trace, so a reset here wipes its first hop.
+      if (uc.useCaseId !== PRIVILEGE_A2A_CHAIN_USE_CASE_ID) {
+        try { tokenChainTraceStore.reset(); } catch (_) {}
+      }
       navigate(trigger.path);
       markUseCaseCompleted(uc.id);
       return;

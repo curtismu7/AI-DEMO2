@@ -45,6 +45,7 @@
 | UC-TOOL2 | [Code Explorer](./code-explorer.md) | tools | ✅ works |  |  |
 | UC-TOOL3 | [LLM Gateway](./llm-gateway.md) | tools | ✅ works |  |  |
 | UC46 | [Privilege A2A access review](./privilege-a2a-access-review.md) | tools | ✅ works |  |  |
+| UC47 | [Privilege A2A three-deep agent chain](./privilege-a2a-agent-chain.md) | tools | ✅ works |  |  |
 | UC-NHI1 | [Live agent NHI inventory](./nhi-inventory.md) | nhi | ✅ works |  |  |
 | UC-NHI2 | [Agent lifecycle export (JML)](./nhi-lifecycle-export.md) | nhi | ✅ works |  |  |
 | UC-LEARN1 | [OAuth Academy](./oauth-academy.md) | learn | ✅ works |  |  |
@@ -94,8 +95,8 @@
 
 | Status | Count |
 |---|---|
-| ✅ Works | 58 |
+| ✅ Works | 59 |
 | 🚩 Flag-gated | 10 |
 | 📥 Needs console import | 0 |
 | 🏗️ Needs build | 2 |
-| **Total** | **70** |
+| **Total** | **71** |

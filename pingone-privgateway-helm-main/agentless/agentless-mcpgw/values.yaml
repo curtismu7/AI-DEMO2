@@ -138,6 +138,15 @@ logShipping:
   # target needs basic auth, e.g. opensearchUrl pointed at Elasticsearch.
   authSecret: ""
 
+# Shared token store for experiments: the name of a Secret holding the gateway's
+# MCPGW_REDIS_URL under `key`. Empty means off, and the gateway keeps its resource
+# tokens in memory (lost on restart, single instance only). Local addition to the
+# vendored chart.
+redis:
+  urlSecret:
+    name: ""
+    key: url
+
 opensearchMcpServer:
   enabled: true
   image: cjmuir710/opensearch-mcp-server:latest

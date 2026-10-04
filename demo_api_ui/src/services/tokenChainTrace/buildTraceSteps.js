@@ -1,6 +1,7 @@
 // Pure derivation: merged trace evidence -> ordered step model for the
 // TokenChainTraceRail. No I/O, no store access — unit-testable in isolation.
 
+import { buildPrivilegeA2aChainSteps } from "./privilegeA2aChainSteps";
 import { EDU } from "../../components/education/educationIds";
 import { isPause, pauseObligationKind } from "./pauseObligation";
 import {
@@ -39,7 +40,9 @@ const LANE_LABELS = {
   HEURISTICS: "BANKING AGENT",
 };
 export function laneLabel(lane) {
-  return LANE_LABELS[lane] || lane;
+  // Lane keys are CSS class and marker-id fragments, so multi-word lanes are
+  // hyphenated; show them with spaces.
+  return LANE_LABELS[lane] || String(lane ?? "").replace(/-/g, " ");
 }
 
 // The delegation-to-MCP portion of the pipeline, in order. Not derivable from
@@ -908,6 +911,10 @@ function buildChallengeStep(id, phase, events, traceComplete) {
 }
 
 export function buildTraceSteps(trace) {
+  // A Privilege A2A chain run has no banking pipeline in it: its hops are the
+  // whole story, for every view that reads the store's steps.
+  const chainSteps = buildPrivilegeA2aChainSteps(trace?.tokenEvents);
+  if (chainSteps.length) return chainSteps;
   const { prompt, routingMode, routingDetail, llmDetail, llmReply, phases, tokenEvents, mcpResult, authorize, authorizeEvaluations, outcome } = trace;
   const mockIdJag = isMockIdJagTrace(trace);
   const isHeuristic = routingMode === "heuristic";

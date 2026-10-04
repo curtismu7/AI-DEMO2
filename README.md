@@ -573,6 +573,9 @@ kubectl logs -n ping-devops-cmuir deploy/<name> --previous        # after a cras
 ./run-pingaws.sh undeploy   # removes all app resources; preserves the namespace
 ```
 
+`undeploy` keeps Privilege gateway 2 and its sidecar secrets (they live in the same
+namespace). Keep both gateway nodes in step with `./run-pingaws.sh gateways`.
+
 ---
 
 ### Fresh install (new machine)

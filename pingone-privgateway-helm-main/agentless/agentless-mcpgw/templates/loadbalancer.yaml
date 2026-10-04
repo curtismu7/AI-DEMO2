@@ -147,6 +147,15 @@ spec:
         # nginx reads its config once at start; roll the pods when it changes.
         checksum/config: {{ toJson $lb | sha256sum }}
     spec:
+      # Different nodes, so losing one node leaves one load balancer serving.
+      # Soft rule: a single-node cluster still schedules both pods.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: {{ $name }}
       containers:
         - name: nginx
           image: {{ $lb.image | default "nginx:stable-alpine" }}

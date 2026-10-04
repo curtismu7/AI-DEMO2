@@ -1,7 +1,7 @@
 # Privilege A2A Anthropic demo
 
-Three Node processes demonstrate an access review through Anthropic, A2A, and
-MCP. The main agent owns the browser conversation and delegates to the worker.
+Three Node processes demonstrate an access review through A2A and MCP, on
+Anthropic or Google models. The main agent owns the browser conversation and delegates to the worker.
 The worker owns the access-review tools and calls the separate MCP process.
 
 ```text
@@ -19,6 +19,71 @@ conversation history. Neither ID represents an authenticated user. The A2A
 boundary does not carry a browser token, user `sub`, `act`, or an RFC 8693 token
 exchange. Privilege validates each Agent Access key and applies its configured
 policies.
+
+## How it works through the gateway
+
+In gateway mode every hop goes through the PingOne Privilege AI Gateway, and
+each agent presents only its own agent key:
+
+```text
+main agent ──① A2A message/send (main key) ──▶ gateway ──▶ worker agent
+main agent ──② model call (main key) ────────▶ gateway ──▶ model provider
+worker     ──③ model call (worker key) ──────▶ gateway ──▶ model provider
+worker     ──④ MCP tools/call (worker key) ──▶ gateway ──▶ MCP server
+```
+
+What the gateway does on each leg:
+
+| Leg | Checks | What it can refuse or change |
+|---|---|---|
+| ① A2A | key, `a2a` scope, policy for the remote agent, guardrail | an ungranted agent (`403`), a prompt-injection message (`400`) |
+| ②③ model | key, `llm` scope, allowed model, limits | a model outside the key's list (`403`); swaps in the real provider key |
+| ④ MCP | key, `mcp` scope, per-tool grant, guardrail | an ungranted tool (`403`); redacts personal data in a result; blocks a result that carries hidden instructions |
+
+The three-deep chain (`POST /chain`) adds a middle agent: main agent → gateway →
+LangChain agent → gateway → specialist. The middle agent calls with its own key,
+so its hop is checked on its own.
+
+## Set up on Privilege, in order
+
+This is the order that worked end to end. Apps first, because an agent can only
+select apps that already exist.
+
+1. **Deploy the worker and MCP server** (`k8s/deployment.yaml`; see "Run worker
+   and MCP in the cluster" below). They can also be registered before they run.
+2. **Register two apps** (Agentic Apps → Add Application), on the mesh cluster of
+   the gateway that serves traffic:
+   - `workeragentdemo`: type **Remote Agent**, backend
+     `http://workeragentdemo.<namespace>.svc.cluster.local`, path `/a2a`, Auth
+     Mode None.
+   - `mcpdemo`: type **MCP**, backend
+     `http://mcpdemo.<namespace>.svc.cluster.local`, path `/mcp`, Auth Mode None.
+3. **Create the worker's agent** (AI Gateway → Agent Registry → Add Agent): scopes
+   `llm` + `mcp`, one allowed model, MCP Servers → `mcpdemo`, then **Configure
+   Tools** and allow each tool. If the tool list is empty, save the `mcpdemo` app
+   again to re-run discovery now that its backend is up.
+4. **Create the main agent**: scopes `llm` + `a2a`, a different allowed model,
+   Remote Agents → `workeragentdemo` (and the middle agent, for the chain).
+5. **Store each key where its agent runs**: the main key in `.env` as
+   `MAIN_AGENT_KEY`; the worker key in the `privilege-a2a-demo` Secret. Paste a
+   key once: a doubled key is refused as `invalid virtual key`.
+6. **Point the main agent at the gateway** in `.env`: `WORKER_A2A_URL` and
+   `WORKER_TRACE_URL` to `https://<gateway>/workeragentdemo/a2a` and `/trace`,
+   the provider base URL, and `MAIN_AGENT_MODEL` to the exact model ID allowed on
+   its key.
+7. **Turn on Discover A2A agent card** on `workeragentdemo` once it is running.
+
+For the three-deep chain, also:
+
+8. Give the middle agent its own agent (scope `a2a`, the specialists selected)
+   **with a different custodian** from the main agent. Remote-agent grants follow
+   the custodian, so two agents under one custodian can reach each other's agents.
+9. Set `CHAIN_A2A_URL` to the middle agent's gateway route.
+
+Check it with one question that is allowed (`Review Carol Nguyen's access`) and
+one that reads the poisoned record (`What access does Dave hold?`, with
+`MCP_DEMO_INJECTION=true`): the second should come back as blocked, and the MCP
+server's log should show no `open_ticket` call.
 
 ## Requirements and local startup
 
@@ -136,7 +201,7 @@ if prompted). Follow the current Admin Console labels; the guide refers to
 
 The key split follows the four-hop flow: MainAgent key for its LLM and outbound
 A2A request; WorkerAgent key for its LLM and outbound MCP request. The MCP
-backend can run beside the worker on the gateway VM, while the MainAgent runs
+backend can run beside the worker in the cluster, while the MainAgent runs
 on the laptop and reaches the worker through Privilege. For that layout, set
 the main process's `WORKER_A2A_URL` and `WORKER_TRACE_URL` to the worker app's
 gateway routes, and set the worker's `MCP_URL` to the MCP app's gateway route.
@@ -152,6 +217,16 @@ Privilege policy.
 The integrated demo defaults to port `3300` for MainAgent so it does not occupy
 the AI-DEMO2 BFF's port `3001`. Keep the BFF-to-main URL and bind host paired as
 described above when switching between native and Docker BFF operation.
+
+**Google instead of Anthropic.** Each agent picks its provider with
+`MAIN_AGENT_PROVIDER` and `WORKER_AGENT_PROVIDER` (`anthropic` by default, or
+`google`), so the two agents can sit on different providers and different
+model tiers. A Google agent calls Gemini's `generateContent` API: set
+`GEMINI_BASE_URL` to `https://<gateway>/llm/google` and the agent's Privilege
+key is sent as `x-goog-api-key`; leave it blank to call Google directly with
+`GEMINI_API_KEY`. A Privilege agent key is tied to one provider, so an agent
+set to `google` needs a key created with the Google provider. The Google path
+returns each reply whole rather than token by token.
 
 Set `ANTHROPIC_BASE_URL` to `https://<gateway>/llm/anthropic`. The Anthropic SDK
 appends `/v1/messages`, so calls use Privilege's native
@@ -170,42 +245,43 @@ WORKER_AGENT_MODEL=claude-opus-5
 Set each to a concrete model permitted for its key in Privilege. There is no
 cross-agent key fallback.
 
-### Run worker and MCP on the gateway VM
+### Run worker and MCP in the cluster
 
-Register both backends in PingOne Privilege. The worker app is HTTP; the MCP
-app is MCP. The backend URLs use `localhost` because the gateway and these
-processes run on the same VM.
+Ping's reference demo runs these two on the gateway VM. Here they run as two
+Deployments in the cluster instead ([k8s/deployment.yaml](k8s/deployment.yaml)),
+so the gateway reaches each by its Service name rather than `localhost`.
+Register both backends in PingOne Privilege, using the reference demo's names:
 
-| Backend | Type | Backend URL | Entry path |
+| App | Type | Backend URL | Entry path |
 |---|---|---|---|
-| Worker agent | HTTP | `http://localhost:3301` | `/a2a` |
-| Access tools | MCP | `http://localhost:3302` | `/mcp` |
+| `workeragentdemo` | Remote Agent | `http://workeragentdemo.<namespace>.svc.cluster.local` | `/a2a` |
+| `mcpdemo` | MCP | `http://mcpdemo.<namespace>.svc.cluster.local` | `/mcp` |
+
+Register the worker as a **Remote Agent** (Agentic Apps, Add Application), not
+as an HTTP or MCP app: only Remote Agent apps appear in an agent key's Remote
+Agents list, and an app registered as MCP gets an MCP `initialize` sent to its
+`/a2a` path. Turn on **Discover A2A agent card** once the backend is running:
+the worker serves its card at `/.well-known/agent-card.json` on the Backend
+URL, and `WORKER_PUBLIC_URL` sets the address that card advertises.
 
 Set the MCP backend's `AuthMode` to `none`. The gateway authenticates the
-worker's Agent Access key before proxying the request; the MCP process is the
-loopback backend.
+worker's Agent Access key before proxying the request.
 
-Create the worker's Agent Access key with `llm` and `mcp` scopes. Associate it
-with the worker and MCP apps, then select the MCP app under the key's MCP
-Gateway configuration. The worker reuses `WORKER_AGENT_KEY` for both its
-Anthropic call and its outbound MCP request.
-
-Run the MCP server and worker process on the gateway VM. Configure their
-`.env` values like this:
+Create the worker's Agent Access key with `llm` and `mcp` scopes and select
+the `mcpdemo` app under the key's MCP Gateway configuration. The worker reuses
+`WORKER_AGENT_KEY` for both its model call and its outbound MCP request, and
+the manifest reads it from the `privilege-a2a-demo` Secret. Both of the
+worker's outbound legs go back through the gateway:
 
 ```bash
-ANTHROPIC_BASE_URL=https://<gateway>/llm/anthropic
-WORKER_AGENT_KEY=sk-orion-<worker-agent-access-key>
-WORKER_AGENT_MODEL=claude-opus-5
-MCP_URL=http://localhost:3302/mcp
+GEMINI_BASE_URL=https://<gateway>/llm/google     # or ANTHROPIC_BASE_URL=https://<gateway>/llm/anthropic
+MCP_URL=https://<gateway>/mcpdemo/mcp
 ```
 
-For the MCP call to transit the gateway, set `MCP_URL` to the gateway-facing
-MCP URL instead:
-
-```bash
-MCP_URL=https://<gateway>/<mcp-app-name>/mcp
-```
+Build the image for the cluster's CPU architecture, push it, create the
+Secret, then `kubectl apply -f k8s/deployment.yaml`; the commands are at the
+top of that file. For a purely local run, leave the defaults: all three
+processes on loopback, no cluster needed.
 
 ### Run main agent on your laptop
 

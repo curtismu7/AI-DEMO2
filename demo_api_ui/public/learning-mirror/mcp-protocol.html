@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MCP Protocol — AI Demo Learning Hub</title>
+<link rel="stylesheet" href="assets/app.css">
+<link rel="stylesheet" href="assets/snapshot.css">
+</head><body>
+<div class="snap-top"><a href="index.html">← Learning Hub</a><span class="crumb">/ MCP Protocol</span></div>
+<div class="edu-drawer snap-drawer">
+<div class="snap-title">MCP Protocol</div>
+<nav class="snap-toc"><span class="snap-toc-label">On this page — 10 sections</span><ul><li><a href="#sec-how-it-works">How it works</a></li><li><a href="#sec-available-tools">Available tools</a></li><li><a href="#sec-server-discovery">Server discovery</a></li><li><a href="#sec-security-amp-sign-in">Security &amp;amp; sign-in</a></li><li><a href="#sec-two-ai-paths">Two AI paths</a></li><li><a href="#sec-auth-challenge">Auth challenge</a></li><li><a href="#sec-mfa-gate-on-tools">MFA gate on tools</a></li><li><a href="#sec-handshake-sequence">Handshake sequence</a></li><li><a href="#sec-live-inspector">Live inspector</a></li><li><a href="#sec-in-this-repo">In this repo</a></li></ul></nav>
+<div class="edu-drawer-body">
+<section class="snap-tab" id="sec-how-it-works"><h3 class="snap-tab-h">How it works</h3><h3>What powers the AI assistant?</h3><p>The AI assistant in this app doesn't just generate text — it <strong>connects to the banking system</strong> to fetch real data and perform real actions. The technology that makes this possible is called <strong>MCP (Model Context Protocol)</strong>.</p><p>Think of MCP like a <strong>universal remote control</strong>. Just as one remote can control your TV, sound bar, and streaming box using a standard set of buttons, MCP gives any AI assistant a standard way to "press the buttons" on any connected service — whether that's a bank, a calendar, or a database.</p><p>This means the AI doesn't need custom code for every banking feature. Instead, the banking system publishes a <strong>tool catalog</strong> (a menu of things it can do), and the AI picks from that menu when responding to your requests.</p><h3>How a tool call works</h3><p>When you ask the AI "what's my balance?" here's what happens under the hood:</p><pre class="edu-code">1. You type a question
+2. The AI understands you want "get_account_balance"
+3. The app sends a secure, signed request to the Banking Service:
+     → "call get_account_balance for account acc_001"
+4. The Banking Service checks your identity and permissions
+5. It returns the result to the AI
+6. The AI formats a friendly response for you</pre><p>The AI never has direct access to your account data. Every single tool call goes through the same security checks as if you had clicked a button in the app.</p><h3>What tools are available?</h3><p>The Banking Service currently provides these AI-callable tools:</p><ul><li><strong>Get my accounts</strong> — lists all your accounts</li><li><strong>Check balance</strong> — balance for a specific account</li><li><strong>Recent transactions</strong> — your latest activity</li><li><strong>Transfer funds</strong> — move money between accounts</li><li><strong>Deposit</strong> — add funds to an account</li><li><strong>Withdraw</strong> — take funds from an account</li></ul><h3>How the AI knows what tools exist</h3><p>When the AI assistant starts up, it asks the Banking Service: <em>"What can you do?"</em> The service responds with a tool catalog — each tool has a name, a description, and the parameters it needs. The AI reads this catalog and figures out which tool to call when you make a request.</p><pre class="edu-code">AI → Banking Service: "What tools do you have?"
+Banking Service → AI:
+  {
+    "tools": [
+      { "name": "get_my_accounts", "description": "List all accounts for the authenticated user" },
+      { "name": "create_transfer",  "description": "Transfer funds between accounts" },
+      ...
+    ]
+  }</pre><h3>Security: every tool call is verified</h3><p>The AI cannot just call any tool it wants. Every call is accompanied by a security pass (an OAuth access token) that proves: ✅ who you are, ✅ what you're allowed to do, and ✅ that the AI is acting on your behalf. The Banking Service checks this pass before executing anything.</p><p style="margin-top: 16px;"><strong>See also:</strong> <button type="button" style="background: none; border-width: medium; border-style: none; border-color: currentcolor; border-image: initial; color: var(--brand-navy); cursor: pointer; padding: 0px; text-decoration: underline; font: inherit;">Computer Use Agent (CUA)</button></p></section>
+<section class="snap-tab" id="sec-available-tools"><h3 class="snap-tab-h">Available tools</h3><p><strong>🔐 MFA Gate:</strong> For security, some tools require MFA verification before they can be listed or executed. When you see an MFA prompt, you'll need to verify your identity using OTP, push notification, or other MFA methods.</p><p style="">These are the banking actions the AI assistant can perform on your behalf:</p><table style="width: 100%; border-collapse: collapse; font-size: 0.8rem;"><thead><tr style="border-bottom: 1px solid rgb(229, 231, 235); text-align: left;"><th style="padding: 0.35rem;">What the AI can do</th><th style="padding: 0.35rem;">Access needed</th><th style="padding: 0.35rem;">Returns</th><th style="padding: 0.35rem; text-align: center;">Read-only?</th></tr></thead><tbody><tr style="border-bottom: 1px solid rgb(241, 245, 249);"><td style="padding: 0.35rem;"><code>get_my_accounts</code></td><td style="padding: 0.35rem;">banking read</td><td style="padding: 0.35rem;">List of accounts for the user</td><td style="padding: 0.35rem; text-align: center;">✓</td></tr><tr style="border-bottom: 1px solid rgb(241, 245, 249);"><td style="padding: 0.35rem;"><code>get_account_balance</code></td><td style="padding: 0.35rem;">banking read</td><td style="padding: 0.35rem;">Balance for one account</td><td style="padding: 0.35rem; text-align: center;">✓</td></tr><tr style="border-bottom: 1px solid rgb(241, 245, 249);"><td style="padding: 0.35rem;"><code>get_my_transactions</code></td><td style="padding: 0.35rem;">banking read</td><td style="padding: 0.35rem;">Recent transactions</td><td style="padding: 0.35rem; text-align: center;">✓</td></tr><tr style="border-bottom: 1px solid rgb(241, 245, 249);"><td style="padding: 0.35rem;"><code>sequential_think</code></td><td style="padding: 0.35rem;">none</td><td style="padding: 0.35rem;">Step-by-step reasoning chain</td><td style="padding: 0.35rem; text-align: center;">✓</td></tr><tr style="border-bottom: 1px solid rgb(241, 245, 249);"><td style="padding: 0.35rem;"><code>get_sensitive_account_details</code></td><td style="padding: 0.35rem;">sensitive:read</td><td style="padding: 0.35rem;">Full account / routing numbers (PII)</td><td style="padding: 0.35rem; text-align: center;">—</td></tr><tr style="border-bottom: 1px solid rgb(241, 245, 249);"><td style="padding: 0.35rem;"><code>create_deposit</code></td><td style="padding: 0.35rem;">banking write</td><td style="padding: 0.35rem;">Deposit confirmation</td><td style="padding: 0.35rem; text-align: center;">—</td></tr><tr style="border-bottom: 1px solid rgb(241, 245, 249);"><td style="padding: 0.35rem;"><code>create_withdrawal</code></td><td style="padding: 0.35rem;">banking write</td><td style="padding: 0.35rem;">Withdrawal confirmation</td><td style="padding: 0.35rem; text-align: center;">—</td></tr><tr style="border-bottom: 1px solid rgb(241, 245, 249);"><td style="padding: 0.35rem;"><code>create_transfer</code></td><td style="padding: 0.35rem;">banking write</td><td style="padding: 0.35rem;">Transfer confirmation / ids</td><td style="padding: 0.35rem; text-align: center;">—</td></tr><tr style="border-bottom: 1px solid rgb(241, 245, 249);"><td style="padding: 0.35rem;"><code>query_user_by_email</code></td><td style="padding: 0.35rem;">admin</td><td style="padding: 0.35rem;">User lookup (admin scenarios)</td><td style="padding: 0.35rem; text-align: center;">—</td></tr></tbody></table><p style="font-size: 0.82rem; color: rgb(55, 65, 81); margin-top: 8px;">Every tool call is checked against your permissions. The AI can only use tools that your access allows.</p><p style="font-size: 0.82rem; color: rgb(55, 65, 81); margin-top: 4px;"><strong>Read-only tools</strong> (✓) are safe for external agents to call without write permissions. Non-read-only tools require explicit write scopes or handle sensitive PII.</p></section>
+<section class="snap-tab" id="sec-server-discovery"><h3 class="snap-tab-h">Server discovery</h3><h3 style="margin-top: 0px;">How external agents find this server</h3><p style="">The <code>/.well-known/mcp-server</code> endpoint is a public discovery manifest that lists all available tools and their auth requirements. External MCP clients — Claude Desktop, Cursor, Windsurf — can query it <em>before</em> connecting to understand what the server offers and which tools require authentication.</p><h4>Discovery endpoint</h4><pre class="edu-code" style="font-size: 0.82rem;">GET {MCP_SERVER_URL}/.well-known/mcp-server</pre><h4>Example response (tool access tiers)</h4><pre class="edu-code" style="font-size: 0.75rem; line-height: 1.55; overflow-x: auto;">{
+  "name": "super-banking",
+  "tools": [
+    { "name": "get_my_accounts", "readOnly": true, ... },
+    { "name": "create_transfer", "readOnly": false, ... }
+  ],
+  "publicAccess": {
+    "readOnlyTools": [
+      "get_my_accounts",
+      "get_account_balance",
+      "get_my_transactions",
+      "sequential_think"
+    ]
+  },
+  "restrictedAccess": {
+    "authenticatedTools": [
+      "get_sensitive_account_details",
+      "create_deposit",
+      "create_withdrawal",
+      "create_transfer",
+      "query_user_by_email"
+    ]
+  },
+  "auth": {
+    "type": "oauth2",
+    "authorizationUrl": "https://auth.pingone.com/.../authorize",
+    "tokenUrl": "https://auth.pingone.com/.../token"
+  }
+}</pre><p style="font-size: 0.82rem; color: rgb(55, 65, 81); margin-top: 8px;">The <code>publicAccess.readOnlyTools</code> list is what model-context–aware AI clients use to offer a preview of capabilities before asking the user to authenticate.</p><p style="font-size: 0.82rem; color: rgb(55, 65, 81); margin-top: 4px;">Reference: <a href="https://modelcontextprotocol.io/specification" target="_blank" rel="noopener noreferrer">Model Context Protocol specification</a></p></section>
+<section class="snap-tab" id="sec-security-amp-sign-in"><h3 class="snap-tab-h">Security &amp;amp; sign-in</h3><h3>OAuth / MCP / CIBA API endpoints (this deployment)</h3><pre class="edu-code">
+Browser-visible (same origin as app):
+  GET  /api/auth/oauth/login              Start admin OAuth (redirect to PingOne)
+  GET  /api/auth/oauth/user/login         Start end-user OAuth
+  GET  /api/auth/oauth/redirect-info      JSON: exact redirect_uri values for PingOne
+Server-only (after login):
+  GET  /api/auth/oauth/status             Admin session + userinfo
+  GET  /api/auth/oauth/user/status        End-user session
+MCP / agent:
+  POST /api/mcp/tool                      Backend-for-Frontend (BFF) → optional token exchange → MCP tools/call
+  GET  /api/mcp/inspector/tools           Backend-for-Frontend (BFF) MCP inspector: tools/list
+  POST /api/mcp/inspector/invoke          Backend-for-Frontend (BFF) MCP inspector: tools/call
+Agent identity (optional "on behalf of"):
+  GET  /api/agent/identity/status         Actor bootstrap / mapping status
+  POST /api/agent/identity/bootstrap      Optional extra checks + PingOne directory mapping (lab; not pi.flow)
+CIBA (when enabled):
+  GET  /api/auth/ciba/status              CIBA enabled flag + delivery mode
+  POST /api/auth/ciba/initiate            Start backchannel auth
+  GET  /api/auth/ciba/poll/:authReqId     Poll until approved or denied
+  POST /api/auth/ciba/cancel/:authReqId   Cancel pending CIBA request
+  POST /api/auth/ciba/notify             Ping-mode callback from PingOne
+</pre><h3>Admin vs customer OAuth routes</h3><pre class="edu-code">Admin login:    GET /api/auth/oauth/login
+  → uses admin PingOne app (admin redirect URI)
+  → after callback: redirect to /admin
+  → new users get role=admin in demo store
+
+Customer login: GET /api/auth/oauth/user/login
+  → uses end-user PingOne app (customer redirect URI)
+  → after callback: redirect to /dashboard
+  → new users get role=customer + sample accounts</pre><h3>How to read the session status</h3><pre class="edu-code">GET /api/auth/oauth/status
+Authorization: (session cookie)
+
+200 OK — logged in as admin
+{
+  "authenticated": true,
+  "user": { "id": "...", "email": "...", "role": "admin" },
+  "oauthId": "pingone-sub-value",
+  "cibaEnabled": true
+}
+
+401 Unauthorized — not logged in
+{ "authenticated": false }</pre><h3>CIBA-specific endpoints</h3><pre class="edu-code">POST /api/auth/ciba/initiate
+  Body: { login_hint, scope, binding_message, acr_values }
+  Response: { auth_req_id, expires_in, login_hint_display }
+
+GET /api/auth/ciba/poll/:authReqId
+  Response (pending):  { status: "pending" }
+  Response (approved): { status: "approved" }
+  Response (denied):   HTTP 400 { status: "denied", message: "..." }
+  Response (expired):  HTTP 410 { status: "expired" }
+
+POST /api/auth/ciba/cancel/:authReqId
+  → Discards the pending request server-side</pre></section>
+<section class="snap-tab" id="sec-two-ai-paths"><h3 class="snap-tab-h">Two AI paths</h3><h3>Two ways the AI can connect</h3><p><strong>Web app path (you are here):</strong> when you use the banking assistant in this browser, your session cookie is used to verify who you are. The app exchanges this for a secure, limited-access AI tools pass before calling any banking functions. Your browser never holds a security token.</p><p><strong>Autonomous AI agent path:</strong> a separate AI process (powered by an external reasoning service) can also connect to the same banking tools. Instead of your browser session, it uses its own machine credentials and can request approval from you out-of-band — for example, via an email or push notification — before performing high-value actions.</p><p style="font-size: 0.82rem; color: rgb(55, 65, 81);">Both paths ultimately hit the same Banking Service and are subject to the same security checks. The difference is how they prove identity and get authorized.</p></section>
+<section class="snap-tab" id="sec-auth-challenge"><h3 class="snap-tab-h">Auth challenge</h3><h3 style="margin-top: 0px;">What is an auth challenge?</h3><p>An <strong>auth challenge</strong> occurs when an MCP tool call requires additional authorization before it can proceed. Rather than silently failing, the server signals the need for user approval so the flow can complete after authorization is granted.</p><h4>Three trigger scenarios in this demo</h4><ol style="padding-left: 1.25rem; line-height: 1.7;"><li><strong>Amount threshold exceeded</strong> — transfers above the configured CIBA threshold trigger a push notification to the user out-of-band. The agent waits and retries when approval arrives.</li><li><strong>PingOne Authorize gate</strong> — high-risk tools (e.g., large withdrawals) are checked against a policy decision point before the token exchange proceeds.</li><li><strong>Mid-flow session loss</strong> — if the user’s session expires during an agent operation, an inline login prompt appears in the browser. After re-authentication, the agent continues automatically.</li></ol><h4>Flow sequence</h4><pre class="edu-code" style="font-size: 0.78rem; line-height: 1.6; overflow-x: auto;">User clicks "Transfer $10,000" in agent
+     ↓
+BFF POST /api/mcp/tool → mcpToolAuthorizationService
+     ↓
+PingOne Authorize gate checks RAR / scopes
+     ↓  [step-up needed]
+BFF returns { error: "step_up_required", cibaRequired: true }
+     ↓
+UI shows "Approval needed" — polls /api/ciba/status every 5s
+     ↓  [user approves on device / email link]
+BFF retries tool call with elevated token
+     ↓
+Tool executes; result returned to agent</pre><h4>Why this pattern matters</h4><p>Agent operations get consent while keeping the user in control. The token is never escalated silently — every step-up is user-visible and audit-logged. This aligns with HITL (Human-in-the-loop) best practices and the FAPI 2.0 security profile for high-value transactions.</p><p style="font-size: 0.82rem; color: rgb(55, 65, 81); margin-top: 1rem;">Note: “All token exchange happens inside the BFF (server-side). The browser only holds a session cookie.”</p></section>
+<section class="snap-tab" id="sec-mfa-gate-on-tools"><h3 class="snap-tab-h">MFA gate on tools</h3><h3 style="margin-top: 0px;">MFA gate on tool discovery</h3><p><code>GET /api/mcp/inspector/tools</code> (tools/list) requires an <strong>authenticated session</strong>. Unauthenticated requests receive <code>401 Unauthorized</code>, preventing tool enumeration by unauthenticated callers.</p><pre class="edu-code" style="font-size: 0.78rem; line-height: 1.6;">GET /api/mcp/inspector/tools?sessionId=...
+
+If no valid session:
+  → 401 { error: "unauthorized", message: "Login required" }
+
+If session present with valid access token:
+  → 200 { tools: [ { name, description, inputSchema }, ... ] }
+
+BFF validation steps:
+  1. Session cookie present and not expired
+  2. session.oauthTokens.accessToken valid (or refreshed via refresh_token)
+  3. Token forwarded to MCP server tools/list call</pre><h3>Why gate tools/list?</h3><p>An unauthenticated caller could enumerate all available banking operations — account balance, transfer funds, device authentication — without being a real user. Gating the tool list at the BFF means even tool discovery is behind the same auth boundary as tool execution.</p><h3>Step-up MFA for high-value tool calls</h3><p><code>POST /api/mcp/tool</code> (tools/call) for transactions at or above the configured threshold triggers <strong>step-up authentication</strong> before the tool executes. The agent receives a <code>401</code> with <code>step_up_required: true</code> and must wait for the user to complete MFA before retrying.</p><pre class="edu-code" style="font-size: 0.78rem; line-height: 1.6;">POST /api/mcp/tool { tool: "transfer_funds", amount: 5000 }
+
+Below threshold:
+  → 200 { result: "Transfer complete" }
+
+At/above threshold (step-up):
+  → 401 { step_up_required: true, cibaAuthId: "..." }
+  UI shows MFA prompt; polls /api/ciba/status
+  On approval → retry POST /api/mcp/tool (same body)
+  → 200 { result: "Transfer complete" }</pre></section>
+<section class="snap-tab" id="sec-handshake-sequence"><h3 class="snap-tab-h">Handshake sequence</h3><h3 style="">MCP JSON-RPC Handshake</h3><p>Every MCP session opens with a fixed four-step handshake over stdio (local) or Streamable HTTP (remote). Messages are JSON-RPC 2.0. <a href="https://spec.modelcontextprotocol.io/specification/2025-11-25/" target="_blank" rel="noopener noreferrer" class="edu-rfc-link" title="Model Context Protocol Specification">MCP 2025-11-25<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 2H2v8h8V7M7 1h4v4M11 1 5.5 6.5" stroke-linecap="round" stroke-linejoin="round"></path></svg></a></p><h4>Step 1 — Client → Server: <code>initialize</code></h4><pre class="edu-code">{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "initialize",
+  "params": {
+    "protocolVersion": "2025-11-25",
+    "capabilities": { "tools": {} },
+    "clientInfo": { "name": "super-banking-bff", "version": "1.0.0" }
+  }
+}</pre><h4>Step 2 — Server → Client: initialize response</h4><pre class="edu-code">{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "protocolVersion": "2025-11-25",
+    "capabilities": { "tools": { "listChanged": false } },
+    "serverInfo": { "name": "super-banking-mcp", "version": "1.0.0" }
+  }
+}</pre><h4>Step 3 — Client → Server: <code>notifications/initialized</code></h4><p>Notification only — no response expected from server.</p><pre class="edu-code">{
+  "jsonrpc": "2.0",
+  "method": "notifications/initialized"
+}</pre><h4>Step 4 — Client → Server: <code>tools/list</code></h4><pre class="edu-code">// Request
+{ "jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {} }
+
+// Response (excerpt)
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "result": {
+    "tools": [
+      {
+        "name": "get_my_accounts",
+        "description": "List accounts for the authenticated user",
+        "inputSchema": { "type": "object", "properties": {}, "required": [] }
+      }
+    ]
+  }
+}</pre><h4>Calling a tool — <code>tools/call</code></h4><pre class="edu-code">// Request
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "method": "tools/call",
+  "params": {
+    "name": "get_my_accounts",
+    "arguments": {}
+  }
+}
+
+// Success response
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "result": {
+    "content": [{ "type": "text", "text": "[{...}]" }],
+    "isError": false
+  }
+}
+
+// Tool execution error (NOT a protocol error — still HTTP 200)
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "result": {
+    "content": [{ "type": "text", "text": "Insufficient funds" }],
+    "isError": true
+  }
+}</pre><h4>Tool list change notification</h4><pre class="edu-code">// Server pushes when available tools change (e.g. after auth state change)
+{
+  "jsonrpc": "2.0",
+  "method": "notifications/tools/list_changed"
+}
+// Client should re-issue tools/list after receiving this</pre><h4>Streamable HTTP transport — key headers</h4><p style="font-size: 0.82rem; margin-bottom: 6px;">Modern MCP uses Streamable HTTP (POST + optional SSE) instead of a persistent WebSocket.</p><pre class="edu-code">// Client must accept both JSON and SSE
+Accept: application/json, text/event-stream
+
+// Version negotiation header (per-request in modern MCP)
+MCP-Protocol-Version: 2025-11-25
+
+// Session tracking (server assigns on first response)
+Mcp-Session-Id: 1868a90c...
+
+// Resume a broken SSE stream
+GET /mcp HTTP/1.1
+Last-Event-ID: &lt;last-seen-event-id&gt;</pre><ul style="font-size: 0.82rem;"><li>Client POSTs every request; server replies with JSON or opens SSE stream</li><li><code>Mcp-Session-Id</code> must be echoed on all subsequent requests</li><li>Disconnection is NOT a cancellation — use <code>CancelledNotification</code> to cancel</li><li>Server returns <code>404</code> when session expires; client must re-initialize</li></ul><div class="edu-info-box">The BFF performs the MCP handshake server-side and proxies tool calls via<code>POST /api/mcp/tool</code>. The browser never opens a WebSocket directly — all token exchange and session management stays in the BFF.</div></section>
+<section class="snap-tab" id="sec-live-inspector"><h3 class="snap-tab-h">Live inspector</h3><p>Use the in-app <a href="/mcp-inspector" data-discover="true">MCP Inspector</a> to see all available tools in real time and try calling them directly through your current session.</p></section>
+<section class="snap-tab" id="sec-in-this-repo"><h3 class="snap-tab-h">In this repo</h3><h3 style="margin-top: 0px;">Browser vs BFF</h3><p style="font-size: 0.82rem; color: rgb(71, 85, 105); margin-top: 0px; margin-bottom: 0.65rem; line-height: 1.55;"><strong style="color: rgb(22, 101, 52);">This repo</strong>: <code style="font-size: 0.85em; word-break: break-all;">demo_api_ui/src/services/bankingAgentService.js</code> The React app only POSTs JSON; cookies carry the session.</p><pre class="edu-code">// bankingAgentService.js — browser calls BFF only
+const response = await fetch('/api/mcp/tool', {
+  method: 'POST',
+  credentials: 'include',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ tool, params, flowTraceId }),
+});
+const data = await response.json();
+// data.result, data.tokenEvents — OAuth tokens never in this JSON</pre><p style="font-size: 0.82rem; color: rgb(71, 85, 105); margin-top: 0px; margin-bottom: 0.65rem; line-height: 1.55;"><strong style="color: rgb(22, 101, 52);">This repo</strong>: <code style="font-size: 0.85em; word-break: break-all;">demo_api_server/server.js</code> After resolving the MCP access token (and gates), the BFF routes tool calls through demo_mcp_gateway (:3005).</p><pre class="edu-code">// server.js — after token + optional Authorize + introspection
+const result = await mcpCallTool(tool, params || {}, agentToken, userSub, req.correlationId);
+return res.json({ result, tokenEvents, mcpAuthorizeEvaluation? });</pre><h3 style="margin-top: 1.25rem;">Key source files</h3><table style="width: 100%; border-collapse: collapse; font-size: 0.8rem;"><thead><tr style="background: rgb(241, 245, 249); border-bottom: 1px solid rgb(229, 231, 235);"><th style="padding: 0.4rem 0.6rem; text-align: left;">What</th><th style="padding: 0.4rem 0.6rem; text-align: left;">File</th></tr></thead><tbody><tr style="background: rgb(255, 255, 255); border-bottom: 1px solid rgb(241, 245, 249);"><td style="padding: 0.4rem 0.6rem; font-weight: 500;">BFF MCP tool proxy entry point</td><td style="padding: 0.4rem 0.6rem;"><code class="edu-code" style="font-size: 0.75rem;">demo_api_server/server.js (POST /api/mcp/tool)</code></td></tr><tr style="background: rgb(248, 250, 252); border-bottom: 1px solid rgb(241, 245, 249);"><td style="padding: 0.4rem 0.6rem; font-weight: 500;">Authorization gate (PingOne Authorize)</td><td style="padding: 0.4rem 0.6rem;"><code class="edu-code" style="font-size: 0.75rem;">demo_api_server/services/mcpToolAuthorizationService.js</code></td></tr><tr style="background: rgb(255, 255, 255); border-bottom: 1px solid rgb(241, 245, 249);"><td style="padding: 0.4rem 0.6rem; font-weight: 500;">Token resolution &amp; exchange</td><td style="padding: 0.4rem 0.6rem;"><code class="edu-code" style="font-size: 0.75rem;">demo_api_server/services/agentMcpTokenService.js</code></td></tr><tr style="background: rgb(248, 250, 252); border-bottom: 1px solid rgb(241, 245, 249);"><td style="padding: 0.4rem 0.6rem; font-weight: 500;">MCP server tool handler</td><td style="padding: 0.4rem 0.6rem;"><code class="edu-code" style="font-size: 0.75rem;">oauth-mcp/src/tools/BankingToolProvider.ts</code></td></tr><tr style="background: rgb(255, 255, 255); border-bottom: 1px solid rgb(241, 245, 249);"><td style="padding: 0.4rem 0.6rem; font-weight: 500;">UI inline auth challenge</td><td style="padding: 0.4rem 0.6rem;"><code class="edu-code" style="font-size: 0.75rem;">demo_api_ui/src/components/BankingAgent.js</code></td></tr><tr style="background: rgb(248, 250, 252); border-bottom: 1px solid rgb(241, 245, 249);"><td style="padding: 0.4rem 0.6rem; font-weight: 500;">SSE flow milestones</td><td style="padding: 0.4rem 0.6rem;"><code class="edu-code" style="font-size: 0.75rem;">demo_api_server/services/mcpFlowSseHub.js</code></td></tr></tbody></table></section>
+</div></div>
+<div class="snap-foot">The AI Demo Learning Hub · <a href="index.html">back to index</a></div>
+<style>
+#backToTop{position:fixed;right:22px;bottom:22px;z-index:50;background:#1c2230;color:#fff;border:0;border-radius:999px;padding:10px 18px;font:600 .9rem -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;cursor:pointer;box-shadow:0 4px 14px rgba(28,34,48,.35);opacity:0;visibility:hidden;transform:translateY(8px);transition:opacity .2s,transform .2s,visibility .2s}
+#backToTop.show{opacity:1;visibility:visible;transform:translateY(0)}
+#backToTop:hover{background:#39435c}
+</style>
+<button id="backToTop" type="button" aria-label="Back to top">↑ Top</button>
+<script>
+(function(){
+  var btn=document.getElementById('backToTop');
+  window.addEventListener('scroll',function(){btn.classList.toggle('show',window.scrollY>400);},{passive:true});
+  btn.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
+})();
+</script>
+</body></html>

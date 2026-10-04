@@ -253,11 +253,11 @@ export default function AgentOnboardingFlowDiagram() {
         </p>
         <a
           className="learning-hub__weblink aof-share-link"
-          href="https://cmuir_pingcorp.github.io/llama-vscode-setup-guide/learning/agent-onboarding-flow.html"
+          href="/learning-mirror/agent-onboarding-flow.html"
           target="_blank"
           rel="noopener noreferrer"
         >
-          Share this diagram on the web — open the public page ↗
+          Open the static web copy of this diagram ↗
         </a>
       </section>
 

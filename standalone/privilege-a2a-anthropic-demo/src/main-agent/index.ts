@@ -4,7 +4,7 @@ import Anthropic from '@anthropic-ai/sdk';
 
 import { describeMode, mainAgentConfig, viaGateway } from '../config.js';
 import { buildWorkerClient } from './a2a-client.js';
-import { PRIMARY, runChain } from './chain.js';
+import { MAIN, runChain } from './chain.js';
 import { renderPage } from './ui.js';
 
 const config = mainAgentConfig();
@@ -35,8 +35,8 @@ app.use(express.json({ limit: '64kb' }));
 app.get('/', (_req: Request, res: Response) => res.type('html').send(renderPage()));
 app.get('/status', (_req: Request, res: Response) => {
   res.json({
-    mode: describeMode(),
-    viaGateway: viaGateway(),
+    mode: describeMode('MAIN_AGENT'),
+    viaGateway: viaGateway('MAIN_AGENT'),
     mainModel: config.model,
     worker: config.workerA2aUrl,
     bearerOnA2A: Boolean(config.bearer),
@@ -52,7 +52,7 @@ function sendSse(res: Response, event: string, payload: unknown): void {
 }
 
 function messageError(error: unknown): string {
-  if (error instanceof Anthropic.APIConnectionError) return `Could not connect to Anthropic or Privilege: ${error.message}`;
+  if (error instanceof Anthropic.APIConnectionError) return `Could not connect to the model provider or Privilege: ${error.message}`;
   if (error instanceof Anthropic.RateLimitError) return `Anthropic request was rate limited: ${error.message}`;
   if (error instanceof Anthropic.APIError) return `Anthropic request returned ${error.status ?? 'an error'}: ${error.message}`;
   return error instanceof Error ? error.message : 'The agent could not complete the request.';
@@ -110,7 +110,7 @@ function bffAuthorized(req: Request, res: Response): boolean {
 }
 
 /**
- * The three-deep chain: primary -> gateway -> middle agent -> gateway ->
+ * The three-deep chain: main agent -> gateway -> middle agent -> gateway ->
  * specialist. Streams one `trace` event per hop, each with `from` and `to`.
  */
 app.post('/chain', async (req: Request, res: Response) => {
@@ -239,10 +239,10 @@ app.post('/chat', async (req: Request, res: Response) => {
           continue;
         }
 
-        sendSse(res, 'trace', { kind: 'delegate', from: PRIMARY, to: 'analyst', text: 'concierge → analyst_agent', detail: question, at: at() });
+        sendSse(res, 'trace', { kind: 'delegate', from: MAIN, to: 'analyst', text: 'concierge → analyst_agent', detail: question, at: at() });
         try {
           const answer = await worker.sendQuestion(question, traceId);
-          sendSse(res, 'trace', { kind: 'result', from: 'analyst', to: PRIMARY, text: 'analyst_agent returned', detail: answer, at: at() });
+          sendSse(res, 'trace', { kind: 'result', from: 'analyst', to: MAIN, text: 'analyst_agent returned', detail: answer, at: at() });
           results.push({ type: 'tool_result', tool_use_id: call.id, content: answer });
           delegatedAnswer = answer;
         } catch (error) {
@@ -293,6 +293,6 @@ app.post('/chat', async (req: Request, res: Response) => {
 
 app.listen(config.port, config.host, () => {
   console.log(`\n[main] concierge on http://${config.host}:${config.port}`);
-  console.log(`[main] model: ${config.model} — ${describeMode()}`);
+  console.log(`[main] model: ${config.model} — ${describeMode('MAIN_AGENT')}`);
   console.log(`[main] worker A2A: ${config.workerA2aUrl}${config.bearer ? ' (Bearer set)' : ' (no Bearer)'}\n`);
 });

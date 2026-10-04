@@ -44,7 +44,9 @@ export default function PrivilegeFirstGatewayPage() {
         <p>
           Every LLM call and every MCP tool call enters the PingOne Privilege AI Gateway before anything else.
           Privilege owns the credentials and the human-governed policy. The Agent Gateway behind it keeps doing the
-          delegated, per-tool authorization it does today.
+          delegated, per-tool authorization it does today. Agent-to-agent calls take the same front door: each agent
+          is a Remote Agent app on the gateway and is called with the caller&apos;s own agent key (see the
+          Agent-to-agent tab on <a href="/privilege-gateway-topologies">Privilege Gateway Topologies</a>).
         </p>
       </header>
 

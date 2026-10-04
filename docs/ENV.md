@@ -83,6 +83,7 @@ PF_AI_THIRD_PARTY_RESOURCE=<third-party-resource-uri>
 PF_AI_THIRD_PARTY_SCOPE=<space-separated-downstream-scopes>
 PF_AI_RAR_ENABLED=true
 PF_AI_RAR_CLIENT_ID=ai-demo-pf-rar
+PF_AI_RAR_DPOP_CLIENT_ID=ai-demo-pf-rar-dpop
 ```
 
 Store `PF_AI_CROSS_DOMAIN_CLIENT_SECRET` and
@@ -92,13 +93,28 @@ Store `PF_AI_CROSS_DOMAIN_CLIENT_SECRET` and
 
 RAR uses its own public PKCE client, `PF_AI_RAR_CLIENT_ID`, because PingFederate
 13.1 gives a CIMD client no authorization detail types; leave it empty to fall
-back to the CIMD client. `PF_AI_RAR_LOOKUP_SECRET` is the bearer credential the
+back to the CIMD client. `PF_AI_RAR_DPOP_CLIENT_ID` names a second client with
+PingFederate's per-client DPoP setting required; with it set, the page offers a
+"bind the access token with DPoP" option on the RAR flow (empty hides it). The BFF
+then signs a DPoP proof with a fresh per-run key for the token request, refuses any
+answer that is not a DPoP token, and the page shows the token type and the key's
+public thumbprint (never the token). `PF_AI_RAR_LOOKUP_SECRET` is the bearer credential the
 PingFederate processor presents to `GET /api/pf-ai-agent/rar/user-limits`. It
 belongs in the secret store: `scripts/pingfederate/provision-ai-agent-features.js
 --apply` creates it once and never replaces it, and pushes the same value into
 the processor's config. The public CIMD metadata document and callback are
 served at `/api/pf-ai-agent/cimd/client-metadata.json` and
 `/api/pf-ai-agent/cimd/callback` on `PUBLIC_APP_URL`.
+
+On the local stack the cross-domain and third-party values above are defaults in
+`docker-compose.yml`, and `scripts/pingfederate/provision-cross-domain-exchange.js
+--apply` creates the PingFederate side plus the two client secrets in the vault
+(until it has run, that path stays "Not configured"). The third party there is the
+BFF's own opt-in stand-in: `PF_AI_THIRD_PARTY_MOCK_ENABLED=true` turns on
+`POST /api/pf-ai-agent/mock-third-party/token`, which answers 404 otherwise and
+authenticates with the third-party client id and secret. To use a real third-party
+authorization server instead, leave the mock off and point
+`PF_AI_THIRD_PARTY_TOKEN_ENDPOINT` at it (it must be `https`).
 
 ## Credential Variables (PingOne Apps)
 

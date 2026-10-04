@@ -12,8 +12,15 @@ import {
   PRIVILEGE_USE_CASE_IDS,
   DEMO_USE_CASE_IDS,
   ADMIN_PRIMARY_USE_CASE_IDS,
+  EXTRA_STEP_GROUPS,
 } from '../../config/demoUseCaseSteps';
 import { clearIdJagRunState, ID_JAG_USE_CASE_ID } from '../../utils/idJagRunMode';
+import { startPrivilegeA2aChainRun } from '../../utils/privilegeA2aChainRun';
+
+vi.mock('../../utils/privilegeA2aChainRun', () => ({
+  PRIVILEGE_A2A_CHAIN_USE_CASE_ID: 'privilege-a2a-agent-chain',
+  startPrivilegeA2aChainRun: vi.fn(),
+}));
 
 vi.mock('../../services/apiClient', () => ({
   default: {
@@ -24,7 +31,15 @@ vi.mock('../../services/apiClient', () => ({
 
 const CATALOG = DEMO_USE_CASE_IDS.map((id, i) => ({
   id,
-  useCaseId: id === 'UC40' ? ID_JAG_USE_CASE_ID : `slug-${id}`,
+  useCaseId: id === 'UC40' ? ID_JAG_USE_CASE_ID : id === 'UC47' ? 'privilege-a2a-agent-chain' : `slug-${id}`,
+  ...(id === 'UC47'
+    ? {
+      chainRuns: [
+        { id: 'allowed', label: 'Run the chain', message: 'Refund order 7 for the customer.', specialist: 'refunds' },
+        { id: 'denied', label: 'Ungranted agent', message: 'Refund order 7 for the customer.', specialist: 'restricted' },
+      ],
+    }
+    : {}),
   title: `Title for ${id}`,
   ...(id === 'UC8' ? { demoLabel: '✦ MCP App · transfer approval' } : {}),
   whatLong: `Long explanation for ${id}`,
@@ -94,6 +109,33 @@ describe('DemoStepsDropdown', () => {
 
     expect(onSelect.mock.calls[0][0].id).toBe('UC46');
     expect(onSelect.mock.calls[0][1]).toBe(25);
+  });
+
+  it('starts the Privilege A2A agent chain from step 26 and still hands the step to the page', async () => {
+    const onSelect = vi.fn();
+    render(
+      <DemoStepsDropdown
+        open
+        onOpenChange={() => {}}
+        onSelect={onSelect}
+      />,
+    );
+
+    fireEvent.click(await screen.findByTestId('demo-step-UC47'));
+
+    expect(startPrivilegeA2aChainRun).toHaveBeenCalledWith({
+      message: 'Refund order 7 for the customer.',
+      specialist: 'refunds',
+    });
+    expect(onSelect.mock.calls[0][0].id).toBe('UC47');
+    expect(onSelect.mock.calls[0][1]).toBe(26);
+
+    fireEvent.click(screen.getByTestId('chain-run-denied'));
+
+    expect(startPrivilegeA2aChainRun).toHaveBeenLastCalledWith({
+      message: 'Refund order 7 for the customer.',
+      specialist: 'restricted',
+    });
   });
 
   it('aborts an outstanding catalog request when unmounted', () => {
@@ -521,17 +563,17 @@ describe('DemoStepsDropdown', () => {
     );
     await waitFor(() => expect(screen.getByTestId('demo-step-UC1')).toBeInTheDocument());
 
-    const total = screen.getByTestId('demo-steps-progress').textContent.match(/of (\d+) done/)[1];
-    expect(screen.getByTestId('demo-steps-progress')).toHaveTextContent(`0 of ${total} done`);
+    const total = screen.getByTestId('demo-steps-progress').textContent.match(/of (\d+) script steps done/)[1];
+    expect(screen.getByTestId('demo-steps-progress')).toHaveTextContent(`0 of ${total} script steps done`);
 
     // Mark one completed the way onSelect does, then click another step to
     // force the tick-driven re-render (same path the checkmarks use).
     sessionStorage.setItem('bx_uc_completed', JSON.stringify(['UC1']));
     fireEvent.click(screen.getByTestId(`demo-step-${DEMO_USE_CASE_IDS[1]}`));
-    expect(await screen.findByTestId('demo-steps-progress')).toHaveTextContent(`1 of ${total} done`);
+    expect(await screen.findByTestId('demo-steps-progress')).toHaveTextContent(`1 of ${total} script steps done`);
 
     fireEvent.click(screen.getByTestId('demo-steps-clear'));
-    expect(screen.getByTestId('demo-steps-progress')).toHaveTextContent(`0 of ${total} done`);
+    expect(screen.getByTestId('demo-steps-progress')).toHaveTextContent(`0 of ${total} script steps done`);
   });
 
   it('opens the explain modal from the per-step icon without closing Demo steps or running the step', async () => {
@@ -670,6 +712,54 @@ describe('DemoStepsDropdown — search', () => {
     expect(screen.getByTestId('demo-step-privilege-UC17')).toBeInTheDocument();
     expect(screen.getByTestId('demo-step-privilege-UC-PAM-SCRIPT')).toBeInTheDocument();
     expect(screen.queryByTestId('demo-step-UC1')).not.toBeInTheDocument();
+  });
+
+  it('shows the Privilege & JIT group in the default All view, without repeating scripted steps', async () => {
+    const privilegeCatalog = [
+      ...CATALOG,
+      ...PRIVILEGE_USE_CASE_IDS
+        .filter((id) => !DEMO_USE_CASE_IDS.includes(id))
+        .map((id) => ({
+          id,
+          title: `Privilege lane ${id}`,
+          trigger: { type: 'link', text: `Open Privilege ${id}` },
+        })),
+    ];
+    apiClient.get.mockResolvedValueOnce({ data: { useCases: privilegeCatalog } });
+
+    render(
+      <DemoStepsDropdown open onOpenChange={() => {}} onSelect={() => {}} />,
+    );
+    await waitFor(() => expect(screen.getByTestId('demo-step-UC1')).toBeInTheDocument());
+
+    expect(screen.getByTestId('demo-steps-privilege-group')).toBeInTheDocument();
+    expect(screen.getByTestId('demo-step-privilege-UC17')).toBeInTheDocument();
+    // UC40 is already a scripted step, so it is not listed a second time.
+    expect(screen.queryByTestId('demo-step-privilege-UC40')).not.toBeInTheDocument();
+  });
+
+  it('shows the themed groups in All; A2A repeats steps under their original numbers', async () => {
+    const ids = EXTRA_STEP_GROUPS.flatMap((g) => g.ids);
+    const catalog = [
+      ...CATALOG,
+      ...ids
+        .filter((id) => !CATALOG.some((u) => u.id === id))
+        .map((id) => ({ id, title: `Themed ${id}`, trigger: { type: 'link', text: `Open ${id}` } })),
+    ];
+    apiClient.get.mockResolvedValueOnce({ data: { useCases: catalog } });
+
+    render(
+      <DemoStepsDropdown open onOpenChange={() => {}} onSelect={() => {}} />,
+    );
+    await waitFor(() => expect(screen.getByTestId('demo-step-UC1')).toBeInTheDocument());
+
+    for (const g of EXTRA_STEP_GROUPS) {
+      expect(screen.getByTestId(`demo-steps-extra-${g.id}`)).toBeInTheDocument();
+    }
+    // UC2 is scripted step 9 and is listed again under A2A with the same number.
+    const a2a = screen.getByTestId('demo-steps-extra-a2a');
+    expect(within(a2a).getByTestId('demo-extra-a2a-UC2')).toHaveTextContent('9 · UC2');
+    expect(within(a2a).getByTestId('demo-extra-a2a-UC37')).toHaveTextContent('43 · UC37');
   });
 
   it('finds the CIAM group when searching for its group label', async () => {

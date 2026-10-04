@@ -67,6 +67,24 @@ spec:
                 secretKeyRef:
                   name: {{ include "agentless-mcpgw.name" . }}-secret
                   key: ENV_PROXY_TOKEN
+            {{- /*
+              Optional shared token store. The gateway reads MCPGW_REDIS_URL; without it the gateway
+              logs "no MCPGW_REDIS_URL configured; using the in-memory token store (single instance
+              only - resource tokens are lost on restart)". Off unless redis.urlSecret.name is
+              set. `| default dict` because --reuse-values keeps the OLD values, which have no
+              redis key at all, and a bare .Values.redis.urlSecret.name would then fail the render.
+              (The first version of this block used REDIS_URL, a substring of the real name, taken
+              from a binary scan that cut the prefix. The gateway ignored it.)
+            */}}
+            {{- $redis := .Values.redis | default dict }}
+            {{- $redisUrl := $redis.urlSecret | default dict }}
+            {{- if $redisUrl.name }}
+            - name: MCPGW_REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $redisUrl.name }}
+                  key: {{ $redisUrl.key | default "url" }}
+            {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           {{- /*

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vector Search &amp; RAG (Weaviate) — AI Demo Learning Hub</title>
+<link rel="stylesheet" href="assets/app.css">
+<link rel="stylesheet" href="assets/snapshot.css">
+</head><body>
+<div class="snap-top"><a href="index.html">← Learning Hub</a><span class="crumb">/ Vector Search &amp; RAG (Weaviate)</span></div>
+<div class="edu-drawer snap-drawer">
+<div class="snap-title">Vector Search &amp; RAG (Weaviate)</div>
+<nav class="snap-toc"><span class="snap-toc-label">On this page — 4 sections</span><ul><li><a href="#sec-what-it-is">What it is</a></li><li><a href="#sec-how-it-s-wired-here">How it's wired here</a></li><li><a href="#sec-index-search">Index &amp; search</a></li><li><a href="#sec-try-it">Try it</a></li></ul></nav>
+<div class="edu-drawer-body">
+<section class="snap-tab" id="sec-what-it-is"><h3 class="snap-tab-h">What it is</h3><div><h3 style="margin-top: 0px;">What is a vector database?</h3><p>A <strong>vector database</strong> stores each item alongside an <strong>embedding</strong> — a list of numbers that captures the item's meaning. Instead of matching exact keywords, it finds items whose vectors are <em>closest</em> in that meaning-space (approximate nearest-neighbor search, ANN). So a search for "auth logic" can surface code about <code>login</code>, <code>PKCE</code>, and <code>token</code> even when those exact words never appear in the query.</p><p><strong>Weaviate</strong> is the open-source vector database used in this demo. It stores vectors and does the nearest-neighbor search; it is the retrieval layer, not the model.</p></div></section>
+<section class="snap-tab" id="sec-how-it-s-wired-here"><h3 class="snap-tab-h">How it's wired here</h3><div><h3 style="margin-top: 0px;">How it's wired in this demo</h3><p>Weaviate here is the store behind the <strong>Code Search</strong> page (<code>/code-search</code>). It runs in <strong>bring your own vectors</strong> mode (<code>DEFAULT_VECTORIZER_MODULE: none</code>) — it does <strong>no embedding itself</strong>. Embeddings come from a separate llama.cpp service running <code>nomic-embed-text-v1.5</code>.</p><pre class="edu-code">
+  Code Search page  ──HTTP──▶  code-search service
+                                  │  1. chunk files
+                                  │  2. embed each chunk
+                                  ▼        (nomic-embed-text-v1.5, 768-dim)
+                              embeddings (llama.cpp)
+                                  │
+                                  ▼  3. store vectors
+                              Weaviate  (class: CodeChunk, vectorizer: none)
+                                  ▲
+                                  └── 4. query: embed question, nearest-neighbor</pre><ul><li><strong>Internal-only:</strong> Weaviate publishes no host port; it is reachable only as <code>http://weaviate:8080</code> on the compose network.</li><li><strong>One class, <code>CodeChunk</code>:</strong> every chunk carries its <code>codebase_id</code>, <code>file</code>, line range, and <code>snippet</code>; searches filter by <code>codebase_id</code>.</li><li><strong>Bring your own vectors:</strong> the code-search service supplies the embeddings, so Weaviate needs no vectorizer module.</li></ul></div></section>
+<section class="snap-tab" id="sec-index-search"><h3 class="snap-tab-h">Index &amp; search</h3><div><h3 style="margin-top: 0px;">Index &amp; search</h3><h4>Indexing (<code>POST /index</code>)</h4><ol><li>Split each file into overlapping line windows (chunks).</li><li>Embed every chunk with <code>nomic-embed-text-v1.5</code> → a 768-dim vector.</li><li>Upsert each chunk + its vector into the <code>CodeChunk</code> class.</li></ol><h4>Searching (<code>POST /search</code>)</h4><ol><li>Embed the query with the <em>same</em> model (so it lands in the same space).</li><li>Ask Weaviate for the nearest vectors (HNSW ANN), filtered by <code>codebase_id</code>.</li><li>Return the matching chunks, ranked by similarity, with file + line range.</li></ol><p>Using the <em>same</em> embedding model for indexing and querying is not optional — mismatched models put the query in a different space and the results become meaningless.</p></div></section>
+<section class="snap-tab" id="sec-try-it"><h3 class="snap-tab-h">Try it</h3><div><h3 style="margin-top: 0px;">Try it</h3><p>Open the <strong>Code Search</strong> page to see this in action: upload or select a codebase, then ask for something by meaning (e.g. <em>"find authentication logic"</em>) and watch semantically-related code come back even when the words differ.</p><p><a href="/code-search">Go to Code Search →</a></p></div></section>
+</div></div>
+<div class="snap-foot">The AI Demo Learning Hub · <a href="index.html">back to index</a></div>
+<style>
+#backToTop{position:fixed;right:22px;bottom:22px;z-index:50;background:#1c2230;color:#fff;border:0;border-radius:999px;padding:10px 18px;font:600 .9rem -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;cursor:pointer;box-shadow:0 4px 14px rgba(28,34,48,.35);opacity:0;visibility:hidden;transform:translateY(8px);transition:opacity .2s,transform .2s,visibility .2s}
+#backToTop.show{opacity:1;visibility:visible;transform:translateY(0)}
+#backToTop:hover{background:#39435c}
+</style>
+<button id="backToTop" type="button" aria-label="Back to top">↑ Top</button>
+<script>
+(function(){
+  var btn=document.getElementById('backToTop');
+  window.addEventListener('scroll',function(){btn.classList.toggle('show',window.scrollY>400);},{passive:true});
+  btn.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
+})();
+</script>
+</body></html>

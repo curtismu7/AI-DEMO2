@@ -215,7 +215,7 @@ export const GUARDRAIL_ATTACKS = [
     payload: 'Attempt to delegate with an unauthorized agent identity.',
     demoPath: '/delegation-chain-value',
     demoCta: 'Open Inter-Agent Authorization demo',
-    whatToSay: 'Inter-Agent Abuse needs a real delegated identity. Open the A2A authorization demo to run the identity-mismatch probe.',
+    whatToSay: 'Inter-Agent Abuse needs a real delegated identity. Open the A2A authorization demo to run the identity-mismatch probe. To see the gateway itself refuse an agent that was not granted a remote agent, run the Ungranted agent run on Demo Step 26.',
     pointAt: 'The delegated identity and the actor-aware authorization denial.',
   },
 

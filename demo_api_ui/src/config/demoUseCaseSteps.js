@@ -38,6 +38,7 @@ export const DEMO_PRIMARY_USE_CASE_IDS = [
   'UC38',  // Workload Agent: Digital Assistant — MFA + RFC 8693 delegation
   'UC-TOOL1', // Protected RAG — code:search + PingOne Authorize
   'UC46',  // Privilege A2A access review — step 25 in the presenter sequence
+  'UC47',  // Privilege A2A three-deep agent chain — live in the reel, step 26
 ];
 
 export const DEMO_ADVANCED_USE_CASE_IDS = [];
@@ -87,7 +88,8 @@ export const DEMO_USE_CASE_SEARCH_TERMS = {
   UC25: ['privilege', 'enterprise managed mcp', 'id-jag', 'centralized access', 'group policy'],
   'UC-LEARN11': ['privilege', 'privilege ai', 'llm gateway', 'prompt injection'],
   'UC-TOOL3': ['privilege', 'privilege ai', 'llm gateway', 'prompt injection', 'virtual key'],
-  UC46: ['privilege', 'a2a', 'agent-to-agent', 'access review', 'anthropic', 'worker agent'],
+  UC46: ['privilege', 'a2a', 'agent-to-agent', 'access review', 'anthropic', 'google', 'gemini', 'ai gateway', 'worker agent'],
+  UC47: ['privilege', 'a2a', 'agent-to-agent', 'agent chain', 'three deep', 'ai gateway', 'langchain', 'specialist', 'delegation'],
 };
 
 /** Existing Privilege lanes grouped for the presenter, without inventing routes. */
@@ -99,6 +101,49 @@ export const PRIVILEGE_USE_CASE_IDS = [
   'UC-PAM-SCRIPT',
   'UC-LEARN11',
   'UC-TOOL3',
+];
+
+/**
+ * Further themed groups shown in the Demo steps menu after the Privilege group.
+ * Numbering continues from it, in this order. Learning pages (UC-LEARN*) and
+ * Code Explorer are deliberately not here.
+ */
+export const EXTRA_STEP_GROUPS = [
+  {
+    id: 'a2a',
+    label: 'Agent-to-Agent (A2A)',
+    tagline: 'delegation between agents',
+    intro: 'Every A2A step in one place: specialist handoff, the orchestrator, the identity-mismatch denial, the protocol walkthrough, signed assertions and the Privilege agent chains. Steps keep their numbers from the lists above.',
+    ids: ['UC2', 'UC2.5', 'UC2.6', 'UC2.7', 'UC37', 'UC46', 'UC47'],
+  },
+  {
+    id: 'controls',
+    label: 'Controls & Policy',
+    tagline: 'policy at the boundary',
+    intro: 'Entitlement, scope and tool-set controls enforced by the gateway and PingOne Authorize, including third-party search.',
+    ids: ['UC4', 'UC9', 'UC21', 'UC28', 'UC39', 'UC41', 'UC42'],
+  },
+  {
+    id: 'abuse',
+    label: 'Attacks & Abuse',
+    tagline: 'what gets refused',
+    intro: 'Tampering, impersonation, token forwarding, consent bypass and an introspection outage, and how each is stopped.',
+    ids: ['UC15', 'UC16', 'UC16b', 'UC27', 'UC29'],
+  },
+  {
+    id: 'identity',
+    label: 'Agent Identity & Lifecycle',
+    tagline: 'non-human identity',
+    intro: 'Who the agent is, the act gate, the live agent inventory and the joiner-mover-leaver lifecycle.',
+    ids: ['UC3', 'UC19', 'UC-NHI1', 'UC-NHI2'],
+  },
+  {
+    id: 'experience',
+    label: 'Customer Experience',
+    tagline: 'what the customer sees',
+    intro: 'Progressive trust, proof of enforcement, and the customer-facing answers behind a blocked or unusual action.',
+    ids: ['UC33', 'UC34', 'UC35', 'UC23', 'UC26'],
+  },
 ];
 
 /** Maturity-model journey groups for the presenter drawer. */
@@ -129,7 +174,7 @@ export const DEMO_MATURITY_GROUPS = [
     label: 'Authorize agent actions',
     shortLabel: 'Authorize',
     description: 'Apply least privilege, policy, and intent controls.',
-    useCaseIds: ['UC2', 'UC2.5', 'UC2.7', 'UC5', 'UC6', 'UC10', 'UC13', 'UC14b', 'UC14', 'UC46'],
+    useCaseIds: ['UC2', 'UC2.5', 'UC2.7', 'UC5', 'UC6', 'UC10', 'UC13', 'UC14b', 'UC14', 'UC46', 'UC47'],
   },
   {
     id: 'protect',
@@ -216,14 +261,14 @@ export const DEMO_JOURNEY_GROUPS = [
     label: 'A2A delegation',
     shortLabel: 'A2A',
     description: 'Agent-to-agent delegation, specialist handoff, and nested identity.',
-    useCaseIds: ['UC2', 'UC2.5', 'UC2.6', 'UC2.7', 'UC46'],
+    useCaseIds: ['UC2', 'UC2.5', 'UC2.6', 'UC2.7', 'UC46', 'UC47'],
   },
   {
     id: 'j-privilege-mcp',
     label: 'Privilege MCP',
     shortLabel: 'Privilege',
     description: 'Privilege-protected MCP access — time-bound, scoped, auditable.',
-    useCaseIds: [...PRIVILEGE_USE_CASE_IDS, 'UC46'],
+    useCaseIds: [...PRIVILEGE_USE_CASE_IDS, 'UC46', 'UC47'],
   },
   {
     id: 'j-threat-defense',
@@ -294,7 +339,7 @@ export const DEMO_MISSION_GROUPS = [
     label: 'Agent Network',
     shortLabel: 'Agent Network',
     description: 'A2A delegation, specialist scope narrowing, and actor mismatch denial.',
-    useCaseIds: ['UC2', 'UC2.5', 'UC2.6', 'UC2.7', 'UC46'],
+    useCaseIds: ['UC2', 'UC2.5', 'UC2.6', 'UC2.7', 'UC46', 'UC47'],
   },
   {
     id: 'discover',
@@ -329,7 +374,7 @@ export const DEMO_MISSION_GROUPS = [
     label: 'Privilege & JIT',
     shortLabel: 'Privilege & JIT',
     description: 'Request, approve, broker, observe, and revoke privileged access.',
-    useCaseIds: [...PRIVILEGE_USE_CASE_IDS, 'UC46'],
+    useCaseIds: [...PRIVILEGE_USE_CASE_IDS, 'UC46', 'UC47'],
   },
   {
     id: 'govern',

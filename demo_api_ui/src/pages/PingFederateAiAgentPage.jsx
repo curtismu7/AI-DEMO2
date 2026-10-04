@@ -139,6 +139,7 @@ export default function PingFederateAiAgentPage({ user }) {
   // useState initialiser would freeze the empty value and hide the RAR buttons.
   const [typedUserKey, setTypedUserKey] = useState(null);
   const rarUserKey = typedUserKey ?? user?.username ?? "";
+  const [bindDpop, setBindDpop] = useState(false);
   const [exchangeError, setExchangeError] = useState(false);
   const queryStatus = useMemo(() => new URLSearchParams(window.location.search), []);
 
@@ -162,7 +163,8 @@ export default function PingFederateAiAgentPage({ user }) {
 
   const provider = status?.sessionProvider || "none";
   const supportedSession = provider === "pingone" || provider === "pingfederate";
-  const features = status?.features || { cimd: false, crossDomain: false, rar: false };
+  const features = status?.features || { cimd: false, crossDomain: false, rar: false, rarDpop: false };
+  const rarResult = status?.rarResult || null;
   const rarUserKeyValue = rarUserKey.trim();
   const callbackResult = queryStatus.get("cimd") || queryStatus.get("rar");
 
@@ -211,6 +213,14 @@ export default function PingFederateAiAgentPage({ user }) {
             ? callbackResult === "success" ? "CIMD authorization completed." : "CIMD authorization did not complete."
             : callbackResult === "success" ? "PF accepted the RAR request." : callbackResult === "denied" ? "PF denied the RAR request." : "RAR authorization did not complete."}
         </div>
+      )}
+      {queryStatus.get("rar") === "success" && rarResult?.tokenType && (
+        <p className="pf-ai-agent__token-line" data-testid="rar-token-line">
+          Access token type: <strong>{rarResult.tokenType}</strong>
+          {rarResult.dpopThumbprint
+            ? <> · bound to this app&apos;s key, thumbprint <code>{rarResult.dpopThumbprint}</code></>
+            : " · not bound to a key (a bearer token works for whoever holds it)"}
+        </p>
       )}
 
       <section className="pf-ai-agent__overview" aria-label="PF feature readiness">
@@ -318,17 +328,25 @@ export default function PingFederateAiAgentPage({ user }) {
             amount: 125,
             currency: "USD",
           }, null, 2)}</pre>
+          {features.rarDpop && (
+            <label className="pf-ai-agent__dpop-option">
+              <input type="checkbox" checked={bindDpop} onChange={(event) => setBindDpop(event.target.checked)} />
+              Bind the access token to this app&apos;s key with DPoP
+            </label>
+          )}
           <div className="pf-ai-agent__rar-actions">
             {features.rar && supportedSession && rarUserKeyValue
               ? <>
                 <form method="post" action="/api/pf-ai-agent/rar/start">
                   <input type="hidden" name="scenario" value="allowed" />
                   <input type="hidden" name="userKey" value={rarUserKeyValue} />
+                  {features.rarDpop && bindDpop && <input type="hidden" name="dpop" value="1" />}
                   <button className="pf-ai-agent__action" type="submit">Run allowed RAR request</button>
                 </form>
                 <form method="post" action="/api/pf-ai-agent/rar/start">
                   <input type="hidden" name="scenario" value="denied" />
                   <input type="hidden" name="userKey" value={rarUserKeyValue} />
+                  {features.rarDpop && bindDpop && <input type="hidden" name="dpop" value="1" />}
                   <button className="pf-ai-agent__secondary-action" type="submit">Run out-of-policy RAR request</button>
                 </form>
               </>

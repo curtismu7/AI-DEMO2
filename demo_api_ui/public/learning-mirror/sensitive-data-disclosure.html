@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sensitive Data &amp; Disclosure — AI Demo Learning Hub</title>
+<link rel="stylesheet" href="assets/app.css">
+<link rel="stylesheet" href="assets/snapshot.css">
+</head><body>
+<div class="snap-top"><a href="index.html">← Learning Hub</a><span class="crumb">/ Sensitive Data &amp; Disclosure</span></div>
+<div class="edu-drawer snap-drawer">
+<div class="snap-title">Sensitive Data &amp; Disclosure</div>
+<nav class="snap-toc"><span class="snap-toc-label">On this page — 2 sections</span><ul><li><a href="#sec-least-data-principle">Least-Data Principle</a></li><li><a href="#sec-rar-rfc-9396">RAR / RFC 9396</a></li></ul></nav>
+<div class="edu-drawer-body">
+<section class="snap-tab" id="sec-least-data-principle"><h3 class="snap-tab-h">Least-Data Principle</h3><div><p style="color: rgb(71, 85, 105); margin-bottom: 1rem; font-size: 0.9rem;">The <strong>Least-Data Principle</strong> states that an AI agent should receive only the minimum data it needs to perform a task — nothing more. This reduces the blast radius if a model is tricked, compromised, or logs context for training.</p><div style="margin-bottom: 1.5rem;"><h3 style="font-size: 0.95rem; font-weight: 700; color: rgb(15, 118, 110); margin-bottom: 0.4rem;">What is the Least-Data Principle?</h3><p style="color: rgb(71, 85, 105); font-size: 0.88rem; line-height: 1.6;">Traditional APIs often return a complete object — full account number, routing number, address — because the caller was trusted (a human-facing app under TLS). AI agents change that calculus:<strong> LLM context windows get logged</strong>, may be cached, and in some configurations used for fine-tuning. Minimising the PII surface in a response is the first line of defence.</p></div><div style="margin-bottom: 1.5rem;"><h3 style="font-size: 0.95rem; font-weight: 700; color: rgb(15, 118, 110); margin-bottom: 0.4rem;">Field-Level Scopes</h3><p style="color: rgb(71, 85, 105); font-size: 0.88rem; line-height: 1.6;">Instead of one broad scope like <code>read</code> that exposes everything, split at the data-tier level:</p><code style="display: block; background: var(--code-bg, #f1f5f9); border-radius: 6px; padding: 0.75rem 1rem; font-family: inherit; font-size: 0.78rem; white-space: pre; overflow-x: auto; margin: 0.5rem 0px;">// Broad (avoid for agents)
+scope: "read"  →  returns all fields incl. full account number
+
+// Granular (preferred)
+scope: "accounts:read"  →  account name, masked number, balance
+scope: "sensitive:read" →  full account number, routing number
+     ↑ requires explicit user consent + PAZ policy check</code><p style="color: rgb(71, 85, 105); font-size: 0.88rem; margin-top: 0.4rem;">The demo uses <code>sensitive:read</code> as the gate for the<code> get_sensitive_account_details</code> MCP tool.</p></div><div style="margin-bottom: 1.5rem;"><h3 style="font-size: 0.95rem; font-weight: 700; color: rgb(15, 118, 110); margin-bottom: 0.4rem;">Masking Patterns</h3><p style="color: rgb(71, 85, 105); font-size: 0.88rem; line-height: 1.6;">Always return masked values by default. Only reveal full values after authorization.</p><code style="display: block; background: var(--code-bg, #f1f5f9); border-radius: 6px; padding: 0.75rem 1rem; font-family: inherit; font-size: 0.78rem; white-space: pre; overflow-x: auto; margin: 0.5rem 0px;">// Default response — no sensitive scope:
+{
+  "accountNumber": "****5678",
+  "routingNumber": null
+}
+
+// After sensitive:read + PAZ policy + user consent:
+{
+  "accountNumber": "****5678",
+  "accountNumberFull": "010123456789",
+  "routingNumber": "026073150"
+}</code></div><div style="margin-bottom: 1.5rem;"><h3 style="font-size: 0.95rem; font-weight: 700; color: rgb(15, 118, 110); margin-bottom: 0.4rem;">Why Agents Shouldn't Receive Full PII</h3><div style="border-left: 4px solid rgb(245, 158, 11); background: rgb(255, 251, 235); border-radius: 0px 8px 8px 0px; padding: 0.75rem 1rem; margin-bottom: 1rem; font-size: 0.88rem; color: rgb(19, 78, 74);"><span style="margin-right: 0.4rem;">⚠️</span><strong>LLM context ≠ private memory.</strong> Prompts and responses may be logged by the inference provider, cached in middleware layers, or included in future training datasets under permissive ToS. Treat anything passed to an LLM as potentially visible to the model vendor.</div><ul style="color: rgb(71, 85, 105); font-size: 0.88rem; padding-left: 1.2rem; line-height: 1.7;"><li>Full account numbers + routing numbers are sufficient for ACH fraud; never pass both unless required.</li><li>Use <em>per-session</em> consent with a short TTL (this demo: 60 seconds) so the agent must re-request access after the window expires.</li><li>Log when sensitive data is accessed — not what it is — for audit trails.</li><li>Consider field-level token exchange: mint a narrower token that can only retrieve the one field type needed.</li></ul></div><div style="margin-bottom: 1.5rem;"><h3 style="font-size: 0.95rem; font-weight: 700; color: rgb(15, 118, 110); margin-bottom: 0.4rem;">This Demo</h3><div style="border-left: 4px solid rgb(13, 148, 136); background: rgb(240, 253, 250); border-radius: 0px 8px 8px 0px; padding: 0.75rem 1rem; margin-bottom: 1rem; font-size: 0.88rem; color: rgb(19, 78, 74);"><span style="margin-right: 0.4rem;">🔐</span>The <strong>sensitive:read</strong> scope is gated by three layers:<ol style="margin-top: 0.4rem; padding-left: 1.2rem; line-height: 1.7;"><li>Scope check — token must carry <code>sensitive:read</code> or <code>read</code>.</li><li>PAZ policy — PingOne Authorize (or simulated) evaluates the request.</li><li>User consent — an in-session consent banner asks the user to approve before the data is returned.</li></ol></div></div></div></section>
+<section class="snap-tab" id="sec-rar-rfc-9396"><h3 class="snap-tab-h">RAR / RFC 9396</h3><div><p style="color: rgb(71, 85, 105); margin-bottom: 1rem; font-size: 0.9rem;"><strong>Rich Authorization Requests (RAR, RFC 9396)</strong> let a client declare <em>exactly what it intends to do</em> with data — not just which scopes. The authorization server and policy engine can make finer-grained decisions per object, per action, per session.</p><div style="margin-bottom: 1.5rem;"><h3 style="font-size: 0.95rem; font-weight: 700; color: rgb(15, 118, 110); margin-bottom: 0.4rem;">RAR in One Sentence</h3><div style="border-left: 4px solid var(--brand-navy); background: rgb(239, 246, 255); border-radius: 0px 8px 8px 0px; padding: 0.75rem 1rem; margin-bottom: 1rem; font-size: 0.88rem; color: rgb(19, 78, 74);"><span style="margin-right: 0.4rem;">📄</span>Instead of <code>scope=sensitive:read</code>, a client sends an <code>authorization_details</code> JSON array that says: <em>"I want read access to the full account number of account ABC, for the next 5 minutes."</em></div></div><div style="margin-bottom: 1.5rem;"><h3 style="font-size: 0.95rem; font-weight: 700; color: rgb(15, 118, 110); margin-bottom: 0.4rem;">sensitive:read as a RAR-Adjacent Pattern</h3><p style="color: rgb(71, 85, 105); font-size: 0.88rem; line-height: 1.6; margin-bottom: 0.5rem;">This demo uses OAuth scopes as a simplified RAR-adjacent pattern. A full RFC 9396 implementation would pass <code>authorization_details</code> in the token request:</p><code style="display: block; background: var(--code-bg, #f1f5f9); border-radius: 6px; padding: 0.75rem 1rem; font-family: inherit; font-size: 0.78rem; white-space: pre; overflow-x: auto; margin: 0.5rem 0px;">// Token request with RAR authorization_details:
+POST /as/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=authorization_code
+&amp;code=...
+&amp;authorization_details=[
+  {
+    "type": "banking_data_access",
+    "actions": ["read"],
+    "datatypes": ["account_number_full", "routing_number"],
+    "identifier": "account-chk-0001",
+    "locations": ["https://api.bxfinance.example/accounts"]
+  }
+]</code><p style="color: rgb(71, 85, 105); font-size: 0.88rem; margin-top: 0.4rem;">The authorization server binds these claims into the issued token. The resource server validates them — allowing or rejecting based on type, action, identifier, and location.</p></div><div style="margin-bottom: 1.5rem;"><h3 style="font-size: 0.95rem; font-weight: 700; color: rgb(15, 118, 110); margin-bottom: 0.4rem;">Why This Matters</h3><p style="color: rgb(71, 85, 105); font-size: 0.88rem; line-height: 1.6;">A blanket <code>read</code> scope gives the agent access to everything in the read tier — forever (until the token expires). RAR makes each authorization decision auditable:</p><ul style="color: rgb(71, 85, 105); font-size: 0.88rem; padding-left: 1.2rem; line-height: 1.7;"><li><strong>Per-object:</strong> agent can read account ABC but not account XYZ.</li><li><strong>Per-action:</strong> agent can read full number but not initiate a transfer.</li><li><strong>Per-session:</strong> authorization valid for 5 minutes only.</li><li><strong>Auditability:</strong> the AS can log exactly which objects were accessed, by which agent client.</li></ul></div><div style="margin-bottom: 1.5rem;"><h3 style="font-size: 0.95rem; font-weight: 700; color: rgb(15, 118, 110); margin-bottom: 0.4rem;">How This Demo Uses It</h3><div style="border-left: 4px solid rgb(13, 148, 136); background: rgb(240, 253, 250); border-radius: 0px 8px 8px 0px; padding: 0.75rem 1rem; margin-bottom: 1rem; font-size: 0.88rem; color: rgb(19, 78, 74);"><span style="margin-right: 0.4rem;">🏦</span><p style="margin: 0px; line-height: 1.6;">The demo uses <strong>sensitive:read</strong> as a simplified proxy for a RAR type. Real PingOne Authorize integration would pass the account identifier in<code> authorization_details</code> and the PAZ policy would evaluate per-account decisions. The consent banner adds a user-approval layer on top of that policy.</p></div><p style="color: rgb(71, 85, 105); font-size: 0.88rem; margin-top: 0.75rem; line-height: 1.6;"><strong>Full RFC 9396 §7 implementation</strong> would pass <code>authorization_details</code> in the PAR request (RFC 9126), bind them to the authorization code, and verify them at the resource server on every API call — not just at token issuance.</p></div><div style="margin-bottom: 1.5rem;"><h3 style="font-size: 0.95rem; font-weight: 700; color: rgb(15, 118, 110); margin-bottom: 0.4rem;">Cross-reference</h3><p style="color: rgb(71, 85, 105); font-size: 0.88rem; line-height: 1.6;">For a general introduction to <strong>Rich Authorization Requests</strong> beyond banking, see the <strong>RAR (RFC 9396)</strong> education panel. This panel focuses on the selective-disclosure use-case for sensitive banking data specifically.</p></div></div></section>
+</div></div>
+<div class="snap-foot">The AI Demo Learning Hub · <a href="index.html">back to index</a></div>
+<style>
+#backToTop{position:fixed;right:22px;bottom:22px;z-index:50;background:#1c2230;color:#fff;border:0;border-radius:999px;padding:10px 18px;font:600 .9rem -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;cursor:pointer;box-shadow:0 4px 14px rgba(28,34,48,.35);opacity:0;visibility:hidden;transform:translateY(8px);transition:opacity .2s,transform .2s,visibility .2s}
+#backToTop.show{opacity:1;visibility:visible;transform:translateY(0)}
+#backToTop:hover{background:#39435c}
+</style>
+<button id="backToTop" type="button" aria-label="Back to top">↑ Top</button>
+<script>
+(function(){
+  var btn=document.getElementById('backToTop');
+  window.addEventListener('scroll',function(){btn.classList.toggle('show',window.scrollY>400);},{passive:true});
+  btn.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
+})();
+</script>
+</body></html>

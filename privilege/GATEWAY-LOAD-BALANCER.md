@@ -1,11 +1,105 @@
 # Privilege AI Gateway: load balancer and second gateway
 
-Status: both gateways in rotation, linked by the mesh; one app registration serves both.
-Last updated 2026-10-03 (evening). **Section 0 supersedes the parts of sections 1, 5.3, 6
-and 9 that say the gateways cannot mesh or that apps must be registered twice.**
+Status: both gateways in rotation as two nodes of ONE mesh cluster (`ai-demo-cmuir`); one
+app registration serves both, and each node serves every app on its own.
+Last updated 2026-10-04. **Section 00 below is the current layout.** It supersedes section 0
+(two clusters, forwarding over the mesh), which in turn superseded the parts of sections 1,
+5.3, 6 and 9 that say the gateways cannot mesh or that apps must be registered twice.
 Audience: engineers and SEs reviewing how we show "two gateways behind one URL".
 Related: [CURRENT-CONFIGURATION.md](CURRENT-CONFIGURATION.md), [LESSONS-LEARNED.md](LESSONS-LEARNED.md),
 skill `.claude/skills/privilege-mcpgw-agent-k8s/SKILL.md`.
+
+## 00. Current layout (2026-10-04): two nodes in one mesh cluster
+
+Gateway 2 left its own cluster (`ai-demo-cmuir2`) and re-enrolled as a second node of
+gateway 1's cluster, `ai-demo-cmuir`. An app belongs to a cluster, so both nodes now own
+every app. Neither forwards to the other, and neither depends on the other.
+
+| | Two clusters + mesh (section 0) | Two nodes, one cluster (now) |
+| --- | --- | --- |
+| App registrations and policies | One | One |
+| Who serves a call | The owning cluster; the other gateway forwards | The node the client is pinned to |
+| Gateway 1 down | Every app down (~55 s) | Tested 2026-10-04 with gateway 1 scaled to 0: the load balancer moved to gateway 2 within one 10 s sample and two signed-in sidecar apps worked from the UI |
+| Sidecars | Gateway 1 only | Both pods |
+| Failover costs a sign-in | Yes | Yes (unchanged) |
+
+**How the node was added.** Console, Gateways, Add New, the **AI GW** form with a Docker
+command at the end (not the VM wizard, which produces a guest-agent env file the chart
+cannot use). Cluster ID `ai-demo-cmuir`, the existing name; Host IP gateway 2's in-cluster
+Service name. The token's claims then read `clusterID: ai-demo-cmuir` with a new `nodeId`.
+On gateway 2, the old enrollment files in `/procyon/ssl` were moved into
+`/procyon/ssl/backup-cmuir2` (kept for rollback), the release was upgraded with
+`--set-file proxyToken=<file>`, and the pod restarted. It re-enrolled from the token.
+
+**What the test showed.**
+
+| Check | Result |
+| --- | --- |
+| Second node joins the cluster | Yes: `ClusterID:ai-demo-cmuir`, `LinkStatus:Active`, new node id |
+| It serves an app itself | Yes: signed-in `opensearch22` returned `200` from gateway 2 with zero `ConnStream` lines on gateway 1 |
+| Sidecar app before gateway 2 had sidecars | `500 dial tcp [::1]:8084: connect: connection refused`: the backend is `localhost` in the pod that takes the call |
+| After adding the sidecars to gateway 2 | Pod 9/9 ready; every sidecar `/health` ok and `initialize` answered on 8084, 8080, 8083 and 8081 from inside the pod; no discovery errors except `probe-agent-gateway` (its backend does not exist) |
+
+**What it needs.**
+
+- The same sidecar list on both releases: `sidecars.values.yaml`. For gateway 2 add
+  `--set landingPage.enabled=false`.
+- The sidecars' secrets in both namespaces: `brave-secrets`, `banking-rest-secrets`,
+  `pingone-mcp-secrets`, `mcp-grafana-secrets`, `ghcr-pull-secret`. The Grafana one is not
+  called `grafana-secrets` because in `ping-devops-cmuir` that name is Grafana's own secret.
+- Backend URLs that resolve from both namespaces: full Service names, never short ones.
+
+**Not verified.**
+
+- Sign-in surviving the switch: it did not. In the 2026-10-04 stop test gateway 2's log shows
+  two new client registrations, each followed by authorize, callback and token, at 10:15:39 to
+  10:15:49 CDT (about 35 s after the stop, before the app calls began). That fits the demo
+  Privilege page re-registering itself once per app; the log does not name the source, and
+  whether a person saw a prompt is not known. The sequence took under 10 s. Each gateway keeps
+  sign-in state in memory, so this is the expected cost of a switch.
+- Agent-key callers (the A2A apps) DURING a stop. The route probe stayed `401` throughout.
+  A2A ran all five scenarios with `sk-orion` agent keys at 10:17:57 CDT, a minute after
+  gateway 1 returned and 3 s after a probe from the same machine read `gateway-2`, so they
+  were most likely served by gateway 2 (the load balancer pins by address). They passed with
+  no re-registration, and scope, policy, per-tool grants and AIGuard all still applied.
+  Nothing was sent with a key while gateway 1 was actually down.
+- How long the load balancer keeps gateway 1 out after it returns. Its setting is up to 600 s;
+  the probe still read `gateway-2` about a minute after gateway 1 was Ready.
+- Whether `gatewayHostname`, `hostAliases` and `meshPort` are still needed now that nothing
+  is forwarded. They were left in place.
+- The wizard's **Redis URL** field. A shared Redis is the likely way to keep sign-in state
+  across nodes; it was left blank.
+
+**What was done on 2026-10-04, in order.**
+
+1. Sidecar-app test on the old layout: `brave0local` through gateway 2 over the mesh
+   (recorded under section 0).
+2. Gateway 2 parked; its enrollment moved to `backup-cmuir2`; re-enrolled with a token for
+   cluster `ai-demo-cmuir` (release `agentless-mcpgw2` revision 8).
+3. Test with gateway 1 parked: `opensearch22` served by gateway 2 alone; `brave0local`
+   failed with connection refused.
+4. Secrets copied to `ping-devops-cmuir`; `mcp-grafana-secrets` created in both namespaces;
+   sidecars added to gateway 2 (revision 9, pod 9/9).
+5. Gateway 1 upgraded with the same `sidecars.values.yaml` (release `agentless-mcpgw`
+   revision 53, pod 9/9 after one restart). The first attempt failed on a field-manager
+   conflict with an old `kubectl patch` on the Grafana secret reference; `--force-conflicts`
+   cleared it.
+6. Both gateways in rotation.
+
+**What is left.**
+
+| Item | Who | Note |
+| --- | --- | --- |
+| ~~Signed-in call to a sidecar app through gateway 2~~ | Done 2026-10-04 | `brave0local` and `opensearch22` both worked from the demo UI with gateway 1 stopped |
+| ~~Prove apps stay up with gateway 1 stopped~~ | Done 2026-10-04 | Scaled `agentless-mcpgw` to 0 for about 90 s and back to 1; probe every 10 s: `x-served-by` moved to `gateway-2` within one sample, gateway 2 stayed 9/9 |
+| Sign-in surviving a failover | Open | Try the wizard's Redis URL with a Redis both nodes can reach; ask Ping |
+| Ask Ping | Open | Is a second node in one cluster the supported HA layout; does Redis share sign-in state; are `gatewayHostname`/`hostAliases`/`meshPort` still needed |
+| Old cluster `ai-demo-cmuir2` and its node | Open | Still listed in the console; delete once this layout is accepted, which also ends the rollback path |
+| Secrets shown in a console screenshot (tenant API key and secret, OIDC client secret) | Owner's decision | They were pasted into a chat during setup; rotate if that history is not private |
+| `probe-agent-gateway` app | Open, unrelated | Its backend `hdr-echo.ping-devops-cmuir` does not exist; discovery fails on both nodes |
+
+**Roll back to section 0.** Park gateway 2, move the files in `backup-cmuir2` back into
+`/procyon/ssl`, restart gateway 2, and delete node `7f449849…` in the console.
 
 ## 0. Update: the mesh links, and one registration is enough
 
@@ -104,16 +198,29 @@ row on gateway 1, no return within the test and no hung request.
 | Moved back | after about 45 s | not within 158 s; after the 10-minute hold |
 | Forced sign-ins for a signed-in client | 2 (inferred) | 1 (inferred) |
 
+**Sidecar-backed app through gateway 2: verified 2026-10-04.** With gateway 1 parked
+(`ownParked: true`), a signed-in call to `brave0local` from the demo client went through
+gateway 2 and reached the Brave sidecar in gateway 1's pod.
+
+| Where | What it showed (11:49 UTC) |
+| --- | --- |
+| Load balancer | Every `/brave0local/...` request `node=gateway-2`: `401`, register `201`, token `200`, then `200`/`202` on `/brave0local/mcp` |
+| Gateway 2 | Resolved the app, ran the policy check and filtered the responses |
+| Gateway 1 | Seven mesh streams in the same two seconds, each `Connected to localhost:8084` (the `mcp-brave` sidecar) |
+
+The same run showed the app outage a signed-in client sees while gateway 1 is down: the
+park upgrade restarted gateway 1 once (it carried an undeployed log-tailer change), and
+`tools/list` on `opensearch22` through gateway 2 returned `500 Error opening conn stream:
+rpc error: code = Canceled desc = grpc: the client connection is closing` until the mesh
+link returned about six seconds later.
+
 **Still not verified.**
 
-- The signed-in view of a failover. The probes were unauthenticated, so the forced sign-ins
-  and the app outage while gateway 1 is down are reasoned from the token and forwarding
-  behaviour, not observed.
+- The forced sign-in after a failover, seen from a signed-in client. The probes were
+  unauthenticated; it is reasoned from the token behaviour, not observed during a failure.
 - A gateway that accepts a connection and then stalls. The read timeout stays at 3600 s for
   long MCP streams, so such a request can still hang.
 - The two load balancer pods keep separate failure state and may disagree for a few seconds.
-- Sidecar-backed apps (Brave, Grafana, banking-rest, ...) through gateway 2. Their backends
-  are `localhost` in gateway 1's pod, reached over the mesh like `opensearch22`; not tested.
 - Whether Ping supports gateway-to-gateway mesh inside one tenant. It works; ask anyway.
 
 **Decisions taken (2026-10-03).**
@@ -151,6 +258,10 @@ The older runbook commands in sections 6 and 7 that edit `mcpgw-lb.yaml` and run
 `kubectl apply` are superseded by these.
 
 ## 1. Summary
+
+> **Partly superseded by section 0.** The gateways do mesh once they dial each other
+> on the in-cluster address, and an app is registered once, not once per gateway. The
+> design below was the state before that was found; read section 0 first.
 
 We want one public URL, `https://mcpgw.ai-demo.ping-devops.com`, served by two
 Privilege AI Gateways so we can show failover and "1 + 1" to customers.
@@ -289,6 +400,8 @@ LM Studio reported "Authentication failed: Unauthorized". With gateway 2 parked,
 flow succeeded and a real tool call returned data (an OpenSearch cluster health result).
 
 ### 5.3 The gateways cannot mesh with each other
+
+> **Superseded by section 0.** This was an addressing problem, not a product limit.
 
 - Both gateway logs show two mesh nodes in the tenant: gateway 1 (`ClusterID ai-demo-cmuir`,
   NodeURL `mcpgw.ai-demo.ping-devops.com:8690`) and gateway 2 (`ClusterID ai-demo-cmuir2`,
@@ -432,6 +545,9 @@ Self-test of the sign-in path without a browser: register a throwaway client at
 
 ## 8. What is not verified
 
+> **Dated.** Items about the gateways being unable to reach each other are answered by
+> section 0. The failover drill in section 0 lists what is still unverified.
+
 - Gateway 2 has never completed a full sign-in and tool call for any app. Everything about
   it serving traffic is design, not measurement.
 - Whether a differently named copy on cluster 2 plus a load balancer path rewrite works
@@ -445,6 +561,9 @@ Self-test of the sign-in path without a browser: register a throwaway client at
   Privilege cloud). They did not affect calls; we did not establish whether they are new.
 
 ## 9. Open questions and decisions for reviewers
+
+> **Mostly answered by section 0.** The question of a second, differently named copy of
+> each app no longer arises: one registration is enough.
 
 1. **How should gateway 2 get its apps?** An app lives on one cluster only (5.5). Options:
    - **A. Differently named copy on cluster 2** (for example `opensearch22b`) plus a path

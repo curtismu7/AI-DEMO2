@@ -42,6 +42,8 @@
 .jev-badge { padding: 2px 8px; border-radius: 999px; font-size: var(--font-size-2xs); font-weight: 600; }
 .jev-badge--live { background: var(--th-status-success-bg); color: var(--th-status-success-text); }
 .jev-badge--sim { background: var(--th-status-warning-bg); color: var(--th-status-warning-text); }
+.jev-badge--rec { background: var(--th-bg-inset); color: var(--th-text-body); border: 1px solid var(--th-border-strong); }
+.jev-page .jev-recorded { margin: 12px 0; padding-left: 12px; border-left: 3px solid var(--th-status-info); }
 
 .jev-slider { display: block; margin: 0 0 10px; color: var(--th-text-body); }
 .jev-slider input { display: block; width: 100%; max-width: 420px; }
@@ -52,8 +54,14 @@
 
 .jev-table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: var(--font-size-sm); }
 .jev-table th, .jev-table td { text-align: left; padding: 8px; border-bottom: 1px solid var(--th-border); color: var(--th-text); }
+/* The td.jev-* forms (0,3,1) beat ".jev-page .jev-table td" (0,2,1); the bare classes never won, so no green/red rendered. */
 .jev-right { color: var(--th-status-success-text); font-weight: 600; }
 .jev-wrong { color: var(--th-status-error-text); font-weight: 600; }
+.jev-page .jev-table td.jev-right { color: var(--th-status-success-text); font-weight: 600; }
+.jev-page .jev-table td.jev-wrong { color: var(--th-status-error-text); font-weight: 600; }
+/* Not colour alone: a mark in front of the verdict. */
+.jev-page .jev-table td.jev-right::before { content: "\2713\00a0"; }
+.jev-page .jev-table td.jev-wrong::before { content: "\2715\00a0"; }
 
 /* Layout polish. Prefixed with .jev-page so the app skin's bare label/button/p rules lose. */
 .jev-page { padding: 32px 24px 48px; line-height: var(--line-height-body); }
@@ -86,9 +94,26 @@
   cursor: pointer; font-size: var(--font-size-base);
   transition: background-color 0.12s, border-color 0.12s, box-shadow 0.12s;
 }
-.jev-page .jev-chip { border-style: dashed; }
-.jev-page .jev-chip::before { content: "+ "; color: var(--th-text-muted); }
-.jev-page .jev-tab:hover, .jev-page .jev-chip:hover { border-color: var(--th-text); box-shadow: 0 1px 4px var(--th-border-strong); }
+/* Same blue-outline button look as the Demo steps header links, so these read as clickable. */
+.jev-page .jev-chip, .jev-page .jev-tab:not(.jev-tab--on) {
+  border: 1px solid var(--th-status-info); color: var(--th-status-info-text); background: var(--th-bg-card);
+}
+.jev-page .jev-chip { font-weight: 500; box-shadow: 0 1px 2px var(--th-border-strong); }
+.jev-page .jev-chip::before {
+  content: "Use"; margin-right: 10px; padding: 2px 8px; border-radius: 999px;
+  font-size: var(--font-size-xs); font-weight: 700; color: var(--th-bg-card); background: var(--th-status-info-text);
+}
+.jev-page .jev-chip:hover, .jev-page .jev-tab:not(.jev-tab--on):hover {
+  background: var(--th-bg-hover); border-color: var(--th-status-info-text); box-shadow: 0 3px 8px var(--th-border-strong);
+}
+.jev-page .jev-chip:hover { transform: translateY(-1px); }
 .jev-page .jev-tab:focus-visible, .jev-page .jev-chip:focus-visible, .jev-page .jev-input:focus-visible { outline: 2px solid var(--th-text); outline-offset: 2px; }
 .jev-page .jev-tab--on { border-width: 2px; padding: 7px 13px; background: var(--th-bg-card); }
 .jev-page .jev-input:focus { border-color: var(--th-text); }
+
+/* Plain-language readout under each bake-off score. */
+.jev-page .jev-readout { margin: 16px 0 0; padding: 16px 20px; background: var(--th-bg-inset); border: 1px solid var(--th-border); border-radius: var(--radius-md); }
+.jev-page .jev-readout .jev-h3 { margin: 0 0 8px; }
+.jev-page .jev-readout-list { margin: 0 0 12px; padding-left: 20px; display: grid; gap: 10px; color: var(--th-text-body); font-size: var(--font-size-md); line-height: var(--line-height-body); }
+.jev-page .jev-readout-list strong { color: var(--th-text); }
+.jev-page .jev-readout .jev-explain { margin: 0; }

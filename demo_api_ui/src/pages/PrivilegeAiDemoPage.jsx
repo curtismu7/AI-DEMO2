@@ -151,7 +151,8 @@ export default function PrivilegeAiDemoPage() {
 
       <Section id="scanner" title="The blue-team scanner — catch it at ingest">
         <p className="pfa-sub">
-          Privilege stops the <em>action</em> (MCP lane) and the <em>content</em> (LLM lane), but it does not inspect the
+          Privilege stops the <em>action</em> (MCP lane) and the <em>content</em> (LLM lane), and its guardrail screens tool
+          results and agent-to-agent messages, but it does not inspect the
           poisoned tool metadata itself. The scanner is that missing piece: it reads the server's{" "}
           <code className="pfa-code">tools/list</code> and flags the hidden instruction and the exfil sink before an agent
           ever trusts them — the same detection as <code className="pfa-code">standalone/mcp-scanner</code>, reporting

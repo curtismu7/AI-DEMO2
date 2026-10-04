@@ -20,6 +20,10 @@
 #                             default `us`). PREFLIGHT_PUBLIC_URLS="url1 url2": each
 #                             answers without a 5xx — a 302/401/404 is the ingress or
 #                             auth gate answering, which is what must be up.
+#   8. Real sign-in (opt-in)  PREFLIGHT_SIGNIN=1: signs in as the demo customer through
+#                             PingOne and checks /api/auth/oauth/user/status. Needs
+#                             E2E_CUSTOMER_USERNAME, E2E_CUSTOMER_PASSWORD and
+#                             PINGONE_ENVIRONMENT_ID; without them it reports "not run".
 #
 #   PREFLIGHT_BASE_URL   default https://api.ping.demo:3001 (mkcert TLS → curl -k)
 #
@@ -148,7 +152,7 @@ process.stdout.write(JSON.stringify([...CLIENT_DISPATCHED_ACTIONS]));
 ' "$ROOT" 2>/dev/null || echo '[]')"
 
 CHIP_RESULTS="$(BASE="$BASE" ROOT="$ROOT" CLIENT_DISPATCHED="$CLIENT_DISPATCHED" python3 - <<'PYEOF'
-import json, os, glob, subprocess
+import json, os, glob, re, subprocess
 
 base = os.environ["BASE"]
 root = os.environ["ROOT"]
@@ -178,6 +182,20 @@ try:
 except Exception as e:
     topology_tools = set()
     failures.append(f"could not read scope-topology.json tools ({e})")
+
+# Two kinds of chip tool are deliberately NOT in the topology, so they are not
+# defects: the oauth-teaching local tools (plugin.isLocalTool skips authz and
+# token exchange by design; the set is read from the plugin so it cannot drift),
+# and the insufficient-scope chips, whose tool is a fake one the token cannot use.
+# No apostrophes or unbalanced parens in this block: macOS bash 3.2 mis-parses
+# them inside the heredoc and the whole script fails to load.
+try:
+    _plugin_src = open(os.path.join(root, "demo_api_server/config/verticals/oauth-teaching/index.js")).read()
+    _body = _plugin_src.split("LOCAL_TOOLS = new Set", 1)[1].split("[", 1)[1].split("]", 1)[0]
+    local_tools = set(re.findall(r"[a-z_]+", _body))
+except Exception as e:
+    local_tools = set()
+    failures.append(f"could not read LOCAL_TOOLS from the oauth-teaching plugin ({e})")
 
 for mpath in sorted(glob.glob(os.path.join(root, "demo_api_server/config/verticals/*/manifest.json"))):
     vertical = os.path.basename(os.path.dirname(mpath))
@@ -229,7 +247,8 @@ for mpath in sorted(glob.glob(os.path.join(root, "demo_api_server/config/vertica
         # capability by construction, and it fired on 28 of 28 mismatches — every
         # one correct behaviour. Twenty-eight false alarms in the tool you run
         # before going on stage is how a real one gets skimmed past.
-        if tool and topology_tools and tool not in topology_tools:
+        if (tool and topology_tools and tool not in topology_tools
+                and tool not in local_tools and chip.get("useCaseId") != "insufficient-scope"):
             failures.append(f"{vertical}/{cid}: tool {tool!r} is not in scope-topology.json")
             ok = False
         pv = per_vertical.setdefault(vertical, [0, 0])
@@ -507,6 +526,42 @@ for url in ${PREFLIGHT_PUBLIC_URLS:-}; do
     row OK "Public host" "${url} → ${code}"
   fi
 done
+
+# ── 7b. Gateway 2 mesh pin ───────────────────────────────────────────────────
+# gateway2-mesh.values.yaml pins gateway 1's Service ClusterIP in a hostAlias. Since
+# 2026-10-04 gateway 2 is a second node of gateway 1's cluster and nothing is forwarded
+# over the mesh, so a stale pin is NOT known to break serving (whether the setting is
+# still needed is untested, GATEWAY-LOAD-BALANCER.md section 00). Report drift as WARN,
+# never FAIL; make it FAIL again only if that test shows the pin is still load-bearing.
+case " ${PREFLIGHT_K8S_NAMESPACES:-} " in
+  *" ping-devops-curtismuir "*)
+    mesh_file="$ROOT/pingone-privgateway-helm-main/agentless/gateway2-mesh.values.yaml"
+    pinned_ip="$(awk '/^ *- ip:/ {print $3}' "$mesh_file" 2>/dev/null)"
+    live_ip="$(kubectl --context "$K8S_CTX" -n ping-devops-curtismuir get svc agentless-mcpgw \
+      --request-timeout=20s -o jsonpath='{.spec.clusterIP}' 2>/dev/null)"
+    if [[ -z "$pinned_ip" || -z "$live_ip" ]]; then
+      row WARN "Gateway 2 mesh pin" "could not read the pinned IP (${pinned_ip:-none}) or the live Service (${live_ip:-none})"
+    elif [[ "$pinned_ip" == "$live_ip" ]]; then
+      row OK "Gateway 2 mesh pin" "gateway 1 Service is still ${live_ip}"
+    else
+      row WARN "Gateway 2 mesh pin" "gateway2-mesh.values.yaml pins ${pinned_ip}, live Service is ${live_ip}: update the pin, then scripts/se-gateways.sh upgrade --apply (serving is not known to depend on it)"
+    fi
+    ;;
+esac
+
+# ── 8. Real sign-in (opt-in) ─────────────────────────────────────────────────
+# A real PingOne login as the demo customer, then /user/status must say
+# authenticated. Needs E2E_CUSTOMER_USERNAME / E2E_CUSTOMER_PASSWORD /
+# PINGONE_ENVIRONMENT_ID in the environment; without them the row is a WARN
+# (not run), never an OK.
+if [[ "${PREFLIGHT_SIGNIN:-}" == "1" ]]; then
+  signin_out="$(PREFLIGHT_BFF_BASE="$BASE" node "$ROOT/scripts/preflight-signin.js" 2>&1)"; signin_rc=$?
+  case $signin_rc in
+    0) row OK   "Real sign-in" "$signin_out" ;;
+    2) row WARN "Real sign-in" "$signin_out" ;;
+    *) row FAIL "Real sign-in" "$signin_out" ;;
+  esac
+fi
 
 # ── Table + verdict ───────────────────────────────────────────────────────────
 echo

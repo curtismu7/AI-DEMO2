@@ -3,6 +3,12 @@
 # Process ports. Worker and MCP bind to loopback. For native AI-DEMO2, the main
 # process also binds to loopback; use 0.0.0.0 only when its BFF runs in Docker.
 MAIN_AGENT_HOST=127.0.0.1
+# Set these two to 0.0.0.0 only inside a container (see k8s/deployment.yaml).
+WORKER_AGENT_HOST=127.0.0.1
+# The address the worker's agent card advertises. Behind Privilege, set it to
+# the gateway route: https://<gateway>/<worker-app>/a2a/jsonrpc
+WORKER_PUBLIC_URL=
+MCP_SERVER_HOST=127.0.0.1
 MAIN_AGENT_PORT=3300
 WORKER_AGENT_PORT=3301
 MCP_SERVER_PORT=3302
@@ -15,19 +21,41 @@ A2A_BFF_SHARED_SECRET=
 # use https://<gateway>/llm/anthropic (the SDK appends /v1/messages).
 # Leave blank to call Anthropic directly with the per-agent provider API keys.
 ANTHROPIC_BASE_URL=
-MAIN_AGENT_MODEL=claude-sonnet-5
-WORKER_AGENT_MODEL=claude-opus-5
+
+# Each agent picks its provider: anthropic (default) or google. A Privilege
+# agent key is tied to one provider, so an agent set to google needs a key
+# created with the Google provider.
+MAIN_AGENT_PROVIDER=anthropic
+WORKER_AGENT_PROVIDER=anthropic
+
+# Google agents call Gemini's generateContent API. To route through Privilege,
+# use https://<gateway>/llm/google. Leave blank to call Google directly with
+# the Gemini keys below.
+GEMINI_BASE_URL=
+
+# Model IDs, each one allowed by that agent's Privilege policy. Blank uses
+# claude-sonnet-5 / claude-opus-5 (anthropic) or gemini-flash-latest /
+# gemini-flash-lite-latest (google, both on Google's free tier). Give the two agents different tiers to show the
+# per-agent cost split.
+# Through Privilege the ID must match a model selected on the agent's key, so
+# the -latest aliases will not do there: use, for example, gemini-3.6-flash
+# and gemini-3.5-flash-lite.
+MAIN_AGENT_MODEL=
+WORKER_AGENT_MODEL=
 
 # Privilege Agent Access keys. In gateway mode each key is reused by only its
 # owning agent on its Anthropic and A2A/MCP legs.
 MAIN_AGENT_KEY=
 WORKER_AGENT_KEY=
 
-# Direct-provider credentials, used only when ANTHROPIC_BASE_URL is blank.
+# Direct-provider credentials, used only when that provider's base URL is blank.
 # A shared key is allowed for local development; agent-specific keys take priority.
 MAIN_AGENT_ANTHROPIC_API_KEY=
 WORKER_AGENT_ANTHROPIC_API_KEY=
 ANTHROPIC_API_KEY=
+MAIN_AGENT_GEMINI_KEY=
+WORKER_AGENT_GEMINI_KEY=
+GEMINI_API_KEY=
 
 # Outbound service URLs. The gateway form is https://<gateway>/<app>/a2a,
 # https://<gateway>/<app>/trace, and https://<gateway>/<app>/mcp.

@@ -36,8 +36,30 @@ before changing any of this.
 | | |
 |---|---|
 | Gateway 1 | release `agentless-mcpgw`, `ping-devops-curtismuir`, cluster `ai-demo-cmuir`. Owns every app and all sidecars. |
-| Gateway 2 | release `agentless-mcpgw2`, `ping-devops-cmuir`, cluster `ai-demo-cmuir2`. No apps, no sidecars; forwards over the mesh. Values: `gateway2-mesh.values.yaml` (its secrets live only in the release's stored values). |
+| Gateway 2 | release `agentless-mcpgw2`, `ping-devops-cmuir`. **Since 2026-10-04 a second node of gateway 1's cluster `ai-demo-cmuir`** (was its own cluster `ai-demo-cmuir2`, forwarding over the mesh). Serves every app itself, so it runs the same sidecars: upgrade it with `sidecars.values.yaml --set landingPage.enabled=false` as well as `gateway2-mesh.values.yaml` (its secrets live only in the release's stored values). |
 | Load balancer | part of the chart (`templates/loadbalancer.yaml`), enabled on gateway 1's release by `gateway1-lb.values.yaml`. Deployment/Service `mcpgw-lb`. |
+
+**Two nodes in one cluster is the current layout** (`privilege/GATEWAY-LOAD-BALANCER.md`
+section 00). What it changes:
+
+- A sidecar app's backend is `localhost` in whichever pod takes the call. A node without
+  the sidecars answers `500 dial tcp [::1]:<port>: connect: connection refused`. Both
+  releases need the same sidecar list and the sidecars' secrets in both namespaces.
+- The Grafana sidecar's secret is `mcp-grafana-secrets`: in `ping-devops-cmuir`,
+  `grafana-secrets` is Grafana's own secret with different keys.
+- Add a node with the console's **AI GW** form (Docker command), Cluster ID = the existing
+  cluster name. The VM wizard yields a guest-agent env file the chart cannot use, and its
+  screens show the tenant API key and OIDC secret in plain text: do not screenshot them.
+- A gateway re-enrolls from a new token only if its old files in `/procyon/ssl` are out of
+  the way. Move them to a subfolder instead of deleting, and the old enrollment can return.
+- The bullets below about forwarding and the mesh describe the earlier two-cluster layout
+  (nothing is forwarded now; "The mesh forwards" and "Watch `Error connecting`" are history).
+  Pinning, in-memory sign-in state, Helm 4 and `--reuse-values` still apply as written.
+- **Keeping the nodes in step is scripted:** `scripts/se-gateways.sh secrets` copies the
+  sidecar secrets from gateway 1's namespace to gateway 2's (never overwrites without
+  `--force`, never prints a value); `scripts/se-gateways.sh upgrade` dry-run-renders both
+  releases and aborts if a sidecar would be dropped; add `--apply` to upgrade. Also
+  `./run-pingaws.sh gateways ...`. Tested by `scripts/test-se-gateways.sh`.
 
 How it fits together, and the traps, each one hit on 2026-10-03:
 
@@ -293,7 +315,7 @@ modes with the log lines that distinguish them.
 | `Unknown client` page at `/authorize` | gateway restarted and forgot the DCR client; re-register |
 | LM Studio "This client's registration has expired" | same thing, or the client now lands on the OTHER gateway (one was parked, restarted or failed over). Remove the entry from `~/.lmstudio/mcp.json`, quit, re-add, sign in |
 | `401` on `/<app>/mcp` straight after a successful sign-in | the token came from one gateway and the call reached the other: pinning is broken. Compare `node=` on the `token` and `mcp` lines of the `mcpgw-lb` log |
-| `500` on `/<app>/mcp` while sign-in works | mesh link down: the gateway the client is pinned to does not own the app and cannot reach the owner. `Error connecting to <node>` on gateway 1 |
+| `500` on `/<app>/mcp` while sign-in works | one node is missing the sidecars: `dial tcp [::1]:<port>: connection refused` means the pod that took the call has no sidecar on that port. Run `scripts/se-gateways.sh upgrade`. (Two-cluster layout only: mesh link down, `Error connecting to <node>` on gateway 1) |
 | An app stops working on one gateway after a console edit | its Mesh Cluster was changed, which moves it. Set it back |
 | `helm upgrade` fails with `conflict with "kubectl-client-side-apply"` | Helm 4 server-side apply on an object first made with `kubectl apply`; add `--force-conflicts` |
 | A `400` right after every LM Studio connect | harmless: the client probes MCP protocol `2026-07-28`, the backend refuses, the client falls back |

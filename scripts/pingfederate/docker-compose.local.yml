@@ -20,8 +20,12 @@ services:
     container_name: ${PINGFEDERATE_CONTAINER_NAME:-ai-demo-pingfederate}
     restart: unless-stopped
     ports:
-      - "${PINGFEDERATE_ADMIN_PORT:-9999}:9999"
-      - "${PINGFEDERATE_ENGINE_PORT:-9031}:9031"
+      # Loopback only: these were published on every interface, so anyone on the same network
+      # could reach the admin API (9999) and the runtime (9031). The browser (local.ping-devops.com
+      # is 127.0.0.1) and other containers (OrbStack forwards host-gateway traffic to the Mac's
+      # loopback, checked) still reach them. Override PINGFEDERATE_BIND to expose them on purpose.
+      - "${PINGFEDERATE_BIND:-127.0.0.1}:${PINGFEDERATE_ADMIN_PORT:-9999}:9999"
+      - "${PINGFEDERATE_BIND:-127.0.0.1}:${PINGFEDERATE_ENGINE_PORT:-9031}:9031"
     environment:
       PING_IDENTITY_ACCEPT_EULA: "YES"
       PING_IDENTITY_PASSWORD: ${PINGFEDERATE_ADMIN_PASSWORD:?set PINGFEDERATE_ADMIN_PASSWORD outside Git}

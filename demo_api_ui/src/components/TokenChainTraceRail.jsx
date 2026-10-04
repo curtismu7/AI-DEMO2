@@ -1,6 +1,7 @@
 // Compact full-pipeline trace rail for the portal token rails and the agent
 // TokenChainModal. Single-column by construction (no viewport media queries).
 // Spec: docs/superpowers/specs/2026-07-02-token-chain-trace-rail-design.md
+import { buildPrivilegeA2aChainSteps } from "../services/tokenChainTrace/privilegeA2aChainSteps";
 import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import apiClient from "../services/apiClient";
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
@@ -251,7 +252,12 @@ export function buildA2aTokenChainSteps(tokenEvents) {
   });
 }
 
+export { buildPrivilegeA2aChainSteps };
+
 export function buildLiveTokenChainSteps(steps, trace) {
+  // A Privilege chain run has no banking pipeline in it: show its hops alone.
+  const chainSteps = buildPrivilegeA2aChainSteps(trace?.tokenEvents);
+  if (chainSteps.length) return chainSteps.map((step, index) => ({ ...step, num: index + 1 }));
   const source = Array.isArray(steps) ? steps.slice() : [];
   const a2aSteps = buildA2aTokenChainSteps(trace?.tokenEvents);
   if (a2aSteps.length) {

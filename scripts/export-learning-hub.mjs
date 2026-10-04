@@ -2,8 +2,17 @@
 // scripts/export-learning-hub.mjs
 //
 // Captures the in-app Learning Hub education panels (via Playwright, from the
-// running local stack) and mirrors them as static pages into the public
-// GitHub Pages repo (cmuir_pingcorp/llama-vscode-setup-guide -> learning/*.html).
+// running local stack) and mirrors them as static pages.
+//
+// Where they go:
+//   default  demo_api_ui/public/learning-mirror/ in this repo (served by the app at
+//            /learning-mirror/). Files are written to the working tree only - no git
+//            commit or push; review the diff and land it through a PR. Note: the
+//            line-number fingerprints in .gitleaksignore for that folder may need
+//            updating if a regenerated page shifts an allowlisted line.
+//   opt-in   set LEARNING_HUB_MIRROR_REMOTE=<git url> to clone that repo into
+//            LEARNING_HUB_MIRROR_DIR, write into its learning/ folder, then commit
+//            and push to its main (the old public GitHub Pages flow).
 //
 // Usage:
 //   node scripts/export-learning-hub.mjs [--dry-run] [--only <file.html>]
@@ -29,7 +38,10 @@ const MANIFEST_PATH = path.join(__dirname, "learning-hub-manifest.json");
 const MIRROR_DIR =
   process.env.LEARNING_HUB_MIRROR_DIR ||
   path.join(os.homedir(), ".cache", "learning-hub-mirror");
-const MIRROR_REMOTE = "https://github.com/cmuir_pingcorp/llama-vscode-setup-guide.git";
+// Unset (default) = write into the in-app copy. The old hard-coded
+// cmuir_pingcorp/llama-vscode-setup-guide remote does not exist (404).
+const MIRROR_REMOTE = process.env.LEARNING_HUB_MIRROR_REMOTE || null;
+const APP_MIRROR_DIR = path.join(REPO_ROOT, "demo_api_ui", "public", "learning-mirror");
 
 // Pages/dirs in the mirror that this exporter must NEVER touch, even
 // defensively (belt-and-suspenders on top of the manifest never listing them).
@@ -49,6 +61,16 @@ const KNOWN_APP_ONLY_CARDS = new Set([
   "Agentic Trust",
   "OWASP Agentic",
   "Gartner Machine IAM Survey",
+  "Jev: Decision Model", // routed page (/jev-learning) that needs the BFF and a local model
+  // Routed pages: the card navigates to an app route (no education drawer to capture).
+  "Agent-to-Agent (A2A)",
+  "Agent Gateway Authorization",
+  "Shadow AI Detector",
+  "Agent IAM Core",
+  "Privilege for AI — LLM",
+  "Privilege for AI — A2A",
+  "Privilege for AI — MCP",
+  "Agent Guardrails",
 ]);
 
 const CUSTOM_DRAWER_MAP = {
@@ -324,6 +346,11 @@ async function main() {
     (p) => !exclude.has(path.basename(p.file, ".html")),
   );
   if (ONLY_FILE) pages = pages.filter((p) => p.file === ONLY_FILE);
+  // Entries with a "skip" reason are not captured (e.g. a card that is now an interactive lab and
+  // opens no education drawer). They stay in the manifest so their card is not reported as
+  // unmapped, and the last captured page stays in the mirror untouched.
+  const skipped = pages.filter((p) => p.skip);
+  pages = pages.filter((p) => !p.skip);
 
   const reachable = await checkStackReachable(LEARNING_URL);
   if (!reachable) {
@@ -364,14 +391,17 @@ async function main() {
     }
   }
 
-  ensureMirror();
-  const learningDir = path.join(MIRROR_DIR, manifest.siteDir || "learning");
+  if (MIRROR_REMOTE) ensureMirror();
+  const learningDir = MIRROR_REMOTE
+    ? path.join(MIRROR_DIR, manifest.siteDir || "learning")
+    : APP_MIRROR_DIR;
   const outDir = DRY_RUN
     ? await fsp.mkdtemp(path.join(os.tmpdir(), "learning-hub-export-"))
     : null;
 
   const report = [];
   const changedFiles = [];
+  for (const p of skipped) report.push({ file: p.file, status: "SKIPPED", detail: p.skip });
 
   for (const r of results) {
     if (r.status !== "captured") {
@@ -414,7 +444,14 @@ async function main() {
     }
   }
 
-  if (!DRY_RUN && changedFiles.length > 0) {
+  if (!DRY_RUN && changedFiles.length > 0 && !MIRROR_REMOTE) {
+    console.log(
+      `[export-learning-hub] wrote ${changedFiles.length} page(s) into ${path.relative(REPO_ROOT, APP_MIRROR_DIR)} ` +
+        "(working tree only - review the diff and commit via a PR).",
+    );
+  }
+
+  if (!DRY_RUN && changedFiles.length > 0 && MIRROR_REMOTE) {
     run("git", ["-C", MIRROR_DIR, "add", ...changedFiles.map((f) => path.join("learning", f))]);
     run("git", [
       "-C",
@@ -434,7 +471,7 @@ async function main() {
   const failed = report.filter((r) => r.status === "FAILED").length;
   const changed = report.filter((r) => r.status === "CHANGED" || r.status === "NEW").length;
   console.log(
-    `[export-learning-hub] ${report.length} pages: ${changed} changed, ${failed} failed.` +
+    `[export-learning-hub] ${report.length} pages: ${changed} changed, ${failed} failed, ${skipped.length} skipped.` +
       (DRY_RUN ? ` Diffs (if any) written to ${outDir}` : ""),
   );
 
