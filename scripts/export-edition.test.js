@@ -128,6 +128,35 @@ test('gitleaks gate fails on a planted secret', () => {
   assert.throws(() => runGates(d, mf(), okRunner), /gitleaks/);
 });
 
+// ---- gitleaks config (editions/gitleaks.toml) ----
+const AUD = 'https://api.ping.demo:30' + '36/mcp/api' + 'key';
+const gl = (d) => { process.env.EDITION_FORBIDDEN_STRINGS = 'unused-placeholder-xyz'; after(() => delete process.env.EDITION_FORBIDDEN_STRINGS); runGates(d, mf(), okRunner); };
+const fakeToken = () => 'ghp_' + 'aB3dE5gH7jK9mN1pQ3sT5vW7yZ9bD1fH3jK5';
+
+test('gitleaks config: the allowlisted audience URI passes, a planted token beside it still fails', () => {
+  const ok = tree({ 'scope.json': `{ "audience": "${AUD}" }\n`, 'doc.md': `| \`${AUD}\` |\n` });
+  gl(ok);
+  const bad = tree({ 'scope.json': `{ "audience": "${AUD}" }\n`, 'k.js': `const t = "${fakeToken()}";\n` });
+  assert.throws(() => gl(bad), /gitleaks/);
+});
+
+test('gitleaks config: the URI with one extra character is not exempt', () => {
+  // proves the allowlist is exact: without the config the default rule flags this line too
+  const d = tree({ 'scope.json': `{ "audience": "${AUD}X" }\n` });
+  assert.throws(() => gl(d), /gitleaks/);
+});
+
+test('gitleaks config: a .gitleaks.toml in the exported tree fails the gate and cannot weaken it', () => {
+  const d = tree({ 'k.js': `const t = "${fakeToken()}";\n`, 'sub/.gitleaks.toml': '[extend]\nuseDefault = false\n[[allowlists]]\nregexes = [\'\'\'.*\'\'\']\n' });
+  assert.throws(() => gl(d), /gitleaks config in exported tree: sub\/\.gitleaks\.toml/);
+});
+
+test('gitleaks config: a shipped .gitleaksignore is inert (the finding still fails)', () => {
+  const d = tree({ 'k.js': `const t = "${fakeToken()}";\n` });
+  fs.writeFileSync(path.join(d, '.gitleaksignore'), 'k.js:github-pat:1\nk.js:generic-api-key:1\n');
+  assert.throws(() => gl(d), /gitleaks/);
+});
+
 test('clean tree passes scan gates and runs build/test gates through the runner', () => {
   process.env.EDITION_FORBIDDEN_STRINGS = 'unused-placeholder-xyz';
   after(() => delete process.env.EDITION_FORBIDDEN_STRINGS);

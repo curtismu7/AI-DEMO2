@@ -221,14 +221,34 @@ function defaultRunner(cmd, args, opts) {
   } catch (e) { throw new Error(`${e.message.split('\n')[0]} (see ${log})`); } finally { fs.closeSync(fd); }
 }
 
-const JEST_SCOPE = ['tests/crossVerticalIntentGuard.test.js', 'src/__tests__/featureFlags.route.test.js', 'src/__tests__/authorize-gate.test.js'];
+const GITLEAKS_CONFIG = path.resolve(__dirname, '..', 'editions', 'gitleaks.toml');
+
+// a config file shipped in the exported tree could be mistaken for the gate's config
+// (.gitleaksignore is inert under --no-git and ships as-is, so it is not flagged)
+function checkNoGitleaksConfig(dest) {
+  const hits = [];
+  const scan = (dir) => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (e.name === '.git') continue;
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) scan(p);
+      else if (/^\.?gitleaks\.(toml|ya?ml)$/.test(e.name)) hits.push(path.relative(dest, p));
+    }
+  };
+  scan(dest);
+  if (hits.length) throw new Error(`gate failed: gitleaks config in exported tree: ${hits.join(', ')}`);
+}
+
+const JEST_SCOPE =['tests/crossVerticalIntentGuard.test.js', 'src/__tests__/featureFlags.route.test.js', 'src/__tests__/authorize-gate.test.js'];
 
 function runGates(dest, manifest, runner = defaultRunner, removed) {
   checkForbidden(dest);
   checkRelativeImports(dest, removed);
   checkRemovedPathReferences(dest, removed, manifest.remove);
+  checkNoGitleaksConfig(dest);
   try {
-    execFileSync('gitleaks', ['detect', '--no-git', '--source', dest, '--no-banner'], { stdio: 'pipe' });
+    // config comes from the source repo (__dirname), never from the exported tree
+    execFileSync('gitleaks', ['detect', '--no-git', '--source', dest, '--no-banner', '--config', GITLEAKS_CONFIG], { stdio: 'pipe' });
   } catch (e) { throw new Error(`gate failed: gitleaks (${e.status === 1 ? 'leaks found' : e.message.split('\n')[0]})`); }
   // generated use-case docs list every use case; regenerate so they match the dropped set
   const regen = (manifest.dropUseCases || []).length
