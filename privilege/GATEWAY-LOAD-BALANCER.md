@@ -229,10 +229,17 @@ restart drops registrations made before Redis was on.
 amount of persistence changes that. Not a documented Ping feature, so ask Ping whether
 `MCPGW_REDIS_URL` is supported and whether the exit after 6 failed attempts is intended.
 
-## 00c. Adding a third node in gateway 1's namespace (prepared, not installed)
+## 00c. A third node in gateway 1's namespace (installed 2026-10-04)
 
-Status: chart and values are ready and rendered; no release exists yet, and the load balancer
-lists gateway 3 as `parked: true` (not yet applied to the cluster).
+Status: release `agentless-mcpgw3` is installed in `ping-devops-curtismuir`, enrolled in
+`ai-demo-cmuir` as a third node, pod 9/9, Redis connected on attempt 1/6, its Certificate
+issued, and un-parked in the load balancer. **Not yet shown:** a request actually served by
+gateway 3. Tests through the public URL land on whichever node the client address hashes to
+(on 2026-10-04 that was gateway 1). Read `node=` in `kubectl logs deploy/mcpgw-lb` to see
+which node answered; to force gateway 3, park gateways 1 and 2 as in section 00.
+
+The container in gateway 3's pod is named `agentless-mcpgw3`, not `agentless-mcpgw`: use
+`kubectl exec deploy/agentless-mcpgw3 -c agentless-mcpgw3 ...` for its log.
 
 The chart named every resource `agentless-mcpgw`, so a second release in
 `ping-devops-curtismuir` would have collided with gateway 1 on the Deployment, Service,
@@ -258,11 +265,17 @@ peer parked the load balancer renders it as `down`.
 4. Set `parked: false` for `gateway-3` in `gateway1-lb.values.yaml`,
    `scripts/se-gateways.sh upgrade --apply`.
 
-**Not verified:** that the Certificate for `mcpgw3.ai-demo.ping-devops.com` issues (it
-needs DNS and the wildcard challenge to work for that name; gateway 2's `mcpgw2` name did);
-that a third node is accepted into the cluster; whether `meshPort` and `gatewayHostname` are
-needed (copied from gateway 2, itself untested). A third pod in the same namespace adds pod
-redundancy, not namespace redundancy.
+**Found on install:** the Certificate for `mcpgw3.ai-demo.ping-devops.com` issued, and the
+console accepted a third node with the existing Cluster ID. The first start took about 6
+minutes, almost all of it pulling the sidecar images onto a fresh node. Gateway 3 and gateway 1
+each log `Error connecting ... context deadline exceeded` when dialling the other's mesh
+address; gateway 2 has thousands of the same lines and serves apps, so it looks routine here, but
+it was not shown to be harmless for gateway 3. The overlay has no `hostAliases` (gateway 2
+has one); whether gateway 3 needs it is untested.
+
+**Not verified:** whether `meshPort` and `gatewayHostname` are needed (copied from gateway 2,
+itself untested). A third pod in the same namespace adds pod redundancy, not namespace
+redundancy.
 
 **Redis (section 00b):** gateway 3 uses the shared Redis too. `sidecars.values.yaml` carries
 `redis.urlSecret.name`, and the Secret `privilege-redis-url` already exists in
