@@ -533,6 +533,6 @@ describe("Server topology agent-to-agent buttons", () => {
     expect(screen.getByLabelText("Choose a request flow").value).toBe("privilegeA2aChain");
     expect(screen.getByLabelText("Flow boxes only").checked).toBe(true);
     const visible = reactFlowMocks.nodes.filter((node) => node.type === "server" && !node.hidden).map((node) => node.id).sort();
-    expect(visible).toEqual(["a2amain", "bff", "langchain", "privgw"]);
+    expect(visible).toEqual(["a2amain", "langchain", "privgw"]);
   });
 });
