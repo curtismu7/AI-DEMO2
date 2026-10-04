@@ -149,7 +149,7 @@ Response:
     "role": "user"
   },
   "oauthTokens": {
-    "accessToken": "eyJhbGciOiJSUzI1NiIs..."  (1200+ chars)
+    "accessToken": "<ACCESS_TOKEN>"  (1200+ chars)
   }
 }
 ```
@@ -179,7 +179,7 @@ Request Body:
 
 ```json
 {
-  "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "access_token": "<ACCESS_TOKEN>",
   "issued_token_type": "urn:ietf:params:oauth:token-type:access_token",
   "token_type": "Bearer",
   "expires_in": 3600,

@@ -13,6 +13,10 @@ import {
 } from '../../src/types/validation';
 import { AgentTokenInfo, UserTokens, AuthorizationRequest } from '../../src/interfaces/auth';
 
+// Structurally valid but fake JWT, built at runtime (header.payload.signature)
+const b64url = (obj: object) => Buffer.from(JSON.stringify(obj)).toString('base64url');
+const fixtureJwt = `${b64url({ alg: 'HS256', typ: 'JWT' })}.${b64url({ sub: 'user-1234567890' })}.fake-signature`;
+
 describe('Authentication Model Validation', () => {
   describe('validateAgentTokenInfo', () => {
     const validAgentTokenInfo: AgentTokenInfo = {
@@ -67,7 +71,7 @@ describe('Authentication Model Validation', () => {
 
   describe('validateUserTokens', () => {
     const validUserTokens: UserTokens = {
-      accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c',
+      accessToken: fixtureJwt,
       refreshToken: 'refresh-token-123',
       tokenType: 'Bearer',
       expiresIn: 3600,
@@ -180,7 +184,7 @@ describe('Authentication Model Validation', () => {
 
   describe('validateTokenFormat', () => {
     it('should validate correct JWT format', () => {
-      const validJWT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c';
+      const validJWT = fixtureJwt;
       expect(validateTokenFormat(validJWT)).toBe(true);
     });
 

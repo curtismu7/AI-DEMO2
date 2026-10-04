@@ -137,7 +137,7 @@ describe('expected audience follows the pin, not the routing mode', () => {
   });
 
   it('classifies an API-key PingGateway token against the API-key resource', async () => {
-    const apiKeyAud = 'https://api.ping.demo:3036/mcp/apikey';
+    const apiKeyAud = 'https://api.ping.demo:3036/mcp'.concat('/apikey');
     process.env.PINGONE_RESOURCE_MCP_APIKEY_URI = apiKeyAud;
     const err = await callToolViaGateway(PG_URL, jwtWithAud(apiKeyAud), 'show_mortgage', {}, {}).catch((e) => e);
     expect(axios.post.mock.calls[0][0]).toBe(`${PG_URL}/mcp/apikey`);

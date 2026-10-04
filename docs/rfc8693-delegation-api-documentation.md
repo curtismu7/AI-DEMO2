@@ -34,7 +34,7 @@ Validates user token delegation claims according to RFC 8693 standards.
 **Request Body**:
 ```json
 {
-  "token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token": "<TOKEN>",
   "strict": true,
   "autoFix": false
 }
@@ -87,7 +87,7 @@ Validates exchanged token delegation claims and act claim structure.
 **Request Body**:
 ```json
 {
-  "token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token": "<TOKEN>",
   "strict": true,
   "autoFix": false
 }
@@ -128,8 +128,8 @@ Validates complete delegation chain integrity from user and exchanged tokens.
 **Request Body**:
 ```json
 {
-  "userToken": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "exchangedToken": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "userToken": "<USER_TOKEN>",
+  "exchangedToken": "<EXCHANGED_TOKEN>",
   "chainType": "single_exchange",
   "strict": true
 }
@@ -302,10 +302,10 @@ Performs RFC 8693 token exchange with enhanced act claim validation.
 **Request Body**:
 ```json
 {
-  "subjectToken": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "subjectToken": "<SUBJECT_TOKEN>",
   "audience": "https://mcp-server.pingdemo.com",
   "scopes": ["banking:read", "banking:write"],
-  "actorToken": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "actorToken": "<ACTOR_TOKEN>",
   "options": {
     "validateStructure": true,
     "preserveSubject": true,
@@ -317,7 +317,7 @@ Performs RFC 8693 token exchange with enhanced act claim validation.
 **Response**:
 ```json
 {
-  "token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token": "<TOKEN>",
   "claims": {
     "sub": "user-12345",
     "act": {
@@ -348,7 +348,7 @@ Performs two-exchange delegation chain for enhanced security.
 **Request Body**:
 ```json
 {
-  "userToken": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "userToken": "<USER_TOKEN>",
   "agentClientId": "agent-client-123",
   "agentClientSecret": "agent-secret",
   "mcpClientId": "mcp-client-456",
@@ -361,7 +361,7 @@ Performs two-exchange delegation chain for enhanced security.
 **Response**:
 ```json
 {
-  "token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token": "<TOKEN>",
   "claims": {
     "sub": "user-12345",
     "act": {
@@ -691,19 +691,32 @@ print(f'Validation result: {validation}')
 
 ### Test Tokens
 
-#### Valid User Token
-```
-eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMzQ1IiwibWF5X2FjdCI6eyJzdWIiOiJodHRwczovL2JhbmtpbmctYWdlbnQucGluZ2RlbW8uY29tL2FnZW50L3Rlc3QtYWdlbnQifX0.SflKxwRJSMeQ98PjmYQhQjFzLhOA-7h5aYFFI
+Put these claims in a test token (header `{"alg":"RS256","typ":"JWT"}`, any signature). The unit tests build them at runtime with `demo_api_server/tests/helpers/fixtureJwt.js`.
+
+#### Valid User Token (claims)
+```json
+{
+  "sub": "user-12345",
+  "may_act": { "sub": "https://banking-agent.pingdemo.com/agent/test-agent" }
+}
 ```
 
-#### Valid Exchanged Token
-```
-eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMzQ1IiwiYWN0Ijp7InN1YiI6Imh0dHBzOi8vbWNwLXNlcnZlci5waW5nZGVtby5jb20vbWNwL3Rlc3QtbWNwIiwiYWN0Ijp7InN1YiI6Imh0dHBzOi8vYWdlbnQtZ2F0ZXdheS5waW5nZGVtby5jb20vYWdlbnQvYWdlbnQtY2xpZW50In19fQ.SflKxwRJSMeQ98PjmYQhQjFzLhOA-7h5aYFFI
+#### Valid Exchanged Token (claims)
+```json
+{
+  "sub": "user-12345",
+  "act": {
+    "sub": "https://mcp-server.pingdemo.com/mcp/test-mcp",
+    "act": { "sub": "https://agent-gateway.pingdemo.com/agent/agent-client" }
+  }
+}
 ```
 
-#### Invalid Token (Missing may_act)
-```
-eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMzQ1In0.SflKxwRJSMeQ98PjmYQhQjFzLhOA-7h5aYFFI
+#### Invalid Token, Missing may_act (claims)
+```json
+{
+  "sub": "user-12345"
+}
 ```
 
 ### Test Scripts
@@ -716,7 +729,7 @@ curl -X POST https://banking-api.pingdemo.com/api/delegation/validate/user \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "token": "<VALID_USER_TOKEN>",
     "strict": true
   }'
 
@@ -725,8 +738,8 @@ curl -X POST https://banking-api.pingdemo.com/api/delegation/validate/chain \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "userToken": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "exchangedToken": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "userToken": "<VALID_USER_TOKEN>",
+    "exchangedToken": "<VALID_EXCHANGED_TOKEN>",
     "chainType": "single_exchange"
   }'
 

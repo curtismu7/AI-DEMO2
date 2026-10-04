@@ -281,7 +281,7 @@ test("A2A chain map explains exchange requests, responses, and actor communicati
         audience: "a2a-intermediate-membership",
         scope: "agent:invoke:membership",
         has_actor_token: true,
-        actor_token: "eyJhbGciOiJub25lIn0.eyJzdWIiOiJhY3RvciJ9.signature",
+        actor_token: `${btoa('{"alg":"none"}')}.${btoa('{"sub":"actor"}')}.signature`,
       },
     },
     {

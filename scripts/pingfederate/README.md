@@ -19,6 +19,45 @@ Recreating the container is safe for the configuration: `/opt/out` (the instance
 plugin JARs, the JDBC client storage setting) and the JVM trust store are named volumes. Check
 `ls /opt/out/instance/server/default/deploy` afterwards.
 
+## Rebuild a fresh PF in one command
+
+A fresh PF volume has zero OAuth clients and file-based client storage. After
+`up -d` (above), one command recreates everything the demo needs from Git:
+
+```bash
+PF_BASE=https://<host>:<admin-port>/pf-admin-api/v1 PINGFEDERATE_CONTAINER_NAME=<container> \
+PINGFEDERATE_ADMIN_PASSWORD=... bash scripts/pingfederate/provision-all.sh
+```
+
+There is no default target. Both `PF_BASE` and `PINGFEDERATE_CONTAINER_NAME` are required, and only local demo
+hosts (`localhost`, `127.0.0.1`, `*.ping-devops.com`, `*.ping.demo`) are accepted. Admin port 9999 or the container
+`ai-demo-pingfederate` is the live PF and is refused unless `I_KNOW_THIS_IS_THE_LIVE_PF=yes`. The PF public base URL is
+only changed when `PF_BASE_URL` is set. After the storage switch the script proves JDBC at runtime with a throwaway
+client (served by the API, absent from the XML store).
+
+It switches client storage to JDBC (and restarts PF), then runs
+`provision-core.js` (base URL, signing keys, the three JWT token managers,
+`aiDemoStandardTePolicy` and its ATM mappings, the four role clients, the
+introspection client) and `provision-a2a-sp-connections.sh`. It is idempotent,
+exits 0 only when the admin API lists the expected clients and token managers,
+and never prints secrets: client secrets come from `<ROLE>_CLIENT_SECRET` env,
+else `PF_SECRETS_FILE` (default `.pf-client-secrets.env`, gitignored), generated
+once, for a new client only. If the secrets file is lost, an existing client keeps its old secret (PF never reveals
+it): the script warns `secret for client X cannot be recovered` and writes nothing; set it by hand. Re-running warns
+on stderr when an existing object's key fields (grants, ATM, policy, issuer/audience) differ from the desired shape;
+it never edits it. The PingOne steps additionally need `PF_ALLOW_PINGONE_STEPS=yes`. The dependency order and every optional switch (`PF_USE_VAULT`,
+`PF_STEP9`, `PF_AI_AGENT_FEATURES`, `PF_A2A_ENV_FILE`, and the PingOne steps,
+skipped unless the `PINGONE_BOOTSTRAP_*` worker and friends are set) are in the
+header of `provision-all.sh`. A profile-less volume has no admin user: set
+`CREATE_INITIAL_ADMIN_USER=true` on the container (see `docker-compose.fresh.yml`).
+
+Test (starts a separate `pf-fresh` project on ports 19999/19031, tears it down):
+
+```bash
+PF_FRESH_PROFILE_PATH=<dir with instance/server/default/conf/pingfederate.lic> \
+PINGFEDERATE_ADMIN_PASSWORD=<throwaway> bash scripts/pingfederate/provision-all.test.sh
+```
+
 ## Recovering the profile (2026-09-26 incident)
 
 The profile directory is a prepared PF classic instance (must contain

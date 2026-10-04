@@ -1046,7 +1046,7 @@ def test_sensitive_data_filter_not_attached(monkeypatch):
     handler = logging.StreamHandler(buf)
     handler.setLevel(logging.DEBUG)
     root.addHandler(handler)
-    logging.getLogger("t").debug("token=eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ1MSJ9.sig")
+    logging.getLogger("t").debug("token=<TOKEN>")
     assert "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ1MSJ9.sig" in buf.getvalue()
 ```
 

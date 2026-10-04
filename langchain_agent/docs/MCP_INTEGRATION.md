@@ -181,7 +181,7 @@ MCP servers must implement these interfaces:
       "param1": "value1",
       "param2": 42
     },
-    "agent_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9...",
+    "agent_token": "<AGENT_TOKEN>",
     "session_id": "session_123"
   }
 }
@@ -216,7 +216,7 @@ When user authorization is required:
       "param1": "value1",
       "param2": 42
     },
-    "agent_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9...",
+    "agent_token": "<AGENT_TOKEN>",
     "user_auth_code": "auth_code_from_user",
     "session_id": "session_123"
   }

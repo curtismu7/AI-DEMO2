@@ -193,13 +193,13 @@ describe('SupportContactService', () => {
     it('does not include raw tokens in report data', () => {
       const errWithToken = {
         ...mockError,
-        token: 'eyJhbGciOiJSUzI1NiJ9...',
+        token: `${btoa('{"alg":"RS256"}')}...`,
       };
 
       SupportContactService.logErrorContext(errWithToken, mockContext);
 
       const log = SupportContactService.getAuditLog();
-      expect(JSON.stringify(log[0])).not.toContain('eyJhbGciOiJSUzI1NiJ9');
+      expect(JSON.stringify(log[0])).not.toContain(btoa('{"alg":"RS256"}'));
     });
 
     it('does not include environment IDs in report data', () => {

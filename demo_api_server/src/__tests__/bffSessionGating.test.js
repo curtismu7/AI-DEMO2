@@ -31,7 +31,7 @@ describe('bffSessionGating', () => {
         isCookieOnlyBffSession({
           session: {
             user: { id: '1' },
-            oauthTokens: { accessToken: 'eyJhbGciOiJSUzI1NiJ9.x.y' },
+            oauthTokens: { accessToken: 'test-access-token' },
           },
         }),
       ).toBe(false);

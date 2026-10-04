@@ -26,7 +26,7 @@ curl -X POST http://localhost:3001/api/auth/login \
 ### Get Current User
 ```bash
 curl -X GET http://localhost:3001/api/auth/me \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
 ## 2. User Management
@@ -34,19 +34,19 @@ curl -X GET http://localhost:3001/api/auth/me \
 ### Get All Users (Admin Only)
 ```bash
 curl -X GET http://localhost:3001/api/users \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
 ### Get Specific User
 ```bash
 curl -X GET http://localhost:3001/api/users/1 \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
 ### Search Users (Admin Only)
 ```bash
 curl -X GET http://localhost:3001/api/users/search/john \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
 ## 3. Account Management
@@ -54,31 +54,31 @@ curl -X GET http://localhost:3001/api/users/search/john \
 ### Get All Accounts (Admin Only)
 ```bash
 curl -X GET http://localhost:3001/api/accounts \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
 ### Get User's Accounts
 ```bash
 curl -X GET http://localhost:3001/api/accounts/user/1 \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
 ### Get Account Details
 ```bash
 curl -X GET http://localhost:3001/api/accounts/1 \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
 ### Check Account Balance
 ```bash
 curl -X GET http://localhost:3001/api/accounts/1/balance \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
 ### Create New Account (Admin Only)
 ```bash
 curl -X POST http://localhost:3001/api/accounts \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
   -d '{
     "userId": "1",
@@ -91,7 +91,7 @@ curl -X POST http://localhost:3001/api/accounts \
 ### Deposit Money (Admin Only)
 ```bash
 curl -X POST http://localhost:3001/api/accounts/1/deposit \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
   -d '{
     "amount": 500,
@@ -102,7 +102,7 @@ curl -X POST http://localhost:3001/api/accounts/1/deposit \
 ### Withdraw Money (Admin Only)
 ```bash
 curl -X POST http://localhost:3001/api/accounts/1/withdraw \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
   -d '{
     "amount": 200,
@@ -115,25 +115,25 @@ curl -X POST http://localhost:3001/api/accounts/1/withdraw \
 ### Get All Transactions (Admin Only)
 ```bash
 curl -X GET http://localhost:3001/api/transactions \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
 ### Get User's Transactions
 ```bash
 curl -X GET http://localhost:3001/api/transactions/user/1 \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
 ### Get Account Transactions
 ```bash
 curl -X GET http://localhost:3001/api/transactions/account/1 \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
 ### Transfer Money
 ```bash
 curl -X POST http://localhost:3001/api/transactions/transfer \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
   -d '{
     "fromAccountId": "1",
@@ -146,7 +146,7 @@ curl -X POST http://localhost:3001/api/transactions/transfer \
 ### Create Transaction (Admin Only)
 ```bash
 curl -X POST http://localhost:3001/api/transactions \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
   -d '{
     "fromAccountId": "1",
@@ -161,7 +161,7 @@ curl -X POST http://localhost:3001/api/transactions \
 ### Search Transactions (Admin Only)
 ```bash
 curl -X GET http://localhost:3001/api/transactions/search/transfer \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
 ## 5. Admin Functions
@@ -169,44 +169,44 @@ curl -X GET http://localhost:3001/api/transactions/search/transfer \
 ### Get System Statistics
 ```bash
 curl -X GET http://localhost:3001/api/admin/stats \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
 ### Get Activity Logs
 ```bash
 curl -X GET http://localhost:3001/api/admin/activity?page=1&limit=50 \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
 ### Get Recent Activity
 ```bash
 curl -X GET http://localhost:3001/api/admin/activity/recent?hours=24 \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
 ### Get Activity Summary
 ```bash
 curl -X GET http://localhost:3001/api/admin/activity/summary \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
 ### Get User Activity Summary
 ```bash
 curl -X GET http://localhost:3001/api/admin/activity/users/summary \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
 ### Export Activity Logs (CSV)
 ```bash
 curl -X GET http://localhost:3001/api/admin/activity/export \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>" \
   --output activity_logs.csv
 ```
 
 ### Clear Old Activity Logs
 ```bash
 curl -X DELETE http://localhost:3001/api/admin/activity/clear?days=30 \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
 ## 6. Error Testing
@@ -214,13 +214,13 @@ curl -X DELETE http://localhost:3001/api/admin/activity/clear?days=30 \
 ### Try to Access Admin Endpoint as Customer
 ```bash
 curl -X GET http://localhost:3001/api/admin/stats \
-  -H "Authorization: Bearer CUSTOMER_TOKEN_HERE"
+  -H "Authorization: Bearer <CUSTOMER_TOKEN>"
 ```
 
 ### Try to Transfer More Than Available Balance
 ```bash
 curl -X POST http://localhost:3001/api/transactions/transfer \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
   -d '{
     "fromAccountId": "1",
@@ -233,7 +233,7 @@ curl -X POST http://localhost:3001/api/transactions/transfer \
 ### Try to Access Another User's Data
 ```bash
 curl -X GET http://localhost:3001/api/users/2 \
-  -H "Authorization: Bearer CUSTOMER_TOKEN_HERE"
+  -H "Authorization: Bearer <CUSTOMER_TOKEN>"
 ```
 
 ## 7. Complete Workflow Example
@@ -302,7 +302,7 @@ curl -X GET http://localhost:3001/api/accounts/3/balance \
 ```json
 {
   "message": "Login successful",
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token": "<TOKEN>",
   "user": {
     "id": "4",
     "username": "admin",

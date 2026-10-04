@@ -108,7 +108,7 @@ describe('GET /api/privilege-mcp/state — mcpUrl default', () => {
     process.env.PRIVILEGE_DIRECT_PINGONE_HOSTED_MCP_URL =
       'https://mcp.pingone.com/admin/01d89b06-66d5-430e-9f28-65636843788b/mcp';
     process.env.PINGONE_ENVIRONMENT_ID = '01d89b06-66d5-430e-9f28-65636843788b';
-    process.env.PINGONE_MCP_OAUTH_CLIENT_ID = 'eec33861-dc73-4ca2-93c7-9ceb45174825';
+    process.env.PINGONE_MCP_OAUTH_CLIENT_ID = '00000000-0000-4000-8000-000000000001';
 
     const res = await request(app).get('/api/privilege-mcp/state').expect(200);
 
@@ -118,7 +118,7 @@ describe('GET /api/privilege-mcp/state — mcpUrl default', () => {
           label: 'Direct — PingOne Hosted MCP',
           mode: 'direct',
           url: 'https://mcp.pingone.com/admin/01d89b06-66d5-430e-9f28-65636843788b/mcp',
-          clientId: 'eec33861-dc73-4ca2-93c7-9ceb45174825',
+          clientId: '00000000-0000-4000-8000-000000000001',
         }),
       ]),
     );

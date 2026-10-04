@@ -217,7 +217,7 @@ curl -X POST https://auth.pingone.com/.../oauth/token \
 ```bash
 # Get token with correct aud
 curl -X POST https://auth.pingone.com/abc123.../oauth/token \
-  -u "client_id:client_secret" \
+  -u "<CLIENT_ID>:<CLIENT_SECRET>" \
   -d "grant_type=authorization_code" \
   -d "code=..." \
   -d "redirect_uri=https://banking-api.local/callback"

@@ -299,6 +299,8 @@ function Meter({ label, remaining, limit, reset }) {
   );
 }
 
+const LANES_WIDTH_STORAGE_ID = 'lgw-lanes-width-v2';
+
 export default function LlmGatewayPage() {
   const { darkMode, toggleDarkMode } = useThemeOptional();
   const initialAttack = attackFromUrl() || window.localStorage.getItem('lgw-attack-choice') || '';
@@ -306,7 +308,7 @@ export default function LlmGatewayPage() {
   // request column takes the remaining space; Last decision now spans both
   // columns below them.
   const { size: lanesWidth, handleProps: lanesHandleProps } = useDividerDrag({
-    min: 280, max: 520, initial: 360, storageKey: 'lgw-lanes-width-v2',
+    min: 280, max: 520, initial: 360, storageKey: LANES_WIDTH_STORAGE_ID,
   });
   const [gatewayUrl, setGatewayUrl] = useState('');
   const [lanes, setLanes] = useState([]);

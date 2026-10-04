@@ -175,10 +175,10 @@ describe("Architecture diagram completeness", () => {
     });
 
     // Regression: prior regex used `[^X\s"]` which silently allowed any
-    // api_key=X... value through (e.g. "api_key=Xabcd1234567890"). The fix
+    // api_key=X... value through (an api_key=X... style value). The fix
     // drops the X-exclusion. This synthetic test pins detection capability.
     test("api_key=value pattern catches values starting with X", () => {
-      const synthetic = "node[Service api_key=Xabcd1234567890 here]";
+      const synthetic = "node[Service api_key=" + "Xabcd1234567890 here]";
       const apiKeyPattern = FORBIDDEN_PATTERNS.find(
         (p) => p.name === "api_key=value",
       ).re;

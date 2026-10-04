@@ -17,6 +17,11 @@ import {
 } from '../../src/config';
 import { DemoMCPServerConfig } from '../../src/interfaces/config';
 
+// Fixed-length filler strings (the validator only checks length)
+const FILLER_33 = 'x'.repeat(33);
+const FILLER_38 = 'x'.repeat(38);
+const FILLER_60 = 'x'.repeat(60);
+
 describe('Configuration', () => {
   const originalEnv = process.env;
 
@@ -39,14 +44,14 @@ describe('Configuration', () => {
       process.env.PINGONE_INTROSPECTION_ENDPOINT = 'https://test.pingidentity.com/introspect';
       process.env.PINGONE_AUTHORIZATION_ENDPOINT = 'https://test.pingidentity.com/authorize';
       process.env.PINGONE_TOKEN_ENDPOINT = 'https://test.pingidentity.com/token';
-      process.env.ENCRYPTION_KEY = 'test-encryption-key-32-characters-long-enough-for-validation';
+      process.env.ENCRYPTION_KEY = FILLER_60;
 
       const config = loadConfiguration();
 
       expect(config).toBeDefined();
       expect(config.pingone.baseUrl).toBe('https://test.pingidentity.com');
       expect(config.pingone.clientId).toBe('test-client-id');
-      expect(config.security.encryptionKey).toBe('test-encryption-key-32-characters-long-enough-for-validation');
+      expect(config.security.encryptionKey).toBe(FILLER_60);
     });
 
     it('should throw error when required environment variables are missing', () => {
@@ -69,7 +74,7 @@ describe('Configuration', () => {
       process.env.PINGONE_INTROSPECTION_ENDPOINT = 'https://test.pingidentity.com/introspect';
       process.env.PINGONE_AUTHORIZATION_ENDPOINT = 'https://test.pingidentity.com/authorize';
       process.env.PINGONE_TOKEN_ENDPOINT = 'https://test.pingidentity.com/token';
-      process.env.ENCRYPTION_KEY = 'test-encryption-key-32-characters-long';
+      process.env.ENCRYPTION_KEY = FILLER_38;
     });
 
     it('should load development configuration', () => {
@@ -92,7 +97,7 @@ describe('Configuration', () => {
 
     it('should load test configuration', () => {
       // Use a longer encryption key for test environment
-      process.env.ENCRYPTION_KEY = 'test-encryption-key-32-characters-long-enough-for-validation';
+      process.env.ENCRYPTION_KEY = FILLER_60;
       
       manager = new ConfigurationManager(Environment.TEST);
       const config = manager.loadConfiguration();
@@ -164,7 +169,7 @@ describe('Configuration', () => {
           circuitBreakerThreshold: 5
         },
         security: {
-          encryptionKey: 'test-encryption-key-32-characters-long',
+          encryptionKey: FILLER_38,
           tokenStoragePath: './data/tokens',
           sessionCleanupInterval: 300,
           maxSessionDuration: 86400
@@ -185,7 +190,7 @@ describe('Configuration', () => {
         PINGONE_INTROSPECTION_ENDPOINT: 'https://test.pingidentity.com/introspect',
         PINGONE_AUTHORIZATION_ENDPOINT: 'https://test.pingidentity.com/authorize',
         PINGONE_TOKEN_ENDPOINT: 'https://test.pingidentity.com/token',
-        ENCRYPTION_KEY: 'test-encryption-key-32-characters-long'
+        ENCRYPTION_KEY: FILLER_38
       };
 
       const result = validator.validateEnvironmentVariables(env);
@@ -225,7 +230,7 @@ describe('Configuration', () => {
     });
 
     it('should generate warnings for production environment', () => {
-      validConfig.security.encryptionKey = 'test-encryption-key-32-characters'; // Shorter key
+      validConfig.security.encryptionKey = FILLER_33; // Shorter key
       const result = validator.validateConfiguration(validConfig, Environment.PRODUCTION);
       expect(result.warnings.length).toBeGreaterThan(0);
     });
@@ -266,7 +271,7 @@ describe('Configuration', () => {
         PINGONE_INTROSPECTION_ENDPOINT: 'https://test.pingidentity.com/introspect',
         PINGONE_AUTHORIZATION_ENDPOINT: 'https://test.pingidentity.com/authorize',
         PINGONE_TOKEN_ENDPOINT: 'https://test.pingidentity.com/token',
-        ENCRYPTION_KEY: 'test-encryption-key-32-characters-long'
+        ENCRYPTION_KEY: FILLER_38
       };
 
       fs.writeFileSync(testConfigPath, JSON.stringify(validConfig, null, 2));
@@ -325,7 +330,7 @@ describe('Configuration', () => {
         PINGONE_INTROSPECTION_ENDPOINT: 'https://test.pingidentity.com/introspect',
         PINGONE_AUTHORIZATION_ENDPOINT: 'https://test.pingidentity.com/authorize',
         PINGONE_TOKEN_ENDPOINT: 'https://test.pingidentity.com/token',
-        ENCRYPTION_KEY: 'test-encryption-key-32-characters-long'
+        ENCRYPTION_KEY: FILLER_38
       };
 
       fs.writeFileSync(testConfigPath, JSON.stringify(validConfig, null, 2));

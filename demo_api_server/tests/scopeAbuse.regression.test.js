@@ -34,9 +34,10 @@ jest.mock('../services/braveSearchService', () => ({
 
 const { mcpCallTool: mockMcpCallTool } = require('../services/mcpWebSocketClient');
 const { callMcpToolInternal } = require('../utils/mcpToolRegistry');
+const { fixtureJwt } = require('./helpers/fixtureJwt');
 
 describe('scope abuse gate — callMcpToolInternal with freeze_account', () => {
-  const READ_ONLY_TOKEN = 'eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ1c2VyLTEyMyIsInNjb3BlIjoicmVhZCJ9.sig';
+  const READ_ONLY_TOKEN = fixtureJwt({"sub": "user-123", "scope": "read"}, {"alg": "RS256"}, 'sig');
   const USER_ID = 'user-123';
 
   beforeEach(() => {

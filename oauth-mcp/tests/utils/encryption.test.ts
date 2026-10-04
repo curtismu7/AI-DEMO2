@@ -109,7 +109,7 @@ describe('EncryptionUtils', () => {
 
   describe('validateEncryptionKey', () => {
     it('should validate key with sufficient length', () => {
-      const validKey = 'this-is-a-valid-encryption-key-with-32-plus-characters';
+      const validKey = 'x'.repeat(54);
       expect(EncryptionUtils.validateEncryptionKey(validKey)).toBe(true);
     });
 

@@ -480,7 +480,7 @@ class FeatureFlags {
 ### From PATs to OAuth Scopes
 ```javascript
 // PAT-based approach (deprecated)
-const patToken = 'pat_1234567890abcdef';
+const patToken = '<PAT_TOKEN>';
 const headers = {
   'Authorization': `PAT ${patToken}`
 };

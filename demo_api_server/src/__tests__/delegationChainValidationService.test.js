@@ -15,6 +15,8 @@ const {
 // Mock dependencies
 jest.mock('../../services/exchangeAuditStore');
 
+const { fixtureJwt: makeJwt } = require('../../tests/helpers/fixtureJwt');
+
 describe('Delegation Chain Validation Service', () => {
   let service;
 
@@ -64,8 +66,8 @@ describe('Delegation Chain Validation Service', () => {
 
   describe('Delegation Chain Validation', () => {
     test('should validate correct single exchange chain (subject preservation fails)', async () => {
-      const userToken = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMzQ1IiwibWF5X2FjdCI6eyJzdWIiOiJodHRwczovL2JhbmtpbmctYWdlbnQucGluZ2RlbW8uY29tL2FnZW50L3Rlc3QtYWdlbnQifX0.SflKxwRJSMeQ98PjmYQhQjFzLhOA-7h5aYFFI';
-      const exchangedToken = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMzQ1IiwiYWN0Ijp7InN1YiI6Imh0dHBzOi8vbWNwLXNlcnZlci5waW5nZGVtby5jb20vbWNwL3Rlc3QtbWNwIiwiYWN0Ijp7InN1YiI6Imh0dHBzOi8vYWdlbnQtZ2F0ZXdheS5waW5nZGVtby5jb20vYWdlbnQvYWdlbnQtY2xpZW50In19fQ.SflKxwRJSMeQ98PjmYQhQjFzLhOA-7h5aYFFI';
+      const userToken = makeJwt({"sub": "user-12345", "may_act": {"sub": "https://banking-agent.pingdemo.com/agent/test-agent"}});
+      const exchangedToken = makeJwt({"sub": "user-12345", "act": {"sub": "https://mcp-server.pingdemo.com/mcp/test-mcp", "act": {"sub": "https://agent-gateway.pingdemo.com/agent/agent-client"}}});
 
       const result = await service.validateDelegationChain(userToken, exchangedToken);
 
@@ -81,8 +83,8 @@ describe('Delegation Chain Validation Service', () => {
     });
 
     test('should validate double exchange chain (subject preservation fails)', async () => {
-      const userToken = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMzQ1IiwibWF5X2FjdCI6eyJzdWIiOiJodHRwczovL2JhbmtpbmctYWdlbnQucGluZ2RlbW8uY29tL2FnZW50L3Rlc3QtYWdlbnQifX0.SflKxwRJSMeQ98PjmYQhQjFzLhOA-7h5aYFFI';
-      const exchangedToken = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMzQ1IiwiYWN0Ijp7InN1YiI6Imh0dHBzOi8vaW50ZXJtZWRpYXRlLnBpbmdkZW1vLmNvbS9tY3AvaW50ZXJtZWRpYXRlIiwiYWN0Ijp7InN1YiI6Imh0dHBzOi8vYWdlbnQtZ2F0ZXdheS5waW5nZGVtby5jb20vYWdlbnQvYWdlbnQtY2xpZW50In19fQ.SflKxwRJSMeQ98PjmYQhQjFzLhOA-7h5aYFFI';
+      const userToken = makeJwt({"sub": "user-12345", "may_act": {"sub": "https://banking-agent.pingdemo.com/agent/test-agent"}});
+      const exchangedToken = makeJwt({"sub": "user-12345", "act": {"sub": "https://intermediate.pingdemo.com/mcp/intermediate", "act": {"sub": "https://agent-gateway.pingdemo.com/agent/agent-client"}}});
 
       const result = await service.validateDelegationChain(
         userToken, 
@@ -100,8 +102,8 @@ describe('Delegation Chain Validation Service', () => {
     });
 
     test('should reject chain with subject not preserved', async () => {
-      const userToken = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMzQ1IiwibWF5X2FjdCI6eyJzdWIiOiJodHRwczovL2JhbmtpbmctYWdlbnQucGluZ2RlbW8uY29tL2FnZW50L3Rlc3QtYWdlbnQifX0.SflKxwRJSMeQ98PjmYQhQjFzLhOA-7h5aYFFI';
-      const exchangedToken = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkaWZmZXJlbnQtdXNlciIsImFjdCI6eyJzdWIiOiJodHRwczovL21jcC1zZXJ2ZXIucGluZ2RlbW8uY29tL21jcC90ZXN0LW1jcCJ9fQ.SflKxwRJSMeQ98PjmYQhQjFzLhOA-7h5aYFFI';
+      const userToken = makeJwt({"sub": "user-12345", "may_act": {"sub": "https://banking-agent.pingdemo.com/agent/test-agent"}});
+      const exchangedToken = makeJwt({"sub": "different-user", "act": {"sub": "https://mcp-server.pingdemo.com/mcp/test-mcp"}});
 
       const result = await service.validateDelegationChain(userToken, exchangedToken);
 
@@ -110,8 +112,8 @@ describe('Delegation Chain Validation Service', () => {
     });
 
     test('should reject chain with circular delegation', async () => {
-      const userToken = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMzQ1IiwibWF5X2FjdCI6eyJzdWIiOiJ1c2VyLTEyMzQ1In19.SflKxwRJSMeQ98PjmYQhQjFzLhOA-7h5aYFFI'; // Circular reference
-      const exchangedToken = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMzQ1IiwiYWN0Ijp7InN1YiI6Imh0dHBzOi8vbWNwLXNlcnZlci5waW5nZGVtby5jb20vbWNwL3Rlc3QtbWNwIiwiYWN0Ijp7InN1YiI6InVzZXItMTIzNDUifX19.SflKxwRJSMeQ98PjmYQhQjFzLhOA-7h5aYFFI';
+      const userToken = makeJwt({"sub": "user-12345", "may_act": {"sub": "user-12345"}}); // Circular reference
+      const exchangedToken = makeJwt({"sub": "user-12345", "act": {"sub": "https://mcp-server.pingdemo.com/mcp/test-mcp", "act": {"sub": "user-12345"}}});
 
       const result = await service.validateDelegationChain(userToken, exchangedToken);
 
@@ -120,8 +122,8 @@ describe('Delegation Chain Validation Service', () => {
     });
 
     test('should reject chain with unauthorized agent (subject preservation fails first)', async () => {
-      const userToken = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMzQ1IiwibWF5X2FjdCI6eyJzdWIiOiJodHRwczovL2JhbmtpbmctYWdlbnQucGluZ2RlbW8uY29tL2FnZW50L2F1dGhvcml6ZWQtYWdlbnQifX0.SflKxwRJSMeQ98PjmYQhQjFzLhOA-7h5aYFFI';
-      const exchangedToken = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMzQ1IiwiYWN0Ijp7InN1YiI6Imh0dHBzOi8vbWNwLXNlcnZlci5waW5nZGVtby5jb20vbWNwL3Rlc3QtbWNwIiwiYWN0Ijp7InN1YiI6Imh0dHBzOi8vYWdlbnQtZ2F0ZXdheS5waW5nZGVtby5jb20vYWdlbnQvZGlmZmVyZW50LWFnZW50In19fQ.SflKxwRJSMeQ98PjmYQhQjFzLhOA-7h5aYFFI';
+      const userToken = makeJwt({"sub": "user-12345", "may_act": {"sub": "https://banking-agent.pingdemo.com/agent/authorized-agent"}});
+      const exchangedToken = makeJwt({"sub": "user-12345", "act": {"sub": "https://mcp-server.pingdemo.com/mcp/test-mcp", "act": {"sub": "https://agent-gateway.pingdemo.com/agent/different-agent"}}});
 
       const result = await service.validateDelegationChain(userToken, exchangedToken);
 
@@ -131,8 +133,8 @@ describe('Delegation Chain Validation Service', () => {
     });
 
     test('should handle chain length mismatches (subject preservation fails)', async () => {
-      const userToken = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMzQ1IiwibWF5X2FjdCI6eyJzdWIiOiJodHRwczovL2JhbmtpbmctYWdlbnQucGluZ2RlbW8uY29tL2FnZW50L3Rlc3QtYWdlbnQifX0.SflKxwRJSMeQ98PjmYQhQjFzLhOA-7h5aYFFI';
-      const exchangedToken = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMzQ1IiwiYWN0Ijp7InN1YiI6Imh0dHBzOi8vbWNwLXNlcnZlci5waW5nZGVtby5jb20vbWNwL3Rlc3QtbWNwIn19.SflKxwRJSMeQ98PjmYQhQjFzLhOA-7h5aYFFI';
+      const userToken = makeJwt({"sub": "user-12345", "may_act": {"sub": "https://banking-agent.pingdemo.com/agent/test-agent"}});
+      const exchangedToken = makeJwt({"sub": "user-12345", "act": {"sub": "https://mcp-server.pingdemo.com/mcp/test-mcp"}});
 
       const result = await service.validateDelegationChain(userToken, exchangedToken);
 
@@ -144,8 +146,8 @@ describe('Delegation Chain Validation Service', () => {
 
   describe('Chain Reconstruction', () => {
     test('should reconstruct chain from valid tokens', async () => {
-      const userToken = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMzQ1IiwibWF5X2FjdCI6eyJzdWIiOiJodHRwczovL2JhbmtpbmctYWdlbnQucGluZ2RlbW8uY29tL2FnZW50L3Rlc3QtYWdlbnQifX0.SflKxwRJSMeQ98PjmYQhQjFzLhOA-7h5aYFFI';
-      const exchangedToken = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMzQ1IiwiYWN0Ijp7InN1YiI6Imh0dHBzOi8vbWNwLXNlcnZlci5waW5nZGVtby5jb20vbWNwL3Rlc3QtbWNwIiwiYWN0Ijp7InN1YiI6Imh0dHBzOi8vYWdlbnQtZ2F0ZXdheS5waW5nZGVtby5jb20vYWdlbnQvYWdlbnQtY2xpZW50In19fQ.SflKxwRJSMeQ98PjmYQhQjFzLhOA-7h5aYFFI';
+      const userToken = makeJwt({"sub": "user-12345", "may_act": {"sub": "https://banking-agent.pingdemo.com/agent/test-agent"}});
+      const exchangedToken = makeJwt({"sub": "user-12345", "act": {"sub": "https://mcp-server.pingdemo.com/mcp/test-mcp", "act": {"sub": "https://agent-gateway.pingdemo.com/agent/agent-client"}}});
 
       const chain = await service.reconstructDelegationChain(userToken, exchangedToken);
 
@@ -162,8 +164,8 @@ describe('Delegation Chain Validation Service', () => {
     });
 
     test('should handle tokens without may_act claim', async () => {
-      const userToken = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMzQ1In0.SflKxwRJSMeQ98PjmYQhQjFzLhOA-7h5aYFFI';
-      const exchangedToken = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMzQ1IiwiYWN0Ijp7InN1YiI6Imh0dHBzOi8vbWNwLXNlcnZlci5waW5nZGVtby5jb20vbWNwL3Rlc3QtbWNwIn19.SflKxwRJSMeQ98PjmYQhQjFzLhOA-7h5aYFFI';
+      const userToken = makeJwt({"sub": "user-12345"});
+      const exchangedToken = makeJwt({"sub": "user-12345", "act": {"sub": "https://mcp-server.pingdemo.com/mcp/test-mcp"}});
 
       const chain = await service.reconstructDelegationChain(userToken, exchangedToken);
 
@@ -174,8 +176,8 @@ describe('Delegation Chain Validation Service', () => {
     });
 
     test('should handle tokens with nested act claims', async () => {
-      const userToken = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMzQ1IiwibWF5X2FjdCI6eyJzdWIiOiJodHRwczovL2JhbmtpbmctYWdlbnQucGluZ2RlbW8uY29tL2FnZW50L3Rlc3QtYWdlbnQifX0.SflKxwRJSMeQ98PjmYQhQjFzLhOA-7h5aYFFI';
-      const exchangedToken = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMzQ1IiwiYWN0Ijp7InN1YiI6Imh0dHBzOi8vaW50ZXJtZWRpYXRlLnBpbmdkZW1vLmNvbS9tY3AvaW50ZXJtZWRpYXRlIiwiYWN0Ijp7InN1YiI6Imh0dHBzOi8vYWdlbnQtZ2F0ZXdheS5waW5nZGVtby5jb20vYWdlbnQvYWdlbnQtY2xpZW50In19fQ.SflKxwRJSMeQ98PjmYQhQjFzLhOA-7h5aYFFI';
+      const userToken = makeJwt({"sub": "user-12345", "may_act": {"sub": "https://banking-agent.pingdemo.com/agent/test-agent"}});
+      const exchangedToken = makeJwt({"sub": "user-12345", "act": {"sub": "https://intermediate.pingdemo.com/mcp/intermediate", "act": {"sub": "https://agent-gateway.pingdemo.com/agent/agent-client"}}});
 
       const chain = await service.reconstructDelegationChain(userToken, exchangedToken);
 
@@ -194,8 +196,8 @@ describe('Delegation Chain Validation Service', () => {
 
   describe('Circular Delegation Detection', () => {
     test('should detect circular subject references', async () => {
-      const userToken = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMzQ1IiwibWF5X2FjdCI6eyJzdWIiOiJ1c2VyLTEyMzQ1In19.SflKxwRJSMeQ98PjmYQhQjFzLhOA-7h5aYFFI';
-      const exchangedToken = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMzQ1IiwiYWN0Ijp7InN1YiI6InVzZXItMTIzNDUifX0.SflKxwRJSMeQ98PjmYQhQjFzLhOA-7h5aYFFI';
+      const userToken = makeJwt({"sub": "user-12345", "may_act": {"sub": "user-12345"}});
+      const exchangedToken = makeJwt({"sub": "user-12345", "act": {"sub": "user-12345"}});
 
       const result = await service.validateDelegationChain(userToken, exchangedToken);
 
@@ -205,8 +207,8 @@ describe('Delegation Chain Validation Service', () => {
 
     test('should detect circular identifier references (subjects detected first)', async () => {
       // Create a scenario where the same identifier appears in different roles
-      const userToken = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZ2VudC1pZCIsIm1heV9hY3QiOnsic3ViIjoiaHR0cHM6Ly9hZ2VudC1nYXRld2F5LnBpbmdkZW1vLmNvbS9hZ2VudC9hZ2VudC1pZCJ9fQ.SflKxwRJSMeQ98PjmYQhQjFzLhOA-7h5aYFFI';
-      const exchangedToken = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZ2VudC1pZCIsImFjdCI6eyJzdWIiOiJhZ2VudC1pZCJ9fQ.SflKxwRJSMeQ98PjmYQhQjFzLhOA-7h5aYFFI';
+      const userToken = makeJwt({"sub": "agent-id", "may_act": {"sub": "https://agent-gateway.pingdemo.com/agent/agent-id"}});
+      const exchangedToken = makeJwt({"sub": "agent-id", "act": {"sub": "agent-id"}});
 
       const result = await service.validateDelegationChain(userToken, exchangedToken);
 
@@ -216,8 +218,8 @@ describe('Delegation Chain Validation Service', () => {
     });
 
     test('should fail validation for non-circular chains (subject preservation)', async () => {
-      const userToken = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMzQ1IiwibWF5X2FjdCI6eyJzdWIiOiJodHRwczovL2JhbmtpbmctYWdlbnQucGluZ2RlbW8uY29tL2FnZW50L3Rlc3QtYWdlbnQifX0.SflKxwRJSMeQ98PjmYQhQjFzLhOA-7h5aYFFI';
-      const exchangedToken = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMzQ1IiwiYWN0Ijp7InN1YiI6Imh0dHBzOi8vbWNwLXNlcnZlci5waW5nZGVtby5jb20vbWNwL3Rlc3QtbWNwIiwiYWN0Ijp7InN1YiI6Imh0dHBzOi8vYWdlbnQtZ2F0ZXdheS5waW5nZGVtby5jb20vYWdlbnQvYWdlbnQtY2xpZW50In19fQ.SflKxwRJSMeQ98PjmYQhQjFzLhOA-7h5aYFFI';
+      const userToken = makeJwt({"sub": "user-12345", "may_act": {"sub": "https://banking-agent.pingdemo.com/agent/test-agent"}});
+      const exchangedToken = makeJwt({"sub": "user-12345", "act": {"sub": "https://mcp-server.pingdemo.com/mcp/test-mcp", "act": {"sub": "https://agent-gateway.pingdemo.com/agent/agent-client"}}});
 
       const result = await service.validateDelegationChain(userToken, exchangedToken);
 
@@ -318,8 +320,8 @@ describe('Delegation Chain Validation Service', () => {
 
   describe('Caching', () => {
     test('should cache validation results', async () => {
-      const userToken = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMzQ1IiwibWF5X2FjdCI6eyJzdWIiOiJodHRwczovL2JhbmtpbmctYWdlbnQucGluZ2RlbW8uY29tL2FnZW50L3Rlc3QtYWdlbnQifX0.SflKxwRJSMeQ98PjmYQhQjFzLhOA-7h5aYFFI';
-      const exchangedToken = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMzQ1IiwiYWN0Ijp7InN1YiI6Imh0dHBzOi8vbWNwLXNlcnZlci5waW5nZGVtby5jb20vbWNwL3Rlc3QtbWNwIiwiYWN0Ijp7InN1YiI6Imh0dHBzOi8vYWdlbnQtZ2F0ZXdheS5waW5nZGVtby5jb20vYWdlbnQvYWdlbnQtY2xpZW50In19fQ.SflKxwRJSMeQ98PjmYQhQjFzLhOA-7h5aYFFI';
+      const userToken = makeJwt({"sub": "user-12345", "may_act": {"sub": "https://banking-agent.pingdemo.com/agent/test-agent"}});
+      const exchangedToken = makeJwt({"sub": "user-12345", "act": {"sub": "https://mcp-server.pingdemo.com/mcp/test-mcp", "act": {"sub": "https://agent-gateway.pingdemo.com/agent/agent-client"}}});
       const cacheKey = 'test-cache-key';
 
       // First validation
@@ -372,8 +374,8 @@ describe('Delegation Chain Validation Service', () => {
         });
       });
 
-      const userToken = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMzQ1In0.SflKxwRJSMeQ98PjmYQhQjFzLhOA-7h5aYFFI';
-      const exchangedToken = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMzQ1In0.SflKxwRJSMeQ98PjmYQhQjFzLhOA-7h5aYFFI';
+      const userToken = makeJwt({"sub": "user-12345"});
+      const exchangedToken = makeJwt({"sub": "user-12345"});
 
       const result = await service.validateDelegationChain(userToken, exchangedToken);
 
@@ -393,8 +395,8 @@ describe('Delegation Chain Validation Service', () => {
         });
       });
 
-      const userToken = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMzQ1IiwibWF5X2FjdCI6eyJzdWIiOiJ1c2VyLTEyMzQ1In19.SflKxwRJSMeQ98PjmYQhQjFzLhOA-7h5aYFFI';
-      const exchangedToken = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMzQ1IiwiYWN0Ijp7InN1YiI6InVzZXItMTIzNDUifX0.SflKxwRJSMeQ98PjmYQhQjFzLhOA-7h5aYFFI';
+      const userToken = makeJwt({"sub": "user-12345", "may_act": {"sub": "user-12345"}});
+      const exchangedToken = makeJwt({"sub": "user-12345", "act": {"sub": "user-12345"}});
 
       const result = await service.validateDelegationChain(userToken, exchangedToken);
 
@@ -431,8 +433,8 @@ describe('Delegation Chain Validation Service', () => {
 
   describe('Strict Mode Validation', () => {
     test('should enforce strict requirements (subject preservation fails first)', async () => {
-      const userToken = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMzQ1IiwibWF5X2FjdCI6eyJzdWIiOiJodHRwczovL2JhbmtpbmctYWdlbnQucGluZ2RlbW8uY29tL2FnZW50L3Rlc3QtYWdlbnQifX0.SflKxwRJSMeQ98PjmYQhQjFzLhOA-7h5aYFFI';
-      const exchangedToken = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMzQ1IiwiYWN0Ijp7InN1YiI6Imh0dHBzOi8vbWNwLXNlcnZlci5waW5nZGVtby5jb20vbWNwL3Rlc3QtbWNwIn19.SflKxwRJSMeQ98PjmYQhQjFzLhOA-7h5aYFFI'; // Missing agent node
+      const userToken = makeJwt({"sub": "user-12345", "may_act": {"sub": "https://banking-agent.pingdemo.com/agent/test-agent"}});
+      const exchangedToken = makeJwt({"sub": "user-12345", "act": {"sub": "https://mcp-server.pingdemo.com/mcp/test-mcp"}}); // Missing agent node
 
       const result = await service.validateDelegationChain(userToken, exchangedToken, { strict: true });
 
@@ -442,8 +444,8 @@ describe('Delegation Chain Validation Service', () => {
     });
 
     test('should fail strict validation (subject preservation)', async () => {
-      const userToken = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMzQ1IiwibWF5X2FjdCI6eyJzdWIiOiJodHRwczovL2JhbmtpbmctYWdlbnQucGluZ2RlbW8uY29tL2FnZW50L3Rlc3QtYWdlbnQifX0.SflKxwRJSMeQ98PjmYQhQjFzLhOA-7h5aYFFI';
-      const exchangedToken = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMzQ1IiwiYWN0Ijp7InN1YiI6Imh0dHBzOi8vbWNwLXNlcnZlci5waW5nZGVtby5jb20vbWNwL3Rlc3QtbWNwIiwiYWN0Ijp7InN1YiI6Imh0dHBzOi8vYWdlbnQtZ2F0ZXdheS5waW5nZGVtby5jb20vYWdlbnQvYWdlbnQtY2xpZW50In19fQ.SflKxwRJSMeQ98PjmYQhQjFzLhOA-7h5aYFFI';
+      const userToken = makeJwt({"sub": "user-12345", "may_act": {"sub": "https://banking-agent.pingdemo.com/agent/test-agent"}});
+      const exchangedToken = makeJwt({"sub": "user-12345", "act": {"sub": "https://mcp-server.pingdemo.com/mcp/test-mcp", "act": {"sub": "https://agent-gateway.pingdemo.com/agent/agent-client"}}});
 
       const result = await service.validateDelegationChain(userToken, exchangedToken, { strict: true });
 

@@ -717,7 +717,7 @@ HTTP/1.1 200 OK
 Content-Type: application/json
 
 {
-  "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "access_token": "<ACCESS_TOKEN>",
   "token_type": "Bearer",
   "expires_in": 3600,
   "scope": "openid profile email read",

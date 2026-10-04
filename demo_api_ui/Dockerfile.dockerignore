@@ -43,6 +43,8 @@ demo_api_server/config/*
 !demo_api_server/config/demoReadinessPingFederateProfiles.json
 !demo_api_server/config/demoReadinessRepairability.json
 !demo_api_server/config/useCases.js
+!demo_api_server/config/edition.js
+!demo_api_server/config/edition.json
 !demo_api_server/config/admin/
 demo_api_server/config/admin/*
 !demo_api_server/config/admin/demoSteps.js

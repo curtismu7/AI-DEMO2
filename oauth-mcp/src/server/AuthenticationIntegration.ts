@@ -428,7 +428,7 @@ export class AuthenticationIntegration {
       };
     }
 
-    // When an agentToken is present, JWKS/signature was already validated upstream
+    // When an agentToken is present, the JWKS signature was already validated upstream
     // (HttpMCPTransport) and session.userTokens is empty in the gateway path —
     // but we still enforce requiredScopes against the bearer itself so an
     // under-scoped token cannot invoke privileged tools on direct MCP access.

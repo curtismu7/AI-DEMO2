@@ -18,13 +18,13 @@ curl -X POST http://localhost:3001/api/auth/login \
 ### Check Balance
 ```bash
 curl -X GET http://localhost:3001/api/accounts/1/balance \
-  -H "Authorization: Bearer YOUR_TOKEN"
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
 ### Transfer Money
 ```bash
 curl -X POST http://localhost:3001/api/transactions/transfer \
-  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
   -d '{
     "fromAccountId": "1",
@@ -37,7 +37,7 @@ curl -X POST http://localhost:3001/api/transactions/transfer \
 ### Get Transaction History
 ```bash
 curl -X GET http://localhost:3001/api/transactions/user/1 \
-  -H "Authorization: Bearer YOUR_TOKEN"
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
 ## 🛡️ Admin Functions
@@ -45,19 +45,19 @@ curl -X GET http://localhost:3001/api/transactions/user/1 \
 ### System Statistics
 ```bash
 curl -X GET http://localhost:3001/api/admin/stats \
-  -H "Authorization: Bearer ADMIN_TOKEN"
+  -H "Authorization: Bearer <<<ADMIN_TOKEN>>>"
 ```
 
 ### Activity Logs
 ```bash
 curl -X GET http://localhost:3001/api/admin/activity?page=1&limit=10 \
-  -H "Authorization: Bearer ADMIN_TOKEN"
+  -H "Authorization: Bearer <<<ADMIN_TOKEN>>>"
 ```
 
 ### Export Activity Logs
 ```bash
 curl -X GET http://localhost:3001/api/admin/activity/export \
-  -H "Authorization: Bearer ADMIN_TOKEN" \
+  -H "Authorization: Bearer <<<ADMIN_TOKEN>>>" \
   --output activity_logs.csv
 ```
 

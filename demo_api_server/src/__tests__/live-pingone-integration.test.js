@@ -21,6 +21,7 @@
 
 // Load real .env BEFORE any module — overrides setup.js fakes for our tests
 const path = require('path');
+const { fixtureJwt } = require('../../tests/helpers/fixtureJwt');
 require('dotenv').config({ path: path.resolve(__dirname, '../../.env'), override: true });
 
 // Restore real values that setup.js may have clobbered
@@ -617,7 +618,7 @@ function restoreRealEnv() {
     const audience = process.env.PINGONE_RESOURCE_MCP_SERVER_URI;
 
     // Fabricate an obviously invalid token
-    const fakeToken = 'eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJmYWtlIiwiZXhwIjoxfQ.invalid';
+    const fakeToken = fixtureJwt({"sub": "fake", "exp": 1}, {"alg": "RS256"}, 'invalid');
 
     const err = await oauthService.performTokenExchangeAs(
       fakeToken, null, cid, secret, audience, ['read'], 'post'

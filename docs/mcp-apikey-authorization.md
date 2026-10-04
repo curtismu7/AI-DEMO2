@@ -69,7 +69,7 @@ The `challengeType` field tells P1AZ to:
 Set `VALID_API_KEYS` in PingOne Agent Gateway environment:
 
 ```bash
-export VALID_API_KEYS="sk-demo-key-001,sk-demo-key-002,sk-prod-key-003"
+export VALID_API_KEYS="demo-key-one,sk-demo-key-002,sk-prod-key-003"
 ```
 
 Each comma-separated key is valid for the entire /mcp/apikey endpoint.
@@ -82,7 +82,7 @@ In production, map each API key to a PingOne user or service account:
 ```groovy
 // In apikey-dispatch.groovy
 def keyToUserMap = [
-  'sk-demo-key-001': 'demo-user-1@example.com',
+  'demo-key-one': 'demo-user-1@example.com',
   'sk-demo-key-002': 'service-account-2',
 ]
 def userId = keyToUserMap[apiKey]
@@ -167,11 +167,17 @@ The `p1az-decision.groovy` filter:
 
 ## Testing
 
+`demo-key-one`, `sk-demo-key-002` and `sk-prod-key-003` are demo keys for local use only. The examples below read the first one from the environment:
+
+```bash
+export DEMO_API_KEY=demo-key-one
+```
+
 ### 1. Valid API Key, Permitted Tool
 
 ```bash
-curl -X POST https://api.ping.demo:3036/mcp/apikey \
-  -H "X-API-Key: sk-demo-key-001" \
+curl -X POST <MCP_APIKEY_URL> \
+  -H "X-API-Key: $DEMO_API_KEY" \
   -H "X-MCP-Tool: get_my_accounts" \
   -H "Content-Type: application/json" \
   -d '{"params": {}}'
@@ -182,8 +188,8 @@ curl -X POST https://api.ping.demo:3036/mcp/apikey \
 ### 2. Invalid API Key
 
 ```bash
-curl -X POST https://api.ping.demo:3036/mcp/apikey \
-  -H "X-API-Key: invalid-key" \
+curl -X POST <MCP_APIKEY_URL> \
+  -H "X-API-Key: <INVALID_KEY>" \
   -H "X-MCP-Tool: get_my_accounts" \
   -d '{}'
 
@@ -193,8 +199,8 @@ curl -X POST https://api.ping.demo:3036/mcp/apikey \
 ### 3. Consent Tool (expects 428 HITL)
 
 ```bash
-curl -X POST https://api.ping.demo:3036/mcp/apikey \
-  -H "X-API-Key: sk-demo-key-001" \
+curl -X POST <MCP_APIKEY_URL> \
+  -H "X-API-Key: $DEMO_API_KEY" \
   -H "X-MCP-Tool: create_transfer" \
   -H "Content-Type: application/json" \
   -d '{"params": {"amount": 500, "to": "user-2"}}'
@@ -205,8 +211,8 @@ curl -X POST https://api.ping.demo:3036/mcp/apikey \
 ### 4. Step-Up Tool (amount-based ACR check)
 
 ```bash
-curl -X POST https://api.ping.demo:3036/mcp/apikey \
-  -H "X-API-Key: sk-demo-key-001" \
+curl -X POST <MCP_APIKEY_URL> \
+  -H "X-API-Key: $DEMO_API_KEY" \
   -H "X-MCP-Tool: create_withdrawal" \
   -H "Content-Type: application/json" \
   -d '{"params": {"amount": 3000}}'

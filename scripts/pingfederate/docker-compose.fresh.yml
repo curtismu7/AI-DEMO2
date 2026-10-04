@@ -1,0 +1,25 @@
+# Override for a SEPARATE, throwaway PingFederate (compose project `pf-fresh`).
+# Used by provision-all.test.sh only; never merge it into the shared stack:
+#   docker compose -p pf-fresh -f docker-compose.local.yml -f docker-compose.fresh.yml up -d
+# Own volumes, own network, host ports 19999/19031, so the running
+# ai-demo-pingfederate (9999/9031) is never touched.
+# CREATE_INITIAL_ADMIN_USER: a profile-less volume has no admin; the image
+# creates one from PING_IDENTITY_PASSWORD only when this is true.
+name: pf-fresh
+services:
+  pingfederate:
+    environment:
+      CREATE_INITIAL_ADMIN_USER: "true"
+    ports: !override
+      - "19999:9999"
+      - "19031:9031"
+    networks: !override
+      - fresh
+networks:
+  ai-demo: !reset null
+  fresh: {}
+volumes:
+  pingfederate-out:
+    name: pf-fresh-out
+  pingfederate-jvm-security:
+    name: pf-fresh-jvm-security
