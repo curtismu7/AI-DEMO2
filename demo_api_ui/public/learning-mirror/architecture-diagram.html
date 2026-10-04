@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Architecture Diagram — AI Demo Learning Hub</title>
+<link rel="stylesheet" href="assets/app.css">
+<link rel="stylesheet" href="assets/snapshot.css">
+</head><body>
+<div class="snap-top"><a href="index.html">← Learning Hub</a><span class="crumb">/ Architecture Diagram</span></div>
+<div class="edu-drawer snap-drawer">
+<div class="snap-title">Architecture Diagram</div>
+<nav class="snap-toc"><span class="snap-toc-label">On this page — 4 sections</span><ul><li><a href="#sec-1-context">1. Context</a></li><li><a href="#sec-2-container">2. Container</a></li><li><a href="#sec-3-component">3. Component</a></li><li><a href="#sec-4-code">4. Code</a></li></ul></nav>
+<div class="edu-drawer-body">
+<section class="snap-tab" id="sec-1-context"><h3 class="snap-tab-h">1. Context</h3><div><h3 style="margin-top: 0px;">C4 Level 1 — System Context</h3><p>The highest-level view: who uses the system and what external systems it depends on.</p><pre class="edu-code">
+                    ┌─────────────────────┐
+                    │    Banking User      │
+                    │  (Customer / Admin)  │
+                    └──────────┬──────────┘
+                               │ uses
+                               ▼
+                    ┌─────────────────────┐
+                    │      AI Demo        │
+                    │  AI-powered banking │
+                    │  RFC 8693 delegation│
+                    └───┬──────────┬──────┘
+                        │          │
+          OAuth+OIDC    │          │ AI inference
+          RFC 8693      │          │
+                        ▼          ▼
+          ┌──────────────┐  ┌───────────────────────┐
+          │   PingOne    │  │      LLM Provider      │
+          │  OAuth 2.0   │  │  OpenAI · Anthropic    │
+          │  OIDC · MFA  │  │  Groq · Gemini · Helix │
+          │  Mgmt API    │  └───────────────────────┘
+          └──────────────┘</pre><h4>Key relationships</h4><ul><li><strong>Banking User</strong>: Authenticates via PingOne, manages accounts, interacts with AI agent</li><li><strong>PingOne</strong>: OAuth 2.0 + OIDC for login, CIBA for backchannel auth, Management API for user/app config, RFC 8693 token exchange for agent delegation</li><li><strong>LLM Provider</strong>: Pluggable — OpenAI, Anthropic (Claude), Groq, Google Gemini, or Helix (PingOne AI platform)</li></ul></div></section>
+<section class="snap-tab" id="sec-2-container"><h3 class="snap-tab-h">2. Container</h3><div><h3 style="margin-top: 0px;">C4 Level 2 — Container Diagram</h3><p>The major deployable units and how they communicate.</p><pre class="edu-code">
+  ┌──────────────────────────────────────────────────────┐
+  │                    Vercel Platform                    │
+  │                                                      │
+  │  ┌─────────────────┐    ┌──────────────────────┐    │
+  │  │  banking_api_ui  │    │  banking_api_server   │    │
+  │  │  (React 18 SPA)  │───▶│  (Express BFF)        │    │
+  │  │                  │    │                      │    │
+  │  │  • Session cookie│    │  • OAuth routes      │    │
+  │  │  • No raw tokens │    │  • RFC 8693 exchange │    │
+  │  │  • Education UI  │    │  • CIBA / MFA        │    │
+  │  │                  │    │  • LangGraph AI agent│    │
+  │  └─────────────────┘    └──────┬───────────────┘    │
+  │                                │                    │
+  └────────────────────────────────┼────────────────────┘
+                                   │
+          ┌────────────────────────┼────────────────┐
+          │                        │                │
+          ▼                        ▼                ▼
+  ┌──────────────┐   ┌────────────────────┐  ┌──────────────┐
+  │ Upstash Redis│   │ banking_mcp_server  │  │   PingOne    │
+  │              │   │   (TypeScript)     │  │              │
+  │ Session store│   │   ws://:8080       │  │ auth.pingone │
+  │ (Vercel KV)  │   │   MCP tool server  │  │ api.pingone  │
+  └──────────────┘   └────────────────────┘  └──────────────┘
+                               ▲
+                     LMDB (local dev only)
+                     Config + session fallback</pre><h4>Containers</h4><table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;"><thead><tr style="border-bottom: 2px solid rgb(229, 231, 235); text-align: left;"><th style="padding: 6px;">Container</th><th style="padding: 6px;">Technology</th><th style="padding: 6px;">Role</th></tr></thead><tbody><tr style="border-bottom: 1px solid rgb(243, 244, 246); background: white;"><td style="padding: 6px; font-weight: 600; font-family: inherit; font-size: 0.8rem;">banking_api_ui</td><td style="padding: 6px;">React 18 (CRA)</td><td style="padding: 6px;">SPA — session cookies only, never sees raw tokens</td></tr><tr style="border-bottom: 1px solid rgb(243, 244, 246); background: rgb(249, 250, 251);"><td style="padding: 6px; font-weight: 600; font-family: inherit; font-size: 0.8rem;">banking_api_server</td><td style="padding: 6px;">Express (Node.js CJS)</td><td style="padding: 6px;">BFF — holds all tokens server-side, hosts embedded LangGraph AI agent</td></tr><tr style="border-bottom: 1px solid rgb(243, 244, 246); background: white;"><td style="padding: 6px; font-weight: 600; font-family: inherit; font-size: 0.8rem;">banking_mcp_server</td><td style="padding: 6px;">TypeScript (strict)</td><td style="padding: 6px;">MCP WebSocket server — tool registry, banking API proxy, auth challenges</td></tr><tr style="border-bottom: 1px solid rgb(243, 244, 246); background: rgb(249, 250, 251);"><td style="padding: 6px; font-weight: 600; font-family: inherit; font-size: 0.8rem;">Upstash Redis</td><td style="padding: 6px;">Redis (managed)</td><td style="padding: 6px;">Session store for Vercel serverless cross-instance persistence</td></tr><tr style="border-bottom: 1px solid rgb(243, 244, 246); background: white;"><td style="padding: 6px; font-weight: 600; font-family: inherit; font-size: 0.8rem;">LMDB</td><td style="padding: 6px;">lmdb (npm)</td><td style="padding: 6px;">Local config persistence in dev (Vercel KV replaces in production)</td></tr><tr style="border-bottom: 1px solid rgb(243, 244, 246); background: rgb(249, 250, 251);"><td style="padding: 6px; font-weight: 600; font-family: inherit; font-size: 0.8rem;">PingOne</td><td style="padding: 6px;">Cloud service</td><td style="padding: 6px;">OAuth 2.0 AS, OIDC, Management API, MFA, RFC 8693 token exchange</td></tr></tbody></table></div></section>
+<section class="snap-tab" id="sec-3-component"><h3 class="snap-tab-h">3. Component</h3><div><h3 style="margin-top: 0px;">C4 Level 3 — Component (BFF internals)</h3><p>Inside <code>banking_api_server</code> — the major modules and their responsibilities.</p><pre class="edu-code">
+  ┌──────────────────────────────────────────────────────┐
+  │              banking_api_server (BFF)                 │
+  │                                                      │
+  │  ┌─────────────┐  ┌──────────────┐  ┌────────────┐  │
+  │  │ OAuth Routes │  │Token Exchange│  │CIBA Service│  │
+  │  │ login        │  │RFC 8693      │  │backchannel │  │
+  │  │ callback     │  │1-exchange    │  │auth + poll │  │
+  │  │ logout       │  │2-exchange    │  │            │  │
+  │  │ refresh      │  └──────────────┘  └────────────┘  │
+  │  └─────────────┘                                     │
+  │                                                      │
+  │  ┌─────────────┐  ┌──────────────┐  ┌────────────┐  │
+  │  │ MFA Service  │  │   AI Agent   │  │ ConfigStore│  │
+  │  │ OTP, TOTP,   │  │  LangGraph   │  │  LMDB / KV │  │
+  │  │ FIDO2, push  │  │  heuristic   │  │ persistence│  │
+  │  │              │  │  + MCP client│  │            │  │
+  │  └─────────────┘  └──────────────┘  └────────────┘  │
+  │                                                      │
+  │  ┌─────────────┐  ┌──────────────┐  ┌────────────┐  │
+  │  │  DataStore   │  │  Session MW  │  │ Delegation │  │
+  │  │  accounts,   │  │ Upstash Redis│  │ act/may_act│  │
+  │  │  transactions│  │ PKCE cookies │  │ audit trail│  │
+  │  └─────────────┘  └──────────────┘  └────────────┘  │
+  └──────────────────────────────────────────────────────┘</pre><h4>Component responsibilities</h4><ul><li><strong>OAuth Routes</strong> — PKCE login, callback (code to token), logout with revocation, auto-refresh</li><li><strong>Token Exchange</strong> — RFC 8693 1-exchange (user to MCP) and 2-exchange (user + agent CC to MCP)</li><li><strong>CIBA Service</strong> — backchannel authentication initiation and polling</li><li><strong>MFA Service</strong> — PingOne deviceAuthentications API (email OTP, TOTP, FIDO2, push)</li><li><strong>AI Agent</strong> — LangGraph agent with heuristic regex parser (fast path) + LLM tool calling (slow path) + MCP WebSocket client</li><li><strong>ConfigStore</strong> — persistent config (LMDB local, Vercel KV in production)</li><li><strong>DataStore</strong> — in-memory demo accounts and transactions with atomic backup/recovery</li><li><strong>Session MW</strong> — express-session with Upstash Redis store, PKCE state cookies</li><li><strong>Delegation</strong> — act/may_act claim validation, delegation chain audit logging</li></ul></div></section>
+<section class="snap-tab" id="sec-4-code"><h3 class="snap-tab-h">4. Code</h3><div><h3 style="margin-top: 0px;">C4 Level 4 — Code (key services)</h3><p>The critical service files and their call relationships.</p><pre class="edu-code">
+  agentBuilder.js ─────────────────────────────────────┐
+    LLM selection                                       │
+    OpenAI · Anthropic · Groq · Gemini · Helix          │
+                                                        ▼
+  oauthService.js ──────────────▶ bankingAgentLangGraphService.js
+    PKCE, token mgmt                LangGraph + heuristic parser
+                                    │                   │
+                                    ▼                   ▼
+                          agentMcpTokenService.js  mcpWebSocketClient.js
+                            RFC 8693 orchestration   ws://banking_mcp_server
+                            1-exchange or 2-exchange
+                                    │
+                    ┌───────────────┤
+                    ▼               ▼
+          pingOneClientService.js  tokenChainService.js
+            Management API          Token event tracking
+            Worker token            sub, act, aud chain
+                    │
+                    ▼
+  mfaService.js ──▶ configStore.js        data/store.js
+    OTP/TOTP/FIDO2   LMDB / Vercel KV     Accounts, txns
+                     Persistent config     In-memory + backup</pre><h4>Key service files</h4><table style="width: 100%; border-collapse: collapse; font-size: 0.8rem;"><thead><tr style="border-bottom: 2px solid rgb(229, 231, 235); text-align: left;"><th style="padding: 6px;">Service</th><th style="padding: 6px;">Purpose</th></tr></thead><tbody><tr style="border-bottom: 1px solid rgb(243, 244, 246); background: white;"><td style="padding: 6px; font-family: inherit; font-size: 0.75rem; font-weight: 600;">oauthService.js</td><td style="padding: 6px;">PKCE code generation, token exchange, refresh, revocation</td></tr><tr style="border-bottom: 1px solid rgb(243, 244, 246); background: rgb(249, 250, 251);"><td style="padding: 6px; font-family: inherit; font-size: 0.75rem; font-weight: 600;">agentMcpTokenService.js</td><td style="padding: 6px;">Orchestrates RFC 8693 1-exchange or 2-exchange for MCP tool calls</td></tr><tr style="border-bottom: 1px solid rgb(243, 244, 246); background: white;"><td style="padding: 6px; font-family: inherit; font-size: 0.75rem; font-weight: 600;">mfaService.js</td><td style="padding: 6px;">PingOne MFA — OTP/TOTP/FIDO2/push via deviceAuthentications API</td></tr><tr style="border-bottom: 1px solid rgb(243, 244, 246); background: rgb(249, 250, 251);"><td style="padding: 6px; font-family: inherit; font-size: 0.75rem; font-weight: 600;">tokenChainService.js</td><td style="padding: 6px;">Tracks token events — sub, act, token types through exchange chain</td></tr><tr style="border-bottom: 1px solid rgb(243, 244, 246); background: white;"><td style="padding: 6px; font-family: inherit; font-size: 0.75rem; font-weight: 600;">bankingAgentLangGraphService.js</td><td style="padding: 6px;">LangGraph agent with heuristic parser and MCP tool integration</td></tr><tr style="border-bottom: 1px solid rgb(243, 244, 246); background: rgb(249, 250, 251);"><td style="padding: 6px; font-family: inherit; font-size: 0.75rem; font-weight: 600;">agentBuilder.js</td><td style="padding: 6px;">LLM provider selection (OpenAI, Anthropic, Groq, Gemini, Helix)</td></tr><tr style="border-bottom: 1px solid rgb(243, 244, 246); background: white;"><td style="padding: 6px; font-family: inherit; font-size: 0.75rem; font-weight: 600;">pingOneClientService.js</td><td style="padding: 6px;">Management API client — worker token, user CRUD</td></tr><tr style="border-bottom: 1px solid rgb(243, 244, 246); background: rgb(249, 250, 251);"><td style="padding: 6px; font-family: inherit; font-size: 0.75rem; font-weight: 600;">configStore.js</td><td style="padding: 6px;">Persistent config — LMDB local, Vercel KV in production</td></tr><tr style="border-bottom: 1px solid rgb(243, 244, 246); background: white;"><td style="padding: 6px; font-family: inherit; font-size: 0.75rem; font-weight: 600;">data/store.js</td><td style="padding: 6px;">In-memory demo data — accounts, transactions, users, with backup/recovery</td></tr></tbody></table></div></section>
+</div></div>
+<div class="snap-foot">The AI Demo Learning Hub · <a href="index.html">back to index</a></div>
+<style>
+#backToTop{position:fixed;right:22px;bottom:22px;z-index:50;background:#1c2230;color:#fff;border:0;border-radius:999px;padding:10px 18px;font:600 .9rem -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;cursor:pointer;box-shadow:0 4px 14px rgba(28,34,48,.35);opacity:0;visibility:hidden;transform:translateY(8px);transition:opacity .2s,transform .2s,visibility .2s}
+#backToTop.show{opacity:1;visibility:visible;transform:translateY(0)}
+#backToTop:hover{background:#39435c}
+</style>
+<button id="backToTop" type="button" aria-label="Back to top">↑ Top</button>
+<script>
+(function(){
+  var btn=document.getElementById('backToTop');
+  window.addEventListener('scroll',function(){btn.classList.toggle('show',window.scrollY>400);},{passive:true});
+  btn.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
+})();
+</script>
+</body></html>

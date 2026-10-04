@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RAR (RFC 9396) — AI Demo Learning Hub</title>
+<link rel="stylesheet" href="assets/app.css">
+<link rel="stylesheet" href="assets/snapshot.css">
+</head><body>
+<div class="snap-top"><a href="index.html">← Learning Hub</a><span class="crumb">/ RAR (RFC 9396)</span></div>
+<div class="edu-drawer snap-drawer">
+<div class="snap-title">RAR (RFC 9396)</div>
+<nav class="snap-toc"><span class="snap-toc-label">On this page — 7 sections</span><ul><li><a href="#sec-what-is-rar">What is RAR</a></li><li><a href="#sec-authorization-details">authorization_details</a></li><li><a href="#sec-banking-use-case">Banking use case</a></li><li><a href="#sec-token-claim">Token claim</a></li><li><a href="#sec-pingone-fapi-2-0">PingOne / FAPI 2.0</a></li><li><a href="#sec-par-vs-rar">PAR vs RAR</a></li><li><a href="#sec-in-this-repo">In this repo</a></li></ul></nav>
+<div class="edu-drawer-body">
+<section class="snap-tab" id="sec-what-is-rar"><h3 class="snap-tab-h">What is RAR</h3><p><strong>Rich Authorization Requests (RAR)</strong> — RFC 9396 — extend OAuth 2.0 with a structured <code>authorization_details</code> parameter that lets clients express<em>exactly what they want to do</em> instead of relying on flat scope strings.</p><p>Classic OAuth uses strings like <code>transfer</code>. RAR allows a structured JSON object describing the specific operation, resource, amount, currency, and more:</p><code style="display: block; background: var(--code-bg, #f1f5f9); border-radius: 6px; padding: 0.75rem 1rem; font-family: inherit; font-size: 0.78rem; white-space: pre; overflow-x: auto; margin: 0.5rem 0px;">authorization_details=[
+  {
+    "type": "payment_initiation",
+    "locations": ["https://api.bxfinance.example/payments"],
+    "instructedAmount": { "currency": "USD", "amount": "250.00" },
+    "creditorName": "Jane Smith",
+    "creditorAccount": { "iban": "DE02100100109307118603" },
+    "remittanceInformationUnstructured": "Invoice 47"
+  }
+]</code><p>The AS can enforce fine-grained policies against every field before issuing a token, and those details are <strong>embedded in the issued access token</strong> so the resource server can validate them without an extra DB lookup.</p></section>
+<section class="snap-tab" id="sec-authorization-details"><h3 class="snap-tab-h">authorization_details</h3><h4 style="margin-top: 0px;">The authorization_details parameter</h4><p>It is a JSON array of <strong>authorization detail objects</strong>. Each object must have a <code>type</code> field; all other fields are type-specific:</p><code style="display: block; background: var(--code-bg, #f1f5f9); border-radius: 6px; padding: 0.75rem 1rem; font-family: inherit; font-size: 0.78rem; white-space: pre; overflow-x: auto; margin: 0.5rem 0px;">{
+  "type": "account_information",  // required
+  "locations": [                  // optional: resource server URIs
+    "https://api.bxfinance.example/accounts"
+  ],
+  "actions": ["read"],            // optional: what operations
+  "identifier": "acct-1234"       // optional: which specific resource
+}</code><p>Multiple types can be requested in one authorization:</p><code style="display: block; background: var(--code-bg, #f1f5f9); border-radius: 6px; padding: 0.75rem 1rem; font-family: inherit; font-size: 0.78rem; white-space: pre; overflow-x: auto; margin: 0.5rem 0px;">authorization_details=[
+  { "type": "account_information", "actions": ["read"] },
+  { "type": "payment_initiation",
+    "instructedAmount": { "currency": "USD", "amount": "50.00" } }
+]</code><p>The AS validates each object against its registered schema for that type. If any are invalid or the user/policy denies them, the entire request fails.</p></section>
+<section class="snap-tab" id="sec-banking-use-case"><h3 class="snap-tab-h">Banking use case</h3><h4 style="margin-top: 0px;">RAR for AI Demo / Open Banking</h4><p>RAR is the backbone of <strong>Open Banking (PSD2 / Berlin Group)</strong> and<strong>FAPI 2.0</strong> APIs. Instead of granting broad "transfer" scope, a payment initiator specifies the exact transaction:</p><code style="display: block; background: var(--code-bg, #f1f5f9); border-radius: 6px; padding: 0.75rem 1rem; font-family: inherit; font-size: 0.78rem; white-space: pre; overflow-x: auto; margin: 0.5rem 0px;">authorization_details=[
+  {
+    "type": "payment_initiation",
+    "creditorName": "Super Banking Payee",
+    "instructedAmount": {
+      "currency": "USD",
+      "amount": "125.00"
+    },
+    "remittanceInformationUnstructured": "Rent May 2026"
+  }
+]</code><p>The issued token is now <strong>transaction-specific</strong>. Even if intercepted, it cannot be used to initiate a different transfer or read account statements — the resource server enforces the <code>authorization_details</code> claim embedded in the JWT.</p><p><strong>AI agent angle:</strong> when the AI Demo Banking Agent initiates a transfer, a RAR-aware integration would encode the exact amount and accounts into the authorization request, giving the user and the AS a precise picture of what is being authorized — aligning with PingOne's "Enforce Least Privilege" best practice.</p></section>
+<section class="snap-tab" id="sec-token-claim"><h3 class="snap-tab-h">Token claim</h3><h4 style="margin-top: 0px;">authorization_details in the access token</h4><p>When the AS grants the request, the issued JWT includes the approved<code>authorization_details</code>. The resource server validates these without making any back-channel call:</p><code style="display: block; background: var(--code-bg, #f1f5f9); border-radius: 6px; padding: 0.75rem 1rem; font-family: inherit; font-size: 0.78rem; white-space: pre; overflow-x: auto; margin: 0.5rem 0px;">{
+  "sub": "user-abc",
+  "iss": "https://auth.pingone.com/env-id/as",
+  "aud": "https://api.bxfinance.example",
+  "scope": "openid",
+  "authorization_details": [
+    {
+      "type": "payment_initiation",
+      "instructedAmount": { "currency": "USD", "amount": "125.00" },
+      "creditorName": "Super Banking Payee"
+    }
+  ]
+}</code><p>Compare this to a flat-scope token: the RS only knows the bearer has<code>transfer</code> — it cannot verify the amount or destination without a side-channel database look-up.</p></section>
+<section class="snap-tab" id="sec-pingone-fapi-2-0"><h3 class="snap-tab-h">PingOne / FAPI 2.0</h3><h4 style="margin-top: 0px;">PingOne + RAR</h4><p>PingOne supports RAR through <strong>DaVinci flows</strong> and the<strong>Advanced Authorization</strong> service. To enable it:</p><ol style="padding-left: 1.25rem; line-height: 1.8; font-size: 0.88rem;"><li>Create a <strong>Resource Server</strong> and define custom<code>authorization_details</code> types and their JSON schemas under<em>Applications → Resources → Authorization Details Types</em>.</li><li>In your OAuth application, enable <strong>RAR</strong> and reference the registered types as allowed values.</li><li>Include <code>authorization_details</code> in your authorization request (via PAR or directly in the query string).</li><li>PingOne's DaVinci policy can inspect each field and approve/deny based on transaction risk, user tier, or any external policy signal.</li></ol><p>FAPI 2.0 profiles mandate RAR + PAR together for open-banking grade security.</p></section>
+<section class="snap-tab" id="sec-par-vs-rar"><h3 class="snap-tab-h">PAR vs RAR</h3><p>PAR and RAR solve different problems and are frequently confused, because RAR details are normally sent <em>inside</em> a PAR request. The short version: <strong>PAR is about how the request travels; RAR is about what the request means.</strong></p><table class="edu-table"><thead><tr><th>Aspect</th><th>PAR</th><th>RAR</th></tr></thead><tbody><tr><td><strong>OAuth standard</strong></td><td>RFC 9126</td><td>RFC 9396</td></tr><tr><td><strong>Main purpose</strong></td><td>Securely transport the authorization request</td><td>Describe precisely what access or action is requested</td></tr><tr><td><strong>Focus</strong></td><td>Request delivery and integrity</td><td>Authorization detail and precision</td></tr><tr><td><strong>Key parameter</strong></td><td>request_uri</td><td>authorization_details</td></tr><tr><td><strong>Replaces scopes?</strong></td><td>No</td><td>No — complements them with structured context</td></tr><tr><td><strong>Authorizes the API call?</strong></td><td>No</td><td>No — the AS evaluates, the resource server enforces</td></tr></tbody></table><h3>Used together</h3><p>The client POSTs the whole request — including <code>authorization_details</code> — to the PAR endpoint, gets back a short-lived <code>request_uri</code>, and the browser carries only that reference. The user then sees a consent screen describing the specific operation (“initiate a $123.50 payment to Merchant A”) rather than a broad scope name.</p><p><strong>Neither replaces resource-server enforcement.</strong> PAR protects how the grant was established; RAR describes what was granted. The resource server still has to validate the token and check that the operation it was handed is covered by the grant — if the client later submits $1,000 to a different merchant, only the resource server stops it.</p><h3>Ping platform support</h3><ul><li><strong>PingOne SSO</strong> — supports PAR (<code>POST /{envID}/as/par</code>, 60-second request URI, single use). It does <em>not</em> document native RFC 9396 processing, so PingOne SSO should not be positioned as providing native RAR.</li><li><strong>PingOne Authorize</strong> — makes fine-grained policy decisions, which is not the same thing as OAuth RAR support.</li><li><strong>AIC / PingAM</strong> — partial RAR support on <code>/authorize</code> and <code>/par</code>, with Remote Consent configuration.</li><li><strong>PingFederate</strong> — RAR via configured authorization-detail types and processors; custom processing may be required.</li></ul></section>
+<section class="snap-tab" id="sec-in-this-repo"><h3 class="snap-tab-h">In this repo</h3><h3 style="margin-top: 0px;">RAR in AI Demo</h3><p style="font-size: 0.82rem; color: rgb(71, 85, 105); margin-top: 0px; margin-bottom: 0.65rem; line-height: 1.55;"><strong style="color: rgb(180, 83, 9);">Illustrative</strong> — The browser authorization request does not carry <code>authorization_details</code>. With <code>ff_rar</code> ON the BFF builds them per tool call and carries them in the TraT <code>azd</code> envelope, where the MCP gateway enforces that the executed call is a subset of the grant. On a human-approved (HITL) retry the grant is built from the arguments the human approved rather than from the agent's own request. Use this shape when integrating a PingOne policy that expects RAR in the authorization request itself. Two caveats worth knowing: PingOne SSO does not mint authorization_details, so the grant is built by the BFF rather than by the authorization server; and subset enforcement has to be armed — the gateway check needs<code>ff_rar_gateway_enforcement</code>, and the policy-server check needs <code>FF_RAR</code> in the authz-server environment. With <code>ff_rar</code> ON but neither armed, the details are built and carried but nothing enforces them.</p><pre class="edu-code">// Example only — AI Demo does not put authorization_details on /authorize.
+// With ff_rar ON it builds them per tool call and carries them in the TraT azd
+// envelope; the MCP gateway enforces executed call ⊆ grant.
+{
+  "authorization_details": [
+    { "type": "payment_initiation", "instructedAmount": { "currency": "USD", "amount": "250.00" } }
+  ]
+}
+// Would travel on /authorize or PAR body when your AS supports RFC 9396.</pre></section>
+</div></div>
+<div class="snap-foot">The AI Demo Learning Hub · <a href="index.html">back to index</a></div>
+<style>
+#backToTop{position:fixed;right:22px;bottom:22px;z-index:50;background:#1c2230;color:#fff;border:0;border-radius:999px;padding:10px 18px;font:600 .9rem -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;cursor:pointer;box-shadow:0 4px 14px rgba(28,34,48,.35);opacity:0;visibility:hidden;transform:translateY(8px);transition:opacity .2s,transform .2s,visibility .2s}
+#backToTop.show{opacity:1;visibility:visible;transform:translateY(0)}
+#backToTop:hover{background:#39435c}
+</style>
+<button id="backToTop" type="button" aria-label="Back to top">↑ Top</button>
+<script>
+(function(){
+  var btn=document.getElementById('backToTop');
+  window.addEventListener('scroll',function(){btn.classList.toggle('show',window.scrollY>400);},{passive:true});
+  btn.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
+})();
+</script>
+</body></html>

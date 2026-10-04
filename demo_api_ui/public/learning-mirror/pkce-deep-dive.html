@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PKCE Deep Dive — AI Demo Learning Hub</title>
+<link rel="stylesheet" href="assets/app.css">
+<link rel="stylesheet" href="assets/snapshot.css">
+</head><body>
+<div class="snap-top"><a href="index.html">← Learning Hub</a><span class="crumb">/ PKCE Deep Dive</span></div>
+<div class="edu-drawer snap-drawer">
+<div class="snap-title">PKCE Deep Dive</div>
+<nav class="snap-toc"><span class="snap-toc-label">On this page — 2 sections</span><ul><li><a href="#sec-one-time-code-protection">One-time code protection</a></li><li><a href="#sec-in-this-repo">In this repo</a></li></ul></nav>
+<div class="edu-drawer-body">
+<p style="color: rgb(55, 65, 81); font-size: 0.85rem; margin: 0 0 1rem;">This deep dive focuses on the PKCE mechanism itself — the verifier/challenge pair and code-interception defense. For the full Authorization Code + PKCE login walkthrough (including CIBA comparison, issued token contents, and general session security), see <a href="auth-code-pkce.html">Auth Code + PKCE</a>.</p><section class="snap-tab" id="sec-one-time-code-protection"><h3 class="snap-tab-h">One-time code protection</h3><h3>Why PKCE? (RFC 7636)</h3><p>PKCE (Proof Key for Code Exchange) prevents authorization code interception attacks. An attacker who intercepts the authorization code from the redirect cannot exchange it without the original <code>code_verifier</code> — which is only known to the server that started the flow.</p><p>PKCE also makes <em>public clients</em> (apps that cannot store a client secret) safe to use with the authorization code flow. Even for confidential clients (like this Backend-for-Frontend (BFF)), PKCE is required by OAuth 2.1.</p><h3>How the verifier/challenge pair works</h3><pre class="edu-code">Server generates:
+  code_verifier = base64url(random 32 bytes)   e.g. "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW..."
+  code_challenge = base64url(SHA-256(code_verifier))
+
+  The verifier is stored server-side (session).
+  Only the challenge is sent to PingOne in step 1.
+  The verifier is revealed only in step 2 (server-to-server).
+
+Attack scenario:
+  Attacker intercepts redirect: ?code=STOLEN&amp;state=...
+  Tries to POST /token with code=STOLEN  ← but has NO verifier
+  PingOne: SHA256(nothing) ≠ stored challenge → 400 invalid_grant ✓</pre><h3>Step 1 — Authorization request (browser redirect)</h3><pre class="edu-code">GET /as/authorize
+  ?response_type=code
+  &amp;client_id=&lt;your-client-id&gt;
+  &amp;redirect_uri=https%3A%2F%2Fapp.example.com%2Fapi%2Fauth%2Foauth%2Fcallback
+  &amp;scope=openid%20profile%20email%20banking%3Aread
+  &amp;state=&lt;random-csrf-token&gt;               ← CSRF protection; echoed back
+  &amp;code_challenge=&lt;BASE64URL(SHA256(verifier))&gt;
+  &amp;code_challenge_method=S256
+  &amp;resource=https%3A%2F%2Fapi.example.com%2F  ← RFC 8707 audience binding (optional)
+  HTTP/1.1 302 Found
+  Location: https://auth.pingone.com/.../as/authorize?... (PingOne login UI)</pre><h3>Step 2 — Authorization callback (PingOne → Backend-for-Frontend (BFF))</h3><pre class="edu-code">GET /api/auth/oauth/callback
+  ?code=&lt;authorization-code&gt;               ← short-lived, one-use
+  &amp;state=&lt;same-random-token-from-step-1&gt;   ← Backend-for-Frontend (BFF) validates: must match session
+  &amp;iss=https://auth.pingone.com/...        ← issuer identifier (RFC 9207)
+
+  Backend-for-Frontend (BFF) validation:
+    1. state matches → CSRF check passes
+    2. code is present
+    3. Proceed to token exchange</pre><h3>Step 3 — Token request (server-to-server, never in browser)</h3><pre class="edu-code">POST /as/token
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic &lt;base64(client_id:client_secret)&gt;
+
+grant_type=authorization_code
+&amp;code=&lt;authorization-code&gt;
+&amp;redirect_uri=https%3A%2F%2Fapp.example.com%2Fapi%2Fauth%2Foauth%2Fcallback
+&amp;code_verifier=&lt;original-code-verifier&gt;    ← PingOne hashes this; must match challenge
+&amp;resource=https%3A%2F%2Fapi.example.com%2F  ← RFC 8707 (if used in step 1)
+
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "scope": "openid profile email read",
+  "id_token": "eyJ...",
+  "refresh_token": "...",
+  "issued_token_type": "urn:ietf:params:oauth:token-type:access_token"
+}</pre><h3>Error responses</h3><pre class="edu-code">── Bad code_verifier ──
+HTTP/1.1 400 Bad Request
+{ "error": "invalid_grant", "error_description": "PKCE verification failed" }
+
+── Code already used ──
+HTTP/1.1 400 Bad Request
+{ "error": "invalid_grant", "error_description": "Authorization code already used" }
+
+── State mismatch (Backend-for-Frontend (BFF)-side check, never reaches PingOne) ──
+HTTP/1.1 400 Bad Request (from Backend-for-Frontend (BFF))
+{ "error": "invalid_state", "message": "OAuth state mismatch" }
+
+── Client auth failure ──
+HTTP/1.1 401 Unauthorized
+{ "error": "invalid_client", "error_description": "Client authentication failed" }</pre><h3>What PingOne validates</h3><ul><li><code>code</code> — exists, belongs to this client, not expired (usually 60s).</li><li><code>redirect_uri</code> — exactly matches the registered URI (no trailing slash differences).</li><li><code>code_verifier</code> — <code>BASE64URL(SHA256(verifier))</code> must equal the stored challenge.</li><li><code>client_id</code> / client auth — correct credentials.</li></ul><h3>Why the tokens are stored server-side</h3><p>After step 3, the Backend-for-Frontend (BFF) stores <code>access_token</code> and <code>refresh_token</code> in the <strong>server session</strong> and issues an <strong>httpOnly cookie</strong> to the browser. This means:</p><ul><li>XSS in the SPA cannot read the access token from JavaScript.</li><li>The token is never in <code>localStorage</code>, <code>sessionStorage</code>, or any JS variable.</li><li>Subsequent API calls use the session cookie; the Backend-for-Frontend (BFF) attaches the Bearer token server-side.</li></ul></section>
+<section class="snap-tab" id="sec-in-this-repo"><h3 class="snap-tab-h">In this repo</h3><h3 style="margin-top: 0px;">Redeeming the authorization code</h3><p style="font-size: 0.82rem; color: rgb(71, 85, 105); margin-top: 0px; margin-bottom: 0.65rem; line-height: 1.55;"><strong style="color: rgb(22, 101, 52);">This repo</strong>: <code style="font-size: 0.85em; word-break: break-all;">banking_api_server/services/oauthUserService.js (and admin oauthService.js)</code> PingOne returns a <code>code</code> to the BFF callback; the server exchanges it with <code>code_verifier</code> (PKCE).</p><pre class="edu-code">// oauthUserService.js — redeem auth code + PKCE (BFF only)
+const params = new URLSearchParams({
+  grant_type: 'authorization_code',
+  code: String(code),
+  redirect_uri: redirectUri,
+  client_id: this.config.clientId,
+  code_verifier: codeVerifier,  // PKCE — proves same client started the flow
+});
+const response = await axios.post(this.config.tokenEndpoint, params.toString(), {
+  headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+});
+// → access_token stored in req.session (httpOnly cookie to browser)</pre><p style="color: rgb(55, 65, 81); margin-bottom: 1rem;">The redirect callback page (<code class="edu-code">/callback</code>) is intentionally minimal — static HTML with no JavaScript beyond the OAuth code exchange. Avoid rendering frameworks or lazy-loaded bundles on this page; delayed JavaScript execution can cause the auth code to expire before it's exchanged, producing silent login failures.</p></section>
+</div></div>
+<div class="snap-foot">The AI Demo Learning Hub · <a href="index.html">back to index</a></div>
+<style>
+#backToTop{position:fixed;right:22px;bottom:22px;z-index:50;background:#1c2230;color:#fff;border:0;border-radius:999px;padding:10px 18px;font:600 .9rem -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;cursor:pointer;box-shadow:0 4px 14px rgba(28,34,48,.35);opacity:0;visibility:hidden;transform:translateY(8px);transition:opacity .2s,transform .2s,visibility .2s}
+#backToTop.show{opacity:1;visibility:visible;transform:translateY(0)}
+#backToTop:hover{background:#39435c}
+</style>
+<button id="backToTop" type="button" aria-label="Back to top">↑ Top</button>
+<script>
+(function(){
+  var btn=document.getElementById('backToTop');
+  window.addEventListener('scroll',function(){btn.classList.toggle('show',window.scrollY>400);},{passive:true});
+  btn.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
+})();
+</script>
+</body></html>

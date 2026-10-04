@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MCP: MFA Gate on Tools — AI Demo Learning Hub</title>
+<link rel="stylesheet" href="assets/app.css">
+<link rel="stylesheet" href="assets/snapshot.css">
+</head><body>
+<div class="snap-top"><a href="index.html">← Learning Hub</a><span class="crumb">/ MCP: MFA Gate on Tools</span></div>
+<div class="edu-drawer snap-drawer">
+<div class="snap-title">MCP: MFA Gate on Tools</div>
+<nav class="snap-toc"><span class="snap-toc-label">On this page — 2 sections</span><ul><li><a href="#sec-auth-challenge">Auth challenge</a></li><li><a href="#sec-mfa-gate-on-tools">MFA gate on tools</a></li></ul></nav>
+<div class="edu-drawer-body">
+<p style="font-size: 0.85rem; color: rgb(71, 85, 105); margin: 0 0 1rem;">This page focuses on how MFA/step-up gates protect tool discovery and tool calls. For the full handshake, message format, and transport details, see <a href="mcp-protocol.html">MCP Protocol</a>.</p><section class="snap-tab" id="sec-auth-challenge"><h3 class="snap-tab-h">Auth challenge</h3><h3 style="margin-top: 0px;">What is an auth challenge?</h3><p style="">An <strong>auth challenge</strong> occurs when an MCP tool call requires additional authorization before it can proceed. Rather than silently failing, the server signals the need for user approval so the flow can complete after authorization is granted.</p><h4>Three trigger scenarios in this demo</h4><ol style="padding-left: 1.25rem; line-height: 1.7;"><li><strong>Amount threshold exceeded</strong> — transfers above the configured CIBA threshold trigger a push notification to the user out-of-band. The agent waits and retries when approval arrives.</li><li><strong>PingOne Authorize gate</strong> — high-risk tools (e.g., large withdrawals) are checked against a policy decision point before the token exchange proceeds.</li><li><strong>Mid-flow session loss</strong> — if the user’s session expires during an agent operation, an inline login prompt appears in the browser. After re-authentication, the agent continues automatically.</li></ol><h4>Flow sequence</h4><pre class="edu-code" style="font-size: 0.78rem; line-height: 1.6; overflow-x: auto;">User clicks "Transfer $10,000" in agent
+     ↓
+BFF POST /api/mcp/tool → mcpToolAuthorizationService
+     ↓
+PingOne Authorize gate checks RAR / scopes
+     ↓  [step-up needed]
+BFF returns { error: "step_up_required", cibaRequired: true }
+     ↓
+UI shows "Approval needed" — polls /api/ciba/status every 5s
+     ↓  [user approves on device / email link]
+BFF retries tool call with elevated token
+     ↓
+Tool executes; result returned to agent</pre><h4>Why this pattern matters</h4><p>Agent operations get consent while keeping the user in control. The token is never escalated silently — every step-up is user-visible and audit-logged. This aligns with HITL (Human-in-the-loop) best practices and the FAPI 2.0 security profile for high-value transactions.</p><p style="font-size: 0.82rem; color: rgb(55, 65, 81); margin-top: 1rem;">Note: “All token exchange happens inside the BFF (server-side). The browser only holds a session cookie.”</p></section>
+<section class="snap-tab" id="sec-mfa-gate-on-tools"><h3 class="snap-tab-h">MFA gate on tools</h3><h3 style="margin-top: 0px;">MFA gate on tool discovery</h3><p style=""><code>GET /api/mcp/inspector/tools</code> (tools/list) requires an <strong>authenticated session</strong>. Unauthenticated requests receive <code>401 Unauthorized</code>, preventing tool enumeration by unauthenticated callers.</p><pre class="edu-code" style="font-size: 0.78rem; line-height: 1.6;">GET /api/mcp/inspector/tools?sessionId=...
+
+If no valid session:
+  → 401 { error: "unauthorized", message: "Login required" }
+
+If session present with valid access token:
+  → 200 { tools: [ { name, description, inputSchema }, ... ] }
+
+BFF validation steps:
+  1. Session cookie present and not expired
+  2. session.oauthTokens.accessToken valid (or refreshed via refresh_token)
+  3. Token forwarded to MCP server tools/list call</pre><h3>Why gate tools/list?</h3><p>An unauthenticated caller could enumerate all available banking operations — account balance, transfer funds, device authentication — without being a real user. Gating the tool list at the BFF means even tool discovery is behind the same auth boundary as tool execution.</p><h3>Step-up MFA for high-value tool calls</h3><p><code>POST /api/mcp/tool</code> (tools/call) for transactions at or above the configured threshold triggers <strong>step-up authentication</strong> before the tool executes. The agent receives a <code>401</code> with <code>step_up_required: true</code> and must wait for the user to complete MFA before retrying.</p><pre class="edu-code" style="font-size: 0.78rem; line-height: 1.6;">POST /api/mcp/tool { tool: "transfer_funds", amount: 5000 }
+
+Below threshold:
+  → 200 { result: "Transfer complete" }
+
+At/above threshold (step-up):
+  → 401 { step_up_required: true, cibaAuthId: "..." }
+  UI shows MFA prompt; polls /api/ciba/status
+  On approval → retry POST /api/mcp/tool (same body)
+  → 200 { result: "Transfer complete" }</pre></section>
+</div></div>
+<div class="snap-foot">The AI Demo Learning Hub · <a href="index.html">back to index</a></div>
+<style>
+#backToTop{position:fixed;right:22px;bottom:22px;z-index:50;background:#1c2230;color:#fff;border:0;border-radius:999px;padding:10px 18px;font:600 .9rem -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;cursor:pointer;box-shadow:0 4px 14px rgba(28,34,48,.35);opacity:0;visibility:hidden;transform:translateY(8px);transition:opacity .2s,transform .2s,visibility .2s}
+#backToTop.show{opacity:1;visibility:visible;transform:translateY(0)}
+#backToTop:hover{background:#39435c}
+</style>
+<button id="backToTop" type="button" aria-label="Back to top">↑ Top</button>
+<script>
+(function(){
+  var btn=document.getElementById('backToTop');
+  window.addEventListener('scroll',function(){btn.classList.toggle('show',window.scrollY>400);},{passive:true});
+  btn.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
+})();
+</script>
+</body></html>

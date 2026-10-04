@@ -1,0 +1,1650 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AI-Demo Architecture — token-flow overlay</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg-2: #f4f6f9;
+    --bg-3: #e8edf3;
+    --ink: #0e1a2b;
+    --ink-2: #2c3a52;
+    --rule: #d8dee8;
+    --rule-2: #b9c2d1;
+    --muted: #6b7689;
+    --muted-2: #93a0b3;
+
+    --teal: #0d6760;
+    --teal-2: #0a5550;
+    --teal-soft: #d8eceb;
+    --teal-tint: #ecf6f5;
+
+    --indigo: #3a4a8c;
+    --indigo-soft: #dde2f2;
+    --indigo-tint: #eef0fa;
+
+    --gold: #a87317;
+    --gold-soft: #f7eccf;
+    --rose: #a13348;
+    --rose-soft: #f5dde2;
+    --moss: #4a6b3a;
+    --moss-soft: #dfeada;
+    --orange: #b35a1f;
+    --orange-soft: #f5d9c4;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', -apple-system, system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    font-size: 13.5px;
+    line-height: 1.5;
+    padding: 28px;
+  }
+  .page-head {
+    max-width: 1480px;
+    margin: 0 auto 22px;
+  }
+  .page-head .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    color: var(--teal);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .page-head h1 {
+    font-family: 'Crimson Pro', serif;
+    font-weight: 500;
+    font-size: 32px;
+    letter-spacing: -0.018em;
+    margin: 0 0 6px;
+  }
+  .page-head h1 i { font-style: italic; color: var(--teal); font-weight: 400; }
+  .page-head p { color: var(--muted); font-size: 13.5px; margin: 0; max-width: 78ch; }
+
+  .frame {
+    max-width: 1880px;
+    margin: 0 auto;
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    background: #fff;
+    overflow: hidden;
+  }
+  .page-head { max-width: 1880px; }
+
+  /* ============ NARRATIVE STEPS (top strip) ============ */
+  .steps {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 0;
+    border-bottom: 1px solid var(--rule);
+    background: var(--bg-2);
+  }
+  .steps .col {
+    padding: 16px 22px;
+  }
+  .steps .col + .col { border-left: 1px solid var(--rule); }
+  .steps .col-head {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+  .steps ol { margin: 0; padding-left: 20px; }
+  .steps ol li { font-size: 12.5px; line-height: 1.55; color: var(--ink-2); margin-bottom: 5px; }
+  .steps ol li code, .steps ol li .mono {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    background: #fff;
+    border: 1px solid var(--rule);
+    padding: 0 4px;
+    border-radius: 3px;
+    color: var(--teal);
+  }
+  .annotations { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .ann {
+    border-left: 3px solid var(--teal);
+    background: #fff;
+    padding: 10px 12px;
+    border-radius: 0 6px 6px 0;
+    border-top: 1px solid var(--rule);
+    border-right: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+  }
+  .ann.warn { border-left-color: var(--gold); }
+  .ann.rose { border-left-color: var(--rose); }
+  .ann.orange { border-left-color: var(--orange); }
+  .ann .t {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--teal);
+    font-weight: 600;
+    margin-bottom: 3px;
+  }
+  .ann.warn .t { color: var(--gold); }
+  .ann.rose .t { color: var(--rose); }
+  .ann.orange .t { color: var(--orange); }
+  .ann .b { font-size: 11.5px; color: var(--ink-2); line-height: 1.45; }
+
+  /* ============ DIAGRAM CANVAS ============ */
+  .diagram {
+    position: relative;
+    padding: 36px 32px 32px;
+    background:
+      linear-gradient(var(--bg-2) 1px, transparent 1px) 0 0 / 100% 40px,
+      linear-gradient(90deg, var(--bg-2) 1px, transparent 1px) 0 0 / 40px 100%,
+      #fdfdfe;
+    border-bottom: 1px solid var(--rule);
+    overflow-x: auto;
+  }
+  .stage {
+    position: relative;
+    width: 2280px;
+    height: 1080px;
+    margin: 0 auto;
+  }
+  .stage .lane-hdr {
+    position: absolute;
+    top: 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+    padding-bottom: 8px;
+    border-bottom: 1px dashed var(--rule-2);
+    width: 240px;
+    text-align: left;
+  }
+  .stage .nbox {
+    position: absolute;
+    width: 260px;
+    background: #fff;
+    border: 1px solid var(--rule-2);
+    border-radius: 9px;
+    padding: 14px 16px;
+    box-shadow: 0 1px 0 rgba(14,26,43,0.04);
+    z-index: 2;
+  }
+  .stage .nbox.small { width: 200px; padding: 11px 13px; }
+  .stage .nbox.wide  { width: 300px; }
+  .stage .nbox .row {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  }
+  .stage .nbox .title { font-size: 13.5px; font-weight: 600; color: var(--ink); letter-spacing: -0.005em; }
+  .stage .nbox.small .title { font-size: 12px; }
+  .stage .nbox .port {
+    font-family: 'JetBrains Mono', monospace; font-size: 10.5px; font-weight: 600;
+    color: var(--teal); background: var(--teal-tint); border: 1px solid var(--teal-soft);
+    border-radius: 4px; padding: 2px 7px; white-space: nowrap;
+  }
+  .stage .nbox.small .port { font-size: 9.5px; padding: 1px 6px; }
+  .stage .nbox .sub {
+    font-family: 'JetBrains Mono', monospace; font-size: 10.5px;
+    color: var(--muted); margin-top: 8px; line-height: 1.55;
+  }
+  .stage .nbox.small .sub { font-size: 9.5px; margin-top: 5px; }
+  .stage .nbox .sub code {
+    background: var(--bg-2); border-radius: 3px; padding: 1px 4px; color: var(--ink-2); font-size: 10px;
+  }
+  /* node tints */
+  .stage .nbox.client  { background: #fbfcff; border-color: #c9d1e3; }
+  .stage .nbox.bff     { background: linear-gradient(180deg, var(--teal-tint), #fff); border-color: var(--teal-soft); }
+  .stage .nbox.bff .port { background: var(--teal); color: #fff; border-color: var(--teal); }
+  .stage .nbox.agent   { background: linear-gradient(180deg, var(--indigo-tint), #fff); border-color: var(--indigo-soft); }
+  .stage .nbox.agent .port { background: var(--indigo); color: #fff; border-color: var(--indigo); }
+  .stage .nbox.gw      { background: linear-gradient(180deg, #fff6f0, #fff); border-color: var(--orange-soft); }
+  .stage .nbox.gw .port { background: var(--orange); color: #fff; border-color: var(--orange); }
+  .stage .nbox.hitl    { background: linear-gradient(180deg, var(--rose-soft), #fff); border-color: #e9b8c2; }
+  .stage .nbox.hitl .port { background: var(--rose); color: #fff; border-color: var(--rose); }
+  .stage .nbox.mcp     { background: linear-gradient(180deg, var(--moss-soft), #fff); border-color: #bbcfae; }
+  .stage .nbox.mcp .port { background: var(--moss); color: #fff; border-color: var(--moss); }
+  .stage .nbox.ping    { background: linear-gradient(180deg, var(--gold-soft), #fff); border-color: #e8d4a8; }
+  .stage .nbox.ping .port { background: var(--gold); color: #fff; border-color: var(--gold); }
+
+  .stage .attached {
+    margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--rule-2);
+    display: grid; gap: 8px;
+  }
+  .stage .chip {
+    background: #fff; border: 1px solid var(--rule); border-radius: 6px;
+    padding: 8px 10px; font-size: 11px; color: var(--ink-2); line-height: 1.5;
+  }
+  .stage .chip .ct {
+    font-family: 'JetBrains Mono', monospace; font-size: 9.5px; color: var(--muted);
+    letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600; display: block; margin-bottom: 3px;
+  }
+  .stage .chip.lmdb { border-color: #c9c2e0; background: #f6f4fc; }
+  .stage .chip.lmdb .ct { color: #4a3b8c; }
+  .stage .chip.data { border-color: #bcd1c4; background: #f0f6f2; }
+  .stage .chip.data .ct { color: var(--moss); }
+
+  .stage svg.wires {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    pointer-events: none; z-index: 1;
+    overflow: visible;
+  }
+  /* In step-detail mode the wires (and their numbered badges) must sit ABOVE the
+     HTML node boxes (z-index 2) so a badge that overlaps a card still catches the
+     click. The SVG keeps pointer-events:none at root, so only the badge/hit paths
+     (which opt back in) intercept — cards stay fully interactive everywhere else. */
+  body.step-detail .stage svg.wires { z-index: 3; }
+  /* Hide the token-issue connector lines (which carry their own numbered circles —
+     e.g. two "4"s for the two tokens issued at step 4) while step-detail is on, so
+     the only numbers on screen are the step badges. They return when the mode is off. */
+  body.step-detail .issued-lines { display: none; }
+  /* Hide the transport-label boxes while step-detail is on — they are drawn on top of
+     the badges and were covering the numbers. The popup carries this info instead.
+     Labels return (per the Transport-labels layer toggle) when step-detail is off. */
+  body.step-detail .stage .wires .layer-label { display: none; }
+  .stage svg.wires text {
+    font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600;
+  }
+  .stage svg.wires text.sub {
+    font-size: 11px; font-weight: 500;
+  }
+  .stage svg.wires .label-bg {
+    fill: #ffffff; stroke-width: 1;
+  }
+
+  /* ---------- Layer toggle panel ---------- */
+  .layers {
+    position: sticky;
+    top: 14px;
+    z-index: 10;
+    margin: 0 auto 14px;
+    max-width: 1880px;
+    background: #fff;
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    box-shadow: 0 2px 8px rgba(14,26,43,0.06);
+  }
+  .layers .heading {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+  }
+
+  /* Layer popover trigger button */
+  .layers-btn {
+    font: inherit; cursor: pointer;
+    font-family: 'JetBrains Mono', monospace; font-size: 11.5px; font-weight: 600;
+    background: #fff; border: 1px solid var(--rule);
+    color: var(--ink); border-radius: 6px;
+    padding: 5px 28px 5px 11px;
+    position: relative;
+    -webkit-appearance: none; -moz-appearance: none; appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, var(--ink-2) 50%),
+                      linear-gradient(135deg, var(--ink-2) 50%, transparent 50%);
+    background-position: calc(100% - 14px) 50%, calc(100% - 9px) 50%;
+    background-size: 5px 5px;
+    background-repeat: no-repeat;
+    text-align: left;
+    min-width: 220px;
+  }
+  .layers-btn:hover { border-color: var(--teal); }
+  .layers-btn .count {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    color: var(--muted); font-weight: 500;
+    margin-left: 6px;
+  }
+  .layers-popover {
+    position: absolute; top: calc(100% + 6px); left: 0;
+    background: #fff;
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 10px 14px;
+    box-shadow: 0 6px 18px rgba(14,26,43,0.12);
+    min-width: 280px;
+    display: none;
+    z-index: 30;
+  }
+  .layers-popover.open { display: block; }
+  .layers-popover label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    color: var(--ink-2);
+    cursor: pointer;
+    user-select: none;
+    padding: 5px 6px;
+    border-radius: 4px;
+  }
+  .layers-popover label:hover { background: var(--bg-2); }
+  .layers-popover label input { margin: 0; accent-color: var(--teal); }
+  .layers-popover label .swatch {
+    display: inline-block; width: 14px; height: 3px; border-radius: 2px; background: var(--ink); margin-right: 2px;
+  }
+  .layers-popover label.l-teal .swatch    { background: var(--teal); }
+  .layers-popover label.l-indigo .swatch  { background: var(--indigo); }
+  .layers-popover label.l-gold .swatch    { background: var(--gold); }
+  .layers-popover label.l-rose .swatch    { background: var(--rose); }
+  .layers-popover label.l-orange .swatch  { background: var(--orange); }
+  .layers-popover label.l-moss .swatch    { background: var(--moss); }
+  .layers-wrap { position: relative; }
+
+  /* Step-detail mode is a first-class toggle on the menu bar, next to Layers. */
+  .step-detail-btn {
+    font: inherit; cursor: pointer;
+    font-family: 'JetBrains Mono', monospace; font-size: 11.5px; font-weight: 600;
+    display: inline-flex; align-items: center; gap: 7px;
+    background: #fff; border: 1px solid var(--rule);
+    color: var(--ink); border-radius: 6px;
+    padding: 5px 13px;
+  }
+  .step-detail-btn:hover { border-color: var(--teal); }
+  .step-detail-btn .dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--rule-2); border: 1px solid var(--rule-2);
+    transition: background .15s ease, border-color .15s ease;
+  }
+  .step-detail-btn[aria-pressed="true"] {
+    background: var(--teal-tint); border-color: var(--teal);
+    color: var(--teal-2);
+  }
+  .step-detail-btn[aria-pressed="true"] .dot {
+    background: var(--teal); border-color: var(--teal);
+  }
+
+  /* Layer visibility — driven by body classes from JS */
+  body.hide-tokens .layer-tokens { display: none !important; }
+  body.hide-rfc    .layer-rfc    { display: none !important; }
+  body.hide-hitl   .layer-hitl   { display: none !important; }
+  body.hide-aam    .layer-aam    { display: none !important; }
+  body.hide-callback .layer-callback { display: none !important; }
+  body.hide-agui   .layer-agui   { display: none !important; }
+  body.hide-optional .layer-optional { display: none !important; }
+  body.hide-labels .layer-label  { display: none !important; }
+  body.hide-ports  .nbox .port   { display: none !important; }
+  body.hide-issued .issued-lines { display: none !important; }
+  /* When JWT cards are hidden, the connector lines have nowhere to land — hide them too. */
+  body.hide-tokens .issued-lines { display: none !important; }
+
+  /* ---------- Scenario highlighting ----------
+     When body has a scn-X class (X = A-L), every element with [data-scn] dims unless its
+     value contains the active scenario letter. */
+  body[class*="scn-"] [data-scn] { opacity: 0.18; transition: opacity .25s ease; }
+  body.scn-A [data-scn~="A"],
+  body.scn-B [data-scn~="B"],
+  body.scn-C [data-scn~="C"],
+  body.scn-D [data-scn~="D"],
+  body.scn-E [data-scn~="E"],
+  body.scn-H [data-scn~="H"],
+  body.scn-I [data-scn~="I"],
+  body.scn-K [data-scn~="K"] { opacity: 1; }
+  body[class*="scn-"] .wires g[data-scn] path { stroke-width: 2.4; }
+
+  /* Scenario picker dropdown */
+  .scenarios {
+    display: inline-flex; gap: 8px; align-items: center;
+    margin-left: auto;
+    padding-left: 18px; border-left: 1px dashed var(--rule);
+  }
+  .scenarios .s-heading {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--muted); font-weight: 600;
+  }
+  .scenarios select {
+    font: inherit; cursor: pointer;
+    font-family: 'JetBrains Mono', monospace; font-size: 11.5px; font-weight: 600;
+    background: #fff; border: 1px solid var(--rule);
+    color: var(--ink); border-radius: 6px;
+    padding: 5px 28px 5px 11px;
+    -webkit-appearance: none; -moz-appearance: none; appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, var(--ink-2) 50%),
+                      linear-gradient(135deg, var(--ink-2) 50%, transparent 50%);
+    background-position: calc(100% - 14px) 50%, calc(100% - 9px) 50%;
+    background-size: 5px 5px;
+    background-repeat: no-repeat;
+    min-width: 260px;
+  }
+  .scenarios select:hover { border-color: var(--teal); }
+  .scenarios select:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px var(--teal-tint); }
+  .scenarios optgroup {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    color: var(--muted); letter-spacing: 0.08em;
+  }
+  .scenarios .scn-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: 'JetBrains Mono', monospace; font-size: 10.5px;
+    background: var(--ink); color: #fff;
+    padding: 4px 10px; border-radius: 999px; font-weight: 600;
+  }
+  .scenarios .scn-pill .reset {
+    cursor: pointer;
+    border: 0; background: transparent; color: rgba(255,255,255,0.7);
+    padding: 0 0 0 2px; font: inherit; font-size: 11px;
+  }
+  .scenarios .scn-pill .reset:hover { color: #fff; }
+
+  /* Token-origin connector overlay (spans the whole .frame) */
+  .frame { position: relative; }
+  .issued-lines {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 5;
+    overflow: visible;
+  }
+  .issued-lines path {
+    fill: none;
+    stroke-width: 1.6;
+    stroke-dasharray: 4 4;
+    opacity: 0.7;
+  }
+  .issued-lines text {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    opacity: 0.85;
+  }
+  .diagram-head {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+    margin-bottom: 28px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    flex-wrap: wrap;
+    padding-bottom: 16px;
+    border-bottom: 1px dashed var(--rule);
+  }
+  .diagram-head .legend { display: inline-flex; align-items: center; gap: 6px; }
+  .diagram-head .legend .swatch {
+    display: inline-block; width: 28px; height: 2px; border-radius: 1px; background: var(--teal);
+  }
+  .diagram-head .legend.dashed .swatch { background: repeating-linear-gradient(90deg, var(--teal) 0 6px, transparent 6px 10px); height: 2px; }
+  .diagram-head .legend.indigo .swatch { background: var(--indigo); }
+  .diagram-head .legend.indigo-d .swatch { background: repeating-linear-gradient(90deg, var(--indigo) 0 6px, transparent 6px 10px); }
+  .diagram-head .legend.gold .swatch { background: var(--gold); }
+  .diagram-head .legend.rose .swatch { background: repeating-linear-gradient(90deg, var(--rose) 0 6px, transparent 6px 10px); }
+  .diagram-head .legend.orange .swatch { background: var(--orange); }
+
+  .canvas {
+    display: grid;
+    grid-template-columns: 0.9fr 1.35fr 1.25fr 1.1fr 1.15fr 1.05fr;
+    column-gap: 38px;
+    align-items: stretch;
+    position: relative;
+    z-index: 1;
+  }
+  .lane {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    min-width: 0;
+  }
+  .lane-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+    margin-bottom: 4px;
+    padding-bottom: 10px;
+    border-bottom: 1px dashed var(--rule-2);
+  }
+
+  /* node base */
+  .node {
+    background: #fff;
+    border: 1px solid var(--rule-2);
+    border-radius: 9px;
+    padding: 14px 16px;
+    position: relative;
+    box-shadow: 0 1px 0 rgba(14,26,43,0.03);
+  }
+  .node .row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .node .title {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--ink);
+    letter-spacing: -0.005em;
+  }
+  .node .port {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--teal);
+    background: var(--teal-tint);
+    border: 1px solid var(--teal-soft);
+    border-radius: 4px;
+    padding: 2px 7px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .node .sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 8px;
+    line-height: 1.55;
+  }
+  .node .sub code {
+    background: var(--bg-2);
+    border-radius: 3px;
+    padding: 1px 4px;
+    color: var(--ink-2);
+    font-size: 10.5px;
+  }
+
+  /* tinted nodes */
+  .n-client   { background: #fbfcff; border-color: #c9d1e3; }
+  .n-bff      { background: linear-gradient(180deg, var(--teal-tint), #fff); border-color: var(--teal-soft); }
+  .n-bff .title { color: var(--teal-2); }
+  .n-bff .port  { background: var(--teal); color: #fff; border-color: var(--teal); }
+  .n-agent    { background: linear-gradient(180deg, var(--indigo-tint), #fff); border-color: var(--indigo-soft); }
+  .n-agent .port { background: var(--indigo); color: #fff; border-color: var(--indigo); }
+  .n-gateway  { background: linear-gradient(180deg, #fff6f0, #fff); border-color: var(--orange-soft); }
+  .n-gateway .port { background: var(--orange); color: #fff; border-color: var(--orange); }
+  .n-hitl     { background: linear-gradient(180deg, var(--rose-soft), #fff); border-color: #e9b8c2; }
+  .n-hitl .port { background: var(--rose); color: #fff; border-color: var(--rose); }
+  .n-mcp      { background: linear-gradient(180deg, var(--moss-soft), #fff); border-color: #bbcfae; }
+  .n-mcp .port { background: var(--moss); color: #fff; border-color: var(--moss); }
+  .n-ping     { background: linear-gradient(180deg, var(--gold-soft), #fff); border-color: #e8d4a8; }
+  .n-ping .port { background: var(--gold); color: #fff; border-color: var(--gold); }
+
+  /* attached subnodes (data/sessions) */
+  .attached {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--rule-2);
+  }
+  .chip {
+    background: #fff;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 11.5px;
+    color: var(--ink-2);
+    line-height: 1.5;
+  }
+  .chip .ct {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9.5px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 600;
+    display: block;
+    margin-bottom: 3px;
+  }
+  .chip.lmdb { border-color: #c9c2e0; background: #f6f4fc; }
+  .chip.lmdb .ct { color: #4a3b8c; }
+  .chip.data { border-color: #bcd1c4; background: #f0f6f2; }
+  .chip.data .ct { color: var(--moss); }
+
+  /* transport chip strip between canvas and bottom */
+  .transport-strip {
+    margin-top: 28px;
+    padding-top: 22px;
+    border-top: 1px dashed var(--rule-2);
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 14px;
+  }
+  .t-chip {
+    background: #fff;
+    border: 1px solid var(--rule);
+    border-left-width: 3px;
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    font-weight: 600;
+    color: var(--ink-2);
+    line-height: 1.5;
+  }
+  .t-chip span {
+    display: block;
+    margin-top: 3px;
+    font-weight: 500;
+    color: var(--muted);
+    font-size: 10px;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .t-chip.t-teal   { border-left-color: var(--teal); }
+  .t-chip.t-gold   { border-left-color: var(--gold); }
+  .t-chip.t-indigo { border-left-color: var(--indigo); }
+  .t-chip.t-rose   { border-left-color: var(--rose); }
+  .t-chip.t-orange { border-left-color: var(--orange); }
+
+  /* runtime cluster: 4 small siblings */
+  .runtime-cluster {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .runtime-cluster .node { padding: 11px 13px; }
+  .runtime-cluster .node .title { font-size: 12px; }
+  .runtime-cluster .node .port { font-size: 10px; padding: 1px 6px; }
+  .runtime-cluster .node .sub { font-size: 10px; margin-top: 5px; line-height: 1.5; }
+  .runtime-cluster-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+    margin-top: 6px;
+  }
+
+  /* ============ TOKEN PAYLOAD STRIP (bottom) ============ */
+  .tokens {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 22px;
+    padding: 28px 32px 32px;
+    background: var(--bg-2);
+  }
+  .tcard {
+    background: #fff;
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 16px 18px;
+    border-top: 3px solid var(--teal);
+  }
+  .tcard.user    { border-top-color: var(--teal); }
+  .tcard.actor   { border-top-color: var(--indigo); }
+  .tcard.gw      { border-top-color: var(--orange); }
+  .tcard.mcp     { border-top-color: var(--moss); }
+  .tcard .label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--teal);
+    margin-bottom: 4px;
+  }
+  .tcard .step-row {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    margin: 6px 0 10px;
+  }
+  .tcard .step-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    background: var(--bg-2); border: 1px solid var(--rule);
+    border-radius: 4px; padding: 2px 7px; color: var(--ink-2);
+    font-weight: 600;
+  }
+  .tcard .step-badge .n {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--ink); color: #fff; font-size: 9px; font-weight: 700;
+  }
+  .tcard.user .step-badge .n   { background: var(--teal); }
+  .tcard.actor .step-badge .n  { background: var(--indigo); }
+  .tcard.gw .step-badge .n     { background: var(--orange); }
+  .tcard.mcp .step-badge .n    { background: var(--moss); }
+  .tcard .hop {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-family: 'JetBrains Mono', monospace; font-size: 9.5px;
+    color: var(--muted);
+  }
+  .tcard .hop .dot {
+    display: inline-block; width: 8px; height: 2px; border-radius: 1px;
+  }
+
+  /* Numbered step badges in the narrative ol */
+  .steps ol { counter-reset: step; list-style: none; padding-left: 0; }
+  .steps ol li {
+    counter-increment: step;
+    position: relative;
+    padding-left: 28px;
+    margin-bottom: 8px;
+  }
+  .steps ol li::before {
+    content: counter(step);
+    position: absolute; left: 0; top: 2px;
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 19px; height: 19px; border-radius: 50%;
+    background: var(--ink); color: #fff;
+    font-family: 'JetBrains Mono', monospace; font-size: 10.5px; font-weight: 700;
+  }
+  .steps ol li[data-step="1"]::before { background: var(--teal); }
+  .steps ol li[data-step="2"]::before { background: var(--ink-2); }
+  .steps ol li[data-step="3"]::before { background: var(--gold); }
+  .steps ol li[data-step="4"]::before { background: var(--orange); }
+  .steps ol li[data-step="5"]::before { background: var(--indigo); }
+  .steps ol li[data-step="6"]::before { background: var(--orange); }
+  .steps ol li[data-step="7"]::before { background: var(--rose); }
+  .steps ol li[data-step="8"]::before { background: var(--moss); }
+  .tcard.actor .label { color: var(--indigo); }
+  .tcard.gw .label    { color: var(--orange); }
+  .tcard.mcp .label   { color: var(--moss); }
+  .tcard .name {
+    font-family: 'Crimson Pro', serif;
+    font-weight: 500;
+    font-size: 16px;
+    color: var(--ink);
+    letter-spacing: -0.005em;
+    margin-bottom: 8px;
+  }
+  .tcard .name i { font-style: italic; color: var(--teal); font-weight: 400; }
+  .tcard pre {
+    margin: 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    line-height: 1.55;
+    color: var(--ink-2);
+    background: var(--bg-2);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 8px 10px;
+    overflow-x: auto;
+  }
+  .tcard pre .k { color: var(--muted); }
+  .tcard pre .v { color: var(--ink); }
+  .tcard pre .s { color: var(--teal); }
+  .tcard pre .a { color: var(--orange); }
+  .tcard pre .m { color: var(--rose); }
+
+  .footnote {
+    padding: 14px 22px;
+    background: #fff;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .footnote b { color: var(--ink-2); font-weight: 600; }
+
+  /* ============ STEP-DETAIL MODE ============ */
+  /* When enabled, each numbered flow wire becomes a clickable hotspot that opens
+     a popup explaining what the step is, why it happens, and the risk of skipping it. */
+  /* In step-detail mode the diagram dims slightly so the bright numbered badges pop. */
+  body.step-detail .stage .wires path:not(.hit) { opacity: 0.5; transition: opacity .15s ease; }
+  body.step-detail .stage .wires g[data-step] path:not(.hit) { opacity: 1; }
+  /* Labels must NEVER intercept the pointer — they sit on top of arrows and were
+     stealing clicks/hover, causing the flicker. */
+  .stage .wires .layer-label,
+  .stage .wires .label-bg,
+  .stage .wires text { pointer-events: none; }
+
+  /* The numbered badge is the PRIMARY click target — big, obvious, interactive. */
+  .stage .wires g[data-step] .step-tag { display: none; }
+  body.step-detail .stage .wires g[data-step] .step-tag {
+    display: block; cursor: pointer; pointer-events: auto;
+    /* scale in place on hover */
+    transform-box: fill-box; transform-origin: center;
+    transition: transform .14s cubic-bezier(.34,1.56,.64,1);
+  }
+  /* Generous transparent halo so the badge is forgiving to click. */
+  .stage .wires g[data-step] .step-tag .halo { fill: transparent; pointer-events: all; }
+  /* A soft outer pulse ring so a badge reads as interactive even at rest. */
+  .stage .wires g[data-step] .step-tag .pulse {
+    fill: none; stroke: var(--teal); stroke-width: 2; opacity: 0;
+  }
+  body.step-detail .stage .wires g[data-step] .step-tag .pulse {
+    animation: stepPulse 2s ease-out infinite;
+  }
+  @keyframes stepPulse {
+    0%   { r: 13px; opacity: 0.55; }
+    70%  { r: 24px; opacity: 0; }
+    100% { r: 24px; opacity: 0; }
+  }
+  .stage .wires g[data-step] .step-tag .ring {
+    fill: var(--teal); stroke: #fff; stroke-width: 2.5;
+    transition: fill .12s ease;
+    filter: drop-shadow(0 2px 4px rgba(14,26,43,0.45));
+  }
+  .stage .wires g[data-step] .step-tag text {
+    fill: #fff; font-size: 13px; font-weight: 700; text-anchor: middle;
+    pointer-events: none;
+  }
+  /* HOVER: grow the whole badge, darken, drop the pulse (it would fight the grow). */
+  body.step-detail .stage .wires g[data-step] .step-tag:hover {
+    transform: scale(1.55);
+  }
+  body.step-detail .stage .wires g[data-step] .step-tag:hover .ring {
+    fill: var(--teal-2); stroke-width: 3;
+    filter: drop-shadow(0 3px 7px rgba(14,26,43,0.55));
+  }
+  body.step-detail .stage .wires g[data-step] .step-tag:hover .pulse { animation: none; opacity: 0; }
+  /* The thin-line hit path stays as a secondary target. */
+  .stage .wires g[data-step] .hit { stroke: transparent; stroke-width: 26; fill: none; pointer-events: none; }
+  body.step-detail .stage .wires g[data-step] .hit { pointer-events: stroke; cursor: pointer; }
+  body.step-detail .stage .wires g[data-step]:hover path:not(.hit) { stroke-width: 4; }
+
+  /* Hint banner shown when step-detail mode is on. */
+  .step-hint {
+    display: none;
+    max-width: 1880px; margin: 0 auto 14px;
+    background: var(--teal-tint); border: 1px solid var(--teal-soft);
+    border-radius: 8px; padding: 9px 14px;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--teal-2);
+  }
+  body.step-detail .step-hint { display: block; }
+
+  /* The step-detail popup. */
+  .step-popover {
+    position: absolute;
+    z-index: 40;
+    width: 340px;
+    background: #fff;
+    border: 1px solid var(--rule);
+    border-top: 3px solid var(--teal);
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(14,26,43,0.18);
+    padding: 16px 18px 18px;
+    display: none;
+  }
+  .step-popover.open { display: block; }
+  .step-popover .sp-step {
+    font-family: 'JetBrains Mono', monospace; font-size: 9.5px;
+    letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600;
+    color: var(--teal);
+  }
+  .step-popover .sp-title {
+    font-family: 'Crimson Pro', serif; font-weight: 500; font-size: 18px;
+    color: var(--ink); letter-spacing: -0.01em; margin: 2px 0 12px;
+  }
+  .step-popover .sp-sec { margin-top: 11px; }
+  .step-popover .sp-sec:first-of-type { margin-top: 0; }
+  .step-popover .sp-h {
+    font-family: 'JetBrains Mono', monospace; font-size: 9.5px;
+    letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600;
+    color: var(--muted); margin-bottom: 3px;
+  }
+  .step-popover .sp-sec.risk .sp-h { color: var(--rose); }
+  .step-popover .sp-b { font-size: 12px; line-height: 1.5; color: var(--ink-2); }
+  .step-popover .sp-b code {
+    font-family: 'JetBrains Mono', monospace; font-size: 10.5px;
+    background: var(--bg-2); border-radius: 3px; padding: 1px 4px; color: var(--ink-2);
+  }
+  .step-popover .sp-sec.risk {
+    background: var(--rose-soft); border-radius: 6px;
+    padding: 9px 11px; margin-top: 13px;
+  }
+  .step-popover .sp-sec.risk .sp-b { color: #7a2435; }
+  .step-popover .sp-close {
+    position: absolute; top: 8px; right: 10px;
+    cursor: pointer; border: 0; background: transparent;
+    font-family: 'JetBrains Mono', monospace; font-size: 16px; line-height: 1;
+    color: var(--muted); padding: 2px 4px;
+  }
+  .step-popover .sp-close:hover { color: var(--ink); }
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <div class="eyebrow">AI-Demo · architecture</div>
+  <h1>System architecture <i>with token-flow overlay</i></h1>
+  <p>Every service the demo binds, the transport that connects each hop, and the JWT in transit. Mirrors the
+    PingOne / P1AZ reference, scaled to the AI-Demo's four agent runtimes and three MCP servers.</p>
+</div>
+
+<!-- ============ LAYER TOGGLE PANEL ============ -->
+<div class="layers" role="group" aria-label="Diagram layer toggles">
+  <span class="heading">Layers</span>
+  <div class="layers-wrap">
+    <button type="button" id="layers-btn" class="layers-btn" aria-expanded="false" aria-controls="layers-popover">
+      Layers <span class="count" id="layers-count">10 of 10 on</span>
+    </button>
+    <div id="layers-popover" class="layers-popover" role="group" aria-label="Diagram layer toggles">
+      <label class="l-teal"><input type="checkbox" data-toggle="hide-labels" checked><span class="swatch"></span>Transport labels</label>
+      <label class="l-orange"><input type="checkbox" data-toggle="hide-rfc" checked><span class="swatch"></span>RFC 8693 / token exchange</label>
+      <label class="l-orange"><input type="checkbox" data-toggle="hide-aam" checked><span class="swatch"></span>PingOne AAM (authorize)</label>
+      <label class="l-rose"><input type="checkbox" data-toggle="hide-hitl" checked><span class="swatch"></span>HITL path</label>
+      <label class="l-gold"><input type="checkbox" data-toggle="hide-agui" checked><span class="swatch"></span>AG-UI / SSE</label>
+      <label class="l-moss"><input type="checkbox" data-toggle="hide-callback" checked><span class="swatch"></span>MCP → BFF callback</label>
+      <label class="l-indigo"><input type="checkbox" data-toggle="hide-optional" checked><span class="swatch"></span>Optional direct WS</label>
+      <label><input type="checkbox" data-toggle="hide-tokens" checked><span class="swatch" style="background:var(--ink);"></span>JWT payload cards</label>
+      <label><input type="checkbox" data-toggle="hide-ports" checked><span class="swatch" style="background:var(--ink);"></span>Port chips</label>
+      <label><input type="checkbox" data-toggle="hide-issued" checked><span class="swatch" style="background:var(--ink);"></span>Token issue lines</label>
+    </div>
+  </div>
+
+  <button type="button" id="step-detail-btn" class="step-detail-btn" aria-pressed="false">
+    <span class="dot"></span>Step details
+  </button>
+
+  <div class="scenarios" role="group" aria-label="Scenario highlighter">
+    <span class="s-heading">Scenario</span>
+    <select id="scenario-select" aria-label="Select a scenario to highlight">
+      <option value="">All — show everything (default)</option>
+      <optgroup label="MCP / tool execution">
+        <option value="A">A · MCP client → MCP server (bare protocol)</option>
+        <option value="B">B · Full token exchange → resource (canonical)</option>
+        <option value="C">C · Mortgage (REST API, X-API-Key)</option>
+        <option value="D">D · HITL gate (INDETERMINATE → human)</option>
+        <option value="I">I · External agent delegation (N8N / Bedrock)</option>
+        <option value="K">K · DENY (AAM rejects → 403)</option>
+      </optgroup>
+      <optgroup label="Identity / session">
+        <option value="E">E · OAuth login + PKCE (step 1 only)</option>
+        <option value="H">H · MFA step-up (acr_values re-auth)</option>
+      </optgroup>
+    </select>
+  </div>
+</div>
+
+<div class="step-hint" role="note">
+  Step-detail mode is on — click any numbered arrow in the diagram to see what the step does, why it happens, and the risk of skipping it.
+</div>
+
+<!-- Step-detail popover (positioned via JS near the clicked arrow) -->
+<div class="step-popover" id="step-popover" role="dialog" aria-label="Step detail" aria-modal="false">
+  <button type="button" class="sp-close" id="step-popover-close" aria-label="Close">×</button>
+  <div class="sp-step" id="sp-step"></div>
+  <div class="sp-title" id="sp-title"></div>
+  <div class="sp-sec"><div class="sp-h">What happens</div><div class="sp-b" id="sp-what"></div></div>
+  <div class="sp-sec"><div class="sp-h">Why this step exists</div><div class="sp-b" id="sp-why"></div></div>
+  <div class="sp-sec risk"><div class="sp-h">Risk if skipped</div><div class="sp-b" id="sp-risk"></div></div>
+</div>
+
+<div class="frame">
+
+  <!-- ============ NARRATIVE STEPS ============ -->
+  <div class="steps">
+    <div class="col">
+      <div class="col-head">Request narrative · user → tool execution</div>
+      <ol>
+        <li data-step="1" data-scn="B C E H K">User authenticates → PingOne issues <span class="mono">User token</span> (Token #1); browser only receives the <code>connect.sid</code> session cookie.</li>
+        <li data-step="2" data-scn="B C">User opens chat → BFF's <code>resolveAgentTarget</code> selects the active runtime (LangChain / OpenAI / Mastra / Pydantic) from <code>configStore.llm_framework</code>.</li>
+        <li data-step="3" data-scn="B C">Agent reasons via <code>demo_agent_service /run</code> → emits <code>STATE_DELTA</code> over <span class="mono">AG-UI SSE</span> → BFF → Browser.</li>
+        <li data-step="4" data-scn="B C I K">Agent decides to call an MCP tool → BFF (optionally with <span class="mono">Token #2</span> actor token) performs <span class="mono">RFC 8693</span> → <span class="mono">MCP Gateway token (Token #3)</span>.</li>
+        <li data-step="5" data-scn="A B C D I K">BFF opens JSON-RPC over WebSocket to <code>demo_mcp_gateway</code> carrying Token #3.</li>
+        <li data-step="6" data-scn="B C D I K">Gateway introspects Token #3 → calls PingOne AAM (authorize policy): <b>PERMIT / DENY / INDETERMINATE</b>.</li>
+        <li data-step="7" data-scn="D">INDETERMINATE → Gateway POSTs to <code>demo_hitl_service /challenges</code> and polls until a human decision arrives from the dashboard.</li>
+        <li data-step="8" data-scn="A B C D I">PERMIT → Gateway performs another <span class="mono">RFC 8693</span> → <span class="mono">per-MCP server token (Token #4)</span> → executes tool. MCP servers call back to the BFF's banking API for data.</li>
+      </ol>
+    </div>
+    <div class="col">
+      <div class="col-head">Invariants</div>
+      <div class="annotations">
+        <div class="ann">
+          <div class="t">Token custody</div>
+          <div class="b">Tokens are <b>never</b> exposed to the browser. The BFF is the sole custodian. Every browser → BFF call is cookie-only via <code>bffAxios</code> (<code>withCredentials: true</code>, no Authorization header).</div>
+        </div>
+        <div class="ann orange">
+          <div class="t">PingOne AAM</div>
+          <div class="b">P1AZ is in control of <b>all</b> tool authorize decisions at the gateway. Token check via introspection (RFC 7662) + policy via Authorize.</div>
+        </div>
+        <div class="ann warn">
+          <div class="t">act / may_act claim</div>
+          <div class="b">Every delegated MCP token carries an <code>act.sub</code> = agent client_id. Gateway and MCP servers read <code>act.sub</code> to know <i>who</i> called the API.</div>
+        </div>
+        <div class="ann rose">
+          <div class="t">HITL gate (INDETERMINATE)</div>
+          <div class="b">If PingAuthorize returns INDETERMINATE, the gateway holds the call and creates an HITL challenge. The dashboard responds with <code>approved | denied</code>; gateway proceeds or 403s.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ DIAGRAM ============ -->
+  <div class="diagram">
+    <div class="diagram-head">
+      <span>Transports:</span>
+      <span class="legend"><span class="swatch"></span>HTTPS REST + cookie</span>
+      <span class="legend dashed"><span class="swatch"></span>HTTPS REST</span>
+      <span class="legend indigo"><span class="swatch"></span>WebSocket / JSON-RPC</span>
+      <span class="legend indigo-d"><span class="swatch"></span>WebSocket chat</span>
+      <span class="legend gold"><span class="swatch"></span>SSE · AG-UI</span>
+      <span class="legend rose"><span class="swatch"></span>HITL poll</span>
+      <span class="legend orange"><span class="swatch"></span>PingOne authorize / RFC 8693</span>
+    </div>
+
+    <!-- Fixed-size stage; lanes at x = 0, 320, 660, 1000, 1280, 1560 -->
+    <div class="stage">
+
+      <!-- ===== LANE HEADERS (top of stage) ===== -->
+      <div class="lane-hdr" style="left: 20px;">Client</div>
+      <div class="lane-hdr" style="left: 380px;">BFF · token custodian</div>
+      <div class="lane-hdr" style="left: 780px;">Agent runtimes</div>
+      <div class="lane-hdr" style="left: 1320px;">Gateway · HITL</div>
+      <div class="lane-hdr" style="left: 1640px;">MCP servers</div>
+      <div class="lane-hdr" style="left: 1960px;">PingOne</div>
+
+      <!-- ===== NODES (positioned in stage coordinates) =====
+           Each .nbox is 260 wide, 200 wide for .small. Min vertical gap 70.
+           Lane x: Client=20, BFF=380, AgentSvc=780, Runtimes left=780, right=1040,
+                  Gateway=1320, MCP=1640, PingOne=1960
+      -->
+
+      <!-- External agent (N8N / Bedrock / Custom) — entry point for scenario I -->
+      <div class="nbox agent" id="n-ext-agent" data-scn="I" style="left: 20px; top: 620px;">
+        <div class="row"><span class="title">External agent</span><span class="port">N8N · Bedrock · custom</span></div>
+        <div class="sub">POST <code>/api/agent/delegate</code><br/>Sends user Bearer + scope ask<br/>BFF performs RFC 8693</div>
+      </div>
+
+      <!-- Client -->
+      <div class="nbox client" id="n-client" data-scn="B C E H K" style="left: 20px; top: 320px;">
+        <div class="row"><span class="title">demo_api_ui</span><span class="port">:4000</span></div>
+        <div class="sub">React SPA · <code>bffAxios</code><br/>cookie session only<br/>HTTPS, no Bearer</div>
+      </div>
+
+      <!-- BFF -->
+      <div class="nbox bff" id="n-bff" data-scn="A B C D E H I K" style="left: 380px; top: 270px;">
+        <div class="row"><span class="title">demo_api_server</span><span class="port">:3001</span></div>
+        <div class="sub">Express · OAuth · sessions<br/><code>agentMcpTokenService.js</code><br/><code>resolveAgentTarget</code></div>
+        <div class="attached">
+          <div class="chip lmdb">
+            <span class="ct">Session store</span>
+            LMDB · 24h TTL<br/><span style="color:var(--muted)">services/lmdb/sessionStore.js</span>
+          </div>
+          <div class="chip data">
+            <span class="ct">Banking data</span>
+            In-memory<br/><span style="color:var(--muted)">data/store.js</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Agent service (AG-UI runner) -->
+      <div class="nbox agent" id="n-agentsvc" data-scn="B C" style="left: 780px; top: 70px;">
+        <div class="row"><span class="title">demo_agent_service</span><span class="port">:3006</span></div>
+        <div class="sub">AG-UI runner · POST <code>/run</code><br/><code>text/event-stream</code> · <code>STATE_DELTA</code></div>
+      </div>
+
+      <!-- 4 runtimes (2x2 grid below agent service) -->
+      <div class="nbox agent small" id="n-langchain" data-scn="B C" style="left: 780px; top: 320px;">
+        <div class="row"><span class="title">langchain_agent</span><span class="port">:8888</span></div>
+        <div class="sub">Python · uvicorn<br/>chat WS :8889 · health :8890</div>
+      </div>
+      <div class="nbox agent small" id="n-openai" data-scn="B C" style="left: 1040px; top: 320px;">
+        <div class="row"><span class="title">openai_agent</span><span class="port">:8891</span></div>
+        <div class="sub">OpenAI Agents SDK<br/>Python · FastAPI</div>
+      </div>
+      <div class="nbox agent small" id="n-mastra" data-scn="B C" style="left: 780px; top: 500px;">
+        <div class="row"><span class="title">mastra_agent</span><span class="port">:8892</span></div>
+        <div class="sub">Mastra · TypeScript<br/>Node + Express</div>
+      </div>
+      <div class="nbox agent small" id="n-pydantic" data-scn="B C" style="left: 1040px; top: 500px;">
+        <div class="row"><span class="title">pydantic_agent</span><span class="port">:8893</span></div>
+        <div class="sub">Pydantic AI · Python<br/>FastAPI</div>
+      </div>
+
+      <!-- Gateway + HITL -->
+      <div class="nbox gw" id="n-gateway" data-scn="A B C D I K" style="left: 1320px; top: 320px;">
+        <div class="row"><span class="title">demo_mcp_gateway</span><span class="port">:3005</span></div>
+        <div class="sub">JSON-RPC / WS<br/>RFC 8693 re-exchange<br/>PingAuthorize policy gate</div>
+      </div>
+      <div class="nbox hitl" id="n-hitl" data-scn="D" style="left: 1320px; top: 620px;">
+        <div class="row"><span class="title">demo_hitl_service</span><span class="port">:3009</span></div>
+        <div class="sub">POST <code>/challenges</code> · poll<br/>dashboard <code>/:id/respond</code></div>
+      </div>
+
+      <!-- MCP servers (3 stacked) -->
+      <div class="nbox mcp" id="n-mcp-banking" data-scn="A B D I" style="left: 1640px; top: 70px;">
+        <div class="row"><span class="title">demo_mcp_server</span><span class="port">:8080</span></div>
+        <div class="sub">Banking MCP (WS)<br/>aud: <code>mcp_banking</code><br/>calls back to BFF <code>/api/*</code></div>
+      </div>
+      <div class="nbox mcp" id="n-mcp-invest" style="left: 1640px; top: 320px;">
+        <div class="row"><span class="title">demo_mcp_invest</span><span class="port">:8081</span></div>
+        <div class="sub">Invest MCP (WS)<br/>aud: <code>mcp_invest</code></div>
+      </div>
+      <div class="nbox mcp" id="n-mcp-mortgage" data-scn="C" style="left: 1640px; top: 540px;">
+        <div class="row"><span class="title">demo_mortgage_service</span><span class="port">:8082</span></div>
+        <div class="sub">REST resource server<br/>Gateway converts → <code>X-API-Key</code></div>
+      </div>
+
+      <!-- PingOne -->
+      <div class="nbox ping" id="n-ping-oauth" data-scn="B C E H I K" style="left: 1960px; top: 70px;">
+        <div class="row"><span class="title">PingOne OAuth / AS</span><span class="port">tokens</span></div>
+        <div class="sub">authorize · token<br/>RFC 8693 exchange<br/>RFC 7662 introspect · JWKS</div>
+      </div>
+      <div class="nbox ping" id="n-ping-aam" data-scn="B C D I K" style="left: 1960px; top: 320px;">
+        <div class="row"><span class="title">PingOne AAM</span><span class="port">policy</span></div>
+        <div class="sub">Authorize decision<br/>PERMIT · DENY · INDETERMINATE<br/>act / may_act enforcement</div>
+      </div>
+
+      <!-- ===== WIRES (SVG arrows in stage coordinates 0,0 → 2280,1080) =====
+           Node anchors (right edge x, vertical centerline y):
+             Client right edge   = 280,  top=320 → center y=400
+             BFF right edge      = 640,  top=270 → center y=370 (with attached chips)
+             AgentSvc edges      = 780-1040, top=70 → center y=130
+             Runtimes top row    = top=320 → center y=380
+             Runtimes bot row    = top=500 → center y=560
+             Gateway             = 1320..1580, top=320 → center y=400
+             HITL                = 1320..1580, top=620 → center y=700
+             MCP banking         = 1640..1900, top=70  → center y=150
+             MCP invest          = 1640..1900, top=320 → center y=400
+             MCP mortgage        = 1640..1900, top=540 → center y=620
+             PingOne OAuth       = 1960..2220, top=70  → center y=140
+             PingOne AAM         = 1960..2220, top=320 → center y=400
+      -->
+      <svg class="wires" viewBox="0 0 2280 1080" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Transport wires between services"><title>AI-Demo transport wires</title>
+        <defs>
+          <marker id="ar-teal"   viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#0d6760"/></marker>
+          <marker id="ar-indigo" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#3a4a8c"/></marker>
+          <marker id="ar-gold"   viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#a87317"/></marker>
+          <marker id="ar-rose"   viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#a13348"/></marker>
+          <marker id="ar-orange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#b35a1f"/></marker>
+          <marker id="ar-moss"   viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#4a6b3a"/></marker>
+        </defs>
+
+        <!-- ============ WIRES (grouped by layer; each group has its path and centered label) ============ -->
+
+        <!-- 0. External agent → BFF (entry for scenario I) -->
+        <g data-scn="I">
+          <path d="M 280,670 C 340,670 400,640 450,580" stroke="#3a4a8c" stroke-width="2.2" fill="none" marker-end="url(#ar-indigo)"/>
+          <g class="layer-label">
+            <rect class="label-bg" x="290" y="640" width="170" height="20" rx="4" stroke="#3a4a8c"/>
+            <text x="296" y="654" fill="#3a4a8c">POST /api/agent/delegate</text>
+          </g>
+        </g>
+
+        <!-- 1. Client → BFF (always on; transport label togglable) -->
+        <g data-scn="B C E H K" data-step="2">
+          <path class="hit" d="M 280,400 L 380,400"/>
+          <path d="M 280,400 L 380,400" stroke="#0d6760" stroke-width="2.4" fill="none" marker-end="url(#ar-teal)"/>
+          <g class="step-tag"><circle class="pulse" cx="330" cy="400" r="13"/><circle class="halo" cx="330" cy="400" r="20"/><circle class="ring" cx="330" cy="400" r="13"/><text x="330" y="400" dominant-baseline="central">2</text></g>
+          <g class="layer-label">
+            <rect class="label-bg" x="284" y="362" width="92" height="20" rx="4" stroke="#0d6760"/>
+            <text x="290" y="376" fill="#0d6760" font-size="11">HTTPS·cookie</text>
+          </g>
+        </g>
+
+        <!-- 2. BFF → AG-UI agent service (gold) — midpoint ~ (710, 215) -->
+        <g class="layer-agui" data-scn="B C" data-step="3">
+          <path class="hit" d="M 640,300 C 700,240 720,180 780,150"/>
+          <path d="M 640,300 C 700,240 720,180 780,150" stroke="#a87317" stroke-width="2.4" fill="none" marker-end="url(#ar-gold)"/>
+          <g class="step-tag"><circle class="pulse" cx="708" cy="208" r="13"/><circle class="halo" cx="708" cy="208" r="20"/><circle class="ring" cx="708" cy="208" r="13"/><text x="708" y="208" dominant-baseline="central">3</text></g>
+          <g class="layer-label">
+            <rect class="label-bg" x="655" y="200" width="118" height="34" rx="4" stroke="#a87317"/>
+            <text x="661" y="215" fill="#a87317">AG-UI · SSE</text>
+            <text x="661" y="228" fill="#a87317" class="sub">STATE_DELTA →</text>
+          </g>
+        </g>
+
+        <!-- 3. BFF → langchain (indigo dashed) — midpoint ~ (710, 365) -->
+        <g data-scn="B C">
+          <path d="M 640,360 C 700,360 740,360 780,380" stroke="#3a4a8c" stroke-width="2" stroke-dasharray="7 4" fill="none" marker-end="url(#ar-indigo)"/>
+          <g class="layer-label">
+            <rect class="label-bg" x="650" y="328" width="92" height="20" rx="4" stroke="#3a4a8c"/>
+            <text x="656" y="342" fill="#3a4a8c">HTTP /run · WS</text>
+          </g>
+        </g>
+
+        <!-- 3b. BFF → mastra (indigo dashed) — midpoint ~ (710, 480) -->
+        <g data-scn="B C">
+          <path d="M 640,420 C 700,460 740,520 780,560" stroke="#3a4a8c" stroke-width="2" stroke-dasharray="7 4" fill="none" marker-end="url(#ar-indigo)"/>
+        </g>
+
+        <!-- 4. BFF → Gateway (indigo solid heavy) — midpoint ~ (980, 480) -->
+        <g data-scn="A B C D I K" data-step="5">
+          <path class="hit" d="M 640,480 C 880,500 1100,460 1320,400"/>
+          <path d="M 640,480 C 880,500 1100,460 1320,400" stroke="#3a4a8c" stroke-width="2.6" fill="none" marker-end="url(#ar-indigo)"/>
+          <g class="step-tag"><circle class="pulse" cx="710" cy="490" r="13"/><circle class="halo" cx="710" cy="490" r="20"/><circle class="ring" cx="710" cy="490" r="13"/><text x="710" y="490" dominant-baseline="central">5</text></g>
+          <g class="layer-label">
+            <rect class="label-bg" x="870" y="475" width="225" height="20" rx="4" stroke="#3a4a8c"/>
+            <text x="876" y="489" fill="#3a4a8c">WS · JSON-RPC + MCP Gateway token</text>
+          </g>
+        </g>
+
+        <!-- 5. BFF → PingOne OAuth (orange dashed; RFC 8693 layer) — arc bottom ~ (1360, 815) -->
+        <g class="layer-rfc" data-scn="B C E H I K" data-step="4">
+          <path class="hit" d="M 640,560 C 1100,860 1700,860 2080,170"/>
+          <path d="M 640,560 C 1100,860 1700,860 2080,170" stroke="#b35a1f" stroke-width="2" stroke-dasharray="7 5" fill="none" marker-end="url(#ar-orange)"/>
+          <g class="step-tag"><circle class="pulse" cx="1132" cy="745" r="13"/><circle class="halo" cx="1132" cy="745" r="20"/><circle class="ring" cx="1132" cy="745" r="13"/><text x="1132" y="745" dominant-baseline="central">4</text></g>
+          <g class="layer-label">
+            <rect class="label-bg" x="1185" y="808" width="350" height="22" rx="4" stroke="#b35a1f"/>
+            <text x="1191" y="823" fill="#b35a1f">RFC 8693 token exchange · introspect (RFC 7662)</text>
+          </g>
+        </g>
+
+        <!-- 6. Gateway → MCP banking (indigo) — arc midpoint ~ (1545, 220) -->
+        <g data-scn="A B D I" data-step="8">
+          <path class="hit" d="M 1450,320 C 1500,220 1580,170 1640,150"/>
+          <path d="M 1450,320 C 1500,220 1580,170 1640,150" stroke="#3a4a8c" stroke-width="2.2" fill="none" marker-end="url(#ar-indigo)"/>
+          <g class="step-tag"><circle class="pulse" cx="1536" cy="218" r="13"/><circle class="halo" cx="1536" cy="218" r="20"/><circle class="ring" cx="1536" cy="218" r="13"/><text x="1536" y="218" dominant-baseline="central">8</text></g>
+          <g class="layer-label">
+            <rect class="label-bg" x="1452" y="210" width="180" height="20" rx="4" stroke="#3a4a8c"/>
+            <text x="1458" y="224" fill="#3a4a8c">WS · aud:mcp_banking</text>
+          </g>
+        </g>
+
+        <!-- 7. Gateway → MCP invest (indigo) — straight, midpoint (1610, 400) -->
+        <g>
+          <path d="M 1580,400 C 1600,400 1620,400 1640,400" stroke="#3a4a8c" stroke-width="2.2" fill="none" marker-end="url(#ar-indigo)"/>
+          <g class="layer-label">
+            <rect class="label-bg" x="1588" y="370" width="44" height="20" rx="4" stroke="#3a4a8c"/>
+            <text x="1594" y="384" fill="#3a4a8c">WS</text>
+          </g>
+        </g>
+
+        <!-- 8. Gateway → Mortgage (teal dashed) — arc midpoint ~ (1545, 555) -->
+        <g data-scn="C">
+          <path d="M 1450,440 C 1500,500 1580,580 1640,620" stroke="#0d6760" stroke-width="2" stroke-dasharray="7 4" fill="none" marker-end="url(#ar-teal)"/>
+          <g class="layer-label">
+            <rect class="label-bg" x="1463" y="545" width="135" height="20" rx="4" stroke="#0d6760"/>
+            <text x="1469" y="559" fill="#0d6760">REST · X-API-Key</text>
+          </g>
+        </g>
+
+        <!-- 9. Gateway → PingOne AAM (orange, AAM layer) — midpoint (1770, 400) -->
+        <g class="layer-aam" data-scn="B C D I K" data-step="6">
+          <path class="hit" d="M 1580,400 C 1720,400 1840,400 1960,400"/>
+          <path d="M 1580,400 C 1720,400 1840,400 1960,400" stroke="#b35a1f" stroke-width="2.2" fill="none" marker-end="url(#ar-orange)"/>
+          <g class="step-tag"><circle class="pulse" cx="1610" cy="400" r="13"/><circle class="halo" cx="1610" cy="400" r="20"/><circle class="ring" cx="1610" cy="400" r="13"/><text x="1610" y="400" dominant-baseline="central">6</text></g>
+          <g class="layer-label">
+            <rect class="label-bg" x="1690" y="460" width="160" height="20" rx="4" stroke="#b35a1f"/>
+            <text x="1696" y="474" fill="#b35a1f">authorize · introspect</text>
+          </g>
+        </g>
+
+        <!-- 10. Gateway → HITL (rose dashed, HITL layer) — vertical midpoint (1450, 530) -->
+        <g class="layer-hitl" data-scn="D" data-step="7">
+          <path class="hit" d="M 1450,440 L 1450,620"/>
+          <path d="M 1450,440 L 1450,620" stroke="#a13348" stroke-width="2" stroke-dasharray="6 4" fill="none" marker-end="url(#ar-rose)"/>
+          <g class="step-tag"><circle class="pulse" cx="1450" cy="530" r="13"/><circle class="halo" cx="1450" cy="530" r="20"/><circle class="ring" cx="1450" cy="530" r="13"/><text x="1450" y="530" dominant-baseline="central">7</text></g>
+          <g class="layer-label">
+            <rect class="label-bg" x="1378" y="520" width="144" height="20" rx="4" stroke="#a13348"/>
+            <text x="1384" y="534" fill="#a13348">/challenges · poll</text>
+          </g>
+        </g>
+
+        <!-- E. Browser ↔ PingOne PKCE redirect — 302 to authorize endpoint, then back with code. -->
+        <g data-scn="E" data-step="1">
+          <path class="hit" d="M 280,360 C 600,60 1500,60 1960,140"/>
+          <path d="M 280,360 C 600,60 1500,60 1960,140" stroke="#b35a1f" stroke-width="2" stroke-dasharray="6 4" fill="none" marker-end="url(#ar-orange)"/>
+          <g class="step-tag"><circle class="pulse" cx="600" cy="192" r="13"/><circle class="halo" cx="600" cy="192" r="20"/><circle class="ring" cx="600" cy="192" r="13"/><text x="600" y="192" dominant-baseline="central">1</text></g>
+          <g class="layer-label">
+            <rect class="label-bg" x="900" y="50" width="380" height="22" rx="4" stroke="#b35a1f"/>
+            <text x="906" y="65" fill="#b35a1f">302 → PingOne /authorize · PKCE · code back</text>
+          </g>
+        </g>
+
+        <!-- 11. MCP banking → BFF callback (moss dashed; callback layer) — arc midpoint ~ (1075, 25) -->
+        <g class="layer-callback" data-scn="A B D I">
+          <path d="M 1640,100 C 1240,20 800,20 510,260" stroke="#4a6b3a" stroke-width="1.8" stroke-dasharray="3 5" fill="none" marker-end="url(#ar-moss)"/>
+          <g class="layer-label">
+            <rect class="label-bg" x="925" y="15" width="300" height="20" rx="4" stroke="#4a6b3a"/>
+            <text x="931" y="29" fill="#4a6b3a">BFF /api/* callback · banking data fetch</text>
+          </g>
+        </g>
+
+        <!-- 12. Browser → LangChain WS :8889 (optional direct; optional layer) — arc bottom ~ (540, 825) -->
+        <g class="layer-optional">
+          <path d="M 280,460 C 480,820 660,860 800,580" stroke="#3a4a8c" stroke-width="1.6" stroke-dasharray="2 5" fill="none" marker-end="url(#ar-indigo)" opacity="0.55"/>
+          <g class="layer-label">
+            <rect class="label-bg" x="420" y="815" width="240" height="20" rx="4" stroke="#3a4a8c" opacity="0.7"/>
+            <text x="426" y="829" fill="#3a4a8c" class="sub" opacity="0.8">optional: WS chat :8889 (direct)</text>
+          </g>
+        </g>
+      </svg>
+
+    </div>
+  </div><!-- /.diagram -->
+
+  <!-- ============ TOKEN-ISSUE CONNECTOR LINES (drawn by JS) ============ -->
+  <svg class="issued-lines" id="issued-lines" aria-hidden="true"></svg>
+
+  <!-- ============ JWT PAYLOAD CARDS ============ -->
+  <div class="tokens layer-tokens">
+    <div class="tcard user" id="t-card-1" data-issuer="n-ping-oauth" data-issue-step="1" data-scn="B C E H K" style="order: 3;">
+      <div class="label">Token #1 · issued at login</div>
+      <div class="name">User token <i>(BFF-held)</i></div>
+      <div class="step-row">
+        <span class="step-badge"><span class="n">1</span>issued</span>
+        <span class="step-badge"><span class="n">4</span>subject in RFC 8693</span>
+      </div>
+      <div class="hop"><span class="dot" style="background:var(--teal);"></span>Lives in BFF session (LMDB); never reaches the browser.</div>
+<pre><span class="k">"sub"</span>: <span class="v">"user@example.com"</span>,
+<span class="k">"aud"</span>: <span class="a">"bff"</span>,
+<span class="k">"iss"</span>: <span class="v">"pingone"</span>,
+<span class="k">"scope"</span>: <span class="s">"openid banking ai_agent"</span>,
+<span class="k">"may_act"</span>: {
+  <span class="k">"sub"</span>: <span class="m">"&lt;agent_client_id&gt;"</span>
+},
+<span class="k">"exp"</span>: <span class="v">1779260000</span></pre>
+    </div>
+
+    <div class="tcard actor" id="t-card-2" data-issuer="n-ping-oauth" data-issue-step="4" data-scn="B C" style="order: 4;">
+      <div class="label">Token #2 · client_credentials (optional)</div>
+      <div class="name">Agent actor token</div>
+      <div class="step-row">
+        <span class="step-badge"><span class="n">4</span>actor in RFC 8693</span>
+      </div>
+      <div class="hop"><span class="dot" style="background:var(--indigo);"></span>Only used when <code>USE_AGENT_ACTOR_FOR_MCP=true</code>; identifies the agent in <code>act</code>.</div>
+<pre><span class="k">"client_id"</span>: <span class="v">"&lt;agent_client_id&gt;"</span>,
+<span class="k">"aud"</span>: <span class="a">"pingone"</span>,
+<span class="k">"iss"</span>: <span class="v">"pingone"</span>,
+<span class="k">"scope"</span>: <span class="s">"use_agent"</span>,
+<span class="k">"sub"</span>: <span class="m">"&lt;agent_client_id&gt;"</span>,
+<span class="k">"exp"</span>: <span class="v">1779260200</span></pre>
+    </div>
+
+    <div class="tcard gw" id="t-card-3" data-issuer="n-bff" data-issue-step="4" data-scn="A B C D I K" style="order: 1;">
+      <div class="label">Token #3 · after RFC 8693 at BFF</div>
+      <div class="name">MCP Gateway token</div>
+      <div class="step-row">
+        <span class="step-badge"><span class="n">4</span>output of RFC 8693</span>
+        <span class="step-badge"><span class="n">5</span>WS to Gateway</span>
+        <span class="step-badge"><span class="n">6</span>introspect at AAM</span>
+      </div>
+      <div class="hop"><span class="dot" style="background:var(--orange);"></span>Rides the BFF→Gateway WebSocket as the <b>bearer</b>; gateway introspects + sends to AAM.</div>
+<pre><span class="k">"sub"</span>: <span class="v">"user@example.com"</span>,
+<span class="k">"aud"</span>: <span class="a">"mcp_gateway_resource_uri"</span>,
+<span class="k">"iss"</span>: <span class="v">"pingone"</span>,
+<span class="k">"scope"</span>: <span class="s">"read write"</span>,
+<span class="k">"act"</span>: {
+  <span class="k">"sub"</span>: <span class="m">"&lt;agent_client_id&gt;"</span>
+},
+<span class="k">"exp"</span>: <span class="v">1779261000</span></pre>
+    </div>
+
+    <div class="tcard mcp" id="t-card-4" data-issuer="n-gateway" data-issue-step="8" data-scn="A B C D I" style="order: 2;">
+      <div class="label">Token #4 · after RFC 8693 at Gateway</div>
+      <div class="name">Per-MCP server token</div>
+      <div class="step-row">
+        <span class="step-badge"><span class="n">8</span>output of RFC 8693</span>
+        <span class="step-badge"><span class="n">8</span>WS/REST to MCP</span>
+      </div>
+      <div class="hop"><span class="dot" style="background:var(--moss);"></span>Audience-narrowed to one resource: banking <code>:8080</code>, invest <code>:8081</code>, or mortgage <code>:8082</code>.</div>
+<pre><span class="k">"sub"</span>: <span class="v">"user@example.com"</span>,
+<span class="k">"aud"</span>: <span class="a">"mcp_banking | mcp_invest | mortgage_api"</span>,
+<span class="k">"iss"</span>: <span class="v">"pingone"</span>,
+<span class="k">"scope"</span>: <span class="s">"read write"</span>,
+<span class="k">"act"</span>: {
+  <span class="k">"sub"</span>: <span class="m">"&lt;agent_client_id&gt;"</span>
+},
+<span class="k">"exp"</span>: <span class="v">1779261600</span></pre>
+    </div>
+  </div>
+
+  <div class="footnote">
+    <span><b>Source of truth:</b> <code>run.sh</code> (ports) · <code>agentMcpTokenService.js</code> (RFC 8693) · <code>docs/PINGONE_CONFIG.md</code> (audiences)</span>
+    <span><b>Spec:</b> <code>docs/superpowers/specs/2026-05-29-architecture-diagram-token-overlay-design.md</code> · layers, step badges, and connector lines documented there</span>
+  </div>
+
+</div>
+
+<script>
+  // ---------- Layer toggles ----------
+  const layersBtn = document.getElementById('layers-btn');
+  const layersPopover = document.getElementById('layers-popover');
+  const layersCount = document.getElementById('layers-count');
+  const layerCbs = document.querySelectorAll('.layers input[data-toggle]');
+  const issuedCb = document.querySelector('.layers input[data-toggle="hide-issued"]');
+
+  function updateLayersCount() {
+    const total = layerCbs.length;
+    const on = Array.from(layerCbs).filter(cb => cb.checked).length;
+    layersCount.textContent = `${on} of ${total} on`;
+  }
+
+  layerCbs.forEach(cb => {
+    const cls = cb.dataset.toggle;
+    cb.addEventListener('change', () => {
+      document.body.classList.toggle(cls, !cb.checked);
+      // When JWT cards are hidden, the Token-issue-lines checkbox becomes meaningless.
+      if (cls === 'hide-tokens' && issuedCb) {
+        issuedCb.disabled = !cb.checked;
+        issuedCb.parentElement.style.opacity = issuedCb.disabled ? '0.4' : '';
+      }
+      updateLayersCount();
+      if (cls === 'hide-issued') return;
+      requestAnimationFrame(drawIssueLines);
+    });
+  });
+
+  // Popover open/close
+  function setLayersOpen(open) {
+    layersPopover.classList.toggle('open', open);
+    layersBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+  layersBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    setLayersOpen(!layersPopover.classList.contains('open'));
+  });
+  document.addEventListener('click', e => {
+    if (!layersPopover.classList.contains('open')) return;
+    if (layersPopover.contains(e.target) || layersBtn.contains(e.target)) return;
+    setLayersOpen(false);
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && layersPopover.classList.contains('open')) setLayersOpen(false);
+  });
+
+  updateLayersCount();
+
+  // ---------- Token-issue connector lines ----------
+  // Token card → issuing node, drawn as a dashed curve from card-top-center up to node-bottom-center.
+  const ISSUE_COLOR = {
+    't-card-1': '#0d6760', // teal (User token)
+    't-card-2': '#3a4a8c', // indigo (Agent actor token)
+    't-card-3': '#b35a1f', // orange (Gateway token)
+    't-card-4': '#4a6b3a', // moss (per-MCP token)
+  };
+
+  const frame = document.querySelector('.frame');
+  const svg = document.getElementById('issued-lines');
+
+  function drawIssueLines() {
+    if (!frame || !svg) return;
+    const f = frame.getBoundingClientRect();
+    // Set viewBox to match frame's pixel size so coordinates are 1:1
+    svg.setAttribute('viewBox', `0 0 ${frame.scrollWidth} ${frame.scrollHeight}`);
+    svg.setAttribute('width', frame.scrollWidth);
+    svg.setAttribute('height', frame.scrollHeight);
+
+    // First pass: group cards by issuer so we can fan out anchor points when N>1.
+    const cards = Array.from(document.querySelectorAll('.tcard[data-issuer]'));
+    const byIssuer = new Map();
+    cards.forEach(c => {
+      const k = c.dataset.issuer;
+      if (!byIssuer.has(k)) byIssuer.set(k, []);
+      byIssuer.get(k).push(c);
+    });
+
+    let content = '';
+    cards.forEach(card => {
+      const id = card.id;
+      const issuer = document.getElementById(card.dataset.issuer);
+      if (!issuer) return;
+
+      const color = ISSUE_COLOR[id] || '#6b7689';
+      const c = card.getBoundingClientRect();
+      const i = issuer.getBoundingClientRect();
+
+      // Card-top-center anchor
+      const x1 = c.left + c.width / 2 - f.left;
+      const y1 = c.top - f.top + 4;
+
+      // Issuer-bottom anchor; if multiple cards share this issuer, fan them out
+      // across the issuer's bottom edge in left-to-right order by card x position.
+      const siblings = byIssuer.get(card.dataset.issuer)
+        .slice()
+        .sort((a, b) => a.getBoundingClientRect().left - b.getBoundingClientRect().left);
+      const myIdx = siblings.indexOf(card);
+      const n = siblings.length;
+      // Spread anchors between 25% and 75% of issuer width when n > 1.
+      const t = n === 1 ? 0.5 : 0.25 + (0.5 * myIdx / (n - 1));
+      const x2 = i.left + i.width * t - f.left;
+      const y2 = i.bottom - f.top - 2;
+
+      // S-curve
+      const midY = (y1 + y2) / 2;
+      const path = `M ${x1},${y1} C ${x1},${midY} ${x2},${midY} ${x2},${y2}`;
+
+      const step = card.dataset.issueStep || '?';
+
+      content += `
+        <path d="${path}" stroke="${color}"/>
+        <circle cx="${x2}" cy="${y2 - 10}" r="10" fill="#fff" stroke="${color}" stroke-width="1.6"/>
+        <text x="${x2}" y="${y2 - 7}" fill="${color}" text-anchor="middle" font-size="11">${step}</text>
+      `;
+    });
+    svg.innerHTML = content;
+  }
+
+  // Run after layout settles + on resize
+  window.addEventListener('load', () => requestAnimationFrame(drawIssueLines));
+  window.addEventListener('resize', () => requestAnimationFrame(drawIssueLines));
+  // Also re-draw a couple of times shortly after load in case fonts shift heights
+  setTimeout(drawIssueLines, 250);
+  setTimeout(drawIssueLines, 800);
+
+  // ---------- Step-detail mode ----------
+  // Each numbered flow wire (data-step) can be clicked to open a popup explaining
+  // what the step does, why it exists, and the risk of skipping it.
+  const STEP_DETAILS = {
+    1: {
+      title: 'User authentication (OAuth + PKCE)',
+      what: 'The browser is redirected (302) to PingOne <code>/authorize</code> with a PKCE challenge. After sign-in, PingOne returns an auth code, the BFF exchanges it for the <b>User token (Token #1)</b>, and stores it server-side. The browser only ever gets the <code>connect.sid</code> session cookie.',
+      why: 'Establishes a verified user identity and a token the BFF can later delegate from. PKCE binds the code to this client so an intercepted code cannot be redeemed by an attacker.',
+      risk: 'No verified identity — any caller could impersonate the user. Without PKCE, a stolen authorization code can be replayed to mint tokens for someone else.'
+    },
+    2: {
+      title: 'Browser → BFF (cookie-only)',
+      what: 'The React SPA calls the BFF over HTTPS via <code>bffAxios</code> with <code>withCredentials: true</code> — sending only the session cookie, never a Bearer token.',
+      why: 'Keeps the BFF the sole token custodian. The session cookie is httpOnly, so JavaScript (and any XSS) cannot read it.',
+      risk: 'If tokens were sent to / held by the browser, any XSS or malicious extension could exfiltrate them and call protected APIs directly as the user.'
+    },
+    3: {
+      title: 'Agent reasoning over AG-UI (SSE)',
+      what: 'The BFF’s <code>resolveAgentTarget</code> selects the active runtime and calls <code>demo_agent_service /run</code>. The agent reasons and streams <code>STATE_DELTA</code> events back over AG-UI SSE → BFF → browser.',
+      why: 'Decouples the chosen LLM framework from the UI and streams partial state so the user sees progress in real time without exposing any token to the agent runtime.',
+      risk: 'Without the SSE channel the UI cannot show streaming reasoning or tool intent — the user loses visibility into what the agent is about to do before it acts.'
+    },
+    4: {
+      title: 'RFC 8693 token exchange at the BFF',
+      what: 'The BFF exchanges the User token (subject) — optionally with the agent actor token (Token #2) — at PingOne for the <b>MCP Gateway token (Token #3)</b>, audience-narrowed to the gateway and carrying an <code>act.sub</code> = agent client_id.',
+      why: 'Delegation done right: the gateway receives a token scoped to exactly what it needs, and the <code>act</code> claim records that an agent is acting on the user’s behalf — not the raw user token.',
+      risk: 'Reusing the broad user token downstream over-grants access (confused-deputy). Without <code>act</code>, there is no audit trail of which agent acted — accountability is lost.'
+    },
+    5: {
+      title: 'BFF → Gateway over WebSocket (JSON-RPC)',
+      what: 'The BFF opens a JSON-RPC-over-WebSocket connection to <code>demo_mcp_gateway</code> (:3005), carrying Token #3 as the bearer for the tool call.',
+      why: 'Routes every tool call through one authorization choke point (the gateway) instead of letting agents reach MCP servers directly.',
+      risk: 'If agents called MCP servers directly, the centralized authorize + HITL gate would be bypassed entirely — no policy check, no human gate, no consistent audit.'
+    },
+    6: {
+      title: 'PingOne AAM authorize decision',
+      what: 'The gateway introspects Token #3 (RFC 7662) and calls PingOne AAM (Authorize policy), which returns <b>PERMIT</b>, <b>DENY</b>, or <b>INDETERMINATE</b>, enforcing <code>act</code> / <code>may_act</code>.',
+      why: 'Externalizes the access decision to PingOne (P1AZ) so policy is centrally managed and consistently applied to every tool call — not hard-coded per service.',
+      risk: 'Skipping the authorize check means any token that merely looks valid can execute any tool. No fine-grained policy, no DENY path, no INDETERMINATE → human escalation.'
+    },
+    7: {
+      title: 'HITL gate (INDETERMINATE → human)',
+      what: 'On INDETERMINATE the gateway holds the call, POSTs to <code>demo_hitl_service /challenges</code>, and polls until a human approves or denies it from the dashboard.',
+      why: 'High-risk or ambiguous actions (e.g. large transfers) get explicit human consent before execution — the policy can defer rather than guess.',
+      risk: 'Without the human gate, ambiguous high-value actions execute automatically. A mis-scoped or manipulated agent could move money or change data with no human in the loop.'
+    },
+    8: {
+      title: 'Tool execution (per-MCP token)',
+      what: 'On PERMIT the gateway performs a second RFC 8693 exchange for a <b>per-MCP server token (Token #4)</b>, audience-narrowed to one resource, and invokes the tool. MCP servers call back to the BFF banking API for data.',
+      why: 'Least privilege at the final hop: each MCP server receives a token good only for its own audience, so a compromised server cannot reuse the token elsewhere.',
+      risk: 'A single broad token across all MCP servers means a breach of one server yields a credential that works against every resource — lateral movement across the whole system.'
+    }
+  };
+
+  const stepToggle = document.getElementById('step-detail-btn');
+  const stepPopover = document.getElementById('step-popover');
+  const stepPopoverClose = document.getElementById('step-popover-close');
+  const stepGroups = document.querySelectorAll('.stage .wires g[data-step]');
+
+  function closeStepPopover() {
+    stepPopover.classList.remove('open');
+  }
+
+  function openStepPopover(step, evt) {
+    const d = STEP_DETAILS[step];
+    if (!d) return;
+    document.getElementById('sp-step').textContent = `Step ${step}`;
+    document.getElementById('sp-title').textContent = d.title;
+    document.getElementById('sp-what').innerHTML = d.what;
+    document.getElementById('sp-why').innerHTML = d.why;
+    document.getElementById('sp-risk').innerHTML = d.risk;
+    stepPopover.classList.add('open');
+
+    // Position near the click, clamped to the viewport.
+    const pw = stepPopover.offsetWidth;
+    const ph = stepPopover.offsetHeight;
+    let x = evt.clientX + window.scrollX + 14;
+    let y = evt.clientY + window.scrollY + 14;
+    const maxX = window.scrollX + document.documentElement.clientWidth - pw - 12;
+    const maxY = window.scrollY + document.documentElement.clientHeight - ph - 12;
+    if (x > maxX) x = Math.max(window.scrollX + 12, evt.clientX + window.scrollX - pw - 14);
+    if (y > maxY) y = Math.max(window.scrollY + 12, maxY);
+    stepPopover.style.left = x + 'px';
+    stepPopover.style.top = y + 'px';
+  }
+
+  if (stepToggle) {
+    stepToggle.addEventListener('click', () => {
+      const on = stepToggle.getAttribute('aria-pressed') !== 'true';
+      stepToggle.setAttribute('aria-pressed', on ? 'true' : 'false');
+      document.body.classList.toggle('step-detail', on);
+      if (!on) closeStepPopover();
+    });
+  }
+
+  stepGroups.forEach(g => {
+    g.addEventListener('click', evt => {
+      if (!document.body.classList.contains('step-detail')) return;
+      evt.stopPropagation();
+      openStepPopover(g.dataset.step, evt);
+    });
+  });
+
+  if (stepPopoverClose) stepPopoverClose.addEventListener('click', closeStepPopover);
+  document.addEventListener('click', e => {
+    if (!stepPopover.classList.contains('open')) return;
+    if (stepPopover.contains(e.target)) return;
+    closeStepPopover();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeStepPopover();
+  });
+
+  // ---------- Scenario picker (dropdown) ----------
+  const SCN_LETTERS = ['A', 'B', 'C', 'D', 'E', 'H', 'I', 'K'];
+  const scenarioSelect = document.getElementById('scenario-select');
+  if (scenarioSelect) {
+    scenarioSelect.addEventListener('change', () => {
+      const scn = scenarioSelect.value; // '' or a letter
+      SCN_LETTERS.forEach(L => { document.body.classList.remove(`scn-${L}`); });
+      if (scn) document.body.classList.add(`scn-${scn}`);
+      requestAnimationFrame(drawIssueLines);
+    });
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OAuth: CIMD — AI Demo Learning Hub</title>
+<link rel="stylesheet" href="assets/app.css">
+<link rel="stylesheet" href="assets/snapshot.css">
+</head><body>
+<div class="snap-top"><a href="index.html">← Learning Hub</a><span class="crumb">/ OAuth: CIMD</span></div>
+<div class="edu-drawer snap-drawer">
+<div class="snap-title">OAuth: CIMD</div>
+<nav class="snap-toc"><span class="snap-toc-label">On this page — 7 sections</span><ul><li><a href="#sec-what-is-cimd">What is CIMD</a></li><li><a href="#sec-cimd-vs-dcr">CIMD vs DCR</a></li><li><a href="#sec-doc-format">Doc format</a></li><li><a href="#sec-how-as-uses-it">How AS uses it</a></li><li><a href="#sec-flow-diagram">Flow diagram</a></li><li><a href="#sec-simulate">Simulate</a></li><li><a href="#sec-pingone">PingOne</a></li></ul></nav>
+<div class="edu-drawer-body">
+<section class="snap-tab" id="sec-what-is-cimd"><h3 class="snap-tab-h">What is CIMD</h3><p><strong>OAuth Client ID Metadata Document (CIMD)</strong> is an IETF draft (<a href="https://datatracker.ietf.org/doc/draft-ietf-oauth-client-id-metadata-document/" target="_blank" rel="noopener noreferrer">draft-ietf-oauth-client-id-metadata-document</a>) that redefines what a <code>client_id</code> is. Instead of an opaque string like <code>abc123</code>, the <code>client_id</code> becomes a <strong>URL</strong>. When the authorization server receives that URL, it fetches the document at that URL to discover the client's metadata (redirect URIs, grant types, scopes, etc.).</p><div class="cimd-callout"><strong>Core idea:</strong> The <code>client_id</code> IS the metadata document URL. The client controls the URL, so the client controls its own registration data.</div><ul><li><code>client_id</code> is a URL, e.g. <code>https://app.example.com/.well-known/oauth-client/my-app</code></li><li>The AS fetches that URL and reads the metadata (<code>redirect_uris</code>, <code>grant_types</code>, etc.)</li><li>The client self-describes by controlling the hosted document</li><li>Eliminates out-of-band registration in AS implementations that support the draft</li><li>Updates are instant: just update the hosted JSON file</li></ul><h3>What this demo does</h3><p>This demo bridges the gap between the draft and PingOne. You fill in a CIMD-style form, the backend creates the OAuth application in PingOne via the Management API, then hosts the CIMD document at:</p><pre class="cimd-code"><code>GET /.well-known/oauth-client/{pingone-app-id}</code></pre><p>Use the <strong>Simulate</strong> tab to watch the full AS-fetches-CIMD flow animated step by step.</p><h3>Key references</h3><ul><li><a href="https://datatracker.ietf.org/doc/draft-ietf-oauth-client-id-metadata-document/" target="_blank" rel="noopener noreferrer">draft-ietf-oauth-client-id-metadata-document (IETF)</a></li><li><a href="https://www.rfc-editor.org/rfc/rfc7591" target="_blank" rel="noopener noreferrer">RFC 7591 — OAuth 2.0 Dynamic Client Registration</a> (compare &amp; contrast)</li></ul></section>
+<section class="snap-tab" id="sec-cimd-vs-dcr"><h3 class="snap-tab-h">CIMD vs DCR</h3><p>Both CIMD and DCR (RFC 7591) aim to automate client registration, but they approach it from opposite angles:</p><table class="cimd-table"><thead><tr><th>Feature</th><th>DCR — RFC 7591</th><th>CIMD — IETF draft</th></tr></thead><tbody><tr><td><strong>client_id type</strong></td><td>Opaque string issued by the AS</td><td>URL controlled by the client</td></tr><tr><td><strong>Registration mechanism</strong></td><td>Client POSTs to <code>/register</code></td><td>AS fetches the <code>client_id</code> URL</td></tr><tr><td><strong>Who controls metadata</strong></td><td>AS stores and manages it</td><td>Client hosts it (AS caches)</td></tr><tr><td><strong>Updates</strong></td><td>Client PUTs to registration endpoint</td><td>Client updates the hosted document</td></tr><tr><td><strong>Discovery</strong></td><td>Registration URL in AS metadata</td><td>Any HTTPS URL the client controls</td></tr><tr><td><strong>AS support needed</strong></td><td>Yes — must have a /register endpoint</td><td>Yes — must support URL client_id lookups</td></tr><tr><td><strong>Spec maturity</strong></td><td>RFC (stable, widely deployed)</td><td>IETF draft (evolving)</td></tr><tr><td><strong>Client secret</strong></td><td>Issued by AS, stored by client</td><td>Same — never in the hosted document</td></tr></tbody></table><div class="cimd-callout cimd-callout--info"><strong>This demo uses DCR under the hood.</strong> The backend calls the PingOne Management API (DCR-style) to create the application, then presents a CIMD-style interface by hosting the metadata document. You get the CIMD experience without needing native AS support.</div></section>
+<section class="snap-tab" id="sec-doc-format"><h3 class="snap-tab-h">Doc format</h3><p>A CIMD document is a JSON file served at the <code>client_id</code> URL. The schema follows the OAuth metadata fields from RFC 7591 with the addition that<code>client_id</code> is the document's own URL:</p><pre class="cimd-code"><code>{
+  "client_id": "https://app.example.com/.well-known/oauth-client/my-app",
+  "client_name": "My Banking App",
+  "application_type": "web",
+  "grant_types": ["authorization_code", "refresh_token"],
+  "response_types": ["code"],
+  "redirect_uris": ["https://app.example.com/callback"],
+  "post_logout_redirect_uris": ["https://app.example.com/logout"],
+  "token_endpoint_auth_method": "client_secret_basic",
+  "scope": "openid profile email",
+  "contacts": ["dev@example.com"],
+  "logo_uri": "https://app.example.com/logo.png",
+  "client_uri": "https://app.example.com",
+  "policy_uri": "https://app.example.com/privacy",
+  "tos_uri": "https://app.example.com/terms"
+}</code></pre><h3>Key fields</h3><table class="cimd-table"><thead><tr><th>Field</th><th>Description</th><th>Required?</th></tr></thead><tbody><tr><td><code>client_id</code></td><td>The canonical URL of this document — the client's identity</td><td>Yes</td></tr><tr><td><code>redirect_uris</code></td><td>Must be HTTPS (except localhost for development)</td><td>Yes</td></tr><tr><td><code>grant_types</code></td><td><code>authorization_code</code>, <code>client_credentials</code>, <code>refresh_token</code></td><td>Yes</td></tr><tr><td><code>token_endpoint_auth_method</code></td><td><code>client_secret_basic</code>, <code>client_secret_post</code>, <code>private_key_jwt</code>, <code>none</code></td><td>No (default: <code>client_secret_basic</code>)</td></tr><tr><td><code>application_type</code></td><td><code>web</code>, <code>native</code>, or <code>service</code></td><td>No (default: <code>web</code>)</td></tr></tbody></table><div class="cimd-callout cimd-callout--warn"><strong>Security note:</strong> <code>client_secret</code> is <em>never</em> stored in or returned as part of the CIMD document. It is issued once at registration and stored only by the client.</div><h3>HTTP headers for the endpoint</h3><p>The endpoint serving the document should set these headers so the AS can cache it:</p><pre class="cimd-code"><code>Content-Type: application/json
+Cache-Control: public, max-age=3600
+Access-Control-Allow-Origin: *</code></pre></section>
+<section class="snap-tab" id="sec-how-as-uses-it"><h3 class="snap-tab-h">How AS uses it</h3><p>When a CIMD-capable Authorization Server receives an authorization request where <code>client_id</code> is a URL:</p><ol><li><strong>Detect URL client_id</strong> — AS checks whether the incoming <code>client_id</code> parameter starts with <code>https://</code>. If yes, treat as a CIMD lookup.</li><li><strong>Fetch the document</strong> — AS issues <code>GET {client_id_url}</code> with <code>Accept: application/json</code>.</li><li><strong>Validate metadata</strong> — AS verifies:<ul><li>The requested <code>redirect_uri</code> is in <code>redirect_uris</code></li><li>The requested <code>grant_type</code> is in <code>grant_types</code></li><li>The requested <code>scope</code> is a subset of the document's <code>scope</code></li><li>The <code>response_type</code> is in <code>response_types</code></li></ul></li><li><strong>Continue the flow</strong> — AS treats the client exactly as if it were a traditionally pre-registered client. PKCE, token exchange, and revocation all work the same way.</li><li><strong>Cache the document</strong> — AS may cache it using HTTP cache headers to avoid re-fetching on every request. This demo sets <code>Cache-Control: public, max-age=3600</code>.</li></ol><div class="cimd-callout cimd-callout--warn"><strong>Security model:</strong> The client proves ownership of the metadata by controlling the HTTPS URL. The AS must only accept <code>https://</code> URLs to prevent MITM attacks on the metadata document. Private-key authentication (<code>private_key_jwt</code>) provides the strongest cryptographic binding between client and metadata.</div><div class="cimd-callout"><strong>PingOne status:</strong> PingOne does not yet natively fetch CIMD documents during authorization. This demo pre-registers via the Management API and hosts the document so you can observe the complete pattern. Use the <strong>Simulate</strong> tab to walk through the AS-fetches-CIMD flow.</div></section>
+<section class="snap-tab" id="sec-flow-diagram"><h3 class="snap-tab-h">Flow diagram</h3><p>End-to-end CIMD registration and authorization flow in this demo:</p><pre class="cimd-code"><code>┌─────────────────────────────────────────────────────────────────────┐
+│              CIMD Registration + Authorization Flow                 │
+└─────────────────────────────────────────────────────────────────────┘
+
+  REGISTRATION (admin only — one time)
+  ─────────────────────────────────────
+  Admin Browser           Backend-for-Frontend (BFF) (this server)          PingOne Mgmt API
+       │                        │                           │
+       │  POST /api/clients/    │                           │
+       │  register              │                           │
+       │  { client_name,        │                           │
+       │    redirect_uris,      │                           │
+       │    grant_types, … }    │                           │
+       │ ──────────────────────►│                           │
+       │                        │  POST /environments/{id}/ │
+       │                        │  applications             │
+       │                        │ ─────────────────────────►│
+       │                        │◄─────────────────────────┤
+       │                        │  { id, client_secret }    │
+       │                        │                           │
+       │                        │  Build CIMD document      │
+       │                        │  { client_id: URL,        │
+       │                        │    redirect_uris, … }     │
+       │                        │  Store in cimdStore Map   │
+       │◄──────────────────────┤                           │
+       │  { pingone_client_id,  │                           │
+       │    client_secret,      │                           │
+       │    cimd_url,           │                           │
+       │    cimd_document }     │                           │
+       │                        │                           │
+
+  DOCUMENT SERVING  (GET /.well-known/oauth-client/:id)
+  ─────────────────────────────────────────────────────
+  Any caller               Backend-for-Frontend (BFF)
+       │                    │
+       │  GET /.well-known/ │
+       │  oauth-client/{id} │
+       │ ──────────────────►│
+       │◄──────────────────┤
+       │  CIMD JSON doc     │
+       │  Cache-Control:    │
+       │  public,max-age=   │
+       │  3600              │
+
+  AUTHORIZATION (CIMD-native AS flow — see Simulate tab)
+  ─────────────────────────────────────────────────────────
+  Client App              CIMD-capable AS         Backend-for-Frontend (BFF) CIMD endpoint
+       │                        │                       │
+       │  GET /authorize?       │                       │
+       │  client_id=https://…   │                       │
+       │ ──────────────────────►│                       │
+       │                        │  GET /.well-known/    │
+       │                        │  oauth-client/{id}    │
+       │                        │ ─────────────────────►│
+       │                        │◄─────────────────────┤
+       │                        │  CIMD document        │
+       │                        │  (validates redirect  │
+       │                        │   grant_types, scope) │
+       │◄──────────────────────┤                       │
+       │  authorization code    │                       │
+       │  (standard PKCE flow)  │                       │
+
+  ⚠  PingOne does NOT yet do the AS → CIMD-endpoint fetch natively.
+     This demo pre-registers via Management API and hosts the doc
+     so you can observe both halves of the pattern.</code></pre></section>
+<section class="snap-tab" id="sec-simulate"><h3 class="snap-tab-h">Simulate</h3><div class="cimd-sim"><p>This simulation animates the complete CIMD authorization flow step by step, showing exactly how an Authorization Server discovers and uses a Client ID Metadata Document without any out-of-band registration.</p><div class="cimd-sim-what"><strong>What the simulation shows:</strong><ol><li>Browser sends an authorization request with a <strong>URL</strong> as the <code>client_id</code></li><li>AS detects the HTTPS URL and decides to fetch the metadata document</li><li>AS issues <code>GET {client_id_url}</code> to retrieve the document</li><li>AS receives and parses the JSON metadata</li><li>AS validates <code>redirect_uri</code>, <code>scope</code>, and <code>grant_type</code> against the document</li><li>Authorization code is issued — no pre-registration needed!</li></ol></div><div style="margin-top: 16px; padding: 14px 16px; background: rgb(248, 250, 252); border: 1px solid rgb(226, 232, 240); border-radius: 8px;"><p style="margin: 0px 0px 6px; font-size: 13px; font-weight: 600; color: rgb(51, 65, 85);">Optional: use a real client you registered</p><p style="margin: 0px 0px 10px; font-size: 12px; color: rgb(55, 65, 81);">Created a client via <strong>Admin → Client Registration</strong>? Enter its PingOne app ID to use your actual CIMD document in the simulation. Leave blank to use the built-in demo document.</p><div style="display: flex; gap: 8px;"><input class="cimd-input" placeholder="PingOne app ID  (e.g. a3b2c1d0-ef45-…)" value=""></div></div><button class="cimd-btn cimd-btn--primary cimd-sim-start">Run Simulation</button></div></section>
+<section class="snap-tab" id="sec-pingone"><h3 class="snap-tab-h">PingOne</h3><div class="cimd-callout cimd-callout--warn"><strong>PingOne CIMD support status:</strong> PingOne does not yet natively perform the AS→CIMD-endpoint fetch during authorization. The demo bridges this gap: it pre-registers via the Management API and hosts the document itself, giving you the full operational experience of CIMD without native AS support.</div><h3>Try the demo flow</h3><ul class="cimd-setup-steps"><li class="cimd-setup-step"><div class="cimd-setup-step-num">1</div><div class="cimd-setup-step-body"><strong>Log in as admin</strong><span>Sign in using the Admin login button. You need the admin scope — seeded admin credentials are in the env config or sample data.</span></div></li><li class="cimd-setup-step"><div class="cimd-setup-step-num">2</div><div class="cimd-setup-step-body"><strong>Navigate to Client Registration</strong><span>From the Admin Dashboard → Client Registration, or use the direct link in the nav menu. This page is admin-only.</span></div></li><li class="cimd-setup-step"><div class="cimd-setup-step-num">3</div><div class="cimd-setup-step-body"><strong>Fill in the metadata form</strong><span>Enter a client name, redirect URI(s), grant types, scopes, and optionally contact emails. This is the CIMD-style metadata that will become your client's identity.</span></div></li><li class="cimd-setup-step"><div class="cimd-setup-step-num">4</div><div class="cimd-setup-step-body"><strong>Submit — PingOne app is created</strong><span>The backend calls the PingOne Management API (POST /environments/{id}/applications) with your metadata. You receive the PingOne client_id, client_secret (shown once), and the CIMD document URL.</span></div></li><li class="cimd-setup-step"><div class="cimd-setup-step-num">5</div><div class="cimd-setup-step-body"><strong>Your CIMD document is live</strong><span>Fetch GET /.well-known/oauth-client/{pingone-app-id} — you get back the full CIMD JSON. This URL is your client_id for any CIMD-capable AS.</span></div></li><li class="cimd-setup-step"><div class="cimd-setup-step-num">6</div><div class="cimd-setup-step-body"><strong>Simulate the AS flow</strong><span>Come back to this panel → Simulate tab. Enter your PingOne app ID in the "optional real document" field and run the simulation to see your actual document flowing through the AS validation.</span></div></li></ul><h3>For a production CIMD-capable AS</h3><p>When your AS natively supports CIMD, the process is even simpler — you just host the JSON document at any HTTPS URL you control, and pass that URL as<code>client_id</code> in authorization requests. No registration step needed.</p><h3>Related specifications</h3><ul><li><a href="https://datatracker.ietf.org/doc/draft-ietf-oauth-client-id-metadata-document/" target="_blank" rel="noopener noreferrer">draft-ietf-oauth-client-id-metadata-document (IETF Datatracker)</a></li><li><a href="https://www.rfc-editor.org/rfc/rfc7591" target="_blank" rel="noopener noreferrer">RFC 7591 — OAuth 2.0 Dynamic Client Registration Protocol</a></li><li><a href="https://developer.pingidentity.com/pingone-api/platform/applications/applications-1/create-application-oidc-protocol---web-app.html" target="_blank" rel="noopener noreferrer">PingOne API — Create Application (Management API)</a></li></ul></section>
+</div></div>
+<div class="snap-foot">The AI Demo Learning Hub · <a href="index.html">back to index</a></div>
+<style>
+#backToTop{position:fixed;right:22px;bottom:22px;z-index:50;background:#1c2230;color:#fff;border:0;border-radius:999px;padding:10px 18px;font:600 .9rem -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;cursor:pointer;box-shadow:0 4px 14px rgba(28,34,48,.35);opacity:0;visibility:hidden;transform:translateY(8px);transition:opacity .2s,transform .2s,visibility .2s}
+#backToTop.show{opacity:1;visibility:visible;transform:translateY(0)}
+#backToTop:hover{background:#39435c}
+</style>
+<button id="backToTop" type="button" aria-label="Back to top">↑ Top</button>
+<script>
+(function(){
+  var btn=document.getElementById('backToTop');
+  window.addEventListener('scroll',function(){btn.classList.toggle('show',window.scrollY>400);},{passive:true});
+  btn.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
+})();
+</script>
+</body></html>

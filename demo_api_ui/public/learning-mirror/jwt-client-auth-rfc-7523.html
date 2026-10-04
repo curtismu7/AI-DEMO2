@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JWT Client Auth (RFC 7523) — AI Demo Learning Hub</title>
+<link rel="stylesheet" href="assets/app.css">
+<link rel="stylesheet" href="assets/snapshot.css">
+</head><body>
+<div class="snap-top"><a href="index.html">← Learning Hub</a><span class="crumb">/ JWT Client Auth (RFC 7523)</span></div>
+<div class="edu-drawer snap-drawer">
+<div class="snap-title">JWT Client Auth (RFC 7523)</div>
+<nav class="snap-toc"><span class="snap-toc-label">On this page — 6 sections</span><ul><li><a href="#sec-what-is-it">What is it</a></li><li><a href="#sec-jwt-assertion-structure">JWT assertion structure</a></li><li><a href="#sec-vs-client-secret">vs client_secret</a></li><li><a href="#sec-in-token-exchange">In token exchange</a></li><li><a href="#sec-pingone-setup">PingOne setup</a></li><li><a href="#sec-in-this-repo">In this repo</a></li></ul></nav>
+<div class="edu-drawer-body">
+<section class="snap-tab" id="sec-what-is-it"><h3 class="snap-tab-h">What is it</h3><p><strong>JWT-based client authentication</strong> — <a href="https://www.rfc-editor.org/rfc/rfc7523#section-3" target="_blank" rel="noopener noreferrer" class="edu-rfc-link" title="JWT Profile for OAuth 2.0 Client Authentication and Authorization Grants">RFC 7523 §3<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 2H2v8h8V7M7 1h4v4M11 1 5.5 6.5" stroke-linecap="round" stroke-linejoin="round"></path></svg></a> — lets an OAuth client prove its identity to the authorization server using a <em>signed JWT</em> instead of a shared secret (<code>client_secret</code>). This is also called<strong>private_key_jwt</strong> (for asymmetric keys) or<strong>client_secret_jwt</strong> (for HMAC).</p><p>Instead of sending <code>client_id + client_secret</code>, the client generates a JWT assertion, signs it with its private key, and sends it as<code>client_assertion_type + client_assertion</code> to the token endpoint:</p><code style="display: block; background: var(--code-bg, #f1f5f9); border-radius: 6px; padding: 0.75rem 1rem; font-family: inherit; font-size: 0.78rem; white-space: pre; overflow-x: auto; margin: 0.5rem 0px;">POST /as/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=authorization_code
+&amp;code=SplxlOBeZQQYbYS6WxSbIA
+&amp;redirect_uri=https://app.example.com/callback
+&amp;client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer
+&amp;client_assertion=eyJhbGciOiJSUzI1NiIsImtpZCI6Im15LWtleSJ9.eyJpc3MiOiJjbGllbn…</code></section>
+<section class="snap-tab" id="sec-jwt-assertion-structure"><h3 class="snap-tab-h">JWT assertion structure</h3><h4 style="margin-top: 0px;">Required claims in the client assertion JWT (<a href="https://www.rfc-editor.org/rfc/rfc7523#section-3" target="_blank" rel="noopener noreferrer" class="edu-rfc-link" title="JWT Profile for OAuth 2.0 Client Authentication and Authorization Grants">RFC 7523 §3<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 2H2v8h8V7M7 1h4v4M11 1 5.5 6.5" stroke-linecap="round" stroke-linejoin="round"></path></svg></a>)</h4><table style="width: 100%; border-collapse: collapse; font-size: 0.82rem;"><thead><tr style="border-bottom: 1px solid rgb(229, 231, 235); text-align: left;"><th style="padding: 0.4rem;">Claim</th><th style="padding: 0.4rem;">Value</th></tr></thead><tbody><tr style="border-bottom: 1px solid rgb(241, 245, 249); vertical-align: top;"><td style="padding: 0.4rem;"><code>iss</code></td><td style="padding: 0.4rem;">client_id — the issuer is the client itself</td></tr><tr style="border-bottom: 1px solid rgb(241, 245, 249); vertical-align: top;"><td style="padding: 0.4rem;"><code>sub</code></td><td style="padding: 0.4rem;">client_id — same as iss for client authentication</td></tr><tr style="border-bottom: 1px solid rgb(241, 245, 249); vertical-align: top;"><td style="padding: 0.4rem;"><code>aud</code></td><td style="padding: 0.4rem;">Token endpoint URL of the AS (e.g. https://auth.pingone.com/{envId}/as/token)</td></tr><tr style="border-bottom: 1px solid rgb(241, 245, 249); vertical-align: top;"><td style="padding: 0.4rem;"><code>jti</code></td><td style="padding: 0.4rem;">Unique ID — prevents replay (AS must track and reject reuse)</td></tr><tr style="border-bottom: 1px solid rgb(241, 245, 249); vertical-align: top;"><td style="padding: 0.4rem;"><code>exp</code></td><td style="padding: 0.4rem;">Expiry — short-lived, typically now + 60–120 seconds</td></tr><tr style="border-bottom: 1px solid rgb(241, 245, 249); vertical-align: top;"><td style="padding: 0.4rem;"><code>iat</code></td><td style="padding: 0.4rem;">Issued at time</td></tr></tbody></table><p style="margin-top: 0.75rem;">Example decoded header + payload:</p><code style="display: block; background: var(--code-bg, #f1f5f9); border-radius: 6px; padding: 0.75rem 1rem; font-family: inherit; font-size: 0.78rem; white-space: pre; overflow-x: auto; margin: 0.5rem 0px;">// Header
+{ "alg": "RS256", "kid": "my-signing-key-2026" }
+
+// Payload
+{
+  "iss": "my-bff-client-id",
+  "sub": "my-bff-client-id",
+  "aud": "https://auth.pingone.com/env-123/as/token",
+  "jti": "a87fec1a-3b9d-4c2e-a12f-7bcd9ef01234",
+  "iat": 1711617600,
+  "exp": 1711617720
+}</code></section>
+<section class="snap-tab" id="sec-vs-client-secret"><h3 class="snap-tab-h">vs client_secret</h3><h4 style="margin-top: 0px;">private_key_jwt vs client_secret_basic</h4><table style="width: 100%; border-collapse: collapse; font-size: 0.82rem;"><thead><tr style="border-bottom: 1px solid rgb(229, 231, 235); text-align: left;"><th style="padding: 0.4rem;">Property</th><th style="padding: 0.4rem;">client_secret_basic</th><th style="padding: 0.4rem;">private_key_jwt</th></tr></thead><tbody><tr style="border-bottom: 1px solid rgb(241, 245, 249); vertical-align: top;"><td style="padding: 0.4rem; font-weight: 600;">Secret type</td><td style="padding: 0.4rem;">Shared secret (both sides store it)</td><td style="padding: 0.4rem;">Asymmetric keypair (AS only stores public key)</td></tr><tr style="border-bottom: 1px solid rgb(241, 245, 249); vertical-align: top;"><td style="padding: 0.4rem; font-weight: 600;">Compromise impact</td><td style="padding: 0.4rem;">Secret leaked → attacker can impersonate client forever</td><td style="padding: 0.4rem;">Private key stays on client; rotating is easy</td></tr><tr style="border-bottom: 1px solid rgb(241, 245, 249); vertical-align: top;"><td style="padding: 0.4rem; font-weight: 600;">Rotation</td><td style="padding: 0.4rem;">Must coordinate with AS; downtime risk</td><td style="padding: 0.4rem;">Rotate via JWKS URI; zero downtime</td></tr><tr style="border-bottom: 1px solid rgb(241, 245, 249); vertical-align: top;"><td style="padding: 0.4rem; font-weight: 600;">Non-repudiation</td><td style="padding: 0.4rem;">None — AS and client both know the secret</td><td style="padding: 0.4rem;">Clear: only the client holds the private key</td></tr><tr style="border-bottom: 1px solid rgb(241, 245, 249); vertical-align: top;"><td style="padding: 0.4rem; font-weight: 600;">Replay protection</td><td style="padding: 0.4rem;">None built-in</td><td style="padding: 0.4rem;">jti + exp prevent replay</td></tr><tr style="border-bottom: 1px solid rgb(241, 245, 249); vertical-align: top;"><td style="padding: 0.4rem; font-weight: 600;">Required by FAPI 2.0?</td><td style="padding: 0.4rem;">No (not allowed for confidential clients)</td><td style="padding: 0.4rem;">Yes — mandatory for FAPI 2.0 profiles</td></tr></tbody></table></section>
+<section class="snap-tab" id="sec-in-token-exchange"><h3 class="snap-tab-h">In token exchange</h3><h4 style="margin-top: 0px;">RFC 7523 in RFC 8693 Token Exchange</h4><p>In this demo, the <strong>Backend-for-Frontend (BFF)</strong> performs an RFC 8693 token exchange to mint an MCP token. The BFF authenticates itself to the PingOne token endpoint using <code>private_key_jwt</code> — proving it is the authorised actor (<code>act</code>) delivering the delegation chain:</p><code style="display: block; background: var(--code-bg, #f1f5f9); border-radius: 6px; padding: 0.75rem 1rem; font-family: inherit; font-size: 0.78rem; white-space: pre; overflow-x: auto; margin: 0.5rem 0px;">POST /as/token
+grant_type=urn:ietf:params:oauth:grant-type:token-exchange
+&amp;subject_token=&lt;user-access-token&gt;
+&amp;subject_token_type=urn:ietf:params:oauth:token-type:access_token
+&amp;requested_token_type=urn:ietf:params:oauth:token-type:access_token
+&amp;audience=banking_mcp_server
+&amp;scope=read
+&amp;client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer
+&amp;client_assertion=&lt;signed-jwt&gt;</code><p>The resulting MCP token carries both <code>sub</code> (the end-user) and<code>act.client_id</code> (the BFF), proving the delegation chain without transmitting any long-lived shared secret.</p></section>
+<section class="snap-tab" id="sec-pingone-setup"><h3 class="snap-tab-h">PingOne setup</h3><h4 style="margin-top: 0px;">Enabling private_key_jwt in PingOne</h4><ol style="padding-left: 1.25rem; line-height: 1.8; font-size: 0.88rem;"><li>In the PingOne admin console, open your <strong>Application → Configuration</strong>.</li><li>Under <em>Token Endpoint Authentication Method</em>, select<strong>private_key_jwt</strong> or <strong>client_secret_jwt</strong>.</li><li>For <code>private_key_jwt</code>: provide your client's JWKS URI or upload the public key. PingOne will fetch the JWKS to verify incoming assertion signatures.</li><li>Set the <strong>Token Endpoint Authentication Signing Algorithm</strong>(RS256, RS384, ES256, PS256 …). Must match your signing key type.</li><li>In your BFF: generate a signed JWT with the required claims (see "JWT assertion structure" tab) and include it as <code>client_assertion</code> on every token endpoint call.</li></ol><p>PingOne's metadata document advertises supported methods under<code>token_endpoint_auth_methods_supported</code> in<code>/.well-known/openid-configuration</code>.</p></section>
+<section class="snap-tab" id="sec-in-this-repo"><h3 class="snap-tab-h">In this repo</h3><h3 style="margin-top: 0px;">JWT client auth in AI Demo</h3><p style="font-size: 0.82rem; color: rgb(71, 85, 105); margin-top: 0px; margin-bottom: 0.65rem; line-height: 1.55;"><strong style="color: rgb(180, 83, 9);">Illustrative</strong> — Token and exchange calls in this demo use <code>client_id</code> + <code>client_secret</code> (or public client + PKCE for users). Below is what a <code>private_key_jwt</code> upgrade would look like at <code>/as/token</code>.</p><pre class="edu-code">// Example only — this BFF uses client_secret on token endpoints.
+POST /as/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=authorization_code&amp;code=...
+&amp;client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer
+&amp;client_assertion=eyJhbGciOi...  // signed JWT: iss/sub = client_id, aud = token endpoint</pre></section>
+</div></div>
+<div class="snap-foot">The AI Demo Learning Hub · <a href="index.html">back to index</a></div>
+<style>
+#backToTop{position:fixed;right:22px;bottom:22px;z-index:50;background:#1c2230;color:#fff;border:0;border-radius:999px;padding:10px 18px;font:600 .9rem -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;cursor:pointer;box-shadow:0 4px 14px rgba(28,34,48,.35);opacity:0;visibility:hidden;transform:translateY(8px);transition:opacity .2s,transform .2s,visibility .2s}
+#backToTop.show{opacity:1;visibility:visible;transform:translateY(0)}
+#backToTop:hover{background:#39435c}
+</style>
+<button id="backToTop" type="button" aria-label="Back to top">↑ Top</button>
+<script>
+(function(){
+  var btn=document.getElementById('backToTop');
+  window.addEventListener('scroll',function(){btn.classList.toggle('show',window.scrollY>400);},{passive:true});
+  btn.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
+})();
+</script>
+</body></html>
