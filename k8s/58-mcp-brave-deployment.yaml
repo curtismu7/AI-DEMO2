@@ -7,7 +7,7 @@ metadata:
     app: ai-demo
     component: mcp-brave
 spec:
-  replicas: 1
+  replicas: 2
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -23,6 +23,15 @@ spec:
         app: ai-demo
         component: mcp-brave
     spec:
+      # Two replicas on different nodes, so losing one node leaves one serving.
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app: ai-demo
+            component: mcp-brave
       containers:
       - name: mcp-brave
         image: ai-demo-k8-mcp-brave:latest
@@ -77,6 +86,14 @@ spec:
     targetPort: 8897
     protocol: TCP
     name: http
+  # The SSE transport keeps each open stream in a per-pod Map
+  # (demo_mcp_brave/server.js sseSessions): GET /sse and the POST /messages that
+  # answers on it must reach the same pod. Pinning by caller IP does that, at
+  # the price that one caller sticks to one pod (failover, not load spreading).
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 3600
   selector:
     app: ai-demo
     component: mcp-brave
