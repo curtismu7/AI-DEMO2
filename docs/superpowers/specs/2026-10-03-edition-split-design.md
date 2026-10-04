@@ -16,7 +16,8 @@ Produce two standalone demos from AI-DEMO2 without changing AI-DEMO2 itself:
 - Both new repos are **private**: `P1-AI-DEMO` and `PF-AI-DEMO`.
 - PF edition may keep every PingOne service. No PingOne replacement work.
 - No shared package and no `git subtree` (subtree only splits one directory).
-- Assumptions to confirm: both editions share the one PingOne environment; one stack runs per machine, so ports and hostnames are unchanged.
+- **Each edition gets its own new PingOne environment**, separate from AI-DEMO2's. Nothing in an edition may depend on AI-DEMO2's environment, worker apps, users, DaVinci flows, Authorize policies or vault secrets.
+- Assumption to confirm: one stack runs per machine at a time, so ports and hostnames are unchanged.
 
 ## Measured facts that shaped the design
 
@@ -27,6 +28,11 @@ Produce two standalone demos from AI-DEMO2 without changing AI-DEMO2 itself:
 - Known PF gaps: A2A loses the `act` claim under PF; PingGateway introspection rejects PF tokens unless `FF_MCP_GATEWAY_JWKS=true`.
 
 ## Design
+
+### Phase 0 — Fresh PingOne environment is reproducible (AI-DEMO2)
+Existing: `setup:fresh`, `pingone:bootstrap` (`--recreate-apps`, `--wipe-environment`), `provisionVerticalGroups.js`. Unverified: whether they also create DaVinci flows, Authorize (P1AZ) policies, Protect policies, Privilege gateway/agentic apps, MFA policies, and the PF-to-PingOne gateway connection (`scripts/pingfederate/create-pingone-connection.js`, needs an Environment Admin bootstrap worker). Audit each against a throwaway new environment and list every gap; gaps become provisioning scripts or documented manual steps.
+Also: environment IDs, client IDs and secrets must come only from per-edition config/vault; a grep of the export for AI-DEMO2's environment ID must return nothing.
+**Done when:** a brand-new PingOne environment plus one command (or a short, documented manual list) reaches a working Super Sports sign-in and one agent chip, with AI-DEMO2's environment untouched.
 
 ### Phase 1 — PF baseline (AI-DEMO2, no code change)
 Run the PF readiness lane; record pass / fail / not-applicable for all 82 use cases. Failures are fixed in AI-DEMO2 because the PF edition inherits them.
@@ -49,12 +55,13 @@ Extend `scripts/pingfederate/` so a wiped PF volume reaches the working state wi
 **Done when:** both editions export and pass those gates.
 
 ### Phase 5 — Publish
-Create private repos `P1-AI-DEMO` and `PF-AI-DEMO`, export into each, push. Acceptance: a clean clone of each brings the stack up and a Super Sports sign-in plus one agent chip works.
+Create private repos `P1-AI-DEMO` and `PF-AI-DEMO`, export into each, push. Acceptance: a clean clone of each, pointed at its own new PingOne environment, brings the stack up and a Super Sports sign-in plus one agent chip works.
 
 ## Order and size
-P1 edition can ship after Phase 4 without waiting for Phases 1–2. Phases 1–2: about a week, carries the risk. Phases 3–5: about a week.
+P1 edition can ship after Phases 0, 3 and 4 without waiting for Phases 1–2. Phase 0 is now the largest unknown: DaVinci, Authorize and Privilege setup are often partly manual, so budget 1–2 weeks and expect it to size the whole project. Phases 1–2: about a week, carries the risk. Phases 3–5: about a week. Each edition needs its own Phase 0 run (own environment), though the scripts are shared.
 
 ## Known costs
+- Two more PingOne environments to create and maintain, each with its own worker apps, secrets and vault.
 - Each edition still contains unreachable code for the other provider.
 - Fixes to shared code reach editions only by re-export; editions drift until then.
 - Repo history size, and the earlier secret exposure in AI-DEMO2 (rotation outstanding): exports use `git archive` (no history) so exposed secrets in old commits do not travel.
