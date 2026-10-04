@@ -135,8 +135,10 @@ lives in the same client store as the others (see the database-storage note belo
 The PF AI Agent page includes CIMD, third-party ID-JAG exchange, and a custom
 `banking_transaction` RAR flow. PF RAR uses a custom SDK processor; it is not
 the existing PingOne PAR/Authorize flow. Build the processor against the PF
-installation, deploy it, and configure the authorization detail type and
-user-attribute mapping before enabling the BFF feature:
+installation and deploy it; `provision-ai-agent-features.js` (below) then creates
+the processor instance, the authorization detail type and the RAR client. The
+processor looks the signed-in user up at the BFF, so no user-attribute mapping
+is needed:
 
 ```bash
 PF_HOME=/path/to/pingfederate scripts/pingfederate/plugins/ai-agent-rar/build.sh
@@ -145,6 +147,18 @@ PF_HOME=/path/to/pingfederate scripts/pingfederate/plugins/ai-agent-rar/build.sh
 See `plugins/ai-agent-rar/README.md` for policy fields, test instructions, and
 PF admin-console setup. The processor requires PF 13.1 or newer and the
 `transactions:write` scope. It uses only OAuth and JWT.
+
+Deploying the JAR into the local `ai-demo-pingfederate` container:
+
+- **Build as the `ping` user.** `docker cp` creates root-owned files, so run
+  `docker exec -u root ai-demo-pingfederate chown -R ping /tmp/rar` before
+  `build.sh`, or the build fails creating `build/classes`. The container's JDK is
+  in `/opt/java/bin`; the host needs none to deploy.
+- **Keep no other copy of the JAR in `deploy/`.** PingFederate loads every file
+  containing `.jar`, so a `pf-ai-agent-rar.jar.bak` becomes a second definition of
+  the processor (log: "Adapter ... is defined more than once"). Save rollbacks
+  outside the container.
+- **Restart PingFederate** after copying the JAR, then run the provisioner.
 
 ## CIMD and RAR: PingFederate setup
 
@@ -197,8 +211,28 @@ node scripts/pingfederate/provision-ai-agent-features.js --apply
 Idempotent; each step reads first and reads its change back. It adds the
 `transactions:write` scope, trusts the mkcert root so PingFederate can fetch
 the BFF's client metadata document, enables CIMD with one policy restricted to
-that exact document URL (PKCE required), and creates the `banking_transaction`
-authorization detail type on the deployed RAR processor.
+that exact document URL (PKCE required), and sets up RAR: it creates the
+`PF_AI_RAR_LOOKUP_SECRET` vault entry once (never replaced), creates or updates
+the processor instance with its User Limits URL and credential, creates the
+`banking_transaction` authorization detail type, and registers the public PKCE
+client `ai-demo-pf-rar` that is allowed that type.
+
+Check RAR at push time with no login. A well-formed detail is accepted (201); a
+malformed one is refused (400 `invalid_authorization_details`):
+
+```bash
+curl -sk -X POST https://local.ping-devops.com:9031/as/par.oauth2 \
+  -d response_type=code -d client_id=ai-demo-pf-rar \
+  --data-urlencode redirect_uri=https://local.ping-devops.com:4000/api/pf-ai-agent/cimd/callback \
+  --data-urlencode "scope=openid profile email transactions:write" \
+  -d code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM -d code_challenge_method=S256 \
+  --data-urlencode 'authorization_details=[{"type":"banking_transaction","user_id":"demouser","actions":["transfer"],"source_account":"a","destination_account":"b","amount":125,"currency":"USD"}]'
+```
+
+Change `amount` to `-1` to see the refusal. The user-bound checks (the user's own
+accounts and limit) only run after sign-in, so exercise those from the page.
+PingFederate's sign-in name can differ in case from the banking user (`demouser`
+vs `demoUser`); the BFF's lookup ignores case when the match is unambiguous.
 
 Check the result where it matters, in what PingFederate advertises:
 
@@ -208,4 +242,5 @@ curl -sk https://local.ping-devops.com:9031/.well-known/openid-configuration \
 ```
 
 The BFF's switches (`PF_AI_CIMD_ENABLED`, `PF_AI_RAR_ENABLED`,
-`PF_PAR_ENDPOINT`) are set for the local stack in `docker-compose.yml`.
+`PF_AI_RAR_CLIENT_ID`, `PF_PAR_ENDPOINT`) are set for the local stack in
+`docker-compose.yml`.

@@ -82,12 +82,21 @@ PF_AI_THIRD_PARTY_TOKEN_ENDPOINT_AUTH_METHOD=basic
 PF_AI_THIRD_PARTY_RESOURCE=<third-party-resource-uri>
 PF_AI_THIRD_PARTY_SCOPE=<space-separated-downstream-scopes>
 PF_AI_RAR_ENABLED=true
+PF_AI_RAR_CLIENT_ID=ai-demo-pf-rar
 ```
 
 Store `PF_AI_CROSS_DOMAIN_CLIENT_SECRET` and
 `PF_AI_THIRD_PARTY_CLIENT_SECRET` in the deployment secret store. Configure
 `PF_PAR_ENDPOINT` and deploy/configure the custom RAR processor before setting
-`PF_AI_RAR_ENABLED=true`. The public CIMD metadata document and callback are
+`PF_AI_RAR_ENABLED=true`.
+
+RAR uses its own public PKCE client, `PF_AI_RAR_CLIENT_ID`, because PingFederate
+13.1 gives a CIMD client no authorization detail types; leave it empty to fall
+back to the CIMD client. `PF_AI_RAR_LOOKUP_SECRET` is the bearer credential the
+PingFederate processor presents to `GET /api/pf-ai-agent/rar/user-limits`. It
+belongs in the secret store: `scripts/pingfederate/provision-ai-agent-features.js
+--apply` creates it once and never replaces it, and pushes the same value into
+the processor's config. The public CIMD metadata document and callback are
 served at `/api/pf-ai-agent/cimd/client-metadata.json` and
 `/api/pf-ai-agent/cimd/callback` on `PUBLIC_APP_URL`.
 
