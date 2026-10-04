@@ -528,9 +528,11 @@ for url in ${PREFLIGHT_PUBLIC_URLS:-}; do
 done
 
 # ── 7b. Gateway 2 mesh pin ───────────────────────────────────────────────────
-# gateway2-mesh.values.yaml pins gateway 1's Service ClusterIP in a hostAlias. If
-# that Service is ever recreated it gets a new IP and the mesh breaks silently, so
-# compare the pin with the live value whenever curtismuir is being checked.
+# gateway2-mesh.values.yaml pins gateway 1's Service ClusterIP in a hostAlias. Since
+# 2026-10-04 gateway 2 is a second node of gateway 1's cluster and nothing is forwarded
+# over the mesh, so a stale pin is NOT known to break serving (whether the setting is
+# still needed is untested, GATEWAY-LOAD-BALANCER.md section 00). Report drift as WARN,
+# never FAIL; make it FAIL again only if that test shows the pin is still load-bearing.
 case " ${PREFLIGHT_K8S_NAMESPACES:-} " in
   *" ping-devops-curtismuir "*)
     mesh_file="$ROOT/pingone-privgateway-helm-main/agentless/gateway2-mesh.values.yaml"
@@ -542,7 +544,7 @@ case " ${PREFLIGHT_K8S_NAMESPACES:-} " in
     elif [[ "$pinned_ip" == "$live_ip" ]]; then
       row OK "Gateway 2 mesh pin" "gateway 1 Service is still ${live_ip}"
     else
-      row FAIL "Gateway 2 mesh pin" "gateway2-mesh.values.yaml pins ${pinned_ip}, live Service is ${live_ip}: update the pin and run the helm upgrade for agentless-mcpgw2"
+      row WARN "Gateway 2 mesh pin" "gateway2-mesh.values.yaml pins ${pinned_ip}, live Service is ${live_ip}: update the pin, then scripts/se-gateways.sh upgrade --apply (serving is not known to depend on it)"
     fi
     ;;
 esac
