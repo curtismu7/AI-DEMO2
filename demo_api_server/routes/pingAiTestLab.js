@@ -150,6 +150,7 @@ function sessionAuthContext(req) {
 
 const NEEDS_SESSION = 'requires a signed-in user session with OAuth tokens (open this page from a logged-in browser session)';
 
+const UC16_TEST_ID = 'uc16_impersonation_no_act';
 const TESTS = [
   // -- stack suite (demo process health) ------------------------------------
   {
@@ -398,7 +399,7 @@ const TESTS = [
     }),
   },
   {
-    key: 'uc16_impersonation_no_act',
+    key: UC16_TEST_ID,
     suite: 'usecases',
     label: 'UC16 — Impersonation block / no-act (gateway DENY)',
     run: (req) => runUseCaseDenySim(req, {

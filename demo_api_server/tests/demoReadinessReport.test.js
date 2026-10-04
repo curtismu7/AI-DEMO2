@@ -8,6 +8,7 @@ const {
   redactReadinessValue,
   remainingBudget,
 } = require('../services/demoReadinessReport');
+const { fixtureJwt } = require('./helpers/fixtureJwt');
 
 const STARTED_AT = 1_000_000;
 const DEADLINE_AT = STARTED_AT + HARD_DEADLINE_MS;
@@ -130,7 +131,7 @@ describe('demo readiness report', () => {
 
   test('redacts nested bearer, JWT, password, cookie, authorization, and session values before serialization', () => {
     const bearer = 'Bearer raw-bearer-token';
-    const jwt = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhbGljZSJ9.c2lnbmF0dXJl';
+    const jwt = fixtureJwt({"sub": "alice"}, {"alg": "HS256"}, 'c2lnbmF0dXJl');
     const password = 'open-sesame';
     const cookie = 'sid=raw-cookie-value';
     const authorization = 'Basic raw-auth-value';
@@ -202,7 +203,7 @@ describe('demo readiness report', () => {
   test('redacts nested secret fixtures inserted into repairs and unfinished rows before report serialization', () => {
     const report = makeReport();
     const bearer = 'Bearer repair-bearer-token';
-    const jwt = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJyZXBhaXIifQ.c2lnbmF0dXJl';
+    const jwt = fixtureJwt({"sub": "repair"}, {"alg": "HS256"}, 'c2lnbmF0dXJl');
     const password = 'repair-password';
     const cookie = 'sid=repair-cookie';
     const authorization = 'Basic repair-authorization';

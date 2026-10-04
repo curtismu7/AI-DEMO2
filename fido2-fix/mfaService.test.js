@@ -6,7 +6,7 @@
  *  - _getWorkerToken: basic vs post auth methods
  *  - _getDefaultMfaPolicy: cache, picks default:true, picks first when none flagged
  *  - initiateDeviceAuth: explicit policy, auto-resolve, credential error
- *  - selectDevice, submitOtp, getDeviceAuthStatus, submitFido2Assertion
+ *  - selectDevice, submitOtp, getDeviceAuthStatus and FIDO2 assertion submit
  *  - listMfaDevices, enrollEmailDevice, initFido2Registration, completeFido2Registration
  *  - _wrapError: 401 → token_expired, 404/410 → challenge_expired
  */

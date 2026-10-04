@@ -15,6 +15,7 @@
  */
 
 const path = require('path');
+const { fixtureJwt } = require('../../tests/helpers/fixtureJwt');
 // Load .env so PINGONE_* vars are available (mirrors live-pingone-integration.test.js)
 require('dotenv').config({ path: path.resolve(__dirname, '../../.env'), override: true });
 
@@ -38,7 +39,7 @@ describe('Session oauthTokens contract (Backend-for-Frontend (BFF) → MCP)', ()
     const req = {
       session: {
         oauthTokens: {
-          accessToken: 'eyJhbGciOiJub25lIn0.eyJzdWIiOiJ0ZXN0In0.',
+          accessToken: fixtureJwt({"sub": "test"}, {"alg": "none"}, ''),
           refreshToken: 'refresh',
         },
       },

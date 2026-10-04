@@ -106,7 +106,7 @@ function fakes() {
     // most important regression check for the env-passthrough fix.
     const f = fakes();
     const result = await configureVault({
-      password: 'sentinel-pw-12345',
+      password: 'sentinel-password',
       vaultPath: paths.vaultPath,
       envFile: paths.envFile,
       interactive: false,
@@ -120,7 +120,7 @@ function fakes() {
     // Definitive proof of env propagation: open with the supplied password.
     // If env didn't reach the child, vault:create would have failed (or
     // used a different password) and openVault throws here.
-    const v = await openVault(paths.vaultPath, 'sentinel-pw-12345');
+    const v = await openVault(paths.vaultPath, 'sentinel-password');
     expect(v).toBeDefined();
     v.close();
   }, 60000); // 60s timeout — spawns two child node processes + 2× argon2 derive

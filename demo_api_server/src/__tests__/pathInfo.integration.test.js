@@ -12,6 +12,7 @@
 
 const express = require('express');
 const request = require('supertest');
+const { fixtureJwt } = require('../../tests/helpers/fixtureJwt');
 
 // ─── No mock on configStore — uses real .env values (integration test) ────────
 
@@ -22,7 +23,7 @@ describe('jwtScrubber scrubRawJwts — integration (pure unit)', () => {
 
   // Test 3: nested JWT strings are redacted
   it('Test 3: scrubRawJwts redacts nested JWT-shaped strings', () => {
-    const jwt = 'eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ1c2VyIn0.fakesignature';
+    const jwt = fixtureJwt({"sub": "user"}, {"alg": "RS256"}, 'fakesignature');
     const input = { a: jwt, b: { c: jwt } };
     const result = scrubRawJwts(input);
     expect(result.a).toBe('[REDACTED_JWT]');

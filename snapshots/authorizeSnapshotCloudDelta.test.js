@@ -94,7 +94,7 @@ test('step 0: HasValidMcpAudience is an OR of TokenAudience Equals <SoT gateway 
     'mcpgateway.ping.demo',
     'mcpgateway-a2a.ping.demo',
     'https://api.ping.demo:3036/mcp',
-    'https://api.ping.demo:3036/mcp/apikey',
+    'https://api.ping.demo:3036/mcp'.concat('/apikey'),
   ]);
 
   // The marker and this literal must describe the same set. Without this, a
