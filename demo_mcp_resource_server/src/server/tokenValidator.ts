@@ -70,7 +70,7 @@ async function getJwksKeySetFor(iss: string | undefined) {
 // sub-less machine token limited to MCP_RESOURCE_SERVER_GATEWAY_STATIC_SCOPES
 // (default: read). Off unless a token of at least 32 characters is configured.
 const GATEWAY_STATIC_TOKEN_MIN_LENGTH = 32;
-function isGatewayStaticToken(token: string): boolean {
+export function isGatewayStaticToken(token: string): boolean {
   const expected = (process.env.MCP_RESOURCE_SERVER_GATEWAY_STATIC_TOKEN || '').trim();
   if (expected.length < GATEWAY_STATIC_TOKEN_MIN_LENGTH || !token) return false;
   const digest = (s: string) => crypto.createHash('sha256').update(s, 'utf8').digest();

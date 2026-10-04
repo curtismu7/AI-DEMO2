@@ -38,7 +38,7 @@ before changing any of this.
 | Gateway 1 | release `agentless-mcpgw`, `ping-devops-curtismuir`, cluster `ai-demo-cmuir`. Owns every app and all sidecars. |
 | Gateway 2 | release `agentless-mcpgw2`, `ping-devops-cmuir`. **Since 2026-10-04 a second node of gateway 1's cluster `ai-demo-cmuir`** (was its own cluster `ai-demo-cmuir2`, forwarding over the mesh). Serves every app itself, so it runs the same sidecars: upgrade it with `sidecars.values.yaml --set landingPage.enabled=false` as well as `gateway2-mesh.values.yaml` (its secrets live only in the release's stored values). |
 | Load balancer | part of the chart (`templates/loadbalancer.yaml`), enabled on gateway 1's release by `gateway1-lb.values.yaml`. Deployment/Service `mcpgw-lb`. |
-| Gateway 3 (prepared, not installed) | release `agentless-mcpgw3` in gateway 1's namespace, via the chart's `nameOverride` and `ingress.enabled: false` (`gateway3.values.yaml`); parked in the load balancer until installed. Steps: `privilege/GATEWAY-LOAD-BALANCER.md` section 00b. `scripts/se-gateways.sh` upgrades it once it exists. |
+| Gateway 3 (prepared, not installed) | release `agentless-mcpgw3` in gateway 1's namespace, via the chart's `nameOverride` and `ingress.enabled: false` (`gateway3.values.yaml`); parked in the load balancer until installed. Steps: `privilege/GATEWAY-LOAD-BALANCER.md` section 00c. `scripts/se-gateways.sh` upgrades it once it exists. |
 
 **Two nodes in one cluster is the current layout** (`privilege/GATEWAY-LOAD-BALANCER.md`
 section 00). What it changes:
@@ -277,11 +277,24 @@ https://mcpgw.ai-demo.ping-devops.com/<AppName>/mcp
 - **LM Studio:** just the `url` in `mcp.json`. Needs ≥ 0.4.10 for MCP OAuth.
 - **The demo's own client:** `/privilege-mcp-client` — see below.
 
-**The gateway's DCR registry is in memory.** Every gateway restart forgets every
-registered client, and the next authorize shows a bare `Unknown client` page. The
-BFF now detects this and re-registers (`isDcrClientStillKnown` in
+**The gateway's DCR registry is in Redis (since 2026-10-04).** Both gateways share
+one Redis (`privilege-redis` in `ping-devops-cmuir`, env `MCPGW_REDIS_URL`), so a restart
+no longer forgets registered clients. Without Redis, every gateway restart forgets every
+registered client and the next authorize shows a bare `Unknown client` page. The BFF
+detects that and re-registers (`isDcrClientStillKnown` in
 `demo_api_server/routes/privilegeMcpClient.js`); an MCP client that caches its
-registration must be deleted and re-added by hand instead.
+registration must be deleted and re-added by hand. That now only happens if Redis lost
+its data or was down.
+
+**Redis rules (verified 2026-10-04, see `privilege/GATEWAY-LOAD-BALANCER.md`, "Shared Redis"):**
+- Upgrade with `-f sidecars.values.yaml` as always; it carries `redis.urlSecret`, so the
+  setting survives an upgrade that does not use `--reuse-values`. The env var name is
+  `MCPGW_REDIS_URL` (NOT `REDIS_URL`; the gateway ignores that one).
+- **Never restart a gateway while Redis is down.** It retries 6 times, then exits
+  (`fatal ... unreachable after 6 attempts`) and the pod loops. Restore Redis first.
+- Redis down while the gateways run: they keep serving but new registrations return
+  `201` and are silently not kept, so `/authorize` says "registration has expired".
+- The Secret `privilege-redis-url` must exist in BOTH namespaces before an upgrade.
 
 ## Policy denials
 

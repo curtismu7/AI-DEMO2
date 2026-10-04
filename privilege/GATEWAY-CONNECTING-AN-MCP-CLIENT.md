@@ -150,7 +150,7 @@ The gateway issues its own access token. It is a short opaque string, not a JWT,
 
 - **One token per app.** A token from one app is refused on another with a 401. A client connected to three apps holds three tokens.
 - **Ask for a refresh token when you register.** The gateway supports the `refresh_token` grant. A client that registered with only `authorization_code` received no refresh token and had to sign the user in again after an hour.
-- **A long-idle client may need to reconnect.** If `/authorize` answers `This client's registration has expired`, the gateway no longer knows the client. Clear the client's saved credentials for that server and connect again; it will register afresh.
+- **A long-idle client may need to reconnect.** If `/authorize` answers `This client's registration has expired`, the gateway no longer knows the client. Clear the client's saved credentials for that server and connect again; it will register afresh. On the shared-Redis setup (since 2026-10-04) a gateway restart or a switch between gateways no longer causes this; it now means Redis lost its data or was down.
 - **A fixed token will not work.** There is no long-lived key for MCP apps. A script that needs unattended access must hold a refresh token or sign in again.
 
 ## Setting up a client
