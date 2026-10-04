@@ -70,6 +70,15 @@ describe("Focus Mode filmstrip guard", () => {
     expect(p2026).toMatch(/return "embedded"/);
   });
 
+  // The Simple stepper was drawn only in the float layout's token rail. In Focus
+  // Mode (the default) and the clinical split, choosing it with the reel off
+  // left the evidence area blank. Both of those layouts must render it.
+  test("Focus Mode and the clinical split both render the Simple stepper", () => {
+    expect(p2026.match(/\{simpleStepperInline\}/g) || []).toHaveLength(2);
+    expect(p2026).toMatch(/const simpleStepperInline = showSimpleStepper && !showSequenceDiagram/);
+    expect(p2026).toMatch(/<StepsTabContent \/>/);
+  });
+
   test("AIAgent restores the Movie reel preference and defaults ON", () => {
     expect(aiAgent).toMatch(/getItem\(\s*["']ba_show_filmstrip["']\s*\)/);
     expect(aiAgent).toMatch(/setItem\(\s*["']ba_show_filmstrip["']/);
