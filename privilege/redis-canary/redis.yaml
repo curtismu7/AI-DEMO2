@@ -1,8 +1,9 @@
-# Throwaway Redis for the Privilege gateway "shared sign-in state" experiment.
-# Not part of any deploy list: apply by hand, and delete when the experiment ends.
+# The shared Redis both Privilege gateways use for their token store (MCPGW_REDIS_URL).
+# Kept since 2026-10-04 (the folder name "redis-canary" is historical). Not part of any
+# deploy list: apply by hand.
 #   kubectl --context us -n ping-devops-cmuir apply -f privilege/redis-canary/redis.yaml
-# Plan and rollback: the Redis experiment paragraph in the load balancer status doc, and
-# privilege/GATEWAY-LOAD-BALANCER.md section 00.
+# What it does, why, how to set it up and check it, and the rules for running it (never
+# restart a gateway while this is down): privilege/GATEWAY-LOAD-BALANCER.md section 00b.
 #
 # The gateway reaches it by full Service name from either namespace:
 #   privilege-redis.ping-devops-cmuir.svc.cluster.local:6379
