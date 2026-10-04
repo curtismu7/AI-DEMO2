@@ -10,28 +10,59 @@
  * Status lifecycle:  pending → approved | denied | expired
  *                     approved → consumed  (single-use: POST /verify success)
  *
- * For production: swap _store for Redis or a DB — interface stays the same.
+ * With HITL_CHALLENGE_STORE_FILE set, every change is also written to that file
+ * and read back at startup, so a restart keeps pending approvals. One process
+ * only: for two replicas swap _store for Redis or a DB — interface stays the same.
  */
 
+const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 
 const CHALLENGE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const MAX_CHALLENGES = 1000;
+const STORE_FILE = process.env.HITL_CHALLENGE_STORE_FILE || '';
 
 const _store = new Map();
 
+if (STORE_FILE) {
+  try {
+    for (const ch of JSON.parse(fs.readFileSync(STORE_FILE, 'utf8'))) _store.set(ch.id, ch);
+  } catch (err) {
+    if (err.code !== 'ENOENT') {
+      console.warn(`[hitl] challenge store ${STORE_FILE} unreadable, starting empty: ${err.message}`);
+    }
+  }
+}
+
+// ponytail: rewrites the whole file on every change — fine at MAX_CHALLENGES
+// small records; move to a DB if the cap grows.
+function _save() {
+  if (!STORE_FILE) return;
+  try {
+    // Temp file + rename so a crash mid-write cannot leave a truncated file.
+    fs.writeFileSync(`${STORE_FILE}.tmp`, JSON.stringify([..._store.values()]));
+    fs.renameSync(`${STORE_FILE}.tmp`, STORE_FILE);
+  } catch (err) {
+    console.warn(`[hitl] challenge store ${STORE_FILE} not written: ${err.message}`);
+  }
+}
+
 function _pruneExpired() {
   const now = Date.now();
+  let changed = false;
   for (const [id, ch] of _store.entries()) {
     if (ch.expiresAt < now && ch.status === 'pending') {
       ch.status = 'expired';
       ch.resolvedAt = now;
+      changed = true;
     }
     // Clean out resolved/expired entries older than 1 hour
     if (ch.status !== 'pending' && (now - ch.createdAt) > 3_600_000) {
       _store.delete(id);
+      changed = true;
     }
   }
+  if (changed) _save();
 }
 
 function create({ tool, userId, agentId, context, correlationId }) {
@@ -57,6 +88,7 @@ function create({ tool, userId, agentId, context, correlationId }) {
     decision: null,
   };
   _store.set(id, challenge);
+  _save();
   return { ...challenge };
 }
 
@@ -76,6 +108,7 @@ function resolve(id, decision, responderId) {
   if (ch.expiresAt < Date.now()) {
     ch.status = 'expired';
     ch.resolvedAt = Date.now();
+    _save();
     throw new Error(`Challenge ${id} is expired`);
   }
   if (decision !== 'approved' && decision !== 'denied') {
@@ -85,6 +118,7 @@ function resolve(id, decision, responderId) {
   ch.resolvedAt = Date.now();
   ch.decision = decision;
   ch.responderId = responderId || null;
+  _save();
   return { ...ch };
 }
 
@@ -98,6 +132,7 @@ function consume(id) {
     throw new Error(`Challenge ${id} is not approved (status: ${ch.status})`);
   }
   ch.status = 'consumed';
+  _save();
   return { ...ch };
 }
 

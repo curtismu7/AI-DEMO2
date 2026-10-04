@@ -1,3 +1,22 @@
+# Pending approvals (demo_hitl_service/src/store/challengeStore.js) — without a
+# volume the file dies with the pod, so a rollout drops every approval in flight.
+# ReadWriteOnce is enough: one replica, and the rollout below stops the old pod
+# before starting the new one.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: hitl-challenges
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: hitl-service
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -51,6 +70,8 @@ spec:
           value: "hitl-service"
         - name: NODE_OPTIONS
           value: "-r /otel/otel-instrument.js"
+        - name: HITL_CHALLENGE_STORE_FILE
+          value: "/app/data/challenges.json"
         envFrom:
         - configMapRef:
             name: ai-demo-config
@@ -64,6 +85,8 @@ spec:
         - name: otel-instrument
           mountPath: /otel
           readOnly: true
+        - name: hitl-challenges
+          mountPath: /app/data
         resources:
           requests:
             memory: "64Mi"
@@ -83,6 +106,9 @@ spec:
       - name: otel-instrument
         configMap:
           name: otel-instrument
+      - name: hitl-challenges
+        persistentVolumeClaim:
+          claimName: hitl-challenges
       restartPolicy: Always
 ---
 apiVersion: v1
