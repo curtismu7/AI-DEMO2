@@ -51,9 +51,12 @@ On gateway 2, the old enrollment files in `/procyon/ssl` were moved into
 
 **Not verified.**
 
-- Sign-in surviving the switch. In the 2026-10-04 stop test the user's two calls worked, but
-  whether a sign-in prompt appeared was not recorded, so this stays unproven either way.
-  Each gateway keeps sign-in state in memory, so a prompt is the expected result.
+- Sign-in surviving the switch: it did not. In the 2026-10-04 stop test gateway 2's log shows
+  two new client registrations, each followed by authorize, callback and token, at 10:15:39 to
+  10:15:49 CDT (about 35 s after the stop, before the app calls began). That fits the demo
+  Privilege page re-registering itself once per app; the log does not name the source, and
+  whether a person saw a prompt is not known. The sequence took under 10 s. Each gateway keeps
+  sign-in state in memory, so this is the expected cost of a switch.
 - Agent-key callers (the A2A apps) DURING a stop. The route probe stayed `401` throughout.
   A2A ran all five scenarios with `sk-orion` agent keys at 10:17:57 CDT, a minute after
   gateway 1 returned and 3 s after a probe from the same machine read `gateway-2`, so they
