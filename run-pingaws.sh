@@ -32,8 +32,9 @@
 # The Privilege AI Gateway is NOT deployed here — it is a manual Helm install
 # (pingone-privgateway-helm-main/agentless). Gateway 1 and the mcpgw-lb load
 # balancer are in ping-devops-curtismuir; gateway 2 (release agentless-mcpgw2)
-# is in ping-devops-cmuir, the same namespace as this app. Deploys leave it
-# alone, and se-undeploy skips Helm-managed resources.
+# is in ping-devops-cmuir, the same namespace as this app; the two are nodes of one
+# mesh cluster. Deploys leave them alone, and se-undeploy skips Helm-managed resources
+# and gateway 2's sidecar secrets. Upgrades: ./run-pingaws.sh gateways.
 #
 # Equivalent low-level commands (still work):
 #   ./run-k8.sh se-all | se-build | se-deploy | se-status | se-undeploy
@@ -78,9 +79,10 @@ Usage:
 
 Prerequisites: Docker Desktop, kubectl context `us`, gh auth, SE namespace.
 
-The Privilege AI Gateway does not deploy from here: it is a deliberate manual
-Helm install in ping-devops-curtismuir (pingone-privgateway-helm-main/agentless),
-because its ENV_PROXY_TOKEN is single-use and ~2h-lived.
+The Privilege AI Gateway does not install from here: gateway 1 (ping-devops-curtismuir)
+and gateway 2 (ping-devops-cmuir) are deliberate manual Helm installs
+(pingone-privgateway-helm-main/agentless), because ENV_PROXY_TOKEN is single-use and
+~2h-lived. Once installed, `gateways` keeps their sidecars and secrets in step.
 
 Namespace is pinned once per checkout (written to demo_api_server/.env as
 SE_NAMESPACE=...) so every later run targets the same namespace by default —

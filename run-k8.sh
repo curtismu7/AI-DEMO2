@@ -790,7 +790,8 @@ se_undeploy() {
     echo
     demo_warn "About to delete everything INSIDE the SE namespace: $ns"
     echo "  Deletes: deployments, services, ingresses, configmaps, secrets — except Helm-managed ones"
-    echo "  KEEPS:   Helm-managed resources and release state (e.g. Privilege gateway 2), and the"
+    echo "  KEEPS:   Helm-managed resources and release state (e.g. Privilege gateway 2), its sidecar"
+    echo "           secrets (brave/banking-rest/pingone-mcp/mcp-grafana/ghcr-pull), and the"
     echo "           namespace $ns itself — it is cluster-managed and is NOT deleted"
     echo "  Effect:  https://ai-demo.ping-devops.com stops resolving — for everyone on this namespace"
     echo "  After:   create-secrets.sh must be re-run before the next deploy"
@@ -831,11 +832,16 @@ se_undeploy() {
   # app.kubernetes.io/managed-by=Helm; the release records carry owner=helm.
   # The gateway TLS Secret (made by cert-manager) carries neither label, so
   # anything named agentless-mcpgw* is also kept.
+  # Gateway 2's sidecars read these plain (unlabelled) Secrets at pod start, so
+  # deleting them breaks the gateway on its next restart. Keep in step with
+  # SECRETS in scripts/se-gateways.sh.
   local doomed=() name
   while IFS= read -r name; do
     doomed+=("$name")
   done < <(kubectl get deployments,services,ingresses,configmaps,secrets -n "$ns" \
-             -l 'app.kubernetes.io/managed-by!=Helm,owner!=helm' -o name | grep -v '/agentless-mcpgw')
+             -l 'app.kubernetes.io/managed-by!=Helm,owner!=helm' -o name \
+             | grep -v '/agentless-mcpgw' \
+             | grep -Ev '/(brave-secrets|banking-rest-secrets|pingone-mcp-secrets|mcp-grafana-secrets|ghcr-pull-secret)$')
   if [[ ${#doomed[@]} -gt 0 ]]; then
     kubectl delete -n "$ns" --ignore-not-found "${doomed[@]}"
   fi

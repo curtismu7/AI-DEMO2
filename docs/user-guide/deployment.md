@@ -282,6 +282,11 @@ kubectl logs -n ping-devops-cmuir deploy/<name> --previous                 # aft
 ./run-pingaws.sh undeploy   # removes all app resources; preserves the namespace
 ```
 
+The `cmuir` namespace also hosts Privilege gateway 2 (release `agentless-mcpgw2`) and its
+sidecar secrets. `undeploy` leaves them alone, so gateway 2 keeps running after an undeploy:
+that is intended. Keep the two gateway nodes in step with `./run-pingaws.sh gateways`
+(`secrets`, `upgrade [--apply]`, `status`); see `privilege/GATEWAY-LOAD-BALANCER.md`.
+
 ---
 
 ## Troubleshooting

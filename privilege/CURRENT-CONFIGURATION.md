@@ -1,7 +1,10 @@
 # PingOne Privilege MCP: current configuration index
 
-Verified 2026-09-08. **There is now exactly one gateway.** The Agentless/Agent
-split below the fold is history: the per-owner gateways were torn down on
+Verified 2026-09-08. **Update 2026-10-04: there are now two gateway nodes of one mesh cluster
+(`ai-demo-cmuir`) behind a load balancer, gateway 1 in `ping-devops-curtismuir` and gateway 2 in
+`ping-devops-cmuir`. The table below describes gateway 1; see
+[GATEWAY-LOAD-BALANCER.md](GATEWAY-LOAD-BALANCER.md) section 00 for the current layout.**
+The Agentless/Agent split below the fold is history: the per-owner gateways were torn down on
 2026-09-01 and replaced by a single AI Gateway (the product's own new name for
 what this repo called "agentless").
 
