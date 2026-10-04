@@ -49,8 +49,9 @@ Tested on 3 October 2026 against a Python (FastAPI) agent that speaks A2A 0.3.0,
 | Only the card and the A2A path are published on the agent's own address | Reproduced: seven other paths returned 404 |
 | The agent parses the body before it checks the credential | Reproduced: bad JSON with no credential returned a parse error, not 401 |
 | The agent accepts the static token on either door | Read from the agent's code; not run |
+| On User Token with nothing in the user's vault, the call is forwarded with no credential | Reproduced on 4 October: the agent answered 401, and the gateway logged `no vault credential for user` |
 
-Not tested: the User Token and Pass Agent Token modes, so what they deliver comes from the console's descriptions. Streaming was not tested because this agent does not offer it.
+Not tested: User Token with a credential stored in the vault, and Pass Agent Token with a caller that holds a workload identity. Streaming was not tested because this agent does not offer it.
 
 ## What the gateway needs from your agent
 
@@ -130,7 +131,7 @@ What arrives at your agent depends on the app's **Auth Mode** in the console. Th
 | --- | --- | --- |
 | None | No credential | Nothing to check. Only safe if nothing else can reach the agent. |
 | Static Token | `Authorization: Bearer <static-token>` | That the token equals your configured secret |
-| User Token | A token for the signed-in user | Its signature, issuer, audience and expiry |
+| User Token | The credential stored for that user and app in the user's Privilege vault. If none is stored, no credential at all. | Whatever that credential is. Expect calls with none. |
 | Pass Agent Token | The calling agent's own workload token | Its signature, issuer, audience and expiry |
 
 Static Token was the mode tested. The check is small, and two details matter:
@@ -149,6 +150,8 @@ def is_gateway_token(token: str) -> bool:
 Keep the secret in your secret store, give it to the agent as configuration, and enter the same value in the console. To change it, change the agent first and the console straight after; calls fail while the two differ.
 
 **Check the credential before you do any work.** The tested agent parses the request body first, so a caller with no credential and a broken body gets a parse error instead of a 401. That is harmless here, but it means unauthenticated input reaches the parser. Check the header first.
+
+**User Token is not a token the gateway mints.** It forwards a credential that the user has stored in their Privilege vault for this app. When the user has stored nothing, the gateway does not refuse the call. It forwards it with no `Authorization` header, and logs `no vault credential for user <user-id> on app <app>`. So on this mode your agent must still refuse a call that arrives with no credential.
 
 **Match the mode to your callers.** Pass Agent Token only works when the caller holds a workload identity. A person, or an agent with an ordinary key, is refused by the gateway before your agent is called.
 

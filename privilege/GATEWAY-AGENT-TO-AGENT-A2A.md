@@ -154,7 +154,7 @@ Auth Mode decides what the gateway sends to the remote agent once a call has pas
 | Mode | What reaches the agent | Who can call |
 | --- | --- | --- |
 | Pass Agent Token | The calling agent's own workload token | Only a caller that presents a workload assertion |
-| User Token | A token for the signed-in user | Any signed-in, permitted caller |
+| User Token | The credential stored for that user and app in the user's Privilege vault; nothing if none is stored | Any signed-in, permitted caller. With an empty vault the call is forwarded with no credential. |
 | Static Token | One fixed token you configure, sent as Authorization: Bearer | Any signed-in, permitted caller |
 | None | No credential | Any signed-in, permitted caller |
 
