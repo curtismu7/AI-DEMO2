@@ -284,7 +284,9 @@ registered client and the next authorize shows a bare `Unknown client` page. The
 detects that and re-registers (`isDcrClientStillKnown` in
 `demo_api_server/routes/privilegeMcpClient.js`); an MCP client that caches its
 registration must be deleted and re-added by hand. That now only happens if Redis lost
-its data or was down.
+its data or was down. **Tokens are NOT shared**, so a switch between gateways (stop,
+park) still makes the BFF register and sign in again, about 20 s, automatic; only the
+registry survives (tested 2026-10-04).
 
 **Redis rules (verified 2026-10-04, see `privilege/GATEWAY-LOAD-BALANCER.md`, "Shared Redis"):**
 - Upgrade with `-f sidecars.values.yaml` as always; it carries `redis.urlSecret`, so the

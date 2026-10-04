@@ -78,6 +78,8 @@ what this repo called "agentless").
   one Redis, so a registered client survives a gateway restart and is known to both
   gateways. It is lost only if Redis loses its data or is down; then the BFF
   re-registers automatically and standalone MCP clients must be removed and re-added.
+  Tokens are not shared: a switch from one gateway to the other still makes the BFF
+  register and sign in again (tested 2026-10-04, about 20 s, automatic).
   What it is, why and how to run it: `GATEWAY-LOAD-BALANCER.md`, section "Shared Redis".
 - **Policies are per Agentic App and time-boxed.** A new app starts with none.
   Read `deployment/agentless-mcpgw -c log-tailer` for the real denial reason;
