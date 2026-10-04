@@ -37,6 +37,7 @@ const LESSON_REGISTRY: Record<string, LessonContract> = {
   "PingOne Authorize": { status: "LIVE / CONFIG", keywords: ["P1AZ", "policy", "permit", "deny", "step-up", "decision"] },
   "MCP Protocol": { status: "LIVE", keywords: ["tools/list", "tools/call", "MCP Inspector", "tool invocation"] },
   "Agent-to-Agent (A2A)": { status: "LIVE", keywords: ["agent card", "nested act", "specialist", "delegation"] },
+  "Jev: Decision Model": { status: "LIVE / CONFIG", keywords: ["System One", "guardrail", "intent routing", "confidence", "threshold", "Von", "bake-off"] },
   "Agent Gateway Authorization": { status: "LIVE", keywords: ["P1AZ", "delegated access", "MCP policy", "PERMIT", "DENY", "STEP-UP", "audit"] },
   "Human-in-the-loop": { status: "LIVE / CONFIG", keywords: ["HITL", "approval", "consent", "CIBA", "sensitive action"] },
   "Enterprise-Managed Auth (EMA)": { status: "LIVE / CONFIG" },
@@ -206,6 +207,11 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         label: "Agent-to-Agent (A2A)",
         description: "Nested-act delegation and the A2A wire protocol",
         icon: "🔗",
+      },
+      {
+        label: "Jev: Decision Model",
+        description: "A fast typed-answer model for guardrails and routing: score, confidence and thresholds",
+        icon: "🧠",
       },
       {
         label: "MCP Server Discovery",
@@ -489,6 +495,7 @@ export default function LearningHub() {
     "mcp-agents": {
       "MCP Protocol": () => openEdu(EDU.MCP_PROTOCOL, "what"),
       "Agent-to-Agent (A2A)": () => navigate("/a2a-protocol-learning"),
+      "Jev: Decision Model": () => navigate("/jev-learning"),
       "MCP Server Discovery": () => openEdu(EDU.MCP_PROTOCOL, "discovery"),
       "MCP: MFA Gate on Tools": () => openEdu(EDU.MCP_PROTOCOL, "mfa-gate"),
       "MCP Elicitation": () => openEdu(EDU.MCP_ELICITATION, "what"),
