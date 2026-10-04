@@ -691,19 +691,32 @@ print(f'Validation result: {validation}')
 
 ### Test Tokens
 
-#### Valid User Token
-```
-<TOKEN>
+Put these claims in a test token (header `{"alg":"RS256","typ":"JWT"}`, any signature). The unit tests build them at runtime with `demo_api_server/tests/helpers/fixtureJwt.js`.
+
+#### Valid User Token (claims)
+```json
+{
+  "sub": "user-12345",
+  "may_act": { "sub": "https://banking-agent.pingdemo.com/agent/test-agent" }
+}
 ```
 
-#### Valid Exchanged Token
-```
-<TOKEN>
+#### Valid Exchanged Token (claims)
+```json
+{
+  "sub": "user-12345",
+  "act": {
+    "sub": "https://mcp-server.pingdemo.com/mcp/test-mcp",
+    "act": { "sub": "https://agent-gateway.pingdemo.com/agent/agent-client" }
+  }
+}
 ```
 
-#### Invalid Token (Missing may_act)
-```
-<TOKEN>
+#### Invalid Token, Missing may_act (claims)
+```json
+{
+  "sub": "user-12345"
+}
 ```
 
 ### Test Scripts
@@ -716,7 +729,7 @@ curl -X POST https://banking-api.pingdemo.com/api/delegation/validate/user \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "token": "<TOKEN>",
+    "token": "<VALID_USER_TOKEN>",
     "strict": true
   }'
 
@@ -725,8 +738,8 @@ curl -X POST https://banking-api.pingdemo.com/api/delegation/validate/chain \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "userToken": "<USER_TOKEN>",
-    "exchangedToken": "<EXCHANGED_TOKEN>",
+    "userToken": "<VALID_USER_TOKEN>",
+    "exchangedToken": "<VALID_EXCHANGED_TOKEN>",
     "chainType": "single_exchange"
   }'
 
