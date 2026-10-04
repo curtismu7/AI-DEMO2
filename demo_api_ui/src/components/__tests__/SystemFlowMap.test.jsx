@@ -243,3 +243,35 @@ describe('map wiring', () => {
     expect(sidesFor('agent', 'llm')).toEqual(['bottom', 'top']);
   });
 });
+
+describe('Privilege A2A chain run', () => {
+  const chainStep = (id, lane, status) => ({ id, lane, status, title: id });
+
+  it('lights the agents and the Privilege AI Gateway, and marks the refusal at the gateway', () => {
+    const { nodeStates, edges, lit } = buildFlowModel([
+      chainStep('pa2a-0-call', 'MAIN-AGENT', 'done'),
+      chainStep('pa2a-0-gateway', 'GATEWAY', 'done'),
+      chainStep('pa2a-0-forward', 'LANGCHAIN-AGENT', 'done'),
+      chainStep('pa2a-1-call', 'LANGCHAIN-AGENT', 'done'),
+      chainStep('pa2a-1-gateway', 'GATEWAY', 'error'),
+    ]);
+
+    expect(nodeStates).toEqual({ 'pa-main': 'done', 'pa-gw': 'error', 'pa-middle': 'done' });
+    expect(edges.map((edge) => [edge.id, edge.state])).toEqual([
+      ['pa-main|pa-gw', 'done'],
+      ['pa-gw|pa-middle', 'done'],
+      ['pa-middle|pa-gw', 'error'],
+    ]);
+    expect(lit).toBe(5);
+    // The banking boxes stay unlit: the Gateway PEP is a different component.
+    expect(nodeStates.pep).toBeUndefined();
+  });
+
+  it('puts any specialist on the specialist box', () => {
+    const { nodeStates } = buildFlowModel([
+      chainStep('pa2a-1-gateway', 'GATEWAY', 'done'),
+      chainStep('pa2a-1-forward', 'REFUNDS-SPECIALIST', 'done'),
+    ]);
+    expect(nodeStates['pa-specialist']).toBe('done');
+  });
+});
