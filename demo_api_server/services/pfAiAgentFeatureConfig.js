@@ -180,6 +180,19 @@ function resolveCrossDomainConfig(store = configStore) {
   };
 }
 
+// CIBA: the PingFederate endpoints (validated once, by the CIMD resolver) plus its own client.
+function resolveCibaConfig(store = configStore) {
+  const missing = [];
+  let pf = null;
+  try { pf = resolveCimdConfig(store); } catch (error) { missing.push(...(error.details?.missing || ['PF_ISSUER'])); }
+  const clientId = value(store, 'pf_ai_ciba_client_id');
+  const clientSecret = value(store, 'pf_ai_ciba_client_secret');
+  if (!clientId) missing.push('PF_AI_CIBA_CLIENT_ID');
+  if (!clientSecret) missing.push('PF_AI_CIBA_CLIENT_SECRET');
+  if (missing.length) throw configError('PF_AI_CIBA_CONFIG_INVALID', 'CIBA', missing);
+  return { ...pf, clientId, clientSecret };
+}
+
 function enabled(store, key) {
   return value(store, key).toLowerCase() === 'true';
 }
@@ -199,6 +212,7 @@ function getFeatureStatus(store = configStore) {
     rar,
     // RAR can also bind its token to the BFF's key (DPoP) once a DPoP-requiring client is named.
     rarDpop: rar && Boolean(value(store, 'pf_ai_rar_dpop_client_id')),
+    ciba: enabled(store, 'pf_ai_ciba_enabled') && available(resolveCibaConfig, store),
   };
 }
 
@@ -207,5 +221,6 @@ module.exports = {
   CIMD_METADATA_PATH,
   resolveCimdConfig,
   resolveCrossDomainConfig,
+  resolveCibaConfig,
   getFeatureStatus,
 };

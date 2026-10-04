@@ -1,7 +1,10 @@
 # Privilege AI Gateway: load balancer and second gateway
 
 Status: both gateways in rotation as two nodes of ONE mesh cluster (`ai-demo-cmuir`); one
-app registration serves both, and each node serves every app on its own.
+app registration serves both, and each node serves every app on its own. Both share one
+Redis (section 00b), so registered clients survive a gateway restart and are known to both
+gateways. A switch still costs the demo's Privilege page a fresh registration and sign-in
+(tested): the registry is shared, the tokens are not.
 Last updated 2026-10-04. **Section 00 below is the current layout.** It supersedes section 0
 (two clusters, forwarding over the mesh), which in turn superseded the parts of sections 1,
 5.3, 6 and 9 that say the gateways cannot mesh or that apps must be registered twice.
@@ -21,7 +24,7 @@ every app. Neither forwards to the other, and neither depends on the other.
 | Who serves a call | The owning cluster; the other gateway forwards | The node the client is pinned to |
 | Gateway 1 down | Every app down (~55 s) | Tested 2026-10-04 with gateway 1 scaled to 0: the load balancer moved to gateway 2 within one 10 s sample and two signed-in sidecar apps worked from the UI |
 | Sidecars | Gateway 1 only | Both pods |
-| Failover costs a sign-in | Yes | Yes (unchanged) |
+| Failover costs a sign-in | Yes | Yes, still: tested with Redis on 2026-10-04, the demo page registered and signed in again on gateway 2 within seconds (section 00b). The registry is shared, the tokens are not |
 
 **How the node was added.** Console, Gateways, Add New, the **AI GW** form with a Docker
 command at the end (not the VM wizard, which produces a guest-agent env file the chart
@@ -51,7 +54,8 @@ On gateway 2, the old enrollment files in `/procyon/ssl` were moved into
 
 **Not verified.**
 
-- Sign-in surviving the switch: it did not. In the 2026-10-04 stop test gateway 2's log shows
+- Sign-in surviving the switch: it did not, BEFORE Redis (the stop test was run before the
+  gateways were put on Redis, see section 00b). In the 2026-10-04 stop test gateway 2's log shows
   two new client registrations, each followed by authorize, callback and token, at 10:15:39 to
   10:15:49 CDT (about 35 s after the stop, before the app calls began). That fits the demo
   Privilege page re-registering itself once per app; the log does not name the source, and
@@ -67,8 +71,10 @@ On gateway 2, the old enrollment files in `/procyon/ssl` were moved into
   the probe still read `gateway-2` about a minute after gateway 1 was Ready.
 - Whether `gatewayHostname`, `hostAliases` and `meshPort` are still needed now that nothing
   is forwarded. They were left in place.
-- The wizard's **Redis URL** field. A shared Redis is the likely way to keep sign-in state
-  across nodes; it was left blank.
+- Whether MCP clients other than the demo page (for example LM Studio) keep working across a
+  switch. Their registration is known to both gateways, but they hold tokens issued by one
+  gateway, so they probably sign in again, as the demo page did. Not tested. The second
+  key prefix `mcpgw:pl` is unexplained.
 
 **What was done on 2026-10-04, in order.**
 
@@ -92,14 +98,176 @@ On gateway 2, the old enrollment files in `/procyon/ssl` were moved into
 | --- | --- | --- |
 | ~~Signed-in call to a sidecar app through gateway 2~~ | Done 2026-10-04 | `brave0local` and `opensearch22` both worked from the demo UI with gateway 1 stopped |
 | ~~Prove apps stay up with gateway 1 stopped~~ | Done 2026-10-04 | Scaled `agentless-mcpgw` to 0 for about 90 s and back to 1; probe every 10 s: `x-served-by` moved to `gateway-2` within one sample, gateway 2 stayed 9/9 |
-| Sign-in surviving a failover | Open | Try the wizard's Redis URL with a Redis both nodes can reach; ask Ping |
-| Ask Ping | Open | Is a second node in one cluster the supported HA layout; does Redis share sign-in state; are `gatewayHostname`/`hostAliases`/`meshPort` still needed |
+| ~~Registrations surviving a failover~~ | Done 2026-10-04 | Shared Redis (section 00b); restart and cross-gateway tests pass |
+| ~~Signed-in session surviving a failover~~ | Tested 2026-10-04: it does not | Registrations are shared, tokens are not; the demo page registered and signed in again. Ask Ping whether user tokens can be shared too |
+| Ask Ping | Open | Is a second node in one cluster the supported HA layout; is `MCPGW_REDIS_URL` supported, and is the exit after 6 failed Redis attempts intended; are `gatewayHostname`/`hostAliases`/`meshPort` still needed |
 | Old cluster `ai-demo-cmuir2` and its node | Open | Still listed in the console; delete once this layout is accepted, which also ends the rollback path |
 | Secrets shown in a console screenshot (tenant API key and secret, OIDC client secret) | Owner's decision | They were pasted into a chat during setup; rotate if that history is not private |
 | `probe-agent-gateway` app | Open, unrelated | Its backend `hdr-echo.ping-devops-cmuir` does not exist; discovery fails on both nodes |
 
 **Roll back to section 0.** Park gateway 2, move the files in `backup-cmuir2` back into
 `/procyon/ssl`, restart gateway 2, and delete node `7f449849…` in the console.
+
+## 00b. Shared Redis (2026-10-04): what it does, why, how
+
+**What it is.** One small Redis, `privilege-redis` in `ping-devops-cmuir`, that both gateways
+use as their token store instead of their own memory. The gateway reads it from the
+environment variable `MCPGW_REDIS_URL`. Without that variable the gateway logs "no
+MCPGW_REDIS_URL configured; using the in-memory token store (single instance only,
+resource tokens are lost on restart)". The binary embeds a Redis client and a
+`redisTokenStore`; Ping's docs do not mention Redis, so this is not a documented feature.
+
+**What it does for us (each line was tested on 2026-10-04).**
+
+| Before Redis | With Redis |
+| --- | --- |
+| A gateway restart forgot every registered client; `/authorize` answered 400 "registration has expired" | Restart gateway 2, then ask it about a client registered before: 302 to PingOne, still known |
+| A client registered on gateway 1 was unknown to gateway 2 | Registered on either gateway, both gateways answer 302 (tested in both directions) |
+| Every switch (stop, restart, park, un-park) made the demo's Privilege page and every MCP client register again | The registry survives, so a client that keeps its registration is still known to the other gateway. The demo's Privilege page still registered and signed in again on a switch (tested 2026-10-04): its tokens are not shared |
+| A Redis restart: not applicable | With the append-only file on a volume, restart the Redis pod and a client registered before is still known |
+
+Agent-key callers (the A2A apps) never depended on registrations, and A2A's five scenarios
+passed 7.5 minutes after Redis came back empty.
+
+**Session survival, tested 2026-10-04: it does not survive.** The stop test was repeated with
+both gateways on Redis and the demo's Privilege page signed in (its traffic was pinned to
+gateway 1, which was scaled to 0 for about a minute). Both apps returned their tools. But
+gateway 2 recorded, within 2 to 22 seconds of the stop, two new client registrations, two
+authorizations, two callbacks, two token exchanges and eight MCP `initialize` calls: the same
+pattern as before Redis. So the registry is shared, but the page's access and refresh
+tokens, issued by gateway 1, were not honoured by gateway 2, and the page registered and
+signed in again. The whole sequence took about 20 s and each authorize-to-callback hop took
+one second (single sign-on), so a person may not see a prompt. The reason is our
+inference; the log does not say. Redis therefore holds a registered client, but apparently
+not the page's tokens. The "resource tokens" wording in the log line and the second key
+prefix `mcpgw:pl` are still unexplained.
+
+**Why we use it.**
+
+- A gateway restart no longer forgets registered clients, so an MCP client that keeps its
+  registration is still known afterwards, to either gateway. A switch still costs the demo's
+  Privilege page an automatic re-registration and sign-in of about 20 seconds (tested),
+  because tokens are not shared.
+- It is the only way we found to share state between the gateways; the product offers no
+  other setting, and the chart has no Redis value of its own (we added one).
+- It is cheap: one pod, 1Gi of disk.
+
+**What it costs: Redis is now a hard dependency.** Tested by scaling it to 0:
+
+| Situation | What happens |
+| --- | --- |
+| Redis goes down while the gateways run | Both stay 9/9 and keep serving. A new client registration still returns 201 and a client ID but is not kept, so the client's next `/authorize` says "registration has expired". Only the gateway log says why: `Redis PutClient: ... connection refused` (or `i/o timeout` from the other namespace). |
+| A gateway restarts while Redis is down | It retries 6 times (1, 2, 4, 8, 16 s apart), logging "Not falling back to memory: a configured Redis is required", then exits (`fatal ... unreachable after 6 attempts`). The pod reads Ready during the retries, then the container loops. **Any gateway restart during a Redis outage is a gateway outage.** |
+| Redis comes back | The gateways reconnect by themselves (gateway 2 on attempt 3 of 6); gateway 1 needed no restart. |
+
+**How it is wired.**
+
+- **Redis:** `privilege/redis-canary/redis.yaml` (the folder name is historical). One
+  Deployment, `Recreate`, a ClusterIP Service `privilege-redis`, a 1Gi claim
+  `privilege-redis-data`, append-only file with `everysec` fsync, `maxmemory 64mb` with
+  `allkeys-lru` (under memory pressure it can evict registrations), image pinned by digest,
+  password from the Secret `privilege-redis`. No TLS: in-cluster, password only.
+- **The URL:** a Secret `privilege-redis-url`, key `url`, in **both** namespaces:
+  `redis://:<password>@privilege-redis.ping-devops-cmuir.svc.cluster.local:6379/0`.
+- **The chart:** value `redis.urlSecret.name` (and `.key`, default `url`); when set, the gateway
+  container gets `MCPGW_REDIS_URL` from that Secret. It is also set in
+  `sidecars.values.yaml`, which both releases are upgraded with, so an upgrade that omits
+  `--reuse-values` cannot silently turn it off.
+- **The name:** `MCPGW_REDIS_URL`. A bare `REDIS_URL` is ignored (we shipped that mistake first).
+
+**How to set it up from scratch.** Do the Secrets and Redis first; the gateways need Redis
+reachable when they restart.
+
+```bash
+# 1. Redis password, then Redis itself
+kubectl --context us -n ping-devops-cmuir create secret generic privilege-redis \
+  --from-literal=password="$(openssl rand -base64 24 | tr -d '/+=')"
+kubectl --context us -n ping-devops-cmuir apply -f privilege/redis-canary/redis.yaml
+
+# 2. The URL Secret in BOTH namespaces (the password is never printed)
+URL="redis://:$(kubectl --context us -n ping-devops-cmuir get secret privilege-redis -o jsonpath='{.data.password}' | base64 -d)@privilege-redis.ping-devops-cmuir.svc.cluster.local:6379/0"
+kubectl --context us -n ping-devops-cmuir    create secret generic privilege-redis-url --from-literal=url="$URL"
+kubectl --context us -n ping-devops-curtismuir create secret generic privilege-redis-url --from-literal=url="$URL"
+
+# 3. Each release, one at a time (dry-run first; check ownParked; gateway 2 first)
+helm --kube-context us upgrade agentless-mcpgw2 pingone-privgateway-helm-main/agentless/agentless-mcpgw \
+  -n ping-devops-cmuir --reuse-values --set redis.urlSecret.name=privilege-redis-url
+helm --kube-context us upgrade agentless-mcpgw  pingone-privgateway-helm-main/agentless/agentless-mcpgw \
+  -n ping-devops-curtismuir --reuse-values --set redis.urlSecret.name=privilege-redis-url
+```
+
+Each upgrade restarts that gateway once. Tell anyone using the gateway first, as the
+restart drops registrations made before Redis was on.
+
+**How to check it works.** Three checks, none needs a sign-in:
+
+1. The gateway log says `Redis token store connected on attempt 1/6` (with the password
+   masked): `kubectl exec deploy/agentless-mcpgw -c agentless-mcpgw -- sh -c 'grep -i redis /var/log/procyon/cyonproxy.log | tail'`.
+2. The cross-gateway test, from a pod inside the cluster: POST `/langchainagent/register`
+   (a public client, `token_endpoint_auth_method: none`) on one gateway, then GET
+   `/langchainagent/authorize?...` for that client on each gateway directly (gateway 1:
+   `https://agentless-mcpgw.ping-devops-curtismuir:8623`, gateway 2:
+   `http://agentless-mcpgw.ping-devops-cmuir:8623`). Expect 302 to PingOne from both;
+   400 "registration has expired" means the gateways are not sharing state.
+3. Redis has keys: an authenticated `DBSIZE` shows more than 0 after a registration, with
+   key names starting `mcpgw:cl` (clients).
+
+**Rules for running it.**
+
+1. **Never restart a gateway while Redis is down.** Bring Redis back first.
+2. Restarting Redis is safe with the volume (tested); a Redis outage still drops
+   registrations made during it.
+3. Upgrade the gateways with `-f sidecars.values.yaml` as before; it carries the Redis setting.
+4. To turn it off: upgrade each release with `--set redis.urlSecret.name=` (empty). The
+   gateways go back to in-memory state, and `kubectl delete -f privilege/redis-canary/redis.yaml`
+   removes Redis (the claim stays until deleted). Not tested end to end.
+5. Rotating the Redis password has not been tried. The order should be: change
+   `privilege-redis`, rebuild `privilege-redis-url` in both namespaces, restart Redis, then
+   restart each gateway.
+
+**Limits.** One pod: it is a single point of failure for both gateways' startup, and no
+amount of persistence changes that. Not a documented Ping feature, so ask Ping whether
+`MCPGW_REDIS_URL` is supported and whether the exit after 6 failed attempts is intended.
+
+## 00c. Adding a third node in gateway 1's namespace (prepared, not installed)
+
+Status: chart and values are ready and rendered; no release exists yet, and the load balancer
+lists gateway 3 as `parked: true` (not yet applied to the cluster).
+
+The chart named every resource `agentless-mcpgw`, so a second release in
+`ping-devops-curtismuir` would have collided with gateway 1 on the Deployment, Service,
+Secrets, PVC and Certificate, and its Ingresses would have claimed gateway 1's host and
+paths. Two local additions fix that, both unchanged when unset: `nameOverride` renames every
+resource, label and hostPath; `ingress.enabled: false` skips both Ingresses.
+
+**Checked by render (`helm template`, nothing applied):** gateway 1's render with the live
+values is byte-identical before and after the chart change, with and without the new keys
+present. Gateway 3's render has six resources (Deployment, Service, Certificate, PVC, two
+Secrets), none sharing a kind and name with gateway 1's, 9 containers (the 7 sidecars,
+the gateway and its log tailer), and no reference to the unsuffixed names. With gateway 3's
+peer parked the load balancer renders it as `down`.
+
+**To install it** (the commands are in `pingone-privgateway-helm-main/agentless/gateway3.values.yaml`):
+
+1. Console, Gateways, Add New, the **AI GW** form, Docker command at the end, Cluster ID
+   `ai-demo-cmuir`. The token is single-use and expires in about 2 hours; do the install straight away.
+2. `helm install agentless-mcpgw3 ...` with gateway 1's values, `sidecars.values.yaml`,
+   `gateway3.values.yaml` and `--set-file proxyToken=<token file>`; delete the values copy after.
+3. Check the node joins: `ClusterID:ai-demo-cmuir`, `LinkStatus:Active`, pod 9/9, and a
+   sidecar app answers from inside it.
+4. Set `parked: false` for `gateway-3` in `gateway1-lb.values.yaml`,
+   `scripts/se-gateways.sh upgrade --apply`.
+
+**Not verified:** that the Certificate for `mcpgw3.ai-demo.ping-devops.com` issues (it
+needs DNS and the wildcard challenge to work for that name; gateway 2's `mcpgw2` name did);
+that a third node is accepted into the cluster; whether `meshPort` and `gatewayHostname` are
+needed (copied from gateway 2, itself untested). A third pod in the same namespace adds pod
+redundancy, not namespace redundancy.
+
+**Redis (section 00b):** gateway 3 uses the shared Redis too. `sidecars.values.yaml` carries
+`redis.urlSecret.name`, and the Secret `privilege-redis-url` already exists in
+`ping-devops-curtismuir`, so no extra step; but a node that cannot reach Redis exits after six
+attempts, so confirm the log line `Redis token store connected` before un-parking it.
 
 ## 0. Update: the mesh links, and one registration is enough
 
@@ -590,8 +758,10 @@ Self-test of the sign-in path without a browser: register a throwaway client at
 
 - A `helm upgrade` of the live gateway release **without `--reuse-values`** resets
   `frontService` and sends traffic straight to gateway 1, bypassing the load balancer.
-- Restarting a gateway forgets every registered client; clients show "registration has
-  expired" until the saved credentials are cleared and the client reconnects.
+- Without Redis, restarting a gateway forgets every registered client; clients show
+  "registration has expired" until the saved credentials are cleared and the client
+  reconnects. With the shared Redis (section 00b) that only happens if Redis lost its data
+  or was down. **Never restart a gateway while Redis is down:** it exits after 6 attempts.
 - Gateway enrollment tokens are single use and live about two hours.
 - `helm upgrade --reuse-values` replaces the whole `extraContainers` list; carry every
   sidecar forward and repackage the chart tgz after any template edit

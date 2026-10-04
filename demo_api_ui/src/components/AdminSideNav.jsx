@@ -1153,6 +1153,13 @@ export default function AdminSideNav({
           searchAlias: "standalone demo launcher live cloud PingOne presenter",
         },
         { label: "Learning Hub", path: "/learning", icon: "doc" },
+        {
+          label: "Learning Hub (Web Mirror)",
+          icon: "doc",
+          searchAlias: "learning hub static web mirror html standalone share offline",
+          // Static pages served from public/learning-mirror/, outside the React router.
+          action: () => window.open("/learning-mirror/", "_blank", "noopener,noreferrer"),
+        },
         { label: "SPIFFE → PingOne Bridge (TODO)", path: "/spiffe-pingone-bridge", icon: "syn", badge: "TODO" },
         { label: "Agentic Trust", path: "/agentic-trust", icon: "shld" },
         { label: "Agent Guardrails", path: "/agent-guardrails", icon: "pol" },

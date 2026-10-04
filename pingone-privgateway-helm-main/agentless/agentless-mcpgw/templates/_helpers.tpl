@@ -1,5 +1,15 @@
+{{- /* nameOverride lets a second release live in the SAME namespace as the first: every
+       resource, label and hostPath below is built from this name. Absent or empty
+       (including under --reuse-values) it is the historical "agentless-mcpgw". */ -}}
 {{- define "agentless-mcpgw.name" -}}
-agentless-mcpgw
+{{ .Values.nameOverride | default "agentless-mcpgw" }}
+{{- end }}
+
+{{- /* False only when ingress.enabled is explicitly false. `default true` cannot be
+       used: it would turn an explicit false back into true. */ -}}
+{{- define "agentless-mcpgw.ingressEnabled" -}}
+{{- $ing := .Values.ingress | default dict -}}
+{{- if or (not (hasKey $ing "enabled")) $ing.enabled }}true{{ end -}}
 {{- end }}
 
 {{- /* `| default dict` throughout: a release upgraded with --reuse-values may not

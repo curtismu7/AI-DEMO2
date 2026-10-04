@@ -12,6 +12,7 @@ const { metadataDocument, beginCimd, completeCimd } = require('../services/pfAiA
 const { exchangeForThirdPartyAccessToken } = require('../services/pfAiAgentCrossDomainExchangeService');
 const { redeemIdJag } = require('../services/pfAiAgentMockThirdPartyService');
 const { beginRar, completeRar, userLimits } = require('../services/pfAiAgentRarService');
+const { startCiba, pollCiba } = require('../services/pfAiAgentCibaService');
 
 function sessionProvider(req) {
   return String(req.session?.oauthProvider || req.session?.user?.oauthProvider || '').toLowerCase();
@@ -128,6 +129,28 @@ function createPfAiAgentRouter({ configStore: store = configStore, fetchImpl = f
     res.set('Pragma', 'no-cache');
     if (result.challenge) res.set('WWW-Authenticate', 'Basic realm="mock-third-party"');
     return res.status(result.status).json(result.body);
+  });
+
+  // CIBA: ask a named user to approve on their PingOne MFA device, then poll. Responses carry the
+  // state and safe metadata only, never the auth_req_id, a token or the client secret.
+  router.post('/ciba/start', requireApplicationSession, async (req, res) => {
+    try {
+      res.set('Cache-Control', 'no-store');
+      return res.json(await startCiba(req, {
+        loginHint: req.body?.loginHint, bindingMessage: req.body?.bindingMessage, store, fetchImpl,
+      }));
+    } catch (error) {
+      return res.status(error.httpStatus || 502).json({ error: errorCode(error, 'pf_ai_ciba_failed') });
+    }
+  });
+
+  router.get('/ciba/status', requireApplicationSession, async (req, res) => {
+    try {
+      res.set('Cache-Control', 'no-store');
+      return res.json(await pollCiba(req, { store, fetchImpl }));
+    } catch (error) {
+      return res.status(error.httpStatus || 502).json({ error: errorCode(error, 'pf_ai_ciba_failed') });
+    }
   });
 
   router.post('/rar/start', requireApplicationSession, async (req, res) => {

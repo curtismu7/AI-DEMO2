@@ -1,0 +1,51 @@
+# Gateway 3 overlay (no secrets): a third node of mesh cluster ai-demo-cmuir, in the SAME
+# namespace as gateway 1 (ping-devops-curtismuir). Release name: agentless-mcpgw3.
+#
+# Layered over gateway 1's own values so the OIDC client, image, pull secret and Redis
+# reference are shared; this file then overrides everything that must differ. Install:
+#
+#   helm get values agentless-mcpgw -n ping-devops-curtismuir -o yaml > /tmp/gw1.values.yaml
+#   helm install agentless-mcpgw3 pingone-privgateway-helm-main/agentless/agentless-mcpgw/ \
+#     -n ping-devops-curtismuir \
+#     -f /tmp/gw1.values.yaml \
+#     -f pingone-privgateway-helm-main/agentless/sidecars.values.yaml \
+#     -f pingone-privgateway-helm-main/agentless/gateway3.values.yaml \
+#     --set-file proxyToken=<file holding the NEW node's token>
+#   rm /tmp/gw1.values.yaml        # it holds gateway 1's secrets
+#
+# The token comes from the console (Gateways, Add New, the AI GW form with a Docker command,
+# Cluster ID ai-demo-cmuir). It is single-use and about 2 hours old at most. Gateway 1's own
+# proxyToken in the copied values is overridden by --set-file, never reused.
+#
+# Upgrades afterwards: scripts/se-gateways.sh upgrade. See privilege/GATEWAY-LOAD-BALANCER.md.
+
+# Every resource, label and hostPath of this release takes this name.
+nameOverride: agentless-mcpgw3
+
+# Gateway 1's Ingresses already claim the public host and paths; the load balancer
+# reaches this node by its Service, so it needs none.
+ingress:
+  enabled: false
+landingPage:
+  enabled: false
+
+# Gateway 1's release owns the load balancer, OpenSearch and the OpenSearch MCP server.
+loadBalancer:
+  enabled: false
+opensearch:
+  enabled: false
+opensearchMcpServer:
+  enabled: false
+frontService: ""
+
+# Its own certificate name, as gateway 2 does. Like gateway 2, SERVER_URL stays the public
+# URL, which this certificate does not match, so the node serves plain HTTP and the load
+# balancer peer entry in gateway1-lb.values.yaml says `scheme: http`.
+hostname: mcpgw3.ai-demo.ping-devops.com
+oidc:
+  serverUrl: https://mcpgw.ai-demo.ping-devops.com
+
+# Advertised to its peers: its in-cluster Service name. Copied from gateway 2's pattern;
+# whether the mesh settings are still needed is untested (GATEWAY-LOAD-BALANCER.md 00).
+meshPort: 8690
+gatewayHostname: agentless-mcpgw3.ping-devops-curtismuir.svc.cluster.local

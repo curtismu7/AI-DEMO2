@@ -52,6 +52,10 @@ async function discoverPf(config, fetchImpl = fetch) {
     parEndpoint: document.pushed_authorization_request_endpoint
       ? endpoint(document.pushed_authorization_request_endpoint, issuerUrl.origin, 'PAR endpoint')
       : '',
+    // CIBA (OpenID Connect CIBA discovery); empty when PingFederate does not advertise it.
+    backchannelEndpoint: document.backchannel_authentication_endpoint
+      ? endpoint(document.backchannel_authentication_endpoint, issuerUrl.origin, 'backchannel authentication endpoint')
+      : '',
   };
   for (const [field, configured, actual] of [
     ['authorization endpoint', config.authorizationEndpoint, discovery.authorizationEndpoint],
