@@ -231,3 +231,6 @@ export const PAGE_GUIDES = {
   },
   ...MORE_PAGE_GUIDES,
 };
+
+/** Guide for a route, tolerating a trailing slash. */
+export const getPageGuide = (pathname) => PAGE_GUIDES[pathname.replace(/(.)\/$/, "$1")];

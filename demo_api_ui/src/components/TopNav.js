@@ -1,3 +1,4 @@
+import PageGuideButton from './PageGuideButton';
 import { useEffect, useState } from "react";
 import {
   MdAccountBalance, MdLogin, MdLogout, MdSearch, MdSwapHoriz,
@@ -217,6 +218,8 @@ export default function TopNav({ user, onLogout }) {
         >
           {fromUseCases ? '← Use Cases' : 'Use Cases'}
         </button>
+
+        <PageGuideButton />
 
         <span className="topnav-spacer" aria-hidden="true" />
 
