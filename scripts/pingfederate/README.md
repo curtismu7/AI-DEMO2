@@ -244,3 +244,37 @@ curl -sk https://local.ping-devops.com:9031/.well-known/openid-configuration \
 The BFF's switches (`PF_AI_CIMD_ENABLED`, `PF_AI_RAR_ENABLED`,
 `PF_AI_RAR_CLIENT_ID`, `PF_PAR_ENDPOINT`) are set for the local stack in
 `docker-compose.yml`.
+
+## Cross-domain exchange: PingFederate issues an ID-JAG, a third party redeems it
+
+The AI agent page's third path sends the signed-in user's PF access token to
+PingFederate's token endpoint (RFC 8693) for an ID-JAG, then redeems that ID-JAG at a
+third-party token endpoint with the JWT-bearer grant. The BFF does both hops
+server-side. The page requires the audience, the resource and the third-party token
+endpoint to be `https`.
+
+```bash
+node scripts/pingfederate/provision-cross-domain-exchange.js            # dry run
+node scripts/pingfederate/provision-cross-domain-exchange.js --apply
+```
+
+Idempotent; each step reads first and reads its change back. It creates the two client
+secrets in the vault (`PF_AI_CROSS_DOMAIN_CLIENT_SECRET`, `PF_AI_THIRD_PARTY_CLIENT_SECRET`;
+created once, never replaced), the `tp:read` scope, a token exchange processor policy that
+takes a PF access token as the subject **with no actor** (the existing
+`aiDemoStandardTePolicy` and `aiDemoPfStep9TePolicy` both require one, and this exchange
+sends only a subject), an ID-JAG SP connection whose entity ID is the audience, and the
+client `ai-demo-pf-xdomain`. The subject token is validated by the existing
+`aiDemoPfAccessSubjectProcessor`, so the user must be signed in through PingFederate; a
+PingOne session token is not accepted by this policy.
+
+The third party on the local stack is the BFF's own opt-in stand-in,
+`POST /api/pf-ai-agent/mock-third-party/token` (`PF_AI_THIRD_PARTY_MOCK_ENABLED=true`, 404
+otherwise). It authenticates the client, requires the JWT-bearer grant, the configured scope
+and resource, and verifies the ID-JAG (PingFederate's signature, issuer, audience, expiry and
+`typ=oauth-id-jag+jwt`). It issues an opaque token. To redeem at a real third-party
+authorization server instead, leave the mock off and set `PF_AI_THIRD_PARTY_TOKEN_ENDPOINT`
+and the matching client, resource and scope.
+
+The values live in `docker-compose.yml` (`PF_AI_CROSS_DOMAIN_*`, `PF_AI_THIRD_PARTY_*`); keep
+the constants at the top of the script in step with them.

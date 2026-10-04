@@ -365,6 +365,24 @@ services:
       PF_AI_RAR_ENABLED: "${PF_AI_RAR_ENABLED:-true}"
       PF_AI_RAR_CLIENT_ID: "${PF_AI_RAR_CLIENT_ID:-ai-demo-pf-rar}"
       PF_PAR_ENDPOINT: "${PF_PAR_ENDPOINT:-https://local.ping-devops.com:9031/as/par.oauth2}"
+      # Cross-domain path: PingFederate issues an ID-JAG, which the BFF redeems at a third-party
+      # token endpoint. The third party here is the BFF's own opt-in mock (it must be https; the
+      # BFF certificate covers demo-api-server). Prepared by
+      # scripts/pingfederate/provision-cross-domain-exchange.js, which also creates the two client
+      # secrets in the vault (PF_AI_CROSS_DOMAIN_CLIENT_SECRET, PF_AI_THIRD_PARTY_CLIENT_SECRET);
+      # until then this path stays "Not configured". Keep these in step with that script.
+      PF_AI_CROSS_DOMAIN_ENABLED: "${PF_AI_CROSS_DOMAIN_ENABLED:-true}"
+      PF_AI_CROSS_DOMAIN_CLIENT_ID: "${PF_AI_CROSS_DOMAIN_CLIENT_ID:-ai-demo-pf-xdomain}"
+      PF_AI_CROSS_DOMAIN_TOKEN_ENDPOINT_AUTH_METHOD: "${PF_AI_CROSS_DOMAIN_TOKEN_ENDPOINT_AUTH_METHOD:-basic}"
+      PF_AI_CROSS_DOMAIN_AUDIENCE: "${PF_AI_CROSS_DOMAIN_AUDIENCE:-https://third-party.ping.demo}"
+      PF_AI_CROSS_DOMAIN_RESOURCE: "${PF_AI_CROSS_DOMAIN_RESOURCE:-https://third-party.ping.demo/api}"
+      PF_AI_CROSS_DOMAIN_SCOPE: "${PF_AI_CROSS_DOMAIN_SCOPE:-tp:read}"
+      PF_AI_THIRD_PARTY_MOCK_ENABLED: "${PF_AI_THIRD_PARTY_MOCK_ENABLED:-true}"
+      PF_AI_THIRD_PARTY_TOKEN_ENDPOINT: "${PF_AI_THIRD_PARTY_TOKEN_ENDPOINT:-https://demo-api-server:3001/api/pf-ai-agent/mock-third-party/token}"
+      PF_AI_THIRD_PARTY_CLIENT_ID: "${PF_AI_THIRD_PARTY_CLIENT_ID:-ai-demo-third-party-client}"
+      PF_AI_THIRD_PARTY_TOKEN_ENDPOINT_AUTH_METHOD: "${PF_AI_THIRD_PARTY_TOKEN_ENDPOINT_AUTH_METHOD:-basic}"
+      PF_AI_THIRD_PARTY_RESOURCE: "${PF_AI_THIRD_PARTY_RESOURCE:-https://third-party.ping.demo/api}"
+      PF_AI_THIRD_PARTY_SCOPE: "${PF_AI_THIRD_PARTY_SCOPE:-tp:read}"
       # Plain-HTTP façade listener — see the 127.0.0.1:3002 port mapping above.
       MCP_FACADE_HTTP_PORT: "3002"
       # Enables the loopback callback listener — see the 127.0.0.1:7475 mapping
