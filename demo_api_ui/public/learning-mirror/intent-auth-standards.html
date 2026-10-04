@@ -45,7 +45,7 @@
 }
 </pre><h3>2. W3C Verifiable Credentials for Mandates</h3><p><strong>Current state:</strong> Configurable rules in configStore (comma-separated strings).</p><p><strong>Enhancement:</strong> Encode user spending mandates as W3C Verifiable Credentials. Each mandate is a signed JSON-LD document specifying:</p><ul><li>User identity (holder)</li><li>Agent identity (authorized actor)</li><li>Scope (e.g., transfer up to $5,000/month to trusted merchants only)</li><li>Expiration (e.g., valid until 2026-12-31)</li><li>Signature (issuer's cryptographic proof)</li></ul><p><strong>Benefit:</strong> Mandates are portable, portable across institutions, and verifiable offline. Matches AP2 and Mastercard Verifiable Intent patterns.</p><h3>3. Know Your Agent (KYA) Identity Binding</h3><p><strong>Current state:</strong> No agent identity tracking. Decisions don't record which agent acted.</p><p><strong>Enhancement:</strong> Register each agent instance with a verifiable identity (DID, signed certificate, or cryptographic key binding). Every intent auth decision logs the agent's identity. Enables agent-level revocation and audit trails.</p><pre class="edu-code">// Intent auth decision (enhanced)
 {
-  agent_id: "did:key:z6MkhaXgBZDvotDkL5257faWLpa6CBu1...",
+  agent_id: "did:key:z6Mkha...",
   agent_name: "LangChain-Agent-v1.2",
   user_id: "user-123",
   intent: "transfer",
