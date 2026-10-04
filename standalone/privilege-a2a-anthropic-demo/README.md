@@ -153,6 +153,16 @@ The integrated demo defaults to port `3300` for MainAgent so it does not occupy
 the AI-DEMO2 BFF's port `3001`. Keep the BFF-to-main URL and bind host paired as
 described above when switching between native and Docker BFF operation.
 
+**Google instead of Anthropic.** Each agent picks its provider with
+`MAIN_AGENT_PROVIDER` and `WORKER_AGENT_PROVIDER` (`anthropic` by default, or
+`google`), so the two agents can sit on different providers and different
+model tiers. A Google agent calls Gemini's `generateContent` API: set
+`GEMINI_BASE_URL` to `https://<gateway>/llm/google` and the agent's Privilege
+key is sent as `x-goog-api-key`; leave it blank to call Google directly with
+`GEMINI_API_KEY`. A Privilege agent key is tied to one provider, so an agent
+set to `google` needs a key created with the Google provider. The Google path
+returns each reply whole rather than token by token.
+
 Set `ANTHROPIC_BASE_URL` to `https://<gateway>/llm/anthropic`. The Anthropic SDK
 appends `/v1/messages`, so calls use Privilege's native
 `/llm/anthropic/v1/messages` route and its Anthropic `anthropic-version` header.
