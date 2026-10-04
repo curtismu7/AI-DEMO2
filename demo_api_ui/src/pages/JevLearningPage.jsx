@@ -184,7 +184,7 @@ function ThresholdLesson({ probability, setProbability }) {
         ))}
       </ul>
       <p className="jev-meta">
-        Two failure modes to discuss: a confident wrong score (0.02 on a real attack) sails through
+        Two failure modes to discuss: a confident wrong score (a real attack scored low) sails through
         every threshold, and a score near a line flips with tiny changes. Keep a deterministic
         floor - amount caps, consent, scope checks - that no model score can lower.
       </p>
@@ -219,16 +219,18 @@ function Bakeoff() {
     if (!rows) return null;
     const rulesRight = rows.filter((r) => r.rules === r.bad).length;
     const jevRight = rows.filter((r) => (r.jev >= 0.5) === r.bad).length;
-    return { rulesRight, jevRight, total: rows.length, mode: rows[0].mode, model: rows[0].model };
+    const noMiddle = !rows.some((r) => r.jev > 0.35 && r.jev < 0.65);
+    return { rulesRight, jevRight, total: rows.length, mode: rows[0].mode, model: rows[0].model, noMiddle };
   }, [rows]);
 
   return (
     <section className="jev-card" aria-labelledby="jev-bake">
       <h2 id="jev-bake" className="jev-h2">Guardrail bake-off</h2>
       <p className="jev-lead">
-        Eight hand-labelled messages, four hostile and four harmless but containing trigger words. The
-        score covers only these eight - it is a teaching exercise, not a benchmark of Jev, and it is
-        separate from the gateway guardrail measurements.
+        Eight hand-labelled messages: four hostile, four harmless (some deliberately contain words that
+        look suspicious). The score covers only these eight - it is a teaching exercise, not a benchmark
+        of Jev, and it is separate from the gateway guardrail measurements. Both columns block at the
+        same cutoff: a score of 0.50 or higher.
       </p>
       <button className="btn btn-primary" disabled={busy} onClick={run}>{busy ? 'Running...' : 'Run bake-off'}</button>
       {error && <p className="jev-error" role="alert">{error}</p>}
@@ -236,7 +238,7 @@ function Bakeoff() {
         <>
           <table className="jev-table">
             <thead>
-              <tr><th>Message</th><th>Truth</th><th>Rules</th><th>Jev P(yes)</th></tr>
+              <tr><th>Message</th><th>Truth</th><th>Rules</th><th>Jev (score)</th></tr>
             </thead>
             <tbody>
               {rows.map((r) => (
@@ -244,7 +246,7 @@ function Bakeoff() {
                   <td>{r.text}</td>
                   <td>{r.bad ? 'hostile' : 'harmless'}</td>
                   <td className={r.rules === r.bad ? 'jev-right' : 'jev-wrong'}>{r.rules ? 'block' : 'allow'}</td>
-                  <td className={(r.jev >= 0.5) === r.bad ? 'jev-right' : 'jev-wrong'}>{r.jev.toFixed(2)}</td>
+                  <td className={(r.jev >= 0.5) === r.bad ? 'jev-right' : 'jev-wrong'}>{r.jev >= 0.5 ? 'block' : 'allow'} ({r.jev.toFixed(2)})</td>
                 </tr>
               ))}
             </tbody>
@@ -252,6 +254,12 @@ function Bakeoff() {
           <p className="jev-big">
             Rules {score.rulesRight}/{score.total} - Jev {score.jevRight}/{score.total} <ModeBadge mode={score.mode} model={score.model} />
           </p>
+          {score.mode === 'live' && score.noMiddle && (
+            <p className="jev-meta">
+              No message scored between 0.35 and 0.65: this model separated the eight cleanly, so the
+              "unsure" middle never shows up here. Use the sliders above to see what a score near a line does.
+            </p>
+          )}
         </>
       )}
     </section>
