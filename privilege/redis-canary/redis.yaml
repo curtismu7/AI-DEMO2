@@ -1,0 +1,90 @@
+# Throwaway Redis for the Privilege gateway "shared sign-in state" experiment.
+# Not part of any deploy list: apply by hand, and delete when the experiment ends.
+#   kubectl --context us -n ping-devops-cmuir apply -f privilege/redis-canary/redis.yaml
+# Plan and rollback: the Redis experiment paragraph in the load balancer status doc, and
+# privilege/GATEWAY-LOAD-BALANCER.md section 00.
+#
+# The gateway reaches it by full Service name from either namespace:
+#   privilege-redis.ping-devops-cmuir.svc.cluster.local:6379
+# The password lives in the Secret privilege-redis (key: password); create it first, and never
+# paste it into a chat or a commit:
+#   kubectl --context us -n ping-devops-cmuir create secret generic privilege-redis \
+#     --from-literal=password="$(openssl rand -base64 24 | tr -d '/+=')"
+#
+# No persistence on purpose: this is a cache of sign-in state. A restart of Redis forgets
+# everything, the same as a gateway restart does today.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: privilege-redis
+  labels:
+    app: privilege-redis
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: privilege-redis
+  template:
+    metadata:
+      labels:
+        app: privilege-redis
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+      containers:
+        - name: redis
+          # Digest-pinned (repo rule for third-party images); the index covers linux/arm64,
+          # which is what the SE cluster nodes are.
+          image: redis@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
+          command: ["sh", "-c"]
+          args:
+            - exec redis-server --save "" --appendonly no --maxmemory 64mb --maxmemory-policy allkeys-lru --requirepass "$REDIS_PASSWORD"
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: privilege-redis
+                  key: password
+          ports:
+            - containerPort: 6379
+              name: redis
+          readinessProbe:
+            tcpSocket: {port: 6379}
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket: {port: 6379}
+            periodSeconds: 30
+          resources:
+            requests: {cpu: 20m, memory: 32Mi}
+            limits: {cpu: 200m, memory: 96Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: privilege-redis
+  labels:
+    app: privilege-redis
+spec:
+  type: ClusterIP
+  selector:
+    app: privilege-redis
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
