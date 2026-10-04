@@ -86,9 +86,19 @@
   cursor: pointer; font-size: var(--font-size-base);
   transition: background-color 0.12s, border-color 0.12s, box-shadow 0.12s;
 }
-.jev-page .jev-chip { border-style: dashed; }
-.jev-page .jev-chip::before { content: "+ "; color: var(--th-text-muted); }
-.jev-page .jev-tab:hover, .jev-page .jev-chip:hover { border-color: var(--th-text); box-shadow: 0 1px 4px var(--th-border-strong); }
+/* Same blue-outline button look as the Demo steps header links, so these read as clickable. */
+.jev-page .jev-chip, .jev-page .jev-tab:not(.jev-tab--on) {
+  border: 1px solid var(--th-status-info); color: var(--th-status-info-text); background: var(--th-bg-card);
+}
+.jev-page .jev-chip { font-weight: 500; box-shadow: 0 1px 2px var(--th-border-strong); }
+.jev-page .jev-chip::before {
+  content: "Use"; margin-right: 10px; padding: 2px 8px; border-radius: 999px;
+  font-size: var(--font-size-xs); font-weight: 700; color: var(--th-bg-card); background: var(--th-status-info-text);
+}
+.jev-page .jev-chip:hover, .jev-page .jev-tab:not(.jev-tab--on):hover {
+  background: var(--th-bg-hover); border-color: var(--th-status-info-text); box-shadow: 0 3px 8px var(--th-border-strong);
+}
+.jev-page .jev-chip:hover { transform: translateY(-1px); }
 .jev-page .jev-tab:focus-visible, .jev-page .jev-chip:focus-visible, .jev-page .jev-input:focus-visible { outline: 2px solid var(--th-text); outline-offset: 2px; }
 .jev-page .jev-tab--on { border-width: 2px; padding: 7px 13px; background: var(--th-bg-card); }
 .jev-page .jev-input:focus { border-color: var(--th-text); }
