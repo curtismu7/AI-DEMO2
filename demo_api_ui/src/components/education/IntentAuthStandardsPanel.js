@@ -606,7 +606,7 @@ export default function IntentAuthStandardsPanel({ isOpen, onClose, initialTabId
           </p>
           <pre className="edu-code">{`// Intent auth decision (enhanced)
 {
-  agent_id: "did:key:z6MkhaXgBZDvotDkL5257faWLpa6CBu1...",
+  agent_id: "did:key:z6Mkha...",
   agent_name: "LangChain-Agent-v1.2",
   user_id: "user-123",
   intent: "transfer",

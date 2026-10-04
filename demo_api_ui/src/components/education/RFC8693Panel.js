@@ -111,7 +111,7 @@ export default function RFC8693Panel({ isOpen, onClose, initialTabId }) {
 Content-Type: application/json
 
 {
-  "access_token": "eyJhbGciOiJSUzI1NiIs...",
+  "access_token": "<ACCESS_TOKEN>",
   "token_type": "Bearer",
   "expires_in": 3600,
   "scope": "accounts:read transactions:read",
@@ -350,7 +350,7 @@ POST /as/token HTTP/1.1
 Content-Type: application/x-www-form-urlencoded
 
 grant_type=urn:ietf:params:oauth:grant-type:token-exchange
-&subject_token=eyJhbGciOiJSUzI1NiIs...
+&subject_token=<ACCESS_TOKEN>
 &subject_token_type=urn:ietf:params:oauth:token-type:access_token
 &audience=https://mcp-server.example.com
 &scope=accounts:read
@@ -358,7 +358,7 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 
 // Response (no act claim - user acts directly)
 {
-  "access_token": "eyJhbGciOiJSUzI1NiIs...",
+  "access_token": "<ACCESS_TOKEN>",
   "token_type": "Bearer",
   "expires_in": 3600,
   "scope": "accounts:read"
@@ -373,9 +373,9 @@ POST /as/token HTTP/1.1
 Content-Type: application/x-www-form-urlencoded
 
 grant_type=urn:ietf:params:oauth:grant-type:token-exchange
-&subject_token=eyJhbGciOiJSUzI1NiIs...
+&subject_token=<ACCESS_TOKEN>
 &subject_token_type=urn:ietf:params:oauth:token-type:access_token
-&actor_token=eyJhbGciOiJSUzI1NiIs...
+&actor_token=<ACCESS_TOKEN>
 &actor_token_type=urn:ietf:params:oauth:token-type:access_token
 &audience=https://mcp-server.example.com
 &scope=accounts:read
@@ -383,7 +383,7 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 
 // Response (with act claim - agent acts on behalf of user)
 {
-  "access_token": "eyJhbGciOiJSUzI1NiIs...",
+  "access_token": "<ACCESS_TOKEN>",
   "token_type": "Bearer", 
   "expires_in": 3600,
   "scope": "accounts:read"
