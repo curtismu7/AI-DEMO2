@@ -84,6 +84,8 @@ PF_AI_THIRD_PARTY_SCOPE=<space-separated-downstream-scopes>
 PF_AI_RAR_ENABLED=true
 PF_AI_RAR_CLIENT_ID=ai-demo-pf-rar
 PF_AI_RAR_DPOP_CLIENT_ID=ai-demo-pf-rar-dpop
+PF_AI_CIBA_ENABLED=true
+PF_AI_CIBA_CLIENT_ID=ai-demo-pf-ciba
 ```
 
 Store `PF_AI_CROSS_DOMAIN_CLIENT_SECRET` and
@@ -105,6 +107,14 @@ belongs in the secret store: `scripts/pingfederate/provision-ai-agent-features.j
 the processor's config. The public CIMD metadata document and callback are
 served at `/api/pf-ai-agent/cimd/client-metadata.json` and
 `/api/pf-ai-agent/cimd/callback` on `PUBLIC_APP_URL`.
+
+`PF_AI_CIBA_ENABLED` and `PF_AI_CIBA_CLIENT_ID` turn on the page's human-approval
+section (CIBA): the BFF asks PingFederate to get a named user's approval on their
+PingOne MFA device, keeps the `auth_req_id` server-side, and the page polls through
+the BFF (which itself waits out PingFederate's interval) until the answer is approved,
+denied or expired. The client secret is `PF_AI_CIBA_CLIENT_SECRET`, in the secret
+store; `scripts/pingfederate/provision-ciba.js --apply` creates it once and the
+PingFederate client, authenticator and request policy it belongs with.
 
 On the local stack the cross-domain and third-party values above are defaults in
 `docker-compose.yml`, and `scripts/pingfederate/provision-cross-domain-exchange.js

@@ -124,6 +124,97 @@ describe("PingFederate AI Agent page", () => {
     });
   });
 
+  describe("CIBA human approval", () => {
+    const cibaStatus = { ...readyStatus, features: { ...readyStatus.features, ciba: true } };
+    const pendingView = (extra = {}) => ({
+      state: "pending", interval: 1, loginHint: "demouser", bindingMessage: null,
+      expiresAt: new Date(Date.now() + 120_000).toISOString(), ...extra,
+    });
+    // The page status first, then whatever the CIBA status endpoint should say, in order.
+    const routeGets = ({ page = cibaStatus, ciba = [{ state: "none" }] } = {}) => {
+      const answers = [...ciba];
+      apiClient.get.mockImplementation((url) => {
+        if (String(url).includes("/ciba/status")) {
+          return Promise.resolve({ data: answers.length > 1 ? answers.shift() : answers[0] });
+        }
+        return Promise.resolve({ data: page });
+      });
+    };
+    const cibaCalls = () => apiClient.get.mock.calls.filter(([url]) => String(url).includes("/ciba/status")).length;
+    const ask = () => screen.findByRole("button", { name: /Ask for approval/i });
+
+    it("offers no button until CIBA is configured", async () => {
+      render(<PingFederateAiAgentPage user={{ username: "demouser" }} />);
+      expect(await screen.findByText(/Configure CIBA and sign in/i)).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Ask for approval/i })).not.toBeInTheDocument();
+    });
+
+    it("asks the named user, shows that it is waiting, and does not allow a second request meanwhile", async () => {
+      routeGets();
+      apiClient.post.mockResolvedValue({ data: pendingView() });
+      render(<PingFederateAiAgentPage user={{ username: "demouser" }} />);
+      fireEvent.change(screen.getByLabelText(/Message shown on their device/i), { target: { value: "Approve transfer 125" } });
+
+      fireEvent.click(await ask());
+
+      expect(await screen.findByTestId("ciba-pending")).toHaveTextContent(/Waiting for demouser to approve/i);
+      expect(apiClient.post).toHaveBeenCalledWith("/api/pf-ai-agent/ciba/start", {
+        loginHint: "demouser", bindingMessage: "Approve transfer 125",
+      });
+      expect(screen.getByRole("button", { name: /Ask for approval/i })).toBeDisabled();
+    });
+
+    it("polls until approved and then stops asking", async () => {
+      routeGets({ ciba: [{ state: "none" }, pendingView(), { state: "approved", subject: "demouser", loginHint: "demouser" }] });
+      apiClient.post.mockResolvedValue({ data: pendingView() });
+      render(<PingFederateAiAgentPage user={{ username: "demouser" }} />);
+
+      fireEvent.click(await ask());
+
+      const outcome = await screen.findByTestId("ciba-outcome", {}, { timeout: 4000 });
+      expect(outcome).toHaveTextContent("Approved by demouser.");
+      expect(screen.queryByTestId("ciba-pending")).not.toBeInTheDocument();
+      const callsWhenDone = cibaCalls();
+      await new Promise((resolve) => { setTimeout(resolve, 1300); });
+      expect(cibaCalls()).toBe(callsWhenDone);
+    });
+
+    it.each([
+      ["denied", /user denied the request/i],
+      ["expired", /expired before anyone answered/i],
+    ])("reports a %s answer", async (state, text) => {
+      routeGets({ ciba: [{ state: "none" }, { state, loginHint: "demouser" }] });
+      apiClient.post.mockResolvedValue({ data: pendingView() });
+      render(<PingFederateAiAgentPage user={{ username: "demouser" }} />);
+      fireEvent.click(await ask());
+      expect(await screen.findByTestId("ciba-outcome", {}, { timeout: 4000 })).toHaveTextContent(text);
+    });
+
+    it("explains a refused start in plain words", async () => {
+      routeGets();
+      apiClient.post.mockRejectedValue({ response: { data: { error: "PF_AI_CIBA_USER_UNKNOWN" } } });
+      render(<PingFederateAiAgentPage user={{ username: "demouser" }} />);
+      fireEvent.click(await ask());
+      expect(await screen.findByRole("alert")).toHaveTextContent("PingFederate does not know that user.");
+      expect(screen.queryByTestId("ciba-pending")).not.toBeInTheDocument();
+    });
+
+    it("picks up a request that is already in flight after a reload", async () => {
+      routeGets({ ciba: [pendingView({ loginHint: "demouser" })] });
+      render(<PingFederateAiAgentPage user={{ username: "demouser" }} />);
+      expect(await screen.findByTestId("ciba-pending")).toHaveTextContent(/Waiting for demouser/i);
+      expect(apiClient.post).not.toHaveBeenCalled();
+    });
+
+    it("needs a user to ask", async () => {
+      routeGets();
+      render(<PingFederateAiAgentPage user={null} />);
+      expect(await ask()).toBeDisabled();
+      fireEvent.change(screen.getByLabelText(/User to ask/i), { target: { value: "someone" } });
+      expect(screen.getByRole("button", { name: /Ask for approval/i })).toBeEnabled();
+    });
+  });
+
   it("sends only the active session provider to the isolated cross-domain endpoint", async () => {
     apiClient.post.mockResolvedValue({ data: {
       subjectProvider: "pingone",

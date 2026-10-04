@@ -367,6 +367,11 @@ services:
       # Offers the "bind the token with DPoP" option on the RAR flow. Names the PingFederate client
       # that requires DPoP (created by provision-ai-agent-features.js --apply); empty hides the option.
       PF_AI_RAR_DPOP_CLIENT_ID: "${PF_AI_RAR_DPOP_CLIENT_ID:-ai-demo-pf-rar-dpop}"
+      # CIBA human approval on the PingFederate AI agent page. The client and its secret are made by
+      # scripts/pingfederate/provision-ciba.js (the secret lives in the vault as
+      # PF_AI_CIBA_CLIENT_SECRET); until that has run this path stays "Not configured".
+      PF_AI_CIBA_ENABLED: "${PF_AI_CIBA_ENABLED:-true}"
+      PF_AI_CIBA_CLIENT_ID: "${PF_AI_CIBA_CLIENT_ID:-ai-demo-pf-ciba}"
       PF_PAR_ENDPOINT: "${PF_PAR_ENDPOINT:-https://local.ping-devops.com:9031/as/par.oauth2}"
       # Cross-domain path: PingFederate issues an ID-JAG, which the BFF redeems at a third-party
       # token endpoint. The third party here is the BFF's own opt-in mock (it must be https; the
