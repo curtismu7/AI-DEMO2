@@ -64,7 +64,7 @@ Done when: every PingOne capability the demo uses has a row, each row is SCRIPTE
 
 ---
 
-### Task 2: Phase 1 - PF baseline across 82 use cases
+### Task 2: Phase 1 - PF baseline across 84 use cases
 
 **Files:**
 - Create: `docs/editions/pf-baseline.md`
@@ -80,10 +80,10 @@ Done when: every PingOne capability the demo uses has a row, each row is SCRIPTE
 
 ```bash
 git add docs/editions/pf-baseline.md
-git commit -m "docs(editions): PF readiness baseline for all 82 use cases"
+git commit -m "docs(editions): PF readiness baseline for all 84 use cases"
 ```
 
-Done when: all 82 ids are in the table with a result and a reason for every non-pass.
+Done when: all 84 ids are in the table with a result and a reason for every non-pass.
 
 ---
 
@@ -265,11 +265,11 @@ A use case lives in about nine sources of truth (memory `project-adding-a-use-ca
 - [ ] **Step 2: STOP and ask the user which approach, with the measured file list:**
   - A. **Load-time filter (recommended default):** `config/useCases.js` and the auth-requirements checker skip ids listed in `.edition.json` `dropUseCases`. One small code change in AI-DEMO2 (protected area: state what will not break; REGRESSION_PLAN.md sections 0-1; run `regression-guard` skill first). AI-DEMO2 has no `.edition.json`, so its behavior is unchanged.
   - B. **Text-edit every source of truth at export time:** no AI-DEMO2 code change, but brittle.
-- [ ] **Step 3: Implement the chosen approach test-first.** For A: failing test that with `{dropUseCases:["UC40"]}` UC40 is absent from `USE_CASES` and `authz:verify` passes, and with no `.edition.json` all 82 are present.
+- [ ] **Step 3: Implement the chosen approach test-first.** For A: failing test that with `{dropUseCases:["UC40"]}` UC40 is absent from `USE_CASES` and `authz:verify` passes, and with no `.edition.json` all 84 are present.
 - [ ] **Step 4: Fill `dropUseCases`** in `editions/pingone.json` (PF-only ids) and `editions/pingfederate.json` (Task 2 not-applicable ids).
 - [ ] **Step 5: Run** `cd demo_api_server && CI=true npx jest <touched tests> --forceExit` and `npm run authz:verify`; paste result lines. Commit (explicit `git add`).
 
-Done when: both manifests' dropped ids leave `authz:verify` green inside a scratch export, and AI-DEMO2 itself still lists all 82.
+Done when: both manifests' dropped ids leave `authz:verify` green inside a scratch export, and AI-DEMO2 itself still lists all 84.
 
 ---
 

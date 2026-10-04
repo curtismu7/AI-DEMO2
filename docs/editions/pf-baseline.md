@@ -2,11 +2,11 @@
 
 Status: STATIC BASELINE ONLY. No live PingFederate result exists yet. The readiness lanes were not running, so every row is `not-run`. Spec: `docs/superpowers/specs/2026-10-03-edition-split-design.md`.
 
-Real id count: 83 (`demo_api_server/config/auth-requirements.json` `useCases`: 70 use cases + 13 admin steps). The plan's "82" is stale. The readiness catalog (`demoReadinessCatalog.js`) lists only 47 of them (35 Demo Steps + ADMIN1-12); the other 36 have no readiness flow at all.
+Real id count: 84 (`demo_api_server/config/auth-requirements.json` `useCases`: 71 use cases + 13 admin steps). The plan's earlier "82" and "83" are stale (UC47 was added on main 2026-10-04). The readiness catalog (`demoReadinessCatalog.js`) lists only 48 of them (36 Demo Steps + ADMIN1-12); the other 36 have no readiness flow at all.
 
-Totals: pass 0, fail 0, not-applicable 0, not-run 83.
+Totals: pass 0, fail 0, not-applicable 0, not-run 84.
 
-Legend: an `X` marks the result column. `not-applicable` is judged against the catalog's per-provider flow data for PingFederate; none of the 83 ids is marked not-applicable for PingFederate (only UC40 is not-applicable, for PingOne).
+Legend: an `X` marks the result column. `not-applicable` is judged against the catalog's per-provider flow data for PingFederate; none of the 84 ids is marked not-applicable for PingFederate (only UC40 is not-applicable, for PingOne).
 
 | useCaseId | pass | fail | not-applicable | not-run | reason |
 |---|---|---|---|---|---|
@@ -63,6 +63,7 @@ Legend: an `X` marks the result column. `not-applicable` is judged against the c
 | UC-TOOL2 | - | - | - | X | No entry in demoReadinessCatalog.js (not an executable Demo Step); not exercised by the readiness runner. |
 | UC-TOOL3 | - | - | - | X | Catalog flow `pingfederate-standard` applicable under PF; lane not up, no live result. |
 | UC46 | - | - | - | X | Catalog flow `pingfederate-standard` applicable under PF; lane not up, no live result. |
+| UC47 | - | - | - | X | Catalog flow `pingfederate-standard` applicable under PF (and `pingone-standard` under PingOne); lane not up, no live result. Added on main 2026-10-04. |
 | UC-NHI1 | - | - | - | X | No entry in demoReadinessCatalog.js (not an executable Demo Step); not exercised by the readiness runner. |
 | UC-NHI2 | - | - | - | X | No entry in demoReadinessCatalog.js (not an executable Demo Step); not exercised by the readiness runner. |
 | UC-LEARN1 | - | - | - | X | No entry in demoReadinessCatalog.js (not an executable Demo Step); not exercised by the readiness runner. |
@@ -116,7 +117,7 @@ Ran:
 - `npm run serve:worktree` (no argument, read-only): BFF and UI both served from the main checkout; no other worktree claimed the stack. Exit 0.
 - `npm run -s stack:generation` before; `npm run -s stack:generation -- --check <value>` after: "stack unchanged, the run stands".
 - `npm run demo:ready:local -- --json` (from main checkout, stdin closed): exit 1, status `not-ready`, 37 ms. Both `worker-health:local:pingone` and `worker-health:local:pingfederate` were `blocked`: "Readiness worker request failed." No rows, no repair preview, nothing mutated. (A flag to scope the runner to PingFederate only does not exist: `--target` selects local/se/both, not provider.)
-- A read-only node script building the catalog and listing the 83 ids.
+- A read-only node script building the catalog and listing the 84 ids.
 
 Could not run (lane not up; `docker ps` shows only `ai-demo-pingfederate` of the PF pieces, no `ai-demo-readiness-*` containers): the readiness workers on :4444 (PingOne) and :4445 (PingFederate) and `readiness-bff-pingfederate`. To get the live baseline, the user starts them (not done here, by ruling):
 

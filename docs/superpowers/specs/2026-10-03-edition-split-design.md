@@ -24,7 +24,8 @@ Produce two standalone demos from AI-DEMO2 without changing AI-DEMO2 itself:
 - `OAUTH_PROVIDER` (`pingone` | `pingfederate`) is compared in 36 non-test source files (BFF services/routes/middleware, 8 UI files, `oauth-mcp/src/tools/TokenResolver.ts`).
 - BFF source files: 452 mention only PingOne, 60 both, 10 only PingFederate. About 95 files repo-wide are PF-named.
 - PF already runs as its own compose project (`scripts/pingfederate/docker-compose.local.yml`); its config lives in a container volume and `~/pingfederate-profile`, not Git. A fresh volume has zero OAuth clients.
-- `demoReadinessCatalog.js` already maps each of the 82 use cases to a PF flow or `not-applicable`; a PF readiness lane exists.
+- `demoReadinessCatalog.js` already maps each of the 84 use cases to a PF flow or `not-applicable`; a PF readiness lane exists.
+- UC47 (Privilege A2A agent chain) was added on main on 2026-10-04; it has a flow for both providers (`pingone-standard`, `pingfederate-standard`), so neither edition drops it.
 - Known PF gaps: A2A loses the `act` claim under PF; PingGateway introspection rejects PF tokens unless `FF_MCP_GATEWAY_JWKS=true`.
 
 ## Design
@@ -35,8 +36,8 @@ Also: environment IDs, client IDs and secrets must come only from per-edition co
 **Done when:** a brand-new PingOne environment plus one command (or a short, documented manual list) reaches a working Super Sports sign-in and one agent chip, with AI-DEMO2's environment untouched.
 
 ### Phase 1 — PF baseline (AI-DEMO2, no code change)
-Run the PF readiness lane; record pass / fail / not-applicable for all 82 use cases. Failures are fixed in AI-DEMO2 because the PF edition inherits them.
-**Done when:** a committed results table covers all 82 use cases.
+Run the PF readiness lane; record pass / fail / not-applicable for all 84 use cases. Failures are fixed in AI-DEMO2 because the PF edition inherits them.
+**Done when:** a committed results table covers all 84 use cases.
 
 ### Phase 2 — Reproducible PF (AI-DEMO2)
 Extend `scripts/pingfederate/` so a wiped PF volume reaches the working state with one command: JDBC client storage, all clients, token managers (`aiDemoPfJwtAtm`, `aiDemoPfMcpGatewayJwtAtm`, `aiDemoPfAgentGwJwtAtm`), exchange policies. Secrets come from the vault, never Git.
