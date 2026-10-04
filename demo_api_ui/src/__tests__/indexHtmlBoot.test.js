@@ -55,6 +55,19 @@ describe('index.html boot screen', () => {
     expect(html).not.toMatch(/prefers-color-scheme/);
   });
 
+  it('shares the skeleton rules with the React loading screen (.boot-skeleton)', () => {
+    // AuthLoadingScreen draws the same skeleton while the sign-in check runs. If these
+    // selectors drift apart, a refresh swaps two different screens and flashes again.
+    expect(html).toMatch(/#boot-spinner,\s*\.boot-skeleton\s*\{[^}]*position:\s*fixed/);
+    expect(html).toMatch(/:root\[data-theme="dark"\] #boot-spinner,\s*:root\[data-theme="dark"\] \.boot-skeleton\s*\{[^}]*background-color/);
+    expect(html).toMatch(/@media \(max-width: 768px\)\s*\{\s*#boot-spinner,\s*\.boot-skeleton\s*\{/);
+  });
+
+  it('keeps the CSS ring on the HTML boot screen only (React draws the Ping spinner)', () => {
+    expect(html).toContain('#boot-spinner::after');
+    expect(html).not.toMatch(/\.boot-skeleton::after/);
+  });
+
   it('draws a shell skeleton, not a bare blank block', () => {
     const root = html.match(/<div id="root">([\s\S]*?)<\/div>\s*\n/);
     expect(root).not.toBeNull();

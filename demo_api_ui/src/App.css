@@ -423,15 +423,13 @@
   color: var(--th-text);
 }
 
-.auth-loading-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 18px;
-  padding: 40px 56px;
-  background: var(--brand-white);
-  border-radius: 16px;
-  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.08);
+/* The standard Ping spinner, centred over the .boot-skeleton that AuthLoadingScreen draws
+   (the skeleton's own rules live in index.html, shared with the HTML boot screen). */
+.boot-skeleton__spinner {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 
 .auth-loading-dots {
