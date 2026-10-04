@@ -24,7 +24,7 @@ cat > "$STUB_DIR/kubectl" <<'STUB'
 #!/bin/bash
 echo "$*" >> "$KUBECTL_LOG"
 [ "$1 $2" = "config current-context" ] && echo "${FAKE_CONTEXT:-us}"
-[ "$1" = "get" ] && printf 'deployment.apps/stub-app\nsecret/agentless-mcpgw-tls\n'
+[ "$1" = "get" ] && printf 'deployment.apps/stub-app\nsecret/agentless-mcpgw-tls\nsecret/brave-secrets\nsecret/mcp-grafana-secrets\nsecret/ghcr-pull-secret\nsecret/grafana-secrets\n'
 exit 0
 STUB
 chmod +x "$STUB_DIR/kubectl"
@@ -71,6 +71,14 @@ check "--yes deletes the app resource" "yes" \
   "$(grep -q '^delete .*stub-app' "$KUBECTL_LOG" && echo yes || echo no)"
 check "--yes leaves gateway 2 alone" "no" \
   "$(grep -q '^delete .*agentless-mcpgw' "$KUBECTL_LOG" && echo yes || echo no)"
+
+# 2c. Gateway 2's sidecars read plain, unlabelled Secrets from this namespace
+#     (copied by scripts/se-gateways.sh). Deleting them breaks the gateway at its
+#     next pod restart. The app's own grafana-secrets is NOT one of them.
+check "--yes keeps gateway 2's sidecar secrets" "no" \
+  "$(grep -qE '^delete .*(brave-secrets|mcp-grafana-secrets|ghcr-pull-secret)' "$KUBECTL_LOG" && echo yes || echo no)"
+check "--yes still deletes the app's own grafana-secrets" "yes" \
+  "$(grep -q '^delete .*secret/grafana-secrets' "$KUBECTL_LOG" && echo yes || echo no)"
 
 # 3. Same via the environment, for callers that cannot pass a flag.
 : > "$KUBECTL_LOG"
