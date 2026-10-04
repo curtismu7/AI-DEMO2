@@ -4,6 +4,7 @@ import { useExplainData } from '../hooks/useExplainData';
 import { PING_PRODUCTS } from '../utils/pingProducts';
 import { isA2aUseCase, extractA2aFacts } from '../utils/a2aFacts';
 import { DEMO_STEP_GUIDES } from '../config/demoStepGuides';
+import { stepLabel } from '../config/demoStepNumbers';
 import './UseCaseExplainModal.css';
 
 const PRODUCT_ORDER = ['idp', 'mfa', 'gw', 'authz', 'protect'];
@@ -168,7 +169,7 @@ export default function UseCaseExplainModal({ uc, open, onClose, a2aTokenEvents 
     ? uc.track.charAt(0).toUpperCase() + uc.track.slice(1)
     : '';
 
-  const title = `${uc.id} — ${uc.title}`;
+  const title = `${stepLabel(uc.id)} — ${uc.title}`;
 
   return (
     <DraggableModal
@@ -188,7 +189,7 @@ export default function UseCaseExplainModal({ uc, open, onClose, a2aTokenEvents 
       <div className="ucem__body dm-scroll">
 
           <div className="ucem__head ucem__head--inline">
-            <span className="ucem__id">{uc.id}</span>
+            <span className="ucem__id">{stepLabel(uc.id)}</span>
             <h2 className="ucem__title">{uc.title}</h2>
             {trackLabel && <span className="ucem__track">{trackLabel}</span>}
           </div>
