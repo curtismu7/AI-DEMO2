@@ -1224,6 +1224,34 @@ selection, session clearing, sign-out, and the next-login behavior.
 **Verify:** focused TopNav and OAuth-provider UI Vitest suites;
 `cd demo_api_ui && npm run build`.
 
+### 2026-10-03 — UC47 Privilege A2A agent chain is Demo Step 26
+
+**Files:** `demo_api_server/config/useCases.js`,
+`demo_api_server/config/auth-requirements.json`,
+`demo_api_server/config/demoReadinessInventory.json`,
+`demo_api_server/services/demoReadinessCatalog.js`,
+`demo_api_ui/src/config/demoUseCaseSteps.js`,
+`demo_api_ui/src/components/DemoStepsDropdown.jsx`, and their API/readiness/UI
+tests.
+
+**What was added:** `UC47` (`privilege-a2a-agent-chain`), a user-session-gated
+page link to `/dashboard`. Selecting it in Demo Steps also starts the
+three-deep chain (primary agent → Privilege gateway → LangChain agent →
+gateway → specialist) through `POST /api/privilege-a2a/chain`; the hops stream
+into the token-chain trace store as `pa2a-*` events and the movie reel shows
+them alone, without the banking pipeline skeleton.
+
+**Do not break:** `UC46` stays at step 25 with its
+`/privilege-mcp-client?view=demo&tab=a2a` trigger; the chain run forwards only
+`message` and `specialist` and never a browser token; banking A2A (`a2a-*`
+events) keeps its own steps; a trace with no `pa2a-*` events renders exactly as
+before.
+
+**Verify:** focused API/readiness Jest and UI Vitest suites;
+`npm run authz:verify`; `node scripts/check-demo-readiness-contract.mjs`;
+`npm --prefix demo_api_server run use-cases:check`;
+`cd demo_api_ui && npm run build`.
+
 ### 2026-09-30 — UC46 is numbered step 25 in Demo Steps
 
 **Files:** `demo_api_server/config/useCases.js`,

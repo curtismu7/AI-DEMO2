@@ -75,6 +75,7 @@ See also: [Audit Table](./audit-table.md), [Step Verification Report](./step-ver
 - [**UC-TOOL2** — Code Explorer](./code-explorer.md) ✅
 - [**UC-TOOL3** — LLM Gateway](./llm-gateway.md) ✅
 - [**UC46** — Privilege A2A access review](./privilege-a2a-access-review.md) ✅
+- [**UC47** — Privilege A2A three-deep agent chain](./privilege-a2a-agent-chain.md) ✅
 
 ## Learn
 

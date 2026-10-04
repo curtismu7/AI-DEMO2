@@ -41,6 +41,7 @@ describe('demoUseCaseSteps', () => {
       'UC38',
       'UC-TOOL1',
       'UC46',
+      'UC47',
     ]);
   });
 
@@ -101,6 +102,9 @@ describe('demoUseCaseSteps', () => {
     expect(DEMO_JOURNEY_GROUPS.find((group) => group.id === 'j-a2a').useCaseIds).toContain('UC46');
     expect(DEMO_JOURNEY_GROUPS.find((group) => group.id === 'j-privilege-mcp').useCaseIds).toContain('UC46');
     expect(DEMO_MISSION_GROUPS.find((group) => group.id === 'privilege').useCaseIds).toContain('UC46');
+    // The agent chain sits beside the access review in every A2A / Privilege filter.
+    expect(DEMO_JOURNEY_GROUPS.find((group) => group.id === 'j-a2a').useCaseIds).toContain('UC47');
+    expect(DEMO_MISSION_GROUPS.find((group) => group.id === 'privilege').useCaseIds).toContain('UC47');
   });
 
   it('exports the Privilege & JIT access lanes', () => {
@@ -158,8 +162,8 @@ describe('demoUseCaseSteps', () => {
     }
   });
 
-  it('primary list has 25 steps (all use cases visible)', () => {
-    expect(DEMO_PRIMARY_USE_CASE_IDS).toHaveLength(25);
+  it('primary list has 26 steps (all use cases visible)', () => {
+    expect(DEMO_PRIMARY_USE_CASE_IDS).toHaveLength(26);
   });
 
   // UC29 cannot fire on this deployment (Node gateway validates by JWKS, no

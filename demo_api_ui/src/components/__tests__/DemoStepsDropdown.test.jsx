@@ -14,6 +14,12 @@ import {
   ADMIN_PRIMARY_USE_CASE_IDS,
 } from '../../config/demoUseCaseSteps';
 import { clearIdJagRunState, ID_JAG_USE_CASE_ID } from '../../utils/idJagRunMode';
+import { startPrivilegeA2aChainRun } from '../../utils/privilegeA2aChainRun';
+
+vi.mock('../../utils/privilegeA2aChainRun', () => ({
+  PRIVILEGE_A2A_CHAIN_USE_CASE_ID: 'privilege-a2a-agent-chain',
+  startPrivilegeA2aChainRun: vi.fn(),
+}));
 
 vi.mock('../../services/apiClient', () => ({
   default: {
@@ -24,7 +30,10 @@ vi.mock('../../services/apiClient', () => ({
 
 const CATALOG = DEMO_USE_CASE_IDS.map((id, i) => ({
   id,
-  useCaseId: id === 'UC40' ? ID_JAG_USE_CASE_ID : `slug-${id}`,
+  useCaseId: id === 'UC40' ? ID_JAG_USE_CASE_ID : id === 'UC47' ? 'privilege-a2a-agent-chain' : `slug-${id}`,
+  ...(id === 'UC47'
+    ? { chainRuns: [{ id: 'allowed', message: 'Refund order 7 for the customer.', specialist: 'refunds' }] }
+    : {}),
   title: `Title for ${id}`,
   ...(id === 'UC8' ? { demoLabel: '✦ MCP App · transfer approval' } : {}),
   whatLong: `Long explanation for ${id}`,
@@ -94,6 +103,26 @@ describe('DemoStepsDropdown', () => {
 
     expect(onSelect.mock.calls[0][0].id).toBe('UC46');
     expect(onSelect.mock.calls[0][1]).toBe(25);
+  });
+
+  it('starts the Privilege A2A agent chain from step 26 and still hands the step to the page', async () => {
+    const onSelect = vi.fn();
+    render(
+      <DemoStepsDropdown
+        open
+        onOpenChange={() => {}}
+        onSelect={onSelect}
+      />,
+    );
+
+    fireEvent.click(await screen.findByTestId('demo-step-UC47'));
+
+    expect(startPrivilegeA2aChainRun).toHaveBeenCalledWith({
+      message: 'Refund order 7 for the customer.',
+      specialist: 'refunds',
+    });
+    expect(onSelect.mock.calls[0][0].id).toBe('UC47');
+    expect(onSelect.mock.calls[0][1]).toBe(26);
   });
 
   it('aborts an outstanding catalog request when unmounted', () => {
