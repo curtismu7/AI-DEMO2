@@ -381,7 +381,9 @@ done
 # installs nothing Privilege-related into $NS. Gateway 1 and mcpgw-lb are in
 # ping-devops-curtismuir; gateway 2 (release agentless-mcpgw2) was installed by
 # hand into ping-devops-cmuir, so it can be present in $NS: this deploy does not
-# touch it, and se-undeploy skips Helm-managed resources.
+# touch it, and se-undeploy skips Helm-managed resources and its sidecar secrets.
+# Gateway 2 is a second node of gateway 1's mesh cluster; keep both on the same
+# sidecars and secrets with ./run-pingaws.sh gateways (scripts/se-gateways.sh).
 
 if [[ -n "$K8S_NAMESPACE" ]]; then
   info "Applying SE cluster ingress..."

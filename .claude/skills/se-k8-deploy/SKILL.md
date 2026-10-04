@@ -131,6 +131,14 @@ The SE cluster is shared. **Always undeploy when done** or publishing rights may
 ./run-pingaws.sh undeploy
 ```
 
+`undeploy` deletes only app resources. Privilege gateway 2 (release `agentless-mcpgw2`) lives in
+the same `ping-devops-cmuir` namespace and stays: it skips Helm-managed resources, anything named
+`agentless-mcpgw*`, and the gateway's sidecar secrets (`brave-secrets`, `banking-rest-secrets`,
+`pingone-mcp-secrets`, `mcp-grafana-secrets`, `ghcr-pull-secret`). Gateway 1 and the `mcpgw-lb`
+load balancer are in `ping-devops-curtismuir`, which `run-pingaws.sh` never touches. Keep the two
+nodes in step with `./run-pingaws.sh gateways {secrets|upgrade [--apply]|status}`; layout and
+runbook in `privilege/GATEWAY-LOAD-BALANCER.md` and the `privilege-mcpgw-agent-k8s` skill.
+
 Re-enable Docker AI after deploy if desired:
 
 ```bash
@@ -195,5 +203,5 @@ kubectl logs -n ping-devops-cmuir -l app=ai-demo --all-containers --prefix -f
 
 1. Verify `kubectl config get-contexts` shows `us` before running `se-deploy` / `se-all`.
 2. Never commit secrets (`.env`, kubeconfig tokens, PATs).
-3. Warn user to `./run-pingaws.sh undeploy` when demo session ends.
+3. Warn user to `./run-pingaws.sh undeploy` when demo session ends (gateway 2 stays, by design).
 4. If `se-all` hangs at build with no push output, check for `docker-ai` plugin first.
