@@ -45,7 +45,18 @@
     "demo_api_ui/tests/e2e/pf-idjag-probe.real.spec.js",
     "demo_api_ui/tests/e2e/pf-idjag-run-mode.spec.js",
     "demo_api_ui/tests/e2e/pf-login-probe.real.spec.js",
-    "oauth-mcp/tests/auth/PfStep9TokenExchangeService.test.ts"
+    "oauth-mcp/tests/auth/PfStep9TokenExchangeService.test.ts",
+    "scripts/pingfederate/provision-all.sh",
+    "scripts/pingfederate/provision-all.test.sh",
+    "scripts/pingfederate/provision-all.guard.test.sh",
+    "scripts/pingfederate/provision-core.js",
+    "scripts/pingfederate/provision-core.test.js",
+    "scripts/pingfederate/docker-compose.fresh.yml",
+    "demo_api_server/tests/pfAiAgentMockThirdParty.test.js",
+    "demo_api_server/tests/pfAiAgentRarDpop.test.js",
+    "docs/editions/",
+    "docs/superpowers/specs/2026-10-03-edition-split-design.md",
+    "docs/superpowers/plans/2026-10-03-edition-split.md"
   ],
   "dropUseCases": ["UC40"]
 }

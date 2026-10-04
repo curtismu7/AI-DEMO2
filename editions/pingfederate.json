@@ -2,6 +2,10 @@
   "name": "PF-AI-DEMO",
   "repo": "PF-AI-DEMO",
   "provider": "pingfederate",
-  "remove": [],
+  "remove": [
+    "docs/editions/",
+    "docs/superpowers/specs/2026-10-03-edition-split-design.md",
+    "docs/superpowers/plans/2026-10-03-edition-split.md"
+  ],
   "dropUseCases": []
 }
