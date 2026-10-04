@@ -330,3 +330,32 @@ and the matching client, resource and scope.
 
 The values live in `docker-compose.yml` (`PF_AI_CROSS_DOMAIN_*`, `PF_AI_THIRD_PARTY_*`); keep
 the constants at the top of the script in step with them.
+
+## CIBA: a human approves the agent's request on their PingOne MFA device
+
+PingFederate 13.1's CIBA (client-initiated backchannel authentication) lets a client start an
+authentication for a named user and poll until that user approves it elsewhere. Here the approval
+goes to the user's PingOne MFA device through the installed **PingOne MFA CIBA Authenticator**
+(PingFederate calls authenticators "out-of-band auth plugins").
+
+```bash
+node scripts/pingfederate/provision-ciba.js            # dry run
+node scripts/pingfederate/provision-ciba.js --apply
+```
+
+Idempotent; each step reads first and reads its change back, and PingFederate's own validation
+messages are printed if it refuses a body. It creates the vault secret `PF_AI_CIBA_CLIENT_SECRET`
+(once, never replaced), an authenticator instance `aiDemoPfCibaP1Mfa` that reuses the PingOne
+environment and application of the sign-in adapter `aiDemoPfP1Mfa`, a request policy
+`aiDemoPfCibaPolicy` that treats the `login_hint` as the user, and the confidential client
+`ai-demo-pf-ciba` (CIBA grant, poll delivery, that request policy).
+
+The admin API paths are not the obvious ones: `oauth/cibaServerPolicy/requestPolicies` for the
+policy and `oauth/outOfBandAuthPlugins` for the authenticator. The spec is at
+`/pf-admin-api/v1/openapi.json`. The client calls `POST /as/bc-auth.ciba` with a `login_hint`
+and gets `auth_req_id`, `interval` and `expires_in`, then polls the token endpoint with the CIBA
+grant until the user approves, denies, or the request expires.
+
+The approval needs a real answer from a PingOne MFA device for the PingOne user behind the login
+hint, so that user must have an enrolled device (the sign-in adapter's default method is SMS).
+Without one, a request is accepted but stays pending until it expires.
