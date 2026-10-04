@@ -68,6 +68,27 @@ export const INTENT_BAKEOFF = [
   { text: 'Hi there', truth: 'other' },
 ];
 
+/**
+ * Splits the guardrail results into the two kinds of mistake. They cost different things:
+ * a missed attack reaches the tool, a false alarm only costs the customer an extra step.
+ * rows: { text, bad, rules: bool (blocked), jev: number (P(yes)) }
+ */
+export function guardrailReadout(rows) {
+  const split = (blocked) => ({
+    missed: rows.filter((r) => r.bad && !blocked(r)).map((r) => r.text),
+    falseAlarms: rows.filter((r) => !r.bad && blocked(r)).map((r) => r.text),
+  });
+  return { rules: split((r) => r.rules), jev: split((r) => r.jev >= 0.5) };
+}
+
+/** rows: { text, truth, rules: choice, jev: choice, conf } -> each decider's wrong picks. */
+export function intentReadout(rows) {
+  return {
+    rules: rows.filter((r) => r.rules !== r.truth).map((r) => ({ text: r.text, got: r.rules })),
+    jev: rows.filter((r) => r.jev !== r.truth).map((r) => ({ text: r.text, got: r.jev, conf: r.conf })),
+  };
+}
+
 export const POLICY_RULES = [
   { id: 'allow', label: 'Allow', detail: 'Below the step-up line: proceed, still subject to the policy engine.' },
   { id: 'stepup', label: 'Step-up', detail: 'Between the lines: require MFA or human consent before executing.' },
