@@ -98,6 +98,16 @@ function makeToken(sub: string, aud: string | string[] = GATEWAY_AUDIENCE): stri
   return `${header}.${payload}.${sig}`;
 }
 
+// Poll instead of a fixed sleep: a loaded CI box can take well over 20 ms to
+// route a request into the mocked proxy.
+async function waitFor(cond: () => boolean, what: string, timeoutMs = 2000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (!cond()) {
+    if (Date.now() > deadline) throw new Error(`timed out after ${timeoutMs} ms waiting for ${what}`);
+    await new Promise((r) => setTimeout(r, 5));
+  }
+}
+
 describe('GatewayServer HTTP hardening', () => {
   let gateway: GatewayServer;
   let request: ReturnType<typeof supertest>;
@@ -134,7 +144,7 @@ describe('GatewayServer HTTP hardening', () => {
       .send(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'resources/list', params: {} }));
     callPromise.then(() => {}, () => {});
 
-    await new Promise((r) => setTimeout(r, 20));
+    await waitFor(() => capturedSignal !== undefined, 'caller A request to reach the proxy');
     expect(capturedSignal).toBeDefined();
 
     // Caller B cancels id 1 — must NOT touch caller A's call.
