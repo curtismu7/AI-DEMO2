@@ -304,7 +304,7 @@ async function sessionScoped(req: Request, res: Response): Promise<void> {
 app.get('/mcp', sessionScoped);
 app.delete('/mcp', sessionScoped);
 
-app.listen(config.port, '127.0.0.1', () => {
+app.listen(config.port, config.host, () => {
   const shape = config.stateful ? 'stateful (Mcp-Session-Id)' : 'stateless';
   const replies = config.jsonResponse ? 'application/json' : 'text/event-stream';
   console.log(`\n[mcp] acme-access-tools on http://127.0.0.1:${config.port}/mcp`);
