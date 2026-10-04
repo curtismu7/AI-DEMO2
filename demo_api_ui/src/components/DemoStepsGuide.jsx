@@ -1,4 +1,5 @@
 import {
+  ADMIN_PRIMARY_USE_CASE_IDS,
   CIAM_AGENT_TYPE_USE_CASE_IDS,
   DEMO_ADVANCED_USE_CASE_IDS,
   DEMO_PRIMARY_USE_CASE_IDS,
@@ -24,6 +25,7 @@ export const GUIDE_GROUPS = [
   { label: "Presenter script", ids: inGroup(script, 0, script.length) },
   { label: "Agent types", ids: inGroup(CIAM_AGENT_TYPE_USE_CASE_IDS, script.length, ciamEnd) },
   { label: "Privilege", ids: inGroup(PRIVILEGE_USE_CASE_IDS, ciamEnd, Infinity) },
+  { label: "PingOne Admin vertical", ids: ADMIN_PRIMARY_USE_CASE_IDS.filter((id) => DEMO_STEP_GUIDES[id]) },
 ];
 
 export default function DemoStepsGuide() {

@@ -4,6 +4,7 @@ import PageGuide from "../PageGuide";
 import { PAGE_GUIDES } from "../../config/pageGuides";
 import { getLesson } from "../../learning/lessonCatalog";
 import {
+  ADMIN_PRIMARY_USE_CASE_IDS,
   CIAM_AGENT_TYPE_USE_CASE_IDS,
   DEMO_PRIMARY_USE_CASE_IDS,
   PRIVILEGE_USE_CASE_IDS,
@@ -27,7 +28,12 @@ test("every guide has content and inline guides render", () => {
 });
 
 test("every demo step in the menu has a complete guide", () => {
-  const ids = [...DEMO_PRIMARY_USE_CASE_IDS, ...CIAM_AGENT_TYPE_USE_CASE_IDS, ...PRIVILEGE_USE_CASE_IDS];
+  const ids = [
+    ...DEMO_PRIMARY_USE_CASE_IDS,
+    ...CIAM_AGENT_TYPE_USE_CASE_IDS,
+    ...PRIVILEGE_USE_CASE_IDS,
+    ...ADMIN_PRIMARY_USE_CASE_IDS,
+  ];
   expect(ids.length).toBeGreaterThan(0);
   for (const id of ids) {
     const s = DEMO_STEP_GUIDES[id];
@@ -42,6 +48,7 @@ test("dashboard guide lists the demo steps", () => {
   expect(screen.getByText(/Step 26 · UC47: /)).toBeTruthy();
   expect(screen.getByText(/Step 27 · UC43: /)).toBeTruthy();
   expect(screen.getByText(/Step 32 · UC17: /)).toBeTruthy();
+  expect(screen.getByText(/Step 13 · ADMIN13: /)).toBeTruthy();
 });
 
 test("step numbers match the menu, admin included, and skip non-steps", () => {
