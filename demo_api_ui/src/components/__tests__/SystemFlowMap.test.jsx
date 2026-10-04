@@ -275,3 +275,22 @@ describe('Privilege A2A chain run', () => {
     expect(nodeStates['pa-specialist']).toBe('done');
   });
 });
+
+describe('band layout', () => {
+  it('no two bands overlap', () => {
+    // Same geometry as the layout loop in SystemFlowMap.jsx.
+    const W = 160, H = 64, GAP = 14, PAD = 12, TOP = 26;
+    const boxes = BANDS.map((band) => {
+      const cols = Math.min(band.cols, band.nodes.length);
+      const rows = Math.ceil(band.nodes.length / cols);
+      return { id: band.id, x: band.x, y: band.y, w: 2 * PAD + cols * W + (cols - 1) * GAP, h: TOP + rows * H + (rows - 1) * GAP + PAD };
+    });
+    for (let i = 0; i < boxes.length; i += 1) {
+      for (let j = i + 1; j < boxes.length; j += 1) {
+        const a = boxes[i], b = boxes[j];
+        const apart = a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y;
+        expect(apart, `${a.id} overlaps ${b.id}`).toBe(true);
+      }
+    }
+  });
+});
