@@ -142,11 +142,13 @@ const definitions = [
     inspectors: [
       link('Privilege Demo — Request Access', '/privilege-demo?tab=script'),
       link('Privilege MCP Client', '/privilege-mcp-client'),
+      link('Privilege A2A access review', '/privilege-mcp-client?view=demo&tab=a2a'),
       link('Privilege AI Gateway', '/llm-gateway'),
     ],
     diagrams: [
       link('Privilege MCP Architecture', '/privilege-mcp-diagrams'),
       link('Privilege-First Gateway', '/privilege-first-gateway'),
+      link('Privilege Gateway Topologies (incl. Agent-to-agent)', '/privilege-gateway-topologies'),
       link('Privilege for AI', '/privilege-for-ai'),
     ],
   },

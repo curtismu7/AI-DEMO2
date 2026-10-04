@@ -88,7 +88,7 @@ export const DEMO_USE_CASE_SEARCH_TERMS = {
   UC25: ['privilege', 'enterprise managed mcp', 'id-jag', 'centralized access', 'group policy'],
   'UC-LEARN11': ['privilege', 'privilege ai', 'llm gateway', 'prompt injection'],
   'UC-TOOL3': ['privilege', 'privilege ai', 'llm gateway', 'prompt injection', 'virtual key'],
-  UC46: ['privilege', 'a2a', 'agent-to-agent', 'access review', 'anthropic', 'worker agent'],
+  UC46: ['privilege', 'a2a', 'agent-to-agent', 'access review', 'anthropic', 'google', 'gemini', 'ai gateway', 'worker agent'],
   UC47: ['privilege', 'a2a', 'agent-to-agent', 'agent chain', 'three deep', 'ai gateway', 'langchain', 'specialist', 'delegation'],
 };
 

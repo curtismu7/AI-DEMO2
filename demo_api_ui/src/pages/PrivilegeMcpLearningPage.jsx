@@ -192,6 +192,22 @@ export default function PrivilegeMcpLearningPage() {
                 configured on the client: it discovers the gateway, registers itself and runs PKCE</li>
               <li>This page&apos;s client, LM Studio and Postman all use the same URL</li>
             </ul>
+
+            <h3>Agent-to-agent (A2A)</h3>
+            <ul>
+              <li>The same gateway fronts agents as well as MCP servers. An agent is registered as a
+                Remote Agent app and called at <code>{"https://<gateway>/<AppName>/a2a"}</code></li>
+              <li>A calling agent has no browser to sign in with, so it presents an agent key from
+                AI Gateway &gt; Agent Registry. The key carries scopes (<code>llm</code>,{" "}
+                <code>mcp</code>, <code>a2a</code>), an allowed model and the apps it may reach</li>
+              <li>The gateway checks the key, the scope and the policy on every hop, and its guardrail
+                screens agent messages and tool results</li>
+              <li>See it run: the A2A tab on the{" "}
+                <a href="/privilege-mcp-client?view=demo&tab=a2a">gateway client</a>, the
+                Agent-to-agent tab on{" "}
+                <a href="/privilege-gateway-topologies">Privilege Gateway Topologies</a>, and Demo
+                Step 26 for a three-deep agent chain</li>
+            </ul>
           </Section>
 
           {/* ─── How to demo ─── */}

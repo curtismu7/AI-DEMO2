@@ -42,7 +42,7 @@ Notes: several nav labels differ from the page's own heading (recorded per page)
 - **Route:** `/privilege-mcp-client` · **Auth:** public
 - **What it does:** Titled "AI Agent Gateway Client — PingOne": a desktop-style MCP client that signs in to a gateway door, lists tools and chats.
 - **What it teaches:** Per-tool, per-user access through the AI Agent Gateway, including sign-in modes (max_age, prompt) and policy denials.
-- **What it demos:** Live tool discovery and calls through the gateway, with Access Denied detail when policy blocks.
+- **What it demos:** Live tool discovery and calls through the gateway, with Access Denied detail when policy blocks. The A2A tab runs an access review from a main agent to a worker agent and its MCP tools, each hop through the gateway.
 
 ### LLM Gateway
 - **Route:** `/llm-gateway` · **Auth:** user
@@ -108,7 +108,7 @@ Notes: several nav labels differ from the page's own heading (recorded per page)
 - **Route:** `/ai-products/privilege-a2a` · **Auth:** public
 - **What it does:** Product page "Privilege for AI — A2A protection" on agent-to-agent handoff.
 - **What it teaches:** Authenticated, policy-bound, accountable agent handoffs with the delegation context kept attached.
-- **What it demos:** Links to the A2A protocol walkthrough and the delegation chain page.
+- **What it demos:** Links to the A2A access review through the gateway, the three-deep agent chain (Demo Step 26), the agent-to-agent architecture tab, the A2A protocol walkthrough and the delegation chain page.
 
 ### AI Gateway · MCP
 - **Route:** `/ai-products/privilege-mcp` · **Auth:** public
@@ -491,6 +491,7 @@ Use cases in the registry (`demo_api_server/config/useCases.js`):
 | UC-TOOL2 | Code Explorer | Ask about flows and architecture with real, current code context. |
 | UC-TOOL3 | LLM Gateway | Shows what the Privilege AI Gateway decided about an LLM call. |
 | UC46 | Privilege A2A access review | Analyst asks an agent to review access via Privilege-protected tools. |
+| UC47 | Privilege A2A three-deep agent chain | Main agent, LangChain agent and a specialist, each hop checked by the AI Gateway. |
 | UC-NHI1 | Live agent NHI inventory | One governed roster of agents authenticating through Ping, with identity state. |
 | UC-NHI2 | Agent lifecycle export (JML) | Agent join/move/leave events shaped for an IGA tool such as SailPoint. |
 | UC-LEARN1 | OAuth Academy | Interactive teacher for OAuth 2.0/2.1 and OIDC with live flows. |
