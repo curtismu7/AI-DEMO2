@@ -7,7 +7,7 @@ metadata:
     app: ai-demo
     component: mcp-weather
 spec:
-  replicas: 1
+  replicas: 2
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -23,6 +23,15 @@ spec:
         app: ai-demo
         component: mcp-weather
     spec:
+      # Two replicas on different nodes, so losing one node leaves one serving.
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app: ai-demo
+            component: mcp-weather
       containers:
       - name: mcp-weather
         image: ai-demo-k8-mcp-weather:latest

@@ -7,7 +7,7 @@ metadata:
     app: ai-demo
     component: api-resource-server
 spec:
-  replicas: 1
+  replicas: 2
   # Quota-safe restarts: terminate the old pod before creating the new one so a
   # rollout never surges past the namespace CPU quota (k8s/01-namespace.yaml).
   strategy:
@@ -25,6 +25,15 @@ spec:
         app: ai-demo
         component: api-resource-server
     spec:
+      # Two replicas on different nodes, so losing one node leaves one serving.
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app: ai-demo
+            component: api-resource-server
       containers:
       - name: api-resource-server
         image: ai-demo-k8-api-resource-server:latest
