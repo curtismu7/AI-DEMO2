@@ -10,7 +10,9 @@ from __future__ import annotations
 import json
 import logging
 import os
+import time
 import uuid
+from contextvars import ContextVar
 from typing import Any
 
 import httpx
@@ -21,8 +23,35 @@ logger = logging.getLogger(__name__)
 _TIMEOUT_SECONDS = 60.0
 
 
+# Hand-offs made while serving one inbound request, so the handler can report
+# them to its caller. Unset outside a request: nothing is recorded.
+_hop_trace: ContextVar[list[dict[str, Any]] | None] = ContextVar("a2a_hop_trace", default=None)
+
+
 class DelegationError(Exception):
     """The downstream agent could not be reached or refused the call."""
+
+
+def start_hop_trace() -> list[dict[str, Any]]:
+    """Begin recording hand-offs for the current request; returns the live list."""
+
+    hops: list[dict[str, Any]] = []
+    _hop_trace.set(hops)
+    return hops
+
+
+def _record_hop(target: str, status: str, detail: str, started: float) -> None:
+    hops = _hop_trace.get()
+    if hops is not None:
+        hops.append(
+            {
+                "from": "langchainagent",
+                "to": target,
+                "status": status,
+                "detail": detail,
+                "elapsedMs": round((time.monotonic() - started) * 1000),
+            }
+        )
 
 
 def load_targets() -> dict[str, dict[str, str]]:
@@ -46,6 +75,17 @@ def load_targets() -> dict[str, dict[str, str]]:
 async def delegate(target: str, text: str, client: httpx.AsyncClient | None = None) -> str:
     """Send ``text`` to the named target as A2A ``message/send``; return its reply text."""
 
+    started = time.monotonic()
+    try:
+        reply = await _send(target, text, client)
+    except DelegationError as exc:
+        _record_hop(target, "refused", str(exc), started)
+        raise
+    _record_hop(target, "ok", "", started)
+    return reply
+
+
+async def _send(target: str, text: str, client: httpx.AsyncClient | None) -> str:
     targets = load_targets()
     if target not in targets:
         raise DelegationError(f"unknown delegation target: {target}")

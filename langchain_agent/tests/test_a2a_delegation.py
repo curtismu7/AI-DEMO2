@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from agent import a2a_delegation
-from agent.a2a_delegation import DelegationError, build_delegate_tools, delegate, load_targets
+from agent.a2a_delegation import DelegationError, build_delegate_tools, delegate, load_targets, start_hop_trace
 from api.a2a_handler import public_router, router, set_federated_token_validator
 
 TARGETS = {"refunds": {"url": "https://gateway.example/refunds/a2a/jsonrpc", "description": "Handles refunds."}}
@@ -97,3 +97,52 @@ def test_handler_forwards_when_the_caller_names_a_target(configured, monkeypatch
     result = response.json()["result"]
     assert result["parts"] == [{"kind": "text", "text": "refunds handled: Refund order 7"}]
     assert result["metadata"]["delegatedTo"] == "refunds"
+
+
+async def test_hops_are_recorded_for_allowed_and_refused_hand_offs(configured):
+    hops = start_hop_trace()
+    ok = _client(lambda request: httpx.Response(200, json={"jsonrpc": "2.0", "result": {"parts": [{"kind": "text", "text": "ok"}]}}))
+    await delegate("refunds", "hi", client=ok)
+    refused = _client(lambda request: httpx.Response(403, text="Forbidden"))
+    with pytest.raises(DelegationError):
+        await delegate("refunds", "hi", client=refused)
+
+    assert [(h["from"], h["to"], h["status"]) for h in hops] == [
+        ("langchainagent", "refunds", "ok"),
+        ("langchainagent", "refunds", "refused"),
+    ]
+    assert "403" in hops[1]["detail"]
+
+
+def test_handler_reports_hops_from_a_model_chosen_hand_off(configured, monkeypatch):
+    """A hand-off made inside the agent run (the tool path) still reaches the caller."""
+
+    monkeypatch.setenv("PRIVILEGE_A2A_STATIC_TOKEN", "gateway-shared-secret")
+    set_federated_token_validator(None)
+
+    async def fake_send(target, text, client):
+        return "specialist says hi"
+
+    monkeypatch.setattr(a2a_delegation, "_send", fake_send)
+
+    class ToolUsingAgent:
+        async def process_message(self, text, session_id):
+            (tool,) = build_delegate_tools()
+            return await tool.ainvoke({"message": text})
+
+    from api.a2a_handler import set_agent
+
+    set_agent(ToolUsingAgent())
+    app = FastAPI()
+    app.include_router(router)
+    response = TestClient(app).post(
+        "/a2a/jsonrpc",
+        headers={"Authorization": "Bearer gateway-shared-secret"},
+        json={"jsonrpc": "2.0", "id": "t1", "method": "message/send",
+              "params": {"message": {"role": "user", "messageId": "m", "parts": [{"kind": "text", "text": "ask refunds"}]}}},
+    )
+
+    assert response.status_code == 200
+    result = response.json()["result"]
+    assert result["parts"][0]["text"] == "specialist says hi"
+    assert [(h["to"], h["status"]) for h in result["metadata"]["hops"]] == [("refunds", "ok")]

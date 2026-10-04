@@ -131,13 +131,12 @@ def _message_text(params: Any) -> str:
     ).strip()
 
 
-def _error(request_id: Any, code: int, message: str, status: int) -> JSONResponse:
+def _error(request_id: Any, code: int, message: str, status: int, data: Any = None) -> JSONResponse:
+    error = {"code": code, "message": message}
+    if data is not None:
+        error["data"] = data
     return JSONResponse(
-        {
-            "jsonrpc": "2.0",
-            "id": request_id,
-            "error": {"code": code, "message": message},
-        },
+        {"jsonrpc": "2.0", "id": request_id, "error": error},
         status_code=status,
     )
 
@@ -190,13 +189,16 @@ async def jsonrpc(request: Request) -> JSONResponse:
     # Explicit hand-off: the caller names a configured specialist and this
     # agent forwards the message to it through the gateway. No banking
     # identification and no model involved, so it works on the first message.
+    # Every hand-off this request causes, explicit or model-chosen, is reported
+    # back in the reply so the caller can show the chain.
+    hops = a2a_delegation.start_hop_trace()
     delegate_to = _delegate_target(body.get("params"))
     if delegate_to:
         try:
             delegated = await a2a_delegation.delegate(delegate_to, text)
         except a2a_delegation.DelegationError as exc:
             logger.warning("[A2A] delegation to %s failed: %s", delegate_to, exc)
-            return _error(request_id, -32003, f"Delegation failed: {exc}", 502)
+            return _error(request_id, -32003, f"Delegation failed: {exc}", 502, data={"hops": hops})
         return JSONResponse(
             {
                 "jsonrpc": "2.0",
@@ -206,7 +208,7 @@ async def jsonrpc(request: Request) -> JSONResponse:
                     "messageId": str(uuid.uuid4()),
                     "role": "agent",
                     "parts": [{"kind": "text", "text": delegated}],
-                    "metadata": {"delegatedTo": delegate_to, "delegatedBy": "langchainagent"},
+                    "metadata": {"delegatedTo": delegate_to, "delegatedBy": "langchainagent", "hops": hops},
                 },
             }
         )
@@ -232,6 +234,7 @@ async def jsonrpc(request: Request) -> JSONResponse:
                 "messageId": str(uuid.uuid4()),
                 "role": "agent",
                 "parts": [{"kind": "text", "text": str(reply)}],
+                **({"metadata": {"hops": hops}} if hops else {}),
             },
         }
     )
