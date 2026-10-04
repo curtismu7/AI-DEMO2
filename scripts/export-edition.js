@@ -239,7 +239,7 @@ function checkNoGitleaksConfig(dest) {
   if (hits.length) throw new Error(`gate failed: gitleaks config in exported tree: ${hits.join(', ')}`);
 }
 
-const JEST_SCOPE =['tests/crossVerticalIntentGuard.test.js', 'src/__tests__/featureFlags.route.test.js', 'src/__tests__/authorize-gate.test.js'];
+const JEST_SCOPE = ['tests/crossVerticalIntentGuard.test.js', 'src/__tests__/featureFlags.route.test.js', 'src/__tests__/authorize-gate.test.js'];
 
 function runGates(dest, manifest, runner = defaultRunner, removed) {
   checkForbidden(dest);
@@ -248,7 +248,9 @@ function runGates(dest, manifest, runner = defaultRunner, removed) {
   checkNoGitleaksConfig(dest);
   try {
     // config comes from the source repo (__dirname), never from the exported tree
-    execFileSync('gitleaks', ['detect', '--no-git', '--source', dest, '--no-banner', '--config', GITLEAKS_CONFIG], { stdio: 'pipe' });
+    // clean env: an inherited GITLEAKS_* variable (e.g. GITLEAKS_CONFIG) must never matter
+    const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('GITLEAKS_')));
+    execFileSync('gitleaks', ['detect', '--no-git', '--source', dest, '--no-banner', '--config', GITLEAKS_CONFIG], { stdio: 'pipe', env });
   } catch (e) { throw new Error(`gate failed: gitleaks (${e.status === 1 ? 'leaks found' : e.message.split('\n')[0]})`); }
   // generated use-case docs list every use case; regenerate so they match the dropped set
   const regen = (manifest.dropUseCases || []).length

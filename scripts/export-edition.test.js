@@ -146,6 +146,22 @@ test('gitleaks config: the URI with one extra character is not exempt', () => {
   assert.throws(() => gl(d), /gitleaks/);
 });
 
+// same-line secrets: the allowlists must exempt the finding, never the whole line
+const GLEAN = '<img src="https://pingidentity-be.glean.com/api/v1/images?key=' + 'q8Zr3Kx9Lm2Vb7Nc4Td6Wy1Hj5Gf0SaXp7Rt2Uv9Be3Qk6Mn1Jc4Hd8Lf5Zs0Yw" />';
+
+test('gitleaks config: a secret on the same line as the URI is still flagged', () => {
+  gl(tree({ 'a.json': `{ "audience": "${AUD}" }\n` }));
+  assert.throws(() => gl(tree({ 'a.json': `{ "audience": "${AUD}", "t": "${fakeToken()}" }\n` })), /gitleaks/);
+  assert.throws(() => gl(tree({ 'a.env': `X=${AUD} API_` + 'KEY=' + require('node:crypto').randomBytes(18).toString('base64url') + '\n' })), /gitleaks/);
+});
+
+test('gitleaks config: a secret on the same line as an allowlisted Glean id is still flagged', () => {
+  gl(tree({ 'ping_agent_guardrails_diagram.html': GLEAN + '\n' }));
+  assert.throws(() => gl(tree({ 'ping_agent_guardrails_diagram.html': `${GLEAN} <!-- ${fakeToken()} -->\n` })), /gitleaks/);
+  // the Glean exemption is per exact file: the same line elsewhere is flagged
+  assert.throws(() => gl(tree({ 'other.html': GLEAN + '\n' })), /gitleaks/);
+});
+
 test('gitleaks config: a .gitleaks.toml in the exported tree fails the gate and cannot weaken it', () => {
   const d = tree({ 'k.js': `const t = "${fakeToken()}";\n`, 'sub/.gitleaks.toml': '[extend]\nuseDefault = false\n[[allowlists]]\nregexes = [\'\'\'.*\'\'\']\n' });
   assert.throws(() => gl(d), /gitleaks config in exported tree: sub\/\.gitleaks\.toml/);
