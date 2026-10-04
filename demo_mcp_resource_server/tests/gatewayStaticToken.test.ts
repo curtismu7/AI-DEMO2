@@ -32,11 +32,18 @@ describe('gateway static token', () => {
     await expect(decodeAndValidate(TOKEN, AUD)).rejects.toBeInstanceOf(TokenError);
   });
 
-  it('accepts the configured token as a sub-less caller with read scope only', async () => {
+  it('accepts the configured token as a sub-less caller with no scopes by default', async () => {
     process.env[ENV_TOKEN] = TOKEN;
     const decoded = await decodeAndValidate(TOKEN, AUD);
     expect(decoded.sub).toBe('');
-    expect(extractScopes(decoded)).toEqual(['read']);
+    expect(extractScopes(decoded)).toEqual([]);
+  });
+
+  it('accepts comma-separated scopes, which survive env files that quote spaces', async () => {
+    process.env[ENV_TOKEN] = TOKEN;
+    process.env[ENV_SCOPES] = 'read,invest:read, airlines:read';
+    const decoded = await decodeAndValidate(TOKEN, AUD);
+    expect(extractScopes(decoded)).toEqual(['read', 'invest:read', 'airlines:read']);
   });
 
   it('uses the configured scopes and nothing wider', async () => {
