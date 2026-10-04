@@ -106,6 +106,8 @@ The gateway runs three checks in order and refuses at the first one that fails, 
 
 The agent card is a public JSON file that tells callers, and the console, what the agent is and how to reach it. It must be served without sign-in at `GET /.well-known/agent-card.json` on the agent's backend address. The console's **Discover A2A agent card** option fetches it from there and lists the agent's skills.
 
+**Where discovery looks.** The gateway logs each fetch as `agent card for app=<app>: <n> skills from <url>`. On 4 October 2026 it fetched from two places: the Backend URL followed by the app's Frontend URL Path (`<agent-backend>/a2a/.well-known/agent-card.json`) for two agents with the path `/a2a`, and the Backend URL's root (`<agent-backend>/.well-known/agent-card.json`) for a third. Serve the card at both and discovery works either way. Discovery runs when the app is saved, and again when the gateway restarts.
+
 The tested agent serves a version 0.3.0 card with these fields:
 
 | Field | What it holds |

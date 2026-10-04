@@ -88,6 +88,11 @@ const WALKTHROUGHS = Object.freeze({
     { title: "Issue temporary access", explain: "Access is time-bound and scoped to the requested operation.", demonstrate: "Request temporary access and show its expiry and permitted tool." },
     { title: "Revoke and audit", explain: "Credential isolation and audit evidence make the action reviewable after execution.", demonstrate: "Complete the operation, revoke access, and inspect the audit record." },
   ],
+  "privilege-a2a": [
+    { title: "Give each agent its own key", explain: "An agent cannot sign in through a browser, so it presents an agent key that carries its scopes, its allowed model and the agents and tools it may reach.", demonstrate: "Open the Agent-to-agent tab on Privilege Gateway Topologies and trace which key is used on each numbered leg." },
+    { title: "Put the gateway between every pair", explain: "Each hand-off is an A2A message to the gateway, which checks the key, the a2a scope, the policy for that remote agent and the guardrail before forwarding.", demonstrate: "Run Demo Step 26 and follow the caller, gateway, callee steps in the sequence view." },
+    { title: "Show a refusal", explain: "A prompt-injection message is blocked at the gateway, and a hand-off to an agent the caller was not granted is refused with its reason.", demonstrate: "Run the Prompt injection and Ungranted agent runs on Demo Step 26 and point at the refused gateway step." },
+  ],
   "threat-defense": [
     { title: "Inject the attack", explain: "Treat prompt injection and replay as untrusted input crossing a security boundary.", demonstrate: "Submit a malicious instruction and capture the normalized request." },
     { title: "Check binding", explain: "Scope escalation and audience mismatch reveal when a token is being used outside its purpose.", demonstrate: "Change audience or scope and compare the policy inputs." },
@@ -309,6 +314,24 @@ export const lessonCatalog = Object.freeze([
     talkingPoints: [
       "Privilege protects the MCP connection with time-bound, scoped access rather than long-lived secrets.",
       "The agent and browser never receive the protected credential path.",
+    ],
+  }),
+  lesson({
+    id: "privilege-a2a",
+    title: "Privilege agent-to-agent protection",
+    audience: "Sales engineers and security architects",
+    category: "Authorize and govern",
+    route: "/ai-products/privilege-a2a",
+    standaloneRoute: "/privilege-mcp-client?view=demo&tab=a2a",
+    run: { action: "privilege-status", exposesRawBearerToken: false, result: REDACTED_RESULT },
+    evidence: { events: ["agent-key", "gateway-hop", "guardrail-verdict", "refused-handoff"], result: REDACTED_RESULT },
+    fallback: { provenance: PROVENANCE.RECORDED, label: "Recorded Privilege A2A chain trace" },
+    maturityStages: [MATURITY_STAGES.AUTHORIZE, MATURITY_STAGES.GOVERN],
+    agentCategory: "Enterprise / Workload Agent",
+    productRoles: ["PingOne Privilege", "AI Gateway", "Agent Governance"],
+    talkingPoints: [
+      "Every agent-to-agent call goes through the Privilege AI Gateway with the caller's own agent key; no agent holds another agent's key or the model provider's key.",
+      "The gateway decides who may call whom, screens what crosses each hand-off, and logs every hop.",
     ],
   }),
   lesson({
