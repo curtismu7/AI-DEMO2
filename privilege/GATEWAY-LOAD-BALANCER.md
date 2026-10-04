@@ -1,11 +1,95 @@
 # Privilege AI Gateway: load balancer and second gateway
 
-Status: both gateways in rotation, linked by the mesh; one app registration serves both.
-Last updated 2026-10-03 (evening). **Section 0 supersedes the parts of sections 1, 5.3, 6
-and 9 that say the gateways cannot mesh or that apps must be registered twice.**
+Status: both gateways in rotation as two nodes of ONE mesh cluster (`ai-demo-cmuir`); one
+app registration serves both, and each node serves every app on its own.
+Last updated 2026-10-04. **Section 00 below is the current layout.** It supersedes section 0
+(two clusters, forwarding over the mesh), which in turn superseded the parts of sections 1,
+5.3, 6 and 9 that say the gateways cannot mesh or that apps must be registered twice.
 Audience: engineers and SEs reviewing how we show "two gateways behind one URL".
 Related: [CURRENT-CONFIGURATION.md](CURRENT-CONFIGURATION.md), [LESSONS-LEARNED.md](LESSONS-LEARNED.md),
 skill `.claude/skills/privilege-mcpgw-agent-k8s/SKILL.md`.
+
+## 00. Current layout (2026-10-04): two nodes in one mesh cluster
+
+Gateway 2 left its own cluster (`ai-demo-cmuir2`) and re-enrolled as a second node of
+gateway 1's cluster, `ai-demo-cmuir`. An app belongs to a cluster, so both nodes now own
+every app. Neither forwards to the other, and neither depends on the other.
+
+| | Two clusters + mesh (section 0) | Two nodes, one cluster (now) |
+| --- | --- | --- |
+| App registrations and policies | One | One |
+| Who serves a call | The owning cluster; the other gateway forwards | The node the client is pinned to |
+| Gateway 1 down | Every app down (~55 s) | Not proven; gateway 2 served alone while gateway 1 was parked |
+| Sidecars | Gateway 1 only | Both pods |
+| Failover costs a sign-in | Yes | Yes (unchanged) |
+
+**How the node was added.** Console, Gateways, Add New, the **AI GW** form with a Docker
+command at the end (not the VM wizard, which produces a guest-agent env file the chart
+cannot use). Cluster ID `ai-demo-cmuir`, the existing name; Host IP gateway 2's in-cluster
+Service name. The token's claims then read `clusterID: ai-demo-cmuir` with a new `nodeId`.
+On gateway 2, the old enrollment files in `/procyon/ssl` were moved into
+`/procyon/ssl/backup-cmuir2` (kept for rollback), the release was upgraded with
+`--set-file proxyToken=<file>`, and the pod restarted. It re-enrolled from the token.
+
+**What the test showed.**
+
+| Check | Result |
+| --- | --- |
+| Second node joins the cluster | Yes: `ClusterID:ai-demo-cmuir`, `LinkStatus:Active`, new node id |
+| It serves an app itself | Yes: signed-in `opensearch22` returned `200` from gateway 2 with zero `ConnStream` lines on gateway 1 |
+| Sidecar app before gateway 2 had sidecars | `500 dial tcp [::1]:8084: connect: connection refused`: the backend is `localhost` in the pod that takes the call |
+| After adding the sidecars to gateway 2 | Pod 9/9 ready; every sidecar `/health` ok and `initialize` answered on 8084, 8080, 8083 and 8081 from inside the pod; no discovery errors except `probe-agent-gateway` (its backend does not exist) |
+
+**What it needs.**
+
+- The same sidecar list on both releases: `sidecars.values.yaml`. For gateway 2 add
+  `--set landingPage.enabled=false`.
+- The sidecars' secrets in both namespaces: `brave-secrets`, `banking-rest-secrets`,
+  `pingone-mcp-secrets`, `mcp-grafana-secrets`, `ghcr-pull-secret`. The Grafana one is not
+  called `grafana-secrets` because in `ping-devops-cmuir` that name is Grafana's own secret.
+- Backend URLs that resolve from both namespaces: full Service names, never short ones.
+
+**Not verified.**
+
+- A signed-in call to a sidecar app through gateway 2 after it got its sidecars. The
+  sidecars and the gateway's own discovery were checked; the signed-in call was not.
+- Apps staying up with gateway 1 actually stopped. Gateway 2 served alone while gateway 1
+  was parked, which is the same request path, but gateway 1 was still running.
+- Whether `gatewayHostname`, `hostAliases` and `meshPort` are still needed now that nothing
+  is forwarded. They were left in place.
+- The wizard's **Redis URL** field. A shared Redis is the likely way to keep sign-in state
+  across nodes; it was left blank.
+
+**What was done on 2026-10-04, in order.**
+
+1. Sidecar-app test on the old layout: `brave0local` through gateway 2 over the mesh
+   (recorded under section 0).
+2. Gateway 2 parked; its enrollment moved to `backup-cmuir2`; re-enrolled with a token for
+   cluster `ai-demo-cmuir` (release `agentless-mcpgw2` revision 8).
+3. Test with gateway 1 parked: `opensearch22` served by gateway 2 alone; `brave0local`
+   failed with connection refused.
+4. Secrets copied to `ping-devops-cmuir`; `mcp-grafana-secrets` created in both namespaces;
+   sidecars added to gateway 2 (revision 9, pod 9/9).
+5. Gateway 1 upgraded with the same `sidecars.values.yaml` (release `agentless-mcpgw`
+   revision 53, pod 9/9 after one restart). The first attempt failed on a field-manager
+   conflict with an old `kubectl patch` on the Grafana secret reference; `--force-conflicts`
+   cleared it.
+6. Both gateways in rotation.
+
+**What is left.**
+
+| Item | Who | Note |
+| --- | --- | --- |
+| Signed-in call to a sidecar app through gateway 2 | Needs a signed-in user | Park gateway 1, run `brave0local` from the demo client, un-park |
+| Prove apps stay up with gateway 1 stopped | Needs someone allowed to stop it | `kubectl -n ping-devops-curtismuir scale deployment/agentless-mcpgw --replicas=0`, make a call, scale back to 1 |
+| Sign-in surviving a failover | Open | Try the wizard's Redis URL with a Redis both nodes can reach; ask Ping |
+| Ask Ping | Open | Is a second node in one cluster the supported HA layout; does Redis share sign-in state; are `gatewayHostname`/`hostAliases`/`meshPort` still needed |
+| Old cluster `ai-demo-cmuir2` and its node | Open | Still listed in the console; delete once this layout is accepted, which also ends the rollback path |
+| Secrets shown in a console screenshot (tenant API key and secret, OIDC client secret) | Owner's decision | They were pasted into a chat during setup; rotate if that history is not private |
+| `probe-agent-gateway` app | Open, unrelated | Its backend `hdr-echo.ping-devops-cmuir` does not exist; discovery fails on both nodes |
+
+**Roll back to section 0.** Park gateway 2, move the files in `backup-cmuir2` back into
+`/procyon/ssl`, restart gateway 2, and delete node `7f449849…` in the console.
 
 ## 0. Update: the mesh links, and one registration is enough
 
