@@ -123,7 +123,7 @@ spec:
         - name: GEMINI_BASE_URL
           value: "https://mcpgw.ai-demo.ping-devops.com/llm/google"
         - name: WORKER_AGENT_MODEL
-          value: "gemini-flash-lite-latest"
+          value: "gemini-3.5-flash-lite"
         - name: MCP_URL
           value: "https://mcpgw.ai-demo.ping-devops.com/mcpdemo/mcp"
         - name: WORKER_AGENT_KEY
