@@ -1,5 +1,6 @@
 'use strict';
 
+import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 
 export interface DecodedToken {
@@ -64,7 +65,30 @@ async function getJwksKeySetFor(iss: string | undefined) {
   return getJwksKeySet();
 }
 
+// Privilege AI Gateway "Static Token" auth mode sends one fixed bearer on every
+// backend call. It is not a JWT and names no user, so it is treated like a
+// sub-less machine token limited to MCP_RESOURCE_SERVER_GATEWAY_STATIC_SCOPES
+// (default: read). Off unless a token of at least 32 characters is configured.
+const GATEWAY_STATIC_TOKEN_MIN_LENGTH = 32;
+function isGatewayStaticToken(token: string): boolean {
+  const expected = (process.env.MCP_RESOURCE_SERVER_GATEWAY_STATIC_TOKEN || '').trim();
+  if (expected.length < GATEWAY_STATIC_TOKEN_MIN_LENGTH || !token) return false;
+  const digest = (s: string) => crypto.createHash('sha256').update(s, 'utf8').digest();
+  return crypto.timingSafeEqual(digest(token), digest(expected));
+}
+
 export async function decodeAndValidate(token: string, expectedAud: string): Promise<DecodedToken> {
+  if (isGatewayStaticToken(token)) {
+    // ponytail: every gateway caller shares this one identity; use the gateway's
+    // Pass Agent Token or User Token mode if per-caller identity is ever needed.
+    return {
+      sub: '',
+      aud: expectedAud,
+      scope: (process.env.MCP_RESOURCE_SERVER_GATEWAY_STATIC_SCOPES || 'read').trim(),
+      exp: 0,
+    };
+  }
+
   // SECURITY (was: critical gap) — verify the signature against PingOne's JWKS
   // BEFORE trusting any claim. Previously this used an unsigned jwt.decode, so a
   // forged JWT with the right aud/scope was accepted. Fail-closed when JWKS is
