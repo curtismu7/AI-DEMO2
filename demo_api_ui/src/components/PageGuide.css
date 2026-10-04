@@ -22,6 +22,7 @@
 }
 .page-guide__lesson + .page-guide__lesson { margin-top: 24px; border-top: 1px solid var(--th-border); padding-top: 16px; }
 .page-guide__lesson h3 { margin: 0 0 8px; color: var(--th-text); font-size: var(--font-size-h3); }
+.page-guide__lesson h4 { margin: 12px 0 4px; color: var(--th-text); font-size: var(--font-size-base); }
 .page-guide__steps { padding-left: 20px; }
 .page-guide__steps--plain { list-style: none; padding-left: 0; }
 .page-guide__steps li { margin-bottom: 12px; }

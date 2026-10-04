@@ -198,6 +198,111 @@ export const MORE_PAGE_GUIDES = {
       ["Watch it live", "The trace rail updates when an agent action runs, so the audience sees the act claim build up on real tokens.", "Go to the dashboard, ask the agent something like 'Check my balance' (needs sign-in), then return to the 'Live Actor Token Flow' panel to see the exchange."],
     ]),
   },
+  "/jev-learning": {
+    title: "Jev Learning Guide",
+    talkingPoints: [
+      "Jev is a 'System One' decision model: you send it text and a typed question, and it returns a choice, a score or a yes/no probability instead of prose.",
+      "The page runs the same input through fixed keyword rules and through Jev, so the audience can see where rules miss rewording and where the model is unsure.",
+      "A model score is one input to policy, not a verdict: the threshold sliders show the same score flipping between Allow, Step-up and Deny.",
+    ],
+    walkthrough: steps([
+      ["Frame System One vs System Two", "The first card compares a fast typed decision model with a generative LLM. The speed and cost rows are TypeSafe's published claims, not measurements from this demo, so say that out loud.", "Point at the 'System One vs System Two' table (columns 'System One (Jev)' and 'System Two (generative LLM)') and read the footnote about published claims."],
+      ["Run both deciders on the same text", "The 'Same input, two deciders' card runs the keyword rules and Jev side by side. Jev's column carries a badge: Live, Recorded, or 'Simulated - not configured'. If it shows Simulated, the server has no OPENROUTER_API_KEY or JEV_ENDPOINT and both columns are the same rules, so do not present it as Jev. The page works signed out but needs the BFF reachable.", "Pick a tab (Prompt injection, Intent routing or Step-up risk), click an example chip or edit the 'Text to judge' box, press Decide, then compare the 'Keyword rules' and 'Jev' columns. Try a reworded attack and a harmless sentence that contains a trigger word."],
+      ["Show that confidence is not permission, then the bake-offs", "Run the Step-up risk example first so the sliders load a real score. Dragging the lines flips the outcome for one fixed score. The two bake-offs score eight hand-labelled messages each; they are a teaching illustration, not a benchmark.", "In 'Confidence is not permission' drag 'Jev P(yes risky)', 'Step-up at' and 'Deny at' and watch the Allow / Step-up / Deny rows highlight. Then press 'Run bake-off' and 'Run intent bake-off' and read the 'What this shows' notes."],
+    ]),
+  },
+  "/intent-binding-learning": {
+    title: "Intent Binding Guide",
+    talkingPoints: [
+      "An agent's declared intent (here: pay acme-utilities up to $100) is pushed to PingOne once via PAR (RFC 9126) and later referenced by request_uri, so the amount cannot silently grow.",
+      "The two columns run the same pipeline: $80 stays inside the cap and is permitted, $500 drifts past it and is denied at step 4.",
+      "The Reel under each result replays the exact request, response and decision frames of that run, so the audience sees the real exchange, not a diagram.",
+    ],
+    walkthrough: steps([
+      ["Walk the four-step pipeline and the grant", "The header band explains that every agent transfer runs this pipeline. The static strip and flow diagram name the four hops, and the grant card shows the payload that gets pushed.", "Point at the four 'Step 1' to 'Step 4' cards (Declare intent, Push to PAR endpoint, Receive request_uri, Token exchange with request_uri), the 'RAR authorization_details (RFC 9396), pushed via PAR (RFC 9126)' JSON, and the 'PAR + RAR flow through the system' diagram."],
+      ["Run Permit and Drift side by side", "'Within the grant' defaults to $80 and 'Drifts past the grant' to $500, against the $100 cap, and each Amount field is editable. Signed out, pressing Run shows a sign-in strip instead of a result, so sign in first.", "Press Run in the 'Within the grant' column and read the PERMIT line, then Run in 'Drifts past the grant' and read DENY with its error code. Change an Amount and re-run to move the line."],
+      ["Replay the reel and choose live or simulated", "After a run, a Reel plays frames: Request, Response, Decision. A simulated run shows only Request and Response because nothing goes to PingOne. 'Live mode' is on by default and routes the decision through real PingOne Authorize; turn it off to use the simulated engine. Live runs need the AI Agent Actor client id and secret plus the PingOne environment id configured on the BFF (they are set in this stack); without them the run returns a 'PAR Configuration Missing' error. The run endpoint is disabled in production builds.", "Use Prev / Pause / Play / Next or the chip strip under 'Reel' to step through frames. Tick or untick the Live mode checkbox, and open the 'PAR education panel' or 'RAR education panel' links for the standards background. Run it live once before presenting to confirm the PERMIT and DENY outcomes in your environment."],
+    ]),
+  },
+  "/privilege-mcp-learning": {
+    title: "AI Agent Gateway Guide",
+    talkingPoints: [
+      "This is a reference guide for the Privilege AI Agent Gateway: the agent gets exactly the tools the person is allowed, for as long as allowed, and never holds a backend credential.",
+      "The 'How to Demo (Business Value)' section is the presenter script: a buyer-value table and a roughly 5-minute demo script run from the Privilege MCP Client page.",
+      "The remaining sections (Architecture, Installation, Configuration, Console Setup, Policies, Troubleshooting, Reference) are setup and support material to use when asked, not to read through.",
+    ],
+    walkthrough: steps([
+      ["Open with Overview and the A2A note", "Overview separates AI Agent Gateway (access governance, near the client) from PingOne Agent Gateway MCP Security Gateway (token mediation, near the backend), states what this demo runs today, and notes that the gateway fronts agents as well as MCP servers.", "Click 'Overview' in the left section nav. Point at the callout 'Privilege vs PingOne Agent Gateway - when to use which', the 'What this demo runs today' list, and the 'Agent-to-agent (A2A)' list with its links to the gateway client and Privilege Gateway Topologies."],
+      ["Use 'How to Demo' as the script", "This is the section to present from. The table maps each business value to what to show and the proof on screen; the ordered demo script runs on the Privilege MCP Client page, not on this page. It needs the Privilege gateway reachable, a PingOne sign-in and a policy that has not expired.", "Click 'How to Demo' in the left nav. Show the 'What the buyer cares about' table, then the 'Demo script (about 5 minutes)' list, and use 'Back to Privilege MCP Client' to open the client."],
+      ["Use the reference sections when asked", "The left nav scrolls to each section and its width can be dragged. Installation walks four steps (create the OIDC app, get a single-use enrollment token, install the Helm chart, check the log for LinkStatus:Active). Configuration lists the network ports, the chart values that matter and the Helm upgrade rules. Console Setup covers registering an MCP server (on /mcp, not /sse) and tool discovery. Policies lists what a policy can do and the behaviour the console does not tell you: a new app denies everything, policies add up, policies expire, and the client only ever sees 403. Troubleshooting is a symptom, cause and fix table, and Reference holds the key identifiers. They name the demo's own cluster, namespace and tenant, so check them against the live environment before quoting.", "Click Installation, Configuration, Console Setup, Policies, Troubleshooting and Reference in turn in the left nav. For a denial, go to Policies > 'Reading a denial' for the gateway log lines; for a failing client, find its row in Troubleshooting. Drag the 'Resize section navigation' handle to widen the nav, and use the copy button on any code block to copy a command."],
+    ]),
+  },
+  "/oauth-academy": {
+    title: "OAuth Academy Guide",
+    talkingPoints: [
+      "OAuth Academy is a chat with a teacher agent for OAuth 2.0 / 2.1 and OIDC. Every message is pinned to the oauth-teaching vertical, so it works on any session vertical.",
+      "The starter chips are the guided curriculum: concept explanations first, then 'demonstrate a real token exchange' and 'demonstrate hitl approval' run real flows.",
+      "The 'Live Token Flow' rail under the chat shows the token hops each time the agent runs a demonstration.",
+    ],
+    walkthrough: steps([
+      ["Start from a starter chip", "The empty page shows a hero and a row of chips. Concept chips (for example 'what is oauth', 'explain scopes and least privilege') are meant to answer quickly, while free text that does not match goes to the LLM and can be slower.", "Click the chip 'what is the authorization code flow with pkce', then 'what is the difference between an id token and an access token'. Or type in the 'Ask about OAuth, OIDC, scopes, token exchange...' box and press Enter. Use Stop while it runs and Clear to reset."],
+      ["Run a real token exchange and watch the rail", "The 'demonstrate' chips call real backends. Signed out, the agent replies 'Please sign in first' with a Sign in button, so sign in before presenting. The token events from the run populate the 'Live Token Flow' rail.", "Click 'demonstrate a real token exchange', then scroll to the 'Live Token Flow' section and expand the hops. Click 'how does token exchange work (rfc 8693)' and 'what is act and may_act delegation' to explain what the rail shows."],
+      ["Show human-in-the-loop approval", "'demonstrate hitl approval' attempts an over-threshold transfer, which raises an approval challenge. Approving records a receipt and the page retries; dismissing cancels with no money moved. It needs sign-in and the HITL service running.", "Click the chip 'demonstrate hitl approval', approve in the consent modal that opens, and read the retry reply. Run it again and dismiss to show the 'Approval cancelled' message."],
+    ]),
+  },
+  "/learning": {
+    title: "Learning Hub Guide",
+    talkingPoints: [
+      "The Learning Hub is the index of every teaching topic in the demo, grouped into categories, each card tagged with a status such as LIVE, LIVE / CONFIG, SIMULATED or REFERENCE.",
+      "The 'Recommended path' is a four-stop customer story across live surfaces: Agent Gateway Authorization, token flow inspection, Authorize decisions, then transaction trace.",
+      "Use search and the two ask boxes to jump straight to the topic a customer asks about, rather than browsing.",
+    ],
+    walkthrough: steps([
+      ["Start with the Academy entry and Recommended path", "Both blocks show only while search is empty. 'AI Security Academy' offers the guided journey and the standalone demos, and 'Recommended path' is the four-card story to run in order.", "Click 'Start guided journey' or 'Open standalone demos'. Then in 'Secure one agent action from identity to evidence' use the card links: 'Run Agent Gateway Authorization', 'Inspect token flow', 'Test Authorize decisions', 'Open transaction trace'."],
+      ["Find a topic: search, ask and document search", "The search box filters cards by name, description, status and keywords and shows a 'Found x of y topics' count. 'Ask the Learning Hub' returns an agent summary with sources, and 'Search source documents' retrieves cited passages. Those two panels depend on backend search or RAG services; if they error, fall back to search and the cards.", "Type in 'Search topics, keywords, standards...' (try 'PKCE' or 'RFC 8693'). In 'Ask the Learning Hub' use 'Ask agent' or a prompt from the 'Prompt library'. In 'Search source documents' press 'Search documents' or 'Answer with sources'."],
+      ["Open a topic card and show the live token chain", "Cards are grouped as Getting Started, OAuth & Identity, MCP & Agents, Ping AI Products, Standards & Architecture, Project Reference, AI Ecosystem and Special Topics. Each card opens an education panel or navigates to a page, and the 'Live Token Chain Demo' at the bottom updates as you use the agent elsewhere.", "Click 'Token Exchange (RFC 8693)' under OAuth & Identity to open its panel, and 'Jev: Decision Model' under MCP & Agents to navigate. Scroll to 'Live Token Chain Demo'."],
+    ]),
+  },
+  "/academy/demos": {
+    title: "Standalone Demo Launcher Guide",
+    talkingPoints: [
+      "Each card is a short customer story you can run on its own, without the full guided journey.",
+      "The card tells you up front whether live prerequisites are available and which fallback you would be showing if not, so you do not present a simulation as live.",
+      "'Check evidence' runs a read-only observation and 'Reset' clears only the launcher's captured state, not the tenant.",
+    ],
+    walkthrough: steps([
+      ["Check readiness before picking a demo", "The tenant readiness strip at the top reports which dependencies (for example PingOne and MCP) are available and refreshes about every 30 seconds. A card whose dependencies are not all available shows UNAVAILABLE and names the declared fallback.", "Point at the 'Tenant readiness' strip, then the availability label on each card and its 'Prerequisites' list. Use 'Return to guided journey' or 'Learning hub' in the top links to leave."],
+      ["Filter and choose a story", "The filter row starts at 'All demos' and adds one button per lesson category, and the count line shows how many demos are visible. The stories include Delegated access, Multi-party delegation, Healthcare caregiver delegation, Authorize denial, CIBA and approval, Agent revocation, MCP discovery, Replay defense, Prompt-injection defense, Privilege MCP, DaVinci orchestration and Observability.", "Click a category button in 'Demo categories' and read 'Showing x of y demos'. On a card, read 'Customer outcome', 'Reset behavior' and 'Fallback behavior'."],
+      ["Launch, check evidence, reset", "'Launch demo' opens the live surface and 'Explain this' opens the lesson. 'Check evidence' is read-only and is disabled when the card is unavailable or has no evidence check connected. Each demo's own surface may need sign-in or its own backend.", "Click 'Launch demo' on 'Delegated access', then come back and press 'Check evidence' and read the status line. Press 'Reset' and read 'Reset ready. Tenant state unchanged.'"],
+    ]),
+  },
+  "/davinci-widget": {
+    title: "DaVinci Widget Guide",
+    talkingPoints: [
+      "The page runs a live PingOne DaVinci journey inside the app and records every call it makes, so the audience can watch the flow instead of being told about it.",
+      "The page lists the flow's three paths (Sign in, Register, Recover) and tells you to choose one on the first DaVinci screen; those screens are served by the DaVinci flow itself, and the Call Inspector shows each hop as it happens.",
+      "The lesson sections below the widget explain how it is wired (pi.flow, the API calls, the final node, tokens to session) and what the code does.",
+    ],
+    walkthrough: steps([
+      ["Run the live flow in 'Try It Live'", "It needs PingOne selected as the login provider (a guard asks you to switch if PingFederate is selected) and a working DaVinci flow. The page is public, so no app sign-in is needed first.", "Read 'Paths in this DaVinci flow' (01 Sign in, 02 Register, 03 Recover), then in 'Live DaVinci flow' work through the embedded widget and choose a path on its first screen (its wording comes from the DaVinci flow, not this page). 'Open pop-out' runs the same flow in a separate window, which your browser may block. Complete a sign-in to see 'Signed in as ...' appear."],
+      ["Read the Call Inspector alongside the widget", "Every call the journey makes is appended to the Call Inspector, with a running count that resets when you start a new run. This is the main teaching view: it shows the SDK token, the screen submits and the final session call.", "Point at 'Call Inspector' and the call counter while you step through screens. Open individual calls to show request and response shapes."],
+      ["Close with 'What just happened' and the lesson sections", "After sign-in, 'What just happened?' opens a summary of the run with links into the lesson. The section nav on the left covers Overview, How It's Wired, pi.flow, How It Works, API Calls, The Flow, The Final Node, Tokens to Session, Security, Troubleshooting and In This Repo.", "Click 'What just happened?' after sign-in, then use its links to jump to a section. Open 'API Calls' to show the numbered calls, and 'Tokens to Session' for the session call."],
+    ]),
+  },
+  "/a2a-protocol-learning": {
+    title: "A2A Protocol Guide",
+    extra: "a2a-reference",
+    talkingPoints: [
+      "Two things are called A2A here: the Linux Foundation wire protocol (Agent Card plus bearer-gated JSON-RPC) and the RFC 8693 nested-act identity chain, and they use different credentials.",
+      "The Agent Card is public capability metadata that grants no authority, while the endpoint it advertises refuses a call with no bearer.",
+      "The handoff carries the user-bound Exchange #1 token, and the specialist performs Exchange #2 for the downstream tool token itself, so the final act chain reads specialist, then generalist, with the user still as sub.",
+    ],
+    walkthrough: steps([
+      ["Separate the two meanings of A2A", "Most confusion about agent-to-agent comes from using one name for both the identity chain and the wire protocol, so set that straight before showing any evidence.", "Read section 1, 'Two different things are called A2A', and contrast the 'Identity - RFC 8693 delegation' card with the 'Wire protocol - Linux Foundation A2A' card. Choose a vertical in the 'Specialist agent' dropdown at the top; it applies to the Agent Card and 401 sections that follow. No sign-in needed."],
+      ["Prove discovery is public and the endpoint is gated", "The Agent Card tells any caller what the specialist can do, but the JSON-RPC endpoint still demands a PingOne bearer.", "In section 2, 'Layer 2 - discovery: the Agent Card', point to the 'live' badge and the Agent, Skills, Security and Binding facts. Then in section 3, 'Layer 2 - the bearer gate, proven', click 'Send without a bearer' and show the HTTP 401 pane. Both work signed out but need the BFF running."],
+      ["Run the delegation and read both layers", "A live run mints the real PingOne tokens and shows how scope narrows and act nests, then shows the separate wire hop that carried the Exchange #1 bearer.", "Sign in as a customer, go to section 4, 'Layer 1 - run the delegation', and click 'Run the delegation' (signed out you get a sign-in prompt and a recorded run). Then read section 5, 'Layer 1 - the token chain, hop by hop', section 6, 'Layer 2 - the handoff on the wire', and close on section 7, 'What this page is not'. A live run needs the PingOne-backed BFF and the A2A specialist services."],
+    ]),
+  },
   "/pingfederate-ai-agent": {
     title: "PingFederate AI Agent Guide",
     talkingPoints: [

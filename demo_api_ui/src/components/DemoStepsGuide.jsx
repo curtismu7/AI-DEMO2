@@ -7,7 +7,8 @@ import {
   PRIVILEGE_USE_CASE_IDS,
 } from "../config/demoUseCaseSteps";
 import { demoStepNumber, stepLabel } from "../config/demoStepNumbers";
-import { DEMO_STEP_GUIDES } from "../config/demoStepGuides";
+import { A2A_SEQUENCE, DEMO_STEP_GUIDES } from "../config/demoStepGuides";
+import A2aReference from "./A2aReference";
 
 const FIELDS = [
   ["what", "What"],
@@ -41,6 +42,26 @@ export default function DemoStepsGuide() {
   return (
     <div>
       <p>The demo steps in the same order and numbering as the Demo steps menu.</p>
+      <section data-testid="a2a-sequence">
+        <h3>Agent-to-Agent (A2A): how to present it</h3>
+        <p>{A2A_SEQUENCE.intro}</p>
+        <ol className="page-guide__steps page-guide__steps--plain">
+          {A2A_SEQUENCE.steps.map(({ id, adds, skipWhen }) => (
+            <li key={id}>
+              <strong>
+                {stepLabel(id)}: {DEMO_STEP_GUIDES[id]?.title}
+              </strong>
+              <p>
+                <em>Adds.</em> {adds}
+              </p>
+              <p>
+                <em>Skip when.</em> {skipWhen}
+              </p>
+            </li>
+          ))}
+        </ol>
+      </section>
+      <A2aReference />
       {GUIDE_GROUPS.map((group) => (
         <section key={group.label}>
           <h3>{group.label}</h3>
