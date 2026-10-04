@@ -14,7 +14,9 @@
 #
 # Without --apply, `upgrade` only runs `helm upgrade --dry-run` and checks the render.
 # `secrets` never overwrites an existing secret unless --force, and never prints a value.
-# Env: SE_KUBE_CONTEXT (default us), GW1_NS, GW2_NS, GW1_RELEASE, GW2_RELEASE.
+# Env: SE_KUBE_CONTEXT (default us), GW1_NS, GW2_NS, GW1_RELEASE, GW2_RELEASE, GW3_RELEASE.
+# A third node (release agentless-mcpgw3 in gateway 1's namespace, gateway3.values.yaml) is
+# upgraded and reported too once it is installed; before that it is simply absent.
 
 set -euo pipefail
 
@@ -24,6 +26,9 @@ CHART="$AG/agentless-mcpgw"   # the source dir, never the .tgz: the packaged cha
 CTX="${SE_KUBE_CONTEXT:-us}"
 GW1_NS="${GW1_NS:-ping-devops-curtismuir}"; GW1_REL="${GW1_RELEASE:-agentless-mcpgw}"
 GW2_NS="${GW2_NS:-ping-devops-cmuir}";      GW2_REL="${GW2_RELEASE:-agentless-mcpgw2}"
+# Gateway 3 shares gateway 1's namespace (chart nameOverride); it is handled only if installed.
+GW3_REL="${GW3_RELEASE:-agentless-mcpgw3}"
+gw3_installed() { helm --kube-context "$CTX" -n "$GW1_NS" status "$GW3_REL" >/dev/null 2>&1; }
 SECRETS=(brave-secrets banking-rest-secrets pingone-mcp-secrets mcp-grafana-secrets ghcr-pull-secret)
 
 # Sidecar containers the render must contain: read from the values file, so adding one
@@ -72,18 +77,21 @@ upgrade_one() {
 
 cmd_upgrade() {
   APPLY=0; [[ "${1:-}" == "--apply" ]] && APPLY=1
-  # Gateway 2 first: it is the node that is not carrying the apps while it restarts.
+  # The extra nodes first: they are not carrying the apps while they restart.
+  if gw3_installed; then upgrade_one "$GW1_NS" "$GW3_REL" -f "$AG/gateway3.values.yaml"; fi
   upgrade_one "$GW2_NS" "$GW2_REL" -f "$AG/gateway2-mesh.values.yaml" --set landingPage.enabled=false
   upgrade_one "$GW1_NS" "$GW1_REL" -f "$AG/gateway1-lb.values.yaml"
   [[ $APPLY -eq 1 ]] || echo "Dry run only. Re-run with --apply to upgrade."
 }
 
 cmd_status() {
-  local ns rel
-  for pair in "$GW1_NS $GW1_REL" "$GW2_NS $GW2_REL"; do
-    read -r ns rel <<<"$pair"
+  local ns rel app pair
+  local pairs=("$GW1_NS $GW1_REL agentless-mcpgw" "$GW2_NS $GW2_REL agentless-mcpgw")
+  if gw3_installed; then pairs+=("$GW1_NS $GW3_REL agentless-mcpgw3"); fi
+  for pair in "${pairs[@]}"; do
+    read -r ns rel app <<<"$pair"
     helm --kube-context "$CTX" -n "$ns" list -f "^${rel}\$" 2>&1 | tail -n +2
-    kubectl --context "$CTX" -n "$ns" get pods -l app=agentless-mcpgw --no-headers 2>&1 || true
+    kubectl --context "$CTX" -n "$ns" get pods -l app="$app" --no-headers 2>&1 || true
   done
 }
 
