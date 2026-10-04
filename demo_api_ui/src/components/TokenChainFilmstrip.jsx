@@ -158,6 +158,7 @@ export default function TokenChainFilmstrip() {
     () => (viewMode === "classic" ? classicSteps : buildLiveTokenChainSteps(classicSteps, trace)),
     [viewMode, classicSteps, trace],
   );
+  const isChainRun = steps.some((step) => String(step?.id).startsWith("pa2a-"));
 
   // Clearing a run must drop the selection, the sheet and the presenter, or the
   // next run reopens whatever was left behind.
@@ -322,6 +323,16 @@ export default function TokenChainFilmstrip() {
           <div className="tcfs-spotlight-empty">
             <div className="tcfs-spotlight-intro">
               <div className="tcfs-spotlight-intro-title">What this panel shows</div>
+              {/* A Privilege A2A chain has no tokens in it: agents present agent
+                  keys and the gateway checks each hop, so the banking copy
+                  about token exchange does not describe this run. */}
+              {isChainRun ? (
+                <ul className="tcfs-spotlight-intro-list">
+                  <li>Every agent-to-agent call, as caller, gateway check, callee</li>
+                  <li>Which agent key made each call; no agent holds another agent's key</li>
+                  <li>Where the gateway refused a call, and its reason</li>
+                </ul>
+              ) : (
               <ul className="tcfs-spotlight-intro-list">
                 <li>Every hop's token — issuer, audience, scopes, and the nested <code>act</code> chain (RFC 8693)</li>
                 <li>Who is acting on whose behalf, proven cryptographically at each step</li>
@@ -329,8 +340,11 @@ export default function TokenChainFilmstrip() {
                   ? "Sample claims you can inspect; no live tokens were issued"
                   : "Live claims you can inspect, not just a diagram"}</li>
               </ul>
+              )}
               <div className="tcfs-spotlight-intro-value">
-                {traceProvenance === "mock-id-jag"
+                {isChainRun
+                  ? "The Privilege AI Gateway sits between every pair of agents: it checks the caller's key, its scope and policy, and screens the message before the next agent sees it."
+                  : traceProvenance === "mock-id-jag"
                   ? "This replay illustrates how a sample ID-JAG grant is redeemed for an MCP access token."
                   : traceProvenance === "live-id-jag"
                     ? "PingFederate issues the ID-JAG grant; the downstream authorization server redeems it for an MCP access token."
