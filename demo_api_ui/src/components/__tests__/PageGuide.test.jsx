@@ -9,6 +9,7 @@ import {
   PRIVILEGE_USE_CASE_IDS,
 } from "../../config/demoUseCaseSteps";
 import { DEMO_STEP_GUIDES } from "../../config/demoStepGuides";
+import { demoStepNumber, stepLabel } from "../../config/demoStepNumbers";
 
 const at = (path) => render(<MemoryRouter initialEntries={[path]}><PageGuide /></MemoryRouter>);
 
@@ -41,6 +42,14 @@ test("dashboard guide lists the demo steps", () => {
   expect(screen.getByText(/Step 26 · UC47: /)).toBeTruthy();
   expect(screen.getByText(/Step 27 · UC43: /)).toBeTruthy();
   expect(screen.getByText(/Step 32 · UC17: /)).toBeTruthy();
+});
+
+test("step numbers match the menu, admin included, and skip non-steps", () => {
+  expect(stepLabel("UC24")).toBe("Step 1 · UC24");
+  expect(stepLabel("UC43")).toBe("Step 27 · UC43");
+  expect(demoStepNumber("ADMIN13")).toBe(13);
+  expect(stepLabel("UC999")).toBe("UC999");
+  expect(demoStepNumber("UC40")).toBe(22); // first appearance wins over its Privilege-group slot
 });
 
 test("no button on an unmapped route", () => {
