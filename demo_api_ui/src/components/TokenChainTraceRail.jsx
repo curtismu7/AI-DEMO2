@@ -251,7 +251,50 @@ export function buildA2aTokenChainSteps(tokenEvents) {
   });
 }
 
+const PRIVILEGE_CHAIN_ACTORS = { primary: "Primary agent", langchainagent: "LangChain agent" };
+const chainActor = (name) => PRIVILEGE_CHAIN_ACTORS[name] || `${name} specialist`;
+
+/**
+ * Steps for a three-deep Privilege A2A chain run (primary agent -> gateway ->
+ * LangChain agent -> gateway -> specialist). One step per hop event
+ * (`pa2a-<n>`, see utils/privilegeA2aChainRun.js), in arrival order, so the
+ * reel and the sequence view grow as the run proceeds.
+ */
+export function buildPrivilegeA2aChainSteps(tokenEvents) {
+  const hops = (Array.isArray(tokenEvents) ? tokenEvents : [])
+    .filter((event) => typeof event?.id === "string" && event.id.startsWith("pa2a-") && event.from && event.to);
+  return hops.map((event) => {
+    const from = chainActor(event.from);
+    const to = chainActor(event.to);
+    const refused = event.status === "error";
+    const title = event.kind === "result"
+      ? `${from} returned to ${to}`
+      : `${from} → ${to} · through the Privilege gateway${refused ? " — refused" : ""}`;
+    return {
+      id: event.id,
+      title,
+      lane: "A2A",
+      status: refused ? "error" : "done",
+      detail: {
+        narrative: refused
+          ? `The gateway or the agent refused this hop: ${event.detail || "no reason given"}.`
+          : event.kind === "result"
+            ? `${from} answered ${to}.`
+            : `${from} called ${to} with its own agent key; the gateway checked scope, policy and guardrail before forwarding.`,
+        facts: [
+          `${event.from} → ${event.to}`,
+          ...(typeof event.elapsedMs === "number" ? [`${event.elapsedMs} ms`] : []),
+        ],
+        tokenEvent: event,
+      },
+    };
+  });
+}
+
 export function buildLiveTokenChainSteps(steps, trace) {
+  // A Privilege chain run has no banking pipeline in it: show its hops alone.
+  const chainSteps = buildPrivilegeA2aChainSteps(trace?.tokenEvents);
+  if (chainSteps.length) return chainSteps.map((step, index) => ({ ...step, num: index + 1 }));
   const source = Array.isArray(steps) ? steps.slice() : [];
   const a2aSteps = buildA2aTokenChainSteps(trace?.tokenEvents);
   if (a2aSteps.length) {

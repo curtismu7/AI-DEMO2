@@ -8,28 +8,17 @@ const MAX_MESSAGE_LENGTH = 4000;
 const MAX_SESSION_ID_LENGTH = 128;
 const UNAVAILABLE = { error: 'A2A service unavailable' };
 
-function mainChatUrl() {
+function mainAgentUrl(path) {
   const base = (process.env.PRIVILEGE_A2A_MAIN_URL || 'http://127.0.0.1:3300').replace(/\/+$/, '');
-  return `${base}/chat`;
+  return `${base}${path}`;
 }
 
-router.post('/chat', requireSession, express.json({ limit: '64kb' }), async (req, res) => {
-  const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body)
-    ? req.body
-    : {};
-  const message = typeof body.message === 'string' ? body.message.trim() : '';
-  const hasSessionId = Object.prototype.hasOwnProperty.call(body, 'sessionId');
-  const sessionId = typeof body.sessionId === 'string' ? body.sessionId.trim() : '';
-
-  if (!message || message.length > MAX_MESSAGE_LENGTH) {
-    res.status(400).json({ error: `message must contain 1 to ${MAX_MESSAGE_LENGTH} characters` });
-    return;
-  }
-  if (hasSessionId && (!sessionId || sessionId.length > MAX_SESSION_ID_LENGTH)) {
-    res.status(400).json({ error: `sessionId must contain 1 to ${MAX_SESSION_ID_LENGTH} characters` });
-    return;
-  }
-
+/**
+ * POST `upstreamBody` to the main agent at `path` and relay its SSE stream to
+ * the browser byte for byte. Only the server-held shared secret is added; no
+ * browser identity or token is forwarded.
+ */
+async function relayMainAgentSse(res, path, upstreamBody) {
   const sharedSecret = process.env.PRIVILEGE_A2A_BFF_SECRET;
   if (!sharedSecret) {
     res.status(503).json(UNAVAILABLE);
@@ -45,9 +34,7 @@ router.post('/chat', requireSession, express.json({ limit: '64kb' }), async (req
   res.on('finish', cleanup);
 
   try {
-    const upstreamBody = { message };
-    if (sessionId) upstreamBody.sessionId = sessionId;
-    const upstream = await fetch(mainChatUrl(), {
+    const upstream = await fetch(mainAgentUrl(path), {
       method: 'POST',
       headers: {
         Accept: 'text/event-stream',
@@ -100,6 +87,50 @@ router.post('/chat', requireSession, express.json({ limit: '64kb' }), async (req
   } finally {
     cleanup();
   }
+}
+
+router.post('/chat', requireSession, express.json({ limit: '64kb' }), async (req, res) => {
+  const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body)
+    ? req.body
+    : {};
+  const message = typeof body.message === 'string' ? body.message.trim() : '';
+  const hasSessionId = Object.prototype.hasOwnProperty.call(body, 'sessionId');
+  const sessionId = typeof body.sessionId === 'string' ? body.sessionId.trim() : '';
+
+  if (!message || message.length > MAX_MESSAGE_LENGTH) {
+    res.status(400).json({ error: `message must contain 1 to ${MAX_MESSAGE_LENGTH} characters` });
+    return;
+  }
+  if (hasSessionId && (!sessionId || sessionId.length > MAX_SESSION_ID_LENGTH)) {
+    res.status(400).json({ error: `sessionId must contain 1 to ${MAX_SESSION_ID_LENGTH} characters` });
+    return;
+  }
+
+  const upstreamBody = { message };
+  if (sessionId) upstreamBody.sessionId = sessionId;
+  await relayMainAgentSse(res, '/chat', upstreamBody);
+});
+
+/**
+ * Start the three-deep chain: the main agent hands `message` to the middle
+ * agent through the Privilege gateway and names the `specialist` it should
+ * hand it on to. Streams one `trace` event per hop, each with from and to.
+ */
+router.post('/chain', requireSession, express.json({ limit: '64kb' }), async (req, res) => {
+  const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body)
+    ? req.body
+    : {};
+  const message = typeof body.message === 'string' ? body.message.trim() : '';
+  const specialist = typeof body.specialist === 'string' ? body.specialist.trim() : '';
+  if (!message || message.length > MAX_MESSAGE_LENGTH) {
+    res.status(400).json({ error: `message must contain 1 to ${MAX_MESSAGE_LENGTH} characters` });
+    return;
+  }
+  if (!/^[a-z0-9-]{1,64}$/.test(specialist)) {
+    res.status(400).json({ error: 'specialist must be a lowercase name of 1 to 64 characters' });
+    return;
+  }
+  await relayMainAgentSse(res, '/chain', { message, specialist });
 });
 
 // Fetch a live A2A Agent Card over the wire so the /llm-gateway "Malicious A2A"
