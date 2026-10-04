@@ -238,3 +238,7 @@ snapshots/mcp-amount-bands.merged.snapshot.json
 
 # configStore LMDB runtime data (routes/configStore writes here)
 demo_api_server/data/config/
+
+# Throwaway file holding the P1-AI-DEMO worker secret during the edition-split
+# work; deleted when that work is done. Never commit.
+/clean-secret
