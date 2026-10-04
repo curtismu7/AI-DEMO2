@@ -765,6 +765,10 @@ Verified live 2026-09-08, and it contradicted every note in this repo:
 had the split the other way round (agentless in `cmuir`, agent in `curtismuir`) and
 had both existing.
 
+*Update 2026-10-04: no longer true. There are now two gateways, both agentless, as two nodes
+of one mesh cluster: gateway 1 in `curtismuir` and gateway 2 (`agentless-mcpgw2`) in `cmuir`.
+See `privilege/GATEWAY-LOAD-BALANCER.md` section 00.*
+
 This churns on the order of weeks. **Before trusting any topology statement — in
 this doc included — run:**
 
@@ -820,6 +824,9 @@ within a minute, which would have cost a signed-in client two sign-ins and hung 
 request against a gateway that was still starting. And gateway 1 owns every app and
 sidecar, so a second gateway that only forwards is a second front door, not a second
 copy of the apps.
+
+*Superseded 2026-10-04: gateway 2 re-enrolled as a second node of gateway 1's cluster and
+runs the same sidecars, so it now serves every app itself.*
 
 ## Related
 
