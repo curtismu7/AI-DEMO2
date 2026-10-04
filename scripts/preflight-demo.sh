@@ -527,6 +527,26 @@ for url in ${PREFLIGHT_PUBLIC_URLS:-}; do
   fi
 done
 
+# ── 7b. Gateway 2 mesh pin ───────────────────────────────────────────────────
+# gateway2-mesh.values.yaml pins gateway 1's Service ClusterIP in a hostAlias. If
+# that Service is ever recreated it gets a new IP and the mesh breaks silently, so
+# compare the pin with the live value whenever curtismuir is being checked.
+case " ${PREFLIGHT_K8S_NAMESPACES:-} " in
+  *" ping-devops-curtismuir "*)
+    mesh_file="$ROOT/pingone-privgateway-helm-main/agentless/gateway2-mesh.values.yaml"
+    pinned_ip="$(awk '/^ *- ip:/ {print $3}' "$mesh_file" 2>/dev/null)"
+    live_ip="$(kubectl --context "$K8S_CTX" -n ping-devops-curtismuir get svc agentless-mcpgw \
+      --request-timeout=20s -o jsonpath='{.spec.clusterIP}' 2>/dev/null)"
+    if [[ -z "$pinned_ip" || -z "$live_ip" ]]; then
+      row WARN "Gateway 2 mesh pin" "could not read the pinned IP (${pinned_ip:-none}) or the live Service (${live_ip:-none})"
+    elif [[ "$pinned_ip" == "$live_ip" ]]; then
+      row OK "Gateway 2 mesh pin" "gateway 1 Service is still ${live_ip}"
+    else
+      row FAIL "Gateway 2 mesh pin" "gateway2-mesh.values.yaml pins ${pinned_ip}, live Service is ${live_ip}: update the pin and run the helm upgrade for agentless-mcpgw2"
+    fi
+    ;;
+esac
+
 # ── 8. Real sign-in (opt-in) ─────────────────────────────────────────────────
 # A real PingOne login as the demo customer, then /user/status must say
 # authenticated. Needs E2E_CUSTOMER_USERNAME / E2E_CUSTOMER_PASSWORD /

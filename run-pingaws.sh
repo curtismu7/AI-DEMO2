@@ -29,7 +29,10 @@
 # App: https://ai-demo.ping-devops.com
 #
 # The Privilege AI Gateway is NOT deployed here — it is a manual Helm install
-# in ping-devops-curtismuir (pingone-privgateway-helm-main/agentless).
+# (pingone-privgateway-helm-main/agentless). Gateway 1 and the mcpgw-lb load
+# balancer are in ping-devops-curtismuir; gateway 2 (release agentless-mcpgw2)
+# is in ping-devops-cmuir, the same namespace as this app. Deploys leave it
+# alone, and se-undeploy skips Helm-managed resources.
 #
 # Equivalent low-level commands (still work):
 #   ./run-k8.sh se-all | se-build | se-deploy | se-status | se-undeploy

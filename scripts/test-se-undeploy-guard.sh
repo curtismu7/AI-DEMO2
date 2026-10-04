@@ -17,11 +17,14 @@ KUBECTL_LOG="$STUB_DIR/kubectl.log"
 trap 'rm -rf "$STUB_DIR"' EXIT
 
 # Stub kubectl: record the call, never do anything. `config current-context`
-# answers `us` so se_undeploy does not try to switch contexts.
+# answers `us` so se_undeploy does not try to switch contexts. `get` answers with
+# one app resource and one gateway 2 resource (the cert-manager TLS Secret, which
+# carries no Helm label), so the delete list se_undeploy builds can be asserted on.
 cat > "$STUB_DIR/kubectl" <<'STUB'
 #!/bin/bash
 echo "$*" >> "$KUBECTL_LOG"
 [ "$1 $2" = "config current-context" ] && echo "${FAKE_CONTEXT:-us}"
+[ "$1" = "get" ] && printf 'deployment.apps/stub-app\nsecret/agentless-mcpgw-tls\n'
 exit 0
 STUB
 chmod +x "$STUB_DIR/kubectl"
@@ -56,6 +59,18 @@ check "no tty without --yes deletes nothing" "no" "$(deleted)"
 code=$(run_undeploy --yes)
 check "--yes exits zero" "0" "$code"
 check "--yes performs the delete" "yes" "$(deleted)"
+
+# 2b. Privilege gateway 2 is Helm-managed and lives in the namespace being
+#     emptied. The delete must be selected by the Helm labels and must not name
+#     anything called agentless-mcpgw, or a routine teardown destroys the gateway
+#     and its release state.
+run_undeploy --yes >/dev/null
+check "--yes selects by the Helm labels" "yes" \
+  "$(grep -qF 'managed-by!=Helm,owner!=helm' "$KUBECTL_LOG" && echo yes || echo no)"
+check "--yes deletes the app resource" "yes" \
+  "$(grep -q '^delete .*stub-app' "$KUBECTL_LOG" && echo yes || echo no)"
+check "--yes leaves gateway 2 alone" "no" \
+  "$(grep -q '^delete .*agentless-mcpgw' "$KUBECTL_LOG" && echo yes || echo no)"
 
 # 3. Same via the environment, for callers that cannot pass a flag.
 : > "$KUBECTL_LOG"

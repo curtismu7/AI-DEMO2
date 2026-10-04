@@ -165,6 +165,10 @@ The older runbook commands in sections 6 and 7 that edit `mcpgw-lb.yaml` and run
 
 ## 1. Summary
 
+> **Partly superseded by section 0.** The gateways do mesh once they dial each other
+> on the in-cluster address, and an app is registered once, not once per gateway. The
+> design below was the state before that was found; read section 0 first.
+
 We want one public URL, `https://mcpgw.ai-demo.ping-devops.com`, served by two
 Privilege AI Gateways so we can show failover and "1 + 1" to customers.
 
@@ -302,6 +306,8 @@ LM Studio reported "Authentication failed: Unauthorized". With gateway 2 parked,
 flow succeeded and a real tool call returned data (an OpenSearch cluster health result).
 
 ### 5.3 The gateways cannot mesh with each other
+
+> **Superseded by section 0.** This was an addressing problem, not a product limit.
 
 - Both gateway logs show two mesh nodes in the tenant: gateway 1 (`ClusterID ai-demo-cmuir`,
   NodeURL `mcpgw.ai-demo.ping-devops.com:8690`) and gateway 2 (`ClusterID ai-demo-cmuir2`,
@@ -445,6 +451,9 @@ Self-test of the sign-in path without a browser: register a throwaway client at
 
 ## 8. What is not verified
 
+> **Dated.** Items about the gateways being unable to reach each other are answered by
+> section 0. The failover drill in section 0 lists what is still unverified.
+
 - Gateway 2 has never completed a full sign-in and tool call for any app. Everything about
   it serving traffic is design, not measurement.
 - Whether a differently named copy on cluster 2 plus a load balancer path rewrite works
@@ -458,6 +467,9 @@ Self-test of the sign-in path without a browser: register a throwaway client at
   Privilege cloud). They did not affect calls; we did not establish whether they are new.
 
 ## 9. Open questions and decisions for reviewers
+
+> **Mostly answered by section 0.** The question of a second, differently named copy of
+> each app no longer arises: one registration is enough.
 
 1. **How should gateway 2 get its apps?** An app lives on one cluster only (5.5). Options:
    - **A. Differently named copy on cluster 2** (for example `opensearch22b`) plus a path

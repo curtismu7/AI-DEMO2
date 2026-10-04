@@ -375,11 +375,13 @@ for manifest in \
 done
 
 # Privilege gateway: removed from this deploy entirely (2026-09-01). The AI
-# Gateway (formerly agentless) is a deliberate MANUAL Helm install in
-# ping-devops-curtismuir from pingone-privgateway-helm-main/agentless — its
-# ENV_PROXY_TOKEN is single-use and ~2h-lived, so it must never ride along
-# with a routine deploy. Nothing Privilege-related installs into $NS any more
-# (the ping-mcpgw release and its OpenSearch backend are gone with it).
+# Gateway (formerly agentless) is a deliberate MANUAL Helm install from
+# pingone-privgateway-helm-main/agentless — its ENV_PROXY_TOKEN is single-use
+# and ~2h-lived, so it must never ride along with a routine deploy. This script
+# installs nothing Privilege-related into $NS. Gateway 1 and mcpgw-lb are in
+# ping-devops-curtismuir; gateway 2 (release agentless-mcpgw2) was installed by
+# hand into ping-devops-cmuir, so it can be present in $NS: this deploy does not
+# touch it, and se-undeploy skips Helm-managed resources.
 
 if [[ -n "$K8S_NAMESPACE" ]]; then
   info "Applying SE cluster ingress..."

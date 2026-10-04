@@ -42,7 +42,8 @@
 #   ./run-k8.sh se-basic      # scale your SE namespace to dashboard/admin + login only
 #   ./run-k8.sh se-undeploy   # delete everything INSIDE your SE namespace: workloads AND
 #                             # secrets, so create-secrets.sh must be re-run before the
-#                             # next deploy. The namespace itself is KEPT — it is
+#                             # next deploy. Helm-managed resources (Privilege gateway 2)
+#                             # are KEPT, and so is the namespace itself — it is
 #                             # cluster-managed and is never deleted by this script.
 #                             # Asks first; --yes (or SE_UNDEPLOY_YES=1) skips.
 #                             # NOT the same as `stop` below, which is only local.
@@ -788,8 +789,9 @@ se_undeploy() {
   if [[ "$assume_yes" != "1" ]]; then
     echo
     demo_warn "About to delete everything INSIDE the SE namespace: $ns"
-    echo "  Deletes: deployments, services, ingresses, configmaps, secrets (ALL of them)"
-    echo "  KEEPS:   the namespace $ns itself — it is cluster-managed and is NOT deleted"
+    echo "  Deletes: deployments, services, ingresses, configmaps, secrets — except Helm-managed ones"
+    echo "  KEEPS:   Helm-managed resources and release state (e.g. Privilege gateway 2), and the"
+    echo "           namespace $ns itself — it is cluster-managed and is NOT deleted"
     echo "  Effect:  https://ai-demo.ping-devops.com stops resolving — for everyone on this namespace"
     echo "  After:   create-secrets.sh must be re-run before the next deploy"
     echo "  Undo:    none — a redeploy is the only way back"
@@ -823,8 +825,20 @@ se_undeploy() {
   fi
   # Delete all app resources inside the namespace; leave the namespace itself
   # (it is cluster-managed — do not delete it or you'll need a new JIRA ticket).
-  kubectl delete deployments,services,ingresses,configmaps,secrets \
-    -n "$ns" --all --ignore-not-found
+  # Helm-managed resources are skipped: Privilege gateway 2 (release
+  # agentless-mcpgw2) lives in this namespace, and deleting its Secrets destroys
+  # the release state and its single-use enrollment. Chart resources carry
+  # app.kubernetes.io/managed-by=Helm; the release records carry owner=helm.
+  # The gateway TLS Secret (made by cert-manager) carries neither label, so
+  # anything named agentless-mcpgw* is also kept.
+  local doomed=() name
+  while IFS= read -r name; do
+    doomed+=("$name")
+  done < <(kubectl get deployments,services,ingresses,configmaps,secrets -n "$ns" \
+             -l 'app.kubernetes.io/managed-by!=Helm,owner!=helm' -o name | grep -v '/agentless-mcpgw')
+  if [[ ${#doomed[@]} -gt 0 ]]; then
+    kubectl delete -n "$ns" --ignore-not-found "${doomed[@]}"
+  fi
   success "SE undeploy complete — all resources removed from namespace $ns."
   success "Namespace $ns itself was preserved (cluster-managed)."
 }
