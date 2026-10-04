@@ -2,6 +2,7 @@
 
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
+const { signDpopProof } = require('./dpopKeyService');
 
 const REQUEST_TIMEOUT_MS = 10_000;
 const ALLOWED_ID_TOKEN_ALGORITHMS = new Set(['RS256', 'RS384', 'RS512', 'ES256', 'ES384', 'ES512']);
@@ -123,7 +124,12 @@ function verifyIdToken(idToken, { config, metadata, clientId, nonce, jwks }) {
   };
 }
 
-async function exchangeAuthorizationCode({ config, metadata, clientId, redirectUri, code, verifier, nonce }, fetchImpl = fetch) {
+// `dpop` ({ privatePem, publicJwk, jkt }) makes this a DPoP request (RFC 9449): the token request
+// carries a proof signed with that key, and the answer must be a DPoP-bound token. A server that
+// answers with a plain Bearer token when binding was asked for is refused, not accepted quietly.
+async function exchangeAuthorizationCode({
+  config, metadata, clientId, redirectUri, code, verifier, nonce, dpop = null,
+}, fetchImpl = fetch) {
   if (typeof code !== 'string' || !code || typeof verifier !== 'string' || !verifier) {
     throw oauthError('PF_AI_CIMD_CALLBACK_INVALID', 'PF authorization response was invalid', 400);
   }
@@ -135,17 +141,33 @@ async function exchangeAuthorizationCode({ config, metadata, clientId, redirectU
     redirect_uri: redirectUri,
     code_verifier: verifier,
   });
-  const tokenResponse = await fetchImpl(metadata.tokenEndpoint, {
+  const sendTokenRequest = (dpopNonce) => fetchImpl(metadata.tokenEndpoint, {
     method: 'POST',
-    headers: { Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded',
+      ...(dpop ? {
+        DPoP: signDpopProof({
+          privatePem: dpop.privatePem, publicJwk: dpop.publicJwk, htu: metadata.tokenEndpoint, htm: 'POST',
+          ...(dpopNonce ? { nonce: dpopNonce } : {}),
+        }),
+      } : {}),
+    },
     body,
     redirect: 'error',
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
+  let tokenResponse = await sendTokenRequest();
+  // RFC 9449 §8: a server may demand a nonce and hand one back; sign again with it, once.
+  const demandedNonce = dpop && !tokenResponse?.ok ? tokenResponse?.headers?.get?.('dpop-nonce') : null;
+  if (demandedNonce) tokenResponse = await sendTokenRequest(demandedNonce);
   const tokens = await responseJson(tokenResponse, 'PF_AI_TOKEN_EXCHANGE_FAILED', 'token endpoint');
   if (typeof tokens.id_token !== 'string' || !tokens.id_token
     || typeof tokens.access_token !== 'string' || !tokens.access_token) {
     throw oauthError('PF_AI_TOKEN_RESPONSE_INVALID', 'PF token response did not contain required tokens');
+  }
+  if (dpop && String(tokens.token_type || '').toLowerCase() !== 'dpop') {
+    throw oauthError('PF_AI_DPOP_NOT_BOUND', 'PingFederate returned an unbound token although DPoP was requested');
   }
   const jwksResponse = await fetchImpl(metadata.jwksUri, {
     headers: { Accept: 'application/json' },
@@ -159,6 +181,7 @@ async function exchangeAuthorizationCode({ config, metadata, clientId, redirectU
       refreshToken: typeof tokens.refresh_token === 'string' ? tokens.refresh_token : null,
       idToken: tokens.id_token,
       tokenType: typeof tokens.token_type === 'string' ? tokens.token_type : 'Bearer',
+      dpopJkt: dpop ? dpop.jkt : null,
       scope: typeof tokens.scope === 'string' ? tokens.scope : '',
       expiresAt: Number.isFinite(tokens.expires_in) ? Date.now() + tokens.expires_in * 1000 : null,
       authenticatedAt: Date.now(),

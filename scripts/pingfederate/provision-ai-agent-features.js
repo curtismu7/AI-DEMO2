@@ -22,7 +22,7 @@
  *
  * NOT done here, because each is a decision or needs a running browser login:
  *   - the BFF's own switches (PF_AI_CIMD_ENABLED, PF_AI_RAR_ENABLED,
- *     PF_AI_RAR_CLIENT_ID, PF_PAR_ENDPOINT) — docs/ENV.md
+ *     PF_AI_RAR_CLIENT_ID, PF_AI_RAR_DPOP_CLIENT_ID, PF_PAR_ENDPOINT) — docs/ENV.md
  *   - consent rendering — plugin README
  *   - the third-party authorization server exchange and the DaVinci login
  *
@@ -85,6 +85,15 @@ const RAR_CLIENT = {
   restrictedScopes: ['email', 'openid', 'profile', SCOPE.name],
   authorizationDetailTypes: [RAR_TYPE.type],
   defaultAccessTokenManagerRef: { id: 'aiDemoPfJwtAtm' },
+};
+// The same client with DPoP required (PingFederate 13.1 per-client setting): its token requests
+// must carry a proof, and the access token it gets back is bound to the proving key. A separate
+// client, so the plain RAR run is unaffected.
+const RAR_DPOP_CLIENT = {
+  ...RAR_CLIENT,
+  clientId: 'ai-demo-pf-rar-dpop',
+  name: 'AI Demo PF RAR (public PKCE, DPoP required)',
+  requireDpop: true,
 };
 
 const VAULT_JS = path.join(MAIN, 'demo_api_server', 'scripts', 'vault.js');
@@ -189,17 +198,20 @@ async function main() {
       .some((item) => item.type === RAR_TYPE.type && item.active && item.authorizationDetailProcessorRef?.id === RAR_PROCESSOR.id),
     () => api('POST', 'oauth/authorizationDetailTypes', RAR_TYPE));
 
-  const findClient = async () => ((await api('GET', 'oauth/clients')).items || []).find((item) => item.clientId === RAR_CLIENT.clientId);
-  await step(`RAR client ${RAR_CLIENT.clientId}`,
-    async () => {
-      const client = await findClient();
-      return !(client && client.enabled && client.requireProofKeyForCodeExchange
-        && (client.authorizationDetailTypes || []).includes(RAR_TYPE.type)
-        && (client.redirectUris || []).includes(RAR_CLIENT.redirectUris[0]));
-    },
-    async () => (await findClient()
-      ? api('PUT', `oauth/clients/${RAR_CLIENT.clientId}`, RAR_CLIENT)
-      : api('POST', 'oauth/clients', RAR_CLIENT)));
+  for (const desired of [RAR_CLIENT, RAR_DPOP_CLIENT]) {
+    const findClient = async () => ((await api('GET', 'oauth/clients')).items || []).find((item) => item.clientId === desired.clientId);
+    await step(`RAR client ${desired.clientId}`,
+      async () => {
+        const client = await findClient();
+        return !(client && client.enabled && client.requireProofKeyForCodeExchange
+          && (client.authorizationDetailTypes || []).includes(RAR_TYPE.type)
+          && (client.redirectUris || []).includes(desired.redirectUris[0])
+          && Boolean(client.requireDpop) === Boolean(desired.requireDpop));
+      },
+      async () => (await findClient()
+        ? api('PUT', `oauth/clients/${desired.clientId}`, desired)
+        : api('POST', 'oauth/clients', desired)));
+  }
 }
 
 main().catch((error) => { console.error(`[pf-agent-features] failed: ${error.message}`); process.exit(1); });

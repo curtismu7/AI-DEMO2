@@ -56,6 +56,74 @@ describe("PingFederate AI Agent page", () => {
     expect(input).toHaveValue("someone-else");
   });
 
+  describe("DPoP binding for the RAR token", () => {
+    const withDpop = (extra = {}) => ({
+      ...readyStatus, features: { ...readyStatus.features, rarDpop: true }, ...extra,
+    });
+    const rarForms = () => [
+      screen.getByRole("button", { name: /Run allowed RAR request/i }).closest("form"),
+      screen.getByRole("button", { name: /Run out-of-policy RAR request/i }).closest("form"),
+    ];
+
+    it("offers no DPoP option unless a DPoP client is configured", async () => {
+      render(<PingFederateAiAgentPage user={{ username: "demouser" }} />);
+      await screen.findByRole("button", { name: /Run allowed RAR request/i });
+      expect(screen.queryByLabelText(/DPoP/i)).not.toBeInTheDocument();
+      rarForms().forEach((form) => expect(form.querySelector('[name="dpop"]')).toBeNull());
+    });
+
+    it("adds dpop to both RAR forms only once the box is ticked", async () => {
+      apiClient.get.mockResolvedValue({ data: withDpop() });
+      render(<PingFederateAiAgentPage user={{ username: "demouser" }} />);
+      const box = await screen.findByLabelText(/Bind the access token .* DPoP/i);
+      expect(box).not.toBeChecked();
+      rarForms().forEach((form) => expect(form.querySelector('[name="dpop"]')).toBeNull());
+
+      fireEvent.click(box);
+      rarForms().forEach((form) => expect(form.querySelector('[name="dpop"]')).toHaveValue("1"));
+
+      fireEvent.click(box);
+      rarForms().forEach((form) => expect(form.querySelector('[name="dpop"]')).toBeNull());
+    });
+
+    describe("after a successful run", () => {
+      afterEach(() => window.history.pushState({}, "", "/"));
+
+      it("shows the token type and the key it is bound to, never a token", async () => {
+        window.history.pushState({}, "", "/pingfederate-ai-agent?rar=success");
+        apiClient.get.mockResolvedValue({ data: withDpop({
+          rarResult: { outcome: "accepted", tokenType: "DPoP", dpopThumbprint: "thumb-abc123" },
+        }) });
+        render(<PingFederateAiAgentPage user={{ username: "demouser" }} />);
+        const line = await screen.findByTestId("rar-token-line");
+        expect(line).toHaveTextContent("DPoP");
+        expect(line).toHaveTextContent("thumb-abc123");
+        expect(line).toHaveTextContent(/bound to this app/i);
+      });
+
+      it("says plainly when the token is only a bearer token", async () => {
+        window.history.pushState({}, "", "/pingfederate-ai-agent?rar=success");
+        apiClient.get.mockResolvedValue({ data: withDpop({
+          rarResult: { outcome: "accepted", tokenType: "Bearer", dpopThumbprint: null },
+        }) });
+        render(<PingFederateAiAgentPage user={{ username: "demouser" }} />);
+        const line = await screen.findByTestId("rar-token-line");
+        expect(line).toHaveTextContent("Bearer");
+        expect(line).toHaveTextContent(/not bound to a key/i);
+      });
+
+      it("shows nothing after a denied run", async () => {
+        window.history.pushState({}, "", "/pingfederate-ai-agent?rar=denied");
+        apiClient.get.mockResolvedValue({ data: withDpop({
+          rarResult: { outcome: "denied", tokenType: null, dpopThumbprint: null },
+        }) });
+        render(<PingFederateAiAgentPage user={{ username: "demouser" }} />);
+        await screen.findByText(/PF denied the RAR request/i);
+        expect(screen.queryByTestId("rar-token-line")).not.toBeInTheDocument();
+      });
+    });
+  });
+
   it("sends only the active session provider to the isolated cross-domain endpoint", async () => {
     apiClient.post.mockResolvedValue({ data: {
       subjectProvider: "pingone",

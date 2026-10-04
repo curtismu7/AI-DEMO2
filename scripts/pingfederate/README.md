@@ -225,7 +225,10 @@ that exact document URL (PKCE required), and sets up RAR: it creates the
 `PF_AI_RAR_LOOKUP_SECRET` vault entry once (never replaced), creates or updates
 the processor instance with its User Limits URL and credential, creates the
 `banking_transaction` authorization detail type, and registers the public PKCE
-client `ai-demo-pf-rar` that is allowed that type.
+client `ai-demo-pf-rar` that is allowed that type. It also registers `ai-demo-pf-rar-dpop`,
+the same client with PingFederate 13.1's per-client DPoP setting required, which backs the
+page's "bind the access token with DPoP" option (`PF_AI_RAR_DPOP_CLIENT_ID`). The plain client
+is unchanged, so the normal RAR run is unaffected.
 
 Check RAR at push time with no login. A well-formed detail is accepted (201); a
 malformed one is refused (400 `invalid_authorization_details`):
