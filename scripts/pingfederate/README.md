@@ -9,6 +9,16 @@ export PINGFEDERATE_ADMIN_PASSWORD='<your admin password>'
 docker compose -f docker-compose.local.yml up -d
 ```
 
+The admin API (9999) and the runtime (9031) are published on `127.0.0.1` only. Other
+containers still reach them through `local.ping-devops.com` (OrbStack forwards traffic to
+the host gateway on to the Mac's loopback; checked by probing a loopback-only server from
+inside the BFF container). To expose them on the network on purpose, set
+`PINGFEDERATE_BIND=0.0.0.0`.
+
+Recreating the container is safe for the configuration: `/opt/out` (the instance, the deployed
+plugin JARs, the JDBC client storage setting) and the JVM trust store are named volumes. Check
+`ls /opt/out/instance/server/default/deploy` afterwards.
+
 ## Recovering the profile (2026-09-26 incident)
 
 The profile directory is a prepared PF classic instance (must contain
