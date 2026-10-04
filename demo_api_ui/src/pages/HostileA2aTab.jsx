@@ -230,8 +230,10 @@ export default function HostileA2aTab() {
               🛡 Registered as a Privilege <strong>Remote Agent (a2a)</strong>, this same card is shown
               <strong> verbatim</strong> in the console&rsquo;s <strong>Agent Card</strong> tab —
               &ldquo;inventory only, access is granted to the Remote Agent as a whole, not per skill.&rdquo;
-              Privilege discovers and displays the poison; it does not filter it. The scanner is the
-              defense that sits in front of the agent.
+              Privilege discovers and displays the poison; it does not filter it. That is about the card.
+              The messages agents send each other are a different matter: the gateway&rsquo;s guardrail
+              screens those, and blocks a prompt-injection message between agents. The scanner is the
+              defense that sits in front of the agent for the card itself.
             </p>
           </section>
         </div>

@@ -184,7 +184,7 @@ export const TABS = [
     filename: "privilege-gateway-a2a-topology.mmd",
     steps: A2A_STEPS,
     blurb:
-      "Two agents and a tool server, with the AI Gateway between every pair. Each agent holds only its own agent key; the gateway checks that key on every model call, agent-to-agent call and tool call, and holds the real provider key itself.",
+      "Two agents and a tool server, with the AI Gateway between every pair. Each agent holds only its own agent key; the gateway checks that key on every model call, agent-to-agent call and tool call, and holds the real provider key itself. A longer chain works the same way: Demo Step 26 runs main agent, LangChain agent and a specialist, with the gateway between each pair.",
   },
 ];
 

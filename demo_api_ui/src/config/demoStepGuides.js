@@ -128,7 +128,7 @@ export const DEMO_STEP_GUIDES = Object.fromEntries([
     "Run the chip 'find where the BFF performs MCP token exchange'. Sign in as a customer; the code-search MCP server and its Weaviate index must be running."],
   ["UC46", "Privilege A2A access review",
     "On the A2A tab of the Privilege MCP client page, the presenter sends an access-review question. A MainAgent delegates it over A2A to a WorkerAgent, which gathers evidence through MCP behind the PingOne Privilege Gateway and returns an evidence-backed answer.",
-    "Agent-to-agent delegation where Privilege validates each agent's Agent Access key and applies gateway policy to its LLM and MCP calls. The A2A message carries the question and result, not a browser token or RFC 8693 delegation.",
+    "Agent-to-agent delegation where Privilege validates each agent's Agent Access key and applies gateway policy to its LLM, A2A and MCP calls; the guardrail redacts personal data in tool results and blocks a poisoned one. The A2A message carries the question and result, not a browser token or RFC 8693 delegation.",
     "A security analyst can hand an access-review task to a specialist worker agent while Privilege governs the worker's LLM and MCP calls and leaves visible evidence.",
     "Open the 'Open A2A access review' card (/privilege-mcp-client?view=demo&tab=a2a); it selects the A2A tab but does not submit, so type the question yourself. Needs a sign-in and the MainAgent, WorkerAgent and MCP processes with PingOne Privilege Gateway agent keys."],
   ["UC47", "Privilege A2A three-deep agent chain",
