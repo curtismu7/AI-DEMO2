@@ -60,4 +60,20 @@ describe('JevLearningPage', () => {
     await waitFor(() => expect(screen.getByText(/Rules \d+\/8/)).toBeTruthy());
     expect(BAKEOFF).toHaveLength(8);
   });
+
+  it('bake-off shows Jev as a block/allow verdict at 0.50, and says so when no score lands in the middle', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(reply(0.9)));
+    render(<JevLearningPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Run bake-off' }));
+    await waitFor(() => expect(screen.getAllByText('block (0.90)')).toHaveLength(8));
+    expect(screen.getByText(/No message scored between 0.35 and 0.65/)).toBeTruthy();
+  });
+
+  it('bake-off omits the "no middle" note when a score lands between 0.35 and 0.65', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(reply(0.5)));
+    render(<JevLearningPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Run bake-off' }));
+    await waitFor(() => expect(screen.getAllByText('block (0.50)')).toHaveLength(8));
+    expect(screen.queryByText(/No message scored between/)).toBeNull();
+  });
 });
