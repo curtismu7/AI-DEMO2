@@ -17,6 +17,7 @@ import https from 'node:https';
 import {
   Investor, Portfolio, getHoldings, getPortfolios, listTrades, ownsAccount, resolveInvestor,
 } from '../db/investDb';
+import { isGatewayStaticToken } from '../server/tokenValidator';
 
 // Read per call, not at module load, so the backend choice always reflects the
 // current env — the rest of this repo reads process.env the same way.
@@ -174,7 +175,9 @@ export async function dispatchTool(
   args: Record<string, unknown>,
   token: string,
 ): Promise<unknown> {
-  const sqlite = !bffBase();
+  // A gateway static token is not a user token, so the BFF would reject it;
+  // that caller reads the bundled database, as every other vertical does.
+  const sqlite = !bffBase() || isGatewayStaticToken(token);
   switch (toolName) {
     case 'get_investment_accounts': return sqlite ? accountsSqlite() : handleGetInvestmentAccounts(args, token);
     case 'get_investment_balance': return sqlite ? balanceSqlite(args) : handleGetInvestmentBalance(args, token);
