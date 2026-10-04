@@ -3,6 +3,7 @@ import {
   CIAM_AGENT_TYPE_USE_CASE_IDS,
   DEMO_ADVANCED_USE_CASE_IDS,
   DEMO_PRIMARY_USE_CASE_IDS,
+  EXTRA_STEP_GROUPS,
   PRIVILEGE_USE_CASE_IDS,
 } from './demoUseCaseSteps';
 
@@ -21,7 +22,13 @@ const add = (ids, offset) =>
 const script = [...DEMO_PRIMARY_USE_CASE_IDS, ...DEMO_ADVANCED_USE_CASE_IDS];
 add(script, 0);
 add(CIAM_AGENT_TYPE_USE_CASE_IDS, script.length);
-add(PRIVILEGE_USE_CASE_IDS, script.length + CIAM_AGENT_TYPE_USE_CASE_IDS.length);
+let next = script.length + CIAM_AGENT_TYPE_USE_CASE_IDS.length;
+add(PRIVILEGE_USE_CASE_IDS, next);
+next += PRIVILEGE_USE_CASE_IDS.length;
+for (const group of EXTRA_STEP_GROUPS) {
+  add(group.ids, next);
+  next += group.ids.length;
+}
 add(ADMIN_PRIMARY_USE_CASE_IDS, 0);
 
 export const demoStepNumber = (id) => NUMBERS.get(id);
