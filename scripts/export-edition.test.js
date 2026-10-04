@@ -60,3 +60,48 @@ test('a tracked executable file stays executable', () => {
   exportEdition({ manifest: mf(), ref: 'main', srcRepo: fixtureRepo(), dest: d });
   assert.ok(fs.statSync(path.join(d, 'run.sh')).mode & 0o100);
 });
+
+// ---- gates ----
+const { runGates, checkRelativeImports } = require('./export-edition');
+const tree = (files) => {
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'edition-gate-'));
+  for (const [f, c] of Object.entries(files)) { fs.mkdirSync(path.dirname(path.join(d, f)), { recursive: true }); fs.writeFileSync(path.join(d, f), c); }
+  return d;
+};
+const okRunner = () => {};
+
+test('forbidden-string gate fails without printing the string', () => {
+  const d = tree({ 'a.js': 'const x = "abc-secret-env-id";' });
+  process.env.EDITION_FORBIDDEN_STRINGS = 'abc-secret-env-id';
+  try {
+    assert.throws(() => runGates(d, mf(), okRunner), (e) => /forbidden string/.test(e.message) && /a\.js/.test(e.message) && !e.message.includes('abc-secret-env-id'));
+  } finally { delete process.env.EDITION_FORBIDDEN_STRINGS; }
+});
+
+test('gitleaks gate fails on a planted secret', () => {
+  const d = tree({ 'k.js': 'const t = "ghp_' + 'aB3dE5gH7jK9mN1pQ3sT5vW7yZ9bD1fH3jK5";\n' });
+  assert.throws(() => runGates(d, mf(), okRunner), /gitleaks/);
+});
+
+test('clean tree passes scan gates and runs build/test gates through the runner', () => {
+  const d = tree({ 'a.js': 'module.exports = 1;', 'b.js': "require('./a');" });
+  const calls = [];
+  runGates(d, mf(), (cmd, args, opts) => calls.push(`${opts.cwd.replace(d, '.')}:${cmd} ${args.join(' ')}`));
+  assert.strictEqual(calls.length, 4);
+  assert.ok(calls.some((c) => /npm run authz:verify/.test(c)));
+});
+
+test('a failing runner step names its gate', () => {
+  const d = tree({ 'a.js': '1' });
+  assert.throws(() => runGates(d, mf(), () => { throw new Error('boom'); }), /gate failed: ui-build/);
+});
+
+test('relative-import gate: dangling fails naming the file, resolving passes', () => {
+  const bad = tree({ 'src/a.js': "const x = require('./missing');", 'src/t.test.js': "jest.mock('../nope')" });
+  assert.throws(() => checkRelativeImports(bad), (e) => /src\/a\.js/.test(e.message) && /src\/t\.test\.js/.test(e.message));
+  const good = tree({ 'src/a.js': "import b from './b'; import('./d'); require('./c.json')", 'src/b.jsx': '', 'src/d/index.ts': '', 'src/c.json': '{}' });
+  checkRelativeImports(good);
+  // a require inside try/catch is still reported (static scan, no control flow)
+  const guarded = tree({ 'a.js': "try { require('./gone'); } catch (e) {}" });
+  assert.throws(() => checkRelativeImports(guarded), /a\.js/);
+});

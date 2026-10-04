@@ -49,7 +49,81 @@ function exportEdition({ manifest, ref, srcRepo, dest }) {
   return { copied: keep.length, removed: files.length - keep.length };
 }
 
-module.exports = { exportEdition };
+const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'coverage']);
+function walk(dir, fn) {
+  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (e.isSymbolicLink()) continue;
+    const p = path.join(dir, e.name);
+    if (e.isDirectory()) { if (!SKIP_DIRS.has(e.name)) walk(p, fn); } else fn(p);
+  }
+}
+
+const SRC_RE = /\.(js|cjs|mjs|jsx|ts|tsx)$/;
+const IMPORT_RES = [
+  /\b(?:require|import|jest\.mock|jest\.requireActual)\s*\(\s*['"](\.{1,2}(?:\/[^'"]*)?)['"]/g,
+  /\b(?:from|import)\s+['"](\.{1,2}(?:\/[^'"]*)?)['"]/g,
+];
+const EXTS = ['', '.js', '.jsx', '.ts', '.tsx', '.json', '.cjs', '.mjs'];
+const resolves = (base) => EXTS.some((x) => fs.existsSync(base + x) && fs.statSync(base + x).isFile())
+  || EXTS.slice(1).some((x) => fs.existsSync(path.join(base, 'index' + x)));
+
+// ponytail: purely static text scan - a require inside try/catch is still reported, and a
+// specifier in a comment is a false positive. Upgrade to an AST walk if either bites.
+function checkRelativeImports(dest) {
+  const bad = [];
+  walk(dest, (f) => {
+    if (!SRC_RE.test(f)) return;
+    const text = fs.readFileSync(f, 'utf8');
+    for (const re of IMPORT_RES) for (const m of text.matchAll(re)) {
+      if (!resolves(path.resolve(path.dirname(f), m[1]))) bad.push(`${path.relative(dest, f)} -> ${m[1]}`);
+    }
+  });
+  if (bad.length) throw new Error(`gate failed: relative-imports (${bad.length} unresolved)\n${[...new Set(bad)].join('\n')}`);
+}
+
+function checkForbidden(dest) {
+  const list = (process.env.EDITION_FORBIDDEN_STRINGS || '').split(',').map((s) => s.trim()).filter(Boolean);
+  if (!list.length) return;
+  const needles = list.map((s) => Buffer.from(s));
+  const hits = [];
+  walk(dest, (f) => {
+    const buf = fs.readFileSync(f);
+    if (needles.some((n) => buf.includes(n))) hits.push(path.relative(dest, f));
+  });
+  // never print the matched string - paths and count only
+  if (hits.length) throw new Error(`gate failed: forbidden string found in ${hits.length} file(s)\n${hits.join('\n')}`);
+}
+
+const LOG_DIR = () => process.env.EDITION_GATE_LOG_DIR || require('node:os').tmpdir();
+// default runner: output to a log file, exit code checked directly
+function defaultRunner(cmd, args, opts) {
+  const log = path.join(LOG_DIR(), `edition-gate-${opts.name}.log`);
+  const fd = fs.openSync(log, 'a');
+  try {
+    execFileSync(cmd, args, { cwd: opts.cwd, env: { ...process.env, ...opts.env }, stdio: ['ignore', fd, fd] });
+  } catch (e) { throw new Error(`${e.message.split('\n')[0]} (see ${log})`); } finally { fs.closeSync(fd); }
+}
+
+const JEST_SCOPE = ['tests/crossVerticalIntentGuard.test.js', 'src/__tests__/featureFlags.route.test.js', 'src/__tests__/authorize-gate.test.js'];
+
+function runGates(dest, manifest, runner = defaultRunner) {
+  checkForbidden(dest);
+  checkRelativeImports(dest);
+  try {
+    execFileSync('gitleaks', ['detect', '--no-git', '--source', dest, '--no-banner'], { stdio: 'pipe' });
+  } catch (e) { throw new Error(`gate failed: gitleaks (${e.status === 1 ? 'leaks found' : e.message.split('\n')[0]})`); }
+  const steps = [
+    ['ui-build', 'npm', ['ci'], 'demo_api_ui', {}],
+    ['ui-build', 'npm', ['run', 'build'], 'demo_api_ui', {}],
+    ['bff-jest', 'npx', ['jest', ...JEST_SCOPE, '--forceExit'], 'demo_api_server', { CI: 'true' }],
+    ['authz-verify', 'npm', ['run', 'authz:verify'], '.', {}],
+  ];
+  for (const [name, cmd, args, sub, env] of steps) {
+    try { runner(cmd, args, { cwd: path.join(dest, sub), env, name }); } catch (e) { throw new Error(`gate failed: ${name}: ${e.message}`); }
+  }
+}
+
+module.exports = { exportEdition, runGates, checkRelativeImports };
 
 if (require.main === module) {
   const [, , which, dest, ...rest] = process.argv;
@@ -60,4 +134,6 @@ if (require.main === module) {
   const repo = path.resolve(__dirname, '..');
   const manifest = JSON.parse(fs.readFileSync(path.join(repo, 'editions', `${which}.json`), 'utf8'));
   console.log(exportEdition({ manifest, ref, srcRepo: repo, dest }));
+  runGates(path.resolve(dest), manifest);
+  console.log('all gates passed');
 }
