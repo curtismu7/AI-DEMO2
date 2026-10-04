@@ -17,6 +17,12 @@ const RAR_SCOPE = 'openid profile email transactions:write';
 // The daily domestic transfer limit (graphify-out/banking-domain.kb.json).
 const RAR_TRANSACTION_LIMIT = 5000;
 const FLOW_TTL_MS = 5 * 60 * 1000;
+// PingFederate's answers that mean "the request was refused", not "something broke":
+// the user said no, or the processor refused the authorization details (RFC 9396).
+const DENIAL_REASONS = {
+  access_denied: 'authorization_rejected',
+  invalid_authorization_details: 'authorization_details_refused',
+};
 const REQUEST_URI_PREFIX = 'urn:ietf:params:oauth:request_uri:';
 
 function secureEqual(left, right) {
@@ -212,10 +218,13 @@ async function completeRar(req, { store = configStore, fetchImpl = fetch, now = 
   delete featureSession.rarPending;
 
   if (req.query?.error) {
-    if (req.query.error !== 'access_denied') {
+    const reason = Object.prototype.hasOwnProperty.call(DENIAL_REASONS, req.query.error)
+      ? DENIAL_REASONS[req.query.error]
+      : null;
+    if (!reason) {
       throw oauthError('PF_AI_RAR_AUTHORIZATION_FAILED', 'PingFederate could not complete the RAR authorization');
     }
-    const result = safeResult('denied', 'authorization_rejected', pending, null, now);
+    const result = safeResult('denied', reason, pending, null, now);
     featureSession.rarResult = result;
     return result;
   }
