@@ -37,6 +37,7 @@ including Ping's SE enablement storyboards and the code paths, is
 | [`GATEWAY-CONNECTING-AN-MCP-CLIENT.md`](GATEWAY-CONNECTING-AN-MCP-CLIENT.md) | Connecting an MCP client to the AI Gateway: the app URL, discovery, self-registration, PKCE sign-in, tokens, client setup, and what was tested live on 2026-10-03 |
 | [`SENSOR-DOCKER-GUIDE.md`](SENSOR-DOCKER-GUIDE.md) | Setting up or debugging the Privilege node sensor on any Docker host: setup, how it works, identity, logging, failure modes |
 | [`SENSOR-KUBERNETES-GUIDE.md`](SENSOR-KUBERNETES-GUIDE.md) | The same for any Kubernetes cluster: Helm install, ServiceAccount-token identity, chart values |
+| [`SENSOR-ENFORCEMENT-POLICIES.md`](SENSOR-ENFORCEMENT-POLICIES.md) | Sensor enforcement: how a policy reaches the sensor, off/audit/enforce, what a rule contains, scope, what termination looks like, the tier, and a safe local test; tested on Docker on 2026-10-03 |
 | [`SENSOR-DOCKER-OUR-ENVIRONMENT.md`](SENSOR-DOCKER-OUR-ENVIRONMENT.md) | Our Docker setup: the Docker → local gateway → Docker loop, our values, the 2026-10-01 sensor failure and fix |
 | [`SENSOR-KUBERNETES-OUR-ENVIRONMENT.md`](SENSOR-KUBERNETES-OUR-ENVIRONMENT.md) | Our Kubernetes setup: our values, how `k8s/deploy.sh` installs the sensor, open questions |
 | `.claude/skills/privilege-cloud-mcp/` | The condensed operator version. If it disagrees with `PRIVILEGE-MCP.md`, **the doc wins** |
