@@ -299,8 +299,8 @@ export default function PrivilegeMcpLearningPage() {
             <div className="plp-callout plp-callout--warn">
               <strong>Say these plainly if asked:</strong>
               <ul>
-                <li>The two gateways share load, but gateway 1 owns the apps. If it restarts,
-                  the apps are down for about a minute.</li>
+                <li>Both gateways serve every app. If one stops, the load balancer moves its clients
+                  to the other within about 10 seconds, and those clients sign in again.</li>
                 <li>Moving a client from one gateway to the other costs that person one sign-in,
                   because sessions live in each gateway&apos;s memory.</li>
                 <li>Guardrail verdicts of Alert and Sanitize are recorded in the console but are
@@ -332,12 +332,12 @@ export default function PrivilegeMcpLearningPage() {
                 [
                   "Gateway 1",
                   "Helm release agentless-mcpgw, ping-devops-curtismuir, mesh cluster ai-demo-cmuir",
-                  "Owns every Agentic App and runs the sidecar MCP servers.",
+                  "Serves every Agentic App and runs the sidecar MCP servers.",
                 ],
                 [
                   "Gateway 2",
-                  "Helm release agentless-mcpgw2, ping-devops-cmuir, mesh cluster ai-demo-cmuir2",
-                  "No apps of its own. Signs clients in and forwards their calls to gateway 1 over the mesh.",
+                  "Helm release agentless-mcpgw2, ping-devops-cmuir, second node of mesh cluster ai-demo-cmuir",
+                  "Serves every Agentic App itself and runs the same sidecar MCP servers.",
                 ],
               ]}
             />
@@ -346,8 +346,8 @@ export default function PrivilegeMcpLearningPage() {
             <ul>
               <li><strong>An app is registered once.</strong> An Agentic App is one tenant-wide
                 object bound to one Mesh Cluster.</li>
-              <li><strong>The mesh forwards.</strong> The gateway a client lands on forwards the
-                call to the cluster that owns the app, over port <code>8690</code>.</li>
+              <li><strong>Both gateways are nodes of that cluster.</strong> Each serves every app
+                on its own, so nothing is forwarded between them and neither depends on the other.</li>
               <li><strong>Every client is pinned to one gateway.</strong> Registrations, sign-in
                 state and tokens live in each gateway&apos;s memory, so a token from one gateway
                 gets <code>401</code> on the other. The load balancer hashes on the client
@@ -456,10 +456,10 @@ oidc:
                 ["loadBalancer.ownParked / peers[].parked", "Gateway 1", "Takes a gateway out of rotation for a test without removing it."],
                 ["loadBalancer.failTimeout (600s)", "Gateway 1", "How long a failed gateway is held out. With 10s, clients were bounced back and signed in twice."],
                 ["meshPort: 8690", "Both", "Publishes the mesh port on the Service so the peer can dial it."],
-                ["gatewayHostname", "Gateway 2", "The address a gateway advertises to its peer. Must be its in-cluster Service name; a public name resolves to the ingress, where 8690 is closed."],
-                ["hostAliases", "Gateway 2", "Points the public hostname at gateway 1's Service from inside gateway 2."],
+                ["gatewayHostname", "Gateway 2", "The address a gateway advertises to its peer: its in-cluster Service name. Left in place from the two-cluster layout; whether it is still needed is untested."],
+                ["hostAliases", "Gateway 2", "Points the public hostname at gateway 1's Service from inside gateway 2. Same: left in place, untested."],
                 ["oidc.serverUrl", "Both", "The public URL on both. TLS follows this matching the certificate, so gateway 2 serves plain HTTP and the load balancer bridges to it."],
-                ["extraContainers", "Gateway 1", "Sidecar MCP servers. Catalog apps expect their backend on the gateway's own localhost."],
+                ["extraContainers", "Both", "Sidecar MCP servers. Catalog apps expect their backend on the localhost of whichever pod takes the call, so both gateways need the same list."],
               ]}
             />
 
