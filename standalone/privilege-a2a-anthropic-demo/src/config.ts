@@ -56,6 +56,8 @@ export interface MainAgentConfig {
   bffSharedSecret: string;
   workerA2aUrl: string;
   workerTraceUrl: string;
+  /** The middle agent's gateway A2A URL for the three-deep chain; blank = chain disabled. */
+  chainA2aUrl: string;
 }
 
 export function mainAgentConfig(): MainAgentConfig {
@@ -69,6 +71,7 @@ export function mainAgentConfig(): MainAgentConfig {
     bffSharedSecret: value('A2A_BFF_SHARED_SECRET'),
     workerA2aUrl: value('WORKER_A2A_URL', `http://127.0.0.1:${workerPort}/a2a`),
     workerTraceUrl: value('WORKER_TRACE_URL', `http://127.0.0.1:${workerPort}/trace`),
+    chainA2aUrl: value('CHAIN_A2A_URL'),
   };
 }
 
