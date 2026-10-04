@@ -523,3 +523,16 @@ describe("Server topology use-case playback", () => {
     expect(within(details).getByText(/Step 06 · Demo Agent Gateway → PingOne Authorize/)).toBeInTheDocument();
   });
 });
+
+describe("Server topology agent-to-agent buttons", () => {
+  it("shows the chosen A2A flow as its own diagram", () => {
+    render(<ServerTopologyPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "A2A agent chain" }));
+
+    expect(screen.getByLabelText("Choose a request flow").value).toBe("privilegeA2aChain");
+    expect(screen.getByLabelText("Flow boxes only").checked).toBe(true);
+    const visible = reactFlowMocks.nodes.filter((node) => node.type === "server" && !node.hidden).map((node) => node.id).sort();
+    expect(visible).toEqual(["a2amain", "bff", "langchain", "privgw"]);
+  });
+});

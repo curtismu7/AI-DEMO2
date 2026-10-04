@@ -19,6 +19,7 @@ import "./ServerTopologyPage.css";
 import ServerTopologyExportControls from "./ServerTopologyExportControls";
 import { layoutEdgeLabels } from "./topologyEdgeLabelLayout";
 
+const A2A_FLOW_BUTTONS = [["privilegeA2a", "A2A access review"], ["privilegeA2aChain", "A2A agent chain"]];
 const LAYER_OPTIONS = [
   ["protocol", "Protocols"], ["network", "Network"], ["security", "Security"], ["standards", "RFCs & specs"],
 ];
@@ -621,6 +622,17 @@ function ServerTopologyContent() {
     setSelectedNode(null);
     setSelectedEdge(PLAYBACKS[event.target.value].steps[0]?.edgeId || null);
   }, []);
+  // One click to the agent-to-agent picture: pick the flow and show only its
+  // boxes, so the map reads as that flow's own diagram.
+  const showFlowDiagram = useCallback((key) => {
+    setScenario(key);
+    setStepIndex(0);
+    setPlaying(false);
+    setFilter("all");
+    setSelectedNode(null);
+    setSelectedEdge(PLAYBACKS[key].steps[0]?.edgeId || null);
+    setFlowOnly(true);
+  }, []);
   const selectPlaybackStep = useCallback((index) => {
     const step = playback.steps[index];
     if (!step) return;
@@ -695,6 +707,9 @@ function ServerTopologyContent() {
 
       <section id="stm-topology-flow-pane" className="stm-flow-pane" aria-label="Playback and selected flow">
         <section className="stm-playback" aria-label="Flow playback controls">
+          <div className="stm-segmented" role="group" aria-label="Privilege agent-to-agent diagrams">
+            {A2A_FLOW_BUTTONS.map(([key, label]) => <button key={key} type="button" aria-pressed={scenario === key && flowOnly} onClick={() => showFlowDiagram(key)} title={PLAYBACKS[key].label}>{label}</button>)}
+          </div>
           <label htmlFor="stm-playback-scenario">Choose a request flow</label>
           <select id="stm-playback-scenario" value={scenario} onChange={selectScenario}>
             {Object.entries(PLAYBACKS).map(([key, item]) => <option value={key} key={key}>{item.label} — {item.resultShort}</option>)}
