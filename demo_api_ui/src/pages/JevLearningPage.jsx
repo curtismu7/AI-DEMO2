@@ -4,6 +4,7 @@ import {
   SYSTEM_COMPARE,
   SCENARIOS,
   BAKEOFF,
+  INTENT_BAKEOFF,
   POLICY_RULES,
   decide,
 } from './jevLessons';
@@ -266,6 +267,97 @@ function Bakeoff() {
   );
 }
 
+function IntentBakeoff() {
+  const [rows, setRows] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  const run = async () => {
+    setBusy(true);
+    setError('');
+    setRows(null);
+    try {
+      const out = [];
+      for (const item of INTENT_BAKEOFF) {
+        const r = await evaluate('intent', item.text);
+        out.push({
+          ...item,
+          rules: r.heuristic.answer.choice,
+          jev: r.jev.answer.choice,
+          conf: r.jev.answer.confidence ?? 0,
+          mode: r.jev.mode,
+          model: r.jev.model,
+        });
+      }
+      setRows(out);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const score = useMemo(() => {
+    if (!rows) return null;
+    const wrong = rows.filter((r) => r.jev !== r.truth).sort((a, b) => b.conf - a.conf);
+    const confs = rows.map((r) => r.conf);
+    return {
+      rulesRight: rows.filter((r) => r.rules === r.truth).length,
+      jevRight: rows.length - wrong.length,
+      total: rows.length,
+      mode: rows[0].mode,
+      model: rows[0].model,
+      min: Math.round(Math.min(...confs) * 100),
+      max: Math.round(Math.max(...confs) * 100),
+      topWrong: wrong[0] || null,
+    };
+  }, [rows]);
+
+  return (
+    <section className="jev-card" aria-labelledby="jev-intent-bake">
+      <h2 id="jev-intent-bake" className="jev-h2">Intent-routing bake-off</h2>
+      <p className="jev-lead">
+        Eight messages, each labelled with what the customer is actually asking for: check a balance,
+        move money, or something else. Unlike yes/no, this answer is a pick plus a confidence, so
+        results vary from message to message. The labels were written before either decider was run.
+        Same caveat as above: eight messages is an illustration, not a benchmark.
+      </p>
+      <button className="btn btn-primary" disabled={busy} onClick={run}>{busy ? 'Running...' : 'Run intent bake-off'}</button>
+      {error && <p className="jev-error" role="alert">{error}</p>}
+      {rows && (
+        <>
+          <table className="jev-table">
+            <thead>
+              <tr><th>Message</th><th>Truth</th><th>Rules</th><th>Jev (confidence)</th></tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.text}>
+                  <td>{r.text}</td>
+                  <td>{r.truth}</td>
+                  <td className={r.rules === r.truth ? 'jev-right' : 'jev-wrong'}>{r.rules}</td>
+                  <td className={r.jev === r.truth ? 'jev-right' : 'jev-wrong'}>{r.jev} ({Math.round(r.conf * 100)}%)</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="jev-big">
+            Rules {score.rulesRight}/{score.total} - Jev {score.jevRight}/{score.total} <ModeBadge mode={score.mode} model={score.model} />
+          </p>
+          {score.mode === 'live' && (
+            <p className="jev-meta">
+              Jev's confidence ranged from {score.min}% to {score.max}%.
+              {score.topWrong
+                ? ` Its most confident miss: "${score.topWrong.text}" as ${score.topWrong.jev} at ${Math.round(score.topWrong.conf * 100)}%. Confidence is not correctness.`
+                : ' It got every message right this run.'}
+            </p>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
+
 export default function JevLearningPage() {
   const [risk, setRisk] = useState(0.62);
   return (
@@ -293,6 +385,7 @@ export default function JevLearningPage() {
       <LivePanel onRisk={setRisk} />
       <ThresholdLesson probability={risk} setProbability={setRisk} />
       <Bakeoff />
+      <IntentBakeoff />
     </div>
   );
 }

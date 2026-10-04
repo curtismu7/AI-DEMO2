@@ -69,6 +69,24 @@ describe('JevLearningPage', () => {
     expect(screen.getByText(/No message scored between 0.35 and 0.65/)).toBeTruthy();
   });
 
+  it('intent bake-off scores pick vs truth and names the most confident miss', async () => {
+    const choice = (pick, confidence) => ({
+      ok: true,
+      json: async () => ({
+        jev: { mode: 'live', model: 'm', latencyMs: 5, answer: { type: 'choice', choice: pick, confidence } },
+        heuristic: { latencyMs: 0, answer: { type: 'choice', choice: 'other', confidence: 1 } },
+      }),
+    });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(choice('transfer_money', 0.9)));
+    render(<JevLearningPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Run intent bake-off' }));
+    // Jev always says transfer_money: right on the 3 transfers; Rules always says other: right on the 2 others.
+    await waitFor(() => expect(screen.getByText(/Rules 2\/8 - Jev 3\/8/)).toBeTruthy());
+    expect(screen.getAllByText('transfer_money (90%)')).toHaveLength(8);
+    expect(screen.getByText(/ranged from 90% to 90%/)).toBeTruthy();
+    expect(screen.getByText(/Confidence is not correctness/)).toBeTruthy();
+  });
+
   it('bake-off omits the "no middle" note when a score lands between 0.35 and 0.65', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(reply(0.5)));
     render(<JevLearningPage />);
