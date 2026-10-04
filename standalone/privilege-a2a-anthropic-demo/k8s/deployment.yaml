@@ -3,8 +3,8 @@
 # reference demo: the gateway reaches each one by its Service name instead of
 # localhost. Register them in Privilege as:
 #
-#   workeragentdemo  HTTP  http://workeragentdemo.ping-devops-cmuir.svc.cluster.local  entry path /a2a
-#   mcpdemo          MCP   http://mcpdemo.ping-devops-cmuir.svc.cluster.local          entry path /mcp  (AuthMode none)
+#   workeragentdemo  Remote Agent  http://workeragentdemo.ping-devops-cmuir.svc.cluster.local  entry path /a2a
+#   mcpdemo          MCP           http://mcpdemo.ping-devops-cmuir.svc.cluster.local          entry path /mcp  (AuthMode none)
 #
 # The worker's Agent Access key (llm + mcp scopes) comes from a Secret:
 #   read -s KEY && kubectl -n ping-devops-cmuir create secret generic privilege-a2a-demo \
