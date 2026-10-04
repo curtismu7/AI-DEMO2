@@ -50,6 +50,7 @@ import ServerTopologyStory from "./ServerTopologyStory";
 import StepDetailPanel from "./StepDetailPanel";
 import CollapsibleStepDetail from "./CollapsibleStepDetail";
 import SimpleStepperBar from "./SimpleStepperBar";
+import StepsTabContent from "./StepsTabContent";
 import AgentResponseMirror from "./AgentResponseMirror";
 import ExchangeModeToggle from "./ExchangeModeToggle";
 import Fido2Challenge from "./Fido2Challenge";
@@ -3941,6 +3942,16 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
   // IMPORTANT: modals (ConfirmModal, TransactionConsentModal, OTP/step-up) are
   // hoisted into the clinical branch via renderGlobalModals() so their state
   // setters remain reachable even when this early return fires.
+  // The Simple stepper for the two layouts that have no token rail (clinical
+  // split and Focus Mode). It was rendered only inside the float layout's rail,
+  // so choosing it in Quick Config with the reel off left this area blank.
+  const simpleStepperInline = showSimpleStepper && !showSequenceDiagram && !showServerTopology && (
+    <section aria-label="Simple stepper" data-testid="dashboard-simple-stepper">
+      <SimpleStepperBar />
+      <StepsTabContent />
+    </section>
+  );
+
   if (clinicalSplitEnabled) {
     return (
       <>
@@ -3955,6 +3966,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               position:sticky/bottom:0 pins it without any clinical-specific CSS. */}
           {showFilmstrip && !showSequenceDiagram && !showServerTopology && <ReelDock />}
           {showTokenTopology && !showSequenceDiagram && !showServerTopology && <TokenTopologyPanel inline />}
+          {simpleStepperInline}
           {showServerTopology && <ServerTopologyStory />}
           {showSequenceDiagram && !showServerTopology && (
             <SequenceReelDiagram
@@ -4129,6 +4141,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
           )}
           {showFilmstrip && !showSequenceDiagram && !showServerTopology && <TokenChainFilmstrip />}
           {showTokenTopology && !showSequenceDiagram && !showServerTopology && <TokenTopologyPanel inline />}
+          {simpleStepperInline}
           {showServerTopology && <ServerTopologyStory />}
           {showSequenceDiagram && !showServerTopology && (
             <SequenceReelDiagram
