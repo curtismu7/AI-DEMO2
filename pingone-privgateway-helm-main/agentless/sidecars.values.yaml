@@ -15,6 +15,13 @@
 #     -n ping-devops-curtismuir --reuse-values \
 #     -f pingone-privgateway-helm-main/agentless/sidecars.values.yaml
 #
+# Gateway 2 (release agentless-mcpgw2, ping-devops-cmuir) is a node of the same mesh
+# cluster and needs this same list, or sidecar apps fail on it with connection refused:
+#
+#   helm upgrade agentless-mcpgw2 <chart dir> -n ping-devops-cmuir --reuse-values \
+#     -f pingone-privgateway-helm-main/agentless/sidecars.values.yaml \
+#     --set landingPage.enabled=false
+#
 # VERIFY THE RENDER FIRST — `helm get values` will happily report values a
 # stale template never consumed, so it is not proof:
 #
@@ -86,7 +93,9 @@ extraContainers:
       - name: GRAFANA_SERVICE_ACCOUNT_TOKEN
         valueFrom:
           secretKeyRef:
-            name: grafana-secrets
+            # Not `grafana-secrets`: in ping-devops-cmuir that name is Grafana's
+            # own secret, with different keys. Both gateway namespaces hold this one.
+            name: mcp-grafana-secrets
             key: GRAFANA_SERVICE_ACCOUNT_TOKEN
     ports:
       - containerPort: 8081
@@ -104,7 +113,8 @@ extraContainers:
       - name: PORT
         value: "8082"
       - name: BANKING_UPSTREAM_URL
-        value: http://mcp-config-standalone-mcp-resource-server:8081
+        # Full name: this list also runs in gateway 2's pod, in another namespace.
+        value: http://mcp-config-standalone-mcp-resource-server.ping-devops-curtismuir.svc.cluster.local:8081
       - name: BANKING_API_KEY
         valueFrom:
           secretKeyRef:

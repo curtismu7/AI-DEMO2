@@ -1,11 +1,70 @@
 # Privilege AI Gateway: load balancer and second gateway
 
-Status: both gateways in rotation, linked by the mesh; one app registration serves both.
-Last updated 2026-10-03 (evening). **Section 0 supersedes the parts of sections 1, 5.3, 6
-and 9 that say the gateways cannot mesh or that apps must be registered twice.**
+Status: both gateways in rotation as two nodes of ONE mesh cluster (`ai-demo-cmuir`); one
+app registration serves both, and each node serves every app on its own.
+Last updated 2026-10-04. **Section 00 below is the current layout.** It supersedes section 0
+(two clusters, forwarding over the mesh), which in turn superseded the parts of sections 1,
+5.3, 6 and 9 that say the gateways cannot mesh or that apps must be registered twice.
 Audience: engineers and SEs reviewing how we show "two gateways behind one URL".
 Related: [CURRENT-CONFIGURATION.md](CURRENT-CONFIGURATION.md), [LESSONS-LEARNED.md](LESSONS-LEARNED.md),
 skill `.claude/skills/privilege-mcpgw-agent-k8s/SKILL.md`.
+
+## 00. Current layout (2026-10-04): two nodes in one mesh cluster
+
+Gateway 2 left its own cluster (`ai-demo-cmuir2`) and re-enrolled as a second node of
+gateway 1's cluster, `ai-demo-cmuir`. An app belongs to a cluster, so both nodes now own
+every app. Neither forwards to the other, and neither depends on the other.
+
+| | Two clusters + mesh (section 0) | Two nodes, one cluster (now) |
+| --- | --- | --- |
+| App registrations and policies | One | One |
+| Who serves a call | The owning cluster; the other gateway forwards | The node the client is pinned to |
+| Gateway 1 down | Every app down (~55 s) | Not proven; gateway 2 served alone while gateway 1 was parked |
+| Sidecars | Gateway 1 only | Both pods |
+| Failover costs a sign-in | Yes | Yes (unchanged) |
+
+**How the node was added.** Console, Gateways, Add New, the **AI GW** form with a Docker
+command at the end (not the VM wizard, which produces a guest-agent env file the chart
+cannot use). Cluster ID `ai-demo-cmuir`, the existing name; Host IP gateway 2's in-cluster
+Service name. The token's claims then read `clusterID: ai-demo-cmuir` with a new `nodeId`.
+On gateway 2, the old enrollment files in `/procyon/ssl` were moved into
+`/procyon/ssl/backup-cmuir2` (kept for rollback), the release was upgraded with
+`--set-file proxyToken=<file>`, and the pod restarted. It re-enrolled from the token.
+
+**What the test showed.**
+
+| Check | Result |
+| --- | --- |
+| Second node joins the cluster | Yes: `ClusterID:ai-demo-cmuir`, `LinkStatus:Active`, new node id |
+| It serves an app itself | Yes: signed-in `opensearch22` returned `200` from gateway 2 with zero `ConnStream` lines on gateway 1 |
+| Sidecar app before gateway 2 had sidecars | `500 dial tcp [::1]:8084: connect: connection refused`: the backend is `localhost` in the pod that takes the call |
+| After adding the sidecars to gateway 2 | Pod 9/9 ready; every sidecar `/health` ok and `initialize` answered on 8084, 8080, 8083 and 8081 from inside the pod; no discovery errors except `probe-agent-gateway` (its backend does not exist) |
+
+**What it needs.**
+
+- The same sidecar list on both releases: `sidecars.values.yaml`. For gateway 2 add
+  `--set landingPage.enabled=false`.
+- The sidecars' secrets in both namespaces: `brave-secrets`, `banking-rest-secrets`,
+  `pingone-mcp-secrets`, `mcp-grafana-secrets`, `ghcr-pull-secret`. The Grafana one is not
+  called `grafana-secrets` because in `ping-devops-cmuir` that name is Grafana's own secret.
+- Backend URLs that resolve from both namespaces: full Service names, never short ones.
+
+**Not verified.**
+
+- A signed-in call to a sidecar app through gateway 2 after it got its sidecars. The
+  sidecars and the gateway's own discovery were checked; the signed-in call was not.
+- Apps staying up with gateway 1 actually stopped. Gateway 2 served alone while gateway 1
+  was parked, which is the same request path, but gateway 1 was still running.
+- Gateway 1 with the renamed Grafana secret. Its release still holds the old values; the
+  next upgrade with `sidecars.values.yaml` applies the rename and restarts the pod once.
+  `mcp-grafana-secrets` already exists in its namespace.
+- Whether `gatewayHostname`, `hostAliases` and `meshPort` are still needed now that nothing
+  is forwarded. They were left in place.
+- The wizard's **Redis URL** field. A shared Redis is the likely way to keep sign-in state
+  across nodes; it was left blank.
+
+**Roll back to section 0.** Park gateway 2, move the files in `backup-cmuir2` back into
+`/procyon/ssl`, restart gateway 2, and delete node `7f449849…` in the console.
 
 ## 0. Update: the mesh links, and one registration is enough
 

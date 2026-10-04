@@ -36,8 +36,24 @@ before changing any of this.
 | | |
 |---|---|
 | Gateway 1 | release `agentless-mcpgw`, `ping-devops-curtismuir`, cluster `ai-demo-cmuir`. Owns every app and all sidecars. |
-| Gateway 2 | release `agentless-mcpgw2`, `ping-devops-cmuir`, cluster `ai-demo-cmuir2`. No apps, no sidecars; forwards over the mesh. Values: `gateway2-mesh.values.yaml` (its secrets live only in the release's stored values). |
+| Gateway 2 | release `agentless-mcpgw2`, `ping-devops-cmuir`. **Since 2026-10-04 a second node of gateway 1's cluster `ai-demo-cmuir`** (was its own cluster `ai-demo-cmuir2`, forwarding over the mesh). Serves every app itself, so it runs the same sidecars: upgrade it with `sidecars.values.yaml --set landingPage.enabled=false` as well as `gateway2-mesh.values.yaml` (its secrets live only in the release's stored values). |
 | Load balancer | part of the chart (`templates/loadbalancer.yaml`), enabled on gateway 1's release by `gateway1-lb.values.yaml`. Deployment/Service `mcpgw-lb`. |
+
+**Two nodes in one cluster is the current layout** (`privilege/GATEWAY-LOAD-BALANCER.md`
+section 00). What it changes:
+
+- A sidecar app's backend is `localhost` in whichever pod takes the call. A node without
+  the sidecars answers `500 dial tcp [::1]:<port>: connect: connection refused`. Both
+  releases need the same sidecar list and the sidecars' secrets in both namespaces.
+- The Grafana sidecar's secret is `mcp-grafana-secrets`: in `ping-devops-cmuir`,
+  `grafana-secrets` is Grafana's own secret with different keys.
+- Add a node with the console's **AI GW** form (Docker command), Cluster ID = the existing
+  cluster name. The VM wizard yields a guest-agent env file the chart cannot use, and its
+  screens show the tenant API key and OIDC secret in plain text: do not screenshot them.
+- A gateway re-enrolls from a new token only if its old files in `/procyon/ssl` are out of
+  the way. Move them to a subfolder instead of deleting, and the old enrollment can return.
+- The bullets below about forwarding and the mesh describe the earlier two-cluster layout;
+  pinning, in-memory sign-in state, Helm 4 and `--reuse-values` still apply as written.
 
 How it fits together, and the traps, each one hit on 2026-10-03:
 

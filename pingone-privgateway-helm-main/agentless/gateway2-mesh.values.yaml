@@ -1,5 +1,11 @@
 # Gateway 2 mesh + rotation overlay (no secrets). Applied on top of gw2-values.yaml.
 #
+# Since 2026-10-04 gateway 2 is a second NODE of gateway 1's cluster (ai-demo-cmuir),
+# not its own cluster: it serves every app itself and must also be upgraded with
+# sidecars.values.yaml (plus --set landingPage.enabled=false). Nothing is forwarded
+# over the mesh any more; whether the settings below are still needed is untested.
+# See privilege/GATEWAY-LOAD-BALANCER.md section 00.
+#
 # Mesh address: gateway 1 is the side that dials, and it dials the address gateway 2
 # ADVERTISES, <-hostname>:8690. A public hostname resolves to the HTTPS ingress, where
 # 8690 is closed, so gateway 2 advertises its in-cluster Service name. Gateway 1
