@@ -52,6 +52,7 @@
     "scripts/pingfederate/provision-core.js",
     "scripts/pingfederate/provision-core.test.js",
     "scripts/pingfederate/docker-compose.fresh.yml",
+    "demo_api_server/tests/pfAiAgentCiba.test.js",
     "demo_api_server/tests/pfAiAgentMockThirdParty.test.js",
     "demo_api_server/tests/pfAiAgentRarDpop.test.js",
     "docs/editions/",
