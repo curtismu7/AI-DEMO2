@@ -98,6 +98,16 @@ test("with a header Guide button the floating one is hidden and the header one o
   expect(screen.getByText(getLesson("mcp").title)).toBeTruthy();
 });
 
+test("two headers on one page still show a single Guide button", () => {
+  render(
+    <MemoryRouter initialEntries={["/pingone-mcp-inspector"]}>
+      <PageGuideButton />
+      <PageGuideButton />
+    </MemoryRouter>,
+  );
+  expect(screen.getAllByTestId("topnav-guide")).toHaveLength(1);
+});
+
 test("the header button is absent on routes with no guide", () => {
   render(
     <MemoryRouter initialEntries={["/nope"]}>
