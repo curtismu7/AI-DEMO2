@@ -148,7 +148,7 @@ process.stdout.write(JSON.stringify([...CLIENT_DISPATCHED_ACTIONS]));
 ' "$ROOT" 2>/dev/null || echo '[]')"
 
 CHIP_RESULTS="$(BASE="$BASE" ROOT="$ROOT" CLIENT_DISPATCHED="$CLIENT_DISPATCHED" python3 - <<'PYEOF'
-import json, os, glob, subprocess
+import json, os, glob, re, subprocess
 
 base = os.environ["BASE"]
 root = os.environ["ROOT"]
@@ -178,6 +178,20 @@ try:
 except Exception as e:
     topology_tools = set()
     failures.append(f"could not read scope-topology.json tools ({e})")
+
+# Two kinds of chip tool are deliberately NOT in the topology, so they are not
+# defects: the oauth-teaching local tools (plugin.isLocalTool skips authz and
+# token exchange by design; the set is read from the plugin so it cannot drift),
+# and the insufficient-scope chips, whose tool is a fake one the token cannot use.
+# No apostrophes or unbalanced parens in this block: macOS bash 3.2 mis-parses
+# them inside the heredoc and the whole script fails to load.
+try:
+    _plugin_src = open(os.path.join(root, "demo_api_server/config/verticals/oauth-teaching/index.js")).read()
+    _body = _plugin_src.split("LOCAL_TOOLS = new Set", 1)[1].split("[", 1)[1].split("]", 1)[0]
+    local_tools = set(re.findall(r"[a-z_]+", _body))
+except Exception as e:
+    local_tools = set()
+    failures.append(f"could not read LOCAL_TOOLS from the oauth-teaching plugin ({e})")
 
 for mpath in sorted(glob.glob(os.path.join(root, "demo_api_server/config/verticals/*/manifest.json"))):
     vertical = os.path.basename(os.path.dirname(mpath))
@@ -229,7 +243,8 @@ for mpath in sorted(glob.glob(os.path.join(root, "demo_api_server/config/vertica
         # capability by construction, and it fired on 28 of 28 mismatches — every
         # one correct behaviour. Twenty-eight false alarms in the tool you run
         # before going on stage is how a real one gets skimmed past.
-        if tool and topology_tools and tool not in topology_tools:
+        if (tool and topology_tools and tool not in topology_tools
+                and tool not in local_tools and chip.get("useCaseId") != "insufficient-scope"):
             failures.append(f"{vertical}/{cid}: tool {tool!r} is not in scope-topology.json")
             ok = False
         pv = per_vertical.setdefault(vertical, [0, 0])
