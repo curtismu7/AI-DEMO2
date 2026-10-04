@@ -46,6 +46,8 @@ Tested on 4 October 2026 with a Google Cloud project holding one secret. Each co
 | A sync reads names and versions, not values | Read from Google's audit log |
 | Viewing a secret reads its value from Google at that moment | Read from Google's audit log |
 | Creating a policy makes no call to Google | Read from Google's audit log |
+| Viewing a secret is recorded in Privilege's own audit feed | Read from the audit record: `Secret Vault Secret value accessed`, with the result |
+| A secret policy grants read and write as separate actions | Read from the audit record of the policy |
 | The pasted key is stored in full in the console's audit feed | Read from the audit record |
 | The hub does not supply the credential for the gateway's User Token auth mode | Reproduced: with a hub and a policy in place, User Token still forwarded nothing |
 
@@ -146,6 +148,8 @@ In the secret's details, **Secret Value** has a **View** button. Clicking it rea
 
 So a secret's contents do not sit in Privilege waiting to be read. Each view is a fresh read, and each one appears in Google's audit log if read logging is on.
 
+Privilege records the view as well. Its audit feed gets an event reading `Secret Vault Secret value accessed`, with the outcome. That gives you two independent records of who looked at a secret.
+
 The small circular arrow beside **View** was not clicked. It may rotate the secret, which would change its value in Google.
 
 ## Granting access with a policy
@@ -162,7 +166,7 @@ The **Access Summary** tab lists the hub's policies with these columns:
 | Users | How many users it grants |
 | Expiry | When the grant ends |
 
-A policy is held in Privilege. Creating one made no call to Google.
+A policy is held in Privilege. Creating one made no call to Google. Underneath, it is a policy of type `SecretResources` that grants reading and writing the secret as two separate actions, to a list of users, between two dates. The Write permission in the table above carried both.
 
 What a granted user then sees, and where they read the secret, was not tested.
 
