@@ -74,6 +74,7 @@ See also: [Audit Table](./audit-table.md), [Step Verification Report](./step-ver
 - [**UC-TOOL1** — Protected RAG](./code-search.md) ✅ 🛡️
 - [**UC-TOOL2** — Code Explorer](./code-explorer.md) ✅
 - [**UC-TOOL3** — LLM Gateway](./llm-gateway.md) ✅
+- [**UC46** — Privilege A2A access review](./privilege-a2a-access-review.md) ✅
 
 ## Learn
 
@@ -92,4 +93,5 @@ See also: [Audit Table](./audit-table.md), [Step Verification Report](./step-ver
 - [**UC-LEARN9** — ID-JAG / Cross-App Access](./id-jag-cross-app-access.md) ✅
 - [**UC-LEARN10** — Orchestration SDK (Custom UI)](./orchestration-sdk.md) ✅
 - [**UC-LEARN12** — PingFederate DaVinci Integration Kit](./pingfederate-davinci-integration-kit.md) ✅
+- [**UC-LEARN13** — PingFederate RAR — the authorization server refuses an out-of-policy transfer](./pingfederate-rar-processor.md) ✅
 - [**UC-LEARN11** — Privilege LLM — prompt injection blocked](./privilege-llm-prompt-injection.md) ✅ 🛡️
