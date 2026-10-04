@@ -4,6 +4,7 @@ import Anthropic from '@anthropic-ai/sdk';
 
 import { describeMode, mainAgentConfig, viaGateway } from '../config.js';
 import { buildWorkerClient } from './a2a-client.js';
+import { PRIMARY, runChain } from './chain.js';
 import { renderPage } from './ui.js';
 
 const config = mainAgentConfig();
@@ -39,6 +40,7 @@ app.get('/status', (_req: Request, res: Response) => {
     mainModel: config.model,
     worker: config.workerA2aUrl,
     bearerOnA2A: Boolean(config.bearer),
+    chain: config.chainA2aUrl || null,
   });
 });
 
@@ -97,16 +99,64 @@ async function startWorkerTrace(
   }
 }
 
-app.post('/chat', async (req: Request, res: Response) => {
-  if (config.bffSharedSecret) {
-    const suppliedSecret = req.header('X-A2A-BFF-Secret') ?? '';
-    const expected = Buffer.from(config.bffSharedSecret);
-    const supplied = Buffer.from(suppliedSecret);
-    if (expected.length !== supplied.length || !timingSafeEqual(expected, supplied)) {
-      res.status(401).json({ error: 'BFF authentication required' });
-      return;
-    }
+/** False (and a 401 already sent) unless the BFF's shared secret matches, when one is set. */
+function bffAuthorized(req: Request, res: Response): boolean {
+  if (!config.bffSharedSecret) return true;
+  const expected = Buffer.from(config.bffSharedSecret);
+  const supplied = Buffer.from(req.header('X-A2A-BFF-Secret') ?? '');
+  if (expected.length === supplied.length && timingSafeEqual(expected, supplied)) return true;
+  res.status(401).json({ error: 'BFF authentication required' });
+  return false;
+}
+
+/**
+ * The three-deep chain: primary -> gateway -> middle agent -> gateway ->
+ * specialist. Streams one `trace` event per hop, each with `from` and `to`.
+ */
+app.post('/chain', async (req: Request, res: Response) => {
+  if (!bffAuthorized(req, res)) return;
+  if (!config.chainA2aUrl) {
+    res.status(503).json({ error: 'CHAIN_A2A_URL is not configured' });
+    return;
   }
+  const body = req.body as { message?: unknown; specialist?: unknown };
+  const message = typeof body.message === 'string' ? body.message.trim() : '';
+  const specialist = typeof body.specialist === 'string' ? body.specialist.trim() : '';
+  if (!message || !/^[a-z0-9-]{1,64}$/.test(specialist)) {
+    res.status(400).json({ error: 'message and a specialist name are required' });
+    return;
+  }
+
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache, no-transform',
+    Connection: 'keep-alive',
+  });
+  const startedAt = Date.now();
+  const at = () => `${((Date.now() - startedAt) / 1000).toFixed(1)}s`;
+  const abort = new AbortController();
+  res.on('close', () => { if (!res.writableEnded) abort.abort(); });
+
+  try {
+    const answer = await runChain({
+      url: config.chainA2aUrl,
+      bearer: config.bearer,
+      message,
+      specialist,
+      signal: abort.signal,
+      emit: event => sendSse(res, 'trace', { ...event, at: at() }),
+    });
+    sendSse(res, 'token', { text: answer });
+    sendSse(res, 'done', {});
+  } catch (error) {
+    if (!abort.signal.aborted) sendSse(res, 'error', { error: error instanceof Error ? error.message : 'The chain failed.' });
+  } finally {
+    if (!res.writableEnded) res.end();
+  }
+});
+
+app.post('/chat', async (req: Request, res: Response) => {
+  if (!bffAuthorized(req, res)) return;
 
   const body = req.body as ChatRequestBody;
   const message = typeof body.message === 'string' ? body.message.trim() : '';
@@ -189,10 +239,10 @@ app.post('/chat', async (req: Request, res: Response) => {
           continue;
         }
 
-        sendSse(res, 'trace', { kind: 'delegate', text: 'concierge → analyst_agent', detail: question, at: at() });
+        sendSse(res, 'trace', { kind: 'delegate', from: PRIMARY, to: 'analyst', text: 'concierge → analyst_agent', detail: question, at: at() });
         try {
           const answer = await worker.sendQuestion(question, traceId);
-          sendSse(res, 'trace', { kind: 'result', text: 'analyst_agent returned', detail: answer, at: at() });
+          sendSse(res, 'trace', { kind: 'result', from: 'analyst', to: PRIMARY, text: 'analyst_agent returned', detail: answer, at: at() });
           results.push({ type: 'tool_result', tool_use_id: call.id, content: answer });
           delegatedAnswer = answer;
         } catch (error) {
