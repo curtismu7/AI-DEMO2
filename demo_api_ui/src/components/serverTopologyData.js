@@ -282,16 +282,18 @@ export const SERVER_ZONES = [
 }));
 
 export const PLAYBACKS = {
+  // The two A2A flows list only the agent and gateway hops. The BFF relay and
+  // the gateway's call to the model provider are real (their edges are on the
+  // map), but those boxes sit far away, and including them made "Flow boxes
+  // only" zoom out until the cards were too small to read.
   privilegeA2a: {
     label: "Agent → Privilege AI Gateway → agent → tools",
     resultShort: "Every hop checked by the gateway",
-    result: "The main agent hands a question to the worker through the Privilege AI Gateway. The worker calls its model and its MCP tools through the same gateway with its own key. Each agent presents only its own agent key, and the gateway holds the model provider key.",
+    result: "The main agent hands a question to the worker through the Privilege AI Gateway. The worker calls its model and its MCP tools through the same gateway with its own key. Each agent presents only its own agent key, and the gateway holds the model provider key. The app reaches the main agent through the BFF.",
     steps: [
-      { edgeId: "bff-a2amain", title: "BFF → main agent · relay the question" },
       { edgeId: "a2amain-privgw", title: "Main agent → gateway · A2A message with its agent key" },
       { edgeId: "privgw-a2aworker", title: "Gateway → worker · forwarded after key, scope, policy, guardrail" },
       { edgeId: "a2aworker-privgw", title: "Worker → gateway · model and tool calls with its own key" },
-      { edgeId: "privgw-model", title: "Gateway → model provider · real provider key swapped in" },
       { edgeId: "privgw-a2aworker", title: "Gateway → MCP server · permitted tool call, result screened" },
     ],
   },
@@ -300,7 +302,6 @@ export const PLAYBACKS = {
     resultShort: "Two gateway hops, each with the caller's own key",
     result: "The main agent calls the LangChain agent through the gateway; the LangChain agent then calls a specialist through the gateway with its own key. A prompt-injection message is blocked at the first hop, and a hand-off to an ungranted agent is refused at the second.",
     steps: [
-      { edgeId: "bff-a2amain", title: "BFF → main agent · start the chain" },
       { edgeId: "a2amain-privgw", title: "Main agent → gateway · first hop" },
       { edgeId: "privgw-langchain", title: "Gateway → LangChain agent · forwarded" },
       { edgeId: "langchain-privgw", title: "LangChain agent → gateway · second hop with its own key" },
