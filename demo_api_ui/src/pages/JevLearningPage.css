@@ -42,6 +42,8 @@
 .jev-badge { padding: 2px 8px; border-radius: 999px; font-size: var(--font-size-2xs); font-weight: 600; }
 .jev-badge--live { background: var(--th-status-success-bg); color: var(--th-status-success-text); }
 .jev-badge--sim { background: var(--th-status-warning-bg); color: var(--th-status-warning-text); }
+.jev-badge--rec { background: var(--th-bg-inset); color: var(--th-text-body); border: 1px solid var(--th-border-strong); }
+.jev-page .jev-recorded { margin: 12px 0; padding-left: 12px; border-left: 3px solid var(--th-status-info); }
 
 .jev-slider { display: block; margin: 0 0 10px; color: var(--th-text-body); }
 .jev-slider input { display: block; width: 100%; max-width: 420px; }
