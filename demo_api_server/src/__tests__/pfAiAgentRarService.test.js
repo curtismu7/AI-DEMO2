@@ -121,6 +121,48 @@ describe('PF AI Agent RAR service', () => {
     expect(session.pfAiAgent.rarResult).toBeUndefined();
   });
 
+  // When the processor refuses the request after sign-in, PingFederate redirects back with
+  // error=invalid_authorization_details (RFC 9396). That is a policy refusal, not a failure.
+  test('treats PF refusing the authorization details after sign-in as a denial', async () => {
+    const session = {
+      pfAiAgent: {
+        rarPending: {
+          state: 'rar-state', nonce: 'rar-nonce', verifier: 'secret-verifier',
+          createdAt: Date.now(), expiresAt: Date.now() + 300_000, scenario: 'denied', userKey: 'demouser',
+        },
+      },
+    };
+    const result = await completeRar({
+      session,
+      query: {
+        state: 'rar-state',
+        error: 'invalid_authorization_details',
+        error_description: 'Error during enrichment of authorization detail: banking_transaction',
+      },
+    }, { store: makeStore(), fetchImpl: jest.fn() });
+
+    expect(result).toEqual(expect.objectContaining({ outcome: 'denied', reason: 'authorization_details_refused' }));
+    expect(session.pfAiAgent.rarPending).toBeUndefined();
+    expect(session.pfAiAgent.rarResult).toEqual(result);
+    expect(JSON.stringify(result)).not.toMatch(/secret-verifier|enrichment|banking_transaction.*Error/);
+  });
+
+  test('an error code that is not a known refusal is still a failure, even a prototype name', async () => {
+    for (const error of ['constructor', '__proto__', 'toString', 'temporarily_unavailable']) {
+      const session = {
+        pfAiAgent: {
+          rarPending: {
+            state: 'rar-state', nonce: 'rar-nonce', verifier: 'secret-verifier',
+            createdAt: Date.now(), expiresAt: Date.now() + 300_000, scenario: 'allowed', userKey: 'demouser',
+          },
+        },
+      };
+      await expect(completeRar({ session, query: { state: 'rar-state', error } }, {
+        store: makeStore(), fetchImpl: jest.fn(),
+      })).rejects.toMatchObject({ code: 'PF_AI_RAR_AUTHORIZATION_FAILED' });
+    }
+  });
+
   test('constructs an out-of-policy denial scenario on the PF route only', async () => {
     const fetchImpl = jest.fn()
       .mockResolvedValueOnce(jsonResponse(discovery()))
