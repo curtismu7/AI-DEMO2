@@ -12,6 +12,7 @@ Oct 4, 2026 · @Curtis Muir
 - [Granting tools](#granting-tools)
 - [Two layers of access](#two-layers-of-access)
 - [Errors through an aggregate](#errors-through-an-aggregate)
+- [A member that hangs](#a-member-that-hangs)
 - [Differences a client will notice](#differences-a-client-will-notice)
 - [Verifying](#verifying)
 - [Quick lookup](#quick-lookup)
@@ -45,11 +46,13 @@ Tested on 4 October 2026 against a cloud gateway, with an aggregate of two membe
 | Calling a tool on a server that is not a member is refused | Reproduced |
 | Calling a tool outside the grant is refused, and so is one that does not exist | Reproduced: the same error for both |
 | A member's own error comes back with the member's name | Reproduced: the member's backend refused the call |
-| A call to the other member got no response | Reproduced twice: no reply within 35 and 90 seconds, nothing in the log |
+| A call to the other member got no response | Reproduced three times, on two different member apps for the same server: no reply within 35 to 90 seconds |
+| The hang follows the member's transport, not its policy | Reproduced: it persisted after swapping to a member the caller could use directly. The log shows the aggregate opening an event stream to that member and never sending the call. |
+| Each member has an alias, and the alias is the prefix | Read from the audit record of the aggregate |
 | The aggregate answers in plain JSON; a member's own app answers as an event stream | Reproduced |
 | The gateway connects to a member as the caller | Read from the log |
 
-Not tested: creating an aggregate in the console, an aggregate reached with a person's sign-in, resources and prompts (the tested members had none), and why one member hung.
+Not tested: creating an aggregate in the console, an aggregate reached with a person's sign-in, resources and prompts (the tested members had none), and an aggregate in which every member answers. On the tested gateway neither member returned a result, for the two different reasons described under Errors.
 
 ## How an aggregate works
 
@@ -80,7 +83,7 @@ The form itself was not walked through for this guide.
 
 ## Tool names
 
-Every tool is named `<member>__<tool>`: the member's name, two underscores, then the tool's own name.
+Every tool is named `<member>__<tool>`: the member's alias, two underscores, then the tool's own name. Each member of an aggregate has an alias, which defaults to the member app's name.
 
 ```text
 opensearch__ListIndexTool
@@ -94,7 +97,7 @@ What follows from this:
 
 - **A client must call the prefixed name.** The bare name is refused.
 - **The same tool has two names** if the member is also reachable through its own app: bare there, prefixed here. Prompts, allowlists and saved client settings written for one do not work for the other.
-- **The prefix is the member's app name, not the server's own name.** Renaming or re-registering a member changes every one of its tool names.
+- **The prefix is the member's alias, not the server's own name.** Swapping one member app for another changes every one of its tool names, even when both point at the same server. In testing, replacing the member `opensearch` with `opensearch22` renamed every tool, and the existing grant stopped matching until the tools were selected again.
 - **Some clients limit tool-name length.** A long member name plus a long tool name can exceed it.
 
 ## Granting tools
@@ -141,7 +144,7 @@ Three things to take from this:
 
 - **"Access denied" covers two cases.** A tool you were not granted and a tool that does not exist look the same. Check the tool list before assuming a grant is missing.
 - **A member's failure names the member.** The text after the member's name is what the member's backend said.
-- **A member can hang the call.** Two calls to one member got no reply in 35 and 90 seconds, and the gateway logged nothing for them. Set a timeout in the client. The cause was not established; the same caller was refused with a 403 when calling that member's own app directly.
+- **A member can hang the call.** Calls to one member got no reply in 35 to 90 seconds. Set a timeout in the client. See the next section for the cause.
 
 When a member call fails, the gateway drops its session to that member and logs it:
 
@@ -149,6 +152,32 @@ When a member call fails, the gateway drops its session to that member and logs 
 [mcpagg] tools/call <tool> on <member> failed: calling "tools/call": sending "tools/call": Unauthorized
 [mcpagg] discarding session to <member> after error: ...
 ```
+
+## A member that hangs
+
+One member never answered through the aggregate, although the same server worked when called through its own app with the same key.
+
+The gateway's log shows the difference between the two members. For the member that worked as far as its backend's refusal, the aggregate connected by posting `initialize`, and logged:
+
+```text
+[mcpagg] connected to member <member> over streamable-http for user <user-id>
+```
+
+For the member that hung, the aggregate instead opened an event stream to it:
+
+```text
+incoming request: GET https://<member>.default.applications…/mcp headers: map[Accept:[text/event-stream] …]
+HTTP proxy response: &{Status:200 OK … Content-Type:[text/event-stream] …}
+```
+
+After that there is no "connected" line and no tool call. The aggregate is waiting on that stream.
+
+The gateway had recorded that member's transport as `sse`. The server behind it speaks streamable HTTP, and also answers a `GET` on its endpoint with an event stream, as that transport allows. It appears the aggregate takes the recorded transport, connects the older SSE way, and waits for an event the server never sends. A direct client is unaffected because it posts to the endpoint.
+
+This is the likely cause, read from the log, not confirmed by Ping. Two things follow:
+
+- **Check each member's recorded transport.** A member the gateway lists as `sse` may hang inside an aggregate even though it works on its own.
+- **Swapping the member for another app that points at the same server does not help.** Both were recorded as `sse`.
 
 ## Differences a client will notice
 
@@ -194,7 +223,7 @@ The aggregate did not issue a session ID. Each request stood on its own.
 | `access denied for` a tool that exists | The tool is not in the caller's grant | Add it to the grant, in its prefixed form |
 | `access denied for` a tool you were granted | The name is misspelled, or the member's tool list changed | Compare with `tools/list` |
 | `<member>: … Unauthorized` | The member's backend rejected what its Auth Mode sent | Fix the member's Auth Mode; test the member alone |
-| A call hangs | The member did not answer | Set a client timeout; test that member through its own app |
+| A call hangs | The member is recorded with the `sse` transport and the aggregate waits on its event stream | Set a client timeout; use a member recorded as streamable HTTP; raise it with Ping |
 | A client reports success but nothing happened | The error came back with HTTP 200 | Check the JSON-RPC `error` field |
 | Fewer tools than the members have | The grant lists tools | Expected; widen the grant if needed |
 | Tool names changed after a re-registration | The prefix is the member's app name | Update prompts and client settings |
