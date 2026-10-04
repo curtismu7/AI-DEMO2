@@ -10293,7 +10293,9 @@ working scope enforcement as a bug.
 whatever the Inspector lists, it must be able to invoke — rather than being
 softened to match current behaviour.
 
-### 2026-10-04 — Server Topology CSV exports are hand-kept and miss the Privilege A2A nodes
+### 2026-10-04 — Server Topology CSV exports are hand-kept and miss the Privilege A2A nodes (FIXED)
+
+**Fixed 2026-10-04:** `demo_api_ui/src/components/serverTopologyExports.js` builds both CSVs from the topology data, and `serverTopologyExports.test.js` fails when `docs/exports` is stale (regenerate with `UPDATE_TOPOLOGY_EXPORTS=1`). The hand-written Assessment Notes column is carried over from the existing file. The first regeneration also corrected rows that had already drifted before the A2A change.
 
 `docs/exports/server-topology-lucidchart.csv` and
 `docs/exports/server-topology-details.csv` are the downloads on the Server

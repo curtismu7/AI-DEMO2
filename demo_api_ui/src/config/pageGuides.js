@@ -13,6 +13,8 @@ export const PAGE_GUIDES = {
   "/agent-gateway-inspector": { title: "Agent Gateway Guide", lessons: ["authorize"] },
   "/personal-agent": { title: "Personal Agent Guide", lessons: ["consumer-agent"] },
   "/audit-agent": { title: "Audit Agent Guide", lessons: ["evidence-timeline"] },
+  "/privilege-gateway-topologies": { title: "Privilege Agent-to-Agent Guide", lessons: ["privilege-a2a"] },
+  "/ai-products/privilege-a2a": { title: "Privilege Agent-to-Agent Guide", lessons: ["privilege-a2a"] },
   "/use-cases/live": {
     title: "Live Use Cases Guide",
     lessons: ["customer-service-agent", "hitl-step-up", "threat-defense"],
