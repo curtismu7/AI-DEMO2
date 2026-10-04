@@ -1,11 +1,43 @@
 #!/usr/bin/env node
 /* Generate an edition (P1-AI-DEMO / PF-AI-DEMO) from a git ref. See
- * docs/superpowers/specs/2026-10-03-edition-split-design.md. */
+ * docs/superpowers/specs/2026-10-03-edition-split-design.md.
+ *
+ * Exported editions carry PLACEHOLDER PingOne IDs: every value in EDITION_FORBIDDEN_STRINGS
+ * (AI-DEMO2's own environment/client IDs) is replaced in the exported tree (fake UUIDs
+ * 00000000-0000-4000-8000-0000000000NN, or EDITION-PLACEHOLDER-N at the original length), then the
+ * forbidden-string gate proves none are left. An edition's real environment ID and client IDs come
+ * from its own .env, produced by its own PingOne bootstrap - never from this repo. */
 const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 
 const git = (cwd, ...a) => execFileSync('git', a, { cwd, maxBuffer: 1 << 28 });
+
+// Drift protection for the PingOne edition: every PF-named tracked file must be removed by the
+// manifest or listed in `keep` (grouped, with a reason), so a PF file main adds later cannot ship
+// silently. `keepIgnore` ({regex, reason}) exempts whole path classes (docs). The PF edition keeps
+// all PF files, so it is not checked. ponytail: name heuristic only - a PF file with no PF-looking
+// name is invisible here; the import/reference gates remain the backstop.
+const PF_NAMED_RE = /pingfed|(^|\/)pf[-_A-Z]|\/pf-|-pf\/|PingFederate/i;
+function checkManifestCoverage(manifest, trackedFiles, removedSet) {
+  if (manifest.provider !== 'pingone') return;
+  const tracked = new Set(trackedFiles);
+  const kept = new Set();
+  const stale = [], both = [];
+  for (const g of manifest.keep || []) for (const p of g.paths) {
+    kept.add(p);
+    if (!tracked.has(p)) stale.push(p);
+    if (removedSet.has(p)) both.push(p);
+  }
+  const ignore = (manifest.keepIgnore || []).map((i) => new RegExp(i.regex));
+  const missing = trackedFiles.filter((f) => PF_NAMED_RE.test(f) && !removedSet.has(f) && !kept.has(f) && !ignore.some((r) => r.test(f)));
+  const msg = [
+    missing.length && `PF-named file(s) neither removed nor in keep (add to remove, or to keep with a reason):\n${missing.join('\n')}`,
+    stale.length && `stale keep path(s), not in the ref:\n${stale.join('\n')}`,
+    both.length && `path(s) in both keep and remove:\n${both.join('\n')}`,
+  ].filter(Boolean);
+  if (msg.length) throw new Error(`gate failed: manifest-coverage\n${msg.join('\n')}`);
+}
 
 function exportEdition({ manifest, ref, srcRepo, dest }) {
   const src = fs.realpathSync(srcRepo);
@@ -39,6 +71,7 @@ function exportEdition({ manifest, ref, srcRepo, dest }) {
   const removedFiles = new Set();
   const keep = files.filter(({ file }) => { const r = isRemoved(file); if (r) removedFiles.add(file); return !r; });
   for (const p of manifest.remove) if (!used.has(p)) throw new Error(`remove pattern "${p}" matched nothing`);
+  checkManifestCoverage(manifest, files.map((f) => f.file), removedFiles);
 
   for (const { mode, file } of keep) {
     const to = path.join(out, file);
@@ -120,8 +153,73 @@ function checkRemovedPathReferences(dest, removed, remove = []) {
   if (hits.length) throw new Error(`gate failed: removed-path-references (${hits.length} file(s))\n${hits.join('\n')}`);
 }
 
+const forbiddenList = () => (process.env.EDITION_FORBIDDEN_STRINGS || '').split(',').map((s) => s.trim()).filter(Boolean);
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// Stable fake for forbidden value i; a UUID stays UUID-shaped, anything else keeps its length.
+function placeholderFor(value, i) {
+  const n = i + 1;
+  if (UUID_RE.test(value)) return `00000000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`;
+  const fill = /^[^a-z]*[A-Z]/.test(value) && !/[a-z]/.test(value) ? 'X' : /^\d+$/.test(value) ? '0' : 'x';
+  return `EDITION-PLACEHOLDER-${n}`.padEnd(value.length, fill).slice(0, value.length);
+}
+
+// Replace each forbidden value with its placeholder in the content of every text file under dest.
+// Output (return value, errors) never contains a value: counts and paths only.
+function applySubstitutions(dest, values) {
+  // validate before touching anything; messages name the list index only, never a value
+  const phs = values.map((v, i) => {
+    const min = `EDITION-PLACEHOLDER-${i + 1}`.length;
+    if (!UUID_RE.test(v) && v.length < min) throw new Error(`forbidden value #${i + 1} is too short to substitute safely (needs at least ${min} characters)`);
+    return placeholderFor(v, i);
+  });
+  phs.forEach((ph, i) => {
+    if (phs.indexOf(ph) !== i) throw new Error(`placeholder for forbidden value #${i + 1} collides with an earlier placeholder`);
+    const k = values.findIndex((v) => ph.includes(v));
+    if (k >= 0) throw new Error(`placeholder for forbidden value #${i + 1} contains forbidden value #${k + 1}`);
+  });
+  const pairs = values.map((v, i) => [Buffer.from(v).toString('latin1'), phs[i]])
+    .sort((a, b) => b[0].length - a[0].length); // longest first: a value that contains another is replaced whole
+  const result = { files: 0, byArea: {} };
+  if (!pairs.length) return result;
+  const hasValue = (s) => pairs.some(([v]) => s.includes(v));
+  // the path itself would carry the value, so the error shows it with placeholders applied
+  const redact = (s) => pairs.reduce((t, [v, ph]) => t.split(v).join(ph), s);
+  const badPath = (rel) => new Error(`gate failed: forbidden string in path ${redact(rel)}`);
+  // pass 1: path/symlink check over the whole tree, so a path failure leaves every file untouched
+  const files = [];
+  const scan = (dir) => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (e.name === '.git') continue;
+      const p = path.join(dir, e.name);
+      const rel = path.relative(dest, p);
+      if (hasValue(Buffer.from(e.name).toString('latin1'))) throw badPath(rel);
+      if (e.isSymbolicLink()) {
+        if (hasValue(Buffer.from(fs.readlinkSync(p)).toString('latin1'))) throw badPath(rel);
+        continue;
+      }
+      if (e.isDirectory()) scan(p); else files.push([p, rel]);
+    }
+  };
+  scan(dest);
+  for (const [p, rel] of files) {
+    const buf = fs.readFileSync(p);
+    if (buf.subarray(0, 8192).includes(0)) continue;
+    // latin1 round-trips every byte, so a literal split/join never alters unrelated content
+    const text = buf.toString('latin1');
+    let out = text;
+    for (const [v, ph] of pairs) out = out.split(v).join(ph);
+    if (out === text) continue;
+    fs.writeFileSync(p, Buffer.from(out, 'latin1')); // rewrite in place: mode is kept
+    result.files++;
+    const area = rel.includes(path.sep) ? rel.split(path.sep)[0] : '.';
+    result.byArea[area] = (result.byArea[area] || 0) + 1;
+  }
+  return result;
+}
+
 function checkForbidden(dest) {
-  const list = (process.env.EDITION_FORBIDDEN_STRINGS || '').split(',').map((s) => s.trim()).filter(Boolean);
+  const list = forbiddenList();
   if (!list.length) throw new Error('gate failed: EDITION_FORBIDDEN_STRINGS not set');
   const needles = list.map((s) => Buffer.from(s));
   const hits = [];
@@ -150,14 +248,36 @@ function defaultRunner(cmd, args, opts) {
   } catch (e) { throw new Error(`${e.message.split('\n')[0]} (see ${log})`); } finally { fs.closeSync(fd); }
 }
 
+const GITLEAKS_CONFIG = path.resolve(__dirname, '..', 'editions', 'gitleaks.toml');
+
+// a config file shipped in the exported tree could be mistaken for the gate's config
+// (.gitleaksignore is inert under --no-git and ships as-is, so it is not flagged)
+function checkNoGitleaksConfig(dest) {
+  const hits = [];
+  const scan = (dir) => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (e.name === '.git') continue;
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) scan(p);
+      else if (/^\.?gitleaks\.(toml|ya?ml)$/.test(e.name)) hits.push(path.relative(dest, p));
+    }
+  };
+  scan(dest);
+  if (hits.length) throw new Error(`gate failed: gitleaks config in exported tree: ${hits.join(', ')}`);
+}
+
 const JEST_SCOPE = ['tests/crossVerticalIntentGuard.test.js', 'src/__tests__/featureFlags.route.test.js', 'src/__tests__/authorize-gate.test.js'];
 
 function runGates(dest, manifest, runner = defaultRunner, removed) {
   checkForbidden(dest);
   checkRelativeImports(dest, removed);
   checkRemovedPathReferences(dest, removed, manifest.remove);
+  checkNoGitleaksConfig(dest);
   try {
-    execFileSync('gitleaks', ['detect', '--no-git', '--source', dest, '--no-banner'], { stdio: 'pipe' });
+    // config comes from the source repo (__dirname), never from the exported tree
+    // clean env: an inherited GITLEAKS_* variable (e.g. GITLEAKS_CONFIG) must never matter
+    const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('GITLEAKS_')));
+    execFileSync('gitleaks', ['detect', '--no-git', '--source', dest, '--no-banner', '--config', GITLEAKS_CONFIG], { stdio: 'pipe', env });
   } catch (e) { throw new Error(`gate failed: gitleaks (${e.status === 1 ? 'leaks found' : e.message.split('\n')[0]})`); }
   // generated use-case docs list every use case; regenerate so they match the dropped set
   const regen = (manifest.dropUseCases || []).length
@@ -176,7 +296,7 @@ function runGates(dest, manifest, runner = defaultRunner, removed) {
   }
 }
 
-module.exports = { exportEdition, runGates, checkRelativeImports, checkRemovedPathReferences };
+module.exports = { exportEdition, checkManifestCoverage,runGates, applySubstitutions, forbiddenList, checkRelativeImports, checkRemovedPathReferences };
 
 if (require.main === module) {
   const [, , which, dest, ...rest] = process.argv;
@@ -188,6 +308,9 @@ if (require.main === module) {
   const manifest = JSON.parse(fs.readFileSync(path.join(repo, 'editions', `${which}.json`), 'utf8'));
   const { removedFiles, ...summary } = exportEdition({ manifest, ref, srcRepo: repo, dest });
   console.log(summary);
+  // placeholders go in before the forbidden-string scan, so the scan proves nothing was left
+  const subs = forbiddenList().length ? applySubstitutions(path.resolve(dest), forbiddenList()) : { files: 0, byArea: {} };
+  console.log(`substituted placeholder IDs in ${subs.files} file(s):`, subs.byArea);
   runGates(path.resolve(dest), manifest, undefined, removedFiles);
   console.log('all gates passed');
 }

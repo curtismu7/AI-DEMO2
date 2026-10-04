@@ -1,0 +1,44 @@
+# Export-time gitleaks config for scripts/export-edition.js (the gitleaks gate).
+# The gate runs `gitleaks detect --no-git`, which ignores .gitleaksignore, so the
+# non-secret findings that cannot change in the live repo are listed here instead.
+#
+# Rules: extends the default ruleset; only exact literal strings or exact file
+# paths below; no wildcard paths, no directories, no rule disables. A real
+# secret is replaced in the tracked file, never allowlisted here.
+# The gate loads THIS file from the source repo, never from the exported tree.
+#
+# Both allowlists use regexTarget = "match": the pattern is tested against the
+# finding itself, never the whole line, so a second secret on the same line is
+# still its own finding and is still flagged.
+
+title = "AI-DEMO2 edition export gitleaks config"
+
+[extend]
+useDefault = true
+
+# Public PingOne resource-server audience URI. Not a secret: the "apikey" in the path
+# makes generic-api-key fire. Appears in scope-topology.json (root and ping-gateway
+# copy), both .env.example files, docs/scope-topology.md and the P1AZ snapshot JSON.
+# Same value is accepted in the repo .gitleaksignore. The finding text is
+# that URI minus its scheme, plus at most one closing delimiter, so the URI with
+# extra characters appended is not exempt.
+[[allowlists]]
+description = "public PingOne audience URI of the apikey MCP resource (non-secret; repo .gitleaksignore)"
+targetRules = ["generic-api-key"]
+regexTarget = "match"
+regexes = ['''^api\.ping\.demo:3036/mcp/apikey["'`\s,)]?$''']
+
+# Glean image content ids in <img src> URLs: key= identifies the image, not a credential.
+# owner-confirmed 2026-09-12 (repo .gitleaksignore). The finding text is key=<id>" ; the
+# exemption is limited to these two exact files (residual: another key=<id> finding in
+# these two files would also be exempt).
+[[allowlists]]
+description = "Glean image ids in the agent-guardrails pages (owner-confirmed 2026-09-12)"
+condition = "AND"
+targetRules = ["generic-api-key"]
+paths = [
+  '''/ping_agent_guardrails_diagram\.html$''',
+  '''/demo_api_ui/public/learning-mirror/agent-guardrails\.html$''',
+]
+regexTarget = "match"
+regexes = ['''^key=[A-Za-z0-9_+/=-]+["']?$''']

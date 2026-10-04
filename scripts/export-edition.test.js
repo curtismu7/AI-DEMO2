@@ -5,9 +5,9 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
-const { exportEdition } = require('./export-edition');
+const { exportEdition, checkManifestCoverage } = require('./export-edition');
 
-function fixtureRepo() {
+function fixtureRepo(extra = []) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'edition-src-'));
   const git = (...a) => execFileSync('git', a, { cwd: dir, stdio: 'pipe' });
   git('init', '-q', '-b', 'main');
@@ -19,6 +19,7 @@ function fixtureRepo() {
   fs.mkdirSync(path.join(dir, 'demo_api_server/config'), { recursive: true });
   fs.writeFileSync(path.join(dir, 'demo_api_server/config/auth-requirements.json'), JSON.stringify({ useCases: { UC1: 'public', UC40: 'public' } }));
   git('add', 'pf/a.js', 'keep.js', 'run.sh', 'demo_api_server/config/auth-requirements.json'); git('commit', '-q', '-m', 'init');
+  for (const f of extra) { fs.mkdirSync(path.dirname(path.join(dir, f)), { recursive: true }); fs.writeFileSync(path.join(dir, f), 'x'); git('add', f); git('commit', '-q', '-m', f); }
   fs.writeFileSync(path.join(dir, '.env'), 'SECRET=1'); // untracked
   return dir;
 }
@@ -128,6 +129,51 @@ test('gitleaks gate fails on a planted secret', () => {
   assert.throws(() => runGates(d, mf(), okRunner), /gitleaks/);
 });
 
+// ---- gitleaks config (editions/gitleaks.toml) ----
+const AUD = 'https://api.ping.demo:30' + '36/mcp/api' + 'key';
+const gl = (d) => { process.env.EDITION_FORBIDDEN_STRINGS = 'unused-placeholder-xyz'; after(() => delete process.env.EDITION_FORBIDDEN_STRINGS); runGates(d, mf(), okRunner); };
+const fakeToken = () => 'ghp_' + 'aB3dE5gH7jK9mN1pQ3sT5vW7yZ9bD1fH3jK5';
+
+test('gitleaks config: the allowlisted audience URI passes, a planted token beside it still fails', () => {
+  const ok = tree({ 'scope.json': `{ "audience": "${AUD}" }\n`, 'doc.md': `| \`${AUD}\` |\n` });
+  gl(ok);
+  const bad = tree({ 'scope.json': `{ "audience": "${AUD}" }\n`, 'k.js': `const t = "${fakeToken()}";\n` });
+  assert.throws(() => gl(bad), /gitleaks/);
+});
+
+test('gitleaks config: the URI with one extra character is not exempt', () => {
+  // proves the allowlist is exact: without the config the default rule flags this line too
+  const d = tree({ 'scope.json': `{ "audience": "${AUD}X" }\n` });
+  assert.throws(() => gl(d), /gitleaks/);
+});
+
+// same-line secrets: the allowlists must exempt the finding, never the whole line
+const GLEAN = '<img src="https://pingidentity-be.glean.com/api/v1/images?key=' + 'q8Zr3Kx9Lm2Vb7Nc4Td6Wy1Hj5Gf0SaXp7Rt2Uv9Be3Qk6Mn1Jc4Hd8Lf5Zs0Yw==" />'; // real ids are base64 and end in ==
+
+test('gitleaks config: a secret on the same line as the URI is still flagged', () => {
+  gl(tree({ 'a.json': `{ "audience": "${AUD}" }\n` }));
+  assert.throws(() => gl(tree({ 'a.json': `{ "audience": "${AUD}", "t": "${fakeToken()}" }\n` })), /gitleaks/);
+  assert.throws(() => gl(tree({ 'a.env': `X=${AUD} API_` + 'KEY=' + require('node:crypto').randomBytes(18).toString('base64url') + '\n' })), /gitleaks/);
+});
+
+test('gitleaks config: a secret on the same line as an allowlisted Glean id is still flagged', () => {
+  gl(tree({ 'ping_agent_guardrails_diagram.html': GLEAN + '\n' }));
+  assert.throws(() => gl(tree({ 'ping_agent_guardrails_diagram.html': `${GLEAN} <!-- ${fakeToken()} -->\n` })), /gitleaks/);
+  // the Glean exemption is per exact file: the same line elsewhere is flagged
+  assert.throws(() => gl(tree({ 'other.html': GLEAN + '\n' })), /gitleaks/);
+});
+
+test('gitleaks config: a .gitleaks.toml in the exported tree fails the gate and cannot weaken it', () => {
+  const d = tree({ 'k.js': `const t = "${fakeToken()}";\n`, 'sub/.gitleaks.toml': '[extend]\nuseDefault = false\n[[allowlists]]\nregexes = [\'\'\'.*\'\'\']\n' });
+  assert.throws(() => gl(d), /gitleaks config in exported tree: sub\/\.gitleaks\.toml/);
+});
+
+test('gitleaks config: a shipped .gitleaksignore is inert (the finding still fails)', () => {
+  const d = tree({ 'k.js': `const t = "${fakeToken()}";\n` });
+  fs.writeFileSync(path.join(d, '.gitleaksignore'), 'k.js:github-pat:1\nk.js:generic-api-key:1\n');
+  assert.throws(() => gl(d), /gitleaks/);
+});
+
 test('clean tree passes scan gates and runs build/test gates through the runner', () => {
   process.env.EDITION_FORBIDDEN_STRINGS = 'unused-placeholder-xyz';
   after(() => delete process.env.EDITION_FORBIDDEN_STRINGS);
@@ -178,4 +224,119 @@ test('regenerates the use-case docs before authz:verify when use cases are dropp
   runGates(d, mf({ dropUseCases: ['UC40'] }), (cmd, args) => calls.push(`${cmd} ${args.join(' ')}`));
   assert.strictEqual(calls.length, 7);
   assert.ok(calls[0].includes('gen-use-cases-audit.js generate') && calls[1].includes('gen-use-cases-docs.js generate'));
+});
+
+// ---- export-time substitution ----
+const { applySubstitutions } = require('./export-edition');
+const UUID = '11111111-2222-4333-8444-555555555555';
+const TOKEN = 'madeUpClientToken1234567890abcdef';
+const thrown = (fn) => { try { fn(); } catch (e) { return e; } return null; };
+
+test('substitution: text rewritten, same value same placeholder, binary untouched, mode kept', () => {
+  const d = tree({ 'a.env': `ENV=${UUID}\r\nX=${TOKEN}\r\n`, 'sub/b.md': `see ${UUID}`, 'ok.txt': 'nothing' });
+  fs.writeFileSync(path.join(d, 'bin.dat'), Buffer.concat([Buffer.from([0, 1, 2]), Buffer.from(UUID)]));
+  fs.writeFileSync(path.join(d, 'run.sh'), `#!/bin/sh\necho ${UUID}\n`, { mode: 0o755 });
+  const binBefore = fs.readFileSync(path.join(d, 'bin.dat'));
+  const r = applySubstitutions(d, [UUID, TOKEN]);
+  assert.deepStrictEqual(r, { files: 3, byArea: { '.': 2, sub: 1 } });
+  const a = fs.readFileSync(path.join(d, 'a.env'), 'utf8');
+  assert.ok(!a.includes(UUID) && !a.includes(TOKEN) && a.includes('\r\n'));
+  const ph = a.match(/ENV=(\S+)/)[1];
+  assert.strictEqual(ph, '00000000-0000-4000-8000-000000000001');
+  assert.ok(fs.readFileSync(path.join(d, 'sub/b.md'), 'utf8').includes(ph));
+  assert.strictEqual(a.match(/X=(\S+)/)[1].length, TOKEN.length);
+  assert.deepStrictEqual(fs.readFileSync(path.join(d, 'bin.dat')), binBefore);
+  assert.ok(fs.statSync(path.join(d, 'run.sh')).mode & 0o100);
+  assert.ok(!JSON.stringify(r).includes(UUID) && !JSON.stringify(r).includes(TOKEN));
+  // the gate still scans binaries, so it sees the one left behind, and passes once it is gone
+  withForbidden(`${UUID},${TOKEN}`, () => assert.throws(() => runGates(d, mf(), okRunner), /bin\.dat/));
+  fs.unlinkSync(path.join(d, 'bin.dat'));
+  withForbidden(`${UUID},${TOKEN}`, () => runGates(d, mf(), okRunner));
+});
+
+test('substitution: a value in a path or symlink target fails with the path only', () => {
+  const d = tree({ [`dir-${TOKEN}/x.txt`]: '1' });
+  const e1 = thrown(() => applySubstitutions(d, [TOKEN]));
+  assert.ok(e1 && /forbidden string in path dir-/.test(e1.message) && !e1.message.includes(TOKEN));
+  const l = tree({ 'ok.js': '1' });
+  fs.symlinkSync(`/x/${UUID}/y`, path.join(l, 'link'));
+  const e2 = thrown(() => applySubstitutions(l, [UUID]));
+  assert.ok(e2 && /forbidden string in path link/.test(e2.message) && !e2.message.includes(UUID));
+});
+
+test('substitution: a too-short non-UUID value fails before any file is rewritten, without the value', () => {
+  const SHORT = 'shortId-1234'; // 12 chars < len('EDITION-PLACEHOLDER-2')
+  const d = tree({ 'a.txt': `${UUID} ${SHORT}` });
+  const e = thrown(() => applySubstitutions(d, [UUID, SHORT]));
+  assert.ok(e && /forbidden value #2 is too short/.test(e.message) && !e.message.includes(SHORT));
+  assert.strictEqual(fs.readFileSync(path.join(d, 'a.txt'), 'utf8'), `${UUID} ${SHORT}`);
+});
+
+test('substitution: colliding placeholders fail by index', () => {
+  const vals = Array.from({ length: 10 }, (_, i) => `v${i}-` + 'a'.repeat(20)); // 23 chars each
+  vals[0] = 'EDITION-PLACEHOLDER-1'; // placeholder #1 equals value #1 itself
+  const e = thrown(() => applySubstitutions(tree({ 'a.txt': '1' }), vals));
+  assert.ok(e && /placeholder for forbidden value #1 contains forbidden value #1/.test(e.message));
+  // same-length values whose truncated placeholders would merge are rejected as too short, never merged
+  const e2 = thrown(() => applySubstitutions(tree({ 'a.txt': '1' }), ['abcdefghijklmnopqrst', 'abcdefghijklmnopqrsu', 'x'.repeat(8)]));
+  assert.ok(e2 && /too short/.test(e2.message));
+});
+
+test('substitution: two long non-UUID values get distinct placeholders of their own length', () => {
+  const A = 'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6', B = 'Z9y8X7w6V5u4T3s2R1q0P9o8N7m6L5k4';
+  const d = tree({ 'a.txt': `${A}|${B}` });
+  applySubstitutions(d, [A, B]);
+  const [x, y] = fs.readFileSync(path.join(d, 'a.txt'), 'utf8').split('|');
+  assert.notStrictEqual(x, y);
+  assert.strictEqual(x.length, A.length); assert.strictEqual(y.length, B.length);
+});
+
+test('substitution: a path failure leaves every file untouched', () => {
+  const d = tree({ 'a.txt': TOKEN, [`z-${TOKEN}/x.txt`]: '1' });
+  assert.ok(thrown(() => applySubstitutions(d, [TOKEN])));
+  assert.strictEqual(fs.readFileSync(path.join(d, 'a.txt'), 'utf8'), TOKEN);
+});
+
+test('substitution: empty list is a no-op and the gate still fails closed', () => {
+  const d = tree({ 'a.txt': UUID });
+  assert.deepStrictEqual(applySubstitutions(d, []), { files: 0, byArea: {} });
+  assert.strictEqual(fs.readFileSync(path.join(d, 'a.txt'), 'utf8'), UUID);
+  withForbidden('', () => assert.throws(() => runGates(d, mf(), okRunner), /EDITION_FORBIDDEN_STRINGS not set/));
+});
+
+// --- manifest coverage: a PF-named file must be removed or deliberately kept (PingOne edition only)
+const cov = (over, files, removed = []) => checkManifestCoverage(mf({ remove: [], ...over }), files, new Set(removed));
+const KEEP = (...paths) => [{ reason: 'why', paths }];
+
+test('coverage: a PF-named file that is neither removed nor kept fails, listing paths only', () => {
+  assert.throws(() => cov({}, ['a.js', 'services/pfAiAgentNewService.js']), (e) => /manifest-coverage/.test(e.message) && e.message.includes('services/pfAiAgentNewService.js') && !e.message.includes('a.js\n'));
+});
+test('coverage: removed passes, kept passes', () => {
+  cov({}, ['services/pfAiAgentX.js'], ['services/pfAiAgentX.js']);
+  cov({ keep: KEEP('services/pfAiAgentX.js') }, ['services/pfAiAgentX.js']);
+});
+test('coverage: a stale keep path fails', () => {
+  assert.throws(() => cov({ keep: KEEP('gone/pingfederate.js') }, ['a.js']), /stale[\s\S]*gone\/pingfederate\.js/);
+});
+test('coverage: a path in both keep and remove fails', () => {
+  assert.throws(() => cov({ keep: KEEP('pf/a.js') }, ['pf/a.js'], ['pf/a.js']), /both keep and remove[\s\S]*pf\/a\.js/);
+});
+test('coverage: pfAiAgent, PingFederate, scripts/pingfederate, spiffePingfederate, orbstack-pf names are caught', () => {
+  for (const f of ['x/pfAiAgentFoo.js', 'ui/PingFederateThing.jsx', 'scripts/pingfederate/run.sh', 'svc/spiffePingfederateService.js', 'k8s/overlays/orbstack-pf/kustomization.yaml', 'a/b/pf-idjag.spec.js', 'pf_notes.txt']) {
+    assert.throws(() => cov({}, [f]), /manifest-coverage/, f);
+  }
+});
+test('coverage: non-PF names are not flagged', () => {
+  cov({}, ['keep.js', 'src/pdf/reader.js', 'src/cpfx.js', 'docs/notes.md', 'src/shelf/foo.js']);
+});
+test('coverage: keepIgnore regexes exempt matching paths', () => {
+  cov({ keepIgnore: [{ regex: '^docs/', reason: 'prose' }] }, ['docs/pingfederate-notes.md']);
+});
+test('coverage: a pingfederate manifest is not checked', () => {
+  cov({ provider: 'pingfederate' }, ['services/pfAiAgentNewService.js']);
+});
+test('coverage: exportEdition fails before copying anything when a PF-named file drifted in', () => {
+  const d = dest();
+  assert.throws(() => exportEdition({ manifest: mf(), ref: 'main', srcRepo: fixtureRepo(['svc/pfAiAgentNew.js']), dest: d }), /manifest-coverage/);
+  assert.ok(!fs.existsSync(d));
 });

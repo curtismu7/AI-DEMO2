@@ -59,17 +59,17 @@ PINGONE_ADMIN_CLIENT_ID=14cefa5b-d9d6-4e51-8749-e938d4edd1c0       # Super Banki
 PINGONE_ADMIN_CLIENT_SECRET=<RETIRED-ENV-SECRET-REMOVED>                           # ✅ Matches app
 
 PINGONE_USER_CLIENT_ID=b2752071-2d03-4927-b865-089dc40b9c85        # Super Banking User App
-PINGONE_USER_CLIENT_SECRET=3NX~XdVZ1...                             # ✅ Matches app
+PINGONE_USER_CLIENT_SECRET=<CLIENT_SECRET>                             # ✅ Matches app
 
 PINGONE_CLIENT_ID=95dc946f-5e0a-4a8b-a8ba-b587b244e005             # Super Banking Worker Token (Management API)
-PINGONE_CLIENT_SECRET=Ee2YBEmqrBRdELuNDAh5SPL6T01_...              # ✅ Matches app for audit feature
+PINGONE_CLIENT_SECRET=<CLIENT_SECRET>                         # ✅ Matches app for audit feature
 
 # ⚠️ CONFUSING / NEEDS CLARIFICATION
 AGENT_OAUTH_CLIENT_ID=<AGENT_OAUTH_CLIENT_ID>         # Actually: Super Banking MCP Token Exchanger
-AGENT_OAUTH_CLIENT_SECRET=QKZm899I7...                             # ⚠️ Misleading name ("agent oauth" when it's MCP)
+AGENT_OAUTH_CLIENT_SECRET=<CLIENT_SECRET>                             # ⚠️ Misleading name ("agent oauth" when it's MCP)
 
 AI_AGENT_CLIENT_ID=2533a614-fcb6-4ab9-82cc-9ab407f1dbda            # Super Banking AI Agent App
-AI_AGENT_CLIENT_SECRET=HE9OltugnW...                               # ⚠️ Has secret but used only as identity reference?
+AI_AGENT_CLIENT_SECRET=<CLIENT_SECRET>                               # ⚠️ Has secret but used only as identity reference?
 
 # ❌ WRONG VALUE
 ENDUSER_AUDIENCE=banking_api_enduser                               # ❌ Should be: https://ai-agent.pingdemo.com
