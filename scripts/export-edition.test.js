@@ -135,3 +135,15 @@ test('relative-import gate: dangling fails naming the file, resolving passes', (
   const guarded = tree({ 'a.js': "try { require('./gone'); } catch (e) {}" });
   assert.throws(() => checkRelativeImports(guarded), /a\.js/);
 });
+
+test('removed-path gate: config referencing a removed path fails; docs and kept paths pass', () => {
+  const { checkRemovedPathReferences } = require('./export-edition');
+  const removed = new Set(['demo_api_server/routes/gone.js']);
+  const dirs = ['scripts/pf/'];
+  const bad = tree({ 'docker-compose.yml': 'volumes:\n  - ./scripts/pf/run.sh:/run.sh\n', 'k8s/a.yaml': 'x: demo_api_server/routes/gone.js', 'Dockerfile.x': 'COPY keep/a.js .', 'pkg/package.json': '{}' });
+  assert.throws(() => checkRemovedPathReferences(bad, removed, dirs), (e) => /docker-compose\.yml/.test(e.message) && /k8s\/a\.yaml/.test(e.message) && !/Dockerfile/.test(e.message));
+  const ok = tree({ 'docs/a.md': 'see demo_api_server/routes/gone.js and scripts/pf/', 'README.md': 'scripts/pf/', 'planning/x.sh': 'scripts/pf/', 'tests/y.sh': 'scripts/pf/', 'run.sh': 'node keep/a.js', 'Dockerfile.dockerignore': 'scripts/pf/x', 'docker-compose.yml': 'a: ./keep/', 'node_modules/p/package.json': 'scripts/pf/' });
+  checkRemovedPathReferences(ok, removed, dirs);
+  // basename alone does not match
+  checkRemovedPathReferences(tree({ 'run.sh': 'node gone.js' }), removed, dirs);
+});

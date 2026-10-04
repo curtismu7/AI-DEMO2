@@ -88,6 +88,29 @@ function checkRelativeImports(dest, removed) {
   if (bad.length) throw new Error(`gate failed: relative-imports (${bad.length} unresolved)\n${[...new Set(bad)].join('\n')}`);
 }
 
+// Retained non-JS config (compose, k8s, workflows, Dockerfiles, py, sh, package.json) must not
+// name a removed file or removed directory by its full repo-relative path. Docs/planning/tests skipped.
+const CONFIG_RE = /(^|\/)(docker-compose[^/]*\.ya?ml|Dockerfile[^/]*|package\.json|[^/]+\.(py|sh))$|^(k8s|\.github\/workflows)\/.*\.ya?ml$/;
+const NOT_CONFIG_RE = /^(docs|planning)\/|(^|\/)(tests?|__tests__)\/|\.test\.|\.spec\.|\.dockerignore$/;
+function checkRemovedPathReferences(dest, removed, remove = []) {
+  if (!removed) return;
+  const needles = [...removed, ...remove.filter((r) => r.endsWith('/'))];
+  const hits = [];
+  const scan = (dir) => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (e.name === '.git' || e.name === 'node_modules' || e.isSymbolicLink()) continue;
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) { scan(p); continue; }
+      const rel = path.relative(dest, p);
+      if (!CONFIG_RE.test(rel) || NOT_CONFIG_RE.test(rel)) continue;
+      const text = fs.readFileSync(p).toString('latin1');
+      if (needles.some((n) => text.includes(n))) hits.push(rel);
+    }
+  };
+  scan(dest);
+  if (hits.length) throw new Error(`gate failed: removed-path-references (${hits.length} file(s))\n${hits.join('\n')}`);
+}
+
 function checkForbidden(dest) {
   const list = (process.env.EDITION_FORBIDDEN_STRINGS || '').split(',').map((s) => s.trim()).filter(Boolean);
   if (!list.length) throw new Error('gate failed: EDITION_FORBIDDEN_STRINGS not set');
@@ -123,6 +146,7 @@ const JEST_SCOPE = ['tests/crossVerticalIntentGuard.test.js', 'src/__tests__/fea
 function runGates(dest, manifest, runner = defaultRunner, removed) {
   checkForbidden(dest);
   checkRelativeImports(dest, removed);
+  checkRemovedPathReferences(dest, removed, manifest.remove);
   try {
     execFileSync('gitleaks', ['detect', '--no-git', '--source', dest, '--no-banner'], { stdio: 'pipe' });
   } catch (e) { throw new Error(`gate failed: gitleaks (${e.status === 1 ? 'leaks found' : e.message.split('\n')[0]})`); }
@@ -138,7 +162,7 @@ function runGates(dest, manifest, runner = defaultRunner, removed) {
   }
 }
 
-module.exports = { exportEdition, runGates, checkRelativeImports };
+module.exports = { exportEdition, runGates, checkRelativeImports, checkRemovedPathReferences };
 
 if (require.main === module) {
   const [, , which, dest, ...rest] = process.argv;
