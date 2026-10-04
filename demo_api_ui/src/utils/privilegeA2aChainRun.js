@@ -60,6 +60,7 @@ export async function startPrivilegeA2aChainRun({
 } = {}) {
   store.beginTrace({ prompt: `${message} (via ${specialist})` });
   let hops = 0;
+  const seen = [];
   let answer = '';
   let failure = '';
   const handle = ({ event, payload }) => {
@@ -68,6 +69,12 @@ export async function startPrivilegeA2aChainRun({
       if (tokenEvent) {
         hops += 1;
         store.ingestTokenEvent(tokenEvent);
+        // The Simple Stepper and the token-chain panels read their events from
+        // TokenChainContext, not the store; this is the bus it listens on.
+        seen.push(tokenEvent);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('token-chain-inject', { detail: { tool: 'privilege-a2a-chain', events: [...seen] } }));
+        }
       }
     } else if (event === 'token') {
       answer += str(payload?.text);
