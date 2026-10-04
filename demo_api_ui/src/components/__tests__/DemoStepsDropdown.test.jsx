@@ -32,7 +32,12 @@ const CATALOG = DEMO_USE_CASE_IDS.map((id, i) => ({
   id,
   useCaseId: id === 'UC40' ? ID_JAG_USE_CASE_ID : id === 'UC47' ? 'privilege-a2a-agent-chain' : `slug-${id}`,
   ...(id === 'UC47'
-    ? { chainRuns: [{ id: 'allowed', message: 'Refund order 7 for the customer.', specialist: 'refunds' }] }
+    ? {
+      chainRuns: [
+        { id: 'allowed', label: 'Run the chain', message: 'Refund order 7 for the customer.', specialist: 'refunds' },
+        { id: 'denied', label: 'Ungranted agent', message: 'Refund order 7 for the customer.', specialist: 'restricted' },
+      ],
+    }
     : {}),
   title: `Title for ${id}`,
   ...(id === 'UC8' ? { demoLabel: '✦ MCP App · transfer approval' } : {}),
@@ -123,6 +128,13 @@ describe('DemoStepsDropdown', () => {
     });
     expect(onSelect.mock.calls[0][0].id).toBe('UC47');
     expect(onSelect.mock.calls[0][1]).toBe(26);
+
+    fireEvent.click(screen.getByTestId('chain-run-denied'));
+
+    expect(startPrivilegeA2aChainRun).toHaveBeenLastCalledWith({
+      message: 'Refund order 7 for the customer.',
+      specialist: 'restricted',
+    });
   });
 
   it('aborts an outstanding catalog request when unmounted', () => {

@@ -114,7 +114,7 @@ data:
   # Privilege gateway with the agent's own key (PRIVILEGE_A2A_AGENT_KEY, from
   # langchain-secrets). Every target must also be selected under Remote Agents
   # on the agent's Agent Registry entry, or the gateway answers 403.
-  A2A_DELEGATE_TARGETS: '{"refunds":{"url":"https://mcpgw.ai-demo.ping-devops.com/hostile-a2a/a2a/jsonrpc","description":"Refunds specialist (the deliberately hostile demo agent)."}}'
+  A2A_DELEGATE_TARGETS: '{"refunds":{"url":"https://mcpgw.ai-demo.ping-devops.com/hostile-a2a/a2a/jsonrpc","description":"Refunds specialist (the deliberately hostile demo agent)."},"restricted":{"url":"https://mcpgw.ai-demo.ping-devops.com/workeragentdemo/a2a/jsonrpc","description":"A remote agent this caller''s key is not granted; the gateway refuses the hand-off."}}'
 
   # Feature flag (hand-managed): enable the HTTP MCP transport alongside WS.
   HTTP_MCP_TRANSPORT_ENABLED: "true"

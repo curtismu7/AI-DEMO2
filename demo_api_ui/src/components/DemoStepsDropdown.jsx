@@ -329,7 +329,7 @@ export default function DemoStepsDropdown({
   }, [persistOpenState]);
 
   /** Run a demo step and refresh checkmarks. */
-  function handleSelect(uc, stepNumber) {
+  function handleSelect(uc, stepNumber, chainRun = uc.chainRuns?.[0]) {
     if (!poppedOutRef.current) onOpenChange(false);
     if (uc.id === 'UC40' && uc.useCaseId === ID_JAG_USE_CASE_ID) {
       requestLiveIdJagRun({
@@ -342,8 +342,8 @@ export default function DemoStepsDropdown({
     // The Privilege A2A agent chain starts here and plays in the reel: launch
     // the run, then let the link trigger land the presenter on the dashboard.
     // The run keeps streaming into the trace store across that navigation.
-    if (uc.useCaseId === PRIVILEGE_A2A_CHAIN_USE_CASE_ID && uc.chainRuns?.[0]) {
-      const { message, specialist } = uc.chainRuns[0];
+    if (uc.useCaseId === PRIVILEGE_A2A_CHAIN_USE_CASE_ID && chainRun) {
+      const { message, specialist } = chainRun;
       void startPrivilegeA2aChainRun({ message, specialist });
     }
     // UC38/UC44 run in the dashboard agent as a chip prompt (their dedicated
@@ -533,6 +533,20 @@ export default function DemoStepsDropdown({
             🪟
           </button>
         )}
+        {/* The chain's other runs: the same hand-off, set up to be refused. */}
+        {uc.useCaseId === PRIVILEGE_A2A_CHAIN_USE_CASE_ID && (uc.chainRuns || []).slice(1).map((run) => (
+          <button
+            key={run.id}
+            type="button"
+            className="ba-demo-steps-popout__rar-toggle"
+            onClick={(e) => { e.stopPropagation(); handleSelect(uc, stepNumber, run); }}
+            aria-label={`Run the agent chain: ${run.label}`}
+            title={`Run the agent chain: ${run.label} — the gateway should refuse this one`}
+            data-testid={`chain-run-${run.id}`}
+          >
+            {run.label.charAt(0)}
+          </button>
+        ))}
         {uc.id === 'UC14b' && (
           <button
             type="button"

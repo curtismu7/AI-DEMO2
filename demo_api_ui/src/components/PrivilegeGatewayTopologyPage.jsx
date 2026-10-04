@@ -81,6 +81,62 @@ const AGENTLESS_SOURCE = `flowchart LR
     style device fill:#3d6ea514,stroke:#3d6ea580
     style k8s fill:#2e8b6a12,stroke:#2e8b6a80`;
 
+const A2A_SOURCE = `flowchart LR
+    subgraph cloud["Priv Cloud"]
+        console["Priv Cloud Controller<br/>(Console)"]
+    end
+
+    subgraph device["User Device"]
+        main["Main agent<br/>chat UI and planner"]
+    end
+
+    subgraph k8s["K8s cluster"]
+        gw["AI Gateway<br/>https://‹gateway-host›"]
+        worker["Worker agent<br/>Remote Agent app · /a2a"]
+        mcp["MCP server<br/>MCP app · /mcp"]
+    end
+
+    subgraph provider["Model provider"]
+        model["Google, Anthropic or OpenAI"]
+    end
+
+    console -.- s1(("1")) -. "agents, apps, policies, AIGuard" .-> gw
+    main --- s2(("2")) -- "model call · main agent key<br/>/llm/‹provider›" --> gw
+    main --- s3(("3")) -- "A2A message/send · main agent key<br/>/‹worker-app›/a2a" --> gw
+    gw --- s4(("4")) -- "forwarded after key, scope,<br/>policy and guardrail" --> worker
+    worker --- s5(("5")) -- "model call · worker agent key" --> gw
+    worker --- s6(("6")) -- "MCP tools/call · worker agent key<br/>/‹mcp-app›/mcp" --> gw
+    gw --- s7(("7")) -- "permitted tool call;<br/>result screened on the way back" --> mcp
+    gw --- s8(("8")) -- "real provider key swapped in" --> model
+
+    classDef cloudN fill:#f5d4d5,stroke:#b3282d,color:#4a1113
+    classDef deviceN fill:#d5e2f2,stroke:#3d6ea5,color:#16324f
+    classDef k8sN fill:#d2ecdf,stroke:#2e8b6a,color:#123f2f
+    classDef mcpN fill:#e3dbf3,stroke:#6b4fa5,color:#2c1d4f
+    classDef stepN fill:#b3282d,stroke:#e4636a,color:#ffffff,font-size:20px,font-weight:bold
+    class console,model cloudN
+    class main deviceN
+    class gw,worker k8sN
+    class mcp mcpN
+    class s1,s2,s3,s4,s5,s6,s7,s8 stepN
+    style cloud fill:#b3282d14,stroke:#b3282d80
+    style device fill:#3d6ea514,stroke:#3d6ea580
+    style k8s fill:#2e8b6a12,stroke:#2e8b6a80
+    style provider fill:#b3282d14,stroke:#b3282d80`;
+
+const A2A_STEPS = [
+  { heading: "Setup — happens once" },
+  { n: 1, text: "In the console, register the worker as a Remote Agent app and the tool server as an MCP app (Agentic Apps), then create one agent per caller (AI Gateway > Agent Registry): the main agent with the llm and a2a scopes and the worker selected, the worker agent with the llm and mcp scopes and each tool allowed. Each agent gets its own key, provider, allowed model and AIGuard settings." },
+  { heading: "Request path — every call" },
+  { n: 2, text: "The main agent calls its model through the gateway with its own agent key. The gateway checks the key and the allowed model." },
+  { n: 3, text: "The main agent hands the question to the worker as an A2A message/send, addressed to the gateway, with the same agent key." },
+  { n: 4, text: "The gateway checks the key, the a2a scope, the policy for that Remote Agent and the guardrail, then forwards the call. A refusal stops here; the worker never sees the main agent's key." },
+  { n: 5, text: "The worker calls its own model through the gateway with the worker agent key, on its own model tier." },
+  { n: 6, text: "The worker calls a tool on the MCP server through the gateway, again with the worker agent key." },
+  { n: 7, text: "The gateway forwards a permitted tool call and screens the result on the way back: personal data is redacted, and a result carrying hidden instructions is blocked before the worker's model reads it." },
+  { n: 8, text: "For every model call the gateway swaps the agent key for the real provider key, so no agent ever holds it." },
+];
+
 const AGENT_STEPS = [
   { heading: "Setup — happens once" },
   { n: 1, text: "Console and public proxy (proxy-us-west-2.privilege.pingone.com:443) sync configuration. The gateway is registered in the console under Gateways > Add New > Add via Docker — Cluster ID of your choice, Host IP set to the gateway DNS (e.g. https://cj-mcpgw.ping-devops.com) — which issues the ENV_PROXY_TOKEN you pass to the privgateway Helm chart as mcpgw.proxyToken." },
@@ -120,6 +176,15 @@ export const TABS = [
     steps: AGENTLESS_STEPS,
     blurb:
       "No local agent. The MCP client connects straight to the cluster ingress over HTTPS and authenticates with the gateway's PingOne OIDC client (authorization code flow); the console still pushes proxy configuration to the gateway.",
+  },
+  {
+    id: "a2a",
+    label: "Agent-to-agent",
+    source: A2A_SOURCE,
+    filename: "privilege-gateway-a2a-topology.mmd",
+    steps: A2A_STEPS,
+    blurb:
+      "Two agents and a tool server, with the AI Gateway between every pair. Each agent holds only its own agent key; the gateway checks that key on every model call, agent-to-agent call and tool call, and holds the real provider key itself.",
   },
 ];
 
@@ -239,7 +304,8 @@ export default function PrivilegeGatewayTopologyPage() {
         <span className="pmd-eyebrow">PingOne Privilege · MCP Gateway</span>
         <h1>Privilege Gateway Topologies</h1>
         <p className="pmd-sub">
-          The two deployment variants from the instructional demo setup, with the
+          The two deployment variants from the instructional demo setup and the
+          agent-to-agent layout, with the
           request flow numbered in order. Dashed lines are control-plane
           configuration; solid lines are the data path. Guillemets (‹ ›) mark
           values you substitute.
