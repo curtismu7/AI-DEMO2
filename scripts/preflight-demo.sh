@@ -20,6 +20,10 @@
 #                             default `us`). PREFLIGHT_PUBLIC_URLS="url1 url2": each
 #                             answers without a 5xx — a 302/401/404 is the ingress or
 #                             auth gate answering, which is what must be up.
+#   8. Real sign-in (opt-in)  PREFLIGHT_SIGNIN=1: signs in as the demo customer through
+#                             PingOne and checks /api/auth/oauth/user/status. Needs
+#                             E2E_CUSTOMER_USERNAME, E2E_CUSTOMER_PASSWORD and
+#                             PINGONE_ENVIRONMENT_ID; without them it reports "not run".
 #
 #   PREFLIGHT_BASE_URL   default https://api.ping.demo:3001 (mkcert TLS → curl -k)
 #
@@ -522,6 +526,20 @@ for url in ${PREFLIGHT_PUBLIC_URLS:-}; do
     row OK "Public host" "${url} → ${code}"
   fi
 done
+
+# ── 8. Real sign-in (opt-in) ─────────────────────────────────────────────────
+# A real PingOne login as the demo customer, then /user/status must say
+# authenticated. Needs E2E_CUSTOMER_USERNAME / E2E_CUSTOMER_PASSWORD /
+# PINGONE_ENVIRONMENT_ID in the environment; without them the row is a WARN
+# (not run), never an OK.
+if [[ "${PREFLIGHT_SIGNIN:-}" == "1" ]]; then
+  signin_out="$(PREFLIGHT_BFF_BASE="$BASE" node "$ROOT/scripts/preflight-signin.js" 2>&1)"; signin_rc=$?
+  case $signin_rc in
+    0) row OK   "Real sign-in" "$signin_out" ;;
+    2) row WARN "Real sign-in" "$signin_out" ;;
+    *) row FAIL "Real sign-in" "$signin_out" ;;
+  esac
+fi
 
 # ── Table + verdict ───────────────────────────────────────────────────────────
 echo
