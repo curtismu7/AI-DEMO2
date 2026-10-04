@@ -17,6 +17,7 @@
 #   ./run-pingaws.sh update code [svc]  # rebuild/redeploy changed service(s)
 #   ./run-pingaws.sh update config      # push secrets/configmaps (no rebuild)
 #   ./run-pingaws.sh update pingone     # re-bootstrap PingOne redirect URIs
+#   ./run-pingaws.sh gateways ...       # Privilege gateway 1+2: secrets | upgrade [--apply] | status
 #   ./run-pingaws.sh kubeconfig         # install SE kubeconfig into ~/.kube
 #   ./run-pingaws.sh help
 #
@@ -67,6 +68,10 @@ Usage:
                                     rebuild/redeploy (all, or bff|frontend|mcp|…)
   ./run-pingaws.sh update config    push .env / configmaps (no image rebuild)
   ./run-pingaws.sh update pingone   re-register OAuth redirect URIs for SE URL
+  ./run-pingaws.sh gateways {secrets|upgrade [--apply]|status}
+                                    keep Privilege gateway 1 and 2 on the same sidecars and
+                                    secrets (scripts/se-gateways.sh; upgrade is a dry run
+                                    unless --apply)
   ./run-pingaws.sh kubeconfig       install SE kubeconfig (scripts/install-se-kubeconfig.sh)
   ./run-pingaws.sh machine          show machine specs and which launcher fits
   ./run-pingaws.sh help
@@ -169,6 +174,9 @@ case "$cmd" in
         exit 1
         ;;
     esac
+    ;;
+  gateways|gateway|gw)
+    exec "$BASEDIR/scripts/se-gateways.sh" "$@"
     ;;
   kubeconfig|kubectl-config|install-kubeconfig)
     exec "$BASEDIR/scripts/install-se-kubeconfig.sh" "$@"

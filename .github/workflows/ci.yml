@@ -218,6 +218,8 @@ jobs:
       # never reaches a cluster, and it needs no .env or PING_EMAIL.
       - name: Deploy teardown guards — own tests
         run: bash scripts/test-se-undeploy-guard.sh
+      - name: Gateway upgrade script — own tests
+        run: bash scripts/test-se-gateways.sh
       # The image build resolves its compose file relative to $PWD, so running
       # it from anywhere but the repo root builds the wrong tree — and exits 0
       # while doing it, so the push ships nothing and the deploy still reports
