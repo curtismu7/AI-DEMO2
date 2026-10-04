@@ -4,6 +4,8 @@
 //   talkingPoints + walkthrough: page-specific copy written inline below.
 // Pages that ARE a learning page already (/jev-learning, /a2a-protocol-learning,
 // /davinci-widget, /academy/*) are deliberately absent.
+import { MORE_PAGE_GUIDES } from "./pageGuidesMore";
+
 const steps = (rows) => rows.map(([title, explain, demonstrate]) => ({ title, explain, demonstrate }));
 
 export const PAGE_GUIDES = {
@@ -225,4 +227,5 @@ export const PAGE_GUIDES = {
       ["Let the audience pick a query", "A free-form query goes down the same path, so it produces the same token chain as the scripted runs.", "In 'Search anything', type a query (include a blocked term to see a refusal) and click Search news; the 'Where it is enforced' card lists the Groovy and route files behind the policy."],
     ]),
   },
+  ...MORE_PAGE_GUIDES,
 };

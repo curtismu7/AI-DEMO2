@@ -66,6 +66,25 @@ test("step numbers match the menu, admin included, and skip non-steps", () => {
   expect(demoStepNumber("UC37")).toBe(43);
 });
 
+test("the requested pages each have a three-step guide", () => {
+  const routes = [
+    "/use-cases", "/demo-track", "/agent-builder", "/agent-lifecycle", "/autonomous-agents", "/langchain",
+    "/ungoverned-agent", "/delegation-chain-value", "/group-policy", "/agent-guardrails",
+    "/ai-products/core", "/ai-products/gateway", "/ai-products/authorize", "/ai-products/protect",
+    "/ai-products/privilege-llm", "/ai-products/privilege-a2a", "/ai-products/privilege-mcp",
+    "/agent-gateway-capabilities", "/pingone-authorize-capabilities", "/agentic-trust", "/iga-for-ai",
+    "/transaction-consent", "/actor-token-education", "/pingfederate-ai-agent",
+  ];
+  expect(routes).toHaveLength(24);
+  for (const r of routes) {
+    expect(PAGE_GUIDES[r]?.walkthrough, r).toHaveLength(3);
+    expect(PAGE_GUIDES[r].talkingPoints, r).toHaveLength(3);
+  }
+  at("/ai-products/authorize");
+  fireEvent.click(screen.getByText("Guide"));
+  expect(screen.getByText("Separate who from what")).toBeTruthy();
+});
+
 test("no button on an unmapped route", () => {
   at("/nope");
   expect(screen.queryByText("Guide")).toBeNull();
