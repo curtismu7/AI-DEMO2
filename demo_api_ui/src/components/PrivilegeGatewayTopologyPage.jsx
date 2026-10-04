@@ -81,7 +81,7 @@ const AGENTLESS_SOURCE = `flowchart LR
     style device fill:#3d6ea514,stroke:#3d6ea580
     style k8s fill:#2e8b6a12,stroke:#2e8b6a80`;
 
-const A2A_SOURCE = `flowchart LR
+const A2A_SOURCE = `flowchart TB
     subgraph cloud["Priv Cloud"]
         console["Priv Cloud Controller<br/>(Console)"]
     end
@@ -91,23 +91,27 @@ const A2A_SOURCE = `flowchart LR
     end
 
     subgraph k8s["K8s cluster"]
-        gw["AI Gateway<br/>https://‹gateway-host›"]
-        worker["Worker agent<br/>Remote Agent app · /a2a"]
-        mcp["MCP server<br/>MCP app · /mcp"]
+        subgraph gw["AI Gateway · https://‹gateway-host›"]
+            gwA2A["Agent-to-agent route<br/>/‹worker-app›/a2a<br/>key, a2a scope, policy, guardrail"]
+            gwLLM["Model route<br/>/llm/‹provider›<br/>key, allowed model, budget"]
+            gwMCP["Tool route<br/>/‹mcp-app›/mcp<br/>key, mcp scope, tool grants, guardrail"]
+        end
+        worker["Worker agent<br/>Remote Agent app"]
+        mcp["MCP server<br/>MCP app"]
     end
 
     subgraph provider["Model provider"]
         model["Google, Anthropic or OpenAI"]
     end
 
-    console -.- s1(("1")) -. "agents, apps, policies, AIGuard" .-> gw
-    main --- s2(("2")) -- "model call · main agent key<br/>/llm/‹provider›" --> gw
-    main --- s3(("3")) -- "A2A message/send · main agent key<br/>/‹worker-app›/a2a" --> gw
-    gw --- s4(("4")) -- "forwarded after key, scope,<br/>policy and guardrail" --> worker
-    worker --- s5(("5")) -- "model call · worker agent key" --> gw
-    worker --- s6(("6")) -- "MCP tools/call · worker agent key<br/>/‹mcp-app›/mcp" --> gw
-    gw --- s7(("7")) -- "permitted tool call;<br/>result screened on the way back" --> mcp
-    gw --- s8(("8")) -- "real provider key swapped in" --> model
+    console -.- s1(("1")) -. "agents, apps,<br/>policies, AIGuard" .-> gw
+    main --- s2(("2")) -- "model call<br/>main agent key" --> gwLLM
+    main --- s3(("3")) -- "A2A message/send<br/>main agent key" --> gwA2A
+    gwA2A --- s4(("4")) -- "forwarded" --> worker
+    worker --- s5(("5")) -- "model call<br/>worker agent key" --> gwLLM
+    worker --- s6(("6")) -- "MCP tools/call<br/>worker agent key" --> gwMCP
+    gwMCP --- s7(("7")) -- "permitted call;<br/>result screened" --> mcp
+    gwLLM --- s8(("8")) -- "real provider key<br/>swapped in" --> model
 
     classDef cloudN fill:#f5d4d5,stroke:#b3282d,color:#4a1113
     classDef deviceN fill:#d5e2f2,stroke:#3d6ea5,color:#16324f
@@ -116,12 +120,13 @@ const A2A_SOURCE = `flowchart LR
     classDef stepN fill:#b3282d,stroke:#e4636a,color:#ffffff,font-size:20px,font-weight:bold
     class console,model cloudN
     class main deviceN
-    class gw,worker k8sN
+    class gwA2A,gwLLM,gwMCP,worker k8sN
     class mcp mcpN
     class s1,s2,s3,s4,s5,s6,s7,s8 stepN
     style cloud fill:#b3282d14,stroke:#b3282d80
     style device fill:#3d6ea514,stroke:#3d6ea580
     style k8s fill:#2e8b6a12,stroke:#2e8b6a80
+    style gw fill:#2e8b6a22,stroke:#2e8b6a
     style provider fill:#b3282d14,stroke:#b3282d80`;
 
 const A2A_STEPS = [
