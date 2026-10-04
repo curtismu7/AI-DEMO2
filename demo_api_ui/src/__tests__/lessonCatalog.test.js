@@ -20,6 +20,7 @@ const REQUIRED_IDS = [
   "hitl-step-up",
   "a2a-delegation",
   "privilege-mcp",
+  "privilege-a2a",
   "threat-defense",
   "lifecycle",
   "evidence-timeline",

@@ -1,7 +1,7 @@
 # Privilege A2A Anthropic demo
 
-Three Node processes demonstrate an access review through Anthropic, A2A, and
-MCP. The main agent owns the browser conversation and delegates to the worker.
+Three Node processes demonstrate an access review through A2A and MCP, on
+Anthropic or Google models. The main agent owns the browser conversation and delegates to the worker.
 The worker owns the access-review tools and calls the separate MCP process.
 
 ```text
@@ -19,6 +19,71 @@ conversation history. Neither ID represents an authenticated user. The A2A
 boundary does not carry a browser token, user `sub`, `act`, or an RFC 8693 token
 exchange. Privilege validates each Agent Access key and applies its configured
 policies.
+
+## How it works through the gateway
+
+In gateway mode every hop goes through the PingOne Privilege AI Gateway, and
+each agent presents only its own agent key:
+
+```text
+main agent ──① A2A message/send (main key) ──▶ gateway ──▶ worker agent
+main agent ──② model call (main key) ────────▶ gateway ──▶ model provider
+worker     ──③ model call (worker key) ──────▶ gateway ──▶ model provider
+worker     ──④ MCP tools/call (worker key) ──▶ gateway ──▶ MCP server
+```
+
+What the gateway does on each leg:
+
+| Leg | Checks | What it can refuse or change |
+|---|---|---|
+| ① A2A | key, `a2a` scope, policy for the remote agent, guardrail | an ungranted agent (`403`), a prompt-injection message (`400`) |
+| ②③ model | key, `llm` scope, allowed model, limits | a model outside the key's list (`403`); swaps in the real provider key |
+| ④ MCP | key, `mcp` scope, per-tool grant, guardrail | an ungranted tool (`403`); redacts personal data in a result; blocks a result that carries hidden instructions |
+
+The three-deep chain (`POST /chain`) adds a middle agent: main agent → gateway →
+LangChain agent → gateway → specialist. The middle agent calls with its own key,
+so its hop is checked on its own.
+
+## Set up on Privilege, in order
+
+This is the order that worked end to end. Apps first, because an agent can only
+select apps that already exist.
+
+1. **Deploy the worker and MCP server** (`k8s/deployment.yaml`; see "Run worker
+   and MCP in the cluster" below). They can also be registered before they run.
+2. **Register two apps** (Agentic Apps → Add Application), on the mesh cluster of
+   the gateway that serves traffic:
+   - `workeragentdemo`: type **Remote Agent**, backend
+     `http://workeragentdemo.<namespace>.svc.cluster.local`, path `/a2a`, Auth
+     Mode None.
+   - `mcpdemo`: type **MCP**, backend
+     `http://mcpdemo.<namespace>.svc.cluster.local`, path `/mcp`, Auth Mode None.
+3. **Create the worker's agent** (AI Gateway → Agent Registry → Add Agent): scopes
+   `llm` + `mcp`, one allowed model, MCP Servers → `mcpdemo`, then **Configure
+   Tools** and allow each tool. If the tool list is empty, save the `mcpdemo` app
+   again to re-run discovery now that its backend is up.
+4. **Create the main agent**: scopes `llm` + `a2a`, a different allowed model,
+   Remote Agents → `workeragentdemo` (and the middle agent, for the chain).
+5. **Store each key where its agent runs**: the main key in `.env` as
+   `MAIN_AGENT_KEY`; the worker key in the `privilege-a2a-demo` Secret. Paste a
+   key once: a doubled key is refused as `invalid virtual key`.
+6. **Point the main agent at the gateway** in `.env`: `WORKER_A2A_URL` and
+   `WORKER_TRACE_URL` to `https://<gateway>/workeragentdemo/a2a` and `/trace`,
+   the provider base URL, and `MAIN_AGENT_MODEL` to the exact model ID allowed on
+   its key.
+7. **Turn on Discover A2A agent card** on `workeragentdemo` once it is running.
+
+For the three-deep chain, also:
+
+8. Give the middle agent its own agent (scope `a2a`, the specialists selected)
+   **with a different custodian** from the main agent. Remote-agent grants follow
+   the custodian, so two agents under one custodian can reach each other's agents.
+9. Set `CHAIN_A2A_URL` to the middle agent's gateway route.
+
+Check it with one question that is allowed (`Review Carol Nguyen's access`) and
+one that reads the poisoned record (`What access does Dave hold?`, with
+`MCP_DEMO_INJECTION=true`): the second should come back as blocked, and the MCP
+server's log should show no `open_ticket` call.
 
 ## Requirements and local startup
 
