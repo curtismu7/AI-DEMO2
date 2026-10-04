@@ -165,7 +165,9 @@ prefix `mcpgw:pl` are still unexplained.
 - **Redis:** `privilege/redis-canary/redis.yaml` (the folder name is historical). One
   Deployment, `Recreate`, a ClusterIP Service `privilege-redis`, a 1Gi claim
   `privilege-redis-data`, append-only file with `everysec` fsync, `maxmemory 64mb` with
-  `allkeys-lru` (under memory pressure it can evict registrations), image pinned by digest,
+  `noeviction` (when memory is full, writes fail with an error and nothing stored is
+  deleted; every key the gateway writes has an expiry, so `volatile-lru` would still evict
+  registrations), image pinned by digest,
   password from the Secret `privilege-redis`. No TLS: in-cluster, password only.
 - **The URL:** a Secret `privilege-redis-url`, key `url`, in **both** namespaces:
   `redis://:<password>@privilege-redis.ping-devops-cmuir.svc.cluster.local:6379/0`.

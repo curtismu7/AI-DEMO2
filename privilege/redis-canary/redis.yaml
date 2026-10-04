@@ -46,7 +46,7 @@ spec:
           image: redis@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
           command: ["sh", "-c"]
           args:
-            - exec redis-server --dir /data --save "" --appendonly yes --appendfsync everysec --maxmemory 64mb --maxmemory-policy allkeys-lru --requirepass "$REDIS_PASSWORD"
+            - exec redis-server --dir /data --save "" --appendonly yes --appendfsync everysec --maxmemory 64mb --maxmemory-policy noeviction --requirepass "$REDIS_PASSWORD"
           env:
             - name: REDIS_PASSWORD
               valueFrom:
