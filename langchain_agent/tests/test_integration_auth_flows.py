@@ -57,7 +57,7 @@ class TestCompleteOAuthFlows:
         # Mock responses for complete flow
         registration_response = {
             "client_id": "integration-client-123",
-            "client_secret": "integration-secret-456",
+            "client_secret": "test-client-secret",
             "registration_access_token": "integration-reg-token-789",
             "client_secret_expires_at": int((datetime.now(timezone.utc) + timedelta(days=365)).timestamp())
         }
@@ -95,7 +95,7 @@ class TestCompleteOAuthFlows:
                 credentials = await oauth_mgr.register_client()
                 
                 assert credentials.client_id == "integration-client-123"
-                assert credentials.client_secret == "integration-secret-456"
+                assert credentials.client_secret == "test-client-secret"
                 assert not credentials.is_expired()
                 
                 # Step 2: Acquire access token using client credentials
@@ -122,7 +122,7 @@ class TestCompleteOAuthFlows:
         # Mock client registration
         registration_response = {
             "client_id": "integration-client-456",
-            "client_secret": "integration-secret-789",
+            "client_secret": "test-client-secret-two",
             "registration_access_token": "integration-reg-token-abc",
             "client_secret_expires_at": 0
         }

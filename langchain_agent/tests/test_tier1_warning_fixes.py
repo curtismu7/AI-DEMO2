@@ -16,7 +16,7 @@ from models.mcp import MCPToolCall
 
 def _access_token() -> AccessToken:
     return AccessToken(
-        token="abc123def456",
+        token="test-token",
         token_type="Bearer",
         expires_in=3600,
         scope="banking:read",
@@ -61,7 +61,7 @@ class TestWR03MaskedRepr:
         rendered = f"Calling tool on connection: {tool_call}"
         assert secret_code not in rendered
         assert "9999-secret-acct" not in rendered  # arg values redacted
-        assert "abc123def456" not in rendered       # nested agent token masked
+        assert "test-token" not in rendered       # nested agent token masked
         assert "banking_get_accounts" in rendered   # tool name still visible
         assert "accountNumber" in rendered          # arg keys allowed
 

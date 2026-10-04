@@ -119,14 +119,14 @@ class TestAccessToken:
         """Test creating valid access token"""
         issued_at = datetime.now(timezone.utc)
         token = AccessToken(
-            token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9",
+            token="test-access-token",
             token_type="Bearer",
             expires_in=3600,
             scope="read write",
             issued_at=issued_at
         )
         
-        assert token.token == "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
+        assert token.token == "test-access-token"
         assert token.token_type == "Bearer"
         assert token.expires_in == 3600
         assert token.scope == "read write"

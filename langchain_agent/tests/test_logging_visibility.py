@@ -1,3 +1,5 @@
+import base64
+import json
 import logging
 import importlib
 from io import StringIO
@@ -23,5 +25,9 @@ def test_sensitive_data_filter_not_attached():
     handler = logging.StreamHandler(buf)
     handler.setLevel(logging.DEBUG)
     root.addHandler(handler)
-    logging.getLogger("t").debug("token=eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ1MSJ9.sig")
-    assert "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ1MSJ9.sig" in buf.getvalue()
+    def _b64(obj):
+        return base64.urlsafe_b64encode(json.dumps(obj).encode()).rstrip(b"=").decode()
+
+    jwt_like = f"{_b64({'alg': 'RS256'})}.{_b64({'sub': 'u1'})}.sig"
+    logging.getLogger("t").debug(f"token={jwt_like}")
+    assert jwt_like in buf.getvalue()
