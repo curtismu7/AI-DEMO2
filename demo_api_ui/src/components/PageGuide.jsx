@@ -3,10 +3,11 @@ import { useLocation } from "react-router-dom";
 import DraggableModal from "./DraggableModal";
 import { PAGE_GUIDES } from "../config/pageGuides";
 import { getLesson } from "../learning/lessonCatalog";
+import DemoStepsGuide from "./DemoStepsGuide";
 import "./PageGuide.css";
 
 const IntentBindingLearningPage = lazy(() => import("../pages/IntentBindingLearningPage"));
-const BODIES = { "intent-binding": IntentBindingLearningPage };
+const BODIES = { "intent-binding": IntentBindingLearningPage, "demo-steps": DemoStepsGuide };
 
 function LessonGuide({ lesson, heading = true }) {
   if (!lesson) return null;
