@@ -130,6 +130,24 @@ function ProviderComparison() {
   );
 }
 
+const CIBA_ERRORS = {
+  PF_AI_CIBA_USER_UNKNOWN: "PingFederate does not know that user.",
+  PF_AI_FLOW_ALREADY_PENDING: "An approval request is already pending.",
+  PF_AI_CIBA_BINDING_MESSAGE_INVALID: "The message may only use letters, digits and simple punctuation, up to 64 characters.",
+  PF_AI_CIBA_USER_REQUIRED: "Enter the user to ask.",
+  PF_AI_CIBA_UNREACHABLE: "PingFederate could not be reached.",
+};
+
+function cibaOutcome(state) {
+  switch (state?.state) {
+    case "approved": return `Approved by ${state.subject || state.loginHint}.`;
+    case "denied": return "The user denied the request.";
+    case "expired": return "The request expired before anyone answered it.";
+    case "error": return "The approval request failed.";
+    default: return null;
+  }
+}
+
 export default function PingFederateAiAgentPage({ user }) {
   const [status, setStatus] = useState(null);
   const [loadingStatus, setLoadingStatus] = useState(true);
@@ -141,6 +159,13 @@ export default function PingFederateAiAgentPage({ user }) {
   const rarUserKey = typedUserKey ?? user?.username ?? "";
   const [bindDpop, setBindDpop] = useState(false);
   const [exchangeError, setExchangeError] = useState(false);
+  // CIBA: ask a named user to approve on their device, then poll through the BFF.
+  const [typedCibaUser, setTypedCibaUser] = useState(null);
+  const cibaUser = typedCibaUser ?? user?.username ?? "";
+  const [cibaMessage, setCibaMessage] = useState("");
+  const [cibaState, setCibaState] = useState(null);
+  const [cibaBusy, setCibaBusy] = useState(false);
+  const [cibaError, setCibaError] = useState("");
   const queryStatus = useMemo(() => new URLSearchParams(window.location.search), []);
 
   useEffect(() => {
@@ -161,12 +186,58 @@ export default function PingFederateAiAgentPage({ user }) {
     return () => { current = false; };
   }, []);
 
+  const cibaEnabled = Boolean(status?.features?.ciba);
+  // Pick up an approval already in flight (a reload) or the last answer for this session.
+  useEffect(() => {
+    if (!cibaEnabled) return undefined;
+    let current = true;
+    apiClient.get("/api/pf-ai-agent/ciba/status")
+      .then((response) => {
+        if (current && response.data?.state && response.data.state !== "none") setCibaState(response.data);
+      })
+      .catch(() => {});
+    return () => { current = false; };
+  }, [cibaEnabled]);
+
+  // While an approval is pending, ask again after PingFederate's interval. Every answer is a new
+  // object, so this re-arms itself until the state stops being pending.
+  const cibaPending = cibaState?.state === "pending";
+  const cibaInterval = cibaState?.interval || 5;
+  useEffect(() => {
+    if (!cibaPending) return undefined;
+    let current = true;
+    const timer = setTimeout(() => {
+      apiClient.get("/api/pf-ai-agent/ciba/status")
+        .then((response) => { if (current) setCibaState(response.data); })
+        .catch(() => { if (current) setCibaState({ state: "error" }); });
+    }, cibaInterval * 1000);
+    return () => { current = false; clearTimeout(timer); };
+  }, [cibaPending, cibaInterval, cibaState]);
+
   const provider = status?.sessionProvider || "none";
   const supportedSession = provider === "pingone" || provider === "pingfederate";
-  const features = status?.features || { cimd: false, crossDomain: false, rar: false, rarDpop: false };
+  const features = status?.features || { cimd: false, crossDomain: false, rar: false, rarDpop: false, ciba: false };
   const rarResult = status?.rarResult || null;
   const rarUserKeyValue = rarUserKey.trim();
   const callbackResult = queryStatus.get("cimd") || queryStatus.get("rar");
+
+  async function askForApproval() {
+    if (!features.ciba || cibaBusy || cibaPending || !cibaUser.trim()) return;
+    setCibaBusy(true);
+    setCibaError("");
+    setCibaState(null);
+    try {
+      const response = await apiClient.post("/api/pf-ai-agent/ciba/start", {
+        loginHint: cibaUser.trim(),
+        bindingMessage: cibaMessage.trim() || undefined,
+      });
+      setCibaState(response.data);
+    } catch (error) {
+      setCibaError(CIBA_ERRORS[error?.response?.data?.error] || "Could not start the approval request.");
+    } finally {
+      setCibaBusy(false);
+    }
+  }
 
   async function runCrossDomainExchange() {
     if (!supportedSession || !features.crossDomain || exchangeBusy) return;
@@ -227,6 +298,7 @@ export default function PingFederateAiAgentPage({ user }) {
         <div><span>Client metadata</span><FeatureStatus ready={features.cimd} /></div>
         <div><span>Third-party exchange</span><FeatureStatus ready={features.crossDomain} /></div>
         <div><span>Rich authorization</span><FeatureStatus ready={features.rar} /></div>
+        <div><span>Human approval (CIBA)</span><FeatureStatus ready={features.ciba} /></div>
         {status?.nativeIdJagPath && (
           <a href={status.nativeIdJagPath}>Open the existing PF ID-JAG demo</a>
         )}
@@ -352,6 +424,62 @@ export default function PingFederateAiAgentPage({ user }) {
               </>
               : <span className="pf-ai-agent__disabled-action">Configure RAR and sign in to start the request</span>}
           </div>
+        </div>
+      </section>
+
+      <section className="pf-ai-agent__flow pf-ai-agent__flow--ciba" aria-labelledby="pf-ai-ciba-title">
+        <div className="pf-ai-agent__flow-title">
+          <p className="pf-ai-agent__eyebrow">Human approval</p>
+          <h2 id="pf-ai-ciba-title">Ask a person to approve (CIBA)</h2>
+          <p>PingFederate asks the named user&apos;s PingOne MFA device to approve this request, and this page waits for the answer. The user needs an enrolled MFA device.</p>
+          <FeatureStatus ready={features.ciba} />
+        </div>
+        <div className="pf-ai-agent__flow-body">
+          <label className="pf-ai-agent__user-key">
+            User to ask (PingOne username)
+            <input
+              value={cibaUser}
+              onChange={(event) => setTypedCibaUser(event.target.value)}
+              autoComplete="off"
+              maxLength={256}
+            />
+          </label>
+          <label className="pf-ai-agent__user-key">
+            Message shown on their device (optional)
+            <input
+              value={cibaMessage}
+              onChange={(event) => setCibaMessage(event.target.value)}
+              autoComplete="off"
+              maxLength={64}
+            />
+          </label>
+          <div className="pf-ai-agent__rar-actions">
+            {features.ciba && supportedSession
+              ? <button
+                className="pf-ai-agent__action"
+                type="button"
+                onClick={askForApproval}
+                disabled={cibaBusy || cibaPending || !cibaUser.trim()}
+              >
+                {cibaBusy ? "Sending…" : "Ask for approval"}
+              </button>
+              : <span className="pf-ai-agent__disabled-action">Configure CIBA and sign in to ask for approval</span>}
+          </div>
+          {cibaError && <p className="pf-ai-agent__callback is-error" role="alert">{cibaError}</p>}
+          {cibaPending && (
+            <p className="pf-ai-agent__callback" role="status" data-testid="ciba-pending">
+              Waiting for {cibaState.loginHint} to approve on their device. Expires {new Date(cibaState.expiresAt).toLocaleTimeString()}.
+            </p>
+          )}
+          {cibaOutcome(cibaState) && (
+            <p
+              className={`pf-ai-agent__callback ${cibaState.state === "approved" || cibaState.state === "denied" ? "is-complete" : "is-error"}`}
+              role="status"
+              data-testid="ciba-outcome"
+            >
+              {cibaOutcome(cibaState)}
+            </p>
+          )}
         </div>
       </section>
 
