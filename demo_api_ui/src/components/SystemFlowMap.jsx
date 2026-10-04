@@ -69,6 +69,13 @@ export const NODES = {
   // second one.
   api: { name: 'Resource Server', sub: 'Backend API · banking / vertical REST' },
   db: { name: 'Data store', sub: 'SQLite · vertical dataset' },
+  // A Privilege A2A chain run (UC47). Agents present agent keys, not OAuth
+  // tokens, and every hop passes the Privilege AI Gateway, which is a
+  // different component from the Gateway PEP above.
+  'pa-main': { name: 'Main agent', sub: 'Privilege A2A · its own agent key' },
+  'pa-gw': { name: 'Privilege AI Gateway', sub: 'key · scope · policy · guardrail' },
+  'pa-middle': { name: 'LangChain agent', sub: 'Middle agent · its own agent key' },
+  'pa-specialist': { name: 'Specialist agent', sub: 'Remote Agent app' },
 };
 
 // Box and band geometry, in flow units. React Flow scales the whole canvas to
@@ -98,6 +105,7 @@ export const BANDS = [
   { id: 'pep', label: 'PEP · gateway', x: 378, y: 200, cols: 1, nodes: ['pep'] },
   { id: 'backends', label: 'MCP servers · data', x: 582, y: 200, cols: 1, nodes: ['mcp', 'api', 'db'] },
   { id: 'model', label: 'Model · demo_llm_proxy', x: 0, y: 400, cols: 1, nodes: ['llm'] },
+  { id: 'privilege', label: 'Privilege A2A · agents through the AI Gateway', x: 198, y: 400, cols: 4, nodes: ['pa-main', 'pa-gw', 'pa-middle', 'pa-specialist'] },
 ];
 
 // Bands before their boxes — React Flow requires a parent ahead of its children.
@@ -176,6 +184,7 @@ export const STEP_TO_EDGE = {
 
 // A gate outcome is not an error — the control fired and the run is waiting on
 // a human. Painting STEP_UP red would read as a failure in front of a room.
+const CHAIN_LANE_NODES = { 'MAIN-AGENT': 'pa-main', GATEWAY: 'pa-gw', 'LANGCHAIN-AGENT': 'pa-middle' };
 const HELD_DECISIONS = new Set(['STEP_UP', 'HITL_REQUIRED', 'INDETERMINATE']);
 
 // Strongest state wins when several hops touch one box: the BFF is the source
@@ -297,6 +306,40 @@ export function buildFlowModel(steps, trace) {
     if (!nodeStates[id] || RANK[state] > RANK[nodeStates[id]]) nodeStates[id] = state;
   };
 
+  const addEdge = (from, to, kind, state, title) => {
+    const key = `${from}|${to}`;
+    const prev = edgeByPair.get(key);
+    if (!prev) {
+      edgeByPair.set(key, { id: key, from, to, kind, state, titles: [title] });
+      return;
+    }
+    prev.titles.push(title);
+    // Strongest state owns the lane, for the same reason it owns a box.
+    if (RANK[state] > RANK[prev.state]) {
+      prev.state = state;
+      prev.kind = kind;
+    }
+  };
+
+  // A Privilege A2A chain run: its steps carry their actor as the lane (see
+  // privilegeA2aChainSteps.js), so each step lights its actor's box and draws
+  // the hop from the previous actor.
+  let chainFrom = null;
+  for (const step of list) {
+    if (!String(step?.id).startsWith('pa2a-')) continue;
+    const node = CHAIN_LANE_NODES[step.lane] || 'pa-specialist';
+    const state = stateForStep(step, null);
+    if (state) {
+      lit += 1;
+      if (chainFrom && chainFrom !== node) {
+        addEdge(chainFrom, node, 'http', state, step.title);
+        bump(chainFrom, 'done');
+      }
+      bump(node, state);
+    }
+    chainFrom = node;
+  }
+
   for (const step of list) {
     const spec = STEP_TO_EDGE[step?.baseId || step?.id];
     if (!spec) continue;
@@ -310,20 +353,7 @@ export function buildFlowModel(steps, trace) {
       bump(spec.node, state);
       continue;
     }
-    const key = `${spec.from}|${spec.to}`;
-    const prev = edgeByPair.get(key);
-    if (!prev) {
-      edgeByPair.set(key, {
-        id: key, from: spec.from, to: spec.to, kind: spec.kind, state, titles: [step.title],
-      });
-    } else {
-      prev.titles.push(step.title);
-      // Strongest state owns the lane, for the same reason it owns a box.
-      if (RANK[state] > RANK[prev.state]) {
-        prev.state = state;
-        prev.kind = spec.kind;
-      }
-    }
+    addEdge(spec.from, spec.to, spec.kind, state, step.title);
     bump(spec.to, state);
     // The source box is at least reached — it originated the hop. Never
     // stronger than `done`, so a failing hop reddens its target, not its caller.
