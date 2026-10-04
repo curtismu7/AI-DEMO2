@@ -1,7 +1,10 @@
 import { chainHopToTokenEvent, startPrivilegeA2aChainRun } from "../privilegeA2aChainRun";
 import { buildLiveTokenChainSteps, buildPrivilegeA2aChainSteps } from "../../components/TokenChainTraceRail";
 import { deriveLifelineParticipants, deriveLifelineSteps } from "../../services/tokenChainTrace/deriveLifelineSteps";
-import { laneLabel } from "../../services/tokenChainTrace/buildTraceSteps";
+import { buildTraceSteps, laneLabel } from "../../services/tokenChainTrace/buildTraceSteps";
+import { buildObservedTopology } from "../../components/TokenTopologyPanel";
+import { buildDiagramSource } from "../../components/TokenExchangeDiagram";
+import mermaid from "mermaid";
 
 vi.mock("../../context/TokenChainContext", () => ({ useTokenChainOptional: () => null }));
 
@@ -115,4 +118,48 @@ test("the sequence view gets one lifeline per agent with the gateway between the
   ]);
   expect(deriveLifelineParticipants(lifeline)).toEqual(["MAIN-AGENT", "GATEWAY", "LANGCHAIN-AGENT"]);
   expect(laneLabel("MAIN-AGENT")).toBe("MAIN AGENT");
+});
+
+test("every view that reads the store's steps gets the chain, not an empty banking pipeline", async () => {
+  const trace = {
+    startedAt: 1,
+    tokenEvents: [
+      { id: "pa2a-0", kind: "delegate", from: "main", to: "langchainagent", status: "ok" },
+      { id: "pa2a-1", kind: "error", from: "langchainagent", to: "restricted", status: "error", detail: "403: Forbidden" },
+    ],
+  };
+
+  const steps = buildTraceSteps(trace);
+  expect(steps.map((step) => step.id)).toEqual(["pa2a-0-call", "pa2a-0-gateway", "pa2a-0-forward", "pa2a-1-call", "pa2a-1-gateway"]);
+
+  // Token topology panel: one node per step, on the agent and gateway lanes.
+  expect(buildObservedTopology(steps).map((node) => node.lane)).toEqual(["MAIN-AGENT", "GATEWAY", "LANGCHAIN-AGENT", "LANGCHAIN-AGENT", "GATEWAY"]);
+
+  // Token-exchange diagram: the actors and numbered hops, with the refusal marked.
+  if (!window.CSS.supports) window.CSS.supports = () => true;
+  const source = buildDiagramSource(trace, steps, false);
+  expect(source).toContain('A0["MAIN AGENT"]');
+  expect(source).toContain('"5 refused"');
+  await expect(mermaid.parse(source)).resolves.toBeTruthy();
+
+  // A banking trace is untouched.
+  expect(buildTraceSteps({ tokenEvents: [{ id: "user-token", status: "acquired" }], phases: [] })[0].id).toBe("website");
+});
+
+test("each hop is also published on the token-chain bus the Simple Stepper reads", async () => {
+  const published = [];
+  const onInject = (event) => published.push(event.detail.events.map((hop) => `${hop.id}:${hop.status}`));
+  window.addEventListener("token-chain-inject", onInject);
+  const frames = [
+    'event: trace\ndata: {"kind":"delegate","from":"main","to":"langchainagent","text":"main → langchainagent"}\n\n',
+    'event: trace\ndata: {"kind":"error","from":"langchainagent","to":"restricted","text":"refused","detail":"403"}\n\n',
+    'event: error\ndata: {"error":"Delegation failed"}\n\n',
+  ];
+  const body = new ReadableStream({ start(controller) { frames.forEach((frame) => controller.enqueue(new TextEncoder().encode(frame))); controller.close(); } });
+  const store = { beginTrace() {}, ingestTokenEvent() {}, ingestLlmReply() {}, completeTrace() {} };
+
+  await startPrivilegeA2aChainRun({ message: "hi", specialist: "restricted", store, fetchImpl: async () => ({ ok: true, body }) });
+  window.removeEventListener("token-chain-inject", onInject);
+
+  expect(published).toEqual([["pa2a-0:ok"], ["pa2a-0:ok", "pa2a-1:error"]]);
 });

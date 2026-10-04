@@ -102,6 +102,27 @@ function claimRows(claims, keys) {
     .join('\n');
 }
 
+// ── Privilege A2A chain ──────────────────────────────────────────────────────
+
+// One node per actor (the step lanes, in first-seen order) and one numbered
+// arrow per hop, so the gateway shows between every pair of agents.
+function chainDiagramSource(chain, C) {
+  const lanes = [...new Set(chain.map((step) => step.lane))];
+  const nodeId = (lane) => `A${lanes.indexOf(lane)}`;
+  const refusedAt = chain.find((step) => step.status === 'error')?.lane;
+  const lines = ['flowchart LR'];
+  lanes.forEach((lane) => lines.push(`    ${nodeId(lane)}["${lane.replace(/-/g, ' ')}"]`));
+  chain.forEach((step, index) => {
+    const from = chain[index - 1]?.lane;
+    if (from && from !== step.lane) {
+      lines.push(`    ${nodeId(from)} -->|"${index + 1}${step.status === 'error' ? ' refused' : ''}"| ${nodeId(step.lane)}`);
+    }
+  });
+  lanes.forEach((lane) => lines.push(sty(nodeId(lane), lane === refusedAt ? C.authzDn : lane === 'GATEWAY' ? C.gateway : C.agent)));
+  lines.push(`    linkStyle default stroke:${C.line}`);
+  return lines.join('\n');
+}
+
 // ── diagram builder — incremental ────────────────────────────────────────────
 
 // `dark` defaults to true: this diagram was dark-only until now, and the
@@ -119,6 +140,10 @@ export function buildDiagramSource(trace, steps, dark = true) {
         to see tokens appear here."]
     style IDLE fill:${C.idle.fill},color:${C.idle.color},stroke:${C.idle.stroke},stroke-dasharray:5 5,stroke-width:2px`;
   }
+
+  // A Privilege A2A chain run has no token exchange in it: draw its hops.
+  const chain = (steps || []).filter((step) => typeof step?.id === 'string' && step.id.startsWith('pa2a-'));
+  if (chain.length) return chainDiagramSource(chain, C);
 
   const userTok  = findEv(events, 'user-token');
   const agentTok = findEv(events, 'agent-actor-token', 'two-ex-agent-actor');
