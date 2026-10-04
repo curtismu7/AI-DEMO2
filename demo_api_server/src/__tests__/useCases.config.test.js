@@ -13,9 +13,9 @@ const UTILITY_TRACKS = ['tools', 'learn', 'nhi'];
 describe('useCases catalog SoT', () => {
   test('contains the complete catalog including the CIAM/NHI agent lanes', () => {
     // UC43/44 and the SaaS-Embedded Website Worker UC45 are part of the CIAM/NHI catalog.
-    expect(USE_CASES).toHaveLength(69);
+    expect(USE_CASES).toHaveLength(70);
     const ids = USE_CASES.map((u) => u.id);
-    expect(new Set(ids).size).toBe(69);
+    expect(new Set(ids).size).toBe(70);
     for (let n = 1; n <= 22; n++) expect(ids).toContain(`UC${n}`);
     expect(ids).toContain('UC23');
     expect(ids).toContain('UC24');
@@ -227,8 +227,8 @@ describe('useCases catalog SoT', () => {
   });
 
   test('listUseCases returns all catalog entries resolved for a vertical', () => {
-    expect(listUseCases('healthcare')).toHaveLength(69);
-    expect(listUseCases()).toHaveLength(69);
+    expect(listUseCases('healthcare')).toHaveLength(70);
+    expect(listUseCases()).toHaveLength(70);
   });
 
   test('only UC14 and UC15 are advanced', () => {

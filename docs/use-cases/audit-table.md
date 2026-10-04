@@ -44,6 +44,7 @@
 | UC-TOOL1 | [Protected RAG](./code-search.md) | tools | ✅ works | 🛡️ T2, T6 |  |
 | UC-TOOL2 | [Code Explorer](./code-explorer.md) | tools | ✅ works |  |  |
 | UC-TOOL3 | [LLM Gateway](./llm-gateway.md) | tools | ✅ works |  |  |
+| UC46 | [Privilege A2A access review](./privilege-a2a-access-review.md) | tools | ✅ works |  |  |
 | UC-NHI1 | [Live agent NHI inventory](./nhi-inventory.md) | nhi | ✅ works |  |  |
 | UC-NHI2 | [Agent lifecycle export (JML)](./nhi-lifecycle-export.md) | nhi | ✅ works |  |  |
 | UC-LEARN1 | [OAuth Academy](./oauth-academy.md) | learn | ✅ works |  |  |
@@ -59,6 +60,7 @@
 | UC-LEARN9 | [ID-JAG / Cross-App Access](./id-jag-cross-app-access.md) | learn | ✅ works |  |  |
 | UC-LEARN10 | [Orchestration SDK (Custom UI)](./orchestration-sdk.md) | learn | ✅ works |  |  |
 | UC-LEARN12 | [PingFederate DaVinci Integration Kit](./pingfederate-davinci-integration-kit.md) | learn | ✅ works |  |  |
+| UC-LEARN13 | [PingFederate RAR — the authorization server refuses an out-of-policy transfer](./pingfederate-rar-processor.md) | learn | ✅ works |  |  |
 | UC-LEARN11 | [Privilege LLM — prompt injection blocked](./privilege-llm-prompt-injection.md) | learn | ✅ works | 🛡️ T5 |  |
 | UC27 | [HITL consent bypass attempt](./hitl-consent-bypass-attempt.md) | hitl | ✅ works | 🛡️ T5 |  |
 | UC28 | [Tool set as the authorization boundary (Air Canada pattern)](./unauthorized-commitment-fee-waiver.md) | controls | ✅ works | 🛡️ T1 |  |
@@ -92,8 +94,8 @@
 
 | Status | Count |
 |---|---|
-| ✅ Works | 56 |
+| ✅ Works | 58 |
 | 🚩 Flag-gated | 10 |
 | 📥 Needs console import | 0 |
 | 🏗️ Needs build | 2 |
-| **Total** | **68** |
+| **Total** | **70** |
