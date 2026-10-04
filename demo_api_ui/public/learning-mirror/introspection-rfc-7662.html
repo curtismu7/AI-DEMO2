@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Introspection (RFC 7662) — AI Demo Learning Hub</title>
+<link rel="stylesheet" href="assets/app.css">
+<link rel="stylesheet" href="assets/snapshot.css">
+</head><body>
+<div class="snap-top"><a href="index.html">← Learning Hub</a><span class="crumb">/ Introspection (RFC 7662)</span></div>
+<div class="edu-drawer snap-drawer">
+<div class="snap-title">Introspection (RFC 7662)</div>
+<nav class="snap-toc"><span class="snap-toc-label">On this page — 2 sections</span><ul><li><a href="#sec-what-why">What &amp; Why</a></li><li><a href="#sec-in-this-repo">In this repo</a></li></ul></nav>
+<div class="edu-drawer-body">
+<section class="snap-tab" id="sec-what-why"><h3 class="snap-tab-h">What &amp; Why</h3><h3>What is token introspection? (RFC 7662)</h3><p>Token introspection is a server-to-server call where a resource server or MCP server asks the authorization server: <em>"Is this token active, and what are its claims?"</em> PingOne returns <code>active: true/false</code> and the token's claim set.</p><p>Unlike JWKS-based local validation, introspection always reflects the current state at the AS — including revoked tokens, updated scopes, or <code>act</code> claims that may not be in the token's JWT body.</p><h3>POST /as/introspect — request</h3><pre class="edu-code">POST {issuer}/as/introspect
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic &lt;base64(client_id:client_secret)&gt;
+
+token=&lt;access-token-to-check&gt;
+&amp;token_type_hint=access_token</pre><h3>Response — active token</h3><pre class="edu-code">HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "active": true,
+  "sub": "user-pingone-id",
+  "aud": "https://api.example.com/",      ← resource server audience
+  "iss": "https://auth.pingone.com/.../as",
+  "client_id": "banking-bff-client-id",
+  "scope": "openid read",
+  "exp": 1712345678,
+  "iat": 1712342078,
+  "jti": "unique-token-id",
+  "act": {                                 ← delegation claim (if token exchange used)
+    "sub": "agent-client-id"
+  }
+}</pre><h3>Response — inactive / revoked / expired token</h3><pre class="edu-code">HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "active": false
+}
+// No other claims are returned for inactive tokens.
+// Treat this as: reject the request with 401.</pre><h3>Error responses</h3><pre class="edu-code">── Bad client credentials ──
+HTTP/1.1 401 Unauthorized
+{ "error": "invalid_client", "error_description": "Client authentication failed" }
+
+── Malformed request ──
+HTTP/1.1 400 Bad Request
+{ "error": "invalid_request", "error_description": "Missing token parameter" }</pre><h3>Introspection vs JWKS local validation</h3><pre class="edu-code">Feature                  Introspection (RFC 7662)   JWKS local (JWT signature)
+─────────────────────────────────────────────────────────────────────────────
+Network call per request YES                        NO (cache public keys)
+Reflects revocation      YES (always current)       NO (only until exp)
+Works with opaque tokens YES                        NO (needs JWT structure)
+act / delegation claims  YES (AS adds them)         Only if in JWT body
+Latency                  ~50-200ms round trip       &lt;1ms (local verify)
+Best for                 MCP / proxy validation,    High-throughput RS,
+                         opaque tokens, act claims  JWT access tokens
+
+In this demo:
+  Introspection — user access token at login + every MCP tool call
+  JWKS verify   — agent CC tokens + all exchanged/delegated tokens</pre><h3>When to use introspection</h3><ul><li>The token is <strong>opaque</strong> (not a JWT) — you cannot decode it locally.</li><li>You need <strong>delegation claims</strong> (<code>act</code>) that may not be in the JWT body.</li><li>You need to check <strong>revocation in real time</strong> (e.g. after a user's session is terminated).</li><li>The resource server does not want to cache JWKS or manage key rotation.</li></ul><h3>Where introspection fits in this demo</h3><p>Introspection is used in two places in the token chain:</p><ul><li><strong>At login</strong> — the BFF calls PingOne's RFC 7662 endpoint immediately after the OAuth callback to confirm the user's access token is active. The result appears as <code>user-token-introspection</code> in the Token Chain panel and shows the live <code>sub</code>, <code>scope</code>, <code>exp</code>, and <code>aud</code> from PingOne.</li><li><strong>At every MCP tool call</strong> — demo_mcp_gateway (port 3005) performs RFC 7662 introspection (Step 1 of its inline authorization pipeline) before forwarding the call. The BFF performs the RFC 8693 exchange to produce the bearer token; the gateway then introspects that token against PingOne before executing the tool.</li></ul><p>All other tokens in the chain (agent CC token, exchanged MCP token — and, when the optional two-exchange path is enabled, intermediate actor tokens) use <strong>RFC 7515 (JWS) signature verification via RFC 7517 (JWKS)</strong> instead — faster because no network round-trip is needed, and appropriate because these tokens were just issued by PingOne moments ago and cannot have been revoked in that window.</p></section>
+<section class="snap-tab" id="sec-in-this-repo"><h3 class="snap-tab-h">In this repo</h3><h3 style="margin-top: 0px;">BFF → PingOne introspection</h3><p style="font-size: 0.82rem; color: rgb(71, 85, 105); margin-top: 0px; margin-bottom: 0.65rem; line-height: 1.55;"><strong style="color: rgb(22, 101, 52);">This repo</strong>: <code style="font-size: 0.85em; word-break: break-all;">banking_api_server/middleware/tokenIntrospection.js</code> Used on the MCP proxy path when <code>PINGONE_INTROSPECTION_ENDPOINT</code> is set; inactive tokens get 401.</p><pre class="edu-code">// middleware/tokenIntrospection.js — RFC 7662 to PingOne
+const response = await axios.post(introspectionEndpoint,
+  new URLSearchParams({ token, token_type_hint: 'access_token' }),
+  {
+    auth: { username: clientId, password: clientSecret },
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    timeout: 5000,
+  },
+);
+// server.js (MCP path): if (!introspectionResult.active) return res.status(401)...</pre></section>
+</div></div>
+<div class="snap-foot">The AI Demo Learning Hub · <a href="index.html">back to index</a></div>
+<style>
+#backToTop{position:fixed;right:22px;bottom:22px;z-index:50;background:#1c2230;color:#fff;border:0;border-radius:999px;padding:10px 18px;font:600 .9rem -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;cursor:pointer;box-shadow:0 4px 14px rgba(28,34,48,.35);opacity:0;visibility:hidden;transform:translateY(8px);transition:opacity .2s,transform .2s,visibility .2s}
+#backToTop.show{opacity:1;visibility:visible;transform:translateY(0)}
+#backToTop:hover{background:#39435c}
+</style>
+<button id="backToTop" type="button" aria-label="Back to top">↑ Top</button>
+<script>
+(function(){
+  var btn=document.getElementById('backToTop');
+  window.addEventListener('scroll',function(){btn.classList.toggle('show',window.scrollY>400);},{passive:true});
+  btn.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
+})();
+</script>
+</body></html>

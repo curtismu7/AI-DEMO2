@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LangChain (LCEL + LangGraph) — AI Demo Learning Hub</title>
+<link rel="stylesheet" href="assets/app.css">
+<link rel="stylesheet" href="assets/snapshot.css">
+</head><body>
+<div class="snap-top"><a href="index.html">← Learning Hub</a><span class="crumb">/ LangChain (LCEL + LangGraph)</span></div>
+<div class="edu-drawer snap-drawer">
+<div class="snap-title">LangChain (LCEL + LangGraph)</div>
+<nav class="snap-toc"><span class="snap-toc-label">On this page — 2 sections</span><ul><li><a href="#sec-overview">Overview</a></li><li><a href="#sec-lcel-pattern">LCEL pattern</a></li></ul></nav>
+<div class="edu-drawer-body">
+<section class="snap-tab" id="sec-overview"><h3 class="snap-tab-h">Overview</h3><div><h3 style="margin-top: 0px;">What is LangChain?</h3><p>LangChain is an open-source framework for building LLM applications. <strong>LCEL (LangChain Expression Language)</strong> — a declarative pipe-syntax for composing prompts, models, tools and output parsers into streaming-first chains — was introduced in 2023, before the 0.1 release. This demo pins <strong>0.3.x</strong>; the current stable release is <strong>LangChain 1.x</strong> (GA Oct 2025), which recommends <code>create_agent</code> / LangGraph as the default agent pattern.</p><h3>LCEL in one line</h3><pre class="edu-code">chain = prompt | llm.bind_tools(tools)</pre><p><code>bind_tools</code> attaches your MCP tools to the LLM. The model decides which tools to call; you run the tool-calling loop yourself or let LangGraph manage it.</p><h3>Model-agnostic by design</h3><p>Each provider ships its own <code>langchain-*</code> package. You swap the LLM object — the rest of the chain stays the same.</p><pre class="edu-code">| Provider   | Package                  | Default model              |
+|------------|--------------------------|----------------------------|
+| Groq       | langchain-groq           | openai/gpt-oss-20b         |
+| OpenAI     | langchain-openai         | gpt-4o-mini                |
+| Anthropic  | langchain-anthropic      | claude-haiku-4-5-20251001  |
+| Google AI  | langchain-google-genai   | gemini-2.0-flash           |
+| LM Studio  | langchain-openai         | auto (local)               |</pre><h3>Security: keys stay on the server</h3><p>In this demo, provider API keys are stored in the <strong>BFF session</strong> only (<code>req.session.langchain_config</code>). They are never included in API responses sent to the browser.</p><p><a href="/langchain" style="font-weight: 600;">Full deep dive with live model indicator →</a></p></div></section>
+<section class="snap-tab" id="sec-lcel-pattern"><h3 class="snap-tab-h">LCEL pattern</h3><div><h3 style="margin-top: 0px;">LCEL — the new way to chain</h3><p>Before 0.2.x, LangChain used <code>AgentExecutor + create_openai_functions_agent</code>. These are deprecated. The 0.3.x way (pinned in this demo) creates an LCEL runnable agent — though the current stable release, <strong>LangChain 1.x</strong> (GA Oct 2025), recommends <code>create_agent</code> / LangGraph as the default going forward:</p><pre class="edu-code"># LangChain 0.3.x LCEL pattern
+from langchain_groq import ChatGroq
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+
+llm = ChatGroq(model="openai/gpt-oss-20b", api_key=groq_key)
+
+# Bind tools so the model can call them
+chain = prompt | llm.bind_tools(tools)
+
+# Tool-calling loop
+while True:
+    result = await chain.ainvoke({"input": msg, "chat_history": hist})
+    if not result.tool_calls:
+        break
+    # execute tools and append ToolMessage results…</pre><h3>Why LCEL?</h3><ul><li>Streaming out of the box — every step yields deltas</li><li>Works with any model that supports tool calling</li><li>Composable — add output parsers, retry logic, fallbacks as pipe steps</li><li>Testable — mock any pipe stage independently</li></ul></div></section>
+</div></div>
+<div class="snap-foot">The AI Demo Learning Hub · <a href="index.html">back to index</a></div>
+<style>
+#backToTop{position:fixed;right:22px;bottom:22px;z-index:50;background:#1c2230;color:#fff;border:0;border-radius:999px;padding:10px 18px;font:600 .9rem -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;cursor:pointer;box-shadow:0 4px 14px rgba(28,34,48,.35);opacity:0;visibility:hidden;transform:translateY(8px);transition:opacity .2s,transform .2s,visibility .2s}
+#backToTop.show{opacity:1;visibility:visible;transform:translateY(0)}
+#backToTop:hover{background:#39435c}
+</style>
+<button id="backToTop" type="button" aria-label="Back to top">↑ Top</button>
+<script>
+(function(){
+  var btn=document.getElementById('backToTop');
+  window.addEventListener('scroll',function(){btn.classList.toggle('show',window.scrollY>400);},{passive:true});
+  btn.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
+})();
+</script>
+</body></html>

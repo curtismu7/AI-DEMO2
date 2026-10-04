@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Machine IAM for Agentic AI — AI Demo Learning Hub</title>
+<link rel="stylesheet" href="assets/app.css">
+<link rel="stylesheet" href="assets/snapshot.css">
+</head><body>
+<div class="snap-top"><a href="index.html">← Learning Hub</a><span class="crumb">/ Machine IAM for Agentic AI</span></div>
+<div class="edu-drawer snap-drawer">
+<div class="snap-title">Machine IAM for Agentic AI</div>
+<nav class="snap-toc"><span class="snap-toc-label">On this page — 6 sections</span><ul><li><a href="#sec-why">Why machine IAM matters</a></li><li><a href="#sec-register">Register every agent</a></li><li><a href="#sec-delegate">Delegate, don't impersonate</a></li><li><a href="#sec-authorize">Authorize every action</a></li><li><a href="#sec-govern">Govern and kill</a></li><li><a href="#sec-scope">Scope &amp; limits</a></li></ul></nav>
+<div class="edu-drawer-body">
+
+<section class="snap-tab" id="sec-why"><h3 class="snap-tab-h">Why machine IAM matters</h3>
+<p>AI agents, workloads, service accounts, and CI/CD pipelines now outnumber human identities in most environments — and agentic AI is accelerating that curve. Each one holds credentials, calls APIs, and acts with real authority. Yet many organizations still govern machines with IAM policies designed for humans: long-lived credentials, broad scopes, no per-action authorization, and no way to answer &quot;which agent did this, on whose behalf?&quot;</p>
+<p>Machines are not humans. They don't respond to MFA prompts, they scale to thousands of instances, and a leaked machine credential is exploitable at machine speed. Machine IAM means giving every non-human actor a first-class identity, credentials scoped to a single task, authorization checked at every action, and a lifecycle that can be killed instantly. This page shows how the AI Demo implements that pattern for AI agents with PingOne.</p></section>
+
+<section class="snap-tab" id="sec-register"><h3 class="snap-tab-h">Register every agent</h3>
+<p>The foundation is identity: every agent is a registered <code>AI_AGENT</code> identity in PingOne with its own <code>client_id</code> — never a borrowed human credential, never a shared API key. Registration is the mandatory first step of creating an agent: the demo's Agent Builder provisions the agent identity, per-agent resource servers, and custom scopes with ownership-guarded grants, so an agent exists in the identity system before it can do anything at all.</p>
+<p>Because the agent has its own identity, every downstream log line, token, and policy decision can name it. Attribution stops being forensics and becomes a claim in the token.</p></section>
+
+<section class="snap-tab" id="sec-delegate"><h3 class="snap-tab-h">Delegate, don't impersonate</h3>
+<p>When an agent acts for a user, it must not simply carry the user's token — that's impersonation, and it erases the actor from the audit trail. Instead the demo uses OAuth 2.0 Token Exchange (RFC 8693): the user's token and the agent's own credentials are exchanged for a new, short-lived token whose <code>sub</code> is still the human principal and whose <code>act</code> claim names the agent.</p>
+<pre class="edu-code">// Delegated token after RFC 8693 exchange
+{
+  "sub":   "user-abc123",                  // on whose behalf
+  "act":   { "client_id": "demo-agent" },  // who is acting
+  "aud":   "https://mcp.example.com",      // narrowed audience
+  "scope": "accounts:read"                 // narrowed scope
+}</pre>
+<p>Audience and scope are narrowed to exactly what the current tool call needs, so a stolen token is useful for one thing, briefly, and nothing else.</p></section>
+
+<section class="snap-tab" id="sec-authorize"><h3 class="snap-tab-h">Authorize every action</h3>
+<p>Identity alone isn't control. Every agent tool call in the demo passes through an Agent Gateway that validates the token by introspection (RFC 7662) and asks PingOne Authorize for a policy decision — <strong>PERMIT</strong>, <strong>DENY</strong>, or <strong>HITL</strong> (require a human) — before the call reaches any backend.</p>
+<p>On top of that, each call carries an Intent Token: a signed statement of what the agent believes it is doing (<code>intent</code>, <code>confidence</code>, <code>permitted_tools</code>). If the tool being invoked doesn't match the stated intent — say, the agent claimed &quot;view balance&quot; and then called &quot;create transfer&quot; — the gateway denies the call with an <code>intent_mismatch</code>. This closes the gap between what an LLM says it will do and what its code actually does, and it defeats classic confused-deputy and scope-escalation moves.</p></section>
+
+<section class="snap-tab" id="sec-govern"><h3 class="snap-tab-h">Govern and kill</h3>
+<p>High-impact actions require a human in the loop: the agent is blocked until a person explicitly approves the specific action, and the approval is logged with the user, agent, tool, and correlation ID. Day to day, an AI Control Plane shows every registered agent and its activity.</p>
+<p>The critical property is the kill switch: stopping an agent revokes its PingOne identity, so its access dies everywhere at once — every gateway, every API, every MCP server — rather than requiring a hunt for scattered credentials. The revocation is audited and broadcast, and a compliance report of agent activity can be exported for review.</p></section>
+
+<section class="snap-tab" id="sec-scope"><h3 class="snap-tab-h">Scope &amp; limits</h3>
+<p>This pattern covers the agentic-AI slice of machine IAM: agents you register, tokens you mint, calls you gate. It deliberately does not cover:</p>
+<ul>
+<li><strong>Discovery and inventory</strong> of machine identities you don't know about — shadow agents, sprawled secrets, unmanaged workloads need dedicated discovery tooling.</li>
+<li><strong>Device and certificate lifecycle</strong> — TLS certs, device identities, and CI/CD pipeline credentials are adjacent disciplines with their own tooling.</li>
+<li><strong>Organizational ownership</strong> — deciding who owns machine identity lifecycle is a process problem; the technology here is the argument for solving it, not the solution.</li>
+</ul>
+<p>Explore the related topics on the <a href="index.html">Learning Hub</a> — Token Exchange (RFC 8693), Agent Gateway, Human-in-the-loop, and Intent Auth Standards — for deeper dives into each control.</p></section>
+
+</div></div>
+<div class="snap-foot">The AI Demo Learning Hub · <a href="index.html">back to index</a></div>
+<style>
+#backToTop{position:fixed;right:22px;bottom:22px;z-index:50;background:#1c2230;color:#fff;border:0;border-radius:999px;padding:10px 18px;font:600 .9rem -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;cursor:pointer;box-shadow:0 4px 14px rgba(28,34,48,.35);opacity:0;visibility:hidden;transform:translateY(8px);transition:opacity .2s,transform .2s,visibility .2s}
+#backToTop.show{opacity:1;visibility:visible;transform:translateY(0)}
+#backToTop:hover{background:#39435c}
+</style>
+<button id="backToTop" type="button" aria-label="Back to top">↑ Top</button>
+<script>
+(function(){
+  var btn=document.getElementById('backToTop');
+  window.addEventListener('scroll',function(){btn.classList.toggle('show',window.scrollY>400);},{passive:true});
+  btn.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
+})();
+</script>
+</body></html>
