@@ -3,6 +3,7 @@ import DraggableModal from './DraggableModal';
 import { useExplainData } from '../hooks/useExplainData';
 import { PING_PRODUCTS } from '../utils/pingProducts';
 import { isA2aUseCase, extractA2aFacts } from '../utils/a2aFacts';
+import { DEMO_STEP_GUIDES } from '../config/demoStepGuides';
 import './UseCaseExplainModal.css';
 
 const PRODUCT_ORDER = ['idp', 'mfa', 'gw', 'authz', 'protect'];
@@ -264,6 +265,15 @@ export default function UseCaseExplainModal({ uc, open, onClose, a2aTokenEvents 
               Source: <code>/api/mcp/tool-topology</code>
             </p>
           </div>
+
+          {DEMO_STEP_GUIDES[uc.id] && (
+            <div className="ucem__sec">
+              <SectionHead num={7}>How to run it</SectionHead>
+              <div className="ucem__value-card">
+                <p>{DEMO_STEP_GUIDES[uc.id].howToRun}</p>
+              </div>
+            </div>
+          )}
 
       </div>
     </DraggableModal>

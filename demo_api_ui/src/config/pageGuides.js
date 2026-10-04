@@ -18,6 +18,7 @@ export const PAGE_GUIDES = {
     lessons: ["customer-service-agent", "hitl-step-up", "threat-defense"],
   },
   "/intent-inspector": { title: "Intent Binding Guide", body: "intent-binding" },
+  "/dashboard": { title: "Demo Steps Guide", body: "demo-steps" },
 
   "/protocol-playground": {
     title: "Protocol Playground Guide",
