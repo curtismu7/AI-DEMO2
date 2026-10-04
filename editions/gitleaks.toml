@@ -41,4 +41,4 @@ paths = [
   '''/demo_api_ui/public/learning-mirror/agent-guardrails\.html$''',
 ]
 regexTarget = "match"
-regexes = ['''^key=[A-Za-z0-9_-]+["']?$''']
+regexes = ['''^key=[A-Za-z0-9_+/=-]+["']?$''']

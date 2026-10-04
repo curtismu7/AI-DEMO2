@@ -147,7 +147,7 @@ test('gitleaks config: the URI with one extra character is not exempt', () => {
 });
 
 // same-line secrets: the allowlists must exempt the finding, never the whole line
-const GLEAN = '<img src="https://pingidentity-be.glean.com/api/v1/images?key=' + 'q8Zr3Kx9Lm2Vb7Nc4Td6Wy1Hj5Gf0SaXp7Rt2Uv9Be3Qk6Mn1Jc4Hd8Lf5Zs0Yw" />';
+const GLEAN = '<img src="https://pingidentity-be.glean.com/api/v1/images?key=' + 'q8Zr3Kx9Lm2Vb7Nc4Td6Wy1Hj5Gf0SaXp7Rt2Uv9Be3Qk6Mn1Jc4Hd8Lf5Zs0Yw==" />'; // real ids are base64 and end in ==
 
 test('gitleaks config: a secret on the same line as the URI is still flagged', () => {
   gl(tree({ 'a.json': `{ "audience": "${AUD}" }\n` }));
