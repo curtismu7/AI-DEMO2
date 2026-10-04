@@ -594,15 +594,15 @@ function validateDemoReadinessCatalog(sources, { uiInventory, educationPanelIds 
     ], id)),
     ...executableAdminIds,
   ];
-  if (caseIds.length !== 47 || new Set(caseIds).size !== 47) {
-    pushIssue(issues, `Expected exactly 47 executable Demo Steps entries; found ${caseIds.length} entries (${new Set(caseIds).size} unique)`);
+  if (caseIds.length !== 48 || new Set(caseIds).size !== 48) {
+    pushIssue(issues, `Expected exactly 48 executable Demo Steps entries; found ${caseIds.length} entries (${new Set(caseIds).size} unique)`);
   }
   const ciAmCount = (inventoryConfig.ciam || []).filter((id) => !seenIn(inventoryConfig.primary, id)).length;
   const privilegeCount = (inventoryConfig.privilege || []).filter((id) => !seenIn([
     ...(inventoryConfig.primary || []), ...(inventoryConfig.ciam || []),
   ], id)).length;
-  if ((inventoryConfig.primary || []).length !== 25 || ciAmCount !== 4 || privilegeCount !== 6 || executableAdminIds.length !== 12) {
-    pushIssue(issues, `Expected lane counts 25 + 4 + 6 + 12; found ${(inventoryConfig.primary || []).length} + ${ciAmCount} + ${privilegeCount} + ${executableAdminIds.length}`);
+  if ((inventoryConfig.primary || []).length !== 26 || ciAmCount !== 4 || privilegeCount !== 6 || executableAdminIds.length !== 12) {
+    pushIssue(issues, `Expected lane counts 26 + 4 + 6 + 12; found ${(inventoryConfig.primary || []).length} + ${ciAmCount} + ${privilegeCount} + ${executableAdminIds.length}`);
   }
 
   const useCaseById = new Map(useCases.map((item) => [item.id, item]));

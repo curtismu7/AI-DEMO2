@@ -20,6 +20,7 @@ import UseCaseExplainModal from './UseCaseExplainModal';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
 import { a2aEventsForExplain } from './demoStepsA2a';
 import { ID_JAG_USE_CASE_ID, RUN_MODES, requestLiveIdJagRun } from '../utils/idJagRunMode';
+import { PRIVILEGE_A2A_CHAIN_USE_CASE_ID, startPrivilegeA2aChainRun } from '../utils/privilegeA2aChainRun';
 import {
   clearCompletedUseCases,
   getCompletedUseCaseIds,
@@ -337,6 +338,13 @@ export default function DemoStepsDropdown({
         returnTo: '/dashboard',
       });
       return;
+    }
+    // The Privilege A2A agent chain starts here and plays in the reel: launch
+    // the run, then let the link trigger land the presenter on the dashboard.
+    // The run keeps streaming into the trace store across that navigation.
+    if (uc.useCaseId === PRIVILEGE_A2A_CHAIN_USE_CASE_ID && uc.chainRuns?.[0]) {
+      const { message, specialist } = uc.chainRuns[0];
+      void startPrivilegeA2aChainRun({ message, specialist });
     }
     // UC38/UC44 run in the dashboard agent as a chip prompt (their dedicated
     // /workload-agents page is opened via the secondary workload button below),
