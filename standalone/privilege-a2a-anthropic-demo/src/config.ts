@@ -97,6 +97,8 @@ export function mainAgentConfig(): MainAgentConfig {
 export interface WorkerAgentConfig {
   host: string;
   port: number;
+  /** The JSON-RPC address published in the agent card; behind Privilege, the gateway route. */
+  publicUrl: string;
   model: string;
   anthropic: Anthropic;
   bearer: string;
@@ -108,6 +110,7 @@ export function workerAgentConfig(): WorkerAgentConfig {
   return {
     host: value('WORKER_AGENT_HOST', '127.0.0.1'),
     port: numberValue('WORKER_AGENT_PORT', 3301),
+    publicUrl: value('WORKER_PUBLIC_URL', `http://127.0.0.1:${numberValue('WORKER_AGENT_PORT', 3301)}/a2a/jsonrpc`),
     model: value('WORKER_AGENT_MODEL', usesGoogle('WORKER_AGENT') ? 'gemini-flash-lite-latest' : 'claude-opus-5'),
     anthropic: anthropicClient('WORKER_AGENT'),
     bearer: agentAccessKey('WORKER_AGENT'),

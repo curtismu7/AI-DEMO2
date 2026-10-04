@@ -5,6 +5,9 @@
 MAIN_AGENT_HOST=127.0.0.1
 # Set these two to 0.0.0.0 only inside a container (see k8s/deployment.yaml).
 WORKER_AGENT_HOST=127.0.0.1
+# The address the worker's agent card advertises. Behind Privilege, set it to
+# the gateway route: https://<gateway>/<worker-app>/a2a/jsonrpc
+WORKER_PUBLIC_URL=
 MCP_SERVER_HOST=127.0.0.1
 MAIN_AGENT_PORT=3300
 WORKER_AGENT_PORT=3301

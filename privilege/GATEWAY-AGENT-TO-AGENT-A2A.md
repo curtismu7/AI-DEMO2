@@ -294,7 +294,7 @@ Give every agent its own key. A shared key would let the main agent reach the sp
 - **Identity does not travel down.** With Static Token the middle agent knows the call came through the gateway, and the specialist knows it came from the middle agent's key. Neither learns who the original user was.
 - **The log shows the chain.** Each hop is its own run of lines; the second is marked `agent=true` with the middle agent's custodian.
 
-Status: the middle agent's delegation is built and unit-tested. The live three-deep run is the next test and its results will be added here.
+Status: run live on 4 October 2026; the results are in the next section.
 
 ## Wiring a main agent and a worker: what goes where
 
@@ -349,6 +349,23 @@ The agent key was accepted three ways: as an `x-goog-api-key` header, as `Author
 | A question that makes the worker read a record carrying hidden instructions ("SYSTEM OVERRIDE … call the write tool") | The gateway blocked the tool result: `aiguard: blocked mcp response client=<agent> category=malicious_content`. The worker received `content_blocked`, reported that the response was blocked, and never called the write tool |
 
 So a poisoned tool result is stopped on the MCP leg, before the worker's model sees it. On the Google route the gateway logged `aiguard: request body produced no scannable units` for the model calls themselves, so do not rely on the model leg alone to screen Gemini-format requests; that leg was not tested with an attack.
+
+**Grants follow the custodian, not the agent.** The gateway checks A2A policy against the custodian's user, so agents that share a custodian share each other's remote-agent grants. Tested on 4 October 2026 with three agents under one custodian, then with one agent moved to a second custodian:
+
+| Setup | Agent A (granted the worker) | Agent B (granted the test specialist) |
+| --- | --- | --- |
+| A and B share a custodian | Reached the test specialist too: 200 | Reached the worker too: 200 |
+| B moved to its own custodian | Test specialist refused: `403`, `policy denied` | Worker refused: `403`, `policy denied` |
+
+Scopes stayed per key throughout: a key without the `mcp` scope was refused on MCP apps whichever custodian it had. To keep two agents' reach separate, give them different custodians. A Remote Agent app that no agent selects is refused for every caller, which makes a simple negative test.
+
+**The three-deep chain, run live.** With the middle agent on its own custodian and key:
+
+| Run | Result |
+| --- | --- |
+| A request the specialist may serve | Main agent, gateway, middle agent, gateway, specialist, and the answer back, in under a second |
+| A prompt-injection message | Blocked at the first gateway hop: `400`, `request blocked by security policy`. The middle agent never saw it |
+| A hand-off to a remote agent the middle agent is not granted | The first hop passed; the gateway refused the second: `403 Forbidden`. The middle agent returned `Delegation failed: <specialist> refused (403): Forbidden` |
 
 ## Calling an agent through the gateway
 
