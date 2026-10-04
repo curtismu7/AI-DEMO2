@@ -34,6 +34,9 @@ GEMINI_BASE_URL=
 # claude-sonnet-5 / claude-opus-5 (anthropic) or gemini-flash-latest /
 # gemini-flash-lite-latest (google, both on Google's free tier). Give the two agents different tiers to show the
 # per-agent cost split.
+# Through Privilege the ID must match a model selected on the agent's key, so
+# the -latest aliases will not do there: use, for example, gemini-3.6-flash
+# and gemini-3.5-flash-lite.
 MAIN_AGENT_MODEL=
 WORKER_AGENT_MODEL=
 
