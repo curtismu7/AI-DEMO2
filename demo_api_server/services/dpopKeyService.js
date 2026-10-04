@@ -63,9 +63,10 @@ function accessTokenHash(accessToken) {
  * @param {string} p.htu         target URI (no query/fragment), e.g. gateway tool URL
  * @param {string} [p.htm]       HTTP method, default POST
  * @param {string} [p.ath]       access-token hash (accessTokenHash), optional
+ * @param {string} [p.nonce]     server-supplied DPoP-Nonce (RFC 9449 §8), optional
  * @returns {string} compact JWS
  */
-function signDpopProof({ privatePem, publicJwk, htu, htm = 'POST', ath }) {
+function signDpopProof({ privatePem, publicJwk, htu, htm = 'POST', ath, nonce }) {
   const header = {
     typ: 'dpop+jwt',
     alg: 'ES256',
@@ -77,6 +78,7 @@ function signDpopProof({ privatePem, publicJwk, htu, htm = 'POST', ath }) {
     iat: Math.floor(Date.now() / 1000),
     jti: crypto.randomUUID(),
     ...(ath ? { ath } : {}),
+    ...(nonce ? { nonce } : {}),
   };
   const signingInput = `${b64url(JSON.stringify(header))}.${b64url(JSON.stringify(payload))}`;
   // ES256 must be raw R||S (JOSE), not DER — dsaEncoding 'ieee-p1363' gives that.

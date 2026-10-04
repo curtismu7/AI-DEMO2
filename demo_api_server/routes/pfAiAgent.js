@@ -41,6 +41,9 @@ function createPfAiAgentRouter({ configStore: store = configStore, fetchImpl = f
       sessionProvider: sessionProvider(req) || 'none',
       features: getFeatureStatus(store),
       nativeIdJagPath: '/pingfederate-id-jag/demo',
+      // Safe metadata of this session's last RAR run (outcome, token type, DPoP key thumbprint);
+      // never a token, code, verifier or key.
+      rarResult: req.session?.pfAiAgent?.rarResult || null,
     });
   });
 
@@ -132,6 +135,7 @@ function createPfAiAgentRouter({ configStore: store = configStore, fetchImpl = f
       const { redirectUrl } = await beginRar(req, {
         scenario: req.body?.scenario || 'allowed',
         userKey: req.body?.userKey,
+        dpop: ['1', 'true', 'on'].includes(String(req.body?.dpop || '').toLowerCase()),
         store,
         dataStore,
         fetchImpl,

@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const configStore = require('./configStore');
 const defaultDataStore = require('../data/store');
 const { getFeatureStatus, resolveCimdConfig } = require('./pfAiAgentFeatureConfig');
+const { generateDpopKeypair } = require('./dpopKeyService');
 const {
   oauthError,
   discoverPf,
@@ -145,6 +146,7 @@ async function pushParRequest(config, metadata, values, fetchImpl) {
 async function beginRar(req, {
   scenario,
   userKey: requestedUserKey,
+  dpop = false,
   store = configStore,
   dataStore = defaultDataStore,
   fetchImpl = fetch,
@@ -153,6 +155,11 @@ async function beginRar(req, {
   if (!req?.session) throw oauthError('PF_AI_SESSION_REQUIRED', 'An application session is required', 401);
   if (!getFeatureStatus(store).rar) {
     throw oauthError('PF_AI_RAR_NOT_CONFIGURED', 'PF AI Agent RAR is not enabled or configured', 503);
+  }
+  // DPoP uses its own client (the one PingFederate is told to require DPoP for), so the plain
+  // RAR run keeps working unchanged.
+  if (dpop && !getFeatureStatus(store).rarDpop) {
+    throw oauthError('PF_AI_RAR_DPOP_NOT_CONFIGURED', 'DPoP binding for RAR is not configured', 503);
   }
   req.session.pfAiAgent ||= {};
   const featureSession = req.session.pfAiAgent;
@@ -174,10 +181,16 @@ async function beginRar(req, {
   const state = crypto.randomBytes(32).toString('base64url');
   const nonce = crypto.randomBytes(32).toString('base64url');
   const { verifier, challenge } = createPkce();
+  const clientId = dpop
+    ? String(store.getEffective('pf_ai_rar_dpop_client_id')).trim()
+    : rarClientId(store, config);
   const redirectUrl = await pushParRequest(config, metadata, {
-    state, nonce, challenge, authorizationDetail, clientId: rarClientId(store, config),
+    state, nonce, challenge, authorizationDetail, clientId,
   }, fetchImpl);
   const createdAt = now();
+  // A fresh key for this one run; it lives only as long as the pending flow (private key in the
+  // server-side session, consumed by completeRar, never sent to the browser).
+  const dpopKey = dpop ? generateDpopKeypair() : null;
   featureSession.rarPending = {
     state,
     nonce,
@@ -186,12 +199,14 @@ async function beginRar(req, {
     expiresAt: createdAt + FLOW_TTL_MS,
     scenario,
     userKey,
+    clientId,
+    dpopKey,
   };
   delete featureSession.rarResult;
   return { redirectUrl };
 }
 
-function safeResult(outcome, reason, pending, identity = null, now = Date.now) {
+function safeResult(outcome, reason, pending, identity = null, now = Date.now, tokenSet = null) {
   return {
     outcome,
     reason,
@@ -200,6 +215,9 @@ function safeResult(outcome, reason, pending, identity = null, now = Date.now) {
     subject: identity?.subject || null,
     issuer: identity?.issuer || null,
     expiresAt: identity?.expiresAt || null,
+    // What kind of token came back, and for DPoP the public thumbprint of the key it is bound to.
+    tokenType: tokenSet?.tokenType || null,
+    dpopThumbprint: tokenSet?.dpopJkt || null,
     completedAt: new Date(now()).toISOString(),
   };
 }
@@ -234,16 +252,17 @@ async function completeRar(req, { store = configStore, fetchImpl = fetch, now = 
 
   const config = resolveCimdConfig(store);
   const metadata = await discoverPf(config, fetchImpl);
-  const { identity } = await exchangeAuthorizationCode({
+  const { identity, tokenSet } = await exchangeAuthorizationCode({
     config,
     metadata,
-    clientId: rarClientId(store, config),
+    clientId: pending.clientId || rarClientId(store, config),
     redirectUri: config.redirectUri,
     code: req.query.code,
     verifier: pending.verifier,
     nonce: pending.nonce,
+    dpop: pending.dpopKey || null,
   }, fetchImpl);
-  const result = safeResult('accepted', 'authorized', pending, identity, now);
+  const result = safeResult('accepted', 'authorized', pending, identity, now, tokenSet);
   featureSession.rarResult = result;
   return result;
 }
