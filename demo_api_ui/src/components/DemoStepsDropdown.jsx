@@ -424,8 +424,12 @@ export default function DemoStepsDropdown({
     ? ciamSteps.filter(({ uc }) => !activeGroupIds || activeGroupIds.has(uc.id))
     : [];
   const privilegeIds = new Set(PRIVILEGE_USE_CASE_IDS);
-  const scopedPrivilege = activeGroup === PRIVILEGE_GROUP_ID || activeMissionGroup?.useCaseIds?.some((id) => privilegeIds.has(id))
-    ? privilegeSteps.filter(({ uc }) => !activeGroupIds || activeGroupIds.has(uc.id))
+  // In the "all" view the group is shown too, minus anything already listed in
+  // the script above (UC40 is in both lists and keeps its script number).
+  const scriptedIds = new Set(primarySteps.map(({ uc }) => uc.id));
+  const scopedPrivilege = activeGroup === 'all' || activeGroup === PRIVILEGE_GROUP_ID || activeMissionGroup?.useCaseIds?.some((id) => privilegeIds.has(id))
+    ? privilegeSteps.filter(({ uc }) =>
+        (!activeGroupIds || activeGroupIds.has(uc.id)) && !(activeGroup === 'all' && scriptedIds.has(uc.id)))
     : [];
   const matches = ({ uc }) =>
     !q ||

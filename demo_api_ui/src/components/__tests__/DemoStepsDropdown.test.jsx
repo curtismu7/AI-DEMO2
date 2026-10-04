@@ -713,6 +713,30 @@ describe('DemoStepsDropdown — search', () => {
     expect(screen.queryByTestId('demo-step-UC1')).not.toBeInTheDocument();
   });
 
+  it('shows the Privilege & JIT group in the default All view, without repeating scripted steps', async () => {
+    const privilegeCatalog = [
+      ...CATALOG,
+      ...PRIVILEGE_USE_CASE_IDS
+        .filter((id) => !DEMO_USE_CASE_IDS.includes(id))
+        .map((id) => ({
+          id,
+          title: `Privilege lane ${id}`,
+          trigger: { type: 'link', text: `Open Privilege ${id}` },
+        })),
+    ];
+    apiClient.get.mockResolvedValueOnce({ data: { useCases: privilegeCatalog } });
+
+    render(
+      <DemoStepsDropdown open onOpenChange={() => {}} onSelect={() => {}} />,
+    );
+    await waitFor(() => expect(screen.getByTestId('demo-step-UC1')).toBeInTheDocument());
+
+    expect(screen.getByTestId('demo-steps-privilege-group')).toBeInTheDocument();
+    expect(screen.getByTestId('demo-step-privilege-UC17')).toBeInTheDocument();
+    // UC40 is already a scripted step, so it is not listed a second time.
+    expect(screen.queryByTestId('demo-step-privilege-UC40')).not.toBeInTheDocument();
+  });
+
   it('finds the CIAM group when searching for its group label', async () => {
     const ciamCatalog = [
       ...CATALOG,
