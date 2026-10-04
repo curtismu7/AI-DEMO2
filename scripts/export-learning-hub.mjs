@@ -61,6 +61,7 @@ const KNOWN_APP_ONLY_CARDS = new Set([
   "Agentic Trust",
   "OWASP Agentic",
   "Gartner Machine IAM Survey",
+  "Jev: Decision Model", // routed page (/jev-learning) that needs the BFF and a local model
 ]);
 
 const CUSTOM_DRAWER_MAP = {
@@ -336,6 +337,11 @@ async function main() {
     (p) => !exclude.has(path.basename(p.file, ".html")),
   );
   if (ONLY_FILE) pages = pages.filter((p) => p.file === ONLY_FILE);
+  // Entries with a "skip" reason are not captured (e.g. a card that is now an interactive lab and
+  // opens no education drawer). They stay in the manifest so their card is not reported as
+  // unmapped, and the last captured page stays in the mirror untouched.
+  const skipped = pages.filter((p) => p.skip);
+  pages = pages.filter((p) => !p.skip);
 
   const reachable = await checkStackReachable(LEARNING_URL);
   if (!reachable) {
@@ -386,6 +392,7 @@ async function main() {
 
   const report = [];
   const changedFiles = [];
+  for (const p of skipped) report.push({ file: p.file, status: "SKIPPED", detail: p.skip });
 
   for (const r of results) {
     if (r.status !== "captured") {
@@ -455,7 +462,7 @@ async function main() {
   const failed = report.filter((r) => r.status === "FAILED").length;
   const changed = report.filter((r) => r.status === "CHANGED" || r.status === "NEW").length;
   console.log(
-    `[export-learning-hub] ${report.length} pages: ${changed} changed, ${failed} failed.` +
+    `[export-learning-hub] ${report.length} pages: ${changed} changed, ${failed} failed, ${skipped.length} skipped.` +
       (DRY_RUN ? ` Diffs (if any) written to ${outDir}` : ""),
   );
 
