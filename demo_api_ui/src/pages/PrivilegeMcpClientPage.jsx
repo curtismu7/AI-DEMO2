@@ -1619,10 +1619,20 @@ export default function PrivilegeMcpClientPage() {
           <ToolsTable tools={tools} presentMode onClose={() => setShowPresent(false)} />
         </div>
       )}
-      {showSignInModal && gatewayAuth !== 'signed-in' && (
-        <div className="cur-modal-overlay" onClick={() => setShowSignInModal(false)}>
-          <div className="cur-modal" onClick={(e) => e.stopPropagation()}>
-            <h2>Sign in to the gateway</h2>
+      {/* The four modals below are DraggableModals: drag, resize, pop-out, ✕.
+          It portals to <body>, outside .cur-ide, so each body re-opens the
+          page's theme scope with .cur-dm-scope or every cur-* rule misses. */}
+      <DraggableModal
+        isOpen={showSignInModal && gatewayAuth !== 'signed-in'}
+        onClose={() => setShowSignInModal(false)}
+        title="Sign in to the gateway"
+        footer={null}
+        defaultWidth={440}
+        defaultHeight={260}
+        storageKey="privilege-signin-modal"
+      >
+        <div className="cur-ide cur-dm-scope" data-cur-theme={pageTheme}>
+          <div className="cur-modal cur-modal--in-dm">
             <p className="cur-denial-note">{signInReason}</p>
             <div className="cur-btn-row">
               <button
@@ -1633,11 +1643,20 @@ export default function PrivilegeMcpClientPage() {
             </div>
           </div>
         </div>
-      )}
-      {showBlockedModal && (
-        <div className="cur-modal-overlay" onClick={() => setShowBlockedModal(false)}>
-          <div className="cur-modal" onClick={(e) => e.stopPropagation()}>
-            <h2>Access Denied</h2>
+      </DraggableModal>
+      <DraggableModal
+        isOpen={showBlockedModal}
+        onClose={() => setShowBlockedModal(false)}
+        title="Access Denied"
+        footer={null}
+        defaultWidth={520}
+        defaultHeight={560}
+        storageKey="privilege-denied-modal"
+      >
+        {/* Built only while open: the policy lookups below read deniedDoor. */}
+        {showBlockedModal && (
+        <div className="cur-ide cur-dm-scope" data-cur-theme={pageTheme}>
+          <div className="cur-modal cur-modal--in-dm">
             <dl className="cur-denial-facts">
               <dt>Door</dt><dd>{deniedDoor || '(unknown)'}</dd>
               <dt>Identity</dt><dd>{user?.email || '(unknown)'}</dd>
@@ -1736,16 +1755,21 @@ export default function PrivilegeMcpClientPage() {
             </div>
           </div>
         </div>
-      )}
+        )}
+      </DraggableModal>
 
       {/* Flow Topology Modal */}
-      {showFlowModal && (
-        <div className="cur-modal-overlay" onClick={() => setShowFlowModal(false)}>
-          <div className="cur-flow-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="cur-flow-header">
-              <span className="cur-flow-title">AI Agent Gateway — Request Flow</span>
-              <button className="cur-flow-close" onClick={() => setShowFlowModal(false)}>&#x2715;</button>
-            </div>
+      <DraggableModal
+        isOpen={showFlowModal}
+        onClose={() => setShowFlowModal(false)}
+        title="AI Agent Gateway — Request Flow"
+        footer={null}
+        defaultWidth={1100}
+        defaultHeight={700}
+        storageKey="privilege-flow-modal"
+      >
+        <div className="cur-ide cur-dm-scope" data-cur-theme={pageTheme}>
+          <div className="cur-flow-modal cur-flow-modal--in-dm">
             <div className="cur-flow-body">
               <div className="cur-flow-label">END-TO-END DELEGATION CHAIN</div>
               <div className="cur-flow-row">
@@ -1879,7 +1903,7 @@ export default function PrivilegeMcpClientPage() {
             </div>
           </div>
         </div>
-      )}
+      </DraggableModal>
 
       {/* Learning Guide — draggable/resizable modal instead of a page navigation */}
       <DraggableModal
@@ -1894,13 +1918,17 @@ export default function PrivilegeMcpClientPage() {
       </DraggableModal>
 
       {/* Settings Modal */}
-      {showSettings && (
-        <div className="cur-modal-overlay" onClick={() => setShowSettings(false)}>
-          <div className="cur-settings-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="cur-flow-header">
-              <span className="cur-flow-title">&#x2699; Settings</span>
-              <button className="cur-flow-close" onClick={() => setShowSettings(false)}>&#x2715;</button>
-            </div>
+      <DraggableModal
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        title="Settings"
+        footer={null}
+        defaultWidth={480}
+        defaultHeight={640}
+        storageKey="privilege-settings-modal"
+      >
+        <div className="cur-ide cur-dm-scope" data-cur-theme={pageTheme}>
+          <div className="cur-settings-modal cur-settings-modal--in-dm">
             <div className="cur-settings-body">
               <div className="cur-settings-section">
                 <h4 className="cur-settings-section-title">MCP Connection</h4>
@@ -1998,7 +2026,7 @@ export default function PrivilegeMcpClientPage() {
             </div>
           </div>
         </div>
-      )}
+      </DraggableModal>
 
       {/* Title bar */}
       <header className="cur-titlebar">
