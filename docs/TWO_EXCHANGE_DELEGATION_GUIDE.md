@@ -107,7 +107,7 @@ client_id=PINGONE_AI_AGENT_CLIENT_ID
 **Success Response**:
 ```json
 {
-  "access_token": "eyJhbGciOiJSUzI1NiIs...",
+  "access_token": "<ACCESS_TOKEN>",
   "token_type": "Bearer",
   "expires_in": 3600
 }
@@ -170,7 +170,7 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 **Success Response**:
 ```json
 {
-  "access_token": "eyJhbGciOiJSUzI1NiIs...",
+  "access_token": "<ACCESS_TOKEN>",
   "token_type": "Bearer",
   "expires_in": 3600
 }
@@ -263,7 +263,7 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 **Success Response**:
 ```json
 {
-  "access_token": "eyJhbGciOiJSUzI1NiIs...",
+  "access_token": "<ACCESS_TOKEN>",
   "token_type": "Bearer",
   "expires_in": 3600
 }

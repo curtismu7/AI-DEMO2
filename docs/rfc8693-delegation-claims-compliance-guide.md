@@ -435,17 +435,17 @@ Standard: https://mcp-server.pingdemo.com/mcp/test-mcp
 
 #### Valid User Token
 ```javascript
-const validUserToken = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMzQ1IiwibWF5X2FjdCI6eyJzdWIiOiJodHRwczovL2JhbmtpbmctYWdlbnQucGluZ2RlbW8uY29tL2FnZW50L3Rlc3QtYWdlbnQifX0.SflKxwRJSMeQ98PjmYQhQjFzLhOA-7h5aYFFI';
+const validUserToken = '<VALID_USER_TOKEN>';
 ```
 
 #### Invalid Token (Missing may_act)
 ```javascript
-const invalidUserToken = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMzQ1In0.SflKxwRJSMeQ98PjmYQhQjFzLhOA-7h5aYFFI';
+const invalidUserToken = '<INVALID_USER_TOKEN>';
 ```
 
 #### Circular Delegation Token
 ```javascript
-const circularToken = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMzQ1IiwibWF5X2FjdCI6eyJzdWIiOiJ1c2VyLTEyMzQ1In19.SflKxwRJSMeQ98PjmYQhQjFzLhOA-7h5aYFFI';
+const circularToken = '<CIRCULAR_TOKEN>';
 ```
 
 ## Migration Guide

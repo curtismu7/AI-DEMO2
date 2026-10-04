@@ -394,7 +394,7 @@ module.exports = {
 import { decodeJWT, extractScopes, formatTokenDisplay } from '../tokenInspector';
 
 describe('tokenInspector', () => {
-  const validToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzY29wZSI6ImFjY2Vzc19yZXNvdXJjZSIsImF1ZCI6ImFwaS5kZW1vIiwic3ViIjoiMTIzNDU2Nzg5MCIsImV4cCI6OTk5OTk5OTk5OX0.TEST';
+  const validToken = '<VALID_TOKEN>';
 
   test('decodeJWT returns valid structure', () => {
     const result = decodeJWT(validToken);

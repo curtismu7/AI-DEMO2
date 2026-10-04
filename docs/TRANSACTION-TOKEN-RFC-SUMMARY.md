@@ -50,7 +50,7 @@ POST /api/check-risk HTTP/1.1
 Host: risk-service.example
 Content-Type: application/json
 Authorization: Bearer <workload-access-token>
-Txn-Token: eyJhbGciOiJSUzI1NiIsInR5cCI6InR4bnRva2VuK2p3dCJ9...
+Txn-Token: <TXN_TOKEN>
 
 {"order_id": "ord-12345"}
 ```

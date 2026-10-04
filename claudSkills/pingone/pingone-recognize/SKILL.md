@@ -275,7 +275,7 @@ grep -E 'RECOGNIZE_(API_KEY|TENANT_NAME|BASE_URL)' .env
 ```bash
 curl -X POST \
   https://authentication-service.eks.core-production.saas-us-east.keyless.technology/v1/customers/YOUR_TENANT/sessions \
-  -H 'X-API-Key: YOUR_API_KEY' \
+  -H 'X-API-Key: <API_KEY>' \
   -H 'Content-Type: application/json' \
   -d '{"username":"test-user"}' | jq .
 ```

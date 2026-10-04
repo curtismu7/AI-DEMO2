@@ -194,7 +194,7 @@ const { mcpCallTool: mockMcpCallTool } = require('../services/mcpWebSocketClient
 const { callMcpToolInternal } = require('../utils/mcpToolRegistry');
 
 describe('scope abuse gate — callMcpToolInternal with freeze_account', () => {
-  const READ_ONLY_TOKEN = 'eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ1c2VyLTEyMyIsInNjb3BlIjoicmVhZCJ9.sig';
+  const READ_ONLY_TOKEN = '<READ_ONLY_TOKEN>';
   const USER_ID = 'user-123';
 
   beforeEach(() => {

@@ -493,7 +493,7 @@ For reference, the env var names used in this project and example values:
 
 HELIX_BASE_URL=https://openam-helix.forgeblocks.com
 HELIX_API_KEY=<keyValue from agent-scoped key JSON>
-HELIX_ENVIRONMENT_ID=fe213c3c-9c1d-4bdb-954a-a22879dad26d
+HELIX_ENVIRONMENT_ID=<HELIX_ENVIRONMENT_ID>
 HELIX_AGENT_ID=LLM2
 HELIX_PROMPT_FIELD_ID=textInputa7c39a0e8292
 ```

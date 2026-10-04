@@ -65,7 +65,7 @@ PINGONE_CLIENT_ID=95dc946f-5e0a-4a8b-a8ba-b587b244e005             # Super Banki
 PINGONE_CLIENT_SECRET=Ee2YBEmqrBRdELuNDAh5SPL6T01_...              # ✅ Matches app for audit feature
 
 # ⚠️ CONFUSING / NEEDS CLARIFICATION
-AGENT_OAUTH_CLIENT_ID=6380065f-f328-41c2-81ed-1daeec811285         # Actually: Super Banking MCP Token Exchanger
+AGENT_OAUTH_CLIENT_ID=<AGENT_OAUTH_CLIENT_ID>         # Actually: Super Banking MCP Token Exchanger
 AGENT_OAUTH_CLIENT_SECRET=QKZm899I7...                             # ⚠️ Misleading name ("agent oauth" when it's MCP)
 
 AI_AGENT_CLIENT_ID=2533a614-fcb6-4ab9-82cc-9ab407f1dbda            # Super Banking AI Agent App
@@ -100,7 +100,7 @@ PINGONE_CLIENT_ID=95dc946f-5e0a-4a8b-a8ba-b587b244e005
 # MCP Token Exchange client (Agent Gateway actor token)
 # PingOne App: Super Banking MCP Token Exchanger
 # NOTE: Despite the variable name "AGENT_OAUTH", this is the MCP exchanger
-AGENT_OAUTH_CLIENT_ID=6380065f-f328-41c2-81ed-1daeec811285
+AGENT_OAUTH_CLIENT_ID=<AGENT_OAUTH_CLIENT_ID>
 
 # AI Agent identity reference (used in act/may_act claims)
 # PingOne App: Super Banking AI Agent App

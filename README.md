@@ -230,7 +230,7 @@ Check what's running:
 ```bash
 ./run-docker.sh status
 ./run-docker.sh optional status
-curl -sk https://api.ping.demo:3001/api/health/inventory/sizes   # per-container memory
+curl -sk <API_URL>/api/health/inventory/sizes   # per-container memory
 ```
 
 #### Optional services on demand

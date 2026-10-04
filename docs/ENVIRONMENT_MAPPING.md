@@ -113,7 +113,7 @@ All env vars are correctly mapped as of the current codebase. Verified alignment
 1. **PingOne Console → Applications:**
    - [ ] Super Banking User App: `b2752071-2d03-4927-b865-089dc40b9c85` exists
    - [ ] Super Banking Admin App: `14cefa5b-d9d6-4e51-8749-e938d4edd1c0` exists
-   - [ ] Super Banking MCP Token Exchanger: `630b065f-0c28-41c2-81ed-1daee811285` exists with Client Credentials grant enabled
+   - [ ] Super Banking MCP Token Exchanger: `<TOKEN_EXCHANGER_CLIENT_ID>` exists with Client Credentials grant enabled
    - [ ] Super Banking AI Agent App: `2533a614-fcb6-4ab9-82cc-9ab407f1dbda` exists (reference only)
 
 2. **PingOne Console → Resources (Resource Servers):**
@@ -125,7 +125,7 @@ All env vars are correctly mapped as of the current codebase. Verified alignment
 3. **.env file:**
    - [ ] `PINGONE_USER_CLIENT_ID` = `b2752071-2d03-4927-b865-089dc40b9c85` (Super Banking User App)
    - [ ] `PINGONE_ADMIN_CLIENT_ID` = `14cefa5b-d9d6-4e51-8749-e938d4edd1c0` (Super Banking Admin App)
-   - [ ] `PINGONE_CLIENT_ID` = `630b065f-0c28-41c2-81ed-1daee811285` (Super Banking MCP Token Exchanger)
+   - [ ] `PINGONE_CLIENT_ID` = `<TOKEN_EXCHANGER_CLIENT_ID>` (Super Banking MCP Token Exchanger)
    - [ ] `ENDUSER_AUDIENCE` = `https://ai-agent.pingdemo.com` (Super Banking AI Agent resource)
    - [ ] `MCP_RESOURCE_URI` = `https://mcp-server.pingdemo.com` (Super Banking MCP Server resource)
    - [ ] `AGENT_GATEWAY_AUDIENCE` = `https://agent-gateway.pingdemo.com` (Super Banking Agent Gateway resource)

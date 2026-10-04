@@ -46,7 +46,7 @@ Content-Type: application/json
 ```json
 {
   "client_id": "client_1234567890abcdef",
-  "client_secret": "secret_abcdef1234567890",
+  "client_secret": "<CLIENT_SECRET>",
   "client_id_issued_at": 1704067200,
   "client_secret_expires_at": 0,
   "registration_access_token": "token_abcdef1234567890",
@@ -144,7 +144,7 @@ grant_type=client_credentials&scope=banking:read banking:write
 **Response (200 OK):**
 ```json
 {
-  "access_token": "eyJhbGciOiJSUzI1NiIsImtpZCI6I...",
+  "access_token": "<ACCESS_TOKEN>",
   "token_type": "Bearer",
   "expires_in": 1800,
   "scope": "banking:read banking:write",
@@ -635,7 +635,7 @@ curl -X POST https://api.banking-demo.com/api/oauth/clients \
 #### Get Access Token
 ```bash
 curl -X POST https://api.banking-demo.com/api/oauth/token \
-  -u "client_id:client_secret" \
+  -u "<CLIENT_ID>:<CLIENT_SECRET>" \
   -d "grant_type=client_credentials&scope=banking:read banking:write"
 ```
 

@@ -348,7 +348,7 @@ Obtain a worker token (CLIENT_SECRET_BASIC):
 ```bash
 MGT_TOKEN=$(curl -s -X POST \
   "https://auth.pingone.com/01d89b06-66d5-430e-9f28-65636843788b/as/token" \
-  -u "15881ac7-4d83-4cbf-9ab0-4d7cda31fab8:<worker_secret>" \
+  -u "<WORKER_CLIENT_ID>:<WORKER_CLIENT_SECRET>" \
   -d "grant_type=client_credentials" \
   | python3 -c "import json,sys; print(json.load(sys.stdin)['access_token'])")
 ```

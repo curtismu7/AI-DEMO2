@@ -90,7 +90,7 @@ confirm whether a fix actually added the missing tool name.
 captured from the actual `/api/mcp/tool` response after all 3 fixes +
 console import + resync:
 ```
-Final MCP Token: aud=["https://api.ping.demo:3036/mcp/apikey"] ✅
+Final MCP Token: aud=["<MCP_APIKEY_URL>"] ✅
 scope: "apikey:mcp:invoke gear:read"
 PingGateway → PingOne Authorize: PERMIT (backend: real)
 filterChain: all 5 filters passed, P1AZDecision forwarded

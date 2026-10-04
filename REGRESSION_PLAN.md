@@ -16772,7 +16772,7 @@ short-circuit, not the tool-level check. Customer verticals must still return th
 gates `token-event` behind `showRfcInfo`; only `error` was added.
 
 **Verify:** `demo_api_server` jest `customerTokenGuard` (12 pass, incl. admin/
-oauth-teaching exempt, banking/healthcare not) + real module load of
+oauth-teaching exempt, banking and healthcare not) + real module load of
 `demoAgentLangGraphService`; `demo_api_ui` vitest `AIAgent.chips` (57 pass, incl.
 the new "login-as-customer error card renders" case that fails without the filter
 fix); `cd demo_api_ui && npm run build` exits 0. Live click-through pending deploy
