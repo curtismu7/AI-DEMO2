@@ -105,7 +105,9 @@ export const BANDS = [
   { id: 'pep', label: 'PEP · gateway', x: 378, y: 200, cols: 1, nodes: ['pep'] },
   { id: 'backends', label: 'MCP servers · data', x: 582, y: 200, cols: 1, nodes: ['mcp', 'api', 'db'] },
   { id: 'model', label: 'Model · demo_llm_proxy', x: 0, y: 400, cols: 1, nodes: ['llm'] },
-  { id: 'privilege', label: 'Privilege A2A · agents through the AI Gateway', x: 198, y: 400, cols: 4, nodes: ['pa-main', 'pa-gw', 'pa-middle', 'pa-specialist'] },
+  // y: 470 clears the three-row backends band above it (200 + 258), which a
+  // band at the model row's y: 400 overlapped.
+  { id: 'privilege', label: 'Privilege A2A · agents through the AI Gateway', x: 198, y: 470, cols: 4, nodes: ['pa-main', 'pa-gw', 'pa-middle', 'pa-specialist'] },
 ];
 
 // Bands before their boxes — React Flow requires a parent ahead of its children.
