@@ -104,16 +104,29 @@ row on gateway 1, no return within the test and no hung request.
 | Moved back | after about 45 s | not within 158 s; after the 10-minute hold |
 | Forced sign-ins for a signed-in client | 2 (inferred) | 1 (inferred) |
 
+**Sidecar-backed app through gateway 2: verified 2026-10-04.** With gateway 1 parked
+(`ownParked: true`), a signed-in call to `brave0local` from the demo client went through
+gateway 2 and reached the Brave sidecar in gateway 1's pod.
+
+| Where | What it showed (11:49 UTC) |
+| --- | --- |
+| Load balancer | Every `/brave0local/...` request `node=gateway-2`: `401`, register `201`, token `200`, then `200`/`202` on `/brave0local/mcp` |
+| Gateway 2 | Resolved the app, ran the policy check and filtered the responses |
+| Gateway 1 | Seven mesh streams in the same two seconds, each `Connected to localhost:8084` (the `mcp-brave` sidecar) |
+
+The same run showed the app outage a signed-in client sees while gateway 1 is down: the
+park upgrade restarted gateway 1 once (it carried an undeployed log-tailer change), and
+`tools/list` on `opensearch22` through gateway 2 returned `500 Error opening conn stream:
+rpc error: code = Canceled desc = grpc: the client connection is closing` until the mesh
+link returned about six seconds later.
+
 **Still not verified.**
 
-- The signed-in view of a failover. The probes were unauthenticated, so the forced sign-ins
-  and the app outage while gateway 1 is down are reasoned from the token and forwarding
-  behaviour, not observed.
+- The forced sign-in after a failover, seen from a signed-in client. The probes were
+  unauthenticated; it is reasoned from the token behaviour, not observed during a failure.
 - A gateway that accepts a connection and then stalls. The read timeout stays at 3600 s for
   long MCP streams, so such a request can still hang.
 - The two load balancer pods keep separate failure state and may disagree for a few seconds.
-- Sidecar-backed apps (Brave, Grafana, banking-rest, ...) through gateway 2. Their backends
-  are `localhost` in gateway 1's pod, reached over the mesh like `opensearch22`; not tested.
 - Whether Ping supports gateway-to-gateway mesh inside one tenant. It works; ask anyway.
 
 **Decisions taken (2026-10-03).**
