@@ -1,5 +1,7 @@
 import { chainHopToTokenEvent, startPrivilegeA2aChainRun } from "../privilegeA2aChainRun";
 import { buildLiveTokenChainSteps, buildPrivilegeA2aChainSteps } from "../../components/TokenChainTraceRail";
+import { deriveLifelineParticipants, deriveLifelineSteps } from "../../services/tokenChainTrace/deriveLifelineSteps";
+import { laneLabel } from "../../services/tokenChainTrace/buildTraceSteps";
 
 vi.mock("../../context/TokenChainContext", () => ({ useTokenChainOptional: () => null }));
 
@@ -77,7 +79,7 @@ test("an unavailable service settles the run as failed with the API's reason", a
   expect(store.events).toEqual([]);
 });
 
-test("the reel shows only the chain's hops, in order, with a refused hop marked", () => {
+test("each call is caller, gateway, callee; a refused call stops at the gateway", () => {
   const tokenEvents = [
     { id: "user-token", status: "acquired" },
     { id: "pa2a-0", kind: "delegate", from: "main", to: "langchainagent", status: "ok" },
@@ -88,11 +90,29 @@ test("the reel shows only the chain's hops, in order, with a refused hop marked"
   const steps = buildLiveTokenChainSteps(bankingSkeleton, { tokenEvents, startedAt: 1 });
 
   expect(steps.map((step) => [step.num, step.id, step.lane, step.status])).toEqual([
-    [1, "pa2a-0", "A2A", "done"],
-    [2, "pa2a-1", "A2A", "error"],
+    [1, "pa2a-0-call", "MAIN-AGENT", "done"],
+    [2, "pa2a-0-gateway", "GATEWAY", "done"],
+    [3, "pa2a-0-forward", "LANGCHAIN-AGENT", "done"],
+    [4, "pa2a-1-call", "LANGCHAIN-AGENT", "done"],
+    [5, "pa2a-1-gateway", "GATEWAY", "error"],
   ]);
-  expect(steps[0].title).toBe("Main agent → LangChain agent · through the Privilege gateway");
-  expect(steps[1].title).toContain("LangChain agent → refunds specialist");
-  expect(steps[1].detail.narrative).toContain("403: Forbidden");
+  expect(steps[4].detail.narrative).toContain("403: Forbidden");
   expect(buildPrivilegeA2aChainSteps([{ id: "a2a-exchange1" }])).toEqual([]);
+});
+
+test("the sequence view gets one lifeline per agent with the gateway between them", () => {
+  const steps = buildPrivilegeA2aChainSteps([
+    { id: "pa2a-0", kind: "delegate", from: "main", to: "langchainagent", status: "ok" },
+    { id: "pa2a-1", kind: "result", from: "langchainagent", to: "main", status: "ok" },
+  ]);
+  const lifeline = deriveLifelineSteps(steps);
+
+  expect(lifeline.map((step) => (step.type === "arrow" ? `${step.from}>${step.to}` : step.lane))).toEqual([
+    "MAIN-AGENT",
+    "MAIN-AGENT>GATEWAY",
+    "GATEWAY>LANGCHAIN-AGENT",
+    "LANGCHAIN-AGENT>MAIN-AGENT",
+  ]);
+  expect(deriveLifelineParticipants(lifeline)).toEqual(["MAIN-AGENT", "GATEWAY", "LANGCHAIN-AGENT"]);
+  expect(laneLabel("MAIN-AGENT")).toBe("MAIN AGENT");
 });
