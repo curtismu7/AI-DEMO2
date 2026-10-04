@@ -87,7 +87,7 @@ test('clean tree passes scan gates and runs build/test gates through the runner'
   const d = tree({ 'a.js': 'module.exports = 1;', 'b.js': "require('./a');" });
   const calls = [];
   runGates(d, mf(), (cmd, args, opts) => calls.push(`${opts.cwd.replace(d, '.')}:${cmd} ${args.join(' ')}`));
-  assert.strictEqual(calls.length, 4);
+  assert.strictEqual(calls.length, 5);
   assert.ok(calls.some((c) => /npm run authz:verify/.test(c)));
 });
 

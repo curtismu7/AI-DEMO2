@@ -78,7 +78,7 @@ function checkRelativeImports(dest, removed) {
   const bad = [];
   walk(dest, (f) => {
     if (!SRC_RE.test(f)) return;
-    const text = fs.readFileSync(f, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    const text = fs.readFileSync(f, 'utf8').replace(/^\s*\/\*[\s\S]*?\*\//gm, '').replace(/^\s*\/\/.*$/gm, '');
     for (const re of IMPORT_RES) for (const m of text.matchAll(re)) {
       const target = path.resolve(path.dirname(f), m[1]);
       if (resolves(target)) continue;
@@ -122,6 +122,7 @@ function runGates(dest, manifest, runner = defaultRunner, removed) {
   const steps = [
     ['ui-build', 'npm', ['ci'], 'demo_api_ui', {}],
     ['ui-build', 'npm', ['run', 'build'], 'demo_api_ui', {}],
+    ['bff-jest', 'npm', ['ci'], 'demo_api_server', {}],
     ['bff-jest', 'npx', ['jest', ...JEST_SCOPE, '--forceExit'], 'demo_api_server', { CI: 'true' }],
     ['authz-verify', 'npm', ['run', 'authz:verify'], '.', {}],
   ];
