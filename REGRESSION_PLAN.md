@@ -1236,7 +1236,7 @@ tests.
 
 **What was added:** `UC47` (`privilege-a2a-agent-chain`), a user-session-gated
 page link to `/dashboard`. Selecting it in Demo Steps also starts the
-three-deep chain (primary agent → Privilege gateway → LangChain agent →
+three-deep chain (main agent → Privilege gateway → LangChain agent →
 gateway → specialist) through `POST /api/privilege-a2a/chain`; the hops stream
 into the token-chain trace store as `pa2a-*` events and the movie reel shows
 them alone, without the banking pipeline skeleton.

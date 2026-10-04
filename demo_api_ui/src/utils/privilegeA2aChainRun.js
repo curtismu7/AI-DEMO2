@@ -1,7 +1,7 @@
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
 
 /**
- * Launch the three-deep Privilege A2A chain (primary agent -> gateway ->
+ * Launch the three-deep Privilege A2A chain (main agent -> gateway ->
  * middle agent -> gateway -> specialist) and feed each hop into the token-chain
  * trace store as it arrives, so the movie reel and sequence view follow the run
  * live. One token event per hop, id `pa2a-<n>`, in arrival order.

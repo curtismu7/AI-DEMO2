@@ -4,7 +4,7 @@ import Anthropic from '@anthropic-ai/sdk';
 
 import { describeMode, mainAgentConfig, viaGateway } from '../config.js';
 import { buildWorkerClient } from './a2a-client.js';
-import { PRIMARY, runChain } from './chain.js';
+import { MAIN, runChain } from './chain.js';
 import { renderPage } from './ui.js';
 
 const config = mainAgentConfig();
@@ -110,7 +110,7 @@ function bffAuthorized(req: Request, res: Response): boolean {
 }
 
 /**
- * The three-deep chain: primary -> gateway -> middle agent -> gateway ->
+ * The three-deep chain: main agent -> gateway -> middle agent -> gateway ->
  * specialist. Streams one `trace` event per hop, each with `from` and `to`.
  */
 app.post('/chain', async (req: Request, res: Response) => {
@@ -239,10 +239,10 @@ app.post('/chat', async (req: Request, res: Response) => {
           continue;
         }
 
-        sendSse(res, 'trace', { kind: 'delegate', from: PRIMARY, to: 'analyst', text: 'concierge → analyst_agent', detail: question, at: at() });
+        sendSse(res, 'trace', { kind: 'delegate', from: MAIN, to: 'analyst', text: 'concierge → analyst_agent', detail: question, at: at() });
         try {
           const answer = await worker.sendQuestion(question, traceId);
-          sendSse(res, 'trace', { kind: 'result', from: 'analyst', to: PRIMARY, text: 'analyst_agent returned', detail: answer, at: at() });
+          sendSse(res, 'trace', { kind: 'result', from: 'analyst', to: MAIN, text: 'analyst_agent returned', detail: answer, at: at() });
           results.push({ type: 'tool_result', tool_use_id: call.id, content: answer });
           delegatedAnswer = answer;
         } catch (error) {

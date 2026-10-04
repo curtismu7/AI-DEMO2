@@ -42,10 +42,10 @@ test('a full chain reports every hop down and back up', async () => {
   assert.equal(sent?.headers.get('authorization'), 'Bearer primary-key');
   assert.equal(sent?.body.params.metadata.delegateTo, 'refunds');
   assert.deepEqual(path(events), [
-    'delegate:primary>langchainagent',
+    'delegate:main>langchainagent',
     'delegate:langchainagent>refunds',
     'result:refunds>langchainagent',
-    'result:langchainagent>primary',
+    'result:langchainagent>main',
   ]);
   assert.equal(events[1].elapsedMs, 42);
 });
@@ -61,13 +61,13 @@ test('a refusal at the second hop is attributed to the middle agent', async () =
   }));
 
   assert.match(error ?? '', /not scoped for a2a access/);
-  assert.deepEqual(path(events), ['delegate:primary>langchainagent', 'error:langchainagent>refunds']);
+  assert.deepEqual(path(events), ['delegate:main>langchainagent', 'error:langchainagent>refunds']);
 });
 
-test('a refusal at the first hop is attributed to the primary agent call', async () => {
+test('a refusal at the first hop is attributed to the main agent call', async () => {
   const { events, error } = await run(async () => new Response('Forbidden\n', { status: 403 }));
 
   assert.equal(error, 'Forbidden');
-  assert.deepEqual(path(events), ['delegate:primary>langchainagent', 'error:primary>langchainagent']);
+  assert.deepEqual(path(events), ['delegate:main>langchainagent', 'error:main>langchainagent']);
   assert.match(events[1].detail ?? '', /^403: Forbidden/);
 });
