@@ -10,6 +10,11 @@ const ARCH_SECTIONS = [
     icon: "\u{1F3D7}\uFE0F",
   },
   {
+    id: "demo",
+    label: "How to Demo",
+    icon: "\u{1F4BC}",
+  },
+  {
     id: "architecture",
     label: "Architecture",
     icon: "\u{1F9E9}",
@@ -176,62 +181,170 @@ export default function PrivilegeMcpLearningPage() {
               <li>Supports approval workflows and time-windowed access grants</li>
               <li>Works in agentless mode (SSO only, no endpoint agent required)</li>
             </ul>
+
+            <h3>What this demo runs today</h3>
+            <ul>
+              <li>Two gateways on Kubernetes behind one load balancer and one public URL:{" "}
+                <code>{"https://mcpgw.ai-demo.ping-devops.com/<AppName>/mcp"}</code></li>
+              <li>Each MCP server is registered once in the Privilege console as an Agentic App</li>
+              <li>Clients sign in with PingOne through the gateway. No client ID or secret is
+                configured on the client: it discovers the gateway, registers itself and runs PKCE</li>
+              <li>This page&apos;s client, LM Studio and Postman all use the same URL</li>
+            </ul>
+          </Section>
+
+          {/* ─── How to demo ─── */}
+          <Section id="demo" title="How to Demo (Business Value)">
+            <p>
+              The story in one line: <strong>the agent gets exactly the tools this person is
+              allowed, for as long as they are allowed, and never holds a backend credential</strong>.
+              Everything below runs from the Privilege MCP Client page behind this guide.
+            </p>
+
+            <h3>What the buyer cares about</h3>
+            <TableBlock
+              headers={["Business value", "What to show", "The proof on screen"]}
+              rows={[
+                [
+                  "Stop credential sprawl in AI tools",
+                  "The MCP client is configured with a URL and nothing else",
+                  "No client ID, secret or API key anywhere in the client. The person signs in with PingOne; the gateway holds the backend credentials.",
+                ],
+                [
+                  "Least privilege per person, per tool",
+                  "Get MCP Tools as a user with a narrow policy",
+                  "The tool list is only what the policy grants. A tool outside it is refused with 403.",
+                ],
+                [
+                  "Access that expires on its own",
+                  "A time-boxed policy in the Privilege console",
+                  "When the window closes the same call is denied, with no change on the client or the MCP server.",
+                ],
+                [
+                  "An audit trail a reviewer can use",
+                  "Privilege console, Activity Logs, after a tool call",
+                  "The named user, the tool and its arguments are recorded for every call.",
+                ],
+                [
+                  "Works with the AI tools people already use",
+                  "The same URL in LM Studio or Postman",
+                  "No code change and no plugin: any MCP client that supports OAuth connects.",
+                ],
+                [
+                  "No change to the MCP server",
+                  "The backend registered with Auth Mode None",
+                  "The server is unchanged and unreachable from outside; the gateway is the only way in.",
+                ],
+                [
+                  "Scales out behind one address",
+                  "Two gateways, one URL, one registration",
+                  "The X-Served-By response header names the gateway that answered.",
+                ],
+              ]}
+            />
+
+            <h3>Demo script (about 5 minutes)</h3>
+            <ol>
+              <li><strong>Set up the problem.</strong> Choose <em>Direct to MCP</em> and list tools.
+                The agent sees every tool the server has, and whatever credential the server
+                needs has to live with the agent. Privilege is not in this path.</li>
+              <li><strong>Put the gateway in the path.</strong> Choose a gateway door and sign in
+                with PingOne. Point out that nothing was pasted into the client: it registered
+                itself and the person authenticated.</li>
+              <li><strong>Show least privilege.</strong> The tool list loads on its own after
+                sign-in. Compare it with the direct list: only the tools the policy grants.</li>
+              <li><strong>Call a tool.</strong> Run one and read the trace panel: the request
+                goes to the gateway URL, and the backend is never addressed by the client.</li>
+              <li><strong>Show a denial.</strong> Call a tool outside the policy, or use an app
+                with no policy. The client gets 403. Open the Privilege console to show why.</li>
+              <li><strong>Show the audit.</strong> In the console, open Activity Logs and find
+                the calls you just made, with the user, tool and arguments.</li>
+              <li><strong>Show it is not our client.</strong> Paste the same URL into LM Studio,
+                sign in, and ask the model a question that uses the tool.</li>
+            </ol>
+
+            <div className="plp-callout plp-callout--info">
+              <strong>Before the demo:</strong>
+              <ul>
+                <li>Check that the policy on the app you will use has not expired. An expired
+                  policy denies exactly like a missing one.</li>
+                <li>Sign in once ahead of time in each client. A gateway restart forgets every
+                  registered client, and LM Studio then needs its entry removed and re-added.</li>
+                <li>Keep one app without a policy if you want a clean denial to show.</li>
+              </ul>
+            </div>
+
+            <div className="plp-callout plp-callout--warn">
+              <strong>Say these plainly if asked:</strong>
+              <ul>
+                <li>The two gateways share load, but gateway 1 owns the apps. If it restarts,
+                  the apps are down for about a minute.</li>
+                <li>Moving a client from one gateway to the other costs that person one sign-in,
+                  because sessions live in each gateway&apos;s memory.</li>
+                <li>Guardrail verdicts of Alert and Sanitize are recorded in the console but are
+                  not visible in the response. Only Block is.</li>
+              </ul>
+            </div>
           </Section>
 
           {/* ─── Architecture ─── */}
           <Section id="architecture" title="Architecture">
             <h3>Request flow</h3>
             <div className="plp-flow-diagram">
-              <div className="plp-flow-box plp-flow-box--client">MCP Client<br /><small>(our BFF)</small></div>
-              <div className="plp-flow-arrow">Bearer token + headers</div>
-              <div className="plp-flow-box plp-flow-box--gateway">Privilege Gateway<br /><small>(cloud or local proxy)</small></div>
+              <div className="plp-flow-box plp-flow-box--client">MCP Client<br /><small>(our BFF, LM Studio, Postman)</small></div>
+              <div className="plp-flow-arrow">One public URL</div>
+              <div className="plp-flow-box plp-flow-box--gateway">Load balancer + 2 gateways<br /><small>(sign-in, policy, audit)</small></div>
               <div className="plp-flow-arrow">Policy-gated proxy call</div>
-              <div className="plp-flow-box plp-flow-box--server">Backend MCP Server<br /><small>(our banking tools)</small></div>
+              <div className="plp-flow-box plp-flow-box--server">Backend MCP Server<br /><small>(in-cluster or sidecar)</small></div>
             </div>
 
-            <h3>Deployment paths</h3>
+            <h3>What is deployed</h3>
             <TableBlock
-              headers={["Path", "Endpoint", "How it works"]}
+              headers={["Piece", "Where", "Role"]}
               rows={[
                 [
-                  "Agentless self-hosted (working)",
-                  "https://<appname>.mcpgw.<your-dns>/mcp via nginx → gateway :8620",
-                  "nginx rewrites Host to <appname>.default.applications.procyon.ai:8643 and proxies to the gateway's -alp-port :8620 (plain HTTP). Requires privilege-mcpgw image. Console token works end to end.",
+                  "Load balancer (mcpgw-lb)",
+                  "ping-devops-curtismuir, part of the gateway chart",
+                  "Receives everything for mcpgw.ai-demo.ping-devops.com and sends each client to one gateway.",
                 ],
                 [
-                  "Cloud frontend",
-                  "https://<appname>-app-default.applications.privilege.pingone.com:8643/mcp",
-                  "Console-assigned FQDN routes through Privilege cloud mesh to the enrolled proxy. Blocked by IssuerPublicKey:[] — all tokens rejected with 'JWT signature validation failed'. Not currently usable.",
+                  "Gateway 1",
+                  "Helm release agentless-mcpgw, ping-devops-curtismuir, mesh cluster ai-demo-cmuir",
+                  "Owns every Agentic App and runs the sidecar MCP servers.",
+                ],
+                [
+                  "Gateway 2",
+                  "Helm release agentless-mcpgw2, ping-devops-cmuir, mesh cluster ai-demo-cmuir2",
+                  "No apps of its own. Signs clients in and forwards their calls to gateway 1 over the mesh.",
                 ],
               ]}
             />
 
-            <h3>Required headers (Cloud API)</h3>
-            <TableBlock
-              headers={["Header", "When", "Value"]}
-              rows={[
-                ["Authorization", "Always", "Bearer <user PingOne SSO token>"],
-                ["x-procyon-session-id", "Always", "Unique UUID per session"],
-                ["mcp-protocol-version", "Non-initialize requests", "2024-11-05"],
-                ["Content-Type", "Always", "application/json"],
-              ]}
-            />
+            <h3>How the two gateways share one registration</h3>
+            <ul>
+              <li><strong>An app is registered once.</strong> An Agentic App is one tenant-wide
+                object bound to one Mesh Cluster.</li>
+              <li><strong>The mesh forwards.</strong> The gateway a client lands on forwards the
+                call to the cluster that owns the app, over port <code>8690</code>.</li>
+              <li><strong>Every client is pinned to one gateway.</strong> Registrations, sign-in
+                state and tokens live in each gateway&apos;s memory, so a token from one gateway
+                gets <code>401</code> on the other. The load balancer hashes on the client
+                address and keeps every path for that client on the same gateway.</li>
+              <li><strong>Failover is automatic but not invisible.</strong> A failed gateway is
+                held out for 10 minutes. Clients that move sign in again.</li>
+            </ul>
 
-            <h3>Agentless mode</h3>
-            <p>
-              The local endpoint agent/controller is <strong>not required</strong>. In agentless
-              mode, traffic enters the gateway's MCP frontend port (<code>-alp-port :8620</code>)
-              through an nginx front door. The gateway acts as its own OAuth server once
-              front-end OAuth config is wired. The demo currently authenticates with a Privilege
-              console token, which carries <code>kid: infra-root-jwt</code> from Privilege's
-              internal Notary PKI — the only token class the gateway trusts by default.
-            </p>
-            <div className="plp-callout plp-callout--warn">
-              <strong>Port note:</strong> Port <code>8620</code> is the MCP frontend
-              (<code>-alp-port</code>). Port <code>8623</code> is the mesh/mTLS port used for
-              the gateway-to-control-plane channel — <strong>not</strong> the MCP client port.
-              nginx must proxy to <code>8620</code> over plain HTTP.
-            </div>
+            <h3>How a client connects</h3>
+            <ol>
+              <li>The client calls <code>{"/<AppName>/mcp"}</code> with no token and gets a{" "}
+                <code>401</code> with a <code>WWW-Authenticate</code> challenge.</li>
+              <li>It reads the gateway&apos;s OAuth metadata and registers itself (dynamic
+                client registration).</li>
+              <li>It runs an authorization-code flow with PKCE; the gateway sends the person
+                to PingOne to sign in.</li>
+              <li>It calls <code>{"/<AppName>/mcp"}</code> with the gateway&apos;s token. The
+                gateway checks policy, then proxies to the backend.</li>
+            </ol>
           </Section>
 
           {/* ─── Installation ─── */}
@@ -240,95 +353,62 @@ export default function PrivilegeMcpLearningPage() {
             <ul>
               <li>A PingOne tenant with PingOne Privilege enabled</li>
               <li>Admin console access to Privilege (AI Security section)</li>
-              <li>At least one backend MCP server accessible from the gateway host</li>
-              <li>Docker on the host (for local proxy deployment)</li>
-              <li>A DNS name for the gateway (e.g. <code>local.ping-devops.com</code>)</li>
-              <li>Sizing: 2 CPU cores, 4 GB RAM, 20 GB storage (RHEL/Debian/Ubuntu, AMD64 or ARM64)</li>
+              <li>A Kubernetes namespace with an ingress class and a cert-manager issuer</li>
+              <li>A DNS name for the gateway</li>
+              <li>At least one MCP server the gateway can reach inside the cluster</li>
             </ul>
 
-            <h3>Step 1: Create the OIDC application</h3>
-            <p>In PingOne, create an OIDC application for the gateway:</p>
+            <h3>Step 1: Create the OIDC application in PingOne</h3>
             <ul>
-              <li>Type: OIDC Web App</li>
-              <li>Redirect URI: <code>{"http://<mcpgw-dns>:<port>/callback"}</code></li>
-              <li>Scopes: <code>openid profile email</code></li>
-              <li>Note the Client ID and Client Secret</li>
+              <li>Type: OIDC Web App, token endpoint auth <strong>Client Secret Basic</strong></li>
+              <li>Grant types: Authorization Code and Token Exchange</li>
+              <li>Redirect URI: <code>{"https://<gateway-host>/callback"}</code></li>
+              <li>Resources: <code>openid profile email</code></li>
             </ul>
 
-            <h3>Step 2: Prepare the environment file</h3>
-            <CodeBlock title="/var/lib/procyon/config/pingone.env">
-{`SERVER_URL=https://<mcpgw-dns>:<port>
-OIDC_CLIENT_ID=<your-client-id>
-OIDC_CLIENT_SECRET=<your-client-secret>
-OIDC_AUTH_URL=https://auth.pingone.com/<env-id>/as/authorize
-OIDC_TOKEN_URL=https://auth.pingone.com/<env-id>/as/token
-OIDC_USER_URL=https://auth.pingone.com/<env-id>/as/userinfo
-OIDC_SCOPES=openid profile email`}
-            </CodeBlock>
-
-            <div className="plp-callout plp-callout--warn">
-              <strong>Important:</strong> <code>SERVER_URL</code> is required. Internal
-              troubleshooting confirms its absence causes silent failures. Mount this as a
-              <em> file</em> (not just env vars) at exactly{" "}
-              <code>/var/lib/procyon/config/pingone.env</code>.
-            </div>
-
-            <h3>Step 3: TLS certificates</h3>
+            <h3>Step 2: Get an enrollment token</h3>
             <p>
-              The gateway needs TLS certs whose CN or SAN matches the gateway DNS name. Place at:
+              In the Privilege console: Gateways, Add New, Add via Docker. Copy the token from
+              the generated command. It is single-use and short-lived, so install straight away.
+              Its <code>clusterID</code> claim is the Mesh Cluster name you will pick when
+              registering apps.
             </p>
-            <ul>
-              <li><code>/var/lib/procyon/ssl/mcpgw-cert.pem</code></li>
-              <li><code>/var/lib/procyon/ssl/mcpgw-key.pem</code></li>
-            </ul>
 
-            <h3>Step 4: Register the gateway in Privilege console</h3>
-            <ol>
-              <li>Navigate to Cloud &gt; Gateways</li>
-              <li>Click &quot;Add Gateway&quot; and follow the wizard</li>
-              <li>Provide: cluster name, FQDN, select the environment file path</li>
-              <li>The wizard generates a Docker run command with an enrollment token</li>
-            </ol>
-
-            <h3>Step 5: Start the proxy</h3>
-            <div className="plp-callout plp-callout--warn">
-              <strong>Use the privilege-mcpgw image, not privilege-proxy.</strong> The
-              <code>privilege-proxy</code>/<code>cyonproxy</code> binary lacks the OAuth challenge
-              flow strings. Only <code>privilege-mcpgw</code>/<code>mcpgw</code> emits a proper
-              <code>WWW-Authenticate</code> response.
-            </div>
-            <CodeBlock title="Docker run (host network, recommended for dev)">
-{`docker run -d \\
-  -e ENV_PROXY_TOKEN="<enrollment-jwt>" \\
-  --net=host \\
-  --name privilege-mcpgw \\
-  -v ai-demo_mcpgw-ssl:/procyon/ssl \\
-  -v /var/log/procyon:/var/log/procyon \\
-  -v /var/lib/procyon/recordings:/procyon/recordings \\
-  -v /path/to/pingone.env:/var/lib/procyon/config/pingone.env:ro \\
-  public.ecr.aws/s7q1z8z4/privilege-mcpgw \\
-  /procyon/bin/mcpgw -hostname <your-dns-name>`}
+            <h3>Step 3: Install the chart</h3>
+            <CodeBlock title="secrets.yaml (keep it private, chmod 600)">
+{`proxyToken: "<enrollment token>"
+oidc:
+  clientId: "<client id>"
+  clientSecret: "<client secret>"
+  authUrl:  "https://auth.pingone.com/<env-id>/as/authorize"
+  tokenUrl: "https://auth.pingone.com/<env-id>/as/token"
+  userUrl:  "https://auth.pingone.com/<env-id>/as/userinfo"`}
             </CodeBlock>
-            <div className="plp-callout plp-callout--warn">
-              <strong>Fresh enrollment CA trust gap (2026-08-12):</strong> New enrollment tokens
-              currently fail with <code>error Verifying siging cert x509: certificate signed by
-              unknown authority (Root CA PingOne Privilege)</code>. Nodes enrolled before this
-              regression window (approx. 2026-08-11 19:22 UTC) continue to work because they
-              never re-verify the token after the first enrollment. If you need a fresh
-              deployment, escalate to Ping — this is a vendor-side CA rotation issue, not a
-              config problem.
-            </div>
+            <CodeBlock title="Install (from pingone-privgateway-helm-main/agentless)">
+{`helm upgrade --install agentless-mcpgw agentless-mcpgw/ \\
+  --namespace <namespace> \\
+  --set hostname=<gateway-host> \\
+  --set namespace=<namespace> \\
+  --set oidc.serverUrl=https://<gateway-host> \\
+  --values secrets.yaml`}
+            </CodeBlock>
 
-            <h3>Step 6: Verify enrollment</h3>
-            <CodeBlock title="Check logs">
-{`docker logs privilege-proxy 2>&1 | grep -i "enrolled\\|connected\\|ready\\|error"
-# Should see: "Proxy enrolled successfully" or similar`}
+            <h3>Step 4: Verify enrollment</h3>
+            <CodeBlock title="Gateway log">
+{`kubectl logs -n <namespace> deployment/agentless-mcpgw -c log-tailer --tail=200 \\
+  | grep LinkStatus
+# Success: LinkStatus:Active`}
             </CodeBlock>
 
             <div className="plp-callout plp-callout--info">
-              <strong>Enrollment token expiry:</strong> Tokens from the wizard expire in ~24h.
-              After first successful enrollment, the proxy persists its identity in
-              <code>/procyon/ssl/proxy-config.data</code> — subsequent restarts do NOT need the token.
+              <strong>Enrollment persists.</strong> After the first successful enrollment the
+              identity lives in the <code>agentless-mcpgw-ssl</code> volume, so restarts do not
+              need the token again.
+            </div>
+            <div className="plp-callout plp-callout--warn">
+              <strong>Changing OIDC values needs a restart.</strong> <code>helm upgrade</code>{" "}
+              rewrites the secret but the running pod keeps the old values, which shows up as
+              an authorize redirect with an empty <code>client_id</code>.
             </div>
           </Section>
 
@@ -338,169 +418,158 @@ OIDC_SCOPES=openid profile email`}
             <TableBlock
               headers={["Port", "Direction", "Purpose"]}
               rows={[
-                ["8620/TCP", "Inbound", "MCP frontend (-alp-port) — nginx proxies here over plain HTTP. This is the MCP client port."],
-                ["8623/TCP", "Inbound", "Mesh port (mTLS) — gateway-to-control-plane channel. NOT the MCP client port; nginx must NOT target this."],
-                ["8690/TCP", "Inbound", "Gateway-to-gateway mesh communication"],
-                ["443/TCP", "Outbound", "gRPC to grpc.privilege.pingone.com (control plane)"],
-                ["443/TCP", "Outbound", "HTTPS to auth.pingone.com (OIDC)"],
+                ["443/TCP", "Inbound (ingress)", "The public URL. The ingress sends it to the load balancer."],
+                ["8623/TCP", "In-cluster", "The gateway Service port the load balancer talks to."],
+                ["8690/TCP", "In-cluster", "Gateway-to-gateway mesh. Must be published on both gateway Services (meshPort)."],
+                ["443/TCP", "Outbound", "gRPC to the Privilege control plane."],
+                ["443/TCP", "Outbound", "HTTPS to auth.pingone.com for sign-in."],
               ]}
             />
 
-            <h3>Backend MCP server settings</h3>
+            <h3>Chart values that matter</h3>
+            <TableBlock
+              headers={["Value", "Set on", "Why"]}
+              rows={[
+                ["loadBalancer.enabled, loadBalancer.peers[]", "Gateway 1", "Turns on the load balancer and lists the other gateways."],
+                ["loadBalancer.ownParked / peers[].parked", "Gateway 1", "Takes a gateway out of rotation for a test without removing it."],
+                ["loadBalancer.failTimeout (600s)", "Gateway 1", "How long a failed gateway is held out. With 10s, clients were bounced back and signed in twice."],
+                ["meshPort: 8690", "Both", "Publishes the mesh port on the Service so the peer can dial it."],
+                ["gatewayHostname", "Gateway 2", "The address a gateway advertises to its peer. Must be its in-cluster Service name; a public name resolves to the ingress, where 8690 is closed."],
+                ["hostAliases", "Gateway 2", "Points the public hostname at gateway 1's Service from inside gateway 2."],
+                ["oidc.serverUrl", "Both", "The public URL on both. TLS follows this matching the certificate, so gateway 2 serves plain HTTP and the load balancer bridges to it."],
+                ["extraContainers", "Gateway 1", "Sidecar MCP servers. Catalog apps expect their backend on the gateway's own localhost."],
+              ]}
+            />
+
+            <div className="plp-callout plp-callout--warn">
+              <strong>Upgrade rules learned the hard way:</strong>
+              <ul>
+                <li>Always pass <code>--reuse-values</code>, and keep every sidecar in the
+                  values file: <code>extraContainers</code> is a list and is replaced whole.</li>
+                <li><code>--reuse-values</code> does not pick up new chart defaults. Spell out
+                  every key in the overlay file.</li>
+                <li>Upgrade from the chart source directory. The packaged <code>.tgz</code>{" "}
+                  goes stale silently after a template edit.</li>
+                <li>Helm dry-runs and <code>helm get manifest</code> print the release&apos;s
+                  secrets. Never write them to a shared directory.</li>
+              </ul>
+            </div>
+
+            <h3>BFF settings (this page&apos;s client)</h3>
             <p>
-              When the Privilege gateway is the security boundary, the backend MCP server
-              should relax its own auth to avoid double-gating:
+              The BFF reads its gateway URLs from <code>demo_api_server/.env</code>, not the
+              root <code>.env</code>. The main one is <code>PRIVILEGE_MCPGW_URL</code>; each
+              additional door has its own <code>PRIVILEGE_*_URL</code> entry.
             </p>
-            <TableBlock
-              headers={["Setting", "Value", "Why"]}
-              rows={[
-                ["MCP_MTLS_ENABLED", "false", "Privilege connects via plain HTTP; mTLS would reject it"],
-                ["NODE_ENV", "development", "Required for permissive token validation"],
-                ["SKIP_TOKEN_SIGNATURE_VALIDATION", "true", "Accept gateway-issued tokens without JWKS check"],
-                ["ALLOW_JWKS_FAILOPEN", "true", "Don't crash if JWKS endpoint is unreachable"],
-                ["tmpfs: /app/dev-data", "(volume)", "Dev mode writes session data; container runs as uid 1001"],
-              ]}
-            />
-
-            <h3>BFF environment variables</h3>
-            <TableBlock
-              headers={["Variable", "Value", "Purpose"]}
-              rows={[
-                ["PRIVILEGE_MCPGW_URL", "https://<appname>.mcpgw.<your-dns>/mcp", "Gateway endpoint the BFF connects to. Must be the nginx front-door URL, NOT privilege.pingone.com/api/mcp (that URL 401s all tokens)."],
-                ["PRIVILEGE_SSO_ENV_ID", "8d4d7a4c-de40-4f71-9b98-0c3507cd4d1b", "Privilege's own PingOne tenant — required for OIDC discovery"],
-                ["PRIVILEGE_SSO_CLIENT_ID", "deff60f5-5a67-4a6e-b283-47252856c89c", "OIDC client (MCPGW-CMUIR) in env 8d4d7a4c"],
-              ]}
-            />
-
-            <h3>Docker Compose snippet</h3>
-            <CodeBlock title="docker-compose.yml (mcp-server service)">
-{`mcp-server:
-  environment:
-    NODE_ENV: development
-    MCP_MTLS_ENABLED: "false"
-    MCP_SERVER_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo,https://api.pingone.com"
-  env_file:
-    - path: ./oauth-mcp/.env
-      required: false
-  tmpfs:
-    - /app/dev-data:uid=1001,gid=1001`}
-            </CodeBlock>
-
-            <h3>Kubernetes notes</h3>
-            <ul>
-              <li>Mount <code>pingone.env</code> as a file via ConfigMap/Secret at <code>/var/lib/procyon/config/pingone.env</code></li>
-              <li>Map port 443 → 8623 in the Ingress if needed</li>
-              <li>The <code>/.well-known/oauth-protected-resource</code> endpoint is served by the gateway for OIDC discovery</li>
-              <li>Use a PersistentVolume for <code>/procyon/ssl/</code> to survive pod restarts</li>
-            </ul>
           </Section>
 
           {/* ─── Console Setup ─── */}
           <Section id="console" title="Console Setup">
-            <h3>Creating the MCP Server application</h3>
-            <ol>
-              <li>Navigate to <strong>AI Security &gt; Agentic Apps</strong></li>
-              <li>Click <strong>Add Application &gt; MCP Server</strong></li>
-              <li>Fill in:
-                <ul>
-                  <li><strong>Application Name</strong> — descriptive name (e.g. &quot;AI Demo MCP Server&quot;)</li>
-                  <li><strong>Frontend URL</strong> — client-facing gateway URL</li>
-                  <li><strong>MCP Server URL</strong> — backend endpoint (e.g. <code>http://host.docker.internal:8080/mcp</code>)</li>
-                  <li><strong>Optional Headers</strong> — static headers to inject on upstream calls</li>
-                </ul>
-              </li>
-              <li>Set <strong>Auth Mode</strong>:
-                <ul>
-                  <li><strong>Static Token</strong> — fixed bearer or no auth for the backend</li>
-                  <li><strong>OAuth (Pre-Register)</strong> — provide client_id/secret/endpoints for the backend</li>
-                  <li><strong>OAuth (DCR)</strong> — gateway auto-registers via RFC 7591</li>
-                </ul>
-              </li>
-              <li>Attach the <strong>Mesh Cluster</strong> (your registered gateway)</li>
-            </ol>
+            <h3>Registering an MCP server</h3>
+            <p>In the Privilege console: AI Security, Agentic Apps, Add Application, MCP Server.</p>
+            <CodeBlock title="Example">
+{`Application Name  opensearch22
+MCP Server URL    http://opensearch-mcp-server.ping-devops-curtismuir.svc.cluster.local/mcp
+Mesh Cluster      ai-demo-cmuir
+Auth Mode         None`}
+            </CodeBlock>
 
             <div className="plp-callout plp-callout--warn">
-              <strong>Tool discovery prerequisite:</strong> Before policies can be created, the
-              gateway must discover tools by calling <code>initialize</code> + <code>tools/list</code> on
-              the backend. If discovery fails (e.g. mTLS blocks the connection), the console shows
-              &quot;No Tools, Prompts, or Resources Discovered.&quot;
+              <strong>Register the backend on <code>/mcp</code>, not <code>/sse</code>.</strong>{" "}
+              Current gateway builds discover tools by POSTing <code>initialize</code> to the
+              registered path, and an <code>/sse</code> endpoint refuses that. The registered
+              path is also the only client-facing path: a client calling <code>/mcp</code> on
+              an app registered on <code>/sse</code> gets a bare <code>404</code>.
             </div>
+
+            <div className="plp-callout plp-callout--warn">
+              <strong>Never register an app a second time to test the other gateway.</strong>{" "}
+              Changing an app&apos;s Mesh Cluster moves it off the gateway that had it. It does
+              not copy it. One registration serves both gateways through the mesh.
+            </div>
+
+            <h3>Backend URL and client URL are different ends</h3>
+            <TableBlock
+              headers={["URL", "Who uses it", "Example"]}
+              rows={[
+                ["MCP Server URL (backend)", "The gateway only. Resolves only inside the cluster.", "http://<service>.<namespace>.svc.cluster.local/mcp or http://localhost:<port>/mcp for a sidecar"],
+                ["Client URL", "Every MCP client", "https://mcpgw.ai-demo.ping-devops.com/<AppName>/mcp"],
+              ]}
+            />
+
+            <h3>Tool discovery</h3>
+            <p>
+              Policies cannot be created until the gateway has discovered the app&apos;s tools.
+              Discovery runs when the app is registered and again when the gateway restarts.
+              A failure shows in the console as <em>Gateway Unreachable — Error discovering MCP
+              server: calling &quot;initialize&quot;: Unauthorized</em>, which reads like an
+              auth fault and usually is not one. The gateway log line{" "}
+              <code>Error discovering MCP server</code> names the method and path it used.
+            </p>
 
             <h3>Console sections</h3>
             <TableBlock
               headers={["Section", "Purpose"]}
               rows={[
-                ["Cloud > Gateways", "Manage proxy infrastructure: clusters, nodes, enrollment tokens"],
-                ["AI Security > Agentic Apps > MCP Servers", "Register which MCP server the gateway protects; set upstream auth mode"],
-                ["Access Control / Policies", "Grant users access to specific tools with optional approvals"],
-                ["Activity > Session Logs", "View MCP sessions, connected clients"],
-                ["Activity > Activity Logs", "Tool names, arguments, progress tokens — full audit"],
+                ["Gateways", "Mesh clusters, nodes and enrollment tokens"],
+                ["AI Security > Agentic Apps", "Register MCP servers and remote agents; set the backend URL and auth mode"],
+                ["Policies (per app)", "Grant users access to specific tools, with optional approvals and time windows"],
+                ["Activity > Session Logs", "MCP sessions and connected clients"],
+                ["Activity > Activity Logs", "Tool names and arguments: the audit trail"],
               ]}
             />
 
-            <h3>Frontend Name and Host routing</h3>
-            <p>
-              The <strong>Frontend Name</strong> field in the console UI is read-only. It
-              shows a <code>*.applications.privilege.pingone.com</code> hostname, but the
-              gateway's internal routing key is the <code>procyon.ai</code> form:
-            </p>
-            <TableBlock
-              headers={["Where", "Value shown"]}
-              rows={[
-                ["Console UI display", "<appname>-app-default.applications.privilege.pingone.com:8643"],
-                ["Internal routing key (actual)", "<appname>.default.applications.procyon.ai:8643"],
-              ]}
-            />
-            <p>
-              nginx must rewrite the <code>Host</code> header to the internal
-              <code>procyon.ai</code> form. Forwarding your own hostname unchanged causes
-              <em>Domain not found</em> and an empty <code>200</code> body. Read the true value
-              from the console API (<code>.Applications[0].Spec.McpAppConfig.FrontEndName</code>)
-              — the UI shows stale values once its session expires.
-            </p>
-            <h3>Linking gateway to MCP app</h3>
-            <p>
-              The gateway (cluster) and the MCP app are separate entities. They are linked
-              via the <strong>Mesh Cluster</strong> dropdown on the MCP app configuration.
-              After linking, the gateway discovers tools from the backend within ~30 seconds
-              (though on some builds discovery dispatch is delayed or requires a retry).
-            </p>
+            <div className="plp-callout plp-callout--info">
+              <strong>Wrong tenant?</strong> If the console shows apps you did not create, or
+              your edits do not appear, you are in a different tenant from the gateway. Check
+              the tenant name before changing anything.
+            </div>
           </Section>
 
           {/* ─── Policies ─── */}
           <Section id="policies" title="Policies">
             <h3>How policies work</h3>
             <p>
-              Policies are configured per MCP Server application under Access Control.
-              They define which users or groups can access which tools, with optional
-              approval workflows and time-bound windows.
+              Policies are configured per Agentic App. They define which users or groups can
+              use which tools, with optional approval workflows and time windows.
             </p>
 
             <h3>Policy capabilities</h3>
             <ul>
-              <li><strong>Allow specific tools</strong> — whitelist individual tools by name</li>
+              <li><strong>Allow specific tools</strong> — list individual tools by name</li>
               <li><strong>Allow prompts</strong> — optional, permit MCP prompt resources</li>
               <li><strong>Restrict resources</strong> — by pattern or regex</li>
               <li><strong>Bind to identities</strong> — PingOne users or groups</li>
-              <li><strong>Approval workflows</strong> — require manager/admin approval before granting access</li>
+              <li><strong>Approval workflows</strong> — require approval before granting access</li>
               <li><strong>Time-bound access</strong> — grant access for a specific window only</li>
             </ul>
 
-            <h3>User experience</h3>
-            <ol>
-              <li>User makes a request to the gateway</li>
-              <li>Gateway validates the user&apos;s PingOne SSO token</li>
-              <li>Policy engine evaluates: does this user have access to this tool?</li>
-              <li>If permitted: request is proxied to the backend MCP server</li>
-              <li>If denied: 401 &quot;User is not authorized&quot; returned to client</li>
-              <li>Only authorized tools appear in the MCP <code>tools/list</code> response</li>
-            </ol>
+            <h3>Behaviour the console does not tell you</h3>
+            <ul>
+              <li><strong>A new app has no policy, and that means deny everything.</strong> It
+                does not inherit a sibling app&apos;s policy.</li>
+              <li><strong>Policies add up.</strong> A second policy on the same app widens
+                access; it does not replace the first. To narrow access, delete the broader
+                policy.</li>
+              <li><strong>Policies expire.</strong> An expired policy denies exactly like a
+                missing one, with nothing in the response to tell them apart.</li>
+              <li><strong>The client only ever sees <code>403 Forbidden</code>.</strong> The
+                real reason is in the gateway log.</li>
+            </ul>
 
-            <div className="plp-callout plp-callout--info">
-              <strong>First-time setup:</strong> After creating an MCP app, wait for tool
-              discovery, then create a policy granting your test user access. Without a policy,
-              all requests get 401 &quot;User is not authorized.&quot;
-            </div>
+            <h3>Reading a denial</h3>
+            <CodeBlock title="Gateway log">
+{`kubectl logs -n ping-devops-curtismuir deployment/agentless-mcpgw -c log-tailer --tail=200 \\
+  | grep -E 'identity resolved|policy denied'`}
+            </CodeBlock>
+            <TableBlock
+              headers={["Log line", "Meaning", "Fix"]}
+              rows={[
+                ["policy denied … : user not found in system", "The user is not synced into Privilege", "Fix the PingOne Privilege app's group membership and the user's group"],
+                ["policy denied … : Access Denied for", "The user is synced; no policy on this app covers them", "Add or renew the policy on this app"],
+                ["User identity resolved: … Email= (empty)", "Cosmetic. Empty for every user, including ones that work", "Nothing"],
+              ]}
+            />
           </Section>
 
           {/* ─── Troubleshooting ─── */}
@@ -509,77 +578,83 @@ OIDC_SCOPES=openid profile email`}
               headers={["Symptom", "Cause", "Fix"]}
               rows={[
                 [
-                  "IssuerPublicKey:[] in proxy logs / 401 JWT signature validation failed",
-                  "Gateway validates inbound token kid against infra-root-jwt (fetched from Privilege Notary PKI at startup). PingOne-issued tokens have a JWKS kid that never matches.",
-                  "Console token (kid: infra-root-jwt) works end to end. PingOne tokens require ResourceOAuth + cyctl idprovider wiring — not yet confirmed working on published builds. Switch to privilege-mcpgw image first.",
+                  'Console: "Gateway Unreachable … initialize: Unauthorized", no tools, policy disabled',
+                  "Tool discovery failed: backend registered on /sse, wrong backend hostname, or an expired policy reported misleadingly",
+                  "Read the gateway's Error discovering MCP server log line. Register the backend on /mcp, then restart the gateway to re-run discovery.",
                 ],
                 [
-                  '401 "Bearer Token not found." with no WWW-Authenticate',
-                  "Gateway has no front-end OAuth config — falls back to bare 401 with no challenge. cyonproxy binary lacks the OAuth challenge strings entirely.",
-                  "Use privilege-mcpgw image (public.ecr.aws/s7q1z8z4/privilege-mcpgw). It contains the challenge flow. Also ensure front-end OAuth is wired in the console app.",
+                  "Unknown client page at /authorize",
+                  "The gateway restarted and forgot every registered client",
+                  "Our BFF re-registers by itself. Other clients must be removed and added again.",
                 ],
                 [
-                  "Domain not found / empty 200 body",
-                  "Host header sent to gateway doesn't match any registered Frontend Name. The gateway routes on <appname>.default.applications.procyon.ai:8643, not on your DNS hostname.",
-                  "Configure nginx to rewrite Host to the procyon.ai form. Read the true FrontEndName from the console API (.Applications[0].Spec.McpAppConfig.FrontEndName), not the console UI.",
+                  'LM Studio: "This client\'s registration has expired"',
+                  "Same cause, or the client now lands on the other gateway (one was parked, restarted or failed over)",
+                  "Remove the entry from ~/.lmstudio/mcp.json, quit LM Studio, add it again and sign in.",
                 ],
                 [
-                  "error Verifying siging cert x509: certificate signed by unknown authority (Root CA PingOne Privilege)",
-                  "Fresh enrollment tokens fail CA trust verification. Ping rotated the root CA after approx. 2026-08-11T19:22Z; published proxy images don't yet trust the new root.",
-                  "Vendor-side gap — escalate to Ping. Existing enrolled nodes (those enrolled before the regression window) continue to work because they never re-verify the token after first enrollment.",
+                  "401 on /<app>/mcp straight after a successful sign-in",
+                  "The token came from one gateway and the call reached the other: pinning is broken",
+                  "Compare node= on the token and mcp lines of the mcpgw-lb log. Every path for one client must show the same node.",
                 ],
                 [
-                  '"No Tools, Prompts, or Resources Discovered"',
-                  "Proxy can't reach MCP server (mTLS blocks, wrong URL/port)",
-                  "Set MCP_MTLS_ENABLED=false; ensure backend URL is http://host.docker.internal:8080/mcp",
+                  "500 on /<app>/mcp while sign-in works",
+                  "Mesh link down: the client's gateway does not own the app and cannot reach the one that does",
+                  "Look for Error connecting to <node> in gateway 1's log. Check meshPort and gateway 2's advertised hostname.",
                 ],
                 [
-                  '401 "User is not authorized" / 403 doesn\'t have access to MCP app',
-                  "User has no active Privilege policy for the MCP app, or policy expired",
-                  "Assign or renew policy in Privilege console. Policies with time-bound windows expire silently and look identical to never having existed.",
+                  "404 on /<app>/mcp once signed in",
+                  "The app is registered on a different path (for example /sse)",
+                  "Re-register the backend on /mcp.",
                 ],
                 [
-                  "400: mcp-protocol-version header required",
-                  "Non-initialize requests need protocol version header",
-                  "Add mcp-protocol-version: 2024-11-05 (or the version from the initialize response) on every non-initialize call",
+                  "403 Forbidden / the MCP server denied this operation",
+                  "No policy on this app covers the user, the policy expired, or the user is not synced",
+                  "Read the policy denied line in the gateway log (Policies section).",
                 ],
                 [
-                  "Server crash: EACCES mkdir './dev-data'",
-                  "Dev mode needs writable dir; container runs as uid 1001",
-                  "Add tmpfs: /app/dev-data:uid=1001,gid=1001 to compose",
+                  "An app stops working on one gateway after a console edit",
+                  "Its Mesh Cluster was changed, which moves the app",
+                  "Set the Mesh Cluster back.",
                 ],
                 [
-                  "Configuration validation failed",
-                  "SKIP_TOKEN_SIGNATURE_VALIDATION=true forbidden outside dev",
-                  "Set NODE_ENV: development on mcp-server service",
+                  "Error finding next hop to <cluster>. Cluster not found",
+                  "The app's Mesh Cluster names a gateway that no longer exists",
+                  "Set it to a live cluster.",
                 ],
                 [
-                  "curl: Empty reply from server / EPROTO TLS error",
-                  "MCP_MTLS_ENABLED=true — server speaks TLS, gateway connects plain HTTP",
-                  "Set MCP_MTLS_ENABLED=false; ensure backend URL scheme matches",
+                  "MCP client hangs forever",
+                  "It is pointed at a svc.cluster.local backend URL, which only resolves inside the cluster",
+                  "Use the client URL: https://mcpgw.ai-demo.ping-devops.com/<AppName>/mcp",
                 ],
                 [
-                  "Proxy exits immediately",
-                  "No proxy-config.data and no ENV_PROXY_TOKEN",
-                  "Provide enrollment token from console wizard (Gateway > Add Node)",
+                  "Authorize redirects with an empty client_id",
+                  "The pod is still running the OIDC values from before a helm upgrade",
+                  "Restart the gateway deployment.",
                 ],
                 [
-                  '"not found" on enrollment (500)',
-                  "Token's nodeId was deleted from the gateway in console",
-                  "Console > Gateways > Add Node to get a fresh token",
+                  "A 400 right after every LM Studio connect",
+                  "Harmless. The client probes a newer MCP protocol version, the backend refuses, the client falls back",
+                  "Nothing.",
                 ],
                 [
-                  "Console: Gateway Unreachable — Showing Cached Data",
-                  "Console session (~60 min) expired; all values on screen are stale",
-                  "Sign in again via https://console.pingone.com/?env=8d4d7a4c-de40-4f71-9b98-0c3507cd4d1b then launch Privilege",
+                  "helm upgrade fails with conflict with kubectl-client-side-apply",
+                  "Helm 4 applies server-side and the object was first created with kubectl apply",
+                  "Add --force-conflicts.",
                 ],
                 [
-                  "gRPC UNAVAILABLE / proxy silent hang",
-                  "Firewall blocking outbound to grpc.privilege.pingone.com:443",
-                  "Allow outbound 443; no inbound holes needed for control plane",
+                  "Sidecars disappear after a helm upgrade",
+                  "The upgrade used a stale .tgz, or a values file that did not restate every sidecar",
+                  "Upgrade from the chart source directory with the full sidecar values file.",
                 ],
               ]}
             />
+
+            <div className="plp-callout plp-callout--info">
+              <strong>Log lines that mean nothing:</strong> <code>re-establishing link to
+              node</code>, <code>has same NodeURL</code> and mesh-controller{" "}
+              <code>not found</code> are a node handling its own record. Do not chase them.
+            </div>
           </Section>
 
           {/* ─── Reference ─── */}
@@ -588,18 +663,13 @@ OIDC_SCOPES=openid profile email`}
             <TableBlock
               headers={["What", "Value"]}
               rows={[
-                ["AI-Demo PingOne Env", "01d89b06-66d5-430e-9f28-65636843788b (banking demo users live here)"],
-                ["Privilege Tenant / SSO Env", "8d4d7a4c-de40-4f71-9b98-0c3507cd4d1b (all Privilege console work happens here)"],
-                ["OIDC Client (MCPGW-CMUIR)", "deff60f5-5a67-4a6e-b283-47252856c89c in env 8d4d7a4c — the Privilege OIDC client"],
-                ["Proxy Image", "public.ecr.aws/s7q1z8z4/privilege-mcpgw (replaces privilege-proxy)"],
-                ["Proxy Binary", "/procyon/bin/mcpgw (replaces cyonproxy)"],
-                ["Cluster Name", "ai-demo-fresh"],
-                ["Node ID (Docker local)", "1cf90baf-2a83-45db-830f-581ea98110d1"],
-                ["Cloud API Endpoint", "https://privilege.pingone.com/api/mcp — BLOCKED (401s all tokens)"],
-                ["Working Local Endpoint", "https://mcp-pingone-admin.mcpgw.local.ping-devops.com/mcp via nginx"],
-                ["Internal Frontend Name", "mcp-pingone-admin.default.applications.procyon.ai:8643 (procyon.ai, not pingone.com)"],
-                ["gRPC Controller", "grpc.privilege.pingone.com:443"],
-                ["Backend MCP Server", "http://mcp-server:8080/mcp (compose DNS) or http://host.docker.internal:8080/mcp"],
+                ["Public gateway host", "mcpgw.ai-demo.ping-devops.com"],
+                ["Client URL", "https://mcpgw.ai-demo.ping-devops.com/<AppName>/mcp"],
+                ["Gateway 1", "Helm release agentless-mcpgw, namespace ping-devops-curtismuir, mesh cluster ai-demo-cmuir"],
+                ["Gateway 2", "Helm release agentless-mcpgw2, namespace ping-devops-cmuir, mesh cluster ai-demo-cmuir2"],
+                ["Load balancer", "Deployment and Service mcpgw-lb, namespace ping-devops-curtismuir"],
+                ["Gateway image", "public.ecr.aws/s7q1z8z4/privilege-aigw"],
+                ["Gateway's PingOne tenant", "0428ba4f-169c-436b-aff9-b230496e0e3b (AI Agent)"],
               ]}
             />
 
@@ -607,43 +677,27 @@ OIDC_SCOPES=openid profile email`}
             <TableBlock
               headers={["File", "Purpose"]}
               rows={[
-                ["ping-mcpgw/config/pingone.env", "OIDC config mounted into proxy container at /var/lib/procyon/config — live config in agentless mode"],
-                ["ping-mcpgw/config/proxy-token", "Enrollment JWT (gitignored). Consumed once on first enrollment; durable identity is the mTLS cert pair in the mcpgw-ssl volume."],
-                ["ping-mcpgw/procyon/ssl/", "Gateway mTLS cert tree (proxy-crt.pem, proxy-key.pem, proxy-ca.pem). DO NOT delete the mcpgw-ssl Docker volume without a fresh enrollment token ready."],
-                ["demo_mcpgw_nginx/nginx.conf", "nginx front door — rewrites Host to procyon.ai form, proxies to :8620"],
-                ["demo_api_server/routes/privilegeMcpClient.js", "BFF relay route for Privilege MCP Client page"],
-                ["demo_api_server/.env", "PRIVILEGE_MCPGW_URL, PRIVILEGE_SSO_* — BFF reads THIS file, NOT root .env"],
-                ["docker-compose.yml", "ping-mcpgw + mcpgw-nginx services (profile: mcpgw)"],
-                ["k8s/75-ping-mcpgw-deployment.yaml", "Kubernetes deployment manifest (image: privilege-mcpgw, ports 8620/8623/8690)"],
-                ["scripts/privilege-smoke.sh", "Five-assertion end-to-end check (manual — needs a live console token)"],
+                ["pingone-privgateway-helm-main/agentless/agentless-mcpgw/", "The gateway Helm chart, including the load balancer template"],
+                ["pingone-privgateway-helm-main/agentless/gateway1-lb.values.yaml", "Gateway 1 overlay: load balancer and mesh port (no secrets)"],
+                ["pingone-privgateway-helm-main/agentless/gateway2-mesh.values.yaml", "Gateway 2 overlay: mesh settings (no secrets)"],
+                ["pingone-privgateway-helm-main/agentless/sidecars.values.yaml", "Every sidecar MCP server in gateway 1's pod"],
+                ["privilege/GATEWAY-LOAD-BALANCER.md", "Two-gateway design, evidence, runbook and failover drill"],
+                ["privilege/GATEWAY-REGISTERING-AN-MCP-SERVER.md", "Registering an MCP server, with the test record"],
+                ["privilege/GATEWAY-CONNECTING-AN-MCP-CLIENT.md", "How a client discovers, registers and signs in"],
+                ["privilege/GATEWAY-READING-GATEWAY-ERRORS.md", "What each status code means and the log line behind it"],
+                ["privilege/LESSONS-LEARNED.md", "Policy, registration and operating behaviour that is not documented elsewhere"],
+                ["demo_api_server/routes/privilegeMcpClient.js", "BFF route behind the Privilege MCP Client page"],
               ]}
             />
 
-            <h3>Enrollment token renewal</h3>
-            <CodeBlock title="Check token expiry">
-{`cat ping-mcpgw/config/proxy-token | cut -d. -f2 | \\
-  base64 -d 2>/dev/null | python3 -c "
-import sys, json, datetime
-d = json.loads(sys.stdin.read())
-exp = datetime.datetime.fromtimestamp(d['exp'], tz=datetime.timezone.utc)
-now = datetime.datetime.now(tz=datetime.timezone.utc)
-status = 'EXPIRED' if now > exp else 'valid'
-print(f'{status} — expires {exp.isoformat()}')
-"`}
-            </CodeBlock>
-
-            <h3>Quick install checklist</h3>
+            <h3>Quick checklist for a new MCP server</h3>
             <ol>
-              <li>Get enrollment token from Privilege console (Gateway wizard &gt; Add Node)</li>
-              <li>Create <code>pingone.env</code> with OIDC config</li>
-              <li>Start proxy with Docker (host network mode)</li>
-              <li>Verify enrollment in logs</li>
-              <li>Register MCP app in console (AI Security &gt; Agentic Apps)</li>
-              <li>Set MCP Server URL to backend (e.g. <code>http://host.docker.internal:8080/mcp</code>)</li>
-              <li>Attach mesh cluster to the app</li>
-              <li>Wait for tool discovery (~30s)</li>
-              <li>Create policy granting user access to discovered tools</li>
-              <li>Test from the AI Agent Gateway Client page</li>
+              <li>Make the server reachable from the gateway (in-cluster Service or sidecar)</li>
+              <li>Register it as an Agentic App with the backend URL ending in <code>/mcp</code></li>
+              <li>Set Mesh Cluster to <code>ai-demo-cmuir</code> and Auth Mode to None</li>
+              <li>Wait for tool discovery; restart the gateway if the tool list stays empty</li>
+              <li>Create a policy granting your user the tools, and check its time window</li>
+              <li>Test from this page, then from LM Studio, using the client URL</li>
             </ol>
 
             <h3>External resources</h3>
