@@ -19,7 +19,7 @@ every app. Neither forwards to the other, and neither depends on the other.
 | --- | --- | --- |
 | App registrations and policies | One | One |
 | Who serves a call | The owning cluster; the other gateway forwards | The node the client is pinned to |
-| Gateway 1 down | Every app down (~55 s) | Not proven; gateway 2 served alone while gateway 1 was parked |
+| Gateway 1 down | Every app down (~55 s) | Tested 2026-10-04 with gateway 1 scaled to 0: the load balancer moved to gateway 2 within one 10 s sample and two signed-in sidecar apps worked from the UI |
 | Sidecars | Gateway 1 only | Both pods |
 | Failover costs a sign-in | Yes | Yes (unchanged) |
 
@@ -51,10 +51,16 @@ On gateway 2, the old enrollment files in `/procyon/ssl` were moved into
 
 **Not verified.**
 
-- A signed-in call to a sidecar app through gateway 2 after it got its sidecars. The
-  sidecars and the gateway's own discovery were checked; the signed-in call was not.
-- Apps staying up with gateway 1 actually stopped. Gateway 2 served alone while gateway 1
-  was parked, which is the same request path, but gateway 1 was still running.
+- Sign-in surviving the switch. In the 2026-10-04 stop test the user signed in again; the
+  test did not try to keep a session across it.
+- Agent-key callers (the A2A apps) DURING a stop. The route probe stayed `401` throughout.
+  A2A ran all five scenarios with `sk-orion` agent keys at 10:17:57 CDT, a minute after
+  gateway 1 returned and 3 s after a probe from the same machine read `gateway-2`, so they
+  were most likely served by gateway 2 (the load balancer pins by address). They passed with
+  no re-registration, and scope, policy, per-tool grants and AIGuard all still applied.
+  Nothing was sent with a key while gateway 1 was actually down.
+- How long the load balancer keeps gateway 1 out after it returns. Its setting is up to 600 s;
+  the probe still read `gateway-2` about a minute after gateway 1 was Ready.
 - Whether `gatewayHostname`, `hostAliases` and `meshPort` are still needed now that nothing
   is forwarded. They were left in place.
 - The wizard's **Redis URL** field. A shared Redis is the likely way to keep sign-in state
@@ -80,8 +86,8 @@ On gateway 2, the old enrollment files in `/procyon/ssl` were moved into
 
 | Item | Who | Note |
 | --- | --- | --- |
-| Signed-in call to a sidecar app through gateway 2 | Needs a signed-in user | Park gateway 1, run `brave0local` from the demo client, un-park |
-| Prove apps stay up with gateway 1 stopped | Needs someone allowed to stop it | `kubectl -n ping-devops-curtismuir scale deployment/agentless-mcpgw --replicas=0`, make a call, scale back to 1 |
+| ~~Signed-in call to a sidecar app through gateway 2~~ | Done 2026-10-04 | `brave0local` and `opensearch22` both worked from the demo UI with gateway 1 stopped |
+| ~~Prove apps stay up with gateway 1 stopped~~ | Done 2026-10-04 | Scaled `agentless-mcpgw` to 0 for about 90 s and back to 1; probe every 10 s: `x-served-by` moved to `gateway-2` within one sample, gateway 2 stayed 9/9 |
 | Sign-in surviving a failover | Open | Try the wizard's Redis URL with a Redis both nodes can reach; ask Ping |
 | Ask Ping | Open | Is a second node in one cluster the supported HA layout; does Redis share sign-in state; are `gatewayHostname`/`hostAliases`/`meshPort` still needed |
 | Old cluster `ai-demo-cmuir2` and its node | Open | Still listed in the console; delete once this layout is accepted, which also ends the rollback path |
