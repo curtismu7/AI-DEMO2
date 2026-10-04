@@ -12,7 +12,7 @@ Platform teams want agents to hand work to other agents without losing control o
 
 ## PingOne Solution
 
-A primary agent calls a middle agent, which calls a specialist. Every hop goes through the PingOne Privilege AI Gateway with that agent’s own key, so scope, policy and guardrail are checked between each pair of agents.
+A main agent calls a middle agent, which calls a specialist. Every hop goes through the PingOne Privilege AI Gateway with that agent’s own key, so scope, policy and guardrail are checked between each pair of agents.
 
 ## How to Run
 

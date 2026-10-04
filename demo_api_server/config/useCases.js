@@ -1600,7 +1600,7 @@ const RAW_USE_CASES = [
     track: 'tools',
     title: 'Privilege A2A three-deep agent chain',
     buyerStory: 'Platform teams want agents to hand work to other agents without losing control of who may call whom, or what crosses each hand-off.',
-    pingOneSolution: 'A primary agent calls a middle agent, which calls a specialist. Every hop goes through the PingOne Privilege AI Gateway with that agent\u2019s own key, so scope, policy and guardrail are checked between each pair of agents.',
+    pingOneSolution: 'A main agent calls a middle agent, which calls a specialist. Every hop goes through the PingOne Privilege AI Gateway with that agent\u2019s own key, so scope, policy and guardrail are checked between each pair of agents.',
     trigger: { type: 'link', path: '/dashboard', label: 'Run the agent chain' },
     // The three runs this step offers. The first is the default; the others
     // show the gateway refusing a hop. `specialist` is a delegation target the
@@ -1623,11 +1623,11 @@ const RAW_USE_CASES = [
     owasp: { threats: [], sections: [] },
     whatToSay: 'Run the chain and watch the reel: each hand-off stops at the gateway first. Then run the injection and the ungranted-agent variants to see a hop refused.',
     advanced: false,
-    whatLong: 'A three-deep agent-to-agent run. The primary agent hands a request to the LangChain agent, which hands it to a specialist. Each hop is an A2A message/send through the PingOne Privilege AI Gateway, made with the calling agent\u2019s own key. The gateway checks the key\u2019s a2a scope, the policy for that remote agent and the guardrail, then forwards with the remote agent\u2019s configured credential. The reel shows every hop as it happens, and a refused hop carries the gateway\u2019s reason.',
+    whatLong: 'A three-deep agent-to-agent run. The main agent hands a request to the LangChain agent, which hands it to a specialist. Each hop is an A2A message/send through the PingOne Privilege AI Gateway, made with the calling agent\u2019s own key. The gateway checks the key\u2019s a2a scope, the policy for that remote agent and the guardrail, then forwards with the remote agent\u2019s configured credential. The reel shows every hop as it happens, and a refused hop carries the gateway\u2019s reason.',
     businessValue: 'Show that agent-to-agent delegation can be governed hop by hop: each agent has its own identity and grants, the gateway sits between every pair of agents, and an unsafe or ungranted hand-off is stopped before it reaches the next agent.',
     productRoles: {
       privilege: 'Sits between every pair of agents: validates the calling agent\u2019s key, applies scope, policy and guardrail, and forwards with the remote agent\u2019s credential.',
-      bff: 'Requires the browser session and relays the run to the primary agent without forwarding browser identity or tokens.',
+      bff: 'Requires the browser session and relays the run to the main agent without forwarding browser identity or tokens.',
     },
     primaryTool: null,
   },

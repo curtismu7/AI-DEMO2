@@ -22,10 +22,10 @@ function fakeStore() {
 }
 
 const FULL_CHAIN = [
-  ["trace", { kind: "delegate", from: "primary", to: "langchainagent", text: "primary → langchainagent" }],
+  ["trace", { kind: "delegate", from: "main", to: "langchainagent", text: "main → langchainagent" }],
   ["trace", { kind: "delegate", from: "langchainagent", to: "refunds", text: "langchainagent → refunds", elapsedMs: 42 }],
   ["trace", { kind: "result", from: "refunds", to: "langchainagent", text: "refunds returned" }],
-  ["trace", { kind: "result", from: "langchainagent", to: "primary", text: "langchainagent returned" }],
+  ["trace", { kind: "result", from: "langchainagent", to: "main", text: "langchainagent returned" }],
   ["token", { text: "Refund approved" }],
   ["done", {}],
 ];
@@ -43,10 +43,10 @@ test("a full chain feeds one event per hop and settles the run as ok", async () 
   expect(result).toEqual({ ok: true, answer: "Refund approved" });
   expect(JSON.parse(fetchImpl.mock.calls[0][1].body)).toEqual({ message: "Refund order 7", specialist: "refunds" });
   expect(store.events.map((event) => `${event.id}:${event.from}>${event.to}`)).toEqual([
-    "pa2a-0:primary>langchainagent",
+    "pa2a-0:main>langchainagent",
     "pa2a-1:langchainagent>refunds",
     "pa2a-2:refunds>langchainagent",
-    "pa2a-3:langchainagent>primary",
+    "pa2a-3:langchainagent>main",
   ]);
   expect(store.calls[0][0]).toBe("beginTrace");
   expect(store.calls.at(-1)).toEqual(["completeTrace", true, undefined]);
@@ -55,7 +55,7 @@ test("a full chain feeds one event per hop and settles the run as ok", async () 
 test("a refused hop is kept as an error event and the run settles as failed", async () => {
   const store = fakeStore();
   const fetchImpl = vi.fn().mockResolvedValue(sse([
-    ["trace", { kind: "delegate", from: "primary", to: "langchainagent" }],
+    ["trace", { kind: "delegate", from: "main", to: "langchainagent" }],
     ["trace", { kind: "error", from: "langchainagent", to: "refunds", detail: "refunds refused (403): Forbidden" }],
     ["error", { error: "Delegation failed: refunds refused (403): Forbidden" }],
   ]));
@@ -80,7 +80,7 @@ test("an unavailable service settles the run as failed with the API's reason", a
 test("the reel shows only the chain's hops, in order, with a refused hop marked", () => {
   const tokenEvents = [
     { id: "user-token", status: "acquired" },
-    { id: "pa2a-0", kind: "delegate", from: "primary", to: "langchainagent", status: "ok" },
+    { id: "pa2a-0", kind: "delegate", from: "main", to: "langchainagent", status: "ok" },
     { id: "pa2a-1", kind: "error", from: "langchainagent", to: "refunds", status: "error", detail: "403: Forbidden" },
   ];
   const bankingSkeleton = [{ id: "user-token", title: "Sign-in", status: "done" }, { id: "llm", title: "LLM", status: "pending" }];
@@ -91,7 +91,7 @@ test("the reel shows only the chain's hops, in order, with a refused hop marked"
     [1, "pa2a-0", "A2A", "done"],
     [2, "pa2a-1", "A2A", "error"],
   ]);
-  expect(steps[0].title).toBe("Primary agent → LangChain agent · through the Privilege gateway");
+  expect(steps[0].title).toBe("Main agent → LangChain agent · through the Privilege gateway");
   expect(steps[1].title).toContain("LangChain agent → refunds specialist");
   expect(steps[1].detail.narrative).toContain("403: Forbidden");
   expect(buildPrivilegeA2aChainSteps([{ id: "a2a-exchange1" }])).toEqual([]);

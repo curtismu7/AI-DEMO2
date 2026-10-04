@@ -251,11 +251,12 @@ export function buildA2aTokenChainSteps(tokenEvents) {
   });
 }
 
-const PRIVILEGE_CHAIN_ACTORS = { primary: "Primary agent", langchainagent: "LangChain agent" };
+// Names follow Ping's reference demo: the caller is the main agent.
+const PRIVILEGE_CHAIN_ACTORS = { main: "Main agent", langchainagent: "LangChain agent" };
 const chainActor = (name) => PRIVILEGE_CHAIN_ACTORS[name] || `${name} specialist`;
 
 /**
- * Steps for a three-deep Privilege A2A chain run (primary agent -> gateway ->
+ * Steps for a three-deep Privilege A2A chain run (main agent -> gateway ->
  * LangChain agent -> gateway -> specialist). One step per hop event
  * (`pa2a-<n>`, see utils/privilegeA2aChainRun.js), in arrival order, so the
  * reel and the sequence view grow as the run proceeds.

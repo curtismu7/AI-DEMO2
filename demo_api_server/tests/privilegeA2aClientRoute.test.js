@@ -160,7 +160,7 @@ describe('POST /api/privilege-a2a/chat', () => {
 
 describe('POST /api/privilege-a2a/chain', () => {
   test('relays the chain stream and forwards only the message and specialist', async () => {
-    const frames = 'event: trace\ndata: {"kind":"delegate","from":"primary","to":"langchainagent"}\n\n'
+    const frames = 'event: trace\ndata: {"kind":"delegate","from":"main","to":"langchainagent"}\n\n'
       + 'event: done\ndata: {}\n\n';
     global.fetch = jest.fn().mockResolvedValue(new Response(frames, {
       status: 200,
