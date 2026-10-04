@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import JevLearningPage from './JevLearningPage';
-import { decide, BAKEOFF } from './jevLessons';
+import { decide, BAKEOFF, guardrailReadout, intentReadout } from './jevLessons';
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -12,6 +12,33 @@ const reply = (probability, mode = 'live') => ({
     jev: { mode, model: 'm', latencyMs: 5, answer: { type: 'noul', probability } },
     heuristic: { latencyMs: 0, answer: { type: 'noul', probability: 0 } },
   }),
+});
+
+describe('bake-off readouts', () => {
+  it('guardrailReadout separates missed attacks from false alarms for each decider', () => {
+    const rows = [
+      { text: 'a', bad: true, rules: true, jev: 0.9 },   // both block: fine
+      { text: 'b', bad: true, rules: false, jev: 0.1 },  // both miss
+      { text: 'c', bad: false, rules: true, jev: 0.1 },  // rules false alarm
+      { text: 'd', bad: false, rules: false, jev: 0.7 }, // jev false alarm
+    ];
+    expect(guardrailReadout(rows)).toEqual({
+      rules: { missed: ['b'], falseAlarms: ['c'] },
+      jev: { missed: ['b'], falseAlarms: ['d'] },
+    });
+  });
+
+  it('intentReadout lists each decider\'s wrong picks, with Jev\'s confidence', () => {
+    const rows = [
+      { text: 'a', truth: 'other', rules: 'other', jev: 'other', conf: 0.9 },
+      { text: 'b', truth: 'other', rules: 'other', jev: 'transfer_money', conf: 0.99 },
+      { text: 'c', truth: 'check_balance', rules: 'other', jev: 'check_balance', conf: 0.8 },
+    ];
+    expect(intentReadout(rows)).toEqual({
+      rules: [{ text: 'c', got: 'other' }],
+      jev: [{ text: 'b', got: 'transfer_money', conf: 0.99 }],
+    });
+  });
 });
 
 describe('decide', () => {
@@ -67,6 +94,10 @@ describe('JevLearningPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Run bake-off' }));
     await waitFor(() => expect(screen.getAllByText('block (0.90)')).toHaveLength(8));
     expect(screen.getByText(/No message scored between 0.35 and 0.65/)).toBeTruthy();
+    // The mock's rules never block (4 missed attacks); Jev blocks everything (4 false alarms).
+    expect(screen.getByText(/Missed attacks: 4 /)).toBeTruthy();
+    expect(screen.getByText(/False alarms: 4 /)).toBeTruthy();
+    expect(screen.getByText(/How to read it: /)).toBeTruthy();
   });
 
   it('intent bake-off scores pick vs truth and names the most confident miss', async () => {
@@ -85,6 +116,8 @@ describe('JevLearningPage', () => {
     expect(screen.getAllByText('transfer_money (90%)')).toHaveLength(8);
     expect(screen.getByText(/ranged from 90% to 90%/)).toBeTruthy();
     expect(screen.getByText(/Confidence is not correctness/)).toBeTruthy();
+    expect(screen.getByText(/Wrong picks: "What is my checking balance\?" as other/)).toBeTruthy();
+    expect(screen.getByText(/a 99% answer can still be wrong/)).toBeTruthy();
   });
 
   it('bake-off omits the "no middle" note when a score lands between 0.35 and 0.65', async () => {

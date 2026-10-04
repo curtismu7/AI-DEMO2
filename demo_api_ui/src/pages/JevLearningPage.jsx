@@ -5,6 +5,8 @@ import {
   SCENARIOS,
   BAKEOFF,
   INTENT_BAKEOFF,
+  guardrailReadout,
+  intentReadout,
   POLICY_RULES,
   decide,
 } from './jevLessons';
@@ -193,6 +195,57 @@ function ThresholdLesson({ probability, setProbability }) {
   );
 }
 
+const quoted = (items) => (items.length ? ` (${items.map((t) => `"${t}"`).join('; ')})` : '');
+
+/** Plain-language reading of the guardrail table, built from the rows that were just scored. */
+function GuardrailReadout({ rows, live }) {
+  const { rules, jev } = guardrailReadout(rows);
+  const line = (d) => `Missed attacks: ${d.missed.length}${quoted(d.missed)}. False alarms: ${d.falseAlarms.length}${quoted(d.falseAlarms)}.`;
+  return (
+    <div className="jev-readout">
+      <h3 className="jev-h3">What this shows</h3>
+      <ul className="jev-readout-list">
+        <li><strong>Keyword rules.</strong> {line(rules)} They only look for a fixed list of phrases, so a reworded
+          attack has nothing to match and passes, while a harmless sentence that happens to contain one gets blocked.</li>
+        {live && (
+          <li><strong>Jev.</strong> {line(jev)} It scores what the whole message means, so rewording matters less,
+            but it can still be confidently wrong and it cannot tell you why.</li>
+        )}
+      </ul>
+      <p className="jev-explain">
+        The two mistakes cost different things. A missed attack reaches the tool. A false alarm only costs the
+        customer an extra step. Neither decider is safe on its own: treat the score as one input to policy and keep a
+        deterministic floor underneath, as in "Confidence is not permission" above.
+      </p>
+    </div>
+  );
+}
+
+function IntentReadout({ rows, live }) {
+  const { rules, jev } = intentReadout(rows);
+  const wrongs = (list, withConf) => (list.length
+    ? list.map((w) => `"${w.text}" as ${w.got}${withConf ? ` (${Math.round(w.conf * 100)}%)` : ''}`).join('; ')
+    : 'none');
+  return (
+    <div className="jev-readout">
+      <h3 className="jev-h3">What this shows</h3>
+      <ul className="jev-readout-list">
+        <li><strong>Keyword rules.</strong> Wrong picks: {wrongs(rules, false)}. They match words (send, pay, move mean a
+          transfer; balance, how much mean a balance check) and file everything else under "other", so any
+          message worded differently falls through.</li>
+        {live && (
+          <li><strong>Jev.</strong> Wrong picks: {wrongs(jev, true)}. It reads the meaning, so it handles wording the
+            rules never saw, but it always picks something, even for a message that fits none of the options.</li>
+        )}
+      </ul>
+      <p className="jev-explain">
+        Confidence is how sure the model is of its pick, not how likely the pick is to be right. Use it to decide when
+        to ask the customer to confirm, never as a guarantee: a 99% answer can still be wrong.
+      </p>
+    </div>
+  );
+}
+
 function Bakeoff() {
   const [rows, setRows] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -237,6 +290,11 @@ function Bakeoff() {
       {error && <p className="jev-error" role="alert">{error}</p>}
       {rows && (
         <>
+          <p className="jev-explain">
+            How to read it: <strong>Truth</strong> is what a person would say about the message. <strong>block</strong> and{' '}
+            <strong>allow</strong> are what each decider would do with it. Green means that matches the truth (hostile
+            blocked, harmless allowed); red means it got it wrong.
+          </p>
           <table className="jev-table">
             <thead>
               <tr><th>Message</th><th>Truth</th><th>Rules</th><th>Jev (score)</th></tr>
@@ -255,6 +313,7 @@ function Bakeoff() {
           <p className="jev-big">
             Rules {score.rulesRight}/{score.total} - Jev {score.jevRight}/{score.total} <ModeBadge mode={score.mode} model={score.model} />
           </p>
+          <GuardrailReadout rows={rows} live={score.mode === 'live'} />
           {score.mode === 'live' && score.noMiddle && (
             <p className="jev-meta">
               No message scored between 0.35 and 0.65: this model separated the eight cleanly, so the
@@ -326,6 +385,11 @@ function IntentBakeoff() {
       {error && <p className="jev-error" role="alert">{error}</p>}
       {rows && (
         <>
+          <p className="jev-explain">
+            How to read it: <strong>Truth</strong> is what the customer is actually asking for. Each decider picks one of
+            three actions, and green means its pick matches the truth. For Jev the percentage is how confident it is in
+            that pick.
+          </p>
           <table className="jev-table">
             <thead>
               <tr><th>Message</th><th>Truth</th><th>Rules</th><th>Jev (confidence)</th></tr>
@@ -344,6 +408,7 @@ function IntentBakeoff() {
           <p className="jev-big">
             Rules {score.rulesRight}/{score.total} - Jev {score.jevRight}/{score.total} <ModeBadge mode={score.mode} model={score.model} />
           </p>
+          <IntentReadout rows={rows} live={score.mode === 'live'} />
           {score.mode === 'live' && (
             <p className="jev-meta">
               Jev's confidence ranged from {score.min}% to {score.max}%.
