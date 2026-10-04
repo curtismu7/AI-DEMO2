@@ -3,6 +3,9 @@
 # Process ports. Worker and MCP bind to loopback. For native AI-DEMO2, the main
 # process also binds to loopback; use 0.0.0.0 only when its BFF runs in Docker.
 MAIN_AGENT_HOST=127.0.0.1
+# Set these two to 0.0.0.0 only inside a container (see k8s/deployment.yaml).
+WORKER_AGENT_HOST=127.0.0.1
+MCP_SERVER_HOST=127.0.0.1
 MAIN_AGENT_PORT=3300
 WORKER_AGENT_PORT=3301
 MCP_SERVER_PORT=3302

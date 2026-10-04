@@ -95,6 +95,7 @@ export function mainAgentConfig(): MainAgentConfig {
 }
 
 export interface WorkerAgentConfig {
+  host: string;
   port: number;
   model: string;
   anthropic: Anthropic;
@@ -105,6 +106,7 @@ export interface WorkerAgentConfig {
 
 export function workerAgentConfig(): WorkerAgentConfig {
   return {
+    host: value('WORKER_AGENT_HOST', '127.0.0.1'),
     port: numberValue('WORKER_AGENT_PORT', 3301),
     model: value('WORKER_AGENT_MODEL', usesGoogle('WORKER_AGENT') ? 'gemini-flash-lite-latest' : 'claude-opus-5'),
     anthropic: anthropicClient('WORKER_AGENT'),
@@ -115,6 +117,7 @@ export function workerAgentConfig(): WorkerAgentConfig {
 }
 
 export interface McpServerConfig {
+  host: string;
   port: number;
   requireBearer: boolean;
   demoInjection: boolean;
@@ -125,6 +128,7 @@ export interface McpServerConfig {
 
 export function mcpServerConfig(): McpServerConfig {
   return {
+    host: value('MCP_SERVER_HOST', '127.0.0.1'),
     port: numberValue('MCP_SERVER_PORT', 3302),
     requireBearer: booleanValue('MCP_REQUIRE_BEARER', false),
     demoInjection: booleanValue('MCP_DEMO_INJECTION', false),

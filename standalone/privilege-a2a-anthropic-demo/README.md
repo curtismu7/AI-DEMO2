@@ -136,7 +136,7 @@ if prompted). Follow the current Admin Console labels; the guide refers to
 
 The key split follows the four-hop flow: MainAgent key for its LLM and outbound
 A2A request; WorkerAgent key for its LLM and outbound MCP request. The MCP
-backend can run beside the worker on the gateway VM, while the MainAgent runs
+backend can run beside the worker in the cluster, while the MainAgent runs
 on the laptop and reaches the worker through Privilege. For that layout, set
 the main process's `WORKER_A2A_URL` and `WORKER_TRACE_URL` to the worker app's
 gateway routes, and set the worker's `MCP_URL` to the MCP app's gateway route.
@@ -180,42 +180,36 @@ WORKER_AGENT_MODEL=claude-opus-5
 Set each to a concrete model permitted for its key in Privilege. There is no
 cross-agent key fallback.
 
-### Run worker and MCP on the gateway VM
+### Run worker and MCP in the cluster
 
-Register both backends in PingOne Privilege. The worker app is HTTP; the MCP
-app is MCP. The backend URLs use `localhost` because the gateway and these
-processes run on the same VM.
+Ping's reference demo runs these two on the gateway VM. Here they run as two
+Deployments in the cluster instead ([k8s/deployment.yaml](k8s/deployment.yaml)),
+so the gateway reaches each by its Service name rather than `localhost`.
+Register both backends in PingOne Privilege, using the reference demo's names:
 
-| Backend | Type | Backend URL | Entry path |
+| App | Type | Backend URL | Entry path |
 |---|---|---|---|
-| Worker agent | HTTP | `http://localhost:3301` | `/a2a` |
-| Access tools | MCP | `http://localhost:3302` | `/mcp` |
+| `workeragentdemo` | HTTP | `http://workeragentdemo.<namespace>.svc.cluster.local` | `/a2a` |
+| `mcpdemo` | MCP | `http://mcpdemo.<namespace>.svc.cluster.local` | `/mcp` |
 
 Set the MCP backend's `AuthMode` to `none`. The gateway authenticates the
-worker's Agent Access key before proxying the request; the MCP process is the
-loopback backend.
+worker's Agent Access key before proxying the request.
 
-Create the worker's Agent Access key with `llm` and `mcp` scopes. Associate it
-with the worker and MCP apps, then select the MCP app under the key's MCP
-Gateway configuration. The worker reuses `WORKER_AGENT_KEY` for both its
-Anthropic call and its outbound MCP request.
-
-Run the MCP server and worker process on the gateway VM. Configure their
-`.env` values like this:
+Create the worker's Agent Access key with `llm` and `mcp` scopes and select
+the `mcpdemo` app under the key's MCP Gateway configuration. The worker reuses
+`WORKER_AGENT_KEY` for both its model call and its outbound MCP request, and
+the manifest reads it from the `privilege-a2a-demo` Secret. Both of the
+worker's outbound legs go back through the gateway:
 
 ```bash
-ANTHROPIC_BASE_URL=https://<gateway>/llm/anthropic
-WORKER_AGENT_KEY=sk-orion-<worker-agent-access-key>
-WORKER_AGENT_MODEL=claude-opus-5
-MCP_URL=http://localhost:3302/mcp
+GEMINI_BASE_URL=https://<gateway>/llm/google     # or ANTHROPIC_BASE_URL=https://<gateway>/llm/anthropic
+MCP_URL=https://<gateway>/mcpdemo/mcp
 ```
 
-For the MCP call to transit the gateway, set `MCP_URL` to the gateway-facing
-MCP URL instead:
-
-```bash
-MCP_URL=https://<gateway>/<mcp-app-name>/mcp
-```
+Build the image for the cluster's CPU architecture, push it, create the
+Secret, then `kubectl apply -f k8s/deployment.yaml`; the commands are at the
+top of that file. For a purely local run, leave the defaults: all three
+processes on loopback, no cluster needed.
 
 ### Run main agent on your laptop
 
