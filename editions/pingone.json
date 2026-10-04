@@ -47,5 +47,5 @@
     "demo_api_ui/tests/e2e/pf-login-probe.real.spec.js",
     "oauth-mcp/tests/auth/PfStep9TokenExchangeService.test.ts"
   ],
-  "dropUseCases": []
+  "dropUseCases": ["UC40"]
 }
