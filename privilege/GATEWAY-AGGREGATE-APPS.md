@@ -46,13 +46,15 @@ Tested on 4 October 2026 against a cloud gateway, with an aggregate of two membe
 | Calling a tool on a server that is not a member is refused | Reproduced |
 | Calling a tool outside the grant is refused, and so is one that does not exist | Reproduced: the same error for both |
 | A member's own error comes back with the member's name | Reproduced: the member's backend refused the call |
+| Once the member sends a credential its backend accepts, tools return results through the aggregate | Reproduced: the member was switched to Static Token and its backend changed to accept that token; three tools then returned data |
+| A backend's scope refusal also comes back with the member's name | Reproduced: `Insufficient scope for tool` |
 | A call to the other member got no response | Reproduced three times, on two different member apps for the same server: no reply within 35 to 90 seconds |
 | The hang follows the member's transport, not its policy | Reproduced: it persisted after swapping to a member the caller could use directly. The log shows the aggregate opening an event stream to that member and never sending the call. |
 | Each member has an alias, and the alias is the prefix | Read from the audit record of the aggregate |
 | The aggregate answers in plain JSON; a member's own app answers as an event stream | Reproduced |
 | The gateway connects to a member as the caller | Read from the log |
 
-Not tested: creating an aggregate in the console, an aggregate reached with a person's sign-in, resources and prompts (the tested members had none), and an aggregate in which every member answers. On the tested gateway neither member returned a result, for the two different reasons described under Errors.
+Not tested: creating an aggregate in the console, an aggregate reached with a person's sign-in, and resources and prompts (the tested members had none). Of the two tested members, one returned results once its backend credential was fixed, and the other never answered, for the reason described under A member that hangs.
 
 ## How an aggregate works
 
@@ -123,7 +125,7 @@ The gateway connects to the member as the calling user. The log shows it:
 [mcpagg] connected to member <member> over streamable-http for user <user-id>
 ```
 
-So the caller needs access to each member as well as to the aggregate. And each member's backend must accept what the member's Auth Mode sends. In testing one member's backend expected a bearer token it was not given, and every tool on that member failed.
+So the caller needs access to each member as well as to the aggregate. And each member's backend must accept what the member's Auth Mode sends. In testing one member's backend expected a bearer token it was not given, and every tool on that member failed with `Unauthorized`. Setting that member's Auth Mode to Static Token, with a backend that accepts the token, fixed it: the same tools then returned data through the aggregate. Nothing on the aggregate itself had to change.
 
 Test each member through its own app first. A member that does not work alone will not work inside an aggregate.
 
@@ -138,6 +140,8 @@ The aggregate returns its errors as JSON-RPC errors with HTTP status 200. A clie
 | A tool outside the caller's grant | `-32600` `access denied for "<member>__<tool>"` |
 | A tool that does not exist on a member | The same `access denied` error |
 | The member's backend refuses the call | `-32603` `<member>: calling "tools/call": sending "tools/call": Unauthorized` |
+| The member's backend refuses the tool for scope | `-32603` `<member>: … Insufficient scope for tool '<tool>': Forbidden` |
+| The tool runs and reports its own error | HTTP 200 with a normal `result` whose `isError` is true |
 | The member does not answer | No response at all |
 
 Three things to take from this:
@@ -223,6 +227,7 @@ The aggregate did not issue a session ID. Each request stood on its own.
 | `access denied for` a tool that exists | The tool is not in the caller's grant | Add it to the grant, in its prefixed form |
 | `access denied for` a tool you were granted | The name is misspelled, or the member's tool list changed | Compare with `tools/list` |
 | `<member>: … Unauthorized` | The member's backend rejected what its Auth Mode sent | Fix the member's Auth Mode; test the member alone |
+| `<member>: … Insufficient scope` | The backend accepted the credential but it lacks the tool's scope | Widen what the backend grants that credential, or drop the tool from the grant |
 | A call hangs | The member is recorded with the `sse` transport and the aggregate waits on its event stream | Set a client timeout; use a member recorded as streamable HTTP; raise it with Ping |
 | A client reports success but nothing happened | The error came back with HTTP 200 | Check the JSON-RPC `error` field |
 | Fewer tools than the members have | The grant lists tools | Expected; widen the grant if needed |
