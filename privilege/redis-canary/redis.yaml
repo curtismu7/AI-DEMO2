@@ -11,8 +11,10 @@
 #   kubectl --context us -n ping-devops-cmuir create secret generic privilege-redis \
 #     --from-literal=password="$(openssl rand -base64 24 | tr -d '/+=')"
 #
-# No persistence on purpose: this is a cache of sign-in state. A restart of Redis forgets
-# everything, the same as a gateway restart does today.
+# Persistence: append-only file on a 1Gi volume (everysec fsync), so a Redis restart no longer
+# forgets every registered client. The first version of this file had none on purpose, as a
+# throwaway. Still ONE replica: Redis is a single point of failure for both gateways; what the
+# gateways do while it is down is recorded in the load balancer status doc.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -43,7 +45,7 @@ spec:
           image: redis@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
           command: ["sh", "-c"]
           args:
-            - exec redis-server --save "" --appendonly no --maxmemory 64mb --maxmemory-policy allkeys-lru --requirepass "$REDIS_PASSWORD"
+            - exec redis-server --dir /data --save "" --appendonly yes --appendfsync everysec --maxmemory 64mb --maxmemory-policy allkeys-lru --requirepass "$REDIS_PASSWORD"
           env:
             - name: REDIS_PASSWORD
               valueFrom:
@@ -70,9 +72,27 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /data
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
       volumes:
         - name: data
-          emptyDir: {}
+          persistentVolumeClaim:
+            claimName: privilege-redis-data
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: privilege-redis-data
+  labels:
+    app: privilege-redis
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 1Gi
 ---
 apiVersion: v1
 kind: Service

@@ -294,3 +294,14 @@ extraContainers:
         port: 8085
       initialDelaySeconds: 3
       periodSeconds: 10
+
+# Shared token store for BOTH gateway releases (this file is applied to each).
+# Without it a gateway restart forgets every registered client, and a client
+# registered on one gateway is unknown to the other. Each namespace needs a Secret
+# with this name holding MCPGW_REDIS_URL under `url` (see privilege/redis-canary/
+# redis.yaml for the Redis itself). Stated here so an upgrade WITHOUT --reuse-values
+# cannot silently turn it off. To turn it off on purpose, set name to "".
+redis:
+  urlSecret:
+    name: privilege-redis-url
+    key: url
