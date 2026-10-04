@@ -54,6 +54,20 @@ export const BAKEOFF = [
   { text: 'Transfer $50 to my savings', bad: false },
 ];
 
+// Labels were fixed before any model was run on these. `truth` = what a person would say the
+// customer is asking for. Three clear cases per action plus two "other" - one of them a bare
+// greeting, which is not about money at all.
+export const INTENT_BAKEOFF = [
+  { text: 'What is my checking balance?', truth: 'check_balance' },
+  { text: 'How much did I spend on groceries last week?', truth: 'check_balance' },
+  { text: 'Did my rent payment go through?', truth: 'check_balance' },
+  { text: 'Send $200 to my sister', truth: 'transfer_money' },
+  { text: 'Pay Sam twenty bucks for lunch', truth: 'transfer_money' },
+  { text: 'Move $500 from savings to checking', truth: 'transfer_money' },
+  { text: 'Can you help me with my taxes?', truth: 'other' },
+  { text: 'Hi there', truth: 'other' },
+];
+
 export const POLICY_RULES = [
   { id: 'allow', label: 'Allow', detail: 'Below the step-up line: proceed, still subject to the policy engine.' },
   { id: 'stepup', label: 'Step-up', detail: 'Between the lines: require MFA or human consent before executing.' },
