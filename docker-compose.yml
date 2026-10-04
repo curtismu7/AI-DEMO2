@@ -1509,6 +1509,8 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT-http://jaeger:4317}"
       OTEL_SERVICE_NAME: "hitl-service"
       NODE_OPTIONS: "-r /otel/otel-instrument.js"
+      # Pending approvals survive a restart (volume ai-demo-hitl-data below).
+      HITL_CHALLENGE_STORE_FILE: /app/data/challenges.json
       HITL_ALLOWED_ORIGINS: "http://api-server:3001,http://localhost:4000,https://local.ping-devops.com:4000,https://api.ping.demo:4000,https://api.ping.demo:3001"
       BFF_TRANSACTION_HOP_URL: "https://demo-api-server:3001/internal/transaction-hop"
       # mkcert CA so the emitter's HTTPS POST to the BFF can verify its leaf cert.
@@ -1529,6 +1531,7 @@ services:
     volumes:
       - ./scripts:/otel:ro  # dir mount: survives git pull replacing the file (a single-file bind mount pins the old inode and crash-loops node -r)
       - ./certs:/certs:ro  # dir mount, not a single file -- a single-file bind pins the inode
+      - ai-demo-hitl-data:/app/data
     networks:
       - ai-demo
     restart: unless-stopped
@@ -2554,6 +2557,8 @@ volumes:
   mcp-discovery-data:
   # BFF persistent LMDB store — survives `docker compose up --force-recreate`.
   ai-demo-bff-data:
+  # HITL pending approvals — survives a hitl-service recreate.
+  ai-demo-hitl-data:
   # RAG Code Search volumes
   weaviate-data:
   embed-models:
