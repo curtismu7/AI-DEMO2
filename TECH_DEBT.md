@@ -10292,3 +10292,19 @@ working scope enforcement as a bug.
 **Status:** the third test in that spec is RED on purpose. It states the bar —
 whatever the Inspector lists, it must be able to invoke — rather than being
 softened to match current behaviour.
+
+### 2026-10-04 — Server Topology CSV exports are hand-kept and miss the Privilege A2A nodes
+
+`docs/exports/server-topology-lucidchart.csv` and
+`docs/exports/server-topology-details.csv` are the downloads on the Server
+Topology page. Nothing generates them: `demo_api_ui/scripts/sync-topology-exports.mjs`
+only copies them into `public/exports`. PR #728 added two nodes (`a2amain`,
+`a2aworker`), seven edges and two request flows to
+`demo_api_ui/src/components/serverTopologyData.js`, and renamed the `privgw`
+node to Privilege AI Gateway. The CSVs still describe the topology before that.
+
+**Why it matters:** the page and its downloads now disagree, and the next
+topology change will widen the gap in the same silent way.
+
+**Fix:** generate both CSVs from `serverTopologyData.js` (and fail CI when they
+drift), rather than adding the missing rows by hand.
