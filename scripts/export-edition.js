@@ -13,6 +13,32 @@ const { execFileSync } = require('node:child_process');
 
 const git = (cwd, ...a) => execFileSync('git', a, { cwd, maxBuffer: 1 << 28 });
 
+// Drift protection for the PingOne edition: every PF-named tracked file must be removed by the
+// manifest or listed in `keep` (grouped, with a reason), so a PF file main adds later cannot ship
+// silently. `keepIgnore` ({regex, reason}) exempts whole path classes (docs). The PF edition keeps
+// all PF files, so it is not checked. ponytail: name heuristic only - a PF file with no PF-looking
+// name is invisible here; the import/reference gates remain the backstop.
+const PF_NAMED_RE = /pingfed|(^|\/)pf[-_A-Z]|\/pf-|-pf\/|PingFederate/i;
+function checkManifestCoverage(manifest, trackedFiles, removedSet) {
+  if (manifest.provider !== 'pingone') return;
+  const tracked = new Set(trackedFiles);
+  const kept = new Set();
+  const stale = [], both = [];
+  for (const g of manifest.keep || []) for (const p of g.paths) {
+    kept.add(p);
+    if (!tracked.has(p)) stale.push(p);
+    if (removedSet.has(p)) both.push(p);
+  }
+  const ignore = (manifest.keepIgnore || []).map((i) => new RegExp(i.regex));
+  const missing = trackedFiles.filter((f) => PF_NAMED_RE.test(f) && !removedSet.has(f) && !kept.has(f) && !ignore.some((r) => r.test(f)));
+  const msg = [
+    missing.length && `PF-named file(s) neither removed nor in keep (add to remove, or to keep with a reason):\n${missing.join('\n')}`,
+    stale.length && `stale keep path(s), not in the ref:\n${stale.join('\n')}`,
+    both.length && `path(s) in both keep and remove:\n${both.join('\n')}`,
+  ].filter(Boolean);
+  if (msg.length) throw new Error(`gate failed: manifest-coverage\n${msg.join('\n')}`);
+}
+
 function exportEdition({ manifest, ref, srcRepo, dest }) {
   const src = fs.realpathSync(srcRepo);
   // realpath the nearest existing ancestor so /var vs /private/var (macOS) compare equal
@@ -45,6 +71,7 @@ function exportEdition({ manifest, ref, srcRepo, dest }) {
   const removedFiles = new Set();
   const keep = files.filter(({ file }) => { const r = isRemoved(file); if (r) removedFiles.add(file); return !r; });
   for (const p of manifest.remove) if (!used.has(p)) throw new Error(`remove pattern "${p}" matched nothing`);
+  checkManifestCoverage(manifest, files.map((f) => f.file), removedFiles);
 
   for (const { mode, file } of keep) {
     const to = path.join(out, file);
@@ -269,7 +296,7 @@ function runGates(dest, manifest, runner = defaultRunner, removed) {
   }
 }
 
-module.exports = { exportEdition, runGates, applySubstitutions, forbiddenList, checkRelativeImports, checkRemovedPathReferences };
+module.exports = { exportEdition, checkManifestCoverage,runGates, applySubstitutions, forbiddenList, checkRelativeImports, checkRemovedPathReferences };
 
 if (require.main === module) {
   const [, , which, dest, ...rest] = process.argv;

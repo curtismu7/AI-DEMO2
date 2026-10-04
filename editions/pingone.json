@@ -59,5 +59,106 @@
     "docs/superpowers/specs/2026-10-03-edition-split-design.md",
     "docs/superpowers/plans/2026-10-03-edition-split.md"
   ],
+  "keep": [
+    {
+      "reason": "required by retained demo_api_server/routes/pfAiAgent.js (mounted in server.js, UC \"PF AI agent\" in config/useCases.js) and the services it chains to",
+      "paths": [
+        "demo_api_server/routes/pfAiAgent.js",
+        "demo_api_server/services/pfAiAgentCibaService.js",
+        "demo_api_server/services/pfAiAgentCimdService.js",
+        "demo_api_server/services/pfAiAgentCrossDomainExchangeService.js",
+        "demo_api_server/services/pfAiAgentFeatureConfig.js",
+        "demo_api_server/services/pfAiAgentMockThirdPartyService.js",
+        "demo_api_server/services/pfAiAgentOAuthService.js",
+        "demo_api_server/services/pfAiAgentRarService.js"
+      ]
+    },
+    {
+      "reason": "retained BFF routes/services imported by server.js, routes/oauthUser.js, agentMcpTokenService.js, delegatedCommerceService.js, demoReadinessRunner.js, spiffeDemo.js (provider-agnostic code that calls PF only when configured)",
+      "paths": [
+        "demo_api_server/config/demoReadinessPingFederateProfiles.json",
+        "demo_api_server/routes/pfDavinciAuth.js",
+        "demo_api_server/routes/pingfederateRecovery.js",
+        "demo_api_server/services/demoReadinessPingFederateReader.js",
+        "demo_api_server/services/pfStandardTokenExchangeService.js",
+        "demo_api_server/services/pingFederateClientService.js",
+        "demo_api_server/services/pingfederateReachability.js",
+        "demo_api_server/services/spiffePingfederateService.js"
+      ]
+    },
+    {
+      "reason": "retained tests of retained provider-agnostic code (oauthUserService, startupConfigGuard, tokenIntrospection, delegatedCommerce, pf-pingone-user-gate fixture): they run in the PingOne edition and passed the export gates",
+      "paths": [
+        "demo_api_server/src/__tests__/oauthUserService.pingfederate.test.js",
+        "demo_api_server/src/__tests__/startupConfigGuard.pingfederate.test.js",
+        "demo_api_server/src/__tests__/tokenIntrospectionService.pingfederate.test.js",
+        "demo_api_server/tests/delegatedCommercePingFederate.test.js",
+        "demo_api_server/tests/pfPingOneUserGate.test.js"
+      ]
+    },
+    {
+      "reason": "required by retained UI routes (routes/PublicRoutes.js, routes/EducationRoutes.js, App.js import these pages and the PF-down modal)",
+      "paths": [
+        "demo_api_ui/src/components/PingFederateDownModal.jsx",
+        "demo_api_ui/src/components/PingFederateIdJagPage.css",
+        "demo_api_ui/src/components/PingFederateIdJagPage.jsx",
+        "demo_api_ui/src/pages/PingFederateAiAgentPage.css",
+        "demo_api_ui/src/pages/PingFederateAiAgentPage.jsx",
+        "demo_api_ui/src/pages/PingFederateDavinciKitPage.css",
+        "demo_api_ui/src/pages/PingFederateDavinciKitPage.jsx",
+        "demo_api_ui/src/pages/PingFederateIdJagExplainerPage.css",
+        "demo_api_ui/src/pages/PingFederateIdJagExplainerPage.jsx"
+      ]
+    },
+    {
+      "reason": "required by retained oauth-mcp/src/index.ts (imports PfStep9TokenExchangeService)",
+      "paths": [
+        "oauth-mcp/src/auth/PfStep9TokenExchangeService.ts"
+      ]
+    },
+    {
+      "reason": "spiffe/pingfederate config fixtures read by retained spiffePingfederateService.js, tests/spiffeTeMapping.test.js, tests/pfPingOneUserGate.test.js and package.json (pf-pingone-user-gate); the spiffe/ tree ships whole",
+      "paths": [
+        "spiffe/pingfederate/pf-access-subject-processor.json",
+        "spiffe/pingfederate/pf-pingone-user-gate.json",
+        "spiffe/pingfederate/pf-step9-atm-mapping.json",
+        "spiffe/pingfederate/pf-step9-te-policy.json",
+        "spiffe/pingfederate/spiffe-jwt-processor.json",
+        "spiffe/pingfederate/spiffe-te-atm-mapping.json",
+        "spiffe/pingfederate/spiffe-te-client.json",
+        "spiffe/pingfederate/spiffe-te-policy.json"
+      ]
+    },
+    {
+      "reason": "named by a retained caller: provision-ai-agent-features.js and provision-cross-domain-exchange.js (docker-compose.yml, demoReadinessPingFederateProfiles.json), provision-ciba.js (docker-compose.yml comment; also docs/ENV.md), provision-readiness-lane.js (docker-compose.readiness.yml), provision-pf-pingone-user-gate.sh (package.json, REGRESSION_PLAN.md), README.md and docker-compose.local.yml (local PF stack docs, run-docker.sh, check-demo-health-gate.js)",
+      "paths": [
+        "scripts/pingfederate/README.md",
+        "scripts/pingfederate/docker-compose.local.yml",
+        "scripts/pingfederate/provision-ai-agent-features.js",
+        "scripts/pingfederate/provision-ciba.js",
+        "scripts/pingfederate/provision-cross-domain-exchange.js",
+        "scripts/pingfederate/provision-pf-pingone-user-gate.sh",
+        "scripts/pingfederate/provision-readiness-lane.js"
+      ]
+    }
+  ],
+  "keepIgnore": [
+    {
+      "regex": "^(docs|planning)/",
+      "reason": "PF-named docs, specs and plans are prose; they ship in both editions and cannot break a build"
+    },
+    {
+      "regex": "^(\\.claude|\\.superpowers|se-skills-export)/",
+      "reason": "agent skills, SDD reports and shared Ping skill packages are documentation, not runtime code"
+    },
+    {
+      "regex": "^PF-[^/]*\\.md$",
+      "reason": "root PF session notes (docs only)"
+    },
+    {
+      "regex": "^editions/",
+      "reason": "the edition manifests themselves (editions/pingfederate.json)"
+    }
+  ],
   "dropUseCases": ["UC40"]
 }

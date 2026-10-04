@@ -5,9 +5,9 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
-const { exportEdition } = require('./export-edition');
+const { exportEdition, checkManifestCoverage } = require('./export-edition');
 
-function fixtureRepo() {
+function fixtureRepo(extra = []) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'edition-src-'));
   const git = (...a) => execFileSync('git', a, { cwd: dir, stdio: 'pipe' });
   git('init', '-q', '-b', 'main');
@@ -19,6 +19,7 @@ function fixtureRepo() {
   fs.mkdirSync(path.join(dir, 'demo_api_server/config'), { recursive: true });
   fs.writeFileSync(path.join(dir, 'demo_api_server/config/auth-requirements.json'), JSON.stringify({ useCases: { UC1: 'public', UC40: 'public' } }));
   git('add', 'pf/a.js', 'keep.js', 'run.sh', 'demo_api_server/config/auth-requirements.json'); git('commit', '-q', '-m', 'init');
+  for (const f of extra) { fs.mkdirSync(path.dirname(path.join(dir, f)), { recursive: true }); fs.writeFileSync(path.join(dir, f), 'x'); git('add', f); git('commit', '-q', '-m', f); }
   fs.writeFileSync(path.join(dir, '.env'), 'SECRET=1'); // untracked
   return dir;
 }
@@ -301,4 +302,41 @@ test('substitution: empty list is a no-op and the gate still fails closed', () =
   assert.deepStrictEqual(applySubstitutions(d, []), { files: 0, byArea: {} });
   assert.strictEqual(fs.readFileSync(path.join(d, 'a.txt'), 'utf8'), UUID);
   withForbidden('', () => assert.throws(() => runGates(d, mf(), okRunner), /EDITION_FORBIDDEN_STRINGS not set/));
+});
+
+// --- manifest coverage: a PF-named file must be removed or deliberately kept (PingOne edition only)
+const cov = (over, files, removed = []) => checkManifestCoverage(mf({ remove: [], ...over }), files, new Set(removed));
+const KEEP = (...paths) => [{ reason: 'why', paths }];
+
+test('coverage: a PF-named file that is neither removed nor kept fails, listing paths only', () => {
+  assert.throws(() => cov({}, ['a.js', 'services/pfAiAgentNewService.js']), (e) => /manifest-coverage/.test(e.message) && e.message.includes('services/pfAiAgentNewService.js') && !e.message.includes('a.js\n'));
+});
+test('coverage: removed passes, kept passes', () => {
+  cov({}, ['services/pfAiAgentX.js'], ['services/pfAiAgentX.js']);
+  cov({ keep: KEEP('services/pfAiAgentX.js') }, ['services/pfAiAgentX.js']);
+});
+test('coverage: a stale keep path fails', () => {
+  assert.throws(() => cov({ keep: KEEP('gone/pingfederate.js') }, ['a.js']), /stale[\s\S]*gone\/pingfederate\.js/);
+});
+test('coverage: a path in both keep and remove fails', () => {
+  assert.throws(() => cov({ keep: KEEP('pf/a.js') }, ['pf/a.js'], ['pf/a.js']), /both keep and remove[\s\S]*pf\/a\.js/);
+});
+test('coverage: pfAiAgent, PingFederate, scripts/pingfederate, spiffePingfederate, orbstack-pf names are caught', () => {
+  for (const f of ['x/pfAiAgentFoo.js', 'ui/PingFederateThing.jsx', 'scripts/pingfederate/run.sh', 'svc/spiffePingfederateService.js', 'k8s/overlays/orbstack-pf/kustomization.yaml', 'a/b/pf-idjag.spec.js', 'pf_notes.txt']) {
+    assert.throws(() => cov({}, [f]), /manifest-coverage/, f);
+  }
+});
+test('coverage: non-PF names are not flagged', () => {
+  cov({}, ['keep.js', 'src/pdf/reader.js', 'src/cpfx.js', 'docs/notes.md', 'src/shelf/foo.js']);
+});
+test('coverage: keepIgnore regexes exempt matching paths', () => {
+  cov({ keepIgnore: [{ regex: '^docs/', reason: 'prose' }] }, ['docs/pingfederate-notes.md']);
+});
+test('coverage: a pingfederate manifest is not checked', () => {
+  cov({ provider: 'pingfederate' }, ['services/pfAiAgentNewService.js']);
+});
+test('coverage: exportEdition fails before copying anything when a PF-named file drifted in', () => {
+  const d = dest();
+  assert.throws(() => exportEdition({ manifest: mf(), ref: 'main', srcRepo: fixtureRepo(['svc/pfAiAgentNew.js']), dest: d }), /manifest-coverage/);
+  assert.ok(!fs.existsSync(d));
 });
