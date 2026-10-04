@@ -2,7 +2,7 @@ import React from "react";
 import AgentGuardrailsDiagram from "../components/AgentGuardrailsDiagram";
 
 const PUBLIC_PAGE_URL =
-  "https://cmuir_pingcorp.github.io/llama-vscode-setup-guide/learning/agent-guardrails.html";
+  "/learning-mirror/agent-guardrails.html";
 
 // Public education page: Lucid-style reference diagram showing how Ping
 // keeps an AI agent inside explicit guardrails (identity, delegated access,
@@ -31,7 +31,7 @@ export default function AgentGuardrailsPage() {
           fontWeight: 600,
         }}
       >
-        Share this diagram on the web — open the public page ↗
+        Open the static web copy of this diagram ↗
       </a>
       <AgentGuardrailsDiagram />
     </div>
