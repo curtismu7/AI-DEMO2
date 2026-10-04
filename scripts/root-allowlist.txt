@@ -88,6 +88,7 @@ docker-compose.readiness.yml
 docker-compose.worktree.yml
 docker-compose.yml
 docs
+editions
 fido2-fix
 graphify-out
 inspector-mocks.html
