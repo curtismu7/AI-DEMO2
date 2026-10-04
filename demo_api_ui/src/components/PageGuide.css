@@ -1,7 +1,8 @@
-/* Sits one FAB-height above the agent button so the two never overlap. */
+/* Clears the agent FAB (52px) and the 48px Demo-steps trigger stacked above it,
+   which covered the Guide button at +64px on pages that show the agent. */
 .page-guide__trigger {
   position: fixed;
-  bottom: calc(var(--fab-bottom, 28px) + 64px);
+  bottom: calc(var(--fab-bottom, 28px) + 128px);
   right: var(--float-edge, 28px);
   z-index: 10060;
   padding: 6px 16px;
