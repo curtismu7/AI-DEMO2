@@ -176,7 +176,8 @@ export default function PrivilegeMcpLearningPage() {
             <ul>
               <li>Enforces per-user, per-tool access policies on every MCP request</li>
               <li>Hides backend MCP server credentials from AI agents and clients</li>
-              <li>Injects vaulted secrets (API keys, tokens) into upstream calls</li>
+              <li>Inserts the credentials an MCP server needs into upstream calls, without
+                exposing them to the agent</li>
               <li>Provides complete audit trail: tool names, arguments, progress tokens</li>
               <li>Supports approval workflows and time-windowed access grants</li>
               <li>Works in agentless mode (SSO only, no endpoint agent required)</li>
@@ -238,25 +239,30 @@ export default function PrivilegeMcpLearningPage() {
                 [
                   "Scales out behind one address",
                   "Two gateways, one URL, one registration",
-                  "The X-Served-By response header names the gateway that answered.",
+                  "The X-Served-By response header names the gateway that answered. It is not shown on this page: use curl -i against the client URL.",
                 ],
               ]}
             />
 
             <h3>Demo script (about 5 minutes)</h3>
             <ol>
-              <li><strong>Set up the problem.</strong> Choose <em>Direct to MCP</em> and list tools.
-                The agent sees every tool the server has, and whatever credential the server
-                needs has to live with the agent. Privilege is not in this path.</li>
-              <li><strong>Put the gateway in the path.</strong> Choose a gateway door and sign in
-                with PingOne. Point out that nothing was pasted into the client: it registered
-                itself and the person authenticated.</li>
+              <li><strong>Set up the problem.</strong> In the <em>Path</em> picker choose{" "}
+                <em>Direct to MCP</em> and press Get MCP Tools. The server still checks who you
+                are, but no per-tool policy is applied, nothing is denied and nothing is
+                recorded. Privilege is not in this path.</li>
+              <li><strong>Put the gateway in the path.</strong> Switch Path to{" "}
+                <em>Privilege AI Gateway</em> and sign in with PingOne. Open Settings to show the
+                OAuth Client ID field is empty: the client registered itself and the person
+                authenticated.</li>
               <li><strong>Show least privilege.</strong> The tool list loads on its own after
-                sign-in. Compare it with the direct list: only the tools the policy grants.</li>
-              <li><strong>Call a tool.</strong> Run one and read the trace panel: the request
-                goes to the gateway URL, and the backend is never addressed by the client.</li>
-              <li><strong>Show a denial.</strong> Call a tool outside the policy, or use an app
-                with no policy. The client gets 403. Open the Privilege console to show why.</li>
+                sign-in. It holds only the tools the policy grants; tools outside the policy
+                are not listed at all.</li>
+              <li><strong>Call a tool.</strong> Press Run on a tool in the Tools tab. The TRACE
+                tab shows the request going to the gateway URL, and RESULTS shows the data.
+                The client never addresses the backend.</li>
+              <li><strong>Show a denial.</strong> Switch to an app with no policy for this user.
+                The page reports that the gateway said <code>403 Forbidden</code>. Open the
+                Privilege console to show why.</li>
               <li><strong>Show the audit.</strong> In the console, open Activity Logs and find
                 the calls you just made, with the user, tool and arguments.</li>
               <li><strong>Show it is not our client.</strong> Paste the same URL into LM Studio,
@@ -543,6 +549,11 @@ Auth Mode         None`}
               <li><strong>Approval workflows</strong> — require approval before granting access</li>
               <li><strong>Time-bound access</strong> — grant access for a specific window only</li>
             </ul>
+            <p>
+              These are Ping&apos;s documented capabilities. In this demo we have exercised tool
+              allow-lists, user binding and time windows. Approval workflows, prompt grants
+              and resource patterns have not been tested here.
+            </p>
 
             <h3>Behaviour the console does not tell you</h3>
             <ul>
