@@ -9,6 +9,35 @@ export PINGFEDERATE_ADMIN_PASSWORD='<your admin password>'
 docker compose -f docker-compose.local.yml up -d
 ```
 
+## Rebuild a fresh PF in one command
+
+A fresh PF volume has zero OAuth clients and file-based client storage. After
+`up -d` (above), one command recreates everything the demo needs from Git:
+
+```bash
+PINGFEDERATE_ADMIN_PASSWORD=... bash scripts/pingfederate/provision-all.sh
+```
+
+It switches client storage to JDBC (and restarts PF), then runs
+`provision-core.js` (base URL, signing keys, the three JWT token managers,
+`aiDemoStandardTePolicy` and its ATM mappings, the four role clients, the
+introspection client) and `provision-a2a-sp-connections.sh`. It is idempotent,
+exits 0 only when the admin API lists the expected clients and token managers,
+and never prints secrets: client secrets come from `<ROLE>_CLIENT_SECRET` env,
+else `PF_SECRETS_FILE` (default `.pf-client-secrets.env`, gitignored), generated
+once. The dependency order and every optional switch (`PF_USE_VAULT`,
+`PF_STEP9`, `PF_AI_AGENT_FEATURES`, `PF_A2A_ENV_FILE`, and the PingOne steps,
+skipped unless the `PINGONE_BOOTSTRAP_*` worker and friends are set) are in the
+header of `provision-all.sh`. A profile-less volume has no admin user: set
+`CREATE_INITIAL_ADMIN_USER=true` on the container (see `docker-compose.fresh.yml`).
+
+Test (starts a separate `pf-fresh` project on ports 19999/19031, tears it down):
+
+```bash
+PF_FRESH_PROFILE_PATH=<dir with instance/server/default/conf/pingfederate.lic> \
+PINGFEDERATE_ADMIN_PASSWORD=<throwaway> bash scripts/pingfederate/provision-all.test.sh
+```
+
 ## Recovering the profile (2026-09-26 incident)
 
 The profile directory is a prepared PF classic instance (must contain
