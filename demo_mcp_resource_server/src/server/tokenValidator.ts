@@ -68,7 +68,7 @@ async function getJwksKeySetFor(iss: string | undefined) {
 // Privilege AI Gateway "Static Token" auth mode sends one fixed bearer on every
 // backend call. It is not a JWT and names no user, so it is treated like a
 // sub-less machine token limited to MCP_RESOURCE_SERVER_GATEWAY_STATIC_SCOPES
-// (default: read). Off unless a token of at least 32 characters is configured.
+// (default: none). Off unless a token of at least 32 characters is configured.
 const GATEWAY_STATIC_TOKEN_MIN_LENGTH = 32;
 export function isGatewayStaticToken(token: string): boolean {
   const expected = (process.env.MCP_RESOURCE_SERVER_GATEWAY_STATIC_TOKEN || '').trim();
@@ -84,7 +84,9 @@ export async function decodeAndValidate(token: string, expectedAud: string): Pro
     return {
       sub: '',
       aud: expectedAud,
-      scope: (process.env.MCP_RESOURCE_SERVER_GATEWAY_STATIC_SCOPES || 'read').trim(),
+      // No default: a token configured without scopes can call no tool.
+      // Commas are accepted so the value survives env files that quote spaces.
+      scope: (process.env.MCP_RESOURCE_SERVER_GATEWAY_STATIC_SCOPES || '').split(/[\s,]+/).filter(Boolean).join(' '),
       exp: 0,
     };
   }

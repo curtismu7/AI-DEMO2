@@ -702,6 +702,7 @@ async function main(deps = {}) {
   // clone with no vault behaves as it always did.
   const vaultSecrets = await loadVaultSecrets([
     'INTENT_TOKEN_SECRET', 'BFF_INTERNAL_SECRET', 'MCP_RESOURCE_SERVER_API_KEY',
+    'MCP_RESOURCE_SERVER_GATEWAY_STATIC_TOKEN',
     'ENCRYPTION_MASTER_KEY', 'MCP_SERVER_ENCRYPTION_KEY',
     'PINGONE_TOKEN_EXCHANGER_CLIENT_SECRET', 'PF_MCP_SERVICE_ACTOR_CLIENT_SECRET',
   ]);
@@ -714,6 +715,13 @@ async function main(deps = {}) {
     || fb('MCP_RESOURCE_SERVER_API_KEY')
     || existingResourceEnv.MCP_RESOURCE_SERVER_API_KEY
     || crypto.randomBytes(24).toString('hex');
+  // Privilege AI Gateway Static Token for the resource server's /mcp. Opt-in, so
+  // never minted here — only carried forward, with its scopes, so a refresh (and
+  // the k8s secret built from this file) does not silently drop it.
+  const gatewayStaticToken = fbVault('MCP_RESOURCE_SERVER_GATEWAY_STATIC_TOKEN')
+    || existingResourceEnv.MCP_RESOURCE_SERVER_GATEWAY_STATIC_TOKEN;
+  const gatewayStaticScopes = fb('MCP_RESOURCE_SERVER_GATEWAY_STATIC_SCOPES')
+    || existingResourceEnv.MCP_RESOURCE_SERVER_GATEWAY_STATIC_SCOPES;
 
   const creds = {
     mcpGatewayClientId:     apps.mcpGateway?.clientId     || fb('PINGONE_MCP_GATEWAY_CLIENT_ID'),
@@ -1062,6 +1070,11 @@ async function main(deps = {}) {
     // The private account-context resolver and PingGateway must share the same
     // service key. Keep it in the resource-server env as well as the gateway env.
     MCP_RESOURCE_SERVER_API_KEY: mcpResourceServerApiKey,
+    // Commas, not spaces: a quoted value would reach the k8s secret with its quotes.
+    ...(gatewayStaticToken ? {
+      MCP_RESOURCE_SERVER_GATEWAY_STATIC_TOKEN: gatewayStaticToken,
+      MCP_RESOURCE_SERVER_GATEWAY_STATIC_SCOPES: String(gatewayStaticScopes || '').split(/[\s,]+/).filter(Boolean).join(','),
+    } : {}),
   }, [
     'This is the Invest MCP resource server (mcp-invest.ping.demo). It validates',
     'inbound access tokens via PINGONE_JWKS_URI and accepts requests for the',
