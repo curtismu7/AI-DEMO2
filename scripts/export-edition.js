@@ -140,7 +140,18 @@ function placeholderFor(value, i) {
 // Replace each forbidden value with its placeholder in the content of every text file under dest.
 // Output (return value, errors) never contains a value: counts and paths only.
 function applySubstitutions(dest, values) {
-  const pairs = values.map((v, i) => [Buffer.from(v).toString('latin1'), placeholderFor(v, i)])
+  // validate before touching anything; messages name the list index only, never a value
+  const phs = values.map((v, i) => {
+    const min = `EDITION-PLACEHOLDER-${i + 1}`.length;
+    if (!UUID_RE.test(v) && v.length < min) throw new Error(`forbidden value #${i + 1} is too short to substitute safely (needs at least ${min} characters)`);
+    return placeholderFor(v, i);
+  });
+  phs.forEach((ph, i) => {
+    if (phs.indexOf(ph) !== i) throw new Error(`placeholder for forbidden value #${i + 1} collides with an earlier placeholder`);
+    const k = values.findIndex((v) => ph.includes(v));
+    if (k >= 0) throw new Error(`placeholder for forbidden value #${i + 1} contains forbidden value #${k + 1}`);
+  });
+  const pairs = values.map((v, i) => [Buffer.from(v).toString('latin1'), phs[i]])
     .sort((a, b) => b[0].length - a[0].length); // longest first: a value that contains another is replaced whole
   const result = { files: 0, byArea: {} };
   if (!pairs.length) return result;
@@ -148,6 +159,8 @@ function applySubstitutions(dest, values) {
   // the path itself would carry the value, so the error shows it with placeholders applied
   const redact = (s) => pairs.reduce((t, [v, ph]) => t.split(v).join(ph), s);
   const badPath = (rel) => new Error(`gate failed: forbidden string in path ${redact(rel)}`);
+  // pass 1: path/symlink check over the whole tree, so a path failure leaves every file untouched
+  const files = [];
   const scan = (dir) => {
     for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
       if (e.name === '.git') continue;
@@ -158,21 +171,23 @@ function applySubstitutions(dest, values) {
         if (hasValue(Buffer.from(fs.readlinkSync(p)).toString('latin1'))) throw badPath(rel);
         continue;
       }
-      if (e.isDirectory()) { scan(p); continue; }
-      const buf = fs.readFileSync(p);
-      if (buf.subarray(0, 8192).includes(0)) continue;
-      // latin1 round-trips every byte, so a literal split/join never alters unrelated content
-      const text = buf.toString('latin1');
-      let out = text;
-      for (const [v, ph] of pairs) out = out.split(v).join(ph);
-      if (out === text) continue;
-      fs.writeFileSync(p, Buffer.from(out, 'latin1')); // rewrite in place: mode is kept
-      result.files++;
-      const area = rel.includes(path.sep) ? rel.split(path.sep)[0] : '.';
-      result.byArea[area] = (result.byArea[area] || 0) + 1;
+      if (e.isDirectory()) scan(p); else files.push([p, rel]);
     }
   };
   scan(dest);
+  for (const [p, rel] of files) {
+    const buf = fs.readFileSync(p);
+    if (buf.subarray(0, 8192).includes(0)) continue;
+    // latin1 round-trips every byte, so a literal split/join never alters unrelated content
+    const text = buf.toString('latin1');
+    let out = text;
+    for (const [v, ph] of pairs) out = out.split(v).join(ph);
+    if (out === text) continue;
+    fs.writeFileSync(p, Buffer.from(out, 'latin1')); // rewrite in place: mode is kept
+    result.files++;
+    const area = rel.includes(path.sep) ? rel.split(path.sep)[0] : '.';
+    result.byArea[area] = (result.byArea[area] || 0) + 1;
+  }
   return result;
 }
 

@@ -218,6 +218,39 @@ test('substitution: a value in a path or symlink target fails with the path only
   assert.ok(e2 && /forbidden string in path link/.test(e2.message) && !e2.message.includes(UUID));
 });
 
+test('substitution: a too-short non-UUID value fails before any file is rewritten, without the value', () => {
+  const SHORT = 'shortId-1234'; // 12 chars < len('EDITION-PLACEHOLDER-2')
+  const d = tree({ 'a.txt': `${UUID} ${SHORT}` });
+  const e = thrown(() => applySubstitutions(d, [UUID, SHORT]));
+  assert.ok(e && /forbidden value #2 is too short/.test(e.message) && !e.message.includes(SHORT));
+  assert.strictEqual(fs.readFileSync(path.join(d, 'a.txt'), 'utf8'), `${UUID} ${SHORT}`);
+});
+
+test('substitution: colliding placeholders fail by index', () => {
+  const vals = Array.from({ length: 10 }, (_, i) => `v${i}-` + 'a'.repeat(20)); // 23 chars each
+  vals[0] = 'EDITION-PLACEHOLDER-1'; // placeholder #1 equals value #1 itself
+  const e = thrown(() => applySubstitutions(tree({ 'a.txt': '1' }), vals));
+  assert.ok(e && /placeholder for forbidden value #1 contains forbidden value #1/.test(e.message));
+  // same-length values whose truncated placeholders would merge are rejected as too short, never merged
+  const e2 = thrown(() => applySubstitutions(tree({ 'a.txt': '1' }), ['abcdefghijklmnopqrst', 'abcdefghijklmnopqrsu', 'x'.repeat(8)]));
+  assert.ok(e2 && /too short/.test(e2.message));
+});
+
+test('substitution: two long non-UUID values get distinct placeholders of their own length', () => {
+  const A = 'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6', B = 'Z9y8X7w6V5u4T3s2R1q0P9o8N7m6L5k4';
+  const d = tree({ 'a.txt': `${A}|${B}` });
+  applySubstitutions(d, [A, B]);
+  const [x, y] = fs.readFileSync(path.join(d, 'a.txt'), 'utf8').split('|');
+  assert.notStrictEqual(x, y);
+  assert.strictEqual(x.length, A.length); assert.strictEqual(y.length, B.length);
+});
+
+test('substitution: a path failure leaves every file untouched', () => {
+  const d = tree({ 'a.txt': TOKEN, [`z-${TOKEN}/x.txt`]: '1' });
+  assert.ok(thrown(() => applySubstitutions(d, [TOKEN])));
+  assert.strictEqual(fs.readFileSync(path.join(d, 'a.txt'), 'utf8'), TOKEN);
+});
+
 test('substitution: empty list is a no-op and the gate still fails closed', () => {
   const d = tree({ 'a.txt': UUID });
   assert.deepStrictEqual(applySubstitutions(d, []), { files: 0, byArea: {} });
