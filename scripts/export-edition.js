@@ -30,7 +30,8 @@ function exportEdition({ manifest, ref, srcRepo, dest }) {
     if (hit) used.add(p);
     return hit;
   });
-  const keep = files.filter(({ file }) => !isRemoved(file));
+  const removedFiles = new Set();
+  const keep = files.filter(({ file }) => { const r = isRemoved(file); if (r) removedFiles.add(file); return !r; });
   for (const p of manifest.remove) if (!used.has(p)) throw new Error(`remove pattern "${p}" matched nothing`);
 
   for (const { mode, file } of keep) {
@@ -46,7 +47,7 @@ function exportEdition({ manifest, ref, srcRepo, dest }) {
   fs.mkdirSync(out, { recursive: true });
   fs.writeFileSync(path.join(out, '.edition.json'),
     JSON.stringify({ name: manifest.name, provider: manifest.provider, sourceSha: sha, dropUseCases: manifest.dropUseCases }, null, 2) + '\n');
-  return { copied: keep.length, removed: files.length - keep.length };
+  return { copied: keep.length, removed: removedFiles.size, removedFiles };
 }
 
 const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'coverage']);
@@ -69,13 +70,19 @@ const resolves = (base) => EXTS.some((x) => fs.existsSync(base + x) && fs.statSy
 
 // ponytail: purely static text scan - a require inside try/catch is still reported, and a
 // specifier in a comment is a false positive. Upgrade to an AST walk if either bites.
-function checkRelativeImports(dest) {
+// removed (optional Set of dest-relative paths the export dropped): when given, report only
+// unresolved specifiers that point at one of them, so pre-existing dangling imports in the
+// source (archived docs, `.js`-for-`.ts` specifiers, `?raw`) don't drown the signal.
+const candidates = (base) => [...EXTS.map((x) => base + x), ...EXTS.slice(1).map((x) => path.join(base, 'index' + x))];
+function checkRelativeImports(dest, removed) {
   const bad = [];
   walk(dest, (f) => {
     if (!SRC_RE.test(f)) return;
-    const text = fs.readFileSync(f, 'utf8');
+    const text = fs.readFileSync(f, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
     for (const re of IMPORT_RES) for (const m of text.matchAll(re)) {
-      if (!resolves(path.resolve(path.dirname(f), m[1]))) bad.push(`${path.relative(dest, f)} -> ${m[1]}`);
+      const target = path.resolve(path.dirname(f), m[1]);
+      if (resolves(target)) continue;
+      if (!removed || candidates(target).some((c) => removed.has(path.relative(dest, c)))) bad.push(`${path.relative(dest, f)} -> ${m[1]}`);
     }
   });
   if (bad.length) throw new Error(`gate failed: relative-imports (${bad.length} unresolved)\n${[...new Set(bad)].join('\n')}`);
@@ -106,9 +113,9 @@ function defaultRunner(cmd, args, opts) {
 
 const JEST_SCOPE = ['tests/crossVerticalIntentGuard.test.js', 'src/__tests__/featureFlags.route.test.js', 'src/__tests__/authorize-gate.test.js'];
 
-function runGates(dest, manifest, runner = defaultRunner) {
+function runGates(dest, manifest, runner = defaultRunner, removed) {
   checkForbidden(dest);
-  checkRelativeImports(dest);
+  checkRelativeImports(dest, removed);
   try {
     execFileSync('gitleaks', ['detect', '--no-git', '--source', dest, '--no-banner'], { stdio: 'pipe' });
   } catch (e) { throw new Error(`gate failed: gitleaks (${e.status === 1 ? 'leaks found' : e.message.split('\n')[0]})`); }
@@ -133,7 +140,8 @@ if (require.main === module) {
   const ref = rest[rest.indexOf('--ref') + 1] || 'main';
   const repo = path.resolve(__dirname, '..');
   const manifest = JSON.parse(fs.readFileSync(path.join(repo, 'editions', `${which}.json`), 'utf8'));
-  console.log(exportEdition({ manifest, ref, srcRepo: repo, dest }));
-  runGates(path.resolve(dest), manifest);
+  const { removedFiles, ...summary } = exportEdition({ manifest, ref, srcRepo: repo, dest });
+  console.log(summary);
+  runGates(path.resolve(dest), manifest, undefined, removedFiles);
   console.log('all gates passed');
 }

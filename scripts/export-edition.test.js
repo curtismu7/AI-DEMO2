@@ -101,6 +101,9 @@ test('relative-import gate: dangling fails naming the file, resolving passes', (
   assert.throws(() => checkRelativeImports(bad), (e) => /src\/a\.js/.test(e.message) && /src\/t\.test\.js/.test(e.message));
   const good = tree({ 'src/a.js': "import b from './b'; import('./d'); require('./c.json')", 'src/b.jsx': '', 'src/d/index.ts': '', 'src/c.json': '{}' });
   checkRelativeImports(good);
+  // with a removed set, only imports of removed files are reported
+  const mixed = tree({ 'a.js': "require('./gone'); require('./other');" });
+  assert.throws(() => checkRelativeImports(mixed, new Set(['gone.js'])), (e) => /gone/.test(e.message) && !/other/.test(e.message));
   // a require inside try/catch is still reported (static scan, no control flow)
   const guarded = tree({ 'a.js': "try { require('./gone'); } catch (e) {}" });
   assert.throws(() => checkRelativeImports(guarded), /a\.js/);
