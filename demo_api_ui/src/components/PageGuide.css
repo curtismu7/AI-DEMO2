@@ -16,7 +16,6 @@
 .page-guide__trigger:hover { background: var(--th-bg-hover); }
 
 .page-guide__body {
-  padding: 16px 20px;
   color: var(--th-text-body);
   font-size: var(--font-size-body);
 }

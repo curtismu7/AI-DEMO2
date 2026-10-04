@@ -53,7 +53,7 @@ export default function PageGuide() {
         defaultHeight={680}
         storageKey="page-guide-modal"
       >
-        <div className="page-guide__body">
+        <div className="dm-scroll page-guide__body">
           {Body ? (
             <Suspense fallback={null}>
               <Body />
