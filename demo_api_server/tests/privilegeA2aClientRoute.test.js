@@ -157,3 +157,42 @@ describe('POST /api/privilege-a2a/chat', () => {
     }
   });
 });
+
+describe('POST /api/privilege-a2a/chain', () => {
+  test('relays the chain stream and forwards only the message and specialist', async () => {
+    const frames = 'event: trace\ndata: {"kind":"delegate","from":"primary","to":"langchainagent"}\n\n'
+      + 'event: done\ndata: {}\n\n';
+    global.fetch = jest.fn().mockResolvedValue(new Response(frames, {
+      status: 200,
+      headers: { 'Content-Type': 'text/event-stream' },
+    }));
+
+    const response = await request(createApp())
+      .post('/api/privilege-a2a/chain')
+      .send({ message: ' Refund order 7 ', specialist: 'refunds', sessionId: 'ignored', token: 'ignored' });
+
+    expect(response.status).toBe(200);
+    expect(response.text).toBe(frames);
+    const [url, init] = global.fetch.mock.calls[0];
+    expect(url).toBe('http://a2a-main.test:3300/chain');
+    expect(JSON.parse(init.body)).toEqual({ message: 'Refund order 7', specialist: 'refunds' });
+    expect(init.headers['X-A2A-BFF-Secret']).toBe('server-only-shared-secret');
+    expect(JSON.stringify(init)).not.toContain('browser-session-secret');
+  });
+
+  test('rejects a missing session, an empty message, and a malformed specialist name', async () => {
+    global.fetch = jest.fn();
+    const app = createApp();
+
+    const unauthenticated = await request(app).post('/api/privilege-a2a/chain')
+      .set('x-test-unauthenticated', 'true').send({ message: 'hi', specialist: 'refunds' });
+    const noMessage = await request(app).post('/api/privilege-a2a/chain').send({ message: ' ', specialist: 'refunds' });
+    const badName = await request(app).post('/api/privilege-a2a/chain')
+      .send({ message: 'hi', specialist: '../admin' });
+
+    expect(unauthenticated.status).toBe(401);
+    expect(noMessage.status).toBe(400);
+    expect(badName.status).toBe(400);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+});
