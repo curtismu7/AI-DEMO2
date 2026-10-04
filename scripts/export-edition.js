@@ -45,8 +45,11 @@ function exportEdition({ manifest, ref, srcRepo, dest }) {
     }
   }
   fs.mkdirSync(out, { recursive: true });
-  fs.writeFileSync(path.join(out, '.edition.json'),
-    JSON.stringify({ name: manifest.name, provider: manifest.provider, sourceSha: sha, dropUseCases: manifest.dropUseCases }, null, 2) + '\n');
+  const edition = JSON.stringify({ name: manifest.name, provider: manifest.provider, sourceSha: sha, dropUseCases: manifest.dropUseCases }, null, 2) + '\n';
+  fs.writeFileSync(path.join(out, '.edition.json'), edition);
+  // the BFF reads this copy (demo_api_server/config is visible natively, bind-mounted and in the image)
+  fs.mkdirSync(path.join(out, 'demo_api_server/config'), { recursive: true });
+  fs.writeFileSync(path.join(out, 'demo_api_server/config/edition.json'), edition);
   return { copied: keep.length, removed: removedFiles.size, removedFiles };
 }
 
@@ -150,7 +153,12 @@ function runGates(dest, manifest, runner = defaultRunner, removed) {
   try {
     execFileSync('gitleaks', ['detect', '--no-git', '--source', dest, '--no-banner'], { stdio: 'pipe' });
   } catch (e) { throw new Error(`gate failed: gitleaks (${e.status === 1 ? 'leaks found' : e.message.split('\n')[0]})`); }
+  // generated use-case docs list every use case; regenerate so they match the dropped set
+  const regen = (manifest.dropUseCases || []).length
+    ? ['gen-use-cases-audit.js', 'gen-use-cases-docs.js'].map((g) => ['regen-docs', 'node', [`../scripts/${g}`, 'generate'], 'demo_api_server', {}])
+    : [];
   const steps = [
+    ...regen,
     ['ui-build', 'npm', ['ci'], 'demo_api_ui', {}],
     ['ui-build', 'npm', ['run', 'build'], 'demo_api_ui', {}],
     ['bff-jest', 'npm', ['ci'], 'demo_api_server', {}],

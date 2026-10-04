@@ -2292,8 +2292,9 @@ function isA2aDelegatedPrimaryTool(tool) {
 // places (requiredFlagsForUseCaseId, the parity test), and that path must carry it
 // too. resolveUseCase recomputes it because a perVertical override may change
 // primaryTool.
+const DROPPED_BY_EDITION = new Set(require('./edition').loadEdition().dropUseCases);
 const USE_CASES = Object.freeze(
-  RAW_USE_CASES.map((u) => deepFreeze({ ...u, a2aDelegated: isA2aDelegatedPrimaryTool(u.primaryTool) })),
+  RAW_USE_CASES.filter((u) => !DROPPED_BY_EDITION.has(u.id)).map((u) => deepFreeze({ ...u, a2aDelegated: isA2aDelegatedPrimaryTool(u.primaryTool) })),
 );
 
 // Tool→resource-server routing (mirrors demo_mcp_gateway disposition logic)

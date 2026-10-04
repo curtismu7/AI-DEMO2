@@ -47,6 +47,9 @@ const {
   AUTH_REQUIREMENTS, LEVELS, compareLevels, authLevelForUseCaseId, authLevelForRoute,
 } = require(path.join(ROOT, 'demo_api_server/config/authRequirements'));
 
+const { loadEdition } = require(path.join(ROOT, 'demo_api_server/config/edition'));
+const dropped = new Set(loadEdition().dropUseCases);
+
 const failures = [];
 const fail = (msg) => failures.push(msg);
 
@@ -63,7 +66,8 @@ for (const id of allIds) {
 // 2. rot
 const known = new Set(allIds);
 for (const id of Object.keys(declared)) {
-  if (!known.has(id)) fail(`auth-requirements.json lists "${id}", which is not a known use case`);
+  // An edition drops use cases at load time; their SoT entries stay in the file.
+  if (!known.has(id) && !dropped.has(id)) fail(`auth-requirements.json lists "${id}", which is not a known use case`);
 }
 
 // 3. typo

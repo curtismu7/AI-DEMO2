@@ -50,6 +50,13 @@ test('writes .edition.json with provider and source sha', () => {
   assert.match(e.sourceSha, /^[0-9a-f]{40}$/);
 });
 
+test('writes demo_api_server/config/edition.json with dropUseCases for the BFF', () => {
+  const d = dest();
+  exportEdition({ manifest: mf({ dropUseCases: ['UC40'] }), ref: 'main', srcRepo: fixtureRepo(), dest: d });
+  const e = JSON.parse(fs.readFileSync(path.join(d, 'demo_api_server/config/edition.json'), 'utf8'));
+  assert.deepStrictEqual(e.dropUseCases, ['UC40']);
+});
+
 test('accepts an empty remove list', () => {
   const d = dest();
   exportEdition({ manifest: mf({ remove: [] }), ref: 'main', srcRepo: fixtureRepo(), dest: d });
@@ -146,4 +153,14 @@ test('removed-path gate: config referencing a removed path fails; docs and kept 
   checkRemovedPathReferences(ok, removed, dirs);
   // basename alone does not match
   checkRemovedPathReferences(tree({ 'run.sh': 'node gone.js' }), removed, dirs);
+});
+
+test('regenerates the use-case docs before authz:verify when use cases are dropped', () => {
+  process.env.EDITION_FORBIDDEN_STRINGS = 'unused-placeholder-xyz';
+  after(() => delete process.env.EDITION_FORBIDDEN_STRINGS);
+  const d = tree({ 'a.js': 'module.exports = 1;' });
+  const calls = [];
+  runGates(d, mf({ dropUseCases: ['UC40'] }), (cmd, args) => calls.push(`${cmd} ${args.join(' ')}`));
+  assert.strictEqual(calls.length, 7);
+  assert.ok(calls[0].includes('gen-use-cases-audit.js generate') && calls[1].includes('gen-use-cases-docs.js generate'));
 });
