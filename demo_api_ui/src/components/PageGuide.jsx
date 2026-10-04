@@ -1,7 +1,8 @@
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useEffect, useState, useSyncExternalStore } from "react";
 import { useLocation } from "react-router-dom";
 import DraggableModal from "./DraggableModal";
-import { PAGE_GUIDES } from "../config/pageGuides";
+import { getPageGuide } from "../config/pageGuides";
+import { headerButtonCount, onOpenPageGuide, subscribeHeaderButtons } from "./pageGuideStore";
 import { getLesson } from "../learning/lessonCatalog";
 import DemoStepsGuide from "./DemoStepsGuide";
 import "./PageGuide.css";
@@ -37,14 +38,20 @@ function LessonGuide({ lesson, heading = true }) {
 export default function PageGuide() {
   const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
-  const guide = PAGE_GUIDES[pathname.replace(/(.)\/$/, "$1")];
+  const guide = getPageGuide(pathname);
+  // The Guide button lives in the header (TopNav). Pages without that header get
+  // the floating button instead, so every guided page has one somewhere.
+  const inHeader = useSyncExternalStore(subscribeHeaderButtons, headerButtonCount) > 0;
+  useEffect(() => onOpenPageGuide(() => setOpen(true)), []);
   if (!guide) return null;
   const Body = guide.body ? BODIES[guide.body] : null;
   return (
     <>
-      <button type="button" className="page-guide__trigger" onClick={() => setOpen(true)} title="Learning Guide">
-        Guide
-      </button>
+      {!inHeader && (
+        <button type="button" className="page-guide__trigger" onClick={() => setOpen(true)} title="Learning Guide">
+          Guide
+        </button>
+      )}
       <DraggableModal
         isOpen={open}
         onClose={() => setOpen(false)}

@@ -1,6 +1,7 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import PageGuide from "../PageGuide";
+import PageGuideButton from "../PageGuideButton";
 import { PAGE_GUIDES } from "../../config/pageGuides";
 import { getLesson } from "../../learning/lessonCatalog";
 import {
@@ -83,6 +84,27 @@ test("the requested pages each have a three-step guide", () => {
   at("/ai-products/authorize");
   fireEvent.click(screen.getByText("Guide"));
   expect(screen.getByText("Separate who from what")).toBeTruthy();
+});
+
+test("with a header Guide button the floating one is hidden and the header one opens the modal", () => {
+  render(
+    <MemoryRouter initialEntries={["/pingone-mcp-inspector"]}>
+      <PageGuideButton />
+      <PageGuide />
+    </MemoryRouter>,
+  );
+  expect(document.querySelector(".page-guide__trigger")).toBeNull();
+  fireEvent.click(screen.getByTestId("topnav-guide"));
+  expect(screen.getByText(getLesson("mcp").title)).toBeTruthy();
+});
+
+test("the header button is absent on routes with no guide", () => {
+  render(
+    <MemoryRouter initialEntries={["/nope"]}>
+      <PageGuideButton />
+    </MemoryRouter>,
+  );
+  expect(screen.queryByTestId("topnav-guide")).toBeNull();
 });
 
 test("no button on an unmapped route", () => {
