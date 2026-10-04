@@ -200,7 +200,7 @@ describe("Privilege client — re-auth on switch", () => {
 
     await waitFor(() => expect(callsTo("auth/start")).toHaveLength(1));
     expect(window.location.href).toBe("");
-    expect(await screen.findByRole("heading", { name: "Sign in to the gateway" })).toBeTruthy();
+    expect(await screen.findByRole("dialog", { name: "Sign in to the gateway" })).toBeTruthy();
   });
 
   it("offers interactive fallback after silent auth fails without a main-app session", async () => {
@@ -213,7 +213,7 @@ describe("Privilege client — re-auth on switch", () => {
     });
     renderPage("/privilege-mcp-client?auth=silent_failed");
 
-    expect(await screen.findByRole("heading", { name: "Sign in to the gateway" })).toBeTruthy();
+    expect(await screen.findByRole("dialog", { name: "Sign in to the gateway" })).toBeTruthy();
     expect(callsTo("auth/start")).toHaveLength(0);
   });
 
@@ -297,6 +297,6 @@ describe("Privilege client — re-auth on switch", () => {
     await waitFor(() => expect(callsTo("auth/start")).toHaveLength(1));
     await waitFor(() => expect(path.value).toBe("direct"));
     expect(callsTo("config")).toHaveLength(1);
-    expect(await screen.findByRole("heading", { name: "Sign in to the gateway" })).toBeTruthy();
+    expect(await screen.findByRole("dialog", { name: "Sign in to the gateway" })).toBeTruthy();
   });
 });

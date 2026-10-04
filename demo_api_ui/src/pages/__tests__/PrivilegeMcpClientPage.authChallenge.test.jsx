@@ -122,7 +122,7 @@ describe("an auth challenge the body does not spell out", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: /Get MCP Tools/i }));
 
-    expect(await screen.findByRole("heading", { name: /Sign in to the gateway/i })).toBeInTheDocument();
+    expect(await screen.findByRole("dialog", { name: /Sign in to the gateway/i })).toBeInTheDocument();
     // ...and the 401 no longer ALSO reports itself as a plain refresh failure
     // underneath the offer -- the sibling 403 branch returns for this reason.
     expect(screen.queryByText(/Refresh failed/)).toBeNull();
@@ -135,6 +135,6 @@ describe("an auth challenge the body does not spell out", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Get MCP Tools/i }));
 
     await waitFor(() => expect(screen.getByText(/upstream exploded/)).toBeInTheDocument());
-    expect(screen.queryByRole("heading", { name: /Sign in to the gateway/i })).toBeNull();
+    expect(screen.queryByRole("dialog", { name: /Sign in to the gateway/i })).toBeNull();
   });
 });

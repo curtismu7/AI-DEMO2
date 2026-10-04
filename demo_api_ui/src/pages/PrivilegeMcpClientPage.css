@@ -1098,31 +1098,35 @@ select.cur-input { cursor: pointer; }
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
 }
 
-.cur-flow-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 18px;
-  border-bottom: 1px solid #30363d;
-  background: #1c2333;
+/* Inside a DraggableModal. It portals to <body>, so the body re-opens the page
+   theme scope with .cur-ide.cur-dm-scope; this undoes .cur-ide's page layout
+   and lets the old modal shells fill the panel instead of framing themselves. */
+.cur-ide.cur-dm-scope {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+  display: block;
+  overflow-y: auto;
 }
-
-.cur-flow-title {
-  font-size: var(--font-size-md);
-  font-weight: 600;
-  color: #e6edf3;
+.cur-modal.cur-modal--in-dm {
+  border: 0;
+  border-radius: 0;
+  max-width: none;
+  min-height: 100%;
+  box-sizing: border-box;
+  padding: 20px 24px;
 }
-
-.cur-flow-close {
-  background: none;
-  border: none;
-  color: #8b949e;
-  font-size: var(--font-size-xl);
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 4px;
+.cur-flow-modal.cur-flow-modal--in-dm,
+.cur-settings-modal.cur-settings-modal--in-dm {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  width: auto;
+  max-width: none;
+  max-height: none;
+  min-height: 100%;
+  overflow: visible;
 }
-.cur-flow-close:hover { background: #21262d; color: #e6edf3; }
 
 .cur-flow-body {
   flex: 1;
@@ -1381,11 +1385,7 @@ select.cur-input { cursor: pointer; }
 .cur-ide[data-cur-theme="light"] .cur-modal p { color: #333; }
 .cur-ide[data-cur-theme="light"] .cur-flow-modal,
 .cur-ide[data-cur-theme="light"] .cur-settings-modal { background: #ffffff; color: #1e1e1e; border-color: #e0e0e0; }
-.cur-ide[data-cur-theme="light"] .cur-flow-header { background: #f0f0f0; }
-.cur-ide[data-cur-theme="light"] .cur-flow-title,
 .cur-ide[data-cur-theme="light"] .cur-flow-name { color: #1e1e1e; }
-.cur-ide[data-cur-theme="light"] .cur-flow-close { color: #666; }
-.cur-ide[data-cur-theme="light"] .cur-flow-close:hover { background: #eee; color: #000; }
 .cur-ide[data-cur-theme="light"] .cur-flow-box { background: #f5f5f5; border-color: #e0e0e0; }
 .cur-ide[data-cur-theme="light"] .cur-flow-box:hover { background: #eaeaea; }
 .cur-ide[data-cur-theme="light"] .cur-flow-claims { background: #f0f0f0; }

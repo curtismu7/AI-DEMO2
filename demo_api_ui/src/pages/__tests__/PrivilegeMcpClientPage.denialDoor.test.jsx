@@ -76,7 +76,7 @@ it('names the door in the denial modal even when /state lands after the 403', as
   // The door must be named, not "(unknown)". Scoped to the modal: the standing
   // "Blocked by policy" band names the door too, so an unscoped query now
   // matches twice — two places saying it is the point, not a regression.
-  const modal = screen.getByText("Access Denied").closest("div");
+  const modal = screen.getByRole("dialog", { name: "Access Denied" });
   await waitFor(() => expect(within(modal).getByText("cmuir")).toBeTruthy());
   expect(within(modal).queryByText("(unknown)")).toBeNull();
 });
