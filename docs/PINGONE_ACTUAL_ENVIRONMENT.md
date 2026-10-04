@@ -62,7 +62,7 @@ PINGONE_USER_CLIENT_ID=b2752071-2d03-4927-b865-089dc40b9c85        # Super Banki
 PINGONE_USER_CLIENT_SECRET=3NX~XdVZ1...                             # ✅ Matches app
 
 PINGONE_CLIENT_ID=95dc946f-5e0a-4a8b-a8ba-b587b244e005             # Super Banking Worker Token (Management API)
-PINGONE_CLIENT_SECRET=Ee2YBEmqrBRdELuNDAh5SPL6T01_...              # ✅ Matches app for audit feature
+PINGONE_CLIENT_SECRET=<CLIENT_SECRET>                         # ✅ Matches app for audit feature
 
 # ⚠️ CONFUSING / NEEDS CLARIFICATION
 AGENT_OAUTH_CLIENT_ID=<AGENT_OAUTH_CLIENT_ID>         # Actually: Super Banking MCP Token Exchanger
