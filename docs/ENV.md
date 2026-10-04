@@ -100,6 +100,16 @@ the processor's config. The public CIMD metadata document and callback are
 served at `/api/pf-ai-agent/cimd/client-metadata.json` and
 `/api/pf-ai-agent/cimd/callback` on `PUBLIC_APP_URL`.
 
+On the local stack the cross-domain and third-party values above are defaults in
+`docker-compose.yml`, and `scripts/pingfederate/provision-cross-domain-exchange.js
+--apply` creates the PingFederate side plus the two client secrets in the vault
+(until it has run, that path stays "Not configured"). The third party there is the
+BFF's own opt-in stand-in: `PF_AI_THIRD_PARTY_MOCK_ENABLED=true` turns on
+`POST /api/pf-ai-agent/mock-third-party/token`, which answers 404 otherwise and
+authenticates with the third-party client id and secret. To use a real third-party
+authorization server instead, leave the mock off and point
+`PF_AI_THIRD_PARTY_TOKEN_ENDPOINT` at it (it must be `https`).
+
 ## Credential Variables (PingOne Apps)
 
 ### Core Apps
