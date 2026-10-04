@@ -5,6 +5,7 @@ import {
   SCENARIOS,
   BAKEOFF,
   INTENT_BAKEOFF,
+  RECORDED_RUN,
   guardrailReadout,
   intentReadout,
   POLICY_RULES,
@@ -50,10 +51,28 @@ function explainJev(answer) {
 }
 
 function ModeBadge({ mode, model }) {
+  if (mode === 'recorded') {
+    return <span className="jev-badge jev-badge--rec">{`Recorded: ${model}, ${RECORDED_RUN.date}`}</span>;
+  }
   return mode === 'live' ? (
     <span className="jev-badge jev-badge--live">{`Live: ${model}`}</span>
   ) : (
     <span className="jev-badge jev-badge--sim">Simulated - not configured</span>
+  );
+}
+
+// The recorded run, shaped like live rows, shown until (and unless) a live run replaces it.
+const RECORDED_GUARDRAIL_ROWS = RECORDED_RUN.guardrail.map((r) => ({ ...r, mode: 'recorded', model: RECORDED_RUN.model }));
+const RECORDED_INTENT_ROWS = RECORDED_RUN.intent.map((r) => ({ ...r, mode: 'recorded', model: RECORDED_RUN.model }));
+
+/** Says plainly that the rows on screen are a saved example, not a live answer. */
+function RecordedNote({ busy, runLabel }) {
+  return (
+    <p className="jev-explain jev-recorded">
+      {busy
+        ? `Running live now. Until the results arrive, this is the recorded example from ${RECORDED_RUN.model} (${RECORDED_RUN.date}).`
+        : `This is an example run recorded from ${RECORDED_RUN.model} on ${RECORDED_RUN.date}, shown so you can see what to expect. Click "${runLabel}" to run it live.`}
+    </p>
   );
 }
 
@@ -269,13 +288,13 @@ function Bakeoff() {
     }
   };
 
+  const shown = rows || RECORDED_GUARDRAIL_ROWS; // the recorded example until a live run lands
   const score = useMemo(() => {
-    if (!rows) return null;
-    const rulesRight = rows.filter((r) => r.rules === r.bad).length;
-    const jevRight = rows.filter((r) => (r.jev >= 0.5) === r.bad).length;
-    const noMiddle = !rows.some((r) => r.jev > 0.35 && r.jev < 0.65);
-    return { rulesRight, jevRight, total: rows.length, mode: rows[0].mode, model: rows[0].model, noMiddle };
-  }, [rows]);
+    const rulesRight = shown.filter((r) => r.rules === r.bad).length;
+    const jevRight = shown.filter((r) => (r.jev >= 0.5) === r.bad).length;
+    const noMiddle = !shown.some((r) => r.jev > 0.35 && r.jev < 0.65);
+    return { rulesRight, jevRight, total: shown.length, mode: shown[0].mode, model: shown[0].model, noMiddle };
+  }, [shown]);
 
   return (
     <section className="jev-card" aria-labelledby="jev-bake">
@@ -288,8 +307,9 @@ function Bakeoff() {
       </p>
       <button className="btn btn-primary" disabled={busy} onClick={run}>{busy ? 'Running...' : 'Run bake-off'}</button>
       {error && <p className="jev-error" role="alert">{error}</p>}
-      {rows && (
+      {(
         <>
+          {score.mode === 'recorded' && <RecordedNote busy={busy} runLabel="Run bake-off" />}
           <p className="jev-explain">
             How to read it: <strong>Truth</strong> is what a person would say about the message. <strong>block</strong> and{' '}
             <strong>allow</strong> are what each decider would do with it. Green means that matches the truth (hostile
@@ -300,7 +320,7 @@ function Bakeoff() {
               <tr><th>Message</th><th>Truth</th><th>Rules</th><th>Jev (score)</th></tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {shown.map((r) => (
                 <tr key={r.text}>
                   <td>{r.text}</td>
                   <td>{r.bad ? 'hostile' : 'harmless'}</td>
@@ -313,7 +333,7 @@ function Bakeoff() {
           <p className="jev-big">
             Rules {score.rulesRight}/{score.total} - Jev {score.jevRight}/{score.total} <ModeBadge mode={score.mode} model={score.model} />
           </p>
-          <GuardrailReadout rows={rows} live={score.mode === 'live'} />
+          <GuardrailReadout rows={shown} live={score.mode !== 'simulated'} />
           {score.mode === 'live' && score.noMiddle && (
             <p className="jev-meta">
               No message scored between 0.35 and 0.65: this model separated the eight cleanly, so the
@@ -356,21 +376,21 @@ function IntentBakeoff() {
     }
   };
 
+  const shown = rows || RECORDED_INTENT_ROWS; // the recorded example until a live run lands
   const score = useMemo(() => {
-    if (!rows) return null;
-    const wrong = rows.filter((r) => r.jev !== r.truth).sort((a, b) => b.conf - a.conf);
-    const confs = rows.map((r) => r.conf);
+    const wrong = shown.filter((r) => r.jev !== r.truth).sort((a, b) => b.conf - a.conf);
+    const confs = shown.map((r) => r.conf);
     return {
-      rulesRight: rows.filter((r) => r.rules === r.truth).length,
-      jevRight: rows.length - wrong.length,
-      total: rows.length,
-      mode: rows[0].mode,
-      model: rows[0].model,
+      rulesRight: shown.filter((r) => r.rules === r.truth).length,
+      jevRight: shown.length - wrong.length,
+      total: shown.length,
+      mode: shown[0].mode,
+      model: shown[0].model,
       min: Math.round(Math.min(...confs) * 100),
       max: Math.round(Math.max(...confs) * 100),
       topWrong: wrong[0] || null,
     };
-  }, [rows]);
+  }, [shown]);
 
   return (
     <section className="jev-card" aria-labelledby="jev-intent-bake">
@@ -383,8 +403,9 @@ function IntentBakeoff() {
       </p>
       <button className="btn btn-primary" disabled={busy} onClick={run}>{busy ? 'Running...' : 'Run intent bake-off'}</button>
       {error && <p className="jev-error" role="alert">{error}</p>}
-      {rows && (
+      {(
         <>
+          {score.mode === 'recorded' && <RecordedNote busy={busy} runLabel="Run intent bake-off" />}
           <p className="jev-explain">
             How to read it: <strong>Truth</strong> is what the customer is actually asking for. Each decider picks one of
             three actions, and green means its pick matches the truth. For Jev the percentage is how confident it is in
@@ -395,7 +416,7 @@ function IntentBakeoff() {
               <tr><th>Message</th><th>Truth</th><th>Rules</th><th>Jev (confidence)</th></tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {shown.map((r) => (
                 <tr key={r.text}>
                   <td>{r.text}</td>
                   <td>{r.truth}</td>
@@ -408,8 +429,8 @@ function IntentBakeoff() {
           <p className="jev-big">
             Rules {score.rulesRight}/{score.total} - Jev {score.jevRight}/{score.total} <ModeBadge mode={score.mode} model={score.model} />
           </p>
-          <IntentReadout rows={rows} live={score.mode === 'live'} />
-          {score.mode === 'live' && (
+          <IntentReadout rows={shown} live={score.mode !== 'simulated'} />
+          {score.mode !== 'simulated' && (
             <p className="jev-meta">
               Jev's confidence ranged from {score.min}% to {score.max}%.
               {score.topWrong

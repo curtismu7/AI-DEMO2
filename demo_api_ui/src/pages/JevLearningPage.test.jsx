@@ -1,8 +1,12 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import JevLearningPage from './JevLearningPage';
-import { decide, BAKEOFF, guardrailReadout, intentReadout } from './jevLessons';
+import { decide, BAKEOFF, INTENT_BAKEOFF, RECORDED_RUN, guardrailReadout, intentReadout } from './jevLessons';
+
+// Both bake-offs now show a recorded example before a live run, so scope queries to one section.
+const guardrail = () => within(screen.getByRole('region', { name: 'Guardrail bake-off' }));
+const intent = () => within(screen.getByRole('region', { name: 'Intent-routing bake-off' }));
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -38,6 +42,34 @@ describe('bake-off readouts', () => {
       rules: [{ text: 'c', got: 'other' }],
       jev: [{ text: 'b', got: 'transfer_money', conf: 0.99 }],
     });
+  });
+});
+
+describe('recorded example', () => {
+  it('is measured data for exactly the corpus on screen', () => {
+    expect(RECORDED_RUN.guardrail.map((r) => [r.text, r.bad])).toEqual(BAKEOFF.map((r) => [r.text, r.bad]));
+    expect(RECORDED_RUN.intent.map((r) => [r.text, r.truth])).toEqual(INTENT_BAKEOFF.map((r) => [r.text, r.truth]));
+  });
+
+  it('both bake-offs explain themselves before anything is run, labelled as recorded', () => {
+    render(<JevLearningPage />);
+    expect(guardrail().getByText(/Rules 5\/8 - Jev 6\/8/)).toBeTruthy();
+    expect(intent().getByText(/Rules 7\/8 - Jev 5\/8/)).toBeTruthy();
+    for (const section of [guardrail(), intent()]) {
+      expect(section.getByText('Recorded: von-1.3.0, 4 Oct 2026')).toBeTruthy();
+      expect(section.getByText(/example run recorded from von-1\.3\.0/)).toBeTruthy();
+      expect(section.getByText('What this shows')).toBeTruthy();
+    }
+    expect(screen.queryByText(/Live: /)).toBeNull(); // a recording is never badged as live
+  });
+
+  it('stays on screen under the error when a live run fails', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 502, json: async () => ({ message: 'Jev did not answer; try again.' }) }));
+    render(<JevLearningPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Run bake-off' }));
+    await waitFor(() => expect(guardrail().getByRole('alert').textContent).toMatch(/Jev did not answer/));
+    expect(guardrail().getByText(/Rules 5\/8 - Jev 6\/8/)).toBeTruthy();
+    expect(guardrail().getByText(/Recorded: /)).toBeTruthy();
   });
 });
 
@@ -84,7 +116,9 @@ describe('JevLearningPage', () => {
 
     f.mockResolvedValue(reply(0.9));
     fireEvent.click(screen.getByRole('button', { name: 'Run bake-off' }));
-    await waitFor(() => expect(screen.getByText(/Rules \d+\/8/)).toBeTruthy());
+    await waitFor(() => expect(guardrail().queryByText(/Recorded:/)).toBeNull());
+    // mock: rules allow everything (right on the 4 harmless), Jev blocks everything (right on the 4 hostile)
+    expect(guardrail().getByText(/Rules 4\/8 - Jev 4\/8/)).toBeTruthy();
     expect(BAKEOFF).toHaveLength(8);
   });
 
@@ -97,7 +131,7 @@ describe('JevLearningPage', () => {
     // The mock's rules never block (4 missed attacks); Jev blocks everything (4 false alarms).
     expect(screen.getByText(/Missed attacks: 4 /)).toBeTruthy();
     expect(screen.getByText(/False alarms: 4 /)).toBeTruthy();
-    expect(screen.getByText(/How to read it: /)).toBeTruthy();
+    expect(guardrail().getByText(/How to read it: /)).toBeTruthy();
   });
 
   it('intent bake-off scores pick vs truth and names the most confident miss', async () => {
