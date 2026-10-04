@@ -68,6 +68,7 @@ import { useVertical } from "../vertical/useVertical";
 import RetailDashboard from "./RetailDashboard";
 import AgentClinicalHost from "./agent-clinical/AgentClinicalHost";
 import PingIdentitySpinner from "./shared/PingIdentitySpinner";
+import AuthLoadingScreen from "./shared/AuthLoadingScreen";
 
 /**
  * True when the server answered from its idempotency ledger rather than by
@@ -3999,9 +4000,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
   if (loading) {
     return (
       <div className="main-content--auth-loading">
-        <div className="auth-loading-card">
-          <PingIdentitySpinner size={64} label="Loading your dashboard…" />
-        </div>
+        <AuthLoadingScreen label="Loading your dashboard…" />
       </div>
     );
   }
