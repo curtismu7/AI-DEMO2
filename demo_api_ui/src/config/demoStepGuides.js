@@ -367,3 +367,20 @@ export const DEMO_STEP_GUIDES = Object.fromEntries([
     "It turns 'trust the demo' into 'watch the proof': every enforcement claim in every other use case is visibly verified rather than asserted.",
     "Click the link card (/use-cases), trigger any other use case, and watch the proof strip, the Token Chain checklist and the Verified banner appear. No chip of its own and no special setup."],
 ].map(g));
+
+// How to present the A2A steps together. The order and the skip-when lines are
+// a presenter recommendation drawn from each step's own copy and prerequisites,
+// not a documented rule.
+export const A2A_SEQUENCE = {
+  intro:
+    'In this demo "A2A" means two different things. The first is identity: a nested RFC 8693 act chain, where PingOne mints tokens saying the specialist acts for the generalist acting for the user, and PingOne Authorize decides over that chain. The second is the Linux Foundation A2A wire protocol: an Agent Card for discovery plus a bearer-gated JSON-RPC message/send between agents. UC2, UC2.5, UC2.6 and UC37 show the identity chain, with the wire hop running underneath. UC2.7 is the one step that teaches the two layers side by side. UC46 and UC47 are neither: they are agent-to-agent messages governed by the PingOne Privilege AI Gateway using Agent Access keys, with no RFC 8693 delegation on the A2A message.',
+  steps: [
+    { id: "UC2.7", adds: "Opens the sequence by naming the two meanings of A2A, showing the real Agent Card, a real 401 from a call with no bearer, and a live run of every hop, so the later steps have a vocabulary to hang on.", skipWhen: "The audience already separates the wire protocol from the identity chain, or you have no time for a reading-heavy page." },
+    { id: "UC2", adds: "Moves from explanation to the working agent: 'hand off to a specialist' returns PERMIT, and the token chain shows the user, then the generalist, then the specialist with scope narrowing at each hop.", skipWhen: "Not for an A2A story, since the other identity steps build on it. Drop it only if UC2.5 already covers the same two-hop chain for this audience." },
+    { id: "UC2.5", adds: "Shows the generalist choosing the specialist dynamically instead of a fixed handoff, with the same narrowed nested-act token at each hop.", skipWhen: "The audience cares about governance rather than routing, or time is short: in this demo it shows routing more than a new control." },
+    { id: "UC2.6", adds: "Runs the UC2 PERMIT, then probes the same Authorize decision with a fabricated, unregistered generalist and gets a genuine invalid_a2a_generalist DENY, showing that policy keys on which agent is acting and not only on the user.", skipWhen: "You have not rehearsed it: docs/demo-readiness.md says its live result was pending a BFF restart and an authz-server rebuild, and it needs the registered generalist client id and the user's mayAct and a2aTenantId attributes." },
+    { id: "UC37", adds: "Adds a signed verifiable credential asserting which agent acts for which user, shown as an extra step in the same token chain as the UC2 handoff.", skipWhen: "ff_verified_trust_a2a is off or credential issuance is not configured: issuance is fail-open, so the delegation completes but no credential appears and the step shows nothing new." },
+    { id: "UC46", adds: "Switches to a different governance model: a MainAgent delegates an access review over A2A to a WorkerAgent, and the PingOne Privilege Gateway validates each agent's Agent Access key and applies policy to its LLM, A2A and MCP calls.", skipWhen: "The audience is not using the Privilege Gateway, or the MainAgent, WorkerAgent, MCP processes and gateway agent keys are not running." },
+    { id: "UC47", adds: "Extends UC46 to three hops (main agent, LangChain agent, specialist) streamed into the movie reel, with an allowed run, a prompt-injection run and an ungranted-agent run the gateway refuses with its reason.", skipWhen: "UC46 already made the point, or you have no time for the three variants: it adds depth and refusals, not a new mechanism." },
+  ],
+};

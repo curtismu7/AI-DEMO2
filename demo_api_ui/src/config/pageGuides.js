@@ -2,8 +2,8 @@
 //   lessons:     ids from learning/lessonCatalog.js, rendered as read-only steps.
 //   body:        a lazy-loaded learning page to render as-is instead.
 //   talkingPoints + walkthrough: page-specific copy written inline below.
-// Pages that ARE a learning page already (/jev-learning, /a2a-protocol-learning,
-// /davinci-widget, /academy/*) are deliberately absent.
+// The standalone learning pages (/jev-learning, /a2a-protocol-learning,
+// /davinci-widget, /academy/demos, ...) get a "how to use this page" guide.
 import { MORE_PAGE_GUIDES } from "./pageGuidesMore";
 
 const steps = (rows) => rows.map(([title, explain, demonstrate]) => ({ title, explain, demonstrate }));

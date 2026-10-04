@@ -11,7 +11,7 @@ import {
   EXTRA_STEP_GROUPS,
   PRIVILEGE_USE_CASE_IDS,
 } from "../../config/demoUseCaseSteps";
-import { DEMO_STEP_GUIDES } from "../../config/demoStepGuides";
+import { A2A_SEQUENCE, DEMO_STEP_GUIDES } from "../../config/demoStepGuides";
 import { demoStepNumber, stepLabel } from "../../config/demoStepNumbers";
 
 const at = (path) => render(<MemoryRouter initialEntries={[path]}><PageGuide /></MemoryRouter>);
@@ -48,11 +48,12 @@ test("dashboard guide lists the demo steps", () => {
   at("/dashboard");
   fireEvent.click(screen.getByText("Guide"));
   expect(screen.getByText(/Step 1 · UC24: /)).toBeTruthy();
-  expect(screen.getByText(/Step 26 · UC47: /)).toBeTruthy();
+  // UC47 and UC37 also appear in the A2A sequence, so expect both copies.
+  expect(screen.getAllByText(/Step 26 · UC47: /)).toHaveLength(2);
   expect(screen.getByText(/Step 27 · UC43: /)).toBeTruthy();
   expect(screen.getByText(/Step 32 · UC17: /)).toBeTruthy();
   expect(screen.getByText(/Step 13 · ADMIN13: /)).toBeTruthy();
-  expect(screen.getByText(/Step 43 · UC37: /)).toBeTruthy();
+  expect(screen.getAllByText(/Step 43 · UC37: /)).toHaveLength(2);
   expect(screen.getByText(/Step 46 · UC4: /)).toBeTruthy();
 });
 
@@ -115,6 +116,27 @@ test("the header button is absent on routes with no guide", () => {
     </MemoryRouter>,
   );
   expect(screen.queryByTestId("topnav-guide")).toBeNull();
+});
+
+test("the standalone learning pages each have a three-step guide", () => {
+  for (const r of ["/jev-learning", "/a2a-protocol-learning", "/intent-binding-learning", "/privilege-mcp-learning",
+    "/oauth-academy", "/learning", "/academy/demos", "/davinci-widget"]) {
+    expect(PAGE_GUIDES[r]?.walkthrough, r).toHaveLength(3);
+    expect(PAGE_GUIDES[r].talkingPoints, r).toHaveLength(3);
+  }
+});
+
+test("the dashboard guide leads with the A2A sequence, every step known", () => {
+  expect(A2A_SEQUENCE.steps.map((s) => s.id)).toEqual(["UC2.7", "UC2", "UC2.5", "UC2.6", "UC37", "UC46", "UC47"]);
+  for (const s of A2A_SEQUENCE.steps) {
+    expect(DEMO_STEP_GUIDES[s.id], s.id).toBeTruthy();
+    expect(s.adds && s.skipWhen, s.id).toBeTruthy();
+  }
+  at("/dashboard");
+  fireEvent.click(screen.getByText("Guide"));
+  const seq = screen.getByTestId("a2a-sequence");
+  expect(seq.textContent).toContain("Step 11 · UC2.7");
+  expect(seq.textContent).toContain("Step 26 · UC47");
 });
 
 test("no button on an unmapped route", () => {
