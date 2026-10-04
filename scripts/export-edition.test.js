@@ -16,7 +16,9 @@ function fixtureRepo() {
   fs.writeFileSync(path.join(dir, 'pf/a.js'), 'pf');
   fs.writeFileSync(path.join(dir, 'keep.js'), 'keep');
   fs.writeFileSync(path.join(dir, 'run.sh'), '#!/bin/sh\n', { mode: 0o755 });
-  git('add', 'pf/a.js', 'keep.js', 'run.sh'); git('commit', '-q', '-m', 'init');
+  fs.mkdirSync(path.join(dir, 'demo_api_server/config'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'demo_api_server/config/auth-requirements.json'), JSON.stringify({ useCases: { UC1: 'public', UC40: 'public' } }));
+  git('add', 'pf/a.js', 'keep.js', 'run.sh', 'demo_api_server/config/auth-requirements.json'); git('commit', '-q', '-m', 'init');
   fs.writeFileSync(path.join(dir, '.env'), 'SECRET=1'); // untracked
   return dir;
 }
@@ -55,6 +57,19 @@ test('writes demo_api_server/config/edition.json with dropUseCases for the BFF',
   exportEdition({ manifest: mf({ dropUseCases: ['UC40'] }), ref: 'main', srcRepo: fixtureRepo(), dest: d });
   const e = JSON.parse(fs.readFileSync(path.join(d, 'demo_api_server/config/edition.json'), 'utf8'));
   assert.deepStrictEqual(e.dropUseCases, ['UC40']);
+});
+
+test('fails before writing anything when a dropUseCases id matches no use case', () => {
+  const d = dest();
+  assert.throws(() => exportEdition({ manifest: mf({ dropUseCases: ['UC4O'] }), ref: 'main', srcRepo: fixtureRepo(), dest: d }),
+    /dropUseCases id "UC4O" matched no use case/);
+  assert.ok(!fs.existsSync(d));
+});
+
+test('a manifest without dropUseCases writes an empty list', () => {
+  const d = dest(); const m = mf(); delete m.dropUseCases;
+  exportEdition({ manifest: m, ref: 'main', srcRepo: fixtureRepo(), dest: d });
+  assert.deepStrictEqual(JSON.parse(fs.readFileSync(path.join(d, '.edition.json'), 'utf8')).dropUseCases, []);
 });
 
 test('accepts an empty remove list', () => {

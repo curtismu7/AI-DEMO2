@@ -24,6 +24,12 @@ function exportEdition({ manifest, ref, srcRepo, dest }) {
     return { mode: e.slice(0, e.indexOf(' ')), file: e.slice(tab + 1) };
   });
 
+  const drop = manifest.dropUseCases || [];
+  if (drop.length) {
+    const known = Object.keys(JSON.parse(git(src, 'show', `${sha}:demo_api_server/config/auth-requirements.json`)).useCases);
+    for (const id of drop) if (!known.includes(id)) throw new Error(`dropUseCases id "${id}" matched no use case`);
+  }
+
   const used = new Set();
   const isRemoved = (f) => manifest.remove.some((p) => {
     const hit = p.endsWith('/') ? f.startsWith(p) : f === p;
@@ -45,7 +51,7 @@ function exportEdition({ manifest, ref, srcRepo, dest }) {
     }
   }
   fs.mkdirSync(out, { recursive: true });
-  const edition = JSON.stringify({ name: manifest.name, provider: manifest.provider, sourceSha: sha, dropUseCases: manifest.dropUseCases }, null, 2) + '\n';
+  const edition = JSON.stringify({ name: manifest.name, provider: manifest.provider, sourceSha: sha, dropUseCases: drop }, null, 2) + '\n';
   fs.writeFileSync(path.join(out, '.edition.json'), edition);
   // the BFF reads this copy (demo_api_server/config is visible natively, bind-mounted and in the image)
   fs.mkdirSync(path.join(out, 'demo_api_server/config'), { recursive: true });
