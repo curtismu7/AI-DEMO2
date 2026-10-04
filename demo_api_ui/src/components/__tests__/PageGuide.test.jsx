@@ -10,6 +10,15 @@ test("every mapped lesson id exists", () => {
   for (const g of Object.values(PAGE_GUIDES)) for (const id of g.lessons || []) expect(getLesson(id)).not.toBeNull();
 });
 
+test("every guide has content and inline guides render", () => {
+  for (const [route, g] of Object.entries(PAGE_GUIDES)) {
+    expect(g.lessons || g.body || g.walkthrough?.length, route).toBeTruthy();
+  }
+  at("/llm-gateway");
+  fireEvent.click(screen.getByText("Guide"));
+  expect(screen.getByText("Choose a lane")).toBeTruthy();
+});
+
 test("no button on an unmapped route", () => {
   at("/nope");
   expect(screen.queryByText("Guide")).toBeNull();

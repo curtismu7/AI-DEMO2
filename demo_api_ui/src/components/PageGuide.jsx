@@ -8,12 +8,11 @@ import "./PageGuide.css";
 const IntentBindingLearningPage = lazy(() => import("../pages/IntentBindingLearningPage"));
 const BODIES = { "intent-binding": IntentBindingLearningPage };
 
-function LessonGuide({ id }) {
-  const lesson = getLesson(id);
+function LessonGuide({ lesson, heading = true }) {
   if (!lesson) return null;
   return (
     <section className="page-guide__lesson">
-      <h3>{lesson.title}</h3>
+      {heading && <h3>{lesson.title}</h3>}
       {lesson.talkingPoints?.length > 0 && (
         <ul>
           {lesson.talkingPoints.map((t) => (
@@ -59,7 +58,11 @@ export default function PageGuide() {
               <Body />
             </Suspense>
           ) : (
-            guide.lessons.map((id) => <LessonGuide key={id} id={id} />)
+            guide.lessons ? (
+              guide.lessons.map((id) => <LessonGuide key={id} lesson={getLesson(id)} />)
+            ) : (
+              <LessonGuide lesson={guide} heading={false} />
+            )
           )}
         </div>
       </DraggableModal>
