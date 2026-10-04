@@ -163,3 +163,15 @@ test("each hop is also published on the token-chain bus the Simple Stepper reads
 
   expect(published).toEqual([["pa2a-0:ok"], ["pa2a-0:ok", "pa2a-1:error"]]);
 });
+
+test("a call refused at the first hop is not also shown as forwarded", () => {
+  const steps = buildPrivilegeA2aChainSteps([
+    { id: "pa2a-0", kind: "delegate", from: "main", to: "langchainagent", status: "ok" },
+    { id: "pa2a-1", kind: "error", from: "main", to: "langchainagent", status: "error", detail: "400: request blocked by security policy" },
+  ]);
+
+  expect(steps.map((step) => [step.id, step.status])).toEqual([
+    ["pa2a-1-call", "done"],
+    ["pa2a-1-gateway", "error"],
+  ]);
+});

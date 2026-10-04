@@ -19,8 +19,15 @@ const PRIVILEGE_GATEWAY_LANE = "GATEWAY";
  * of agents; a refused call stops at the gateway step. A reply is one step.
  */
 export function buildPrivilegeA2aChainSteps(tokenEvents) {
-  const hops = (Array.isArray(tokenEvents) ? tokenEvents : [])
+  const events = (Array.isArray(tokenEvents) ? tokenEvents : [])
     .filter((event) => typeof event?.id === "string" && event.id.startsWith("pa2a-") && event.from && event.to);
+  // The main agent announces its call before the gateway answers. If that call
+  // is then refused, the refusal is the outcome of the same call: drop the
+  // announcement, or the view shows the call forwarded and then refused.
+  const hops = events.filter((event, index) => !(
+    event.kind === "delegate"
+    && events.slice(index + 1).some((later) => later.status === "error" && later.from === event.from && later.to === event.to)
+  ));
   return hops.flatMap((event) => {
     const from = chainActor(event.from);
     const to = chainActor(event.to);
