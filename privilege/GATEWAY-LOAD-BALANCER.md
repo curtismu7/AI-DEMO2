@@ -218,6 +218,46 @@ restart drops registrations made before Redis was on.
 amount of persistence changes that. Not a documented Ping feature, so ask Ping whether
 `MCPGW_REDIS_URL` is supported and whether the exit after 6 failed attempts is intended.
 
+## 00c. Adding a third node in gateway 1's namespace (prepared, not installed)
+
+Status: chart and values are ready and rendered; no release exists yet, and the load balancer
+lists gateway 3 as `parked: true` (not yet applied to the cluster).
+
+The chart named every resource `agentless-mcpgw`, so a second release in
+`ping-devops-curtismuir` would have collided with gateway 1 on the Deployment, Service,
+Secrets, PVC and Certificate, and its Ingresses would have claimed gateway 1's host and
+paths. Two local additions fix that, both unchanged when unset: `nameOverride` renames every
+resource, label and hostPath; `ingress.enabled: false` skips both Ingresses.
+
+**Checked by render (`helm template`, nothing applied):** gateway 1's render with the live
+values is byte-identical before and after the chart change, with and without the new keys
+present. Gateway 3's render has six resources (Deployment, Service, Certificate, PVC, two
+Secrets), none sharing a kind and name with gateway 1's, 9 containers (the 7 sidecars,
+the gateway and its log tailer), and no reference to the unsuffixed names. With gateway 3's
+peer parked the load balancer renders it as `down`.
+
+**To install it** (the commands are in `pingone-privgateway-helm-main/agentless/gateway3.values.yaml`):
+
+1. Console, Gateways, Add New, the **AI GW** form, Docker command at the end, Cluster ID
+   `ai-demo-cmuir`. The token is single-use and expires in about 2 hours; do the install straight away.
+2. `helm install agentless-mcpgw3 ...` with gateway 1's values, `sidecars.values.yaml`,
+   `gateway3.values.yaml` and `--set-file proxyToken=<token file>`; delete the values copy after.
+3. Check the node joins: `ClusterID:ai-demo-cmuir`, `LinkStatus:Active`, pod 9/9, and a
+   sidecar app answers from inside it.
+4. Set `parked: false` for `gateway-3` in `gateway1-lb.values.yaml`,
+   `scripts/se-gateways.sh upgrade --apply`.
+
+**Not verified:** that the Certificate for `mcpgw3.ai-demo.ping-devops.com` issues (it
+needs DNS and the wildcard challenge to work for that name; gateway 2's `mcpgw2` name did);
+that a third node is accepted into the cluster; whether `meshPort` and `gatewayHostname` are
+needed (copied from gateway 2, itself untested). A third pod in the same namespace adds pod
+redundancy, not namespace redundancy.
+
+**Redis (section 00b):** gateway 3 uses the shared Redis too. `sidecars.values.yaml` carries
+`redis.urlSecret.name`, and the Secret `privilege-redis-url` already exists in
+`ping-devops-curtismuir`, so no extra step; but a node that cannot reach Redis exits after six
+attempts, so confirm the log line `Redis token store connected` before un-parking it.
+
 ## 0. Update: the mesh links, and one registration is enough
 
 Later on 2026-10-03 we got the two gateways to link over the mesh. An Agentic App stays

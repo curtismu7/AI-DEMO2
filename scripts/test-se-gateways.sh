@@ -15,6 +15,7 @@ case " $* " in
   *" --dry-run "*) awk '/^extraContainers:/{on=1;next} on&&/^  - name: /{print $3}' \
       "$BASEDIR/pingone-privgateway-helm-main/agentless/sidecars.values.yaml" \
       | grep -v "^${RENDER_DROP:-NONE}\$" | sed 's/^/- name: /' ;;
+  *" status "*) [ -n "${GW3_INSTALLED:-}" ] ;;   # is gateway 3's release installed?
   *) echo "helm $*" >> "$LOG" ;;
 esac
 EOF
@@ -46,6 +47,11 @@ check "dry run upgrades nothing" 0 "$(upgrades)"
 : > "$LOG"; "$BASEDIR/scripts/se-gateways.sh" upgrade --apply >/dev/null 2>&1
 check "--apply upgrades both" 2 "$(upgrades)"
 check "gateway 2 gets landingPage off" 1 "$(grep -c 'agentless-mcpgw2.*landingPage.enabled=false' "$LOG")"
+
+# 2b. Gateway 3 (same namespace as gateway 1) is upgraded only once its release exists.
+: > "$LOG"; GW3_INSTALLED=1 "$BASEDIR/scripts/se-gateways.sh" upgrade --apply >/dev/null 2>&1
+check "--apply with gateway 3 installed upgrades three" 3 "$(upgrades)"
+check "gateway 3 gets its own overlay" 1 "$(grep -c 'agentless-mcpgw3.*gateway3.values.yaml' "$LOG")"
 
 # 3. A render that lost a sidecar aborts before any upgrade — the 2026-09-07 failure.
 : > "$LOG"; RENDER_DROP=mcp-pingone "$BASEDIR/scripts/se-gateways.sh" upgrade --apply >/dev/null 2>&1

@@ -75,6 +75,14 @@ listenPort: 443
 # cert-manager ClusterIssuer name
 clusterIssuer: letsencrypt-pdo
 
+# Local additions for running a further gateway node in the SAME namespace (see
+# privilege/GATEWAY-LOAD-BALANCER.md): nameOverride renames every resource of the
+# release; ingress.enabled=false skips both Ingresses, which would otherwise claim
+# the host and paths the first gateway's already hold. Empty / true = unchanged.
+nameOverride: ""
+ingress:
+  enabled: true
+
 # Nginx ingress class
 ingressClassName: nginx-public
 
