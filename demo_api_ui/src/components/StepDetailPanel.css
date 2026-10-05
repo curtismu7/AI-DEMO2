@@ -216,6 +216,12 @@
 :root[data-theme="dark"] .sdp { background: var(--th-bg-card); border-color: var(--th-border); }
 :root[data-theme="dark"] .sdp-title { color: #eaf0fb; }
 :root[data-theme="dark"] .sdp-lane { color: #cdd7ec; }
+/* Matches the reel card: a gateway step names its lane in red and bold. */
+.sdp-lane--gateway,
+:root[data-theme="dark"] .sdp-lane--gateway {
+  color: var(--th-status-error-text);
+  font-weight: 700;
+}
 :root[data-theme="dark"] .sdp-status { background: var(--th-bg-inset); color: #cdd7ec; }
 :root[data-theme="dark"] .sdp-status--done { background: #10331f; color: #5fe39c; }
 :root[data-theme="dark"] .sdp-status--active { background: #33280f; color: #ffce7a; }
