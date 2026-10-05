@@ -58,14 +58,35 @@ export function normalizeModelCall(doc) {
   };
 }
 
+/** One accepted agent-to-agent request: who the key resolved to, and for which app. */
+export function normalizeA2aRequest(doc) {
+  const src = doc?._source || doc || {};
+  const domain = Array.isArray(src.Domain?.Elems) ? src.Domain.Elems[0] || '' : '';
+  return {
+    time: src.time || null,
+    // The app's front-end name is `<app>.default.applications…`.
+    app: domain.split('.')[0],
+    method: src.Method || '',
+    path: src.Path || '',
+    principal: src.User || '',
+    tenant: src.Tenant || '',
+  };
+}
+
+/** One refusal of an agent-to-agent app by policy. */
+export function normalizeA2aDenial(doc) {
+  const src = doc?._source || doc || {};
+  return { time: src.time || null, app: src.App || '', principal: src.Principal || '', reason: src.Reason || '' };
+}
+
 /**
  * The gateway's lines between two instants (epoch ms), oldest first.
- * Resolves `{ state, guardrail, modelCalls, loginUrl?, error? }` where state is
+ * Resolves `{ state, guardrail, modelCalls, requests, denials, loginUrl?, error? }` where state is
  * `ready`, `needsAuth` (sign in to the door first) or `error`. Never rejects:
  * the record is evidence beside a run, not part of it.
  */
 export async function loadGatewayRecord({ since, until, fetchImpl = fetch } = {}) {
-  const empty = { guardrail: [], modelCalls: [] };
+  const empty = { guardrail: [], modelCalls: [], requests: [], denials: [] };
   try {
     const toolsRes = await fetchImpl(`${INSPECTOR_BASE}/tools?profile=${encodeURIComponent(PROFILE_ID)}`, { credentials: 'include' });
     const toolsBody = await toolsRes.json().catch(() => ({}));
@@ -90,7 +111,7 @@ export async function loadGatewayRecord({ since, until, fetchImpl = fetch } = {}
             query: { range: { time: { gte: new Date(since).toISOString(), lte: new Date(until).toISOString() } } },
             sort: [{ time: { order: 'asc' } }],
           },
-          size: 50,
+          size: 100,
         },
       }),
     });
@@ -104,6 +125,8 @@ export async function loadGatewayRecord({ since, until, fetchImpl = fetch } = {}
       state: 'ready',
       guardrail: sources.filter((src) => src.msg === 'AIGuard').map(normalizeGuardrailEvent),
       modelCalls: sources.filter((src) => src.msg === 'LLM request').map(normalizeModelCall),
+      requests: sources.filter((src) => src.msg === 'Received HTTP request').map(normalizeA2aRequest),
+      denials: sources.filter((src) => src.msg === 'A2A policy denied').map(normalizeA2aDenial),
     };
   } catch (error) {
     return { state: 'error', error: error?.message || String(error), ...empty };

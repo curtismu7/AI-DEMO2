@@ -145,6 +145,18 @@ spec:
             - |
               until [ -f /var/log/procyon/cyonproxy.log ]; do sleep 1; done
               {{- if $ls.enabled }}
+              # Post /tmp/gw-event.json to the index, if the line produced one.
+              ship() {
+                [ -s /tmp/gw-event.json ] || return 0
+                wget -q -O /dev/null -T 3 \
+                  --header 'Content-Type: application/json' \
+                  {{- if $ls.authSecret }}
+                  --header "Authorization: Basic $(printf '%s:%s' "$LOG_SHIP_USERNAME" "$LOG_SHIP_PASSWORD" | base64 | tr -d '\n')" \
+                  {{- end }}
+                  --post-file=/tmp/gw-event.json \
+                  "{{ $ls.opensearchUrl | default "http://opensearch:9200" }}/{{ $ls.index | default "gateway-events" }}/_doc" \
+                  2>/dev/null
+              }
               tail -F /var/log/procyon/cyonproxy.log | while IFS= read -r line; do
                 echo "$line"
                 case "$line" in
@@ -152,14 +164,26 @@ spec:
                     # VirtualKeyID is the working sk-orion- key, not an id for
                     # it. Ship only its prefix and last four characters.
                     echo "$line" | sed -E 's/("VirtualKeyID":"[^"]{0,9})[^"]*([^"]{4})"/\1...\2"/' > /tmp/gw-event.json
-                    wget -q -O /dev/null -T 3 \
-                      --header 'Content-Type: application/json' \
-                      {{- if $ls.authSecret }}
-                      --header "Authorization: Basic $(printf '%s:%s' "$LOG_SHIP_USERNAME" "$LOG_SHIP_PASSWORD" | base64 | tr -d '\n')" \
-                      {{- end }}
-                      --post-file=/tmp/gw-event.json \
-                      "{{ $ls.opensearchUrl | default "http://opensearch:9200" }}/{{ $ls.index | default "gateway-events" }}/_doc" \
-                      2>/dev/null
+                    ship
+                    ;;
+                  *'"msg":"Received HTTP request"'*)
+                    # An agent-to-agent call the gateway accepted and handed to
+                    # the remote agent's front end: who the key resolved to, and
+                    # for which app. A2A paths only. The Headers object holds
+                    # the caller's key and network address, so it is not shipped.
+                    case "$line" in
+                      *'/a2a/'*)
+                        echo "$line" | sed -E 's/"Headers":\{[^}]*\},//; s/sk-orion-[A-Za-z0-9_-]+/[masked]/g' > /tmp/gw-event.json
+                        ship
+                        ;;
+                    esac
+                    ;;
+                  *'policy denied'*'access to a2a app'*)
+                    # The gateway's reason for refusing an agent an A2A app. A
+                    # plain-text line, so only its three facts are shipped, with
+                    # the time cut to whole seconds like the JSON lines.
+                    echo "$line" | sed -nE 's/^time="([0-9T:-]+)(\.[0-9]+)?Z".*policy denied ([A-Za-z0-9-]+) access to a2a app ([A-Za-z0-9_-]+) .*$/{"msg":"A2A policy denied","time":"\1Z","Principal":"\3","App":"\4","Reason":"principal does not have access"}/p' > /tmp/gw-event.json
+                    ship
                     ;;
                 esac
               done
