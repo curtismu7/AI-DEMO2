@@ -213,3 +213,53 @@ describe("routing bar + tools (VS Code)", () => {
     expect(session.retryTools).toHaveBeenCalled();
   });
 });
+
+describe.each([
+  ["Terminal", ShellTerminalView],
+  ["Claude Desktop", ShellDesktopView],
+])("routing bar + tools (%s)", (_name, View) => {
+  const tool = { name: "list_safes", description: "d", inputSchema: { properties: {} } };
+
+  it("shows Path and Door pickers and calls pickPath / pickDoor", () => {
+    const session = makeSession();
+    render(<View session={session} />);
+    fireEvent.change(screen.getByRole("combobox", { name: "Connection path" }), { target: { value: "facade" } });
+    expect(session.pickPath).toHaveBeenCalledWith("facade");
+    fireEvent.change(screen.getByRole("combobox", { name: "MCP backend (door)" }), {
+      target: { value: "https://gw.example/privilege-gateway/other/mcp" },
+    });
+    expect(session.pickDoor).toHaveBeenCalledWith("https://gw.example/privilege-gateway/other/mcp");
+  });
+
+  it("shows a tool and runs it via runTool", async () => {
+    const session = makeSession({ tools: [tool], runTool: vi.fn().mockResolvedValue("{}") });
+    render(<View session={session} />);
+    expect(screen.getByText("list_safes")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Run" }));
+    await waitFor(() => expect(session.runTool).toHaveBeenCalledWith("list_safes", expect.any(String)));
+  });
+
+  it("shows the latest tool run", () => {
+    const latestCall = { name: "list_safes", request: "{}", response: '{"ok":true}', ok: true };
+    render(<View session={makeSession({ latestCall })} />);
+    const region = screen.getByRole("region", { name: "Latest tool run" });
+    expect(region).toHaveTextContent("list_safes");
+    expect(region).toHaveTextContent("Success");
+  });
+
+  it("still sends the prompt via session.send", () => {
+    const session = makeSession();
+    render(<View session={session} />);
+    const box = screen.getByRole("textbox", { name: "Prompt" });
+    fireEvent.change(box, { target: { value: "hi" } });
+    fireEvent.submit(box.closest("form"));
+    expect(session.send).toHaveBeenCalledWith("hi");
+  });
+
+  it("hides tools on an LLM path with a note", () => {
+    const session = makeSession({ tools: [tool], routing: { ...makeSession().routing, llmPath: "anthropic" } });
+    render(<View session={session} />);
+    expect(screen.queryByText("list_safes")).toBeNull();
+    expect(screen.getByText("Tools apply to MCP paths.")).toBeInTheDocument();
+  });
+});

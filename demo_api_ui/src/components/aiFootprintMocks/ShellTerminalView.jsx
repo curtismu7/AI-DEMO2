@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { ShellGate, ShellPrompt } from "./ShellParts";
+import { ShellGate, ShellLatestCall, ShellPrompt, ShellRoutingBar, ShellToolsList } from "./ShellParts";
 import "./PrivilegeShellViews.css";
 
 export function ShellTerminalView({ session }) {
@@ -12,6 +12,7 @@ export function ShellTerminalView({ session }) {
   return (
     <div className="pvs pvs--coding pvs-term" data-testid="pvs-terminal">
       <ShellGate session={session}>
+        <ShellRoutingBar session={session} />
         <div ref={logRef} className="pvs-term__log" role="log" aria-label="Terminal">
           {messages.map((m) =>
             m.role === "user" ? (
@@ -28,6 +29,8 @@ export function ShellTerminalView({ session }) {
           )}
           {thinking ? <div className="pvs-term__tool">&#9679; thinking…</div> : null}
         </div>
+        <ShellToolsList session={session} collapsible />
+        <ShellLatestCall latestCall={session.latestCall} />
         <ShellPrompt session={session} className="pvs-term__prompt" />
       </ShellGate>
     </div>
