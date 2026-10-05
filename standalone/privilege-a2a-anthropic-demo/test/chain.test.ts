@@ -48,6 +48,13 @@ test('a full chain reports every hop down and back up', async () => {
     'result:langchainagent>main',
   ]);
   assert.equal(events[1].elapsedMs, 42);
+  // What crossed each hop is reported, with the agent key masked.
+  assert.match(events[0].request ?? '', /^POST https:\/\/gateway\.example\/langchainagent\/a2a\/jsonrpc/);
+  assert.match(events[0].request ?? '', /"text": "Refund order 7"/);
+  assert.doesNotMatch(events[0].request ?? '', /Bearer primary-key\b(?!…)/);
+  assert.equal(events[1].detail, 'Refund order 7');
+  assert.equal(events[2].detail, 'Refund approved');
+  assert.match(events[3].response ?? '', /^HTTP 200/);
 });
 
 test('a refusal at the second hop is attributed to the middle agent', async () => {
