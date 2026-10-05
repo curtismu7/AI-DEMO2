@@ -10,6 +10,10 @@ describe("requestAuthStart", () => {
     const request = vi.fn().mockResolvedValue({ noAuthRequired: true });
     await expect(requestAuthStart(request)).resolves.toEqual({ kind: "no-auth-required" });
   });
+  it("never parses the URL: an unparseable authUrl still resolves as a redirect", async () => {
+    const request = vi.fn().mockResolvedValue({ authUrl: "not a url" });
+    await expect(requestAuthStart(request)).resolves.toEqual({ kind: "redirect", authUrl: "not a url" });
+  });
   it("throws when sign-in returns no authorization URL", async () => {
     await expect(requestAuthStart(vi.fn().mockResolvedValue({}))).rejects.toThrow("sign-in did not return an authorization URL");
     await expect(requestAuthStart(vi.fn().mockResolvedValue(null))).rejects.toThrow("sign-in did not return an authorization URL");

@@ -54,6 +54,11 @@ describe("decideAfterSwitch", () => {
     ["door", false, "facade", false, true, "manual"],
     ["door", true, "privilege", false, true, "authenticated"],
     ["door", true, "direct", false, false, "authenticated"],
+    ["door", 1, "privilege", false, false, "authenticated"],
+    ["door", "yes", "privilege", false, true, "authenticated"],
+    ["door", false, "privilege", true, true, "silent"],
+    ["path", false, "facade", false, true, "silent"],
+    ["path", true, "facade", false, false, "authenticated"],
   ])("%s dest=%s mode=%s force=%s signedIn=%s -> %s", (kind, destinationAuthenticated, mode, forceReauth, signedIn, expected) => {
     expect(decideAfterSwitch({ kind, destinationAuthenticated, mode, forceReauth, signedIn })).toBe(expected);
   });
