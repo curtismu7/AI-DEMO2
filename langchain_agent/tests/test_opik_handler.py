@@ -38,10 +38,10 @@ def test_stats_normalised(keyed):
     async def fake(path, **kw):
         if path == "/traces/stats":
             return {"stats": [
-                {"name": "trace_count", "value": 4},
+                {"name": "trace_count", "value": 3},  # one of these has no usage
                 {"name": "duration", "value": {"p50": 100.0, "p90": 900.0}},
-                {"name": "usage.prompt_tokens", "value": 10.0},
-                {"name": "usage.completion_tokens", "value": 2.5},
+                {"name": "usage.prompt_tokens", "value": 4240.0},
+                {"name": "usage.completion_tokens", "value": 236.0},
                 {"name": "error_count", "value": {"count": 1}},
             ]}
         if path == "/spans/stats":
@@ -50,9 +50,11 @@ def test_stats_normalised(keyed):
 
     with patch.object(h, "_get", new=AsyncMock(side_effect=fake)):
         d = client.get("/opik/stats?window=1h").json()
-    assert d["traces"] == 4 and d["p50_ms"] == 100.0 and d["p90_ms"] == 900.0
-    assert (d["tokens_in"], d["tokens_out"]) == (40, 10)
-    assert d["error_rate"] == 0.25 and d["tool_calls"] == 7
+    assert d["traces"] == 3 and d["p50_ms"] == 100.0 and d["p90_ms"] == 900.0
+    # per-trace averages passed through, never multiplied by trace_count
+    assert (d["avg_tokens_in"], d["avg_tokens_out"]) == (4240, 236)
+    assert "tokens_in" not in d
+    assert d["error_rate"] == pytest.approx(1 / 3) and d["tool_calls"] == 7
     assert d["project_url"] == "https://www.comet.com/opik/ws/projects/pid/traces"
 
 
