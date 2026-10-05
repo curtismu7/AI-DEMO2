@@ -12,7 +12,7 @@ const { metadataDocument, beginCimd, completeCimd } = require('../services/pfAiA
 const { exchangeForThirdPartyAccessToken } = require('../services/pfAiAgentCrossDomainExchangeService');
 const { redeemIdJag } = require('../services/pfAiAgentMockThirdPartyService');
 const { beginRar, completeRar, userLimits } = require('../services/pfAiAgentRarService');
-const { startCiba, pollCiba } = require('../services/pfAiAgentCibaService');
+const { startCiba, pollCiba, mockDecideCiba } = require('../services/pfAiAgentCibaService');
 
 function sessionProvider(req) {
   return String(req.session?.oauthProvider || req.session?.user?.oauthProvider || '').toLowerCase();
@@ -148,6 +148,16 @@ function createPfAiAgentRouter({ configStore: store = configStore, fetchImpl = f
     try {
       res.set('Cache-Control', 'no-store');
       return res.json(await pollCiba(req, { store, fetchImpl }));
+    } catch (error) {
+      return res.status(error.httpStatus || 502).json({ error: errorCode(error, 'pf_ai_ciba_failed') });
+    }
+  });
+
+  // The mock phone's Approve / Deny; 404 unless PF_AI_CIBA_MOCK_ENABLED is true.
+  router.post('/ciba/mock-decision', requireApplicationSession, (req, res) => {
+    try {
+      res.set('Cache-Control', 'no-store');
+      return res.json(mockDecideCiba(req, req.body?.decision, { store }));
     } catch (error) {
       return res.status(error.httpStatus || 502).json({ error: errorCode(error, 'pf_ai_ciba_failed') });
     }

@@ -213,6 +213,7 @@ function getFeatureStatus(store = configStore) {
     // RAR can also bind its token to the BFF's key (DPoP) once a DPoP-requiring client is named.
     rarDpop: rar && Boolean(value(store, 'pf_ai_rar_dpop_client_id')),
     ciba: enabled(store, 'pf_ai_ciba_enabled') && available(resolveCibaConfig, store),
+    cibaMock: process.env.NODE_ENV !== 'production' && enabled(store, 'pf_ai_ciba_mock_enabled'),
   };
 }
 

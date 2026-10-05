@@ -96,6 +96,12 @@ async function safeJson(response) {
   try { return await response.json(); } catch { return {}; }
 }
 
+// Mock phone: no PingFederate call. The pending request waits for mockDecideCiba (the page's
+// Approve / Deny buttons), so the page flow runs without a real PingOne MFA device.
+// Never on in production, whatever the flag says: it approves a request without any device.
+const mockEnabled = (store) => process.env.NODE_ENV !== 'production'
+  && String(store.getEffective('pf_ai_ciba_mock_enabled') || '').trim().toLowerCase() === 'true';
+
 async function startCiba(req, {
   loginHint: requestedHint,
   bindingMessage: requestedMessage,
@@ -104,7 +110,8 @@ async function startCiba(req, {
   now = Date.now,
 } = {}) {
   if (!req?.session) throw oauthError('PF_AI_SESSION_REQUIRED', 'An application session is required', 401);
-  if (!getFeatureStatus(store).ciba) {
+  const mock = mockEnabled(store);
+  if (!mock && !getFeatureStatus(store).ciba) {
     throw oauthError('PF_AI_CIBA_NOT_CONFIGURED', 'PF AI Agent CIBA is not enabled or configured', 503);
   }
   req.session.pfAiAgent ||= {};
@@ -116,6 +123,21 @@ async function startCiba(req, {
   const loginHint = sessionLoginHint(req, requestedHint);
   const bindingMessage = validBindingMessage(requestedMessage);
 
+  if (mock) {
+    const createdAt = now();
+    const pending = {
+      mock: true,
+      createdAt,
+      expiresAt: createdAt + MAX_PENDING_MS,
+      interval: DEFAULT_INTERVAL_SECONDS,
+      lastPolledAt: 0,
+      loginHint,
+      bindingMessage,
+    };
+    featureSession.cibaPending = pending;
+    delete featureSession.cibaResult;
+    return pendingView(pending);
+  }
   const config = resolveCibaConfig(store);
   const metadata = await discoverPf(config, fetchImpl);
   if (!metadata.backchannelEndpoint) {
@@ -154,6 +176,7 @@ async function pollCiba(req, { store = configStore, fetchImpl = fetch, now = Dat
   const pending = featureSession?.cibaPending;
   if (!pending) return featureSession?.cibaResult || { state: 'none' };
   if (pending.expiresAt <= now()) return finish(featureSession, 'expired', pending, now, { reason: 'timed_out' });
+  if (pending.mock) return pendingView(pending);
   // The page may ask more often than PingFederate allows; answer from the session instead of calling it.
   if (now() - pending.lastPolledAt < pending.interval * 1000) return pendingView(pending);
   pending.lastPolledAt = now();
@@ -202,8 +225,23 @@ async function pollCiba(req, { store = configStore, fetchImpl = fetch, now = Dat
   }
 }
 
+function mockDecideCiba(req, decision, { store = configStore, now = Date.now } = {}) {
+  if (!mockEnabled(store)) throw oauthError('PF_AI_CIBA_MOCK_DISABLED', 'The mock phone is not enabled', 404);
+  const featureSession = req?.session?.pfAiAgent;
+  const pending = featureSession?.cibaPending;
+  if (!pending?.mock) throw oauthError('PF_AI_CIBA_NOTHING_PENDING', 'No mock approval request is pending', 409);
+  if (decision === 'approve') {
+    return finish(featureSession, 'approved', pending, now, {
+      subject: pending.loginHint, issuer: 'mock-phone', scope: 'openid', tokenType: 'none',
+    });
+  }
+  if (decision === 'deny') return finish(featureSession, 'denied', pending, now, { reason: 'user_denied' });
+  throw oauthError('PF_AI_CIBA_DECISION_INVALID', 'The decision must be approve or deny', 400);
+}
+
 module.exports = {
   CIBA_GRANT,
+  mockDecideCiba,
   startCiba,
   pollCiba,
 };

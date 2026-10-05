@@ -116,6 +116,10 @@ denied or expired. The client secret is `PF_AI_CIBA_CLIENT_SECRET`, in the secre
 store; `scripts/pingfederate/provision-ciba.js --apply` creates it once and the
 PingFederate client, authenticator and request policy it belongs with.
 
+`PF_AI_CIBA_MOCK_ENABLED=true` swaps the user's device for a mock phone: the BFF skips
+PingFederate, and the page shows Approve and Deny buttons that answer the pending request.
+It proves the page and BFF flow only, not PingOne MFA, so it is off by default.
+
 On the local stack the cross-domain and third-party values above are defaults in
 `docker-compose.yml`, and `scripts/pingfederate/provision-cross-domain-exchange.js
 --apply` creates the PingFederate side plus the two client secrets in the vault

@@ -164,6 +164,31 @@ describe("PingFederate AI Agent page", () => {
       expect(screen.getByRole("button", { name: /Ask for approval/i })).toBeDisabled();
     });
 
+    it("shows the mock phone only when it is on, and answers through it", async () => {
+      routeGets({ page: { ...cibaStatus, features: { ...cibaStatus.features, ciba: false, cibaMock: true } } });
+      apiClient.post.mockImplementation((url) => Promise.resolve({
+        data: String(url).endsWith("/mock-decision")
+          ? { state: "approved", subject: "demouser", loginHint: "demouser" }
+          : pendingView(),
+      }));
+      render(<PingFederateAiAgentPage user={{ username: "demouser" }} />);
+
+      fireEvent.click(await ask());
+      fireEvent.click(await screen.findByRole("button", { name: /Approve on mock phone/i }));
+
+      expect(await screen.findByTestId("ciba-outcome")).toHaveTextContent("Approved by demouser.");
+      expect(apiClient.post).toHaveBeenCalledWith("/api/pf-ai-agent/ciba/mock-decision", { decision: "approve" });
+    });
+
+    it("has no mock phone buttons when it is off", async () => {
+      routeGets();
+      apiClient.post.mockResolvedValue({ data: pendingView() });
+      render(<PingFederateAiAgentPage user={{ username: "demouser" }} />);
+      fireEvent.click(await ask());
+      await screen.findByTestId("ciba-pending");
+      expect(screen.queryByTestId("ciba-mock-phone")).not.toBeInTheDocument();
+    });
+
     it("polls until approved and then stops asking", async () => {
       routeGets({ ciba: [{ state: "none" }, pendingView(), { state: "approved", subject: "demouser", loginHint: "demouser" }] });
       apiClient.post.mockResolvedValue({ data: pendingView() });

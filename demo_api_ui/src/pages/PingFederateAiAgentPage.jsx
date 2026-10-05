@@ -186,7 +186,7 @@ export default function PingFederateAiAgentPage({ user }) {
     return () => { current = false; };
   }, []);
 
-  const cibaEnabled = Boolean(status?.features?.ciba);
+  const cibaEnabled = Boolean(status?.features?.ciba || status?.features?.cibaMock);
   // Pick up an approval already in flight (a reload) or the last answer for this session.
   useEffect(() => {
     if (!cibaEnabled) return undefined;
@@ -216,13 +216,13 @@ export default function PingFederateAiAgentPage({ user }) {
 
   const provider = status?.sessionProvider || "none";
   const supportedSession = provider === "pingone" || provider === "pingfederate";
-  const features = status?.features || { cimd: false, crossDomain: false, rar: false, rarDpop: false, ciba: false };
+  const features = status?.features || { cimd: false, crossDomain: false, rar: false, rarDpop: false, ciba: false, cibaMock: false };
   const rarResult = status?.rarResult || null;
   const rarUserKeyValue = rarUserKey.trim();
   const callbackResult = queryStatus.get("cimd") || queryStatus.get("rar");
 
   async function askForApproval() {
-    if (!features.ciba || cibaBusy || cibaPending || !cibaUser.trim()) return;
+    if (!cibaEnabled || cibaBusy || cibaPending || !cibaUser.trim()) return;
     setCibaBusy(true);
     setCibaError("");
     setCibaState(null);
@@ -236,6 +236,16 @@ export default function PingFederateAiAgentPage({ user }) {
       setCibaError(CIBA_ERRORS[error?.response?.data?.error] || "Could not start the approval request.");
     } finally {
       setCibaBusy(false);
+    }
+  }
+
+  // Mock phone: stands in for the user's device when PF_AI_CIBA_MOCK_ENABLED is on.
+  async function decideOnMockPhone(decision) {
+    try {
+      const response = await apiClient.post("/api/pf-ai-agent/ciba/mock-decision", { decision });
+      setCibaState(response.data);
+    } catch {
+      setCibaError("The mock phone could not answer.");
     }
   }
 
@@ -454,7 +464,7 @@ export default function PingFederateAiAgentPage({ user }) {
             />
           </label>
           <div className="pf-ai-agent__rar-actions">
-            {features.ciba && supportedSession
+            {cibaEnabled && supportedSession
               ? <button
                 className="pf-ai-agent__action"
                 type="button"
@@ -470,6 +480,12 @@ export default function PingFederateAiAgentPage({ user }) {
             <p className="pf-ai-agent__callback" role="status" data-testid="ciba-pending">
               Waiting for {cibaState.loginHint} to approve on their device. Expires {new Date(cibaState.expiresAt).toLocaleTimeString()}.
             </p>
+          )}
+          {cibaPending && features.cibaMock && (
+            <div className="pf-ai-agent__rar-actions" data-testid="ciba-mock-phone">
+              <button className="pf-ai-agent__action" type="button" onClick={() => decideOnMockPhone("approve")}>Approve on mock phone</button>
+              <button className="pf-ai-agent__action" type="button" onClick={() => decideOnMockPhone("deny")}>Deny on mock phone</button>
+            </div>
           )}
           {cibaOutcome(cibaState) && (
             <p
