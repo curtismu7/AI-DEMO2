@@ -25,6 +25,7 @@ from .a2a_delegation import build_delegate_tools
 from .conversation_memory import ConversationMemory
 from .execution_tracer import AgentExecutionTracer, TracingMixin
 from .tracing_callback import DetailedTracingCallbackHandler
+from .opik_tracing import opik_callbacks
 
 
 logger = logging.getLogger(__name__)
@@ -351,7 +352,7 @@ Remember to maintain conversation context and provide helpful, accurate response
         """
         return RunnableConfig(
             configurable={"thread_id": session_id},
-            callbacks=[tracer_callback],
+            callbacks=[tracer_callback, *opik_callbacks(session_id)],
             recursion_limit=getattr(self.config.langchain, "max_iterations", 25),
         )
     

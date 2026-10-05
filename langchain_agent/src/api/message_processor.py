@@ -6,6 +6,7 @@ import json
 from typing import Optional
 
 from agent.langchain_mcp_agent import LangChainMCPAgent, _content_to_text
+from agent.opik_tracing import opik_callbacks
 from agent.grounding_guardrail import (
     CommitmentGroundingValidator,
     ToolCallRecord,
@@ -317,6 +318,7 @@ class MessageProcessor:
                 run_llm, bff_tools, pre_model_hook=self.agent._pre_model_hook
             )
             active_config = RunnableConfig(
+                callbacks=opik_callbacks(session_id),
                 recursion_limit=getattr(self.agent.config.langchain, "max_iterations", 25),
             )
 
@@ -417,6 +419,7 @@ class MessageProcessor:
 
             active_config = RunnableConfig(
                 configurable={"thread_id": session_id},
+                callbacks=opik_callbacks(session_id),
                 recursion_limit=getattr(self.agent.config.langchain, "max_iterations", 25),
             )
             agent_input = {"messages": msgs_for_graph}
