@@ -54,6 +54,11 @@ export function chainHopToTokenEvent(payload, index, useCaseId = PRIVILEGE_A2A_C
     response: str(payload.response) || undefined,
     // On a `card` hop: what the callee's A2A Agent Card said about it.
     card: payload.card && typeof payload.card === 'object' ? payload.card : undefined,
+    // Protocol facts of the exchange (ids, status), the key the agent presented
+    // (already masked), and how far into the run the agent reported this.
+    wire: payload.wire && typeof payload.wire === 'object' ? payload.wire : undefined,
+    credential: str(payload.credential) || undefined,
+    at: str(payload.at) || undefined,
     useCaseId,
   };
 }

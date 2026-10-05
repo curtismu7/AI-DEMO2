@@ -37,6 +37,9 @@ export function normalizeGuardrailEvent(doc) {
     direction: src.Direction || 'unknown',
     // The gateway's name for the agent whose key made the call.
     client: src.Client || '',
+    keyType: src.KeyType || '',
+    // How long the guardrail took to reach this verdict.
+    elapsedMs: typeof src.ElapsedMs === 'number' ? src.ElapsedMs : null,
     rules: unique(mappings.map((mapping) => mapping?.Source)),
     frameworks: Object.entries(byFramework).map(([label, identifiers]) => ({ label, identifiers })),
   };

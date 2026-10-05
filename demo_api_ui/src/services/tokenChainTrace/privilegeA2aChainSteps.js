@@ -21,6 +21,52 @@ const GATEWAY_APP = { langchainagent: "langchainagent", refunds: "hostile-a2a", 
 const GATEWAY_RECORD_ID = "pa2a-gateway-record";
 const RECORD_ROW = "Gateway's own record";
 
+// What the A2A specification requires at each kind of step, and why the
+// gateway is where it is. The detail panel shows these with RFC info on.
+const A2A_SPEC = { label: "A2A specification", href: "https://a2a-protocol.org/latest/specification/", title: "Agent2Agent (A2A) Protocol specification" };
+const A2A_DISCOVERY = { label: "A2A agent discovery", href: "https://a2a-protocol.org/latest/topics/agent-discovery/", title: "How a client finds an agent's Agent Card" };
+const JSON_RPC = { label: "JSON-RPC 2.0", href: "https://www.jsonrpc.org/specification", title: "JSON-RPC 2.0 specification" };
+const WELL_KNOWN = { label: "RFC 8615", href: "https://www.rfc-editor.org/rfc/rfc8615", title: "Well-Known Uniform Resource Identifiers" };
+const BEARER = { label: "RFC 6750", href: "https://www.rfc-editor.org/rfc/rfc6750", title: "OAuth 2.0 Bearer Token Usage" };
+const SPEC = {
+  card: {
+    refs: [A2A_SPEC, A2A_DISCOVERY, WELL_KNOWN],
+    mandate: "An A2A agent describes itself in an Agent Card: a JSON document with its name, skills, transport, capabilities and the security it expects. A client can fetch it from a well-known path under the agent's address.",
+    why: "A caller that reads the card learns how to talk to the agent without that being hard-coded. Fetching it through the gateway means discovery is checked like any other request.",
+    failure: "Following the card's own endpoint. A card names the agent's direct address; a caller that uses it goes round the gateway. Here the caller keeps the gateway's route.",
+  },
+  call: {
+    refs: [A2A_SPEC, JSON_RPC, BEARER],
+    mandate: "message/send is a JSON-RPC 2.0 request. Its params carry a Message with a role, a messageId and one or more parts. Credentials travel in HTTP headers, never inside the message.",
+    why: "The caller addresses the gateway's route for the agent, not the agent, so every hand-off passes one check, made with the caller's own key.",
+    failure: "Sharing one key across agents. The gateway could then not tell which agent is calling, and grants made per agent would mean nothing.",
+  },
+  gateway: {
+    refs: [A2A_SPEC, BEARER],
+    mandate: "A2A leaves authentication and authorization to the HTTP layer: an agent, or an intermediary in front of it, identifies the caller from the request's credentials and decides whether to serve it.",
+    why: "The gateway is that intermediary. It identifies the caller by its key, checks that key's scope and the policy for this pair of agents, and screens the message before the next agent sees it.",
+    failure: "Assuming every caller is screened. In our tests the guardrail inspected calls made with an agent key; a call made with a person's sign-in was not inspected.",
+  },
+  refused: {
+    refs: [A2A_SPEC, JSON_RPC],
+    mandate: "A failed JSON-RPC call returns an error object with a code and a message in place of a result.",
+    why: "Refusing at the gateway means the next agent does no work and sees no part of a message it should not have received.",
+    failure: "Pairing replies to requests by id. This gateway's guardrail error does not echo the request's id, so a client that relies on it cannot match the refusal to its call.",
+  },
+  forward: {
+    refs: [A2A_SPEC],
+    mandate: "The agent authenticates whoever calls it at the HTTP layer. Behind a gateway that caller is the gateway, presenting the credential configured for this agent.",
+    why: "The caller's key stops at the gateway. An agent never holds another agent's key, so a leaked key is useful at the gateway only.",
+    failure: "Leaving the agent reachable at its own address. Anyone who can reach it directly, with a credential it accepts, skips every check shown here.",
+  },
+  reply: {
+    refs: [A2A_SPEC, JSON_RPC],
+    mandate: "The result of message/send is a Message with role agent, or a Task. The JSON-RPC response carries the id of the request it answers.",
+    why: "The reply returns by the same path as the call, so one place sees both halves of the conversation.",
+    failure: "Assuming replies are screened like calls. We have confirmed the gateway screens a call; we have not seen it inspect a reply.",
+  },
+};
+
 /**
  * Rows for a gateway step from the gateway's own guardrail log (the
  * `pa2a-gateway-record` event, see utils/privilegeA2aChainRun.js). `outcome` is
@@ -70,6 +116,8 @@ function gatewayRecord(record, caller, outcome, callee) {
     rows: [
       [RECORD_ROW, `${verdict.event} · ${verdict.category}`],
       ["Caller, as the gateway names it", verdict.client],
+      ...(verdict.keyType ? [["Key type", verdict.keyType]] : []),
+      ...(typeof verdict.elapsedMs === "number" ? [["Guardrail time", `${verdict.elapsedMs} ms`]] : []),
       ...(verdict.rules.length ? [["Rules that fired", verdict.rules.join(", ")]] : []),
       ...verdict.frameworks.map((framework) => [framework.label, framework.identifiers.join(", ")]),
       ...(verdict.time ? [["Recorded at", verdict.time]] : []),
@@ -152,6 +200,12 @@ export function buildPrivilegeA2aChainSteps(tokenEvents) {
     const said = (event.kind === "card" ? "" : (refused ? origin?.detail : event.detail)) || "";
     const saidRow = (label) => (said ? [[label, said]] : []);
     const timing = typeof event.elapsedMs === "number" ? [["Round trip", `${event.elapsedMs} ms`]] : [];
+    // Protocol facts the agent reported for this exchange, and when it reported them.
+    const wire = event.wire || {};
+    const row = (label, value) => (value || value === 0 ? [[label, String(value)]] : []);
+    const atRow = row("Reported at, into the run", event.at);
+    const registryRow = (name) => row("Agent Registry name", GATEWAY_CLIENT[name]);
+    const routeRow = (name) => row("Route (Agentic App)", GATEWAY_APP[name]);
     const facts = [
       `${from} → ${to}`,
       ...(said ? [quote(said.length > 60 ? `${said.slice(0, 57)}…` : said)] : []),
@@ -173,14 +227,25 @@ export function buildPrivilegeA2aChainSteps(tokenEvents) {
       const skills = Array.isArray(card?.skills) ? card.skills : [];
       const ask = step("-discover", `Asks for ${to}'s A2A Agent Card`, chainLane(event.from), "done", {
         narrative: `Before calling, ${from} asked the Privilege gateway for ${to}'s A2A Agent Card, with its own agent key. The card is how one agent learns what another is, what it can do and how to talk to it, without that being hard-coded.`,
-        kv: [["From", from], ["About", to], ["Asked", "Privilege gateway"], ["Credential", `${from}'s own agent key (Bearer)`]],
+        kv: [
+          ["From", from],
+          ["About", to],
+          ["Asked", "Privilege gateway"],
+          ["Credential", `${from}'s own agent key (Bearer)`],
+          ...row("Key presented", event.credential),
+          ...registryRow(event.from),
+          ["Path", "/.well-known/agent-card.json under the agent's route"],
+          ...atRow,
+        ],
+        spec: SPEC.card,
         ...(event.request ? { request: { title: `A2A Agent Card request · ${from} → Privilege gateway`, text: event.request } } : {}),
       });
       if (!card) {
         return [ask, step("-card", "No A2A Agent Card returned", PRIVILEGE_GATEWAY_LANE, "done", {
           facts: ["A2A Agent Card", "not returned"],
           narrative: `${event.detail || "No Agent Card was returned"}. ${from} carries on: it calls the gateway's route for ${to} either way.`,
-          kv: [["A2A Agent Card", "Not returned"]],
+          kv: [["A2A Agent Card", "Not returned"], ...row("HTTP status", wire.status)],
+          spec: SPEC.card,
           ...(event.response ? { response: { title: `Response to ${from}`, text: event.response } } : {}),
         })];
       }
@@ -193,10 +258,20 @@ export function buildPrivilegeA2aChainSteps(tokenEvents) {
           ...(card.description ? [["Description", card.description]] : []),
           ["A2A protocol version", card.protocolVersion || "not stated"],
           ["Transport", card.preferredTransport || "not stated"],
-          ["Skills", skills.length ? skills.join(", ") : "none listed"],
+          ...row("Agent version", card.version),
+          ...((card.capabilities || []).length ? [["Capabilities", card.capabilities.join(", ")]] : []),
+          ...((card.inputModes || []).length ? [["Accepts", card.inputModes.join(", ")]] : []),
+          ...((card.outputModes || []).length ? [["Returns", card.outputModes.join(", ")]] : []),
+          ...((card.skillDetails || []).length
+            ? card.skillDetails.map((skill) => [`Skill: ${skill.name}`, [skill.description, skill.tags.length ? `tags: ${skill.tags.join(", ")}` : ""].filter(Boolean).join(" · ") || "no description"])
+            : [["Skills", skills.length ? skills.join(", ") : "none listed"]]),
+          ...((card.security || []).length ? [["Security the card declares", card.security.join("; ")]] : []),
+          ...((card.security || []).length ? [["How this caller gets in instead", "With its agent key at the gateway; the gateway presents the credential set on the app"]] : []),
           ...(card.url ? [["Endpoint named in the card", card.url]] : []),
           ["Endpoint the caller uses", "The Privilege gateway's route for this agent"],
+          ...row("HTTP status", wire.status),
         ],
+        spec: SPEC.card,
         ...(event.response ? { response: { title: `A2A Agent Card · ${to}`, text: event.response } } : {}),
       })];
     }
@@ -217,16 +292,34 @@ export function buildPrivilegeA2aChainSteps(tokenEvents) {
       return [
         step("-reply", `Replies to ${to}`, chainLane(event.from), "done", {
           narrative: `${from} answered the A2A call${saying(said)} It sends the reply to the gateway, not to ${to}: it has no direct route to ${to}, so the gateway sees both halves of the conversation.`,
-          kv: [["From", from], ["To", to], ["Protocol", "A2A message, as a JSON-RPC 2.0 result"], ...saidRow("Reply")],
+          kv: [
+            ["From", from],
+            ["To", to],
+            ["Protocol", "A2A message, as a JSON-RPC 2.0 result"],
+            ...row("Result kind and role", [wire.kind, wire.role].filter(Boolean).join(" / ")),
+            ...row("A2A message id", wire.messageId),
+            ...row("Handed on to", wire.delegatedTo && `${wire.delegatedTo}, by ${wire.delegatedBy || "the callee"}`),
+            ...saidRow("Reply"),
+          ],
+          spec: SPEC.reply,
           response,
         }),
         step("-relay", "Relays the reply", PRIVILEGE_GATEWAY_LANE, "done", {
           narrative: `The reply from ${from} returned through the Privilege gateway on its way to ${to}. The gateway is the only path between the two agents, in both directions. We have confirmed it screens the call; we have not seen it inspect a reply.`,
-          kv: [["Path", `${from} → Privilege gateway → ${to}`], ["Reply inspection", "Not observed in our tests of this gateway"], ...timing],
+          kv: [["Path", `${from} → Privilege gateway → ${to}`], ["Reply inspection", "Not observed in our tests of this gateway"], ...routeRow(event.from), ...timing],
+          spec: SPEC.reply,
         }),
         step("-return", `Receives the reply from ${from}`, chainLane(event.to), "done", {
           narrative: `${to} received ${from}'s answer${saying(said)} ${to} can now use it: pass it up the chain, or return it to the person who asked.`,
-          kv: [["Received from", "Privilege gateway"], ["Originally from", from], ...saidRow("Reply")],
+          kv: [
+            ["Received from", "Privilege gateway"],
+            ["Originally from", from],
+            ...row("HTTP status", wire.status),
+            ...row("JSON-RPC id echoed", wire.rpcId),
+            ...saidRow("Reply"),
+            ...atRow,
+          ],
+          spec: SPEC.reply,
           response,
         }),
       ];
@@ -241,9 +334,16 @@ export function buildPrivilegeA2aChainSteps(tokenEvents) {
         ["To", to],
         ["Protocol", "A2A message/send over JSON-RPC 2.0"],
         ["Credential", `${from}'s own agent key (Bearer)`],
+        ...row("Key presented", origin?.credential),
+        ...registryRow(event.from),
+        ...row("JSON-RPC request id", origin?.wire?.rpcId),
+        ...row("A2A message id", origin?.wire?.messageId),
+        ...row("Instruction to the callee", origin?.wire?.delegateTo && `delegateTo: ${origin.wire.delegateTo}`),
         ...(cardRead ? [["Described by", `A2A Agent Card “${cardRead.name}”, read before this call`]] : []),
         ...saidRow("Message"),
+        ...row("Reported at, into the run", origin?.at),
       ],
+      spec: SPEC.call,
       request: { title: `A2A message/send · ${from} → Privilege gateway`, text: origin?.request || sendBody(from, said) },
     });
     if (refused) {
@@ -252,7 +352,19 @@ export function buildPrivilegeA2aChainSteps(tokenEvents) {
       return [call, step("-gateway", "Refuses the call", PRIVILEGE_GATEWAY_LANE, "error", {
         ...(logged.verdict ? { facts: [...facts, logged.verdict.category] } : {}),
         narrative: `The gateway or the agent behind it refused this call: ${reason}. The hand-off stopped here: ${to} did no work for this call, and ${from} received the refusal instead of an answer.${logged.verdict ? ` The gateway's own log records it as ${logged.verdict.category}.` : ""}`,
-        kv: [["Outcome", "Refused"], ["Reason", reason], ["Reached the next agent", "No"], ...timing, ...logged.rows],
+        kv: [
+          ["Outcome", "Refused"],
+          ["Reason", reason],
+          ["Reached the next agent", "No"],
+          ...row("HTTP status", wire.status),
+          ...row("JSON-RPC error code", wire.errorCode),
+          ...registryRow(event.from).map(([, value]) => ["Caller's Agent Registry name", value]),
+          ...routeRow(event.to),
+          ...timing,
+          ...logged.rows,
+          ...atRow,
+        ],
+        spec: SPEC.refused,
         ...(event.response ? { response: { title: `Refusal returned to ${from}`, text: event.response } } : {}),
       })];
     }
@@ -265,9 +377,12 @@ export function buildPrivilegeA2aChainSteps(tokenEvents) {
           ["Scope", "a2a — present"],
           ["Policy", `${from} may call ${to}`],
           ["Guardrail", "Message screened — passed"],
+          ...registryRow(event.from).map(([, value]) => ["Caller's Agent Registry name", value]),
+          ...routeRow(event.to),
           ...timing,
           ...gatewayRecord(record, event.from, "allowed", event.to).rows,
         ],
+        spec: SPEC.gateway,
       }),
       step("-forward", `Receives the call from ${from}`, chainLane(event.to), "done", {
         narrative: `${to} received the call from the gateway, not from ${from} directly${saying(said)} It never sees ${from}'s agent key: a caller's key is never passed on, so a leaked key works at the gateway only.`,
@@ -275,8 +390,10 @@ export function buildPrivilegeA2aChainSteps(tokenEvents) {
           ["Received from", "Privilege gateway"],
           ["Originally from", from],
           ["Credential presented", `Whatever the gateway is set to present for ${to}; never ${from}'s key`],
+          ...routeRow(event.to),
           ...saidRow("Message"),
         ],
+        spec: SPEC.forward,
       }),
     ];
   });

@@ -10,9 +10,15 @@ const CARD = {
   name: 'langchainagent',
   description: 'Middle agent',
   protocolVersion: '0.3.0',
+  version: '1.0.0',
   url: 'https://direct.example/a2a/jsonrpc',
   preferredTransport: 'JSONRPC',
-  skills: [{ id: 'banking_assistant', name: 'Banking assistant' }],
+  capabilities: { streaming: false, pushNotifications: true, extensions: [] },
+  defaultInputModes: ['text'],
+  defaultOutputModes: ['text'],
+  skills: [{ id: 'banking_assistant', name: 'Banking assistant', description: 'Answers banking questions.', tags: ['banking'] }],
+  securitySchemes: { customerOAuth: { oauth2: { flows: {} } } },
+  securityRequirements: [{ customerOAuth: ['agent:invoke'] }],
 };
 
 /**
@@ -120,7 +126,15 @@ test('the main agent reads the middle agent\'s card through the gateway before c
     url: 'https://direct.example/a2a/jsonrpc',
     preferredTransport: 'JSONRPC',
     skills: ['Banking assistant'],
+    version: '1.0.0',
+    capabilities: ['streaming: no', 'pushNotifications: yes'],
+    inputModes: ['text'],
+    outputModes: ['text'],
+    skillDetails: [{ id: 'banking_assistant', name: 'Banking assistant', description: 'Answers banking questions.', tags: ['banking'] }],
+    security: ['customerOAuth (oauth2), scopes: agent:invoke'],
   });
+  assert.equal(cards[0].wire?.status, 200);
+  assert.match(cards[0].credential ?? '', /masked/);
   assert.match(cards[0].response ?? '', /^HTTP 200/);
 });
 
@@ -169,4 +183,26 @@ test('display labels appear only with a vertical profile, and the keys never cha
   assert.deepEqual(pair('delegate', 'langchainagent'), ['LangChain agent', 'Investment Advisor']);
   assert.deepEqual(pair('error', 'langchainagent'), ['LangChain agent', 'Ungranted Investment Advisor']);
   assert.deepEqual(pair('result', 'langchainagent'), ['LangChain agent', 'Super Banking agent']);
+});
+
+test('each exchange reports its protocol facts: ids, status, and who delegated to whom', async () => {
+  let sentBody: { id: string; params: { message: { messageId: string } } } | undefined;
+  const { events } = await run(async (_url, init) => {
+    sentBody = JSON.parse(String(init?.body));
+    return jsonResponse(200, {
+      jsonrpc: '2.0',
+      id: sentBody?.id,
+      result: { kind: 'message', role: 'agent', messageId: 'reply-1', parts: [{ kind: 'text', text: 'ok' }], metadata: { delegatedTo: 'refunds', delegatedBy: 'langchainagent' } },
+    });
+  });
+
+  assert.deepEqual(events[0].wire, { rpcId: sentBody?.id, messageId: sentBody?.params.message.messageId, delegateTo: 'refunds' });
+  assert.match(events[0].credential ?? '', /masked/);
+  assert.deepEqual(events.at(-1)?.wire, { status: 200, rpcId: sentBody?.id, messageId: 'reply-1', kind: 'message', role: 'agent', delegatedTo: 'refunds', delegatedBy: 'langchainagent' });
+});
+
+test('a refusal reports its HTTP status and JSON-RPC error code', async () => {
+  const { events } = await run(async () => jsonResponse(400, { jsonrpc: '2.0', error: { code: -32600, message: 'request blocked by security policy' } }));
+
+  assert.deepEqual(events.at(-1)?.wire, { status: 400, errorCode: -32600 });
 });
