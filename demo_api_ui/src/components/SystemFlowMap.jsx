@@ -286,6 +286,20 @@ function deriveGateStates(trace, ended) {
  *   MFA/Consent/CIBA boxes, which have no entry in STEP_TO_EDGE
  * @returns {{ nodeStates: object, edges: Array, decision: string|null, lit: number }}
  */
+/**
+ * Display names the run's steps give the chain boxes (the active vertical's agent and
+ * specialist). The lane -> node mapping above is untouched; only the box text changes.
+ */
+export function chainNodeNames(steps) {
+  const names = {};
+  for (const step of Array.isArray(steps) ? steps : []) {
+    if (!String(step?.id).startsWith('pa2a-') || !step.laneLabel || step.lane === 'GATEWAY' || step.lane === 'MCP-TOOLS') continue;
+    const node = CHAIN_LANE_NODES[step.lane] || 'pa-specialist';
+    if (node !== 'pa-middle' && !names[node]) names[node] = step.laneLabel;
+  }
+  return names;
+}
+
 export function buildFlowModel(steps, trace) {
   const list = Array.isArray(steps) ? steps : [];
   const az = list.find((s) => s && (s.baseId || s.id) === 'authorize');
@@ -485,9 +499,12 @@ export function SystemFlowMapView() {
   }, [story, ended, decision]);
   const elapsed = trace?.finishedAt && trace?.startedAt ? trace.finishedAt - trace.startedAt : null;
 
+  const chainNames = useMemo(() => chainNodeNames(steps), [steps]);
   const flowNodes = useMemo(
-    () => LAYOUT_NODES.map((n) => (n.type === 'hop' ? { ...n, data: { ...n.data, state: nodeStates[n.id] } } : n)),
-    [nodeStates],
+    () => LAYOUT_NODES.map((n) => (n.type === 'hop'
+      ? { ...n, data: { ...n.data, ...(chainNames[n.id] ? { name: chainNames[n.id] } : {}), state: nodeStates[n.id] } }
+      : n)),
+    [nodeStates, chainNames],
   );
   const flowEdges = useMemo(
     () => edges.map((e) => {

@@ -249,6 +249,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-05 — Demo Steps 25, 25A, 26 and their reel/sequence/system-flow names follow the active vertical (UI)
+
+**Files:** `demo_api_ui/src/utils/privilegeA2aProfile.js`, `features/privilegeA2aClient/usePrivilegeA2aProfile.js`, `PrivilegeA2aTab.jsx`, `utils/privilegeA2aChainRun.js`, `components/DemoStepsDropdown.jsx`, `services/tokenChainTrace/privilegeA2aChainSteps.js`, `components/SequenceReelDiagram.jsx`, `components/SystemFlowMap.jsx`, tests.
+
+**What was broken:** The UI ran the fixed Acme questions and drew "Main agent" / "Analyst agent" / "MCP tools" in every vertical, though the BFF now serves a per-vertical profile.
+
+**What changed:** `loadPrivilegeA2aProfile()` (and the `usePrivilegeA2aProfile` hook, keyed on `useVertical().activeId`) read `GET /api/privilege-a2a/profile`; any failure is `null`. The UC46 tab offers `profile.questions`. Step 25A runs question 1 (fetched at click time) and gets two extra buttons for questions 2 and 3. Step 26 allowed/denied runs send question 1 (real `refunds`/`restricted` keys kept); the prompt-injection run keeps its text. The run helpers stamp `fromLabel`/`toLabel` on each hop event (the agent's own labels win, else the profile's) and the step builder, sequence headers and system flow map show them. Display only: event keys, `step.lane` keys and the lane-to-node mapping are unchanged. No profile or no labels gives today's names.
+
+**Do not break:** Step numbers (25, 25A, 26); the `opts.run`/`keepTrace` hand-off for 25A and the running/failed messages; lane keys (`MAIN-AGENT`, `ANALYST-AGENT`, `MCP-TOOLS`, `GATEWAY`, ...) and `CHAIN_LANE_NODES`; the guardrail run's own text.
+
+**Verify:** `cd demo_api_ui && ./node_modules/.bin/vitest run src/features/privilegeA2aClient src/services/tokenChainTrace src/utils src/components/__tests__/DemoStepsDropdown.test.jsx src/components/__tests__/SequenceReelDiagram.a2aLabels.test.jsx src/components/__tests__/SystemFlowMap.test.jsx`; `npm run build`.
+
 ### 2026-10-05 — Privilege A2A demo agents are vertical-aware (standalone main, worker, MCP, chain)
 
 **Files:** `standalone/privilege-a2a-anthropic-demo/src/profile.ts` (new), `src/main-agent/{index,chain,a2a-client}.ts`, `src/worker-agent/index.ts`, `src/mcp-server/{index,verticals}.ts`, `test/{topology,chain,verticals}.test.ts`.

@@ -141,8 +141,11 @@ export function buildPrivilegeA2aChainSteps(tokenEvents) {
 
   return events.flatMap((event, index) => {
     if (event.kind === "delegate" && refusalOf(event, index)) return [];
-    const from = chainActor(event.from);
-    const to = chainActor(event.to);
+    // Display names: the event's labels (vertical-aware), else today's generic names.
+    // Lane KEYS (chainLane) always come from the generic names so the views keep their columns.
+    const from = event.fromLabel || chainActor(event.from);
+    const to = event.toLabel || chainActor(event.to);
+    const laneNames = { [chainLane(event.from)]: event.fromLabel, [chainLane(event.to)]: event.toLabel };
     const refused = event.status === "error";
     const origin = refused ? announced(event, index) : event;
     // What was said on this hop: the message of a call, or the text of a reply.
@@ -159,7 +162,7 @@ export function buildPrivilegeA2aChainSteps(tokenEvents) {
       title,
       lane,
       // The gateway lane reads "AI Gateway" on these steps (the shared lane key stays GATEWAY).
-      laneLabel: lane === PRIVILEGE_GATEWAY_LANE ? "AI Gateway" : undefined,
+      laneLabel: lane === PRIVILEGE_GATEWAY_LANE ? "AI Gateway" : laneNames[lane],
       status,
       detail: { facts, rfcs: A2A_REFS, tokenEvent: event, ...detail },
     });

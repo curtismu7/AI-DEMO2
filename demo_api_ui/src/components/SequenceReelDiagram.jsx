@@ -305,6 +305,15 @@ export default function SequenceReelDiagram({
   // of lifelines.
   const participants = useMemo(() => deriveLifelineParticipants(allLifelineSteps), [allLifelineSteps]);
 
+  // A vertical's own names for the A2A actor lanes (display only; lane keys are unchanged).
+  const a2aLaneNames = useMemo(() => {
+    const names = {};
+    for (const step of steps) {
+      if (String(step?.id).startsWith("pa2a-") && step.laneLabel && step.lane !== "GATEWAY" && !names[step.lane]) names[step.lane] = step.laneLabel;
+    }
+    return names;
+  }, [steps]);
+
   const stepsById = useMemo(() => {
     const map = new Map();
     for (const step of steps) map.set(step.id, step);
@@ -554,7 +563,7 @@ export default function SequenceReelDiagram({
             const x = colX(lane);
             const laneName = lane === "PINGONE" && isNativeIdJagTrace(snap.trace)
               ? "PINGFEDERATE"
-              : lane === "PINGONE" && isMockIdJagTrace(snap.trace) ? "MOCK IDP" : laneLabel(lane);
+              : lane === "PINGONE" && isMockIdJagTrace(snap.trace) ? "MOCK IDP" : a2aLaneNames[lane] || laneLabel(lane);
             const label = sequenceDiagramLabel(laneName, verticalName);
             const fitLabel = actorLabelNeedsFit(label);
             const fitAttrs = fitLabel
