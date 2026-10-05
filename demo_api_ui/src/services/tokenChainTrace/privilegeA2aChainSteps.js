@@ -52,6 +52,9 @@ const replyBody = (text) => [
  * gateway check, callee) and so is its reply (callee, gateway, caller). A
  * refused call stops at the gateway step.
  *
+ * When the caller read the callee's A2A Agent Card first (a `card` event), two
+ * steps come before the call: the request, and the card with its data.
+ *
  * A step's lane names its actor, so its title says only what the actor did.
  * The detail panel shows `narrative`, `kv`, `request` and `response`; the
  * reason for a step is part of its narrative because the panel has no slot
@@ -76,7 +79,7 @@ export function buildPrivilegeA2aChainSteps(tokenEvents) {
     const refused = event.status === "error";
     const origin = refused ? announced(event, index) : event;
     // What was said on this hop: the message of a call, or the text of a reply.
-    const said = (refused ? origin?.detail : event.detail) || "";
+    const said = (event.kind === "card" ? "" : (refused ? origin?.detail : event.detail)) || "";
     const saidRow = (label) => (said ? [[label, said]] : []);
     const timing = typeof event.elapsedMs === "number" ? [["Round trip", `${event.elapsedMs} ms`]] : [];
     const facts = [
@@ -91,6 +94,40 @@ export function buildPrivilegeA2aChainSteps(tokenEvents) {
       status,
       detail: { facts, rfcs: A2A_REFS, tokenEvent: event, ...detail },
     });
+
+    // Discovery: the caller read the callee's A2A Agent Card before calling it.
+    if (event.kind === "card") {
+      const card = event.card;
+      const skills = Array.isArray(card?.skills) ? card.skills : [];
+      const ask = step("-discover", `Asks for ${to}'s A2A Agent Card`, chainLane(event.from), "done", {
+        narrative: `Before calling, ${from} asked the Privilege gateway for ${to}'s A2A Agent Card, with its own agent key. The card is how one agent learns what another is, what it can do and how to talk to it, without that being hard-coded.`,
+        kv: [["From", from], ["About", to], ["Asked", "Privilege gateway"], ["Credential", `${from}'s own agent key (Bearer)`]],
+        ...(event.request ? { request: { title: `A2A Agent Card request · ${from} → Privilege gateway`, text: event.request } } : {}),
+      });
+      if (!card) {
+        return [ask, step("-card", "No A2A Agent Card returned", PRIVILEGE_GATEWAY_LANE, "done", {
+          facts: ["A2A Agent Card", "not returned"],
+          narrative: `${event.detail || "No Agent Card was returned"}. ${from} carries on: it calls the gateway's route for ${to} either way.`,
+          kv: [["A2A Agent Card", "Not returned"]],
+          ...(event.response ? { response: { title: `Response to ${from}`, text: event.response } } : {}),
+        })];
+      }
+      return [ask, step("-card", `Returns ${to}'s A2A Agent Card`, PRIVILEGE_GATEWAY_LANE, "done", {
+        facts: ["A2A Agent Card", card.name, `${skills.length} skill${skills.length === 1 ? "" : "s"}`],
+        narrative: `This is the A2A Agent Card: ${to} describes itself as “${card.name}”, speaking A2A ${card.protocolVersion || "(version not stated)"} over ${card.preferredTransport || "an unstated transport"}, with ${skills.length} skill${skills.length === 1 ? "" : "s"}. ${from} uses it to know who it is about to call and how; the call that follows is the A2A message/send the card describes. ${from} still sends that call to the gateway's route, not to the endpoint the card names, so the gateway checks it.`,
+        kv: [
+          ["A2A Agent Card", "Returned through the Privilege gateway"],
+          ["Agent name", card.name],
+          ...(card.description ? [["Description", card.description]] : []),
+          ["A2A protocol version", card.protocolVersion || "not stated"],
+          ["Transport", card.preferredTransport || "not stated"],
+          ["Skills", skills.length ? skills.join(", ") : "none listed"],
+          ...(card.url ? [["Endpoint named in the card", card.url]] : []),
+          ["Endpoint the caller uses", "The Privilege gateway's route for this agent"],
+        ],
+        ...(event.response ? { response: { title: `A2A Agent Card · ${to}`, text: event.response } } : {}),
+      })];
+    }
 
     if (event.kind === "result") {
       const response = { title: `A2A reply · ${from} → ${to}`, text: event.response || replyBody(said) };
@@ -112,6 +149,8 @@ export function buildPrivilegeA2aChainSteps(tokenEvents) {
       ];
     }
 
+    // The card the caller read for this callee, if it read one.
+    const cardRead = events.slice(0, index).find((earlier) => earlier.kind === "card" && earlier.card && earlier.from === event.from && earlier.to === event.to)?.card;
     const call = step("-call", `Calls ${to} · A2A message/send`, chainLane(event.from), "done", {
       narrative: `${from} sent an A2A message/send for ${to} to the Privilege gateway${saying(said)} It presented its own agent key as the Bearer token. ${from} never calls ${to} directly; it addresses the gateway's route for ${to}, so the hand-off can be checked before ${to} sees it.`,
       kv: [
@@ -119,6 +158,7 @@ export function buildPrivilegeA2aChainSteps(tokenEvents) {
         ["To", to],
         ["Protocol", "A2A message/send over JSON-RPC 2.0"],
         ["Credential", `${from}'s own agent key (Bearer)`],
+        ...(cardRead ? [["Described by", `A2A Agent Card “${cardRead.name}”, read before this call`]] : []),
         ...saidRow("Message"),
       ],
       request: { title: `A2A message/send · ${from} → Privilege gateway`, text: origin?.request || sendBody(from, said) },
