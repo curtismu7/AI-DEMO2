@@ -30,6 +30,7 @@ import {
   openTicket,
   USERS,
 } from './data.js';
+import { VERTICALS } from './verticals.js';
 
 const config = mcpServerConfig();
 
@@ -142,6 +143,23 @@ function buildServer(): McpServer {
       return json({ ticket, openTickets: allTickets().length });
     },
   );
+
+  // Per-vertical specialist tools (static fixtures); offered to the model only when
+  // the worker is handed a vertical profile.
+  for (const vertical of Object.values(VERTICALS)) {
+    for (const [name, tool] of Object.entries(vertical.tools)) {
+      server.registerTool(
+        name,
+        {
+          title: name,
+          description: tool.description,
+          inputSchema: { subject: z.string().optional().describe('Optional subject of the lookup') },
+          annotations: { readOnlyHint: true },
+        },
+        async () => json(tool.result),
+      );
+    }
+  }
 
   return server;
 }

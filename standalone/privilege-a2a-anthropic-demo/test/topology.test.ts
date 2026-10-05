@@ -66,8 +66,17 @@ function responseFor(request: AnthropicRequest): {
       content: [{ type: 'tool_use', id: `main-delegate-${person}`, name: 'delegate_to_analyst', input: { question: `Review ${person}'s current entitlements.` } }],
     };
   }
+  if (request.model === 'test-worker' && !hasToolResult(request.messages) && request.tools?.some(tool => tool.name === 'get_portfolio_summary')) {
+    return {
+      stopReason: 'tool_use',
+      content: [{ type: 'tool_use', id: 'worker-banking', name: 'get_portfolio_summary', input: {} }],
+    };
+  }
+  if (request.model === 'test-worker' && hasToolResult(request.messages) && JSON.stringify(request.messages).includes('worker-banking')) {
+    return { stopReason: 'end_turn', content: [{ type: 'text', text: 'Investment positions reviewed.' }] };
+  }
   if (request.model === 'test-worker' && !hasToolResult(request.messages)) {
-    assert.ok(request.tools?.some(tool => tool.name === 'list_entitlements'), 'worker should discover the MCP entitlement tool');
+    assert.deepEqual(request.tools?.map(tool => tool.name).sort(), ['get_access_grants', 'list_entitlements', 'open_ticket', 'who_has_role'], 'no-profile worker is offered exactly the four Acme tools');
     const person = delegatedPerson(request);
     return {
       stopReason: 'tool_use',
@@ -302,6 +311,9 @@ test('main delegates through authenticated A2A, worker calls authenticated MCP, 
       const result = traces.find(data => data.kind === 'result');
       assert.equal(delegate?.from, 'main');
       assert.equal(delegate?.to, 'analyst');
+      for (const trace of traces) {
+        assert.ok(!('fromLabel' in trace) && !('toLabel' in trace), `${person} no-profile run must carry no label fields`);
+      }
       assert.match(String(delegate?.request), /message\/send/, `${person} delegate should carry the A2A request`);
       assert.equal(typeof result?.elapsedMs, 'number', `${person} result should carry elapsedMs`);
       assert.match(String(result?.response), /^HTTP 200/, `${person} result should carry the A2A response`);
@@ -331,6 +343,46 @@ test('main delegates through authenticated A2A, worker calls authenticated MCP, 
     assert.ok(workerToolResults.some(result => result.includes('Carol Nguyen')));
     assert.ok(workerToolResults.some(result => result.includes('Erin Walsh')));
     assert.ok(workerToolResults.every(result => result.includes('entitlements')));
+    const noProfileSystem = String((mainCalls[0]!.request as { system?: string }).system);
+    assert.match(noProfileSystem, /access-review concierge/, 'no profile keeps today\'s concierge prompt');
+
+    // A banking profile: labels, only the banking tools offered, banking fixture data from the MCP.
+    const callsBefore = calls.length;
+    const bankingTools = ['get_portfolio_summary', 'get_investment_accounts', 'get_investment_balance', 'get_investment_transactions'];
+    const bankingResponse = await fetch(`http://127.0.0.1:${mainPort}/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-A2A-BFF-Secret': 'test-bff-shared-secret' },
+      body: JSON.stringify({
+        message: 'Review my investment positions.',
+        sessionId: 'session-banking',
+        vertical: 'banking',
+        agentName: 'Super Banking agent',
+        specialistName: 'Investment Advisor',
+        tool: 'get_portfolio_summary',
+        tools: bankingTools,
+        subtaskHint: 'review the customer’s investment positions',
+      }),
+    });
+    assert.equal(bankingResponse.status, 200);
+    const bankingEvents = sseEvents(await bankingResponse.text());
+    const bankingTraces = bankingEvents.filter(event => event.event === 'trace').map(event => event.data);
+    assert.ok(bankingEvents.some(event => event.event === 'done'));
+    const first = (kind: string) => bankingTraces.find(data => data.kind === kind);
+    for (const kind of ['delegate', 'result', 'mcp-call', 'mcp-result']) assert.ok(first(kind), `banking run should emit ${kind}`);
+    const labels = (kind: string) => [first(kind)?.fromLabel, first(kind)?.toLabel];
+    assert.deepEqual(labels('delegate'), ['Super Banking agent', 'Investment Advisor']);
+    assert.deepEqual(labels('result'), ['Investment Advisor', 'Super Banking agent']);
+    assert.deepEqual(labels('mcp-call'), ['Investment Advisor', 'Investment Advisor data tools']);
+    assert.deepEqual(labels('mcp-result'), ['Investment Advisor data tools', 'Investment Advisor']);
+    assert.deepEqual([first('delegate')?.from, first('delegate')?.to], ['main', 'analyst'], 'role keys stay unchanged');
+    assert.match(JSON.stringify(first('mcp-result')), /totalValue/, 'MCP returned banking fixture data');
+    const bankingCalls = calls.slice(callsBefore);
+    const mainBanking = bankingCalls.find(call => call.model === 'test-main')!;
+    assert.match(String((mainBanking.request as { system?: string }).system), /Super Banking agent/);
+    assert.deepEqual(mainBanking.request.tools?.map(tool => tool.name), ['delegate_to_analyst']);
+    const workerBanking = bankingCalls.find(call => call.model === 'test-worker')!;
+    assert.deepEqual(workerBanking.request.tools?.map(tool => tool.name).sort(), [...bankingTools].sort(), 'worker is offered only the banking tools');
+    assert.match(String((workerBanking.request as { system?: string }).system), /Investment Advisor/);
   } finally {
     await Promise.all(processes.map(child => stopProcess(child.process)));
     await new Promise<void>((resolve, reject) => mockAnthropic.close(error => error ? reject(error) : resolve()));

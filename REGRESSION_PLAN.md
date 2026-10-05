@@ -249,6 +249,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-05 — Privilege A2A demo agents are vertical-aware (standalone main, worker, MCP, chain)
+
+**Files:** `standalone/privilege-a2a-anthropic-demo/src/profile.ts` (new), `src/main-agent/{index,chain,a2a-client}.ts`, `src/worker-agent/index.ts`, `src/mcp-server/{index,verticals}.ts`, `test/{topology,chain,verticals}.test.ts`.
+
+**What was broken:** The BFF now forwards a vertical profile (`vertical, agentName, specialistName, tool, tools, subtaskHint`), but the standalone agents ignored it: every vertical got the Acme access-review prompt, tools and trace names.
+
+**What changed:** With a valid profile (strings <= 120 chars, `tools` <= 8 of `[a-z0-9_]{1,64}`, vertical `[a-z0-9-]{1,64}`; anything invalid is treated as absent) the main agent builds its prompt and the `delegate_to_analyst` description from it, keys conversation history by session + vertical, and adds `fromLabel`/`toLabel` to every `/chat` and `/chain` trace event. It sends `{ vertical, tools }` as the A2A message `metadata`; the worker then uses a specialist persona and offers the model only those MCP tools (empty intersection falls back to all). The MCP server serves static fictional fixtures for every vertical tool. Tool names, specialist names and hints are asserted equal to `demo_api_server/config/a2aSpecialists.js`.
+
+**Do not break:** with no profile the output is unchanged (no label fields, same prompt and tool name `delegate_to_analyst`); role keys `main`/`analyst`/`mcp` and chain keys `refunds`/`restricted`/`langchainagent` stay as they are (the gateway routes on them); the injection-resistance wording stays in both prompts. The new tool names must be allowed under `worker-agent` on the `mcpdemo` app in the Privilege console and the SE worker and MCP redeployed before the live gateway path shows them (not done here).
+
+**Verify:** `cd standalone/privilege-a2a-anthropic-demo && npm test && npm run build`.
+
 ### 2026-10-05 — Privilege A2A steps (25, 25A, 26) follow the active vertical: BFF profile contract
 
 **Files:** `demo_api_server/config/a2aSpecialists.js` (`A2A_DEMO_PROFILES`, `a2aDemoProfile`), `demo_api_server/routes/privilegeA2aClient.js`, tests.
