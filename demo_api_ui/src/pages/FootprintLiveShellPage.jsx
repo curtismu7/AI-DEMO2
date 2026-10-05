@@ -52,6 +52,15 @@ export default function FootprintLiveShellPage({ category: categoryProp } = {}) 
     return known ? id : MOCK_CATALOG[category]?.variants?.[0]?.id;
   }, [category, searchParams]);
 
+  // VS Code's brightness is a variant (classic-dark / light), not a CSS theme, so the
+  // Light/Dark toggle has to pick the matching one or it only recolours our own row.
+  // The picker keeps the saved variant; only the chrome gets the toggle's choice.
+  // Studio is a dark-only look and is left alone.
+  const chromeVariant =
+    category === "vscode" && (variant === "classic-dark" || variant === "light")
+      ? (theme === "light" ? "light" : "classic-dark")
+      : variant;
+
   // The OAuth callback cannot carry ?v= (the BFF rejects a query on returnTo), so write
   // what is on screen into the saved pick; the page falls back to it on return.
   const session = usePrivilegeShellSession({
@@ -86,7 +95,7 @@ export default function FootprintLiveShellPage({ category: categoryProp } = {}) 
       </div>
       <FootprintChrome
         category={category}
-        variant={variant}
+        variant={chromeVariant}
         side={category === "vscode" ? <ShellRoutingTree session={session} /> : null}
       >
         <PrivilegeShellPanel skin={category === "claude-desktop" ? "claude-desktop" : category} session={session} />

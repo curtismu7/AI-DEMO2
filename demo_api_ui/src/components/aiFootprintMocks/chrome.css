@@ -907,3 +907,41 @@
   padding: 4px 2px 0;
   font-size: var(--font-size-3xs);
 }
+
+/* Claude Code on a light terminal, for the live shell's Light toggle. Scoped to
+   the live shell so gallery previews keep their fixed dark look. */
+.afm-live-shell[data-theme="light"] .afm-code--claude {
+  background: #faf9f6;
+  color: #2d2926;
+}
+.afm-live-shell[data-theme="light"] .afm-code--claude .afm-code-bar {
+  background: #f1efe9;
+  border-bottom-color: #dedbd5;
+}
+.afm-live-shell[data-theme="light"] .afm-code--claude .afm-code-bar strong,
+.afm-live-shell[data-theme="light"] .afm-code--claude .prompt,
+.afm-live-shell[data-theme="light"] .afm-code--claude .afm-cc-card__t {
+  color: #a8431f;
+}
+.afm-live-shell[data-theme="light"] .afm-code--claude .afm-code-term {
+  border-right-color: #dedbd5;
+}
+.afm-live-shell[data-theme="light"] .afm-code--claude .afm-code-term .dim {
+  color: #77716d;
+}
+.afm-live-shell[data-theme="light"] .afm-code--claude .afm-code-panel {
+  background: #faf9f6;
+}
+.afm-live-shell[data-theme="light"] .afm-code--claude .afm-code-panel .ph {
+  border-bottom-color: #dedbd5;
+}
+.afm-live-shell[data-theme="light"] .afm-code--claude .afm-cc-card,
+.afm-live-shell[data-theme="light"] .afm-code--claude .afm-cc-prompt {
+  border-color: #d9c6bb;
+}
+.afm-live-shell[data-theme="light"] .afm-code--claude .afm-cc-tool {
+  color: #3d3833;
+}
+.afm-live-shell[data-theme="light"] .afm-code--claude .afm-cc-caret {
+  background: #a8431f;
+}
