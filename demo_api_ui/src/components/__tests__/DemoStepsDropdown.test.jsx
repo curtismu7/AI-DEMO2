@@ -28,7 +28,7 @@ vi.mock('../../utils/privilegeA2aChainRun', () => ({
   PRIVILEGE_A2A_CHAIN_USE_CASE_ID: 'privilege-a2a-agent-chain',
   PRIVILEGE_A2A_ACCESS_REVIEW_AGENT_USE_CASE_ID: 'privilege-a2a-access-review-agent',
   PRIVILEGE_A2A_DEMO_QUESTIONS: ['Review access on prod-db-primary.'],
-  startPrivilegeA2aChainRun: vi.fn(),
+  startPrivilegeA2aChainRun: vi.fn(() => Promise.resolve({ ok: true })),
   runPrivilegeA2aChatRun: vi.fn(() => Promise.resolve()),
 }));
 
@@ -140,7 +140,8 @@ describe('DemoStepsDropdown', () => {
     const [uc, step, opts] = onSelect.mock.calls[1];
     expect(uc.id).toBe('UC46A');
     expect(step).toBe(25);
-    expect(opts).toEqual({ keepTrace: true });
+    // The run is handed to the agent so it can say it is running and how it ended.
+    expect(opts).toEqual({ keepTrace: true, run: expect.any(Promise) });
   });
 
   it('starts the Privilege A2A agent chain from step 26 and still hands the step to the page', async () => {
@@ -161,6 +162,7 @@ describe('DemoStepsDropdown', () => {
     });
     expect(onSelect.mock.calls[0][0].id).toBe('UC47');
     expect(onSelect.mock.calls[0][1]).toBe(26);
+    expect(onSelect.mock.calls[0][2]).toEqual({ run: expect.any(Promise) });
 
     fireEvent.click(screen.getByTestId('chain-run-denied'));
 

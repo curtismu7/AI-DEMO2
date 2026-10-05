@@ -8,6 +8,7 @@ import apiClient from "../../services/apiClient";
 import { usePrivilegeRouting } from "../privilege/usePrivilegeRouting";
 
 const API_BASE = "/api/privilege-mcp";
+const SILENT_TRIED_KEY = "pvs_silent_signin_tried";
 
 const request = (path, { method = "GET", body } = {}) =>
   (method === "POST"
@@ -22,6 +23,10 @@ export function errText(err) {
 // onBeforeConnect: runs just before every sign-in redirect (the Sign in button and a
 // chat reply that asks for sign-in), so the page can remember what it was showing.
 export function usePrivilegeShellSession({ onBeforeConnect } = {}) {
+  // The load-time silent handshake runs in an effect that must not re-run per render, so
+  // it reads the latest callback through a ref.
+  const beforeConnectRef = useRef(onBeforeConnect);
+  beforeConnectRef.current = onBeforeConnect;
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const [phase, setPhase] = useState("loading"); // loading | signed-out | ready
@@ -55,6 +60,23 @@ export function usePrivilegeShellSession({ onBeforeConnect } = {}) {
 
   useEffect(() => {
     let alive = true;
+    // Reuse the main-app PingOne session to sign in to the gateway without a login
+    // page (prompt=none). Once per tab and never after an ?auth= return, so a
+    // failed attempt falls back to the button instead of looping; if the gateway
+    // can't do it silently there is nothing to redirect to and the button stays.
+    const trySilentSignIn = async (state) => {
+      if (!state.mainAppAuthenticated || new URLSearchParams(window.location.search).has("auth")) return;
+      try {
+        if (sessionStorage.getItem(SILENT_TRIED_KEY)) return;
+        const { data } = await apiClient.post(`${API_BASE}/auth/start`, { returnTo: window.location.pathname });
+        if (!alive || new URL(data?.authUrl).searchParams.get("prompt") !== "none") return;
+        sessionStorage.setItem(SILENT_TRIED_KEY, "1");
+        beforeConnectRef.current?.();
+        window.location.assign(data.authUrl);
+      } catch {
+        /* stay on the Sign in button */
+      }
+    };
     apiClient
       .get(`${API_BASE}/state`)
       .then(async ({ data }) => {
@@ -65,6 +87,7 @@ export function usePrivilegeShellSession({ onBeforeConnect } = {}) {
         }
         if (!data.oauth?.authenticated) {
           setPhase("signed-out");
+          await trySilentSignIn(data);
           return;
         }
         if (data.tools?.length) {

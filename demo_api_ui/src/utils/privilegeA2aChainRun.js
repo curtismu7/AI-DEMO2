@@ -165,7 +165,8 @@ export async function startPrivilegeA2aChainRun({
  * Run one UC46 access-review chat (main agent -> gateway -> analyst -> MCP) and
  * feed each trace frame into the token-chain trace store, as the chain run does.
  * Every SSE frame is also handed to `onEvent(event, payload)` so the caller keeps
- * its own UI. Throws on a transport or HTTP failure (after closing the trace).
+ * its own UI. Resolves `{ ok, answer?, error? }`; throws on a transport or HTTP failure
+ * (after closing the trace).
  */
 export async function runPrivilegeA2aChatRun({
   message,
@@ -236,8 +237,9 @@ export async function runPrivilegeA2aChatRun({
   }
   if (failure) {
     store.completeTrace(false, null, failure);
-    return;
+    return { ok: false, error: failure };
   }
   if (answer) store.ingestLlmReply(answer);
   store.completeTrace(true);
+  return { ok: true, answer };
 }

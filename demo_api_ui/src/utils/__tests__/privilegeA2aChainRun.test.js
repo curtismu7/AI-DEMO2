@@ -263,7 +263,8 @@ test("a UC46 chat feeds pa2a events tagged access-review and builds MCP steps", 
   const seenFrames = [];
   const fetchImpl = vi.fn().mockResolvedValue(sse(ACCESS_REVIEW));
 
-  await runPrivilegeA2aChatRun({ message: "Review Carol", sessionId: "s0", store, fetchImpl, onEvent: (event) => seenFrames.push(event) });
+  const result = await runPrivilegeA2aChatRun({ message: "Review Carol", sessionId: "s0", store, fetchImpl, onEvent: (event) => seenFrames.push(event) });
+  expect(result).toEqual({ ok: true, answer: "Carol has an admin grant" });
 
   expect(fetchImpl.mock.calls[0][0]).toBe("/api/privilege-a2a/chat");
   expect(JSON.parse(fetchImpl.mock.calls[0][1].body)).toEqual({ message: "Review Carol", sessionId: "s0" });
@@ -286,6 +287,21 @@ test("a UC46 chat feeds pa2a events tagged access-review and builds MCP steps", 
   expect(steps.find((step) => step.id === "pa2a-1-mcp-call").lane).toBe("ANALYST-AGENT");
   expect(steps.find((step) => step.id === "pa2a-2-mcp-result").lane).toBe("MCP-TOOLS");
   expect(JSON.stringify(steps)).not.toContain("analyst specialist");
+  // Gateway steps read "AI Gateway" (the lane key stays GATEWAY); other lanes keep their own label.
+  const gatewaySteps = steps.filter((step) => step.lane === "GATEWAY");
+  expect(gatewaySteps.length).toBeGreaterThan(0);
+  expect(gatewaySteps.every((step) => step.laneLabel === "AI Gateway")).toBe(true);
+  expect(steps.filter((step) => step.lane !== "GATEWAY").every((step) => step.laneLabel === undefined)).toBe(true);
+});
+
+test("a UC46 chat that ends on an error frame resolves not-ok with the reason, so the agent can say so", async () => {
+  const store = fakeStore();
+  const fetchImpl = vi.fn().mockResolvedValue(sse([["error", { error: "gateway refused the call" }]]));
+
+  const result = await runPrivilegeA2aChatRun({ message: "Review Carol", store, fetchImpl });
+
+  expect(result).toEqual({ ok: false, error: "gateway refused the call" });
+  expect(store.calls.at(-1)).toEqual(["completeTrace", false, "gateway refused the call"]);
 });
 
 test("a UC46 chat HTTP failure closes the trace as failed and throws", async () => {

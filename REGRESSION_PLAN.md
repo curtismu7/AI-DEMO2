@@ -249,6 +249,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-05 — A2A runs looked stuck or failed silently; the gateway lane now reads "AI Gateway"
+
+**Files:** `demo_api_ui/src/utils/privilegeA2aChainRun.js`, `components/DemoStepsDropdown.jsx`, `components/AIAgent.js`, `services/tokenChainTrace/privilegeA2aChainSteps.js`, `components/TokenChainNodeRail.jsx`, `components/StepDetailPanel.jsx`, tests.
+
+**What was broken:** Step 25A and the Step 26 chain start a run that takes several seconds and shows nothing in the agent transcript while it runs; a failed run (HTTP error, error frame) also showed nothing, so the page looked stuck. The red GATEWAY lane label did not say which gateway.
+
+**What changed:** `runPrivilegeA2aChatRun` now resolves `{ ok, answer?, error? }` (it still throws on HTTP/transport failure). The dropdown hands the run's promise to the agent as `opts.run` for 25A and the chain; the agent's link branch posts a "running through the AI Gateway" message, then "run complete" or "the run failed:" plus the reason. A2A gateway steps carry `laneLabel: "AI Gateway"`, which the reel card and the detail header show; the lane key stays `GATEWAY`, so other flows keep their label.
+
+**Do not break:** `opts.keepTrace` still skips the trace reset; UC46 (Step 25) still opens its route; non-A2A gateway steps still read "GATEWAY"; Step 26 keeps its number.
+
+**Verify:** `cd demo_api_ui && ./node_modules/.bin/vitest run src/components/__tests__/DemoStepsDropdown.test.jsx src/utils/__tests__/privilegeA2aChainRun.test.js`; `npm run build`.
+
 ### 2026-10-05 — Step 25A: run the A2A access review in the agent as its own row (replaces the "A" button)
 
 **Files:** `demo_api_server/config/useCases.js` (new `UC46A`), `config/auth-requirements.json`, `demo_api_ui/src/config/demoUseCaseSteps.js` (`DEMO_SUB_STEP_IDS`), `demoStepNumbers.js` (`demoStepLabel`), `demoStepGuides.js`, `demo_api_ui/src/components/DemoStepsDropdown.jsx`, `utils/privilegeA2aChainRun.js`, generated `docs/use-cases/*`.

@@ -235,3 +235,72 @@ describe("usePrivilegeShellSession theme and connect hook", () => {
     }
   });
 });
+
+describe("usePrivilegeShellSession silent sign-in", () => {
+  const SILENT = "https://auth.example/authorize?prompt=none&client_id=x";
+  let assign;
+  const original = window.location;
+
+  const mount = async (state, search = "") => {
+    apiClient.get.mockResolvedValue({ data: { oauth: { authenticated: false }, ...state } });
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { ...original, assign, search, pathname: "/demo/vscode-copilot" },
+    });
+    const hook = renderHook(() => usePrivilegeShellSession(), { wrapper });
+    await waitFor(() => expect(hook.result.current.phase).toBe("signed-out"));
+    return hook;
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    sessionStorage.clear();
+    assign = vi.fn();
+  });
+  afterEach(() => Object.defineProperty(window, "location", { configurable: true, value: original }));
+
+  it("starts a prompt=none handshake once when the main app is signed in", async () => {
+    apiClient.post.mockResolvedValue({ data: { authUrl: SILENT } });
+    await mount({ mainAppAuthenticated: true });
+    await waitFor(() => expect(assign).toHaveBeenCalledWith(SILENT));
+    expect(apiClient.post).toHaveBeenCalledWith("/api/privilege-mcp/auth/start", { returnTo: "/demo/vscode-copilot" });
+  });
+
+  it("stays on the button when the gateway cannot do it silently", async () => {
+    apiClient.post.mockResolvedValue({ data: { authUrl: "https://auth.example/authorize?client_id=x" } });
+    await mount({ mainAppAuthenticated: true });
+    await waitFor(() => expect(apiClient.post).toHaveBeenCalled());
+    expect(assign).not.toHaveBeenCalled();
+  });
+
+  it("does nothing when the main app is signed out", async () => {
+    await mount({ mainAppAuthenticated: false });
+    expect(apiClient.post).not.toHaveBeenCalled();
+  });
+
+  it("does not retry after an ?auth= return", async () => {
+    await mount({ mainAppAuthenticated: true }, "?auth=silent_failed");
+    expect(apiClient.post).not.toHaveBeenCalled();
+  });
+
+  it("does not retry once already tried in this tab", async () => {
+    sessionStorage.setItem("pvs_silent_signin_tried", "1");
+    await mount({ mainAppAuthenticated: true });
+    expect(apiClient.post).not.toHaveBeenCalled();
+  });
+
+  it("remembers the costume before the silent redirect", async () => {
+    apiClient.get.mockResolvedValue({ data: { oauth: { authenticated: false }, mainAppAuthenticated: true } });
+    apiClient.post.mockResolvedValue({ data: { authUrl: SILENT } });
+    const order = [];
+    const onBeforeConnect = vi.fn(() => order.push("before"));
+    assign.mockImplementation(() => order.push("assign"));
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { ...original, assign, search: "", pathname: "/demo/vscode-copilot" },
+    });
+    renderHook(() => usePrivilegeShellSession({ onBeforeConnect }), { wrapper });
+    await waitFor(() => expect(assign).toHaveBeenCalledWith(SILENT));
+    expect(order).toEqual(["before", "assign"]);
+  });
+});
