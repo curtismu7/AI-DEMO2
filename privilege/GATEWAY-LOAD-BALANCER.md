@@ -231,14 +231,15 @@ restart drops registrations made before Redis was on.
 amount of persistence changes that. Not a documented Ping feature, so ask Ping whether
 `MCPGW_REDIS_URL` is supported and whether the exit after 6 failed attempts is intended.
 
-## 00c. A third node in gateway 1's namespace (installed 2026-10-04, then scaled to 0)
+## 00c. A third node in gateway 1's namespace (installed 2026-10-04, back in rotation 2026-10-05)
 
-**Status: parked in the load balancer and scaled to 0.** Release `agentless-mcpgw3` is still
-installed in `ping-devops-curtismuir` with its enrollment volume (`agentless-mcpgw3-ssl`), so it
-can come back without a new token. It was removed from service the same day because its pod
-requests 1000m CPU (nine containers), which left the SE cluster with no node that had 750m
-free: SE's `demo-api-server` sat Pending for 36 minutes with "27 Insufficient cpu". Scaling
-gateway 3 to 0 let it schedule within seconds.
+**Status, 2026-10-05: running (9/9, Redis connected, enrolled) and un-parked in the load
+balancer, but still not shown to serve a request.** It was removed from service on 2026-10-04
+because its pod requested 1000m CPU (nine containers), which left the SE cluster with no node
+that had 750m free: SE's `demo-api-server` sat Pending for 36 minutes with "27 Insufficient
+cpu". It came back after the main container's request was cut to 250m (below). The proof test,
+parking gateways 1 and 2 so only gateway 3 answers, has not been run: it changes the shared load
+balancer's routing for everyone, so it needs the owner to run it (commands at the end of this section).
 
 What it had shown before that: enrolled in `ai-demo-cmuir` as a third node, pod 9/9, Redis
 connected on attempt 1/6, Certificate issued, in rotation. **It never served a request:**
@@ -253,10 +254,19 @@ every release. The startup burst was not measured; raise the request if a gatewa
 when it starts. (An earlier version of this section said to trim the sidecars' requests; that
 was wrong, they have none.)
 
-**To bring it back:** `kubectl scale deploy/agentless-mcpgw3 --replicas=1` (it now needs 250m
-on one node), wait for 9/9 and the Redis line, set `parked: false` for `gateway-3` in
-`gateway1-lb.values.yaml`, and `scripts/se-gateways.sh upgrade --apply`. While the Deployment
-is at 0, `se-gateways.sh` skips gateway 3, because a Helm upgrade would scale it back to 1.
+**To take it out again:** set `parked: true` for `gateway-3` in `gateway1-lb.values.yaml`,
+`scripts/se-gateways.sh upgrade --apply`, then `kubectl scale deploy/agentless-mcpgw3
+--replicas=0`. While the Deployment is at 0, `se-gateways.sh` skips gateway 3, because a Helm
+upgrade would scale it back to 1; bring it back with `--replicas=1`, wait for 9/9 and the Redis
+line, set `parked: false` and upgrade.
+
+**Proof test (not yet run).** Park gateways 1 and 2 so the only live upstream is gateway 3,
+call `opensearch22` and `brave0local`, and check `node=gateway-3` in `kubectl logs
+deploy/mcpgw-lb`. Everyone using the demo is on gateway 3 alone while it runs, and signed-in
+clients may be asked to sign in again. Apply with a values file that copies
+`gateway1-lb.values.yaml` with `loadBalancer.ownParked: true` and gateway-2's `parked: true`
+(`helm upgrade agentless-mcpgw ... --reuse-values -f sidecars.values.yaml -f <that file>`), and
+restore by upgrading again with the repo's `gateway1-lb.values.yaml`.
 
 Read `node=` in `kubectl logs deploy/mcpgw-lb` to see which node answered a request; to force a
 node, park the others as in section 00.
