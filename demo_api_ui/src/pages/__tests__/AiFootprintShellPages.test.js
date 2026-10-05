@@ -109,6 +109,30 @@ describe("AI footprint live shell", () => {
     expect(container.querySelector(".afm-vcs")).not.toHaveClass("afm-vcs--light");
   });
 
+  it.each([
+    ["desktop-dark", false],
+    ["desktop-light", false],
+    ["web", true],
+  ])("ChatGPT %s chrome follows the toggle", (saved, isWeb) => {
+    localStorage.setItem("ba_dark_mode", "true");
+    localStorage.setItem("ai-footprint-mock-selection-v1", JSON.stringify({ chatgpt: saved }));
+    const { container } = render(
+      <ThemeProvider>
+        <MemoryRouter>
+          <FootprintLiveShellPage category="chatgpt" />
+        </MemoryRouter>
+      </ThemeProvider>,
+    );
+    const chrome = () => container.querySelector(".afm-cgpt");
+    expect(chrome()).not.toHaveClass("afm-cgpt--light");
+    fireEvent.click(screen.getByRole("button", { name: "Light" }));
+    expect(chrome()).toHaveClass("afm-cgpt--light");
+    fireEvent.click(screen.getByRole("button", { name: "Dark" }));
+    expect(chrome()).not.toHaveClass("afm-cgpt--light");
+    // The web layout survives the light/dark swap.
+    expect(chrome().classList.contains("afm-cgpt--web")).toBe(isWeb);
+  });
+
   it("renders selected VS Code chrome with agent host", () => {
     localStorage.setItem(
       "ai-footprint-mock-selection-v1",

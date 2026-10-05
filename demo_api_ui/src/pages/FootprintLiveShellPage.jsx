@@ -44,14 +44,18 @@ export default function FootprintLiveShellPage({ category: categoryProp } = {}) 
     return known ? id : MOCK_CATALOG[category]?.variants?.[0]?.id;
   }, [category, searchParams]);
 
-  // VS Code's brightness is a variant (classic-dark / light), not a CSS theme, so the
-  // Light/Dark toggle has to pick the matching one or it only recolours our own row.
-  // The picker keeps the saved variant; only the chrome gets the toggle's choice.
-  // Studio is a dark-only look and is left alone.
-  const chromeVariant =
-    category === "vscode" && (variant === "classic-dark" || variant === "light")
-      ? (theme === "light" ? "light" : "classic-dark")
-      : variant;
+  // VS Code's and ChatGPT's brightness is a variant (classic-dark / light,
+  // desktop-dark / desktop-light, web / web-light), not a CSS theme, so the Light/Dark
+  // toggle has to pick the matching one or it only recolours our own row. The picker
+  // keeps the saved variant; only the chrome gets the toggle's choice. Studio is a
+  // dark-only look and the SaaS costumes are fixed vendor looks; both are left alone.
+  const light = theme === "light";
+  let chromeVariant = variant;
+  if (category === "vscode" && (variant === "classic-dark" || variant === "light")) {
+    chromeVariant = light ? "light" : "classic-dark";
+  } else if (category === "chatgpt") {
+    chromeVariant = variant === "web" ? (light ? "web-light" : "web") : (light ? "desktop-light" : "desktop-dark");
+  }
 
   // The OAuth callback cannot carry ?v= (the BFF rejects a query on returnTo), so write
   // what is on screen into the saved pick; the page falls back to it on return.
