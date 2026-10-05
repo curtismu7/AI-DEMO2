@@ -134,6 +134,8 @@ const DEMO_CONTROLS_ROUTES = new Set([
   // inspector and token tools
   '/mcp-inspector', '/pingone-mcp-inspector', '/agent-flow-inspector', '/token-exchange-tester',
   '/transaction-trace', '/policy-decision-trace', '/oauth/token-display',
+  // the Privilege MCP client page: the operator picks the agent mode / model here too
+  '/privilege-mcp-client',
   // setup and config
   '/config', '/configure', '/demo-config', '/pingone-setup', '/demo-data', '/feature-flags', '/llm-config',
   // /config and /demo-data redirect to /configure, and /mcp-inspector to /pingone-mcp-inspector:
