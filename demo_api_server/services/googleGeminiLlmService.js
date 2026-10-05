@@ -53,10 +53,16 @@ function toGeminiPayload(messages) {
  */
 async function generateOnce(key, model, body) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`;
+  // gemini-2.5-flash thinks by default: measured 2.0 s then 25.1 s for the same short
+  // intent prompt, against the 12 s limit below. Turning thinking off gives 0.6-0.8 s.
+  // Only the Flash models allow it (2.5-pro cannot disable thinking).
+  const payload = /2\.5-flash/.test(model)
+    ? { ...body, generationConfig: { ...body.generationConfig, thinkingConfig: { thinkingBudget: 0 } } }
+    : body;
   const res = await llmFetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    body: JSON.stringify(payload),
   }, { label: 'gemini', timeoutMs: 12000, retryOn429: false });
   const data = await res.json().catch(() => ({}));
   return { res, data };
