@@ -249,6 +249,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-05 — Privilege A2A steps (25, 25A, 26) follow the active vertical: BFF profile contract
+
+**Files:** `demo_api_server/config/a2aSpecialists.js` (`A2A_DEMO_PROFILES`, `a2aDemoProfile`), `demo_api_server/routes/privilegeA2aClient.js`, tests.
+
+**What was broken:** The Privilege A2A steps were a fixed Acme access review for every vertical; nothing told the main agent which vertical's specialist to hand off to.
+
+**What changed:** Each vertical gets a generalist `agentName` and 3 canned `questions` beside its specialist. `a2aDemoProfile(vertical)` returns `{ vertical, agentName, specialistName, tool, tools, subtaskHint, questions }` or null. The route resolves the vertical from the server-side session (`verticalManifest.resolver.activeIdFor`), adds `GET /api/privilege-a2a/profile`, and forwards the profile fields (not the questions) to the main agent on `/chat` and `/chain`. A vertical sent by the browser is ignored; a vertical with no specialist forwards nothing, so the generic review still runs.
+
+**Do not break:** UC46 route and Step 25/25A/26 numbering; no browser identity or token is forwarded to the main agent; provisioning and the RFC 8693 delegation still read the specialist entries, which are unchanged.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/a2aDemoProfile.test.js tests/privilegeA2aClientRoute.test.js --forceExit`; `npm run authz:verify`.
+
 ### 2026-10-05 — A2A runs looked stuck or failed silently; the gateway lane now reads "AI Gateway"
 
 **Files:** `demo_api_ui/src/utils/privilegeA2aChainRun.js`, `components/DemoStepsDropdown.jsx`, `components/AIAgent.js`, `services/tokenChainTrace/privilegeA2aChainSteps.js`, `components/TokenChainNodeRail.jsx`, `components/StepDetailPanel.jsx`, tests.

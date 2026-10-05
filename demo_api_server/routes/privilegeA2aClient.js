@@ -2,11 +2,26 @@
 
 const express = require('express');
 const { requireSession } = require('../middleware/auth');
+const { verticalManifest } = require('../services/verticalManifest');
+const { a2aDemoProfile } = require('../config/a2aSpecialists');
 
 const router = express.Router();
 const MAX_MESSAGE_LENGTH = 4000;
 const MAX_SESSION_ID_LENGTH = 128;
 const UNAVAILABLE = { error: 'A2A service unavailable' };
+
+// The active vertical comes from the server-side session, never from the request body,
+// so a browser cannot name a specialist it is not on. Null when the vertical has none.
+function activeProfile(req) {
+  return a2aDemoProfile(verticalManifest.resolver.activeIdFor(req) || 'banking');
+}
+
+// The fields of the profile the main agent needs to act as that vertical's concierge.
+function profileForMainAgent(profile) {
+  if (!profile) return {};
+  const { vertical, agentName, specialistName, tool, tools, subtaskHint } = profile;
+  return { vertical, agentName, specialistName, tool, tools, subtaskHint };
+}
 
 function mainAgentUrl(path) {
   const base = (process.env.PRIVILEGE_A2A_MAIN_URL || 'http://127.0.0.1:3300').replace(/\/+$/, '');
@@ -89,6 +104,15 @@ async function relayMainAgentSse(res, path, upstreamBody) {
   }
 }
 
+/**
+ * What the A2A demo steps show for the signed-in user's active vertical: the generalist
+ * agent's name, its specialist, and the canned questions. `profile` is null when the
+ * vertical has no specialist, and the UI then falls back to the generic access review.
+ */
+router.get('/profile', requireSession, (req, res) => {
+  res.json({ profile: activeProfile(req) });
+});
+
 router.post('/chat', requireSession, express.json({ limit: '64kb' }), async (req, res) => {
   const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body)
     ? req.body
@@ -106,7 +130,7 @@ router.post('/chat', requireSession, express.json({ limit: '64kb' }), async (req
     return;
   }
 
-  const upstreamBody = { message };
+  const upstreamBody = { message, ...profileForMainAgent(activeProfile(req)) };
   if (sessionId) upstreamBody.sessionId = sessionId;
   await relayMainAgentSse(res, '/chat', upstreamBody);
 });
@@ -130,7 +154,7 @@ router.post('/chain', requireSession, express.json({ limit: '64kb' }), async (re
     res.status(400).json({ error: 'specialist must be a lowercase name of 1 to 64 characters' });
     return;
   }
-  await relayMainAgentSse(res, '/chain', { message, specialist });
+  await relayMainAgentSse(res, '/chain', { message, specialist, ...profileForMainAgent(activeProfile(req)) });
 });
 
 // Fetch a live A2A Agent Card over the wire so the /llm-gateway "Malicious A2A"
