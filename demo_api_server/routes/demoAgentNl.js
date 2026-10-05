@@ -15,6 +15,7 @@ const { parseVerticalParam, resolveVerticalRouting } = require('../services/nlIn
 const reportStore = require('../services/lmdb/reportStore.lmdb');
 const conversationStore = require('../services/lmdb/conversationStore.lmdb');
 const { verticalManifest } = require('../services/verticalManifest');
+const { traceNlTurn } = require('../services/opikTurnTrace');
 
 const router = express.Router();
 
@@ -147,6 +148,7 @@ router.post('/nl', async (req, res) => {
     return res.status(promptBlock.status).json(promptBlock.body);
   }
 
+  let traceStart = Date.now();
   try {
     const u = req.session?.user;
     const context = u
@@ -156,10 +158,14 @@ router.post('/nl', async (req, res) => {
     // Pass langchain_config so NL routing can respect configured LLM provider (Helix, etc.)
     const langchainConfig = req.session?.langchain_config || {};
 
-    const { source, result, llm_attempted, llm_not_configured } = await parseNaturalLanguage(message.trim(), context, provider, langchainConfig);
+    traceStart = Date.now();
+    const parsed = await parseNaturalLanguage(message.trim(), context, provider, langchainConfig);
+    const { source, result, llm_attempted, llm_not_configured } = parsed;
+    traceNlTurn({ req, provider, vertical, startMs: traceStart, endMs: Date.now(), parsed, message });
     recordRunFromNl(req, message.trim(), result, vertical);
     return res.json({ source, result, llm_attempted, llm_not_configured });
   } catch (e) {
+    traceNlTurn({ req, provider, vertical, startMs: traceStart, endMs: Date.now(), error: e, message });
     if (e.code === 'llm_policy_denied') {
       return res.status(403).json({ error: 'llm_policy_denied', message: e.reason || e.message, provider: e.provider || 'unknown' });
     }
