@@ -16,6 +16,12 @@ import {
 } from '../../config/demoUseCaseSteps';
 import { clearIdJagRunState, ID_JAG_USE_CASE_ID } from '../../utils/idJagRunMode';
 import { runPrivilegeA2aChatRun, startPrivilegeA2aChainRun } from '../../utils/privilegeA2aChainRun';
+import { runProviderLogin } from '../../utils/providerLoginRun';
+
+vi.mock('../../utils/providerLoginRun', async (importOriginal) => ({
+  ...(await importOriginal()),
+  runProviderLogin: vi.fn(),
+}));
 
 vi.mock('../../utils/privilegeA2aChainRun', () => ({
   PRIVILEGE_A2A_CHAIN_USE_CASE_ID: 'privilege-a2a-agent-chain',
@@ -757,6 +763,23 @@ describe('DemoStepsDropdown — search', () => {
     // UC40 is already a scripted step, so it is not listed a second time.
     expect(screen.queryByTestId('demo-step-privilege-UC40')).not.toBeInTheDocument();
   });
+
+  it.each([['UC-LOGIN', 'pingone'], ['UC-LOGIN-PF', 'pingfederate']])(
+    'the %s sign-in step starts a live %s login instead of selecting a use case',
+    async (id, provider) => {
+      const onSelect = vi.fn();
+      const catalog = [
+        ...CATALOG,
+        { id, title: `Login ${id}`, trigger: { type: 'link', path: '/login-flow' } },
+      ];
+      apiClient.get.mockResolvedValueOnce({ data: { useCases: catalog } });
+      render(<DemoStepsDropdown open onOpenChange={() => {}} onSelect={onSelect} />);
+      const step = await screen.findByTestId(`demo-extra-sign-in-${id}`);
+      fireEvent.click(step);
+      expect(runProviderLogin).toHaveBeenCalledWith(provider);
+      expect(onSelect).not.toHaveBeenCalled();
+    },
+  );
 
   it('shows the themed groups in All; A2A repeats steps under their original numbers', async () => {
     const ids = EXTRA_STEP_GROUPS.flatMap((g) => g.ids);

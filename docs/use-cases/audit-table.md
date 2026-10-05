@@ -63,6 +63,8 @@
 | UC-LEARN12 | [PingFederate DaVinci Integration Kit](./pingfederate-davinci-integration-kit.md) | learn | ✅ works |  |  |
 | UC-LEARN13 | [PingFederate RAR — the authorization server refuses an out-of-policy transfer](./pingfederate-rar-processor.md) | learn | ✅ works |  |  |
 | UC-LEARN11 | [Privilege LLM — prompt injection blocked](./privilege-llm-prompt-injection.md) | learn | ✅ works | 🛡️ T5 |  |
+| UC-LOGIN | [PingOne login (OIDC + PKCE)](./pingone-person-login.md) | demo | ✅ works | 🛡️ T3 |  |
+| UC-LOGIN-PF | [PingFederate login (OIDC + PKCE)](./pingfederate-person-login.md) | demo | ✅ works | 🛡️ T3 |  |
 | UC27 | [HITL consent bypass attempt](./hitl-consent-bypass-attempt.md) | hitl | ✅ works | 🛡️ T5 |  |
 | UC28 | [Tool set as the authorization boundary (Air Canada pattern)](./unauthorized-commitment-fee-waiver.md) | controls | ✅ works | 🛡️ T1 |  |
 | UC43 | [Consumer & Partner Agent — CIMD registration](./consumer-partner-agent-cimd-registration.md) | foundations | ✅ works | 🛡️ T1, T9 |  |
@@ -95,8 +97,8 @@
 
 | Status | Count |
 |---|---|
-| ✅ Works | 59 |
+| ✅ Works | 61 |
 | 🚩 Flag-gated | 10 |
 | 📥 Needs console import | 0 |
 | 🏗️ Needs build | 2 |
-| **Total** | **71** |
+| **Total** | **73** |

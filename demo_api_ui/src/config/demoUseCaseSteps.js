@@ -165,6 +165,13 @@ export const EXTRA_STEP_GROUPS = [
     intro: 'The core identity story: delegated access with an act claim, then ID-JAG through PingOne and PingFederate.',
     ids: ['UC1', 'UC40'],
   },
+  {
+    id: 'sign-in',
+    label: 'Sign-in',
+    tagline: 'who the person is',
+    intro: 'A live person sign-in on PingOne or on PingFederate: the BFF switches the login provider, clears the session and starts a fresh OIDC + PKCE login.',
+    ids: ['UC-LOGIN', 'UC-LOGIN-PF'],
+  },
 ];
 
 /** Maturity-model journey groups for the presenter drawer. */
@@ -233,7 +240,7 @@ export const DEMO_JOURNEY_GROUPS = [
     label: 'PingOne login',
     shortLabel: 'Login',
     description: 'OIDC/PKCE person login with the BFF holding browser tokens.',
-    useCaseIds: [],
+    useCaseIds: ['UC-LOGIN', 'UC-LOGIN-PF'],
   },
   {
     id: 'j-delegation',
