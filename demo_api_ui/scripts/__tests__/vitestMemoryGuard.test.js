@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   chunkTestFiles,
   findMemoryLimitExceeded,
@@ -171,5 +171,45 @@ describe('Vitest memory guard', () => {
         if (error.code !== 'ESRCH') throw error
       }
     }
+  })
+
+  it('rides out a process-table read that fails and then recovers', async () => {
+    const child = { pid: 4242, exitCode: null, signalCode: null }
+    const stopProcessTree = vi.fn()
+    let reads = 0
+
+    const result = await monitorVitest(child, () => false, {
+      readProcessTable: async () => {
+        reads += 1
+        if (reads <= 2) throw Object.assign(new Error('Command failed: ps'), { signal: 'SIGTERM' })
+        child.exitCode = 0
+        return []
+      },
+      stopProcessTree,
+      pollIntervalMs: 1,
+    })
+
+    expect(result.type).toBeUndefined()
+    expect(reads).toBe(3)
+    expect(stopProcessTree).not.toHaveBeenCalled()
+  })
+
+  it('stops the run once the process table cannot be read three times in a row', async () => {
+    const child = { pid: 4242, exitCode: null, signalCode: null }
+    const stopProcessTree = vi.fn()
+    let reads = 0
+
+    const result = await monitorVitest(child, () => false, {
+      readProcessTable: async () => {
+        reads += 1
+        throw Object.assign(new Error('Command failed: ps'), { signal: 'SIGTERM' })
+      },
+      stopProcessTree,
+      pollIntervalMs: 1,
+    })
+
+    expect(result.type).toBe('monitor-error')
+    expect(reads).toBe(3)
+    expect(stopProcessTree).toHaveBeenCalledTimes(1)
   })
 })
