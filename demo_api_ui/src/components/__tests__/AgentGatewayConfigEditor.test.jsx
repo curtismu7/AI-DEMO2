@@ -63,9 +63,9 @@ test('defaults to Editor view showing the raw JSON in Monaco', async () => {
 
 test('switching to Form view renders the parsed JSON as labeled fields', async () => {
   render(<AgentGatewayConfigEditor />);
-  await waitFor(() => {
-    expect(screen.getByText('IG Config')).toBeInTheDocument();
-  });
+  // Wait for the file itself, not only the file list: Form view renders the
+  // loaded JSON, and under parallel load the list can arrive first.
+  await waitFor(() => expect(screen.getByTestId('monaco')).toHaveValue(FILE_DETAIL.raw));
   fireEvent.click(screen.getByRole('button', { name: 'Form' }));
   expect(screen.queryByTestId('monaco')).toBeNull();
   expect(screen.getByText('Description')).toBeInTheDocument();
