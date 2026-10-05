@@ -4,7 +4,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import DemoStepsDropdown from '../DemoStepsDropdown';
 import apiClient from '../../services/apiClient';
 import {
@@ -734,6 +734,43 @@ describe('DemoStepsDropdown — search', () => {
     expect(shown.map((el) => el.getAttribute('data-testid'))).toEqual([
       'demo-step-UC13',
     ]);
+  });
+
+  describe('search by step number', () => {
+    const search = async (value) => {
+      render(<DemoStepsDropdown open onOpenChange={() => {}} onSelect={() => {}} />);
+      await waitFor(() => expect(screen.getByTestId('demo-step-UC1')).toBeInTheDocument());
+      fireEvent.change(screen.getByTestId('demo-steps-search'), { target: { value } });
+      return screen.getAllByTestId(/^demo-step-/).map((el) => el.getAttribute('data-testid'));
+    };
+
+    it('"25a" finds Step 25A only', async () => {
+      expect(await search('25a')).toEqual(['demo-step-UC46A']);
+    });
+
+    it('"25" finds Step 25 and its lettered sub-step 25A', async () => {
+      const shown = await search('25');
+      expect(shown).toEqual(expect.arrayContaining(['demo-step-UC46', 'demo-step-UC46A']));
+      expect(shown).not.toContain('demo-step-UC47');
+    });
+
+    it('"step 26" and "#26" find Step 26 by number, not by id', async () => {
+      for (const value of ['step 26', '#26']) {
+        const shown = await search(value);
+        expect(shown).toContain('demo-step-UC47');
+        expect(shown).not.toContain('demo-step-UC46');
+        cleanup();
+      }
+    });
+
+    it('"uc 46" and "uc46" find the use case by id, with or without the space', async () => {
+      for (const value of ['uc 46', 'uc46']) {
+        const shown = await search(value);
+        expect(shown).toEqual(expect.arrayContaining(['demo-step-UC46', 'demo-step-UC46A']));
+        expect(shown).not.toContain('demo-step-UC47');
+        cleanup();
+      }
+    });
   });
 
   it('filters on presenter-friendly use-case terms', async () => {

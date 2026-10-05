@@ -17,7 +17,7 @@ import {
   PRIVILEGE_USE_CASE_IDS,
 } from '../config/demoUseCaseSteps';
 import { getMissionControlGroup } from '../config/missionControlCatalog';
-import { demoStepLabel, demoStepNumber } from '../config/demoStepNumbers';
+import { demoStepLabel, demoStepNumber, stepQueryMatches } from '../config/demoStepNumbers';
 import apiClient from '../services/apiClient';
 import UseCaseExplainModal from './UseCaseExplainModal';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
@@ -487,9 +487,10 @@ export default function DemoStepsDropdown({
     ? privilegeSteps.filter(({ uc }) =>
         (!activeGroupIds || activeGroupIds.has(uc.id)) && !(activeGroup === 'all' && scriptedIds.has(uc.id)))
     : [];
-  const matches = ({ uc }) =>
+  const matches = ({ uc, stepNumber, stepLabel }) =>
     !q ||
     uc.id.toLowerCase().includes(q) ||
+    stepQueryMatches(q, { id: uc.id, number: stepNumber, label: stepLabel }) ||
     [
       uc.title,
       uc.demoLabel,

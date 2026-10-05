@@ -249,6 +249,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-05 — Demo Steps search could not find a step by its number ("25a" found nothing)
+
+**Files:** `demo_api_ui/src/config/demoStepNumbers.js` (`stepQueryMatches`), `demo_api_ui/src/components/DemoStepsDropdown.jsx`, tests.
+
+**What was broken:** The drawer's "Search steps…" matched a row's use-case id, title and keywords, never its step number or label. "25" only worked by accident, and "25a" could not match because Step 25A's id is `UC46A`.
+
+**What changed:** `stepQueryMatches` matches a step by number or label: "25" finds Step 25 and its sub-step 25A, "25a" finds only 25A, and "step 25", "#25", "uc46" and "uc 46" work. It is added to the existing `matches` in the dropdown; id, title and keyword matching are unchanged.
+
+**Do not break:** Existing id/title/term matches and the group-name queries (`ciam`, `privilege`). An empty query still shows everything.
+
+**Verify:** `cd demo_api_ui && ./node_modules/.bin/vitest run src/config/__tests__/demoStepNumbers.test.js src/components/__tests__/DemoStepsDropdown.test.jsx`; `npm run build`.
+
 ### 2026-10-05 — Demo Steps 25, 25A, 26 and their reel/sequence/system-flow names follow the active vertical (UI)
 
 **Files:** `demo_api_ui/src/utils/privilegeA2aProfile.js`, `features/privilegeA2aClient/usePrivilegeA2aProfile.js`, `PrivilegeA2aTab.jsx`, `utils/privilegeA2aChainRun.js`, `components/DemoStepsDropdown.jsx`, `services/tokenChainTrace/privilegeA2aChainSteps.js`, `components/SequenceReelDiagram.jsx`, `components/SystemFlowMap.jsx`, tests.
