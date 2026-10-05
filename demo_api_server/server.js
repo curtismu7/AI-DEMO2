@@ -1457,6 +1457,7 @@ app.use('/api/auth/mfa', mfaRoutes);
 app.use('/api/recognize', recognizeRoutes);
 app.use('/api/verify', verifyRoutes);
 app.use('/api/mfa/test', mfaTestRoutes);
+app.use('/api/agent/opik', authenticateToken, require('./routes/agentOpik')); // Trace tab: read-only Opik proxy
 app.use('/api/agent', agentIdentityRoutes);
 app.use('/api/agent', agentDelegationRoutes);
 app.use('/api/mcp', mcpDecisionPollingRoutes);

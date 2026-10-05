@@ -18,6 +18,21 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-10-05 — Opik Trace tab: no latency sparkline, p90 stands in for p95, no per-reply chip
+
+**What's wrong.** Phase 1 of the embedded agent's Trace tab (`OpikTracePanel`,
+`routes/agentOpik.js`, `langchain_agent/src/api/opik_handler.py`) ships tiles,
+a recent-traces list and a span waterfall only. Three gaps vs the mock: (1) no
+p50/p95 latency sparkline — Opik's `/traces/stats` returns one aggregate for the
+window, not a series, so it needs bucketed queries; (2) Opik reports p50/p90/p99,
+never p95, so the tile shows p90; (3) the per-reply Opik chip needs the trace id
+plumbed through the AG-UI stream (phase 2). Also: the 30s cache in `agentOpik.js`
+is per BFF process and unbounded in keys (bounded in practice by window x limit x
+trace ids).
+
+**Fix:** phase 2 adds the trace id to the AG-UI run-finished event and the chip;
+the sparkline can bucket `/traces/stats` by time filter.
+
 ### [ ] 2026-10-03 — The BFF turns TLS certificate verification off for every outbound call
 
 **What's wrong.** `docker-compose.yml` sets `NODE_TLS_REJECT_UNAUTHORIZED: "0"` on
