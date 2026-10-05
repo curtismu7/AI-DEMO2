@@ -50,3 +50,11 @@
 .pvs-note { opacity: 0.7; margin: 0; }
 .pvs-latest { max-height: 25%; overflow: auto; flex-shrink: 0; border-top: 1px solid color-mix(in srgb, currentColor 30%, transparent); font-size: var(--font-size-2xs); }
 .pvs-latest pre { margin: 2px 0; overflow-x: auto; }
+
+/* VS Code Explorer side panel: reuses the chrome's .lbl / .f rows; only the group
+   headings, the plain-text fallback and the disabled state are ours. */
+.pvs-tree { margin-top: 8px; padding-top: 8px; border-top: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
+.pvs-tree__grp { padding: 4px 12px 2px; opacity: 0.6; text-transform: uppercase; font-size: var(--font-size-2xs); }
+.pvs-tree__txt { padding: 3px 12px 3px 22px; font-family: var(--font-mono); }
+.pvs-tree .f:disabled { opacity: 0.5; cursor: default; }
+.pvs-tree .f:focus-visible { outline: 2px solid var(--th-status-info); outline-offset: -2px; }

@@ -59,7 +59,7 @@ function hostContent(children, preview) {
 /**
  * @param {{ variant: string, hostRef?: (el: HTMLElement|null) => void, preview?: boolean }} props
  */
-function VsCodeChrome({ variant = "classic-dark", hostRef, preview = false, children }) {
+function VsCodeChrome({ variant = "classic-dark", hostRef, preview = false, side = null, children }) {
   const light = variant === "light";
   const studio = variant === "copilot-studio";
   const cls = [
@@ -109,6 +109,7 @@ function VsCodeChrome({ variant = "classic-dark", hostRef, preview = false, chil
               {f.name}
             </div>
           ))}
+          {side}
         </aside>
         <div className="afm-vcs-main">
           <section className="afm-vcs-editor">
@@ -416,9 +417,10 @@ function CodingChrome({ variant = "claude-code", hostRef, preview = false, child
 /**
  * Render chrome for a catalog category + variant id.
  */
-export function FootprintChrome({ category, variant, hostRef, preview, children }) {
+// side: optional live content for the VS Code Explorer panel (below the file tree).
+export function FootprintChrome({ category, variant, hostRef, preview, side, children }) {
   if (category === "vscode") {
-    return <VsCodeChrome variant={variant} hostRef={hostRef} preview={preview}>{children}</VsCodeChrome>;
+    return <VsCodeChrome variant={variant} hostRef={hostRef} preview={preview} side={side}>{children}</VsCodeChrome>;
   }
   if (category === "chatgpt") {
     return <ChatGptChrome variant={variant} hostRef={hostRef} preview={preview}>{children}</ChatGptChrome>;
