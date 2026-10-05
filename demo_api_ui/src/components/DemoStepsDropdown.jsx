@@ -22,6 +22,7 @@ import UseCaseExplainModal from './UseCaseExplainModal';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
 import { a2aEventsForExplain } from './demoStepsA2a';
 import { ID_JAG_USE_CASE_ID, RUN_MODES, requestLiveIdJagRun } from '../utils/idJagRunMode';
+import { LOGIN_RUN_PROVIDERS, runProviderLogin } from '../utils/providerLoginRun';
 import {
   PRIVILEGE_A2A_ACCESS_REVIEW_USE_CASE_ID,
   PRIVILEGE_A2A_CHAIN_USE_CASE_ID,
@@ -358,6 +359,10 @@ export default function DemoStepsDropdown({
         message: 'show my balance',
         returnTo: '/dashboard',
       });
+      return;
+    }
+    if (LOGIN_RUN_PROVIDERS[uc.id]) {
+      void runProviderLogin(LOGIN_RUN_PROVIDERS[uc.id]);
       return;
     }
     // The Privilege A2A agent chain starts here and plays in the reel: launch

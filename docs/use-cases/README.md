@@ -30,6 +30,7 @@ See also: [Audit Table](./audit-table.md), [Step Verification Report](./step-ver
 - [**UC24** — Act 1 — Public catalog access](./progressive-trust-public-access.md) ✅ 🛡️
 - [**UC26** — Proof of enforcement — live verdict on every use case](./proof-of-enforcement.md) ✅ 🛡️
 - [**UC-LOGIN** — PingOne login (OIDC + PKCE)](./pingone-person-login.md) ✅ 🛡️
+- [**UC-LOGIN-PF** — PingFederate login (OIDC + PKCE)](./pingfederate-person-login.md) ✅ 🛡️
 
 ## Controls
 

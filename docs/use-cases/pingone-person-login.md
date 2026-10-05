@@ -21,7 +21,7 @@ PingOne authenticates the person with OIDC authorization code + PKCE; the BFF ke
 
 ## What to Say
 
-> Sign in with PingOne. The browser gets a session cookie; the access token never leaves the BFF.
+> Sign in with PingOne — this runs live and replaces your current session. The browser gets a session cookie; the access token never leaves the BFF.
 
 ## Evidence
 
@@ -30,6 +30,7 @@ PingOne authenticates the person with OIDC authorization code + PKCE; the BFF ke
 
 ## Code References
 
+- `demo_api_ui/src/utils/providerLoginRun.js`
 - `demo_api_ui/src/pages/LoginFlowDiagramPage.jsx`
 - `demo_api_server/routes/oauthUser.js`
 
