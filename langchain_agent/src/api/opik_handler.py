@@ -22,7 +22,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 _BASE = "https://www.comet.com/opik/api/v1/private"
-_WINDOWS = {"1h": timedelta(hours=1), "24h": timedelta(hours=24), "7d": timedelta(days=7)}
+_WINDOWS = {"1h": timedelta(hours=1), "3h": timedelta(hours=3), "12h": timedelta(hours=12), "7d": timedelta(days=7)}
+_DEFAULT_WINDOW = "1h"
 _project_ids: dict[str, str] = {}
 
 
@@ -81,11 +82,11 @@ def _failure(exc: Exception) -> JSONResponse:
 
 
 @router.get("/stats")
-async def opik_stats(window: str = Query("24h")):
+async def opik_stats(window: str = Query(_DEFAULT_WINDOW)):
     if not _enabled():
         return {"enabled": False}
     if window not in _WINDOWS:
-        return JSONResponse({"error": "window must be one of 1h, 24h, 7d"}, status_code=400)
+        return JSONResponse({"error": f"window must be one of {', '.join(_WINDOWS)}"}, status_code=400)
     try:
         flt = _since_filter(window)
         traces = await _get("/traces/stats", project_name=_project(), filters=flt)
@@ -120,11 +121,11 @@ async def opik_stats(window: str = Query("24h")):
 
 
 @router.get("/traces")
-async def opik_traces(limit: int = Query(20, ge=1, le=50), window: str = Query("24h")):
+async def opik_traces(limit: int = Query(20, ge=1, le=50), window: str = Query(_DEFAULT_WINDOW)):
     if not _enabled():
         return {"enabled": False}
     if window not in _WINDOWS:
-        return JSONResponse({"error": "window must be one of 1h, 24h, 7d"}, status_code=400)
+        return JSONResponse({"error": f"window must be one of {', '.join(_WINDOWS)}"}, status_code=400)
     try:
         data = await _get("/traces", project_name=_project(), size=limit, filters=_since_filter(window))
         url = await _project_url()

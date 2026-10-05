@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import OpikTracePanel, { fmtMs, withDepth } from './OpikTracePanel';
 
 const json = (body, status = 200) => Promise.resolve({ ok: status < 400, status, json: () => Promise.resolve(body) });
@@ -40,6 +40,22 @@ describe('OpikTracePanel', () => {
     expect(screen.getByText('4,240')).toBeTruthy();
     expect(screen.getByText('17.7 s')).toBeTruthy();
     expect(screen.getByText('Open in Opik').getAttribute('href')).toBe(STATS.project_url);
+  });
+
+  test('offers 1h, 3h, 12h and 7d, starts on 1h, and asks the BFF for the window you pick', async () => {
+    route({ '/stats': () => json(STATS), '/spans': () => json(SPANS), '/traces?': () => json(TRACES) });
+    render(<OpikTracePanel />);
+    await screen.findByText('loyalty_balance');
+
+    const group = screen.getByRole('group', { name: 'Time window' });
+    const labels = Array.from(group.querySelectorAll('button[aria-pressed]')).map((b) => b.textContent);
+    expect(labels).toEqual(['1h', '3h', '12h', '7d']);
+    expect(screen.getByRole('button', { name: '1h' }).getAttribute('aria-pressed')).toBe('true');
+    expect(global.fetch.mock.calls.some(([url]) => String(url).includes('/stats?window=1h'))).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: '12h' }));
+    await waitFor(() => expect(global.fetch.mock.calls.some(([url]) => String(url).includes('/stats?window=12h'))).toBe(true));
+    expect(global.fetch.mock.calls.some(([url]) => String(url).includes('window=24h'))).toBe(false);
   });
 
   test('shows the disabled state when Opik is not configured', async () => {

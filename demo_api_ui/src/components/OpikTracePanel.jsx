@@ -6,7 +6,7 @@ import './OpikTracePanel.css';
  * waterfall. Data comes from the BFF (/api/agent/opik/*), which proxies the
  * langchain agent — the Opik key never reaches the browser.
  */
-const WINDOWS = ['1h', '24h', '7d'];
+const WINDOWS = ['1h', '3h', '12h', '7d'];
 const BASE = '/api/agent/opik';
 
 export function fmtMs(ms) {
@@ -76,7 +76,7 @@ function Waterfall({ data }) {
 }
 
 export default function OpikTracePanel() {
-  const [windowKey, setWindowKey] = useState('24h');
+  const [windowKey, setWindowKey] = useState('1h');
   const [state, setState] = useState({ status: 'loading' });
   const [selected, setSelected] = useState(null);
   const [spans, setSpans] = useState(null);

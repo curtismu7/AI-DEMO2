@@ -69,6 +69,25 @@ def test_stats_empty_window_has_no_division_error(keyed):
 
 def test_stats_bad_window_400(keyed):
     assert client.get("/opik/stats?window=9y").status_code == 400
+    # 24h was replaced by 3h and 12h; the error names exactly the supported windows.
+    old = client.get("/opik/stats?window=24h")
+    assert old.status_code == 400
+    assert old.json()["error"] == "window must be one of 1h, 3h, 12h, 7d"
+    assert client.get("/opik/traces?window=24h").status_code == 400
+
+
+@pytest.mark.parametrize("window", ["1h", "3h", "12h", "7d"])
+def test_each_window_is_accepted_and_echoed(keyed, window):
+    async def fake(path, **kw):
+        if path == "/traces/stats":
+            return {"stats": [{"name": "trace_count", "value": 0}]}
+        if path == "/spans/stats":
+            return {"stats": []}
+        return {"content": [{"id": "pid", "name": "proj"}]}
+
+    with patch.object(h, "_get", new=AsyncMock(side_effect=fake)):
+        d = client.get(f"/opik/stats?window={window}").json()
+    assert d["window"] == window
 
 
 def test_upstream_failure_is_502_without_leaking(keyed):
