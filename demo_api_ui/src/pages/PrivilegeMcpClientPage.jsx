@@ -12,7 +12,7 @@ import JsonFormView from '../components/shared/JsonFormView';
 import PingIdentitySpinner from '../components/shared/PingIdentitySpinner';
 import DraggableModal from '../components/DraggableModal';
 import { navigateWithOverlay } from '../utils/navigateWithOverlay';
-import { doorName, GATEWAY_MODES, LLM_PATHS, doorsForMode, decideAfterSwitch, probeResultLabel } from '../components/privilege/privilegeRouting';
+import { doorName, GATEWAY_MODES, LLM_PATHS, doorsForMode, decideAfterSwitch, probeResultLabel, needsRearm, rearmReason } from '../components/privilege/privilegeRouting';
 import { LLM_POLICY_DENIED, chatReplyMessage, llmReplyMessage, llmDenialMessage } from '../components/privilege/privilegeChat';
 import { usePrivilegeRouting } from '../components/privilege/usePrivilegeRouting';
 import { requestAuthStart, isSilentAuthUrl } from '../components/privilege/privilegeAuth';
@@ -291,13 +291,13 @@ export default function PrivilegeMcpClientPage() {
     gatewayConfigs, setGatewayConfigs,
     presets, setPresets,
     preflight, preflightError, preflightBusy, probeDoors: probePresetDoors,
+    gatewaySession, setGatewaySession,
     selectPath, selectDoor,
   } = usePrivilegeRouting({ request: api });
   // Per-mode "what actually supplies the OAuth client", from /state. Only read
   // when the Client ID field is blank, which is the normal state for every door
   // shipped here (they all self-advertise and register their own client).
   const [clientHints, setClientHints] = useState({});
-  const [gatewaySession, setGatewaySession] = useState(null);
   const [rearmError, setRearmError] = useState('');
   const [gatewayStateLoaded, setGatewayStateLoaded] = useState(false);
   // Path switch in flight. The sessionStorage flag lets
@@ -2198,10 +2198,10 @@ export default function PrivilegeMcpClientPage() {
                   rail reads "broken" instead of "the session lapsed, press
                   this" — the same failure the blocked-policy band exists to
                   prevent. A one-click recovery is worth more on stage than off. */}
-              {gatewayMode === 'facade' && gatewaySession && !gatewaySession.ready && (
+              {needsRearm(gatewayMode, gatewaySession) && (
                 <p className="cur-rail__note cur-rail__note--warn" role="status">
                   <span aria-hidden="true">⚠️</span>{' '}
-                  Gateway session {gatewaySession.reason === 'expired' ? 'expired' : 'not established'}.
+                  Gateway session {rearmReason(gatewaySession)}.
                   <button
                     type="button"
                     className="cur-btn cur-rail__btn"
