@@ -22,3 +22,12 @@ hostAliases:
 # (mcpgw2...), so it serves plain HTTP; the load balancer's bridge speaks HTTP to it.
 oidc:
   serverUrl: https://mcpgw.ai-demo.ping-devops.com
+# Ship this gateway's guardrail, model-call and A2A lines to the same index as
+# gateway 1. The index lives in gateway 1's namespace, so the address is the
+# Service's full name (reachable from this namespace: checked 2026-10-05). Without
+# this, a call the load balancer pins to gateway 2 leaves no record in gateway-events.
+logShipping:
+  enabled: true
+  opensearchUrl: "http://opensearch.ping-devops-curtismuir.svc.cluster.local:9200"
+  index: gateway-events
+  authSecret: ""
