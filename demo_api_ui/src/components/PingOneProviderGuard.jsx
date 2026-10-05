@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import apiClient from "../services/apiClient";
 import { clearIdJagRunStateForProviderSwitch } from "../utils/idJagRunMode";
+import { navigateWithOverlay } from "../utils/navigateWithOverlay";
 import DraggableModal from "./DraggableModal";
 import "./PingOneProviderGuard.css";
 
@@ -47,7 +48,7 @@ export default function PingOneProviderGuard({ children, returnTo, description }
       if (hasActivePfSession && !idJagRestore?.sessionCleared) {
         await apiClient.post("/api/auth/clear-session");
       }
-      window.location.href = `/api/auth/oauth/user/login?return_to=${returnTo}`;
+      navigateWithOverlay(`/api/auth/oauth/user/login?return_to=${returnTo}`, { message: "Signing in..." });
     } catch (err) {
       const message = err?.response?.data?.message;
       setSwitchError(

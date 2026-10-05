@@ -63,9 +63,17 @@ describe('index.html boot screen', () => {
     expect(html).toMatch(/@media \(max-width: 768px\)\s*\{\s*#boot-spinner,\s*\.boot-skeleton\s*\{/);
   });
 
-  it('keeps the CSS ring on the HTML boot screen only (React draws the Ping spinner)', () => {
-    expect(html).toContain('#boot-spinner::after');
+  it('draws the Ping mark on the HTML boot screen, as React does (no ring-then-mark swap)', () => {
+    // PingIdentitySpinner is the spinner on AuthLoadingScreen. If the boot screen shows
+    // something else, a refresh swaps one loading picture for another.
+    expect(html).toMatch(/<div class="boot-mark"><span class="boot-mark__ring"><\/span><img class="boot-mark__img" src="\/branding\/ping-logo\.svg"/);
+    expect(html).toContain('animation: boot-dance');
+    expect(html).not.toContain('#boot-spinner::after');
     expect(html).not.toMatch(/\.boot-skeleton::after/);
+  });
+
+  it('keeps the boot mark the same size as the React spinner (56px, as AuthLoadingScreen sets)', () => {
+    expect(html).toMatch(/\.boot-mark\s*\{[^}]*width:\s*56px;[^}]*height:\s*56px/);
   });
 
   it('draws a shell skeleton, not a bare blank block', () => {

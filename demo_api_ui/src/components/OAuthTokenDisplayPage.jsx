@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import bffAxios from '../services/bffAxios';
 import { fetchEnrichedUserInfo } from '../services/userInfoService';
 import { startEmbeddedSignInFromUrl, submitPassword } from '../lib/embeddedPiFlow';
+import { navigateWithOverlay } from '../utils/navigateWithOverlay';
 import './OAuthTokenDisplayPage.css';
 import TokenCard from './TokenCard';
 import JsonHighlight from './shared/JsonHighlight';
@@ -419,7 +420,7 @@ export default function OAuthTokenDisplayPage() {
                 type="button"
                 className="otdp-flow-login-btn"
                 onClick={() => {
-                  window.location.assign(`/api/auth/oauth/user/login?return_to=${encodeURIComponent(window.location.pathname)}`);
+                  navigateWithOverlay(`/api/auth/oauth/user/login?return_to=${encodeURIComponent(window.location.pathname)}`, { message: 'Signing in...', assign: true });
                 }}
                 disabled={piFlowBusy}
               >

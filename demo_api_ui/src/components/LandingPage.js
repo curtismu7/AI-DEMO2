@@ -1,5 +1,6 @@
 import { useLayoutEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { navigateWithOverlay } from "../utils/navigateWithOverlay";
 import "./LandingPage.css";
 
 function IconShield() {
@@ -141,7 +142,7 @@ export default function LandingPage({ user, hasTopNav }) {
     if (user) {
       navigate("/use-cases/live");
     } else {
-      window.location.href = "/api/auth/oauth/user/login?return_to=/use-cases/live";
+      navigateWithOverlay("/api/auth/oauth/user/login?return_to=/use-cases/live", { message: "Signing in..." });
     }
   };
 

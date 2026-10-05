@@ -119,18 +119,34 @@
       height: 90px;
     }
 
-    #boot-spinner::after {
-      content: "";
+    /* The Ping mark, drawn exactly as React's PingIdentitySpinner draws it (56px,
+       outer ring at 42% accent, mark at 55%, same motion), so the swap from this
+       screen to AuthLoadingScreen is the same picture and not ring-then-mark. */
+    .boot-mark {
+      --boot-accent: #dc2626;
       position: fixed;
       top: 50%;
       left: 50%;
-      width: 40px;
-      height: 40px;
-      margin: -20px 0 0 -20px;
-      border: 3px solid #d8d8d4;
-      border-top-color: #1e40af;
+      width: 56px;
+      height: 56px;
+      transform: translate(-50%, -50%);
+      display: grid;
+      place-items: center;
+    }
+
+    .boot-mark__ring {
+      position: absolute;
+      inset: 1%;
+      border: 2px solid color-mix(in srgb, var(--boot-accent) 42%, transparent);
       border-radius: 50%;
-      animation: boot-spin 0.8s linear infinite;
+    }
+
+    .boot-mark__img {
+      position: relative;
+      width: 55%;
+      height: 55%;
+      filter: drop-shadow(0 10px 14px color-mix(in srgb, var(--boot-accent) 28%, transparent));
+      animation: boot-dance 1.8s cubic-bezier(.45, .05, .35, 1) infinite;
     }
 
     :root[data-theme="dark"] #boot-spinner,
@@ -153,9 +169,8 @@
       border-color: #26304a;
     }
 
-    :root[data-theme="dark"] #boot-spinner::after {
-      border-color: #26304a;
-      border-top-color: #93c5fd;
+    :root[data-theme="dark"] .boot-mark {
+      --boot-accent: #ef4444;
     }
 
     /* /privilege-mcp-client boot: same dark skeleton, keyed to the page's own theme */
@@ -179,9 +194,8 @@
       border-color: #26304a;
     }
 
-    :root[data-boot-dark] #boot-spinner::after {
-      border-color: #26304a;
-      border-top-color: #93c5fd;
+    :root[data-boot-dark] .boot-mark {
+      --boot-accent: #ef4444;
     }
 
     @media (max-width: 768px) {
@@ -195,10 +209,16 @@
       }
     }
 
-    @keyframes boot-spin {
-      to {
-        transform: rotate(360deg);
-      }
+    @keyframes boot-dance {
+      0%, 100% { transform: translate(0, 0) rotate(0deg) scale(1); }
+      18% { transform: translate(-2px, -3px) rotate(-5deg) scale(1.02); }
+      36% { transform: translate(2px, 1px) rotate(4deg) scale(.98); }
+      55% { transform: translate(-1px, -2px) rotate(0deg) scale(1.01); }
+      74% { transform: translate(2px, 0) rotate(4deg) scale(.99); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .boot-mark__img { animation: none; }
     }
   </style>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -211,7 +231,7 @@
 
 <body>
   <noscript>You need to enable JavaScript to run this app.</noscript>
-  <div id="root"><div id="boot-spinner"><div class="boot-bar"></div><div class="boot-nav"></div><div class="boot-main"><div class="boot-card"></div><div class="boot-card boot-card--short"></div></div></div></div>
+  <div id="root"><div id="boot-spinner"><div class="boot-bar"></div><div class="boot-nav"></div><div class="boot-main"><div class="boot-card"></div><div class="boot-card boot-card--short"></div></div><div class="boot-mark"><span class="boot-mark__ring"></span><img class="boot-mark__img" src="/branding/ping-logo.svg" alt=""></div></div></div>
 
   <!--
     Path A (CR-02/CR-04): the global WebSocket URL-token interceptor was

@@ -7,6 +7,7 @@ import React, {
 } from "react";
 import { createPortal } from "react-dom";
 import FloatingPanel from "./FloatingPanel";
+import { navigateWithOverlay } from "../utils/navigateWithOverlay";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useEducationUIOptional } from "../context/EducationUIContext";
 import { useIndustryBranding } from "../context/IndustryBrandingContext";
@@ -4049,7 +4050,7 @@ export default function BankingAgent({
           params.set("return_to", p === "/dashboard" ? "/dashboard" : "/");
         if (usePiFlow) params.set("use_pi_flow", "1");
         const q = params.toString();
-        window.location.href = `${apiUrl}/api/auth/oauth/user/login${q ? `?${q}` : ""}`;
+        navigateWithOverlay(`${apiUrl}/api/auth/oauth/user/login${q ? `?${q}` : ""}`, { message: "Signing in..." });
       }, 150);
       return;
     }

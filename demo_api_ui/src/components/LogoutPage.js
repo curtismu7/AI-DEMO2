@@ -5,6 +5,7 @@ import { navigateToCustomerOAuthForceLogin } from '../utils/authUi';
 import bffAxios from '../services/bffAxios';
 import { clearIdJagRunState, ID_JAG_PENDING_INTENT_KEY, ID_JAG_USE_CASE_ID, RUN_MODES } from '../utils/idJagRunMode';
 import { notifyError } from '../utils/appToast';
+import { navigateWithOverlay } from '../utils/navigateWithOverlay';
 import './LogoutPage.css';
 
 /**
@@ -40,7 +41,7 @@ export default function LogoutPage() {
         const isLiveHandoff = pending?.pending === true && pending.mode === 'live-id-jag'
           && ['/pingfederate-id-jag/demo', '/dashboard'].includes(pending.returnTo);
         if (isLiveHandoff) {
-          window.location.href = `/api/auth/oauth/user/login?mode=live-id-jag&return_to=${encodeURIComponent(pending.returnTo)}`;
+          navigateWithOverlay(`/api/auth/oauth/user/login?mode=live-id-jag&return_to=${encodeURIComponent(pending.returnTo)}`, { message: 'Signing in...' });
           return;
         }
         navigate(returnTo, { replace: true });
