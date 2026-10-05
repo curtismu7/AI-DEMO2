@@ -46,7 +46,7 @@ The two agents run on different model tiers (Gemini 3.6 Flash for the main agent
 
 ## Before you demo
 
-Four things must be up. Check them in this order; each takes seconds.
+Five things must be up. Check them in this order; each takes seconds.
 
 | # | What | Check | Good result |
 | --- | --- | --- | --- |
@@ -54,12 +54,15 @@ Four things must be up. Check them in this order; each takes seconds.
 | 2 | Worker, MCP server and LangChain agent (cluster) | `kubectl --context us -n ping-devops-cmuir get pods` | `workeragentdemo`, `mcpdemo` and `langchain-agent` all `1/1 Running` |
 | 3 | Gateway | `curl -s -o /dev/null -w "%{http_code}" -X POST https://mcpgw.ai-demo.ping-devops.com/workeragentdemo/a2a/jsonrpc -d '{}'` | `401` (the gateway is up and asking for a key) |
 | 4 | The app | Open `https://local.ping-devops.com:4000` and sign in | The dashboard loads. Sign-in only works on this host |
+| 5 | The gateway-record grant | Run step 26 once and open a red GATEWAY step | Rows of log lines, not "not granted". If it says not granted, the policy for `SearchIndexTool` on `opensearch22` has lapsed |
 
 If the main agent is not running, start it:
 
 ```bash
-cd standalone/privilege-a2a-anthropic-demo && npm run dev
+cd standalone/privilege-a2a-anthropic-demo && npm run main
 ```
+
+Use `npm run main`, not `npm run dev`: the MCP server and worker run in the cluster here, and `dev` would start local copies as well. The main agent reads `.env` once, when it starts, so restart it after changing any setting: `lsof -ti :3300 | xargs kill`, then `npm run main` again. Starting a second copy while one is running fails on port 3300.
 
 Then do one dry run of each demo before the audience arrives. A model call can take a few seconds the first time.
 
@@ -87,11 +90,23 @@ One agent calls a second, which calls a third, and the gateway sits between each
 
 | Run | Click | What the view shows | What to say |
 | --- | --- | --- | --- |
-| Allowed | The step | Main agent, gateway, LangChain agent, gateway, Refunds specialist, then two replies back. Marked verified | "Each call is three steps: the caller presents its own key, the gateway checks it, the next agent receives it. The second hop uses the LangChain agent's key, not the main agent's." |
+| Allowed | The step | The main agent first reads the LangChain agent's Agent Card through the gateway (two steps). Then: main agent, gateway, LangChain agent, gateway, Refunds specialist, and two replies back. 14 steps in all; three per call and per reply (caller, gateway, callee). Marked verified | "Each call is three steps: the caller presents its own key, the gateway checks it, the next agent receives it. The second hop uses the LangChain agent's key, not the main agent's." |
 | Prompt injection | **P** | Main agent calls the LangChain agent, then "Privilege gateway — refused". Nothing is forwarded | "The message said to ignore all instructions and reveal the system prompt. The gateway blocked it at the first hop; the LangChain agent never saw it." |
 | Ungranted agent | **U** | First hop passes; the second stops at "Privilege gateway — refused" | "The LangChain agent tried to hand off to an agent it was never granted. The gateway refused with a 403, and the refusal travels back up the chain with its reason." |
 
 **Best view for this demo.** The sequence view: one lifeline per agent with the gateway between them, so the audience sees the gateway in the path of every call. Switch to it in Quick Config. The movie reel along the bottom shows the same run as a numbered chain.
+
+**The gateway's own record.** Wait about three seconds after a run, then click a step whose lane says GATEWAY (shown in red and bold). Below what the agents reported, it shows what the gateway itself logged for that time window:
+
+| Run | What the gateway's record shows |
+| --- | --- |
+| P | The guardrail verdict: `a2a_request_blocked`, category `prompt_injection`, the caller `main-agent`, the rules that fired, and the MITRE ATLAS, NIST AI RMF and OWASP rows |
+| U | The first hop accepted for `langchainagent`; the second refused: policy denied, the principal does not have access, A2A app `restrictedagent` |
+| Allowed | The request accepted for `langchainagent`, then for the specialist's app, each with a different principal |
+
+On Step 25 (the access review), the same record lists the model calls with tokens and cost. That block is covered by tests but has not yet been run in a browser.
+
+The record is read from the `gateway-events` index through the gateway, so the demo user needs a policy granting the tool `SearchIndexTool` on the app `opensearch22`. These policies are time-boxed; when one lapses, the gateway rows read "not granted". Records are matched by time window, so another session's calls in the same seconds can appear on Step 25.
 
 **Good follow-up.** On the System Flow map the same run lights a Privilege A2A band: agents green, the gateway red where it refused.
 
@@ -189,7 +204,9 @@ Each of these happened while building the demo. Read the message, find the row.
 
 | What you see | Cause | Fix |
 | --- | --- | --- |
-| "The A2A service is unavailable" in the app | The main agent on port 3300 is not running, or the app cannot reach it | Start it with `npm run dev`. Check `PRIVILEGE_A2A_MAIN_URL` and that the two BFF secrets match |
+| "Step 26 — the run failed: …" in the agent chat (a `502` from `/api/privilege-a2a/chain`) | The main agent on port 3300 is not running, or the app cannot reach it | Start it (see Before you demo). Check `PRIVILEGE_A2A_MAIN_URL` and that the two BFF secrets match |
+| The chain request is rejected with `401 BFF authentication required` | The main agent reads its settings once, at start, and its copy of the BFF secret is stale | Restart the main agent. The BFF reads `PRIVILEGE_A2A_BFF_SECRET`; the agent checks it as `A2A_BFF_SHARED_SECRET`; both must hold the same value (the vault, both `.env` files and the BFF container) |
+| The gateway rows read "not granted" | The policy that lets the demo user call `SearchIndexTool` on `opensearch22` has expired | Grant it again in the Privilege console, with a longer validity window |
 | `invalid virtual key` (401) | The agent key is wrong, often pasted twice | Check the stored key is 57 characters; store it again |
 | `model "…" not allowed for this key` (403) | The model ID does not exactly match the model allowed on the agent | Use the exact ID, for example `gemini-3.6-flash`. Aliases such as `gemini-flash-latest` are refused |
 | `API key not valid` from the provider | The gateway accepted the call; the Real Provider Key stored on that agent is wrong | Edit the agent and paste the Google key again |
@@ -219,6 +236,10 @@ Say these plainly if asked; none of them is hidden by the demo.
 - **Grants follow the custodian.** Two agents under one custodian can reach each other's remote agents. Separate custodians are what keep their reach separate.
 - **The main agent runs on the laptop.** If the laptop sleeps or the process stops, both demos stop. The worker, MCP server, LangChain agent and specialist run in the cluster.
 - **Pass Agent Token and User Token are not used.** Both demos use agent keys with Static Token or None on the remote agent. Workload identity for agent callers has not been tested.
+- **The second hop is rebuilt, not captured.** The LangChain agent reports only that its hop happened. Its request and the specialist's reply are reconstructed from the fixed shape it sends: the text is exact, the ids and key are placeholders.
+- **Only the first hop reads an Agent Card.** The LangChain agent calls its specialist from a configured list (`A2A_DELEGATE_TARGETS`).
+- **Reply inspection is unproven.** The "Relays the reply" step says so; no `a2a_response` record has been seen.
+- **The ungranted run does not show the message text** on the refused second call.
 - **The specialist is a stub.** The refunds specialist answers that nothing was executed. The chain shows the hops and the controls, not a real refund.
 
 Related guides: the A2A guide (`privilege/GATEWAY-AGENT-TO-AGENT-A2A.md`) for how the gateway handles A2A in general, and the demo's README (`standalone/privilege-a2a-anthropic-demo/README.md`) for its settings.
