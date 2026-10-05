@@ -10326,7 +10326,7 @@ topology change will widen the gap in the same silent way.
 **Fix:** generate both CSVs from `serverTopologyData.js` (and fail CI when they
 drift), rather than adding the missing rows by hand.
 
-### [ ] 2026-10-05 — Privilege chat reply normalization is duplicated between the Cursor page and the shell hook
+### [x] 2026-10-05 — Privilege chat reply normalization is duplicated between the Cursor page and the shell hook
 
 `demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx` (`sendChat`) and
 `usePrivilegeShellSession.send` both post `/api/privilege-mcp/chat` and
@@ -10338,6 +10338,16 @@ places, and the two can drift silently.
 
 **Fix:** have the Cursor page consume `usePrivilegeShellSession` (or a shared
 reply normalizer) once that page can be regression-tested.
+
+**RESOLVED 2026-10-05 (branch `worktree-chat-shape-dedupe`).** What the issue
+turned out to be: the duplicated part was the message SHAPES (the /chat reply, the /llm/call reply, the policy-denial
+line, and the step strings), not the transport. They now live in
+`demo_api_ui/src/components/privilege/privilegeChat.js` and both the Cursor
+page and `usePrivilegeShellSession.send` build their messages through it. The
+send control flow (page state plus the auth-challenge modal on Cursor, versus
+session phases plus `connect()` on the skins) and the generic LLM error wording
+(`❌ <msg>` plus a "call failed" step on Cursor, `Error: <msg>` on the skins)
+were deliberately left per-surface and are NOT unified.
 
 ### [x] 2026-10-05 — Footprint skins lack the Theme: Auto/Light/Dark toggle
 
@@ -10366,7 +10376,7 @@ select list uses `Canvas`/`CanvasText` so a light costume's text stays readable
 on Windows/Linux's light popup. The popup fix is CSS-only and has only been
 checked against the theming ratchets, not on a Windows or Linux browser.
 
-### [ ] 2026-10-05 — Cursor LLM send and the shell hook's LLM send are duplicated
+### [x] 2026-10-05 — Cursor LLM send and the shell hook's LLM send are duplicated
 
 `PrivilegeMcpClientPage.jsx` (`sendChat`, LLM branch) and
 `usePrivilegeShellSession.send` (LLM branch) both post
@@ -10377,6 +10387,16 @@ made twice, and the Cursor page and the skins can drift silently.
 
 **Fix:** extract one shared LLM-call helper (post plus denial formatting) used
 by both once the Cursor page can be regression-tested against it.
+
+**RESOLVED 2026-10-05 (branch `worktree-chat-shape-dedupe`).** What the issue
+turned out to be: the duplicated part was the message SHAPES (the /chat reply, the /llm/call reply, the policy-denial
+line, and the step strings), not the transport. They now live in
+`demo_api_ui/src/components/privilege/privilegeChat.js` and both the Cursor
+page and `usePrivilegeShellSession.send` build their messages through it. The
+send control flow (page state plus the auth-challenge modal on Cursor, versus
+session phases plus `connect()` on the skins) and the generic LLM error wording
+(`❌ <msg>` plus a "call failed" step on Cursor, `Error: <msg>` on the skins)
+were deliberately left per-surface and are NOT unified.
 
 ### [ ] 2026-10-05 — Silent re-auth, re-arm and door probing are Cursor-only
 
