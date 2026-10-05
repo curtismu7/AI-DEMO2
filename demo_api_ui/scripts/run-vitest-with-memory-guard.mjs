@@ -1,4 +1,5 @@
 import { execFile, spawn } from 'node:child_process'
+import { readdir, readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { promisify } from 'node:util'
 import { setTimeout as delay } from 'node:timers/promises'
@@ -342,6 +343,24 @@ function parseRelatedFileList(raw) {
   return files
 }
 
+// Ratchets and source-shape guards read files from disk, so the import graph
+// behind `vitest related` never links them to the source they police. Run them
+// on every related run; they are cheap next to the full jsdom suite.
+const FS_GUARD_PATTERN = /readFileSync|readdirSync|globSync|readFile\(/
+async function findFilesystemGuardTests() {
+  const root = resolve(fileURLToPath(import.meta.url), '..', '..')
+  const found = []
+  for (const dir of ['src', 'scripts/__tests__']) {
+    const entries = await readdir(resolve(root, dir), { recursive: true })
+    for (const entry of entries) {
+      if (!/\.test\.[cm]?[jt]sx?$/.test(entry)) continue
+      const file = `${dir}/${entry}`.replaceAll('\\', '/')
+      if (FS_GUARD_PATTERN.test(await readFile(resolve(root, file), 'utf8'))) found.push(file)
+    }
+  }
+  return found.sort()
+}
+
 async function runPrRelatedUnitSuite() {
   let changedFiles
   try {
@@ -368,8 +387,13 @@ async function runPrRelatedUnitSuite() {
     }
   }
 
-  if (plan.testFiles.length > 0) {
-    const changedTests = await runVitest(['run', ...plan.testFiles])
+  const guardTests = plan.sourceFiles.length > 0 ? await findFilesystemGuardTests() : []
+  const directTests = [...new Set([...plan.testFiles, ...guardTests])]
+  if (guardTests.length > 0) {
+    console.log(`[vitest-memory-guard] Adding ${guardTests.length} filesystem guard tests to the related run.`)
+  }
+  if (directTests.length > 0) {
+    const changedTests = await runVitest(['run', ...directTests])
     peakProcess = largerProcess(peakProcess, changedTests.monitorFailure?.peakProcess)
     if (changedTests.code !== 0) {
       printPeakRss(peakProcess, 'PR changed-test suite')

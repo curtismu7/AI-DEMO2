@@ -7,20 +7,23 @@ describe('PR Vitest selection', () => {
       { filename: 'demo_api_ui/src/components/AgentRunTimeline.jsx', status: 'modified' },
     ])).toEqual({
       mode: 'related',
-      reason: 'component source changes',
+      reason: 'module source changes',
       sourceFiles: ['src/components/AgentRunTimeline.jsx'],
       testFiles: [],
     })
   })
 
   it.each([
-    ['shared demo steps dropdown', 'demo_api_ui/src/components/DemoStepsDropdown.jsx'],
-    ['shared agent gateway tester', 'demo_api_ui/src/components/AgentGatewayTester.jsx'],
-    ['shared token chain display', 'demo_api_ui/src/components/TokenChainDisplay.jsx'],
-    ['unverified component', 'demo_api_ui/src/components/UnreviewedCard.jsx'],
-  ])('runs the full suite for %s changes', (_label, filename) => {
+    ['shared component', 'demo_api_ui/src/components/DemoStepsDropdown.jsx'],
+    ['route-level page', 'demo_api_ui/src/pages/AgentGatewayCapabilitiesPage.jsx'],
+    ['shared hook', 'demo_api_ui/src/hooks/useAgentMode.js'],
+    ['shared service', 'demo_api_ui/src/services/apiClient.js'],
+    ['shared context', 'demo_api_ui/src/context/AgentUiModeContext.js'],
+    ['util', 'demo_api_ui/src/utils/formatAxiosError.js'],
+  ])('selects related tests for %s changes', (_label, filename) => {
     expect(selectVitestMode([{ filename, status: 'modified' }])).toMatchObject({
-      mode: 'full',
+      mode: 'related',
+      sourceFiles: [filename.replace('demo_api_ui/', '')],
     })
   })
 
@@ -41,7 +44,7 @@ describe('PR Vitest selection', () => {
       { filename: 'demo_api_ui/src/components/__tests__/AgentRunTimeline.test.jsx', status: 'modified' },
     ])).toEqual({
       mode: 'related',
-      reason: 'component source changes',
+      reason: 'module source changes',
       sourceFiles: ['src/components/AgentRunTimeline.jsx'],
       testFiles: ['src/components/__tests__/AgentRunTimeline.test.jsx'],
     })
@@ -49,10 +52,6 @@ describe('PR Vitest selection', () => {
 
   it.each([
     ['App shell', 'demo_api_ui/src/App.js'],
-    ['shared context', 'demo_api_ui/src/context/AgentUiModeContext.js'],
-    ['shared hook', 'demo_api_ui/src/hooks/useAgentMode.js'],
-    ['shared service', 'demo_api_ui/src/services/apiClient.js'],
-    ['route-level page', 'demo_api_ui/src/pages/AgentGatewayCapabilitiesPage.jsx'],
     ['theme stylesheet', 'demo_api_ui/src/index.css'],
     ['component stylesheet', 'demo_api_ui/src/components/AgentGatewayTester.css'],
     ['test setup', 'demo_api_ui/src/setupTests.js'],

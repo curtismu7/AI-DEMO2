@@ -1,12 +1,10 @@
 const TEST_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$/
-const COMPONENT_SOURCE = /^src\/components\/.+\.[jt]sx?$/
+// `vitest related` follows static and literal dynamic imports (verified against
+// a React.lazy page), so edits to these modules map to every test that reaches
+// them. Everything else (styles, setup, config, App, theme) is read by tests
+// through the filesystem or global wiring and stays on the full suite.
+const RELATED_SOURCE = /^src\/(?:components|pages|hooks|utils|services|features|context)\/.+\.[jt]sx?$/
 const BARREL_FILE = /(?:^|\/)index\.[cm]?[jt]sx?$/
-// Keep this allowlist limited to leaf components whose production import graph
-// has been checked. Unlisted components may be shared across screens; those
-// edits must run the full suite until their isolation has been verified.
-const VERIFIED_LEAF_COMPONENTS = new Set([
-  'src/components/AgentRunTimeline.jsx',
-])
 
 function fullSuite(reason) {
   return { mode: 'full', reason, sourceFiles: [], testFiles: [] }
@@ -51,22 +49,18 @@ export function selectVitestMode(changedFiles) {
       return fullSuite('a non-unit UI test changed')
     }
 
-    if (COMPONENT_SOURCE.test(relativePath) && VERIFIED_LEAF_COMPONENTS.has(relativePath)) {
+    if (RELATED_SOURCE.test(relativePath)) {
       sourceFiles.push(relativePath)
       continue
     }
 
-    // Route modules can be loaded through App's dynamic imports, which Vitest's
-    // related graph does not follow. Shared components, contexts, hooks,
-    // services, styles, setup, and configuration can affect tests across the
-    // UI, so keep those changes on the complete suite.
-    return fullSuite('shared, route-level, styling, or configuration changes')
+    return fullSuite('styling, setup, configuration, or app-shell changes')
   }
 
   if (sourceFiles.length > 0) {
     return {
       mode: 'related',
-      reason: 'component source changes',
+      reason: 'module source changes',
       sourceFiles,
       testFiles,
     }

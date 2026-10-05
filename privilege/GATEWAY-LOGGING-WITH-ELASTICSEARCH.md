@@ -160,6 +160,13 @@ Event names seen: `llm_request_blocked`, `llm_request_alert`, `llm_request_sanit
 
 **One line per rate-limit refusal**, with `"msg":"AIGuardControl"`. It has `"Event":"llm_policy_denied"`, a `Reason` such as `token_rate_limit`, and the user and key.
 
+**Two A2A lines.** An agent-to-agent call leaves these in the same log. The verdict above is the only one that says a message was blocked; these two say a call was accepted or refused by policy:
+
+| Line | What it tells you |
+| --- | --- |
+| `"msg":"Received HTTP request"` on a path that starts with `/a2a/` | The gateway accepted an A2A request for that app. Other `Received HTTP request` lines (not A2A) are not shipped. The line carries a `Headers` object, which holds the caller's Bearer value. |
+| `"msg":"A2A policy denied"` | Policy refused an A2A call. It names the app and why, for example that the principal does not have access to it. |
+
 The log file rotates at about 50 MB. On the tested gateway that was every one to two days. After that the lines are gone unless you shipped them.
 
 ## Getting traffic events into a search index
@@ -183,6 +190,8 @@ done
 ```
 
 The pattern above does not match `AIGuardControl` lines, so rate-limit refusals are not shipped. Add `*'"msg":"AIGuardControl"'*` to the `case` to include them.
+
+**In our environment** the sidecar is the `log-tailer` container of the gateway chart (`agentless-mcpgw/templates/deployment.yaml`). It ships four kinds of line to the index `gateway-events` in `ping-devops-curtismuir`: `LLM request`, `AIGuard`, `Received HTTP request` on `/a2a/` paths, and `A2A policy denied`. It removes the `Headers` object from the accepted-request lines before posting. All three gateways run it (gateway 1, 2 and 3, since 5 October 2026), but only gateway 1 has been seen shipping on a real run: the load balancer pins the tested client to it. The demo reads the index back through the gateway itself, using the MCP inspector's Privilege OpenSearch door (app `opensearch22`, tool `SearchIndexTool`), so the demo user needs a policy that grants that tool. Such policies are time-boxed.
 
 That sidecar posts to OpenSearch. Elasticsearch accepts the same `POST /<index>/_doc` request, so the same approach should work with an Elasticsearch address and an `Authorization` header for the ingestion user. That last step was not tested.
 
@@ -281,6 +290,7 @@ What to do about it:
 - **Test it.** From outside your network, run `curl http://<elasticsearch-host>:9200/_security/_authenticate` with no credentials. The answer should be `401`. If it returns a username, the index is open.
 - **Do not expose port 9200 to the internet.** Use a private address. If it must be reachable from outside, put TLS in front of it and limit who can connect. Plain HTTP sends the ingestion password unencrypted.
 - **Use a dedicated ingestion user** that can write to the one index and nothing else. Never use the `elastic` administrator for ingestion.
+- **The raw log still holds secrets.** The gateway log prints full agent keys on some lines, and the accepted A2A request lines carry the caller's Bearer value. Our shipper removes the headers, and the shipped documents were checked twice for keys, Bearer values, headers and IP addresses (on real log lines before the change went live, and on the live index after). The log file and the pod logs are not cleaned: mask them before you paste anything from them.
 - **Drop the key when you ship traffic lines.** Remove or hash `VirtualKeyID` in the shipper, or keep only its last few characters.
 - **If a real provider key has been indexed,** change that key at the provider and delete the affected events.
 

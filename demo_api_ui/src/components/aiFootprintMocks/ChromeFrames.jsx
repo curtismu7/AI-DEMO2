@@ -175,8 +175,8 @@ function ClaudeDesktopChrome({ hostRef, preview = false, children }) {
 }
 
 function ChatGptChrome({ variant = "desktop-dark", hostRef, preview = false, children }) {
-  const light = variant === "desktop-light";
-  const web = variant === "web";
+  const light = variant === "desktop-light" || variant === "web-light";
+  const web = variant === "web" || variant === "web-light";
   const cls = [
     "afm-cgpt",
     light ? "afm-cgpt--light" : "",
