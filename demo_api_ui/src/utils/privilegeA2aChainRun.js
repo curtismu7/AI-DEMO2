@@ -31,6 +31,8 @@ export function chainHopToTokenEvent(payload, index) {
     // What crossed the wire, as the main agent reports it (key already masked).
     request: str(payload.request) || undefined,
     response: str(payload.response) || undefined,
+    // On a `card` hop: what the callee's A2A Agent Card said about it.
+    card: payload.card && typeof payload.card === 'object' ? payload.card : undefined,
     useCaseId: PRIVILEGE_A2A_CHAIN_USE_CASE_ID,
   };
 }

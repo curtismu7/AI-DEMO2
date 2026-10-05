@@ -12,7 +12,7 @@ export const MIDDLE = 'langchainagent';
 
 /** One step of the chain, as the trace pane and the reel draw it. */
 export interface ChainEvent {
-  kind: 'delegate' | 'result' | 'error';
+  kind: 'card' | 'delegate' | 'result' | 'error';
   from: string;
   to: string;
   text: string;
@@ -22,6 +22,18 @@ export interface ChainEvent {
   request?: string;
   /** The HTTP response this agent received, as text. */
   response?: string;
+  /** On a `card` event: what the callee's A2A Agent Card said about it. */
+  card?: CardSummary;
+}
+
+/** The fields of an A2A Agent Card the trace shows. */
+export interface CardSummary {
+  name: string;
+  description: string;
+  protocolVersion: string;
+  url: string;
+  preferredTransport: string;
+  skills: string[];
 }
 
 interface Hop {
@@ -78,6 +90,49 @@ function emitHops(hops: unknown, emit: ChainOptions['emit'], message: string, an
   }
 }
 
+/** Where an agent's card lives, given the JSON-RPC endpoint the gateway routes to it. */
+export const cardUrlFor = (jsonRpcUrl: string): string =>
+  `${jsonRpcUrl.replace(/\/jsonrpc\/?$/, '')}/.well-known/agent-card.json`;
+
+/**
+ * Read the middle agent's A2A Agent Card through the gateway, with this
+ * agent's own key, and report it. Discovery only: the chain still calls the
+ * gateway's route, whatever endpoint the card names. A card that cannot be
+ * read is reported and the run carries on, because the call does not need it.
+ */
+async function discover(options: ChainOptions, fetchImpl: typeof fetch): Promise<void> {
+  const { url, bearer, emit, signal } = options;
+  const cardUrl = cardUrlFor(url);
+  const request = [`GET ${cardUrl}`, ...(bearer ? [`Authorization: Bearer ${maskKey(bearer)}`] : [])].join('\n');
+  const report = (detail: string, response?: string, card?: CardSummary): void =>
+    emit({ kind: 'card', from: MAIN, to: MIDDLE, text: `${MAIN} reads ${MIDDLE}'s Agent Card`, detail, request, response, card });
+  try {
+    const response = await fetchImpl(cardUrl, { headers: bearer ? { Authorization: `Bearer ${bearer}` } : {}, signal });
+    const raw = await response.text();
+    const wire = `HTTP ${response.status}\n\n${pretty(raw).slice(0, MAX_WIRE_TEXT)}`;
+    let body: Record<string, unknown> | null = null;
+    try {
+      body = JSON.parse(raw);
+    } catch { /* The gateway refuses with plain text. */ }
+    if (!response.ok || !body || typeof body.name !== 'string') {
+      report(`No Agent Card returned (HTTP ${response.status})`, wire);
+      return;
+    }
+    const skills = Array.isArray(body.skills) ? body.skills : [];
+    report(`Agent Card for ${body.name}`, wire, {
+      name: body.name,
+      description: text(body.description),
+      protocolVersion: text(body.protocolVersion),
+      url: text(body.url),
+      preferredTransport: text(body.preferredTransport),
+      skills: skills.map(skill => text((skill as { name?: unknown })?.name)).filter(Boolean),
+    });
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    report(`No Agent Card returned (${error instanceof Error ? error.message : 'request failed'})`);
+  }
+}
+
 /**
  * Run the chain and report each step through `emit`. Resolves with the final
  * answer; rejects with the reason when any hop is refused or fails.
@@ -85,6 +140,7 @@ function emitHops(hops: unknown, emit: ChainOptions['emit'], message: string, an
 export async function runChain(options: ChainOptions): Promise<string> {
   const { url, bearer, message, specialist, emit, signal } = options;
   const fetchImpl = options.fetchImpl ?? fetch;
+  await discover(options, fetchImpl);
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (bearer) headers.Authorization = `Bearer ${bearer}`;
   const requestBody = JSON.stringify({

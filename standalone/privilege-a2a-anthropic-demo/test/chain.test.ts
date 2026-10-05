@@ -6,20 +6,40 @@ import { runChain, type ChainEvent } from '../src/main-agent/chain.js';
 const jsonResponse = (status: number, body: unknown): Response =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
-async function run(fetchImpl: typeof fetch): Promise<{ events: ChainEvent[]; answer?: string; error?: string }> {
-  const events: ChainEvent[] = [];
+const CARD = {
+  name: 'langchainagent',
+  description: 'Middle agent',
+  protocolVersion: '0.3.0',
+  url: 'https://direct.example/a2a/jsonrpc',
+  preferredTransport: 'JSONRPC',
+  skills: [{ id: 'banking_assistant', name: 'Banking assistant' }],
+};
+
+/**
+ * Run the chain against `callImpl`, which answers the A2A call. The card
+ * request that comes first is answered by `cardImpl`. `events` are the hop
+ * events; the card event is returned apart, as `cards`.
+ */
+async function run(
+  callImpl: typeof fetch,
+  cardImpl: typeof fetch = async () => jsonResponse(200, CARD),
+): Promise<{ events: ChainEvent[]; cards: ChainEvent[]; answer?: string; error?: string }> {
+  const all: ChainEvent[] = [];
+  const fetchImpl: typeof fetch = (url, init) =>
+    (String(url).endsWith('/.well-known/agent-card.json') ? cardImpl(url, init) : callImpl(url, init));
+  const split = () => ({ events: all.filter(event => event.kind !== 'card'), cards: all.filter(event => event.kind === 'card') });
   try {
     const answer = await runChain({
       url: 'https://gateway.example/langchainagent/a2a/jsonrpc',
       bearer: 'primary-key',
       message: 'Refund order 7',
       specialist: 'refunds',
-      emit: event => events.push(event),
+      emit: event => all.push(event),
       fetchImpl,
     });
-    return { events, answer };
+    return { ...split(), answer };
   } catch (error) {
-    return { events, error: (error as Error).message };
+    return { ...split(), error: (error as Error).message };
   }
 }
 
@@ -77,4 +97,41 @@ test('a refusal at the first hop is attributed to the main agent call', async ()
   assert.equal(error, 'Forbidden');
   assert.deepEqual(path(events), ['delegate:main>langchainagent', 'error:main>langchainagent']);
   assert.match(events[1].detail ?? '', /^403: Forbidden/);
+});
+
+test('the main agent reads the middle agent\'s card through the gateway before calling', async () => {
+  let asked: { url: string; headers: Headers } | undefined;
+  const { cards, answer } = await run(
+    async () => jsonResponse(200, { jsonrpc: '2.0', result: { parts: [{ kind: 'text', text: 'ok' }] } }),
+    async (url, init) => {
+      asked = { url: String(url), headers: new Headers(init?.headers) };
+      return jsonResponse(200, CARD);
+    },
+  );
+
+  assert.equal(answer, 'ok');
+  assert.equal(asked?.url, 'https://gateway.example/langchainagent/a2a/.well-known/agent-card.json');
+  assert.equal(asked?.headers.get('authorization'), 'Bearer primary-key');
+  assert.equal(cards.length, 1);
+  assert.deepEqual(cards[0].card, {
+    name: 'langchainagent',
+    description: 'Middle agent',
+    protocolVersion: '0.3.0',
+    url: 'https://direct.example/a2a/jsonrpc',
+    preferredTransport: 'JSONRPC',
+    skills: ['Banking assistant'],
+  });
+  assert.match(cards[0].response ?? '', /^HTTP 200/);
+});
+
+test('a card that cannot be read is reported and the chain still runs', async () => {
+  const { cards, events, answer } = await run(
+    async () => jsonResponse(200, { jsonrpc: '2.0', result: { parts: [{ kind: 'text', text: 'ok' }] } }),
+    async () => new Response('Forbidden\n', { status: 403 }),
+  );
+
+  assert.equal(answer, 'ok');
+  assert.equal(cards[0].card, undefined);
+  assert.match(cards[0].detail ?? '', /HTTP 403/);
+  assert.deepEqual(path(events), ['delegate:main>langchainagent', 'result:langchainagent>main']);
 });
