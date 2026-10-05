@@ -4,7 +4,7 @@ import Anthropic from '@anthropic-ai/sdk';
 
 import { describeMode, mainAgentConfig, viaGateway } from '../config.js';
 import { buildWorkerClient } from './a2a-client.js';
-import { MAIN, runChain } from './chain.js';
+import { MAIN, maskKey, pretty, runChain } from './chain.js';
 import { renderPage } from './ui.js';
 
 const config = mainAgentConfig();
@@ -239,15 +239,30 @@ app.post('/chat', async (req: Request, res: Response) => {
           continue;
         }
 
-        sendSse(res, 'trace', { kind: 'delegate', from: MAIN, to: 'analyst', text: 'concierge → analyst_agent', detail: question, at: at() });
+        // The A2A SDK hides the wire body, so the request shown is rebuilt from the fixed shape it sends.
+        const request = [
+          `POST ${config.workerA2aUrl.replace(/\/+$/, '')}/jsonrpc`,
+          'Content-Type: application/json',
+          ...(config.bearer ? [`Authorization: Bearer ${maskKey(config.bearer)}`] : []),
+          '',
+          pretty(JSON.stringify({
+            jsonrpc: '2.0',
+            id: '<request id>',
+            method: 'message/send',
+            params: { message: { role: 'user', messageId: '<message id>', parts: [{ kind: 'text', text: question }] } },
+          })),
+        ].join('\n');
+        sendSse(res, 'trace', { kind: 'delegate', from: MAIN, to: 'analyst', text: 'concierge → analyst_agent', detail: question, request, at: at() });
+        const hopStartedAt = Date.now();
         try {
           const answer = await worker.sendQuestion(question, traceId);
-          sendSse(res, 'trace', { kind: 'result', from: 'analyst', to: MAIN, text: 'analyst_agent returned', detail: answer, at: at() });
+          const response = `HTTP 200\n\n${pretty(JSON.stringify({ jsonrpc: '2.0', id: '<request id>', result: { kind: 'message', role: 'agent', parts: [{ kind: 'text', text: answer }] } })).slice(0, 4000)}`;
+          sendSse(res, 'trace', { kind: 'result', from: 'analyst', to: MAIN, text: 'analyst_agent returned', detail: answer, elapsedMs: Date.now() - hopStartedAt, response, at: at() });
           results.push({ type: 'tool_result', tool_use_id: call.id, content: answer });
           delegatedAnswer = answer;
         } catch (error) {
           const detail = messageError(error);
-          sendSse(res, 'trace', { kind: 'error', text: 'A2A delegation failed', detail, at: at() });
+          sendSse(res, 'trace', { kind: 'error', from: MAIN, to: 'analyst', text: 'A2A delegation failed', detail, at: at() });
           results.push({ type: 'tool_result', tool_use_id: call.id, content: detail, is_error: true });
         }
       }

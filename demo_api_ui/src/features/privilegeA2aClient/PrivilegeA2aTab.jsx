@@ -1,28 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
+import { runPrivilegeA2aChatRun } from '../../utils/privilegeA2aChainRun';
 import './PrivilegeA2aTab.css';
 
-const API_URL = '/api/privilege-a2a/chat';
 const DEMO_QUESTIONS = [
   'Review access on prod-db-primary.',
   'List all entitlements for Carol Nguyen.',
   'Who has the prod-db-admin role?',
   'Who is offboarding and still has active access?',
 ];
-
-function readEvent(frame) {
-  let event = 'message';
-  const data = [];
-  for (const line of frame.split('\n')) {
-    if (line.startsWith('event:')) event = line.slice(6).trim();
-    else if (line.startsWith('data:')) data.push(line.slice(5).trimStart());
-  }
-  if (!data.length) return null;
-  try {
-    return { event, payload: JSON.parse(data.join('\n')) };
-  } catch {
-    return null;
-  }
-}
 
 export default function PrivilegeA2aTab() {
   const [input, setInput] = useState('');
@@ -76,61 +61,7 @@ export default function PrivilegeA2aTab() {
     setSelectedQuestion('');
 
     try {
-      const body = { message };
-      if (sessionId) body.sessionId = sessionId;
-      const response = await fetch(API_URL, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          Accept: 'text/event-stream',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-        signal: controller.signal,
-      });
-
-      if (!response.ok) {
-        let messageText = 'The A2A service is unavailable.';
-        try {
-          const bodyJson = await response.json();
-          if (typeof bodyJson.error === 'string') messageText = bodyJson.error;
-        } catch { /* Keep the safe fallback for non-JSON API errors. */ }
-        setError(messageText);
-        return;
-      }
-      if (!response.body) {
-        setError('The A2A service returned no response stream.');
-        return;
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      const processFrames = (final = false) => {
-        buffer = buffer.replace(/\r\n/g, '\n');
-        let boundary = buffer.indexOf('\n\n');
-        while (boundary >= 0) {
-          const frame = buffer.slice(0, boundary);
-          buffer = buffer.slice(boundary + 2);
-          const parsed = readEvent(frame);
-          if (parsed) handleEvent(parsed.event, parsed.payload);
-          boundary = buffer.indexOf('\n\n');
-        }
-        if (final && buffer.trim()) {
-          const parsed = readEvent(buffer);
-          if (parsed) handleEvent(parsed.event, parsed.payload);
-          buffer = '';
-        }
-      };
-
-      while (!controller.signal.aborted) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        processFrames();
-      }
-      buffer += decoder.decode();
-      processFrames(true);
+      await runPrivilegeA2aChatRun({ message, sessionId, onEvent: handleEvent, signal: controller.signal });
     } catch (requestError) {
       if (controller.signal.aborted) setError('Request cancelled.');
       else setError(requestError instanceof Error ? requestError.message : 'The A2A request failed.');

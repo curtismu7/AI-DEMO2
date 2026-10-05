@@ -249,6 +249,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-05 — Demo Step 25 (UC46 A2A access review) had no per-hop detail in the reel or sequence view
+
+**Files:** `standalone/privilege-a2a-anthropic-demo/src/main-agent/index.ts`, `.../main-agent/chain.ts` (exports `maskKey`, `pretty`), `.../worker-agent/index.ts`, `.../test/topology.test.ts`, `demo_api_ui/src/utils/privilegeA2aChainRun.js`, `demo_api_ui/src/services/tokenChainTrace/privilegeA2aChainSteps.js`, `demo_api_ui/src/features/privilegeA2aClient/PrivilegeA2aTab.jsx`, `demo_api_ui/src/utils/__tests__/privilegeA2aChainRun.test.js`.
+
+**What was broken:** `PrivilegeA2aTab` kept only kind/text/detail of each `/chat` trace frame in local state and never fed the token-chain trace store, and the frames had no from/to/request/response/elapsedMs, so the reel and sequence view had nothing to draw for UC46.
+
+**What changed:** `/chat` `delegate`/`result` frames now carry `request` (key masked), `response` and `elapsedMs`; worker `mcp-call`/`mcp-result`/`error` frames carry from/to (analyst and mcp). New `runPrivilegeA2aChatRun({ message, sessionId, onEvent, store, fetchImpl, signal })` streams one chat, feeds `pa2a-<n>` events tagged `privilege-a2a-access-review` via `chainHopToTokenEvent` (new optional `useCaseId` arg) and dispatches `token-chain-inject`; the tab calls it and keeps its own UI through `onEvent`. `buildPrivilegeA2aChainSteps` renders `mcp-call`/`mcp-result` hops and labels `analyst`/`mcp` as "Analyst agent"/"MCP tools". The wire request/response of the main-to-analyst hop are rebuilt from the fixed A2A shape (the SDK hides the body), so ids are placeholders.
+
+**Do not break:** UC46's route `/privilege-mcp-client?view=demo&tab=a2a` and link trigger in `config/useCases.js` are untouched; the tab still selects via URL and never auto-submits. UC47 chain output and ids (`pa2a-*`, `privilege-a2a-agent-chain`) are unchanged. Frames without from/to (session, some errors) are still dropped from the reel by design.
+
+**Verify:** `cd demo_api_ui && npx vitest run src/utils/__tests__/privilegeA2aChainRun.test.js src/features/privilegeA2aClient src/components/__tests__/DemoStepsDropdown.test.jsx src/services/tokenChainTrace`; `npm run build`; `cd standalone/privilege-a2a-anthropic-demo && npm test` (the `main should call Anthropic ... 2 !== 4` assertion fails on main already, unrelated).
+
 ### 2026-10-03 — The Demo Controls dock had no Inspect section outside the dashboard's split-column layout
 
 **Files:** `demo_api_ui/src/components/AIAgent.js`, `demo_api_ui/src/components/__tests__/AIAgent.headerControls.test.js`.

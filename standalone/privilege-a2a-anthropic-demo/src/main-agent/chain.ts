@@ -59,9 +59,9 @@ const text = (value: unknown): string => (typeof value === 'string' ? value : ''
 const MAX_WIRE_TEXT = 4000;
 
 /** An agent key as it may be shown: its recognisable prefix only. */
-const maskKey = (key: string): string => `${key.slice(0, 13)}… (masked)`;
+export const maskKey = (key: string): string => `${key.slice(0, 13)}… (masked)`;
 
-const pretty = (raw: string): string => {
+export const pretty = (raw: string): string => {
   try {
     return JSON.stringify(JSON.parse(raw), null, 2);
   } catch {

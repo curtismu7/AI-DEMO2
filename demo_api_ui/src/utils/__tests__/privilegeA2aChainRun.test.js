@@ -1,4 +1,4 @@
-import { chainHopToTokenEvent, startPrivilegeA2aChainRun } from "../privilegeA2aChainRun";
+import { chainHopToTokenEvent, runPrivilegeA2aChatRun, startPrivilegeA2aChainRun } from "../privilegeA2aChainRun";
 import { buildLiveTokenChainSteps, buildPrivilegeA2aChainSteps } from "../../components/TokenChainTraceRail";
 import { deriveLifelineParticipants, deriveLifelineSteps } from "../../services/tokenChainTrace/deriveLifelineSteps";
 import { buildTraceSteps, laneLabel } from "../../services/tokenChainTrace/buildTraceSteps";
@@ -246,4 +246,52 @@ test("a call refused at the first hop is not also shown as forwarded", () => {
     ["pa2a-1-call", "done"],
     ["pa2a-1-gateway", "error"],
   ]);
+});
+
+const ACCESS_REVIEW = [
+  ["trace", { kind: "session", text: "session abc · model" }],
+  ["trace", { kind: "delegate", from: "main", to: "analyst", text: "concierge → analyst_agent", detail: "Review Carol", request: "POST x/jsonrpc" }],
+  ["trace", { kind: "mcp-call", from: "analyst", to: "mcp", text: "analyst → list_entitlements", detail: "{\"user\":\"carol\"}" }],
+  ["trace", { kind: "mcp-result", from: "mcp", to: "analyst", text: "list_entitlements returned", detail: "admin grant" }],
+  ["trace", { kind: "result", from: "analyst", to: "main", text: "analyst_agent returned", detail: "Carol has an admin grant", elapsedMs: 80, response: "HTTP 200" }],
+  ["token", { text: "Carol has an admin grant" }],
+  ["done", { sessionId: "s1" }],
+];
+
+test("a UC46 chat feeds pa2a events tagged access-review and builds MCP steps", async () => {
+  const store = fakeStore();
+  const seenFrames = [];
+  const fetchImpl = vi.fn().mockResolvedValue(sse(ACCESS_REVIEW));
+
+  await runPrivilegeA2aChatRun({ message: "Review Carol", sessionId: "s0", store, fetchImpl, onEvent: (event) => seenFrames.push(event) });
+
+  expect(fetchImpl.mock.calls[0][0]).toBe("/api/privilege-a2a/chat");
+  expect(JSON.parse(fetchImpl.mock.calls[0][1].body)).toEqual({ message: "Review Carol", sessionId: "s0" });
+  expect(seenFrames).toEqual(["trace", "trace", "trace", "trace", "trace", "token", "done"]);
+  expect(store.events.map((event) => `${event.id}:${event.from}>${event.to}`)).toEqual([
+    "pa2a-0:main>analyst",
+    "pa2a-1:analyst>mcp",
+    "pa2a-2:mcp>analyst",
+    "pa2a-3:analyst>main",
+  ]);
+  expect(store.events.every((event) => event.useCaseId === "privilege-a2a-access-review")).toBe(true);
+  expect(store.events[0].request).toBe("POST x/jsonrpc");
+  expect(store.events[3]).toMatchObject({ elapsedMs: 80, response: "HTTP 200" });
+  expect(store.calls.at(-1)).toEqual(["completeTrace", true, undefined]);
+
+  const steps = buildPrivilegeA2aChainSteps(store.events);
+  const titles = steps.map((step) => step.title);
+  expect(titles).toContain("analyst → list_entitlements");
+  expect(titles).toContain("list_entitlements returned");
+  expect(steps.find((step) => step.id === "pa2a-1-mcp-call").lane).toBe("ANALYST-AGENT");
+  expect(steps.find((step) => step.id === "pa2a-2-mcp-result").lane).toBe("MCP-TOOLS");
+  expect(JSON.stringify(steps)).not.toContain("analyst specialist");
+});
+
+test("a UC46 chat HTTP failure closes the trace as failed and throws", async () => {
+  const store = fakeStore();
+  const fetchImpl = vi.fn().mockResolvedValue({ ok: false, json: async () => ({ error: "A2A service unavailable" }) });
+
+  await expect(runPrivilegeA2aChatRun({ message: "hi", store, fetchImpl })).rejects.toThrow("A2A service unavailable");
+  expect(store.calls.at(-1)).toEqual(["completeTrace", false, "A2A service unavailable"]);
 });

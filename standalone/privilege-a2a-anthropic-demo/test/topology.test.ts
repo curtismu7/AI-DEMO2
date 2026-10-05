@@ -297,6 +297,16 @@ test('main delegates through authenticated A2A, worker calls authenticated MCP, 
       assert.equal(answer, `${person} has an access grant recorded by the test fixture.`);
       assert.ok(events.some(event => event.event === 'done'), `${person} chat should complete successfully`);
       assert.ok(events.some(event => event.event === 'trace' && event.data.kind === 'delegate'), `${person} main agent should report A2A delegation`);
+      const traces = events.filter(event => event.event === 'trace').map(event => event.data);
+      const delegate = traces.find(data => data.kind === 'delegate');
+      const result = traces.find(data => data.kind === 'result');
+      assert.equal(delegate?.from, 'main');
+      assert.equal(delegate?.to, 'analyst');
+      assert.match(String(delegate?.request), /message\/send/, `${person} delegate should carry the A2A request`);
+      assert.equal(typeof result?.elapsedMs, 'number', `${person} result should carry elapsedMs`);
+      assert.match(String(result?.response), /^HTTP 200/, `${person} result should carry the A2A response`);
+      const mcpCall = traces.find(data => data.kind === 'mcp-call');
+      if (mcpCall) assert.deepEqual([mcpCall.from, mcpCall.to], ['analyst', 'mcp']);
     }
 
     const carolTrace = carolEvents.filter(event => event.event === 'trace').map(event => JSON.stringify(event.data)).join('\n');

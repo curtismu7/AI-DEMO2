@@ -4,7 +4,7 @@
 // instead of an empty banking pipeline.
 
 // Names follow Ping's reference demo: the caller is the main agent.
-const PRIVILEGE_CHAIN_ACTORS = { main: "Main agent", langchainagent: "LangChain agent" };
+const PRIVILEGE_CHAIN_ACTORS = { main: "Main agent", langchainagent: "LangChain agent", analyst: "Analyst agent", mcp: "MCP tools" };
 const chainActor = (name) => PRIVILEGE_CHAIN_ACTORS[name] || `${name} specialist`;
 // Each actor is its own lane, so the sequence view draws one lifeline per
 // agent with the gateway between them. GATEWAY is the existing gateway lane.
@@ -126,6 +126,17 @@ export function buildPrivilegeA2aChainSteps(tokenEvents) {
           ["Endpoint the caller uses", "The Privilege gateway's route for this agent"],
         ],
         ...(event.response ? { response: { title: `A2A Agent Card · ${to}`, text: event.response } } : {}),
+      })];
+    }
+
+    // Analyst <-> MCP tools (UC46): a tool call and its result.
+    if (event.kind === "mcp-call" || event.kind === "mcp-result") {
+      const isCall = event.kind === "mcp-call";
+      const body = { title: `MCP tool ${isCall ? "call" : "result"} · ${from} → ${to}`, text: event.detail || "(empty)" };
+      return [step(isCall ? "-mcp-call" : "-mcp-result", event.label || `${from} → ${to}`, chainLane(event.from), "done", {
+        narrative: `${from} ${isCall ? "called a tool on" : "received a result from"} ${isCall ? to : from}${saying(event.detail)}`,
+        kv: [["From", from], ["To", to], ["Protocol", "MCP tools/call"]],
+        ...(isCall ? { request: body } : { response: body }),
       })];
     }
 

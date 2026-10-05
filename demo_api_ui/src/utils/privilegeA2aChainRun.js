@@ -9,12 +9,14 @@ import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTrac
 
 export const PRIVILEGE_A2A_CHAIN_USE_CASE_ID = 'privilege-a2a-agent-chain';
 export const PRIVILEGE_A2A_CHAIN_EVENT_PREFIX = 'pa2a-';
+export const PRIVILEGE_A2A_ACCESS_REVIEW_USE_CASE_ID = 'privilege-a2a-access-review';
 const API_URL = '/api/privilege-a2a/chain';
+const CHAT_API_URL = '/api/privilege-a2a/chat';
 
 const str = (value) => (typeof value === 'string' ? value : '');
 
 /** A `trace` payload from the stream, as a token event the reel can draw. */
-export function chainHopToTokenEvent(payload, index) {
+export function chainHopToTokenEvent(payload, index, useCaseId = PRIVILEGE_A2A_CHAIN_USE_CASE_ID) {
   const from = str(payload?.from);
   const to = str(payload?.to);
   if (!from || !to) return null;
@@ -33,7 +35,7 @@ export function chainHopToTokenEvent(payload, index) {
     response: str(payload.response) || undefined,
     // On a `card` hop: what the callee's A2A Agent Card said about it.
     card: payload.card && typeof payload.card === 'object' ? payload.card : undefined,
-    useCaseId: PRIVILEGE_A2A_CHAIN_USE_CASE_ID,
+    useCaseId,
   };
 }
 
@@ -127,4 +129,85 @@ export async function startPrivilegeA2aChainRun({
   if (answer) store.ingestLlmReply(answer);
   store.completeTrace(true);
   return { ok: true, answer };
+}
+
+/**
+ * Run one UC46 access-review chat (main agent -> gateway -> analyst -> MCP) and
+ * feed each trace frame into the token-chain trace store, as the chain run does.
+ * Every SSE frame is also handed to `onEvent(event, payload)` so the caller keeps
+ * its own UI. Throws on a transport or HTTP failure (after closing the trace).
+ */
+export async function runPrivilegeA2aChatRun({
+  message,
+  sessionId,
+  onEvent,
+  store = tokenChainTraceStore,
+  fetchImpl = fetch,
+  signal,
+} = {}) {
+  store.beginTrace({ prompt: message });
+  let hops = 0;
+  const seen = [];
+  let answer = '';
+  let failure = '';
+  const handle = ({ event, payload }) => {
+    if (event === 'trace') {
+      const tokenEvent = chainHopToTokenEvent(payload, hops, PRIVILEGE_A2A_ACCESS_REVIEW_USE_CASE_ID);
+      if (tokenEvent) {
+        hops += 1;
+        store.ingestTokenEvent(tokenEvent);
+        seen.push(tokenEvent);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('token-chain-inject', { detail: { tool: 'privilege-a2a-chat', events: [...seen] } }));
+        }
+      }
+    } else if (event === 'token') {
+      answer += str(payload?.text);
+    } else if (event === 'error') {
+      failure = str(payload?.error) || 'The A2A request failed.';
+    }
+    onEvent?.(event, payload);
+  };
+  try {
+    const response = await fetchImpl(CHAT_API_URL, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { Accept: 'text/event-stream', 'Content-Type': 'application/json' },
+      body: JSON.stringify(sessionId ? { message, sessionId } : { message }),
+      signal,
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      throw new Error(str(body?.error) || 'The A2A service is unavailable.');
+    }
+    if (!response.body) throw new Error('The A2A service returned no response stream.');
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    for (;;) {
+      const { done, value } = await reader.read();
+      buffer += decoder.decode(value, { stream: !done }).replace(/\r\n/g, '\n');
+      let boundary = buffer.indexOf('\n\n');
+      while (boundary >= 0) {
+        const parsed = readFrame(buffer.slice(0, boundary));
+        buffer = buffer.slice(boundary + 2);
+        if (parsed) handle(parsed);
+        boundary = buffer.indexOf('\n\n');
+      }
+      if (done) break;
+    }
+    if (buffer.trim()) {
+      const parsed = readFrame(buffer);
+      if (parsed) handle(parsed);
+    }
+  } catch (error) {
+    store.completeTrace(false, null, signal?.aborted ? 'Request cancelled.' : error?.message || 'The A2A request failed.');
+    throw error;
+  }
+  if (failure) {
+    store.completeTrace(false, null, failure);
+    return;
+  }
+  if (answer) store.ingestLlmReply(answer);
+  store.completeTrace(true);
 }
