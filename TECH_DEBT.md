@@ -10326,7 +10326,7 @@ topology change will widen the gap in the same silent way.
 **Fix:** generate both CSVs from `serverTopologyData.js` (and fail CI when they
 drift), rather than adding the missing rows by hand.
 
-### 2026-10-05 — Privilege chat reply normalization is duplicated between the Cursor page and the shell hook
+### [ ] 2026-10-05 — Privilege chat reply normalization is duplicated between the Cursor page and the shell hook
 
 `demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx` (`sendChat`) and
 `usePrivilegeShellSession.send` both post `/api/privilege-mcp/chat` and
@@ -10339,7 +10339,7 @@ places, and the two can drift silently.
 **Fix:** have the Cursor page consume `usePrivilegeShellSession` (or a shared
 reply normalizer) once that page can be regression-tested.
 
-### 2026-10-05 — Footprint skins lack the Theme: Auto/Light/Dark toggle
+### [x] 2026-10-05 — Footprint skins lack the Theme: Auto/Light/Dark toggle
 
 The force light/dark "Theme: Auto/Light/Dark" toggle (`pvsTheme`, #1570) exists
 only in `PrivilegeShellPanel`'s legacy body. The coding, vscode and
@@ -10352,7 +10352,21 @@ a presenter on a skin cannot force a theme for a projector.
 **Fix:** lift `pvsTheme` into the session (or the panel) and render the toggle
 in `ShellGate`'s footer next to Sign out.
 
-### 2026-10-05 — Cursor LLM send and the shell hook's LLM send are duplicated
+**RESOLVED 2026-10-05 (branch `worktree-theme-toggle-polish`).** Done as the
+entry guessed: `pvsTheme` and `cyclePvsTheme` now live in
+`usePrivilegeShellSession` (so the setting survives a skin switch), `ShellGate`
+renders the toggle in its footer in every phase (loading, signed-out, ready),
+and each view root carries `data-pvs-theme` via `themeAttr(session)`. The
+legacy panel body now reads the same session state instead of its own copy. The
+same branch also fixed three small gaps found alongside it: the costume variant
+is written to the saved pick before every sign-in redirect (`onBeforeConnect`;
+the BFF rejects a query on `returnTo`, so `?v=` could not ride the round trip),
+the route selects and "Load tools" got `:focus-visible` rings, and the open
+select list uses `Canvas`/`CanvasText` so a light costume's text stays readable
+on Windows/Linux's light popup. The popup fix is CSS-only and has only been
+checked against the theming ratchets, not on a Windows or Linux browser.
+
+### [ ] 2026-10-05 — Cursor LLM send and the shell hook's LLM send are duplicated
 
 `PrivilegeMcpClientPage.jsx` (`sendChat`, LLM branch) and
 `usePrivilegeShellSession.send` (LLM branch) both post
@@ -10364,7 +10378,7 @@ made twice, and the Cursor page and the skins can drift silently.
 **Fix:** extract one shared LLM-call helper (post plus denial formatting) used
 by both once the Cursor page can be regression-tested against it.
 
-### 2026-10-05 — Silent re-auth, re-arm and door probing are Cursor-only
+### [ ] 2026-10-05 — Silent re-auth, re-arm and door probing are Cursor-only
 
 After a path or door switch the Cursor page does a silent `prompt=none`
 re-authentication, offers the Re-arm control and probes doors.
