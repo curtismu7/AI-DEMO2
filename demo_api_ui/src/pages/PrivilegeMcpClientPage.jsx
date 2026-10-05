@@ -12,7 +12,7 @@ import JsonFormView from '../components/shared/JsonFormView';
 import PingIdentitySpinner from '../components/shared/PingIdentitySpinner';
 import DraggableModal from '../components/DraggableModal';
 import { navigateWithOverlay } from '../utils/navigateWithOverlay';
-import { doorName, GATEWAY_MODES, LLM_PATHS, doorsForMode, decideAfterSwitch } from '../components/privilege/privilegeRouting';
+import { doorName, GATEWAY_MODES, LLM_PATHS, doorsForMode, decideAfterSwitch, probeResultLabel } from '../components/privilege/privilegeRouting';
 import { LLM_POLICY_DENIED, chatReplyMessage, llmReplyMessage, llmDenialMessage } from '../components/privilege/privilegeChat';
 import { usePrivilegeRouting } from '../components/privilege/usePrivilegeRouting';
 import { requestAuthStart, isSilentAuthUrl } from '../components/privilege/privilegeAuth';
@@ -290,6 +290,7 @@ export default function PrivilegeMcpClientPage() {
     llmGatewayUrl, setLlmGatewayUrl,
     gatewayConfigs, setGatewayConfigs,
     presets, setPresets,
+    preflight, preflightError, preflightBusy, probeDoors: probePresetDoors,
     selectPath, selectDoor,
   } = usePrivilegeRouting({ request: api });
   // Per-mode "what actually supplies the OAuth client", from /state. Only read
@@ -298,9 +299,6 @@ export default function PrivilegeMcpClientPage() {
   const [clientHints, setClientHints] = useState({});
   const [gatewaySession, setGatewaySession] = useState(null);
   const [rearmError, setRearmError] = useState('');
-  const [preflight, setPreflight] = useState(null);
-  const [preflightError, setPreflightError] = useState('');
-  const [preflightBusy, setPreflightBusy] = useState(false);
   const [gatewayStateLoaded, setGatewayStateLoaded] = useState(false);
   // Path switch in flight. The sessionStorage flag lets
   // the overlay survive the OAuth redirect and show again from first paint on
@@ -1047,26 +1045,6 @@ export default function PrivilegeMcpClientPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [switchGatewayMode]);
 
-  // Reuses /doors/probe — it already initializes an MCP session per URL with
-  // the operator's token and returns a tool count, which is the only honest
-  // proof a door works for a real caller. Goes through api() rather than a raw
-  // fetch so a 401 ("Not authenticated.") arrives as an Error carrying the
-  // server's message, instead of a body with no `results` that would render as
-  // an empty list — a failed preflight that looks exactly like a clean one.
-  const runPreflight = useCallback(async () => {
-    setPreflightBusy(true);
-    setPreflightError('');
-    setPreflight(null);
-    try {
-      const urls = presets.map((p) => p.url).filter(Boolean);
-      const data = await api('/doors/probe', { method: 'POST', body: { urls } });
-      setPreflight(Array.isArray(data.results) ? data.results : []);
-    } catch (err) {
-      setPreflightError(err.message || 'Preflight failed');
-    } finally {
-      setPreflightBusy(false);
-    }
-  }, [presets]);
 
 
   // Load the lanes so the table prefills with what the SERVER actually calls,
@@ -2172,7 +2150,7 @@ export default function PrivilegeMcpClientPage() {
                   <button
                     type="button"
                     className="cur-btn cur-rail__btn"
-                    onClick={runPreflight}
+                    onClick={probePresetDoors}
                     disabled={preflightBusy}
                   >
                     {preflightBusy ? 'Probing…' : 'Probe other doors'}
@@ -2195,7 +2173,7 @@ export default function PrivilegeMcpClientPage() {
                     <li key={r.url} className={r.ok ? 'cur-rail__probe--ok' : 'cur-rail__probe--bad'}>
                       <span aria-hidden="true">{r.ok ? '✅' : '❌'}</span>
                       <span className="cur-rail__probe-door">{doorName(r.url) || r.url}</span>
-                      <span>{r.ok ? `${r.tools} tools` : `${r.status || ''} ${r.error || ''}`.trim() || 'failed'}</span>
+                      <span>{probeResultLabel(r)}</span>
                     </li>
                   ))}
                 </ul>
