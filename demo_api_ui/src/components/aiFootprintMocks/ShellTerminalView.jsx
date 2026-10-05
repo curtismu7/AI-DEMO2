@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { ShellGate, ShellLatestCall, ShellPrompt, ShellRoutingBar, ShellToolsList } from "./ShellParts";
+import { ShellGate, ShellLatestCall, ShellPrompt, ShellRoutingBar, ShellToolsList, themeAttr } from "./ShellParts";
 import "./PrivilegeShellViews.css";
 
 export function ShellTerminalView({ session }) {
@@ -10,7 +10,7 @@ export function ShellTerminalView({ session }) {
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages.length, thinking]);
   return (
-    <div className="pvs pvs--coding pvs-term" data-testid="pvs-terminal">
+    <div className="pvs pvs--coding pvs-term" data-testid="pvs-terminal" data-pvs-theme={themeAttr(session)}>
       <ShellGate session={session}>
         <ShellRoutingBar session={session} />
         <div ref={logRef} className="pvs-term__log" role="log" aria-label="Terminal">

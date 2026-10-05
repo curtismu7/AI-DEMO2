@@ -9,6 +9,7 @@ export const makeSession = (over = {}) => ({
   messages: [], thinking: false,
   connect: vi.fn(), retryTools: vi.fn(), signOut: vi.fn(), runTool: vi.fn(), send: vi.fn(),
   pickPath: vi.fn(), pickDoor: vi.fn(),
+  pvsTheme: "auto", cyclePvsTheme: vi.fn(),
   routing: { gatewayMode: "privilege", config: { mcpUrl: "https://gw.example/privilege-gateway/banking/mcp" }, presets: [
     { mode: "privilege", url: "https://gw.example/privilege-gateway/banking/mcp" },
     { mode: "privilege", url: "https://gw.example/privilege-gateway/other/mcp" },
@@ -338,5 +339,39 @@ describe("VS Code view leaves routing to the side panel", () => {
     expect(screen.queryByRole("combobox", { name: "Connection path" })).toBeNull();
     expect(screen.queryByRole("group", { name: "Connection path" })).toBeNull();
     expect(screen.queryByRole("combobox", { name: "MCP backend (door)" })).toBeNull();
+  });
+});
+
+describe("force light/dark toggle (shared footer)", () => {
+  it.each([
+    ["auto", "Theme: Auto"],
+    ["light", "Theme: Light"],
+    ["dark", "Theme: Dark"],
+  ])("labels the toggle for %s and calls cyclePvsTheme", (pvsTheme, label) => {
+    const session = makeSession({ pvsTheme });
+    render(<ShellTerminalView session={session} />);
+    fireEvent.click(screen.getByRole("button", { name: label }));
+    expect(session.cyclePvsTheme).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["loading", "signed-out"])("is still offered when %s, without Sign out", (phase) => {
+    render(<ShellTerminalView session={makeSession({ phase })} />);
+    expect(screen.getByRole("button", { name: "Theme: Auto" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sign out" })).toBeNull();
+  });
+});
+
+describe.each([
+  ["Terminal", ShellTerminalView, "pvs-terminal"],
+  ["VS Code", ShellVsCodeView, "pvs-vscode"],
+  ["Claude Desktop", ShellDesktopView, "pvs-desktop"],
+])("force light/dark on the %s root", (_name, View, testId) => {
+  it("sets data-pvs-theme only when forced", () => {
+    const { rerender } = render(<View session={makeSession({ pvsTheme: "dark" })} />);
+    expect(screen.getByTestId(testId)).toHaveAttribute("data-pvs-theme", "dark");
+    rerender(<View session={makeSession({ pvsTheme: "light" })} />);
+    expect(screen.getByTestId(testId)).toHaveAttribute("data-pvs-theme", "light");
+    rerender(<View session={makeSession({ pvsTheme: "auto" })} />);
+    expect(screen.getByTestId(testId)).not.toHaveAttribute("data-pvs-theme");
   });
 });

@@ -2,7 +2,6 @@
 // Privilege MCP client hosted inside a footprint costume shell: discover tools
 // from the Privilege MCP gateway and call them, styled per costume skin.
 // Backend is the same BFF relay the /privilege-mcp-client page uses.
-import { useState } from "react";
 import ToolsTable from "../privilege/ToolsTable";
 import { ShellTerminalView } from "./ShellTerminalView";
 import { ShellVsCodeView } from "./ShellVsCodeView";
@@ -16,7 +15,8 @@ export function PrivilegeShellPanel({ skin = "vscode", session }) {
   const { phase, scopes, tools, latestCall, busy, notice, connect, retryTools, signOut, runTool } = session;
   // Force light/dark on the panel independent of the costume skin's own
   // brightness ("even if the skin is the opposite"). auto = inherit the skin.
-  const [pvsTheme, setPvsTheme] = useState("auto"); // auto | light | dark
+  // State lives in the session so every costume shares one setting.
+  const { pvsTheme, cyclePvsTheme } = session;
 
   if (skin === "coding") return <ShellTerminalView session={session} />;
   if (skin === "vscode") return <ShellVsCodeView session={session} />;
@@ -35,9 +35,7 @@ export function PrivilegeShellPanel({ skin = "vscode", session }) {
           type="button"
           className="pvs-theme-toggle"
           title="Force light/dark — overrides this skin's theme"
-          onClick={() =>
-            setPvsTheme((t) => (t === "auto" ? "light" : t === "light" ? "dark" : "auto"))
-          }
+          onClick={cyclePvsTheme}
         >
           {pvsTheme === "auto" ? "Theme: Auto" : pvsTheme === "light" ? "Theme: Light" : "Theme: Dark"}
         </button>

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { ShellGate, ShellLatestCall, ShellPrompt, ShellSteps, ShellToolsList } from "./ShellParts";
+import { ShellGate, ShellLatestCall, ShellPrompt, ShellSteps, ShellToolsList, themeAttr } from "./ShellParts";
 import "./PrivilegeShellViews.css";
 
 export function ShellVsCodeView({ session }) {
@@ -11,7 +11,7 @@ export function ShellVsCodeView({ session }) {
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages.length, thinking]);
   return (
-    <div className="pvs pvs--vscode pvs-vsc" data-testid="pvs-vscode">
+    <div className="pvs pvs--vscode pvs-vsc" data-testid="pvs-vscode" data-pvs-theme={themeAttr(session)}>
       <ShellGate session={session} routingBar={false}>
         <div ref={logRef} className="pvs-vsc__chat" role="log" aria-label="Chat">
           {messages.map((m) => (

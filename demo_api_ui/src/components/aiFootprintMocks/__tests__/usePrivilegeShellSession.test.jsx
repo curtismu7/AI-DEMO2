@@ -176,6 +176,66 @@ describe("usePrivilegeShellSession routing", () => {
   });
 });
 
+describe("usePrivilegeShellSession theme and connect hook", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("starts on auto and cycles auto -> light -> dark -> auto", async () => {
+    const { result } = await ready();
+    expect(result.current.pvsTheme).toBe("auto");
+    act(() => result.current.cyclePvsTheme());
+    expect(result.current.pvsTheme).toBe("light");
+    act(() => result.current.cyclePvsTheme());
+    expect(result.current.pvsTheme).toBe("dark");
+    act(() => result.current.cyclePvsTheme());
+    expect(result.current.pvsTheme).toBe("auto");
+  });
+
+  it("calls onBeforeConnect before posting /auth/start", async () => {
+    apiClient.get.mockResolvedValue({
+      data: { oauth: { authenticated: true, scope: "openid" }, tools: [{ name: "list_safes" }] },
+    });
+    const order = [];
+    const onBeforeConnect = vi.fn(() => order.push("before"));
+    apiClient.post.mockImplementation(async (url) => {
+      order.push(url);
+      return { data: { authUrl: "https://auth.example/start" } };
+    });
+    const assign = vi.fn();
+    const original = window.location;
+    Object.defineProperty(window, "location", { configurable: true, value: { ...original, assign } });
+    try {
+      const { result } = renderHook(() => usePrivilegeShellSession({ onBeforeConnect }), { wrapper });
+      await waitFor(() => expect(result.current.phase).toBe("ready"));
+      await act(() => result.current.connect());
+      expect(order).toEqual(["before", "/api/privilege-mcp/auth/start"]);
+    } finally {
+      Object.defineProperty(window, "location", { configurable: true, value: original });
+    }
+  });
+
+  it("also calls onBeforeConnect when a chat reply asks for sign-in", async () => {
+    apiClient.get.mockResolvedValue({
+      data: { oauth: { authenticated: true, scope: "openid" }, tools: [{ name: "list_safes" }] },
+    });
+    const onBeforeConnect = vi.fn();
+    apiClient.post.mockImplementation(async (url) =>
+      String(url).endsWith("/chat")
+        ? { data: { authUrl: "https://auth.example/a", reply: "sign in", steps: [] } }
+        : { data: { authUrl: "https://auth.example/start" } });
+    const assign = vi.fn();
+    const original = window.location;
+    Object.defineProperty(window, "location", { configurable: true, value: { ...original, assign } });
+    try {
+      const { result } = renderHook(() => usePrivilegeShellSession({ onBeforeConnect }), { wrapper });
+      await waitFor(() => expect(result.current.phase).toBe("ready"));
+      await act(() => result.current.send("hi"));
+      expect(onBeforeConnect).toHaveBeenCalledTimes(1);
+    } finally {
+      Object.defineProperty(window, "location", { configurable: true, value: original });
+    }
+  });
+});
+
 describe("usePrivilegeShellSession silent sign-in", () => {
   const SILENT = "https://auth.example/authorize?prompt=none&client_id=x";
   let assign;
@@ -227,5 +287,20 @@ describe("usePrivilegeShellSession silent sign-in", () => {
     sessionStorage.setItem("pvs_silent_signin_tried", "1");
     await mount({ mainAppAuthenticated: true });
     expect(apiClient.post).not.toHaveBeenCalled();
+  });
+
+  it("remembers the costume before the silent redirect", async () => {
+    apiClient.get.mockResolvedValue({ data: { oauth: { authenticated: false }, mainAppAuthenticated: true } });
+    apiClient.post.mockResolvedValue({ data: { authUrl: SILENT } });
+    const order = [];
+    const onBeforeConnect = vi.fn(() => order.push("before"));
+    assign.mockImplementation(() => order.push("assign"));
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { ...original, assign, search: "", pathname: "/demo/vscode-copilot" },
+    });
+    renderHook(() => usePrivilegeShellSession({ onBeforeConnect }), { wrapper });
+    await waitFor(() => expect(assign).toHaveBeenCalledWith(SILENT));
+    expect(order).toEqual(["before", "assign"]);
   });
 });

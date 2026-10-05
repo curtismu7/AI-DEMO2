@@ -135,3 +135,32 @@ describe("VS Code side panel routing", () => {
     expect(screen.queryByRole("group", { name: "Connection path" })).toBeNull();
   });
 });
+
+describe("costume variant survives the sign-in round trip", () => {
+  it("remembers a ?v= deep-link variant when the user signs in", async () => {
+    apiClient.post.mockReset();
+    apiClient.post.mockResolvedValue({ data: { authUrl: "https://auth.example/start" } });
+    apiClient.get.mockImplementation(async (url) =>
+      String(url).endsWith("/llm/config")
+        ? { data: { gatewayUrl: "https://llm.example" } }
+        : { data: { oauth: { authenticated: false } } });
+    localStorage.clear();
+    const assign = vi.fn();
+    const original = window.location;
+    Object.defineProperty(window, "location", { configurable: true, value: { ...original, assign } });
+    try {
+      render(
+        <MemoryRouter initialEntries={["/demo/vscode-copilot?v=light"]}>
+          <Routes>
+            <Route path="/demo/:shellSlug" element={<FootprintLiveShellPage />} />
+          </Routes>
+        </MemoryRouter>,
+      );
+      fireEvent.click(await screen.findByRole("button", { name: "Sign in with Privilege" }));
+      await waitFor(() => expect(assign).toHaveBeenCalledWith("https://auth.example/start"));
+      expect(JSON.parse(localStorage.getItem("ai-footprint-mock-selection-v1")).vscode).toBe("light");
+    } finally {
+      Object.defineProperty(window, "location", { configurable: true, value: original });
+    }
+  });
+});

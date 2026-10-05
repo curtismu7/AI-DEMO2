@@ -20,7 +20,13 @@ export function errText(err) {
   return err?.response?.data?.error || err?.message || "Request failed";
 }
 
-export function usePrivilegeShellSession() {
+// onBeforeConnect: runs just before every sign-in redirect (the Sign in button and a
+// chat reply that asks for sign-in), so the page can remember what it was showing.
+export function usePrivilegeShellSession({ onBeforeConnect } = {}) {
+  // The load-time silent handshake runs in an effect that must not re-run per render, so
+  // it reads the latest callback through a ref.
+  const beforeConnectRef = useRef(onBeforeConnect);
+  beforeConnectRef.current = onBeforeConnect;
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const [phase, setPhase] = useState("loading"); // loading | signed-out | ready
@@ -30,6 +36,13 @@ export function usePrivilegeShellSession() {
   const [busy, setBusy] = useState(false);
   const [messages, setMessages] = useState([]);
   const [thinking, setThinking] = useState(false);
+  // Force light/dark on the shell independent of the costume's own brightness.
+  // Lives here (not in a view) so it survives a skin switch.
+  const [pvsTheme, setPvsTheme] = useState("auto"); // auto | light | dark
+  const cyclePvsTheme = useCallback(
+    () => setPvsTheme((t) => (t === "auto" ? "light" : t === "light" ? "dark" : "auto")),
+    [],
+  );
   const nextId = useRef(1);
   const [notice, setNotice] = useState(() => {
     if (searchParams.get("auth") !== "error") return "";
@@ -58,6 +71,7 @@ export function usePrivilegeShellSession() {
         const { data } = await apiClient.post(`${API_BASE}/auth/start`, { returnTo: window.location.pathname });
         if (!alive || new URL(data?.authUrl).searchParams.get("prompt") !== "none") return;
         sessionStorage.setItem(SILENT_TRIED_KEY, "1");
+        beforeConnectRef.current?.();
         window.location.assign(data.authUrl);
       } catch {
         /* stay on the Sign in button */
@@ -103,6 +117,7 @@ export function usePrivilegeShellSession() {
     setBusy(true);
     setNotice("");
     try {
+      onBeforeConnect?.();
       const { data } = await apiClient.post(`${API_BASE}/auth/start`, {
         returnTo: location.pathname,
       });
@@ -258,6 +273,7 @@ export function usePrivilegeShellSession() {
   }, [afterSwitch, routing.selectDoor]);
 
   return {
+    pvsTheme, cyclePvsTheme,
     phase, scopes, tools, latestCall, busy, notice, messages, thinking,
     connect, retryTools, signOut, runTool, send,
     routing: {
