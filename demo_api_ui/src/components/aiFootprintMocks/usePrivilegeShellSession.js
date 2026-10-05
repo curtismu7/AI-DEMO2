@@ -9,7 +9,11 @@ import { navigateWithOverlay } from "../../utils/navigateWithOverlay";
 import { LLM_POLICY_DENIED, chatReplyMessage, llmDenialMessage, llmReplyMessage } from "../privilege/privilegeChat";
 import { requestAuthStart, isSilentAuthUrl } from "../privilege/privilegeAuth";
 import { usePrivilegeRouting } from "../privilege/usePrivilegeRouting";
-import { decideAfterSwitch } from "../privilege/privilegeRouting";
+import {
+  decideAfterSwitch,
+  needsRearm as needsRearmFor,
+  rearmReason as rearmReasonFor,
+} from "../privilege/privilegeRouting";
 
 const API_BASE = "/api/privilege-mcp";
 const SILENT_TRIED_KEY = "pvs_silent_signin_tried";
@@ -315,8 +319,31 @@ export function usePrivilegeShellSession({ onBeforeConnect } = {}) {
     }
   }, [afterSwitch, routing.selectDoor, mainAppAuthenticated, phase]);
 
+  const rearm = useCallback(async () => {
+    setBusy(true);
+    setNotice("");
+    const signedIn = mainAppAuthenticated || phase === "ready";
+    try {
+      // Re-arming must go through Privilege mode (a Facade sign-in arms nothing) and must
+      // sign in even when /config reports a restored token — the gateway session is dead.
+      await afterSwitch(await routing.selectPath("privilege"), "Gateway switch failed", {
+        kind: "path",
+        signedIn,
+        forceReauth: true,
+      });
+    } finally {
+      setBusy(false);
+    }
+  }, [afterSwitch, routing.selectPath, mainAppAuthenticated, phase]);
+
+  const rearmNeeded = needsRearmFor(routing.gatewayMode, routing.gatewaySession);
+
   return {
     pvsTheme, cyclePvsTheme,
+    needsRearm: rearmNeeded,
+    rearmReason: rearmNeeded ? rearmReasonFor(routing.gatewaySession) : null,
+    rearm,
+    probeDoors: routing.probePresetDoors,
     phase, scopes, tools, latestCall, busy, notice, messages, thinking,
     connect, retryTools, signOut, runTool, send,
     routing: {
@@ -326,6 +353,10 @@ export function usePrivilegeShellSession({ onBeforeConnect } = {}) {
       llmPath: routing.llmPath,
       llmGatewayUrl: routing.llmGatewayUrl,
       loaded: routing.loaded,
+      gatewaySession: routing.gatewaySession,
+      preflight: routing.preflight,
+      preflightBusy: routing.preflightBusy,
+      preflightError: routing.preflightError,
     },
     pickPath, pickDoor,
   };

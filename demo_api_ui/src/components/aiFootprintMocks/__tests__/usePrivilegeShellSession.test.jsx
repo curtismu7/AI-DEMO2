@@ -519,3 +519,113 @@ describe("switch outcomes", () => {
     expect(result.current.phase).toBe("signed-out");
   });
 });
+
+describe("re-arm and door probing", () => {
+  const START = "/api/privilege-mcp/auth/start";
+  const PROBE = "/api/privilege-mcp/doors/probe";
+  let assign;
+  const original = window.location;
+
+  const mount = async ({ mode = "facade", gatewaySession, clientAuth = true } = {}) => {
+    apiClient.get.mockImplementation((url) =>
+      url.endsWith("/llm/config")
+        ? Promise.resolve({ data: { gatewayUrl: "https://llm.example" } })
+        : Promise.resolve({
+            data: {
+              oauth: { authenticated: clientAuth, scope: "openid" },
+              mainAppAuthenticated: true,
+              tools: clientAuth ? [{ name: "list_safes" }] : [],
+              gatewayMode: mode,
+              gatewaySession,
+              config: { mcpUrl: PRIV_A, clientId: "c1" },
+              presets: [
+                { mode, url: PRIV_A, clientId: "c1" },
+                { mode, url: PRIV_B, clientId: "c2" },
+              ],
+              gatewayConfigs: { direct: {}, privilege: {}, facade: {} },
+            },
+          }),
+    );
+    const hook = renderHook(() => usePrivilegeShellSession(), { wrapper });
+    await waitFor(() => expect(hook.result.current.phase).toBe(clientAuth ? "ready" : "signed-out"), { timeout: 5000 });
+    return hook;
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    sessionStorage.setItem("pvs_silent_signin_tried", "1");
+    assign = vi.fn();
+    Object.defineProperty(window, "location", { configurable: true, value: { ...original, assign } });
+  });
+  afterEach(() => {
+    sessionStorage.clear();
+    Object.defineProperty(window, "location", { configurable: true, value: original });
+  });
+
+  it("derives needsRearm and rearmReason from the gateway session", async () => {
+    const session = { ready: false, reason: "expired" };
+    const a = await mount({ gatewaySession: session });
+    expect(a.result.current.needsRearm).toBe(true);
+    expect(a.result.current.rearmReason).toBe("expired");
+    expect(a.result.current.routing.gatewaySession).toEqual(session);
+    a.unmount();
+
+    const b = await mount({ gatewaySession: { ready: false } });
+    expect(b.result.current.rearmReason).toBe("not established");
+    b.unmount();
+
+    const c = await mount({ gatewaySession: { ready: true } });
+    expect(c.result.current.needsRearm).toBe(false);
+    expect(c.result.current.rearmReason).toBeNull();
+    c.unmount();
+
+    const d = await mount({ mode: "privilege", gatewaySession: { ready: false, reason: "expired" } });
+    expect(d.result.current.needsRearm).toBe(false);
+    expect(d.result.current.rearmReason).toBeNull();
+  });
+
+  it("rearm() switches to Privilege then signs in for real, even if /config says authenticated", async () => {
+    const { result } = await mount({ gatewaySession: { ready: false, reason: "expired" } });
+    apiClient.post.mockImplementation((url) =>
+      url.endsWith("/config")
+        ? Promise.resolve({ data: { oauth: { destinationAuthenticated: true } } })
+        : Promise.resolve({ data: { authUrl: "https://auth.example/authorize?client_id=x" } }),
+    );
+    await act(() => result.current.rearm());
+    expect(apiClient.post).toHaveBeenCalledWith(
+      "/api/privilege-mcp/config",
+      expect.objectContaining({ gatewayMode: "privilege" }),
+    );
+    expect(apiClient.post).toHaveBeenCalledWith(START, { returnTo: "/demo/coding-agent" });
+    expect(assign).toHaveBeenCalledWith("https://auth.example/authorize?client_id=x");
+  });
+
+  it("rearm() clears busy and reports the error when /auth/start fails", async () => {
+    const { result } = await mount({ gatewaySession: { ready: false, reason: "expired" } });
+    apiClient.post.mockImplementation((url) =>
+      url.endsWith("/config")
+        ? Promise.resolve({ data: { oauth: { destinationAuthenticated: true } } })
+        : Promise.reject({ response: { status: 500, data: { error: "boom" } } }),
+    );
+    await act(() => result.current.rearm());
+    expect(assign).not.toHaveBeenCalled();
+    expect(result.current.busy).toBe(false);
+    expect(result.current.notice).toContain("boom");
+  });
+
+  it("probeDoors() posts every preset url and exposes the results", async () => {
+    const { result } = await mount({ mode: "privilege" });
+    const results = [{ url: PRIV_A, ok: true }, { url: PRIV_B, ok: false }];
+    apiClient.post.mockResolvedValue({ data: { results } });
+    await act(() => result.current.probeDoors());
+    expect(apiClient.post).toHaveBeenCalledWith(PROBE, { urls: [PRIV_A, PRIV_B] });
+    expect(result.current.routing.preflight).toEqual(results);
+  });
+
+  it("a rejected probe sets preflightError to the server's text", async () => {
+    const { result } = await mount({ mode: "privilege" });
+    apiClient.post.mockRejectedValue({ response: { status: 500, data: { error: "probe down" } } });
+    await act(() => result.current.probeDoors());
+    expect(result.current.routing.preflightError).toBe("probe down");
+  });
+});
