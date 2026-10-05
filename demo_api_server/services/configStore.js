@@ -223,6 +223,12 @@ const BOOTSTRAP_ALLOWLIST = new Set([
   'pf_ai_ciba_client_secret',
 ]);
 
+// Keys a user changes from a dropdown at runtime (Demo Controls > Agent mode). For
+// these a saved value beats the deploy-time env var, which is only the default: with
+// env first, the dropdown saved a choice that getEffective() then ignored
+// (docker-compose sets AGENT_MODE=llamacpp). Lowercase, like BOOTSTRAP_ALLOWLIST.
+const SAVED_WINS_KEYS = new Set(['agent_mode', 'agent_external_wiring']);
+
 // All known config keys with their defaults and whether they are public
 const FIELD_DEFS = {
   // PingOne environment
@@ -704,6 +710,7 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   agent_transaction_count_limit:   { public: true, default: '3' },
   agent_transaction_value_limit:   { public: true, default: '5000' },
   agent_mode:                      { public: true, default: 'heuristics' },
+  agent_external_wiring:           { public: true, default: '' },
 
   // Step-up / HITL thresholds (USD)
   confirm_threshold_usd:           { public: true, default: '250' },
@@ -1882,6 +1889,12 @@ class ConfigStore {
       if (envVal) return envVal;
       const stored = readStored();
       if (stored) return stored;
+    } else if (SAVED_WINS_KEYS.has(key)) {
+      // A saved dropdown choice first, then the env default (see SAVED_WINS_KEYS).
+      const stored = readStored();
+      if (stored) return stored;
+      const envVal = readEnv();
+      if (envVal) return envVal;
     } else {
       // Everything else: .env > Vault/LMDB. Env vars set at deploy time
       // (docker-compose, process env) must always override stored values so
