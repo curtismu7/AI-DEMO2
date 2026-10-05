@@ -101,7 +101,7 @@ On gateway 2, the old enrollment files in `/procyon/ssl` were moved into
 | ~~Registrations surviving a failover~~ | Done 2026-10-04 | Shared Redis (section 00b); restart and cross-gateway tests pass |
 | ~~Signed-in session surviving a failover~~ | Tested 2026-10-04: it does not | Registrations are shared, tokens are not; the demo page registered and signed in again. Ask Ping whether user tokens can be shared too |
 | Ask Ping | Open | Is a second node in one cluster the supported HA layout; is `MCPGW_REDIS_URL` supported, and is the exit after 6 failed Redis attempts intended; are `gatewayHostname`/`hostAliases`/`meshPort` still needed |
-| Old cluster `ai-demo-cmuir2` and its node | Open | Still listed in the console; delete once this layout is accepted, which also ends the rollback path |
+| ~~Old cluster `ai-demo-cmuir2` and its node~~ | Done 2026-10-05 | Deleted from the console by the owner. This ended the rollback path to the two-cluster layout |
 | Secrets shown in a console screenshot (tenant API key and secret, OIDC client secret) | Owner's decision | They were pasted into a chat during setup; rotate if that history is not private |
 | `probe-agent-gateway` app | Open, unrelated | Its backend `hdr-echo.ping-devops-cmuir` does not exist; discovery fails on both nodes |
 
