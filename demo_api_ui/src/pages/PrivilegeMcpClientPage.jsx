@@ -2901,7 +2901,7 @@ export default function PrivilegeMcpClientPage() {
                     let label = e.type;
                     let tone = e.type;
                     if (e.type === 'relay' && e.direction === 'client->mcp') { label = `→ MCP ${e.method || ''} ${e.url || ''}`; tone = 'relay-outbound'; }
-                    if (e.type === 'relay' && e.direction === 'mcp->client') { label = `← MCP ${e.status >= 400 ? '❌' : '✅'} ${e.status}`; tone = e.status >= 400 ? 'relay-error' : 'relay-success'; }
+                    if (e.type === 'relay' && e.direction === 'mcp->client') { const challenge = e.status === 401; label = `← MCP ${challenge ? '⚠️' : e.status >= 400 ? '❌' : '✅'} ${e.status}`; tone = challenge ? 'oauth' : e.status >= 400 ? 'relay-error' : 'relay-success'; }
                     if (e.type === 'oauth') { label = `OAuth: ${e.phase}`; tone = 'oauth'; }
                     if (e.type === 'mcp') { label = `MCP: ${e.phase}`; tone = 'mcp'; }
                     if (e.type === 'error') { label = `ERROR: ${e.scope}`; tone = 'error'; }
