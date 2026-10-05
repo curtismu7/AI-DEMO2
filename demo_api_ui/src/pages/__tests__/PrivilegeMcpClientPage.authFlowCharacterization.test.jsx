@@ -3,7 +3,7 @@
 // Re-arm banner wording, the preflight row labels, and the silent-bail text.
 // Written green against the unmodified page so the re-auth/re-arm/door-probe
 // extraction can move these strings without changing a byte.
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import PrivilegeMcpClientPage from "../PrivilegeMcpClientPage";
 
@@ -92,25 +92,66 @@ beforeEach(() => {
     close() {}
   };
   delete window.location;
-  window.location = { href: "", search: "" };
+  window.location = { href: "", search: "", assign: vi.fn() };
   sessionStorage.clear();
   localStorage.clear();
 });
 
 describe("Cursor auth flow — gaps in the existing coverage", () => {
-  it("(a) a noAuthRequired door says so, loads tools, and never navigates", async () => {
-    mockGateway({ authStart: { noAuthRequired: true } });
+  const NO_AUTH_LINE = "This door needs no sign-in — its upstream owns identity. Loading tools.";
+  const SILENT_FLAG = "cur_priv_silent_door_switch";
+  const catalogCalls = () => global.fetch.mock.calls.filter(([u]) => String(u).endsWith("/api/privilege-mcp/catalog"));
+  // refreshTools fetches /catalog right after setTools, so that call marks the
+  // end of one refresh; a second refresh would show up as a second tools/list.
+  async function expectOneRefreshAndNoNavigation() {
+    await waitFor(() => expect(callsTo("tools/list")).toHaveLength(1), T);
+    await waitFor(() => expect(catalogCalls().length).toBeGreaterThan(0), T);
+    await act(async () => {});
+    expect(callsTo("tools/list")).toHaveLength(1);
+    expect(callsTo("auth/start")).toHaveLength(1);
+    expect(window.location.href).toBe("");
+    expect(window.location.assign).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem(SILENT_FLAG)).toBeFalsy();
+  }
+
+  it("(a) a noAuthRequired door says so, loads tools once, and never navigates (even with an authUrl present)", async () => {
+    mockGateway({ authStart: { noAuthRequired: true, authUrl: AUTH_URL } });
     renderPage();
 
     fireEvent.change(await screen.findByLabelText("MCP backend (door)", {}, T), { target: { value: DOOR_B } });
     fireEvent.click(await screen.findByRole("button", { name: /^sign in$/i }, T));
 
-    await waitFor(() => expect(callsTo("auth/start")).toHaveLength(1), T);
-    expect(
-      await screen.findByText("This door needs no sign-in — its upstream owns identity. Loading tools.", {}, T),
-    ).toBeInTheDocument();
-    await waitFor(() => expect(callsTo("tools/list")).toHaveLength(1), T);
+    expect(await screen.findByText(NO_AUTH_LINE, {}, T)).toBeInTheDocument();
+    await expectOneRefreshAndNoNavigation();
+  });
+
+  it("(a2) a noAuthRequired door reached by a silent door switch says so, loads tools, opens no modal", async () => {
+    mockGateway({ gatewayMode: "privilege", mcpUrl: PRIV_DOOR, authStart: { noAuthRequired: true, authUrl: AUTH_URL } });
+    renderPage();
+
+    fireEvent.change(await screen.findByLabelText("MCP backend (door)", {}, T), { target: { value: PRIV_DOOR_B } });
+
+    expect(await screen.findByText(NO_AUTH_LINE, {}, T)).toBeInTheDocument();
+    await expectOneRefreshAndNoNavigation();
+    expect(screen.queryByRole("dialog", { name: "Sign in to the gateway" })).toBeNull();
+  });
+
+  it("(a3) a silent door switch whose authUrl is not a URL reports Failed to switch door, with no modal or navigation", async () => {
+    mockGateway({ gatewayMode: "privilege", mcpUrl: PRIV_DOOR, authStart: { authUrl: "not a url" } });
+    renderPage();
+
+    fireEvent.change(await screen.findByLabelText("MCP backend (door)", {}, T), { target: { value: PRIV_DOOR_B } });
+
+    // new URL() throws inside startAuthRedirect; switchDoor's catch speaks it.
+    // The text is whatever the runtime's URL error says, so pin its prefix.
+    expect(await screen.findByText(/^Failed to switch door: .*(Invalid URL|not a valid URL|Failed to construct)/i, {}, T)).toBeInTheDocument();
+    await act(async () => {});
+    expect(callsTo("auth/start")).toHaveLength(1);
+    expect(callsTo("tools/list")).toHaveLength(0);
     expect(window.location.href).toBe("");
+    expect(window.location.assign).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem(SILENT_FLAG)).toBeFalsy();
+    expect(screen.queryByRole("dialog", { name: "Sign in to the gateway" })).toBeNull();
   });
 
   it("(b) Re-arm banner reads 'expired' for reason expired", async () => {
@@ -166,5 +207,8 @@ describe("Cursor auth flow — gaps in the existing coverage", () => {
     expect(await screen.findByTestId("sign-in-prompt", {}, T)).toHaveTextContent(reason);
     expect((await screen.findByRole("dialog", { name: "Sign in to the gateway" }, T)).textContent).toContain(reason);
     expect(window.location.href).toBe("");
+    expect(window.location.assign).not.toHaveBeenCalled();
+    // The page's own invariant: a bail must not leave the silent flag behind.
+    expect(sessionStorage.getItem("cur_priv_silent_door_switch")).toBeFalsy();
   });
 });
