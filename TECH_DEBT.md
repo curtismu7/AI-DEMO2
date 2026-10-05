@@ -10441,7 +10441,7 @@ The POSTs themselves (`{provider, prompt}` to /llm/call and `{prompt}` to
 HTTP clients (the page's fetch-based `api()` vs the hook's axios), so a
 request-shape change still touches both.
 
-### [ ] 2026-10-05 — Silent re-auth, re-arm and door probing are Cursor-only
+### [x] 2026-10-05 — Silent re-auth, re-arm and door probing are Cursor-only
 
 After a path or door switch the Cursor page does a silent `prompt=none`
 re-authentication, offers the Re-arm control and probes doors.
@@ -10464,3 +10464,18 @@ there. The page-coupled side effects (sign-in modal, overlay, session flags,
 `selectedTool`) deliberately stay in Cursor. Note the page's own unrelated
 denial-modal `probeDoors` (with its `doorProbe` state) remains separate from the hook's
 `probePresetDoors`.
+
+**RESOLVED 2026-10-06 (branch `worktree-skins-auth-parity`).** The shared decisions
+and requests turned out to be extractable into pure helpers; the page-coupled side
+effects (sign-in modal, overlay, session flags, `selectedTool`) were not, and stay in
+Cursor. The earlier PR extracted `decideAfterSwitch`, `requestAuthStart`/
+`isSilentAuthUrl`, `needsRearm`/`rearmReason`, `probeResultLabel` and the routing
+hook's `gatewaySession` + preflight state + `probePresetDoors`, and moved Cursor onto
+them. This PR moved the Footprint skins onto them: `startSignIn`, `afterSwitch` via
+`decideAfterSwitch`, `rearm`, `probeDoors`, the Re-arm banner and the Check doors UI.
+Intentional differences per surface: Cursor shows a sign-in modal + overlay + session
+flags where the skins show the gate and a notice; the skins do not auto-list tools
+after a switch (matching Cursor), so the user loads them with Load tools, a deliberate
+change from the skins' earlier behaviour; Cursor's door preflight is Inspect-only while
+the skins' Check doors is always visible; the skins' load-time silent handshake from an
+earlier PR is unchanged.
