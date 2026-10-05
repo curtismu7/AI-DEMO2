@@ -7,8 +7,8 @@ import hmac
 import logging
 import os
 import uuid
-from urllib.parse import urlsplit
 from typing import Any, Callable, Optional
+from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
@@ -60,23 +60,27 @@ def set_a2a_discovery_config(public_url: str, metadata_urls: list[str]) -> None:
     _a2a_metadata_urls = list(metadata_urls)
 
 
+def _advertised_url(request: Request) -> str:
+    """The JSON-RPC URL to put in the card: the address this caller used.
+
+    A caller on the direct host is told the direct address (A2A_PUBLIC_URL);
+    anyone else (the Privilege gateway reaches us by the cluster-internal
+    service name) is told the gateway route (PRIVILEGE_A2A_PUBLIC_URL), so a
+    client that follows the card stays on the route it came in by. When only
+    one is configured, that one is used.
+    """
+
+    direct = (_a2a_public_url or os.environ.get("A2A_PUBLIC_URL", "")).rstrip("/")
+    gateway = os.environ.get("PRIVILEGE_A2A_PUBLIC_URL", "").rstrip("/")
+    host = request.headers.get("x-forwarded-host") or request.headers.get("host") or ""
+    if direct and urlsplit(direct).netloc == host.split(",")[0].strip():
+        return direct
+    return gateway or direct
+
+
 @router.get("/.well-known/agent-card.json")
 async def get_agent_card(request: Request) -> dict[str, Any]:
-    public_url = (
-        _a2a_public_url
-        or
-        os.environ.get("A2A_PUBLIC_URL", "")
-        or os.environ.get("PRIVILEGE_A2A_PUBLIC_URL", "")
-    ).rstrip("/")
-    jsonrpc_url = public_url or f"{str(request.base_url).rstrip('/')}/a2a/jsonrpc"
-    # A caller that reached this card through the Privilege gateway is told the
-    # gateway's route, so following the card keeps it behind the gateway. Direct
-    # callers still get the direct address. The gateway is recognised by the
-    # host it forwards; if it forwards none, the card is unchanged.
-    gateway_url = os.environ.get("PRIVILEGE_A2A_PUBLIC_URL", "").strip().rstrip("/")
-    forwarded_host = request.headers.get("x-forwarded-host", "").split(",")[0].strip().lower()
-    if gateway_url and forwarded_host and forwarded_host == (urlsplit(gateway_url).hostname or "").lower():
-        jsonrpc_url = gateway_url
+    jsonrpc_url = _advertised_url(request) or f"{str(request.base_url).rstrip('/')}/a2a/jsonrpc"
     metadata_urls = _configured_metadata_urls()
     oauth_scheme: dict[str, Any] = {
         "description": "OAuth 2.0 access token issued by an allowlisted customer IdP.",

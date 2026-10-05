@@ -342,7 +342,8 @@ export function buildFlowModel(steps, trace) {
   // the hop from the previous actor.
   let chainFrom = null;
   for (const step of list) {
-    if (!String(step?.id).startsWith('pa2a-')) continue;
+    // The CLIENT lane (the run's start and done nodes) has no box in this band.
+    if (!String(step?.id).startsWith('pa2a-') || step.lane === 'CLIENT') continue;
     const node = CHAIN_LANE_NODES[step.lane] || 'pa-specialist';
     const state = stateForStep(step, null);
     if (state) {

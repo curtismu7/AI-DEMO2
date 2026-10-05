@@ -124,6 +124,8 @@ Two things to get right:
 
 - **Serve the current path.** The older path `/.well-known/agent.json` is not what the console fetches. On the tested agent it is not public and answers 401.
 - **Mind the `url` field.** It is the address a caller uses when it reads the card directly. If callers should go through the gateway, they need the gateway address instead (see Calling an agent). Whatever host `url` names needs a certificate that matches it: a wildcard such as `*.example.com` covers one level only, so `agent.team.example.com` needs its own. The tested agent hit exactly this, and callers refused its address until it got its own certificate.
+- **One card, one `url`: choose it by who is asking.** An agent that is reached both directly and through the gateway has two addresses, and a card that always names the direct one sends a gateway caller round the gateway. The LangChain agent in our environment picks by the request's `Host` (or `X-Forwarded-Host` behind the ingress): the direct host gets the direct address (`A2A_PUBLIC_URL`); anyone else, including the gateway, which reaches it by the cluster-internal service name, gets the gateway route (`PRIVILEGE_A2A_PUBLIC_URL`). If only one is set, that one is used. The demo's main agent ignores the card's `url` and keeps the gateway route either way; the card now agrees with it.
+- **The demo fetches the card through the gateway.** The main agent reads the middle agent's card at `<gateway route>/a2a/.well-known/agent-card.json` before it sends `message/send`, so discovery is checked like any other request.
 
 ## Registering a remote agent
 
@@ -243,6 +245,8 @@ What the gateway logs tells you which stage a caller reached:
 | `mcpgw: invalid virtual key presented` | The secret is not a known key |
 | `mcpgw: virtual key <key> not scoped for <kind> access to app <app>` | The key exists but does not cover this app |
 | `app <app> requires token-pass, but this session presented no workload assertion` | The caller got in some other way (a person's sign-in, or a virtual key) and has no workload token to pass on |
+| `Received HTTP request` on an `/a2a/` path | The gateway accepted an A2A request for that app. It carries the caller's headers, including its Bearer value, so mask it before sharing |
+| `A2A policy denied` | Policy refused the call, for example because the principal does not have access to that remote agent |
 
 This explains Pass Agent Token. The mode forwards the caller's workload token to the remote agent, so only a caller that came in with a workload identity can use it. A person, or an agent holding only a virtual key, has nothing to forward.
 
