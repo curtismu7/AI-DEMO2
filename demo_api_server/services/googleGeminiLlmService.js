@@ -5,14 +5,17 @@
 
 const { llmFetch } = require('./llmFetch');
 
-const DEFAULT_MODEL = 'gemini-2.0-flash';
+// gemini-2.0-flash and the 1.5 models are retired for the demo's key (404); these three
+// were listed by the key's models endpoint and answered on 2026-10-05. Lite is the default:
+// this call has a 12 s budget and a tiny JSON task, and Lite answered 8 of 8 runs in under
+// 2 s while 2.5-flash took about 12 s on 2 of 4 runs even with thinking off.
+const DEFAULT_MODEL = 'gemini-2.5-flash-lite';
 
 /** Models to try when the preferred model hits free-tier quota (429). */
 const MODEL_FALLBACKS = [
-  'gemini-2.0-flash',
-  'gemini-1.5-flash',
-  'gemini-1.5-pro',
-  'gemini-2.0-flash-lite',
+  'gemini-2.5-flash-lite',
+  'gemini-2.5-flash',
+  'gemini-2.5-pro',
 ];
 
 function apiKey(config = {}) {
@@ -52,10 +55,16 @@ function toGeminiPayload(messages) {
  */
 async function generateOnce(key, model, body) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`;
+  // gemini-2.5-flash thinks by default: measured 2.0 s then 25.1 s for the same short
+  // intent prompt, against the 12 s limit below. Turning thinking off gives 0.6-0.8 s.
+  // Only the Flash models allow it (2.5-pro cannot disable thinking).
+  const payload = /2\.5-flash/.test(model)
+    ? { ...body, generationConfig: { ...body.generationConfig, thinkingConfig: { thinkingBudget: 0 } } }
+    : body;
   const res = await llmFetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    body: JSON.stringify(payload),
   }, { label: 'gemini', timeoutMs: 12000, retryOn429: false });
   const data = await res.json().catch(() => ({}));
   return { res, data };

@@ -144,8 +144,9 @@ data:
   # Gemini — OpenAI-compatible /v1beta/openai/ endpoint. GOOGLE_API_KEY stays
   # in secrets — see create-secrets.sh mirror_google_api_key.
   GOOGLE_BASE_URL: "https://generativelanguage.googleapis.com/v1beta/openai/"
-  # gemini-2.0-flash returns 404 for the demo's key (checked 2026-10-05); 2.5-flash works.
-  GOOGLE_MODEL: "gemini-2.5-flash"
+  # gemini-2.0-flash returns 404 for the demo's key (checked 2026-10-05). Lite: 8 of 8 runs
+  # under 2 s and correct tool calls; 2.5-flash took about 12 s on 2 of 4 runs.
+  GOOGLE_MODEL: "gemini-2.5-flash-lite"
 
   # 2-tier local LLM (swap mode) — see k8s/56-llm-stack.yaml.
   # llm-proxy (:8090) routes to llama-tier1 (:8091) or llama-tier5 (:8096);
