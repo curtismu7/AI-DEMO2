@@ -1,0 +1,27 @@
+/* PrivilegeShellViews.css — shared by the three chat-capable costume views.
+   Colour comes from the surrounding chrome (inherit/currentColor), never the
+   page theme: costume variants set their own brightness. */
+.pvs-prompt { display: flex; gap: 6px; }
+.pvs-prompt input {
+  flex: 1; min-width: 0; font: inherit; color: inherit; background: transparent;
+  border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+  border-radius: 4px; padding: 6px 8px;
+}
+.pvs-prompt button {
+  font: inherit; color: inherit; background: color-mix(in srgb, currentColor 10%, transparent);
+  border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+  border-radius: 4px; padding: 6px 10px; cursor: pointer;
+}
+.pvs-prompt button:disabled, .pvs-prompt input:disabled { opacity: 0.5; cursor: default; }
+.pvs-steps { margin: 0; padding-left: 16px; opacity: 0.75; font-size: var(--font-size-2xs); }
+
+.pvs-term__log { flex: 1; min-height: 0; overflow-y: auto; font-family: ui-monospace, monospace; white-space: pre-wrap; }
+.pvs-term__you { font-weight: 600; margin-top: 8px; }
+.pvs-term__tool { opacity: 0.75; }
+.pvs-term__res {
+  margin: 2px 0 2px 12px; padding: 4px 6px; overflow-x: auto;
+  border-left: 2px solid color-mix(in srgb, currentColor 30%, transparent);
+  font-size: var(--font-size-2xs);
+}
+.pvs-term__out--system { opacity: 0.7; font-style: italic; }
+.pvs-term__prompt input { font-family: ui-monospace, monospace; }

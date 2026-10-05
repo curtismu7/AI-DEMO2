@@ -4,6 +4,7 @@
 // Backend is the same BFF relay the /privilege-mcp-client page uses.
 import { useState } from "react";
 import ToolsTable from "../privilege/ToolsTable";
+import { ShellTerminalView } from "./ShellTerminalView";
 import "./PrivilegeShellPanel.css";
 
 /**
@@ -14,6 +15,8 @@ export function PrivilegeShellPanel({ skin = "vscode", session }) {
   // Force light/dark on the panel independent of the costume skin's own
   // brightness ("even if the skin is the opposite"). auto = inherit the skin.
   const [pvsTheme, setPvsTheme] = useState("auto"); // auto | light | dark
+
+  if (skin === "coding") return <ShellTerminalView session={session} />;
 
   return (
     <div
