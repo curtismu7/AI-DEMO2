@@ -304,3 +304,72 @@ describe("usePrivilegeShellSession silent sign-in", () => {
     expect(order).toEqual(["before", "assign"]);
   });
 });
+
+describe("connect parity (startSignIn)", () => {
+  let assign;
+  const original = window.location;
+
+  const mountReady = async (opts) => {
+    apiClient.get.mockResolvedValue({
+      data: { oauth: { authenticated: true, scope: "openid" }, tools: [{ name: "list_safes" }] },
+    });
+    const hook = renderHook(() => usePrivilegeShellSession(opts), { wrapper });
+    await waitFor(() => expect(hook.result.current.phase).toBe("ready"), { timeout: 5000 });
+    return hook;
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    assign = vi.fn();
+    Object.defineProperty(window, "location", { configurable: true, value: { ...original, assign } });
+  });
+  afterEach(() => Object.defineProperty(window, "location", { configurable: true, value: original }));
+
+  it("connect() posts returnTo, runs onBeforeConnect first, and navigates to the authUrl", async () => {
+    const order = [];
+    const onBeforeConnect = vi.fn(() => order.push("before"));
+    apiClient.post.mockImplementation(async (url) => {
+      order.push(url);
+      return { data: { authUrl: "https://auth.example/start" } };
+    });
+    const { result } = await mountReady({ onBeforeConnect });
+    await act(() => result.current.connect());
+    expect(order).toEqual(["before", "/api/privilege-mcp/auth/start"]);
+    expect(apiClient.post).toHaveBeenCalledWith("/api/privilege-mcp/auth/start", { returnTo: "/demo/coding-agent" });
+    expect(assign).toHaveBeenCalledWith("https://auth.example/start");
+  });
+
+  it("a start with no authUrl does not navigate and sets a notice", async () => {
+    apiClient.post.mockResolvedValue({ data: {} });
+    const { result } = await mountReady();
+    await act(() => result.current.connect());
+    expect(assign).not.toHaveBeenCalled();
+    expect(result.current.notice).toBe("sign-in did not return an authorization URL");
+    expect(result.current.busy).toBe(false);
+  });
+
+  it("a door that needs no sign-in loads tools instead of navigating", async () => {
+    apiClient.post.mockImplementation(async (url) =>
+      url.endsWith("/auth/start") ? { data: { noAuthRequired: true } } : { data: { tools: [{ name: "t" }] } });
+    const { result } = await mountReady();
+    await act(() => result.current.connect());
+    expect(assign).not.toHaveBeenCalled();
+    expect(apiClient.post.mock.calls.filter(([u]) => u === "/api/privilege-mcp/tools/list")).toHaveLength(1);
+    expect(result.current.messages).toMatchObject([
+      { role: "system", content: "This door needs no sign-in — its upstream owns identity. Loading tools." },
+    ]);
+    expect(result.current.phase).toBe("ready");
+    expect(result.current.busy).toBe(false);
+  });
+
+  it("a chat authUrl reply still routes through /auth/start with returnTo", async () => {
+    apiClient.post.mockImplementation(async (url) =>
+      String(url).endsWith("/chat")
+        ? { data: { authUrl: "https://auth.example/a", reply: "sign in", steps: [] } }
+        : { data: { authUrl: "https://auth.example/start" } });
+    const { result } = await mountReady();
+    await act(() => result.current.send("hi"));
+    expect(apiClient.post).toHaveBeenCalledWith("/api/privilege-mcp/auth/start", { returnTo: "/demo/coding-agent" });
+    expect(assign).toHaveBeenCalledWith("https://auth.example/start");
+  });
+});

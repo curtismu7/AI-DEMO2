@@ -7,6 +7,7 @@ import apiClient from "../../services/apiClient";
 import { navigateWithOverlay } from "../../utils/navigateWithOverlay";
 
 import { LLM_POLICY_DENIED, chatReplyMessage, llmDenialMessage, llmReplyMessage } from "../privilege/privilegeChat";
+import { requestAuthStart, isSilentAuthUrl } from "../privilege/privilegeAuth";
 import { usePrivilegeRouting } from "../privilege/usePrivilegeRouting";
 
 const API_BASE = "/api/privilege-mcp";
@@ -115,21 +116,6 @@ export function usePrivilegeShellSession({ onBeforeConnect } = {}) {
       .catch(() => {});
   }, [setLlmGatewayUrl]);
 
-  const connect = async () => {
-    setBusy(true);
-    setNotice("");
-    try {
-      onBeforeConnect?.();
-      const { data } = await apiClient.post(`${API_BASE}/auth/start`, {
-        returnTo: location.pathname,
-      });
-      navigateWithOverlay(data.authUrl, { message: "Signing in...", assign: true });
-    } catch (err) {
-      setNotice(errText(err));
-      setBusy(false);
-    }
-  };
-
   const runTool = async (name, argsStr) => {
     const request = argsStr || "{}";
     try {
@@ -180,6 +166,37 @@ export function usePrivilegeShellSession({ onBeforeConnect } = {}) {
       { id: nextId.current++, role, content, steps: [], decision: null, execution: null, ...extra },
     ]);
   }, []);
+
+  // Start a sign-in. silentOnly: follow the redirect only when it is a prompt=none URL —
+  // returns false (the caller leaves the gate showing) when the gateway cannot do it
+  // silently. Returns true after navigating, undefined for a door that needs no sign-in
+  // (its tools are loaded instead). `remember` runs onBeforeConnect just before navigating.
+  const startSignIn = useCallback(async ({ silentOnly = false, returnTo, remember = true } = {}) => {
+    const start = await requestAuthStart(request, { returnTo });
+    if (start.kind === "no-auth-required") {
+      push("system", "This door needs no sign-in — its upstream owns identity. Loading tools.");
+      await listTools();
+      return undefined;
+    }
+    if (silentOnly && !isSilentAuthUrl(start.authUrl)) return false;
+    if (remember) beforeConnectRef.current?.();
+    navigateWithOverlay(start.authUrl, { message: "Signing in...", assign: true });
+    return true;
+  }, [push, listTools]);
+
+  const connect = async () => {
+    setBusy(true);
+    setNotice("");
+    try {
+      onBeforeConnect?.();
+      const started = await startSignIn({ returnTo: location.pathname, remember: false });
+      // true: the page is leaving, so busy stays on. undefined: tools were loaded here.
+      if (started === undefined) setBusy(false);
+    } catch (err) {
+      setNotice(errText(err));
+      setBusy(false);
+    }
+  };
 
   const send = useCallback(
     async (text) => {
