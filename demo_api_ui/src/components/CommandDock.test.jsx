@@ -1,5 +1,5 @@
-import { describe, it, expect, afterEach } from 'vitest';
-import { render, cleanup } from '@testing-library/react';
+import { describe, it, expect, afterEach, vi } from 'vitest';
+import { render, cleanup, screen, fireEvent } from '@testing-library/react';
 import CommandDock from './CommandDock';
 
 const realHeight = window.innerHeight;
@@ -31,5 +31,29 @@ describe('CommandDock height', () => {
 
   it('never goes below the 320px floor', () => {
     expect(panelHeightAt(300)).toBe('320px');
+  });
+});
+
+describe('CommandDock Save button', () => {
+  it('closes the dock when clicked', () => {
+    const onOpenChange = vi.fn();
+    render(
+      <CommandDock open onOpenChange={onOpenChange}>
+        <div>dock content</div>
+      </CommandDock>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it('sits after the dock content, at the bottom of the body', () => {
+    const { container } = render(
+      <CommandDock open onOpenChange={() => {}}>
+        <div>dock content</div>
+      </CommandDock>,
+    );
+    const body = (container.ownerDocument || document).querySelector('.cmd-dock-body');
+    expect(body.lastElementChild.className).toBe('cmd-dock-footer');
+    expect(body.lastElementChild.querySelector('button.cmd-dock-save')).not.toBeNull();
   });
 });
