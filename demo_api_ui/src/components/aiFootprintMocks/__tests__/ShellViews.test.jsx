@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { ShellTerminalView } from "../ShellTerminalView";
 import { ShellVsCodeView } from "../ShellVsCodeView";
+import { ShellDesktopView } from "../ShellDesktopView";
 
 export const makeSession = (over = {}) => ({
   phase: "ready", scopes: [], tools: [], latestCall: null, busy: false, notice: "",
@@ -79,5 +80,39 @@ describe("ShellVsCodeView", () => {
     });
     render(<ShellVsCodeView session={session} />);
     expect(screen.getByRole("region", { name: "Tool output" })).toHaveTextContent("list_safes");
+  });
+});
+
+describe("ShellDesktopView", () => {
+  it("renders a tool-call card for a decision/execution and the reply bubble", () => {
+    const session = makeSession({
+      messages: [
+        { id: 1, role: "user", content: "list safes", steps: [], decision: null, execution: null },
+        { id: 2, role: "assistant", content: "Here are the safes", steps: ["tools_discovered:2"], decision: { tool: "list_safes" }, execution: { ok: true } },
+      ],
+    });
+    render(<ShellDesktopView session={session} />);
+    const thread = screen.getByRole("log", { name: "Conversation" });
+    expect(thread).toHaveTextContent("Here are the safes");
+    const card = screen.getByRole("article", { name: "Tool call" });
+    expect(card).toHaveTextContent("list_safes");
+    expect(card).toHaveTextContent('"ok": true');
+  });
+
+  it("renders a plain reply with no card", () => {
+    const session = makeSession({
+      messages: [{ id: 1, role: "assistant", content: "Hi", steps: [], decision: null, execution: null }],
+    });
+    render(<ShellDesktopView session={session} />);
+    expect(screen.queryByRole("article", { name: "Tool call" })).toBeNull();
+  });
+
+  it("sends from the message box", () => {
+    const session = makeSession();
+    render(<ShellDesktopView session={session} />);
+    const box = screen.getByRole("textbox", { name: "Prompt" });
+    fireEvent.change(box, { target: { value: "hello" } });
+    fireEvent.submit(box.closest("form"));
+    expect(session.send).toHaveBeenCalledWith("hello");
   });
 });

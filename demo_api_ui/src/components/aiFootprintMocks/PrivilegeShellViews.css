@@ -32,3 +32,10 @@
 .pvs-vsc__drawer { border-top: 1px solid color-mix(in srgb, currentColor 30%, transparent); max-height: 30%; overflow: auto; font-family: ui-monospace, monospace; font-size: var(--font-size-2xs); }
 .pvs-vsc__drawer header { opacity: 0.6; padding: 2px 0; }
 .pvs-vsc__drawer pre { margin: 2px 0; overflow-x: auto; }
+
+.pvs-desk__thread { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+.pvs-desk__msg--user { align-self: flex-end; max-width: 80%; }
+.pvs-desk__msg--user .pvs-desk__bubble { background: color-mix(in srgb, currentColor 10%, transparent); border-radius: 12px; padding: 6px 12px; }
+.pvs-desk__card { border: 1px solid color-mix(in srgb, currentColor 30%, transparent); border-radius: 8px; padding: 6px 10px; margin-bottom: 6px; }
+.pvs-desk__card header { font-weight: 600; font-size: var(--font-size-2xs); }
+.pvs-desk__card pre { margin: 4px 0 0; overflow-x: auto; font-size: var(--font-size-2xs); }

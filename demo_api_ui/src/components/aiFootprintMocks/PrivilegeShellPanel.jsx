@@ -6,6 +6,7 @@ import { useState } from "react";
 import ToolsTable from "../privilege/ToolsTable";
 import { ShellTerminalView } from "./ShellTerminalView";
 import { ShellVsCodeView } from "./ShellVsCodeView";
+import { ShellDesktopView } from "./ShellDesktopView";
 import "./PrivilegeShellPanel.css";
 
 /**
@@ -19,6 +20,7 @@ export function PrivilegeShellPanel({ skin = "vscode", session }) {
 
   if (skin === "coding") return <ShellTerminalView session={session} />;
   if (skin === "vscode") return <ShellVsCodeView session={session} />;
+  if (skin === "claude-desktop") return <ShellDesktopView session={session} />;
 
   return (
     <div
