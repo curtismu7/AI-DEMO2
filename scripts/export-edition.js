@@ -251,7 +251,9 @@ function defaultRunner(cmd, args, opts) {
 const GITLEAKS_CONFIG = path.resolve(__dirname, '..', 'editions', 'gitleaks.toml');
 
 // a config file shipped in the exported tree could be mistaken for the gate's config
-// (.gitleaksignore is inert under --no-git and ships as-is, so it is not flagged)
+// (.gitleaksignore is inert under --no-git and ships as-is, so it is not flagged).
+// Only names gitleaks could auto-load are flagged: dot-prefixed at any depth, plain at the tree root.
+// A plain gitleaks.toml in a subdirectory (editions/gitleaks.toml, the export tooling's own config) is inert.
 function checkNoGitleaksConfig(dest) {
   const hits = [];
   const scan = (dir) => {
@@ -259,7 +261,7 @@ function checkNoGitleaksConfig(dest) {
       if (e.name === '.git') continue;
       const p = path.join(dir, e.name);
       if (e.isDirectory()) scan(p);
-      else if (/^\.?gitleaks\.(toml|ya?ml)$/.test(e.name)) hits.push(path.relative(dest, p));
+      else if (/^\.gitleaks\.(toml|ya?ml)$/.test(e.name) || (dir === dest && /^gitleaks\.(toml|ya?ml)$/.test(e.name))) hits.push(path.relative(dest, p));
     }
   };
   scan(dest);
@@ -296,7 +298,7 @@ function runGates(dest, manifest, runner = defaultRunner, removed) {
   }
 }
 
-module.exports = { exportEdition, checkManifestCoverage,runGates, applySubstitutions, forbiddenList, checkRelativeImports, checkRemovedPathReferences };
+module.exports = { checkNoGitleaksConfig, exportEdition, checkManifestCoverage,runGates, applySubstitutions, forbiddenList, checkRelativeImports, checkRemovedPathReferences };
 
 if (require.main === module) {
   const [, , which, dest, ...rest] = process.argv;

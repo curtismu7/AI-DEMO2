@@ -174,6 +174,18 @@ test('gitleaks config: a shipped .gitleaksignore is inert (the finding still fai
   assert.throws(() => gl(d), /gitleaks/);
 });
 
+test('gitleaks config check: a plain gitleaks.toml in a subdirectory is inert and passes', () => {
+  const { checkNoGitleaksConfig } = require('./export-edition');
+  checkNoGitleaksConfig(tree({ 'editions/gitleaks.toml': 'x', 'k.js': 'k' }));
+});
+
+test('gitleaks config check: root .gitleaks.toml, nested .gitleaks.yml and root gitleaks.toml fail, paths only', () => {
+  const { checkNoGitleaksConfig } = require('./export-edition');
+  for (const f of ['.gitleaks.toml', 'a/b/.gitleaks.yml', 'gitleaks.toml']) {
+    assert.throws(() => checkNoGitleaksConfig(tree({ [f]: 'SECRETCONTENT' })), (e) => e.message.includes(f) && !e.message.includes('SECRETCONTENT'));
+  }
+});
+
 test('clean tree passes scan gates and runs build/test gates through the runner', () => {
   process.env.EDITION_FORBIDDEN_STRINGS = 'unused-placeholder-xyz';
   after(() => delete process.env.EDITION_FORBIDDEN_STRINGS);
