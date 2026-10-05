@@ -922,7 +922,14 @@ export function buildTraceSteps(trace) {
   // is no longer "still coming" — it was genuinely never part of this run's
   // path (mTLS off, gateway not in route, OAuth-bearer path with no API-key
   // swap, no step-up demanded). Mirrors TokenChainDisplay's notinpath bucket.
-  const traceComplete = outcome === "ok" || outcome === "error" || outcome === "mock-success";
+  //
+  // A streamed reply also ends the run. Live runs frequently never get an
+  // `outcome` (completeTrace is skipped for a foreign/reset flow id), so keying
+  // on outcome alone left every later hop `pending` and the MCP hop `active` on
+  // a run whose reply had already landed. A reply cannot precede a tool that is
+  // still paused on an approval gate, hence the gate check.
+  const outcomeTerminal = outcome === "ok" || outcome === "error" || outcome === "mock-success";
+  const traceComplete = outcomeTerminal || (Boolean(llmReply) && !pausedGateState(trace));
   const steps = [];
 
   // 0. Website (Browser) — always considered active/done
@@ -1111,7 +1118,9 @@ export function buildTraceSteps(trace) {
     || findEvent(tokenEvents, "gw-introspection")
     || findEvent(tokenEvents, "gw-filter-chain")
   );
-  const exDone = exTok && (exTok.status !== "waiting" || traceComplete || exchangeProvenDownstream);
+  const exDone = exTok && (exTok.status !== "waiting" || outcomeTerminal || exchangeProvenDownstream);
+  // outcomeTerminal, not traceComplete: a reply alone must not mark the exchange
+  // done — a reply with no downstream evidence is the exchangeNotRequired case.
   // The model answered from context without calling a tool. No tool call means
   // no delegated token was ever needed, and none of the evidence exDone waits on
   // will EVER arrive — so "active" left a finished run reading as though it were
@@ -1766,7 +1775,9 @@ export function buildTraceSteps(trace) {
       // mcpFailedTerminal sits with the other failures, AFTER the gate checks: a
       // paused gate is not a failure, and must keep reading "active" while it
       // waits on the human.
-      : mcpGate ? "notinpath" : (gwDenied || mcpErrored || mcpFailedTerminal) ? "error" : mcpBegun ? "active" : traceComplete ? "notinpath" : "pending",
+      : mcpGate ? "notinpath" : (gwDenied || mcpErrored || mcpFailedTerminal) ? "error"
+        // Begun but never reported done: only "active" while the run is live.
+        : mcpBegun ? (!traceComplete ? "active" : outcome === "error" ? "error" : "done") : traceComplete ? "notinpath" : "pending",
     mcpResult ? {
       why: mockIdJag
         ? "Mock replay: sample MCP tool result; no tool was called."

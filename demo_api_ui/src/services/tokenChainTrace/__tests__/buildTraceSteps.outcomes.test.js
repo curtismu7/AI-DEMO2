@@ -589,3 +589,25 @@ describe("mcp step — terminal failure phases", () => {
     expect(steps.find((s) => s.id === "mcp").status).toBe("active");
   });
 });
+
+describe("buildTraceSteps — reply landed but outcome never set", () => {
+  const finished = {
+    ...EMPTY_TRACE,
+    prompt: { message: "x" },
+    llmDetail: { model: "m" },
+    llmReply: "All done.",
+    phases: [{ phase: "mcp_remote_begin" }],
+    mcpResult: { tool: "t", status: "ok", result: null },
+  };
+  const status = (trace, id) => buildTraceSteps(trace).find((s) => s.id === id).status;
+
+  test("mcp is not left 'in flight' and later hops are not left 'pending'", () => {
+    expect(status(finished, "mcp")).toBe("done");
+    expect(status(finished, "tools-call-challenge")).toBe("notinpath");
+  });
+
+  test("a paused approval gate still reads active even with reply text", () => {
+    const paused = { ...finished, mcpResult: { tool: "t", status: "error", result: null }, authorize: { outcome: "HITL_REQUIRED" } };
+    expect(status(paused, "mcp")).toBe("active");
+  });
+});
