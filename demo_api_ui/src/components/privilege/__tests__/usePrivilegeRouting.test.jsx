@@ -102,10 +102,10 @@ describe("usePrivilegeRouting gatewaySession and door probing", () => {
     expect(result.current.gatewaySession).toEqual({ ready: false, reason: "expired" });
   });
 
-  it("probeDoors posts every preset url and stores the results", async () => {
+  it("probePresetDoors posts every preset url and stores the results", async () => {
     const request = vi.fn().mockResolvedValue({ results: [{ url: FAC_A, ok: true, tools: 3 }] });
     const { result } = setup(request);
-    await act(async () => { await result.current.probeDoors(); });
+    await act(async () => { await result.current.probePresetDoors(); });
     expect(request).toHaveBeenCalledWith("/doors/probe", { method: "POST", body: { urls: [PRIV_A, PRIV_B, FAC_A] } });
     expect(result.current.preflight).toEqual([{ url: FAC_A, ok: true, tools: 3 }]);
     expect(result.current.preflightBusy).toBe(false);
@@ -114,26 +114,26 @@ describe("usePrivilegeRouting gatewaySession and door probing", () => {
 
   it("stores [] when the response has no results array", async () => {
     const { result } = setup(vi.fn().mockResolvedValue({}));
-    await act(async () => { await result.current.probeDoors(); });
+    await act(async () => { await result.current.probePresetDoors(); });
     expect(result.current.preflight).toEqual([]);
   });
 
   it("surfaces a failed probe as an error and clears results", async () => {
     const { result } = setup(vi.fn().mockRejectedValue(new Error("Not authenticated.")));
-    await act(async () => { await result.current.probeDoors(); });
+    await act(async () => { await result.current.probePresetDoors(); });
     expect(result.current.preflight).toBeNull();
     expect(result.current.preflightError).toBe("Not authenticated.");
   });
 
   it("prefers the server's error text from an axios-shaped failure", async () => {
     const { result } = setup(vi.fn().mockRejectedValue({ message: "Request failed", response: { data: { error: "Not authenticated." } } }));
-    await act(async () => { await result.current.probeDoors(); });
+    await act(async () => { await result.current.probePresetDoors(); });
     expect(result.current.preflightError).toBe("Not authenticated.");
   });
 
   it("falls back to 'Preflight failed'", async () => {
     const { result } = setup(vi.fn().mockRejectedValue({}));
-    await act(async () => { await result.current.probeDoors(); });
+    await act(async () => { await result.current.probePresetDoors(); });
     expect(result.current.preflightError).toBe("Preflight failed");
   });
 });

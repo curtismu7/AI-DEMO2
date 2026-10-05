@@ -290,7 +290,7 @@ export default function PrivilegeMcpClientPage() {
     llmGatewayUrl, setLlmGatewayUrl,
     gatewayConfigs, setGatewayConfigs,
     presets, setPresets,
-    preflight, preflightError, preflightBusy, probeDoors: probePresetDoors,
+    preflight, preflightError, preflightBusy, probePresetDoors,
     gatewaySession, setGatewaySession,
     selectPath, selectDoor,
   } = usePrivilegeRouting({ request: api });
@@ -1044,8 +1044,6 @@ export default function PrivilegeMcpClientPage() {
     setRearmError((await switchGatewayMode('privilege', { forceReauth: true })) || '');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [switchGatewayMode]);
-
-
 
   // Load the lanes so the table prefills with what the SERVER actually calls,
   // rather than a path copied into the UI that can drift out of step with it.

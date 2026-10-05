@@ -89,7 +89,7 @@ export function usePrivilegeRouting({ request }) {
   // only honest proof a door works for a real caller. Goes through `request` so a 401 arrives as
   // an Error carrying the server's message instead of a body with no `results` that
   // would render as an empty list — a failed preflight that looks like a clean one.
-  const probeDoors = useCallback(async () => {
+  const probePresetDoors = useCallback(async () => {
     setPreflightBusy(true);
     setPreflightError('');
     setPreflight(null);
@@ -109,7 +109,7 @@ export function usePrivilegeRouting({ request }) {
     preflight, setPreflight,
     preflightError, setPreflightError,
     preflightBusy, setPreflightBusy,
-    probeDoors,
+    probePresetDoors,
     gatewayMode, setGatewayMode,
     config, setConfig,
     gatewayConfigs, setGatewayConfigs,
