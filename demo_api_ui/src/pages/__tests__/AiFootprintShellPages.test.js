@@ -87,7 +87,7 @@ describe("AI footprint live shell", () => {
     expect(screen.getByTestId("footprint-live-vscode")).toBeInTheDocument();
     expect(screen.getByText(/Simulated shell/)).toBeInTheDocument();
     expect(screen.getByText("Copilot Chat")).toBeInTheDocument();
-    expect(screen.getByTestId("privilege-shell-panel")).toBeInTheDocument();
+    expect(screen.getByTestId("pvs-vscode")).toBeInTheDocument();
   });
 
   it("has a light/dark toggle scoped to this page", () => {
