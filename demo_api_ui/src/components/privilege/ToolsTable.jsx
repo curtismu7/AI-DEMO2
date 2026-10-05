@@ -99,7 +99,19 @@ function seedArgs(tool) {
   return JSON.stringify(obj, null, 2);
 }
 
-export default function ToolsTable({ tools, presentMode = false, onExecute, onClose, onPresent, selectedTool = null, selectNonce = 0 }) {
+// The catalogue comes from an external gateway, so it is untrusted: a null entry
+// or an object-valued description made a render throw and, with nothing above to
+// catch it, took the whole page to white. Keep only entries that can be shown.
+export function normalizeTools(raw) {
+  return (Array.isArray(raw) ? raw : [])
+    .filter((t) => t && typeof t.name === 'string')
+    .map((t) => (t.description == null || typeof t.description === 'string'
+      ? t
+      : { ...t, description: JSON.stringify(t.description) }));
+}
+
+export default function ToolsTable({ tools: rawTools, presentMode = false, onExecute, onClose, onPresent, selectedTool = null, selectNonce = 0 }) {
+  const tools = useMemo(() => normalizeTools(rawTools), [rawTools]);
   const [filter, setFilter] = useState('');
   const [expanded, setExpanded] = useState('');
   const [argsByTool, setArgsByTool] = useState({});

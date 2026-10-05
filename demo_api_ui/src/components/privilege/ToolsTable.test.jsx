@@ -153,4 +153,17 @@ describe('ToolsTable', () => {
       JSON.stringify({ city_name: 'Austin, TX' }, null, 2),
     );
   });
+
+  it('renders a catalogue with a null entry or an object description instead of throwing', () => {
+    render(
+      <ToolsTable
+        tools={[null, { description: 'no name' }, { name: 'odd', description: { text: 'x' } }, tool]}
+      />,
+    );
+
+    expect(screen.getByText('odd')).toBeInTheDocument();
+    expect(screen.getByText('{"text":"x"}')).toBeInTheDocument();
+    expect(screen.getByText('search_records')).toBeInTheDocument();
+    expect(screen.getByText('2', { selector: '.ptt-count' })).toBeInTheDocument();
+  });
 });
