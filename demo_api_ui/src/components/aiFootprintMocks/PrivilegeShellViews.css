@@ -7,13 +7,14 @@
   border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
   border-radius: 4px; padding: 6px 8px;
 }
-.pvs-prompt input:focus-visible, .pvs-prompt button:focus-visible { outline: 2px solid var(--th-status-info); outline-offset: 1px; }
-.pvs-prompt button {
+.pvs-prompt input:focus-visible, .pvs-prompt button:focus-visible, .pvs-gate-foot button:focus-visible { outline: 2px solid var(--th-status-info); outline-offset: 1px; }
+.pvs-gate-foot { display: flex; justify-content: flex-end; }
+.pvs-prompt button, .pvs-gate-foot button {
   font: inherit; color: inherit; background: color-mix(in srgb, currentColor 10%, transparent);
   border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
   border-radius: 4px; padding: 6px 10px; cursor: pointer;
 }
-.pvs-prompt button:disabled, .pvs-prompt input:disabled { opacity: 0.5; cursor: default; }
+.pvs-prompt button:disabled, .pvs-prompt input:disabled, .pvs-gate-foot button:disabled { opacity: 0.5; cursor: default; }
 .pvs-steps { margin: 0; padding-left: 16px; opacity: 0.75; font-size: var(--font-size-2xs); }
 
 .pvs-term__log { flex: 1; min-height: 0; overflow-y: auto; font-family: var(--font-mono); white-space: pre-wrap; }

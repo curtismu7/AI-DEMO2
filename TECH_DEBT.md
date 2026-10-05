@@ -10323,3 +10323,16 @@ places, and the two can drift silently.
 
 **Fix:** have the Cursor page consume `usePrivilegeShellSession` (or a shared
 reply normalizer) once that page can be regression-tested.
+
+### 2026-10-05 — Footprint skins lack the Theme: Auto/Light/Dark toggle
+
+The force light/dark "Theme: Auto/Light/Dark" toggle (`pvsTheme`, #1570) exists
+only in `PrivilegeShellPanel`'s legacy body. The coding, vscode and
+claude-desktop views (`ShellTerminalView`, `ShellVsCodeView`,
+`ShellDesktopView`) do not offer it.
+
+**Why it matters:** the same Privilege client behaves differently per skin, and
+a presenter on a skin cannot force a theme for a projector.
+
+**Fix:** lift `pvsTheme` into the session (or the panel) and render the toggle
+in `ShellGate`'s footer next to Sign out.

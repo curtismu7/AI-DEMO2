@@ -1,12 +1,18 @@
+import { useEffect, useRef } from "react";
 import { ShellGate, ShellPrompt, ShellSteps } from "./ShellParts";
 import "./PrivilegeShellViews.css";
 
 export function ShellDesktopView({ session }) {
+  const logRef = useRef(null);
   const { messages, thinking } = session;
+  useEffect(() => {
+    const el = logRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages.length, thinking]);
   return (
     <div className="pvs pvs--claude-desktop pvs-desk" data-testid="pvs-desktop">
       <ShellGate session={session}>
-        <div className="pvs-desk__thread" role="log" aria-label="Conversation">
+        <div ref={logRef} className="pvs-desk__thread" role="log" aria-label="Conversation">
           {messages.map((m) => (
             <div key={m.id} className={`pvs-desk__msg pvs-desk__msg--${m.role}`}>
               {m.decision || m.execution ? (

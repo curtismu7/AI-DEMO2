@@ -65,15 +65,21 @@ describe("usePrivilegeShellSession.send", () => {
     expect(result.current.messages[1]).toMatchObject({ role: "system", content: "Sign in is required to access the gateway." });
   });
 
-  it("navigates to authUrl instead of claiming a reply", async () => {
+  it("routes a chat authUrl through /auth/start so sign-in returns to the skin", async () => {
     const { result } = await ready();
     const assign = vi.fn();
     const original = window.location;
     Object.defineProperty(window, "location", { configurable: true, value: { ...original, assign } });
-    apiClient.post.mockResolvedValue({ data: { reply: "Please complete OAuth login first.", authUrl: "https://auth.example/a", steps: ["oauth_required"] } });
-    await act(() => result.current.send("hi"));
-    expect(assign).toHaveBeenCalledWith("https://auth.example/a");
-    expect(result.current.messages[1]).toMatchObject({ role: "system", content: "Opening sign-in…" });
-    Object.defineProperty(window, "location", { configurable: true, value: original });
+    try {
+      apiClient.post
+        .mockResolvedValueOnce({ data: { reply: "Please complete OAuth login first.", authUrl: "https://auth.example/a", steps: ["oauth_required"] } })
+        .mockResolvedValueOnce({ data: { authUrl: "https://auth.example/start" } });
+      await act(() => result.current.send("hi"));
+      expect(apiClient.post).toHaveBeenCalledWith("/api/privilege-mcp/auth/start", { returnTo: "/demo/coding-agent" });
+      expect(assign).toHaveBeenCalledWith("https://auth.example/start");
+      expect(result.current.messages[1]).toMatchObject({ role: "system", content: "Opening sign-in…" });
+    } finally {
+      Object.defineProperty(window, "location", { configurable: true, value: original });
+    }
   });
 });

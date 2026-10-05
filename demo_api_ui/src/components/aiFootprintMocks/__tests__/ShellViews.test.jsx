@@ -116,3 +116,33 @@ describe("ShellDesktopView", () => {
     expect(session.send).toHaveBeenCalledWith("hello");
   });
 });
+
+describe("ShellGate footer", () => {
+  it("offers Sign out when ready and calls session.signOut", () => {
+    const session = makeSession();
+    render(<ShellTerminalView session={session} />);
+    fireEvent.click(screen.getByRole("button", { name: "Sign out" }));
+    expect(session.signOut).toHaveBeenCalled();
+  });
+
+  it("has no Sign out when signed out", () => {
+    render(<ShellTerminalView session={makeSession({ phase: "signed-out" })} />);
+    expect(screen.queryByRole("button", { name: "Sign out" })).toBeNull();
+  });
+});
+
+describe("scroll to newest", () => {
+  it.each([
+    ["terminal", ShellTerminalView, "Terminal"],
+    ["vscode", ShellVsCodeView, "Chat"],
+    ["desktop", ShellDesktopView, "Conversation"],
+  ])("%s log scrolls to the bottom when a message arrives", (_n, View, label) => {
+    const msg = (id) => ({ id, role: "user", content: `m${id}`, steps: [], decision: null, execution: null });
+    const { rerender } = render(<View session={makeSession({ messages: [msg(1)] })} />);
+    const log = screen.getByRole("log", { name: label });
+    Object.defineProperty(log, "scrollHeight", { configurable: true, value: 500 });
+    log.scrollTop = 0;
+    rerender(<View session={makeSession({ messages: [msg(1), msg(2)] })} />);
+    expect(log.scrollTop).toBe(500);
+  });
+});

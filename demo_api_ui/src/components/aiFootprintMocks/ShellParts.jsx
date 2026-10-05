@@ -12,7 +12,14 @@ export function ShellGate({ session, children }) {
           <button type="button" onClick={connect} disabled={busy}>Sign in with Privilege</button>
         </div>
       ) : null}
-      {phase === "ready" ? children : null}
+      {phase === "ready" ? (
+        <>
+          {children}
+          <div className="pvs-gate-foot">
+            <button type="button" onClick={session.signOut} disabled={session.busy}>Sign out</button>
+          </div>
+        </>
+      ) : null}
     </>
   );
 }

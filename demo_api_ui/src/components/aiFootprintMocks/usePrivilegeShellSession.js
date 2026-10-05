@@ -138,7 +138,7 @@ export function usePrivilegeShellSession() {
         const { data } = await apiClient.post(`${API_BASE}/chat`, { prompt });
         if (data.authUrl) {
           push("system", "Opening sign-in…");
-          window.location.assign(data.authUrl);
+          await connect();
           return;
         }
         push("assistant", data.reply || "Done.", {
@@ -161,7 +161,7 @@ export function usePrivilegeShellSession() {
         setThinking(false);
       }
     },
-    [push],
+    [push, connect],
   );
 
   return {
