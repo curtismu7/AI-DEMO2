@@ -84,7 +84,9 @@ export function usePrivilegeRouting({ request }) {
   }, [config, presets, request]);
 
   // Probes the OTHER configured doors with this identity (/doors/probe skips the
-  // selected door and caps the fan-out). Goes through `request` so a 401 arrives as
+  // selected door and caps the fan-out). /doors/probe already initializes an MCP
+  // session per URL with the operator's token and returns a tool count, which is the
+  // only honest proof a door works for a real caller. Goes through `request` so a 401 arrives as
   // an Error carrying the server's message instead of a body with no `results` that
   // would render as an empty list — a failed preflight that looks like a clean one.
   const probeDoors = useCallback(async () => {
