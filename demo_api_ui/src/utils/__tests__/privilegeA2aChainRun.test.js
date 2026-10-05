@@ -47,12 +47,17 @@ test("a full chain feeds one event per hop and settles the run as ok", async () 
 
   expect(result).toEqual({ ok: true, answer: "Refund approved" });
   expect(JSON.parse(fetchImpl.mock.calls[0][1].body)).toEqual({ message: "Refund order 7", specialist: "refunds" });
+  // The hops, bracketed by the client starting the flow and the run being done.
   expect(store.events.map((event) => `${event.id}:${event.from}>${event.to}`)).toEqual([
+    "pa2a-start:client>main",
     "pa2a-0:main>langchainagent",
     "pa2a-1:langchainagent>refunds",
     "pa2a-2:refunds>langchainagent",
     "pa2a-3:langchainagent>main",
+    "pa2a-done:main>client",
   ]);
+  expect(store.events[0]).toMatchObject({ kind: "start", detail: "Refund order 7", entry: "POST /api/privilege-a2a/chain" });
+  expect(store.events.at(-1)).toMatchObject({ kind: "done", status: "ok", detail: "Refund approved" });
   expect(store.calls[0][0]).toBe("beginTrace");
   expect(store.calls.at(-1)).toEqual(["completeTrace", true, undefined]);
 });
@@ -68,7 +73,8 @@ test("a refused hop is kept as an error event and the run settles as failed", as
   const result = await startPrivilegeA2aChainRun({ message: "Refund order 7", specialist: "refunds", store, fetchImpl });
 
   expect(result.ok).toBe(false);
-  expect(store.events[1]).toMatchObject({ status: "error", from: "langchainagent", to: "refunds" });
+  expect(store.events[2]).toMatchObject({ status: "error", from: "langchainagent", to: "refunds" });
+  expect(store.events.at(-1)).toMatchObject({ id: "pa2a-done", status: "error", detail: "Delegation failed: refunds refused (403): Forbidden" });
   expect(store.calls.at(-1)).toEqual(["completeTrace", false, "Delegation failed: refunds refused (403): Forbidden"]);
 });
 
@@ -79,7 +85,9 @@ test("an unavailable service settles the run as failed with the API's reason", a
   const result = await startPrivilegeA2aChainRun({ message: "hi", specialist: "refunds", store, fetchImpl });
 
   expect(result).toEqual({ ok: false, error: "A2A service unavailable" });
-  expect(store.events).toEqual([]);
+  // No hop happened, but the reel still shows that the client started and why it stopped.
+  expect(store.events.map((event) => `${event.id}:${event.status}`)).toEqual(["pa2a-start:ok", "pa2a-done:error"]);
+  expect(store.events[1].detail).toBe("A2A service unavailable");
 });
 
 test("each call is caller, gateway, callee; a refused call stops at the gateway", () => {
@@ -270,14 +278,16 @@ test("a UC46 chat feeds pa2a events tagged access-review and builds MCP steps", 
   expect(JSON.parse(fetchImpl.mock.calls[0][1].body)).toEqual({ message: "Review Carol", sessionId: "s0" });
   expect(seenFrames).toEqual(["trace", "trace", "trace", "trace", "trace", "token", "done"]);
   expect(store.events.map((event) => `${event.id}:${event.from}>${event.to}`)).toEqual([
+    "pa2a-start:client>main",
     "pa2a-0:main>analyst",
     "pa2a-1:analyst>mcp",
     "pa2a-2:mcp>analyst",
     "pa2a-3:analyst>main",
+    "pa2a-done:main>client",
   ]);
   expect(store.events.every((event) => event.useCaseId === "privilege-a2a-access-review")).toBe(true);
-  expect(store.events[0].request).toBe("POST x/jsonrpc");
-  expect(store.events[3]).toMatchObject({ elapsedMs: 80, response: "HTTP 200" });
+  expect(store.events[1].request).toBe("POST x/jsonrpc");
+  expect(store.events[4]).toMatchObject({ elapsedMs: 80, response: "HTTP 200" });
   expect(store.calls.at(-1)).toEqual(["completeTrace", true, undefined]);
 
   const steps = buildPrivilegeA2aChainSteps(store.events);
@@ -439,4 +449,25 @@ test("a refusal shows its HTTP status and JSON-RPC error code", () => {
   expect(refusal).toMatchObject({ "HTTP status": "400", "JSON-RPC error code": "-32600", "Caller's Agent Registry name": "main-agent", "Route (Agentic App)": "langchainagent" });
   expect(Object.fromEntries(steps[0].detail.kv)["JSON-RPC request id"]).toBe("rpc-1");
   expect(steps[1].detail.spec.failure).toContain("does not echo");
+});
+
+test("a run's reel starts with the client starting the flow and ends with Done", () => {
+  const hop = { id: "pa2a-0", kind: "delegate", from: "main", to: "langchainagent", status: "ok", detail: "Refund order 7" };
+  const start = { id: "pa2a-start", kind: "start", from: "client", to: "main", status: "ok", detail: "Refund order 7", entry: "POST /api/privilege-a2a/chain" };
+  const steps = buildPrivilegeA2aChainSteps([start, hop, { id: "pa2a-done", kind: "done", from: "main", to: "client", status: "ok", detail: "Refund approved" }]);
+
+  expect(steps.map((step) => [step.id, step.title, step.lane, step.status])).toEqual([
+    ["pa2a-start", "Client started flow", "CLIENT", "done"],
+    ["pa2a-0-call", "Calls LangChain agent · A2A message/send", "MAIN-AGENT", "done"],
+    ["pa2a-0-gateway", "Checks key, scope, policy and guardrail", "GATEWAY", "done"],
+    ["pa2a-0-forward", "Receives the call from Main agent", "LANGCHAIN-AGENT", "done"],
+    ["pa2a-done", "Done", "CLIENT", "done"],
+  ]);
+  expect(Object.fromEntries(steps[0].detail.kv)).toMatchObject({ "Entry point": "POST /api/privilege-a2a/chain", Request: "Refund order 7" });
+  expect(Object.fromEntries(steps.at(-1).detail.kv)).toMatchObject({ Outcome: "Completed", "Final answer": "Refund approved" });
+
+  // A run that stopped still ends on Done, marked as stopped, with the reason.
+  const stopped = buildPrivilegeA2aChainSteps([start, { id: "pa2a-done", kind: "done", from: "main", to: "client", status: "error", detail: "The A2A service is unavailable." }]);
+  expect(stopped.map((step) => [step.title, step.status])).toEqual([["Client started flow", "done"], ["Done", "error"]]);
+  expect(Object.fromEntries(stopped[1].detail.kv)).toMatchObject({ Outcome: "Stopped", Reason: "The A2A service is unavailable." });
 });

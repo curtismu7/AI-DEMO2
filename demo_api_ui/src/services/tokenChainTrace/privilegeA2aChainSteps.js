@@ -4,7 +4,7 @@
 // instead of an empty banking pipeline.
 
 // Names follow Ping's reference demo: the caller is the main agent.
-const PRIVILEGE_CHAIN_ACTORS = { main: "Main agent", langchainagent: "LangChain agent", analyst: "Analyst agent", mcp: "MCP tools" };
+const PRIVILEGE_CHAIN_ACTORS = { client: "Client", main: "Main agent", langchainagent: "LangChain agent", analyst: "Analyst agent", mcp: "MCP tools" };
 const chainActor = (name) => PRIVILEGE_CHAIN_ACTORS[name] || `${name} specialist`;
 // Each actor is its own lane, so the sequence view draws one lifeline per
 // agent with the gateway between them. GATEWAY is the existing gateway lane.
@@ -169,6 +169,9 @@ const replyBody = (text) => [
  * When the caller read the callee's A2A Agent Card first (a `card` event), two
  * steps come before the call: the request, and the card with its data.
  *
+ * A run is bracketed by a `start` event ("Client started flow") and a `done`
+ * event ("Done"), one step each on the CLIENT lane.
+ *
  * A step's lane names its actor, so its title says only what the actor did.
  * The detail panel shows `narrative`, `kv`, `request` and `response`; the
  * reason for a step is part of its narrative because the panel has no slot
@@ -220,6 +223,34 @@ export function buildPrivilegeA2aChainSteps(tokenEvents) {
       status,
       detail: { facts, rfcs: A2A_REFS, tokenEvent: event, ...detail },
     });
+
+    // The first node of every run: the person's client handing the request in.
+    if (event.kind === "start") {
+      return [step("", "Client started flow", chainLane(event.from), "done", {
+        narrative: `The person chose this run in the app. The browser sent it to the app's own server, which passed it to ${to}${saying(said)} No browser sign-in or token is passed on to the agents: from here each agent acts with its own key.`,
+        kv: [
+          ["Started by", "The signed-in person, in the browser"],
+          ["Handed to", `${to}, by the app's server`],
+          ...row("Entry point", event.entry),
+          ["Passed on to the agents", "The request text only; no browser token"],
+          ...saidRow("Request"),
+        ],
+      })];
+    }
+
+    // The last node of every run: the answer, or the reason there is none.
+    if (event.kind === "done") {
+      const ok = event.status !== "error";
+      // The answer, or the reason there is none: this event's own text either way.
+      const outcome = event.detail || "";
+      return [step("", "Done", chainLane(event.to), ok ? "done" : "error", {
+        ...(outcome ? { facts: [ok ? "Answer returned" : "Stopped", quote(outcome.length > 60 ? `${outcome.slice(0, 57)}…` : outcome)] } : {}),
+        narrative: ok
+          ? `The run is complete. ${from} returned the final answer to the client${saying(outcome)}`
+          : `The run ended without an answer${saying(outcome)} The client was told why, and nothing further was called.`,
+        kv: [["Outcome", ok ? "Completed" : "Stopped"], ...row(ok ? "Final answer" : "Reason", outcome), ["Returned to", "The person's client"]],
+      })];
+    }
 
     // Discovery: the caller read the callee's A2A Agent Card before calling it.
     if (event.kind === "card") {
