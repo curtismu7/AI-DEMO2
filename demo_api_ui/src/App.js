@@ -1291,7 +1291,9 @@ function AppWithAuth() {
                       <>
                         <TopNav user={user} onLogout={logout} />
                         <main className="main-content">
-                          <FootprintLiveShellPage />
+                          <ErrorBoundary>
+                            <FootprintLiveShellPage />
+                          </ErrorBoundary>
                         </main>
                       </>
                     )
