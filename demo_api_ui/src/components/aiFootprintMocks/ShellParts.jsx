@@ -14,12 +14,25 @@ export function themeAttr(session) {
 
 const THEME_LABEL = { auto: "Theme: Auto", light: "Theme: Light", dark: "Theme: Dark" };
 
+export function ShellRearmBanner({ session }) {
+  if (!session.needsRearm) return null;
+  return (
+    <div className="pvs-rearm" role="status">
+      <span aria-hidden="true">⚠️</span> Gateway session {session.rearmReason}.{" "}
+      <button type="button" onClick={session.rearm} disabled={session.busy}>
+        {session.busy ? "Re-arming…" : "Re-arm"}
+      </button>
+    </div>
+  );
+}
+
 // routingBar=false: the view shows its route controls elsewhere (VS Code side panel).
 export function ShellGate({ session, children, routingBar = true }) {
   const { phase, notice, connect, busy } = session;
   return (
     <>
       {notice ? <div className="pvs-notice">{notice}</div> : null}
+      <ShellRearmBanner session={session} />
       {phase === "loading" ? <div className="pvs-empty">Checking Privilege session…</div> : null}
       {phase === "signed-out" ? (
         <div className="pvs-connect">

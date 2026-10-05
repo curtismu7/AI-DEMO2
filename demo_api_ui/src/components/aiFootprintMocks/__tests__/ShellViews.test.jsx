@@ -11,7 +11,8 @@ export const makeSession = (over = {}) => ({
   connect: vi.fn(), retryTools: vi.fn(), signOut: vi.fn(), runTool: vi.fn(), send: vi.fn(),
   pickPath: vi.fn(), pickDoor: vi.fn(),
   pvsTheme: "auto", cyclePvsTheme: vi.fn(),
-  routing: { gatewayMode: "privilege", config: { mcpUrl: "https://gw.example/privilege-gateway/banking/mcp" }, presets: [
+  needsRearm: false, rearmReason: null, rearm: vi.fn(), probeDoors: vi.fn(),
+  routing: { gatewaySession: null, preflight: null, preflightBusy: false, preflightError: "", gatewayMode: "privilege", config: { mcpUrl: "https://gw.example/privilege-gateway/banking/mcp" }, presets: [
     { mode: "privilege", url: "https://gw.example/privilege-gateway/banking/mcp" },
     { mode: "privilege", url: "https://gw.example/privilege-gateway/other/mcp" },
   ], llmPath: "", llmGatewayUrl: "", loaded: true },
@@ -392,5 +393,35 @@ describe.each([
     // The store is a module singleton, so match the row by this test's own URL.
     const row = (await screen.findByText(`/api/tools?${name}`)).closest("li");
     expect(within(row).getByText("Not signed in, or the session expired")).toBeInTheDocument();
+  });
+});
+
+describe.each([
+  ["Terminal", ShellTerminalView],
+  ["VS Code", ShellVsCodeView],
+  ["Desktop", ShellDesktopView],
+])("%s Re-arm banner", (_name, View) => {
+  it.each(["ready", "signed-out", "loading"])("shows and fires Re-arm in phase %s", (phase) => {
+    const session = makeSession({ phase, needsRearm: true, rearmReason: "expired" });
+    render(<View session={session} />);
+    expect(screen.getByText(/Gateway session expired\./)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Re-arm" }));
+    expect(session.rearm).toHaveBeenCalled();
+  });
+
+  it("words the not-established reason", () => {
+    render(<View session={makeSession({ needsRearm: true, rearmReason: "not established" })} />);
+    expect(screen.getByText(/Gateway session not established\./)).toBeInTheDocument();
+  });
+
+  it("shows nothing when no re-arm is needed", () => {
+    render(<View session={makeSession()} />);
+    expect(screen.queryByText(/Gateway session/)).toBeNull();
+    expect(screen.queryByRole("button", { name: "Re-arm" })).toBeNull();
+  });
+
+  it("disables the button and says Re-arming… while busy", () => {
+    render(<View session={makeSession({ needsRearm: true, rearmReason: "expired", busy: true })} />);
+    expect(screen.getByRole("button", { name: "Re-arming…" })).toBeDisabled();
   });
 });
