@@ -192,6 +192,19 @@ describe("PingFederate AI Agent page", () => {
       expect(screen.queryByTestId("ciba-mock-phone")).not.toBeInTheDocument();
     });
 
+    it("pops the mock phone up on a pending request, showing who is asked and the message", async () => {
+      routeGets({ page: { ...cibaStatus, features: { ...cibaStatus.features, ciba: false, cibaMock: true } } });
+      apiClient.post.mockResolvedValue({ data: pendingView({ bindingMessage: "Approve-125" }) });
+      render(<PingFederateAiAgentPage user={{ username: "demouser" }} />);
+
+      expect(screen.queryByText("Approve this request?")).not.toBeInTheDocument();
+      fireEvent.click(await ask());
+
+      expect(await screen.findByText("Approve this request?")).toBeInTheDocument();
+      expect(screen.getByText(/asking demouser to approve it/i)).toBeInTheDocument();
+      expect(screen.getByText("Approve-125")).toBeInTheDocument();
+    });
+
     it("has no mock phone buttons when it is off", async () => {
       routeGets();
       apiClient.post.mockResolvedValue({ data: pendingView() });

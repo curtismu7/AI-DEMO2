@@ -262,3 +262,25 @@
   .pf-ai-agent__comparison-cell--pf { border-top: 1px solid var(--th-border); border-left: 0; }
   .pf-ai-agent__comparison-cell--pf { background: var(--th-bg-card); color: var(--th-text); }
 }
+
+/* Mock phone popup (CIBA approval stand-in) */
+.pf-ai-agent__phone-wrap { display: flex; justify-content: center; padding: 16px; }
+.pf-ai-agent__phone {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 260px;
+  padding: 28px 18px 22px;
+  border: 6px solid var(--th-text);
+  border-radius: 30px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  text-align: center;
+}
+.pf-ai-agent__phone h3,
+.pf-ai-agent__phone p { margin: 0; }
+.pf-ai-agent__phone-app { color: var(--th-text-muted); font-size: var(--font-size-xs); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+.pf-ai-agent__phone-message { padding: 8px 10px; border-radius: var(--radius-sm); background: var(--th-bg-inset); font-weight: 650; overflow-wrap: anywhere; }
+.pf-ai-agent__phone .pf-ai-agent__action,
+.pf-ai-agent__phone .pf-ai-agent__secondary-action { width: 100%; }

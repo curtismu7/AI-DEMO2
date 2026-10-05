@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import DraggableModal from "../components/DraggableModal";
 import apiClient from "../services/apiClient";
 import { notifyError, notifySuccess } from "../utils/appToast";
 import "./PingFederateAiAgentPage.css";
@@ -166,6 +167,7 @@ export default function PingFederateAiAgentPage({ user }) {
   const [cibaState, setCibaState] = useState(null);
   const [cibaBusy, setCibaBusy] = useState(false);
   const [cibaError, setCibaError] = useState("");
+  const [phoneClosed, setPhoneClosed] = useState(false);
   const queryStatus = useMemo(() => new URLSearchParams(window.location.search), []);
 
   useEffect(() => {
@@ -226,6 +228,7 @@ export default function PingFederateAiAgentPage({ user }) {
     setCibaBusy(true);
     setCibaError("");
     setCibaState(null);
+    setPhoneClosed(false);
     try {
       const response = await apiClient.post("/api/pf-ai-agent/ciba/start", {
         loginHint: cibaUser.trim(),
@@ -238,6 +241,15 @@ export default function PingFederateAiAgentPage({ user }) {
       setCibaBusy(false);
     }
   }
+
+  // The mock phone pops up while a request is pending: PF_AI_CIBA_MOCK_ENABLED answers in the BFF, the web
+  // approver answers the stand-in PingFederate authenticator. Either way it stands in for the user's device.
+  const phoneChannel = features.cibaWebApprover ? "web" : features.cibaMock ? "mock" : null;
+  const phoneOpen = cibaPending && Boolean(phoneChannel) && !phoneClosed;
+  const answerOnPhone = (decision) => (phoneChannel === "web" ? decideOnWebApprover(decision) : decideOnMockPhone(decision));
+  const phoneLabel = (decision) => (phoneChannel === "web"
+    ? `${decision === "approve" ? "Approve" : "Deny"} (web approver)`
+    : `${decision === "approve" ? "Approve" : "Deny"} on mock phone`);
 
   // Mock phone: stands in for the user's device when PF_AI_CIBA_MOCK_ENABLED is on.
   async function decideOnMockPhone(decision) {
@@ -490,17 +502,8 @@ export default function PingFederateAiAgentPage({ user }) {
               Waiting for {cibaState.loginHint} to approve on their device. Expires {new Date(cibaState.expiresAt).toLocaleTimeString()}.
             </p>
           )}
-          {cibaPending && features.cibaMock && (
-            <div className="pf-ai-agent__rar-actions" data-testid="ciba-mock-phone">
-              <button className="pf-ai-agent__action" type="button" onClick={() => decideOnMockPhone("approve")}>Approve on mock phone</button>
-              <button className="pf-ai-agent__action" type="button" onClick={() => decideOnMockPhone("deny")}>Deny on mock phone</button>
-            </div>
-          )}
-          {cibaPending && features.cibaWebApprover && (
-            <div className="pf-ai-agent__rar-actions" data-testid="ciba-web-approver">
-              <button className="pf-ai-agent__action" type="button" onClick={() => decideOnWebApprover("approve")}>Approve (web approver)</button>
-              <button className="pf-ai-agent__action" type="button" onClick={() => decideOnWebApprover("deny")}>Deny (web approver)</button>
-            </div>
+          {cibaPending && phoneChannel && phoneClosed && (
+            <button className="pf-ai-agent__secondary-action" type="button" onClick={() => setPhoneClosed(false)}>Open mock phone</button>
           )}
           {cibaOutcome(cibaState) && (
             <p
@@ -513,6 +516,27 @@ export default function PingFederateAiAgentPage({ user }) {
           )}
         </div>
       </section>
+
+      <DraggableModal
+        isOpen={phoneOpen}
+        onClose={() => setPhoneClosed(true)}
+        title="Mock phone"
+        defaultWidth={340}
+        defaultHeight={500}
+        storageKey="pf-ai-agent-mock-phone"
+      >
+        {/* dm-scroll: `dm-body` is bare by contract — no padding, no scroll. */}
+        <div className="dm-scroll pf-ai-agent__phone-wrap" data-testid={phoneChannel === "web" ? "ciba-web-approver" : "ciba-mock-phone"}>
+          <div className="pf-ai-agent__phone">
+            <p className="pf-ai-agent__phone-app">PingOne MFA (mock)</p>
+            <h3>Approve this request?</h3>
+            <p>An AI agent is asking {cibaState?.loginHint} to approve it.</p>
+            {cibaState?.bindingMessage && <p className="pf-ai-agent__phone-message">{cibaState.bindingMessage}</p>}
+            <button className="pf-ai-agent__action" type="button" onClick={() => answerOnPhone("approve")}>{phoneLabel("approve")}</button>
+            <button className="pf-ai-agent__secondary-action" type="button" onClick={() => answerOnPhone("deny")}>{phoneLabel("deny")}</button>
+          </div>
+        </div>
+      </DraggableModal>
 
       <footer className="pf-ai-agent__note">
         <strong>OAuth and JWT only.</strong> Browser responses contain status and safe provenance. Access tokens, ID-JAGs, codes, and PKCE verifiers remain in the BFF or PingFederate.
