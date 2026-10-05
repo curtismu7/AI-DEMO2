@@ -288,8 +288,17 @@ class MessageProcessor:
                 logger.info("[AG-UI] per-run LLM override: provider=%s model=%s applied=%s",
                             run_provider, run_model or "auto", run_llm_overridden)
             except Exception as _llm_err:
-                logger.warning("[AG-UI] per-run LLM init failed (%s), using default", _llm_err)
-                run_llm = self.agent.llm
+                logger.warning("[AG-UI] per-run LLM init failed (%s)", _llm_err)
+                # The user picked this provider for the run. Answering from the startup
+                # default instead (often provider=none, i.e. heuristics) looked exactly
+                # like the chosen model had answered, so say it could not start.
+                await emitter.on_llm_start()
+                await emitter.on_llm_new_token(
+                    f"The {run_provider} model could not start: {_llm_err} "
+                    "Pick another agent mode, or add the missing setting to langchain_agent/.env."
+                )
+                await emitter.on_llm_end()
+                return
 
         if bff_tool_url and tool_schemas:
             # ── BFF tool path ──────────────────────────────────────────────────
