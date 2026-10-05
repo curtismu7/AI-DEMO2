@@ -7,7 +7,7 @@ const json = (body, status = 200) => Promise.resolve({ ok: status < 400, status,
 
 const STATS = {
   enabled: true, window: '24h', project: 'ai-demo-langchain', project_url: 'https://www.comet.com/opik/ws/projects/p/traces',
-  traces: 2, p50_ms: 17712, p90_ms: 22206, tokens_in: 8388, tokens_out: 690, errors: 0, error_rate: 0, tool_calls: 1,
+  traces: 2, p50_ms: 17712, p90_ms: 22206, avg_tokens_in: 4240, avg_tokens_out: 236, errors: 0, error_rate: 0, tool_calls: 1,
 };
 const TRACES = { enabled: true, traces: [{ id: 't1', start_time: '2026-10-05T10:50:35Z', duration_ms: 23330, total_tokens: 4539, span_count: 3, tool_calls: true, error: false }] };
 const SPANS = { enabled: true, total_ms: 1000, spans: [
@@ -37,7 +37,7 @@ describe('OpikTracePanel', () => {
     route({ '/stats': () => json(STATS), '/spans': () => json(SPANS), '/traces?': () => json(TRACES) });
     render(<OpikTracePanel />);
     expect(await screen.findByText('loyalty_balance')).toBeTruthy();
-    expect(screen.getByText('8,388')).toBeTruthy();
+    expect(screen.getByText('4,240')).toBeTruthy();
     expect(screen.getByText('17.7 s')).toBeTruthy();
     expect(screen.getByText('Open in Opik').getAttribute('href')).toBe(STATS.project_url);
   });

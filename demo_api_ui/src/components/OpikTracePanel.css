@@ -262,7 +262,7 @@
 .opik-wf__axis,
 .opik-wf__row {
   display: grid;
-  grid-template-columns: 200px minmax(0, 1fr) 64px;
+  grid-template-columns: minmax(104px, 36%) minmax(48px, 1fr) 64px;
   align-items: center;
 }
 .opik-wf__axis {
@@ -273,6 +273,7 @@
 .opik-wf__axis div:nth-child(2) {
   display: flex;
   justify-content: space-between;
+  white-space: nowrap;
 }
 .opik-wf__row {
   min-height: 26px;
@@ -353,5 +354,18 @@
   .opik-wf__kind,
   .opik-legend {
     display: none;
+  }
+}
+
+/* Narrow screens: the agent column is height-capped, which leaves the trace
+   panel too short to reach the recent-traces list and waterfall. Let it grow
+   so the page scrolls instead. */
+@media (max-width: 1024px) {
+  .ud-agent-column:has(.ba-tab-trace) {
+    max-height: none;
+  }
+  .ud-agent-column .ud-dashboard-inline-agent.embedded-banking-agent:has(.ba-tab-trace) {
+    height: 640px;
+    max-height: none;
   }
 }

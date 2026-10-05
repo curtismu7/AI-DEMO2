@@ -147,8 +147,8 @@ export default function OpikTracePanel() {
           <div className="opik-tiles">
             <Tile label="Traces" value={fmtNum(stats.traces)} sub={`last ${stats.window}`} />
             <Tile label="Latency p50" value={fmtMs(stats.p50_ms)} sub={`p90 ${fmtMs(stats.p90_ms)}`} />
-            <Tile label="Tokens in" value={fmtNum(stats.tokens_in)} />
-            <Tile label="Tokens out" value={fmtNum(stats.tokens_out)} />
+            <Tile label="Tokens in / trace" value={fmtNum(stats.avg_tokens_in)} />
+            <Tile label="Tokens out / trace" value={fmtNum(stats.avg_tokens_out)} />
             <Tile
               label="Error rate"
               value={`${(stats.error_rate * 100).toFixed(1)}%`}

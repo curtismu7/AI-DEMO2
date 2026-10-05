@@ -108,9 +108,10 @@ async def opik_stats(window: str = Query("24h")):
         "traces": n,
         "p50_ms": dur.get("p50"),
         "p90_ms": dur.get("p90"),
-        # Opik reports per-trace averages; totals are average x trace count.
-        "tokens_in": round(float(_stat(st, "usage.prompt_tokens")) * n),
-        "tokens_out": round(float(_stat(st, "usage.completion_tokens")) * n),
+        # Opik averages usage over only the traces that report it, so a total
+        # (avg x trace_count) would overcount; expose the average itself.
+        "avg_tokens_in": round(float(_stat(st, "usage.prompt_tokens"))),
+        "avg_tokens_out": round(float(_stat(st, "usage.completion_tokens"))),
         "errors": errors,
         "error_rate": (errors / n) if n else 0,
         "tool_calls": int(_stat(tools.get("stats", []), "span_count")),
