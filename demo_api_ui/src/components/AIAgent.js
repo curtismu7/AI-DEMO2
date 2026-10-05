@@ -10486,7 +10486,7 @@ export default function BankingAgent({
                     <div className="ba-header-more" ref={headerMoreRef}>
                       <button
                         type="button"
-                        className={`ba-actions-trigger${headerMoreOpen ? " active" : ""}`}
+                        className={`ba-cta-config${headerMoreOpen ? " active" : ""}`}
                         aria-haspopup="true"
                         aria-expanded={headerMoreOpen}
                         aria-label="Quick Config"
@@ -10501,7 +10501,7 @@ export default function BankingAgent({
                           setHeaderMoreOpen((v) => !v);
                         }}
                       >
-                        <span>Quick Config</span><span className="ba-surface-badge" aria-hidden="true">02</span>
+                        <span aria-hidden="true">⚙</span><span>Quick Config</span><span className="ba-surface-badge" aria-hidden="true">02</span>
                       </button>
                       {headerMoreOpen && (
                         <FloatingPanel
@@ -11097,7 +11097,7 @@ export default function BankingAgent({
                 <div className="ba-header-more" ref={headerMoreRef}>
                   <button
                     type="button"
-                    className={`ba-actions-trigger${headerMoreOpen ? " active" : ""}`}
+                    className={`ba-cta-config${headerMoreOpen ? " active" : ""}`}
                     aria-haspopup="true"
                     aria-expanded={headerMoreOpen}
                     aria-label="Quick Config"
@@ -11112,7 +11112,7 @@ export default function BankingAgent({
                       setHeaderMoreOpen((v) => !v);
                     }}
                   >
-                    <span>Quick Config</span><span className="ba-surface-badge" aria-hidden="true">02</span>
+                    <span aria-hidden="true">⚙</span><span>Quick Config</span><span className="ba-surface-badge" aria-hidden="true">02</span>
                   </button>
                   {headerMoreOpen && (
                     <FloatingPanel

@@ -78,6 +78,14 @@
   justify-content: flex-start;
   gap: 6px;
 }
+/* Quick Config is the main control in Tools: first, and the full width of the row. */
+.cmd-dock-sec__body > .ba-header-more {
+  order: -1;
+  flex: 1 1 100%;
+}
+.cmd-dock-sec__body > .ba-header-more > .ba-cta-config {
+  width: 100%;
+}
 
 .cmd-dock-body {
   display: flex;
