@@ -280,7 +280,10 @@ export function usePrivilegeShellSession({ onBeforeConnect } = {}) {
     setPhase("signed-out");
     if (outcome === "manual") return;
     try {
-      await startSignIn({ silentOnly: outcome === "silent", returnTo: location.pathname });
+      const started = await startSignIn({ silentOnly: outcome === "silent", returnTo: location.pathname });
+      if (started === false) {
+        setNotice("The gateway cannot silently authorize this door from the current session. Sign in to connect it.");
+      }
     } catch (err) {
       setNotice(
         outcome === "silent"

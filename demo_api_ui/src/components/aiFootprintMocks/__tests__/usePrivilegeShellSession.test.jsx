@@ -141,6 +141,7 @@ describe("usePrivilegeShellSession routing", () => {
     apiClient.post.mockResolvedValue({ data: { oauth: { destinationAuthenticated: false } } });
     await act(() => result.current.pickDoor(PRIV_B));
     expect(result.current.phase).toBe("signed-out");
+    expect(result.current.notice).toMatch(/^Silent sign-in could not start/);
     expect(result.current.tools).toEqual([]);
     expect(apiClient.post).not.toHaveBeenCalledWith("/api/privilege-mcp/tools/list");
   });
@@ -460,6 +461,17 @@ describe("switch outcomes", () => {
     expect(startCalls()).toHaveLength(1);
     expect(assign).not.toHaveBeenCalled();
     expect(result.current.phase).toBe("signed-out");
+  });
+
+  it("a non-prompt=none authUrl tells the user why nothing happened", async () => {
+    const { result } = await mount({ clientAuth: true });
+    answer(false, { authUrl: "https://auth.example/authorize?client_id=x" });
+    await act(() => result.current.pickDoor(PRIV_B));
+    expect(assign).not.toHaveBeenCalled();
+    expect(result.current.phase).toBe("signed-out");
+    expect(result.current.notice).toBe(
+      "The gateway cannot silently authorize this door from the current session. Sign in to connect it.",
+    );
   });
 
   it("main-app sign-in alone is enough to attempt the silent handshake", async () => {
