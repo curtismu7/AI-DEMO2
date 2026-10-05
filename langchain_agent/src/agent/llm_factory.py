@@ -145,6 +145,7 @@ def get_llm(
             temperature=temperature,
             max_tokens=max_tokens,
             streaming=streaming,
+            stream_usage=True,  # include token counts on streamed calls (Opik + token footer)
         )
 
     if resolved == "llamacpp":
@@ -171,6 +172,7 @@ def get_llm(
             # reason; mirror it.
             request_timeout=float(os.getenv("LANGCHAIN_LLM_TIMEOUT", "240")),
             streaming=streaming,
+            stream_usage=True,  # include token counts on streamed calls (Opik + token footer)
         )
 
     if resolved == "groq":
@@ -193,6 +195,7 @@ def get_llm(
             temperature=temperature,
             max_tokens=max_tokens,
             streaming=streaming,
+            stream_usage=True,  # include token counts on streamed calls (Opik + token footer)
         )
 
     if resolved == "google":
@@ -215,6 +218,7 @@ def get_llm(
             temperature=temperature,
             max_tokens=max_tokens,
             streaming=streaming,
+            stream_usage=True,  # include token counts on streamed calls (Opik + token footer)
         )
 
     if resolved != "helix":
