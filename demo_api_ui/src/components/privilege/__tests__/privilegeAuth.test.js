@@ -6,6 +6,17 @@ describe("requestAuthStart", () => {
     await expect(requestAuthStart(request)).resolves.toEqual({ kind: "redirect", authUrl: "https://auth.example/a?x=1" });
     expect(request).toHaveBeenCalledWith("/auth/start", { method: "POST" });
   });
+  it("carries a request body (returnTo for the skins) when one is given", async () => {
+    const request = vi.fn().mockResolvedValue({ authUrl: "https://auth.example/a" });
+    await requestAuthStart(request, { returnTo: "/demo/vscode-copilot" });
+    expect(request).toHaveBeenCalledWith("/auth/start", { method: "POST", body: { returnTo: "/demo/vscode-copilot" } });
+  });
+  it("sends no body key at all when none is given", async () => {
+    const request = vi.fn().mockResolvedValue({ authUrl: "https://auth.example/a" });
+    await requestAuthStart(request);
+    expect(request).toHaveBeenCalledWith("/auth/start", { method: "POST" });
+    expect(request.mock.calls[0][1]).not.toHaveProperty("body");
+  });
   it("reports a door that needs no sign-in, before checking for an authUrl", async () => {
     const request = vi.fn().mockResolvedValue({ noAuthRequired: true });
     await expect(requestAuthStart(request)).resolves.toEqual({ kind: "no-auth-required" });
