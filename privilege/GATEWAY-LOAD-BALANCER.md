@@ -256,11 +256,13 @@ every release. The startup burst was not measured; raise the request if a gatewa
 when it starts. (An earlier version of this section said to trim the sidecars' requests; that
 was wrong, they have none.)
 
-**To take it out again:** set `parked: true` for `gateway-3` in `gateway1-lb.values.yaml`,
-`scripts/se-gateways.sh upgrade --apply`, then `kubectl scale deploy/agentless-mcpgw3
---replicas=0`. While the Deployment is at 0, `se-gateways.sh` skips gateway 3, because a Helm
-upgrade would scale it back to 1; bring it back with `--replicas=1`, wait for 9/9 and the Redis
-line, set `parked: false` and upgrade.
+**To take it out again:** set `parked: true` for `gateway-3` in `gateway1-lb.values.yaml` and
+`replicaCount: 0` in `gateway3.values.yaml`, then `scripts/se-gateways.sh upgrade --apply`. The
+chart's `replicaCount` value (added 2026-10-05; the template used to hardcode 1 and every upgrade
+reset a scaled-down gateway) keeps it at 0 across upgrades. To bring it back, set `replicaCount: 1`
+and `parked: false` and upgrade, then wait for 9/9 and the Redis line. `se-gateways.sh` still
+skips gateway 3 if its live Deployment was scaled to 0 by hand, so a manual
+`kubectl scale ... --replicas=0` is also safe.
 
 **Proof test (not yet run).** Park gateways 1 and 2 so the only live upstream is gateway 3,
 call `opensearch22` and `brave0local`, and check `node=gateway-3` in `kubectl logs
