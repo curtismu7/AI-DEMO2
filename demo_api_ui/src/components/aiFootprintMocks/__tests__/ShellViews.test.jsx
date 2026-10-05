@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { ShellTerminalView } from "../ShellTerminalView";
+import { ShellVsCodeView } from "../ShellVsCodeView";
 
 export const makeSession = (over = {}) => ({
   phase: "ready", scopes: [], tools: [], latestCall: null, busy: false, notice: "",
@@ -45,5 +46,38 @@ describe("ShellTerminalView", () => {
   it("disables the prompt while a reply is pending", () => {
     render(<ShellTerminalView session={makeSession({ thinking: true })} />);
     expect(screen.getByRole("textbox", { name: "Prompt" })).toBeDisabled();
+  });
+});
+
+describe("ShellVsCodeView", () => {
+  it("sends from the chat box", () => {
+    const session = makeSession();
+    render(<ShellVsCodeView session={session} />);
+    const box = screen.getByRole("textbox", { name: "Prompt" });
+    fireEvent.change(box, { target: { value: "list safes" } });
+    fireEvent.submit(box.closest("form"));
+    expect(session.send).toHaveBeenCalledWith("list safes");
+  });
+
+  it("puts the reply in chat and steps + execution in the tool-output drawer", () => {
+    const session = makeSession({
+      messages: [
+        { id: 1, role: "user", content: "list safes", steps: [], decision: null, execution: null },
+        { id: 2, role: "assistant", content: "Found 2 tools", steps: ["tools_discovered:2"], decision: null, execution: { ok: true } },
+      ],
+    });
+    render(<ShellVsCodeView session={session} />);
+    expect(screen.getByRole("log", { name: "Chat" })).toHaveTextContent("Found 2 tools");
+    const drawer = screen.getByRole("region", { name: "Tool output" });
+    expect(drawer).toHaveTextContent("tools_discovered:2");
+    expect(drawer).toHaveTextContent('"ok": true');
+  });
+
+  it("shows the latest tool run from the Tools table in the drawer", () => {
+    const session = makeSession({
+      latestCall: { name: "list_safes", request: "{}", response: '{"safes":[]}', ok: true },
+    });
+    render(<ShellVsCodeView session={session} />);
+    expect(screen.getByRole("region", { name: "Tool output" })).toHaveTextContent("list_safes");
   });
 });
