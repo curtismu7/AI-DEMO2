@@ -169,7 +169,7 @@ export default function StepDetailPanel({ step, onInspect, fontSize = "large" })
     <div className="sdp" data-font-size={fontSize}>
       <div className="sdp-head">
         <h3 className="sdp-title">{step.title}</h3>
-        <span className="sdp-lane">{laneLabel(step.lane)}</span>
+        <span className={`sdp-lane${step.lane === "GATEWAY" ? " sdp-lane--gateway" : ""}`}>{laneLabel(step.lane)}</span>
         <span className={`sdp-status sdp-status--${step.status || "pending"}`}>
           {STATUS_TEXT[step.status] || String(step.status || "")}
         </span>

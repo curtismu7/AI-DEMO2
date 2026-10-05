@@ -312,6 +312,13 @@
 :root[data-theme="dark"] .tcnr-node { background: var(--th-bg-card); border-color: var(--th-border); border-top-color: #26304a; }
 :root[data-theme="dark"] .tcnr-node-n { background: var(--th-bg-page); border-color: var(--th-border); color: #cdd7ec; }
 :root[data-theme="dark"] .tcnr-node-lane { color: #90a0c2; }
+/* A gateway step is the point of the reel: its lane name is red and bold in
+   both themes. Listed for dark too, or the rule above outranks it there. */
+.tcnr-node-lane--gateway,
+:root[data-theme="dark"] .tcnr-node-lane--gateway {
+  color: var(--th-status-error-text);
+  font-weight: 700;
+}
 :root[data-theme="dark"] .tcnr-node-title { color: #eaf0fb; }
 :root[data-theme="dark"] .tcnr-node-fact { color: #90a0c2; }
 :root[data-theme="dark"] .tcnr-node--done { border-top-color: #5fe39c; }
