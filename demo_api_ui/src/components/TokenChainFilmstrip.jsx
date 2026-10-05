@@ -169,6 +169,17 @@ export default function TokenChainFilmstrip() {
     }
   }, [steps.length]);
 
+  // A chain run has no token to inspect, so its steps are the whole story:
+  // open the first one when the run settles, once, so the detail is on screen
+  // without a click. Waiting for the outcome matters because a refused first
+  // call replaces its announced step.
+  const chainOpenedFor = useRef(null);
+  useEffect(() => {
+    if (!isChainRun || !trace.outcome || chainOpenedFor.current === trace.startedAt) return;
+    chainOpenedFor.current = trace.startedAt;
+    setActiveStepId((current) => current || steps[0]?.id || null);
+  }, [isChainRun, trace.outcome, trace.startedAt, steps]);
+
   const hasTraceActivity = Boolean(
     trace.startedAt || trace.prompt || trace.tokenEvents?.length || trace.phases?.length ||
     trace.mcpResult || trace.authorize || trace.llmDetail || trace.llmReply || trace.outcome ||

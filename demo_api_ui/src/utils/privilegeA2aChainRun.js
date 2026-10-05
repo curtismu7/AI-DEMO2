@@ -28,6 +28,9 @@ export function chainHopToTokenEvent(payload, index) {
     label: str(payload.text) || `${from} → ${to}`,
     detail: str(payload.detail),
     elapsedMs: typeof payload.elapsedMs === 'number' ? payload.elapsedMs : undefined,
+    // What crossed the wire, as the main agent reports it (key already masked).
+    request: str(payload.request) || undefined,
+    response: str(payload.response) || undefined,
     useCaseId: PRIVILEGE_A2A_CHAIN_USE_CASE_ID,
   };
 }
