@@ -57,7 +57,7 @@ def get_llm(
     groq_base_url: str = "https://api.groq.com/openai/v1",
     groq_model: str = "openai/gpt-oss-20b",
     google_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai/",
-    google_model: str = "gemini-2.0-flash",
+    google_model: str = "gemini-2.5-flash",
     # Helix-specific kwargs (passed through from LangChainConfig)
     helix_base_url: str = "",
     helix_api_key: str = "",
