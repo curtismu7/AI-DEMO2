@@ -7,6 +7,13 @@ import "./PrivilegeShellViews.css";
 const MCP_PATHS = [["direct", "Direct"], ["privilege", "Privilege"], ["facade", "Façade"]];
 const LLM_PATHS = [["llm:anthropic", "Anthropic"], ["llm:google", "Google"], ["llm:openai", "OpenAI"]];
 
+// data-pvs-theme value for a view root: only a forced light/dark sets the attribute.
+export function themeAttr(session) {
+  return session.pvsTheme === "light" || session.pvsTheme === "dark" ? session.pvsTheme : undefined;
+}
+
+const THEME_LABEL = { auto: "Theme: Auto", light: "Theme: Light", dark: "Theme: Dark" };
+
 // routingBar=false: the view shows its route controls elsewhere (VS Code side panel).
 export function ShellGate({ session, children, routingBar = true }) {
   const { phase, notice, connect, busy } = session;
@@ -21,14 +28,19 @@ export function ShellGate({ session, children, routingBar = true }) {
           <button type="button" onClick={connect} disabled={busy}>Sign in with Privilege</button>
         </div>
       ) : null}
-      {phase === "ready" ? (
-        <>
-          {children}
-          <div className="pvs-gate-foot">
-            <button type="button" onClick={session.signOut} disabled={session.busy}>Sign out</button>
-          </div>
-        </>
-      ) : null}
+      {phase === "ready" ? children : null}
+      <div className="pvs-gate-foot">
+        <button
+          type="button"
+          title="Force light/dark — overrides this skin's theme"
+          onClick={session.cyclePvsTheme}
+        >
+          {THEME_LABEL[session.pvsTheme] || THEME_LABEL.auto}
+        </button>
+        {phase === "ready" ? (
+          <button type="button" onClick={session.signOut} disabled={session.busy}>Sign out</button>
+        ) : null}
+      </div>
     </>
   );
 }

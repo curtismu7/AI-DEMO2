@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { FootprintChrome } from "../components/aiFootprintMocks/ChromeFrames";
-import { MOCK_CATALOG, readMockSelection } from "../components/aiFootprintMocks/mockSelection";
+import { MOCK_CATALOG, readMockSelection, writeMockSelection } from "../components/aiFootprintMocks/mockSelection";
 import { FootprintThemeToggle } from "../components/aiFootprintMocks/FootprintThemeToggle";
 import { FootprintSkinPicker } from "../components/aiFootprintMocks/FootprintSkinPicker";
 import { PrivilegeShellPanel } from "../components/aiFootprintMocks/PrivilegeShellPanel";
@@ -28,7 +28,6 @@ export default function FootprintLiveShellPage({ category: categoryProp } = {}) 
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [theme, toggleTheme] = useFootprintTheme();
-  const session = usePrivilegeShellSession();
   const category = categoryProp || PATH_TO_CATEGORY[shellSlug] || "vscode";
 
   // Variant comes from the ?v= query first so switching variants within a
@@ -44,6 +43,12 @@ export default function FootprintLiveShellPage({ category: categoryProp } = {}) 
     const known = MOCK_CATALOG[category]?.variants?.some((v) => v.id === id);
     return known ? id : MOCK_CATALOG[category]?.variants?.[0]?.id;
   }, [category, searchParams]);
+
+  // The OAuth callback cannot carry ?v= (the BFF rejects a query on returnTo), so write
+  // what is on screen into the saved pick; the page falls back to it on return.
+  const session = usePrivilegeShellSession({
+    onBeforeConnect: () => writeMockSelection(category, variant),
+  });
 
   return (
     <div className="afm-live-shell" data-testid={`footprint-live-${category}`} data-theme={theme}>

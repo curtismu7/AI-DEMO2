@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { ShellGate, ShellLatestCall, ShellPrompt, ShellRoutingBar, ShellSteps, ShellToolsList } from "./ShellParts";
+import { ShellGate, ShellLatestCall, ShellPrompt, ShellRoutingBar, ShellSteps, ShellToolsList, themeAttr } from "./ShellParts";
 import "./PrivilegeShellViews.css";
 
 export function ShellDesktopView({ session }) {
@@ -10,7 +10,7 @@ export function ShellDesktopView({ session }) {
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages.length, thinking]);
   return (
-    <div className="pvs pvs--claude-desktop pvs-desk" data-testid="pvs-desktop">
+    <div className="pvs pvs--claude-desktop pvs-desk" data-testid="pvs-desktop" data-pvs-theme={themeAttr(session)}>
       <ShellGate session={session}>
         <ShellRoutingBar session={session} />
         <div ref={logRef} className="pvs-desk__thread" role="log" aria-label="Conversation">

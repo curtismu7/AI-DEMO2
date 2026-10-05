@@ -7,8 +7,9 @@
   border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
   border-radius: 4px; padding: 6px 8px;
 }
-.pvs-prompt input:focus-visible, .pvs-prompt button:focus-visible, .pvs-gate-foot button:focus-visible { outline: 2px solid var(--th-status-info); outline-offset: 1px; }
-.pvs-gate-foot { display: flex; justify-content: flex-end; }
+.pvs-prompt input:focus-visible, .pvs-prompt button:focus-visible, .pvs-gate-foot button:focus-visible,
+.pvs-routing select:focus-visible, .pvs-empty button:focus-visible { outline: 2px solid var(--th-status-info); outline-offset: 1px; }
+.pvs-gate-foot { display: flex; justify-content: flex-end; gap: 6px; }
 .pvs-prompt button, .pvs-gate-foot button {
   font: inherit; color: inherit; background: color-mix(in srgb, currentColor 10%, transparent);
   border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
@@ -58,3 +59,8 @@
 .pvs-tree__txt { padding: 3px 12px 3px 22px; font-family: var(--font-mono); }
 .pvs-tree .f:disabled { opacity: 0.5; cursor: default; }
 .pvs-tree .f:focus-visible { outline: 2px solid var(--th-status-info); outline-offset: -2px; }
+
+/* The select is transparent and inherits the costume's text colour, but the OS draws
+   the open list: on Windows/Linux that is a light popup, so a light costume's text
+   became unreadable. System colours keep the option text and its background paired. */
+.pvs-routing option, .pvs-routing optgroup { background: Canvas; color: CanvasText; }
