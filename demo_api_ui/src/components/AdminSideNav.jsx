@@ -237,7 +237,7 @@ const PRODUCT_CARD_GROUPS = new Set(["AI Gateway", "DaVinci", "Ping products"]);
 
 const navGroupClassName = (label) => {
   if (PRODUCT_CARD_GROUPS.has(label)) return "admin-side-nav__group--product-card";
-  if (label === "Utilities") return "admin-side-nav__group--utility";
+  if (label === "Utilities" || label === "Diagrams") return "admin-side-nav__group--utility";
   return "admin-side-nav__group--separate";
 };
 
@@ -1454,7 +1454,7 @@ export default function AdminSideNav({
       "MCP Observability",
       "Grafana",
     ], "log"),
-    productGroup("Architecture & Learning", [
+    productGroup("Diagrams", [
       "Server Topology (Interactive)",
       "PingFederate ID-JAG (Node)",
       "System Diagram (Node)",
@@ -1470,6 +1470,8 @@ export default function AdminSideNav({
       { from: "Privilege-First Gateway (Node)", rename: "AI Gateway Enforcement (Node)" },
       "Gateway vs P1AZ Enforcement (MM)",
       "Resource Server Placement (MM)",
+    ], "arc"),
+    productGroup("Architecture & Learning", [
       "Learning Hub",
       { label: "Page Catalog", path: "/page-catalog" },
       "SPIFFE → PingOne Bridge (TODO)",

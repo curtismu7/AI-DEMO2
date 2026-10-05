@@ -356,6 +356,34 @@ policy and `oauth/outOfBandAuthPlugins` for the authenticator. The spec is at
 and gets `auth_req_id`, `interval` and `expires_in`, then polls the token endpoint with the CIBA
 grant until the user approves, denies, or the request expires.
 
-The approval needs a real answer from a PingOne MFA device for the PingOne user behind the login
-hint, so that user must have an enrolled device (the sign-in adapter's default method is SMS).
-Without one, a request is accepted but stays pending until it expires.
+Things learned live (2026-10-05):
+
+- **PingOne sign-on policy.** The app's own policies start with a password step, which this
+  authenticator cannot answer (PingOne replies `PASSWORD_REQUIRED`, PingFederate returns a 500).
+  Create a PingOne sign-on policy with only a Multi-Factor Authentication step (here `mfa_only`),
+  **assign it to the application** (Policies tab), and name it in the authenticator's
+  "PingOne Authentication Policy" field (`P1_POLICY` in `provision-ciba.js`). The name works; the id
+  does not. Unassigned, PingOne answers "Invalid sign-on policy provided in acr_values".
+- **Binding message:** 1 to 20 characters from `a-zA-Z0-9-._+/!?#`, no spaces
+  (`invalid_binding_message` otherwise).
+- **The approval needs a mobile app built on the PingOne Mobile SDK**, not the PingID app, with the
+  PingOne user paired to it. A user with no device gets `500 User has no usable devices`.
+
+### CIBA web approver (local demo only, off by default)
+
+When no SDK-built app is available, `--web-approver` runs PingFederate's real CIBA flow with a
+stand-in authenticator. The plugin `plugins/ai-agent-ciba-approver` registers each request with the
+BFF and polls it; a person approves or denies on the AI agent page. It proves PingFederate's flow,
+not PingOne MFA.
+
+1. Build the plugin: `PF_HOME=<a PF install or copy of its lib dir> plugins/ai-agent-ciba-approver/build.sh`
+   (JDK 17+), and run `plugins/ai-agent-ciba-approver/test.sh`.
+2. Copy `build/pf-ai-agent-ciba-approver.jar` into PingFederate's deploy dir
+   (`/opt/out/instance/server/default/deploy`) and restart the container. Keep only one JAR of it
+   there; a `.bak` copy loads as a duplicate plugin.
+3. `node scripts/pingfederate/provision-ciba.js --web-approver --apply` creates the vault secret
+   `PF_AI_CIBA_APPROVER_SECRET`, the authenticator `aiDemoPfCibaWebApprover`, the request policy
+   `aiDemoPfCibaWebPolicy` and the client `ai-demo-pf-ciba-web` (same client secret as above).
+4. Set `PF_AI_CIBA_WEB_APPROVER_ENABLED=true` for the BFF and restart it. The page then shows
+   "Approve (web approver)" and "Deny (web approver)" while a request is pending. It overrides the
+   mock phone, and it is inert when `NODE_ENV=production`.

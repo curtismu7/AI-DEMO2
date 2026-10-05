@@ -133,7 +133,7 @@ function ProviderComparison() {
 const CIBA_ERRORS = {
   PF_AI_CIBA_USER_UNKNOWN: "PingFederate does not know that user.",
   PF_AI_FLOW_ALREADY_PENDING: "An approval request is already pending.",
-  PF_AI_CIBA_BINDING_MESSAGE_INVALID: "The message may only use letters, digits and simple punctuation, up to 64 characters.",
+  PF_AI_CIBA_BINDING_MESSAGE_INVALID: "The message may only use letters, digits and . _ + / ! ? # -, up to 20 characters, with no spaces.",
   PF_AI_CIBA_USER_REQUIRED: "Enter the user to ask.",
   PF_AI_CIBA_UNREACHABLE: "PingFederate could not be reached.",
 };
@@ -216,7 +216,7 @@ export default function PingFederateAiAgentPage({ user }) {
 
   const provider = status?.sessionProvider || "none";
   const supportedSession = provider === "pingone" || provider === "pingfederate";
-  const features = status?.features || { cimd: false, crossDomain: false, rar: false, rarDpop: false, ciba: false, cibaMock: false };
+  const features = status?.features || { cimd: false, crossDomain: false, rar: false, rarDpop: false, ciba: false, cibaMock: false, cibaWebApprover: false };
   const rarResult = status?.rarResult || null;
   const rarUserKeyValue = rarUserKey.trim();
   const callbackResult = queryStatus.get("cimd") || queryStatus.get("rar");
@@ -246,6 +246,15 @@ export default function PingFederateAiAgentPage({ user }) {
       setCibaState(response.data);
     } catch {
       setCibaError("The mock phone could not answer.");
+    }
+  }
+
+  // Web approver: the PingFederate stand-in authenticator is waiting for a person; the next poll sees the answer.
+  async function decideOnWebApprover(decision) {
+    try {
+      await apiClient.post("/api/pf-ai-agent/ciba/web-approver/decision", { decision });
+    } catch {
+      setCibaError("PingFederate has not asked for approval yet. Try again in a moment.");
     }
   }
 
@@ -460,7 +469,7 @@ export default function PingFederateAiAgentPage({ user }) {
               value={cibaMessage}
               onChange={(event) => setCibaMessage(event.target.value)}
               autoComplete="off"
-              maxLength={64}
+              maxLength={20}
             />
           </label>
           <div className="pf-ai-agent__rar-actions">
@@ -485,6 +494,12 @@ export default function PingFederateAiAgentPage({ user }) {
             <div className="pf-ai-agent__rar-actions" data-testid="ciba-mock-phone">
               <button className="pf-ai-agent__action" type="button" onClick={() => decideOnMockPhone("approve")}>Approve on mock phone</button>
               <button className="pf-ai-agent__action" type="button" onClick={() => decideOnMockPhone("deny")}>Deny on mock phone</button>
+            </div>
+          )}
+          {cibaPending && features.cibaWebApprover && (
+            <div className="pf-ai-agent__rar-actions" data-testid="ciba-web-approver">
+              <button className="pf-ai-agent__action" type="button" onClick={() => decideOnWebApprover("approve")}>Approve (web approver)</button>
+              <button className="pf-ai-agent__action" type="button" onClick={() => decideOnWebApprover("deny")}>Deny (web approver)</button>
             </div>
           )}
           {cibaOutcome(cibaState) && (

@@ -32,6 +32,29 @@
         document.documentElement.setAttribute('data-theme', 'dark');
       }
     } catch (e) { /* storage disabled: boot light, ThemeContext decides after mount */ }
+    // /privilege-mcp-client keeps its own light/dark (cur_priv_theme, default dark),
+    // so its boot skeleton must match the page, not the app theme: a light skeleton
+    // here read as a big white screen before the dark page painted.
+    try {
+      if (location.pathname.indexOf('/privilege-mcp-client') === 0
+          && localStorage.getItem('cur_priv_theme') !== 'light') {
+        document.documentElement.setAttribute('data-boot-dark', '');
+      }
+    } catch (e) { /* storage disabled: boot light */ }
+    // The /demo/* costume shells keep their own light/dark (ai-footprint-theme-v1,
+    // else the system setting — same rule as useFootprintTheme), which none of the
+    // above reads, so a full reload there (the return from a sign-in redirect)
+    // booted a light screen and then went dark. data-footprint-dark also darkens
+    // the body for the gap between the boot screen and the shell mounting.
+    try {
+      if (location.pathname.indexOf('/demo/') === 0) {
+        var fp = localStorage.getItem('ai-footprint-theme-v1');
+        if (fp === 'dark' || (fp !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.documentElement.setAttribute('data-boot-dark', '');
+          document.documentElement.setAttribute('data-footprint-dark', '');
+        }
+      }
+    } catch (e) { /* storage disabled: boot light */ }
   </script>
   <style>
     * {
@@ -55,6 +78,11 @@
     }
 
     :root[data-theme="dark"] body {
+      background-color: #0b1220;
+    }
+
+    /* /demo/* shells: dark body from first paint (see the boot script above). */
+    :root[data-footprint-dark] body {
       background-color: #0b1220;
     }
 
@@ -145,6 +173,32 @@
     }
 
     :root[data-theme="dark"] #boot-spinner::after {
+      border-color: #26304a;
+      border-top-color: #93c5fd;
+    }
+
+    /* /privilege-mcp-client boot: same dark skeleton, keyed to the page's own theme */
+    :root[data-boot-dark] #boot-spinner,
+    :root[data-boot-dark] .boot-skeleton {
+      background-color: #0b1220;
+    }
+
+    :root[data-boot-dark] .boot-bar {
+      background-color: #102847;
+      border-bottom-color: #26304a;
+    }
+
+    :root[data-boot-dark] .boot-nav {
+      background-color: #131c2e;
+      border-right-color: #26304a;
+    }
+
+    :root[data-boot-dark] .boot-card {
+      background-color: #131c2e;
+      border-color: #26304a;
+    }
+
+    :root[data-boot-dark] #boot-spinner::after {
       border-color: #26304a;
       border-top-color: #93c5fd;
     }

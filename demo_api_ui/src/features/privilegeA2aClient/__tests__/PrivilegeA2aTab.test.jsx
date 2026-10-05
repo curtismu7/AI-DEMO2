@@ -2,6 +2,10 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import PrivilegeA2aTab from '../PrivilegeA2aTab';
+import apiClient from '../../../services/apiClient';
+
+vi.mock('../../../services/apiClient', () => ({ default: { get: vi.fn() } }));
+vi.mock('../../../vertical/useVertical', () => ({ useVertical: () => ({ activeId: 'healthcare' }) }));
 
 // The gateway record is read after a run through a separate door; keep it off
 // the fetch mock these tests script, and let one test set what it returns.
@@ -25,6 +29,7 @@ function streamResponse(events, leadingFrame = '') {
 
 beforeEach(() => {
   global.fetch = vi.fn();
+  apiClient.get.mockReset().mockResolvedValue({ data: { profile: null } });
   loadGatewayRecord.mockReset().mockResolvedValue({ state: 'ready', guardrail: [], modelCalls: [] });
 });
 
@@ -33,6 +38,18 @@ afterEach(() => {
 });
 
 describe('PrivilegeA2aTab', () => {
+  test('offers the vertical questions when a profile exists', async () => {
+    apiClient.get.mockResolvedValue({ data: { profile: { vertical: 'healthcare', agentName: 'CareConnect agent', specialistName: 'Records Specialist', questions: ['Which patients have open referrals?', 'Q two', 'Q three'] } } });
+    render(<PrivilegeA2aTab />);
+    expect(await screen.findByRole('option', { name: 'Which patients have open referrals?' })).toBeTruthy();
+    expect(screen.queryByRole('option', { name: 'Review access on prod-db-primary.' })).toBeNull();
+  });
+
+  test('falls back to the generic questions with no profile', async () => {
+    render(<PrivilegeA2aTab />);
+    expect(await screen.findByRole('option', { name: 'Review access on prod-db-primary.' })).toBeTruthy();
+  });
+
   test('submits through the same-origin BFF and carries the returned session ID forward', async () => {
     global.fetch
       .mockResolvedValueOnce(streamResponse([

@@ -61,16 +61,16 @@ describe('starting a CIBA approval', () => {
     const request_ = req();
     const fetchImpl = jest.fn().mockResolvedValueOnce(discovery()).mockResolvedValueOnce(accepted());
 
-    const view = await startCiba(request_, { loginHint: 'demouser', bindingMessage: 'Transfer 125 USD', store: makeStore(), fetchImpl, now });
+    const view = await startCiba(request_, { loginHint: 'demouser', bindingMessage: 'Transfer-125-USD', store: makeStore(), fetchImpl, now });
 
     const [url, init] = fetchImpl.mock.calls[1];
     expect(url).toBe(BACKCHANNEL);
     expect(init.method).toBe('POST');
     expect(init.headers.Authorization).toBe(basic);
-    expect(Object.fromEntries(init.body)).toEqual({ scope: 'openid', login_hint: 'demouser', binding_message: 'Transfer 125 USD' });
+    expect(Object.fromEntries(init.body)).toEqual({ scope: 'openid', login_hint: 'demouser', binding_message: 'Transfer-125-USD' });
     expect(view).toEqual({
       state: 'pending', expiresAt: new Date(clock + 120_000).toISOString(), interval: 3,
-      loginHint: 'demouser', bindingMessage: 'Transfer 125 USD',
+      loginHint: 'demouser', bindingMessage: 'Transfer-125-USD',
     });
     expect(JSON.stringify(view)).not.toContain('auth-req-secret-id');
     expect(request_.session.pfAiAgent.cibaPending.authReqId).toBe('auth-req-secret-id');
@@ -84,7 +84,7 @@ describe('starting a CIBA approval', () => {
 
   test.each([
     ['a message with markup', { bindingMessage: '<script>x</script>' }, 'PF_AI_CIBA_BINDING_MESSAGE_INVALID'],
-    ['a message that is too long', { bindingMessage: 'a'.repeat(65) }, 'PF_AI_CIBA_BINDING_MESSAGE_INVALID'],
+    ['a message that is too long', { bindingMessage: 'a'.repeat(21) }, 'PF_AI_CIBA_BINDING_MESSAGE_INVALID'],
     ['a user name with a control character', { loginHint: 'demo\nuser' }, 'PF_AI_CIBA_USER_REQUIRED'],
     ['a user name that is too long', { loginHint: 'u'.repeat(257) }, 'PF_AI_CIBA_USER_REQUIRED'],
   ])('refuses %s before calling PingFederate', async (_label, input, code) => {
@@ -271,7 +271,7 @@ describe('CIBA routes', () => {
   test('start answers with the pending view and no-store, never the auth_req_id', async () => {
     const fetchImpl = jest.fn().mockResolvedValueOnce(discovery()).mockResolvedValueOnce(accepted());
     const response = await request(appWith(signedIn(), fetchImpl))
-      .post('/api/pf-ai-agent/ciba/start').send({ loginHint: 'demouser', bindingMessage: 'Approve transfer' }).expect(200);
+      .post('/api/pf-ai-agent/ciba/start').send({ loginHint: 'demouser', bindingMessage: 'Approve-transfer' }).expect(200);
     expect(response.headers['cache-control']).toBe('no-store');
     expect(response.body).toMatchObject({ state: 'pending', loginHint: 'demouser' });
     expect(JSON.stringify(response.body)).not.toContain('auth-req-secret-id');

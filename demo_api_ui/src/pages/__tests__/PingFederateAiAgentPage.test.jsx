@@ -153,13 +153,13 @@ describe("PingFederate AI Agent page", () => {
       routeGets();
       apiClient.post.mockResolvedValue({ data: pendingView() });
       render(<PingFederateAiAgentPage user={{ username: "demouser" }} />);
-      fireEvent.change(screen.getByLabelText(/Message shown on their device/i), { target: { value: "Approve transfer 125" } });
+      fireEvent.change(screen.getByLabelText(/Message shown on their device/i), { target: { value: "Approve-125" } });
 
       fireEvent.click(await ask());
 
       expect(await screen.findByTestId("ciba-pending")).toHaveTextContent(/Waiting for demouser to approve/i);
       expect(apiClient.post).toHaveBeenCalledWith("/api/pf-ai-agent/ciba/start", {
-        loginHint: "demouser", bindingMessage: "Approve transfer 125",
+        loginHint: "demouser", bindingMessage: "Approve-125",
       });
       expect(screen.getByRole("button", { name: /Ask for approval/i })).toBeDisabled();
     });
@@ -178,6 +178,18 @@ describe("PingFederate AI Agent page", () => {
 
       expect(await screen.findByTestId("ciba-outcome")).toHaveTextContent("Approved by demouser.");
       expect(apiClient.post).toHaveBeenCalledWith("/api/pf-ai-agent/ciba/mock-decision", { decision: "approve" });
+    });
+
+    it("shows the web approver buttons only when it is on, and posts the decision", async () => {
+      routeGets({ page: { ...cibaStatus, features: { ...cibaStatus.features, ciba: true, cibaWebApprover: true } } });
+      apiClient.post.mockResolvedValue({ data: pendingView() });
+      render(<PingFederateAiAgentPage user={{ username: "demouser" }} />);
+
+      fireEvent.click(await ask());
+      fireEvent.click(await screen.findByRole("button", { name: /Deny \(web approver\)/i }));
+
+      await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith("/api/pf-ai-agent/ciba/web-approver/decision", { decision: "deny" }));
+      expect(screen.queryByTestId("ciba-mock-phone")).not.toBeInTheDocument();
     });
 
     it("has no mock phone buttons when it is off", async () => {

@@ -1,6 +1,6 @@
 // demo_api_ui/src/pages/FootprintLiveShellPage.jsx
 // Live costume shell: selected chrome hosting the Privilege MCP client panel.
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { FootprintChrome } from "../components/aiFootprintMocks/ChromeFrames";
 import { MOCK_CATALOG, readMockSelection, writeMockSelection } from "../components/aiFootprintMocks/mockSelection";
@@ -30,6 +30,14 @@ export default function FootprintLiveShellPage({ category: categoryProp } = {}) 
   const [theme, toggleTheme] = useFootprintTheme();
   const category = categoryProp || PATH_TO_CATEGORY[shellSlug] || "vscode";
 
+  // index.html darkens the body before React mounts (data-footprint-dark) so a
+  // reload does not flash light; keep it matching the toggle once we are here.
+  useEffect(() => {
+    const root = document.documentElement;
+    root.toggleAttribute("data-footprint-dark", theme === "dark");
+    return () => root.removeAttribute("data-footprint-dark");
+  }, [theme]);
+
   // Variant comes from the ?v= query first so switching variants within a
   // category (which reuses one route) actually changes the URL and re-renders —
   // without it only the first variant in a group ever showed (same-route
@@ -43,6 +51,15 @@ export default function FootprintLiveShellPage({ category: categoryProp } = {}) 
     const known = MOCK_CATALOG[category]?.variants?.some((v) => v.id === id);
     return known ? id : MOCK_CATALOG[category]?.variants?.[0]?.id;
   }, [category, searchParams]);
+
+  // VS Code's brightness is a variant (classic-dark / light), not a CSS theme, so the
+  // Light/Dark toggle has to pick the matching one or it only recolours our own row.
+  // The picker keeps the saved variant; only the chrome gets the toggle's choice.
+  // Studio is a dark-only look and is left alone.
+  const chromeVariant =
+    category === "vscode" && (variant === "classic-dark" || variant === "light")
+      ? (theme === "light" ? "light" : "classic-dark")
+      : variant;
 
   // The OAuth callback cannot carry ?v= (the BFF rejects a query on returnTo), so write
   // what is on screen into the saved pick; the page falls back to it on return.
@@ -78,7 +95,7 @@ export default function FootprintLiveShellPage({ category: categoryProp } = {}) 
       </div>
       <FootprintChrome
         category={category}
-        variant={variant}
+        variant={chromeVariant}
         side={category === "vscode" ? <ShellRoutingTree session={session} /> : null}
       >
         <PrivilegeShellPanel skin={category === "claude-desktop" ? "claude-desktop" : category} session={session} />

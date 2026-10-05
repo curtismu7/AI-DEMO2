@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
+import type { Profile } from '../profile.js';
+
 /**
  * The three-deep run: this agent hands a message to a middle agent through
  * the gateway and names the specialist the middle agent should hand it on to.
@@ -24,6 +26,9 @@ export interface ChainEvent {
   response?: string;
   /** On a `card` event: what the callee's A2A Agent Card said about it. */
   card?: CardSummary;
+  /** Display names, present only when a vertical profile was supplied. */
+  fromLabel?: string;
+  toLabel?: string;
 }
 
 /** The fields of an A2A Agent Card the trace shows. */
@@ -52,6 +57,17 @@ export interface ChainOptions {
   emit: (event: ChainEvent) => void;
   fetchImpl?: typeof fetch;
   signal?: AbortSignal;
+  /** Per-vertical display names; adds fromLabel/toLabel only, never changes keys or routes. */
+  profile?: Profile | null;
+}
+
+/** Display name for a chain key under a profile, or undefined for a key it does not rename. */
+function chainLabel(profile: Profile, key: string): string | undefined {
+  const label = key === MAIN ? profile.agentName
+    : key === 'refunds' ? profile.specialistName
+      : key === 'restricted' ? `Ungranted ${profile.specialistName}`
+        : key === MIDDLE ? 'LangChain agent' : undefined;
+  return label?.slice(0, 80);
 }
 
 const text = (value: unknown): string => (typeof value === 'string' ? value : '');
@@ -138,9 +154,16 @@ async function discover(options: ChainOptions, fetchImpl: typeof fetch): Promise
  * answer; rejects with the reason when any hop is refused or fails.
  */
 export async function runChain(options: ChainOptions): Promise<string> {
-  const { url, bearer, message, specialist, emit, signal } = options;
+  const { url, bearer, message, specialist, signal, profile } = options;
   const fetchImpl = options.fetchImpl ?? fetch;
-  await discover(options, fetchImpl);
+  const emit: ChainOptions['emit'] = profile
+    ? event => {
+      const fromLabel = chainLabel(profile, event.from);
+      const toLabel = chainLabel(profile, event.to);
+      options.emit({ ...event, ...(fromLabel ? { fromLabel } : {}), ...(toLabel ? { toLabel } : {}) });
+    }
+    : options.emit;
+  await discover({ ...options, emit }, fetchImpl);
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (bearer) headers.Authorization = `Bearer ${bearer}`;
   const requestBody = JSON.stringify({

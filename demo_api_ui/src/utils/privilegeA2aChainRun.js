@@ -1,4 +1,5 @@
 import { loadGatewayRecord } from '../services/gatewayEvents';
+import { profileLabel } from './privilegeA2aProfile';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
 
 /**
@@ -31,7 +32,7 @@ const CHAT_API_URL = '/api/privilege-a2a/chat';
 const str = (value) => (typeof value === 'string' ? value : '');
 
 /** A `trace` payload from the stream, as a token event the reel can draw. */
-export function chainHopToTokenEvent(payload, index, useCaseId = PRIVILEGE_A2A_CHAIN_USE_CASE_ID) {
+export function chainHopToTokenEvent(payload, index, useCaseId = PRIVILEGE_A2A_CHAIN_USE_CASE_ID, profile = null) {
   const from = str(payload?.from);
   const to = str(payload?.to);
   if (!from || !to) return null;
@@ -41,6 +42,9 @@ export function chainHopToTokenEvent(payload, index, useCaseId = PRIVILEGE_A2A_C
     kind,
     from,
     to,
+    // Display names only (real keys stay in from/to): the agent's own, else the vertical profile's.
+    fromLabel: str(payload.fromLabel) || profileLabel(profile, from),
+    toLabel: str(payload.toLabel) || profileLabel(profile, to),
     status: kind === 'error' ? 'error' : 'ok',
     label: str(payload.text) || `${from} → ${to}`,
     detail: str(payload.detail),
@@ -76,6 +80,7 @@ function readFrame(frame) {
 export async function startPrivilegeA2aChainRun({
   message,
   specialist,
+  profile,
   store = tokenChainTraceStore,
   fetchImpl = fetch,
   signal,
@@ -90,7 +95,7 @@ export async function startPrivilegeA2aChainRun({
   let failure = '';
   const handle = ({ event, payload }) => {
     if (event === 'trace') {
-      const tokenEvent = chainHopToTokenEvent(payload, hops);
+      const tokenEvent = chainHopToTokenEvent(payload, hops, PRIVILEGE_A2A_CHAIN_USE_CASE_ID, profile);
       if (tokenEvent) {
         hops += 1;
         store.ingestTokenEvent(tokenEvent);
@@ -172,6 +177,7 @@ export async function runPrivilegeA2aChatRun({
   message,
   sessionId,
   onEvent,
+  profile,
   store = tokenChainTraceStore,
   fetchImpl = fetch,
   signal,
@@ -183,7 +189,7 @@ export async function runPrivilegeA2aChatRun({
   let failure = '';
   const handle = ({ event, payload }) => {
     if (event === 'trace') {
-      const tokenEvent = chainHopToTokenEvent(payload, hops, PRIVILEGE_A2A_ACCESS_REVIEW_USE_CASE_ID);
+      const tokenEvent = chainHopToTokenEvent(payload, hops, PRIVILEGE_A2A_ACCESS_REVIEW_USE_CASE_ID, profile);
       if (tokenEvent) {
         hops += 1;
         store.ingestTokenEvent(tokenEvent);

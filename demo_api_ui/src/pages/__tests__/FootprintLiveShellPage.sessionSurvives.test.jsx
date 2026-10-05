@@ -124,7 +124,7 @@ describe("VS Code side panel routing", () => {
     apiClient.post.mockImplementation(async (url) =>
       String(url).endsWith("/config") ? { data: { oauth: { destinationAuthenticated: false } } } : { data: { tools: [] } });
     fireEvent.click(await screen.findByRole("button", { name: "other" }));
-    expect(await screen.findByRole("button", { name: "Sign in with Privilege" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Get MCP tools" })).toBeInTheDocument();
     expect(screen.getByRole("group", { name: "MCP backend (door)" })).toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "MCP backend (door)" })).toBeNull();
   });
@@ -156,7 +156,7 @@ describe("costume variant survives the sign-in round trip", () => {
           </Routes>
         </MemoryRouter>,
       );
-      fireEvent.click(await screen.findByRole("button", { name: "Sign in with Privilege" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Get MCP tools" }));
       await waitFor(() => expect(assign).toHaveBeenCalledWith("https://auth.example/start"));
       expect(JSON.parse(localStorage.getItem("ai-footprint-mock-selection-v1")).vscode).toBe("light");
     } finally {

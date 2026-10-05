@@ -135,3 +135,38 @@ test('a card that cannot be read is reported and the chain still runs', async ()
   assert.match(cards[0].detail ?? '', /HTTP 403/);
   assert.deepEqual(path(events), ['delegate:main>langchainagent', 'result:langchainagent>main']);
 });
+
+test('display labels appear only with a vertical profile, and the keys never change', async () => {
+  const hops = [
+    { from: 'langchainagent', to: 'refunds', status: 'ok', detail: '' },
+    { from: 'langchainagent', to: 'restricted', status: 'refused', detail: 'denied' },
+  ];
+  const reply = async () => jsonResponse(200, { jsonrpc: '2.0', result: { parts: [{ kind: 'text', text: 'ok' }], metadata: { hops } } });
+  const chain = async (profile?: { vertical: string; agentName: string; specialistName: string; tools: string[]; subtaskHint: string }) => {
+    const events: ChainEvent[] = [];
+    await runChain({
+      url: 'https://gateway.example/langchainagent/a2a/jsonrpc',
+      bearer: 'k',
+      message: 'm',
+      specialist: 'refunds',
+      emit: event => events.push(event),
+      fetchImpl: (url, init) => (String(url).endsWith('/.well-known/agent-card.json') ? Promise.resolve(jsonResponse(200, CARD)) : reply()),
+      profile,
+    });
+    return events;
+  };
+
+  const plain = await chain();
+  assert.ok(plain.every(event => !('fromLabel' in event) && !('toLabel' in event)), 'no profile means no label fields');
+
+  const labelled = await chain({ vertical: 'banking', agentName: 'Super Banking agent', specialistName: 'Investment Advisor', tools: ['get_portfolio_summary'], subtaskHint: 'x' });
+  assert.deepEqual(path(labelled), path(plain), 'keys and routes are unchanged');
+  const pair = (kind: string, from: string) => {
+    const event = labelled.find(candidate => candidate.kind === kind && candidate.from === from)!;
+    return [event.fromLabel, event.toLabel];
+  };
+  assert.deepEqual(pair('card', 'main'), ['Super Banking agent', 'LangChain agent']);
+  assert.deepEqual(pair('delegate', 'langchainagent'), ['LangChain agent', 'Investment Advisor']);
+  assert.deepEqual(pair('error', 'langchainagent'), ['LangChain agent', 'Ungranted Investment Advisor']);
+  assert.deepEqual(pair('result', 'langchainagent'), ['LangChain agent', 'Super Banking agent']);
+});

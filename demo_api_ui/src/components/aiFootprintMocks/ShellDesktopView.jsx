@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { ShellGate, ShellLatestCall, ShellPrompt, ShellRoutingBar, ShellSteps, ShellToolsList, themeAttr } from "./ShellParts";
+import { ShellActivity } from "./ShellActivity";
 import "./PrivilegeShellViews.css";
 
 export function ShellDesktopView({ session }) {
@@ -34,6 +35,7 @@ export function ShellDesktopView({ session }) {
         <ShellLatestCall latestCall={session.latestCall} />
         <ShellPrompt session={session} placeholder="Message Claude…" />
       </ShellGate>
+      <ShellActivity />
     </div>
   );
 }

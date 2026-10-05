@@ -261,6 +261,42 @@ read the configured host. A new browser origin must be added to ALL of:
 
 **Verify:** `cd demo_api_ui && ./node_modules/.bin/vitest run src/config/__tests__/demoStepNumbers.test.js src/components/__tests__/DemoStepsDropdown.test.jsx`; `npm run build`.
 
+### 2026-10-05 — Demo Steps 25, 25A, 26 and their reel/sequence/system-flow names follow the active vertical (UI)
+
+**Files:** `demo_api_ui/src/utils/privilegeA2aProfile.js`, `features/privilegeA2aClient/usePrivilegeA2aProfile.js`, `PrivilegeA2aTab.jsx`, `utils/privilegeA2aChainRun.js`, `components/DemoStepsDropdown.jsx`, `services/tokenChainTrace/privilegeA2aChainSteps.js`, `components/SequenceReelDiagram.jsx`, `components/SystemFlowMap.jsx`, tests.
+
+**What was broken:** The UI ran the fixed Acme questions and drew "Main agent" / "Analyst agent" / "MCP tools" in every vertical, though the BFF now serves a per-vertical profile.
+
+**What changed:** `loadPrivilegeA2aProfile()` (and the `usePrivilegeA2aProfile` hook, keyed on `useVertical().activeId`) read `GET /api/privilege-a2a/profile`; any failure is `null`. The UC46 tab offers `profile.questions`. Step 25A runs question 1 (fetched at click time) and gets two extra buttons for questions 2 and 3. Step 26 allowed/denied runs send question 1 (real `refunds`/`restricted` keys kept); the prompt-injection run keeps its text. The run helpers stamp `fromLabel`/`toLabel` on each hop event (the agent's own labels win, else the profile's) and the step builder, sequence headers and system flow map show them. Display only: event keys, `step.lane` keys and the lane-to-node mapping are unchanged. No profile or no labels gives today's names.
+
+**Do not break:** Step numbers (25, 25A, 26); the `opts.run`/`keepTrace` hand-off for 25A and the running/failed messages; lane keys (`MAIN-AGENT`, `ANALYST-AGENT`, `MCP-TOOLS`, `GATEWAY`, ...) and `CHAIN_LANE_NODES`; the guardrail run's own text.
+
+**Verify:** `cd demo_api_ui && ./node_modules/.bin/vitest run src/features/privilegeA2aClient src/services/tokenChainTrace src/utils src/components/__tests__/DemoStepsDropdown.test.jsx src/components/__tests__/SequenceReelDiagram.a2aLabels.test.jsx src/components/__tests__/SystemFlowMap.test.jsx`; `npm run build`.
+
+### 2026-10-05 — Privilege A2A demo agents are vertical-aware (standalone main, worker, MCP, chain)
+
+**Files:** `standalone/privilege-a2a-anthropic-demo/src/profile.ts` (new), `src/main-agent/{index,chain,a2a-client}.ts`, `src/worker-agent/index.ts`, `src/mcp-server/{index,verticals}.ts`, `test/{topology,chain,verticals}.test.ts`.
+
+**What was broken:** The BFF now forwards a vertical profile (`vertical, agentName, specialistName, tool, tools, subtaskHint`), but the standalone agents ignored it: every vertical got the Acme access-review prompt, tools and trace names.
+
+**What changed:** With a valid profile (strings <= 120 chars, `tools` <= 8 of `[a-z0-9_]{1,64}`, vertical `[a-z0-9-]{1,64}`; anything invalid is treated as absent) the main agent builds its prompt and the `delegate_to_analyst` description from it, keys conversation history by session + vertical, and adds `fromLabel`/`toLabel` to every `/chat` and `/chain` trace event. It sends `{ vertical, tools }` as the A2A message `metadata`; the worker then uses a specialist persona and offers the model only those MCP tools (empty intersection falls back to all). The MCP server serves static fictional fixtures for every vertical tool. Tool names, specialist names and hints are asserted equal to `demo_api_server/config/a2aSpecialists.js`.
+
+**Do not break:** with no profile the output is unchanged (no label fields, same prompt and tool name `delegate_to_analyst`); role keys `main`/`analyst`/`mcp` and chain keys `refunds`/`restricted`/`langchainagent` stay as they are (the gateway routes on them); the injection-resistance wording stays in both prompts. The new tool names must be allowed under `worker-agent` on the `mcpdemo` app in the Privilege console and the SE worker and MCP redeployed before the live gateway path shows them (not done here).
+
+**Verify:** `cd standalone/privilege-a2a-anthropic-demo && npm test && npm run build`.
+
+### 2026-10-05 — Privilege A2A steps (25, 25A, 26) follow the active vertical: BFF profile contract
+
+**Files:** `demo_api_server/config/a2aSpecialists.js` (`A2A_DEMO_PROFILES`, `a2aDemoProfile`), `demo_api_server/routes/privilegeA2aClient.js`, tests.
+
+**What was broken:** The Privilege A2A steps were a fixed Acme access review for every vertical; nothing told the main agent which vertical's specialist to hand off to.
+
+**What changed:** Each vertical gets a generalist `agentName` and 3 canned `questions` beside its specialist. `a2aDemoProfile(vertical)` returns `{ vertical, agentName, specialistName, tool, tools, subtaskHint, questions }` or null. The route resolves the vertical from the server-side session (`verticalManifest.resolver.activeIdFor`), adds `GET /api/privilege-a2a/profile`, and forwards the profile fields (not the questions) to the main agent on `/chat` and `/chain`. A vertical sent by the browser is ignored; a vertical with no specialist forwards nothing, so the generic review still runs.
+
+**Do not break:** UC46 route and Step 25/25A/26 numbering; no browser identity or token is forwarded to the main agent; provisioning and the RFC 8693 delegation still read the specialist entries, which are unchanged.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/a2aDemoProfile.test.js tests/privilegeA2aClientRoute.test.js --forceExit`; `npm run authz:verify`.
+
 ### 2026-10-05 — A2A runs looked stuck or failed silently; the gateway lane now reads "AI Gateway"
 
 **Files:** `demo_api_ui/src/utils/privilegeA2aChainRun.js`, `components/DemoStepsDropdown.jsx`, `components/AIAgent.js`, `services/tokenChainTrace/privilegeA2aChainSteps.js`, `components/TokenChainNodeRail.jsx`, `components/StepDetailPanel.jsx`, tests.

@@ -4,7 +4,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
 import apiClient from "../../services/apiClient";
+import { navigateWithOverlay } from "../../utils/navigateWithOverlay";
 
+import { LLM_POLICY_DENIED, chatReplyMessage, llmDenialMessage, llmReplyMessage } from "../privilege/privilegeChat";
 import { usePrivilegeRouting } from "../privilege/usePrivilegeRouting";
 
 const API_BASE = "/api/privilege-mcp";
@@ -72,7 +74,7 @@ export function usePrivilegeShellSession({ onBeforeConnect } = {}) {
         if (!alive || new URL(data?.authUrl).searchParams.get("prompt") !== "none") return;
         sessionStorage.setItem(SILENT_TRIED_KEY, "1");
         beforeConnectRef.current?.();
-        window.location.assign(data.authUrl);
+        navigateWithOverlay(data.authUrl, { message: "Signing in...", assign: true });
       } catch {
         /* stay on the Sign in button */
       }
@@ -121,7 +123,7 @@ export function usePrivilegeShellSession({ onBeforeConnect } = {}) {
       const { data } = await apiClient.post(`${API_BASE}/auth/start`, {
         returnTo: location.pathname,
       });
-      window.location.assign(data.authUrl);
+      navigateWithOverlay(data.authUrl, { message: "Signing in...", assign: true });
     } catch (err) {
       setNotice(errText(err));
       setBusy(false);
@@ -188,13 +190,13 @@ export function usePrivilegeShellSession({ onBeforeConnect } = {}) {
       if (routing.llmPath) {
         try {
           const { data } = await apiClient.post(`${API_BASE}/llm/call`, { provider: routing.llmPath, prompt });
-          push("assistant", data.reply, { steps: [`${routing.llmPath} · ${data.route} · ${data.latencyMs} ms`] });
+          const m = llmReplyMessage(routing.llmPath, data);
+          push("assistant", m.content, m.extra);
         } catch (err) {
           const d = err?.response?.data || {};
-          if (d.code === "llm_policy_denied") {
-            push("assistant", `⚠️ Privilege denied this call. ${d.reason || errText(err)}`, {
-              steps: [`${d.provider || routing.llmPath} · ${d.route || ""} · denied by policy`],
-            });
+          if (d.code === LLM_POLICY_DENIED) {
+            const m = llmDenialMessage(routing.llmPath, { ...d, message: errText(err) });
+            push("assistant", m.content, m.extra);
           } else {
             push("assistant", `Error: ${errText(err)}`);
           }
@@ -210,11 +212,8 @@ export function usePrivilegeShellSession({ onBeforeConnect } = {}) {
           await connect();
           return;
         }
-        push("assistant", data.reply || "Done.", {
-          steps: data.steps || [],
-          decision: data.decision || null,
-          execution: data.execution || null,
-        });
+        const m = chatReplyMessage(data);
+        push("assistant", m.content, m.extra);
         if (data.tools) {
           setTools(data.tools);
           setPhase("ready");

@@ -13,6 +13,7 @@ const { exchangeForThirdPartyAccessToken } = require('../services/pfAiAgentCross
 const { redeemIdJag } = require('../services/pfAiAgentMockThirdPartyService');
 const { beginRar, completeRar, userLimits } = require('../services/pfAiAgentRarService');
 const { startCiba, pollCiba, mockDecideCiba } = require('../services/pfAiAgentCibaService');
+const cibaWebApprover = require('../services/pfAiAgentCibaWebApproverService');
 
 function sessionProvider(req) {
   return String(req.session?.oauthProvider || req.session?.user?.oauthProvider || '').toLowerCase();
@@ -162,6 +163,23 @@ function createPfAiAgentRouter({ configStore: store = configStore, fetchImpl = f
       return res.status(error.httpStatus || 502).json({ error: errorCode(error, 'pf_ai_ciba_failed') });
     }
   });
+
+  // Web approver: the PingFederate stand-in authenticator registers and polls with a shared secret
+  // (no session); the page answers through /decision. All 404 unless PF_AI_CIBA_WEB_APPROVER_ENABLED.
+  const approverReply = (res, action) => {
+    try {
+      res.set('Cache-Control', 'no-store');
+      return res.json(action());
+    } catch (error) {
+      return res.status(error.httpStatus || 502).json({ error: errorCode(error, 'pf_ai_ciba_failed') });
+    }
+  };
+  router.post('/ciba/web-approver/requests', (req, res) => approverReply(res,
+    () => cibaWebApprover.register({ headers: req.headers, body: req.body, store })));
+  router.get('/ciba/web-approver/requests/:transactionId', (req, res) => approverReply(res,
+    () => cibaWebApprover.lookup({ headers: req.headers, transactionId: req.params.transactionId, store })));
+  router.post('/ciba/web-approver/decision', requireApplicationSession, (req, res) => approverReply(res,
+    () => cibaWebApprover.decide(req, req.body?.decision, { store })));
 
   router.post('/rar/start', requireApplicationSession, async (req, res) => {
     try {

@@ -13,6 +13,7 @@ import PingIdentitySpinner from '../components/shared/PingIdentitySpinner';
 import DraggableModal from '../components/DraggableModal';
 import { navigateWithOverlay } from '../utils/navigateWithOverlay';
 import { doorName, GATEWAY_MODES, LLM_PATHS, doorsForMode } from '../components/privilege/privilegeRouting';
+import { LLM_POLICY_DENIED, chatReplyMessage, llmReplyMessage, llmDenialMessage } from '../components/privilege/privilegeChat';
 import { usePrivilegeRouting } from '../components/privilege/usePrivilegeRouting';
 import PrivilegeMcpLearningPage from './PrivilegeMcpLearningPage';
 import './PrivilegeMcpClientPage.css';
@@ -1355,12 +1356,12 @@ export default function PrivilegeMcpClientPage() {
     if (llmPath) {
       try {
         const data = await api('/llm/call', { method: 'POST', body: { provider: llmPath, prompt } });
-        appendChat('assistant', data.reply, { steps: [`${llmPath} · ${data.route} · ${data.latencyMs} ms`] });
+        const m = llmReplyMessage(llmPath, data);
+        appendChat('assistant', m.content, m.extra);
       } catch (err) {
-        if (err.code === 'llm_policy_denied') {
-          appendChat('assistant', `⚠️ Privilege denied this call. ${err.reason || err.message}`, {
-            steps: [`${err.provider || llmPath} · ${err.route || ''} · denied by policy`],
-          });
+        if (err.code === LLM_POLICY_DENIED) {
+          const m = llmDenialMessage(llmPath, err);
+          appendChat('assistant', m.content, m.extra);
         } else {
           appendChat('assistant', `❌ ${err.message}`, { steps: [`${llmPath} · call failed`] });
         }
@@ -1377,14 +1378,8 @@ export default function PrivilegeMcpClientPage() {
         window.open(data.authUrl, '_blank', 'noopener,noreferrer');
         appendChat('assistant', `${data.reply} (Opened OAuth in new tab)`, data.steps || null);
       } else {
-        appendChat('assistant', data.reply || 'Done.', {
-          available_tools: (data.tools || []).map((t) => t.name),
-          suggested_tools: data.suggested_tools || [],
-          policy: data.policy || null,
-          decision: data.decision || null,
-          execution: data.execution || null,
-          steps: data.steps || [],
-        });
+        const m = chatReplyMessage(data);
+        appendChat('assistant', m.content, m.extra);
         if (data.tools) {
           setTools(data.tools);
           setToolPolicy(data.policy || { total: data.tools.length, permitted: data.tools.length, filtered: 0, filteredTools: [] });
@@ -1591,7 +1586,7 @@ export default function PrivilegeMcpClientPage() {
             </dl>
             {doorProbe.results?.some((r) => r.needsAuth) && (
               <p className="cur-denial-note">
-                Each Privilege app needs its own token. Use a door to connect it; your existing gateway login is reused silently when available.
+                The gateway issues one token per app, valid for that app only, so the token you hold for one door is refused on another. "no saved token" means this page has not signed in to that door yet. Use a door to connect it; your existing gateway login is reused silently when available.
               </p>
             )}
             <p className="cur-denial-note">
@@ -1655,7 +1650,7 @@ export default function PrivilegeMcpClientPage() {
                     an interactive sign-in. */}
                 {doorProbe.results.map((r) => (
                   <div key={r.url} className="cur-denial-probe-row">
-                    <span className={r.ok ? 'cur-denial-ok' : (r.needsAuth ? 'cur-denial-auth' : 'cur-denial-bad')}>
+                    <span className={r.ok ? 'cur-denial-ok' : (r.needsAuth ? 'cur-denial-auth' : 'cur-denial-bad')} title={r.needsAuth ? 'The gateway issues one token per app. This page has not signed in to this door yet.' : undefined}>
                       {r.ok ? `${r.tools} tools` : (r.needsAuth ? 'no saved token' : (r.status || 'failed'))}
                     </span>
                     <span className="cur-denial-door">{doorName(r.url) || r.url}</span>

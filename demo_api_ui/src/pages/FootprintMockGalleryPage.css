@@ -398,10 +398,17 @@
    top nav and side nav, so the demo lost its navigation once a costume opened. */
 .afm-live-shell {
   position: relative;
-  min-height: calc(100vh - 140px);
+  min-height: calc(100vh - 62px);
   background: #000;
   display: flex;
   flex-direction: column;
+}
+
+/* .main-content pads 32px above and below, and the app's white background shows
+   through as a bright band around a dark costume. The shell is a full-bleed
+   surface, so it takes that padding back (62px is the top nav above). */
+.main-content:has(> .afm-live-shell) {
+  padding-block: 0;
 }
 
 /* Skin switcher + light/dark. These are OUR controls, not the costume's, and

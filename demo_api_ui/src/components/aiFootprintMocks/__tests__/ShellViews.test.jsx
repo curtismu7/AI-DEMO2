@@ -1,8 +1,9 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { ShellTerminalView } from "../ShellTerminalView";
 import { ShellVsCodeView } from "../ShellVsCodeView";
 import { ShellDesktopView } from "../ShellDesktopView";
 import { ShellRoutingTree } from "../ShellParts";
+import { PrivilegeShellPanel } from "../PrivilegeShellPanel";
 
 export const makeSession = (over = {}) => ({
   phase: "ready", scopes: [], tools: [], latestCall: null, busy: false, notice: "",
@@ -46,7 +47,7 @@ describe("ShellTerminalView", () => {
   it("offers sign-in when signed out and hides the prompt", () => {
     const session = makeSession({ phase: "signed-out" });
     render(<ShellTerminalView session={session} />);
-    fireEvent.click(screen.getByRole("button", { name: "Sign in with Privilege" }));
+    fireEvent.click(screen.getByRole("button", { name: "Get MCP tools" }));
     expect(session.connect).toHaveBeenCalled();
     expect(screen.queryByRole("textbox", { name: "Prompt" })).toBeNull();
   });
@@ -373,5 +374,23 @@ describe.each([
     expect(screen.getByTestId(testId)).toHaveAttribute("data-pvs-theme", "light");
     rerender(<View session={makeSession({ pvsTheme: "auto" })} />);
     expect(screen.getByTestId(testId)).not.toHaveAttribute("data-pvs-theme");
+  });
+});
+
+describe.each([
+  ["VS Code", ShellVsCodeView],
+  ["Terminal", ShellTerminalView],
+  ["Desktop", ShellDesktopView],
+  ["generic (chatgpt/saas)", (p) => <PrivilegeShellPanel skin="chatgpt" {...p} />],
+])("%s skin activity strip", (name, View) => {
+  it("shows recent API calls in plain words even when signed out, with a 401 explained", async () => {
+    const { appendTrafficEntry } = await import("../../../services/apiTrafficStore");
+    render(<View session={makeSession({ phase: "signed-out" })} />);
+    act(() => {
+      appendTrafficEntry({ method: "GET", url: `/api/tools?${name}`, status: 401, duration: 12 });
+    });
+    // The store is a module singleton, so match the row by this test's own URL.
+    const row = (await screen.findByText(`/api/tools?${name}`)).closest("li");
+    expect(within(row).getByText("Not signed in, or the session expired")).toBeInTheDocument();
   });
 });

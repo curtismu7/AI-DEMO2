@@ -6,6 +6,7 @@ import ToolsTable from "../privilege/ToolsTable";
 import { ShellTerminalView } from "./ShellTerminalView";
 import { ShellVsCodeView } from "./ShellVsCodeView";
 import { ShellDesktopView } from "./ShellDesktopView";
+import { ShellActivity } from "./ShellActivity";
 import "./PrivilegeShellPanel.css";
 
 /**
@@ -49,7 +50,7 @@ export function PrivilegeShellPanel({ skin = "vscode", session }) {
         <div className="pvs-connect">
           <p>Connect this tool to the AI Agent Gateway to discover tools.</p>
           <button type="button" onClick={connect} disabled={busy}>
-            Sign in with Privilege
+            Get MCP tools
           </button>
         </div>
       ) : null}
@@ -89,6 +90,7 @@ export function PrivilegeShellPanel({ skin = "vscode", session }) {
           ) : null}
         </>
       ) : null}
+      <ShellActivity />
     </div>
   );
 }

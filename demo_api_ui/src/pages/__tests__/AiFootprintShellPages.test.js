@@ -74,6 +74,24 @@ describe("AI footprint live shell", () => {
     localStorage.clear();
   });
 
+  it("VS Code chrome follows the Light/Dark toggle, whichever variant was saved", () => {
+    localStorage.setItem("ai-footprint-theme-v1", "dark");
+    localStorage.setItem(
+      "ai-footprint-mock-selection-v1",
+      JSON.stringify({ vscode: "classic-dark" }),
+    );
+    const { container } = render(
+      <MemoryRouter>
+        <FootprintLiveShellPage category="vscode" />
+      </MemoryRouter>,
+    );
+    expect(container.querySelector(".afm-vcs")).not.toHaveClass("afm-vcs--light");
+    fireEvent.click(screen.getByRole("button", { name: "Light" }));
+    expect(container.querySelector(".afm-vcs")).toHaveClass("afm-vcs--light");
+    fireEvent.click(screen.getByRole("button", { name: "Dark" }));
+    expect(container.querySelector(".afm-vcs")).not.toHaveClass("afm-vcs--light");
+  });
+
   it("renders selected VS Code chrome with agent host", () => {
     localStorage.setItem(
       "ai-footprint-mock-selection-v1",

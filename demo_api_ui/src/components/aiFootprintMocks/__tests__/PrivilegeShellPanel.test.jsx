@@ -33,7 +33,7 @@ describe("PrivilegeShellPanel", () => {
   it("offers Privilege sign-in when the session is unauthenticated", async () => {
     apiClient.get.mockResolvedValue({ data: { oauth: { authenticated: false } } });
     renderPanel();
-    const btn = await screen.findByRole("button", { name: "Sign in with Privilege" });
+    const btn = await screen.findByRole("button", { name: "Get MCP tools" });
     apiClient.post.mockResolvedValue({ data: { authUrl: "https://auth.example/authorize" } });
     const assign = vi.fn();
     const original = window.location;

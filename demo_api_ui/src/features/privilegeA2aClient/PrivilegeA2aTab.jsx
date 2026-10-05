@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { GATEWAY_RECORD_SIGN_IN_PATH, loadGatewayRecord } from '../../services/gatewayEvents';
 import { PRIVILEGE_A2A_DEMO_QUESTIONS, runPrivilegeA2aChatRun } from '../../utils/privilegeA2aChainRun';
+import { usePrivilegeA2aProfile } from './usePrivilegeA2aProfile';
 import './PrivilegeA2aTab.css';
 
-const DEMO_QUESTIONS = PRIVILEGE_A2A_DEMO_QUESTIONS;
-
 export default function PrivilegeA2aTab() {
+  const profile = usePrivilegeA2aProfile();
+  const demoQuestions = profile?.questions?.length ? profile.questions : PRIVILEGE_A2A_DEMO_QUESTIONS;
   const [input, setInput] = useState('');
   const [selectedQuestion, setSelectedQuestion] = useState('');
   const [turns, setTurns] = useState([]);
@@ -62,7 +63,7 @@ export default function PrivilegeA2aTab() {
     setSelectedQuestion('');
 
     try {
-      await runPrivilegeA2aChatRun({ message, sessionId, onEvent: handleEvent, signal: controller.signal });
+      await runPrivilegeA2aChatRun({ message, sessionId, profile, onEvent: handleEvent, signal: controller.signal });
     } catch (requestError) {
       if (controller.signal.aborted) setError('Request cancelled.');
       else setError(requestError instanceof Error ? requestError.message : 'The A2A request failed.');
@@ -196,7 +197,7 @@ export default function PrivilegeA2aTab() {
           disabled={busy}
         >
           <option value="">Choose an A2A access-review question</option>
-          {DEMO_QUESTIONS.map(question => <option key={question} value={question}>{question}</option>)}
+          {demoQuestions.map(question => <option key={question} value={question}>{question}</option>)}
         </select>
         <label htmlFor="privilege-a2a-question">Your question</label>
         <textarea

@@ -132,6 +132,7 @@ const _SECRET_KEYS_RAW = [
   'PF_AI_THIRD_PARTY_CLIENT_SECRET',
   'PF_AI_RAR_LOOKUP_SECRET',
   'PF_AI_CIBA_CLIENT_SECRET',
+  'PF_AI_CIBA_APPROVER_SECRET',
   'pingone_fraud_watch_agent_client_secret',
   'pingone_balance_sweep_agent_client_secret',
   'spiffe_bridge_private_key',
@@ -221,6 +222,7 @@ const BOOTSTRAP_ALLOWLIST = new Set([
   'pf_ai_third_party_client_secret',
   'pf_ai_rar_lookup_secret',
   'pf_ai_ciba_client_secret',
+  'pf_ai_ciba_approver_secret',
 ]);
 
 // Keys a user changes from a dropdown at runtime (Demo Controls > Agent mode). For
@@ -676,6 +678,8 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   PF_AI_CIBA_ENABLED: { public: true, default: 'false' },
   PF_AI_CIBA_CLIENT_ID: { public: true, default: '' },
   PF_AI_CIBA_CLIENT_SECRET: { public: false, default: '' },
+  PF_AI_CIBA_WEB_APPROVER_ENABLED: { public: true, default: 'false' },
+  PF_AI_CIBA_APPROVER_SECRET: { public: false, default: '' },
   oauth_admin_callback_path:    { public: true,  default: '/api/auth/oauth/callback' },
   oauth_user_callback_path:      { public: true,  default: '/api/auth/oauth/user/callback' },
   // Role claim mapping — which token claim contains role/group info?
@@ -1341,6 +1345,8 @@ const ENV_FALLBACK_MAP = {
   pf_ai_ciba_enabled: ['PF_AI_CIBA_ENABLED'],
   pf_ai_ciba_client_id: ['PF_AI_CIBA_CLIENT_ID'],
   pf_ai_ciba_client_secret: ['PF_AI_CIBA_CLIENT_SECRET'],
+  pf_ai_ciba_web_approver_enabled: ['PF_AI_CIBA_WEB_APPROVER_ENABLED'],
+  pf_ai_ciba_approver_secret: ['PF_AI_CIBA_APPROVER_SECRET'],
   oauth_admin_callback_path:       ['OAUTH_ADMIN_CALLBACK_PATH'],
   oauth_user_callback_path:        ['OAUTH_USER_CALLBACK_PATH'],
   oauth_role_claim_name:           ['OAUTH_ROLE_CLAIM_NAME'],

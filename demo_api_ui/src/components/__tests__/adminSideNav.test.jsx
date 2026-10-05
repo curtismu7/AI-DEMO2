@@ -226,9 +226,9 @@ describe("AdminSideNav — best-of-breed pass", () => {
     expect(screen.getByText("Observability")).toBeTruthy();
   });
 
-  it("makes Server Topology visible to a logged-in customer from Architecture & Learning", () => {
+  it("makes Server Topology visible to a logged-in customer from Diagrams", () => {
     renderNavAsUser(customerUser);
-    fireEvent.click(screen.getByRole("button", { name: /^Architecture & Learning/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Diagrams/ }));
     expect(screen.getByRole("link", { name: "Server Topology (Interactive)" })).toHaveAttribute(
       "href",
       "/architecture/server-topology",

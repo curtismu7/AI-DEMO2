@@ -24,6 +24,7 @@ import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTrac
 import { a2aEventsForExplain } from './demoStepsA2a';
 import { ID_JAG_USE_CASE_ID, RUN_MODES, requestLiveIdJagRun } from '../utils/idJagRunMode';
 import { LOGIN_RUN_PROVIDERS, runProviderLogin } from '../utils/providerLoginRun';
+import { loadPrivilegeA2aProfile } from '../utils/privilegeA2aProfile';
 import {
   PRIVILEGE_A2A_ACCESS_REVIEW_AGENT_USE_CASE_ID,
   PRIVILEGE_A2A_CHAIN_USE_CASE_ID,
@@ -357,7 +358,7 @@ export default function DemoStepsDropdown({
   }, [persistOpenState]);
 
   /** Run a demo step and refresh checkmarks. */
-  function handleSelect(uc, stepNumber, chainRun = uc.chainRuns?.[0]) {
+  function handleSelect(uc, stepNumber, chainRun = uc.chainRuns?.[0], questionIndex = 0) {
     if (!poppedOutRef.current) onOpenChange(false);
     if (uc.id === 'UC40' && uc.useCaseId === ID_JAG_USE_CASE_ID) {
       requestLiveIdJagRun({
@@ -377,12 +378,21 @@ export default function DemoStepsDropdown({
     let chainRunPromise;
     if (uc.useCaseId === PRIVILEGE_A2A_CHAIN_USE_CASE_ID && chainRun) {
       const { message, specialist } = chainRun;
-      chainRunPromise = startPrivilegeA2aChainRun({ message, specialist });
+      // With a vertical profile, the allowed and denied runs ask its first question (the real
+      // specialist keys stay); the prompt-injection run keeps its own text.
+      chainRunPromise = loadPrivilegeA2aProfile().then((profile) => startPrivilegeA2aChainRun({
+        message: chainRun.id !== 'guardrail' && profile?.questions?.[0] ? profile.questions[0] : message,
+        specialist,
+        profile,
+      }));
     }
     // Step 25A runs the A2A access review in the embedded agent: start the run, keep its
     // trace across the hop to /dashboard, and leave the route-opening Step 25 alone.
     if (uc.useCaseId === PRIVILEGE_A2A_ACCESS_REVIEW_AGENT_USE_CASE_ID) {
-      const run = runPrivilegeA2aChatRun({ message: PRIVILEGE_A2A_DEMO_QUESTIONS[0] });
+      const run = loadPrivilegeA2aProfile().then((profile) => runPrivilegeA2aChatRun({
+        message: profile?.questions?.[questionIndex] || PRIVILEGE_A2A_DEMO_QUESTIONS[questionIndex] || PRIVILEGE_A2A_DEMO_QUESTIONS[0],
+        profile,
+      }));
       run.catch(() => {}); // the agent reports the failure; this only marks it handled
       onSelect(uc, stepNumber, { keepTrace: true, run });
       setTick((n) => n + 1);
@@ -605,6 +615,20 @@ export default function DemoStepsDropdown({
             data-testid={`chain-run-${scope}${run.id}`}
           >
             {run.label.charAt(0)}
+          </button>
+        ))}
+        {/* Step 25A: questions 2 and 3 of the vertical's three, for the presenter to choose from. */}
+        {uc.useCaseId === PRIVILEGE_A2A_ACCESS_REVIEW_AGENT_USE_CASE_ID && [1, 2].map((n) => (
+          <button
+            key={n}
+            type="button"
+            className="ba-demo-steps-popout__rar-toggle"
+            onClick={(e) => { e.stopPropagation(); handleSelect(uc, stepNumber, undefined, n); }}
+            aria-label={`Run access review question ${n + 1} in the agent`}
+            title={`Run question ${n + 1} of the access review in the agent`}
+            data-testid={`review-question-${scope}${n + 1}`}
+          >
+            {n + 1}
           </button>
         ))}
         {uc.id === 'UC14b' && (

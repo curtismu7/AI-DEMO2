@@ -19,6 +19,11 @@
  * Usage:
  *   node scripts/pingfederate/provision-ciba.js            # dry run
  *   node scripts/pingfederate/provision-ciba.js --apply
+ *
+ * --web-approver provisions the demo stand-in instead (never in the same run as the above): the
+ * authenticator is the ai-agent-ciba-approver plugin, which asks the demo BFF for the answer and lets a
+ * person approve on the demo page. It gets its own request policy and client (ai-demo-pf-ciba-web, same
+ * client secret), so the PingOne MFA objects are left alone. Needs the plugin JAR deployed first.
  */
 const { execFileSync } = require('node:child_process');
 const crypto = require('node:crypto');
@@ -26,17 +31,26 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const APPLY = process.argv.includes('--apply');
+const WEB = process.argv.includes('--web-approver');
 const MAIN = path.dirname(execFileSync('git', ['rev-parse', '--path-format=absolute', '--git-common-dir'], { encoding: 'utf8' }).trim());
 const PF_BASE = process.env.PF_BASE || 'https://local.ping-devops.com:9999/pf-admin-api/v1';
 const CONTAINER = process.env.PINGFEDERATE_CONTAINER_NAME || 'ai-demo-pingfederate';
 
-const AUTHENTICATOR_TYPE = 'com.pingidentity.oobauth.pingone.mfa.PingOneMfaCibaAuthenticator';
+const AUTHENTICATOR_TYPE = WEB
+  ? 'com.pingidentity.demo.ciba.AiAgentWebApproverAuthenticator'
+  : 'com.pingidentity.oobauth.pingone.mfa.PingOneMfaCibaAuthenticator';
 const SIGNIN_ADAPTER_ID = 'aiDemoPfP1Mfa'; // its PingOne environment and application are reused
-const INSTANCE_ID = 'aiDemoPfCibaP1Mfa';
-const POLICY_ID = 'aiDemoPfCibaPolicy';
-const CLIENT_ID = 'ai-demo-pf-ciba';
+const INSTANCE_ID = WEB ? 'aiDemoPfCibaWebApprover' : 'aiDemoPfCibaP1Mfa';
+const POLICY_ID = WEB ? 'aiDemoPfCibaWebPolicy' : 'aiDemoPfCibaPolicy';
+const CLIENT_ID = WEB ? 'ai-demo-pf-ciba-web' : 'ai-demo-pf-ciba';
 const VAULT_SECRET = 'PF_AI_CIBA_CLIENT_SECRET';
+const APPROVER_SECRET = 'PF_AI_CIBA_APPROVER_SECRET';
+const PUBLIC_APP_URL = (process.env.PUBLIC_APP_URL || 'https://local.ping-devops.com:4000').replace(/\/$/, '');
+const APPROVER_URL = `${PUBLIC_APP_URL}/api/pf-ai-agent/ciba/web-approver`;
 const TEST_USERNAME = 'demouser';
+// A PingOne sign-on policy with only the MFA step. The app's own policies start with a password step, which
+// this authenticator cannot answer (PingOne replies PASSWORD_REQUIRED and PingFederate returns a 500).
+const P1_POLICY = 'mfa_only';
 const TRANSACTION_LIFETIME_SECONDS = 120;
 const POLLING_INTERVAL_SECONDS = 3;
 const HINT_ATTRIBUTE = 'IDENTITY_HINT_SUBJECT';
@@ -62,10 +76,24 @@ function adminPassword() {
 
 const fieldValue = (instance, name) => (instance?.configuration?.fields || []).find((field) => field.name === name)?.value;
 
+function webApprover(credential) {
+  return {
+    id: INSTANCE_ID,
+    name: 'AI Demo web approver (CIBA stand-in)',
+    pluginDescriptorRef: { id: AUTHENTICATOR_TYPE },
+    configuration: {
+      tables: [],
+      fields: [{ name: 'Approval URL', value: APPROVER_URL }, { name: 'Approval Credential', value: credential }],
+    },
+    attributeContract: { coreAttributes: [{ name: 'subject' }], extendedAttributes: [] },
+  };
+}
+
 function authenticator(environment, application) {
   const fields = [
     ['PingOne Environment', environment],
     ['Application', application],
+    ['PingOne Authentication Policy', P1_POLICY],
     ['Test Username', TEST_USERNAME],
     ['PingOne Template Name', 'transaction'],
     ['Messages Files', 'pingone-mfa-messages'],
@@ -83,7 +111,7 @@ function authenticator(environment, application) {
 
 const POLICY = {
   id: POLICY_ID,
-  name: 'AI Demo CIBA (login_hint to PingOne MFA)',
+  name: WEB ? 'AI Demo CIBA (login_hint to the web approver)' : 'AI Demo CIBA (login_hint to PingOne MFA)',
   authenticatorRef: { id: INSTANCE_ID },
   transactionLifetime: TRANSACTION_LIFETIME_SECONDS,
   allowUnsignedLoginHintToken: false,
@@ -104,7 +132,7 @@ const POLICY = {
 function client(secret) {
   return {
     clientId: CLIENT_ID,
-    name: 'AI Demo PF CIBA (human approval)',
+    name: WEB ? 'AI Demo PF CIBA (web approver)' : 'AI Demo PF CIBA (human approval)',
     description: 'Confidential client for the AI agent page CIBA path: a human approves the agent request on their PingOne MFA device',
     enabled: true,
     redirectUris: [],
@@ -168,16 +196,30 @@ async function main() {
     async () => !vault(['list']).includes(VAULT_SECRET),
     async () => { vault(['set', VAULT_SECRET], crypto.randomBytes(32).toString('hex')); });
 
+  if (WEB) {
+    // The plugin and the BFF share this secret; the BFF reads it from the vault (PF_AI_CIBA_APPROVER_SECRET).
+    await step(`vault ${APPROVER_SECRET}`,
+      async () => !vault(['list']).includes(APPROVER_SECRET),
+      async () => { vault(['set', APPROVER_SECRET], crypto.randomBytes(32).toString('hex')); });
+    if (!await find(`oauth/outOfBandAuthPlugins/descriptors/${AUTHENTICATOR_TYPE}`)) {
+      throw new Error('the web approver plugin is not deployed on PingFederate (copy pf-ai-agent-ciba-approver.jar into its deploy dir and restart it)');
+    }
+  }
+
   const instanceResource = `oauth/outOfBandAuthPlugins/${INSTANCE_ID}`;
   const instanceOk = (instance) => instance
     && instance.pluginDescriptorRef?.id === AUTHENTICATOR_TYPE
-    && fieldValue(instance, 'PingOne Environment') === environment
-    && fieldValue(instance, 'Application') === application;
+    && (WEB
+      ? fieldValue(instance, 'Approval URL') === APPROVER_URL
+      : fieldValue(instance, 'PingOne Environment') === environment
+        && fieldValue(instance, 'Application') === application
+        && fieldValue(instance, 'PingOne Authentication Policy') === P1_POLICY);
+  const instanceBody = () => (WEB ? webApprover(vault(['get', APPROVER_SECRET]).pop()) : authenticator(environment, application));
   await step(`CIBA authenticator ${INSTANCE_ID}`,
     async () => !instanceOk(await find(instanceResource)),
     async () => (await find(instanceResource)
-      ? api('PUT', instanceResource, authenticator(environment, application))
-      : api('POST', 'oauth/outOfBandAuthPlugins', authenticator(environment, application))));
+      ? api('PUT', instanceResource, instanceBody())
+      : api('POST', 'oauth/outOfBandAuthPlugins', instanceBody())));
 
   const policyResource = `oauth/cibaServerPolicy/requestPolicies/${POLICY_ID}`;
   const policyOk = (policy) => policy && policy.authenticatorRef?.id === INSTANCE_ID;

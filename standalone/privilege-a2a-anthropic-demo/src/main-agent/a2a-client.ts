@@ -16,7 +16,7 @@ function authenticatedFetch(bearer: string): typeof fetch {
 }
 
 export interface WorkerClient {
-  sendQuestion(question: string, contextId: string): Promise<string>;
+  sendQuestion(question: string, contextId: string, metadata?: Record<string, unknown>): Promise<string>;
 }
 
 function textFromParts(parts: Message['parts'] | undefined): string {
@@ -63,7 +63,7 @@ export async function buildWorkerClient(baseUrl: string, bearer: string): Promis
   const client: Client = await factory.createFromAgentCard(card);
 
   return {
-    async sendQuestion(question, contextId) {
+    async sendQuestion(question, contextId, metadata) {
       const result = await client.sendMessage({
         message: {
           kind: 'message',
@@ -71,6 +71,7 @@ export async function buildWorkerClient(baseUrl: string, bearer: string): Promis
           contextId,
           role: 'user',
           parts: [{ kind: 'text', text: question }],
+          ...(metadata ? { metadata } : {}),
         },
         configuration: { blocking: true },
       });

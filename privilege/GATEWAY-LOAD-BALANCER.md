@@ -234,14 +234,13 @@ amount of persistence changes that. Not a documented Ping feature, so ask Ping w
 ## 00c. A third node in gateway 1's namespace (installed 2026-10-04, back in rotation 2026-10-05)
 
 **Status, 2026-10-05: running (9/9, Redis connected), listed by the console as the third node of
-`ai-demo-cmuir`, and un-parked in the load balancer, but still not shown to serve a request.**
+`ai-demo-cmuir`, and un-parked in the load balancer. It answers the app routes (shown with gateways
+1 and 2 parked, see "Proof test" below); a signed-in call served by it has not been shown.**
 It was re-enrolled the same day (see "Re-enrolling a node" below) because the first enrollment
 never produced a console row. It was removed from service on 2026-10-04
 because its pod requested 1000m CPU (nine containers), which left the SE cluster with no node
 that had 750m free: SE's `demo-api-server` sat Pending for 36 minutes with "27 Insufficient
-cpu". It came back after the main container's request was cut to 250m (below). The proof test,
-parking gateways 1 and 2 so only gateway 3 answers, has not been run: it changes the shared load
-balancer's routing for everyone, so it needs the owner to run it (commands at the end of this section).
+cpu". It came back after the main container's request was cut to 250m (below).
 
 What it had shown before that: enrolled in `ai-demo-cmuir` as a third node, pod 9/9, Redis
 connected on attempt 1/6, Certificate issued, in rotation. **It never served a request:**
@@ -264,13 +263,27 @@ and `parked: false` and upgrade, then wait for 9/9 and the Redis line. `se-gatew
 skips gateway 3 if its live Deployment was scaled to 0 by hand, so a manual
 `kubectl scale ... --replicas=0` is also safe.
 
-**Proof test (not yet run).** Park gateways 1 and 2 so the only live upstream is gateway 3,
-call `opensearch22` and `brave0local`, and check `node=gateway-3` in `kubectl logs
-deploy/mcpgw-lb`. Everyone using the demo is on gateway 3 alone while it runs, and signed-in
-clients may be asked to sign in again. Apply with a values file that copies
-`gateway1-lb.values.yaml` with `loadBalancer.ownParked: true` and gateway-2's `parked: true`
-(`helm upgrade agentless-mcpgw ... --reuse-values -f sidecars.values.yaml -f <that file>`), and
-restore by upgrading again with the repo's `gateway1-lb.values.yaml`.
+**Proof test, run 2026-10-05 (partial).** Park gateways 1 and 2 so the only live upstream is
+gateway 3, call `opensearch22` and `brave0local`, and check the client-facing line in the load
+balancer log. Everyone using the demo is on gateway 3 alone while it runs, and signed-in clients
+may be asked to sign in again. Apply with a values file that copies `gateway1-lb.values.yaml` with
+`loadBalancer.ownParked: true` and gateway-2's `parked: true` (`helm upgrade agentless-mcpgw ...
+--reuse-values -f sidecars.values.yaml -f <that file>`), and restore by upgrading again with the
+repo's `gateway1-lb.values.yaml`. The parking was done by the owner, because the permission classifier
+blocks an agent from re-routing the shared load balancer.
+
+Result: with gateways 1 and 2 parked, an **unauthenticated** `POST` to `/opensearch22/mcp` and to
+`/brave0local/mcp` on the public gateway URL returned 401 from gateway 3 (`node=gateway-3` on the
+ingress-facing line). So gateway 3 receives and answers app requests. The owner's own signed-in calls
+did not appear in the load balancer log at all, so **no signed-in call served by gateway 3 has been
+shown**. Both gateways were un-parked afterwards (all three upstreams live, no pod restarted).
+
+How to read the load balancer log: each client request is logged twice. The line from the ingress
+address (10.52.x) carries the real `node=`. The line from `127.0.0.1` is the load balancer's own hop
+through its per-peer bridge and is always labelled `node=gateway-1`, which is the fallback label, as
+is the label on `/lb-health` probes and on a request that found no upstream (a 502). Pass needs
+`node=gateway-3` with a 200 on the ingress line. Read both load balancer pods
+(`kubectl logs -l app=mcpgw-lb --prefix --max-log-requests=4`), because `deploy/mcpgw-lb` reads only one.
 
 **Re-enrolling a node (done for gateway 3 on 2026-10-05).** The console's Gateways page is a tree:
 one row per cluster ("3 nodes"), with a child row per node showing its address. A node's address

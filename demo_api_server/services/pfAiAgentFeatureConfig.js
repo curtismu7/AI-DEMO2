@@ -181,11 +181,20 @@ function resolveCrossDomainConfig(store = configStore) {
 }
 
 // CIBA: the PingFederate endpoints (validated once, by the CIMD resolver) plus its own client.
+// With the web approver on, CIBA uses its own PingFederate client (tied to the stand-in authenticator).
+const WEB_APPROVER_CLIENT_ID = 'ai-demo-pf-ciba-web';
+
+function webApproverOn(store) {
+  return process.env.NODE_ENV !== 'production'
+    && value(store, 'pf_ai_ciba_web_approver_enabled').toLowerCase() === 'true'
+    && Boolean(value(store, 'pf_ai_ciba_approver_secret'));
+}
+
 function resolveCibaConfig(store = configStore) {
   const missing = [];
   let pf = null;
   try { pf = resolveCimdConfig(store); } catch (error) { missing.push(...(error.details?.missing || ['PF_ISSUER'])); }
-  const clientId = value(store, 'pf_ai_ciba_client_id');
+  const clientId = webApproverOn(store) ? WEB_APPROVER_CLIENT_ID : value(store, 'pf_ai_ciba_client_id');
   const clientSecret = value(store, 'pf_ai_ciba_client_secret');
   if (!clientId) missing.push('PF_AI_CIBA_CLIENT_ID');
   if (!clientSecret) missing.push('PF_AI_CIBA_CLIENT_SECRET');
@@ -213,7 +222,8 @@ function getFeatureStatus(store = configStore) {
     // RAR can also bind its token to the BFF's key (DPoP) once a DPoP-requiring client is named.
     rarDpop: rar && Boolean(value(store, 'pf_ai_rar_dpop_client_id')),
     ciba: enabled(store, 'pf_ai_ciba_enabled') && available(resolveCibaConfig, store),
-    cibaMock: process.env.NODE_ENV !== 'production' && enabled(store, 'pf_ai_ciba_mock_enabled'),
+    cibaMock: process.env.NODE_ENV !== 'production' && enabled(store, 'pf_ai_ciba_mock_enabled') && !webApproverOn(store),
+    cibaWebApprover: webApproverOn(store),
   };
 }
 
@@ -223,5 +233,6 @@ module.exports = {
   resolveCimdConfig,
   resolveCrossDomainConfig,
   resolveCibaConfig,
+  webApproverOn,
   getFeatureStatus,
 };

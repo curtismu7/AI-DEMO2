@@ -136,7 +136,7 @@ describe('DemoStepsDropdown', () => {
     expect(onSelect.mock.calls[0][1]).toBe(25);
 
     fireEvent.click(screen.getByTestId('demo-step-UC46A'));
-    expect(runPrivilegeA2aChatRun).toHaveBeenCalledWith({ message: 'Review access on prod-db-primary.' });
+    await waitFor(() => expect(runPrivilegeA2aChatRun).toHaveBeenCalledWith({ message: 'Review access on prod-db-primary.', profile: null }));
     const [uc, step, opts] = onSelect.mock.calls[1];
     expect(uc.id).toBe('UC46A');
     expect(step).toBe(25);
@@ -156,19 +156,59 @@ describe('DemoStepsDropdown', () => {
 
     fireEvent.click(await screen.findByTestId('demo-step-UC47'));
 
-    expect(startPrivilegeA2aChainRun).toHaveBeenCalledWith({
+    await waitFor(() => expect(startPrivilegeA2aChainRun).toHaveBeenCalledWith({
       message: 'Refund order 7 for the customer.',
       specialist: 'refunds',
-    });
+      profile: null,
+    }));
     expect(onSelect.mock.calls[0][0].id).toBe('UC47');
     expect(onSelect.mock.calls[0][1]).toBe(26);
     expect(onSelect.mock.calls[0][2]).toEqual({ run: expect.any(Promise) });
 
     fireEvent.click(screen.getByTestId('chain-run-denied'));
 
-    expect(startPrivilegeA2aChainRun).toHaveBeenLastCalledWith({
+    await waitFor(() => expect(startPrivilegeA2aChainRun).toHaveBeenLastCalledWith({
       message: 'Refund order 7 for the customer.',
       specialist: 'restricted',
+      profile: null,
+    }));
+  });
+
+  describe('with a vertical profile', () => {
+    const profile = {
+      vertical: 'healthcare',
+      agentName: 'CareConnect agent',
+      specialistName: 'Records Specialist',
+      questions: ['Q one?', 'Q two?', 'Q three?'],
+    };
+    beforeEach(() => {
+      apiClient.get.mockImplementation((url) => Promise.resolve(
+        url === '/api/privilege-a2a/profile' ? { data: { profile } } : { data: { useCases: CATALOG } },
+      ));
+    });
+
+    it('Step 25A runs question 1; the extra buttons run questions 2 and 3', async () => {
+      const onSelect = vi.fn();
+      render(<DemoStepsDropdown open onOpenChange={() => {}} onSelect={onSelect} />);
+      fireEvent.click(await screen.findByTestId('demo-step-UC46A'));
+      await waitFor(() => expect(runPrivilegeA2aChatRun).toHaveBeenLastCalledWith({ message: 'Q one?', profile }));
+      expect(onSelect.mock.calls[0][1]).toBe(25);
+      expect(onSelect.mock.calls[0][2]).toEqual({ keepTrace: true, run: expect.any(Promise) });
+
+      fireEvent.click(screen.getByTestId('review-question-2'));
+      await waitFor(() => expect(runPrivilegeA2aChatRun).toHaveBeenLastCalledWith({ message: 'Q two?', profile }));
+      fireEvent.click(screen.getByTestId('review-question-3'));
+      await waitFor(() => expect(runPrivilegeA2aChatRun).toHaveBeenLastCalledWith({ message: 'Q three?', profile }));
+    });
+
+    it('Step 26 allowed and denied runs ask question 1 with the real specialist keys', async () => {
+      const onSelect = vi.fn();
+      render(<DemoStepsDropdown open onOpenChange={() => {}} onSelect={onSelect} />);
+      fireEvent.click(await screen.findByTestId('demo-step-UC47'));
+      await waitFor(() => expect(startPrivilegeA2aChainRun).toHaveBeenLastCalledWith({ message: 'Q one?', specialist: 'refunds', profile }));
+      expect(onSelect.mock.calls[0][1]).toBe(26);
+      fireEvent.click(screen.getByTestId('chain-run-denied'));
+      await waitFor(() => expect(startPrivilegeA2aChainRun).toHaveBeenLastCalledWith({ message: 'Q one?', specialist: 'restricted', profile }));
     });
   });
 

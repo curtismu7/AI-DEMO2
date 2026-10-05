@@ -143,6 +143,85 @@ function specialistForVertical(vertical) {
   return A2A_SPECIALISTS[canonical] || null;
 }
 
+/**
+ * What the Privilege A2A demo steps (25, 25A, 26) show for a vertical: the name of
+ * its generalist agent and 3 canned questions for its specialist. Display data only;
+ * the specialist identity, tools and subtask hint stay in A2A_SPECIALISTS above.
+ */
+const A2A_DEMO_PROFILES = {
+  banking: {
+    agentName: 'Super Banking agent',
+    questions: ['Review my investment positions.', 'What is my current investment balance?', 'Show my recent investment transactions.'],
+  },
+  healthcare: {
+    agentName: 'CareConnect agent',
+    questions: ['Retrieve my patient health record.', 'Do my records show any current prescriptions?', 'Which conditions are listed on my record?'],
+  },
+  retail: {
+    agentName: 'Great Buy agent',
+    questions: ['Review my recent order history.', 'Which of my purchases were returned?', 'What was my largest order this year?'],
+  },
+  'sporting-goods': {
+    agentName: 'Super Sports agent',
+    questions: ['Review my membership details.', 'When does my membership renew?', 'Which membership benefits do I have?'],
+  },
+  workforce: {
+    agentName: 'WX Workforce agent',
+    questions: ['Review my payroll details.', 'Show the deductions on my last pay period.', 'What is my current pay grade?'],
+  },
+  government: {
+    agentName: 'CivicPermit agent',
+    questions: ['Retrieve my tax assessment record.', 'Is there an outstanding balance on my assessment?', 'When was my property last assessed?'],
+  },
+  university: {
+    agentName: 'Super University agent',
+    questions: ['Review my financial aid record.', 'Which aid awards are pending disbursement?', 'What is my remaining tuition balance?'],
+  },
+  manufacturing: {
+    agentName: 'Precision Works agent',
+    questions: ['Review the supplier contract terms.', 'When does the supplier contract expire?', 'What are the contract’s payment terms?'],
+  },
+  investment: {
+    agentName: 'Meridian Wealth agent',
+    questions: ['Review my investment holdings.', 'Which holdings make up most of my portfolio?', 'What is the total value of my holdings?'],
+  },
+  airlines: {
+    agentName: 'United Airlines agent',
+    questions: ['Retrieve my passenger record.', 'What loyalty status is on my passenger record?', 'Which upcoming trips are on my record?'],
+  },
+  admin: {
+    agentName: 'PingOne Admin agent',
+    questions: ['Retrieve the customer’s identity-verification record.', 'Has this customer completed KYC?', 'When was the identity last verified?'],
+  },
+};
+
+// White-label verticals share their domain's questions but keep their own brand.
+const A2A_DEMO_ALIAS_AGENT_NAMES = {
+  'abercrombie-fitch': 'Abercrombie & Fitch agent',
+};
+
+/**
+ * The Privilege A2A demo profile for a vertical, or null when it has no specialist
+ * (the demo then falls back to the generic access review).
+ *   { vertical, agentName, specialistName, tool, tools, subtaskHint, questions }
+ */
+function a2aDemoProfile(vertical) {
+  const specialist = specialistForVertical(vertical);
+  if (!specialist) return null;
+  const canonical = A2A_SPECIALIST_ALIASES[vertical] || vertical;
+  const demo = A2A_DEMO_PROFILES[canonical];
+  if (!demo) return null;
+  return {
+    vertical,
+    agentName: A2A_DEMO_ALIAS_AGENT_NAMES[vertical] || demo.agentName,
+    specialistName: specialist.specialistName,
+    tool: specialist.tools[0],
+    tools: [...specialist.tools],
+    subtaskHint: specialist.subtaskHint,
+    questions: [...demo.questions],
+  };
+}
+
 /** configStore key (lowercase) for a specialist's client id, derived from appKey. */
 function clientIdKey(appKey) {
   return `pingone_${appKey}_agent_client_id`;
@@ -179,6 +258,8 @@ module.exports = {
   specialistDirectory,
   verticalsWithSpecialist,
   specialistForVertical,
+  a2aDemoProfile,
+  A2A_DEMO_PROFILES,
   clientIdKey,
   clientSecretKey,
   intermediateAudienceKey,
