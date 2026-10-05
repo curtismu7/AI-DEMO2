@@ -8579,6 +8579,19 @@ export default function BankingAgent({
         return;
       }
       addMessage("assistant", `${stepLabel} — opening ${trigger.path}.`);
+      // A run started by the step (A2A access review, agent chain) takes a few seconds and
+      // streams into the reel: say it is running, then say how it ended, so a failure is not silent.
+      if (opts?.run) {
+        addMessage("assistant", `${stepLabel} — running through the AI Gateway. This takes a few seconds; the reel fills as each hop arrives.`);
+        Promise.resolve(opts.run)
+          .then((result) => addMessage(
+            "assistant",
+            result && result.ok === false
+              ? `${stepLabel} — the run failed: ${result.error || "unknown error"}.`
+              : `${stepLabel} — run complete.`,
+          ))
+          .catch((err) => addMessage("assistant", `${stepLabel} — the run failed: ${err?.message || "unknown error"}.`));
+      }
       // This step runs on its own page. Clear the live trace first, or the
       // dashboard's sequence diagram keeps showing the previous run when the
       // presenter comes back, as though it belonged to this step. The Privilege

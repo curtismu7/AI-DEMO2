@@ -374,15 +374,17 @@ export default function DemoStepsDropdown({
     // The Privilege A2A agent chain starts here and plays in the reel: launch
     // the run, then let the link trigger land the presenter on the dashboard.
     // The run keeps streaming into the trace store across that navigation.
+    let chainRunPromise;
     if (uc.useCaseId === PRIVILEGE_A2A_CHAIN_USE_CASE_ID && chainRun) {
       const { message, specialist } = chainRun;
-      void startPrivilegeA2aChainRun({ message, specialist });
+      chainRunPromise = startPrivilegeA2aChainRun({ message, specialist });
     }
     // Step 25A runs the A2A access review in the embedded agent: start the run, keep its
     // trace across the hop to /dashboard, and leave the route-opening Step 25 alone.
     if (uc.useCaseId === PRIVILEGE_A2A_ACCESS_REVIEW_AGENT_USE_CASE_ID) {
-      void runPrivilegeA2aChatRun({ message: PRIVILEGE_A2A_DEMO_QUESTIONS[0] }).catch(() => {});
-      onSelect(uc, stepNumber, { keepTrace: true });
+      const run = runPrivilegeA2aChatRun({ message: PRIVILEGE_A2A_DEMO_QUESTIONS[0] });
+      run.catch(() => {}); // the agent reports the failure; this only marks it handled
+      onSelect(uc, stepNumber, { keepTrace: true, run });
       setTick((n) => n + 1);
       return;
     }
@@ -392,7 +394,11 @@ export default function DemoStepsDropdown({
     const selectedUc = ['UC38', 'UC44'].includes(uc.id) && uc.trigger?.type === 'link'
       ? { ...uc, trigger: { type: 'chip', text: uc.runPrompt || uc.trigger?.label } }
       : uc;
-    onSelect(selectedUc, stepNumber, uc.id === 'UC14b' ? { quickResult: rarQuickResult } : undefined);
+    onSelect(
+      selectedUc,
+      stepNumber,
+      uc.id === 'UC14b' ? { quickResult: rarQuickResult } : chainRunPromise ? { run: chainRunPromise } : undefined,
+    );
     setTick((n) => n + 1);
   }
 

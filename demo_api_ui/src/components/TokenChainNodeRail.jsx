@@ -339,7 +339,7 @@ export default function TokenChainNodeRail({ steps, activeId, onSelect, onPresen
             >
               <span className="tcnr-node-top">
                 <span className="tcnr-node-n">{i + 1}</span>
-                <span className={`tcnr-node-lane${step.lane === "GATEWAY" ? " tcnr-node-lane--gateway" : ""}`}>{laneLabel(step.lane)}</span>
+                <span className={`tcnr-node-lane${step.lane === "GATEWAY" ? " tcnr-node-lane--gateway" : ""}`}>{step.laneLabel || laneLabel(step.lane)}</span>
               </span>
               <span className="tcnr-node-title">{nodeLabel(step)}</span>
               <NodeFact step={step} />
