@@ -32,6 +32,8 @@ export async function runProviderLogin(provider) {
       return false;
     }
   }
-  navigateToCustomerOAuthForceLogin('/login-flow');
+  // Ends on the OIDC Resource Server page: the login token itself is shown
+  // and used there, with no exchange, P1AZ or Agent Gateway in between.
+  navigateToCustomerOAuthForceLogin('/resource-server');
   return true;
 }

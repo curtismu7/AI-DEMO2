@@ -16,7 +16,7 @@ PingFederate authenticates the person with OIDC authorization code + PKCE; the B
 
 ## How to Run
 
-**Trigger:** Trigger (link): `{"type":"link","path":"/login-flow","label":"Open the PingFederate login flow"}`  
+**Trigger:** Trigger (link): `{"type":"link","path":"/resource-server","label":"Sign in with PingFederate, end on the resource server"}`  
 **Expected outcome:** `PERMIT`
 
 ## What to Say

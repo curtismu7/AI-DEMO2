@@ -16,7 +16,7 @@ PingOne authenticates the person with OIDC authorization code + PKCE; the BFF ke
 
 ## How to Run
 
-**Trigger:** Trigger (link): `{"type":"link","path":"/login-flow","label":"Open the PingOne login flow"}`  
+**Trigger:** Trigger (link): `{"type":"link","path":"/resource-server","label":"Sign in with PingOne, end on the resource server"}`  
 **Expected outcome:** `PERMIT`
 
 ## What to Say
