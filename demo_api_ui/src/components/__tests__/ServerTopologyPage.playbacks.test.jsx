@@ -2,7 +2,7 @@ import React from "react";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const reactFlowMocks = vi.hoisted(() => ({ fitView: vi.fn(), setViewport: vi.fn(), edges: [], nodes: [] }));
+const reactFlowMocks = vi.hoisted(() => ({ fitView: vi.fn(), zoomTo: vi.fn(), setViewport: vi.fn(), edges: [], nodes: [] }));
 
 vi.mock("@xyflow/react", async () => {
   const ReactModule = await import("react");
@@ -10,7 +10,7 @@ vi.mock("@xyflow/react", async () => {
     Background: () => null,
     BackgroundVariant: { Dots: "dots" },
     BaseEdge: () => null,
-    Controls: () => null,
+    Panel: ({ children }) => children,
     getSmoothStepPath: ({ sourceX = 0, sourceY = 0, targetX = 0, targetY = 0 }) => [
       `M${sourceX},${sourceY} L${targetX},${targetY}`,
       (sourceX + targetX) / 2,
@@ -43,7 +43,11 @@ vi.mock("@xyflow/react", async () => {
       fitView: reactFlowMocks.fitView,
       getViewport: () => ({ x: 24, y: 36, zoom: 0.62 }),
       setViewport: reactFlowMocks.setViewport,
+      zoomIn: vi.fn(),
+      zoomOut: vi.fn(),
+      zoomTo: reactFlowMocks.zoomTo,
     }),
+    useViewport: () => ({ x: 0, y: 0, zoom: 0.62 }),
   };
 });
 
@@ -87,6 +91,31 @@ describe("Server topology use-case playback", () => {
     const pingOne = reactFlowMocks.nodes.find((node) => node.id === "pingone");
     expect(frontend.style.opacity).toBe(1);
     expect(pingOne.style.opacity).toBeLessThanOrEqual(0.05);
+  });
+
+  it("dims off-flow services by default and lights every one when All services is chosen", () => {
+    render(<ServerTopologyPage />);
+    const servers = () => reactFlowMocks.nodes.filter((node) => node.type === "server");
+
+    expect(servers().some((node) => node.style.opacity < 0.1)).toBe(true);
+    fireEvent.change(screen.getByRole("combobox", { name: "Filter servers by category" }), { target: { value: "all" } });
+    expect(servers().every((node) => node.style.opacity === 1)).toBe(true);
+  });
+
+  it("sizes the diagram from the slider", () => {
+    render(<ServerTopologyPage />);
+
+    fireEvent.change(screen.getByRole("slider", { name: "Diagram size" }), { target: { value: "80" } });
+    expect(reactFlowMocks.zoomTo).toHaveBeenCalledWith(0.8, { duration: 0 });
+  });
+
+  it("lists a selected server's incoming and outgoing communication first", () => {
+    render(<ServerTopologyPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Demo Agent Gateway" }));
+
+    const headings = [...document.querySelectorAll(".stm-details__body h3")].map((h) => h.textContent);
+    expect(headings.slice(0, 2)).toEqual(["Incoming communication", "Outgoing communication"]);
   });
 
   it("keeps the chosen request path clear and nearly hides off-path services and links", () => {

@@ -3,14 +3,15 @@ import {
   Background,
   BackgroundVariant,
   BaseEdge,
-  Controls,
   getSmoothStepPath,
   Handle,
   MarkerType,
+  Panel,
   Position,
   ReactFlow,
   ReactFlowProvider,
   useReactFlow,
+  useViewport,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { DEMO_STEP_USE_CASES, GROUPS, PLAYBACKS, RFC, SERVER_EDGES, SERVER_MAP, SERVER_ZONES, SPECS } from "./serverTopologyData";
@@ -24,7 +25,7 @@ const LAYER_OPTIONS = [
   ["protocol", "Protocols"], ["network", "Network"], ["security", "Security"], ["standards", "RFCs & specs"],
 ];
 const FILTER_OPTIONS = [
-  ["all", "All services"], ["core", "App & MCP"], ["identity", "Identity & policy"],
+  ["flow", "Current flow (others dimmed)"], ["all", "All services (all lit)"], ["core", "App & MCP"], ["identity", "Identity & policy"],
   ["ai", "AI & data"], ["telemetry", "Observability"], ["optional", "Optional profiles"],
 ];
 const NODE_TYPE_LABELS = [
@@ -50,7 +51,7 @@ function endpointFor(node, deployment) {
 }
 
 function matchesFilter(item, filter) {
-  if (filter === "all") return true;
+  if (filter === "all" || filter === "flow") return true;
   if (filter === "optional") return Boolean(item.data.profile) || item.data.group === "optional";
   if (filter === "identity") return item.data.group === "identity" || item.data.group === "trust";
   return item.data.group === filter;
@@ -367,12 +368,6 @@ function DetailPanel({ selectedNode, selectedEdge, deployment, activeStep, playb
       </header>
       <div className="stm-details__body">
         {activeStep && <p className="stm-step-context"><strong>Diagram step {String(activeStep.index + 1).padStart(2, "0")} of {activeStep.total}</strong><span>{activeStep.title}</span></p>}
-        {(connection || server) && <section className="stm-detail-section stm-detail-section--mapping"><h3>Demo Steps mapping</h3>
-          {mappedDemoSteps.length ? <ul className="stm-use-case-list">{mappedDemoSteps.map((id) => <li key={id}><strong>{id}</strong><span>{DEMO_STEP_USE_CASES[id]}</span></li>)}</ul> : <p className="stm-subtle">No direct Demo Steps use case is represented by this selected connection in the current flow.</p>}
-        </section>}
-        {server && <section className="stm-detail-section"><h3>Role</h3><p>{server.role}</p></section>}
-        {server && <section className="stm-detail-section"><h3>Endpoint</h3><div className="stm-code">{address}</div><p className="stm-subtle">{deployment === "local" ? "Local Docker address" : "Kubernetes service address"}</p></section>}
-        {connection && <section className="stm-detail-section"><h3>Connection path</h3><p>{endpointFor(NODE_BY_ID[connection.source], deployment)}<br /><span className="stm-path-arrow">to</span><br />{endpointFor(NODE_BY_ID[connection.target], deployment)}</p></section>}
         {server && <>
           <section className="stm-detail-section stm-detail-section--communications"><h3>Incoming communication</h3>
             {incoming.length ? <CommunicationList tone="incoming" direction="Inbound to this server" edges={incoming} playback={playback} /> : <p className="stm-subtle">No incoming connections are declared.</p>}
@@ -381,6 +376,12 @@ function DetailPanel({ selectedNode, selectedEdge, deployment, activeStep, playb
             {outgoing.length ? <CommunicationList tone="outgoing" direction="Outbound from this server" edges={outgoing} playback={playback} /> : <p className="stm-subtle">No outgoing connections are declared.</p>}
           </section>
         </>}
+        {(connection || server) && <section className="stm-detail-section stm-detail-section--mapping"><h3>Demo Steps mapping</h3>
+          {mappedDemoSteps.length ? <ul className="stm-use-case-list">{mappedDemoSteps.map((id) => <li key={id}><strong>{id}</strong><span>{DEMO_STEP_USE_CASES[id]}</span></li>)}</ul> : <p className="stm-subtle">No direct Demo Steps use case is represented by this selected connection in the current flow.</p>}
+        </section>}
+        {server && <section className="stm-detail-section"><h3>Role</h3><p>{server.role}</p></section>}
+        {server && <section className="stm-detail-section"><h3>Endpoint</h3><div className="stm-code">{address}</div><p className="stm-subtle">{deployment === "local" ? "Local Docker address" : "Kubernetes service address"}</p></section>}
+        {connection && <section className="stm-detail-section"><h3>Connection path</h3><p>{endpointFor(NODE_BY_ID[connection.source], deployment)}<br /><span className="stm-path-arrow">to</span><br />{endpointFor(NODE_BY_ID[connection.target], deployment)}</p></section>}
         {(server || connection) && <section className="stm-detail-section"><h3>Protocol</h3><p>{connection ? connection.data.protocol : server.protocol}</p></section>}
         {(server || connection) && <section className="stm-detail-section"><h3>Network path</h3><p>{connection ? connection.data.network : server.network}</p></section>}
         {(server || connection) && <section className="stm-detail-section"><h3>TLS / authentication</h3><p>{connection ? connection.data.security : server.security}</p></section>}
@@ -396,6 +397,20 @@ function DetailPanel({ selectedNode, selectedEdge, deployment, activeStep, playb
   );
 }
 
+function ZoomControls({ onFit }) {
+  const { zoomIn, zoomOut, zoomTo } = useReactFlow();
+  const { zoom } = useViewport();
+  return (
+    <Panel position="top-right" className="stm-zoom" aria-label="Diagram size">
+      <button type="button" onClick={() => zoomOut({ duration: 120 })} aria-label="Zoom out">-</button>
+      <input type="range" min={12} max={160} step={2} value={Math.round(zoom * 100)} aria-label="Diagram size" onChange={(event) => zoomTo(Number(event.target.value) / 100, { duration: 0 })} />
+      <button type="button" onClick={() => zoomIn({ duration: 120 })} aria-label="Zoom in">+</button>
+      <button type="button" className="stm-zoom__readout" onClick={() => zoomTo(1, { duration: 150 })} title="Reset to 100%">{Math.round(zoom * 100)}%</button>
+      <button type="button" onClick={onFit}>Fit</button>
+    </Panel>
+  );
+}
+
 function TopologyCanvas({
   deployment, filter, flowOnly, activeLayer, selectedNode, selectedEdge, activePlaybackEdge, playbackSteps, detailsOpen, onSelectNode, onSelectEdge, onFit, onClearSelection,
 }) {
@@ -407,9 +422,9 @@ function TopologyCanvas({
     )) : []);
     const serviceNodes = SERVER_MAP.filter((node) => !flowOnly || routeNodes.has(node.id)).map((node) => {
       const isSelected = node.id === selectedNode;
-      const inScope = isSelected || flowOnly || (filter === "all" ? routeNodes.has(node.id) : matchesFilter(node, filter));
+      const inScope = isSelected || flowOnly || (filter === "flow" ? routeNodes.has(node.id) : matchesFilter(node, filter));
       const opacity = selectedNode
-        ? (isSelected ? 1 : connectedNodeIds.has(node.id) ? 0.58 : 0.018)
+        ? (isSelected || connectedNodeIds.has(node.id) ? 1 : 0.28)
         : (inScope ? 1 : 0.035);
       return {
         ...node,
@@ -432,9 +447,9 @@ function TopologyCanvas({
     const isOutgoingFromSelection = selectedNode && item.source === selectedNode;
     const isFocusedCommunication = isIncomingToSelection || isOutgoingFromSelection;
     const isSelectedEdge = selectedEdge === item.id;
-    const matchesCategory = filter === "all" || matchesFilter(NODE_BY_ID[item.source], filter) || matchesFilter(NODE_BY_ID[item.target], filter) || (filter === "optional" && item.data.profile);
+    const matchesCategory = filter === "all" || filter === "flow" || matchesFilter(NODE_BY_ID[item.source], filter) || matchesFilter(NODE_BY_ID[item.target], filter) || (filter === "optional" && item.data.profile);
     const visible = isSelectedEdge || (flowOnly ? routeEdges.has(item.id) : matchesCategory || isFocusedCommunication);
-    const isOffRoute = filter === "all" && !isOnPlayback && !isFocusedCommunication && !isSelectedEdge;
+    const isOffRoute = filter === "flow" && !isOnPlayback && !isFocusedCommunication && !isSelectedEdge;
     const isDimmed = !isSelectedEdge && (!visible || Boolean(selectedNode && !isFocusedCommunication) || isOffRoute);
     const active = activePlaybackEdge === item.id || isSelectedEdge || isFocusedCommunication || isOnPlayback;
     const stroke = isIncomingToSelection ? "#bc8cff" : isOutgoingFromSelection ? "#58a6ff" : EDGE_COLORS[item.data.kind] || EDGE_COLORS.mcp;
@@ -525,11 +540,10 @@ function TopologyCanvas({
         defaultEdgeOptions={{ type: "topologyLabeled" }}
       >
         <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="var(--stm-dot)" />
-        <Controls position="top-right" showInteractive={false} />
+        <ZoomControls onFit={onFit} />
         <FitFilteredServices filter={filter} flowOnly={flowOnly} playbackSteps={playbackSteps} detailsOpen={detailsOpen} />
         <FitTopologyForPrint filter={filter} flowOnly={flowOnly} playbackSteps={playbackSteps} />
       </ReactFlow>
-      <button className="stm-fit-button" type="button" onClick={onFit}>{flowOnly ? "Fit current flow" : "Fit all servers"}</button>
     </div>
   );
 }
@@ -557,7 +571,7 @@ function ServerTopologyContent() {
   const notesSize = isNarrow ? notesSizeNarrow : notesSizeWide;
   const resizeNotes = isNarrow ? resizeNotesNarrow : resizeNotesWide;
   const [deployment, setDeployment] = useState("local");
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useState("flow");
   const [flowOnly, setFlowOnly] = useState(false);
   const [activeLayer, setActiveLayer] = useState("protocol");
   const [selectedNode, setSelectedNode] = useState(null);
@@ -618,7 +632,7 @@ function ServerTopologyContent() {
     setScenario(event.target.value);
     setStepIndex(0);
     setPlaying(false);
-    setFilter("all");
+    setFilter("flow");
     setSelectedNode(null);
     setSelectedEdge(PLAYBACKS[event.target.value].steps[0]?.edgeId || null);
   }, []);
@@ -628,7 +642,7 @@ function ServerTopologyContent() {
     setScenario(key);
     setStepIndex(0);
     setPlaying(false);
-    setFilter("all");
+    setFilter("flow");
     setSelectedNode(null);
     setSelectedEdge(PLAYBACKS[key].steps[0]?.edgeId || null);
     setFlowOnly(true);
@@ -658,7 +672,7 @@ function ServerTopologyContent() {
       setSelectedEdge(playback.steps[stepIndex]?.edgeId || null);
       return;
     }
-    setFilter("all");
+    setFilter("flow");
     setSelectedEdge(null);
     if (stepIndex >= playback.steps.length - 1) setStepIndex(0);
     setPlaying(true);
@@ -690,7 +704,7 @@ function ServerTopologyContent() {
               </select>
             </label>
             <span className="stm-service-count" aria-live="polite">
-              {filter === "all" ? `${SERVER_MAP.length} services` : `${SERVER_MAP.filter((node) => matchesFilter(node, filter)).length} shown`}
+              {filter === "all" || filter === "flow" ? `${SERVER_MAP.length} services` : `${SERVER_MAP.filter((node) => matchesFilter(node, filter)).length} shown`}
             </span>
           </>}
           <div className="stm-toolbar__spacer" />
