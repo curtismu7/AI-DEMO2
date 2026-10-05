@@ -5,14 +5,15 @@
 
 const { llmFetch } = require('./llmFetch');
 
-const DEFAULT_MODEL = 'gemini-2.0-flash';
+// gemini-2.0-flash and the 1.5 models are retired for the demo's key (404); these three
+// were listed by the key's models endpoint and answered on 2026-10-05.
+const DEFAULT_MODEL = 'gemini-2.5-flash';
 
 /** Models to try when the preferred model hits free-tier quota (429). */
 const MODEL_FALLBACKS = [
-  'gemini-2.0-flash',
-  'gemini-1.5-flash',
-  'gemini-1.5-pro',
-  'gemini-2.0-flash-lite',
+  'gemini-2.5-flash',
+  'gemini-2.5-flash-lite',
+  'gemini-2.5-pro',
 ];
 
 function apiKey(config = {}) {
