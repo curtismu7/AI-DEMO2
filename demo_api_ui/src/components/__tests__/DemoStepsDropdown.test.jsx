@@ -10,6 +10,7 @@ import apiClient from '../../services/apiClient';
 import {
   CIAM_AGENT_TYPE_USE_CASE_IDS,
   PRIVILEGE_USE_CASE_IDS,
+  DEMO_SUB_STEP_IDS,
   DEMO_USE_CASE_IDS,
   ADMIN_PRIMARY_USE_CASE_IDS,
   EXTRA_STEP_GROUPS,
@@ -25,7 +26,7 @@ vi.mock('../../utils/providerLoginRun', async (importOriginal) => ({
 
 vi.mock('../../utils/privilegeA2aChainRun', () => ({
   PRIVILEGE_A2A_CHAIN_USE_CASE_ID: 'privilege-a2a-agent-chain',
-  PRIVILEGE_A2A_ACCESS_REVIEW_USE_CASE_ID: 'privilege-a2a-access-review',
+  PRIVILEGE_A2A_ACCESS_REVIEW_AGENT_USE_CASE_ID: 'privilege-a2a-access-review-agent',
   PRIVILEGE_A2A_DEMO_QUESTIONS: ['Review access on prod-db-primary.'],
   startPrivilegeA2aChainRun: vi.fn(),
   runPrivilegeA2aChatRun: vi.fn(() => Promise.resolve()),
@@ -38,9 +39,9 @@ vi.mock('../../services/apiClient', () => ({
   },
 }));
 
-const CATALOG = DEMO_USE_CASE_IDS.map((id, i) => ({
+const CATALOG = [...DEMO_USE_CASE_IDS, 'UC46A'].map((id, i) => ({
   id,
-  useCaseId: id === 'UC40' ? ID_JAG_USE_CASE_ID : id === 'UC47' ? 'privilege-a2a-agent-chain' : id === 'UC46' ? 'privilege-a2a-access-review' : `slug-${id}`,
+  useCaseId: id === 'UC40' ? ID_JAG_USE_CASE_ID : id === 'UC47' ? 'privilege-a2a-agent-chain' : id === 'UC46' ? 'privilege-a2a-access-review' : id === 'UC46A' ? 'privilege-a2a-access-review-agent' : `slug-${id}`,
   ...(id === 'UC47'
     ? {
       chainRuns: [
@@ -120,20 +121,25 @@ describe('DemoStepsDropdown', () => {
     expect(onSelect.mock.calls[0][1]).toBe(25);
   });
 
-  it('runs UC46 in the embedded agent from its own button; the card still opens the route', async () => {
+  it('Step 25A runs the access review in the agent right after Step 25; Step 25 still opens the route', async () => {
     const onSelect = vi.fn();
     render(<DemoStepsDropdown open onOpenChange={() => {}} onSelect={onSelect} />);
 
-    fireEvent.click(await screen.findByTestId('demo-step-UC46'));
-    expect(runPrivilegeA2aChatRun).not.toHaveBeenCalled();
-    expect(onSelect.mock.calls[0][0].trigger).toEqual({ type: 'chip', text: 'prompt for UC46' });
+    const ids = (await screen.findAllByTestId(/^demo-step-UC4[67]A?$/)).map((el) => el.getAttribute('data-testid'));
+    expect(ids).toEqual(['demo-step-UC46', 'demo-step-UC46A', 'demo-step-UC47']);
+    expect(screen.getByTestId('demo-step-UC46A')).toHaveTextContent('25A · UC46A');
+    expect(screen.getByTestId('demo-step-UC47')).toHaveTextContent('26 · UC47');
 
-    fireEvent.click(screen.getByTestId('a2a-in-agent-UC46'));
+    fireEvent.click(screen.getByTestId('demo-step-UC46'));
+    expect(runPrivilegeA2aChatRun).not.toHaveBeenCalled();
+    expect(onSelect.mock.calls[0][0].id).toBe('UC46');
+    expect(onSelect.mock.calls[0][1]).toBe(25);
+
+    fireEvent.click(screen.getByTestId('demo-step-UC46A'));
     expect(runPrivilegeA2aChatRun).toHaveBeenCalledWith({ message: 'Review access on prod-db-primary.' });
     const [uc, step, opts] = onSelect.mock.calls[1];
-    expect(uc.id).toBe('UC46');
+    expect(uc.id).toBe('UC46A');
     expect(step).toBe(25);
-    expect(uc.trigger).toEqual({ type: 'link', path: '/dashboard' });
     expect(opts).toEqual({ keepTrace: true });
   });
 
@@ -409,7 +415,9 @@ describe('DemoStepsDropdown', () => {
     // to a single 5-column grid (#826); nothing is gated behind a toggle.
     const items = screen.getAllByTestId(/^demo-step-/);
     expect(items.map((el) => el.getAttribute('data-testid'))).toEqual(
-      DEMO_USE_CASE_IDS.map((id) => `demo-step-${id}`),
+      // A lettered sub-step (25A) renders right after its parent.
+      DEMO_USE_CASE_IDS.flatMap((id) => (DEMO_SUB_STEP_IDS[id] ? [id, DEMO_SUB_STEP_IDS[id]] : [id]))
+        .map((id) => `demo-step-${id}`),
     );
     // UC24 (Act 1 — public catalog) opens the script, so UC1 is step 2.
     expect(screen.getByTestId('demo-explain-UC1')).toHaveAttribute(

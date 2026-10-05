@@ -43,6 +43,13 @@ export const DEMO_PRIMARY_USE_CASE_IDS = [
 
 export const DEMO_ADVANCED_USE_CASE_IDS = [];
 
+/**
+ * Lettered sub-steps: a use case shown right after its parent as "<parent number>A".
+ * They sit outside the numbered lists on purpose, so adding one never renumbers the
+ * steps after it (UC46A is Step 25A; Step 26 stays Step 26).
+ */
+export const DEMO_SUB_STEP_IDS = { UC46: 'UC46A' };
+
 /** Curated CIAM lane shown as its own live group on the use-case launcher. */
 export const CIAM_AGENT_TYPE_USE_CASE_IDS = [
   'UC43',  // Consumer & Partner Agent — mocked CIMD registration
@@ -89,6 +96,7 @@ export const DEMO_USE_CASE_SEARCH_TERMS = {
   'UC-LEARN11': ['privilege', 'privilege ai', 'llm gateway', 'prompt injection'],
   'UC-TOOL3': ['privilege', 'privilege ai', 'llm gateway', 'prompt injection', 'virtual key'],
   UC46: ['privilege', 'a2a', 'agent-to-agent', 'access review', 'anthropic', 'google', 'gemini', 'ai gateway', 'worker agent'],
+  UC46A: ['privilege', 'a2a', 'agent-to-agent', 'access review', 'in the agent', 'reel', 'sequence'],
   UC47: ['privilege', 'a2a', 'agent-to-agent', 'agent chain', 'three deep', 'ai gateway', 'langchain', 'specialist', 'delegation'],
 };
 

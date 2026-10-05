@@ -1595,6 +1595,34 @@ const RAW_USE_CASES = [
   },
 
   {
+    id: 'UC46A',
+    useCaseId: 'privilege-a2a-access-review-agent',
+    track: 'tools',
+    title: 'Privilege A2A access review in the agent',
+    buyerStory: 'Security analysts want to ask an agent to review access and follow how a delegated worker gathers evidence through Privilege-protected tools.',
+    pingOneSolution: 'A MainAgent delegates the analyst request to a WorkerAgent over A2A; the worker uses MCP through PingOne Privilege Gateway and returns an evidence-backed answer.',
+    trigger: { type: 'link', path: '/dashboard', label: 'Run the access review in the agent' },
+    expectedOutcome: 'A2A_ACCESS_REVIEW',
+    evidence: { tokenChain: [], activity: ['a2a', 'mcp', 'llm'] },
+    codeRefs: [
+      'standalone/privilege-a2a-anthropic-demo/src/main-agent/index.ts',
+      'standalone/privilege-a2a-anthropic-demo/src/worker-agent/index.ts',
+      'demo_api_server/routes/privilegeA2aClient.js',
+    ],
+    maturity: 'works',
+    owasp: { threats: [], sections: [] },
+    whatToSay: 'The same MainAgent to WorkerAgent access review as Step 25, run inside the embedded agent: the reel and sequence view fill with each hop as it happens.',
+    advanced: false,
+    whatLong: 'A three-process agent-to-agent demo. The browser sends the analyst question through the BFF to a MainAgent, which delegates over A2A to a WorkerAgent. The worker calls MCP through PingOne Privilege Gateway and returns an evidence-backed access review. The BFF session protects the browser endpoint; the A2A message does not carry a user token or represent RFC 8693 delegation.',
+    businessValue: 'Show how an agent can delegate an access-review task to a specialist worker while Privilege governs the hand-off and the worker’s LLM and MCP calls, and leaves visible evidence for the analyst.',
+    productRoles: {
+      privilege: 'Validates each agent’s Agent Access key and applies gateway policy to its LLM, A2A and MCP requests; its guardrail screens agent messages and tool results.',
+      bff: 'Requires the browser session and relays chat to MainAgent without forwarding browser identity or tokens.',
+    },
+    primaryTool: null,
+  },
+
+  {
     id: 'UC47',
     useCaseId: 'privilege-a2a-agent-chain',
     track: 'tools',

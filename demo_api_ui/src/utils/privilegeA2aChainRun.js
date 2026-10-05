@@ -11,6 +11,8 @@ import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTrac
 export const PRIVILEGE_A2A_CHAIN_USE_CASE_ID = 'privilege-a2a-agent-chain';
 export const PRIVILEGE_A2A_CHAIN_EVENT_PREFIX = 'pa2a-';
 export const PRIVILEGE_A2A_ACCESS_REVIEW_USE_CASE_ID = 'privilege-a2a-access-review';
+// Step 25A: the same review, run inside the embedded agent instead of on the A2A page.
+export const PRIVILEGE_A2A_ACCESS_REVIEW_AGENT_USE_CASE_ID = 'privilege-a2a-access-review-agent';
 export const PRIVILEGE_A2A_DEMO_QUESTIONS = [
   'Review access on prod-db-primary.',
   'List all entitlements for Carol Nguyen.',

@@ -11,12 +11,13 @@ import {
   DEMO_ADVANCED_USE_CASE_IDS,
   DEMO_JOURNEY_GROUPS,
   DEMO_PRIMARY_USE_CASE_IDS,
+  DEMO_SUB_STEP_IDS,
   DEMO_USE_CASE_SEARCH_TERMS,
   EXTRA_STEP_GROUPS,
   PRIVILEGE_USE_CASE_IDS,
 } from '../config/demoUseCaseSteps';
 import { getMissionControlGroup } from '../config/missionControlCatalog';
-import { demoStepNumber } from '../config/demoStepNumbers';
+import { demoStepLabel, demoStepNumber } from '../config/demoStepNumbers';
 import apiClient from '../services/apiClient';
 import UseCaseExplainModal from './UseCaseExplainModal';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
@@ -24,7 +25,7 @@ import { a2aEventsForExplain } from './demoStepsA2a';
 import { ID_JAG_USE_CASE_ID, RUN_MODES, requestLiveIdJagRun } from '../utils/idJagRunMode';
 import { LOGIN_RUN_PROVIDERS, runProviderLogin } from '../utils/providerLoginRun';
 import {
-  PRIVILEGE_A2A_ACCESS_REVIEW_USE_CASE_ID,
+  PRIVILEGE_A2A_ACCESS_REVIEW_AGENT_USE_CASE_ID,
   PRIVILEGE_A2A_CHAIN_USE_CASE_ID,
   PRIVILEGE_A2A_DEMO_QUESTIONS,
   runPrivilegeA2aChatRun,
@@ -272,7 +273,12 @@ export default function DemoStepsDropdown({
               return uc ? { uc, stepNumber: offset + index + 1 } : null;
             })
             .filter(Boolean);
-        setPrimarySteps(mapIds(primaryIds, 0));
+        // Lettered sub-steps (25A) slot in after their parent without taking a number.
+        const primaryRows = mapIds(primaryIds, 0).flatMap((row) => {
+          const sub = isAdmin ? undefined : catalog.find((u) => u.id === DEMO_SUB_STEP_IDS[row.uc.id]);
+          return sub ? [row, { uc: sub, stepNumber: row.stepNumber, stepLabel: demoStepLabel(sub.id) }] : [row];
+        });
+        setPrimarySteps(primaryRows);
         setAdvancedSteps(mapIds(advancedIds, primaryIds.length));
         const scriptedIds = new Set([...primaryIds, ...advancedIds]);
         setCiamSteps(
@@ -372,6 +378,14 @@ export default function DemoStepsDropdown({
       const { message, specialist } = chainRun;
       void startPrivilegeA2aChainRun({ message, specialist });
     }
+    // Step 25A runs the A2A access review in the embedded agent: start the run, keep its
+    // trace across the hop to /dashboard, and leave the route-opening Step 25 alone.
+    if (uc.useCaseId === PRIVILEGE_A2A_ACCESS_REVIEW_AGENT_USE_CASE_ID) {
+      void runPrivilegeA2aChatRun({ message: PRIVILEGE_A2A_DEMO_QUESTIONS[0] }).catch(() => {});
+      onSelect(uc, stepNumber, { keepTrace: true });
+      setTick((n) => n + 1);
+      return;
+    }
     // UC38/UC44 run in the dashboard agent as a chip prompt (their dedicated
     // /workload-agents page is opened via the secondary workload button below),
     // so the presenter stays on this page and the result lands in the agent.
@@ -379,18 +393,6 @@ export default function DemoStepsDropdown({
       ? { ...uc, trigger: { type: 'chip', text: uc.runPrompt || uc.trigger?.label } }
       : uc;
     onSelect(selectedUc, stepNumber, uc.id === 'UC14b' ? { quickResult: rarQuickResult } : undefined);
-    setTick((n) => n + 1);
-  }
-
-  /**
-   * UC46 inside the embedded agent: the same chat the /privilege-mcp-client tab
-   * runs, streamed into the trace store, with the presenter kept on /dashboard.
-   * The UC46 card itself still opens the route (link trigger unchanged).
-   */
-  function handleA2aInAgent(uc, stepNumber) {
-    void runPrivilegeA2aChatRun({ message: PRIVILEGE_A2A_DEMO_QUESTIONS[0] }).catch(() => {});
-    if (!poppedOutRef.current) onOpenChange(false);
-    onSelect({ ...uc, trigger: { type: 'link', path: '/dashboard' } }, stepNumber, { keepTrace: true });
     setTick((n) => n + 1);
   }
 
@@ -515,7 +517,7 @@ export default function DemoStepsDropdown({
    */
   // scope: set for the themed groups, where a step can repeat a card shown
   // earlier, so its extra test ids stay unique.
-  function renderStep({ uc, stepNumber }, { markNext = false, testId, scope = '' } = {}) {
+  function renderStep({ uc, stepNumber, stepLabel }, { markNext = false, testId, scope = '' } = {}) {
     const completed = completedIds.has(uc.id);
     const isNext = markNext && !completed && uc.id === nextPrimaryId;
     const btnClass = [
@@ -545,7 +547,7 @@ export default function DemoStepsDropdown({
               ✓
             </span>
           )}
-          <span className="ba-demo-steps-popout__id">{stepNumber} · {uc.id}</span>
+          <span className="ba-demo-steps-popout__id">{stepLabel ?? stepNumber} · {uc.id}</span>
           <span className={`banking-chips-dropdown__chip-name${uc.id === 'UC40' ? ' banking-chips-dropdown__chip-name--id-jag' : ''}`}>
             {uc.id === 'UC40' ? 'Run PingFederate ID-JAG' : uc.demoLabel || uc.title}
             {uc.id === 'UC40' && (
@@ -598,18 +600,6 @@ export default function DemoStepsDropdown({
             {run.label.charAt(0)}
           </button>
         ))}
-        {uc.useCaseId === PRIVILEGE_A2A_ACCESS_REVIEW_USE_CASE_ID && (
-          <button
-            type="button"
-            className="ba-demo-steps-popout__rar-toggle"
-            onClick={(e) => { e.stopPropagation(); handleA2aInAgent(uc, stepNumber); }}
-            aria-label="Run the access review in the agent"
-            title="Run the access review inside the embedded agent (the card opens the A2A page)"
-            data-testid={`a2a-in-agent-${scope}${uc.id}`}
-          >
-            A
-          </button>
-        )}
         {uc.id === 'UC14b' && (
           <button
             type="button"

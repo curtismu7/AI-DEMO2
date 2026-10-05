@@ -3,6 +3,7 @@ import {
   CIAM_AGENT_TYPE_USE_CASE_IDS,
   DEMO_ADVANCED_USE_CASE_IDS,
   DEMO_PRIMARY_USE_CASE_IDS,
+  DEMO_SUB_STEP_IDS,
   EXTRA_STEP_GROUPS,
   PRIVILEGE_USE_CASE_IDS,
 } from './demoUseCaseSteps';
@@ -31,10 +32,20 @@ for (const group of EXTRA_STEP_GROUPS) {
 }
 add(ADMIN_PRIMARY_USE_CASE_IDS, 0);
 
+// A lettered sub-step shares its parent's number and reads "25A".
+const SUB_LABELS = new Map();
+for (const [parent, sub] of Object.entries(DEMO_SUB_STEP_IDS)) {
+  const n = NUMBERS.get(parent);
+  if (n) { NUMBERS.set(sub, n); SUB_LABELS.set(sub, `${n}A`); }
+}
+
+/** "25A" for a lettered sub-step, otherwise the plain number. */
+export const demoStepLabel = (id) => SUB_LABELS.get(id) ?? NUMBERS.get(id);
+
 export const demoStepNumber = (id) => NUMBERS.get(id);
 
 /** "Step 27 · UC43", or just "UC43" for an id that is not a demo step. */
 export const stepLabel = (id) => {
-  const n = NUMBERS.get(id);
+  const n = demoStepLabel(id);
   return n ? `Step ${n} · ${id}` : id;
 };

@@ -249,6 +249,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-05 — Step 25A: run the A2A access review in the agent as its own row (replaces the "A" button)
+
+**Files:** `demo_api_server/config/useCases.js` (new `UC46A`), `config/auth-requirements.json`, `demo_api_ui/src/config/demoUseCaseSteps.js` (`DEMO_SUB_STEP_IDS`), `demoStepNumbers.js` (`demoStepLabel`), `demoStepGuides.js`, `demo_api_ui/src/components/DemoStepsDropdown.jsx`, `utils/privilegeA2aChainRun.js`, generated `docs/use-cases/*`.
+
+**What was broken:** The in-agent run of UC46 hung off a small "A" button on the Step 25 row, easy to miss and not a step of its own.
+
+**What changed:** UC46A (Step 25A) is its own use case shown right after Step 25. Clicking it starts `runPrivilegeA2aChatRun` and hands off to /dashboard with `keepTrace`. The "A" button and its handler are gone. 25A lives in `DEMO_SUB_STEP_IDS`, outside the numbered lists, so it shares Step 25's number and reads "25A", and Step 26 onward are NOT renumbered. It is deliberately not in `demoReadinessInventory.json`, which mirrors the 26 numbered primary steps.
+
+**Do not break:** UC46 (Step 25) keeps its link trigger and route `/privilege-mcp-client?view=demo&tab=a2a`. UC47 stays Step 26. Do not insert UC46A into `DEMO_PRIMARY_USE_CASE_IDS`; that would renumber every later step.
+
+**Verify:** `cd demo_api_ui && npx vitest run src/components/__tests__/DemoStepsDropdown.test.jsx src/config`; `npm run build`; `npm run authz:verify`; `cd demo_api_server && npm run use-cases:check`.
+
 ### 2026-10-05 — Demo Step 25 (UC46) could not run inside the embedded agent
 
 **Files:** `demo_api_ui/src/components/DemoStepsDropdown.jsx`, `demo_api_ui/src/components/AIAgent.js`, `demo_api_ui/src/utils/privilegeA2aChainRun.js` (shared `PRIVILEGE_A2A_DEMO_QUESTIONS`), `demo_api_ui/src/features/privilegeA2aClient/PrivilegeA2aTab.jsx`, `DemoStepsDropdown.test.jsx`.
