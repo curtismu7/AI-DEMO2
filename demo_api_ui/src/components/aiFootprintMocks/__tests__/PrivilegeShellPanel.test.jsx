@@ -2,6 +2,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { PrivilegeShellPanel } from "../PrivilegeShellPanel";
+import { usePrivilegeShellSession } from "../usePrivilegeShellSession";
 import apiClient from "../../../services/apiClient";
 
 vi.mock("../../../services/apiClient", () => ({
@@ -11,10 +12,15 @@ vi.mock("../../../services/apiClient", () => ({
   },
 }));
 
-function renderPanel(path = "/demo/coding-agent", skin = "coding") {
+function Harness({ skin }) {
+  const session = usePrivilegeShellSession();
+  return <PrivilegeShellPanel skin={skin} session={session} />;
+}
+
+function renderPanel(path = "/demo/chatgpt-desktop", skin = "chatgpt") {
   return render(
     <MemoryRouter initialEntries={[path]}>
-      <PrivilegeShellPanel skin={skin} />
+      <Harness skin={skin} />
     </MemoryRouter>,
   );
 }
@@ -38,7 +44,7 @@ describe("PrivilegeShellPanel", () => {
     fireEvent.click(btn);
     await waitFor(() =>
       expect(apiClient.post).toHaveBeenCalledWith("/api/privilege-mcp/auth/start", {
-        returnTo: "/demo/coding-agent",
+        returnTo: "/demo/chatgpt-desktop",
       }),
     );
     await waitFor(() => expect(assign).toHaveBeenCalledWith("https://auth.example/authorize"));
@@ -76,7 +82,7 @@ describe("PrivilegeShellPanel", () => {
 
   it("shows the OAuth error carried back on the redirect query", async () => {
     apiClient.get.mockResolvedValue({ data: { oauth: { authenticated: false } } });
-    renderPanel("/demo/coding-agent?auth=error&reason=denied");
+    renderPanel("/demo/chatgpt-desktop?auth=error&reason=denied");
     expect(await screen.findByText("OAuth failed: denied")).toBeInTheDocument();
   });
 });
