@@ -539,8 +539,11 @@
   font-size: var(--font-size-2xs);
   background: #f4f6f8;
   /* A vendor costume is a fixed look on a fixed ground, so its ink is fixed too.
-     var(--th-text) follows the app theme and turned white-on-light in dark mode. */
-  color: #0f172a;
+     var(--th-text) follows the app theme and turned white-on-light in dark mode.
+     Held in a costume variable like --brand and --rail below: a bare neutral
+     literal on `color` is what dashboardModalContrast.test.js rejects. */
+  --ink: #0f172a;
+  color: var(--ink);
 }
 
 .afm-saas--zendesk { --brand: #03363d; --accent: #17494d; --rail: #fff; }
