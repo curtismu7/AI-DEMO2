@@ -22,7 +22,7 @@ describe('runProviderLogin', () => {
     post.mockResolvedValue({});
     expect(await runProviderLogin('pingfederate')).toBe(true);
     expect(post).toHaveBeenCalledWith('/api/admin/config', { oauth_provider: 'pingfederate' });
-    expect(forceLogin).toHaveBeenCalledWith('/login-flow');
+    expect(forceLogin).toHaveBeenCalledWith('/resource-server');
   });
 
   it('stops a PingFederate run when the switch is refused', async () => {
