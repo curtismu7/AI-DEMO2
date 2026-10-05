@@ -295,6 +295,20 @@ extraContainers:
       initialDelaySeconds: 3
       periodSeconds: 10
 
+# Resources of the MAIN gateway container, for every release this file is applied to.
+# The chart default requests cpu 1 and memory 2Gi; measured 2026-10-05 at idle the container
+# uses about 30m CPU and 40 MiB, and the eight sidecars request nothing at all. The 1000m
+# request, three times over, is what left the shared SE cluster with no node for the BFF
+# ("27 Insufficient cpu"). Limits are unchanged, so bursts are still allowed; the startup
+# burst was not measured, so raise the request if a gateway is throttled when it starts.
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "2"
+    memory: 4Gi
+
 # Shared token store for BOTH gateway releases (this file is applied to each).
 # Without it a gateway restart forgets every registered client, and a client
 # registered on one gateway is unknown to the other. Each namespace needs a Secret

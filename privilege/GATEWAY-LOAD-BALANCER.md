@@ -245,12 +245,18 @@ connected on attempt 1/6, Certificate issued, in rotation. **It never served a r
 tests through the public URL land on whichever node the client address hashes to, and on
 2026-10-04 that was always gateway 1 (39 of 39 logged requests). It was not proven to serve apps.
 
-**To bring it back:** make room first (it needs 1000m of CPU requests on one node), then
-`kubectl scale deploy/agentless-mcpgw3 --replicas=1`, wait for 9/9 and the Redis line,
-set `parked: false` for `gateway-3` in `gateway1-lb.values.yaml`, and
-`scripts/se-gateways.sh upgrade --apply`. While the Deployment is at 0, `se-gateways.sh`
-skips gateway 3, because a Helm upgrade would scale it back to 1. Cheaper next time: trim the
-sidecars' CPU requests in `sidecars.values.yaml` (not measured, so not done).
+**Why it was so big, measured 2026-10-05:** the whole 1000m was the main gateway container
+(request 1 CPU, 2Gi, from the chart default). The eight sidecars request nothing. At idle that
+container used about 30m CPU and 40 MiB, on gateways 1 and 2 alike. `sidecars.values.yaml` now
+sets the main container's request to 250m and 512Mi (limits unchanged at 2 CPU and 4Gi), for
+every release. The startup burst was not measured; raise the request if a gateway is throttled
+when it starts. (An earlier version of this section said to trim the sidecars' requests; that
+was wrong, they have none.)
+
+**To bring it back:** `kubectl scale deploy/agentless-mcpgw3 --replicas=1` (it now needs 250m
+on one node), wait for 9/9 and the Redis line, set `parked: false` for `gateway-3` in
+`gateway1-lb.values.yaml`, and `scripts/se-gateways.sh upgrade --apply`. While the Deployment
+is at 0, `se-gateways.sh` skips gateway 3, because a Helm upgrade would scale it back to 1.
 
 Read `node=` in `kubectl logs deploy/mcpgw-lb` to see which node answered a request; to force a
 node, park the others as in section 00.
