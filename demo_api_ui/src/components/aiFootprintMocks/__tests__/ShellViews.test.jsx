@@ -263,3 +263,40 @@ describe.each([
     expect(screen.getByText("Tools apply to MCP paths.")).toBeInTheDocument();
   });
 });
+
+describe("ShellRoutingBar reachability and door fallback", () => {
+  it("shows the routing bar when signed out and door change calls pickDoor", () => {
+    const session = makeSession({ phase: "signed-out" });
+    render(<ShellTerminalView session={session} />);
+    expect(screen.getByRole("combobox", { name: "Connection path" })).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("combobox", { name: "MCP backend (door)" }), {
+      target: { value: "https://gw.example/privilege-gateway/other/mcp" },
+    });
+    expect(session.pickDoor).toHaveBeenCalledWith("https://gw.example/privilege-gateway/other/mcp");
+  });
+
+  it("does not show the routing bar while loading, and renders it once when ready", () => {
+    const { unmount } = render(<ShellTerminalView session={makeSession({ phase: "loading" })} />);
+    expect(screen.queryByRole("combobox", { name: "Connection path" })).toBeNull();
+    unmount();
+    render(<ShellTerminalView session={makeSession()} />);
+    expect(screen.getAllByRole("combobox", { name: "Connection path" })).toHaveLength(1);
+  });
+
+  it("reflects a backend that is not in the presets", () => {
+    const base = makeSession();
+    const session = makeSession({
+      routing: { ...base.routing, config: { mcpUrl: "https://gw.example/privilege-gateway/console-only/mcp" } },
+    });
+    render(<ShellTerminalView session={session} />);
+    const door = screen.getByRole("combobox", { name: "MCP backend (door)" });
+    expect(door).toHaveDisplayValue("console-only");
+    expect(within(door).getAllByRole("option")).toHaveLength(3);
+  });
+
+  it("disables both selects while a reply is pending", () => {
+    render(<ShellTerminalView session={makeSession({ thinking: true })} />);
+    expect(screen.getByRole("combobox", { name: "Connection path" })).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: "MCP backend (door)" })).toBeDisabled();
+  });
+});

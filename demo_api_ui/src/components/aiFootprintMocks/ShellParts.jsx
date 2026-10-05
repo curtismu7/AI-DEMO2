@@ -10,6 +10,7 @@ export function ShellGate({ session, children }) {
       {phase === "loading" ? <div className="pvs-empty">Checking Privilege session…</div> : null}
       {phase === "signed-out" ? (
         <div className="pvs-connect">
+          <ShellRoutingBar session={session} />
           <p>Connect this tool to the AI Agent Gateway to discover tools.</p>
           <button type="button" onClick={connect} disabled={busy}>Sign in with Privilege</button>
         </div>
@@ -55,7 +56,8 @@ export function ShellSteps({ steps }) {
 
 export function ShellRoutingBar({ session }) {
   const { routing, busy, pickPath, pickDoor } = session;
-  const off = busy || !routing.loaded;
+  const off = busy || session.thinking || !routing.loaded;
+  const current = routing.config.mcpUrl;
   const doors = doorsForMode(routing.presets, routing.gatewayMode);
   return (
     <div className="pvs-routing">
@@ -88,6 +90,9 @@ export function ShellRoutingBar({ session }) {
             disabled={off}
             onChange={(e) => pickDoor(e.target.value)}
           >
+            {current && !doors.includes(current) ? (
+              <option value={current}>{doorName(current) || current}</option>
+            ) : null}
             {doors.map((url) => <option key={url} value={url}>{doorName(url) || url}</option>)}
           </select>
         ) : (
