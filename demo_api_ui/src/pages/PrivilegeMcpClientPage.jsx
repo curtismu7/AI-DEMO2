@@ -15,6 +15,7 @@ import { navigateWithOverlay } from '../utils/navigateWithOverlay';
 import { doorName, GATEWAY_MODES, LLM_PATHS, doorsForMode, decideAfterSwitch } from '../components/privilege/privilegeRouting';
 import { LLM_POLICY_DENIED, chatReplyMessage, llmReplyMessage, llmDenialMessage } from '../components/privilege/privilegeChat';
 import { usePrivilegeRouting } from '../components/privilege/usePrivilegeRouting';
+import { requestAuthStart, isSilentAuthUrl } from '../components/privilege/privilegeAuth';
 import PrivilegeMcpLearningPage from './PrivilegeMcpLearningPage';
 import './PrivilegeMcpClientPage.css';
 
@@ -892,18 +893,17 @@ export default function PrivilegeMcpClientPage() {
   // "undefined": blank page, no error, nothing logged. Every caller redirects
   // through here so that failure surfaces as an exception their catch reports.
   const startAuthRedirect = async ({ silentOnly = false } = {}) => {
-    const data = await api('/auth/start', { method: 'POST' });
+    const start = await requestAuthStart(api);
     // An ungated door (mcpFacade.js DOORS.banking) has no authorization server
     // to redirect to. Its tools load with no token, so fetch them rather than
     // navigating — and say so, because a Sign in button that appears to do
     // nothing reads as broken.
-    if (data?.noAuthRequired) {
+    if (start.kind === 'no-auth-required') {
       appendChat('system', 'This door needs no sign-in — its upstream owns identity. Loading tools.');
       await refreshTools();
       return;
     }
-    if (!data?.authUrl) throw new Error('sign-in did not return an authorization URL');
-    if (silentOnly && new URL(data.authUrl).searchParams.get('prompt') !== 'none') {
+    if (silentOnly && !isSilentAuthUrl(start.authUrl)) {
       requestSignIn('The gateway cannot silently authorize this door from the current session. Sign in to connect it.');
       return false;
     }
@@ -914,7 +914,7 @@ export default function PrivilegeMcpClientPage() {
     // cannot leave the flag behind. A reload or stale ?auth=success carries no
     // flag and still discovers nothing.
     writeSessionFlag(SILENT_DOOR_SWITCH_KEY, true);
-    navigateWithOverlay(data.authUrl, { message: 'Signing in...' });
+    navigateWithOverlay(start.authUrl, { message: 'Signing in...' });
     return true;
   };
 
