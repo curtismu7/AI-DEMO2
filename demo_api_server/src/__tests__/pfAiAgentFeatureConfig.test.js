@@ -17,7 +17,7 @@ describe('PF AI Agent feature configuration', () => {
   test('keeps feature flags disabled by default and never changes the active provider', () => {
     const store = makeStore();
 
-    expect(getFeatureStatus(store)).toEqual({ cimd: false, crossDomain: false, rar: false, rarDpop: false, ciba: false, cibaMock: false });
+    expect(getFeatureStatus(store)).toEqual({ cimd: false, crossDomain: false, rar: false, rarDpop: false, ciba: false, cibaMock: false, cibaWebApprover: false });
     expect(store.getOAuthProvider()).toBe('pingone');
     expect(store.getEffective).not.toHaveBeenCalledWith('oauth_provider');
   });

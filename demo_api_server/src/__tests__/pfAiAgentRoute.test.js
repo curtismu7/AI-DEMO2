@@ -25,7 +25,7 @@ describe('PF AI Agent namespace status', () => {
     const response = await request(app).get('/api/pf-ai-agent/status').expect(200);
 
     expect(response.body.sessionProvider).toBe('pingone');
-    expect(response.body.features).toEqual({ cimd: false, crossDomain: false, rar: false, rarDpop: false, ciba: false, cibaMock: false });
+    expect(response.body.features).toEqual({ cimd: false, crossDomain: false, rar: false, rarDpop: false, ciba: false, cibaMock: false, cibaWebApprover: false });
     expect(response.body.nativeIdJagPath).toEqual(expect.any(String));
     expect(JSON.stringify(response.body)).not.toContain('test-client-secret');
     expect(store.getOAuthProvider()).toBe('pingone');

@@ -221,6 +221,7 @@ const ENV_AGNOSTIC_KEYS = new Set([
   'pf_ai_third_party_resource', 'pf_ai_third_party_scope', 'pf_ai_rar_enabled',
   'pf_ai_rar_client_id', 'pf_ai_rar_dpop_client_id', 'pf_ai_rar_lookup_secret', 'pf_ai_third_party_mock_enabled', 'pf_ai_ciba_mock_enabled',
   'pf_ai_ciba_enabled', 'pf_ai_ciba_client_id', 'pf_ai_ciba_client_secret',
+  'pf_ai_ciba_web_approver_enabled', 'pf_ai_ciba_approver_secret',
   // ciba
   'ciba_enabled', 'ciba_token_delivery_mode', 'ciba_binding_message',
   'ciba_poll_interval_ms', 'ciba_auth_request_expiry',

@@ -180,6 +180,18 @@ describe("PingFederate AI Agent page", () => {
       expect(apiClient.post).toHaveBeenCalledWith("/api/pf-ai-agent/ciba/mock-decision", { decision: "approve" });
     });
 
+    it("shows the web approver buttons only when it is on, and posts the decision", async () => {
+      routeGets({ page: { ...cibaStatus, features: { ...cibaStatus.features, ciba: true, cibaWebApprover: true } } });
+      apiClient.post.mockResolvedValue({ data: pendingView() });
+      render(<PingFederateAiAgentPage user={{ username: "demouser" }} />);
+
+      fireEvent.click(await ask());
+      fireEvent.click(await screen.findByRole("button", { name: /Deny \(web approver\)/i }));
+
+      await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith("/api/pf-ai-agent/ciba/web-approver/decision", { decision: "deny" }));
+      expect(screen.queryByTestId("ciba-mock-phone")).not.toBeInTheDocument();
+    });
+
     it("has no mock phone buttons when it is off", async () => {
       routeGets();
       apiClient.post.mockResolvedValue({ data: pendingView() });

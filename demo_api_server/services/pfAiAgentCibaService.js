@@ -2,7 +2,7 @@
 
 const jwt = require('jsonwebtoken');
 const configStore = require('./configStore');
-const { getFeatureStatus, resolveCibaConfig } = require('./pfAiAgentFeatureConfig');
+const { getFeatureStatus, resolveCibaConfig, webApproverOn } = require('./pfAiAgentFeatureConfig');
 const {
   oauthError,
   discoverPf,
@@ -99,7 +99,8 @@ async function safeJson(response) {
 // Mock phone: no PingFederate call. The pending request waits for mockDecideCiba (the page's
 // Approve / Deny buttons), so the page flow runs without a real PingOne MFA device.
 // Never on in production, whatever the flag says: it approves a request without any device.
-const mockEnabled = (store) => process.env.NODE_ENV !== 'production'
+// The web approver (real PingFederate flow) takes precedence over the mock.
+const mockEnabled = (store) => process.env.NODE_ENV !== 'production' && !webApproverOn(store)
   && String(store.getEffective('pf_ai_ciba_mock_enabled') || '').trim().toLowerCase() === 'true';
 
 async function startCiba(req, {

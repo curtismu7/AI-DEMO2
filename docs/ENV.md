@@ -118,7 +118,14 @@ PingFederate client, authenticator and request policy it belongs with.
 
 `PF_AI_CIBA_MOCK_ENABLED=true` swaps the user's device for a mock phone: the BFF skips
 PingFederate, and the page shows Approve and Deny buttons that answer the pending request.
-It proves the page and BFF flow only, not PingOne MFA, so it is off by default.
+It proves the page and BFF flow only, not PingOne MFA. It is the default on the local
+compose stack (`docker-compose.yml`), and it is never active when `NODE_ENV=production`.
+
+`PF_AI_CIBA_WEB_APPROVER_ENABLED=true` (off by default, local only) runs PingFederate's real
+CIBA flow with a stand-in authenticator, the `ai-agent-ciba-approver` plugin, which registers the
+request with the BFF and polls it; a person approves on the page. It takes precedence over the
+mock phone, uses the PingFederate client `ai-demo-pf-ciba-web`, and needs `PF_AI_CIBA_APPROVER_SECRET`
+(vault, shared with the plugin). Setup: `scripts/pingfederate/README.md`, "CIBA web approver".
 
 On the local stack the cross-domain and third-party values above are defaults in
 `docker-compose.yml`, and `scripts/pingfederate/provision-cross-domain-exchange.js
