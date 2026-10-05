@@ -53,6 +53,11 @@ section 00). What it changes:
   screens show the tenant API key and OIDC secret in plain text: do not screenshot them.
 - A gateway re-enrolls from a new token only if its old files in `/procyon/ssl` are out of
   the way. Move them to a subfolder instead of deleting, and the old enrollment can return.
+- **A node with no console row** was enrolled with the wrong **Host IP** in the AI GW form (it is
+  pre-filled with `ai-demo.ping-devops.com`; use the node's own in-cluster Service name). A node
+  cannot be edited, only re-created. **Strip all leading and trailing whitespace from a saved
+  token**: leading spaces give `crypto/ecdsa: verification error` and a crash loop. Full steps:
+  `privilege/GATEWAY-LOAD-BALANCER.md` section 00c, "Re-enrolling a node".
 - The bullets below about forwarding and the mesh describe the earlier two-cluster layout
   (nothing is forwarded now; "The mesh forwards" and "Watch `Error connecting`" are history).
   Pinning, in-memory sign-in state, Helm 4 and `--reuse-values` still apply as written.

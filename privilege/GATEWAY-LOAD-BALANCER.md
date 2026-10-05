@@ -233,8 +233,10 @@ amount of persistence changes that. Not a documented Ping feature, so ask Ping w
 
 ## 00c. A third node in gateway 1's namespace (installed 2026-10-04, back in rotation 2026-10-05)
 
-**Status, 2026-10-05: running (9/9, Redis connected, enrolled) and un-parked in the load
-balancer, but still not shown to serve a request.** It was removed from service on 2026-10-04
+**Status, 2026-10-05: running (9/9, Redis connected), listed by the console as the third node of
+`ai-demo-cmuir`, and un-parked in the load balancer, but still not shown to serve a request.**
+It was re-enrolled the same day (see "Re-enrolling a node" below) because the first enrollment
+never produced a console row. It was removed from service on 2026-10-04
 because its pod requested 1000m CPU (nine containers), which left the SE cluster with no node
 that had 750m free: SE's `demo-api-server` sat Pending for 36 minutes with "27 Insufficient
 cpu". It came back after the main container's request was cut to 250m (below). The proof test,
@@ -267,6 +269,33 @@ clients may be asked to sign in again. Apply with a values file that copies
 `gateway1-lb.values.yaml` with `loadBalancer.ownParked: true` and gateway-2's `parked: true`
 (`helm upgrade agentless-mcpgw ... --reuse-values -f sidecars.values.yaml -f <that file>`), and
 restore by upgrading again with the repo's `gateway1-lb.values.yaml`.
+
+**Re-enrolling a node (done for gateway 3 on 2026-10-05).** The console's Gateways page is a tree:
+one row per cluster ("3 nodes"), with a child row per node showing its address. A node's address
+is the **Host IP typed into the AI GW form**, and a node cannot be edited afterwards, only
+re-created. Gateway 3 was first enrolled with the form's pre-filled Host IP
+(`ai-demo.ping-devops.com`) and never got a row, although the gateway itself ran and its mesh
+node was visible in the other gateways' logs. Re-enrolling with the right Host IP
+(`agentless-mcpgw3.ping-devops-curtismuir.svc.cluster.local`) produced the row. Steps:
+
+1. Console: Gateways, Add New, the **AI GW** form, Cluster ID `ai-demo-cmuir`, the node's own
+   in-cluster Service name as Host IP, then Get Docker Command. Keep only the `eyJ...` value after
+   `ENV_PROXY_TOKEN=`; it is single-use and lasts about 2 hours.
+2. Save it to an owner-only file and **strip every leading and trailing whitespace character**
+   before use. Two stray leading characters made the first attempt crash-loop with
+   `crypto/ecdsa: verification error` (the Secret held a token that would not decode, and the
+   local signature check runs before the server is contacted, so the token was not spent).
+   Check the file is one line starting `eyJ`, with no whitespace before the first character.
+3. Scale the Deployment to 0, then delete the node's enrollment volume (`agentless-mcpgw3-ssl`):
+   a node only re-enrolls from a new token when its old files are gone.
+4. `helm upgrade ... --reuse-values -f sidecars.values.yaml -f gateway3.values.yaml --set-file
+   proxyToken=<file>`, then `kubectl rollout restart deploy/agentless-mcpgw3` (the Secret is read at
+   pod start). Expect 9/9 and `Redis token store connected on attempt 1/6`.
+5. Delete the token file. The old node's record (`3e1b59d6` for gateway 3) may linger in the mesh:
+   the other gateways keep logging attempts to reach it. It did not appear in the console list.
+
+The gateway's own log is a file, not stdout: for a crash loop read it from a running sidecar,
+`kubectl exec <pod> -c log-tailer -- tail /var/log/procyon/cyonproxy.log`.
 
 Read `node=` in `kubectl logs deploy/mcpgw-lb` to see which node answered a request; to force a
 node, park the others as in section 00.
