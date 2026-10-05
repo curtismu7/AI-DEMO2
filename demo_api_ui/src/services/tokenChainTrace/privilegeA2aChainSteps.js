@@ -11,6 +11,47 @@ const chainActor = (name) => PRIVILEGE_CHAIN_ACTORS[name] || `${name} specialist
 const chainLane = (name) => chainActor(name).toUpperCase().replace(/\s+/g, "-");
 const PRIVILEGE_GATEWAY_LANE = "GATEWAY";
 const A2A_REFS = ["A2A message/send", "JSON-RPC 2.0"];
+// The name the gateway's log gives each caller: the agent its key belongs to
+// in the Agent Registry.
+const GATEWAY_CLIENT = { main: "main-agent", langchainagent: "langchain-caller" };
+const GATEWAY_RECORD_ID = "pa2a-gateway-record";
+const RECORD_ROW = "Gateway's own record";
+
+/**
+ * Rows for a gateway step from the gateway's own guardrail log (the
+ * `pa2a-gateway-record` event, see utils/privilegeA2aChainRun.js). `outcome` is
+ * `allowed`, `blocked` (the guardrail refused) or `denied` (policy refused).
+ * Returns `{ rows, verdict }`; until the record arrives there are no rows.
+ */
+function gatewayRecord(record, caller, outcome) {
+  if (!record) return { rows: [] };
+  if (record.state === "needsAuth") {
+    return { rows: [[RECORD_ROW, "Not loaded. On the LLM Gateway page, under Gateway findings, choose Load findings and then Sign in to this door (one click), then run this again."]] };
+  }
+  if (record.state !== "ready") return { rows: [[RECORD_ROW, `Could not be read: ${record.error || "unknown error"}`]] };
+  const wanted = outcome === "allowed" ? "a2a_request_alert" : "a2a_request_blocked";
+  // The record is every line in the run's time window, oldest first: the newest
+  // match is this run's.
+  const verdict = (record.guardrail || []).findLast((entry) => entry.client === GATEWAY_CLIENT[caller] && entry.event === wanted);
+  if (!verdict) {
+    const none = {
+      allowed: "No guardrail finding recorded for this call",
+      blocked: "No matching guardrail line found yet",
+      denied: "No guardrail finding: a policy refusal is not written to the guardrail log",
+    }[outcome];
+    return { rows: [[RECORD_ROW, none]] };
+  }
+  return {
+    verdict,
+    rows: [
+      [RECORD_ROW, `${verdict.event} · ${verdict.category}`],
+      ["Caller, as the gateway names it", verdict.client],
+      ...(verdict.rules.length ? [["Rules that fired", verdict.rules.join(", ")]] : []),
+      ...verdict.frameworks.map((framework) => [framework.label, framework.identifiers.join(", ")]),
+      ...(verdict.time ? [["Recorded at", verdict.time]] : []),
+    ],
+  };
+}
 
 const quote = (text) => (text ? `“${text}”` : "");
 // ": “what was said”." as the end of a sentence, without doubling the full stop
@@ -61,6 +102,7 @@ const replyBody = (text) => [
  * for one.
  */
 export function buildPrivilegeA2aChainSteps(tokenEvents) {
+  const record = (Array.isArray(tokenEvents) ? tokenEvents : []).find((event) => event?.id === GATEWAY_RECORD_ID);
   const events = (Array.isArray(tokenEvents) ? tokenEvents : [])
     .filter((event) => typeof event?.id === "string" && event.id.startsWith("pa2a-") && event.from && event.to);
   // The main agent announces its call before the gateway answers. If that call
@@ -176,9 +218,11 @@ export function buildPrivilegeA2aChainSteps(tokenEvents) {
     });
     if (refused) {
       const reason = event.detail || "no reason given";
+      const logged = gatewayRecord(record, event.from, /blocked by security policy/i.test(reason) ? "blocked" : "denied");
       return [call, step("-gateway", "Refuses the call", PRIVILEGE_GATEWAY_LANE, "error", {
-        narrative: `The gateway or the agent behind it refused this call: ${reason}. The hand-off stopped here: ${to} did no work for this call, and ${from} received the refusal instead of an answer.`,
-        kv: [["Outcome", "Refused"], ["Reason", reason], ["Reached the next agent", "No"], ...timing],
+        ...(logged.verdict ? { facts: [...facts, logged.verdict.category] } : {}),
+        narrative: `The gateway or the agent behind it refused this call: ${reason}. The hand-off stopped here: ${to} did no work for this call, and ${from} received the refusal instead of an answer.${logged.verdict ? ` The gateway's own log records it as ${logged.verdict.category}.` : ""}`,
+        kv: [["Outcome", "Refused"], ["Reason", reason], ["Reached the next agent", "No"], ...timing, ...logged.rows],
         ...(event.response ? { response: { title: `Refusal returned to ${from}`, text: event.response } } : {}),
       })];
     }
@@ -192,6 +236,7 @@ export function buildPrivilegeA2aChainSteps(tokenEvents) {
           ["Policy", `${from} may call ${to}`],
           ["Guardrail", "Message screened — passed"],
           ...timing,
+          ...gatewayRecord(record, event.from, "allowed").rows,
         ],
       }),
       step("-forward", `Receives the call from ${from}`, chainLane(event.to), "done", {

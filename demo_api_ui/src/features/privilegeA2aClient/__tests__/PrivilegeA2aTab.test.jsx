@@ -3,6 +3,11 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import PrivilegeA2aTab from '../PrivilegeA2aTab';
 
+// The gateway record is read after a run through a separate door; keep it off
+// the fetch mock these tests script, and let one test set what it returns.
+const loadGatewayRecord = vi.hoisted(() => vi.fn());
+vi.mock('../../../services/gatewayEvents', () => ({ GATEWAY_RECORD_SIGN_IN_PATH: '/llm-gateway', loadGatewayRecord }));
+
 function streamResponse(events, leadingFrame = '') {
   const encoder = new TextEncoder();
   const body = leadingFrame + events.map(({ event, data }) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`).join('');
@@ -20,6 +25,7 @@ function streamResponse(events, leadingFrame = '') {
 
 beforeEach(() => {
   global.fetch = vi.fn();
+  loadGatewayRecord.mockReset().mockResolvedValue({ state: 'ready', guardrail: [], modelCalls: [] });
 });
 
 afterEach(() => {
@@ -117,5 +123,33 @@ describe('PrivilegeA2aTab', () => {
 
     expect(signal.aborted).toBe(true);
     expect(await screen.findByRole('alert')).toHaveTextContent('Request cancelled.');
+  });
+
+  test('shows the gateway record of the run: model calls with tokens and cost, and guardrail verdicts', async () => {
+    loadGatewayRecord.mockResolvedValue({
+      state: 'ready',
+      modelCalls: [{ model: 'gemini-3.5-flash-lite', provider: 'google', status: 200, promptTokens: 100, completionTokens: 28, totalTokens: 128, costUsd: 0.0004995, latencyMs: 1285 }],
+      guardrail: [{ event: 'mcp_response_sanitized', category: 'pii', client: 'worker-agent', rules: ['pii-email'], frameworks: [{ label: 'OWASP LLM', identifiers: ['LLM02'] }] }],
+    });
+    global.fetch.mockResolvedValueOnce(streamResponse([{ event: 'token', data: { text: 'Done.' } }, { event: 'done', data: {} }]));
+    render(<PrivilegeA2aTab />);
+
+    await userEvent.type(screen.getByLabelText('Your question'), 'Review access');
+    await userEvent.click(screen.getByRole('button', { name: 'Send question' }));
+
+    expect(await screen.findByText(/gemini-3\.5-flash-lite · 128 tokens \(100 in, 28 out\) · \$0\.000500 · 1285 ms · HTTP 200/, {}, { timeout: 4000 })).toBeInTheDocument();
+    expect(screen.getByText('mcp_response_sanitized · pii · worker-agent')).toBeInTheDocument();
+    expect(screen.getByText(/OWASP LLM: LLM02/)).toBeInTheDocument();
+  });
+
+  test('says how to load the gateway record when its door is not signed in', async () => {
+    loadGatewayRecord.mockResolvedValue({ state: 'needsAuth', guardrail: [], modelCalls: [] });
+    global.fetch.mockResolvedValueOnce(streamResponse([{ event: 'done', data: {} }]));
+    render(<PrivilegeA2aTab />);
+
+    await userEvent.type(screen.getByLabelText('Your question'), 'Review access');
+    await userEvent.click(screen.getByRole('button', { name: 'Send question' }));
+
+    expect(await screen.findByRole('link', { name: 'sign in to the gateway findings door' }, { timeout: 4000 })).toHaveAttribute('href', '/llm-gateway');
   });
 });

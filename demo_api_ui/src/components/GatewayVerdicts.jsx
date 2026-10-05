@@ -41,6 +41,7 @@ const FRAMEWORK_LABELS = {
   mitre_atlas: 'MITRE ATLAS',
   nist_ai_rmf: 'NIST AI RMF',
   owasp_llm: 'OWASP LLM',
+  owasp_asi: 'OWASP Agentic (ASI)',
 };
 
 const EVENT_TONE = {

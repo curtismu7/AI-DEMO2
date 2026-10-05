@@ -1,3 +1,4 @@
+import { loadGatewayRecord } from '../services/gatewayEvents';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
 
 /**
@@ -11,6 +12,12 @@ export const PRIVILEGE_A2A_CHAIN_USE_CASE_ID = 'privilege-a2a-agent-chain';
 export const PRIVILEGE_A2A_CHAIN_EVENT_PREFIX = 'pa2a-';
 export const PRIVILEGE_A2A_ACCESS_REVIEW_USE_CASE_ID = 'privilege-a2a-access-review';
 const API_URL = '/api/privilege-a2a/chain';
+// The token event that carries the gateway's own record of the run (see
+// services/gatewayEvents.js). It has no `from`/`to`, so it is never a hop.
+export const PRIVILEGE_A2A_GATEWAY_RECORD_ID = `${PRIVILEGE_A2A_CHAIN_EVENT_PREFIX}gateway-record`;
+// The gateway's shipper posts a line as it is written; the index needs a
+// moment to make it searchable.
+const RECORD_DELAY_MS = 1500;
 const CHAT_API_URL = '/api/privilege-a2a/chat';
 
 const str = (value) => (typeof value === 'string' ? value : '');
@@ -64,7 +71,10 @@ export async function startPrivilegeA2aChainRun({
   store = tokenChainTraceStore,
   fetchImpl = fetch,
   signal,
+  loadRecord = loadGatewayRecord,
+  recordDelayMs = RECORD_DELAY_MS,
 } = {}) {
+  const startedAt = Date.now();
   store.beginTrace({ prompt: `${message} (via ${specialist})` });
   let hops = 0;
   const seen = [];
@@ -122,12 +132,24 @@ export async function startPrivilegeA2aChainRun({
     failure = error?.name === 'AbortError' ? 'Request cancelled.' : 'The A2A service is unavailable.';
   }
 
+  // The run is settled either way; the gateway's own record follows it. It is
+  // evidence beside the run, so it is not awaited and cannot fail the run.
+  const attachRecord = () => {
+    if (!hops || !loadRecord) return;
+    setTimeout(async () => {
+      const record = await loadRecord({ since: startedAt - 2000, until: Date.now() + 2000 });
+      store.ingestTokenEvent({ id: PRIVILEGE_A2A_GATEWAY_RECORD_ID, ...record });
+    }, recordDelayMs);
+  };
+
   if (failure) {
     store.completeTrace(false, null, failure);
+    attachRecord();
     return { ok: false, error: failure };
   }
   if (answer) store.ingestLlmReply(answer);
   store.completeTrace(true);
+  attachRecord();
   return { ok: true, answer };
 }
 

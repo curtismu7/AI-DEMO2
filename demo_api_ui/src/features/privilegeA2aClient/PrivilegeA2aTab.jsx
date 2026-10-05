@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { GATEWAY_RECORD_SIGN_IN_PATH, loadGatewayRecord } from '../../services/gatewayEvents';
 import { runPrivilegeA2aChatRun } from '../../utils/privilegeA2aChainRun';
 import './PrivilegeA2aTab.css';
 
@@ -17,6 +18,8 @@ export default function PrivilegeA2aTab() {
   const [sessionId, setSessionId] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  // The gateway's own record of the last run: its model calls and guardrail verdicts.
+  const [record, setRecord] = useState(null);
   const abortRef = useRef(null);
 
   useEffect(() => () => abortRef.current?.abort(), []);
@@ -56,6 +59,8 @@ export default function PrivilegeA2aTab() {
     setBusy(true);
     setError('');
     setTrace([]);
+    setRecord(null);
+    const startedAt = Date.now();
     setTurns(current => [...current, { question: message, answer: '' }]);
     setInput('');
     setSelectedQuestion('');
@@ -68,6 +73,10 @@ export default function PrivilegeA2aTab() {
     } finally {
       if (abortRef.current === controller) abortRef.current = null;
       setBusy(false);
+      // The gateway ships each line as it writes it; give the index a moment.
+      if (!controller.signal.aborted) {
+        setTimeout(async () => setRecord(await loadGatewayRecord({ since: startedAt - 2000, until: Date.now() + 2000 })), 1500);
+      }
     }
   };
 
@@ -121,6 +130,48 @@ export default function PrivilegeA2aTab() {
                 </li>
               ))}
             </ol>
+          )}
+          {record && (
+            <>
+              <h3>Gateway record</h3>
+              {record.state === 'needsAuth' && (
+                <p className="privilege-a2a__empty">
+                  The gateway keeps its own record of this run. To load it, <a href={GATEWAY_RECORD_SIGN_IN_PATH}>sign in to the gateway findings door</a>, then ask again.
+                </p>
+              )}
+              {record.state === 'error' && <p className="privilege-a2a__empty">The gateway record could not be read: {record.error}</p>}
+              {record.state === 'ready' && record.modelCalls.length + record.guardrail.length === 0 && (
+                <p className="privilege-a2a__empty">The gateway recorded no model call or guardrail verdict for this run.</p>
+              )}
+              {record.state === 'ready' && record.modelCalls.length + record.guardrail.length > 0 && (
+                <p className="privilege-a2a__empty">Every line the gateway wrote while this review ran. Its model-call lines do not name the agent, so another session's calls in the same seconds would appear here too.</p>
+              )}
+              {record.state === 'ready' && record.modelCalls.length + record.guardrail.length > 0 && (
+                <ol>
+                  {record.modelCalls.map((call, index) => (
+                    <li className="privilege-a2a__trace-entry" key={`model-${index}`}>
+                      <span className="privilege-a2a__trace-kind">model call</span>
+                      <span className="privilege-a2a__trace-text">
+                        {call.model || call.provider || 'model'} · {call.totalTokens ?? '?'} tokens ({call.promptTokens ?? '?'} in, {call.completionTokens ?? '?'} out)
+                        {call.costUsd != null ? ` · $${call.costUsd.toFixed(6)}` : ''}{call.latencyMs != null ? ` · ${call.latencyMs} ms` : ''}{call.status != null ? ` · HTTP ${call.status}` : ''}
+                      </span>
+                    </li>
+                  ))}
+                  {record.guardrail.map((verdict, index) => (
+                    <li className="privilege-a2a__trace-entry" key={`guardrail-${index}`}>
+                      <span className="privilege-a2a__trace-kind">guardrail</span>
+                      <span className="privilege-a2a__trace-text">{verdict.event} · {verdict.category}{verdict.client ? ` · ${verdict.client}` : ''}</span>
+                      {verdict.frameworks.length > 0 && (
+                        <details>
+                          <summary>Details</summary>
+                          <pre>{[...verdict.frameworks.map(framework => `${framework.label}: ${framework.identifiers.join(', ')}`), ...(verdict.rules.length ? [`Rules: ${verdict.rules.join(', ')}`] : [])].join('\n')}</pre>
+                        </details>
+                      )}
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </>
           )}
         </aside>
       </div>
