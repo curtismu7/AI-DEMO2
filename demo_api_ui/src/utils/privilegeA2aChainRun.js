@@ -63,6 +63,40 @@ export function chainHopToTokenEvent(payload, index, useCaseId = PRIVILEGE_A2A_C
   };
 }
 
+// Every run is bracketed on the reel: a first node for the client starting the
+// flow and a last node when it is done. `client` is the browser and the app's
+// server together; they carry the request to the main agent.
+export const PRIVILEGE_A2A_START_ID = `${PRIVILEGE_A2A_CHAIN_EVENT_PREFIX}start`;
+export const PRIVILEGE_A2A_DONE_ID = `${PRIVILEGE_A2A_CHAIN_EVENT_PREFIX}done`;
+const CLIENT = 'client';
+const MAIN = 'main';
+
+const startEvent = (message, entry, useCaseId, profile) => ({
+  id: PRIVILEGE_A2A_START_ID,
+  kind: 'start',
+  from: CLIENT,
+  to: MAIN,
+  toLabel: profileLabel(profile, MAIN),
+  status: 'ok',
+  label: 'Client started flow',
+  detail: str(message),
+  entry,
+  useCaseId,
+});
+
+/** `text` is the final answer when the run completed, the reason when it did not. */
+const doneEvent = (ok, text, useCaseId, profile) => ({
+  id: PRIVILEGE_A2A_DONE_ID,
+  kind: 'done',
+  from: MAIN,
+  to: CLIENT,
+  fromLabel: profileLabel(profile, MAIN),
+  status: ok ? 'ok' : 'error',
+  label: 'Done',
+  detail: str(text),
+  useCaseId,
+});
+
 function readFrame(frame) {
   let event = 'message';
   const data = [];
@@ -94,6 +128,7 @@ export async function startPrivilegeA2aChainRun({
 } = {}) {
   const startedAt = Date.now();
   store.beginTrace({ prompt: `${message} (via ${specialist})` });
+  store.ingestTokenEvent(startEvent(message, `POST ${API_URL}`, PRIVILEGE_A2A_CHAIN_USE_CASE_ID, profile));
   let hops = 0;
   const seen = [];
   let answer = '';
@@ -160,6 +195,7 @@ export async function startPrivilegeA2aChainRun({
     }, recordDelayMs);
   };
 
+  store.ingestTokenEvent(doneEvent(!failure, failure || answer, PRIVILEGE_A2A_CHAIN_USE_CASE_ID, profile));
   if (failure) {
     store.completeTrace(false, null, failure);
     attachRecord();
@@ -188,6 +224,7 @@ export async function runPrivilegeA2aChatRun({
   signal,
 } = {}) {
   store.beginTrace({ prompt: message });
+  store.ingestTokenEvent(startEvent(message, `POST ${CHAT_API_URL}`, PRIVILEGE_A2A_ACCESS_REVIEW_USE_CASE_ID, profile));
   let hops = 0;
   const seen = [];
   let answer = '';
@@ -243,9 +280,12 @@ export async function runPrivilegeA2aChatRun({
       if (parsed) handle(parsed);
     }
   } catch (error) {
-    store.completeTrace(false, null, signal?.aborted ? 'Request cancelled.' : error?.message || 'The A2A request failed.');
+    const reason = signal?.aborted ? 'Request cancelled.' : error?.message || 'The A2A request failed.';
+    store.ingestTokenEvent(doneEvent(false, reason, PRIVILEGE_A2A_ACCESS_REVIEW_USE_CASE_ID, profile));
+    store.completeTrace(false, null, reason);
     throw error;
   }
+  store.ingestTokenEvent(doneEvent(!failure, failure || answer, PRIVILEGE_A2A_ACCESS_REVIEW_USE_CASE_ID, profile));
   if (failure) {
     store.completeTrace(false, null, failure);
     return { ok: false, error: failure };
