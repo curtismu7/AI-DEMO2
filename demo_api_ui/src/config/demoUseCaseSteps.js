@@ -144,6 +144,27 @@ export const EXTRA_STEP_GROUPS = [
     intro: 'Progressive trust, proof of enforcement, and the customer-facing answers behind a blocked or unusual action.',
     ids: ['UC33', 'UC34', 'UC35', 'UC23', 'UC26'],
   },
+  {
+    id: 'gateway-mcp',
+    label: 'Gateway & Third-Party MCP',
+    tagline: 'scope policy at the gateway',
+    intro: 'A third-party MCP server fronted by the gateway: a permitted call, the out-of-scope denial, and reconfiguring the scope policy live. Includes protected RAG.',
+    ids: ['UC30', 'UC31', 'UC32', 'UC-TOOL1'],
+  },
+  {
+    id: 'hitl-stepup',
+    label: 'Human Approval & Step-Up',
+    tagline: 'a human in the loop',
+    intro: 'Consent, MFA step-up, out-of-band CIBA approval and the MFA-gated workload agent.',
+    ids: ['UC8', 'UC7', 'UC22', 'UC38'],
+  },
+  {
+    id: 'token-exchange',
+    label: 'Token Exchange & Delegation',
+    tagline: 'RFC 8693 and ID-JAG',
+    intro: 'The core identity story: delegated access with an act claim, then ID-JAG through PingOne and PingFederate.',
+    ids: ['UC1', 'UC40'],
+  },
 ];
 
 /** Maturity-model journey groups for the presenter drawer. */
