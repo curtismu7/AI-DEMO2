@@ -162,8 +162,8 @@ export const EXTRA_STEP_GROUPS = [
     id: 'token-exchange',
     label: 'Token Exchange & Delegation',
     tagline: 'RFC 8693 and ID-JAG',
-    intro: 'The core identity story: delegated access with an act claim, then ID-JAG through PingOne and PingFederate.',
-    ids: ['UC1', 'UC40'],
+    intro: 'The core identity story: delegated access with an act claim, then ID-JAG through PingOne and PingFederate, starting from the PingOne sign-in.',
+    ids: ['UC1', 'UC40', 'UC-LOGIN'],
   },
 ];
 
@@ -233,7 +233,7 @@ export const DEMO_JOURNEY_GROUPS = [
     label: 'PingOne login',
     shortLabel: 'Login',
     description: 'OIDC/PKCE person login with the BFF holding browser tokens.',
-    useCaseIds: [],
+    useCaseIds: ['UC-LOGIN'],
   },
   {
     id: 'j-delegation',
