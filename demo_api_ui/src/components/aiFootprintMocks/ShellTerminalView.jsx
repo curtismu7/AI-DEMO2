@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { ShellGate, ShellLatestCall, ShellPrompt, ShellRoutingBar, ShellToolsList, themeAttr } from "./ShellParts";
+import { ShellActivity } from "./ShellActivity";
 import "./PrivilegeShellViews.css";
 
 export function ShellTerminalView({ session }) {
@@ -33,6 +34,7 @@ export function ShellTerminalView({ session }) {
         <ShellLatestCall latestCall={session.latestCall} />
         <ShellPrompt session={session} className="pvs-term__prompt" />
       </ShellGate>
+      <ShellActivity />
     </div>
   );
 }

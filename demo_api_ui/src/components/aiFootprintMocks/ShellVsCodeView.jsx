@@ -35,8 +35,8 @@ export function ShellVsCodeView({ session }) {
           ))}
           <ShellLatestCall latestCall={latestCall} />
         </section>
-        <ShellActivity />
       </ShellGate>
+      <ShellActivity />
     </div>
   );
 }

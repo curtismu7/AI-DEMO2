@@ -6,6 +6,7 @@ import ToolsTable from "../privilege/ToolsTable";
 import { ShellTerminalView } from "./ShellTerminalView";
 import { ShellVsCodeView } from "./ShellVsCodeView";
 import { ShellDesktopView } from "./ShellDesktopView";
+import { ShellActivity } from "./ShellActivity";
 import "./PrivilegeShellPanel.css";
 
 /**
@@ -89,6 +90,7 @@ export function PrivilegeShellPanel({ skin = "vscode", session }) {
           ) : null}
         </>
       ) : null}
+      <ShellActivity />
     </div>
   );
 }
