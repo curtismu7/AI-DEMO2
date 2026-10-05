@@ -12,6 +12,8 @@ const BLOCKED = {
   Category: "prompt_injection",
   Direction: "request",
   Client: "main-agent",
+  KeyType: "api_key",
+  ElapsedMs: 0,
   VirtualKeyID: "sk-orion-...abcd",
   ComplianceMappings: [
     { Framework: "mitre_atlas", Identifier: "AML.T0051", Source: "inj-ignore-previous" },
@@ -30,6 +32,8 @@ test("a guardrail line keeps the verdict and its framework mappings, and drops t
     category: "prompt_injection",
     direction: "request",
     client: "main-agent",
+    keyType: "api_key",
+    elapsedMs: 0,
     rules: ["inj-ignore-previous", "exf-prompt-leak-marker"],
     frameworks: [
       { label: "MITRE ATLAS", identifiers: ["AML.T0051", "AML.T0056"] },

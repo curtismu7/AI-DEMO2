@@ -160,6 +160,7 @@ export default function StepDetailPanel({ step, onInspect, fontSize = "large" })
   const d = step.detail || {};
   const kv = Array.isArray(d.kv) ? d.kv : [];
   const rfcs = Array.isArray(d.rfcs) ? d.rfcs : [];
+  const specRefs = Array.isArray(d.spec?.refs) ? d.spec.refs.filter((ref) => ref?.label) : [];
   const diff = d.beforeAfter ? <ClaimDiff beforeAfter={d.beforeAfter} /> : null;
   const hasChange = Boolean(diff) || kv.length > 0;
   // "done" and the error states are hops that executed; "pending"/"notinpath" are not.
@@ -240,7 +241,37 @@ export default function StepDetailPanel({ step, onInspect, fontSize = "large" })
         <Payload label="Response" title={d.response.title} text={d.response.text} />
       ) : null}
 
-      {showRfcInfo && rfcs.length > 0 ? (
+      {/* What the specification requires at this hop and why, with RFC info on.
+          TraceStepCard already prints d.spec in its pop-out; this panel is the
+          detail surface the reel uses, so it shows it too. */}
+      {showRfcInfo && d.spec?.why ? (
+        <Section label="Why it works this way">
+          <p className="sdp-narrative">{d.spec.why}</p>
+        </Section>
+      ) : null}
+      {showRfcInfo && (d.spec?.mandate || specRefs.length > 0) ? (
+        <Section label="What the specification requires">
+          {d.spec.mandate ? <p className="sdp-narrative">{d.spec.mandate}</p> : null}
+          {specRefs.length > 0 ? (
+            <div className="sdp-rfcs">
+              {specRefs.map((ref) => (ref.href ? (
+                <a className="sdp-rfc" key={ref.label} href={ref.href} target="_blank" rel="noopener noreferrer" title={ref.title || ""}>
+                  {ref.label}
+                </a>
+              ) : (
+                <span className="sdp-rfc" key={ref.label} title={ref.title || ""}>{ref.label}</span>
+              )))}
+            </div>
+          ) : null}
+        </Section>
+      ) : null}
+      {showRfcInfo && d.spec?.failure ? (
+        <Section label="Common failure mode">
+          <p className="sdp-narrative">{d.spec.failure}</p>
+        </Section>
+      ) : null}
+
+      {showRfcInfo && rfcs.length > 0 && specRefs.length === 0 ? (
         <div className="sdp-rfcs">
           {rfcs.map((r) => (
             <span className="sdp-rfc" key={typeof r === "string" ? r : r.label}>
