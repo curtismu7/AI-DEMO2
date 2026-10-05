@@ -1,3 +1,22 @@
+# The per-vertical SQLite databases live in /app/data. Without a volume they are
+# rebuilt from the image's seed files on every pod restart, so data written during a
+# demo is lost. One pod only: SQLite has a single writer, and the volume is
+# ReadWriteOnce.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mcp-resource-server-data
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: mcp-resource-server
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -68,6 +87,8 @@ spec:
         - name: otel-instrument
           mountPath: /otel
           readOnly: true
+        - name: data
+          mountPath: /app/data
         resources:
           requests:
             memory: "128Mi"
@@ -95,6 +116,9 @@ spec:
       - name: otel-instrument
         configMap:
           name: otel-instrument
+      - name: data
+        persistentVolumeClaim:
+          claimName: mcp-resource-server-data
       restartPolicy: Always
 ---
 apiVersion: v1
