@@ -68,7 +68,70 @@ it("keeps the chosen connection path after a skin switch without posting /config
 
   fireEvent.change(screen.getByRole("combobox", { name: "Skin" }), { target: { value: "vscode:classic-dark" } });
   expect(await screen.findByTestId("pvs-vscode")).toBeInTheDocument();
-  expect(screen.getByRole("combobox", { name: "Connection path" })).toHaveValue("llm:anthropic");
+  // In VS Code the route controls live in the Explorer side panel, not the chat pane.
+  expect(screen.getByRole("button", { name: "Anthropic", pressed: true })).toBeInTheDocument();
   expect(screen.getByText("Tools apply to MCP paths.")).toBeInTheDocument();
   expect(apiClient.post).not.toHaveBeenCalledWith("/api/privilege-mcp/config", expect.anything());
+});
+
+describe("VS Code side panel routing", () => {
+  const BANKING = "https://gw.example/privilege-gateway/banking/mcp";
+  const OTHER = "https://gw.example/privilege-gateway/other/mcp";
+  const routedState = () => ({
+    oauth: { authenticated: true, scope: "openid" },
+    tools: [{ name: "t", inputSchema: { properties: {} } }],
+    gatewayMode: "privilege",
+    config: { mcpUrl: BANKING, clientId: "" },
+    presets: [
+      { id: "banking", label: "banking", mode: "privilege", url: BANKING },
+      { id: "other", label: "other", mode: "privilege", url: OTHER },
+    ],
+    gatewayConfigs: { direct: {}, privilege: {}, facade: {} },
+  });
+  const renderAt = (path) => {
+    apiClient.post.mockReset();
+    apiClient.post.mockImplementation(async (url) =>
+      String(url).endsWith("/config") ? { data: { oauth: { destinationAuthenticated: true } } } : { data: { tools: [] } });
+    apiClient.get.mockImplementation(async (url) =>
+      String(url).endsWith("/llm/config") ? { data: { gatewayUrl: "https://llm.example" } } : { data: routedState() });
+    localStorage.clear();
+    return render(
+      <MemoryRouter initialEntries={[path]}>
+        <Routes>
+          <Route path="/demo/:shellSlug" element={<FootprintLiveShellPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+  };
+
+  it("shows Path and Door in the Explorer side panel and a door click posts /config", async () => {
+    renderAt("/demo/vscode-copilot?v=classic-dark");
+    const path = await screen.findByRole("group", { name: "Connection path" });
+    const side = path.closest(".afm-vcs-side");
+    expect(side).not.toBeNull();
+    expect(screen.queryByRole("combobox", { name: "Connection path" })).toBeNull();
+    fireEvent.click(await screen.findByRole("button", { name: "other" }));
+    await waitFor(() =>
+      expect(apiClient.post).toHaveBeenCalledWith(
+        "/api/privilege-mcp/config",
+        expect.objectContaining({ mcpUrl: OTHER }),
+      ));
+  });
+
+  it("keeps the side panel usable while signed out", async () => {
+    renderAt("/demo/vscode-copilot?v=classic-dark");
+    await screen.findByRole("group", { name: "Connection path" });
+    apiClient.post.mockImplementation(async (url) =>
+      String(url).endsWith("/config") ? { data: { oauth: { destinationAuthenticated: false } } } : { data: { tools: [] } });
+    fireEvent.click(await screen.findByRole("button", { name: "other" }));
+    expect(await screen.findByRole("button", { name: "Sign in with Privilege" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "MCP backend (door)" })).toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "MCP backend (door)" })).toBeNull();
+  });
+
+  it("does not add the side tree to other skins", async () => {
+    renderAt("/demo/coding-agent?v=claude-code");
+    await screen.findByRole("combobox", { name: "Connection path" });
+    expect(screen.queryByRole("group", { name: "Connection path" })).toBeNull();
+  });
 });
