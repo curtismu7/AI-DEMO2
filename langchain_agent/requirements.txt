@@ -21,6 +21,7 @@ pydantic-ai==1.107.0    # Code Explorer agent (replaces LangChain ReAct for code
 opentelemetry-distro
 opentelemetry-exporter-otlp-proto-grpc
 opentelemetry-exporter-prometheus
+opik>=2.0.0,<3.0.0  # LLM tracing (opt-in: only active when OPIK_API_KEY is set; see src/agent/opik_tracing.py)
 
 # Development dependencies
 pytest>=7.0.0
