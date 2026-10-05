@@ -454,3 +454,36 @@ test("a refusal shows its HTTP status and JSON-RPC error code", () => {
   expect(Object.fromEntries(steps[0].detail.kv)["JSON-RPC request id"]).toBe("rpc-1");
   expect(steps[1].detail.spec.failure).toContain("does not echo");
 });
+
+test("a second hop that reports itself shows its card, its real request and ids, and the message on a refusal", () => {
+  const card = { name: "Refunds Specialist", description: "Resolves refunds.", protocolVersion: "0.3.0", url: "", preferredTransport: "JSONRPC", skills: ["Refund"], version: "2.1.0", capabilities: [], inputModes: [], outputModes: [], skillDetails: [{ id: "refund", name: "Refund", description: "Issue a refund.", tags: [] }], security: [] };
+  const steps = buildPrivilegeA2aChainSteps([
+    { id: "pa2a-0", kind: "delegate", from: "main", to: "langchainagent", status: "ok", detail: "Refund order 7" },
+    { id: "pa2a-1", kind: "card", from: "langchainagent", to: "refunds", status: "ok", card, request: "GET https://gw/hostile-a2a/.well-known/agent-card.json", response: "HTTP 200", wire: { status: 200 }, credential: "sk-orion-b164… (masked)" },
+    { id: "pa2a-2", kind: "delegate", from: "langchainagent", to: "refunds", status: "ok", detail: "Refund order 7", request: "POST https://gw/hostile-a2a/a2a/jsonrpc", credential: "sk-orion-b164… (masked)", wire: { rpcId: "rpc-2", messageId: "msg-2" } },
+    { id: "pa2a-3", kind: "result", from: "refunds", to: "langchainagent", status: "ok", detail: "Refund approved", response: "HTTP 200 real", wire: { status: 200, rpcId: "rpc-2", messageId: "reply-2", kind: "message", role: "agent" } },
+  ]);
+  const byId = Object.fromEntries(steps.map((step) => [step.id, step.detail]));
+
+  expect(steps.find((step) => step.id === "pa2a-1-card").title).toBe("Returns refunds specialist's A2A Agent Card");
+  expect(Object.fromEntries(byId["pa2a-1-card"].kv)).toMatchObject({ "Agent name": "Refunds Specialist", "Skill: Refund": "Issue a refund." });
+  expect(Object.fromEntries(byId["pa2a-1-discover"].kv)).toMatchObject({ "Key presented": "sk-orion-b164… (masked)", "Agent Registry name": "langchain-caller" });
+  // The real request, not one rebuilt from the message.
+  expect(byId["pa2a-2-call"].request.text).toBe("POST https://gw/hostile-a2a/a2a/jsonrpc");
+  expect(Object.fromEntries(byId["pa2a-2-call"].kv)).toMatchObject({ "JSON-RPC request id": "rpc-2", "A2A message id": "msg-2", "Key presented": "sk-orion-b164… (masked)" });
+  expect(Object.fromEntries(byId["pa2a-2-call"].kv)["Described by"]).toContain("Refunds Specialist");
+  expect(byId["pa2a-3-reply"].response.text).toBe("HTTP 200 real");
+  expect(Object.fromEntries(byId["pa2a-3-return"].kv)).toMatchObject({ "HTTP status": "200", "JSON-RPC id echoed": "rpc-2" });
+
+  const refused = buildPrivilegeA2aChainSteps([
+    { id: "pa2a-0", kind: "delegate", from: "main", to: "langchainagent", status: "ok", detail: "Refund order 7" },
+    { id: "pa2a-1", kind: "card", from: "langchainagent", to: "restricted", status: "ok", detail: "No Agent Card returned (HTTP 403)", wire: { status: 403 } },
+    { id: "pa2a-2", kind: "error", from: "langchainagent", to: "restricted", status: "error", detail: "restricted refused (403): Forbidden", message: "Refund order 7", request: "POST https://gw/restrictedagent/a2a/jsonrpc", wire: { status: 403, rpcId: "rpc-3" } },
+  ]);
+  const call = refused.find((step) => step.id === "pa2a-2-call").detail;
+  expect(refused.find((step) => step.id === "pa2a-1-card").title).toBe("No A2A Agent Card returned");
+  expect(Object.fromEntries(call.kv)).toMatchObject({ Message: "Refund order 7", "JSON-RPC request id": "rpc-3" });
+  expect(call.request.text).toBe("POST https://gw/restrictedagent/a2a/jsonrpc");
+  expect(call.narrative).toContain("Refund order 7");
+  expect(Object.fromEntries(refused.find((step) => step.id === "pa2a-2-gateway").detail.kv)).toMatchObject({ Reason: "restricted refused (403): Forbidden", "HTTP status": "403" });
+});

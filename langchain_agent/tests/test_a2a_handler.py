@@ -61,6 +61,20 @@ def test_agent_card_advertises_customer_oauth(monkeypatch):
     ]
 
 
+def test_agent_card_names_the_gateway_route_only_to_callers_who_came_through_it(monkeypatch):
+    monkeypatch.setenv("A2A_PUBLIC_URL", "https://agent.example/a2a/jsonrpc")
+    monkeypatch.setenv("PRIVILEGE_A2A_PUBLIC_URL", "https://gateway.example/langchainagent/a2a/jsonrpc")
+
+    through_gateway = client().get("/a2a/.well-known/agent-card.json", headers={"X-Forwarded-Host": "gateway.example"}).json()
+    assert through_gateway["url"] == "https://gateway.example/langchainagent/a2a/jsonrpc"
+    assert through_gateway["additionalInterfaces"] == [{"url": "https://gateway.example/langchainagent/a2a/jsonrpc", "transport": "JSONRPC"}]
+
+    # A direct caller, or one forwarded by some other host, still gets the direct address.
+    assert client().get("/a2a/.well-known/agent-card.json").json()["url"] == "https://agent.example/a2a/jsonrpc"
+    other = client().get("/a2a/.well-known/agent-card.json", headers={"X-Forwarded-Host": "agent.example"}).json()
+    assert other["url"] == "https://agent.example/a2a/jsonrpc"
+
+
 def test_agent_card_is_available_at_standard_host_level_path(monkeypatch):
     monkeypatch.setenv("A2A_PUBLIC_URL", "https://agent.example/a2a/jsonrpc")
 

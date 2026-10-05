@@ -30,6 +30,8 @@ export interface ChainEvent {
   wire?: WireFacts;
   /** The key this agent presented, masked to its recognisable prefix. */
   credential?: string;
+  /** On a refused call: the message that was sent (`detail` holds the reason). */
+  message?: string;
   /** Display names, present only when a vertical profile was supplied. */
   fromLabel?: string;
   toLabel?: string;
@@ -69,12 +71,22 @@ export interface WireFacts {
   role?: string;
 }
 
+/** One entry of the middle agent's report: a card it read, or a call it made. */
 interface Hop {
+  kind?: unknown;
   from?: unknown;
   to?: unknown;
   status?: unknown;
   detail?: unknown;
   elapsedMs?: unknown;
+  /** What crossed the wire, when the middle agent reports it (key already masked). */
+  message?: unknown;
+  reply?: unknown;
+  request?: unknown;
+  response?: unknown;
+  credential?: unknown;
+  wire?: unknown;
+  card?: unknown;
 }
 
 export interface ChainOptions {
@@ -131,9 +143,11 @@ export const pretty = (raw: string): string => {
 };
 
 /**
- * Turn the middle agent's hop report into chain events. The middle agent
- * forwards the caller's text unchanged and returns the specialist's reply
- * unchanged, so `message` and `answer` are what crossed its own hop.
+ * Turn the middle agent's hop report into chain events. A current middle agent
+ * reports what crossed its own hop (the card it read, its request, the reply).
+ * An older one reports only that the hop happened; it forwards the caller's
+ * text and returns the specialist's reply unchanged, so `message` and `answer`
+ * stand in for them.
  */
 function emitHops(hops: unknown, emit: ChainOptions['emit'], message: string, answer = ''): void {
   if (!Array.isArray(hops)) return;
@@ -142,11 +156,51 @@ function emitHops(hops: unknown, emit: ChainOptions['emit'], message: string, an
     const to = text(hop.to);
     if (!to) continue;
     const elapsedMs = typeof hop.elapsedMs === 'number' ? hop.elapsedMs : undefined;
-    if (hop.status === 'ok') {
-      emit({ kind: 'delegate', from, to, text: `${from} → ${to}`, detail: message, elapsedMs });
-      emit({ kind: 'result', from: to, to: from, text: `${to} returned`, detail: answer });
+    const reported = record(hop.wire);
+    const number = (value: unknown): number | undefined => (typeof value === 'number' ? value : undefined);
+    const shared = {
+      ...(text(hop.request) ? { request: text(hop.request) } : {}),
+      ...(text(hop.credential) ? { credential: text(hop.credential) } : {}),
+    };
+    if (hop.kind === 'card') {
+      const card = record(hop.card);
+      emit({
+        kind: 'card',
+        from,
+        to,
+        text: `${from} reads ${to}'s Agent Card`,
+        detail: text(hop.detail),
+        elapsedMs,
+        ...shared,
+        ...(text(hop.response) ? { response: text(hop.response) } : {}),
+        ...(typeof card.name === 'string' ? { card: card as unknown as CardSummary } : {}),
+        ...(number(reported.status) ? { wire: { status: number(reported.status) } } : {}),
+      });
+    } else if (hop.status === 'ok') {
+      const sent: WireFacts = { rpcId: text(reported.rpcId), messageId: text(reported.messageId) };
+      emit({ kind: 'delegate', from, to, text: `${from} → ${to}`, detail: text(hop.message) || message, elapsedMs, ...shared, ...(sent.rpcId ? { wire: sent } : {}) });
+      emit({
+        kind: 'result',
+        from: to,
+        to: from,
+        text: `${to} returned`,
+        detail: text(hop.reply) || answer,
+        ...(text(hop.response) ? { response: text(hop.response) } : {}),
+        ...(number(reported.status) ? { wire: { status: number(reported.status), rpcId: text(reported.rpcId), messageId: text(reported.replyMessageId), kind: text(reported.kind), role: text(reported.role) } } : {}),
+      });
     } else {
-      emit({ kind: 'error', from, to, text: `${from} → ${to} refused`, detail: text(hop.detail), elapsedMs });
+      emit({
+        kind: 'error',
+        from,
+        to,
+        text: `${from} → ${to} refused`,
+        detail: text(hop.detail),
+        elapsedMs,
+        ...shared,
+        ...(text(hop.message) ? { message: text(hop.message) } : {}),
+        ...(text(hop.response) ? { response: text(hop.response) } : {}),
+        ...(number(reported.status) ? { wire: { status: number(reported.status), rpcId: text(reported.rpcId), messageId: text(reported.messageId), ...(number(reported.errorCode) !== undefined ? { errorCode: number(reported.errorCode) } : {}) } } : {}),
+      });
     }
   }
 }

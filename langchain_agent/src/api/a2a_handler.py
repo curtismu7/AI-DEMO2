@@ -7,6 +7,7 @@ import hmac
 import logging
 import os
 import uuid
+from urllib.parse import urlsplit
 from typing import Any, Callable, Optional
 
 from fastapi import APIRouter, Request
@@ -68,6 +69,14 @@ async def get_agent_card(request: Request) -> dict[str, Any]:
         or os.environ.get("PRIVILEGE_A2A_PUBLIC_URL", "")
     ).rstrip("/")
     jsonrpc_url = public_url or f"{str(request.base_url).rstrip('/')}/a2a/jsonrpc"
+    # A caller that reached this card through the Privilege gateway is told the
+    # gateway's route, so following the card keeps it behind the gateway. Direct
+    # callers still get the direct address. The gateway is recognised by the
+    # host it forwards; if it forwards none, the card is unchanged.
+    gateway_url = os.environ.get("PRIVILEGE_A2A_PUBLIC_URL", "").strip().rstrip("/")
+    forwarded_host = request.headers.get("x-forwarded-host", "").split(",")[0].strip().lower()
+    if gateway_url and forwarded_host and forwarded_host == (urlsplit(gateway_url).hostname or "").lower():
+        jsonrpc_url = gateway_url
     metadata_urls = _configured_metadata_urls()
     oauth_scheme: dict[str, Any] = {
         "description": "OAuth 2.0 access token issued by an allowlisted customer IdP.",
