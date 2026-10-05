@@ -54,6 +54,7 @@ const P1_POLICY = 'mfa_only';
 const TRANSACTION_LIFETIME_SECONDS = 120;
 const POLLING_INTERVAL_SECONDS = 3;
 const HINT_ATTRIBUTE = 'IDENTITY_HINT_SUBJECT';
+const ATM_ID = 'aiDemoPfJwtAtm';
 
 // Same vault access as the other provisioners; secrets pass over stdin, never argv.
 const VAULT_JS = path.join(MAIN, 'demo_api_server', 'scripts', 'vault.js');
@@ -129,6 +130,24 @@ const POLICY = {
   },
 };
 
+// Without a DEFAULT access token mapping on the token manager, PingFederate cannot mint a token once the
+// approval comes in: "Default Access Token mapping not configured for the selected token manager".
+// The user comes from the grant (the request policy's USER_KEY); the rest follow the manager's contract.
+const DEFAULT_MAPPING = {
+  context: { type: 'DEFAULT' },
+  accessTokenManagerRef: { id: ATM_ID },
+  attributeSources: [],
+  attributeContractFulfillment: {
+    sub: { source: { type: 'OAUTH_PERSISTENT_GRANT' }, value: 'USER_KEY' },
+    Username: { source: { type: 'OAUTH_PERSISTENT_GRANT' }, value: 'USER_KEY' },
+    act: { source: { type: 'TEXT' }, value: '{}' },
+    scope: { source: { type: 'TEXT' }, value: 'openid' }, // both CIBA clients are restricted to openid
+    client_id: { source: { type: 'CONTEXT' }, value: 'ClientId' },
+    spiffeId: { source: { type: 'TEXT' }, value: 'placeholder' },
+  },
+  issuanceCriteria: { conditionalCriteria: [] },
+};
+
 function client(secret) {
   return {
     clientId: CLIENT_ID,
@@ -145,7 +164,7 @@ function client(secret) {
     cibaPollingInterval: POLLING_INTERVAL_SECONDS,
     cibaRequireSignedRequests: false,
     cibaUserCodeSupported: false,
-    defaultAccessTokenManagerRef: { id: 'aiDemoPfJwtAtm' },
+    defaultAccessTokenManagerRef: { id: ATM_ID },
   };
 }
 
@@ -228,6 +247,16 @@ async function main() {
     async () => (await find(policyResource)
       ? api('PUT', policyResource, POLICY)
       : api('POST', 'oauth/cibaServerPolicy/requestPolicies', POLICY)));
+
+  const mappingList = async () => {
+    const list = await api('GET', 'oauth/accessTokenMappings');
+    return Array.isArray(list) ? list : list.items || [];
+  };
+  const findDefaultMapping = async () => (await mappingList())
+    .find((mapping) => mapping.context?.type === 'DEFAULT' && mapping.accessTokenManagerRef?.id === ATM_ID);
+  await step(`default access token mapping for ${ATM_ID}`,
+    async () => !await findDefaultMapping(),
+    async () => { await api('POST', 'oauth/accessTokenMappings', DEFAULT_MAPPING); });
 
   // PingFederate never returns a client secret, so "in place" means the client exists with the grant
   // and policy; the secret is set from the vault only when the client is created or rewritten.
