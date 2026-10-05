@@ -18,21 +18,17 @@ function bootThemeScript() {
   return match[1];
 }
 
-function runBootScript({ stored, throws = false, footprint = null, pathname = '/', osDark = false }) {
+function runBootScript({ stored, throws = false }) {
   const attrs = {};
   const doc = { documentElement: { setAttribute: (k, v) => { attrs[k] = v; } } };
   const storage = {
     getItem: (key) => {
       if (throws) throw new Error('storage disabled');
-      if (key === 'ai-footprint-theme-v1') return footprint;
       return key === THEME_STORAGE_KEY ? stored : null;
     },
   };
-  const win = { matchMedia: () => ({ matches: osDark }) };
   // eslint-disable-next-line no-new-func
-  new Function('localStorage', 'document', 'location', 'window', bootThemeScript())(
-    storage, doc, { pathname }, win,
-  );
+  new Function('localStorage', 'document', bootThemeScript())(storage, doc);
   return attrs;
 }
 
@@ -56,22 +52,7 @@ describe('index.html boot screen', () => {
 
   it('has a dark boot variant keyed to data-theme, never to the OS setting', () => {
     expect(html).toContain(':root[data-theme="dark"]');
-    // The CSS never keys off the OS setting. (The boot <script> may read it, but only
-    // for /demo/* shells, to mirror useFootprintTheme's own fallback.)
-    const css = html.match(/<style>([\s\S]*?)<\/style>/)[1];
-    expect(css).not.toMatch(/prefers-color-scheme/);
-  });
-
-  it('boots a dark /demo/* shell dark: saved choice wins, else the OS setting', () => {
-    const dark = { 'data-boot-dark': '', 'data-footprint-dark': '' };
-    expect(runBootScript({ pathname: '/demo/vscode-copilot', footprint: 'dark' })).toEqual(dark);
-    expect(runBootScript({ pathname: '/demo/vscode-copilot', osDark: true })).toEqual(dark);
-    expect(runBootScript({ pathname: '/demo/vscode-copilot', footprint: 'light', osDark: true })).toEqual({});
-    expect(runBootScript({ pathname: '/demo/vscode-copilot' })).toEqual({});
-  });
-
-  it('leaves every other route to the app theme', () => {
-    expect(runBootScript({ pathname: '/dashboard', footprint: 'dark', osDark: true })).toEqual({});
+    expect(html).not.toMatch(/prefers-color-scheme/);
   });
 
   it('shares the skeleton rules with the React loading screen (.boot-skeleton)', () => {

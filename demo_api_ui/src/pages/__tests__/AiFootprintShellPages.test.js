@@ -3,6 +3,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import FootprintMockGalleryPage from "../FootprintMockGalleryPage";
 import FootprintLiveShellPage from "../FootprintLiveShellPage";
+import { ThemeProvider } from "../../context/ThemeContext";
 
 const navigateSpy = vi.fn();
 vi.mock("react-router-dom", async () => {
@@ -55,17 +56,31 @@ describe("AI footprint mock gallery", () => {
     );
   });
 
-  it("toggles light/dark and persists the choice", () => {
+  it("toggles light/dark through the app theme and persists the choice", () => {
     render(
-      <MemoryRouter>
-        <FootprintMockGalleryPage />
-      </MemoryRouter>,
+      <ThemeProvider>
+        <MemoryRouter>
+          <FootprintMockGalleryPage />
+        </MemoryRouter>
+      </ThemeProvider>,
     );
     const root = screen.getByTestId("footprint-mock-gallery");
     expect(root).toHaveAttribute("data-theme", "light");
     fireEvent.click(screen.getByRole("button", { name: "Dark" }));
     expect(root).toHaveAttribute("data-theme", "dark");
-    expect(localStorage.getItem("ai-footprint-theme-v1")).toBe("dark");
+    expect(localStorage.getItem("ba_dark_mode")).toBe("true");
+  });
+
+  it("follows the app theme set elsewhere, e.g. the top-menu moon", () => {
+    localStorage.setItem("ba_dark_mode", "true");
+    render(
+      <ThemeProvider>
+        <MemoryRouter>
+          <FootprintMockGalleryPage />
+        </MemoryRouter>
+      </ThemeProvider>,
+    );
+    expect(screen.getByTestId("footprint-mock-gallery")).toHaveAttribute("data-theme", "dark");
   });
 });
 
@@ -75,15 +90,17 @@ describe("AI footprint live shell", () => {
   });
 
   it("VS Code chrome follows the Light/Dark toggle, whichever variant was saved", () => {
-    localStorage.setItem("ai-footprint-theme-v1", "dark");
+    localStorage.setItem("ba_dark_mode", "true");
     localStorage.setItem(
       "ai-footprint-mock-selection-v1",
       JSON.stringify({ vscode: "classic-dark" }),
     );
     const { container } = render(
-      <MemoryRouter>
-        <FootprintLiveShellPage category="vscode" />
-      </MemoryRouter>,
+      <ThemeProvider>
+        <MemoryRouter>
+          <FootprintLiveShellPage category="vscode" />
+        </MemoryRouter>
+      </ThemeProvider>,
     );
     expect(container.querySelector(".afm-vcs")).not.toHaveClass("afm-vcs--light");
     fireEvent.click(screen.getByRole("button", { name: "Light" }));
@@ -108,11 +125,13 @@ describe("AI footprint live shell", () => {
     expect(screen.getByTestId("pvs-vscode")).toBeInTheDocument();
   });
 
-  it("has a light/dark toggle scoped to this page", () => {
+  it("has a light/dark toggle that drives the app theme", () => {
     render(
-      <MemoryRouter>
-        <FootprintLiveShellPage category="vscode" />
-      </MemoryRouter>,
+      <ThemeProvider>
+        <MemoryRouter>
+          <FootprintLiveShellPage category="vscode" />
+        </MemoryRouter>
+      </ThemeProvider>,
     );
     const root = screen.getByTestId("footprint-live-vscode");
     fireEvent.click(screen.getByRole("button", { name: "Dark" }));
@@ -138,9 +157,11 @@ describe("AI footprint locked picks page", () => {
   it("has a light/dark toggle", async () => {
     const { default: FootprintPicksPage } = await import("../FootprintPicksPage");
     render(
-      <MemoryRouter>
-        <FootprintPicksPage />
-      </MemoryRouter>,
+      <ThemeProvider>
+        <MemoryRouter>
+          <FootprintPicksPage />
+        </MemoryRouter>
+      </ThemeProvider>,
     );
     const root = screen.getByTestId("footprint-picks-page");
     fireEvent.click(screen.getByRole("button", { name: "Dark" }));
