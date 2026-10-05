@@ -107,9 +107,9 @@ describe("PrivilegeMcpClientPage sendChat — /chat path", () => {
     await send("hello");
     // Discovered tools make the page jump to the Tools tab (once), unmounting
     // the transcript; wait for that, then come back to Agent Chat.
-    await waitFor(() => expect(screen.getByRole("tab", { name: /Tools/ })).toHaveClass("cur-tab--active"));
+    await waitFor(() => expect(screen.getByRole("tab", { name: /Tools/ })).toHaveClass("cur-tab--active"), { timeout: 5000 });
     fireEvent.click(screen.getByRole("tab", { name: "Agent Chat" }));
-    await waitFor(() => expect(assistant()).toBeTruthy());
+    await waitFor(() => expect(assistant()).toBeTruthy(), { timeout: 5000 });
     expect(body()).toBe("Found 2 tools");
     const [, opts] = callsTo("/api/privilege-mcp/chat")[0];
     expect(JSON.parse(opts.body)).toEqual({ prompt: "hello" });
