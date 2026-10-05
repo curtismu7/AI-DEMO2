@@ -341,5 +341,31 @@ test("a policy refusal and a clean call say what the guardrail log does and does
   ]);
 
   expect(steps[1].detail.kv).toContainEqual(["Gateway's own record", "No guardrail finding recorded for this call"]);
-  expect(steps[4].detail.kv.find(([key]) => key === "Gateway's own record")[1]).toContain("policy refusal is not written");
+  expect(steps[4].detail.kv).toContainEqual(["Gateway's own record", "No refusal line found for this call yet"]);
+});
+
+test("the gateway's request and refusal lines name the principal and the app for each hop", () => {
+  const steps = buildPrivilegeA2aChainSteps([
+    { id: "pa2a-0", kind: "delegate", from: "main", to: "langchainagent", status: "ok" },
+    { id: "pa2a-1", kind: "error", from: "langchainagent", to: "restricted", status: "error", detail: "restricted refused (403): Forbidden" },
+    {
+      id: "pa2a-gateway-record",
+      state: "ready",
+      guardrail: [],
+      modelCalls: [],
+      requests: [
+        { time: "t0", app: "langchainagent", method: "GET", path: "/a2a/.well-known/agent-card.json", principal: "main-principal", tenant: "tenant-1" },
+        { time: "t1", app: "langchainagent", method: "POST", path: "/a2a/jsonrpc", principal: "main-principal", tenant: "tenant-1" },
+      ],
+      denials: [{ time: "t2", app: "restrictedagent", principal: "caller-principal", reason: "principal does not have access" }],
+    },
+  ]);
+
+  // The allowed hop: the call's own line, not the card request before it.
+  expect(steps[1].detail.kv).toContainEqual(["Gateway's request record", "Accepted POST /a2a/jsonrpc for app langchainagent"]);
+  expect(steps[1].detail.kv).toContainEqual(["Principal the key resolved to", "main-principal"]);
+  expect(steps[1].detail.kv).toContainEqual(["Tenant", "tenant-1"]);
+  // The refused hop: the gateway's reason, and who it refused.
+  expect(steps[4].detail.kv).toContainEqual(["Gateway's own record", "policy denied · principal does not have access · a2a app restrictedagent"]);
+  expect(steps[4].detail.kv).toContainEqual(["Principal the key resolved to", "caller-principal"]);
 });

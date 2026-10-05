@@ -15,6 +15,7 @@ export default function PrivilegeA2aTab() {
   const [busy, setBusy] = useState(false);
   // The gateway's own record of the last run: its model calls and guardrail verdicts.
   const [record, setRecord] = useState(null);
+  const recordLines = record ? record.modelCalls.length + record.guardrail.length + (record.requests?.length || 0) + (record.denials?.length || 0) : 0;
   const abortRef = useRef(null);
 
   useEffect(() => () => abortRef.current?.abort(), []);
@@ -135,14 +136,26 @@ export default function PrivilegeA2aTab() {
                 </p>
               )}
               {record.state === 'error' && <p className="privilege-a2a__empty">The gateway record could not be read: {record.error}</p>}
-              {record.state === 'ready' && record.modelCalls.length + record.guardrail.length === 0 && (
-                <p className="privilege-a2a__empty">The gateway recorded no model call or guardrail verdict for this run.</p>
+              {record.state === 'ready' && recordLines === 0 && (
+                <p className="privilege-a2a__empty">The gateway recorded nothing for this run.</p>
               )}
-              {record.state === 'ready' && record.modelCalls.length + record.guardrail.length > 0 && (
+              {record.state === 'ready' && recordLines > 0 && (
                 <p className="privilege-a2a__empty">Every line the gateway wrote while this review ran. Its model-call lines do not name the agent, so another session's calls in the same seconds would appear here too.</p>
               )}
-              {record.state === 'ready' && record.modelCalls.length + record.guardrail.length > 0 && (
+              {record.state === 'ready' && recordLines > 0 && (
                 <ol>
+                  {(record.requests || []).map((request, index) => (
+                    <li className="privilege-a2a__trace-entry" key={`request-${index}`}>
+                      <span className="privilege-a2a__trace-kind">accepted</span>
+                      <span className="privilege-a2a__trace-text">{request.method} {request.path} · app {request.app} · principal {request.principal}</span>
+                    </li>
+                  ))}
+                  {(record.denials || []).map((denial, index) => (
+                    <li className="privilege-a2a__trace-entry" key={`denial-${index}`}>
+                      <span className="privilege-a2a__trace-kind">refused</span>
+                      <span className="privilege-a2a__trace-text">policy denied · app {denial.app} · principal {denial.principal}</span>
+                    </li>
+                  ))}
                   {record.modelCalls.map((call, index) => (
                     <li className="privilege-a2a__trace-entry" key={`model-${index}`}>
                       <span className="privilege-a2a__trace-kind">model call</span>

@@ -54,14 +54,27 @@ test("the record for a run is the gateway's lines in its time window, split by k
   expect(sent.params.query_dsl.query.range.time).toEqual({ gte: "2026-10-05T09:59:58.000Z", lte: "2026-10-05T10:00:05.000Z" });
 });
 
+test("accepted A2A requests and policy refusals are read from the same window", async () => {
+  const accepted = { msg: "Received HTTP request", time: "2026-10-05T10:00:02Z", Domain: { Elems: ["langchainagent.default.applications.procyon.ai"] }, Method: "POST", Path: "/a2a/jsonrpc", User: "03de8762", Device: "03de8762", Tenant: "0428ba4f" };
+  const refused = { msg: "A2A policy denied", time: "2026-10-05T10:00:03Z", Principal: "b1645e7b", App: "restrictedagent", Reason: "principal does not have access" };
+  const fetchImpl = vi.fn()
+    .mockResolvedValueOnce(json({ tools: [{ name: "SearchIndexTool" }] }))
+    .mockResolvedValueOnce(searchResult([accepted, refused]));
+
+  const record = await loadGatewayRecord({ since: 0, until: 1, fetchImpl });
+
+  expect(record.requests).toEqual([{ time: "2026-10-05T10:00:02Z", app: "langchainagent", method: "POST", path: "/a2a/jsonrpc", principal: "03de8762", tenant: "0428ba4f" }]);
+  expect(record.denials).toEqual([{ time: "2026-10-05T10:00:03Z", app: "restrictedagent", principal: "b1645e7b", reason: "principal does not have access" }]);
+});
+
 test("a door that has not been signed in to is reported, not treated as empty", async () => {
   const fetchImpl = vi.fn().mockResolvedValueOnce(json({ tools: [], privilege_login_required: true, loginUrl: "/login/door" }));
 
-  expect(await loadGatewayRecord({ since: 0, until: 1, fetchImpl })).toEqual({ state: "needsAuth", loginUrl: "/login/door", guardrail: [], modelCalls: [] });
+  expect(await loadGatewayRecord({ since: 0, until: 1, fetchImpl })).toEqual({ state: "needsAuth", loginUrl: "/login/door", guardrail: [], modelCalls: [], requests: [], denials: [] });
 });
 
 test("a failure to read the record never rejects", async () => {
   const fetchImpl = vi.fn().mockRejectedValue(new Error("network down"));
 
-  expect(await loadGatewayRecord({ since: 0, until: 1, fetchImpl })).toEqual({ state: "error", error: "network down", guardrail: [], modelCalls: [] });
+  expect(await loadGatewayRecord({ since: 0, until: 1, fetchImpl })).toEqual({ state: "error", error: "network down", guardrail: [], modelCalls: [], requests: [], denials: [] });
 });
