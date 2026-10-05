@@ -13,6 +13,7 @@ import PingIdentitySpinner from '../components/shared/PingIdentitySpinner';
 import DraggableModal from '../components/DraggableModal';
 import { navigateWithOverlay } from '../utils/navigateWithOverlay';
 import { doorName, GATEWAY_MODES, LLM_PATHS, doorsForMode } from '../components/privilege/privilegeRouting';
+import { usePrivilegeRouting } from '../components/privilege/usePrivilegeRouting';
 import PrivilegeMcpLearningPage from './PrivilegeMcpLearningPage';
 import './PrivilegeMcpClientPage.css';
 
@@ -276,26 +277,28 @@ export default function PrivilegeMcpClientPage() {
     ? requestedTab
     : (initialViewMode === 'demo' ? 'chat' : 'mcp');
   const navigate = useNavigate();
-  const [config, setConfig] = useState({ mcpUrl: '', clientId: '', scopes: 'openid profile email offline_access', llmUrl: 'http://127.0.0.1:11434', llmModel: 'llama3.2:1b' });
-  // Per-mode "what actually supplies the OAuth client", from /state. Only read
-  // when the Client ID field is blank, which is the normal state for every door
-  // shipped here (they all self-advertise and register their own client).
-  const [clientHints, setClientHints] = useState({});
-  const [gatewayMode, setGatewayMode] = useState('privilege');
-  // '' = an MCP path is active. Non-empty = chat goes to that LLM lane instead.
-  const [llmPath, setLlmPath] = useState('');
-  const [gatewaySession, setGatewaySession] = useState(null);
   // The provider lanes, their probes and the prove-the-policy prompt all live on
   // /llm-gateway now — this page kept a second copy of them for months. What
   // stays is the gateway URL, because the mode switcher's LLM path still routes
   // the CHAT through it and the connection rail prints where that goes.
-  const [llmGatewayUrl, setLlmGatewayUrl] = useState('');
+  const {
+    config, setConfig,
+    gatewayMode, setGatewayMode,
+    llmPath, setLlmPath,
+    llmGatewayUrl, setLlmGatewayUrl,
+    gatewayConfigs, setGatewayConfigs,
+    presets, setPresets,
+    selectPath, selectDoor,
+  } = usePrivilegeRouting({ request: api });
+  // Per-mode "what actually supplies the OAuth client", from /state. Only read
+  // when the Client ID field is blank, which is the normal state for every door
+  // shipped here (they all self-advertise and register their own client).
+  const [clientHints, setClientHints] = useState({});
+  const [gatewaySession, setGatewaySession] = useState(null);
   const [rearmError, setRearmError] = useState('');
   const [preflight, setPreflight] = useState(null);
   const [preflightError, setPreflightError] = useState('');
   const [preflightBusy, setPreflightBusy] = useState(false);
-  const [gatewayConfigs, setGatewayConfigs] = useState({ direct: {}, privilege: {}, facade: {} });
-  const [presets, setPresets] = useState([]);
   const [gatewayStateLoaded, setGatewayStateLoaded] = useState(false);
   // Path switch in flight. The sessionStorage flag lets
   // the overlay survive the OAuth redirect and show again from first paint on
@@ -916,39 +919,27 @@ export default function PrivilegeMcpClientPage() {
 
   const switchGatewayMode = async (nextMode, { forceReauth = false } = {}) => {
     if (nextMode === gatewayMode && !forceReauth) return;
-    const savedConfig = gatewayConfigs[nextMode] || {};
-    // The path selector changes how we reach the selected MCP app. Keep that
-    // app name across paths when the destination has a matching door; otherwise
-    // the page silently switches (for example, Direct opensearch → Privilege
-    // aggregate) and applies a different app's policy.
-    const selectedDoor = doorName(config.mcpUrl);
-    const matchingDoor = selectedDoor && presets.find(
-      (preset) => preset.mode === nextMode && doorName(preset.url) === selectedDoor,
-    );
-    const nextConfig = {
-      ...config,
-      ...savedConfig,
-      ...(matchingDoor ? {
-        mcpUrl: matchingDoor.url,
-        clientId: matchingDoor.clientId || '',
-      } : {}),
-    };
     const prevMode = gatewayMode;
     const prevConfig = config;
 
-    setGatewayMode(nextMode);
-    setConfig(nextConfig);
     setTools([]);
     setSelectedTool(null);
     setBlockedDetail(null);
     setShowBlockedModal(false);
+    // selectPath clears llmPath; the re-arm caller (the only forceReauth one)
+    // never did, so put it back in the same tick before the hook awaits.
+    const pending = selectPath(nextMode);
+    if (forceReauth) setLlmPath(llmPath);
+    const result = await pending;
+    if (!result.ok) {
+      clearSwitching();
+      const msg = `Gateway switch failed: ${result.error.message}`;
+      appendChat('system', msg);
+      return msg;
+    }
+    const { saved, nextConfig } = result;
     try {
-      const saved = await api('/config', {
-        method: 'POST',
-        body: { ...nextConfig, gatewayMode: nextMode },
-      });
       savedMcpUrlRef.current = nextConfig.mcpUrl;
-      setGatewayConfigs(saved.gatewayConfigs || gatewayConfigs);
       // Direct is NOT exempt. It used to return here on the reading that it has
       // "no auth front door", but every direct door is a façade door with
       // requireBearer (mcpFacade.js DOORS) — the same wrong reading the
@@ -1217,15 +1208,13 @@ export default function PrivilegeMcpClientPage() {
   };
 
   const switchDoor = async (mcpUrl) => {
-    const preset = presets.find((item) => item.url === mcpUrl);
-    const next = {
-      ...config,
-      mcpUrl,
-      ...(preset ? { clientId: preset.clientId || '' } : {}),
-    };
+    const result = await selectDoor(mcpUrl);
+    if (!result.ok) {
+      appendChat('system', `Failed to switch door: ${result.error.message}`);
+      return;
+    }
+    const { saved } = result;
     try {
-      const saved = await api('/config', { method: 'POST', body: next });
-      setConfig(next);
       setShowBlockedModal(false);
       appendChat('system', `Switched to door: ${doorName(mcpUrl) || mcpUrl}`);
       // session.oauth is a single slot keyed mode::mcpUrl (privilegeMcpClient.js
