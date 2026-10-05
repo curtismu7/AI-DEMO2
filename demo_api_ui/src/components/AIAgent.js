@@ -27,6 +27,7 @@ import OAuthVisualizerPanel from "./OAuthVisualizerPanel";
 import ReasoningPanel from './ReasoningPanel';
 import ConversationSummaryPanel from './ConversationSummaryPanel';
 import UseCaseRunContextCard from './UseCaseRunContextCard';
+import OpikTracePanel from './OpikTracePanel';
 import ProofStrip from './ProofStrip';
 import { navigateToCustomerOAuthForceLogin, requestSilentReauth, isAuthRequiredApiError, notifySessionExpiredIfNeeded, USER_SESSION_EXPIRED_MESSAGE } from "../utils/authUi";
 import { setAgentAuthorization } from "../services/agentAuthorizationService";
@@ -552,6 +553,8 @@ export default function BankingAgent({
   // steps, agent scope, close. A popout rather than an inline expansion so the
   // header's height never changes when it opens.
   const [headerMoreOpen, setHeaderMoreOpen] = useState(false);
+  // Inline agent: Chat | Trace tab. Chat stays mounted while Trace is shown (CSS hides it).
+  const [agentTab, setAgentTab] = useState("chat");
   // Command Dock — float mode relocates the secondary header controls into a
   // draggable, pop-out-able tray fixed top-right (clear of the agent FAB at
   // bottom-right). Collapsed hides it visually; the controls stay mounted so
@@ -10228,7 +10231,7 @@ export default function BankingAgent({
       {effectiveIsOpen && (() => {
         const panelEl = (
         <div
-          className={`banking-agent-panel ba-mode-light${isInline ? " ba-mode-inline" : ""}${isBottomDock ? " ba-embedded-bottom-dock" : ""}${splitChrome ? " ba-split-column" : ""}${distinctFloatingChrome && isInline ? " ba-popout-mode" : ""}${isCollapsed && !isInline && !poppedOutWin ? " ba-collapsed" : ""}${poppedOutWin ? " ba-popped-out" : ""}`}
+          className={`banking-agent-panel ba-mode-light${isInline ? " ba-mode-inline" : ""}${isBottomDock ? " ba-embedded-bottom-dock" : ""}${splitChrome ? " ba-split-column" : ""}${distinctFloatingChrome && isInline ? " ba-popout-mode" : ""}${isCollapsed && !isInline && !poppedOutWin ? " ba-collapsed" : ""}${poppedOutWin ? " ba-popped-out" : ""}${isInline && isLoggedIn && agentTab === "trace" ? " ba-tab-trace" : ""}`}
           role="dialog"
           aria-label={
             isConfigEmbeddedFocus
@@ -10282,6 +10285,22 @@ export default function BankingAgent({
                   </div>
                 </div>
               </div>
+              {isInline && isLoggedIn && (
+                <div className="ba-tabs" role="tablist" aria-label="Agent view">
+                  {[["chat", "Chat"], ["trace", "Trace"]].map(([id, label]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      role="tab"
+                      className="ba-tab"
+                      aria-selected={agentTab === id}
+                      onClick={() => setAgentTab(id)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
               {helixDegraded && (
                 <div className="ba-degraded-banner" role="status">
                   ⚠️ AI reasoning offline — running rule-based responses. Some
@@ -13318,6 +13337,7 @@ export default function BankingAgent({
               </div>
             )}
             <div className="ba-right-col">
+              {isInline && isLoggedIn && agentTab === "trace" && <OpikTracePanel />}
               <UseCaseRunContextCard runContext={runContext} />
               {/* Live agent reasoning visibility (renders only while a run reports a phase) */}
               {aguiEnabled && <ReasoningPanel reasoningState={aguiState.reasoningState} />}

@@ -1,0 +1,357 @@
+/* Trace tab of the embedded agent. Tokens only (--th-*): they flip with
+   :root[data-theme="dark"], so no dark block is needed here. */
+
+/* Chat | Trace pill (header) */
+.ba-tabs {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+  padding: 2px;
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
+  border-radius: 999px;
+}
+.ba-tab {
+  font: inherit;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  padding: 3px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--th-text-muted);
+  cursor: pointer;
+}
+.ba-tab[aria-selected="true"] {
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+/* Trace tab active: keep chat mounted (state survives) but show only the trace pane */
+.banking-agent-panel.ba-tab-trace .ba-left-col {
+  display: none;
+}
+.banking-agent-panel.ba-tab-trace .ba-right-col > :not(.opik-trace) {
+  display: none;
+}
+
+.opik-trace {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1 1 0%;
+  min-width: 0;
+  min-height: 0;
+  padding: 12px;
+  overflow-y: auto;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+.opik-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.opik-head h3 {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: 700;
+}
+.opik-head__proj {
+  font-weight: 500;
+  color: var(--th-text-muted);
+}
+.opik-range {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+.opik-range button {
+  font: inherit;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  padding: 3px 10px;
+  border: 1px solid var(--th-border-strong);
+  border-radius: 999px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  cursor: pointer;
+}
+.opik-range button[aria-pressed="true"] {
+  background: var(--th-status-info);
+  border-color: var(--th-status-info);
+  color: var(--th-text-on-emphasis);
+}
+
+.opik-note {
+  margin: 0;
+  padding: 10px 12px;
+  font-size: var(--font-size-sm);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border-strong);
+  border-radius: 8px;
+  color: var(--th-text);
+}
+.opik-note--err {
+  background: var(--th-status-error-bg);
+  border-color: var(--th-status-error-border);
+  color: var(--th-status-error-text);
+}
+.opik-link {
+  font: inherit;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--th-status-info-text);
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.opik-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.opik-tile {
+  min-width: 0;
+  padding: 8px 12px;
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border-strong);
+  border-radius: 8px;
+}
+.opik-tile__k {
+  font-size: var(--font-size-3xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--th-text-muted);
+}
+.opik-tile__v {
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+}
+.opik-tile__d {
+  font-size: var(--font-size-2xs);
+  color: var(--th-text-muted);
+}
+.opik-tile--good .opik-tile__v {
+  color: var(--th-status-success-text);
+}
+.opik-tile--bad .opik-tile__v {
+  color: var(--th-status-error-text);
+}
+
+.opik-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+.opik-card {
+  min-width: 0;
+  padding: 10px 12px;
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border-strong);
+  border-radius: 8px;
+}
+.opik-card h4 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 6px;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.opik-legend {
+  display: flex;
+  gap: 10px;
+  margin-left: auto;
+  font-size: var(--font-size-2xs);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.opik-sw {
+  display: inline-block;
+  width: 10px;
+  height: 9px;
+  margin-right: 4px;
+  border-radius: 2px;
+  vertical-align: middle;
+}
+.opik-sw--llm,
+.opik-wf__bar--llm {
+  background: var(--th-status-info);
+}
+.opik-sw--tool,
+.opik-wf__bar--tool {
+  background: var(--th-status-warning);
+}
+.opik-sw--span,
+.opik-wf__bar--span {
+  background: var(--th-border-strong);
+}
+
+.opik-tbl-wrap {
+  overflow-x: auto;
+}
+.opik-traces {
+  width: 100%;
+  min-width: 380px;
+  border-collapse: collapse;
+  font-size: var(--font-size-xs);
+}
+.opik-traces th {
+  padding: 4px 8px;
+  text-align: left;
+  font-size: var(--font-size-3xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--th-text-muted);
+  border-bottom: 1px solid var(--th-border-strong);
+}
+.opik-traces td {
+  padding: 4px 8px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  border-bottom: 1px solid var(--th-border);
+}
+.opik-traces tr:hover {
+  background: var(--th-bg-hover);
+}
+.opik-traces tr[aria-selected="true"] {
+  background: var(--th-status-info-bg);
+}
+.opik-rowbtn {
+  font: inherit;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--th-status-info-text);
+  font-weight: 600;
+  cursor: pointer;
+}
+.opik-st {
+  padding: 1px 7px;
+  font-size: var(--font-size-3xs);
+  font-weight: 700;
+  border: 1px solid;
+  border-radius: 999px;
+}
+.opik-st--ok {
+  background: var(--th-status-success-bg);
+  border-color: var(--th-status-success-border);
+  color: var(--th-status-success-text);
+}
+.opik-st--err {
+  background: var(--th-status-error-bg);
+  border-color: var(--th-status-error-border);
+  color: var(--th-status-error-text);
+}
+
+.opik-wf {
+  font-size: var(--font-size-xs);
+}
+.opik-wf__axis,
+.opik-wf__row {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr) 64px;
+  align-items: center;
+}
+.opik-wf__axis {
+  margin-bottom: 2px;
+  font-size: var(--font-size-3xs);
+  color: var(--th-text-muted);
+}
+.opik-wf__axis div:nth-child(2) {
+  display: flex;
+  justify-content: space-between;
+}
+.opik-wf__row {
+  min-height: 26px;
+  border-top: 1px solid var(--th-border);
+}
+.opik-wf__name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding-left: calc(var(--d, 0) * 14px);
+}
+.opik-wf__name > span:nth-child(2) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.opik-wf__kind {
+  padding: 0 5px;
+  font-size: var(--font-size-3xs);
+  font-weight: 700;
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border-strong);
+  border-radius: 4px;
+}
+.opik-wf__track {
+  position: relative;
+  height: 14px;
+  background: var(--th-bg-inset);
+  border-radius: 3px;
+}
+.opik-wf__bar {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  left: calc(var(--l) * 1%);
+  width: max(calc(var(--w) * 1%), 3px);
+  border-radius: 3px;
+}
+.opik-wf__ms {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.opik-foot {
+  display: flex;
+  justify-content: flex-end;
+}
+.opik-btn {
+  padding: 5px 12px;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--th-text-on-emphasis);
+  background: var(--th-status-info);
+  border: 1px solid var(--th-status-info);
+  border-radius: 999px;
+}
+
+@media (min-width: 900px) {
+  .opik-tiles {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1100px) {
+  .opik-split {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  }
+}
+@media (max-width: 520px) {
+  .opik-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .opik-wf__axis,
+  .opik-wf__row {
+    grid-template-columns: 104px minmax(0, 1fr) 52px;
+  }
+  .opik-wf__kind,
+  .opik-legend {
+    display: none;
+  }
+}
