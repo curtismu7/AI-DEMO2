@@ -12,7 +12,7 @@ import JsonFormView from '../components/shared/JsonFormView';
 import PingIdentitySpinner from '../components/shared/PingIdentitySpinner';
 import DraggableModal from '../components/DraggableModal';
 import { navigateWithOverlay } from '../utils/navigateWithOverlay';
-import { doorName, GATEWAY_MODES, LLM_PATHS, doorsForMode } from '../components/privilege/privilegeRouting';
+import { doorName, GATEWAY_MODES, LLM_PATHS, doorsForMode, decideAfterSwitch } from '../components/privilege/privilegeRouting';
 import { LLM_POLICY_DENIED, chatReplyMessage, llmReplyMessage, llmDenialMessage } from '../components/privilege/privilegeChat';
 import { usePrivilegeRouting } from '../components/privilege/usePrivilegeRouting';
 import PrivilegeMcpLearningPage from './PrivilegeMcpLearningPage';
@@ -958,7 +958,13 @@ export default function PrivilegeMcpClientPage() {
       // Taking the shortcut there would switch mode, arm nothing, and say
       // nothing — the same dead-end button Ruling 5 removed by another route.
       const destinationAuthenticated = saved.oauth?.destinationAuthenticated ?? saved.oauth?.authenticated;
-      if (destinationAuthenticated && !forceReauth) {
+      const outcome = decideAfterSwitch({
+        kind: 'path',
+        destinationAuthenticated,
+        forceReauth,
+        signedIn: mainAppAuthenticated || authenticated,
+      });
+      if (outcome === 'authenticated') {
         setAuthenticated(true);
         // No auto-discovery on a path switch. Choosing a path says which lane
         // to use, not that you want it probed — and probing spends a real call
@@ -975,7 +981,7 @@ export default function PrivilegeMcpClientPage() {
       // second Sign in click. The BFF only adds prompt=none when it can verify
       // an app or existing gateway session; otherwise this keeps the manual
       // sign-in fallback below.
-      if (!forceReauth && (mainAppAuthenticated || authenticated)) {
+      if (outcome === 'silent') {
         setAuthenticated(false);
         setTools([]);
         setSelectedTool(null);
@@ -999,7 +1005,7 @@ export default function PrivilegeMcpClientPage() {
       // on a dead gateway session, so redirecting is what the user just asked
       // for. The no-automatic-navigation rule is about switches nobody clicked
       // "sign in" for — it is not a ban on the sign-in button working.
-      if (forceReauth) {
+      if (outcome === 'forceReauth') {
         setSwitching(true);
         try { sessionStorage.setItem('cur_priv_switching', '1'); } catch { /* storage disabled */ }
         await startAuthRedirect();
@@ -1225,8 +1231,13 @@ export default function PrivilegeMcpClientPage() {
       // state; act on it rather than fetching tools with a credential the BFF
       // has just told us does not exist. Same branch switchGatewayMode uses.
       const destinationAuthenticated = saved?.oauth?.destinationAuthenticated ?? saved?.oauth?.authenticated;
-      if (!destinationAuthenticated && gatewayMode === 'privilege'
-        && (mainAppAuthenticated || authenticated)) {
+      const outcome = decideAfterSwitch({
+        kind: 'door',
+        destinationAuthenticated,
+        mode: gatewayMode,
+        signedIn: mainAppAuthenticated || authenticated,
+      });
+      if (outcome === 'silent') {
         // A token from the previous door cannot be reused directly. Ask the
         // Gateway's authorization server for a grant to this door using the
         // existing browser SSO session; only show manual sign-in if the BFF
@@ -1250,7 +1261,7 @@ export default function PrivilegeMcpClientPage() {
         }
         return;
       }
-      setAuthenticated(Boolean(saved?.oauth?.destinationAuthenticated ?? saved?.oauth?.authenticated));
+      setAuthenticated(outcome === 'authenticated');
       // Same rule as the path switch above: selecting a door is not a request to
       // probe it. The tools from the door you just left are cleared so the panel
       // never shows another door's results, and "Get MCP Tools" fetches.
