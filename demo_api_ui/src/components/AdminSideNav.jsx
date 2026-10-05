@@ -237,7 +237,7 @@ const PRODUCT_CARD_GROUPS = new Set(["AI Gateway", "DaVinci", "Ping products"]);
 
 const navGroupClassName = (label) => {
   if (PRODUCT_CARD_GROUPS.has(label)) return "admin-side-nav__group--product-card";
-  if (label === "Utilities") return "admin-side-nav__group--utility";
+  if (label === "Utilities" || label === "Diagrams") return "admin-side-nav__group--utility";
   return "admin-side-nav__group--separate";
 };
 
