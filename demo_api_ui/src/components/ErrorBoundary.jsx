@@ -49,6 +49,16 @@ class ErrorBoundary extends React.Component {
   }
 
   /**
+   * With a `resetKey` (e.g. the route), a caught error clears when the key changes,
+   * so one page's crash does not stay on screen after navigating elsewhere.
+   */
+  componentDidUpdate(prevProps) {
+    if (this.state.hasError && prevProps.resetKey !== this.props.resetKey) {
+      this.handleReset();
+    }
+  }
+
+  /**
    * Reset error state to allow user to retry
    */
   handleReset = () => {

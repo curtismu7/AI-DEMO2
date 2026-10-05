@@ -714,6 +714,9 @@ function AppWithAuth() {
                   <AuthLoadingScreen label="Loading Agent…" />
                 </main>
               )}
+              {/* A render error on any page used to unmount the whole app (a white
+                  screen); only AIAgent had a boundary. resetKey clears it on navigation. */}
+              <ErrorBoundary resetKey={pathname}>
               <Routes>
                 <Route
                   path="/request-access"
@@ -2336,6 +2339,7 @@ function AppWithAuth() {
                   }
                 />
               </Routes>
+              </ErrorBoundary>
               <PageGuide />
               {shouldMountSingleAgent && (
                 <ErrorBoundary>
