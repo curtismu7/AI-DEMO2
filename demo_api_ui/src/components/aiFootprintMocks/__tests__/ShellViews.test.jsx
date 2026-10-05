@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { ShellTerminalView } from "../ShellTerminalView";
 import { ShellVsCodeView } from "../ShellVsCodeView";
 import { ShellDesktopView } from "../ShellDesktopView";
@@ -58,6 +58,17 @@ describe("ShellTerminalView", () => {
 });
 
 describe("ShellVsCodeView", () => {
+  it("shows recent API calls in plain words, live, with a 401 explained", async () => {
+    const { appendTrafficEntry } = await import("../../../services/apiTrafficStore");
+    render(<ShellVsCodeView session={makeSession()} />);
+    act(() => {
+      appendTrafficEntry({ method: "GET", url: "/api/tools", status: 401, duration: 12 });
+      appendTrafficEntry({ method: "GET", url: "/api/ok", status: 200, duration: 5 });
+    });
+    await waitFor(() => expect(screen.getByText("Not signed in, or the session expired")).toBeInTheDocument());
+    expect(screen.getByText("/api/ok")).toBeInTheDocument();
+  });
+
   it("sends from the chat box", () => {
     const session = makeSession();
     render(<ShellVsCodeView session={session} />);
