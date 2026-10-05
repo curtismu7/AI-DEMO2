@@ -801,6 +801,38 @@ stop_llamacpp() {
   ok "model tiers + tier-manager stopped"
 }
 
+# CI queue dashboard (admin nav -> CI Queue Dashboard). Host process, not a
+# container: it shells out to the host's authenticated `gh` and controls this
+# Mac's launchd runners. Best-effort — a missing gh never blocks the stack.
+_CI_DASHBOARD_PORT=57500
+_CI_DASHBOARD_PIDFILE="/tmp/demo-ci-dashboard.pid"
+
+start_ci_dashboard() {
+  if lsof -nP -iTCP:${_CI_DASHBOARD_PORT} -sTCP:LISTEN >/dev/null 2>&1; then
+    ok "CI queue dashboard already on :${_CI_DASHBOARD_PORT}"
+    return 0
+  fi
+  if ! command -v gh &>/dev/null; then
+    warn "gh not found — CI queue dashboard not started (install gh, then: npm run ci:dashboard)"
+    return 0
+  fi
+  nohup node scripts/ci-queue-dashboard/server.js > /tmp/demo-ci-dashboard.log 2>&1 &
+  echo $! > "$_CI_DASHBOARD_PIDFILE"
+  local i=0
+  while [[ $i -lt 5 ]]; do
+    lsof -nP -iTCP:${_CI_DASHBOARD_PORT} -sTCP:LISTEN >/dev/null 2>&1 \
+      && { ok "CI queue dashboard on http://127.0.0.1:${_CI_DASHBOARD_PORT}/"; return 0; }
+    sleep 1; (( i++ )) || true
+  done
+  warn "CI queue dashboard did not start — see /tmp/demo-ci-dashboard.log"
+}
+
+stop_ci_dashboard() {
+  [[ -f "$_CI_DASHBOARD_PIDFILE" ]] || return 0
+  kill "$(cat "$_CI_DASHBOARD_PIDFILE")" 2>/dev/null || true
+  rm -f "$_CI_DASHBOARD_PIDFILE"
+}
+
 # ── Preflight ─────────────────────────────────────────────────────────────────
 if ! command -v docker &>/dev/null; then
   err "docker not found — install Docker Desktop and try again."
@@ -1200,6 +1232,7 @@ cmd_stop() {
   echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
   echo ""
   _compose_down
+  stop_ci_dashboard
   ok "All containers stopped and removed."
   echo ""
 }
@@ -1222,6 +1255,7 @@ cmd_down() {
     _compose_down
     ok "All containers and networks stopped and removed (volumes preserved)."
   fi
+  stop_ci_dashboard
   echo ""
 }
 
@@ -1802,6 +1836,7 @@ cmd_start() {
   else
     start_llamacpp
   fi
+  start_ci_dashboard
   echo ""
 
   if [[ "${stack}" == "basic" ]]; then
