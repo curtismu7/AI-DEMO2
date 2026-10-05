@@ -303,4 +303,4 @@
   cursor: pointer;
   transition: color 0.2s, border-color 0.2s;
 }
-.rsi-skip-btn:hover { color: #e2e8f0; border-color: #64748b; }
+.rsi-skip-btn:hover { color: #ffffff; border-color: #64748b; }

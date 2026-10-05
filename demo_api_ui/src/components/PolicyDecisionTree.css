@@ -80,7 +80,6 @@
 .p1dt-decision-banner__label {
   font-size: var(--font-size-sm);
   font-weight: 600;
-  opacity: 0.8;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -431,7 +430,7 @@
 .p1dt-foot-timing {
   font-size: var(--font-size-3xs);
   font-family: var(--font-mono);
-  color: #cbd5e1;
+  color: #ffffff;
   font-style: italic;
 }
 

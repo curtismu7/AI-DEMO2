@@ -711,7 +711,7 @@
    hardcoded light surfaces themed equivalents. Light mode is untouched. */
 :root[data-theme="dark"] {
   --adg-text: var(--th-text);
-  --adg-muted: #cbd5e1;
+  --adg-muted: #ffffff;
   --adg-border: var(--th-border);
   --adg-bg-alt: var(--th-bg-inset);
   --adg-accent: #60a5fa;
@@ -1010,7 +1010,7 @@
 }
 
 .adg-flow-btn.active .adg-flow-meta {
-  color: rgba(255, 255, 255, 0.8);
+  color: #ffffff;
 }
 
 /* ---- Presenter body ---- */

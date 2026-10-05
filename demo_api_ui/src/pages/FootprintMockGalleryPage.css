@@ -16,7 +16,7 @@
 .afm-gallery[data-theme="dark"],
 .afm-live-shell[data-theme="dark"] {
   --ink: #e5e9f0;
-  --muted: #93a2b8;
+  --muted: #ffffff;
   --line: #2a3342;
   --card: #171e2a;
   --note-bg: #0f2b26;
@@ -102,7 +102,7 @@
   gap: 10px;
   padding: 10px 12px;
   background: #0f172a;
-  color: #e2e8f0;
+  color: #ffffff;
   border-radius: 8px;
   font-size: var(--font-size-sm);
 }

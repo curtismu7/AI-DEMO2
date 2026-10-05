@@ -448,7 +448,7 @@
   border: 1px solid #334155;
   border-radius: 6px;
   background: #0f172a;
-  color: #e2e8f0;
+  color: #ffffff;
   font-family: ui-sans-serif, system-ui, sans-serif;
   font-size: var(--font-size-2xs);
   line-height: 1.5;
@@ -492,7 +492,7 @@
   border: 1px solid #334155;
   border-radius: 6px;
   background: #1e293b;
-  color: #e2e8f0;
+  color: #ffffff;
   font-size: var(--font-size-body);
   font-weight: 600;
   line-height: 1;
@@ -515,7 +515,7 @@
   border: 1px solid #1e293b;
   border-radius: 10px;
   background: #0f172a;
-  color: #e2e8f0;
+  color: #ffffff;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
 }
 
@@ -541,7 +541,7 @@
 
 .tracing-graph-panel-facts dd {
   margin: 0;
-  color: #e2e8f0;
+  color: #ffffff;
   font-variant-numeric: tabular-nums;
 }
 
@@ -555,7 +555,7 @@
 
 .tracing-graph-panel-spans .tracing-span-row {
   grid-template-columns: 1fr auto;
-  color: #cbd5e1;
+  color: #ffffff;
 }
 
 .tracing-graph-panel-spans .tracing-span-dur {

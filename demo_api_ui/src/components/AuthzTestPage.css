@@ -612,7 +612,7 @@
 
 .authz-raw-body {
   background: #0f172a;
-  color: #e2e8f0;
+  color: #ffffff;
   border-radius: 6px;
   padding: 12px 14px;
   font-size: 0.78rem;
@@ -781,7 +781,7 @@
 }
 
 .authz-api-downstream-label {
-  color: #cbd5e1;
+  color: #ffffff;
   font-size: 0.75rem;
   margin-bottom: 6px;
   display: flex;
@@ -809,7 +809,7 @@
 }
 
 .authz-api-url {
-  color: #e2e8f0;
+  color: #ffffff;
   font-family: inherit;
   font-size: 0.78rem;
   word-break: break-all;
@@ -837,7 +837,7 @@
 .authz-api-col {}
 
 .authz-api-col-title {
-  color: #cbd5e1;
+  color: #ffffff;
   font-size: 0.7rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -861,7 +861,7 @@
 
 .authz-api-pre {
   background: #1e293b;
-  color: #e2e8f0;
+  color: #ffffff;
   font-family: inherit;
   font-size: 0.72rem;
   line-height: 1.5;

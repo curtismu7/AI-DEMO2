@@ -352,7 +352,7 @@
   align-items: center;
   gap: 12px;
   padding: 11px 16px;
-  color: rgba(255, 255, 255, 0.85);
+  color: #ffffff;
   text-decoration: none;
   border-radius: 0;
   font-size: var(--font-size-body);
@@ -413,14 +413,14 @@
   align-items: center;
   justify-content: center;
   font-size: var(--font-size-2xs);
-  color: rgba(255, 255, 255, 0.6);
+  color: #ffffff;
   transition: transform 0.2s ease;
   flex-shrink: 0;
 }
 
 .admin-side-nav__chevron--expanded {
   transform: rotate(90deg);
-  color: rgba(255, 255, 255, 0.9);
+  color: #ffffff;
 }
 
 /* Submenu container */
@@ -437,7 +437,7 @@
 .admin-side-nav__item--child {
   padding-left: 28px;
   font-size: var(--font-size-sm);
-  color: rgba(255, 255, 255, 0.75);
+  color: #ffffff;
 }
 
 .admin-side-nav__item--child:hover {
@@ -490,7 +490,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: rgba(255, 255, 255, 0.6);
+  color: #ffffff;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   white-space: nowrap;
 }

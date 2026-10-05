@@ -1132,7 +1132,7 @@ pre.tcd-jwt-dump {
    above was pulling in a dark ancestor color on dark surfaces). */
 pre.tcd-jwt-dump.jh-dark {
   background: #0f172a;
-  color: #c9d1d9;
+  color: #ffffff;
   border-radius: 6px;
 }
 
@@ -1653,7 +1653,7 @@ pre.tcd-jwt-dump.jh-dark {
   --th-bg-inset: #f8fafc;
   --th-text: #1e293b;
   --th-text-body: #334155;
-  --th-text-muted: #64748b;
+  --th-text-muted: var(--th-text);
   --th-border: #e2e8f0;
   --th-border-strong: #cbd5e1;
 }
@@ -1670,7 +1670,7 @@ pre.tcd-jwt-dump.jh-dark {
   --th-bg-inset: #1e293b;
   --th-text: #f8fafc;
   --th-text-body: #dbe4f0;
-  --th-text-muted: #a7b4c7;
+  --th-text-muted: var(--th-text);
   --th-border: #3c4f70;
   --th-border-strong: #59729a;
 }
@@ -1698,7 +1698,7 @@ pre.tcd-jwt-dump.jh-dark {
 
 .tci-header-icon {
   font-size: 1.1rem;
-  color: rgba(255, 255, 255, 0.7);
+  color: #ffffff;
   flex-shrink: 0;
 }
 
@@ -1781,7 +1781,7 @@ pre.tcd-jwt-dump.jh-dark {
 
 .tci-panel[data-theme="dark"] .tci-body {
   --tcd-ink: #f8fafc;
-  --tcd-muted: #cbd5e1;
+  --tcd-muted: #ffffff;
 }
 
 .tci-panel[data-theme="dark"] .tcd-full-jwt {

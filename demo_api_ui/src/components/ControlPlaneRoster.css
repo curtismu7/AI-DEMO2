@@ -143,7 +143,7 @@ svg.cp-links line.dead{stroke:#dc2626;opacity:.22;stroke-dasharray:4 7}
 /* Deliberately theme-invariant: a full-bleed "mission accomplished" overlay,
    always dark for dramatic effect — so its own ink is pinned literal too
    (THEMING.md §1.5: pin ground and ink together, never one alone). */
-.cp-end{position:absolute;inset:0;background:rgba(8,18,38,.93);backdrop-filter:blur(3px);z-index:7;color:#e8eef7;
+.cp-end{position:absolute;inset:0;background:rgba(8,18,38,.93);backdrop-filter:blur(3px);z-index:7;color:#ffffff;
   display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
   opacity:1;padding:20px;animation:cpfade .5s ease}
 .cp-end .big{font-size:var(--font-size-h1);font-weight:900;letter-spacing:1px;

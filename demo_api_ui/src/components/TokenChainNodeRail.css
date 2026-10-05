@@ -299,18 +299,18 @@
 
 /* ── dark: app-controlled only. Never keyed to the OS setting. ───────── */
 :root[data-theme="dark"] .tcnr { border-bottom-color: #26304a; }
-:root[data-theme="dark"] .tcnr-title { color: #cdd7ec; }
+:root[data-theme="dark"] .tcnr-title { color: #ffffff; }
 :root[data-theme="dark"] .tcnr-count { color: #90a0c2; }
 :root[data-theme="dark"] .tcnr-run { background: #1d4ed8; color: #ffffff; }
 :root[data-theme="dark"] .tcnr-run:hover { background: #2563eb; }
-:root[data-theme="dark"] .tcnr-speed { background: var(--th-bg-card); border-color: var(--th-border); color: #eaf0fb; }
-:root[data-theme="dark"] .tcnr-present { background: var(--th-bg-card); border-color: var(--th-border); color: #cdd7ec; }
+:root[data-theme="dark"] .tcnr-speed { background: var(--th-bg-card); border-color: var(--th-border); color: #ffffff; }
+:root[data-theme="dark"] .tcnr-present { background: var(--th-bg-card); border-color: var(--th-border); color: #ffffff; }
 :root[data-theme="dark"] .tcnr-present:hover { border-color: #9ec1ff; color: #9ec1ff; }
 :root[data-theme="dark"] .tcnr-density { background: var(--th-bg-inset); }
-:root[data-theme="dark"] .tcnr-density button { color: #cdd7ec; }
-:root[data-theme="dark"] .tcnr-density button.active { background: var(--th-bg-card); color: #eaf0fb; }
+:root[data-theme="dark"] .tcnr-density button { color: #ffffff; }
+:root[data-theme="dark"] .tcnr-density button.active { background: var(--th-bg-card); color: #ffffff; }
 :root[data-theme="dark"] .tcnr-node { background: var(--th-bg-card); border-color: var(--th-border); border-top-color: #26304a; }
-:root[data-theme="dark"] .tcnr-node-n { background: var(--th-bg-page); border-color: var(--th-border); color: #cdd7ec; }
+:root[data-theme="dark"] .tcnr-node-n { background: var(--th-bg-page); border-color: var(--th-border); color: #ffffff; }
 :root[data-theme="dark"] .tcnr-node-lane { color: #90a0c2; }
 /* A gateway step is the point of the reel: its lane name is red and bold in
    both themes. Listed for dark too, or the rule above outranks it there. */
@@ -319,7 +319,7 @@
   color: var(--th-status-error-text);
   font-weight: 700;
 }
-:root[data-theme="dark"] .tcnr-node-title { color: #eaf0fb; }
+:root[data-theme="dark"] .tcnr-node-title { color: #ffffff; }
 :root[data-theme="dark"] .tcnr-node-fact { color: #90a0c2; }
 :root[data-theme="dark"] .tcnr-node--done { border-top-color: #5fe39c; }
 :root[data-theme="dark"] .tcnr-node--done .tcnr-node-n { border-color: #5fe39c; color: #5fe39c; }
@@ -336,7 +336,7 @@
 :root[data-theme="dark"] .tcnr-node--sel .tcnr-node-n { background: #1d4ed8; border-color: #9ec1ff; color: #ffffff; }
 :root[data-theme="dark"] .tcnr[data-density="compact"] .tcnr-node { background: transparent; }
 :root[data-theme="dark"] .tcnr[data-density="compact"] .tcnr-node-title { color: #90a0c2; }
-:root[data-theme="dark"] .tcnr[data-density="compact"] .tcnr-node--sel .tcnr-node-title { color: #eaf0fb; }
+:root[data-theme="dark"] .tcnr[data-density="compact"] .tcnr-node--sel .tcnr-node-title { color: #ffffff; }
 
 /* Node facts describe the CHANGE. The scope diff is stated as a shape
    ("narrowed 9 → 3") rather than chip-by-chip: at node width the per-scope

@@ -112,16 +112,16 @@
 
 :root[data-theme="dark"] .asp-root.asp-root--discovery .asp-banner {
   background: #1a5560;
-  color: #e4f0f3;
+  color: #ffffff;
 }
 
 :root[data-theme="dark"] .asp-root.asp-root--discovery .asp-banner a {
-  color: #e4f0f3;
+  color: #ffffff;
 }
 
 :root[data-theme="dark"] .asp-root.asp-root--discovery .asp-eyebrow {
   background: #1a5560;
-  color: #e4f0f3;
+  color: #ffffff;
 }
 
 .asp-page {

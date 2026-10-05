@@ -19,7 +19,7 @@
 
 :root[data-theme="dark"] .mcp-observability-page {
   --mcp-ink: #e9edf2;
-  --mcp-muted: #a6b2c0;
+  --mcp-muted: #ffffff;
   --mcp-quiet: #8490a0;
   --mcp-ground: #111d29;
   --mcp-inset: #0d1822;

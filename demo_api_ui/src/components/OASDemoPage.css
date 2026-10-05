@@ -50,7 +50,6 @@
 .oas-demo-subtitle {
   margin: 0;
   font-size: 0.9rem;
-  opacity: 0.88;
   line-height: 1.5;
   max-width: 540px;
   color: var(--th-text-invert) !important;
@@ -518,7 +517,7 @@
   margin-top: 0.75rem;
   padding: 0.75rem;
   background: #0f172a;
-  color: #e2e8f0;
+  color: #ffffff;
   border-radius: 6px;
   font-family: var(--font-mono);
   font-size: 0.78rem;
@@ -587,7 +586,7 @@
 
 .oas-raw-spec {
   background: #0f172a;
-  color: #e2e8f0;
+  color: #ffffff;
   border-radius: 8px;
   padding: 1.25rem 1.5rem;
   font-family: var(--font-mono);

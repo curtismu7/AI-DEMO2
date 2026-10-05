@@ -86,7 +86,7 @@
 }
 
 .topnav-brand-icon {
-  color: rgba(255, 255, 255, 0.75);
+  color: #ffffff;
   font-size: 26px;
 }
 
@@ -144,7 +144,7 @@
   padding: 0 12px;
   font-size: var(--font-size-sm);
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.78);
+  color: #ffffff;
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
@@ -170,7 +170,7 @@
   padding: 0 12px;
   font-size: var(--font-size-sm);
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.78);
+  color: #ffffff;
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
@@ -363,7 +363,7 @@
 .topnav-search-btn {
   background: transparent;
   border: none;
-  color: rgba(255, 255, 255, 0.6);
+  color: #ffffff;
   cursor: pointer;
   padding: 8px;
   border-radius: 4px;
@@ -374,14 +374,14 @@
 
 .topnav-search-btn:hover {
   background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.9);
+  color: #ffffff;
 }
 
 .topnav-theme-toggle {
   flex-shrink: 0;
   background: transparent;
   border: none;
-  color: rgba(255, 255, 255, 0.9);
+  color: #ffffff;
   cursor: pointer;
   padding: 8px;
   border-radius: 4px;
@@ -598,7 +598,7 @@
 
 .topnav-token-pill__name {
   font-size: var(--font-size-2xs);
-  color: #e2e8f0;
+  color: #ffffff;
   font-weight: 600;
   white-space: nowrap;
   max-width: 120px;

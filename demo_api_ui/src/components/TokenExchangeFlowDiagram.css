@@ -47,10 +47,10 @@
 
 /* Tooltip */
 .tefd-tooltip { position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); background: #1e293b; color: #f8fafc; padding: 10px 14px; border-radius: 6px; font-size: var(--font-size-2xs); max-width: 280px; min-width: 200px; box-shadow: 0 4px 16px rgba(0,0,0,0.2); z-index: 100; pointer-events: auto; }
-.tefd-tooltip-title { display: block; font-size: var(--font-size-2xs); font-weight: 600; margin-bottom: 4px; color: #e2e8f0; }
-.tefd-tooltip-text  { margin: 0 0 8px; font-size: var(--font-size-xs); line-height: 1.5; color: #cbd5e1; }
+.tefd-tooltip-title { display: block; font-size: var(--font-size-2xs); font-weight: 600; margin-bottom: 4px; color: #ffffff; }
+.tefd-tooltip-text  { margin: 0 0 8px; font-size: var(--font-size-xs); line-height: 1.5; color: #ffffff; }
 .tefd-tooltip-btn   { background: none; border: 1px solid #475569; color: #94a3b8; font-size: var(--font-size-xs); padding: 3px 8px; border-radius: 3px; cursor: pointer; }
-.tefd-tooltip-btn:hover { background: #334155; color: #e2e8f0; }
+.tefd-tooltip-btn:hover { background: #334155; color: #ffffff; }
 
 /* Education buttons */
 .tefd-education-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; padding: 0 2px; }

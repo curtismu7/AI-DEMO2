@@ -23,7 +23,7 @@
   --lp-bg: #f8fafc;
   --lp-surface: #ffffff;
   --lp-border: var(--th-border);
-  --lp-muted: #e8ecf1;
+  --lp-muted: #ffffff;
   --lp-text-primary: #020617;
   --lp-text-secondary: #64748b;
   --lp-text-muted: #94a3b8;
@@ -701,14 +701,14 @@
 
 .landing-callout-lead em {
   font-style: italic;
-  color: rgba(255, 255, 255, 0.85);
+  color: #ffffff;
 }
 
 .landing-callout-body {
   font-family: var(--rd2-font-body, "Inter", ui-sans-serif, sans-serif);
   font-size: 16px;
   line-height: 1.65;
-  color: rgba(255, 255, 255, 0.82);
+  color: #ffffff;
   margin: 0 0 12px;
 }
 

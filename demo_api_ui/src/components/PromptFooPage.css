@@ -195,7 +195,7 @@
 
 .promptfoo-page__cli pre {
   background: var(--bg-code, #16161f);
-  color: #d4d4d8;
+  color: #ffffff;
   padding: 1rem;
   border-radius: var(--radius-md);
   overflow-x: auto;

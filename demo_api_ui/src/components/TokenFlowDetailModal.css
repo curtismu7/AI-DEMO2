@@ -731,15 +731,15 @@
   --border-primary:     #d0d7de;
   --border-secondary:   #b9c2cd;
   --text-primary:       #1f2328;
-  --text-secondary:     #57606a;
-  --text-muted:         #8c959f;
+  --text-secondary:     #000000;
+  --text-muted:         #000000;
   --accent:             #0969da;
   --tfd-success:        #1a7f37;
   --tfd-danger:         #cf222e;
   background: #f6f8fa;
   color: #1f2328;
 }
-.tfd-root.tfd-light .tfd-json-pre { background: #f0f4f8; color: #57606a; }
+.tfd-root.tfd-light .tfd-json-pre { background: #f0f4f8; color: #000000; }
 .tfd-root.tfd-light .tfd-jk { color: #0550ae; }
 .tfd-root.tfd-light .tfd-js { color: #116329; }
 .tfd-root.tfd-light .tfd-jn { color: #8250df; }
@@ -767,7 +767,7 @@
 .tfd-root.tfd-light .tfd-topo-claims { background: #f6f8fa; border-color: #d0d7de; }
 .tfd-root.tfd-light .tfd-product-call { background: #ffffff; border-color: #d0d7de; }
 .tfd-root.tfd-light .tfd-product-name { color: #1f2328; }
-.tfd-root.tfd-light .tfd-product-call-name { color: #57606a; }
+.tfd-root.tfd-light .tfd-product-call-name { color: #000000; }
 
 /* ── Theme toggle button ───────────────────────────────────────────────── */
 .tfd-theme-btn {

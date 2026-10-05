@@ -14,7 +14,7 @@
   inset: 0;
   z-index: 1000;
   background: #0b0d12;
-  color: #eef2f8;
+  color: #ffffff;
   display: flex;
   flex-direction: column;
   padding: 3vh 4vw;
@@ -62,7 +62,7 @@
   margin-left: auto;
   border: 1px solid #2b3242;
   background: transparent;
-  color: #cbd3e1;
+  color: #ffffff;
   border-radius: 8px;
   padding: 7px 16px;
   font-size: clamp(13px, 1.1vw, 15px);
@@ -84,7 +84,7 @@
 .tcp-what {
   font-size: clamp(16px, 1.8vw, 24px);
   line-height: 1.45;
-  color: #b9c2d2;
+  color: #ffffff;
   max-width: 46ch;
   margin: 2vh 0 0;
 }
@@ -108,7 +108,7 @@
 }
 
 .tcp-kv-row dt { color: #6b7688; margin: 0; }
-.tcp-kv-row dd { color: #eef2f8; margin: 0; word-break: break-word; }
+.tcp-kv-row dd { color: #ffffff; margin: 0; word-break: break-word; }
 
 /* What Privilege's own record maps this call to: MITRE ATLAS, NIST AI RMF, OWASP. */
 .tcp-compliance {
@@ -122,7 +122,7 @@
 .tcp-compliance-title { margin: 0 0 8px; color: #9ec1ff; font-size: clamp(12px, 1vw, 15px); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
 .tcp-compliance-row { display: grid; grid-template-columns: minmax(120px, 30%) 1fr; gap: 16px; padding: 4px 0; font-family: var(--font-mono); font-size: clamp(13px, 1.25vw, 18px); }
 .tcp-compliance-row dt { color: #9ec1ff; margin: 0; }
-.tcp-compliance-row dd { color: #eef2f8; margin: 0; font-weight: 600; word-break: break-word; }
+.tcp-compliance-row dd { color: #ffffff; margin: 0; font-weight: 600; word-break: break-word; }
 
 .tcp-rfcs { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 2vh; }
 
@@ -160,7 +160,7 @@
 .tcp-nav button {
   border: 1px solid #2b3242;
   background: transparent;
-  color: #cbd3e1;
+  color: #ffffff;
   border-radius: 8px;
   padding: 8px 18px;
   font-size: clamp(13px, 1.1vw, 15px);
