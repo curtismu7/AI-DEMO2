@@ -102,7 +102,3 @@
   color: var(--th-text);
 }
 
-.gwv__login {
-  color: var(--th-link, var(--th-text));
-  text-decoration: underline;
-}

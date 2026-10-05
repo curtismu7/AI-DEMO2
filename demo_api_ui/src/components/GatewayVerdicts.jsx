@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from 'react';
+import { signInToGatewayDoorSilently } from '../services/gatewayDoorSignIn';
 import './GatewayVerdicts.css';
 
 /**
@@ -144,7 +145,7 @@ export function authGate(res, body) {
   return null;
 }
 
-export default function GatewayVerdicts({ fetchImpl }) {
+export default function GatewayVerdicts({ fetchImpl, signIn = signInToGatewayDoorSilently }) {
   const [state, setState] = useState('idle'); // idle | loading | ready | needsAuth | error
   const [verdicts, setVerdicts] = useState([]);
   const [error, setError] = useState(null);
@@ -152,7 +153,8 @@ export default function GatewayVerdicts({ fetchImpl }) {
 
   const doFetch = fetchImpl || ((url, opts) => fetch(url, opts));
 
-  const load = useCallback(async () => {
+  // `signedIn` is true once the silent door sign-in has been tried for this load.
+  const load = useCallback(async (signedIn = false) => {
     setState('loading');
     setError(null);
     try {
@@ -161,6 +163,13 @@ export default function GatewayVerdicts({ fetchImpl }) {
       });
       const toolsBody = await toolsRes.json().catch(() => ({}));
       const gate = authGate(toolsRes, toolsBody);
+      // The door's sign-in needs no input from someone already signed in to the
+      // app, so try it out of sight before asking them to click a link.
+      if (gate && gate.loginUrl && signIn && signedIn !== true) {
+        await signIn(gate.loginUrl);
+        await load(true);
+        return;
+      }
       if (gate) {
         setLoginUrl(findingsLoginUrl(gate.loginUrl));
         setState('needsAuth');
@@ -210,13 +219,13 @@ export default function GatewayVerdicts({ fetchImpl }) {
       setError(err.message || String(err));
       setState('error');
     }
-  }, [doFetch]);
+  }, [doFetch, signIn]);
 
   return (
     <section className="gwv" data-testid="gateway-verdicts">
       <div className="gwv__head">
         <h3 className="gwv__title">Gateway findings</h3>
-        <button type="button" className="gwv__btn" onClick={load} disabled={state === 'loading'}>
+        <button type="button" className="gwv__btn" onClick={() => load()} disabled={state === 'loading'}>
           {state === 'loading' ? 'Loading…' : verdicts.length ? 'Refresh' : 'Load findings'}
         </button>
       </div>
@@ -232,7 +241,7 @@ export default function GatewayVerdicts({ fetchImpl }) {
           needs its own OAuth token before it will answer; its authorization server offers no
           client-credentials grant, so the panel cannot populate on its own.{' '}
           {loginUrl ? (
-            <a className="gwv__login" href={loginUrl} data-testid="gwv-login-link">
+            <a className="gwv__btn" href={loginUrl} data-testid="gwv-login-link">
               Sign in to this door
             </a>
           ) : (

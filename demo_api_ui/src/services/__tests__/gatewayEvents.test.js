@@ -70,11 +70,37 @@ test("accepted A2A requests and policy refusals are read from the same window", 
 test("a door that has not been signed in to is reported, not treated as empty", async () => {
   const fetchImpl = vi.fn().mockResolvedValueOnce(json({ tools: [], privilege_login_required: true, loginUrl: "/login/door" }));
 
-  expect(await loadGatewayRecord({ since: 0, until: 1, fetchImpl })).toEqual({ state: "needsAuth", loginUrl: "/login/door", guardrail: [], modelCalls: [], requests: [], denials: [] });
+  expect(await loadGatewayRecord({ since: 0, until: 1, fetchImpl, signIn: null })).toEqual({ state: "needsAuth", loginUrl: "/login/door", guardrail: [], modelCalls: [], requests: [], denials: [] });
 });
 
 test("a failure to read the record never rejects", async () => {
   const fetchImpl = vi.fn().mockRejectedValue(new Error("network down"));
 
   expect(await loadGatewayRecord({ since: 0, until: 1, fetchImpl })).toEqual({ state: "error", error: "network down", guardrail: [], modelCalls: [], requests: [], denials: [] });
+});
+
+test("a door that is not signed in is signed in silently and asked again", async () => {
+  const signIn = vi.fn().mockResolvedValue();
+  const fetchImpl = vi.fn()
+    .mockResolvedValueOnce(json({ tools: [], privilege_login_required: true, loginUrl: "/login/door" }))
+    .mockResolvedValueOnce(json({ tools: [{ name: "SearchIndexTool" }] }))
+    .mockResolvedValueOnce(searchResult([BLOCKED]));
+
+  const record = await loadGatewayRecord({ since: 0, until: 1, fetchImpl, signIn });
+
+  expect(signIn).toHaveBeenCalledWith("/login/door");
+  expect(record.state).toBe("ready");
+  expect(record.guardrail).toHaveLength(1);
+});
+
+test("if the silent sign-in does not take, the door is reported once, not retried forever", async () => {
+  const signIn = vi.fn().mockResolvedValue();
+  const needsLogin = () => json({ tools: [], privilege_login_required: true, loginUrl: "/login/door" });
+  const fetchImpl = vi.fn().mockResolvedValueOnce(needsLogin()).mockResolvedValueOnce(needsLogin());
+
+  const record = await loadGatewayRecord({ since: 0, until: 1, fetchImpl, signIn });
+
+  expect(signIn).toHaveBeenCalledTimes(1);
+  expect(fetchImpl).toHaveBeenCalledTimes(2);
+  expect(record.state).toBe("needsAuth");
 });

@@ -7,6 +7,7 @@
 // itself, via the Privilege OpenSearch door of the MCP inspector. That door
 // needs its own sign-in once per session, so a caller must handle `needsAuth`.
 import { authGate, extractSearchHits, frameworkLabel, pickSearchTool } from '../components/GatewayVerdicts';
+import { signInToGatewayDoorSilently } from './gatewayDoorSignIn';
 
 const PROFILE_ID = 'built-in-privilege-opensearch';
 const INDEX = 'gateway-events';
@@ -83,14 +84,19 @@ export function normalizeA2aDenial(doc) {
  * The gateway's lines between two instants (epoch ms), oldest first.
  * Resolves `{ state, guardrail, modelCalls, requests, denials, loginUrl?, error? }` where state is
  * `ready`, `needsAuth` (sign in to the door first) or `error`. Never rejects:
- * the record is evidence beside a run, not part of it.
+ * the record is evidence beside a run, not part of it. A door that is not
+ * signed in is signed in silently first (`signIn`), and asked once more.
  */
-export async function loadGatewayRecord({ since, until, fetchImpl = fetch } = {}) {
+export async function loadGatewayRecord({ since, until, fetchImpl = fetch, signIn = signInToGatewayDoorSilently } = {}) {
   const empty = { guardrail: [], modelCalls: [], requests: [], denials: [] };
   try {
     const toolsRes = await fetchImpl(`${INSPECTOR_BASE}/tools?profile=${encodeURIComponent(PROFILE_ID)}`, { credentials: 'include' });
     const toolsBody = await toolsRes.json().catch(() => ({}));
     const gate = authGate(toolsRes, toolsBody);
+    if (gate && signIn && gate.loginUrl) {
+      await signIn(gate.loginUrl);
+      return loadGatewayRecord({ since, until, fetchImpl, signIn: null });
+    }
     if (gate) return { state: 'needsAuth', loginUrl: gate.loginUrl, ...empty };
     if (!toolsRes.ok || toolsBody.error) throw new Error(toolsBody.reason || toolsBody.error || `HTTP ${toolsRes.status}`);
     const tool = pickSearchTool(toolsBody.tools);
