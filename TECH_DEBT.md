@@ -10351,3 +10351,28 @@ a presenter on a skin cannot force a theme for a projector.
 
 **Fix:** lift `pvsTheme` into the session (or the panel) and render the toggle
 in `ShellGate`'s footer next to Sign out.
+
+### 2026-10-05 — Cursor LLM send and the shell hook's LLM send are duplicated
+
+`PrivilegeMcpClientPage.jsx` (`sendChat`, LLM branch) and
+`usePrivilegeShellSession.send` (LLM branch) both post
+`/api/privilege-mcp/llm/call` and each formats policy denials on its own.
+
+**Why it matters:** a change to the `/llm/call` reply or denial shape has to be
+made twice, and the Cursor page and the skins can drift silently.
+
+**Fix:** extract one shared LLM-call helper (post plus denial formatting) used
+by both once the Cursor page can be regression-tested against it.
+
+### 2026-10-05 — Silent re-auth, re-arm and door probing are Cursor-only
+
+After a path or door switch the Cursor page does a silent `prompt=none`
+re-authentication, offers the Re-arm control and probes doors.
+`usePrivilegeRouting` does not; the Footprint skins send the user back through
+the explicit sign-in gate instead.
+
+**Why it matters:** the same switch is seamless on Cursor and costs a sign-in
+click on the coding, VS Code and Claude Desktop skins.
+
+**Fix:** move the silent re-auth, re-arm and door probing into
+`usePrivilegeRouting` so every surface gets them.
