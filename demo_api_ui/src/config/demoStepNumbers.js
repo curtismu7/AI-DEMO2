@@ -49,3 +49,15 @@ export const stepLabel = (id) => {
   const n = demoStepLabel(id);
   return n ? `Step ${n} · ${id}` : id;
 };
+
+/**
+ * True when a Demo Steps search names this step by number or id: "25", "25a",
+ * "step 25", "#25", "uc46" or "uc 46". A number also matches its lettered
+ * sub-step ("25" finds 25 and 25A); a label such as "25a" finds only that step.
+ */
+export function stepQueryMatches(query, { id, number, label }) {
+  const q = String(query ?? "").trim().toLowerCase().replace(/^(step\s*|#\s*)/, "").replace(/\s+/g, "");
+  if (!q) return false;
+  const lab = String(label ?? number ?? "").toLowerCase();
+  return q === lab || q === String(number ?? "").toLowerCase() || String(id ?? "").toLowerCase().includes(q);
+}
