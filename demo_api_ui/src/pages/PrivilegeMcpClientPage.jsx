@@ -1591,7 +1591,7 @@ export default function PrivilegeMcpClientPage() {
             </dl>
             {doorProbe.results?.some((r) => r.needsAuth) && (
               <p className="cur-denial-note">
-                Each Privilege app needs its own token. Use a door to connect it; your existing gateway login is reused silently when available.
+                The gateway issues one token per app, valid for that app only, so the token you hold for one door is refused on another. "no saved token" means this page has not signed in to that door yet. Use a door to connect it; your existing gateway login is reused silently when available.
               </p>
             )}
             <p className="cur-denial-note">
@@ -1655,7 +1655,7 @@ export default function PrivilegeMcpClientPage() {
                     an interactive sign-in. */}
                 {doorProbe.results.map((r) => (
                   <div key={r.url} className="cur-denial-probe-row">
-                    <span className={r.ok ? 'cur-denial-ok' : (r.needsAuth ? 'cur-denial-auth' : 'cur-denial-bad')}>
+                    <span className={r.ok ? 'cur-denial-ok' : (r.needsAuth ? 'cur-denial-auth' : 'cur-denial-bad')} title={r.needsAuth ? 'The gateway issues one token per app. This page has not signed in to this door yet.' : undefined}>
                       {r.ok ? `${r.tools} tools` : (r.needsAuth ? 'no saved token' : (r.status || 'failed'))}
                     </span>
                     <span className="cur-denial-door">{doorName(r.url) || r.url}</span>
