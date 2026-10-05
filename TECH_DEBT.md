@@ -10310,3 +10310,16 @@ topology change will widen the gap in the same silent way.
 
 **Fix:** generate both CSVs from `serverTopologyData.js` (and fail CI when they
 drift), rather than adding the missing rows by hand.
+
+### 2026-10-05 — Privilege chat reply normalization is duplicated between the Cursor page and the shell hook
+
+`demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx` (`sendChat`) and
+`usePrivilegeShellSession.send` both post `/api/privilege-mcp/chat` and
+normalize the reply separately. The Cursor page was not moved onto the hook to
+avoid regression risk on a protected page.
+
+**Why it matters:** a change to the chat reply shape has to be made in two
+places, and the two can drift silently.
+
+**Fix:** have the Cursor page consume `usePrivilegeShellSession` (or a shared
+reply normalizer) once that page can be regression-tested.
