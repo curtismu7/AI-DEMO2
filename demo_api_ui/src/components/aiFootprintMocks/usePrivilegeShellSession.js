@@ -5,7 +5,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
 import apiClient from "../../services/apiClient";
 
+import { usePrivilegeRouting } from "../privilege/usePrivilegeRouting";
+
 const API_BASE = "/api/privilege-mcp";
+
+const request = (path, { method = "GET", body } = {}) =>
+  (method === "POST"
+    ? apiClient.post(`${API_BASE}${path}`, body)
+    : apiClient.get(`${API_BASE}${path}`)
+  ).then((r) => r.data);
 
 export function errText(err) {
   return err?.response?.data?.error || err?.message || "Request failed";
@@ -27,6 +35,9 @@ export function usePrivilegeShellSession() {
     return `OAuth failed: ${searchParams.get("reason") || "unknown"}`;
   });
 
+  const routing = usePrivilegeRouting({ request });
+  const { hydrate, setLlmGatewayUrl } = routing;
+
   const listTools = useCallback(async () => {
     const { data } = await apiClient.post(`${API_BASE}/tools/list`);
     setTools(data.tools || []);
@@ -39,6 +50,7 @@ export function usePrivilegeShellSession() {
       .get(`${API_BASE}/state`)
       .then(async ({ data }) => {
         if (!alive) return;
+        hydrate(data);
         if (data.oauth?.scope) {
           setScopes(String(data.oauth.scope).split(" ").filter(Boolean));
         }
@@ -61,7 +73,13 @@ export function usePrivilegeShellSession() {
     return () => {
       alive = false;
     };
-  }, [listTools]);
+  }, [listTools, hydrate]);
+
+  useEffect(() => {
+    request("/llm/config")
+      .then((c) => setLlmGatewayUrl(c?.gatewayUrl || ""))
+      .catch(() => {});
+  }, [setLlmGatewayUrl]);
 
   const connect = async () => {
     setBusy(true);
@@ -134,6 +152,24 @@ export function usePrivilegeShellSession() {
       if (!prompt) return;
       push("user", prompt);
       setThinking(true);
+      if (routing.llmPath) {
+        try {
+          const { data } = await apiClient.post(`${API_BASE}/llm/call`, { provider: routing.llmPath, prompt });
+          push("assistant", data.reply, { steps: [`${routing.llmPath} · ${data.route} · ${data.latencyMs} ms`] });
+        } catch (err) {
+          const d = err?.response?.data || {};
+          if (d.code === "llm_policy_denied") {
+            push("assistant", `⚠️ Privilege denied this call. ${d.reason || errText(err)}`, {
+              steps: [`${d.provider || routing.llmPath} · ${d.route || ""} · denied by policy`],
+            });
+          } else {
+            push("assistant", `Error: ${errText(err)}`);
+          }
+        } finally {
+          setThinking(false);
+        }
+        return;
+      }
       try {
         const { data } = await apiClient.post(`${API_BASE}/chat`, { prompt });
         if (data.authUrl) {
@@ -161,11 +197,59 @@ export function usePrivilegeShellSession() {
         setThinking(false);
       }
     },
-    [push, connect],
+    [push, connect, routing.llmPath],
   );
+
+  const afterSwitch = useCallback(async (result, failPrefix) => {
+    if (!result.ok) {
+      setNotice(`${failPrefix}: ${errText(result.error)}`);
+      return;
+    }
+    if (result.llm) return;
+    setTools([]);
+    const authed = result.saved?.oauth?.destinationAuthenticated ?? result.saved?.oauth?.authenticated;
+    if (!authed) {
+      setPhase("signed-out");
+      return;
+    }
+    try {
+      await listTools();
+    } catch (err) {
+      setNotice(errText(err));
+    }
+  }, [listTools]);
+
+  const pickPath = useCallback(async (key) => {
+    setBusy(true);
+    setNotice("");
+    try {
+      await afterSwitch(await routing.selectPath(key), "Gateway switch failed");
+    } finally {
+      setBusy(false);
+    }
+  }, [afterSwitch, routing.selectPath]);
+
+  const pickDoor = useCallback(async (url) => {
+    setBusy(true);
+    setNotice("");
+    try {
+      await afterSwitch(await routing.selectDoor(url), "Failed to switch door");
+    } finally {
+      setBusy(false);
+    }
+  }, [afterSwitch, routing.selectDoor]);
 
   return {
     phase, scopes, tools, latestCall, busy, notice, messages, thinking,
     connect, retryTools, signOut, runTool, send,
+    routing: {
+      gatewayMode: routing.gatewayMode,
+      config: routing.config,
+      presets: routing.presets,
+      llmPath: routing.llmPath,
+      llmGatewayUrl: routing.llmGatewayUrl,
+      loaded: routing.loaded,
+    },
+    pickPath, pickDoor,
   };
 }
