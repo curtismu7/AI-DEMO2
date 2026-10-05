@@ -119,7 +119,7 @@ describe("usePrivilegeShellSession routing", () => {
     expect(result.current.routing.presets).toHaveLength(2);
   });
 
-  it("pickDoor posts /config, clears tools, then lists tools when authenticated", async () => {
+  it("pickDoor posts /config and clears tools without auto-listing when authenticated", async () => {
     const { result } = await readyRouted();
     apiClient.post.mockImplementation((url) =>
       url.endsWith("/config")
@@ -131,8 +131,8 @@ describe("usePrivilegeShellSession routing", () => {
       "/api/privilege-mcp/config",
       expect.objectContaining({ mcpUrl: PRIV_B, clientId: "c2" }),
     );
-    expect(apiClient.post).toHaveBeenCalledWith("/api/privilege-mcp/tools/list");
-    expect(result.current.tools).toEqual([{ name: "other_tool" }]);
+    expect(apiClient.post).not.toHaveBeenCalledWith("/api/privilege-mcp/tools/list");
+    expect(result.current.tools).toEqual([]);
     expect(result.current.phase).toBe("ready");
   });
 
@@ -371,5 +371,139 @@ describe("connect parity (startSignIn)", () => {
     await act(() => result.current.send("hi"));
     expect(apiClient.post).toHaveBeenCalledWith("/api/privilege-mcp/auth/start", { returnTo: "/demo/coding-agent" });
     expect(assign).toHaveBeenCalledWith("https://auth.example/start");
+  });
+});
+
+describe("switch outcomes", () => {
+  const SILENT = "https://auth.example/authorize?prompt=none&client_id=x";
+  const DIRECT_A = "https://gw.example/banking/mcp";
+  const DIRECT_B = "https://gw.example/opensearch/mcp";
+  const START = "/api/privilege-mcp/auth/start";
+  let assign;
+  const original = window.location;
+
+  const mount = async ({ clientAuth, mainApp = false, mode = "privilege", a = PRIV_A, b = PRIV_B }) => {
+    apiClient.get.mockImplementation((url) =>
+      url.endsWith("/llm/config")
+        ? Promise.resolve({ data: { gatewayUrl: "https://llm.example" } })
+        : Promise.resolve({
+            data: {
+              oauth: { authenticated: clientAuth, scope: "openid" },
+              mainAppAuthenticated: mainApp,
+              tools: clientAuth ? [{ name: "list_safes" }] : [],
+              gatewayMode: mode,
+              config: { mcpUrl: a, clientId: "c1" },
+              presets: [
+                { mode, url: a, clientId: "c1" },
+                { mode, url: b, clientId: "c2" },
+              ],
+              gatewayConfigs: { direct: {}, privilege: {}, facade: {} },
+            },
+          }),
+    );
+    const onBeforeConnect = vi.fn();
+    const hook = renderHook(() => usePrivilegeShellSession({ onBeforeConnect }), { wrapper });
+    await waitFor(() => expect(hook.result.current.phase).toBe(clientAuth ? "ready" : "signed-out"), { timeout: 5000 });
+    return { ...hook, onBeforeConnect };
+  };
+
+  const answer = (destinationAuthenticated, start) =>
+    apiClient.post.mockImplementation((url) => {
+      if (url.endsWith("/config")) return Promise.resolve({ data: { oauth: { destinationAuthenticated } } });
+      if (url.endsWith("/auth/start")) return start instanceof Error ? Promise.reject(start) : Promise.resolve({ data: start });
+      return Promise.resolve({ data: { tools: [{ name: "t" }] } });
+    });
+  const startCalls = () => apiClient.post.mock.calls.filter(([u]) => u === START);
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    sessionStorage.setItem("pvs_silent_signin_tried", "1");
+    assign = vi.fn();
+    Object.defineProperty(window, "location", { configurable: true, value: { ...original, assign } });
+  });
+  afterEach(() => {
+    sessionStorage.clear();
+    Object.defineProperty(window, "location", { configurable: true, value: original });
+  });
+
+  it("an authenticated destination clears tools, stays ready and does not auto-list", async () => {
+    const { result } = await mount({ clientAuth: true });
+    answer(true, {});
+    await act(() => result.current.pickDoor(PRIV_B));
+    expect(result.current.tools).toEqual([]);
+    expect(result.current.phase).toBe("ready");
+    expect(apiClient.post).not.toHaveBeenCalledWith("/api/privilege-mcp/tools/list");
+  });
+
+  it("signed in nowhere: the gate shows and no sign-in is started", async () => {
+    const { result } = await mount({ clientAuth: false });
+    answer(false, { authUrl: SILENT });
+    await act(() => result.current.pickDoor(PRIV_B));
+    expect(result.current.phase).toBe("signed-out");
+    expect(startCalls()).toHaveLength(0);
+  });
+
+  it("a signed-in client switching door in Privilege mode starts a silent handshake and follows prompt=none", async () => {
+    const { result, onBeforeConnect } = await mount({ clientAuth: true });
+    answer(false, { authUrl: SILENT });
+    await act(() => result.current.pickDoor(PRIV_B));
+    expect(apiClient.post).toHaveBeenCalledWith(START, { returnTo: "/demo/coding-agent" });
+    expect(assign).toHaveBeenCalledWith(SILENT);
+    expect(onBeforeConnect).toHaveBeenCalled();
+    expect(result.current.phase).toBe("signed-out");
+  });
+
+  it("a non-prompt=none authUrl is not followed and the gate stays", async () => {
+    const { result } = await mount({ clientAuth: true });
+    answer(false, { authUrl: "https://auth.example/authorize?client_id=x" });
+    await act(() => result.current.pickDoor(PRIV_B));
+    expect(startCalls()).toHaveLength(1);
+    expect(assign).not.toHaveBeenCalled();
+    expect(result.current.phase).toBe("signed-out");
+  });
+
+  it("main-app sign-in alone is enough to attempt the silent handshake", async () => {
+    const { result, onBeforeConnect } = await mount({ clientAuth: false, mainApp: true });
+    answer(false, { authUrl: SILENT });
+    await act(() => result.current.pickDoor(PRIV_B));
+    expect(assign).toHaveBeenCalledWith(SILENT);
+    expect(onBeforeConnect).toHaveBeenCalled();
+    expect(result.current.phase).toBe("signed-out");
+  });
+
+  it("a door switch outside Privilege mode never starts a silent handshake", async () => {
+    const { result } = await mount({ clientAuth: true, mode: "direct", a: DIRECT_A, b: DIRECT_B });
+    answer(false, { authUrl: SILENT });
+    await act(() => result.current.pickDoor(DIRECT_B));
+    expect(startCalls()).toHaveLength(0);
+    expect(result.current.phase).toBe("signed-out");
+  });
+
+  it("a path switch starts a silent handshake in any mode", async () => {
+    const { result } = await mount({ clientAuth: true });
+    answer(false, { authUrl: SILENT });
+    await act(() => result.current.pickPath("direct"));
+    expect(startCalls()).toHaveLength(1);
+    expect(assign).toHaveBeenCalledWith(SILENT);
+  });
+
+  it("a destination that needs no auth loads its tools", async () => {
+    const { result } = await mount({ clientAuth: true });
+    answer(false, { noAuthRequired: true });
+    await act(() => result.current.pickDoor(PRIV_B));
+    expect(apiClient.post.mock.calls.filter(([u]) => u === "/api/privilege-mcp/tools/list")).toHaveLength(1);
+    expect(result.current.phase).toBe("ready");
+  });
+
+  it("a failed silent start reports a notice and leaves the gate", async () => {
+    const { result } = await mount({ clientAuth: true });
+    apiClient.post.mockImplementation((url) =>
+      url.endsWith("/config")
+        ? Promise.resolve({ data: { oauth: { destinationAuthenticated: false } } })
+        : Promise.reject({ response: { status: 500, data: { error: "boom" } } }),
+    );
+    await act(() => result.current.pickDoor(PRIV_B));
+    expect(result.current.notice).toBe("Silent sign-in could not start for this path. Sign in manually to retry. (boom)");
+    expect(result.current.phase).toBe("signed-out");
   });
 });

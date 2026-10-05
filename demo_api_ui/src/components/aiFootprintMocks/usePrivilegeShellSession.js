@@ -9,6 +9,7 @@ import { navigateWithOverlay } from "../../utils/navigateWithOverlay";
 import { LLM_POLICY_DENIED, chatReplyMessage, llmDenialMessage, llmReplyMessage } from "../privilege/privilegeChat";
 import { requestAuthStart, isSilentAuthUrl } from "../privilege/privilegeAuth";
 import { usePrivilegeRouting } from "../privilege/usePrivilegeRouting";
+import { decideAfterSwitch } from "../privilege/privilegeRouting";
 
 const API_BASE = "/api/privilege-mcp";
 const SILENT_TRIED_KEY = "pvs_silent_signin_tried";
@@ -37,6 +38,7 @@ export function usePrivilegeShellSession({ onBeforeConnect } = {}) {
   const [tools, setTools] = useState([]);
   const [latestCall, setLatestCall] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [mainAppAuthenticated, setMainAppAuthenticated] = useState(false);
   const [messages, setMessages] = useState([]);
   const [thinking, setThinking] = useState(false);
   // Force light/dark on the shell independent of the costume's own brightness.
@@ -85,6 +87,7 @@ export function usePrivilegeShellSession({ onBeforeConnect } = {}) {
       .then(async ({ data }) => {
         if (!alive) return;
         hydrate(data);
+        setMainAppAuthenticated(Boolean(data.mainAppAuthenticated));
         if (data.oauth?.scope) {
           setScopes(String(data.oauth.scope).split(" ").filter(Boolean));
         }
@@ -249,44 +252,65 @@ export function usePrivilegeShellSession({ onBeforeConnect } = {}) {
     [push, connect, routing.llmPath],
   );
 
-  const afterSwitch = useCallback(async (result, failPrefix) => {
+  // What a path/door switch does next is decided by decideAfterSwitch (shared with the
+  // Cursor page). `signedIn` is captured by the caller BEFORE the switch: afterSwitch
+  // itself flips `phase`.
+  const afterSwitch = useCallback(async (result, failPrefix, { kind, signedIn, forceReauth = false }) => {
     if (!result.ok) {
       setNotice(`${failPrefix}: ${errText(result.error)}`);
       return;
     }
     if (result.llm) return;
     setTools([]);
-    const authed = result.saved?.oauth?.destinationAuthenticated ?? result.saved?.oauth?.authenticated;
-    if (!authed) {
-      setPhase("signed-out");
+    const destinationAuthenticated =
+      result.saved?.oauth?.destinationAuthenticated ?? result.saved?.oauth?.authenticated;
+    const outcome = decideAfterSwitch({
+      kind,
+      destinationAuthenticated,
+      mode: routing.gatewayMode,
+      forceReauth,
+      signedIn,
+    });
+    // Choosing a path or door is not a request to probe it: the destination's tools are
+    // loaded with the Load tools button, as on the Cursor page.
+    if (outcome === "authenticated") {
+      setPhase("ready");
       return;
     }
+    setPhase("signed-out");
+    if (outcome === "manual") return;
     try {
-      await listTools();
+      await startSignIn({ silentOnly: outcome === "silent", returnTo: location.pathname });
     } catch (err) {
-      setNotice(errText(err));
+      setNotice(
+        outcome === "silent"
+          ? `Silent sign-in could not start for this path. Sign in manually to retry. (${errText(err)})`
+          : errText(err),
+      );
     }
-  }, [listTools]);
+  }, [routing.gatewayMode, startSignIn, location.pathname]);
 
   const pickPath = useCallback(async (key) => {
     setBusy(true);
     setNotice("");
+    const signedIn = mainAppAuthenticated || phase === "ready";
     try {
-      await afterSwitch(await routing.selectPath(key), "Gateway switch failed");
+      await afterSwitch(await routing.selectPath(key), "Gateway switch failed", { kind: "path", signedIn });
     } finally {
       setBusy(false);
     }
-  }, [afterSwitch, routing.selectPath]);
+  }, [afterSwitch, routing.selectPath, mainAppAuthenticated, phase]);
 
   const pickDoor = useCallback(async (url) => {
     setBusy(true);
     setNotice("");
+    const signedIn = mainAppAuthenticated || phase === "ready";
     try {
-      await afterSwitch(await routing.selectDoor(url), "Failed to switch door");
+      await afterSwitch(await routing.selectDoor(url), "Failed to switch door", { kind: "door", signedIn });
     } finally {
       setBusy(false);
     }
-  }, [afterSwitch, routing.selectDoor]);
+  }, [afterSwitch, routing.selectDoor, mainAppAuthenticated, phase]);
 
   return {
     pvsTheme, cyclePvsTheme,
