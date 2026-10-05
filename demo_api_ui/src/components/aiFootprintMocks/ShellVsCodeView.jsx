@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { ShellGate, ShellLatestCall, ShellPrompt, ShellSteps, ShellToolsList, themeAttr } from "./ShellParts";
+import { ShellActivity } from "./ShellActivity";
 import "./PrivilegeShellViews.css";
 
 export function ShellVsCodeView({ session }) {
@@ -35,6 +36,7 @@ export function ShellVsCodeView({ session }) {
           <ShellLatestCall latestCall={latestCall} />
         </section>
       </ShellGate>
+      <ShellActivity />
     </div>
   );
 }
