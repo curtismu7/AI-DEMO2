@@ -23,8 +23,13 @@ export function usePrivilegeRouting({ request }) {
   const [llmPath, setLlmPath] = useState('');
   const [llmGatewayUrl, setLlmGatewayUrl] = useState('');
   const [loaded, setLoaded] = useState(false);
+  const [gatewaySession, setGatewaySession] = useState(null);
+  const [preflight, setPreflight] = useState(null);
+  const [preflightError, setPreflightError] = useState('');
+  const [preflightBusy, setPreflightBusy] = useState(false);
 
   const hydrate = useCallback((s) => {
+    setGatewaySession(s.gatewaySession || null);
     setGatewayMode(s.gatewayMode || 'privilege');
     if (s.config) setConfig(s.config);
     setGatewayConfigs(s.gatewayConfigs || EMPTY_GATEWAY_CONFIGS);
@@ -78,7 +83,31 @@ export function usePrivilegeRouting({ request }) {
     }
   }, [config, presets, request]);
 
+  // Probes the OTHER configured doors with this identity (/doors/probe skips the
+  // selected door and caps the fan-out). Goes through `request` so a 401 arrives as
+  // an Error carrying the server's message instead of a body with no `results` that
+  // would render as an empty list — a failed preflight that looks like a clean one.
+  const probeDoors = useCallback(async () => {
+    setPreflightBusy(true);
+    setPreflightError('');
+    setPreflight(null);
+    try {
+      const urls = presets.map((p) => p.url).filter(Boolean);
+      const data = await request('/doors/probe', { method: 'POST', body: { urls } });
+      setPreflight(Array.isArray(data.results) ? data.results : []);
+    } catch (err) {
+      setPreflightError(err?.response?.data?.error || err?.message || 'Preflight failed');
+    } finally {
+      setPreflightBusy(false);
+    }
+  }, [presets, request]);
+
   return {
+    gatewaySession, setGatewaySession,
+    preflight, setPreflight,
+    preflightError, setPreflightError,
+    preflightBusy, setPreflightBusy,
+    probeDoors,
     gatewayMode, setGatewayMode,
     config, setConfig,
     gatewayConfigs, setGatewayConfigs,
