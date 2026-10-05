@@ -67,3 +67,35 @@ export function doorsForMode(presets, mode) {
     .filter((p) => mode !== 'direct' || DIRECT_DOOR_NAMES.has(doorName(p.url)))
     .map((p) => p.url);
 }
+
+/**
+ * How a path or door switch should authenticate, given what /config reported.
+ * Pure: the caller performs the side effects. `signedIn` = the main app OR this
+ * client already has a session to reuse.
+ *  - path: authenticated | silent | forceReauth | manual
+ *  - door: silent (Privilege mode only) | authenticated | manual
+ */
+export function decideAfterSwitch({ kind, destinationAuthenticated, mode, forceReauth = false, signedIn }) {
+  if (kind === 'door') {
+    if (!destinationAuthenticated && mode === 'privilege' && signedIn) return 'silent';
+    return destinationAuthenticated ? 'authenticated' : 'manual';
+  }
+  if (destinationAuthenticated && !forceReauth) return 'authenticated';
+  if (!forceReauth && signedIn) return 'silent';
+  if (forceReauth) return 'forceReauth';
+  return 'manual';
+}
+
+/** The Façade relay token dies with the BFF process; Re-arm applies only there. */
+export function needsRearm(mode, session) {
+  return mode === 'facade' && Boolean(session) && !session.ready;
+}
+
+export function rearmReason(session) {
+  return session.reason === 'expired' ? 'expired' : 'not established';
+}
+
+/** One /doors/probe result as the row's trailing text. */
+export function probeResultLabel(r) {
+  return r.ok ? `${r.tools} tools` : `${r.status || ''} ${r.error || ''}`.trim() || 'failed';
+}

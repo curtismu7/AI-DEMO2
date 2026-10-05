@@ -10453,3 +10453,14 @@ click on the coding, VS Code and Claude Desktop skins.
 
 **Fix:** move the silent re-auth, re-arm and door probing into
 `usePrivilegeRouting` so every surface gets them.
+
+**PARTLY RESOLVED 2026-10-06 (branch `worktree-reauth-extract`).** The shared
+logic is extracted and Cursor is on it with no behaviour change:
+`decideAfterSwitch`, `requestAuthStart`/`isSilentAuthUrl`, `needsRearm`/
+`rearmReason` and `probeResultLabel` (pure helpers), plus `gatewaySession`, the
+preflight state and `probePresetDoors` in `usePrivilegeRouting`. Still open: the
+Footprint skins do not use them yet (follow-up PR), so the sign-in click is still
+there. The page-coupled side effects (sign-in modal, overlay, session flags,
+`selectedTool`) deliberately stay in Cursor. Note the page's own unrelated
+denial-modal `probeDoors` (with its `doorProbe` state) remains separate from the hook's
+`probePresetDoors`.

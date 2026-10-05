@@ -12,9 +12,10 @@ import JsonFormView from '../components/shared/JsonFormView';
 import PingIdentitySpinner from '../components/shared/PingIdentitySpinner';
 import DraggableModal from '../components/DraggableModal';
 import { navigateWithOverlay } from '../utils/navigateWithOverlay';
-import { doorName, GATEWAY_MODES, LLM_PATHS, doorsForMode } from '../components/privilege/privilegeRouting';
+import { doorName, GATEWAY_MODES, LLM_PATHS, doorsForMode, decideAfterSwitch, probeResultLabel, needsRearm, rearmReason } from '../components/privilege/privilegeRouting';
 import { LLM_POLICY_DENIED, chatReplyMessage, llmReplyMessage, llmDenialMessage } from '../components/privilege/privilegeChat';
 import { usePrivilegeRouting } from '../components/privilege/usePrivilegeRouting';
+import { requestAuthStart, isSilentAuthUrl } from '../components/privilege/privilegeAuth';
 import PrivilegeMcpLearningPage from './PrivilegeMcpLearningPage';
 import './PrivilegeMcpClientPage.css';
 
@@ -303,17 +304,15 @@ export default function PrivilegeMcpClientPage() {
     llmGatewayUrl, setLlmGatewayUrl,
     gatewayConfigs, setGatewayConfigs,
     presets, setPresets,
+    preflight, preflightError, preflightBusy, probePresetDoors,
+    gatewaySession, setGatewaySession,
     selectPath, selectDoor,
   } = usePrivilegeRouting({ request: api });
   // Per-mode "what actually supplies the OAuth client", from /state. Only read
   // when the Client ID field is blank, which is the normal state for every door
   // shipped here (they all self-advertise and register their own client).
   const [clientHints, setClientHints] = useState({});
-  const [gatewaySession, setGatewaySession] = useState(null);
   const [rearmError, setRearmError] = useState('');
-  const [preflight, setPreflight] = useState(null);
-  const [preflightError, setPreflightError] = useState('');
-  const [preflightBusy, setPreflightBusy] = useState(false);
   const [gatewayStateLoaded, setGatewayStateLoaded] = useState(false);
   // Set by the ?auth= return effect, which runs from the mount-time closure whose
   // selectDoor still holds the default config and no presets. The chain resumes
@@ -919,18 +918,17 @@ export default function PrivilegeMcpClientPage() {
   // "undefined": blank page, no error, nothing logged. Every caller redirects
   // through here so that failure surfaces as an exception their catch reports.
   const startAuthRedirect = async ({ silentOnly = false } = {}) => {
-    const data = await api('/auth/start', { method: 'POST' });
+    const start = await requestAuthStart(api);
     // An ungated door (mcpFacade.js DOORS.banking) has no authorization server
     // to redirect to. Its tools load with no token, so fetch them rather than
     // navigating — and say so, because a Sign in button that appears to do
     // nothing reads as broken.
-    if (data?.noAuthRequired) {
+    if (start.kind === 'no-auth-required') {
       appendChat('system', 'This door needs no sign-in — its upstream owns identity. Loading tools.');
       await refreshTools();
       return;
     }
-    if (!data?.authUrl) throw new Error('sign-in did not return an authorization URL');
-    if (silentOnly && new URL(data.authUrl).searchParams.get('prompt') !== 'none') {
+    if (silentOnly && !isSilentAuthUrl(start.authUrl)) {
       requestSignIn('The gateway cannot silently authorize this door from the current session. Sign in to connect it.');
       return false;
     }
@@ -941,7 +939,7 @@ export default function PrivilegeMcpClientPage() {
     // cannot leave the flag behind. A reload or stale ?auth=success carries no
     // flag and still discovers nothing.
     writeSessionFlag(SILENT_DOOR_SWITCH_KEY, true);
-    navigateWithOverlay(data.authUrl, { message: 'Signing in...' });
+    navigateWithOverlay(start.authUrl, { message: 'Signing in...' });
     return true;
   };
 
@@ -985,7 +983,13 @@ export default function PrivilegeMcpClientPage() {
       // Taking the shortcut there would switch mode, arm nothing, and say
       // nothing — the same dead-end button Ruling 5 removed by another route.
       const destinationAuthenticated = saved.oauth?.destinationAuthenticated ?? saved.oauth?.authenticated;
-      if (destinationAuthenticated && !forceReauth) {
+      const outcome = decideAfterSwitch({
+        kind: 'path',
+        destinationAuthenticated,
+        forceReauth,
+        signedIn: mainAppAuthenticated || authenticated,
+      });
+      if (outcome === 'authenticated') {
         setAuthenticated(true);
         // No auto-discovery on a path switch. Choosing a path says which lane
         // to use, not that you want it probed — and probing spends a real call
@@ -1002,7 +1006,7 @@ export default function PrivilegeMcpClientPage() {
       // second Sign in click. The BFF only adds prompt=none when it can verify
       // an app or existing gateway session; otherwise this keeps the manual
       // sign-in fallback below.
-      if (!forceReauth && (mainAppAuthenticated || authenticated)) {
+      if (outcome === 'silent') {
         setAuthenticated(false);
         setTools([]);
         setSelectedTool(null);
@@ -1026,7 +1030,7 @@ export default function PrivilegeMcpClientPage() {
       // on a dead gateway session, so redirecting is what the user just asked
       // for. The no-automatic-navigation rule is about switches nobody clicked
       // "sign in" for — it is not a ban on the sign-in button working.
-      if (forceReauth) {
+      if (outcome === 'forceReauth') {
         setSwitching(true);
         try { sessionStorage.setItem('cur_priv_switching', '1'); } catch { /* storage disabled */ }
         await startAuthRedirect();
@@ -1067,28 +1071,6 @@ export default function PrivilegeMcpClientPage() {
     setRearmError((await switchGatewayMode('privilege', { forceReauth: true })) || '');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [switchGatewayMode]);
-
-  // Reuses /doors/probe — it already initializes an MCP session per URL with
-  // the operator's token and returns a tool count, which is the only honest
-  // proof a door works for a real caller. Goes through api() rather than a raw
-  // fetch so a 401 ("Not authenticated.") arrives as an Error carrying the
-  // server's message, instead of a body with no `results` that would render as
-  // an empty list — a failed preflight that looks exactly like a clean one.
-  const runPreflight = useCallback(async () => {
-    setPreflightBusy(true);
-    setPreflightError('');
-    setPreflight(null);
-    try {
-      const urls = presets.map((p) => p.url).filter(Boolean);
-      const data = await api('/doors/probe', { method: 'POST', body: { urls } });
-      setPreflight(Array.isArray(data.results) ? data.results : []);
-    } catch (err) {
-      setPreflightError(err.message || 'Preflight failed');
-    } finally {
-      setPreflightBusy(false);
-    }
-  }, [presets]);
-
 
   // Load the lanes so the table prefills with what the SERVER actually calls,
   // rather than a path copied into the UI that can drift out of step with it.
@@ -1252,8 +1234,13 @@ export default function PrivilegeMcpClientPage() {
       // state; act on it rather than fetching tools with a credential the BFF
       // has just told us does not exist. Same branch switchGatewayMode uses.
       const destinationAuthenticated = saved?.oauth?.destinationAuthenticated ?? saved?.oauth?.authenticated;
-      if (!destinationAuthenticated && gatewayMode === 'privilege'
-        && (mainAppAuthenticated || authenticated)) {
+      const outcome = decideAfterSwitch({
+        kind: 'door',
+        destinationAuthenticated,
+        mode: gatewayMode,
+        signedIn: mainAppAuthenticated || authenticated,
+      });
+      if (outcome === 'silent') {
         // A token from the previous door cannot be reused directly. Ask the
         // Gateway's authorization server for a grant to this door using the
         // existing browser SSO session; only show manual sign-in if the BFF
@@ -1277,7 +1264,7 @@ export default function PrivilegeMcpClientPage() {
         }
         return;
       }
-      setAuthenticated(Boolean(saved?.oauth?.destinationAuthenticated ?? saved?.oauth?.authenticated));
+      setAuthenticated(outcome === 'authenticated');
       // Same rule as the path switch above: selecting a door is not a request to
       // probe it. The tools from the door you just left are cleared so the panel
       // never shows another door's results, and "Get MCP Tools" fetches.
@@ -2247,7 +2234,7 @@ export default function PrivilegeMcpClientPage() {
                   <button
                     type="button"
                     className="cur-btn cur-rail__btn"
-                    onClick={runPreflight}
+                    onClick={probePresetDoors}
                     disabled={preflightBusy}
                   >
                     {preflightBusy ? 'Probing…' : 'Probe other doors'}
@@ -2270,7 +2257,7 @@ export default function PrivilegeMcpClientPage() {
                     <li key={r.url} className={r.ok ? 'cur-rail__probe--ok' : 'cur-rail__probe--bad'}>
                       <span aria-hidden="true">{r.ok ? '✅' : '❌'}</span>
                       <span className="cur-rail__probe-door">{doorName(r.url) || r.url}</span>
-                      <span>{r.ok ? `${r.tools} tools` : `${r.status || ''} ${r.error || ''}`.trim() || 'failed'}</span>
+                      <span>{probeResultLabel(r)}</span>
                     </li>
                   ))}
                 </ul>
@@ -2295,10 +2282,10 @@ export default function PrivilegeMcpClientPage() {
                   rail reads "broken" instead of "the session lapsed, press
                   this" — the same failure the blocked-policy band exists to
                   prevent. A one-click recovery is worth more on stage than off. */}
-              {gatewayMode === 'facade' && gatewaySession && !gatewaySession.ready && (
+              {needsRearm(gatewayMode, gatewaySession) && (
                 <p className="cur-rail__note cur-rail__note--warn" role="status">
                   <span aria-hidden="true">⚠️</span>{' '}
-                  Gateway session {gatewaySession.reason === 'expired' ? 'expired' : 'not established'}.
+                  Gateway session {rearmReason(gatewaySession)}.
                   <button
                     type="button"
                     className="cur-btn cur-rail__btn"
