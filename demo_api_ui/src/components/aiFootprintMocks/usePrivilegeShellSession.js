@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
 import apiClient from "../../services/apiClient";
+import { navigateWithOverlay } from "../../utils/navigateWithOverlay";
 
 import { LLM_POLICY_DENIED, chatReplyMessage, llmDenialMessage, llmReplyMessage } from "../privilege/privilegeChat";
 import { usePrivilegeRouting } from "../privilege/usePrivilegeRouting";
@@ -73,7 +74,7 @@ export function usePrivilegeShellSession({ onBeforeConnect } = {}) {
         if (!alive || new URL(data?.authUrl).searchParams.get("prompt") !== "none") return;
         sessionStorage.setItem(SILENT_TRIED_KEY, "1");
         beforeConnectRef.current?.();
-        window.location.assign(data.authUrl);
+        navigateWithOverlay(data.authUrl, { message: "Signing in...", assign: true });
       } catch {
         /* stay on the Sign in button */
       }
@@ -122,7 +123,7 @@ export function usePrivilegeShellSession({ onBeforeConnect } = {}) {
       const { data } = await apiClient.post(`${API_BASE}/auth/start`, {
         returnTo: location.pathname,
       });
-      window.location.assign(data.authUrl);
+      navigateWithOverlay(data.authUrl, { message: "Signing in...", assign: true });
     } catch (err) {
       setNotice(errText(err));
       setBusy(false);

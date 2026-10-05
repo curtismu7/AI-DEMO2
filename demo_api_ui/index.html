@@ -41,6 +41,20 @@
         document.documentElement.setAttribute('data-boot-dark', '');
       }
     } catch (e) { /* storage disabled: boot light */ }
+    // The /demo/* costume shells keep their own light/dark (ai-footprint-theme-v1,
+    // else the system setting — same rule as useFootprintTheme), which none of the
+    // above reads, so a full reload there (the return from a sign-in redirect)
+    // booted a light screen and then went dark. data-footprint-dark also darkens
+    // the body for the gap between the boot screen and the shell mounting.
+    try {
+      if (location.pathname.indexOf('/demo/') === 0) {
+        var fp = localStorage.getItem('ai-footprint-theme-v1');
+        if (fp === 'dark' || (fp !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.documentElement.setAttribute('data-boot-dark', '');
+          document.documentElement.setAttribute('data-footprint-dark', '');
+        }
+      }
+    } catch (e) { /* storage disabled: boot light */ }
   </script>
   <style>
     * {
@@ -64,6 +78,11 @@
     }
 
     :root[data-theme="dark"] body {
+      background-color: #0b1220;
+    }
+
+    /* /demo/* shells: dark body from first paint (see the boot script above). */
+    :root[data-footprint-dark] body {
       background-color: #0b1220;
     }
 

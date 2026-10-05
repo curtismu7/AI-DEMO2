@@ -1,6 +1,6 @@
 // demo_api_ui/src/pages/FootprintLiveShellPage.jsx
 // Live costume shell: selected chrome hosting the Privilege MCP client panel.
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { FootprintChrome } from "../components/aiFootprintMocks/ChromeFrames";
 import { MOCK_CATALOG, readMockSelection, writeMockSelection } from "../components/aiFootprintMocks/mockSelection";
@@ -29,6 +29,14 @@ export default function FootprintLiveShellPage({ category: categoryProp } = {}) 
   const navigate = useNavigate();
   const [theme, toggleTheme] = useFootprintTheme();
   const category = categoryProp || PATH_TO_CATEGORY[shellSlug] || "vscode";
+
+  // index.html darkens the body before React mounts (data-footprint-dark) so a
+  // reload does not flash light; keep it matching the toggle once we are here.
+  useEffect(() => {
+    const root = document.documentElement;
+    root.toggleAttribute("data-footprint-dark", theme === "dark");
+    return () => root.removeAttribute("data-footprint-dark");
+  }, [theme]);
 
   // Variant comes from the ?v= query first so switching variants within a
   // category (which reuses one route) actually changes the URL and re-renders —
