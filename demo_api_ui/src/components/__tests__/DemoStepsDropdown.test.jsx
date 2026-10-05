@@ -536,7 +536,7 @@ describe('DemoStepsDropdown', () => {
     delete window.location;
     window.location = { ...originalLocation, assign: (u) => { assignedUrl = u; } };
     try {
-      fireEvent.click(screen.getByTestId(`workload-page-${id}`));
+      fireEvent.click(screen.getAllByTestId(`workload-page-${id}`)[0]);
       expect(assignedUrl).toBeTruthy();
       expect(assignedUrl).toContain(`useCase=${id}`);
       expect(assignedUrl).toContain(`vertical=${vertical}`);
