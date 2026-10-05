@@ -183,6 +183,8 @@
   text-decoration: none;
 }
 .pf-ai-agent__action { border: 1px solid var(--pf-ai-accent); background: var(--pf-ai-accent); color: #fff; cursor: pointer; }
+/* PingOne's end-user-nano.css styles a:link at (0,1,1); name every link state so white ink wins on the anchor. */
+a.pf-ai-agent__action, a.pf-ai-agent__action:link, a.pf-ai-agent__action:visited, a.pf-ai-agent__action:hover { color: #fff; text-decoration: none; }
 .pf-ai-agent__secondary-action { border: 1px solid var(--th-border-strong); background: var(--th-bg-card); color: var(--th-text); }
 .pf-ai-agent__secondary-action { cursor: pointer; }
 .pf-ai-agent__disabled-action { border: 1px solid var(--th-border); background: var(--th-bg-inset); color: var(--th-text-muted); cursor: not-allowed; }
