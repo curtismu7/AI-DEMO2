@@ -37,6 +37,9 @@ const POLICY_ID = 'aiDemoPfCibaPolicy';
 const CLIENT_ID = 'ai-demo-pf-ciba';
 const VAULT_SECRET = 'PF_AI_CIBA_CLIENT_SECRET';
 const TEST_USERNAME = 'demouser';
+// A PingOne sign-on policy with only the MFA step. The app's own policies start with a password step, which
+// this authenticator cannot answer (PingOne replies PASSWORD_REQUIRED and PingFederate returns a 500).
+const P1_POLICY = 'mfa_only';
 const TRANSACTION_LIFETIME_SECONDS = 120;
 const POLLING_INTERVAL_SECONDS = 3;
 const HINT_ATTRIBUTE = 'IDENTITY_HINT_SUBJECT';
@@ -66,6 +69,7 @@ function authenticator(environment, application) {
   const fields = [
     ['PingOne Environment', environment],
     ['Application', application],
+    ['PingOne Authentication Policy', P1_POLICY],
     ['Test Username', TEST_USERNAME],
     ['PingOne Template Name', 'transaction'],
     ['Messages Files', 'pingone-mfa-messages'],
@@ -172,7 +176,8 @@ async function main() {
   const instanceOk = (instance) => instance
     && instance.pluginDescriptorRef?.id === AUTHENTICATOR_TYPE
     && fieldValue(instance, 'PingOne Environment') === environment
-    && fieldValue(instance, 'Application') === application;
+    && fieldValue(instance, 'Application') === application
+    && fieldValue(instance, 'PingOne Authentication Policy') === P1_POLICY;
   await step(`CIBA authenticator ${INSTANCE_ID}`,
     async () => !instanceOk(await find(instanceResource)),
     async () => (await find(instanceResource)

@@ -133,7 +133,7 @@ function ProviderComparison() {
 const CIBA_ERRORS = {
   PF_AI_CIBA_USER_UNKNOWN: "PingFederate does not know that user.",
   PF_AI_FLOW_ALREADY_PENDING: "An approval request is already pending.",
-  PF_AI_CIBA_BINDING_MESSAGE_INVALID: "The message may only use letters, digits and simple punctuation, up to 64 characters.",
+  PF_AI_CIBA_BINDING_MESSAGE_INVALID: "The message may only use letters, digits and . _ + / ! ? # -, up to 20 characters, with no spaces.",
   PF_AI_CIBA_USER_REQUIRED: "Enter the user to ask.",
   PF_AI_CIBA_UNREACHABLE: "PingFederate could not be reached.",
 };
@@ -460,7 +460,7 @@ export default function PingFederateAiAgentPage({ user }) {
               value={cibaMessage}
               onChange={(event) => setCibaMessage(event.target.value)}
               autoComplete="off"
-              maxLength={64}
+              maxLength={20}
             />
           </label>
           <div className="pf-ai-agent__rar-actions">

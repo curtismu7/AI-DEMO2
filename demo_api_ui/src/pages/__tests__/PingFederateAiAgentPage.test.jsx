@@ -153,13 +153,13 @@ describe("PingFederate AI Agent page", () => {
       routeGets();
       apiClient.post.mockResolvedValue({ data: pendingView() });
       render(<PingFederateAiAgentPage user={{ username: "demouser" }} />);
-      fireEvent.change(screen.getByLabelText(/Message shown on their device/i), { target: { value: "Approve transfer 125" } });
+      fireEvent.change(screen.getByLabelText(/Message shown on their device/i), { target: { value: "Approve-125" } });
 
       fireEvent.click(await ask());
 
       expect(await screen.findByTestId("ciba-pending")).toHaveTextContent(/Waiting for demouser to approve/i);
       expect(apiClient.post).toHaveBeenCalledWith("/api/pf-ai-agent/ciba/start", {
-        loginHint: "demouser", bindingMessage: "Approve transfer 125",
+        loginHint: "demouser", bindingMessage: "Approve-125",
       });
       expect(screen.getByRole("button", { name: /Ask for approval/i })).toBeDisabled();
     });

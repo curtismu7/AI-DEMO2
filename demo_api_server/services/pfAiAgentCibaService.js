@@ -20,7 +20,7 @@ const DEFAULT_INTERVAL_SECONDS = 5;
 const MIN_INTERVAL_SECONDS = 1;
 const MAX_INTERVAL_SECONDS = 30;
 const SLOW_DOWN_STEP_SECONDS = 5;
-const BINDING_MESSAGE = /^[A-Za-z0-9 .,:#_-]{1,64}$/;
+const BINDING_MESSAGE = /^[A-Za-z0-9._+/!?#-]{1,20}$/;
 
 function clampInterval(seconds) {
   const value = Number.isFinite(seconds) ? Math.floor(seconds) : DEFAULT_INTERVAL_SECONDS;
@@ -44,7 +44,7 @@ function sessionLoginHint(req, requested) {
 function validBindingMessage(requested) {
   if (requested === undefined || requested === null || requested === '') return null;
   if (typeof requested !== 'string' || !BINDING_MESSAGE.test(requested.trim())) {
-    throw oauthError('PF_AI_CIBA_BINDING_MESSAGE_INVALID', 'The message must be 1 to 64 letters, digits or simple punctuation', 400);
+    throw oauthError('PF_AI_CIBA_BINDING_MESSAGE_INVALID', 'The message must be 1 to 20 letters, digits or . _ + / ! ? # - (no spaces)', 400);
   }
   return requested.trim();
 }
