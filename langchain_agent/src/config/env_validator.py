@@ -41,7 +41,7 @@ class EnvironmentValidator:
     # Providers agent/llm_factory.get_llm() can actually construct. 'none'
     # (or empty) means heuristic-only routing with no LLM.
     SUPPORTED_LLM_PROVIDERS = frozenset({
-        'none', 'helix', 'anthropic', 'anthropic-lmstudio', 'lmstudio', 'llamacpp', 'groq',
+        'none', 'helix', 'anthropic', 'anthropic-lmstudio', 'lmstudio', 'llamacpp', 'groq', 'google',
     })
 
     # Optional MCP configuration

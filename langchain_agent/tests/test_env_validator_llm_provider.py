@@ -1,11 +1,14 @@
 """Providers llm_factory.get_llm can build must not trigger the "not supported" warning."""
 import logging
 
+import pytest
+
 from config.env_validator import EnvironmentValidator
 
 
-def test_groq_is_a_supported_provider(monkeypatch, caplog):
-    monkeypatch.setenv("LANGCHAIN_LLM_PROVIDER", "groq")
+@pytest.mark.parametrize("provider", ["groq", "google"])
+def test_cloud_providers_are_supported(provider, monkeypatch, caplog):
+    monkeypatch.setenv("LANGCHAIN_LLM_PROVIDER", provider)
     with caplog.at_level(logging.WARNING):
         EnvironmentValidator.warn_unsupported_llm_provider()
     assert "not supported" not in caplog.text
