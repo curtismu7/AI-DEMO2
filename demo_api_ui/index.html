@@ -134,31 +134,51 @@
     }
 
     :root[data-theme="dark"] #boot-spinner,
+    :root[data-theme="dark"] .boot-skeleton {
+      background-color: #0b1220;
+    }
+
+    :root[data-theme="dark"] .boot-bar {
+      background-color: #102847;
+      border-bottom-color: #26304a;
+    }
+
+    :root[data-theme="dark"] .boot-nav {
+      background-color: #131c2e;
+      border-right-color: #26304a;
+    }
+
+    :root[data-theme="dark"] .boot-card {
+      background-color: #131c2e;
+      border-color: #26304a;
+    }
+
+    :root[data-theme="dark"] #boot-spinner::after {
+      border-color: #26304a;
+      border-top-color: #93c5fd;
+    }
+
+    /* /privilege-mcp-client boot: same dark skeleton, keyed to the page's own theme */
     :root[data-boot-dark] #boot-spinner,
-    :root[data-theme="dark"] .boot-skeleton,
     :root[data-boot-dark] .boot-skeleton {
       background-color: #0b1220;
     }
 
-    :root[data-theme="dark"] .boot-bar,
     :root[data-boot-dark] .boot-bar {
       background-color: #102847;
       border-bottom-color: #26304a;
     }
 
-    :root[data-theme="dark"] .boot-nav,
     :root[data-boot-dark] .boot-nav {
       background-color: #131c2e;
       border-right-color: #26304a;
     }
 
-    :root[data-theme="dark"] .boot-card,
     :root[data-boot-dark] .boot-card {
       background-color: #131c2e;
       border-color: #26304a;
     }
 
-    :root[data-theme="dark"] #boot-spinner::after,
     :root[data-boot-dark] #boot-spinner::after {
       border-color: #26304a;
       border-top-color: #93c5fd;
