@@ -14,10 +14,10 @@ RETIRED = "gemini-2.0-flash"
 
 def test_settings_default_is_not_the_retired_model():
     assert LangChainConfig().google_model != RETIRED
-    assert LangChainConfig().google_model == "gemini-2.5-flash"
+    assert LangChainConfig().google_model == "gemini-2.5-flash-lite"
 
 
 def test_get_llm_default_is_not_the_retired_model():
     default = inspect.signature(get_llm).parameters["google_model"].default
-    assert default == "gemini-2.5-flash"
+    assert default == "gemini-2.5-flash-lite"
 

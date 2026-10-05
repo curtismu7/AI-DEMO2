@@ -5,11 +5,11 @@ import { notifySuccess, notifyError } from '../utils/appToast';
 import './LlmConfig.css';
 
 const MODELS = [
-  'gemini-2.5-flash',
   'gemini-2.5-flash-lite',
+  'gemini-2.5-flash',
   'gemini-2.5-pro',
 ];
-const DEFAULT_MODEL = 'gemini-2.5-flash';
+const DEFAULT_MODEL = 'gemini-2.5-flash-lite';
 
 export default function GooglePanel() {
   const [apiKey, setApiKey] = useState('');

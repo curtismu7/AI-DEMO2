@@ -31,7 +31,7 @@ const DEFAULT_MODELS = {
   openai:    'gpt-4o-mini',
   anthropic: 'claude-3-5-haiku-20241022',
   groq:      'openai/gpt-oss-20b',
-  google:    'gemini-2.5-flash',
+  google:    'gemini-2.5-flash-lite',
   helix:     'gpt-4o-mini',
 };
 

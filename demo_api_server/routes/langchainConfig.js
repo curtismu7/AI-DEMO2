@@ -25,7 +25,7 @@ const PROVIDER_MODELS = {
   // Verified against GET /openai/v1/models on 2026-08-26. qwen3.6-27b is live but
   // omitted: it emits <think> into content, which the SPA renders verbatim.
   groq:                ['openai/gpt-oss-20b', 'openai/gpt-oss-120b', 'qwen/qwen3.8-27b', 'groq/compound-mini'],
-  google:              ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-pro'],
+  google:              ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.5-pro'],
   helix:               ['gpt-4o', 'gpt-4o-mini', 'gemini-1.5-pro', 'claude-3-5-sonnet'],
   // LM Studio — Anthropic-compatible endpoint at /v1/messages.
   // Model IDs must match what is loaded in LM Studio (publisher/model-name format).
@@ -43,7 +43,7 @@ const DEFAULT_MODELS = {
   openai:              'gpt-4o-mini',
   anthropic:           'claude-3-5-haiku-20241022',
   groq:                'openai/gpt-oss-20b',
-  google:              'gemini-2.5-flash',
+  google:              'gemini-2.5-flash-lite',
   helix:               'gpt-4o-mini',
   'anthropic-lmstudio': 'google/gemma-4-e2b',
   llamacpp:            'phi-4-mini-instruct',

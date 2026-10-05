@@ -16,7 +16,7 @@ describe('googleGeminiLlmService default model', () => {
     jest.resetModules();
   });
 
-  it('calls gemini-2.5-flash when no model is configured', async () => {
+  it('calls gemini-2.5-flash-lite when no model is configured', async () => {
     delete process.env.GOOGLE_MODEL;
     const calls = [];
     global.fetch = jest.fn(async (url) => {
@@ -31,7 +31,7 @@ describe('googleGeminiLlmService default model', () => {
     const { callGemini } = require('../services/googleGeminiLlmService');
     await expect(callGemini([{ role: 'user', content: 'x' }], { google_api_key: 'k' })).resolves.toBe('answer');
     expect(calls).toHaveLength(1);
-    expect(calls[0]).toContain('gemini-2.5-flash');
+    expect(calls[0]).toContain('gemini-2.5-flash-lite');
     expect(calls[0]).not.toContain('gemini-2.0-flash');
   });
 

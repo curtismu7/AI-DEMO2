@@ -128,7 +128,7 @@ class LangChainConfig:
     # get_llm() fails fast when it is blank.
     google_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
     google_api_key: str = ""
-    google_model: str = "gemini-2.5-flash"  # 2.0-flash returns 404 for the demo's key
+    google_model: str = "gemini-2.5-flash-lite"  # 2.0-flash returns 404 for the demo's key; Lite is the fast one
     # Anthropic credentials — used by both "anthropic" (cloud) and "anthropic-lmstudio" (local).
     # When ANTHROPIC_BASE_URL is set to an LM Studio origin, the "anthropic" provider hits LM Studio
     # instead of api.anthropic.com, letting you demo "Anthropic" using a local model.
@@ -502,7 +502,7 @@ class ConfigManager:
             # Gemini — real key required; get_llm() fails fast when blank.
             google_base_url=get_env_value("GOOGLE_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai/"),
             google_api_key=get_env_value("GOOGLE_API_KEY", ""),
-            google_model=get_env_value("GOOGLE_MODEL", "gemini-2.5-flash"),
+            google_model=get_env_value("GOOGLE_MODEL", "gemini-2.5-flash-lite"),
             # Anthropic credentials — cloud or LM Studio proxy depending on ANTHROPIC_BASE_URL
             anthropic_api_key=get_env_value("ANTHROPIC_API_KEY", "lm-studio"),
             anthropic_base_url=get_env_value("ANTHROPIC_BASE_URL", ""),
