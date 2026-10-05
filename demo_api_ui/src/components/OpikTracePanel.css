@@ -80,9 +80,10 @@
   cursor: pointer;
 }
 .opik-range button[aria-pressed="true"] {
-  background: var(--th-status-info);
-  border-color: var(--th-status-info);
-  color: var(--th-text-on-emphasis);
+  /* Literal ink+ground pair (H1): --th-text-on-emphasis is dark in dark mode. */
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
 }
 
 .opik-note {
@@ -322,14 +323,17 @@
   display: flex;
   justify-content: flex-end;
 }
-.opik-btn {
+/* a:link / :visited out-rank a lone class: PingOne's end-user-nano.css styles a:link (0,1,1). */
+a.opik-btn,
+a.opik-btn:link,
+a.opik-btn:visited {
   padding: 5px 12px;
   font-size: var(--font-size-xs);
   font-weight: 600;
   text-decoration: none;
-  color: var(--th-text-on-emphasis);
-  background: var(--th-status-info);
-  border: 1px solid var(--th-status-info);
+  color: #ffffff;
+  background: #2563eb;
+  border: 1px solid #2563eb;
   border-radius: 999px;
 }
 
