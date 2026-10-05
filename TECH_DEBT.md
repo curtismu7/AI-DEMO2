@@ -18,6 +18,43 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-10-05 — Gemini: one shared key, models retired without notice, and a "key not working" report with no cause
+
+**What's wrong.** The owner reported on 2026-10-05 that the Gemini key "is not working
+now". A check at that moment passed: the key's models list returned 200 and
+`gemini-2.5-flash-lite` and `gemini-2.5-flash` both answered `generateContent` in 0.6-0.7 s.
+So the failure was intermittent, or showed in a path that check did not exercise, and its
+cause is **unknown**. What was found while fixing Gemini the same day (#843):
+- `gemini-2.0-flash` and the 1.5 models returned HTTP 404 for the key ("no longer
+  available"), with no notice. Every default naming them failed silently.
+- `gemini-2.5-flash` has latency spikes: 2.0 s then 25.1 s for the same short prompt; about
+  12 s on 2 of 4 runs even with thinking off. `gemini-2.5-flash-lite`: 8 of 8 runs in
+  0.4-1.7 s. The BFF's NL intent call has a 12 s budget.
+- A failing Gemini call looks like a working one. The BFF NL path catches the error and
+  answers from the heuristics catalog (`source=heuristic`, `llm_attempted=true`), and
+  `key_set` in `/api/langchain/config/status` only checks that a key is present, not that
+  it works.
+- One `GOOGLE_API_KEY` serves the langchain agent, the BFF and the cluster, and lives in
+  several places (`demo_api_server/.env`, `langchain_agent/.env`, the cluster Secrets).
+
+**Why it wasn't fixed now.** The 404s and the timeouts were fixed (#843); an intermittent
+"not working" with no repro cannot be fixed blind, and the structural fixes below are
+larger than the bug that found them.
+
+**The real fix.**
+1. A provider health check that calls the key's models endpoint and shows "reachable /
+   key rejected / model missing" in Demo Controls, instead of treating a present key as
+   configured.
+2. Surface the provider's error in the chat (as the agent now does for a per-run model that
+   cannot start) instead of the BFF NL path's silent heuristic fallback.
+3. Choose the model from the key's models list, not a hard-coded name.
+4. A single source for the key (vault to containers) so there is one copy to rotate or
+   suspect.
+
+If it fails again, capture the exact error first: the BFF log line `[nlIntent] Gemini intent
+error: ...` and the agent log line for the Google run give the status (401, 403, 404, 429,
+timeout).
+
 ### [ ] 2026-10-05 — Opik Trace tab: no latency sparkline, p90 stands in for p95, no per-reply chip
 
 **What's wrong.** Phase 1 of the embedded agent's Trace tab (`OpikTracePanel`,
