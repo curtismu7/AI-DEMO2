@@ -1,13 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { runPrivilegeA2aChatRun } from '../../utils/privilegeA2aChainRun';
+import { PRIVILEGE_A2A_DEMO_QUESTIONS, runPrivilegeA2aChatRun } from '../../utils/privilegeA2aChainRun';
 import './PrivilegeA2aTab.css';
 
-const DEMO_QUESTIONS = [
-  'Review access on prod-db-primary.',
-  'List all entitlements for Carol Nguyen.',
-  'Who has the prod-db-admin role?',
-  'Who is offboarding and still has active access?',
-];
+const DEMO_QUESTIONS = PRIVILEGE_A2A_DEMO_QUESTIONS;
 
 export default function PrivilegeA2aTab() {
   const [input, setInput] = useState('');

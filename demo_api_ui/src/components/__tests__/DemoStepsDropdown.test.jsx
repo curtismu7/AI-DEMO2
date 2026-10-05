@@ -15,11 +15,14 @@ import {
   EXTRA_STEP_GROUPS,
 } from '../../config/demoUseCaseSteps';
 import { clearIdJagRunState, ID_JAG_USE_CASE_ID } from '../../utils/idJagRunMode';
-import { startPrivilegeA2aChainRun } from '../../utils/privilegeA2aChainRun';
+import { runPrivilegeA2aChatRun, startPrivilegeA2aChainRun } from '../../utils/privilegeA2aChainRun';
 
 vi.mock('../../utils/privilegeA2aChainRun', () => ({
   PRIVILEGE_A2A_CHAIN_USE_CASE_ID: 'privilege-a2a-agent-chain',
+  PRIVILEGE_A2A_ACCESS_REVIEW_USE_CASE_ID: 'privilege-a2a-access-review',
+  PRIVILEGE_A2A_DEMO_QUESTIONS: ['Review access on prod-db-primary.'],
   startPrivilegeA2aChainRun: vi.fn(),
+  runPrivilegeA2aChatRun: vi.fn(() => Promise.resolve()),
 }));
 
 vi.mock('../../services/apiClient', () => ({
@@ -31,7 +34,7 @@ vi.mock('../../services/apiClient', () => ({
 
 const CATALOG = DEMO_USE_CASE_IDS.map((id, i) => ({
   id,
-  useCaseId: id === 'UC40' ? ID_JAG_USE_CASE_ID : id === 'UC47' ? 'privilege-a2a-agent-chain' : `slug-${id}`,
+  useCaseId: id === 'UC40' ? ID_JAG_USE_CASE_ID : id === 'UC47' ? 'privilege-a2a-agent-chain' : id === 'UC46' ? 'privilege-a2a-access-review' : `slug-${id}`,
   ...(id === 'UC47'
     ? {
       chainRuns: [
@@ -109,6 +112,23 @@ describe('DemoStepsDropdown', () => {
 
     expect(onSelect.mock.calls[0][0].id).toBe('UC46');
     expect(onSelect.mock.calls[0][1]).toBe(25);
+  });
+
+  it('runs UC46 in the embedded agent from its own button; the card still opens the route', async () => {
+    const onSelect = vi.fn();
+    render(<DemoStepsDropdown open onOpenChange={() => {}} onSelect={onSelect} />);
+
+    fireEvent.click(await screen.findByTestId('demo-step-UC46'));
+    expect(runPrivilegeA2aChatRun).not.toHaveBeenCalled();
+    expect(onSelect.mock.calls[0][0].trigger).toEqual({ type: 'chip', text: 'prompt for UC46' });
+
+    fireEvent.click(screen.getByTestId('a2a-in-agent-UC46'));
+    expect(runPrivilegeA2aChatRun).toHaveBeenCalledWith({ message: 'Review access on prod-db-primary.' });
+    const [uc, step, opts] = onSelect.mock.calls[1];
+    expect(uc.id).toBe('UC46');
+    expect(step).toBe(25);
+    expect(uc.trigger).toEqual({ type: 'link', path: '/dashboard' });
+    expect(opts).toEqual({ keepTrace: true });
   });
 
   it('starts the Privilege A2A agent chain from step 26 and still hands the step to the page', async () => {

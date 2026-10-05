@@ -10,6 +10,12 @@ import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTrac
 export const PRIVILEGE_A2A_CHAIN_USE_CASE_ID = 'privilege-a2a-agent-chain';
 export const PRIVILEGE_A2A_CHAIN_EVENT_PREFIX = 'pa2a-';
 export const PRIVILEGE_A2A_ACCESS_REVIEW_USE_CASE_ID = 'privilege-a2a-access-review';
+export const PRIVILEGE_A2A_DEMO_QUESTIONS = [
+  'Review access on prod-db-primary.',
+  'List all entitlements for Carol Nguyen.',
+  'Who has the prod-db-admin role?',
+  'Who is offboarding and still has active access?',
+];
 const API_URL = '/api/privilege-a2a/chain';
 const CHAT_API_URL = '/api/privilege-a2a/chat';
 

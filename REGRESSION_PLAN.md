@@ -249,6 +249,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-05 — Demo Step 25 (UC46) could not run inside the embedded agent
+
+**Files:** `demo_api_ui/src/components/DemoStepsDropdown.jsx`, `demo_api_ui/src/components/AIAgent.js`, `demo_api_ui/src/utils/privilegeA2aChainRun.js` (shared `PRIVILEGE_A2A_DEMO_QUESTIONS`), `demo_api_ui/src/features/privilegeA2aClient/PrivilegeA2aTab.jsx`, `DemoStepsDropdown.test.jsx`.
+
+**What was broken:** UC46 only opened `/privilege-mcp-client?view=demo&tab=a2a`; unlike Step 26 there was no way to watch it in the dashboard agent's reel and sequence view.
+
+**What changed:** UC46's row gets an extra "A" button that calls `runPrivilegeA2aChatRun` with the first canned question, then hands the step to the agent as a `/dashboard` link with `opts.keepTrace`; `handleDemoStepSelect` skips `tokenChainTraceStore.reset()` for that run (same exemption as UC47).
+
+**Do not break:** UC46's link trigger and route in `config/useCases.js` are untouched; clicking the UC46 card still navigates there and resets the trace. Only the "A" button keeps the trace.
+
+**Verify:** `cd demo_api_ui && ./node_modules/.bin/vitest run src/components/__tests__/DemoStepsDropdown.test.jsx src/features/privilegeA2aClient`; `npm run build`; `npm run authz:verify`.
+
 ### 2026-10-05 — Demo Step 25 (UC46 A2A access review) had no per-hop detail in the reel or sequence view
 
 **Files:** `standalone/privilege-a2a-anthropic-demo/src/main-agent/index.ts`, `.../main-agent/chain.ts` (exports `maskKey`, `pretty`), `.../worker-agent/index.ts`, `.../test/topology.test.ts`, `demo_api_ui/src/utils/privilegeA2aChainRun.js`, `demo_api_ui/src/services/tokenChainTrace/privilegeA2aChainSteps.js`, `demo_api_ui/src/features/privilegeA2aClient/PrivilegeA2aTab.jsx`, `demo_api_ui/src/utils/__tests__/privilegeA2aChainRun.test.js`.
