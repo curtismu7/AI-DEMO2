@@ -255,6 +255,19 @@ select.cur-input { cursor: pointer; }
   color: #8b949e;
   line-height: 1.5;
 }
+.cur-denial-pill {
+  display: inline-block;
+  padding: 1px 10px;
+  border-radius: 999px;
+  border: 1px solid #fcd34d;
+  background: rgba(252, 211, 77, 0.12);
+  color: #fcd34d;
+}
+.cur-denial-heading {
+  margin: 0 0 6px;
+  font-size: var(--font-size-body);
+  color: #ddd;
+}
 .cur-denial-ok { color: #86efac; }
 .cur-denial-bad { color: #fca5a5; }
 /* "sign-in needed" is neither success nor failure — this door simply has no
@@ -1598,6 +1611,8 @@ select.cur-input { cursor: pointer; }
 .cur-ide[data-cur-theme="light"] .cur-console-current { color: #0a7d6b; }
 .cur-ide[data-cur-theme="light"] .cur-denial-bad { color: #b91c1c; }
 .cur-ide[data-cur-theme="light"] .cur-denial-auth { color: #92600e; }
+.cur-ide[data-cur-theme="light"] .cur-denial-pill { color: #92600e; border-color: #92600e; background: rgba(146, 96, 14, 0.1); }
+.cur-ide[data-cur-theme="light"] .cur-denial-heading { color: #1f2328; }
 .cur-ide[data-cur-theme="light"] .cur-denial-probe-why { color: #5f6368; }
 .cur-ide[data-cur-theme="light"] .cur-console-row,
 .cur-ide[data-cur-theme="light"] .cur-console-policy {

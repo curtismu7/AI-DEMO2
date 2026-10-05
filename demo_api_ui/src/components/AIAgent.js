@@ -8579,9 +8579,10 @@ export default function BankingAgent({
       // This step runs on its own page. Clear the live trace first, or the
       // dashboard's sequence diagram keeps showing the previous run when the
       // presenter comes back, as though it belonged to this step. The Privilege
-      // A2A chain is the exception: its run has already started and is feeding
-      // this same trace, so a reset here wipes its first hop.
-      if (uc.useCaseId !== PRIVILEGE_A2A_CHAIN_USE_CASE_ID) {
+      // A2A chain (and UC46's in-agent run, opts.keepTrace) is the exception: its
+      // run has already started and is feeding this same trace, so a reset here
+      // wipes its first hop.
+      if (uc.useCaseId !== PRIVILEGE_A2A_CHAIN_USE_CASE_ID && !opts?.keepTrace) {
         try { tokenChainTraceStore.reset(); } catch (_) {}
       }
       navigate(trigger.path);

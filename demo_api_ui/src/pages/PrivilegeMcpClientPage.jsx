@@ -1660,7 +1660,7 @@ export default function PrivilegeMcpClientPage() {
             <dl className="cur-denial-facts">
               <dt>Door</dt><dd>{deniedDoor || '(unknown)'}</dd>
               <dt>Identity</dt><dd>{user?.email || '(unknown)'}</dd>
-              <dt>Gateway said</dt><dd>{blockedDetail?.upstream || '403 Forbidden'}</dd>
+              <dt>Gateway said</dt><dd><span className="cur-denial-pill">{blockedDetail?.upstream || '403 Forbidden'}</span></dd>
             </dl>
             {doorProbe.results?.some((r) => r.needsAuth) && (
               <p className="cur-denial-note">
@@ -1715,6 +1715,7 @@ export default function PrivilegeMcpClientPage() {
             {doorProbe.running && <p className="cur-denial-note">Trying the other doors with this identity...</p>}
             {doorProbe.results && (
               <div className="cur-denial-probe">
+                <h4 className="cur-denial-heading">Other doors</h4>
                 {doorProbe.results.length === 0 && <p className="cur-denial-note">No other doors to try.</p>}
                 {/* The BFF already returns `error` for a failed probe; showing
                     only the status made a 500 unreadable. 500 here is not "the
@@ -2901,7 +2902,7 @@ export default function PrivilegeMcpClientPage() {
                     let label = e.type;
                     let tone = e.type;
                     if (e.type === 'relay' && e.direction === 'client->mcp') { label = `→ MCP ${e.method || ''} ${e.url || ''}`; tone = 'relay-outbound'; }
-                    if (e.type === 'relay' && e.direction === 'mcp->client') { const challenge = e.status === 401; label = `← MCP ${challenge ? '⚠️' : e.status >= 400 ? '❌' : '✅'} ${e.status}`; tone = challenge ? 'oauth' : e.status >= 400 ? 'relay-error' : 'relay-success'; }
+                    if (e.type === 'relay' && e.direction === 'mcp->client') { const challenge = e.status === 401 || e.status === 403; label = `← MCP ${challenge ? '⚠️' : e.status >= 400 ? '❌' : '✅'} ${e.status}`; tone = challenge ? 'oauth' : e.status >= 400 ? 'relay-error' : 'relay-success'; }
                     if (e.type === 'oauth') { label = `OAuth: ${e.phase}`; tone = 'oauth'; }
                     if (e.type === 'mcp') { label = `MCP: ${e.phase}`; tone = 'mcp'; }
                     if (e.type === 'error') { label = `ERROR: ${e.scope}`; tone = 'error'; }

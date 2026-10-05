@@ -22,7 +22,13 @@ import UseCaseExplainModal from './UseCaseExplainModal';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
 import { a2aEventsForExplain } from './demoStepsA2a';
 import { ID_JAG_USE_CASE_ID, RUN_MODES, requestLiveIdJagRun } from '../utils/idJagRunMode';
-import { PRIVILEGE_A2A_CHAIN_USE_CASE_ID, startPrivilegeA2aChainRun } from '../utils/privilegeA2aChainRun';
+import {
+  PRIVILEGE_A2A_ACCESS_REVIEW_USE_CASE_ID,
+  PRIVILEGE_A2A_CHAIN_USE_CASE_ID,
+  PRIVILEGE_A2A_DEMO_QUESTIONS,
+  runPrivilegeA2aChatRun,
+  startPrivilegeA2aChainRun,
+} from '../utils/privilegeA2aChainRun';
 import {
   clearCompletedUseCases,
   getCompletedUseCaseIds,
@@ -371,6 +377,18 @@ export default function DemoStepsDropdown({
     setTick((n) => n + 1);
   }
 
+  /**
+   * UC46 inside the embedded agent: the same chat the /privilege-mcp-client tab
+   * runs, streamed into the trace store, with the presenter kept on /dashboard.
+   * The UC46 card itself still opens the route (link trigger unchanged).
+   */
+  function handleA2aInAgent(uc, stepNumber) {
+    void runPrivilegeA2aChatRun({ message: PRIVILEGE_A2A_DEMO_QUESTIONS[0] }).catch(() => {});
+    if (!poppedOutRef.current) onOpenChange(false);
+    onSelect({ ...uc, trigger: { type: 'link', path: '/dashboard' } }, stepNumber, { keepTrace: true });
+    setTick((n) => n + 1);
+  }
+
   /** Flip UC14b's "open full page" vs "quick chat result" toggle; persists across sessions. */
   function handleRarQuickResultToggle() {
     setRarQuickResult((prev) => {
@@ -575,6 +593,18 @@ export default function DemoStepsDropdown({
             {run.label.charAt(0)}
           </button>
         ))}
+        {uc.useCaseId === PRIVILEGE_A2A_ACCESS_REVIEW_USE_CASE_ID && (
+          <button
+            type="button"
+            className="ba-demo-steps-popout__rar-toggle"
+            onClick={(e) => { e.stopPropagation(); handleA2aInAgent(uc, stepNumber); }}
+            aria-label="Run the access review in the agent"
+            title="Run the access review inside the embedded agent (the card opens the A2A page)"
+            data-testid={`a2a-in-agent-${scope}${uc.id}`}
+          >
+            A
+          </button>
+        )}
         {uc.id === 'UC14b' && (
           <button
             type="button"
