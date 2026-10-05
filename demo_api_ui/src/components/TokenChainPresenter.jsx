@@ -98,6 +98,7 @@ export default function TokenChainPresenter({ steps, activeId, provenance = "liv
   if (!step) return null;
 
   const kv = Array.isArray(step.detail?.kv) ? step.detail.kv.slice(0, 6) : [];
+  const compliance = step.detail?.compliance;
   const rfcs = Array.isArray(step.detail?.rfcs) ? step.detail.rfcs : [];
   const a2a = step.lane === "A2A";
   const request = a2a ? evidenceText(step.detail?.request) : "";
@@ -145,6 +146,20 @@ export default function TokenChainPresenter({ steps, activeId, provenance = "liv
             </div>
           ))}
         </dl>
+      ) : null}
+
+      {compliance?.frameworks?.length ? (
+        <div className="tcp-compliance" aria-label="Privilege compliance mappings">
+          <p className="tcp-compliance-title">{compliance.title}</p>
+          <dl>
+            {compliance.frameworks.map((f) => (
+              <div className="tcp-compliance-row" key={f.label}>
+                <dt>{f.label}</dt>
+                <dd>{f.identifiers.join(", ")}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
       ) : null}
 
       {rfcs.length > 0 ? (

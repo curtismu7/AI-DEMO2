@@ -186,7 +186,8 @@
 .pf-ai-agent__secondary-action { border: 1px solid var(--th-border-strong); background: var(--th-bg-card); color: var(--th-text); }
 .pf-ai-agent__secondary-action { cursor: pointer; }
 .pf-ai-agent__disabled-action { border: 1px solid var(--th-border); background: var(--th-bg-inset); color: var(--th-text-muted); cursor: not-allowed; }
-.pf-ai-agent__action:disabled { opacity: 0.55; cursor: not-allowed; }
+/* Disabled stays legible: fading the whole button (opacity) also faded its white text. */
+.pf-ai-agent__action:disabled { border-color: #4a5c5b; background: #4a5c5b; color: #fff; cursor: not-allowed; }
 .pf-ai-agent__action:focus-visible,
 .pf-ai-agent__secondary-action:focus-visible { outline: 3px solid var(--th-status-info); outline-offset: 3px; }
 

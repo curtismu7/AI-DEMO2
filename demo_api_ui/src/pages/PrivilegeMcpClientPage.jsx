@@ -20,6 +20,20 @@ import './PrivilegeMcpClientPage.css';
 
 const API_BASE = '/api/privilege-mcp';
 const SILENT_DOOR_SWITCH_KEY = 'cur_priv_silent_door_switch';
+// "Connect all doors": the gateway issues one token per app, so covering every
+// door takes one silent sign-in each, and each is a full-page redirect. The plan
+// {origin, queue} rides sessionStorage across them; the ?auth= return effect
+// pops the next door until the queue is empty, then goes back to origin.
+const CONNECT_ALL_KEY = 'cur_priv_connect_all';
+const readConnectAll = () => {
+  try { return JSON.parse(sessionStorage.getItem(CONNECT_ALL_KEY) || 'null'); } catch { return null; }
+};
+const writeConnectAll = (plan) => {
+  try {
+    if (plan) sessionStorage.setItem(CONNECT_ALL_KEY, JSON.stringify(plan));
+    else sessionStorage.removeItem(CONNECT_ALL_KEY);
+  } catch { /* session storage can be disabled */ }
+};
 const readSessionFlag = (key) => {
   try { return sessionStorage.getItem(key) === '1'; } catch { return false; }
 };
@@ -301,6 +315,10 @@ export default function PrivilegeMcpClientPage() {
   const [preflightError, setPreflightError] = useState('');
   const [preflightBusy, setPreflightBusy] = useState(false);
   const [gatewayStateLoaded, setGatewayStateLoaded] = useState(false);
+  // Set by the ?auth= return effect, which runs from the mount-time closure whose
+  // selectDoor still holds the default config and no presets. The chain resumes
+  // from a later render, once /state has hydrated them.
+  const [resumeConnectAll, setResumeConnectAll] = useState(false);
   // Path switch in flight. The sessionStorage flag lets
   // the overlay survive the OAuth redirect and show again from first paint on
   // the ?auth=success return, until tools are rediscovered from the new gateway.
@@ -760,7 +778,7 @@ export default function PrivilegeMcpClientPage() {
       // Returning from a round trip (?auth=...) still hands back to the modal:
       // that redirect was user-initiated, so reporting its outcome is expected
       // rather than surprising.
-      if (searchParams.get('auth') === 'silent_failed') {
+      if (searchParams.get('auth') === 'silent_failed' && !readConnectAll()) {
         requestSignIn('The gateway could not reuse your existing session for this door. Sign in once to connect it.');
       } else if (s.mainAppAuthenticated && !s.oauth?.authenticated && searchParams.get('auth')) {
         requestSignIn();
@@ -789,7 +807,8 @@ export default function PrivilegeMcpClientPage() {
     const reason = searchParams.get('reason');
     if (authResult === 'success') {
       const silentDoorSwitch = readSessionFlag(SILENT_DOOR_SWITCH_KEY);
-      appendChat('system', silentDoorSwitch
+      const connectingAll = Boolean(readConnectAll());
+      appendChat('system', connectingAll ? 'Door connected. Continuing with the rest...' : silentDoorSwitch
         ? 'Connected to the selected door. Loading tools...'
         : 'OAuth completed. Press "Get MCP Tools" to discover tools.');
       api('/state').then(async (s) => {
@@ -800,6 +819,8 @@ export default function PrivilegeMcpClientPage() {
           window.dispatchEvent(new CustomEvent('userAuthenticated'));
         }
         if (s.oauth?.scope) setGrantedScopes(s.oauth.scope.split(' ').filter(Boolean));
+        // Mid-chain, discovery would be N tools/list calls nobody asked for.
+        if (connectingAll) { setResumeConnectAll(true); return; }
         if (silentDoorSwitch && s.oauth?.authenticated) await refreshTools(true);
       })
         // Manual sign-in never auto-discovers. A silent door switch is the
@@ -813,6 +834,8 @@ export default function PrivilegeMcpClientPage() {
         // that modal exists to supply.)
         .catch(() => {})
         .finally(() => {
+          // The chain is still redirecting: keep the overlay up for the next hop.
+          if (connectingAll && readConnectAll()) return;
           if (silentDoorSwitch) writeSessionFlag(SILENT_DOOR_SWITCH_KEY, false);
           clearSwitching();
         });
@@ -821,6 +844,10 @@ export default function PrivilegeMcpClientPage() {
       // redirect) — never leave the overlay stuck.
       writeSessionFlag(SILENT_DOOR_SWITCH_KEY, false);
       clearSwitching();
+      // A door that cannot be authorised silently is skipped; any other failed
+      // return ends the chain.
+      if (authResult === 'silent_failed' && readConnectAll()) setResumeConnectAll(true);
+      else writeConnectAll(null);
     }
     if (authResult === 'error') {
       appendChat('system', `OAuth failed: ${reason ? decodeURIComponent(reason) : 'Unknown'}`);
@@ -1261,6 +1288,60 @@ export default function PrivilegeMcpClientPage() {
     }
   };
 
+  // Doors on this gateway the last probe found with no token of their own.
+  const connectableDoors = () => {
+    let origin;
+    try { origin = new URL(config.mcpUrl).origin; } catch { return []; }
+    return (doorProbe.results || []).filter((r) => {
+      try { return r.needsAuth && new URL(r.url).origin === origin; } catch { return false; }
+    }).map((r) => r.url);
+  };
+
+  const advanceConnectAll = async () => {
+    const plan = readConnectAll();
+    if (!plan) return;
+    const next = plan.queue.shift();
+    if (!next) {
+      writeConnectAll(null);
+      const back = await selectDoor(plan.origin);
+      setAuthenticated(Boolean(back.saved?.oauth?.destinationAuthenticated ?? back.saved?.oauth?.authenticated));
+      setTools([]);
+      setSelectedTool(null);
+      writeSessionFlag(SILENT_DOOR_SWITCH_KEY, false);
+      clearSwitching();
+      appendChat('system', 'All doors connected. Each now shows Switch in the Access Denied window.');
+      return;
+    }
+    writeConnectAll(plan);
+    try {
+      const result = await selectDoor(next);
+      if (!result.ok) throw result.error;
+      setSwitching(true);
+      writeSessionFlag('cur_priv_switching', true);
+      const redirected = await startAuthRedirect({ silentOnly: true });
+      if (!redirected) { writeConnectAll(null); clearSwitching(); }
+    } catch (err) {
+      writeConnectAll(null);
+      clearSwitching();
+      appendChat('system', `Connect all doors stopped at ${doorName(next) || next}: ${err.message}`);
+    }
+  };
+
+  useEffect(() => {
+    if (!resumeConnectAll || !gatewayStateLoaded) return;
+    setResumeConnectAll(false);
+    advanceConnectAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resumeConnectAll, gatewayStateLoaded]);
+
+  const connectAllDoors = async () => {
+    const queue = connectableDoors();
+    if (queue.length === 0) return;
+    writeConnectAll({ origin: config.mcpUrl, queue });
+    setShowBlockedModal(false);
+    await advanceConnectAll();
+  };
+
   // Every Privilege door we know of: what the console reports when a token is
   // connected, falling back to the configured presets when one is not.
   //
@@ -1674,6 +1755,11 @@ export default function PrivilegeMcpClientPage() {
               <button className="cur-btn" onClick={probeDoors} disabled={doorProbe.running}>
                 {doorProbe.running ? 'Probing...' : 'Try other doors'}
               </button>
+              {gatewayMode === 'privilege' && connectableDoors().length > 0 && (
+                <button className="cur-btn" onClick={connectAllDoors}>
+                  Connect all doors ({connectableDoors().length})
+                </button>
+              )}
               <button className="cur-btn cur-btn--primary" onClick={() => setShowBlockedModal(false)}>Dismiss</button>
             </div>
           </div>
