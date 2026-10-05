@@ -13,6 +13,7 @@ import PingIdentitySpinner from '../components/shared/PingIdentitySpinner';
 import DraggableModal from '../components/DraggableModal';
 import { navigateWithOverlay } from '../utils/navigateWithOverlay';
 import { doorName, GATEWAY_MODES, LLM_PATHS, doorsForMode } from '../components/privilege/privilegeRouting';
+import { LLM_POLICY_DENIED, chatReplyMessage, llmReplyMessage, llmDenialMessage } from '../components/privilege/privilegeChat';
 import { usePrivilegeRouting } from '../components/privilege/usePrivilegeRouting';
 import PrivilegeMcpLearningPage from './PrivilegeMcpLearningPage';
 import './PrivilegeMcpClientPage.css';
@@ -1355,12 +1356,12 @@ export default function PrivilegeMcpClientPage() {
     if (llmPath) {
       try {
         const data = await api('/llm/call', { method: 'POST', body: { provider: llmPath, prompt } });
-        appendChat('assistant', data.reply, { steps: [`${llmPath} · ${data.route} · ${data.latencyMs} ms`] });
+        const m = llmReplyMessage(llmPath, data);
+        appendChat('assistant', m.content, m.extra);
       } catch (err) {
-        if (err.code === 'llm_policy_denied') {
-          appendChat('assistant', `⚠️ Privilege denied this call. ${err.reason || err.message}`, {
-            steps: [`${err.provider || llmPath} · ${err.route || ''} · denied by policy`],
-          });
+        if (err.code === LLM_POLICY_DENIED) {
+          const m = llmDenialMessage(llmPath, err);
+          appendChat('assistant', m.content, m.extra);
         } else {
           appendChat('assistant', `❌ ${err.message}`, { steps: [`${llmPath} · call failed`] });
         }
@@ -1377,14 +1378,8 @@ export default function PrivilegeMcpClientPage() {
         window.open(data.authUrl, '_blank', 'noopener,noreferrer');
         appendChat('assistant', `${data.reply} (Opened OAuth in new tab)`, data.steps || null);
       } else {
-        appendChat('assistant', data.reply || 'Done.', {
-          available_tools: (data.tools || []).map((t) => t.name),
-          suggested_tools: data.suggested_tools || [],
-          policy: data.policy || null,
-          decision: data.decision || null,
-          execution: data.execution || null,
-          steps: data.steps || [],
-        });
+        const m = chatReplyMessage(data);
+        appendChat('assistant', m.content, m.extra);
         if (data.tools) {
           setTools(data.tools);
           setToolPolicy(data.policy || { total: data.tools.length, permitted: data.tools.length, filtered: 0, filteredTools: [] });
