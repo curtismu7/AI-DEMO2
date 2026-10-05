@@ -1,6 +1,6 @@
 import { useState } from "react";
 import ToolsTable from "../privilege/ToolsTable";
-import { doorName, doorsForMode } from "../privilege/privilegeRouting";
+import { doorName, doorsForMode, probeResultLabel } from "../privilege/privilegeRouting";
 import "./PrivilegeShellViews.css";
 
 // One list for both route UIs (the chat-pane dropdowns and the VS Code side tree).
@@ -85,12 +85,60 @@ export function ShellSteps({ steps }) {
   return <ul className="pvs-steps">{steps.map((s, i) => <li key={`${i}-${s}`}>{s}</li>)}</ul>;
 }
 
+const NO_OTHER_DOORS = "No other doors to probe. The selected door is skipped; add a preset for another one.";
+
+// "Check doors": probes the OTHER configured doors with this identity (/doors/probe skips the
+// selected door and caps the fan-out), so the presenter can see why a door refuses them.
+function DoorCheckButton({ session }) {
+  const { preflightBusy, loaded } = session.routing;
+  return (
+    <button
+      type="button"
+      className="pvs-doorcheck__btn"
+      onClick={session.probeDoors}
+      disabled={preflightBusy || !loaded || session.busy || session.thinking}
+    >
+      {preflightBusy ? "Probing…" : "Check doors"}
+    </button>
+  );
+}
+
+function DoorCheckNotes({ routing }) {
+  return (
+    <>
+      {routing.preflightError ? <p className="pvs-note" role="alert">{routing.preflightError}</p> : null}
+      {routing.preflight && routing.preflight.length === 0 ? <p className="pvs-note">{NO_OTHER_DOORS}</p> : null}
+    </>
+  );
+}
+
+export function ShellDoorCheck({ session }) {
+  const { routing } = session;
+  return (
+    <div className="pvs-doorcheck">
+      <DoorCheckButton session={session} />
+      <DoorCheckNotes routing={routing} />
+      {routing.preflight && routing.preflight.length > 0 ? (
+        <ul className="pvs-probe">
+          {routing.preflight.map((r) => (
+            <li key={r.url}>
+              <span aria-hidden="true">{r.ok ? "✅" : "❌"}</span> <span>{doorName(r.url) || r.url}</span>{" "}
+              <span>{probeResultLabel(r)}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
 export function ShellRoutingBar({ session }) {
   const { routing, busy, pickPath, pickDoor } = session;
   const off = busy || session.thinking || !routing.loaded;
   const current = routing.config.mcpUrl;
   const doors = doorsForMode(routing.presets, routing.gatewayMode);
   return (
+    <>
     <div className="pvs-routing">
       <label>
         <span>Path</span>
@@ -127,6 +175,8 @@ export function ShellRoutingBar({ session }) {
         )}
       </label>
     </div>
+    <ShellDoorCheck session={session} />
+    </>
   );
 }
 
@@ -140,18 +190,24 @@ export function ShellRoutingTree({ session }) {
   const doors = doorsForMode(routing.presets, routing.gatewayMode);
   // A backend that is not in the presets still has to read as the selected door.
   const doorList = current && doors.length && !doors.includes(current) ? [current, ...doors] : doors;
-  const item = (value, label, pressed, onPick) => (
+  const probeByUrl = new Map((routing.preflight || []).map((r) => [r.url, r]));
+  const item = (value, label, pressed, onPick, title, mark = "") => (
     <button
       key={value}
       type="button"
       className={`f${pressed ? " on" : ""}`}
       aria-pressed={pressed}
       disabled={off}
+      title={title}
       onClick={() => onPick(value)}
     >
-      {label}
+      {mark}{label}
     </button>
   );
+  const doorItem = (url) => {
+    const r = probeByUrl.get(url);
+    return item(url, doorName(url) || url, url === current, pickDoor, r && probeResultLabel(r), r ? (r.ok ? "✅ " : "❌ ") : "");
+  };
   return (
     <div className="pvs-tree">
       <div className="lbl">AI Agent Gateway</div>
@@ -162,11 +218,13 @@ export function ShellRoutingTree({ session }) {
       <div className="pvs-tree__grp">Door</div>
       {doorList.length ? (
         <div role="group" aria-label="MCP backend (door)">
-          {doorList.map((url) => item(url, doorName(url) || url, url === current, pickDoor))}
+          {doorList.map(doorItem)}
         </div>
       ) : (
         <div className="pvs-tree__txt">{doorName(current) || "—"}</div>
       )}
+      <DoorCheckButton session={session} />
+      <DoorCheckNotes routing={routing} />
     </div>
   );
 }
