@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { ShellGate, ShellPrompt, ShellSteps } from "./ShellParts";
+import { ShellGate, ShellLatestCall, ShellPrompt, ShellRoutingBar, ShellSteps, ShellToolsList } from "./ShellParts";
 import "./PrivilegeShellViews.css";
 
 export function ShellDesktopView({ session }) {
@@ -12,6 +12,7 @@ export function ShellDesktopView({ session }) {
   return (
     <div className="pvs pvs--claude-desktop pvs-desk" data-testid="pvs-desktop">
       <ShellGate session={session}>
+        <ShellRoutingBar session={session} />
         <div ref={logRef} className="pvs-desk__thread" role="log" aria-label="Conversation">
           {messages.map((m) => (
             <div key={m.id} className={`pvs-desk__msg pvs-desk__msg--${m.role}`}>
@@ -29,6 +30,8 @@ export function ShellDesktopView({ session }) {
           ))}
           {thinking ? <div className="pvs-desk__bubble">Thinking…</div> : null}
         </div>
+        <ShellToolsList session={session} collapsible />
+        <ShellLatestCall latestCall={session.latestCall} />
         <ShellPrompt session={session} placeholder="Message Claude…" />
       </ShellGate>
     </div>

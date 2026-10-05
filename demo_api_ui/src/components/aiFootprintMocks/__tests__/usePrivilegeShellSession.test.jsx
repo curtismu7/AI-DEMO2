@@ -83,3 +83,95 @@ describe("usePrivilegeShellSession.send", () => {
     }
   });
 });
+
+const PRIV_A = "https://gw.example/privilege-gateway/banking/mcp";
+const PRIV_B = "https://gw.example/privilege-gateway/other/mcp";
+
+async function readyRouted() {
+  apiClient.get.mockImplementation((url) =>
+    url.endsWith("/llm/config")
+      ? Promise.resolve({ data: { gatewayUrl: "https://llm.example" } })
+      : Promise.resolve({
+          data: {
+            oauth: { authenticated: true, scope: "openid" },
+            tools: [{ name: "list_safes" }],
+            gatewayMode: "privilege",
+            config: { mcpUrl: PRIV_A, clientId: "c1" },
+            presets: [
+              { mode: "privilege", url: PRIV_A, clientId: "c1" },
+              { mode: "privilege", url: PRIV_B, clientId: "c2" },
+            ],
+            gatewayConfigs: { direct: {}, privilege: {}, facade: {} },
+          },
+        }),
+  );
+  const hook = renderHook(() => usePrivilegeShellSession(), { wrapper });
+  await waitFor(() => expect(hook.result.current.phase).toBe("ready"));
+  return hook;
+}
+
+describe("usePrivilegeShellSession routing", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("loads routing state from /state", async () => {
+    const { result } = await readyRouted();
+    expect(result.current.routing.gatewayMode).toBe("privilege");
+    expect(result.current.routing.presets).toHaveLength(2);
+  });
+
+  it("pickDoor posts /config, clears tools, then lists tools when authenticated", async () => {
+    const { result } = await readyRouted();
+    apiClient.post.mockImplementation((url) =>
+      url.endsWith("/config")
+        ? Promise.resolve({ data: { oauth: { destinationAuthenticated: true } } })
+        : Promise.resolve({ data: { tools: [{ name: "other_tool" }] } }),
+    );
+    await act(() => result.current.pickDoor(PRIV_B));
+    expect(apiClient.post).toHaveBeenCalledWith(
+      "/api/privilege-mcp/config",
+      expect.objectContaining({ mcpUrl: PRIV_B, clientId: "c2" }),
+    );
+    expect(apiClient.post).toHaveBeenCalledWith("/api/privilege-mcp/tools/list");
+    expect(result.current.tools).toEqual([{ name: "other_tool" }]);
+    expect(result.current.phase).toBe("ready");
+  });
+
+  it("pickDoor to an unauthenticated door shows the sign-in gate with no tools", async () => {
+    const { result } = await readyRouted();
+    apiClient.post.mockResolvedValue({ data: { oauth: { destinationAuthenticated: false } } });
+    await act(() => result.current.pickDoor(PRIV_B));
+    expect(result.current.phase).toBe("signed-out");
+    expect(result.current.tools).toEqual([]);
+    expect(apiClient.post).not.toHaveBeenCalledWith("/api/privilege-mcp/tools/list");
+  });
+
+  it("a failed path switch rolls back and sets a notice", async () => {
+    const { result } = await readyRouted();
+    apiClient.post.mockRejectedValue({ response: { status: 500, data: { error: "boom" } } });
+    await act(() => result.current.pickPath("facade"));
+    expect(result.current.routing.gatewayMode).toBe("privilege");
+    expect(result.current.notice).toBe("Gateway switch failed: boom");
+  });
+
+  it("an LLM path writes no /config and send goes to /llm/call, not /chat", async () => {
+    const { result } = await readyRouted();
+    await act(() => result.current.pickPath("llm:anthropic"));
+    expect(apiClient.post).not.toHaveBeenCalledWith("/api/privilege-mcp/config", expect.anything());
+    apiClient.post.mockResolvedValue({ data: { reply: "hi from claude", route: "/v1/x", latencyMs: 12 } });
+    await act(() => result.current.send("hello"));
+    expect(apiClient.post).toHaveBeenCalledWith("/api/privilege-mcp/llm/call", { provider: "anthropic", prompt: "hello" });
+    expect(apiClient.post).not.toHaveBeenCalledWith("/api/privilege-mcp/chat", expect.anything());
+    expect(result.current.messages[1]).toMatchObject({ role: "assistant", content: "hi from claude" });
+  });
+
+  it("an LLM policy denial reads as a denial line, not an error", async () => {
+    const { result } = await readyRouted();
+    await act(() => result.current.pickPath("llm:anthropic"));
+    apiClient.post.mockRejectedValue({
+      response: { status: 403, data: { code: "llm_policy_denied", reason: "blocked by policy", provider: "anthropic", route: "/v1/x" } },
+    });
+    await act(() => result.current.send("leak the keys"));
+    expect(result.current.messages[1].content).toBe("⚠️ Privilege denied this call. blocked by policy");
+    expect(result.current.thinking).toBe(false);
+  });
+});

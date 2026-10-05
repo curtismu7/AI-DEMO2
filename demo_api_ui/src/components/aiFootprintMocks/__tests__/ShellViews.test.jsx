@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { ShellTerminalView } from "../ShellTerminalView";
 import { ShellVsCodeView } from "../ShellVsCodeView";
 import { ShellDesktopView } from "../ShellDesktopView";
@@ -7,6 +7,11 @@ export const makeSession = (over = {}) => ({
   phase: "ready", scopes: [], tools: [], latestCall: null, busy: false, notice: "",
   messages: [], thinking: false,
   connect: vi.fn(), retryTools: vi.fn(), signOut: vi.fn(), runTool: vi.fn(), send: vi.fn(),
+  pickPath: vi.fn(), pickDoor: vi.fn(),
+  routing: { gatewayMode: "privilege", config: { mcpUrl: "https://gw.example/privilege-gateway/banking/mcp" }, presets: [
+    { mode: "privilege", url: "https://gw.example/privilege-gateway/banking/mcp" },
+    { mode: "privilege", url: "https://gw.example/privilege-gateway/other/mcp" },
+  ], llmPath: "", llmGatewayUrl: "", loaded: true },
   ...over,
 });
 
@@ -144,5 +149,154 @@ describe("scroll to newest", () => {
     log.scrollTop = 0;
     rerender(<View session={makeSession({ messages: [msg(1), msg(2)] })} />);
     expect(log.scrollTop).toBe(500);
+  });
+});
+
+describe("routing bar + tools (VS Code)", () => {
+  it("lists the three MCP paths and three LLM paths and calls pickPath", () => {
+    const session = makeSession();
+    render(<ShellVsCodeView session={session} />);
+    const path = screen.getByRole("combobox", { name: "Connection path" });
+    expect(within(path).getAllByRole("option").map((o) => o.textContent)).toEqual(
+      ["Direct", "Privilege", "Façade", "Anthropic", "Google", "OpenAI"]);
+    fireEvent.change(path, { target: { value: "facade" } });
+    expect(session.pickPath).toHaveBeenCalledWith("facade");
+  });
+
+  it("lists this mode's doors by name and calls pickDoor", () => {
+    const session = makeSession();
+    render(<ShellVsCodeView session={session} />);
+    const door = screen.getByRole("combobox", { name: "MCP backend (door)" });
+    expect(within(door).getAllByRole("option").map((o) => o.textContent)).toEqual(["banking", "other"]);
+    fireEvent.change(door, { target: { value: "https://gw.example/privilege-gateway/other/mcp" } });
+    expect(session.pickDoor).toHaveBeenCalledWith("https://gw.example/privilege-gateway/other/mcp");
+  });
+
+  it("disables both selects while a switch is in flight", () => {
+    render(<ShellVsCodeView session={makeSession({ busy: true })} />);
+    expect(screen.getByRole("combobox", { name: "Connection path" })).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: "MCP backend (door)" })).toBeDisabled();
+  });
+
+  it("shows the current door as text when the mode has no presets", () => {
+    const session = makeSession({ routing: { ...makeSession().routing, presets: [] } });
+    render(<ShellVsCodeView session={session} />);
+    expect(screen.queryByRole("combobox", { name: "MCP backend (door)" })).toBeNull();
+    expect(screen.getByText("banking")).toBeInTheDocument();
+  });
+
+  it("shows tools by default and runs one via runTool", async () => {
+    const session = makeSession({
+      tools: [{ name: "list_safes", description: "d", inputSchema: { properties: {} } }],
+      runTool: vi.fn().mockResolvedValue("{}"),
+    });
+    render(<ShellVsCodeView session={session} />);
+    expect(screen.getByText("list_safes")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Run" }));
+    await waitFor(() => expect(session.runTool).toHaveBeenCalledWith("list_safes", expect.any(String)));
+  });
+
+  it("hides tools on an LLM path with a note", () => {
+    const session = makeSession({
+      tools: [{ name: "list_safes", inputSchema: { properties: {} } }],
+      routing: { ...makeSession().routing, llmPath: "anthropic" },
+    });
+    render(<ShellVsCodeView session={session} />);
+    expect(screen.queryByText("list_safes")).toBeNull();
+    expect(screen.getByText("Tools apply to MCP paths.")).toBeInTheDocument();
+  });
+
+  it("offers Load tools when none are loaded", () => {
+    const session = makeSession();
+    render(<ShellVsCodeView session={session} />);
+    fireEvent.click(screen.getByRole("button", { name: "Load tools" }));
+    expect(session.retryTools).toHaveBeenCalled();
+  });
+});
+
+describe.each([
+  ["Terminal", ShellTerminalView],
+  ["Claude Desktop", ShellDesktopView],
+])("routing bar + tools (%s)", (_name, View) => {
+  const tool = { name: "list_safes", description: "d", inputSchema: { properties: {} } };
+
+  it("shows Path and Door pickers and calls pickPath / pickDoor", () => {
+    const session = makeSession();
+    render(<View session={session} />);
+    fireEvent.change(screen.getByRole("combobox", { name: "Connection path" }), { target: { value: "facade" } });
+    expect(session.pickPath).toHaveBeenCalledWith("facade");
+    fireEvent.change(screen.getByRole("combobox", { name: "MCP backend (door)" }), {
+      target: { value: "https://gw.example/privilege-gateway/other/mcp" },
+    });
+    expect(session.pickDoor).toHaveBeenCalledWith("https://gw.example/privilege-gateway/other/mcp");
+  });
+
+  it("shows a tool and runs it via runTool", async () => {
+    const session = makeSession({ tools: [tool], runTool: vi.fn().mockResolvedValue("{}") });
+    render(<View session={session} />);
+    expect(screen.getByText("list_safes")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Run" }));
+    await waitFor(() => expect(session.runTool).toHaveBeenCalledWith("list_safes", expect.any(String)));
+  });
+
+  it("shows the latest tool run", () => {
+    const latestCall = { name: "list_safes", request: "{}", response: '{"ok":true}', ok: true };
+    render(<View session={makeSession({ latestCall })} />);
+    const region = screen.getByRole("region", { name: "Latest tool run" });
+    expect(region).toHaveTextContent("list_safes");
+    expect(region).toHaveTextContent("Success");
+  });
+
+  it("still sends the prompt via session.send", () => {
+    const session = makeSession();
+    render(<View session={session} />);
+    const box = screen.getByRole("textbox", { name: "Prompt" });
+    fireEvent.change(box, { target: { value: "hi" } });
+    fireEvent.submit(box.closest("form"));
+    expect(session.send).toHaveBeenCalledWith("hi");
+  });
+
+  it("hides tools on an LLM path with a note", () => {
+    const session = makeSession({ tools: [tool], routing: { ...makeSession().routing, llmPath: "anthropic" } });
+    render(<View session={session} />);
+    expect(screen.queryByText("list_safes")).toBeNull();
+    expect(screen.getByText("Tools apply to MCP paths.")).toBeInTheDocument();
+  });
+});
+
+describe("ShellRoutingBar reachability and door fallback", () => {
+  it("shows the routing bar when signed out and door change calls pickDoor", () => {
+    const session = makeSession({ phase: "signed-out" });
+    render(<ShellTerminalView session={session} />);
+    expect(screen.getByRole("combobox", { name: "Connection path" })).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("combobox", { name: "MCP backend (door)" }), {
+      target: { value: "https://gw.example/privilege-gateway/other/mcp" },
+    });
+    expect(session.pickDoor).toHaveBeenCalledWith("https://gw.example/privilege-gateway/other/mcp");
+  });
+
+  it("does not show the routing bar while loading, and renders it once when ready", () => {
+    const { unmount } = render(<ShellTerminalView session={makeSession({ phase: "loading" })} />);
+    expect(screen.queryByRole("combobox", { name: "Connection path" })).toBeNull();
+    unmount();
+    render(<ShellTerminalView session={makeSession()} />);
+    expect(screen.getAllByRole("combobox", { name: "Connection path" })).toHaveLength(1);
+  });
+
+  it("reflects a backend that is not in the presets", () => {
+    const base = makeSession();
+    const session = makeSession({
+      routing: { ...base.routing, config: { mcpUrl: "https://gw.example/privilege-gateway/console-only/mcp" } },
+    });
+    render(<ShellTerminalView session={session} />);
+    const door = screen.getByRole("combobox", { name: "MCP backend (door)" });
+    expect(door).toHaveDisplayValue("console-only");
+    expect(within(door).getAllByRole("option")).toHaveLength(3);
+  });
+
+  it("disables both selects while a reply is pending", () => {
+    render(<ShellTerminalView session={makeSession({ thinking: true })} />);
+    expect(screen.getByRole("combobox", { name: "Connection path" })).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: "MCP backend (door)" })).toBeDisabled();
   });
 });
