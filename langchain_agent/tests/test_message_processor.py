@@ -60,6 +60,34 @@ def mock_agui_emitter():
 
 
 @pytest.mark.asyncio
+async def test_per_run_provider_failure_is_reported_not_answered_by_default(
+    mock_agent_agui, mock_agui_emitter,
+):
+    """A chosen provider that cannot start must say so, not fall back to the default LLM."""
+    processor = MessageProcessor(agent=mock_agent_agui)
+    with patch(
+        "agent.llm_factory.get_llm",
+        side_effect=ValueError("Groq provider requires GROQ_API_KEY to be set."),
+    ):
+        await processor.process_agui_message(
+            session_id="s1",
+            message="Explain token exchange",
+            auth_token="tok",
+            emitter=mock_agui_emitter,
+            bff_tool_url="",
+            tool_schemas=None,
+            messages_list=None,
+            run_provider="groq",
+        )
+    mock_agui_emitter.on_llm_new_token.assert_awaited_once()
+    text = mock_agui_emitter.on_llm_new_token.call_args.args[0]
+    assert "groq" in text and "GROQ_API_KEY" in text
+    mock_agui_emitter.on_llm_end.assert_awaited_once()
+    # No answer was produced by the default model.
+    mock_agent_agui._build_system_message.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_process_agui_message_emits_grounding_correction_on_overclaim(
     mock_agent_agui, mock_agui_emitter,
 ):
