@@ -168,7 +168,7 @@ The second is a JSON record with `"msg":"AIGuard"`:
 - `Event` is `a2a_request_blocked` or `a2a_request_alert`.
 - `Client` is the calling agent's name. `User` is its custodian, the user the agent acts as.
 - `Source` inside `ComplianceMappings` names the rule that fired. Rules seen: `inj-ignore-previous`, `inj-ignore-scoped`, `exf-prompt-leak-marker` and `ia-orchestrator-impersonation`.
-- The mappings tie the finding to OWASP, MITRE ATLAS and NIST AI RMF entries.
+- The mappings tie the finding to OWASP, MITRE ATLAS and NIST AI RMF entries. The demo's A2A chain run (Demo Steps, step 26) reads them back from the `gateway-events` index and highlights them in the step presenter, per gateway step and once for the whole run. That read needs the one-time sign-in on the LLM Gateway page.
 
 **Alerts exist only here.** A message that raised an alert looks like a normal success to both agents. If nobody reads these records, nobody learns that an agent was sent a jailbreak or an impersonation attempt. Ship the `AIGuard` lines somewhere you search; see the logging guide.
 

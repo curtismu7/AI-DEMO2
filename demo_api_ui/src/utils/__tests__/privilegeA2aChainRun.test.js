@@ -349,6 +349,20 @@ test("a blocked call shows the gateway's own verdict: category, rules and framew
   expect(gatewayStep({ state: "error", error: "HTTP 502" }).kv).toContainEqual(["Gateway's own record", "Could not be read: HTTP 502"]);
 });
 
+test("the mappings Privilege returned are highlighted on the gateway step and summarised on the last step", () => {
+  const events = [{ id: "pa2a-0", kind: "delegate", from: "main", to: "langchainagent", status: "ok", detail: "hello" }];
+  const frameworks = [{ label: "MITRE ATLAS", identifiers: ["AML.T0051"] }, { label: "OWASP LLM", identifiers: ["LLM02"] }];
+  const alert = { event: "a2a_request_alert", category: "pii", client: "main-agent", rules: [], frameworks };
+  const withRecord = (record) => buildPrivilegeA2aChainSteps([...events, { id: "pa2a-gateway-record", ...record }]);
+  const steps = withRecord({ state: "ready", guardrail: [alert], modelCalls: [] });
+  expect(steps.find((step) => step.id === "pa2a-0-gateway").detail.compliance).toEqual({ title: "Privilege flagged this call", frameworks });
+  expect(steps.at(-1).detail.compliance).toEqual({ title: "Privilege findings for the whole run", frameworks });
+  // Nothing returned, nothing shown: no placeholder rows for a clean or unloaded run.
+  for (const record of [{ state: "ready", guardrail: [], modelCalls: [] }, { state: "needsAuth" }]) {
+    expect(withRecord(record).some((step) => step.detail.compliance)).toBe(false);
+  }
+});
+
 test("a policy refusal and a clean call say what the guardrail log does and does not hold", () => {
   const steps = buildPrivilegeA2aChainSteps([
     { id: "pa2a-0", kind: "delegate", from: "main", to: "langchainagent", status: "ok" },

@@ -20,6 +20,26 @@ const GATEWAY_CLIENT = { main: "main-agent", langchainagent: "langchain-caller" 
 const GATEWAY_APP = { langchainagent: "langchainagent", refunds: "hostile-a2a", restricted: "restrictedagent" };
 const GATEWAY_RECORD_ID = "pa2a-gateway-record";
 const RECORD_ROW = "Gateway's own record";
+// The MITRE / NIST / OWASP mappings Privilege returned for a call, as the
+// highlighted block the presenter renders. Only what the gateway sent: no
+// finding, no block.
+const compliance = (title, frameworks) => (frameworks?.length ? { compliance: { title, frameworks } } : {});
+
+/**
+ * The run's framework mappings, merged from every guardrail line in the
+ * record, on the last step (a new step would change the hop count every view
+ * reads).
+ */
+function withRunSummary(steps, record) {
+  if (!steps.length || record?.state !== "ready") return steps;
+  const merged = {};
+  for (const entry of record.guardrail || []) {
+    for (const { label, identifiers } of entry.frameworks) merged[label] = [...new Set([...(merged[label] || []), ...identifiers])];
+  }
+  const frameworks = Object.entries(merged).map(([label, identifiers]) => ({ label, identifiers }));
+  const last = steps[steps.length - 1];
+  return [...steps.slice(0, -1), { ...last, detail: { ...last.detail, ...compliance("Privilege findings for the whole run", frameworks) } }];
+}
 
 // What the A2A specification requires at each kind of step, and why the
 // gateway is where it is. The detail panel shows these with RFC info on.
@@ -187,7 +207,7 @@ export function buildPrivilegeA2aChainSteps(tokenEvents) {
   const announced = (event, index) => events.slice(0, index).reverse()
     .find((earlier) => earlier.kind === "delegate" && earlier.from === event.from && earlier.to === event.to);
 
-  return events.flatMap((event, index) => {
+  const steps = events.flatMap((event, index) => {
     if (event.kind === "delegate" && refusalOf(event, index)) return [];
     // Display names: the event's labels (vertical-aware), else today's generic names.
     // Lane KEYS (chainLane) always come from the generic names so the views keep their columns.
@@ -351,6 +371,7 @@ export function buildPrivilegeA2aChainSteps(tokenEvents) {
       const logged = gatewayRecord(record, event.from, /blocked by security policy/i.test(reason) ? "blocked" : "denied", event.to);
       return [call, step("-gateway", "Refuses the call", PRIVILEGE_GATEWAY_LANE, "error", {
         ...(logged.verdict ? { facts: [...facts, logged.verdict.category] } : {}),
+        ...compliance("Privilege flagged this call", logged.verdict?.frameworks),
         narrative: `The gateway or the agent behind it refused this call: ${reason}. The hand-off stopped here: ${to} did no work for this call, and ${from} received the refusal instead of an answer.${logged.verdict ? ` The gateway's own log records it as ${logged.verdict.category}.` : ""}`,
         kv: [
           ["Outcome", "Refused"],
@@ -368,9 +389,11 @@ export function buildPrivilegeA2aChainSteps(tokenEvents) {
         ...(event.response ? { response: { title: `Refusal returned to ${from}`, text: event.response } } : {}),
       })];
     }
+    const logged = gatewayRecord(record, event.from, "allowed", event.to);
     return [
       call,
       step("-gateway", "Checks key, scope, policy and guardrail", PRIVILEGE_GATEWAY_LANE, "done", {
+        ...compliance("Privilege flagged this call", logged.verdict?.frameworks),
         narrative: `The gateway recognised ${from}'s key, confirmed it has the a2a scope and a policy for ${to}, and screened the message before forwarding it. Each agent has its own key and its own grants, so the gateway decides hop by hop who may call whom and what may cross.`,
         kv: [
           ["Agent key", `Recognised as ${from}`],
@@ -380,7 +403,7 @@ export function buildPrivilegeA2aChainSteps(tokenEvents) {
           ...registryRow(event.from).map(([, value]) => ["Caller's Agent Registry name", value]),
           ...routeRow(event.to),
           ...timing,
-          ...gatewayRecord(record, event.from, "allowed", event.to).rows,
+          ...logged.rows,
         ],
         spec: SPEC.gateway,
       }),
@@ -397,4 +420,5 @@ export function buildPrivilegeA2aChainSteps(tokenEvents) {
       }),
     ];
   });
+  return withRunSummary(steps, record);
 }
