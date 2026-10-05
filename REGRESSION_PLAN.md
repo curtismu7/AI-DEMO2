@@ -249,6 +249,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-05 — The agent showed nothing while an A2A run was working (no "still working" mark)
+
+**Files:** `demo_api_ui/src/components/AgentRunIndicator.jsx` (+ `.css`, new), `demo_api_ui/src/components/AIAgent.js`, tests.
+
+**What was broken:** The agent's working indicator (three typing dots) only shows while `nlLoading` is true. A run the agent starts for Step 25A or the Step 26 chain never sets it, so for several seconds the transcript showed nothing and it looked like no response.
+
+**What changed:** The agent's three typing dots are replaced by the dancing red Ping P (`PingIdentitySpinner`, via the shared `AgentWorkingMark`), so every wait in the agent looks the same; the unused `.ba-typing-*` CSS is deleted. While `opts.run` is pending the agent also renders `AgentRunIndicator`: the same mark beside "Demo step 25A — working…", cleared when the run settles (success, failure or thrown error). It is a separate `runIndicator` state, so Send is not disabled. A failed run posts one short line via `utils/a2aRunFailureMessage.js`; a 429 / quota / rate-limit error gets a plain explanation (the provider is refusing requests until its quota resets) and says to switch the model by setting `MAIN_AGENT_PROVIDER` in the standalone A2A agent's `.env` and restarting the main agent, and that the chat's LLM picker does not drive this run.
+
+**Do not break:** the "running through the AI Gateway" and "run complete" / "the run failed" messages from the earlier change still post; `opts.keepTrace` still skips the trace reset; no new inline colour or font-size (the label uses `--font-size-sm`).
+
+**Verify:** `cd demo_api_ui && ./node_modules/.bin/vitest run src/components/__tests__/AgentRunIndicator.test.jsx`; `npm run build`. The `AIAgent.js` wiring has no unit test (component too heavy); confirm with a live click on 25A.
+
 ### 2026-10-05 — Demo Steps search could not find a step by its number ("25a" found nothing)
 
 **Files:** `demo_api_ui/src/config/demoStepNumbers.js` (`stepQueryMatches`), `demo_api_ui/src/components/DemoStepsDropdown.jsx`, tests.

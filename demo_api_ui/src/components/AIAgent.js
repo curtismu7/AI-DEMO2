@@ -82,6 +82,8 @@ import AgentGreetingHero from "./AgentGreetingHero";
 import AgentConsentModal from "./AgentConsentModal";
 import AgentDemoGuide from "./AgentDemoGuide";
 import DemoStepsDropdown, { DemoStepsTrigger, readStoredDemoStepsOpen } from "./DemoStepsDropdown";
+import AgentRunIndicator, { AgentWorkingMark } from "./AgentRunIndicator";
+import { runFailureMessage } from "../utils/a2aRunFailureMessage";
 import { PRIVILEGE_A2A_CHAIN_USE_CASE_ID } from "../utils/privilegeA2aChainRun";
 import AdminToolsDropdown from "./AdminToolsDropdown";
 import { markUseCaseCompleted, clearCompletedUseCases } from "../utils/useCaseDemoProgress";
@@ -729,6 +731,8 @@ export default function BankingAgent({
   const [inputHistory, setInputHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [nlLoading, setNlLoading] = useState(false);
+  // Set while a run the agent started (A2A access review, agent chain) is still working.
+  const [runIndicator, setRunIndicator] = useState(null);
   const [unitedDatabaseQueryLoading, setUnitedDatabaseQueryLoading] = useState(false);
   const [refreshingAirlineMessageId, setRefreshingAirlineMessageId] = useState(null);
   const [nlMeta, setNlMeta] = useState(null);
@@ -3138,7 +3142,7 @@ export default function BankingAgent({
     });
     return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages, isOpen, isInline, loading, nlLoading]);
+  }, [messages, isOpen, isInline, loading, nlLoading, runIndicator]);
 
   /** Track whether the transcript is parked at the bottom (40px tolerance — exact
    *  equality is unreliable with sub-pixel heights and browser zoom). */
@@ -8583,14 +8587,16 @@ export default function BankingAgent({
       // streams into the reel: say it is running, then say how it ended, so a failure is not silent.
       if (opts?.run) {
         addMessage("assistant", `${stepLabel} — running through the AI Gateway. This takes a few seconds; the reel fills as each hop arrives.`);
+        setRunIndicator(`${stepLabel} — working…`);
         Promise.resolve(opts.run)
           .then((result) => addMessage(
             "assistant",
             result && result.ok === false
-              ? `${stepLabel} — the run failed: ${result.error || "unknown error"}.`
+              ? runFailureMessage(stepLabel, result.error)
               : `${stepLabel} — run complete.`,
           ))
-          .catch((err) => addMessage("assistant", `${stepLabel} — the run failed: ${err?.message || "unknown error"}.`));
+          .catch((err) => addMessage("assistant", runFailureMessage(stepLabel, err?.message)))
+          .finally(() => setRunIndicator(null));
       }
       // This step runs on its own page. Clear the live trace first, or the
       // dashboard's sequence diagram keeps showing the previous run when the
@@ -13769,19 +13775,12 @@ export default function BankingAgent({
                       {unitedDatabaseQueryLoading ? (
                         <UnitedDatabasePulse />
                       ) : (
-                        <div
-                          className="banking-agent-msg-bubble ba-typing-indicator"
-                          role="status"
-                          aria-label="Assistant is working"
-                        >
-                          <span className="ba-typing-dot" />
-                          <span className="ba-typing-dot" />
-                          <span className="ba-typing-dot" />
-                        </div>
+                        <AgentWorkingMark />
                       )}
                     </div>
                   </div>
                 )}
+                {runIndicator && <AgentRunIndicator label={runIndicator} />}
                 <div ref={bottomRef} />
               </div>
               {!pinnedToBottom && (
