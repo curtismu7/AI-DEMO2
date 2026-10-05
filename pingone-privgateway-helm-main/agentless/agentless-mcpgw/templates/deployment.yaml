@@ -6,7 +6,9 @@ metadata:
   labels:
     {{- include "agentless-mcpgw.labels" . | nindent 4 }}
 spec:
-  replicas: 1
+  {{- /* replicaCount is a local addition. `default 1` cannot be used: it would turn an explicit 0
+         back into 1. Absent (an older release upgraded with --reuse-values) it stays 1. */}}
+  replicas: {{ if hasKey .Values "replicaCount" }}{{ .Values.replicaCount }}{{ else }}1{{ end }}
   strategy:
     type: Recreate
   selector:

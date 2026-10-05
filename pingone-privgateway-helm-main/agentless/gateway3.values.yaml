@@ -22,6 +22,11 @@
 # Every resource, label and hostPath of this release takes this name.
 nameOverride: agentless-mcpgw3
 
+# Whether this node runs. Set 0 (and `parked: true` for gateway-3 in gateway1-lb.values.yaml) to
+# take it out of service; a Helm upgrade then keeps it at 0, where the template used to reset it
+# to 1. Its enrollment volume is kept either way.
+replicaCount: 1
+
 # Gateway 1's Ingresses already claim the public host and paths; the load balancer
 # reaches this node by its Service, so it needs none.
 ingress:

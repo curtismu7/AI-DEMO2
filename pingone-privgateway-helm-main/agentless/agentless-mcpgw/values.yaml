@@ -82,6 +82,10 @@ clusterIssuer: letsencrypt-pdo
 nameOverride: ""
 ingress:
   enabled: true
+# Number of gateway pods. A gateway taken out of service is declared as 0 here, so a Helm upgrade
+# does not scale it back to 1 (the template used to hardcode 1). 0 stops the node; its enrollment
+# volume is kept.
+replicaCount: 1
 
 # Nginx ingress class
 ingressClassName: nginx-public
