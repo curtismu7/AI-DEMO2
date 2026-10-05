@@ -318,7 +318,7 @@ test('main delegates through authenticated A2A, worker calls authenticated MCP, 
 
     const mainCalls = calls.filter(call => call.model === 'test-main');
     const workerCalls = calls.filter(call => call.model === 'test-worker');
-    assert.equal(mainCalls.length, 4, 'main should call Anthropic for delegation and final response for each chat');
+    assert.equal(mainCalls.length, 2, 'main should call Anthropic once per chat to delegate, then return the analyst answer directly');
     assert.equal(workerCalls.length, 4, 'worker should call Anthropic for tool selection and analysis for each chat');
     assert.ok(mainCalls.every(call => call.authorization === `Bearer ${mainKey}`), 'main Anthropic calls should use the main agent key');
     assert.ok(workerCalls.every(call => call.authorization === `Bearer ${workerKey}`), 'worker Anthropic calls should use the worker agent key');
