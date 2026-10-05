@@ -56,6 +56,13 @@ describe("llmDenialMessage", () => {
     });
   });
 
+  it("prefers the denying provider over the lane's provider", () => {
+    expect(llmDenialMessage("anthropic", { reason: "x", provider: "openai", route: "/r" })).toEqual({
+      content: "⚠️ Privilege denied this call. x",
+      extra: { steps: ["openai · /r · denied by policy"] },
+    });
+  });
+
   it("exposes the denial code both surfaces match on", () => {
     expect(LLM_POLICY_DENIED).toBe("llm_policy_denied");
   });

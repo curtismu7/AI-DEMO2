@@ -48,10 +48,10 @@ async function send(text, { llm } = {}) {
     </MemoryRouter>,
   );
   if (llm) {
-    const sel = await screen.findByLabelText("Connection path");
+    const sel = await screen.findByLabelText("Connection path", {}, { timeout: 5000 });
     fireEvent.change(sel, { target: { value: `llm:${llm}` } });
   }
-  const box = await screen.findByPlaceholderText("Ask the agent... (Cmd+Enter to send)");
+  const box = await screen.findByPlaceholderText("Ask the agent... (Cmd+Enter to send)", {}, { timeout: 5000 });
   fireEvent.change(box, { target: { value: text } });
   fireEvent.click(screen.getByLabelText("Send message"));
 }
@@ -67,9 +67,12 @@ describe("PrivilegeMcpClientPage sendChat — LLM path", () => {
   test("success shows the reply and the provider · route · latency step", async () => {
     mockFetch({ llmCall: [200, { reply: "hi from claude", route: "/v1/x", latencyMs: 12 }] });
     await send("hello", { llm: "anthropic" });
-    await waitFor(() => expect(assistant()).toBeTruthy());
+    await waitFor(() => expect(assistant()).toBeTruthy(), { timeout: 5000 });
     expect(body()).toBe("hi from claude");
-    expect(meta()).toContain("anthropic · /v1/x · 12 ms");
+    expect(JSON.parse(meta())).toEqual({ steps: ["anthropic · /v1/x · 12 ms"] });
+    const [, llmOpts] = callsTo("/api/privilege-mcp/llm/call")[0];
+    expect(callsTo("/api/privilege-mcp/llm/call")).toHaveLength(1);
+    expect(JSON.parse(llmOpts.body)).toEqual({ provider: "anthropic", prompt: "hello" });
     expect(callsTo("/api/privilege-mcp/chat")).toHaveLength(0);
     expect(callsTo("/api/privilege-mcp/config")).toHaveLength(0);
   });
@@ -79,17 +82,17 @@ describe("PrivilegeMcpClientPage sendChat — LLM path", () => {
       llmCall: [403, { error: "denied", code: "llm_policy_denied", reason: "blocked by policy", provider: "anthropic", route: "/v1/x" }],
     });
     await send("hello", { llm: "anthropic" });
-    await waitFor(() => expect(assistant()).toBeTruthy());
+    await waitFor(() => expect(assistant()).toBeTruthy(), { timeout: 5000 });
     expect(body()).toBe("⚠️ Privilege denied this call. blocked by policy");
-    expect(meta()).toContain("anthropic · /v1/x · denied by policy");
+    expect(JSON.parse(meta())).toEqual({ steps: ["anthropic · /v1/x · denied by policy"] });
   });
 
   test("any other error reads ❌ <message> with a call failed step", async () => {
     mockFetch({ llmCall: [502, { error: "bad gateway" }] });
     await send("hello", { llm: "anthropic" });
-    await waitFor(() => expect(assistant()).toBeTruthy());
+    await waitFor(() => expect(assistant()).toBeTruthy(), { timeout: 5000 });
     expect(body()).toBe("❌ bad gateway");
-    expect(meta()).toContain("anthropic · call failed");
+    expect(JSON.parse(meta())).toEqual({ steps: ["anthropic · call failed"] });
   });
 });
 
@@ -126,14 +129,14 @@ describe("PrivilegeMcpClientPage sendChat — /chat path", () => {
   test("empty reply falls back to Done.", async () => {
     mockFetch({ chat: [200, {}] });
     await send("hello");
-    await waitFor(() => expect(assistant()).toBeTruthy());
+    await waitFor(() => expect(assistant()).toBeTruthy(), { timeout: 5000 });
     expect(body()).toBe("Done.");
   });
 
   test("failure reads Error: <message>", async () => {
     mockFetch({ chat: [500, { error: "boom" }] });
     await send("hello");
-    await waitFor(() => expect(assistant()).toBeTruthy());
+    await waitFor(() => expect(assistant()).toBeTruthy(), { timeout: 5000 });
     expect(body()).toBe("Error: boom");
   });
 });

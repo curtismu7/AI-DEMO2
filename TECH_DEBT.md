@@ -10340,8 +10340,9 @@ places, and the two can drift silently.
 reply normalizer) once that page can be regression-tested.
 
 **RESOLVED 2026-10-05 (branch `worktree-chat-shape-dedupe`).** What the issue
-turned out to be: the duplicated part was the message SHAPES (the /chat reply, the /llm/call reply, the policy-denial
-line, and the step strings), not the transport. They now live in
+turned out to be: the duplicated part was the message SHAPES (the /chat
+reply, the /llm/call reply, the policy-denial line, and the step strings),
+not the transport. They now live in
 `demo_api_ui/src/components/privilege/privilegeChat.js` and both the Cursor
 page and `usePrivilegeShellSession.send` build their messages through it. The
 send control flow (page state plus the auth-challenge modal on Cursor, versus
@@ -10389,14 +10390,19 @@ made twice, and the Cursor page and the skins can drift silently.
 by both once the Cursor page can be regression-tested against it.
 
 **RESOLVED 2026-10-05 (branch `worktree-chat-shape-dedupe`).** What the issue
-turned out to be: the duplicated part was the message SHAPES (the /chat reply, the /llm/call reply, the policy-denial
-line, and the step strings), not the transport. They now live in
+turned out to be: the duplicated part was the message SHAPES (the /chat
+reply, the /llm/call reply, the policy-denial line, and the step strings),
+not the transport. They now live in
 `demo_api_ui/src/components/privilege/privilegeChat.js` and both the Cursor
 page and `usePrivilegeShellSession.send` build their messages through it. The
 send control flow (page state plus the auth-challenge modal on Cursor, versus
 session phases plus `connect()` on the skins) and the generic LLM error wording
 (`❌ <msg>` plus a "call failed" step on Cursor, `Error: <msg>` on the skins)
 were deliberately left per-surface and are NOT unified.
+The POSTs themselves (`{provider, prompt}` to /llm/call and `{prompt}` to
+/chat) remain written in each caller because the two surfaces use different
+HTTP clients (the page's fetch-based `api()` vs the hook's axios), so a
+request-shape change still touches both.
 
 ### [ ] 2026-10-05 — Silent re-auth, re-arm and door probing are Cursor-only
 
