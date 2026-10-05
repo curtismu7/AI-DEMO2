@@ -10,10 +10,11 @@ from __future__ import annotations
 import json
 import logging
 import os
+import secrets
 from datetime import datetime, timedelta, timezone
 
 import httpx
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, BackgroundTasks, Query, Request
 from fastapi.responses import JSONResponse
 
 logger = logging.getLogger(__name__)
@@ -180,3 +181,99 @@ async def opik_spans(trace_id: str):
     ]
     spans.sort(key=lambda s: s["offset_ms"])
     return {"enabled": True, "total_ms": max(s["offset_ms"] + s["duration_ms"] for s in spans), "spans": spans}
+
+
+# --- POST /trace: BFF chat-turn records (slice 1) ---------------------------
+# The BFF has no Opik key, so it posts one compact record per chat turn here and
+# we write it as a trace + spans. Metadata-only is the BFF's call; this route
+# stores whatever input/output it is given (truncated). Never raises to caller.
+_MAX_SPANS = 20
+_MAX_TEXT = 2000
+_SPAN_TYPES = {"llm", "tool", "general"}
+_USAGE_KEYS = ("prompt_tokens", "completion_tokens", "total_tokens")
+
+
+def _uuid7(ms: int) -> str:
+    """UUIDv7 for epoch-ms (Opik wants time-ordered ids; python < 3.14 has no uuid7)."""
+    h = (ms & (2**48 - 1)) << 80 | 0x7 << 76 | secrets.randbits(12) << 64 | 0b10 << 62 | secrets.randbits(62)
+    s = f"{h:032x}"
+    return f"{s[:8]}-{s[8:12]}-{s[12:16]}-{s[16:20]}-{s[20:]}"
+
+
+def _iso(ms) -> str:
+    return datetime.fromtimestamp(float(ms) / 1000, timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _txt(v):
+    return None if v is None else str(v)[:_MAX_TEXT]
+
+
+def _err(e) -> dict | None:
+    if not isinstance(e, dict):
+        return None
+    return {"exception_type": _txt(e.get("type")) or "Error", "traceback": _txt(e.get("message")) or ""}
+
+
+def _trace_bodies(rec: dict) -> tuple[dict, list[dict]]:
+    """Map the compact record to Opik trace + span batch bodies. Unknown fields are ignored."""
+    start, end = float(rec["start_ms"]), float(rec["end_ms"])
+    tid = _uuid7(int(start))
+    trace = {
+        "id": tid, "project_name": _project(), "name": _txt(rec.get("name")) or "bff",
+        "start_time": _iso(start), "end_time": _iso(end),
+        "tags": [str(t)[:64] for t in (rec.get("tags") or [])[:20]],
+        "thread_id": _txt(rec.get("thread_id")),
+    }
+    for k in ("input", "output"):
+        if rec.get(k) is not None:
+            trace[k] = {k: _txt(rec[k])}
+    if _err(rec.get("error")):
+        trace["error_info"] = _err(rec["error"])
+    spans = []
+    for sp in (rec.get("spans") or [])[:_MAX_SPANS]:
+        s0, s1 = float(sp["start_ms"]), float(sp["end_ms"])
+        out = {
+            "id": _uuid7(int(s0)), "trace_id": tid, "project_name": _project(),
+            "name": _txt(sp.get("name")) or "span",
+            "type": sp.get("type") if sp.get("type") in _SPAN_TYPES else "general",
+            "start_time": _iso(s0), "end_time": _iso(s1),
+        }
+        for k in ("model", "provider"):
+            if sp.get(k):
+                out[k] = _txt(sp[k])
+        u = sp.get("usage")  # omitted unless complete: heuristic traces must not skew token averages
+        if isinstance(u, dict) and all(isinstance(u.get(k), int) for k in _USAGE_KEYS):
+            out["usage"] = {k: u[k] for k in _USAGE_KEYS}
+        for k in ("input", "output"):
+            if sp.get(k) is not None:
+                out[k] = {k: _txt(sp[k])}
+        if _err(sp.get("error")):
+            out["error_info"] = _err(sp["error"])
+        spans.append(out)
+    return trace, spans
+
+
+async def _write_trace(rec: dict) -> None:
+    try:
+        trace, spans = _trace_bodies(rec)
+        async with httpx.AsyncClient(timeout=15) as client:
+            r = await client.post(_BASE + "/traces/batch", headers=_headers(), json={"traces": [trace]})
+            r.raise_for_status()
+            if spans:
+                r = await client.post(_BASE + "/spans/batch", headers=_headers(), json={"spans": spans})
+                r.raise_for_status()
+    except Exception as exc:  # fire-and-forget: log, never raise
+        logger.warning("Opik trace write failed: %s", exc)
+
+
+@router.post("/trace", status_code=202)
+async def opik_trace(request: Request, background: BackgroundTasks):
+    if not _enabled():
+        return JSONResponse({"enabled": False}, status_code=202)
+    try:
+        rec = await request.json()
+        _trace_bodies(rec)  # validate shape now: a bad record is a 400, not a silent drop
+    except Exception:
+        return JSONResponse({"error": "invalid trace record"}, status_code=400)
+    background.add_task(_write_trace, rec)
+    return {"enabled": True, "accepted": True}

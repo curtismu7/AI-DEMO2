@@ -24,6 +24,8 @@ jest.mock('../../services/geminiNlIntent', () => ({
   EDU: {},
 }));
 
+jest.mock('../../services/opikTurnTrace', () => ({ traceNlTurn: jest.fn() }));
+
 const { parseNaturalLanguage } = require('../../services/geminiNlIntent');
 const nlRouter = require('../../routes/demoAgentNl');
 
@@ -321,5 +323,20 @@ describe('GET /api/demo-agent/nl/status', () => {
     const res = await request(app).get('/api/demo-agent/nl/status');
     // heuristic is always available regardless of LLM provider configuration
     expect(res.body.heuristicAlwaysAvailable).toBe(true);
+  });
+});
+
+describe('POST /nl — Opik turn trace hook', () => {
+  const { traceNlTurn } = require('../../services/opikTurnTrace');
+  it('queues one trace per success and per error turn', async () => {
+    traceNlTurn.mockClear();
+    parseNaturalLanguage.mockResolvedValueOnce({ source: 'heuristic', result: { kind: 'none' } });
+    await request(buildApp(null)).post('/api/demo-agent/nl').send({ message: 'hello', provider: 'heuristic' });
+    parseNaturalLanguage.mockRejectedValueOnce(Object.assign(new Error('x'), { code: 'llm_policy_denied' }));
+    const res = await request(buildApp(null)).post('/api/demo-agent/nl').send({ message: 'hello' });
+    expect(res.status).toBe(403);
+    expect(traceNlTurn).toHaveBeenCalledTimes(2);
+    expect(traceNlTurn.mock.calls[0][0].parsed.source).toBe('heuristic');
+    expect(traceNlTurn.mock.calls[1][0].error.code).toBe('llm_policy_denied');
   });
 });

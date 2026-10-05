@@ -108,3 +108,74 @@ def test_spans_offsets_and_sorting(keyed):
     assert [s["id"] for s in d["spans"]] == ["a", "b"]
     assert d["spans"][1]["offset_ms"] == 1000 and d["total_ms"] == 2000
     assert d["spans"][0]["error"] is True and "SECRET" not in r.text
+
+
+# --- POST /opik/trace --------------------------------------------------------
+def _rec(**kw):
+    base = {"name": "bff.nl", "thread_id": "s1", "start_ms": 1700000000000, "end_ms": 1700000000050,
+            "tags": ["bff", "source:heuristic"],
+            "spans": [{"name": "intent", "type": "general", "start_ms": 1700000000000, "end_ms": 1700000000010,
+                       "output": "heuristic:get_balance", "bogus": 1}], "bogus": 1}
+    base.update(kw)
+    return base
+
+
+def test_trace_noop_without_key(unkeyed):
+    with patch.object(h, "_write_trace", new=AsyncMock(side_effect=AssertionError("no write"))):
+        r = client.post("/opik/trace", json=_rec())
+    assert r.status_code == 202 and r.json() == {"enabled": False}
+
+
+def test_trace_rejects_bad_record(keyed):
+    assert client.post("/opik/trace", json={"name": "x"}).status_code == 400
+
+
+def test_trace_accepted_and_written(keyed):
+    posted = []
+
+    class FakeClient:
+        def __init__(self, *a, **k):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
+        async def post(self, url, headers=None, json=None):
+            posted.append((url, json))
+
+            class R:
+                def raise_for_status(self):
+                    pass
+
+            return R()
+
+    with patch.object(h.httpx, "AsyncClient", FakeClient):
+        r = client.post("/opik/trace", json=_rec())
+    assert r.status_code == 202 and r.json()["accepted"] is True
+    assert [u.rsplit("/", 1)[-1] for u, _ in posted] == ["batch", "batch"]
+    assert [u.rsplit("/", 2)[-2] for u, _ in posted] == ["traces", "spans"]
+    t = posted[0][1]["traces"][0]
+    assert t["thread_id"] == "s1" and t["tags"] == ["bff", "source:heuristic"] and t["project_name"] == "proj"
+    assert t["id"][14] == "7" and "bogus" not in t
+    sp = posted[1][1]["spans"][0]
+    assert sp["trace_id"] == t["id"] and sp["type"] == "general" and "usage" not in sp and "bogus" not in sp
+
+
+def test_span_mapping_llm_usage_and_error(keyed):
+    rec = _rec(error={"type": "PrivilegePolicyDenied", "message": "denied"}, spans=[
+        {"name": "llm", "type": "llm", "start_ms": 1, "end_ms": 2, "model": "m", "provider": "privilege_llm",
+         "usage": {"prompt_tokens": 1, "completion_tokens": 2, "total_tokens": 3}},
+        {"name": "partial", "type": "llm", "start_ms": 1, "end_ms": 2, "usage": {"prompt_tokens": 1}},
+    ])
+    t, spans = h._trace_bodies(rec)
+    assert t["error_info"]["exception_type"] == "PrivilegePolicyDenied"
+    assert spans[0]["usage"] == {"prompt_tokens": 1, "completion_tokens": 2, "total_tokens": 3}
+    assert spans[0]["provider"] == "privilege_llm" and "usage" not in spans[1]
+
+
+def test_span_cap(keyed):
+    _, spans = h._trace_bodies(_rec(spans=[{"name": "s", "start_ms": 1, "end_ms": 2}] * 50))
+    assert len(spans) == h._MAX_SPANS
