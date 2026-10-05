@@ -7,6 +7,7 @@ import { MOCK_CATALOG, readMockSelection } from "../components/aiFootprintMocks/
 import { FootprintThemeToggle } from "../components/aiFootprintMocks/FootprintThemeToggle";
 import { FootprintSkinPicker } from "../components/aiFootprintMocks/FootprintSkinPicker";
 import { PrivilegeShellPanel } from "../components/aiFootprintMocks/PrivilegeShellPanel";
+import { usePrivilegeShellSession } from "../components/aiFootprintMocks/usePrivilegeShellSession";
 import { useFootprintTheme } from "../hooks/useFootprintTheme";
 import "./FootprintMockGalleryPage.css";
 
@@ -26,6 +27,7 @@ export default function FootprintLiveShellPage({ category: categoryProp } = {}) 
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [theme, toggleTheme] = useFootprintTheme();
+  const session = usePrivilegeShellSession();
   const category = categoryProp || PATH_TO_CATEGORY[shellSlug] || "vscode";
 
   // Variant comes from the ?v= query first so switching variants within a
@@ -69,7 +71,7 @@ export default function FootprintLiveShellPage({ category: categoryProp } = {}) 
         </button>
       </div>
       <FootprintChrome category={category} variant={variant}>
-        <PrivilegeShellPanel skin={category === "claude-desktop" ? "claude-desktop" : category} />
+        <PrivilegeShellPanel skin={category === "claude-desktop" ? "claude-desktop" : category} session={session} />
       </FootprintChrome>
     </div>
   );
