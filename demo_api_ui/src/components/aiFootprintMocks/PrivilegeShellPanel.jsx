@@ -50,7 +50,7 @@ export function PrivilegeShellPanel({ skin = "vscode", session }) {
         <div className="pvs-connect">
           <p>Connect this tool to the AI Agent Gateway to discover tools.</p>
           <button type="button" onClick={connect} disabled={busy}>
-            Sign in with Privilege
+            Get MCP tools
           </button>
         </div>
       ) : null}

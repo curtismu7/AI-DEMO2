@@ -47,7 +47,7 @@ describe("ShellTerminalView", () => {
   it("offers sign-in when signed out and hides the prompt", () => {
     const session = makeSession({ phase: "signed-out" });
     render(<ShellTerminalView session={session} />);
-    fireEvent.click(screen.getByRole("button", { name: "Sign in with Privilege" }));
+    fireEvent.click(screen.getByRole("button", { name: "Get MCP tools" }));
     expect(session.connect).toHaveBeenCalled();
     expect(screen.queryByRole("textbox", { name: "Prompt" })).toBeNull();
   });

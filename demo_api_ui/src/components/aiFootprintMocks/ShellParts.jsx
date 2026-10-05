@@ -25,7 +25,7 @@ export function ShellGate({ session, children, routingBar = true }) {
         <div className="pvs-connect">
           {routingBar ? <ShellRoutingBar session={session} /> : null}
           <p>Connect this tool to the AI Agent Gateway to discover tools.</p>
-          <button type="button" onClick={connect} disabled={busy}>Sign in with Privilege</button>
+          <button type="button" onClick={connect} disabled={busy}>Get MCP tools</button>
         </div>
       ) : null}
       {phase === "ready" ? children : null}
