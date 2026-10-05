@@ -169,7 +169,21 @@ export default function CommandDock({
           onClose={() => onOpenChange(false)}
           win={win}
         >
-          <div className="cmd-dock-body">{children}</div>
+          <div className="cmd-dock-body">
+            {children}
+            {/* Every control here applies the moment it changes, so Save has nothing
+                left to submit: it closes the window, which is what people reach for. */}
+            <div className="cmd-dock-footer">
+              <button
+                type="button"
+                className="cmd-dock-save"
+                onClick={() => onOpenChange(false)}
+                title="Your choices are already applied. This closes Demo Controls."
+              >
+                Save
+              </button>
+            </div>
+          </div>
         </FloatingPanel>
       )}
     </>
