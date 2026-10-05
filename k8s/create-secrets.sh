@@ -315,7 +315,7 @@ inject_helix_api_key() {
       export HELIX_KEY="$helix_key"
       python3 - <<'PY' | kubectl patch secret langchain-secrets --namespace="$NS" --type merge --patch-file /dev/stdin >/dev/null
 import json, os
-print(json.dumps({"stringData": {"HELIX_API_KEY": os.environ["HELIX_KEY"], "LANGCHAIN_LLM_PROVIDER": "helix"}}))
+print(json.dumps({"stringData": {"HELIX_API_KEY": os.environ["HELIX_KEY"]}}))
 PY
       info "  HELIX_API_KEY mirrored into langchain-secrets from BFF .env"
     fi
@@ -357,15 +357,12 @@ PY
   fi
   printf '%s' "$patch" | kubectl patch secret ai-demo-secrets --namespace="$NS" --type merge --patch-file /dev/stdin >/dev/null
   info "  HELIX_API_KEY injected into ai-demo-secrets from $(basename "$keyfile")"
-  # LangChain agent mounts langchain-secrets (not ai-demo-secrets) — mirror the key
-  # and default provider so in-cluster /run and WebSocket chat use Helix on SE/AWS.
-  printf '%s' "$patch" | python3 -c "
-import json, sys
-p = json.load(sys.stdin)
-p['stringData']['LANGCHAIN_LLM_PROVIDER'] = 'helix'
-print(json.dumps(p))
-" | kubectl patch secret langchain-secrets --namespace="$NS" --type merge --patch-file /dev/stdin >/dev/null
-  info "  HELIX_API_KEY + LANGCHAIN_LLM_PROVIDER=helix mirrored into langchain-secrets"
+  # LangChain agent mounts langchain-secrets (not ai-demo-secrets) — mirror the key.
+  # The provider is NOT set here: LANGCHAIN_LLM_PROVIDER comes from the ai-demo-config
+  # ConfigMap only. A copy in this Secret overrode the ConfigMap (checked live
+  # 2026-10-05: the pod read the Secret's value) and kept the agent on Helix.
+  printf '%s' "$patch" | kubectl patch secret langchain-secrets --namespace="$NS" --type merge --patch-file /dev/stdin >/dev/null
+  info "  HELIX_API_KEY mirrored into langchain-secrets"
 }
 
 # Mirror GOOGLE_API_KEY from the BFF .env into langchain-secrets so the agent
