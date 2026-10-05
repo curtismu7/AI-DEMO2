@@ -1454,7 +1454,7 @@ export default function AdminSideNav({
       "MCP Observability",
       "Grafana",
     ], "log"),
-    productGroup("Architecture & Learning", [
+    productGroup("Diagrams", [
       "Server Topology (Interactive)",
       "PingFederate ID-JAG (Node)",
       "System Diagram (Node)",
@@ -1470,6 +1470,8 @@ export default function AdminSideNav({
       { from: "Privilege-First Gateway (Node)", rename: "AI Gateway Enforcement (Node)" },
       "Gateway vs P1AZ Enforcement (MM)",
       "Resource Server Placement (MM)",
+    ], "arc"),
+    productGroup("Architecture & Learning", [
       "Learning Hub",
       { label: "Page Catalog", path: "/page-catalog" },
       "SPIFFE → PingOne Bridge (TODO)",
