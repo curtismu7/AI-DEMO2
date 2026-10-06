@@ -18,6 +18,69 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-10-06 — "Gemini via Privilege" still defaults to the retired gemini-2.0-flash
+
+**What's wrong.** `demo_api_server/services/privilegeLlmProxyService.js` sets
+`DEFAULT_MODEL_GOOGLE = 'gemini-2.0-flash'`. That model returns HTTP 404 for the demo's
+Google key (found 2026-10-05, fixed everywhere else in #843). The `privilege_llm` agent mode
+sends Gemini through a Privilege virtual key, so it would hit the same 404 unless a model
+is passed explicitly.
+
+**Why it wasn't fixed now.** The call goes through a Privilege virtual key, and Privilege
+can apply a model policy to it. Changing the default blind could turn a working or
+deliberately allowed model into a policy denial. It was never run live, so no one knows
+which model that key allows today. The resolver tests only pass an explicit model, so they
+would not catch the change either way.
+
+**The real fix.** Run `privilege_llm` once live through the virtual key. Read the
+gateway's policy for allowed models. Then move the default to a model both Google and the
+policy allow (probably `gemini-2.5-flash-lite`, the default everywhere else), and add a test
+that the default is not on the retired list.
+
+### [ ] 2026-10-06 — CI: the Playwright "Movie reel" step and the vitest memory guard fail on the shared runner, then pass on rerun
+
+**What's wrong.** Three PRs on 2026-10-05 each lost one or more CI runs to infrastructure
+failures that passed unchanged on rerun:
+- `#799`: "Movie reel is on screen (Playwright)" failed with `ERR_CONNECTION_REFUSED` on
+  `127.0.0.1:4173` (the preview server).
+- `#818`: the same step hung for 30 minutes and was cancelled; the rerun then failed when
+  the vitest memory guard could not run `ps` ("Could not inspect worker RSS; stopping
+  Vitest"); the third run passed.
+- `#843`: tests 1-6 of that spec passed, then tests 7-14 all failed within about a second
+  each with `ERR_CONNECTION_REFUSED` on `:4173`, meaning the preview server died mid-run.
+  A rerun passed.
+
+**Suspected cause (not proven).** One Mac runner handles every PR, and several jobs run at
+once. If they share the preview port, one job's server can stop another's. The `ps` failure
+points at the same shared-machine pressure.
+
+**Why it wasn't fixed now.** It was found while merging other work. Each occurrence cost
+a rerun of 3 to 30 minutes, and the cause needs the runner's own logs.
+
+**The real fix.** Give each job its own preview port (derived from the run id) and fail
+fast with `--strictPort`, capture the preview server's stdout and exit code in the job log,
+and make the memory guard retry or skip when `ps` is unavailable instead of stopping the
+suite. Then check whether the failures stop.
+
+### [~] 2026-10-06 — Gateway failover: questions for Ping are unanswered, and no client other than the demo page was tested across a switch
+
+**What's wrong.** Failover between the two Privilege gateways was tested only with the
+demo's own MCP client page. A switch costs it about 20 seconds (it registers and signs in
+again); registrations survive through the shared Redis, tokens do not. Two things are
+untested or unanswered:
+- Other MCP clients, for example LM Studio, were never run across a switch, so their
+  behaviour (a cached registration, a stuck sign-in) is unknown.
+- Questions only Ping can answer: is a second node in one cluster the supported HA layout;
+  is `MCPGW_REDIS_URL` supported, and is the gateway exiting after 6 failed Redis attempts
+  intended; are `gatewayHostname`, `hostAliases` and `meshPort` still needed; can user
+  tokens be shared between gateways. The list lives in `privilege/GATEWAY-LOAD-BALANCER.md`.
+
+**Why it wasn't fixed now.** The answers have to come from Ping, and a client test needs a
+real client and a deliberate gateway stop, which is a shared-cluster action for the owner.
+
+**The real fix.** Send the questions. Then stop gateway 1 for a minute with LM Studio
+connected and write down what it does. If tokens can be shared, the re-sign-in disappears.
+
 ### [ ] 2026-10-05 — Gemini: one shared key, models retired without notice, and a "key not working" report with no cause
 
 **What's wrong.** The owner reported on 2026-10-05 that the Gemini key "is not working
