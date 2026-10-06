@@ -54,3 +54,42 @@ describe('stitchRange', () => {
     expect(stitchRange([], 1, 5)).toBeNull();
   });
 });
+
+describe('ensureSchema tokenization migration', () => {
+  const calls: string[] = [];
+  const mockSchema = (classes: unknown[]) => {
+    calls.length = 0;
+    jest.resetModules();
+    jest.doMock('weaviate-ts-client', () => ({
+      __esModule: true,
+      default: {
+        client: () => ({
+          schema: {
+            getter: () => ({ do: async () => ({ classes }) }),
+            classDeleter: () => ({ withClassName: (n: string) => ({ do: async () => { calls.push(`delete:${n}`); } }) }),
+            classCreator: () => ({ withClass: (c: { class: string }) => ({ do: async () => { calls.push(`create:${c.class}`); } }) }),
+          },
+        }),
+      },
+    }));
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    return require('./weaviateStore').createStore('x:1');
+  };
+  const cls = (tok: string) => ({
+    class: 'CodeChunk',
+    properties: [{ name: 'codebase_id', tokenization: tok }, { name: 'file', tokenization: 'field' }],
+  });
+
+  test('word-tokenized codebase_id -> class deleted and recreated', async () => {
+    await mockSchema([cls('word')]).ensureSchema();
+    expect(calls).toEqual(['delete:CodeChunk', 'create:CodeChunk']);
+  });
+  test('already field -> untouched', async () => {
+    await mockSchema([cls('field')]).ensureSchema();
+    expect(calls).toEqual([]);
+  });
+  test('missing -> created', async () => {
+    await mockSchema([]).ensureSchema();
+    expect(calls).toEqual(['create:CodeChunk']);
+  });
+});

@@ -1,7 +1,7 @@
 import type { HandlerFn } from './types';
 
 const BASE = () => process.env.MCP_CODE_SEARCH_URL || 'http://demo-mcp-code-search:8095';
-const CODEBASE_ID = 'ai-demo2-server';
+const CODEBASE_ID = 'ai-demo2-bff';
 
 async function call(path: string, body: unknown): Promise<any> {
   const res = await fetch(`${BASE()}${path}`, {

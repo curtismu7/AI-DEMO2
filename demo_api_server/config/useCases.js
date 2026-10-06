@@ -1513,7 +1513,7 @@ const RAW_USE_CASES = [
     owasp: { threats: ['T2', 'T6'], sections: ['§4.2.2'] },
     whatToSay: 'The answer is grounded in indexed code, but retrieval happens only after RFC 8693 delegation, code:search scope enforcement, and a PingOne Authorize PERMIT.',
     advanced: false,
-    whatLong: 'The chip routes deterministically to code_search. The BFF performs RFC 8693 token exchange for the narrow code:search scope, the Agent Gateway validates that scope and asks PingOne Authorize whether this tool call is permitted, and only then does the MCP server query the ai-demo2-server index in Weaviate. The returned file and line ranges prove the answer came from the protected corpus.',
+    whatLong: 'The chip routes deterministically to code_search. The BFF performs RFC 8693 token exchange for the narrow code:search scope, the Agent Gateway validates that scope and asks PingOne Authorize whether this tool call is permitted, and only then does the MCP server query the ai-demo2-bff index in Weaviate. The returned file and line ranges prove the answer came from the protected corpus.',
     businessValue: 'Organizations can add RAG without turning an indexed source corpus into an ungoverned side door: the same delegated identity, least-privilege scope, policy decision, and audit evidence protect retrieval.',
     productRoles: {
       idp: 'Issues the user and delegated tokens used to preserve caller identity.',

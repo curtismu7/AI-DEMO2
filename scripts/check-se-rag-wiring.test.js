@@ -18,7 +18,7 @@ test('SE deploy applies and verifies the RAG stack', () => {
     /56-llm-stack\.yaml \\\s*\n\s*72-rag-stack\.yaml \\\s*\n\s*20-api-server-deployment\.yaml \\/,
   );
   assert.match(deploy, /weaviate embeddings \\\s*\n\s*mcp-code-search llamaindex-agent/);
-  assert.match(deployRag, /ai-demo2-server/);
+  assert.match(deployRag, /ai-demo2-bff/);
   assert.match(deployRag, /did not become ready/);
   // The RAG manifest now carries five independently deployed replicas;
   // keep this wiring guard aligned with the manifest rather than masking a

@@ -18,7 +18,7 @@ const DEFAULT_CODEBASE_NAME = 'This demo (AI-DEMO2)';
 const CODEBASE_PIECES = [
   { id: 'ai-demo2-ui', name: 'UI', roots: ['demo_api_ui/src'] },
   {
-    id: 'ai-demo2-server',
+    id: 'ai-demo2-bff',
     name: 'API Server',
     roots: ['demo_api_server'],
     // The BFF's RFC 8693 token-exchange code is far over MAX_FILE_BYTES, and the

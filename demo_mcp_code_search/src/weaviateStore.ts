@@ -128,22 +128,30 @@ const SCHEMA = {
   description: 'A chunk of source code with its embedding vector',
   vectorizer: 'none',
   properties: [
-    { name: 'codebase_id', dataType: ['text'] },
+    // Exact-match (Equal) ids/paths MUST be tokenization 'field'; the default 'word'
+    // makes Equal "ai-demo2-x" match every id containing those words.
+    { name: 'codebase_id', dataType: ['text'], tokenization: 'field' },
     { name: 'codebase_name', dataType: ['text'] },
-    { name: 'file', dataType: ['text'] },
+    { name: 'file', dataType: ['text'], tokenization: 'field' },
     { name: 'line_start', dataType: ['int'] },
     { name: 'line_end', dataType: ['int'] },
     { name: 'snippet', dataType: ['text'] },
   ],
 };
 
+/** True when an existing class has an exact-match property whose tokenization is not 'field'. */
+function needsMigration(existing: { properties?: Array<{ name?: string; tokenization?: string }> }): boolean {
+  const exact = SCHEMA.properties.filter((p) => 'tokenization' in p).map((p) => p.name);
+  return (existing.properties ?? []).some((p) => exact.includes(p.name as string) && p.tokenization !== 'field');
+}
+
 const DOCUMENT_SCHEMA = {
   class: DOCUMENT_CLASS_NAME,
   description: 'An extracted and embedded Learning Hub document chunk',
   vectorizer: 'none',
   properties: [
-    { name: 'chunk_id', dataType: ['text'] }, { name: 'document_id', dataType: ['text'] }, { name: 'document_hash', dataType: ['text'] },
-    { name: 'collection_id', dataType: ['text'] }, { name: 'title', dataType: ['text'] },
+    { name: 'chunk_id', dataType: ['text'] }, { name: 'document_id', dataType: ['text'], tokenization: 'field' }, { name: 'document_hash', dataType: ['text'] },
+    { name: 'collection_id', dataType: ['text'], tokenization: 'field' }, { name: 'title', dataType: ['text'] },
     { name: 'text', dataType: ['text'] }, { name: 'media_type', dataType: ['text'] }, { name: 'section', dataType: ['text'] },
     { name: 'page_number', dataType: ['int'] }, { name: 'source_url', dataType: ['text'] },
     { name: 'source_path', dataType: ['text'] }, { name: 'indexed_at', dataType: ['date'] },
@@ -156,8 +164,17 @@ export function createStore(host: string): Store {
   return {
     async ensureSchema(): Promise<void> {
       const schema = await client.schema.getter().do();
-      const exists = (schema.classes ?? []).some((c) => c.class === CLASS_NAME);
-      if (!exists) {
+      const existing = (schema.classes ?? []).find((c) => c.class === CLASS_NAME);
+      const migrate = !!existing && needsMigration(existing);
+      if (migrate) {
+        // Weaviate cannot change tokenization on an existing property. The data is
+        // derived, so drop the class; the BFF indexer re-indexes empty codebases on boot.
+        console.warn(
+          `[weaviateStore] ${CLASS_NAME} has word-tokenized codebase_id/file; recreating the class with 'field' tokenization (chunks will be re-indexed)`
+        );
+        await client.schema.classDeleter().withClassName(CLASS_NAME).do();
+      }
+      if (!existing || migrate) {
         await client.schema.classCreator().withClass(SCHEMA).do();
       }
     },

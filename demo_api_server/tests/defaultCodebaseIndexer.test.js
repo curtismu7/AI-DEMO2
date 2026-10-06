@@ -4,6 +4,7 @@ const path = require('path');
 const {
   collectFiles,
   CODEBASE_PIECES,
+  DEFAULT_CODEBASE_ID,
   SOURCE_ROOTS,
   startDefaultIndex,
   getStatus,
@@ -102,12 +103,12 @@ test('startDefaultIndex indexes each present piece under its own codebase_id', a
   expect(st.state).toBe('ready');
   expect(indexed).toEqual(expect.arrayContaining([
     'ai-demo2-ui',
-    'ai-demo2-server',
+    'ai-demo2-bff',
     'ai-demo2-mcp-gateway',
     'ai-demo2-authorize',
   ]));
   expect(st.pieces['ai-demo2-ui'].state).toBe('ready');
-  expect(st.pieces['ai-demo2-server'].filesIndexed).toBeGreaterThan(0);
+  expect(st.pieces['ai-demo2-bff'].filesIndexed).toBeGreaterThan(0);
   // Missing packages on disk are skipped, not errors.
   expect(st.pieces['ai-demo2-ping-gateway'].state).toBe('skipped');
 });
@@ -123,8 +124,23 @@ test('priority files are indexed first even when over the size limit and past th
 });
 
 test('the API Server piece prioritises the BFF token-exchange sources', () => {
-  const server = CODEBASE_PIECES.find((p) => p.id === 'ai-demo2-server');
+  const server = CODEBASE_PIECES.find((p) => p.id === 'ai-demo2-bff');
   expect(server.priority).toContain('demo_api_server/services/agentMcpTokenService.js');
   const real = collectFiles(path.join(__dirname, '..', '..'), server.roots, server.priority);
   expect(real.slice(0, server.priority.length).map((f) => f.path)).toContain('demo_api_server/services/agentMcpTokenService.js');
+});
+
+// Weaviate's `codebase_id` was word-tokenized, so `Equal "ai-demo2-server"` matched every id
+// containing the words ai, demo2, server (e.g. ai-demo2-mcp-server). Guard against any piece
+// id whose word set is a subset of another's.
+test('no piece id word-token set is a subset of another piece id', () => {
+  const words = (id) => new Set(id.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean));
+  const ids = [...CODEBASE_PIECES.map((p) => p.id), DEFAULT_CODEBASE_ID];
+  for (const a of ids) {
+    for (const b of ids) {
+      if (a === b) continue;
+      const wb = words(b);
+      expect([...words(a)].every((w) => wb.has(w))).toBe(false);
+    }
+  }
 });

@@ -855,7 +855,7 @@ export const DEMO_SCENARIOS = [
         action: "Run the Protected RAG Demo Step",
         prompt: 'Choose Protected RAG, then run "find where the BFF performs MCP token exchange"',
         explanation:
-          "The BFF exchanges the user token for code:search, the Agent Gateway enforces that scope and obtains a PingOne Authorize decision, then the MCP server queries Weaviate for the ai-demo2-server corpus.",
+          "The BFF exchanges the user token for code:search, the Agent Gateway enforces that scope and obtains a PingOne Authorize decision, then the MCP server queries Weaviate for the ai-demo2-bff corpus.",
         watch: [
           "Token Chain shows RFC 8693 delegation with code:search",
           "Authorize evidence shows a PERMIT before code_search is dispatched",

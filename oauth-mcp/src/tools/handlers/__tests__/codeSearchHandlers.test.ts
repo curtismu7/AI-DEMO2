@@ -13,7 +13,7 @@ describe('code-search handlers', () => {
     expect(r.structuredContent!.results).toHaveLength(1);
     expect(r.text).toContain('a.ts');
     const body = JSON.parse((global as any).fetch.mock.calls[0][1].body);
-    expect(body).toMatchObject({ query: 'find x', codebase_id: 'ai-demo2-server', limit: 5 });
+    expect(body).toMatchObject({ query: 'find x', codebase_id: 'ai-demo2-bff', limit: 5 });
   });
 
   test('code_search clamps limit to 1-25', async () => {

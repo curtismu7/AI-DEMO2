@@ -160,7 +160,7 @@ echo
 info "Indexed codebases:"
 CODEBASES="$(kubectl exec -n "$NS" deploy/mcp-code-search -- wget -qO- http://localhost:8095/codebases 2>/dev/null || true)"
 echo "$CODEBASES"
-[[ "$CODEBASES" == *'ai-demo2-server'* ]] || die "Protected RAG corpus ai-demo2-server is not indexed"
+[[ "$CODEBASES" == *'ai-demo2-bff'* ]] || die "Protected RAG corpus ai-demo2-bff is not indexed"
 success "RAG stack deploy finished for $NS"
 echo "Next: open https://ai-demo.ping-devops.com/code-search and wait for the API Server index to report ready."
 echo "If the list is empty: kubectl logs -n $NS deploy/demo-api-server --tail=120"

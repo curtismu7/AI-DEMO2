@@ -125,7 +125,7 @@ export function CodeSearchPage() {
 
     const pickDefaultPiece = (status, list) => {
       const pieceIds = Array.isArray(status.pieceIds) ? status.pieceIds : [];
-      const preferred = ['ai-demo2-ui', 'ai-demo2-server', ...pieceIds];
+      const preferred = ['ai-demo2-ui', 'ai-demo2-bff', ...pieceIds];
       for (const id of preferred) {
         if (list.some((c) => c.id === id)) return id;
       }
