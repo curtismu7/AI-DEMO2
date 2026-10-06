@@ -39,7 +39,7 @@
   transition: background 0.1s;
 }
 .inspector-shell-topbar__btn:hover { background: var(--th-bg-hover); }
-.inspector-shell-topbar__btn--active { background: #2563eb; border-color: #2563eb; color: var(--th-text-invert); }
+.inspector-shell-topbar__btn--active { background: #1e40af; border-color: #1e40af; color: #ffffff; }
 .inspector-shell-topbar__btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .inspector-shell-topbar__theme-toggle {
   color: var(--th-text);

@@ -39,7 +39,7 @@
 
 .alp-status--reconnecting {
   background: #fef9c3;
-  color: #854d0e;
+  color: #713f12;
 }
 
 .alp-status-dot {
@@ -115,13 +115,13 @@
 .alp-cat--mcp           { background: #ede9fe; color: #4c1d95; border-color: #c4b5fd; }
 .alp-cat--token_exchange{ background: #f3e8ff; color: #6b21a8; border-color: #d8b4fe; }
 .alp-cat--delegation    { background: #fae8ff; color: #86198f; border-color: #e879f9; }
-.alp-cat--hitl          { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
-.alp-cat--authorize     { background: #ffedd5; color: #9a3412; border-color: #fdba74; }
-.alp-cat--gateway_path  { background: #ccfbf1; color: #0f766e; border-color: #5eead4; }
-.alp-cat--threshold     { background: #ffe4e6; color: #9f1239; border-color: #fda4af; }
+.alp-cat--hitl          { background: #fef3c7; color: #78350f; border-color: #fcd34d; }
+.alp-cat--authorize     { background: #ffedd5; color: #7c2d12; border-color: #fdba74; }
+.alp-cat--gateway_path  { background: #ccfbf1; color: #134e4a; border-color: #5eead4; }
+.alp-cat--threshold     { background: #ffe4e6; color: #881337; border-color: #fda4af; }
 .alp-cat--introspection { background: #cffafe; color: #164e63; border-color: #67e8f9; }
 .alp-cat--helix         { background: #dcfce7; color: #14532d; border-color: #86efac; }
-.alp-cat--agent         { background: #e0f2fe; color: #075985; border-color: #7dd3fc; }
+.alp-cat--agent         { background: #e0f2fe; color: #0c4a6e; border-color: #7dd3fc; }
 .alp-cat--agent_prompt  { background: #ecfccb; color: #365314; border-color: #bef264; }
 .alp-cat--session       { background: var(--th-bg-inset); color: var(--th-text-body); border-color: var(--th-border-strong); }
 .alp-cat--jwks          { background: #f4f4f5; color: #3f3f46; border-color: #a1a1aa; }

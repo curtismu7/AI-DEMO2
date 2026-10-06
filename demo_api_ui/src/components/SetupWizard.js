@@ -657,9 +657,10 @@ export default function SetupWizard({
           border: '2px solid #c53030',
           borderRadius: 8,
           background: '#fff5f5',
+          color: '#450a0a',
         }}
       >
-        <h2 style={{ color: '#c53030', marginTop: 0 }}>⚠️ Danger zone</h2>
+        <h2 style={{ color: '#991b1b', marginTop: 0 }}>⚠️ Danger zone</h2>
         <p style={{ marginTop: 0 }}>
           <strong>Wipe entire PingOne environment.</strong> Deletes every application,
           resource server, group, custom user attribute, and user in the env above

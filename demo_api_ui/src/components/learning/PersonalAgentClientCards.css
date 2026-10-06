@@ -156,4 +156,4 @@
   }
 }
 
-:root[data-theme="dark"] .personal-agent-client-cards__action { --th-status-info: #2563eb; }
+.personal-agent-client-cards__action { --th-status-info: #1e40af; }

@@ -687,7 +687,7 @@ function SystemArchitectureView() {
                   style={{
                     marginLeft: "auto",
                     fontSize: "0.8rem",
-                    color: "#1d4ed8",
+                    color: "#1e40af",
                     textDecoration: "underline",
                   }}
                 >

@@ -2147,7 +2147,7 @@ function AudTrail({ stepIndex }) {
                   style={{
                     fontSize: "0.7rem",
                     fontFamily: "inherit",
-                    color: on ? "#bfdbfe" : past ? "#3b82f6" : "#64748b",
+                    color: on ? "#bfdbfe" : past ? "#3b82f6" : "#475569",
                     lineHeight: 1.3,
                   }}
                 >
