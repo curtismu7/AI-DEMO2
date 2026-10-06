@@ -803,34 +803,18 @@ stop_llamacpp() {
 
 # CI queue dashboard (admin nav -> CI Queue Dashboard). Host process, not a
 # container: it shells out to the host's authenticated `gh` and controls this
-# Mac's launchd runners. Best-effort — a missing gh never blocks the stack.
-_CI_DASHBOARD_PORT=57500
-_CI_DASHBOARD_PIDFILE="/tmp/demo-ci-dashboard.pid"
-
+# Mac's launchd runners. Kept up by a LaunchAgent (survives the stack stopping),
+# installed on first start. Best-effort — it never blocks the stack.
 start_ci_dashboard() {
-  if lsof -nP -iTCP:${_CI_DASHBOARD_PORT} -sTCP:LISTEN >/dev/null 2>&1; then
-    ok "CI queue dashboard already on :${_CI_DASHBOARD_PORT}"
+  if lsof -nP -iTCP:57500 -sTCP:LISTEN >/dev/null 2>&1; then
+    ok "CI queue dashboard on http://127.0.0.1:57500/"
     return 0
   fi
-  if ! command -v gh &>/dev/null; then
-    warn "gh not found — CI queue dashboard not started (install gh, then: npm run ci:dashboard)"
-    return 0
+  if bash scripts/install-ci-dashboard-launchd.sh >/tmp/demo-ci-dashboard-install.log 2>&1; then
+    ok "CI queue dashboard LaunchAgent installed — http://127.0.0.1:57500/"
+  else
+    warn "CI queue dashboard not started — see /tmp/demo-ci-dashboard-install.log"
   fi
-  nohup node scripts/ci-queue-dashboard/server.js > /tmp/demo-ci-dashboard.log 2>&1 &
-  echo $! > "$_CI_DASHBOARD_PIDFILE"
-  local i=0
-  while [[ $i -lt 5 ]]; do
-    lsof -nP -iTCP:${_CI_DASHBOARD_PORT} -sTCP:LISTEN >/dev/null 2>&1 \
-      && { ok "CI queue dashboard on http://127.0.0.1:${_CI_DASHBOARD_PORT}/"; return 0; }
-    sleep 1; (( i++ )) || true
-  done
-  warn "CI queue dashboard did not start — see /tmp/demo-ci-dashboard.log"
-}
-
-stop_ci_dashboard() {
-  [[ -f "$_CI_DASHBOARD_PIDFILE" ]] || return 0
-  kill "$(cat "$_CI_DASHBOARD_PIDFILE")" 2>/dev/null || true
-  rm -f "$_CI_DASHBOARD_PIDFILE"
 }
 
 # ── Preflight ─────────────────────────────────────────────────────────────────
@@ -1232,7 +1216,6 @@ cmd_stop() {
   echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
   echo ""
   _compose_down
-  stop_ci_dashboard
   ok "All containers stopped and removed."
   echo ""
 }
@@ -1255,7 +1238,6 @@ cmd_down() {
     _compose_down
     ok "All containers and networks stopped and removed (volumes preserved)."
   fi
-  stop_ci_dashboard
   echo ""
 }
 

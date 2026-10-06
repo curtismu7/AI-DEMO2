@@ -20,7 +20,7 @@ npm run ci:dashboard
 
 The command starts the dashboard server. Then open <http://127.0.0.1:57500/>. Keep this process running before using the demo's CI queue navigation entry. The server listens only on loopback, so it is available from this machine and is not shared with other machines. The dashboard refreshes about every 15 seconds. Queued runs are ordered oldest-first as a queue estimate; GitHub controls the actual scheduling order. It shows queued workflow/job counts, total active runtime, the elapsed time for each current step, and an estimated time remaining based on the median duration of up to five recent completed runs of the same workflow. If there is no comparable history, the estimate is unavailable. Use **Refresh now** to request an immediate update, and press Ctrl-C in the terminal to stop the dashboard server.
 
-`./run-docker.sh start` also starts it on the host (skipped if `:57500` is already in use or `gh` is missing) and `stop`/`down` stop it; its log is `/tmp/demo-ci-dashboard.log`.
+You normally don't start it by hand: `./run-docker.sh start` installs a LaunchAgent (`com.aidemo2.ci-dashboard`, via `scripts/install-ci-dashboard-launchd.sh`) that keeps it running across logins and crashes, so the nav entry just opens it. Log: `~/Library/Logs/aidemo2-ci-dashboard.log`. Remove with `bash scripts/install-ci-dashboard-launchd.sh uninstall`.
 
 ## Controls
 
