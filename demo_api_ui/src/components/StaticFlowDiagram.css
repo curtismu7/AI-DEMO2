@@ -4,7 +4,8 @@
   overflow: auto;
   border: 1px solid var(--th-border, #e2e8f0);
   border-radius: 8px;
-  background: var(--th-surface, #ffffff);
+  background: var(--th-surface, var(--th-bg-card, #ffffff));
+  color: var(--th-text);
 }
 
 .sfd-canvas {

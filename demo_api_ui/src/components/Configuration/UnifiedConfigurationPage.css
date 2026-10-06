@@ -1373,6 +1373,19 @@
   min-width: 150px;
 }
 
+.cfg-section-save-bar .cfg-section-save-btn {
+  background: #dc2626;
+  color: var(--th-text-invert);
+}
+.cfg-section-save-bar .cfg-section-save-btn:hover:not(:disabled) {
+  background: #b91c1c;
+}
+.cfg-section-save-bar .cfg-section-save-btn--saving {
+  background: #2563eb;
+}
+.cfg-section-save-bar .cfg-section-save-btn--saved {
+  background: #15803d;
+}
 .cfg-section-save-btn:hover:not(:disabled) {
   background: #b91c1c;
   transform: translateY(-1px);

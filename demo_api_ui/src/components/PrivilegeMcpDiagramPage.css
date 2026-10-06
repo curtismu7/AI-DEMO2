@@ -67,6 +67,7 @@
 }
 
 .pmd-panel {
+  color: var(--pmd-ink);
   background: var(--pmd-panel);
   border: 1px solid var(--pmd-border);
   border-radius: 8px;
@@ -124,3 +125,10 @@
   text-decoration: none;
 }
 .pmd-link:hover { text-decoration: underline; }
+
+.end-user-nano .pmd-page a {
+  color: var(--pmd-accent);
+}
+.end-user-nano .pmd-page code {
+  color: var(--pmd-ink);
+}

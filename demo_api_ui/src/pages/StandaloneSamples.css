@@ -126,3 +126,7 @@ a.st-card:active {
   .st-index { padding: 28px 16px 48px; }
   .st-index h1 { font-size: var(--font-size-2xl); }
 }
+
+.end-user-nano .st-bar a {
+  color: #bfdbfe;
+}

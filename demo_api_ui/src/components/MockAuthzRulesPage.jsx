@@ -9,8 +9,8 @@ import InlineSpinner from './shared/InlineSpinner';
 // ---------------------------------------------------------------------------
 const S = {
   root: { padding: '28px 32px', maxWidth: '960px', fontFamily: 'inherit' },
-  title: { fontSize: '20px', fontWeight: 700, color: '#0f172a', margin: '0 0 6px' },
-  subtitle: { fontSize: '13px', color: '#64748b', margin: '0 0 24px', lineHeight: 1.5 },
+  title: { fontSize: '20px', fontWeight: 700, color: 'var(--th-text)', margin: '0 0 6px' },
+  subtitle: { fontSize: '13px', color: 'var(--th-text-body)', margin: '0 0 24px', lineHeight: 1.5 },
   card: { background: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', marginBottom: '16px', overflow: 'hidden' },
   cardHead: { display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 18px', borderBottom: '1px solid #f1f5f9', background: '#fafafa' },
   cardTitle: { fontSize: '14px', fontWeight: 700, color: '#0f172a', flex: 1 },

@@ -287,6 +287,10 @@
   display: inline-block;
 }
 
+.sa-page .sa-btn {
+  color: #fff;
+}
+
 .sa-btn:hover {
   background: #c40034;
 }

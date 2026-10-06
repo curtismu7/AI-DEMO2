@@ -76,3 +76,11 @@
 }
 
 :root[data-theme="dark"] .embedded-worker-page__identity button { --th-status-info: #2563eb; }
+
+:root[data-theme="dark"] .ew-crm__global,
+:root[data-theme="dark"] .ew-crm__panel-head button,
+:root[data-theme="dark"] .ew-crm__compose button,
+:root[data-theme="dark"] .ew-crm__msg.is-user {
+  background: #1d4ed8;
+  color: #ffffff;
+}
