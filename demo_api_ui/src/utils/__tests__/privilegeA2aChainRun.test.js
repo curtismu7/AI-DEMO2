@@ -518,3 +518,37 @@ test("a run's reel starts with the client starting the flow and ends with Done",
   expect(stopped.map((step) => [step.title, step.status])).toEqual([["Client started flow", "done"], ["Done", "error"]]);
   expect(Object.fromEntries(stopped[1].detail.kv)).toMatchObject({ Outcome: "Stopped", Reason: "The A2A service is unavailable." });
 });
+
+test("a reply the gateway blocked is shown as a blocked reply, matched to the gateway's response record", () => {
+  const steps = buildPrivilegeA2aChainSteps([
+    { id: "pa2a-0", kind: "delegate", from: "main", to: "langchainagent", status: "ok", detail: "Refund order 7" },
+    { id: "pa2a-1", kind: "error", from: "main", to: "langchainagent", status: "error", detail: "400: response blocked by security policy", wire: { status: 400, errorCode: -32603 } },
+    {
+      id: "pa2a-gateway-record",
+      state: "ready",
+      modelCalls: [],
+      requests: [],
+      denials: [],
+      guardrail: [
+        { time: "t1", event: "a2a_request_blocked", category: "other", direction: "request", client: "main-agent", rules: [], frameworks: [] },
+        { time: "t2", event: "a2a_response_blocked", category: "prompt_injection", direction: "response", client: "main-agent", rules: ["inj-ignore-previous"], frameworks: [] },
+      ],
+    },
+  ]);
+  const blocked = steps.find((step) => step.id === "pa2a-1-gateway");
+  const kv = Object.fromEntries(blocked.detail.kv);
+
+  expect(blocked.title).toBe("Blocks the reply");
+  expect(kv["Reached the next agent"]).toBe("Yes; its reply was blocked on the way back");
+  expect(kv["Gateway's own record"]).toBe("a2a_response_blocked · prompt_injection");
+  expect(blocked.detail.narrative).toContain("blocked that answer on its way back");
+});
+
+test("a card read by another agent shows that its prose was not relayed", () => {
+  const card = { name: "Refunds Specialist", description: "", descriptionChars: 462, protocolVersion: "0.3.0", url: "", preferredTransport: "JSONRPC", skills: ["process refund"], version: "1.0.0", capabilities: [], inputModes: [], outputModes: [], skillDetails: [{ id: "r", name: "process refund", description: "", tags: [] }], security: [] };
+  const steps = buildPrivilegeA2aChainSteps([{ id: "pa2a-0", kind: "card", from: "langchainagent", to: "refunds", status: "ok", card }]);
+  const kv = Object.fromEntries(steps[1].detail.kv);
+
+  expect(kv.Description).toContain("Not relayed (462 characters)");
+  expect(kv["Skill: process refund"]).toBe("description not relayed");
+});

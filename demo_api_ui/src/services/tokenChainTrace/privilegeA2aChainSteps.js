@@ -83,7 +83,7 @@ const SPEC = {
     refs: [A2A_SPEC, JSON_RPC],
     mandate: "The result of message/send is a Message with role agent, or a Task. The JSON-RPC response carries the id of the request it answers.",
     why: "The reply returns by the same path as the call, so one place sees both halves of the conversation.",
-    failure: "Assuming replies are screened like calls. We have confirmed the gateway screens a call; we have not seen it inspect a reply.",
+    failure: "Passing another agent's text back up the chain unchecked. The gateway screens replies as well as calls: on 6 October 2026 it blocked a reply that carried a hostile agent's card text (a2a_response_blocked). An agent should still not relay text it has not read.",
   },
 };
 
@@ -93,13 +93,14 @@ const SPEC = {
  * `allowed`, `blocked` (the guardrail refused) or `denied` (policy refused).
  * Returns `{ rows, verdict }`; until the record arrives there are no rows.
  */
-function gatewayRecord(record, caller, outcome, callee) {
+function gatewayRecord(record, caller, outcome, callee, direction = "request") {
   if (!record) return { rows: [] };
   if (record.state === "needsAuth") {
     return { rows: [[RECORD_ROW, "Not loaded. On the LLM Gateway page, under Gateway findings, choose Load findings and then Sign in to this door (one click), then run this again."]] };
   }
   if (record.state !== "ready") return { rows: [[RECORD_ROW, `Could not be read: ${record.error || "unknown error"}`]] };
-  const wanted = outcome === "allowed" ? "a2a_request_alert" : "a2a_request_blocked";
+  // A block is recorded against the half it stopped: the call, or the reply.
+  const wanted = outcome === "allowed" ? "a2a_request_alert" : `a2a_${direction}_blocked`;
   // The record is every line in the run's time window, oldest first: the newest
   // match is this run's.
   const verdict = (record.guardrail || []).findLast((entry) => entry.client === GATEWAY_CLIENT[caller] && entry.event === wanted);
@@ -312,6 +313,8 @@ export function buildPrivilegeA2aChainSteps(tokenEvents) {
           ["A2A Agent Card", "Returned through the Privilege gateway"],
           ["Agent name", card.name],
           ...(card.description ? [["Description", card.description]] : []),
+          // A card read by another agent arrives without its prose: that agent counts it and does not pass it on.
+          ...(!card.description && card.descriptionChars ? [["Description", `Not relayed (${card.descriptionChars} characters). ${from} does not pass another agent's free text back up the chain.`]] : []),
           ["A2A protocol version", card.protocolVersion || "not stated"],
           ["Transport", card.preferredTransport || "not stated"],
           ...row("Agent version", card.version),
@@ -319,7 +322,7 @@ export function buildPrivilegeA2aChainSteps(tokenEvents) {
           ...((card.inputModes || []).length ? [["Accepts", card.inputModes.join(", ")]] : []),
           ...((card.outputModes || []).length ? [["Returns", card.outputModes.join(", ")]] : []),
           ...((card.skillDetails || []).length
-            ? card.skillDetails.map((skill) => [`Skill: ${skill.name}`, [skill.description, skill.tags.length ? `tags: ${skill.tags.join(", ")}` : ""].filter(Boolean).join(" · ") || "no description"])
+            ? card.skillDetails.map((skill) => [`Skill: ${skill.name}`, [skill.description, skill.tags.length ? `tags: ${skill.tags.join(", ")}` : ""].filter(Boolean).join(" · ") || (card.descriptionChars ? "description not relayed" : "no description")])
             : [["Skills", skills.length ? skills.join(", ") : "none listed"]]),
           ...((card.security || []).length ? [["Security the card declares", card.security.join("; ")]] : []),
           ...((card.security || []).length ? [["How this caller gets in instead", "With its agent key at the gateway; the gateway presents the credential set on the app"]] : []),
@@ -361,8 +364,8 @@ export function buildPrivilegeA2aChainSteps(tokenEvents) {
           response,
         }),
         step("-relay", "Relays the reply", PRIVILEGE_GATEWAY_LANE, "done", {
-          narrative: `The reply from ${from} returned through the Privilege gateway on its way to ${to}. The gateway is the only path between the two agents, in both directions. We have confirmed it screens the call; we have not seen it inspect a reply.`,
-          kv: [["Path", `${from} → Privilege gateway → ${to}`], ["Reply inspection", "Not observed in our tests of this gateway"], ...routeRow(event.from), ...timing],
+          narrative: `The reply from ${from} returned through the Privilege gateway on its way to ${to}. The gateway is the only path between the two agents, in both directions. It screens replies as well as calls, and this one passed.`,
+          kv: [["Path", `${from} → Privilege gateway → ${to}`], ["Reply inspection", "Screened by the gateway's guardrail; passed"], ...routeRow(event.from), ...timing],
           spec: SPEC.reply,
         }),
         step("-return", `Receives the reply from ${from}`, chainLane(event.to), "done", {
@@ -404,15 +407,18 @@ export function buildPrivilegeA2aChainSteps(tokenEvents) {
     });
     if (refused) {
       const reason = event.detail || "no reason given";
-      const logged = gatewayRecord(record, event.from, /blocked by security policy/i.test(reason) ? "blocked" : "denied", event.to);
-      return [call, step("-gateway", "Refuses the call", PRIVILEGE_GATEWAY_LANE, "error", {
+      // "response blocked": the call got through and the callee answered; the
+      // gateway stopped the answer on its way back.
+      const replyBlocked = /response blocked/i.test(reason);
+      const logged = gatewayRecord(record, event.from, /blocked by security policy/i.test(reason) ? "blocked" : "denied", event.to, replyBlocked ? "response" : "request");
+      return [call, step("-gateway", replyBlocked ? "Blocks the reply" : "Refuses the call", PRIVILEGE_GATEWAY_LANE, "error", {
         ...(logged.verdict ? { facts: [...facts, logged.verdict.category] } : {}),
         ...compliance("Privilege flagged this call", logged.verdict?.frameworks),
-        narrative: `The gateway or the agent behind it refused this call: ${reason}. The hand-off stopped here: ${to} did no work for this call, and ${from} received the refusal instead of an answer.${logged.verdict ? ` The gateway's own log records it as ${logged.verdict.category}.` : ""}`,
+        narrative: `${replyBlocked ? `${to} received the call and answered, and the gateway blocked that answer on its way back: ${reason}. ${from} received the refusal instead of the reply, so nothing in it reached ${from}.` : `The gateway or the agent behind it refused this call: ${reason}. The hand-off stopped here: ${to} did no work for this call, and ${from} received the refusal instead of an answer.`}${logged.verdict ? ` The gateway's own log records it as ${logged.verdict.category}.` : ""}`,
         kv: [
           ["Outcome", "Refused"],
           ["Reason", reason],
-          ["Reached the next agent", "No"],
+          ["Reached the next agent", replyBlocked ? "Yes; its reply was blocked on the way back" : "No"],
           ...row("HTTP status", wire.status),
           ...row("JSON-RPC error code", wire.errorCode),
           ...registryRow(event.from).map(([, value]) => ["Caller's Agent Registry name", value]),

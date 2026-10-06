@@ -50,7 +50,7 @@ Thirteen messages were sent on 3 October 2026 through a cloud gateway to a Remot
 | A2A guardrail lines name the calling agent, not its key | Read from the log |
 | The gateway log prints the remote agent's static token in full | Read from the log |
 
-Not tested: the external detector on A2A calls (it was off on this key), inspection of the remote agent's reply, and any category set to sanitize. A call made with a person's sign-in was tested for the A2A guide and was not inspected.
+Not tested: the external detector on A2A calls (it was off on this key), and any category set to sanitize. Inspection of the remote agent's reply was not tested here; it was observed later, on 6 October 2026 (see the table under what is and is not screened). A call made with a person's sign-in was tested for the A2A guide and was not inspected.
 
 ## Where the guardrail sits
 
@@ -190,7 +190,7 @@ The A2A guardrail lines themselves name the calling agent and do not print its k
 | A message from a calling agent whose key has the guardrail on | Yes | This guide |
 | A message from a calling agent whose key has it off | No | The setting is per key |
 | A message from a person who signed in | No | Tested for the A2A guide: an injection reached the agent and nothing was logged |
-| The remote agent's reply | Not known | No reply was inspected in these tests, and no `a2a_response` record was seen |
+| The remote agent's reply | Yes, when the call was made with an agent key | Observed 6 October 2026: a reply that carried a hostile agent's card text was blocked with `400` and JSON-RPC error `-32603`, "response blocked by security policy", and the gateway logged `a2a_response_blocked`, category `prompt_injection`, direction `response`, rule `inj-ignore-previous`. Only that one block has been seen; sanitize and alert on a reply are untested |
 | A call to the remote agent's direct address | No | It does not pass through the gateway at all |
 
 Because people and direct callers are not screened, the remote agent must still check its own input. The gateway's guardrail reduces what reaches an agent from other agents; it does not replace input checks inside the agent.
