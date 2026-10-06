@@ -5,6 +5,18 @@ Canonical do-not-break contract for the Super Banking demo. The
 layer that points here; `CLAUDE.md` also points here. This file is the source of
 truth — if the skill and this file disagree, this file wins.
 
+### 2026-10-06 — UC14b RAR PERMIT 403 insufficient_scope: PG_OLB_SCOPE lacked `transfer`
+
+**Files:** `ping-gateway/.env.example`, `demo_api_server/scripts/refresh-service-envs.js`, test `demo_api_server/src/__tests__/pgOlbScopeCoversTransfer.test.js`.
+
+**What was broken:** Exchange #3 only narrows `PG_OLB_SCOPE` (`read write code:search`) to the called tool's `requiredScopes`; it never adds one. `create_transfer` needs `[write, transfer]`, so the MCP server got a token with `write` only and answered -32005 `Insufficient scope`, surfaced as 403 DENY on a call the demo expected to PERMIT. The exchanger app already holds `transfer` on the Demo MCP Server resource, so no PingOne change is needed.
+
+**What changed:** `transfer` added to `PG_OLB_SCOPE` in the template and the env generator.
+
+**Do not break:** never add `mcp:invoke` (multi-resource). A live `ping-gateway/.env` (gitignored) must carry the same value and ping-gateway must be restarted. Still short, out of scope here: `get_sensitive_account_details` needs `sensitive:read`.
+
+**Verify:** `cd demo_api_server && CI=true npx jest src/__tests__/pgOlbScopeCoversTransfer.test.js --forceExit`.
+
 ### 2026-10-01 — Do not restart login after an invalid callback state
 
 **Files changed:** `demo_api_server/routes/oauthUser.js` and OAuth callback tests.
