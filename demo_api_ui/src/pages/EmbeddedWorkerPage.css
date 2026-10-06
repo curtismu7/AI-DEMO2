@@ -21,7 +21,7 @@
   align-items: center;
   gap: 16px;
   padding: 10px 16px;
-  background: var(--th-status-info);
+  background: var(--th-status-info-solid);
   color: var(--th-text-invert);
 }
 .ew-crm__launcher { display: grid; grid-template-columns: repeat(3, 4px); gap: 3px; padding: 6px; border-radius: 6px; background: var(--th-bg-band); }
@@ -57,14 +57,14 @@
 .ew-crm__who span { margin-top: 2px; color: var(--th-text-body); font-size: var(--font-size-2xs); }
 .embedded-worker-page__status { flex-shrink: 0; width: 10px; height: 10px; border-radius: 50%; background: var(--th-border-strong); }
 .embedded-worker-page__status.is-live { background: var(--th-status-success); outline: 4px solid var(--th-status-success-bg); }
-.ew-crm__panel-head button, .ew-crm__compose button { border: 0; border-radius: 6px; padding: 8px 12px; color: var(--th-text-invert); background: var(--th-status-info); cursor: pointer; font-weight: 700; font-size: var(--font-size-2xs); }
+.ew-crm__panel-head button, .ew-crm__compose button { border: 0; border-radius: 6px; padding: 8px 12px; color: var(--th-text-invert); background: var(--th-status-info-solid); cursor: pointer; font-weight: 700; font-size: var(--font-size-2xs); }
 .ew-crm__panel-head button:disabled { opacity: .65; cursor: wait; }
 .ew-crm__delegated { margin: 0; padding: 6px 14px; border-bottom: 1px solid var(--th-border); color: var(--th-status-success-text); background: var(--th-status-success-bg); font-size: var(--font-size-2xs); }
 
 .ew-crm__chat { flex: 1; display: flex; flex-direction: column; gap: 10px; min-height: 260px; max-height: 440px; padding: 14px; overflow-y: auto; }
 .ew-crm__msg { max-width: 88%; padding: 9px 12px; border-radius: 8px; font-size: var(--font-size-sm); line-height: 1.5; overflow-wrap: anywhere; }
 .ew-crm__msg.is-agent { align-self: flex-start; border: 1px solid var(--th-border); background: var(--th-bg-inset); color: var(--th-text); }
-.ew-crm__msg.is-user { align-self: flex-end; background: var(--th-status-info); color: var(--th-text-invert); }
+.ew-crm__msg.is-user { align-self: flex-end; background: var(--th-status-info-solid); color: var(--th-text-invert); }
 
 .ew-crm__compose { display: flex; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--th-border); }
 .ew-crm__compose input { flex: 1; min-width: 0; padding: 8px 10px; border: 1px solid var(--th-border-strong); border-radius: 6px; background: var(--th-bg-page); color: var(--th-text); font-size: var(--font-size-sm); }
@@ -75,7 +75,7 @@
   .ew-crm__search { display: none; }
 }
 
-:root[data-theme="dark"] .embedded-worker-page__identity button { --th-status-info: #2563eb; }
+:root[data-theme="dark"] .embedded-worker-page__identity button { --th-status-info: #1e40af; }
 
 :root[data-theme="dark"] .ew-crm__global,
 :root[data-theme="dark"] .ew-crm__panel-head button,

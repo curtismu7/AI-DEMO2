@@ -411,19 +411,20 @@ textarea::placeholder {
      error state — same literal today, different job. */
   --th-status-success: #16a34a;
   --th-success: var(--th-status-success-text);
-  --th-status-success-text: #166534;
+  --th-status-success-text: #14532d;
   --th-status-success-bg: #dcfce7;
   --th-status-success-border: #86efac;
   --th-status-warning: #f59e0b;
-  --th-status-warning-text: #92400e;
+  --th-status-warning-text: #78350f;
   --th-status-warning-bg: #fef3c7;
   --th-status-warning-border: #fcd34d;
   --th-status-error: #dc2626;
-  --th-status-error-text: #991b1b;
+  --th-status-error-text: #7f1d1d;
   --th-status-error-bg: #fee2e2;
   --th-status-error-border: #fca5a5;
   --th-status-info: #2563eb;
   --th-status-info-text: #1e40af;
+  --th-status-info-solid: #1e40af;
   --th-status-info-bg: #eff6ff;
   --th-status-info-border: #bfdbfe;
 }
@@ -500,6 +501,7 @@ textarea::placeholder {
   --th-status-error-border: #991b1b;
   --th-status-info: #3b82f6;
   --th-status-info-text: #93c5fd;
+  --th-status-info-solid: #1e40af;
   --th-status-info-bg: #16233c;
   --th-status-info-border: #1e40af;
 }

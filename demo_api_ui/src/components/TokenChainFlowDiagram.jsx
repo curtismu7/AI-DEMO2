@@ -34,10 +34,10 @@ const GROUPS = {
   client: { label: 'CLIENT', bg: '#1e3a5f', border: '#0f2438' },
   auth: { label: '🔐 AUTHENTICATION', bg: '#2e5090', border: '#1a3a5c' },
   agent: { label: 'AGENT', bg: '#3b5998', border: '#2a3f6c' },
-  exchange: { label: 'TOKEN EXCHANGE', bg: '#28a745', border: '#1e7e34', ink: '#020617' },
+  exchange: { label: 'TOKEN EXCHANGE', bg: '#2fbf50', border: '#1e7e34', ink: '#020617' },
   gateway: { label: 'GATEWAY', bg: '#f57c00', border: '#d66b00', ink: '#020617' },
-  authz: { label: '✅ AUTHORIZATION', bg: '#dc3545', border: '#a02830' },
-  mcps: { label: 'MCP SERVERS', bg: '#6f42c1', border: '#4a276a' },
+  authz: { label: '✅ AUTHORIZATION', bg: '#991b1b', border: '#a02830' },
+  mcps: { label: 'MCP SERVERS', bg: '#5b21b6', border: '#4a276a' },
   resources: { label: 'RESOURCES', bg: '#17a2b8', border: '#0e5968', ink: '#020617' },
   safety: { label: 'SAFETY', bg: '#ffc107', border: '#d9a308', ink: '#020617' },
 };

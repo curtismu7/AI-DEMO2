@@ -168,11 +168,7 @@
   cursor: pointer;
   white-space: nowrap;
   transition: var(--btn-transition);
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red) 0%,
-    var(--app-primary-red-hover) 100%
-  );
+  background: linear-gradient(180deg, #991b1b 0%, #7f1d1d 100%);
   color: #fff;
   border: 1px solid var(--app-primary-red-border);
   box-shadow: 0 1px 3px rgba(127, 29, 29, 0.28);
@@ -282,3 +278,10 @@
   font-size: var(--font-size-2xs);
   color: #16a34a;
 }
+
+.wizard-danger-zone {
+  border: 2px solid var(--th-status-error-text);
+  background: var(--th-status-error-bg);
+  color: var(--th-text);
+}
+.wizard-danger-zone .wizard-danger-zone__title { color: var(--th-status-error-text); }

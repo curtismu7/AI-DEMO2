@@ -54,7 +54,7 @@
 .governance-timeline-page__filters button:hover {
   border-color: var(--th-status-info);
   color: var(--th-text-invert);
-  background: var(--th-status-info);
+  background: var(--th-status-info-solid);
 }
 
 .governance-timeline-page__timeline {
@@ -130,4 +130,4 @@
   .governance-timeline-event__meta time { display: block; margin-top: 4px; }
 }
 
-:root[data-theme="dark"] .governance-timeline-page__filters button.is-active, :root[data-theme="dark"] .governance-timeline-page__filters button:hover { --th-status-info: #2563eb; }
+:root[data-theme="dark"] .governance-timeline-page__filters button.is-active, :root[data-theme="dark"] .governance-timeline-page__filters button:hover { --th-status-info: #1e40af; }

@@ -127,7 +127,7 @@
   border: 1px solid var(--th-status-info);
   border-radius: var(--radius-sm);
   color: var(--th-text-invert);
-  background: var(--th-status-info);
+  background: var(--th-status-info-solid);
   font: inherit;
   font-size: var(--font-size-sm);
   font-weight: 700;
@@ -156,4 +156,4 @@
   }
 }
 
-:root[data-theme="dark"] .personal-agent-client-cards__action { --th-status-info: #2563eb; }
+:root[data-theme="dark"] .personal-agent-client-cards__action { --th-status-info: #1e40af; }

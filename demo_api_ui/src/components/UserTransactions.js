@@ -343,9 +343,9 @@ export default function UserTransactions({ user }) {
         }
 
         .filter-btn.active {
-          background: #4f46e5;
+          background: #3730a3;
           color: white;
-          border-color: #4f46e5;
+          border-color: #3730a3;
         }
 
         .transactions-summary {

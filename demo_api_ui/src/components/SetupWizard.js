@@ -654,19 +654,17 @@ export default function SetupWizard({
         style={{
           marginTop: 32,
           padding: 16,
-          border: '2px solid #c53030',
           borderRadius: 8,
-          background: '#fff5f5',
         }}
       >
-        <h2 style={{ color: '#c53030', marginTop: 0 }}>⚠️ Danger zone</h2>
+        <h2 className="wizard-danger-zone__title" style={{ marginTop: 0 }}>⚠️ Danger zone</h2>
         <p style={{ marginTop: 0 }}>
           <strong>Wipe entire PingOne environment.</strong> Deletes every application,
           resource server, group, custom user attribute, and user in the env above
           (preserving the worker app being used to authenticate). This <em>cannot</em>{' '}
           be undone. Use only on a sacrificial demo tenant.
         </p>
-        <p style={{ fontSize: 13, color: '#742a2a' }}>
+        <p style={{ fontSize: 13 }}>
           Uses the credentials from the form above. Make sure the Environment ID and
           worker client are correct before continuing.
         </p>
@@ -693,7 +691,7 @@ export default function SetupWizard({
           onClick={startWipe}
           disabled={!wipeReady}
           style={{
-            background: wipeReady ? '#c53030' : '#999',
+            background: wipeReady ? '#991b1b' : '#475569',
             color: '#fff',
             border: 0,
             padding: '10px 18px',
