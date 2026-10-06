@@ -171,10 +171,12 @@ export default function PrivilegeA2aTab() {
                       <span className="privilege-a2a__trace-kind">guardrail</span>
                       <span className="privilege-a2a__trace-text">{verdict.event} · {verdict.category}{verdict.client ? ` · ${verdict.client}` : ''}</span>
                       {verdict.frameworks.length > 0 && (
-                        <details>
-                          <summary>Details</summary>
-                          <pre>{[...verdict.frameworks.map(framework => `${framework.label}: ${framework.identifiers.join(', ')}`), ...(verdict.rules.length ? [`Rules: ${verdict.rules.join(', ')}`] : [])].join('\n')}</pre>
-                        </details>
+                        <ul className="privilege-a2a__compliance" aria-label="Privilege compliance mappings">
+                          {verdict.frameworks.map(framework => (
+                            <li key={framework.label}>{framework.label}: {framework.identifiers.join(', ')}</li>
+                          ))}
+                          {verdict.rules.length > 0 && <li>Rules: {verdict.rules.join(', ')}</li>}
+                        </ul>
                       )}
                     </li>
                   ))}

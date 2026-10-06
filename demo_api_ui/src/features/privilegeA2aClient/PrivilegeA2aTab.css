@@ -176,6 +176,19 @@
   white-space: pre-wrap;
 }
 
+/* Privilege's own MITRE / NIST / OWASP mappings for a guardrail line: always visible. */
+.cur-ide .privilege-a2a__compliance {
+  margin: 3px 0 0;
+  padding: 6px 10px;
+  list-style: none;
+  border-left: 3px solid var(--a2a-accent);
+  color: var(--a2a-ink);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
 .cur-ide .privilege-a2a__trace summary {
   width: fit-content;
   margin-top: 3px;
