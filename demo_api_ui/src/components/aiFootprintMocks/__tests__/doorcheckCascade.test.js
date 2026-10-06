@@ -18,21 +18,23 @@ const beats = (a, b) => {
   return false;
 };
 const selectors = (css) =>
-  [...css.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/(^|[};])\s*([^{}@;]+)\{/g)]
+  [...css.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/(^|[{};])\s*([^{}@;]+)\{/g)]
     .flatMap((m) => m[2].split(",").map((x) => x.trim()))
     .filter(Boolean);
 
 describe("Check doors button cascade", () => {
   const views = selectors(read("PrivilegeShellViews.css"));
-  const base = ".pvs .pvs-doorcheck .pvs-doorcheck__btn";
+  // the bar/gate button (inside .pvs-doorcheck) and the VS Code tree button (inside .pvs-tree)
+  const bases = [".pvs .pvs-doorcheck .pvs-doorcheck__btn", ".pvs .pvs-tree .pvs-doorcheck__btn"];
+  const cases = bases.flatMap((b) => ["", ":disabled", ":focus-visible"].map((s) => [b + s]));
 
-  it.each(["", ":disabled", ":focus-visible"])("has the high-specificity rule for %s", (state) => {
-    expect(views).toContain(base + state);
+  it.each(cases)("has the high-specificity rule %s", (sel) => {
+    expect(views).toContain(sel);
   });
 
-  it("beats every legacy .pvs-connect button selector", () => {
-    const legacy = selectors(read("PrivilegeShellPanel.css")).filter((s) => /\.pvs-connect button$/.test(s));
+  it("beats every legacy .pvs-connect button selector (any shape, incl. inside @media)", () => {
+    const legacy = selectors(read("PrivilegeShellPanel.css")).filter((s) => /\.pvs-connect\b.*\bbutton\b/.test(s));
     expect(legacy.length).toBeGreaterThan(1);
-    for (const l of legacy) expect(beats(specificity(base), specificity(l)), l).toBe(true);
+    for (const b of bases) for (const l of legacy) expect(beats(specificity(b), specificity(l)), `${b} vs ${l}`).toBe(true);
   });
 });
