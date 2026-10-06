@@ -31,7 +31,7 @@
 }
 .pvs .pvs-doorcheck .pvs-doorcheck__btn:disabled { opacity: 0.5; cursor: default; }
 .pvs-doorcheck { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
-.pvs-probe { margin: 0; padding-left: 0; list-style: none; font-size: var(--font-size-2xs); }
+.pvs-probe { max-height: 8em; overflow-y: auto; margin: 0; padding-left: 0; list-style: none; font-size: var(--font-size-2xs); }
 .pvs-tree .pvs-doorcheck__btn { margin: 4px 12px; }
 .pvs-steps { margin: 0; padding-left: 16px; opacity: 0.75; font-size: var(--font-size-2xs); }
 

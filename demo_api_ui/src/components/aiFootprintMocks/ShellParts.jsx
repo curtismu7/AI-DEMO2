@@ -115,7 +115,7 @@ function DoorCheckNotes({ routing }) {
 export function ShellDoorCheck({ session }) {
   const { routing } = session;
   return (
-    <div className="pvs-doorcheck">
+    <div className="pvs-doorcheck" role="status">
       <DoorCheckButton session={session} />
       <DoorCheckNotes routing={routing} />
       {routing.preflight && routing.preflight.length > 0 ? (

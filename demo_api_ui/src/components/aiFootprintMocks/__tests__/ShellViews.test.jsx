@@ -463,6 +463,13 @@ describe.each([
     expect(rows).toContain("❌ x 401 Unauthorized");
   });
 
+  it("announces probe results through a status region", () => {
+    render(<View session={withRouting({ preflight: [{ url: "https://gw.example/privilege-gateway/other/mcp", ok: true, tools: 3 }] })} />);
+    const status = screen.getAllByRole("status").find((el) => el.classList.contains("pvs-doorcheck"));
+    expect(status).toHaveTextContent("other 3 tools");
+    expect(status).toContainElement(screen.getByRole("button", { name: "Check doors" }));
+  });
+
   it("says when there are no other doors", () => {
     render(<View session={withRouting({ preflight: [] })} />);
     expect(screen.getByText("No other doors to probe. The selected door is skipped; add a preset for another one.")).toBeInTheDocument();
