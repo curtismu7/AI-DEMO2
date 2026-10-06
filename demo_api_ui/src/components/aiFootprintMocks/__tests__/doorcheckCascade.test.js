@@ -1,5 +1,7 @@
 // jsdom cannot show the cascade, so assert at stylesheet level that the Check doors button
-// outranks the legacy `.pvs-connect button` fills (live getComputedStyle check still pending).
+// outranks the legacy `.pvs-connect button` fills. A live getComputedStyle check on the served
+// stack found the VS Code tree button UNSTYLED: the side tree renders in the chrome's
+// `.afm-vcs-side`, OUTSIDE any `.pvs` root, so its selectors must not require a `.pvs` ancestor.
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
@@ -24,8 +26,11 @@ const selectors = (css) =>
 
 describe("Check doors button cascade", () => {
   const views = selectors(read("PrivilegeShellViews.css"));
-  // the bar/gate button (inside .pvs-doorcheck) and the VS Code tree button (inside .pvs-tree)
-  const bases = [".pvs .pvs-doorcheck .pvs-doorcheck__btn", ".pvs .pvs-tree .pvs-doorcheck__btn"];
+  // the bar/gate button (inside .pvs-doorcheck, inside a .pvs costume root) and the VS Code tree
+  // button (inside .pvs-tree, which lives in the chrome's side panel, outside any .pvs)
+  const barBase = ".pvs .pvs-doorcheck .pvs-doorcheck__btn";
+  const treeBase = ".pvs-tree .pvs-doorcheck__btn";
+  const bases = [barBase, treeBase];
   const cases = bases.flatMap((b) => ["", ":disabled", ":focus-visible"].map((s) => [b + s]));
 
   it.each(cases)("has the high-specificity rule %s", (sel) => {
@@ -35,6 +40,13 @@ describe("Check doors button cascade", () => {
   it("beats every legacy .pvs-connect button selector (any shape, incl. inside @media)", () => {
     const legacy = selectors(read("PrivilegeShellPanel.css")).filter((s) => /\.pvs-connect\b.*\bbutton\b/.test(s));
     expect(legacy.length).toBeGreaterThan(1);
-    for (const b of bases) for (const l of legacy) expect(beats(specificity(b), specificity(l)), `${b} vs ${l}`).toBe(true);
+    // only the bar button can sit inside .pvs-connect (the signed-out gate); the tree never does
+    for (const l of legacy) expect(beats(specificity(barBase), specificity(l)), `${barBase} vs ${l}`).toBe(true);
+  });
+
+  it("never requires a .pvs ancestor for the tree button (it renders outside .pvs)", () => {
+    const treeRules = views.filter((s) => s.includes(".pvs-tree") && s.includes(".pvs-doorcheck__btn"));
+    expect(treeRules.length).toBeGreaterThan(0);
+    for (const sel of treeRules) expect(sel, sel).not.toMatch(/(^|\s)\.pvs(\s|$)/);
   });
 });
