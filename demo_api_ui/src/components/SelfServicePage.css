@@ -15,7 +15,7 @@
 .ssp-container {
   max-width: 720px;
   margin: 0 auto;
-  background: white;
+  background: var(--th-bg-card);
   border-radius: 12px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
   overflow: hidden;
@@ -40,7 +40,7 @@
   padding: 6px 14px;
   border-radius: var(--radius-md);
   border: 1px solid rgba(255, 255, 255, 0.4);
-  background: rgba(255, 255, 255, 0.12);
+  background: #c2410c;
   color: #fff;
   font-size: 0.82rem;
   font-weight: 600;
@@ -48,7 +48,7 @@
 }
 
 .ssp-theme-toggle:hover {
-  background: rgba(255, 255, 255, 0.22);
+  background: #9a3412;
 }
 
 @media (max-width: 640px) {
@@ -134,8 +134,8 @@
 }
 
 .ssp-tab--active {
-  color: var(--brand-navy);
-  background: white;
+  color: var(--th-text);
+  background: var(--th-bg-card);
   border-bottom-color: var(--brand-navy);
 }
 
@@ -162,7 +162,7 @@
 
 .ssp-form-section h3 {
   margin: 0 0 1.5rem 0;
-  color: var(--brand-dark-gray);
+  color: var(--th-text);
   font-size: 1.25rem;
   font-weight: 600;
 }
@@ -191,7 +191,8 @@
   border-radius: 8px;
   font-size: 1rem;
   transition: all 0.2s ease;
-  background: white;
+  background: var(--th-bg-card);
+  color: var(--th-text);
 }
 
 .ssp-input:focus {
@@ -241,7 +242,7 @@
   cursor: pointer;
   transition: all 0.2s ease;
   text-align: center;
-  background: white;
+  background: var(--th-bg-card);
 }
 
 .ssp-role-card:hover {
@@ -251,7 +252,7 @@
 
 .ssp-role-card--selected {
   border-color: var(--brand-navy);
-  background: #eff6ff;
+  background: var(--th-bg-hover);
   box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
 }
 
@@ -262,7 +263,7 @@
 
 .ssp-role-title {
   font-weight: 600;
-  color: var(--brand-dark-gray);
+  color: var(--th-text);
   margin-bottom: 0.25rem;
 }
 
@@ -313,7 +314,7 @@
 }
 
 .ssp-submit-btn {
-  background: linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy) 100%);
+  background: #c2410c;
   color: white;
   border: none;
   padding: 1rem 2rem;
@@ -326,7 +327,7 @@
 }
 
 .ssp-submit-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy) 100%);
+  background: #9a3412;
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
 }

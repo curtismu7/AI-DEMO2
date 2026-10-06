@@ -29,7 +29,7 @@
   font-size: var(--font-size-h2);
   font-weight: 700;
   margin: 0 0 6px;
-  color: #1a1a2e;
+  color: var(--th-text);
 }
 
 .mgc-subtitle {
@@ -171,11 +171,11 @@
   font-size: var(--font-size-h3);
   font-weight: 600;
   margin: 0 0 10px;
-  color: #1a1a2e;
+  color: var(--th-text);
 }
 .mgc-section p {
   font-size: 16px;
-  color: #444;
+  color: var(--th-text-body);
   margin: 0 0 10px;
 }
 
@@ -202,7 +202,7 @@
 .mgc-chain li {
   font-size: 16px;
   margin-bottom: 6px;
-  color: #444;
+  color: var(--th-text-body);
 }
 
 /* Steps */
@@ -212,7 +212,7 @@
 .mgc-steps li {
   font-size: 16px;
   margin-bottom: 8px;
-  color: #444;
+  color: var(--th-text-body);
 }
 
 /* Code block */
@@ -239,7 +239,7 @@
   font-size: 16px;
   font-weight: 600;
   margin: 0 0 8px;
-  color: #1a1a2e;
+  color: var(--th-text);
 }
 .mgc-env-table {
   width: 100%;
@@ -400,7 +400,7 @@
 .mgc-doc-card-title {
   font-size: 16px;
   font-weight: 600;
-  color: #1a1a2e;
+  color: var(--th-text);
   margin: 0 0 4px;
 }
 .mgc-doc-card-desc {
@@ -467,7 +467,7 @@
 .mgc-wizard-step-label {
   font-size: var(--font-size-lg);
   font-weight: 600;
-  color: #1a1a2e;
+  color: var(--th-text);
   flex: 1;
 }
 .mgc-wizard-step-status {

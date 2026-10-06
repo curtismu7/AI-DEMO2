@@ -2,7 +2,7 @@
   border: 1px solid #d1d5db;
   border-radius: 8px;
   margin-top: 1.5rem;
-  background: #ffffff;
+  background: var(--th-bg-card);
   overflow: hidden;
 }
 
@@ -11,7 +11,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 1rem;
-  background: #f3f4f6;
+  background: var(--th-bg-inset);
   border-bottom: 1px solid #d1d5db;
 }
 
@@ -33,38 +33,38 @@
   border: 1px solid #d1d5db;
   border-radius: 4px;
   font-size: 0.875rem;
-  background: #ffffff;
+  background: var(--th-bg-card);
 }
 
 .api-call-button {
   padding: 0.5rem 1rem;
   border: 1px solid #d1d5db;
   border-radius: 4px;
-  background: #ffffff;
+  background: var(--th-bg-card);
   font-size: 0.875rem;
   cursor: pointer;
   transition: background 0.2s;
 }
 
 .api-call-button:hover {
-  background: #f9fafb;
+  background: var(--th-bg-inset);
 }
 
 .api-call-button--danger {
-  background: #fef2f2;
-  color: #dc2626;
-  border-color: #fca5a5;
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
+  border-color: var(--th-status-error-border);
 }
 
 .api-call-button--danger:hover {
-  background: #fee2e2;
+  background: var(--th-status-error-bg);
 }
 
 .api-call-stats {
   display: flex;
   gap: 1rem;
   padding: 0.75rem 1rem;
-  background: #f9fafb;
+  background: var(--th-bg-inset);
   border-bottom: 1px solid #d1d5db;
   font-size: 0.875rem;
 }
@@ -79,14 +79,14 @@
 }
 
 .stat-item--error {
-  color: #dc2626;
+  color: var(--th-status-error-text);
   font-weight: 500;
 }
 
 .api-call-error {
   padding: 0.75rem 1rem;
-  background: #fef2f2;
-  color: #dc2626;
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
   font-size: 0.875rem;
   border-bottom: 1px solid #d1d5db;
 }
@@ -111,7 +111,7 @@
 }
 
 .api-call-item:hover {
-  background: #f9fafb;
+  background: var(--th-bg-inset);
 }
 
 .api-call-item--success {
@@ -154,7 +154,7 @@
 }
 
 .api-call-status--error {
-  color: #dc2626;
+  color: var(--th-status-error-text);
 }
 
 .api-call-duration {
@@ -172,7 +172,7 @@
 
 .api-call-details {
   padding: 1rem;
-  background: #f9fafb;
+  background: var(--th-bg-inset);
   border-top: 1px solid #e5e7eb;
 }
 
@@ -204,7 +204,7 @@
   pre {
     margin: 0;
     padding: 0.5rem;
-    background: #ffffff;
+    background: var(--th-bg-card);
     border: 1px solid #e5e7eb;
     border-radius: 4px;
     font-size: 0.75rem;

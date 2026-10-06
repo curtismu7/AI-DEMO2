@@ -443,12 +443,12 @@ a.pingone-test-button--primary:visited {
 }
 
 .pingone-test-button--secondary {
-  background: #00a651;
+  background: #007a3d;
   color: white;
 }
 
 .pingone-test-button--secondary:hover {
-  background: #00c853;
+  background: #006b35;
   transform: translateY(-1px);
 }
 

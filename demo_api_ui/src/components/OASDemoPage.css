@@ -69,7 +69,7 @@
   align-self: center;
   padding: 0.65rem 1.4rem;
   background: var(--th-bg-card);
-  color: #1d4ed8;
+  color: var(--th-status-info-text);
   border: none;
   border-radius: 8px;
   font-size: 0.9rem;
@@ -80,7 +80,7 @@
 }
 
 .oas-demo-launch-btn:hover {
-  background: #dbeafe;
+  background: var(--th-bg-hover);
   transform: translateY(-1px);
 }
 
@@ -132,6 +132,14 @@
 .oas-flow-step--gateway  { border-color: #6ee7b7; background: #ecfdf5; }
 .oas-flow-step--call     { border-color: #86efac; background: #f0fdf4; }
 
+:root[data-theme="dark"] .oas-flow-step--spec,
+:root[data-theme="dark"] .oas-flow-step--ai,
+:root[data-theme="dark"] .oas-flow-step--scope,
+:root[data-theme="dark"] .oas-flow-step--gateway,
+:root[data-theme="dark"] .oas-flow-step--call {
+  background: var(--th-bg-card);
+}
+
 .oas-flow-icon {
   font-size: 1.4rem;
   line-height: 1;
@@ -153,7 +161,7 @@
 .oas-flow-detail code {
   font-family: inherit;
   font-size: inherit;
-  color: #1d4ed8;
+  color: var(--th-status-info-text);
 }
 
 .oas-flow-arrow {
@@ -309,7 +317,7 @@
   font-weight: 700;
   font-family: var(--font-mono);
   letter-spacing: 0.04em;
-  color: var(--th-text-invert);
+  color: #020617; /* dark ink on the mid-tone method fills; not a legacy-neutral grey */
   min-width: 48px;
   text-align: center;
 }
@@ -546,7 +554,7 @@
   font-size: 0.9rem;
   font-weight: 700;
   font-family: var(--font-mono);
-  color: #1d4ed8;
+  color: var(--th-status-info-text);
 }
 
 .oas-scheme-type {

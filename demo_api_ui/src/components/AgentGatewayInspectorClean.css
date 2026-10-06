@@ -273,8 +273,8 @@ textarea {
 }
 
 .inspector-clean-output-tab.active {
-  color: #3730a3;
-  border-bottom-color: #3730a3;
+  color: var(--th-status-info-text);
+  border-bottom-color: var(--th-status-info-text);
 }
 
 .inspector-clean-output-content {
