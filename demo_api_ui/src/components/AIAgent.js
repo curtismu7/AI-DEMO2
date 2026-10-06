@@ -83,7 +83,7 @@ import AgentGreetingHero from "./AgentGreetingHero";
 import AgentConsentModal from "./AgentConsentModal";
 import AgentDemoGuide from "./AgentDemoGuide";
 import DemoStepsDropdown, { DemoStepsTrigger, readStoredDemoStepsOpen } from "./DemoStepsDropdown";
-import AgentRunIndicator, { AgentWorkingMark } from "./AgentRunIndicator";
+import AgentRunIndicator, { AgentWorkingMark, HideWhileGlobalSpinner } from "./AgentRunIndicator";
 import { runFailureMessage } from "../utils/a2aRunFailureMessage";
 import { PRIVILEGE_A2A_CHAIN_USE_CASE_ID } from "../utils/privilegeA2aChainRun";
 import AdminToolsDropdown from "./AdminToolsDropdown";
@@ -13777,17 +13777,23 @@ export default function BankingAgent({
                   // working". They were rendered as a user bubble with a "You"
                   // avatar, which reads as "you are typing" and left the existing
                   // `.banking-agent-msg.assistant.typing` rule dead.
-                  <div className="banking-agent-msg assistant typing">
-                    <div>
-                      {unitedDatabaseQueryLoading ? (
-                        <UnitedDatabasePulse />
-                      ) : (
-                        <AgentWorkingMark />
-                      )}
+                  <HideWhileGlobalSpinner>
+                    <div className="banking-agent-msg assistant typing">
+                      <div>
+                        {unitedDatabaseQueryLoading ? (
+                          <UnitedDatabasePulse />
+                        ) : (
+                          <AgentWorkingMark />
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  </HideWhileGlobalSpinner>
                 )}
-                {runIndicator && <AgentRunIndicator label={runIndicator} />}
+                {runIndicator && (
+                  <HideWhileGlobalSpinner>
+                    <AgentRunIndicator label={runIndicator} />
+                  </HideWhileGlobalSpinner>
+                )}
                 <div ref={bottomRef} />
               </div>
               {!pinnedToBottom && (

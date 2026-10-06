@@ -273,6 +273,19 @@ read the configured host. A new browser origin must be added to ALL of:
 
 **Verify:** `cd demo_api_ui && ./node_modules/.bin/vitest run src/components/__tests__/DemoStepsDropdown.test.jsx src/config`; `npm run build`.
 
+### 2026-10-06 — Two dancing Ps at once on the redirect to the sign-in (agent mark under the global spinner)
+
+**Files:** `demo_api_ui/src/components/AgentRunIndicator.jsx` (`HideWhileGlobalSpinner`), `demo_api_ui/src/components/AIAgent.js`, `demo_api_ui/src/components/__tests__/AgentRunIndicator.test.jsx`.
+
+**What was broken:** The app already has one global spinner, `SpinnerHost`: a full-screen overlay (z-index 200000) with the same dancing Ping mark, a message and the live endpoint, shown while a redirect or request is in flight. The agent's own working mark (`AgentWorkingMark` / `AgentRunIndicator`) kept drawing underneath it, so on the redirect to the PingOne sign-in the user saw two spinners, the global one over the agent's.
+
+**What changed:** `HideWhileGlobalSpinner` reads the global spinner state (`useSpinner().visible`) and renders nothing while it is showing. The agent wraps both its indicators in it (the `nlLoading` row and the `runIndicator` row), so only one dancing P is ever on screen. The agent's mark returns when the global spinner goes away. The global overlay stays the single authority for redirects.
+
+**Do not break:** `SpinnerHost` and its context are untouched; the agent's mark still shows for a run in progress when no global spinner is up; Send is still not disabled by the run indicator.
+
+**Verify:** `cd demo_api_ui && ./node_modules/.bin/vitest run src/components/__tests__/AgentRunIndicator.test.jsx`; `npm run build`. The `AIAgent.js` wiring has no unit test (component too heavy); confirm by clicking a step that redirects to sign-in.
+
+
 ### 2026-10-06 — The Groq default model was not available on the account (404 model_not_found)
 
 **Files:** `standalone/privilege-a2a-anthropic-demo/src/config.ts`, `test/provider.test.ts`, `README.md`, `config.example`.
