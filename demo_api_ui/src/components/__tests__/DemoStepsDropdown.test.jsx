@@ -47,6 +47,7 @@ const CATALOG = [...DEMO_USE_CASE_IDS, 'UC46A'].map((id, i) => ({
       chainRuns: [
         { id: 'allowed', label: 'Run the chain', message: 'Refund order 7 for the customer.', specialist: 'refunds' },
         { id: 'denied', label: 'Ungranted agent', message: 'Refund order 7 for the customer.', specialist: 'restricted' },
+        { id: 'poisoned', label: 'Poisoned Agent Card', short: 'C', message: 'Refund order 7 for the customer.', specialist: 'refunds', relayCardText: true },
       ],
     }
     : {}),
@@ -171,6 +172,18 @@ describe('DemoStepsDropdown', () => {
       message: 'Refund order 7 for the customer.',
       specialist: 'restricted',
       profile: null,
+    }));
+
+    // The poisoned Agent Card run has its own letter (P is the prompt-injection run) and its flag.
+    const poisoned = screen.getByTestId('chain-run-poisoned');
+    expect(poisoned).toHaveTextContent('C');
+    fireEvent.click(poisoned);
+
+    await waitFor(() => expect(startPrivilegeA2aChainRun).toHaveBeenLastCalledWith({
+      message: 'Refund order 7 for the customer.',
+      specialist: 'refunds',
+      profile: null,
+      relayCardText: true,
     }));
   });
 

@@ -250,3 +250,19 @@ test('a refused second hop reports the message that was sent as well as the reas
   assert.equal(refusal?.request, 'POST https://gw/restricted');
   assert.deepEqual(refusal?.wire, { status: 403, rpcId: 'rpc-3', messageId: 'msg-3' });
 });
+
+test('the poisoned-card run asks the middle agent to relay card text; an ordinary run does not', async () => {
+  const sent: Array<Record<string, unknown>> = [];
+  const callImpl: typeof fetch = async (_url, init) => {
+    sent.push(JSON.parse(String(init?.body)).params.metadata);
+    return jsonResponse(200, { jsonrpc: '2.0', result: { parts: [{ kind: 'text', text: 'ok' }] } });
+  };
+  const cardImpl: typeof fetch = async () => jsonResponse(200, CARD);
+  const fetchImpl: typeof fetch = (url, init) => (String(url).endsWith('/.well-known/agent-card.json') ? cardImpl(url, init) : callImpl(url, init));
+  const base = { url: 'https://gateway.example/langchainagent/a2a/jsonrpc', bearer: 'primary-key', message: 'Refund order 7', specialist: 'refunds', emit: () => undefined, fetchImpl };
+
+  await runChain(base);
+  await runChain({ ...base, relayCardText: true });
+
+  assert.deepEqual(sent, [{ delegateTo: 'refunds' }, { delegateTo: 'refunds', relayCardText: true }]);
+});

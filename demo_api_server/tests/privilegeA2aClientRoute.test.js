@@ -301,6 +301,18 @@ describe('POST /api/privilege-a2a/chain', () => {
     expect(JSON.stringify(init)).not.toContain('browser-session-secret');
   });
 
+  test('forwards the poisoned-card request only as a literal true', async () => {
+    const sse = () => new Response('event: done\ndata: {}\n\n', { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+    global.fetch = jest.fn(() => Promise.resolve(sse()));
+
+    await request(createApp()).post('/api/privilege-a2a/chain').send({ message: 'hi', specialist: 'refunds', relayCardText: true });
+    await request(createApp()).post('/api/privilege-a2a/chain').send({ message: 'hi', specialist: 'refunds', relayCardText: 'true' });
+    await request(createApp()).post('/api/privilege-a2a/chain').send({ message: 'hi', specialist: 'refunds' });
+
+    const forwarded = global.fetch.mock.calls.map(call => JSON.parse(call[1].body).relayCardText);
+    expect(forwarded).toEqual([true, undefined, undefined]);
+  });
+
   test('rejects a missing session, an empty message, and a malformed specialist name', async () => {
     global.fetch = jest.fn();
     const app = createApp();

@@ -257,3 +257,58 @@ def test_handler_reports_hops_from_a_model_chosen_hand_off(configured, monkeypat
     result = response.json()["result"]
     assert result["parts"][0]["text"] == "specialist says hi"
     assert [(h["to"], h["status"]) for h in result["metadata"]["hops"]] == [("refunds", "ok")]
+
+
+async def test_card_prose_is_relayed_only_when_the_deployment_allows_it_and_the_caller_asks(configured, monkeypatch):
+    def handler(request):
+        if request.method == "GET":
+            return httpx.Response(200, json=CARD)
+        return httpx.Response(200, json={"jsonrpc": "2.0", "result": {"parts": [{"kind": "text", "text": "ok"}]}})
+
+    async def card_for(*, enabled, asked):
+        if enabled:
+            monkeypatch.setenv("A2A_DEMO_RELAY_CARD_TEXT", "true")
+        else:
+            monkeypatch.delenv("A2A_DEMO_RELAY_CARD_TEXT", raising=False)
+        hops = start_hop_trace()
+        a2a_delegation.set_relay_card_text(asked)
+        await delegate("refunds", "hi", client=_client(handler))
+        return hops[0]["card"]
+
+    # Asking is not enough, and neither is the switch on its own.
+    assert (await card_for(enabled=False, asked=True))["description"] == ""
+    assert (await card_for(enabled=True, asked=False))["description"] == ""
+
+    relayed = await card_for(enabled=True, asked=True)
+    assert relayed["description"] == "Resolves refund requests."
+    assert relayed["skillDetails"][0]["description"] == "Issue a refund."
+    a2a_delegation.set_relay_card_text(False)
+
+
+def test_handler_reads_the_relay_request_from_metadata(configured, monkeypatch):
+    monkeypatch.setenv("PRIVILEGE_A2A_STATIC_TOKEN", "gateway-shared-secret")
+    set_federated_token_validator(None)
+    asked = []
+
+    async def fake_delegate(target, text, client=None):
+        asked.append(a2a_delegation._relay_card_text.get())
+        return "ok"
+
+    monkeypatch.setattr(a2a_delegation, "delegate", fake_delegate)
+    app = FastAPI()
+    app.include_router(router)
+    app.include_router(public_router)
+    client = TestClient(app)
+
+    def send(metadata):
+        return client.post(
+            "/a2a/jsonrpc",
+            headers={"Authorization": "Bearer gateway-shared-secret"},
+            json={"jsonrpc": "2.0", "id": "1", "method": "message/send", "params": {"metadata": metadata, "message": {"role": "user", "messageId": "m", "parts": [{"kind": "text", "text": "hi"}]}}},
+        )
+
+    assert send({"delegateTo": "refunds", "relayCardText": True}).status_code == 200
+    assert send({"delegateTo": "refunds"}).status_code == 200
+    # Only the literal true counts.
+    assert send({"delegateTo": "refunds", "relayCardText": "true"}).status_code == 200
+    assert asked == [True, False, False]

@@ -205,6 +205,7 @@ async def jsonrpc(request: Request) -> JSONResponse:
     # Every hand-off this request causes, explicit or model-chosen, is reported
     # back in the reply so the caller can show the chain.
     hops = a2a_delegation.start_hop_trace()
+    a2a_delegation.set_relay_card_text(_metadata_flag(body.get("params"), "relayCardText"))
     delegate_to = _delegate_target(body.get("params"))
     if delegate_to:
         try:
@@ -263,6 +264,15 @@ def _delegate_target(params: Any) -> str:
         if isinstance(holder, dict) and isinstance(holder.get("delegateTo"), str):
             return holder["delegateTo"].strip()
     return ""
+
+
+def _metadata_flag(params: Any, name: str) -> bool:
+    """True when the request's or the message's metadata sets ``name`` to true."""
+
+    if not isinstance(params, dict):
+        return False
+    message = params.get("message") if isinstance(params.get("message"), dict) else {}
+    return any(isinstance(holder, dict) and holder.get(name) is True for holder in (params.get("metadata"), message.get("metadata")))
 
 
 def _is_gateway_static_token(token: str) -> bool:

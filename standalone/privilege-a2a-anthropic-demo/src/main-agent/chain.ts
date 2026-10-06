@@ -94,6 +94,12 @@ export interface ChainOptions {
   bearer: string;
   message: string;
   specialist: string;
+  /**
+   * Ask the middle agent to pass its target's Agent Card text back unchecked.
+   * For the "Poisoned Agent Card" run only: with the hostile agent as the
+   * target, the gateway blocks the reply that carries that text.
+   */
+  relayCardText?: boolean;
   emit: (event: ChainEvent) => void;
   fetchImpl?: typeof fetch;
   signal?: AbortSignal;
@@ -286,7 +292,7 @@ export async function runChain(options: ChainOptions): Promise<string> {
     id: rpcId,
     method: 'message/send',
     params: {
-      metadata: { delegateTo: specialist },
+      metadata: { delegateTo: specialist, ...(options.relayCardText ? { relayCardText: true } : {}) },
       message: { role: 'user', messageId, parts: [{ kind: 'text', text: message }] },
     },
   });
