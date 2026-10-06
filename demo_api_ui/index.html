@@ -209,6 +209,47 @@
       }
     }
 
+    /* "Did you know" card under the mark. Same card AuthLoadingScreen draws (.boot-skeleton__tip
+       in App.css), repeated here as literals because that stylesheet has not loaded yet. */
+    .boot-tip {
+      position: fixed;
+      top: calc(50% + 56px);
+      left: 50%;
+      transform: translateX(-50%);
+      box-sizing: border-box;
+      width: min(320px, calc(100vw - 32px));
+      padding: 12px 14px;
+      border: 1px solid #e4e4e0;
+      border-left: 4px solid #dc2626;
+      border-radius: 8px;
+      background-color: #ffffff;
+      color: #14213d;
+      font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+      text-align: left;
+    }
+
+    .boot-tip b {
+      display: block;
+      margin-bottom: 4px;
+      color: #991b1b;
+      font-size: 11px;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+    }
+
+    :root[data-theme="dark"] .boot-tip,
+    :root[data-boot-dark] .boot-tip {
+      border-color: #26304a;
+      border-left-color: #ef4444;
+      background-color: #131c2e;
+      color: #e6ebf5;
+    }
+
+    :root[data-theme="dark"] .boot-tip b,
+    :root[data-boot-dark] .boot-tip b {
+      color: #f87171;
+    }
+
     @keyframes boot-dance {
       0%, 100% { transform: translate(0, 0) rotate(0deg) scale(1); }
       18% { transform: translate(-2px, -3px) rotate(-5deg) scale(1.02); }
@@ -231,7 +272,27 @@
 
 <body>
   <noscript>You need to enable JavaScript to run this app.</noscript>
-  <div id="root"><div id="boot-spinner"><div class="boot-bar"></div><div class="boot-nav"></div><div class="boot-main"><div class="boot-card"></div><div class="boot-card boot-card--short"></div></div><div class="boot-mark"><span class="boot-mark__ring"></span><img class="boot-mark__img" src="/branding/ping-logo.svg" alt=""></div></div></div>
+  <div id="root"><div id="boot-spinner"><div class="boot-bar"></div><div class="boot-nav"></div><div class="boot-main"><div class="boot-card"></div><div class="boot-card boot-card--short"></div></div><div class="boot-mark"><span class="boot-mark__ring"></span><img class="boot-mark__img" src="/branding/ping-logo.svg" alt=""></div><div class="boot-tip" id="boot-tip" aria-hidden="true"><b>Did you know</b><span>Every agent call swaps the user token for a scoped one (RFC 8693) before it reaches a tool.</span></div></div></div>
+
+  <!-- Rotates the boot tip until React replaces #root (the element is gone, so stop).
+       Keep in step with LOADING_TIPS in src/components/shared/loadingTips.js. -->
+  <script>
+    (function () {
+      var tips = [
+        "Every agent call swaps the user token for a scoped one (RFC 8693) before it reaches a tool.",
+        "The browser never holds a PingOne token. The BFF keeps it server-side and the page only sees a session cookie.",
+        "High-value transfers pause for human approval before they run.",
+        "Each tool call is checked against policy at the gateway, not just at sign-in."
+      ];
+      var i = 0;
+      var timer = setInterval(function () {
+        var el = document.querySelector('#boot-tip span');
+        if (!el) { clearInterval(timer); return; }
+        i = (i + 1) % tips.length;
+        el.textContent = tips[i];
+      }, 4000);
+    })();
+  </script>
 
   <!--
     Path A (CR-02/CR-04): the global WebSocket URL-token interceptor was

@@ -9,6 +9,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { THEME_STORAGE_KEY } from '../context/ThemeContext';
+import { LOADING_TIPS } from '../components/shared/loadingTips';
 
 const html = readFileSync(resolve(__dirname, '../../index.html'), 'utf8');
 
@@ -74,6 +75,12 @@ describe('index.html boot screen', () => {
 
   it('keeps the boot mark the same size as the React spinner (56px, as AuthLoadingScreen sets)', () => {
     expect(html).toMatch(/\.boot-mark\s*\{[^}]*width:\s*56px;[^}]*height:\s*56px/);
+  });
+
+  it('paints the first tip and rotates the same tips as React, leaving the theme script first', () => {
+    for (const tip of LOADING_TIPS) expect(html).toContain(tip);
+    expect(html).toContain(`<div class="boot-tip" id="boot-tip" aria-hidden="true"><b>Did you know</b><span>${LOADING_TIPS[0]}</span>`);
+    expect(bootThemeScript()).not.toContain('boot-tip');
   });
 
   it('draws a shell skeleton, not a bare blank block', () => {
