@@ -1,6 +1,7 @@
 'use strict';
 
 const { HITL_CHALLENGE_ARG } = require('./hitlServiceClient');
+const { isIdJagGateCode } = require('./idJagGateCodes');
 const { logger, LOG_CATEGORIES } = require('../utils/logger');
 const { buildGwAuthorizeEventExtra } = require('./agentMcpTokenService');
 const { isNodeGatewayOnlyTool, tokenResolutionOptions } = require('./mcpGatewayRoutingPolicy');
@@ -353,7 +354,7 @@ async function runMcpToolPipeline(ctx) {
 
         // This is a run-identity gate, never an exchange/config failure that
         // can degrade into a local tool call or an ordinary agent response.
-        if (err.code === 'id_jag_login_required' || err.code === 'id_jag_provider_required') {
+        if (isIdJagGateCode(err.code)) {
             const events = Array.isArray(err.tokenEvents) ? err.tokenEvents : [];
             deps.publishTokenEventsToSse(flowTraceId, events);
             return { kind: 'error', httpStatus: 401, tokenEvents: events, body: {

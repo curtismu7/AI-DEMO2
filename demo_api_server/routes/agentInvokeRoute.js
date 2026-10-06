@@ -13,6 +13,7 @@
  */
 
 const express = require('express');
+const { isIdJagGateCode } = require('../services/idJagGateCodes');
 const crypto = require('crypto');
 const { processAgentMessage } = require('../services/demoAgentLangGraphService');
 const { evaluateIntentAuthorization } = require('../services/intentAuthService');
@@ -731,7 +732,7 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
         tokenEvents: errorTokenEvents,
       });
     }
-    if (error.code === 'id_jag_login_required' || error.code === 'id_jag_provider_required') {
+    if (isIdJagGateCode(error.code)) {
       return res.status(401).json({ error: error.code, message: error.message,
         loginTarget: error.loginTarget, tokenEvents: errorTokenEvents });
     }

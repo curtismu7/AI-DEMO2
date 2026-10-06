@@ -17,6 +17,7 @@ jest.mock('../../services/oauthService', () => ({
   performTokenExchange: jest.fn(),
 }));
 
+const configStore = require('../../services/configStore');
 const oauthService = require('../../services/oauthService');
 const { resolvePingFederateIdJagToken, resolveMcpAccessTokenWithEvents, __test } = require('../../services/agentMcpTokenService');
 
@@ -93,6 +94,19 @@ describe('PingFederate provider isolation', () => {
 
   test('rejects a PF session with no tokens and no live intent', () => {
     expect(() => __test.assertPfIdJagRunAllowed({ session: { oauthType: 'user', oauthProvider: 'pingfederate' } }, 'enterprise-managed-mcp-authorization')).toThrow(expect.objectContaining({ code: 'id_jag_login_required' }));
+  });
+
+  // Regression: a PF session under a PingOne-selected shared provider was reported as
+  // id_jag_provider_required ("PingOne is selected") to a user who is on PingFederate.
+  test('PF session while the shared provider is PingOne is a mismatch, not a provider error', () => {
+    configStore.getOAuthProvider.mockReturnValue('pingone');
+    const session = { oauthType: 'user', oauthProvider: 'pingfederate', oauthTokens: { accessToken: 'user-token' } };
+    try {
+      expect(() => __test.assertPfIdJagRunAllowed({ session }, 'enterprise-managed-mcp-authorization'))
+        .toThrow(expect.objectContaining({ code: 'id_jag_provider_mismatch', message: expect.stringMatching(/signed in with PingFederate/) }));
+    } finally {
+      configStore.getOAuthProvider.mockReturnValue('pingfederate');
+    }
   });
 
   // Regression: an existing PF session used to be refused (forcing a second

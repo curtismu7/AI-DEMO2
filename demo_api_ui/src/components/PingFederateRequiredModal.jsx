@@ -12,10 +12,12 @@ export default function PingFederateRequiredModal() {
   const [returnTo, setReturnTo] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  const [mismatch, setMismatch] = useState(false);
 
   useEffect(() => {
     const onRequired = (event) => {
       setError(null);
+      setMismatch(event.detail?.code === "id_jag_provider_mismatch");
       setReturnTo(event.detail?.returnTo || "/pingfederate-id-jag/demo");
     };
     window.addEventListener("id-jag-provider-required", onRequired);
@@ -69,7 +71,11 @@ export default function PingFederateRequiredModal() {
       }
     >
       <div className="dm-scroll confirm-modal-message">
-        <p>This use case needs PingFederate, but you are signed in with PingOne.</p>
+        <p>
+          {mismatch
+            ? "You are signed in with PingFederate, but the shared login provider is set to PingOne."
+            : "This use case needs PingFederate, but you are signed in with PingOne."}
+        </p>
         <p>Continuing switches the shared login provider to PingFederate and signs you in with it.</p>
         {error && <p role="alert">{error}</p>}
       </div>

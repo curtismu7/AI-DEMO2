@@ -166,15 +166,20 @@ export function useAuth() {
       let intentPosted = false;
       try {
         const provider = (await bffAxios.get('/api/admin/config')).data?.config?.oauth_provider;
+        const status = (await bffAxios.get('/api/auth/oauth/user/status').catch(() => null))?.data;
+        const hasPfSession = status?.authenticated === true && status.oauthProvider === 'pingfederate';
         if (provider !== 'pingfederate') {
-          const error = new Error('select PingFederate with the top-bar P1/PF switch and retry');
-          error.code = 'id_jag_provider_required';
+          // The shared provider is global; the session's provider is what the user is
+          // actually signed in with. When they disagree say so rather than "PingOne is selected".
+          const error = new Error(hasPfSession
+            ? 'you are signed in with PingFederate but the shared login provider is PingOne; an admin must select PF with the top-bar P1/PF switch, then retry'
+            : 'select PingFederate with the top-bar P1/PF switch and retry');
+          error.code = hasPfSession ? 'id_jag_provider_mismatch' : 'id_jag_provider_required';
           throw error;
         }
         // An existing PingFederate session is reused: no intent, logout or second
         // sign-in. The BFF run gate accepts it (assertPfIdJagRunAllowed).
-        const status = (await bffAxios.get('/api/auth/oauth/user/status').catch(() => null))?.data;
-        if (status?.authenticated === true && status.oauthProvider === 'pingfederate') {
+        if (hasPfSession) {
           completeIdJagRunHandoff({ restoreProvider: false });
           window.dispatchEvent(new CustomEvent('banking-agent-prefill', { detail: {
             message: intent.message, autoSend: true, useCaseId: ID_JAG_USE_CASE_ID, mode: RUN_MODES.LIVE_ID_JAG,
@@ -194,8 +199,8 @@ export function useAuth() {
       } catch (error) {
         if (intentPosted) await bffAxios.post('/api/auth/oauth/user/id-jag/cancel').catch(() => {});
         clearIdJagRunState();
-        if (error.code === 'id_jag_provider_required') {
-          window.dispatchEvent(new CustomEvent('id-jag-provider-required', { detail: { returnTo: intent.returnTo } }));
+        if (error.code === 'id_jag_provider_required' || error.code === 'id_jag_provider_mismatch') {
+          window.dispatchEvent(new CustomEvent('id-jag-provider-required', { detail: { returnTo: intent.returnTo, code: error.code } }));
         }
         notifyError(`Could not start PingFederate ID-JAG login: ${error.message}`);
       }
