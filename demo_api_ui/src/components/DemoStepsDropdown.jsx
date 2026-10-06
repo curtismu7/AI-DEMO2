@@ -385,6 +385,8 @@ export default function DemoStepsDropdown({
         message: chainRun.id !== 'guardrail' && profile?.questions?.[0] ? profile.questions[0] : message,
         specialist,
         profile,
+        // The poisoned Agent Card run only; other runs send no such key.
+        ...(chainRun.relayCardText === true ? { relayCardText: true } : {}),
       }));
     }
     // Step 25A runs the A2A access review in the embedded agent: start the run, keep its
@@ -615,7 +617,7 @@ export default function DemoStepsDropdown({
             title={`Run the agent chain: ${run.label} — the gateway should refuse this one`}
             data-testid={`chain-run-${scope}${run.id}`}
           >
-            {run.label.charAt(0)}
+            {run.short || run.label.charAt(0)}
           </button>
         ))}
         {/* Step 25A: questions 2 and 3 of the vertical's three, for the presenter to choose from. */}

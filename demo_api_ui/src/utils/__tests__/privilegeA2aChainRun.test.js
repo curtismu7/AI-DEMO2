@@ -572,3 +572,22 @@ test("a card read by another agent shows that its prose was not relayed", () => 
   expect(kv.Description).toContain("Not relayed (462 characters)");
   expect(kv["Skill: process refund"]).toBe("description not relayed");
 });
+
+test("the poisoned-card run sends its flag to the API and says so on the first node", async () => {
+  const store = fakeStore();
+  const fetchImpl = vi.fn().mockImplementation(async () => sse([["trace", { kind: "error", from: "main", to: "langchainagent", detail: "400: response blocked by security policy" }], ["error", { error: "response blocked by security policy" }]]));
+
+  await startPrivilegeA2aChainRun({ message: "Refund order 7", specialist: "refunds", relayCardText: true, store, fetchImpl, loadRecord: null });
+  expect(JSON.parse(fetchImpl.mock.calls[0][1].body)).toEqual({ message: "Refund order 7", specialist: "refunds", relayCardText: true });
+
+  const steps = buildPrivilegeA2aChainSteps(store.events);
+  expect(Object.fromEntries(steps[0].detail.kv)["This run"]).toContain("Agent Card text back unchecked");
+  expect(steps.map((step) => step.title)).toEqual(["Client started flow", "Calls LangChain agent · A2A message/send", "Blocks the reply", "Done"]);
+  expect(steps.at(-1).status).toBe("error");
+
+  // An ordinary run sends no flag and adds no note.
+  const plain = fakeStore();
+  await startPrivilegeA2aChainRun({ message: "Refund order 7", specialist: "refunds", store: plain, fetchImpl, loadRecord: null });
+  expect(JSON.parse(fetchImpl.mock.calls[1][1].body)).toEqual({ message: "Refund order 7", specialist: "refunds" });
+  expect(plain.events[0].note).toBeUndefined();
+});

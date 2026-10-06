@@ -268,6 +268,7 @@ export function buildPrivilegeA2aChainSteps(tokenEvents) {
           ["Handed to", `${to}, by the app's server`],
           ...row("Entry point", event.entry),
           ["Passed on to the agents", "The request text only; no browser token"],
+          ...row("This run", event.note),
           ...saidRow("Request"),
         ],
       })];

@@ -122,6 +122,7 @@ export async function startPrivilegeA2aChainRun({
   message,
   specialist,
   profile,
+  relayCardText = false,
   store = tokenChainTraceStore,
   fetchImpl = fetch,
   signal,
@@ -130,7 +131,11 @@ export async function startPrivilegeA2aChainRun({
 } = {}) {
   const startedAt = Date.now();
   store.beginTrace({ prompt: `${message} (via ${specialist})` });
-  store.ingestTokenEvent(startEvent(message, `POST ${API_URL}`, PRIVILEGE_A2A_CHAIN_USE_CASE_ID, profile));
+  store.ingestTokenEvent({
+    ...startEvent(message, `POST ${API_URL}`, PRIVILEGE_A2A_CHAIN_USE_CASE_ID, profile),
+    // What is unusual about this run, for the reel's first node.
+    ...(relayCardText ? { note: "The middle agent is asked to pass its specialist's Agent Card text back unchecked. That specialist is the hostile demo agent, so the gateway should block the reply." } : {}),
+  });
   let hops = 0;
   const seen = [];
   let answer = '';
@@ -160,7 +165,7 @@ export async function startPrivilegeA2aChainRun({
       method: 'POST',
       credentials: 'include',
       headers: { Accept: 'text/event-stream', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message, specialist }),
+      body: JSON.stringify({ message, specialist, ...(relayCardText ? { relayCardText: true } : {}) }),
       signal,
     });
     if (!response.ok || !response.body) {

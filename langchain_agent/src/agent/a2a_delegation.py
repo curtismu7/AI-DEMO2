@@ -30,6 +30,29 @@ _MAX_WIRE_TEXT = 4000
 _hop_trace: ContextVar[list[dict[str, Any]] | None] = ContextVar("a2a_hop_trace", default=None)
 
 
+# Whether this request asked for a target's card prose to be relayed. Only a
+# deployment that sets A2A_DEMO_RELAY_CARD_TEXT honours it: see _card_summary.
+_relay_card_text: ContextVar[bool] = ContextVar("a2a_relay_card_text", default=False)
+
+
+def set_relay_card_text(requested: bool) -> None:
+    """Record, for the current request, that its caller asked for card prose to be relayed."""
+
+    _relay_card_text.set(bool(requested))
+
+
+def _relays_card_text() -> bool:
+    """True only when the deployment opts in and this request asked.
+
+    Relaying another agent's prose is what an agent should not do. It exists so
+    the demo can show the gateway catching it: with the hostile demo agent as
+    the target, the reply carrying its card text is blocked on the way back.
+    """
+
+    enabled = os.environ.get("A2A_DEMO_RELAY_CARD_TEXT", "").strip().lower() in {"1", "true", "yes"}
+    return enabled and _relay_card_text.get()
+
+
 class DelegationError(Exception):
     """The downstream agent could not be reached or refused the call."""
 
@@ -104,9 +127,14 @@ def _card_summary(body: dict[str, Any]) -> dict[str, Any]:
         scopes = required.get(name, [])
         security.append(f"{name} ({kind})" + (f", scopes: {' '.join(scopes)}" if scopes else ""))
     capabilities = body.get("capabilities") if isinstance(body.get("capabilities"), dict) else {}
+    relay = _relays_card_text()
+
+    def prose(value: Any) -> str:
+        return value if relay and isinstance(value, str) else ""
+
     return {
         "name": body["name"],
-        "description": "",
+        "description": prose(body.get("description")),
         "descriptionChars": len(body["description"]) if isinstance(body.get("description"), str) else 0,
         "protocolVersion": body.get("protocolVersion") if isinstance(body.get("protocolVersion"), str) else "",
         "url": body.get("url") if isinstance(body.get("url"), str) else "",
@@ -120,7 +148,7 @@ def _card_summary(body: dict[str, Any]) -> dict[str, Any]:
             {
                 "id": skill.get("id") if isinstance(skill.get("id"), str) else "",
                 "name": skill["name"],
-                "description": "",
+                "description": prose(skill.get("description")),
                 "tags": _texts(skill.get("tags")),
             }
             for skill in skills

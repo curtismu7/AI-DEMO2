@@ -142,6 +142,8 @@ router.post('/chat', requireSession, express.json({ limit: '64kb' }), async (req
  * Start the three-deep chain: the main agent hands `message` to the middle
  * agent through the Privilege gateway and names the `specialist` it should
  * hand it on to. Streams one `trace` event per hop, each with from and to.
+ * `relayCardText: true` is the "Poisoned Agent Card" run: it asks the middle
+ * agent to pass its target's Agent Card text back unchecked.
  */
 router.post('/chain', requireSession, express.json({ limit: '64kb' }), async (req, res) => {
   const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body)
@@ -157,7 +159,12 @@ router.post('/chain', requireSession, express.json({ limit: '64kb' }), async (re
     res.status(400).json({ error: 'specialist must be a lowercase name of 1 to 64 characters' });
     return;
   }
-  await relayMainAgentSse(res, '/chain', { message, specialist, ...profileForMainAgent(activeProfile(req)) });
+  await relayMainAgentSse(res, '/chain', {
+    message,
+    specialist,
+    ...(body.relayCardText === true ? { relayCardText: true } : {}),
+    ...profileForMainAgent(activeProfile(req)),
+  });
 });
 
 // Fetch a live A2A Agent Card over the wire so the /llm-gateway "Malicious A2A"

@@ -140,7 +140,7 @@ app.post('/chain', async (req: Request, res: Response) => {
     res.status(503).json({ error: 'CHAIN_A2A_URL is not configured' });
     return;
   }
-  const body = req.body as { message?: unknown; specialist?: unknown };
+  const body = req.body as { message?: unknown; specialist?: unknown; relayCardText?: unknown };
   const profile = parseProfile(req.body);
   const message = typeof body.message === 'string' ? body.message.trim() : '';
   const specialist = typeof body.specialist === 'string' ? body.specialist.trim() : '';
@@ -165,6 +165,7 @@ app.post('/chain', async (req: Request, res: Response) => {
       bearer: config.bearer,
       message,
       specialist,
+      relayCardText: body.relayCardText === true,
       profile,
       signal: abort.signal,
       emit: event => sendSse(res, 'trace', { ...event, at: at() }),
