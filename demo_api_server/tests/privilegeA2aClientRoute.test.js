@@ -38,6 +38,59 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
+describe('what the browser is told when the agent cannot be used', () => {
+  const RESTARTING = /unreachable.*may be restarting.*try again/i;
+
+  test('a refused or restarting agent says it is unreachable and may be restarting', async () => {
+    global.fetch = jest.fn().mockRejectedValue(new Error('connect ECONNREFUSED 127.0.0.1:3300'));
+
+    const response = await request(createApp()).post('/api/privilege-a2a/chat').send({ message: 'hi' });
+
+    expect(response.status).toBe(502);
+    expect(response.body.error).toMatch(RESTARTING);
+    expect(JSON.stringify(response.body)).not.toContain('ECONNREFUSED');
+  });
+
+  test('an agent that answers with an error status (not a stream) is also unreachable', async () => {
+    global.fetch = jest.fn().mockResolvedValue(new Response('{"error":"unauthorized"}', { status: 401, headers: { 'Content-Type': 'application/json' } }));
+
+    const response = await request(createApp()).post('/api/privilege-a2a/chain').send({ message: 'hi', specialist: 'refunds' });
+
+    expect(response.status).toBe(502);
+    expect(response.body.error).toMatch(RESTARTING);
+  });
+
+  test('a missing shared secret is a configuration problem, not a restart', async () => {
+    delete process.env.PRIVILEGE_A2A_BFF_SECRET;
+    global.fetch = jest.fn();
+
+    const response = await request(createApp()).post('/api/privilege-a2a/chat').send({ message: 'hi' });
+
+    expect(response.status).toBe(503);
+    expect(response.body.error).toMatch(/not configured/i);
+    expect(response.body.error).not.toMatch(/restarting/i);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  test('a stream that dies mid-run ends with an error event that says it may be restarting', async () => {
+    const enc = new TextEncoder();
+    const body = new ReadableStream({
+      start(controller) {
+        controller.enqueue(enc.encode('event: trace\ndata: {"kind":"session"}\n\n'));
+        controller.error(new Error('socket hang up'));
+      },
+    });
+    global.fetch = jest.fn().mockResolvedValue(new Response(body, { status: 200, headers: { 'Content-Type': 'text/event-stream' } }));
+
+    const response = await request(createApp()).post('/api/privilege-a2a/chat').send({ message: 'hi' });
+
+    expect(response.status).toBe(200);
+    expect(response.text).toContain('event: error');
+    expect(response.text).toMatch(/stopped responding mid-run.*may be restarting/i);
+    expect(response.text).not.toContain('socket hang up');
+  });
+});
+
 describe('vertical profile', () => {
   const frames = 'event: done\ndata: {}\n\n';
   const sse = () => new Response(frames, { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
@@ -169,7 +222,7 @@ describe('POST /api/privilege-a2a/chat', () => {
       .send({ message: 'Review access' });
 
     expect(response.status).toBe(502);
-    expect(response.body).toEqual({ error: 'A2A service unavailable' });
+    expect(response.body).toEqual({ error: 'The A2A agent is unreachable. It may be restarting; try again in a few seconds.' });
     expect(JSON.stringify(response.body)).not.toContain('secret details');
   });
 

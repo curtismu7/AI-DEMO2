@@ -249,6 +249,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-06 — "A2A service unavailable" did not say the agent may just be restarting
+
+**Files:** `demo_api_server/routes/privilegeA2aClient.js`, `demo_api_server/tests/privilegeA2aClientRoute.test.js`.
+
+**What was broken:** A click that landed while the standalone main agent was restarting (its port not yet listening) got the BFF's generic `A2A service unavailable`, which looks like a broken demo and says nothing about retrying. The same text covered a missing shared secret, a refused connection and an agent that answered with an error status.
+
+**What changed:** The relay now tells the browser what happened: an unreachable agent (connection refused, or a non-stream error answer) returns 502 `The A2A agent is unreachable. It may be restarting; try again in a few seconds.`; a missing shared secret returns 503 `The A2A agent is not configured on the server.` (a config problem, not a restart); a stream that dies after headers are sent ends with an `error` event `The A2A agent stopped responding mid-run. It may be restarting; try again.` No upstream detail (host, port, socket error) is forwarded.
+
+**Do not break:** the status codes (502, 503), the SSE relay byte for byte, and that no browser identity or token is forwarded. The UI's own fallback `The A2A service is unavailable.` (when the BFF itself cannot be reached) is unchanged.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/privilegeA2aClientRoute.test.js --forceExit`.
+
 ### 2026-10-05 — The agent showed nothing while an A2A run was working (no "still working" mark)
 
 **Files:** `demo_api_ui/src/components/AgentRunIndicator.jsx` (+ `.css`, new), `demo_api_ui/src/components/AIAgent.js`, tests.

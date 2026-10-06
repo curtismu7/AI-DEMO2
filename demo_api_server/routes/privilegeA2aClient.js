@@ -8,7 +8,10 @@ const { a2aDemoProfile } = require('../config/a2aSpecialists');
 const router = express.Router();
 const MAX_MESSAGE_LENGTH = 4000;
 const MAX_SESSION_ID_LENGTH = 128;
-const UNAVAILABLE = { error: 'A2A service unavailable' };
+// What the browser is told. The common cause of UNREACHABLE is the main agent restarting, so say so.
+const UNREACHABLE = { error: 'The A2A agent is unreachable. It may be restarting; try again in a few seconds.' };
+const NOT_CONFIGURED = { error: 'The A2A agent is not configured on the server.' };
+const INTERRUPTED = 'The A2A agent stopped responding mid-run. It may be restarting; try again.';
 
 // The active vertical comes from the server-side session, never from the request body,
 // so a browser cannot name a specialist it is not on. Null when the vertical has none.
@@ -36,7 +39,7 @@ function mainAgentUrl(path) {
 async function relayMainAgentSse(res, path, upstreamBody) {
   const sharedSecret = process.env.PRIVILEGE_A2A_BFF_SECRET;
   if (!sharedSecret) {
-    res.status(503).json(UNAVAILABLE);
+    res.status(503).json(NOT_CONFIGURED);
     return;
   }
 
@@ -62,7 +65,7 @@ async function relayMainAgentSse(res, path, upstreamBody) {
 
     if (!upstream.ok || !upstream.body || !/^text\/event-stream\b/i.test(upstream.headers.get('content-type') || '')) {
       await upstream.body?.cancel().catch(() => undefined);
-      if (!res.destroyed) res.status(502).json(UNAVAILABLE);
+      if (!res.destroyed) res.status(502).json(UNREACHABLE);
       return;
     }
 
@@ -94,10 +97,10 @@ async function relayMainAgentSse(res, path, upstreamBody) {
   } catch {
     if (controller.signal.aborted || res.destroyed) return;
     if (!res.headersSent) {
-      res.status(502).json(UNAVAILABLE);
+      res.status(502).json(UNREACHABLE);
       return;
     }
-    res.write('event: error\ndata: {"error":"A2A stream interrupted"}\n\n');
+    res.write(`event: error\ndata: ${JSON.stringify({ error: INTERRUPTED })}\n\n`);
     res.end();
   } finally {
     cleanup();
