@@ -257,3 +257,16 @@
 .sdp-stage-name { font-weight: 700; }
 .sdp-stage-result { color: var(--th-text-muted); margin-left: 6px; }
 .sdp-stage-note { display: block; color: var(--th-text-muted); font-size: 11.5px; margin-top: 1px; }
+
+/* What Privilege's own record maps this call to: MITRE ATLAS, NIST AI RMF, OWASP. */
+.sdp-compliance {
+  margin-bottom: 9px;
+  padding: 8px 10px;
+  border: 1px solid var(--th-status-info-border);
+  border-left-width: 3px;
+  border-radius: 6px;
+  background: var(--th-status-info-bg);
+}
+.sdp-compliance-title { margin: 0 0 4px; color: var(--th-status-info-text); font-weight: 700; }
+.sdp-compliance .sdp-kv-row dt { color: var(--th-status-info-text); }
+.sdp-compliance .sdp-kv-row dd { font-weight: 600; }

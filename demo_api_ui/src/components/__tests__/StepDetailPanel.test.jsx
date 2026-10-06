@@ -31,6 +31,17 @@ const DIFF_STEP = {
 };
 
 describe("StepDetailPanel", () => {
+  it("highlights the framework mappings Privilege returned, and nothing when it returned none", () => {
+    const compliance = { title: "Privilege flagged this call", frameworks: [{ label: "MITRE ATLAS", identifiers: ["AML.T0051", "AML.T0056"] }, { label: "OWASP LLM", identifiers: ["LLM01"] }] };
+    const { unmount } = render(<StepDetailPanel step={{ ...STEP, detail: { ...STEP.detail, compliance } }} />);
+    expect(screen.getByText("Privilege flagged this call")).toBeInTheDocument();
+    expect(screen.getByText("AML.T0051, AML.T0056")).toBeInTheDocument();
+    expect(screen.getByText("LLM01")).toBeInTheDocument();
+    unmount();
+    render(<StepDetailPanel step={STEP} />);
+    expect(screen.queryByLabelText("Privilege compliance mappings")).toBeNull();
+  });
+
   it("shows RFC references in the selected step detail only when RFC Info is on", () => {
     localStorage.clear();
     const { unmount } = render(<StepDetailPanel step={STEP} />);

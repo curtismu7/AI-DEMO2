@@ -208,6 +208,20 @@ export default function StepDetailPanel({ step, onInspect, fontSize = "large" })
         </Section>
       ) : null}
 
+      {d.compliance?.frameworks?.length ? (
+        <div className="sdp-compliance" aria-label="Privilege compliance mappings">
+          <p className="sdp-compliance-title">{d.compliance.title}</p>
+          <dl className="sdp-kv">
+            {d.compliance.frameworks.map((f) => (
+              <div className="sdp-kv-row" key={f.label}>
+                <dt>{f.label}</dt>
+                <dd>{f.identifiers.join(", ")}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      ) : null}
+
       {hasChange ? (
         <Section label="What changed">
           {diff}
