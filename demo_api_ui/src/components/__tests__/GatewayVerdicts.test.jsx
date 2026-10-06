@@ -157,6 +157,17 @@ describe('GatewayVerdicts', () => {
     expect(screen.getByText('AML.T0057 — rule pii-email')).toBeInTheDocument();
   });
 
+  it('shows a spinner on the button while findings load, and removes it after', async () => {
+    let release;
+    const slow = vi.fn(() => new Promise((resolve) => { release = resolve; }));
+    const { container } = render(<GatewayVerdicts signIn={null} fetchImpl={slow} />);
+    expect(container.querySelector('.gwv__spinner')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /load findings/i }));
+    await waitFor(() => expect(container.querySelector('.gwv__spinner')).not.toBeNull());
+    release({ ok: true, status: 200, json: async () => ({ tools: [] }) });
+    await waitFor(() => expect(container.querySelector('.gwv__spinner')).toBeNull());
+  });
+
   it('never renders the virtual key', async () => {
     const { container } = render(<GatewayVerdicts signIn={null} fetchImpl={mockFetch()} />);
     fireEvent.click(screen.getByRole('button', { name: /load findings/i }));
