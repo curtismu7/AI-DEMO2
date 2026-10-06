@@ -528,8 +528,10 @@ test("a run's reel starts with the client starting the flow and ends with Done",
     ["pa2a-0-call", "Calls LangChain agent · A2A message/send", "MAIN-AGENT", "done"],
     ["pa2a-0-gateway", "Checks key, scope, policy and guardrail", "GATEWAY", "done"],
     ["pa2a-0-forward", "Receives the call from Main agent", "LANGCHAIN-AGENT", "done"],
+    ["pa2a-done-answer", "Returns the answer to Client", "MAIN-AGENT", "done"],
     ["pa2a-done", "Done", "CLIENT", "done"],
   ]);
+  expect(steps.at(-2).detail.response.text).toBe("Refund approved");
   expect(Object.fromEntries(steps[0].detail.kv)).toMatchObject({ "Entry point": "POST /api/privilege-a2a/chain", Request: "Refund order 7" });
   expect(Object.fromEntries(steps.at(-1).detail.kv)).toMatchObject({ Outcome: "Completed", "Final answer": "Refund approved" });
 
