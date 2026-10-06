@@ -40,7 +40,8 @@
 .oauth-provider-toggle--pingone .oauth-provider-toggle__option:first-child,
 .oauth-provider-toggle--pingfederate .oauth-provider-toggle__option:last-child {
   background: var(--brand-topnav-text, #fff);
-  color: var(--brand-topnav-bg-start, #1e293b);
+  /* The raw brand colour is 6.5:1 on white for red; 28% black mixed in is 10:1. */
+  color: color-mix(in srgb, var(--brand-topnav-bg-start, #1e293b) 72%, #000000);
 }
 
 /* PingFederate active: amber tint on the pill so the less-common mode is obvious. */

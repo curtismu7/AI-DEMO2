@@ -476,11 +476,11 @@
 }
 
 :root[data-theme="dark"] .boot-skeleton__tip b {
-  color: #f87171;
+  color: #fecaca; /* #f87171 was 6.2:1 on the tip card */
 }
 
 :root[data-theme="dark"] .boot-skeleton__tip em {
-  color: #9aa6bd;
+  color: #c7d2e6; /* #9aa6bd was 6.6:1 */
 }
 
 .auth-loading-dots {

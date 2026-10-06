@@ -85,6 +85,10 @@
 }
 
 .pfj-explainer__primary { background: var(--pfj-explainer-accent); color: #fff; }
+/* PingOne's `.end-user-nano a` link colour (specificity 0,1,1) beat the button ink above:
+   dark teal on a dark teal fill, 1.03:1. */
+.end-user-nano a.pfj-explainer__primary { color: #fff; }
+.end-user-nano a.pfj-explainer__secondary { color: var(--th-text); }
 .pfj-explainer__secondary {
   border: 1px solid var(--th-border-strong);
   background: var(--th-bg-card);
