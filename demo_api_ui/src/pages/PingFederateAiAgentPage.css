@@ -265,24 +265,53 @@ a.pf-ai-agent__action, a.pf-ai-agent__action:link, a.pf-ai-agent__action:visited
   .pf-ai-agent__comparison-cell--pf { background: var(--th-bg-card); color: var(--th-text); }
 }
 
-/* Mock phone popup (CIBA approval stand-in) */
+/* Mock phone popup (CIBA approval stand-in), drawn as an iPhone lock screen.
+   The popup renders in a portal, outside .pf-ai-agent, so it must define its own accent: the page's
+   --pf-ai-accent does not reach it. The bezel, wallpaper and notification are device colours and stay the
+   same in light and dark on purpose. */
 .pf-ai-agent__phone-wrap { display: flex; justify-content: center; padding: 16px; }
 .pf-ai-agent__phone {
+  --pf-ai-accent: #087d76;
+  width: 100%;
+  max-width: 280px;
+  padding: 10px;
+  border-radius: 48px;
+  background: #0b0b0d;
+  box-shadow: 0 0 0 2px #3a3a3f, 0 18px 40px rgba(0, 0, 0, 0.35);
+}
+.pf-ai-agent__phone-screen {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  width: 100%;
-  max-width: 260px;
-  padding: 28px 18px 22px;
-  border: 6px solid var(--th-text);
-  border-radius: 30px;
-  background: var(--th-bg-card);
-  color: var(--th-text);
-  text-align: center;
+  gap: 14px;
+  min-height: 480px;
+  padding: 12px 14px 10px;
+  border-radius: 38px;
+  background: linear-gradient(165deg, #1b2a52 0%, #3d2060 55%, #7b2f5b 100%);
+  color: #fff;
 }
-.pf-ai-agent__phone h3,
-.pf-ai-agent__phone p { margin: 0; }
-.pf-ai-agent__phone-app { color: var(--th-text-muted); font-size: var(--font-size-xs); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
-.pf-ai-agent__phone-message { padding: 8px 10px; border-radius: var(--radius-sm); background: var(--th-bg-inset); font-weight: 650; overflow-wrap: anywhere; }
-.pf-ai-agent__phone .pf-ai-agent__action,
-.pf-ai-agent__phone .pf-ai-agent__secondary-action { width: 100%; }
+.pf-ai-agent__phone-island { align-self: center; width: 86px; height: 25px; border-radius: 13px; background: #000; }
+.pf-ai-agent__phone-clock { text-align: center; }
+.pf-ai-agent__phone-date { display: block; font-size: var(--font-size-sm); font-weight: 600; opacity: 0.9; }
+.pf-ai-agent__phone-time { display: block; font-size: var(--font-size-4xl); font-weight: 700; line-height: 1.1; }
+.pf-ai-agent__phone-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.88);
+  color: #111;
+}
+.pf-ai-agent__phone-card h3,
+.pf-ai-agent__phone-card p { margin: 0; }
+.pf-ai-agent__phone-app { display: flex; align-items: center; gap: 8px; font-size: var(--font-size-xs); font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: #555; }
+.pf-ai-agent__phone-icon { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 6px; background: var(--pf-ai-accent); color: #fff; font-size: var(--font-size-xs); font-weight: 800; }
+.pf-ai-agent__phone-now { margin-left: auto; text-transform: none; font-weight: 500; }
+.pf-ai-agent__phone-card h3 { font-size: var(--font-size-base); }
+.pf-ai-agent__phone-card p { font-size: var(--font-size-sm); }
+.pf-ai-agent__phone-message { padding: 6px 8px; border-radius: 10px; background: rgba(0, 0, 0, 0.07); font-weight: 650; overflow-wrap: anywhere; }
+.pf-ai-agent__phone-actions { display: flex; flex-direction: column; gap: 8px; margin-top: auto; }
+.pf-ai-agent__phone-actions button { width: 100%; min-height: 46px; border-radius: 23px; font-size: var(--font-size-base); }
+.pf-ai-agent__phone-actions .pf-ai-agent__action { border-color: var(--pf-ai-accent); background: var(--pf-ai-accent); color: #fff; }
+.pf-ai-agent__phone-actions .pf-ai-agent__secondary-action { border-color: transparent; background: rgba(255, 255, 255, 0.22); color: #fff; }
+.pf-ai-agent__phone-home { align-self: center; width: 110px; height: 5px; border-radius: 3px; background: rgba(255, 255, 255, 0.85); }

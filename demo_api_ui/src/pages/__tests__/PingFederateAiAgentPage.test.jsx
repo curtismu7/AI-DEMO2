@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import apiClient from "../../services/apiClient";
 import { notifyError } from "../../utils/appToast";
 import PingFederateAiAgentPage from "../PingFederateAiAgentPage";
+import pageCss from "../PingFederateAiAgentPage.css?raw";
 
 vi.mock("../../services/apiClient", () => ({
   default: { get: vi.fn(), post: vi.fn() },
@@ -203,6 +204,11 @@ describe("PingFederate AI Agent page", () => {
       expect(await screen.findByText("Approve this request?")).toBeInTheDocument();
       expect(screen.getByText(/asking demouser to approve it/i)).toBeInTheDocument();
       expect(screen.getByText("Approve-125")).toBeInTheDocument();
+    });
+
+    it("the popup defines its own accent: it renders outside the page root, where the page's variable does not reach", () => {
+      // Without this the Approve button had white text on no background, so only Deny was visible.
+      expect(pageCss).toMatch(/\.pf-ai-agent__phone\s*\{[^}]*--pf-ai-accent:/);
     });
 
     it("has no mock phone buttons when it is off", async () => {

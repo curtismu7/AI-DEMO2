@@ -521,19 +521,35 @@ export default function PingFederateAiAgentPage({ user }) {
         isOpen={phoneOpen}
         onClose={() => setPhoneClosed(true)}
         title="Mock phone"
-        defaultWidth={340}
-        defaultHeight={500}
+        defaultWidth={360}
+        defaultHeight={640}
         storageKey="pf-ai-agent-mock-phone"
       >
         {/* dm-scroll: `dm-body` is bare by contract — no padding, no scroll. */}
         <div className="dm-scroll pf-ai-agent__phone-wrap" data-testid={phoneChannel === "web" ? "ciba-web-approver" : "ciba-mock-phone"}>
           <div className="pf-ai-agent__phone">
-            <p className="pf-ai-agent__phone-app">PingOne MFA (mock)</p>
-            <h3>Approve this request?</h3>
-            <p>An AI agent is asking {cibaState?.loginHint} to approve it.</p>
-            {cibaState?.bindingMessage && <p className="pf-ai-agent__phone-message">{cibaState.bindingMessage}</p>}
-            <button className="pf-ai-agent__action" type="button" onClick={() => answerOnPhone("approve")}>{phoneLabel("approve")}</button>
-            <button className="pf-ai-agent__secondary-action" type="button" onClick={() => answerOnPhone("deny")}>{phoneLabel("deny")}</button>
+            <div className="pf-ai-agent__phone-screen">
+              <div className="pf-ai-agent__phone-island" aria-hidden="true" />
+              <div className="pf-ai-agent__phone-clock" aria-hidden="true">
+                <span className="pf-ai-agent__phone-date">Lock screen</span>
+                <span className="pf-ai-agent__phone-time">9:41</span>
+              </div>
+              <div className="pf-ai-agent__phone-card">
+                <p className="pf-ai-agent__phone-app">
+                  <span className="pf-ai-agent__phone-icon" aria-hidden="true">P</span>
+                  PingOne MFA (mock)
+                  <span className="pf-ai-agent__phone-now">now</span>
+                </p>
+                <h3>Approve this request?</h3>
+                <p>An AI agent is asking {cibaState?.loginHint} to approve it.</p>
+                {cibaState?.bindingMessage && <p className="pf-ai-agent__phone-message">{cibaState.bindingMessage}</p>}
+              </div>
+              <div className="pf-ai-agent__phone-actions">
+                <button className="pf-ai-agent__action" type="button" onClick={() => answerOnPhone("approve")}>{phoneLabel("approve")}</button>
+                <button className="pf-ai-agent__secondary-action" type="button" onClick={() => answerOnPhone("deny")}>{phoneLabel("deny")}</button>
+              </div>
+              <div className="pf-ai-agent__phone-home" aria-hidden="true" />
+            </div>
           </div>
         </div>
       </DraggableModal>
