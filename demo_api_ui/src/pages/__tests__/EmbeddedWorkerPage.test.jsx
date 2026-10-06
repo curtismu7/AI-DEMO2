@@ -16,7 +16,7 @@ describe('EmbeddedWorkerPage', () => {
     render(<EmbeddedWorkerPage />);
 
     expect(screen.getByRole('heading', { name: 'Website Worker' })).toBeInTheDocument();
-    expect(screen.getByText(/Embedded in the customer website/)).toBeInTheDocument();
+    expect(screen.getByText(/Embedded in a third-party SaaS app/)).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText('AI Agent - demo')).toBeInTheDocument());
   });
 
