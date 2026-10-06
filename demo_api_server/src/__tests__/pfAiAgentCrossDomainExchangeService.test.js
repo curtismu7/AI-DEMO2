@@ -91,6 +91,35 @@ describe('PF AI Agent cross-domain exchange', () => {
     expect(JSON.stringify(result)).not.toMatch(/p1-session-token|downstream-access-token|eyJ/);
   });
 
+  describe('a PingFederate sign-in made through the CIMD flow while the app session is PingOne', () => {
+    const p1Session = (cimdTokens) => ({
+      session: { oauthProvider: 'pingone', oauthTokens: { accessToken: 'p1-session-token' }, pfAiAgent: { cimdTokens } },
+    });
+
+    test('exchanges the CIMD PingFederate token, never the PingOne one', async () => {
+      const fetchImpl = responseSequence();
+      await exchangeForThirdPartyAccessToken(
+        p1Session({ accessToken: 'pf-cimd-token', expiresAt: Date.now() + 60000 }),
+        { subjectProvider: 'pingfederate', store: makeStore(), fetchImpl },
+      );
+      const pfBody = fetchImpl.mock.calls[0][1].body;
+      expect(pfBody.get('subject_token')).toBe('pf-cimd-token');
+      expect(JSON.stringify(fetchImpl.mock.calls)).not.toContain('p1-session-token');
+    });
+
+    test.each([
+      ['no CIMD sign-in', undefined],
+      ['an expired one', { accessToken: 'pf-cimd-token', expiresAt: Date.now() - 1000 }],
+      ['a DPoP-bound one (the exchange cannot present the key)', { accessToken: 'pf-cimd-token', dpopJkt: 'thumb' }],
+    ])('is refused with %s', async (_label, cimdTokens) => {
+      const fetchImpl = jest.fn();
+      await expect(exchangeForThirdPartyAccessToken(p1Session(cimdTokens), {
+        subjectProvider: 'pingfederate', store: makeStore(), fetchImpl,
+      })).rejects.toMatchObject({ code: 'PF_AI_SUBJECT_PROVIDER_MISMATCH', httpStatus: 403 });
+      expect(fetchImpl).not.toHaveBeenCalled();
+    });
+  });
+
   test('rejects a PingOne token when PingFederate is selected as the source without making an outbound call', async () => {
     const fetchImpl = jest.fn();
     const req = { session: { oauthProvider: 'pingone', oauthTokens: { accessToken: 'p1-session-token' } } };

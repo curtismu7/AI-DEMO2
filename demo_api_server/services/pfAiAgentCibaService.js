@@ -123,7 +123,9 @@ async function startPingOneCiba(req, featureSession, { requestedHint, bindingMes
     result = await cibaService.initiateBackchannelAuth(hint, bindingMessage || undefined, 'openid');
   } catch (error) {
     if (error.response?.data?.error === 'unknown_user_id') throw oauthError('PF_AI_CIBA_USER_UNKNOWN', 'PingOne does not know that user', 404);
-    throw oauthError('PF_AI_CIBA_REQUEST_FAILED', 'PingOne rejected the approval request');
+    // Keep PingOne's own reason (for example unauthorized_client) in the code, so a refusal says why.
+    const reason = String(error.response?.data?.error || '').toUpperCase().replace(/[^A-Z0-9]+/g, '_').slice(0, 40);
+    throw oauthError(reason ? `PF_AI_CIBA_P1_${reason}` : 'PF_AI_CIBA_REQUEST_FAILED', 'PingOne rejected the approval request');
   }
   const createdAt = now();
   const pending = {

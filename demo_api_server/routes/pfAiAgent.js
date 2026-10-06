@@ -9,7 +9,9 @@ const {
   resolveCimdConfig,
 } = require('../services/pfAiAgentFeatureConfig');
 const { metadataDocument, beginCimd, completeCimd } = require('../services/pfAiAgentCimdService');
-const { exchangeForThirdPartyAccessToken } = require('../services/pfAiAgentCrossDomainExchangeService');
+const { exchangeForThirdPartyAccessToken, cimdPingFederateToken } = require('../services/pfAiAgentCrossDomainExchangeService');
+
+const hasUsablePfToken = (req) => Boolean(cimdPingFederateToken(req));
 const { redeemIdJag } = require('../services/pfAiAgentMockThirdPartyService');
 const { beginRar, completeRar, userLimits } = require('../services/pfAiAgentRarService');
 const { startCiba, pollCiba, mockDecideCiba } = require('../services/pfAiAgentCibaService');
@@ -43,6 +45,8 @@ function createPfAiAgentRouter({ configStore: store = configStore, fetchImpl = f
       sessionProvider: sessionProvider(req) || 'none',
       features: getFeatureStatus(store),
       nativeIdJagPath: '/pingfederate-id-jag/demo',
+      // True once this session has signed in at PingFederate through the CIMD flow and holds a usable PF token.
+      pfSignedIn: hasUsablePfToken(req),
       // Safe metadata of this session's last RAR run (outcome, token type, DPoP key thumbprint);
       // never a token, code, verifier or key.
       rarResult: req.session?.pfAiAgent?.rarResult || null,

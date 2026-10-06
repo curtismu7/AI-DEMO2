@@ -228,6 +228,11 @@ export default function PingFederateAiAgentPage({ user }) {
 
   const provider = status?.sessionProvider || "none";
   const supportedSession = provider === "pingone" || provider === "pingfederate";
+  // Signing in at PingFederate through the CIMD card does not change the app's own session, but it leaves a
+  // PingFederate token with the BFF, and the exchange uses that: PingFederate trusts only tokens it issued.
+  const pfSignedIn = Boolean(status?.pfSignedIn);
+  const exchangeProvider = pfSignedIn && provider !== "pingfederate" ? "pingfederate" : provider;
+  const canExchange = (supportedSession || pfSignedIn) && Boolean(status?.features?.crossDomain) && !exchangeBusy;
   const features = status?.features || { cimd: false, crossDomain: false, rar: false, rarDpop: false, ciba: false, cibaMock: false, cibaWebApprover: false };
   const rarResult = status?.rarResult || null;
   const rarUserKeyValue = rarUserKey.trim();
@@ -246,7 +251,8 @@ export default function PingFederateAiAgentPage({ user }) {
       });
       setCibaState(response.data);
     } catch (error) {
-      setCibaError(CIBA_ERRORS[error?.response?.data?.error] || "Could not start the approval request.");
+      const code = error?.response?.data?.error;
+      setCibaError(CIBA_ERRORS[code] || `Could not start the approval request.${code ? ` Reason: ${code}` : ""}`);
     } finally {
       setCibaBusy(false);
     }
@@ -282,13 +288,13 @@ export default function PingFederateAiAgentPage({ user }) {
   }
 
   async function runCrossDomainExchange() {
-    if (!supportedSession || !features.crossDomain || exchangeBusy) return;
+    if (!canExchange) return;
     setExchangeBusy(true);
     setExchangeError(false);
     setExchangeResult(null);
     try {
       const response = await apiClient.post("/api/pf-ai-agent/cross-domain/exchange", {
-        subjectProvider: provider,
+        subjectProvider: exchangeProvider,
       });
       setExchangeResult(response.data);
       notifySuccess("Third-party token exchange completed.");
@@ -324,7 +330,9 @@ export default function PingFederateAiAgentPage({ user }) {
       {callbackResult && (
         <div className={`pf-ai-agent__callback ${callbackResult === "success" || callbackResult === "denied" ? "is-complete" : "is-error"}`} role="status">
           {queryStatus.get("cimd")
-            ? callbackResult === "success" ? "CIMD authorization completed." : "CIMD authorization did not complete."
+            ? callbackResult === "success"
+              ? "CIMD authorization completed. You are signed in at PingFederate; the token stays with the BFF and the third-party exchange below now uses it."
+              : "CIMD authorization did not complete."
             : callbackResult === "success" ? "PF accepted the RAR request." : callbackResult === "denied" ? "PF denied the RAR request." : "RAR authorization did not complete."}
         </div>
       )}
@@ -379,7 +387,10 @@ export default function PingFederateAiAgentPage({ user }) {
           <div className="pf-ai-agent__hops" aria-label="Token exchange hops">
             <div className="pf-ai-agent__hop">
               <span className="pf-ai-agent__hop-index">1</span>
-              <div><strong>{statusLabel(provider)} session</strong><span>subject access token · BFF held</span></div>
+              <div>
+                <strong>{pfSignedIn && provider !== "pingfederate" ? "PingFederate sign-in (CIMD)" : `${statusLabel(provider)} session`}</strong>
+                <span>subject access token · BFF held</span>
+              </div>
               <span className="pf-ai-agent__hop-arrow" aria-hidden="true">›</span>
               <div><strong>PingFederate</strong><span>issues an audience-bound ID-JAG</span></div>
             </div>
@@ -394,10 +405,19 @@ export default function PingFederateAiAgentPage({ user }) {
             className="pf-ai-agent__action"
             type="button"
             onClick={runCrossDomainExchange}
-            disabled={!supportedSession || !features.crossDomain || exchangeBusy}
+            disabled={!canExchange}
           >
             {exchangeBusy ? "Exchanging tokens" : "Run third-party token exchange"}
           </button>
+          {!pfSignedIn && provider !== "pingfederate" && (
+            <p className="pf-ai-agent__hint" data-testid="exchange-needs-pf">
+              PingFederate only accepts tokens it issued. Sign in at PingFederate with the CIMD card above first,
+              then run this; until then a PingOne session is refused.
+            </p>
+          )}
+          {pfSignedIn && provider !== "pingfederate" && (
+            <p className="pf-ai-agent__hint">Using your PingFederate sign-in from the CIMD card; your PingOne session is not sent.</p>
+          )}
           {exchangeError && (
             <p className="pf-ai-agent__error" role="alert">
               The exchange failed. Review the PF and downstream authorization server settings.

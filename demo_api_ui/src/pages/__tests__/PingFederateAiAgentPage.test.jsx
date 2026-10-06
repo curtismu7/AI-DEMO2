@@ -322,6 +322,36 @@ describe("PingFederate AI Agent page", () => {
     expect(alert).toHaveTextContent("PF_AI_ID_JAG_AUDIENCE_INVALID");
   });
 
+  it("a PingOne session that signed in at PingFederate through CIMD exchanges that sign-in", async () => {
+    apiClient.get.mockResolvedValue({ data: { ...readyStatus, pfSignedIn: true } });
+    apiClient.post.mockResolvedValue({ data: { subject: "demouser", scope: ["tp:read"], hops: [] } });
+    render(<PingFederateAiAgentPage user={{ username: "demoUser" }} />);
+
+    expect(await screen.findByText(/Using your PingFederate sign-in from the CIMD card/i)).toBeInTheDocument();
+    expect(screen.queryByTestId("exchange-needs-pf")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Run third-party token exchange/i }));
+
+    await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith(
+      "/api/pf-ai-agent/cross-domain/exchange", { subjectProvider: "pingfederate" },
+    ));
+  });
+
+  it("tells a PingOne session with no PingFederate sign-in to do the CIMD sign-in first", async () => {
+    render(<PingFederateAiAgentPage user={{ username: "demoUser" }} />);
+
+    expect(await screen.findByTestId("exchange-needs-pf")).toHaveTextContent(/Sign in at PingFederate with the CIMD card/i);
+  });
+
+  it("shows the code when the approval request is refused for a reason it has no sentence for", async () => {
+    apiClient.get.mockResolvedValue({ data: { ...readyStatus, sessionProvider: "pingfederate", features: { ...readyStatus.features, ciba: true } } });
+    apiClient.post.mockRejectedValue({ response: { data: { error: "PF_AI_CIBA_P1_UNAUTHORIZED_CLIENT" } } });
+    render(<PingFederateAiAgentPage user={{ username: "demouser" }} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /Ask for approval/i }));
+
+    expect(await screen.findByText(/Reason: PF_AI_CIBA_P1_UNAUTHORIZED_CLIENT/)).toBeInTheDocument();
+  });
+
   it("tells a PingOne session to sign in through PingFederate when PingFederate rejects its token", async () => {
     apiClient.post.mockRejectedValue({ response: { data: { error: "PF_AI_SUBJECT_ISSUER_NOT_RECOGNIZED" } } });
     render(<PingFederateAiAgentPage user={{ username: "demouser" }} />);

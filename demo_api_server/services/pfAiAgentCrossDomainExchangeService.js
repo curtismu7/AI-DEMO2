@@ -16,8 +16,22 @@ function normalizedProvider(req) {
   return String(req?.session?.oauthProvider || req?.session?.user?.oauthProvider || '').toLowerCase();
 }
 
+// The access token PingFederate issued to the page's own CIMD sign-in, if there is a usable one. The CIMD flow keeps
+// it apart from the active session, so a user signed in to the app through PingOne can still sign in at PingFederate
+// and exchange that token (PingFederate trusts only tokens it issued itself).
+function cimdPingFederateToken(req) {
+  const tokens = req?.session?.pfAiAgent?.cimdTokens;
+  const usable = tokens && typeof tokens.accessToken === 'string' && tokens.accessToken.trim()
+    && !tokens.dpopJkt && (!tokens.expiresAt || tokens.expiresAt > Date.now());
+  return usable ? tokens.accessToken : null;
+}
+
 function sessionSubjectToken(req, subjectProvider) {
   const actualProvider = normalizedProvider(req);
+  if (subjectProvider === 'pingfederate' && actualProvider !== 'pingfederate') {
+    const cimdToken = cimdPingFederateToken(req);
+    if (cimdToken) return cimdToken;
+  }
   if (!['pingone', 'pingfederate'].includes(subjectProvider) || actualProvider !== subjectProvider) {
     throw oauthError('PF_AI_SUBJECT_PROVIDER_MISMATCH', 'Selected source does not match the authenticated session', 403);
   }
@@ -232,5 +246,6 @@ module.exports = {
   TOKEN_EXCHANGE_GRANT,
   JWT_BEARER_GRANT,
   exchangeForThirdPartyAccessToken,
+  cimdPingFederateToken,
   verifyIdJag,
 };
