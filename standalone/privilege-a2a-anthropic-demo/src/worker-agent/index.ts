@@ -2,12 +2,12 @@ import { randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import Anthropic from '@anthropic-ai/sdk';
-import type { AgentCard } from '@a2a-js/sdk';
 import { DefaultRequestHandler, InMemoryTaskStore } from '@a2a-js/sdk/server';
 import { agentCardHandler, jsonRpcHandler, UserBuilder } from '@a2a-js/sdk/server/express';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
+import { analystCard } from '../agent-card.js';
 import { describeMode, workerAgentConfig } from '../config.js';
 import { parseMetadata } from '../profile.js';
 import { VERTICALS, resolveVertical } from '../mcp-server/verticals.js';
@@ -178,23 +178,7 @@ function readMessageText(parts: unknown): string {
   }).join('\n').trim();
 }
 
-const card: AgentCard = {
-  protocolVersion: '0.3.0',
-  name: 'analyst_agent',
-  description: 'Access-review analyst holding the entitlement tools.',
-  version: '1.0.0',
-  url: config.publicUrl,
-  preferredTransport: 'JSONRPC',
-  capabilities: { streaming: false },
-  defaultInputModes: ['text/plain'],
-  defaultOutputModes: ['text/plain'],
-  skills: [{
-    id: 'access_review',
-    name: 'Access review',
-    description: 'Look up user entitlements, role holders, grants on a resource, and access tickets.',
-    tags: ['identity', 'access', 'review'],
-  }],
-};
+const card = analystCard(config.publicUrl);
 
 const executor = {
   async execute(requestContext: Parameters<ConstructorParameters<typeof DefaultRequestHandler>[2]['execute']>[0], eventBus: Parameters<ConstructorParameters<typeof DefaultRequestHandler>[2]['execute']>[1]): Promise<void> {

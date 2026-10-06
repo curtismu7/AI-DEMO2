@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import type { AgentCard, Message, Task } from '@a2a-js/sdk';
+import type { Message, Task } from '@a2a-js/sdk';
+import { analystCard } from '../agent-card.js';
 import type { Client } from '@a2a-js/sdk/client';
 import {
   ClientFactory,
@@ -37,25 +38,7 @@ function taskAnswer(task: Task): string {
 
 export async function buildWorkerClient(baseUrl: string, bearer: string): Promise<WorkerClient> {
   const base = baseUrl.replace(/\/+$/, '');
-  const card: AgentCard = {
-    protocolVersion: '0.3.0',
-    name: 'analyst_agent',
-    description: 'Access-review analyst holding the entitlement tools.',
-    version: '1.0.0',
-    url: `${base}/jsonrpc`,
-    preferredTransport: 'JSONRPC',
-    capabilities: { streaming: false },
-    defaultInputModes: ['text/plain'],
-    defaultOutputModes: ['text/plain'],
-    skills: [
-      {
-        id: 'access_review',
-        name: 'Access review',
-        description: 'Look up user entitlements, role holders, grants on a resource, and access tickets.',
-        tags: ['identity', 'access', 'review'],
-      },
-    ],
-  };
+  const card = analystCard(`${base}/jsonrpc`);
   const transport = new JsonRpcTransportFactory({ fetchImpl: authenticatedFetch(bearer) });
   const factory = new ClientFactory(
     ClientFactoryOptions.createFrom(ClientFactoryOptions.default, { transports: [transport] }),
