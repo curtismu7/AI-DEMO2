@@ -71,6 +71,56 @@
   border-color: #b3282d;
   color: #fff;
 }
+.das-btn--live {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.das-btn--live-on {
+  background: var(--th-status-success-bg);
+  border-color: var(--th-status-success-border);
+  color: var(--th-status-success-text);
+}
+.das-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--th-text-faint);
+}
+.das-live-dot--connecting { background: var(--th-status-warning); }
+.das-live-dot--open { background: var(--th-status-success); animation: das-pulse 1.4s ease-in-out infinite; }
+.das-live-dot--closed { background: var(--th-status-error); }
+@keyframes das-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .das-live-dot--open { animation: none; }
+}
+.das-live-log {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 8px 14px;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: var(--font-size-2xs);
+  display: grid;
+  gap: 4px;
+}
+.das-live-log li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  min-width: 0;
+}
+.das-live-log__unmapped { color: var(--th-text-muted); }
+.das-live-log__time { font-variant-numeric: tabular-nums; color: var(--th-text-muted); }
+.das-live-log__tag { font-weight: 600; }
+.das-live-log__step { color: var(--th-status-info); }
+.das-live-log__msg { flex: 1 1 30ch; min-width: 0; color: var(--th-text-muted); }
+
 .das-counter {
   font-size: var(--font-size-2xs);
   color: var(--th-text-muted);
