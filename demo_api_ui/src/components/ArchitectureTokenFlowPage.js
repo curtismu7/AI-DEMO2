@@ -674,7 +674,7 @@ const SCENARIO_STEPS_TF = {
         trigger: "PingOne Authorization Server INDETERMINATE",
         action: "create_transfer $5,000 → savings",
         risk_score: "HIGH",
-        status: "⏳ Awaiting user approval…",
+        status: "Awaiting user approval…",
       },
     },
     {

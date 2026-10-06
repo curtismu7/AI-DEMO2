@@ -120,7 +120,7 @@ function StatusBadge({ status }) {
   const map = {
     idle:     { color: '#374151', label: 'Idle' },
     loading:  { color: 'var(--brand-navy)', label: 'Initiating…' },
-    pending:  { color: '#d97706', label: '⏳ Waiting for approval' },
+    pending:  { color: '#d97706', label: 'Waiting for approval' },
     approved: { color: '#16a34a', label: '✅ Approved' },
     denied:   { color: '#dc2626', label: '❌ Denied' },
     error:    { color: '#dc2626', label: '⚠ Error' },

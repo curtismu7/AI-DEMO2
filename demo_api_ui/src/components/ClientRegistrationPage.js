@@ -347,7 +347,7 @@ export default function ClientRegistrationPage({ user, onLogout }) {
               disabled={submitting || !clientName.trim()}
               className="crp-submit-btn"
             >
-              {submitting ? '⏳ Registering in PingOne…' : 'Register Client'}
+              {submitting ? 'Registering in PingOne…' : 'Register Client'}
             </button>
           </div>
         </form>

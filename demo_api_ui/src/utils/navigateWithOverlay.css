@@ -27,25 +27,3 @@
   font-weight: 600;
   box-shadow: 0 8px 28px rgba(15, 23, 42, 0.25);
 }
-
-.nav-overlay__spinner {
-  flex: none;
-  width: 22px;
-  height: 22px;
-  border: 3px solid var(--th-border-strong);
-  border-top-color: var(--th-bg-emphasis);
-  border-radius: 50%;
-  animation: nav-overlay-spin 0.8s linear infinite;
-}
-
-@keyframes nav-overlay-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .nav-overlay__spinner {
-    animation: none;
-  }
-}

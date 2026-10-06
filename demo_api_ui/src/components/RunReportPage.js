@@ -223,7 +223,7 @@ export default function RunReportPage({ user }) {
               disabled={demoRunning}
               title="Run a full auth → token-exchange → MCP tool call flow and generate a report"
             >
-              {demoRunning ? '⏳ Running flow…' : '▶ Run Demo Flow'}
+              {demoRunning ? 'Running flow…' : '▶ Run Demo Flow'}
             </button>
           </div>
         </div>

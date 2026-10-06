@@ -26,6 +26,7 @@ import JsonField from "./shared/JsonField";
 import FormJsonToggle from "./shared/FormJsonToggle";
 import { isEducationalPath } from "../utils/educationalPages";
 import PingIdentitySpinner from "./shared/PingIdentitySpinner";
+import InlineSpinner from "./shared/InlineSpinner";
 // A8 -- Ping product attribution
 import { PingProductChip, PingProductLegend } from './PingProductChip';
 import { productForEvent } from '../utils/pingProducts';
@@ -1932,7 +1933,7 @@ function AuthorizeDecisionEduBox({ event }) {
     >
       <div className="tcd-edu-box-hd">
         <span className="tcd-edu-icon">
-          {isPending ? "⏳" : isPermit ? "✅" : isDeny ? "❌" : "⚠️"}
+          {isPending ? <InlineSpinner label="Pending" /> : isPermit ? "✅" : isDeny ? "❌" : "⚠️"}
         </span>
         <strong>PingOne Authorize — Continuous Authorization</strong>
         <RfcRef rfc="RFC 8705" />
@@ -2243,7 +2244,7 @@ function GwAuthorizeEduBox({ event }) {
     >
       <div className="tcd-edu-box-hd">
         <span className="tcd-edu-icon">
-          {isPending ? "⏳" : isPermit ? "✅" : isDeny ? "❌" : "⚠️"}
+          {isPending ? <InlineSpinner label="Pending" /> : isPermit ? "✅" : isDeny ? "❌" : "⚠️"}
         </span>
         <strong>Agent Gateway → PingOne Authorize</strong>
       </div>

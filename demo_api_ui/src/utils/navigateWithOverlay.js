@@ -8,12 +8,19 @@
 //
 // The overlay is plain DOM, not React: redirects fire from hooks, utilities and
 // error handlers that have no component to render into.
+import { createElement } from 'react';
+import { flushSync } from 'react-dom';
+import { createRoot } from 'react-dom/client';
+import PingIdentitySpinner from '../components/shared/PingIdentitySpinner';
 import './navigateWithOverlay.css';
 
 const OVERLAY_ID = 'nav-overlay';
+let overlayRoot = null;
 
 export function hideNavOverlay() {
   if (typeof document === 'undefined') return;
+  overlayRoot?.unmount();
+  overlayRoot = null;
   document.getElementById(OVERLAY_ID)?.remove();
 }
 
@@ -29,17 +36,13 @@ function showNavOverlay(message) {
   const card = document.createElement('div');
   card.className = 'nav-overlay__card';
 
-  const spinner = document.createElement('span');
-  spinner.className = 'nav-overlay__spinner';
-  spinner.setAttribute('aria-hidden', 'true');
-
-  const text = document.createElement('span');
-  text.className = 'nav-overlay__text';
-  text.textContent = message;
-
-  card.append(spinner, text);
   overlay.append(card);
   document.body.appendChild(overlay);
+
+  // The standard Ping spinner, rendered synchronously so it paints before the
+  // navigation below unloads the page.
+  overlayRoot = createRoot(card);
+  flushSync(() => overlayRoot.render(createElement(PingIdentitySpinner, { size: 40, label: message })));
 }
 
 // Back/forward restores this page from the bfcache with the overlay still in

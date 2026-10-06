@@ -1289,7 +1289,8 @@ export default function AgentDemoGuide({
 
   // Fetch feature-flag state once on mount (best-effort; no-ops for non-admin)
   useEffect(() => {
-    fetch("/api/admin/feature-flags", { credentials: "include" })
+    // _silent: background best-effort read — must not raise the blocking spinner overlay
+    fetch("/api/admin/feature-flags", { credentials: "include", _silent: true })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (!data?.flags) return;

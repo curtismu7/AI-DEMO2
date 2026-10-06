@@ -27,6 +27,7 @@ import apiClient from "../services/apiClient";
 import { agentFlowDiagram } from "../services/agentFlowDiagramService";
 import { useAppEventsSSE } from "../hooks/useAppEventsSSE";
 import { getElk } from "../utils/elkLayout";
+import InlineSpinner from "./shared/InlineSpinner";
 import "./ArchitectureFlowPage.css";
 
 // ─── Colors ───────────────────────────────────────────────────────────────────
@@ -1582,7 +1583,7 @@ const SCENARIO_STEPS_FLOW = {
         trigger: "PingOne Authorization Server obligation: HITL_CONSENT",
         action: "create_transfer $750 → savings",
         risk_score: "HIGH",
-        status: "⏳ Awaiting user approval…",
+        status: "Awaiting user approval…",
       },
     },
     {
@@ -3189,7 +3190,7 @@ export default function ArchitectureFlowPage({ user }) {
             agentSnap.phase?.includes("denied")
               ? "❌"
               : agentSnap.phase === "mfa_challenge_initiated"
-                ? "⏳"
+                ? <InlineSpinner label="Awaiting MFA" />
                 : agentSnap.phase?.includes("permit") ||
                     agentSnap.phase?.includes("done")
                   ? "✅"
