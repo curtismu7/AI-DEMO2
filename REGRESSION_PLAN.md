@@ -249,6 +249,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-06 — The standalone A2A agents could only use Anthropic or Google; add Groq (direct)
+
+**Files:** `standalone/privilege-a2a-anthropic-demo/src/groq.ts` (new), `src/config.ts`, `README.md`, `config.example`, `test/groq.test.ts`, `test/provider.test.ts`.
+
+**What was broken:** The main agent ran on Google only (`MAIN_AGENT_PROVIDER=google`), so every Google quota error (429), overload (503) or stall blocked all A2A steps, and Anthropic was refused for the main key. Groq was wanted as an alternative.
+
+**What changed:** `<AGENT>_PROVIDER` now takes `anthropic` (default), `google` or `groq`, per agent (`providerOf`, per-provider default models). `groqClient` presents Groq's OpenAI chat-completions API behind the same two Anthropic-SDK calls the agents already use (messages and tool calls converted both ways), with the same 30 s deadline, one retry on a stall or 503, and an error text `Groq request returned <status>: ...` so the UI's 429 / overload messages still classify it. Groq is **direct** (`api.groq.com/openai/v1`, key from `GROQ_API_KEY` or `<AGENT>_GROQ_KEY`): the Privilege gateway has no Groq provider (`/llm/groq` answers a plain 403 like any unknown name, while `/llm/openai` and `/llm/anthropic` answer a JSON wrong-key error), so those model calls bypass the gateway; `describeMode` and `/status` say so, and `viaGateway` is false for Groq. The A2A and MCP hops are unchanged.
+
+**Do not break:** the Anthropic and Google paths and their defaults (a missing or unknown provider is still Anthropic); the 30 s deadline and 503 retry; `describeMode` for the other providers; no Groq key is read, printed or stored by the code beyond the env lookup.
+
+**Verify:** `cd standalone/privilege-a2a-anthropic-demo && npm test && npm run build` (37 pass). Not verified live: no Groq key was available to this session, so the format conversion is covered by unit tests against a fake fetch only.
+
 ### 2026-10-06 — A2A runs sat on "Client started" for minutes (model call stalls); Abercrombie & Fitch got the wrong persona
 
 **Files:** `standalone/privilege-a2a-anthropic-demo/src/gemini.ts`, `src/config.ts`, `src/mcp-server/verticals.ts`, `src/worker-agent/index.ts`, `config.example`, tests.
