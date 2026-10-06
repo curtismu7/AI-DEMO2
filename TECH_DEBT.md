@@ -18,6 +18,24 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [~] 2026-10-06 — A credential rotation backlog exists; it is tracked outside this repo
+
+**What's wrong.** Some credentials used by this demo have appeared where they should not
+(chat transcripts, tool output, logs, or earlier commits) and still need to be rotated or
+formally accepted as a risk. This entry is only a reminder that the backlog exists. The list
+is deliberately **not** kept here: this repository is public, and naming which credentials
+are exposed, or where, would add to the exposure.
+
+**Where it lives.** The owner's private notes. Nothing in the repo holds the list.
+
+**Why it isn't fixed in the repo.** Rotation happens in PingOne, the Privilege console, the
+Helix console and the cloud providers, and every copy of a rotated value (the vault, the
+local `.env` files, the cluster Secrets) must then be updated together.
+
+**The real fix.** Work the private list: rotate or record an accepted-risk decision for each
+item, update every copy, and tick this entry. Until then, never paste or print a credential
+value in a session, a log or a commit.
+
 ### [ ] 2026-10-06 — "Gemini via Privilege" still defaults to the retired gemini-2.0-flash
 
 **What's wrong.** `demo_api_server/services/privilegeLlmProxyService.js` sets
