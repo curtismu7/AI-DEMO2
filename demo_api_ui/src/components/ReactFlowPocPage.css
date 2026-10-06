@@ -587,7 +587,7 @@
 }
 
 .rfp-live-btn--on {
-  background: #16a34a;
+  background: #166534;
   color: #fff;
   animation: rfp-live-pulse 1.6s ease-in-out infinite;
 }

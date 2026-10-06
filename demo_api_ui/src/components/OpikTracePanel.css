@@ -81,8 +81,8 @@
 }
 .opik-range button[aria-pressed="true"] {
   /* Literal ink+ground pair (H1): --th-text-on-emphasis is dark in dark mode. */
-  background: #2563eb;
-  border-color: #2563eb;
+  background: #1e40af;
+  border-color: #1e40af;
   color: #ffffff;
 }
 
@@ -332,8 +332,8 @@ a.opik-btn:visited {
   font-weight: 600;
   text-decoration: none;
   color: #ffffff;
-  background: #2563eb;
-  border: 1px solid #2563eb;
+  background: #1e40af;
+  border: 1px solid #1e40af;
   border-radius: 999px;
 }
 

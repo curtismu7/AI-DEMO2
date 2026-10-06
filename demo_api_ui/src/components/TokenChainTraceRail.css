@@ -146,7 +146,7 @@
   border-color: var(--tctr-border); background: var(--tctr-pill-bg);
 }
 .tctr-more-pop .tctr-view-mode button { color: var(--tctr-muted); }
-.tctr-more-pop .tctr-view-mode button.active { color: #ffffff; background: #1d4ed8; }
+.tctr-more-pop .tctr-view-mode button.active { color: #ffffff; background: #1e40af; }
 .tctr-more-pop .tctr-zoom { margin-right: 0; padding-right: 0; border-right: 0; }
 .tctr-more-pop .tctr-legend-btn,
 .tctr-more-pop .tctr-clear-btn {

@@ -1581,7 +1581,7 @@ select.cur-input { cursor: pointer; }
 .cur-ide[data-cur-theme="light"] .cur-result-item-head { background: #f3f3f3; border-bottom-color: #e0e0e0; }
 .cur-ide[data-cur-theme="light"] .cur-result-item-tool { color: #0369a1; }
 .cur-ide[data-cur-theme="light"] .cur-result-item-body { color: #1e1e1e; }
-.cur-ide[data-cur-theme="light"] .cur-terminal-tab-badge { background: #2563eb; color: #ffffff; }
+.cur-ide[data-cur-theme="light"] .cur-terminal-tab-badge { background: #1e40af; color: #ffffff; }
 
 /* MCP Explorer — the whole cur-mcp-* family shipped with no light override, so
    its #ddd/#ccc ink (correct on the dark base) rendered near-white on the light

@@ -319,19 +319,19 @@
   cursor: not-allowed;
 }
 .cfg-btn--primary {
-  background: #2563eb;
+  background: #1e40af;
   color: var(--th-text-invert);
   border: none;
 }
 .cfg-btn--primary:hover:not(:disabled) { background: #1d4ed8; }
 .cfg-btn--green {
-  background: #059669;
+  background: #065f46;
   color: var(--th-text-invert);
   border: none;
 }
 .cfg-btn--green:hover:not(:disabled) { background: #047857; }
 .cfg-btn--purple {
-  background: #7c3aed;
+  background: #5b21b6;
   color: var(--th-text-invert);
   border: none;
 }

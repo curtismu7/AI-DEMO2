@@ -358,12 +358,12 @@
   font-weight: 800;
   margin-top: 1px;
 }
-.p1dt-status--permit { background: #22c55e; color: var(--th-text-invert); }
-.p1dt-status--deny { background: #ef4444; color: var(--th-text-invert); }
-.p1dt-status--step_up { background: #f59e0b; color: var(--th-text-invert); }
-.p1dt-status--consent { background: #8b5cf6; color: var(--th-text-invert); }
+.p1dt-status--permit { background: #166534; color: var(--th-text-invert); }
+.p1dt-status--deny { background: #991b1b; color: var(--th-text-invert); }
+.p1dt-status--step_up { background: #92400e; color: var(--th-text-invert); }
+.p1dt-status--consent { background: #5b21b6; color: var(--th-text-invert); }
 .p1dt-status--na { background: var(--th-bg-hover); color: var(--th-text-faint); font-size: var(--font-size-3xs); }
-.p1dt-status--set { background: #6366f1; color: var(--th-text-invert); }
+.p1dt-status--set { background: #3730a3; color: var(--th-text-invert); }
 
 .p1dt-card-body { flex: 1 1 auto; min-width: 0; }
 

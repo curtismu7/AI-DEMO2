@@ -67,9 +67,9 @@
   flex-shrink: 0;
 }
 
-.btn-add     { background: #2563eb; color: var(--th-text-invert); }
+.btn-add     { background: #1e40af; color: var(--th-text-invert); }
 .btn-add:hover     { background: #1d4ed8; }
-.btn-connect { background: #047857; color: var(--th-text-invert); }
+.btn-connect { background: #065f46; color: var(--th-text-invert); }
 .btn-connect.active { background: #065f46; box-shadow: 0 0 0 3px rgba(16,185,129,0.3); }
 .btn-connect:hover { background: #065f46; }
 .btn-reset   { background: var(--th-bg-inset); color: var(--th-text-body); border: 1px solid var(--th-border); }
@@ -95,7 +95,7 @@
 
 .btn-export { background: #0f172a; color: #ffffff; border: 1px solid #334155; }
 .btn-export:hover { background: #1e293b; color: var(--th-text-invert); }
-.btn-ping { background: #7c3aed; color: var(--th-text-invert); }
+.btn-ping { background: #5b21b6; color: var(--th-text-invert); }
 .btn-ping:hover { background: #6d28d9; }
 .btn-ping.pinging { background: #a78bfa; cursor: default; }
 .btn-ping:disabled { opacity: 0.7; cursor: default; }

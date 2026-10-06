@@ -106,9 +106,9 @@
 }
 .agc-btn:hover:not(:disabled) { background: #f1f5f9; }
 .agc-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.agc-btn--primary { background: #2563eb; border-color: #2563eb; color: #fff; }
+.agc-btn--primary { background: #1e40af; border-color: #1e40af; color: #fff; }
 .agc-btn--primary:hover:not(:disabled) { background: #1d4ed8; }
-.agc-btn--warn { background: #d97706; border-color: #d97706; color: #fff; }
+.agc-btn--warn { background: #92400e; border-color: #92400e; color: #fff; }
 .agc-btn--warn:hover:not(:disabled) { background: #b45309; }
 .agc-btn--active { background: #1e293b; border-color: #1e293b; color: #fff; }
 .agc-btn--active:hover:not(:disabled) { background: #0f172a; }

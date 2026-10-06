@@ -544,7 +544,7 @@
 /* Badge for latest report or new items */
 .admin-side-nav__badge {
   display: inline-block;
-  background: #ef4444;
+  background: #991b1b;
   color: #fff;
   font-size: 0.65rem;
   font-weight: 700;

@@ -932,7 +932,7 @@
 .scenario-card__badge {
   font-size: 0.7rem;
   font-weight: 700;
-  background: #2563eb;
+  background: #1e40af;
   color: var(--th-text-invert);
   border-radius: 999px;
   padding: 0.15rem 0.55rem;
@@ -1064,7 +1064,7 @@
   right: 7px;
   width: 22px;
   height: 22px;
-  background: #2563eb;
+  background: #1e40af;
   color: var(--th-text-invert);
   border-radius: 50%;
   display: flex;
@@ -1190,7 +1190,7 @@
   right: 7px;
   width: 22px;
   height: 22px;
-  background: #2563eb;
+  background: #1e40af;
   color: var(--th-text-invert);
   border-radius: 50%;
   display: flex;

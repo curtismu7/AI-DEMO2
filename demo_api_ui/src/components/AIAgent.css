@@ -153,7 +153,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 
 .ba-popout-placeholder-btn {
   border: none;
-  background: #2563eb;
+  background: #1e40af;
   color: #fff;
   font-size: var(--font-size-2xs);
   font-weight: 700;
@@ -466,9 +466,9 @@ body > .banking-agent-float-root .banking-agent-panel {
 
 .ba-user-filter-btn {
   padding: 0.55rem 0.85rem;
-  border: 1px solid #1d4ed8;
+  border: 1px solid #1e40af;
   border-radius: 6px;
-  background: #1d4ed8;
+  background: #1e40af;
   color: #ffffff;
   font-weight: 700;
   cursor: pointer;
@@ -1525,7 +1525,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   display: inline-block;
   margin-top: 8px;
   padding: 6px 12px;
-  background: #2563eb;
+  background: #1e40af;
   color: #fff;
   border: none;
   border-radius: 4px;
@@ -3599,8 +3599,8 @@ body > .banking-agent-float-root .banking-agent-panel {
   display: inline-block;
   padding: 0.35rem 0.85rem;
   border-radius: 6px;
-  border: 1px solid #d97706;
-  background: #d97706;
+  border: 1px solid #92400e;
+  background: #92400e;
   color: #fff;
   font-weight: 600;
   font-size: var(--font-size-2xs);
@@ -4533,7 +4533,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   color: var(--th-text);
 }
 .ba-inline-consent-confirm {
-  background: #dc2626;
+  background: #991b1b;
   color: #fff;
   border: none;
   border-radius: 8px;
@@ -5997,7 +5997,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   color: #ffffff;
 }
 .ba-agent-popout-hdr .scope-picker__opt--on {
-  background: #2563eb;
+  background: #1e40af;
   color: #fff;
 }
 
@@ -6052,8 +6052,8 @@ body > .banking-agent-float-root .banking-agent-panel {
   text-transform: none;
   padding: 4px 10px;
   border-radius: 6px;
-  border: 1px solid #dc2626;
-  background: #dc2626;
+  border: 1px solid #991b1b;
+  background: #991b1b;
   color: #fff;
   cursor: pointer;
 }
@@ -6232,8 +6232,8 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .ba-demo-steps-popout__check {
-  border-color: #16a34a;
-  background: #16a34a;
+  border-color: #166534;
+  background: #166534;
   color: #fff;
   font-size: 0.75rem;
 }
@@ -6941,7 +6941,7 @@ body > .banking-agent-float-root .ba-demo-steps-floating-trigger {
   width: 18px;
   height: 18px;
   border-radius: 999px;
-  background: #16a34a;
+  background: #166534;
   color: #fff;
   display: grid;
   place-items: center;
@@ -7015,7 +7015,7 @@ body > .banking-agent-float-root .ba-demo-steps-floating-trigger {
   cursor: not-allowed;
 }
 .scope-picker__opt--on {
-  background: #2563eb;
+  background: #1e40af;
   color: #fff;
 }
 .scope-picker__hint {
@@ -7089,7 +7089,7 @@ body > .banking-agent-float-root .ba-demo-steps-floating-trigger {
   justify-content: center;
 }
 .ba-demo-steps-popout__rar-toggle[aria-pressed="true"] {
-  background: #7c3aed;
+  background: #5b21b6;
   color: #fff;
 }
 .ba-demo-steps-popout__rar-toggle:hover,
@@ -7730,7 +7730,7 @@ body > .banking-agent-float-root .ba-demo-steps-floating-trigger {
   padding: 8px 22px;
   border-radius: 8px;
   border: none;
-  background: #ef4444;
+  background: #991b1b;
   color: #fff;
   font-weight: 600;
   font-size: 0.9rem;
@@ -7968,7 +7968,7 @@ button.ba-action-btn:hover {
 
 /* 4. User bubble — solid red, rounded pill */
 .banking-agent-panel .banking-agent-msg.user .banking-agent-msg-bubble {
-  background: #ef4444;
+  background: #991b1b;
   color: #ffffff;
   border: none;
   box-shadow: 0 2px 8px rgba(239, 68, 68, 0.2);

@@ -94,9 +94,9 @@
 }
 
 .btn-primary {
-  background: #3b82f6;
+  background: #1e40af;
   color: white;
-  border-color: #3b82f6;
+  border-color: #1e40af;
 }
 
 .btn-primary:hover {
@@ -105,9 +105,9 @@
 }
 
 .btn-danger {
-  background: #ef4444;
+  background: #991b1b;
   color: white;
-  border-color: #ef4444;
+  border-color: #991b1b;
 }
 
 .btn-danger:hover {

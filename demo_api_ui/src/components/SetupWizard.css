@@ -58,15 +58,15 @@
   color: #fff;
 }
 .step-circle.complete {
-  background: #16a34a;
+  background: #166534;
   color: #fff;
 }
 .step-circle.error {
-  background: #b91c1c;
+  background: #991b1b;
   color: #fff;
 }
 .step-circle.running {
-  background: #f59e0b;
+  background: #92400e;
   color: #fff;
 }
 

@@ -62,7 +62,7 @@
    with our white selected-text still applied (unreadable). */
 .jcv-row.jcv-row--selected,
 .jcv-row.jcv-row--selected:hover {
-  background: #2563eb;
+  background: #1e40af;
   color: #ffffff;
 }
 .jcv-row--selected .jcv-row-key,

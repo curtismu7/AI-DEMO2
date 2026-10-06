@@ -101,7 +101,7 @@
   font-size: var(--font-size-2xs);
   font-weight: 800;
   color: #ffffff;
-  background: #047857;
+  background: #065f46;
   border: 1px solid #065f46;
   border-radius: 6px;
   cursor: pointer;
@@ -124,7 +124,7 @@
   font-size: var(--font-size-sm);
   font-weight: 700;
   color: #ffffff;
-  background: #1d4ed8;
+  background: #1e40af;
   border: 1px solid #1e3a8a;
   border-radius: 6px;
   cursor: pointer;

@@ -1770,7 +1770,7 @@
   height: 1.45rem;
   padding: 0 0.35rem;
   border-radius: 4px;
-  background: #0ea5e9;
+  background: #075985;
   color: var(--th-text-invert);
   font-size: var(--font-size-3xs);
   font-weight: 800;
@@ -1809,7 +1809,7 @@
   transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 .otp-step-up-modal__method-cta:hover:not(:disabled) {
-  background: #0ea5e9;
+  background: #075985;
   color: var(--th-text-invert);
 }
 .otp-step-up-modal__method-cta:disabled {
@@ -1859,7 +1859,7 @@
   color: #7dd3fc;
 }
 :root[data-theme="dark"] .otp-step-up-modal__method-cta:hover:not(:disabled) {
-  background: #0ea5e9;
+  background: #075985;
   color: #ffffff;
 }
 :root[data-theme="dark"] .otp-step-up-modal__method-toggle {

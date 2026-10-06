@@ -90,10 +90,10 @@
 .dc-ctrl-btn--simulate { background: #004687; color: #fff; }
 .dc-ctrl-btn--simulate:hover:not(:disabled) { background: #003366; }
 
-.dc-ctrl-btn--pause  { background: #f59e0b; color: #fff; }
+.dc-ctrl-btn--pause  { background: #92400e; color: #fff; }
 .dc-ctrl-btn--pause:hover:not(:disabled)  { background: #d97706; }
 
-.dc-ctrl-btn--resume { background: #22c55e; color: #fff; }
+.dc-ctrl-btn--resume { background: #166534; color: #fff; }
 .dc-ctrl-btn--resume:hover:not(:disabled) { background: #16a34a; }
 
 .dc-ctrl-btn--next   { background: #004687; color: #fff; }

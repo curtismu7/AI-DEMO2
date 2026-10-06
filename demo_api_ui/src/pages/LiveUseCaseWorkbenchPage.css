@@ -258,7 +258,7 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
   font-size: 0.8rem;
   font-weight: 700;
   color: var(--th-text-invert);
-  background: #0f766e;
+  background: #115e59;
   cursor: pointer;
 }
 .luw-card__run:disabled { opacity: 0.55; cursor: not-allowed; }
