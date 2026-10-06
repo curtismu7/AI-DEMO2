@@ -73,6 +73,8 @@ export function normalizeVerdict(doc) {
     time: src.time || src.RequestTS || null,
     category: src.Category || 'unknown',
     direction: src.Direction || 'unknown',
+    // The gateway's name for the agent or app that made the call (not a key).
+    client: src.Client || '',
     event: src.Event || 'unknown',
     tone: EVENT_TONE[src.Event] || 'warn',
     mappings: mappings.map((m) => ({
@@ -265,22 +267,37 @@ export default function GatewayVerdicts({ fetchImpl, signIn = signInToGatewayDoo
         <ul className="gwv__list" data-testid="gwv-list">
           {verdicts.map((v, i) => (
             <li key={i} className={`gwv__item is-${v.tone}`}>
-              <div className="gwv__row">
-                <span className="gwv__cat">{v.category}</span>
-                <span className="gwv__event">{v.event}</span>
-                <span className="gwv__dir">{v.direction}</span>
-                {v.time ? <span className="gwv__time">{v.time}</span> : null}
-              </div>
-              {v.mappings.length ? (
-                <div className="gwv__frameworks">
+              {/* Click a finding to see who made the call and which rule produced each identifier. */}
+              <details className="gwv__detail">
+                <summary className="gwv__summary">
+                  <div className="gwv__row">
+                    <span className="gwv__cat">{v.category}</span>
+                    <span className="gwv__event">{v.event}</span>
+                    <span className="gwv__dir">{v.direction}</span>
+                    {v.time ? <span className="gwv__time">{v.time}</span> : null}
+                  </div>
+                  {v.mappings.length ? (
+                    <div className="gwv__frameworks">
+                      {v.mappings.map((m, j) => (
+                        <span key={j} className="gwv__fw">
+                          <span className="gwv__fw-label">{m.label}</span>
+                          <span className="gwv__fw-id">{m.identifier}</span>
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                </summary>
+                <dl className="gwv__more">
+                  {v.client ? <div className="gwv__more-row"><dt>Caller</dt><dd>{v.client}</dd></div> : null}
                   {v.mappings.map((m, j) => (
-                    <span key={j} className="gwv__fw" title={m.source || undefined}>
-                      <span className="gwv__fw-label">{m.label}</span>
-                      <span className="gwv__fw-id">{m.identifier}</span>
-                    </span>
+                    <div key={j} className="gwv__more-row">
+                      <dt>{m.label}</dt>
+                      <dd>{m.identifier}{m.source ? ` — rule ${m.source}` : ''}</dd>
+                    </div>
                   ))}
-                </div>
-              ) : null}
+                  {!v.client && !v.mappings.length ? <div className="gwv__more-row"><dt>Detail</dt><dd>The gateway recorded no further detail for this finding.</dd></div> : null}
+                </dl>
+              </details>
             </li>
           ))}
         </ul>

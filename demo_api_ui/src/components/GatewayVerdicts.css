@@ -62,6 +62,41 @@
 .gwv__item.is-bad { border-left-color: var(--th-status-error); }
 .gwv__item.is-warn { border-left-color: var(--th-status-warning); }
 
+/* The whole finding is the click target; the chevron says so. */
+.gwv__summary {
+  cursor: pointer;
+  list-style: none;
+  color: var(--th-text);
+}
+.gwv__summary::-webkit-details-marker { display: none; }
+.gwv__summary::before {
+  content: '\25B8';
+  float: left;
+  margin-right: 0.4rem;
+  color: var(--th-text-body);
+}
+.gwv__detail[open] > .gwv__summary::before { content: '\25BE'; }
+
+.gwv__more {
+  margin: 0.4rem 0 0;
+  padding: 0.35rem 0 0 1rem;
+  border-top: 1px solid var(--th-border);
+  font-size: var(--font-size-sm);
+}
+.gwv__more-row {
+  display: grid;
+  grid-template-columns: minmax(7rem, 20%) 1fr;
+  gap: 0.5rem;
+  padding: 0.15rem 0;
+}
+.gwv__more-row dt { color: var(--th-text-body); }
+.gwv__more-row dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  color: var(--th-text);
+  overflow-wrap: anywhere;
+}
+
 .gwv__row {
   display: flex;
   flex-wrap: wrap;

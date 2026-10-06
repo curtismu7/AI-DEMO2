@@ -143,6 +143,20 @@ describe('GatewayVerdicts', () => {
     expect(screen.getByText('LLM02')).toBeInTheDocument();
   });
 
+  it('expands a finding on click to show the caller and the rule behind each identifier', async () => {
+    const doc = { _source: { ...AIGUARD_DOC._source, Client: 'main-agent' } };
+    const { container } = render(<GatewayVerdicts signIn={null} fetchImpl={mockFetch({ hits: [doc] })} />);
+    fireEvent.click(screen.getByRole('button', { name: /load findings/i }));
+    await waitFor(() => expect(screen.getByTestId('gwv-list')).toBeInTheDocument());
+
+    const detail = container.querySelector('details.gwv__detail');
+    expect(detail.open).toBe(false);
+    fireEvent.click(container.querySelector('summary.gwv__summary'));
+    expect(detail.open).toBe(true);
+    expect(screen.getByText('main-agent')).toBeInTheDocument();
+    expect(screen.getByText('AML.T0057 — rule pii-email')).toBeInTheDocument();
+  });
+
   it('never renders the virtual key', async () => {
     const { container } = render(<GatewayVerdicts signIn={null} fetchImpl={mockFetch()} />);
     fireEvent.click(screen.getByRole('button', { name: /load findings/i }));
