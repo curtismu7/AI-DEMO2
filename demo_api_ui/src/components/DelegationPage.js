@@ -22,7 +22,7 @@ const S = {
   page: { background: '#f9fafb', padding: '0 16px 32px 16px' },
   inner: { maxWidth: 900, margin: '0 auto' },
   card: { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: 24, marginBottom: 24 },
-  sectionHeading: { fontSize: 16, fontWeight: 700, color: 'var(--brand-navy)', marginTop: 0, marginBottom: 8 },
+  sectionHeading: { fontSize: 16, fontWeight: 700, color: 'color-mix(in srgb, var(--brand-navy) 55%, #0f172a)', marginTop: 0, marginBottom: 8 },
   muted: { color: '#374151', fontSize: 13, margin: '0 0 16px 0' },
   input: {
     width: '100%', maxWidth: 400, padding: '9px 12px',
@@ -33,19 +33,19 @@ const S = {
   scopeLabel: { fontWeight: 600, fontSize: 13, color: '#374151' },
   scopeDesc: { fontSize: 12, color: '#374151', marginLeft: 4 },
   primaryBtn: {
-    padding: '9px 22px', background: 'var(--brand-navy)', color: '#fff',
+    padding: '9px 22px', background: 'var(--brand-navy)', color: 'var(--app-primary-blue-text, #fff)',
     border: 'none', borderRadius: 6, fontSize: 14, fontWeight: 600, cursor: 'pointer',
   },
   primaryBtnDisabled: {
-    padding: '9px 22px', background: '#93c5fd', color: '#fff',
+    padding: '9px 22px', background: '#dbeafe', color: '#1e3a8a',
     border: 'none', borderRadius: 6, fontSize: 14, fontWeight: 600, cursor: 'not-allowed',
   },
   dangerBtn: {
-    padding: '6px 14px', background: '#fee2e2', color: '#dc2626',
+    padding: '6px 14px', background: '#fee2e2', color: '#7f1d1d',
     border: '1px solid #fca5a5', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer',
   },
   dangerBtnDisabled: {
-    padding: '6px 14px', background: '#fef2f2', color: '#fca5a5',
+    padding: '6px 14px', background: '#fef2f2', color: '#991b1b',
     border: '1px solid #fde8d8', borderRadius: 6, fontSize: 13, cursor: 'not-allowed',
   },
   successBanner: {
@@ -62,7 +62,7 @@ const S = {
     cursor: 'pointer', fontSize: 14,
     fontWeight: active ? 700 : 400,
     borderBottom: active ? '2px solid var(--brand-navy)' : '2px solid transparent',
-    color: active ? 'var(--brand-navy)' : '#6b7280',
+    color: active ? 'color-mix(in srgb, var(--brand-navy) 55%, #0f172a)' : '#374151',
     marginBottom: -1,
   }),
   delegCard: {
@@ -74,7 +74,7 @@ const S = {
   delegMeta: { fontSize: 12, color: '#374151', marginBottom: 6 },
   pillsRow: { display: 'flex', flexWrap: 'wrap', gap: 4 },
   pill: {
-    background: '#eff6ff', color: 'var(--brand-navy)', fontSize: 11, fontWeight: 600,
+    background: '#eff6ff', color: 'color-mix(in srgb, var(--brand-navy) 55%, #0f172a)', fontSize: 11, fontWeight: 600,
     padding: '2px 9px', borderRadius: 12, textTransform: 'capitalize',
   },
   table: { width: '100%', borderCollapse: 'collapse', fontSize: 13 },
@@ -83,7 +83,7 @@ const S = {
   statusBadge: (status) => ({
     padding: '2px 8px', borderRadius: 10, fontSize: 12, fontWeight: 600,
     background: status === 'active' ? '#dcfce7' : '#f3f4f6',
-    color: status === 'active' ? '#15803d' : '#6b7280',
+    color: status === 'active' ? '#14532d' : '#374151',
   }),
   codeBlock: {
     background: '#0f172a', color: '#e2e8f0', borderRadius: 8,
@@ -111,7 +111,7 @@ const S = {
   talkText: { fontSize: 13, color: '#374151', lineHeight: 1.6 },
   talkQuote: { fontStyle: 'italic', color: '#1e40af', fontWeight: 500 },
   infoPill: {
-    display: 'inline-block', background: '#eff6ff', color: '#1d4ed8',
+    display: 'inline-block', background: '#eff6ff', color: '#1e3a8a',
     fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 10,
     fontFamily: 'inherit', marginRight: 4,
   },
@@ -242,7 +242,7 @@ function HowItWorksPanel() {
           </div>
 
           <p style={{ fontSize: 13, fontWeight: 700, color: '#374151', marginTop: 16, marginBottom: 6 }}>
-            What the delegated token looks like (RFC 8693 <code>act</code> claim):
+            What the delegated token looks like (RFC 8693 <code style={{ color: '#9d174d' }}>act</code> claim):
           </p>
           <div style={S.codeBlock}>
             <span style={S.claimOp}>{'{'}</span>{'\n'}
@@ -429,7 +429,7 @@ function LiveTokenChainPanel() {
               <tbody>
                 {mcpCalls.slice(0, 10).map((call, i) => (
                   <tr key={i}>
-                    <td style={S.td}><code style={{ fontSize: 12 }}>{call.tool || call.toolName || '—'}</code></td>
+                    <td style={S.td}><code style={{ fontSize: 12, color: '#9d174d' }}>{call.tool || call.toolName || '—'}</code></td>
                     <td style={S.td}>{call.actingSub || call.sub || '—'}</td>
                     <td style={S.td}>{call.scope || '—'}</td>
                     <td style={S.td}>{call.timestamp ? new Date(call.timestamp).toLocaleTimeString() : '—'}</td>
@@ -717,7 +717,7 @@ export default function DelegationPage({ user }) {
     <div style={S.page}>
       {/* Branded gradient page header */}
       <div style={{
-        background: 'linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%)',
+        background: 'linear-gradient(135deg, #1e3a5f 0%, #1e40af 100%)',
         padding: '28px 24px 20px',
         marginBottom: 24,
         borderRadius: '0 0 12px 12px',

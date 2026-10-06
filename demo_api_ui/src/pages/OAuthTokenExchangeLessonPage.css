@@ -79,8 +79,11 @@
 .ote-button--primary {
   color: var(--th-text-invert);
   border-color: var(--th-status-info);
-  background: var(--th-status-info);
+  background: var(--th-status-info-solid);
 }
+/* PingOne's `.end-user-nano a` link colour outranks the class above on an <a> button:
+   light blue on blue, 2.0:1 in dark. */
+.end-user-nano a.ote-button--primary { color: var(--th-text-invert); }
 
 .ote-button--quiet {
   color: var(--th-status-info-text);

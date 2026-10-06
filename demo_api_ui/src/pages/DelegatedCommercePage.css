@@ -6,6 +6,7 @@
 .dc-page {
   --dc-navy: #09234b;
   --dc-blue: #1769aa;
+  --dc-blue-text: #0b4f8a; /* the same accent as TEXT on the card: #1769aa was 5.8:1 */
   --dc-line: var(--th-border);
   --dc-pale: var(--th-bg-inset);
   --dc-ink: var(--th-text);
@@ -38,7 +39,7 @@
 }
 
 .dc-hero p { margin: 0; }
-.dc-eyebrow { color: var(--dc-blue); font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.dc-eyebrow { color: var(--dc-blue-text); font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
 .dc-actions { display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
 
 .dc-btn {
@@ -144,7 +145,7 @@
 .dc-step small { margin-top: 4px; color: var(--th-text-muted); line-height: 1.35; }
 .dc-persona { border-top: 1px solid var(--dc-line); padding: 16px 20px; }
 .dc-persona strong { display: block; margin-bottom: 7px; }
-.dc-link-button { border: 0; padding: 0; background: transparent; color: var(--dc-blue); font-weight: 700; cursor: pointer; text-decoration: underline; }
+.dc-link-button { border: 0; padding: 0; background: transparent; color: var(--dc-blue-text); font-weight: 700; cursor: pointer; text-decoration: underline; }
 
 .dc-workspace { overflow: hidden; }
 .dc-workspace-body { padding: 24px; }
@@ -207,3 +208,5 @@
   .dc-proof { grid-column: auto; display: flex; }
   .dc-title-row { flex-direction: column; }
 }
+
+:root[data-theme="dark"] .dc-page { --dc-blue-text: #bae6fd; }

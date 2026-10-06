@@ -30,7 +30,7 @@
   gap: var(--_gap);
   padding: var(--_padding);
   text-align: center;
-  color: #fff;
+  color: var(--app-primary-blue-text, #fff);
   margin: 0 1.5rem 1.5rem;
   border-radius: 12px;
   flex-shrink: 0;

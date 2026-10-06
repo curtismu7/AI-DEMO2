@@ -69,7 +69,7 @@
    app, and signinAccentTokens.test.js fails any var() whose token is undefined
    and has no fallback — it would have rendered with no background at all. */
 .admin-required-modal .arm-btn-primary {
-  background: var(--th-status-info);
+  background: var(--th-status-info-solid);
   border-color: var(--th-status-info);
   color: var(--th-text-invert);
 }

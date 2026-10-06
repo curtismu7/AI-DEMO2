@@ -141,7 +141,7 @@ function MultiSelect({ value = [], options, onChange, disabled }) {
             border: '2px solid',
             borderColor: value.includes(opt) ? 'var(--brand-navy)' : '#d1d5db',
             background: value.includes(opt) ? '#eff6ff' : 'white',
-            color: value.includes(opt) ? 'var(--brand-navy)' : '#6b7280',
+            color: value.includes(opt) ? 'color-mix(in srgb, var(--brand-navy) 55%, #0f172a)' : '#374151',
             fontWeight: value.includes(opt) ? '600' : '400',
             cursor: disabled ? 'not-allowed' : 'pointer',
             fontSize: '0.85rem',
@@ -419,7 +419,7 @@ const SecuritySettings = ({ user, onLogout }) => {
                 type="button"
                 onClick={handleSave}
                 disabled={!dirty || saving}
-                style={{ padding: '10px 24px', background: dirty ? 'var(--brand-navy)' : '#9ca3af', color: 'white', border: 'none', borderRadius: '6px', fontWeight: '600', fontSize: '0.875rem', cursor: dirty ? 'pointer' : 'not-allowed', transition: 'background 0.2s' }}
+                style={{ padding: '10px 24px', background: dirty ? 'var(--brand-navy)' : '#e5e7eb', color: dirty ? 'var(--app-primary-blue-text, #fff)' : '#1f2937', border: 'none', borderRadius: '6px', fontWeight: '600', fontSize: '0.875rem', cursor: dirty ? 'pointer' : 'not-allowed', transition: 'background 0.2s' }}
               >
                 {saving ? 'Saving…' : 'Save Changes'}
               </button>

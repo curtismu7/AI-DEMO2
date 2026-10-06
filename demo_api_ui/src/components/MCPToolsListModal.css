@@ -260,7 +260,7 @@
 
 .mcp-tools-close-btn-primary {
   background-color: var(--brand-navy-light);
-  color: var(--th-text-invert);
+  color: var(--app-primary-blue-text, #fff);
   border: none;
   padding: 8px 16px;
   border-radius: 6px;

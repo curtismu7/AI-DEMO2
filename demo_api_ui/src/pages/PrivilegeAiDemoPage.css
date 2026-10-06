@@ -186,7 +186,7 @@
   display: grid;
   place-items: center;
   border-radius: var(--radius-sm, 6px);
-  background: var(--th-status-info);
+  background: var(--th-status-info-solid);
   color: var(--th-text-invert);
   font-size: var(--font-size-sm);
   font-weight: 800;

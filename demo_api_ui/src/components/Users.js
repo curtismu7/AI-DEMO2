@@ -189,7 +189,7 @@ const Users = ({ user, onLogout }) => {
         <div className="card-header">
           <h2 className="card-title">User Management</h2>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span style={{ color: '#374151', fontSize: '0.875rem' }}>
+            <span style={{ color: 'var(--th-text-body)', fontSize: '0.875rem' }}>
               {users.length} users found
             </span>
             <button
@@ -235,7 +235,7 @@ const Users = ({ user, onLogout }) => {
                         borderRadius: '0.25rem',
                         fontSize: '0.75rem',
                         fontWeight: '500',
-                        backgroundColor: user.role === 'admin' ? '#ef4444' : '#10b981',
+                        backgroundColor: user.role === 'admin' ? '#991b1b' : '#065f46',
                         color: 'white'
                       }}>
                         {user.role}
@@ -247,7 +247,7 @@ const Users = ({ user, onLogout }) => {
                         borderRadius: '0.25rem',
                         fontSize: '0.75rem',
                         fontWeight: '500',
-                        backgroundColor: user.isActive ? '#10b981' : '#6b7280',
+                        backgroundColor: user.isActive ? '#065f46' : '#374151',
                         color: 'white'
                       }}>
                         {user.isActive ? 'Active' : 'Inactive'}

@@ -504,23 +504,23 @@
 
 .cimd-btn--primary {
   background: linear-gradient(180deg, var(--app-primary-red-mid) 0%, var(--app-primary-red) 100%);
-  color: var(--th-text-invert);
+  color: var(--app-primary-btn-text, #fff);
   border: 1px solid var(--app-primary-red-border);
 }
 .cimd-btn--primary:hover {
   background: linear-gradient(180deg, var(--app-primary-red) 0%, var(--app-primary-red-hover) 100%);
   box-shadow: 0 2px 8px rgba(127, 29, 29, 0.25);
-  color: var(--th-text-invert);
+  color: var(--app-primary-btn-text, #fff);
 }
 
 .cimd-btn--secondary {
   background: linear-gradient(180deg, var(--app-primary-red-mid) 0%, var(--app-primary-red) 100%);
-  color: var(--th-text-invert);
+  color: var(--app-primary-btn-text, #fff);
   border: 1px solid var(--app-primary-red-border);
 }
 .cimd-btn--secondary:hover {
   background: linear-gradient(180deg, var(--app-primary-red) 0%, var(--app-primary-red-hover) 100%);
-  color: var(--th-text-invert);
+  color: var(--app-primary-btn-text, #fff);
 }
 
 /* ---------- Setup step list ---------- */

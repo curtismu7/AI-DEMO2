@@ -443,6 +443,13 @@
   cursor: not-allowed;
 }
 
+/* This button keeps the page's own blue fill, so it must also keep the page's own ink: the app-wide
+   .btn-primary label (adaptive to the vertical's red) lands black on this blue in a yellow vertical. */
+.App.end-user-nano.App .protocol-playground .controls-buttons .btn.btn-primary {
+  color: var(--pp-btn-primary-text) !important;
+  -webkit-text-fill-color: var(--pp-btn-primary-text) !important;
+}
+
 .controls-buttons .btn-primary {
   background-color: var(--pp-btn-primary-bg);
   color: var(--pp-btn-primary-text);

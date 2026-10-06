@@ -165,7 +165,7 @@
 .mcp-inspector__btn-ghost {
   background: linear-gradient(180deg, var(--app-primary-red-mid) 0%, var(--app-primary-red) 100%);
   border: 1px solid var(--app-primary-red-border);
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
   padding: 0.4rem 0.75rem;
   border-radius: 6px;
   cursor: pointer;
@@ -174,7 +174,7 @@
 
 .mcp-inspector__btn-ghost:hover {
   background: linear-gradient(180deg, var(--app-primary-red) 0%, var(--app-primary-red-hover) 100%);
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
 }
 
 .mcp-inspector__banner {
@@ -318,14 +318,14 @@
   border-radius: 8px;
   border: 1px solid var(--app-primary-red-border);
   background: linear-gradient(180deg, var(--app-primary-red-mid) 0%, var(--app-primary-red) 100%);
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
   cursor: pointer;
   font-size: 0.875rem;
 }
 
 .mcp-inspector__btn:hover:not(:disabled) {
   background: linear-gradient(180deg, var(--app-primary-red) 0%, var(--app-primary-red-hover) 100%);
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
 }
 
 .mcp-inspector__btn:disabled {
@@ -335,13 +335,13 @@
 
 .mcp-inspector__btn--primary {
   background: linear-gradient(180deg, var(--app-primary-red-mid) 0%, var(--app-primary-red) 100%);
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
   border-color: var(--app-primary-red-border);
 }
 
 .mcp-inspector__btn--primary:hover:not(:disabled) {
   background: linear-gradient(180deg, var(--app-primary-red) 0%, var(--app-primary-red-hover) 100%);
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
 }
 
 .mcp-inspector__pre {

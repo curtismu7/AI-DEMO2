@@ -87,7 +87,7 @@
   height: 1.5rem;
   border-radius: 50%;
   color: var(--th-text-invert);
-  background: var(--th-status-info);
+  background: var(--th-status-info-solid);
   font-size: var(--font-size-xs);
   font-weight: 800;
 }

@@ -42,7 +42,7 @@
   border: 1px solid var(--app-primary-red-border, #dc2626);
   border-radius: 6px;
   background: var(--app-primary-red, #b91c1c);
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
   font-size: var(--font-size-sm);
   font-weight: 600;
   cursor: pointer;

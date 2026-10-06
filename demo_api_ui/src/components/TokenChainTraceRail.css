@@ -254,12 +254,12 @@
 .tctr-lane--llm { background: #ede9fe; color: #5b21b6; }
 .tctr-lane--heuristics { background: #ffedd5; color: #9a3412; }
 .tctr-lane--bff { background: var(--th-bg-inset); color: var(--th-text); }
-.tctr-lane--authz { background: #fef3c7; color: #92400e; }
-.tctr-lane--gateway { background: #cffafe; color: #0e7490; }
-.tctr-lane--mcp { background: #d1fae5; color: #047857; }
-.tctr-lane--api { background: #fee2e2; color: #b91c1c; }
+.tctr-lane--authz { background: #fef3c7; color: #78350f; }
+.tctr-lane--gateway { background: #cffafe; color: #164e63; }
+.tctr-lane--mcp { background: #d1fae5; color: #064e3b; }
+.tctr-lane--api { background: #fee2e2; color: #7f1d1d; }
 .tctr-lane--mortgage { background: #fde68a; color: #78350f; }
-.tctr-lane--invest { background: #a7f3d0; color: #065f46; }
+.tctr-lane--invest { background: #a7f3d0; color: #064e3b; }
 
 .tctr-step-body {
   padding: 10px 12px 12px 24px; font-size: var(--font-size-sm); color: var(--th-text);

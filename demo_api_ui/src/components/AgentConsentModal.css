@@ -286,7 +286,7 @@
     var(--app-primary-red-mid, #b91c1c) 0%,
     var(--app-primary-red, #991b1b) 100%
   );
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
   border-color: var(--app-primary-red-border, #7f1d1d);
   box-shadow: 0 1px 3px rgba(127, 29, 29, 0.28);
 }

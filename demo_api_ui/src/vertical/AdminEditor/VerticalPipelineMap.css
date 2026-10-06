@@ -50,7 +50,7 @@
 .vpm-legend-swatch--write { color: #6e2f0a; }
 
 .vpm-recheck-btn {
-  background: var(--th-status-info);
+  background: var(--th-status-info-solid);
   color: var(--th-text-invert);
   border: none;
   border-radius: 6px;

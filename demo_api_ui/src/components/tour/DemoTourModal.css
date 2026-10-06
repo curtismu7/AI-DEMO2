@@ -129,7 +129,7 @@
 .demo-tour-btn-next {
   background: var(--app-primary-red, #b91c1c);
   border: 1px solid #991b1b;
-  color: #ffffff;
+  color: var(--app-primary-btn-text, #fff);
   border-radius: 6px;
   padding: 0.375rem 0.875rem;
   cursor: pointer;

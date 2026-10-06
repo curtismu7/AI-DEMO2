@@ -57,7 +57,7 @@
 }
 .cfg-segment-btn--active {
   background: var(--th-bg-card);
-  color: #1e40af;
+  color: var(--th-status-info-text);
   font-weight: 700;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
 }
@@ -65,9 +65,9 @@
   font-size: 0.68rem;
   font-weight: 600;
 }
-.cfg-segment-status--active   { color: #16a34a; }
-.cfg-segment-status--warn     { color: #d97706; }
-.cfg-segment-status--error    { color: #dc2626; }
+.cfg-segment-status--active   { color: var(--th-status-success-text); }
+.cfg-segment-status--warn     { color: var(--th-status-warning-text); }
+.cfg-segment-status--error    { color: var(--th-status-error-text); }
 .cfg-segment-status--unknown  { color: var(--th-text-faint); }
 
 /* ── Tier model table ───────────────────────────────────────── */
@@ -207,7 +207,7 @@
   margin: 0;
 }
 .cfg-card-sub a {
-  color: #2563eb;
+  color: var(--th-status-info-text);
   text-decoration: none;
 }
 .cfg-card-sub a:hover {
@@ -227,8 +227,8 @@
   white-space: nowrap;
   flex-shrink: 0;
 }
-.cfg-badge--active        { background: #dcfce7; color: #15803d; }
-.cfg-badge--unconfigured  { background: #fef9c3; color: #854d0e; }
+.cfg-badge--active        { background: #dcfce7; color: #14532d; }
+.cfg-badge--unconfigured  { background: #fef9c3; color: #713f12; }
 .cfg-badge--unreachable   { background: #fee2e2; color: #991b1b; }
 .cfg-badge--loading       { background: var(--th-bg-inset); color: var(--th-text-muted); }
 
@@ -345,12 +345,12 @@
 .cfg-btn--secondary:hover:not(:disabled) { background: var(--th-bg-inset); }
 .cfg-btn--danger {
   background: var(--th-bg-card);
-  color: #dc2626;
+  color: var(--th-status-error-text);
   border: 1.5px solid #fecaca;
   font-weight: 500;
   margin-left: auto;
 }
-.cfg-btn--danger:hover:not(:disabled) { background: #fef2f2; }
+.cfg-btn--danger:hover:not(:disabled) { background: var(--th-status-error-bg); }
 
 /* ── Info / setup boxes ─────────────────────────────────────── */
 .cfg-info-panel {

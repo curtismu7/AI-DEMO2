@@ -178,7 +178,7 @@
 .runtime-chip.active {
   background: var(--brand-navy);
   border-color: var(--brand-navy);
-  color: #ffffff;
+  color: var(--app-primary-blue-text, #fff);
 }
 
 .runtime-chip-count {

@@ -46,7 +46,9 @@
   font-weight: 700;
   color: var(--th-text);
   margin-bottom: 1rem;
-  background: linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy) 50%, var(--brand-navy) 100%);
+  /* All three stops were the same brand colour (orange on white = 2.8:1 for Super Sports): keep the
+     brand hue but pull it toward the page ink so the heading reads. */
+  background: color-mix(in srgb, var(--brand-navy) 55%, var(--th-text));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -220,7 +222,7 @@
 
 .postman-btn--primary {
   background: linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy) 50%, var(--brand-navy) 100%);
-  color: white;
+  color: var(--app-primary-blue-text, #fff);
   border: 1px solid var(--brand-navy);
 }
 
@@ -266,7 +268,7 @@
   width: 32px;
   height: 32px;
   background: linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy) 100%);
-  color: white;
+  color: var(--app-primary-blue-text, #fff);
   border-radius: 50%;
   display: flex;
   align-items: center;

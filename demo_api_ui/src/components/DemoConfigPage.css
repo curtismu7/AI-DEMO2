@@ -188,7 +188,7 @@
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #166534;
+  color: var(--th-status-success-text);
   background: rgba(76, 175, 80, 0.1);
   padding: 2px 7px;
   border-radius: 999px;

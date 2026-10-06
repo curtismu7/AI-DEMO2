@@ -250,7 +250,7 @@
     var(--brand-navy) 0%,
     var(--brand-navy) 100%
   );
-  color: var(--th-text-invert);
+  color: var(--app-primary-blue-text, #fff);
   border-radius: 999px;
   padding: 2px 8px;
   line-height: 1.35;
@@ -2899,7 +2899,7 @@ pre.tcd-jwt-dump.jh-dark {
 }
 .tcd-walk__seg button.is-on {
   background: var(--brand-navy);
-  color: var(--th-text-invert);
+  color: var(--app-primary-blue-text, #fff);
 }
 
 .tcd-walk__btn {
@@ -2983,7 +2983,7 @@ pre.tcd-jwt-dump.jh-dark {
   gap: 8px;
   padding: 11px 14px;
   background: var(--brand-navy);
-  color: var(--th-text-invert);
+  color: var(--app-primary-blue-text, #fff);
 }
 .tcd-step-explainer__step {
   font-size: 10.5px;

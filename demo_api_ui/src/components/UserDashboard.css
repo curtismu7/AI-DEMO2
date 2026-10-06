@@ -477,7 +477,7 @@
 .ud-dashboard-inline-agent-login-btn {
   padding: 10px 28px;
   background: var(--brand-navy, #1e3a5f);
-  color: #ffffff;
+  color: var(--app-primary-blue-text, #fff);
   border: none;
   border-radius: 6px;
   font-size: 0.95rem;
@@ -1584,7 +1584,7 @@
       var(--app-primary-red-mid) 0%,
       var(--app-primary-red) 100%
     );
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
   border: 1px solid var(--app-primary-red-border);
   padding: 12px 20px;
   border-radius: 6px;
@@ -1608,7 +1608,7 @@
       var(--app-primary-red-mid) 0%,
       var(--app-primary-red) 100%
     );
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
   border: 1px solid var(--app-primary-red-border);
   padding: 12px 20px;
   border-radius: 6px;
@@ -1632,7 +1632,7 @@
       var(--app-primary-red) 0%,
       var(--app-primary-red-hover) 100%
     );
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
 }
 
 .withdraw-submit-btn {
@@ -1649,7 +1649,7 @@
       var(--app-primary-red-mid) 0%,
       var(--app-primary-red) 100%
     );
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
   border: 1px solid var(--app-primary-red-border);
   padding: 12px 20px;
   border-radius: 6px;
@@ -1673,7 +1673,7 @@
       var(--app-primary-red) 0%,
       var(--app-primary-red-hover) 100%
     );
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
 }
 
 .transfer-btn:hover {
@@ -1690,7 +1690,7 @@
       var(--app-primary-red) 0%,
       var(--app-primary-red-hover) 100%
     );
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
 }
 
 .cancel-btn {
@@ -1699,7 +1699,7 @@
     var(--app-primary-red-mid) 0%,
     var(--app-primary-red) 100%
   );
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
   border: 1px solid var(--app-primary-red-border);
   padding: 12px 20px;
   border-radius: 6px;
@@ -1715,7 +1715,7 @@
     var(--app-primary-red) 0%,
     var(--app-primary-red-hover) 100%
   );
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
 }
 
 /* ── Phase 142: Standard authz buttons — disabled + pending states ────── */
@@ -2523,7 +2523,7 @@
     var(--brand-navy) 0%,
     var(--brand-navy) 100%
   );
-  color: white;
+  color: var(--app-primary-blue-text, #fff);
   padding: 14px 24px;
   display: flex;
   align-items: center;
@@ -3312,7 +3312,7 @@
     var(--app-primary-red-mid) 0%,
     var(--app-primary-red) 100%
   );
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
   border-color: var(--app-primary-red-border);
 }
 .ud-sim-btn--orange:hover,
@@ -3323,7 +3323,7 @@
     var(--app-primary-red) 0%,
     var(--app-primary-red-hover) 100%
   );
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
 }
 
 .ud-scope-table {
@@ -3497,7 +3497,7 @@
     var(--app-primary-red-mid) 0%,
     var(--app-primary-red) 100%
   );
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
   cursor: pointer;
   transition: background 0.15s;
 }
@@ -3508,7 +3508,7 @@
     var(--app-primary-red) 0%,
     var(--app-primary-red-hover) 100%
   );
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
 }
 
 .ud-cancel-btn {
@@ -3522,7 +3522,7 @@
     var(--app-primary-red-mid) 0%,
     var(--app-primary-red) 100%
   );
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
   cursor: pointer;
 }
 
@@ -3532,7 +3532,7 @@
     var(--app-primary-red) 0%,
     var(--app-primary-red-hover) 100%
   );
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
 }
 
 /* ── Transaction list ────────────────────────────────────────── */

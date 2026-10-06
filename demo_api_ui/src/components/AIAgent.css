@@ -704,7 +704,7 @@ body > .banking-agent-float-root .banking-agent-panel {
     var(--app-primary-red-hover) 100%
   );
   border-color: var(--app-primary-red-hover);
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
 }
 .banking-agent-panel:not(.ba-mode-inline) .ba-left-auth-btn.primary {
   background: linear-gradient(
@@ -713,7 +713,7 @@ body > .banking-agent-float-root .banking-agent-panel {
     var(--app-primary-red) 100%
   );
   border-color: var(--app-primary-red-border);
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
 }
 .banking-agent-panel:not(.ba-mode-inline) .ba-left-auth-btn.primary:hover {
   background: linear-gradient(
@@ -722,7 +722,7 @@ body > .banking-agent-float-root .banking-agent-panel {
     var(--app-primary-red-hover) 100%
   );
   border-color: var(--app-primary-red-hover);
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
 }
 
 .banking-agent-panel:not(.ba-mode-inline) .ba-left-config-btn:not(.configured) {
@@ -1774,7 +1774,7 @@ body > .banking-agent-float-root .banking-agent-panel {
     var(--app-primary-red-mid) 0%,
     var(--app-primary-red) 100%
   );
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
   cursor: pointer;
   transition: var(--btn-transition);
 }
@@ -2501,7 +2501,7 @@ body > .banking-agent-float-root .banking-agent-panel {
     var(--app-primary-red-mid) 0%,
     var(--app-primary-red) 100%
   );
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
   border: 1px solid var(--app-primary-red-border);
   border-radius: 6px;
   padding: 8px 12px;
@@ -2516,7 +2516,7 @@ body > .banking-agent-float-root .banking-agent-panel {
     var(--app-primary-red) 0%,
     var(--app-primary-red-hover) 100%
   );
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
 }
 
 /* ─── Responsive ─────────────────────────────────────────────────────── */
@@ -2579,7 +2579,7 @@ body > .banking-agent-float-root .banking-agent-panel {
     var(--app-primary-red-mid) 0%,
     var(--app-primary-red) 100%
   );
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
   font-weight: 600;
   border: 1px solid var(--app-primary-red-border);
 }
@@ -2590,7 +2590,7 @@ body > .banking-agent-float-root .banking-agent-panel {
     var(--app-primary-red) 0%,
     var(--app-primary-red-hover) 100%
   );
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
 }
 
 .banking-agent-config-btn {
@@ -3645,7 +3645,7 @@ body > .banking-agent-float-root .banking-agent-panel {
     var(--app-primary-red-mid) 0%,
     var(--app-primary-red) 100%
   );
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
   font-weight: var(--btn-weight);
   font-size: var(--btn-font-size-sm);
   font-family: inherit;
@@ -4414,7 +4414,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   font-size: var(--font-size-2xs);
   font-weight: 600;
   background: var(--app-primary-blue-mid);
-  color: #ffffff;
+  color: var(--app-primary-blue-text, #fff);
 }
 
 .banking-agent-panel.ba-mode-inline.ba-split-column

@@ -213,7 +213,7 @@
   height: 1.8rem;
   place-items: center;
   border-radius: var(--radius-pill);
-  background: var(--th-status-info);
+  background: var(--th-status-info-solid);
   color: var(--th-text-invert);
   font-weight: 700;
 }
@@ -247,7 +247,7 @@
 
 .lesson-shell__run-button {
   color: var(--th-text-invert);
-  background: var(--th-status-info);
+  background: var(--th-status-info-solid);
 }
 
 .lesson-shell__run-button:disabled {

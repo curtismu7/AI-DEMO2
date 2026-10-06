@@ -462,7 +462,7 @@
   height: 20px;
   border-radius: 999px;
   color: var(--th-text-invert);
-  background: var(--th-status-info);
+  background: var(--th-status-info-solid);
   font-size: var(--font-size-xs);
   font-weight: 800;
   flex-shrink: 0;
@@ -552,7 +552,7 @@
 }
 
 .pingcli-view-bar .pingcli-view-btn.active {
-  background: var(--th-status-info);
+  background: var(--th-status-info-solid);
   border-color: var(--th-status-info);
   color: var(--th-text-invert);
 }

@@ -9,13 +9,13 @@
    be worse than declaring it here — but it still has to be declared PER THEME,
    because a single value cannot carry a focus ring on both grounds. */
 :root {
-  --ff-accent: #7c3aed;
+  --ff-accent: #5b21b6; /* #7c3aed was 5.7:1 on its tint */
   --ff-accent-soft: #f1ebfd;
   --ff-accent-ring: rgba(124, 58, 237, 0.28);
 }
 
 :root[data-theme="dark"] {
-  --ff-accent: #a78bfa;
+  --ff-accent: #ddd6fe; /* #a78bfa was 5.5:1 on its tint */
   --ff-accent-soft: #2a2143;
   --ff-accent-ring: rgba(167, 139, 250, 0.35);
 }
@@ -39,7 +39,7 @@
 
 .ff-stat--on {
   background: var(--th-status-success-bg);
-  color: var(--th-status-success);
+  color: var(--th-status-success-text);
   border: 1px solid var(--th-status-success-border);
 }
 .ff-stat--off {
@@ -196,7 +196,7 @@
 
 .ff-badge--on {
   background: var(--th-status-info-bg);
-  color: var(--th-status-info);
+  color: var(--th-status-info-text);
 }
 .ff-badge--off {
   background: var(--th-bg-inset);
@@ -297,7 +297,7 @@
 }
 
 .ff-toggle--on {
-  background: var(--th-status-info);
+  background: var(--th-status-info-solid);
   color: var(--th-text-invert);
 }
 
@@ -542,8 +542,8 @@
 
 .rc-save-btn {
   padding: 8px 22px;
-  background: var(--th-status-info);
-  color: var(--th-bg-card);
+  background: var(--th-status-info-solid);
+  color: var(--th-text-invert);
   border: none;
   border-radius: 6px;
   font-size: 0.87rem;
@@ -588,7 +588,7 @@
 }
 
 .ff-footer a {
-  color: var(--th-status-info);
+  color: var(--th-status-info-text);
   text-decoration: none;
 }
 

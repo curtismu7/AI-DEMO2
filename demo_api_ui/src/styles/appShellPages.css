@@ -225,7 +225,7 @@
     var(--app-primary-blue) 100%
   );
   border-color: var(--app-primary-blue-border);
-  color: #fff;
+  color: var(--app-primary-blue-text, #fff);
 }
 
 .app-page-toolbar-btn--theme:hover {
@@ -235,7 +235,7 @@
     var(--app-primary-blue-hover) 100%
   );
   border-color: var(--app-primary-blue-hover);
-  color: #fff;
+  color: var(--app-primary-blue-text, #fff);
 }
 
 .admin-dashboard__intro {
@@ -363,7 +363,7 @@
     var(--app-primary-red-mid) 0%,
     var(--app-primary-red) 100%
   );
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
   border-color: rgba(255, 255, 255, 0.25);
 }
 
@@ -374,7 +374,7 @@
     var(--app-primary-red-hover) 100%
   );
   border-color: rgba(255, 255, 255, 0.4);
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
 }
 
 /*

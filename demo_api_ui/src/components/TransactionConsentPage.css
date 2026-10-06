@@ -113,7 +113,7 @@
   padding: 0.45rem 0.9rem;
   border-radius: 8px;
   background: var(--brand-navy);
-  color: var(--th-text-invert) !important;
+  color: var(--app-primary-blue-text, #fff) !important;
   font-weight: 600;
   text-decoration: none;
 }

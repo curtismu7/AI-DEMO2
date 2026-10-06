@@ -821,8 +821,9 @@
 .App.end-user-nano .landing-header-actions .btn-secondary:focus-visible,
 .App.end-user-nano .landing-header-actions .btn-secondary:active,
 .App.end-user-nano .landing-header-actions .btn-secondary:visited {
-  color: var(--app-primary-red, #b91c1c) !important;
-  -webkit-text-fill-color: var(--app-primary-red, #b91c1c) !important;
+  /* Brand colour as TEXT on a pale button was 1.2:1 when the vertical's colour is yellow. */
+  color: var(--th-text) !important;
+  -webkit-text-fill-color: var(--th-text) !important;
 }
 
 /* PingOne end-user-nano ships dark-on-light defaults for headings (#1a2330), links (#277ba5)
@@ -840,6 +841,9 @@
 /* Bootstrap redeclares --bs-card-bg on .card itself, so it has to be set there. */
 :root[data-theme="dark"] .end-user-nano .card {
   --bs-card-bg: var(--th-bg-card);
+  --bs-card-color: var(--th-text);
+  --bs-card-title-color: var(--th-text);
+  --bs-card-subtitle-color: var(--th-text-body);
 }
 /* Inline-code pink is for light grounds; inside a <pre> the block already sets its own ink. */
 .App.end-user-nano pre code {
@@ -856,6 +860,26 @@
 :root[data-theme="dark"] .App.end-user-nano .landing-header-actions .btn-secondary:visited {
   color: var(--th-text) !important;
   -webkit-text-fill-color: var(--th-text) !important;
+}
+
+/* PingOne's own .btn-primary fill is its default blue (#277ba5), which this app never meant to show:
+   index.css already aligns .btn-secondary to the app red, and the label rule below assumes a
+   --app-primary-red fill. Black ink on that blue measured 3.6:1 on four admin pages. */
+.App.end-user-nano .btn .badge:not([class*="bg-"]) {
+  /* PingOne's badge ink is white even when the badge has no fill of its own, so on a yellow
+     warning button it measured 1.3:1: take the button's ink. */
+  color: inherit;
+}
+
+.App.end-user-nano .btn.btn-primary {
+  --bs-btn-bg: var(--app-primary-red);
+  --bs-btn-border-color: var(--app-primary-red-border);
+  --bs-btn-hover-bg: var(--app-primary-red-hover);
+  --bs-btn-hover-border-color: var(--app-primary-red-border);
+  --bs-btn-active-bg: var(--app-primary-red-hover);
+  --bs-btn-active-border-color: var(--app-primary-red-border);
+  --bs-btn-disabled-bg: var(--app-primary-red);
+  --bs-btn-disabled-border-color: var(--app-primary-red-border);
 }
 
 /* A primary button is filled with --app-primary-red, so its label follows that fill
@@ -906,6 +930,17 @@
 }
 
 /* Toolbar uses <button> on MCP Inspector / Demo config — nano still paints link-blue on buttons */
+.App.end-user-nano button.app-page-toolbar-btn.app-page-toolbar-btn--theme,
+.App.end-user-nano button.app-page-toolbar-btn.app-page-toolbar-btn--theme:hover,
+.App.end-user-nano button.app-page-toolbar-btn.app-page-toolbar-btn--theme:focus,
+.App.end-user-nano button.app-page-toolbar-btn.app-page-toolbar-btn--theme:focus-visible,
+.App.end-user-nano button.app-page-toolbar-btn.app-page-toolbar-btn--theme:active {
+  /* This variant is filled with --app-primary-BLUE (the vertical accent), not the red the rule
+     below assumes: black on a dark fill measured 1.0:1 on admin pages. */
+  color: var(--app-primary-blue-text, #fff) !important;
+  -webkit-text-fill-color: var(--app-primary-blue-text, #fff) !important;
+}
+
 .App.end-user-nano button.app-page-toolbar-btn,
 .App.end-user-nano button.app-page-toolbar-btn:hover,
 .App.end-user-nano button.app-page-toolbar-btn:focus,
@@ -1416,7 +1451,7 @@
     var(--app-primary-red-mid) 0%,
     var(--app-primary-red) 100%
   );
-  color: var(--th-text-invert);
+  color: var(--app-primary-btn-text, #fff);
   border: 1px solid var(--app-primary-red-border);
   box-shadow: 0 1px 3px rgba(127, 29, 29, 0.28);
 }
@@ -1627,7 +1662,7 @@
     var(--app-primary-red-mid) 0%,
     var(--app-primary-red) 100%
   );
-  color: var(--th-text-invert);
+  color: var(--app-primary-btn-text, #fff);
   border: 1px solid var(--app-primary-red-border);
   box-shadow: 0 1px 3px rgba(127, 29, 29, 0.28);
 }

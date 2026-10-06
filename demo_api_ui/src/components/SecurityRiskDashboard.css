@@ -318,7 +318,7 @@
   font-size: var(--font-size-3xs);
 }
 .srd-text--good {
-  color: var(--srd-green);
+  color: var(--th-status-success-text);
 }
 .srd-text--warn {
   color: var(--srd-amber);
@@ -452,7 +452,7 @@
   white-space: nowrap;
 }
 .srd-status--healthy {
-  color: var(--srd-green);
+  color: var(--th-status-success-text);
 }
 .srd-status--down {
   color: var(--srd-red);

@@ -126,7 +126,7 @@
   grid-template-columns: 1fr 1.2fr 1.1fr 1.2fr;
   gap: 0;
   background: var(--brand-navy);
-  color: white;
+  color: var(--app-primary-blue-text, #fff);
   font-weight: 600;
   padding: 8px 10px;
   border-bottom: 1px solid var(--color-border, #DDDDDD);

@@ -6,7 +6,7 @@
 .agal-hero .agal-eyebrow { color: var(--th-text-invert) !important; }
 .agal-hero-links { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
 .agal-primary-link, .agal-secondary-link { display: inline-flex; align-items: center; min-height: 38px; padding: 9px 13px; border-radius: var(--radius-md); font-size: var(--font-size-sm); font-weight: 700; text-decoration: none; }
-.agal-primary-link { color: var(--th-text-invert); background: var(--th-status-info); border: 1px solid var(--th-status-info); }
+.agal-primary-link { color: var(--th-text-invert); background: var(--th-status-info-solid); border: 1px solid var(--th-status-info); }
 .agal-primary-link:hover { color: var(--th-text-invert); background: var(--th-status-info-text); }
 .agal-secondary-link { color: var(--th-status-info-text); background: var(--th-bg-card); border: 1px solid var(--th-border); }
 .agal-secondary-link:hover { color: var(--th-status-info-text); border-color: var(--th-status-info); background: var(--th-bg-inset); }
@@ -62,7 +62,7 @@
 .agal-result--deny { color: var(--th-status-error-text); background: var(--th-status-error-bg); }
 .agal-result--step-up { color: var(--th-status-warning-text); background: var(--th-status-warning-bg); }
 .agal-result--permit p, .agal-result--deny p, .agal-result--step-up p { color: inherit; }
-.agal-live-button { margin-top: 12px; padding: 9px 12px; color: var(--th-text-invert); background: var(--th-status-info); border: 1px solid var(--th-status-info); border-radius: var(--radius-md); cursor: pointer; font-size: var(--font-size-sm); }
+.agal-live-button { margin-top: 12px; padding: 9px 12px; color: var(--th-text-invert); background: var(--th-status-info-solid); border: 1px solid var(--th-status-info); border-radius: var(--radius-md); cursor: pointer; font-size: var(--font-size-sm); }
 .agal-live-button:hover:not(:disabled) { color: var(--th-text-invert); background: var(--th-status-info-text); }
 .agal-live-button:disabled { opacity: .6; cursor: not-allowed; }
 .agal-live-note { margin-top: 10px !important; color: var(--th-text-muted) !important; font-size: var(--font-size-sm); }

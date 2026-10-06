@@ -12,7 +12,7 @@
 
 .pd-page__header {
   background: linear-gradient(to bottom, color-mix(in srgb, var(--brand-navy, #0f2744) 55%, #000) 0%, #1a3a5c 100%);
-  color: #fff;
+  color: var(--app-primary-blue-text, #fff);
   padding: 1.25rem 0;
   box-shadow: var(--shadow-sm);
 }

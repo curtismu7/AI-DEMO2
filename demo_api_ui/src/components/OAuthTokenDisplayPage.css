@@ -353,7 +353,7 @@
 }
 
 .otdp-flow-step--active .otdp-flow-step-num {
-  background: var(--th-status-info);
+  background: var(--th-status-info-solid);
   color: var(--th-text-invert);
 }
 
