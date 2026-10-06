@@ -4422,13 +4422,6 @@ body > .banking-agent-float-root .banking-agent-panel {
   background: var(--app-primary-blue);
 }
 
-.banking-agent-panel.ba-mode-inline.ba-split-column
-  .banking-agent-msg.assistant.typing
-  .banking-agent-msg-bubble {
-  background: #dddddd;
-  color: var(--th-text);
-}
-
 /* ba-reasoning: sequential thinking */
 .ba-reasoning {
   border-left: 2px solid var(--th-border);
@@ -8201,6 +8194,12 @@ button.ba-action-btn:hover {
   gap: 10px;
   padding: 8px 14px;
 }
-.ba-run-indicator__label {
+.ba-run-indicator .ping-spinner {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.ba-run-indicator .ping-spinner__label {
+  white-space: normal;
   font-size: var(--font-size-sm);
+  color: var(--ba-agent-txt);
 }

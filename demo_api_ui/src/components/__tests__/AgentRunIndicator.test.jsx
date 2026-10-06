@@ -34,7 +34,14 @@ describe('AgentWorkingMark', () => {
   it('with no label it shows the short note "Working…", once', () => {
     render(<AgentWorkingMark />);
 
-    expect(screen.getByRole('status')).toHaveTextContent('Working…');
+    // Exact match: the spinner must not echo the note as a second visible label.
+    expect(screen.getByRole('status').textContent).toBe('Working…');
     expect(screen.getAllByRole('status')).toHaveLength(1);
+  });
+
+  it('shows a long run note once, not echoed beside the mark', () => {
+    render(<AgentWorkingMark label="Demo step 25: UC46A — working…" />);
+
+    expect(screen.getByRole('status').textContent).toBe('Demo step 25: UC46A — working…');
   });
 });
