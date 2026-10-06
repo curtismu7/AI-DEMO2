@@ -130,4 +130,4 @@
   .governance-timeline-event__meta time { display: block; margin-top: 4px; }
 }
 
-:root[data-theme="dark"] .governance-timeline-page__filters button.is-active, :root[data-theme="dark"] .governance-timeline-page__filters button:hover { --th-status-info: #1e40af; }
+.governance-timeline-page__filters button.is-active, .governance-timeline-page__filters button:hover { --th-status-info: #1e40af; }

@@ -2147,7 +2147,7 @@ function AudTrail({ stepIndex }) {
                   style={{
                     fontSize: "0.7rem",
                     fontFamily: "inherit",
-                    color: on ? "#bfdbfe" : past ? "#3b82f6" : "#64748b",
+                    color: on ? "#bfdbfe" : past ? "#3b82f6" : "#475569",
                     lineHeight: 1.3,
                   }}
                 >
@@ -2158,7 +2158,7 @@ function AudTrail({ stepIndex }) {
                     style={{
                       fontSize: "0.68rem",
                       fontFamily: "inherit",
-                      color: on ? "#86efac" : "#64748b",
+                      color: on ? "#86efac" : "#475569",
                     }}
                   >
                     act: {hop.act}
@@ -2169,7 +2169,7 @@ function AudTrail({ stepIndex }) {
                     style={{
                       fontSize: "0.68rem",
                       fontFamily: "inherit",
-                      color: on ? "#fde68a" : "#64748b",
+                      color: on ? "#fde68a" : "#475569",
                     }}
                   >
                     may_act: {hop.may_act}
@@ -2425,7 +2425,7 @@ function OneFlowCard({ token, isHitl }) {
                 style={{
                   fontSize: "0.72rem",
                   fontFamily: "inherit",
-                  color: "#64748b",
+                  color: "#475569",
                   wordBreak: "break-word",
                 }}
               >
@@ -2466,7 +2466,7 @@ function OneFlowCard({ token, isHitl }) {
           cursor: "pointer",
           fontSize: "0.68rem",
           fontWeight: 600,
-          color: "#64748b",
+          color: "#475569",
           fontFamily: "inherit",
         }}
       >

@@ -327,8 +327,8 @@
    every rule below including the dark overrides — so the deep light-mode hues
    stayed on the dark card and Agent measured 2.44:1. Dark values reuse this
    file's existing --lane palette so the actors read the same in both themes. */
-.tctr-kv-k--user  { color: #9d174d; }
-.tctr-kv-k--agent { color: #5b21b6; }
+.tctr-kv-k--user  { color: #831843; }
+.tctr-kv-k--agent { color: #581c87; }
 .tctr-kv-k--mcp   { color: #065f46; }
 .tctr-kv-v { font-family: var(--font-mono); font-size: var(--font-size-2xs); word-break: break-all; }
 .tctr-kv-v--json {

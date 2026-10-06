@@ -2,7 +2,7 @@
   padding: 20px;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--th-bg-card);
 }
 
 .codebase-uploader h2 {
@@ -42,7 +42,7 @@
 .form-group input[type="text"]:focus,
 .form-group input[type="file"]:focus {
   outline: none;
-  border-color: #059669;
+  border-color: #065f46;
   box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
 }
 
@@ -53,7 +53,7 @@
 
 .file-name {
   font-size: var(--font-size-2xs);
-  color: #059669;
+  color: #065f46;
   font-weight: 500;
 }
 
@@ -62,7 +62,7 @@
   background-color: #fee2e2;
   border: 1px solid #fecaca;
   border-radius: 4px;
-  color: #dc2626;
+  color: #991b1b;
   font-size: var(--font-size-body);
 }
 
@@ -82,11 +82,12 @@
 
 .code-search-page .codebase-uploader button:hover:not(:disabled),
 .codebase-uploader button:hover:not(:disabled) {
-  background-color: #047857;
+  background-color: #064e3b;
 }
 
 .code-search-page .codebase-uploader button:disabled,
 .codebase-uploader button:disabled {
   background-color: #d1d5db;
+  color: #020617;
   cursor: not-allowed;
 }

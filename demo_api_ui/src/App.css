@@ -454,7 +454,7 @@
 .boot-skeleton__tip b {
   display: block;
   margin-bottom: 4px;
-  color: #dc2626;
+  color: #991b1b;
   font-size: var(--font-size-xs);
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -476,7 +476,7 @@
 }
 
 :root[data-theme="dark"] .boot-skeleton__tip b {
-  color: #ef4444;
+  color: #f87171;
 }
 
 :root[data-theme="dark"] .boot-skeleton__tip em {

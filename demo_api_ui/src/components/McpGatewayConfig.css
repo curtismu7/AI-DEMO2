@@ -332,7 +332,7 @@
 }
 .mgc-input:focus {
   outline: none;
-  border-color: var(--primary, #2563eb);
+  border-color: var(--primary, #1e40af);
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
 }
 .mgc-field-hint {

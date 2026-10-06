@@ -65,7 +65,7 @@ const S = {
     padding: '6px 14px', borderRadius: '7px', fontSize: '12px', fontWeight: 600, cursor: 'pointer',
     border: `1px solid ${active ? '#c7d2fe' : '#e2e8f0'}`,
     background: active ? '#eef2ff' : '#f8fafc',
-    color: active ? '#3730a3' : '#64748b',
+    color: active ? '#3730a3' : '#334155',
   }),
   presetPill: { marginLeft: 'auto', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: '#3730a3', background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: '20px', padding: '2px 9px' },
 

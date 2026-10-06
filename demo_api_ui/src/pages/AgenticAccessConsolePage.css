@@ -136,7 +136,7 @@
 }
 .aac-agent-card--active {
   border-width: 2px;
-  border-color: var(--th-status-info);
+  border-color: var(--th-status-info-text);
 }
 .aac-detail-panel { margin-top: 16px; }
 
@@ -332,7 +332,7 @@
 .aac-attempt-agent { font-weight: 700; font-size: var(--font-size-base); }
 .aac-attempt-attribution { margin-top: 6px; color: var(--th-text-muted); font-size: var(--font-size-sm); }
 .aac-attempt-reveal { margin-top: 6px; }
-.aac-attempt-reveal summary { cursor: pointer; color: var(--th-status-info); font-size: var(--font-size-sm); font-weight: 600; }
+.aac-attempt-reveal summary { cursor: pointer; color: var(--th-status-info-text); font-size: var(--font-size-sm); font-weight: 600; }
 .aac-prompt-block {
   margin-top: 8px;
   padding: 10px 12px;

@@ -9,7 +9,7 @@ const stages = [
   {
     label: 'User Login',
     badge: 'Full user permissions',
-    color: '#1d4ed8',
+    color: '#1e3a8a',
     bgColor: '#dbeafe',
     borderColor: '#93c5fd',
     scopes: [
@@ -25,7 +25,7 @@ const stages = [
   {
     label: 'Agent Exchange',
     badge: 'Agent-scoped subset',
-    color: '#047857',
+    color: '#065f46',
     bgColor: '#d1fae5',
     borderColor: '#6ee7b7',
     scopes: [
@@ -37,7 +37,7 @@ const stages = [
   {
     label: 'MCP Tool Call',
     badge: 'Single tool scope',
-    color: '#b45309',
+    color: '#78350f',
     bgColor: '#fef3c7',
     borderColor: '#fbbf24',
     scopes: [
@@ -111,7 +111,7 @@ const scopePillStyle = (kept) => ({
   borderRadius: '12px',
   margin: '3px 4px 3px 0',
   background: kept ? '#e0f2fe' : '#f3f4f6',
-  color: kept ? '#0369a1' : '#4b5563',
+  color: kept ? '#0c4a6e' : '#1f2937',
   textDecoration: kept ? 'none' : 'line-through',
   border: kept ? '1px solid #7dd3fc' : '1px solid #d1d5db',
 });
@@ -162,7 +162,7 @@ const vaultContainerStyle = {
 const vaultTitleStyle = {
   fontSize: '16px',
   fontWeight: 700,
-  color: '#92400e',
+  color: '#78350f',
   margin: '0 0 8px',
   display: 'flex',
   alignItems: 'center',
@@ -173,7 +173,7 @@ const vaultBadgeStyle = {
   display: 'inline-block',
   fontSize: '11px',
   fontWeight: 700,
-  color: '#92400e',
+  color: '#78350f',
   background: '#fde68a',
   padding: '2px 8px',
   borderRadius: '10px',
@@ -234,7 +234,7 @@ export default function ScopeNarrowingVisualization() {
           <br /><br />
           <button
             onClick={() => setShowDetails(!showDetails)}
-            style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', fontWeight: 600, fontSize: '13px', padding: 0 }}
+            style={{ background: 'none', border: 'none', color: '#1e40af', cursor: 'pointer', fontWeight: 600, fontSize: '13px', padding: 0 }}
             type="button"
           >
             {showDetails ? '▼ Hide details' : '▶ Show exchange details'}
