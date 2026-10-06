@@ -67,11 +67,11 @@
   flex-shrink: 0;
 }
 
-.btn-add     { background: #3b82f6; color: var(--th-text-invert); }
-.btn-add:hover     { background: #2563eb; }
-.btn-connect { background: #10b981; color: var(--th-text-invert); }
-.btn-connect.active { background: #059669; box-shadow: 0 0 0 3px rgba(16,185,129,0.3); }
-.btn-connect:hover { background: #059669; }
+.btn-add     { background: #2563eb; color: var(--th-text-invert); }
+.btn-add:hover     { background: #1d4ed8; }
+.btn-connect { background: #047857; color: var(--th-text-invert); }
+.btn-connect.active { background: #065f46; box-shadow: 0 0 0 3px rgba(16,185,129,0.3); }
+.btn-connect:hover { background: #065f46; }
 .btn-reset   { background: var(--th-bg-inset); color: var(--th-text-body); border: 1px solid var(--th-border); }
 .btn-reset:hover   { background: var(--th-bg-hover); }
 .btn-delete  { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }

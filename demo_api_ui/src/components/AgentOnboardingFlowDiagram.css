@@ -79,6 +79,10 @@
   color: var(--aof-text-primary);
 }
 
+:root[data-theme="dark"] .aof-box-col-heading {
+  color: #8b92ff;
+}
+
 :root[data-theme="dark"] .aof-root {
   --aof-bg: #0f1115;
   --aof-bg-light: #161a21;

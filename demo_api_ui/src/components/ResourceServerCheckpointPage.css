@@ -181,12 +181,12 @@
 }
 .rsc-pill--on {
   border-color: var(--th-status-error);
-  color: var(--th-status-error);
+  color: var(--th-status-error-text);
   background: var(--th-status-error-bg);
 }
 .rsc-pill--ok {
   border-color: var(--th-status-success);
-  color: var(--th-status-success);
+  color: var(--th-status-success-text);
   background: var(--th-status-success-bg);
 }
 .rsc-pill--dead {
@@ -230,8 +230,8 @@
   border-radius: var(--radius-md);
 }
 .rsc-verdict--permit .rsc-badge {
-  color: var(--th-text-invert);
-  background: var(--th-status-success);
+  color: var(--th-bg-card);
+  background: var(--th-status-success-text);
 }
 .rsc-verdict--deny .rsc-badge {
   color: var(--th-text-invert);
