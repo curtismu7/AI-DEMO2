@@ -8,17 +8,8 @@
   align-items: center;
   justify-content: center;
   background: rgba(15, 23, 42, 0.92);
-  /* backdrop-filter removed to prevent background blur */
-  animation: lo-fade-in 0.15s ease;
-}
-
-@keyframes lo-fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  /* backdrop-filter removed to prevent background blur. No fade-in: it started
+     transparent, so the light page showed through as a flash before the overlay. */
 }
 
 .lo-card {
@@ -27,24 +18,12 @@
   align-items: center;
   gap: 16px;
   padding: 36px 48px;
-  background: #ffffff;
-  border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  /* No white card: the Ping mark sits straight on the slate backdrop. Ink below
+     is literal white, the pair of that literal ground. */
+  background: transparent;
   min-width: 420px;
   max-width: 560px;
   text-align: center;
-  animation: lo-slide-up 0.2s ease;
-}
-
-@keyframes lo-slide-up {
-  from {
-    transform: translateY(12px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
 }
 
 /* ── Shared Ping identity spinner ──────────────────────────────────────── */
@@ -143,11 +122,6 @@
   line-height: 1.4;
 }
 
-/* Color accent stripe on the card top edge (color driven by inline style via SpinnerHost) */
-.lo-card {
-  border-top: 3px solid var(--brand-navy);
-}
-
 /* Blue monospace pill showing the live API endpoint */
 .lo-endpoint {
   font-size: 0.75rem;
@@ -162,6 +136,14 @@
   text-align: center;
 }
 
+.lo-card .ping-spinner__label,
+.lo-card .lo-message { color: #ffffff; }
+.lo-card .lo-sub { color: #94a3b8; }
+.lo-card .lo-endpoint { background: #1e3a5f; color: #93c5fd; }
+.lo-card .lo-activity-feed { border-top-color: rgba(255, 255, 255, 0.1); }
+.lo-card .lo-activity-line { color: rgba(255, 255, 255, 0.85); }
+.lo-card .lo-activity-time { color: rgba(255, 255, 255, 0.5); }
+
 /* Theme-aware. Was @media (prefers-color-scheme: dark), which fired on the OS
    setting rather than the app's own theme (THEMING.md §4 Priority 0).
    `.lo-card` carries :not(.lo-card--dark) deliberately — see the always-dark
@@ -170,10 +152,6 @@
    the :not() this rule would start overriding .lo-card--dark's background and
    quietly undo it. The other selectors here need no such guard: .lo-card--dark
    re-states each of them with identical values. */
-:root[data-theme="dark"] .lo-card:not(.lo-card--dark) {
-  background: var(--brand-dark-gray);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
-}
 :root[data-theme="dark"] .lo-message {
   color: var(--th-text);
 }
