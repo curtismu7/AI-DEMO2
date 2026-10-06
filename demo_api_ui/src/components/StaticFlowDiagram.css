@@ -4,7 +4,7 @@
   overflow: auto;
   border: 1px solid var(--th-border, #e2e8f0);
   border-radius: 8px;
-  background: var(--th-surface, var(--th-bg-card, #ffffff));
+  background: var(--th-bg-card);
   color: var(--th-text);
 }
 
@@ -17,7 +17,7 @@
   font-size: 11px;
   fill: var(--th-text-muted, #475569);
   paint-order: stroke;
-  stroke: var(--th-surface, #ffffff);
+  stroke: var(--th-bg-card);
   stroke-width: 3px;
   stroke-linejoin: round;
 }
@@ -31,7 +31,7 @@
 }
 
 .sfd-node-box {
-  fill: var(--th-surface, #ffffff);
+  fill: var(--th-bg-card);
   stroke-width: 1.5;
 }
 

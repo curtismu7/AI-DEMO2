@@ -169,7 +169,7 @@ function ArchNode({ data }) {
                 fontSize: "0.58rem",
                 fontFamily: "inherit",
                 lineHeight: 1.4,
-                color: b._changed?.includes("aud") ? "#1d4ed8" : "#475569",
+                color: "var(--th-text)",
                 fontWeight: b._changed?.includes("aud") ? 800 : 400,
               }}
             >
@@ -3273,9 +3273,9 @@ export default function ArchitectureFlowPage({ user }) {
       <p className="afp-help-text" style={{ marginTop: "0.4rem" }}>
         Hit <strong>▶ Simulate Flow</strong> then <strong>⏸ Pause</strong> at
         any step to read the token card. Node badges show{" "}
-        <span style={{ color: "#1d4ed8", fontWeight: 600 }}>aud</span>,{" "}
-        <span style={{ color: "#15803d", fontWeight: 600 }}>act</span>,{" "}
-        <span style={{ color: "#b45309", fontWeight: 600 }}>may_act</span> —
+        <span className="afp-claim afp-claim--aud" style={{ fontWeight: 600 }}>aud</span>,{" "}
+        <span className="afp-claim afp-claim--act" style={{ fontWeight: 600 }}>act</span>,{" "}
+        <span className="afp-claim afp-claim--may-act" style={{ fontWeight: 600 }}>may_act</span> —
         highlighted when they change.
       </p>
 

@@ -190,3 +190,16 @@
   border-radius: 50%;
   flex-shrink: 0;
 }
+
+/* SequenceDiagramPage paints a literal-light page (inline #fff / #f8fafc), so keep its ink light-mode in dark too. */
+:root[data-theme="dark"] .seq-paper {
+  color: #020617;
+  --th-bg-card: #ffffff;
+  --th-bg-inset: #f1f5f9;
+  --th-border: #dbe2ea;
+  --th-text: #020617;
+  --th-text-muted: #020617;
+  --th-text-faint: #020617;
+  --bs-heading-color: #020617;
+  --bs-link-color-rgb: 3, 105, 161;
+}

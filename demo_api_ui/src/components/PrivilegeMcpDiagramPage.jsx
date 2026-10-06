@@ -297,6 +297,7 @@ export default function PrivilegeMcpDiagramPage() {
   }, [activeTab]);
 
   const { containerRef, error: renderError } = useMermaidRender(source, {
+    darkMode: true, // page ground is always dark (--pmd-bg)
     sequence: SEQUENCE_OPTS,
     flowchart: FLOWCHART_OPTS,
   });

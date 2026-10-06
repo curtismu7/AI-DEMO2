@@ -35,43 +35,41 @@
   max-width: 1180px;
   margin: 0 auto;
   padding: 28px 24px 48px;
-  background:
+  background-image:
     linear-gradient(var(--agd-grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--agd-grid) 1px, transparent 1px),
-    var(--agd-bg);
+    linear-gradient(90deg, var(--agd-grid) 1px, transparent 1px);
+  background-color: var(--agd-bg);
   background-size: 24px 24px, 24px 24px, auto;
   color: var(--agd-text-primary);
 }
 
-@media (prefers-color-scheme: dark) {
-  .agd-root {
-    --agd-bg: #0f1115;
-    --agd-bg-light: #161a21;
-    --agd-bg-mid: #1d222b;
-    --agd-border-light: #2a313c;
-    --agd-border-dark: #3a424f;
-    --agd-text-primary: #e9ecf3;
-    --agd-text-secondary: #8a92a6;
+:root[data-theme="dark"] .agd-root {
+  --agd-bg: #0f1115;
+  --agd-bg-light: #161a21;
+  --agd-bg-mid: #1d222b;
+  --agd-border-light: #2a313c;
+  --agd-border-dark: #3a424f;
+  --agd-text-primary: #e9ecf3;
+  --agd-text-secondary: #a3abbd;
 
-    --agd-accent-identity: #1d244d;
-    --agd-accent-runtime: #304114;
-    --agd-accent-risk: #56430a;
-    --agd-accent-danger: #4a2518;
-    --agd-accent-soft: #2a2a2a;
-    --agd-accent-soft-text: #f3f3f3;
+  --agd-accent-identity: #1d244d;
+  --agd-accent-runtime: #304114;
+  --agd-accent-risk: #56430a;
+  --agd-accent-danger: #4a2518;
+  --agd-accent-soft: #2a2a2a;
+  --agd-accent-soft-text: #f3f3f3;
 
-    --agd-shadow-soft: 0 12px 36px rgba(0, 0, 0, 0.28);
-    --agd-shadow-focus: 0 0 0 3px rgba(169, 224, 255, 0.18);
-    --agd-connector: #46505d;
-    --agd-grid: #1a1e25;
-    --agd-chip: #22252b;
-    --agd-chip-active: #a9e0ff;
-    --agd-chip-active-text: #09131a;
-    --agd-danger-line: #ffb28f;
-    --agd-danger-fill: #3a231a;
-    --agd-success-line: #b8d657;
-    --agd-success-fill: #253117;
-  }
+  --agd-shadow-soft: 0 12px 36px rgba(0, 0, 0, 0.28);
+  --agd-shadow-focus: 0 0 0 3px rgba(169, 224, 255, 0.18);
+  --agd-connector: #46505d;
+  --agd-grid: #1a1e25;
+  --agd-chip: #22252b;
+  --agd-chip-active: #a9e0ff;
+  --agd-chip-active-text: #09131a;
+  --agd-danger-line: #ffb28f;
+  --agd-danger-fill: #3a231a;
+  --agd-success-line: #b8d657;
+  --agd-success-fill: #253117;
 }
 
 .agd-hero {

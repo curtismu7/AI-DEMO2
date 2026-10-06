@@ -151,4 +151,11 @@
   font-size: 0.75rem;
 }
 
-.react-flow .react-flow__attribution a { color: #666; }
+.react-flow .react-flow__attribution a { color: var(--th-text-muted); }
+
+.afp-claim--aud { color: #1d4ed8; }
+.afp-claim--act { color: #15803d; }
+.afp-claim--may-act { color: #b45309; }
+:root[data-theme="dark"] .afp-claim--aud { color: #93c5fd; }
+:root[data-theme="dark"] .afp-claim--act { color: #86efac; }
+:root[data-theme="dark"] .afp-claim--may-act { color: #fcd34d; }

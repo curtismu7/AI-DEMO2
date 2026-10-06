@@ -132,6 +132,7 @@ export default function ExternalDoorDiagramPage() {
   const [selectedNode, setSelectedNode] = useState(null);
   const [seqSource, setSeqSource] = useState(SEQUENCE_SOURCE);
   const { containerRef: seqRef, error: seqError } = useMermaidRender(seqSource, {
+    darkMode: true, // page ground is always dark (--pmd-bg)
     sequence: SEQUENCE_OPTS,
   });
 

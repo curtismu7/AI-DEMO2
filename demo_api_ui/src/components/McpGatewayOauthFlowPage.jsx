@@ -155,9 +155,11 @@ export default function McpGatewayOauthFlowPage() {
   const [source, setSource] = useState(MERMAID_SOURCE);
   const [archSource, setArchSource] = useState(ARCHITECTURE_SOURCE);
   const { containerRef, error: renderError } = useMermaidRender(source, {
+    darkMode: true, // page ground is always dark (--pmd-bg)
     sequence: SEQUENCE_OPTS,
   });
   const { containerRef: archRef, error: archRenderError } = useMermaidRender(archSource, {
+    darkMode: true, // page ground is always dark (--pmd-bg)
     flowchart: FLOWCHART_OPTS,
   });
 

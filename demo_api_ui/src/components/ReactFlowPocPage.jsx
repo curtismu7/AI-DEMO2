@@ -1744,7 +1744,7 @@ export default function ReactFlowPocPage({ initialView = "flow" }) {
                     <div className="rfp-panel__invariants" data-testid="rfp-invariants">
                       {INVARIANTS.map((inv) => (
                         <div key={inv.title} className="rfp-panel__invariant" style={{ borderLeftColor: inv.color }}>
-                          <div className="rfp-panel__invariant-title" style={{ color: inv.color }}>
+                          <div className="rfp-panel__invariant-title">
                             {inv.title}
                           </div>
                           <p className="rfp-panel__invariant-text">{inv.text}</p>

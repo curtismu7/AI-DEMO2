@@ -23,7 +23,7 @@ function ArchitectureSimControls({
   const extra = (
     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
       {/* Mode tabs */}
-      <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#475569' }}>Mode:</span>
+      <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--th-text-muted)' }}>Mode:</span>
       <div style={{ display: 'flex', gap: '2px' }}>
         {MODES.map(m => (
           <button
@@ -51,7 +51,7 @@ function ArchitectureSimControls({
       {showScenarioDropdown && (
         <>
           <div style={{ width: '1px', height: '18px', background: '#e2e8f0' }} />
-          <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#475569' }}>Scenario:</span>
+          <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--th-text-muted)' }}>Scenario:</span>
           <select
             value={scenarioId}
             onChange={e => onSetScenario(e.target.value)}
@@ -116,7 +116,7 @@ function ArchitectureSimControls({
 
       {/* Step counter */}
       {totalSteps > 0 && (
-        <span style={{ fontSize: '0.72rem', color: '#475569', marginLeft: '0.25rem' }}>
+        <span style={{ fontSize: '0.72rem', color: 'var(--th-text-muted)', marginLeft: '0.25rem' }}>
           {stepIndex}/{totalSteps}
         </span>
       )}

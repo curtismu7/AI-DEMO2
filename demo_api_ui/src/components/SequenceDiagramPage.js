@@ -313,7 +313,7 @@ function StepInfoPanel({
         <div style={{ fontSize: "0.85rem", fontWeight: 600, color: "#475569" }}>
           Flow Steps
         </div>
-        <div style={{ fontSize: "0.75rem", color: "#64748b", lineHeight: 1.6 }}>
+        <div style={{ fontSize: "0.75rem", color: "#475569", lineHeight: 1.6 }}>
           Press Simulate to begin. Then Pause to navigate steps with Prev/Next
           or click a step in this list.
         </div>
@@ -321,7 +321,7 @@ function StepInfoPanel({
           style={{
             marginTop: "0.5rem",
             fontSize: "0.75rem",
-            color: "#64748b",
+            color: "#475569",
             fontStyle: "italic",
           }}
         >
@@ -3301,7 +3301,7 @@ export default function SequenceDiagramPage() {
   };
 
   return (
-    <div style={{ padding: "1rem", background: "#fff", color: "#020617", display: "flex", flexDirection: "column", height: "100%" }}>
+    <div className="seq-paper" style={{ padding: "1rem", background: "#fff", color: "#020617", display: "flex", flexDirection: "column", height: "100%" }}>
       {showMermaid && (
         <MermaidSourceModal onClose={() => setShowMermaid(false)} />
       )}
@@ -3743,7 +3743,7 @@ export default function SequenceDiagramPage() {
         </div>
       )}
 
-      <p style={{ marginTop: "0.4rem", fontSize: "0.7rem", color: "#64748b" }}>
+      <p style={{ marginTop: "0.4rem", fontSize: "0.7rem", color: "#475569" }}>
         Hit <strong>▶ Simulate</strong> then <strong>⏸ Pause</strong> at any
         step to read the token card.
       </p>

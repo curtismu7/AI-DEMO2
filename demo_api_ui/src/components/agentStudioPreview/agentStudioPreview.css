@@ -65,9 +65,8 @@
   --asp-accent-wash: #b6dde4;
   --asp-shadow: 0 1px 3px rgba(10, 60, 70, 0.08), 0 8px 24px rgba(10, 60, 70, 0.1);
   border-top: 8px solid #066a76;
-  background:
-    linear-gradient(90deg, #066a76 0, #066a76 10px, transparent 10px),
-    var(--asp-bg);
+  background-image: linear-gradient(90deg, #066a76 0, #066a76 10px, transparent 10px);
+  background-color: var(--asp-bg);
 }
 
 .asp-root.asp-root--discovery .asp-banner {
@@ -105,9 +104,8 @@
   --asp-accent-wash: #143640;
   --asp-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 8px 30px rgba(0, 0, 0, 0.32);
   border-top-color: #3ec3d4;
-  background:
-    linear-gradient(90deg, #3ec3d4 0, #3ec3d4 10px, transparent 10px),
-    var(--asp-bg);
+  background-image: linear-gradient(90deg, #3ec3d4 0, #3ec3d4 10px, transparent 10px);
+  background-color: var(--asp-bg);
 }
 
 :root[data-theme="dark"] .asp-root.asp-root--discovery .asp-banner {

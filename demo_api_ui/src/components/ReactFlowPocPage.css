@@ -18,6 +18,8 @@
   color-scheme: light;
 }
 
+:root[data-theme="dark"] .rfp-page,
+:root[data-theme="dark"] .rfpc-page,
 .rfp-page.rfp-dark,
 .rfpc-dark.rfp-dark {
   --rfp-bg: #0b1220;
@@ -464,6 +466,7 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 4px;
+  color: var(--rfp-text);
 }
 
 .rfp-panel__invariant-text {

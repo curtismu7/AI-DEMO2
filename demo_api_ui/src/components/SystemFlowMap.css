@@ -29,7 +29,7 @@
   border-radius: 999px;
   border: 1px solid currentColor;
 }
-.sfm-verdict--done { color: var(--th-status-success); }
+.sfm-verdict--done { color: var(--th-status-success-text); }
 .sfm-verdict--error { color: var(--th-status-error); }
 .sfm-verdict--held { color: var(--th-status-warning); }
 .sfm-verdict--active { color: var(--th-status-info); }
