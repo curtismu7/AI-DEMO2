@@ -11,7 +11,7 @@
 .label {
   font-size: var(--font-size-2xs);
   font-weight: 600;
-  color: #64748b;
+  color: #334155;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   white-space: nowrap;

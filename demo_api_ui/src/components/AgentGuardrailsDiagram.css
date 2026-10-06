@@ -11,7 +11,7 @@
   --agd-border-dark: #cccccc;
   --agd-brand: #343ced;
   --agd-text-primary: #1b1b1b;
-  --agd-text-secondary: #5c5c5c;
+  --agd-text-secondary: #3d3d3d;
 
   --agd-accent-identity: #dfe3ff;
   --agd-accent-runtime: #daf181;
@@ -25,7 +25,7 @@
   --agd-connector: #cfd4dc;
   --agd-grid: #eceff3;
   --agd-chip: #f3f5f8;
-  --agd-chip-active: #343ced;
+  --agd-chip-active: #2830c8;
   --agd-chip-active-text: #ffffff;
   --agd-danger-line: #ef601b;
   --agd-danger-fill: #fff1ec;
@@ -50,7 +50,7 @@
   --agd-border-light: #2a313c;
   --agd-border-dark: #3a424f;
   --agd-text-primary: #e9ecf3;
-  --agd-text-secondary: #a3abbd;
+  --agd-text-secondary: #cbd2e0;
 
   --agd-accent-identity: #1d244d;
   --agd-accent-runtime: #304114;

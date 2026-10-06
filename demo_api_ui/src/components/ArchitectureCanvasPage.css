@@ -74,7 +74,7 @@
 .btn-connect:hover { background: #065f46; }
 .btn-reset   { background: var(--th-bg-inset); color: var(--th-text-body); border: 1px solid var(--th-border); }
 .btn-reset:hover   { background: var(--th-bg-hover); }
-.btn-delete  { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+.btn-delete  { background: #fee2e2; color: #7f1d1d; border: 1px solid #fca5a5; }
 .btn-delete:hover  { background: #fca5a5; }
 
 .canvas-hint {
