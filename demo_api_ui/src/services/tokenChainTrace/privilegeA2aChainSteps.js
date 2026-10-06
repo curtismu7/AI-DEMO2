@@ -279,7 +279,13 @@ export function buildPrivilegeA2aChainSteps(tokenEvents) {
       const ok = event.status !== "error";
       // The answer, or the reason there is none: this event's own text either way.
       const outcome = event.detail || "";
-      return [step("", "Done", chainLane(event.to), ok ? "done" : "error", {
+      // The answer shows on the main agent too, not only on the client's Done node.
+      const answered = ok && outcome ? [step("-answer", `Returns the answer to ${to}`, chainLane(event.from), "done", {
+        narrative: `${from} finished and returned its final answer${saying(outcome)}`,
+        kv: [["Final answer", outcome]],
+        response: { title: `Final answer · ${from} → ${to}`, text: outcome },
+      })] : [];
+      return [...answered, step("", "Done", chainLane(event.to), ok ? "done" : "error", {
         ...(outcome ? { facts: [ok ? "Answer returned" : "Stopped", quote(outcome.length > 60 ? `${outcome.slice(0, 57)}…` : outcome)] } : {}),
         narrative: ok
           ? `The run is complete. ${from} returned the final answer to the client${saying(outcome)}`
