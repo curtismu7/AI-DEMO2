@@ -63,6 +63,33 @@ export function createApp(config: BrokerConfig, logger: pino.Logger): Express {
     }
   });
 
+  // Sidecar endpoint — the agent names a target, the sidecar owns scope/audience.
+  app.post('/v1/token', makeApiKeyAuth(config.apiKey), express.json(), async (req, res) => {
+    const target = req.body?.target;
+    if (target !== undefined && typeof target !== 'string') {
+      res.status(400).json({ error: 'invalid_target' });
+      return;
+    }
+    if (target !== undefined && !Object.prototype.hasOwnProperty.call(config.targets, target)) {
+      res.status(400).json({ error: 'unknown_target' });
+      return;
+    }
+    const effective = target === undefined ? config : { ...config, ...config.targets[target] };
+    try {
+      const token = await acquireAgentToken(effective, tokenLogger);
+      res.json({
+        access_token: token.accessToken,
+        token_type: token.tokenType,
+        expires_in: token.expiresIn,
+        scope: token.scope,
+      });
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : 'unknown';
+      logger.error({ detail, target }, 'token issuance failed');
+      res.status(502).json({ error: 'token_issuance_failed', detail });
+    }
+  });
+
   return app;
 }
 

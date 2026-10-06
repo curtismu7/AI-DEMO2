@@ -56,6 +56,23 @@ curl -s -X POST http://127.0.0.1:8097/token -H "x-api-key: $BROKER_API_KEY" | jq
 > Use `127.0.0.1`, not `localhost` — `localhost` resolves to IPv6 `::1` first, and
 > the broker binds IPv4 loopback by default (`HOST=127.0.0.1`).
 
+## Identity sidecar mode
+
+The same service doubles as a per-agent identity sidecar. The agent names a
+**target**; the sidecar owns scope, audience and resource, and caches one token
+per target.
+
+| Method | Path | Auth | Body | Returns |
+| ------ | ---- | ---- | ---- | ------- |
+| `POST` | `/v1/token` | `x-api-key` | `{ "target": "mcp-gateway" }` (omit for the default identity) | `{ access_token, token_type, expires_in, scope }` |
+
+Targets come from `TARGETS_JSON`; an unknown target is a `400 unknown_target`
+and never reaches PingOne. Run it with the `agent-identity-sidecar` compose
+profile; it is not published to the host. The BFF's `ff_agent_identity_sidecar`
+flag (QuickFlagsPill, per request) makes the langchain agent call it instead of
+requesting its own token. With the flag OFF nothing changes. With it ON and the
+sidecar down, the agent call fails — there is no silent fallback.
+
 ## Wiring into a Copilot Studio REST/MCP tool (Part 3)
 
 In the Copilot Studio agent, add a REST API tool (or MCP plugin) for the banking

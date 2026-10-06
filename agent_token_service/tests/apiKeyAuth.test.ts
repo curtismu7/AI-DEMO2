@@ -25,8 +25,10 @@ const config: BrokerConfig = {
   tokenAuthMethod: 'post',
   scope: 'agent:invoke',
   audience: '',
+  resource: '',
   usePkiCreds: false,
   agentCertPath: '',
+  targets: {},
 };
 
 const app = createApp(config, pino({ level: 'silent' }));

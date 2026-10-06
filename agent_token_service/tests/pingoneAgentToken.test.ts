@@ -17,8 +17,10 @@ const baseConfig: BrokerConfig = {
   tokenAuthMethod: 'post',
   scope: 'agent:invoke',
   audience: '',
+  resource: '',
   usePkiCreds: false,
   agentCertPath: '',
+  targets: {},
 };
 
 beforeEach(() => {

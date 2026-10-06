@@ -588,6 +588,20 @@ const FLAG_REGISTRY = [
     defaultValue: false,
   },
   {
+    id:           'ff_agent_identity_sidecar',
+    name:         'Agent Identity Sidecar',
+    category:     'Agent',
+    description:
+      'When **ON**, the LangChain agent gets its PingOne agent token from the identity sidecar (`agent-identity-sidecar` compose profile) ' +
+      'instead of holding the client credentials itself. The agent names a target; the sidecar owns scope, audience and resource. ' +
+      'When **OFF** (default), the agent requests its own token exactly as before.',
+    impact:
+      'OFF (default) = no change; the agent uses its own AGENT_CLIENT_ID / AGENT_CLIENT_SECRET. ' +
+      'ON = token requests go to the sidecar; if the sidecar is not running the agent call fails with a clear error (no silent fallback).',
+    type:         'boolean',
+    defaultValue: false,
+  },
+  {
     id:           'ff_grounded_answers',
     name:         'Grounded Answers',
     category:     'Agent',

@@ -33,6 +33,7 @@
 #   observability  Grafana + Prometheus + Loki + Alloy + Alertmanager — off by default
 #   spiffe     Local SPIRE workload identity stack — opt-in only
 #   jev        Von local model for /jev-learning (~7 GiB RAM) — opt-in only
+#   agent-identity-sidecar  Per-agent token sidecar behind ff_agent_identity_sidecar — opt-in only
 #
 # Single-service commands take one OR MORE service names, e.g.
 #   ./run-docker.sh restart ui demo-api-server
@@ -125,14 +126,14 @@ CORE_SERVICES=(
 BASIC_SERVICES=(ui demo-api-server mcp-discovery-agent mcp-server)
 
 # Optional groups — start on demand via `./run-docker.sh optional start <group>`.
-OPTIONAL_GROUP_NAMES=(rag tracing demo-auth mcpgw observability spiffe jev)
+OPTIONAL_GROUP_NAMES=(rag tracing demo-auth mcpgw observability spiffe jev agent-identity-sidecar)
 
 # Also brought up on every `start` / `restart` / `build` (core stack). Still
 # stoppable with `./run-docker.sh optional stop rag` without tearing down core.
 DEFAULT_OPTIONAL_GROUPS=(rag demo-auth)
 
 # Compose profiles matching OPTIONAL_GROUP_NAMES (also used for `start full`).
-FULL_STACK_PROFILE_ARGS=(--profile rag --profile tracing --profile demo-auth --profile mcpgw --profile observability --profile spiffe --profile jev)
+FULL_STACK_PROFILE_ARGS=(--profile rag --profile tracing --profile demo-auth --profile mcpgw --profile observability --profile spiffe --profile jev --profile agent-identity-sidecar)
 
 TEARDOWN_PROFILE_ARGS=("${FULL_STACK_PROFILE_ARGS[@]}")
 
@@ -147,7 +148,8 @@ _optional_group_profiles() {
     observability) echo "observability" ;;
     spiffe)    echo "spiffe" ;;
     jev)       echo "jev" ;;
-    all)       echo "rag agents tracing demo-auth mcpgw observability spiffe jev" ;;
+    agent-identity-sidecar) echo "agent-identity-sidecar" ;;
+    all)       echo "rag agents tracing demo-auth mcpgw observability spiffe jev agent-identity-sidecar" ;;
     *) return 1 ;;
   esac
 }
@@ -174,6 +176,7 @@ _optional_group_services() {
     observability) echo "prometheus alertmanager loki alloy grafana" ;;
     spiffe)    echo "spire-server spire-agent spire-registration spiffe-helper-bff spiffe-oidc-provider" ;;
     jev)       echo "von-jev" ;;
+    agent-identity-sidecar) echo "agent-identity-sidecar" ;;
     all)
       local g svc out=""
       for g in "${OPTIONAL_GROUP_NAMES[@]}"; do
@@ -196,6 +199,7 @@ _optional_group_desc() {
     observability) echo "Grafana + Prometheus + Loki + Alloy + Alertmanager (off by default)" ;;
     spiffe)    echo "Local SPIRE workload identity stack (opt-in only)" ;;
     jev)       echo "Von local model backing /jev-learning (opt-in; ~7 GiB RAM, slow first call)" ;;
+    agent-identity-sidecar) echo "Per-agent identity sidecar for ff_agent_identity_sidecar (opt-in only)" ;;
     all)       echo "Every optional group" ;;
     *)         echo "Unknown group" ;;
   esac
@@ -1706,7 +1710,8 @@ cmd_optional_help() {
   echo "      rag           — $(_optional_group_desc rag)"
   echo "    Identity and gateways:"
   echo "      spiffe        — $(_optional_group_desc spiffe)"
-  echo "      demo-auth     — $(_optional_group_desc demo-auth)"
+  echo "      agent-identity-sidecar — $(_optional_group_desc agent-identity-sidecar)"
+  echo "      demo-auth    — $(_optional_group_desc demo-auth)"
   echo "      mcpgw         — $(_optional_group_desc mcpgw)"
   echo "    Observability and tracing:"
   echo "      observability — $(_optional_group_desc observability)"

@@ -18,6 +18,14 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-10-06 — Agent identity sidecar phase 1 took three shortcuts
+
+**What's wrong.** `ff_agent_identity_sidecar` (agent token from `agent_token_service` `POST /v1/token`) shipped with: (1) the target to scope/audience/resource map in a `TARGETS_JSON` env var, not derived from `scope-topology.json`; (2) a TCP port on the compose network guarded by a static `x-api-key`, not a Unix socket; (3) langchain only, and client-credentials only — no RFC 8693 user delegation, no step-up/CIBA mapping.
+
+**Why it wasn't fixed now.** `scope-topology.json` is a schema-checked source of truth for the whole stack, so teaching the sidecar to read it is its own change. The socket needs a shared volume plus `aiohttp.UnixConnector` on the client. Delegation and step-up are phases 2 and 3 of the plan.
+
+**What the real fix looks like.** Load targets from the topology (or a generated slice of it), move the transport to a Unix socket so only the pod's own processes can call it, then add the subject-token exchange keyed on `(target, user)`. Note: with the flag per-request the langchain container still needs PingOne credentials for the flag-OFF path; `AGENT_IDENTITY_SIDECAR_ONLY=true` is the deploy-level switch that drops them.
+
 ### [wontfix] 2026-10-06 — Delegation does not follow draft-oauth-ai-agents-on-behalf-of-user-02
 
 **What's wrong.** The draft binds an agent to the user at authorize time (`requested_actor`, actor-bound code, `actor_token` on code redemption). We delegate with RFC 8693 token exchange plus PingOne's `may_act` check instead, so the user never consents to a named actor.

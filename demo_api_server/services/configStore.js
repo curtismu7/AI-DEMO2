@@ -389,6 +389,7 @@ const FIELD_DEFS = {
   // Helix → LM Studio failover: when Helix returns a quota-exhausted reply, retry the turn on a local LM Studio model
   ff_helix_lmstudio_fallback:  { public: true, default: 'true'  },
   ff_knowledge_grounding:            { public: true, default: 'false' }, // knowledge grounding — inject deterministic assertions into agent system prompt with [Kn] citations
+  ff_agent_identity_sidecar:         { public: true, default: 'false' }, // agent fetches its tokens from the identity sidecar instead of holding PingOne credentials
   ff_grounded_answers:               { public: true, default: 'false' }, // Option C — render only claims traceable to an in-vertical tool call; drop the rest, degrade to the no-match card
   lmstudio_base_url:           { public: true, default: 'http://localhost:1234/v1' },
   lmstudio_model:              { public: true, default: '' }, // empty → LM Studio uses its currently loaded model
@@ -1383,6 +1384,7 @@ const ENV_FALLBACK_MAP = {
   spiffe_bundle_path:                   ['SPIFFE_BUNDLE_PATH'],
   spiffe_trust_domain:                  ['SPIFFE_TRUST_DOMAIN'],
   ff_spiffe_client_auth:                ['FF_SPIFFE_CLIENT_AUTH'],
+  ff_agent_identity_sidecar:            ['FF_AGENT_IDENTITY_SIDECAR'],
   ff_spiffe_pingone_bridge:              ['FF_SPIFFE_PINGONE_BRIDGE'],
   ff_spiffe_pf_exchange:                 ['FF_SPIFFE_PF_EXCHANGE'],
   spiffe_pf_issuer:                      ['SPIFFE_PF_ISSUER'],

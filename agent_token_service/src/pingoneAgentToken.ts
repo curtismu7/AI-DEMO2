@@ -43,7 +43,7 @@ const _cache = new Map<string, CacheEntry>();
 const _inflight = new Map<string, Promise<AgentToken>>();
 
 function cacheKey(config: BrokerConfig): string {
-  return `${config.clientId}|${config.scope}|${config.audience}`;
+  return `${config.clientId}|${config.scope}|${config.audience}|${config.resource}`;
 }
 
 export interface Logger {
@@ -85,6 +85,7 @@ function _buildScopeParams(config: BrokerConfig): URLSearchParams {
   });
   // Some PingOne envs need an explicit audience/resource to stamp the token aud.
   if (config.audience) params.set('audience', config.audience);
+  if (config.resource) params.set('resource', config.resource);
   return params;
 }
 

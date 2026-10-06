@@ -33,6 +33,7 @@ const QUICK_FLAGS = [
   { id: 'ff_preflight_modal',           group: 'Agent',           control: 'toggle',    label: 'Preflight Modal' },
   { id: 'ff_helix_lmstudio_fallback',   group: 'Agent',           control: 'toggle',    label: 'Helix → LM Studio Fallback' },
   { id: 'ff_knowledge_grounding',             group: 'Agent',           control: 'toggle',    label: '📚 Knowledge Grounding' },
+  { id: 'ff_agent_identity_sidecar',    group: 'Agent',           control: 'toggle',    label: 'Agent Identity Sidecar' },
   { id: 'ff_tracing',                   group: 'Observability',   control: 'toggle',    label: 'Tracing (OTel → Jaeger)' },
   { id: 'ff_transaction_ledger',        group: 'Observability',   control: 'toggle',    label: 'Transaction Chain of Custody' },
 ];

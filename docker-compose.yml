@@ -1182,6 +1182,27 @@ services:
       - mcp-server
 
   # ── LangChain Agent (Python / uvicorn) ───────────────────────────────────────
+  # ── Agent identity sidecar (opt-in: profile agent-identity-sidecar) ─────────
+  # ff_agent_identity_sidecar: the langchain agent fetches its PingOne agent token
+  # here instead of holding the client credentials. Config comes from
+  # agent_token_service/.env (BROKER_API_KEY, PINGONE_AGENT_CLIENT_ID/SECRET,
+  # TARGETS_JSON) — see agent_token_service/README.md. Not published to the host;
+  # reachable only on the compose network.
+  agent-identity-sidecar:
+    profiles: ["agent-identity-sidecar"]
+    build:
+      context: ./agent_token_service
+    container_name: ai-demo-agent-identity-sidecar
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "8097"
+    env_file:
+      - path: ./agent_token_service/.env
+        required: false
+    networks:
+      - ai-demo
+    restart: unless-stopped
+
   langchain-agent:
     build:
       # run-docker.sh stages this image's inputs to avoid scanning the full repo.
@@ -1203,6 +1224,9 @@ services:
       HEALTH_HTTP_PORT: "8890"
       # Servers bind 127.0.0.1 by default; published ports need the container override.
       AGUI_HTTP_HOST: "0.0.0.0"
+      # ff_agent_identity_sidecar: only used on requests that carry the flag.
+      # AGENT_IDENTITY_SIDECAR_API_KEY (a secret) comes from langchain_agent/.env.
+      AGENT_IDENTITY_SIDECAR_URL: "http://agent-identity-sidecar:8097"
       # CodeGraph Explorer LLM — priority: Anthropic > Groq > local llama
       LLAMACPP_BASE_URL: "${LLAMACPP_BASE_URL:-http://host.docker.internal:8090}"
       LLAMACPP_MODEL: "gpt-oss-20b"

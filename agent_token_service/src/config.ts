@@ -25,9 +25,34 @@ export interface BrokerConfig {
   scope: string;
   // Optional explicit audience/resource param.
   audience: string;
+  // Optional RFC 8707 resource indicator (PingOne audience binding).
+  resource: string;
   // Optional private_key_jwt mode (parity with demo_agent_service).
   usePkiCreds: boolean;
   agentCertPath: string;
+  // Sidecar targets: name -> scope/audience/resource override for POST /v1/token.
+  targets: Record<string, TargetConfig>;
+}
+
+export interface TargetConfig {
+  scope?: string;
+  audience?: string;
+  resource?: string;
+}
+
+function parseTargets(): Record<string, TargetConfig> {
+  const raw = process.env.TARGETS_JSON;
+  if (!raw) return {};
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error('TARGETS_JSON is not valid JSON');
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('TARGETS_JSON must be an object of {target: {scope, audience, resource}}');
+  }
+  return parsed as Record<string, TargetConfig>;
 }
 
 function required(name: string): string {
@@ -75,7 +100,9 @@ export function loadConfig(): BrokerConfig {
       : 'post',
     scope: optional('PINGONE_AGENT_SCOPE', 'agent:invoke'),
     audience: optional('PINGONE_AGENT_AUDIENCE', ''),
+    resource: optional('PINGONE_AGENT_RESOURCE', ''),
     usePkiCreds,
     agentCertPath,
+    targets: parseTargets(),
   };
 }
