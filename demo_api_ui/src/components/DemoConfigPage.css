@@ -317,7 +317,7 @@
   flex-shrink: 0;
 }
 .dc-expand-btn:hover {
-  background: #f1f5f9;
+  background: var(--th-bg-hover);
 }
 .dc-child-count {
   font-size: var(--font-size-xs);
@@ -401,7 +401,7 @@
   color: var(--th-text);
 }
 .dc-btn-secondary:hover {
-  background: #f1f5f9;
+  background: var(--th-bg-hover);
 }
 .dc-btn-secondary:disabled {
   opacity: 0.6;

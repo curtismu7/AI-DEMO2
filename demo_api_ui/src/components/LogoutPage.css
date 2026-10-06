@@ -205,7 +205,7 @@
 }
 
 .logout-action--secondary:hover {
-  background: #e5e7eb;
+  background: var(--th-bg-hover);
 }
 
 @media (max-width: 360px) {

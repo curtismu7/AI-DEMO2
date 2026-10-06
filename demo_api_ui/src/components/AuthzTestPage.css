@@ -26,7 +26,7 @@
 }
 
 .authz-engine-settings-toggle:hover {
-  background: #f0f4f8;
+  background: var(--th-bg-hover);
 }
 
 .authz-engine-settings-chevron {

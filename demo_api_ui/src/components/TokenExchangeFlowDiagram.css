@@ -58,7 +58,7 @@
 .tefd-btn--primary   { background: #1d4ed8; color: #fff; border-color: #1d4ed8; }
 .tefd-btn--primary:hover { background: #1e40af; }
 .tefd-btn--secondary { background: #fff; color: var(--th-text); border-color: #d1d5db; }
-.tefd-btn--secondary:hover { background: #f9fafb; border-color: #9ca3af; }
+.tefd-btn--secondary:hover { background: var(--th-bg-hover); border-color: #9ca3af; }
 
 /* Responsive */
 @media (max-width: 768px) {

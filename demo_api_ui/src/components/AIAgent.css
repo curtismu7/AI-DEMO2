@@ -6884,9 +6884,10 @@ body > .banking-agent-float-root .ba-demo-steps-floating-trigger {
 }
 
 .banking-chips-dropdown__button:hover:not(:disabled) {
-  background-color: #f8fbff;
-  border-color: #93c5fd;
-  box-shadow: 0 0 0 3px #dbeafe;
+  background-color: var(--th-bg-hover);
+  border-color: var(--th-status-info);
+  box-shadow: 0 0 0 3px var(--th-status-info-bg);
+  color: var(--th-text);
 }
 
 .banking-chips-dropdown__button--done {
@@ -6926,7 +6927,7 @@ body > .banking-agent-float-root .ba-demo-steps-floating-trigger {
 }
 
 .banking-chips-dropdown__button:active:not(:disabled) {
-  background-color: var(--ba-bg-active, #e5e7eb);
+  background-color: var(--ba-bg-active, var(--th-bg-inset));
 }
 
 .banking-chips-dropdown__button:disabled {

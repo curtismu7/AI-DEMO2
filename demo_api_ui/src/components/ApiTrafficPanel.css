@@ -289,7 +289,7 @@
   transition: background 0.12s;
 }
 .api-turn-group-header:hover {
-  background: #e2eaf4;
+  background: var(--th-bg-hover);
 }
 .api-turn-group-chevron {
   font-size: 10px;

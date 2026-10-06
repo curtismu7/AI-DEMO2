@@ -693,7 +693,7 @@ body {
 }
 
 .modal-cancel-button:hover {
-  background: #f9fafb;
+  background: var(--th-bg-hover);
 }
 
 .modal-confirm-button {
@@ -1190,7 +1190,7 @@ body {
 }
 
 .pagination-btn:hover {
-  background-color: #f3f4f6;
+  background-color: var(--th-bg-hover);
 }
 
 .pagination-btn.active {
