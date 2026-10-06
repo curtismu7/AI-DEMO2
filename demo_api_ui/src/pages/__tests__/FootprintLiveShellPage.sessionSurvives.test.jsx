@@ -228,7 +228,7 @@ describe("skins re-authenticate, re-arm and probe doors", () => {
     });
     fireEvent.click(await screen.findByRole("button", { name: "other" }, { timeout: 5000 }));
     expect(await screen.findByText(
-      "The gateway cannot silently authorize this door from the current session. Sign in to connect it.",
+      "The gateway cannot silently authorize this door from the current session. Press Get MCP tools to sign in.",
       {},
       { timeout: 5000 },
     )).toBeInTheDocument();

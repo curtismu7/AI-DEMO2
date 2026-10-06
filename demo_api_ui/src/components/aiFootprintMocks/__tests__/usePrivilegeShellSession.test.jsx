@@ -470,7 +470,7 @@ describe("switch outcomes", () => {
     expect(assign).not.toHaveBeenCalled();
     expect(result.current.phase).toBe("signed-out");
     expect(result.current.notice).toBe(
-      "The gateway cannot silently authorize this door from the current session. Sign in to connect it.",
+      "The gateway cannot silently authorize this door from the current session. Press Get MCP tools to sign in.",
     );
   });
 
@@ -515,7 +515,7 @@ describe("switch outcomes", () => {
         : Promise.reject({ response: { status: 500, data: { error: "boom" } } }),
     );
     await act(() => result.current.pickDoor(PRIV_B));
-    expect(result.current.notice).toBe("Silent sign-in could not start for this path. Sign in manually to retry. (boom)");
+    expect(result.current.notice).toBe("Silent sign-in could not start. Press Get MCP tools to sign in manually. (boom)");
     expect(result.current.phase).toBe("signed-out");
   });
 });

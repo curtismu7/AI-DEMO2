@@ -287,12 +287,12 @@ export function usePrivilegeShellSession({ onBeforeConnect } = {}) {
     try {
       const started = await startSignIn({ silentOnly: outcome === "silent", returnTo: location.pathname });
       if (started === false) {
-        setNotice("The gateway cannot silently authorize this door from the current session. Sign in to connect it.");
+        setNotice("The gateway cannot silently authorize this door from the current session. Press Get MCP tools to sign in.");
       }
     } catch (err) {
       setNotice(
         outcome === "silent"
-          ? `Silent sign-in could not start for this path. Sign in manually to retry. (${errText(err)})`
+          ? `Silent sign-in could not start. Press Get MCP tools to sign in manually. (${errText(err)})`
           : errText(err),
       );
     }
