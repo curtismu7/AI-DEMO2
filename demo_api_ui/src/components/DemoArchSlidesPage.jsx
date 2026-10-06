@@ -119,19 +119,54 @@ export const DEMO_ARCH_SLIDES = [
 
 const LIVE_LOG_MAX = 12;
 
+// Live state survives a page reload. The UI container runs Vite dev over a bind
+// mount, and a sync of the checkout can hot-update or reconnect and reload every
+// open tab mid-demo. sessionStorage is per tab, so two slides open side by side
+// keep separate state, and closing the tab forgets it.
+export const liveStateKey = (slideId) => `das-live:${slideId}`;
+const EMPTY_LIVE = { live: false, lit: [], liveNow: 0, liveLog: [] };
+
+function readLiveState(key) {
+  try {
+    const raw = window.sessionStorage.getItem(key);
+    if (!raw) return EMPTY_LIVE;
+    const s = JSON.parse(raw);
+    return {
+      live: s.live === true,
+      lit: Array.isArray(s.lit) ? s.lit.filter((n) => Number.isInteger(n)) : [],
+      liveNow: Number.isInteger(s.liveNow) ? s.liveNow : 0,
+      liveLog: Array.isArray(s.liveLog) ? s.liveLog.slice(0, LIVE_LOG_MAX) : [],
+    };
+  } catch (_) {
+    return EMPTY_LIVE;
+  }
+}
+
+function writeLiveState(key, state) {
+  try {
+    if (!state.live) window.sessionStorage.removeItem(key);
+    else window.sessionStorage.setItem(key, JSON.stringify(state));
+  } catch (_) { /* storage unavailable: Live simply does not survive a reload */ }
+}
+
 /**
  * Play / Step state for one slide. `cur` 0 = idle (everything lit), 1..N = walkthrough.
  * Live mode replaces the script: each BFF app event lights the step `liveMap` gives it.
  */
-function useSlidePlayer(total, liveMap) {
+function useSlidePlayer(total, liveMap, storageKey) {
+  const [saved] = useState(() => readLiveState(storageKey));
   const [cur, setCur] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [stepMs, setStepMs] = useState(DEFAULT_STEP_MS);
-  const [live, setLive] = useState(false);
+  const [live, setLive] = useState(saved.live);
   const [liveStatus, setLiveStatus] = useState("off"); // off | connecting | open | closed
-  const [lit, setLit] = useState(() => new Set());
-  const [liveNow, setLiveNow] = useState(0);
-  const [liveLog, setLiveLog] = useState([]);
+  const [lit, setLit] = useState(() => new Set(saved.lit));
+  const [liveNow, setLiveNow] = useState(saved.liveNow);
+  const [liveLog, setLiveLog] = useState(saved.liveLog);
+
+  useEffect(() => {
+    writeLiveState(storageKey, { live, lit: [...lit], liveNow, liveLog });
+  }, [storageKey, live, lit, liveNow, liveLog]);
 
   useEffect(() => {
     if (!live) return undefined;
@@ -218,7 +253,7 @@ export default function DemoArchSlidesPage({ slide = "workload-agents" }) {
   const def = DEMO_ARCH_SLIDES.find((s) => s.id === slide) || DEMO_ARCH_SLIDES[0];
   const { meta } = def;
   const total = meta.steps.length;
-  const p = useSlidePlayer(total, def.live);
+  const p = useSlidePlayer(total, def.live, liveStateKey(def.id));
   const step = p.live
     ? (p.liveNow > 0 ? meta.steps[p.liveNow - 1] : null)
     : (p.cur > 0 ? meta.steps[p.cur - 1] : null);
