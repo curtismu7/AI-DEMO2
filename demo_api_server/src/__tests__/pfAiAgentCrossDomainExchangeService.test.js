@@ -91,6 +91,55 @@ describe('PF AI Agent cross-domain exchange', () => {
     expect(JSON.stringify(result)).not.toMatch(/p1-session-token|downstream-access-token|eyJ/);
   });
 
+  test('records the exchange as proof: the decoded ID-JAG, what was verified and the redemption, with no secret in it', async () => {
+    const fetchImpl = responseSequence();
+    const req = { session: { oauthProvider: 'pingone', oauthTokens: { accessToken: 'p1-session-token' } } };
+
+    const result = await exchangeForThirdPartyAccessToken(req, {
+      subjectProvider: 'pingone', store: makeStore(), fetchImpl,
+    });
+
+    expect(result.trace.map((step) => step.id)).toEqual(['pf-exchange', 'verify', 'redeem']);
+    const [pfStep, verifyStep, redeemStep] = result.trace;
+    expect(pfStep.request.params).toMatchObject({
+      grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
+      requested_token_type: 'urn:ietf:params:oauth:token-type:id-jag',
+      audience: 'https://downstream.example.test',
+    });
+    expect(pfStep.request.params.subject_token).toMatch(/^<redacted/);
+    expect(pfStep.response.body.access_token).toMatch(/^<redacted JWT/);
+    expect(pfStep.claims.idJag).toMatchObject({
+      iss: 'https://pf.example.test', aud: 'https://downstream.example.test', sub: 'agent-user-100', scope: 'accounts:read',
+    });
+    expect(pfStep.claims.idJagHeader).toMatchObject({ alg: 'RS256', kid: jwk.kid });
+    expect(verifyStep.note).toMatch(/Signature verified .*issuer https:\/\/pf\.example\.test/);
+    expect(redeemStep.request.params.grant_type).toBe('urn:ietf:params:oauth:grant-type:jwt-bearer');
+    expect(redeemStep.request.params.assertion).toMatch(/^<redacted JWT/);
+    expect(redeemStep.request.params.client_secret).toMatch(/^<redacted/);
+    const text = JSON.stringify(result);
+    for (const secret of [idJag, 'p1-session-token', 'downstream-secret', 'downstream-access-token']) {
+      expect(text).not.toContain(secret);
+    }
+  });
+
+  test('says in the proof when the subject token was the CIMD sign-in, not the PingOne session', async () => {
+    const fetchImpl = responseSequence();
+    const req = {
+      session: {
+        oauthProvider: 'pingone',
+        oauthTokens: { accessToken: 'p1-session-token' },
+        pfAiAgent: { cimdTokens: { accessToken: 'pf-cimd-token', expiresAt: Date.now() + 60000 } },
+      },
+    };
+
+    const result = await exchangeForThirdPartyAccessToken(req, {
+      subjectProvider: 'pingfederate', store: makeStore(), fetchImpl,
+    });
+
+    expect(result.trace[0].note).toMatch(/CIMD sign-in/);
+    expect(JSON.stringify(result)).not.toContain('pf-cimd-token');
+  });
+
   describe('a PingFederate sign-in made through the CIMD flow while the app session is PingOne', () => {
     const p1Session = (cimdTokens) => ({
       session: { oauthProvider: 'pingone', oauthTokens: { accessToken: 'p1-session-token' }, pfAiAgent: { cimdTokens } },

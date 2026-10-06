@@ -71,6 +71,7 @@ describe('starting a CIBA approval', () => {
     expect(view).toEqual({
       state: 'pending', expiresAt: new Date(clock + 120_000).toISOString(), interval: 3,
       provider: 'pingfederate', loginHint: 'demouser', bindingMessage: 'Transfer-125-USD',
+      trace: expect.any(Array),
     });
     expect(JSON.stringify(view)).not.toContain('auth-req-secret-id');
     expect(request_.session.pfAiAgent.cibaPending.authReqId).toBe('auth-req-secret-id');

@@ -238,6 +238,49 @@ describe("PingFederate AI Agent page", () => {
       expect(screen.queryByTestId("ciba-mock-phone")).not.toBeInTheDocument();
     });
 
+    const start = {
+      id: "start",
+      title: "Start the approval request (CIBA backchannel)",
+      request: { method: "POST", url: "https://pf.example.test/as/bc-auth.ciba", params: { login_hint: "demouser" } },
+      response: { status: 200, body: { auth_req_id: "<redacted opaque, 20 chars>", expires_in: 120 } },
+    };
+
+    it("shows the proof of an approved PingFederate request without any auth_req_id", async () => {
+      routeGets({ ciba: [{
+        state: "approved", provider: "pingfederate", subject: "demouser", loginHint: "demouser",
+        trace: [start, {
+          id: "poll",
+          title: "Poll for the answer (CIBA grant)",
+          request: { method: "POST", url: "https://pf.example.test/as/token.oauth2", params: { grant_type: "urn:openid:params:grant-type:ciba", auth_req_id: "<redacted opaque, 20 chars>" } },
+          response: { status: 200, body: { access_token: "<redacted JWT, 40 chars>" } },
+          claims: { idToken: { sub: "demouser" } },
+          note: "2 earlier polls answered authorization_pending while the user decided.",
+        }],
+      }] });
+      render(<PingFederateAiAgentPage user={{ username: "demouser" }} />);
+
+      const proof = await screen.findByTestId("ciba-proof");
+      expect(proof).toHaveTextContent("PingFederate accepted the request and returned an auth_req_id. The BFF keeps it");
+      expect(proof).toHaveTextContent("The user approved. The ID token says demouser approved, and PingFederate signed it.");
+      expect(proof).toHaveTextContent("2 earlier polls answered authorization_pending");
+      expect(proof).toHaveTextContent("The auth_req_id that comes back is the handle for this request");
+    });
+
+    it("is honest that a mock phone approval proves only the page flow", async () => {
+      routeGets({ ciba: [{
+        state: "approved", provider: "pingfederate", subject: "demouser", loginHint: "demouser",
+        trace: [
+          { id: "start", title: "Start the approval request (mock phone)", note: "No PingFederate call is made." },
+          { id: "decision", title: "The mock phone answered", note: "Approve was tapped on the mock phone." },
+        ],
+      }] });
+      render(<PingFederateAiAgentPage user={{ username: "demouser" }} />);
+
+      const proof = await screen.findByTestId("ciba-proof");
+      expect(proof).toHaveTextContent("The mock phone approved. This proves the page flow only: no token was issued.");
+      expect(proof).not.toHaveTextContent("returned an auth_req_id");
+    });
+
     it("polls until approved and then stops asking", async () => {
       routeGets({ ciba: [{ state: "none" }, pendingView(), { state: "approved", subject: "demouser", loginHint: "demouser" }] });
       apiClient.post.mockResolvedValue({ data: pendingView() });
@@ -371,6 +414,39 @@ describe("PingFederate AI Agent page", () => {
       expect(proof).toHaveTextContent("No token was issued.");
       expect(proof).not.toHaveTextContent("ID token says");
     });
+  });
+
+  it("shows the proof of a completed exchange: the decoded ID-JAG, the verification and the redemption", async () => {
+    apiClient.post.mockResolvedValue({ data: {
+      subject: "demouser", pfIssuer: "https://pf.example.test", assertionAudience: "https://tp.example.test",
+      downstreamAudience: "https://tp.example.test/api", scope: ["tp:read"], expiresAt: "2026-10-06T12:00:00.000Z", hops: [],
+      trace: [
+        {
+          id: "pf-exchange",
+          title: "Ask PingFederate for an ID-JAG (token exchange, RFC 8693)",
+          request: { method: "POST", url: "https://pf.example.test/as/token.oauth2", params: { subject_token: "<redacted JWT, 40 chars>" } },
+          response: { status: 200, body: { access_token: "<redacted JWT, 400 chars>" } },
+          claims: { idJagHeader: { typ: "oauth-id-jag+jwt" }, idJag: { sub: "demouser", aud: "https://tp.example.test", scope: "tp:read" } },
+        },
+        { id: "verify", title: "The BFF checks the ID-JAG before using it", note: "Signature verified with PingFederate's published key." },
+        {
+          id: "redeem",
+          title: "Redeem the ID-JAG at the third-party server (JWT bearer, RFC 7523)",
+          request: { method: "POST", url: "https://tp.example.test/token", params: { assertion: "<redacted JWT, 400 chars>" } },
+          response: { status: 200, body: { access_token: "<redacted opaque, 20 chars>" } },
+        },
+      ],
+    } });
+    render(<PingFederateAiAgentPage user={{ username: "demouser" }} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /Run third-party token exchange/i }));
+
+    const proof = await screen.findByTestId("exchange-proof");
+    expect(proof).toHaveTextContent("PingFederate issued an ID-JAG for demouser, addressed to https://tp.example.test, allowing tp:read.");
+    expect(proof).toHaveTextContent("The third-party server accepted it as a bearer assertion");
+    expect(proof).toHaveTextContent("Decoded ID-JAG header (typ marks it as an ID-JAG)");
+    expect(proof).toHaveTextContent("oauth-id-jag+jwt");
+    expect(proof).toHaveTextContent("The BFF does not trust what came back.");
   });
 
   it("a PingOne session that signed in at PingFederate through CIMD exchanges that sign-in", async () => {

@@ -169,6 +169,58 @@ function rarProofPoints(result) {
   return points;
 }
 
+const EXCHANGE_EXPLAIN = {
+  "pf-exchange": "The BFF hands PingFederate a token it issued (the subject) and asks, under RFC 8693 token exchange, for an ID-JAG: a short-lived signed assertion that names the user, the third party it is for (audience) and what it allows (scope, resource). The decoded header and claims below are that assertion; its typ marks it as an ID-JAG.",
+  verify: "The BFF does not trust what came back. It checks the signature against PingFederate's published keys, then the issuer, audience, expiry, scope and resource, before using it anywhere.",
+  redeem: "The ID-JAG goes to the third party as a JWT bearer assertion (RFC 7523). The third party trusts PingFederate's signature, so it issues its own access token without the user signing in again. PingFederate and the third party never shared a session.",
+};
+
+// The few facts a reader should take from one exchange, from what was captured.
+function exchangeProofPoints(result) {
+  const steps = result?.trace || [];
+  const exchange = steps.find((s) => s.id === "pf-exchange");
+  const idJag = exchange?.claims?.idJag;
+  const redeem = steps.find((s) => s.id === "redeem");
+  const points = [];
+  if (idJag) {
+    points.push(`PingFederate issued an ID-JAG for ${idJag.sub}, addressed to ${idJag.aud}, allowing ${idJag.scope}.`);
+  }
+  points.push("The BFF verified its signature, issuer, audience, scope and resource before using it.");
+  if (redeem?.response?.status === 200) {
+    points.push("The third-party server accepted it as a bearer assertion and issued its own access token, with no second sign-in.");
+  }
+  return points;
+}
+
+const CIBA_EXPLAIN = {
+  start: "The BFF (the client) asks the authorization server to authenticate a named user out of band. It authenticates with its own client credentials and sends only the user hint and an optional message. The auth_req_id that comes back is the handle for this request: it stays on the server.",
+  poll: "The BFF polls the token endpoint with the CIBA grant until the user answers. Each poll before the answer returns authorization_pending; the one shown here is the poll that ended the wait.",
+  decision: "With the mock phone, the person's tap is the whole decision, and nothing outside this page is involved.",
+};
+
+// What a CIBA run proved, in plain words, from the captured steps and the outcome.
+function cibaProofPoints(state) {
+  const steps = state?.trace || [];
+  const server = cibaServerName(state);
+  const mock = steps[0]?.title?.includes("mock phone");
+  const points = [];
+  if (!mock && steps.some((s) => s.id === "start")) {
+    points.push(`${server} accepted the request and returned an auth_req_id. The BFF keeps it; the browser never sees it.`);
+  }
+  if (state?.state === "pending") {
+    points.push(mock
+      ? "Waiting for a tap on the mock phone."
+      : `Waiting: the BFF polls ${server} for the answer, and each poll until then returns authorization_pending.`);
+  } else if (state?.state === "approved") {
+    points.push(mock
+      ? "The mock phone approved. This proves the page flow only: no token was issued."
+      : `The user approved. The ID token says ${state.subject || state.loginHint} approved, and ${server} signed it.`);
+  } else if (state?.state === "denied" || state?.state === "expired") {
+    points.push(`The request ended ${state.state}. No token was issued.`);
+  }
+  return points;
+}
+
 const EXCHANGE_HINTS = {
   PF_AI_SUBJECT_ISSUER_NOT_RECOGNIZED: "PingFederate does not trust this session's token. Sign in through PingFederate, not PingOne, and run the exchange again.",
 };
@@ -477,6 +529,15 @@ export default function PingFederateAiAgentPage({ user }) {
               {exchangeResult.hops?.length > 0 && (
                 <ol>{exchangeResult.hops.map((hop) => <li key={hop.step}>{hop.step}: {hop.issuer} · {hop.tokenType}</li>)}</ol>
               )}
+              {exchangeResult.trace?.length > 0 && (
+                <div className="pf-ai-agent__proof" data-testid="exchange-proof">
+                  <h3>Proof: what was sent and what came back</h3>
+                  <ul className="pf-ai-agent__proof-points">
+                    {exchangeProofPoints(exchangeResult).map((point) => <li key={point}>{point}</li>)}
+                  </ul>
+                  <ProtocolTrace steps={exchangeResult.trace} explain={EXCHANGE_EXPLAIN} />
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -612,6 +673,15 @@ export default function PingFederateAiAgentPage({ user }) {
             >
               {cibaOutcome(cibaState)}
             </p>
+          )}
+          {cibaState?.trace?.length > 0 && (
+            <div className="pf-ai-agent__proof" data-testid="ciba-proof">
+              <h3>Proof: what was sent and what came back</h3>
+              <ul className="pf-ai-agent__proof-points">
+                {cibaProofPoints(cibaState).map((point) => <li key={point}>{point}</li>)}
+              </ul>
+              <ProtocolTrace steps={cibaState.trace} explain={CIBA_EXPLAIN} />
+            </div>
           )}
         </div>
       </section>

@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const configStore = require('./configStore');
 const { getFeatureStatus, resolveCrossDomainConfig } = require('./pfAiAgentFeatureConfig');
 const { oauthError, REQUEST_TIMEOUT_MS } = require('./pfAiAgentOAuthService');
+const { safeParams, safeBody, bareUrl, claimsOf, headerOf, step: traceStep } = require('./pfAiAgentTrace');
 
 const ACCESS_TOKEN_TYPE = 'urn:ietf:params:oauth:token-type:access_token';
 const ID_JAG_TOKEN_TYPE = 'urn:ietf:params:oauth:token-type:id-jag';
@@ -40,6 +41,11 @@ function sessionSubjectToken(req, subjectProvider) {
     throw oauthError('PF_AI_SUBJECT_TOKEN_MISSING', 'The selected session has no access token', 401);
   }
   return token;
+}
+
+// The header the client authenticated with, for the page's proof: shown, never with the credential.
+function clientAuthHeaders(method) {
+  return method === 'basic' ? { Authorization: 'Basic <client_id:client_secret, redacted>' } : {};
 }
 
 function setClientAuthentication(body, headers, clientId, clientSecret, method) {
@@ -211,7 +217,45 @@ async function exchangeForThirdPartyAccessToken(req, {
     : null;
   const downstreamIssuer = new URL(config.thirdPartyTokenEndpoint).origin;
 
+  // The proof the page shows: what went to PingFederate, the ID-JAG it issued (decoded), what the BFF checked, and the
+  // redemption at the third-party server. Every secret is replaced (see pfAiAgentTrace).
+  const usedCimdSignIn = subjectProvider === 'pingfederate' && normalizedProvider(req) !== 'pingfederate';
+  const idJagHeader = headerOf(pfResponse.access_token);
+  const trace = [
+    traceStep({
+      id: 'pf-exchange',
+      title: 'Ask PingFederate for an ID-JAG (token exchange, RFC 8693)',
+      request: {
+        method: 'POST',
+        url: bareUrl(config.pfTokenEndpoint),
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...clientAuthHeaders(config.pfAuthMethod) },
+        params: safeParams(pfRequest),
+      },
+      response: { status: 200, body: safeBody(pfResponse) },
+      claims: { idJagHeader, idJag: claimsOf(pfResponse.access_token) },
+      note: usedCimdSignIn ? "The subject token is the PingFederate token from the CIMD sign-in, not the app's PingOne session." : null,
+    }),
+    traceStep({
+      id: 'verify',
+      title: 'The BFF checks the ID-JAG before using it',
+      note: `Signature verified with PingFederate's published key (kid ${idJagHeader?.kid}); issuer ${config.pfIssuer}; audience ${config.audience}; scope ${identity.scopes.join(' ')}; resource ${config.resource}.`,
+    }),
+    traceStep({
+      id: 'redeem',
+      title: 'Redeem the ID-JAG at the third-party server (JWT bearer, RFC 7523)',
+      request: {
+        method: 'POST',
+        url: bareUrl(config.thirdPartyTokenEndpoint),
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...clientAuthHeaders(config.thirdPartyAuthMethod) },
+        params: safeParams(downstreamRequest),
+      },
+      response: { status: 200, body: safeBody(downstreamResponse) },
+      claims: { downstreamAccessToken: claimsOf(downstreamResponse.access_token) },
+    }),
+  ];
+
   return {
+    trace,
     subjectProvider,
     pfIssuer: config.pfIssuer,
     assertionAudience: config.audience,

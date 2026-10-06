@@ -93,6 +93,11 @@ describe('CIBA follows the signed-in provider', () => {
       expect(cibaService.validateCibaIdToken).toHaveBeenCalledWith('idt', 'user-1');
       expect(done).toMatchObject({ state: 'approved', provider: 'pingone', subject: 'user-1' });
       expect(JSON.stringify(done)).not.toMatch(/idt|"at"|p1-req/);
+      expect(done.trace.map((step) => step.id)).toEqual(['start', 'poll']);
+      expect(done.trace[0].title).toMatch(/PingOne CIBA/);
+      expect(done.trace[0].request.params).toMatchObject({ login_hint: 'demo@example.test', scope: 'openid' });
+      expect(done.trace[0].response.body.auth_req_id).toMatch(/^<redacted/);
+      expect(done.trace[1].note).toBe('1 earlier poll answered authorization_pending while the user decided.');
       expect(req.session.pfAiAgent.cibaPending).toBeUndefined();
     });
 

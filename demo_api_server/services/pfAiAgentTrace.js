@@ -7,6 +7,7 @@ const jwt = require('jsonwebtoken');
 // browser; identifiers that are not secret (client_id, redirect_uri, scope) and decoded token CLAIMS are shown.
 const SECRET_KEYS = new Set([
   'code', 'code_verifier', 'client_secret', 'access_token', 'refresh_token', 'id_token', 'subject_token', 'assertion',
+  'auth_req_id',
 ]);
 // Random per-flow values that are not secret, but are long and noisy: show the start only.
 const SHORTEN_KEYS = new Set(['state', 'nonce', 'code_challenge']);
@@ -74,8 +75,15 @@ function claimsOf(token) {
   return payload && typeof payload === 'object' ? payload : null;
 }
 
+// Header of a JWT (alg, kid, typ), or null. The typ is what marks an ID-JAG as one.
+function headerOf(token) {
+  if (typeof token !== 'string' || token.split('.').length !== 3) return null;
+  const decoded = jwt.decode(token, { complete: true });
+  return decoded?.header || null;
+}
+
 function step({ id, title, request, response = null, claims = null, note = null }) {
   return { id, title, request, response, claims, note };
 }
 
-module.exports = { safeParams, safeBody, bareUrl, claimsOf, step, redacted, shortened };
+module.exports = { safeParams, safeBody, bareUrl, claimsOf, headerOf, step, redacted, shortened };

@@ -3,6 +3,7 @@
 const jwt = require('jsonwebtoken');
 const configStore = require('./configStore');
 const cibaService = require('./cibaService');
+const { safeParams, safeBody, bareUrl, claimsOf, step: traceStep } = require('./pfAiAgentTrace');
 const { getFeatureStatus, resolveCibaConfig, webApproverOn } = require('./pfAiAgentFeatureConfig');
 const {
   oauthError,
@@ -55,7 +56,44 @@ function validBindingMessage(requested) {
 const providerOf = (req) => (String(req?.session?.oauthProvider || req?.session?.user?.oauthProvider || '')
   .toLowerCase() === 'pingone' ? 'pingone' : 'pingfederate');
 
+// What went over the wire, for the page's proof panel; secrets are replaced (see pfAiAgentTrace).
+const FORM_HEADERS = { 'Content-Type': 'application/x-www-form-urlencoded' };
+const CLIENT_AUTH = { Authorization: 'Basic <client_id:client_secret, redacted>' };
+const KNOWN_POLL_ERRORS = new Set(['access_denied', 'expired_token']);
+
+function startStep({ title, url, params, status, body, note = null }) {
+  return traceStep({
+    id: 'start',
+    title,
+    request: { method: 'POST', url, headers: { ...FORM_HEADERS, ...CLIENT_AUTH }, params: safeParams(params) },
+    response: { status, body: safeBody(body) },
+    note,
+  });
+}
+
+// The poll that ended the wait. Earlier polls only said authorization_pending, so they are counted, not listed.
+function pollStep(pending, { url, status, body, claims = null }) {
+  const earlier = Math.max(0, (pending.polls || 1) - 1);
+  return traceStep({
+    id: 'poll',
+    title: 'Poll for the answer (CIBA grant)',
+    request: {
+      method: 'POST',
+      url,
+      headers: { ...FORM_HEADERS, ...CLIENT_AUTH },
+      params: safeParams({ grant_type: CIBA_GRANT, auth_req_id: pending.authReqId }),
+    },
+    response: { status, body },
+    claims,
+    note: earlier ? `${earlier} earlier poll${earlier === 1 ? '' : 's'} answered authorization_pending while the user decided.` : null,
+  });
+}
+
+// Only the standard end-of-wait codes are shown; anything else is not echoed.
+const knownErrorBody = (code) => (KNOWN_POLL_ERRORS.has(code) ? { error: code } : { error: 'other' });
+
 const pendingView = (pending) => ({
+  trace: pending.trace || [],
   state: 'pending',
   provider: pending.provider || 'pingfederate',
   expiresAt: new Date(pending.expiresAt).toISOString(),
@@ -64,9 +102,10 @@ const pendingView = (pending) => ({
   bindingMessage: pending.bindingMessage,
 });
 
-function finish(featureSession, state, pending, now, extra = {}) {
+function finish(featureSession, state, pending, now, extra = {}, steps = []) {
   delete featureSession.cibaPending;
   const result = {
+    trace: [...(pending?.trace || []), ...steps],
     state,
     provider: pending?.provider || 'pingfederate',
     loginHint: pending?.loginHint || null,
@@ -138,6 +177,16 @@ async function startPingOneCiba(req, featureSession, { requestedHint, bindingMes
     loginHint: hint,
     bindingMessage,
     subject: req.session.user?.id || null,
+    polls: 0,
+    // cibaService does not expose its endpoint URL, so the step names it instead.
+    trace: [startStep({
+      title: 'Start the approval request (PingOne CIBA backchannel)',
+      url: 'PingOne bc-authorize endpoint',
+      params: { login_hint: hint, scope: 'openid', ...(bindingMessage ? { binding_message: bindingMessage } : {}) },
+      status: 200,
+      body: result,
+      note: 'The approval prompt goes to the user\'s PingOne MFA device.',
+    })],
   };
   featureSession.cibaPending = pending;
   delete featureSession.cibaResult;
@@ -146,6 +195,8 @@ async function startPingOneCiba(req, featureSession, { requestedHint, bindingMes
 
 async function pollPingOneCiba(featureSession, pending, now) {
   let tokens;
+  pending.polls = (pending.polls || 0) + 1;
+  const ended = (code) => [pollStep(pending, { url: 'PingOne token endpoint', status: 400, body: knownErrorBody(code) })];
   try {
     tokens = await cibaService.pollForTokens(pending.authReqId);
   } catch (error) {
@@ -154,8 +205,8 @@ async function pollPingOneCiba(featureSession, pending, now) {
       case 'slow_down':
         pending.interval = clampInterval(pending.interval + SLOW_DOWN_STEP_SECONDS);
         return pendingView(pending);
-      case 'access_denied': return finish(featureSession, 'denied', pending, now, { reason: 'user_denied' });
-      case 'expired_token': return finish(featureSession, 'expired', pending, now, { reason: 'timed_out' });
+      case 'access_denied': return finish(featureSession, 'denied', pending, now, { reason: 'user_denied' }, ended('access_denied'));
+      case 'expired_token': return finish(featureSession, 'expired', pending, now, { reason: 'timed_out' }, ended('expired_token'));
       default:
         finish(featureSession, 'error', pending, now, { reason: 'poll_failed' });
         throw oauthError('PF_AI_CIBA_POLL_FAILED', 'PingOne could not complete the approval request');
@@ -173,7 +224,12 @@ async function pollPingOneCiba(featureSession, pending, now) {
     issuer: claims.iss,
     scope: typeof tokens.scope === 'string' ? tokens.scope : null,
     tokenType: typeof tokens.token_type === 'string' ? tokens.token_type : null,
-  });
+  }, [pollStep(pending, {
+    url: 'PingOne token endpoint',
+    status: 200,
+    body: safeBody(tokens),
+    claims: { idToken: claimsOf(tokens.id_token), accessToken: claimsOf(tokens.access_token) },
+  })]);
 }
 
 async function startCiba(req, {
@@ -212,6 +268,11 @@ async function startCiba(req, {
       lastPolledAt: 0,
       loginHint,
       bindingMessage,
+      trace: [traceStep({
+        id: 'start',
+        title: 'Start the approval request (mock phone)',
+        note: 'No PingFederate call is made: the BFF holds the request and the mock phone answers it. This proves the page flow, not PingFederate or PingOne.',
+      })],
     };
     featureSession.cibaPending = pending;
     delete featureSession.cibaResult;
@@ -244,6 +305,17 @@ async function startCiba(req, {
     lastPolledAt: 0,
     loginHint,
     bindingMessage,
+    polls: 0,
+    trace: [startStep({
+      title: 'Start the approval request (CIBA backchannel)',
+      url: bareUrl(metadata.backchannelEndpoint),
+      params: body,
+      status: response.status ?? 200,
+      body: data,
+      note: webApproverOn(store)
+        ? 'The authenticator here is the demo web approver: it registered this request with the BFF and asks it for your answer.'
+        : null,
+    })],
   };
   featureSession.cibaPending = pending;
   delete featureSession.cibaResult;
@@ -261,6 +333,7 @@ async function pollCiba(req, { store = configStore, fetchImpl = fetch, now = Dat
   if (now() - pending.lastPolledAt < pending.interval * 1000) return pendingView(pending);
   pending.lastPolledAt = now();
   if (isPingOne) return pollPingOneCiba(featureSession, pending, now);
+  pending.polls = (pending.polls || 0) + 1;
 
   const config = resolveCibaConfig(store);
   const response = await postForm(fetchImpl, config.tokenEndpoint,
@@ -287,8 +360,16 @@ async function pollCiba(req, { store = configStore, fetchImpl = fetch, now = Dat
       issuer: identity.issuer,
       scope: typeof data.scope === 'string' ? data.scope : null,
       tokenType: typeof data.token_type === 'string' ? data.token_type : null,
-    });
+    }, [pollStep(pending, {
+      url: bareUrl(config.tokenEndpoint),
+      status: response.status ?? 200,
+      body: safeBody(data),
+      claims: { idToken: claimsOf(data.id_token), accessToken: claimsOf(data.access_token) },
+    })]);
   }
+  const endedStep = () => [pollStep(pending, {
+    url: bareUrl(config.tokenEndpoint), status: response.status ?? 400, body: knownErrorBody(data?.error),
+  })];
 
   switch (data?.error) {
     case 'authorization_pending':
@@ -297,9 +378,9 @@ async function pollCiba(req, { store = configStore, fetchImpl = fetch, now = Dat
       pending.interval = clampInterval(pending.interval + SLOW_DOWN_STEP_SECONDS);
       return pendingView(pending);
     case 'access_denied':
-      return finish(featureSession, 'denied', pending, now, { reason: 'user_denied' });
+      return finish(featureSession, 'denied', pending, now, { reason: 'user_denied' }, endedStep());
     case 'expired_token':
-      return finish(featureSession, 'expired', pending, now, { reason: 'timed_out' });
+      return finish(featureSession, 'expired', pending, now, { reason: 'timed_out' }, endedStep());
     default:
       finish(featureSession, 'error', pending, now, { reason: 'poll_failed' });
       throw oauthError('PF_AI_CIBA_POLL_FAILED', 'PingFederate could not complete the approval request');
@@ -314,9 +395,16 @@ function mockDecideCiba(req, decision, { store = configStore, now = Date.now } =
   if (decision === 'approve') {
     return finish(featureSession, 'approved', pending, now, {
       subject: pending.loginHint, issuer: 'mock-phone', scope: 'openid', tokenType: 'none',
-    });
+    }, [traceStep({
+      id: 'decision',
+      title: 'The mock phone answered',
+      note: 'Approve was tapped on the mock phone. No token was issued: nothing outside this page was involved.',
+    })]);
   }
-  if (decision === 'deny') return finish(featureSession, 'denied', pending, now, { reason: 'user_denied' });
+  if (decision === 'deny') {
+    return finish(featureSession, 'denied', pending, now, { reason: 'user_denied' },
+      [traceStep({ id: 'decision', title: 'The mock phone answered', note: 'Deny was tapped on the mock phone.' })]);
+  }
   throw oauthError('PF_AI_CIBA_DECISION_INVALID', 'The decision must be approve or deny', 400);
 }
 

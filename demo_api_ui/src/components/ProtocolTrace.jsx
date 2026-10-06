@@ -10,6 +10,15 @@ const formEncode = (params) => Object.entries(params || {})
 
 const pretty = (value) => JSON.stringify(value, null, 2);
 
+// What each kind of decoded thing is, so the reader knows why it is shown.
+const CLAIM_LABELS = {
+  idToken: "ID token claims (who signed in)",
+  accessToken: "access token claims",
+  idJagHeader: "ID-JAG header (typ marks it as an ID-JAG)",
+  idJag: "ID-JAG claims (the signed assertion PingFederate issued)",
+  downstreamAccessToken: "third-party access token claims",
+};
+
 function Params({ params }) {
   const [view, setView] = useState("json");
   if (!params || !Object.keys(params).length) return null;
@@ -49,7 +58,7 @@ function Step({ step, index, explain }) {
       )}
       {decoded.map(([name, value]) => (
         <div className="ptrace__block" key={name}>
-          <p className="ptrace__label">Decoded {name === "idToken" ? "ID token claims (who signed in)" : "access token claims"}</p>
+          <p className="ptrace__label">Decoded {CLAIM_LABELS[name] || name}</p>
           <pre className="ptrace__code">{pretty(value)}</pre>
         </div>
       ))}
