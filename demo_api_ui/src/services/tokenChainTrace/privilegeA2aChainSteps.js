@@ -31,14 +31,23 @@ const compliance = (title, frameworks) => (frameworks?.length ? { compliance: { 
  * reads).
  */
 function withRunSummary(steps, record) {
-  if (!steps.length || record?.state !== "ready") return steps;
+  if (!steps.length || !record) return steps;
   const merged = {};
-  for (const entry of record.guardrail || []) {
-    for (const { label, identifiers } of entry.frameworks) merged[label] = [...new Set([...(merged[label] || []), ...identifiers])];
+  if (record.state === "ready") {
+    for (const entry of record.guardrail || []) {
+      for (const { label, identifiers } of entry.frameworks) merged[label] = [...new Set([...(merged[label] || []), ...identifiers])];
+    }
   }
   const frameworks = Object.entries(merged).map(([label, identifiers]) => ({ label, identifiers }));
+  // One row on the Done step in every state, so "not loaded" and "nothing
+  // flagged" read differently from each other and from "not looked at".
+  const finding = record.state === "needsAuth" ? "Not loaded. Sign in on the LLM Gateway page (Gateway findings), then run this again."
+    : record.state !== "ready" ? `Could not be read: ${record.error || "unknown error"}`
+    : frameworks.length ? frameworks.map((framework) => `${framework.label} ${framework.identifiers.join(", ")}`).join(" · ")
+    : "Nothing flagged by Privilege for this run";
   const last = steps[steps.length - 1];
-  return [...steps.slice(0, -1), { ...last, detail: { ...last.detail, ...compliance("Privilege findings for the whole run", frameworks) } }];
+  const kv = [...(last.detail.kv || []), ["Privilege findings", finding]];
+  return [...steps.slice(0, -1), { ...last, detail: { ...last.detail, kv, ...compliance("Privilege findings for the whole run", frameworks) } }];
 }
 
 // What the A2A specification requires at each kind of step, and why the

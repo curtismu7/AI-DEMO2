@@ -373,6 +373,26 @@ test("the mappings Privilege returned are highlighted on the gateway step and su
   }
 });
 
+test("the Done step always says what Privilege found: findings, nothing, not loaded, or unreadable", () => {
+  const events = [
+    { id: "pa2a-0", kind: "delegate", from: "main", to: "langchainagent", status: "ok", detail: "hello" },
+    { id: "pa2a-done", kind: "done", from: "main", to: "client", status: "ok", detail: "the answer" },
+  ];
+  const doneRow = (record) => {
+    const done = buildPrivilegeA2aChainSteps(record ? [...events, { id: "pa2a-gateway-record", ...record }] : events).at(-1);
+    expect(done.title).toBe("Done");
+    return done.detail.kv.find(([key]) => key === "Privilege findings")?.[1];
+  };
+  const frameworks = [{ label: "MITRE ATLAS", identifiers: ["AML.T0051"] }, { label: "OWASP LLM", identifiers: ["LLM01", "LLM02"] }];
+  expect(doneRow({ state: "ready", guardrail: [{ event: "a2a_request_alert", client: "main-agent", rules: [], frameworks }], modelCalls: [] }))
+    .toBe("MITRE ATLAS AML.T0051 · OWASP LLM LLM01, LLM02");
+  expect(doneRow({ state: "ready", guardrail: [], modelCalls: [] })).toBe("Nothing flagged by Privilege for this run");
+  expect(doneRow({ state: "needsAuth" })).toContain("Sign in on the LLM Gateway page");
+  expect(doneRow({ state: "error", error: "HTTP 502" })).toBe("Could not be read: HTTP 502");
+  // The record has not arrived yet: no row, rather than a wrong "nothing flagged".
+  expect(doneRow(null)).toBeUndefined();
+});
+
 test("a policy refusal and a clean call say what the guardrail log does and does not hold", () => {
   const steps = buildPrivilegeA2aChainSteps([
     { id: "pa2a-0", kind: "delegate", from: "main", to: "langchainagent", status: "ok" },
