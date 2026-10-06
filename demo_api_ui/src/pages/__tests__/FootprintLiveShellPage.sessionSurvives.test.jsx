@@ -164,3 +164,110 @@ describe("costume variant survives the sign-in round trip", () => {
     }
   });
 });
+
+describe("skins re-authenticate, re-arm and probe doors", () => {
+  const BANKING = "https://gw.example/privilege-gateway/banking/mcp";
+  const OTHER = "https://gw.example/privilege-gateway/other/mcp";
+  const SILENT = "https://auth.example/a?prompt=none";
+  const baseState = (over = {}) => ({
+    oauth: { authenticated: true, scope: "openid" },
+    tools: [{ name: "t", inputSchema: { properties: {} } }],
+    gatewayMode: "privilege",
+    config: { mcpUrl: BANKING, clientId: "" },
+    presets: [
+      { id: "banking", label: "banking", mode: "privilege", url: BANKING },
+      { id: "other", label: "other", mode: "privilege", url: OTHER },
+    ],
+    gatewayConfigs: { direct: {}, privilege: {}, facade: {} },
+    ...over,
+  });
+  const original = window.location;
+  let assign;
+  // post: per-endpoint replies keyed by URL suffix; anything else is an empty tool list.
+  const renderSkin = (path, state, post = {}) => {
+    apiClient.post.mockReset();
+    apiClient.post.mockImplementation(async (url) => {
+      const key = Object.keys(post).find((k) => String(url).endsWith(k));
+      return { data: key ? post[key] : { tools: [] } };
+    });
+    apiClient.get.mockImplementation(async (url) =>
+      String(url).endsWith("/llm/config") ? { data: { gatewayUrl: "https://llm.example" } } : { data: state });
+    localStorage.clear();
+    return render(
+      <MemoryRouter initialEntries={[path]}>
+        <Routes>
+          <Route path="/demo/:shellSlug" element={<FootprintLiveShellPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+  };
+  beforeEach(() => {
+    sessionStorage.setItem("pvs_silent_signin_tried", "1");
+    assign = vi.fn();
+    Object.defineProperty(window, "location", { configurable: true, value: { ...original, assign } });
+  });
+  afterEach(() => {
+    Object.defineProperty(window, "location", { configurable: true, value: original });
+    sessionStorage.clear();
+  });
+
+  it("(a) a door switch whose gateway can sign in silently navigates to the prompt=none URL", async () => {
+    renderSkin("/demo/vscode-copilot?v=classic-dark", baseState(), {
+      "/config": { oauth: { destinationAuthenticated: false } },
+      "/auth/start": { authUrl: SILENT },
+    });
+    fireEvent.click(await screen.findByRole("button", { name: "other" }, { timeout: 5000 }));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith(SILENT), { timeout: 5000 });
+    expect(apiClient.post).toHaveBeenCalledWith("/api/privilege-mcp/auth/start", { returnTo: "/demo/vscode-copilot" });
+  });
+
+  it("(b) a non-silent sign-in URL is not followed; the gate and a notice show", async () => {
+    renderSkin("/demo/vscode-copilot?v=classic-dark", baseState(), {
+      "/config": { oauth: { destinationAuthenticated: false } },
+      "/auth/start": { authUrl: "https://auth.example/a" },
+    });
+    fireEvent.click(await screen.findByRole("button", { name: "other" }, { timeout: 5000 }));
+    expect(await screen.findByText(
+      "The gateway cannot silently authorize this door from the current session. Press Get MCP tools to sign in.",
+      {},
+      { timeout: 5000 },
+    )).toBeInTheDocument();
+    expect(assign).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Get MCP tools" })).toBeInTheDocument();
+  });
+
+  it.each([
+    ["coding skin", "/demo/coding-agent?v=claude-code"],
+    ["VS Code skin", "/demo/vscode-copilot?v=classic-dark"],
+  ])("(c) %s shows the Re-arm banner for a dead Facade session and Re-arm posts privilege mode", async (_n, path) => {
+    renderSkin(path, baseState({ gatewayMode: "facade", gatewaySession: { ready: false, reason: "expired" } }), {
+      "/config": { oauth: { destinationAuthenticated: false } },
+      "/auth/start": { authUrl: SILENT },
+    });
+    expect(await screen.findByText(/Gateway session expired\./, {}, { timeout: 5000 })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Re-arm" }));
+    await waitFor(() =>
+      expect(apiClient.post).toHaveBeenCalledWith(
+        "/api/privilege-mcp/config",
+        expect.objectContaining({ gatewayMode: "privilege" }),
+      ), { timeout: 5000 });
+  });
+
+  it("(d) Check doors posts /doors/probe and marks the probed door", async () => {
+    renderSkin("/demo/vscode-copilot?v=classic-dark", baseState(), {
+      "/doors/probe": { results: [{ url: OTHER, ok: true, tools: 3 }] },
+    });
+    fireEvent.click(await screen.findByRole("button", { name: "Check doors" }, { timeout: 5000 }));
+    expect(await screen.findByRole("button", { name: /✅.*other/ }, { timeout: 5000 })).toBeInTheDocument();
+    expect(apiClient.post).toHaveBeenCalledWith("/api/privilege-mcp/doors/probe", expect.anything());
+  });
+
+  it("(e) an authenticated door switch offers Load tools and does not list tools itself", async () => {
+    renderSkin("/demo/vscode-copilot?v=classic-dark", baseState(), {
+      "/config": { oauth: { destinationAuthenticated: true } },
+    });
+    fireEvent.click(await screen.findByRole("button", { name: "other" }, { timeout: 5000 }));
+    expect(await screen.findByRole("button", { name: "Load tools" }, { timeout: 5000 })).toBeInTheDocument();
+    expect(apiClient.post).not.toHaveBeenCalledWith("/api/privilege-mcp/tools/list");
+  });
+});

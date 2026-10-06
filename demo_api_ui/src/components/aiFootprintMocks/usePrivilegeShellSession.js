@@ -7,7 +7,13 @@ import apiClient from "../../services/apiClient";
 import { navigateWithOverlay } from "../../utils/navigateWithOverlay";
 
 import { LLM_POLICY_DENIED, chatReplyMessage, llmDenialMessage, llmReplyMessage } from "../privilege/privilegeChat";
+import { requestAuthStart, isSilentAuthUrl } from "../privilege/privilegeAuth";
 import { usePrivilegeRouting } from "../privilege/usePrivilegeRouting";
+import {
+  decideAfterSwitch,
+  needsRearm as needsRearmFor,
+  rearmReason as rearmReasonFor,
+} from "../privilege/privilegeRouting";
 
 const API_BASE = "/api/privilege-mcp";
 const SILENT_TRIED_KEY = "pvs_silent_signin_tried";
@@ -36,6 +42,7 @@ export function usePrivilegeShellSession({ onBeforeConnect } = {}) {
   const [tools, setTools] = useState([]);
   const [latestCall, setLatestCall] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [mainAppAuthenticated, setMainAppAuthenticated] = useState(false);
   const [messages, setMessages] = useState([]);
   const [thinking, setThinking] = useState(false);
   // Force light/dark on the shell independent of the costume's own brightness.
@@ -47,6 +54,7 @@ export function usePrivilegeShellSession({ onBeforeConnect } = {}) {
   );
   const nextId = useRef(1);
   const [notice, setNotice] = useState(() => {
+    if (searchParams.get("auth") === "silent_failed") return "Silent sign-in was not possible. Press Get MCP tools to sign in.";
     if (searchParams.get("auth") !== "error") return "";
     return `OAuth failed: ${searchParams.get("reason") || "unknown"}`;
   });
@@ -84,6 +92,7 @@ export function usePrivilegeShellSession({ onBeforeConnect } = {}) {
       .then(async ({ data }) => {
         if (!alive) return;
         hydrate(data);
+        setMainAppAuthenticated(Boolean(data.mainAppAuthenticated));
         if (data.oauth?.scope) {
           setScopes(String(data.oauth.scope).split(" ").filter(Boolean));
         }
@@ -114,21 +123,6 @@ export function usePrivilegeShellSession({ onBeforeConnect } = {}) {
       .then((c) => setLlmGatewayUrl(c?.gatewayUrl || ""))
       .catch(() => {});
   }, [setLlmGatewayUrl]);
-
-  const connect = async () => {
-    setBusy(true);
-    setNotice("");
-    try {
-      onBeforeConnect?.();
-      const { data } = await apiClient.post(`${API_BASE}/auth/start`, {
-        returnTo: location.pathname,
-      });
-      navigateWithOverlay(data.authUrl, { message: "Signing in...", assign: true });
-    } catch (err) {
-      setNotice(errText(err));
-      setBusy(false);
-    }
-  };
 
   const runTool = async (name, argsStr) => {
     const request = argsStr || "{}";
@@ -181,6 +175,37 @@ export function usePrivilegeShellSession({ onBeforeConnect } = {}) {
     ]);
   }, []);
 
+  // Start a sign-in. silentOnly: follow the redirect only when it is a prompt=none URL —
+  // returns false (the caller leaves the gate showing) when the gateway cannot do it
+  // silently. Returns true after navigating, undefined for a door that needs no sign-in
+  // (its tools are loaded instead). `remember` runs onBeforeConnect just before navigating.
+  const startSignIn = useCallback(async ({ silentOnly = false, returnTo, remember = true } = {}) => {
+    const start = await requestAuthStart(request, { returnTo });
+    if (start.kind === "no-auth-required") {
+      push("system", "This door needs no sign-in — its upstream owns identity. Loading tools.");
+      await listTools();
+      return undefined;
+    }
+    if (silentOnly && !isSilentAuthUrl(start.authUrl)) return false;
+    if (remember) beforeConnectRef.current?.();
+    navigateWithOverlay(start.authUrl, { message: "Signing in...", assign: true });
+    return true;
+  }, [push, listTools]);
+
+  const connect = async () => {
+    setBusy(true);
+    setNotice("");
+    try {
+      onBeforeConnect?.();
+      const started = await startSignIn({ returnTo: location.pathname, remember: false });
+      // true: the page is leaving, so busy stays on. undefined: tools were loaded here.
+      if (started === undefined) setBusy(false);
+    } catch (err) {
+      setNotice(errText(err));
+      setBusy(false);
+    }
+  };
+
   const send = useCallback(
     async (text) => {
       const prompt = String(text || "").trim();
@@ -232,47 +257,94 @@ export function usePrivilegeShellSession({ onBeforeConnect } = {}) {
     [push, connect, routing.llmPath],
   );
 
-  const afterSwitch = useCallback(async (result, failPrefix) => {
+  // What a path/door switch does next is decided by decideAfterSwitch (shared with the
+  // Cursor page). `signedIn` is captured by the caller BEFORE the switch: afterSwitch
+  // itself flips `phase`.
+  const afterSwitch = useCallback(async (result, failPrefix, { kind, signedIn, forceReauth = false }) => {
     if (!result.ok) {
       setNotice(`${failPrefix}: ${errText(result.error)}`);
       return;
     }
     if (result.llm) return;
     setTools([]);
-    const authed = result.saved?.oauth?.destinationAuthenticated ?? result.saved?.oauth?.authenticated;
-    if (!authed) {
-      setPhase("signed-out");
+    const destinationAuthenticated =
+      result.saved?.oauth?.destinationAuthenticated ?? result.saved?.oauth?.authenticated;
+    const outcome = decideAfterSwitch({
+      kind,
+      destinationAuthenticated,
+      mode: routing.gatewayMode,
+      forceReauth,
+      signedIn,
+    });
+    // Choosing a path or door is not a request to probe it: the destination's tools are
+    // loaded with the Load tools button, as on the Cursor page.
+    if (outcome === "authenticated") {
+      setPhase("ready");
       return;
     }
+    setPhase("signed-out");
+    if (outcome === "manual") return;
     try {
-      await listTools();
+      const started = await startSignIn({ silentOnly: outcome === "silent", returnTo: location.pathname });
+      if (started === false) {
+        setNotice("The gateway cannot silently authorize this door from the current session. Press Get MCP tools to sign in.");
+      }
     } catch (err) {
-      setNotice(errText(err));
+      setNotice(
+        outcome === "silent"
+          ? `Silent sign-in could not start. Press Get MCP tools to sign in manually. (${errText(err)})`
+          : errText(err),
+      );
     }
-  }, [listTools]);
+  }, [routing.gatewayMode, startSignIn, location.pathname]);
 
   const pickPath = useCallback(async (key) => {
     setBusy(true);
     setNotice("");
+    const signedIn = mainAppAuthenticated || phase === "ready";
     try {
-      await afterSwitch(await routing.selectPath(key), "Gateway switch failed");
+      await afterSwitch(await routing.selectPath(key), "Gateway switch failed", { kind: "path", signedIn });
     } finally {
       setBusy(false);
     }
-  }, [afterSwitch, routing.selectPath]);
+  }, [afterSwitch, routing.selectPath, mainAppAuthenticated, phase]);
 
   const pickDoor = useCallback(async (url) => {
     setBusy(true);
     setNotice("");
+    const signedIn = mainAppAuthenticated || phase === "ready";
     try {
-      await afterSwitch(await routing.selectDoor(url), "Failed to switch door");
+      await afterSwitch(await routing.selectDoor(url), "Failed to switch door", { kind: "door", signedIn });
     } finally {
       setBusy(false);
     }
-  }, [afterSwitch, routing.selectDoor]);
+  }, [afterSwitch, routing.selectDoor, mainAppAuthenticated, phase]);
+
+  const rearm = useCallback(async () => {
+    setBusy(true);
+    setNotice("");
+    const signedIn = mainAppAuthenticated || phase === "ready";
+    try {
+      // Re-arming must go through Privilege mode (a Facade sign-in arms nothing) and must
+      // sign in even when /config reports a restored token — the gateway session is dead.
+      await afterSwitch(await routing.selectPath("privilege"), "Gateway switch failed", {
+        kind: "path",
+        signedIn,
+        forceReauth: true,
+      });
+    } finally {
+      setBusy(false);
+    }
+  }, [afterSwitch, routing.selectPath, mainAppAuthenticated, phase]);
+
+  const rearmNeeded = needsRearmFor(routing.gatewayMode, routing.gatewaySession);
 
   return {
     pvsTheme, cyclePvsTheme,
+    needsRearm: rearmNeeded,
+    rearmReason: rearmNeeded ? rearmReasonFor(routing.gatewaySession) : null,
+    rearm,
+    probeDoors: routing.probePresetDoors,
     phase, scopes, tools, latestCall, busy, notice, messages, thinking,
     connect, retryTools, signOut, runTool, send,
     routing: {
@@ -282,6 +354,10 @@ export function usePrivilegeShellSession({ onBeforeConnect } = {}) {
       llmPath: routing.llmPath,
       llmGatewayUrl: routing.llmGatewayUrl,
       loaded: routing.loaded,
+      gatewaySession: routing.gatewaySession,
+      preflight: routing.preflight,
+      preflightBusy: routing.preflightBusy,
+      preflightError: routing.preflightError,
     },
     pickPath, pickDoor,
   };

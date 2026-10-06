@@ -11,7 +11,8 @@ export const makeSession = (over = {}) => ({
   connect: vi.fn(), retryTools: vi.fn(), signOut: vi.fn(), runTool: vi.fn(), send: vi.fn(),
   pickPath: vi.fn(), pickDoor: vi.fn(),
   pvsTheme: "auto", cyclePvsTheme: vi.fn(),
-  routing: { gatewayMode: "privilege", config: { mcpUrl: "https://gw.example/privilege-gateway/banking/mcp" }, presets: [
+  needsRearm: false, rearmReason: null, rearm: vi.fn(), probeDoors: vi.fn(),
+  routing: { gatewaySession: null, preflight: null, preflightBusy: false, preflightError: "", gatewayMode: "privilege", config: { mcpUrl: "https://gw.example/privilege-gateway/banking/mcp" }, presets: [
     { mode: "privilege", url: "https://gw.example/privilege-gateway/banking/mcp" },
     { mode: "privilege", url: "https://gw.example/privilege-gateway/other/mcp" },
   ], llmPath: "", llmGatewayUrl: "", loaded: true },
@@ -392,5 +393,139 @@ describe.each([
     // The store is a module singleton, so match the row by this test's own URL.
     const row = (await screen.findByText(`/api/tools?${name}`)).closest("li");
     expect(within(row).getByText("Not signed in, or the session expired")).toBeInTheDocument();
+  });
+});
+
+describe.each([
+  ["Terminal", ShellTerminalView],
+  ["VS Code", ShellVsCodeView],
+  ["Desktop", ShellDesktopView],
+])("%s Re-arm banner", (_name, View) => {
+  it.each(["ready", "signed-out", "loading"])("shows and fires Re-arm in phase %s", (phase) => {
+    const session = makeSession({ phase, needsRearm: true, rearmReason: "expired" });
+    render(<View session={session} />);
+    expect(screen.getByText(/Gateway session expired\./)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Re-arm" }));
+    expect(session.rearm).toHaveBeenCalled();
+  });
+
+  it("words the not-established reason", () => {
+    render(<View session={makeSession({ needsRearm: true, rearmReason: "not established" })} />);
+    expect(screen.getByText(/Gateway session not established\./)).toBeInTheDocument();
+  });
+
+  it("shows nothing when no re-arm is needed", () => {
+    render(<View session={makeSession()} />);
+    expect(screen.queryByText(/Gateway session/)).toBeNull();
+    expect(screen.queryByRole("button", { name: "Re-arm" })).toBeNull();
+  });
+
+  it("disables the button and says Re-arming… while busy", () => {
+    render(<View session={makeSession({ needsRearm: true, rearmReason: "expired", busy: true })} />);
+    expect(screen.getByRole("button", { name: "Re-arming…" })).toBeDisabled();
+  });
+});
+
+describe.each([
+  ["Terminal", ShellTerminalView, {}],
+  ["Desktop", ShellDesktopView, {}],
+  ["signed-out gate", ShellTerminalView, { phase: "signed-out" }],
+])("Check doors bar (%s)", (_n, View, over) => {
+  const withRouting = (r, extra = {}) => {
+    const base = makeSession();
+    return makeSession({ ...over, ...extra, routing: { ...base.routing, ...r } });
+  };
+
+  it("calls probeDoors from the Check doors button", () => {
+    const session = makeSession(over);
+    render(<View session={session} />);
+    fireEvent.click(screen.getByRole("button", { name: "Check doors" }));
+    expect(session.probeDoors).toHaveBeenCalled();
+  });
+
+  it("reads Probing… and is disabled while probing", () => {
+    render(<View session={withRouting({ preflightBusy: true })} />);
+    expect(screen.getByRole("button", { name: "Probing…" })).toBeDisabled();
+  });
+
+  it.each([["busy", { busy: true }], ["thinking", { thinking: true }]])("is disabled while %s", (_k, extra) => {
+    render(<View session={withRouting({}, extra)} />);
+    expect(screen.getByRole("button", { name: "Check doors" })).toBeDisabled();
+  });
+
+  it("lists probe results with marks", () => {
+    render(<View session={withRouting({ preflight: [
+      { url: "https://gw.example/privilege-gateway/other/mcp", ok: true, tools: 3 },
+      { url: "https://gw.example/privilege-gateway/x/mcp", ok: false, status: 401, error: "Unauthorized" },
+    ] })} />);
+    const rows = screen.getAllByRole("listitem").map((li) => li.textContent);
+    expect(rows).toContain("✅ other 3 tools");
+    expect(rows).toContain("❌ x 401 Unauthorized");
+  });
+
+  it("announces probe results through a status region", () => {
+    render(<View session={withRouting({ preflight: [{ url: "https://gw.example/privilege-gateway/other/mcp", ok: true, tools: 3 }] })} />);
+    const status = screen.getAllByRole("status").find((el) => el.querySelector(".pvs-probe"));
+    expect(status).toHaveTextContent("other 3 tools");
+    // the button (whose label flips) must stay outside the live region
+    expect(status).not.toContainElement(screen.getByRole("button", { name: "Check doors" }));
+    expect(screen.getByRole("button", { name: "Check doors" }).closest(".pvs-doorcheck")).not.toHaveAttribute("role");
+  });
+
+  it("says when there are no other doors", () => {
+    render(<View session={withRouting({ preflight: [] })} />);
+    expect(screen.getByText("No other doors to probe. The selected door is skipped; add a preset for another one.")).toBeInTheDocument();
+  });
+
+  it("shows a probe error as an alert", () => {
+    render(<View session={withRouting({ preflightError: "Not authenticated." })} />);
+    expect(screen.getByRole("alert")).toHaveTextContent("Not authenticated.");
+  });
+
+  it("shows nothing extra when there is no result and no error", () => {
+    render(<View session={withRouting({})} />);
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByText(/No other doors/)).toBeNull();
+  });
+});
+
+describe("ShellRoutingTree Check doors", () => {
+  const OTHER = "https://gw.example/privilege-gateway/other/mcp";
+  const withRouting = (r, extra = {}) => makeSession({ ...extra, routing: { ...makeSession().routing, ...r } });
+
+  it("calls probeDoors and disables while busy, thinking or probing", () => {
+    const session = makeSession();
+    const { rerender } = render(<ShellRoutingTree session={session} />);
+    fireEvent.click(screen.getByRole("button", { name: "Check doors" }));
+    expect(session.probeDoors).toHaveBeenCalled();
+    rerender(<ShellRoutingTree session={withRouting({}, { busy: true })} />);
+    expect(screen.getByRole("button", { name: "Check doors" })).toBeDisabled();
+    rerender(<ShellRoutingTree session={withRouting({}, { thinking: true })} />);
+    expect(screen.getByRole("button", { name: "Check doors" })).toBeDisabled();
+    rerender(<ShellRoutingTree session={withRouting({ preflightBusy: true })} />);
+    expect(screen.getByRole("button", { name: "Probing…" })).toBeDisabled();
+  });
+
+  it("marks probed doors with a title and leaves others unmarked", () => {
+    render(<ShellRoutingTree session={withRouting({ preflight: [{ url: OTHER, ok: false, status: 401, error: "Unauthorized" }] })} />);
+    const group = screen.getByRole("group", { name: "MCP backend (door)" });
+    const other = within(group).getByRole("button", { name: /other/ });
+    expect(other).toHaveTextContent("❌ other");
+    expect(other).toHaveAttribute("title", "401 Unauthorized");
+    expect(within(group).getByRole("button", { name: "banking" })).not.toHaveAttribute("title");
+  });
+
+  it("shows the empty-result and error notes", () => {
+    render(<ShellRoutingTree session={withRouting({ preflight: [], preflightError: "Not authenticated." })} />);
+    expect(screen.getByText(/No other doors to probe/)).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("Not authenticated.");
+  });
+
+  it("announces the empty note in a status region that excludes the alert and the button", () => {
+    render(<ShellRoutingTree session={withRouting({ preflight: [], preflightError: "Not authenticated." })} />);
+    const status = screen.getByText(/No other doors to probe/).closest('[role="status"]');
+    expect(status).not.toBeNull();
+    expect(status).not.toContainElement(screen.getByRole("alert"));
+    expect(status).not.toContainElement(screen.getByRole("button", { name: "Check doors" }));
   });
 });
