@@ -6,6 +6,7 @@ import apiClient from "../services/apiClient";
 import { comprehensiveShutdown, getAgents } from "../services/controlPlaneApi";
 import ControlPlaneDemoGuideModal from "./ControlPlaneDemoGuideModal";
 import "./ControlPlaneRoster.css";
+import InlineSpinner from './shared/InlineSpinner';
 
 const nowStamp = () => new Date().toLocaleTimeString();
 
@@ -203,7 +204,7 @@ export default function ControlPlaneRoster({ openKillSwitchModal }) {
             );
           })()
         ) : (
-          <div className="cp-row"><div className="cp-name">Loading roster…</div></div>
+          <div className="cp-row"><div className="cp-name"><InlineSpinner label="Loading roster…" /></div></div>
         )}
       </div>
 

@@ -7,6 +7,7 @@ import {
 import Check from './common/Check';
 import { useThemeOptional } from '../context/ThemeContext';
 import './AgentBuilderPage.css';
+import InlineSpinner from './shared/InlineSpinner';
 
 /**
  * AgentBuilderPage — /agent-builder (any logged-in user).
@@ -97,7 +98,7 @@ export default function AgentBuilderPage() {
     scopes: form.scopes.split(',').map((s) => s.trim()).filter(Boolean),
   }).then(() => setForm({ name: '', audience: '', scopes: 'read, write, admin' })));
 
-  if (loading) return <div className="ab-page"><div className="ab-loading">Loading PingOne Agent Builder…</div></div>;
+  if (loading) return <div className="ab-page"><div className="ab-loading"><InlineSpinner label="Loading PingOne Agent Builder…" /></div></div>;
   if (!state) return <div className="ab-page"><div className="ab-error">{agentError || 'Failed to load.'}</div></div>;
 
   const { user, agent, resources } = state;

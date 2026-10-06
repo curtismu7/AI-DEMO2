@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import bffAxios from '../../services/bffAxios';
 import './SupportQueueRail.css';
+import InlineSpinner from '../shared/InlineSpinner';
 
 // Open work for this vertical, derived on the server from the same records the
 // console shows. Selecting a row hands its customer query back to the console,
@@ -39,7 +40,7 @@ export default function SupportQueueRail({ vertical, onSelect }) {
         {state === 'ready' && <span className="squeue__count">{rows.length}</span>}
       </div>
 
-      {state === 'loading' && <div className="squeue__note">Loading…</div>}
+      {state === 'loading' && <div className="squeue__note"><InlineSpinner label="Loading…" /></div>}
 
       {state === 'error' && (
         <div className="squeue__note">

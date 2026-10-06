@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import apiClient from "../../services/apiClient";
+import InlineSpinner from '../../components/shared/InlineSpinner';
 
 // Hand-maintained snapshot of the demo's agent → MCP-tool access surface — no
 // live endpoint aggregates these; see the "Agentic Access Console" TECH_DEBT.md entry.
@@ -185,7 +186,7 @@ export default function DashboardSection() {
           <div className="aac-card"><div className="aac-card-body">No recorded decisions for the configured endpoint yet.</div></div>
         )}
         {decisionsState === "loading" && (
-          <div className="aac-card"><div className="aac-card-body">Loading…</div></div>
+          <div className="aac-card"><div className="aac-card-body"><InlineSpinner label="Loading…" /></div></div>
         )}
       </div>
     </div>

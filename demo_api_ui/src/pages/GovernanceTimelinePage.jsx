@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import './GovernanceTimelinePage.css';
+import InlineSpinner from '../components/shared/InlineSpinner';
 
 const LANES = [
   { id: 'all', label: 'All activity' },
@@ -92,7 +93,7 @@ export default function GovernanceTimelinePage() {
       </nav>
 
       <section className="governance-timeline-page__timeline" aria-live="polite">
-        {loading && <p className="governance-timeline-page__empty">Loading governance evidence…</p>}
+        {loading && <p className="governance-timeline-page__empty"><InlineSpinner label="Loading governance evidence…" /></p>}
         {!loading && filteredEvents.length === 0 && (
           <p className="governance-timeline-page__empty">No evidence is available for this lane yet.</p>
         )}

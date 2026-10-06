@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import DraggableModal from "../components/DraggableModal";
 import "./CibaApprovalPage.css";
+import InlineSpinner from '../components/shared/InlineSpinner';
 
 // Local CIBA simulation approval page. Opened in a new tab by
 // AIAgent.js only for an explicitly simulated request, sharing the session cookie —
@@ -199,7 +200,7 @@ export default function CibaApprovalPage() {
         zIndex={100100}
       >
         <div className="dm-scroll">
-          {status === "loading" && <div>Loading approval request…</div>}
+          {status === "loading" && <div><InlineSpinner label="Loading approval request…" /></div>}
 
           {/* Expiry is terminal for THIS request — the BFF deletes it, so
               retrying here cannot help. Say where a new one comes from instead

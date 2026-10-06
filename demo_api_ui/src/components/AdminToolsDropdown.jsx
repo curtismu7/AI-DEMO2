@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import FloatingPanel from './FloatingPanel';
 import apiClient from '../services/apiClient';
+import InlineSpinner from './shared/InlineSpinner';
 
 /**
  * @param {object} props
@@ -88,7 +89,7 @@ export default function AdminToolsDropdown({ open = false, onOpenChange, onSelec
           onClose={() => onOpenChange(false)}
           className="ba-admin-tools-float"
         >
-          {loading && <p className="ba-demo-steps-popout__status">Loading…</p>}
+          {loading && <p className="ba-demo-steps-popout__status"><InlineSpinner label="Loading…" /></p>}
           {error && (
             <p className="ba-demo-steps-popout__status ba-demo-steps-popout__status--error">
               {error}

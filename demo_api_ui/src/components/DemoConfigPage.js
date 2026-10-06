@@ -4,6 +4,7 @@ import "../styles/appShellPages.css";
 import "./DemoConfigPage.css";
 import { NAV_STRUCTURE_CATALOG, applyChildOrder } from "../config/navStructureCatalog";
 import { NAV_PAGE_PATHS } from "../config/navPagePaths";
+import InlineSpinner from './shared/InlineSpinner';
 
 const SECTION_GROUPS = [
   { label: "Core navigation", groups: ["Home", "Security Dashboard", "Skin Studio"] },
@@ -459,7 +460,7 @@ export default function DemoConfigPage() {
       {toast && <div className="dc-toast">✅ {toast}</div>}
 
       {loading ? (
-        <div className="dc-loading">Loading…</div>
+        <div className="dc-loading"><InlineSpinner label="Loading…" /></div>
       ) : (
         <div className="dc-layout" style={{ "--dc-rail-w": `${railWidth}px` }}>
           <section className="dc-panel">

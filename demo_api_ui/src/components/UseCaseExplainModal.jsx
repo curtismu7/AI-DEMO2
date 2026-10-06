@@ -6,6 +6,7 @@ import { isA2aUseCase, extractA2aFacts } from '../utils/a2aFacts';
 import { DEMO_STEP_GUIDES } from '../config/demoStepGuides';
 import { stepLabel } from '../config/demoStepNumbers';
 import './UseCaseExplainModal.css';
+import InlineSpinner from './shared/InlineSpinner';
 
 const PRODUCT_ORDER = ['idp', 'mfa', 'gw', 'authz', 'protect'];
 
@@ -52,7 +53,7 @@ function SectionHead({ num, children }) {
 
 function AuthzRulesSection({ rules, loading, a2a }) {
   if (loading) {
-    return <div className="ucem__live ucem__live--loading">Loading rules...</div>;
+    return <div className="ucem__live ucem__live--loading"><InlineSpinner label="Loading rules..." /></div>;
   }
   const live = rules && Array.isArray(rules.rules) && rules.rules.length > 0 ? rules : null;
   const fallback = a2a ? A2A_FALLBACK_RULES : null;
@@ -80,7 +81,7 @@ function AuthzRulesSection({ rules, loading, a2a }) {
 
 function GatewaySection({ topology, tool, loading }) {
   if (loading) {
-    return <div className="ucem__live ucem__live--loading">Loading gateway config...</div>;
+    return <div className="ucem__live ucem__live--loading"><InlineSpinner label="Loading gateway config..." /></div>;
   }
   if (!tool || !topology || !topology.found) {
     return <div className="ucem__live ucem__live--empty">No gateway route data for this tool.</div>;

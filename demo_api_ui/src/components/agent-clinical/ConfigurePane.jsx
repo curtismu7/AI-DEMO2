@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import AuthorizeRulesPanel from '../AuthorizeRulesPanel';
+import InlineSpinner from '../shared/InlineSpinner';
 
 /**
  * ConfigurePane — Phase 5: runtime configuration under the Configure tab.
@@ -66,7 +67,7 @@ export default function ConfigurePane() {
           </div>
         )}
         {!runtime && !runtimeErr && (
-          <div className="ac-runtime-empty">Loading runtime status…</div>
+          <div className="ac-runtime-empty"><InlineSpinner label="Loading runtime status…" /></div>
         )}
         {runtime && (
           <dl className="ac-runtime-card">

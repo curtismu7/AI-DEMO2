@@ -1,5 +1,6 @@
 import React from 'react';
 import styles from './AgentGreetingHero.module.css';
+import InlineSpinner from './shared/InlineSpinner';
 
 /**
  * AgentGreetingHero — the chat surface's landing banner: the active vertical's
@@ -24,7 +25,7 @@ export default function AgentGreetingHero({ greeting, imageUrl, isLoading }) {
       <div className={styles.heroOverlay} />
       <div className={styles.heroContent}>
         <p className={styles.heroText}>{greeting}</p>
-        {isLoading && <p className={styles.loadingText}>Loading conversation...</p>}
+        {isLoading && <p className={styles.loadingText}><InlineSpinner label="Loading conversation..." /></p>}
       </div>
     </div>
   );

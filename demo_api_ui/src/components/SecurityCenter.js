@@ -9,6 +9,7 @@ import { describePasskeyRegistrationError } from '../utils/mfaEnrollment';
 import { COUNTRY_CODES, DEFAULT_COUNTRY_CODE, composePhone } from '../utils/countryCodes';
 import { useThemeOptional } from '../context/ThemeContext';
 import './SecurityCenter.css';
+import InlineSpinner from './shared/InlineSpinner';
 
 function deviceTypeLabel(type) {
   const map = {
@@ -532,7 +533,7 @@ function SecurityCenterContent({ user }) {
     return (
       <div>
         <h3 style={{ marginTop: 0 }}>MFA Devices</h3>
-        {loading && <p className="demo-unavailable">Loading devices...</p>}
+        {loading && <p className="demo-unavailable"><InlineSpinner label="Loading devices..." /></p>}
         {fetchError && needsSignIn && <SignInPrompt message="Sign in to view and manage your MFA devices." />}
         {fetchError && !needsSignIn && <p className="sc-error-text">{fetchError}</p>}
         {!loading && !fetchError && devices !== null && (
@@ -753,7 +754,7 @@ function SecurityCenterContent({ user }) {
         <h3 style={{ marginTop: 0 }}>Sessions</h3>
         {sessionError && <p className="sc-error-text">{sessionError}</p>}
         {!sessionError && session === null && (
-          <p className="demo-unavailable">Loading session...</p>
+          <p className="demo-unavailable"><InlineSpinner label="Loading session..." /></p>
         )}
         {!sessionError && session !== null && (
           <>

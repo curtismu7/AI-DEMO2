@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import './OpikTracePanel.css';
+import InlineSpinner from './shared/InlineSpinner';
 
 /**
  * Trace tab of the embedded agent: Opik stats, recent traces and a span
@@ -130,7 +131,7 @@ export default function OpikTracePanel() {
         </div>
       </div>
 
-      {status === 'loading' && <p className="opik-note" role="status">Loading traces…</p>}
+      {status === 'loading' && <p className="opik-note"><InlineSpinner label="Loading traces…" /></p>}
       {status === 'disabled' && (
         <p className="opik-note" role="status">
           Opik tracing is not configured. Set <code>OPIK_API_KEY</code> for the langchain agent to see traces here.
@@ -199,7 +200,7 @@ export default function OpikTracePanel() {
                   </span>
                 </h4>
                 {spansError && <p className="opik-note opik-note--err" role="alert">Could not load spans for this trace.</p>}
-                {!spansError && !spans && selected && <p className="opik-note" role="status">Loading spans…</p>}
+                {!spansError && !spans && selected && <p className="opik-note"><InlineSpinner label="Loading spans…" /></p>}
                 {spans && spans.spans.length === 0 && <p className="opik-note">This trace has no spans.</p>}
                 {spans && spans.spans.length > 0 && <Waterfall data={spans} />}
               </div>

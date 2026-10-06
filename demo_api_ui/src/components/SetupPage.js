@@ -6,6 +6,7 @@ import SetupStepVerify from './SetupStepVerify';
 import apiClient from '../services/apiClient';
 import { DEFAULT_STEP_UP_ACR_VALUE } from '../config/setupDefaults';
 import './SetupPage.css';
+import InlineSpinner from './shared/InlineSpinner';
 
 const STEPS = [
   { n: 1, label: 'PingOne Credentials' },
@@ -122,7 +123,7 @@ export default function SetupPage() {
     }
   }, []);
 
-  if (loadingState) return <div style={{ padding: '2rem', fontSize: '0.9rem', color: '#6b7280' }}>Loading setup state…</div>;
+  if (loadingState) return <div style={{ padding: '2rem', fontSize: '0.9rem', color: '#6b7280' }}><InlineSpinner label="Loading setup state…" /></div>;
 
   return (
     <div className="setup-page">

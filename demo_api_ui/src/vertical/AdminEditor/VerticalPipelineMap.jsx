@@ -11,6 +11,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import bffAxios from '../../services/bffAxios';
 import './VerticalPipelineMap.css';
+import InlineSpinner from '../../components/shared/InlineSpinner';
 
 // ── Node colours per pipeline stage — literal, not --th-*, see .css header ──
 const STAGE_COLORS = {
@@ -235,7 +236,7 @@ export function VerticalPipelineMap() {
     if (pipeline.length > 0) checkAllChips(pipeline);
   }, [pipeline, checkAllChips]);
 
-  if (loading) return <div className="vpm-loading">Loading pipeline map…</div>;
+  if (loading) return <div className="vpm-loading"><InlineSpinner label="Loading pipeline map…" /></div>;
   if (error) return <div className="vpm-error">Error: {error}</div>;
 
   return (

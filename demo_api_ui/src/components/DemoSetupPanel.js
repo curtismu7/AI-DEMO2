@@ -15,6 +15,7 @@ import { useVertical } from '../vertical/useVertical';
 import VerticalSwitcher from './VerticalSwitcher';
 import PingOneAudit from './PingOneAudit';
 import './DemoDataPage.css';
+import InlineSpinner from './shared/InlineSpinner';
 
 const AGENT_AUTH_DEMO_STORAGE_KEY = 'bx-agent-auth-demo-mode';
 const AGENT_AUTH_DEMO = {
@@ -564,7 +565,7 @@ export default function DemoSetupPanel() {
 
       {/* ── Account + profile form ──────────────────────────────────────────── */}
       {loading ? (
-        <section className="section"><p className="demo-data-loading">Loading…</p></section>
+        <section className="section"><p className="demo-data-loading"><InlineSpinner label="Loading…" /></p></section>
       ) : (
         <>
         <form className="demo-data-form" onSubmit={handleSubmit}>

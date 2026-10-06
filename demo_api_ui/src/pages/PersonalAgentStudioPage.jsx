@@ -9,6 +9,7 @@ import SecurityRail from '../components/SecurityRail';
 import TokenChainFilmstrip from '../components/TokenChainFilmstrip';
 import { useTokenChainOptional } from '../context/TokenChainContext';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
+import InlineSpinner from '../components/shared/InlineSpinner';
 
 const SKINS = ['privilege', 'claude', 'claude-terminal', 'gpt', 'gemini'];
 const SKIN_LABELS = { privilege: 'Privilege', claude: 'Claude', 'claude-terminal': 'Terminal', gpt: 'ChatGPT', gemini: 'Gemini' };
@@ -251,7 +252,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
       {catalogLoadError === routeContextKey ? <>
         <p role="alert">The catalog action could not be loaded. Retry {routeId} for {vertical}, or choose another scenario or vertical.</p>
         <button type="button" onClick={() => setCatalogLoadAttempt((attempt) => attempt + 1)}>Retry loading {routeId}</button>
-      </> : <p role="status">Loading {routeId} action for {vertical}…</p>}
+      </> : <p><InlineSpinner label={`Loading ${routeId} action for ${vertical}…`} /></p>}
     </div>
   );
 

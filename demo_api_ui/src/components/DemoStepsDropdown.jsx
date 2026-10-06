@@ -37,6 +37,7 @@ import {
   getCompletedUseCaseIds,
   BX_UC_PROGRESS_EVENT,
 } from '../utils/useCaseDemoProgress';
+import InlineSpinner from './shared/InlineSpinner';
 
 const RAR_QUICK_RESULT_KEY = 'rar_intent_quick_result';
 const DEMO_STEPS_DRAWER_OPEN_KEY = 'demo_steps_drawer_open_v1';
@@ -798,7 +799,7 @@ export default function DemoStepsDropdown({
             </div>
           </div>
           {loading && (
-            <p className="ba-demo-steps-popout__status">Loading…</p>
+            <p className="ba-demo-steps-popout__status"><InlineSpinner label="Loading…" /></p>
           )}
           {error && (
             <p className="ba-demo-steps-popout__status ba-demo-steps-popout__status--error">

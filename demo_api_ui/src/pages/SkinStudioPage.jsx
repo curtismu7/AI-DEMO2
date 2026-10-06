@@ -13,6 +13,7 @@ import { useVertical } from '../vertical/useVertical';
 import { useThemeOptional } from '../context/ThemeContext';
 import { cssVarsFromBrand } from '../config/themeZones';
 import './SkinStudioPage.css';
+import InlineSpinner from '../components/shared/InlineSpinner';
 
 const ID_REGEX = /^[a-z][a-z0-9-]*$/;
 
@@ -129,7 +130,7 @@ export default function SkinStudioPage() {
         live; logo and duplicate take effect immediately after save.
       </p>
 
-      {verticals === null && <div className="ss-empty">Loading verticals…</div>}
+      {verticals === null && <div className="ss-empty"><InlineSpinner label="Loading verticals…" /></div>}
       {verticals && verticals.length === 0 && <div className="ss-empty">No verticals available.</div>}
 
       {verticals && verticals.length > 0 && (

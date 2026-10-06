@@ -17,6 +17,7 @@ import bffAxios from "../services/bffAxios";
 import TokenChainTraceRail from "./TokenChainTraceRail";
 import "./AccessIdTokenPathPage.css";
 import SignInPrompt from "./SignInPrompt";
+import InlineSpinner from './shared/InlineSpinner';
 
 function ClaimsList({ title, claims }) {
   if (!claims || Object.keys(claims).length === 0) {
@@ -102,7 +103,7 @@ export default function AccessIdTokenPathPage() {
   if (!data) {
     return (
       <div className="aitp-container">
-        <div className="aitp-loading">Loading...</div>
+        <div className="aitp-loading"><InlineSpinner label="Loading..." /></div>
       </div>
     );
   }

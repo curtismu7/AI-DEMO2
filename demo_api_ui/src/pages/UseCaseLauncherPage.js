@@ -51,6 +51,7 @@ import {
 } from '../config/demoUseCaseSteps';
 import { allRelatedUCIds as allAgentGatewayUCIds } from '../config/capabilityLedgers/agentGatewayCapabilities';
 import { allRelatedUCIds as allPingOneAuthorizeUCIds } from '../config/capabilityLedgers/pingOneAuthorizeCapabilities';
+import InlineSpinner from '../components/shared/InlineSpinner';
 
 const TRACK_ORDER = ['foundations', 'demo', 'attacks', 'hitl', 'controls', 'nhi', 'learn', 'tools'];
 const TRACK_LABELS = {
@@ -1002,7 +1003,7 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
   if (loading) {
     return (
       <div className="uc-launcher">
-        <div className="uc-launcher__loading">Loading use cases...</div>
+        <div className="uc-launcher__loading"><InlineSpinner label="Loading use cases..." /></div>
       </div>
     );
   }

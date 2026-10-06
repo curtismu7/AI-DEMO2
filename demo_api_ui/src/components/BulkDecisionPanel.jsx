@@ -16,6 +16,7 @@ import InspectorShell from './shared/InspectorShell';
 import InspectorListItem from './shared/InspectorListItem';
 import InspectorTabs from './shared/InspectorTabs';
 import { BULK_DECISION_BUNDLES, findBulkDecisionBundle } from '../config/bulkDecisionBundles';
+import InlineSpinner from './shared/InlineSpinner';
 
 const MAX_ITEMS = 20;
 
@@ -187,7 +188,7 @@ export default function BulkDecisionPanel() {
         <div className="inspector-shell-field">
           <label>Decision endpoint<span className="req">*</span></label>
           {loadingEndpoints ? (
-            <div className="inspector-shell-form-empty">Loading endpoints…</div>
+            <div className="inspector-shell-form-empty"><InlineSpinner label="Loading endpoints…" /></div>
           ) : endpoints.length === 0 ? (
             <div className="inspector-shell-form-empty">No decision endpoints found in this environment.</div>
           ) : (

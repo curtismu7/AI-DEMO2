@@ -17,6 +17,7 @@
 import React, { useEffect, useState } from 'react';
 import apiClient from '../services/apiClient';
 import TokenChainEventCard from './ProtocolPlayground/TokenChainEventCard';
+import InlineSpinner from './shared/InlineSpinner';
 
 /** Group raw AG-UI events into one card per logical step (run/message/tool-call). */
 function projectAguiEventsToCards(events) {
@@ -180,7 +181,7 @@ export default function AgentRunTimeline({ run }) {
   }, [run]);
 
   if (state.loading) {
-    return <div className="agent-run-timeline-empty">Loading run…</div>;
+    return <div className="agent-run-timeline-empty"><InlineSpinner label="Loading run…" /></div>;
   }
   if (state.error) {
     return <div className="agent-run-timeline-empty agent-run-timeline-error">{state.error}</div>;

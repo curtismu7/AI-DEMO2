@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import apiClient from '../../services/apiClient';
+import InlineSpinner from '../shared/InlineSpinner';
 
 const BASE = '/api/privilege-user-api-keys';
 const READ_CONFIG = { _skipTrafficCapture: true };
@@ -122,7 +123,7 @@ export default function PrivilegeUserApiKeysPanel() {
       {notice && <p role="status">{notice}</p>}
       <section aria-label="Vault credentials" className="cur-user-api__section">
         <h4>Vault credentials</h4>
-        {loading ? <p role="status">Loading vault status…</p> : vault && (
+        {loading ? <p><InlineSpinner label="Loading vault status…" /></p> : vault && (
           <dl className="cur-user-api__vault">
             <div><dt>API key</dt><dd>{vault.apiKeySet ? preview(vault.apiKeyPreview) : 'Missing: PRIVILEGE_USER_API_KEY'}</dd></div>
             <div><dt>API secret</dt><dd>{vault.apiSecretSet ? preview(vault.apiSecretPreview) : 'Missing: PRIVILEGE_USER_API_SECRET'}</dd></div>

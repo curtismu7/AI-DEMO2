@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import bffAxios from '../services/bffAxios';
+import InlineSpinner from './shared/InlineSpinner';
 
 export default function OAuthHealthDashboard() {
   const [healthInfo, setHealthInfo] = useState(null);
@@ -51,7 +52,7 @@ export default function OAuthHealthDashboard() {
     return <span style={{ color: colors[status] }}>{icons[status]}</span>;
   };
 
-  if (loading) return <div style={{ fontSize: 13, color: '#6b7280' }}>Loading...</div>;
+  if (loading) return <div style={{ fontSize: 13, color: '#6b7280' }}><InlineSpinner label="Loading..." /></div>;
   if (error) return <div style={{ fontSize: 13, color: '#dc2626' }}>Error: {error}</div>;
   if (!healthInfo) return null;
 

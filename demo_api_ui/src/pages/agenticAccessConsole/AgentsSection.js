@@ -6,6 +6,7 @@ import {
   fetchA2aSpecialistRegistry,
   specialistRoleLabel,
 } from "../../services/a2aSpecialistRegistry";
+import InlineSpinner from '../../components/shared/InlineSpinner';
 
 const AGENTS = [
   {
@@ -67,7 +68,7 @@ function SpecialistsPanel({ specialists, loading, error }) {
           </tbody>
         </table>
       </div>
-      {loading && <p className="aac-card-sub">Loading specialist registry…</p>}
+      {loading && <p className="aac-card-sub"><InlineSpinner label="Loading specialist registry…" /></p>}
       {error && <p className="aac-card-sub">Specialist registry unavailable.</p>}
     </div>
   );

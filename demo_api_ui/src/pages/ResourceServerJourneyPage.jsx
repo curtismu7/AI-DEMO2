@@ -4,6 +4,7 @@ import bffAxios from '../services/bffAxios';
 import SignInPrompt from '../components/SignInPrompt';
 import { SERVERS } from '../components/ResourceServerInterstitial';
 import './ResourceServerJourneyPage.css';
+import InlineSpinner from '../components/shared/InlineSpinner';
 
 const RS_META = {
   olb: { badge: 'MCP SERVER (OLB)', badgeClass: 'rsj-badge--olb', subtitle: ':8080 • WebSocket • RFC 8693' },
@@ -313,7 +314,7 @@ export default function ResourceServerJourneyPage() {
               {rsType === 'apikey' ? 'Credential Swap' : 'Token Presented'}
             </h3>
             {loading ? (
-              <div className="rsj-loading">Loading...</div>
+              <div className="rsj-loading"><InlineSpinner label="Loading..." /></div>
             ) : rsType === 'apikey' ? (
               <div className="rsj-claims">
                 <ClaimRow k="in" v="Bearer eyJhbG..." />
@@ -342,7 +343,7 @@ export default function ResourceServerJourneyPage() {
               {vertical ? `${vertical.charAt(0).toUpperCase() + vertical.slice(1)} — Data Returned` : 'Data Returned'}
             </h3>
             {loading ? (
-              <div className="rsj-loading">Loading...</div>
+              <div className="rsj-loading"><InlineSpinner label="Loading..." /></div>
             ) : rsType === 'apikey' && verticalData ? (
               <VerticalCards vertical={vertical} data={verticalData} />
             ) : rsType === 'invest' ? (

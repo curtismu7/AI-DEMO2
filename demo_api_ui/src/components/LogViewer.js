@@ -18,6 +18,7 @@ import {
 } from '../utils/learningLogColors';
 import './LogViewer.css';
 import './LearningLogLearnPane.css';
+import InlineSpinner from './shared/InlineSpinner';
 
 /** Stable React key + dedup across sources (id from server when present). */
 function stableLogKey(log) {
@@ -532,7 +533,7 @@ const LogViewer = ({ isOpen, onClose, standalone = false, categoryFilter = '', i
                 }
                 return loading && displayedLogs.length === 0 && filter.category !== 'toast messages' ? (
                 <tr>
-                  <td colSpan="5" className="loading-cell">Loading logs...</td>
+                  <td colSpan="5" className="loading-cell"><InlineSpinner label="Loading logs..." /></td>
                 </tr>
               ) : displayedLogs.length === 0 ? (
                 <tr>

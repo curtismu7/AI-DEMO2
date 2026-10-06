@@ -15,6 +15,7 @@ import {
   signInAndCreateClient,
 } from "../copilot/copilotClient";
 import "./CopilotAgent.css";
+import InlineSpinner from './shared/InlineSpinner';
 
 export default function CopilotAgent() {
   const [cfg, setCfg] = useState(null);
@@ -94,7 +95,7 @@ export default function CopilotAgent() {
   };
 
   if (!cfgLoaded) {
-    return <div className="copilot-surface copilot-empty">Loading…</div>;
+    return <div className="copilot-surface copilot-empty"><InlineSpinner label="Loading…" /></div>;
   }
 
   if (cfgError) {

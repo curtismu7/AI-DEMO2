@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useThemeOptional } from '../../context/ThemeContext';
 import './dashboard.css';
+import InlineSpinner from '../shared/InlineSpinner';
 
 // No lodash — this is the entire debounce. Typing resets the timer; only the
 // value left standing SEARCH_DEBOUNCE_MS after the last keystroke is sent up.
@@ -93,7 +94,7 @@ export default function DashboardShell({
       </div>
 
       {state === 'loading' && (
-        <div className="dash-msg" role="status">Loading…</div>
+        <div className="dash-msg"><InlineSpinner label="Loading…" /></div>
       )}
 
       {state === 'unconfigured' && (

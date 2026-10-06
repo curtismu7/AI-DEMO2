@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { buildGraph, buildCollapsedGraph } from "../services/traceGraph";
 import { renderTraceGraph } from "../services/traceGraphRender";
+import InlineSpinner from './shared/InlineSpinner';
 
 /**
  * Interactive D3 service graph for whatever raw Jaeger payload `rawUrl`
@@ -51,7 +52,7 @@ export default function TraceGraphCore({ rawUrl, refreshKey }) {
   }, [raw, collapsed]);
 
   if (error) return <div className="tracing-detail tracing-detail--msg tracing-detail--error">{error}</div>;
-  if (!raw) return <div className="tracing-detail tracing-detail--msg">Loading graph…</div>;
+  if (!raw) return <div className="tracing-detail tracing-detail--msg"><InlineSpinner label="Loading graph…" /></div>;
 
   return (
     <div className="tracing-graph">

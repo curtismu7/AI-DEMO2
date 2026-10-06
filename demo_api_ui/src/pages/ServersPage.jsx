@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import "./ServersPage.css";
+import InlineSpinner from '../components/shared/InlineSpinner';
 
 // Live server inventory — renders GET /api/health/inventory (all compose
 // services + host llama tiers). Data source of truth: docs/server-inventory-sot.md
@@ -154,7 +155,7 @@ export default function ServersPage() {
       )}
 
       {loading && services.length === 0 ? (
-        <div className="servers-loading">Loading inventory…</div>
+        <div className="servers-loading"><InlineSpinner label="Loading inventory…" /></div>
       ) : (
         CATEGORY_ORDER.map((cat) => {
           const rows = services.filter((s) => s.category === cat);

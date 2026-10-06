@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import apiClient from "../../services/apiClient";
 import ExpandableRow from "./ExpandableRow";
+import InlineSpinner from '../../components/shared/InlineSpinner';
 
 const POLICY_RULES = [
   { rule: "Deny Large Transactions", condition: "amount > $2,000", outcome: "DENY" },
@@ -199,7 +200,7 @@ export default function PoliciesSection() {
               <div className="aac-card"><div className="aac-card-body">No recorded decisions for the configured endpoint yet.</div></div>
             )}
             {decisionsState === "loading" && (
-              <div className="aac-card"><div className="aac-card-body">Loading…</div></div>
+              <div className="aac-card"><div className="aac-card-body"><InlineSpinner label="Loading…" /></div></div>
             )}
           </>
         ) : (

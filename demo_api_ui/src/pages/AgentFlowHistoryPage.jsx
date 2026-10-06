@@ -12,6 +12,7 @@ import AgentRunTimeline from '../components/AgentRunTimeline';
 import useDividerDrag from '../hooks/useDividerDrag';
 import { useThemeOptional } from '../context/ThemeContext';
 import './AgentFlowHistoryPage.css';
+import InlineSpinner from '../components/shared/InlineSpinner';
 
 const PAGE_TITLE = 'Agent & Token Flow History';
 
@@ -108,7 +109,7 @@ export default function AgentFlowHistoryPage() {
 
       <div className="afh-body" style={{ '--afh-sidebar-w': `${sidebarWidth}px` }}>
         <aside className="afh-sidebar" aria-label="Run history">
-          {runs === null && <div className="afh-sidebar-empty">Loading runs…</div>}
+          {runs === null && <div className="afh-sidebar-empty"><InlineSpinner label="Loading runs…" /></div>}
           {loadError && (
             <div className="afh-sidebar-empty afh-sidebar-error">
               {loadError}{' '}

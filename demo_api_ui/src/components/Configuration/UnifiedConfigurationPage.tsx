@@ -28,6 +28,7 @@ import AuthorizeRulesPanel from "../AuthorizeRulesPanel";
 import MigrationPanel from "../MigrationPanel";
 import CustomChipsTab from "../CustomChipsTab";
 import OAuthHealthDashboard from "../OAuthHealthDashboard";
+import InlineSpinner from '../shared/InlineSpinner';
 
 // ── Tab SVG icons (1.75px stroke, consistent with LandingPage icon set) ──────
 const TabIcons = {
@@ -3484,7 +3485,7 @@ const UnifiedConfigurationPage: FC<{
       if (flagsLoading)
         return (
           <div className="cfg-section">
-            <p className="cfg-section-desc">Loading flags…</p>
+            <p className="cfg-section-desc"><InlineSpinner label="Loading flags…" /></p>
           </div>
         );
       if (flagsError)

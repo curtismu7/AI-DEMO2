@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { MdCheckCircle, MdCancel, MdWarning } from 'react-icons/md';
 import bffAxios from '../services/bffAxios';
 import JsonHighlight from './shared/JsonHighlight';
+import InlineSpinner from './shared/InlineSpinner';
 
 // ---------------------------------------------------------------------------
 // Shared styles
@@ -496,7 +497,7 @@ export default function MockAuthzRulesPage() {
       .catch(() => {});
   }, []);
 
-  if (loading) return <div style={{ padding: '40px', color: '#64748b', fontSize: '14px' }}>Loading rules…</div>;
+  if (loading) return <div style={{ padding: '40px', color: '#64748b', fontSize: '14px' }}><InlineSpinner label="Loading rules…" /></div>;
 
   return (
     <div style={S.root}>

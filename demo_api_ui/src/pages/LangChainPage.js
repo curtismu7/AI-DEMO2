@@ -2,6 +2,7 @@
 // /langchain — LangChain agent runtime + current brain/framework inventory
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import InlineSpinner from '../components/shared/InlineSpinner';
 
 const LCEL_CODE = `# LangChain / LangGraph agent — tools via BFF (AG-UI)
 from langgraph.prebuilt import create_react_agent
@@ -169,7 +170,7 @@ export default function LangChainPage() {
               )}
             </span>
           ) : (
-            <span style={{ color: "#374151" }}>Loading…</span>
+            <span style={{ color: "#374151" }}><InlineSpinner label="Loading…" /></span>
           )}
         </div>
         <div style={{ marginLeft: "auto", fontSize: 12 }}>

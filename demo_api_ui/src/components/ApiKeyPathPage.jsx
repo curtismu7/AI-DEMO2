@@ -12,6 +12,7 @@ import { useNavigate } from "react-router-dom";
 import bffAxios from "../services/bffAxios";
 import TokenChainTraceRail from "./TokenChainTraceRail";
 import "./ApiKeyPathPage.css";
+import InlineSpinner from './shared/InlineSpinner';
 
 export default function ApiKeyPathPage() {
   const navigate = useNavigate();
@@ -49,7 +50,7 @@ export default function ApiKeyPathPage() {
   if (!data) {
     return (
       <div className="akp-container">
-        <div className="akp-loading">Loading...</div>
+        <div className="akp-loading"><InlineSpinner label="Loading..." /></div>
       </div>
     );
   }

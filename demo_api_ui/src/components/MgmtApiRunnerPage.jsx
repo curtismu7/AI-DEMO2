@@ -12,6 +12,7 @@ import InspectorTabs from './shared/InspectorTabs';
 import InspectorListItem from './shared/InspectorListItem';
 import JsonHighlight from './shared/JsonHighlight';
 import './shared/InspectorShell.css';
+import InlineSpinner from './shared/InlineSpinner';
 
 const OPERATIONS_URL = '/api/admin/mgmt-api/operations';
 const RUN_URL = '/api/admin/mgmt-api/run';
@@ -177,7 +178,7 @@ export default function MgmtApiRunnerPage() {
           <div className="inspector-shell-tree-header"><span>Operations ({operations.length})</span></div>
           <div className="inspector-shell-tree-body">
             {opsLoading ? (
-              <div style={{ padding: '20px 16px', color: '#64748b', fontSize: 13 }}>Loading…</div>
+              <div style={{ padding: '20px 16px', color: '#64748b', fontSize: 13 }}><InlineSpinner label="Loading…" /></div>
             ) : opsError ? (
               <div style={{ padding: '20px 16px', color: '#991b1b', fontSize: 13 }}>⚠️ {opsError}</div>
             ) : groups.length === 0 ? (

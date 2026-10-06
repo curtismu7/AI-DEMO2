@@ -336,7 +336,7 @@ describe('LiveUseCaseWorkbenchPage — token chain focus', () => {
 
   it('exposes a polite live region that is empty before a run', () => {
     const { container } = render(<LiveUseCaseWorkbenchPage />);
-    const live = container.querySelector('[aria-live="polite"]');
+    const live = container.querySelector('.luw-sr-only[aria-live="polite"]');
     expect(live).not.toBeNull();
     expect(live).toHaveTextContent('');
   });
@@ -355,13 +355,13 @@ describe('LiveUseCaseWorkbenchPage — rail focus on a settled verdict', () => {
     const { container } = render(<LiveUseCaseWorkbenchPage />);
     expect(container.querySelector('.luw-run-layout'))
       .toHaveClass('luw-run-layout--rail-focus');
-    expect(container.querySelector('[aria-live="polite"]')).toHaveTextContent(/Run complete/i);
+    expect(container.querySelector('.luw-sr-only[aria-live="polite"]')).toHaveTextContent(/Run complete/i);
   });
 
   it('does not claim a match when the verdict is incomplete', () => {
     mockProof.verdict = { useCaseId: 'uc1', title: 'x', state: 'incomplete', matchedSteps: [], missingSteps: ['authorize-decision'] };
     const { container } = render(<LiveUseCaseWorkbenchPage />);
-    const live = container.querySelector('[aria-live="polite"]');
+    const live = container.querySelector('.luw-sr-only[aria-live="polite"]');
     expect(live).toHaveTextContent(/not proven/i);
     expect(live).not.toHaveTextContent(/matched/i);
   });

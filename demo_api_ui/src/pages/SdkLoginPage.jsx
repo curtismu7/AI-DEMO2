@@ -5,6 +5,7 @@ import { getSdkClient, isSdkError } from "../lib/oidcSdkClient";
 import { POPUP_RESULT_TYPE, POPUP_WINDOW_NAME } from "../lib/sdkLoginPopup";
 import { decodeJWT } from "../services/tokenInspector";
 import "./SdkLoginPage.css";
+import InlineSpinner from '../components/shared/InlineSpinner';
 
 // tokens.<field> -> tab label, in display order.
 const TOKEN_TABS = [
@@ -487,7 +488,7 @@ export default function SdkLoginPage() {
         {status === "loading" && (
           <div style={styles.card}>
             <div style={styles.cardH}>SDK session</div>
-            <p style={{ color: C.muted, margin: 0 }}>Loading SDK client…</p>
+            <p style={{ color: C.muted, margin: 0 }}><InlineSpinner label="Loading SDK client…" /></p>
           </div>
         )}
 

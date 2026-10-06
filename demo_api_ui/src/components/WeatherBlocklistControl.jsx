@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import InlineSpinner from './shared/InlineSpinner';
 
 /**
  * Admin editor for the weather-mcp deny list, shown on the Weather MCP page
@@ -84,7 +85,7 @@ export default function WeatherBlocklistControl() {
     <div className="wbl">
       <ul className="wbl__list">
         {cities === null ? (
-          <li className="wbl__empty">Loading…</li>
+          <li className="wbl__empty"><InlineSpinner label="Loading…" /></li>
         ) : cities.length === 0 ? (
           <li className="wbl__empty">
             No cities blocked — every location passes while this mode is selected.

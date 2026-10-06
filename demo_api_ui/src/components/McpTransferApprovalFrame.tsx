@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import "./McpTransferApprovalFrame.css";
+import InlineSpinner from './shared/InlineSpinner';
 
 type Props = {
   snapshot: Record<string, unknown> | null;
@@ -66,7 +67,7 @@ export default function McpTransferApprovalFrame({
 
   return (
     <div className="mcp-transfer-app-frame">
-      {!ready && <div className="mcp-transfer-app-loading">Loading the approval view…</div>}
+      {!ready && <div className="mcp-transfer-app-loading"><InlineSpinner label="Loading the approval view…" /></div>}
       <iframe
         ref={frameRef}
         title="MCP transfer approval"

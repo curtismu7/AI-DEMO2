@@ -5,6 +5,7 @@ import { notifyError } from '../utils/appToast';
 import { useVertical } from '../vertical/useVertical';
 import { useDemoTour } from '../context/DemoTourContext';
 import SignInPrompt from './SignInPrompt';
+import InlineSpinner from './shared/InlineSpinner';
 
 const VALID_SCOPES = [
   { key: 'view_accounts',     label: 'View Accounts',    description: 'See account list and details' },
@@ -858,7 +859,7 @@ export default function DelegationPage({ user }) {
           {/* Active delegates */}
           {activeSection === 'active' && (
             loading
-              ? <p style={S.muted}>Loading…</p>
+              ? <p style={S.muted}><InlineSpinner label="Loading…" /></p>
               : delegations.length === 0
                 ? (
                   <div style={{ padding: '16px 0', color: '#374151', fontSize: 13 }}>
@@ -920,7 +921,7 @@ export default function DelegationPage({ user }) {
           {/* Delegation history */}
           {activeSection === 'history' && (
             loading
-              ? <p style={S.muted}>Loading…</p>
+              ? <p style={S.muted}><InlineSpinner label="Loading…" /></p>
               : history.length === 0
                 ? <p style={S.muted}>No delegation history.</p>
                 : (

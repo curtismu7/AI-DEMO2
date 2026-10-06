@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import "./AuthorizeConfigPage.css";
 import MockAuthzRulesPage from "./MockAuthzRulesPage";
+import InlineSpinner from './shared/InlineSpinner';
 
 const API_BASE = process.env.REACT_APP_API_BASE || "";
 
@@ -159,7 +160,7 @@ export default function AuthorizeConfigPage() {
   }, [mockForm, fetchConfig]);
 
   if (loading)
-    return <div className="azc-loading">Loading authorize config…</div>;
+    return <div className="azc-loading"><InlineSpinner label="Loading authorize config…" /></div>;
   if (error)
     return (
       <div className="azc-error">

@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import '../styles/appShellPages.css';
 import './FeatureFlagsPage.css';
+import InlineSpinner from './shared/InlineSpinner';
 
 // ─── Flag toggle card ─────────────────────────────────────────────────────────
 
@@ -304,7 +305,7 @@ export default function FeatureFlagsPage() {
       )}
 
       {loading && flags.length === 0 ? (
-        <div className="ff-loading">Loading feature flags…</div>
+        <div className="ff-loading"><InlineSpinner label="Loading feature flags…" /></div>
       ) : (
         <div className="ff-groups">
           {groupedFlags.map(({ category, flags: catFlags }) => (

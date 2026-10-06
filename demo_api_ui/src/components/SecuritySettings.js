@@ -6,6 +6,7 @@ import { EDU } from './education/educationIds';
 import AdminSubPageShell from './AdminSubPageShell';
 import useDividerDrag from '../hooks/useDividerDrag';
 import PageNav from './PageNav';
+import InlineSpinner from './shared/InlineSpinner';
 
 // ── Helper ────────────────────────────────────────────────────────────────────
 
@@ -241,7 +242,7 @@ const SecuritySettings = ({ user, onLogout }) => {
     return (
       <AdminSubPageShell title="Security Settings" lead="Live configuration — changes take effect immediately, no restart required.">
         <div style={{ padding: '40px', textAlign: 'center', color: '#374151' }}>
-          Loading settings…
+          <InlineSpinner label="Loading settings…" />
         </div>
       </AdminSubPageShell>
     );

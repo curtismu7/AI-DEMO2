@@ -27,6 +27,7 @@ import {
 import { DEMO_SCRIPT_BEAT_BY_UC_ID } from '../components/demoScript';
 import { attackSimVerdict } from '../utils/attackSimVerdict';
 import './LiveUseCaseWorkbenchPage.css';
+import InlineSpinner from '../components/shared/InlineSpinner';
 
 const RUNNABLE_SIMS = [
   'insufficient-scope', 'wrong-aud', 'cross-owner-account', 'replayed-token',
@@ -625,7 +626,7 @@ export default function LiveUseCaseWorkbenchPage() {
             <p className="luw-drawer__empty">{runState.msg}</p>
           )}
           <div className="luw-drawer__scroll">
-            {loading && <p className="luw-drawer__empty">Loading…</p>}
+            {loading && <p className="luw-drawer__empty"><InlineSpinner label="Loading…" /></p>}
             {error && <p className="luw-drawer__empty">{error}</p>}
             {!loading && !error && primaryDemo.length === 0 && advancedDemo.length === 0 && groupedOther.length === 0 && coupaNiqDemo.length === 0 && (
               <p className="luw-drawer__empty">No use cases match “{query}”.</p>

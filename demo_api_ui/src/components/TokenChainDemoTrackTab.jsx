@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import apiClient from "../services/apiClient";
 import "./TokenChainDemoTrackTab.css";
+import InlineSpinner from './shared/InlineSpinner';
 
 const POLL_MS = 5000;
 
@@ -90,7 +91,7 @@ export default function TokenChainDemoTrackTab() {
   }, [load]);
 
   if (error) return <div className="tct-error">Demo Track unavailable — {error}</div>;
-  if (!state) return <div className="tct-loading">Loading demo track…</div>;
+  if (!state) return <div className="tct-loading"><InlineSpinner label="Loading demo track…" /></div>;
 
   const { track, run } = state;
   const gauntletTotal = track.gauntletSims.length;

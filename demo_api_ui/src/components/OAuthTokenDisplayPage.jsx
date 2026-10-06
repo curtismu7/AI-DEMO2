@@ -9,6 +9,7 @@ import TokenCard from './TokenCard';
 import JsonHighlight from './shared/JsonHighlight';
 
 import ConfirmModal from './ConfirmModal';
+import InlineSpinner from './shared/InlineSpinner';
 
 function hasAnyField(data) {
   if (!data) return false;
@@ -318,7 +319,7 @@ export default function OAuthTokenDisplayPage() {
   if (loading) {
     return (
       <div className="otdp-container">
-        <div className="otdp-loading">Loading token information…</div>
+        <div className="otdp-loading"><InlineSpinner label="Loading token information…" /></div>
       </div>
     );
   }
@@ -584,7 +585,7 @@ export default function OAuthTokenDisplayPage() {
           </div>
           {expandedSections.account && (
             <div className="otdp-card-content">
-              {enrichedLoading && <div className="otdp-muted">Loading PingOne profile…</div>}
+              {enrichedLoading && <div className="otdp-muted"><InlineSpinner label="Loading PingOne profile…" /></div>}
               {enrichedInfo?.error && (
                 <div className="otdp-muted">⚠️ {enrichedInfo.error} — showing token data only</div>
               )}

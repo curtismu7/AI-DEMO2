@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import JsonHighlight from './shared/JsonHighlight';
 import { useThemeOptional } from '../context/ThemeContext';
 import './AuditPage.css';
+import InlineSpinner from './shared/InlineSpinner';
 
 const EVENT_TYPES = ['', 'tool_call', 'banking_operation', 'authentication', 'authorization', 'session_management', 'token_chain'];
 const OUTCOMES = ['', 'success', 'failure', 'partial'];
@@ -319,7 +320,7 @@ export default function AuditPage({ onClose } = {}) {
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={8} className="audit-table__empty">Loading…</td></tr>}
+              {loading && <tr><td colSpan={8} className="audit-table__empty"><InlineSpinner label="Loading…" /></td></tr>}
               {!loading && events.length === 0 && <tr><td colSpan={8} className="audit-table__empty">No audit events found.</td></tr>}
               {!loading && events.map((ev, i) => {
                 // Special rendering for token_chain events
@@ -486,7 +487,7 @@ export default function AuditPage({ onClose } = {}) {
               <tr><th>Time</th><th>User</th><th>Action</th><th>Status</th><th>Scope</th><th>Group check</th><th>ACR</th></tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={7} className="audit-table__empty">Loading…</td></tr>}
+              {loading && <tr><td colSpan={7} className="audit-table__empty"><InlineSpinner label="Loading…" /></td></tr>}
               {!loading && complianceRows.length === 0 && <tr><td colSpan={7} className="audit-table__empty">No audit events found.</td></tr>}
               {!loading && complianceRows.map((r, i) => (
                 <tr key={r.eventId ?? i} className={`audit-row audit-row--${r.status === 'PERMIT' ? 'success' : r.status === 'DENY' ? 'failure' : 'partial'}`}>

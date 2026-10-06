@@ -11,6 +11,7 @@ import VerifyCard from './VerifyCard';
 import PingOneProviderGuard from './PingOneProviderGuard';
 import { useThemeOptional } from '../context/ThemeContext';
 import './Profile.css';
+import InlineSpinner from './shared/InlineSpinner';
 
 function DeviceIcon({ type }) {
   const t = (type || '').toUpperCase();
@@ -340,7 +341,7 @@ function ProfileContent({ user }) {
             <span className="up-device-list__label">Your Devices</span>
 
             {devicesLoading && (
-              <div className="up-device-empty">Loading devices…</div>
+              <div className="up-device-empty"><InlineSpinner label="Loading devices…" /></div>
             )}
             {!devicesLoading && devices.length === 0 && (
               <div className="up-device-empty">No MFA devices enrolled.</div>

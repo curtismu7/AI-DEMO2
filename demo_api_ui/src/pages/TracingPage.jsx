@@ -13,6 +13,7 @@ import ProjectedTimeline from "../components/ProjectedTimeline";
 import GatewayMcpMetrics from "../components/GatewayMcpMetrics";
 import { useThemeOptional } from "../context/ThemeContext";
 import { PRIMARY_AGENT } from "../config/agentTerminology";
+import InlineSpinner from '../components/shared/InlineSpinner';
 
 const REFRESH_MS = 15000;
 const LOOKBACK_OPTIONS = [
@@ -424,7 +425,7 @@ export default function TracingPage() {
           <tbody>
             {loading && !traces.length ? (
               <tr>
-                <td colSpan={6} className="tracing-empty">Loading traces…</td>
+                <td colSpan={6} className="tracing-empty"><InlineSpinner label="Loading traces…" /></td>
               </tr>
             ) : showFullEmpty ? (
               <tr>
@@ -518,7 +519,7 @@ export default function TracingPage() {
  * Renders the span waterfall for one expanded trace.
  */
 function TraceDetail({ loading, error, detail }) {
-  if (loading) return <div className="tracing-detail tracing-detail--msg">Loading spans…</div>;
+  if (loading) return <div className="tracing-detail tracing-detail--msg"><InlineSpinner label="Loading spans…" /></div>;
   if (error) return <div className="tracing-detail tracing-detail--msg tracing-detail--error">{error}</div>;
   if (!detail || !detail.spans.length) {
     return <div className="tracing-detail tracing-detail--msg">No spans in this trace.</div>;

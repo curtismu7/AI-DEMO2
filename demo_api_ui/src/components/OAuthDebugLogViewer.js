@@ -5,6 +5,7 @@ import apiClient from '../services/apiClient';
 import { notifyError, notifySuccess } from '../utils/appToast';
 import AdminSubPageShell from './AdminSubPageShell';
 import PageNav from './PageNav';
+import InlineSpinner from './shared/InlineSpinner';
 
 const isTruthy = (v) => ['true', '1', 'on'].includes(String(v || '').toLowerCase().trim());
 
@@ -123,7 +124,7 @@ export default function OAuthDebugLogViewer({ user, onLogout }) {
         {hint ? <> {hint}</> : null}
       </div>
       {loading ? (
-        <p style={{ color: '#374151' }}>Loading…</p>
+        <p style={{ color: '#374151' }}><InlineSpinner label="Loading…" /></p>
       ) : (
         <pre
           style={{

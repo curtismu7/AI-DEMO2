@@ -32,6 +32,7 @@ import {
   composePhone,
 } from "../utils/countryCodes";
 import "./TransactionConsentPage.css";
+import InlineSpinner from './shared/InlineSpinner';
 
 interface Account {
   id: string;
@@ -1032,7 +1033,7 @@ const TransactionConsentModal: FC<TransactionConsentModalProps> = ({
 
             {loading && (
               <p className="transaction-consent-card__loading">
-                Loading consent details…
+                <InlineSpinner label="Loading consent details…" />
               </p>
             )}
 

@@ -10,6 +10,7 @@ import {
   SNIP_RESOLVE_MCP_TOKEN,
   SNIP_TOKEN_EXCHANGE_PINGONE,
 } from './educationImplementationSnippets';
+import InlineSpinner from '../shared/InlineSpinner';
 
 // ─── See Also: Token Flow Panel link ────────────────────────────────────────
 function TokenFlowLink({ onClick }) {
@@ -553,7 +554,7 @@ BFF_CLIENT_ID=<your-bff-oauth-client-id>`}</pre>
             The User Token is stored in the Backend-for-Frontend (BFF) session (httpOnly cookie). It is never stored in the React app.
             The Backend-for-Frontend (BFF) exposes only filtered decoded claims here for educational purposes.
           </p>
-          {live.loading && <p>Loading…</p>}
+          {live.loading && <p><InlineSpinner label="Loading…" /></p>}
           {live.error && <p style={{ color: '#b91c1c' }}>{live.error}</p>}
           {!live.loading && live.userToken && !live.userToken.payload && (
             <p>Active user token; decoded claims are unavailable.</p>

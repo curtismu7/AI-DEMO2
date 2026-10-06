@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import './SelfServicePage.css';
 import SignInPrompt from './SignInPrompt';
 import { useThemeOptional } from '../context/ThemeContext';
+import InlineSpinner from './shared/InlineSpinner';
 
 const SelfServicePage = () => {
   const navigate = useNavigate();
@@ -493,7 +494,7 @@ const SelfServicePage = () => {
         {activeTab === 'profile' && (
           <div className="ssp-card">
             {profileLoading ? (
-              <div className="ssp-loading">Loading profile...</div>
+              <div className="ssp-loading"><InlineSpinner label="Loading profile..." /></div>
             ) : profile ? (
               <div className="ssp-profile-card">
                 <h2>My Profile</h2>

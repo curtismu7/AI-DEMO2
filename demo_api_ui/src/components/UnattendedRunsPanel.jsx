@@ -7,6 +7,7 @@ import apiClient from "../services/apiClient";
 import { replayUnattendedRun, describeRun } from "../services/tokenChainTrace/replayUnattendedRun";
 import { notifyError, notifySuccess } from "../utils/appToast";
 import "./UnattendedRunsPanel.css";
+import InlineSpinner from './shared/InlineSpinner';
 
 export default function UnattendedRunsPanel({ isOpen, onClose }) {
   const [runs, setRuns] = useState([]);
@@ -136,7 +137,7 @@ export default function UnattendedRunsPanel({ isOpen, onClose }) {
               </button>
             </div>
 
-            {loading && !runs.length ? <p className="uarp-empty">Loading…</p> : null}
+            {loading && !runs.length ? <p className="uarp-empty"><InlineSpinner label="Loading…" /></p> : null}
             {!loading && !runs.length ? (
               <p className="uarp-empty">No unattended runs yet. The job runs at 02:00, or start one now.</p>
             ) : null}

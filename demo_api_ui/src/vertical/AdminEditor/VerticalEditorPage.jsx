@@ -7,6 +7,7 @@ import { VerticalPipelineMap } from './VerticalPipelineMap';
 import { cssVarsFromBrand } from '../../config/themeZones';
 import { useThemeOptional } from '../../context/ThemeContext';
 import './VerticalEditorPage.css';
+import InlineSpinner from '../../components/shared/InlineSpinner';
 
 const PROTECTED = new Set(['banking', 'admin-console']);
 const ID_RE = /^[a-z][a-z0-9-]*$/;
@@ -248,7 +249,7 @@ export function VerticalEditorPage() {
 
   const [activeTab, setActiveTab] = useState('editor');
 
-  if (!pageManifest) return <div>Loading…</div>;
+  if (!pageManifest) return <div><InlineSpinner label="Loading…" /></div>;
 
   return (
     <div className="vertical-editor">

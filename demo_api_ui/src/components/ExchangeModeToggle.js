@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import bffAxios from '../services/bffAxios';
 import './ExchangeModeToggle.css';
+import InlineSpinner from './shared/InlineSpinner';
 
 /**
  * Dual-mode token exchange display (RFC 8693 and Transaction Tokens).
@@ -60,7 +61,7 @@ export default function ExchangeModeToggle({ hideTable = false }) {
               {isTransaction ? 'Transaction Tokens (draft)' : 'RFC 8693 Delegation'}
             </span>
           ) : (
-            <span className="emt-rfc emt-rfc--loading">Loading…</span>
+            <span className="emt-rfc emt-rfc--loading"><InlineSpinner label="Loading…" /></span>
           )}
           <span className="emt-chevron">{collapsed ? '▶' : '▼'}</span>
         </div>

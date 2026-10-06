@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import ComplianceModalContent from './ComplianceModalContent';
 import './ComplianceModal.css';
+import InlineSpinner from './shared/InlineSpinner';
 
 /**
  * Pop-out version of the compliance modal — displayed in a separate window.
@@ -40,7 +41,7 @@ export default function ComplianceModalPopout() {
   if (!data) {
     return (
       <div className="compliance-modal-popout-root compliance-modal-popout-loading">
-        Loading compliance modal…
+        <InlineSpinner label="Loading compliance modal…" />
       </div>
     );
   }

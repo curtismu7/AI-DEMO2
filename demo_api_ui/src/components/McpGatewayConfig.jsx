@@ -16,6 +16,7 @@ import { useGatewayLiveConfig } from "../hooks/useGatewayLiveConfig";
 import { MCP_FIELD_KEYS } from "../constants/mcpFieldKeys";
 import { McpFieldProvider } from "../context/McpFieldContext";
 import { useTheme } from "../context/ThemeContext";
+import InlineSpinner from './shared/InlineSpinner';
 
 const API_BASE = process.env.REACT_APP_API_BASE || "";
 
@@ -170,7 +171,7 @@ function McpGatewayConfigInner() {
 		setMcpScope(c.mcpScope || 'mcp:invoke');
 	}, [data]); // eslint-disable-line react-hooks/exhaustive-deps
 
-	if (loading) return <div className="mgc-loading">Loading gateway config…</div>;
+	if (loading) return <div className="mgc-loading"><InlineSpinner label="Loading gateway config…" /></div>;
 	if (error) return <div className="mgc-error">Error: {error} <button onClick={fetchConfig}>Retry</button></div>;
 
 	function buildLiveMcpJson() {

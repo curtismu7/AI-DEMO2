@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import apiClient from '../services/apiClient';
 import './ControlPlanePage.css';
+import InlineSpinner from '../components/shared/InlineSpinner';
 
 /**
  * Agentic Control Plane — the five zones of the reference architecture, read
@@ -98,7 +99,7 @@ export default function ControlPlanePage() {
   const governanceDown = sources.lifecycle?.state === 'down';
 
   if (loading && !data) {
-    return <div className="cp-page cp-page--loading">Loading control plane…</div>;
+    return <div className="cp-page cp-page--loading"><InlineSpinner label="Loading control plane…" /></div>;
   }
 
   if (error && !data) {

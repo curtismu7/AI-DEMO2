@@ -15,6 +15,7 @@ import { useNavigate } from "react-router-dom";
 import { navigateToCustomerOAuthLogin } from "../utils/authUi";
 import { formatCurrency, formatDateTime } from "../utils/formatters";
 import "./UngovernedAgentPage.css";
+import InlineSpinner from './shared/InlineSpinner';
 
 const OPENCLI_URL = "https://github.com/jackwener/OpenCLI";
 
@@ -150,7 +151,7 @@ function RecentTransfersWidget() {
       {status === "error" && (
         <p className="ungov-widget__empty">Couldn't load transfers. Is the API up?</p>
       )}
-      {status === "loading" && <p className="ungov-widget__empty">Loading…</p>}
+      {status === "loading" && <p className="ungov-widget__empty"><InlineSpinner label="Loading…" /></p>}
       {status === "ok" && rows.length === 0 && (
         <p className="ungov-widget__empty">No transactions yet. Run a transfer to populate this list.</p>
       )}

@@ -18,6 +18,7 @@ import SignInPrompt from './SignInPrompt';
 import { explainAuthorizeResult, displayDecision as explainDisplayDecision } from '../utils/authorizeResultExplain';
 import PingOneAuthorizeConsoleClean from './PingOneAuthorizeConsoleClean';
 import './PingOneAuthorizePage.css';
+import InlineSpinner from './shared/InlineSpinner';
 
 // ---------------------------------------------------------------------------
 // PingOne Authorize — Live Policy Console
@@ -537,7 +538,7 @@ export function EvaluatePanel({ endpointId, autoPreset, policiesState, pendingTe
             )}
             <div className="inspector-shell-tree-body">
               {policiesLoading ? (
-                <div style={{ padding: '20px 16px', color: '#64748b', fontSize: '13px' }}>Loading policies…</div>
+                <div style={{ padding: '20px 16px', color: '#64748b', fontSize: '13px' }}><InlineSpinner label="Loading policies…" /></div>
               ) : policiesError ? (
                 <div style={{ padding: '20px 16px', color: '#b45309', fontSize: '13px' }}>⚠️ {policiesError}</div>
               ) : policies.length === 0 ? (
@@ -1057,7 +1058,7 @@ export default function PingOneAuthorizePage() {
           <SignInPrompt message="The PingOne Authorize Live Policy Console needs a signed-in session." />
         </div>
       ) : loading ? (
-        <div style={{ padding: '40px', color: '#64748b', fontSize: '14px' }}>Loading PingOne Authorize configuration…</div>
+        <div style={{ padding: '40px', color: '#64748b', fontSize: '14px' }}><InlineSpinner label="Loading PingOne Authorize configuration…" /></div>
       ) : (
         <PingOneAuthorizeConsoleClean
           endpointId={selectedId}

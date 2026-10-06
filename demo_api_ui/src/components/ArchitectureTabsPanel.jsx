@@ -15,6 +15,7 @@ import bffAxios from "../services/bffAxios";
 import { useMermaidRender } from "../hooks/useMermaidRender";
 import { buildFocusDiagram, FOCUS_GROUPS } from "../utils/architectureFocus";
 import "./ArchitectureTabsPanel.css";
+import InlineSpinner from './shared/InlineSpinner';
 
 /**
  * ArchitectureTabsPanel — Multi-tab architecture display component
@@ -455,7 +456,7 @@ function FocusedArchitectureDiagram({ mmdSource, mmdError, focusKey }) {
   if (!mmdSource) {
     return (
       <p style={{ fontSize: "0.85rem", color: "#334155" }}>
-        Loading architecture.mmd…
+        <InlineSpinner label="Loading architecture.mmd…" />
       </p>
     );
   }

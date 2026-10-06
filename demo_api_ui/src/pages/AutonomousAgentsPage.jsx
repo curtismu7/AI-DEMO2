@@ -13,6 +13,7 @@ import TokenChainFilmstrip from "../components/TokenChainFilmstrip";
 import { replayUnattendedRun, describeRun } from "../services/tokenChainTrace/replayUnattendedRun";
 import { notifyError, notifySuccess } from "../utils/appToast";
 import "./AutonomousAgentsPage.css";
+import InlineSpinner from '../components/shared/InlineSpinner';
 
 /** Status → the word a reader actually needs. */
 const STATUS_COPY = {
@@ -339,7 +340,7 @@ export default function AutonomousAgentsPage() {
                     {isOpen ? (
                       <div className="aap-detail">
                         {!openRun ? (
-                          <p className="aap-empty">Loading the run…</p>
+                          <p className="aap-empty"><InlineSpinner label="Loading the run…" /></p>
                         ) : (
                           <>
                             <dl className="aap-kv">

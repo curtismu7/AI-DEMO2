@@ -38,6 +38,7 @@ import { buildAgentFlowTree } from '../utils/agentFlowTree';
 import { STEP_DETAILS } from '../data/stepDetails';
 import '../styles/TokenChainRedesign.css';
 import './UnifiedTokenFlowInspector.css';
+import InlineSpinner from './shared/InlineSpinner';
 
 // ============================================================================
 // CLAIM CONFIGURATION & UTILITIES
@@ -680,7 +681,7 @@ function OAuthInspectorSection({ selectedToken, onOpenClaimsModal, activeTab }) 
           <span className="utfi-section-icon">🔑</span>
           <h3>OAuth Token Inspector</h3>
         </div>
-        <div className="utfi-loading">Loading token information…</div>
+        <div className="utfi-loading"><InlineSpinner label="Loading token information…" /></div>
       </div>
     );
   }
@@ -814,7 +815,7 @@ function OAuthInspectorSection({ selectedToken, onOpenClaimsModal, activeTab }) 
 
           {(enrichedLoading || enrichedInfo?.error || hasAnyField(enrichedInfo?.data)) && renderSection('account', 'Account Information', '📋', (
             <>
-              {enrichedLoading && <div className="utfi-muted">Loading PingOne profile…</div>}
+              {enrichedLoading && <div className="utfi-muted"><InlineSpinner label="Loading PingOne profile…" /></div>}
               {enrichedInfo?.error && <div className="utfi-muted">⚠ {enrichedInfo.error}</div>}
               {enrichedInfo?.data && hasAnyField(enrichedInfo.data) && (
                 <>

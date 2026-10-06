@@ -6,6 +6,7 @@ import apiClient from "../services/apiClient";
 import { requiredFlagsForUseCase } from "../utils/requiredDemoFlags";
 import { useThemeOptional } from "../context/ThemeContext";
 import "./DemoTrackPage.css";
+import InlineSpinner from '../components/shared/InlineSpinner';
 
 const POLL_MS = 5000;
 const ACT_META = {
@@ -272,7 +273,7 @@ export default function DemoTrackPage() {
   }, [promptFor, vertical, load, setSlotRun]);
 
   if (error) return <div className="dtp-error">Demo Track unavailable — {error}</div>;
-  if (!state || !run) return <div className="dtp-loading">Loading demo track…</div>;
+  if (!state || !run) return <div className="dtp-loading"><InlineSpinner label="Loading demo track…" /></div>;
 
   const { track } = state;
   const { steps, gauntletSims } = track;

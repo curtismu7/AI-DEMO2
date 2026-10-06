@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import AgentDemoGuide from './AgentDemoGuide';
 import AIAgent from './AIAgent';
 import './AgentDemoGuide.css';
+import InlineSpinner from './shared/InlineSpinner';
 
 /**
  * Pop-out version of the Agent Demo Guide — displayed in a separate window with the agent beside it.
@@ -41,7 +42,7 @@ export default function DemoGuidePopout() {
   if (!data) {
     return (
       <div style={{ padding: '20px', textAlign: 'center', fontSize: '14px', color: '#666' }}>
-        Loading demo guide…
+        <InlineSpinner label="Loading demo guide…" />
       </div>
     );
   }

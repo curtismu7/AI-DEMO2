@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../services/apiClient';
 import './OASDemoPage.css';
+import InlineSpinner from './shared/InlineSpinner';
 
 const LOGIN_URL = '/api/auth/oauth/user/login?return_to=/oas-demo';
 
@@ -56,7 +57,7 @@ function TryItOut({ operationId, user, pingoneTools }) {
   }
 
   if (!pingoneTools) {
-    return <div className="oas-tryitout oas-tryitout--loading">Loading available tools…</div>;
+    return <div className="oas-tryitout oas-tryitout--loading"><InlineSpinner label="Loading available tools…" /></div>;
   }
 
   if (!pingoneTools.enabled || pingoneTools.error) {
@@ -413,7 +414,7 @@ export default function OASDemoPage({ user }) {
         )}
 
         {!spec && !error && (
-          <div className="oas-loading">Loading OpenAPI spec…</div>
+          <div className="oas-loading"><InlineSpinner label="Loading OpenAPI spec…" /></div>
         )}
 
         <div className="oas-ops-list">

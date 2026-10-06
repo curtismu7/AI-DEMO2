@@ -3,6 +3,7 @@ import AdminSubPageShell from './AdminSubPageShell';
 import SignInPrompt from './SignInPrompt';
 import '../styles/appShellPages.css';
 import './ScopeReferencePage.css';
+import InlineSpinner from './shared/InlineSpinner';
 
 /**
  * ScopeReferencePage — Live PingOne resource & scope reference.
@@ -65,7 +66,7 @@ export default function ScopeReferencePage() {
       }
     >
       {loading && (
-        <div className="scope-ref__state">Loading resources and scopes from PingOne…</div>
+        <div className="scope-ref__state"><InlineSpinner label="Loading resources and scopes from PingOne…" /></div>
       )}
 
       {!loading && error && needsSignIn && (

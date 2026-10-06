@@ -3,6 +3,7 @@ import apiClient from "../services/apiClient";
 import { useThemeOptional } from "../context/ThemeContext";
 import { KIBANA_URL } from "../config/observabilityLinks";
 import "./McpObservabilityPage.css";
+import InlineSpinner from '../components/shared/InlineSpinner';
 
 const REFRESH_MS = 15000;
 const AUDIT_LIMIT = 100;
@@ -115,7 +116,7 @@ function TraceDetail({ event, detail, loading }) {
         <span className={`mcp-observability-status mcp-observability-status--${denied ? "denied" : event.outcome}`}>{denied ? "DENIED" : String(event.outcome).toUpperCase()}</span>
       </div>
       <div className="mcp-observability-waterfall">
-        {loading && <div className="mcp-observability-trace-loading">Loading chain-of-custody trace…</div>}
+        {loading && <div className="mcp-observability-trace-loading"><InlineSpinner label="Loading chain-of-custody trace…" /></div>}
         {!loading && hops.length > 0 && hops.map((hop, index) => <div className="mcp-observability-hop" key={`${hop.phase || "hop"}-${index}`}><span>{hop.phase || hop.op || "hop"}</span><i style={{ width: `${Math.max(8, Math.min(92, safeNumber(hop.durationMs, 24) / Math.max(1, safeNumber(event.duration, 100)) * 100))}%` }} /><b>{formatDuration(hop.durationMs)}</b></div>)}
         {!loading && hops.length === 0 && <div className="mcp-observability-trace-loading">Trace unavailable: no chain-of-custody hops were returned.</div>}
       </div>

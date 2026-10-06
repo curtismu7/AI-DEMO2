@@ -1,5 +1,6 @@
 // demo_api_ui/src/components/ProjectedTimeline.jsx
 import React, { useEffect, useState } from "react";
+import InlineSpinner from './shared/InlineSpinner';
 
 /** CSS-badge letter per icon kind — no emoji (REGRESSION_PLAN §0 allowlist). */
 const ICON_TEXT = { brain: "R", key: "K", shield: "A", bolt: "T", database: "B", bell: "H" };
@@ -33,7 +34,7 @@ export default function ProjectedTimeline({ traceId }) {
   }, [traceId]);
 
   if (error) return <div className="tracing-detail tracing-detail--msg tracing-detail--error">{error}</div>;
-  if (!projection) return <div className="tracing-detail tracing-detail--msg">Loading steps…</div>;
+  if (!projection) return <div className="tracing-detail tracing-detail--msg"><InlineSpinner label="Loading steps…" /></div>;
   if (!projection.spans.length) {
     return (
       <div className="tracing-detail tracing-detail--msg">
