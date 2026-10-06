@@ -103,11 +103,16 @@ function DoorCheckButton({ session }) {
   );
 }
 
-function DoorCheckNotes({ routing }) {
+// The live region wraps only the results (never the button, whose label flips); the error stays a
+// separate role="alert" outside it.
+function DoorCheckNotes({ routing, children }) {
   return (
     <>
       {routing.preflightError ? <p className="pvs-note" role="alert">{routing.preflightError}</p> : null}
-      {routing.preflight && routing.preflight.length === 0 ? <p className="pvs-note">{NO_OTHER_DOORS}</p> : null}
+      <div role="status">
+        {routing.preflight && routing.preflight.length === 0 ? <p className="pvs-note">{NO_OTHER_DOORS}</p> : null}
+        {children}
+      </div>
     </>
   );
 }
@@ -115,19 +120,20 @@ function DoorCheckNotes({ routing }) {
 export function ShellDoorCheck({ session }) {
   const { routing } = session;
   return (
-    <div className="pvs-doorcheck" role="status">
+    <div className="pvs-doorcheck">
       <DoorCheckButton session={session} />
-      <DoorCheckNotes routing={routing} />
-      {routing.preflight && routing.preflight.length > 0 ? (
-        <ul className="pvs-probe">
-          {routing.preflight.map((r) => (
-            <li key={r.url}>
-              <span aria-hidden="true">{r.ok ? "✅" : "❌"}</span> <span>{doorName(r.url) || r.url}</span>{" "}
-              <span>{probeResultLabel(r)}</span>
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      <DoorCheckNotes routing={routing}>
+        {routing.preflight && routing.preflight.length > 0 ? (
+          <ul className="pvs-probe">
+            {routing.preflight.map((r) => (
+              <li key={r.url}>
+                <span aria-hidden="true">{r.ok ? "✅" : "❌"}</span> <span>{doorName(r.url) || r.url}</span>{" "}
+                <span>{probeResultLabel(r)}</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </DoorCheckNotes>
     </div>
   );
 }

@@ -465,9 +465,11 @@ describe.each([
 
   it("announces probe results through a status region", () => {
     render(<View session={withRouting({ preflight: [{ url: "https://gw.example/privilege-gateway/other/mcp", ok: true, tools: 3 }] })} />);
-    const status = screen.getAllByRole("status").find((el) => el.classList.contains("pvs-doorcheck"));
+    const status = screen.getAllByRole("status").find((el) => el.querySelector(".pvs-probe"));
     expect(status).toHaveTextContent("other 3 tools");
-    expect(status).toContainElement(screen.getByRole("button", { name: "Check doors" }));
+    // the button (whose label flips) must stay outside the live region
+    expect(status).not.toContainElement(screen.getByRole("button", { name: "Check doors" }));
+    expect(screen.getByRole("button", { name: "Check doors" }).closest(".pvs-doorcheck")).not.toHaveAttribute("role");
   });
 
   it("says when there are no other doors", () => {
@@ -517,5 +519,13 @@ describe("ShellRoutingTree Check doors", () => {
     render(<ShellRoutingTree session={withRouting({ preflight: [], preflightError: "Not authenticated." })} />);
     expect(screen.getByText(/No other doors to probe/)).toBeInTheDocument();
     expect(screen.getByRole("alert")).toHaveTextContent("Not authenticated.");
+  });
+
+  it("announces the empty note in a status region that excludes the alert and the button", () => {
+    render(<ShellRoutingTree session={withRouting({ preflight: [], preflightError: "Not authenticated." })} />);
+    const status = screen.getByText(/No other doors to probe/).closest('[role="status"]');
+    expect(status).not.toBeNull();
+    expect(status).not.toContainElement(screen.getByRole("alert"));
+    expect(status).not.toContainElement(screen.getByRole("button", { name: "Check doors" }));
   });
 });
