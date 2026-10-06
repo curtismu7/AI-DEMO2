@@ -249,6 +249,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-06 — The Groq default model was not available on the account (404 model_not_found)
+
+**Files:** `standalone/privilege-a2a-anthropic-demo/src/config.ts`, `test/provider.test.ts`, `README.md`, `config.example`.
+
+**What was broken:** The Groq default `llama-3.3-70b-versatile` returned `404 model_not_found` on the first real run: the key authenticated, but the account does not have that model. A Groq account only lists the models it can use (this one: `openai/gpt-oss-120b`, `openai/gpt-oss-20b`, `qwen/qwen3.8-27b` for chat), so a default that the account lacks fails every run until `MAIN_AGENT_MODEL` is set by hand.
+
+**What changed:** The Groq default for both agents is now `openai/gpt-oss-120b`, which has worked end to end (banking and all nine other verticals, 2 to 4 s each). The README says how to list the models an account can use (`GET /openai/v1/models`, no tokens spent) and what the 404 means.
+
+**Do not break:** an explicit `<AGENT>_MODEL` still wins; the Anthropic and Google defaults are unchanged.
+
+**Verify:** `cd standalone/privilege-a2a-anthropic-demo && npm test && npm run build` (37 pass).
+
 ### 2026-10-06 — The standalone A2A agents could only use Anthropic or Google; add Groq (direct)
 
 **Files:** `standalone/privilege-a2a-anthropic-demo/src/groq.ts` (new), `src/config.ts`, `README.md`, `config.example`, `test/groq.test.ts`, `test/provider.test.ts`.

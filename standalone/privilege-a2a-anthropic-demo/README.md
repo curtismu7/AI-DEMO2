@@ -235,7 +235,10 @@ returns each reply whole rather than token by token.
 `/llm/groq` with a plain `403`, like any unknown name. Those model calls therefore
 **bypass the gateway**: they are not in its records and do not follow its policy. The
 A2A and MCP hops still go through it, and the main agent's `/status` says so. The
-default model is `llama-3.3-70b-versatile`; set `MAIN_AGENT_MODEL` /
+default model is `openai/gpt-oss-120b`. A Groq account only lists the models it can
+use, and a model it lacks answers `404 model_not_found`: check yours with
+`curl -H "Authorization: Bearer $GROQ_API_KEY" https://api.groq.com/openai/v1/models`
+(no tokens are spent), then set `MAIN_AGENT_MODEL` /
 `WORKER_AGENT_MODEL` to change it. Every provider has the same 30 s per-attempt
 deadline with one retry (`GEMINI_TIMEOUT_MS` / `GROQ_TIMEOUT_MS`).
 

@@ -35,8 +35,8 @@ export const viaGateway = (agent: AgentName): boolean => Boolean(providerBaseUrl
 
 /** The model an agent uses when `<AGENT>_MODEL` is not set. */
 const DEFAULT_MODEL: Record<AgentName, Record<Provider, string>> = {
-  MAIN_AGENT: { anthropic: 'claude-sonnet-5', google: 'gemini-flash-latest', groq: 'llama-3.3-70b-versatile' },
-  WORKER_AGENT: { anthropic: 'claude-opus-5', google: 'gemini-flash-lite-latest', groq: 'llama-3.3-70b-versatile' },
+  MAIN_AGENT: { anthropic: 'claude-sonnet-5', google: 'gemini-flash-latest', groq: 'openai/gpt-oss-120b' },
+  WORKER_AGENT: { anthropic: 'claude-opus-5', google: 'gemini-flash-lite-latest', groq: 'openai/gpt-oss-120b' },
 };
 const modelFor = (agent: AgentName): string => value(`${agent}_MODEL`, DEFAULT_MODEL[agent][providerOf(agent)]);
 

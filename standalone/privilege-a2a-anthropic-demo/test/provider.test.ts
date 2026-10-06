@@ -41,8 +41,8 @@ test('each provider has its own default model, and the _MODEL setting wins', () 
   process.env.MAIN_AGENT_PROVIDER = 'groq';
   process.env.WORKER_AGENT_PROVIDER = 'groq';
   process.env.GROQ_API_KEY = 'g';
-  assert.equal(mainAgentConfig().model, 'llama-3.3-70b-versatile');
-  assert.equal(workerAgentConfig().model, 'llama-3.3-70b-versatile');
+  assert.equal(mainAgentConfig().model, 'openai/gpt-oss-120b');
+  assert.equal(workerAgentConfig().model, 'openai/gpt-oss-120b');
   process.env.MAIN_AGENT_MODEL = 'llama-3.1-8b-instant';
   assert.equal(mainAgentConfig().model, 'llama-3.1-8b-instant');
 });

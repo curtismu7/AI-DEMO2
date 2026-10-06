@@ -34,7 +34,7 @@ WORKER_AGENT_PROVIDER=anthropic
 # WORKER_AGENT_GROQ_KEY=
 # GROQ_BASE_URL=https://api.groq.com/openai/v1
 # GROQ_TIMEOUT_MS=30000
-# MAIN_AGENT_MODEL=llama-3.3-70b-versatile
+# MAIN_AGENT_MODEL=openai/gpt-oss-120b
 
 # Google agents call Gemini's generateContent API. To route through Privilege,
 # use https://<gateway>/llm/google. Leave blank to call Google directly with
