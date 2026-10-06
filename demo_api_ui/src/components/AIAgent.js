@@ -5659,7 +5659,7 @@ export default function BankingAgent({
               });
               if (!initRes.ok) {
                 const failure = await initRes.json().catch(() => ({}));
-                throw new Error(failure.message || `CIBA initiation failed: ${initRes.status}`);
+                throw new Error(failure.message || failure.error_description || failure.error || `CIBA initiation failed: ${initRes.status}`);
               }
               const { auth_req_id, interval, binding_message, engine } = await initRes.json();
               if (cibaTab) {
@@ -6364,7 +6364,7 @@ export default function BankingAgent({
             });
             if (!initRes.ok) {
               const failure = await initRes.json().catch(() => ({}));
-              throw new Error(failure.message || `CIBA initiation failed: ${initRes.status}`);
+              throw new Error(failure.message || failure.error_description || failure.error || `CIBA initiation failed: ${initRes.status}`);
             }
             const { auth_req_id, interval, binding_message, engine } = await initRes.json();
             if (cibaTab) {
@@ -9704,7 +9704,7 @@ export default function BankingAgent({
         });
         if (!initRes.ok) {
           const failure = await initRes.json().catch(() => ({}));
-          throw new Error(failure.message || `CIBA initiation failed: ${initRes.status}`);
+          throw new Error(failure.message || failure.error_description || failure.error || `CIBA initiation failed: ${initRes.status}`);
         }
         const { auth_req_id, interval, binding_message, engine } = await initRes.json();
         if (cibaTab) {

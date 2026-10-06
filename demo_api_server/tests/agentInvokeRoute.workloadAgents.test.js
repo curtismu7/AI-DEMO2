@@ -142,6 +142,14 @@ describe('workload agent invoke contract', () => {
     expect(processAgentMessage).not.toHaveBeenCalled();
   });
 
+  test('UC38 reports a missing agent BEFORE asking for MFA (no approval-then-"no agent" contradiction)', async () => {
+    agentBuilderService.getRuntimeForUser.mockResolvedValueOnce(null);
+    const res = await request(app).post('/api/agent/invoke').set('Authorization', 'Bearer plain').send(invoke('UC38'));
+    expect(res.body.error).toBe('agent_not_registered');
+    expect(res.body.step_up_required).toBeUndefined();
+    expect(processAgentMessage).not.toHaveBeenCalled();
+  });
+
   test('UC44 fails closed when PingOne cannot provide the registered agent runtime', async () => {
     agentBuilderService.getRuntimeForUser.mockRejectedValueOnce(new Error('secret endpoint denied'));
     const res = await request(app).post('/api/agent/invoke').set('Authorization', 'Bearer plain').send(invoke('UC44'));

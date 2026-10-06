@@ -2287,7 +2287,7 @@ const RAW_USE_CASES = [
     pingOneSolution: 'User authenticates with MFA; the pre-registered workload agent is verified; RFC 8693 exchange mints a delegated token (sub=user, act=assistant) scoped to the selected vertical action.',
     trigger: { type: 'link', path: '/workload-agents?useCase=UC38', label: 'Open MFA-gated workload action' },
     expectedOutcome: 'PERMIT',
-    evidence: { tokenChain: ['user-token', 'personal-agent-lookup', 'mcp-exchange', 'tool-dispatched'], activity: ['token', 'mcp'] },
+    evidence: { tokenChain: ['user-token', 'personal-agent-lookup', 'token-exchange', 'tool-dispatched'], activity: ['token', 'mcp'] },
     codeRefs: [
       'demo_api_server/routes/agentInvokeRoute.js',
       'demo_api_server/services/agentBuilderService.js',
@@ -2345,7 +2345,7 @@ const RAW_USE_CASES = [
     pingOneSolution: 'PingOne pre-registers the workload agent identity; RFC 8693 token exchange produces a delegated token with sub=user and act=assistant, which the gateway and Authorize evaluate on every tool call.',
     trigger: { type: 'link', path: '/workload-agents?useCase=UC44', label: 'Open OBO customer-data read' },
     expectedOutcome: 'PERMIT',
-    evidence: { tokenChain: ['user-token', 'personal-agent-lookup', 'mcp-exchange', 'tool-dispatched'], activity: ['token', 'authorize', 'mcp'] },
+    evidence: { tokenChain: ['user-token', 'personal-agent-lookup', 'token-exchange', 'tool-dispatched'], activity: ['token', 'authorize', 'mcp'] },
     codeRefs: [
       'demo_api_server/routes/agentInvokeRoute.js',
       'demo_api_server/services/agentBuilderService.js',
@@ -2375,7 +2375,7 @@ const RAW_USE_CASES = [
     pingOneSolution: 'PingOne provisions a distinct Website Worker identity; the BFF uses mocked CIMD registration for provenance and real delegated execution for every customer action.',
     trigger: { type: 'link', path: '/embedded-worker', label: 'Open Website Worker demo' },
     expectedOutcome: 'PERMIT',
-    evidence: { tokenChain: ['user-token', 'personal-agent-lookup', 'mcp-exchange', 'tool-dispatched'], activity: ['register', 'inventory', 'token', 'authorize', 'mcp'] },
+    evidence: { tokenChain: ['user-token', 'personal-agent-lookup', 'token-exchange', 'tool-dispatched'], activity: ['register', 'inventory', 'token', 'authorize', 'mcp'] },
     codeRefs: [
       'demo_api_server/routes/embeddedWorker.js',
       'demo_api_server/services/agentBuilderService.js',

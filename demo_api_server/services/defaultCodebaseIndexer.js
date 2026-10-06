@@ -12,12 +12,27 @@ const path = require('path');
 const DEFAULT_CODEBASE_ID = 'ai-demo2-default';
 const DEFAULT_CODEBASE_NAME = 'This demo (AI-DEMO2)';
 
-/** @typedef {{ id: string, name: string, roots: string[] }} CodebasePiece */
+/** @typedef {{ id: string, name: string, roots: string[], priority?: string[] }} CodebasePiece */
 
 /** Curated first-party packages. Widen by editing this list. */
 const CODEBASE_PIECES = [
   { id: 'ai-demo2-ui', name: 'UI', roots: ['demo_api_ui/src'] },
-  { id: 'ai-demo2-server', name: 'API Server', roots: ['demo_api_server'] },
+  {
+    id: 'ai-demo2-server',
+    name: 'API Server',
+    roots: ['demo_api_server'],
+    // The BFF's RFC 8693 token-exchange code is far over MAX_FILE_BYTES, and the
+    // smallest-first cap fills with tiny files, so without this list a search
+    // for "where the BFF exchanges tokens" only ever finds the MCP-server side.
+    // Indexed first, exempt from the size filter (line-based chunking handles it).
+    priority: [
+      'demo_api_server/services/agentMcpTokenService.js',
+      'demo_api_server/services/oauthService.js',
+      'demo_api_server/services/a2aDelegationService.js',
+      'demo_api_server/services/facadeUpstreamExchange.js',
+      'demo_api_server/routes/tokens.js',
+    ],
+  },
   { id: 'ai-demo2-mcp-server', name: 'MCP Server', roots: ['oauth-mcp'] },
   { id: 'ai-demo2-mcp-gateway', name: 'MCP Gateway', roots: ['demo_mcp_gateway'] },
   { id: 'ai-demo2-authorize', name: 'Authorize', roots: ['demo_authz_server'] },
@@ -103,7 +118,7 @@ function walk(absDir, repoRoot, acc, skipped) {
  * @param {string} repoRoot
  * @param {string[]} [roots]
  */
-function collectFiles(repoRoot, roots = SOURCE_ROOTS) {
+function collectFiles(repoRoot, roots = SOURCE_ROOTS, priority = []) {
   const acc = [];
   const skipped = { count: 0 };
   for (const root of roots) {
@@ -125,10 +140,18 @@ function collectFiles(repoRoot, roots = SOURCE_ROOTS) {
       walk(abs, repoRoot, acc, skipped);
     }
   }
+  const first = [];
+  for (const rel of priority) {
+    try {
+      first.push({ path: rel, content: fs.readFileSync(path.join(repoRoot, rel), 'utf8') });
+    } catch { /* absent in this checkout */ }
+  }
+  const pri = new Set(first.map((f) => f.path));
   acc.sort((a, b) => a.content.length - b.content.length);
-  const capped = acc.slice(0, MAX_FILES_PER_PIECE);
-  if (acc.length > capped.length) {
-    skipped.count += acc.length - capped.length;
+  const rest = acc.filter((f) => !pri.has(f.path));
+  const capped = [...first, ...rest.slice(0, Math.max(0, MAX_FILES_PER_PIECE - first.length))];
+  if (rest.length + first.length > capped.length) {
+    skipped.count += rest.length + first.length - capped.length;
     console.warn(
       `[default-index] file cap (${MAX_FILES_PER_PIECE}) reached; indexing truncated`
     );
@@ -213,7 +236,7 @@ async function indexPiece(client, piece, rootDir) {
     return pieceStatus;
   }
 
-  const files = collectFiles(rootDir, presentRoots);
+  const files = collectFiles(rootDir, presentRoots, piece.priority);
   pieceStatus.skipped = files._skipped || 0;
 
   // SE embeddings (single in-cluster llama slot) choke on 50-file batches —
