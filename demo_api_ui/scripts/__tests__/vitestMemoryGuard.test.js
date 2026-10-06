@@ -206,10 +206,49 @@ describe('Vitest memory guard', () => {
       },
       stopProcessTree,
       pollIntervalMs: 1,
+      maxBlindMs: 0,
     })
 
     expect(result.type).toBe('monitor-error')
     expect(reads).toBe(3)
+    expect(stopProcessTree).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not stop on a burst of failures that spans no real time', async () => {
+    const child = { pid: 4242, exitCode: null, signalCode: null }
+    const stopProcessTree = vi.fn()
+    let reads = 0
+
+    const result = await monitorVitest(child, () => false, {
+      readProcessTable: async () => {
+        reads += 1
+        if (reads <= 6) throw Object.assign(new Error('Command failed: ps'), { signal: 'SIGTERM' })
+        child.exitCode = 0
+        return []
+      },
+      stopProcessTree,
+      pollIntervalMs: 1,
+    })
+
+    expect(result.type).toBeUndefined()
+    expect(reads).toBe(7)
+    expect(stopProcessTree).not.toHaveBeenCalled()
+  })
+
+  it('still stops once reads fail for longer than the blind window', async () => {
+    const child = { pid: 4242, exitCode: null, signalCode: null }
+    const stopProcessTree = vi.fn()
+
+    const result = await monitorVitest(child, () => false, {
+      readProcessTable: async () => {
+        throw Object.assign(new Error('Command failed: ps'), { signal: 'SIGTERM' })
+      },
+      stopProcessTree,
+      pollIntervalMs: 5,
+      maxBlindMs: 40,
+    })
+
+    expect(result.type).toBe('monitor-error')
     expect(stopProcessTree).toHaveBeenCalledTimes(1)
   })
 })

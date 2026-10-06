@@ -10,11 +10,15 @@ export const VITEST_RSS_LIMIT_BYTES = 4_000_000_000
 const VITEST_HEAP_LIMIT_MB = 1_400
 const POLL_INTERVAL_MS = 100
 const TERMINATE_GRACE_MS = 250
-// A process-table read that fails (in practice: `ps` exceeding its 2 s timeout
-// on a busy CI host) is retried on the next poll. Only this many failures in a
-// row stop the run, so RSS enforcement is blind for a few seconds at most
-// rather than one slow `ps` discarding an otherwise healthy full-suite run.
+// A process-table read that fails (in practice: `ps` exceeding its timeout on a
+// busy CI host) is retried on the next poll. The run stops only when BOTH this
+// many reads in a row failed AND no read has succeeded for MAX_BLIND_MS. A
+// count alone is not enough: when the host starves this process's event loop,
+// every pending `ps` timeout fires in the same millisecond, so three "failures
+// in a row" can span zero real time and kill a healthy run (PR CI, Oct 2026).
 const MAX_CONSECUTIVE_SNAPSHOT_FAILURES = 3
+const MAX_BLIND_MS = 30_000
+const PS_TIMEOUT_MS = 5_000
 const TEST_FILES_PER_BATCH = 12
 const execFileAsync = promisify(execFile)
 
@@ -102,7 +106,7 @@ async function readProcessTable() {
   const options = {
     encoding: 'utf8',
     maxBuffer: 16 * 1024 * 1024,
-    timeout: 2_000,
+    timeout: PS_TIMEOUT_MS,
   }
 
   try {
@@ -137,9 +141,11 @@ export async function monitorVitest(child, didFailToSpawn, {
   rssLimitBytes = VITEST_RSS_LIMIT_BYTES,
   pollIntervalMs = POLL_INTERVAL_MS,
   maxSnapshotFailures = MAX_CONSECUTIVE_SNAPSHOT_FAILURES,
+  maxBlindMs = MAX_BLIND_MS,
 } = {}) {
   let peakProcess = null
   let snapshotFailures = 0
+  let lastSnapshotAt = Date.now()
   while (
     child.exitCode === null &&
     child.signalCode === null &&
@@ -149,6 +155,7 @@ export async function monitorVitest(child, didFailToSpawn, {
     try {
       processTable = await readSnapshot()
       snapshotFailures = 0
+      lastSnapshotAt = Date.now()
     } catch (error) {
       if (child.exitCode !== null || child.signalCode !== null) {
         return { peakProcess }
@@ -162,8 +169,8 @@ export async function monitorVitest(child, didFailToSpawn, {
           ? `stderr=${error.stderr.trim()}`
           : null,
       ].filter(Boolean).join(' | ')
-      if (snapshotFailures < maxSnapshotFailures) {
-        console.error(`[vitest-memory-guard] Could not inspect worker RSS (${snapshotFailures} of ${maxSnapshotFailures} allowed in a row); retrying: ${errorDetails}`)
+      if (snapshotFailures < maxSnapshotFailures || Date.now() - lastSnapshotAt < maxBlindMs) {
+        console.error(`[vitest-memory-guard] Could not inspect worker RSS (${snapshotFailures} in a row); retrying: ${errorDetails}`)
         await delay(pollIntervalMs)
         continue
       }
