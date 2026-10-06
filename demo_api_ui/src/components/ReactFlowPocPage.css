@@ -5,6 +5,7 @@
 .rfpc-dark {
   --rfp-bg: #f8fafc;
   --rfp-card: #ffffff;
+  --rfp-live-ink: #15803d;
   --rfp-text: #0f172a;
   --rfp-text-dim: #0f172a;
   --rfp-border: #cbd5e1;
@@ -21,6 +22,7 @@
 .rfpc-dark.rfp-dark {
   --rfp-bg: #0b1220;
   --rfp-card: #111a2c;
+  --rfp-live-ink: #4ade80;
   --rfp-text: #e6edf7;
   --rfp-text-dim: #ffffff;
   --rfp-border: #2c3a52;
@@ -569,7 +571,7 @@
   border: 1px solid #16a34a;
   border-radius: 6px;
   background: var(--rfp-card, #fff);
-  color: #16a34a;
+  color: var(--rfp-live-ink, #15803d);
   padding: 5px 12px;
   cursor: pointer;
   font-size: 0.85rem;
@@ -817,4 +819,10 @@
   .rfp-body {
     grid-template-columns: 1fr;
   }
+}
+
+/* Light POC card inside a dark app theme: --th-text would paint white on it. */
+.rfp-page:not(.rfp-dark) .dc-steptime-label,
+.rfp-page:not(.rfp-dark) .dc-zoom-label {
+  color: var(--rfp-text);
 }

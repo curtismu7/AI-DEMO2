@@ -123,6 +123,7 @@
   font-size: var(--font-size-xs);
   font-weight: 800;
 }
+:root[data-theme="dark"] .pfj-explainer__step-number { color: var(--th-status-success-text); }
 
 .pfj-explainer__step p { margin-bottom: 0; font-size: var(--font-size-sm); }
 .pfj-explainer__boundary { align-items: start; }

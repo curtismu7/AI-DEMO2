@@ -163,7 +163,7 @@
   border: 2px solid #e5e7eb;
   border-radius: 5px;
   background: #ffffff;
-  color: var(--th-text);
+  color: #1e293b;
   font-size: var(--font-size-sm);
   font-weight: 600;
   cursor: pointer;
@@ -174,7 +174,7 @@
 
 .pfb-btn:not([data-active="true"]):hover {
   border-color: #9ca3af;
-  color: var(--th-text);
+  color: #1e293b;
 }
 
 .pfb-btn[data-active="true"] {

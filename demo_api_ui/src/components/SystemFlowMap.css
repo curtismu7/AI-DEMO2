@@ -342,3 +342,5 @@
 
 /* The pop-out gives its body to the map; the map owns its own scrolling. */
 .sfm-modal .dm-body { display: flex; min-height: 0; }
+
+.react-flow .react-flow__attribution a { color: #666; }
