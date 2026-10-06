@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import DraggableModal from "../components/DraggableModal";
+import ProtocolTrace from "../components/ProtocolTrace";
 import apiClient from "../services/apiClient";
 import { notifyError, notifySuccess } from "../utils/appToast";
 import "./PingFederateAiAgentPage.css";
@@ -129,6 +130,43 @@ function ProviderComparison() {
       </aside>
     </section>
   );
+}
+
+// What each captured step means, in plain words. The traffic itself comes from the BFF, with secrets replaced.
+const RAR_EXPLAIN = {
+  par: "The agent does not put the transaction in a URL. It POSTs it to PingFederate's pushed authorization request (PAR) endpoint. authorization_details says exactly what it wants to do: one transfer, between these accounts, up to this amount. PingFederate runs the policy processor on it now, and refuses here if the shape is wrong. Back comes a one-time request_uri.",
+  authorize: "The browser carries only the client and the request_uri, so the transaction cannot be edited on the way. The user signs in; only after that can the processor check that the user is the one named, that both accounts are theirs and that the amount is within their limit.",
+  callback: "PingFederate sends the user back to the app: with a one-time code if the policy passed, or with a refusal if it did not. The refusal's own text is not shown here, only how the app classified it.",
+  token: "The BFF redeems the code, proving it started the flow with the PKCE verifier. authorization_details in the response is what PingFederate actually granted. The ID token's claims say who signed in. The access and refresh tokens stay on the server and are shown only as redacted.",
+};
+
+const RAR_REASONS = {
+  authorization_details_refused: "the policy processor refused the transaction as out of policy",
+  authorization_rejected: "the sign-in or consent was rejected",
+};
+
+// The few facts a reader should take away from one run, taken from what was captured.
+function rarProofPoints(result) {
+  const steps = result?.trace || [];
+  const par = steps.find((s) => s.id === "par");
+  const token = steps.find((s) => s.id === "token");
+  const points = [];
+  if (par?.response?.status) {
+    points.push(`PingFederate accepted the request at PAR (HTTP ${par.response.status}) and returned a one-time request_uri.`);
+  }
+  if (result?.outcome === "accepted") {
+    points.push("After sign-in, the processor checked the user, the accounts and the amount, and PingFederate issued an authorization code.");
+    if (token?.response?.body?.authorization_details) {
+      points.push("The token response carries authorization_details: PingFederate's record of what was granted.");
+    }
+    if (token?.claims?.idToken?.sub) points.push(`The ID token says ${token.claims.idToken.sub} signed in.`);
+    points.push(result.dpopThumbprint
+      ? "The access token is bound to this app's key with DPoP, so a stolen copy cannot be replayed."
+      : "The access token is a plain Bearer token.");
+  } else if (result?.outcome === "denied") {
+    points.push(`PingFederate then refused it: ${RAR_REASONS[result.reason] || "the request was refused"}. No token was issued.`);
+  }
+  return points;
 }
 
 const EXCHANGE_HINTS = {
@@ -449,6 +487,20 @@ export default function PingFederateAiAgentPage({ user }) {
           <p className="pf-ai-agent__eyebrow">Fine-grained consent</p>
           <h2 id="pf-ai-rar-title">Rich authorization request</h2>
           <p>PF receives the authorization detail through PAR and applies the custom transaction policy.</p>
+          <details className="pf-ai-agent__explain" open>
+            <summary>What is RAR, and what does this run do?</summary>
+            <p>
+              Normally an agent asks for a broad scope such as <code>transactions:write</code>, which says nothing about
+              how much or to whom. Rich Authorization Requests (RFC 9396) let it send the exact action instead, as
+              <code> authorization_details</code>, and let the authorization server decide on that.
+            </p>
+            <p>
+              Run the <strong>allowed</strong> request: one transfer inside your accounts and limit. PingFederate checks it
+              and issues a token that records what was granted. Run the <strong>out-of-policy</strong> one: the same request
+              for more than your limit, which PingFederate refuses after you sign in. The decision lives in PingFederate,
+              not in the agent. The proof panel under the buttons shows every request and response.
+            </p>
+          </details>
           <FeatureStatus ready={features.rar} />
         </div>
         <div className="pf-ai-agent__flow-body">
@@ -493,6 +545,15 @@ export default function PingFederateAiAgentPage({ user }) {
               </>
               : <span className="pf-ai-agent__disabled-action">Configure RAR and sign in to start the request</span>}
           </div>
+          {rarResult?.trace?.length > 0 && (
+            <div className="pf-ai-agent__proof" data-testid="rar-proof">
+              <h3>Proof: what was sent and what came back</h3>
+              <ul className="pf-ai-agent__proof-points">
+                {rarProofPoints(rarResult).map((point) => <li key={point}>{point}</li>)}
+              </ul>
+              <ProtocolTrace steps={rarResult.trace} explain={RAR_EXPLAIN} />
+            </div>
+          )}
         </div>
       </section>
 

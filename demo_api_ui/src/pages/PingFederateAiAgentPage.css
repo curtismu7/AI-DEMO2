@@ -228,6 +228,12 @@ a.pf-ai-agent__action, a.pf-ai-agent__action:link, a.pf-ai-agent__action:visited
 .pf-ai-agent__dpop-option { display: flex; align-items: center; gap: 8px; max-width: 560px; margin-bottom: 14px; color: var(--th-text); font-size: var(--font-size-sm); }
 .pf-ai-agent__dpop-option input { width: 16px; height: 16px; accent-color: var(--th-status-info); }
 .pf-ai-agent__dpop-option input:focus-visible { outline: 3px solid var(--th-status-info); outline-offset: 2px; }
+.pf-ai-agent__explain { margin: 12px 0; padding: 10px 14px; border: 1px solid var(--th-border); border-radius: var(--radius-sm); background: var(--th-bg-inset); font-size: var(--font-size-sm); line-height: 1.55; }
+.pf-ai-agent__explain summary { cursor: pointer; font-weight: 700; }
+.pf-ai-agent__explain p { margin: 8px 0 0; }
+.pf-ai-agent__proof { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--th-border); }
+.pf-ai-agent__proof h3 { margin: 0 0 8px; }
+.pf-ai-agent__proof-points { margin: 0 0 14px; padding-left: 20px; font-size: var(--font-size-sm); line-height: 1.55; }
 .pf-ai-agent__hint { margin: 10px 0 0; color: var(--th-text-muted); font-size: var(--font-size-sm); }
 .pf-ai-agent__token-line { margin: 10px 0 0; color: var(--th-text-muted); font-size: var(--font-size-sm); overflow-wrap: anywhere; }
 .pf-ai-agent__token-line strong, .pf-ai-agent__token-line code { color: var(--th-text); }

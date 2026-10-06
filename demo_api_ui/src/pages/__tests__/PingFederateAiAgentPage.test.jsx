@@ -322,6 +322,57 @@ describe("PingFederate AI Agent page", () => {
     expect(alert).toHaveTextContent("PF_AI_ID_JAG_AUDIENCE_INVALID");
   });
 
+  describe("RAR proof", () => {
+    const par = {
+      id: "par",
+      title: "Push the request to PingFederate (PAR)",
+      request: { method: "POST", url: "https://pf.example.test/as/par.oauth2", params: { client_id: "ai-demo-pf-rar" } },
+      response: { status: 201, body: { request_uri: "urn:ietf:params:oauth:request_uri:abc...", expires_in: 90 } },
+    };
+    const accepted = {
+      outcome: "accepted", reason: "authorized", tokenType: "Bearer", dpopThumbprint: null,
+      trace: [par, {
+        id: "token",
+        title: "Redeem the code for tokens",
+        request: { method: "POST", url: "https://pf.example.test/as/token.oauth2", params: { code: "<redacted opaque, 5 chars>" } },
+        response: { status: 200, body: { authorization_details: [{ type: "banking_transaction" }] } },
+        claims: { idToken: { sub: "demouser" }, accessToken: null },
+      }],
+    };
+
+    it("explains RAR before any run", async () => {
+      render(<PingFederateAiAgentPage user={{ username: "demouser" }} />);
+
+      expect(await screen.findByText(/What is RAR, and what does this run do/i)).toBeInTheDocument();
+      expect(screen.getByText(/authorization server decide on that/i)).toBeInTheDocument();
+      expect(screen.queryByTestId("rar-proof")).not.toBeInTheDocument();
+    });
+
+    it("shows what an accepted run proved, and every step's request and response", async () => {
+      apiClient.get.mockResolvedValue({ data: { ...readyStatus, rarResult: accepted } });
+      render(<PingFederateAiAgentPage user={{ username: "demouser" }} />);
+
+      const proof = await screen.findByTestId("rar-proof");
+      expect(proof).toHaveTextContent("PingFederate accepted the request at PAR (HTTP 201)");
+      expect(proof).toHaveTextContent("PingFederate's record of what was granted");
+      expect(proof).toHaveTextContent("The ID token says demouser signed in.");
+      expect(proof).toHaveTextContent("The access token is a plain Bearer token.");
+      expect(proof).toHaveTextContent("Push the request to PingFederate (PAR)");
+      expect(proof).toHaveTextContent("Redeem the code for tokens");
+      expect(proof).toHaveTextContent("It POSTs it to PingFederate's pushed authorization request");
+    });
+
+    it("says why a refused run was refused and that no token was issued", async () => {
+      apiClient.get.mockResolvedValue({ data: { ...readyStatus, rarResult: { outcome: "denied", reason: "authorization_details_refused", trace: [par] } } });
+      render(<PingFederateAiAgentPage user={{ username: "demouser" }} />);
+
+      const proof = await screen.findByTestId("rar-proof");
+      expect(proof).toHaveTextContent("the policy processor refused the transaction as out of policy");
+      expect(proof).toHaveTextContent("No token was issued.");
+      expect(proof).not.toHaveTextContent("ID token says");
+    });
+  });
+
   it("a PingOne session that signed in at PingFederate through CIMD exchanges that sign-in", async () => {
     apiClient.get.mockResolvedValue({ data: { ...readyStatus, pfSignedIn: true } });
     apiClient.post.mockResolvedValue({ data: { subject: "demouser", scope: ["tp:read"], hops: [] } });

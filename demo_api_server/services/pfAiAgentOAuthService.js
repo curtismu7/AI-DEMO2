@@ -3,6 +3,7 @@
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { signDpopProof } = require('./dpopKeyService');
+const { safeParams, safeBody, bareUrl, claimsOf, step: traceStep } = require('./pfAiAgentTrace');
 
 const REQUEST_TIMEOUT_MS = 10_000;
 const ALLOWED_ID_TOKEN_ALGORITHMS = new Set(['RS256', 'RS384', 'RS512', 'ES256', 'ES384', 'ES512']);
@@ -191,7 +192,24 @@ async function exchangeAuthorizationCode({
   });
   const jwks = await responseJson(jwksResponse, 'PF_AI_JWKS_FAILED', 'JWKS');
   const identity = verifyIdToken(tokens.id_token, { config, metadata, clientId, nonce, jwks });
+  // What went over the wire, with every secret replaced, so the page can show the proof (see pfAiAgentTrace).
+  const trace = traceStep({
+    id: 'token',
+    title: 'Redeem the code for tokens',
+    request: {
+      method: 'POST',
+      url: bareUrl(metadata.tokenEndpoint),
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        ...(dpop ? { DPoP: '<redacted DPoP proof JWT, signed with this run\'s key>' } : {}),
+      },
+      params: safeParams(body),
+    },
+    response: { status: tokenResponse?.status ?? 200, body: safeBody(tokens) },
+    claims: { idToken: claimsOf(tokens.id_token), accessToken: claimsOf(tokens.access_token) },
+  });
   return {
+    trace,
     tokenSet: {
       accessToken: tokens.access_token,
       refreshToken: typeof tokens.refresh_token === 'string' ? tokens.refresh_token : null,

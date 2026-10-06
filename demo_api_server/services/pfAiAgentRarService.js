@@ -5,6 +5,7 @@ const configStore = require('./configStore');
 const defaultDataStore = require('../data/store');
 const { getFeatureStatus, resolveCimdConfig } = require('./pfAiAgentFeatureConfig');
 const { generateDpopKeypair } = require('./dpopKeyService');
+const { safeParams, safeBody, bareUrl, step: traceStep } = require('./pfAiAgentTrace');
 const {
   oauthError,
   discoverPf,
@@ -143,7 +144,27 @@ async function pushParRequest(config, metadata, values, fetchImpl) {
   const authorizationUrl = new URL(metadata.authorizationEndpoint);
   authorizationUrl.searchParams.set('client_id', values.clientId);
   authorizationUrl.searchParams.set('request_uri', requestUri);
-  return authorizationUrl.toString();
+  // The proof the page shows: the pushed request and PingFederate's answer, then the browser redirect that carries
+  // only the client and the one-time handle (secrets are replaced, see pfAiAgentTrace).
+  const steps = [
+    traceStep({
+      id: 'par',
+      title: 'Push the request to PingFederate (PAR)',
+      request: {
+        method: 'POST',
+        url: bareUrl(parEndpoint),
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        params: safeParams(body),
+      },
+      response: { status: response.status ?? 201, body: safeBody(data) },
+    }),
+    traceStep({
+      id: 'authorize',
+      title: 'Send the user to sign in and approve',
+      request: { method: 'GET', url: bareUrl(authorizationUrl), params: safeParams(authorizationUrl.searchParams) },
+    }),
+  ];
+  return { url: authorizationUrl.toString(), steps };
 }
 
 async function beginRar(req, {
@@ -190,7 +211,7 @@ async function beginRar(req, {
   const clientId = dpop
     ? String(store.getEffective('pf_ai_rar_dpop_client_id')).trim()
     : rarClientId(store, config);
-  const redirectUrl = await pushParRequest(config, metadata, {
+  const { url: redirectUrl, steps: pushedSteps } = await pushParRequest(config, metadata, {
     state, nonce, challenge, authorizationDetail, clientId, loginHint: loginHintFor(req, userKey),
   }, fetchImpl);
   const createdAt = now();
@@ -207,13 +228,16 @@ async function beginRar(req, {
     userKey,
     clientId,
     dpopKey,
+    trace: pushedSteps,
   };
   delete featureSession.rarResult;
   return { redirectUrl };
 }
 
-function safeResult(outcome, reason, pending, identity = null, now = Date.now, tokenSet = null) {
+function safeResult(outcome, reason, pending, identity = null, now = Date.now, tokenSet = null, laterSteps = []) {
   return {
+    // Request and response of each step, redacted: the page's proof of what PingFederate did.
+    trace: [...(pending.trace || []), ...laterSteps],
     outcome,
     reason,
     detailType: RAR_TYPE,
@@ -248,7 +272,14 @@ async function completeRar(req, { store = configStore, fetchImpl = fetch, now = 
     if (!reason) {
       throw oauthError('PF_AI_RAR_AUTHORIZATION_FAILED', 'PingFederate could not complete the RAR authorization');
     }
-    const result = safeResult('denied', reason, pending, null, now);
+    // The refusal text arrives in the callback URL and is never echoed to the browser: only our own classification
+    // of it (the same reason the result already carries) is shown.
+    const callback = traceStep({
+      id: 'callback',
+      title: 'PingFederate sends the user back with a refusal',
+      request: { method: 'GET', url: bareUrl(resolveCimdConfig(store).redirectUri), params: safeParams({ error: `refused (classified as: ${reason})`, state: req.query.state }) },
+    });
+    const result = safeResult('denied', reason, pending, null, now, null, [callback]);
     featureSession.rarResult = result;
     return result;
   }
@@ -258,7 +289,7 @@ async function completeRar(req, { store = configStore, fetchImpl = fetch, now = 
 
   const config = resolveCimdConfig(store);
   const metadata = await discoverPf(config, fetchImpl);
-  const { identity, tokenSet } = await exchangeAuthorizationCode({
+  const { identity, tokenSet, trace } = await exchangeAuthorizationCode({
     config,
     metadata,
     clientId: pending.clientId || rarClientId(store, config),
@@ -268,7 +299,12 @@ async function completeRar(req, { store = configStore, fetchImpl = fetch, now = 
     nonce: pending.nonce,
     dpop: pending.dpopKey || null,
   }, fetchImpl);
-  const result = safeResult('accepted', 'authorized', pending, identity, now, tokenSet);
+  const callback = traceStep({
+    id: 'callback',
+    title: 'PingFederate sends the user back with a code',
+    request: { method: 'GET', url: bareUrl(config.redirectUri), params: safeParams({ code: req.query.code, state: req.query.state }) },
+  });
+  const result = safeResult('accepted', 'authorized', pending, identity, now, tokenSet, [callback, trace]);
   featureSession.rarResult = result;
   return result;
 }
