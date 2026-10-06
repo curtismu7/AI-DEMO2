@@ -42,6 +42,15 @@ describe("Sign-in behaviour radio group cascade", () => {
     expect(block).not.toMatch(/font-size:\s*\d/);
   });
 
+  it("restates the Inspect form layout under .cur-ide (labels computed inline-block, so Method, Parameters and Send shared one row)", () => {
+    const rule = (sel) => css.match(new RegExp(`${sel.replace(/[.]/g, "\\.")}\\s*\\{([^}]*)\\}`))?.[1] || "";
+    expect(rule(".cur-ide .cur-field")).toMatch(/display:\s*flex/);
+    expect(rule(".cur-ide .cur-field")).toMatch(/flex-direction:\s*column/);
+    expect(rule(".cur-ide .cur-btn-row")).toMatch(/display:\s*flex/);
+    expect(rule(".cur-ide .cur-tools-header")).toMatch(/display:\s*flex/);
+    expect(rule(".cur-ide .cur-mcp-explorer")).toMatch(/flex-direction:\s*column/);
+  });
+
   it("takes its font sizes from the scale, not literals", () => {
     const block = css.slice(css.indexOf(".cur-prompt-mode legend"));
     expect(block.slice(0, block.indexOf("@media"))).not.toMatch(/font-size:\s*\d/);

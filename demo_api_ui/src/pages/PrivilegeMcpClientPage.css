@@ -2193,3 +2193,56 @@ select.cur-input { cursor: pointer; }
 .cur-ide .cur-statusbar-item {
   font-size: var(--font-size-body);
 }
+
+/* Inspect form layout. `.cur-field` (a <label>) and the buttons are restyled by
+   PingOne's cross-origin end-user-nano.css above a lone class, so `.cur-field`
+   computed inline-block: MCP Method, Parameters and Send MCP Request sat side by
+   side on one row, and the panel header and its button row were plain blocks.
+   Same fix as the radio group: nest under .cur-ide so the layout is the one the
+   base rules above already describe. */
+.cur-ide .cur-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 12px;
+}
+
+.cur-ide .cur-btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+}
+
+.cur-ide .cur-tools-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin: 0 0 16px;
+}
+
+.cur-ide .cur-tools-header h3 {
+  margin: 0;
+}
+
+/* The explorer stacks its blocks on one rhythm instead of per-element margins. */
+.cur-ide .cur-mcp-explorer {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cur-ide .cur-mcp-explorer .cur-tools-header,
+.cur-ide .cur-mcp-explorer .cur-field {
+  margin: 0;
+}
+
+.cur-ide .cur-mcp-explorer .cur-btn--primary {
+  align-self: flex-start;
+}
+
+.cur-ide .cur-input--code {
+  resize: vertical;
+}
