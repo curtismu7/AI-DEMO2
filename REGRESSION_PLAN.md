@@ -261,6 +261,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-06 — A failed run said the same thing for "out of quota" and "Google is overloaded"
+
+**Files:** `demo_api_ui/src/utils/a2aRunFailureMessage.js`, `demo_api_ui/src/utils/__tests__/a2aRunFailureMessage.test.js`.
+
+**What was broken:** Only a 429 got a plain-language explanation. A 503 ("high demand"), or the agent's own "did not answer within 30 s" error, showed Gemini's JSON blob trimmed to 240 characters, with no advice. The two need different responses: 429 means the quota or tokens are used up (wait for the reset, or switch the model); 503 is Google being overloaded and is temporary (try again in a minute).
+
+**What changed:** `runFailureMessage` now has three cases. 429 / quota / rate limit: unchanged. 503 / 529 / overload / "high demand" / "did not answer within": "the model behind this run is overloaded right now … temporary … try again in a minute; if it keeps happening, switch the model" (setting and picker note included). Anything else: one short line. A message that matches both is treated as quota, since that advice differs. The BFF's "unreachable / restarting" text and the generic "unavailable" are deliberately not treated as an overload.
+
+**Do not break:** the 429 wording; `briefRunError`'s single-line cap; no raw JSON in either explanation.
+
+**Verify:** `cd demo_api_ui && ./node_modules/.bin/vitest run src/utils/__tests__/a2aRunFailureMessage.test.js`; `npm run build`.
+
 ### 2026-10-06 — Step 25 looked like it would run in the agent but opens a page; mark where each step goes
 
 **Files:** `demo_api_ui/src/config/demoUseCaseSteps.js` (`DEMO_STEP_DESTINATIONS`), `demo_api_ui/src/components/DemoStepsDropdown.jsx`, `demo_api_ui/src/components/AIAgent.css`, `demo_api_ui/src/components/__tests__/DemoStepsDropdown.test.jsx`.
