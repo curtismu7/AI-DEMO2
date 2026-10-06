@@ -4,6 +4,8 @@
 // interactive React Flow graph via the shared StaticFlowDiagram component.
 import React, { useState } from "react";
 import StaticFlowDiagram from "./StaticFlowDiagram";
+import DiagramStepBar from "./DiagramStepBar";
+import { edgeCaptions, useDiagramStepper } from "../hooks/useDiagramStepper";
 import "./ResourceServerPlacementPage.css";
 
 export const RSP_NODES = [
@@ -97,8 +99,11 @@ const RULES = [
   },
 ];
 
+const RSP_CAPTIONS = edgeCaptions(RSP_EDGES, Object.fromEntries(RSP_NODES.map((n) => [n.id, n.label])));
+
 export default function ResourceServerPlacementPage() {
   const [selectedNode, setSelectedNode] = useState(null);
+  const stepper = useDiagramStepper(RSP_EDGES.length);
 
   const nodeDetail = selectedNode
     ? RSP_DETAILS[selectedNode.id] ||
@@ -119,10 +124,12 @@ export default function ResourceServerPlacementPage() {
       </div>
 
       <div className="rsp-panel">
+        <DiagramStepBar stepper={stepper} caption={RSP_CAPTIONS[stepper.step]} />
         <StaticFlowDiagram
           NODES={RSP_NODES}
           EDGES={RSP_EDGES}
           GROUPS={RSP_GROUPS}
+          step={stepper.step}
           onNodeClick={(node) => setSelectedNode(selectedNode?.id === node.id ? null : node)}
           testId="rsp-flow-diagram"
           height={560}

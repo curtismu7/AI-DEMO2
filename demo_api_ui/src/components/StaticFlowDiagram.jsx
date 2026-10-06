@@ -1,23 +1,195 @@
 /**
- * StaticFlowDiagram — dependency-free SVG canvas for fixed-layout token flows.
+ * StaticFlowDiagram — fixed-layout token flows drawn with React Flow.
  *
  * Props:
  *   NODES        [{ id, group, label, sub?: string[], x, y }]
- *   EDGES        [[srcId, tgtId, label?, opts?]] — opts: { dashed, color }
+ *   EDGES        [[srcId, tgtId, label?, opts?]] — opts: { dashed, color, vertical }
+ *                (vertical = leave the bottom of the source, enter the top of the target)
  *   GROUPS       { key: { label, bg } }
  *   selectedPath key of the currently highlighted path (dims others)
  *   onNodeClick  (node) => void — node = { id, data }
  *   testId       data-testid for the wrapper
- *   height       canvas height in px (nodes sit on a 640-tall grid by default)
+ *   height       canvas height in px
+ *   ariaLabel    accessible name for the diagram (role="group")
+ *   step         index of the EDGES entry in focus for a Play/Step walkthrough
+ *                (-1 = off): that arrow is accented, later ones fade
  *
- * Deliberately NOT React Flow: these diagrams are static, hand-laid-out
- * teaching graphs; plain SVG keeps them deterministic and cheap.
+ * Nodes keep their hand-placed x/y; React Flow supplies pan/zoom and fit-to-view.
+ * Interaction (drag, connect) is off — these are teaching graphs, not editors.
  */
+import React, { useMemo, useRef } from "react";
+import {
+  BaseEdge,
+  Background,
+  BackgroundVariant,
+  Controls,
+  EdgeLabelRenderer,
+  getBezierPath,
+  Handle,
+  Position,
+  ReactFlow,
+  ReactFlowProvider,
+} from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
+import { useFitOnResize } from "../hooks/useFitOnResize";
 import "./StaticFlowDiagram.css";
 
 const NODE_W = 210;
 const NODE_H_BASE = 44;
 const NODE_H_PER_SUB = 15;
+const nodeH = (n) => NODE_H_BASE + (n.sub ? n.sub.length * NODE_H_PER_SUB : 0);
+
+const FIT = { padding: 0.06 };
+const HIDDEN = { opacity: 0, width: 1, height: 1 };
+
+function FlowNode({ data }) {
+  const { n, color, className, testId, onClick } = data;
+  return (
+    <div
+      className={className}
+      style={{ width: NODE_W, height: nodeH(n), borderColor: color }}
+      onClick={onClick}
+      data-testid={`${testId}-node-${n.id}`}
+    >
+      <span className="sfd-node-stripe" style={{ background: color }} />
+      <div className="sfd-node-label">{n.label}</div>
+      {(n.sub || []).map((s, i) => (
+        <div key={i} className="sfd-node-sub">{s}</div>
+      ))}
+      <Handle id="tl" type="target" position={Position.Left} style={HIDDEN} />
+      <Handle id="tr" type="target" position={Position.Right} style={HIDDEN} />
+      <Handle id="sl" type="source" position={Position.Left} style={HIDDEN} />
+      <Handle id="sr" type="source" position={Position.Right} style={HIDDEN} />
+      <Handle id="tt" type="target" position={Position.Top} style={HIDDEN} />
+      <Handle id="sb" type="source" position={Position.Bottom} style={HIDDEN} />
+    </div>
+  );
+}
+
+function FlowEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data }) {
+  const self = data.self;
+  const [path, labelX, labelY] = self
+    ? [`M ${sourceX} ${sourceY} C ${sourceX + 60} ${sourceY}, ${sourceX + 60} ${sourceY + 30}, ${sourceX} ${sourceY + 30}`, sourceX + 55, sourceY + 15]
+    : getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
+  return (
+    <g className={data.className}>
+      <BaseEdge
+        id={id}
+        path={path}
+        markerEnd="url(#sfd-arrow)"
+        style={{ stroke: data.color, strokeWidth: 1.5, strokeDasharray: data.dashed ? "5 4" : undefined }}
+      />
+      {data.label && (
+        <EdgeLabelRenderer>
+          <div
+            className={`sfd-edge-label nodrag nopan ${data.className}`}
+            style={{ transform: `translate(-50%, -100%) translate(${labelX}px, ${labelY - 2}px)` }}
+          >
+            {data.label}
+          </div>
+        </EdgeLabelRenderer>
+      )}
+    </g>
+  );
+}
+
+const nodeTypes = { sfd: FlowNode };
+const edgeTypes = { sfd: FlowEdge };
+
+function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, testId, height, step, ariaLabel }) {
+  const ref = useRef(null);
+  useFitOnResize(ref, FIT);
+  const byId = useMemo(() => new Map(NODES.map((n) => [n.id, n])), [NODES]);
+  const stepEdge = step >= 0 ? EDGES[step] : null;
+
+  const nodes = useMemo(
+    () =>
+      NODES.map((n) => {
+        const g = GROUPS[n.group] || {};
+        const active = selectedPath && n.path === selectedPath;
+        const dimmed = selectedPath && n.path && !active;
+        const hot = stepEdge && (stepEdge[0] === n.id || stepEdge[1] === n.id);
+        return {
+          id: n.id,
+          type: "sfd",
+          position: { x: n.x, y: n.y },
+          draggable: false,
+          selectable: false,
+          data: {
+            n,
+            color: g.bg || "var(--sfd-edge)",
+            testId,
+            className: `sfd-node${dimmed ? " dimmed" : ""}${hot ? " step-hot" : ""}`,
+            onClick: () => onNodeClick({ id: n.id, data: n }),
+          },
+        };
+      }),
+    [NODES, GROUPS, selectedPath, stepEdge, testId, onNodeClick],
+  );
+
+  const edges = useMemo(
+    () =>
+      EDGES.flatMap(([src, tgt, label, opts = {}], i) => {
+        const a = byId.get(src);
+        const b = byId.get(tgt);
+        if (!a || !b) return [];
+        const self = src === tgt;
+        const active =
+          selectedPath && (a.path === selectedPath || b.path === selectedPath || opts.path === selectedPath);
+        const dimmed = selectedPath && !active;
+        const stepClass = step < 0 ? "" : i === step ? " step-now" : i > step ? " step-future" : "";
+        const forward = a.x < b.x;
+        return [
+          {
+            id: `e${i}`,
+            type: "sfd",
+            source: src,
+            target: tgt,
+            sourceHandle: opts.vertical ? "sb" : self || forward ? "sr" : "sl",
+            targetHandle: opts.vertical ? "tt" : self ? "tr" : forward ? "tl" : "tr",
+            selectable: false,
+            data: {
+              label,
+              self,
+              dashed: opts.dashed,
+              color: opts.color || "var(--sfd-edge)",
+              className: `sfd-edge${dimmed ? " dimmed" : ""}${stepClass}`,
+            },
+          },
+        ];
+      }),
+    [EDGES, byId, selectedPath, step],
+  );
+
+  return (
+    <div className="sfd" data-testid={testId} style={{ height }} ref={ref} role={ariaLabel ? "group" : undefined} aria-label={ariaLabel}>
+      <svg width="0" height="0" aria-hidden="true" className="sfd-defs">
+        <defs>
+          <marker id="sfd-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" className="sfd-arrow" />
+          </marker>
+        </defs>
+      </svg>
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
+        fitView
+        fitViewOptions={FIT}
+        minZoom={0.2}
+        maxZoom={2}
+        nodesDraggable={false}
+        nodesConnectable={false}
+        elementsSelectable={false}
+        proOptions={{ hideAttribution: true }}
+      >
+        <Background variant={BackgroundVariant.Dots} gap={22} size={1.5} />
+        <Controls showInteractive={false} />
+      </ReactFlow>
+    </div>
+  );
+}
 
 export default function StaticFlowDiagram({
   NODES,
@@ -27,82 +199,22 @@ export default function StaticFlowDiagram({
   onNodeClick = () => {},
   testId = "static-flow-diagram",
   height = 640,
+  step = -1,
+  ariaLabel,
 }) {
-  const byId = new Map(NODES.map((n) => [n.id, n]));
-  const nodeH = (n) => NODE_H_BASE + (n.sub ? n.sub.length * NODE_H_PER_SUB : 0);
-  const nodeCenter = (n) => ({ cx: n.x + NODE_W / 2, cy: n.y + nodeH(n) / 2 });
-  const edgeActive = (e) => {
-    const opts = e[3] || {};
-    const nodeFor = (id) => byId.get(id) || {};
-    return selectedPath && (nodeFor(e[0]).path === selectedPath || nodeFor(e[1]).path === selectedPath || opts.path === selectedPath);
-  };
-
   return (
-    <div className="sfd" data-testid={testId}>
-      <svg
-        className="sfd-canvas"
-        role="img"
-        viewBox={`0 0 ${Math.max(760, ...NODES.map((n) => n.x + NODE_W + 40))} ${Math.max(height, ...NODES.map((n) => n.y + nodeH(n) + 40))}`}
-      >
-        {EDGES.map(([src, tgt, label, opts = {}], i) => {
-          const a = byId.get(src);
-          const b = byId.get(tgt);
-          if (!a || !b) return null;
-          const ac = nodeCenter(a);
-          const bc = nodeCenter(b);
-          const active = edgeActive([src, tgt, label, opts]);
-          const dimmed = selectedPath && !active;
-          const stroke = opts.color || "var(--sfd-edge, #64748b)";
-          const x1 = src === tgt ? ac.cx : (a.x < b.x ? a.x + NODE_W : a.x);
-          const y1 = src === tgt ? ac.cy : ac.cy;
-          const x2 = src === tgt ? bc.cx : (a.x < b.x ? b.x : b.x + NODE_W);
-          const y2 = bc.cy;
-          const d = src === tgt
-            ? `M ${a.x + NODE_W} ${y1} C ${a.x + NODE_W + 60} ${y1}, ${a.x + NODE_W + 60} ${y1 + 30}, ${a.x + NODE_W} ${y1 + 30}`
-            : `M ${x1} ${y1} C ${(x1 + x2) / 2} ${y1}, ${(x1 + x2) / 2} ${y2}, ${x2} ${y2}`;
-          const midX = src === tgt ? a.x + NODE_W + 55 : (x1 + x2) / 2;
-          const midY = src === tgt ? y1 + 15 : (y1 + y2) / 2 - 6;
-          return (
-            <g key={`${src}->${tgt}:${label || ""}:${i}`} className={dimmed ? "sfd-edge dimmed" : "sfd-edge"}>
-              <path d={d} fill="none" stroke={stroke} strokeWidth={active ? 2.5 : 1.5}
-                strokeDasharray={opts.dashed ? "5 4" : undefined}
-                markerEnd="url(#sfd-arrow)" />
-              {label && (
-                <text className="sfd-edge-label" x={midX} y={midY} textAnchor="middle">
-                  {label}
-                </text>
-              )}
-            </g>
-          );
-        })}
-        <defs>
-          <marker id="sfd-arrow" viewBox="0 0 10 10" refX="9" refY="5"
-            markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--sfd-edge, #64748b)" />
-          </marker>
-        </defs>
-        {NODES.map((n) => {
-          const g = GROUPS[n.group] || {};
-          const active = selectedPath && (n.path === selectedPath);
-          const dimmed = selectedPath && n.path && !active;
-          return (
-            <g key={n.id} transform={`translate(${n.x}, ${n.y})`}
-              className={dimmed ? "sfd-node dimmed" : "sfd-node"}
-              onClick={() => onNodeClick({ id: n.id, data: n })}
-              style={{ cursor: "pointer" }}
-              data-testid={`${testId}-node-${n.id}`}>
-              <rect width={NODE_W} height={nodeH(n)} rx="8"
-                className="sfd-node-box"
-                style={{ stroke: g.bg || "var(--sfd-edge, #64748b)" }} />
-              <rect width="5" height={nodeH(n)} rx="2.5" fill={g.bg || "var(--sfd-edge, #64748b)"} />
-              <text className="sfd-node-label" x="14" y="18">{n.label}</text>
-              {(n.sub || []).map((s, si) => (
-                <text key={si} className="sfd-node-sub" x="14" y={34 + si * NODE_H_PER_SUB}>{s}</text>
-              ))}
-            </g>
-          );
-        })}
-      </svg>
-    </div>
+    <ReactFlowProvider>
+      <Inner
+        NODES={NODES}
+        EDGES={EDGES}
+        GROUPS={GROUPS}
+        selectedPath={selectedPath}
+        onNodeClick={onNodeClick}
+        testId={testId}
+        height={height}
+        step={step}
+        ariaLabel={ariaLabel}
+      />
+    </ReactFlowProvider>
   );
 }

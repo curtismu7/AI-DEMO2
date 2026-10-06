@@ -11,6 +11,7 @@ import {
   getSmoothStepPath,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { stepEdges } from '../hooks/useDiagramStepper';
 import './TokenChainFlowDiagram.css';
 
 /**
@@ -366,18 +367,18 @@ function buildFlow() {
   ];
 }
 
-export default function TokenChainFlowDiagram({ onClickNode }) {
+export default function TokenChainFlowDiagram({ onClickNode, step = -1 }) {
   const nodes = useMemo(buildFlow, []);
   const edges = useMemo(
-    () => EDGES.map(([source, target, label], i) => ({
+    () => stepEdges(EDGES.map(([source, target, label], i) => ({
       id: `e${i}`,
       source,
       target,
       type: 'chain',
       data: { label },
       zIndex: 2,
-    })),
-    [],
+    })), step),
+    [step],
   );
 
   return (

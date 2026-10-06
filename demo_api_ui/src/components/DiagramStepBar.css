@@ -1,0 +1,23 @@
+/* DiagramStepBar.css — the card and caption under the shared DiagramControls toolbar. */
+
+/* Its own surface, so it reads on pages that paint a dark ground of their own. */
+.dstep-bar {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+}
+
+.dstep-caption {
+  margin: 0;
+  min-height: 1.5em;
+  font-size: var(--font-size-sm);
+  color: var(--th-text-muted);
+}
+.dstep-caption strong {
+  color: var(--th-status-info-text);
+}

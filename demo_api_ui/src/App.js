@@ -30,6 +30,7 @@ import PrivilegeGatewayTopologyPage from "./components/PrivilegeGatewayTopologyP
 import InvestDualAuthDiagramPage from "./components/InvestDualAuthDiagramPage";
 import ExternalDoorDiagramPage from "./components/ExternalDoorDiagramPage";
 import DemoArchSlidesPage from "./components/DemoArchSlidesPage";
+import DemoStepsLifelineAuditPage from "./components/DemoStepsLifelineAuditPage";
 import GatewayEnforcementMapPage from "./components/GatewayEnforcementMapPage";
 import ResourceServerPlacementPage from "./components/ResourceServerPlacementPage";
 import PrivilegeFirstGatewayPage from "./components/PrivilegeFirstGatewayPage";
@@ -2140,6 +2141,10 @@ function AppWithAuth() {
                             <Route
                               path="/demo-arch-slides/control-plane"
                               element={<DemoArchSlidesPage slide="control-plane" />}
+                            />
+                            <Route
+                              path="/demo-steps-lifeline-audit"
+                              element={<DemoStepsLifelineAuditPage />}
                             />
                             <Route
                               path="/gateway-enforcement-map"

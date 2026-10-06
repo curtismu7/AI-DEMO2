@@ -937,6 +937,12 @@ Use cases in the registry (`demo_api_server/config/useCases.js`):
 - **What it teaches:** The subject token carries the person, the act claim records the agent, and RFC 8693 narrows scope and audience.
 - **What it demos:** Comparing sub and act in the token-chain trace and the delegated token's audience, scopes and expiry.
 
+### Demo Steps Lifeline Audit
+- **Route:** `/demo-steps-lifeline-audit` · **Auth:** public
+- **What it does:** Static audit of the 24 Demo steps against the live sequence diagram: which reach it, which show what they demonstrate, and a ranked fix order.
+- **What it teaches:** Where the trace builder, chat stream handler and simulators drop evidence, and which steps claim more than they do.
+- **What it demos:** A coverage strip, fix list, cross-step gaps and a per-step table, each finding marked checked or agent-reported.
+
 ### Invest Dual-Auth (MM)
 - **Route:** `/invest-dual-auth` · **Auth:** public
 - **What it does:** Mermaid diagram "Invest Service: Bearer Token vs API Key" with two flows to the same backend, and export options.

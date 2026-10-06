@@ -67,7 +67,7 @@ export const NAV_STRUCTURE_CATALOG = [
     "Server Topology (Interactive)", "PingFederate ID-JAG (Node)",
     "System Diagram (Node)", "Overview Diagram (Node)", "Token Flow (Interactive) (Node)",
     "Token Chain Architecture (Node)", "Interactive Flow (Node)", "Sequence Diagram (Node)", "Canvas Diagram (Node)",
-    "Delegated Access Proof",
+    "Delegated Access Proof", "Demo Steps Lifeline Audit",
     "Invest Dual-Auth (MM)", "AI Gateway (MM)",
     "AI Gateway Enforcement (Node)", "Gateway vs P1AZ Enforcement (MM)", "Resource Server Placement (MM)",
   ] },
