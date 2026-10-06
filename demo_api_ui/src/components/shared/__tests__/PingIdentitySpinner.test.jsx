@@ -41,6 +41,23 @@ describe('PingIdentitySpinner', () => {
     expect(visual).not.toContainElement(label);
   });
 
+  it('shows the tip card on large spinners only', () => {
+    const { rerender } = render(<PingIdentitySpinner size={56} label="Loading…" />);
+    expect(document.querySelector('.spinner-tip')).not.toBeNull();
+
+    rerender(<PingIdentitySpinner size={39} label="Loading…" />);
+    expect(document.querySelector('.spinner-tip')).toBeNull();
+
+    rerender(<PingIdentitySpinner size={72} aria-hidden="true" />);
+    expect(document.querySelector('.spinner-tip')).toBeNull();
+
+    rerender(<PingIdentitySpinner size={72} label="Loading…" className="ping-spinner--inline" />);
+    expect(document.querySelector('.spinner-tip')).toBeNull();
+
+    rerender(<PingIdentitySpinner size={72} label="Loading…" tip={false} />);
+    expect(document.querySelector('.spinner-tip')).toBeNull();
+  });
+
   it('keeps runtime loading surfaces to one branded mark plus a short note', () => {
     const violations = [];
     for (const file of sourceFiles(SRC)) {

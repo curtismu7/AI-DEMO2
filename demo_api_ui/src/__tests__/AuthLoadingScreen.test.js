@@ -33,6 +33,7 @@ describe('AuthLoadingScreen', () => {
       const { container } = render(<AuthLoadingScreen />);
       const tip = () => container.querySelector('.boot-skeleton__tip span').textContent;
       const first = tip();
+      expect(container.querySelectorAll('.spinner-tip')).toHaveLength(1);
       expect(container.querySelector('.boot-skeleton__tip em')).toBeNull();
       act(() => { vi.advanceTimersByTime(4000); });
       expect(tip()).not.toBe(first);

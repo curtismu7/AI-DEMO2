@@ -40,6 +40,16 @@
   vertical-align: middle;
 }
 
+/* Large spinners stack the mark, label and tip card in a column. */
+.ping-spinner--with-tip {
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ping-spinner--with-tip .ping-spinner__label {
+  margin-left: 0;
+}
+
 .ping-spinner__visual {
   position: relative;
   display: grid;

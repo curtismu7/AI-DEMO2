@@ -1,5 +1,9 @@
 import React from 'react';
+import SpinnerTip from './SpinnerTip';
 import './LoadingOverlay.css';
+
+// Spinners this big are waiting on something; smaller ones sit in buttons and rows.
+const TIP_MIN_SIZE = 40;
 
 const DEFAULT_LOGO_SRC = '/branding/ping-logo.svg';
 
@@ -15,11 +19,14 @@ export default function PingIdentitySpinner({
   size = 88,
   logoSrc,
   className = '',
+  tip,
   ...ariaProps
 }) {
   const isDecorative = ariaProps['aria-hidden'] === true || ariaProps['aria-hidden'] === 'true';
   const isCustomLogo = Boolean(logoSrc);
-  const rootClassName = `ping-spinner ${className}`.trim();
+  // Default: show the tip card on large, non-decorative, non-inline spinners.
+  const showTip = tip ?? (size >= TIP_MIN_SIZE && !isDecorative && !className.includes('ping-spinner--inline'));
+  const rootClassName = `ping-spinner ${showTip ? 'ping-spinner--with-tip' : ''} ${className}`.replace(/\s+/g, ' ').trim();
 
   return (
     <span
@@ -40,6 +47,7 @@ export default function PingIdentitySpinner({
         />
       </span>
       {label && <span className="ping-spinner__label">{label}</span>}
+      {showTip && <SpinnerTip />}
     </span>
   );
 }
