@@ -81,7 +81,16 @@ def _texts(value: Any) -> list[str]:
 
 
 def _card_summary(body: dict[str, Any]) -> dict[str, Any]:
-    """The fields of an A2A Agent Card the caller's trace shows."""
+    """The fields of an A2A Agent Card the caller's trace shows.
+
+    Names, versions and other short fields only. The card's prose (its
+    description and each skill's description) is another agent's free text, and
+    this report travels back to our caller inside our own reply: relaying it
+    would carry whatever that agent wrote, including an instruction aimed at a
+    model, through us. The gateway's guardrail blocked exactly that reply when
+    the hostile demo agent's card was relayed (a2a_response_blocked,
+    2026-10-06). So the prose is counted, not copied.
+    """
 
     skills = [skill for skill in body.get("skills") or [] if isinstance(skill, dict) and isinstance(skill.get("name"), str)]
     required: dict[str, list[str]] = {}
@@ -97,7 +106,8 @@ def _card_summary(body: dict[str, Any]) -> dict[str, Any]:
     capabilities = body.get("capabilities") if isinstance(body.get("capabilities"), dict) else {}
     return {
         "name": body["name"],
-        "description": body.get("description") if isinstance(body.get("description"), str) else "",
+        "description": "",
+        "descriptionChars": len(body["description"]) if isinstance(body.get("description"), str) else 0,
         "protocolVersion": body.get("protocolVersion") if isinstance(body.get("protocolVersion"), str) else "",
         "url": body.get("url") if isinstance(body.get("url"), str) else "",
         "preferredTransport": body.get("preferredTransport") if isinstance(body.get("preferredTransport"), str) else "",
@@ -110,7 +120,7 @@ def _card_summary(body: dict[str, Any]) -> dict[str, Any]:
             {
                 "id": skill.get("id") if isinstance(skill.get("id"), str) else "",
                 "name": skill["name"],
-                "description": skill.get("description") if isinstance(skill.get("description"), str) else "",
+                "description": "",
                 "tags": _texts(skill.get("tags")),
             }
             for skill in skills
@@ -154,7 +164,9 @@ async def _discover(target: str, url: str, client: httpx.AsyncClient) -> None:
             if last.status_code == 200 and isinstance(body, dict) and isinstance(body.get("name"), str):
                 _record_hop(
                     target, "ok", f"Agent Card for {body['name']}", started,
-                    kind="card", card=_card_summary(body), request=request, response=_wire_response(last),
+                    kind="card", card=_card_summary(body), request=request,
+                    # Not the card's body: see _card_summary on relaying another agent's text.
+                    response=f"HTTP {last.status_code}\n\n(Agent Card received, {len(last.text)} characters. Its text is not relayed.)",
                     wire={"status": last.status_code}, credential=_masked_key(),
                 )
                 return

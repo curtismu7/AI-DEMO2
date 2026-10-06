@@ -166,7 +166,8 @@ async def test_a_reported_hand_off_carries_the_card_and_what_crossed_the_wire(co
     assert card["kind"] == "card" and card["status"] == "ok" and card["wire"] == {"status": 200}
     assert card["card"] == {
         "name": "Refunds Specialist",
-        "description": "Resolves refund requests.",
+        "description": "",
+        "descriptionChars": len("Resolves refund requests."),
         "protocolVersion": "0.3.0",
         "url": "https://direct.example/a2a/jsonrpc",
         "preferredTransport": "JSONRPC",
@@ -175,9 +176,12 @@ async def test_a_reported_hand_off_carries_the_card_and_what_crossed_the_wire(co
         "capabilities": ["streaming: no", "pushNotifications: yes"],
         "inputModes": ["text"],
         "outputModes": ["text"],
-        "skillDetails": [{"id": "refund", "name": "Refund", "description": "Issue a refund.", "tags": ["money"]}],
+        "skillDetails": [{"id": "refund", "name": "Refund", "description": "", "tags": ["money"]}],
         "security": ["gatewayToken (http)"],
     }
+    # Another agent's prose never rides back in our reply, in the summary or the raw response.
+    assert "Resolves refund requests." not in json.dumps(hops) and "Issue a refund." not in json.dumps(hops)
+    assert card["response"].startswith("HTTP 200") and "not relayed" in card["response"]
     assert call["status"] == "ok" and call["message"] == "Refund order 7" and call["reply"] == "Refund approved"
     assert call["wire"]["status"] == 200 and call["wire"]["replyMessageId"] == "reply-1" and call["wire"]["role"] == "agent"
     assert call["wire"]["rpcId"] and call["wire"]["messageId"]
