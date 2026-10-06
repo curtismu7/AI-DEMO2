@@ -25,6 +25,15 @@ textarea {
   font-family: inherit;
 }
 
+/* The browser's default placeholder is a fixed grey (#757575): 3.7:1 on the dark inputs and
+   4.6:1 on white. Inherit the control's own ink, which already contrasts with its ground in
+   both themes, and soften it only slightly so a placeholder still reads as a placeholder. */
+input::placeholder,
+textarea::placeholder {
+  color: inherit;
+  opacity: 0.8;
+}
+
 /* Toast notifications must sit above all fixed/portal UI (the shell band). */
 .Toastify__toast-container {
   z-index: var(--z-toast) !important;
@@ -387,8 +396,9 @@ textarea {
   /* Sign-in surfaces (card, strip, interrupt) share ONE accent. Deliberately
      identical in both themes: the whole point is that every "sign in" affordance
      reads the same wherever it appears. Only the tint below changes. */
-  --signin-accent: #2563eb;
-  --signin-accent-hover: #1d4ed8;
+  --signin-accent: #1e40af; /* fill under white text: #2563eb was 5.2:1, this is 8.7:1 */
+  --signin-accent-hover: #1e3a8a;
+  --signin-accent-text: #1e40af; /* the same accent used as TEXT on the card */
   --signin-accent-bg: #eff6ff;
   --signin-accent-border: #bfdbfe;
 
@@ -458,8 +468,9 @@ textarea {
   --shadow-lg: 0 8px 24px -8px rgba(0, 0, 0, 0.6);
 
   /* Same accent, darker tint. */
-  --signin-accent: #2563eb;
-  --signin-accent-hover: #1d4ed8;
+  --signin-accent: #1e40af;
+  --signin-accent-hover: #1e3a8a;
+  --signin-accent-text: #bfdbfe; /* as text on the dark card */
   --signin-accent-bg: #16233c;
   --signin-accent-border: #2f4a7a;
 
@@ -1098,7 +1109,8 @@ body {
 }
 
 .hosted-registration__input::placeholder {
-  color: #8a99ad;
+  color: #3f4d63; /* #8a99ad was 2.9:1 on white */
+  opacity: 1;
 }
 
 .hosted-registration__input:focus {

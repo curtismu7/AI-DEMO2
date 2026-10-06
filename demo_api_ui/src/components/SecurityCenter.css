@@ -105,7 +105,7 @@
   border: none;
   background: none;
   padding: 0;
-  color: var(--signin-accent);
+  color: var(--signin-accent-text);
   font-weight: 600;
   cursor: pointer;
   text-decoration: underline;
