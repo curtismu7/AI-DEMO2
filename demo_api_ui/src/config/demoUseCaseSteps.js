@@ -44,6 +44,24 @@ export const DEMO_PRIMARY_USE_CASE_IDS = [
 export const DEMO_ADVANCED_USE_CASE_IDS = [];
 
 /**
+ * Where a step goes when clicked, for the steps whose destination is easy to get wrong. Step 25 and 25A
+ * share a number and a topic but differ: 25 leaves the agent for the A2A page, 25A runs in the agent.
+ * kind: 'page' (navigates away) | 'agent' (stays and runs here).
+ */
+export const DEMO_STEP_DESTINATIONS = {
+  UC46: {
+    kind: 'page',
+    label: 'Opens page',
+    title: 'Opens the A2A page (/privilege-mcp-client?view=demo&tab=a2a) and leaves the agent. Nothing runs here: use 25A to run the review in the agent.',
+  },
+  UC46A: {
+    kind: 'agent',
+    label: 'Runs in agent',
+    title: 'Stays in the agent and runs the access review here, with the reel and sequence view.',
+  },
+};
+
+/**
  * Lettered sub-steps: a use case shown right after its parent as "<parent number>A".
  * They sit outside the numbered lists on purpose, so adding one never renumbers the
  * steps after it (UC46A is Step 25A; Step 26 stays Step 26).

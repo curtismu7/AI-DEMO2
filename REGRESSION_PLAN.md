@@ -261,6 +261,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-06 — Step 25 looked like it would run in the agent but opens a page; mark where each step goes
+
+**Files:** `demo_api_ui/src/config/demoUseCaseSteps.js` (`DEMO_STEP_DESTINATIONS`), `demo_api_ui/src/components/DemoStepsDropdown.jsx`, `demo_api_ui/src/components/AIAgent.css`, `demo_api_ui/src/components/__tests__/DemoStepsDropdown.test.jsx`.
+
+**What was broken:** Steps 25 (UC46) and 25A (UC46A) share a number and a topic but differ: 25 leaves the agent for `/privilege-mcp-client?view=demo&tab=a2a` and runs nothing, 25A runs the review in the agent. Nothing on the rows said so, so a presenter clicked 25 expecting it to run in the agent and was taken to another page.
+
+**What changed:** Each of the two rows now carries a small marker: an amber **Opens page** on Step 25 (tooltip: it opens the A2A page, leaves the agent, nothing runs here, use 25A) and a green **Runs in agent** on 25A. The marker appears on every copy of the row, since a step can be listed in more than one group. The data lives in `DEMO_STEP_DESTINATIONS`, so another step can be marked by adding an entry. Styles use `--th-status-warning-*` / `--th-status-success-*` tokens (no literals, so both themes read correctly); the test id is `step-destination-<id>` on purpose, because many dropdown tests match `/^demo-step-/` for rows.
+
+**Do not break:** UC46 still opens its protected route and 25A still runs in the agent (decision of 2026-10-06: keep both as they are); Step 26 keeps its number; no other row gets a marker.
+
+**Verify:** `cd demo_api_ui && ./node_modules/.bin/vitest run src/components/__tests__/DemoStepsDropdown.test.jsx src/config`; `npm run build`.
+
 ### 2026-10-06 — The Groq default model was not available on the account (404 model_not_found)
 
 **Files:** `standalone/privilege-a2a-anthropic-demo/src/config.ts`, `test/provider.test.ts`, `README.md`, `config.example`.
@@ -272,6 +284,7 @@ read the configured host. A new browser origin must be added to ALL of:
 **Do not break:** an explicit `<AGENT>_MODEL` still wins; the Anthropic and Google defaults are unchanged.
 
 **Verify:** `cd standalone/privilege-a2a-anthropic-demo && npm test && npm run build` (37 pass).
+
 
 ### 2026-10-06 — The standalone A2A agents could only use Anthropic or Google; add Groq (direct)
 

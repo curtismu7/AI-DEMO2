@@ -6193,6 +6193,30 @@ body > .banking-agent-float-root .banking-agent-panel {
   background: #fef3c7;
 }
 
+/* Where a step goes: an amber "Opens page" for a step that leaves the agent, a green "Runs in agent" for
+   one that stays. Theme tokens only, so both themes read correctly. */
+.ba-demo-steps-popout__dest-badge {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 2px 6px;
+  border: 1px solid var(--th-border);
+  border-radius: 999px;
+  font-size: var(--font-size-3xs);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.ba-demo-steps-popout__dest-badge--page {
+  color: var(--th-status-warning-text);
+  background: var(--th-status-warning-bg);
+  border-color: var(--th-status-warning-border);
+}
+.ba-demo-steps-popout__dest-badge--agent {
+  color: var(--th-status-success-text);
+  background: var(--th-status-success-bg);
+  border-color: var(--th-status-success-border);
+}
+
 .ba-demo-steps-popout__hosted-badge {
   display: inline-flex;
   align-self: flex-start;
