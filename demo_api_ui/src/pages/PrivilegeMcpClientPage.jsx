@@ -304,7 +304,7 @@ export default function PrivilegeMcpClientPage() {
     llmGatewayUrl, setLlmGatewayUrl,
     gatewayConfigs, setGatewayConfigs,
     presets, setPresets,
-    preflight, preflightError, preflightBusy, probePresetDoors,
+    preflight, preflightError, preflightBusy, probePresetDoors, clearProbe,
     gatewaySession, setGatewaySession,
     selectPath, selectDoor,
   } = usePrivilegeRouting({ request: api });
@@ -2238,6 +2238,11 @@ export default function PrivilegeMcpClientPage() {
                     disabled={preflightBusy}
                   >
                     {preflightBusy ? 'Probing…' : 'Probe other doors'}
+                  </button>
+                )}
+                {inspecting && (preflight || preflightError) && (
+                  <button type="button" className="cur-btn cur-rail__btn" onClick={clearProbe}>
+                    Clear
                   </button>
                 )}
               </span>
