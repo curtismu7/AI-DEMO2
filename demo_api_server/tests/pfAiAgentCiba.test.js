@@ -70,7 +70,7 @@ describe('starting a CIBA approval', () => {
     expect(Object.fromEntries(init.body)).toEqual({ scope: 'openid', login_hint: 'demouser', binding_message: 'Transfer-125-USD' });
     expect(view).toEqual({
       state: 'pending', expiresAt: new Date(clock + 120_000).toISOString(), interval: 3,
-      loginHint: 'demouser', bindingMessage: 'Transfer-125-USD',
+      provider: 'pingfederate', loginHint: 'demouser', bindingMessage: 'Transfer-125-USD',
     });
     expect(JSON.stringify(view)).not.toContain('auth-req-secret-id');
     expect(request_.session.pfAiAgent.cibaPending.authReqId).toBe('auth-req-secret-id');
@@ -260,7 +260,7 @@ describe('CIBA routes', () => {
     app.use('/api/pf-ai-agent', createPfAiAgentRouter({ configStore: store, fetchImpl, dataStore: {} }));
     return app;
   };
-  const signedIn = () => ({ oauthProvider: 'pingone', oauthTokens: { accessToken: 't' }, user: { username: 'demouser' } });
+  const signedIn = () => ({ oauthProvider: 'pingfederate', oauthTokens: { accessToken: 't' }, user: { username: 'demouser' } });
 
   test('start and status need an application session', async () => {
     const app = appWith({}, jest.fn());

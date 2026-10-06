@@ -2,6 +2,7 @@
 
 const jwt = require('jsonwebtoken');
 const configStore = require('./configStore');
+const cibaService = require('./cibaService');
 const { getFeatureStatus, resolveCibaConfig, webApproverOn } = require('./pfAiAgentFeatureConfig');
 const {
   oauthError,
@@ -49,8 +50,14 @@ function validBindingMessage(requested) {
   return requested.trim();
 }
 
+// A PingOne session gets PingOne's own CIBA (cibaService, the same one UC22 uses); any other session gets
+// PingFederate's. The page and its routes are the same either way.
+const providerOf = (req) => (String(req?.session?.oauthProvider || req?.session?.user?.oauthProvider || '')
+  .toLowerCase() === 'pingone' ? 'pingone' : 'pingfederate');
+
 const pendingView = (pending) => ({
   state: 'pending',
+  provider: pending.provider || 'pingfederate',
   expiresAt: new Date(pending.expiresAt).toISOString(),
   interval: pending.interval,
   loginHint: pending.loginHint,
@@ -61,6 +68,7 @@ function finish(featureSession, state, pending, now, extra = {}) {
   delete featureSession.cibaPending;
   const result = {
     state,
+    provider: pending?.provider || 'pingfederate',
     loginHint: pending?.loginHint || null,
     bindingMessage: pending?.bindingMessage || null,
     subject: null,
@@ -103,6 +111,69 @@ async function safeJson(response) {
 const mockEnabled = (store) => process.env.NODE_ENV !== 'production' && !webApproverOn(store)
   && String(store.getEffective('pf_ai_ciba_mock_enabled') || '').trim().toLowerCase() === 'true';
 
+// PingOne CIBA: its login hint is the user's email, and the approval lands on their PingOne MFA device.
+async function startPingOneCiba(req, featureSession, { requestedHint, bindingMessage, now }) {
+  if (!cibaService.isEnabled()) throw oauthError('PF_AI_CIBA_P1_NOT_CONFIGURED', 'PingOne CIBA is not enabled', 503);
+  const hint = String(requestedHint || '').includes('@') ? String(requestedHint).trim() : String(req.session.user?.email || '').trim();
+  if (!hint) {
+    throw oauthError('PF_AI_CIBA_P1_EMAIL_REQUIRED', 'PingOne CIBA needs the signed-in user\'s email address', 400);
+  }
+  let result;
+  try {
+    result = await cibaService.initiateBackchannelAuth(hint, bindingMessage || undefined, 'openid');
+  } catch (error) {
+    if (error.response?.data?.error === 'unknown_user_id') throw oauthError('PF_AI_CIBA_USER_UNKNOWN', 'PingOne does not know that user', 404);
+    throw oauthError('PF_AI_CIBA_REQUEST_FAILED', 'PingOne rejected the approval request');
+  }
+  const createdAt = now();
+  const pending = {
+    provider: 'pingone',
+    authReqId: result.auth_req_id,
+    createdAt,
+    expiresAt: createdAt + Math.min(result.expires_in * 1000, MAX_PENDING_MS),
+    interval: clampInterval(result.interval),
+    lastPolledAt: 0,
+    loginHint: hint,
+    bindingMessage,
+    subject: req.session.user?.id || null,
+  };
+  featureSession.cibaPending = pending;
+  delete featureSession.cibaResult;
+  return pendingView(pending);
+}
+
+async function pollPingOneCiba(featureSession, pending, now) {
+  let tokens;
+  try {
+    tokens = await cibaService.pollForTokens(pending.authReqId);
+  } catch (error) {
+    switch (error.response?.data?.error) {
+      case 'authorization_pending': return pendingView(pending);
+      case 'slow_down':
+        pending.interval = clampInterval(pending.interval + SLOW_DOWN_STEP_SECONDS);
+        return pendingView(pending);
+      case 'access_denied': return finish(featureSession, 'denied', pending, now, { reason: 'user_denied' });
+      case 'expired_token': return finish(featureSession, 'expired', pending, now, { reason: 'timed_out' });
+      default:
+        finish(featureSession, 'error', pending, now, { reason: 'poll_failed' });
+        throw oauthError('PF_AI_CIBA_POLL_FAILED', 'PingOne could not complete the approval request');
+    }
+  }
+  let claims;
+  try {
+    claims = await cibaService.validateCibaIdToken(tokens.id_token, pending.subject);
+  } catch {
+    finish(featureSession, 'error', pending, now, { reason: 'invalid_token_response' });
+    throw oauthError('PF_AI_ID_TOKEN_INVALID', 'PingOne returned an identity result that does not match the user');
+  }
+  return finish(featureSession, 'approved', pending, now, {
+    subject: claims.sub,
+    issuer: claims.iss,
+    scope: typeof tokens.scope === 'string' ? tokens.scope : null,
+    tokenType: typeof tokens.token_type === 'string' ? tokens.token_type : null,
+  });
+}
+
 async function startCiba(req, {
   loginHint: requestedHint,
   bindingMessage: requestedMessage,
@@ -111,8 +182,10 @@ async function startCiba(req, {
   now = Date.now,
 } = {}) {
   if (!req?.session) throw oauthError('PF_AI_SESSION_REQUIRED', 'An application session is required', 401);
-  const mock = mockEnabled(store);
-  if (!mock && !getFeatureStatus(store).ciba) {
+  const provider = providerOf(req);
+  // The mock phone and the web approver stand in for a PingFederate-side device; a PingOne session never uses them.
+  const mock = provider === 'pingfederate' && mockEnabled(store);
+  if (provider === 'pingfederate' && !mock && !getFeatureStatus(store).ciba) {
     throw oauthError('PF_AI_CIBA_NOT_CONFIGURED', 'PF AI Agent CIBA is not enabled or configured', 503);
   }
   req.session.pfAiAgent ||= {};
@@ -121,8 +194,11 @@ async function startCiba(req, {
   if (featureSession.cibaPending) {
     throw oauthError('PF_AI_FLOW_ALREADY_PENDING', 'An approval request is already pending', 409);
   }
-  const loginHint = sessionLoginHint(req, requestedHint);
   const bindingMessage = validBindingMessage(requestedMessage);
+  if (provider === 'pingone') {
+    return startPingOneCiba(req, featureSession, { requestedHint, bindingMessage, now });
+  }
+  const loginHint = sessionLoginHint(req, requestedHint);
 
   if (mock) {
     const createdAt = now();
@@ -178,9 +254,11 @@ async function pollCiba(req, { store = configStore, fetchImpl = fetch, now = Dat
   if (!pending) return featureSession?.cibaResult || { state: 'none' };
   if (pending.expiresAt <= now()) return finish(featureSession, 'expired', pending, now, { reason: 'timed_out' });
   if (pending.mock) return pendingView(pending);
+  const isPingOne = pending.provider === 'pingone';
   // The page may ask more often than PingFederate allows; answer from the session instead of calling it.
   if (now() - pending.lastPolledAt < pending.interval * 1000) return pendingView(pending);
   pending.lastPolledAt = now();
+  if (isPingOne) return pollPingOneCiba(featureSession, pending, now);
 
   const config = resolveCibaConfig(store);
   const response = await postForm(fetchImpl, config.tokenEndpoint,

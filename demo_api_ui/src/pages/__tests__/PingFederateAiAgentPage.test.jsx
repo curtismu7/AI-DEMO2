@@ -126,7 +126,7 @@ describe("PingFederate AI Agent page", () => {
   });
 
   describe("CIBA human approval", () => {
-    const cibaStatus = { ...readyStatus, features: { ...readyStatus.features, ciba: true } };
+    const cibaStatus = { ...readyStatus, sessionProvider: "pingfederate", features: { ...readyStatus.features, ciba: true } };
     const pendingView = (extra = {}) => ({
       state: "pending", interval: 1, loginHint: "demouser", bindingMessage: null,
       expiresAt: new Date(Date.now() + 120_000).toISOString(), ...extra,
@@ -144,7 +144,8 @@ describe("PingFederate AI Agent page", () => {
     const cibaCalls = () => apiClient.get.mock.calls.filter(([url]) => String(url).includes("/ciba/status")).length;
     const ask = () => screen.findByRole("button", { name: /Ask for approval/i });
 
-    it("offers no button until CIBA is configured", async () => {
+    it("offers no button until CIBA is configured (a PingFederate session, with no PF CIBA)", async () => {
+      apiClient.get.mockResolvedValue({ data: { ...readyStatus, sessionProvider: "pingfederate" } });
       render(<PingFederateAiAgentPage user={{ username: "demouser" }} />);
       expect(await screen.findByText(/Configure CIBA and sign in/i)).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: /Ask for approval/i })).not.toBeInTheDocument();
@@ -177,7 +178,7 @@ describe("PingFederate AI Agent page", () => {
       fireEvent.click(await ask());
       fireEvent.click(await screen.findByRole("button", { name: /Approve on mock phone/i }));
 
-      expect(await screen.findByTestId("ciba-outcome")).toHaveTextContent("Approved by demouser.");
+      expect(await screen.findByTestId("ciba-outcome")).toHaveTextContent("Approved by demouser through PingFederate CIBA.");
       expect(apiClient.post).toHaveBeenCalledWith("/api/pf-ai-agent/ciba/mock-decision", { decision: "approve" });
     });
 
@@ -211,6 +212,23 @@ describe("PingFederate AI Agent page", () => {
       expect(pageCss).toMatch(/\.pf-ai-agent__phone\s*\{[^}]*--pf-ai-accent:/);
     });
 
+    it("a PingOne session uses PingOne CIBA: no mock phone, and the answer says PingOne", async () => {
+      // The mock phone and web approver are on, to prove a PingOne session ignores them.
+      routeGets({
+        page: { ...cibaStatus, sessionProvider: "pingone", features: { ...cibaStatus.features, ciba: false, cibaMock: true } },
+        ciba: [{ state: "none" }, pendingView({ provider: "pingone" }), { state: "approved", provider: "pingone", subject: "demouser", loginHint: "demouser" }],
+      });
+      apiClient.post.mockResolvedValue({ data: pendingView({ provider: "pingone" }) });
+      render(<PingFederateAiAgentPage user={{ username: "demouser" }} />);
+
+      fireEvent.click(await ask());
+
+      expect(await screen.findByTestId("ciba-pending")).toHaveTextContent(/PingOne CIBA/);
+      expect(screen.queryByText("Approve this request?")).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /mock phone/i })).not.toBeInTheDocument();
+      expect(await screen.findByTestId("ciba-outcome", {}, { timeout: 4000 })).toHaveTextContent("Approved by demouser through PingOne CIBA.");
+    });
+
     it("has no mock phone buttons when it is off", async () => {
       routeGets();
       apiClient.post.mockResolvedValue({ data: pendingView() });
@@ -228,7 +246,7 @@ describe("PingFederate AI Agent page", () => {
       fireEvent.click(await ask());
 
       const outcome = await screen.findByTestId("ciba-outcome", {}, { timeout: 4000 });
-      expect(outcome).toHaveTextContent("Approved by demouser.");
+      expect(outcome).toHaveTextContent("Approved by demouser through PingFederate CIBA.");
       expect(screen.queryByTestId("ciba-pending")).not.toBeInTheDocument();
       const callsWhenDone = cibaCalls();
       await new Promise((resolve) => { setTimeout(resolve, 1300); });

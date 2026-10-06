@@ -63,6 +63,7 @@
 | UC-LEARN10 | [Orchestration SDK (Custom UI)](./orchestration-sdk.md) | learn | ✅ works |  |  |
 | UC-LEARN12 | [PingFederate DaVinci Integration Kit](./pingfederate-davinci-integration-kit.md) | learn | ✅ works |  |  |
 | UC-LEARN13 | [PingFederate RAR — the authorization server refuses an out-of-policy transfer](./pingfederate-rar-processor.md) | learn | ✅ works |  |  |
+| UC-LEARN14 | [CIBA human approval — PingFederate or PingOne, by how you signed in](./ciba-by-signed-in-provider.md) | learn | ✅ works |  |  |
 | UC-LEARN11 | [Privilege LLM — prompt injection blocked](./privilege-llm-prompt-injection.md) | learn | ✅ works | 🛡️ T5 |  |
 | UC-LOGIN | [PingOne login (OIDC + PKCE)](./pingone-person-login.md) | demo | ✅ works | 🛡️ T3 |  |
 | UC-LOGIN-PF | [PingFederate login (OIDC + PKCE)](./pingfederate-person-login.md) | demo | ✅ works | 🛡️ T3 |  |
@@ -98,8 +99,8 @@
 
 | Status | Count |
 |---|---|
-| ✅ Works | 62 |
+| ✅ Works | 63 |
 | 🚩 Flag-gated | 10 |
 | 📥 Needs console import | 0 |
 | 🏗️ Needs build | 2 |
-| **Total** | **74** |
+| **Total** | **75** |

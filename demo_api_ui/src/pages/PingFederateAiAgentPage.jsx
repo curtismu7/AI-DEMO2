@@ -141,11 +141,16 @@ const CIBA_ERRORS = {
   PF_AI_CIBA_BINDING_MESSAGE_INVALID: "The message may only use letters, digits and . _ + / ! ? # -, up to 20 characters, with no spaces.",
   PF_AI_CIBA_USER_REQUIRED: "Enter the user to ask.",
   PF_AI_CIBA_UNREACHABLE: "PingFederate could not be reached.",
+  PF_AI_CIBA_P1_EMAIL_REQUIRED: "PingOne CIBA needs the signed-in user's email address, and this session has none.",
+  PF_AI_CIBA_P1_NOT_CONFIGURED: "PingOne CIBA is not enabled on this stack.",
 };
+
+// Which authorization server answered: the BFF picks it from the signed-in provider.
+const cibaServerName = (state) => (state?.provider === "pingone" ? "PingOne" : "PingFederate");
 
 function cibaOutcome(state) {
   switch (state?.state) {
-    case "approved": return `Approved by ${state.subject || state.loginHint}.`;
+    case "approved": return `Approved by ${state.subject || state.loginHint} through ${cibaServerName(state)} CIBA.`;
     case "denied": return "The user denied the request.";
     case "expired": return "The request expired before anyone answered it.";
     case "error": return "The approval request failed.";
@@ -192,7 +197,8 @@ export default function PingFederateAiAgentPage({ user }) {
     return () => { current = false; };
   }, []);
 
-  const cibaEnabled = Boolean(status?.features?.ciba || status?.features?.cibaMock);
+  // A PingOne session uses PingOne CIBA (the BFF checks it is on), so the button shows for it regardless of the PF flags.
+  const cibaEnabled = Boolean(status?.features?.ciba || status?.features?.cibaMock || status?.sessionProvider === "pingone");
   // Pick up an approval already in flight (a reload) or the last answer for this session.
   useEffect(() => {
     if (!cibaEnabled) return undefined;
@@ -249,7 +255,8 @@ export default function PingFederateAiAgentPage({ user }) {
   // The mock phone pops up while a request is pending: PF_AI_CIBA_MOCK_ENABLED answers in the BFF, the web
   // approver answers the stand-in PingFederate authenticator. Either way it stands in for the user's device.
   const phoneChannel = features.cibaWebApprover ? "web" : features.cibaMock ? "mock" : null;
-  const phoneOpen = cibaPending && Boolean(phoneChannel) && !phoneClosed;
+  // PingOne CIBA is answered on the user's real device, so the mock phone only serves PingFederate requests.
+  const phoneOpen = cibaPending && Boolean(phoneChannel) && !phoneClosed && cibaState?.provider !== "pingone";
   const answerOnPhone = (decision) => (phoneChannel === "web" ? decideOnWebApprover(decision) : decideOnMockPhone(decision));
   const phoneLabel = (decision) => (phoneChannel === "web"
     ? `${decision === "approve" ? "Approve" : "Deny"} (web approver)`
@@ -510,10 +517,10 @@ export default function PingFederateAiAgentPage({ user }) {
           {cibaError && <p className="pf-ai-agent__callback is-error" role="alert">{cibaError}</p>}
           {cibaPending && (
             <p className="pf-ai-agent__callback" role="status" data-testid="ciba-pending">
-              Waiting for {cibaState.loginHint} to approve on their device. Expires {new Date(cibaState.expiresAt).toLocaleTimeString()}.
+              Waiting for {cibaState.loginHint} to approve on their device ({cibaServerName(cibaState)} CIBA). Expires {new Date(cibaState.expiresAt).toLocaleTimeString()}.
             </p>
           )}
-          {cibaPending && phoneChannel && phoneClosed && (
+          {cibaPending && phoneChannel && phoneClosed && cibaState?.provider !== "pingone" && (
             <button className="pf-ai-agent__secondary-action" type="button" onClick={() => setPhoneClosed(false)}>Open mock phone</button>
           )}
           {cibaOutcome(cibaState) && (

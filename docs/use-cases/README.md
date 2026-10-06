@@ -98,4 +98,5 @@ See also: [Audit Table](./audit-table.md), [Step Verification Report](./step-ver
 - [**UC-LEARN10** — Orchestration SDK (Custom UI)](./orchestration-sdk.md) ✅
 - [**UC-LEARN12** — PingFederate DaVinci Integration Kit](./pingfederate-davinci-integration-kit.md) ✅
 - [**UC-LEARN13** — PingFederate RAR — the authorization server refuses an out-of-policy transfer](./pingfederate-rar-processor.md) ✅
+- [**UC-LEARN14** — CIBA human approval — PingFederate or PingOne, by how you signed in](./ciba-by-signed-in-provider.md) ✅
 - [**UC-LEARN11** — Privilege LLM — prompt injection blocked](./privilege-llm-prompt-injection.md) ✅ 🛡️
