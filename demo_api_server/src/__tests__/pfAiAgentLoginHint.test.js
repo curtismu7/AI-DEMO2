@@ -53,6 +53,10 @@ describe('login_hint spelling: PingFederate users are lowercase and case-sensiti
       .mockResolvedValueOnce(json({ request_uri: 'urn:ietf:params:oauth:request_uri:abc', expires_in: 90 }));
     await beginRar(pingOneSession('demoUser'), { scenario: 'allowed', userKey: 'demoUser', store: makeStore(), fetchImpl });
     expect(fetchImpl.mock.calls[1][1].body.get('login_hint')).toBe('demouser');
+    // Regression: the plugin compares this user with the signed-in user exactly, so "demoUser" here made PingFederate
+    // fail the run with "authorization detail user does not match the authenticated user".
+    const detail = JSON.parse(fetchImpl.mock.calls[1][1].body.get('authorization_details'))[0];
+    expect(detail.user_id).toBe('demouser');
   });
 
   test('a PingFederate session keeps the spelling PingFederate gave it', () => {

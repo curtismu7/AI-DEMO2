@@ -309,11 +309,11 @@ const LogViewer = ({ isOpen, onClose, standalone = false, categoryFilter = '', i
 
   const getLevelColor = (level) => {
     switch (level?.toLowerCase()) {
-      case 'error': return '#ef4444';
+      case 'error': return '#991b1b';
       case 'warn': return '#f59e0b';
-      case 'info': return 'var(--brand-navy)';
-      case 'debug': return '#6b7280';
-      default: return '#9ca3af';
+      case 'info': return '#1e40af';
+      case 'debug': return '#374151';
+      default: return '#4b5563';
     }
   };
 
@@ -562,7 +562,7 @@ const LogViewer = ({ isOpen, onClose, standalone = false, categoryFilter = '', i
                         {sev.glyph ? `${sev.glyph} ` : ''}{log.level?.toUpperCase() || 'INFO'}
                       </span>
                     </td>
-                    <td className="log-source" style={{ fontSize: '0.7rem', color: '#374151', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{log._src || '—'}</td>
+                    <td className="log-source" style={{ fontSize: '0.7rem', color: 'var(--th-text)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{log._src || '—'}</td>
                     <td className="log-message">
                       {isToastMessageLog(log) && log.toastType && (
                         <span className="log-toast-type" title="react-toastify type">

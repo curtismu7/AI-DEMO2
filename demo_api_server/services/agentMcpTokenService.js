@@ -121,17 +121,27 @@ function assertPfIdJagRunAllowed(req, useCaseId) {
   const session = req?.session || {};
   const effectiveProvider = configStore.getOAuthProvider?.();
   const sessionProvider = session.oauthProvider || session.user?.oauthProvider;
-  const code = sessionProvider !== 'pingfederate' || effectiveProvider !== 'pingfederate'
-    ? 'id_jag_provider_required'
+  // Three different failures, three codes: the user must be told which one it is.
+  // A PF session under a PingOne-selected shared provider is NOT "PingOne is selected
+  // and you are on PingOne" — the session and the global config simply disagree.
+  const code = sessionProvider !== 'pingfederate' ? 'id_jag_provider_required'
+    : effectiveProvider !== 'pingfederate' ? 'id_jag_provider_mismatch'
     : 'id_jag_login_required';
+  // An existing PingFederate user session is enough: the run reuses it rather
+  // than forcing a second sign-in. Provider agreement is already checked above.
+  const hasPfUserSession = session.oauthType === 'user' && !!(session.oauthTokens?.accessToken || session.oauthTokens?.refreshToken);
+  if (code === 'id_jag_login_required' && hasPfUserSession) return;
   const intent = session.idJagRunIntent;
   if (session.oauthType === 'user' && code === 'id_jag_login_required'
     && intent?.mode === 'live-id-jag' && intent.useCaseId === PF_ID_JAG_DEMO_USE_CASE
     && Number.isFinite(intent.createdAt) && Date.now() - intent.createdAt < 5 * 60 * 1000
     && Date.now() >= intent.createdAt && /^[a-f0-9]{32}$/.test(intent.nonce || '')) return;
-  const err = new Error(code === 'id_jag_provider_required'
-    ? 'PingFederate login is required for the ID-JAG demo.'
-    : 'Start the live ID-JAG run and complete PingFederate login before running UC40.');
+  const messages = {
+    id_jag_provider_required: 'The live ID-JAG demo needs a PingFederate sign-in, but this session is not a PingFederate session.',
+    id_jag_provider_mismatch: 'You are signed in with PingFederate, but the shared login provider is set to PingOne. Switch it to PingFederate (top-bar P1/PF switch, admin) and run the demo again.',
+    id_jag_login_required: 'Start the live ID-JAG run and complete PingFederate login before running UC40.',
+  };
+  const err = new Error(messages[code]);
   err.code = code;
   err.httpStatus = 401;
   err.loginTarget = PF_ID_JAG_LOGIN_TARGET;

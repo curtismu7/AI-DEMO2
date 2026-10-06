@@ -8,7 +8,7 @@
 .ab-intro { color: var(--th-text-muted); margin: 0 0 20px; }
 .ab-authority-note { margin: 0 0 22px; padding: 12px 14px; border-left: 4px solid var(--th-status-info-border); border-radius: 0 8px 8px 0; background: var(--th-status-info-bg); color: var(--th-status-info-text); line-height: 1.5; }
 .ab-authority-links { display: inline-flex; gap: 14px; margin-left: 12px; flex-wrap: wrap; }
-.ab-authority-links a { color: var(--th-status-info); font-weight: 700; }
+.ab-authority-links a { color: var(--th-status-info-text); font-weight: 700; }
 
 .ab-theme-toggle { position: absolute; top: 24px; right: 16px; padding: 6px 14px; border-radius: var(--radius-md); border: 1px solid var(--th-border-strong); background: var(--th-bg-inset); color: var(--th-text); font-size: 0.82rem; font-weight: 600; cursor: pointer; }
 .ab-theme-toggle:hover { color: var(--th-text); background: var(--th-bg-hover); }

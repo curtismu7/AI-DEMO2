@@ -9,6 +9,7 @@
   --cur-prompt-muted: #b8b8b8;
   --cur-prompt-border: #454545;
   --cur-prompt-error: #f87171;
+  --cur-prompt-accent: #3794ff;
   height: calc(100vh - 176px);
   min-height: 520px;
   display: flex;
@@ -126,6 +127,9 @@
   width: 100%;
   cursor: row-resize;
   border-top: 1px solid #2b2b2b;
+}
+.cur-sidebar code {
+  color: #f9a8d4;
 }
 
 .cur-sidebar-header {
@@ -360,8 +364,8 @@ select.cur-input { cursor: pointer; }
 .cur-btn:disabled:hover { background: #2a2a2a; border-color: #3c3c3c; }
 
 .cur-btn--primary {
-  background: #007acc;
-  border-color: #007acc;
+  background: #00569a;
+  border-color: #00569a;
   color: #fff;
 }
 .cur-btn--primary:hover { background: #1a8cd8; }
@@ -375,7 +379,7 @@ select.cur-input { cursor: pointer; }
 }
 .cur-btn--ghost:hover { color: #1a8cd8; background: transparent; border-color: transparent; }
 
-.cur-btn--primary { background: #007acc; color: #fff; border-color: #007acc; font-weight: 600; }
+.cur-btn--primary { background: #00569a; color: #fff; border-color: #00569a; font-weight: 600; }
 .cur-btn--primary:hover { background: #1a8cd8; border-color: #1a8cd8; }
 .cur-btn--refresh {
   margin-top: 0;
@@ -774,7 +778,7 @@ select.cur-input { cursor: pointer; }
   align-items: center;
   justify-content: center;
   border: none;
-  background: #007acc;
+  background: #00569a;
   color: #fff;
   border-radius: 6px;
   cursor: pointer;
@@ -998,7 +1002,7 @@ select.cur-input { cursor: pointer; }
 /* Status bar */
 .cur-statusbar {
   height: 22px;
-  background: #007acc;
+  background: #00569a;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1095,8 +1099,8 @@ select.cur-input { cursor: pointer; }
    renders as an illegible blob rather than a gear, so the button now says what
    it does. Its neighbours (Clear, Guide, Flow) are words too. */
 .cur-settings-gear {
-  color: #ff6b63 !important;
-  border-color: #ff6b63 !important;
+  color: #ff9a94 !important;
+  border-color: #ff9a94 !important;
 }
 .cur-settings-gear:hover { color: #ff8078 !important; border-color: #ff8078 !important; } .cur-flow-modal {
   background: #161b22;
@@ -1577,7 +1581,7 @@ select.cur-input { cursor: pointer; }
 .cur-ide[data-cur-theme="light"] .cur-result-item-head { background: #f3f3f3; border-bottom-color: #e0e0e0; }
 .cur-ide[data-cur-theme="light"] .cur-result-item-tool { color: #0369a1; }
 .cur-ide[data-cur-theme="light"] .cur-result-item-body { color: #1e1e1e; }
-.cur-ide[data-cur-theme="light"] .cur-terminal-tab-badge { background: #2563eb; color: #ffffff; }
+.cur-ide[data-cur-theme="light"] .cur-terminal-tab-badge { background: #1e40af; color: #ffffff; }
 
 /* MCP Explorer — the whole cur-mcp-* family shipped with no light override, so
    its #ddd/#ccc ink (correct on the dark base) rendered near-white on the light
@@ -1768,51 +1772,124 @@ select.cur-input { cursor: pointer; }
 
 .cur-ide .cur-rpc-panel .cur-prompt-mode {
   border-color: var(--cur-prompt-border);
+  /* the lone-class margin/padding above computes to 0 here (see the note on the
+     row rules below), which left the two fieldsets touching */
+  margin: 0 0 16px;
+  padding: 14px 16px;
+}
+
+/* Text around the fieldsets in the Inspect panels: the explanatory paragraphs
+   sat at 14px with 12px code, the form at 13 to 15px. One step up, from the scale. */
+.cur-ide .cur-rpc-panel .cur-denial-note {
+  font-size: var(--font-size-md);
+  line-height: 1.55;
+}
+
+.cur-ide .cur-rpc-panel .cur-denial-note code {
+  font-size: var(--font-size-body);
+}
+
+.cur-ide .cur-rpc-panel .cur-field-label,
+.cur-ide .cur-rpc-panel .cur-field .cur-input,
+.cur-ide .cur-rpc-panel .cur-btn {
+  font-size: var(--font-size-md);
 }
 
 .cur-prompt-mode legend {
   padding: 0 6px;
-  font-size: var(--font-size-body);
+  font-size: var(--font-size-lg);
   font-weight: 600;
   color: var(--cur-prompt-ink);
 }
 
-.cur-prompt-mode__row {
+/* PingOne's cross-origin end-user-nano.css restyles bare elements at a higher
+   specificity than a lone class and turned these labels into inline-block, so
+   the grid below never applied and label + hint ran together on one line. Every
+   rule from here down is nested under .cur-ide .cur-prompt-mode (0,3,0) so it
+   wins no matter what that sheet sets. A lone-class rule here fails silently. */
+.cur-ide .cur-prompt-mode .cur-denial-note {
+  font-size: var(--font-size-md);
+}
+
+.cur-ide .cur-prompt-mode .cur-prompt-mode__row {
   display: grid;
-  grid-template-columns: 18px max-content minmax(0, 1fr);
+  grid-template-columns: 20px max-content minmax(0, 1fr);
   align-items: start;
-  gap: 8px;
-  padding: 4px 0;
+  gap: 12px;
+  padding: 6px 0;
   cursor: pointer;
 }
 
-.cur-prompt-mode__row input {
-  width: auto;
-  margin: 3px 0 0;
+/* The control itself: native radios render as a 13px dot with no ring here, so
+   draw one. The checkbox in the second fieldset is already skinned by
+   styles/controls.css and is left alone. */
+.cur-ide .cur-prompt-mode .cur-prompt-mode__row input[type="radio"] {
+  -webkit-appearance: none;
+  appearance: none;
+  display: inline-grid;
+  place-content: center;
+  width: 20px;
+  height: 20px;
+  margin: 1px 0 0;
+  /* the global `select, input, textarea` rule pads every input 8px 10px, which
+     stretches a 20px circle to 24px */
+  padding: 0;
   justify-self: start;
-  accent-color: #007acc;
+  border: 2px solid var(--cur-prompt-muted);
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
 }
 
-.cur-prompt-mode__row input:disabled {
+.cur-ide .cur-prompt-mode .cur-prompt-mode__row input[type="radio"]::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--cur-prompt-accent);
+  transform: scale(0);
+  transition: transform 0.15s ease;
+}
+
+.cur-ide .cur-prompt-mode .cur-prompt-mode__row input[type="radio"]:checked {
+  border-color: var(--cur-prompt-accent);
+}
+
+.cur-ide .cur-prompt-mode .cur-prompt-mode__row input[type="radio"]:checked::before {
+  transform: scale(1);
+}
+
+.cur-ide .cur-prompt-mode .cur-prompt-mode__row input[type="radio"]:hover:not(:disabled) {
+  border-color: var(--cur-prompt-accent);
+}
+
+.cur-ide .cur-prompt-mode .cur-prompt-mode__row input[type="radio"]:focus-visible {
+  outline: 2px solid var(--cur-prompt-accent);
+  outline-offset: 2px;
+}
+
+.cur-ide .cur-prompt-mode .cur-prompt-mode__row input:disabled {
   cursor: progress;
+  opacity: 0.55;
 }
 
-.cur-prompt-mode__label {
-  font-size: var(--font-size-body);
+.cur-ide .cur-prompt-mode .cur-prompt-mode__label {
+  font-size: var(--font-size-md);
   color: var(--cur-prompt-ink);
 }
 
 /* The hint carries the OIDC parameter, so it has to stay readable rather than
-   fade out — --font-size-3xs is the 10px floor from the scale, not a literal. */
-.cur-prompt-mode__hint {
-  font-size: var(--font-size-2xs);
+   fade out — it reads at the body size, well above the --font-size-3xs floor. */
+.cur-ide .cur-prompt-mode .cur-prompt-mode__hint {
+  font-size: var(--font-size-body);
   color: var(--cur-prompt-muted);
   line-height: 1.5;
 }
 
-.cur-prompt-mode__err {
+.cur-ide .cur-prompt-mode .cur-prompt-mode__err {
   margin: 8px 0 0;
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-body);
   color: var(--cur-prompt-error);
 }
 
@@ -1822,14 +1899,15 @@ select.cur-input { cursor: pointer; }
   --cur-prompt-muted: #444444;
   --cur-prompt-border: #cccccc;
   --cur-prompt-error: #b91c1c;
+  --cur-prompt-accent: #0b5fb0;
 }
 
 @media (max-width: 640px) {
-  .cur-prompt-mode__row {
-    grid-template-columns: 18px minmax(0, 1fr);
+  .cur-ide .cur-prompt-mode .cur-prompt-mode__row {
+    grid-template-columns: 20px minmax(0, 1fr);
   }
 
-  .cur-prompt-mode__hint {
+  .cur-ide .cur-prompt-mode .cur-prompt-mode__hint {
     grid-column: 2;
   }
 }
@@ -1869,7 +1947,7 @@ select.cur-input { cursor: pointer; }
   font-size: var(--font-size-2xs);
 }
 .cur-rail__k {
-  color: #9a9a9a;
+  color: #c8c8c8;
   font-size: var(--font-size-sm);
   font-weight: 600;
   letter-spacing: 0.5px;
@@ -1905,7 +1983,7 @@ select.cur-input { cursor: pointer; }
   margin: 4px 0 0;
   font-size: var(--font-size-2xs);
   line-height: 1.45;
-  color: #8a8a8a;
+  color: #c0c0c0;
 }
 .cur-rail__url {
   display: block;
@@ -1945,7 +2023,7 @@ select.cur-input { cursor: pointer; }
 }
 .cur-viewtoggle button {
   background: #2a2a2a;
-  color: #999;
+  color: #c8c8c8;
   border: 0;
   padding: 3px 10px;
   font: inherit;
@@ -1967,8 +2045,8 @@ select.cur-input { cursor: pointer; }
 }
 
 .cur-ide[data-cur-theme="light"] .cur-rail__row:hover { background: #ececec; }
-.cur-ide[data-cur-theme="light"] .cur-rail__n { color: #999; }
-.cur-ide[data-cur-theme="light"] .cur-rail__k { color: #666; }
+.cur-ide[data-cur-theme="light"] .cur-rail__n { color: #4a4a4a; }
+.cur-ide[data-cur-theme="light"] .cur-rail__k { color: #4a4a4a; }
 .cur-ide[data-cur-theme="light"] .cur-rail__v { color: #222; }
 .cur-ide[data-cur-theme="light"] .cur-rail__v select {
   background: #fff;
@@ -2004,7 +2082,7 @@ select.cur-input { cursor: pointer; }
 }
 .cur-viewmode button {
   background: #2a2a2a;
-  color: #999;
+  color: #c8c8c8;
   border: 0;
   padding: 5px 16px;
   font: inherit;
@@ -2077,4 +2155,94 @@ select.cur-input { cursor: pointer; }
 @media (max-width: 640px) {
   .cur-ide .cur-user-api { padding: 12px; }
   .cur-ide .cur-tabs .cur-tab { padding: 0 10px; font-size: var(--font-size-sm); }
+}
+
+/* Type scale, one step up — Connection column and the Demo view. Measured live
+   at 12 to 14px (rail notes 12, keys 13, A2A labels and buttons 13). Primary text
+   goes to --font-size-md (16), secondary to --font-size-body (14). Every rule is
+   nested under .cur-ide: PingOne's cross-origin end-user-nano.css beats a lone
+   class, and these are the same bare elements (label, button, th) it restyles. */
+.cur-ide .cur-sidebar .cur-rail__n,
+.cur-ide .cur-sidebar .cur-rail__k,
+.cur-ide .cur-sidebar .cur-rail__note,
+.cur-ide .cur-sidebar .cur-rail__url,
+.cur-ide .cur-sidebar .cur-scope-count {
+  font-size: var(--font-size-body);
+}
+
+.cur-ide .cur-sidebar .cur-rail__v,
+.cur-ide .cur-sidebar .cur-rail__v select,
+.cur-ide .cur-sidebar .cur-empty-state {
+  font-size: var(--font-size-md);
+}
+
+.cur-ide .privilege-a2a__header p,
+.cur-ide .privilege-a2a__empty,
+.cur-ide .privilege-a2a__composer label,
+.cur-ide button.privilege-a2a__send,
+.cur-ide .cur-chat-hint,
+.cur-ide .cur-field-label,
+.cur-ide .cur-btn {
+  font-size: var(--font-size-md);
+}
+
+.cur-ide .privilege-a2a__path li,
+.cur-ide .privilege-a2a__actions span,
+.cur-ide th[class*="ptt-col-"],
+.cur-ide .ptt-count,
+.cur-ide .cur-statusbar-item {
+  font-size: var(--font-size-body);
+}
+
+/* Inspect form layout. `.cur-field` (a <label>) and the buttons are restyled by
+   PingOne's cross-origin end-user-nano.css above a lone class, so `.cur-field`
+   computed inline-block: MCP Method, Parameters and Send MCP Request sat side by
+   side on one row, and the panel header and its button row were plain blocks.
+   Same fix as the radio group: nest under .cur-ide so the layout is the one the
+   base rules above already describe. */
+.cur-ide .cur-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 12px;
+}
+
+.cur-ide .cur-btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+}
+
+.cur-ide .cur-tools-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin: 0 0 16px;
+}
+
+.cur-ide .cur-tools-header h3 {
+  margin: 0;
+}
+
+/* The explorer stacks its blocks on one rhythm instead of per-element margins. */
+.cur-ide .cur-mcp-explorer {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cur-ide .cur-mcp-explorer .cur-tools-header,
+.cur-ide .cur-mcp-explorer .cur-field {
+  margin: 0;
+}
+
+.cur-ide .cur-mcp-explorer .cur-btn--primary {
+  align-self: flex-start;
+}
+
+.cur-ide .cur-input--code {
+  resize: vertical;
 }

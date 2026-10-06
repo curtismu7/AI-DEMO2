@@ -9,8 +9,8 @@ import InlineSpinner from './shared/InlineSpinner';
 // ---------------------------------------------------------------------------
 const S = {
   root: { padding: '28px 32px', maxWidth: '960px', fontFamily: 'inherit' },
-  title: { fontSize: '20px', fontWeight: 700, color: '#0f172a', margin: '0 0 6px' },
-  subtitle: { fontSize: '13px', color: '#64748b', margin: '0 0 24px', lineHeight: 1.5 },
+  title: { fontSize: '20px', fontWeight: 700, color: 'var(--th-text)', margin: '0 0 6px' },
+  subtitle: { fontSize: '13px', color: 'var(--th-text-body)', margin: '0 0 24px', lineHeight: 1.5 },
   card: { background: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', marginBottom: '16px', overflow: 'hidden' },
   cardHead: { display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 18px', borderBottom: '1px solid #f1f5f9', background: '#fafafa' },
   cardTitle: { fontSize: '14px', fontWeight: 700, color: '#0f172a', flex: 1 },
@@ -31,8 +31,8 @@ const S = {
   row: { display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: '8px' },
   fld: { display: 'flex', flexDirection: 'column', gap: '4px' },
   lbl: { fontSize: '11px', fontWeight: 600, color: '#64748b' },
-  inp: { padding: '6px 10px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit', background: '#fff', minWidth: '160px' },
-  sel: { padding: '6px 10px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit', background: '#fff' },
+  inp: { padding: '6px 10px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit', background: '#fff', color: '#0f172a', minWidth: '160px' },
+  sel: { padding: '6px 10px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit', background: '#fff', color: '#0f172a' },
   btn: { padding: '6px 14px', background: 'var(--brand-blue)', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' },
   linkBtn: { background: 'none', border: 'none', padding: '0', fontSize: '11px', color: '#1d4ed8', cursor: 'pointer', textDecoration: 'underline', marginTop: '6px' },
   metaBar: { display: 'flex', gap: '16px', padding: '10px 14px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', marginBottom: '20px', flexWrap: 'wrap' },

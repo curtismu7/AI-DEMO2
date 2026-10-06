@@ -103,6 +103,18 @@ function DoorCheckButton({ session }) {
   );
 }
 
+// Dismisses the probe results (and the ✅/❌ marks on the tree's doors); only there while there is
+// something to clear.
+function DoorCheckClear({ session }) {
+  const { preflight, preflightError } = session.routing;
+  if (!preflight && !preflightError) return null;
+  return (
+    <button type="button" className="pvs-doorcheck__btn" onClick={session.clearProbe}>
+      Clear
+    </button>
+  );
+}
+
 // The live region wraps only the results (never the button, whose label flips); the error stays a
 // separate role="alert" outside it.
 function DoorCheckNotes({ routing, children }) {
@@ -122,6 +134,7 @@ export function ShellDoorCheck({ session }) {
   return (
     <div className="pvs-doorcheck">
       <DoorCheckButton session={session} />
+      <DoorCheckClear session={session} />
       <DoorCheckNotes routing={routing}>
         {routing.preflight && routing.preflight.length > 0 ? (
           <ul className="pvs-probe">
@@ -230,6 +243,7 @@ export function ShellRoutingTree({ session }) {
         <div className="pvs-tree__txt">{doorName(current) || "—"}</div>
       )}
       <DoorCheckButton session={session} />
+      <DoorCheckClear session={session} />
       <DoorCheckNotes routing={routing} />
     </div>
   );

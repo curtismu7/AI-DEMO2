@@ -77,7 +77,7 @@
 .stm-flow-summary__steps li button:focus-visible { outline: 2px solid var(--th-status-info); outline-offset: 2px; }
 .stm-flow-summary__steps li[aria-current="step"] { border-color: var(--th-status-info); background: var(--th-bg-card); color: var(--th-text); outline: 1px solid color-mix(in srgb, var(--th-status-info) 35%, transparent); }
 .stm-flow-summary__steps li[aria-current="step"] button { color: var(--th-text); }
-.stm-flow-summary__steps li button > span { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: var(--radius-sm); background: var(--th-bg-card); color: var(--th-status-info); font: 700 var(--font-size-3xs) var(--font-mono); }
+.stm-flow-summary__steps li button > span { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: var(--radius-sm); background: var(--th-bg-card); color: var(--th-status-info-text); font: 700 var(--font-size-3xs) var(--font-mono); }
 
 .stm-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 8px minmax(280px, var(--stm-details-width, 340px)); align-items: stretch; min-height: 0; }
 .stm-workspace--map-only { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
@@ -198,7 +198,7 @@
 .stm-evidence { margin-top: 13px; padding: 8px; border-left: 2px solid var(--th-status-warning); background: var(--th-status-warning-bg); color: var(--th-status-warning-text); font-size: var(--font-size-3xs); line-height: 1.45; }
 .stm-notes { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; min-height: 0; overflow: auto; padding: 5px 9px; border: 1px solid var(--th-border); border-radius: 6px; background: var(--th-bg-card); color: var(--th-text); font-size: var(--font-size-3xs); line-height: 1.35; }
 .stm-notes strong { color: var(--th-text); }
-.stm-notes code { color: var(--th-status-info); font: inherit; }
+.stm-notes code { color: var(--th-status-info-text); font: inherit; }
 
 @media (max-width: 1040px) {
   .stm-flow-summary { grid-template-columns: minmax(0, 1fr); gap: 3px; }

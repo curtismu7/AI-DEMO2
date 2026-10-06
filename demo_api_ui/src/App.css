@@ -453,7 +453,7 @@
 .spinner-tip b {
   display: block;
   margin-bottom: 4px;
-  color: #dc2626;
+  color: #991b1b;
   font-size: var(--font-size-xs);
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -475,7 +475,7 @@
 }
 
 :root[data-theme="dark"] .spinner-tip b {
-  color: #ef4444;
+  color: #f87171;
 }
 
 :root[data-theme="dark"] .spinner-tip em {
@@ -832,6 +832,55 @@
   -webkit-text-fill-color: var(--app-primary-red, #b91c1c) !important;
 }
 
+/* PingOne end-user-nano ships dark-on-light defaults for headings (#1a2330), links (#277ba5)
+   and inline code (#d63384). On the dark app ground those measured 1.0 to 3.4:1 across 22
+   routes, so redefine the three variables it reads once, here, instead of per page. */
+.App.end-user-nano {
+  --bs-code-color: #9d174d; /* 8.2:1 on white, 7.4:1 on the light page tints */
+  --bs-link-color-rgb: 7, 89, 133; /* #075985, 7.6:1 on white */
+}
+:root[data-theme="dark"] .App.end-user-nano {
+  --bs-heading-color: var(--th-text);
+  --bs-link-color-rgb: 147, 197, 253;
+  --bs-code-color: #f9a8d4;
+}
+/* Bootstrap redeclares --bs-card-bg on .card itself, so it has to be set there. */
+:root[data-theme="dark"] .end-user-nano .card {
+  --bs-card-bg: var(--th-bg-card);
+}
+/* Inline-code pink is for light grounds; inside a <pre> the block already sets its own ink. */
+.App.end-user-nano pre code {
+  color: inherit;
+}
+
+/* The red text above assumes a white button. In dark mode that button is navy, where
+   red measured 2.34:1. */
+:root[data-theme="dark"] .App.end-user-nano .landing-header-actions .btn-secondary,
+:root[data-theme="dark"] .App.end-user-nano .landing-header-actions .btn-secondary:hover,
+:root[data-theme="dark"] .App.end-user-nano .landing-header-actions .btn-secondary:focus,
+:root[data-theme="dark"] .App.end-user-nano .landing-header-actions .btn-secondary:focus-visible,
+:root[data-theme="dark"] .App.end-user-nano .landing-header-actions .btn-secondary:active,
+:root[data-theme="dark"] .App.end-user-nano .landing-header-actions .btn-secondary:visited {
+  color: var(--th-text) !important;
+  -webkit-text-fill-color: var(--th-text) !important;
+}
+
+/* A primary button is filled with --app-primary-red, so its label follows that fill
+   (--app-primary-btn-text) instead of a fixed white: white on Super Sports orange is 2.8:1.
+   The extra .App lifts specificity above the :is() block earlier in this file. */
+.App.end-user-nano.App
+  :is(
+    .btn-primary,
+    .btn-primary:hover,
+    .btn-primary:focus,
+    .btn-primary:focus-visible,
+    .btn-primary:active,
+    .btn-primary:visited
+  ) {
+  color: var(--app-primary-btn-text, #ffffff) !important;
+  -webkit-text-fill-color: var(--app-primary-btn-text, #ffffff) !important;
+}
+
 .App.end-user-nano
   a:is(
     .btn-primary,
@@ -1074,7 +1123,7 @@
 
 .session-reauth-banner__btn--secondary {
   background: var(--th-bg-card);
-  color: var(--signin-accent);
+  color: var(--signin-accent-text);
   border-color: var(--signin-accent-border);
 }
 
@@ -1109,7 +1158,7 @@
 .session-reauth-banner__hitl-text {
   font-size: 0.875rem;
   font-weight: 700;
-  color: var(--signin-accent);
+  color: var(--signin-accent-text);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -1728,7 +1777,7 @@
   height: 1.45rem;
   padding: 0 0.35rem;
   border-radius: 4px;
-  background: #0ea5e9;
+  background: #075985;
   color: var(--th-text-invert);
   font-size: var(--font-size-3xs);
   font-weight: 800;
@@ -1767,7 +1816,7 @@
   transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 .otp-step-up-modal__method-cta:hover:not(:disabled) {
-  background: #0ea5e9;
+  background: #075985;
   color: var(--th-text-invert);
 }
 .otp-step-up-modal__method-cta:disabled {
@@ -1817,7 +1866,7 @@
   color: #7dd3fc;
 }
 :root[data-theme="dark"] .otp-step-up-modal__method-cta:hover:not(:disabled) {
-  background: #0ea5e9;
+  background: #075985;
   color: #ffffff;
 }
 :root[data-theme="dark"] .otp-step-up-modal__method-toggle {

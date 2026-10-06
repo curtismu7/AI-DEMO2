@@ -32,7 +32,7 @@ export default function AdminTokenComplianceAudit() {
   return (
     <div style={{ padding: '2rem', maxWidth: 900, margin: '0 auto' }}>
       <h1 style={{ marginBottom: '0.5rem' }}>Token Compliance Audit</h1>
-      <p style={{ color: '#666', marginTop: 0 }}>
+      <p style={{ color: 'var(--th-text-muted)', marginTop: 0 }}>
         RFC 8693 structural validation of the current session's tokens.
         See <code>docs/RFC8693_MCP_VALIDATION_MATRIX.md</code> for full requirements.
       </p>
@@ -70,7 +70,7 @@ export default function AdminTokenComplianceAudit() {
             border: `1px solid ${report.compliant ? '#4caf50' : '#ff9800'}`,
           }}>
             <strong>{report.compliant ? '✅ Compliant' : '⚠️ Non-Compliant'}</strong>
-            <span style={{ marginLeft: '1rem', color: '#666', fontSize: '0.9rem' }}>
+            <span style={{ marginLeft: '1rem', color: 'var(--th-text-muted)', fontSize: '0.9rem' }}>
               {report.timestamp}
             </span>
           </div>

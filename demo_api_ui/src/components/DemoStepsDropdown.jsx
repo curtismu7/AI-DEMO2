@@ -11,6 +11,7 @@ import {
   DEMO_ADVANCED_USE_CASE_IDS,
   DEMO_JOURNEY_GROUPS,
   DEMO_PRIMARY_USE_CASE_IDS,
+  DEMO_STEP_DESTINATIONS,
   DEMO_SUB_STEP_IDS,
   DEMO_USE_CASE_SEARCH_TERMS,
   EXTRA_STEP_GROUPS,
@@ -582,6 +583,15 @@ export default function DemoStepsDropdown({
               title="Calls the hosted PingOne MCP server and shows the live result in the agent reply"
             >
               Hosted MCP
+            </span>
+          )}
+          {DEMO_STEP_DESTINATIONS[uc.id] && (
+            <span
+              className={`ba-demo-steps-popout__dest-badge ba-demo-steps-popout__dest-badge--${DEMO_STEP_DESTINATIONS[uc.id].kind}`}
+              title={DEMO_STEP_DESTINATIONS[uc.id].title}
+              data-testid={`step-destination-${uc.id}`}
+            >
+              {DEMO_STEP_DESTINATIONS[uc.id].label}
             </span>
           )}
           {uc.resourceServer && (

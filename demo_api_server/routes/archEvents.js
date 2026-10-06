@@ -19,8 +19,25 @@
 
 const express = require('express');
 const archEmit = require('../services/archEventEmitter');
+const appEventService = require('../services/appEventService');
+const { isAdmin } = require('./appEventsStreamFilter');
 
 const router = express.Router();
+
+/**
+ * Trim an app event for the live-trace feed. A signed-in non-admin learns
+ * that a hop happened (category / tag / severity), never what it said; admins
+ * also get the message — the same line the admin app-events stream draws.
+ */
+function liveTracePayload(event, admin) {
+  return {
+    ts: event.timestamp,
+    category: event.category,
+    tag: event.tag,
+    severity: event.severity,
+    ...(admin ? { message: event.message } : {}),
+  };
+}
 
 router.get('/', (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream');
@@ -39,6 +56,15 @@ router.get('/', (req, res) => {
 
   archEmit.emitter.on('arch-node', onEvent);
 
+  // Demo arch slides live mode: every app event (oauth, token_exchange, agent,
+  // mcp, authorize, hitl, …) lights the matching step on the slide.
+  const admin = isAdmin(req.user);
+  const unsubscribeAppEvents = appEventService.subscribe((event) => {
+    try {
+      res.write(`event: app-event\ndata: ${JSON.stringify(liveTracePayload(event, admin))}\n\n`);
+    } catch (_) { /* connection closed mid-write */ }
+  });
+
   // Keep-alive ping every 20 s (prevents idle connection timeout)
   const pingInterval = setInterval(() => {
     res.write(': ping\n\n');
@@ -48,7 +74,9 @@ router.get('/', (req, res) => {
   req.on('close', () => {
     clearInterval(pingInterval);
     archEmit.emitter.off('arch-node', onEvent);
+    unsubscribeAppEvents();
   });
 });
 
 module.exports = router;
+module.exports.liveTracePayload = liveTracePayload;

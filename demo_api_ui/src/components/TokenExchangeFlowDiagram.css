@@ -55,10 +55,10 @@
 /* Education buttons */
 .tefd-education-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; padding: 0 2px; }
 .tefd-btn { padding: 5px 11px; border-radius: 4px; font-size: var(--font-size-2xs); cursor: pointer; border: 1px solid transparent; line-height: 1.4; transition: background 0.15s, border-color 0.15s; }
-.tefd-btn--primary   { background: #1d4ed8; color: #fff; border-color: #1d4ed8; }
+.tefd-btn--primary   { background: #1e40af; color: #fff; border-color: #1e40af; }
 .tefd-btn--primary:hover { background: #1e40af; }
 .tefd-btn--secondary { background: #fff; color: var(--th-text); border-color: #d1d5db; }
-.tefd-btn--secondary:hover { background: #f9fafb; border-color: #9ca3af; }
+.tefd-btn--secondary:hover { background: var(--th-bg-hover); border-color: #9ca3af; }
 
 /* Responsive */
 @media (max-width: 768px) {

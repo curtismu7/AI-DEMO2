@@ -6,10 +6,13 @@
 
 /* Header bar: vertical gradient */
 .topnav {
+  /* Header text is white (#fff / #f1f5f9) for every vertical, and the brand reds, oranges and
+     blues are only 4.8 to 6.7:1 under white. Mixing 24% black into both stops gives about
+     7.7:1 at the same hue. */
   background: linear-gradient(
     135deg,
-    var(--brand-dashboard-header-start, #1d4ed8) 0%,
-    var(--brand-dashboard-header-end, #1d4ed8) 100%
+    color-mix(in srgb, var(--brand-dashboard-header-start, #1d4ed8) 76%, #000000) 0%,
+    color-mix(in srgb, var(--brand-dashboard-header-end, #1d4ed8) 76%, #000000) 100%
   ) !important;
   border-bottom: none;
   /* No fixed height: the container wraps to a second row below 1280px

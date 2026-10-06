@@ -27,14 +27,14 @@
   align-items: center;
   gap: 12px;
   padding: 16px;
-  background: #fff;
+  background: var(--th-bg-card);
   user-select: none;
 }
 .wizard-step-header.clickable {
   cursor: pointer;
 }
 .wizard-step-header.clickable:hover {
-  background: #f9fafb;
+  background: var(--th-bg-hover);
 }
 
 /* Step number circle */
@@ -58,15 +58,15 @@
   color: #fff;
 }
 .step-circle.complete {
-  background: #16a34a;
+  background: #166534;
   color: #fff;
 }
 .step-circle.error {
-  background: #b91c1c;
+  background: #991b1b;
   color: #fff;
 }
 .step-circle.running {
-  background: #f59e0b;
+  background: #92400e;
   color: #fff;
 }
 
@@ -89,7 +89,7 @@
 .wizard-step-panel {
   padding: 16px 20px 24px;
   border-top: 1px solid #e5e7eb;
-  background: #fff;
+  background: var(--th-bg-card);
 }
 
 /* Form elements */
@@ -110,6 +110,8 @@
   border-radius: 6px;
   font-size: var(--font-size-body);
   box-sizing: border-box;
+  background: var(--th-bg-card);
+  color: var(--th-text);
 }
 .wizard-input:focus {
   outline: none;
@@ -145,7 +147,8 @@
   border: 1px solid #d1d5db;
   border-radius: 6px;
   font-size: var(--font-size-body);
-  background: #fff;
+  background: var(--th-bg-card);
+  color: var(--th-text);
   box-sizing: border-box;
 }
 
@@ -165,11 +168,7 @@
   cursor: pointer;
   white-space: nowrap;
   transition: var(--btn-transition);
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red-mid) 0%,
-    var(--app-primary-red) 100%
-  );
+  background: linear-gradient(180deg, #991b1b 0%, #7f1d1d 100%);
   color: #fff;
   border: 1px solid var(--app-primary-red-border);
   box-shadow: 0 1px 3px rgba(127, 29, 29, 0.28);
@@ -201,7 +200,7 @@
   cursor: pointer;
   white-space: nowrap;
   transition: var(--btn-transition);
-  background: #ffffff;
+  background: var(--th-bg-card);
   color: var(--app-primary-red);
   border: 1px solid var(--app-primary-red-border);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
@@ -230,7 +229,8 @@
 
 /* Code block */
 .wizard-code-block {
-  background: #f8fafc;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
   border: 1px solid #e5e7eb;
   border-radius: 6px;
   padding: 16px;
@@ -278,3 +278,10 @@
   font-size: var(--font-size-2xs);
   color: #16a34a;
 }
+
+.wizard-danger-zone {
+  border: 2px solid var(--th-status-error-text);
+  background: var(--th-status-error-bg);
+  color: var(--th-text);
+}
+.wizard-danger-zone .wizard-danger-zone__title { color: var(--th-status-error-text); }

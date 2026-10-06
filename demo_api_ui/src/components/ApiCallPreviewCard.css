@@ -13,7 +13,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
-  background: #f8fafc;
+  background: var(--th-bg-inset);
   border-bottom: 1px solid #e2e8f0;
   padding: 8px 12px;
   flex-wrap: wrap;
@@ -63,7 +63,7 @@
 
 .api-preview-status--ok   { background: #dcfce7; color: #15803d; }
 .api-preview-status--err  { background: #fee2e2; color: #b91c1c; }
-.api-preview-status--none { background: #f1f5f9; color: #64748b; }
+.api-preview-status--none { background: var(--th-bg-inset); color: #64748b; }
 
 .api-preview-duration {
   font-size: 0.7rem;
@@ -87,7 +87,7 @@
   font-weight: 600;
   color: var(--th-text);
   padding: 4px 12px;
-  background: #f1f5f9;
+  background: var(--th-bg-inset);
   border-bottom: 1px solid #e2e8f0;
 }
 
@@ -106,7 +106,7 @@
 .api-preview-toggle {
   background: none;
   border: none;
-  color: var(--color-primary, #005f99);
+  color: var(--th-status-info-text);
   font-size: 0.78rem;
   cursor: pointer;
   padding: 4px 0;

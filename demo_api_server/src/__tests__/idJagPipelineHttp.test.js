@@ -4,7 +4,7 @@ const express = require('express');
 const request = require('supertest');
 afterEach(() => require('../../services/bffMcpToolExecutor').setPipelineDeps(null));
 
-test.each(['id_jag_login_required', 'id_jag_provider_required'])(
+test.each(['id_jag_login_required', 'id_jag_provider_required', 'id_jag_provider_mismatch'])(
   'real pipeline and executor preserve %s as HTTP 401 with a recoverable target', async (code) => {
     const guardError = Object.assign(new Error('Start the live ID-JAG run.'), {
       code, httpStatus: 401, loginTarget: '/pingfederate-id-jag/demo',

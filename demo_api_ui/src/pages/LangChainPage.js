@@ -100,7 +100,7 @@ export default function LangChainPage() {
       >
         <Link
           to="/"
-          style={{ fontSize: 13, color: "#1565c0", textDecoration: "none" }}
+          style={{ fontSize: 13, color: "var(--th-status-info-text)", textDecoration: "none" }}
         >
           ← Back
         </Link>
@@ -111,13 +111,13 @@ export default function LangChainPage() {
 
       <div
         style={{
-          background: "#fff8e1",
-          border: "1px solid #ffe082",
+          background: "var(--th-status-warning-bg)",
+          border: "1px solid var(--th-border)",
           borderRadius: 8,
           padding: "12px 16px",
           marginBottom: 20,
           lineHeight: 1.6,
-          color: "#5d4037",
+          color: "var(--th-text)",
         }}
       >
         Default banking AG-UI runtime (<code>langchain_agent</code> on :8888).
@@ -128,8 +128,8 @@ export default function LangChainPage() {
 
       <div
         style={{
-          background: "#e3f2fd",
-          border: "1px solid #90caf9",
+          background: "var(--th-status-info-bg)",
+          border: "1px solid var(--th-status-info-border)",
           borderRadius: 8,
           padding: "12px 16px",
           marginBottom: 28,
@@ -151,30 +151,30 @@ export default function LangChainPage() {
                 </>
               )}
               {isHeuristic ? (
-                <span style={{ color: "#555", marginLeft: 8, fontSize: 12 }}>
+                <span style={{ color: "var(--th-text)", marginLeft: 8, fontSize: 12 }}>
                   (no LLM key required)
                 </span>
               ) : status.key_set?.[activeProvider] ? (
-                <span style={{ color: "#2e7d32", marginLeft: 8 }}>
+                <span style={{ color: "var(--th-status-success-text)", marginLeft: 8 }}>
                   key set
                 </span>
               ) : activeProvider === "llamacpp" ||
                 activeProvider === "anthropic-lmstudio" ? (
-                <span style={{ color: "#555", marginLeft: 8, fontSize: 12 }}>
+                <span style={{ color: "var(--th-text)", marginLeft: 8, fontSize: 12 }}>
                   (local)
                 </span>
               ) : (
-                <span style={{ color: "#c62828", marginLeft: 8, fontSize: 12 }}>
+                <span style={{ color: "var(--th-status-error-text)", marginLeft: 8, fontSize: 12 }}>
                   ⚠️ no key — set one in Config or the agent mode picker
                 </span>
               )}
             </span>
           ) : (
-            <span style={{ color: "#374151" }}><InlineSpinner label="Loading…" /></span>
+            <span style={{ color: "var(--th-text)" }}><InlineSpinner label="Loading…" /></span>
           )}
         </div>
         <div style={{ marginLeft: "auto", fontSize: 12 }}>
-          <Link to="/config" style={{ color: "#1565c0" }}>
+          <Link to="/config" style={{ color: "var(--th-status-info-text)" }}>
             Change in Config →
           </Link>
         </div>
@@ -182,7 +182,7 @@ export default function LangChainPage() {
 
       <section style={{ marginBottom: 32 }}>
         <h2 style={{ fontSize: 20, marginBottom: 12 }}>Architecture</h2>
-        <p style={{ lineHeight: 1.6, color: "#333" }}>
+        <p style={{ lineHeight: 1.6, color: "var(--th-text)" }}>
           <code>langchain_agent</code> is a Python FastAPI service (AG-UI{" "}
           <code>/run</code> on port 8888). The BFF selects it when{" "}
           <code>llm_framework=langchain</code> (default) and forwards the
@@ -193,7 +193,7 @@ export default function LangChainPage() {
         </p>
         <pre
           style={{
-            background: "#f5f5f5",
+            background: "var(--th-bg-inset)",
             borderRadius: 6,
             padding: "12px 16px",
             fontSize: 13,
@@ -225,7 +225,7 @@ export default function LangChainPage() {
         >
           {LCEL_CODE}
         </pre>
-        <p style={{ fontSize: 13, color: "#666", marginTop: 8 }}>
+        <p style={{ fontSize: 13, color: "var(--th-text)", marginTop: 8 }}>
           Source: <code>langchain_agent/</code> (AG-UI run handler + LLM factory).
           Framework comparison: Learn → Agent frameworks, or{" "}
           <code>AGENTS_ECOSYSTEM.md</code>.
@@ -236,7 +236,7 @@ export default function LangChainPage() {
         <h2 style={{ fontSize: 20, marginBottom: 12 }}>
           Demo brains (Heuristics · Gemini · llama.cpp)
         </h2>
-        <p style={{ fontSize: 14, color: "#555", marginBottom: 12, lineHeight: 1.5 }}>
+        <p style={{ fontSize: 14, color: "var(--th-text)", marginBottom: 12, lineHeight: 1.5 }}>
           These are the usual live-demo choices in the agent mode picker. Other
           modes (Helix, Anthropic, MLX, Groq) appear when configured — see{" "}
           <code>agentModes.js</code>.
@@ -245,7 +245,7 @@ export default function LangChainPage() {
           style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}
         >
           <thead>
-            <tr style={{ background: "#f5f5f5" }}>
+            <tr style={{ background: "var(--th-bg-inset)" }}>
               {["Brain", "Provider id", "Package / path", "Default model", "Notes"].map(
                 (h) => (
                   <th
@@ -253,7 +253,7 @@ export default function LangChainPage() {
                     style={{
                       padding: "8px 12px",
                       textAlign: "left",
-                      borderBottom: "2px solid #e0e0e0",
+                      borderBottom: "2px solid var(--th-border)",
                     }}
                   >
                     {h}
@@ -271,32 +271,32 @@ export default function LangChainPage() {
                 <tr
                   key={p.id}
                   style={{
-                    background: i % 2 === 0 ? "#fff" : "#fafafa",
+                    background: i % 2 === 0 ? "var(--th-bg-card)" : "var(--th-bg-inset)",
                     fontWeight: active ? 600 : 400,
                   }}
                 >
-                  <td style={{ padding: "8px 12px", borderBottom: "1px solid #eee" }}>
+                  <td style={{ padding: "8px 12px", borderBottom: "1px solid var(--th-border)" }}>
                     {p.label}
                     {active && (
-                      <span style={{ marginLeft: 6, color: "#1565c0" }}>
+                      <span style={{ marginLeft: 6, color: "var(--th-status-info-text)" }}>
                         ← active
                       </span>
                     )}
                   </td>
-                  <td style={{ padding: "8px 12px", borderBottom: "1px solid #eee" }}>
+                  <td style={{ padding: "8px 12px", borderBottom: "1px solid var(--th-border)" }}>
                     <code>{p.provider ?? "null"}</code>
                   </td>
-                  <td style={{ padding: "8px 12px", borderBottom: "1px solid #eee" }}>
+                  <td style={{ padding: "8px 12px", borderBottom: "1px solid var(--th-border)" }}>
                     <code>{p.package}</code>
                   </td>
-                  <td style={{ padding: "8px 12px", borderBottom: "1px solid #eee" }}>
+                  <td style={{ padding: "8px 12px", borderBottom: "1px solid var(--th-border)" }}>
                     <code>{p.defaultModel}</code>
                   </td>
                   <td
                     style={{
                       padding: "8px 12px",
-                      borderBottom: "1px solid #eee",
-                      color: "#555",
+                      borderBottom: "1px solid var(--th-border)",
+                      color: "var(--th-text)",
                     }}
                   >
                     {p.notes}
@@ -312,7 +312,7 @@ export default function LangChainPage() {
         <h2 style={{ fontSize: 20, marginBottom: 12 }}>
           Security: Keys Stay Server-Side
         </h2>
-        <p style={{ lineHeight: 1.6, color: "#333" }}>
+        <p style={{ lineHeight: 1.6, color: "var(--th-text)" }}>
           API keys live in <code>req.session.langchain_config</code> on the BFF
           only. <code>GET /api/langchain/config/status</code> returns boolean{" "}
           <code>key_set</code> flags — never key material. Same pattern as PingOne
@@ -322,7 +322,7 @@ export default function LangChainPage() {
 
       <section style={{ marginBottom: 16 }}>
         <h2 style={{ fontSize: 20, marginBottom: 12 }}>All agents we have</h2>
-        <p style={{ fontSize: 14, color: "#555", marginBottom: 12, lineHeight: 1.5 }}>
+        <p style={{ fontSize: 14, color: "var(--th-text)", marginBottom: 12, lineHeight: 1.5 }}>
           Framework packages in this repo. Banking chat swaps among the first
           four via <code>llm_framework</code>; LlamaIndex and Compliance are
           separate services. Brains above are independent of which package runs.
@@ -331,7 +331,7 @@ export default function LangChainPage() {
           style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}
         >
           <thead>
-            <tr style={{ background: "#e8f5e9" }}>
+            <tr style={{ background: "var(--th-status-success-bg)" }}>
               {["Directory", "Framework", "Port", "Role"].map((h) => (
                 <th
                   key={h}
@@ -351,29 +351,29 @@ export default function LangChainPage() {
               <tr
                 key={row[0]}
                 style={{
-                  background: i % 2 === 0 ? "#fff" : "#fafafa",
+                  background: i % 2 === 0 ? "var(--th-bg-card)" : "var(--th-bg-inset)",
                   fontWeight: row[0] === "langchain_agent" ? 600 : 400,
                 }}
               >
-                <td style={{ padding: "8px 12px", borderBottom: "1px solid #eee" }}>
+                <td style={{ padding: "8px 12px", borderBottom: "1px solid var(--th-border)" }}>
                   <code>{row[0]}</code>
                   {row[0] === "langchain_agent" && (
-                    <span style={{ marginLeft: 6, color: "#2e7d32", fontSize: 12 }}>
+                    <span style={{ marginLeft: 6, color: "var(--th-status-success-text)", fontSize: 12 }}>
                       this page
                     </span>
                   )}
                 </td>
-                <td style={{ padding: "8px 12px", borderBottom: "1px solid #eee" }}>
+                <td style={{ padding: "8px 12px", borderBottom: "1px solid var(--th-border)" }}>
                   {row[1]}
                 </td>
-                <td style={{ padding: "8px 12px", borderBottom: "1px solid #eee" }}>
+                <td style={{ padding: "8px 12px", borderBottom: "1px solid var(--th-border)" }}>
                   {row[2]}
                 </td>
                 <td
                   style={{
                     padding: "8px 12px",
-                    borderBottom: "1px solid #eee",
-                    color: "#555",
+                    borderBottom: "1px solid var(--th-border)",
+                    color: "var(--th-text)",
                   }}
                 >
                   {row[3]}
@@ -382,7 +382,7 @@ export default function LangChainPage() {
             ))}
           </tbody>
         </table>
-        <p style={{ fontSize: 13, color: "#666", marginTop: 12 }}>
+        <p style={{ fontSize: 13, color: "var(--th-text)", marginTop: 12 }}>
           Full write-up: <code>AGENTS_ECOSYSTEM.md</code> · In-app: Learn → Agent
           frameworks (inventory).
         </p>

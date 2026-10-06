@@ -19,6 +19,7 @@
  */
 
 const express = require('express');
+const { isIdJagGateCode } = require('../services/idJagGateCodes');
 // Resolved per call — routes are required long before the vault opens, so a
 // module-scope snapshot could never see a vault-supplied BFF_INTERNAL_SECRET.
 const {
@@ -229,7 +230,7 @@ router.post('/agent-tool', async (req, res) => {
     return res.json({ result: parsed, tokenEvents });
   } catch (err) {
     console.error('[agent-tool] tool execution failed:', err.message);
-    if (err.code === 'id_jag_login_required' || err.code === 'id_jag_provider_required') {
+    if (isIdJagGateCode(err.code)) {
       return res.status(401).json({ error: err.code, message: err.message,
         loginTarget: err.loginTarget, tokenEvents: err.tokenEvents || tokenEvents });
     }

@@ -1,5 +1,5 @@
 .pfj-explainer {
-  --pfj-explainer-accent: #087d76;
+  --pfj-explainer-accent: #05615b;
   display: flex;
   flex-direction: column;
   gap: 28px;
@@ -123,6 +123,7 @@
   font-size: var(--font-size-xs);
   font-weight: 800;
 }
+:root[data-theme="dark"] .pfj-explainer__step-number { color: var(--th-status-success-text); }
 
 .pfj-explainer__step p { margin-bottom: 0; font-size: var(--font-size-sm); }
 .pfj-explainer__boundary { align-items: start; }

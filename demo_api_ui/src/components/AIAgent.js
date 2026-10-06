@@ -83,7 +83,7 @@ import AgentGreetingHero from "./AgentGreetingHero";
 import AgentConsentModal from "./AgentConsentModal";
 import AgentDemoGuide from "./AgentDemoGuide";
 import DemoStepsDropdown, { DemoStepsTrigger, readStoredDemoStepsOpen } from "./DemoStepsDropdown";
-import AgentRunIndicator, { AgentWorkingMark } from "./AgentRunIndicator";
+import AgentRunIndicator, { AgentWorkingMark, HideWhileGlobalSpinner } from "./AgentRunIndicator";
 import { runFailureMessage } from "../utils/a2aRunFailureMessage";
 import { PRIVILEGE_A2A_CHAIN_USE_CASE_ID } from "../utils/privilegeA2aChainRun";
 import AdminToolsDropdown from "./AdminToolsDropdown";
@@ -5659,7 +5659,7 @@ export default function BankingAgent({
               });
               if (!initRes.ok) {
                 const failure = await initRes.json().catch(() => ({}));
-                throw new Error(failure.message || `CIBA initiation failed: ${initRes.status}`);
+                throw new Error(failure.message || failure.error_description || failure.error || `CIBA initiation failed: ${initRes.status}`);
               }
               const { auth_req_id, interval, binding_message, engine } = await initRes.json();
               if (cibaTab) {
@@ -6364,7 +6364,7 @@ export default function BankingAgent({
             });
             if (!initRes.ok) {
               const failure = await initRes.json().catch(() => ({}));
-              throw new Error(failure.message || `CIBA initiation failed: ${initRes.status}`);
+              throw new Error(failure.message || failure.error_description || failure.error || `CIBA initiation failed: ${initRes.status}`);
             }
             const { auth_req_id, interval, binding_message, engine } = await initRes.json();
             if (cibaTab) {
@@ -8549,12 +8549,18 @@ export default function BankingAgent({
             [
               `${stepLabel}`,
               `Intent binding \`permit\` → ${status ?? "?"} ${verdict} ${attackSimVerdictNote(verdict)}`.trim(),
+              // The step title promises PERMIT; say so plainly when the check did not
+              // deliver it, instead of printing DENY under a PERMIT title.
+              verdict === "PERMIT"
+                ? null
+                : "Expected PERMIT, but the check did not return one — the intent was not verified. The denial below is real (the gateway/Authorize answered), not part of the simulation.",
               reason ? reason : null,
-              // Without live:true the route runs the offline RAR simulator; the
-              // real PingOne PAR push happens only on the full intent-binding page.
+              // Without live:true the route runs the RAR check through the demo gateway
+              // (real token exchange + gateway call) but skips the PingOne PAR push,
+              // which happens only on the full intent-binding page.
               data?.live === true
                 ? null
-                : "Simulated: an offline RAR check, not the live PingOne PAR push. Switch this step to Full page for the real RFC 9126 request.",
+                : "Simulated: the RAR check runs through the demo gateway without the live PingOne PAR push. Switch this step to Full page for the real RFC 9126 request.",
             ]
               .filter(Boolean)
               .join("\n"),
@@ -9698,7 +9704,7 @@ export default function BankingAgent({
         });
         if (!initRes.ok) {
           const failure = await initRes.json().catch(() => ({}));
-          throw new Error(failure.message || `CIBA initiation failed: ${initRes.status}`);
+          throw new Error(failure.message || failure.error_description || failure.error || `CIBA initiation failed: ${initRes.status}`);
         }
         const { auth_req_id, interval, binding_message, engine } = await initRes.json();
         if (cibaTab) {
@@ -13771,17 +13777,23 @@ export default function BankingAgent({
                   // working". They were rendered as a user bubble with a "You"
                   // avatar, which reads as "you are typing" and left the existing
                   // `.banking-agent-msg.assistant.typing` rule dead.
-                  <div className="banking-agent-msg assistant typing">
-                    <div>
-                      {unitedDatabaseQueryLoading ? (
-                        <UnitedDatabasePulse />
-                      ) : (
-                        <AgentWorkingMark />
-                      )}
+                  <HideWhileGlobalSpinner>
+                    <div className="banking-agent-msg assistant typing">
+                      <div>
+                        {unitedDatabaseQueryLoading ? (
+                          <UnitedDatabasePulse />
+                        ) : (
+                          <AgentWorkingMark />
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  </HideWhileGlobalSpinner>
                 )}
-                {runIndicator && <AgentRunIndicator label={runIndicator} />}
+                {runIndicator && (
+                  <HideWhileGlobalSpinner>
+                    <AgentRunIndicator label={runIndicator} />
+                  </HideWhileGlobalSpinner>
+                )}
                 <div ref={bottomRef} />
               </div>
               {!pinnedToBottom && (

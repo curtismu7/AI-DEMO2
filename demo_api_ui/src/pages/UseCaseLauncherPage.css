@@ -51,8 +51,8 @@
   font-weight: 700;
   padding: 0.25rem 0.65rem;
   border-radius: 6px;
-  border: 1px solid #dc2626;
-  background: #dc2626;
+  border: 1px solid #991b1b;
+  background: #991b1b;
   color: var(--th-text-invert);
   cursor: pointer;
 }
@@ -203,7 +203,7 @@
   height: 1.25rem;
   padding: 0 0.25rem;
   border-radius: 999px;
-  background: #15803d;
+  background: #166534;
   color: var(--th-text-invert);
   font-size: 0.75rem;
   font-weight: 700;
@@ -229,8 +229,8 @@
   font-weight: 700;
   letter-spacing: 0.03em;
   text-transform: uppercase;
-  color: var(--signin-accent);
-  border: 1px solid var(--signin-accent);
+  color: var(--th-status-info-text);
+  border: 1px solid var(--th-status-info-text);
   padding: 0.1rem 0.4rem;
   border-radius: 999px;
 }
@@ -245,7 +245,7 @@
 
 .uc-card__advanced-label {
   font-size: 0.7rem;
-  background: var(--color-muted-bg, #f0f0f0);
+  background: var(--th-bg-inset);
   color: var(--color-text-secondary, #666);
   border-radius: 3px;
   padding: 0.1rem 0.4rem;
@@ -360,7 +360,7 @@
 /* Attack buttons (disabled until A6) */
 .uc-run-btn--disabled,
 .uc-run-btn:disabled {
-  background: var(--color-muted-bg, #e5e7eb);
+  background: var(--th-bg-inset);
   color: var(--color-text-secondary, var(--th-text));
   cursor: not-allowed;
 }
@@ -609,7 +609,7 @@
 }
 .uc-card__plabel {
   font-size: 0.68rem;
-  color: #8a96b4;
+  color: var(--th-text-muted);
   font-weight: 600;
   margin-right: 0.1rem;
   align-self: center;
@@ -620,14 +620,14 @@
   font-size: 0.82rem;
   font-weight: 600;
   padding: 0.35rem 0.85rem;
-  border: 1px solid #1d6bf3;
-  color: #1d6bf3;
+  border: 1px solid var(--th-status-info-text);
+  color: var(--th-status-info-text);
   background: var(--th-bg-card);
   border-radius: 6px;
   cursor: pointer;
 }
 .uc-explain-btn:hover {
-  background: #e8f0fe;
+  background: var(--th-status-info-bg);
 }
 
 /* ── Progressive Trust Demo strip (Phase 3) ─────────────────────────────── */
@@ -637,7 +637,7 @@
   padding: 1rem 1.1rem;
   border: 1px solid var(--color-border, #d8dee8);
   border-radius: 10px;
-  background: linear-gradient(180deg, #f8fafc 0%, #fff 100%);
+  background: linear-gradient(180deg, var(--th-bg-inset) 0%, var(--th-bg-card) 100%);
 }
 
 .pt-demo-strip__banner {
@@ -676,7 +676,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #1d6bf3;
+  color: var(--th-status-info-text);
 }
 
 .pt-demo-strip__title {
@@ -701,7 +701,7 @@
   font-size: 0.82rem;
   padding: 0.1rem 0.35rem;
   border-radius: 4px;
-  background: #f0f4fa;
+  background: var(--th-bg-inset);
 }
 
 .pt-demo-strip__say {
@@ -771,12 +771,12 @@
   padding: 0.7rem 0.8rem;
   border: 1px solid var(--color-border, #e4e8ef);
   border-radius: 8px;
-  background: #fafbfd;
+  background: var(--th-bg-inset);
 }
 
 .pt-llm-showcase__mode--active {
-  border-color: #1d6bf3;
-  background: #f0f6ff;
+  border-color: var(--th-status-info-text);
+  background: var(--th-status-info-bg);
 }
 
 .pt-llm-showcase__mode-head {
@@ -803,7 +803,7 @@
 .pt-llm-showcase__active {
   font-size: 0.68rem;
   font-weight: 700;
-  color: #1d6bf3;
+  color: var(--th-status-info-text);
   text-transform: uppercase;
 }
 

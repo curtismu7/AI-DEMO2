@@ -457,7 +457,7 @@ body:has(.dashboard-content.ud-body.ud-focus-mode) .footer {
   cursor: pointer;
 }
 
-.tcfs-mode button.active { background: #1d4ed8; color: #ffffff; }
+.tcfs-mode button.active { background: #1e40af; color: #ffffff; }
 
 .tcfs-more-btn {
   font: inherit;
@@ -644,7 +644,7 @@ body:has(.dashboard-content.ud-body.ud-focus-mode) .footer {
 :root[data-theme="dark"] .tcfs-more-pop { background: var(--th-bg-card); border-color: var(--th-border); box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5); }
 :root[data-theme="dark"] .tcfs-mode { background: var(--th-bg-inset); border-color: var(--th-border); }
 :root[data-theme="dark"] .tcfs-mode button { color: #ffffff; }
-:root[data-theme="dark"] .tcfs-mode button.active { background: #1d4ed8; color: #ffffff; }
+:root[data-theme="dark"] .tcfs-mode button.active { background: #1e40af; color: #ffffff; }
 :root[data-theme="dark"] .tcfs-more-btn { background: var(--th-bg-card); border-color: var(--th-border); color: #ffffff; }
 :root[data-theme="dark"] .tcfs-more-btn:hover:not(:disabled) { border-color: #9ec1ff; color: #9ec1ff; }
 :root[data-theme="dark"] .tcfs-label { color: #90a0c2; }

@@ -20,7 +20,7 @@
   --dash-ink: var(--th-text);
   --dash-ink-2: var(--th-text-body);
   --dash-ink-3: var(--th-text-muted);
-  --dash-accent: #1d4ed8;
+  --dash-accent: #1e40af;
   /* Ink for text sitting ON --dash-accent. It cannot be a fixed #fff: in dark
      --dash-accent becomes a LIGHT blue (#7aa2f7) tuned to be read against the
      dark ground, and white on it measured 2.52:1 (the .is-on toggle). A token
@@ -29,7 +29,7 @@
   --dash-accent-soft: #dbeafe;
   --dash-ok: #3d9142;
   --dash-warn: #b26a00;
-  --dash-bad: #d13c31;
+  --dash-bad: #991b1b;
 
   display: flex;
   flex-direction: column;
@@ -48,7 +48,7 @@
   --dash-accent-soft: #172554;
   --dash-ok: #6cc46c;
   --dash-warn: #e0a145;
-  --dash-bad: #f0776c;
+  --dash-bad: #fca5a5;
 }
 
 .dash-head { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; }

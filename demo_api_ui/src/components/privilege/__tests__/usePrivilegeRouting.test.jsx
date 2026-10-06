@@ -112,6 +112,15 @@ describe("usePrivilegeRouting gatewaySession and door probing", () => {
     expect(result.current.preflightError).toBe("");
   });
 
+  it("clearProbe drops both the results and the error", async () => {
+    const { result } = setup(vi.fn().mockResolvedValue({ results: [{ url: FAC_A, ok: true, tools: 3 }] }));
+    await act(async () => { await result.current.probePresetDoors(); });
+    act(() => result.current.setPreflightError("boom"));
+    act(() => result.current.clearProbe());
+    expect(result.current.preflight).toBeNull();
+    expect(result.current.preflightError).toBe("");
+  });
+
   it("stores [] when the response has no results array", async () => {
     const { result } = setup(vi.fn().mockResolvedValue({}));
     await act(async () => { await result.current.probePresetDoors(); });

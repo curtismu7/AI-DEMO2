@@ -1,46 +1,73 @@
-/* StaticFlowDiagram.css — theme-token-only styling for StaticFlowDiagram.jsx */
+/* StaticFlowDiagram.css — theme-token-only styling for StaticFlowDiagram.jsx (React Flow). */
 
 .sfd {
-  overflow: auto;
-  border: 1px solid var(--th-border, #e2e8f0);
+  --sfd-edge: var(--th-text-muted);
+  position: relative;
+  width: 100%;
+  border: 1px solid var(--th-border);
   border-radius: 8px;
-  background: var(--th-surface, #ffffff);
+  background: var(--th-surface, var(--th-bg-card, #ffffff));
+  color: var(--th-text);
+  overflow: hidden;
 }
+.sfd-defs { position: absolute; }
+.sfd-arrow { fill: var(--th-text-muted); }
 
-.sfd-canvas {
-  display: block;
-  min-width: 100%;
+.sfd-node {
+  position: relative;
+  box-sizing: border-box;
+  padding: 7px 10px 0 16px;
+  border: 1.5px solid var(--th-border);
+  border-radius: 8px;
+  background: var(--th-bg-card);
+  cursor: pointer;
+  overflow: hidden;
 }
+.sfd-node-stripe {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 5px;
+}
+.sfd-node-label {
+  font-size: var(--font-size-2xs);
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--th-text);
+}
+.sfd-node-sub {
+  font-size: var(--font-size-3xs);
+  line-height: 15px;
+  color: var(--th-text-muted);
+}
+.sfd-node.dimmed { opacity: 0.35; }
 
 .sfd-edge-label {
-  font-size: 11px;
-  fill: var(--th-text-muted, #475569);
-  paint-order: stroke;
-  stroke: var(--th-surface, #ffffff);
-  stroke-width: 3px;
-  stroke-linejoin: round;
+  position: absolute;
+  max-width: 230px;
+  padding: 0 4px;
+  font-size: var(--font-size-3xs);
+  line-height: 1.25;
+  text-align: center;
+  color: var(--th-text-muted);
+  background: var(--th-bg-card);
+  border-radius: 3px;
+  pointer-events: none;
 }
+.sfd-edge.dimmed,
+.sfd-edge-label.dimmed { opacity: 0.25; }
 
-.sfd-edge.dimmed {
-  opacity: 0.25;
+/* Play/Step walkthrough (step prop): the arrow in focus is accented, later ones fade. */
+.sfd-edge.step-now path {
+  stroke: var(--th-status-info) !important;
+  stroke-width: 3.5px !important;
 }
-
-.sfd-node.dimmed {
-  opacity: 0.35;
+.sfd-edge-label.step-now {
+  color: var(--th-status-info-text);
+  font-weight: 700;
 }
-
-.sfd-node-box {
-  fill: var(--th-surface, #ffffff);
-  stroke-width: 1.5;
-}
-
-.sfd-node-label {
-  font-size: 12px;
-  font-weight: 600;
-  fill: var(--th-text, #0f172a);
-}
-
-.sfd-node-sub {
-  font-size: 10px;
-  fill: var(--th-text-muted, #64748b);
-}
+.sfd-edge.step-future,
+.sfd-edge-label.step-future { opacity: 0.3; }
+.sfd-edge.step-future path { stroke-dasharray: 5 4 !important; }
+.sfd-node.step-hot { box-shadow: 0 0 0 2px var(--th-status-info); }

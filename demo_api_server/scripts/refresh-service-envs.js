@@ -1192,8 +1192,9 @@ async function main(deps = {}) {
     // `mcp:invoke` — that name also lives on mcpgateway.ping.demo and
     // triggers PingOne "May not request scopes for multiple resources"
     // (or a 200 with the wrong aud). Must include `write` or write tools
-    // 502 with "Insufficient scope".
-    PG_OLB_SCOPE:                   'read write code:search',
+    // 502 with "Insufficient scope". Also `transfer`: create_transfer needs
+    // [write, transfer] and Exchange #3 only narrows this list, never adds.
+    PG_OLB_SCOPE:                   'read write transfer code:search',
     PG_MCP_RESOURCE_SERVER_URI:         mcpResourceServerAud,
     // Same single-resource rule: invest resource mirrored/native scopes only.
     PG_INVEST_SCOPE:                'invest:read',

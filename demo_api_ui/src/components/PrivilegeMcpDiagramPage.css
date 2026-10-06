@@ -4,7 +4,7 @@
   --pmd-bg: #0f1115;
   --pmd-panel: #161a21;
   --pmd-ink: #e9ecf3;
-  --pmd-ink-2: #9aa2b4;
+  --pmd-ink-2: #bcc3d2;
   --pmd-border: #2a313c;
   --pmd-accent: #5be6c9;
 
@@ -67,6 +67,7 @@
 }
 
 .pmd-panel {
+  color: var(--pmd-ink);
   background: var(--pmd-panel);
   border: 1px solid var(--pmd-border);
   border-radius: 8px;
@@ -124,3 +125,35 @@
   text-decoration: none;
 }
 .pmd-link:hover { text-decoration: underline; }
+
+/* mermaid sets an edge-label ground via an id-scoped rule; ink must beat it */
+:root[data-theme="dark"] .pmd-page .edgeLabel p,
+:root[data-theme="dark"] .pmd-page .edgeLabel span,
+.pmd-page:not(.pgt-page) .edgeLabel p,
+.pmd-page:not(.pgt-page) .edgeLabel span {
+  color: #ffffff !important;
+}
+
+/* pmd/mgof pages are always dark; the nano link/code inks are tuned for light grounds. */
+.pmd-page.pmd-page:not(.pgt-page) a:any-link,
+.mgof-page.mgof-page a:any-link {
+  color: #7dd3fc;
+}
+.pmd-page.pmd-page:not(.pgt-page) code,
+.mgof-page.mgof-page code {
+  color: #f9a8d4;
+}
+
+.end-user-nano .pmd-page a {
+  color: var(--pmd-accent);
+}
+.end-user-nano .pmd-page code {
+  color: var(--pmd-ink);
+}
+
+/* 7:1 light-mode inks. The light palette lives in PrivilegeGatewayTopologyPage.css;
+   the doubled class outranks it so the two files do not need to change together. */
+:root[data-theme="light"] .pmd-page.pgt-page.pgt-page {
+  --pmd-ink-2: #3a4150;
+  --pmd-accent: #0a5c48;
+}

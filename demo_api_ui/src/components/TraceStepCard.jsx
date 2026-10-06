@@ -173,6 +173,10 @@ function renderReplayBlock(replay) {
 export function openStepTeachingWindow(step, useCase) {
   const d = step?.detail || {};
   const title = `${step?.num != null ? `${step.num}. ` : ""}${step?.title || "Step"}`;
+  const denyHtml = d.denyDetail
+    ? `<div class="deny"><h2>Why it was denied</h2><table>${[...d.denyDetail.rows, ...(d.denyDetail.rateLimit || [])].map(([k, v]) =>
+      `<tr><th>${escapeHtml(k)}</th><td>${escapeHtml(v)}</td></tr>`).join("")}</table></div>`
+    : "";
   const whyHtml = d.why ? `<p class="why"><strong>Why this run:</strong> ${escapeHtml(d.why)}</p>` : "";
   const narrativeHtml = d.narrative
     ? `<p class="narrative"><strong>What this hop does:</strong> ${escapeHtml(d.narrative)}</p>`
@@ -219,6 +223,9 @@ export function openStepTeachingWindow(step, useCase) {
   .prose{margin:0 0 8px;color:#334155;max-width:76ch}
   .prose--warn{border-left:3px solid #f59e0b;padding-left:10px}
   .prose--note{color:#475569;font-size:12px}
+  .deny{border:1px solid #fdba74;background:#fff7ed;border-radius:8px;padding:2px 10px 8px;margin:0 0 12px}
+  .deny h2{color:#c2410c;border-bottom-color:#fdba74}
+  .deny td{color:#c2410c;font-weight:600}
   .uc{background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:8px 10px;margin:0 0 12px}
   .uc-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .uc-facts{color:#475569;font-size:12px;margin-top:3px}
@@ -256,7 +263,7 @@ export function openStepTeachingWindow(step, useCase) {
 </style></head>
 <body>
   <h1>${escapeHtml(title)}</h1>
-  ${laneHtml}${useCaseHtml}${narrativeHtml}${specHtml}${scopeHtml}${whyHtml}${decisionHtml}${kvHtml}${reqHtml}${resHtml}${altReqHtml}${altResHtml}${beforeAfterHtml}${replayHtml}${moreDetailHtml}
+  ${laneHtml}${denyHtml}${useCaseHtml}${narrativeHtml}${specHtml}${scopeHtml}${whyHtml}${decisionHtml}${kvHtml}${reqHtml}${resHtml}${altReqHtml}${altResHtml}${beforeAfterHtml}${replayHtml}${moreDetailHtml}
 </body></html>`;
 
   const win = window.open(
@@ -322,7 +329,20 @@ function TraceStepCard({ step, onInspect, defaultOpen = false, useCase = null })
         <span className="tctr-step-chev" aria-hidden="true">▶</span>
       </summary>
       <div className="tctr-step-body">
-        {d.narrative && <p className="tctr-narrative">{d.narrative}</p>}
+        {d.denyDetail && (
+          <div className="tctr-deny" role="alert">
+            <div className="tctr-deny-head">Why it was denied</div>
+            <dl className="tctr-deny-rows">
+              {[...d.denyDetail.rows, ...(d.denyDetail.rateLimit || [])].map(([k, v]) => (
+                <React.Fragment key={k}>
+                  <dt>{k}</dt>
+                  <dd>{v}</dd>
+                </React.Fragment>
+              ))}
+            </dl>
+          </div>
+        )}
+        {d.narrative &&<p className="tctr-narrative">{d.narrative}</p>}
         {d.why && (
           <p className="tctr-why">
             <span className="tctr-why-lbl">Why this run:</span> {d.why}

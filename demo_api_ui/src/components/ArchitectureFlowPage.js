@@ -169,7 +169,7 @@ function ArchNode({ data }) {
                 fontSize: "0.58rem",
                 fontFamily: "inherit",
                 lineHeight: 1.4,
-                color: b._changed?.includes("aud") ? "#1d4ed8" : "#475569",
+                color: "var(--th-text)",
                 fontWeight: b._changed?.includes("aud") ? 800 : 400,
               }}
             >
@@ -2147,7 +2147,7 @@ function AudTrail({ stepIndex }) {
                   style={{
                     fontSize: "0.7rem",
                     fontFamily: "inherit",
-                    color: on ? "#bfdbfe" : past ? "#3b82f6" : "#64748b",
+                    color: on ? "#bfdbfe" : past ? "#3b82f6" : "#475569",
                     lineHeight: 1.3,
                   }}
                 >
@@ -2158,7 +2158,7 @@ function AudTrail({ stepIndex }) {
                     style={{
                       fontSize: "0.68rem",
                       fontFamily: "inherit",
-                      color: on ? "#86efac" : "#64748b",
+                      color: on ? "#86efac" : "#475569",
                     }}
                   >
                     act: {hop.act}
@@ -2169,7 +2169,7 @@ function AudTrail({ stepIndex }) {
                     style={{
                       fontSize: "0.68rem",
                       fontFamily: "inherit",
-                      color: on ? "#fde68a" : "#64748b",
+                      color: on ? "#fde68a" : "#475569",
                     }}
                   >
                     may_act: {hop.may_act}
@@ -2425,7 +2425,7 @@ function OneFlowCard({ token, isHitl }) {
                 style={{
                   fontSize: "0.72rem",
                   fontFamily: "inherit",
-                  color: "#64748b",
+                  color: "#475569",
                   wordBreak: "break-word",
                 }}
               >
@@ -2466,7 +2466,7 @@ function OneFlowCard({ token, isHitl }) {
           cursor: "pointer",
           fontSize: "0.68rem",
           fontWeight: 600,
-          color: "#64748b",
+          color: "#475569",
           fontFamily: "inherit",
         }}
       >
@@ -3273,9 +3273,9 @@ export default function ArchitectureFlowPage({ user }) {
       <p className="afp-help-text" style={{ marginTop: "0.4rem" }}>
         Hit <strong>▶ Simulate Flow</strong> then <strong>⏸ Pause</strong> at
         any step to read the token card. Node badges show{" "}
-        <span style={{ color: "#1d4ed8", fontWeight: 600 }}>aud</span>,{" "}
-        <span style={{ color: "#15803d", fontWeight: 600 }}>act</span>,{" "}
-        <span style={{ color: "#b45309", fontWeight: 600 }}>may_act</span> —
+        <span className="afp-claim afp-claim--aud" style={{ fontWeight: 600 }}>aud</span>,{" "}
+        <span className="afp-claim afp-claim--act" style={{ fontWeight: 600 }}>act</span>,{" "}
+        <span className="afp-claim afp-claim--may-act" style={{ fontWeight: 600 }}>may_act</span> —
         highlighted when they change.
       </p>
 

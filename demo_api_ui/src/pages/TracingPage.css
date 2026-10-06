@@ -286,7 +286,7 @@
 }
 
 .tracing-bridge a {
-  color: #1d4ed8;
+  color: var(--th-status-info-text);
   font-weight: 600;
 }
 

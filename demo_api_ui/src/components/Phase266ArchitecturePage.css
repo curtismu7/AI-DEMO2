@@ -2,7 +2,7 @@
 
 .p266-arch-page {
   padding: 1.5rem 2rem 4rem;
-  background: #f8fafc;
+  background: var(--th-bg-page);
   min-height: calc(100vh - 64px);
   font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
   color: var(--th-text);
@@ -64,8 +64,8 @@
 .p266-arch-node-detail {
   max-width: 1280px;
   margin: 0 auto 2rem;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
   border-radius: 8px;
   padding: 16px 20px;
   box-shadow: var(--shadow-sm);
@@ -93,8 +93,8 @@
 .p266-arch-notes {
   max-width: 1280px;
   margin: 0 auto 1.5rem;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
   border-radius: 8px;
   padding: 22px 26px;
 }
@@ -161,7 +161,7 @@
 }
 
 .p266-arch-notes code {
-  background: #f3f4f6;
+  background: var(--th-bg-inset);
   color: var(--th-text);
   font-family: var(--font-mono);
   font-size: var(--font-size-2xs);

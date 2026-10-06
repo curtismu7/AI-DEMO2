@@ -73,7 +73,7 @@
   padding: 9px 14px; cursor: pointer; display: flex; align-items: center; gap: 8px;
 }
 .cp-viewtab:hover { color: var(--th-text); }
-.cp-viewtab[aria-selected="true"] { color: var(--th-primary, #1f5fe5); border-bottom-color: var(--th-primary, #1f5fe5); }
+.cp-viewtab[aria-selected="true"] { color: var(--th-status-info-text); border-bottom-color: var(--th-status-info-text); }
 .cp-viewtab:focus-visible { outline: 2px solid var(--th-primary, #1f5fe5); outline-offset: -2px; }
 .cp-viewtab__badge {
   font-size: 10.5px; font-weight: 700; padding: 1px 6px; border-radius: 8px;

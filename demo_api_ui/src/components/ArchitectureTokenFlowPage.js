@@ -1346,7 +1346,7 @@ export default function ArchitectureTokenFlowPage({ user }) {
         style={{
           fontSize: "0.75rem",
           fontWeight: 600,
-          color: "#475569",
+          color: "var(--th-text)",
           whiteSpace: "nowrap",
         }}
       >

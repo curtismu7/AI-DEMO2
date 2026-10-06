@@ -218,15 +218,29 @@ The integrated demo defaults to port `3300` for MainAgent so it does not occupy
 the AI-DEMO2 BFF's port `3001`. Keep the BFF-to-main URL and bind host paired as
 described above when switching between native and Docker BFF operation.
 
-**Google instead of Anthropic.** Each agent picks its provider with
-`MAIN_AGENT_PROVIDER` and `WORKER_AGENT_PROVIDER` (`anthropic` by default, or
-`google`), so the two agents can sit on different providers and different
+**Google or Groq instead of Anthropic.** Each agent picks its provider with
+`MAIN_AGENT_PROVIDER` and `WORKER_AGENT_PROVIDER` (`anthropic` by default,
+`google` or `groq`), so the two agents can sit on different providers and different
 model tiers. A Google agent calls Gemini's `generateContent` API: set
 `GEMINI_BASE_URL` to `https://<gateway>/llm/google` and the agent's Privilege
 key is sent as `x-goog-api-key`; leave it blank to call Google directly with
 `GEMINI_API_KEY`. A Privilege agent key is tied to one provider, so an agent
 set to `google` needs a key created with the Google provider. The Google path
 returns each reply whole rather than token by token.
+
+**Groq.** Set an agent to `groq` and put a Groq key in `GROQ_API_KEY` (or
+`MAIN_AGENT_GROQ_KEY` / `WORKER_AGENT_GROQ_KEY`). Groq is called **directly**
+(`https://api.groq.com/openai/v1`, OpenAI chat-completions format, override with
+`GROQ_BASE_URL`), because the Privilege AI Gateway has no Groq provider: it answers
+`/llm/groq` with a plain `403`, like any unknown name. Those model calls therefore
+**bypass the gateway**: they are not in its records and do not follow its policy. The
+A2A and MCP hops still go through it, and the main agent's `/status` says so. The
+default model is `openai/gpt-oss-120b`. A Groq account only lists the models it can
+use, and a model it lacks answers `404 model_not_found`: check yours with
+`curl -H "Authorization: Bearer $GROQ_API_KEY" https://api.groq.com/openai/v1/models`
+(no tokens are spent), then set `MAIN_AGENT_MODEL` /
+`WORKER_AGENT_MODEL` to change it. Every provider has the same 30 s per-attempt
+deadline with one retry (`GEMINI_TIMEOUT_MS` / `GROQ_TIMEOUT_MS`).
 
 Set `ANTHROPIC_BASE_URL` to `https://<gateway>/llm/anthropic`. The Anthropic SDK
 appends `/v1/messages`, so calls use Privilege's native

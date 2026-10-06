@@ -254,7 +254,8 @@
 .sdp-stage[data-status="done"] { border-left-color: #22c55e; }
 .sdp-stage[data-status="error"] { border-left-color: #ef4444; }
 .sdp-stage[data-status="notinpath"] { border-left-color: #cbd5e1; opacity: .65; }
-.sdp-stage-name { font-weight: 700; }
+.sdp-stage { color: var(--th-text); }
+.sdp-stage-name { font-weight: 700; color: var(--th-text); }
 .sdp-stage-result { color: var(--th-text-muted); margin-left: 6px; }
 .sdp-stage-note { display: block; color: var(--th-text-muted); font-size: 11.5px; margin-top: 1px; }
 

@@ -955,6 +955,11 @@ function SecurityCenterContent({ user }) {
           color: #4f46e5;
           font-weight: 600;
         }
+        /* #4f46e5 on the dark tab bar measured 2.4:1. */
+        :root[data-theme="dark"] .tab-btn.active {
+          color: #a5b4fc;
+          border-bottom-color: #a5b4fc;
+        }
 
         .tab-content {
           padding: 2rem;

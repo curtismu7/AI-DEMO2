@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import DiagramExportBar from "./DiagramExportBar";
-import { useMermaidRender } from "../hooks/useMermaidRender";
+import SequenceFlowDiagram from "./SequenceFlowDiagram";
 import "./McpGatewayOauthFlowPage.css";
 
 const MERMAID_SOURCE = `sequenceDiagram
@@ -67,22 +67,16 @@ const NOTES = [
   },
 ];
 
-const SEQUENCE_OPTS = { useMaxWidth: true, wrap: true };
-
 export default function InvestDualAuthDiagramPage() {
   const [source, setSource] = useState(MERMAID_SOURCE);
-  const { containerRef, error: renderError } = useMermaidRender(source, {
-    sequence: SEQUENCE_OPTS,
-  });
-
   return (
     <div className="mgof-page">
       <div className="mgof-hero">
         <span className="mgof-eyebrow">demo_mcp_resource_server — dual auth</span>
         <h1>Invest Service: Bearer Token vs API Key</h1>
         <p className="mgof-sub">
-          Two credential paths to the same backend. The top flow uses OAuth token
-          exchange and WebSocket MCP (Resource Server pattern). The bottom flow uses a
+          Two credential paths to the same backend. The left flow uses OAuth token
+          exchange and WebSocket MCP (Resource Server pattern). The right flow uses a
           vault-managed API key over HTTP REST (Backend App pattern).
         </p>
       </div>
@@ -94,11 +88,7 @@ export default function InvestDualAuthDiagramPage() {
       />
 
       <div className="mgof-panel">
-        {renderError ? (
-          <p className="mgof-error">Diagram failed to render: {renderError}</p>
-        ) : (
-          <div className="mgof-diagram" ref={containerRef} aria-label="Invest dual-auth sequence diagram" />
-        )}
+        <SequenceFlowDiagram source={source} label="Invest dual-auth sequence diagram" />
       </div>
 
       <div className="mgof-notes">

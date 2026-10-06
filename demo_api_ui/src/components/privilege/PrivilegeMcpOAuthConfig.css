@@ -56,7 +56,7 @@
 }
 
 .poc__badge--live {
-  color: var(--th-status-success);
+  color: var(--th-status-success-text);
   border-color: var(--th-status-success-border);
 }
 

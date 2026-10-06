@@ -131,3 +131,10 @@
   font-size: var(--font-size-2xs);
   color: var(--mgof-ink-2);
 }
+
+.end-user-nano .mgof-page a {
+  color: var(--mgof-accent);
+}
+.end-user-nano .mgof-page code {
+  color: var(--mgof-ink);
+}

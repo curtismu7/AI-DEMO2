@@ -298,7 +298,7 @@ body .transaction-consent-card__check input[type="checkbox"] {
 }
 
 .transaction-consent-btn--danger {
-  background: #b91c1c;
+  background: #991b1b;
   color: var(--th-text-invert);
 }
 

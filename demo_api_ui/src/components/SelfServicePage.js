@@ -167,7 +167,7 @@ const SelfServicePage = () => {
   };
 
   const getPasswordStrength = (password) => {
-    if (!password) return { strength: 0, label: 'Weak', color: '#ef4444' };
+    if (!password) return { strength: 0, label: 'Weak', color: 'var(--th-status-error-text)' };
     
     let strength = 0;
     if (password.length >= 8) strength++;
@@ -177,12 +177,12 @@ const SelfServicePage = () => {
     if (/[^a-zA-Z\d]/.test(password)) strength++;
     
     const levels = [
-      { strength: 0, label: 'Weak', color: '#ef4444' },
-      { strength: 1, label: 'Fair', color: '#f59e0b' },
-      { strength: 2, label: 'Good', color: '#eab308' },
-      { strength: 3, label: 'Strong', color: '#22c55e' },
-      { strength: 4, label: 'Very Strong', color: '#16a34a' },
-      { strength: 5, label: 'Excellent', color: '#15803d' }
+      { strength: 0, label: 'Weak', color: 'var(--th-status-error-text)' },
+      { strength: 1, label: 'Fair', color: 'var(--th-status-warning-text)' },
+      { strength: 2, label: 'Good', color: 'var(--th-status-warning-text)' },
+      { strength: 3, label: 'Strong', color: 'var(--th-status-success-text)' },
+      { strength: 4, label: 'Very Strong', color: 'var(--th-status-success-text)' },
+      { strength: 5, label: 'Excellent', color: 'var(--th-status-success-text)' }
     ];
     
     return levels[Math.min(strength, 4)];

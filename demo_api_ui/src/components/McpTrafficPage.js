@@ -282,11 +282,11 @@ export default function McpTrafficPage({ embedded = false } = {}) {
       {/* Page header — omit title when embedded (tab label is already "MCP Tool Tester") */}
       <div style={{ padding: embedded ? '8px 24px 12px' : '16px 24px 12px', borderBottom: '1px solid var(--border-light,#e2e8f0)', flexShrink: 0 }}>
         {!embedded && (
-          <h1 style={{ margin: '0 0 4px', fontSize: '1.3rem', fontWeight: 700, color: 'var(--text-primary,#1e293b)' }}>
+          <h1 style={{ margin: '0 0 4px', fontSize: '1.3rem', fontWeight: 700, color: 'var(--th-text)' }}>
             MCP Tool Tester
           </h1>
         )}
-        <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted,#64748b)' }}>
+        <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--th-text)' }}>
           Discover and invoke MCP tools directly through the BFF pipeline — no agent required.
           Real-time token chain traffic lives in the Token Chain panel.
         </p>
@@ -299,7 +299,7 @@ export default function McpTrafficPage({ embedded = false } = {}) {
         <div style={{ padding: '14px 24px', borderBottom: '1px solid var(--border-light,#e2e8f0)', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: discoveryPhases.length > 0 ? '12px' : 0 }}>
             <PingIdentitySpinner size={22} label="Connecting to MCP server…" aria-hidden="true" />
-            <span style={{ fontSize: '0.85rem', color: '#374151' }}>
+            <span style={{ fontSize: '0.85rem', color: 'var(--th-text)' }}>
               Connecting — verifying token, opening WebSocket to MCP server…
             </span>
           </div>
@@ -314,9 +314,9 @@ export default function McpTrafficPage({ embedded = false } = {}) {
                     {PHASE_ICON[p.status] || PHASE_ICON.active}
                   </span>
                   <div>
-                    <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#1e293b' }}>{p.label}</div>
+                    <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--th-text)' }}>{p.label}</div>
                     {p.technical && (
-                      <div style={{ fontSize: '0.75rem', color: '#64748b', fontFamily: 'inherit' }}>{p.technical}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--th-text)', fontFamily: 'inherit' }}>{p.technical}</div>
                     )}
                   </div>
                 </li>
@@ -336,7 +336,7 @@ export default function McpTrafficPage({ embedded = false } = {}) {
                   <span style={{ fontSize: '0.8rem', fontWeight: 700, color: PHASE_COLOR[p.status] || PHASE_COLOR.active }}>
                     {PHASE_ICON[p.status] || PHASE_ICON.active}
                   </span>
-                  <span style={{ fontSize: '0.82rem', color: '#1e293b' }}>{p.label}</span>
+                  <span style={{ fontSize: '0.82rem', color: 'var(--th-text)' }}>{p.label}</span>
                 </li>
               ))}
             </ol>
@@ -349,7 +349,7 @@ export default function McpTrafficPage({ embedded = false } = {}) {
 
       {/* Idle empty — avoid a blank panel when discovery returns no tools */}
       {!loadingTools && !toolsError && tools.length === 0 && (
-        <div style={{ padding: '24px', fontSize: '0.9rem', color: '#64748b' }}>
+        <div style={{ padding: '24px', fontSize: '0.9rem', color: 'var(--th-text)' }}>
           No MCP tools loaded. Confirm the MCP server is running, then refresh this tab.
         </div>
       )}
@@ -367,7 +367,7 @@ export default function McpTrafficPage({ embedded = false } = {}) {
 
             {/* Tool list */}
             <div style={{ padding: '12px 10px', borderBottom: '1px solid var(--border-light,#e2e8f0)' }}>
-              <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748b', marginBottom: '8px', padding: '0 2px' }}>
+              <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--th-text)', marginBottom: '8px', padding: '0 2px' }}>
                 Available Tools ({tools.length})
               </div>
               {tools.map((tool) => {
@@ -383,14 +383,14 @@ export default function McpTrafficPage({ embedded = false } = {}) {
                       display: 'block', width: '100%', textAlign: 'left', padding: '8px 10px',
                       borderRadius: '6px', border: isSelected ? '1px solid #93c5fd' : '1px solid transparent',
                       cursor: 'pointer', marginBottom: '3px',
-                      background: isSelected ? '#eff6ff' : 'transparent',
+                      background: isSelected ? 'var(--th-status-info-bg)' : 'transparent',
                     }}
                   >
                     <div style={{
                       fontSize: '0.82rem', fontWeight: 600, fontFamily: 'inherit',
-                      color: isSelected ? '#1d4ed8' : '#1e293b',
+                      color: isSelected ? 'var(--th-status-info-text)' : 'var(--th-text)',
                     }}>{tool.name}</div>
-                    <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '2px', lineHeight: 1.3 }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--th-text)', marginTop: '2px', lineHeight: 1.3 }}>
                       {tool.description?.length > 70 ? `${tool.description.slice(0, 70)}…` : tool.description}
                     </div>
                     {isHitl && (
@@ -414,11 +414,11 @@ export default function McpTrafficPage({ embedded = false } = {}) {
 
             {/* Session call history */}
             <div style={{ padding: '12px 10px', flex: 1, overflowY: 'auto' }}>
-              <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748b', marginBottom: '8px', padding: '0 2px' }}>
+              <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--th-text)', marginBottom: '8px', padding: '0 2px' }}>
                 History ({mcpHistory.length})
               </div>
               {mcpHistory.length === 0 ? (
-                <p style={{ margin: 0, fontSize: '0.77rem', color: '#94a3b8', lineHeight: 1.4, padding: '0 2px' }}>
+                <p style={{ margin: 0, fontSize: '0.77rem', color: 'var(--th-text)', lineHeight: 1.4, padding: '0 2px' }}>
                   No calls yet this session.
                 </p>
               ) : (
@@ -439,10 +439,10 @@ export default function McpTrafficPage({ embedded = false } = {}) {
                           {ok ? '✅' : '❌'}
                         </span>
                         <div style={{ minWidth: 0, flex: 1 }}>
-                          <div style={{ fontSize: '0.77rem', fontWeight: 600, color: '#1e293b', fontFamily: 'inherit', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <div style={{ fontSize: '0.77rem', fontWeight: 600, color: 'var(--th-text)', fontFamily: 'inherit', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {entry.tool}
                           </div>
-                          <div style={{ fontSize: '0.69rem', color: '#64748b' }}>
+                          <div style={{ fontSize: '0.69rem', color: 'var(--th-text)' }}>
                             {ts}{entry.duration != null ? ` · ${entry.duration}ms` : ''}
                           </div>
                           {entry.errorMsg && (
@@ -462,18 +462,18 @@ export default function McpTrafficPage({ embedded = false } = {}) {
           {/* Right panel: form + result */}
           <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
             {!selectedTool ? (
-              <div style={{ padding: '48px 0', textAlign: 'center', color: '#94a3b8' }}>
+              <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--th-text)' }}>
                 <div style={{ fontSize: '1.8rem', marginBottom: '12px', opacity: 0.5 }}>←</div>
-                <div style={{ fontSize: '0.88rem', color: '#64748b' }}>
+                <div style={{ fontSize: '0.88rem', color: 'var(--th-text)' }}>
                   Select a tool to inspect its schema, fill in parameters, and call it live through the MCP pipeline.
                 </div>
               </div>
             ) : (
               <>
-                <div style={{ marginBottom: '2px', fontSize: '1.05rem', fontWeight: 700, color: '#1e293b', fontFamily: 'inherit' }}>
+                <div style={{ marginBottom: '2px', fontSize: '1.05rem', fontWeight: 700, color: 'var(--th-text)', fontFamily: 'inherit' }}>
                   {selectedTool.name}
                 </div>
-                <div style={{ marginBottom: '16px', fontSize: '0.85rem', color: '#475569', lineHeight: 1.5 }}>
+                <div style={{ marginBottom: '16px', fontSize: '0.85rem', color: 'var(--th-text)', lineHeight: 1.5 }}>
                   {selectedTool.description}
                 </div>
 
@@ -498,7 +498,7 @@ export default function McpTrafficPage({ embedded = false } = {}) {
                     marginBottom: '16px', padding: '14px 16px', background: '#f8fafc',
                     borderRadius: '8px', border: '1px solid #e2e8f0',
                   }}>
-                    <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', marginBottom: '12px' }}>
+                    <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#334155', marginBottom: '12px' }}>
                       Parameters
                     </div>
                     {Object.entries(schemaProps).map(([key, schema]) => {
@@ -557,7 +557,7 @@ export default function McpTrafficPage({ embedded = false } = {}) {
                     background: '#f8fafc', border: '1px solid #e2e8f0',
                     maxHeight: '180px', overflowY: 'auto',
                   }}>
-                    <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', marginBottom: '8px' }}>
+                    <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#334155', marginBottom: '8px' }}>
                       Pipeline Events
                     </div>
                     {streamEvents.map((item) => (
@@ -598,7 +598,7 @@ export default function McpTrafficPage({ embedded = false } = {}) {
                         </div>
                       )
                     )}
-                    <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', marginBottom: '6px' }}>
+                    <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#334155', marginBottom: '6px' }}>
                       Server Response
                     </div>
                     <FormJsonToggle value={result} ariaLabel="Server response view" />

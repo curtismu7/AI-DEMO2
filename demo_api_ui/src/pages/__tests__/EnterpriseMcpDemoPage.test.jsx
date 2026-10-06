@@ -68,6 +68,24 @@ describe("EnterpriseMcpDemoPage", () => {
     }
   });
 
+  // Regression: every failed handoff rendered "PingOne is selected", even for a user on
+  // PingFederate whose handoff was merely lost. Each error code now has its own message.
+  it.each([
+    ["id_jag_intent_lost", /handoff was lost.*PingFederate is still selected/i],
+    ["id_jag_return_mismatch", /different page/i],
+    ["id_jag_provider_mismatch", /signed in with PingFederate.*set to PingOne/i],
+  ])("%s does not claim PingOne is the selected provider unless it is", (code, text) => {
+    const previousUrl = window.location.href;
+    window.history.replaceState({}, "", `/pingfederate-id-jag/demo?error=${code}`);
+    try {
+      render(<EnterpriseMcpDemoPage />);
+      expect(screen.getByRole("alert")).toHaveTextContent(text);
+      if (code !== "id_jag_provider_mismatch") expect(screen.getByRole("alert")).not.toHaveTextContent(/PingOne is selected/i);
+    } finally {
+      window.history.replaceState({}, "", previousUrl);
+    }
+  });
+
   it("replaces the live status with provider recovery when preflight rejects PingOne", () => {
     render(<EnterpriseMcpDemoPage />);
     fireEvent.click(screen.getByRole("button", { name: "Run live ID-JAG demo" }));

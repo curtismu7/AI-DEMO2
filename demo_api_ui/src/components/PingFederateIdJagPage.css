@@ -213,7 +213,7 @@
   height: 34px;
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--pfj-accent) 14%, var(--th-bg-card));
-  color: var(--pfj-accent);
+  color: var(--th-text);
   font-size: var(--font-size-xs);
   font-weight: 800;
 }

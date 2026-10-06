@@ -171,8 +171,8 @@
 }
 
 .sa-stack-btn[aria-pressed="true"] {
-  background: #b8002f;
-  border-color: #b8002f;
+  background: #a30030;
+  border-color: #a30030;
   color: #fff;
 }
 
@@ -275,7 +275,7 @@
 }
 
 .sa-btn {
-  background: #e1003b;
+  background: #a30030;
   color: #fff;
   border: none;
   border-radius: 5px;
@@ -287,8 +287,12 @@
   display: inline-block;
 }
 
+.sa-page .sa-btn {
+  color: #fff;
+}
+
 .sa-btn:hover {
-  background: #c40034;
+  background: #8a0029;
 }
 
 .sa-btn:focus-visible {

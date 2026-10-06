@@ -842,11 +842,11 @@ export default function AgentGatewayTester({ twoStep = false }) {
                   </div>
                 ))}
                 {groupedTools.length === 0 && (
-                  <div style={{ padding: '20px 16px', color: '#64748b', fontSize: 13 }}>
+                  <div style={{ padding: '20px 16px', color: 'var(--th-text-muted)', fontSize: 13 }}>
                     {tools.length === 0 ? 'No tools loaded.' : `No tools match "${toolSearch}".`}
                   </div>
                 )}
-                <div style={{ padding: '8px 16px', fontSize: 10, color: '#475569' }}>
+                <div style={{ padding: '8px 16px', fontSize: 10, color: 'var(--th-text-muted)' }}>
                   Source: {toolsSource}
                 </div>
               </div>

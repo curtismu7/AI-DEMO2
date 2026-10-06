@@ -125,8 +125,20 @@ async function listApplicationsRaw(opts) {
   // otherwise send an unauthenticated request that validateStatus swallows into
   // an empty list. Default it at the source so every caller gets a real token.
   opts = opts || await requestOptions();
-  const res = await axios.get(`${apiBase()}/applications?limit=100`, { ...opts, validateStatus: () => true });
-  return res.data?._embedded?.applications || [];
+  // Follow _links.next (PingOne caps a page at 100) and fail loudly on a non-2xx:
+  // an error body used to read as "no apps", which made findAgentRaw report a
+  // registered agent as missing ("No personal agent is registered").
+  const apps = [];
+  let url = `${apiBase()}/applications?limit=100`;
+  for (let page = 0; url && page < 50; page += 1) {
+    const res = await axios.get(url, { ...opts, validateStatus: () => true });
+    if (res.status >= 400) {
+      throw Object.assign(new Error(`PingOne applications list failed (HTTP ${res.status})`), { code: 'applications_list_failed' });
+    }
+    apps.push(...(res.data?._embedded?.applications || []));
+    url = res.data?._links?.next?.href || null;
+  }
+  return apps;
 }
 
 /** AI_AGENT apps appear in the standard applications list, so one lookup

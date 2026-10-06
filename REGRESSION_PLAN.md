@@ -5,6 +5,18 @@ Canonical do-not-break contract for the Super Banking demo. The
 layer that points here; `CLAUDE.md` also points here. This file is the source of
 truth — if the skill and this file disagree, this file wins.
 
+### 2026-10-06 — UC14b RAR PERMIT 403 insufficient_scope: PG_OLB_SCOPE lacked `transfer`
+
+**Files:** `ping-gateway/.env.example`, `demo_api_server/scripts/refresh-service-envs.js`, test `demo_api_server/src/__tests__/pgOlbScopeCoversTransfer.test.js`.
+
+**What was broken:** Exchange #3 only narrows `PG_OLB_SCOPE` (`read write code:search`) to the called tool's `requiredScopes`; it never adds one. `create_transfer` needs `[write, transfer]`, so the MCP server got a token with `write` only and answered -32005 `Insufficient scope`, surfaced as 403 DENY on a call the demo expected to PERMIT. The exchanger app already holds `transfer` on the Demo MCP Server resource, so no PingOne change is needed.
+
+**What changed:** `transfer` added to `PG_OLB_SCOPE` in the template and the env generator.
+
+**Do not break:** never add `mcp:invoke` (multi-resource). A live `ping-gateway/.env` (gitignored) must carry the same value and ping-gateway must be restarted. Still short, out of scope here: `get_sensitive_account_details` needs `sensitive:read`.
+
+**Verify:** `cd demo_api_server && CI=true npx jest src/__tests__/pgOlbScopeCoversTransfer.test.js --forceExit`.
+
 ### 2026-10-01 — Do not restart login after an invalid callback state
 
 **Files changed:** `demo_api_server/routes/oauthUser.js` and OAuth callback tests.
@@ -248,6 +260,68 @@ read the configured host. A new browser origin must be added to ALL of:
 ---
 
 ## §4 — Bug Fix Log
+
+### 2026-10-06 — A failed run said the same thing for "out of quota" and "Google is overloaded"
+
+**Files:** `demo_api_ui/src/utils/a2aRunFailureMessage.js`, `demo_api_ui/src/utils/__tests__/a2aRunFailureMessage.test.js`.
+
+**What was broken:** Only a 429 got a plain-language explanation. A 503 ("high demand"), or the agent's own "did not answer within 30 s" error, showed Gemini's JSON blob trimmed to 240 characters, with no advice. The two need different responses: 429 means the quota or tokens are used up (wait for the reset, or switch the model); 503 is Google being overloaded and is temporary (try again in a minute).
+
+**What changed:** `runFailureMessage` now has three cases. 429 / quota / rate limit: unchanged. 503 / 529 / overload / "high demand" / "did not answer within": "the model behind this run is overloaded right now … temporary … try again in a minute; if it keeps happening, switch the model" (setting and picker note included). Anything else: one short line. A message that matches both is treated as quota, since that advice differs. The BFF's "unreachable / restarting" text and the generic "unavailable" are deliberately not treated as an overload.
+
+**Do not break:** the 429 wording; `briefRunError`'s single-line cap; no raw JSON in either explanation.
+
+**Verify:** `cd demo_api_ui && ./node_modules/.bin/vitest run src/utils/__tests__/a2aRunFailureMessage.test.js`; `npm run build`.
+
+### 2026-10-06 — Step 25 looked like it would run in the agent but opens a page; mark where each step goes
+
+**Files:** `demo_api_ui/src/config/demoUseCaseSteps.js` (`DEMO_STEP_DESTINATIONS`), `demo_api_ui/src/components/DemoStepsDropdown.jsx`, `demo_api_ui/src/components/AIAgent.css`, `demo_api_ui/src/components/__tests__/DemoStepsDropdown.test.jsx`.
+
+**What was broken:** Steps 25 (UC46) and 25A (UC46A) share a number and a topic but differ: 25 leaves the agent for `/privilege-mcp-client?view=demo&tab=a2a` and runs nothing, 25A runs the review in the agent. Nothing on the rows said so, so a presenter clicked 25 expecting it to run in the agent and was taken to another page.
+
+**What changed:** Each of the two rows now carries a small marker: an amber **Opens page** on Step 25 (tooltip: it opens the A2A page, leaves the agent, nothing runs here, use 25A) and a green **Runs in agent** on 25A. The marker appears on every copy of the row, since a step can be listed in more than one group. The data lives in `DEMO_STEP_DESTINATIONS`, so another step can be marked by adding an entry. Styles use `--th-status-warning-*` / `--th-status-success-*` tokens (no literals, so both themes read correctly); the test id is `step-destination-<id>` on purpose, because many dropdown tests match `/^demo-step-/` for rows.
+
+**Do not break:** UC46 still opens its protected route and 25A still runs in the agent (decision of 2026-10-06: keep both as they are); Step 26 keeps its number; no other row gets a marker.
+
+**Verify:** `cd demo_api_ui && ./node_modules/.bin/vitest run src/components/__tests__/DemoStepsDropdown.test.jsx src/config`; `npm run build`.
+
+### 2026-10-06 — Two dancing Ps at once on the redirect to the sign-in (agent mark under the global spinner)
+
+**Files:** `demo_api_ui/src/components/AgentRunIndicator.jsx` (`HideWhileGlobalSpinner`), `demo_api_ui/src/components/AIAgent.js`, `demo_api_ui/src/components/__tests__/AgentRunIndicator.test.jsx`.
+
+**What was broken:** The app already has one global spinner, `SpinnerHost`: a full-screen overlay (z-index 200000) with the same dancing Ping mark, a message and the live endpoint, shown while a redirect or request is in flight. The agent's own working mark (`AgentWorkingMark` / `AgentRunIndicator`) kept drawing underneath it, so on the redirect to the PingOne sign-in the user saw two spinners, the global one over the agent's.
+
+**What changed:** `HideWhileGlobalSpinner` reads the global spinner state (`useSpinner().visible`) and renders nothing while it is showing. The agent wraps both its indicators in it (the `nlLoading` row and the `runIndicator` row), so only one dancing P is ever on screen. The agent's mark returns when the global spinner goes away. The global overlay stays the single authority for redirects.
+
+**Do not break:** `SpinnerHost` and its context are untouched; the agent's mark still shows for a run in progress when no global spinner is up; Send is still not disabled by the run indicator.
+
+**Verify:** `cd demo_api_ui && ./node_modules/.bin/vitest run src/components/__tests__/AgentRunIndicator.test.jsx`; `npm run build`. The `AIAgent.js` wiring has no unit test (component too heavy); confirm by clicking a step that redirects to sign-in.
+
+
+### 2026-10-06 — The Groq default model was not available on the account (404 model_not_found)
+
+**Files:** `standalone/privilege-a2a-anthropic-demo/src/config.ts`, `test/provider.test.ts`, `README.md`, `config.example`.
+
+**What was broken:** The Groq default `llama-3.3-70b-versatile` returned `404 model_not_found` on the first real run: the key authenticated, but the account does not have that model. A Groq account only lists the models it can use (this one: `openai/gpt-oss-120b`, `openai/gpt-oss-20b`, `qwen/qwen3.8-27b` for chat), so a default that the account lacks fails every run until `MAIN_AGENT_MODEL` is set by hand.
+
+**What changed:** The Groq default for both agents is now `openai/gpt-oss-120b`, which has worked end to end (banking and all nine other verticals, 2 to 4 s each). The README says how to list the models an account can use (`GET /openai/v1/models`, no tokens spent) and what the 404 means.
+
+**Do not break:** an explicit `<AGENT>_MODEL` still wins; the Anthropic and Google defaults are unchanged.
+
+**Verify:** `cd standalone/privilege-a2a-anthropic-demo && npm test && npm run build` (37 pass).
+
+
+### 2026-10-06 — The standalone A2A agents could only use Anthropic or Google; add Groq (direct)
+
+**Files:** `standalone/privilege-a2a-anthropic-demo/src/groq.ts` (new), `src/config.ts`, `README.md`, `config.example`, `test/groq.test.ts`, `test/provider.test.ts`.
+
+**What was broken:** The main agent ran on Google only (`MAIN_AGENT_PROVIDER=google`), so every Google quota error (429), overload (503) or stall blocked all A2A steps, and Anthropic was refused for the main key. Groq was wanted as an alternative.
+
+**What changed:** `<AGENT>_PROVIDER` now takes `anthropic` (default), `google` or `groq`, per agent (`providerOf`, per-provider default models). `groqClient` presents Groq's OpenAI chat-completions API behind the same two Anthropic-SDK calls the agents already use (messages and tool calls converted both ways), with the same 30 s deadline, one retry on a stall or 503, and an error text `Groq request returned <status>: ...` so the UI's 429 / overload messages still classify it. Groq is **direct** (`api.groq.com/openai/v1`, key from `GROQ_API_KEY` or `<AGENT>_GROQ_KEY`): the Privilege gateway has no Groq provider (`/llm/groq` answers a plain 403 like any unknown name, while `/llm/openai` and `/llm/anthropic` answer a JSON wrong-key error), so those model calls bypass the gateway; `describeMode` and `/status` say so, and `viaGateway` is false for Groq. The A2A and MCP hops are unchanged.
+
+**Do not break:** the Anthropic and Google paths and their defaults (a missing or unknown provider is still Anthropic); the 30 s deadline and 503 retry; `describeMode` for the other providers; no Groq key is read, printed or stored by the code beyond the env lookup.
+
+**Verify:** `cd standalone/privilege-a2a-anthropic-demo && npm test && npm run build` (37 pass). Not verified live: no Groq key was available to this session, so the format conversion is covered by unit tests against a fake fetch only.
 
 ### 2026-10-06 — A2A runs sat on "Client started" for minutes (model call stalls); Abercrombie & Fitch got the wrong persona
 

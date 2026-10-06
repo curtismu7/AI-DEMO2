@@ -34,7 +34,7 @@
   margin: 0 1.5rem 1.5rem;
   border-radius: 12px;
   flex-shrink: 0;
-  background: linear-gradient(135deg, var(--hero-bg-gradient-from, var(--brand-navy-dark, #1e40af)) 0%, var(--hero-bg-gradient-to, #1e3a8a) 100%);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--hero-bg-gradient-from, var(--brand-navy-dark, #1e40af)) 80%, #000) 0%, var(--hero-bg-gradient-to, #1e3a8a) 100%);
 }
 
 /* Size modifier — compact variant */

@@ -9,8 +9,12 @@
 import React, { useState } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
 import { Controls } from '@xyflow/react';
-import TokenChainFlowDiagram from './TokenChainFlowDiagram';
+import TokenChainFlowDiagram, { NODES, EDGES } from './TokenChainFlowDiagram';
+import DiagramStepBar from './DiagramStepBar';
+import { useDiagramStepper, edgeCaptions } from '../hooks/useDiagramStepper';
 import './TokenChainArchitecturePage.css';
+
+const EDGE_CAPTIONS = edgeCaptions(EDGES, Object.fromEntries(NODES.map((n) => [n.id, n.label])));
 
 const CARDS = [
   { color: '#2E5090', title: '🔐 Authentication', body: <>PingOne issues human token with <code>may_act: agent1</code> delegation claim</> },
@@ -26,11 +30,11 @@ const CARDS = [
   { color: '#ffc107', titleColor: 'themed', title: 'HITL/CIBA', body: 'Step-up flow for high-risk actions (transfers), requires Multi-Factor ACR' },
 ];
 
-function CanvasWithControls({ onNodeClick }) {
+function CanvasWithControls({ onNodeClick, step }) {
   return (
     <div className="tca-canvas-frame">
       <ReactFlowProvider>
-        <TokenChainFlowDiagram onClickNode={onNodeClick} />
+        <TokenChainFlowDiagram onClickNode={onNodeClick} step={step} />
         <Controls position="top-right" showInteractive={false} />
       </ReactFlowProvider>
     </div>
@@ -39,6 +43,7 @@ function CanvasWithControls({ onNodeClick }) {
 
 export default function TokenChainArchitecturePage({ user }) {
   const [selected, setSelected] = useState(null);
+  const stepper = useDiagramStepper(EDGES.length);
   // selected = { group, label, sub, id, detail: { role, mockToken, tokenNote } }
   const info = selected?.detail;
 
@@ -57,7 +62,8 @@ export default function TokenChainArchitecturePage({ user }) {
         <p className="tca-zoom-hint">
           Scroll to zoom · Drag to pan · Click a node for its role and the (mock) token it carries
         </p>
-        <CanvasWithControls onNodeClick={(node) => setSelected(node)} />
+        <DiagramStepBar stepper={stepper} caption={EDGE_CAPTIONS[stepper.step]} />
+        <CanvasWithControls onNodeClick={(node) => setSelected(node)} step={stepper.step} />
       </div>
 
       {info && (

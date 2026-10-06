@@ -95,7 +95,7 @@
 }
 
 .audit-float-close:hover {
-  background: #ef4444;
+  background: #991b1b;
   color: var(--th-text-invert);
 }
 
@@ -652,7 +652,7 @@ body.admin-skin-p1 .audit-float-close {
   border-radius: 6px;
 }
 body.admin-skin-p1 .audit-float-close:hover {
-  background: #dc2626;
+  background: #991b1b;
   color: var(--th-text-invert);
 }
 

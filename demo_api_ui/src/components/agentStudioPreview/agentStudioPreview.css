@@ -11,15 +11,15 @@
   --asp-panel-2: #f6efdf;
   --asp-border: #e8dcc0;
   --asp-ink: #2b2416;
-  --asp-ink-2: #6b6148;
-  --asp-ink-3: #a29873;
-  --asp-accent: #ad7509;
+  --asp-ink-2: #4f4733;
+  --asp-ink-3: #504726;
+  --asp-accent: #6b4600;
   --asp-accent-ink: #fffaf0;
   --asp-accent-wash: #fdf1d6;
-  --asp-good: #4f7a2e;
+  --asp-good: #2f4d1b;
   --asp-good-fill: #eef4e0;
   --asp-good-border: #c3d9a0;
-  --asp-bad: #b6431e;
+  --asp-bad: #84290c;
   --asp-bad-fill: #fbeadf;
   --asp-bad-border: #e6b995;
   --asp-shadow: 0 1px 3px rgba(60, 48, 10, 0.05), 0 8px 24px rgba(60, 48, 10, 0.06);
@@ -37,7 +37,7 @@
   --asp-border: #3a3120;
   --asp-ink: #f3ead4;
   --asp-ink-2: #c9bb92;
-  --asp-ink-3: #8d8262;
+  --asp-ink-3: #c0b38f;
   --asp-accent: #e8ae3d;
   --asp-accent-ink: #241a06;
   --asp-accent-wash: #332809;
@@ -58,21 +58,20 @@
   --asp-panel-2: #cfe4ea;
   --asp-border: #8fb6c0;
   --asp-ink: #0f2a31;
-  --asp-ink-2: #2f5560;
-  --asp-ink-3: #5a7d87;
-  --asp-accent: #066a76;
+  --asp-ink-2: #1f3f49;
+  --asp-ink-3: #234a55;
+  --asp-accent: #055560;
   --asp-accent-ink: #f2fcfd;
   --asp-accent-wash: #b6dde4;
   --asp-shadow: 0 1px 3px rgba(10, 60, 70, 0.08), 0 8px 24px rgba(10, 60, 70, 0.1);
   border-top: 8px solid #066a76;
-  background:
-    linear-gradient(90deg, #066a76 0, #066a76 10px, transparent 10px),
-    var(--asp-bg);
+  background-image: linear-gradient(90deg, #066a76 0, #066a76 10px, transparent 10px);
+  background-color: var(--asp-bg);
 }
 
 .asp-root.asp-root--discovery .asp-banner {
   border-radius: 6px;
-  background: #066a76;
+  background: #055560;
   color: #f2fcfd;
   border: none;
 }
@@ -82,7 +81,7 @@
 }
 
 .asp-root.asp-root--discovery .asp-eyebrow {
-  background: #066a76;
+  background: #055560;
   color: #f2fcfd;
   padding: 4px 10px;
   border-radius: 4px;
@@ -98,16 +97,15 @@
   --asp-panel-2: #1a3036;
   --asp-border: #2f4f58;
   --asp-ink: #e4f0f3;
-  --asp-ink-2: #a8c0c8;
-  --asp-ink-3: #6f8890;
+  --asp-ink-2: #c4d8de;
+  --asp-ink-3: #b3c9d0;
   --asp-accent: #3ec3d4;
   --asp-accent-ink: #061316;
   --asp-accent-wash: #143640;
   --asp-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 8px 30px rgba(0, 0, 0, 0.32);
   border-top-color: #3ec3d4;
-  background:
-    linear-gradient(90deg, #3ec3d4 0, #3ec3d4 10px, transparent 10px),
-    var(--asp-bg);
+  background-image: linear-gradient(90deg, #3ec3d4 0, #3ec3d4 10px, transparent 10px);
+  background-color: var(--asp-bg);
 }
 
 :root[data-theme="dark"] .asp-root.asp-root--discovery .asp-banner {

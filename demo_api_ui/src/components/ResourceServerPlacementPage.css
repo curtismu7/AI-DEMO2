@@ -5,9 +5,9 @@
   --rsp-bg: #0f1115;
   --rsp-panel: #161a21;
   --rsp-ink: #e9ecf3;
-  --rsp-ink-2: #9aa2b4;
+  --rsp-ink-2: #d0d5e0;
   --rsp-border: #2a313c;
-  --rsp-accent: #e0575c;
+  --rsp-accent: #ffc2c4;
   --rsp-hot-bg: rgba(224, 87, 92, 0.1);
 
   background: var(--rsp-bg);

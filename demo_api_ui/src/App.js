@@ -30,6 +30,7 @@ import PrivilegeGatewayTopologyPage from "./components/PrivilegeGatewayTopologyP
 import InvestDualAuthDiagramPage from "./components/InvestDualAuthDiagramPage";
 import ExternalDoorDiagramPage from "./components/ExternalDoorDiagramPage";
 import DemoArchSlidesPage from "./components/DemoArchSlidesPage";
+import DemoStepsLifelineAuditPage from "./components/DemoStepsLifelineAuditPage";
 import GatewayEnforcementMapPage from "./components/GatewayEnforcementMapPage";
 import ResourceServerPlacementPage from "./components/ResourceServerPlacementPage";
 import PrivilegeFirstGatewayPage from "./components/PrivilegeFirstGatewayPage";
@@ -110,6 +111,7 @@ import AuthorizeFallbackListener from "./components/AuthorizeFallbackListener";
 import SessionReauthBanner from "./components/SessionReauthBanner";
 import PiFlowSignInModal from "./components/PiFlowSignInModal";
 import PingFederateDownModal from "./components/PingFederateDownModal";
+import PingFederateRequiredModal from "./components/PingFederateRequiredModal";
 import SportingGoodsAdminOps from "./components/SportingGoodsAdminOps";
 import SpinnerHost from "./components/shared/SpinnerHost";
 import AuthLoadingScreen from "./components/shared/AuthLoadingScreen";
@@ -690,6 +692,7 @@ function AppWithAuth() {
               />
               <PiFlowSignInModal />
               <PingFederateDownModal />
+              <PingFederateRequiredModal />
               {sessionReauth && (
                 <SessionReauthBanner
                   message={sessionReauth.message}
@@ -2138,6 +2141,10 @@ function AppWithAuth() {
                             <Route
                               path="/demo-arch-slides/control-plane"
                               element={<DemoArchSlidesPage slide="control-plane" />}
+                            />
+                            <Route
+                              path="/demo-steps-lifeline-audit"
+                              element={<DemoStepsLifelineAuditPage />}
                             />
                             <Route
                               path="/gateway-enforcement-map"

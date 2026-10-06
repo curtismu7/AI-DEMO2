@@ -11,7 +11,7 @@ export const makeSession = (over = {}) => ({
   connect: vi.fn(), retryTools: vi.fn(), signOut: vi.fn(), runTool: vi.fn(), send: vi.fn(),
   pickPath: vi.fn(), pickDoor: vi.fn(),
   pvsTheme: "auto", cyclePvsTheme: vi.fn(),
-  needsRearm: false, rearmReason: null, rearm: vi.fn(), probeDoors: vi.fn(),
+  needsRearm: false, rearmReason: null, rearm: vi.fn(), probeDoors: vi.fn(), clearProbe: vi.fn(),
   routing: { gatewaySession: null, preflight: null, preflightBusy: false, preflightError: "", gatewayMode: "privilege", config: { mcpUrl: "https://gw.example/privilege-gateway/banking/mcp" }, presets: [
     { mode: "privilege", url: "https://gw.example/privilege-gateway/banking/mcp" },
     { mode: "privilege", url: "https://gw.example/privilege-gateway/other/mcp" },
@@ -486,6 +486,14 @@ describe.each([
     render(<View session={withRouting({})} />);
     expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.queryByText(/No other doors/)).toBeNull();
+    expect(screen.queryByRole("button", { name: "Clear" })).toBeNull();
+  });
+
+  it("offers Clear once there is a result or an error, and calls clearProbe", () => {
+    const session = withRouting({ preflight: [{ url: "https://gw.example/privilege-gateway/other/mcp", ok: false, status: 403 }] });
+    render(<View session={session} />);
+    fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+    expect(session.clearProbe).toHaveBeenCalled();
   });
 });
 
@@ -513,6 +521,15 @@ describe("ShellRoutingTree Check doors", () => {
     expect(other).toHaveTextContent("❌ other");
     expect(other).toHaveAttribute("title", "401 Unauthorized");
     expect(within(group).getByRole("button", { name: "banking" })).not.toHaveAttribute("title");
+  });
+
+  it("offers Clear only when there is something to clear", () => {
+    const { rerender } = render(<ShellRoutingTree session={withRouting({})} />);
+    expect(screen.queryByRole("button", { name: "Clear" })).toBeNull();
+    const session = withRouting({ preflightError: "Not authenticated." });
+    rerender(<ShellRoutingTree session={session} />);
+    fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+    expect(session.clearProbe).toHaveBeenCalled();
   });
 
   it("shows the empty-result and error notes", () => {

@@ -51,7 +51,7 @@
 }
 
 .prefill-note {
-  color: var(--th-status-success);
+  color: var(--th-status-success-text);
   font-size: 0.9em;
   margin: -8px 0 16px;
 }
@@ -333,7 +333,7 @@
 }
 
 .help-section strong {
-  color: var(--th-status-info);
+  color: var(--th-status-info-text);
 }
 
 .mcp-url {

@@ -111,3 +111,20 @@ test('startDefaultIndex indexes each present piece under its own codebase_id', a
   // Missing packages on disk are skipped, not errors.
   expect(st.pieces['ai-demo2-ping-gateway'].state).toBe('skipped');
 });
+
+test('priority files are indexed first even when over the size limit and past the file cap', () => {
+  const dir = tmpRepo();
+  fs.mkdirSync(path.join(dir, 'demo_api_server/services'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'demo_api_server/services/big.js'), 'x\n'.repeat(60 * 1024));
+  const files = collectFiles(dir, ['demo_api_server'], ['demo_api_server/services/big.js', 'demo_api_server/services/missing.js']);
+  expect(files[0].path).toBe('demo_api_server/services/big.js');
+  expect(files.filter((f) => f.path === 'demo_api_server/services/big.js')).toHaveLength(1);
+  expect(files.map((f) => f.path)).toContain('demo_api_server/a.js');
+});
+
+test('the API Server piece prioritises the BFF token-exchange sources', () => {
+  const server = CODEBASE_PIECES.find((p) => p.id === 'ai-demo2-server');
+  expect(server.priority).toContain('demo_api_server/services/agentMcpTokenService.js');
+  const real = collectFiles(path.join(__dirname, '..', '..'), server.roots, server.priority);
+  expect(real.slice(0, server.priority.length).map((f) => f.path)).toContain('demo_api_server/services/agentMcpTokenService.js');
+});

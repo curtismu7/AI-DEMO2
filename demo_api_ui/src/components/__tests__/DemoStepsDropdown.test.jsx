@@ -145,6 +145,32 @@ describe('DemoStepsDropdown', () => {
     expect(opts).toEqual({ keepTrace: true, run: expect.any(Promise) });
   });
 
+  it('marks Step 25 as opening a page and 25A as running in the agent, on every copy of the row, and no other row', async () => {
+    render(<DemoStepsDropdown open onOpenChange={() => {}} onSelect={() => {}} />);
+    await screen.findAllByTestId('demo-step-UC46');
+
+    // A step can be listed in more than one group; the marker follows it everywhere.
+    const pages = screen.getAllByTestId('step-destination-UC46');
+    expect(pages.length).toBeGreaterThan(0);
+    for (const badge of pages) {
+      expect(badge).toHaveTextContent('Opens page');
+      expect(badge.className).toContain('dest-badge--page');
+      expect(badge.getAttribute('title')).toMatch(/A2A page.*leaves the agent.*use 25A/);
+    }
+    const agents = screen.getAllByTestId('step-destination-UC46A');
+    for (const badge of agents) {
+      expect(badge).toHaveTextContent('Runs in agent');
+      expect(badge.className).toContain('dest-badge--agent');
+    }
+    // The marker sits on the row itself, not floating beside it.
+    expect(screen.getAllByTestId('demo-step-UC46')[0]).toContainElement(pages[0]);
+    expect(screen.getAllByTestId('demo-step-UC46A')[0]).toContainElement(agents[0]);
+
+    // Only these two steps carry a destination marker.
+    const ids = new Set(screen.getAllByTestId(/^step-destination-/).map((el) => el.getAttribute('data-testid')));
+    expect([...ids].sort()).toEqual(['step-destination-UC46', 'step-destination-UC46A']);
+  });
+
   it('starts the Privilege A2A agent chain from step 26 and still hands the step to the page', async () => {
     const onSelect = vi.fn();
     render(

@@ -309,7 +309,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: 'var(--bg, #0f1117)' }}>
       {/* Page header */}
       <div style={{ background: 'var(--surface, #1a1d27)', borderBottom: '1px solid var(--border, #2e3347)', padding: '0 20px', height: 52, display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-        <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text, #e2e8f0)', marginRight: 8 }}>Digital Assistant</span>
+        <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--th-text)', marginRight: 8 }}>Digital Assistant</span>
 
         {/* Skin tabs */}
         <div style={{ display: 'flex', gap: 4, flex: 1 }}>
@@ -317,7 +317,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
             <button
               key={s}
               onClick={() => setActiveSkin(s)}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 6, cursor: 'pointer', border: `1px solid ${activeSkin === s ? 'var(--border, #2e3347)' : 'transparent'}`, background: activeSkin === s ? 'var(--surface2, #242838)' : 'transparent', fontSize: 12, fontWeight: 500, color: activeSkin === s ? 'var(--text, #e2e8f0)' : 'var(--muted, #8892a4)' }}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 6, cursor: 'pointer', border: `1px solid ${activeSkin === s ? 'var(--border, #2e3347)' : 'transparent'}`, background: activeSkin === s ? 'var(--th-bg-inset)' : 'transparent', fontSize: 12, fontWeight: 500, color: activeSkin === s ? 'var(--th-text)' : 'var(--th-text-muted)' }}
             >
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: SKIN_DOT_COLORS[s], display: 'inline-block' }} />
               {SKIN_LABELS[s]}
@@ -329,19 +329,19 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
         <div style={{ display: 'flex', gap: 6, marginLeft: 'auto' }}>
           <button
             onClick={() => setLayoutState((s) => s === 'split' ? 'full' : 'split')}
-            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 11px', borderRadius: 6, border: `1px solid ${layoutState === 'split' ? 'var(--accent, #4f8ef7)' : 'var(--border, #2e3347)'}`, background: layoutState === 'split' ? 'rgba(79,142,247,0.15)' : 'transparent', color: layoutState === 'split' ? 'var(--accent, #4f8ef7)' : 'var(--muted, #8892a4)', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}
+            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 11px', borderRadius: 6, border: `1px solid ${layoutState === 'split' ? 'var(--accent, #4f8ef7)' : 'var(--border, #2e3347)'}`, background: layoutState === 'split' ? 'rgba(79,142,247,0.15)' : 'transparent', color: layoutState === 'split' ? 'var(--th-status-info-text)' : 'var(--th-text-muted)', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}
           >
             Split
           </button>
           <button
             onClick={handlePopOut}
-            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 11px', borderRadius: 6, border: `1px solid ${layoutState === 'popped' ? 'var(--accent, #4f8ef7)' : 'var(--border, #2e3347)'}`, background: layoutState === 'popped' ? 'rgba(79,142,247,0.15)' : 'transparent', color: layoutState === 'popped' ? 'var(--accent, #4f8ef7)' : 'var(--muted, #8892a4)', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}
+            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 11px', borderRadius: 6, border: `1px solid ${layoutState === 'popped' ? 'var(--accent, #4f8ef7)' : 'var(--border, #2e3347)'}`, background: layoutState === 'popped' ? 'rgba(79,142,247,0.15)' : 'transparent', color: layoutState === 'popped' ? 'var(--th-status-info-text)' : 'var(--th-text-muted)', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}
           >
             🪟 Pop Out
           </button>
           <button
             onClick={() => setTheme((t) => t === 'dark' ? 'light' : 'dark')}
-            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 11px', borderRadius: 6, border: '1px solid var(--border, #2e3347)', background: 'transparent', color: 'var(--muted, #8892a4)', fontSize: 12, cursor: 'pointer' }}
+            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 11px', borderRadius: 6, border: '1px solid var(--border, #2e3347)', background: 'transparent', color: 'var(--th-text-muted)', fontSize: 12, cursor: 'pointer' }}
             title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           >
             {theme === 'dark' ? 'Light' : 'Dark'}
@@ -358,8 +358,8 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
           {layout.placeholderVisible ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 40, borderRight: '1px dashed var(--border, #2e3347)' }}>
               <div style={{ fontSize: 40 }}>👤</div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text, #e2e8f0)', textAlign: 'center' }}>Agent active in external window</div>
-              <div style={{ fontSize: 12, color: 'var(--muted, #8892a4)', textAlign: 'center', maxWidth: 280, lineHeight: 1.6 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--th-text)', textAlign: 'center' }}>Agent active in external window</div>
+              <div style={{ fontSize: 12, color: 'var(--th-text-muted)', textAlign: 'center', maxWidth: 280, lineHeight: 1.6 }}>
                 The agent is running independently — just like a real user's AI client. Security gates on the right fire for every message it sends.
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#22c55e' }}>

@@ -568,7 +568,7 @@ function SystemArchitectureView() {
             . This diagram is dense — use the zoom controls (or open the{" "}
             <a
               href="/architecture/overview"
-              style={{ color: "#1d4ed8", textDecoration: "underline" }}
+              style={{ color: "var(--th-text)", textDecoration: "underline" }}
             >
               standalone zoomable view
             </a>
@@ -687,7 +687,7 @@ function SystemArchitectureView() {
                   style={{
                     marginLeft: "auto",
                     fontSize: "0.8rem",
-                    color: "#1d4ed8",
+                    color: "#1e40af",
                     textDecoration: "underline",
                   }}
                 >

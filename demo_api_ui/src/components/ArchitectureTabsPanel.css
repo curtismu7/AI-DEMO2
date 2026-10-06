@@ -40,9 +40,13 @@
 }
 
 .architecture-tab-button[aria-selected="true"] {
-  color: var(--app-primary-red, #b91c1c);
-  border-bottom-color: var(--app-primary-red, #b91c1c);
+  color: #991b1b;
+  border-bottom-color: #991b1b;
   background: transparent;
+}
+
+:root[data-theme="dark"] .architecture-tab-button[aria-selected="true"] {
+  color: #fca5a5;
 }
 
 .architecture-tab-button[aria-selected="true"]:hover {
@@ -68,7 +72,7 @@
 .architecture-tab-content p {
   margin: 8px 0;
   font-size: var(--font-size-body);
-  color: var(--th-text-muted);
+  color: var(--th-text-muted) !important; /* beats an inline #334155 in the JSX */
   line-height: 1.5;
   font-family: var(--app-font-family, 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif);
 }

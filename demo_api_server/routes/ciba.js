@@ -171,20 +171,32 @@ router.post('/initiate', authenticateToken, async (req, res) => {
     try {
       hitlChallenge = await hitlServiceClient.getChallengeStatus(hitlChallengeId);
     } catch (_) {
-      return res.status(400).json({ error: 'invalid_hitl_challenge' });
+      return res.status(400).json({ error: 'invalid_hitl_challenge', message: 'The approval request could not be found or has expired. Ask again to start a fresh approval.' });
     }
     const requestUserId = req.user?.id || req.user?.sub;
     const challengeAmount = Number(hitlChallenge.context?.amount);
     const challengeContext = hitlChallenge.context || {};
+    // Banking money moves (transfer/deposit/withdrawal) bind tool, amount and
+    // accounts exactly. A vertical tool (e.g. extend_rental) sends no banking
+    // transaction_type: bind only to the user + pending state, and to the
+    // amount when the caller supplied one. The challenge's own tool is kept in
+    // hitlChallengeTool below, so the downstream receipt stays tool-exact.
+    const banking = Boolean(CIBA_TRANSACTION_TOOLS[transactionType]);
     if (
       hitlChallenge.status !== 'pending'
       || hitlChallenge.userId !== requestUserId
-      || hitlChallenge.tool !== CIBA_TRANSACTION_TOOLS[transactionType]
-      || !Number.isFinite(challengeAmount) || challengeAmount !== amount
-      || (challengeContext.fromAccountId || null) !== fromAccountId
-      || (challengeContext.toAccountId || null) !== toAccountId
+      || (banking && (
+        hitlChallenge.tool !== CIBA_TRANSACTION_TOOLS[transactionType]
+        || !Number.isFinite(challengeAmount) || challengeAmount !== amount
+        || (challengeContext.fromAccountId || null) !== fromAccountId
+        || (challengeContext.toAccountId || null) !== toAccountId
+      ))
+      || (!banking && amount != null && Number.isFinite(challengeAmount) && challengeAmount !== amount)
     ) {
-      return res.status(400).json({ error: 'invalid_hitl_challenge' });
+      return res.status(400).json({
+        error: 'invalid_hitl_challenge',
+        message: 'The approval request no longer matches this action (expired, already used, or a different amount). Ask again to start a fresh approval.',
+      });
     }
   }
 
@@ -192,7 +204,7 @@ router.post('/initiate', authenticateToken, async (req, res) => {
     const userId = req.user?.id || req.user?.sub;
     const accountIds = [fromAccountId, toAccountId].filter(Boolean);
     if (accountIds.some((id) => dataStore.getAccountById(id)?.userId !== userId)) {
-      return res.status(400).json({ error: 'invalid_transaction_accounts' });
+      return res.status(400).json({ error: 'invalid_transaction_accounts', message: 'The accounts on this approval do not belong to the signed-in user.' });
     }
   }
 
@@ -209,7 +221,7 @@ router.post('/initiate', authenticateToken, async (req, res) => {
   }
   if (CIBA_TRANSACTION_TOOLS[transactionType] && Number.isFinite(amount) && amount > 0) {
     binding_message = `Approve $${amount.toFixed(2)} ${transactionType} from ${fromAccountId || 'external'} to ${toAccountId || 'external'}. Code ${crypto.randomBytes(6).toString('hex').toUpperCase()}`;
-    if (binding_message.length > 256) return res.status(400).json({ error: 'invalid_binding_message' });
+    if (binding_message.length > 256) return res.status(400).json({ error: 'invalid_binding_message', message: 'binding_message must not exceed 256 characters.' });
   }
 
   let result;

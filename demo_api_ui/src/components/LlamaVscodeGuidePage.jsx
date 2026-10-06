@@ -43,7 +43,7 @@ export default function LlamaVscodeGuidePage() {
           target="_blank"
           rel="noopener noreferrer"
           style={{
-            background: "#7c5cff",
+            background: "#6d4aff",
             color: "#fff",
             textDecoration: "none",
             borderRadius: 8,

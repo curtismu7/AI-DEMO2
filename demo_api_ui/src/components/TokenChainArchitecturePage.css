@@ -137,7 +137,8 @@
   font-weight: 600;
   margin-bottom: 0.5rem;
   font-size: 1rem;
-  color: var(--th-text);
+  /* !important beats the inline legend accent from the JS (fails AA on this card); the card's left border keeps the accent. */
+  color: var(--th-text) !important;
 }
 
 .tca-diagram-error {

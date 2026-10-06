@@ -54,7 +54,7 @@
 .governance-timeline-page__filters button:hover {
   border-color: var(--th-status-info);
   color: var(--th-text-invert);
-  background: var(--th-status-info);
+  background: var(--th-status-info-solid);
 }
 
 .governance-timeline-page__timeline {
@@ -129,3 +129,5 @@
   .governance-timeline-event__meta { display: block; }
   .governance-timeline-event__meta time { display: block; margin-top: 4px; }
 }
+
+.governance-timeline-page__filters button.is-active, .governance-timeline-page__filters button:hover { --th-status-info: #1e40af; }

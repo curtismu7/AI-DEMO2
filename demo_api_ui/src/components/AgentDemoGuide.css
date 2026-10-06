@@ -358,7 +358,7 @@
 .adg-copy-btn {
   align-self: flex-start;
   padding: 6px 12px;
-  background: #10b981;
+  background: #065f46;
   color: white;
   border: none;
   border-radius: 6px;
@@ -382,7 +382,7 @@
 .adg-setup-btn {
   align-self: flex-start;
   padding: 6px 12px;
-  background: #3b82f6;
+  background: #1e40af;
   color: white;
   border: none;
   border-radius: 6px;
@@ -530,9 +530,9 @@
 }
 
 .adg-nav-btn--close {
-  background: #3b82f6;
+  background: #1e40af;
   color: white;
-  border-color: #3b82f6;
+  border-color: #1e40af;
   margin-left: 8px;
 }
 

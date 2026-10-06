@@ -158,6 +158,42 @@ describe('one-shot ID-JAG login intent', () => {
     expect(pending.body).toEqual(expect.objectContaining({ pending: true, returnTo: intent.returnTo }));
   });
 
+  // Regression: every failed handoff used to redirect with id_jag_provider_required, and
+  // the SPA rendered "PingOne is selected" - even with PingFederate selected and the user
+  // signed in with it (a BFF restart empties the in-memory intent store mid-handoff).
+  describe('failed live handoff names its real cause', () => {
+    const liveLogin = (session, cookie) => {
+      const req = request(appFor(session)).get('/api/auth/oauth/user/login')
+        .query({ mode: 'live-id-jag', return_to: intent.returnTo });
+      return cookie ? req.set('Cookie', cookie) : req;
+    };
+    const errorOf = (res) => new URL(res.headers.location).searchParams.get('error');
+
+    test('PingFederate selected but the intent is gone -> id_jag_intent_lost, not a provider error', async () => {
+      jest.spyOn(configStore, 'getOAuthProvider').mockReturnValue('pingfederate');
+      const res = await liveLogin({});
+      expect(res.status).toBe(302);
+      expect(errorOf(res)).toBe('id_jag_intent_lost');
+    });
+
+    test('PingOne selected -> id_jag_provider_required', async () => {
+      jest.spyOn(configStore, 'getOAuthProvider').mockReturnValue('pingone');
+      expect(errorOf(await liveLogin({}))).toBe('id_jag_provider_required');
+    });
+
+    test('verified intent for another page -> id_jag_return_mismatch', async () => {
+      jest.spyOn(configStore, 'getOAuthProvider').mockReturnValue('pingfederate');
+      const session = {};
+      const saved = oauthUserRouter.setPendingIdJagRun({ session, headers: {} }, intent);
+      const cookie = `_id_jag_run=${saved.nonce}`;
+      oauthUserRouter.markVerifiedIdJagLogoutContinuation({ session, headers: { cookie } });
+      oauthUserRouter.consumeVerifiedIdJagLogoutContinuation({ session, headers: { cookie } });
+      const res = await request(appFor(session)).get('/api/auth/oauth/user/login')
+        .query({ mode: 'live-id-jag', return_to: '/dashboard' }).set('Cookie', cookie);
+      expect(errorOf(res)).toBe('id_jag_return_mismatch');
+    });
+  });
+
   test('PF login may claim the pending handoff while PingOne login cannot', () => {
     const req = { session: {}, headers: {} };
     const saved = oauthUserRouter.setPendingIdJagRun(req, intent);

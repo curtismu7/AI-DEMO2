@@ -419,7 +419,7 @@
   border: none;
   font-size: 1.5rem;
   cursor: pointer;
-  color: #6c757d;
+  color: var(--th-text, #212529);
   padding: 0;
   width: 30px;
   height: 30px;

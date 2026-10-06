@@ -58,6 +58,13 @@ describe('CIBA follows the signed-in provider', () => {
     await expect(startCiba(p1Session(), { store, fetchImpl })).rejects.toMatchObject({ code: 'PF_AI_CIBA_P1_NOT_CONFIGURED' });
   });
 
+  test('a PingOne refusal keeps PingOne\'s own reason in the code', async () => {
+    cibaService.initiateBackchannelAuth.mockRejectedValue(pendingError('unauthorized_client'));
+    await expect(startCiba(p1Session(), { store, fetchImpl })).rejects.toMatchObject({ code: 'PF_AI_CIBA_P1_UNAUTHORIZED_CLIENT' });
+    cibaService.initiateBackchannelAuth.mockRejectedValue(new Error('socket hang up'));
+    await expect(startCiba(p1Session(), { store, fetchImpl })).rejects.toMatchObject({ code: 'PF_AI_CIBA_REQUEST_FAILED' });
+  });
+
   test('an unknown PingOne user maps to a clear error', async () => {
     cibaService.initiateBackchannelAuth.mockRejectedValue(pendingError('unknown_user_id'));
     await expect(startCiba(p1Session(), { store, fetchImpl })).rejects.toMatchObject({ code: 'PF_AI_CIBA_USER_UNKNOWN' });

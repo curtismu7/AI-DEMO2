@@ -28,7 +28,7 @@
   padding: 0;
   border: none;
   background: transparent;
-  color: #1d4ed8;
+  color: var(--th-status-info-text);
   font-size: var(--font-size-sm);
   font-weight: 600;
   cursor: pointer;
@@ -84,7 +84,7 @@
   cursor: pointer;
 }
 .telemetry-mode-tab:hover { color: var(--th-text); }
-.telemetry-mode-tab--active { background: #1d4ed8; color: #fff; }
+.telemetry-mode-tab--active { background: #1e40af; color: #fff; }
 
 .telemetry-filters { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 16px; }
 

@@ -135,7 +135,7 @@ export default function AgentOnboardingSubwayPage() {
             compact={true}
             showLabel={true}
           />
-          <span style={{ marginLeft: '12px', color: '#64748b', fontSize: '0.9rem' }}>
+          <span style={{ marginLeft: '12px', color: 'var(--aos-ink-2)', fontSize: '0.9rem' }}>
             {STATION_LABELS[step.activeCardKeys[0]]}
           </span>
         </div>

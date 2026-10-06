@@ -133,6 +133,7 @@ export const NAV_PAGE_PATHS = {
   "Canvas Diagram (Node)": "/architecture/canvas",
   "PingFederate ID-JAG (Node)": "/architecture/pingfederate-id-jag",
   "Delegated Access Proof": "/academy/delegation/guided",
+  "Demo Steps Lifeline Audit": "/demo-steps-lifeline-audit",
   "Agent Onboarding Flow (Node)": "/agent-onboarding-flow",
   "Agent Onboarding Flow Subway (Node)": "/agent-onboarding-flow-subway",
   "Invest Dual-Auth (MM)": "/invest-dual-auth",

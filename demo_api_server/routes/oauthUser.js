@@ -135,6 +135,23 @@ function claimPendingIdJagRunForLogin(req, returnTo) {
   return intent;
 }
 
+/**
+ * Why a live ID-JAG handoff cannot continue. One code per cause — the SPA tells
+ * the user what actually failed instead of blaming the login provider for all of it.
+ *  - id_jag_provider_required: the shared login provider is not PingFederate
+ *  - id_jag_return_mismatch:   the login came back for a different page than the run started on
+ *  - id_jag_intent_lost:       no live server-side intent (expired, consumed, or the in-memory
+ *                              store was emptied by a BFF restart)
+ */
+function idJagHandoffFailureCode(req, returnTo, { requireLogoutContinuation = false } = {}) {
+  if (configStore.getOAuthProvider?.() !== 'pingfederate') return 'id_jag_provider_required';
+  const intent = pendingIdJagRun(req);
+  if (!intent || (requireLogoutContinuation && (!intent.logoutVerifiedAt || !intent.logoutContinuationConsumed))) {
+    return 'id_jag_intent_lost';
+  }
+  return intent.returnTo !== sanitizePostLoginReturnPath(returnTo) ? 'id_jag_return_mismatch' : 'id_jag_intent_lost';
+}
+
 function clearIdJagCookie(res) {
   res.clearCookie(ID_JAG_RUN_COOKIE, { httpOnly: true, secure: _isProd(), sameSite: _isProd() ? 'none' : 'lax', path: '/' });
 }
@@ -534,9 +551,11 @@ router.get('/login', (req, res) => {
       ? claimPendingIdJagRunForLogin(req, req.query.return_to || req.session.postLoginReturnToPath)
       : null;
     if (liveIdJag && !claimedIdJag) {
+      const failure = idJagHandoffFailureCode(req, req.query.return_to || req.session.postLoginReturnToPath,
+        { requireLogoutContinuation: true });
       clearPendingIdJagRun(req);
       clearIdJagCookie(res);
-      return res.redirect(`${getFrontendOrigin()}/pingfederate-id-jag/demo?error=id_jag_provider_required`);
+      return res.redirect(`${getFrontendOrigin()}/pingfederate-id-jag/demo?error=${failure}`);
     }
     if (!liveIdJag) {
       clearPendingIdJagRun(req);
@@ -1225,9 +1244,12 @@ router.get('/callback', async (req, res) => {
       && pendingIdJagRun(req)?.returnTo === postLoginReturnToPath
       ? consumePendingIdJagRun(req) : null;
     if (hadIdJagHandoff && !validatedIdJagIntent) {
+      const failure = resolvedLoginProvider !== 'pingfederate'
+        ? 'id_jag_provider_required'
+        : idJagHandoffFailureCode(req, postLoginReturnToPath);
       clearPendingIdJagRun(req);
       clearIdJagCookie(res);
-      return redirectEndUserOAuthSpaFailure(req, res, { error: 'id_jag_provider_required' }, '/pingfederate-id-jag/demo');
+      return redirectEndUserOAuthSpaFailure(req, res, { error: failure }, '/pingfederate-id-jag/demo');
     }
     clearIdJagCookie(res);
     const hostedLoginAudit = req.session.hostedLoginAudit || null;

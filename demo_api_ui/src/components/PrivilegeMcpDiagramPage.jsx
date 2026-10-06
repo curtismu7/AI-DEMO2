@@ -10,7 +10,7 @@
 // interop file (Lucidchart/draw.io/mermaid.live) documented in
 // docs/diagrams/DIAGRAMS.md; there's no live source to re-upload for those
 // tabs anymore, so DiagramExportBar's upload button is omitted for them.
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ReactFlow,
   Background,
@@ -22,7 +22,9 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import DiagramExportBar from "./DiagramExportBar";
-import { useMermaidRender } from "../hooks/useMermaidRender";
+import SequenceFlowDiagram from "./SequenceFlowDiagram";
+import { edgeCaptions, stepEdges, useDiagramStepper } from "../hooks/useDiagramStepper";
+import DiagramStepBar from "./DiagramStepBar";
 import "./PrivilegeMcpDiagramPage.css";
 
 const ARCHITECTURE_SOURCE = `graph TB
@@ -284,8 +286,7 @@ const TABS = [
   { id: "flow", label: "Auth Flow", kind: "reactflow", nodes: AUTH_NODES, edges: AUTH_EDGES, source: AUTH_FLOW_SOURCE, filename: "privilege-mcp-auth-flow.mmd" },
 ];
 
-const SEQUENCE_OPTS = { useMaxWidth: true, wrap: true };
-const FLOWCHART_OPTS = { useMaxWidth: true };
+const NO_EDGES = [];
 
 export default function PrivilegeMcpDiagramPage() {
   const [activeTab, setActiveTab] = useState("arch");
@@ -296,13 +297,20 @@ export default function PrivilegeMcpDiagramPage() {
     if (tab) setSource(tab.source);
   }, [activeTab]);
 
-  const { containerRef, error: renderError } = useMermaidRender(source, {
-    sequence: SEQUENCE_OPTS,
-    flowchart: FLOWCHART_OPTS,
-  });
-
   const activeTabMeta = TABS.find((t) => t.id === activeTab);
   const isMermaid = activeTabMeta?.kind === "mermaid";
+
+  // The graph tabs walk their edges; the sequence tab carries its own stepper.
+  const rfEdges = isMermaid ? NO_EDGES : activeTabMeta.edges;
+  const rfStepper = useDiagramStepper(rfEdges.length);
+  const rfCaptions = useMemo(
+    () => edgeCaptions(rfEdges, Object.fromEntries((isMermaid ? NO_EDGES : activeTabMeta.nodes).map((n) => [n.id, n.data.title]))),
+    [rfEdges, isMermaid, activeTabMeta],
+  );
+  const stopRf = rfStepper.stop;
+  useEffect(() => {
+    stopRf();
+  }, [activeTab, stopRf]);
 
   return (
     <div className="pmd-page">
@@ -333,13 +341,11 @@ export default function PrivilegeMcpDiagramPage() {
         onSourceChange={isMermaid ? setSource : undefined}
       />
 
+      {!isMermaid && <DiagramStepBar stepper={rfStepper} caption={rfCaptions[rfStepper.step]} />}
+
       <div className="pmd-panel">
         {isMermaid ? (
-          renderError ? (
-            <p className="pmd-error">Diagram failed to render: {renderError}</p>
-          ) : (
-            <div className="pmd-diagram" ref={containerRef} aria-label="Privilege MCP diagram" />
-          )
+          <SequenceFlowDiagram source={source} label="Privilege MCP sequence diagram" />
         ) : (
           <>
             {activeTab === "arch" && (
@@ -352,7 +358,7 @@ export default function PrivilegeMcpDiagramPage() {
             <div className="pmd-rf-canvas" aria-label="Privilege MCP diagram">
               <ReactFlow
                 nodes={activeTabMeta.nodes}
-                edges={activeTabMeta.edges}
+                edges={stepEdges(activeTabMeta.edges, rfStepper.step)}
                 nodeTypes={NODE_TYPES}
                 fitView
                 proOptions={{ hideAttribution: true }}

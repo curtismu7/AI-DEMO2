@@ -6,6 +6,8 @@
 // The journey is a React Flow canvas (StaticFlowDiagram) fed by generated data.
 import React, { useState } from "react";
 import StaticFlowDiagram from "./StaticFlowDiagram";
+import DiagramStepBar from "./DiagramStepBar";
+import { edgeCaptions, useDiagramStepper } from "../hooks/useDiagramStepper";
 import {
   GATEWAY_ENFORCEMENT_JOURNEY_GROUPS,
   GATEWAY_ENFORCEMENT_JOURNEY_NODES,
@@ -30,8 +32,14 @@ const VERDICT_ICON = {
   pending: "⚠️",
 };
 
+const JOURNEY_CAPTIONS = edgeCaptions(
+  GATEWAY_ENFORCEMENT_JOURNEY_EDGES,
+  Object.fromEntries(GATEWAY_ENFORCEMENT_JOURNEY_NODES.map((n) => [n.id, n.label])),
+);
+
 export default function GatewayEnforcementMapPage() {
   const [selectedNode, setSelectedNode] = useState(null);
+  const stepper = useDiagramStepper(GATEWAY_ENFORCEMENT_JOURNEY_EDGES.length);
 
   const nodeDetail = selectedNode
     ? selectedNode.data.path === 'bydesign'
@@ -60,10 +68,12 @@ export default function GatewayEnforcementMapPage() {
         it, then reconverges on one decision.
       </p>
 
+      <DiagramStepBar stepper={stepper} caption={JOURNEY_CAPTIONS[stepper.step]} />
       <StaticFlowDiagram
         NODES={GATEWAY_ENFORCEMENT_JOURNEY_NODES}
         EDGES={GATEWAY_ENFORCEMENT_JOURNEY_EDGES}
         GROUPS={GATEWAY_ENFORCEMENT_JOURNEY_GROUPS}
+        step={stepper.step}
         onNodeClick={(node) => setSelectedNode(selectedNode?.id === node.id ? null : node)}
         testId="gwe-flow-diagram"
         height={560}

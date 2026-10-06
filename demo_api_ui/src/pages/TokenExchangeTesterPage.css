@@ -205,9 +205,10 @@
   text-align: center;
 }
 .tet-btn--secondary:hover { background: #0f172a; }
+.tet-btn--secondary:is(:link, :visited) { color: #fff; }
 
 .tet-no-session a {
-  color: var(--th-status-info);
+  color: var(--th-status-info-text);
   font-weight: 600;
 }
 

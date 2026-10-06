@@ -578,6 +578,9 @@ function _denyFromGateway(sim, useCaseId, tokenChainEvents, err, fallbackStatus,
       httpStatus,
       ...audExtra,
       ...(authorize ? { authorizeDecisionId: authorize.decisionId } : {}),
+      // Deny detail the trace card shows first (denyDetail.js reads these).
+      reason,
+      ...(authorize && authorize.statements ? { authorizeStatements: authorize.statements } : {}),
     },
   ));
   stampUseCaseId(tokenChainEvents, useCaseId);
@@ -894,7 +897,7 @@ async function _runInsufficientScope(subjectToken, useCaseId, tokenChainEvents) 
       // tool/arguments let the Token Chain UI replay the attempted call in
       // the Agent Gateway Tester — this sim never reaches mcpResult since
       // the gateway rejects it before the MCP server runs.
-      { error: errorCode, httpStatus, tool: simTool, arguments: simArgs }
+      { error: errorCode, httpStatus, tool: simTool, arguments: simArgs, reason, presentedScopes: ['read'] }
     ));
     stampUseCaseId(tokenChainEvents, useCaseId);
     return { sim, useCaseId, status: httpStatus, errorCode, reason, tokenChainEvents };
@@ -1146,7 +1149,17 @@ async function _runRateLimitBurst(subjectToken, useCaseId, tokenChainEvents) {
           'error',
           null,
           reason,
-          { error: 'rate_limited', httpStatus: 429, retryAfterMs: err.retryAfterMs || null },
+          {
+            error: 'rate_limited',
+            httpStatus: 429,
+            retryAfterMs: err.retryAfterMs || null,
+            // The limit this sim pushed to the gateway, and how many calls
+            // had been made when the limiter refused (i earlier ones passed).
+            maxRequests: UC18_DEMO_RATE_LIMIT.rateLimitMaxRequests,
+            windowMs: UC18_DEMO_RATE_LIMIT.rateLimitWindowMs,
+            observedCalls: i,
+            rateLimitLayer: err.rateLimitLayer || 'gateway',
+          },
         ));
         break;
       }
@@ -1987,10 +2000,17 @@ async function _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, req
       { tratContextHeader },
     );
   } catch (err) {
-    return _denyFromGateway(
+    // This path is NOT an offline simulation: the exchange and the gateway call
+    // above are real, so a deny here is a real refusal of a call the demo expected
+    // to PERMIT (typically the exchanged token lacks a scope the tool needs).
+    // Keep the gateway's own code but say plainly that PERMIT was expected.
+    const denied = _denyFromGateway(
       sim, useCaseId, tokenChainEvents, err, 403, 'rar_unexpected_deny',
       'Authorize DENY (unexpected — requested amount was within the granted cap)',
     );
+    denied.reason = `PERMIT was expected (requested $${amount} is within the $${grantedAmount} RAR cap) but the call was denied: ${denied.reason}`;
+    denied.expectedOutcome = 'PERMIT';
+    return denied;
   }
 
   // A backend tool failure arrives as a 200 JSON-RPC result with isError:true —

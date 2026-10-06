@@ -1128,8 +1128,8 @@
 .ttp-root[data-theme="light"] .ttp-callout--deny .ttp-callout-verb { color: #b91c1c; }
 .ttp-root[data-theme="light"] .ttp-callout--deny + .ttp-callout-leader { border-left-color: #f87171; }
 .ttp-root[data-theme="light"] .ttp-enf-badge--deny {
-  background: #dc2626;
-  border-color: #dc2626;
+  background: #991b1b;
+  border-color: #991b1b;
   color: #ffffff;
 }
 .ttp-root[data-theme="light"] .ttp-callout--live { border-color: #d97706; }
@@ -1216,4 +1216,4 @@
 .ttp-root[data-theme="light"] .ttp-lane--api     { color: #155e75; background: #cffafe; }
 .ttp-insp-font-control { display: inline-flex; gap: 2px; margin-left: auto; margin-right: 8px; }
 .ttp-insp-font-control button { border: 1px solid #475569; border-radius: var(--radius-sm); background: transparent; color: inherit; padding: 2px 6px; font-size: var(--font-size-3xs); cursor: pointer; }
-.ttp-insp-font-control button[aria-pressed="true"] { background: #2563eb; color: #fff; border-color: #2563eb; }
+.ttp-insp-font-control button[aria-pressed="true"] { background: #1e40af; color: #fff; border-color: #1e40af; }

@@ -67,7 +67,7 @@
 
 .inspector-clean-statusbar-badge {
   background: #dcfce7;
-  color: #166534;
+  color: #14532d;
   padding: 4px 8px;
   border-radius: var(--radius-sm);
   font-weight: 600;
@@ -273,8 +273,8 @@ textarea {
 }
 
 .inspector-clean-output-tab.active {
-  color: #3730a3;
-  border-bottom-color: #3730a3;
+  color: var(--th-status-info-text);
+  border-bottom-color: var(--th-status-info-text);
 }
 
 .inspector-clean-output-content {

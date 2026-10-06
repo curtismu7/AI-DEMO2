@@ -122,7 +122,7 @@
 }
 
 .btn-primary {
-  background: #3b82f6;
+  background: #1e40af;
   color: white;
 }
 
@@ -132,10 +132,10 @@
 }
 
 .btn-secondary {
-  background: #e5e7eb;
+  background: var(--th-bg-inset);
   color: var(--th-text);
 }
 
 .btn-secondary:hover {
-  background: #d1d5db;
+  background: var(--th-bg-hover);
 }

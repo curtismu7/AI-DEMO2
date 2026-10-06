@@ -10,9 +10,9 @@
   --rsj-text: #e6edf3;
   --rsj-text-secondary: #ffffff;
   --rsj-text-muted: #ffffff;
-  --rsj-blue: #58a6ff;
-  --rsj-green: #3fb950;
-  --rsj-gold: #d29922;
+  --rsj-blue: #79c0ff;
+  --rsj-green: #56d364;
+  --rsj-gold: #e3b341;
   --rsj-btn-bg: #21262d;
   --rsj-btn-hover: #30363d;
   --rsj-proof-bg: #23863620;
@@ -32,9 +32,9 @@
   --rsj-text: #1f2328;
   --rsj-text-secondary: #000000;
   --rsj-text-muted: #424a53;
-  --rsj-blue: #0969da;
-  --rsj-green: #1a7f37;
-  --rsj-gold: #9a6700;
+  --rsj-blue: #0550ae;
+  --rsj-green: #116329;
+  --rsj-gold: #7d4e00;
   --rsj-btn-bg: #f0f2f5;
   --rsj-btn-hover: #e2e8f0;
   --rsj-proof-bg: #dafbe1;
@@ -244,8 +244,8 @@
   cursor: pointer; transition: background 0.12s, border-color 0.12s;
 }
 .rsj-nav-btn:hover { background: var(--rsj-btn-hover); border-color: var(--rsj-blue); }
-.rsj-nav-btn--primary { background: #1f6feb; border-color: #1f6feb; color: #fff; }
-.rsj-nav-btn--primary:hover { background: #388bfd; }
+.rsj-nav-btn--primary { background: #1e40af; border-color: #1e40af; color: #fff; }
+.rsj-nav-btn--primary:hover { background: #1e3a8a; }
 
 @media (max-width: 700px) {
   .rsj-split { grid-template-columns: 1fr; }

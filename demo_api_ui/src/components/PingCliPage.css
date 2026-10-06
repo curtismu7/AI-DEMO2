@@ -303,8 +303,8 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  color: var(--th-text-invert);
-  background: var(--th-status-info);
+  color: #fff;
+  background: #1e40af;
   border: none;
   border-radius: 5px;
   padding: 5px 14px;
@@ -314,8 +314,8 @@
 }
 
 .pingcli-cmd-run:hover:not(:disabled) {
-  color: var(--th-text-invert);
-  background: color-mix(in srgb, var(--th-status-info) 80%, black);
+  color: #fff;
+  background: #1e40af;
 }
 
 /* Soften the “all buttons grey out” flash while one command runs. */

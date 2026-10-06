@@ -258,12 +258,12 @@ export default function UserTransactions({ user }) {
 
         .transactions-header h2 {
           margin: 0 0 0.5rem 0;
-          color: #333;
+          color: var(--app-primary-btn-text, #fff);
         }
 
         .transactions-header p {
           margin: 0;
-          color: #666;
+          color: var(--app-primary-btn-text, #fff);
         }
 
         .transfer-section {
@@ -282,8 +282,8 @@ export default function UserTransactions({ user }) {
           align-items: center;
           gap: 1rem;
           padding: 2rem;
-          background: white;
-          border: 1px solid #e5e7eb;
+          background: var(--th-bg-card);
+          border: 1px solid var(--th-border);
           border-radius: 8px;
           text-align: center;
         }
@@ -294,16 +294,16 @@ export default function UserTransactions({ user }) {
 
         .transfer-content h3 {
           margin: 0 0 0.5rem 0;
-          color: #333;
+          color: var(--th-text);
         }
 
         .transfer-content p {
           margin: 0 0 1.5rem 0;
-          color: #666;
+          color: var(--th-text-muted);
         }
 
         .recent-transactions {
-          background: white;
+          background: var(--th-bg-card);
           border-radius: 8px;
           padding: 2rem;
           box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -320,7 +320,7 @@ export default function UserTransactions({ user }) {
 
         .section-header h3 {
           margin: 0;
-          color: #333;
+          color: var(--th-text);
         }
 
         .filter-tabs {
@@ -330,21 +330,22 @@ export default function UserTransactions({ user }) {
 
         .filter-btn {
           padding: 0.5rem 1rem;
-          border: 1px solid #e5e7eb;
-          background: white;
+          border: 1px solid var(--th-border);
+          background: var(--th-bg-card);
+          color: var(--th-text);
           border-radius: 4px;
           cursor: pointer;
           transition: all 0.2s;
         }
 
         .filter-btn:hover {
-          background: #f9fafb;
+          background: var(--th-bg-inset);
         }
 
         .filter-btn.active {
-          background: #4f46e5;
+          background: #3730a3;
           color: white;
-          border-color: #4f46e5;
+          border-color: #3730a3;
         }
 
         .transactions-summary {
@@ -352,7 +353,7 @@ export default function UserTransactions({ user }) {
           justify-content: space-between;
           align-items: center;
           padding: 1rem;
-          background: #f9fafb;
+          background: var(--th-bg-inset);
           border-radius: 6px;
           margin-bottom: 1.5rem;
           flex-wrap: wrap;
@@ -368,7 +369,7 @@ export default function UserTransactions({ user }) {
 
         .summary-label {
           font-size: 0.875rem;
-          color: #666;
+          color: var(--th-text-muted);
           margin-bottom: 0.25rem;
         }
 
@@ -378,11 +379,11 @@ export default function UserTransactions({ user }) {
         }
 
         .summary-value.credits {
-          color: #10b981;
+          color: var(--th-status-success-text);
         }
 
         .summary-value.debits {
-          color: #ef4444;
+          color: var(--th-status-error-text);
         }
 
         .transactions-list {
@@ -397,7 +398,7 @@ export default function UserTransactions({ user }) {
           align-items: center;
           gap: 1rem;
           padding: 1rem;
-          border-bottom: 1px solid #f3f4f6;
+          border-bottom: 1px solid var(--th-border);
         }
 
         .transaction-item:last-child {
@@ -414,12 +415,12 @@ export default function UserTransactions({ user }) {
         .date-day {
           font-size: 1.25rem;
           font-weight: 600;
-          color: #333;
+          color: var(--th-text);
         }
 
         .date-month {
           font-size: 0.75rem;
-          color: #666;
+          color: var(--th-text-muted);
           text-transform: uppercase;
         }
 
@@ -429,7 +430,7 @@ export default function UserTransactions({ user }) {
 
         .transaction-description {
           font-weight: 500;
-          color: #333;
+          color: var(--th-text);
           margin-bottom: 0.25rem;
         }
 
@@ -437,7 +438,7 @@ export default function UserTransactions({ user }) {
           display: flex;
           gap: 1rem;
           font-size: 0.875rem;
-          color: #666;
+          color: var(--th-text-muted);
         }
 
         .transaction-amount {
@@ -451,11 +452,11 @@ export default function UserTransactions({ user }) {
         }
 
         .amount.credit {
-          color: #10b981;
+          color: var(--th-status-success-text);
         }
 
         .amount.debit {
-          color: #ef4444;
+          color: var(--th-status-error-text);
         }
 
         .transaction-status {
@@ -471,8 +472,8 @@ export default function UserTransactions({ user }) {
         }
 
         .status-badge.completed {
-          background: #f0fdf4;
-          color: #10b981;
+          background: var(--th-status-success-bg);
+          color: var(--th-status-success-text);
         }
 
         .transactions-actions {
@@ -502,13 +503,13 @@ export default function UserTransactions({ user }) {
           background: #4338ca;
         }
 
-        .btn-outline {
+        .user-transactions .btn.btn-outline {
           background: transparent;
-          color: #4f46e5;
+          color: var(--th-text);
           border: 1px solid #4f46e5;
         }
 
-        .btn-outline:hover {
+        .user-transactions .btn.btn-outline:hover {
           background: #4f46e5;
           color: white;
         }

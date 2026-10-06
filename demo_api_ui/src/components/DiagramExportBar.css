@@ -20,8 +20,8 @@
   color: var(--th-text);
 }
 
-.deb-link {
-  color: var(--th-status-info);
+.deb-bar .deb-link {
+  color: var(--th-status-info-text);
 }
 
 .deb-hint {

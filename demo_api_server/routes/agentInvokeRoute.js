@@ -13,6 +13,7 @@
  */
 
 const express = require('express');
+const { isIdJagGateCode } = require('../services/idJagGateCodes');
 const crypto = require('crypto');
 const { processAgentMessage } = require('../services/demoAgentLangGraphService');
 const { evaluateIntentAuthorization } = require('../services/intentAuthService');
@@ -232,33 +233,42 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
         return res.status(401).json({ error: 'authentication_required', message: 'Sign in to use the personal agent concierge.' });
       }
 
-      // UC38 requires MFA — acr claim set by PingOne when acr_values was honoured.
-      const tokenAcr = req.user.acr || '';
-      // In-app MFA (routes/mfa.js) proves the same thing without a new sign-in:
-      // it sets a short-lived session marker only after PingOne reports the
-      // challenge COMPLETED. A passkey registered for this app's domain works
-      // there and cannot work on PingOne's hosted page. Single use, as in
-      // routes/transactions.js.
-      const sessionMfaFresh = !/multi.factor|multi_factor|mfa/i.test(String(tokenAcr))
-        && req.session?.stepUpVerified > Date.now();
-      if (sessionMfaFresh) req.session.stepUpVerified = 0;
-      const hasMfa = sessionMfaFresh || /multi.factor|multi_factor|mfa/i.test(String(tokenAcr));
-      if ((requestedUseCaseId === 'personal-agent-concierge' || requestedUseCaseId === 'saas-embedded-worker') && !hasMfa) {
-        const stepUpAcr = configStore.getEffective('stepUpAcrValue') || 'Multi_Factor';
-        appEventService.logEvent('personal_agent', 'info', 'UC38: MFA step-up required before delegation',
-          { tag: 'personal_agent/step_up_required', metadata: { userId, tokenAcr } });
-        return res.status(200).json({
-          reply: 'Your personal agent needs to verify your identity before acting on your behalf. Please complete multi-factor authentication.',
-          success: false,
-          toolsCalled: [],
-          agentConfigured: true,
-          error: 'step_up_required',
-          step_up_required: true,
-          step_up_method: 'p1mfa',
-          step_up_acr: stepUpAcr,
-          tokenEvents: req.tokenEvents || [],
-        });
-      }
+      // MFA step-up. UC45 (saas worker) asks first; UC38 asks only AFTER the
+      // registration check below, because MFA followed by "no agent registered"
+      // reads as a contradiction and the MFA would be wasted.
+      const isSaasWorker = requestedUseCaseId === 'saas-embedded-worker';
+      const sendMfaStepUp = () => {
+        // UC38 requires MFA — acr claim set by PingOne when acr_values was honoured.
+        const tokenAcr = req.user.acr || '';
+        // In-app MFA (routes/mfa.js) proves the same thing without a new sign-in:
+        // it sets a short-lived session marker only after PingOne reports the
+        // challenge COMPLETED. A passkey registered for this app's domain works
+        // there and cannot work on PingOne's hosted page. Single use, as in
+        // routes/transactions.js.
+        const sessionMfaFresh = !/multi.factor|multi_factor|mfa/i.test(String(tokenAcr))
+          && req.session?.stepUpVerified > Date.now();
+        if (sessionMfaFresh) req.session.stepUpVerified = 0;
+        const hasMfa = sessionMfaFresh || /multi.factor|multi_factor|mfa/i.test(String(tokenAcr));
+        if ((requestedUseCaseId === 'personal-agent-concierge' || requestedUseCaseId === 'saas-embedded-worker') && !hasMfa) {
+          const stepUpAcr = configStore.getEffective('stepUpAcrValue') || 'Multi_Factor';
+          appEventService.logEvent('personal_agent', 'info', 'UC38: MFA step-up required before delegation',
+            { tag: 'personal_agent/step_up_required', metadata: { userId, tokenAcr } });
+          res.status(200).json({
+            reply: 'Your personal agent needs to verify your identity before acting on your behalf. Please complete multi-factor authentication.',
+            success: false,
+            toolsCalled: [],
+            agentConfigured: true,
+            error: 'step_up_required',
+            step_up_required: true,
+            step_up_method: 'p1mfa',
+            step_up_acr: stepUpAcr,
+            tokenEvents: req.tokenEvents || [],
+          });
+          return true;
+        }
+        return false;
+      };
+      if (isSaasWorker && sendMfaStepUp()) return;
 
       // Require a registered personal agent.
       const agentType = requestedUseCaseId === 'saas-embedded-worker' ? 'saas-embedded-worker' : 'personal';
@@ -298,6 +308,8 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
           tokenEvents: req.tokenEvents || [],
         });
       }
+
+      if (!isSaasWorker && sendMfaStepUp()) return;
 
       if (isWorkloadAgent) {
         // Request-local BFF credentials bind the actual OAuth actor_token to
@@ -720,7 +732,7 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
         tokenEvents: errorTokenEvents,
       });
     }
-    if (error.code === 'id_jag_login_required' || error.code === 'id_jag_provider_required') {
+    if (isIdJagGateCode(error.code)) {
       return res.status(401).json({ error: error.code, message: error.message,
         loginTarget: error.loginTarget, tokenEvents: errorTokenEvents });
     }

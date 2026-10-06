@@ -1,5 +1,16 @@
 import React from 'react';
 import PingIdentitySpinner from './shared/PingIdentitySpinner';
+import { useSpinner } from '../context/SpinnerContext';
+
+/**
+ * The app has one global full-screen spinner (SpinnerHost: the same dancing Ping mark, drawn over
+ * everything while a redirect or request is in flight). While it shows, the agent draws nothing
+ * of its own, so there is never a second spinner underneath it.
+ */
+export function HideWhileGlobalSpinner({ children }) {
+  const { visible } = useSpinner();
+  return visible ? null : children;
+}
 
 /**
  * The agent's "still working" bubble: the dancing red Ping P from the shared

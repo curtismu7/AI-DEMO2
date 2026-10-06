@@ -174,7 +174,10 @@ async function beginRar(req, {
     throw oauthError('PF_AI_FLOW_ALREADY_PENDING', 'A PF AI Agent authorization flow is already pending', 409);
   }
   const config = resolveCimdConfig(store);
-  const userKey = sessionUserKey(req, requestedUserKey);
+  // The processor compares the detail's user with the user PingFederate signs in, case-sensitively, and PingFederate
+  // spells that user "demouser" where the app's PingOne session says "demoUser": send PingFederate's spelling.
+  const typedUserKey = sessionUserKey(req, requestedUserKey);
+  const userKey = loginHintFor(req, typedUserKey) || typedUserKey;
   const authorizationDetail = buildAuthorizationDetail(scenario, userKey, userLimits(userKey, dataStore));
   const metadata = await discoverPf(config, fetchImpl);
   if (!metadata.parEndpoint && !config.parEndpoint) {

@@ -69,7 +69,7 @@
 .mcps-btn:disabled { opacity: 0.55; cursor: not-allowed; }
 .mcps-btn:focus-visible { outline: 2px solid var(--th-status-info); outline-offset: 2px; }
 .mcps-btn-primary {
-  background: var(--th-status-info);
+  background: var(--th-status-info-solid);
   color: var(--th-text-invert);
   border-color: var(--th-status-info);
 }
@@ -147,3 +147,5 @@
   font-weight: 600;
   color: var(--th-status-error-text);
 }
+
+:root[data-theme="dark"] .mcps-btn-primary { --th-status-info: #1e40af; }

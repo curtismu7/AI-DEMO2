@@ -9,13 +9,13 @@
 }
 
 .page-header h1 {
-  color: #277ba5;
+  color: var(--th-text);
   margin: 0 0 0.5rem 0;
   font-size: 2rem;
 }
 
 .page-header p {
-  color: #666;
+  color: var(--th-text);
   margin: 0;
 }
 
@@ -23,7 +23,7 @@
 .empty-state {
   padding: 2rem;
   text-align: center;
-  color: #666;
+  color: var(--th-text);
   font-size: 1rem;
 }
 
@@ -50,7 +50,7 @@
   padding: 1rem;
   text-align: left;
   font-weight: 600;
-  color: #277ba5;
+  color: var(--th-text);
 }
 
 .runs-table td {
@@ -64,13 +64,13 @@
 
 .vertical-cell {
   font-weight: 500;
-  color: #277ba5;
+  color: var(--th-text);
 }
 
 .date-cell {
   font-family: var(--font-mono);
   font-size: 0.85rem;
-  color: #666;
+  color: var(--th-text);
 }
 
 .prompt-cell {
@@ -83,7 +83,7 @@
 
 .tools-cell {
   font-size: 0.85rem;
-  color: #666;
+  color: var(--th-text);
 }
 
 .actions-cell {
@@ -102,7 +102,7 @@
   border: 1px solid #ddd;
   border-radius: 4px;
   background: white;
-  color: #277ba5;
+  color: var(--th-text);
   cursor: pointer;
   font-size: 0.8rem;
   font-weight: 500;
@@ -110,12 +110,12 @@
 }
 
 .action-btn:hover {
-  border-color: #277ba5;
+  border-color: var(--th-text);
   background: #f0f7fa;
 }
 
 .action-btn.download {
-  border-color: #277ba5;
+  border-color: var(--th-text);
 }
 
 .action-btn.share,
@@ -137,7 +137,7 @@
 }
 
 .admin-section h2 {
-  color: #277ba5;
+  color: var(--th-text);
   margin: 0 0 1.5rem 0;
   font-size: 1.5rem;
 }
@@ -173,7 +173,7 @@
 .form-group input:focus,
 .form-group select:focus {
   outline: none;
-  border-color: #277ba5;
+  border-color: var(--th-text);
   box-shadow: 0 0 0 2px rgba(39, 123, 165, 0.1);
 }
 
@@ -218,7 +218,7 @@
   border: 1px solid #277ba5;
   border-radius: 4px;
   background: white;
-  color: #277ba5;
+  color: var(--th-text);
   font-size: 0.9rem;
   font-family: inherit;
   cursor: pointer;
@@ -282,7 +282,7 @@
 .demo-result__login-btn {
   flex-shrink: 0;
   padding: 0.3rem 0.85rem;
-  background: #c62828;
+  background: #991b1b;
   color: #fff;
   border: none;
   border-radius: 4px;
@@ -292,7 +292,7 @@
 }
 
 .demo-result__login-btn:hover {
-  background: #a31515;
+  background: #7f1d1d;
 }
 
 /* CIBA step-up badge in the runs table */

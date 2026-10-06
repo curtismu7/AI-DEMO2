@@ -366,8 +366,8 @@
 
 .ksm-confirm-btn {
   padding: 6px 18px;
-  background: #dc2626;
-  border: 1px solid #b91c1c;
+  background: #991b1b;
+  border: 1px solid #991b1b;
   border-radius: 6px;
   color: var(--th-text-invert);
   font-size: var(--font-size-sm);

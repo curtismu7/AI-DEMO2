@@ -2,7 +2,7 @@
 
 .a2a-arch-page {
   padding: 1.5rem 2rem 4rem;
-  background: #f8fafc;
+  background: var(--th-bg-page);
   min-height: calc(100vh - 64px);
   font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
   color: var(--th-text);
@@ -50,8 +50,8 @@
 .a2a-arch-card {
   max-width: 1280px;
   margin: 0 auto 2rem;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
   border-radius: 8px;
   padding: 24px;
   overflow-x: auto;
@@ -110,7 +110,7 @@
 }
 
 .a2a-arch-table th {
-  background: #f1f5f9;
+  background: var(--th-bg-inset);
   font-weight: 700;
   color: var(--th-text);
 }

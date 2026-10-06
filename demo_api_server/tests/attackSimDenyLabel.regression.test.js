@@ -51,6 +51,21 @@ describe('_denyFromGateway keeps infrastructure failures out of the security tie
   });
 });
 
+describe('_denyFromGateway puts the deny reason on the event the trace card reads', () => {
+  test('the sim-gateway-deny event carries reason and Authorize statements', () => {
+    const events = [];
+    const err = Object.assign(new Error('boom'), {
+      code: 'gateway_policy_denied',
+      httpStatus: 403,
+      gwAuditTrail: { authorize: { decision: 'DENY', reason: 'amount over cap', statements: [{ code: 'rar', payload: 'x' }] } },
+    });
+    const r = _denyFromGateway('s', 's', events, err, 403, 'rar_amount_exceeded', 'Gateway DENY');
+    const ev = events.find((e) => e.id === 'sim-gateway-deny');
+    expect(ev.reason).toBe(r.reason);
+    expect(ev.error).toBe('rar_amount_exceeded');
+  });
+});
+
 describe('_nodeGatewayUrl', () => {
   const PREV = process.env.MCP_DEMO_GATEWAY_URL;
   afterEach(() => {

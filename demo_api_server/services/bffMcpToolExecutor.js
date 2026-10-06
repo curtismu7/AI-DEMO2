@@ -8,6 +8,7 @@
 'use strict';
 
 const { callMcpToolInternal } = require('../utils/mcpToolRegistry');
+const { isIdJagGateCode } = require('./idJagGateCodes');
 const { resolveMcpAccessTokenWithEvents } = require('./agentMcpTokenService');
 const { runMcpToolPipeline } = require('./mcpToolPipeline');
 const verticalDispatch = require('./verticalDispatch');
@@ -347,7 +348,7 @@ async function executeBffTool({ name, args, userId, userToken, req = null, token
     return JSON.stringify({ error: outcome.body?.error || 'mcp_blocked', ...outcome.body });
   }
 
-  if (outcome.body?.error === 'id_jag_login_required' || outcome.body?.error === 'id_jag_provider_required') {
+  if (isIdJagGateCode(outcome.body?.error)) {
     const error = new Error(outcome.body.message || outcome.body.error);
     error.code = outcome.body.error;
     error.httpStatus = 401;

@@ -62,7 +62,7 @@ const SKIN_CONFIG = {
     ),
     dark: {
       bg: '#0b1929', headerBg: '#0d2040', headerBorder: '#1a3560',
-      titleColor: '#d8e8ff', subtitleColor: '#3a5880',
+      titleColor: '#d8e8ff', subtitleColor: '#8aa9d6',
       agentBubbleBg: '#102040', agentBubbleColor: '#c8dcff',
       userBubbleBg: '#0073e6', userBubbleColor: '#ffffff',
       inputAreaBg: '#0b1929', inputBorder: '#1a3560', inputColor: '#c8dcff',
@@ -401,7 +401,7 @@ export default function AgentClientSkin({ skin = 'privilege', theme = 'dark', me
           )}
         </div>
         {cfg.hint && (
-          <div style={{ fontSize: 11, color: 'rgba(128,128,128,0.5)', textAlign: 'center', marginTop: 5 }}>{cfg.hint}</div>
+          <div style={{ fontSize: 11, color: colors.subtitleColor, textAlign: 'center', marginTop: 5 }}>{cfg.hint}</div>
         )}
       </div>
     </div>

@@ -26,7 +26,7 @@
 }
 
 .authz-engine-settings-toggle:hover {
-  background: #f0f4f8;
+  background: var(--th-bg-hover);
 }
 
 .authz-engine-settings-chevron {
@@ -798,7 +798,7 @@
 }
 
 .authz-api-method {
-  background: #3b82f6;
+  background: #1e40af;
   color: var(--th-text-invert);
   font-size: 0.7rem;
   font-weight: 700;
@@ -849,7 +849,7 @@
 }
 
 .authz-api-status {
-  background: #16a34a;
+  background: #166534;
   color: var(--th-text-invert);
   font-size: 0.65rem;
   padding: 1px 5px;

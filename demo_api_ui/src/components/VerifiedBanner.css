@@ -18,7 +18,7 @@
 .verified-banner--mismatch { border-color: #d97706; box-shadow: 0 12px 28px -10px rgba(217, 119, 6, 0.35); }
 .verified-banner-check {
   width: 26px; height: 26px; border-radius: 50%;
-  background: #16a34a; color: #fff;
+  background: #166534; color: #fff;
   display: flex; align-items: center; justify-content: center;
   font-size: var(--font-size-body); flex: none;
 }

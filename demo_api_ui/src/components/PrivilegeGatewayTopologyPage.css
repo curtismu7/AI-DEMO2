@@ -103,9 +103,9 @@
   --pmd-bg: #f6f7f9;
   --pmd-panel: #ffffff;
   --pmd-ink: #1c2330;
-  --pmd-ink-2: #5a6372;
+  --pmd-ink-2: #3f4756;
   --pmd-border: #d8dde5;
-  --pmd-accent: #0e7d63;
+  --pmd-accent: #0b5c49;
 }
 
 :root[data-theme="light"] .pmd-page.pgt-page .pmd-error {

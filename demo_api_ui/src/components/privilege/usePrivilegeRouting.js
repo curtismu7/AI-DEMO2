@@ -104,8 +104,14 @@ export function usePrivilegeRouting({ request }) {
     }
   }, [presets, request]);
 
+  const clearProbe = useCallback(() => {
+    setPreflight(null);
+    setPreflightError('');
+  }, []);
+
   return {
     gatewaySession, setGatewaySession,
+    clearProbe,
     preflight, setPreflight,
     preflightError, setPreflightError,
     preflightBusy, setPreflightBusy,

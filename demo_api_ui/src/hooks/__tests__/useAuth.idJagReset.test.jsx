@@ -54,6 +54,23 @@ test('PingOne selection blocks live handoff before sign-out and explains how to 
   expect(window.location.href).toBe('https://local.ping-devops.com:4000/pingfederate-id-jag/demo');
 });
 
+// Regression: a user signed in with PF while the shared provider read PingOne was told
+// "PingOne is selected". The session provider is what they are on; say the two disagree.
+test('PF session under a PingOne shared provider raises id_jag_provider_mismatch', async () => {
+  bffAxios.get.mockImplementation(async (url) => (url === '/api/auth/oauth/user/status'
+    ? { data: { authenticated: true, oauthProvider: 'pingfederate' } }
+    : { data: { config: { oauth_provider: 'pingone' } } }));
+  const raised = vi.fn();
+  window.addEventListener('id-jag-provider-required', raised);
+  renderHook(() => useAuth());
+  act(() => requestLiveIdJagRun(intent));
+  await waitFor(() => expect(raised).toHaveBeenCalled());
+  expect(raised.mock.calls[0][0].detail.code).toBe('id_jag_provider_mismatch');
+  expect(notifyError).toHaveBeenCalledWith(expect.stringMatching(/signed in with PingFederate/i));
+  expect(bffAxios.post).not.toHaveBeenCalled();
+  window.removeEventListener('id-jag-provider-required', raised);
+});
+
 test('failed intent leaves current session and page in place and clears client handoff', async () => {
   bffAxios.post.mockRejectedValueOnce(new Error('intent failed'));
   renderHook(() => useAuth());
@@ -299,4 +316,22 @@ test('failed native trace with only PF issuance clears the server grant and call
     outcome: 'error', tokenEvents: [{ id: 'pf-id-jag-issued', provider: 'pingfederate' }] } }));
   await waitFor(() => expect(bffAxios.post).toHaveBeenCalledWith('/api/auth/oauth/user/id-jag/complete'));
   await waitFor(() => expect(sessionStorage.getItem(ID_JAG_VALIDATED_CALLBACK_KEY)).toBeNull());
+});
+
+// Regression: a live run with an existing PF session used to sign the user out
+// and back in; it must reuse the session and replay the prompt directly.
+test('live run reuses an existing PingFederate session without logout or intent', async () => {
+  bffAxios.get.mockImplementation(async (url) => (url === '/api/auth/oauth/user/status'
+    ? { data: { authenticated: true, oauthProvider: 'pingfederate' } }
+    : { data: { config: { oauth_provider: 'pingfederate' } } }));
+  const prefill = vi.fn();
+  window.addEventListener('banking-agent-prefill', prefill);
+  renderHook(() => useAuth());
+  act(() => { requestLiveIdJagRun(intent); });
+  await waitFor(() => expect(prefill).toHaveBeenCalledTimes(1));
+  window.removeEventListener('banking-agent-prefill', prefill);
+  expect(prefill.mock.calls[0][0].detail).toMatchObject({ message: 'show my balance', autoSend: true, useCaseId: ID_JAG_USE_CASE_ID });
+  expect(bffAxios.post).not.toHaveBeenCalled();
+  expect(global.fetch).not.toHaveBeenCalledWith('/api/auth/logout?id_jag_handoff=1', expect.anything());
+  expect(sessionStorage.getItem(ID_JAG_PENDING_INTENT_KEY)).toBeNull();
 });

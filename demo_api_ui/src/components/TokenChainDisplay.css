@@ -1585,7 +1585,7 @@ pre.tcd-jwt-dump.jh-dark {
   align-items: center;
   gap: 6px;
   padding: 6px 14px;
-  background: #1d4ed8;
+  background: #1e40af;
   border: none;
   border-radius: 6px;
   color: var(--th-text-invert);
@@ -2266,7 +2266,7 @@ pre.tcd-jwt-dump.jh-dark {
 }
 
 .tcd-nl-card__step {
-  background: #2563eb;
+  background: #1e40af;
   color: var(--th-text-invert);
   font-size: 0.65rem;
   font-weight: 700;
@@ -2654,7 +2654,7 @@ pre.tcd-jwt-dump.jh-dark {
 }
 
 .tcd-tls-card__badge {
-  background: #16a34a;
+  background: #166534;
   color: var(--th-text-invert);
   font-size: var(--font-size-3xs);
   font-weight: 700;

@@ -11,6 +11,9 @@
 **Spec:** This document. Findings were gathered live from the cluster on 2026-09-08; see "Established Facts" below.
 
 **Status: PARKED for future consideration. Nothing in this plan has been executed.**
+**Phase 2 is SUPERSEDED (2026-10-06):** repointing only the OIDC client logs in but every tool call is
+policy-denied (`user not found in system`, the gateway checks users in the tenant it enrolled in). See
+`2026-10-06-gateway-reenroll-01d89b06.md`.
 Revised 2026-09-08 (later the same day) with evidence from an unrelated live
 incident that happened to exercise most of the same machinery — see
 "Revisions" immediately below. Read that section before the plan body: it

@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 
 import { geminiClient } from './gemini.js';
+import { groqClient } from './groq.js';
 
 export type AgentName = 'MAIN_AGENT' | 'WORKER_AGENT';
 
@@ -19,10 +20,25 @@ const booleanValue = (name: string, fallback: boolean): boolean => {
 export const anthropicBaseUrl = (): string => value('ANTHROPIC_BASE_URL').replace(/\/+$/, '');
 export const geminiBaseUrl = (): string => value('GEMINI_BASE_URL').replace(/\/+$/, '');
 
-/** Each agent picks its own provider: `anthropic` (default) or `google`. */
-export const usesGoogle = (agent: AgentName): boolean => value(`${agent}_PROVIDER`).toLowerCase() === 'google';
-const providerBaseUrl = (agent: AgentName): string => usesGoogle(agent) ? geminiBaseUrl() : anthropicBaseUrl();
+export type Provider = 'anthropic' | 'google' | 'groq';
+
+/** Each agent picks its own provider with `<AGENT>_PROVIDER`: `anthropic` (default), `google` or `groq`. */
+export const providerOf = (agent: AgentName): Provider => {
+  const name = value(`${agent}_PROVIDER`).toLowerCase();
+  return name === 'google' || name === 'groq' ? name : 'anthropic';
+};
+export const usesGoogle = (agent: AgentName): boolean => providerOf(agent) === 'google';
+export const usesGroq = (agent: AgentName): boolean => providerOf(agent) === 'groq';
+// Groq is always direct: the Privilege gateway has no Groq provider.
+const providerBaseUrl = (agent: AgentName): string => (usesGroq(agent) ? '' : usesGoogle(agent) ? geminiBaseUrl() : anthropicBaseUrl());
 export const viaGateway = (agent: AgentName): boolean => Boolean(providerBaseUrl(agent));
+
+/** The model an agent uses when `<AGENT>_MODEL` is not set. */
+const DEFAULT_MODEL: Record<AgentName, Record<Provider, string>> = {
+  MAIN_AGENT: { anthropic: 'claude-sonnet-5', google: 'gemini-flash-latest', groq: 'openai/gpt-oss-120b' },
+  WORKER_AGENT: { anthropic: 'claude-opus-5', google: 'gemini-flash-lite-latest', groq: 'openai/gpt-oss-120b' },
+};
+const modelFor = (agent: AgentName): string => value(`${agent}_MODEL`, DEFAULT_MODEL[agent][providerOf(agent)]);
 
 /**
  * Build the model client for one agent. Gateway mode uses the Agent Access
@@ -30,6 +46,12 @@ export const viaGateway = (agent: AgentName): boolean => Boolean(providerBaseUrl
  * mode uses that agent's provider key or the optional shared provider key.
  */
 export function anthropicClient(agent: AgentName): Anthropic {
+  if (usesGroq(agent)) {
+    const apiKey = value(`${agent}_GROQ_KEY`) || value('GROQ_API_KEY');
+    if (!apiKey) throw new Error(`Set ${agent}_GROQ_KEY or GROQ_API_KEY to use Groq (it is called directly, not through Privilege)`);
+    const timeoutMs = Number(value('GROQ_TIMEOUT_MS'));
+    return groqClient({ apiKey, baseUrl: value('GROQ_BASE_URL') || undefined, ...(timeoutMs > 0 ? { timeoutMs } : {}) });
+  }
   if (usesGoogle(agent)) {
     const baseUrl = geminiBaseUrl();
     const apiKey = baseUrl ? value(`${agent}_KEY`) : value(`${agent}_GEMINI_KEY`) || value('GEMINI_API_KEY');
@@ -64,6 +86,7 @@ export function agentAccessKey(agent: AgentName): string {
 }
 
 export function describeMode(agent: AgentName): string {
+  if (usesGroq(agent)) return 'direct Groq (model calls bypass the Privilege gateway)';
   const provider = usesGoogle(agent) ? 'Google' : 'Anthropic';
   return viaGateway(agent) ? `${provider} via Privilege (${providerBaseUrl(agent)})` : `direct ${provider}`;
 }
@@ -86,7 +109,7 @@ export function mainAgentConfig(): MainAgentConfig {
   return {
     host: value('MAIN_AGENT_HOST', '127.0.0.1'),
     port: numberValue('MAIN_AGENT_PORT', 3300),
-    model: value('MAIN_AGENT_MODEL', usesGoogle('MAIN_AGENT') ? 'gemini-flash-latest' : 'claude-sonnet-5'),
+    model: modelFor('MAIN_AGENT'),
     anthropic: anthropicClient('MAIN_AGENT'),
     bearer: agentAccessKey('MAIN_AGENT'),
     bffSharedSecret: value('A2A_BFF_SHARED_SECRET'),
@@ -113,7 +136,7 @@ export function workerAgentConfig(): WorkerAgentConfig {
     host: value('WORKER_AGENT_HOST', '127.0.0.1'),
     port: numberValue('WORKER_AGENT_PORT', 3301),
     publicUrl: value('WORKER_PUBLIC_URL', `http://127.0.0.1:${numberValue('WORKER_AGENT_PORT', 3301)}/a2a/jsonrpc`),
-    model: value('WORKER_AGENT_MODEL', usesGoogle('WORKER_AGENT') ? 'gemini-flash-lite-latest' : 'claude-opus-5'),
+    model: modelFor('WORKER_AGENT'),
     anthropic: anthropicClient('WORKER_AGENT'),
     bearer: agentAccessKey('WORKER_AGENT'),
     mcpUrl: value('MCP_URL', `http://127.0.0.1:${numberValue('MCP_SERVER_PORT', 3302)}/mcp`),

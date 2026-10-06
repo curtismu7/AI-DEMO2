@@ -146,7 +146,7 @@
   border-color: var(--tctr-border); background: var(--tctr-pill-bg);
 }
 .tctr-more-pop .tctr-view-mode button { color: var(--tctr-muted); }
-.tctr-more-pop .tctr-view-mode button.active { color: #ffffff; background: #1d4ed8; }
+.tctr-more-pop .tctr-view-mode button.active { color: #ffffff; background: #1e40af; }
 .tctr-more-pop .tctr-zoom { margin-right: 0; padding-right: 0; border-right: 0; }
 .tctr-more-pop .tctr-legend-btn,
 .tctr-more-pop .tctr-clear-btn {
@@ -270,6 +270,19 @@
   color: var(--th-text-muted); margin: 10px 0 4px; font-weight: 700;
 }
 .tctr-narrative { margin: 0 0 4px; }
+/* Deny reason, first thing in a failed step. Warning ink on warning ground. */
+.tctr-deny {
+  margin: 0 0 8px; padding: 8px 10px; border-radius: 6px;
+  background: var(--th-status-warning-bg); border: 1px solid var(--th-status-warning-border);
+  color: var(--th-status-warning-text); font-size: var(--font-size-sm);
+}
+.tctr-deny-head {
+  font-size: var(--font-size-3xs); font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--th-status-warning-text); margin-bottom: 4px;
+}
+.tctr-deny-rows { display: grid; grid-template-columns: max-content 1fr; gap: 3px 10px; margin: 0; }
+.tctr-deny-rows dt { font-weight: 700; color: var(--th-status-warning-text); }
+.tctr-deny-rows dd { margin: 0; font-weight: 600; color: var(--th-status-warning-text); overflow-wrap: anywhere; }
 .tctr-why {
   margin: 0 0 8px; padding: 8px 10px; border-radius: 6px;
   background: #eff6ff; border: 1px solid #bfdbfe; color: #1e3a8a; font-size: var(--font-size-sm);
@@ -314,9 +327,9 @@
    every rule below including the dark overrides — so the deep light-mode hues
    stayed on the dark card and Agent measured 2.44:1. Dark values reuse this
    file's existing --lane palette so the actors read the same in both themes. */
-.tctr-kv-k--user  { color: #be185d; }
-.tctr-kv-k--agent { color: #7e22ce; }
-.tctr-kv-k--mcp   { color: #047857; }
+.tctr-kv-k--user  { color: #831843; }
+.tctr-kv-k--agent { color: #581c87; }
+.tctr-kv-k--mcp   { color: #065f46; }
 .tctr-kv-v { font-family: var(--font-mono); font-size: var(--font-size-2xs); word-break: break-all; }
 .tctr-kv-v--json {
   margin: 0; padding: 8px; overflow-x: auto; border: 1px solid var(--th-border-strong);

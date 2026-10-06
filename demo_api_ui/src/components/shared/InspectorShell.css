@@ -39,7 +39,7 @@
   transition: background 0.1s;
 }
 .inspector-shell-topbar__btn:hover { background: var(--th-bg-hover); }
-.inspector-shell-topbar__btn--active { background: #2563eb; border-color: #2563eb; color: var(--th-text-invert); }
+.inspector-shell-topbar__btn--active { background: #1e40af; border-color: #1e40af; color: var(--th-text-invert); }
 .inspector-shell-topbar__btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .inspector-shell-topbar__theme-toggle {
   color: var(--th-text);
@@ -178,7 +178,7 @@
 }
 .inspector-shell-tree-item:hover { background: var(--th-bg-hover); }
 .inspector-shell-tree-item--active {
-  background: #2563eb;
+  background: #1e40af;
   color: var(--th-text-invert);
   border-radius: 4px;
   margin: 1px 8px;
@@ -281,7 +281,7 @@
   padding: 9px 20px;
   font-size: var(--font-size-sm);
   font-weight: 600;
-  background: #2563eb;
+  background: #1e40af;
   color: var(--th-text-invert);
   border: none;
   border-radius: 6px;

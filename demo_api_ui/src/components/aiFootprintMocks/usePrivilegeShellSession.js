@@ -345,6 +345,7 @@ export function usePrivilegeShellSession({ onBeforeConnect } = {}) {
     rearmReason: rearmNeeded ? rearmReasonFor(routing.gatewaySession) : null,
     rearm,
     probeDoors: routing.probePresetDoors,
+    clearProbe: routing.clearProbe,
     phase, scopes, tools, latestCall, busy, notice, messages, thinking,
     connect, retryTools, signOut, runTool, send,
     routing: {

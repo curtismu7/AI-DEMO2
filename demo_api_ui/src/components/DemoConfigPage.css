@@ -144,7 +144,7 @@
   padding: 9px 16px;
   border: 1px solid transparent;
   cursor: pointer;
-  background: #1d4ed8;
+  background: #1e40af;
   color: #fff;
 }
 .dc-btn-primary:disabled,
@@ -317,7 +317,7 @@
   flex-shrink: 0;
 }
 .dc-expand-btn:hover {
-  background: #f1f5f9;
+  background: var(--th-bg-hover);
 }
 .dc-child-count {
   font-size: var(--font-size-xs);
@@ -401,7 +401,7 @@
   color: var(--th-text);
 }
 .dc-btn-secondary:hover {
-  background: #f1f5f9;
+  background: var(--th-bg-hover);
 }
 .dc-btn-secondary:disabled {
   opacity: 0.6;

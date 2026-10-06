@@ -18,6 +18,14 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [wontfix] 2026-10-06 — Delegation does not follow draft-oauth-ai-agents-on-behalf-of-user-02
+
+**What's wrong.** The draft binds an agent to the user at authorize time (`requested_actor`, actor-bound code, `actor_token` on code redemption). We delegate with RFC 8693 token exchange plus PingOne's `may_act` check instead, so the user never consents to a named actor.
+
+**Why it wasn't fixed.** Neither PingOne nor PingFederate 13.1.2 supports it: PF ignores `requested_actor`, and its authn-policy trees cannot fall through or reject from a selector, so enforcing it needs a custom adapter or plugin. Findings and the PF validation limits are in `docs/oauth-actor-draft-findings.md`. The PingOne RAR route was never tested.
+
+**What would reopen it.** A Ping release that supports the draft natively, or a decision to build the Java adapter plus an actor-bound grant.
+
 ### [~] 2026-10-06 — A credential rotation backlog exists; it is tracked outside this repo
 
 **What's wrong.** Some credentials used by this demo have appeared where they should not

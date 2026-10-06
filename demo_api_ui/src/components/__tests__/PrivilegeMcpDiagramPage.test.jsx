@@ -2,6 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import PrivilegeMcpDiagramPage from '../PrivilegeMcpDiagramPage';
+import { buildSequenceFlow } from '../SequenceFlowDiagram';
 
 // @xyflow/react observes its container's size — jsdom has no ResizeObserver.
 global.ResizeObserver = global.ResizeObserver || class {
@@ -39,11 +40,23 @@ describe('PrivilegeMcpDiagramPage', () => {
     expect(screen.getByText('Tools returned to UI')).toBeInTheDocument();
   });
 
-  it('keeps the Sign-in + Tool Call tab on Mermaid — no node/edge primitive fits a sequence diagram', () => {
+  it('renders the Sign-in + Tool Call tab as a React Flow sequence diagram with lifelines and numbered messages', () => {
     render(<PrivilegeMcpDiagramPage />);
     fireEvent.click(screen.getByRole('button', { name: 'Sign-in + Tool Call' }));
-    expect(screen.getByLabelText('Privilege MCP diagram')).toBeInTheDocument();
+    expect(screen.getByLabelText('Privilege MCP sequence diagram')).toBeInTheDocument();
+    expect(screen.getByText('Operator')).toBeInTheDocument();
+    expect(screen.getByText('mcp-server — MCP SERVER')).toBeInTheDocument();
     expect(screen.queryByText('Token in session?')).not.toBeInTheDocument();
-    expect(screen.queryByText('mcp-server :8080')).not.toBeInTheDocument();
+    expect(document.querySelector('.pmd-diagram svg')).toBeNull();
+  });
+
+  it('turns the sequence source into one step per message, in order', () => {
+    const { steps, edges } = buildSequenceFlow(`sequenceDiagram
+    participant U as Operator
+    participant P as Client page (UI)
+    U->>P: Sign In with Privilege
+    P-->>U: authUrl`);
+    expect(edges).toHaveLength(2);
+    expect(steps).toEqual(['Operator → Client page (UI): Sign In with Privilege', 'Client page (UI) → Operator: authUrl']);
   });
 });
