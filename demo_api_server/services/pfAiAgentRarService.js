@@ -112,6 +112,8 @@ async function pushParRequest(config, metadata, values, fetchImpl) {
     code_challenge_method: 'S256',
     authorization_details: JSON.stringify([values.authorizationDetail]),
   });
+  // The user the request names is the one who should sign in; PingFederate then does not ask who.
+  if (values.loginHint) body.set('login_hint', values.loginHint);
   let response;
   try {
     response = await fetchImpl(parEndpoint, {
@@ -185,7 +187,7 @@ async function beginRar(req, {
     ? String(store.getEffective('pf_ai_rar_dpop_client_id')).trim()
     : rarClientId(store, config);
   const redirectUrl = await pushParRequest(config, metadata, {
-    state, nonce, challenge, authorizationDetail, clientId,
+    state, nonce, challenge, authorizationDetail, clientId, loginHint: userKey,
   }, fetchImpl);
   const createdAt = now();
   // A fresh key for this one run; it lives only as long as the pending flow (private key in the

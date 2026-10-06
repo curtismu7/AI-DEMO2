@@ -101,6 +101,35 @@ describe('PF AI Agent cross-domain exchange', () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
+  test.each([
+    ['a different issuer', { iss: 'https://evil.example.test' }, 'PF_AI_ID_JAG_ISSUER_INVALID'],
+    ['an expired token', { exp: Math.floor(Date.now() / 1000) - 60 }, 'PF_AI_ID_JAG_EXPIRED'],
+    ['a scope that was not asked for', { scope: 'accounts:write' }, 'PF_AI_ID_JAG_SCOPE_MISMATCH'],
+    ['a resource that was not asked for', { resource: 'https://other.example.test/accounts' }, 'PF_AI_ID_JAG_RESOURCE_MISMATCH'],
+    ['no subject', { sub: undefined }, 'PF_AI_ID_JAG_CLAIMS_INVALID'],
+  ])('names the cause when the ID-JAG has %s', async (_label, override, code) => {
+    const claims = {
+      iss: 'https://pf.example.test',
+      aud: 'https://downstream.example.test',
+      sub: 'agent-user-100',
+      scope: 'accounts:read',
+      resource: 'https://downstream.example.test/accounts',
+      exp: Math.floor(Date.now() / 1000) + 300,
+      ...override,
+    };
+    const badIdJag = jwt.sign(claims, privateKey, { algorithm: 'RS256', keyid: jwk.kid });
+    const fetchImpl = jest.fn()
+      .mockResolvedValueOnce(jsonResponse({ access_token: badIdJag,
+        issued_token_type: 'urn:ietf:params:oauth:token-type:id-jag' }))
+      .mockResolvedValueOnce(jsonResponse({ keys: [jwk] }));
+    const req = { session: { oauthProvider: 'pingfederate', oauthTokens: { accessToken: 'pf-session-token' } } };
+
+    await expect(exchangeForThirdPartyAccessToken(req, {
+      subjectProvider: 'pingfederate', store: makeStore(), fetchImpl,
+    })).rejects.toMatchObject({ code });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
   test('rejects an ID-JAG with a different audience before calling the downstream AS', async () => {
     const badIdJag = jwt.sign({
       iss: 'https://pf.example.test',
@@ -118,7 +147,7 @@ describe('PF AI Agent cross-domain exchange', () => {
 
     await expect(exchangeForThirdPartyAccessToken(req, {
       subjectProvider: 'pingfederate', store: makeStore(), fetchImpl,
-    })).rejects.toMatchObject({ code: 'PF_AI_ID_JAG_INVALID' });
+    })).rejects.toMatchObject({ code: 'PF_AI_ID_JAG_AUDIENCE_INVALID' });
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 });

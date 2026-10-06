@@ -11,6 +11,7 @@ const {
   discoverPf,
   createPkce,
   buildAuthorizationUrl,
+  loginHintFor,
   exchangeAuthorizationCode,
 } = require('./pfAiAgentOAuthService');
 
@@ -87,6 +88,7 @@ async function beginCimd(req, { store = configStore, fetchImpl = fetch, now = Da
       state,
       nonce,
       challenge,
+      loginHint: loginHintFor(req),
     }),
   };
 }

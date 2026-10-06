@@ -293,6 +293,17 @@ describe("PingFederate AI Agent page", () => {
     expect(await screen.findByText("user-100")).toBeInTheDocument();
   });
 
+  it("shows the reason the BFF gives when the third-party exchange fails", async () => {
+    apiClient.post.mockRejectedValue({ response: { data: { error: "PF_AI_ID_JAG_AUDIENCE_INVALID" } } });
+    render(<PingFederateAiAgentPage user={{ username: "demouser" }} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /Run third-party token exchange/i }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(/The exchange failed/);
+    expect(alert).toHaveTextContent("PF_AI_ID_JAG_AUDIENCE_INVALID");
+  });
+
   it("does not submit a different provider when the BFF reports another active session", async () => {
     apiClient.get.mockResolvedValue({ data: { ...readyStatus, sessionProvider: "none" } });
     render(<PingFederateAiAgentPage />);

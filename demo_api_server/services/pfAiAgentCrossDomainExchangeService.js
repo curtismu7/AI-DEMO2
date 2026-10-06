@@ -69,12 +69,12 @@ function constantTimeTokenType(value) {
 
 async function verifyIdJag(assertion, config, fetchImpl, responseScope = '') {
   if (typeof assertion !== 'string' || !assertion) {
-    throw oauthError('PF_AI_ID_JAG_INVALID', 'PingFederate did not return an ID-JAG assertion');
+    throw oauthError('PF_AI_ID_JAG_MISSING', 'PingFederate did not return an ID-JAG assertion');
   }
   const decoded = jwt.decode(assertion, { complete: true });
   const header = decoded?.header;
   if (!header?.kid || !ALLOWED_ALGORITHMS.has(header.alg)) {
-    throw oauthError('PF_AI_ID_JAG_INVALID', 'PingFederate returned an unsupported ID-JAG');
+    throw oauthError('PF_AI_ID_JAG_UNSUPPORTED', 'PingFederate returned an unsupported ID-JAG');
   }
   let jwksResponse;
   try {
@@ -95,7 +95,7 @@ async function verifyIdJag(assertion, config, fetchImpl, responseScope = '') {
   const jwk = jwks?.keys?.find((candidate) => candidate.kid === header.kid
     && candidate.kty === expectedKty && (!candidate.use || candidate.use === 'sig')
     && (!candidate.alg || candidate.alg === header.alg));
-  if (!jwk) throw oauthError('PF_AI_ID_JAG_INVALID', 'PingFederate ID-JAG signing key was not found');
+  if (!jwk) throw oauthError('PF_AI_ID_JAG_KEY_NOT_FOUND', 'PingFederate ID-JAG signing key was not found');
 
   let claims;
   try {
@@ -103,18 +103,28 @@ async function verifyIdJag(assertion, config, fetchImpl, responseScope = '') {
     claims = jwt.verify(assertion, key, {
       algorithms: [header.alg], issuer: config.pfIssuer, audience: config.audience,
     });
-  } catch {
-    throw oauthError('PF_AI_ID_JAG_INVALID', 'PingFederate ID-JAG signature, issuer, audience, or expiry was invalid');
+  } catch (error) {
+    // One code per cause, so a failed run says whether it was the key, the issuer, the audience or the clock.
+    const message = String(error?.message || '');
+    const code = /audience/.test(message) ? 'PF_AI_ID_JAG_AUDIENCE_INVALID'
+      : /issuer/.test(message) ? 'PF_AI_ID_JAG_ISSUER_INVALID'
+        : /expired/.test(message) ? 'PF_AI_ID_JAG_EXPIRED'
+          : 'PF_AI_ID_JAG_SIGNATURE_INVALID';
+    throw oauthError(code, 'PingFederate ID-JAG signature, issuer, audience, or expiry was invalid');
   }
   const scopes = scopeList(claims.scope || claims.scp || responseScope);
   const requestedScopes = scopeList(config.scope);
   const resourceClaim = claims.resource ?? claims.rsrc;
   const resourceList = resourceClaim === undefined ? [] : scopeList(resourceClaim);
-  if (!claims.sub || !Number.isFinite(claims.exp)
-    || requestedScopes.some((scope) => !scopes.includes(scope))
-    || scopes.some((scope) => !requestedScopes.includes(scope))
-    || (resourceClaim !== undefined && !resourceList.includes(config.resource))) {
-    throw oauthError('PF_AI_ID_JAG_INVALID', 'PingFederate ID-JAG claims did not match the requested resource or scope');
+  if (!claims.sub || !Number.isFinite(claims.exp)) {
+    throw oauthError('PF_AI_ID_JAG_CLAIMS_INVALID', 'PingFederate ID-JAG has no subject or expiry');
+  }
+  if (requestedScopes.some((scope) => !scopes.includes(scope))
+    || scopes.some((scope) => !requestedScopes.includes(scope))) {
+    throw oauthError('PF_AI_ID_JAG_SCOPE_MISMATCH', 'PingFederate ID-JAG scope did not match the requested scope');
+  }
+  if (resourceClaim !== undefined && !resourceList.includes(config.resource)) {
+    throw oauthError('PF_AI_ID_JAG_RESOURCE_MISMATCH', 'PingFederate ID-JAG resource did not match the requested resource');
   }
   return {
     subject: String(claims.sub),

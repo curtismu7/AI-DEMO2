@@ -281,8 +281,9 @@ export default function PingFederateAiAgentPage({ user }) {
       });
       setExchangeResult(response.data);
       notifySuccess("Third-party token exchange completed.");
-    } catch {
-      setExchangeError(true);
+    } catch (error) {
+      // The BFF names the cause (for example PF_AI_ID_JAG_AUDIENCE_INVALID); keep it so the failure is diagnosable.
+      setExchangeError(error?.response?.data?.error || true);
       notifyError("Third-party token exchange failed. Check the PF and downstream setup.");
     } finally {
       setExchangeBusy(false);
@@ -386,7 +387,12 @@ export default function PingFederateAiAgentPage({ user }) {
           >
             {exchangeBusy ? "Exchanging tokens" : "Run third-party token exchange"}
           </button>
-          {exchangeError && <p className="pf-ai-agent__error" role="alert">The exchange failed. Review the PF and downstream authorization server settings.</p>}
+          {exchangeError && (
+            <p className="pf-ai-agent__error" role="alert">
+              The exchange failed. Review the PF and downstream authorization server settings.
+              {typeof exchangeError === "string" && <> Reason: <code>{exchangeError}</code></>}
+            </p>
+          )}
           {exchangeResult && (
             <div className="pf-ai-agent__result" role="status" aria-label="Sanitized exchange result">
               <h3>Exchange completed</h3>

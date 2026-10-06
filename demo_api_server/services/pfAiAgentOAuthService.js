@@ -76,7 +76,13 @@ function createPkce() {
   return { verifier, challenge };
 }
 
-function buildAuthorizationUrl({ metadata, clientId, redirectUri, scope, state, nonce, challenge }) {
+// The signed-in user's name, sent as login_hint so PingFederate does not have to ask who is signing in.
+function loginHintFor(req) {
+  const name = String(req?.session?.user?.username || '').trim();
+  return name && name.length <= 256 && !/[\u0000-\u001f\u007f]/.test(name) ? name : '';
+}
+
+function buildAuthorizationUrl({ metadata, clientId, redirectUri, scope, state, nonce, challenge, loginHint = '' }) {
   const url = new URL(metadata.authorizationEndpoint);
   url.searchParams.set('response_type', 'code');
   url.searchParams.set('client_id', clientId);
@@ -86,6 +92,7 @@ function buildAuthorizationUrl({ metadata, clientId, redirectUri, scope, state, 
   url.searchParams.set('nonce', nonce);
   url.searchParams.set('code_challenge', challenge);
   url.searchParams.set('code_challenge_method', 'S256');
+  if (loginHint) url.searchParams.set('login_hint', loginHint);
   return url.toString();
 }
 
@@ -202,6 +209,7 @@ module.exports = {
   discoverPf,
   createPkce,
   buildAuthorizationUrl,
+  loginHintFor,
   exchangeAuthorizationCode,
   verifyIdToken,
 };
