@@ -40,7 +40,7 @@
 }
 
 .architecture-tab-button[aria-selected="true"] {
-  color: var(--app-primary-red, #b91c1c);
+  color: #991b1b;
   border-bottom-color: var(--app-primary-red, #b91c1c);
   background: transparent;
 }

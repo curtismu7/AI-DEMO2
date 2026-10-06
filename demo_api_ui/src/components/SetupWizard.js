@@ -694,7 +694,7 @@ export default function SetupWizard({
           onClick={startWipe}
           disabled={!wipeReady}
           style={{
-            background: wipeReady ? '#c53030' : '#999',
+            background: wipeReady ? '#991b1b' : '#475569',
             color: '#fff',
             border: 0,
             padding: '10px 18px',
