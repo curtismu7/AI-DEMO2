@@ -345,7 +345,7 @@
   align-self: flex-start;
   margin-top: 6px;
   padding: 8px 20px;
-  background: var(--primary, #2563eb);
+  background: #1e40af;
   color: var(--th-text-invert);
   border: none;
   border-radius: 6px;
@@ -355,7 +355,7 @@
   transition: background 0.15s;
 }
 .mgc-push-btn:hover:not(:disabled) {
-  background: #1d4ed8;
+  background: #1e3a8a;
 }
 .mgc-push-btn:disabled {
   opacity: 0.55;

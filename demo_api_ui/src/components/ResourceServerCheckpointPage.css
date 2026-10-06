@@ -25,7 +25,7 @@
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--th-status-error);
+  color: var(--th-status-error-text);
   margin-bottom: 8px;
 }
 .rsc-hero h1 {
@@ -273,7 +273,7 @@
   font-weight: 600;
 }
 .rsc-pane h4 em {
-  color: var(--th-status-error);
+  color: var(--th-status-error-text);
   font-style: normal;
 }
 .rsc-pane pre {
@@ -317,7 +317,7 @@
 }
 .rsc-phase h3 code {
   font-size: var(--font-size-2xs);
-  color: var(--th-status-error);
+  color: var(--th-status-error-text);
 }
 .rsc-phase p {
   margin: 0;

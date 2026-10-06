@@ -63,14 +63,14 @@
 }
 
 .configuration-header__btn--primary {
-  background: #0369a1;
+  background: #075985;
   color: white;
-  border-color: #0369a1;
+  border-color: #075985;
 }
 
 .configuration-header__btn--primary:hover:not(:disabled) {
-  background: #0284c7;
-  border-color: #0284c7;
+  background: #0c4a6e;
+  border-color: #0c4a6e;
 }
 
 .configuration-header__btn--secondary {
@@ -1093,7 +1093,7 @@
   right: 8px;
   font-size: 0.65rem;
   font-weight: 700;
-  background: #dc2626;
+  background: #991b1b;
   color: var(--th-text-invert);
   border-radius: 4px;
   padding: 1px 5px;
@@ -1216,7 +1216,7 @@
   right: 8px;
   font-size: 0.65rem;
   font-weight: 700;
-  background: #dc2626;
+  background: #991b1b;
   color: var(--th-text-invert);
   border-radius: 4px;
   padding: 1px 5px;
@@ -1359,7 +1359,7 @@
 }
 
 .cfg-section-save-btn {
-  background: #dc2626;
+  background: #991b1b;
   color: var(--th-text-invert);
   border: none;
   border-radius: 7px;
@@ -1374,20 +1374,20 @@
 }
 
 .cfg-section-save-bar .cfg-section-save-btn {
-  background: #dc2626;
+  background: #991b1b;
   color: var(--th-text-invert);
 }
 .cfg-section-save-bar .cfg-section-save-btn:hover:not(:disabled) {
-  background: #b91c1c;
+  background: #7f1d1d;
 }
 .cfg-section-save-bar .cfg-section-save-btn--saving {
-  background: #2563eb;
+  background: #1e40af;
 }
 .cfg-section-save-bar .cfg-section-save-btn--saved {
-  background: #15803d;
+  background: #166534;
 }
 .cfg-section-save-btn:hover:not(:disabled) {
-  background: #b91c1c;
+  background: #7f1d1d;
   transform: translateY(-1px);
 }
 .cfg-section-save-btn:disabled {
@@ -1395,13 +1395,13 @@
   cursor: not-allowed;
 }
 .cfg-section-save-btn--saving {
-  background: #2563eb;
+  background: #1e40af;
 }
 .cfg-section-save-btn--saved {
-  background: #15803d;
+  background: #166534;
 }
 .cfg-section-save-btn--error {
-  background: #dc2626;
+  background: #991b1b;
 }
 
 .cfg-section-save-hint {

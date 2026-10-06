@@ -40,13 +40,13 @@
 }
 
 .architecture-tab-button[aria-selected="true"] {
-  color: var(--app-primary-red, #b91c1c);
-  border-bottom-color: var(--app-primary-red, #b91c1c);
+  color: #991b1b;
+  border-bottom-color: #991b1b;
   background: transparent;
 }
 
 :root[data-theme="dark"] .architecture-tab-button[aria-selected="true"] {
-  color: #f87171;
+  color: #fca5a5;
 }
 
 .architecture-tab-button[aria-selected="true"]:hover {

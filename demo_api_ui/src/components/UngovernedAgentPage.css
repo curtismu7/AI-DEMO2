@@ -20,7 +20,7 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   color: var(--th-text-invert);
-  background: #b42318;
+  background: #991b1b;
   padding: 4px 10px;
   border-radius: 4px;
   margin-bottom: 12px;
@@ -361,7 +361,7 @@
   padding: 0.25rem 0.75rem;
   border: none;
   border-radius: 6px;
-  background: #2563eb;
+  background: #1e40af;
   color: var(--th-text-invert);
   font-weight: 600;
   cursor: pointer;
