@@ -70,7 +70,7 @@
   gap: 0;
   padding: 24px 8px;
   overflow-x: auto;
-  background: #f9fafb;
+  background: var(--th-bg-inset);
   border: 1px solid #e5e7eb;
   border-radius: 8px;
 }
@@ -91,7 +91,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: white;
+  background: var(--th-bg-card);
   border: 2px solid #d1d5db;
   border-radius: 50%;
 }
@@ -135,10 +135,10 @@
   color: var(--th-text);
   text-align: center;
   white-space: nowrap;
-  background: #fef3c7;
+  background: var(--th-status-warning-bg);
   padding: 2px 6px;
   border-radius: 3px;
-  border: 1px solid #fbbf24;
+  border: 1px solid var(--th-status-warning-border);
 }
 
 /* Pillar Cards */
@@ -185,12 +185,12 @@
   align-items: center;
   gap: 12px;
   padding: 16px;
-  background: #f9fafb;
+  background: var(--th-bg-inset);
   min-height: 68px;
 }
 
 .expandHint {
-  color: #334155;
+  color: var(--th-text-muted);
   font-size: var(--font-size-xs);
   font-weight: 600;
   white-space: nowrap;
@@ -315,7 +315,7 @@
 }
 
 .threatTable th {
-  background: #f3f4f6;
+  background: var(--th-bg-inset);
   font-weight: 600;
   text-align: left;
   padding: 10px 14px;
@@ -334,7 +334,7 @@
 }
 
 .threatTable tr:hover td {
-  background: #f9fafb;
+  background: var(--th-bg-inset);
 }
 
 .threatName {
@@ -396,3 +396,5 @@
     flex-wrap: wrap;
   }
 }
+
+.videoLink.videoLink { color: white; }

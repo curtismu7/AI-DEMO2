@@ -3,7 +3,7 @@
   --shadow-muted: var(--th-text-muted);
   --shadow-line: var(--th-border);
   --shadow-surface: var(--th-bg-card);
-  --shadow-accent: #de6257;
+  --shadow-accent: var(--th-status-error-text);
   max-width: 1180px;
   margin: 0 auto;
   padding: 3.5rem 2rem 5rem;

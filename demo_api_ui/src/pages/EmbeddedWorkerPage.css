@@ -48,3 +48,5 @@
   .embedded-worker-page__context { display: block; padding: 20px; }
   .embedded-worker-page__identity { margin-top: 18px; }
 }
+
+:root[data-theme="dark"] .embedded-worker-page__identity button { --th-status-info: #2563eb; }

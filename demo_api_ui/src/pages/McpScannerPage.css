@@ -147,3 +147,5 @@
   font-weight: 600;
   color: var(--th-status-error-text);
 }
+
+:root[data-theme="dark"] .mcps-btn-primary { --th-status-info: #2563eb; }

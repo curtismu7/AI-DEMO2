@@ -1,6 +1,6 @@
 .actorTokenEducation {
   padding: 24px;
-  background: linear-gradient(135deg, #f5f7fa 0%, var(--brand-light-gray) 100%);
+  background: linear-gradient(135deg, var(--th-bg-inset) 0%, var(--brand-light-gray) 100%);
   border-radius: 12px;
   margin: 20px 0;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
@@ -8,7 +8,7 @@
 }
 
 .actorTokenEducation h2 {
-  color: #1a3a52;
+  color: var(--th-text);
   margin-top: 0;
   margin-bottom: 16px;
   font-size: var(--font-size-2xl);
@@ -16,7 +16,7 @@
 }
 
 .actorTokenEducation h3 {
-  color: #2c5aa0;
+  color: var(--th-status-info-text);
   margin-top: 24px;
   margin-bottom: 16px;
   font-size: var(--font-size-h3);
@@ -24,7 +24,7 @@
 }
 
 .actorTokenEducation h4 {
-  color: #0066cc;
+  color: var(--th-status-info-text);
   margin-top: 12px;
   margin-bottom: 8px;
   font-size: 16px;
@@ -32,7 +32,7 @@
 }
 
 .introduction {
-  background: white;
+  background: var(--th-bg-card);
   padding: 16px;
   border-left: 4px solid #0066cc;
   border-radius: 6px;
@@ -41,12 +41,12 @@
 
 .introduction p {
   margin: 0;
-  color: #333;
+  color: var(--th-text);
   line-height: 1.6;
 }
 
 .introduction strong {
-  color: #0066cc;
+  color: var(--th-status-info-text);
   font-weight: 600;
 }
 
@@ -55,7 +55,7 @@
 }
 
 .diagram {
-  background: white;
+  background: var(--th-bg-card);
   padding: 20px;
   border-radius: 8px;
   margin: 16px 0;
@@ -63,7 +63,7 @@
 }
 
 .step {
-  background: #f9fbfc;
+  background: var(--th-bg-inset);
   padding: 16px;
   border-radius: 6px;
   border: 1px solid #d4dce6;
@@ -72,7 +72,7 @@
 
 .stepLabel {
   font-weight: 600;
-  color: #0066cc;
+  color: var(--th-status-info-text);
   margin-bottom: 8px;
   font-size: var(--font-size-body);
   text-transform: uppercase;
@@ -80,7 +80,7 @@
 }
 
 .stepContent {
-  color: #333;
+  color: var(--th-text);
   line-height: 1.5;
 }
 
@@ -91,26 +91,26 @@
   border-radius: 4px;
   font-family: inherit;
   font-size: var(--font-size-2xs);
-  color: #2c5aa0;
+  color: var(--th-status-info-text);
   overflow-x: auto;
   margin-top: 8px;
 }
 
 .arrow {
   text-align: center;
-  color: #0066cc;
+  color: var(--th-status-info-text);
   font-size: var(--font-size-xl);
   font-weight: bold;
   margin: 8px 0;
 }
 
 .diagramExplanation {
-  background: #fffbf0;
+  background: var(--th-status-warning-bg);
   padding: 16px;
   border-left: 4px solid #ff9800;
   border-radius: 4px;
   margin-top: 16px;
-  color: #333;
+  color: var(--th-text);
   line-height: 1.6;
 }
 
@@ -124,11 +124,11 @@
 }
 
 .diagramExplanation strong {
-  color: #0066cc;
+  color: var(--th-status-info-text);
 }
 
 .terminology {
-  background: white;
+  background: var(--th-bg-card);
   padding: 20px;
   border-radius: 8px;
   margin: 20px 0;
@@ -153,7 +153,7 @@
 
 .term p {
   margin: 0;
-  color: #555;
+  color: var(--th-text-muted);
   line-height: 1.6;
 }
 
@@ -163,11 +163,11 @@
   border-radius: 3px;
   font-family: inherit;
   font-size: 0.9em;
-  color: #0066cc;
+  color: var(--th-status-info-text);
 }
 
 .faqSection {
-  background: white;
+  background: var(--th-bg-card);
   padding: 20px;
   border-radius: 8px;
   margin: 20px 0;
@@ -197,17 +197,17 @@
   display: flex;
   align-items: flex-start;
   font-size: 16px;
-  color: #0066cc;
+  color: var(--th-status-info-text);
   font-weight: 600;
   transition: color 0.2s ease;
 }
 
 .faqQuestion:hover {
-  color: #003d99;
+  color: var(--th-status-info-text);
 }
 
 .faqQuestion.expanded {
-  color: #003d99;
+  color: var(--th-status-info-text);
 }
 
 .icon {
@@ -224,7 +224,7 @@
 
 .faqAnswer {
   padding: 0 0 16px 28px;
-  color: #555;
+  color: var(--th-text-muted);
   line-height: 1.6;
   animation: slideDown 0.3s ease;
 }
@@ -241,7 +241,7 @@
 }
 
 .liveDemo {
-  background: #f0fdf4;
+  background: var(--th-status-success-bg);
   padding: 16px;
   border-radius: 6px;
   margin: 20px 0;
@@ -250,17 +250,17 @@
 
 .liveDemo h3 {
   margin-top: 0;
-  color: #16a34a;
+  color: var(--th-status-success-text);
 }
 
 .liveDemo p {
-  color: var(--th-text);
+  color: var(--th-text) !important; /* beats inline #64748b in the JSX */
   line-height: 1.6;
   margin: 8px 0;
 }
 
 .relatedResources {
-  background: #e3f2fd;
+  background: var(--th-status-info-bg);
   padding: 16px;
   border-radius: 6px;
   margin-top: 20px;
@@ -269,7 +269,7 @@
 
 .relatedResources h3 {
   margin-top: 0;
-  color: #0066cc;
+  color: var(--th-status-info-text);
 }
 
 .relatedResources ul {
@@ -279,12 +279,12 @@
 
 .relatedResources li {
   margin: 8px 0;
-  color: #333;
+  color: var(--th-text);
   line-height: 1.5;
 }
 
 .relatedResources a {
-  color: #0066cc;
+  color: var(--th-status-info-text);
   text-decoration: none;
   font-weight: 500;
 }
