@@ -106,7 +106,7 @@ export function liveStepControlPlane(ev) {
   if (tagIs(ev, "mcp/result")) return 8;
   if (tagIs(ev, "mcp/") || catIs(ev, "mcp", "gateway_path", "enterprise_mcp")) return 6;
   if (catIs(ev, "agent", "agent_prompt", "personal_agent")) return 7;
-  if (catIs(ev, "config", "threshold", "pingone", "startup")) return 9;
+  if (catIs(ev, "config", "threshold", "startup")) return 9;
   return null;
 }
 
@@ -117,7 +117,7 @@ export const DEMO_ARCH_SLIDES = [
   { id: "control-plane", label: "Agentic Control Plane", path: "/demo-arch-slides/control-plane", meta: CONTROL_PLANE_META, rows: CONTROL_PLANE_ROWS, live: liveStepControlPlane, render: (st) => <DemoArchControlPlaneScene st={st} /> },
 ];
 
-const LIVE_LOG_MAX = 8;
+const LIVE_LOG_MAX = 12;
 
 /**
  * Play / Step state for one slide. `cur` 0 = idle (everything lit), 1..N = walkthrough.
@@ -141,6 +141,10 @@ function useSlidePlayer(total, liveMap) {
     es.addEventListener("app-event", (msg) => {
       let ev;
       try { ev = JSON.parse(msg.data); } catch (_) { return; }
+      // PingOne webhook mirror events (SESSION.UPDATED and friends) arrive by the
+      // dozen per sign-in and explain no hop on any slide; drop them before they
+      // flood the log.
+      if (ev.category === "pingone") return;
       const step = liveMap(ev);
       setLiveLog((log) => [{ ...ev, step }, ...log].slice(0, LIVE_LOG_MAX));
       if (!step) return;
