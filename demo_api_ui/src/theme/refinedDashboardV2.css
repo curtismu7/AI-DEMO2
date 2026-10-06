@@ -473,6 +473,21 @@
   border-color: var(--theme-accent, #1b3a6b) !important;
 }
 
+/* The agent runs on every page, but the --rd2-* neutrals below are declared only under
+   [data-rd-v2], so elsewhere each var() fell back to a literal LIGHT colour: in dark mode
+   the composer was #f3f3f1 under a white placeholder. Declare the same neutral mapping on
+   the agent's own roots. Under [data-rd-v2] the values are identical, so the dashboard
+   does not change. */
+.banking-agent-panel,
+.ba-embedded-bottom-dock {
+  --rd2-surface: var(--th-bg-card);
+  --rd2-surface-2: var(--th-bg-inset);
+  --rd2-ink-1: var(--th-text);
+  --rd2-ink-2: var(--th-text-muted);
+  --rd2-line-1: var(--th-border);
+  --rd2-line-2: var(--th-border-strong);
+}
+
 /* ── Float panel ──────────────────────────────────── */
 .banking-agent-panel {
   background: var(--rd2-surface, #ffffff) !important;
