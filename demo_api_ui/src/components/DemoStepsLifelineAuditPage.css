@@ -68,29 +68,15 @@
 .dsla-tally--warn b { color: var(--th-status-warning-text); }
 .dsla-tally--bad b { color: var(--th-status-error); }
 
-.dsla-strip-wrap { overflow-x: auto; padding-bottom: 4px; }
-.dsla-strip {
-  display: grid;
-  grid-template-columns: 152px repeat(24, minmax(34px, 1fr));
-  gap: 3px;
-  min-width: 820px;
-  align-items: center;
-}
-.dsla-row-label { padding-right: 8px; font-size: var(--font-size-2xs); color: var(--th-text-muted); line-height: 1.25; }
-.dsla-uc-id { text-align: center; font-size: var(--font-size-3xs); color: var(--th-text-muted); white-space: nowrap; }
-.dsla-cell { height: 22px; border-radius: 2px; border: 1px solid transparent; }
-.dsla-cell--traced { background: var(--th-status-info); }
-.dsla-cell--sim { background: var(--th-status-warning-bg); border-color: var(--th-status-warning); }
-.dsla-cell--none { background: var(--th-bg-inset); border: 1px dashed var(--th-border); }
-.dsla-cell--shown { background: var(--th-status-success); }
-.dsla-cell--missing { background: var(--th-status-error-bg); border-color: var(--th-status-error); }
-/* Play/Step: the Demo step in focus is outlined in the strip and shaded in the table. */
-.dsla-cell.is-now { outline: 2px solid var(--th-text); outline-offset: 1px; }
-.dsla-uc-id.is-now { color: var(--th-text); font-weight: 700; }
+/* Play/Step: the Demo step in focus is shaded in the table. */
 .dsla-page tbody tr.is-now td { background: var(--th-status-info-bg); }
 .dsla-keys { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: var(--font-size-2xs); color: var(--th-text-muted); }
 .dsla-key { display: inline-flex; align-items: center; gap: 6px; }
-.dsla-key .dsla-cell { width: 18px; height: 13px; display: inline-block; }
+.dsla-sw { display: inline-block; width: 18px; height: 13px; border-radius: 2px; }
+.dsla-sw--shown { background: var(--th-status-success); }
+.dsla-sw--traced { background: var(--th-status-info); }
+.dsla-sw--sim { background: var(--th-status-warning); }
+.dsla-sw--none { background: var(--th-text-muted); }
 
 /* fix order */
 .dsla-fixes { list-style: none; margin: 0; padding: 0; counter-reset: fix; border-top: 1px solid var(--th-border); }

@@ -12,7 +12,10 @@
  *   height       canvas height in px
  *   ariaLabel    accessible name for the diagram (role="group")
  *   step         index of the EDGES entry in focus for a Play/Step walkthrough
- *                (-1 = off): that arrow is accented, later ones fade
+ *                (-1 = off): that arrow is accented, later ones fade. Leave it
+ *                undefined and the diagram shows its own Play/Step bar; pass a
+ *                number to drive it from the page instead
+ *   focusId      node id to ring while a page-driven walkthrough is on
  *
  * Nodes keep their hand-placed x/y; React Flow supplies pan/zoom and fit-to-view.
  * Interaction (drag, connect) is off — these are teaching graphs, not editors.
@@ -32,6 +35,8 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useFitOnResize } from "../hooks/useFitOnResize";
+import { edgeCaptions, useDiagramStepper } from "../hooks/useDiagramStepper";
+import DiagramStepBar from "./DiagramStepBar";
 import "./StaticFlowDiagram.css";
 
 const NODE_W = 210;
@@ -96,7 +101,7 @@ function FlowEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targ
 const nodeTypes = { sfd: FlowNode };
 const edgeTypes = { sfd: FlowEdge };
 
-function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, testId, height, step, ariaLabel }) {
+function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, testId, height, step, focusId, ariaLabel }) {
   const ref = useRef(null);
   useFitOnResize(ref, FIT);
   const byId = useMemo(() => new Map(NODES.map((n) => [n.id, n])), [NODES]);
@@ -108,7 +113,7 @@ function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, testId, height
         const g = GROUPS[n.group] || {};
         const active = selectedPath && n.path === selectedPath;
         const dimmed = selectedPath && n.path && !active;
-        const hot = stepEdge && (stepEdge[0] === n.id || stepEdge[1] === n.id);
+        const hot = (stepEdge && (stepEdge[0] === n.id || stepEdge[1] === n.id)) || focusId === n.id;
         return {
           id: n.id,
           type: "sfd",
@@ -124,7 +129,7 @@ function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, testId, height
           },
         };
       }),
-    [NODES, GROUPS, selectedPath, stepEdge, testId, onNodeClick],
+    [NODES, GROUPS, selectedPath, stepEdge, focusId, testId, onNodeClick],
   );
 
   const edges = useMemo(
@@ -199,22 +204,33 @@ export default function StaticFlowDiagram({
   onNodeClick = () => {},
   testId = "static-flow-diagram",
   height = 640,
-  step = -1,
+  step,
+  focusId,
   ariaLabel,
 }) {
+  const controlled = step !== undefined;
+  const stepper = useDiagramStepper(controlled ? 0 : EDGES.length);
+  const captions = useMemo(
+    () => edgeCaptions(EDGES, Object.fromEntries(NODES.map((n) => [n.id, n.label]))),
+    [NODES, EDGES],
+  );
   return (
-    <ReactFlowProvider>
-      <Inner
-        NODES={NODES}
-        EDGES={EDGES}
-        GROUPS={GROUPS}
-        selectedPath={selectedPath}
-        onNodeClick={onNodeClick}
-        testId={testId}
-        height={height}
-        step={step}
-        ariaLabel={ariaLabel}
-      />
-    </ReactFlowProvider>
+    <>
+      {!controlled && <DiagramStepBar stepper={stepper} caption={captions[stepper.step]} testId={`${testId}-steps`} />}
+      <ReactFlowProvider>
+        <Inner
+          NODES={NODES}
+          EDGES={EDGES}
+          GROUPS={GROUPS}
+          selectedPath={selectedPath}
+          onNodeClick={onNodeClick}
+          testId={testId}
+          height={height}
+          step={controlled ? step : stepper.step}
+          focusId={focusId}
+          ariaLabel={ariaLabel}
+        />
+      </ReactFlowProvider>
+    </>
   );
 }

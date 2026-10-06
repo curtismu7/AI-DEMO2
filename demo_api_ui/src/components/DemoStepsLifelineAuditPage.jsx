@@ -1,5 +1,6 @@
 import React from "react";
 import DiagramStepBar from "./DiagramStepBar";
+import StaticFlowDiagram from "./StaticFlowDiagram";
 import { useDiagramStepper } from "../hooks/useDiagramStepper";
 import "./DemoStepsLifelineAuditPage.css";
 
@@ -36,8 +37,22 @@ const STEPS = [
   ["UC38", "Personal Agent Concierge", "Own page", "none", false, "The page chat reads only the reply and never feeds the store; no MFA or registration evidence.", "agent"],
   ["UC-TOOL1", "Protected RAG", "Chat chip", "traced", true, "Exchange, Authorize and gateway draw; retrieval from the code index leaves no evidence and has no lane.", "agent"],
 ];
-const short = (id) => id.replace(/^UC-TOOL/, "T").replace(/^UC/, "");
 const count = (f) => STEPS.filter(f).length;
+
+// Board: the 24 steps in script order, six to a row, snaking so each hop joins neighbours.
+const COLS = 6;
+const GROUPS = {
+  shown: { label: "Shows what it demonstrates", bg: "var(--th-status-success)" },
+  traced: { label: "Reaches the diagram, misses the point", bg: "var(--th-status-info)" },
+  sim: { label: "Simulator events only", bg: "var(--th-status-warning)" },
+  none: { label: "Not traced", bg: "var(--th-text-muted)" },
+};
+const BOARD_NODES = STEPS.map(([id, name, runs, reach, ok], i) => {
+  const row = Math.floor(i / COLS);
+  const col = row % 2 ? COLS - 1 - (i % COLS) : i % COLS;
+  return { id, group: ok ? "shown" : reach, label: id, sub: [name, runs], x: col * 250, y: row * 120 };
+});
+const BOARD_EDGES = STEPS.slice(1).map(([id], i) => [STEPS[i][0], id, "", { vertical: (i + 1) % COLS === 0 }]);
 
 const LANES = ["browser", "pingone", "agent", "mcp", "bff"];
 
@@ -105,21 +120,21 @@ export default function DemoStepsLifelineAuditPage() {
           <div className="dsla-tally dsla-tally--bad"><b>{CLAIMS.length}</b><span>Claim more than the demo actually does</span></div>
         </div>
         <DiagramStepBar stepper={stepper} caption={cur ? `${cur[0]} ${cur[1]}: ${cur[5].replace(/`/g, "")}` : ""} />
-        <div className="dsla-strip-wrap">
-          <div className="dsla-strip" role="img" aria-label={`Each Demo step in script order: whether it reaches the diagram, and whether the thing it demonstrates is shown. Only ${STEPS.filter((s) => s[4]).map((s) => s[0]).join(", ")} show it.`}>
-            <div className="dsla-row-label">Reaches the diagram</div>
-            {STEPS.map((s, i) => <div key={s[0]} className={`dsla-cell dsla-cell--${s[3]}${now(i)}`} title={`${s[0]} — ${REACH[s[3]]}`} />)}
-            <div className="dsla-row-label">Shows what it demonstrates</div>
-            {STEPS.map((s, i) => <div key={s[0]} className={`dsla-cell dsla-cell--${s[4] ? "shown" : "missing"}${now(i)}`} title={`${s[0]} — ${s[4] ? "shown" : "not shown"}`} />)}
-            <div />
-            {STEPS.map((s, i) => <div key={s[0]} className={`dsla-uc-id${now(i)}`}>{short(s[0])}</div>)}
-          </div>
-        </div>
+        <StaticFlowDiagram
+          NODES={BOARD_NODES}
+          EDGES={BOARD_EDGES}
+          GROUPS={GROUPS}
+          step={-1}
+          focusId={cur?.[0]}
+          testId="dsla-board"
+          height={620}
+          ariaLabel={`The ${STEPS.length} Demo steps in script order, coloured by whether the step reaches the sequence diagram and shows what it demonstrates. Only ${STEPS.filter((s) => s[4]).map((s) => s[0]).join(", ")} show it.`}
+        />
         <div className="dsla-keys">
-          {[["traced", "Traced"], ["sim", "Simulator events only"], ["none", "Not traced"], ["shown", "Shown"], ["missing", "Missing or misdrawn"]].map(([k, t]) => (
-            <span key={k} className="dsla-key"><span className={`dsla-cell dsla-cell--${k}`} />{t}</span>
+          {Object.entries(GROUPS).map(([k, g]) => (
+            <span key={k} className="dsla-key"><span className={`dsla-sw dsla-sw--${k}`} />{g.label}</span>
           ))}
-          <span className="dsla-key">Script order, left to right · T1 = UC-TOOL1</span>
+          <span className="dsla-key">Script order, snaking row by row</span>
         </div>
       </section>
 
