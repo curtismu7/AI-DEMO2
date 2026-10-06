@@ -11,7 +11,8 @@
 .pvs-routing select:focus-visible, .pvs-empty button:focus-visible { outline: 2px solid var(--th-status-info); outline-offset: 1px; }
 .pvs-rearm {
   display: flex; gap: 6px; align-items: center; flex-wrap: wrap; padding: 6px 8px;
-  border: 1px solid color-mix(in srgb, currentColor 30%, transparent); border-radius: 4px;
+  border: 1px solid color-mix(in srgb, var(--pvs-accent, currentColor) 55%, transparent); border-radius: 4px;
+  background: color-mix(in srgb, var(--pvs-accent, currentColor) 10%, transparent);
 }
 .pvs-gate-foot { display: flex; justify-content: flex-end; gap: 6px; }
 .pvs-prompt button, .pvs-gate-foot button, .pvs-rearm button {
@@ -20,16 +21,34 @@
   border-radius: 4px; padding: 6px 10px; cursor: pointer;
 }
 .pvs-prompt button:disabled, .pvs-prompt input:disabled, .pvs-gate-foot button:disabled, .pvs-rearm button:disabled { opacity: 0.5; cursor: default; }
+/* Each skin's own accent, taken from its chrome: the Check doors button and the Re-arm banner are
+   tinted with it (text stays inherited so legibility never depends on the accent). The VS Code
+   tree renders in the chrome's side panel, outside .pvs, so it takes the accent directly. */
+.pvs--vscode, .pvs-tree { --pvs-accent: var(--accent); }
+.pvs--claude-desktop { --pvs-accent: var(--claude-accent); }
+.pvs--coding { --pvs-accent: #c96442; } /* the Claude Code orange: chrome.css `.afm-code--claude` border */
+.pvs-rearm button {
+  background: color-mix(in srgb, var(--pvs-accent, currentColor) 20%, transparent);
+  border-color: color-mix(in srgb, var(--pvs-accent, currentColor) 65%, transparent);
+}
+.pvs-rearm button:hover:not(:disabled) { background: color-mix(in srgb, var(--pvs-accent, currentColor) 32%, transparent); }
 /* Specificity 0,3,0 on purpose: inside the signed-out gate (.pvs-connect) the legacy
    PrivilegeShellPanel.css rules `.pvs-connect button` (0,1,1) and `.pvs--coding .pvs-connect button`
-   (0,2,1) would otherwise paint this secondary action like the primary "Get MCP tools" CTA. */
-.pvs .pvs-doorcheck .pvs-doorcheck__btn:focus-visible, .pvs .pvs-tree .pvs-doorcheck__btn:focus-visible { outline: 2px solid var(--th-status-info); outline-offset: 1px; }
-.pvs .pvs-doorcheck .pvs-doorcheck__btn, .pvs .pvs-tree .pvs-doorcheck__btn {
-  font: inherit; font-size: inherit; color: inherit; background: color-mix(in srgb, currentColor 10%, transparent);
-  border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+   (0,2,1) would otherwise paint this secondary action like the primary "Get MCP tools" CTA.
+   The VS Code tree button is the exception: the side tree renders in the chrome's `.afm-vcs-side`,
+   OUTSIDE any `.pvs` root and never inside `.pvs-connect`, so its selectors must NOT require a
+   `.pvs` ancestor (they did once, and the button rendered with browser-default chrome). */
+.pvs .pvs-doorcheck .pvs-doorcheck__btn:focus-visible, .pvs-tree .pvs-doorcheck__btn:focus-visible { outline: 2px solid var(--th-status-info); outline-offset: 1px; }
+.pvs .pvs-doorcheck .pvs-doorcheck__btn, .pvs-tree .pvs-doorcheck__btn {
+  font: inherit; font-size: inherit; color: inherit;
+  background: color-mix(in srgb, var(--pvs-accent, currentColor) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--pvs-accent, currentColor) 65%, transparent);
   border-radius: 4px; padding: 6px 10px; cursor: pointer;
 }
-.pvs .pvs-doorcheck .pvs-doorcheck__btn:disabled, .pvs .pvs-tree .pvs-doorcheck__btn:disabled { opacity: 0.5; cursor: default; }
+.pvs .pvs-doorcheck .pvs-doorcheck__btn:hover:not(:disabled), .pvs-tree .pvs-doorcheck__btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--pvs-accent, currentColor) 28%, transparent);
+}
+.pvs .pvs-doorcheck .pvs-doorcheck__btn:disabled, .pvs-tree .pvs-doorcheck__btn:disabled { opacity: 0.5; cursor: default; }
 .pvs-doorcheck { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
 .pvs-probe { max-height: 8em; overflow-y: auto; margin: 0; padding-left: 0; list-style: none; font-size: var(--font-size-2xs); }
 .pvs-tree .pvs-doorcheck__btn { margin: 4px 12px; }
