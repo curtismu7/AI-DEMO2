@@ -9,6 +9,7 @@ const {
   oauthError,
   discoverPf,
   createPkce,
+  loginHintFor,
   exchangeAuthorizationCode,
   REQUEST_TIMEOUT_MS,
 } = require('./pfAiAgentOAuthService');
@@ -187,7 +188,7 @@ async function beginRar(req, {
     ? String(store.getEffective('pf_ai_rar_dpop_client_id')).trim()
     : rarClientId(store, config);
   const redirectUrl = await pushParRequest(config, metadata, {
-    state, nonce, challenge, authorizationDetail, clientId, loginHint: userKey,
+    state, nonce, challenge, authorizationDetail, clientId, loginHint: loginHintFor(req, userKey),
   }, fetchImpl);
   const createdAt = now();
   // A fresh key for this one run; it lives only as long as the pending flow (private key in the

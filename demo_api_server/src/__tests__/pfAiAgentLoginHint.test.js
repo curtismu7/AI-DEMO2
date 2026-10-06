@@ -34,6 +34,33 @@ const session = (username = 'demouser') => ({
   session: { oauthProvider: 'pingfederate', oauthTokens: { accessToken: 't' }, user: username ? { username } : undefined },
 });
 
+const pingOneSession = (username) => ({
+  session: { oauthProvider: 'pingone', oauthTokens: { accessToken: 't' }, user: { username } },
+});
+
+describe('login_hint spelling: PingFederate users are lowercase and case-sensitive', () => {
+  // Regression: the hint was the session's own name, so a PingOne "demoUser" pre-filled PingFederate's sign-in
+  // with "demoUser", which PingFederate (its users are "demouser") answered with "bad password".
+  test('a PingOne session named demoUser hints demouser on the CIMD URL', async () => {
+    const fetchImpl = jest.fn().mockResolvedValueOnce(discovery());
+    const { redirectUrl } = await beginCimd(pingOneSession('demoUser'), { store: makeStore(), fetchImpl });
+    expect(new URL(redirectUrl).searchParams.get('login_hint')).toBe('demouser');
+  });
+
+  test('a PingOne session named demoUser hints demouser on the RAR PAR request, even for a typed demoUser', async () => {
+    const fetchImpl = jest.fn()
+      .mockResolvedValueOnce(discovery())
+      .mockResolvedValueOnce(json({ request_uri: 'urn:ietf:params:oauth:request_uri:abc', expires_in: 90 }));
+    await beginRar(pingOneSession('demoUser'), { scenario: 'allowed', userKey: 'demoUser', store: makeStore(), fetchImpl });
+    expect(fetchImpl.mock.calls[1][1].body.get('login_hint')).toBe('demouser');
+  });
+
+  test('a PingFederate session keeps the spelling PingFederate gave it', () => {
+    expect(loginHintFor(session('MixedCase'))).toBe('MixedCase');
+    expect(loginHintFor(pingOneSession('MixedCase'))).toBe('mixedcase');
+  });
+});
+
 describe('login_hint: PingFederate is told who is signing in', () => {
   test('the CIMD authorize URL carries the signed-in username', async () => {
     const fetchImpl = jest.fn().mockResolvedValueOnce(discovery());
