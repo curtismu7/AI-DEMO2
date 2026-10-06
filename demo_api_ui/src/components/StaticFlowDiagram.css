@@ -6,7 +6,7 @@
   width: 100%;
   border: 1px solid var(--th-border);
   border-radius: 8px;
-  background: var(--th-surface, var(--th-bg-card, #ffffff));
+  background: var(--th-bg-card);
   color: var(--th-text);
   overflow: hidden;
 }
