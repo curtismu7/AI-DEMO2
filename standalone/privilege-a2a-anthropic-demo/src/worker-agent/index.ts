@@ -10,7 +10,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 
 import { describeMode, workerAgentConfig } from '../config.js';
 import { parseMetadata } from '../profile.js';
-import { VERTICALS } from '../mcp-server/verticals.js';
+import { VERTICALS, resolveVertical } from '../mcp-server/verticals.js';
 
 const config = workerAgentConfig();
 const MAX_TOOL_ROUNDS = 8;
@@ -35,7 +35,7 @@ Call open_ticket only when the human actually requested an action.
 
 /** The persona instruction for a known vertical specialist, else today's access-review one. */
 function instructionFor(vertical: string | undefined): string {
-  const specialist = vertical ? VERTICALS[vertical] : undefined;
+  const specialist = vertical ? VERTICALS[resolveVertical(vertical)] : undefined;
   if (!specialist) return INSTRUCTION;
   return `
 You are the ${specialist.specialistName}. Your task is to ${specialist.subtaskHint}.

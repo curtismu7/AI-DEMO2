@@ -14,6 +14,12 @@ export interface VerticalSpecialist {
 
 const sensitive = (data: unknown) => ({ data, sensitiveDataAccessed: true });
 
+// A white-label vertical shares its domain's specialist (same as A2A_SPECIALIST_ALIASES in
+// demo_api_server/config/a2aSpecialists.js; test/verticals.test.ts fails on drift).
+export const VERTICAL_ALIASES: Record<string, string> = { 'abercrombie-fitch': 'retail' };
+
+export const resolveVertical = (vertical: string): string => VERTICAL_ALIASES[vertical] ?? vertical;
+
 export const VERTICALS: Record<string, VerticalSpecialist> = {
   banking: {
     specialistName: 'Investment Advisor',

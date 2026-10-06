@@ -249,6 +249,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-06 — A2A runs sat on "Client started" for minutes (model call stalls); Abercrombie & Fitch got the wrong persona
+
+**Files:** `standalone/privilege-a2a-anthropic-demo/src/gemini.ts`, `src/config.ts`, `src/mcp-server/verticals.ts`, `src/worker-agent/index.ts`, `config.example`, tests.
+
+**What was broken:** (1) The Gemini call (agent -> Privilege gateway -> Google) had no deadline. Measured live: about one call in three stalled past 150 s (a trivial direct call stalled past 45 s too), so a run showed only "Client started" for minutes; then bursts hit HTTP 429. (2) The worker keyed its specialist persona by the vertical id, and `abercrombie-fitch` is a white-label alias of `retail`, so an A&F run got the generic access-review persona ("As an access-review analyst…") instead of the Purchase History Specialist.
+
+**What changed:** (1) Each model attempt gets a 30 s deadline (`GEMINI_TIMEOUT_MS` overrides); a stalled attempt is retried once, like the existing 503 retry; two stalls fail with "The model did not answer within 30 s, after two tries. It may be overloaded; try again." The caller's own abort is never retried. (2) `VERTICAL_ALIASES` / `resolveVertical` in `verticals.ts` mirror `A2A_SPECIALIST_ALIASES`; the worker resolves the alias before the persona lookup; a drift test fails if they diverge.
+
+**Do not break:** a prompt answer is unaffected; the 503 retry; the abort path; the persona for every canonical vertical; the Anthropic path (not given this deadline).
+
+**Verify:** `cd standalone/privilege-a2a-anthropic-demo && npm test && npm run build` (22 pass; the two stall tests fail against the old client). The worker change needs the SE worker image rebuilt and redeployed to take effect there; the main agent runs locally and needs a restart.
+
 ### 2026-10-06 — "A2A service unavailable" did not say the agent may just be restarting
 
 **Files:** `demo_api_server/routes/privilegeA2aClient.js`, `demo_api_server/tests/privilegeA2aClientRoute.test.js`.

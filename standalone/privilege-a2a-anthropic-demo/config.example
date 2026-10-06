@@ -32,6 +32,8 @@ WORKER_AGENT_PROVIDER=anthropic
 # use https://<gateway>/llm/google. Leave blank to call Google directly with
 # the Gemini keys below.
 GEMINI_BASE_URL=
+# Per-attempt deadline for a Gemini call, in ms (default 30000). A stalled call is retried once.
+# GEMINI_TIMEOUT_MS=30000
 
 # Model IDs, each one allowed by that agent's Privilege policy. Blank uses
 # claude-sonnet-5 / claude-opus-5 (anthropic) or gemini-flash-latest /

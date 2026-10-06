@@ -101,24 +101,40 @@ export function fromGeminiResponse(body: GeminiResponse, model: string): Anthrop
   return { id: randomUUID(), type: 'message', role: 'assistant', model, content, stop_reason: stopReason } as Anthropic.Message;
 }
 
-export function geminiClient(options: { apiKey: string; baseUrl?: string; fetchImpl?: typeof fetch; retryDelayMs?: number }): Anthropic {
+// A model call through the gateway sometimes sits for minutes before answering (seen live: about one
+// call in three stalled past 150 s). Give each attempt a deadline and retry a stalled one once.
+const DEFAULT_TIMEOUT_MS = 30_000;
+
+export function geminiClient(options: { apiKey: string; baseUrl?: string; fetchImpl?: typeof fetch; retryDelayMs?: number; timeoutMs?: number }): Anthropic {
   const base = (options.baseUrl || GEMINI_DIRECT_URL).replace(/\/+$/, '');
   const fetchImpl = options.fetchImpl ?? fetch;
+  const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const didNotAnswer = () => new Error(`The model did not answer within ${timeoutMs / 1000} s, after two tries. It may be overloaded; try again.`);
 
   const create = async (params: Params, signal?: AbortSignal): Promise<Anthropic.Message> => {
-    const send = () => fetchImpl(`${base}/v1beta/models/${encodeURIComponent(params.model)}:generateContent`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': options.apiKey },
-      body: JSON.stringify(toGeminiRequest(params)),
-      signal,
-    });
-    let response = await send();
-    // Google's free tier answers 503 "high demand" in bursts; retry once.
-    if (response.status === 503) {
+    // The caller's abort is never retried; only this attempt's own deadline is.
+    const timedOut = (error: unknown) => !signal?.aborted && (error as Error)?.name === 'TimeoutError';
+    const send = () => {
+      const deadline = AbortSignal.timeout(timeoutMs);
+      return fetchImpl(`${base}/v1beta/models/${encodeURIComponent(params.model)}:generateContent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': options.apiKey },
+        body: JSON.stringify(toGeminiRequest(params)),
+        signal: signal ? AbortSignal.any([signal, deadline]) : deadline,
+      });
+    };
+    const attempt = async (): Promise<Response | null> => {
+      try { return await send(); } catch (error) { if (timedOut(error)) return null; throw error; }
+    };
+    let response = await attempt();
+    // Google's free tier answers 503 "high demand" in bursts, and a call can stall; retry once.
+    if (response === null || response.status === 503) {
       await new Promise(resolve => setTimeout(resolve, options.retryDelayMs ?? 2000));
-      response = await send();
+      response = await attempt();
     }
-    const text = await response.text();
+    if (response === null) throw didNotAnswer();
+    let text: string;
+    try { text = await response.text(); } catch (error) { throw timedOut(error) ? didNotAnswer() : error; }
     if (!response.ok) throw new Error(`Gemini request returned ${response.status}: ${text.slice(0, 400)}`);
     return fromGeminiResponse(JSON.parse(text) as GeminiResponse, params.model);
   };

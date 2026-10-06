@@ -10,14 +10,25 @@ import { test } from 'node:test';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
-import { VERTICALS } from '../src/mcp-server/verticals.js';
+import { VERTICALS, VERTICAL_ALIASES, resolveVertical } from '../src/mcp-server/verticals.js';
 import { labelFor, parseProfile, withLabels } from '../src/profile.js';
 
 const require = createRequire(import.meta.url);
-const { A2A_SPECIALISTS } = require('../../../demo_api_server/config/a2aSpecialists.js') as {
+const { A2A_SPECIALISTS, specialistDirectory } = require('../../../demo_api_server/config/a2aSpecialists.js') as {
   A2A_SPECIALISTS: Record<string, { specialistName: string; subtaskHint: string; tools: string[] }>;
+  specialistDirectory: () => Array<{ vertical: string; canonicalVertical: string }>;
 };
 const packageDirectory = dirname(dirname(fileURLToPath(import.meta.url)));
+
+test('white-label aliases mirror the registry, and a white-label vertical gets its domain\'s specialist', () => {
+  const registryAliases = Object.fromEntries(
+    specialistDirectory().filter(entry => entry.vertical !== entry.canonicalVertical).map(entry => [entry.vertical, entry.canonicalVertical]),
+  );
+  assert.deepEqual(VERTICAL_ALIASES, registryAliases);
+  // The worker looks the persona up by resolveVertical(); A&F is retail, so it is the Purchase History Specialist.
+  assert.equal(VERTICALS[resolveVertical('abercrombie-fitch')]?.specialistName, 'Purchase History Specialist');
+  assert.equal(resolveVertical('banking'), 'banking');
+});
 
 test('verticals table mirrors demo_api_server/config/a2aSpecialists.js exactly (all 11)', () => {
   assert.deepEqual(Object.keys(VERTICALS).sort(), Object.keys(A2A_SPECIALISTS).sort());

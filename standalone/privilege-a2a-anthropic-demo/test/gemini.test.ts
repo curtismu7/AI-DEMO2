@@ -66,3 +66,55 @@ test('one overloaded reply is retried', async () => {
   assert.equal(reply.content.length, 1);
   assert.equal(statuses.length, 0);
 });
+
+// A call that never answers, but honours its abort signal like a real fetch.
+const hangs = (signal?: AbortSignal | null) => new Promise<Response>((_resolve, reject) => {
+  signal?.addEventListener('abort', () => reject(signal.reason));
+});
+const okReply = () => new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: 'ok' }] } }] }), { status: 200 });
+const ask = { model: 'm', max_tokens: 1, messages: [{ role: 'user' as const, content: 'hi' }] };
+
+test('a stalled call hits its deadline and the retry answers', async () => {
+  let calls = 0;
+  const fetchImpl = (async (_url: unknown, init?: RequestInit) => (++calls === 1 ? hangs(init?.signal) : okReply())) as typeof fetch;
+  const client = geminiClient({ apiKey: 'k', fetchImpl, timeoutMs: 40, retryDelayMs: 1 });
+
+  const reply = await client.messages.create(ask);
+
+  assert.equal(calls, 2);
+  assert.equal(reply.content.length, 1);
+});
+
+test('two stalled calls give up with a plain message, not a raw abort error', async () => {
+  let calls = 0;
+  const fetchImpl = (async (_url: unknown, init?: RequestInit) => { calls += 1; return hangs(init?.signal); }) as typeof fetch;
+  const client = geminiClient({ apiKey: 'k', fetchImpl, timeoutMs: 40, retryDelayMs: 1 });
+
+  await assert.rejects(
+    client.messages.create(ask),
+    (error: Error) => /did not answer within 0\.04 s, after two tries/.test(error.message) && !/aborted/i.test(error.message),
+  );
+  assert.equal(calls, 2);
+});
+
+test('the caller aborting is not retried', async () => {
+  let calls = 0;
+  const fetchImpl = (async (_url: unknown, init?: RequestInit) => { calls += 1; return hangs(init?.signal); }) as typeof fetch;
+  const client = geminiClient({ apiKey: 'k', fetchImpl, timeoutMs: 5_000, retryDelayMs: 1 });
+
+  const run = client.messages.stream(ask);
+  run.controller.abort();
+
+  await assert.rejects(run.finalMessage());
+  assert.equal(calls, 1);
+});
+
+test('a prompt answer is unaffected by the deadline', async () => {
+  let calls = 0;
+  const fetchImpl = (async () => { calls += 1; return okReply(); }) as typeof fetch;
+  const client = geminiClient({ apiKey: 'k', fetchImpl, timeoutMs: 40 });
+
+  await client.messages.create(ask);
+
+  assert.equal(calls, 1);
+});

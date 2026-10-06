@@ -38,7 +38,9 @@ export function anthropicClient(agent: AgentName): Anthropic {
         ? `${agent}_KEY is required when GEMINI_BASE_URL points at Privilege`
         : `Set ${agent}_GEMINI_KEY or GEMINI_API_KEY, or configure GEMINI_BASE_URL and ${agent}_KEY`);
     }
-    return geminiClient({ apiKey, baseUrl });
+    // GEMINI_TIMEOUT_MS overrides the per-attempt deadline (default 30 s; one retry on a stall).
+    const timeoutMs = Number(value('GEMINI_TIMEOUT_MS'));
+    return geminiClient({ apiKey, baseUrl, ...(timeoutMs > 0 ? { timeoutMs } : {}) });
   }
 
   const baseURL = anthropicBaseUrl();
