@@ -25,7 +25,7 @@
 .ssp-header {
   position: relative;
   background: linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy) 100%);
-  color: white;
+  color: var(--app-primary-btn-text, #fff);
   padding: 2rem;
   text-align: center;
 }
@@ -40,15 +40,16 @@
   padding: 6px 14px;
   border-radius: var(--radius-md);
   border: 1px solid rgba(255, 255, 255, 0.4);
-  background: #c2410c;
-  color: #fff;
+  background: var(--brand-navy);
+  color: var(--app-primary-btn-text, #fff);
   font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
 }
 
 .ssp-theme-toggle:hover {
-  background: #9a3412;
+  background: var(--brand-navy);
+  filter: brightness(0.85);
 }
 
 @media (max-width: 640px) {
@@ -60,6 +61,7 @@
 }
 
 .ssp-header h1 {
+  color: inherit;
   margin: 0 0 0.5rem 0;
   font-size: 2rem;
   font-weight: 700;
@@ -314,8 +316,8 @@
 }
 
 .ssp-submit-btn {
-  background: #c2410c;
-  color: white;
+  background: var(--brand-navy);
+  color: var(--app-primary-btn-text, #fff);
   border: none;
   padding: 1rem 2rem;
   border-radius: 8px;
@@ -327,7 +329,8 @@
 }
 
 .ssp-submit-btn:hover:not(:disabled) {
-  background: #9a3412;
+  background: var(--brand-navy);
+  filter: brightness(0.85);
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
 }
@@ -467,6 +470,7 @@
   }
   
   .ssp-header h1 {
+  color: inherit;
     font-size: 1.5rem;
   }
   

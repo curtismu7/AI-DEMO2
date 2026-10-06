@@ -8,7 +8,7 @@
   height: calc(100vh - 160px);
   border: 1px solid #d8dee9;
   border-radius: 10px;
-  background: #ffffff;
+  background: var(--th-bg-card);
   overflow: hidden;
 }
 
@@ -29,7 +29,7 @@
 .copilot-header h2 {
   margin: 0;
   font-size: 1.05rem;
-  color: #1b2733;
+  color: var(--th-text);
 }
 
 .copilot-status {
@@ -37,7 +37,7 @@
   padding: 2px 10px;
   border-radius: 999px;
   border: 1px solid #c7d0db;
-  color: #4a5568;
+  color: var(--th-text-muted);
 }
 .copilot-status-ready { color: #1a7f4b; border-color: #9bd4b3; background: #eafaf1; }
 .copilot-status-error { color: #b3261e; border-color: #e6a8a3; background: #fdecea; }
@@ -75,7 +75,7 @@
 .copilot-msg-user { align-self: flex-end; align-items: flex-end; }
 .copilot-msg-assistant { align-self: flex-start; }
 
-.copilot-msg-role { font-size: 0.72rem; color: #7a8696; }
+.copilot-msg-role { font-size: 0.72rem; color: var(--th-text-muted); }
 
 .copilot-msg-text {
   white-space: pre-wrap;
@@ -85,10 +85,10 @@
   font-size: 0.92rem;
 }
 .copilot-msg-user .copilot-msg-text { background: #2b6cb0; color: #fff; border-bottom-right-radius: 4px; }
-.copilot-msg-assistant .copilot-msg-text { background: #f1f4f8; color: #1b2733; border-bottom-left-radius: 4px; }
+.copilot-msg-assistant .copilot-msg-text { background: var(--th-bg-inset); color: var(--th-text); border-bottom-left-radius: 4px; }
 
 .copilot-typing .copilot-msg-text,
-.copilot-typing { color: #7a8696; font-style: italic; }
+.copilot-typing { color: var(--th-text-muted); font-style: italic; }
 
 .copilot-input-row {
   display: flex;
@@ -101,15 +101,17 @@
   flex: 1;
   padding: 10px 12px;
   border: 1px solid #cbd5e0;
+  background: var(--th-bg-card);
+  color: var(--th-text);
   border-radius: 8px;
   font-size: 0.92rem;
 }
 
-.copilot-notice { color: #1b2733; }
+.copilot-notice { color: var(--th-text); }
 .copilot-error { color: #b3261e; }
-.copilot-hint { color: #4a5568; font-size: 0.85rem; }
+.copilot-hint { color: var(--th-text-muted); font-size: 0.85rem; }
 .copilot-missing {
   margin: 4px 0;
-  color: #4a5568;
+  color: var(--th-text-muted);
   font-size: 0.85rem;
 }

@@ -215,12 +215,12 @@ export default function UserAccounts({ user }) {
 
         .accounts-header h2 {
           margin: 0 0 0.5rem 0;
-          color: #333;
+          color: var(--th-text);
         }
 
         .accounts-header p {
           margin: 0;
-          color: #666;
+          color: var(--th-text-muted);
         }
 
         .accounts-summary {
@@ -235,7 +235,7 @@ export default function UserAccounts({ user }) {
           align-items: center;
           gap: 1rem;
           padding: 1.5rem;
-          background: white;
+          background: var(--th-bg-card);
           border-radius: 8px;
           box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
@@ -246,18 +246,18 @@ export default function UserAccounts({ user }) {
 
         .summary-label {
           font-size: 0.875rem;
-          color: #666;
+          color: var(--th-text-muted);
         }
 
         .summary-value {
           font-size: 1.5rem;
           font-weight: 600;
-          color: #333;
+          color: var(--th-text);
         }
 
         .accounts-list h3 {
           margin: 0 0 1.5rem 0;
-          color: #333;
+          color: var(--th-text);
         }
 
         .accounts-grid {
@@ -268,7 +268,7 @@ export default function UserAccounts({ user }) {
         }
 
         .account-card {
-          background: white;
+          background: var(--th-bg-card);
           border-radius: 8px;
           padding: 1.5rem;
           box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -295,7 +295,7 @@ export default function UserAccounts({ user }) {
 
         .type-label {
           font-weight: 600;
-          color: #333;
+          color: var(--th-text);
         }
 
         .status-badge {
@@ -306,37 +306,37 @@ export default function UserAccounts({ user }) {
         }
 
         .status-badge.active {
-          background: #f0fdf4;
-          color: #10b981;
+          background: var(--th-status-success-bg);
+          color: var(--th-status-success-text);
         }
 
         .account-info h4 {
           margin: 0 0 0.25rem 0;
-          color: #333;
+          color: var(--th-text);
         }
 
         .account-number {
           margin: 0;
-          color: #666;
+          color: var(--th-text-muted);
           font-size: 0.875rem;
         }
 
         .account-balance {
           padding: 1rem;
-          background: #f9fafb;
+          background: var(--th-bg-inset);
           border-radius: 6px;
         }
 
         .balance-label {
           font-size: 0.875rem;
-          color: #666;
+          color: var(--th-text-muted);
           margin-bottom: 0.25rem;
         }
 
         .balance-amount {
           font-size: 1.5rem;
           font-weight: 600;
-          color: #333;
+          color: var(--th-text);
         }
 
         .account-actions {
@@ -346,7 +346,7 @@ export default function UserAccounts({ user }) {
 
         .accounts-actions h3 {
           margin: 0 0 1.5rem 0;
-          color: #333;
+          color: var(--th-text);
         }
 
         .action-grid {
@@ -361,8 +361,8 @@ export default function UserAccounts({ user }) {
           align-items: center;
           gap: 0.75rem;
           padding: 1.5rem;
-          background: white;
-          border: 1px solid #e5e7eb;
+          background: var(--th-bg-card);
+          border: 1px solid var(--th-border);
           border-radius: 8px;
           cursor: pointer;
           transition: all 0.2s;
@@ -379,13 +379,13 @@ export default function UserAccounts({ user }) {
 
         .action-title {
           font-weight: 600;
-          color: #333;
+          color: var(--th-text);
           text-align: center;
         }
 
         .action-desc {
           font-size: 0.875rem;
-          color: #666;
+          color: var(--th-text-muted);
           text-align: center;
         }
 
@@ -410,13 +410,13 @@ export default function UserAccounts({ user }) {
           background: #4338ca;
         }
 
-        .btn-outline {
+        .user-accounts .btn.btn-outline {
           background: transparent;
-          color: #4f46e5;
+          color: var(--th-text);
           border: 1px solid #4f46e5;
         }
 
-        .btn-outline:hover {
+        .user-accounts .btn.btn-outline:hover {
           background: #4f46e5;
           color: white;
         }

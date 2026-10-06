@@ -32,6 +32,10 @@
   color: var(--th-text-body);
   border-color: var(--th-border-strong);
 }
+.App.end-user-nano .activity-records-page .btn.btn-secondary,
+.App.end-user-nano .activity-records-page .btn.btn-secondary:hover {
+  color: var(--th-text-body) !important;
+}
 .activity-records-page .btn-secondary:hover {
   background: var(--th-bg-hover);
   color: var(--th-text);
