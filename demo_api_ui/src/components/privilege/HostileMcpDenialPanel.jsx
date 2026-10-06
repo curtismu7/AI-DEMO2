@@ -93,7 +93,7 @@ export default function HostileMcpDenialPanel({ tools = [], onRequest, onCall })
         </label>
       </div>
       <p className="hmd-panel__summary">{scenario.summary}</p>
-      <button type="button" className="hmd-panel__run" onClick={runScenario} disabled={busy || !onCall}>
+      <button type="button" className={`hmd-panel__run${privilegeResult ? '' : ' hmd-panel__run--next'}`} onClick={runScenario} disabled={busy || !onCall}>
         {busy ? 'Running scenario…' : 'Run denial scenario'}
       </button>
       {error && <p className="hmd-panel__error" role="alert">{error}</p>}

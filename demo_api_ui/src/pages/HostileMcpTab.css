@@ -52,8 +52,9 @@
 }
 
 .hmc-btn {
-  padding: 0.35rem 0.75rem;
-  border: 1px solid var(--th-border);
+  padding: 0.5rem 1rem;
+  border: 2px solid var(--th-border-strong);
+  box-shadow: 0 2px 0 var(--th-border-strong);
   border-radius: var(--radius-sm);
   background: var(--th-bg-card);
   color: var(--th-text);
@@ -292,4 +293,43 @@
 .hmc-agent__row input {
   flex: 1;
   min-width: 14rem;
+}
+
+.hmc-explain {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-sm);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: var(--font-size-base);
+  line-height: 1.5;
+}
+
+.hmc-explain p { margin: 0.5rem 0 0; max-width: 80ch; }
+.hmc-explain ol { margin: 0.5rem 0 0; padding-left: 1.25rem; }
+
+.hmc-next {
+  padding: 0.4rem 0.6rem;
+  border-inline-start: 3px solid var(--th-status-warning);
+  background: var(--th-bg-inset);
+  font-weight: 600;
+}
+
+.hmc-shortcut { margin: 0; color: var(--th-text-body); }
+
+/* The button to press next: info ground + its paired ink, a ring and a gentle pulse. */
+.hmc-btn--next:not(:disabled) {
+  border-color: var(--th-status-info);
+  background: var(--th-status-info-bg);
+  color: var(--th-status-info-text);
+  box-shadow: 0 0 0 3px var(--th-status-info-border);
+  animation: hmc-next-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes hmc-next-pulse {
+  50% { box-shadow: 0 0 0 6px var(--th-status-info-border); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hmc-btn--next:not(:disabled) { animation: none; }
 }

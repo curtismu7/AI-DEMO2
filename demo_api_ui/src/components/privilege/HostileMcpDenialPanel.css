@@ -46,8 +46,10 @@
 }
 
 .hmd-panel__run {
-  padding: 0.45rem 0.75rem;
-  border: 1px solid var(--th-status-info-border);
+  padding: 0.5rem 1rem;
+  border: 2px solid var(--th-status-info);
+  box-shadow: 0 2px 0 var(--th-status-info);
+  font-weight: 600;
   border-radius: var(--radius-sm);
   background: var(--th-status-info-bg);
   color: var(--th-status-info-text);
@@ -56,6 +58,20 @@
 }
 
 .hmd-panel__run:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* Until a scenario has run, this is the button to press: ring + gentle pulse. */
+.hmd-panel__run--next:not(:disabled) {
+  box-shadow: 0 0 0 3px var(--th-status-info-border);
+  animation: hmd-run-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes hmd-run-pulse {
+  50% { box-shadow: 0 0 0 6px var(--th-status-info-border); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hmd-panel__run--next:not(:disabled) { animation: none; }
+}
 .hmd-panel__error,
 .hmd-panel__decision--denied strong { color: var(--th-status-error-text); }
 .hmd-panel__error { margin: 0.6rem 0 0; }
