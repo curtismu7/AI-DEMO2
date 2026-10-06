@@ -432,6 +432,57 @@
   transform: translate(-50%, -50%);
 }
 
+/* Tip card under the spinner. Literal ink/ground pairs, like the skeleton it sits on (rule H1). */
+.boot-skeleton__tip {
+  position: fixed;
+  top: calc(50% + 56px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(320px, calc(100vw - 32px));
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border: 1px solid #e4e4e0;
+  border-left: 4px solid #dc2626;
+  border-radius: 8px;
+  background-color: #ffffff;
+  color: #14213d;
+  font-size: var(--font-size-sm);
+  line-height: 1.45;
+  text-align: left;
+}
+
+.boot-skeleton__tip b {
+  display: block;
+  margin-bottom: 4px;
+  color: #dc2626;
+  font-size: var(--font-size-xs);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.boot-skeleton__tip em {
+  display: block;
+  margin-top: 8px;
+  color: #5b6577;
+  font-size: var(--font-size-xs);
+  font-style: normal;
+}
+
+:root[data-theme="dark"] .boot-skeleton__tip {
+  border-color: #26304a;
+  border-left-color: #ef4444;
+  background-color: #131c2e;
+  color: #e6ebf5;
+}
+
+:root[data-theme="dark"] .boot-skeleton__tip b {
+  color: #ef4444;
+}
+
+:root[data-theme="dark"] .boot-skeleton__tip em {
+  color: #9aa6bd;
+}
+
 .auth-loading-dots {
   display: flex;
   gap: 8px;

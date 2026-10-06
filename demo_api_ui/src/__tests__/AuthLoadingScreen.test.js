@@ -5,7 +5,7 @@
 import React from 'react';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import AuthLoadingScreen from '../components/shared/AuthLoadingScreen';
 
 const html = readFileSync(resolve(__dirname, '../../index.html'), 'utf8');
@@ -25,6 +25,22 @@ describe('AuthLoadingScreen', () => {
     expect(screen.getByRole('status', { name: 'Loading Agent…' })).toBeInTheDocument();
     // A visible label would put token ink on the skeleton's literal ground (rule H1).
     expect(container.querySelector('.ping-spinner__label')).toBeNull();
+  });
+
+  it('shows a tip, rotates it, and admits when it is slow', () => {
+    vi.useFakeTimers();
+    try {
+      const { container } = render(<AuthLoadingScreen />);
+      const tip = () => container.querySelector('.boot-skeleton__tip span').textContent;
+      const first = tip();
+      expect(container.querySelector('.boot-skeleton__tip em')).toBeNull();
+      act(() => { vi.advanceTimersByTime(4000); });
+      expect(tip()).not.toBe(first);
+      act(() => { vi.advanceTimersByTime(4000); });
+      expect(container.querySelector('.boot-skeleton__tip em')).not.toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('falls back to a generic accessible name', () => {
