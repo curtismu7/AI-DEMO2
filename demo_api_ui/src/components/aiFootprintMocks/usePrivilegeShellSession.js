@@ -54,6 +54,7 @@ export function usePrivilegeShellSession({ onBeforeConnect } = {}) {
   );
   const nextId = useRef(1);
   const [notice, setNotice] = useState(() => {
+    if (searchParams.get("auth") === "silent_failed") return "Silent sign-in was not possible. Press Get MCP tools to sign in.";
     if (searchParams.get("auth") !== "error") return "";
     return `OAuth failed: ${searchParams.get("reason") || "unknown"}`;
   });

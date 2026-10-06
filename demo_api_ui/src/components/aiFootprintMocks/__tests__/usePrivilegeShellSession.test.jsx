@@ -629,3 +629,24 @@ describe("re-arm and door probing", () => {
     expect(result.current.routing.preflightError).toBe("probe down");
   });
 });
+
+describe("usePrivilegeShellSession return notices", () => {
+  beforeEach(() => vi.clearAllMocks());
+  const at = (search) => ({ children }) => (
+    <MemoryRouter initialEntries={[`/demo/coding-agent${search}`]}>{children}</MemoryRouter>
+  );
+
+  it("explains a failed silent sign-in on ?auth=silent_failed", async () => {
+    apiClient.get.mockResolvedValue({ data: { oauth: { authenticated: false } } });
+    const { result } = renderHook(() => usePrivilegeShellSession(), { wrapper: at("?auth=silent_failed") });
+    await waitFor(() => expect(result.current.phase).toBe("signed-out"), { timeout: 5000 });
+    expect(result.current.notice).toBe("Silent sign-in was not possible. Press Get MCP tools to sign in.");
+  });
+
+  it("keeps the ?auth=error notice", async () => {
+    apiClient.get.mockResolvedValue({ data: { oauth: { authenticated: false } } });
+    const { result } = renderHook(() => usePrivilegeShellSession(), { wrapper: at("?auth=error&reason=denied") });
+    await waitFor(() => expect(result.current.phase).toBe("signed-out"), { timeout: 5000 });
+    expect(result.current.notice).toBe("OAuth failed: denied");
+  });
+});
