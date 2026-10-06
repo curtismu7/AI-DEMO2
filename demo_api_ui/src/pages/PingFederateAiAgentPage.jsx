@@ -131,6 +131,10 @@ function ProviderComparison() {
   );
 }
 
+const EXCHANGE_HINTS = {
+  PF_AI_SUBJECT_ISSUER_NOT_RECOGNIZED: "PingFederate does not trust this session's token. Sign in through PingFederate, not PingOne, and run the exchange again.",
+};
+
 const CIBA_ERRORS = {
   PF_AI_CIBA_USER_UNKNOWN: "PingFederate does not know that user.",
   PF_AI_FLOW_ALREADY_PENDING: "An approval request is already pending.",
@@ -391,6 +395,7 @@ export default function PingFederateAiAgentPage({ user }) {
             <p className="pf-ai-agent__error" role="alert">
               The exchange failed. Review the PF and downstream authorization server settings.
               {typeof exchangeError === "string" && <> Reason: <code>{exchangeError}</code></>}
+              {EXCHANGE_HINTS[exchangeError] && <> {EXCHANGE_HINTS[exchangeError]}</>}
             </p>
           )}
           {exchangeResult && (

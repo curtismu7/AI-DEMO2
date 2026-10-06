@@ -304,6 +304,17 @@ describe("PingFederate AI Agent page", () => {
     expect(alert).toHaveTextContent("PF_AI_ID_JAG_AUDIENCE_INVALID");
   });
 
+  it("tells a PingOne session to sign in through PingFederate when PingFederate rejects its token", async () => {
+    apiClient.post.mockRejectedValue({ response: { data: { error: "PF_AI_SUBJECT_ISSUER_NOT_RECOGNIZED" } } });
+    render(<PingFederateAiAgentPage user={{ username: "demouser" }} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /Run third-party token exchange/i }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("PF_AI_SUBJECT_ISSUER_NOT_RECOGNIZED");
+    expect(alert).toHaveTextContent(/Sign in through PingFederate, not PingOne/);
+  });
+
   it("does not submit a different provider when the BFF reports another active session", async () => {
     apiClient.get.mockResolvedValue({ data: { ...readyStatus, sessionProvider: "none" } });
     render(<PingFederateAiAgentPage />);

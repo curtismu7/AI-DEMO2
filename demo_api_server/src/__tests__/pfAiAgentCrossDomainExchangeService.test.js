@@ -130,6 +130,26 @@ describe('PF AI Agent cross-domain exchange', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 
+  test('says so when PingFederate does not recognize the session token issuer (a PingOne token)', async () => {
+    const fetchImpl = jest.fn().mockResolvedValueOnce(jsonResponse(
+      { error: 'invalid_request', error_description: 'The issuer was not recognized.' }, 400));
+    const req = { session: { oauthProvider: 'pingone', oauthTokens: { accessToken: 'p1-session-token' } } };
+
+    await expect(exchangeForThirdPartyAccessToken(req, {
+      subjectProvider: 'pingone', store: makeStore(), fetchImpl,
+    })).rejects.toMatchObject({ code: 'PF_AI_SUBJECT_ISSUER_NOT_RECOGNIZED', httpStatus: 422 });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  test('any other upstream refusal is still the generic code', async () => {
+    const fetchImpl = jest.fn().mockResolvedValueOnce(jsonResponse({ error: 'server_error' }, 500));
+    const req = { session: { oauthProvider: 'pingfederate', oauthTokens: { accessToken: 'pf-session-token' } } };
+
+    await expect(exchangeForThirdPartyAccessToken(req, {
+      subjectProvider: 'pingfederate', store: makeStore(), fetchImpl,
+    })).rejects.toMatchObject({ code: 'PF_AI_UPSTREAM_REJECTED', httpStatus: 502 });
+  });
+
   test('rejects an ID-JAG with a different audience before calling the downstream AS', async () => {
     const badIdJag = jwt.sign({
       iss: 'https://pf.example.test',

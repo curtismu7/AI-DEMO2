@@ -52,7 +52,16 @@ async function postForm(fetchImpl, endpoint, body, client) {
   } catch {
     throw oauthError('PF_AI_UPSTREAM_UNAVAILABLE', 'A configured authorization server could not be reached');
   }
-  if (!response?.ok) throw oauthError('PF_AI_UPSTREAM_REJECTED', 'A configured authorization server rejected the request', 502);
+  if (!response?.ok) {
+    let detail = {};
+    try { detail = await response.json(); } catch { /* an error body is optional */ }
+    // PingFederate's subject-token processor only trusts PingFederate-issued tokens, so a PingOne session
+    // fails here. Say that, instead of a generic refusal.
+    if (/issuer was not recognized/i.test(String(detail?.error_description || ''))) {
+      throw oauthError('PF_AI_SUBJECT_ISSUER_NOT_RECOGNIZED', 'PingFederate does not recognize the issuer of the session token', 422);
+    }
+    throw oauthError('PF_AI_UPSTREAM_REJECTED', 'A configured authorization server rejected the request', 502);
+  }
   try { return await response.json(); } catch {
     throw oauthError('PF_AI_UPSTREAM_RESPONSE_INVALID', 'A configured authorization server returned an invalid response');
   }
