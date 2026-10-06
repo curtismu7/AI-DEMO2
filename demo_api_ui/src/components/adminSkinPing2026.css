@@ -63,7 +63,7 @@ body.admin-skin-p1 .admin-side-nav {
 body.admin-skin-p1 .admin-side-nav__toggle {
   background: #173752;
   border: 1px solid #2b5573;
-  color: #b8ccdc;
+  color: #ffffff;
 }
 body.admin-skin-p1 .admin-side-nav__toggle:hover {
   background: #214866;
@@ -82,7 +82,7 @@ body.admin-skin-p1 .admin-side-nav--collapsed .admin-side-nav__quick-links {
 body.admin-skin-p1 .admin-side-nav__quick-link {
   background: transparent;
   border: 1px solid #000;
-  color: #c4d4e2 !important;
+  color: #ffffff !important;
   box-shadow: none;
   justify-content: flex-start;
   padding: 7px 8px;
@@ -146,7 +146,7 @@ body.admin-skin-p1 .admin-side-nav {
    Text colors win on specificity (body.admin-skin-p1 prefix) alone. */
 body.admin-skin-p1 .admin-side-nav__item,
 body.admin-skin-p1 .admin-side-nav__label {
-  color: #c5d5e3;
+  color: #ffffff;
 }
 /* --th-text-muted (dark: #94a3b8 on #131c2e card) reads as barely-visible for
    a 16px icon glyph even though it passes body-text contrast — same finding
@@ -159,7 +159,7 @@ body.admin-skin-p1 .admin-side-nav__icon {
    legibility. Literal light tone, not --th-text: that token is near-black
    (#0f172a) in the light theme, which rendered black-on-navy here. */
 body.admin-skin-p1 .admin-side-nav--collapsed .admin-side-nav__icon {
-  color: #eaf4fb;
+  color: #ffffff;
 }
 body.admin-skin-p1 .admin-side-nav__item:hover {
   background: #173b5b !important;
@@ -197,7 +197,7 @@ body.admin-skin-p1 .admin-side-nav__submenu {
   border-left-color: #2c638d;
 }
 body.admin-skin-p1 .admin-side-nav__item--child {
-  color: #b9ccdc;
+  color: #ffffff;
 }
 
 /* ── Compact platform hierarchy ─────────────────────────────────────────── */
@@ -224,7 +224,7 @@ body.admin-skin-p1 .admin-side-nav__group--product-card {
 }
 body.admin-skin-p1 .admin-side-nav__group--product-card > .admin-side-nav__item--parent {
   padding: 10px 10px;
-  color: #eaf4fb;
+  color: #ffffff;
   font-weight: 700;
 }
 body.admin-skin-p1 .admin-side-nav__group--product-card > .admin-side-nav__item--parent:hover,
@@ -266,7 +266,7 @@ body.admin-skin-p1 .admin-side-nav__group--utility {
 }
 body.admin-skin-p1 .admin-side-nav__group--utility > .admin-side-nav__item--parent {
   padding: 10px;
-  color: #eaf4fb;
+  color: #ffffff;
   font-weight: 700;
 }
 body.admin-skin-p1 .admin-side-nav__group--utility .admin-side-nav__submenu {

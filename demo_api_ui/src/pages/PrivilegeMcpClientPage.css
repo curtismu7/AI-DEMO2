@@ -14,7 +14,7 @@
   display: flex;
   flex-direction: column;
   background: #1e1e1e;
-  color: #cccccc;
+  color: #ffffff;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: var(--font-size-base);
   overflow: hidden;
@@ -169,7 +169,7 @@
 .cur-input {
   width: 100%;
   background: #2a2a2a;
-  color: #ccc;
+  color: #ffffff;
   border: 1px solid #3c3c3c;
   border-radius: 4px;
   padding: 6px 8px;
@@ -190,10 +190,10 @@ select.cur-input { cursor: pointer; }
   padding: 8px 10px;
   border: 1px solid #3c3c3c;
   border-radius: 4px;
-  color: #ddd;
+  color: #ffffff;
 }
 
-.cur-mcp-instructions { color: #ddd; line-height: 1.45; }
+.cur-mcp-instructions { color: #ffffff; line-height: 1.45; }
 
 .cur-mcp-catalog-grid {
   display: grid;
@@ -208,7 +208,7 @@ select.cur-input { cursor: pointer; }
   border-radius: 4px;
 }
 
-.cur-mcp-catalog-grid h4 { margin: 0 0 8px; color: #ddd; }
+.cur-mcp-catalog-grid h4 { margin: 0 0 8px; color: #ffffff; }
 
 .cur-mcp-item {
   display: block;
@@ -216,7 +216,7 @@ select.cur-input { cursor: pointer; }
   margin: 3px 0;
   padding: 5px 7px;
   overflow: hidden;
-  color: #ddd;
+  color: #ffffff;
   text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -247,7 +247,7 @@ select.cur-input { cursor: pointer; }
   font-size: var(--font-size-body);
 }
 .cur-denial-facts dt { color: #8b949e; }
-.cur-denial-facts dd { margin: 0; color: #ddd; overflow-wrap: anywhere; }
+.cur-denial-facts dd { margin: 0; color: #ffffff; overflow-wrap: anywhere; }
 
 .cur-denial-note {
   margin: 0 0 10px;
@@ -266,7 +266,7 @@ select.cur-input { cursor: pointer; }
 .cur-denial-heading {
   margin: 0 0 6px;
   font-size: var(--font-size-body);
-  color: #ddd;
+  color: #ffffff;
 }
 .cur-denial-ok { color: #86efac; }
 .cur-denial-bad { color: #fca5a5; }
@@ -283,7 +283,7 @@ select.cur-input { cursor: pointer; }
   padding: 4px 0;
   font-size: var(--font-size-body);
 }
-.cur-denial-door { color: #ddd; font-family: var(--font-mono); }
+.cur-denial-door { color: #ffffff; font-family: var(--font-mono); }
 /* Why a door failed. Kept on one line so a long relay message cannot push the
    door name out of view; the full text is on the title attribute. */
 .cur-denial-probe-why {
@@ -300,7 +300,7 @@ select.cur-input { cursor: pointer; }
 .cur-console-heading {
   margin: 16px 0 6px;
   font-size: var(--font-size-md);
-  color: #ddd;
+  color: #ffffff;
 }
 .cur-console-list { display: flex; flex-direction: column; gap: 4px; }
 .cur-console-row {
@@ -314,7 +314,7 @@ select.cur-input { cursor: pointer; }
   font-size: var(--font-size-body);
 }
 .cur-console-row--active { border-color: #007acc; }
-.cur-console-name { color: #ddd; font-weight: 600; }
+.cur-console-name { color: #ffffff; font-weight: 600; }
 .cur-console-meta { color: #8b949e; margin-left: auto; overflow-wrap: anywhere; }
 .cur-console-current { color: #86efac; }
 .cur-console-tag {
@@ -331,7 +331,7 @@ select.cur-input { cursor: pointer; }
   border: 1px solid #3c3c3c;
   border-radius: var(--radius-sm);
   font-size: var(--font-size-body);
-  color: #ddd;
+  color: #ffffff;
 }
 .cur-console-policy summary { cursor: pointer; }
 
@@ -344,7 +344,7 @@ select.cur-input { cursor: pointer; }
 
 .cur-btn {
   background: #2a2a2a;
-  color: #ccc;
+  color: #ffffff;
   border: 1px solid #3c3c3c;
   border-radius: 4px;
   padding: 6px 12px;
@@ -399,7 +399,7 @@ select.cur-input { cursor: pointer; }
   flex-direction: column;
   gap: 8px;
   background: #1e1e1e;
-  color: #cccccc;
+  color: #ffffff;
   border-top: 1px solid #454545;
   box-shadow: 0 -8px 16px rgba(0, 0, 0, 0.22);
 }
@@ -631,7 +631,7 @@ select.cur-input { cursor: pointer; }
   cursor: pointer;
   transition: color 0.15s;
 }
-.cur-tab:hover { color: #ccc; }
+.cur-tab:hover { color: #ffffff; }
 .cur-ide .cur-tab--active { color: #fff; border: 2px solid #007acc; background: #1e1e1e; }
 
 /* Editor area */
@@ -701,7 +701,7 @@ select.cur-input { cursor: pointer; }
   max-height: 200px;
 }
 .cur-policy-decision { display: grid; grid-template-columns: auto auto; gap: 4px 8px; margin-top: 8px; padding: 8px; border: 1px solid #64748b; border-radius: 6px; font-size: var(--font-size-sm); }
-.cur-policy-decision span { grid-column: 1 / -1; color: #cbd5e1; }
+.cur-policy-decision span { grid-column: 1 / -1; color: #ffffff; }
 .cur-policy-decision--allowed { border-color: #22c55e; color: #86efac; }
 .cur-policy-decision--filtered,
 .cur-policy-decision--denied { border-color: #ef4444; color: #fca5a5; }
@@ -754,7 +754,7 @@ select.cur-input { cursor: pointer; }
 .cur-composer-input {
   flex: 1;
   background: #2a2a2a;
-  color: #ccc;
+  color: #ffffff;
   border: 1px solid #3c3c3c;
   border-radius: 6px;
   padding: 8px 12px;
@@ -795,7 +795,7 @@ select.cur-input { cursor: pointer; }
 .cur-tools-header h3 {
   margin: 0 0 16px;
   font-size: var(--font-size-md);
-  color: #ccc;
+  color: #ffffff;
   font-weight: 500;
 }
 
@@ -889,7 +889,7 @@ select.cur-input { cursor: pointer; }
   cursor: pointer;
 }
 .cur-terminal-tab:hover { color: #aaa; }
-.cur-terminal-tab--active { color: #ccc; border-bottom-color: #007acc; }
+.cur-terminal-tab--active { color: #ffffff; border-bottom-color: #007acc; }
 
 .cur-terminal-content {
   flex: 1;
@@ -1038,7 +1038,7 @@ select.cur-input { cursor: pointer; }
   text-align: center;
 }
 .cur-modal h2 { color: #f87171; margin: 0 0 12px; font-size: 18px; }
-.cur-modal p { color: #ccc; margin: 0 0 20px; line-height: 1.5; }
+.cur-modal p { color: #ffffff; margin: 0 0 20px; line-height: 1.5; }
 
 /* Responsive rules live at the end of this file (the max-width: 900px block).
    The former rules here squeezed the sidebar to 220px and then HID it entirely
@@ -1064,7 +1064,7 @@ select.cur-input { cursor: pointer; }
   border-radius: 4px;
   border: 1px solid #3c3c3c;
   background: #2a2a2a;
-  color: #ccc;
+  color: #ffffff;
   cursor: pointer;
   max-width: 190px;
 }
@@ -1083,7 +1083,7 @@ select.cur-input { cursor: pointer; }
   border-radius: 4px;
   border: 1px solid #3c3c3c;
   background: #2a2a2a;
-  color: #ccc;
+  color: #ffffff;
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
   text-decoration: none;
@@ -1197,7 +1197,7 @@ select.cur-input { cursor: pointer; }
 .cur-flow-box--token { border-color: #06b6d4; border-left: 3px solid #06b6d4; }
 
 .cur-flow-icon { font-size: var(--font-size-xl); margin-bottom: 2px; }
-.cur-flow-name { font-size: var(--font-size-sm); font-weight: 600; color: #e6edf3; line-height: 1.2; }
+.cur-flow-name { font-size: var(--font-size-sm); font-weight: 600; color: #ffffff; line-height: 1.2; }
 .cur-flow-sub { font-size: 12px; color: #8b949e; }
 
 .cur-flow-claims {
@@ -1215,7 +1215,7 @@ select.cur-input { cursor: pointer; }
 
 .cur-flow-claim { display: flex; gap: 4px; align-items: baseline; }
 .cur-flow-ck { color: #2f81f7; font-weight: 600; min-width: 50px; flex-shrink: 0; }
-.cur-flow-cv { color: #c9d1d9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px; }
+.cur-flow-cv { color: #ffffff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px; }
 .cur-flow-cv--hi { color: #bc8cff; }
 .cur-flow-cv--ok { color: #3fb950; }
 .cur-flow-cv--aud { color: #39d353; }
@@ -1482,9 +1482,9 @@ select.cur-input { cursor: pointer; }
 .cur-trace-label--error { color: #ff6b6b; }
 .cur-trace-label--oauth { color: #ffd93d; }
 .cur-trace-label--mcp { color: #c3aed6; }
-.cur-trace-label--config { color: #b2bec3; }
+.cur-trace-label--config { color: #ffffff; }
 .cur-trace-error { color: #ff6b6b; }
-.cur-trace-json { margin: 4px 0 4px 80px; color: #ddd; white-space: pre-wrap; word-break: break-all; font-weight: 700; }
+.cur-trace-json { margin: 4px 0 4px 80px; color: #ffffff; white-space: pre-wrap; word-break: break-all; font-weight: 700; }
 .cur-ide:not([data-cur-theme="light"]) .cur-terminal-log .cur-trace-label--relay-outbound { color: #7ec8e3; }
 .cur-ide:not([data-cur-theme="light"]) .cur-terminal-log .cur-trace-label--relay-success { color: #a8e6cf; }
 .cur-ide:not([data-cur-theme="light"]) .cur-terminal-log .cur-trace-label--relay-error,
@@ -1492,7 +1492,7 @@ select.cur-input { cursor: pointer; }
 .cur-ide:not([data-cur-theme="light"]) .cur-terminal-log .cur-trace-error { color: #ff6b6b; }
 .cur-ide:not([data-cur-theme="light"]) .cur-terminal-log .cur-trace-label--oauth { color: #ffd93d; }
 .cur-ide:not([data-cur-theme="light"]) .cur-terminal-log .cur-trace-label--mcp { color: #c3aed6; }
-.cur-ide:not([data-cur-theme="light"]) .cur-terminal-log .cur-trace-label--config { color: #b2bec3; }
+.cur-ide:not([data-cur-theme="light"]) .cur-terminal-log .cur-trace-label--config { color: #ffffff; }
 .cur-ide[data-cur-theme="light"] .cur-trace-log {
   background: #ffffff;
   color: #1e1e1e;
@@ -1564,7 +1564,7 @@ select.cur-input { cursor: pointer; }
 .cur-result-item-body {
   margin: 0;
   padding: 8px;
-  color: #ddd;
+  color: #ffffff;
   font-family: var(--font-mono);
   font-size: var(--font-size-lg);
   line-height: 1.6;
@@ -1876,7 +1876,7 @@ select.cur-input { cursor: pointer; }
   text-transform: uppercase;
 }
 .cur-rail__v {
-  color: #ddd;
+  color: #ffffff;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1886,7 +1886,7 @@ select.cur-input { cursor: pointer; }
 }
 .cur-rail__v select {
   background: #2a2a2a;
-  color: #ddd;
+  color: #ffffff;
   border: 1px solid #3c3c3c;
   border-radius: 4px;
   padding: 3px 6px;
@@ -1929,7 +1929,7 @@ select.cur-input { cursor: pointer; }
   gap: 6px;
   align-items: baseline;
 }
-.cur-rail__probe-door { color: #ccc; word-break: break-all; }
+.cur-rail__probe-door { color: #ffffff; word-break: break-all; }
 .cur-rail__probe--ok { color: #86efac; }
 .cur-rail__probe--bad { color: #fca5a5; }
 
@@ -1953,7 +1953,7 @@ select.cur-input { cursor: pointer; }
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
 }
-.cur-viewtoggle button:hover { background: #333; color: #ccc; }
+.cur-viewtoggle button:hover { background: #333; color: #ffffff; }
 .cur-viewtoggle button.is-active { background: #37373d; color: #fff; }
 /* JsonFormView ships its own light-ground styling, so it needs a light
    surface under it even while the rest of this page is dark. */
@@ -2013,7 +2013,7 @@ select.cur-input { cursor: pointer; }
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
 }
-.cur-viewmode button:hover { background: #333; color: #ccc; }
+.cur-viewmode button:hover { background: #333; color: #ffffff; }
 .cur-viewmode button.is-active { background: #37373d; color: #fff; }
 
 .cur-ide[data-cur-theme="light"] .cur-viewmode { border-color: #d0d0d0; }

@@ -18,7 +18,7 @@
 }
 .qfp-pill:hover,
 .qfp-pill--open { background: rgba(255, 255, 255, 0.18); }
-.qfp-pill--muted { opacity: 0.55; }
+.qfp-pill--muted { }
 
 .qfp-dropdown {
   position: fixed;

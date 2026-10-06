@@ -21,7 +21,7 @@
 .oauth-provider-toggle__option {
   padding: 6px 8px;
   border-radius: var(--radius-pill);
-  color: rgba(255, 255, 255, 0.7);
+  color: #ffffff;
   transition:
     background 0.15s ease,
     color 0.15s ease;

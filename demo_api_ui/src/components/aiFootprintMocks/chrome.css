@@ -106,7 +106,7 @@
   --act: #2c2c2c;
   --border: #e5e5e5;
   --fg: #333;
-  --dim: #6e6e6e;
+  --dim: #000000;
   --accent: #0078d4;
   --chat: #f8f8f8;
   --title: #dddddd;
@@ -146,7 +146,7 @@
   align-items: stretch;
   padding: 4px 0 8px;
   flex-shrink: 0;
-  color: rgba(255, 255, 255, 0.55);
+  color: #ffffff;
 }
 
 .afm-vcs-act__group {
@@ -404,7 +404,7 @@
 .afm-gallery[data-theme="dark"] .afm-claude-desktop,
 .afm-live-shell[data-theme="dark"] .afm-claude-desktop {
   --claude-ink: #e8e6e3;
-  --claude-muted: #b0aaa3;
+  --claude-muted: #ffffff;
   --claude-line: #45413d;
   --claude-paper: #201f1d;
   --claude-rail: #292724;
@@ -450,7 +450,7 @@
   --panel: #ececec;
   --border: #e5e5e5;
   --fg: #0d0d0d;
-  --muted: #667;
+  --muted: #000000;
   --accent: #10a37f;
 }
 
@@ -547,7 +547,7 @@
 }
 
 .afm-saas--zendesk { --brand: #03363d; --accent: #17494d; --rail: #fff; }
-.afm-saas--glean { --brand: #0b1f33; --accent: #3b82f6; --rail: #0f172a; color: #e2e8f0; background: #020617; border-color: #1e293b; }
+.afm-saas--glean { --brand: #0b1f33; --accent: #3b82f6; --rail: #0f172a; color: #ffffff; background: #020617; border-color: #1e293b; }
 .afm-saas--generic { --brand: #4f46e5; --accent: #6366f1; --rail: #fff; }
 
 .afm-saas-top {
@@ -629,7 +629,7 @@
   font-family: var(--font-mono);
   font-size: var(--font-size-2xs);
   background: #0d1117;
-  color: #c9d1d9;
+  color: #ffffff;
 }
 
 .afm-code--cursor { background: #1a1a1a; border-color: #2a2a2a; }
@@ -734,7 +734,7 @@
   height: 100%;
   min-height: 320px;
   background: #0b1220;
-  color: #e2e8f0;
+  color: #ffffff;
   border: 1px solid #1e293b;
   font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
   overflow: hidden;
@@ -877,7 +877,7 @@
 
 /* Tool calls carry a bullet, results the turnstile Claude Code indents them
    with. */
-.afm-cc-tool { display: block; color: #d8d2cc; }
+.afm-cc-tool { display: block; color: #ffffff; }
 .afm-cc-res {
   display: block;
   padding-left: 14px;

@@ -21,7 +21,7 @@
   font-weight: 600;
   border: 1px solid rgba(255, 255, 255, 0.35);
   background: none;
-  color: #e2e8f0;
+  color: #ffffff;
   border-radius: 5px;
   padding: 3px 10px;
   cursor: pointer;
@@ -97,7 +97,7 @@
 /* ── dark: app-controlled only. Never keyed to the OS setting. ───────── */
 :root[data-theme="dark"] .cvm-pop { background: var(--th-bg-card); border-color: var(--th-border); box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5); }
 :root[data-theme="dark"] .cvm-item:hover { background: var(--th-bg-inset); }
-:root[data-theme="dark"] .cvm-item-label { color: #eaf0fb; }
+:root[data-theme="dark"] .cvm-item-label { color: #ffffff; }
 :root[data-theme="dark"] .cvm-item-count { background: #10331f; color: #5fe39c; }
 :root[data-theme="dark"] .cvm-item-hint { color: #90a0c2; }
 :root[data-theme="dark"] .cvm-note { color: #90a0c2; border-top-color: #26304a; }

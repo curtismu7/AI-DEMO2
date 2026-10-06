@@ -27,7 +27,7 @@
 .rsm-title {
   font-size: 1rem;
   font-weight: 600;
-  color: #e2e8f0;
+  color: #ffffff;
 }
 
 .rsm-close-btn {
@@ -40,11 +40,11 @@
   border-radius: 4px;
 }
 
-.rsm-close-btn:hover { color: #e2e8f0; background: rgba(255,255,255,0.08); }
+.rsm-close-btn:hover { color: #ffffff; background: rgba(255,255,255,0.08); }
 
 .rsm-body {
   padding: 20px 18px;
-  color: #cbd5e1;
+  color: #ffffff;
   font-size: 0.9rem;
   line-height: 1.6;
 }

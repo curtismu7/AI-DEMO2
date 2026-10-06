@@ -6,7 +6,7 @@
   --rfp-bg: #f8fafc;
   --rfp-card: #ffffff;
   --rfp-text: #0f172a;
-  --rfp-text-dim: rgba(15, 23, 42, 0.65);
+  --rfp-text-dim: #0f172a;
   --rfp-border: #cbd5e1;
   --rfp-plane-wash: rgba(148, 163, 184, 0.05);
   --rfp-glow-a: rgba(124, 58, 237, 0.07);
@@ -22,7 +22,7 @@
   --rfp-bg: #0b1220;
   --rfp-card: #111a2c;
   --rfp-text: #e6edf7;
-  --rfp-text-dim: rgba(230, 237, 247, 0.6);
+  --rfp-text-dim: #ffffff;
   --rfp-border: #2c3a52;
   --rfp-plane-wash: rgba(148, 163, 184, 0.03);
   --rfp-glow-a: rgba(139, 92, 246, 0.16);
@@ -505,7 +505,7 @@
 /* ─── Dark-mode overrides for the shared DiagramControls toolbar ──────── */
 
 .rfp-dark .dc-ctrl-btn {
-  color: #e6edf7;
+  color: #ffffff;
 }
 .rfp-dark .dc-ctrl-btn--simulate,
 .rfp-dark .dc-ctrl-btn--pause,

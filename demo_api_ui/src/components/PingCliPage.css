@@ -118,7 +118,7 @@
 
 .pingcli-code-block {
   background: #0f172a;
-  color: #e2e8f0;
+  color: #ffffff;
   border-radius: 8px;
   border-left: 3px solid #38bdf8;
   padding: 14px 16px;
@@ -471,7 +471,7 @@
 .pingcli-prereqs-cmd {
   display: block;
   background: #0f172a;
-  color: #e2e8f0;
+  color: #ffffff;
   border-radius: 6px;
   padding: 10px 12px;
   font-family: var(--font-mono);
@@ -629,7 +629,7 @@
 
 .pingcli-terminal-body {
   background: #0f172a;
-  color: #e2e8f0;
+  color: #ffffff;
   font-family: var(--font-mono);
   font-size: var(--font-size-2xs);
   line-height: 1.7;
@@ -769,7 +769,7 @@
 .pingcli-editor-copy {
   margin-left: auto;
   background: #334155;
-  color: #e2e8f0;
+  color: #ffffff;
   border: 1px solid #475569;
   border-radius: 5px;
   padding: 4px 12px;
@@ -816,7 +816,7 @@
   font-family: var(--font-mono);
   font-size: var(--font-size-2xs);
   line-height: 1.7;
-  color: #e2e8f0;
+  color: #ffffff;
   background: transparent;
   white-space: pre;
   word-break: normal;

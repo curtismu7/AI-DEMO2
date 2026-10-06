@@ -93,17 +93,17 @@
    deep-amber ink and the skip link's white card are the only literals here
    that fail on a dark ground. ── */
 :root[data-theme="dark"] .dash-metric-detail__desc,
-:root[data-theme="dark"] .dash-metric-detail__label { color: #a5b4c8; }
+:root[data-theme="dark"] .dash-metric-detail__label { color: #ffffff; }
 :root[data-theme="dark"] .dash-metric-detail__value-box { background: #161f2c; }
 :root[data-theme="dark"] .dash-metric-detail__value,
-:root[data-theme="dark"] .dash-metric-detail__val { color: #e8eef7; }
+:root[data-theme="dark"] .dash-metric-detail__val { color: #ffffff; }
 :root[data-theme="dark"] .dash-metric-detail__row { border-bottom-color: #253244; }
 :root[data-theme="dark"] .dash-scope-injection-banner__text strong { color: #fbbf24; }
 :root[data-theme="dark"] .dash-scope-injection-banner__text span { color: #e0a145; }
 :root[data-theme="dark"] .dash-scope-injection-banner__close { color: #fbbf24; }
 :root[data-theme="dark"] .dash-skip-link {
   background: #111823;
-  color: #e8eef7;
+  color: #ffffff;
   border-color: #253244;
 }
 

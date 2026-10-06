@@ -53,7 +53,7 @@
 .customer-skin-p1 .ud-hero__greet,
 .customer-skin-p1 .ud-hero__greet em,
 .customer-skin-p1 .ud-hero__insight {
-  color: rgba(255, 255, 255, 0.90);
+  color: #ffffff;
 }
 
 /* Hero balance ── */
@@ -62,7 +62,7 @@
 }
 
 .customer-skin-p1 .ud-hero__balance-label {
-  color: rgba(255, 255, 255, 0.75);
+  color: #ffffff;
 }
 
 /* Hero sparkline bars ── */
@@ -72,7 +72,7 @@
 
 /* ── Hero stats row ────────────────────────────────────────────────────────── */
 .customer-skin-p1 .ud-stat__label {
-  color: rgba(255, 255, 255, 0.75);
+  color: #ffffff;
 }
 
 .customer-skin-p1 .ud-stat__value {
@@ -125,7 +125,7 @@
 /* ── Dark inspector rail (right rail in bottom layout) ─────────────────────── */
 .customer-skin-p1 .rd2-right-rail {
   background: #1a2233;
-  color: #e2e6ea;
+  color: #ffffff;
   border-radius: var(--csp-radius);
   padding: 1.25rem;
 }
@@ -140,7 +140,7 @@
 /* ── Token rail (float + middle layouts) ───────────────────────────────────── */
 .customer-skin-p1 .ud-token-rail {
   background: #1a2233;
-  color: #e2e6ea;
+  color: #ffffff;
 }
 
 .customer-skin-p1 .ud-token-rail .section {

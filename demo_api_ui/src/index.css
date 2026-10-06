@@ -304,8 +304,8 @@ textarea {
      them to a single "text" colour flattens the hierarchy. Values are
      the dominant literal each replaces, so adoption is a no-op in light. */
   --th-text-body: #374151;
-  --th-text-muted: #556070;
-  --th-text-faint: #94a3b8;
+  --th-text-muted: var(--th-text);
+  --th-text-faint: var(--th-text);
   --th-text-invert: #ffffff;
   --th-border: #dbe2ea;
   --th-border-strong: #c3cdd9;

@@ -63,7 +63,6 @@
 
 .reasoning-tool-desc {
   color: var(--ba-text, var(--th-text));
-  opacity: 0.8;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

@@ -214,34 +214,34 @@
 
 /* ── dark: app-controlled only. Never keyed to the OS setting. ───────── */
 :root[data-theme="dark"] .sdp { background: var(--th-bg-card); border-color: var(--th-border); }
-:root[data-theme="dark"] .sdp-title { color: #eaf0fb; }
-:root[data-theme="dark"] .sdp-lane { color: #cdd7ec; }
+:root[data-theme="dark"] .sdp-title { color: #ffffff; }
+:root[data-theme="dark"] .sdp-lane { color: #ffffff; }
 /* Matches the reel card: a gateway step names its lane in red and bold. */
 .sdp-lane--gateway,
 :root[data-theme="dark"] .sdp-lane--gateway {
   color: var(--th-status-error-text);
   font-weight: 700;
 }
-:root[data-theme="dark"] .sdp-status { background: var(--th-bg-inset); color: #cdd7ec; }
+:root[data-theme="dark"] .sdp-status { background: var(--th-bg-inset); color: #ffffff; }
 :root[data-theme="dark"] .sdp-status--done { background: #10331f; color: #5fe39c; }
 :root[data-theme="dark"] .sdp-status--active { background: #33280f; color: #ffce7a; }
 :root[data-theme="dark"] .sdp-status--denied,
 :root[data-theme="dark"] .sdp-status--error { background: #3a1717; color: #ff8a80; }
 :root[data-theme="dark"] .sdp-section-label { color: #90a0c2; }
-:root[data-theme="dark"] .sdp-narrative { color: #eaf0fb; }
+:root[data-theme="dark"] .sdp-narrative { color: #ffffff; }
 :root[data-theme="dark"] .sdp-kv-row dt { color: #90a0c2; }
-:root[data-theme="dark"] .sdp-kv-row dd { color: #eaf0fb; }
-:root[data-theme="dark"] .sdp-pre { background: var(--th-bg-page); color: #e2e8f0; }
+:root[data-theme="dark"] .sdp-kv-row dd { color: #ffffff; }
+:root[data-theme="dark"] .sdp-pre { background: var(--th-bg-page); color: #ffffff; }
 :root[data-theme="dark"] .sdp-ba-title { color: #90a0c2; }
 :root[data-theme="dark"] .sdp-ba-k { color: #90a0c2; }
-:root[data-theme="dark"] .sdp-ba-v { color: #eaf0fb; }
+:root[data-theme="dark"] .sdp-ba-v { color: #ffffff; }
 :root[data-theme="dark"] .sdp-ba-row--changed { background: #33280f; }
 :root[data-theme="dark"] .sdp-ba-row--changed .sdp-ba-k { color: #ffce7a; }
 :root[data-theme="dark"] .sdp-ba-row--changed .sdp-ba-v { color: #ffce7a; }
 :root[data-theme="dark"] .sdp-nochange { background: var(--th-bg-inset); color: #90a0c2; }
 :root[data-theme="dark"] .sdp-payload-title { color: #90a0c2; }
 :root[data-theme="dark"] .sdp-rfc { background: var(--th-bg-inset); color: #9ec1ff; }
-:root[data-theme="dark"] .sdp-inspect { background: var(--th-bg-card); border-color: var(--th-border); color: #cdd7ec; }
+:root[data-theme="dark"] .sdp-inspect { background: var(--th-bg-card); border-color: var(--th-border); color: #ffffff; }
 :root[data-theme="dark"] .sdp-inspect:hover { border-color: #9ec1ff; color: #9ec1ff; }
 
 /* Agent Gateway filter chain — the ordered stages behind the single Gateway hop.

@@ -60,7 +60,6 @@
 
 .adp-subtitle {
   font-size: var(--font-size-2xs);
-  opacity: 0.85;
   line-height: 1.2;
   overflow: hidden;
   text-overflow: ellipsis;

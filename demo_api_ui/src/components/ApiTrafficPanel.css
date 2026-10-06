@@ -385,7 +385,7 @@
 }
 .api-method-badge--TOKEN-INTRO {
   background: #312e81;
-  color: #c7d2fe;
+  color: #ffffff;
   min-width: 68px;
   font-size: var(--font-size-xs);
 }
@@ -413,7 +413,7 @@
 }
 .api-status-badge--net {
   background: #374151;
-  color: #d1d5db;
+  color: #ffffff;
 }
 .api-status-badge--tok {
   background: #1e1b4b;
@@ -721,7 +721,7 @@ pre.api-json {
   font-family: inherit;
 }
 .api-claims-td--value .api-claims-val {
-  color: #e5e7eb;
+  color: #ffffff;
   font-family: inherit;
   word-break: break-all;
 }

@@ -119,7 +119,6 @@
 }
 
 .pvs-tool-desc {
-  opacity: 0.6;
   font-size: var(--font-size-xs);
   line-height: 1.3;
 }
@@ -285,5 +284,5 @@
 .pvs--saas .pvs-call button {
   border-color: #33415e;
   background: #1e2a44;
-  color: #b9c8ea;
+  color: #ffffff;
 }

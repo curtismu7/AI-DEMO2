@@ -72,7 +72,7 @@
 .pvs-routing select { font: inherit; color: inherit; background: transparent; border: 1px solid color-mix(in srgb, currentColor 30%, transparent); border-radius: 4px; padding: 3px 6px; max-width: 100%; }
 .pvs-routing select:disabled { opacity: 0.5; }
 .pvs-tools { max-height: 35%; overflow: auto; }
-.pvs-note { opacity: 0.7; margin: 0; }
+.pvs-note { margin: 0; }
 .pvs-latest { max-height: 25%; overflow: auto; flex-shrink: 0; border-top: 1px solid color-mix(in srgb, currentColor 30%, transparent); font-size: var(--font-size-2xs); }
 .pvs-latest pre { margin: 2px 0; overflow-x: auto; }
 

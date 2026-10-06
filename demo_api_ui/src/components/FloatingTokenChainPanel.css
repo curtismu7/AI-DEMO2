@@ -56,7 +56,7 @@
   border: none;
   border-radius: 0.25rem;
   background: rgba(255, 255, 255, 0.12);
-  color: #cbd5e1;
+  color: #ffffff;
   font-size: 0.7rem;
   cursor: pointer;
   display: flex;
@@ -163,7 +163,7 @@
   top: 50%;
   transform: translateY(-50%);
   background: #1e293b;
-  color: #e2e8f0;
+  color: #ffffff;
   padding: 4px 10px;
   border-radius: 4px;
   font-size: 0.72rem;

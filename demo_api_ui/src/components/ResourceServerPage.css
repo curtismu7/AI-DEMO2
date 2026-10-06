@@ -97,7 +97,7 @@
 
 .rsp-subtitle {
   margin: 0;
-  color: rgba(255, 255, 255, 0.75);
+  color: #ffffff;
   font-size: 0.95rem;
 }
 
@@ -163,7 +163,7 @@
 
 .rsp-hero-label {
   font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: #ffffff;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 4px;
@@ -177,7 +177,7 @@
 
 .rsp-hero-count {
   font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: #ffffff;
 }
 
 /* Account cards */

@@ -126,14 +126,13 @@
 
 .cimd-subtitle {
   font-size: 0.72rem;
-  opacity: 0.8;
   margin: 0;
 }
 
 .cimd-close {
   background: transparent;
   border: none;
-  color: rgba(255, 255, 255, 0.8);
+  color: #ffffff;
   font-size: 1.2rem;
   cursor: pointer;
   padding: 0.1rem 0.3rem;
@@ -226,7 +225,7 @@
 /* ---------- Code block ---------- */
 .cimd-code {
   background: #0f172a;
-  color: #DDDDDD;
+  color: #ffffff;
   padding: 12px 16px;
   border-radius: 6px;
   overflow-x: auto;

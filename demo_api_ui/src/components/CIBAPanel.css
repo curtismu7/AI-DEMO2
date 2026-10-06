@@ -8,7 +8,7 @@
   font-size: 0.72rem;
   line-height: 1.45;
   background: #0f172a;
-  color: #DDDDDD;
+  color: #ffffff;
   padding: 12px 14px;
   border-radius: 8px;
   overflow: auto;
@@ -159,14 +159,13 @@
 
 .ciba-subtitle {
   font-size: 0.75rem;
-  opacity: 0.75;
   margin: 0;
 }
 
 .ciba-close {
   background: transparent;
   border: none;
-  color: rgba(255, 255, 255, 0.8);
+  color: #ffffff;
   font-size: 1.2rem;
   cursor: pointer;
   padding: 0.1rem 0.3rem;
@@ -196,7 +195,7 @@
 
 .ciba-badge--off {
   background: rgba(255, 255, 255, 0.2);
-  color: rgba(255, 255, 255, 0.85);
+  color: #ffffff;
 }
 
 /* ---------- Tabs ---------- */
@@ -285,7 +284,7 @@
 /* ---------- Code block ---------- */
 .ciba-code {
   background: #0f172a;
-  color: #DDDDDD;
+  color: #ffffff;
   font-size: 0.74rem;
   line-height: 1.6;
   padding: 0.9rem 1rem;

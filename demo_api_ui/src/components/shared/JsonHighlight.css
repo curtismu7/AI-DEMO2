@@ -9,9 +9,9 @@
 .jh-string { color: #15803d; }
 .jh-number { color: #b45309; }
 .jh-keyword { color: #8250df; font-weight: 600; }
-.jh-punct { color: #57606a; }
+.jh-punct { color: var(--th-text); }
 .jh-plain { color: inherit; }
-.jh-empty { color: #94a3b8; font-style: italic; }
+.jh-empty { color: var(--th-text); font-style: italic; }
 /* Bright red, not amber-on-amber: the old #92400e ink on the #fef3c7 wash was
    unreadable in the token-claims blocks ("look for this yellow text, you can
    not read it. Make bright red", 2026-08-10). */
@@ -25,9 +25,9 @@
 .jh-dark .jh-string { color: #7ee787; }
 .jh-dark .jh-number { color: #ffa657; }
 .jh-dark .jh-keyword { color: #d2a8ff; }
-.jh-dark .jh-punct { color: #8b949e; }
+.jh-dark .jh-punct { color: #ffffff; }
 .jh-dark .jh-plain { color: inherit; }
-.jh-dark .jh-empty { color: #8b949e; }
+.jh-dark .jh-empty { color: #ffffff; }
 .jh-dark .jh-focus { background: rgba(255, 82, 82, 0.18); color: #ff5252; }
 
 /* Critical fields in dark mode */
@@ -81,7 +81,7 @@
 .jh-dark .jh-copy {
   border-color: rgba(255, 255, 255, 0.2);
   background: rgba(255, 255, 255, 0.08);
-  color: #c9d1d9;
+  color: #ffffff;
 }
 
 .jh-dark .jh-copy:hover {

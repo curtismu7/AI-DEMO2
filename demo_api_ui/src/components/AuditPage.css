@@ -133,7 +133,7 @@
 
 body.admin-skin-p1 .audit-refresh-control,
 body.admin-skin-p1 .audit-last-updated {
-  color: rgba(255, 255, 255, 0.75);
+  color: #ffffff;
 }
 
 body.admin-skin-p1 .audit-refresh-select {
@@ -508,7 +508,7 @@ tr.audit-detail-row > td {
   font-size: 0.8rem;
   line-height: 1.5;
   background: #1e2433;
-  color: #e6edf3;
+  color: #ffffff;
   border-radius: 6px;
   padding: 12px 14px;
   overflow-x: auto;
