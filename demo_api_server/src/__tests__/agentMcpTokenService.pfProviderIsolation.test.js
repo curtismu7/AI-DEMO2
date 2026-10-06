@@ -75,8 +75,8 @@ describe('PingFederate provider isolation', () => {
     expect(events.every((event) => event.provenance === 'live-id-jag' && event.mode === 'id-jag')).toBe(true);
   });
 
-  test('rejects UC40 without a validated PF login before any exchange', async () => {
-    const req = { body: { useCaseId: 'enterprise-managed-mcp-authorization' }, session: { oauthType: 'user', oauthProvider: 'pingfederate', oauthTokens: { accessToken: 'user-token' } } };
+  test('rejects UC40 without a PF user session before any exchange', async () => {
+    const req = { body: { useCaseId: 'enterprise-managed-mcp-authorization' }, session: { oauthType: 'user', oauthProvider: 'pingfederate' } };
     await expect(resolveMcpAccessTokenWithEvents(req, 'get_account_balance')).rejects.toMatchObject({
       code: 'id_jag_login_required',
       loginTarget: '/pingfederate-id-jag/demo',
@@ -91,7 +91,14 @@ describe('PingFederate provider isolation', () => {
     expect(oauthService.performIdJagExchange).not.toHaveBeenCalled();
   });
 
-  test('rejects ordinary PF session when no live intent is present', () => {
+  test('rejects a PF session with no tokens and no live intent', () => {
     expect(() => __test.assertPfIdJagRunAllowed({ session: { oauthType: 'user', oauthProvider: 'pingfederate' } }, 'enterprise-managed-mcp-authorization')).toThrow(expect.objectContaining({ code: 'id_jag_login_required' }));
+  });
+
+  // Regression: an existing PF session used to be refused (forcing a second
+  // sign-in) unless it carried a fresh intent from the logout/login handoff.
+  test('reuses an existing PF session without a live intent', () => {
+    const session = { oauthType: 'user', oauthProvider: 'pingfederate', oauthTokens: { accessToken: 'user-token' } };
+    expect(() => __test.assertPfIdJagRunAllowed({ session }, 'enterprise-managed-mcp-authorization')).not.toThrow();
   });
 });

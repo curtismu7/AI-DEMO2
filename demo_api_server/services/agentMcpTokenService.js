@@ -124,6 +124,10 @@ function assertPfIdJagRunAllowed(req, useCaseId) {
   const code = sessionProvider !== 'pingfederate' || effectiveProvider !== 'pingfederate'
     ? 'id_jag_provider_required'
     : 'id_jag_login_required';
+  // An existing PingFederate user session is enough: the run reuses it rather
+  // than forcing a second sign-in. Provider agreement is already checked above.
+  const hasPfUserSession = session.oauthType === 'user' && !!(session.oauthTokens?.accessToken || session.oauthTokens?.refreshToken);
+  if (code === 'id_jag_login_required' && hasPfUserSession) return;
   const intent = session.idJagRunIntent;
   if (session.oauthType === 'user' && code === 'id_jag_login_required'
     && intent?.mode === 'live-id-jag' && intent.useCaseId === PF_ID_JAG_DEMO_USE_CASE

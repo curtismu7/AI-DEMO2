@@ -110,6 +110,7 @@ import AuthorizeFallbackListener from "./components/AuthorizeFallbackListener";
 import SessionReauthBanner from "./components/SessionReauthBanner";
 import PiFlowSignInModal from "./components/PiFlowSignInModal";
 import PingFederateDownModal from "./components/PingFederateDownModal";
+import PingFederateRequiredModal from "./components/PingFederateRequiredModal";
 import SportingGoodsAdminOps from "./components/SportingGoodsAdminOps";
 import SpinnerHost from "./components/shared/SpinnerHost";
 import AuthLoadingScreen from "./components/shared/AuthLoadingScreen";
@@ -690,6 +691,7 @@ function AppWithAuth() {
               />
               <PiFlowSignInModal />
               <PingFederateDownModal />
+              <PingFederateRequiredModal />
               {sessionReauth && (
                 <SessionReauthBanner
                   message={sessionReauth.message}

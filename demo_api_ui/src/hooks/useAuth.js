@@ -8,7 +8,7 @@ import { nrLog } from "../utils/nrLog";
 import bffAxios from '../services/bffAxios';
 import { notifyError } from '../utils/appToast';
 import { navigateWithOverlay } from '../utils/navigateWithOverlay';
-import { clearIdJagRunState, ID_JAG_USE_CASE_ID, ID_JAG_VALIDATED_CALLBACK_KEY, RUN_MODES } from '../utils/idJagRunMode';
+import { clearIdJagRunState, completeIdJagRunHandoff, ID_JAG_USE_CASE_ID, ID_JAG_VALIDATED_CALLBACK_KEY, RUN_MODES } from '../utils/idJagRunMode';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
 import { isNativeIdJagTrace } from '../services/tokenChainTrace/buildTraceSteps';
 
@@ -171,6 +171,16 @@ export function useAuth() {
           error.code = 'id_jag_provider_required';
           throw error;
         }
+        // An existing PingFederate session is reused: no intent, logout or second
+        // sign-in. The BFF run gate accepts it (assertPfIdJagRunAllowed).
+        const status = (await bffAxios.get('/api/auth/oauth/user/status').catch(() => null))?.data;
+        if (status?.authenticated === true && status.oauthProvider === 'pingfederate') {
+          completeIdJagRunHandoff({ restoreProvider: false });
+          window.dispatchEvent(new CustomEvent('banking-agent-prefill', { detail: {
+            message: intent.message, autoSend: true, useCaseId: ID_JAG_USE_CASE_ID, mode: RUN_MODES.LIVE_ID_JAG,
+          } }));
+          return;
+        }
         await bffAxios.post('/api/auth/oauth/user/id-jag/intent', intent);
         intentPosted = true;
         const response = await fetch('/api/auth/logout?id_jag_handoff=1', {
@@ -185,7 +195,7 @@ export function useAuth() {
         if (intentPosted) await bffAxios.post('/api/auth/oauth/user/id-jag/cancel').catch(() => {});
         clearIdJagRunState();
         if (error.code === 'id_jag_provider_required') {
-          window.dispatchEvent(new Event('id-jag-provider-required'));
+          window.dispatchEvent(new CustomEvent('id-jag-provider-required', { detail: { returnTo: intent.returnTo } }));
         }
         notifyError(`Could not start PingFederate ID-JAG login: ${error.message}`);
       }
