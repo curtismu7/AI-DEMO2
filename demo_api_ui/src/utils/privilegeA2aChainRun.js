@@ -58,6 +58,8 @@ export function chainHopToTokenEvent(payload, index, useCaseId = PRIVILEGE_A2A_C
     // (already masked), and how far into the run the agent reported this.
     wire: payload.wire && typeof payload.wire === 'object' ? payload.wire : undefined,
     credential: str(payload.credential) || undefined,
+    // On a refused call the detail is the reason; this is the message that was sent.
+    message: str(payload.message) || undefined,
     at: str(payload.at) || undefined,
     useCaseId,
   };

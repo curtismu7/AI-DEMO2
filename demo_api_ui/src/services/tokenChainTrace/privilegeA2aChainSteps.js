@@ -218,9 +218,14 @@ export function buildPrivilegeA2aChainSteps(tokenEvents) {
     const to = event.toLabel || chainActor(event.to);
     const laneNames = { [chainLane(event.from)]: event.fromLabel, [chainLane(event.to)]: event.toLabel };
     const refused = event.status === "error";
-    const origin = refused ? announced(event, index) : event;
+    // A refusal that was announced first (the main agent's own call) takes its
+    // request from the announcement. One reported after the fact (the middle
+    // agent's call) carries its own request, and the message it sent beside the
+    // reason.
+    const announcement = refused ? announced(event, index) : null;
+    const origin = announcement || event;
     // What was said on this hop: the message of a call, or the text of a reply.
-    const said = (event.kind === "card" ? "" : (refused ? origin?.detail : event.detail)) || "";
+    const said = (event.kind === "card" ? "" : (refused ? (announcement ? announcement.detail : event.message) : event.detail)) || "";
     const saidRow = (label) => (said ? [[label, said]] : []);
     const timing = typeof event.elapsedMs === "number" ? [["Round trip", `${event.elapsedMs} ms`]] : [];
     // Protocol facts the agent reported for this exchange, and when it reported them.

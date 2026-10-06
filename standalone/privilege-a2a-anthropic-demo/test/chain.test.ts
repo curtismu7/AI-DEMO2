@@ -206,3 +206,47 @@ test('a refusal reports its HTTP status and JSON-RPC error code', async () => {
 
   assert.deepEqual(events.at(-1)?.wire, { status: 400, errorCode: -32600 });
 });
+
+test('a middle agent that reports its own hop is passed through: its card, request, reply and refusal', async () => {
+  const hopCard = { name: 'Refunds Specialist', description: '', protocolVersion: '0.3.0', url: '', preferredTransport: 'JSONRPC', skills: ['Refund'], version: '', capabilities: [], inputModes: [], outputModes: [], skillDetails: [], security: [] };
+  const { events, cards } = await run(async () => jsonResponse(200, {
+    jsonrpc: '2.0',
+    result: {
+      parts: [{ kind: 'text', text: 'Refund approved' }],
+      metadata: { hops: [
+        { kind: 'card', from: 'langchainagent', to: 'refunds', status: 'ok', detail: 'Agent Card for Refunds Specialist', card: hopCard, request: 'GET https://gw/refunds/card', response: 'HTTP 200', wire: { status: 200 }, credential: 'sk-orion-b164… (masked)' },
+        { from: 'langchainagent', to: 'refunds', status: 'ok', detail: '', elapsedMs: 42, message: 'Refund order 7', reply: 'Refund approved', request: 'POST https://gw/refunds/a2a/jsonrpc', response: 'HTTP 200', credential: 'sk-orion-b164… (masked)', wire: { rpcId: 'rpc-2', messageId: 'msg-2', status: 200, replyMessageId: 'reply-2', kind: 'message', role: 'agent' } },
+      ] },
+    },
+  }));
+
+  // `run` returns card events apart: the main agent's own, then the middle agent's.
+  assert.deepEqual(path(cards), ['card:main>langchainagent', 'card:langchainagent>refunds']);
+  assert.equal(cards[1].card?.name, 'Refunds Specialist');
+  assert.equal(cards[1].request, 'GET https://gw/refunds/card');
+  assert.deepEqual(path(events), ['delegate:main>langchainagent', 'delegate:langchainagent>refunds', 'result:refunds>langchainagent', 'result:langchainagent>main']);
+  assert.deepEqual(events[1].wire, { rpcId: 'rpc-2', messageId: 'msg-2' });
+  assert.equal(events[1].request, 'POST https://gw/refunds/a2a/jsonrpc');
+  assert.equal(events[1].credential, 'sk-orion-b164… (masked)');
+  assert.deepEqual(events[2].wire, { status: 200, rpcId: 'rpc-2', messageId: 'reply-2', kind: 'message', role: 'agent' });
+  assert.equal(events[2].response, 'HTTP 200');
+});
+
+test('a refused second hop reports the message that was sent as well as the reason', async () => {
+  const { events, cards } = await run(async () => jsonResponse(502, {
+    jsonrpc: '2.0',
+    error: { code: -32003, message: 'Delegation failed', data: { hops: [
+      { kind: 'card', from: 'langchainagent', to: 'restricted', status: 'unavailable', detail: 'No Agent Card returned (HTTP 403)', wire: { status: 403 } },
+      { from: 'langchainagent', to: 'restricted', status: 'refused', detail: 'restricted refused (403): Forbidden', message: 'Refund order 7', request: 'POST https://gw/restricted', response: 'HTTP 403', wire: { rpcId: 'rpc-3', messageId: 'msg-3', status: 403 } },
+    ] } },
+  }));
+
+  const card = cards.find(event => event.to === 'restricted');
+  assert.equal(card?.card, undefined);
+  assert.match(card?.detail ?? '', /HTTP 403/);
+  const refusal = events.at(-1);
+  assert.equal(refusal?.kind, 'error');
+  assert.equal(refusal?.message, 'Refund order 7');
+  assert.equal(refusal?.request, 'POST https://gw/restricted');
+  assert.deepEqual(refusal?.wire, { status: 403, rpcId: 'rpc-3', messageId: 'msg-3' });
+});
