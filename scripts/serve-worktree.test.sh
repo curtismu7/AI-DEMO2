@@ -45,8 +45,9 @@ if [[ "\$1" == "inspect" ]]; then
       # The UI has two mounts and they are reported separately: /app and the
       # /app/src it actually serves from.
       case "\$*" in
-        *"/app/src"*) echo "\$src_root/demo_api_ui/src" ;;
-        *)            echo "\$root/demo_api_ui" ;;
+        # STUB_UI_BUILT=1: the built-bundle UI has no source mounts at all.
+        *"/app/src"*) [[ "\${STUB_UI_BUILT:-0}" == "1" ]] || echo "\$src_root/demo_api_ui/src" ;;
+        *)            [[ "\${STUB_UI_BUILT:-0}" == "1" ]] || echo "\$root/demo_api_ui" ;;
       esac ;;
   esac
   exit 0
@@ -139,6 +140,15 @@ teardown
 setup
 (unset LOKI_URL; cd "$MAIN" && STUB_RECREATE_TAKES=1 STUB_LOKI_RUNNING=1 bash "$SCRIPT" "$TARGET" >/dev/null 2>&1)
 check "leaves LOKI_URL to the compose default when loki is running" "$(cat "$ROOT/loki-url-seen" 2>/dev/null || echo missing)" "unset"
+teardown
+
+# --- 6. built-bundle UI: nothing to move, and the recreate would flip it to dev --
+setup
+out="$(cd "$MAIN" && STUB_UI_BUILT=1 STUB_RECREATE_TAKES=1 bash "$SCRIPT" "$TARGET" 2>&1)"; rc=$?
+check "refuses when ui runs the built bundle" "$rc" "1"
+case "$out" in *"ui:mode dev"*) ok "tells the user how to get a source-mounted ui back" ;;
+               *) bad "tells the user how to get a source-mounted ui back" ;; esac
+check "does not recreate anything" "$(cat "$ROOT/loki-url-seen" 2>/dev/null || echo untouched)" "untouched"
 teardown
 
 echo

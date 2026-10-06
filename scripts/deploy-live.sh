@@ -173,8 +173,26 @@ is_unmanaged_by_run_docker() { case "$UNMANAGED_BY_RUN_DOCKER" in *" $1 "*) retu
 
 # Returns non-zero, and schedules nothing, for a service run-docker.sh cannot
 # take — the ONE choke point, so a future caller cannot reintroduce the abort.
+# `npm run ui:mode built` runs ui as an nginx image with the source baked in. A restart
+# (or a run-docker.sh build, which re-applies the dev override) would keep serving the
+# old code or flip it back to the dev server — so say what to do instead of scheduling it.
+ui_runs_built_bundle() {
+  docker inspect ai-demo-ui >/dev/null 2>&1 || return 1
+  ! docker inspect ai-demo-ui --format '{{range .Mounts}}{{.Destination}} {{end}}' 2>/dev/null | tr ' ' '\n' | grep -qx '/app'
+}
+UI_BUILT_NOTED=0
+skip_built_ui() {
+  [ "$1" = "ui" ] && ui_runs_built_bundle || return 1
+  if [ "$UI_BUILT_NOTED" = 0 ]; then
+    UI_BUILT_NOTED=1
+    note "ui runs the BUILT bundle — a restart would keep serving the old code. Rebuild it: npm run ui:mode built"
+  fi
+  return 0
+}
+
 add_restart() {
   [ -z "${CURRENT_SERVICE:-}" ] || [ "$1" = "$CURRENT_SERVICE" ] || return 0
+  skip_built_ui "$1" && return 0
   if is_unmanaged_by_run_docker "$1"; then
     note "$1 needs recreating but run-docker.sh does not manage it — do it directly: docker compose up -d $1"
     return 1
@@ -182,7 +200,7 @@ add_restart() {
   case " $RESTART_SET " in *" $1 "*) ;; *) RESTART_SET="$RESTART_SET $1" ;; esac
   return 0
 }
-add_build()   { [ -z "${CURRENT_SERVICE:-}" ] || [ "$1" = "$CURRENT_SERVICE" ] || return 0; case " $BUILD_SET "   in *" $1 "*) ;; *) BUILD_SET="$BUILD_SET $1"   ;; esac; }
+add_build()   { [ -z "${CURRENT_SERVICE:-}" ] || [ "$1" = "$CURRENT_SERVICE" ] || return 0; skip_built_ui "$1" && return 0; case " $BUILD_SET "   in *" $1 "*) ;; *) BUILD_SET="$BUILD_SET $1"   ;; esac; }
 note()        { NOTES="${NOTES}[deploy-live] note: $1"$'\n'; }
 
 UNINITIALIZED_FILE="$(mktemp)"

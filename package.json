@@ -41,6 +41,7 @@
     "sync:status": "bash scripts/sync-status.sh",
     "sync:unblock": "bash scripts/park-main-edits.sh",
     "serve:worktree": "bash scripts/serve-worktree.sh",
+    "ui:mode": "bash scripts/ui-mode.sh",
     "stack:generation": "bash scripts/stack-generation.sh",
     "stack:stopped": "bash scripts/stack-stopped.sh",
     "topology:verify:live": "bash scripts/topology-verify.sh && cd demo_api_server && npm run verify:scopes -- --manifest-diff",

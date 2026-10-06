@@ -44,6 +44,7 @@ grep -q 'is_unmanaged_by_run_docker' <(sed -n "${use_line},\$p" "$SCRIPT" | head
 eval "$(sed -n '/^UNMANAGED_BY_RUN_DOCKER=/p; /^is_unmanaged_by_run_docker()/p' "$SCRIPT")"
 NOTES=""
 note() { NOTES="${NOTES}$1"$'\n'; }
+skip_built_ui() { return 1; }   # not under test here — see deploy-live.builtUi.test.sh
 
 # Bound the extraction. On the pre-guard ONE-LINER form this awk range never
 # sees its closing "^}" and swallows the rest of the file, which then fails on

@@ -127,6 +127,15 @@ for d in demo_api_server demo_api_ui; do
   [[ -d "$target/$d" ]] || { echo "error: $target has no $d/ — not a checkout of this repo" >&2; exit 1; }
 done
 
+# The built-bundle UI (`npm run ui:mode built`) has no source mount to move, and the
+# recreate below uses the dev override — it would flip `ui` back to the dev server
+# behind the user's back. Say so instead.
+if docker inspect "$UI_CONTAINER" >/dev/null 2>&1 && [[ -z "$(mount_source "$UI_CONTAINER" /app)" ]]; then
+  echo "error: ui is running the built bundle (no source mount), so there is nothing to serve from a worktree." >&2
+  echo "       Run: npm run ui:mode dev   then retry." >&2
+  exit 1
+fi
+
 if [[ "$target" == "$MAIN" ]]; then
   echo "handing the stack back to the main checkout: $MAIN"
   unset WORKTREE_SRC_ROOT || true
