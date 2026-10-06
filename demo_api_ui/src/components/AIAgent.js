@@ -8549,12 +8549,18 @@ export default function BankingAgent({
             [
               `${stepLabel}`,
               `Intent binding \`permit\` → ${status ?? "?"} ${verdict} ${attackSimVerdictNote(verdict)}`.trim(),
+              // The step title promises PERMIT; say so plainly when the check did not
+              // deliver it, instead of printing DENY under a PERMIT title.
+              verdict === "PERMIT"
+                ? null
+                : "Expected PERMIT, but the check did not return one — the intent was not verified. The denial below is real (the gateway/Authorize answered), not part of the simulation.",
               reason ? reason : null,
-              // Without live:true the route runs the offline RAR simulator; the
-              // real PingOne PAR push happens only on the full intent-binding page.
+              // Without live:true the route runs the RAR check through the demo gateway
+              // (real token exchange + gateway call) but skips the PingOne PAR push,
+              // which happens only on the full intent-binding page.
               data?.live === true
                 ? null
-                : "Simulated: an offline RAR check, not the live PingOne PAR push. Switch this step to Full page for the real RFC 9126 request.",
+                : "Simulated: the RAR check runs through the demo gateway without the live PingOne PAR push. Switch this step to Full page for the real RFC 9126 request.",
             ]
               .filter(Boolean)
               .join("\n"),

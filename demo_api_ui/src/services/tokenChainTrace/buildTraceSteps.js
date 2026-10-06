@@ -4,6 +4,7 @@
 import { buildPrivilegeA2aChainSteps } from "./privilegeA2aChainSteps";
 import { EDU } from "../../components/education/educationIds";
 import { isPause, pauseObligationKind } from "./pauseObligation";
+import { extractDenyDetail } from "./denyDetail";
 import {
   SPIFFE_BRIDGE_EVENT_IDS,
   SPIFFE_BRIDGE_TRACE_KIND,
@@ -1582,8 +1583,10 @@ export function buildTraceSteps(trace) {
   // (rar_amount_exceeded / rar_unexpected_deny) already feed the
   // intent-binding step above and must not double-report here.
   const simGwDeny = (tokenEvents || []).find(
-    (e) => e && e.id === "sim-gateway-deny"
-      && e.error !== "rar_amount_exceeded" && e.error !== "rar_unexpected_deny",
+    (e) => e && ((e.id === "sim-gateway-deny"
+      && e.error !== "rar_amount_exceeded" && e.error !== "rar_unexpected_deny")
+      // UC18: the burst call the limiter refused is this hop's deny.
+      || (/^sim-burst-/.test(e.id || "") && e.error === "rate_limited")),
   );
   // A gateway deny can also reach the trace only as a gw-filter-chain event with
   // status "deny" and no gateway_policy_denied phase: live UC31 (Miami under the
@@ -1868,6 +1871,11 @@ export function buildTraceSteps(trace) {
   return steps.map((step, index) => ({
     ...step,
     num: index + 1,
+    // One shared point for every failing hop: the deny reason is shown first.
+    ...(() => {
+      const denyDetail = extractDenyDetail(step, trace);
+      return denyDetail ? { detail: { ...step.detail, denyDetail } } : {};
+    })(),
     ...(mockIdJag && step.status === "notinpath" && !/mock|replay/i.test(step.detail?.narrative || "")
       ? { detail: { ...step.detail, narrative: "Not part of this mock replay; no live request was made." } }
       : {}),

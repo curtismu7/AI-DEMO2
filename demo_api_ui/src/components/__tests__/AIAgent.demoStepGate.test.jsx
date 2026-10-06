@@ -313,9 +313,19 @@ describe("UC14b quick result says when it is simulated", () => {
     await runQuickResult();
 
     await waitFor(() => {
-      expect(document.body.textContent).toContain("Simulated: an offline RAR check");
+      expect(document.body.textContent).toContain("Simulated: the RAR check runs through the demo gateway");
     });
     expect(apiPost).toHaveBeenCalledWith("/api/demo/intent-binding/run", expect.objectContaining({ action: "permit" }));
+  });
+
+  it("says PERMIT was expected when the permit check is denied", async () => {
+    apiPost.mockResolvedValue({ data: { status: 403, errorCode: "insufficient_scope", live: false, tokenChainEvents: [] } });
+    renderSignedOut();
+    await runQuickResult();
+
+    await waitFor(() => {
+      expect(document.body.textContent).toContain("Expected PERMIT, but the check did not return one");
+    });
   });
 
   it("does not call a live run simulated", async () => {
@@ -326,7 +336,7 @@ describe("UC14b quick result says when it is simulated", () => {
     await waitFor(() => {
       expect(document.body.textContent).toContain("Intent binding");
     });
-    expect(document.body.textContent).not.toContain("Simulated: an offline RAR check");
+    expect(document.body.textContent).not.toContain("Simulated: the RAR check runs through the demo gateway");
   });
 });
 

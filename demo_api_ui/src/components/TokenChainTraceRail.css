@@ -270,6 +270,19 @@
   color: var(--th-text-muted); margin: 10px 0 4px; font-weight: 700;
 }
 .tctr-narrative { margin: 0 0 4px; }
+/* Deny reason, first thing in a failed step. Warning ink on warning ground. */
+.tctr-deny {
+  margin: 0 0 8px; padding: 8px 10px; border-radius: 6px;
+  background: var(--th-status-warning-bg); border: 1px solid var(--th-status-warning-border);
+  color: var(--th-status-warning-text); font-size: var(--font-size-sm);
+}
+.tctr-deny-head {
+  font-size: var(--font-size-3xs); font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--th-status-warning-text); margin-bottom: 4px;
+}
+.tctr-deny-rows { display: grid; grid-template-columns: max-content 1fr; gap: 3px 10px; margin: 0; }
+.tctr-deny-rows dt { font-weight: 700; color: var(--th-status-warning-text); }
+.tctr-deny-rows dd { margin: 0; font-weight: 600; color: var(--th-status-warning-text); overflow-wrap: anywhere; }
 .tctr-why {
   margin: 0 0 8px; padding: 8px 10px; border-radius: 6px;
   background: #eff6ff; border: 1px solid #bfdbfe; color: #1e3a8a; font-size: var(--font-size-sm);
