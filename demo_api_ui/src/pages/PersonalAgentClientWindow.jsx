@@ -87,7 +87,7 @@ export default function PersonalAgentClientWindow() {
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {/* Live badge bar */}
-      <div style={{ background: 'rgba(34,197,94,0.1)', borderBottom: '1px solid rgba(34,197,94,0.2)', padding: '4px 16px', display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#22c55e', flexShrink: 0 }}>
+      <div style={{ background: 'rgba(34,197,94,0.1)', borderBottom: '1px solid rgba(34,197,94,0.2)', padding: '4px 16px', display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--th-status-success-text)', flexShrink: 0 }}>
         <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', animation: 'blink 1.5s infinite' }} />
         Live — token events streaming to main window
         <style>{`@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}`}</style>

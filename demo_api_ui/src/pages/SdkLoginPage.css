@@ -61,8 +61,8 @@
 
 .sdk-btn-primary {
   color: var(--sdk-on-blue, var(--th-text-on-emphasis));
-  background: var(--sdk-blue, var(--th-bg-emphasis));
-  border: 1px solid var(--sdk-blue, var(--th-bg-emphasis));
+  background: var(--sdk-fill, var(--th-bg-emphasis));
+  border: 1px solid var(--sdk-fill, var(--th-bg-emphasis));
 }
 
 .sdk-btn-ghost {
@@ -92,4 +92,20 @@
 
 .sdk-signin-error p {
   margin: 0 0 8px;
+}
+
+/* The page's own light/dark toggle owns its palette; keep nano headings, code and
+   links on that palette instead of the app theme (white-on-white / pink-on-white). */
+.end-user-nano .sdk-login-root h1,
+.end-user-nano .sdk-login-root h2,
+.end-user-nano .sdk-login-root h3,
+.end-user-nano .sdk-login-root h4,
+.end-user-nano .sdk-login-root h5,
+.end-user-nano .sdk-login-root h6,
+.end-user-nano .sdk-login-root code {
+  color: var(--sdk-text);
+}
+
+.end-user-nano .sdk-login-root a {
+  color: var(--sdk-blue);
 }

@@ -9,7 +9,7 @@ const stages = [
   {
     label: 'User Login',
     badge: 'Full user permissions',
-    color: '#3b82f6',
+    color: '#1d4ed8',
     bgColor: '#dbeafe',
     borderColor: '#93c5fd',
     scopes: [
@@ -25,7 +25,7 @@ const stages = [
   {
     label: 'Agent Exchange',
     badge: 'Agent-scoped subset',
-    color: '#10b981',
+    color: '#047857',
     bgColor: '#d1fae5',
     borderColor: '#6ee7b7',
     scopes: [
@@ -37,7 +37,7 @@ const stages = [
   {
     label: 'MCP Tool Call',
     badge: 'Single tool scope',
-    color: '#f59e0b',
+    color: '#b45309',
     bgColor: '#fef3c7',
     borderColor: '#fbbf24',
     scopes: [
@@ -111,7 +111,7 @@ const scopePillStyle = (kept) => ({
   borderRadius: '12px',
   margin: '3px 4px 3px 0',
   background: kept ? '#e0f2fe' : '#f3f4f6',
-  color: kept ? '#0369a1' : '#9ca3af',
+  color: kept ? '#0369a1' : '#4b5563',
   textDecoration: kept ? 'none' : 'line-through',
   border: kept ? '1px solid #7dd3fc' : '1px solid #d1d5db',
 });

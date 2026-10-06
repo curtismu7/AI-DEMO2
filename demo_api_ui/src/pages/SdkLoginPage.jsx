@@ -29,7 +29,7 @@ const PALETTES = {
   dark: {
     isDark: true,
     bg: "#0b1220", panel: "#111a2e", panel2: "#0e1626", border: "#1e2c47",
-    text: "#e6edf7", muted: "#93a4c0", blue: "#2f81f7", code: "#0a1322",
+    text: "#e6edf7", muted: "#93a4c0", blue: "#2f81f7", fill: "#1f6feb", code: "#0a1322",
     red: "#f85149", redText: "#ff7b72", green: "#5fd07a",
     tagOut: "rgba(147,164,192,.12)", tagIn: "rgba(46,160,67,.14)", tagRev: "rgba(248,81,73,.12)",
     tagInB: "rgba(46,160,67,.35)", tagRevB: "rgba(248,81,73,.35)",
@@ -39,7 +39,7 @@ const PALETTES = {
   light: {
     isDark: false,
     bg: "#f6f8fc", panel: "#ffffff", panel2: "#eef2f9", border: "#d9e1ee",
-    text: "#0e1626", muted: "#5a6b85", blue: "#2f6fe0", code: "#f4f7fc",
+    text: "#0e1626", muted: "#5a6b85", blue: "#2358c9", fill: "#2358c9", code: "#f4f7fc",
     red: "#d23b34", redText: "#c5302a", green: "#1a7f37",
     tagOut: "rgba(90,107,133,.10)", tagIn: "rgba(26,127,55,.12)", tagRev: "rgba(210,59,52,.10)",
     tagInB: "rgba(26,127,55,.35)", tagRevB: "rgba(210,59,52,.35)",
@@ -75,7 +75,7 @@ function makeStyles(C) {
     row: { display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" },
     btn: { font: "inherit", fontWeight: 600, borderRadius: 8, padding: "10px 18px", cursor: "pointer",
       border: "1px solid transparent" },
-    btnPrimary: { background: C.blue, color: "#fff" },
+    btnPrimary: { background: C.fill, color: "#fff" },
     btnGhost: { background: "transparent", color: C.text, borderColor: C.border },
     btnDanger: { background: "transparent", color: C.redText, borderColor: C.tagRevB },
     note: { fontSize: 12, color: C.muted, marginTop: 10 },
@@ -429,6 +429,7 @@ export default function SdkLoginPage() {
 
   return (
     <div
+      className="sdk-login-root"
       style={{
         ...styles.page,
         "--sdk-panel": C.panel,
@@ -437,6 +438,7 @@ export default function SdkLoginPage() {
         "--sdk-muted": C.muted,
         "--sdk-border": C.border,
         "--sdk-blue": C.blue,
+        "--sdk-fill": C.fill,
         "--sdk-on-blue": "#fff",
         "--sdk-red-text": C.redText,
         "--sdk-error-bg": C.bannerErrBg,
@@ -630,7 +632,7 @@ export default function SdkLoginPage() {
                       // Full `border` (not `styles.btnGhost`'s `borderColor`) on both
                       // branches — mixing shorthand/longhand across a toggled style
                       // triggers React's "removing a style property" DOM warning.
-                      style={{ ...styles.btn, background: active ? C.blue : "transparent", color: active ? "#fff" : C.text, border: active ? "1px solid transparent" : `1px solid ${C.border}` }}
+                      style={{ ...styles.btn, background: active ? C.fill : "transparent", color: active ? "#fff" : C.text, border: active ? "1px solid transparent" : `1px solid ${C.border}` }}
                       onClick={() => lifecycleExercise(label)}
                     >
                       {label}
@@ -653,7 +655,7 @@ export default function SdkLoginPage() {
                           <button
                             key={key}
                             type="button"
-                            style={{ ...styles.btn, padding: '6px 12px', fontSize: 12.5, background: active ? C.blue : "transparent", color: active ? "#fff" : C.text, border: active ? "1px solid transparent" : `1px solid ${C.border}` }}
+                            style={{ ...styles.btn, padding: '6px 12px', fontSize: 12.5, background: active ? C.fill : "transparent", color: active ? "#fff" : C.text, border: active ? "1px solid transparent" : `1px solid ${C.border}` }}
                             onClick={() => setInspectTokenType(key)}
                           >
                             {label}

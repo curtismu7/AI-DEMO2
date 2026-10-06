@@ -29,9 +29,9 @@ export default function PingOneSetupGuidePage() {
   };
 
   const cardStyle = {
-    background: 'white',
+    background: 'var(--th-bg-card)',
     borderRadius: '0.5rem',
-    border: '1px solid #e5e7eb',
+    border: '1px solid var(--th-border)',
     padding: '1.25rem 1.5rem',
     marginBottom: '1.25rem',
   };
@@ -43,28 +43,28 @@ export default function PingOneSetupGuidePage() {
     fontSize: '0.875rem',
     fontWeight: 600,
     borderRadius: '0.375rem',
-    border: '1px solid #cbd5e1',
-    background: '#f8fafc',
+    border: '1px solid var(--th-border)',
+    background: 'var(--th-bg-inset)',
     cursor: 'pointer',
-    color: '#1e293b',
+    color: 'var(--th-text)',
   };
 
   const tableStyle = { width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' };
-  const thtd = { border: '1px solid #e5e7eb', padding: '0.5rem 0.65rem', textAlign: 'left', verticalAlign: 'top' };
+  const thtd = { border: '1px solid var(--th-border)', padding: '0.5rem 0.65rem', textAlign: 'left', verticalAlign: 'top' };
   const codeBlock = {
     display: 'block',
     margin: '0.5rem 0 0 0',
     padding: '0.65rem 0.75rem',
-    background: '#f1f5f9',
+    background: 'var(--th-bg-inset)',
     borderRadius: '6px',
     fontSize: '0.8125rem',
     overflow: 'auto',
-    border: '1px solid #e2e8f0',
+    border: '1px solid var(--th-border)',
     fontFamily: 'inherit',
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--th-bg-page)' }}>
       <div style={headerStyle}>
         <div className="container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
           <div>
@@ -81,7 +81,7 @@ export default function PingOneSetupGuidePage() {
               style={{
                 display: 'inline-block',
                 background: 'white',
-                color: 'var(--brand-navy)',
+                color: '#020617',
                 fontWeight: 600,
                 fontSize: '0.875rem',
                 padding: '0.5rem 1rem',
@@ -96,18 +96,18 @@ export default function PingOneSetupGuidePage() {
       </div>
 
       <div className="container" style={{ padding: '2rem 20px', maxWidth: '920px' }}>
-        <div style={{ ...cardStyle, background: '#eff6ff', borderColor: '#bfdbfe' }}>
-          <h2 style={{ fontSize: '1.1rem', margin: '0 0 0.5rem 0', color: 'var(--brand-navy)' }}>How to use this page</h2>
-          <ul style={{ margin: 0, paddingLeft: '1.25rem', color: 'var(--brand-navy)', fontSize: '0.9375rem', lineHeight: 1.65 }}>
+        <div style={{ ...cardStyle, background: 'var(--th-bg-inset)', borderColor: 'var(--th-border)' }}>
+          <h2 style={{ fontSize: '1.1rem', margin: '0 0 0.5rem 0', color: 'var(--th-text)' }}>How to use this page</h2>
+          <ul style={{ margin: 0, paddingLeft: '1.25rem', color: 'var(--th-text)', fontSize: '0.9375rem', lineHeight: 1.65 }}>
             <li><strong>/setup</strong> — PingOne bootstrap plan from the API, and (as admin) probe / run bootstrap.</li>
             <li><strong>/config</strong> — enter or review PingOne environment, OAuth apps, and advanced options (localhost LMDB or deployment-managed).</li>
             <li>This page is the <strong>full map</strong>: PingOne objects, exact callback paths, scripts, and env var names.</li>
           </ul>
         </div>
 
-        <div style={{ ...cardStyle, borderColor: '#c7d2fe', background: '#eef2ff' }}>
-          <h2 style={{ fontSize: '1.1rem', margin: '0 0 0.5rem 0', color: '#3730a3' }}>Where PingOne is called from (security)</h2>
-          <p style={{ margin: 0, color: '#4338ca', fontSize: '0.9375rem', lineHeight: 1.65 }}>
+        <div style={{ ...cardStyle, borderColor: 'var(--th-border)', background: 'var(--th-bg-inset)' }}>
+          <h2 style={{ fontSize: '1.1rem', margin: '0 0 0.5rem 0', color: 'var(--th-text)' }}>Where PingOne is called from (security)</h2>
+          <p style={{ margin: 0, color: 'var(--th-text)', fontSize: '0.9375rem', lineHeight: 1.65 }}>
             The browser talks only to this app&apos;s <strong>BFF</strong> (<code>/api/…</code>) with cookies or Bearer tokens — not to <code>api.pingone</code> or <code>auth.pingone</code> directly.
             OAuth login still <strong>redirects</strong> the user through PingOne&apos;s hosted pages; that cannot be routed through the MCP server.
             The <strong>MCP server</strong> uses PingOne for token introspection (and optional CIBA) before MCP tools call the Banking API.
@@ -117,12 +117,12 @@ export default function PingOneSetupGuidePage() {
 
         <div style={cardStyle}>
           <h2 style={{ fontSize: '1.1rem', margin: '0 0 0.75rem 0' }}>PingOne directory: what to create</h2>
-          <p style={{ margin: '0 0 0.75rem 0', color: '#4b5563', fontSize: '0.9375rem', lineHeight: 1.6 }}>
+          <p style={{ margin: '0 0 0.75rem 0', color: 'var(--th-text)', fontSize: '0.9375rem', lineHeight: 1.6 }}>
             The demo expects <strong>two</strong> browser OAuth applications (admin staff vs customer), optionally a <strong>Management API worker</strong> for automation, and optionally an <strong>Authorize worker</strong> for decision endpoints / advanced flows. Names can vary; redirect URIs and client IDs in config must match PingOne.
           </p>
           <table style={tableStyle}>
             <thead>
-              <tr style={{ background: '#f8fafc' }}>
+              <tr style={{ background: 'var(--th-bg-inset)' }}>
                 <th style={thtd}>Item</th>
                 <th style={thtd}>Purpose</th>
                 <th style={thtd}>Notes</th>
@@ -170,18 +170,18 @@ export default function PingOneSetupGuidePage() {
 
         <div style={cardStyle}>
           <h2 style={{ fontSize: '1.1rem', margin: '0 0 0.75rem 0' }}>Redirect URIs (replace with your public origin)</h2>
-          <p style={{ margin: '0 0 0.75rem 0', color: '#4b5563', fontSize: '0.9375rem', lineHeight: 1.6 }}>
+          <p style={{ margin: '0 0 0.75rem 0', color: 'var(--th-text)', fontSize: '0.9375rem', lineHeight: 1.6 }}>
             Register these on the <strong>correct</strong> PingOne application. Local dev often uses <code>http://localhost:PORT</code> or the HTTPS host from <code>./run-demo.sh</code> (see repo script comments).
           </p>
-          <p style={{ margin: 0, fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>Admin OAuth callback (BFF)</p>
+          <p style={{ margin: 0, fontSize: '0.875rem', fontWeight: 600, color: 'var(--th-text)' }}>Admin OAuth callback (BFF)</p>
           <code style={codeBlock}>{'{PUBLIC_URL}'}/api/auth/oauth/callback</code>
-          <p style={{ margin: '1rem 0 0 0', fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>Customer OAuth callback (BFF)</p>
+          <p style={{ margin: '1rem 0 0 0', fontSize: '0.875rem', fontWeight: 600, color: 'var(--th-text)' }}>Customer OAuth callback (BFF)</p>
           <code style={codeBlock}>{'{PUBLIC_URL}'}/api/auth/oauth/user/callback</code>
         </div>
 
         <div style={cardStyle}>
           <h2 style={{ fontSize: '1.1rem', margin: '0 0 0.75rem 0' }}>Scripts (run from repository root)</h2>
-          <p style={{ margin: '0 0 0.75rem 0', color: '#4b5563', fontSize: '0.9375rem', lineHeight: 1.6 }}>
+          <p style={{ margin: '0 0 0.75rem 0', color: 'var(--th-text)', fontSize: '0.9375rem', lineHeight: 1.6 }}>
             Commands are defined in the root <code>package.json</code> (parent of <code>banking_api_ui/</code>). <code>pingone:bootstrap</code> reads <code>banking_api_server/.env</code> when present.
           </p>
           <div style={{ marginBottom: '0.75rem' }}>
@@ -189,7 +189,7 @@ export default function PingOneSetupGuidePage() {
             <button type="button" style={btnStyle} onClick={() => copy('npm run pingone:bootstrap:probe', 'probe')}>Copy: npm run pingone:bootstrap:probe</button>
             <button type="button" style={btnStyle} onClick={() => copy(`cd ${REPO_ROOT}\n./run-demo.sh`, 'run-demo.sh')}>Copy: cd + ./run-demo.sh</button>
           </div>
-          <ul style={{ margin: 0, paddingLeft: '1.25rem', color: '#374151', fontSize: '0.875rem', lineHeight: 1.65 }}>
+          <ul style={{ margin: 0, paddingLeft: '1.25rem', color: 'var(--th-text)', fontSize: '0.875rem', lineHeight: 1.65 }}>
             <li><code>npm run pingone:bootstrap</code> — prints ordered steps from <code>config/pingone-bootstrap.manifest.example.json</code>.</li>
             <li><code>npm run pingone:bootstrap:probe</code> — same + tests Management API token (needs worker credentials in env/config).</li>
             <li><code>./run-demo.sh</code> — local HTTPS stack (API/UI ports documented in the script); requires one-time hosts + certs per script header.</li>
@@ -199,7 +199,7 @@ export default function PingOneSetupGuidePage() {
 
         <div style={cardStyle}>
           <h2 style={{ fontSize: '1.1rem', margin: '0 0 0.75rem 0' }}>In-app tools (after the API is up)</h2>
-          <ul style={{ margin: 0, paddingLeft: '1.25rem', color: '#374151', fontSize: '0.875rem', lineHeight: 1.65 }}>
+          <ul style={{ margin: 0, paddingLeft: '1.25rem', color: 'var(--th-text)', fontSize: '0.875rem', lineHeight: 1.65 }}>
             <li><code>GET /api/setup/plan</code> — same bootstrap step list as the CLI manifest (used by <Link to="/setup">Deployment setup</Link>).</li>
             <li><code>GET /api/admin/setup/management-probe</code> — admin session; lists OIDC apps via Management API.</li>
             <li><code>POST /api/admin/setup/pingone-bootstrap-run</code> — admin session; optional <code>X-Setup-Master-Key</code> if <code>SETUP_MASTER_KEY</code> is set on the server.</li>
@@ -208,12 +208,12 @@ export default function PingOneSetupGuidePage() {
 
         <div style={cardStyle}>
           <h2 style={{ fontSize: '1.1rem', margin: '0 0 0.75rem 0' }}>Environment variables (common names)</h2>
-          <p style={{ margin: '0 0 0.75rem 0', color: '#4b5563', fontSize: '0.9375rem', lineHeight: 1.6 }}>
+          <p style={{ margin: '0 0 0.75rem 0', color: 'var(--th-text)', fontSize: '0.9375rem', lineHeight: 1.6 }}>
             The server accepts several aliases per field (e.g. <code>PINGONE_ADMIN_CLIENT_ID</code> vs <code>PINGONE_CORE_CLIENT_ID</code>). See <code>banking_api_server/services/configStore.js</code> and <code>banking_api_server/.env.example</code> for the full list.
           </p>
           <table style={tableStyle}>
             <thead>
-              <tr style={{ background: '#f8fafc' }}>
+              <tr style={{ background: 'var(--th-bg-inset)' }}>
                 <th style={thtd}>Area</th>
                 <th style={thtd}>Variables (examples)</th>
               </tr>
@@ -247,9 +247,9 @@ export default function PingOneSetupGuidePage() {
           </table>
         </div>
 
-        <div style={{ ...cardStyle, borderColor: '#e9d5ff', background: '#faf5ff' }}>
-          <h2 style={{ fontSize: '1.1rem', margin: '0 0 0.75rem 0', color: '#5b21b6' }}>Repository docs (clone required)</h2>
-          <ul style={{ margin: 0, paddingLeft: '1.25rem', color: '#4c1d95', fontSize: '0.875rem', lineHeight: 1.65 }}>
+        <div style={{ ...cardStyle, borderColor: 'var(--th-border)', background: 'var(--th-bg-inset)' }}>
+          <h2 style={{ fontSize: '1.1rem', margin: '0 0 0.75rem 0', color: 'var(--th-text)' }}>Repository docs (clone required)</h2>
+          <ul style={{ margin: 0, paddingLeft: '1.25rem', color: 'var(--th-text)', fontSize: '0.875rem', lineHeight: 1.65 }}>
             <li><code>config/pingone-bootstrap.manifest.example.json</code> — example app names and scope list.</li>
             <li><code>docs/PINGONE_AUTHORIZE_PLAN.md</code> — Authorize / decision flow notes.</li>
             <li><code>banking_mcp_server/docs/pingone-oauth-setup.md</code> — MCP server OAuth context.</li>
@@ -258,8 +258,8 @@ export default function PingOneSetupGuidePage() {
         </div>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
-          <Link to="/setup" style={{ fontSize: '0.9375rem', color: 'var(--brand-navy)' }}>Open Deployment setup</Link>
-          <Link to="/" style={{ fontSize: '0.9375rem', color: 'var(--brand-navy)' }}>Return to sign in</Link>
+          <Link to="/setup" style={{ fontSize: '0.9375rem', color: 'var(--th-text)' }}>Open Deployment setup</Link>
+          <Link to="/" style={{ fontSize: '0.9375rem', color: 'var(--th-text)' }}>Return to sign in</Link>
         </div>
       </div>
     </div>
