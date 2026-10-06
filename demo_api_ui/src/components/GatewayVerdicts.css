@@ -33,25 +33,6 @@
 
 .gwv__btn:disabled { opacity: 0.55; cursor: not-allowed; }
 
-/* In-button spinner while findings load. Ring uses currentColor so it follows the theme. */
-.gwv__spinner {
-  display: inline-block;
-  width: 0.8em;
-  height: 0.8em;
-  margin-right: 0.4rem;
-  vertical-align: -0.1em;
-  border: 2px solid currentColor;
-  border-right-color: transparent;
-  border-radius: 50%;
-  animation: gwv-spin 0.8s linear infinite;
-}
-
-@keyframes gwv-spin { to { transform: rotate(360deg); } }
-
-@media (prefers-reduced-motion: reduce) {
-  .gwv__spinner { animation-duration: 2.4s; }
-}
-
 .gwv__note {
   margin: 0.4rem 0 0;
   font-size: var(--font-size-sm);

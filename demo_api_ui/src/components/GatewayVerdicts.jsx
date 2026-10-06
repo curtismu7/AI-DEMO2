@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { signInToGatewayDoorSilently } from '../services/gatewayDoorSignIn';
+import PingIdentitySpinner from './shared/PingIdentitySpinner';
 import './GatewayVerdicts.css';
 
 /**
@@ -228,8 +229,7 @@ export default function GatewayVerdicts({ fetchImpl, signIn = signInToGatewayDoo
       <div className="gwv__head">
         <h3 className="gwv__title">Gateway findings</h3>
         <button type="button" className="gwv__btn" onClick={() => load()} disabled={state === 'loading'}>
-          {state === 'loading' ? <span className="gwv__spinner" role="status" aria-label="Loading findings" /> : null}
-          {state === 'loading' ? 'Loading…' : verdicts.length ? 'Refresh' : 'Load findings'}
+          {state === 'loading' ? <PingIdentitySpinner size={20} label="Loading findings…" /> : verdicts.length ? 'Refresh' : 'Load findings'}
         </button>
       </div>
 

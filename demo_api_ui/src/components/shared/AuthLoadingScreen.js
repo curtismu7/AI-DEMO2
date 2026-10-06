@@ -1,13 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import PingIdentitySpinner from './PingIdentitySpinner';
+import { LOADING_TIPS as TIPS, TIP_ROTATE_MS as TIP_MS } from './loadingTips';
 
-const TIPS = [
-  'Every agent call swaps the user token for a scoped one (RFC 8693) before it reaches a tool.',
-  'The browser never holds a PingOne token. The BFF keeps it server-side and the page only sees a session cookie.',
-  'High-value transfers pause for human approval before they run.',
-  'Each tool call is checked against policy at the gateway, not just at sign-in.',
-];
-const TIP_MS = 4000;
 const SLOW_MS = 8000;
 
 /**
@@ -41,7 +35,7 @@ export default function AuthLoadingScreen({ label = 'Loading' }) {
         <div className="boot-card boot-card--short" />
       </div>
       <div className="boot-skeleton__spinner">
-        <PingIdentitySpinner size={56} aria-label={label} />
+        <PingIdentitySpinner size={56} aria-label={label} tip={false} />
       </div>
       <div className="boot-skeleton__tip">
         <b>Did you know</b>

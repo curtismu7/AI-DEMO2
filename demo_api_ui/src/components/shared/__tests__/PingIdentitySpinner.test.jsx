@@ -41,6 +41,27 @@ describe('PingIdentitySpinner', () => {
     expect(visual).not.toContainElement(label);
   });
 
+  it('shows a rotating tip on a stand-alone spinner, hidden from screen readers', () => {
+    render(<PingIdentitySpinner size={48} label="Loading accounts…" />);
+
+    const tip = document.querySelector('.ping-spinner__tip');
+    expect(tip).toHaveAttribute('aria-hidden', 'true');
+    expect(tip).toHaveTextContent('Did you know');
+    // The status name is the label alone, so the tip is never announced.
+    expect(screen.getByRole('status', { name: 'Loading accounts…' })).toBeInTheDocument();
+  });
+
+  it('leaves the tip off small, decorative or opted-out spinners', () => {
+    const { rerender } = render(<PingIdentitySpinner size={20} label="Applying…" />);
+    expect(document.querySelector('.ping-spinner__tip')).toBeNull();
+    rerender(<PingIdentitySpinner size={48} aria-hidden="true" />);
+    expect(document.querySelector('.ping-spinner__tip')).toBeNull();
+    rerender(<PingIdentitySpinner size={48} label="Loading…" tip={false} />);
+    expect(document.querySelector('.ping-spinner__tip')).toBeNull();
+    rerender(<PingIdentitySpinner size={20} label="Loading…" tip />);
+    expect(document.querySelector('.ping-spinner__tip')).not.toBeNull();
+  });
+
   it('keeps runtime loading surfaces to one branded mark plus a short note', () => {
     const violations = [];
     for (const file of sourceFiles(SRC)) {

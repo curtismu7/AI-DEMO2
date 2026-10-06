@@ -21,7 +21,7 @@ export function HideWhileGlobalSpinner({ children }) {
 export function AgentWorkingMark({ label = 'Working…' }) {
   return (
     <div className="banking-agent-msg-bubble ba-run-indicator">
-      <PingIdentitySpinner size={36} label={label} />
+      <PingIdentitySpinner size={36} label={label} tip={false} />
     </div>
   );
 }

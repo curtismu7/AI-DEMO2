@@ -86,6 +86,24 @@
   white-space: nowrap;
 }
 
+/* Stand-alone spinners (32px and up) carry a rotating tip on a line of their own. */
+.ping-spinner--tip { flex-wrap: wrap; }
+.ping-spinner__tip {
+  flex: 1 0 100%;
+  max-width: 46ch;
+  margin-top: 6px;
+  color: var(--th-text-body);
+  font-size: var(--font-size-sm);
+  line-height: 1.4;
+  white-space: normal;
+}
+.ping-spinner__tip b { color: var(--th-text); }
+/* The dark overlay card is a literal ground: pair its ink literally (rule H1). */
+.lo-card .ping-spinner__tip,
+.lo-card--dark .ping-spinner__tip { color: #cbd5e1; }
+.lo-card .ping-spinner__tip b,
+.lo-card--dark .ping-spinner__tip b { color: #ffffff; }
+
 .ping-spinner--inline {
   display: inline-flex;
   height: auto;

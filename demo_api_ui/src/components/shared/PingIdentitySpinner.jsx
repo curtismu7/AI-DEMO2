@@ -1,7 +1,9 @@
 import React from 'react';
+import LoadingTip from './LoadingTip';
 import './LoadingOverlay.css';
 
 const DEFAULT_LOGO_SRC = '/branding/ping-logo.svg';
+const MIN_TIP_SIZE = 32;
 
 /**
  * Shared Ping identity loading mark.
@@ -15,11 +17,15 @@ export default function PingIdentitySpinner({
   size = 88,
   logoSrc,
   className = '',
+  tip,
   ...ariaProps
 }) {
   const isDecorative = ariaProps['aria-hidden'] === true || ariaProps['aria-hidden'] === 'true';
   const isCustomLogo = Boolean(logoSrc);
-  const rootClassName = `ping-spinner ${className}`.trim();
+  // A tip needs room: show it on a stand-alone spinner (32px and up), never on the
+  // small one inside a button or a row, nor on a decorative one. `tip` overrides.
+  const showTip = tip ?? (size >= MIN_TIP_SIZE && !isDecorative);
+  const rootClassName = `ping-spinner${showTip ? ' ping-spinner--tip' : ''} ${className}`.trim();
 
   return (
     <span
@@ -40,6 +46,7 @@ export default function PingIdentitySpinner({
         />
       </span>
       {label && <span className="ping-spinner__label">{label}</span>}
+      {showTip ? <LoadingTip /> : null}
     </span>
   );
 }
