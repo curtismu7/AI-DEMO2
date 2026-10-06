@@ -51,6 +51,15 @@
   --rd2-shadow-2: 0 4px 16px rgba(0,0,0,.08), 0 1px 3px rgba(0,0,0,.04);
 }
 
+/* Ink that stays readable on ANY vertical's accent: white on a dark accent, black on a
+   light one (Super Sports orange is 2.8:1 with white). 49.4 is the L* where white and
+   black contrast equally. Browsers without relative colour keep the #ffffff above. */
+@supports (color: lch(from red l c h)) {
+  [data-rd-v2] {
+    --rd2-accent-text: lch(from var(--rd2-accent) clamp(0, (49.4 - l) * 1000, 100) 0 0);
+  }
+}
+
 /* ── Base ─────────────────────────────────────────── */
 /* V2 layout: dashboard fill viewport, content scrolls, dock stays at bottom */
 .user-dashboard[data-rd-v2] {
@@ -483,15 +492,17 @@
 
 /* ── Panel header ─────────────────────────────────── */
 .banking-agent-panel .ba-header {
-  background: var(--rd2-surface, #ffffff) !important;
-  border-bottom: 1px solid var(--rd2-line-1, #e4e4e0) !important;
+  /* --rd2-surface only exists under [data-rd-v2]; on /use-cases/live the fallback was a
+     literal white under white dark-mode text. */
+  background: var(--rd2-surface, var(--th-bg-card)) !important;
+  border-bottom: 1px solid var(--rd2-line-1, var(--th-border)) !important;
 }
 .banking-agent-panel .ba-title {
   font-family: "Fraunces", serif !important;
   font-weight: 600 !important;
   font-size: .96rem !important;
   letter-spacing: -.01em !important;
-  color: var(--rd2-ink-1, #111110) !important;
+  color: var(--rd2-ink-1, var(--th-text)) !important;
 }
 
 /* ── Composer / input row ─────────────────────────── */

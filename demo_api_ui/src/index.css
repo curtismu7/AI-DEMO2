@@ -278,6 +278,21 @@ textarea {
   --line-height-relaxed: 1.7;
 }
 
+/* Label ink for a button filled with --app-primary-red: white on a dark vertical colour,
+   black on a light one (Super Sports orange is 2.8:1 with white). 49.4 is the L* where
+   white and black contrast equally. Every use site pairs this token with that fill.
+   Browsers without relative colour keep the #ffffff declared above. */
+@supports (color: lch(from red l c h)) {
+  :root {
+    --app-primary-btn-text: lch(from var(--app-primary-red) clamp(0, (49.4 - l) * 1000, 100) 0 0);
+  }
+}
+/* UserDashboard.css re-points --app-primary-red to slate blue inside .user-dashboard;
+   a custom property resolves where it is declared, so the label ink is re-stated here. */
+.user-dashboard {
+  --app-primary-btn-text: #ffffff;
+}
+
 /* ── Semantic surface tokens (customer-dashboard theming, 2026-08-10) ──────
    One vocabulary for every dashboard surface. Light values are the neutral
    unification of the old cool-slate and warm-paper families; dark values are

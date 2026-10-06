@@ -573,7 +573,10 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  background: rgba(0, 0, 0, 0.2);
+  /* A 78% black scrim, not 20%: over the red nav the green countdown (#4ade80)
+     measured 2.77:1. Kept as rgba(0,0,0,a) because DashboardContrast.test.js models the
+     pill that way to check the label against every vertical's header. */
+  background: rgba(0, 0, 0, 0.78);
   border: 1px solid #334155;
   border-radius: 5px;
   padding: 3px 10px;

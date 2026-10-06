@@ -2,6 +2,10 @@
 
 /* --- Light theme (default) --- */
 .protocol-playground {
+  /* This page has its own light/dark switch, so PingOne's heading and link colours follow
+     the page's surface (--pp-*), not the app theme. */
+  --bs-heading-color: var(--pp-text);
+  --bs-link-color-rgb: 29, 78, 216;
   --pp-bg: #ffffff;
   --pp-bg-sidebar: #f7f8fa;
   --pp-bg-surface: #f0f2f5;
@@ -9,7 +13,7 @@
   --pp-border: #e2e5ea;
   --pp-text: #1a1a1a;
   --pp-text-secondary: #555;
-  --pp-text-muted: #888;
+  --pp-text-muted: #666; /* #888 was 3.5:1 on white */
   --pp-item-hover: #eef0f4;
   --pp-item-active-bg: #1d4ed8;
   --pp-item-active-text: #fff;
@@ -40,6 +44,7 @@
 
 /* --- Dark theme --- */
 .protocol-playground.dark {
+  --bs-link-color-rgb: 96, 165, 250;
   --pp-bg: #0a0a0a;
   --pp-bg-sidebar: #0f0f0f;
   --pp-bg-surface: #111;

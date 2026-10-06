@@ -62,9 +62,10 @@
 }
 
 .inspector-clean-tab.active {
-  background: #0ea5e9;
-  color: white;
-  border-color: #0ea5e9;
+  /* White on #0ea5e9 measured 2.77:1; sky-700 gives 5.9:1. Both literals (H1). */
+  background: #0369a1;
+  color: #ffffff;
+  border-color: #0369a1;
 }
 
 .inspector-clean-tab:hover:not(.active) {

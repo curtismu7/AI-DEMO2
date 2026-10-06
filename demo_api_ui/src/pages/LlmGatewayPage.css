@@ -254,7 +254,7 @@
 
 .lgw-lane__warn {
   font-size: var(--font-size-sm);
-  color: var(--th-status-error);
+  color: var(--th-status-error-text);
 }
 
 .lgw-lane__limits {
@@ -811,7 +811,7 @@
 
 .lgw-pill.is-ok { color: var(--th-status-success-text); }
 .lgw-pill.is-warn { color: var(--th-status-warning); }
-.lgw-pill.is-bad { color: var(--th-status-error); }
+.lgw-pill.is-bad { color: var(--th-status-error-text); }
 
 /* Rendered on a successful call or a Privilege denial — the chain itself says
    whether Privilege sat in the middle: local lanes just skip straight from

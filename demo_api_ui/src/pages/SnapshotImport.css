@@ -183,7 +183,7 @@
   flex: 1;
 }
 
-.download-btn {
+.end-user-nano a.download-btn {
   color: var(--th-text-on-emphasis);
   padding: 6px 14px;
   background-color: var(--th-bg-emphasis);
@@ -194,7 +194,7 @@
   white-space: nowrap;
 }
 
-.download-btn:hover {
+.end-user-nano a.download-btn:hover {
   color: var(--th-text-on-emphasis);
   background-color: color-mix(in srgb, var(--th-bg-emphasis) 85%, black);
 }

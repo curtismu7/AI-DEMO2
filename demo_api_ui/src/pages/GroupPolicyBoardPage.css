@@ -13,6 +13,10 @@
 .gpb-pill--permit, .gpb-decision--permit { background: color-mix(in srgb, #21a366 14%, var(--th-bg-card)); border-color: #21a366; color: #187443; }
 .gpb-pill--deny, .gpb-decision--deny { background: color-mix(in srgb, #d92d20 12%, var(--th-bg-card)); border-color: #d92d20; color: #a32219; }
 .gpb-pill--unknown, .gpb-decision--unknown, .gpb-decision--indeterminate { background: color-mix(in srgb, #c77b00 14%, var(--th-bg-card)); border-color: #c77b00; color: #875300; }
+/* The inks above are tuned for the light tint; on the dark card they measured 2.5 to 3.2:1. */
+:root[data-theme="dark"] .gpb-pill--permit, :root[data-theme="dark"] .gpb-decision--permit { color: #86efac; }
+:root[data-theme="dark"] .gpb-pill--deny, :root[data-theme="dark"] .gpb-decision--deny { color: #fca5a5; }
+:root[data-theme="dark"] .gpb-pill--unknown, :root[data-theme="dark"] .gpb-decision--unknown, :root[data-theme="dark"] .gpb-decision--indeterminate { color: #fcd34d; }
 .gpb-refresh { appearance: none; padding: 8px 14px; border: 1px solid var(--th-border-strong); border-radius: 6px; background: var(--th-bg-card); color: var(--th-text); font: inherit; font-weight: 700; cursor: pointer; }
 .gpb-refresh:hover:not(:disabled) { border-color: var(--th-status-info); color: var(--th-status-info); }
 .gpb-refresh:disabled { opacity: .65; cursor: wait; }

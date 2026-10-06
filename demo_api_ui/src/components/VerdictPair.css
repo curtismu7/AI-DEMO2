@@ -18,12 +18,12 @@
 }
 /* Solid, saturated fills — legible as a color from across a room, not just
    up close. A demo audience reads these at a glance, not by reading the text. */
-.verdict__chip--permit   { background: #16a34a; color: #fff; border-color: #15803d; }
+.verdict__chip--permit   { background: #15803d; color: #fff; border-color: #166534; } /* #16a34a was 3.3:1 */
 .verdict__chip--deny     { background: #dc2626; color: #fff; border-color: #b91c1c; }
-.verdict__chip--hitl     { background: #ea580c; color: #fff; border-color: #c2410c; }
+.verdict__chip--hitl     { background: #c2410c; color: #fff; border-color: #9a3412; } /* #ea580c was 3.6:1 */
 .verdict__chip--unproven { background: #eab308; color: #1e293b; border-color: #ca8a04; }
 .verdict__chip--running  { background: #4f46e5; color: #fff; border-color: #4338ca; }
 .verdict__chip--none     { background: #cbd5e1; color: #1e293b; border-color: #94a3b8; }
 .verdict__match { font-size: 0.78rem; font-weight: 800; padding: 3px 9px; border-radius: 999px; }
-.verdict__match--ok  { background: #16a34a; color: #fff; }
-.verdict__match--bad { background: #ea580c; color: #fff; }
+.verdict__match--ok  { background: #15803d; color: #fff; }
+.verdict__match--bad { background: #c2410c; color: #fff; }

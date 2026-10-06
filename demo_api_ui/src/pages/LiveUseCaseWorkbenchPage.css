@@ -297,6 +297,17 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
 .luw-track--controls > summary    { color: #b45309; }
 .luw-track--hitl > summary        { color: #7c3aed; }
 .luw-track--attacks > summary     { color: #b91c1c; }
+/* Those hues are tuned for a white card; on the dark card they measured 2.3 to 3.1:1.
+   Same hues, lighter stops. No --th-* token carries these hues. */
+:root[data-theme="dark"] .luw-card__expected-label,
+:root[data-theme="dark"] .luw-track--security > summary,
+:root[data-theme="dark"] .luw-track--security .luw-track__count { color: #5eead4; }
+:root[data-theme="dark"] .luw-track--security { background: var(--th-bg-inset); }
+:root[data-theme="dark"] .luw-track--security > summary:hover { background: var(--th-bg-hover); }
+:root[data-theme="dark"] .luw-track--foundations > summary { color: #93c5fd; }
+:root[data-theme="dark"] .luw-track--controls > summary    { color: #fbbf24; }
+:root[data-theme="dark"] .luw-track--hitl > summary        { color: #c4b5fd; }
+:root[data-theme="dark"] .luw-track--attacks > summary     { color: #fca5a5; }
 
 /* Coupa/NIQ gap-closure demo — carved out of the controls track on this
    page only (see COUPA_NIQ_ID_SET in LiveUseCaseWorkbenchPage.js). */
@@ -424,13 +435,13 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
 .luw-glance {
   display: grid;
   grid-template-columns: 1.2fr 1fr 1fr;
-  border-top: 1px solid #d5dce3;
-  background: #e4e9ef;
+  border-top: 1px solid var(--th-border);
+  background: var(--th-bg-inset);
   font-size: 0.75rem;
 }
 .luw-glance__cell {
   padding: 0.65rem 1rem;
-  border-right: 1px solid #d5dce3;
+  border-right: 1px solid var(--th-border);
   display: flex;
   flex-direction: column;
   gap: 0.2rem;

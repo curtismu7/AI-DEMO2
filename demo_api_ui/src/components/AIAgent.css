@@ -409,7 +409,7 @@ body > .banking-agent-float-root .banking-agent-panel {
     var(--app-primary-red-mid) 0%,
     var(--app-primary-red) 100%
   );
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
   border-color: var(--app-primary-red-border);
 }
 

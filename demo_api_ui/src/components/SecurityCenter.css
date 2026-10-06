@@ -87,7 +87,7 @@
 
 /* Status indicators */
 .security-status--ok {
-  color: var(--brand-success, #4CAF50);
+  color: var(--th-status-success-text);
   font-weight: 600;
 }
 

@@ -117,7 +117,7 @@
   display: inline-flex; align-items: center; gap: 7px;
 }
 .chk-btn:disabled { opacity: .55; cursor: not-allowed; }
-.chk-btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.chk-btn-primary { background: #1d4ed8; border-color: #1d4ed8; color: #fff; } /* --accent in dark is 3.7:1 with white */
 .chk-btn-primary:hover:not(:disabled) { filter: brightness(1.06); }
 .chk-btn-ghost { background: transparent; color: var(--text); border-color: var(--border-strong); }
 .chk-btn-ghost:hover:not(:disabled) { background: var(--surface-2); }
