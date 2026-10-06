@@ -71,6 +71,10 @@ export const NAV_STRUCTURE_CATALOG = [
     "Invest Dual-Auth (MM)", "AI Gateway (MM)",
     "AI Gateway Enforcement (Node)", "Gateway vs P1AZ Enforcement (MM)", "Resource Server Placement (MM)",
   ] },
+  { label: "Demo arch slides", children: [
+    "Workload Agents · Topology", "Workload Agents · CIBA Step-up",
+    "Workload Agents · 3rd-party MCP via ID-JAG", "Agentic Control Plane",
+  ] },
   { label: "Architecture & Learning", children: [
     "Learning Hub", "Learning Hub (Web Mirror)", "Page Catalog",
     "SPIFFE → PingOne Bridge (TODO)", "llama-vscode Guide",

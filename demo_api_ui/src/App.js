@@ -29,6 +29,7 @@ import PrivilegeMcpDiagramPage from "./components/PrivilegeMcpDiagramPage";
 import PrivilegeGatewayTopologyPage from "./components/PrivilegeGatewayTopologyPage";
 import InvestDualAuthDiagramPage from "./components/InvestDualAuthDiagramPage";
 import ExternalDoorDiagramPage from "./components/ExternalDoorDiagramPage";
+import DemoArchSlidesPage from "./components/DemoArchSlidesPage";
 import GatewayEnforcementMapPage from "./components/GatewayEnforcementMapPage";
 import ResourceServerPlacementPage from "./components/ResourceServerPlacementPage";
 import PrivilegeFirstGatewayPage from "./components/PrivilegeFirstGatewayPage";
@@ -2121,6 +2122,22 @@ function AppWithAuth() {
                             <Route
                               path="/external-door-diagrams"
                               element={<ExternalDoorDiagramPage />}
+                            />
+                            <Route
+                              path="/demo-arch-slides/workload-agents"
+                              element={<DemoArchSlidesPage slide="workload-agents" />}
+                            />
+                            <Route
+                              path="/demo-arch-slides/ciba-hitl"
+                              element={<DemoArchSlidesPage slide="ciba-hitl" />}
+                            />
+                            <Route
+                              path="/demo-arch-slides/id-jag"
+                              element={<DemoArchSlidesPage slide="id-jag" />}
+                            />
+                            <Route
+                              path="/demo-arch-slides/control-plane"
+                              element={<DemoArchSlidesPage slide="control-plane" />}
                             />
                             <Route
                               path="/gateway-enforcement-map"

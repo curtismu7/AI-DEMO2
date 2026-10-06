@@ -43,6 +43,7 @@ const SECTION_GROUPS = [
       "Monitoring",
       "Telemetry",
       "Diagrams",
+      "Demo arch slides",
       "MCP & Gateways",
       "Developer Tools",
       "System Tools",

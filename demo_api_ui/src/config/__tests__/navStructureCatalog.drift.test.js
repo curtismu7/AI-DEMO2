@@ -28,7 +28,7 @@ describe('NAV_STRUCTURE_CATALOG covers composed AdminSideNav groups', () => {
       'Home', 'Security Dashboard', 'Skin Studio', 'AI Gateway', 'DaVinci', 'Ping products',
       'Identity Journeys', 'Authorize', 'Delegation & Consent', 'Utilities',
       'AI Experiences', 'MCP & Integrations', 'PingFederate ID-JAG', 'Developer Tools',
-      'Observability', 'Diagrams', 'Architecture & Learning', 'Administration',
+      'Observability', 'Diagrams', 'Demo arch slides', 'Architecture & Learning', 'Administration',
     ]);
     expect(source).toContain('productGroup("AI Gateway"');
     expect(source).toContain('productGroup("DaVinci"');

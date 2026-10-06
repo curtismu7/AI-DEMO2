@@ -1,0 +1,260 @@
+/* DemoArchSlidesPage.css — slide-style architecture figures (Ping "Workload
+   Agents" deck layout) redrawn with this demo's real services.
+   Surfaces/ink come from --th-* so both themes work without a dark block;
+   the Ping red, the grey SPIFFE box and the pink boundary tab are brand marks
+   and stay literal (THEMING.md §1.3).
+   SVG text sizes are viewBox units (the figure scales), not CSS px. */
+
+.das-page {
+  max-width: 1800px;
+  margin: 0 auto;
+  padding: 24px 24px 60px;
+  color: var(--th-text);
+  background: var(--th-bg-page);
+}
+
+.das-eyebrow {
+  display: inline-block;
+  font-size: var(--font-size-2xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--th-text-muted);
+  margin-bottom: 8px;
+}
+
+.das-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+.das-page a.das-tab {
+  padding: 6px 12px;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-pill);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+  text-decoration: none;
+}
+.das-page a.das-tab--active {
+  background: #b3282d;
+  border-color: #b3282d;
+  color: #fff;
+}
+
+/* ---- Play / Step controls ---- */
+.das-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+}
+.das-btn {
+  padding: 6px 14px;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-sm);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+.das-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.das-btn--primary {
+  background: #b3282d;
+  border-color: #b3282d;
+  color: #fff;
+}
+.das-counter {
+  font-size: var(--font-size-2xs);
+  color: var(--th-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.das-stepbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 12px;
+  padding: 10px 14px;
+  margin: 0 0 12px;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+  line-height: 1.45;
+}
+.das-stepbar--live {
+  border-color: var(--th-status-info-border);
+  background: var(--th-status-info-bg);
+  color: var(--th-status-info-text);
+}
+.das-stepbar__num {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.das-stepbar__title {
+  font-weight: 700;
+}
+.das-stepbar__desc {
+  flex: 1 1 40ch;
+  min-width: 0;
+}
+
+/* ---- Step state on SVG groups ---- */
+.das-st {
+  transition: opacity 0.25s ease;
+}
+.das-st-off {
+  opacity: 0.14;
+}
+.das-st-now .das-line,
+.das-st-now .das-dot,
+.das-st-now .das-bus {
+  stroke: var(--th-status-info);
+  stroke-width: 3.4;
+}
+.das-st-now .das-outline,
+.das-st-now .das-outline-dashed,
+.das-st-now .das-outline-strong {
+  stroke: var(--th-status-info);
+  stroke-width: 2.6;
+}
+.das-st-now .das-t,
+.das-st-now .das-b,
+.das-st-now .das-s {
+  fill: var(--th-status-info);
+}
+@media (prefers-reduced-motion: reduce) {
+  .das-st { transition: none; }
+}
+
+.das-frame {
+  overflow-x: auto;
+  border: 1px solid var(--th-border);
+  background: var(--th-bg-card);
+}
+.das-svg {
+  /* Narrow sans so labels fit their boxes; the app's wide display face overflows them. */
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  display: block;
+  min-width: 1100px;
+  max-width: 100%;
+  height: auto;
+  color: var(--th-text);
+}
+
+.das-caption {
+  font-size: var(--font-size-body);
+  line-height: 1.45;
+  color: var(--th-text-muted);
+  margin: 12px 0 0;
+  max-width: 72ch;
+}
+
+.das-page h2 {
+  font-size: var(--font-size-h3);
+  margin: 36px 0 12px;
+}
+.das-table-wrap {
+  overflow-x: auto;
+}
+.das-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: var(--font-size-sm);
+}
+.das-table th,
+.das-table td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--th-border);
+  vertical-align: top;
+}
+.das-table th {
+  font-size: var(--font-size-2xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--th-text-muted);
+  font-weight: 600;
+}
+.das-table td:nth-child(3) {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.das-src {
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+}
+
+/* ---- SVG marks ---- */
+.das-title { font-weight: 600; font-size: 54px; fill: currentColor; }
+.das-subtitle { font-weight: 500; font-size: 26px; fill: currentColor; }
+.das-t { font-size: 13px; fill: currentColor; }
+.das-b { font-size: 13px; font-weight: 600; fill: currentColor; }
+.das-s { font-size: 11px; fill: var(--th-text-muted); }
+.das-i { font-style: italic; }
+.das-fs22 { font-size: 20px; font-weight: 600; }
+.das-fs20 { font-size: 18px; font-weight: 600; }
+.das-fs18 { font-size: 16px; font-weight: 600; }
+.das-fs17 { font-size: 17px; }
+.das-fs14 { font-size: 14px; font-weight: 600; }
+.das-fs13 { font-size: 13px; }
+.das-fs12 { font-size: 12px; }
+.das-fs11 { font-size: 11px; }
+.das-on-red { fill: #fff; }
+.das-red-box { fill: #b3282d; }
+.das-grey-box { fill: #5b6670; }
+.das-pink-box { fill: #e39a9d; }
+.das-pink-ink { fill: #3a1c1e; }
+.das-deny { fill: var(--th-status-error); font-size: 12px; }
+.das-ok { fill: var(--th-status-success); font-size: 12px; }
+.das-line { stroke: currentColor; stroke-width: 2.2; fill: none; }
+.das-dot {
+  stroke: currentColor;
+  stroke-width: 2.2;
+  fill: none;
+  stroke-dasharray: 2 9;
+  stroke-linecap: round;
+}
+.das-boundary {
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+  stroke-dasharray: 2 9;
+  stroke-linecap: round;
+}
+.das-outline { stroke: currentColor; stroke-width: 1.6; fill: var(--th-bg-card); }
+.das-outline-dashed { stroke-dasharray: 6 4; }
+.das-outline-strong { stroke-width: 2.2; }
+.das-outline-ok { stroke: var(--th-status-success); }
+.das-chip { fill: var(--th-bg-inset); stroke: var(--th-border); stroke-width: 1; }
+.das-chip-ink { fill: var(--th-text); }
+.das-bus { stroke: #b3282d; stroke-width: 1.6; fill: none; }
+.das-band-info { fill: var(--th-status-info-bg); }
+.das-band-ok { fill: var(--th-status-success-bg); }
+.das-band-warn { fill: var(--th-status-warning-bg); }
+.das-band-ink-info { fill: var(--th-status-info-text); }
+.das-band-ink-ok { fill: var(--th-status-success-text); }
+.das-band-ink-warn { fill: var(--th-status-warning-text); }
+.das-svg--wide { min-width: 1000px; }
+.das-cluster { stroke: currentColor; stroke-width: 1.6; fill: none; }
+.das-ico {
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.das-ico-red { stroke: #b3282d; stroke-width: 2; fill: none; }
+.das-ico-ok { stroke: var(--th-status-success); stroke-width: 2; fill: none; }
+.das-dotfill { fill: var(--th-bg-inset); }
+.das-cur { fill: currentColor; }

@@ -1127,6 +1127,16 @@ export default function AdminSideNav({
       ],
     },
     {
+      label: "Demo arch slides",
+      icon: "arc",
+      children: [
+        { label: "Workload Agents · Topology", path: "/demo-arch-slides/workload-agents", icon: "arc" },
+        { label: "Workload Agents · CIBA Step-up", path: "/demo-arch-slides/ciba-hitl", icon: "arc" },
+        { label: "Workload Agents · 3rd-party MCP via ID-JAG", path: "/demo-arch-slides/id-jag", icon: "arc" },
+        { label: "Agentic Control Plane", path: "/demo-arch-slides/control-plane", icon: "arc" },
+      ],
+    },
+    {
       label: "Agent Studio (Preview)",
       icon: "arc",
       children: [
@@ -1470,6 +1480,12 @@ export default function AdminSideNav({
       { from: "Privilege-First Gateway (Node)", rename: "AI Gateway Enforcement (Node)" },
       "Gateway vs P1AZ Enforcement (MM)",
       "Resource Server Placement (MM)",
+    ], "arc"),
+    productGroup("Demo arch slides", [
+      "Workload Agents · Topology",
+      "Workload Agents · CIBA Step-up",
+      "Workload Agents · 3rd-party MCP via ID-JAG",
+      "Agentic Control Plane",
     ], "arc"),
     productGroup("Architecture & Learning", [
       "Learning Hub",
