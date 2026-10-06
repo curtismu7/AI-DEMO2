@@ -15,7 +15,7 @@
   gap: 2rem;
   margin-bottom: 2.5rem;
   padding: 2rem 2rem 1.75rem;
-  background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%);
+  background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
   border-radius: 12px;
   color: var(--th-text-invert);
 }
@@ -263,7 +263,7 @@
 .oas-tag-btn--active {
   border-color: #1d4ed8;
   background: #eff6ff;
-  color: #1d4ed8;
+  color: #1e40af;
   font-weight: 600;
 }
 
@@ -353,7 +353,7 @@
   border-radius: 4px;
   font-size: 0.7rem;
   font-weight: 600;
-  color: #92400e;
+  color: #78350f;
   white-space: nowrap;
 }
 
@@ -618,7 +618,7 @@
   background: #fee2e2;
   border: 1px solid #fca5a5;
   border-radius: 8px;
-  color: #991b1b;
+  color: #7f1d1d;
   font-size: 0.85rem;
   margin-bottom: 1rem;
 }

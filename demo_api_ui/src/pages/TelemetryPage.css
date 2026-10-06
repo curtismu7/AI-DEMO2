@@ -28,7 +28,7 @@
   padding: 0;
   border: none;
   background: transparent;
-  color: #1d4ed8;
+  color: var(--th-status-info-text);
   font-size: var(--font-size-sm);
   font-weight: 600;
   cursor: pointer;

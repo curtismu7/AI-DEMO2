@@ -143,7 +143,7 @@
   overflow: auto;
   font-size: var(--font-size-xs);
   line-height: 1.35;
-  color: var(--brand-dark-gray);
+  color: var(--th-text);
   background: var(--brand-light-gray);
   border: 1px solid #DDDDDD;
   border-radius: 4px;
@@ -160,7 +160,7 @@
 .runtime-chip {
   background: var(--th-bg-card);
   border: 1px solid #CCCCCC;
-  color: var(--brand-dark-gray);
+  color: var(--th-text);
   padding: 6px 12px;
   border-radius: 999px;
   font-size: var(--font-size-2xs);
@@ -351,7 +351,7 @@
 
 .log-table td {
   padding: 10px 16px;
-  color: var(--brand-dark-gray);
+  color: var(--th-text);
   vertical-align: top;
 }
 
@@ -384,7 +384,7 @@
   white-space: pre-wrap;
   font-family: inherit;
   line-height: 1.5;
-  color: var(--brand-dark-gray);
+  color: var(--th-text);
 }
 
 .correlation-id {
@@ -426,7 +426,7 @@
 }
 
 .refresh-indicator {
-  color: var(--th-status-success-text);
+  color: #14532d;
   font-weight: 600;
   animation: pulse 2s infinite;
 }
@@ -526,4 +526,8 @@
   .log-table td:first-child {
     display: none;
   }
+}
+
+:root[data-theme="dark"] .refresh-indicator {
+  color: var(--th-status-success-text);
 }

@@ -36,7 +36,7 @@
 
 .aac-eyebrow {
   margin: 0 0 8px;
-  color: var(--th-status-info);
+  color: var(--th-status-info-text);
   font-size: var(--font-size-2xs);
   font-weight: 800;
   letter-spacing: 0.1em;
@@ -282,7 +282,7 @@
   border-radius: var(--radius-pill);
   border: 1px solid var(--th-border-strong);
   background: var(--th-bg-card);
-  color: var(--th-status-info);
+  color: var(--th-status-info-text);
   font: inherit;
   font-size: var(--font-size-xs);
   font-weight: 600;
@@ -290,7 +290,7 @@
 }
 .aac-chip-toggle:hover {
   background: var(--th-bg-hover);
-  color: var(--th-status-info);
+  color: var(--th-status-info-text);
 }
 
 /* Callout notes. */

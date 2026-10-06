@@ -153,9 +153,9 @@
 
 .react-flow .react-flow__attribution a { color: var(--th-text-muted); }
 
-.afp-claim--aud { color: #1d4ed8; }
-.afp-claim--act { color: #15803d; }
-.afp-claim--may-act { color: #b45309; }
+.afp-claim--aud { color: #1e40af; }
+.afp-claim--act { color: #14532d; }
+.afp-claim--may-act { color: #92400e; }
 :root[data-theme="dark"] .afp-claim--aud { color: #93c5fd; }
 :root[data-theme="dark"] .afp-claim--act { color: #86efac; }
 :root[data-theme="dark"] .afp-claim--may-act { color: #fcd34d; }

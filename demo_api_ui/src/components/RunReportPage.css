@@ -9,13 +9,13 @@
 }
 
 .page-header h1 {
-  color: #277ba5;
+  color: var(--th-text);
   margin: 0 0 0.5rem 0;
   font-size: 2rem;
 }
 
 .page-header p {
-  color: #666;
+  color: var(--th-text-body);
   margin: 0;
 }
 
@@ -282,7 +282,7 @@
 .demo-result__login-btn {
   flex-shrink: 0;
   padding: 0.3rem 0.85rem;
-  background: #c62828;
+  background: #991b1b;
   color: #fff;
   border: none;
   border-radius: 4px;
@@ -292,7 +292,7 @@
 }
 
 .demo-result__login-btn:hover {
-  background: #a31515;
+  background: #7f1d1d;
 }
 
 /* CIBA step-up badge in the runs table */

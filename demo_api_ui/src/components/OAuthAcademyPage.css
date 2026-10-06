@@ -400,7 +400,7 @@
 .oauth-academy-page .oa-token-chain-label {
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: var(--th-status-success-text);
+  color: #14532d;
   margin-bottom: 10px;
   text-transform: uppercase;
   letter-spacing: 0.02em;
@@ -429,3 +429,5 @@
 .oauth-academy-page .oa-signin-btn:hover {
   background: #1d4ed8;
 }
+
+:root[data-theme="dark"] .oauth-academy-page .oa-token-chain-label { color: var(--th-status-success-text); }

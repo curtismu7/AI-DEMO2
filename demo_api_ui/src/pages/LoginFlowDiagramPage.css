@@ -71,11 +71,11 @@
 }
 
 .lfp-trace-button {
-  border: 1px solid var(--th-status-info);
+  border: 1px solid var(--th-status-info-text);
   border-radius: var(--radius-pill);
   padding: 0.35rem 0.7rem;
-  background: var(--th-status-info);
-  color: var(--th-text-on-emphasis);
+  background: var(--th-status-info-text);
+  color: var(--th-bg-card);
   cursor: pointer;
   font: inherit;
   font-size: 0.72rem;

@@ -4,7 +4,7 @@
   --pmd-bg: #0f1115;
   --pmd-panel: #161a21;
   --pmd-ink: #e9ecf3;
-  --pmd-ink-2: #9aa2b4;
+  --pmd-ink-2: #bcc3d2;
   --pmd-border: #2a313c;
   --pmd-accent: #5be6c9;
 
@@ -149,4 +149,11 @@
 }
 .end-user-nano .pmd-page code {
   color: var(--pmd-ink);
+}
+
+/* 7:1 light-mode inks. The light palette lives in PrivilegeGatewayTopologyPage.css;
+   the doubled class outranks it so the two files do not need to change together. */
+:root[data-theme="light"] .pmd-page.pgt-page.pgt-page {
+  --pmd-ink-2: #3a4150;
+  --pmd-accent: #0a5c48;
 }

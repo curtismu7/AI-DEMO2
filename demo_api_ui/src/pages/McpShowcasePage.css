@@ -411,13 +411,13 @@
 
 .mcpsc__outcome--permit {
   background: var(--th-status-success-bg);
-  color: var(--th-status-success-text);
+  color: #14532d;
   border: 1px solid var(--th-status-success-border);
 }
 
 .mcpsc__outcome--deny {
   background: var(--th-status-error-bg);
-  color: var(--th-status-error-text);
+  color: #7f1d1d;
   border: 1px solid var(--th-status-error-border);
 }
 
@@ -468,3 +468,6 @@
     margin-bottom: 12px;
   }
 }
+
+:root[data-theme="dark"] .mcpsc__outcome--permit { color: var(--th-status-success-text); }
+:root[data-theme="dark"] .mcpsc__outcome--deny { color: var(--th-status-error-text); }

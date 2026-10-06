@@ -29,7 +29,7 @@ const PALETTES = {
   dark: {
     isDark: true,
     bg: "#0b1220", panel: "#111a2e", panel2: "#0e1626", border: "#1e2c47",
-    text: "#e6edf7", muted: "#93a4c0", blue: "#2f81f7", fill: "#1f6feb", code: "#0a1322",
+    text: "#e6edf7", muted: "#b3c1d8", blue: "#79b0ff", fill: "#1a4fb5", code: "#0a1322",
     red: "#f85149", redText: "#ff7b72", green: "#5fd07a",
     tagOut: "rgba(147,164,192,.12)", tagIn: "rgba(46,160,67,.14)", tagRev: "rgba(248,81,73,.12)",
     tagInB: "rgba(46,160,67,.35)", tagRevB: "rgba(248,81,73,.35)",
@@ -39,7 +39,7 @@ const PALETTES = {
   light: {
     isDark: false,
     bg: "#f6f8fc", panel: "#ffffff", panel2: "#eef2f9", border: "#d9e1ee",
-    text: "#0e1626", muted: "#5a6b85", blue: "#2358c9", fill: "#2358c9", code: "#f4f7fc",
+    text: "#0e1626", muted: "#3f4d66", blue: "#1c479f", fill: "#1c479f", code: "#f4f7fc",
     red: "#d23b34", redText: "#c5302a", green: "#1a7f37",
     tagOut: "rgba(90,107,133,.10)", tagIn: "rgba(26,127,55,.12)", tagRev: "rgba(210,59,52,.10)",
     tagInB: "rgba(26,127,55,.35)", tagRevB: "rgba(210,59,52,.35)",
