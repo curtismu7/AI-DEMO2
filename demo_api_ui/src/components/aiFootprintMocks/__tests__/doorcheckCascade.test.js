@@ -50,3 +50,31 @@ describe("Check doors button cascade", () => {
     for (const sel of treeRules) expect(sel, sel).not.toMatch(/(^|\s)\.pvs(\s|$)/);
   });
 });
+
+describe("per-skin accent on Check doors and Re-arm", () => {
+  const css = read("PrivilegeShellViews.css");
+  const chrome = read("chrome.css");
+
+  it("defines --pvs-accent for every chat-capable skin from its own chrome", () => {
+    expect(css).toMatch(/\.pvs--vscode,\s*\.pvs-tree\s*\{\s*--pvs-accent:\s*var\(--accent\);/);
+    expect(css).toMatch(/\.pvs--claude-desktop\s*\{\s*--pvs-accent:\s*var\(--claude-accent\);/);
+    expect(css).toMatch(/\.pvs--coding\s*\{\s*--pvs-accent:\s*#[0-9a-f]{6};/i);
+  });
+
+  it("takes the accents from variables the chrome really defines", () => {
+    expect(chrome).toMatch(/--accent:\s*#[0-9a-f]{6}/i);
+    expect(chrome).toMatch(/--claude-accent:\s*#[0-9a-f]{6}/i);
+  });
+
+  it("tints the Check doors button, the Re-arm banner and its button with the accent", () => {
+    for (const re of [
+      /\.pvs-tree \.pvs-doorcheck__btn \{[^}]*var\(--pvs-accent, currentColor\)/,
+      /\.pvs-rearm \{[^}]*var\(--pvs-accent, currentColor\)/,
+      /\.pvs-rearm button \{[^}]*var\(--pvs-accent, currentColor\)/,
+    ]) expect(css).toMatch(re);
+  });
+
+  it("falls back to currentColor, so a skin without an accent keeps the neutral look", () => {
+    expect(css).not.toMatch(/var\(--pvs-accent\)/);
+  });
+});
