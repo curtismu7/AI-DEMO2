@@ -1,0 +1,33 @@
+.di-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+.di-card {
+  display: grid;
+  gap: 4px;
+  height: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--th-border);
+  border-top: 3px solid var(--th-status-info);
+  border-radius: 8px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  text-decoration: none;
+}
+.di-card:hover,
+.di-card:focus-visible {
+  border-color: var(--th-border-strong);
+  border-top-color: var(--th-status-info);
+}
+.di-title {
+  font-size: var(--font-size-body);
+  font-weight: 600;
+}
+.di-blurb {
+  font-size: var(--font-size-sm);
+  color: var(--th-text-muted);
+}

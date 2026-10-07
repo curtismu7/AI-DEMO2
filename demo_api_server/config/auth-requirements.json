@@ -276,6 +276,8 @@
     "/personal-agent-dual-gateway": "public",
     "/personal-agent-review": "public",
     "/cimd-privilege": "public",
+    "/a2a-architecture": "public",
+    "/diagrams": "public",
     "/ping-ai-test-lab": "public",
     "/ping-products/verify-recognize": "public",
     "/pingfederate-id-jag": "public",

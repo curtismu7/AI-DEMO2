@@ -37,6 +37,8 @@ import PrivilegeFirstGatewayPage from "./components/PrivilegeFirstGatewayPage";
 import PersonalAgentDesignPage from "./components/personalAgent/PersonalAgentDesignPage";
 import PersonalAgentReviewPage from "./components/personalAgent/PersonalAgentReviewPage";
 import CimdPrivilegePage from "./components/cimdPrivilege/CimdPrivilegePage";
+import A2aArchitecturePage from "./components/a2aArchitecture/A2aArchitecturePage";
+import DiagramsIndexPage from "./components/diagramsIndex/DiagramsIndexPage";
 import ResourceServerCheckpointPage from "./components/ResourceServerCheckpointPage";
 import DemoTrackPage from "./pages/DemoTrackPage";
 import DelegationChainValuePage from "./pages/DelegationChainValuePage";
@@ -2176,6 +2178,14 @@ function AppWithAuth() {
                             <Route
                               path="/cimd-privilege"
                               element={<CimdPrivilegePage />}
+                            />
+                            <Route
+                              path="/a2a-architecture"
+                              element={<A2aArchitecturePage />}
+                            />
+                            <Route
+                              path="/diagrams"
+                              element={<DiagramsIndexPage />}
                             />
                             <Route
                               path="/resource-server-checkpoint"

@@ -1,0 +1,4 @@
+flowchart LR
+    A["Generalist (Agent 1)"] -->|"GET /a2a/specialists/:vertical/<br/>.well-known/agent-card.json"| C["Agent Card"]
+    C -->|capabilities| A
+    A -->|"POST /a2a/specialists/:vertical<br/>JSON-RPC SendMessage"| S["Specialist (Agent 2)"]

@@ -1082,6 +1082,7 @@ export default function AdminSideNav({
       label: "Diagrams",
       icon: "arc",
       children: [
+        { label: "All Diagrams", path: "/diagrams", icon: "arc" },
         { label: "Server Topology (Interactive)", path: "/architecture/server-topology", icon: "arc" },
         { label: "PingFederate ID-JAG (Node)", path: "/architecture/pingfederate-id-jag", icon: "arc" },
         {
@@ -1129,6 +1130,7 @@ export default function AdminSideNav({
         { label: "Personal Agent Dual Gateway (Node)", path: "/personal-agent-dual-gateway", icon: "arc" },
         { label: "Personal Agent Design Review", path: "/personal-agent-review", icon: "log" },
         { label: "CIMD in Privilege (Node)", path: "/cimd-privilege", icon: "lck" },
+        { label: "A2A Architecture (Node)", path: "/a2a-architecture", icon: "arc" },
       ],
     },
     {
