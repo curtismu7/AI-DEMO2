@@ -1,3 +1,5 @@
+import { joinMultilineLabels } from "./parseFlowchart";
+
 // Derives a legible per-subsystem slice of docs/diagrams/architecture.mmd for
 // the System Architecture page's "Focus" selector — client-side, from the
 // SAME source the full diagram renders from, so there is no second copy of
@@ -35,31 +37,6 @@ export const FOCUS_GROUPS = {
     nodes: [],
   },
 };
-
-// A node/edge label can carry a real embedded newline (e.g. the
-// IntrospectionHealth->OIDC_AS edge). Collapse any line left with an
-// unterminated quoted string into the next one so every statement ends up
-// on a single physical line before the rest of the parsing below, which
-// scans line-by-line.
-function joinMultilineLabels(source) {
-  const rawLines = source.split("\n");
-  const joined = [];
-  let buffer = null;
-  for (const line of rawLines) {
-    if (buffer !== null) {
-      buffer += ` ${line.trim()}`;
-    } else {
-      buffer = line;
-    }
-    const quoteCount = (buffer.match(/"/g) || []).length;
-    if (quoteCount % 2 === 0) {
-      joined.push(buffer);
-      buffer = null;
-    }
-  }
-  if (buffer !== null) joined.push(buffer);
-  return joined.join("\n");
-}
 
 // Finds a top-level `subgraph ID[...] ... end` block (nested subgraphs and
 // all) and returns its lines verbatim, or null if ID isn't declared.

@@ -12,7 +12,7 @@ import NarrativePanel from "./NarrativePanel";
 import CibaStepUpFlowPanel from "./CibaStepUpFlowPanel";
 import DiagramExportBar from "./DiagramExportBar";
 import bffAxios from "../services/bffAxios";
-import { useMermaidRender } from "../hooks/useMermaidRender";
+import FlowchartFlowDiagram from "./FlowchartFlowDiagram";
 import { buildFocusDiagram, FOCUS_GROUPS } from "../utils/architectureFocus";
 import "./ArchitectureTabsPanel.css";
 import InlineSpinner from './shared/InlineSpinner';
@@ -436,16 +436,14 @@ const FOCUS_OPTIONS = [
 /**
  * FocusedArchitectureDiagram — renders one subsystem slice of
  * architecture.mmd, derived client-side (see utils/architectureFocus.js) so
- * there is no second copy of the topology to drift stale. Small by
- * construction (a handful of nodes), so it needs no zoom/scroll chrome.
+ * there is no second copy of the topology to drift stale. Drawn with React
+ * Flow, so it pans, zooms and steps through its arrows.
  */
 function FocusedArchitectureDiagram({ mmdSource, mmdError, focusKey }) {
   const filteredSource = useMemo(
     () => (mmdSource ? buildFocusDiagram(mmdSource, focusKey) : ""),
     [mmdSource, focusKey],
   );
-  const { containerRef, error } = useMermaidRender(filteredSource);
-
   if (mmdError) {
     return (
       <p style={{ fontSize: "0.85rem", color: "#b91c1c" }}>
@@ -460,25 +458,7 @@ function FocusedArchitectureDiagram({ mmdSource, mmdError, focusKey }) {
       </p>
     );
   }
-  if (error) {
-    return (
-      <p style={{ fontSize: "0.85rem", color: "#b91c1c" }}>
-        Couldn't render this focus: {error}
-      </p>
-    );
-  }
-  return (
-    <div
-      ref={containerRef}
-      style={{
-        background: "#ffffff",
-        border: "1px solid #e2e8f0",
-        borderRadius: 6,
-        padding: "1rem",
-        overflow: "auto",
-      }}
-    />
-  );
+  return <FlowchartFlowDiagram source={filteredSource} height={720} testId="arch-focus-diagram" label="System architecture focus" />;
 }
 
 function SystemArchitectureView() {

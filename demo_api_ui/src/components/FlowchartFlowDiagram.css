@@ -1,0 +1,59 @@
+/* FlowchartFlowDiagram.css — React Flow flowchart. Unclassed nodes use theme tokens; classDef
+   colours from the .mmd are a matched palette and stay literal (set inline from the source). */
+
+.fcd-canvas {
+  position: relative;
+  width: 100%;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  background: var(--th-bg-card);
+  overflow: hidden;
+}
+
+.fcd-node {
+  box-sizing: border-box;
+  padding: 7px 10px;
+  max-width: 280px;
+  text-align: center;
+  white-space: pre-line;
+  font-size: var(--font-size-3xs);
+  line-height: 15px;
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  border: 1.5px solid var(--th-border-strong);
+  border-radius: 6px;
+}
+.fcd-node--round { border-radius: 16px; }
+.fcd-node--diamond { border-style: dashed; }
+
+.fcd-group {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  border: 1.5px solid var(--th-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--th-bg-inset);
+}
+.fcd-group__label {
+  position: absolute;
+  top: 5px;
+  left: 10px;
+  right: 10px;
+  font-size: var(--font-size-2xs);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--th-text);
+}
+
+.fcd-note {
+  margin: 0;
+  padding: 16px;
+  font-size: var(--font-size-sm);
+  color: var(--th-text-muted);
+}
+
+.fcd .react-flow__edge-path { stroke: var(--th-text-muted); stroke-width: 1.4; }
+.fcd .react-flow__edge-text { font-size: var(--font-size-3xs); fill: var(--th-text); }
+.fcd .react-flow__edge-textbg { fill: var(--th-bg-card); }
+.fcd .react-flow__arrowhead polyline { stroke: var(--th-text-muted); fill: var(--th-text-muted); }
