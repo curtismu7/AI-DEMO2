@@ -1128,6 +1128,7 @@ export default function AdminSideNav({
         { label: "Personal Agent Design (Node)", path: "/personal-agent-design", icon: "arc" },
         { label: "Personal Agent Dual Gateway (Node)", path: "/personal-agent-dual-gateway", icon: "arc" },
         { label: "Personal Agent Design Review", path: "/personal-agent-review", icon: "log" },
+        { label: "CIMD in Privilege (Node)", path: "/cimd-privilege", icon: "lck" },
       ],
     },
     {

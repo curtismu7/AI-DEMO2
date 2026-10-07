@@ -36,6 +36,7 @@ import ResourceServerPlacementPage from "./components/ResourceServerPlacementPag
 import PrivilegeFirstGatewayPage from "./components/PrivilegeFirstGatewayPage";
 import PersonalAgentDesignPage from "./components/personalAgent/PersonalAgentDesignPage";
 import PersonalAgentReviewPage from "./components/personalAgent/PersonalAgentReviewPage";
+import CimdPrivilegePage from "./components/cimdPrivilege/CimdPrivilegePage";
 import ResourceServerCheckpointPage from "./components/ResourceServerCheckpointPage";
 import DemoTrackPage from "./pages/DemoTrackPage";
 import DelegationChainValuePage from "./pages/DelegationChainValuePage";
@@ -2171,6 +2172,10 @@ function AppWithAuth() {
                             <Route
                               path="/personal-agent-review"
                               element={<PersonalAgentReviewPage />}
+                            />
+                            <Route
+                              path="/cimd-privilege"
+                              element={<CimdPrivilegePage />}
                             />
                             <Route
                               path="/resource-server-checkpoint"
