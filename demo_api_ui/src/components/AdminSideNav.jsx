@@ -1125,6 +1125,9 @@ export default function AdminSideNav({
         { label: "Privilege-First Gateway (Node)", path: "/privilege-first-gateway", icon: "lck" },
         { label: "Gateway vs P1AZ Enforcement (MM)", path: "/gateway-enforcement-map", icon: "arc" },
         { label: "Resource Server Placement (MM)", path: "/resource-server-placement", icon: "arc" },
+        { label: "Personal Agent Design (Node)", path: "/personal-agent-design", icon: "arc" },
+        { label: "Personal Agent Dual Gateway (Node)", path: "/personal-agent-dual-gateway", icon: "arc" },
+        { label: "Personal Agent Design Review", path: "/personal-agent-review", icon: "log" },
       ],
     },
     {
@@ -1482,6 +1485,9 @@ export default function AdminSideNav({
       { from: "Privilege-First Gateway (Node)", rename: "AI Gateway Enforcement (Node)" },
       "Gateway vs P1AZ Enforcement (MM)",
       "Resource Server Placement (MM)",
+      "Personal Agent Design (Node)",
+      "Personal Agent Dual Gateway (Node)",
+      "Personal Agent Design Review",
     ], "arc"),
     productGroup("Demo arch slides", [
       "Workload Agents · Topology",

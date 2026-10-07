@@ -70,6 +70,7 @@ export const NAV_STRUCTURE_CATALOG = [
     "Delegated Access Proof", "Demo Steps Lifeline Audit",
     "Invest Dual-Auth (MM)", "AI Gateway (MM)",
     "AI Gateway Enforcement (Node)", "Gateway vs P1AZ Enforcement (MM)", "Resource Server Placement (MM)",
+    "Personal Agent Design (Node)", "Personal Agent Dual Gateway (Node)", "Personal Agent Design Review",
   ] },
   { label: "Demo arch slides", children: [
     "Workload Agents · Topology", "Workload Agents · CIBA Step-up",

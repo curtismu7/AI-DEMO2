@@ -1,0 +1,253 @@
+/* PersonalAgent.css — the three Personal Agent pages (two designs and the review).
+   Every colour is a --th-* token so the pages read in both themes (THEMING.md H1/H3). Group colours match
+   the Privilege-first page: Privilege is the error family, the Agent Gateway the info family. */
+
+.pa-page {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 32px 24px 64px;
+  display: grid;
+  gap: 32px;
+  color: var(--th-text);
+  background: var(--th-bg-page);
+}
+.pa-page h2 {
+  font-size: var(--font-size-xl);
+  margin: 0 0 12px;
+  text-wrap: balance;
+}
+
+.pa-hero {
+  display: grid;
+  gap: 10px;
+  max-width: 72ch;
+}
+.pa-eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--th-text-muted);
+}
+.pa-hero h1 {
+  font-size: var(--font-size-h2);
+  margin: 0;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+.pa-hero p {
+  margin: 0;
+  line-height: 1.5;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-body);
+}
+.pa-hero .pa-caveat {
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-left: 3px solid var(--th-status-warning);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  font-size: var(--font-size-sm);
+}
+.pa-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  font-size: var(--font-size-sm);
+}
+.pa-links a {
+  color: var(--th-link, var(--th-text));
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.pa-figure {
+  margin: 0;
+  display: grid;
+  gap: 12px;
+}
+.pa-figure h2 {
+  margin: 0;
+}
+
+/* Legend swatches: one class per group key so no colour is set inline. */
+.pa-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  font-size: var(--font-size-sm);
+  color: var(--th-text-muted);
+}
+.pa-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.pa-sw {
+  display: inline-block;
+  width: 22px;
+  height: 0;
+  border-top: 4px solid var(--th-border-strong);
+}
+.pa-sw--traveller,
+.pa-sw--llm { border-top-color: var(--th-text-muted); }
+.pa-sw--team,
+.pa-sw--ok { border-top-color: var(--th-status-success); }
+.pa-sw--ping { border-top-color: var(--th-status-warning); }
+.pa-sw--priv,
+.pa-sw--risk { border-top-color: var(--th-status-error); }
+.pa-sw--ag { border-top-color: var(--th-status-info); }
+.pa-sw--existing,
+.pa-sw--neutral { border-top-color: var(--th-border-strong); }
+.pa-sw--dashed {
+  border-top: 2px dashed var(--th-text-muted);
+}
+
+/* Step write-up */
+.pa-step-list,
+.pa-finding-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr));
+  gap: 16px;
+}
+.pa-step,
+.pa-finding {
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+.pa-step--active {
+  border-color: var(--th-status-info);
+  border-width: 2px;
+}
+.pa-step h3,
+.pa-finding h3 {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  line-height: 1.25;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.pa-step-n,
+.pa-id {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  color: var(--th-text);
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-pill);
+  padding: 1px 9px;
+}
+.pa-step dl,
+.pa-finding dl {
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+.pa-step dt,
+.pa-finding dt {
+  font-size: var(--font-size-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--th-text-muted);
+  margin-bottom: 2px;
+}
+.pa-step dd,
+.pa-finding dd {
+  margin: 0;
+  font-size: var(--font-size-body);
+  line-height: 1.5;
+}
+.pa-finding dd ul {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 3px;
+}
+.pa-today {
+  border-left: 3px solid var(--th-status-warning);
+  padding-left: 12px;
+}
+.pa-finding .pa-today {
+  border-left-color: var(--th-status-success);
+}
+.pa-finding--critical { border-left: 4px solid var(--th-status-error); }
+.pa-finding--high { border-left: 4px solid var(--th-status-warning); }
+.pa-finding--medium { border-left: 4px solid var(--th-status-info); }
+
+.pa-sev,
+.pa-verdict {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-sm);
+  padding: 1px 8px;
+  margin-left: auto;
+}
+.pa-sev--critical,
+.pa-verdict--fail { border-color: var(--th-status-error); }
+.pa-sev--high,
+.pa-verdict--partial { border-color: var(--th-status-warning); }
+.pa-sev--medium { border-color: var(--th-status-info); }
+.pa-verdict { margin-left: 0; }
+
+/* Scorecard */
+.pa-table-wrap {
+  overflow-x: auto;
+}
+.pa-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-body);
+  color: var(--th-text);
+  background: var(--th-bg-card);
+}
+.pa-table th,
+.pa-table td {
+  text-align: left;
+  vertical-align: top;
+  padding: 10px 12px;
+  border: 1px solid var(--th-border);
+  color: var(--th-text);
+}
+.pa-table thead th {
+  font-size: var(--font-size-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--th-text-muted);
+  background: var(--th-bg-page);
+}
+
+/* Assumptions and what the original did well */
+.pa-assume ul {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 8px;
+  max-width: 90ch;
+  font-size: var(--font-size-body);
+  line-height: 1.5;
+}
+
+@media (max-width: 700px) {
+  .pa-page {
+    padding: 20px 16px 48px;
+  }
+}

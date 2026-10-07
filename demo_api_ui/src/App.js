@@ -34,6 +34,8 @@ import DemoStepsLifelineAuditPage from "./components/DemoStepsLifelineAuditPage"
 import GatewayEnforcementMapPage from "./components/GatewayEnforcementMapPage";
 import ResourceServerPlacementPage from "./components/ResourceServerPlacementPage";
 import PrivilegeFirstGatewayPage from "./components/PrivilegeFirstGatewayPage";
+import PersonalAgentDesignPage from "./components/personalAgent/PersonalAgentDesignPage";
+import PersonalAgentReviewPage from "./components/personalAgent/PersonalAgentReviewPage";
 import ResourceServerCheckpointPage from "./components/ResourceServerCheckpointPage";
 import DemoTrackPage from "./pages/DemoTrackPage";
 import DelegationChainValuePage from "./pages/DelegationChainValuePage";
@@ -2157,6 +2159,18 @@ function AppWithAuth() {
                             <Route
                               path="/privilege-first-gateway"
                               element={<PrivilegeFirstGatewayPage />}
+                            />
+                            <Route
+                              path="/personal-agent-design"
+                              element={<PersonalAgentDesignPage variant="target" />}
+                            />
+                            <Route
+                              path="/personal-agent-dual-gateway"
+                              element={<PersonalAgentDesignPage variant="dual" />}
+                            />
+                            <Route
+                              path="/personal-agent-review"
+                              element={<PersonalAgentReviewPage />}
                             />
                             <Route
                               path="/resource-server-checkpoint"
