@@ -14,6 +14,24 @@ const EXACT_BYPASSES = new Set([
   'POST /api/auth/hosted-registration/resend',
   'GET /api/auth/hosted-registration/status',
   'GET /api/healthz',
+  // CIMD client documents Privilege fetches anonymously (mirrors se-ingress.yaml).
+  'GET /api/cimd/privilege/super-banking-ai-agent/client-metadata.json',
+  'GET /api/cimd/privilege/super-banking-investment-advisor-agent/client-metadata.json',
+  'GET /api/cimd/privilege/super-banking-records-specialist-agent/client-metadata.json',
+  'GET /api/cimd/privilege/super-banking-purchase-specialist-agent/client-metadata.json',
+  'GET /api/cimd/privilege/super-banking-membership-specialist-agent/client-metadata.json',
+  'GET /api/cimd/privilege/super-banking-payroll-specialist-agent/client-metadata.json',
+  'GET /api/cimd/privilege/super-banking-tax-records-specialist-agent/client-metadata.json',
+  'GET /api/cimd/privilege/super-banking-financial-aid-specialist-agent/client-metadata.json',
+  'GET /api/cimd/privilege/super-banking-supplier-contract-specialist-agent/client-metadata.json',
+  'GET /api/cimd/privilege/super-banking-holdings-specialist-agent/client-metadata.json',
+  'GET /api/cimd/privilege/super-banking-passenger-records-specialist-agent/client-metadata.json',
+  'GET /api/cimd/privilege/super-banking-fraud-watch-agent/client-metadata.json',
+  'GET /api/cimd/privilege/super-banking-balance-sweep-agent/client-metadata.json',
+  'GET /api/cimd/privilege/super-banking-agent/client-metadata.json',
+  'GET /api/cimd/privilege/super-banking-identity-verification-specialist-agent/client-metadata.json',
+  'GET /api/cimd/privilege/langchain-agent/client-metadata.json',
+  'GET /api/cimd/privilege/demo-agent-service/client-metadata.json',
 ]);
 
 // These are the two pre-existing demo identities used to administer and

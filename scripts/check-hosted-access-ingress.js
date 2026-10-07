@@ -15,6 +15,24 @@ const REQUIRED_BYPASSES = [
   '/api/auth/hosted-registration/resend',
   '/api/auth/hosted-registration/status',
   '/request-access',
+  // CIMD client documents Privilege fetches anonymously, one exact path per agent.
+  '/api/cimd/privilege/super-banking-ai-agent/client-metadata.json',
+  '/api/cimd/privilege/super-banking-investment-advisor-agent/client-metadata.json',
+  '/api/cimd/privilege/super-banking-records-specialist-agent/client-metadata.json',
+  '/api/cimd/privilege/super-banking-purchase-specialist-agent/client-metadata.json',
+  '/api/cimd/privilege/super-banking-membership-specialist-agent/client-metadata.json',
+  '/api/cimd/privilege/super-banking-payroll-specialist-agent/client-metadata.json',
+  '/api/cimd/privilege/super-banking-tax-records-specialist-agent/client-metadata.json',
+  '/api/cimd/privilege/super-banking-financial-aid-specialist-agent/client-metadata.json',
+  '/api/cimd/privilege/super-banking-supplier-contract-specialist-agent/client-metadata.json',
+  '/api/cimd/privilege/super-banking-holdings-specialist-agent/client-metadata.json',
+  '/api/cimd/privilege/super-banking-passenger-records-specialist-agent/client-metadata.json',
+  '/api/cimd/privilege/super-banking-fraud-watch-agent/client-metadata.json',
+  '/api/cimd/privilege/super-banking-balance-sweep-agent/client-metadata.json',
+  '/api/cimd/privilege/super-banking-agent/client-metadata.json',
+  '/api/cimd/privilege/super-banking-identity-verification-specialist-agent/client-metadata.json',
+  '/api/cimd/privilege/langchain-agent/client-metadata.json',
+  '/api/cimd/privilege/demo-agent-service/client-metadata.json',
 ];
 const REQUIRED_PUBLIC_PREFIXES = ['/assets'];
 

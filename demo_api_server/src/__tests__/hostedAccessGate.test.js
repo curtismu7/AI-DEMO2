@@ -21,6 +21,22 @@ function response() {
   };
 }
 
+describe('hostedAccessGate CIMD client documents', () => {
+  const doc = '/api/cimd/privilege/langchain-agent/client-metadata.json';
+
+  test('exact GET document paths bypass the gate', () => {
+    expect(isHostedAccessBypassPath(doc, 'GET')).toBe(true);
+    expect(isHostedAccessBypassPath(`${doc}?x=1`, 'GET')).toBe(true);
+  });
+
+  test('other methods, other slugs and the mock-AS routes stay gated', () => {
+    expect(isHostedAccessBypassPath(doc, 'POST')).toBe(false);
+    expect(isHostedAccessBypassPath('/api/cimd/privilege/unlisted/client-metadata.json', 'GET')).toBe(false);
+    expect(isHostedAccessBypassPath('/api/cimd/agents', 'GET')).toBe(false);
+    expect(isHostedAccessBypassPath('/api/cimd/agents/super-banking-agent/client-metadata.json', 'GET')).toBe(false);
+  });
+});
+
 describe('hostedAccessGate', () => {
   test.each([
     ['/api/auth/hosted-access/login', 'GET'],

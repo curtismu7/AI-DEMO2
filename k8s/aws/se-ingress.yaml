@@ -138,6 +138,127 @@ spec:
             name: frontend
             port:
               number: 4000
+      # CIMD client documents PingOne Privilege fetches anonymously (Settings >
+      # MCP Client Documents). One exact path per agent, GET only, no secrets.
+      - path: /api/cimd/privilege/super-banking-ai-agent/client-metadata.json
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
+      - path: /api/cimd/privilege/super-banking-investment-advisor-agent/client-metadata.json
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
+      - path: /api/cimd/privilege/super-banking-records-specialist-agent/client-metadata.json
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
+      - path: /api/cimd/privilege/super-banking-purchase-specialist-agent/client-metadata.json
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
+      - path: /api/cimd/privilege/super-banking-membership-specialist-agent/client-metadata.json
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
+      - path: /api/cimd/privilege/super-banking-payroll-specialist-agent/client-metadata.json
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
+      - path: /api/cimd/privilege/super-banking-tax-records-specialist-agent/client-metadata.json
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
+      - path: /api/cimd/privilege/super-banking-financial-aid-specialist-agent/client-metadata.json
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
+      - path: /api/cimd/privilege/super-banking-supplier-contract-specialist-agent/client-metadata.json
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
+      - path: /api/cimd/privilege/super-banking-holdings-specialist-agent/client-metadata.json
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
+      - path: /api/cimd/privilege/super-banking-passenger-records-specialist-agent/client-metadata.json
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
+      - path: /api/cimd/privilege/super-banking-fraud-watch-agent/client-metadata.json
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
+      - path: /api/cimd/privilege/super-banking-balance-sweep-agent/client-metadata.json
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
+      - path: /api/cimd/privilege/super-banking-agent/client-metadata.json
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
+      - path: /api/cimd/privilege/super-banking-identity-verification-specialist-agent/client-metadata.json
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
+      - path: /api/cimd/privilege/langchain-agent/client-metadata.json
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
+      - path: /api/cimd/privilege/demo-agent-service/client-metadata.json
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
       # The registration page is a React SPA route. Its content-hashed JS/CSS
       # files must also bypass the browser auth annotation or the public form
       # loads HTML successfully but cannot boot.
