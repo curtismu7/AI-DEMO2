@@ -12,6 +12,7 @@ const express = require('express');
 const { Role, TaskState } = require('@a2a-js/sdk');
 const {
   DefaultRequestHandler,
+  DefaultExecutionEventBusManager,
   DefaultPushNotificationSender,
   AgentEvent,
 } = require('@a2a-js/sdk/server');
@@ -48,6 +49,54 @@ function taskStoreFor(vertical) {
     }));
   }
   return taskStores.get(vertical);
+}
+
+// One event bus manager for all requests. The handler is rebuilt per request,
+// and the SDK finds a running task's bus through its manager, so a reconnecting
+// request (SubscribeToTask) can only attach if every handler shares this one.
+let eventBusManagerSingleton = null;
+function sharedEventBusManager() {
+  if (!eventBusManagerSingleton) eventBusManagerSingleton = new DefaultExecutionEventBusManager();
+  return eventBusManagerSingleton;
+}
+
+/**
+ * The SDK saves task state and sends push notifications from inside the loop
+ * that serves SendStreamingMessage. If that caller disconnects, the loop stops:
+ * the task keeps running but its result is never stored and no callback fires,
+ * so the stored task stays "working" forever. Keep draining after an early
+ * return so a dropped stream cannot strand the task.
+ */
+function keepDrainingAfterDisconnect(stream) {
+  return (async function* drained() {
+    let finished = false;
+    try {
+      for (;;) {
+        const next = await stream.next();
+        if (next.done) {
+          finished = true;
+          return;
+        }
+        yield next.value;
+      }
+    } finally {
+      if (!finished) {
+        void (async () => {
+          try {
+            for (;;) if ((await stream.next()).done) return;
+          } catch (err) {
+            console.warn('[a2a-wire] background drain after disconnect failed: %s', err?.message);
+          }
+        })();
+      }
+    }
+  }());
+}
+
+function withDrainOnDisconnect(handler) {
+  const original = handler.sendMessageStream.bind(handler);
+  handler.sendMessageStream = (...args) => keepDrainingAfterDisconnect(original(...args));
+  return handler;
 }
 
 // One push store for all requests (the handler is rebuilt per request, so a
@@ -373,14 +422,14 @@ function createSpecialistProtocolHandler(vertical, cfg, ctx) {
   if (!card) return null;
   const subjectToken = ctx?.subjectToken || ctx?.req?.a2aPingOne?.token || null;
   const pushStore = pushEnabled() ? sharedPushStore() : undefined;
-  const handler = new DefaultRequestHandler(
+  const handler = withDrainOnDisconnect(new DefaultRequestHandler(
     card,
     taskStoreFor(vertical),
     makeSpecialistExecutor(specialist, vertical, { subjectToken, ctx }),
-    undefined,
+    sharedEventBusManager(),
     pushStore,
     pushStore ? new DefaultPushNotificationSender(pushStore) : undefined,
-  );
+  ));
   return { handler, card, specialist };
 }
 
@@ -480,4 +529,6 @@ module.exports = {
   createSpecialistProtocolHandler,
   makeSpecialistExecutor,
   assertSkillAllowed,
+  sharedEventBusManager,
+  withDrainOnDisconnect,
 };
