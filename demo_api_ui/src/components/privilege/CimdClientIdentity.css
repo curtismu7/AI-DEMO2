@@ -1,0 +1,136 @@
+/* CimdClientIdentity — the readiness results block.
+   It lives in the Privilege page's own .cur-ide theme (a Light/Dark toggle that is independent of the app theme,
+   and a skin can make the page dark while --th-* is still light). So the block follows the PAGE theme: every
+   colour is a --cimd-* property that defaults to the app's --th-* tokens and is overridden for each page theme
+   below. Ground and ink are always set together, and each status colour is a matched text/bg/border triple, so
+   nothing can land dark-on-dark or light-on-light. */
+.cimd-ci-results {
+  --cimd-ground: var(--th-bg-card);
+  --cimd-ink: var(--th-text);
+  --cimd-inset: var(--th-bg-inset);
+  --cimd-line: var(--th-border);
+  --cimd-line-strong: var(--th-border-strong);
+  --cimd-ok-text: var(--th-status-success-text);
+  --cimd-ok-bg: var(--th-status-success-bg);
+  --cimd-ok-line: var(--th-status-success-border);
+  --cimd-bad-text: var(--th-status-error-text);
+  --cimd-bad-bg: var(--th-status-error-bg);
+  --cimd-bad-line: var(--th-status-error-border);
+
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--cimd-ground);
+  color: var(--cimd-ink);
+  border: 1px solid var(--cimd-line);
+  border-radius: 8px;
+}
+
+/* Dark page (the default): the same palette as the rest of the Settings panel. */
+.cur-ide:not([data-cur-theme="light"]) .cimd-ci-results {
+  --cimd-ground: #161b22;
+  --cimd-ink: #ffffff;
+  --cimd-inset: #21262d;
+  --cimd-line: #30363d;
+  --cimd-line-strong: #484f58;
+  --cimd-ok-text: #86efac;
+  --cimd-ok-bg: #0f2e1d;
+  --cimd-ok-line: #166534;
+  --cimd-bad-text: #fca5a5;
+  --cimd-bad-bg: #3a1616;
+  --cimd-bad-line: #991b1b;
+}
+
+/* Light page. */
+.cur-ide[data-cur-theme="light"] .cimd-ci-results {
+  --cimd-ground: #ffffff;
+  --cimd-ink: #1e1e1e;
+  --cimd-inset: #f3f4f6;
+  --cimd-line: #d0d7de;
+  --cimd-line-strong: #bcc3cc;
+  --cimd-ok-text: #14532d;
+  --cimd-ok-bg: #dcfce7;
+  --cimd-ok-line: #86efac;
+  --cimd-bad-text: #7f1d1d;
+  --cimd-bad-bg: #fee2e2;
+  --cimd-bad-line: #fca5a5;
+}
+
+.cimd-ci-verdict {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-size: var(--font-size-base);
+  font-weight: 700;
+}
+.cimd-ci-verdict--ok {
+  background: var(--cimd-ok-bg);
+  color: var(--cimd-ok-text);
+  border-color: var(--cimd-ok-line);
+}
+.cimd-ci-verdict--bad {
+  background: var(--cimd-bad-bg);
+  color: var(--cimd-bad-text);
+  border-color: var(--cimd-bad-line);
+}
+
+.cimd-ci-checks {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: var(--font-size-sm);
+  color: var(--cimd-ink);
+}
+.cimd-ci-checks th {
+  padding: 6px 10px;
+  text-align: left;
+  font-size: var(--font-size-2xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cimd-ink);
+  background: var(--cimd-inset);
+  border-bottom: 1px solid var(--cimd-line-strong);
+}
+.cimd-ci-checks td {
+  padding: 8px 10px;
+  vertical-align: top;
+  border-bottom: 1px solid var(--cimd-line);
+  overflow-wrap: anywhere;
+}
+.cimd-ci-checks tbody tr:last-child td { border-bottom: 0; }
+.cimd-ci-col-result { width: 64px; text-align: center; }
+.cimd-ci-col-check { width: 46%; }
+
+.cimd-ci-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  line-height: 1;
+}
+.cimd-ci-mark--pass {
+  background: var(--cimd-ok-bg);
+  color: var(--cimd-ok-text);
+  border-color: var(--cimd-ok-line);
+}
+.cimd-ci-mark--fail {
+  background: var(--cimd-bad-bg);
+  color: var(--cimd-bad-text);
+  border-color: var(--cimd-bad-line);
+}
+
+.cimd-ci-docurl {
+  margin: 12px 0 0;
+  font-size: var(--font-size-2xs);
+  color: var(--cimd-ink);
+  overflow-wrap: anywhere;
+}

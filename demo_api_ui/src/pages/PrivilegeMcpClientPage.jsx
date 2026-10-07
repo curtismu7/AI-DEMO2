@@ -1920,8 +1920,8 @@ export default function PrivilegeMcpClientPage() {
         onClose={() => setShowSettings(false)}
         title="Settings"
         footer={null}
-        defaultWidth={480}
-        defaultHeight={640}
+        defaultWidth={760}
+        defaultHeight={680}
         storageKey="privilege-settings-modal"
       >
         <div className="cur-ide cur-dm-scope" data-cur-theme={pageTheme}>

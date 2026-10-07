@@ -50,6 +50,29 @@ describe('CIMD Privilege client documents', () => {
     const res = await request(app).get(path('constructor'));
     expect(res.status).toBe(404);
   });
+
+  describe('behind a proxy that rewrites Host', () => {
+    const saved = process.env.PUBLIC_APP_URL;
+    afterEach(() => {
+      if (saved === undefined) delete process.env.PUBLIC_APP_URL;
+      else process.env.PUBLIC_APP_URL = saved;
+    });
+
+    test('PUBLIC_APP_URL names the document and its redirect, not the internal host the proxy sent', async () => {
+      process.env.PUBLIC_APP_URL = 'https://app.example.test';
+      // The Docker UI's nginx forwards Host: demo-api-server:3001, which is what the readiness check saw.
+      const res = await request(app).get(path('privilege-mcp-client')).set('Host', 'demo-api-server:3001');
+      expect(res.body.client_id).toBe(`https://app.example.test${path('privilege-mcp-client')}`);
+      expect(res.body.redirect_uris).toEqual(['https://app.example.test/api/privilege-mcp/auth/callback']);
+    });
+
+    test('a malformed PUBLIC_APP_URL falls back to the request instead of failing', async () => {
+      process.env.PUBLIC_APP_URL = 'not a url';
+      const res = await request(app).get(path('langchain-agent')).set('Host', 'docs.example.test');
+      expect(res.status).toBe(200);
+      expect(res.body.client_id).toBe(`http://docs.example.test${path('langchain-agent')}`);
+    });
+  });
 });
 
 describe('GET /api/cimd/privilege/check', () => {

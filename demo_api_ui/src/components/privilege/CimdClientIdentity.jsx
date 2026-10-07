@@ -1,9 +1,11 @@
 // CimdClientIdentity.jsx — how the Privilege MCP client identifies itself at the next sign-in.
 // "Dynamic registration" registers with the gateway (RFC 7591, the default). "Client document (CIMD)" sends
 // the URL of our client document as the client_id, so nothing is registered. The readiness check reports,
-// per rule, whether the gateway and our document are set up for that. Styled with the page's own cur-* classes.
+// per rule, whether the gateway and our document are set up for that. Layout uses the page's cur-* classes;
+// the results table has its own stylesheet (dark default, light override), like ToolsTable.
 import { useEffect, useState } from 'react';
 import apiClient from '../../services/apiClient';
+import './CimdClientIdentity.css';
 
 const BASE = '/api/privilege-mcp';
 
@@ -85,19 +87,41 @@ export default function CimdClientIdentity() {
         </p>
       )}
       {readiness && (
-        <>
-          <p className="cur-denial-note" data-testid="cimd-verdict">
-            {readiness.ok ? '✓ Ready for a client document sign-in.' : '✕ Not ready yet.'}
-          </p>
-          <ul data-testid="cimd-checks">
-            {readiness.checks.map((c) => (
-              <li key={c.id}>
-                {c.pass ? '✓' : '✕'} {c.label}: {c.detail}
-              </li>
-            ))}
-          </ul>
-          {readiness.targets && readiness.targets.documentUrl && <p className="cur-denial-note">Document: {readiness.targets.documentUrl}</p>}
-        </>
+        <div className="cimd-ci-results">
+          <div className={`cimd-ci-verdict ${readiness.ok ? 'cimd-ci-verdict--ok' : 'cimd-ci-verdict--bad'}`} data-testid="cimd-ci-verdict">
+            <span className={`cimd-ci-mark ${readiness.ok ? 'cimd-ci-mark--pass' : 'cimd-ci-mark--fail'}`} aria-hidden="true">
+              {readiness.ok ? '✓' : '✕'}
+            </span>
+            {readiness.ok ? 'Ready for a client document sign-in.' : 'Not ready yet.'}
+          </div>
+          <table className="cimd-ci-checks" data-testid="cimd-ci-checks" aria-label="CIMD readiness checks">
+            <thead>
+              <tr>
+                <th scope="col" className="cimd-ci-col-result">
+                  Result
+                </th>
+                <th scope="col" className="cimd-ci-col-check">
+                  Check
+                </th>
+                <th scope="col">Detail</th>
+              </tr>
+            </thead>
+            <tbody>
+              {readiness.checks.map((c) => (
+                <tr key={c.id}>
+                  <td className="cimd-ci-col-result">
+                    <span className={`cimd-ci-mark ${c.pass ? 'cimd-ci-mark--pass' : 'cimd-ci-mark--fail'}`} role="img" aria-label={c.pass ? 'Passed' : 'Failed'}>
+                      {c.pass ? '✓' : '✕'}
+                    </span>
+                  </td>
+                  <td className="cimd-ci-col-check">{c.label}</td>
+                  <td>{c.detail}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {readiness.targets && readiness.targets.documentUrl && <p className="cimd-ci-docurl">Document: {readiness.targets.documentUrl}</p>}
+        </div>
       )}
     </div>
   );

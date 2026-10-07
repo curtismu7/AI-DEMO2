@@ -53,6 +53,21 @@ function selfBaseUrl() {
   return `${scheme}://127.0.0.1:${port}`;
 }
 
+/**
+ * The URL a Privilege document is published at. PUBLIC_APP_URL wins when set: behind a proxy that rewrites Host
+ * (the Docker UI's nginx and the Vite dev proxy send demo-api-server:3001) the request's own host is an internal
+ * name, and a document whose client_id is not the URL it is fetched from is invalid CIMD, with redirect URIs on
+ * an origin nobody visits. Unset, it falls back to the request, as before.
+ */
+function canonicalDocumentUrl(req) {
+  try {
+    if (process.env.PUBLIC_APP_URL) return `${new URL(process.env.PUBLIC_APP_URL).origin}${req.originalUrl}`;
+  } catch {
+    // malformed PUBLIC_APP_URL: use the request
+  }
+  return requestUrl(req);
+}
+
 const DEFAULT_REDIRECT_PATH = '/api/external-agents/callback';
 
 // Agents with no scope-topology entry that Privilege should also accept by URL.
@@ -93,7 +108,7 @@ router.get('/privilege/:slug/client-metadata.json', (req, res) => {
     return res.status(404).json({ error: 'agent_not_found', slug: req.params.slug });
   }
   const redirectPath = (extra && extra.redirectPath) || DEFAULT_REDIRECT_PATH;
-  const url = requestUrl(req);
+  const url = canonicalDocumentUrl(req);
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Cache-Control', 'public, max-age=300');
   return res.json({
