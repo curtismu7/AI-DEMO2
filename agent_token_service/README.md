@@ -67,8 +67,22 @@ per target.
 | `POST` | `/v1/token` | `x-api-key` | `{ "target": "agent-gateway" }` (omit for the default identity) | `{ access_token, token_type, expires_in, scope }` |
 
 Targets come from `TARGETS_JSON`; an unknown target is a `400 unknown_target`
-and never reaches PingOne. Run it with the `agent-identity-sidecar` compose
-profile; it is not published to the host.
+and never reaches PingOne. A target is either explicit (`scope`, `resource`) or
+names a resource in `scope-topology.json` (`{"topologyResource": "Super Banking
+Agent Gateway"}`), in which case `scope` and `resource` come from that entry's
+`scopes` and `uri`. Explicit fields on the target win. Under compose the
+`agent-gateway` target is the topology form, so the stack's source of truth is
+not copied by hand; the file is read once at startup, and a missing file or
+resource stops the sidecar from starting. Run it with the
+`agent-identity-sidecar` compose profile; it is not published to the host.
+
+**Transport.** With `SOCKET_PATH` set the sidecar also serves on that Unix socket
+(mode 0666; the volume it sits on is the access control). Compose puts the socket
+on the `agent-identity-sidecar-socket` volume, which only the BFF mounts, and
+leaves the sidecar's TCP listener on loopback for its own health check, so the
+sidecar is no longer reachable from the rest of the compose network. The BFF uses
+the socket when `AGENT_IDENTITY_SIDECAR_SOCKET` is set and the
+`AGENT_IDENTITY_SIDECAR_URL` otherwise. The API key is still required either way.
 
 The caller is the **BFF**. With `ff_agent_identity_sidecar` ON (Feature Flags
 page), the BFF takes the default AI Agent's actor token — the `actor_token` in the

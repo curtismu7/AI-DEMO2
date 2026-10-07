@@ -17,6 +17,8 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+import { chmodSync, rmSync } from 'node:fs';
+import type { Server } from 'node:http';
 import express, { type Express } from 'express';
 import pino from 'pino';
 import pinoHttp from 'pino-http';
@@ -93,6 +95,37 @@ export function createApp(config: BrokerConfig, logger: pino.Logger): Express {
   return app;
 }
 
+/**
+ * Serve on host:port and, when SOCKET_PATH is set, on that Unix socket as well.
+ *
+ * With a socket, keep HOST on loopback: the TCP listener is then reachable only from inside
+ * this container (the health check), and callers use the socket, so reaching the sidecar needs
+ * the volume it lives on, not just a place on the compose network.
+ */
+export function listen(app: Express, config: BrokerConfig, logger: pino.Logger): Server[] {
+  const servers: Server[] = [
+    app.listen(config.port, config.host, () => {
+      logger.info(
+        { host: config.host, port: config.port, client_id: config.clientId, scope: config.scope },
+        'agent_token_service listening',
+      );
+    }),
+  ];
+  if (config.socketPath) {
+    const socketPath = config.socketPath;
+    // A socket file left by a previous run makes listen() fail with EADDRINUSE.
+    rmSync(socketPath, { force: true });
+    servers.push(
+      app.listen(socketPath, () => {
+        // 0666: the socket's volume, not its mode, is what limits who can connect.
+        chmodSync(socketPath, 0o666);
+        logger.info({ socketPath }, 'agent_token_service listening on unix socket');
+      }),
+    );
+  }
+  return servers;
+}
+
 // Bootstrap only when run directly (not when imported by tests).
 if (require.main === module) {
   const logger = pino(
@@ -112,11 +145,5 @@ if (require.main === module) {
     process.exit(1);
   }
 
-  const app = createApp(config, logger);
-  app.listen(config.port, config.host, () => {
-    logger.info(
-      { host: config.host, port: config.port, client_id: config.clientId, scope: config.scope },
-      'agent_token_service listening',
-    );
-  });
+  listen(createApp(config, logger), config, logger);
 }

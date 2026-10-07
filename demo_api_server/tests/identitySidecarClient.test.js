@@ -19,10 +19,12 @@ beforeEach(() => {
   mockGetEffective.mockReset();
   process.env.AGENT_IDENTITY_SIDECAR_API_KEY = KEY;
   delete process.env.AGENT_IDENTITY_SIDECAR_URL;
+  delete process.env.AGENT_IDENTITY_SIDECAR_SOCKET;
 });
 
 afterAll(() => {
   delete process.env.AGENT_IDENTITY_SIDECAR_API_KEY;
+  delete process.env.AGENT_IDENTITY_SIDECAR_SOCKET;
 });
 
 describe('isEnabled', () => {
@@ -54,6 +56,24 @@ describe('fetchActorToken', () => {
     await client.fetchActorToken({ target: 'other-target' });
     expect(axios.post.mock.calls[0][0]).toBe('http://sidecar.test:9000/v1/token');
     expect(axios.post.mock.calls[0][1]).toEqual({ target: 'other-target' });
+  });
+
+  test('with AGENT_IDENTITY_SIDECAR_SOCKET it connects over the Unix socket', async () => {
+    process.env.AGENT_IDENTITY_SIDECAR_SOCKET = '/run/agent-identity/sidecar.sock';
+    axios.post.mockResolvedValue({ data: { access_token: 'tok-3' } });
+
+    await expect(client.fetchActorToken()).resolves.toBe('tok-3');
+
+    const [url, , opts] = axios.post.mock.calls[0];
+    expect(opts.socketPath).toBe('/run/agent-identity/sidecar.sock');
+    expect(url).toMatch(/\/v1\/token$/);
+    expect(opts.headers).toEqual({ 'x-api-key': KEY });
+  });
+
+  test('without the socket variable no socketPath is set (TCP exactly as before)', async () => {
+    axios.post.mockResolvedValue({ data: { access_token: 'tok-4' } });
+    await client.fetchActorToken();
+    expect('socketPath' in axios.post.mock.calls[0][2]).toBe(false);
   });
 
   test('a missing api key fails before any network call', async () => {

@@ -1,5 +1,6 @@
 'use strict';
 
+import { readFileSync } from 'node:fs';
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -32,12 +33,43 @@ export interface BrokerConfig {
   agentCertPath: string;
   // Sidecar targets: name -> scope/audience/resource override for POST /v1/token.
   targets: Record<string, TargetConfig>;
+  // Unix socket to serve on, in addition to host:port. Set it (and leave HOST on loopback)
+  // so only containers that mount the socket's volume can reach the sidecar.
+  socketPath?: string;
 }
 
 export interface TargetConfig {
   scope?: string;
   audience?: string;
   resource?: string;
+  // Name of a `resources` entry in scope-topology.json. Its `uri` becomes `resource` and its
+  // `scopes` become `scope`, so the stack's source of truth is not copied by hand. Anything set
+  // explicitly on the target wins. Consumed at load: it is not carried on the resolved target.
+  topologyResource?: string;
+}
+
+interface TopologyResource {
+  uri?: string;
+  scopes?: string[];
+}
+
+// The topology is the repo's scope/audience source of truth (schema-checked in CI). The
+// sidecar only reads it, once, at startup; a changed file takes effect on restart.
+function readTopologyResources(): Record<string, TopologyResource> {
+  const file = process.env.TOPOLOGY_PATH || '/config/scope-topology.json';
+  let topology: { resources?: Record<string, TopologyResource> };
+  try {
+    topology = JSON.parse(readFileSync(file, 'utf8'));
+  } catch (err) {
+    throw new Error(
+      `TARGETS_JSON uses topologyResource but ${file} cannot be read as JSON: ` +
+        `${err instanceof Error ? err.message : err}`,
+    );
+  }
+  if (!topology.resources || typeof topology.resources !== 'object') {
+    throw new Error(`${file} has no "resources" object`);
+  }
+  return topology.resources;
 }
 
 function parseTargets(): Record<string, TargetConfig> {
@@ -52,7 +84,26 @@ function parseTargets(): Record<string, TargetConfig> {
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
     throw new Error('TARGETS_JSON must be an object of {target: {scope, audience, resource}}');
   }
-  return parsed as Record<string, TargetConfig>;
+
+  const out: Record<string, TargetConfig> = {};
+  let topology: Record<string, TopologyResource> | undefined;
+  for (const [name, target] of Object.entries(parsed as Record<string, TargetConfig>)) {
+    const { topologyResource, ...explicit } = target;
+    if (!topologyResource) {
+      out[name] = explicit;
+      continue;
+    }
+    if (!topology) topology = readTopologyResources();
+    if (!Object.prototype.hasOwnProperty.call(topology, topologyResource)) {
+      throw new Error(`TARGETS_JSON target "${name}": "${topologyResource}" is not a resource in the topology`);
+    }
+    const res = topology[topologyResource];
+    if (!res.uri || !res.scopes || res.scopes.length === 0) {
+      throw new Error(`TARGETS_JSON target "${name}": topology resource "${topologyResource}" has no uri or scopes`);
+    }
+    out[name] = { scope: res.scopes.join(' '), resource: res.uri, ...explicit };
+  }
+  return out;
 }
 
 function required(name: string): string {
@@ -104,5 +155,6 @@ export function loadConfig(): BrokerConfig {
     usePkiCreds,
     agentCertPath,
     targets: parseTargets(),
+    socketPath: process.env.SOCKET_PATH || undefined,
   };
 }

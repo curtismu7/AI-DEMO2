@@ -68,11 +68,18 @@ function assertTokenMatches(token, { audience, scope } = {}) {
 async function fetchActorToken({ target = DEFAULT_TARGET, audience, scope } = {}) {
   const apiKey = process.env.AGENT_IDENTITY_SIDECAR_API_KEY;
   if (!apiKey) throw new Error('AGENT_IDENTITY_SIDECAR_API_KEY is not set');
+  // A Unix socket (shared volume) is preferred: reaching the sidecar then needs the volume, not
+  // just a place on the network. The URL is the fallback, and only its path matters over a socket.
+  const socketPath = process.env.AGENT_IDENTITY_SIDECAR_SOCKET;
   const url = `${(process.env.AGENT_IDENTITY_SIDECAR_URL || DEFAULT_URL).replace(/\/+$/, '')}/v1/token`;
 
   let data;
   try {
-    ({ data } = await axios.post(url, { target }, { headers: { 'x-api-key': apiKey }, timeout: TIMEOUT_MS }));
+    ({ data } = await axios.post(url, { target }, {
+      headers: { 'x-api-key': apiKey },
+      timeout: TIMEOUT_MS,
+      ...(socketPath ? { socketPath } : {}),
+    }));
   } catch (err) {
     throw normalizeAxiosError(err, { label: `Identity sidecar (target ${target})`, timeoutMs: TIMEOUT_MS });
   }
