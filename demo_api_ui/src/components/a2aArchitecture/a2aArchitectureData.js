@@ -1,34 +1,31 @@
-// a2aArchitectureData.js — content for /a2a-architecture under Diagrams.
-// Source: docs/A2A_ARCHITECTURE.md (the two Mermaid figures, redrawn for StaticFlowDiagram).
-// Return legs (tool result, JSON-RPC response) are folded into the forward edge's label.
+// a2aArchitectureData.js — content for /a2a-architecture.
+// DELEGATION_SOURCE is a copy of docs/a2a-delegation-sequence.mmd for FlowDiagram. The docs file writes "#" as "#35;"
+// because real Mermaid cuts text at "#"; FlowDiagram does not decode it, so the test compares after decoding.
+// The discovery figure mirrors docs/a2a-card-discovery.mmd (three boxes; the capabilities return is folded into the GET arrow's label) as hand-placed nodes.
+
+export const DELEGATION_SOURCE = `sequenceDiagram
+    autonumber
+    participant U as Browser (demo_api_ui)
+    participant G as Generalist Agent 1 (BFF)
+    participant P as PingOne Authorize
+    participant S as Specialist Agent 2
+    participant M as A2A MCP Gateway
+
+    U->>G: UC2 request (session cookie)
+    G->>P: Exchange #1 — RFC 8693 token exchange
+    Note over G,P: Delegated token: sub=user, act={sub:generalist}
+    G->>S: A2A wire hop — JSON-RPC SendMessage<br/>Bearer = Exchange #1 token, A2A-Version: 1.0
+    S->>P: Exchange #2 — nested-act token exchange<br/>act={sub:specialist, act:{sub:generalist}}
+    P->>P: Authorize approves nested act chain
+    S->>M: MCP tool call (nested-act token)
+    M-->>S: Tool result
+    S-->>G: JSON-RPC response
+    G-->>U: Result + token-chain events<br/>(a2a-protocol-bearer → a2a-agent-card → a2a-protocol-message)
+`;
 
 const N = (id, group, label, sub, x, y) => ({ id, group, label, sub, x, y });
-const E = (src, tgt, label, opts) => (opts ? [src, tgt, label, opts] : [src, tgt, label]);
-const DOWN = { vertical: true };
 
-// Group keys are the ones PersonalAgent.css already styles.
-export const GROUPS = {
-  traveller: { label: "Browser", bg: "var(--th-text-muted)" },
-  ag: { label: "Agents", bg: "var(--th-status-info)" },
-  ping: { label: "PingOne Authorize", bg: "var(--th-status-warning)" },
-  team: { label: "MCP gateway", bg: "var(--th-status-success)" },
-};
-
-export const DELEGATION_NODES = [
-  N("browser", "traveller", "Browser", ["demo_api_ui"], 0, 0),
-  N("generalist", "ag", "Generalist Agent 1", ["BFF"], 290, 0),
-  N("specialist", "ag", "Specialist Agent 2", ["per-vertical A2A endpoint"], 580, 0),
-  N("p1", "ping", "PingOne Authorize", ["RFC 8693 token exchange", "approves the nested act chain"], 290, 200),
-  N("mcp", "team", "A2A MCP Gateway", ["sensitive-data tools"], 580, 200),
-];
-
-export const DELEGATION_EDGES = [
-  E("browser", "generalist", "UC2 request (session cookie)"), // 0
-  E("generalist", "p1", "Exchange #1: sub=user, act={generalist}", DOWN), // 1
-  E("generalist", "specialist", "SendMessage, Bearer = Exchange #1 token; response returns"), // 2
-  E("specialist", "p1", "Exchange #2: act={specialist, act={generalist}}"), // 3
-  E("specialist", "mcp", "MCP tool call (nested-act token); result returns", DOWN), // 4
-];
+export const DISCOVERY_GROUPS = { ag: { label: "Agents", bg: "var(--th-status-info)" } };
 
 export const DISCOVERY_NODES = [
   N("gen", "ag", "Generalist (Agent 1)", [], 0, 0),
@@ -37,6 +34,6 @@ export const DISCOVERY_NODES = [
 ];
 
 export const DISCOVERY_EDGES = [
-  E("gen", "card", "GET /a2a/specialists/:vertical/.well-known/agent-card.json"), // 0
-  E("gen", "spec", "POST /a2a/specialists/:vertical (JSON-RPC SendMessage)", { vertical: true }), // 1
+  ["gen", "card", "GET /a2a/specialists/:vertical/.well-known/agent-card.json; capabilities return"], // 0
+  ["gen", "spec", "POST /a2a/specialists/:vertical (JSON-RPC SendMessage)", { vertical: true }], // 1
 ];

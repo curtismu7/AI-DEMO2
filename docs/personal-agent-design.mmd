@@ -1,0 +1,51 @@
+%% A personal AI agent, secured end to end (/personal-agent-design, Agent Gateway only). Dashed arrow: another client entering through the same door.
+flowchart LR
+    signin["Ping sign-in<br/>OIDC code + PKCE + PAR<br/>passkey or MFA, consent screen"]
+    other["Desktop AI apps<br/>Claude Desktop, Claude Code<br/>each with its own identity"]
+    token["Ping token service<br/>RFC 8693 token exchange<br/>adds the actor, binds the key<br/>CIBA approval"]
+    phone["Traveller's phone<br/>registered MFA device<br/>push names the exact purchase"]
+    traveller["Traveller<br/>web browser, plain English"]
+    chat["Hosted chat agent<br/>registered agent identity<br/>BFF holds the session<br/>key kept in a vault"]
+    agw["Agent Gateway<br/>PingGateway MCP module<br/>aud, scope, key proof<br/>tool allowlist per client<br/>audit on every call"]
+    mcp["Loyalty MCP server<br/>accepts only its own audience<br/>16 tools, its own client<br/>exchanges toward the facade"]
+    facade["Facade<br/>checks aud and actor chain<br/>session minted from the token<br/>price re-check, cart guards"]
+    checkout["Airline checkout page<br/>cart-bound link, 5 min, once<br/>needs the member session<br/>payment happens here only"]
+    claude["Claude on Bedrock<br/>via the LLM gateway<br/>no credentials in context"]
+    policy["Policy engine<br/>PingOne Authorize<br/>member, agent, tool, arguments<br/>permit, deny or step-up"]
+    audit["Audit and SIEM<br/>gateway audit + actor chain<br/>joined on token id"]
+    services["Airline services<br/>shopping, cart, seats, bags<br/>loyalty, trip insurance"]
+    traveller -->|"1. asks, replies"| chat
+    traveller -->|"2. signs in, consents"| signin
+    signin -->|"3. sign-in token, kept in the BFF"| chat
+    chat -->|"4. prompt and tool list, no tokens"| claude
+    token -->|"5. exchange: token for one tool"| chat
+    chat -->|"6. tool call"| agw
+    other -.->|"7. own identity"| agw
+    agw -->|"8. decide, with arguments"| policy
+    agw -->|"9. permitted"| mcp
+    token -->|"10. exchange: token for the facade"| mcp
+    mcp -->|"11. facade token"| facade
+    facade -->|"12. member session + actor"| services
+    token -->|"13. approval push"| phone
+    traveller -->|"14. opens the cart-bound link"| checkout
+    agw -->|"15. verdicts + actor chain"| audit
+    classDef ping fill:#fef3c7,stroke:#d97706
+    classDef traveller fill:#e5e7eb,stroke:#6b7280
+    classDef team fill:#dcfce7,stroke:#16a34a
+    classDef ag fill:#dbeafe,stroke:#2563eb
+    classDef existing fill:#f3f4f6,stroke:#9ca3af
+    classDef llm fill:#e5e7eb,stroke:#6b7280
+    class signin ping
+    class other traveller
+    class token ping
+    class phone traveller
+    class traveller traveller
+    class chat team
+    class agw ag
+    class mcp team
+    class facade team
+    class checkout existing
+    class claude llm
+    class policy ping
+    class audit team
+    class services existing

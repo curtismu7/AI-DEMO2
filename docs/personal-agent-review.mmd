@@ -1,0 +1,34 @@
+%% The original personal-agent design with findings F1-F10 pinned (/personal-agent-review). Red: carries a finding. Green: done well.
+flowchart LR
+    signin["Ping sign-in<br/>issues a sign-in token<br/>good for about an hour (F7)"]
+    other["Other AI apps<br/>same MCP, same tools<br/>no entry control (F1, F6)"]
+    traveller["Traveller<br/>web browser, plain English"]
+    chat["Hosted chat agent<br/>no identity of its own (F1)<br/>runs on a laptop (F8)"]
+    mcp["Loyalty MCP server<br/>checks the sign-in on every call<br/>no policy, no approval (F3, F4)"]
+    facade["Facade<br/>no double-adds, price re-checks<br/>verifies every cart change"]
+    services["Airline services<br/>see ordinary member traffic<br/>no audit attribution (F9)"]
+    checkout["Airline checkout page<br/>payment stays here: done well<br/>link lands signed in (F5)"]
+    claude["Claude on Bedrock<br/>through a central LLM gateway: good<br/>tool results unshown (F10)"]
+    session["Session service<br/>token becomes a full member<br/>session across all tools (F2)"]
+    traveller -->|"asks, replies"| chat
+    signin -->|"sign-in token"| chat
+    chat -->|"what should I do next"| claude
+    chat -->|"tool calls + same token"| mcp
+    other -.->|"same tools, no gateway"| mcp
+    mcp -->|"token becomes a member session"| session
+    mcp -->|"calls with that session"| facade
+    facade -->|"existing systems"| services
+    traveller -->|"opens the checkout link"| checkout
+    classDef neutral fill:#f3f4f6,stroke:#9ca3af
+    classDef risk fill:#fee2e2,stroke:#dc2626
+    classDef ok fill:#dcfce7,stroke:#16a34a
+    class signin neutral
+    class other risk
+    class traveller neutral
+    class chat risk
+    class mcp risk
+    class facade ok
+    class services neutral
+    class checkout risk
+    class claude risk
+    class session risk
