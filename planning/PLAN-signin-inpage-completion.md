@@ -1,6 +1,6 @@
 # Plan: finish the pi.flow sign-in in the page (no full reload)
 
-Status: **design only, nothing implemented.** Decision gate in §6 — read it before building.
+Status: **closed 2026-10-07 — not built.** The §6 gate came back negative (see §9). Kept as the reference for what an in-page completion would take, if the numbers change.
 
 ## 1. Why this exists
 
@@ -65,3 +65,25 @@ The server-side sign-in is about 1.3 s. Most of what the user feels is the reloa
 - Does the callback accept a `redirect: "manual"` fetch (experiment in §4A)?
 - Does anything depend on `?oauth=success` beyond the success modal and the login trace (`AIAgent.js:2365` auto-opens the agent on it)?
 - Should the overlay (`navigateWithOverlay`) stay for the whole in-page step, so the user still sees "Signing in…" while the callback runs?
+
+## 9. Outcome of the §6 gate (2026-10-07)
+
+PR #943 shipped `npm run ui:mode built` and the live stack was switched to it. One real sign-in was then captured the same way as §1 (visible window, user typing excluded; stack generation identical before and after). One run each, same machine, so read the ratios, not the decimals.
+
+| Step | dev server (§1) | built bundle |
+|---|---|---|
+| Credentials POST | 0.36 s | 0.07 s |
+| Callback (token exchange, session) | 0.92 s | 0.61 s |
+| Dashboard document to first API call | 1.2 s | **0.22 s** |
+| Submit to first API call | 2.5 s | **0.94 s** |
+| Submit to account data on screen | about 3.3 s | **about 1.4 s** |
+| Requests after the session exists | 1,100 | **57** |
+| Everything settled after submit | 8.1 s | **about 2.0 s** |
+
+**Result:** the reboot that an in-page completion would remove is now about 0.3 s (document plus time to the first API call). The data fetches after it (accounts, transactions, the boot API burst) happen with or without a reload. Best case saved: roughly 0.3 to 0.5 s, against a change to the most protected route in the repo. That is under the 1 s bar in §6, so this is closed.
+
+Left on the table, in order of size:
+
+1. The boot API burst — about 45 calls in about 1.1 s once signed in; `/api/auth/session` is called 5 to 6 times and queues up to about 0.8 s. Several of the callers are sign-in code, so dedupe needs care.
+2. `POST /api/demo-agent/tools` takes about 2.5 s (it completed in the built-bundle run; the earlier "pending" was the capture ending).
+3. The callback itself, about 0.6 s, mostly PingOne round trips.
