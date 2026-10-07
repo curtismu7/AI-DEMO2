@@ -30,8 +30,7 @@ both together.
 Applied as plain manifests, in order (`k8s/aws/deploy.sh`):
 jaeger, mcp-server, mcp-resource-server, api-resource-server, hitl-service,
 llm-stack, api-server (BFF), mcp-gateway, ping-gateway, agent-service (x2 — one
-is a duplicate apply, harmless), mastra-agent, openai-agent, pydantic-agent,
-frontend (UI).
+is a duplicate apply, harmless), frontend (UI).
 
 Deployed via Helm, as one release (`k8s/helm/mcpgw`, `mcpgw` binary):
 mcpgw Deployment + Service + Secret + PVC. OpenSearch and the chart's own

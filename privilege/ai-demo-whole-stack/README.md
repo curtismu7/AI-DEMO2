@@ -13,7 +13,7 @@ release, on the Ping SE AWS cluster.
 - The whole app (~19 Deployments): frontend, BFF, mcp-server, mcp-gateway,
   authz-server, agent-service, hitl-service, mcp-resource-server,
   api-resource-server, ping-gateway, jaeger, llm-stack (5 tiers), and the
-  langchain/mastra/openai/pydantic agent variants.
+  langchain agent.
 - **mcpgw** — the Privilege proxy gateway (`mcpgw`), as a Helm subchart
   dependency on `../../k8s/helm/mcpgw` (its internal chart name is
   `privgateway`, from the originally vendored source — see `Chart.yaml`).

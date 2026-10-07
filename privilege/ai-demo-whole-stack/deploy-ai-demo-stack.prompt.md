@@ -14,7 +14,7 @@ This chart installs (one release, ~20 Deployments):
 - The whole app: frontend, BFF (api-server), mcp-server, mcp-gateway,
   authz-server, agent-service, hitl-service, mcp-resource-server,
   api-resource-server, ping-gateway, jaeger, llm-stack (5 tiers), plus the
-  langchain/mastra/openai/pydantic agent variants.
+  langchain agent.
 - **mcpgw** — the Privilege proxy gateway (`mcpgw`, `k8s/helm/mcpgw` as a
   subchart dependency named `privgateway`, alongside `deploy-whole-stack.prompt.md`
   and `k8s/aws/deploy.sh` — same proven config, packaged as one chart here).

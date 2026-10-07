@@ -473,7 +473,7 @@ configure_llm_providers() {
   echo ""
 
   echo "  ${BOLD}Anthropic (Claude)${RESET}"
-  echo "  Powers the LangChain and Mastra agents. API key from https://console.anthropic.com"
+  echo "  Powers the LangChain agent. API key from https://console.anthropic.com"
   echo ""
   if ask_yes_no "  Configure Anthropic API key now? [y/N] " no; then
     local anthropic_key=""
@@ -484,7 +484,6 @@ configure_llm_providers() {
     if [[ -n "$anthropic_key" ]]; then
       _set_env_key "${dir}/langchain_agent/.env"    "ANTHROPIC_API_KEY"        "$anthropic_key"
       _set_env_key "${dir}/langchain_agent/.env"    "LANGCHAIN_LLM_PROVIDER"   "anthropic"
-      _set_env_key "${dir}/mastra_agent/.env"       "ANTHROPIC_API_KEY"        "$anthropic_key"
       _set_env_key "${dir}/demo_agent_service/.env" "ANTHROPIC_API_KEY"        "$anthropic_key"
       ok "Anthropic API key saved."
     else
@@ -497,7 +496,7 @@ configure_llm_providers() {
   echo ""
 
   echo "  ${BOLD}OpenAI${RESET}"
-  echo "  Powers the OpenAI Agents SDK and Pydantic AI agents. API key from https://platform.openai.com"
+  echo "  Powers the LangChain agent. API key from https://platform.openai.com"
   echo ""
   if ask_yes_no "  Configure OpenAI API key now? [y/N] " no; then
     local openai_key=""
@@ -506,9 +505,6 @@ configure_llm_providers() {
       read -r openai_key </dev/tty || true
     fi
     if [[ -n "$openai_key" ]]; then
-      _set_env_key "${dir}/openai_agent/.env"       "OPENAI_API_KEY" "$openai_key"
-      _set_env_key "${dir}/pydantic_agent/.env"     "OPENAI_API_KEY" "$openai_key"
-      _set_env_key "${dir}/mastra_agent/.env"       "OPENAI_API_KEY" "$openai_key"
       _set_env_key "${dir}/langchain_agent/.env"    "OPENAI_API_KEY" "$openai_key"
       ok "OpenAI API key saved."
     else
