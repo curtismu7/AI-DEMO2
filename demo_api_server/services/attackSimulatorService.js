@@ -43,6 +43,7 @@ const { buildTokenEvent, decodeJwtClaims, buildTratContext, buildRarAuthorizatio
 const { mintIntentToken } = require('./intentTokenService');
 const dataStore = require('../data/store');
 const configStore = require('./configStore');
+const pfStandardTokenExchangeService = require('./pfStandardTokenExchangeService');
 const { stampUseCaseId } = require('./useCaseTagging');
 
 const UC18_DEMO_RATE_LIMIT = {
@@ -163,7 +164,38 @@ const _simSession = new AsyncLocalStorage();
 const _withSession = (fn) => (a, req, ...rest) =>
   _simSession.run(req?.session?.oauthTokens, () => fn(a, req, ...rest));
 
-async function _exchangeSimToken(subjectToken, audience, scopes) {
+/**
+ * PF -> PingGateway: the same PF two-exchange the live tool pipeline runs for
+ * ordinary PF runs (agentMcpTokenService._performTwoExchangeDelegation). PF's
+ * ID-JAG redemption can only mint the MCP server's own audience, which
+ * mcpGatewayClient pins to the Node gateway (mock authz); this returns a token
+ * whose aud is PingGateway's, so PingGateway -> real PingOne Authorize decides.
+ */
+async function _pfTwoExchangeForPingGateway(subjectToken, audience, scopes) {
+  const pf = pfStandardTokenExchangeService;
+  const cfg = pf.resolveConfig();
+  const userSub = pf.resolveUserSubject(decodeJwtClaims(subjectToken)?.claims);
+  const finalAud = Array.isArray(audience) ? audience[0] : audience;
+  const agentActorToken = await pf.getActorToken(cfg, 'agent');
+  const ex1Scopes = [cfg.agentActorScope];
+  const intermediate = await pf.performExchange(cfg, 'agent', subjectToken, agentActorToken, cfg.intermediateAudience, ex1Scopes);
+  pf.validateIntermediateToken(intermediate, {
+    userSub, audience: cfg.intermediateAudience, scopes: ex1Scopes, issuer: cfg.issuer, agentActorToken,
+  });
+  const mcpActorToken = await pf.getActorToken(cfg, 'mcp');
+  const finalToken = await pf.performExchange(cfg, 'mcp', intermediate, mcpActorToken, [finalAud], scopes);
+  pf.validateFinalToken(finalToken, {
+    userSub, audience: finalAud, scopes, issuer: cfg.issuer, agentActorToken, mcpActorToken,
+  });
+  return finalToken;
+}
+
+async function _exchangeSimToken(subjectToken, audience, scopes, { viaPingGateway = false } = {}) {
+  // PF + PingGateway as the PEP: never the ID-JAG chain below (its token is
+  // audienced for the MCP server and is pinned to the Node gateway's mock authz).
+  if (viaPingGateway && configStore.getOAuthProvider?.() === 'pingfederate') {
+    return _pfTwoExchangeForPingGateway(subjectToken, audience, scopes);
+  }
   // PingFederate mode: the subject token is a PF session artifact (refresh
   // token), which PingOne cannot parse — route through the PF ID-JAG issuance
   // + redemption chain instead, same as the live tool pipeline
@@ -486,7 +518,7 @@ async function _exchangeGatewayToken(subjectToken, scopes, useCaseId, tokenChain
 
   let exchangedToken;
   try {
-    exchangedToken = await _exchangeSimToken(subjectToken, target.audience, target.scopes);
+    exchangedToken = await _exchangeSimToken(subjectToken, target.audience, target.scopes, { viaPingGateway: target.viaPingGateway && Array.isArray(target.audience) });
   } catch (err) {
     const errorCode = err.pingoneError || 'exchange_failed';
     const reason = `Token exchange failed: ${err.message}`;
