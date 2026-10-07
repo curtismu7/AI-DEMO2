@@ -1244,6 +1244,11 @@ router.get('/callback', async (req, res) => {
     } catch (phoneErr) {
       console.warn('[oauth/user/callback] phone lookup failed (non-fatal):', phoneErr.message);
     }
+    // A PingFederate user's id is its username, so the PingOne lookup above cannot find them. PingFederate
+    // releases the phone it read from the PingOne directory as phone_number: use that when nothing else set one.
+    if (!authedUser.phone && typeof mergedUserInfo?.phone_number === 'string' && mergedUserInfo.phone_number.trim()) {
+      authedUser.phone = mergedUserInfo.phone_number.trim();
+    }
     const origin = getFrontendOrigin();
     const postLoginReturnToPath = sanitizePostLoginReturnPath(req.session.postLoginReturnToPath) || null;
     const resolvedLoginProvider = loginProvider || selectedProvider;

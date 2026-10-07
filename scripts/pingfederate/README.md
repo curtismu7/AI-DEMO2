@@ -162,6 +162,37 @@ Things to know:
 - Sign-in itself is not gated: a disabled user can still reach the PingFederate
   login page and get a session. What stops is every delegated token.
 
+## PingOne profile in the PingFederate ID token (email, name, phone)
+
+PingFederate's own user (`demouser` in the simple PCV) has no profile, so its ID token carried only `sub` and the
+app showed a name with no email or phone. The same people live in the PingOne environment, which is already the
+system of record (see the user gate above), so the OIDC policy `aiDemoPfOidcPolicy` now looks the PingOne account up
+by username in the same REST data store and releases `email`, `given_name`, `family_name`, `name` and
+`phone_number`. A claim PingOne has no value for is simply omitted. The logic is `oidc-profile-claims.js`.
+
+`preferred_username` (the PingFederate username) is released with them, on purpose: the BFF names a user
+`preferred_username`, then `email`, then `sub`. Releasing an email alone would store every PingFederate user under
+their email address instead of `demouser`.
+
+```bash
+# 1. the data store learns the profile attributes (they are in the user-gate contract)
+python3 scripts/pingfederate/provision-pf-pingone-user-gate.sh            # dry run
+python3 scripts/pingfederate/provision-pf-pingone-user-gate.sh --apply
+# 2. the OIDC policy releases them
+node scripts/pingfederate/provision-pf-oidc-profile.js                    # dry run
+node scripts/pingfederate/provision-pf-oidc-profile.js --apply            # backs the policy up first
+node scripts/pingfederate/provision-pf-oidc-profile.js --remove           # the way back
+```
+
+Things to know:
+
+- The lookup key is the PingFederate username and PingOne's username filter is case-insensitive, so `demouser`
+  finds PingOne's `demoUser`. A PingFederate user with no PingOne account of that username just gets no profile.
+- The BFF reads `phone_number` for a PingFederate sign-in (a PingOne sign-in still looks the phone up by id).
+- A new sign-in is needed to see the claims; an existing session keeps what it had.
+- The OIDC policy is on every PingFederate sign-in's path. `--apply` saves the previous policy to the temp directory
+  and `--remove` takes the profile claims off again without touching anything else in the policy.
+
 ## Token introspection client
 
 The BFF introspects PingFederate-issued access tokens (the token preview at login,
