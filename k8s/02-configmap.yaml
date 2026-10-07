@@ -139,10 +139,13 @@ data:
   HELIX_ENVIRONMENT_ID: "fe213c3c-9c1d-4bdb-954a-a22879dad26d"
   HELIX_AGENT_ID: "LLM2"
   HELIX_PROMPT_FIELD_ID: "textInputa7c39a0e8292"
-  # LangChain agent default LLM on cluster: Groq (hosted), chosen 2026-10-04 over the
-  # CPU model for live-demo speed. Helix stays configured above as the alternative.
+  # Default agent on the cluster: llama.cpp, for the app (AGENT_MODE) and the
+  # LangChain agent alike, chosen 2026-10-07. Groq and Google stay selectable
+  # and are much faster here: on these CPUs gpt-oss-20b took 32 s for the first
+  # step of a ten-tool question. A saved agent mode still wins over AGENT_MODE.
   # HELIX_API_KEY stays in secrets — see create-secrets.sh inject_helix_api_key.
-  LANGCHAIN_LLM_PROVIDER: "groq"
+  LANGCHAIN_LLM_PROVIDER: "llamacpp"
+  AGENT_MODE: "llamacpp"
 
   # GroqCloud — LPU-hosted, OpenAI-compatible /v1 API. GROQ_API_KEY stays in
   # secrets — see create-secrets.sh mirror_groq_api_key. The key has no access to
@@ -162,7 +165,10 @@ data:
   # llm-proxy (:8090) routes to llama-tier1 (:8091) or llama-tier5 (:8096);
   # tier-manager swaps tiers on demand. Replaces legacy single-model llamacpp pod.
   LLAMACPP_BASE_URL: "http://llm-proxy:8090"
-  LLAMACPP_MODEL: "phi-4-mini-instruct"
+  # One model for every caller. Tiers swap (one loaded at a time, over 170 s
+  # per swap), and Phi's tier runs without tool calling, so the app and the
+  # agents all name gpt-oss-20b.
+  LLAMACPP_MODEL: "gpt-oss-20b"
   # Code Explorer: always talk to llm-proxy (never a raw llama-tierN URL). The
   # agent probes GET /health and pins model= to a currently healthy tier name
   # (prefers the Groq tool-use tier, then phi). CODEGRAPH_LLM_PROVIDER
