@@ -273,6 +273,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-07 — Specialist tasks, streaming and guarded push; the task store never awaited its write
+
+**Files:** `demo_api_server/services/a2aProtocolServer.js`, `a2aAgentCardService.js`, `a2aPushGuard.js` (new), `lmdb/a2aTaskStore.lmdb.js`, `tests/a2aSpecialistTasksStreaming.test.js`; `demo_api_ui/src/pages/a2aLearningLessons.js`, `config/a2aReference.js`, `data/a2aRecordedRun.js`.
+
+**What was broken:** `a2aTaskStore.save` did not await its LMDB put, and the SDK saves then loads the same task at once, so any Task reply failed with "finished without a result". It never showed because specialists only ever returned a Message. The learning page also said tasks, streaming and push were not built.
+
+**What changed:** `save` awaits the put. The specialist executor returns a Task (working, then a tool-result artifact, then completed or failed) only when the message metadata has `task: true`; a plain SendMessage still returns one Message, which the Token Chain reads. The card advertises `streaming: true`, and `pushNotifications` only when `A2A_PUSH_ALLOWED_HOSTS` is set. A push callback must be https, on that allowlist, and resolve to a public address, checked at registration and again before each send.
+
+**Do not break:** the default SendMessage reply is a single Message; `a2aTaskStore` ownership by tenant and user; no callback reaches a private address; with no allowlist the card keeps `pushNotifications: false`.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/a2aSpecialistTasksStreaming.test.js tests/a2aTaskStore.test.js src/__tests__/a2aProtocolCards.test.js --forceExit`; `cd demo_api_ui && npm run build`.
+
 ### 2026-10-06 — A failed run said the same thing for "out of quota" and "Google is overloaded"
 
 **Files:** `demo_api_ui/src/utils/a2aRunFailureMessage.js`, `demo_api_ui/src/utils/__tests__/a2aRunFailureMessage.test.js`.

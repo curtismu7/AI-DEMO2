@@ -9,11 +9,13 @@
 
 const crypto = require('node:crypto');
 const express = require('express');
-const { Role } = require('@a2a-js/sdk');
+const { Role, TaskState } = require('@a2a-js/sdk');
 const {
   DefaultRequestHandler,
+  DefaultPushNotificationSender,
   AgentEvent,
 } = require('@a2a-js/sdk/server');
+const { pushEnabled, createGuardedPushStore } = require('./a2aPushGuard');
 const { jsonRpcHandler } = require('@a2a-js/sdk/server/express');
 const {
   specialistForVertical,
@@ -46,6 +48,15 @@ function taskStoreFor(vertical) {
     }));
   }
   return taskStores.get(vertical);
+}
+
+// One push store for all requests (the handler is rebuilt per request, so a
+// per-handler store would forget every registered callback). In memory: a
+// callback lives as long as its task, which finishes in seconds.
+let pushStoreSingleton = null;
+function sharedPushStore() {
+  if (!pushStoreSingleton) pushStoreSingleton = createGuardedPushStore();
+  return pushStoreSingleton;
 }
 
 function defaultConfigStore() {
@@ -85,33 +96,67 @@ function assertSkillAllowed(specialist, tool) {
  * the caller (a2aProtocolClient.js#finishHop reads it off this metadata).
  */
 function publishReply(eventBus, requestContext, fields) {
-  const { specialist, vertical, result, toolError, diagnostic, actChainDepth = null, scopes = [], tokenEvents } = fields;
+  const { specialist, vertical, result, toolError, diagnostic, actChainDepth = null, scopes = [], tokenEvents, taskMode = false } = fields;
   const safeResult = redactValue(result);
+  const part = {
+    content: { $case: 'text', value: JSON.stringify({ result: safeResult, toolError, diagnostic }) },
+    metadata: undefined,
+    filename: '',
+    mediaType: 'text/plain',
+  };
+  const metadata = {
+    vertical,
+    specialist: specialist.specialistName,
+    specialistAppKey: specialist.appKey,
+    actChainDepth,
+    scopes,
+    toolError,
+    ...(diagnostic ? { diagnostic } : {}),
+    demoLayer: 'a2a-protocol-wire',
+    ...(tokenEvents ? { tokenEvents: redactValue(tokenEvents) } : {}),
+  };
+  const contextId = requestContext.contextId || '';
+  const taskId = requestContext.taskId || '';
+
+  if (taskMode) {
+    // Task lifecycle (opt-in): the same data, delivered as an artifact and then
+    // a terminal status, so a streaming or reconnecting caller sees the steps.
+    eventBus.publish(AgentEvent.artifactUpdate({
+      taskId,
+      contextId,
+      artifact: {
+        artifactId: crypto.randomUUID(),
+        name: 'tool-result',
+        description: `Result of ${specialist.specialistName}'s tool call`,
+        parts: [part],
+        metadata,
+        extensions: [],
+      },
+      append: false,
+      lastChunk: true,
+      metadata: undefined,
+    }));
+    eventBus.publish(AgentEvent.statusUpdate({
+      taskId,
+      contextId,
+      status: {
+        state: toolError ? TaskState.TASK_STATE_FAILED : TaskState.TASK_STATE_COMPLETED,
+        message: undefined,
+        timestamp: new Date().toISOString(),
+      },
+      metadata: undefined,
+    }));
+    return;
+  }
+
   eventBus.publish(
     AgentEvent.message({
       messageId: crypto.randomUUID(),
-      contextId: requestContext.contextId || '',
-      taskId: requestContext.taskId || '',
+      contextId,
+      taskId,
       role: Role.ROLE_AGENT,
-      parts: [
-        {
-          content: { $case: 'text', value: JSON.stringify({ result: safeResult, toolError, diagnostic }) },
-          metadata: undefined,
-          filename: '',
-          mediaType: 'text/plain',
-        },
-      ],
-      metadata: {
-        vertical,
-        specialist: specialist.specialistName,
-        specialistAppKey: specialist.appKey,
-        actChainDepth,
-        scopes,
-        toolError,
-        ...(diagnostic ? { diagnostic } : {}),
-        demoLayer: 'a2a-protocol-wire',
-        ...(tokenEvents ? { tokenEvents: redactValue(tokenEvents) } : {}),
-      },
+      parts: [part],
+      metadata,
       extensions: [],
       referenceTaskIds: [],
     }),
@@ -218,6 +263,19 @@ function makeSpecialistExecutor(specialist, vertical = specialist.appKey, opts =
       const ctx = opts.ctx || {};
       const tokenEvents = ctx.tokenEvents || [];
       const meta = requestContext.userMessage?.metadata || {};
+      // Opt-in task lifecycle: a plain SendMessage still gets one Message back
+      // (the Token Chain reads that); `metadata.task: true` asks for a Task.
+      const taskMode = meta.task === true;
+      if (taskMode) {
+        eventBus.publish(AgentEvent.task({
+          id: requestContext.taskId || '',
+          contextId: requestContext.contextId || '',
+          status: { state: TaskState.TASK_STATE_WORKING, message: undefined, timestamp: new Date().toISOString() },
+          artifacts: [],
+          history: [],
+          metadata: undefined,
+        }));
+      }
       // `diagnostic` travels to the caller with the reply so a refusal is never
       // a dead-end: the wire client surfaces it as a failed token event (the
       // 2026-09-26 mid-restart demo showed an unexplained a2a_unauthorized
@@ -226,6 +284,7 @@ function makeSpecialistExecutor(specialist, vertical = specialist.appKey, opts =
         publishReply(eventBus, requestContext, {
           specialist,
           vertical,
+          taskMode,
           ...(ctx.exposeTokenEvents ? { tokenEvents } : {}),
           ...fields,
         });
@@ -313,10 +372,14 @@ function createSpecialistProtocolHandler(vertical, cfg, ctx) {
   const card = buildSpecialistAgentCard(vertical, cfg);
   if (!card) return null;
   const subjectToken = ctx?.subjectToken || ctx?.req?.a2aPingOne?.token || null;
+  const pushStore = pushEnabled() ? sharedPushStore() : undefined;
   const handler = new DefaultRequestHandler(
     card,
     taskStoreFor(vertical),
     makeSpecialistExecutor(specialist, vertical, { subjectToken, ctx }),
+    undefined,
+    pushStore,
+    pushStore ? new DefaultPushNotificationSender(pushStore) : undefined,
   );
   return { handler, card, specialist };
 }

@@ -86,14 +86,14 @@ export const A2A_REFERENCE = {
         "Each specialist publishes an Agent Card at /a2a/specialists/:vertical/.well-known/agent-card.json (a2aAgentCardService.js) with one skill per allowed tool, a JSONRPC supportedInterfaces entry, an HTTP Bearer security scheme, and a JWS signature (a2aCardSigningService.js, keys at /a2a/specialists/.well-known/jwks.json). A /registry endpoint lists the specialists.",
         "The only operation used is SendMessage, and the reply is a single Message with a text part. By default the client calls the SDK in-process, so no HTTP request crosses the wire; setting A2A_PROTOCOL_HTTP=1 sends a real HTTP call with an A2A-Version: 1.0 header (a2aProtocolClient.js).",
         "The hop is authenticated with Authorization: Bearer set to the PingOne Exchange #1 delegated token, validated by middleware/a2aPingOneBearer.js, and the specialist enforces a skill allowlist and a tenant match.",
-        "Tasks are stored in LMDB (a2aTaskStore.lmdb.js), but the demo only ever returns a Message, not a Task.",
+        "Tasks are stored in LMDB (a2aTaskStore.lmdb.js). A plain SendMessage returns a Message; with metadata.task set the reply is a Task whose artifact holds the tool result, and GetTask returns it to the user who made it. SendStreamingMessage streams the same task, artifact and terminal status.",
       ],
     },
     {
       heading: "What this demo does not implement",
       points: [
-        "Streaming and push notifications: the card sets capabilities.streaming and pushNotifications to false, so SendStreamingMessage, SubscribeToTask and the push-config operations are not offered.",
-        "Long-running tasks: the walkthrough is one-shot. No demo client calls GetTask, ListTasks or CancelTask, and the INPUT_REQUIRED and AUTH_REQUIRED states are not used. Whether the SDK handler still answers those operations on the demo mount was not tested.",
+        "Push notifications unless configured: the card sets capabilities.pushNotifications only when A2A_PUSH_ALLOWED_HOSTS names a callback host. A callback must be https, on that list and resolve to a public address, and is checked again before every send.",
+        "Long-running tasks and reconnect: specialist tasks finish in seconds, so SubscribeToTask against a running task, ListTasks and CancelTask are not exercised, and the INPUT_REQUIRED and AUTH_REQUIRED states are not used.",
         "The authenticated extended card (extendedAgentCard is false) and protocol extensions (none declared).",
         "gRPC and HTTP+JSON/REST: the card advertises only the JSON-RPC binding.",
         "Other security scheme types: the card advertises only Bearer, plus an optional signed-credential scheme when ff_verified_trust_a2a is on.",

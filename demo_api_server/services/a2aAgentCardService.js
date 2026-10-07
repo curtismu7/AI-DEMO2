@@ -9,6 +9,7 @@ const {
   specialistForVertical,
   verticalsWithSpecialist,
 } = require('../config/a2aSpecialists');
+const { pushEnabled } = require('./a2aPushGuard');
 
 /** Public BFF origin used in Agent Card interface URLs. */
 function publicApiBase(cfg) {
@@ -74,8 +75,9 @@ function buildSpecialistAgentCard(vertical, cfg, options = {}) {
       url: 'https://a2a-protocol.org',
     },
     capabilities: {
-      streaming: false,
-      pushNotifications: false,
+      streaming: true,
+      // Only when an allowlisted callback host is configured (a2aPushGuard.js).
+      pushNotifications: pushEnabled(),
       extensions: [],
       extendedAgentCard: false,
     },

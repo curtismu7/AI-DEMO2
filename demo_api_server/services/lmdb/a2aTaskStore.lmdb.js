@@ -111,7 +111,9 @@ function createA2aTaskStore({ db = getDb('a2aTasks'), now = () => Date.now(), tt
       if (current && !owned(current, owner)) return;
       if (current && isTerminalState(current.payload?.status?.state)) return;
       const timestamp = now();
-      db.put(keyFor(task.id), {
+      // Awaited: lmdb commits a put asynchronously, and the SDK saves then
+      // immediately loads the same task, which would otherwise read nothing.
+      await db.put(keyFor(task.id), {
         taskId: task.id,
         tenantId: owner.tenantId,
         userSub: owner.userSub,

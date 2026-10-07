@@ -26,8 +26,10 @@ describe('latest A2A learning hub lessons', () => {
     expect(A2A_IMPLEMENTATION_STATUS).toEqual([
       expect.objectContaining({ id: 'one-shot-message', state: 'supported' }),
       expect.objectContaining({ id: 'signed-agent-cards', state: 'supported' }),
-      expect.objectContaining({ id: 'stateful-tasks', state: 'next' }),
-      expect.objectContaining({ id: 'streaming-and-push', state: 'next' }),
+      expect.objectContaining({ id: 'stateful-tasks', state: 'supported' }),
+      expect.objectContaining({ id: 'streaming', state: 'supported' }),
+      expect.objectContaining({ id: 'push-notifications', state: 'supported' }),
+      expect.objectContaining({ id: 'reconnect', state: 'next' }),
     ]);
   });
 });

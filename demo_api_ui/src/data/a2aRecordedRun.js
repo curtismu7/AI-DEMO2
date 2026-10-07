@@ -270,7 +270,7 @@ export const A2A_RECORDED_RUN = {
           "url": "https://a2a-protocol.org"
         },
         "capabilities": {
-          "streaming": false,
+          "streaming": true,
           "pushNotifications": false,
           "extensions": [],
           "extendedAgentCard": false
@@ -376,7 +376,7 @@ export const A2A_RECORDED_RUN = {
       "url": "https://a2a-protocol.org"
     },
     "capabilities": {
-      "streaming": false,
+      "streaming": true,
       "pushNotifications": false,
       "extensions": [],
       "extendedAgentCard": false

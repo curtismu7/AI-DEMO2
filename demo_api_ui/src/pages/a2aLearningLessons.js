@@ -135,13 +135,25 @@ export const A2A_IMPLEMENTATION_STATUS = [
   {
     id: 'stateful-tasks',
     label: 'Stateful tasks, artifacts, and follow-ups',
-    state: 'next',
-    detail: 'Next implementation milestone: durable task storage and task lifecycle coverage.',
+    state: 'supported',
+    detail: 'Opt-in on the specialists: send metadata.task and the reply is a Task whose artifact holds the tool result, stored durably for 24 hours and visible only to the user who made it. A follow-up in the same contextId is a new task in that context. A plain message/send still returns a single Message.',
   },
   {
-    id: 'streaming-and-push',
-    label: 'Streaming, reconnect, and push notifications',
+    id: 'streaming',
+    label: 'Streaming',
+    state: 'supported',
+    detail: 'SendStreamingMessage streams the task, its artifact and the terminal status as server-sent events; the Agent Card advertises streaming.',
+  },
+  {
+    id: 'push-notifications',
+    label: 'Push notifications',
+    state: 'supported',
+    detail: 'A callback is accepted only for an https host on the A2A_PUSH_ALLOWED_HOSTS allowlist that resolves to a public address, and is checked again before every send. With no allowlist the card does not advertise it.',
+  },
+  {
+    id: 'reconnect',
+    label: 'Reconnect to a running task',
     state: 'next',
-    detail: 'Next implementation milestone: advertise only after the transport and webhook security are real.',
+    detail: 'Next implementation milestone: specialist tasks finish in seconds, so resubscribing is not yet exercised against a long-running task.',
   },
 ];
