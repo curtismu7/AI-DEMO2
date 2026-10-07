@@ -1,7 +1,9 @@
 /**
- * Banking Agent LangGraph Service
- * LangGraph agent executor for banking operations with MCP tools + HITL gates
- * Priority: heuristic regex (instant, zero-cost) → LangGraph LLM (when regex returns kind:'none')
+ * Banking Agent Service (filename says "LangGraph"; it is not)
+ * Hand-rolled agent executor for banking operations with MCP tools + HITL gates.
+ * Imports no langchain/langgraph: the LLM loop runs in demo_agent_service
+ * (reached via agentReasoningClient). The real LangGraph agent is langchain_agent/.
+ * Priority: heuristic regex (instant, zero-cost) → LLM reasoning (when regex returns kind:'none')
  */
 
 const { getBankingToolDefinitions, MAX_TOOL_ITERATIONS } = require('./agentBuilder');
