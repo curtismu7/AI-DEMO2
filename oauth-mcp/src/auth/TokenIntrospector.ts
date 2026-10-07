@@ -132,7 +132,8 @@ export class TokenIntrospector {
     const tokenInfo: TokenInfo = {
       active: !decoded.exp || (decoded.exp as number) >= now,
       sub: decoded.sub as string | undefined,
-      scope: decoded.scope as string | undefined,
+      // PF emits `scope` as a JSON array once more than one scope is granted.
+      scope: (Array.isArray(decoded.scope) ? decoded.scope.join(' ') : decoded.scope) as string | undefined,
       exp: decoded.exp as number | undefined,
       aud: rawAud as string | string[] | undefined,
       client_id: (decoded.client_id || decoded.sub) as string | undefined,

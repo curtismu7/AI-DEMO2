@@ -72,6 +72,24 @@ describe('TokenIntrospector — PingFederate issuer JWKS routing', () => {
     expect(jwtVerify).not.toHaveBeenCalledWith(token, pingOneKeySet, { issuer: PF_ISSUER });
   });
 
+  it('accepts a PF token whose scope claim is a JSON array (multi-scope) and keeps its sub', async () => {
+    // PF emits `scope` as an array when more than one scope is granted. A
+    // string-only split() threw TypeError, the open-access transport swallowed it
+    // and swapped in a demo-user token — so create_transfer ran as another user.
+    const token = makeJwt({
+      iss: PF_ISSUER,
+      sub: 'demouser',
+      client_id: 'gateway-agent',
+      scope: ['write', 'transfer'],
+      exp: Math.floor(Date.now() / 1000) + 3600,
+    });
+
+    const result = await ti.validateAgentToken(token);
+
+    expect(result.isValid).toBe(true);
+    expect(result.scopes).toEqual(['write', 'transfer']);
+  });
+
   it('does not fall back to PingOne JWKS when the PF signature fails', async () => {
     process.env.SKIP_TOKEN_SIGNATURE_VALIDATION = 'true';
     process.env.ALLOW_JWKS_FAILOPEN = 'true';
