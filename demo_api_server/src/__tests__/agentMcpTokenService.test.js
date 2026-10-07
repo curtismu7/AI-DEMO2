@@ -93,6 +93,14 @@ jest.mock('../../services/oauthService', () => ({
   performTokenExchangeAs: (...args) => mockPerformTokenExchangeAs(...args),
 }));
 
+// The identity sidecar relay client. Default = flag OFF: no client is managed, so every test
+// that does not opt in runs the code exactly as it did before the sidecar existed.
+const mockSidecarRelay = {
+  manages: jest.fn(async () => false),
+  managedIds: jest.fn(async () => new Set()),
+};
+jest.mock('../../services/sidecarClientRelay', () => mockSidecarRelay);
+
 jest.mock('../../services/mcpWebSocketClient', () => ({
   MCP_TOOL_SCOPES: {
     get_my_accounts:  ['accounts:read'],
@@ -705,6 +713,84 @@ describe('resolveMcpAccessTokenWithEvents — on_behalf_of (PINGONE_MCP_TOKEN_EX
   it('does not emit on-behalf-of-warning when agent client is configured', async () => {
     const { tokenEvents } = await resolveMcpAccessTokenWithEvents(makeReq(sampleJwtUserAccessToken), 'get_my_accounts');
     expect(tokenEvents.find(e => e.id === 'on-behalf-of-warning')).toBeUndefined();
+  });
+});
+
+describe('resolveMcpAccessTokenWithEvents — exchanger held by the identity sidecar', () => {
+  // Same shape as the on_behalf_of block: an exchanger client id is configured but this process
+  // has NO secret for it. Without the sidecar that falls back to the admin-client exchange; with
+  // the sidecar holding the secret it must still exchange AS that client.
+  beforeEach(() => {
+    jest.clearAllMocks();
+    configStore.getEffective.mockImplementation((key) => {
+      if (key === 'pingone_resource_mcp_server_uri' || key === 'mcp_resource_uri') return 'https://mcp.example.com/api';
+      if (key === 'pingone_mcp_token_exchanger_client_id') return 'agent-client-id';
+      return null;
+    });
+    mockGetMcpExchangerToken.mockResolvedValue(sampleJwtAgentAccessToken);
+    mockGetAiAgentClientCredentialsToken.mockResolvedValue(sampleJwtAgentAccessToken);
+    mockPerformTokenExchangeWithActor.mockResolvedValue(sampleJwtMcpAccessToken);
+    mockPerformTokenExchangeAs.mockResolvedValue(sampleJwtMcpAccessToken);
+  });
+
+  afterEach(() => {
+    mockSidecarRelay.manages.mockImplementation(async () => false);
+  });
+
+  it('a sidecar-managed exchanger with no local secret still exchanges as that client', async () => {
+    mockSidecarRelay.manages.mockImplementation(async (id) => id === 'agent-client-id');
+
+    await resolveMcpAccessTokenWithEvents(makeReq(sampleJwtUserAccessToken), 'get_my_accounts');
+
+    expect(mockPerformTokenExchangeAs).toHaveBeenCalledTimes(1);
+    const args = mockPerformTokenExchangeAs.mock.calls[0];
+    expect(args[0]).toBe(sampleJwtUserAccessToken); // subject
+    expect(args[1]).toBe(sampleJwtAgentAccessToken); // actor
+    expect(args[2]).toBe('agent-client-id'); // the exchanger performing the exchange
+    expect(args[3]).toBeFalsy(); // and no secret is held here
+    expect(mockPerformTokenExchangeWithActor).not.toHaveBeenCalled();
+  });
+
+  it('without the sidecar the same config still falls back to the admin-client exchange', async () => {
+    await resolveMcpAccessTokenWithEvents(makeReq(sampleJwtUserAccessToken), 'get_my_accounts');
+
+    expect(mockPerformTokenExchangeWithActor).toHaveBeenCalledTimes(1);
+    expect(mockPerformTokenExchangeAs).not.toHaveBeenCalled();
+  });
+});
+
+describe('exchangeTokenRfc8693 — exchanger held by the identity sidecar', () => {
+  const { exchangeTokenRfc8693 } = require('../../services/agentMcpTokenService').__test;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    configStore.getEffective.mockImplementation((key) => (
+      key === 'pingone_mcp_token_exchanger_client_id' ? 'agent-client-id' : null
+    ));
+    mockPerformTokenExchangeAs.mockResolvedValue(sampleJwtMcpAccessToken);
+    mockPerformTokenExchangeWithActor.mockResolvedValue(sampleJwtMcpAccessToken);
+  });
+
+  afterEach(() => {
+    mockSidecarRelay.manages.mockImplementation(async () => false);
+  });
+
+  it('a managed exchanger with no local secret exchanges as that client', async () => {
+    mockSidecarRelay.manages.mockImplementation(async (id) => id === 'agent-client-id');
+
+    await exchangeTokenRfc8693(sampleJwtUserAccessToken, sampleJwtAgentAccessToken, 'https://mcp.example.com/api', ['read']);
+
+    expect(mockPerformTokenExchangeAs).toHaveBeenCalledTimes(1);
+    expect(mockPerformTokenExchangeAs.mock.calls[0][2]).toBe('agent-client-id');
+    expect(mockPerformTokenExchangeAs.mock.calls[0][3]).toBeFalsy();
+    expect(mockPerformTokenExchangeWithActor).not.toHaveBeenCalled();
+  });
+
+  it('without the sidecar the same config falls back to the admin-client exchange, as before', async () => {
+    await exchangeTokenRfc8693(sampleJwtUserAccessToken, sampleJwtAgentAccessToken, 'https://mcp.example.com/api', ['read']);
+
+    expect(mockPerformTokenExchangeWithActor).toHaveBeenCalledTimes(1);
+    expect(mockPerformTokenExchangeAs).not.toHaveBeenCalled();
   });
 });
 
@@ -1323,6 +1409,15 @@ describe('resolveMcpAccessTokenWithEvents — 2-exchange delegation (ff_two_exch
     expect(token).toBe(finalMcpJwt);
     expect(token).not.toBe(sampleJwtUserAccessToken);
     expect(token).not.toBe(agentExchangedJwt);
+  });
+
+  it('hands the sidecar-managed client ids to the config validator, so no secret is demanded here', async () => {
+    const managed = new Set([AI_AGENT_CLIENT, MCP_EXCHANGER_CLIENT]);
+    mockSidecarRelay.managedIds.mockResolvedValueOnce(managed);
+
+    await resolveMcpAccessTokenWithEvents(makeReq2ex(sampleJwtUserAccessToken), 'get_my_accounts');
+
+    expect(configStore.validateTwoExchangeConfig).toHaveBeenCalledWith({ managedClientIds: managed });
   });
 
   it('happy path: calls getClientCredentialsTokenAs twice and performTokenExchangeAs twice', async () => {

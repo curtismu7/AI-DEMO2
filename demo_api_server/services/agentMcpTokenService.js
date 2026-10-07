@@ -37,6 +37,7 @@ const hitlServiceClient = require('./hitlServiceClient');
 const oauthService = require('./oauthService');
 const clientAssertionService = require('./clientAssertionService');
 const identitySidecar = require('./identitySidecarClient');
+const sidecarRelay = require('./sidecarClientRelay');
 const { writeExchangeEvent } = require('./exchangeAuditStore');
 const { createTokenExchangeError, RFC8693_ERRORS, PF_USER_GATE_ERRORS } = require('./rfcCompliantErrorHandler');
 // Architecture-note R1 (2026-05-15) / T-2: the BFF no longer makes a local
@@ -985,7 +986,10 @@ async function exchangeTokenRfc8693(userToken, actorToken, mcpResourceUri, final
     const exchangerClientId = configStore.getEffective('pingone_mcp_token_exchanger_client_id');
     const exchangerClientSecret = configStore.getEffective('pingone_mcp_token_exchanger_client_secret');
     
-    if (actorToken && exchangerClientId && exchangerClientSecret) {
+    // A sidecar-managed exchanger has no secret here but still takes this path: without this the
+    // exchange would silently pick a different branch.
+    const exchangerManaged = await sidecarRelay.manages(exchangerClientId);
+    if (actorToken && exchangerClientId && (exchangerClientSecret || exchangerManaged)) {
       const exchangerAuthMethod = (
         process.env.PINGONE_MCP_TOKEN_EXCHANGER_CC_AUTH_METHOD ||
         process.env.PINGONE_MCP_TOKEN_EXCHANGER_AUTH_METHOD ||
@@ -2092,7 +2096,7 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
       exchangeMethod = actorToken ? 'with-actor-dedicated' : 'dedicated';
     } else if (actorToken) {
       // Use MCP Token Exchanger credentials (cc) when available for actor flow
-      if (ccExchangerId && ccExchangerSecret) {
+      if (ccExchangerId && (ccExchangerSecret || await sidecarRelay.manages(ccExchangerId))) {
         const exchangerAuthMethod = (
           process.env.PINGONE_MCP_TOKEN_EXCHANGER_CC_AUTH_METHOD ||
           process.env.PINGONE_MCP_TOKEN_EXCHANGER_AUTH_METHOD ||
@@ -2623,7 +2627,8 @@ async function _performTwoExchangeDelegation(
     if (opts.exchangeProvider) {
       configResult = { providerConfig: opts.providerConfig };
     } else {
-      configResult = configStore.validateTwoExchangeConfig();
+      // ff_agent_identity_sidecar: a client the sidecar holds needs no secret in this process.
+      configResult = configStore.validateTwoExchangeConfig({ managedClientIds: await sidecarRelay.managedIds() });
     }
   } catch (configErr) {
     tokenEvents.push(buildTokenEvent(
@@ -3311,7 +3316,7 @@ function describeBlockedToken(resolved, tokenEvents) {
 module.exports = {
   // Exported for the ID-JAG-scope regression spec — the predicate decides whether
   // a per-server ID-JAG grant is even applicable to this tool.
-  __test: { isOlbBackedTool, resolvePfIdJagSubjectToken, shouldUsePfIdJagForRun, resolvePfExchangeMode, assertPfIdJagRunAllowed },
+  __test: { exchangeTokenRfc8693, isOlbBackedTool, resolvePfIdJagSubjectToken, shouldUsePfIdJagForRun, resolvePfExchangeMode, assertPfIdJagRunAllowed },
   resolveMcpAccessToken,
   resolveMcpAccessTokenWithEvents,
   describeBlockedToken,

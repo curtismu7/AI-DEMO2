@@ -41,7 +41,10 @@ function decodeJwtPayload(token) {
 async function mintAgentActorToken(configStore, oauthService) {
   const clientId = configStore.getEffective('pingone_ai_agent_actor_client_id');
   const clientSecret = configStore.getEffective('pingone_ai_agent_actor_client_secret');
-  if (!clientId || !clientSecret) return null;
+  // ff_agent_identity_sidecar: a client the sidecar holds needs no secret here.
+  // (Required lazily, like the probe's other dependencies, to keep boot ordering unchanged.)
+  const sidecarRelay = require('./sidecarClientRelay');
+  if (!clientId || (!clientSecret && !(await sidecarRelay.manages(clientId)))) return null;
   // The actor client is a PingOne app. When the BFF's token endpoint is PingFederate's
   // (`/as/token.oauth2`), presenting it there fails with a PF "Invalid client" that reads
   // like a stale secret. It is not one, so skip the mint instead of logging a false alarm.
@@ -66,7 +69,8 @@ async function mintAgentActorToken(configStore, oauthService) {
 async function probeExchange(configStore, oauthService, subjectToken, audience, scopes) {
   const exchangerId = configStore.getEffective('pingone_mcp_token_exchanger_client_id');
   const exchangerSecret = configStore.getEffective('pingone_mcp_token_exchanger_client_secret');
-  if (!exchangerId || !exchangerSecret) {
+  const sidecarRelay = require('./sidecarClientRelay');
+  if (!exchangerId || (!exchangerSecret && !(await sidecarRelay.manages(exchangerId)))) {
     return { ok: false, reason: 'no exchanger credentials configured' };
   }
   try {

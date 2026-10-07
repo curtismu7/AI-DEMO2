@@ -13,6 +13,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('../middleware/auth');
 const configStore = require('../services/configStore');
+const sidecarRelay = require('../services/sidecarClientRelay');
 const { runIntentBindingDemo } = require('../services/attackSimulatorService');
 const { pushAuthorizationRequestWithRedirectFallback, isParRedirectUriMismatch } = require('../services/parService');
 const { getParEndpoint } = require('../services/oauthEndpointResolver');
@@ -89,8 +90,10 @@ router.post('/run', authenticateToken, async (req, res) => {
       const clientId = configStore.getEffective('pingone_ai_agent_actor_client_id');
       const clientSecret = configStore.getEffective('pingone_ai_agent_actor_client_secret');
       const redirectCandidates = listActorParRedirectCandidates();
+      // ff_agent_identity_sidecar: the secret is not needed here when the sidecar holds it.
+      const managed = await sidecarRelay.manages(clientId);
 
-      if (!parEndpoint || !clientId || !clientSecret || !redirectCandidates.length) {
+      if (!parEndpoint || !clientId || (!clientSecret && !managed) || !redirectCandidates.length) {
         return res.status(503).json({
           error: 'par_config_missing',
           reason: 'PingOne PAR (RFC 9126) needs AI Agent Actor credentials plus pingone_environment_id (and ideally public_app_url). Configure: pingone_ai_agent_actor_client_id, pingone_ai_agent_actor_client_secret',

@@ -7,6 +7,10 @@
  * it behaves exactly as before.
  */
 
+// Default = flag OFF (no managed clients); the probe requires the relay lazily at call time.
+const mockRelay = { manages: jest.fn(async () => false) };
+jest.mock('../services/sidecarClientRelay', () => mockRelay);
+
 const { mintAgentActorToken } = require('../services/exchangeSubjectProbe');
 
 const PF = 'https://pingfederate:9031/as/token.oauth2';
@@ -59,6 +63,18 @@ test('no actor credentials configured: null, nothing attempted', async () => {
   const d = deps({ endpoint: P1, creds: false });
   await expect(mintAgentActorToken(d.configStore, d.oauthService)).resolves.toBeNull();
   expect(d.oauthService.getClientCredentialsTokenAs).not.toHaveBeenCalled();
+});
+
+test('a sidecar-managed actor client with no local secret is still minted (the sidecar holds the secret)', async () => {
+  mockRelay.manages.mockResolvedValueOnce(true);
+  const d = deps({ endpoint: P1, creds: false });
+  d.configStore.getEffective = (k) => (k === 'pingone_ai_agent_actor_client_id' ? 'actor-client' : undefined);
+
+  await expect(mintAgentActorToken(d.configStore, d.oauthService)).resolves.toBe('actor-token');
+
+  expect(d.oauthService.getClientCredentialsTokenAs).toHaveBeenCalledWith(
+    'actor-client', undefined, 'agentgateway.ping.demo', 'post', 'agent:invoke',
+  );
 });
 
 test('a missing config object does not crash the probe (treated as not PingFederate)', async () => {

@@ -2310,7 +2310,7 @@ function validateScopeAudience(scopes, audience) {
  * @returns {{ valid: true, credentials: { aiAgentClientId, mcpClientId }, audiences: { agentGatewayAud, intermediateAud, mcpGatewayAud, finalAud } }}
  * @throws {Error} with code='TWO_EXCHANGE_CONFIG_INVALID', httpStatus=503, isConfigError=true, details.missing[]
  */
-function validateTwoExchangeConfig() {
+function validateTwoExchangeConfig({ managedClientIds = new Set() } = {}) {
   const missing = [];
 
   // ── Credentials ────────────────────────────────────────────────────────────
@@ -2324,7 +2324,8 @@ function validateTwoExchangeConfig() {
     configStore.getEffective('pingone_ai_agent_client_secret') ||
     process.env.PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET ||
     process.env.PINGONE_AI_AGENT_CLIENT_SECRET;
-  if (!aiAgentClientSecret) missing.push('PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET');
+  // A client the identity sidecar holds (ff_agent_identity_sidecar) needs no secret here.
+  if (!aiAgentClientSecret && !managedClientIds.has(aiAgentClientId)) missing.push('PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET');
 
   const mcpClientId =
     configStore.getEffective('pingone_mcp_token_exchanger_client_id') ||
@@ -2338,7 +2339,7 @@ function validateTwoExchangeConfig() {
     process.env.PINGONE_TOKEN_EXCHANGER_CLIENT_SECRET ||
     process.env.PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_SECRET ||
     process.env.AGENT_OAUTH_CLIENT_SECRET;
-  if (!mcpClientSecret) missing.push('PINGONE_TOKEN_EXCHANGER_CLIENT_SECRET (or AGENT_OAUTH_CLIENT_SECRET)');
+  if (!mcpClientSecret && !managedClientIds.has(mcpClientId)) missing.push('PINGONE_TOKEN_EXCHANGER_CLIENT_SECRET (or AGENT_OAUTH_CLIENT_SECRET)');
 
   // ── Audiences ──────────────────────────────────────────────────────────────
   const agentGatewayAud =

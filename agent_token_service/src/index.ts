@@ -25,6 +25,7 @@ import pinoHttp from 'pino-http';
 import { loadConfig, type BrokerConfig } from './config';
 import { makeApiKeyAuth } from './apiKeyAuth';
 import { acquireAgentToken, type Logger } from './pingoneAgentToken';
+import { mountRelay } from './relay';
 
 export function createApp(config: BrokerConfig, logger: pino.Logger): Express {
   const app = express();
@@ -91,6 +92,8 @@ export function createApp(config: BrokerConfig, logger: pino.Logger): Express {
       res.status(502).json({ error: 'token_issuance_failed', detail });
     }
   });
+
+  mountRelay(app, config, logger);
 
   return app;
 }

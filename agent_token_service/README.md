@@ -92,6 +92,40 @@ scope. Agent Builder agents and the PingFederate path keep their own credentials
 With the flag OFF nothing changes. With it ON and the sidecar down, the exchange
 fails — there is no silent fallback.
 
+### Relay: authenticating a client on the caller's behalf
+
+`/v1/token` only mints a client-credentials token. Most of what the BFF does with
+the AI Agent and MCP exchanger clients is a different PingOne call that also needs
+the client's secret: a token **exchange**, **PAR**, **introspection**. For those the
+sidecar is a credential-injecting relay:
+
+| Method | Path | Auth | Body | Returns |
+| ------ | ---- | ---- | ---- | ------- |
+| `POST` | `/as/token`, `/as/par`, `/as/introspect` | `x-api-key` | the form the caller would send to PingOne, with `client_id` and **without** the secret | PingOne's status and body, unchanged |
+| `GET` | `/v1/clients` | `x-api-key` | none | `{ "clients": ["<managed client ids>"] }` (never secrets) |
+
+The sidecar adds the client's authentication (`post` or `basic`, per client), forwards
+to `https://auth.pingone.<region>/<env>/as/<endpoint>`, and returns the response as
+PingOne sent it, so the caller's existing response and error handling keep working. It
+serves only those three endpoints and only managed client ids, and it refuses a request
+that carries `client_secret` or a client assertion: the sidecar never authenticates with a
+credential the caller chose.
+
+**Managed clients.** The primary identity (`PINGONE_AGENT_CLIENT_*`, the AI Agent actor)
+is managed automatically. Add others with `MANAGED_CLIENTS_JSON`, an array of
+`{"id": "<client id>", "secretEnv": "<ENV VAR HOLDING THE SECRET>", "authMethod": "post"}`;
+the secret is read from the named variable in this service's own `.env`, never from the
+JSON. A missing variable stops the sidecar at startup.
+
+**BFF.** With `ff_agent_identity_sidecar` ON, the BFF asks `GET /v1/clients` (cached 30s)
+and, for each call it makes as a managed client, sends the form here without the secret:
+`oauthService` (client-credentials, token exchange, the MCP exchanger token),
+`parService` (PAR), `tokenIntrospectionService` (a token issued to a managed client is
+introspected by that client), `agentCCTokenService`, and the startup probe. The two-exchange
+config check and the exchange-path choices treat a managed client as having credentials, so
+its secret can be removed from the BFF. Clients the sidecar does not manage, and the flag
+OFF, run exactly the old code.
+
 ## Wiring into a Copilot Studio REST/MCP tool (Part 3)
 
 In the Copilot Studio agent, add a REST API tool (or MCP plugin) for the banking

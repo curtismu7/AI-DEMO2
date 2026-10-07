@@ -12,6 +12,7 @@ const configStore = require('./configStore');
 const { authMethodOrder, isInvalidClientError } = require('./pingOneTokenAuth');
 const clientAssertionService = require('./clientAssertionService');
 const identitySidecar = require('./identitySidecarClient');
+const sidecarRelay = require('./sidecarClientRelay');
 const { decodeJwt } = require('../utils/tokenUtils');
 
 // Utility function to decode and log OAuth token information
@@ -862,7 +863,10 @@ class OAuthService {
     const clientSecret =
       configStore.getEffective('pingone_mcp_token_exchanger_client_secret') ||
       process.env.AGENT_OAUTH_CLIENT_SECRET;
-    if (!clientId || !clientSecret) {
+    // ff_agent_identity_sidecar: when the sidecar holds this client's credentials the secret
+    // is not needed (or present) here.
+    const managed = await sidecarRelay.manages(clientId);
+    if (!clientId || (!clientSecret && !managed)) {
       throw new Error(
         'MCP Token Exchanger credentials not configured. ' +
         'Set PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_ID + PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_SECRET.'
@@ -879,9 +883,9 @@ class OAuthService {
     const scopeStr = (configStore.getEffective('pingone_mcp_token_exchanger_client_scopes') || '').trim();
     const body = new URLSearchParams({ grant_type: 'client_credentials' });
     if (scopeStr) body.set('scope', scopeStr);
-    if (method === 'post') body.set('client_id', clientId);
+    if (method === 'post' || managed) body.set('client_id', clientId);
     const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
-    applyTokenEndpointAuth(clientId, clientSecret, method, body, headers);
+    if (!managed) applyTokenEndpointAuth(clientId, clientSecret, method, body, headers);
     console.log('[McpExchangerToken] Attempting client credentials:', {
       clientId: clientId.substring(0, 12) + '...',
       method,
@@ -890,7 +894,9 @@ class OAuthService {
       endpoint: this.config.tokenEndpoint
     });
     try {
-      const response = await axios.post(this.config.tokenEndpoint, body.toString(), { headers });
+      const response = managed
+        ? await sidecarRelay.post('token', body)
+        : await axios.post(this.config.tokenEndpoint, body.toString(), { headers });
       const at = response.data.access_token;
       if (!at) throw new Error('MCP Exchanger client credentials response missing access_token');
       console.log('[McpExchangerToken] Token obtained for client:', clientId.substring(0, 8) + '...');
@@ -1068,10 +1074,14 @@ class OAuthService {
     });
     if (scope) body.set('scope', Array.isArray(scope) ? scope.join(' ') : scope);
     const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
-    applyTokenEndpointAuth(clientId, clientSecret, method, body, headers);
-    console.log(`[CC-As] Body params: ${[...body.keys()].join(', ')} | has_auth_header=${!!headers.Authorization}`);
+    // ff_agent_identity_sidecar: a client the sidecar manages is authenticated there, not here.
+    const managed = await sidecarRelay.manages(clientId);
+    if (!managed) applyTokenEndpointAuth(clientId, clientSecret, method, body, headers);
+    console.log(`[CC-As] Body params: ${[...body.keys()].join(', ')} | has_auth_header=${!!headers.Authorization}${managed ? ' | via sidecar' : ''}`);
     try {
-      const response = await axios.post(this.config.tokenEndpoint, body.toString(), { headers });
+      const response = managed
+        ? await sidecarRelay.post('token', body)
+        : await axios.post(this.config.tokenEndpoint, body.toString(), { headers });
       const at = response.data.access_token;
       if (!at) throw new Error('Client credentials response missing access_token');
       console.log(`[CC-As] Issued actor token for client=${clientId} audience=${audience}`);
@@ -1136,7 +1146,10 @@ class OAuthService {
       body.set('actor_token_type', 'urn:ietf:params:oauth:token-type:access_token');
     }
     const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
-    applyTokenEndpointAuth(clientId, clientSecret, method, body, headers, tokenEndpoint);
+    // ff_agent_identity_sidecar: a client the sidecar manages is authenticated there, not here.
+    // A PingFederate endpoint override is never a PingOne client the sidecar could be holding.
+    const managed = !exchangeOptions.tokenEndpoint && await sidecarRelay.manages(clientId);
+    if (!managed) applyTokenEndpointAuth(clientId, clientSecret, method, body, headers, tokenEndpoint);
     // exchangeClientId is the parameter clientId (the exchanger performing this
     // hop), not this.config.clientId — that distinction is the whole point of
     // the 2-exchange chain. clientSecret itself must never reach telemetry.
@@ -1151,7 +1164,9 @@ class OAuthService {
     _emitTokenExchangeEvent('request', telemetry);
     const startTime = Date.now();
     try {
-      const response = await axios.post(tokenEndpoint, body.toString(), { headers });
+      const response = managed
+        ? await sidecarRelay.post('token', body)
+        : await axios.post(tokenEndpoint, body.toString(), { headers });
       const exchanged = response.data.access_token;
       if (!exchanged) throw new Error('Token exchange response missing access_token');
       _emitTokenExchangeEvent('ok', { ...telemetry, latencyMs: Date.now() - startTime });

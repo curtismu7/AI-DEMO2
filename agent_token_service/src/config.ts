@@ -36,6 +36,17 @@ export interface BrokerConfig {
   // Unix socket to serve on, in addition to host:port. Set it (and leave HOST on loopback)
   // so only containers that mount the socket's volume can reach the sidecar.
   socketPath?: string;
+  // Extra OAuth clients the relay (POST /as/<token|par|introspect>) authenticates for, besides
+  // the primary identity above. See ManagedClient.
+  managedClients?: ManagedClient[];
+}
+
+// A client whose credentials live only here. The relay adds its authentication to a request
+// the caller built without the secret, so the caller never holds it.
+export interface ManagedClient {
+  id: string;
+  secret: string;
+  authMethod: 'basic' | 'post';
 }
 
 export interface TargetConfig {
@@ -106,6 +117,30 @@ function parseTargets(): Record<string, TargetConfig> {
   return out;
 }
 
+// MANAGED_CLIENTS_JSON: [{"id":"<client id>","secretEnv":"<ENV VAR HOLDING THE SECRET>","authMethod":"post"}]
+// The secret is read from the named env var (this service's own .env), never from the JSON.
+function parseManagedClients(): ManagedClient[] {
+  const raw = process.env.MANAGED_CLIENTS_JSON;
+  if (!raw) return [];
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error('MANAGED_CLIENTS_JSON is not valid JSON');
+  }
+  if (!Array.isArray(parsed)) throw new Error('MANAGED_CLIENTS_JSON must be an array');
+  return parsed.map((entry, i) => {
+    const { id, secretEnv, authMethod } = (entry || {}) as Record<string, unknown>;
+    if (typeof id !== 'string' || !id) throw new Error(`MANAGED_CLIENTS_JSON[${i}] has no "id"`);
+    if (typeof secretEnv !== 'string' || !secretEnv) {
+      throw new Error(`MANAGED_CLIENTS_JSON[${i}] (${id}) has no "secretEnv"`);
+    }
+    const secret = process.env[secretEnv];
+    if (!secret) throw new Error(`MANAGED_CLIENTS_JSON[${i}] (${id}): env var ${secretEnv} is not set`);
+    return { id, secret, authMethod: authMethod === 'basic' ? 'basic' : 'post' };
+  });
+}
+
 function required(name: string): string {
   const v = process.env[name];
   if (!v) throw new Error(`Missing required env var: ${name}`);
@@ -156,5 +191,6 @@ export function loadConfig(): BrokerConfig {
     agentCertPath,
     targets: parseTargets(),
     socketPath: process.env.SOCKET_PATH || undefined,
+    managedClients: parseManagedClients(),
   };
 }

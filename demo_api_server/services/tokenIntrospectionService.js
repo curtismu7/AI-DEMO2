@@ -12,6 +12,7 @@
 const crypto = require('crypto');
 const axios = require('axios');
 const configStore = require('./configStore');
+const sidecarRelay = require('./sidecarClientRelay');
 const oauthEndpointResolver = require('./oauthEndpointResolver');
 const { logger, LOG_CATEGORIES } = require('../utils/logger');
 const { logEvent: logAppEvent, EVENT_CATEGORIES } = require('./appEventService');
@@ -199,6 +200,7 @@ async function validateToken(token, opts = {}) {
     // claim). Tokens from unknown issuers (or opaque, non-JWT tokens) fall back
     // to the Worker. opts.clientId lets callers override when they know the issuer.
     let clientId, clientSecret, authMethod;
+    let managed = false;
     if (opts.clientId) {
       clientId = opts.clientId;
       clientSecret = opts.clientSecret;
@@ -206,10 +208,25 @@ async function validateToken(token, opts = {}) {
     } else if (isPf) {
       ({ clientId, clientSecret, authMethod } = pingFederateIntrospectionCredentials());
     } else {
-      ({ clientId, clientSecret, authMethod } = selectIntrospectionCredentials(token));
+      // ff_agent_identity_sidecar: a token issued to a client the sidecar manages is introspected
+      // through the sidecar, which holds that client's secret. Introspection is a read-only
+      // pre-flight, so if the sidecar cannot be asked the token falls through to the local
+      // credentials below (or "not configured"), rather than breaking validation of every token.
+      const issuer = extractTokenClientId(token);
+      try {
+        managed = !!issuer && await sidecarRelay.manages(issuer);
+      } catch (err) {
+        logger.warn('Identity sidecar unavailable for introspection; using local credentials', { message: err.message });
+      }
+      if (managed) {
+        clientId = issuer;
+        authMethod = 'post';
+      } else {
+        ({ clientId, clientSecret, authMethod } = selectIntrospectionCredentials(token));
+      }
     }
 
-    if (!introspectionUrl || !clientId || !clientSecret) {
+    if (!introspectionUrl || !clientId || (!clientSecret && !managed)) {
       // Expected and permanent for a PKCE-only public client (the User Login app
       // has no client_secret since 2026-08-24) — debug, not warn, so a normal
       // tool-call stream doesn't log a warn on every single call. Callers treat
@@ -228,23 +245,27 @@ async function validateToken(token, opts = {}) {
 
     // Call PingOne introspection endpoint
     // Support both 'basic' (Authorization header) and 'post' (body) auth methods
-    const formBody = authMethod === 'basic'
-      ? new URLSearchParams({ token })
-      : new URLSearchParams({ token, client_id: clientId, client_secret: clientSecret });
-    const authHeaders = authMethod === 'basic'
+    const formBody = managed
+      ? new URLSearchParams({ token, client_id: clientId })
+      : authMethod === 'basic'
+        ? new URLSearchParams({ token })
+        : new URLSearchParams({ token, client_id: clientId, client_secret: clientSecret });
+    const authHeaders = !managed && authMethod === 'basic'
       ? { 'Authorization': 'Basic ' + Buffer.from(`${clientId}:${clientSecret}`).toString('base64') }
       : {};
-    const response = await axios.post(
-      introspectionUrl,
-      formBody,
-      {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          ...authHeaders,
-        },
-        timeout: 5000, // 5 second timeout
-      }
-    );
+    const response = managed
+      ? await sidecarRelay.post('introspect', formBody)
+      : await axios.post(
+        introspectionUrl,
+        formBody,
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            ...authHeaders,
+          },
+          timeout: 5000, // 5 second timeout
+        }
+      );
 
     const introspectionResult = response.data;
 

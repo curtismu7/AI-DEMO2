@@ -8,6 +8,7 @@
 
 const axios = require('axios');
 const configStore = require('./configStore');
+const sidecarRelay = require('./sidecarClientRelay');
 const oauthEndpointResolver = require('./oauthEndpointResolver');
 const { decodeJwt } = require('../utils/tokenUtils');
 
@@ -41,7 +42,9 @@ async function getAgentCCToken(req, options = {}) {
     vertical
   } = options;
 
-  if (!clientId || !clientSecret) {
+  // ff_agent_identity_sidecar: a client the sidecar holds needs no secret here.
+  const managed = await sidecarRelay.manages(clientId);
+  if (!clientId || (!clientSecret && !managed)) {
     const err = new Error('Agent not configured: missing PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_ID or secret');
     err.code = 'agent_not_configured';
     err.httpStatus = 503;
@@ -71,8 +74,10 @@ async function getAgentCCToken(req, options = {}) {
 
     const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
 
-    // Apply auth method
-    if (authMethod === 'post') {
+    // Apply auth method (a managed client is authenticated by the sidecar instead)
+    if (managed) {
+      // client_id is already in the form; the sidecar adds the credentials.
+    } else if (authMethod === 'post') {
       body.set('client_secret', clientSecret);
     } else {
       // Default: CLIENT_SECRET_BASIC (Authorization: Basic header)
@@ -81,11 +86,22 @@ async function getAgentCCToken(req, options = {}) {
     }
 
     // Request token from PingOne
-    const tokenResponse = await axios.post(tokenEndpoint, body.toString(), {
-      headers,
-      timeout: 10000,
-      validateStatus: () => true,
-    });
+    let tokenResponse;
+    if (managed) {
+      try {
+        tokenResponse = await sidecarRelay.post('token', body);
+      } catch (relayErr) {
+        // The relay throws on a non-2xx; the checks below expect it as a resolved response.
+        if (!relayErr.response) throw relayErr;
+        tokenResponse = relayErr.response;
+      }
+    } else {
+      tokenResponse = await axios.post(tokenEndpoint, body.toString(), {
+        headers,
+        timeout: 10000,
+        validateStatus: () => true,
+      });
+    }
 
     const tokenData = tokenResponse.data;
 

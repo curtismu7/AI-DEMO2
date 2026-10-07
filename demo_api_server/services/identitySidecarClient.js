@@ -65,21 +65,32 @@ function assertTokenMatches(token, { audience, scope } = {}) {
  *   audience / scope: what the caller expects the token to carry; checked, not requested.
  * @returns {Promise<string>} access token
  */
-async function fetchActorToken({ target = DEFAULT_TARGET, audience, scope } = {}) {
+/**
+ * Where and how to call the sidecar: its URL for `pathname` plus the axios options carrying the
+ * key and, when AGENT_IDENTITY_SIDECAR_SOCKET is set, the Unix socket. A socket (shared volume) is
+ * preferred: reaching the sidecar then needs the volume, not just a place on the network. The URL
+ * is the fallback, and only its path matters over a socket.
+ */
+function endpoint(pathname) {
   const apiKey = process.env.AGENT_IDENTITY_SIDECAR_API_KEY;
   if (!apiKey) throw new Error('AGENT_IDENTITY_SIDECAR_API_KEY is not set');
-  // A Unix socket (shared volume) is preferred: reaching the sidecar then needs the volume, not
-  // just a place on the network. The URL is the fallback, and only its path matters over a socket.
   const socketPath = process.env.AGENT_IDENTITY_SIDECAR_SOCKET;
-  const url = `${(process.env.AGENT_IDENTITY_SIDECAR_URL || DEFAULT_URL).replace(/\/+$/, '')}/v1/token`;
-
-  let data;
-  try {
-    ({ data } = await axios.post(url, { target }, {
+  return {
+    url: `${(process.env.AGENT_IDENTITY_SIDECAR_URL || DEFAULT_URL).replace(/\/+$/, '')}${pathname}`,
+    options: {
       headers: { 'x-api-key': apiKey },
       timeout: TIMEOUT_MS,
       ...(socketPath ? { socketPath } : {}),
-    }));
+    },
+  };
+}
+
+async function fetchActorToken({ target = DEFAULT_TARGET, audience, scope } = {}) {
+  const { url, options } = endpoint('/v1/token');
+
+  let data;
+  try {
+    ({ data } = await axios.post(url, { target }, options));
   } catch (err) {
     throw normalizeAxiosError(err, { label: `Identity sidecar (target ${target})`, timeoutMs: TIMEOUT_MS });
   }
@@ -88,4 +99,4 @@ async function fetchActorToken({ target = DEFAULT_TARGET, audience, scope } = {}
   return data.access_token;
 }
 
-module.exports = { isEnabled, fetchActorToken, assertTokenMatches, DEFAULT_TARGET };
+module.exports = { isEnabled, fetchActorToken, assertTokenMatches, endpoint, DEFAULT_TARGET };

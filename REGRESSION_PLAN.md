@@ -273,6 +273,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-07 — Identity sidecar could only mint one token; the BFF still needed the client secrets for exchange, PAR and introspection
+
+**Files:** `agent_token_service/src/{relay,config,index}.ts`; `demo_api_server/services/{sidecarClientRelay,oauthService,parService,tokenIntrospectionService,agentCCTokenService,agentMcpTokenService,configStore,exchangeSubjectProbe}.js`, `routes/intentBinding.js`; new and updated tests under each.
+
+**What was broken:** with `ff_agent_identity_sidecar` ON the sidecar held the AI Agent secret for one call only, so the BFF could not drop any client secret.
+
+**What changed:** the sidecar relays `/as/{token,par,introspect}` for managed clients, adding the client authentication and returning PingOne's response unchanged. The BFF sends the same form without the secret when `sidecarRelay.manages(clientId)`, and the two-exchange validator and path choices count a managed client as having credentials.
+
+**Do not break:** flag OFF, or a client the sidecar does not manage, runs the original code with the local secret; flag ON with the sidecar down is an error, not a silent fallback (introspection alone falls back to local credentials, with a warning); the relay serves only the three endpoints and managed ids and refuses caller-supplied `client_secret`/assertions; a managed exchanger with no local secret must not select the wrong exchange branch or raise `TWO_EXCHANGE_CONFIG_INVALID`.
+
+**Verify:** `cd agent_token_service && npx jest && npx tsc --noEmit`; `cd demo_api_server && CI=true npx jest tests/sidecarClientRelay.test.js tests/oauthService.sidecarRelay.test.js tests/parService.sidecarRelay.test.js src/__tests__/tokenIntrospectionService.sidecarRelay.test.js src/__tests__/configStore-twoExchange.sidecar.test.js src/__tests__/agentCCTokenService.sidecarRelay.test.js src/__tests__/agentMcpTokenService.test.js tests/exchangeSubjectProbe.actorMint.test.js --forceExit`.
+
 ### 2026-10-07 — Open agent landed on top of the page a Demo Step navigated to (Step 25 → A2A review)
 
 **Files:** `demo_api_ui/src/components/AIAgent.js` (the "collapse on route changes" effect).

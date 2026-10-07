@@ -2,6 +2,7 @@
 
 const axios = require('axios');
 const crypto = require('crypto');
+const sidecarRelay = require('./sidecarClientRelay');
 
 /**
  * Pushed Authorization Request (RFC 9126) for PingOne.
@@ -20,7 +21,10 @@ function generatePkce() {
 }
 
 async function pushAuthorizationRequest(parEndpoint, clientId, clientSecret, authPayload, signatureMode = 'default') {
-  if (!parEndpoint || !clientId || !clientSecret) {
+  // ff_agent_identity_sidecar: a client the sidecar manages is authenticated there, so its
+  // secret is neither required nor sent from here.
+  const managed = await sidecarRelay.manages(clientId);
+  if (!parEndpoint || !clientId || (!clientSecret && !managed)) {
     throw new Error('PAR requires parEndpoint, clientId, and clientSecret');
   }
   if (!authPayload.redirect_uri) {
@@ -32,7 +36,7 @@ async function pushAuthorizationRequest(parEndpoint, clientId, clientSecret, aut
   try {
     const parParams = {
       client_id: clientId,
-      client_secret: clientSecret,
+      ...(managed ? {} : { client_secret: clientSecret }),
       response_type: 'code',
       scope: authPayload.scope || 'openid profile email',
       redirect_uri: authPayload.redirect_uri,
@@ -47,14 +51,16 @@ async function pushAuthorizationRequest(parEndpoint, clientId, clientSecret, aut
       parParams.authorization_details = JSON.stringify(authPayload.authorization_details);
     }
 
-    const response = await axios.post(
-      parEndpoint,
-      new URLSearchParams(parParams),
-      {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        timeout: 5000,
-      }
-    );
+    const response = managed
+      ? await sidecarRelay.post('par', new URLSearchParams(parParams))
+      : await axios.post(
+        parEndpoint,
+        new URLSearchParams(parParams),
+        {
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          timeout: 5000,
+        }
+      );
 
     const { request_uri, expires_in } = response.data;
     if (!request_uri) {
