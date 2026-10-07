@@ -15,6 +15,10 @@ const configured = {
   'ping-gateway/.env.example': read('ping-gateway/.env.example').match(/^PG_OLB_SCOPE=(.*)$/m)[1],
   'refresh-service-envs.js': read('demo_api_server/scripts/refresh-service-envs.js')
     .match(/PG_OLB_SCOPE:\s*'([^']*)'/)[1],
+  // PF-issued subjects use the PF variant (olb-token-exchange.groovy); PF defines `transfer`.
+  'ping-gateway/.env.example (PF)': read('ping-gateway/.env.example').match(/^PG_OLB_SCOPE_PF=(.*)$/m)[1],
+  'refresh-service-envs.js (PF)': read('demo_api_server/scripts/refresh-service-envs.js')
+    .match(/PG_OLB_SCOPE_PF:\s*'([^']*)'/)[1],
 };
 
 describe.each(Object.entries(configured))('PG_OLB_SCOPE in %s', (_name, value) => {
