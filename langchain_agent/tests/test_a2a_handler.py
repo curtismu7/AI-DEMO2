@@ -45,6 +45,15 @@ def test_agent_card_advertises_privilege_compatible_jsonrpc(monkeypatch):
     assert card["url"] == "https://gateway.example/langchainagent/a2a/jsonrpc"
 
 
+def test_agent_card_lists_chat_and_delegate_skills_with_provider(monkeypatch):
+    monkeypatch.setenv("PRIVILEGE_A2A_PUBLIC_URL", "https://gateway.example/langchainagent/a2a/jsonrpc")
+    card = client().get("/a2a/.well-known/agent-card.json").json()
+    assert [skill["id"] for skill in card["skills"]] == ["langchainagent-chat", "langchainagent-delegate"]
+    assert all(skill["examples"] for skill in card["skills"])
+    assert card["provider"]["organization"] == "Ping Identity"
+    assert card["version"] == "1.1.0"
+
+
 def test_agent_card_advertises_customer_oauth(monkeypatch):
     monkeypatch.setenv("A2A_PUBLIC_URL", "https://agent.example/a2a/jsonrpc")
     monkeypatch.setenv("A2A_TENANT_METADATA_URLS", "https://idp.a.example/.well-known/openid-configuration,https://idp.b.example/.well-known/openid-configuration")

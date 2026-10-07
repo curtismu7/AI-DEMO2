@@ -90,11 +90,17 @@ async def get_agent_card(request: Request) -> dict[str, Any]:
         oauth_scheme["oauth2MetadataUrl"] = metadata_urls[0]
     return {
         "name": "langchainagent",
-        "description": "LangChain MCP agent exposed through PingOne Privilege AI Gateway.",
+        "description": (
+            "LangGraph banking agent. Answers account, balance, transaction and transfer questions "
+            "through MCP tools, and can hand a message to a configured specialist agent through the "
+            "PingOne Privilege AI Gateway. Every hand-off it makes is reported back in the reply."
+        ),
         "protocolVersion": "0.3.0",
-        "version": "1.0.0",
+        "version": "1.1.0",
         "url": jsonrpc_url,
         "preferredTransport": "JSONRPC",
+        "provider": {"organization": "Ping Identity", "url": "https://www.pingidentity.com"},
+        "documentationUrl": "https://docs.pingidentity.com",
         "capabilities": {
             "extensions": [],
             "stateTransitionHistory": False,
@@ -107,9 +113,20 @@ async def get_agent_card(request: Request) -> dict[str, Any]:
             {
                 "id": "langchainagent-chat",
                 "name": "LangChain agent chat",
-                "description": "Delegate a text task to the LangChain MCP agent.",
-                "tags": ["langchain", "mcp"],
-            }
+                "description": "Delegate a text task to the LangChain MCP agent: accounts, balances, transactions and transfers.",
+                "tags": ["langchain", "mcp", "banking"],
+                "examples": ["What are my account balances?", "Show my last five transactions."],
+            },
+            {
+                "id": "langchainagent-delegate",
+                "name": "Hand off to a specialist agent",
+                "description": (
+                    "Forward a message to a configured specialist agent through the gateway. "
+                    "Name it in the request metadata as delegateTo; no model call is made."
+                ),
+                "tags": ["a2a", "delegation"],
+                "examples": ["Review who has admin access (metadata: delegateTo=<specialist>)."],
+            },
         ],
         "additionalInterfaces": [{"url": jsonrpc_url, "transport": "JSONRPC"}],
         "securitySchemes": {"customerOAuth": {"oauth2": oauth_scheme}},
