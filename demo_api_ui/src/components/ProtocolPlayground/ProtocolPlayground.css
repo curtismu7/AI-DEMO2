@@ -360,15 +360,10 @@
   margin-bottom: 12px;
 }
 
-/* Mermaid emits a fixed-size SVG; wide flows scroll inside the figure rather
-   than widening the page. */
+/* React Flow sizes and pans its own canvas. Do not style `svg` in here: a max-width on it
+   squashes React Flow's edge layer to zero width and every arrow stops painting. */
 .pp-mermaid__canvas {
   overflow-x: auto;
-}
-
-.pp-mermaid__canvas svg {
-  max-width: 100%;
-  height: auto;
 }
 
 /* --- Execution controls --- */
