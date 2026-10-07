@@ -375,7 +375,7 @@ function AppWithAuth() {
     clinicalSplit,
   } = useAgentUiMode();
 
-  const { user, loading, logout, sessionReauth, setSessionReauth } = useAuth();
+  const { user, signIn, loading, logout, sessionReauth, setSessionReauth } = useAuth();
   const { activeId: activeVerticalId } = useVertical();
   useAdminSkin();
   const { appFlags } = useAppFlags();
@@ -2469,6 +2469,7 @@ function AppWithAuth() {
               />
               <LoginSuccessModal
                 user={user}
+                signIn={signIn}
                 isOpen={loginSuccessOpen}
                 onClose={() => setLoginSuccessOpen(false)}
                 onDontShowAgain={() => {

@@ -19,6 +19,7 @@ const PINGONE_SILENT_REAUTH_KEY = 'p1-silent-reauth-attempted';
 
 export function useAuth() {
   const [user, setUser] = useState(null);
+  const [signIn, setSignIn] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sessionReauth, setSessionReauth] = useState(null);
   const sessionEstablishedRef = useRef(null);
@@ -29,6 +30,11 @@ export function useAuth() {
   const checkOAuthSession = useCallback(async ({ allowSilentReauth = false, silentReauthFailed = false, returnPath = '/dashboard' } = {}) => {
     const applyUser = (u, status = {}) => {
       setUser(u);
+      // The status names the server that signed this session in. Kept apart from `user` (whose shape other code
+      // relies on) so the login confirmation can say PingOne or PingFederate.
+      setSignIn(status.oauthProvider
+        ? { provider: status.oauthProvider, issuer: status.oauthIssuer ?? u?.oauthIssuer ?? null }
+        : null);
       try { sessionStorage.removeItem(PINGONE_SILENT_REAUTH_KEY); } catch { /* storage can be disabled */ }
       const wasIdJagResolved = idJagResolvedRef.current;
       const run = status.oauthProvider === 'pingfederate' ? status.idJagRunIntent : null;
@@ -413,5 +419,5 @@ export function useAuth() {
     navigateWithOverlay("/api/auth/logout", { message: "Signing out..." });
   }, []);
 
-  return { user, loading, logout, sessionReauth, setSessionReauth };
+  return { user, signIn, loading, logout, sessionReauth, setSessionReauth };
 }
