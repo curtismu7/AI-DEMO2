@@ -273,6 +273,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-07 — Open agent landed on top of the page a Demo Step navigated to (Step 25 → A2A review)
+
+**Files:** `demo_api_ui/src/components/AIAgent.js` (the "collapse on route changes" effect).
+
+**What was broken:** Clicking a link step from the dashboard (Step 25) opened `/privilege-mcp-client?view=demo&tab=a2a` with the floating agent open over half of the A2A panel, hiding the trace column and the Gateway record. The effect that collapses the floating agent on a route change used a "has this run before" flag, and returned before setting it whenever the agent was inline. The dashboard hosts the agent inline, so the first navigation to a page with a floating agent was taken for a first mount and nothing collapsed. Measured in the browser: 50% of the panel covered after the Step 25 click; 0% after a reload or a navigation from a floating page.
+
+**What changed:** The effect compares the pathname with the last one it saw. It collapses only when the pathname really changed and the agent is not inline.
+
+**Do not break:** a first page load never closes the agent; explicit opens (`banking-agent-open` event, `location.state.openAgent` / `scrollToAgent`) still reopen it, because their effects run after this one; the inline agent is untouched; the effect must not depend on user/session (auth sync used to close the panel). Switching placement to floating on the same page no longer closes the agent.
+
+**Verify:** on `/dashboard`, open Demo steps and click Step 25: the A2A page shows with the agent collapsed and the trace column visible.
+
 ### 2026-10-07 — Sidecar actor token unchecked; Token Chain read {} on a working exchange; probe logged a false "Invalid client"
 
 **Files:** `demo_api_server/services/identitySidecarClient.js`, `agentMcpTokenService.js`, `exchangeSubjectProbe.js`, `routes/agentRun.js`, `routes/featureFlags.js`; `langchain_agent/src/authentication/oauth_manager.py`, `src/main.py`; `demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js`; new and updated tests under each.
