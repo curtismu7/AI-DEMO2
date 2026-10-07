@@ -607,6 +607,34 @@ async function listMfaDevices(userId) {
 }
 
 /**
+ * Read FIDO2 device metadata (FIDO MDS entry) for an authenticator AAGUID.
+ * Needs the worker permission mfa:read:fidoDeviceMetadata.
+ */
+async function getFidoDeviceMetadata(aaguid) {
+  try {
+    const workerToken = await _getWorkerToken();
+    const url = `${_apiBaseUrl()}/fidoDevicesMetadata/${encodeURIComponent(aaguid)}`;
+    const debugRequest = {
+      method: "GET",
+      endpoint: url,
+      headers: _debugHeaders(workerToken, "application/json"),
+    };
+    const { data } = await axios
+      .get(url, {
+        headers: { Authorization: `Bearer ${workerToken}` },
+        timeout: 10000,
+      })
+      .catch((err) => {
+        err._debug = { request: debugRequest, response: err.response?.data || null };
+        throw err;
+      });
+    return { metadata: data, _debug: { request: debugRequest, response: data } };
+  } catch (err) {
+    throw _wrapError("getFidoDeviceMetadata", err);
+  }
+}
+
+/**
  * Enroll an email OTP device for a user via Management API (worker token).
  * @param {string} userId
  * @param {string} email   - User's email address to enroll
@@ -1358,6 +1386,7 @@ module.exports = {
   verifyOneTimeOtp,
   getPingOneUserContact,
   listMfaDevices,
+  getFidoDeviceMetadata,
   enrollEmailDevice,
   ensureEmailDevice,
   enrollSmsDevice,

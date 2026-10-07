@@ -1129,3 +1129,41 @@
   font-size: 0.85rem;
   line-height: 1.5;
 }
+
+.mfa-fido-meta {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  margin: 0.75rem 0;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--th-border);
+  border-radius: 8px;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+.mfa-fido-meta__icon {
+  height: 40px;
+  background: var(--th-bg-inset);
+}
+.mfa-fido-meta__title {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+.mfa-fido-meta__grid {
+  margin: 0;
+  display: grid;
+  gap: 0.25rem;
+  font-size: var(--font-size-sm, 0.85rem);
+}
+.mfa-fido-meta__row {
+  display: flex;
+  gap: 0.75rem;
+}
+.mfa-fido-meta__row dt {
+  min-width: 11rem;
+  color: var(--th-text-muted);
+}
+.mfa-fido-meta__row dd {
+  margin: 0;
+  word-break: break-word;
+}
