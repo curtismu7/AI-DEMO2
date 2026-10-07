@@ -52,6 +52,39 @@ function selfBaseUrl() {
   return `${scheme}://127.0.0.1:${port}`;
 }
 
+// Agents with no scope-topology entry that Privilege should also accept by URL.
+const PRIVILEGE_EXTRA_AGENTS = {
+  'langchain-agent': 'LangChain Banking Agent',
+  'demo-agent-service': 'Demo Agent Service'
+};
+
+// GET /api/cimd/privilege/:slug/client-metadata.json
+// The document PingOne Privilege fetches (Settings > MCP Client Documents).
+// Unlike the mock-AS documents below it is spec-shaped for an MCP client:
+// authorization_code + redirect_uris, public client (auth method none).
+// redirect_uris is the BFF's existing callback on whichever origin served this
+// request — correct it here if Privilege needs a different callback.
+router.get('/privilege/:slug/client-metadata.json', (req, res) => {
+  const app = findAppBySlug(req.params.slug);
+  const manifest = scopeTopology._manifest();
+  const appNames = (manifest.provisioning && manifest.provisioning.appNames) || {};
+  const name = app ? (appNames[app] || app) : PRIVILEGE_EXTRA_AGENTS[req.params.slug];
+  if (!name) {
+    return res.status(404).json({ error: 'agent_not_found', slug: req.params.slug });
+  }
+  const url = requestUrl(req);
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Cache-Control', 'public, max-age=300');
+  return res.json({
+    client_id: url,
+    client_name: name,
+    redirect_uris: [`${new URL(url).origin}/api/external-agents/callback`],
+    grant_types: ['authorization_code', 'refresh_token'],
+    response_types: ['code'],
+    token_endpoint_auth_method: 'none'
+  });
+});
+
 // GET /api/cimd/personal-agents/:registrationId/client-metadata.json
 // Public because the mocked AS resolves the document by URL. The document is
 // public-safe and contains no PingOne secret or user OAuth token.
