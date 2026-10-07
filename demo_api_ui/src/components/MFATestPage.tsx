@@ -116,6 +116,15 @@ const MFATestPageContent: FC = () => {
     useState<MFADevice | null>(null);
   const [deletingDeviceId, setDeletingDeviceId] = useState<string | null>(null);
   const [fidoEnrollInitStatus, setFidoEnrollInitStatus] = useState("pending");
+  const [fidoAaguid, setFidoAaguid] = useState<string | null>(null);
+  const [fidoMetaStatus, setFidoMetaStatus] = useState("pending");
+  const [fidoMetaError, setFidoMetaError] = useState<string | null>(null);
+  const [fidoMeta, setFidoMeta] = useState<Record<string, any> | null>(null);
+  const [rawFidoMeta, setRawFidoMeta] = useState<Record<string, any> | null>(
+    null,
+  );
+  const [fidoMetaPingoneReq, setFidoMetaPingoneReq] = useState<any>(null);
+  const [fidoMetaPingoneRes, setFidoMetaPingoneRes] = useState<any>(null);
   const [fidoEnrollInitError, setFidoEnrollInitError] = useState<string | null>(
     null,
   );
@@ -313,6 +322,9 @@ const MFATestPageContent: FC = () => {
         notifySuccess("Device deleted");
         setExistingFido2Device(null);
         setFidoEnrollData(null);
+        setFidoAaguid(null);
+        setFidoMeta(null);
+        setFidoMetaStatus("pending");
         setFidoEnrollInitStatus("pending");
         setFidoEnrollInitError(null);
         loadDevices();
@@ -1166,6 +1178,13 @@ const MFATestPageContent: FC = () => {
       const credential = (await navigator.credentials.create({
         publicKey,
       })) as any;
+      const authData = credential.response.getAuthenticatorData?.();
+      if (authData) {
+        const hex = Array.from(new Uint8Array(authData).slice(37, 53))
+          .map((x) => x.toString(16).padStart(2, "0"))
+          .join("");
+        setFidoAaguid(hex.replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, "$1-$2-$3-$4-$5"));
+      }
       const toB64 = (buf: any) => {
         const bytes = new Uint8Array(buf);
         let binary = "";
@@ -1225,6 +1244,30 @@ const MFATestPageContent: FC = () => {
       notifyError(`FIDO2 registration error: ${detail}`);
     }
   }, [fidoEnrollData, loadDevices]);
+
+  const testFidoMetadata = useCallback(async () => {
+    if (!fidoAaguid) return;
+    setFidoMetaStatus("running");
+    setFidoMetaError(null);
+    try {
+      const { data } = await apiClient.get(
+        `/api/mfa/test/integration/fido2-metadata/${fidoAaguid}`,
+      );
+      setRawFidoMeta(data);
+      setFidoMeta(data.metadata);
+      setFidoMetaPingoneReq(data.pingoneRequest);
+      setFidoMetaPingoneRes(data.pingoneResponse);
+      setFidoMetaStatus("passed");
+    } catch (err: any) {
+      const errData = err?.response?.data;
+      setRawFidoMeta(errData || { error: err.message });
+      setFidoMeta(null);
+      setFidoMetaPingoneReq(errData?.pingoneRequest);
+      setFidoMetaPingoneRes(errData?.pingoneResponse);
+      setFidoMetaStatus("failed");
+      setFidoMetaError(errData?.error || err.message);
+    }
+  }, [fidoAaguid]);
 
   if (loading) {
     return (
@@ -2034,6 +2077,26 @@ const MFATestPageContent: FC = () => {
               docsSectionTitle="FIDO2 Enroll — Complete Registration"
             />
           )}
+          {fidoAaguid && (
+            <>
+              <MFATestCard
+                title="Read FIDO2 Device Metadata"
+                method="GET"
+                status={fidoMetaStatus}
+                error={fidoMetaError}
+                onTest={testFidoMetadata}
+                endpoint={`/v1/environments/{envId}/fidoDevicesMetadata/${fidoAaguid}`}
+                rawResult={rawFidoMeta}
+                pingoneRequest={fidoMetaPingoneReq}
+                pingoneResponse={fidoMetaPingoneRes}
+                docsUrl="https://developer.pingidentity.com/pingone-api/mfa/fido-policies/read_single_fido_device_metadata_fido2.html"
+                docsSectionTitle="Read Single FIDO2 Device Metadata"
+              />
+              {fidoMeta?.metadataStatement && (
+                <FidoMetadataSummary meta={fidoMeta} />
+              )}
+            </>
+          )}
         </section>
 
         {/* Authentication Test Sections Header */}
@@ -2482,6 +2545,52 @@ function DaResponseCard({ daId, method }) {
         <span className="da-desc">
           MFA method PingOne is expecting the user to satisfy
         </span>
+      </div>
+    </div>
+  );
+}
+
+function FidoMetadataSummary({ meta }: { meta: Record<string, any> }) {
+  const ms = meta.metadataStatement;
+  const uv = (ms.userVerificationDetails || [])
+    .flat()
+    .map((d: any) => d.userVerificationMethod)
+    .join(", ");
+  const rows: [string, string][] = [
+    ["AAGUID", meta.aaguid],
+    ["Protocol", ms.protocolFamily],
+    ["Authenticator version", String(ms.authenticatorVersion ?? "")],
+    ["Key protection", (ms.keyProtection || []).join(", ")],
+    ["Matcher protection", (ms.matcherProtection || []).join(", ")],
+    ["Attachment", (ms.attachmentHint || []).join(", ")],
+    ["Transports", (ms.authenticatorGetInfo?.transports || []).join(", ")],
+    ["User verification", uv],
+    ["Attestation types", (ms.attestationTypes || []).join(", ")],
+    ["FIDO versions", (ms.authenticatorGetInfo?.versions || []).join(", ")],
+    [
+      "Certification",
+      (meta.statusReports || [])
+        .map((r: any) => `${r.status} (${r.effectiveDate})`)
+        .join(", "),
+    ],
+  ];
+  return (
+    <div className="mfa-fido-meta">
+      {ms.icon && (
+        <img className="mfa-fido-meta__icon" src={ms.icon} alt="" />
+      )}
+      <div>
+        <div className="mfa-fido-meta__title">{ms.description}</div>
+        <dl className="mfa-fido-meta__grid">
+          {rows
+            .filter(([, v]) => v)
+            .map(([k, v]) => (
+              <div key={k} className="mfa-fido-meta__row">
+                <dt>{k}</dt>
+                <dd>{v}</dd>
+              </div>
+            ))}
+        </dl>
       </div>
     </div>
   );

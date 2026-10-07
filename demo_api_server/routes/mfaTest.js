@@ -975,6 +975,34 @@ router.post('/integration/enroll-fido2-init', async (req, res) => {
 });
 
 /**
+ * GET /api/mfa/test/integration/fido2-metadata/:aaguid
+ * Read FIDO2 device metadata from PingOne for an authenticator AAGUID.
+ */
+router.get('/integration/fido2-metadata/:aaguid', async (req, res) => {
+  const { aaguid } = req.params;
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(aaguid)) {
+    return res.status(400).json({ success: false, error: 'invalid_aaguid', message: 'aaguid must be a UUID.' });
+  }
+  try {
+    const result = await mfaService.getFidoDeviceMetadata(aaguid);
+    res.json({
+      success: true,
+      metadata: result.metadata,
+      pingoneRequest: normalizePingoneRequest(result._debug.request),
+      pingoneResponse: result._debug.response,
+    });
+  } catch (err) {
+    console.error('[MFA Test Integration] GET /fido2-metadata failed:', err.message);
+    res.status(err.status || 500).json({
+      success: false,
+      error: err.message,
+      pingoneRequest: err._debug && normalizePingoneRequest(err._debug.request),
+      pingoneResponse: err._debug && err._debug.response,
+    });
+  }
+});
+
+/**
  * POST /api/mfa/test/integration/enroll-fido2-complete
  * Complete FIDO2/passkey registration using PingOne MFA
  * Body: { deviceId, attestation }
