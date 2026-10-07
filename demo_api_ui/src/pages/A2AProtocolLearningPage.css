@@ -87,8 +87,13 @@
 .a2l-foldbar { display: flex; gap: 8px; margin-top: 12px; }
 
 /* Each section is a native <details>: collapse needs no script and is
- * keyboard- and screen-reader-operable. The chevron is a rotated border, not a glyph. */
-.a2l-summary {
+ * keyboard- and screen-reader-operable. The chevron is a rotated border, not a glyph.
+ *
+ * Two classes on purpose: the PingOne end-user-nano stylesheet (loaded from
+ * assets.pingone.com, scoped under .end-user-nano) sets summary to list-item and
+ * beats a single class, which left the chevron an inline sliver above the heading.
+ * Found only in a real browser (getComputedStyle showed list-item), not by tests. */
+.a2l-section > .a2l-summary {
   list-style: none;
   cursor: pointer;
   display: flex;

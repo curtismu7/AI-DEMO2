@@ -7,6 +7,7 @@ import {
   useEducationUI,
 } from '../context/EducationUIContext';
 import A2AProtocolLearningPage from './A2AProtocolLearningPage';
+import pageCss from './A2AProtocolLearningPage.css?raw';
 import { A2A_SECTION_FOLD_STORAGE_NAME, A2A_SECTION_IDS } from '../utils/a2aSectionFold';
 
 vi.mock('../context/ThemeContext', () => ({
@@ -177,6 +178,13 @@ describe('A2A protocol learning page sections', () => {
     } finally {
       cardSummary.value = null;
     }
+  });
+
+  it('keeps the summary layout on a two-class selector so the PingOne nano stylesheet cannot override it', () => {
+    // end-user-nano.css (cross-origin, scoped under .end-user-nano) sets summary to
+    // list-item; a single-class rule loses and the chevron collapses to a sliver.
+    expect(pageCss).toMatch(/\.a2l-section > \.a2l-summary \{[^}]*display: flex;/);
+    expect(pageCss).not.toMatch(/(^|\n)\.a2l-summary \{/);
   });
 
   it('every section id on the page is known to the fold list', () => {
