@@ -41,6 +41,7 @@ export const NAV_STRUCTURE_CATALOG = [
     "Delegation Chain Value", "A2A Protocol & Identity", "Jev Decision Model", "Group Policy Board", "Demo Script",
     "Agentic Control Plane", "Agent Kill Switch", "Agent Registry", "PingOne Agent Builder",
     "Agent & Token Flow History", "Autonomous Agents", "Personal Agent",
+    "Personal Agent: Target Design", "Personal Agent: Dual Gateway Design", "Personal Agent: Design Review",
     "Agent Onboarding Flow (Node)", "Agent Onboarding Flow Subway (Node)",
     "Agent Lifecycle (guided demo)", "Delegated Commerce (guided demo)", "LangChain Agent", "Ungoverned Agent",
     "Prompt Injection", "HITL Bypass", "Indirect Injection", "Unauthorized Commitments",
