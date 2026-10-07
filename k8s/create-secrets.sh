@@ -425,6 +425,37 @@ PY
   done
 }
 
+# Mirror the Privilege A2A main agent's secrets from the vault. The main agent
+# (Deployment mainagentdemo, standalone/privilege-a2a-anthropic-demo/k8s) is the
+# caller that starts Demo Steps 25 and 26; the BFF reaches it in-cluster.
+#   PRIVILEGE_A2A_BFF_SECRET       shared by the BFF and the main agent: goes to
+#                                  ai-demo-secrets (BFF) and, as
+#                                  A2A_BFF_SHARED_SECRET, to privilege-a2a-demo
+#   PRIVILEGE_A2A_MAIN_AGENT_KEY   the main agent's own gateway key: goes to
+#                                  privilege-a2a-demo as MAIN_AGENT_KEY
+# privilege-a2a-demo is created by hand (it also holds the worker's key), so it
+# is patched only where it already exists.
+mirror_privilege_a2a_main_agent() {
+  local source target secret
+  for pair in \
+    "PRIVILEGE_A2A_BFF_SECRET:PRIVILEGE_A2A_BFF_SECRET:ai-demo-secrets" \
+    "PRIVILEGE_A2A_BFF_SECRET:A2A_BFF_SHARED_SECRET:privilege-a2a-demo" \
+    "PRIVILEGE_A2A_MAIN_AGENT_KEY:MAIN_AGENT_KEY:privilege-a2a-demo"; do
+    source="${pair%%:*}"; secret="${pair##*:}"; target="${pair#*:}"; target="${target%%:*}"
+    vault_has_key "$source" || continue
+    if [ "${DRY_RUN:-0}" = "1" ]; then
+      printf '[dry-run] %s:\n  %s -> vault (%s)\n' "$secret" "$target" "$source"
+      continue
+    fi
+    kubectl get secret "$secret" --namespace="$NS" >/dev/null 2>&1 || { info "  $secret not present; $target not mirrored"; continue; }
+    A2A_SECRET_NAME="$target" A2A_SECRET_VALUE="$(vault_get "$source")" python3 - <<'PY' | kubectl patch secret "$secret" --namespace="$NS" --type merge --patch-file /dev/stdin >/dev/null
+import json, os
+print(json.dumps({"stringData": {os.environ["A2A_SECRET_NAME"]: os.environ["A2A_SECRET_VALUE"]}}))
+PY
+    info "  $target mirrored into $secret from the vault"
+  done
+}
+
 # Mirror ANTHROPIC_API_KEY from the BFF .env into langchain-secrets so the agent
 # can honor an explicit Anthropic/Claude provider selection.
 #
@@ -726,6 +757,7 @@ mirror_google_api_key                                                       # BF
 mirror_groq_api_key                                                          # BFF → langchain for Groq provider
 mirror_anthropic_api_key                                                    # BFF → langchain for Anthropic/Claude provider
 mirror_privilege_a2a_static_token                                           # vault → langchain: Privilege A2A static token + the agent's own gateway key
+mirror_privilege_a2a_main_agent                                             # vault → ai-demo-secrets + privilege-a2a-demo: A2A main agent
 mirror_privilege_llm_config                                                 # BFF → ai-demo-secrets for Privilege LLM protection
 secret_from_envfile gateway-secrets   "$ASSET_ROOT/demo_mcp_gateway/.env"   # MCP gateway
 secret_from_envfile agent-secrets        "$ASSET_ROOT/demo_agent_service/.env" # Agent service

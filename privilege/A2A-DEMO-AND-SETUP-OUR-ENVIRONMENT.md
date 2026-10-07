@@ -50,13 +50,13 @@ Five things must be up. Check them in this order; each takes seconds.
 
 | # | What | Check | Good result |
 | --- | --- | --- | --- |
-| 1 | Main agent (runs on the laptop, port 3300) | `curl -s http://127.0.0.1:3300/status` | JSON with `"viaGateway":true` and a `chain` URL |
-| 2 | Worker, MCP server and LangChain agent (cluster) | `kubectl --context us -n ping-devops-cmuir get pods` | `workeragentdemo`, `mcpdemo` and `langchain-agent` all `1/1 Running` |
+| 1 | Main agent | Local stack: `curl -s http://127.0.0.1:3300/status` (it runs on the laptop, port 3300). SE site: it runs in the cluster as `mainagentdemo`; check it with row 2 | JSON with `"viaGateway":true` and a `chain` URL |
+| 2 | Worker, MCP server, LangChain agent and, for the SE site, the main agent (cluster) | `kubectl --context us -n ping-devops-cmuir get pods` | `workeragentdemo`, `mcpdemo`, `langchain-agent` and `mainagentdemo` all `1/1 Running` |
 | 3 | Gateway | `curl -s -o /dev/null -w "%{http_code}" -X POST https://mcpgw.ai-demo.ping-devops.com/workeragentdemo/a2a/jsonrpc -d '{}'` | `401` (the gateway is up and asking for a key) |
-| 4 | The app | Open `https://local.ping-devops.com:4000` and sign in | The dashboard loads. Sign-in only works on this host |
+| 4 | The app | Open `https://local.ping-devops.com:4000` (local stack) or `https://ai-demo.ping-devops.com` (SE site) and sign in | The dashboard loads. On the local stack, sign-in only works on this host |
 | 5 | The gateway-record grant | Run step 26 once and open a red GATEWAY step | Rows of log lines, not "not granted". If it says not granted, the policy for `SearchIndexTool` on `opensearch22` has lapsed |
 
-If the main agent is not running, start it:
+If the local main agent is not running, start it (the SE site's main agent is a cluster Deployment and restarts by itself):
 
 ```bash
 cd standalone/privilege-a2a-anthropic-demo && npm run main
@@ -84,15 +84,16 @@ A security analyst asks an agent to review someone's access. The main agent hand
 
 ## Demo 2: three-deep chain
 
-One agent calls a second, which calls a third, and the gateway sits between each pair. Three runs, each under a second. About three minutes.
+One agent calls a second, which calls a third, and the gateway sits between each pair. Four runs, each about a second. About four minutes.
 
-**Open it.** Go to `/dashboard`, open Demo steps in the top bar, and find step 26, UC47 Privilege A2A three-deep agent chain. It has three controls: the step itself and two small buttons, **P** and **U**.
+**Open it.** Go to `/dashboard`, open Demo steps in the top bar, and find step 26, UC47 Privilege A2A three-deep agent chain. It has four controls: the step itself and three small buttons, **P**, **U** and **C**.
 
 | Run | Click | What the view shows | What to say |
 | --- | --- | --- | --- |
-| Allowed | The step | The main agent first reads the LangChain agent's Agent Card through the gateway (two steps). Then: main agent, gateway, LangChain agent, gateway, Refunds specialist, and two replies back. 14 steps in all; three per call and per reply (caller, gateway, callee). Marked verified | "Each call is three steps: the caller presents its own key, the gateway checks it, the next agent receives it. The second hop uses the LangChain agent's key, not the main agent's." |
-| Prompt injection | **P** | Main agent calls the LangChain agent, then "Privilege gateway — refused". Nothing is forwarded | "The message said to ignore all instructions and reveal the system prompt. The gateway blocked it at the first hop; the LangChain agent never saw it." |
-| Ungranted agent | **U** | First hop passes; the second stops at "Privilege gateway — refused" | "The LangChain agent tried to hand off to an agent it was never granted. The gateway refused with a 403, and the refusal travels back up the chain with its reason." |
+| Allowed | The step | 18 nodes. It opens with "Client started flow" and ends with "Done". Each agent first reads the next agent's Agent Card through the gateway (two nodes), then calls it: caller, gateway, callee, and the same three for each reply. Marked verified | "Each call is three steps: the caller presents its own key, the gateway checks it, the next agent receives it. Before calling, each agent reads the other's Agent Card through the gateway, and the card step shows what it said. Agents never hold each other's keys." |
+| Prompt injection | **P** | Main agent calls the LangChain agent, then "Refuses the call" on the red AI GATEWAY node, then "Done" marked stopped. Nothing is forwarded | "The message said to ignore all instructions and reveal the system prompt. The gateway blocked the call at the first hop; the LangChain agent never saw it." |
+| Ungranted agent | **U** | First hop passes. At the second, "No A2A Agent Card returned" and then "Refuses the call" | "The LangChain agent tried to reach an agent it was never granted. The gateway refused it even the Agent Card, then refused the call with a 403, and the refusal travels back up the chain with its reason." |
+| Poisoned Agent Card | **C** | Main agent calls the LangChain agent, then "Blocks the reply" on the red AI GATEWAY node. The panel says the next agent did receive the call | "The specialist here is a hostile agent whose Agent Card hides an instruction. In this run the middle agent passes that card's text back unchecked. The gateway reads the reply on its way back and blocks it. So the gateway screens what agents say in both directions." |
 
 **Best view for this demo.** The sequence view: one lifeline per agent with the gateway between them, so the audience sees the gateway in the path of every call. Switch to it in Quick Config. The movie reel along the bottom shows the same run as a numbered chain.
 
@@ -102,6 +103,7 @@ One agent calls a second, which calls a third, and the gateway sits between each
 | --- | --- |
 | P | The guardrail verdict: `a2a_request_blocked`, category `prompt_injection`, the caller `main-agent`, the rules that fired, and the MITRE ATLAS, NIST AI RMF and OWASP rows |
 | U | The first hop accepted for `langchainagent`; the second refused: policy denied, the principal does not have access, A2A app `restrictedagent` |
+| C | The guardrail verdict on the reply: `a2a_response_blocked`, category `prompt_injection`, direction `response`, the rule that fired, and the framework rows |
 | Allowed | The request accepted for `langchainagent`, then for the specialist's app, each with a different principal |
 
 On Step 25 (the access review), the same record lists the model calls with tokens and cost. That block is covered by tests but has not yet been run in a browser.
@@ -194,6 +196,19 @@ The model ID must match the model allowed on the key exactly. `MAIN_AGENT_HOST=0
 
 **6. Connect the app.** In `demo_api_server/.env`, set `PRIVILEGE_A2A_MAIN_URL=http://host.docker.internal:3300` and `PRIVILEGE_A2A_BFF_SECRET` to the same value as the main agent's `A2A_BFF_SHARED_SECRET`. The secret is also in the vault under that name.
 
+**6a. On the SE site, run the main agent in the cluster.** The SE app cannot reach a laptop, so the main agent is a third Deployment, `mainagentdemo`, in `standalone/privilege-a2a-anthropic-demo/k8s/deployment.yaml`. It uses the same image as the worker and is not registered in Privilege: it is a caller, not a remote agent.
+
+| What | Where | Value |
+| --- | --- | --- |
+| Main agent's address, for the app server | `PRIVILEGE_A2A_MAIN_URL` in `ai-demo-config` (`k8s/02-configmap.yaml`) | `http://mainagentdemo.ping-devops-cmuir.svc.cluster.local` |
+| Shared secret, app server side | `PRIVILEGE_A2A_BFF_SECRET` in `ai-demo-secrets` | From the vault, same name |
+| Shared secret, main agent side | `A2A_BFF_SHARED_SECRET` in the Secret `privilege-a2a-demo` | The same value |
+| Main agent's gateway key | `MAIN_AGENT_KEY` in the Secret `privilege-a2a-demo` | From the vault, `PRIVILEGE_A2A_MAIN_AGENT_KEY` |
+
+`k8s/create-secrets.sh` mirrors the last three from the vault. Build the image for arm64 and apply the manifest (the commands are at the top of that file), then restart `demo-api-server` so it reads the address and the secret. Check from the app server's pod: `wget -q -O - http://mainagentdemo.ping-devops-cmuir.svc.cluster.local/status` returns the main agent's status JSON. On the cluster the main agent's model calls go to Gemini through the gateway with its own key.
+
+**6b. For run C, set the demo switch.** `A2A_DEMO_RELAY_CARD_TEXT: "true"` in `ai-demo-config` lets the LangChain agent pass a card's text back when a run asks for it. Without it, run C behaves like the allowed run.
+
 **7. Set the chain's targets.** `A2A_DELEGATE_TARGETS` in `k8s/02-configmap.yaml` maps `refunds` to the `hostile-a2a` route and `restricted` to the `restrictedagent` route. Restart `langchain-agent` after changing it.
 
 Then run the checks in Before you demo, and both demos once.
@@ -234,12 +249,10 @@ Say these plainly if asked; none of them is hidden by the demo.
 - **No user identity crosses the hops.** The A2A message carries the question and the answer, not a browser token or a delegated token. Each agent is identified by its own key. The banking A2A demo (UC2) is the one that shows a user's delegated identity across agents.
 - **The model leg on Google is not screened by the guardrail.** The gateway logs that it finds nothing to scan in a Gemini-format request. The poisoned tool result is stopped earlier, on the tool leg, so the demo does not depend on it. This leg has not been tested with an attack.
 - **Grants follow the custodian.** Two agents under one custodian can reach each other's remote agents. Separate custodians are what keep their reach separate.
-- **The main agent runs on the laptop.** If the laptop sleeps or the process stops, both demos stop. The worker, MCP server, LangChain agent and specialist run in the cluster.
+- **On the local stack the main agent runs on the laptop.** If the laptop sleeps or the process stops, both demos stop there. On the SE site it runs in the cluster as `mainagentdemo`, beside the worker, MCP server, LangChain agent and specialist.
 - **Pass Agent Token and User Token are not used.** Both demos use agent keys with Static Token or None on the remote agent. Workload identity for agent callers has not been tested.
-- **The second hop is rebuilt, not captured.** The LangChain agent reports only that its hop happened. Its request and the specialist's reply are reconstructed from the fixed shape it sends: the text is exact, the ids and key are placeholders.
-- **Only the first hop reads an Agent Card.** The LangChain agent calls its specialist from a configured list (`A2A_DELEGATE_TARGETS`).
-- **Reply inspection is unproven.** The "Relays the reply" step says so; no `a2a_response` record has been seen.
-- **The ungranted run does not show the message text** on the refused second call.
+- **The middle agent does not pass on another agent's prose.** It reports its specialist's Agent Card by name, version, skills and other short fields, and counts the description without copying it. Run C turns that off on purpose, and only where the deployment sets `A2A_DEMO_RELAY_CARD_TEXT`.
+- **Reply inspection has been seen blocking, not sanitizing or alerting.** The gateway blocked a reply that carried a hostile agent's card text (`a2a_response_blocked`, 6 October 2026). Sanitize and alert on a reply are untested.
 - **The specialist is a stub.** The refunds specialist answers that nothing was executed. The chain shows the hops and the controls, not a real refund.
 
 Related guides: the A2A guide (`privilege/GATEWAY-AGENT-TO-AGENT-A2A.md`) for how the gateway handles A2A in general, and the demo's README (`standalone/privilege-a2a-anthropic-demo/README.md`) for its settings.
