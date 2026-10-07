@@ -3,6 +3,7 @@
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { signDpopProof } = require('./dpopKeyService');
+const { loginHintFor: sharedLoginHintFor } = require('./loginHint');
 const { safeParams, safeBody, bareUrl, claimsOf, step: traceStep } = require('./pfAiAgentTrace');
 
 const REQUEST_TIMEOUT_MS = 10_000;
@@ -77,15 +78,10 @@ function createPkce() {
   return { verifier, challenge };
 }
 
-// The name sent as login_hint so PingFederate does not have to ask who is signing in. PingFederate's own
-// users are case-sensitive and lowercase here ("demouser"), while PingOne spells the same person "demoUser":
-// a PingFederate session already carries PingFederate's spelling, any other session is lowercased to match.
-// ponytail: assumes PingFederate's users are lowercase; map names per user if that stops being true.
+// The name sent as login_hint so PingFederate does not have to ask who is signing in, spelled the way
+// PingFederate spells it (see services/loginHint.js, which every sign-in shares).
 function loginHintFor(req, name = req?.session?.user?.username) {
-  const provider = String(req?.session?.oauthProvider || req?.session?.user?.oauthProvider || '').toLowerCase();
-  const clean = String(name || '').trim();
-  if (!clean || clean.length > 256 || /[\u0000-\u001f\u007f]/.test(clean)) return '';
-  return provider === 'pingfederate' ? clean : clean.toLowerCase();
+  return sharedLoginHintFor(req, 'pingfederate', name);
 }
 
 function buildAuthorizationUrl({ metadata, clientId, redirectUri, scope, state, nonce, challenge, loginHint = '' }) {
