@@ -297,6 +297,12 @@ Secret, then `kubectl apply -f k8s/deployment.yaml`; the commands are at the
 top of that file. For a purely local run, leave the defaults: all three
 processes on loopback, no cluster needed.
 
+The same manifest also runs the main agent in the cluster (`mainagentdemo`),
+for a deployment whose app server cannot reach a laptop. It needs two more
+values in the Secret, `MAIN_AGENT_KEY` and `A2A_BFF_SHARED_SECRET`, and the app
+server needs its address in `PRIVILEGE_A2A_MAIN_URL`. The main agent is not
+registered in Privilege: it is a caller, not a remote agent.
+
 ### Run main agent on your laptop
 
 Create the main Agent Access key with `llm` and `a2a` scopes. Associate it with

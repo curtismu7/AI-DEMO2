@@ -1,5 +1,5 @@
-# One image for the worker agent and the MCP server; each container picks its
-# process with `command` (see k8s/deployment.yaml).
+# One image for the main agent, the worker agent and the MCP server; each
+# container picks its process with `command` (see k8s/deployment.yaml).
 FROM node:22-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json tsconfig.json ./

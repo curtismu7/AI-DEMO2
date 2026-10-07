@@ -10,6 +10,14 @@
 #   read -s KEY && kubectl -n ping-devops-cmuir create secret generic privilege-a2a-demo \
 #     --from-literal=WORKER_AGENT_KEY="$KEY"; unset KEY
 #
+# The main agent runs here too (third Deployment, `mainagentdemo`), so the demo
+# does not depend on a process on someone's laptop. It is NOT registered in
+# Privilege: it is a caller, not a remote agent. The demo app's server reaches
+# it in-cluster (PRIVILEGE_A2A_MAIN_URL) with a shared secret. Add its two
+# values to the same Secret:
+#   MAIN_AGENT_KEY          the main agent's Agent Access key (llm + a2a scopes)
+#   A2A_BFF_SHARED_SECRET   the same value as the app server's PRIVILEGE_A2A_BFF_SECRET
+#
 # BUILD FOR arm64 (the SE cluster nodes are Graviton):
 #   docker buildx build --platform linux/arm64 --provenance=false \
 #     -t ghcr.io/cmuir_pingcorp/privilege-a2a-demo:latest --push .
@@ -166,3 +174,97 @@ spec:
     name: http
   selector:
     app: workeragentdemo
+---
+# The main agent: the caller that starts every run. The demo app's server
+# relays a request here with a shared secret; from here every call goes out
+# through the Privilege gateway with this agent's own key.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mainagentdemo
+  namespace: ping-devops-cmuir
+  labels:
+    app: mainagentdemo
+    component: privilege-a2a-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mainagentdemo
+  template:
+    metadata:
+      labels:
+        app: mainagentdemo
+        component: privilege-a2a-demo
+    spec:
+      imagePullSecrets:
+      - name: ghcr-pull-secret
+      containers:
+      - name: mainagentdemo
+        image: ghcr.io/cmuir_pingcorp/privilege-a2a-demo:latest
+        imagePullPolicy: Always
+        command: ["node", "dist/main-agent/index.js"]
+        ports:
+        - containerPort: 3300
+          name: http
+        env:
+        - name: MAIN_AGENT_HOST
+          value: "0.0.0.0"
+        - name: MAIN_AGENT_PORT
+          value: "3300"
+        # The main agent's own model calls go through the gateway too.
+        - name: MAIN_AGENT_PROVIDER
+          value: "google"
+        - name: GEMINI_BASE_URL
+          value: "https://mcpgw.ai-demo.ping-devops.com/llm/google"
+        - name: MAIN_AGENT_MODEL
+          value: "gemini-3.6-flash"
+        # Step 25: the worker, through the gateway. Step 26: the middle agent.
+        - name: WORKER_A2A_URL
+          value: "https://mcpgw.ai-demo.ping-devops.com/workeragentdemo/a2a"
+        - name: WORKER_TRACE_URL
+          value: "https://mcpgw.ai-demo.ping-devops.com/workeragentdemo/trace"
+        - name: CHAIN_A2A_URL
+          value: "https://mcpgw.ai-demo.ping-devops.com/langchainagent/a2a/jsonrpc"
+        - name: MAIN_AGENT_KEY
+          valueFrom:
+            secretKeyRef:
+              name: privilege-a2a-demo
+              key: MAIN_AGENT_KEY
+        # Only the demo app's server may ask this agent to run anything.
+        - name: A2A_BFF_SHARED_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: privilege-a2a-demo
+              key: A2A_BFF_SHARED_SECRET
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "250m"
+        readinessProbe:
+          httpGet:
+            path: /status
+            port: 3300
+          initialDelaySeconds: 5
+          periodSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mainagentdemo
+  namespace: ping-devops-cmuir
+  labels:
+    app: mainagentdemo
+    component: privilege-a2a-demo
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 3300
+    protocol: TCP
+    name: http
+  selector:
+    app: mainagentdemo

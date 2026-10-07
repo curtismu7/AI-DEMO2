@@ -110,6 +110,11 @@ data:
   # The tenant registry is secret-backed through langchain-secrets; do not put
   # customer-specific issuer configuration in this shared ConfigMap.
   PRIVILEGE_A2A_PUBLIC_URL: "https://mcpgw.ai-demo.ping-devops.com/langchainagent/a2a/jsonrpc"
+  # Where the BFF finds the Privilege A2A main agent (Demo Steps 25, 25A and 26):
+  # the mainagentdemo Service in this namespace. The BFF authenticates to it with
+  # PRIVILEGE_A2A_BFF_SECRET (ai-demo-secrets). Unset, the BFF tries 127.0.0.1 and
+  # those steps answer "A2A service unavailable".
+  PRIVILEGE_A2A_MAIN_URL: "http://mainagentdemo.ping-devops-cmuir.svc.cluster.local"
   # Agents the LangChain agent may hand work to, each reached through the
   # Privilege gateway with the agent's own key (PRIVILEGE_A2A_AGENT_KEY, from
   # langchain-secrets). Every target must also be selected under Remote Agents
