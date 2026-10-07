@@ -285,15 +285,15 @@ read the configured host. A new browser origin must be added to ALL of:
 
 **Verify:** `cd demo_api_server && CI=true npx jest tests/identitySidecarClient.test.js tests/identitySidecar.actorSwitch.test.js tests/exchangeSubjectProbe.actorMint.test.js --forceExit`; `cd demo_api_ui && npx vitest run src/services/tokenChainTrace/__tests__ && npm run build`; `cd langchain_agent && .venv/bin/python -m pytest tests/test_oauth_manager.py tests/test_tier3_fixes.py`.
 
-### 2026-10-07 — Specialist reconnect: a reconnecting request could not see the running task, and a dropped stream stranded it
+### 2026-10-07 — Specialist reconnect: a reconnecting request could not see the running task
 
 **Files:** `demo_api_server/services/a2aProtocolServer.js`, `demo_api_server/tests/a2aSpecialistResubscribe.test.js`.
 
-**What was broken:** The router builds a new `DefaultRequestHandler` for every request, each with its own event bus manager, so `SubscribeToTask` for a running task found no bus and returned only a snapshot. Separately, the SDK saves task state and sends push callbacks from inside the loop that serves `SendStreamingMessage`; if that caller disconnected, the task kept running but its result was never stored and no callback fired, leaving the stored task at "working" forever.
+**What was broken:** The router builds a new `DefaultRequestHandler` for every request, each with its own event bus manager, so `SubscribeToTask` for a running task found no bus and returned only a snapshot. Confirmed over a real HTTP connection (`a2aSpecialistResubscribeHttp.test.js`): with a per-request manager the rejoined stream received nothing.
 
-**What changed:** All handlers share one event bus manager (`sharedEventBusManager`). `withDrainOnDisconnect` keeps draining a streaming send after the caller goes away, so the result is stored and push fires. A finished task is correctly closed to subscribers.
+**What changed:** All handlers share one event bus manager (`sharedEventBusManager`). A finished task is correctly closed to subscribers. `withDrainOnDisconnect` also keeps draining a streaming send if something returns the stream early (the SDK stores state and fires push only from inside that loop); this is defensive: the real HTTP path does not need it, because the SDK's Express handler keeps consuming after the client aborts (recorded in the Http test). An earlier version of this entry said a dropped HTTP stream stranded the task; that was wrong, it holds only at handler level.
 
-**Do not break:** one shared manager across requests; the drain wrapper on every specialist handler; the default SendMessage reply is still a single Message.
+**Do not break:** one shared manager across requests; the default SendMessage reply is still a single Message.
 
 **Verify:** `cd demo_api_server && CI=true npx jest tests/a2aSpecialistResubscribe.test.js tests/a2aSpecialistTasksStreaming.test.js --forceExit`. One test there asserts the SDK strands the task without the wrapper; if it starts failing, the SDK changed and the wrapper can be reviewed.
 

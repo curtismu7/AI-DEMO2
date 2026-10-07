@@ -112,7 +112,7 @@ test('a dropped stream still stores the finished task, so GetTask is right and t
   await expect(collect(reader.resubscribe(SubscribeToTaskRequest.fromJSON({ id: taskId }), ctx()))).rejects.toThrow(/terminal/);
 });
 
-test('without the drain a dropped stream strands the task at working (the SDK behaviour the wrapper exists for)', async () => {
+test('without the drain, a stream that is returned early strands the task at working (handler level; the real HTTP path does not do this, see the Http test)', async () => {
   const taskStore = new InMemoryTaskStore();
   const executor = slowExecutor();
   const manager = sharedEventBusManager();

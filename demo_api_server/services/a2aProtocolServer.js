@@ -62,10 +62,15 @@ function sharedEventBusManager() {
 
 /**
  * The SDK saves task state and sends push notifications from inside the loop
- * that serves SendStreamingMessage. If that caller disconnects, the loop stops:
- * the task keeps running but its result is never stored and no callback fires,
- * so the stored task stays "working" forever. Keep draining after an early
- * return so a dropped stream cannot strand the task.
+ * that serves SendStreamingMessage. If something returns that stream early, the
+ * loop stops: the task keeps running but its result is never stored and no
+ * callback fires, so the stored task stays "working". Keep draining after an
+ * early return so that cannot strand the task.
+ *
+ * Defensive, not proven necessary on the HTTP path: over a real connection the
+ * SDK's Express handler keeps consuming the stream after the client aborts on its
+ * own (a2aSpecialistResubscribeHttp.test.js records this). The shared event bus
+ * manager is the fix reconnect actually needs.
  */
 function keepDrainingAfterDisconnect(stream) {
   return (async function* drained() {
