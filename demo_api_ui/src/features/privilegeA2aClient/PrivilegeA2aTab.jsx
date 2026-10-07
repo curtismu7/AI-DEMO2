@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { MarkdownContent } from '../../components/shared/MarkdownText';
 import { GATEWAY_RECORD_SIGN_IN_PATH, loadGatewayRecord } from '../../services/gatewayEvents';
 import { PRIVILEGE_A2A_DEMO_QUESTIONS, runPrivilegeA2aChatRun } from '../../utils/privilegeA2aChainRun';
 import { usePrivilegeA2aProfile } from './usePrivilegeA2aProfile';
@@ -105,7 +106,9 @@ export default function PrivilegeA2aTab() {
               {turns.map((turn, index) => (
                 <article className="privilege-a2a__turn" key={`${index}-${turn.question}`}>
                   <p className="privilege-a2a__question">{turn.question}</p>
-                  <p className="privilege-a2a__answer">{turn.answer || (busy && index === turns.length - 1 ? 'Reviewing access…' : '')}</p>
+                  <div className="privilege-a2a__answer">
+                    {turn.answer ? <MarkdownContent text={turn.answer} /> : (busy && index === turns.length - 1 ? 'Reviewing access…' : '')}
+                  </div>
                 </article>
               ))}
             </div>
@@ -114,20 +117,6 @@ export default function PrivilegeA2aTab() {
         </section>
 
         <aside className="privilege-a2a__trace" aria-label="Agent trace">
-          <h3>Agent trace</h3>
-          {trace.length === 0 ? (
-            <p className="privilege-a2a__empty">Delegation and tool activity will appear here while the review runs.</p>
-          ) : (
-            <ol>
-              {trace.map((entry, index) => (
-                <li className="privilege-a2a__trace-entry" key={`${index}-${entry.kind}`}>
-                  <span className="privilege-a2a__trace-kind">{entry.kind}</span>
-                  <span className="privilege-a2a__trace-text">{entry.text}</span>
-                  {entry.detail && <details><summary>Details</summary><pre>{entry.detail}</pre></details>}
-                </li>
-              ))}
-            </ol>
-          )}
           {record && (
             <>
               <h3>Gateway record</h3>
@@ -183,6 +172,20 @@ export default function PrivilegeA2aTab() {
                 </ol>
               )}
             </>
+          )}
+          <h3>Agent trace</h3>
+          {trace.length === 0 ? (
+            <p className="privilege-a2a__empty">Delegation and tool activity will appear here while the review runs.</p>
+          ) : (
+            <ol>
+              {trace.map((entry, index) => (
+                <li className="privilege-a2a__trace-entry" key={`${index}-${entry.kind}`}>
+                  <span className="privilege-a2a__trace-kind">{entry.kind}</span>
+                  <span className="privilege-a2a__trace-text">{entry.text}</span>
+                  {entry.detail && <details><summary>Details</summary><pre>{entry.detail}</pre></details>}
+                </li>
+              ))}
+            </ol>
           )}
         </aside>
       </div>

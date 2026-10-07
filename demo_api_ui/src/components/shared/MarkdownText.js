@@ -167,6 +167,18 @@ export function MarkdownContent({ text, className = '', isEvent = false }) {
               const h1 = line.match(/^#\s+(.*)/);
               if (h1) return <React.Fragment key={li}>{li > 0 && <br />}<strong><InlineMd text={h1[1]} /></strong></React.Fragment>;
 
+              // A bullet inside a mixed block (for example under a numbered item):
+              // without this its leading "* " pairs with the next "*" and reads as italics.
+              const bullet = line.match(/^(\s*)[-*]\s+(.*)/);
+              if (bullet) {
+                return (
+                  <React.Fragment key={li}>
+                    {li > 0 && <br />}
+                    {'\u00a0'.repeat(bullet[1].length)}{'\u2022 '}<InlineMd text={bullet[2]} />
+                  </React.Fragment>
+                );
+              }
+
               return (
                 <React.Fragment key={li}>
                   {li > 0 && <br />}
