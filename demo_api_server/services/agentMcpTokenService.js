@@ -2710,7 +2710,7 @@ async function _performTwoExchangeDelegation(
     agentActorToken = provider
       ? await provider.getActorToken(providerConfig, 'agent')
       : (!agentRuntime && identitySidecar.isEnabled())
-        ? await identitySidecar.fetchActorToken()
+        ? await identitySidecar.fetchActorToken({ audience: agentGatewayAud, scope: agentGatewayScope })
         : await oauthService.getClientCredentialsTokenAs(aiAgentClientId, aiAgentClientSecret, agentGatewayAud, aiAgentAuthMethod, agentGatewayScope);
     const agentActorDecoded = decodeJwtClaims(agentActorToken);
     const actorIdx = tokenEvents.findIndex(e => e.id === 'two-ex-agent-actor-acquiring');

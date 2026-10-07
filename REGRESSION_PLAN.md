@@ -273,6 +273,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-07 — Sidecar actor token unchecked; Token Chain read {} on a working exchange; probe logged a false "Invalid client"
+
+**Files:** `demo_api_server/services/identitySidecarClient.js`, `agentMcpTokenService.js`, `exchangeSubjectProbe.js`, `routes/agentRun.js`, `routes/featureFlags.js`; `langchain_agent/src/authentication/oauth_manager.py`, `src/main.py`; `demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js`; new and updated tests under each.
+
+**What was broken:** with `ff_agent_identity_sidecar` ON the sidecar's fixed target was trusted blindly, though the BFF's Agent Gateway audience and scope are configurable. The Token Chain used the first matching exchange event, so a claim-less `exchanged-token` could win and "After exchange" read `{}` on a run whose exchange worked. The startup exchange probe sent a PingOne actor client to PingFederate's endpoint and logged "Invalid client", which looks like a stale secret and is not. A langchain-side switch for the same flag was dead code, since chat runs its tools through the BFF.
+
+**What changed:** the sidecar token is checked against the configured audience and scope and rejected on a mismatch or if it is not a JWT. The trace prefers an exchange event that has claims and says "not captured" when none does. The probe skips the mint when the token endpoint ends in `/as/token.oauth2`. The langchain switch, its header and its config are removed, and the flag description and sidecar docs now name the BFF as the caller.
+
+**Do not break:** flag OFF mints the actor token exactly as before; Agent Builder and PingFederate paths never use the sidecar; no silent fallback when the flag is ON; a claim-bearing exchange event renders its claims as JSON.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/identitySidecarClient.test.js tests/identitySidecar.actorSwitch.test.js tests/exchangeSubjectProbe.actorMint.test.js --forceExit`; `cd demo_api_ui && npx vitest run src/services/tokenChainTrace/__tests__ && npm run build`; `cd langchain_agent && .venv/bin/python -m pytest tests/test_oauth_manager.py tests/test_tier3_fixes.py`.
+
 ### 2026-10-07 — Specialist reconnect: a reconnecting request could not see the running task, and a dropped stream stranded it
 
 **Files:** `demo_api_server/services/a2aProtocolServer.js`, `demo_api_server/tests/a2aSpecialistResubscribe.test.js`.

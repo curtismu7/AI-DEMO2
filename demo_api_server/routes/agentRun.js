@@ -176,14 +176,6 @@ const FRAMEWORK_HOSTS = {
   langchain: process.env.AGENT_SERVICE_HOST || 'langchain-agent',
 };
 
-// Per-request: when ff_agent_identity_sidecar is ON the agent fetches its tokens
-// from the identity sidecar instead of holding PingOne credentials itself.
-function agentIdentityHeaders() {
-  return configStore.getEffective('ff_agent_identity_sidecar') === 'true'
-    ? { 'x-agent-identity-sidecar': '1' }
-    : {};
-}
-
 async function resolveAgentTarget({ message, vertical } = {}) {
   let framework = configStore.getEffective('llm_framework') || 'langchain';
   if (framework === 'auto') {
@@ -708,7 +700,6 @@ router.post('/run', nrTransactionMiddleware, async (req, res) => {
       'Content-Type': 'application/json',
       'Content-Length': Buffer.byteLength(bodyStr),
       'x-internal-gateway-secret': internalSecret(),
-      ...agentIdentityHeaders(),
     },
   };
 
@@ -918,7 +909,6 @@ module.exports = router;
 module.exports.FRAMEWORK_PORTS = FRAMEWORK_PORTS;
 module.exports.FRAMEWORK_HOSTS = FRAMEWORK_HOSTS;
 module.exports.__test = {
-  agentIdentityHeaders,
   resolveAgentTarget,
   resolveAgentRunTools,
   markRecovered,

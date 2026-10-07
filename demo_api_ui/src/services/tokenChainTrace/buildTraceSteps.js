@@ -417,6 +417,20 @@ const splitScopes = (s) =>
 // ("two-ex-agent-actor", "two-ex-final-token"). Both must light up the rail.
 const findEvent = (events, ...ids) => events.find((e) => e && ids.includes(e.id)) || null;
 
+const hasClaims = (e) => Boolean(e && e.claims && Object.keys(e.claims).length);
+
+// findEvent returns whichever matching event comes FIRST in the array. For the delegated
+// exchange that can be the early `exchanged-token` (status "waiting", no claims) even when a
+// later one carries the decoded claims, which left "After exchange" as `{}` on a run whose
+// exchange had worked. Prefer a matching event that actually has claims.
+const findEventWithClaims = (events, ...ids) =>
+  events.find((e) => e && ids.includes(e.id) && hasClaims(e)) || findEvent(events, ...ids);
+
+// Shown instead of `{}` when no exchange event carried claims, so an empty panel is never
+// mistaken for "the exchange produced nothing".
+const NO_CLAIMS_NOTE = "Delegated token claims were not captured for this run.";
+const claimsText = (e) => (hasClaims(e) ? asJson(e.claims) : NO_CLAIMS_NOTE);
+
 export function isMockIdJagTrace(trace) {
   return trace?.provenance === "mock-id-jag" && trace?.mode === "mock-id-jag";
 }
@@ -1093,7 +1107,7 @@ export function buildTraceSteps(trace) {
   // (2-exchange: the final delegated MCP token with the nested act chain).
   // Attack sims (attackSimulatorService) emit their own exchange vocabulary:
   // "sim-exchange-ok" carries the deliberately-deficient delegated token.
-  const exTok = findEvent(tokenEvents, "exchanged-token", "two-ex-final-token", "sim-exchange-ok");
+  const exTok = findEventWithClaims(tokenEvents, "exchanged-token", "two-ex-final-token", "sim-exchange-ok");
   const exFailed = findEvent(tokenEvents, "exchange-failed", "sim-exchange-error");
   // `|| traceComplete`: the BFF emits the exchanged-token event with status
   // "waiting" and never supersedes it, so exDone stayed false forever. On a
@@ -1148,7 +1162,7 @@ export function buildTraceSteps(trace) {
       : undefined;
   const exchangeBeforeAfter = exDone && userTok && exTok ? {
     before: { title: "Before exchange", text: asJson(userTok.claims || {}) },
-    after: { title: "After exchange", text: asJson(exTok.claims || {}) },
+    after: { title: "After exchange", text: claimsText(exTok) },
   } : undefined;
   // 2-exchange mode makes TWO RFC 8693 calls, and the chain used to show one
   // card with exchange #1 demoted to a kv row. They are separate round trips to
@@ -1254,7 +1268,7 @@ export function buildTraceSteps(trace) {
         ? { title: "Exchange request (actual)", text: asJson(exTok.exchangeRequest) }
         : undefined,
       response: exTok
-        ? { title: "Delegated token claims", text: asJson(exTok.claims || {}) }
+        ? { title: "Delegated token claims", text: claimsText(exTok) }
         : undefined,
       beforeAfter: exchangeBeforeAfter,
       scopeDiff: exDone && (beforeScopes.length || afterScopes.length)

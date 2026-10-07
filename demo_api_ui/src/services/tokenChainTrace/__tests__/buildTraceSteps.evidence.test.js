@@ -759,3 +759,46 @@ describe("buildTraceSteps — not-in-path steps once the trace completes", () =>
     expect(stepup.detail.kv).toContainEqual(["ciba", cibaStatus]);
   });
 });
+
+describe("buildTraceSteps — exchange claims evidence", () => {
+  const USER = { id: "user-token", status: "active", claims: { scope: "read write" } };
+  const CLAIMS = { sub: "user-123", scope: "write", aud: "mcp-gw", act: { sub: "agent-001" } };
+
+  test("prefers the exchange event that carries claims over an earlier claim-less one", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "ok",
+      tokenEvents: [
+        USER,
+        { id: "exchanged-token", status: "waiting" },
+        { id: "two-ex-final-token", status: "exchanged", claims: CLAIMS },
+      ],
+    });
+    const ex = steps.find((s) => s.id === "exchange");
+    expect(ex.detail.beforeAfter.after.text).toContain("agent-001");
+    expect(ex.detail.response.text).toContain("agent-001");
+  });
+
+  test("with no claims on any exchange event the panels say so instead of showing {}", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "ok",
+      tokenEvents: [USER, { id: "exchanged-token", status: "waiting" }],
+    });
+    const ex = steps.find((s) => s.id === "exchange");
+    expect(ex.detail.beforeAfter.after.text).toMatch(/not captured/i);
+    expect(ex.detail.response.text).toMatch(/not captured/i);
+    expect(ex.detail.beforeAfter.after.text).not.toBe("{}");
+  });
+
+  test("a claim-bearing event is unchanged: the claims are shown as JSON", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "ok",
+      tokenEvents: [USER, { id: "exchanged-token", status: "active", claims: CLAIMS }],
+    });
+    const ex = steps.find((s) => s.id === "exchange");
+    expect(ex.detail.beforeAfter.after.text).toContain('"sub"');
+    expect(ex.detail.response.text).toContain("user-123");
+  });
+});

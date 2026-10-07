@@ -26,7 +26,7 @@ record.
 
 **What the real fix looks like.** Drop `spinner_size` from the catalog, the flags hook and the Appearance page (and its preview), or turn it into a real "all spinners" scale that the boot screen in `index.html` also reads.
 
-### [ ] 2026-10-07 — Identity sidecar: BFF switch is static-target, and three nearby oddities
+### [x] 2026-10-07 — Identity sidecar: BFF switch is static-target, and three nearby oddities
 
 **What's wrong.** (1) `ff_agent_identity_sidecar` now routes the default agent's actor token (the two `oauthService.getAiAgentClientCredentialsToken` / `_performTwoExchangeDelegation` sites) to the sidecar's fixed `agent-gateway` target, so `agent_gateway_cc_scope` and a non-default Agent Gateway audience are ignored when the flag is ON. (2) The langchain-side switch from #941 only covers the MCP tool provider and external client; a chat turn goes through the BFF tool path and never calls it. (3) The Token Chain "Token exchange — delegation" step reads Completed with an empty "After exchange" column when only the claim-less `exchanged-token` event exists (`buildTraceSteps.js` already notes the BFF never supersedes it). (4) The startup `[EXCHANGE-PROBE]` sent a PingOne client to the PingFederate token endpoint and logged "Invalid client or client credentials", which reads as a stale secret; it is not (the same client and secret mint fine against PingOne).
 
@@ -34,13 +34,15 @@ record.
 
 **What the real fix looks like.** (1) Have the BFF pass its configured audience and scope as the sidecar target, or reject a token whose `aud` does not match `agentGatewayAud`. (2) Drop the langchain switch if nothing else needs it. (3) Emit the decoded delegated claims on `exchanged-token`, or show "claims not captured" instead of an empty column. (4) Skip the probe, or point it at the endpoint that matches the client's provider.
 
+**RESOLVED 2026-10-07** (`fix/sidecar-tech-debt`). All four, each guarded by a test that fails without its fix. (1) `fetchActorToken({ audience, scope })` now verifies the sidecar's token against the configured Agent Gateway audience and scope and throws on a mismatch or on an opaque token it cannot check, rather than letting a wrong actor reach the exchange. (2) The langchain switch is removed (header, context variable, `oauth_manager` branch, `AGENT_IDENTITY_SIDECAR_ONLY`, their tests and config): it was dead code, so the flag now has exactly one caller, the BFF. (3) `buildTraceSteps` prefers a matching exchange event that carries claims, and shows "not captured" when none does. The BFF still emits the early claim-less `exchanged-token` and never supersedes it; that was left alone. (4) The probe's actor mint is skipped when the token endpoint is PingFederate's (`/as/token.oauth2`). One thing the wrong first diagnosis cost: it blamed a stale vault secret. The vault, BFF and langchain secrets were identical and valid; check the logged endpoint before suspecting a secret.
+
 ### [ ] 2026-10-06 — Agent identity sidecar phase 1 took three shortcuts
 
-**What's wrong.** `ff_agent_identity_sidecar` (agent token from `agent_token_service` `POST /v1/token`) shipped with: (1) the target to scope/audience/resource map in a `TARGETS_JSON` env var, not derived from `scope-topology.json`; (2) a TCP port on the compose network guarded by a static `x-api-key`, not a Unix socket; (3) langchain only, and client-credentials only — no RFC 8693 user delegation, no step-up/CIBA mapping.
+**What's wrong.** `ff_agent_identity_sidecar` (agent token from `agent_token_service` `POST /v1/token`) shipped with: (1) the target to scope/audience/resource map in a `TARGETS_JSON` env var, not derived from `scope-topology.json`; (2) a TCP port on the compose network guarded by a static `x-api-key`, not a Unix socket; (3) it issues only the default agent's client-credentials actor token (the BFF is the caller) — no RFC 8693 user delegation through it, no step-up/CIBA mapping.
 
 **Why it wasn't fixed now.** `scope-topology.json` is a schema-checked source of truth for the whole stack, so teaching the sidecar to read it is its own change. The socket needs a shared volume plus `aiohttp.UnixConnector` on the client. Delegation and step-up are phases 2 and 3 of the plan.
 
-**What the real fix looks like.** Load targets from the topology (or a generated slice of it), move the transport to a Unix socket so only the pod's own processes can call it, then add the subject-token exchange keyed on `(target, user)`. Note: with the flag per-request the langchain container still needs PingOne credentials for the flag-OFF path; `AGENT_IDENTITY_SIDECAR_ONLY=true` is the deploy-level switch that drops them.
+**What the real fix looks like.** Load targets from the topology (or a generated slice of it), move the transport to a Unix socket so only the pod's own processes can call it, then add the subject-token exchange keyed on `(target, user)`. Note: with the flag per-request the BFF still holds `PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET` for the flag-OFF path and for the Agent Builder and PingFederate paths, so the secret is not yet gone from the BFF; dropping it would need a deploy-level switch.
 
 ### [wontfix] 2026-10-06 — Delegation does not follow draft-oauth-ai-agents-on-behalf-of-user-02
 

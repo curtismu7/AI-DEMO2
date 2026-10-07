@@ -592,12 +592,12 @@ const FLAG_REGISTRY = [
     name:         'Agent Identity Sidecar',
     category:     'Agent',
     description:
-      'When **ON**, the LangChain agent gets its PingOne agent token from the identity sidecar (`agent-identity-sidecar` compose profile) ' +
-      'instead of holding the client credentials itself. The agent names a target; the sidecar owns scope, audience and resource. ' +
-      'When **OFF** (default), the agent requests its own token exactly as before.',
+      'When **ON**, the BFF gets the default AI Agent\'s actor token (the `actor_token` in the RFC 8693 delegation exchange) from the identity sidecar ' +
+      '(`agent-identity-sidecar` compose profile) instead of holding that client\'s secret itself. The token must carry the configured Agent Gateway audience and scope. ' +
+      'Agent Builder agents and the PingFederate path keep their own credentials. When **OFF** (default), the BFF mints the actor token exactly as before.',
     impact:
-      'OFF (default) = no change; the agent uses its own AGENT_CLIENT_ID / AGENT_CLIENT_SECRET. ' +
-      'ON = token requests go to the sidecar; if the sidecar is not running the agent call fails with a clear error (no silent fallback).',
+      'OFF (default) = no change; the BFF uses PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET. ' +
+      'ON = the actor token comes from the sidecar; if the sidecar is down or returns the wrong audience or scope the exchange fails with a clear error (no silent fallback).',
     type:         'boolean',
     defaultValue: false,
   },

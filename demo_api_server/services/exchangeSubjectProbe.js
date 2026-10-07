@@ -42,6 +42,14 @@ async function mintAgentActorToken(configStore, oauthService) {
   const clientId = configStore.getEffective('pingone_ai_agent_actor_client_id');
   const clientSecret = configStore.getEffective('pingone_ai_agent_actor_client_secret');
   if (!clientId || !clientSecret) return null;
+  // The actor client is a PingOne app. When the BFF's token endpoint is PingFederate's
+  // (`/as/token.oauth2`), presenting it there fails with a PF "Invalid client" that reads
+  // like a stale secret. It is not one, so skip the mint instead of logging a false alarm.
+  const tokenEndpoint = oauthService.config?.tokenEndpoint || '';
+  if (tokenEndpoint.endsWith('/as/token.oauth2')) {
+    console.log('[EXCHANGE-PROBE] skipped actor mint: token endpoint is PingFederate, the actor client is a PingOne app');
+    return null;
+  }
   const scope = (configStore.getEffective('pingone_ai_agent_actor_scope') || 'agent:invoke').trim();
   try {
     // Single-resource scope: the actor app holds grants on two resources, so an
@@ -146,4 +154,4 @@ async function runExchangeSubjectProbe() {
   }
 }
 
-module.exports = { runExchangeSubjectProbe };
+module.exports = { runExchangeSubjectProbe, mintAgentActorToken };

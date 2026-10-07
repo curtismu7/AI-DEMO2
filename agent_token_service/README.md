@@ -58,20 +58,25 @@ curl -s -X POST http://127.0.0.1:8097/token -H "x-api-key: $BROKER_API_KEY" | jq
 
 ## Identity sidecar mode
 
-The same service doubles as a per-agent identity sidecar. The agent names a
+The same service doubles as a per-agent identity sidecar. A caller names a
 **target**; the sidecar owns scope, audience and resource, and caches one token
 per target.
 
 | Method | Path | Auth | Body | Returns |
 | ------ | ---- | ---- | ---- | ------- |
-| `POST` | `/v1/token` | `x-api-key` | `{ "target": "mcp-gateway" }` (omit for the default identity) | `{ access_token, token_type, expires_in, scope }` |
+| `POST` | `/v1/token` | `x-api-key` | `{ "target": "agent-gateway" }` (omit for the default identity) | `{ access_token, token_type, expires_in, scope }` |
 
 Targets come from `TARGETS_JSON`; an unknown target is a `400 unknown_target`
 and never reaches PingOne. Run it with the `agent-identity-sidecar` compose
-profile; it is not published to the host. The BFF's `ff_agent_identity_sidecar`
-flag (QuickFlagsPill, per request) makes the langchain agent call it instead of
-requesting its own token. With the flag OFF nothing changes. With it ON and the
-sidecar down, the agent call fails — there is no silent fallback.
+profile; it is not published to the host.
+
+The caller is the **BFF**. With `ff_agent_identity_sidecar` ON (Feature Flags
+page), the BFF takes the default AI Agent's actor token — the `actor_token` in the
+RFC 8693 delegation exchange — from here instead of using its own client secret,
+and rejects a token that does not carry the configured Agent Gateway audience and
+scope. Agent Builder agents and the PingFederate path keep their own credentials.
+With the flag OFF nothing changes. With it ON and the sidecar down, the exchange
+fails — there is no silent fallback.
 
 ## Wiring into a Copilot Studio REST/MCP tool (Part 3)
 

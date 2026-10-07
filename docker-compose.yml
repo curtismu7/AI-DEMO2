@@ -1229,9 +1229,6 @@ services:
       HEALTH_HTTP_PORT: "8890"
       # Servers bind 127.0.0.1 by default; published ports need the container override.
       AGUI_HTTP_HOST: "0.0.0.0"
-      # ff_agent_identity_sidecar: only used on requests that carry the flag.
-      # AGENT_IDENTITY_SIDECAR_API_KEY (a secret) comes from langchain_agent/.env.
-      AGENT_IDENTITY_SIDECAR_URL: "http://agent-identity-sidecar:8097"
       # CodeGraph Explorer LLM — priority: Anthropic > Groq > local llama
       LLAMACPP_BASE_URL: "${LLAMACPP_BASE_URL:-http://host.docker.internal:8090}"
       LLAMACPP_MODEL: "gpt-oss-20b"

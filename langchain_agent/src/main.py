@@ -21,7 +21,6 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from config.env_validator import validate_environment
 from config.settings import get_config
-from authentication.identity_sidecar import sidecar_requested
 from authentication.oauth_manager import OAuthAuthenticationManager
 from mcp.tool_registry import MCPClientManager
 from agent.langchain_mcp_agent import LangChainMCPAgent
@@ -386,8 +385,6 @@ class LangChainMCPApplication:
                 )
             if secret != _gate_secret:
                 return _JSONResponse({"detail": "Invalid gateway secret"}, status_code=403)
-            # ff_agent_identity_sidecar, forwarded per request by the BFF.
-            sidecar_requested.set(request.headers.get("x-agent-identity-sidecar") == "1")
             return await call_next(request)
 
         agui_port = self.config.chat.agui_http_port

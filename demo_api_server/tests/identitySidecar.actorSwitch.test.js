@@ -88,6 +88,8 @@ describe('two-exchange actor mint (agentMcpTokenService)', () => {
   test('source routes only the default agent to the sidecar', () => {
     const src = fs.readFileSync(path.join(__dirname, '../services/agentMcpTokenService.js'), 'utf8');
     expect(src).toMatch(/\?\s*await provider\.getActorToken\(providerConfig, 'agent'\)\s*:\s*\(!agentRuntime && identitySidecar\.isEnabled\(\)\)/);
-    expect(src).toMatch(/\?\s*await identitySidecar\.fetchActorToken\(\)\s*:\s*await oauthService\.getClientCredentialsTokenAs\(aiAgentClientId/);
+    // ...and it checks the token against the configured audience and scope instead of trusting
+    // the sidecar's static target.
+    expect(src).toMatch(/\?\s*await identitySidecar\.fetchActorToken\(\{\s*audience:\s*agentGatewayAud,\s*scope:\s*agentGatewayScope\s*\}\)\s*:\s*await oauthService\.getClientCredentialsTokenAs\(aiAgentClientId/);
   });
 });

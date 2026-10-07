@@ -51,7 +51,7 @@ describe('fetchActorToken', () => {
   test('honors AGENT_IDENTITY_SIDECAR_URL and trims a trailing slash', async () => {
     process.env.AGENT_IDENTITY_SIDECAR_URL = 'http://sidecar.test:9000/';
     axios.post.mockResolvedValue({ data: { access_token: 'tok-2' } });
-    await client.fetchActorToken('other-target');
+    await client.fetchActorToken({ target: 'other-target' });
     expect(axios.post.mock.calls[0][0]).toBe('http://sidecar.test:9000/v1/token');
     expect(axios.post.mock.calls[0][1]).toEqual({ target: 'other-target' });
   });
@@ -84,5 +84,46 @@ describe('fetchActorToken', () => {
   test('a response without an access_token is an error', async () => {
     axios.post.mockResolvedValue({ data: {} });
     await expect(client.fetchActorToken()).rejects.toThrow(/missing access_token/);
+  });
+});
+
+describe('fetchActorToken expectations (the sidecar target is static, the BFF audience and scope are not)', () => {
+  const jwt = (claims) => `h.${Buffer.from(JSON.stringify(claims)).toString('base64url')}.s`;
+  const issue = (claims) => axios.post.mockResolvedValue({ data: { access_token: jwt(claims) } });
+
+  test('a token carrying the expected audience and scope is returned', async () => {
+    issue({ aud: ['agentgateway.ping.demo'], scope: 'agent:invoke other' });
+    await expect(
+      client.fetchActorToken({ audience: 'agentgateway.ping.demo', scope: 'agent:invoke' }),
+    ).resolves.toEqual(expect.any(String));
+  });
+
+  test('a string aud is accepted as well as an array', async () => {
+    issue({ aud: 'agentgateway.ping.demo', scope: 'agent:invoke' });
+    await expect(client.fetchActorToken({ audience: 'agentgateway.ping.demo' })).resolves.toEqual(expect.any(String));
+  });
+
+  test('a different audience is rejected, naming both', async () => {
+    issue({ aud: ['mcpgateway.ping.demo'], scope: 'agent:invoke' });
+    await expect(
+      client.fetchActorToken({ audience: 'agentgateway.ping.demo' }),
+    ).rejects.toThrow(/mcpgateway\.ping\.demo.*agentgateway\.ping\.demo/);
+  });
+
+  test('a token missing an expected scope is rejected, naming it', async () => {
+    issue({ aud: ['agentgateway.ping.demo'], scope: 'read' });
+    await expect(
+      client.fetchActorToken({ scope: ['agent:invoke', 'read'] }),
+    ).rejects.toThrow(/missing the expected agent:invoke/);
+  });
+
+  test('an opaque token cannot be verified, so it is rejected when an expectation is set', async () => {
+    axios.post.mockResolvedValue({ data: { access_token: 'opaque-token' } });
+    await expect(client.fetchActorToken({ audience: 'agentgateway.ping.demo' })).rejects.toThrow(/not a JWT/);
+  });
+
+  test('with no expectation nothing is checked, so any token is returned', async () => {
+    axios.post.mockResolvedValue({ data: { access_token: 'opaque-token' } });
+    await expect(client.fetchActorToken()).resolves.toBe('opaque-token');
   });
 });

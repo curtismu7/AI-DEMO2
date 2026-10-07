@@ -25,7 +25,6 @@ import aiohttp
 from config.settings import get_config
 from models.auth import AccessToken, ClientCredentials
 
-from .identity_sidecar import credentials_optional, fetch_sidecar_token, sidecar_requested
 from .interfaces import AuthenticationProvider
 
 logger = logging.getLogger(__name__)
@@ -954,7 +953,7 @@ class OAuthAuthenticationManager(AuthenticationProvider):
 
     async def register_client(
         self, additional_scopes: Optional[List[str]] = None
-    ) -> Optional[ClientCredentials]:
+    ) -> ClientCredentials:
         """
         Resolve OAuth client credentials.
 
@@ -990,12 +989,6 @@ class OAuthAuthenticationManager(AuthenticationProvider):
             self.config.pingone.user_client_secret
             or self.config.pingone.agent_client_secret
         )
-        if (not client_id or not client_secret) and credentials_optional():
-            logger.info(
-                "No PingOne client credentials (AGENT_IDENTITY_SIDECAR_ONLY): "
-                "agent tokens come from the identity sidecar"
-            )
-            return None
         if not client_id or not client_secret:
             raise RuntimeError(
                 "No pre-provisioned OAuth client credentials found. Set "
@@ -1072,9 +1065,6 @@ class OAuthAuthenticationManager(AuthenticationProvider):
             raise RuntimeError(
                 "OAuthAuthenticationManager must be used as async context manager"
             )
-
-        if sidecar_requested.get():
-            return await fetch_sidecar_token(self._token_manager.session)
 
         credentials = client_credentials or self._registered_credentials
         if not credentials:
