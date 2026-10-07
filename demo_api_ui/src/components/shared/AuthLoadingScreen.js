@@ -1,8 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import PingIdentitySpinner from './PingIdentitySpinner';
-import { LOADING_TIPS as TIPS, TIP_ROTATE_MS as TIP_MS } from './loadingTips';
-
-const SLOW_MS = 8000;
 
 /**
  * The screen shown while the sign-in check is in flight (App.js `loading`, and the
@@ -16,16 +13,9 @@ const SLOW_MS = 8000;
  *
  * The label is the accessible name only. A visible label would put a token ink on
  * the skeleton's literal ground, which the ink-and-ground rule (H1) forbids. The tip
- * card below the spinner is drawn in literal ink/ground pairs for the same reason.
+ * card under the mark is the shared spinner's own, drawn in literal ink/ground pairs.
  */
 export default function AuthLoadingScreen({ label = 'Loading' }) {
-  const [tip, setTip] = useState(0);
-  const [slow, setSlow] = useState(false);
-  useEffect(() => {
-    const rotate = setInterval(() => setTip((t) => (t + 1) % TIPS.length), TIP_MS);
-    const late = setTimeout(() => setSlow(true), SLOW_MS);
-    return () => { clearInterval(rotate); clearTimeout(late); };
-  }, []);
   return (
     <div className="boot-skeleton">
       <div className="boot-bar" />
@@ -35,12 +25,7 @@ export default function AuthLoadingScreen({ label = 'Loading' }) {
         <div className="boot-card boot-card--short" />
       </div>
       <div className="boot-skeleton__spinner">
-        <PingIdentitySpinner size={56} aria-label={label} tip={false} />
-      </div>
-      <div className="boot-skeleton__tip">
-        <b>Did you know</b>
-        <span>{TIPS[tip]}</span>
-        {slow && <em>Taking longer than usual. The stack may be restarting.</em>}
+        <PingIdentitySpinner size={56} aria-label={label} />
       </div>
     </div>
   );
