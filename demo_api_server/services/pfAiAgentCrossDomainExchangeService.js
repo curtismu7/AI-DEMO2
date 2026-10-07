@@ -103,7 +103,8 @@ async function verifyIdJag(assertion, config, fetchImpl, responseScope = '') {
   const decoded = jwt.decode(assertion, { complete: true });
   const header = decoded?.header;
   if (!header?.kid || !ALLOWED_ALGORITHMS.has(header.alg)) {
-    throw oauthError('PF_AI_ID_JAG_UNSUPPORTED', 'PingFederate returned an unsupported ID-JAG');
+    const seen = decoded ? `alg=${header?.alg || 'none'}, kid=${header?.kid ? 'present' : 'missing'}, typ=${header?.typ || 'none'}` : 'not a JWT (opaque token)';
+    throw oauthError('PF_AI_ID_JAG_UNSUPPORTED', `PingFederate returned an unsupported ID-JAG (${seen}); it must be a signed RS*/ES* JWT with a kid`);
   }
   let jwksResponse;
   try {
