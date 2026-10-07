@@ -108,6 +108,26 @@ On gateway 2, the old enrollment files in `/procyon/ssl` were moved into
 **Roll back to section 0.** Park gateway 2, move the files in `backup-cmuir2` back into
 `/procyon/ssl`, restart gateway 2, and delete node `7f449849…` in the console.
 
+## 00a. HAProxy engine (2026-10-07, built, NOT deployed)
+
+`loadBalancer.engine: haproxy` swaps the two nginx pods for HAProxy
+(`templates/loadbalancer-haproxy.yaml`): same Deployment, Service, port 8623 and
+`X-Served-By` header, so the ingresses are untouched. `engine: nginx` rolls it back.
+Why: nginx OSS only notices a dead gateway when a client request fails; HAProxy probes each
+gateway every 10 s (`GET /`, any 2xx-4xx is up), needs no loopback bridges, and keeps the
+10-minute hold-out as `failTimeout / 10 s` consecutive passing checks.
+
+Tested locally 2026-10-07 (haproxy 3.0.29, three fake gateways, one https and two plain):
+the same client key always hit the same gateway; stopping one moved only its clients, and
+they came back when it returned; no-header requests still answered. The rendered live
+config passes `haproxy -c` and starts with an unresolvable peer name (that is what the
+`resolvers` block is for).
+
+Not tested: the real gateways' answer to `GET /` with a `Host` header (assumed 401, which
+counts as up), `check-sni` against the real certificate, and the swap on the cluster. Before
+switching, `kubectl exec` a curl against each gateway Service. Swap with
+`--set loadBalancer.engine=haproxy` on the same `helm upgrade` as `gateway1-lb.values.yaml`.
+
 ## 00b. Shared Redis (2026-10-04): what it does, why, how
 
 **What it is.** One small Redis, `privilege-redis` in `ping-devops-cmuir`, that both gateways

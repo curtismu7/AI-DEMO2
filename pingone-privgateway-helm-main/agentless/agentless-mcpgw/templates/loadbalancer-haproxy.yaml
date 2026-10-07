@@ -1,0 +1,156 @@
+{{- /*
+  HAProxy variant of the load balancer (loadBalancer.engine: haproxy). Replaces
+  templates/loadbalancer.yaml one for one: same Deployment, Service and port, same
+  per-client pinning and the same X-Served-By header, so the ingresses are untouched
+  and `engine: nginx` rolls it back.
+
+  What it changes:
+  - ACTIVE health checks. nginx OSS only learns a gateway is dead when a client
+    request fails. Here every pod probes every gateway; any 2xx-4xx counts as up
+    (the gateway answers 401 to an unauthenticated GET /).
+  - No loopback bridges. Each server line carries its own scheme, so https and plain
+    http gateways sit in one backend.
+  - failTimeout is kept as the hold-out: a failed gateway must pass failTimeout/10s
+    consecutive checks before it takes clients again (a quick return makes a signed-in
+    client sign in twice, see GATEWAY-LOAD-BALANCER.md).
+  Pinning is a consistent hash on X-Forwarded-For, so no stick table and no peers
+  section are needed; the two pods agree because they hash and probe the same way.
+*/ -}}
+{{- $lb := .Values.loadBalancer | default dict }}
+{{- if and $lb.enabled (eq ($lb.engine | default "nginx") "haproxy") }}
+{{- $name := include "agentless-mcpgw.lbName" . }}
+{{- $ownName := $lb.ownName | default "gateway-1" }}
+{{- $fall := $lb.maxFails | default 2 }}
+{{- $rise := div (trimSuffix "s" ($lb.failTimeout | default "600s") | int) 10 }}
+{{- $connectTimeout := $lb.connectTimeout | default "3s" }}
+{{- $host := .Values.hostname }}
+{{- $resources := $lb.resources | default (dict "requests" (dict "cpu" "50m" "memory" "32Mi") "limits" (dict "cpu" "500m" "memory" "128Mi")) }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-config
+  namespace: {{ .Values.namespace }}
+data:
+  haproxy.cfg: |
+    global
+      log stdout format raw local0
+      maxconn 4096
+
+    defaults
+      mode http
+      log global
+      option redispatch
+      retries 1
+      timeout connect {{ $connectTimeout }}
+      timeout check 3s
+      timeout client 3600s
+      timeout server 3600s
+      timeout tunnel 3600s
+      timeout http-request 30s
+
+    # Without this haproxy resolves names once at start and exits if any is missing
+    # (a peer's namespace being down would take the whole load balancer with it).
+    resolvers kube
+      parse-resolv-conf
+      hold valid 10s
+
+    frontend health
+      bind :8081
+      monitor-uri /lb-health
+
+    frontend https
+      bind :8443 ssl crt /tls/site.pem
+      # node= is the gateway that answered; xff= is the pin key.
+      capture request header X-Forwarded-For len 64
+      log-format '%ci [%t] "%r" %ST %B node=%s xff=%hr'
+      # The ingress always sets X-Forwarded-For; this only keeps a direct hit pinned.
+      http-request set-header X-Forwarded-For %[src] unless { req.hdr(X-Forwarded-For) -m found }
+      default_backend gateways
+
+    backend gateways
+      balance hdr(X-Forwarded-For)
+      hash-type consistent
+      option httpchk
+      http-check send meth GET uri / ver HTTP/1.1 hdr Host {{ $host }}
+      http-check expect rstatus ^[234]
+      http-response set-header X-Served-By %[srv_name]
+      default-server inter 10s fall {{ $fall }} rise {{ $rise }} resolvers kube init-addr libc,none
+      server {{ $ownName }} {{ include "agentless-mcpgw.name" . }}.{{ .Values.namespace }}.svc.cluster.local:8623 check check-ssl check-sni {{ $host }} ssl verify none sni req.hdr(host){{ if $lb.ownParked }} disabled{{ end }}
+      {{- range $peer := $lb.peers }}
+      server {{ $peer.name }} {{ $peer.address }} check{{ if eq ($peer.scheme | default "http") "https" }} check-ssl check-sni {{ $host }} ssl verify none sni req.hdr(host){{ end }}{{ if $peer.parked }} disabled{{ end }}
+      {{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ $name }}
+spec:
+  replicas: {{ $lb.replicas | default 2 }}
+  selector:
+    matchLabels:
+      app: {{ $name }}
+  template:
+    metadata:
+      labels:
+        app: {{ $name }}
+      annotations:
+        # haproxy reads its config once at start; roll the pods when it changes.
+        checksum/config: {{ toJson $lb | sha256sum }}
+    spec:
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: {{ $name }}
+      containers:
+        - name: haproxy
+          image: {{ $lb.haproxyImage | default "haproxy:3.0-alpine" }}
+          args: ["-f", "/lb/haproxy.cfg"]
+          ports:
+            - containerPort: 8443
+              name: https
+            - containerPort: 8081
+              name: health
+          readinessProbe:
+            httpGet: {path: /lb-health, port: 8081}
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /lb-health, port: 8081}
+            periodSeconds: 30
+          resources:
+            {{- toYaml $resources | nindent 12 }}
+          volumeMounts:
+            - {name: conf, mountPath: /lb, readOnly: true}
+            - {name: tls, mountPath: /tls, readOnly: true}
+      volumes:
+        - name: conf
+          configMap: {name: {{ $name }}-config}
+        - name: tls
+          # haproxy loads <crt>.key beside the cert, so map the TLS secret to site.pem(.key).
+          secret:
+            secretName: {{ include "agentless-mcpgw.name" . }}-tls
+            items:
+              - {key: tls.crt, path: site.pem}
+              - {key: tls.key, path: site.pem.key}
+---
+# Port 8623 because the chart's ingresses hard-code it for the gateway Service.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ $name }}
+spec:
+  selector:
+    app: {{ $name }}
+  ports:
+    - name: https
+      port: 8623
+      targetPort: 8443
+{{- end }}

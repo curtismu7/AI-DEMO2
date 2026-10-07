@@ -21,6 +21,10 @@ loadBalancer:
   name: mcpgw-lb
   replicas: 2
   image: nginx:stable-alpine
+  # nginx (default) or haproxy (templates/loadbalancer-haproxy.yaml). Same Deployment,
+  # Service and port either way, so flipping this and upgrading swaps the engine in place.
+  engine: nginx
+  haproxyImage: haproxy:3.0-alpine
   # Name shown in the X-Served-By header for this release's own gateway.
   ownName: gateway-1
   # true takes this release's own gateway out of rotation (testing a peer).

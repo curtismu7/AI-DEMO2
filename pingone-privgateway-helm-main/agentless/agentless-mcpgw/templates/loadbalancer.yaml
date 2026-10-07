@@ -22,7 +22,7 @@
   out), which lets one https upstream group hold every gateway.
 */ -}}
 {{- $lb := .Values.loadBalancer | default dict }}
-{{- if $lb.enabled }}
+{{- if and $lb.enabled (ne ($lb.engine | default "nginx") "haproxy") }}
 {{- $name := include "agentless-mcpgw.lbName" . }}
 {{- $ownName := $lb.ownName | default "gateway-1" }}
 {{- $maxFails := $lb.maxFails | default 2 }}
