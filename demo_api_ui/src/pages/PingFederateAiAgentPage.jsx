@@ -266,6 +266,7 @@ export default function PingFederateAiAgentPage({ user }) {
   const rarUserKey = typedUserKey ?? user?.username ?? "";
   const [bindDpop, setBindDpop] = useState(false);
   const [exchangeError, setExchangeError] = useState(false);
+  const [exchangeDetail, setExchangeDetail] = useState("");
   // CIBA: ask a named user to approve on their device, then poll through the BFF.
   const [typedCibaUser, setTypedCibaUser] = useState(null);
   const cibaUser = typedCibaUser ?? user?.username ?? "";
@@ -389,6 +390,7 @@ export default function PingFederateAiAgentPage({ user }) {
     if (!canExchange) return;
     setExchangeBusy(true);
     setExchangeError(false);
+    setExchangeDetail("");
     setExchangeResult(null);
     try {
       const response = await apiClient.post("/api/pf-ai-agent/cross-domain/exchange", {
@@ -399,6 +401,7 @@ export default function PingFederateAiAgentPage({ user }) {
     } catch (error) {
       // The BFF names the cause (for example PF_AI_ID_JAG_AUDIENCE_INVALID); keep it so the failure is diagnosable.
       setExchangeError(error?.response?.data?.error || true);
+      setExchangeDetail(error?.response?.data?.detail || "");
       notifyError("Third-party token exchange failed. Check the PF and downstream setup.");
     } finally {
       setExchangeBusy(false);
@@ -530,6 +533,7 @@ export default function PingFederateAiAgentPage({ user }) {
             <p className="pf-ai-agent__error" role="alert">
               The exchange failed. Review the PF and downstream authorization server settings.
               {typeof exchangeError === "string" && <> Reason: <code>{exchangeError}</code></>}
+              {exchangeDetail && <> {exchangeDetail}</>}
               {EXCHANGE_HINTS[exchangeError] && <> {EXCHANGE_HINTS[exchangeError]}</>}
             </p>
           )}
