@@ -109,7 +109,10 @@ The agent loads a traffic policy from
 `~/Library/Application Support/ngrok/orbstack-jwks-policy.json` (outside the
 repo). Besides the canned `/openid/v1/jwks` response, it applies a
 `rate-limit` of 120 requests per minute per `conn.client_ip` to every other
-path. PingOne's webhook deliveries are far below that. ngrok reads the policy
+path. PingOne's webhook deliveries are far below that. The cap is approximate:
+ngrok counts each bucket separately per ingress server, so a burst can get
+through somewhat more than 120 (verified 2026-10-07: cap 10, 60 requests,
+13 passed, 45 got 429). ngrok reads the policy
 only at start, so after editing it run `launchctl unload` then `load` on the
 plist above (the tunnel drops for a few seconds).
 
