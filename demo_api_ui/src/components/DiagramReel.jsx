@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import "./DiagramStepBar.css";
 import "./DiagramReel.css";
 
 /**

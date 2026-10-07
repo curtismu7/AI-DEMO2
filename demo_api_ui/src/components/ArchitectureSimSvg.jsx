@@ -2,6 +2,7 @@
 import { memo, useMemo } from 'react';
 import { ReactFlow, Controls, Handle, Position } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import './DiagramStepBar.css';
 import './ArchitectureSimSvg.css';
 
 /**

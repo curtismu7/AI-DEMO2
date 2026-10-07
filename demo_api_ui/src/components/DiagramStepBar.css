@@ -1,3 +1,10 @@
+@keyframes dstep-flow {
+  to { stroke-dashoffset: -20; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .react-flow__edge path { animation: none !important; }
+}
+
 /* DiagramStepBar.css — the card and caption under the shared DiagramControls toolbar. */
 
 /* Its own surface, so it reads on pages that paint a dark ground of their own. */
@@ -28,15 +35,6 @@
 }
 .dstep-caption strong {
   color: var(--th-status-info-text);
-}
-
-/* The dashes that run along the edge in focus, on every diagram (React Flow edges and the
-   StaticFlowDiagram edges alike). 20 = one dash + one gap of the 12 8 pattern. */
-@keyframes dstep-flow {
-  to { stroke-dashoffset: -20; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .react-flow__edge path { animation: none !important; }
 }
 
 .dstep-reset {

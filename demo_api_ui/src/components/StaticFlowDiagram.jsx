@@ -12,6 +12,9 @@
  *   height       ignored (kept so pages need no edit): the canvas is as tall as the viewport leaves room for with the reel in view
  *   ariaLabel    accessible name for the diagram (role="group")
  *   stepper      a page-owned useDiagramStepper: the diagram follows it and shows the movie reel
+ *   walk         a scripted walkthrough instead of one-arrow-per-step: [{ title, label, lines?, nodes: [ids],
+ *                edges: [indexes into EDGES] }]. Each step rings its nodes and runs the dashed line along its
+ *                edges; nodes from earlier steps stay softly marked. Gives the diagram its own Play/Step bar.
  *   details      node id -> text for the reel's details row (defaults to the node's own detail lines)
  *   step         index of the EDGES entry in focus for a Play/Step walkthrough
  *                (-1 = off): that arrow is accented, later ones fade. Leave it
@@ -111,7 +114,7 @@ function FlowEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targ
 const nodeTypes = { sfd: FlowNode };
 const edgeTypes = { sfd: FlowEdge };
 
-function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, testId, step, focusId, ariaLabel }) {
+function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, testId, step, focusId, ariaLabel, walkStep, visited }) {
   const ref = useRef(null);
   useFitOnResize(ref, FIT);
   const byId = useMemo(() => new Map(NODES.map((n) => [n.id, n])), [NODES]);
@@ -123,7 +126,8 @@ function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, testId, step, 
         const g = GROUPS[n.group] || {};
         const active = selectedPath && n.path === selectedPath;
         const dimmed = selectedPath && n.path && !active;
-        const hot = (stepEdge && (stepEdge[0] === n.id || stepEdge[1] === n.id)) || focusId === n.id;
+        const hot = (stepEdge && (stepEdge[0] === n.id || stepEdge[1] === n.id)) || focusId === n.id || (walkStep ? walkStep.nodes.includes(n.id) : false);
+        const seen = !hot && visited ? visited.has(n.id) : false;
         return {
           id: n.id,
           type: "sfd",
@@ -134,12 +138,12 @@ function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, testId, step, 
             n,
             color: g.bg || "var(--sfd-edge)",
             testId,
-            className: `sfd-node${dimmed ? " dimmed" : ""}${hot ? " step-hot" : ""}`,
+            className: `sfd-node${dimmed ? " dimmed" : ""}${hot ? " step-hot" : ""}${seen ? " step-seen" : ""}`,
             onClick: () => onNodeClick({ id: n.id, data: n }),
           },
         };
       }),
-    [NODES, GROUPS, selectedPath, stepEdge, focusId, testId, onNodeClick],
+    [NODES, GROUPS, selectedPath, stepEdge, focusId, testId, onNodeClick, walkStep, visited],
   );
 
   const edges = useMemo(
@@ -152,7 +156,9 @@ function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, testId, step, 
         const active =
           selectedPath && (a.path === selectedPath || b.path === selectedPath || opts.path === selectedPath);
         const dimmed = selectedPath && !active;
-        const stepClass = step < 0 ? "" : i === step ? " step-now" : i > step ? " step-future" : "";
+        const stepClass = walkStep
+          ? walkStep.edges?.includes(i) ? " step-now" : ""
+          : step < 0 ? "" : i === step ? " step-now" : i > step ? " step-future" : "";
         const forward = a.x < b.x;
         return [
           {
@@ -173,7 +179,7 @@ function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, testId, step, 
           },
         ];
       }),
-    [EDGES, byId, selectedPath, step],
+    [EDGES, byId, selectedPath, step, walkStep],
   );
 
   return (
@@ -217,21 +223,31 @@ export default function StaticFlowDiagram({
   testId = "static-flow-diagram",
   step,
   stepper,
+  walk,
   details,
   focusId,
   ariaLabel,
 }) {
   const controlled = step !== undefined;
-  const own = useDiagramStepper(stepper || controlled ? 0 : EDGES.length);
+  const own = useDiagramStepper(stepper || controlled ? 0 : walk ? walk.length : EDGES.length);
   // `stepper` lets a page that owns the walkthrough still get the movie reel; a bare `step`
   // number only paints the diagram (no reel). With neither, the diagram runs itself.
   const driver = stepper || (controlled ? null : own);
-  const stepValue = stepper ? stepper.step : controlled ? step : own.step;
+  const stepValue = walk ? -1 : stepper ? stepper.step : controlled ? step : own.step;
+  const walkStep = walk && driver && driver.step >= 0 ? walk[driver.step] : null;
+  const visited = useMemo(() => {
+    if (!walk || !driver || driver.step <= 0) return null;
+    return new Set(walk.slice(0, driver.step).flatMap((w) => w.nodes));
+  }, [walk, driver]);
   const captions = useMemo(
-    () => edgeCaptions(EDGES, Object.fromEntries(NODES.map((n) => [n.id, n.label]))),
-    [NODES, EDGES],
+    () => (walk ? walk.map((w) => `${w.title}${w.label ? ` — ${w.label}` : ""}`) : edgeCaptions(EDGES, Object.fromEntries(NODES.map((n) => [n.id, n.label])))),
+    [walk, NODES, EDGES],
   );
-  const reelSteps = useMemo(() => (driver ? buildReelSteps({ edges: EDGES, nodes: NODES, details }) : []), [driver, EDGES, NODES, details]);
+  const reelSteps = useMemo(() => {
+    if (!driver) return [];
+    if (walk) return walk.map((w, i) => ({ n: i + 1, from: "", to: "", title: w.title, label: w.label || "", lines: w.lines || [] }));
+    return buildReelSteps({ edges: EDGES, nodes: NODES, details });
+  }, [driver, walk, EDGES, NODES, details]);
   const [nodeDetail, setNodeDetail] = useState(null);
   // A page that handles node clicks itself keeps its own panel; otherwise the details row shows the node.
   const handleNodeClick = useCallback(
@@ -255,6 +271,8 @@ export default function StaticFlowDiagram({
           step={stepValue}
           focusId={focusId}
           ariaLabel={ariaLabel}
+          walkStep={walkStep}
+          visited={visited}
         />
       </ReactFlowProvider>
       {driver && (

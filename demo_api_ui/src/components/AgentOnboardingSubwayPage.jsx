@@ -1,68 +1,48 @@
-// AgentOnboardingSubwayPage.jsx — subway-map + story-card walkthrough of
-// Tarun Madiraju's onboarding architecture. A second, additive view of the
-// same FLOWS data as AgentOnboardingFlowDiagram.jsx (the box+arrow diagram) —
-// not a replacement. Design picked from 3 reviewed directions (dark subway
-// pipeline for orientation, story-card Back/Continue/Play controls for
-// pacing — see docs/superpowers/specs for the earlier box+arrow spec; this
-// page's rationale is captured in its own commit message).
-import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import TokenStepIndicator from "./TokenStepIndicator";
+// AgentOnboardingSubwayPage.jsx — subway-map walkthrough of Tarun Madiraju's onboarding
+// architecture. A second view of the same FLOWS data as AgentOnboardingFlowDiagram.jsx (the
+// card diagram): one station per run of steps on the same component, drawn as a React Flow
+// line that the shared Play/Step bar, movie reel and details row walk, station by station.
+import React, { useMemo, useState } from "react";
+import StaticFlowDiagram from "./StaticFlowDiagram";
 import { FLOWS, FLOW_ORDER } from "../data/agentOnboardingFlows";
 import { STATION_LABELS, collapseStations } from "../data/agentOnboardingStations";
 import "./AgentOnboardingSubwayPage.css";
 
-const PLAY_INTERVAL_MS = 2200;
+const PER_ROW = 4;
+const GROUPS = { station: { label: "Station", bg: "var(--th-status-info)" } };
 
-function useFlowSteps(flowKey, story) {
-  return useMemo(() => {
-    const flow = FLOWS[flowKey];
-    return flowKey === "admin" ? flow.stories[story].steps : flow.steps;
-  }, [flowKey, story]);
+// Stations laid out in a snake (left to right, then right to left) so every hop joins neighbours.
+function buildLine(steps) {
+  const { slots, slotForStep } = collapseStations(steps);
+  const nodes = slots.map((key, i) => {
+    const row = Math.floor(i / PER_ROW);
+    const col = row % 2 ? PER_ROW - 1 - (i % PER_ROW) : i % PER_ROW;
+    return { id: `s${i}`, group: "station", label: STATION_LABELS[key] || key, x: col * 260, y: row * 110 };
+  });
+  const edges = slots.slice(1).map((_, i) => [`s${i}`, `s${i + 1}`, "", { vertical: (i + 1) % PER_ROW === 0 }]);
+  const walk = steps.map((s, i) => {
+    const slot = slotForStep[i];
+    const station = nodes[slot].label;
+    return {
+      title: s.title,
+      label: s.narrative,
+      lines: [{ who: station, text: s.narrative }],
+      nodes: [`s${slot}`],
+      // the line the journey just travelled to reach this station
+      edges: slot > 0 && slotForStep[i - 1] !== slot ? [slot - 1] : [],
+    };
+  });
+  return { nodes, edges, walk };
 }
 
 export default function AgentOnboardingSubwayPage() {
   const [flowKey, setFlowKey] = useState(FLOW_ORDER[0]);
   const [story, setStory] = useState("browserDevice");
-  const [stepIndex, setStepIndex] = useState(0);
-  const [playing, setPlaying] = useState(false);
-  const timerRef = useRef(null);
 
-  const steps = useFlowSteps(flowKey, story);
-  const { slots, slotForStep } = useMemo(() => collapseStations(steps), [steps]);
-  const currentSlot = slotForStep[stepIndex];
-  const step = steps[stepIndex];
-
-  const selectFlow = useCallback((key, subStory) => {
-    setPlaying(false);
-    setFlowKey(key);
-    if (subStory) setStory(subStory);
-    setStepIndex(0);
-  }, []);
-
-  const onPrev = useCallback(() => {
-    setPlaying(false);
-    setStepIndex((i) => Math.max(0, i - 1));
-  }, []);
-  const onNext = useCallback(() => {
-    setPlaying(false);
-    setStepIndex((i) => Math.min(steps.length - 1, i + 1));
-  }, [steps.length]);
-  const onPlayToggle = useCallback(() => setPlaying((p) => !p), []);
-
-  useEffect(() => {
-    if (!playing) return undefined;
-    if (stepIndex >= steps.length - 1) {
-      setPlaying(false);
-      return undefined;
-    }
-    timerRef.current = setTimeout(() => {
-      setStepIndex((i) => Math.min(steps.length - 1, i + 1));
-    }, PLAY_INTERVAL_MS);
-    return () => clearTimeout(timerRef.current);
-  }, [playing, stepIndex, steps.length]);
-
-  const outcome = flowKey === "admin" ? FLOWS.admin.stories[story].outcome : FLOWS[flowKey].outcome;
-  const persona = FLOWS[flowKey].persona;
+  const flow = FLOWS[flowKey];
+  const steps = flowKey === "admin" ? flow.stories[story].steps : flow.steps;
+  const line = useMemo(() => buildLine(steps), [steps]);
+  const outcome = flowKey === "admin" ? FLOWS.admin.stories[story].outcome : flow.outcome;
 
   return (
     <div className="aos-page">
@@ -82,7 +62,7 @@ export default function AgentOnboardingSubwayPage() {
             role="tab"
             aria-selected={flowKey === key}
             className={`aos-flow-tab${flowKey === key ? " active" : ""}`}
-            onClick={() => selectFlow(key)}
+            onClick={() => setFlowKey(key)}
           >
             {FLOWS[key].label}
           </button>
@@ -98,7 +78,7 @@ export default function AgentOnboardingSubwayPage() {
               role="tab"
               aria-selected={story === key}
               className={`aos-story-tab${story === key ? " active" : ""}`}
-              onClick={() => selectFlow("admin", key)}
+              onClick={() => setStory(key)}
             >
               {s.label}
             </button>
@@ -106,64 +86,21 @@ export default function AgentOnboardingSubwayPage() {
         </div>
       )}
 
-      <p className="aos-persona">Persona: {persona}</p>
+      <p className="aos-persona">Persona: {flow.persona}</p>
 
-      <div className="aos-line-wrap">
-        <div className="aos-line-track" />
-        <div
-          className="aos-line-fill"
-          style={{ width: `${slots.length <= 1 ? 100 : (currentSlot / (slots.length - 1)) * 100}%` }}
-        />
-        <div className="aos-stations">
-          {slots.map((key, i) => (
-            <div
-              key={key + i}
-              className={`aos-station${i < currentSlot ? " done" : ""}${i === currentSlot ? " current" : ""}`}
-            >
-              <div className="aos-dot" />
-              <div className="aos-lbl">{STATION_LABELS[key]}</div>
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* keyed by flow + story so switching starts the walkthrough over */}
+      <StaticFlowDiagram
+        key={`${flowKey}-${story}`}
+        NODES={line.nodes}
+        EDGES={line.edges}
+        GROUPS={GROUPS}
+        walk={line.walk}
+        testId="aos-line"
+        ariaLabel="Onboarding subway map: one station per component, walked in order"
+      />
 
-      <div className="aos-card">
-        <div className="aos-eyebrow">
-          <TokenStepIndicator
-            currentStep={stepIndex + 1}
-            totalSteps={steps.length}
-            compact={true}
-            showLabel={true}
-          />
-          <span style={{ marginLeft: '12px', color: 'var(--aos-ink-2)', fontSize: '0.9rem' }}>
-            {STATION_LABELS[step.activeCardKeys[0]]}
-          </span>
-        </div>
-        <h2>{step.title}</h2>
-        <p>{step.narrative}</p>
-      </div>
-
-      {stepIndex === steps.length - 1 && (
-        <div className="aos-outcome">
-          <strong>Outcome:</strong> {outcome}
-        </div>
-      )}
-
-      <div className="aos-ctrls">
-        <button type="button" className="aos-btn-pill" onClick={onPrev} disabled={stepIndex === 0}>
-          ← Back
-        </button>
-        <button
-          type="button"
-          className={`aos-btn-icon${playing ? " playing" : ""}`}
-          onClick={onPlayToggle}
-          title="Autoplay"
-        >
-          {playing ? "||" : "▶"}
-        </button>
-        <button type="button" className="aos-btn-pill primary" onClick={onNext} disabled={stepIndex === steps.length - 1}>
-          {stepIndex === steps.length - 1 ? "Done ✓" : "Continue →"}
-        </button>
+      <div className="aos-outcome">
+        <strong>Outcome:</strong> {outcome}
       </div>
     </div>
   );

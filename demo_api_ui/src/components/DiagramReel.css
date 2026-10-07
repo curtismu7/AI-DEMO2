@@ -55,7 +55,15 @@
   font-variant-numeric: tabular-nums;
 }
 .dreel-card--now .dreel-n { background: var(--th-status-info); }
-.dreel-title { font-size: var(--font-size-2xs); font-weight: 700; line-height: 1.3; }
+.dreel-title {
+  font-size: var(--font-size-2xs);
+  font-weight: 700;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 .dreel-label {
   font-size: var(--font-size-2xs);
   line-height: 1.3;

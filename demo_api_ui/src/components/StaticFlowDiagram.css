@@ -77,3 +77,6 @@
 
 /* Edge labels sit above the cards, so a label wider than the gap between two cards stays readable. */
 .sfd .react-flow__edgelabel-renderer { z-index: 1001; }
+
+/* Walkthrough mode: nodes from earlier steps stay softly marked. */
+.sfd-node.step-seen { box-shadow: 0 0 0 2px var(--th-status-success-border); }

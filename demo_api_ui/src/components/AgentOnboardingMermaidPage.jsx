@@ -94,7 +94,7 @@ export const AOM_EDGES = [
   ["IGA", "RT"],
 ];
 
-const AOM_DETAILS = {
+export const AOM_DETAILS = {
   A1: "Enterprise users add and configure MCPs inside their AI clients, then open Agent Studio to register.",
   A2: "Developers build agents on any platform and register agents, MCPs, tools, and resources — publishing to the PingOne Agent Gateway automatically.",
   A3: "Agents running in cloud platforms are discovered; admins are notified and review before importing.",

@@ -1,5 +1,5 @@
 // demo_api_ui/src/components/ArchitectureOverviewPage.js
-import { useCallback, useEffect, useReducer, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
 
 import { DEFAULT_SCENARIO_ID, SCENARIO_MAP, SCENARIOS } from '../config/architecture-sim-scenarios';
 import { useVertical } from '../vertical/useVertical';
@@ -8,6 +8,7 @@ import ArchitectureSimControls from './ArchitectureSimControls';
 import ArchitectureSimStepDesc from './ArchitectureSimStepDesc';
 import ArchitectureSimSvg from './ArchitectureSimSvg';
 import DiagramExportBar from './DiagramExportBar';
+import DiagramReel from './DiagramReel';
 import './ArchitectureOverviewPage.css';
 
 // ─── State machine ───────────────────────────────────────────────────────────
@@ -86,6 +87,15 @@ function simReducer(state, action) {
 
     case 'RESET':
       return { ...state, ...resetStates() };
+
+    case 'GOTO': {
+      // jump straight to step `index` (a click on the movie reel): replay 0..index from a clean slate and pause
+      const scenario = SCENARIO_MAP[state.scenarioId];
+      if (!scenario || state.mode === 'live') return state;
+      let next = { ...state, ...resetStates() };
+      for (let i = 0; i <= action.index && i < scenario.steps.length; i += 1) next = advanceState(next, scenario.steps);
+      return { ...next, playing: false };
+    }
 
     case 'TICK': {
       const scenario = SCENARIO_MAP[state.scenarioId];
@@ -172,6 +182,18 @@ export default function ArchitectureOverviewPage() {
     const idx = sim.stepIndex >= totalSteps ? totalSteps - 1 : sim.stepIndex - 1;
     return scenario.steps[idx]?.isBlock ?? false;
   })();
+  // The movie reel under the diagram: one card per step of the scenario, "why" in the details row.
+  const reelSteps = useMemo(
+    () =>
+      scenario
+        ? scenario.steps.map((s, i) => ({ n: i + 1, from: '', to: '', title: s.desc, label: '', lines: s.why ? [{ who: 'Why', text: s.why }] : [] }))
+        : [],
+    [scenario],
+  );
+  const reelDriver = useMemo(
+    () => ({ step: sim.mode === 'live' ? -1 : sim.stepIndex - 1, goTo: (index) => dispatch({ type: 'GOTO', index }) }),
+    [sim.mode, sim.stepIndex],
+  );
   const isComplete = sim.stepIndex > 0 && sim.stepIndex >= totalSteps && !sim.playing;
 
   const handlers = {
@@ -218,6 +240,8 @@ export default function ArchitectureOverviewPage() {
             edgeStates={sim.edgeStates}
           />
         </div>
+
+        {sim.mode !== 'live' && <DiagramReel steps={reelSteps} stepper={reelDriver} testId="aov-reel" />}
 
         {/* Node color identifies system area; state colors identify playback progress. */}
         <div className="aov-legend">

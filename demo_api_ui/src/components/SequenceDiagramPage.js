@@ -1,7 +1,8 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import useDividerDrag from "../hooks/useDividerDrag";
 import { DEFAULT_STEP_MS, DiagramControls, STEP_TIME_OPTIONS } from "./diagram";
 import DiagramExportBar from "./DiagramExportBar";
+import SequenceFlowDiagram from "./SequenceFlowDiagram";
 /**
 
 /**
@@ -2958,14 +2959,14 @@ const SCENARIOS = {
  * Multi-line labels use Mermaid's <br/> convention; we map literal "\n" in the
  * step label to <br/>. Notes become `Note over A,B:` lines.
  */
-function mermaidFromSteps() {
+function mermaidFromSteps(list = ALL_STEPS) {
   const lines = ["sequenceDiagram", "    autonumber"];
   for (const p of PARTICIPANTS) {
     const keyword = p.id === "U" ? "actor" : "participant";
     lines.push(`    ${keyword} ${p.id} as ${p.label}`);
   }
   lines.push("");
-  for (const s of ALL_STEPS) {
+  for (const s of list) {
     if (s.type === "note") {
       const span = (s.participants || []).join(",");
       const text = String(s.text || "").replace(/\n/g, "<br/>");
@@ -3182,19 +3183,31 @@ export default function SequenceDiagramPage() {
     max: 500,
     initial: 280,
   });
-  const [zoomLevel, setZoomLevel] = useState(100); // zoom percentage
-  const diagramRef = useRef(null);
   const pausedStepIdx = useRef(-1);
   const simTimeouts = useRef([]);
 
   // Filter steps based on authentication scenario
-  let scenarioSteps = SCENARIOS[selectedScenario] || ALL_STEPS;
-  const steps =
-    authScenario === "not-authenticated"
+  const steps = useMemo(() => {
+    const scenarioSteps = SCENARIOS[selectedScenario] || ALL_STEPS;
+    return authScenario === "not-authenticated"
       ? scenarioSteps // Show all steps including 18a-18d
-      : scenarioSteps.filter(
-          (s) => !["18a", "18b", "18c", "18d"].includes(String(s.step)),
-        ); // Hide auth steps if already authenticated
+      : scenarioSteps.filter((s) => !["18a", "18b", "18c", "18d"].includes(String(s.step))); // Hide auth steps if already authenticated
+  }, [selectedScenario, authScenario]);
+  const seqSource = useMemo(() => mermaidFromSteps(steps), [steps]);
+  // The diagram draws messages only (notes are boxes), so map between this page's step index and the message index.
+  const { stepToMsg, msgToStep } = useMemo(() => {
+    const toMsg = [];
+    const toStep = [];
+    let m = -1;
+    steps.forEach((st, i) => {
+      if (st.type !== "note") {
+        m += 1;
+        toStep[m] = i;
+      }
+      toMsg[i] = m;
+    });
+    return { stepToMsg: toMsg, msgToStep: toStep };
+  }, [steps]);
 
   const activeStep = currentStepIdx >= 0 ? steps[currentStepIdx] : null;
 
@@ -3283,6 +3296,18 @@ export default function SequenceDiagramPage() {
     [isPaused, applyStep],
   );
 
+  const jumpTo = useCallback(
+    (i) => {
+      simTimeouts.current.forEach(clearTimeout);
+      simTimeouts.current = [];
+      setIsSimulating(true);
+      setIsPaused(true);
+      applyStep(i);
+      pausedStepIdx.current = i;
+    },
+    [applyStep],
+  );
+
   const stopSim = useCallback(() => {
     simTimeouts.current.forEach(clearTimeout);
     simTimeouts.current = [];
@@ -3290,15 +3315,15 @@ export default function SequenceDiagramPage() {
     setIsSimulating(false);
   }, [resetDiagram]);
 
-  const participantIndex = (id) => PARTICIPANTS.findIndex((p) => p.id === id);
-
-  const handleZoom = (delta) => {
-    setZoomLevel((prev) => Math.max(50, Math.min(200, prev + delta)));
-  };
-
-  const handleResetZoom = () => {
-    setZoomLevel(100);
-  };
+  const driver = useMemo(
+    () => ({
+      step: currentStepIdx >= 0 ? stepToMsg[currentStepIdx] : -1,
+      goTo: (m) => {
+        if (msgToStep[m] !== undefined) jumpTo(msgToStep[m]);
+      },
+    }),
+    [currentStepIdx, stepToMsg, msgToStep, jumpTo],
+  );
 
   return (
     <div className="seq-paper" style={{ padding: "1rem", background: "#fff", color: "#020617", display: "flex", flexDirection: "column", height: "100%" }}>
@@ -3449,12 +3474,6 @@ export default function SequenceDiagramPage() {
           </button>
         </div>
         <DiagramControls
-          zoom={zoomLevel / 100}
-          onZoomIn={() => handleZoom(10)}
-          onZoomOut={() => handleZoom(-10)}
-          onZoomReset={handleResetZoom}
-          zoomMin={0.5}
-          zoomMax={2.0}
           currentStep={currentStepIdx + 1}
           totalSteps={steps.length}
           isSimulating={isSimulating}
@@ -3543,188 +3562,8 @@ export default function SequenceDiagramPage() {
             flexDirection: "column",
           }}
         >
-          {/* SVG Diagram with Zoom — zoom controls are in the toolbar above */}
-          <div
-            style={{
-              transform: `scale(${zoomLevel / 100})`,
-              transformOrigin: "top left",
-              transition: "transform 0.15s ease-out",
-            }}
-          >
-            <svg
-              ref={diagramRef}
-              width="100%"
-              style={{
-                display: "block",
-                minHeight: `${120 + steps.length * 20 + 100}px`,
-              }}
-              aria-label="Sequence diagram flow"
-              role="img"
-            >
-              <title>Sequence diagram flow</title>
-              {/* Participant boxes and lifelines */}
-              {PARTICIPANTS.map((p, i) => {
-                const x = 100 + i * 120;
-                // Split long labels into multiple lines (max 12 chars per line for wrap)
-                const words = p.label.split(" ");
-                const lines = [];
-                let currentLine = "";
-                words.forEach((word) => {
-                  if ((currentLine + word).length > 12) {
-                    if (currentLine) lines.push(currentLine.trim());
-                    currentLine = word;
-                  } else {
-                    currentLine += (currentLine ? " " : "") + word;
-                  }
-                });
-                if (currentLine) lines.push(currentLine.trim());
-
-                return (
-                  <g key={p.id}>
-                    {/* Participant box — size adjusts for text height */}
-                    <rect
-                      x={x - 50}
-                      y="20"
-                      width="100"
-                      height={20 + lines.length * 16}
-                      fill="#f1f5f9"
-                      stroke="#cbd5e1"
-                      strokeWidth="1"
-                      rx="4"
-                    />
-                    {/* Wrapped text */}
-                    {lines.map((line, idx) => (
-                      <text
-                        key={`${p.id}-line-${idx}`}
-                        x={x}
-                        y={40 + idx * 16}
-                        textAnchor="middle"
-                        fontSize="11"
-                        fontWeight="600"
-                        fill="#0f172a"
-                      >
-                        {line}
-                      </text>
-                    ))}
-                    {/* Lifeline */}
-                    <line
-                      x1={x}
-                      y1={20 + lines.length * 16 + 10}
-                      x2={x}
-                      y2={120 + steps.length * 20 + 50}
-                      stroke="#cbd5e1"
-                      strokeDasharray="4"
-                      strokeWidth="1"
-                    />
-                  </g>
-                );
-              })}
-
-              {/* Steps */}
-              {steps.map((step, idx) => {
-                const isActive = idx === currentStepIdx;
-                const isPast = idx < currentStepIdx;
-                const y = 120 + idx * 20;
-                if (step.type === "note") {
-                  // Render note as amber callout band spanning participant columns
-                  const partIndexes = step.participants
-                    .map(participantIndex)
-                    .filter((i) => i >= 0);
-                  if (partIndexes.length === 0) return null;
-                  const minX = 100 + Math.min(...partIndexes) * 120 - 40;
-                  const maxX = 100 + Math.max(...partIndexes) * 120 + 40;
-                  // Use a stable key for notes: text + participants
-                  const noteKey = `note-${step.text.replace(/\W+/g, "-")}-${step.participants.join("-")}`;
-                  return (
-                    <g key={noteKey}>
-                      <rect
-                        x={minX}
-                        y={y - 13}
-                        width={maxX - minX}
-                        height={26}
-                        rx={6}
-                        fill="#fef9c3"
-                        stroke="#d97706"
-                        strokeWidth="1.5"
-                      />
-                      <text
-                        x={(minX + maxX) / 2}
-                        y={y + 4}
-                        textAnchor="middle"
-                        fontSize="11"
-                        fill="#451a03"
-                        fontWeight="700"
-                      >
-                        {step.text}
-                      </text>
-                    </g>
-                  );
-                }
-                // Arrow step
-                const fromX = 100 + participantIndex(step.from) * 120;
-                const toX = 100 + participantIndex(step.to) * 120;
-                const minX = Math.min(fromX, toX);
-                const maxX = Math.max(fromX, toX);
-                // Use a stable key for arrows: step number + from + to
-                const arrowKey = step.step
-                  ? `arrow-${step.step}-${step.from}-${step.to}`
-                  : `arrow-${idx}`;
-                return (
-                  <g key={arrowKey}>
-                    {/* Arrow */}
-                    <line
-                      x1={fromX}
-                      y1={y}
-                      x2={toX}
-                      y2={y}
-                      stroke={isActive ? "#004687" : "#cbd5e1"}
-                      strokeWidth={isActive ? 3 : 1.5}
-                      markerEnd={
-                        isActive
-                          ? step.type === "response"
-                            ? "url(#markerDashedActive)"
-                            : "url(#markerSolidActive)"
-                          : step.type === "response"
-                            ? "url(#markerDashed)"
-                            : "url(#markerSolid)"
-                      }
-                      opacity={isPast ? 0.35 : 1}
-                    />
-                    {/* Label */}
-                    <text
-                      x={(minX + maxX) / 2}
-                      y={y - 3}
-                      textAnchor="middle"
-                      fontSize="10"
-                      fill={
-                        isActive ? "#004687" : isPast ? "#94a3b8" : "#0f172a"
-                      }
-                      fontWeight={isActive ? 700 : 400}
-                    >
-                      {step.step ? `${step.step}. ` : ""}
-                      {step.label}
-                    </text>
-                  </g>
-                );
-              })}
-
-              {/* Arrow markers — idle and active variants */}
-              <defs>
-                <marker id="markerSolid" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
-                  <path d="M0,0 L0,6 L9,3 z" fill="#475569" />
-                </marker>
-                <marker id="markerDashed" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
-                  <path d="M0,0 L0,6 L9,3 z" fill="#475569" />
-                </marker>
-                <marker id="markerSolidActive" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
-                  <path d="M0,0 L0,6 L9,3 z" fill="#004687" />
-                </marker>
-                <marker id="markerDashedActive" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
-                  <path d="M0,0 L0,6 L9,3 z" fill="#004687" />
-                </marker>
-              </defs>
-            </svg>
-          </div>
+          {/* React Flow diagram: the page's own Simulate controls drive it through `driver`, which also gives it the movie reel */}
+          <SequenceFlowDiagram source={seqSource} driver={driver} label="Sequence diagram flow" />
         </div>
       </div>
 

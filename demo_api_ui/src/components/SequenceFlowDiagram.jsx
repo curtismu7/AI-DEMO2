@@ -26,8 +26,9 @@ import "./SequenceFlowDiagram.css";
  * page's .mmd export/upload keeps working. Messages are the Play/Step steps.
  */
 
-const COL = 270;
-const PART_W = 220;
+// Column width by how many participants share a row: wide sequences get tighter columns, so fitting the
+// page width does not shrink the text. Message labels may be wider than a column; each has its own row.
+const colFor = (n) => (n <= 4 ? 270 : n <= 6 ? 225 : n <= 8 ? 185 : 155);
 const PART_H = 64;
 const TOP = 90;
 const LINE_H = 17;
@@ -35,7 +36,7 @@ const FIT = { padding: 0.04 };
 
 function Participant({ data }) {
   return (
-    <div className="sfx-part">
+    <div className="sfx-part" style={{ width: data.w }}>
       {data.label.split("\n").map((l, i) => (
         <div key={i} className={i ? "sfx-part__sub" : "sfx-part__title"}>{l}</div>
       ))}
@@ -120,6 +121,8 @@ export function buildSequenceFlow(source) {
     perGroup[g] = (perGroup[g] || 0) + 1;
     colIndex[p.id] = perGroup[g] - 1;
   });
+  const COL = colFor(Math.max(1, ...Object.values(perGroup)));
+  const PART_W = Math.min(220, COL - 24);
   const cx = Object.fromEntries(model.participants.map((p) => [p.id, 60 + colIndex[p.id] * COL + PART_W / 2]));
   const byId = Object.fromEntries(model.participants.map((p) => [p.id, p]));
   const nodes = [];
@@ -196,7 +199,7 @@ export function buildSequenceFlow(source) {
 
   model.participants.forEach((p) => {
     const span = spans[groupOf(p)] || spans[cur];
-    nodes.push({ id: `p-${p.id}`, type: "part", position: { x: cx[p.id] - PART_W / 2, y: span.head }, data: { label: p.label }, draggable: false, zIndex: 4 });
+    nodes.push({ id: `p-${p.id}`, type: "part", position: { x: cx[p.id] - PART_W / 2, y: span.head }, data: { label: p.label, w: PART_W }, draggable: false, zIndex: 4 });
     nodes.push({ id: `l-${p.id}`, type: "lifeline", position: { x: cx[p.id] - 1, y: span.head + PART_H }, data: { h: Math.max(20, span.end - span.head - PART_H) }, draggable: false, selectable: false, zIndex: 0 });
   });
   model.boxes.forEach((b, i) => {
@@ -226,7 +229,7 @@ export function buildSequenceFlow(source) {
   return { nodes, edges, steps, bounds, messages, people };
 }
 
-function Inner({ source, step, active, details }) {
+function Inner({ source, step, active, details, driver }) {
   const ref = useRef(null);
   useFitOnResize(ref, FIT);
   const [canvasW, setCanvasW] = useState(0);
@@ -243,27 +246,28 @@ function Inner({ source, step, active, details }) {
   const zoom = canvasW ? Math.min(1.1, canvasW / bounds.w) : 1;
   const fitHeight = canvasW ? Math.max(520, Math.round(bounds.h * zoom) + 24) : undefined;
   const stepper = useDiagramStepper(steps.length);
-  const driven = step !== undefined || active !== undefined;
+  const external = step !== undefined || active !== undefined || driver !== undefined;
+  const reelStepper = driver || (external ? null : stepper);
   const shown = useMemo(() => {
     if (active !== undefined) return markEdges(edges, active);
-    return stepEdges(edges, step !== undefined ? step : stepper.step);
-  }, [edges, stepper.step, step, active]);
+    return stepEdges(edges, driver ? driver.step : step !== undefined ? step : stepper.step);
+  }, [edges, stepper.step, step, active, driver]);
   const reelSteps = useMemo(
-    () => (driven ? [] : buildReelSteps({ edges: messages, nodes: people, details })),
-    [driven, messages, people, details],
+    () => (reelStepper ? buildReelSteps({ edges: messages, nodes: people, details }) : []),
+    [reelStepper, messages, people, details],
   );
   const [nodeDetail, setNodeDetail] = useState(null);
-  const current = driven ? null : reelSteps[stepper.step];
+  const current = reelStepper ? reelSteps[reelStepper.step] : null;
   const lit = useMemo(() => markNodes(nodes, current ? [`p-${current.from}`, `p-${current.to}`] : []), [nodes, current]);
   const onNodeClick = (_, node) => {
-    if (driven || node.type !== "part") return;
+    if (!reelStepper || node.type !== "part") return;
     setNodeDetail(buildNodeDetail(people.find((p) => `p-${p.id}` === node.id), details));
   };
   return (
     <>
-      {!driven && <DiagramStepBar stepper={stepper} caption={steps[stepper.step]} />}
-      {!driven && (
-        <DiagramReel steps={reelSteps} stepper={stepper} nodeDetail={nodeDetail} onClearNode={() => setNodeDetail(null)} testId="sequence-reel" />
+      {!external && <DiagramStepBar stepper={stepper} caption={steps[stepper.step]} />}
+      {reelStepper && (
+        <DiagramReel steps={reelSteps} stepper={reelStepper} nodeDetail={nodeDetail} onClearNode={() => setNodeDetail(null)} testId="sequence-reel" />
       )}
       <div className="sfx-canvas" data-testid="sequence-flow-canvas" ref={ref} style={fitHeight ? { height: fitHeight } : undefined}>
         <ReactFlow
@@ -294,13 +298,14 @@ function Inner({ source, step, active, details }) {
  * Leave `step` and `active` undefined for the built-in Play/Step bar. A page that drives the
  * highlight itself passes `step` (one message in focus, later ones fade) or `active` (an
  * array of message indexes to accent). `details` maps a participant id to the text shown in the
- * movie reel's details row.
+ * movie reel's details row. A page that runs its own simulator passes `driver` ({ step, goTo }, step =
+ * the message index) to get the diagram highlight and the movie reel without a second control bar.
  */
-export default function SequenceFlowDiagram({ source, label = "Sequence diagram", step, active, details }) {
+export default function SequenceFlowDiagram({ source, label = "Sequence diagram", step, active, details, driver }) {
   return (
     <div className="sfx" role="group" aria-label={label}>
       <ReactFlowProvider>
-        <Inner source={source} step={step} active={active} details={details} />
+        <Inner source={source} step={step} active={active} details={details} driver={driver} />
       </ReactFlowProvider>
     </div>
   );
