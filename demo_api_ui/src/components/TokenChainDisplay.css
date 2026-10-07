@@ -645,7 +645,7 @@
 }
 
 .tcd-collapsible-header:hover {
-  background: #e8eaed;
+  background: var(--th-bg-hover);
   color: var(--th-text);
 }
 

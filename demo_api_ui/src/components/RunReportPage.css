@@ -33,6 +33,8 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   overflow-x: auto;
   margin-bottom: 2rem;
+  --th-text: #0f172a;
+  color: var(--th-text);
 }
 
 .runs-table {

@@ -257,7 +257,8 @@
   background: var(--th-bg-card);
 }
 .api-traffic-entry:hover {
-  background: #f0f9ff;
+  background: var(--th-bg-hover);
+  color: var(--th-text);
 }
 .api-traffic-entry--selected {
   background: #dbeafe !important;

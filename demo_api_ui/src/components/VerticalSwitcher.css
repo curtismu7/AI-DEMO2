@@ -65,7 +65,8 @@
 
 .vertical-switcher__pill:hover {
   border-color: var(--dash-muted, #94a3b8);
-  background: white;
+  background: var(--th-bg-card);
+  color: var(--th-text);
 }
 
 .vertical-switcher__pill--active {

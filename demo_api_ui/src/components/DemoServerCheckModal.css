@@ -30,6 +30,7 @@
   max-width: 520px;
   overflow: hidden;
   animation: dsm-slide-up 0.25s ease;
+  --th-text: #0f172a;
 }
 
 @keyframes dsm-slide-up {

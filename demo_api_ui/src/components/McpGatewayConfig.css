@@ -75,7 +75,8 @@
   font-size: var(--font-size-sm);
 }
 .mgc-refresh-btn:hover {
-  background: #e8e8e8;
+  background: var(--th-bg-hover);
+  color: var(--th-text);
 }
 
 /* Tabs */

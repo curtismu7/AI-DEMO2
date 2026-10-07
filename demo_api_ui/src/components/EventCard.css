@@ -7,6 +7,7 @@
   margin-bottom: 6px;
   overflow: hidden;
   font-size: var(--font-size-sm);
+  --th-text: #0f172a;
 }
 
 .ec-card:last-child {

@@ -940,6 +940,7 @@
 .ttp-root[data-theme="light"] {
   background: #f8fafc;
   color: var(--th-text);
+  --th-text: #0f172a;
 }
 .ttp-root[data-theme="light"] .ttp-toolbar,
 .ttp-root[data-theme="light"] .ttp-insp-header,

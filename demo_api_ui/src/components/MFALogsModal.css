@@ -17,6 +17,7 @@
   flex-direction: column;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
   animation: slideUp 0.3s ease-out;
+  --th-text: #0f172a;
 }
 
 @keyframes slideUp {

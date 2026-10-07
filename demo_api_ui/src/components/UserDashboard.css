@@ -1785,7 +1785,7 @@
 }
 
 .tx-tab:hover {
-  background: rgba(255, 255, 255, 0.7);
+  background: var(--th-bg-hover);
   color: var(--th-text);
 }
 
@@ -3995,7 +3995,7 @@
   backdrop-filter: none;
 }
 .dashboard-header .token-info-btn:hover {
-  background: #e2e8f0;
+  background: var(--th-bg-hover);
   border-color: var(--th-border-strong);
   color: var(--th-text);
 }
@@ -4006,7 +4006,7 @@
   backdrop-filter: none;
 }
 .dashboard-header .logout-btn:hover {
-  background: #e2e8f0;
+  background: var(--th-bg-hover);
   border-color: var(--th-border-strong);
   transform: none;
   color: var(--th-text);

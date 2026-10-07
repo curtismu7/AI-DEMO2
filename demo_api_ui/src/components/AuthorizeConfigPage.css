@@ -409,19 +409,22 @@
 }
 
 .azc-field--deny:hover {
-  background: #fef2f2;
-  border-color: #fecaca;
+  background: var(--th-status-error-bg);
+  border-color: var(--th-status-error-border);
   border-left-color: #ef4444;
+  color: var(--th-text);
 }
 .azc-field--stepup:hover {
-  background: #fff7ed;
-  border-color: #fed7aa;
+  background: var(--th-status-warning-bg);
+  border-color: var(--th-status-warning-border);
   border-left-color: #f97316;
+  color: var(--th-text);
 }
 .azc-field--confirm:hover {
-  background: #fffbeb;
-  border-color: #fde68a;
+  background: var(--th-status-warning-bg);
+  border-color: var(--th-status-warning-border);
   border-left-color: #f59e0b;
+  color: var(--th-text);
 }
 
 /* ── Save button ─────────────────────────────────────────────────────── */
