@@ -40,8 +40,7 @@ export const NAV_STRUCTURE_CATALOG = [
     "Weather MCP", "Brave Search MCP", "Use Cases", "Use Cases (Live)", "Guided Demo Track",
     "Delegation Chain Value", "A2A Protocol & Identity", "Jev Decision Model", "Group Policy Board", "Demo Script",
     "Agentic Control Plane", "Agent Kill Switch", "Agent Registry", "PingOne Agent Builder",
-    "Agent & Token Flow History", "Autonomous Agents", "Personal Agent",
-    "Personal Agent: Target Design", "Personal Agent: Dual Gateway Design", "Personal Agent: Design Review",
+    "Agent & Token Flow History", "Autonomous Agents",
     "Agent Onboarding Flow (Node)", "Agent Onboarding Flow Subway (Node)",
     "Agent Lifecycle (guided demo)", "Delegated Commerce (guided demo)", "LangChain Agent", "Ungoverned Agent",
     "Prompt Injection", "HITL Bypass", "Indirect Injection", "Unauthorized Commitments",
@@ -49,9 +48,12 @@ export const NAV_STRUCTURE_CATALOG = [
     "AI Security Academy", "Academy Standalone Demos", "Agentic Trust", "Agent Guardrails", "OWASP Agent Risks",
     "AI Gateway for AI",
   ] },
+  { label: "Personal Agents", children: [
+    "Personal Agent", "Personal Agent Clients", "Target Design", "Dual Gateway Design", "Design Review",
+  ] },
   { label: "MCP & Integrations", children: [
     "MCP Inspector", "Agent Gateway Inspector", "Enterprise-Managed MCP Auth", "Ping AI Test Lab",
-    "Capability Tour", "MCP Runtime Inventory", "MCP Scanner", "Personal Agent Clients", "LibreChat (browser)", "LM Studio (Mac)",
+    "Capability Tour", "MCP Runtime Inventory", "MCP Scanner", "LibreChat (browser)", "LM Studio (Mac)",
   ] },
   { label: "PingFederate ID-JAG", children: [
     "Run ID-JAG Demo", "How ID-JAG Works", "ID-JAG Diagram",
