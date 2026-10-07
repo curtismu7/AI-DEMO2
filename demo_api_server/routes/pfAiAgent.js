@@ -105,8 +105,11 @@ function createPfAiAgentRouter({ configStore: store = configStore, fetchImpl = f
       });
       return res.json(result);
     } catch (error) {
+      const code = errorCode(error, 'pf_ai_cross_domain_exchange_failed');
       return res.status(error.httpStatus || 502).json({
-        error: errorCode(error, 'pf_ai_cross_domain_exchange_failed'),
+        error: code,
+        // Our own sentence naming the token's header fields (alg, kid, typ); never token content.
+        ...(code === 'PF_AI_ID_JAG_UNSUPPORTED' ? { detail: error.message } : {}),
       });
     }
   });
