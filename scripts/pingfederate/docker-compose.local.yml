@@ -16,7 +16,7 @@ name: ai-demo-pingfederate
 
 services:
   pingfederate:
-    image: ${PINGFEDERATE_IMAGE:-pingidentity/pingfederate:13.1.2-alpine_3.24.1-al25-edge@sha256:996ad6caba201cbf22bfdfa55d09f4726c0f001c2f7ec60a0b78181f3deaa805}
+    image: ${PINGFEDERATE_IMAGE:-pingidentity/pingfederate:13.1.3-alpine_3.24.2-al25-edge@sha256:522cca2db24360fba3fffb90ce099e9ebdf3f59112a742cfed5d8d3109569655}
     container_name: ${PINGFEDERATE_CONTAINER_NAME:-ai-demo-pingfederate}
     restart: unless-stopped
     ports:
