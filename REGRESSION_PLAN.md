@@ -273,6 +273,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-07 — Agent delegation and A2A refused a sidecar-managed client for having no local secret
+
+**Files:** `demo_api_server/routes/agentDelegation.js`, `services/a2aDelegationService.js`; new `src/__tests__/agentDelegation.sidecarRelay.test.js`, `a2aDelegationService.sidecarRelay.test.js`.
+
+**What was broken:** with `ff_agent_identity_sidecar` ON and the exchanger (or an A2A specialist) managed by the sidecar, `POST /api/agent/delegate` returned 503 `agent_not_configured` and A2A returned "credentials not configured", because each gate required a secret the BFF no longer needs.
+
+**What changed:** each gate also accepts a client for which `sidecarRelay.manages(clientId)` is true.
+
+**Do not break:** a client with a local secret never asks the sidecar; an unmanaged client with no secret is still 503 / the same credentials error; flag OFF changes nothing.
+
+**Verify:** `cd demo_api_server && CI=true npx jest src/__tests__/agentDelegation.sidecarRelay.test.js src/__tests__/a2aDelegationService.sidecarRelay.test.js src/__tests__/agentDelegation.test.js src/__tests__/a2aDelegationService.test.js --forceExit`. With the two source edits reverted, exactly the two managed-client tests fail.
+
 ### 2026-10-07 — Identity sidecar could only mint one token; the BFF still needed the client secrets for exchange, PAR and introspection
 
 **Files:** `agent_token_service/src/{relay,config,index}.ts`; `demo_api_server/services/{sidecarClientRelay,oauthService,parService,tokenIntrospectionService,agentCCTokenService,agentMcpTokenService,configStore,exchangeSubjectProbe}.js`, `routes/intentBinding.js`; new and updated tests under each.

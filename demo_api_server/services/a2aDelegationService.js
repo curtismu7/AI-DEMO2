@@ -358,7 +358,10 @@ async function exchangeAsGeneralist(req, opts = {}) {
   const specialistScopes = deriveSpecialistScopes(specialist, scopeTopo);
 
   const c = resolveA2aConfig(cfg, specialist, scopeTopo);
-  if (!c.agent2ClientId || !c.agent2Secret) {
+  // ff_agent_identity_sidecar: a specialist the sidecar manages needs no local secret.
+  const agent2Managed = !!c.agent2ClientId && !c.agent2Secret
+    && await require('./sidecarClientRelay').manages(c.agent2ClientId);
+  if (!c.agent2ClientId || (!c.agent2Secret && !agent2Managed)) {
     return {
       ...base,
       error: `${specialist.specialistName} (Agent 2) credentials not configured — set PINGONE_A2A_${specialist.appKey.toUpperCase()}_AGENT_CLIENT_ID/SECRET`,

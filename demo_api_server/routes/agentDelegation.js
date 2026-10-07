@@ -19,6 +19,7 @@ const router = express.Router();
 const rateLimit = require('express-rate-limit');
 const oauthService = require('../services/oauthService');
 const configStore = require('../services/configStore');
+const sidecarRelay = require('../services/sidecarClientRelay');
 
 /**
  * Decode JWT payload without signature verification.
@@ -75,7 +76,9 @@ router.post('/delegate', express.json(), async (req, res) => {
   // --- Resolve agent credentials ---
   const agentClientId = configStore.getEffective('pingone_mcp_token_exchanger_client_id') || process.env.AGENT_OAUTH_CLIENT_ID;
   const agentClientSecret = configStore.getEffective('pingone_mcp_token_exchanger_client_secret') || process.env.AGENT_OAUTH_CLIENT_SECRET;
-  if (!agentClientId || !agentClientSecret) {
+  // ff_agent_identity_sidecar: an exchanger the sidecar manages needs no local secret.
+  const agentManaged = !!agentClientId && !agentClientSecret && await sidecarRelay.manages(agentClientId);
+  if (!agentClientId || (!agentClientSecret && !agentManaged)) {
     return res.status(503).json({
       error: 'agent_not_configured',
       message: 'Agent delegation is not configured. Set AGENT_OAUTH_CLIENT_ID and AGENT_OAUTH_CLIENT_SECRET.',
