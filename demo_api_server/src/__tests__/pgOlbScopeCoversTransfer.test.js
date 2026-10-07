@@ -4,6 +4,7 @@
 // only narrows PG_OLB_SCOPE to the called tool's requiredScopes, so a scope missing
 // from PG_OLB_SCOPE never reaches the MCP server. create_transfer needs
 // [write, transfer]; PG_OLB_SCOPE lacked `transfer`, the token carried only `write`.
+// Same for get_my_accounts ([accounts:read]) — the sim's account lookup was refused.
 const fs = require('fs');
 const path = require('path');
 
@@ -23,7 +24,7 @@ const configured = {
 
 describe.each(Object.entries(configured))('PG_OLB_SCOPE in %s', (_name, value) => {
   const scopes = value.trim().split(/\s+/);
-  test.each(['create_transfer', 'create_wire_transfer'])('covers every scope %s requires', (tool) => {
+  test.each(['create_transfer', 'create_wire_transfer', 'get_my_accounts'])('covers every scope %s requires', (tool) => {
     const required = topology.tools[tool].requiredScopes;
     expect(scopes).toEqual(expect.arrayContaining(required));
   });

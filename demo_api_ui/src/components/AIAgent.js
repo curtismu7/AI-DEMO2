@@ -8553,7 +8553,9 @@ export default function BankingAgent({
               // deliver it, instead of printing DENY under a PERMIT title.
               verdict === "PERMIT"
                 ? null
-                : "Expected PERMIT, but the check did not return one — the intent was not verified. The denial below is real (the gateway/Authorize answered), not part of the simulation.",
+                : verdict === "DENY"
+                  ? "Expected PERMIT, but the check did not return one — the intent was not verified. The denial below is real (the gateway/Authorize answered), not part of the simulation."
+                  : `Expected PERMIT, but the check did not run — the intent was not verified. This is a backend/transport error (${data?.errorCode || data?.error || status || "unknown"}), not a gateway or Authorize denial.`,
               reason ? reason : null,
               // Without live:true the route runs the RAR check through the demo gateway
               // (real token exchange + gateway call) but skips the PingOne PAR push,

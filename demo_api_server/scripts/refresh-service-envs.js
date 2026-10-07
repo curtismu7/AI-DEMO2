@@ -148,7 +148,7 @@ function buildPingGatewayPfExchangeEnv(apiVars = {}) {
     PF_TE_AUTH_METHOD: (apiVars.PF_STANDARD_TOKEN_EXCHANGE_TOKEN_ENDPOINT_AUTH_METHOD || 'basic').toLowerCase(),
     // The local PF exchanger registers read/write but not PingOne's code:search.
     // Keep provider-specific scopes so PF tool calls don't request an unknown scope.
-    PG_OLB_SCOPE_PF: 'read write transfer',
+    PG_OLB_SCOPE_PF: 'read write transfer accounts:read',
     PF_MCP_ACTOR_CLIENT_ID: apiVars.PF_MCP_SERVICE_ACTOR_CLIENT_ID || '',
     PF_MCP_ACTOR_CLIENT_SECRET: apiVars.PF_MCP_SERVICE_ACTOR_CLIENT_SECRET || '',
     PF_MCP_ACTOR_AUTH_METHOD: (apiVars.PF_MCP_SERVICE_ACTOR_TOKEN_ENDPOINT_AUTH_METHOD || 'basic').toLowerCase(),
@@ -1194,7 +1194,7 @@ async function main(deps = {}) {
     // (or a 200 with the wrong aud). Must include `write` or write tools
     // 502 with "Insufficient scope". Also `transfer`: create_transfer needs
     // [write, transfer] and Exchange #3 only narrows this list, never adds.
-    PG_OLB_SCOPE:                   'read write transfer code:search',
+    PG_OLB_SCOPE:                   'read write transfer accounts:read code:search',
     PG_MCP_RESOURCE_SERVER_URI:         mcpResourceServerAud,
     // Same single-resource rule: invest resource mirrored/native scopes only.
     PG_INVEST_SCOPE:                'invest:read',

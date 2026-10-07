@@ -1912,8 +1912,11 @@ async function _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, req
   // exchanged token. Its own read-scoped RAR grant keeps the call valid when
   // requireRarIntent is already armed (sticky from a previous run).
   // The drift path keeps its fake ids on purpose: it is DENIED before the backend.
-  let fromAccountId = 'sim-acc-002';
-  let toAccountId = 'sim-acc-001';
+  // Here there is no fallback: fake ids reach the backend, whose "From account not
+  // found" then masquerades as the result. A failed lookup fails loudly instead.
+  let fromAccountId = null;
+  let toAccountId = null;
+  let lookupFailure = null;
   try {
     const readRar = buildRarAuthorizationDetails('get_my_accounts', {}, userSub);
     const readCtx = buildTratContext(req, 'get_my_accounts', userSub, actorClientId, adminClientId, { rarDetails: readRar });
@@ -1924,16 +1927,32 @@ async function _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, req
     // callToolViaGateway resolves to { result, gwAuditTrail } — the JSON-RPC
     // result value lives one level down.
     const accountsRpc = accountsResult?.result ?? accountsResult;
+    if (accountsRpc?.isError) lookupFailure = accountsRpc?.content?.[0]?.text || 'tool error';
     let data = accountsRpc?.structuredContent;
     if (!data?.accounts) {
       try { data = JSON.parse(accountsRpc?.content?.[0]?.text || 'null'); } catch { data = null; }
     }
     const accounts = Array.isArray(data?.accounts) ? data.accounts : [];
     const picked = pickTransferAccounts(accounts, amount);
-    if (picked.from) fromAccountId = picked.from;
-    if (picked.to) toAccountId = picked.to;
+    fromAccountId = picked.from;
+    toAccountId = picked.to;
   } catch (acctErr) {
-    console.warn('[_runRarPermit] get_my_accounts via gateway failed (non-fatal, using sim ids):', acctErr.message);
+    lookupFailure = acctErr.code || acctErr.message;
+    console.warn('[_runRarPermit] get_my_accounts via gateway failed:', acctErr.message);
+  }
+  if (!fromAccountId || !toAccountId) {
+    const why = lookupFailure || 'the token resolves to fewer than two accounts (a transfer needs a source and a target)';
+    const reason = `account lookup failed: ${why}`;
+    tokenChainEvents.push(buildTokenEvent(
+      'sim-account-lookup-failed',
+      'Account lookup failed (the transfer was not attempted)',
+      'error',
+      null,
+      `get_my_accounts through the gateway did not yield usable accounts, so the PERMIT check did not run: ${why}`,
+      { error: 'account_lookup_failed', reason },
+    ));
+    stampUseCaseId(tokenChainEvents, useCaseId);
+    return { sim, useCaseId, status: 502, errorCode: 'account_lookup_failed', reason, tokenChainEvents };
   }
   const rarDetails = buildRarAuthorizationDetails(
     'create_transfer',

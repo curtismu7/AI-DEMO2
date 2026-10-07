@@ -309,8 +309,9 @@ describe('RAR sims: PingOne Authorize enforces via the active gateway (self-reso
   });
 
   test('permit: account discovery + transfer both self-resolve the active gateway (null pin) and a within-cap request PERMITs', async () => {
+    const accountsPayload = { result: { structuredContent: { accounts: [{ id: 'acc-real-1' }, { id: 'acc-real-2' }] } }, gwAuditTrail: null };
     const { run, callToolViaGateway, pushGatewayAdminConfig } =
-      mockPinnedDeps({ callToolImpl: jest.fn().mockResolvedValue({ ok: true }) });
+      mockPinnedDeps({ callToolImpl: jest.fn().mockResolvedValueOnce(accountsPayload).mockResolvedValue({ ok: true }) });
 
     const result = await run('permit', req, 80);
     // First call discovers the token's own accounts, second is the transfer —
@@ -340,6 +341,29 @@ describe('RAR sims: PingOne Authorize enforces via the active gateway (self-reso
     });
     expect(result.status).toBe(502);
     expect(result.errorCode).toBe('backend_execution_failed');
+  });
+
+  test('permit: a refused account lookup fails loudly and never reaches the backend with fake ids', async () => {
+    const refused = Object.assign(new Error('insufficient_scope'), { code: 'insufficient_scope', httpStatus: 403 });
+    const { run, callToolViaGateway } = mockPinnedDeps({ callToolImpl: jest.fn().mockRejectedValue(refused) });
+
+    const result = await run('permit', req, 80);
+    expect(callToolViaGateway).toHaveBeenCalledTimes(1); // no create_transfer
+    expect(result.status).toBe(502);
+    expect(result.errorCode).toBe('account_lookup_failed');
+    expect(result.reason).toBe('account lookup failed: insufficient_scope');
+    expect(JSON.stringify(result.tokenChainEvents)).not.toContain('sim-acc-');
+  });
+
+  test('permit: an account lookup that yields fewer than two accounts fails loudly', async () => {
+    const one = { result: { structuredContent: { accounts: [{ id: 'acc-real-1' }] } }, gwAuditTrail: null };
+    const { run, callToolViaGateway } = mockPinnedDeps({ callToolImpl: jest.fn().mockResolvedValue(one) });
+
+    const result = await run('permit', req, 80);
+    expect(callToolViaGateway).toHaveBeenCalledTimes(1);
+    expect(result.status).toBe(502);
+    expect(result.errorCode).toBe('account_lookup_failed');
+    expect(result.reason).toMatch(/^account lookup failed: /);
   });
 
   test('permit: HITL pre-approval binds agent + BOTH account ids, and the receipt rides the transfer args', async () => {

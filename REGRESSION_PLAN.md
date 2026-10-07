@@ -5,6 +5,18 @@ Canonical do-not-break contract for the Super Banking demo. The
 layer that points here; `CLAUDE.md` also points here. This file is the source of
 truth — if the skill and this file disagree, this file wins.
 
+### 2026-10-07 — UC14b PERMIT: get_my_accounts refused insufficient_scope; sim fell back to fake ids
+
+**Files:** `ping-gateway/.env.example`, `demo_api_server/scripts/refresh-service-envs.js`, `demo_api_server/services/attackSimulatorService.js` (`_runRarPermit`), `demo_api_ui/src/components/AIAgent.js`, tests `pgOlbScopeCoversTransfer`, `intentBindingDemo`, `refreshServiceEnvsPfGateway`, `AIAgent.demoStepGate`.
+
+**What was broken:** After `transfer` was added, the sim's `get_my_accounts` lookup (needs `accounts:read`, absent from `PG_OLB_SCOPE`) was refused; the sim silently used `sim-acc-*` ids and the backend answered "From account not found" (502). The UC14b chat copy also called every non-PERMIT "a real denial".
+
+**What changed:** `accounts:read` added to `PG_OLB_SCOPE` / `PG_OLB_SCOPE_PF`. `_runRarPermit` now returns 502 `account_lookup_failed` ("account lookup failed: <reason>") instead of using fake ids (drift path unchanged). The "denial below is real" line shows only for a DENY verdict; ERROR says the check did not run.
+
+**Do not break:** live `ping-gateway/.env` (gitignored) must carry the same scopes + gateway restart. Drift keeps its fake ids (denied before the backend).
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest src/__tests__/intentBindingDemo.test.js src/__tests__/pgOlbScopeCoversTransfer.test.js --forceExit`.
+
 ### 2026-10-06 — UC14b RAR PERMIT 403 insufficient_scope: PG_OLB_SCOPE lacked `transfer`
 
 **Files:** `ping-gateway/.env.example`, `demo_api_server/scripts/refresh-service-envs.js`, test `demo_api_server/src/__tests__/pgOlbScopeCoversTransfer.test.js`.

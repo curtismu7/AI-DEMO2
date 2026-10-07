@@ -326,6 +326,19 @@ describe("UC14b quick result says when it is simulated", () => {
     await waitFor(() => {
       expect(document.body.textContent).toContain("Expected PERMIT, but the check did not return one");
     });
+    expect(document.body.textContent).toContain("The denial below is real");
+  });
+
+  it("does not call a 502 backend error a real denial", async () => {
+    apiPost.mockResolvedValue({ data: { status: 502, errorCode: "account_lookup_failed", reason: "account lookup failed: insufficient_scope", tokenChainEvents: [] } });
+    renderSignedOut();
+    await runQuickResult();
+
+    await waitFor(() => {
+      expect(document.body.textContent).toContain("the check did not run");
+    });
+    expect(document.body.textContent).toContain("account_lookup_failed");
+    expect(document.body.textContent).not.toContain("The denial below is real");
   });
 
   it("does not call a live run simulated", async () => {
