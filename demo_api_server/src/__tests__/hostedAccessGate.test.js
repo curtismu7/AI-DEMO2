@@ -27,6 +27,11 @@ describe('hostedAccessGate CIMD client documents', () => {
   test('exact GET document paths bypass the gate', () => {
     expect(isHostedAccessBypassPath(doc, 'GET')).toBe(true);
     expect(isHostedAccessBypassPath(`${doc}?x=1`, 'GET')).toBe(true);
+    expect(isHostedAccessBypassPath('/api/cimd/privilege/privilege-mcp-client/client-metadata.json', 'GET')).toBe(true);
+  });
+
+  test('the readiness check is not public: it fetches, so it stays behind sign-in', () => {
+    expect(isHostedAccessBypassPath('/api/cimd/privilege/check', 'GET')).toBe(false);
   });
 
   test('other methods, other slugs and the mock-AS routes stay gated', () => {

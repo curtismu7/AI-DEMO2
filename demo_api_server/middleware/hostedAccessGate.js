@@ -32,6 +32,7 @@ const EXACT_BYPASSES = new Set([
   'GET /api/cimd/privilege/super-banking-identity-verification-specialist-agent/client-metadata.json',
   'GET /api/cimd/privilege/langchain-agent/client-metadata.json',
   'GET /api/cimd/privilege/demo-agent-service/client-metadata.json',
+  'GET /api/cimd/privilege/privilege-mcp-client/client-metadata.json',
 ]);
 
 // These are the two pre-existing demo identities used to administer and

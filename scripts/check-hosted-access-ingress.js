@@ -33,6 +33,7 @@ const REQUIRED_BYPASSES = [
   '/api/cimd/privilege/super-banking-identity-verification-specialist-agent/client-metadata.json',
   '/api/cimd/privilege/langchain-agent/client-metadata.json',
   '/api/cimd/privilege/demo-agent-service/client-metadata.json',
+  '/api/cimd/privilege/privilege-mcp-client/client-metadata.json',
 ];
 const REQUIRED_PUBLIC_PREFIXES = ['/assets'];
 

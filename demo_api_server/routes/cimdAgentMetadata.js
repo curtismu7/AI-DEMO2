@@ -19,6 +19,7 @@ const express = require('express');
 const router = express.Router();
 const scopeTopology = require('../services/scopeTopology');
 const personalAgentCimdService = require('../services/personalAgentCimdService');
+const cimdReadinessService = require('../services/cimdReadinessService');
 
 /** 'Super Banking AI Agent' -> 'super-banking-ai-agent' */
 function slugify(appName) {
@@ -52,11 +53,27 @@ function selfBaseUrl() {
   return `${scheme}://127.0.0.1:${port}`;
 }
 
+const DEFAULT_REDIRECT_PATH = '/api/external-agents/callback';
+
 // Agents with no scope-topology entry that Privilege should also accept by URL.
+// redirectPath defaults to the shared BFF callback. The in-app Privilege MCP client signs in through its own
+// /auth/callback (routes/privilegeMcpClient.js), and Privilege only honours redirect URIs the document lists.
 const PRIVILEGE_EXTRA_AGENTS = {
-  'langchain-agent': 'LangChain Banking Agent',
-  'demo-agent-service': 'Demo Agent Service'
+  'langchain-agent': { name: 'LangChain Banking Agent' },
+  'demo-agent-service': { name: 'Demo Agent Service' },
+  'privilege-mcp-client': { name: 'AI Demo Privilege MCP Client', redirectPath: '/api/privilege-mcp/auth/callback' }
 };
+
+// GET /api/cimd/privilege/check — read-only readiness of CIMD sign-in to the Privilege gateway.
+// No parameters: the targets come from server config, so it cannot be aimed at another host. It is NOT in the
+// hosted-access bypass lists, so on the SE host it stays behind sign-in.
+router.get('/privilege/check', async (req, res) => {
+  try {
+    res.json(await cimdReadinessService.runReadiness());
+  } catch (err) {
+    res.status(500).json({ error: 'cimd_readiness_failed' });
+  }
+});
 
 // GET /api/cimd/privilege/:slug/client-metadata.json
 // The document PingOne Privilege fetches (Settings > MCP Client Documents).
@@ -68,17 +85,21 @@ router.get('/privilege/:slug/client-metadata.json', (req, res) => {
   const app = findAppBySlug(req.params.slug);
   const manifest = scopeTopology._manifest();
   const appNames = (manifest.provisioning && manifest.provisioning.appNames) || {};
-  const name = app ? (appNames[app] || app) : PRIVILEGE_EXTRA_AGENTS[req.params.slug];
+  const extra = Object.prototype.hasOwnProperty.call(PRIVILEGE_EXTRA_AGENTS, req.params.slug)
+    ? PRIVILEGE_EXTRA_AGENTS[req.params.slug]
+    : null;
+  const name = app ? (appNames[app] || app) : extra && extra.name;
   if (!name) {
     return res.status(404).json({ error: 'agent_not_found', slug: req.params.slug });
   }
+  const redirectPath = (extra && extra.redirectPath) || DEFAULT_REDIRECT_PATH;
   const url = requestUrl(req);
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Cache-Control', 'public, max-age=300');
   return res.json({
     client_id: url,
     client_name: name,
-    redirect_uris: [`${new URL(url).origin}/api/external-agents/callback`],
+    redirect_uris: [`${new URL(url).origin}${redirectPath}`],
     grant_types: ['authorization_code', 'refresh_token'],
     response_types: ['code'],
     token_endpoint_auth_method: 'none'
