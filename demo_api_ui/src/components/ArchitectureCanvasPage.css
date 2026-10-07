@@ -45,6 +45,7 @@
 }
 
 .flow-select {
+  width: auto;
   padding: 5px 8px;
   border: 1px solid var(--th-border-strong);
   border-radius: 6px;
@@ -69,9 +70,6 @@
 
 .btn-add     { background: #1e40af; color: var(--th-text-invert); }
 .btn-add:hover     { background: #1d4ed8; }
-.btn-connect { background: #065f46; color: var(--th-text-invert); }
-.btn-connect.active { background: #065f46; box-shadow: 0 0 0 3px rgba(16,185,129,0.3); }
-.btn-connect:hover { background: #065f46; }
 .btn-reset   { background: var(--th-bg-inset); color: var(--th-text-body); border: 1px solid var(--th-border); }
 .btn-reset:hover   { background: var(--th-bg-hover); }
 .btn-delete  { background: #fee2e2; color: #7f1d1d; border: 1px solid #fca5a5; }
@@ -85,12 +83,11 @@
   border-bottom: 1px solid var(--th-border);
 }
 
-/* Scrollable canvas wrapper — key change: overflow-x: auto allows horizontal scroll on small screens */
+/* The React Flow canvas: full width, tall enough to fit the diagram and still leave the reel in view */
 .canvas-stage-wrap {
-  flex: 1;
-  overflow-x: auto;
-  overflow-y: auto;
-  min-height: 300px;
+  height: max(420px, calc(100vh - 330px));
+  min-height: 420px;
+  border-bottom: 1px solid var(--th-border);
 }
 
 .btn-export { background: #0f172a; color: #ffffff; border: 1px solid #334155; }
@@ -145,97 +142,6 @@
 }
 .ping-dismiss:hover { color: #ffffff; }
 
-/* Step explanation panel */
-.canvas-steps {
-  background: var(--th-bg-card);
-  border-top: 2px solid var(--th-border);
-  max-height: 300px;
-  overflow-y: auto;
-  flex-shrink: 0;
-}
-
-.canvas-steps-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 16px;
-  background: var(--th-bg-inset);
-  border-bottom: 1px solid var(--th-border);
-  position: sticky;
-  top: 0;
-  z-index: 1;
-}
-
-.canvas-steps-title {
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  border-left: 3px solid;
-  padding-left: 8px;
-}
-
-.canvas-steps-sub {
-  font-size: var(--font-size-xs);
-  color: var(--th-text-faint);
-  flex: 1;
-}
-
-.canvas-steps-close {
-  background: none;
-  border: 1px solid var(--th-border);
-  border-radius: 5px;
-  color: var(--th-text-muted);
-  cursor: pointer;
-  font-size: var(--font-size-xs);
-  padding: 3px 9px;
-}
-.canvas-steps-close:hover { background: var(--th-bg-inset); color: var(--th-text-body); }
-
-.canvas-steps-list {
-  padding: 8px 16px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.canvas-step {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.canvas-step-num {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  color: var(--th-text-invert);
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-  flex-shrink: 0;
-  margin-top: 1px;
-}
-
-.canvas-step-body {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.canvas-step-route {
-  font-size: var(--font-size-xs);
-  font-family: var(--font-mono);
-  color: var(--th-text-body);
-  font-weight: 600;
-}
-
-.canvas-step-desc {
-  font-size: var(--font-size-2xs);
-  color: var(--th-text-body);
-  line-height: 1.5;
-}
-
 /* Rename input in toolbar */
 .rename-input {
   padding: 5px 10px;
@@ -246,52 +152,93 @@
   outline: none;
 }
 
-/* Play / Pause button in steps header */
-.canvas-steps-play {
-  border: none;
-  border-radius: 5px;
-  color: var(--th-text-invert);
-  cursor: pointer;
+/* Cards: icon strip on top, label and sub-label below. Colours per layer, light then dark. */
+.cv-card {
+  --cv-fill: #f8fafc; --cv-stroke: #475569; --cv-label: #1e293b; --cv-sub: #64748b;
+  position: relative;
+  width: 155px;
+  height: 86px;
+  box-sizing: border-box;
+  border: 1.5px solid var(--cv-stroke);
+  border-radius: 8px;
+  background: var(--cv-fill);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+.cv-card--client  { --cv-fill: #f0f4ff; --cv-stroke: #4f46e5; --cv-label: #1e1b4b; --cv-sub: #6366f1; }
+.cv-card--gateway { --cv-fill: #f5f3ff; --cv-stroke: #7c3aed; --cv-label: #2e1065; --cv-sub: #8b5cf6; }
+.cv-card--agent   { --cv-fill: #f0fdf4; --cv-stroke: #059669; --cv-label: #064e3b; --cv-sub: #10b981; }
+.cv-card--mcp     { --cv-fill: #fffbeb; --cv-stroke: #d97706; --cv-label: #78350f; --cv-sub: #b45309; }
+.cv-card--policy  { --cv-fill: #fdf2f8; --cv-stroke: #db2777; --cv-label: #831843; --cv-sub: #ec4899; }
+.cv-card--backend { --cv-fill: #f0f9ff; --cv-stroke: #0284c7; --cv-label: #0c4a6e; --cv-sub: #0ea5e9; }
+:root[data-theme="dark"] .cv-card { --cv-fill: #1b2540; --cv-stroke: #94a3b8; --cv-label: #e2e8f0; --cv-sub: #cbd5e1; }
+:root[data-theme="dark"] .cv-card--client  { --cv-fill: #151a33; --cv-stroke: #818cf8; --cv-label: #e0e7ff; --cv-sub: #a5b4fc; }
+:root[data-theme="dark"] .cv-card--gateway { --cv-fill: #1e1b3a; --cv-stroke: #a78bfa; --cv-label: #ede9fe; --cv-sub: #c4b5fd; }
+:root[data-theme="dark"] .cv-card--agent   { --cv-fill: #0f2a20; --cv-stroke: #34d399; --cv-label: #d1fae5; --cv-sub: #6ee7b7; }
+:root[data-theme="dark"] .cv-card--mcp     { --cv-fill: #2a1f0a; --cv-stroke: #fbbf24; --cv-label: #fef3c7; --cv-sub: #fcd34d; }
+:root[data-theme="dark"] .cv-card--policy  { --cv-fill: #2a1220; --cv-stroke: #f472b6; --cv-label: #fce7f3; --cv-sub: #f9a8d4; }
+:root[data-theme="dark"] .cv-card--backend { --cv-fill: #0c1f2e; --cv-stroke: #38bdf8; --cv-label: #e0f2fe; --cv-sub: #7dd3fc; }
+.cv-card--dim { opacity: 0.2; }
+
+.cv-card__icon {
+  height: 36px;
+  line-height: 36px;
+  font-size: var(--font-size-lg);
+  background: var(--cv-stroke);
+  border-radius: 6px 6px 0 0;
+}
+.cv-card__label {
+  padding: 5px 8px 0;
   font-size: var(--font-size-xs);
   font-weight: 700;
-  padding: 4px 12px;
+  color: var(--cv-label);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.canvas-steps-play:hover { filter: brightness(0.92); }
-
-/* Per-step duration control */
-.canvas-step-duration {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 6px;
-  font-size: var(--font-size-xs);
-  color: var(--th-text-muted);
-}
-.canvas-step-duration-label { font-weight: 600; color: var(--th-text-body); }
-.canvas-step-duration input {
-  width: 64px;
-  padding: 3px 6px;
-  border: 1px solid var(--th-border-strong);
-  border-radius: 4px;
-  font-size: var(--font-size-xs);
+.cv-card__sub {
+  padding: 0 8px;
   font-family: var(--font-mono);
-  color: var(--th-text-body);
+  font-size: var(--font-size-3xs);
+  color: var(--cv-sub);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.canvas-step-duration input:focus {
-  outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
-}
-.canvas-step-duration-unit { font-weight: 600; color: var(--th-text-faint); }
 
-/* Active step highlight during playback */
-.canvas-step--active .canvas-step-desc { color: var(--th-text); font-weight: 600; }
-
-@keyframes pulse-step {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6); }
-  50%      { box-shadow: 0 0 0 7px rgba(16, 185, 129, 0); }
+/* Ping status dot, top-right of the card (also used in the results bar) */
+.cv-card__dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1.5px solid #ffffff;
+  background: #94a3b8;
 }
-.canvas-step-num--active {
-  animation: pulse-step 1.4s ease-in-out infinite;
+.ping-dot.cv-card__dot { position: static; width: 7px; height: 7px; border: none; }
+.cv-card__dot--up      { background: #22c55e; }
+.cv-card__dot--down    { background: #ef4444; }
+.cv-card__dot--timeout { background: #f59e0b; }
+.cv-card__dot--error   { background: #f97316; }
+.cv-card__dot--unknown { background: #94a3b8; }
+.cv-card__dot--pinging { background: #3b82f6; }
+
+/* Connection handles: visible dots so "drag from here" is discoverable */
+.cv-handle.react-flow__handle {
+  width: 10px;
+  height: 10px;
+  background: var(--th-status-info);
+  border: 2px solid var(--th-bg-card);
+}
+
+.cv-collabel {
+  width: 155px;
+  text-align: center;
+  font-size: var(--font-size-2xs);
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--th-text-faint);
+  pointer-events: none;
 }

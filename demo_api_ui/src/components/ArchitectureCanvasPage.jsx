@@ -1,17 +1,19 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Stage, Layer, Rect, Text, Arrow, Group, Circle } from 'react-konva';
+import React, { useState, useCallback, useMemo } from 'react';
+import { ReactFlow, ReactFlowProvider, Controls, Handle, Position, MarkerType } from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
 import useCanvasLayout from '../hooks/useCanvasLayout';
+import { useDiagramStepper, stepEdges, markNodes } from '../hooks/useDiagramStepper';
 import { useThemeOptional } from '../context/ThemeContext';
+import DiagramStepBar from './DiagramStepBar';
+import DiagramReel from './DiagramReel';
+import FitOnResize from './FitOnResize';
 import './ArchitectureCanvasPage.css';
 
 const W = 155;
 const H = 86;
-const H_ICON = 36;   // colored icon strip height
-const R = 8;
-const STAGE_W = 1400;  // fixed wide canvas — wrapper scrolls on small screens
 
-// Konva paints via fill/stroke props, not CSS — it can't pick up --th-*
-// tokens, so the on-screen palette needs its own light/dark pair. Kept
+// React Flow draws edge strokes and arrowheads as SVG attributes, which can't take --th-*
+// tokens, so those need their own light/dark pair. Kept
 // separate from the exported Mermaid/LucidChart files below, which stay on
 // the light palette regardless of the app's theme (a downloaded diagram is a
 // standalone artifact, not a themed page).
@@ -219,156 +221,159 @@ function downloadFile(content, filename, mime) {
   URL.revokeObjectURL(url);
 }
 
-// Per-step playback durations, persisted separately from the node/edge layout.
-const DURATIONS_KEY = 'arch-canvas-v8-durations';
-const DEFAULT_STEP_MS = 1000;
+// ── React Flow editor ────────────────────────────────────────────────────────
 
-function loadStepDurations() {
-  try {
-    const raw = localStorage.getItem(DURATIONS_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch (_) {
-    return {};
-  }
+// Card colours live in ArchitectureCanvasPage.css (.cv-card--<layer>, light + dark); edge strokes and
+// arrowheads are SVG attributes React Flow draws itself, so they take the matching palette from JS.
+function CanvasCard({ data }) {
+  return (
+    <div className={`cv-card cv-card--${data.layer}${data.dimmed ? ' cv-card--dim' : ''}`}>
+      <Handle type="target" position={Position.Left} id="l" className="cv-handle" />
+      <div className="cv-card__icon" aria-hidden="true">{data.icon}</div>
+      <div className="cv-card__label">{data.label}</div>
+      {data.sub && <div className="cv-card__sub">{data.sub}</div>}
+      {data.status && <span className={`cv-card__dot cv-card__dot--${data.status}`} title={data.status} />}
+      <Handle type="source" position={Position.Right} id="r" className="cv-handle" />
+    </div>
+  );
 }
 
-function saveStepDurations(durations) {
-  try { localStorage.setItem(DURATIONS_KEY, JSON.stringify(durations)); } catch (_) {}
+function ColumnLabel({ data }) {
+  return <div className="cv-collabel">{data.label}</div>;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+const NODE_TYPES = { card: CanvasCard, colLabel: ColumnLabel };
+const DASH = (layer) => (LAYER_DASH[layer] ? LAYER_DASH[layer].join(' ') : undefined);
 
-// Returns the point on node's bounding box edge in the direction of (toX, toY).
-// outset > 0 pushes the point outside the box (so arrowhead tip sits on the border).
-function boxEdgePoint(node, toX, toY, outset = 0) {
-  const cx = node.x + W / 2;
-  const cy = node.y + H / 2;
-  const dx = toX - cx;
-  const dy = toY - cy;
-  const dist = Math.sqrt(dx * dx + dy * dy);
-  if (dist < 0.5) return { x: cx, y: cy };
-  const nx = dx / dist;
-  const ny = dy / dist;
-  const hw = W / 2;
-  const hh = H / 2;
-  // distance along unit vector to each edge
-  let t = Infinity;
-  if (Math.abs(nx) > 0.001) t = Math.min(t, hw / Math.abs(nx));
-  if (Math.abs(ny) > 0.001) t = Math.min(t, hh / Math.abs(ny));
-  return { x: cx + (t - outset) * nx, y: cy + (t - outset) * ny };
-}
-
-function arrowPoints(src, tgt) {
-  const scx = src.x + W / 2;
-  const scy = src.y + H / 2;
-  const tcx = tgt.x + W / 2;
-  const tcy = tgt.y + H / 2;
-  // outset=1 pushes the tip 1px outside the border so the arrowhead is fully visible
-  const s = boxEdgePoint(src, tcx, tcy, -1);
-  const e = boxEdgePoint(tgt, scx, scy, 1);
-  return [s.x, s.y, e.x, e.y];
-}
-
-function midpoint(pts) {
-  return { x: (pts[0] + pts[2]) / 2, y: (pts[1] + pts[3]) / 2 };
-}
-
-export default function ArchitectureCanvasPage() {
+function CanvasEditor() {
   const { darkMode } = useThemeOptional();
   const layerStyle = darkMode ? LAYER_STYLE_DARK : LAYER_STYLE;
-  const canvasBg = darkMode ? '#0b1220' : '#f8fafc';
-  const colLabelFill = darkMode ? '#94a3b8' : '#64748b';
-  const dimmedEdgeColor = darkMode ? '#475569' : '#d1d5db';
   const { nodes, edges, moveNode, renameNode, addNode, removeEdge, addEdge, resetLayout } = useCanvasLayout();
   const [newLabel, setNewLabel] = useState('');
-  const [connectMode, setConnectMode] = useState(false);
-  const [connectFrom, setConnectFrom] = useState(null);  // kept for keyboard/click fallback
-  const [dragWire, setDragWire] = useState(null);         // { fromId, x1,y1, x2,y2 } while dragging
   const [selectedEdge, setSelectedEdge] = useState(null);
   const [renaming, setRenaming] = useState(null);
-  const [stageH, setStageH] = useState(620);
   const [pingStatus, setPingStatus] = useState({});
   const [pinging, setPinging] = useState(false);
   const [resultPanel, setResultPanel] = useState(null);
   const [selectedFlow, setSelectedFlow] = useState(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentStepIndex, setCurrentStepIndex] = useState(null);  // active step during playback (null = none)
-  const [stepDurations, setStepDurations] = useState(loadStepDurations);
-  const wrapRef = useRef(null);
-  const dragWireRef = useRef(null);  // mirrors dragWire for mousemove closure
 
-  useEffect(() => {
-    if (!wrapRef.current) return;
-    const obs = new ResizeObserver(entries => {
-      setStageH(Math.max(entries[0].contentRect.height, 400));
+  const flow = selectedFlow ? FLOWS[selectedFlow] : null;
+  const stepper = useDiagramStepper(flow ? flow.steps.length : 0);
+  const step = flow ? stepper.step : -1;
+  const nodeMap = useMemo(() => Object.fromEntries(nodes.map(n => [n.id, n])), [nodes]);
+
+  const rfNodes = useMemo(() => {
+    const inFlow = (id) => flow.steps.some(s => s.from === id || s.to === id);
+    const cards = nodes.map(n => ({
+      id: n.id,
+      type: 'card',
+      position: { x: n.x, y: n.y },
+      deletable: false,
+      data: {
+        label: n.label,
+        sub: n.sub,
+        layer: n.layer || 'tool',
+        icon: NODE_ICON[n.id] ?? LAYER_ICON[n.layer] ?? '📄',
+        status: pingStatus[n.id],
+        dimmed: !!flow && !inFlow(n.id),
+      },
+    }));
+    const hot = step >= 0 ? [flow.steps[step].from, flow.steps[step].to] : [];
+    const labels = COL_DEFS.map(col => ({
+      id: `col-${col.label}`,
+      type: 'colLabel',
+      position: { x: colLabelX(col, nodeMap), y: 20 },
+      data: { label: col.label.toUpperCase() },
+      draggable: false,
+      selectable: false,
+      focusable: false,
+      deletable: false,
+    }));
+    return [...markNodes(cards, hot), ...labels];
+  }, [nodes, nodeMap, pingStatus, flow, step]);
+
+  const rfEdges = useMemo(() => {
+    const base = edges
+      .filter(e => nodeMap[e.from] && nodeMap[e.to])
+      .map(e => {
+        const layer = nodeMap[e.from].layer || 'tool';
+        const selected = selectedEdge === e.id;
+        const color = selected ? '#ef4444' : layerStyle[layer]?.stroke ?? layerStyle.tool.stroke;
+        return {
+          id: e.id,
+          source: e.from,
+          target: e.to,
+          sourceHandle: 'r',
+          targetHandle: 'l',
+          selected,
+          markerEnd: { type: MarkerType.ArrowClosed, color },
+          style: {
+            stroke: color,
+            strokeWidth: selected ? 2.5 : 1.5,
+            strokeDasharray: DASH(layer),
+            opacity: flow && !selected ? 0.35 : 1,
+          },
+        };
+      });
+    if (!flow) return base;
+    const overlay = flow.steps
+      .filter(s => nodeMap[s.from] && nodeMap[s.to])
+      .map((s, i) => ({
+        id: `fs-${i}`,
+        source: s.from,
+        target: s.to,
+        sourceHandle: 'r',
+        targetHandle: 'l',
+        selectable: false,
+        focusable: false,
+        deletable: false,
+        label: String(i + 1),
+        labelStyle: { fill: '#ffffff', fontWeight: 700 },
+        labelBgStyle: { fill: flow.color },
+        labelBgBorderRadius: 10,
+        labelBgPadding: [6, 3],
+        markerEnd: { type: MarkerType.ArrowClosed, color: flow.color },
+        style: { stroke: flow.color, strokeWidth: 2.5 },
+      }));
+    return [...base, ...stepEdges(overlay, step)];
+  }, [edges, nodeMap, selectedEdge, layerStyle, flow, step]);
+
+  const reelSteps = useMemo(
+    () => (flow ? flow.steps.map((s, i) => ({
+      n: i + 1,
+      from: s.from,
+      to: s.to,
+      label: '',
+      title: `${nodeMap[s.from]?.label ?? s.from} → ${nodeMap[s.to]?.label ?? s.to}`,
+      lines: [{ who: '', text: s.desc }],
+    })) : []),
+    [flow, nodeMap],
+  );
+
+  const onNodesChange = useCallback((changes) => {
+    changes.forEach(c => {
+      if (c.type === 'position' && c.position) moveNode(c.id, c.position.x, c.position.y);
     });
-    obs.observe(wrapRef.current);
-    return () => obs.disconnect();
-  }, []);
-
-  // Connect mode has no visible way out besides re-clicking the same toggle —
-  // Escape cancels it, matching every other modal-like interaction in the app.
-  useEffect(() => {
-    if (!connectMode) return;
-    const onKeyDown = (e) => {
-      if (e.key !== 'Escape') return;
-      setConnectMode(false);
-      setDragWire(null);
-      dragWireRef.current = null;
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [connectMode]);
-
-  const handleDragMove = useCallback((id, e) => {
-    moveNode(id, e.target.x(), e.target.y());
   }, [moveNode]);
 
-  const handleDragEnd = useCallback((id, e) => {
-    moveNode(id, e.target.x(), e.target.y());
-  }, [moveNode]);
-
-  const handleNodeClick = useCallback((id) => {
-    // kept for non-drag interactions; drag path uses handleWireStart/End
-    if (!connectMode || dragWireRef.current) return;
-  }, [connectMode]);
-
-  const handleWireStart = useCallback((node, e) => {
-    if (!connectMode) return;
-    e.cancelBubble = true;
-    const stage = e.target.getStage();
-    const pos = stage.getPointerPosition();
-    const cx = node.x + W / 2;
-    const cy = node.y + H / 2;
-    const wire = { fromId: node.id, x1: cx, y1: cy, x2: pos.x, y2: pos.y };
-    dragWireRef.current = wire;
-    setDragWire(wire);
-  }, [connectMode]);
-
-  const handleWireMove = useCallback((e) => {
-    if (!dragWireRef.current) return;
-    const stage = e.target.getStage();
-    const pos = stage.getPointerPosition();
-    const next = { ...dragWireRef.current, x2: pos.x, y2: pos.y };
-    dragWireRef.current = next;
-    setDragWire(next);
-  }, []);
-
-  const handleWireEnd = useCallback((targetId) => {
-    const wire = dragWireRef.current;
-    if (!wire) return;
-    dragWireRef.current = null;
-    setDragWire(null);
-    if (targetId && targetId !== wire.fromId) {
-      addEdge(wire.fromId, targetId);
-    }
-    setConnectMode(false);
+  const onConnect = useCallback(({ source, target }) => {
+    if (source && target && source !== target) addEdge(source, target);
   }, [addEdge]);
 
-  const handleNodeDblClick = useCallback((node) => {
-    if (connectMode) return;
-    setRenaming({ id: node.id, value: node.label });
-  }, [connectMode]);
+  const onEdgesDelete = useCallback((deleted) => {
+    deleted.forEach(e => removeEdge(e.id));
+    setSelectedEdge(null);
+  }, [removeEdge]);
+
+  const onEdgeClick = useCallback((_e, edge) => {
+    if (edge.id.startsWith('fs-')) return;
+    setSelectedEdge(prev => (prev === edge.id ? null : edge.id));
+  }, []);
+
+  const onNodeDoubleClick = useCallback((_e, node) => {
+    if (node.type !== 'card') return;
+    setRenaming({ id: node.id, value: node.data.label });
+  }, []);
 
   const handleRenameSubmit = () => {
     if (!renaming) return;
@@ -390,60 +395,10 @@ export default function ArchitectureCanvasPage() {
     setSelectedEdge(null);
   };
 
-  // ── Flow playback ───────────────────────────────────────────────────────────
-  const durationFor = useCallback((flowId, stepIndex, step) => {
-    const key = `${flowId}-${stepIndex}`;
-    return stepDurations[key] ?? step?.duration ?? DEFAULT_STEP_MS;
-  }, [stepDurations]);
-
-  const stopPlayback = useCallback(() => {
-    setIsPlaying(false);
-    setCurrentStepIndex(null);
-  }, []);
-
-  // Play from the start, or resume from the current step if paused mid-flow.
-  const playFlow = useCallback(() => {
-    if (!selectedFlow || !FLOWS[selectedFlow]) return;
-    setCurrentStepIndex(prev => (prev === null ? 0 : prev));
-    setIsPlaying(true);
-  }, [selectedFlow]);
-
-  const pausePlayback = useCallback(() => {
-    setIsPlaying(false);  // effect cleanup clears the pending timer; current step stays highlighted
-  }, []);
-
-  // Single self-rescheduling timer: whenever a step becomes active during
-  // playback, schedule the advance to the next step after its duration. The
-  // effect re-runs on every step change (and on duration edits via durationFor)
-  // and cleans up its prior timer, so pausing or editing mid-flow is handled.
-  useEffect(() => {
-    if (!isPlaying || currentStepIndex === null || !selectedFlow) return;
-    const steps = FLOWS[selectedFlow]?.steps;
-    if (!steps) return;
-    const duration = durationFor(selectedFlow, currentStepIndex, steps[currentStepIndex]);
-    const id = setTimeout(() => {
-      if (currentStepIndex + 1 >= steps.length) {
-        stopPlayback();  // reached the end
-      } else {
-        setCurrentStepIndex(currentStepIndex + 1);
-      }
-    }, Math.max(0, duration));
-    return () => clearTimeout(id);
-  }, [isPlaying, currentStepIndex, selectedFlow, durationFor, stopPlayback]);
-
-  const handleSelectFlow = useCallback((value) => {
-    stopPlayback();
+  const handleSelectFlow = (value) => {
+    stepper.stop();
     setSelectedFlow(value || null);
-  }, [stopPlayback]);
-
-  const updateStepDuration = useCallback((flowId, stepIndex, value) => {
-    const key = `${flowId}-${stepIndex}`;
-    setStepDurations(prev => {
-      const next = { ...prev, [key]: value };
-      saveStepDurations(next);
-      return next;
-    });
-  }, []);
+  };
 
   const handlePingAll = async () => {
     setPinging(true);
@@ -471,16 +426,11 @@ export default function ArchitectureCanvasPage() {
     }
   };
 
-  const nodeMap = Object.fromEntries(nodes.map(n => [n.id, n]));
-  const flow = selectedFlow ? FLOWS[selectedFlow] : null;
-
   const hint = renaming
     ? 'Press Enter or click Save to rename'
-    : connectMode
-    ? (dragWire ? 'Release on target node to connect' : 'Drag from any box to draw a connection')
     : selectedEdge
-    ? 'Arrow selected — click Delete Edge to remove'
-    : 'Drag to reposition · Double-click to rename · Click arrow to select';
+    ? 'Arrow selected — click Delete Edge (or press Backspace) to remove'
+    : 'Drag to reposition · Double-click to rename · Drag from a box’s right dot to another box’s left dot to connect · Click an arrow to select it';
 
   return (
     <div className="canvas-page">
@@ -498,9 +448,9 @@ export default function ArchitectureCanvasPage() {
           </>
         ) : (
           <>
-            {/* Flow selector */}
             <select
               className="flow-select"
+              aria-label="Flow"
               value={selectedFlow || ''}
               onChange={e => handleSelectFlow(e.target.value)}
             >
@@ -517,10 +467,6 @@ export default function ArchitectureCanvasPage() {
               onKeyDown={e => e.key === 'Enter' && handleAddNode()}
             />
             <button className="btn-add" onClick={handleAddNode}>+ Add</button>
-            <button className={`btn-connect${connectMode ? ' active' : ''}`}
-              onClick={() => { setConnectMode(m => !m); setDragWire(null); dragWireRef.current = null; }}>
-              {connectMode ? '⬡ Connecting…' : '⬡ Connect'}
-            </button>
             <button className="btn-delete" disabled={!selectedEdge} onClick={handleDeleteEdge}>✕ Delete Edge</button>
             <button className={`btn-ping${pinging ? ' pinging' : ''}`} onClick={handlePingAll} disabled={pinging}>
               {pinging ? 'Pinging…' : 'Ping All'}
@@ -549,7 +495,7 @@ export default function ArchitectureCanvasPage() {
         <div className="canvas-results">
           {resultPanel.map(r => (
             <span key={r.id} className={`ping-badge ping-badge--${r.status}`}>
-              <span className="ping-dot" style={{ background: STATUS_COLOR[r.status] ?? '#94a3b8' }} />
+              <span className={`ping-dot cv-card__dot--${r.status}`} />
               {r.id}{r.ms != null ? ` ${r.ms}ms` : ''}
             </span>
           ))}
@@ -557,209 +503,45 @@ export default function ArchitectureCanvasPage() {
         </div>
       )}
 
-      {/* Scrollable canvas */}
-      <div className="canvas-stage-wrap" ref={wrapRef}>
-        <Stage width={STAGE_W} height={stageH}
-          onMouseMove={connectMode ? handleWireMove : undefined}
-          onMouseUp={connectMode ? () => handleWireEnd(null) : undefined}
-          style={{ cursor: connectMode ? (dragWire ? 'crosshair' : 'cell') : 'default' }}
+      {flow && (
+        <DiagramStepBar
+          stepper={stepper}
+          caption={step >= 0 ? reelSteps[step]?.title : undefined}
+          testId="canvas-step-bar"
+        />
+      )}
+
+      <div className="canvas-stage-wrap" data-testid="canvas-flow">
+        <ReactFlow
+          nodes={rfNodes}
+          edges={rfEdges}
+          nodeTypes={NODE_TYPES}
+          onNodesChange={onNodesChange}
+          onConnect={onConnect}
+          onEdgesDelete={onEdgesDelete}
+          onEdgeClick={onEdgeClick}
+          onNodeDoubleClick={onNodeDoubleClick}
+          onPaneClick={() => setSelectedEdge(null)}
+          fitView
+          fitViewOptions={{ padding: 0.04 }}
+          minZoom={0.3}
+          zoomOnDoubleClick={false}
+          proOptions={{ hideAttribution: true }}
         >
-          {/* Background */}
-          <Layer>
-            <Rect x={0} y={0} width={STAGE_W} height={stageH} fill={canvasBg} />
-          </Layer>
-
-          {/* Column labels — x tracks the average position of member nodes */}
-          <Layer>
-            {COL_DEFS.map(col => {
-              const lx = colLabelX(col, nodeMap);
-              return (
-                <Text key={col.label} x={lx} y={8} width={W}
-                  text={col.label.toUpperCase()} fontSize={11} fontStyle="bold"
-                  fontFamily="system-ui, sans-serif" fill={colLabelFill}
-                  letterSpacing={1} align="center" listening={false} />
-              );
-            })}
-          </Layer>
-
-          {/* Nodes — Okta-style two-zone cards (drawn before edges so arrowheads sit on top) */}
-          <Layer>
-            {nodes.map(node => {
-              const style = layerStyle[node.layer] ?? layerStyle.tool;
-              const isConnectSrc = connectFrom === node.id;
-              const strokeColor = isConnectSrc ? '#f59e0b' : connectMode ? '#3b82f6' : style.stroke;
-              const strokeWidth = (isConnectSrc || connectMode) ? 2.5 : 1.5;
-              const status = pingStatus[node.id];
-              const dotColor = STATUS_COLOR[status];
-              const inFlow = flow && flow.steps.some(s => s.from === node.id || s.to === node.id);
-              const dimmed = !!flow && !inFlow;
-              const icon = NODE_ICON[node.id] ?? LAYER_ICON[node.layer] ?? '📄';
-
-              return (
-                <Group key={node.id} x={node.x} y={node.y}
-                  draggable={!connectMode} opacity={dimmed ? 0.2 : 1}
-                  onDragMove={e => handleDragMove(node.id, e)}
-                  onDragEnd={e => handleDragEnd(node.id, e)}
-                  onClick={() => handleNodeClick(node.id)}
-                  onDblClick={() => handleNodeDblClick(node)}
-                  onMouseDown={connectMode ? e => handleWireStart(node, e) : undefined}
-                  onMouseUp={connectMode ? () => handleWireEnd(node.id) : undefined}
-                >
-                  {/* Drop shadow */}
-                  <Rect x={2} y={3} width={W} height={H} cornerRadius={R} fill="rgba(0,0,0,0.10)" />
-                  {/* Card outline */}
-                  <Rect width={W} height={H} cornerRadius={R}
-                    fill={style.fill} stroke={strokeColor} strokeWidth={strokeWidth} />
-                  {/* Colored icon zone (top strip) */}
-                  <Rect width={W} height={H_ICON} cornerRadius={[R, R, 0, 0]} fill={style.icon} />
-                  {/* Icon emoji centred in the strip */}
-                  <Text x={0} y={5} width={W} text={icon}
-                    fontSize={20} align="center" listening={false} />
-                  {/* Node label */}
-                  <Text x={8} y={H_ICON + 7} width={W - 16}
-                    text={node.label} fontSize={11} fontStyle="bold"
-                    fontFamily="system-ui, sans-serif" fill={style.label}
-                    align="center" ellipsis listening={false} />
-                  {/* Sub-label */}
-                  {node.sub && (
-                    <Text x={8} y={H_ICON + 22} width={W - 16} text={node.sub}
-                      fontSize={9} fontFamily="ui-monospace, monospace"
-                      fill={style.sub} align="center" ellipsis listening={false} />
-                  )}
-                  {/* Ping status dot */}
-                  {dotColor && (
-                    <Circle x={W - 9} y={9} radius={6} fill={dotColor}
-                      stroke="#fff" strokeWidth={1.5} listening={false} />
-                  )}
-                </Group>
-              );
-            })}
-          </Layer>
-
-          {/* Base edges — drawn above nodes so arrowheads are never obscured */}
-          <Layer>
-            {edges.map(edge => {
-              const src = nodeMap[edge.from];
-              const tgt = nodeMap[edge.to];
-              if (!src || !tgt) return null;
-              const pts = arrowPoints(src, tgt);
-              const isSelected = selectedEdge === edge.id;
-              const dimmed = !!flow;
-              const srcStyle = layerStyle[src.layer] ?? layerStyle.tool;
-              const lineColor = isSelected ? '#ef4444' : dimmed ? dimmedEdgeColor : srcStyle.stroke;
-              const dash = (!isSelected && !dimmed) ? (LAYER_DASH[src.layer] ?? null) : null;
-              return (
-                <Arrow key={edge.id} points={pts}
-                  stroke={lineColor} strokeWidth={isSelected ? 2.5 : 1.5}
-                  fill={lineColor}
-                  dash={dash} dashEnabled={!!dash}
-                  pointerLength={9} pointerWidth={8} hitStrokeWidth={16}
-                  opacity={dimmed && !isSelected ? 0.35 : 1}
-                  onClick={() => setSelectedEdge(edge.id === selectedEdge ? null : edge.id)}
-                />
-              );
-            })}
-          </Layer>
-
-          {/* Rubber-band wire while dragging a connection */}
-          {dragWire && (
-            <Layer listening={false}>
-              <Arrow
-                points={[dragWire.x1, dragWire.y1, dragWire.x2, dragWire.y2]}
-                stroke="#3b82f6" strokeWidth={2} fill="#3b82f6"
-                pointerLength={9} pointerWidth={8} dash={[6, 4]}
-              />
-            </Layer>
-          )}
-
-          {/* Flow overlay — colored arrows + number badges */}
-          {flow && (
-            <Layer>
-              {flow.steps.map((step, i) => {
-                const src = nodeMap[step.from];
-                const tgt = nodeMap[step.to];
-                if (!src || !tgt) return null;
-                const pts = arrowPoints(src, tgt);
-                const mid = midpoint(pts);
-                const num = String(i + 1);
-                // During playback, spotlight the active step and dim the others.
-                const playing = currentStepIndex !== null;
-                const isActive = i === currentStepIndex;
-                const stepOpacity = playing && !isActive ? 0.2 : 1;
-                const strokeW = isActive ? 4 : 2.5;
-                const badgeR = isActive ? 13 : 11;
-                return (
-                  <React.Fragment key={`fs-${i}`}>
-                    <Arrow points={pts}
-                      stroke={flow.color} strokeWidth={strokeW} fill={flow.color}
-                      pointerLength={9} pointerWidth={8} listening={false}
-                      opacity={stepOpacity}
-                      shadowColor={flow.color} shadowBlur={isActive ? 14 : 6}
-                      shadowOpacity={isActive ? 0.6 : 0.35}
-                    />
-                    {/* Number badge */}
-                    <Circle x={mid.x} y={mid.y} radius={badgeR}
-                      fill={flow.color} stroke="#fff" strokeWidth={2}
-                      opacity={stepOpacity} listening={false} />
-                    <Text x={mid.x - badgeR} y={mid.y - 7} width={badgeR * 2}
-                      text={num} fontSize={11} fontStyle="bold"
-                      fontFamily="system-ui, sans-serif" fill="#fff"
-                      opacity={stepOpacity} align="center" listening={false} />
-                  </React.Fragment>
-                );
-              })}
-            </Layer>
-          )}
-        </Stage>
+          <FitOnResize />
+          <Controls showInteractive={false} />
+        </ReactFlow>
       </div>
 
-      {/* Step explanation panel */}
-      {flow && (
-        <div className="canvas-steps">
-          <div className="canvas-steps-header">
-            <span className="canvas-steps-title" style={{ borderColor: flow.color, color: flow.color }}>
-              {flow.label}
-            </span>
-            <span className="canvas-steps-sub">Numbered steps map to arrows on the diagram above</span>
-            <button
-              className="canvas-steps-play"
-              style={{ background: flow.color }}
-              onClick={() => (isPlaying ? pausePlayback() : playFlow())}
-            >
-              {isPlaying ? '⏸ Pause' : '▶ Play'}
-            </button>
-            <button className="canvas-steps-close" onClick={() => { stopPlayback(); setSelectedFlow(null); }}>✕ Close</button>
-          </div>
-          <div className="canvas-steps-list">
-            {flow.steps.map((step, i) => {
-              const isActive = i === currentStepIndex;
-              const duration = durationFor(selectedFlow, i, step);
-              return (
-                <div key={i} className={`canvas-step${isActive ? ' canvas-step--active' : ''}`}>
-                  <span
-                    className={`canvas-step-num${isActive ? ' canvas-step-num--active' : ''}`}
-                    style={{ background: flow.color }}
-                  >
-                    {i + 1}
-                  </span>
-                  <div className="canvas-step-body">
-                    <span className="canvas-step-route">{step.from} → {step.to}</span>
-                    <span className="canvas-step-desc">{step.desc}</span>
-                    <label className="canvas-step-duration">
-                      <span className="canvas-step-duration-label">Duration</span>
-                      <input
-                        type="number" min="0" step="100" value={duration}
-                        onChange={e => updateStepDuration(selectedFlow, i, parseInt(e.target.value, 10) || 0)}
-                      />
-                      <span className="canvas-step-duration-unit">ms</span>
-                    </label>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      {flow && <DiagramReel steps={reelSteps} stepper={stepper} testId="canvas-reel" />}
     </div>
+  );
+}
+
+export default function ArchitectureCanvasPage() {
+  return (
+    <ReactFlowProvider>
+      <CanvasEditor />
+    </ReactFlowProvider>
   );
 }
