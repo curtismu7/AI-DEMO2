@@ -1246,13 +1246,14 @@ const MFATestPageContent: FC = () => {
   }, [fidoEnrollData, loadDevices]);
 
   const testFidoMetadata = useCallback(async () => {
-    if (!fidoAaguid) return;
     setFidoMetaStatus("running");
     setFidoMetaError(null);
     try {
+      // No AAGUID from this session's enrollment: the server reads it off the registered device.
       const { data } = await apiClient.get(
-        `/api/mfa/test/integration/fido2-metadata/${fidoAaguid}`,
+        `/api/mfa/test/integration/fido2-metadata${fidoAaguid ? `/${fidoAaguid}` : ""}`,
       );
+      if (data.aaguid) setFidoAaguid(data.aaguid);
       setRawFidoMeta(data);
       setFidoMeta(data.metadata);
       setFidoMetaPingoneReq(data.pingoneRequest);
@@ -2077,15 +2078,14 @@ const MFATestPageContent: FC = () => {
               docsSectionTitle="FIDO2 Enroll — Complete Registration"
             />
           )}
-          {fidoAaguid && (
-            <>
+          <>
               <MFATestCard
                 title="Read FIDO2 Device Metadata"
                 method="GET"
                 status={fidoMetaStatus}
                 error={fidoMetaError}
                 onTest={testFidoMetadata}
-                endpoint={`/v1/environments/{envId}/fidoDevicesMetadata/${fidoAaguid}`}
+                endpoint={`/v1/environments/{envId}/fidoDevicesMetadata/${fidoAaguid || "{aaguid}"}`}
                 rawResult={rawFidoMeta}
                 pingoneRequest={fidoMetaPingoneReq}
                 pingoneResponse={fidoMetaPingoneRes}
@@ -2095,8 +2095,7 @@ const MFATestPageContent: FC = () => {
               {fidoMeta?.metadataStatement && (
                 <FidoMetadataSummary meta={fidoMeta} />
               )}
-            </>
-          )}
+          </>
         </section>
 
         {/* Authentication Test Sections Header */}

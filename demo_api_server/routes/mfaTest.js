@@ -975,6 +975,47 @@ router.post('/integration/enroll-fido2-init', async (req, res) => {
 });
 
 /**
+ * GET /api/mfa/test/integration/fido2-metadata
+ * Same as the :aaguid form, but takes the AAGUID from the user's registered FIDO2 device.
+ */
+router.get('/integration/fido2-metadata', async (req, res) => {
+  try {
+    const { userId } = await _resolveCredentials(req);
+    const { devices } = await mfaService.listMfaDevices(userId);
+    const device = devices.find((d) => String(d.type || '').toUpperCase().includes('FIDO2'));
+    if (!device) {
+      return res.status(404).json({ success: false, error: 'no_fido2_device', message: 'No active FIDO2 device registered.' });
+    }
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const aaguid = [device.aaguid, device.mdsIdentifier].find((v) => uuid.test(String(v || '')));
+    if (!aaguid) {
+      return res.status(422).json({
+        success: false,
+        error: 'no_aaguid_on_device',
+        message: 'The registered FIDO2 device record has no AAGUID. Delete and re-enroll to read it from the registration.',
+        deviceFields: Object.keys(device),
+      });
+    }
+    const result = await mfaService.getFidoDeviceMetadata(aaguid);
+    res.json({
+      success: true,
+      aaguid,
+      metadata: result.metadata,
+      pingoneRequest: normalizePingoneRequest(result._debug.request),
+      pingoneResponse: result._debug.response,
+    });
+  } catch (err) {
+    console.error('[MFA Test Integration] GET /fido2-metadata (registered device) failed:', err.message);
+    res.status(err.status || 500).json({
+      success: false,
+      error: err.message,
+      pingoneRequest: err._debug && normalizePingoneRequest(err._debug.request),
+      pingoneResponse: err._debug && err._debug.response,
+    });
+  }
+});
+
+/**
  * GET /api/mfa/test/integration/fido2-metadata/:aaguid
  * Read FIDO2 device metadata from PingOne for an authenticator AAGUID.
  */
