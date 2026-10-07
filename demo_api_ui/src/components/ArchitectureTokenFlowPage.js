@@ -10,12 +10,11 @@
  *   - Aud trail strip above diagram
  *   - ← Prev / Pause / Resume / Next → / Stop controls
  */
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import apiClient from "../services/apiClient";
 import ArchitectureDiagramPage from "./ArchitectureDiagramPage";
 import TokenStepIndicator from "./TokenStepIndicator";
 import { STEP_TIME_OPTIONS, DEFAULT_STEP_MS } from "./diagram";
-import { TOKEN_FLOW_REGIONS } from "../config/diagram-token-flow-regions";
 
 const TOKEN_FLOW_EVENT_MAP = [
   {
@@ -1091,6 +1090,35 @@ function buildLiveHistoryEntry(evt) {
   return null;
 }
 
+// One sequence message per simulation step: first region -> last region, so the reel, the diagram and the
+// token card stay in step. The sub-box "RFC 8693 Token Exchange" lives inside PingOne, so it folds into it.
+const FLOW_LANES = [
+  ["olb-application", "Web App"],
+  ["chatbot", "Chatbot"],
+  ["agent1", "Agent (BFF)"],
+  ["llm", "LLM"],
+  ["pingone-aic", "PingOne"],
+  ["mcp-gateway-tf", "Agent Gateway"],
+  ["pingauthorize-tf", "PingOne Authorize"],
+  ["hitl-tf", "HITL Service"],
+  ["mcp-olb", "MCP Server"],
+  ["mcp-resource-server", "MCP Resource Server"],
+  ["oauth-rs", "Banking API"],
+];
+const LANE_OF = (id) => (id === "token-exchange-box" ? "pingone-aic" : id);
+
+function stepsToSequence(steps) {
+  const ends = steps.map((s) => [LANE_OF(s.regionIds[0]), LANE_OF(s.regionIds[s.regionIds.length - 1])]);
+  const used = new Set(ends.flat());
+  const lanes = FLOW_LANES.filter(([id]) => used.has(id));
+  const sid = (id) => id.replace(/-/g, "_");
+  return [
+    "sequenceDiagram",
+    ...lanes.map(([id, name]) => `  participant ${sid(id)} as ${name}`),
+    ...steps.map((s, i) => `  ${sid(ends[i][0])}->>${sid(ends[i][1])}: ${s.label}`),
+  ].join("\n");
+}
+
 export default function ArchitectureTokenFlowPage({ user }) {
   const [activeRegions, setActiveRegions] = useState({});
   const [regionLabels, setRegionLabels] = useState({});
@@ -1340,6 +1368,28 @@ export default function ArchitectureTokenFlowPage({ user }) {
     };
   }, [fetchEvents]);
 
+  const scenarioSteps =
+    selectedScenario === "full-flow"
+      ? TOKEN_FLOW_SIMULATE_STEPS
+      : SCENARIO_STEPS_TF[selectedScenario] || TOKEN_FLOW_SIMULATE_STEPS;
+  const flowSource = useMemo(() => stepsToSequence(scenarioSteps), [scenarioSteps]);
+
+  // A click on the movie reel: jump to that step and hold there, like Pause + Next.
+  const jumpTo = useCallback(
+    (i) => {
+      simTimeouts.current.forEach(clearTimeout);
+      simTimeouts.current = [];
+      stepsRef.current = scenarioSteps;
+      setTotalSteps(scenarioSteps.length);
+      setIsSimulating(true);
+      setIsPaused(true);
+      pausedStep.current = i;
+      applyStep(i);
+    },
+    [scenarioSteps, applyStep],
+  );
+  const flowDriver = useMemo(() => ({ step: currentStep, goTo: jumpTo }), [currentStep, jumpTo]);
+
   const scenarioSelector = (
     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
       <label
@@ -1395,9 +1445,8 @@ export default function ArchitectureTokenFlowPage({ user }) {
         title="Token Flow Diagram"
         imageSrc="/architecture/token-flow.png"
         imageAlt="Token flow sequence: User, Web App, Chatbot, Agent (BFF in-process LangGraph), LLM, PingOne, Agent Gateway, PingOne Authorization Server, HITL Service, MCP OLB, MCP Resource Server, API Resource Server — RFC 8693 exchanges, Phase 266 credential paths, and HITL consent escalation"
-        regions={TOKEN_FLOW_REGIONS}
-        activeRegions={activeRegions}
-        regionLabels={regionLabels}
+        flowSource={flowSource}
+        flowDriver={flowDriver}
         user={user}
         onSimulate={runSimulation}
         isSimulating={isSimulating}
