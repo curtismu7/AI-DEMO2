@@ -262,8 +262,8 @@ export const A2A_RECORDED_RUN = {
       "mode": "in-process",
       "agentCard": {
         "name": "Membership Specialist",
-        "description": "Super Banking Membership Specialist Agent — A2A specialist for vertical \"sporting-goods\". Wire auth carries the caller's own delegated token; this specialist performs its own nested-act exchange before calling MCP tools.",
-        "version": "1.0.0",
+        "description": "Super Banking Membership Specialist Agent — A2A specialist for vertical \"sporting-goods\": review the sensitive membership details. Wire auth carries the caller's own delegated token; this specialist performs its own nested-act exchange before calling MCP tools, and PingOne Authorize approves it.",
+        "version": "1.1.0",
         "documentationUrl": "https://a2a-protocol.org/dev/tutorials/",
         "provider": {
           "organization": "Ping Identity Demo",
@@ -305,8 +305,8 @@ export const A2A_RECORDED_RUN = {
         "skills": [
           {
             "id": "sensitive_membership_details",
-            "name": "sensitive membership details",
-            "description": "Membership Specialist skill: sensitive_membership_details",
+            "name": "Sensitive membership details",
+            "description": "Calls the sensitive_membership_details MCP tool for the sporting-goods vertical on the user's behalf, once PingOne Authorize approves the nested act chain.",
             "tags": [
               "sporting-goods",
               "a2a",
@@ -368,8 +368,8 @@ export const A2A_RECORDED_RUN = {
   ],
   "agentCard": {
     "name": "Membership Specialist",
-    "description": "Super Banking Membership Specialist Agent — A2A specialist for vertical \"sporting-goods\". Wire auth carries the caller's own delegated token; this specialist performs its own nested-act exchange before calling MCP tools.",
-    "version": "1.0.0",
+    "description": "Super Banking Membership Specialist Agent — A2A specialist for vertical \"sporting-goods\": review the sensitive membership details. Wire auth carries the caller's own delegated token; this specialist performs its own nested-act exchange before calling MCP tools, and PingOne Authorize approves it.",
+    "version": "1.1.0",
     "documentationUrl": "https://a2a-protocol.org/dev/tutorials/",
     "provider": {
       "organization": "Ping Identity Demo",
@@ -411,8 +411,8 @@ export const A2A_RECORDED_RUN = {
     "skills": [
       {
         "id": "sensitive_membership_details",
-        "name": "sensitive membership details",
-        "description": "Membership Specialist skill: sensitive_membership_details",
+        "name": "Sensitive membership details",
+        "description": "Calls the sensitive_membership_details MCP tool for the sporting-goods vertical on the user's behalf, once PingOne Authorize approves the nested act chain.",
         "tags": [
           "sporting-goods",
           "a2a",

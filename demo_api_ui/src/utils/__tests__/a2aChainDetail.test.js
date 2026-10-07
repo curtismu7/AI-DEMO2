@@ -1,6 +1,39 @@
 // demo_api_ui/src/utils/__tests__/a2aChainDetail.test.js
 import { describe, it, expect } from 'vitest';
-import { buildA2aChainDetail, buildA2aEvidenceRows } from '../a2aChainDetail';
+import { buildA2aChainDetail, buildA2aEvidenceRows, summarizeAgentCard } from '../a2aChainDetail';
+
+describe('summarizeAgentCard', () => {
+  it('shows the card description, provider and per-skill detail with the wire binding', () => {
+    const s = summarizeAgentCard({
+      protocolBinding: 'JSONRPC',
+      skills: ['sensitive_membership_details'],
+      agentCard: {
+        name: 'Membership Specialist',
+        version: '1.1.0',
+        description: 'Reviews membership details.',
+        provider: { organization: 'Ping Identity Demo' },
+        securitySchemes: { pingoneBearer: {} },
+        skills: [{ id: 'sensitive_membership_details', name: 'Sensitive membership details', description: 'Calls the tool.', examples: ['review it'], tags: ['x'] }],
+      },
+    });
+    expect(s).toMatchObject({
+      name: 'Membership Specialist',
+      version: '1.1.0',
+      description: 'Reviews membership details.',
+      provider: 'Ping Identity Demo',
+      protocolBinding: 'JSONRPC',
+      securitySchemes: ['pingoneBearer'],
+    });
+    expect(s.skills).toEqual([{ id: 'sensitive_membership_details', name: 'Sensitive membership details', description: 'Calls the tool.', examples: ['review it'] }]);
+  });
+
+  it('falls back to skill ids and the interface binding when the full card is thin', () => {
+    const s = summarizeAgentCard({ agentName: 'Advisor', skills: ['a'], agentCard: { supportedInterfaces: [{ protocolBinding: 'JSONRPC' }] } });
+    expect(s.skills).toEqual(['a']);
+    expect(s.protocolBinding).toBe('JSONRPC');
+    expect(s.name).toBe('Advisor');
+  });
+});
 
 const runEvents = [
   {

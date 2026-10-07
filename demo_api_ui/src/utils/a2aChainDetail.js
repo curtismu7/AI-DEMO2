@@ -13,6 +13,27 @@ function byId(events, id) {
   return (Array.isArray(events) ? events : []).find((e) => e && e.id === id) || null;
 }
 
+/**
+ * What an `a2a-agent-card` event shows in the trace rail and the sequence view:
+ * the card's own description, provider and per-skill detail, not just skill ids.
+ * Falls back to the event's skill ids when the full card was not captured.
+ */
+export function summarizeAgentCard(event) {
+  const card = event?.agentCard || null;
+  const cardSkills = Array.isArray(card?.skills) && card.skills.length > 0 ? card.skills : null;
+  return {
+    name: card?.name || event?.agentName || null,
+    version: card?.version || null,
+    description: card?.description || null,
+    provider: card?.provider?.organization || null,
+    protocolBinding: event?.protocolBinding || card?.supportedInterfaces?.[0]?.protocolBinding || null,
+    skills: cardSkills
+      ? cardSkills.map(({ id, name, description, examples }) => ({ id, name, description, examples }))
+      : (event?.skills || []),
+    securitySchemes: Object.keys(card?.securitySchemes || {}),
+  };
+}
+
 const DISPLAY_CLAIMS = ['sub', 'aud', 'scope', 'act', 'client_id', 'iss', 'exp'];
 
 function displayClaims(event) {
@@ -295,12 +316,7 @@ export function buildA2aEvidenceRows(tokenEvents) {
   const cardDetail = card
     ? {
         request: { method: 'GET', url: card.cardUrl || '/.well-known/agent-card.json' },
-        response: {
-          name: card.agentCard?.name || card.agentName || null,
-          version: card.agentCard?.version || null,
-          skills: card.skills || card.agentCard?.skills || [],
-          securitySchemes: Object.keys(card.agentCard?.securitySchemes || {}),
-        },
+        response: summarizeAgentCard(card),
       }
     : null;
 

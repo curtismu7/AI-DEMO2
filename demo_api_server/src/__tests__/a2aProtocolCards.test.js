@@ -58,6 +58,18 @@ describe('a2aAgentCardService', () => {
     }
   });
 
+  test('skills carry a readable name and a description of what the tool does', () => {
+    const card = buildSpecialistAgentCard('banking', { getEffective: () => '' });
+    expect(card.version).toBe('1.1.0');
+    expect(card.description).toContain(specialistForVertical('banking').subtaskHint);
+    for (const skill of card.skills) {
+      expect(skill.name).toMatch(/^[A-Z]/);
+      expect(skill.name).not.toContain('_');
+      expect(skill.description).toContain(skill.id);
+      expect(skill.description).toContain('PingOne Authorize');
+    }
+  });
+
   test('specialistRpcUrl includes vertical path', () => {
     expect(specialistRpcUrl('banking', { getEffective: () => 'https://api.ping.demo:3001' })).toBe(
       'https://api.ping.demo:3001/a2a/specialists/banking',

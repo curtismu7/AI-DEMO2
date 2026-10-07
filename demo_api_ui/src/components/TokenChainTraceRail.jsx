@@ -8,7 +8,7 @@ import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTrac
 import { MCP_STEP_IDS, buildRunStory, resolveTraceProvenance } from "../services/tokenChainTrace/buildTraceSteps";
 import { resolveInspectClaims } from "../services/tokenChainTrace/resolveInspectClaims";
 import { isFlagOn, shouldShowTrustTab } from "../utils/tokenChainTrust";
-import { buildA2aChainDetail } from "../utils/a2aChainDetail";
+import { buildA2aChainDetail, summarizeAgentCard } from "../utils/a2aChainDetail";
 import { AGENT_ROLES, PRIMARY_AGENT } from "../config/agentTerminology";
 import { useTokenChainOptional } from "../context/TokenChainContext";
 import { useProofOfEnforcementOptional } from "../context/ProofOfEnforcementContext";
@@ -203,13 +203,7 @@ function a2aEvidence(event) {
   if (responseClaims && Object.keys(responseClaims).length > 0) {
     response = jsonPayload("PingOne token response (claims only)", responseClaims);
   } else if (event.agentCard) {
-    response = jsonPayload("Agent Card response", {
-      name: event.agentCard.name,
-      version: event.agentCard.version,
-      protocolBinding: event.agentCard.protocolBinding,
-      skills: event.skills || event.agentCard.skills,
-      securitySchemes: Object.keys(event.agentCard.securitySchemes || {}),
-    });
+    response = jsonPayload("Agent Card response", summarizeAgentCard(event));
   } else if (event.protocolResponse) {
     response = jsonPayload("A2A JSON-RPC response", event.protocolResponse);
   }

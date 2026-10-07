@@ -48,8 +48,10 @@ function buildSpecialistAgentCard(vertical, cfg, options = {}) {
     : false;
   const skills = (specialist.tools || []).map((tool) => ({
     id: tool,
-    name: tool.replace(/_/g, ' '),
-    description: `${specialist.specialistName} skill: ${tool}`,
+    name: tool.charAt(0).toUpperCase() + tool.slice(1).replace(/_/g, ' '),
+    description:
+      `Calls the ${tool} MCP tool for the ${vertical} vertical on the user's behalf, ` +
+      'once PingOne Authorize approves the nested act chain.',
     tags: [vertical, 'a2a', specialist.appKey],
     examples: [specialist.subtaskHint].filter(Boolean),
     inputModes: ['text/plain'],
@@ -61,10 +63,11 @@ function buildSpecialistAgentCard(vertical, cfg, options = {}) {
   return {
     name: specialist.specialistName,
     description:
-      `${specialist.appName} — A2A specialist for vertical "${vertical}". ` +
+      `${specialist.appName} — A2A specialist for vertical "${vertical}": ` +
+      `${specialist.subtaskHint || 'handles one narrow, sensitive read task'}. ` +
       `Wire auth carries the caller's own delegated token; this specialist performs its ` +
-      `own nested-act exchange before calling MCP tools.`,
-    version: '1.0.0',
+      `own nested-act exchange before calling MCP tools, and PingOne Authorize approves it.`,
+    version: '1.1.0',
     documentationUrl: 'https://a2a-protocol.org/dev/tutorials/',
     provider: {
       organization: 'Ping Identity Demo',
