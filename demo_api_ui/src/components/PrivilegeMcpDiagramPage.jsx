@@ -23,7 +23,9 @@ import "@xyflow/react/dist/style.css";
 import DiagramExportBar from "./DiagramExportBar";
 import SequenceFlowDiagram from "./SequenceFlowDiagram";
 import FitOnResize from "./FitOnResize";
-import { edgeCaptions, stepEdges, useDiagramStepper } from "../hooks/useDiagramStepper";
+import { edgeCaptions, markNodes, stepEdges, useDiagramStepper } from "../hooks/useDiagramStepper";
+import DiagramReel from "./DiagramReel";
+import { buildNodeDetail, buildReelSteps } from "../utils/diagramReel";
 import DiagramStepBar from "./DiagramStepBar";
 import "./PrivilegeMcpDiagramPage.css";
 
@@ -210,6 +212,27 @@ const ARCH_NODES = [
   { id: "api", type: "pmd", position: { x: 580, y: 300 }, data: { title: "Privilege cloud API", sub: "privilege.pingone.com/api/mcp", variant: "broken" } },
 ];
 
+// What each box on the Architecture tab does, for the movie reel's details row.
+const ARCH_DETAILS = {
+  ui: "The React page at /privilege-mcp-client. It only talks to the BFF over HTTPS and shows what the BFF relays; it never speaks MCP itself.",
+  bff: "demo-api-server. Signs the operator in (OAuth code + PKCE), holds the token server-side, and is the MCP client that calls the gateway.",
+  gw: "The Privilege gateway (ping-mcpgw). Receives the BFF's MCP session, applies the JIT least-privilege policy and session recording, then opens its own session to mcp-server.",
+  mcp: "mcp-server on :8080. Owns the actual tools and accepts only tokens whose audience is mcpserver.ping.demo.",
+  as: "PingOne's authorization server. Issues the operator's token and the machine token the BFF uses.",
+  cp: "Privilege's control plane. The gateway dials out to it over gRPC with its enrollment JWT; no inbound port is opened.",
+  api: "Privilege's cloud API. It is a control-plane endpoint, not a front door for MCP traffic, which is why the line to the gateway is dashed.",
+};
+
+// Short detail for each participant of the Sign-in + Tool Call sequence.
+const SEQ_DETAILS = {
+  U: "The operator using the demo page. Clicks Sign In, Load Tools and Run a tool.",
+  P: "The React page at /privilege-mcp-client. It calls the BFF and shows results; it never holds a token.",
+  B: "demo-api-server acting as the MCP client. Runs the OAuth sign-in, keeps the token, and opens the MCP session to the gateway.",
+  A: "PingOne's authorization server. Hosts the sign-on and issues the access token.",
+  G: "The Privilege gateway. Both an MCP server to the BFF and an MCP client to mcp-server, with the JIT policy applied between them.",
+  M: "mcp-server. Owns the tools and answers only calls the gateway forwards.",
+};
+
 const ARCH_EDGES = [
   { id: "ui-bff", source: "ui", target: "bff", label: "HTTPS + session cookie (not MCP)", ...EDGE_DEFAULTS },
   { id: "bff-ui", source: "bff", target: "ui", label: "SSE: live relay events", style: { ...EDGE_DEFAULTS.style, strokeDasharray: "5 4" } },
@@ -307,9 +330,21 @@ export default function PrivilegeMcpDiagramPage() {
     () => edgeCaptions(rfEdges, Object.fromEntries((isMermaid ? NO_EDGES : activeTabMeta.nodes).map((n) => [n.id, n.data.title]))),
     [rfEdges, isMermaid, activeTabMeta],
   );
+  const reelNodes = useMemo(
+    () => (isMermaid ? NO_EDGES : activeTabMeta.nodes.map((nd) => ({ id: nd.id, label: nd.data.title, sub: nd.data.sub ? [nd.data.sub] : [] }))),
+    [isMermaid, activeTabMeta],
+  );
+  const reelDetails = activeTab === "arch" ? ARCH_DETAILS : undefined;
+  const reelSteps = useMemo(
+    () => (isMermaid ? [] : buildReelSteps({ edges: rfEdges, nodes: reelNodes, details: reelDetails })),
+    [isMermaid, rfEdges, reelNodes, reelDetails],
+  );
+  const [nodeDetail, setNodeDetail] = useState(null);
+  const currentStep = reelSteps[rfStepper.step];
   const stopRf = rfStepper.stop;
   useEffect(() => {
     stopRf();
+    setNodeDetail(null);
   }, [activeTab, stopRf]);
 
   return (
@@ -345,7 +380,7 @@ export default function PrivilegeMcpDiagramPage() {
 
       <div className="pmd-panel">
         {isMermaid ? (
-          <SequenceFlowDiagram source={source} label="Privilege MCP sequence diagram" />
+          <SequenceFlowDiagram source={source} label="Privilege MCP sequence diagram" details={SEQ_DETAILS} />
         ) : (
           <>
             {activeTab === "arch" && (
@@ -357,7 +392,8 @@ export default function PrivilegeMcpDiagramPage() {
             )}
             <div className="pmd-rf-canvas" aria-label="Privilege MCP diagram">
               <ReactFlow
-                nodes={activeTabMeta.nodes}
+                nodes={markNodes(activeTabMeta.nodes, currentStep ? [currentStep.from, currentStep.to] : [])}
+                onNodeClick={(_, node) => setNodeDetail(buildNodeDetail(reelNodes.find((x) => x.id === node.id), reelDetails))}
                 edges={stepEdges(activeTabMeta.edges, rfStepper.step)}
                 nodeTypes={NODE_TYPES}
                 fitView
@@ -370,6 +406,7 @@ export default function PrivilegeMcpDiagramPage() {
                 <FitOnResize />
               </ReactFlow>
             </div>
+            <DiagramReel steps={reelSteps} stepper={rfStepper} nodeDetail={nodeDetail} onClearNode={() => setNodeDetail(null)} testId="pmd-reel" />
           </>
         )}
       </div>

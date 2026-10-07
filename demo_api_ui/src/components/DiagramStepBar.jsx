@@ -1,4 +1,5 @@
 import { DiagramControls, STEP_TIME_OPTIONS } from "./diagram";
+import { REFIT_EVENT } from "../hooks/useFitOnResize";
 import "./DiagramStepBar.css";
 
 /**
@@ -26,7 +27,10 @@ export default function DiagramStepBar({ stepper, caption, testId = "diagram-ste
         stepMs={stepper.stepMs}
         onSetStepMs={stepper.setStepMs}
       />
-      <button type="button" className="dstep-reset" onClick={stepper.stop} disabled={!active} title="Clear the walkthrough and start over">
+      <button type="button" className="dstep-reset" onClick={() => {
+          stepper.stop();
+          window.dispatchEvent(new Event(REFIT_EVENT));
+        }} disabled={!active} title="Clear the walkthrough and start over">
         Reset
       </button>
       <p className="dstep-caption" aria-live="polite">

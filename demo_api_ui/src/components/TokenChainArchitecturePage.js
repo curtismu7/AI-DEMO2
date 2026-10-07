@@ -9,12 +9,20 @@
 import React, { useState } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
 import { Controls } from '@xyflow/react';
-import TokenChainFlowDiagram, { NODES, EDGES } from './TokenChainFlowDiagram';
+import TokenChainFlowDiagram, { NODES, EDGES, NODE_DETAILS } from './TokenChainFlowDiagram';
+import DiagramReel from './DiagramReel';
+import { buildReelSteps } from '../utils/diagramReel';
 import DiagramStepBar from './DiagramStepBar';
 import { useDiagramStepper, edgeCaptions } from '../hooks/useDiagramStepper';
 import './TokenChainArchitecturePage.css';
 
 const EDGE_CAPTIONS = edgeCaptions(EDGES, Object.fromEntries(NODES.map((n) => [n.id, n.label])));
+// The reel's details row reuses each node's role text (the same text the node click panel opens with).
+const REEL_STEPS = buildReelSteps({
+  edges: EDGES,
+  nodes: NODES,
+  details: Object.fromEntries(Object.entries(NODE_DETAILS).map(([id, d]) => [id, d.role])),
+});
 
 const CARDS = [
   { color: '#2E5090', title: '🔐 Authentication', body: <>PingOne issues human token with <code>may_act: agent1</code> delegation claim</> },
@@ -64,6 +72,7 @@ export default function TokenChainArchitecturePage({ user }) {
         </p>
         <DiagramStepBar stepper={stepper} caption={EDGE_CAPTIONS[stepper.step]} />
         <CanvasWithControls onNodeClick={(node) => setSelected(node)} step={stepper.step} />
+        <DiagramReel steps={REEL_STEPS} stepper={stepper} testId="tca-reel" />
       </div>
 
       {info && (

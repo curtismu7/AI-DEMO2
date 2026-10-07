@@ -39,6 +39,14 @@ export function useDiagramStepper(total) {
   }, [step, last]);
   const next = useCallback(() => setStep((s) => Math.min(s + 1, last)), [last]);
   const prev = useCallback(() => setStep((s) => Math.max(s - 1, 0)), []);
+  // jump straight to a step (a click on the movie reel) and stop auto-advance there
+  const goTo = useCallback(
+    (i) => {
+      setPaused(true);
+      setStep(Math.max(0, Math.min(i, last)));
+    },
+    [last],
+  );
   const pause = useCallback(() => setPaused(true), []);
   const stop = useCallback(() => {
     setStep(-1);
@@ -56,6 +64,7 @@ export function useDiagramStepper(total) {
     resume,
     next,
     prev,
+    goTo,
     pause,
     stop,
   };
@@ -82,6 +91,13 @@ export function stepEdges(edges, step) {
     if (i > step) return { ...e, style: { ...e.style, ...FUTURE_STYLE } };
     return e;
   });
+}
+
+/** Rings the nodes with these ids (the two ends of the arrow in focus) with the shared `dstep-hot` class. */
+export function markNodes(nodes, hotIds) {
+  if (!hotIds || !hotIds.length) return nodes;
+  const hot = new Set(hotIds);
+  return nodes.map((n) => (hot.has(n.id) ? { ...n, className: `${n.className ? `${n.className} ` : ""}dstep-hot` } : n));
 }
 
 /** Accents the edges at the given indexes (page-driven highlight) and leaves the rest alone. */

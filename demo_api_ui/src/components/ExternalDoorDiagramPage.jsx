@@ -156,6 +156,7 @@ export default function ExternalDoorDiagramPage() {
             NODES={EXT_DOOR_NODES}
             EDGES={EXT_DOOR_EDGES}
             GROUPS={EXT_DOOR_GROUPS}
+            details={EXT_DOOR_DETAILS}
             onNodeClick={(node) => setSelectedNode(selectedNode?.id === node.id ? null : node)}
             testId="ext-door-flow-diagram"
             height={560}

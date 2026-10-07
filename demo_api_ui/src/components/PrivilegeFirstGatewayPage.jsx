@@ -96,7 +96,7 @@ export default function PrivilegeFirstGatewayPage() {
           NODES={GATEWAY_NODES}
           EDGES={GATEWAY_EDGES}
           GROUPS={GROUPS}
-          step={stepper.step}
+          stepper={stepper}
           testId="pfg-gateway-diagram"
           height={600}
           ariaLabel="Target architecture: callers on the left enter the Privilege AI Gateway, whose LLM lane goes to cloud providers with a virtual key and whose MCP lane goes to the Agent Gateway, which then reaches the MCP servers. Local models on port 8090 stay outside Privilege."

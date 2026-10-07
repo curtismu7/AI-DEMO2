@@ -73,7 +73,7 @@ export default function GatewayEnforcementMapPage() {
         NODES={GATEWAY_ENFORCEMENT_JOURNEY_NODES}
         EDGES={GATEWAY_ENFORCEMENT_JOURNEY_EDGES}
         GROUPS={GATEWAY_ENFORCEMENT_JOURNEY_GROUPS}
-        step={stepper.step}
+        stepper={stepper}
         onNodeClick={(node) => setSelectedNode(selectedNode?.id === node.id ? null : node)}
         testId="gwe-flow-diagram"
         height={560}

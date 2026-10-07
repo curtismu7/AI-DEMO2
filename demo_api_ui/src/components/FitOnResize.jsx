@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useReactFlow, useStore } from "@xyflow/react";
+import { REFIT_EVENT } from "../hooks/useFitOnResize";
 
 const NO_OPTIONS = { padding: 0.04 };
 
@@ -20,7 +21,10 @@ export default function FitOnResize({ options = NO_OPTIONS }) {
       raf = requestAnimationFrame(() => fitView(options));
     });
     ro.observe(dom);
+    const onRefit = () => fitView(options);
+    window.addEventListener(REFIT_EVENT, onRefit);
     return () => {
+      window.removeEventListener(REFIT_EVENT, onRefit);
       ro.disconnect();
       cancelAnimationFrame(raf);
     };

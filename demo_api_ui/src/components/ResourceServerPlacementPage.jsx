@@ -129,7 +129,8 @@ export default function ResourceServerPlacementPage() {
           NODES={RSP_NODES}
           EDGES={RSP_EDGES}
           GROUPS={RSP_GROUPS}
-          step={stepper.step}
+          stepper={stepper}
+          details={RSP_DETAILS}
           onNodeClick={(node) => setSelectedNode(selectedNode?.id === node.id ? null : node)}
           testId="rsp-flow-diagram"
           height={560}

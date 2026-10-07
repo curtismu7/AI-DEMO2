@@ -14,7 +14,9 @@ import {
 import "@xyflow/react/dist/style.css";
 import DiagramStepBar from "./DiagramStepBar";
 import { parseSequence } from "../utils/parseSequence";
-import { markEdges, stepEdges, useDiagramStepper } from "../hooks/useDiagramStepper";
+import { markEdges, markNodes, stepEdges, useDiagramStepper } from "../hooks/useDiagramStepper";
+import DiagramReel from "./DiagramReel";
+import { buildNodeDetail, buildReelSteps } from "../utils/diagramReel";
 import { useFitOnResize } from "../hooks/useFitOnResize";
 import "./SequenceFlowDiagram.css";
 
@@ -215,10 +217,16 @@ export function buildSequenceFlow(source) {
   // Natural size of the drawing, so the canvas can be sized to it (see Inner).
   const widest = Math.max(1, ...Object.values(perGroup));
   const bounds = { w: 120 + (widest - 1) * COL + PART_W, h: spans[cur].end + 40 };
-  return { nodes, edges, steps, bounds };
+  // For the movie reel: the messages in order, and each participant as a node with its own detail lines.
+  const messages = model.items.filter((i) => i.type === "message").map((i) => [i.from, i.to, i.text]);
+  const people = model.participants.map((p) => {
+    const [head, ...rest] = p.label.split("\n");
+    return { id: p.id, label: head, sub: rest };
+  });
+  return { nodes, edges, steps, bounds, messages, people };
 }
 
-function Inner({ source, step, active }) {
+function Inner({ source, step, active, details }) {
   const ref = useRef(null);
   useFitOnResize(ref, FIT);
   const [canvasW, setCanvasW] = useState(0);
@@ -229,7 +237,7 @@ function Inner({ source, step, active }) {
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  const { nodes, edges, steps, bounds } = useMemo(() => buildSequenceFlow(source), [source]);
+  const { nodes, edges, steps, bounds, messages, people } = useMemo(() => buildSequenceFlow(source), [source]);
   // Fit to the page WIDTH and let the canvas grow to the drawing's height, so a 28-message
   // sequence stays at a readable size instead of shrinking to fit one screen.
   const zoom = canvasW ? Math.min(1.1, canvasW / bounds.w) : 1;
@@ -240,13 +248,28 @@ function Inner({ source, step, active }) {
     if (active !== undefined) return markEdges(edges, active);
     return stepEdges(edges, step !== undefined ? step : stepper.step);
   }, [edges, stepper.step, step, active]);
+  const reelSteps = useMemo(
+    () => (driven ? [] : buildReelSteps({ edges: messages, nodes: people, details })),
+    [driven, messages, people, details],
+  );
+  const [nodeDetail, setNodeDetail] = useState(null);
+  const current = driven ? null : reelSteps[stepper.step];
+  const lit = useMemo(() => markNodes(nodes, current ? [`p-${current.from}`, `p-${current.to}`] : []), [nodes, current]);
+  const onNodeClick = (_, node) => {
+    if (driven || node.type !== "part") return;
+    setNodeDetail(buildNodeDetail(people.find((p) => `p-${p.id}` === node.id), details));
+  };
   return (
     <>
       {!driven && <DiagramStepBar stepper={stepper} caption={steps[stepper.step]} />}
+      {!driven && (
+        <DiagramReel steps={reelSteps} stepper={stepper} nodeDetail={nodeDetail} onClearNode={() => setNodeDetail(null)} testId="sequence-reel" />
+      )}
       <div className="sfx-canvas" data-testid="sequence-flow-canvas" ref={ref} style={fitHeight ? { height: fitHeight } : undefined}>
         <ReactFlow
-          nodes={nodes}
+          nodes={lit}
           edges={shown}
+          onNodeClick={onNodeClick}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           fitView
@@ -270,13 +293,14 @@ function Inner({ source, step, active }) {
 /**
  * Leave `step` and `active` undefined for the built-in Play/Step bar. A page that drives the
  * highlight itself passes `step` (one message in focus, later ones fade) or `active` (an
- * array of message indexes to accent).
+ * array of message indexes to accent). `details` maps a participant id to the text shown in the
+ * movie reel's details row.
  */
-export default function SequenceFlowDiagram({ source, label = "Sequence diagram", step, active }) {
+export default function SequenceFlowDiagram({ source, label = "Sequence diagram", step, active, details }) {
   return (
     <div className="sfx" role="group" aria-label={label}>
       <ReactFlowProvider>
-        <Inner source={source} step={step} active={active} />
+        <Inner source={source} step={step} active={active} details={details} />
       </ReactFlowProvider>
     </div>
   );

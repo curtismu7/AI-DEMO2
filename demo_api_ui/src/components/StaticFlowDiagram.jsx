@@ -9,8 +9,10 @@
  *   selectedPath key of the currently highlighted path (dims others)
  *   onNodeClick  (node) => void — node = { id, data }
  *   testId       data-testid for the wrapper
- *   height       canvas height in px
+ *   height       ignored (kept so pages need no edit): the canvas is as tall as the viewport leaves room for with the reel in view
  *   ariaLabel    accessible name for the diagram (role="group")
+ *   stepper      a page-owned useDiagramStepper: the diagram follows it and shows the movie reel
+ *   details      node id -> text for the reel's details row (defaults to the node's own detail lines)
  *   step         index of the EDGES entry in focus for a Play/Step walkthrough
  *                (-1 = off): that arrow is accented, later ones fade. Leave it
  *                undefined and the diagram shows its own Play/Step bar; pass a
@@ -20,7 +22,7 @@
  * Nodes keep their hand-placed x/y; React Flow supplies pan/zoom and fit-to-view.
  * Interaction (drag, connect) is off — these are teaching graphs, not editors.
  */
-import React, { useMemo, useRef } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
   BaseEdge,
   Background,
@@ -37,6 +39,8 @@ import "@xyflow/react/dist/style.css";
 import { useFitOnResize } from "../hooks/useFitOnResize";
 import { edgeCaptions, useDiagramStepper } from "../hooks/useDiagramStepper";
 import DiagramStepBar from "./DiagramStepBar";
+import DiagramReel from "./DiagramReel";
+import { buildNodeDetail, buildReelSteps } from "../utils/diagramReel";
 import "./StaticFlowDiagram.css";
 
 const NODE_W = 250;
@@ -107,7 +111,7 @@ function FlowEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targ
 const nodeTypes = { sfd: FlowNode };
 const edgeTypes = { sfd: FlowEdge };
 
-function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, testId, height, step, focusId, ariaLabel }) {
+function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, testId, step, focusId, ariaLabel }) {
   const ref = useRef(null);
   useFitOnResize(ref, FIT);
   const byId = useMemo(() => new Map(NODES.map((n) => [n.id, n])), [NODES]);
@@ -173,7 +177,7 @@ function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, testId, height
   );
 
   return (
-    <div className="sfd" data-testid={testId} style={{ minHeight: height }} ref={ref} role={ariaLabel ? "group" : undefined} aria-label={ariaLabel}>
+    <div className="sfd" data-testid={testId} ref={ref} role={ariaLabel ? "group" : undefined} aria-label={ariaLabel}>
       <svg width="0" height="0" aria-hidden="true" className="sfd-defs">
         <defs>
           <marker id="sfd-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
@@ -209,36 +213,53 @@ export default function StaticFlowDiagram({
   EDGES,
   GROUPS,
   selectedPath = null,
-  onNodeClick = () => {},
+  onNodeClick,
   testId = "static-flow-diagram",
-  height = 640,
   step,
+  stepper,
+  details,
   focusId,
   ariaLabel,
 }) {
   const controlled = step !== undefined;
-  const stepper = useDiagramStepper(controlled ? 0 : EDGES.length);
+  const own = useDiagramStepper(stepper || controlled ? 0 : EDGES.length);
+  // `stepper` lets a page that owns the walkthrough still get the movie reel; a bare `step`
+  // number only paints the diagram (no reel). With neither, the diagram runs itself.
+  const driver = stepper || (controlled ? null : own);
+  const stepValue = stepper ? stepper.step : controlled ? step : own.step;
   const captions = useMemo(
     () => edgeCaptions(EDGES, Object.fromEntries(NODES.map((n) => [n.id, n.label]))),
     [NODES, EDGES],
   );
+  const reelSteps = useMemo(() => (driver ? buildReelSteps({ edges: EDGES, nodes: NODES, details }) : []), [driver, EDGES, NODES, details]);
+  const [nodeDetail, setNodeDetail] = useState(null);
+  // A page that handles node clicks itself keeps its own panel; otherwise the details row shows the node.
+  const handleNodeClick = useCallback(
+    (node) => {
+      if (onNodeClick) onNodeClick(node);
+      else if (driver) setNodeDetail(buildNodeDetail(NODES.find((n) => n.id === node.id), details));
+    },
+    [onNodeClick, driver, NODES, details],
+  );
   return (
     <>
-      {!controlled && <DiagramStepBar stepper={stepper} caption={captions[stepper.step]} testId={`${testId}-steps`} />}
+      {!stepper && !controlled && <DiagramStepBar stepper={own} caption={captions[own.step]} testId={`${testId}-steps`} />}
       <ReactFlowProvider>
         <Inner
           NODES={NODES}
           EDGES={EDGES}
           GROUPS={GROUPS}
           selectedPath={selectedPath}
-          onNodeClick={onNodeClick}
+          onNodeClick={handleNodeClick}
           testId={testId}
-          height={height}
-          step={controlled ? step : stepper.step}
+          step={stepValue}
           focusId={focusId}
           ariaLabel={ariaLabel}
         />
       </ReactFlowProvider>
+      {driver && (
+        <DiagramReel steps={reelSteps} stepper={driver} nodeDetail={nodeDetail} onClearNode={() => setNodeDetail(null)} testId={`${testId}-reel`} />
+      )}
     </>
   );
 }

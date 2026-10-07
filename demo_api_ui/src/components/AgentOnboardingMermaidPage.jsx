@@ -145,6 +145,7 @@ export default function AgentOnboardingMermaidPage() {
           NODES={AOM_NODES}
           EDGES={AOM_EDGES}
           GROUPS={AOM_GROUPS}
+          details={AOM_DETAILS}
           onNodeClick={(node) => setSelectedNode(selectedNode?.id === node.id ? null : node)}
           testId="aom-flow-diagram"
           height={640}

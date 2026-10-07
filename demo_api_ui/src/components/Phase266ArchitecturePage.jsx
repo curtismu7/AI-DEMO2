@@ -182,6 +182,10 @@ const P266_EDGES = [
 
 // Per-node click detail (teaching values).
 const P266_NODE_DETAILS = {
+  User: "The person at the browser. Signs in once with OIDC; every later call in this flow rides on that one session.",
+  SPA: "The React app on :4000. It sends the chat request to the BFF and renders the three result pages (blue, amber, teal), one per credential path.",
+  PathInfo: "Path A's marker page: shows the masked last four characters of the API key, never the key, so the audience can see which credential the call used.",
+  Summary: "The existing /summary endpoint. Shown so the new routes can be compared with one that did not change.",
   Gateway: "Route tool name → credential path, exchange the user bearer (RFC 8693, actor=gateway-client), and stamp _meta.credentialPath + _meta.tokenEvents on the response.",
   PingOne: "Issues and exchanges tokens: RFC 8693 /token, RFC 7662 /introspect, RFC 7517 JWKS.",
   Identity: "Path B target. Decodes access + id tokens, writes the act-chain audit log, and scrubs raw JWTs from the response body.",
@@ -280,6 +284,7 @@ export default function Phase266ArchitecturePage() {
           NODES={P266_NODES}
           EDGES={P266_EDGES}
           GROUPS={P266_GROUPS}
+          details={P266_NODE_DETAILS}
           selectedPath={selectedPath}
           onNodeClick={(node) => setSelectedNode(selectedNode?.id === node.id ? null : node)}
           testId="p266-flow-diagram"

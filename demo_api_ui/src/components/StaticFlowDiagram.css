@@ -4,7 +4,7 @@
   --sfd-edge: var(--th-text-muted);
   position: relative;
   width: 100%;
-  height: calc(100vh - 240px);
+  height: max(420px, calc(100vh - 330px));
   border: 1px solid var(--th-border);
   border-radius: 8px;
   background: var(--th-bg-card);

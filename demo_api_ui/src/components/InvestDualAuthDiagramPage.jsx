@@ -38,6 +38,18 @@ const MERMAID_SOURCE = `sequenceDiagram
     App-->>GW2: JSON {invest: {...},<br/>authMechanism: "X-API-Key"}
     GW2-->>Agent2: tools/call result + _meta`;
 
+// Short detail for each participant, shown in the movie reel's details row.
+const PARTICIPANT_DETAILS = {
+  Agent: "The AI agent acting for the signed-in user. It holds the user's token and asks the gateway to call a tool.",
+  GW: "The Agent Gateway. Authorizes the call, then either exchanges the token for the invest audience (left flow) or swaps in a vault-held API key (right flow).",
+  P1: "PingOne's authorization server. Performs the RFC 8693 token exchange and returns a token scoped to the invest service.",
+  RS: "The invest service over WebSocket MCP. Verifies the token's signature, audience, scope and expiry before it answers.",
+  Agent2: "The same agent, this time calling a tool that reaches the invest service through the backend-app path.",
+  GW2: "The same gateway. For this tool it drops the user's OAuth bearer instead of forwarding it.",
+  Vault: "Holds the invest service's API key. The gateway fetches it per call, so the key never reaches the agent.",
+  App: "The invest service over plain HTTP. It checks the shared key with a constant-time comparison and reports which mechanism it used.",
+};
+
 const NOTES = [
   {
     title: "Normal Flow — MCP Resource Server",
@@ -88,7 +100,7 @@ export default function InvestDualAuthDiagramPage() {
       />
 
       <div className="mgof-panel">
-        <SequenceFlowDiagram source={source} label="Invest dual-auth sequence diagram" />
+        <SequenceFlowDiagram source={source} label="Invest dual-auth sequence diagram" details={PARTICIPANT_DETAILS} />
       </div>
 
       <div className="mgof-notes">

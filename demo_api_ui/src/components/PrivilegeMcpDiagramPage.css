@@ -91,7 +91,7 @@
 }
 
 .pmd-rf-canvas {
-  height: max(520px, calc(100vh - 390px));
+  height: max(420px, calc(100vh - 440px));
   border-radius: var(--radius-md);
   overflow: hidden;
 }

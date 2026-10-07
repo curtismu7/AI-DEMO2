@@ -1,6 +1,6 @@
 # Diagram pages: one movie reel, one details row, one motion language
 
-Status: plan, 2026-10-07. Nothing in sections 1-3 below is built yet except where marked **done**.
+Status: 2026-10-07. Built: the reel, click-for-details row, node ring, Reset (clears and refits), shared motion. Decisions below were made with the owner. Remaining: reel for the pages that keep their own simulators (see Build order 5).
 
 ## Goal
 
@@ -79,9 +79,11 @@ Done for edges. Remaining: nodes. Proposed: the node at each end of the arrow in
 - Reduced motion: dashes stop moving, the highlight remains.
 - Font floor: node text and reel text render at 12px or larger at the fitted zoom; the audit script used for the width/font pass is the template.
 
-## Open questions
+## Decisions (answered 2026-10-07)
 
-1. Should the reel replace the caption line in the control bar, or sit alongside it? (Proposal: keep the caption; it is the accessible live region.)
-2. Details for pages with no per-node text (Token Chain has `NODE_DETAILS`; System Diagram focus slices have none): write short details, or show caption only?
-3. Do the personal-agent pages keep their own "step by step" write-up, or switch to the shared details row? (Proposal: keep the write-up, add the reel.)
-4. Reel for sequence diagrams with 28 steps: one long strip, or grouped by phase using the `alt`/box structure?
+1. **Reel vs caption:** keep both. The caption stays in the control bar (accessible live region); the reel sits under the diagram.
+2. **Thin diagrams:** short details are written by hand where a page had none: Phase 266 (4 nodes added to its map), Invest participants, AI Gateway Architecture nodes and Sign-in sequence participants. Pages with node text of their own reuse it; the rest fall back to the node's own lines.
+3. **Long reels:** one horizontally scrolling strip that follows the current card. On sequence diagrams the reel sits above the canvas (the drawing is as tall as the sequence), on every other diagram it sits below.
+4. **Personal Agent pages:** keep the long "Step by step" write-up, add the reel above it.
+
+Built as: `utils/diagramReel.js` (`buildReelSteps`, `buildNodeDetail`), `components/DiagramReel.jsx`, `markNodes` and `goTo` in `hooks/useDiagramStepper.js`, the shared `dstep-hot` ring, and a `diagram:refit` event Reset sends so every canvas returns to its fitted view. `StaticFlowDiagram` takes `stepper` (page-owned walkthrough) and `details`; sequences, flowcharts, the AI Gateway graphs and Token Chain wire the same pieces.

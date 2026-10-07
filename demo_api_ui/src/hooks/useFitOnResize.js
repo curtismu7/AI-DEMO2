@@ -1,6 +1,9 @@
 import { useEffect } from "react";
 import { useReactFlow } from "@xyflow/react";
 
+/** Dispatched on window by Reset so every diagram on the page goes back to its fitted view. */
+export const REFIT_EVENT = "diagram:refit";
+
 /**
  * React Flow fits the view once, on mount. A page whose layout settles afterwards
  * (side nav expanding, window resize) leaves the diagram clipped, so refit whenever
@@ -17,7 +20,10 @@ export function useFitOnResize(ref, fitViewOptions) {
       raf = requestAnimationFrame(() => fitView(fitViewOptions));
     });
     ro.observe(el);
+    const onRefit = () => fitView(fitViewOptions);
+    window.addEventListener(REFIT_EVENT, onRefit);
     return () => {
+      window.removeEventListener(REFIT_EVENT, onRefit);
       ro.disconnect();
       cancelAnimationFrame(raf);
     };

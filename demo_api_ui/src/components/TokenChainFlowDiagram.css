@@ -7,7 +7,7 @@
 
 .tcf-canvas {
   position: relative;
-  height: max(640px, calc(100vh - 220px));
+  height: max(440px, calc(100vh - 330px));
   width: 100%;
   border-radius: var(--radius-md);
   background: var(--th-bg-card);

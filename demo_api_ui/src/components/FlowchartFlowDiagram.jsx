@@ -12,7 +12,9 @@ import "@xyflow/react/dist/style.css";
 import DiagramStepBar from "./DiagramStepBar";
 import { getElk } from "../utils/elkLayout";
 import { parseFlowchart } from "../utils/parseFlowchart";
-import { markEdges, stepEdges, useDiagramStepper } from "../hooks/useDiagramStepper";
+import { markEdges, markNodes, stepEdges, useDiagramStepper } from "../hooks/useDiagramStepper";
+import DiagramReel from "./DiagramReel";
+import { buildNodeDetail, buildReelSteps } from "../utils/diagramReel";
 import { useFitOnResize } from "../hooks/useFitOnResize";
 import "./FlowchartFlowDiagram.css";
 
@@ -141,11 +143,17 @@ export async function layoutFlowchart(model) {
     selectable: false,
   }));
   const steps = usable.map((e) => `${label[e.from]} → ${label[e.to]}${e.label ? `: ${e.label.replace(/\n/g, " ")}` : ""}`);
+  // For the movie reel: arrows in walk order, and every node/group with its own detail lines.
+  const reelEdges = usable.map((e) => [e.from, e.to, e.label]);
+  const reelNodes = [...groups, ...nodes].map((x) => {
+    const [head, ...rest] = x.label.split("\n");
+    return { id: x.id, label: head, sub: rest };
+  });
   layoutSeq += 1;
-  return { id: layoutSeq, nodes: rfNodes, edges: rfEdges, steps };
+  return { id: layoutSeq, nodes: rfNodes, edges: rfEdges, steps, reelEdges, reelNodes };
 }
 
-function Inner({ source, height, testId, step, active }) {
+function Inner({ source, testId, step, active, details }) {
   const ref = useRef(null);
   useFitOnResize(ref, FIT);
   const [flow, setFlow] = useState(null);
@@ -174,16 +182,29 @@ function Inner({ source, height, testId, step, active }) {
     return stepEdges(flow.edges, step !== undefined ? step : stepper.step);
   }, [flow, stepper.step, step, active]);
 
+  const reelSteps = useMemo(
+    () => (flow && !driven ? buildReelSteps({ edges: flow.reelEdges, nodes: flow.reelNodes, details }) : []),
+    [flow, driven, details],
+  );
+  const [nodeDetail, setNodeDetail] = useState(null);
+  const current = reelSteps[stepper.step];
+  const lit = useMemo(() => (flow ? markNodes(flow.nodes, current ? [current.from, current.to] : []) : []), [flow, current]);
+  const onNodeClick = (_, node) => {
+    if (driven || !flow) return;
+    setNodeDetail(buildNodeDetail(flow.reelNodes.find((x) => x.id === node.id), details));
+  };
+
   if (error) return <p className="fcd-note">Couldn't lay out this diagram: {error}</p>;
   return (
     <>
       {!driven && <DiagramStepBar stepper={stepper} caption={flow?.steps[stepper.step]} testId={`${testId}-steps`} />}
-      <div className="fcd-canvas" style={{ minHeight: height }} data-testid={testId} ref={ref}>
+      <div className="fcd-canvas" data-testid={testId} ref={ref}>
         {flow ? (
           <ReactFlow
             key={flow.id}
-            nodes={flow.nodes}
+            nodes={lit}
             edges={shown}
+            onNodeClick={onNodeClick}
             nodeTypes={nodeTypes}
             fitView
             fitViewOptions={FIT}
@@ -202,16 +223,19 @@ function Inner({ source, height, testId, step, active }) {
           <p className="fcd-note">Laying out diagram…</p>
         )}
       </div>
+      {!driven && flow && (
+        <DiagramReel steps={reelSteps} stepper={stepper} nodeDetail={nodeDetail} onClearNode={() => setNodeDetail(null)} testId={`${testId}-reel`} />
+      )}
     </>
   );
 }
 
 /** `step` / `active` work as on SequenceFlowDiagram; leave both undefined for the built-in Play/Step bar. */
-export default function FlowchartFlowDiagram({ source, height = 720, testId = "flowchart-flow-diagram", label = "Architecture diagram", step, active }) {
+export default function FlowchartFlowDiagram({ source, testId = "flowchart-flow-diagram", label = "Architecture diagram", step, active, details }) {
   return (
     <div className="fcd" role="group" aria-label={label}>
       <ReactFlowProvider>
-        <Inner source={source} height={height} testId={testId} step={step} active={active} />
+        <Inner source={source} testId={testId} step={step} active={active} details={details} />
       </ReactFlowProvider>
     </div>
   );
