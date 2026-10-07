@@ -1,7 +1,8 @@
 # Diagram reports — URLs to test
 
 Host: `https://local.ping-devops.com:4000` (sign-in only works on this host; every page below is public).
-On each page press **Simulate**, then **Pause**, **Next**, **Prev**, **Stop**. The bar shows "Step n of N" and names the arrow in focus.
+On each page press **Simulate**, then **Pause**, **Next**, **Prev**, **Stop**, **Reset**. The bar shows "Step n of N" and names the arrow in focus; the focused arrow runs as a thick dotted line on every page.
+Below the diagram is a movie reel with one card per step. Click a card to jump to that step; its details open in a row under the reel, so the diagram never shrinks.
 
 ## Diagrams nav
 
@@ -30,6 +31,16 @@ On each page press **Simulate**, then **Pause**, **Next**, **Prev**, **Stop**. T
 | Phase 266 architecture | https://local.ping-devops.com:4000/architecture/phase-266 | 24 steps |
 | Agent Onboarding (React Flow page) | https://local.ping-devops.com:4000/agent-onboarding-flow-mermaid | 15 steps |
 
+## Pages added to the reel and React Flow
+
+| Report | URL | What to check |
+|---|---|---|
+| Sequence Diagram | https://local.ping-devops.com:4000/sequence-diagram | Pick a scenario; Simulate, Prev and Next move the highlight; click a reel card to jump. Many participants, so it fits small |
+| Agent Onboarding Flow | https://local.ping-devops.com:4000/agent-onboarding-flow | Pick a persona (and an Admin story); each step lights the cards and links it touches |
+| Agent Onboarding Subway | https://local.ping-devops.com:4000/agent-onboarding-flow-subway | Same personas as a station line; one station per run of steps |
+| Overview | https://local.ping-devops.com:4000/architecture/overview | Pick a scenario and Simulate; the reel appears under the diagram (not in Live mode) |
+| Token Flow | https://local.ping-devops.com:4000/architecture/token-flow | Sequence replaces the old PNG; 15 steps in Full Flow, other scenarios in the dropdown. Click a reel card to open that step's token card |
+
 ## Need a signed-in session (only unit-tested so far)
 
 | Report | URL | Where the diagram is |
@@ -39,6 +50,6 @@ On each page press **Simulate**, then **Pause**, **Next**, **Prev**, **Stop**. T
 | OAuth Visualizer | open from the app (a panel, not a page) | Highlights the arrows for the selected step |
 | Token Exchange diagram | the floating token panel in the app | Updates live as a run happens |
 
-## Not converted (their own simulators, unchanged)
+## Not converted
 
-Overview `/architecture/overview`, Agent Onboarding Flow `/agent-onboarding-flow` and Subway `/agent-onboarding-flow-subway`, Sequence Diagram `/sequence-diagram`, Token Flow `/architecture/token-flow`, Canvas `/architecture/canvas`.
+Canvas `/architecture/canvas` is still a react-konva drag-and-drop editor; it is not a stepped report.
