@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   BaseEdge,
   Background,
@@ -24,11 +24,11 @@ import "./SequenceFlowDiagram.css";
  * page's .mmd export/upload keeps working. Messages are the Play/Step steps.
  */
 
-const COL = 230;
-const PART_W = 190;
-const PART_H = 60;
+const COL = 270;
+const PART_W = 220;
+const PART_H = 64;
 const TOP = 90;
-const LINE_H = 15;
+const LINE_H = 17;
 const FIT = { padding: 0.04 };
 
 function Participant({ data }) {
@@ -106,16 +106,43 @@ const ARROW = { type: "arrowclosed", width: 16, height: 16 };
 
 export function buildSequenceFlow(source) {
   const model = parseSequence(source);
-  const cx = Object.fromEntries(model.participants.map((p, i) => [p.id, 60 + i * COL + PART_W / 2]));
+  // Two or more `box` groups are separate flows. Draw them stacked, each with its own
+  // participant row, instead of side by side, so the diagram stays narrow enough to read.
+  const stacked = model.boxes.length > 1;
+  const groupOf = (p) => (stacked ? p.box || "__none" : "__all");
+  const groupIds = [...new Set(model.participants.map(groupOf))];
+  const colIndex = {};
+  const perGroup = {};
+  model.participants.forEach((p) => {
+    const g = groupOf(p);
+    perGroup[g] = (perGroup[g] || 0) + 1;
+    colIndex[p.id] = perGroup[g] - 1;
+  });
+  const cx = Object.fromEntries(model.participants.map((p) => [p.id, 60 + colIndex[p.id] * COL + PART_W / 2]));
+  const byId = Object.fromEntries(model.participants.map((p) => [p.id, p]));
   const nodes = [];
   const edges = [];
   const steps = [];
   const names = Object.fromEntries(model.participants.map((p) => [p.id, p.label.split("\n")[0]]));
+  const spans = {}; // group id -> { head, end }
+  let cur = null;
   let y = TOP;
   let n = 0;
 
+  const open = (g) => {
+    if (cur !== null) spans[cur].end = y + 20;
+    const head = cur === null ? 20 : y + 40;
+    if (cur !== null) y = head + PART_H + 6;
+    spans[g] = { head, end: 0 };
+    cur = g;
+  };
+  open(groupIds[0] ?? "__all");
+  const groupCx = (g) => model.participants.filter((p) => groupOf(p) === g).map((p) => cx[p.id]);
+
   model.items.forEach((it, i) => {
     if (it.type === "message") {
+      const g = groupOf(byId[it.from]);
+      if (stacked && g !== cur) open(g);
       const lines = it.text.split("\n").length;
       y += 18 + lines * LINE_H;
       const self = it.from === it.to;
@@ -150,7 +177,7 @@ export function buildSequenceFlow(source) {
       nodes.push({ id: `n${i}`, type: "note", position: { x: x0, y }, data: { text: it.text, w }, draggable: false, selectable: false });
       y += lines * LINE_H + 18;
     } else if (it.type === "fragment") {
-      const all = Object.values(cx);
+      const all = groupCx(cur);
       y += 12;
       nodes.push({
         id: `f${i}`,
@@ -163,33 +190,50 @@ export function buildSequenceFlow(source) {
       y += 18;
     }
   });
+  spans[cur].end = y + 30;
 
-  const height = y + 30 - 60;
   model.participants.forEach((p) => {
-    nodes.push({ id: `p-${p.id}`, type: "part", position: { x: cx[p.id] - PART_W / 2, y: 20 }, data: { label: p.label }, draggable: false, zIndex: 4 });
-    nodes.push({ id: `l-${p.id}`, type: "lifeline", position: { x: cx[p.id] - 1, y: 20 + PART_H }, data: { h: height }, draggable: false, selectable: false, zIndex: 0 });
+    const span = spans[groupOf(p)] || spans[cur];
+    nodes.push({ id: `p-${p.id}`, type: "part", position: { x: cx[p.id] - PART_W / 2, y: span.head }, data: { label: p.label }, draggable: false, zIndex: 4 });
+    nodes.push({ id: `l-${p.id}`, type: "lifeline", position: { x: cx[p.id] - 1, y: span.head + PART_H }, data: { h: Math.max(20, span.end - span.head - PART_H) }, draggable: false, selectable: false, zIndex: 0 });
   });
   model.boxes.forEach((b, i) => {
     const xs = b.ids.map((id) => cx[id]);
     if (!xs.length) return;
-    const x0 = Math.min(...xs) - PART_W / 2 - 14;
+    const span = stacked ? spans[groupOf(byId[b.ids[0]])] : spans[cur];
+    const top = (stacked ? span.head : 20) - 30;
     nodes.push({
       id: `box${i}`,
       type: "box",
-      position: { x: x0, y: -10 },
-      data: { label: b.label, w: Math.max(...xs) - Math.min(...xs) + PART_W + 28, h: height + PART_H + 40 },
+      position: { x: Math.min(...xs) - PART_W / 2 - 14, y: top },
+      data: { label: b.label, w: Math.max(...xs) - Math.min(...xs) + PART_W + 28, h: span.end - top + 10 },
       draggable: false,
       selectable: false,
       zIndex: -1,
     });
   });
-  return { nodes, edges, steps };
+  // Natural size of the drawing, so the canvas can be sized to it (see Inner).
+  const widest = Math.max(1, ...Object.values(perGroup));
+  const bounds = { w: 120 + (widest - 1) * COL + PART_W, h: spans[cur].end + 40 };
+  return { nodes, edges, steps, bounds };
 }
 
-function Inner({ source, step, active, height }) {
+function Inner({ source, step, active }) {
   const ref = useRef(null);
   useFitOnResize(ref, FIT);
-  const { nodes, edges, steps } = useMemo(() => buildSequenceFlow(source), [source]);
+  const [canvasW, setCanvasW] = useState(0);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === "undefined") return undefined;
+    const ro = new ResizeObserver(() => setCanvasW(el.clientWidth));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const { nodes, edges, steps, bounds } = useMemo(() => buildSequenceFlow(source), [source]);
+  // Fit to the page WIDTH and let the canvas grow to the drawing's height, so a 28-message
+  // sequence stays at a readable size instead of shrinking to fit one screen.
+  const zoom = canvasW ? Math.min(1.1, canvasW / bounds.w) : 1;
+  const fitHeight = canvasW ? Math.max(520, Math.round(bounds.h * zoom) + 24) : undefined;
   const stepper = useDiagramStepper(steps.length);
   const driven = step !== undefined || active !== undefined;
   const shown = useMemo(() => {
@@ -199,7 +243,7 @@ function Inner({ source, step, active, height }) {
   return (
     <>
       {!driven && <DiagramStepBar stepper={stepper} caption={steps[stepper.step]} />}
-      <div className="sfx-canvas" data-testid="sequence-flow-canvas" ref={ref} style={height ? { height } : undefined}>
+      <div className="sfx-canvas" data-testid="sequence-flow-canvas" ref={ref} style={fitHeight ? { height: fitHeight } : undefined}>
         <ReactFlow
           nodes={nodes}
           edges={shown}
@@ -211,6 +255,8 @@ function Inner({ source, step, active, height }) {
           maxZoom={2}
           nodesDraggable={false}
           nodesConnectable={false}
+          zoomOnScroll={false}
+          preventScrolling={false}
           proOptions={{ hideAttribution: true }}
         >
           <Background variant={BackgroundVariant.Dots} gap={22} size={1.5} />
@@ -226,11 +272,11 @@ function Inner({ source, step, active, height }) {
  * highlight itself passes `step` (one message in focus, later ones fade) or `active` (an
  * array of message indexes to accent).
  */
-export default function SequenceFlowDiagram({ source, label = "Sequence diagram", step, active, height }) {
+export default function SequenceFlowDiagram({ source, label = "Sequence diagram", step, active }) {
   return (
     <div className="sfx" role="group" aria-label={label}>
       <ReactFlowProvider>
-        <Inner source={source} step={step} active={active} height={height} />
+        <Inner source={source} step={step} active={active} />
       </ReactFlowProvider>
     </div>
   );

@@ -65,22 +65,22 @@ export const AOM_NODES = [
   {
     id: "PD", group: "disc", label: "A. Privilege Discovery",
     sub: ["Browser / Device Agents", "Gateway detects unmanaged AI", "Admin notified, reviews, approves", "Metadata synced to IGA"],
-    x: 1280, y: 40,
+    x: 0, y: 660,
   },
   {
     id: "CD", group: "disc", label: "B. Cloud Discovery (IGA)",
     sub: ["IGA discovers cloud-native agents", "Admin reviews & approves", "Identity created, synced to IGA"],
-    x: 1280, y: 230,
+    x: 0, y: 850,
   },
   {
     id: "IGA", group: "iga", label: "IGA for AI",
     sub: ["Intelligent Governance & Administration", "Inventory · Ownership/Lifecycle · Entitlements", "Certification · Compliance & Audit", "Single source of truth for all AI agents/MCPs"],
-    x: 1600, y: 40,
+    x: 320, y: 660,
   },
   {
     id: "RT", group: "rt", label: "Enterprise AI Runtime",
     sub: ["Applications · Databases · APIs", "Files & Storage · SaaS · Enterprise Systems", "All traffic validated, authorized, governed"],
-    x: 1920, y: 40,
+    x: 640, y: 660,
   },
 ];
 

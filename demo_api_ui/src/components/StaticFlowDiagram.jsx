@@ -39,10 +39,16 @@ import { edgeCaptions, useDiagramStepper } from "../hooks/useDiagramStepper";
 import DiagramStepBar from "./DiagramStepBar";
 import "./StaticFlowDiagram.css";
 
-const NODE_W = 210;
-const NODE_H_BASE = 44;
-const NODE_H_PER_SUB = 15;
-const nodeH = (n) => NODE_H_BASE + (n.sub ? n.sub.length * NODE_H_PER_SUB : 0);
+const NODE_W = 250;
+// Layouts were hand-placed for 210px cards; spread them out in proportion so the larger text fits.
+const SPREAD_X = 1.2;
+const SPREAD_Y = 1.12;
+// 13px bold label (~7.4px/char) and 12px detail lines (~6.6px/char) inside 250px minus padding.
+const LABEL_CHARS = 29;
+const SUB_CHARS = 33;
+const wrapped = (text, per) => Math.max(1, Math.ceil(String(text).length / per));
+const nodeH = (n) =>
+  16 + wrapped(n.label, LABEL_CHARS) * 17 + (n.sub || []).reduce((h, s) => h + wrapped(s, SUB_CHARS) * 16, 0);
 
 const FIT = { padding: 0.06 };
 const HIDDEN = { opacity: 0, width: 1, height: 1 };
@@ -117,7 +123,7 @@ function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, testId, height
         return {
           id: n.id,
           type: "sfd",
-          position: { x: n.x, y: n.y },
+          position: { x: n.x * SPREAD_X, y: n.y * SPREAD_Y },
           draggable: false,
           selectable: false,
           data: {
@@ -167,7 +173,7 @@ function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, testId, height
   );
 
   return (
-    <div className="sfd" data-testid={testId} style={{ height }} ref={ref} role={ariaLabel ? "group" : undefined} aria-label={ariaLabel}>
+    <div className="sfd" data-testid={testId} style={{ minHeight: height }} ref={ref} role={ariaLabel ? "group" : undefined} aria-label={ariaLabel}>
       <svg width="0" height="0" aria-hidden="true" className="sfd-defs">
         <defs>
           <marker id="sfd-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
@@ -187,6 +193,8 @@ function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, testId, height
         nodesDraggable={false}
         nodesConnectable={false}
         elementsSelectable={false}
+        zoomOnScroll={false}
+        preventScrolling={false}
         proOptions={{ hideAttribution: true }}
       >
         <Background variant={BackgroundVariant.Dots} gap={22} size={1.5} />

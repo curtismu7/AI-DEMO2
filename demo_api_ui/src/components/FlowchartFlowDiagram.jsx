@@ -25,15 +25,15 @@ import "./FlowchartFlowDiagram.css";
 const FIT = { padding: 0.04 };
 let layoutSeq = 0;
 const HIDDEN = { opacity: 0, width: 1, height: 1 };
-const CHAR_W = 6.4;
-const LINE_H = 15;
+const CHAR_W = 7;
+const LINE_H = 17;
 const GROUP_PAD = 16;
 const GROUP_HEADER = 28;
 
 const sizeOf = (label) => {
   const lines = label.split("\n");
   const longest = Math.max(...lines.map((l) => l.length));
-  return { width: Math.min(280, Math.max(120, Math.ceil(longest * CHAR_W) + 24)), height: lines.length * LINE_H + 16 };
+  return { width: Math.min(320, Math.max(140, Math.ceil(longest * CHAR_W) + 28)), height: lines.length * LINE_H + 16 };
 };
 
 function FNode({ data }) {
@@ -95,8 +95,8 @@ export async function layoutFlowchart(model) {
       "elk.algorithm": "layered",
       "elk.direction": "DOWN",
       "elk.hierarchyHandling": "INCLUDE_CHILDREN",
-      "elk.spacing.nodeNode": "28",
-      "elk.layered.spacing.nodeNodeBetweenLayers": "56",
+      "elk.spacing.nodeNode": "36",
+      "elk.layered.spacing.nodeNodeBetweenLayers": "72",
       "elk.padding": "[top=12,left=12,bottom=12,right=12]",
     },
     children: (children.get("__root") || []).map(toElk),
@@ -178,7 +178,7 @@ function Inner({ source, height, testId, step, active }) {
   return (
     <>
       {!driven && <DiagramStepBar stepper={stepper} caption={flow?.steps[stepper.step]} testId={`${testId}-steps`} />}
-      <div className="fcd-canvas" style={{ height }} data-testid={testId} ref={ref}>
+      <div className="fcd-canvas" style={{ minHeight: height }} data-testid={testId} ref={ref}>
         {flow ? (
           <ReactFlow
             key={flow.id}
@@ -191,6 +191,8 @@ function Inner({ source, height, testId, step, active }) {
             maxZoom={2}
             nodesDraggable={false}
             nodesConnectable={false}
+            zoomOnScroll={false}
+            preventScrolling={false}
             proOptions={{ hideAttribution: true }}
           >
             <Background variant={BackgroundVariant.Dots} gap={22} size={1.5} />

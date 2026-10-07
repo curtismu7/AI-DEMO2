@@ -4,7 +4,7 @@ import "./DiagramStepBar.css";
 /**
  * Play/Step bar for a diagram that keeps its own drawing. Pairs with
  * useDiagramStepper. Renders nothing when the diagram has no
- * arrows to walk.
+ * arrows to walk. Reset clears the walkthrough back to the plain diagram.
  */
 export default function DiagramStepBar({ stepper, caption, testId = "diagram-step-bar" }) {
   if (!stepper || stepper.total < 1) return null;
@@ -26,6 +26,9 @@ export default function DiagramStepBar({ stepper, caption, testId = "diagram-ste
         stepMs={stepper.stepMs}
         onSetStepMs={stepper.setStepMs}
       />
+      <button type="button" className="dstep-reset" onClick={stepper.stop} disabled={!active} title="Clear the walkthrough and start over">
+        Reset
+      </button>
       <p className="dstep-caption" aria-live="polite">
         {active ? (
           <>

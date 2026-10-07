@@ -42,7 +42,7 @@ describe("stepEdges / edgeCaptions", () => {
     const out = stepEdges(edges, 1);
     expect(out[0]).toBe(edges[0]);
     expect(out[1].animated).toBe(true);
-    expect(out[2].style.opacity).toBe(0.3);
+    expect(out[2].style.opacity).toBe(0.35);
   });
 
   it("captions tuple and object edges with node names", () => {

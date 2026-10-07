@@ -8,10 +8,12 @@ import {
   Handle,
   Position,
   BaseEdge,
+  EdgeLabelRenderer,
   getSmoothStepPath,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { stepEdges } from '../hooks/useDiagramStepper';
+import FitOnResize from './FitOnResize';
 import './TokenChainFlowDiagram.css';
 
 /**
@@ -64,8 +66,11 @@ const NODES = [
   { id: 'metadata', group: 'safety', label: 'Agent metadata', sub: 'capabilities', x: 1400, y: 680 },
 ];
 
-const NODE_W = 200;
-const NODE_H = 64;
+const NODE_W = 232;
+const NODE_H = 76;
+// Positions were hand-placed for 200x64 cards; spread them out in proportion so the larger text fits.
+const SPREAD_X = 1.25;
+const SPREAD_Y = 1.15;
 const GROUP_PAD = 24;
 const HEADER_H = 34;
 
@@ -227,7 +232,9 @@ export const NODE_DETAILS = {
 // Compute per-group bounding boxes from member node positions.
 const GROUP_BOXES = (() => {
   const boxes = {};
-  NODES.forEach(({ id, group, x, y }) => {
+  NODES.forEach(({ id, group, x: ox, y: oy }) => {
+    const x = ox * SPREAD_X;
+    const y = oy * SPREAD_Y;
     const b = (boxes[group] ||= { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity });
     b.x0 = Math.min(b.x0, x);
     b.y0 = Math.min(b.y0, y);
@@ -315,7 +322,7 @@ function GroupBox({ data }) {
 
 function ChainEdge(props) {
   const { id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, style, data } = props;
-  const [path] = getSmoothStepPath({
+  const [path, labelX, labelY] = getSmoothStepPath({
     sourceX,
     sourceY,
     sourcePosition: Position.Right,
@@ -329,12 +336,15 @@ function ChainEdge(props) {
     <>
       <BaseEdge id={id} path={path} style={style} />
       {label && (
-        <>
-          <path id={`${id}-lp`} d={path} fill="none" stroke="none" />
-          <text className="tcf-edge-label">
-            <textPath href={`#${id}-lp`} startOffset="50%" textAnchor="middle">{label}</textPath>
-          </text>
-        </>
+        // HTML label, not text on the path: a path drawn right-to-left turned the label upside down.
+        <EdgeLabelRenderer>
+          <div
+            className="tcf-edge-label nodrag nopan"
+            style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
+          >
+            {label}
+          </div>
+        </EdgeLabelRenderer>
       )}
     </>
   );
@@ -358,7 +368,7 @@ function buildFlow() {
     ...NODES.map(({ id, group, label, sub, x, y }) => ({
       id,
       type: 'chain',
-      position: { x, y },
+      position: { x: x * SPREAD_X, y: y * SPREAD_Y },
       data: { group, label, sub },
       zIndex: 1,
       parentNode: `group-${group}`,
@@ -390,6 +400,8 @@ export default function TokenChainFlowDiagram({ onClickNode, step = -1 }) {
         edgeTypes={edgeTypes}
         fitView
         fitViewOptions={{ padding: 0.08 }}
+        zoomOnScroll={false}
+        preventScrolling={false}
         proOptions={{ hideAttribution: true }}
         nodesConnectable={false}
         minZoom={0.2}
@@ -401,6 +413,7 @@ export default function TokenChainFlowDiagram({ onClickNode, step = -1 }) {
         }}
       >
         <Background variant={BackgroundVariant.Dots} gap={22} size={1.5} />
+        <FitOnResize />
       </ReactFlow>
     </div>
   );

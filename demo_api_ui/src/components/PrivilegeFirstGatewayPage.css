@@ -5,7 +5,7 @@
 
 .pfg-page {
   --pfg-mono: var(--font-mono);
-  max-width: 1180px;
+  max-width: none;
   margin: 0 auto;
   padding: 32px 24px 60px;
   display: grid;

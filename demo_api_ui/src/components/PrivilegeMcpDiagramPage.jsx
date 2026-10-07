@@ -15,7 +15,6 @@ import {
   ReactFlow,
   Background,
   Controls,
-  MiniMap,
   Handle,
   Position,
   MarkerType,
@@ -23,6 +22,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import DiagramExportBar from "./DiagramExportBar";
 import SequenceFlowDiagram from "./SequenceFlowDiagram";
+import FitOnResize from "./FitOnResize";
 import { edgeCaptions, stepEdges, useDiagramStepper } from "../hooks/useDiagramStepper";
 import DiagramStepBar from "./DiagramStepBar";
 import "./PrivilegeMcpDiagramPage.css";
@@ -166,9 +166,9 @@ function PmdNode({ data }) {
         color: v.text,
         borderRadius: data.pill ? 999 : 8,
         padding: "8px 12px",
-        minWidth: 150,
-        maxWidth: 210,
-        fontSize: "0.68rem",
+        minWidth: 170,
+        maxWidth: 250,
+        fontSize: "0.82rem",
         lineHeight: 1.35,
         textAlign: "center",
         boxShadow: "0 2px 6px rgba(0,0,0,0.25)",
@@ -361,11 +361,13 @@ export default function PrivilegeMcpDiagramPage() {
                 edges={stepEdges(activeTabMeta.edges, rfStepper.step)}
                 nodeTypes={NODE_TYPES}
                 fitView
+                zoomOnScroll={false}
+                preventScrolling={false}
                 proOptions={{ hideAttribution: true }}
               >
                 <Background color="var(--pmd-border)" gap={24} />
                 <Controls showInteractive={false} />
-                <MiniMap pannable zoomable style={{ background: "var(--pmd-panel)" }} />
+                <FitOnResize />
               </ReactFlow>
             </div>
           </>

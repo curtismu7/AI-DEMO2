@@ -131,14 +131,14 @@ const P266_NODES = [
     x: 0, y: 330,
   },
   { id: "InternalIdToken", group: "bff", label: "/internal/id-token", sub: ["secret-gated", "server-to-server"], path: "B", x: 0, y: 460 },
-  { id: "PathInfo", group: "bff", label: "/api/path/apikey-info", sub: ["masked apiKey last4", "(Path A info marker)"], path: "A", x: 0, y: 470 },
+  { id: "PathInfo", group: "bff", label: "/api/path/apikey-info", sub: ["masked apiKey last4", "(Path A info marker)"], path: "A", x: 0, y: 560 },
 
   { id: "Summary", group: "rs", label: "GET /summary", sub: ["existing — untouched"], x: 260, y: 40 },
   { id: "Identity", group: "rs", label: "POST or GET /identity", sub: ["decodes access+id tokens", "act-chain audit log", "scrubRawJwts walker"], path: "B", x: 260, y: 160 },
   { id: "Accounts", group: "rs", label: "GET /accounts", sub: ["reads LMDB"], path: "C", x: 260, y: 300 },
   { id: "Transactions", group: "rs", label: "GET /transactions", sub: ["reads LMDB"], path: "C", x: 260, y: 430 },
 
-  { id: "BankingDb", group: "bff", label: "LMDB store", sub: ["data/persistent/lmdb/", "banking_accounts +", "banking_transactions"], path: "C", x: 0, y: 610 },
+  { id: "BankingDb", group: "bff", label: "LMDB store", sub: ["data/persistent/lmdb/", "banking_accounts +", "banking_transactions"], path: "C", x: 0, y: 700 },
 
   {
     id: "Gateway", group: "bff", label: "banking_mcp_gateway :3005 — TRAFFIC COP",

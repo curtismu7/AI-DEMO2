@@ -13,16 +13,16 @@ export const RSP_NODES = [
   { id: "B", group: "upstream", label: "BFF — demo_api_server :3001", sub: ["session ✓ · P1AZ pre-flight gate", "RFC 8693 exchange #1/#2 ⇒ MCP token"], x: 300, y: 40 },
   { id: "G", group: "upstream", label: "GATEWAY — IG :3036 / MCP-GW :3005", sub: ["✓ token validation (JWKS / introspection)", "P1AZ decision · schema checks · exchange #3"], x: 600, y: 40 },
   { id: "M", group: "upstream", label: "MCP SERVER — oauth-mcp :8080", sub: ["✓ JWKS + last-hop authz (D-05)", "tool scope narrowing · STEP-9 exchange"], x: 900, y: 40 },
-  { id: "RS", group: "hot", label: "RESOURCE SERVER — Kong mock", sub: ["/api/accounts · /api/transactions", "validates ONLY the step-9 token", "never re-validates upstream tokens"], x: 1200, y: 40 },
-  { id: "P", group: "pdp", label: "PingOne Authorize — AAM", sub: ["mock authz :9001 / real sideband"], x: 1200, y: 280 },
-  { id: "D", group: "upstream", label: "Banking data", sub: ["data/store.js"], x: 1500, y: 40 },
+  { id: "RS", group: "hot", label: "RESOURCE SERVER — Kong mock", sub: ["/api/accounts · /api/transactions", "validates ONLY the step-9 token", "never re-validates upstream tokens"], x: 900, y: 300 },
+  { id: "P", group: "pdp", label: "PingOne Authorize — AAM", sub: ["mock authz :9001 / real sideband"], x: 1200, y: 300 },
+  { id: "D", group: "upstream", label: "Banking data", sub: ["data/store.js"], x: 600, y: 300 },
 ];
 
 export const RSP_EDGES = [
   ["U", "B", "session cookie"],
   ["B", "G", "MCP token · aud = mcp resource"],
   ["G", "M", "gateway token · aud = mcpserver.ping.demo"],
-  ["M", "RS", "STEP-9 token · aud = banking RS · scopes narrowed · act chain + X-Agent-Sub / X-MCP-Tool", { color: "#e0575c" }],
+  ["M", "RS", "STEP-9 token · aud = banking RS · scopes narrowed · act chain + X-Agent-Sub / X-MCP-Tool", { color: "#e0575c", vertical: true }],
   ["RS", "P", "1. /sideband/request — ctx + raw Authorization", { dashed: true }],
   ["P", "RS", "decision — deny = complete direct response", { dashed: true }],
   ["RS", "P", "2. /sideband/response — real body", { dashed: true }],

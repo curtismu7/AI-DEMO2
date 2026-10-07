@@ -11,12 +11,12 @@
   background: var(--pmd-bg);
   color: var(--pmd-ink);
   min-height: 100%;
-  max-width: 1100px;
+  max-width: none;
   margin: 0 auto;
-  padding: 32px 24px 60px;
+  padding: 12px 16px 24px;
 }
 
-.pmd-hero { margin-bottom: 16px; }
+.pmd-hero { margin-bottom: 4px; }
 
 .pmd-eyebrow {
   display: inline-block;
@@ -25,12 +25,12 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--pmd-accent);
-  margin-bottom: 8px;
+  margin-bottom: 2px;
 }
 
 .pmd-hero h1 {
   font-size: var(--font-size-h2);
-  margin: 0 0 8px;
+  margin: 0 0 4px;
   letter-spacing: -0.01em;
 }
 
@@ -45,7 +45,7 @@
 .pmd-tabs {
   display: flex;
   gap: 4px;
-  margin: 16px 0 12px;
+  margin: 8px 0 6px;
 }
 
 .pmd-tab {
@@ -71,8 +71,8 @@
   background: var(--pmd-panel);
   border: 1px solid var(--pmd-border);
   border-radius: 8px;
-  padding: 24px;
-  margin: 12px 0 24px;
+  padding: 8px;
+  margin: 6px 0 12px;
   overflow-x: auto;
 }
 
@@ -91,7 +91,7 @@
 }
 
 .pmd-rf-canvas {
-  height: 520px;
+  height: max(520px, calc(100vh - 390px));
   border-radius: var(--radius-md);
   overflow: hidden;
 }
@@ -100,7 +100,7 @@
    override to match this page's fixed-dark palette (see the header comment:
    PrivilegeMcpDiagramPage doesn't follow the app's light/dark toggle). */
 .pmd-rf-canvas .react-flow__pane { background: var(--pmd-bg); }
-.pmd-rf-canvas .react-flow__edge-text { fill: var(--pmd-ink-2); font-size: var(--font-size-3xs); }
+.pmd-rf-canvas .react-flow__edge-text { fill: var(--pmd-ink-2); font-size: var(--font-size-sm); }
 .pmd-rf-canvas .react-flow__edge-textbg { fill: var(--pmd-bg); }
 .pmd-rf-canvas .react-flow__controls-button {
   background: var(--pmd-panel);

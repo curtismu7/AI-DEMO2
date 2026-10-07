@@ -2,17 +2,25 @@
 
 /* Its own surface, so it reads on pages that paint a dark ground of their own. */
 .dstep-bar {
-  display: grid;
-  gap: 6px;
-  margin: 0 0 10px;
-  padding: 8px 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+  margin: 0 0 8px;
+  padding: 6px 12px;
   border: 1px solid var(--th-border);
   border-radius: var(--radius-md);
   background: var(--th-bg-card);
   color: var(--th-text);
 }
 
+.dstep-bar .dc-toolbar { margin-bottom: 0; }
+/* a global `select { width: 100% }` and a block `label` otherwise stack the dropdown under its label */
+.dstep-bar .dc-steptime { display: inline-flex; flex-direction: row; align-items: center; }
+.dstep-bar .dc-steptime-select { width: auto; }
+
 .dstep-caption {
+  flex: 1 1 280px;
   margin: 0;
   min-height: 1.5em;
   font-size: var(--font-size-sm);
@@ -21,3 +29,25 @@
 .dstep-caption strong {
   color: var(--th-status-info-text);
 }
+
+/* The dashes that run along the edge in focus, on every diagram (React Flow edges and the
+   StaticFlowDiagram edges alike). 20 = one dash + one gap of the 12 8 pattern. */
+@keyframes dstep-flow {
+  to { stroke-dashoffset: -20; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .react-flow__edge path { animation: none !important; }
+}
+
+.dstep-reset {
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: var(--font-size-2xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+.dstep-reset:disabled { opacity: 0.5; cursor: default; }
+.dstep-reset:focus-visible { outline: 2px solid var(--th-status-info); outline-offset: 2px; }

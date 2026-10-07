@@ -7,7 +7,7 @@
 
 .tcf-canvas {
   position: relative;
-  height: 640px;
+  height: max(640px, calc(100vh - 220px));
   width: 100%;
   border-radius: var(--radius-md);
   background: var(--th-bg-card);
@@ -19,8 +19,8 @@
   border: 1.5px solid #e0e0e0;
   border-radius: 8px;
   padding: 8px 10px;
-  width: 200px;
-  height: 64px;
+  width: 232px;
+  height: 76px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -30,13 +30,13 @@
 
 .tcf-node__title {
   font-weight: 700;
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   line-height: 1.2;
 }
 
 .tcf-node__sub {
-  font-size: 0.68rem;
-  opacity: 0.85;
+  font-size: 0.8rem;
+  opacity: 0.92;
   line-height: 1.25;
   margin-top: 3px;
   white-space: nowrap;
@@ -59,18 +59,22 @@
   position: absolute;
   top: 8px;
   left: 12px;
-  font-size: 0.75rem;
+  font-size: 0.85rem;
   font-weight: 800;
   letter-spacing: 0.06em;
 }
 
 .tcf-edge-label {
-  font-size: 11px;
+  position: absolute;
+  padding: 0 5px;
+  font-size: 13px;
   font-weight: 650;
-  fill: var(--th-text-muted);
-  paint-order: stroke;
-  stroke: var(--th-bg-card);
-  stroke-width: 4px;
+  line-height: 1.3;
+  white-space: nowrap;
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  border-radius: 3px;
+  pointer-events: none;
 }
 
 .tcf-canvas .react-flow__controls button {

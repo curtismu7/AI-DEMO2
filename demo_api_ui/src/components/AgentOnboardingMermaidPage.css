@@ -13,7 +13,7 @@
   background: var(--aom-bg);
   color: var(--aom-ink);
   min-height: 100%;
-  max-width: 1300px;
+  max-width: none;
   margin: 0 auto;
   padding: 32px 24px 60px;
 }
@@ -47,7 +47,7 @@
   background: var(--aom-panel);
   border: 1px solid var(--aom-border);
   border-radius: 16px;
-  padding: 24px;
+  padding: 8px;
   overflow-x: auto;
 }
 .aom-diagram {

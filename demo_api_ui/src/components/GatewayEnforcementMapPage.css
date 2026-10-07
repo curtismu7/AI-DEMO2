@@ -9,7 +9,7 @@
 
 .gwe-page {
   padding: 24px;
-  max-width: 1100px;
+  max-width: none;
   margin: 0 auto;
   color: var(--th-text);
 }

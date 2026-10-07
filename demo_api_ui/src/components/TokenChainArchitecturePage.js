@@ -60,7 +60,7 @@ export default function TokenChainArchitecturePage({ user }) {
 
       <div className="tca-diagram-frame">
         <p className="tca-zoom-hint">
-          Scroll to zoom · Drag to pan · Click a node for its role and the (mock) token it carries
+          Use + and − to zoom · Drag to pan · Click a node for its role and the (mock) token it carries
         </p>
         <DiagramStepBar stepper={stepper} caption={EDGE_CAPTIONS[stepper.step]} />
         <CanvasWithControls onNodeClick={(node) => setSelected(node)} step={stepper.step} />
