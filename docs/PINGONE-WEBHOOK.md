@@ -105,6 +105,14 @@ restarts instead of needing a new URL each time.
 
 Note the tunnel exposes the **whole BFF** on :3001, not just `/webhook/`.
 
+The agent loads a traffic policy from
+`~/Library/Application Support/ngrok/orbstack-jwks-policy.json` (outside the
+repo). Besides the canned `/openid/v1/jwks` response, it applies a
+`rate-limit` of 120 requests per minute per `conn.client_ip` to every other
+path. PingOne's webhook deliveries are far below that. ngrok reads the policy
+only at start, so after editing it run `launchctl unload` then `load` on the
+plist above (the tunnel drops for a few seconds).
+
 **SE AWS deployment.** `https://ai-demo.ping-devops.com/webhook/pingone` works
 only when the cluster is actually deployed — as of 2026-08-09 the host is
 NXDOMAIN. Two things had to be true for it to work at all, and one of them was
