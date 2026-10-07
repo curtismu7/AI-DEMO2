@@ -111,7 +111,8 @@ describe('ProtocolPlayground wiring', () => {
 
     fireEvent.click(screen.getByTitle('spiffe'));
 
-    expect(screen.getByText('Local Mock Issuer')).toBeInTheDocument();
+    // the label also names a participant in the sequence diagram, so more than one is fine
+    expect(screen.getAllByText('Local Mock Issuer').length).toBeGreaterThan(0);
     expect(screen.queryByText('local-mock-issuer')).not.toBeInTheDocument();
   });
 

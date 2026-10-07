@@ -7,10 +7,6 @@ import React from "react";
 import { render, waitFor, fireEvent } from "@testing-library/react";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
-vi.mock("mermaid", () => ({
-  default: { initialize: vi.fn(), render: vi.fn(async () => ({ svg: "<svg></svg>" })) },
-}));
-
 vi.mock("../../lib/davinciSdkClient", () => ({
   fetchSdkConfig: vi.fn(),
   initClient: vi.fn(),

@@ -1,10 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { act, fireEvent, render, waitFor } from "@testing-library/react";
 
-vi.mock("mermaid", () => ({
-  default: { initialize: vi.fn(), render: vi.fn(async () => ({ svg: "<svg></svg>" })) },
-}));
-
 let widgetProps;
 vi.mock("../DavinciLoginWidget", () => ({
   default: (props) => {

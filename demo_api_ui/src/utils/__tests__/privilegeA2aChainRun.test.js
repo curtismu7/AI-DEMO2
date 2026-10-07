@@ -4,7 +4,7 @@ import { deriveLifelineParticipants, deriveLifelineSteps } from "../../services/
 import { buildTraceSteps, laneLabel } from "../../services/tokenChainTrace/buildTraceSteps";
 import { buildObservedTopology } from "../../components/TokenTopologyPanel";
 import { buildDiagramSource } from "../../components/TokenExchangeDiagram";
-import mermaid from "mermaid";
+import { expectDrawable } from "./diagramSource";
 
 vi.mock("../../context/TokenChainContext", () => ({ useTokenChainOptional: () => null }));
 
@@ -216,11 +216,10 @@ test("every view that reads the store's steps gets the chain, not an empty banki
   expect(buildObservedTopology(steps).map((node) => node.lane)).toEqual(["MAIN-AGENT", "GATEWAY", "LANGCHAIN-AGENT", "LANGCHAIN-AGENT", "GATEWAY"]);
 
   // Token-exchange diagram: the actors and numbered hops, with the refusal marked.
-  if (!window.CSS.supports) window.CSS.supports = () => true;
   const source = buildDiagramSource(trace, steps, false);
   expect(source).toContain('A0["MAIN AGENT"]');
   expect(source).toContain('"5 refused"');
-  await expect(mermaid.parse(source)).resolves.toBeTruthy();
+  expectDrawable(source);
 
   // A banking trace is untouched.
   expect(buildTraceSteps({ tokenEvents: [{ id: "user-token", status: "acquired" }], phases: [] })[0].id).toBe("website");

@@ -295,7 +295,7 @@ a.osx-mode-link:visited,
   overflow-wrap: anywhere;
 }
 
-/* --- Mermaid lifecycle diagram --- */
+/* --- Lifecycle diagram --- */
 
 .osx-diagram {
   margin: 0 0 18px;
@@ -305,20 +305,6 @@ a.osx-mode-link:visited,
   background: var(--th-bg-inset);
   border: 1px solid var(--th-border);
   border-radius: var(--radius-lg);
-}
-
-.osx-diagram svg {
-  max-width: 100%;
-  height: auto;
-}
-
-.osx-diagram-error {
-  margin: 0 0 18px;
-  padding: 10px 12px;
-  color: var(--th-status-error-text);
-  background: var(--th-status-error-bg);
-  border: 1px solid var(--th-status-error-border);
-  border-radius: var(--radius-md);
 }
 
 /* --- Traps: native <details>, no JS --- */

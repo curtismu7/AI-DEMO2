@@ -7,13 +7,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { fireEvent, render } from "@testing-library/react";
 
-vi.mock("mermaid", () => ({
-  default: {
-    initialize: vi.fn(),
-    render: vi.fn(async () => ({ svg: "<svg></svg>" })),
-  },
-}));
-
+import { expectDrawable } from "../../../utils/__tests__/diagramSource";
 import SdkLessonSections, { FLOW_SOURCE, SDK_LESSON_SECTIONS } from "../SdkLessonSections";
 
 const START_STEP = {
@@ -130,11 +124,9 @@ describe("SdkLessonSections", () => {
   });
 });
 
-describe("FLOW_SOURCE is valid Mermaid", () => {
-  // The REAL parser, bypassing the module mock above: a syntax error here is a
-  // "Diagram failed to render" box on the live page.
-  it("parses", async () => {
-    const { default: realMermaid } = await vi.importActual("mermaid");
-    await expect(realMermaid.parse(FLOW_SOURCE)).resolves.toBeTruthy();
+describe("FLOW_SOURCE is a drawable diagram", () => {
+  // A line the parser cannot read is a missing arrow on the live page.
+  it("parses into messages React Flow can draw", () => {
+    expectDrawable(FLOW_SOURCE);
   });
 });

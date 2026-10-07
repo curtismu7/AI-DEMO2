@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import OAuthVisualizerPanel from "../OAuthVisualizerPanel";
 
-vi.mock("../oauthVisualizer/MermaidFlowDiagram", () => ({ default: () => <div data-testid="oauth-diagram" /> }));
+vi.mock("../FlowDiagram", () => ({ default: () => <div data-testid="oauth-diagram" /> }));
 vi.mock("../DraggableModal", () => ({ default: ({ isOpen, children }) => isOpen ? <div role="dialog">{children}</div> : null }));
 
 describe("OAuthVisualizerPanel", () => {

@@ -153,3 +153,12 @@ if (typeof global.EventSource === "undefined") {
   EventSourceStub.CLOSED = 2;
   global.EventSource = EventSourceStub;
 }
+
+// jsdom has no ResizeObserver; @xyflow/react (every diagram page) needs one to mount.
+if (typeof global.ResizeObserver === "undefined") {
+  global.ResizeObserver = class ResizeObserverStub {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+}

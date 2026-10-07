@@ -4,7 +4,7 @@
 // Follows the PrivilegeMcpDiagramPage tab/render/export conventions.
 import React, { useEffect, useState } from "react";
 import DiagramExportBar from "./DiagramExportBar";
-import { useMermaidRender } from "../hooks/useMermaidRender";
+import FlowDiagram from "./FlowDiagram";
 import "./PrivilegeMcpDiagramPage.css";
 import "./PrivilegeGatewayTopologyPage.css";
 import "./McpGatewayOauthFlowPage.css";
@@ -265,8 +265,6 @@ const LEGEND = [
   { className: "pgt-swatch--step", label: "step number" },
 ];
 
-const FLOWCHART_OPTS = { useMaxWidth: true };
-const SEQUENCE_OPTS = { useMaxWidth: true, wrap: true };
 
 export default function PrivilegeGatewayTopologyPage() {
   const [activeTab, setActiveTab] = useState("agent");
@@ -277,13 +275,6 @@ export default function PrivilegeGatewayTopologyPage() {
     const tab = TABS.find((t) => t.id === activeTab);
     if (tab) setSource(tab.source);
   }, [activeTab]);
-
-  const { containerRef, error: renderError } = useMermaidRender(source, {
-    flowchart: FLOWCHART_OPTS,
-  });
-  const { containerRef: seqRef, error: seqRenderError } = useMermaidRender(seqSource, {
-    sequence: SEQUENCE_OPTS,
-  });
 
   const activeTabMeta = TABS.find((t) => t.id === activeTab);
 
@@ -346,15 +337,7 @@ export default function PrivilegeGatewayTopologyPage() {
       />
 
       <div className="pmd-panel">
-        {renderError ? (
-          <p className="pmd-error">Diagram failed to render: {renderError}</p>
-        ) : (
-          <div
-            className="pmd-diagram"
-            ref={containerRef}
-            aria-label="Privilege gateway topology diagram"
-          />
-        )}
+        <FlowDiagram source={source} label="Privilege gateway topology diagram" height={640} />
       </div>
 
       <ol className="pgt-steps">
@@ -396,7 +379,7 @@ export default function PrivilegeGatewayTopologyPage() {
         <p className="mgof-sub">
           Same JIT policy check, same cluster-local hop to the MCP server — the two
           variants differ in how the client's identity and traffic reach the gateway.
-          The top flow tunnels through a locally-installed Priv Agent; the bottom flow
+          The left flow tunnels through a locally-installed Priv Agent; the right flow
           connects straight to the cluster ingress and signs in via PingOne OIDC.
         </p>
       </div>
@@ -408,11 +391,7 @@ export default function PrivilegeGatewayTopologyPage() {
       />
 
       <div className="mgof-panel">
-        {seqRenderError ? (
-          <p className="mgof-error">Diagram failed to render: {seqRenderError}</p>
-        ) : (
-          <div className="mgof-diagram" ref={seqRef} aria-label="Privilege gateway request flow sequence diagram" />
-        )}
+        <FlowDiagram source={seqSource} label="Privilege gateway request flow sequence diagram" />
       </div>
 
       <div className="mgof-notes">

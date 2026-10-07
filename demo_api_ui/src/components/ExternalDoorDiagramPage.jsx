@@ -5,7 +5,7 @@
 import React, { useState } from "react";
 import DiagramExportBar from "./DiagramExportBar";
 import StaticFlowDiagram from "./StaticFlowDiagram";
-import { useMermaidRender } from "../hooks/useMermaidRender";
+import FlowDiagram from "./FlowDiagram";
 import "./PrivilegeMcpDiagramPage.css";
 import "./McpGatewayOauthFlowPage.css";
 
@@ -126,15 +126,9 @@ const NOTES = [
   },
 ];
 
-const SEQUENCE_OPTS = { useMaxWidth: true, wrap: true };
-
 export default function ExternalDoorDiagramPage() {
   const [selectedNode, setSelectedNode] = useState(null);
   const [seqSource, setSeqSource] = useState(SEQUENCE_SOURCE);
-  const { containerRef: seqRef, error: seqError } = useMermaidRender(seqSource, {
-    darkMode: true, // page ground is always dark (--pmd-bg)
-    sequence: SEQUENCE_OPTS,
-  });
 
   const nodeDetail = selectedNode
     ? EXT_DOOR_DETAILS[selectedNode.id] ||
@@ -192,9 +186,9 @@ export default function ExternalDoorDiagramPage() {
           <h1>External Door: Federated Token vs Self-Issued JWT</h1>
           <p className="mgof-sub">
             Two credential paths to the same Banking API call, decided by how the
-            external client obtained its bearer. The top flow completed a real
+            external client obtained its bearer. The left flow completed a real
             PingOne login through oauth-mcp's federated authorization_code grant.
-            The bottom flow authenticated with client_credentials — no user ever
+            The right flow authenticated with client_credentials — no user ever
             signed in, so there is no PingOne token to hand downstream.
           </p>
         </div>
@@ -206,11 +200,7 @@ export default function ExternalDoorDiagramPage() {
         />
 
         <div className="mgof-panel">
-          {seqError ? (
-            <p className="mgof-error">Diagram failed to render: {seqError}</p>
-          ) : (
-            <div className="mgof-diagram" ref={seqRef} aria-label="External door dual credential path sequence diagram" />
-          )}
+          <FlowDiagram source={seqSource} label="External door dual credential path sequence diagram" />
         </div>
 
         <div className="mgof-notes">

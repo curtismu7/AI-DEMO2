@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
 import DraggableModal from "./DraggableModal";
 import { useThemeOptional } from "../context/ThemeContext";
-import MermaidFlowDiagram from "./oauthVisualizer/MermaidFlowDiagram";
+import FlowDiagram from "./FlowDiagram";
 import OAuthVisualizerDetails from "./oauthVisualizer/OAuthVisualizerDetails";
-import { OAUTH_VISUALIZER_FLOWS, createInitialRun, getStepStatus, OAUTH_VISUALIZER_STORAGE_KEY } from "./oauthVisualizer/oauthVisualizerModel";
+import { OAUTH_VISUALIZER_FLOWS, createInitialRun, getDiagramArrowIndexes, getStepStatus, OAUTH_VISUALIZER_STORAGE_KEY } from "./oauthVisualizer/oauthVisualizerModel";
 import "./OAuthVisualizerPanel.css";
 
 function readConfig() {
@@ -98,7 +98,7 @@ export default function OAuthVisualizerPanel({ embedded = false, isOpen = false,
       </div>
       <div className="ov-flow-meta"><strong>{flow.name}</strong><span>{flow.description}</span><a href={`https://datatracker.ietf.org/doc/html/${flow.rfcRef?.split(" ")[0].toLowerCase()}`} target="_blank" rel="noreferrer">{flow.rfcRef}</a></div>
       <div className="ov-workspace">
-        <div className="ov-diagram-pane"><MermaidFlowDiagram flow={flow} activeStepIndex={Math.max(0, flow.steps.indexOf(run.activeStepId || run.selectedStepId))} darkMode={darkMode} /></div>
+        <div className="ov-diagram-pane"><FlowDiagram source={flow.diagram} label={`${flow.name} sequence diagram`} height={380} active={getDiagramArrowIndexes(flow, Math.max(0, flow.steps.indexOf(run.activeStepId || run.selectedStepId))).map((n) => n - 1)} /></div>
         <div className="ov-steps" aria-label="OAuth Visualizer steps">
           {flow.steps.map((step, index) => { const status = getStepStatus(run, step); return <button type="button" key={step} className={`ov-step ov-step-${status}`} onClick={() => inspect(index)} aria-current={run.activeStepId === step ? "step" : undefined}><span>{index + 1}</span><strong>{step}</strong><small>{status}</small></button>; })}
         </div>

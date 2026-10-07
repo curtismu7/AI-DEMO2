@@ -76,6 +76,14 @@ export function stepEdges(edges, step) {
   });
 }
 
+/** Accents the edges at the given indexes (page-driven highlight) and leaves the rest alone. */
+export function markEdges(edges, active) {
+  const on = new Set(active);
+  return edges.map((e, i) =>
+    on.has(i) ? { ...e, animated: true, style: { ...e.style, stroke: "var(--th-status-info)", strokeWidth: 3.5 } } : e,
+  );
+}
+
 /** "Source → Target: label" per edge; `names` maps node id to display text. Edges are objects or [src, tgt, label] tuples. */
 export function edgeCaptions(edges, names) {
   return edges.map((e) => {

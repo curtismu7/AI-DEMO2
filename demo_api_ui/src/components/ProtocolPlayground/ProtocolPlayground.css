@@ -371,12 +371,6 @@
   height: auto;
 }
 
-.pp-mermaid__error {
-  margin: 0;
-  font-size: var(--font-size-sm);
-  color: var(--pp-err-badge-text, #b91c1c);
-}
-
 /* --- Execution controls --- */
 
 .execution-controls {

@@ -4,22 +4,19 @@
 // load-bearing test here is the negative one: zero network calls. Everything else
 // is content a reader would notice missing.
 //
-// mermaid.render() needs real layout measurement, so it is mocked and the diagram
-// source is validated with mermaid.parse instead — the pattern from
-// TokenChainArchitecturePage.test.jsx.
+// The lifecycle diagram is drawn with React Flow, which needs ResizeObserver in jsdom
+// (same stub A2AFlowVisualizer.test.jsx uses); its source is checked with expectDrawable.
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor, within } from "@testing-library/react";
-
-vi.mock("mermaid", () => ({
-  default: {
-    initialize: vi.fn(),
-    render: vi.fn(async () => ({ svg: "<svg data-testid='osx-svg'></svg>" })),
-    parse: vi.fn(async () => true),
-  },
-}));
-
-import mermaid from "mermaid";
+import { render, screen, within } from "@testing-library/react";
+import { expectDrawable } from "../../utils/__tests__/diagramSource";
 import OrchestrationSdkExplainerPage, { LIFECYCLE_DIAGRAM } from "../OrchestrationSdkExplainerPage";
+
+class ResizeObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+window.ResizeObserver = window.ResizeObserver || ResizeObserverStub;
 
 describe("OrchestrationSdkExplainerPage", () => {
   let fetchSpy;
@@ -33,17 +30,16 @@ describe("OrchestrationSdkExplainerPage", () => {
     vi.unstubAllGlobals();
   });
 
-  it("makes no network calls at all", async () => {
+  it("makes no network calls at all", () => {
     render(<OrchestrationSdkExplainerPage />);
-    await waitFor(() => expect(mermaid.render).toHaveBeenCalled());
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it("renders the diagram through mermaid rather than dumping the source", async () => {
+  it("draws the lifecycle as a React Flow sequence rather than dumping the source", () => {
+    expectDrawable(LIFECYCLE_DIAGRAM);
     render(<OrchestrationSdkExplainerPage />);
-    await waitFor(() => expect(mermaid.render).toHaveBeenCalled());
-    expect(mermaid.render.mock.calls[0][1]).toBe(LIFECYCLE_DIAGRAM);
-    await waitFor(() => expect(screen.getByTestId("osx-svg")).toBeTruthy());
+    expect(screen.getByRole("group", { name: "DaVinci SDK client lifecycle" })).toBeTruthy();
+    expect(document.querySelector(".react-flow")).toBeTruthy();
   });
 
   it("shows all three invocation modes, with the SDK one marked as the subject", () => {

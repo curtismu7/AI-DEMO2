@@ -1,23 +1,18 @@
-// Guards the mermaid sources on the Privilege Gateway Topologies page:
-// mermaid.parse rejects invalid diagram syntax, which a render smoke test in
-// jsdom cannot cover (mermaid.render needs real layout measurement).
+// Guards the diagram sources on the Privilege Gateway Topologies page: each must parse into
+// something FlowDiagram can draw (a render smoke test in jsdom cannot judge layout).
 import { describe, it, expect } from "vitest";
-import mermaid from "mermaid";
+import { expectDrawable } from "../utils/__tests__/diagramSource";
 import { TABS, SEQUENCE_SOURCE } from "./PrivilegeGatewayTopologyPage";
 
-// jsdom doesn't implement CSS.supports; mermaid's sequence "box" parser calls
-// it to validate the box's color argument (e.g. "box rgb(240,240,255)").
-if (!window.CSS.supports) window.CSS.supports = () => true;
-
-describe("PrivilegeGatewayTopologyPage mermaid sources", () => {
+describe("PrivilegeGatewayTopologyPage diagram sources", () => {
   it("has both deployment variants and the agent-to-agent layout", () => {
     expect(TABS.map((t) => t.id)).toEqual(["agent", "agentless", "a2a"]);
   });
 
   it.each(TABS.map((t) => [t.id, t.source]))(
-    "%s topology source parses as valid mermaid",
-    async (_id, source) => {
-      await expect(mermaid.parse(source)).resolves.toBeTruthy();
+    "%s topology source parses into a drawable flowchart",
+    (_id, source) => {
+      expectDrawable(source);
     },
   );
 
@@ -33,7 +28,7 @@ describe("PrivilegeGatewayTopologyPage mermaid sources", () => {
     }
   });
 
-  it("request-flow sequence source parses as valid mermaid", async () => {
-    await expect(mermaid.parse(SEQUENCE_SOURCE)).resolves.toBeTruthy();
+  it("request-flow sequence source parses into a drawable sequence", () => {
+    expectDrawable(SEQUENCE_SOURCE);
   });
 });

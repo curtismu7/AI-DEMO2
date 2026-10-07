@@ -5,12 +5,9 @@
 import { describe, it, expect, vi } from "vitest";
 import { fireEvent, render } from "@testing-library/react";
 
-vi.mock("mermaid", () => ({
-  default: { initialize: vi.fn(), render: vi.fn(async () => ({ svg: "<svg></svg>" })) },
-}));
-
 import WidgetLessonSections, { FLOW_SOURCE, WIDGET_LESSON_SECTIONS } from "../WidgetLessonSections";
 import { agentFlowDiagram } from "../../../services/agentFlowDiagramService";
+import { expectDrawable } from "../../../utils/__tests__/diagramSource";
 
 describe("WIDGET_LESSON_SECTIONS", () => {
   it("uses the shared order with the widget's two sections before security", () => {
@@ -91,17 +88,17 @@ describe("WidgetLessonSections", () => {
   it("opens the live trace panel from The Flow section", () => {
     agentFlowDiagram.close();
     const { container } = render(<WidgetLessonSections />);
-    const btn = container.querySelector("#the-flow button");
-    expect(btn.textContent).toBe("Open Live Trace");
+    // The diagram above it now carries its own Simulate bar, so find the button by name.
+    const btn = [...container.querySelectorAll("#the-flow button")].find((b) => b.textContent === "Open Live Trace");
+    expect(btn).toBeTruthy();
 
     fireEvent.click(btn);
     expect(agentFlowDiagram.getState().visible).toBe(true);
   });
 });
 
-describe("FLOW_SOURCE is valid Mermaid", () => {
-  it("parses", async () => {
-    const { default: realMermaid } = await vi.importActual("mermaid");
-    await expect(realMermaid.parse(FLOW_SOURCE)).resolves.toBeTruthy();
+describe("FLOW_SOURCE is a drawable diagram", () => {
+  it("parses into messages React Flow can draw", () => {
+    expectDrawable(FLOW_SOURCE);
   });
 });

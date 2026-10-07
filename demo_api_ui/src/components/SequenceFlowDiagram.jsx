@@ -14,7 +14,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import DiagramStepBar from "./DiagramStepBar";
 import { parseSequence } from "../utils/parseSequence";
-import { stepEdges, useDiagramStepper } from "../hooks/useDiagramStepper";
+import { markEdges, stepEdges, useDiagramStepper } from "../hooks/useDiagramStepper";
 import { useFitOnResize } from "../hooks/useFitOnResize";
 import "./SequenceFlowDiagram.css";
 
@@ -186,16 +186,20 @@ export function buildSequenceFlow(source) {
   return { nodes, edges, steps };
 }
 
-function Inner({ source }) {
+function Inner({ source, step, active, height }) {
   const ref = useRef(null);
   useFitOnResize(ref, FIT);
   const { nodes, edges, steps } = useMemo(() => buildSequenceFlow(source), [source]);
   const stepper = useDiagramStepper(steps.length);
-  const shown = useMemo(() => stepEdges(edges, stepper.step), [edges, stepper.step]);
+  const driven = step !== undefined || active !== undefined;
+  const shown = useMemo(() => {
+    if (active !== undefined) return markEdges(edges, active);
+    return stepEdges(edges, step !== undefined ? step : stepper.step);
+  }, [edges, stepper.step, step, active]);
   return (
     <>
-      <DiagramStepBar stepper={stepper} caption={steps[stepper.step]} />
-      <div className="sfx-canvas" data-testid="sequence-flow-canvas" ref={ref}>
+      {!driven && <DiagramStepBar stepper={stepper} caption={steps[stepper.step]} />}
+      <div className="sfx-canvas" data-testid="sequence-flow-canvas" ref={ref} style={height ? { height } : undefined}>
         <ReactFlow
           nodes={nodes}
           edges={shown}
@@ -217,11 +221,16 @@ function Inner({ source }) {
   );
 }
 
-export default function SequenceFlowDiagram({ source, label = "Sequence diagram" }) {
+/**
+ * Leave `step` and `active` undefined for the built-in Play/Step bar. A page that drives the
+ * highlight itself passes `step` (one message in focus, later ones fade) or `active` (an
+ * array of message indexes to accent).
+ */
+export default function SequenceFlowDiagram({ source, label = "Sequence diagram", step, active, height }) {
   return (
-    <div className="sfx" aria-label={label}>
+    <div className="sfx" role="group" aria-label={label}>
       <ReactFlowProvider>
-        <Inner source={source} />
+        <Inner source={source} step={step} active={active} height={height} />
       </ReactFlowProvider>
     </div>
   );

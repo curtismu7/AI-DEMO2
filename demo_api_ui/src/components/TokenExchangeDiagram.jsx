@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
 import { pausedGateState } from '../services/tokenChainTrace/buildTraceSteps';
 import { useThemeOptional } from '../context/ThemeContext';
-import { useMermaidRender } from '../hooks/useMermaidRender';
+import FlowDiagram from './FlowDiagram';
 import DiagramExportBar from './DiagramExportBar';
 
 // ── helpers ─────────────────────────────────────────────────────────────────
@@ -32,12 +32,7 @@ const isDone = (step) => step && (step.status === 'done' || step.status === 'err
 // light ramp is its mirror (tint fill / dark ink / same mid stroke), so a node
 // is recognisable as "the exchange one" in either mode.
 //
-// `line`, `edgeLabel` and `surface` are the reason this file needed splitting
-// at all: mermaid's built-in `dark` theme draws its connector lines in a pale
-// grey, and the panel that hosts this diagram has a WHITE body. The arrows and
-// their `subject_token` / `actor_token` labels were being drawn pale-on-white
-// and were effectively invisible. Pinning lineColor/textColor per mode — and
-// painting the canvas `surface` under them — is what makes them visible.
+// `surface` is painted under the diagram so it reads on this panel's body in either mode.
 const PALETTES = {
   dark: {
     user:    { fill: '#0c2040', color: '#7dd3fc', stroke: '#2563eb' },
@@ -50,17 +45,10 @@ const PALETTES = {
     gateway: { fill: '#071a0f', color: '#86efac', stroke: '#16a34a' },
     mcp:     { fill: '#071520', color: '#67e8f9', stroke: '#0891b2' },
     idle:    { fill: '#0d1117', color: '#94a3b8', stroke: '#334155' },
-    line: '#94a3b8',
-    edgeLabel: '#e2e8f0',
-    edgeLabelBg: '#0d1117',
     surface: '#0d1117',
-    clusterBg: '#111827',
-    clusterBorder: '#334155',
-    title: '#e2e8f0',
     noticeBg: '#2a1a00',
     noticeBd: '#d97706',
     noticeFg: '#fbbf24',
-    errorFg: '#fca5a5',
   },
   light: {
     user:    { fill: '#eff6ff', color: '#1e3a8a', stroke: '#2563eb' },
@@ -73,17 +61,10 @@ const PALETTES = {
     gateway: { fill: '#f0fdf4', color: '#14532d', stroke: '#16a34a' },
     mcp:     { fill: '#ecfeff', color: '#155e75', stroke: '#0891b2' },
     idle:    { fill: '#f8fafc', color: '#475569', stroke: '#cbd5e1' },
-    line: '#475569',
-    edgeLabel: '#0f172a',
-    edgeLabelBg: '#ffffff',
     surface: '#ffffff',
-    clusterBg: '#f1f5f9',
-    clusterBorder: '#cbd5e1',
-    title: '#0f172a',
     noticeBg: '#fffbeb',
     noticeBd: '#d97706',
     noticeFg: '#92400e',
-    errorFg: '#b91c1c',
   },
 };
 
@@ -314,13 +295,6 @@ export function buildDiagramSource(trace, steps, dark = true) {
   return lines.join('\n');
 }
 
-// useMaxWidth:false is the readability half of the arrow/label fix below.
-// With it true mermaid scales the WHOLE svg down to the panel's width, and
-// this diagram is wide (five subgraphs of claim tables), so every label was
-// being shrunk to a few pixels. False renders at natural size and lets the
-// container (overflow:auto) scroll instead of shrinking the type.
-const FLOWCHART_OPTS = { htmlLabels: false, useMaxWidth: false, curve: 'basis' };
-
 // ── component ────────────────────────────────────────────────────────────────
 
 export default function TokenExchangeDiagram() {
@@ -342,25 +316,6 @@ export default function TokenExchangeDiagram() {
   const liveSource = buildDiagramSource(snap.trace, snap.steps, darkMode);
   const source     = override ?? liveSource;
 
-  // lineColor/textColor are NOT decoration. Mermaid picks connector and
-  // edge-label colours from the theme, and the theme has no idea what this
-  // panel's body colour is — that mismatch is what made the arrows and the
-  // subject_token / actor_token labels disappear. Pin them to the palette.
-  const { containerRef, error: renderError } = useMermaidRender(source, {
-    themeVariables: {
-      lineColor: P.line,
-      textColor: P.edgeLabel,
-      edgeLabelBackground: P.edgeLabelBg,
-      // Subgraph boxes ("BFF · RFC 8693 Token Exchange", "MCP Server"). The
-      // built-in fills are a mid grey in dark and a pale yellow in light, and
-      // both render their title in a grey that is barely on the box.
-      clusterBkg: P.clusterBg,
-      clusterBorder: P.clusterBorder,
-      titleColor: P.title,
-    },
-    flowchart: FLOWCHART_OPTS,
-  });
-
   const handleImport     = useCallback((text) => setOverride(text.trim() || null), []);
   const handleResetToLive = useCallback(() => setOverride(null), []);
 
@@ -380,14 +335,9 @@ export default function TokenExchangeDiagram() {
           </button>
         </div>
       )}
-      {renderError ? (
-        <div style={{ padding: 12, background: P.surface, color: P.errorFg, fontSize: 12, fontFamily: 'monospace' }}>
-          Render error: {renderError}
-        </div>
-      ) : (
-        <div ref={containerRef} role="img" aria-label="Token exchange flow diagram"
-          style={{ flex: 1, overflow: 'auto', padding: 8, background: P.surface }} />
-      )}
+      <div role="img" aria-label="Token exchange flow diagram" style={{ flex: 1, overflow: 'auto', padding: 8, background: P.surface }}>
+        <FlowDiagram source={source} label="Token exchange flow diagram" height={460} step={-1} />
+      </div>
     </div>
   );
 }

@@ -4,7 +4,8 @@
 //
 // Supported: `A["label"]` / `A[label]` / `A(label)` / `A((label))` / `A{label}` / `A[(label)]`,
 // `subgraph ID["Title"] ... end` (nested), `-->`, `---`, `-.->`, `==>`, `-->|text|`,
-// `-- text -->`, chains (`A --> B --> C`), `A & B --> C`, `classDef`, `class A,B name`.
+// `-- text -->`, `-. "text" .->`, chains (`A --> B --> C`), `A & B --> C`, `classDef`,
+// `class A,B name`, `style A fill:...,stroke:...`.
 
 const ID_RE = /^[A-Za-z0-9_]+/;
 const OPENERS = "[({";
@@ -73,6 +74,7 @@ export function parseFlowchart(source = "") {
   const edges = [];
   const classDefs = {};
   const classOf = {};
+  const styles = {};
   const stack = [];
 
   const touch = (ref) => {
@@ -110,7 +112,14 @@ export function parseFlowchart(source = "") {
       });
       continue;
     }
-    if (/^(style|linkStyle|click|accTitle|accDescr)\b/.test(line)) continue;
+    if ((m = line.match(/^style\s+([A-Za-z0-9_]+)\s+(.+)$/))) {
+      const css = Object.fromEntries(
+        m[2].split(",").map((kv) => kv.split(":").map((x) => x.trim())).filter((kv) => kv.length === 2),
+      );
+      styles[m[1]] = { fill: css.fill, stroke: css.stroke, color: css.color, dashed: Boolean(css["stroke-dasharray"]) };
+      continue;
+    }
+    if (/^(linkStyle|click|accTitle|accDescr)\b/.test(line)) continue;
 
     // node declaration or edge chain
     let i = 0;
@@ -137,7 +146,7 @@ export function parseFlowchart(source = "") {
       let dashed = false;
       const inline = rest.match(INLINE_LABEL_RE);
       if (inline) {
-        label = inline[2];
+        label = inline[2].replace(/^"|"$/g, "");
         dashed = inline[1] === "-.";
         i += inline[0].length;
       } else {
@@ -158,5 +167,5 @@ export function parseFlowchart(source = "") {
       prev = next;
     }
   }
-  return { groups: [...groups.values()], nodes: [...nodes.values()], edges, classDefs, classOf };
+  return { groups: [...groups.values()], nodes: [...nodes.values()], edges, classDefs, classOf, styles };
 }

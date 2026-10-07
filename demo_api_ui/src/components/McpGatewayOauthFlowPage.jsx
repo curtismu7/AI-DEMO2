@@ -5,7 +5,7 @@
 // AgentOnboardingMermaidPage.jsx.
 import React, { useState } from "react";
 import DiagramExportBar from "./DiagramExportBar";
-import { useMermaidRender } from "../hooks/useMermaidRender";
+import FlowDiagram from "./FlowDiagram";
 import "./McpGatewayOauthFlowPage.css";
 import "./PrivilegeMcpDiagramPage.css";
 
@@ -148,21 +148,9 @@ const NOTES = [
   },
 ];
 
-const SEQUENCE_OPTS = { useMaxWidth: true, wrap: true };
-const FLOWCHART_OPTS = { useMaxWidth: true };
-
 export default function McpGatewayOauthFlowPage() {
   const [source, setSource] = useState(MERMAID_SOURCE);
   const [archSource, setArchSource] = useState(ARCHITECTURE_SOURCE);
-  const { containerRef, error: renderError } = useMermaidRender(source, {
-    darkMode: true, // page ground is always dark (--pmd-bg)
-    sequence: SEQUENCE_OPTS,
-  });
-  const { containerRef: archRef, error: archRenderError } = useMermaidRender(archSource, {
-    darkMode: true, // page ground is always dark (--pmd-bg)
-    flowchart: FLOWCHART_OPTS,
-  });
-
   return (
     <>
     <div className="pmd-page">
@@ -183,11 +171,7 @@ export default function McpGatewayOauthFlowPage() {
       />
 
       <div className="pmd-panel">
-        {archRenderError ? (
-          <p className="pmd-error">Diagram failed to render: {archRenderError}</p>
-        ) : (
-          <div className="pmd-diagram" ref={archRef} aria-label="Agent Gateway OAuth flow architecture diagram" />
-        )}
+        <FlowDiagram source={archSource} label="Agent Gateway OAuth flow architecture diagram" height={560} />
       </div>
 
       <p className="pmd-footer">
@@ -221,11 +205,7 @@ export default function McpGatewayOauthFlowPage() {
       />
 
       <div className="mgof-panel">
-        {renderError ? (
-          <p className="mgof-error">Diagram failed to render: {renderError}</p>
-        ) : (
-          <div className="mgof-diagram" ref={containerRef} aria-label="Agent Gateway OAuth flow sequence diagram" />
-        )}
+        <FlowDiagram source={source} label="Agent Gateway OAuth flow sequence diagram" />
       </div>
 
       <div className="mgof-notes">

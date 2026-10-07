@@ -12,7 +12,7 @@ import "@xyflow/react/dist/style.css";
 import DiagramStepBar from "./DiagramStepBar";
 import { getElk } from "../utils/elkLayout";
 import { parseFlowchart } from "../utils/parseFlowchart";
-import { stepEdges, useDiagramStepper } from "../hooks/useDiagramStepper";
+import { markEdges, stepEdges, useDiagramStepper } from "../hooks/useDiagramStepper";
 import { useFitOnResize } from "../hooks/useFitOnResize";
 import "./FlowchartFlowDiagram.css";
 
@@ -68,7 +68,7 @@ const colourStyle = (def) =>
 
 /** Lay the parsed flowchart out with ELK; returns React Flow nodes/edges and the step captions. */
 export async function layoutFlowchart(model) {
-  const { groups, nodes, edges, classDefs, classOf } = model;
+  const { groups, nodes, edges, classDefs, classOf, styles = {} } = model;
   const children = new Map();
   const add = (parent, child) => {
     const key = parent || "__root";
@@ -111,7 +111,7 @@ export async function layoutFlowchart(model) {
     (elkNode.children || []).forEach((c) => {
       const group = groups.find((g) => g.id === c.id);
       const node = group ? null : nodes.find((n) => n.id === c.id);
-      const style = colourStyle(classDefs[classOf[c.id]]);
+      const style = colourStyle({ ...classDefs[classOf[c.id]], ...Object.fromEntries(Object.entries(styles[c.id] || {}).filter(([, v]) => v !== undefined)) });
       rfNodes.push({
         id: c.id,
         type: group ? "fgroup" : "fnode",
@@ -145,7 +145,7 @@ export async function layoutFlowchart(model) {
   return { id: layoutSeq, nodes: rfNodes, edges: rfEdges, steps };
 }
 
-function Inner({ source, height, testId }) {
+function Inner({ source, height, testId, step, active }) {
   const ref = useRef(null);
   useFitOnResize(ref, FIT);
   const [flow, setFlow] = useState(null);
@@ -167,12 +167,17 @@ function Inner({ source, height, testId }) {
   }, [source]);
 
   const stepper = useDiagramStepper(flow ? flow.steps.length : 0);
-  const shown = useMemo(() => (flow ? stepEdges(flow.edges, stepper.step) : []), [flow, stepper.step]);
+  const driven = step !== undefined || active !== undefined;
+  const shown = useMemo(() => {
+    if (!flow) return [];
+    if (active !== undefined) return markEdges(flow.edges, active);
+    return stepEdges(flow.edges, step !== undefined ? step : stepper.step);
+  }, [flow, stepper.step, step, active]);
 
   if (error) return <p className="fcd-note">Couldn't lay out this diagram: {error}</p>;
   return (
     <>
-      <DiagramStepBar stepper={stepper} caption={flow?.steps[stepper.step]} testId={`${testId}-steps`} />
+      {!driven && <DiagramStepBar stepper={stepper} caption={flow?.steps[stepper.step]} testId={`${testId}-steps`} />}
       <div className="fcd-canvas" style={{ height }} data-testid={testId} ref={ref}>
         {flow ? (
           <ReactFlow
@@ -199,11 +204,12 @@ function Inner({ source, height, testId }) {
   );
 }
 
-export default function FlowchartFlowDiagram({ source, height = 720, testId = "flowchart-flow-diagram", label = "Architecture diagram" }) {
+/** `step` / `active` work as on SequenceFlowDiagram; leave both undefined for the built-in Play/Step bar. */
+export default function FlowchartFlowDiagram({ source, height = 720, testId = "flowchart-flow-diagram", label = "Architecture diagram", step, active }) {
   return (
     <div className="fcd" role="group" aria-label={label}>
       <ReactFlowProvider>
-        <Inner source={source} height={height} testId={testId} />
+        <Inner source={source} height={height} testId={testId} step={step} active={active} />
       </ReactFlowProvider>
     </div>
   );

@@ -4,14 +4,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, fireEvent, waitFor, screen } from "@testing-library/react";
 
-vi.mock("mermaid", () => ({
-  default: {
-    initialize: vi.fn(),
-    render: vi.fn(async () => ({ svg: "<svg data-testid='lesson-svg'></svg>" })),
-  },
-}));
+// @xyflow/react needs ResizeObserver in jsdom (same stub A2AFlowVisualizer.test.jsx uses).
+class ResizeObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+window.ResizeObserver = window.ResizeObserver || ResizeObserverStub;
 
-import mermaid from "mermaid";
 import { ThemeProvider } from "../../../context/ThemeContext";
 import {
   CodeBlock,
@@ -116,11 +116,12 @@ describe("TableBlock, Status, OnThisRun, MermaidFigure", () => {
     expect(container.querySelector(".lesson-warn").textContent).toBe("⚠️ query");
   });
 
-  it("draws the diagram source it is given", async () => {
-    render(<MermaidFigure source={"sequenceDiagram\n  A->>B: hi"} label="The flow" />);
-    await waitFor(() => expect(mermaid.render).toHaveBeenCalled());
-    expect(mermaid.render.mock.calls.at(-1)[1]).toBe("sequenceDiagram\n  A->>B: hi");
+  it("draws the diagram source it is given as a React Flow sequence", () => {
+    render(<MermaidFigure source={"sequenceDiagram\n  participant B as Browser\n  participant S as Server\n  B->>S: hi"} label="The flow" />);
     expect(screen.getByRole("figure", { name: "The flow" })).toBeTruthy();
+    expect(screen.getByText("Browser")).toBeTruthy();
+    expect(screen.getByText("Server")).toBeTruthy();
+    expect(document.querySelector(".react-flow")).toBeTruthy();
   });
 });
 

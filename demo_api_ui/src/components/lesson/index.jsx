@@ -16,7 +16,7 @@
 // @media print block; the browser's print dialog saves the PDF.
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import useDividerDrag from "../../hooks/useDividerDrag";
-import { useMermaidRender } from "../../hooks/useMermaidRender";
+import FlowDiagram from "../FlowDiagram";
 import { useThemeOptional } from "../../context/ThemeContext";
 import "./lesson.css";
 
@@ -257,17 +257,11 @@ export function TableBlock({ headers, rows }) {
 }
 
 export function MermaidFigure({ source, label }) {
-  const { containerRef, error } = useMermaidRender(source, {
-    securityLevel: "strict",
-    sequence: { useMaxWidth: true, wrap: false },
-  });
   return (
     <figure className="lesson-mermaid" aria-label={label}>
-      {error ? (
-        <p className="lesson-mermaid-error">Diagram failed to render: {error}</p>
-      ) : (
-        <div className="lesson-mermaid-canvas" ref={containerRef} />
-      )}
+      <div className="lesson-mermaid-canvas">
+        <FlowDiagram source={source} label={label} />
+      </div>
     </figure>
   );
 }

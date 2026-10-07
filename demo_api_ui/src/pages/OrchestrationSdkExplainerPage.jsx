@@ -15,7 +15,7 @@
 // the page. Three docs in this repo went stale by describing intended code
 // instead of real code — see the header of DavinciLoginPage.jsx for what that
 // cost. If a sample here stops matching its source file, fix the sample.
-import { useMermaidRender } from "../hooks/useMermaidRender";
+import FlowDiagram from "../components/FlowDiagram";
 import "./OrchestrationSdkExplainerPage.css";
 
 // The three ways a DaVinci flow can reach a user, all three live in this app.
@@ -138,8 +138,6 @@ if (err && 'error' in err) {
 }`;
 
 export default function OrchestrationSdkExplainerPage() {
-  const { containerRef, error: diagramError } = useMermaidRender(LIFECYCLE_DIAGRAM);
-
   return (
     <div className="osx-page">
       <p className="osx-eyebrow">DaVinci SDK</p>
@@ -203,11 +201,9 @@ export default function OrchestrationSdkExplainerPage() {
           <code className="osx-code-inline">next()</code>. The loop ends when a node arrives with
           status <code className="osx-code-inline">success</code>, carrying the authorization code.
         </p>
-        {diagramError ? (
-          <p className="osx-diagram-error">Diagram failed to render: {diagramError}</p>
-        ) : (
-          <div className="osx-diagram" ref={containerRef} />
-        )}
+        <div className="osx-diagram">
+          <FlowDiagram source={LIFECYCLE_DIAGRAM} label="DaVinci SDK client lifecycle" />
+        </div>
         <pre className="osx-code">
           <code>{INIT_SAMPLE}</code>
         </pre>
