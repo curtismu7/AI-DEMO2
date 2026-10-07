@@ -116,6 +116,15 @@ export function summarizeAgentCard(card) {
     name: card.name || null,
     version: card.version || null,
     skills: (Array.isArray(card.skills) ? card.skills : []).map((s) => s.id || s.name).filter(Boolean),
+    // What each skill is called and does, so the page can show more than the id.
+    skillDetails: (Array.isArray(card.skills) ? card.skills : [])
+      .filter((s) => s && (s.id || s.name))
+      .map((s) => ({
+        id: s.id || s.name,
+        name: s.name || s.id,
+        description: s.description || null,
+        examples: Array.isArray(s.examples) ? s.examples : [],
+      })),
     securitySchemes: Object.keys(card.securitySchemes || {}),
     protocolBinding: iface?.protocolBinding || null,
     protocolVersion: iface?.protocolVersion || null,

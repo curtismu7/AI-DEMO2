@@ -125,6 +125,16 @@ describe('summaries', () => {
     expect(s.skills.length).toBeGreaterThan(0);
   });
 
+  it('summarizeAgentCard keeps each skill\'s name, description and examples, not just its id', () => {
+    const s = summarizeAgentCard(A2A_RECORDED_RUN.agentCard);
+    expect(s.skillDetails).toHaveLength(s.skills.length);
+    const [first] = s.skillDetails;
+    expect(first.id).toBe(s.skills[0]);
+    expect(first.name).toMatch(/^[A-Z]/);
+    expect(first.description).toContain('PingOne Authorize');
+    expect(first.examples.length).toBeGreaterThan(0);
+  });
+
   it('summarizers degrade quietly on junk', () => {
     expect(summarizeAgentCard(null)).toBeNull();
     expect(summarizeActChain(null)).toBeNull();

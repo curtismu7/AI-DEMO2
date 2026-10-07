@@ -84,6 +84,33 @@
 }
 
 .a2l-section { padding: 22px 0; border-bottom: 1px solid var(--th-border); }
+.a2l-foldbar { display: flex; gap: 8px; margin-top: 12px; }
+
+/* Each section is a native <details>: collapse needs no script and is
+ * keyboard- and screen-reader-operable. The chevron is a rotated border, not a glyph. */
+.a2l-summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.a2l-summary::-webkit-details-marker { display: none; }
+.a2l-summary::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--th-text-muted);
+  border-bottom: 2px solid var(--th-text-muted);
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease;
+}
+.a2l-section[open] > .a2l-summary::before { transform: rotate(45deg); }
+.a2l-summary:hover::before { border-color: var(--th-text); }
+.a2l-summary:focus-visible { outline: 2px solid var(--th-text); outline-offset: 4px; border-radius: 4px; }
+.a2l-section > .a2l-summary .a2l-h2 { margin-bottom: 0; }
+.a2l-section[open] > .a2l-summary { margin-bottom: 6px; }
 
 .a2l-layers { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 12px; }
 @media (max-width: 760px) { .a2l-layers { grid-template-columns: 1fr; } }
@@ -103,6 +130,9 @@
 .a2l-facts { list-style: none; padding: 0; margin: 0 0 14px; display: grid; gap: 6px; }
 .a2l-facts li { color: var(--th-text-body); font-size: 0.92rem; }
 .a2l-facts b { color: var(--th-text); margin-right: 8px; }
+.a2l-skills { list-style: none; padding: 0; margin: 4px 0 0; display: grid; gap: 8px; }
+.a2l-skill-name { color: var(--th-text); font-weight: 600; }
+.a2l-skill-text { display: block; color: var(--th-text-body); }
 
 /* Provenance chips — the honesty signal. Distinct enough to scan, never
  * decorative: 'live-http' is the only one that means a real browser request. */

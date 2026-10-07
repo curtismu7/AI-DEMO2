@@ -1,5 +1,5 @@
 // demo_api_ui/src/pages/A2AProtocolLearningPage.jsx
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import SignInPrompt from '../components/SignInPrompt';
 import { useThemeOptional } from '../context/ThemeContext';
@@ -25,6 +25,11 @@ import {
   A2A_STEP_EXPLANATIONS,
   A2A_TRAINING_REFERENCES,
 } from './a2aLearningLessons';
+import {
+  A2A_SECTION_IDS,
+  persistFoldedSections,
+  readFoldedSections,
+} from '../utils/a2aSectionFold';
 import './A2AProtocolLearningPage.css';
 
 /**
@@ -136,13 +141,24 @@ function Pane({ pane }) {
   );
 }
 
+// The page owns which sections are folded (and remembers it); Section reads it.
+const SectionFoldContext = createContext(null);
+
 function Section({ id, num, title, lead, children }) {
+  const fold = useContext(SectionFoldContext);
   return (
-    <section className="a2l-section" id={id}>
-      <h2 className="a2l-h2"><span className="a2l-num">{num}</span>{title}</h2>
+    <details
+      className="a2l-section"
+      id={id}
+      open={fold ? !fold.folded.includes(id) : true}
+      onToggle={fold ? (e) => fold.setSectionOpen(id, e.currentTarget.open) : undefined}
+    >
+      <summary className="a2l-summary">
+        <h2 className="a2l-h2"><span className="a2l-num">{num}</span>{title}</h2>
+      </summary>
       {lead && <p className="a2l-lead">{lead}</p>}
       {children}
-    </section>
+    </details>
   );
 }
 
@@ -150,6 +166,19 @@ export default function A2AProtocolLearningPage() {
   const { darkMode, toggleDarkMode } = useThemeOptional();
   const [vertical, setVertical] = useState(DEFAULT_VERTICAL);
   const [specialists, setSpecialists] = useState([]);
+  const [folded, setFolded] = useState(readFoldedSections);
+  useEffect(() => persistFoldedSections(folded), [folded]);
+  const foldValue = useMemo(
+    () => ({
+      folded,
+      setSectionOpen: (id, open) =>
+        setFolded((prev) => {
+          if (open !== prev.includes(id)) return prev;
+          return open ? prev.filter((x) => x !== id) : [...prev, id];
+        }),
+    }),
+    [folded],
+  );
 
   const [card, setCard] = useState(null);
   const [cardLive, setCardLive] = useState(false);
@@ -275,6 +304,7 @@ export default function A2AProtocolLearningPage() {
     : null;
 
   return (
+    <SectionFoldContext.Provider value={foldValue}>
     <div className="a2l-page">
       <header className="a2l-header">
         <button
@@ -302,6 +332,10 @@ export default function A2AProtocolLearningPage() {
             ))}
           </select>
         </label>
+        <div className="a2l-foldbar">
+          <button type="button" className="a2l-btn" onClick={() => setFolded([])}>Expand all</button>
+          <button type="button" className="a2l-btn" onClick={() => setFolded(A2A_SECTION_IDS)}>Collapse all</button>
+        </div>
       </header>
 
       <Section
@@ -367,7 +401,25 @@ export default function A2AProtocolLearningPage() {
         {cardSummary && (
           <ul className="a2l-facts">
             <li><b>Agent</b> {cardSummary.name} <span className="a2l-meta">v{cardSummary.version}</span></li>
-            <li><b>Skills</b> {cardSummary.skills.join(', ') || '—'}</li>
+            <li>
+              <b>Skills</b>
+              {cardSummary.skillDetails?.length ? (
+                <ul className="a2l-skills">
+                  {cardSummary.skillDetails.map((skill) => (
+                    <li key={skill.id}>
+                      <span className="a2l-skill-name">{skill.name}</span>{' '}
+                      <code className="a2l-meta">{skill.id}</code>
+                      {skill.description && <span className="a2l-skill-text">{skill.description}</span>}
+                      {skill.examples.length > 0 && (
+                        <span className="a2l-skill-text">Example: {skill.examples.join('; ')}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                cardSummary.skills.join(', ') || '—'
+              )}
+            </li>
             <li><b>Security</b> {cardSummary.securitySchemes.join(', ') || '—'}</li>
             <li><b>Binding</b> {cardSummary.protocolBinding} {cardSummary.protocolVersion}</li>
           </ul>
@@ -548,5 +600,6 @@ export default function A2AProtocolLearningPage() {
         externalLinks={A2A_EXTERNAL_LINKS}
       />
     </div>
+    </SectionFoldContext.Provider>
   );
 }
