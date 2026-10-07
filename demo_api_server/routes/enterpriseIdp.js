@@ -21,6 +21,7 @@ const axios = require('axios');
 
 const router = express.Router();
 const configStore = require('../services/configStore');
+const { loginHintFor } = require('../services/loginHint');
 const enterpriseMcpPolicy = require('../services/enterpriseMcpPolicyService');
 const enterpriseIdpKey = require('../services/enterpriseIdpKey');
 const clientRegistry = require('../services/enterpriseIdpClientRegistry');
@@ -99,6 +100,9 @@ router.get('/authorize', (req, res) => {
   pingOneAuthorize.searchParams.set('code_challenge', pingOneCodeChallenge);
   pingOneAuthorize.searchParams.set('code_challenge_method', 'S256');
   pingOneAuthorize.searchParams.set('scope', 'openid profile email');
+  // The demo user already signed in to the app in this browser is the one to pre-fill; with no session, no hint.
+  const knownHint = loginHintFor(req, 'pingone');
+  if (knownHint) pingOneAuthorize.searchParams.set('login_hint', knownHint);
 
   res.redirect(302, pingOneAuthorize.toString());
 });

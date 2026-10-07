@@ -6,6 +6,7 @@
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { getFrontendOrigin } = require('../services/oauthRedirectUris');
+const { loginHintFor } = require('../services/loginHint');
 
 const LESSON_PATH = '/pingfederate-davinci-kit';
 const CALLBACK_PATH = '/api/auth/oauth/user/callback';
@@ -72,6 +73,9 @@ async function login(req, res) {
     url.searchParams.set('code_challenge', challenge);
     url.searchParams.set('code_challenge_method', 'S256');
     url.searchParams.set('prompt', 'login');
+    // Pre-fill PingFederate's sign-in with the user this session already is, in PingFederate's spelling.
+    const hint = loginHintFor(req, 'pingfederate');
+    if (hint) url.searchParams.set('login_hint', hint);
     req.session.save((error) => {
       if (error) return res.status(500).json({ error: 'pf_davinci_session_save_failed' });
       res.redirect(url.toString());

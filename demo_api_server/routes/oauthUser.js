@@ -9,6 +9,11 @@ const { pingOneUserIdFor } = require('../services/pingOneSessionUser');
 const mfaService = require('../services/mfaService');
 const oauthUserConfig = require('../config/oauthUser');
 const configStore = require('../services/configStore');
+const { loginHintFor } = require('../services/loginHint');
+
+// The hint for a sign-in the app starts while it already knows who is in this session (a step-up, a re-login), as
+// the configured server spells them. Empty when nobody is known: the caller then keeps oauthUserService's default.
+const knownLoginHint = (req) => loginHintFor(req, configStore.getOAuthProvider?.() || 'pingone');
 const dataStore = require('../data/store');
 const { determineClientType } = require('../middleware/auth');
 const { getFrontendOrigin, getUserRedirectUri, validateRedirectUriOrigin, getExpectedFrontendOrigin } = require('../services/oauthRedirectUris');
@@ -736,6 +741,9 @@ router.get('/login', (req, res) => {
         ...(piFlowLogin ? { forcePiFlow: true } : {}),
         // Test hook: the only acr the modal login may request, so MFA can be exercised on demand.
         ...(piFlowLogin && req.query.mfa === '1' ? { acr_values: 'Multi_Factor' } : {}),
+        // Not on a forced re-login: the user chose to sign in again, possibly as someone else, and PingFederate
+        // locks the username field to the hint.
+        ...(!forceLogin && knownLoginHint(req) ? { login_hint: knownLoginHint(req) } : {}),
       }) + resourceParam;
     if (piFlowMode) {
       const piFlowUrl = new URL(url);
@@ -868,6 +876,7 @@ router.get('/silent-reauth', (req, res) => {
       redirectUri,
       nonce,
       prompt: 'none',
+      ...(knownLoginHint(req) ? { login_hint: knownLoginHint(req) } : {}),
     }) + resourceParam;
 
     req.session.oauthState = state;
@@ -1471,6 +1480,8 @@ router.get('/stepup', (req, res) => {
       nonce,
       acr_values: acrValue,
       max_age: 0,
+      // A step-up is for the person already signed in: hint them, not the demo default.
+      ...(knownLoginHint(req) ? { login_hint: knownLoginHint(req) } : {}),
     });
 
     // Persist PKCE + state + redirect URI + where to go after MFA

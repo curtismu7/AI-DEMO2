@@ -68,6 +68,15 @@ app.get('/__test/session/:provider', (req, res) => {
   req.session.oauthType = 'user';
   req.session.save((error) => res.sendStatus(error ? 500 : 204));
 });
+// A session whose user has a name, for the login_hint tests.
+app.get('/__test/session-as/:provider/:username', (req, res) => {
+  // ?expired=1: the token has run out but the user is still known, which is when a silent re-auth really starts.
+  req.session.oauthTokens = { accessToken: 'session-token', expiresAt: req.query.expired ? Date.now() - 1000 : Date.now() + 60_000 };
+  req.session.oauthProvider = req.params.provider;
+  req.session.user = { oauthProvider: req.params.provider, username: req.params.username, email: 'user@example.test' };
+  req.session.oauthType = 'user';
+  req.session.save((error) => res.sendStatus(error ? 500 : 204));
+});
 app.use('/api/auth/oauth/user', router);
 
 describe('OAuth User Login', () => {
@@ -420,5 +429,58 @@ describe('OAuth User Step-up return_to', () => {
     expect(res.headers.location).toContain('response_type=code');
     const { sanitizeStepUpReturnTo } = require('../routes/oauthUser');
     expect(sanitizeStepUpReturnTo('http://localhost:3000/dashboard')).toBe('http://localhost:3000/dashboard');
+  });
+});
+
+describe('login_hint follows who is signed in', () => {
+  const hintOf = (response) => new URL(response.headers.location).searchParams.get('login_hint');
+  const signedInAs = async (provider, username, { expired = false } = {}) => {
+    const agent = request.agent(app);
+    await agent.get(`/__test/session-as/${provider}/${username}${expired ? '?expired=1' : ''}`).expect(204);
+    return agent;
+  };
+  // Earlier tests in this file leave the provider mocked as PingFederate.
+  beforeEach(() => configStore.getOAuthProvider.mockReturnValue('pingone'));
+  afterEach(() => configStore.getOAuthProvider.mockReturnValue('pingone'));
+
+  test('a first login, with nobody known, keeps the demo default for the provider', async () => {
+    expect(hintOf(await request(app).get('/api/auth/oauth/user/login').expect(302))).toBe('demoUser');
+    configStore.getOAuthProvider.mockReturnValue('pingfederate');
+    expect(hintOf(await request(app).get('/api/auth/oauth/user/login').expect(302))).toBe('demouser');
+  });
+
+  test('a PingOne step-up hints the person signed in, not the demo default', async () => {
+    const agent = await signedInAs('pingone', 'demoWfEmployee');
+
+    const response = await agent.get('/api/auth/oauth/user/stepup').expect(302);
+
+    expect(hintOf(response)).toBe('demoWfEmployee');
+    expect(new URL(response.headers.location).searchParams.get('acr_values')).toBeTruthy();
+  });
+
+  test('a PingFederate step-up hints them in PingFederate\'s spelling', async () => {
+    configStore.getOAuthProvider.mockReturnValue('pingfederate');
+
+    expect(hintOf(await (await signedInAs('pingfederate', 'demouser')).get('/api/auth/oauth/user/stepup').expect(302))).toBe('demouser');
+    // A name from a PingOne session is lowercased for PingFederate, which is case-sensitive.
+    expect(hintOf(await (await signedInAs('pingone', 'demoWfEmployee')).get('/api/auth/oauth/user/stepup').expect(302))).toBe('demowfemployee');
+  });
+
+  test('a silent re-auth after the token expired hints the person who was signed in', async () => {
+    const agent = await signedInAs('pingone', 'demoWfManager', { expired: true });
+
+    const response = await agent.get('/api/auth/oauth/user/silent-reauth?return_to=%2Fdashboard').expect(302);
+
+    expect(new URL(response.headers.location).searchParams.get('prompt')).toBe('none');
+    expect(hintOf(response)).toBe('demoWfManager');
+  });
+
+  test('a forced re-login does not lock the sign-in to the previous user', async () => {
+    const agent = await signedInAs('pingone', 'demoWfEmployee');
+
+    const response = await agent.get('/api/auth/oauth/user/login?force=true').expect(302);
+
+    expect(new URL(response.headers.location).searchParams.get('prompt')).toBe('login');
+    expect(hintOf(response)).toBe('demoUser');
   });
 });

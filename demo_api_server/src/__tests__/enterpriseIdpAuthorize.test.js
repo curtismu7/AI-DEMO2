@@ -94,6 +94,24 @@ describe('enterprise IdP /authorize (EMA leg 1, PingOne federation)', () => {
     expect(res.body.error).toBe('temporarily_unavailable');
   });
 
+  test('sends no login_hint when nobody is known in this browser', async () => {
+    const res = await request(app()).get('/api/enterprise-idp/authorize').query(validQuery());
+
+    expect(res.status).toBe(302);
+    expect(new URL(res.headers.location).searchParams.has('login_hint')).toBe(false);
+  });
+
+  test('pre-fills PingOne with the demo user already signed in to the app in this browser', async () => {
+    const a = express();
+    a.use((req, _res, next) => { req.session = { oauthProvider: 'pingone', user: { username: 'demoWfEmployee' } }; next(); });
+    a.use('/api/enterprise-idp', enterpriseIdpRouter);
+
+    const res = await request(a).get('/api/enterprise-idp/authorize').query(validQuery());
+
+    expect(res.status).toBe(302);
+    expect(new URL(res.headers.location).searchParams.get('login_hint')).toBe('demoWfEmployee');
+  });
+
   test('redirects to PingOne with our own PKCE and a relay state binding the original request', async () => {
     const res = await request(app()).get('/api/enterprise-idp/authorize').query(validQuery());
     expect(res.status).toBe(302);

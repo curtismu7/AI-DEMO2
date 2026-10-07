@@ -94,6 +94,23 @@ describe('dedicated PF DaVinci sign-in', () => {
     expect(JSON.stringify(res.json.mock.calls)).not.toContain(idToken);
   });
 
+  it('pre-fills the PingFederate sign-in with the signed-in user, in PingFederate\'s lowercase spelling', async () => {
+    const { req, res } = exchange();
+    req.session.user = { oauthProvider: 'pingone_sso', username: 'demoUser' };
+
+    await pfDavinciAuth.login(req, res);
+
+    expect(new URL(res.redirect.mock.calls[0][0]).searchParams.get('login_hint')).toBe('demouser');
+  });
+
+  it('sends no login_hint when the session has no known user', async () => {
+    const { req, res } = exchange();
+
+    await pfDavinciAuth.login(req, res);
+
+    expect(new URL(res.redirect.mock.calls[0][0]).searchParams.has('login_hint')).toBe(false);
+  });
+
   it('keeps the PF ID token beside, not inside, the PingOne tokens and exchanges it for an ID-JAG', async () => {
     const { req, res } = exchange();
     req.session.pfDavinciProof = { issuer, expiresAt: Date.now() + 60_000, idToken: 'pf.id.token' };
