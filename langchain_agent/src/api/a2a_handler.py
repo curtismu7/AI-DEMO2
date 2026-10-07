@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import json
 import logging
 import os
 import uuid
@@ -11,9 +12,10 @@ from typing import Any, Callable, Optional
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from agent import a2a_delegation
+from api import a2a_tasks
 from authentication.token_validator import (
     TokenValidationError,
     validate_privilege_transaction_token,
@@ -104,8 +106,9 @@ async def get_agent_card(request: Request) -> dict[str, Any]:
         "capabilities": {
             "extensions": [],
             "stateTransitionHistory": False,
-            "pushNotifications": False,
-            "streaming": False,
+            # Push only when an allowlisted callback host is configured (a2a_tasks.py).
+            "pushNotifications": a2a_tasks.push_enabled(),
+            "streaming": True,
         },
         "defaultInputModes": ["text"],
         "defaultOutputModes": ["text"],
@@ -210,11 +213,21 @@ async def jsonrpc(request: Request) -> JSONResponse:
 
     if not isinstance(body, dict) or body.get("jsonrpc") != "2.0":
         return _error(request_id, -32600, "Invalid Request", 400)
-    if body.get("method") != "message/send":
+    method = body.get("method")
+    if method == "tasks/get":
+        return _tasks_get(request_id, body.get("params"), caller_key)
+    if method == "tasks/pushNotificationConfig/set":
+        return await _push_config_set(request_id, body.get("params"), caller_key)
+    if method not in ("message/send", "message/stream"):
         return _error(request_id, -32601, "Method not found", 404)
     text = _message_text(body.get("params"))
     if not text:
         return _error(request_id, -32602, "A text message is required", 400)
+    # Opt-in task lifecycle; a plain message/send falls through to the single Message below.
+    if method == "message/stream":
+        return _stream_task(request_id, body.get("params"), text, caller_key)
+    if _metadata_flag(body.get("params"), "task"):
+        return await _send_task(request_id, body.get("params"), text, caller_key)
 
     # Explicit hand-off: the caller names a configured specialist and this
     # agent forwards the message to it through the gateway. No banking
@@ -269,6 +282,112 @@ async def jsonrpc(request: Request) -> JSONResponse:
             },
         }
     )
+
+
+class _TaskFailure(Exception):
+    """A turn that ends the task as failed, with the text the caller may see."""
+
+
+def _owner_session(caller_key: str) -> str:
+    return "a2a-" + hashlib.sha256(caller_key.encode()).hexdigest()[:24]
+
+
+async def _produce_reply(params: Any, text: str, caller_key: str) -> tuple[str, dict[str, Any]]:
+    """One turn for the task and streaming paths: the same hand-off or agent call as message/send."""
+
+    hops = a2a_delegation.start_hop_trace()
+    a2a_delegation.set_relay_card_text(_metadata_flag(params, "relayCardText"))
+    delegate_to = _delegate_target(params)
+    if delegate_to:
+        try:
+            delegated = await a2a_delegation.delegate(delegate_to, text)
+        except a2a_delegation.DelegationError as exc:
+            logger.warning("[A2A] delegation to %s failed: %s", delegate_to, exc)
+            raise _TaskFailure(f"Delegation failed: {exc}") from exc
+        return delegated, {"delegatedTo": delegate_to, "delegatedBy": "langchainagent", "hops": hops}
+    if _agent is None:
+        raise _TaskFailure("Agent is not ready")
+    try:
+        reply = await _agent.process_message(text, _owner_session(caller_key))
+    except Exception as exc:
+        logger.exception("[A2A] Agent execution failed")
+        raise _TaskFailure("Agent execution failed") from exc
+    return str(reply), ({"hops": hops} if hops else {})
+
+
+def _context_id(params: Any) -> Optional[str]:
+    message = params.get("message") if isinstance(params, dict) and isinstance(params.get("message"), dict) else {}
+    value = message.get("contextId")
+    return value if isinstance(value, str) and value else None
+
+
+async def _run_task(task: dict[str, Any], params: Any, text: str, caller_key: str) -> dict[str, Any]:
+    """Run the turn for an already-created working task, then store it and notify callbacks."""
+
+    try:
+        reply, metadata = await _produce_reply(params, text, caller_key)
+        a2a_tasks.finish(task, "completed", a2a_tasks.result_artifact(reply, metadata))
+    except _TaskFailure as exc:
+        a2a_tasks.finish(task, "failed", None, str(exc))
+    a2a_tasks.task_store().save(task, caller_key)
+    await a2a_tasks.notify_push(task, caller_key)
+    return task
+
+
+async def _send_task(request_id: Any, params: Any, text: str, caller_key: str) -> JSONResponse:
+    task = a2a_tasks.new_task(_context_id(params))
+    a2a_tasks.task_store().save(task, caller_key)
+    await _run_task(task, params, text, caller_key)
+    return JSONResponse({"jsonrpc": "2.0", "id": request_id, "result": task})
+
+
+def _sse(request_id: Any, result: dict[str, Any]) -> str:
+    return "data: " + json.dumps({"jsonrpc": "2.0", "id": request_id, "result": result}) + "\n\n"
+
+
+def _stream_task(request_id: Any, params: Any, text: str, caller_key: str) -> StreamingResponse:
+    """message/stream: the working task, then its artifact, then the final status, as server-sent events."""
+
+    async def events():
+        task = a2a_tasks.new_task(_context_id(params))
+        a2a_tasks.task_store().save(task, caller_key)
+        yield _sse(request_id, json.loads(json.dumps(task)))
+        await _run_task(task, params, text, caller_key)
+        for artifact in task["artifacts"]:
+            yield _sse(
+                request_id,
+                {"kind": "artifact-update", "taskId": task["id"], "contextId": task["contextId"], "artifact": artifact, "lastChunk": True},
+            )
+        yield _sse(
+            request_id,
+            {"kind": "status-update", "taskId": task["id"], "contextId": task["contextId"], "status": task["status"], "final": True},
+        )
+
+    return StreamingResponse(events(), media_type="text/event-stream")
+
+
+def _tasks_get(request_id: Any, params: Any, caller_key: str) -> JSONResponse:
+    task_id = params.get("id") if isinstance(params, dict) else None
+    task = a2a_tasks.task_store().get(task_id, caller_key) if isinstance(task_id, str) else None
+    if task is None:
+        return _error(request_id, -32001, "Task not found", 404)
+    return JSONResponse({"jsonrpc": "2.0", "id": request_id, "result": task})
+
+
+async def _push_config_set(request_id: Any, params: Any, caller_key: str) -> JSONResponse:
+    if not a2a_tasks.push_enabled():
+        return _error(request_id, -32003, "Push notifications are not enabled on this agent", 400)
+    params = params if isinstance(params, dict) else {}
+    task_id = params.get("taskId")
+    config = params.get("pushNotificationConfig") if isinstance(params.get("pushNotificationConfig"), dict) else {}
+    if not isinstance(task_id, str) or a2a_tasks.task_store().get(task_id, caller_key) is None:
+        return _error(request_id, -32001, "Task not found", 404)
+    try:
+        await a2a_tasks.assert_push_url_allowed(str(config.get("url", "")))
+    except ValueError as exc:
+        return _error(request_id, -32602, str(exc), 400)
+    stored = a2a_tasks.task_store().add_push(task_id, caller_key, config["url"], str(config.get("token", "")))
+    return JSONResponse({"jsonrpc": "2.0", "id": request_id, "result": {"taskId": task_id, "pushNotificationConfig": {"id": stored["id"], "url": stored["url"]}}})
 
 
 def _delegate_target(params: Any) -> str:
