@@ -682,6 +682,11 @@ services:
       # file the other Node services already use.
       NODE_EXTRA_CA_CERTS: /certs/ca-bundle-with-mkcert.pem
       FF_SPIFFE_CLIENT_AUTH: "${FF_SPIFFE_CLIENT_AUTH:-false}"
+      # ff_agent_identity_sidecar: only read when the flag is ON. AGENT_IDENTITY_SIDECAR_API_KEY
+      # (the sidecar's BROKER_API_KEY) is deliberately NOT declared here: environment: would
+      # override env_file and blank it. Set it in demo_api_server/.env; unset = flag-ON calls
+      # fail with a clear error.
+      AGENT_IDENTITY_SIDECAR_URL: "http://agent-identity-sidecar:8097"
       SPIFFE_SVID_PATH: "/run/spiffe/svid.jwt"
       SPIFFE_KEY_PATH: "/run/spiffe/svid.key"
       SPIFFE_BUNDLE_PATH: "/run/spiffe/bundle.pem"

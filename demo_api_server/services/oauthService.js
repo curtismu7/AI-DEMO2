@@ -11,6 +11,7 @@ const { trackTokenEvent } = require('./tokenChainService');
 const configStore = require('./configStore');
 const { authMethodOrder, isInvalidClientError } = require('./pingOneTokenAuth');
 const clientAssertionService = require('./clientAssertionService');
+const identitySidecar = require('./identitySidecarClient');
 const { decodeJwt } = require('../utils/tokenUtils');
 
 // Utility function to decode and log OAuth token information
@@ -932,6 +933,9 @@ class OAuthService {
    * alternate on invalid_client (the app may be client_secret_basic or _post).
    */
   async getAiAgentClientCredentialsToken(runtime = null) {
+    // ff_agent_identity_sidecar: the default agent's token comes from the sidecar.
+    // A runtime (Agent Builder / delegated commerce) carries its own credentials, so it never does.
+    if (!runtime && identitySidecar.isEnabled()) return identitySidecar.fetchActorToken();
     const clientId = runtime?.clientId ||
       configStore.getEffective('pingone_ai_agent_client_id') ||
       process.env.PINGONE_AI_AGENT_CLIENT_ID;

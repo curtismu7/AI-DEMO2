@@ -36,6 +36,7 @@ const configStore = require('./configStore');
 const hitlServiceClient = require('./hitlServiceClient');
 const oauthService = require('./oauthService');
 const clientAssertionService = require('./clientAssertionService');
+const identitySidecar = require('./identitySidecarClient');
 const { writeExchangeEvent } = require('./exchangeAuditStore');
 const { createTokenExchangeError, RFC8693_ERRORS, PF_USER_GATE_ERRORS } = require('./rfcCompliantErrorHandler');
 // Architecture-note R1 (2026-05-15) / T-2: the BFF no longer makes a local
@@ -2704,9 +2705,13 @@ async function _performTwoExchangeDelegation(
     const agentGatewayScope = provider
       ? providerConfig.agentActorScope
       : configStore.getEffective('agent_gateway_cc_scope') || 'agent:invoke';
+    // ff_agent_identity_sidecar: only the default agent (no PF provider, no runtime with
+    // its own credentials) takes its actor token from the sidecar.
     agentActorToken = provider
       ? await provider.getActorToken(providerConfig, 'agent')
-      : await oauthService.getClientCredentialsTokenAs(aiAgentClientId, aiAgentClientSecret, agentGatewayAud, aiAgentAuthMethod, agentGatewayScope);
+      : (!agentRuntime && identitySidecar.isEnabled())
+        ? await identitySidecar.fetchActorToken()
+        : await oauthService.getClientCredentialsTokenAs(aiAgentClientId, aiAgentClientSecret, agentGatewayAud, aiAgentAuthMethod, agentGatewayScope);
     const agentActorDecoded = decodeJwtClaims(agentActorToken);
     const actorIdx = tokenEvents.findIndex(e => e.id === 'two-ex-agent-actor-acquiring');
     if (actorIdx !== -1) tokenEvents.splice(actorIdx, 1);

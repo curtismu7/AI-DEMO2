@@ -26,6 +26,14 @@ record.
 
 **What the real fix looks like.** Drop `spinner_size` from the catalog, the flags hook and the Appearance page (and its preview), or turn it into a real "all spinners" scale that the boot screen in `index.html` also reads.
 
+### [ ] 2026-10-07 — Identity sidecar: BFF switch is static-target, and three nearby oddities
+
+**What's wrong.** (1) `ff_agent_identity_sidecar` now routes the default agent's actor token (the two `oauthService.getAiAgentClientCredentialsToken` / `_performTwoExchangeDelegation` sites) to the sidecar's fixed `agent-gateway` target, so `agent_gateway_cc_scope` and a non-default Agent Gateway audience are ignored when the flag is ON. (2) The langchain-side switch from #941 only covers the MCP tool provider and external client; a chat turn goes through the BFF tool path and never calls it. (3) The Token Chain "Token exchange — delegation" step reads Completed with an empty "After exchange" column when only the claim-less `exchanged-token` event exists (`buildTraceSteps.js` already notes the BFF never supersedes it). (4) The startup `[EXCHANGE-PROBE]` sent a PingOne client to the PingFederate token endpoint and logged "Invalid client or client credentials", which reads as a stale secret; it is not (the same client and secret mint fine against PingOne).
+
+**Why it wasn't fixed now.** Each is outside the sidecar change. (3) and (4) are display and logging, found while verifying it; neither blocks the chain.
+
+**What the real fix looks like.** (1) Have the BFF pass its configured audience and scope as the sidecar target, or reject a token whose `aud` does not match `agentGatewayAud`. (2) Drop the langchain switch if nothing else needs it. (3) Emit the decoded delegated claims on `exchanged-token`, or show "claims not captured" instead of an empty column. (4) Skip the probe, or point it at the endpoint that matches the client's provider.
+
 ### [ ] 2026-10-06 — Agent identity sidecar phase 1 took three shortcuts
 
 **What's wrong.** `ff_agent_identity_sidecar` (agent token from `agent_token_service` `POST /v1/token`) shipped with: (1) the target to scope/audience/resource map in a `TARGETS_JSON` env var, not derived from `scope-topology.json`; (2) a TCP port on the compose network guarded by a static `x-api-key`, not a Unix socket; (3) langchain only, and client-credentials only — no RFC 8693 user delegation, no step-up/CIBA mapping.
