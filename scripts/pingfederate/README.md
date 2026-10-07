@@ -418,3 +418,7 @@ not PingOne MFA.
 4. Set `PF_AI_CIBA_WEB_APPROVER_ENABLED=true` for the BFF and restart it. The page then shows
    "Approve (web approver)" and "Deny (web approver)" while a request is pending. It overrides the
    mock phone, and it is inert when `NODE_ENV=production`.
+
+## SSO session: sign in once, not on every authorize
+
+With PF's global authentication sessions off, every authorize request (CIMD, RAR, sign-in) re-prompts, and PF logs `no session ID was found in request`. `node scripts/pingfederate/provision-pf-sso-session.js` is a dry run; `--apply` sets `enableSessions: true` on `session/authenticationSessionPolicies/global` (backup written to the temp dir, read back after); `--remove` turns it off again. It is global to this PF: every client now gets SSO, and a logout in the app does not end the PF session.
