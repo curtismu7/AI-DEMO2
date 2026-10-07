@@ -145,6 +145,13 @@ function needsMigration(existing: { properties?: Array<{ name?: string; tokeniza
   return (existing.properties ?? []).some((p) => exact.includes(p.name as string) && p.tokenization !== 'field');
 }
 
+// Exact-match copies of document_id/collection_id. The originals are word-tokenized in
+// pre-#934 classes and Weaviate cannot change that in place, so every Equal filter uses these.
+const DOCUMENT_KEY_PROPS = [
+  { name: 'document_key', dataType: ['text'], tokenization: 'field' as const },
+  { name: 'collection_key', dataType: ['text'], tokenization: 'field' as const },
+];
+
 const DOCUMENT_SCHEMA = {
   class: DOCUMENT_CLASS_NAME,
   description: 'An extracted and embedded Learning Hub document chunk',
@@ -155,8 +162,58 @@ const DOCUMENT_SCHEMA = {
     { name: 'text', dataType: ['text'] }, { name: 'media_type', dataType: ['text'] }, { name: 'section', dataType: ['text'] },
     { name: 'page_number', dataType: ['int'] }, { name: 'source_url', dataType: ['text'] },
     { name: 'source_path', dataType: ['text'] }, { name: 'indexed_at', dataType: ['date'] },
+    ...DOCUMENT_KEY_PROPS,
   ],
 };
+
+const BACKFILL_PAGE = 100;
+interface KeyedObject { id: string; document_id?: string | null; collection_id?: string | null; document_key?: string | null; collection_key?: string | null }
+
+/** Every object, paged by id cursor, with the fields the backfill needs. */
+async function scanDocumentObjects(client: WeaviateClient): Promise<KeyedObject[]> {
+  const out: KeyedObject[] = [];
+  let after = '';
+  for (;;) {
+    let q = client.graphql.get().withClassName(DOCUMENT_CLASS_NAME)
+      .withFields('document_id collection_id document_key collection_key _additional { id }').withLimit(BACKFILL_PAGE);
+    if (after) q = q.withAfter(after);
+    const page = (await q.do())?.data?.Get?.[DOCUMENT_CLASS_NAME] ?? [];
+    for (const o of page) out.push({ ...o, id: o._additional?.id });
+    if (page.length < BACKFILL_PAGE) return out;
+    after = page[page.length - 1]._additional?.id;
+  }
+}
+
+const needsKeys = (o: KeyedObject) => o.document_key !== o.document_id || o.collection_key !== o.collection_id;
+
+/**
+ * Copy document_id/collection_id into the exact-match *_key properties of every object.
+ * PATCH-merge only: vectors and every other property are untouched (vectorizer is 'none').
+ * Nothing is deleted. Re-runnable: it only touches objects whose keys differ.
+ */
+async function backfillDocumentKeys(client: WeaviateClient): Promise<void> {
+  const before = await scanDocumentObjects(client);
+  const todo = before.filter(needsKeys);
+  if (!todo.length) return;
+  console.warn(`[weaviateStore] ${DOCUMENT_CLASS_NAME}: backfilling document_key/collection_key on ${todo.length}/${before.length} objects`);
+  let failed = 0;
+  for (const o of todo) {
+    try {
+      await client.data.merger().withClassName(DOCUMENT_CLASS_NAME).withId(o.id)
+        .withProperties({ document_key: o.document_id ?? '', collection_key: o.collection_id ?? '' }).do();
+    } catch (err) {
+      failed++;
+      console.error(`[weaviateStore] backfill failed for object ${o.id}: ${(err as Error).message}`);
+    }
+  }
+  const after = await scanDocumentObjects(client);
+  const missing = after.filter(needsKeys).length;
+  if (failed || missing || after.length < before.length) {
+    console.error(`[weaviateStore] ${DOCUMENT_CLASS_NAME} key backfill INCOMPLETE (${failed} patch failures, ${missing} unkeyed of ${after.length}, was ${before.length}); will retry on next start`);
+    return;
+  }
+  console.warn(`[weaviateStore] ${DOCUMENT_CLASS_NAME} key backfill verified: ${after.length}/${after.length} objects keyed`);
+}
 
 export function createStore(host: string): Store {
   const client: WeaviateClient = weaviate.client({ scheme: 'http', host });
@@ -296,16 +353,25 @@ export function createStore(host: string): Store {
 
     async ensureDocumentSchema(): Promise<void> {
       const schema = await client.schema.getter().do();
-      if (!(schema.classes ?? []).some((c) => c.class === DOCUMENT_CLASS_NAME)) {
+      const existing = (schema.classes ?? []).find((c) => c.class === DOCUMENT_CLASS_NAME);
+      if (!existing) {
         await client.schema.classCreator().withClass(DOCUMENT_SCHEMA).do();
+        return;
       }
+      // Additive migration of a legacy class: add the exact-match key props, then backfill.
+      const have = new Set((existing.properties ?? []).map((p) => p.name));
+      for (const prop of DOCUMENT_KEY_PROPS.filter((p) => !have.has(p.name))) {
+        console.warn(`[weaviateStore] ${DOCUMENT_CLASS_NAME}: adding property ${prop.name} (tokenization field)`);
+        await client.schema.propertyCreator().withClassName(DOCUMENT_CLASS_NAME).withProperty(prop).do();
+      }
+      await backfillDocumentKeys(client);
     },
 
     async insertDocumentChunks(chunks): Promise<void> {
       if (!chunks.length) return;
       let batcher = client.batch.objectsBatcher();
       for (const c of chunks) batcher = batcher.withObject({ class: DOCUMENT_CLASS_NAME, properties: {
-        chunk_id: c.chunk_id, document_id: c.document_id, document_hash: c.document_hash ?? '', collection_id: c.collection_id, title: c.title,
+        chunk_id: c.chunk_id, document_id: c.document_id, document_key: c.document_id, collection_key: c.collection_id, document_hash: c.document_hash ?? '', collection_id: c.collection_id, title: c.title,
         text: c.text, media_type: c.media_type ?? '', section: c.section ?? '', page_number: c.page_number ?? 0, source_url: c.source_url ?? '', source_path: c.source_path ?? '', indexed_at: c.indexed_at ?? new Date().toISOString(),
       }, vector: c.vector });
       const results = (await batcher.do()) as unknown as BatchResultItem[];
@@ -318,8 +384,8 @@ export function createStore(host: string): Store {
       for (const documentId of [...new Set(chunks.map((chunk) => chunk.document_id))]) {
         const old = await client.graphql.get().withClassName(DOCUMENT_CLASS_NAME).withFields('_additional { id }')
           .withWhere({ operator: 'And', operands: [
-            { path: ['collection_id'], operator: 'Equal', valueText: collectionId },
-            { path: ['document_id'], operator: 'Equal', valueText: documentId },
+            { path: ['collection_key'], operator: 'Equal', valueText: collectionId },
+            { path: ['document_key'], operator: 'Equal', valueText: documentId },
           ] }).withLimit(500).do();
         oldIds.push(...(old?.data?.Get?.[DOCUMENT_CLASS_NAME] ?? []).map((item: any) => item._additional?.id).filter(Boolean));
       }
@@ -329,15 +395,15 @@ export function createStore(host: string): Store {
 
     async deleteDocument(collectionId, documentId) {
       await client.batch.objectsBatchDeleter().withClassName(DOCUMENT_CLASS_NAME).withWhere({ operator: 'And', operands: [
-        { path: ['collection_id'], operator: 'Equal', valueText: collectionId },
-        { path: ['document_id'], operator: 'Equal', valueText: documentId },
+        { path: ['collection_key'], operator: 'Equal', valueText: collectionId },
+        { path: ['document_key'], operator: 'Equal', valueText: documentId },
       ] }).do();
     },
 
     async searchDocuments(vector, opts) {
       const res = await client.graphql.get().withClassName(DOCUMENT_CLASS_NAME)
         .withFields('chunk_id document_id title text document_hash media_type section page_number source_url source_path _additional { certainty }')
-        .withNearVector({ vector }).withWhere({ path: ['collection_id'], operator: 'Equal', valueText: opts.collectionId })
+        .withNearVector({ vector }).withWhere({ path: ['collection_key'], operator: 'Equal', valueText: opts.collectionId })
         .withLimit(opts.limit).do();
       return (res?.data?.Get?.[DOCUMENT_CLASS_NAME] ?? []).map((o: any) => ({ ...o, relevance: o._additional?.certainty ?? 0 }));
     },
@@ -345,7 +411,7 @@ export function createStore(host: string): Store {
     async listDocuments(collectionId) {
       const res = await client.graphql.get().withClassName(DOCUMENT_CLASS_NAME)
         .withFields('document_id title source_url source_path')
-        .withWhere({ path: ['collection_id'], operator: 'Equal', valueText: collectionId }).withLimit(500).do();
+        .withWhere({ path: ['collection_key'], operator: 'Equal', valueText: collectionId }).withLimit(500).do();
       const map = new Map<string, DocumentSummary>();
       for (const item of (res?.data?.Get?.[DOCUMENT_CLASS_NAME] ?? []) as any[]) {
         const prior = map.get(item.document_id);
