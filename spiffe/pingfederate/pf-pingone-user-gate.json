@@ -15,7 +15,12 @@
       "p1UserId": "/_embedded/users/0/id",
       "p1Enabled": "/_embedded/users/0/enabled",
       "mayActSub": "/_embedded/users/0/mayAct/sub",
-      "matchCount": "/count"
+      "matchCount": "/count",
+      "p1Email": "/_embedded/users/0/email",
+      "p1GivenName": "/_embedded/users/0/name/given",
+      "p1FamilyName": "/_embedded/users/0/name/family",
+      "p1FormattedName": "/_embedded/users/0/name/formatted",
+      "p1MobilePhone": "/_embedded/users/0/mobilePhone"
     }
   },
   "attributeSource": {

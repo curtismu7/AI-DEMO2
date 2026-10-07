@@ -87,6 +87,25 @@ describe('OAuthUserService.createUserFromOAuth issuer identity', () => {
     expect(oauthUserService.createUserFromOAuth({ sub: 's', email: 'e@x.io' }).username).toBe('e@x.io');
   });
 
+  it('a PingFederate sign-in that now carries a PingOne profile is still the PingFederate username, with the profile filled in', () => {
+    // PingFederate releases preferred_username (its own username) next to the email, so the email never becomes the username.
+    const user = oauthUserService.createUserFromOAuth({
+      sub: 'demouser',
+      preferred_username: 'demouser',
+      email: 'demo@example.test',
+      given_name: 'Demo',
+      family_name: 'User',
+    });
+
+    expect(user).toMatchObject({ username: 'demouser', email: 'demo@example.test', firstName: 'Demo', lastName: 'User' });
+  });
+
+  it('falls back to the formatted name when PingFederate sends only name', () => {
+    const user = oauthUserService.createUserFromOAuth({ sub: 'demouser', preferred_username: 'demouser', name: 'Demo User' });
+
+    expect(user).toMatchObject({ username: 'demouser', firstName: 'Demo', lastName: 'User' });
+  });
+
   it('does not label an unknown OIDC issuer as PingFederate', () => {
     MOCK_USER_CONFIG.issuer = 'https://login.example.test';
     MOCK_USER_CONFIG.authorizationEndpoint = 'https://login.example.test/oauth2/authorize';
