@@ -273,6 +273,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-07 — PingOne test routes and the attack simulator fell back to the BFF's own client for a sidecar-managed exchanger
+
+**Files:** `demo_api_server/routes/pingoneTestRoutes.js` (five exchange branches), `services/attackSimulatorService.js` (`_exchangeSimToken`); new `src/__tests__/pingoneTestRoutes.sidecarRelay.test.js`, `attackSimulatorService.sidecarRelay.test.js`.
+
+**What was broken:** each branch exchanged as the MCP exchanger only when a local secret existed, otherwise it fell back to `performTokenExchange` / `performTokenExchangeWithActor`. With the exchanger managed by the sidecar and no local secret, the test routes and attack simulator would exchange as the wrong client and report the wrong result.
+
+**What changed:** the condition also holds when `sidecarRelay.manages(clientId)` is true (`canExchangeAs` in the route file; inline in the simulator).
+
+**Do not break:** a client with a local secret never asks the sidecar; an unmanaged client with no secret keeps the fallback; flag OFF changes nothing.
+
+**Verify:** `cd demo_api_server && CI=true npx jest src/__tests__/pingoneTestRoutes src/__tests__/attackSimulatorService --forceExit`. With the two source edits reverted, exactly the two managed-client tests fail.
+
 ### 2026-10-07 — Agent delegation and A2A refused a sidecar-managed client for having no local secret
 
 **Files:** `demo_api_server/routes/agentDelegation.js`, `services/a2aDelegationService.js`; new `src/__tests__/agentDelegation.sidecarRelay.test.js`, `a2aDelegationService.sidecarRelay.test.js`.

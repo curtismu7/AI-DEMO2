@@ -227,7 +227,8 @@ async function _exchangeSimToken(subjectToken, audience, scopes, { viaPingGatewa
   }
   const exchangerId = configStore.getEffective('pingone_mcp_token_exchanger_client_id');
   const exchangerCred = configStore.getEffective('pingone_mcp_token_exchanger_client_secret');
-  if (exchangerId && exchangerCred) {
+  // ff_agent_identity_sidecar: an exchanger the sidecar manages needs no local secret.
+  if (exchangerId && (exchangerCred || await require('./sidecarClientRelay').manages(exchangerId))) {
     const method = (
       process.env.PINGONE_MCP_TOKEN_EXCHANGER_CC_AUTH_METHOD ||
       process.env.PINGONE_MCP_TOKEN_EXCHANGER_AUTH_METHOD ||

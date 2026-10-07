@@ -22,6 +22,11 @@ const http = require('http');
 const https = require('https');
 const { URL } = require('url');
 const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
+const sidecarRelay = require('../services/sidecarClientRelay');
+
+// ff_agent_identity_sidecar: an exchanger the sidecar manages is authenticated there, so it
+// can exchange with no local secret.
+const canExchangeAs = async (clientId, secret) => !!clientId && (!!secret || await sidecarRelay.manages(clientId));
 
 /**
  * Expected PingOne configuration sourced from scope-topology.json (the provisioning
@@ -638,7 +643,7 @@ router.get('/exchange-user-to-mcp', async (req, res) => {
     const mcpExchangerAuthMethod1 = (configStore.getEffective('pingone_token_exchange_auth_method') || process.env.PINGONE_TOKEN_EXCHANGE_AUTH_METHOD || 'post').toLowerCase();
     const mcpAudience1 = configStore.getEffective('pingone_resource_mcp_server_uri') || process.env.PINGONE_RESOURCE_MCP_SERVER_URI;
 
-    const exchangedToken = (mcpExchangerClientId1 && mcpExchangerSecret1)
+    const exchangedToken = (await canExchangeAs(mcpExchangerClientId1, mcpExchangerSecret1))
       ? await oauthService.performTokenExchangeAs(
           oauthTokens.accessToken, null, mcpExchangerClientId1, mcpExchangerSecret1,
           mcpAudience1, mcpScopes1, mcpExchangerAuthMethod1
@@ -893,7 +898,7 @@ router.get('/exchange-user-agent-to-mcp', async (req, res) => {
     const exchClientId2 = configStore.getEffective('pingone_mcp_token_exchanger_client_id') || process.env.AGENT_OAUTH_CLIENT_ID;
     const exchSecret2 = configStore.getEffective('pingone_mcp_token_exchanger_client_secret') || process.env.AGENT_OAUTH_CLIENT_SECRET;
     const mcpExchangerAuthMethod2 = (configStore.getEffective('pingone_token_exchange_auth_method') || process.env.PINGONE_TOKEN_EXCHANGE_AUTH_METHOD || 'post').toLowerCase();
-    const exchangedToken = (exchClientId2 && exchSecret2)
+    const exchangedToken = (await canExchangeAs(exchClientId2, exchSecret2))
       ? await oauthService.performTokenExchangeAs(
           oauthTokens.accessToken, agentToken, exchClientId2, exchSecret2,
           targetAudience, mcpScopes2, mcpExchangerAuthMethod2
@@ -970,7 +975,7 @@ router.get('/exchange-user-to-agent-to-mcp', async (req, res) => {
     const mcpExchangerClientId3 = configStore.getEffective('pingone_mcp_token_exchanger_client_id') || process.env.AGENT_OAUTH_CLIENT_ID;
     const mcpExchangerSecret3   = configStore.getEffective('pingone_mcp_token_exchanger_client_secret') || process.env.AGENT_OAUTH_CLIENT_SECRET;
     const mcpExchangerAuthMethod3 = (configStore.getEffective('pingone_token_exchange_auth_method') || process.env.PINGONE_TOKEN_EXCHANGE_AUTH_METHOD || 'post').toLowerCase();
-    const mcpToken = (mcpExchangerClientId3 && mcpExchangerSecret3)
+    const mcpToken = (await canExchangeAs(mcpExchangerClientId3, mcpExchangerSecret3))
       ? await oauthService.performTokenExchangeAs(
           oauthTokens.accessToken, agentToken, mcpExchangerClientId3, mcpExchangerSecret3,
           mcpAudience3, mcpScopes3, mcpExchangerAuthMethod3
@@ -1135,7 +1140,7 @@ router.post('/token-exchange', async (req, res) => {
       // Use MCP Token Exchanger credentials for the exchange authentication
       const exchangerClientId = configStore.getEffective('pingone_mcp_token_exchanger_client_id') || process.env.AGENT_OAUTH_CLIENT_ID;
       const exchangerSecret   = configStore.getEffective('pingone_mcp_token_exchanger_client_secret') || process.env.AGENT_OAUTH_CLIENT_SECRET;
-      if (exchangerClientId && exchangerSecret) {
+      if (await canExchangeAs(exchangerClientId, exchangerSecret)) {
         result = await oauthService.performTokenExchangeAs(subjectToken, actorToken, exchangerClientId, exchangerSecret, mcpGatewayUri, scopes);
       } else {
         result = await oauthService.performTokenExchangeWithActor(subjectToken, actorToken, mcpGatewayUri, scopes);
@@ -1522,7 +1527,7 @@ router.get('/diagnose-mcp-exchange', async (req, res) => {
           const mcpExchangerSecret2 = configStore.getEffective('pingone_mcp_token_exchanger_client_secret') || process.env.PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_SECRET;
           const mcpExchangerAuthMethod2 = (configStore.getEffective('pingone_token_exchange_auth_method') || process.env.PINGONE_TOKEN_EXCHANGE_AUTH_METHOD || 'post').toLowerCase();
 
-          if (mcpExchangerClientId2 && mcpExchangerSecret2) {
+          if (await canExchangeAs(mcpExchangerClientId2, mcpExchangerSecret2)) {
             const exchangeResult = await oauthService.performTokenExchangeAs(
               userToken, null, mcpExchangerClientId2, mcpExchangerSecret2,
               mcpUri, requestedScopes, mcpExchangerAuthMethod2
