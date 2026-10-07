@@ -70,6 +70,8 @@ import {
   getKnowledgeAssertionsSchema,
 } from "./tools/knowledge";
 
+import { pfGet, pfGetSchema } from "./tools/pingfederate";
+
 interface ToolEntry {
   name: string;
   description: string;
@@ -448,6 +450,15 @@ tools.push(
   }
 );
 
+tools.push({
+  name: "pf_get",
+  description:
+    "Read-only GET of a PingFederate Admin API resource (clients, CIMD policies/settings, JWT bearer grant processors, token-exchange policies, CIBA policies, out-of-band plugins, version). Needs PINGFEDERATE_ADMIN_PASSWORD; secrets are redacted.",
+  schema: pfGetSchema,
+  handler: (a) => pfGet(pfGetSchema.parse(a)),
+  readOnly: true,
+});
+
 // Gated write tool: only registers if DEV_MCP_PINGONE_WRITE=1
 if (process.env.DEV_MCP_PINGONE_WRITE === "1") {
   tools.push(
@@ -487,7 +498,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       readOnlyHint: t.readOnly,
       destructiveHint: !t.readOnly,
       idempotentHint: t.readOnly,
-      openWorldHint: t.name.startsWith("pingone_") || t.name === "tokenchain_introspect",
+      openWorldHint: t.name.startsWith("pingone_") || t.name.startsWith("pf_") || t.name === "tokenchain_introspect",
     },
   }));
   return { tools: exposed };

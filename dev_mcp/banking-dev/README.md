@@ -10,6 +10,7 @@ make iterating on this repo faster by exposing four tool namespaces over stdio:
 | `state_*`      | `banking_api_server/data/sessions.db`, `runtimeData.json`, etc. |
 | `tokenchain_*` | JWT decode, diff, introspect, demo-rule verdict               |
 | `pingone_*`    | PingOne Management API (read-only by default)                 |
+| `pf_get`       | PingFederate Admin API, read-only, enum of resources (needs `PINGFEDERATE_ADMIN_PASSWORD`; spec in `docs/reference/pf-13.1.2-openapi.json`) |
 
 ## Hard rules
 
