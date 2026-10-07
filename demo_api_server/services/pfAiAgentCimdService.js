@@ -14,6 +14,7 @@ const {
   loginHintFor,
   exchangeAuthorizationCode,
 } = require('./pfAiAgentOAuthService');
+const { safeParams, bareUrl, step: traceStep } = require('./pfAiAgentTrace');
 
 const FLOW_TTL_MS = 5 * 60 * 1000;
 const CIMD_SCOPE = 'openid profile email agent:invoke transactions:write';
@@ -79,18 +80,33 @@ async function beginCimd(req, { store = configStore, fetchImpl = fetch, now = Da
     expiresAt: createdAt + FLOW_TTL_MS,
   };
   delete featureSession.cimdTokens;
-  return {
-    redirectUrl: buildAuthorizationUrl({
-      metadata,
-      clientId: config.clientMetadataUrl,
-      redirectUri: config.redirectUri,
-      scope: CIMD_SCOPE,
-      state,
-      nonce,
-      challenge,
-      loginHint: loginHintFor(req),
+  delete featureSession.cimdResult;
+  const redirectUrl = buildAuthorizationUrl({
+    metadata,
+    clientId: config.clientMetadataUrl,
+    redirectUri: config.redirectUri,
+    scope: CIMD_SCOPE,
+    state,
+    nonce,
+    challenge,
+    loginHint: loginHintFor(req),
+  });
+  // The proof the page shows (secrets replaced, see pfAiAgentTrace): the client's metadata document, then the
+  // authorization request that names that document's URL as the client_id.
+  featureSession.cimdPending.trace = [
+    traceStep({
+      id: 'metadata',
+      title: 'The client is a URL, and the URL serves its own metadata',
+      request: { method: 'GET', url: bareUrl(config.clientMetadataUrl) },
+      response: { status: 200, body: metadataDocument(config) },
     }),
-  };
+    traceStep({
+      id: 'authorize',
+      title: 'Send the user to sign in at PingFederate',
+      request: { method: 'GET', url: bareUrl(redirectUrl), params: safeParams(new URL(redirectUrl).searchParams) },
+    }),
+  ];
+  return { redirectUrl };
 }
 
 async function completeCimd(req, { store = configStore, fetchImpl = fetch, now = Date.now } = {}) {
@@ -109,7 +125,7 @@ async function completeCimd(req, { store = configStore, fetchImpl = fetch, now =
 
   const config = resolveCimdConfig(store);
   const metadata = await discoverPf(config, fetchImpl);
-  const { tokenSet, identity } = await exchangeAuthorizationCode({
+  const { tokenSet, identity, trace } = await exchangeAuthorizationCode({
     config,
     metadata,
     clientId: config.clientMetadataUrl,
@@ -119,6 +135,21 @@ async function completeCimd(req, { store = configStore, fetchImpl = fetch, now =
     nonce: pending.nonce,
   }, fetchImpl);
   featureSession.cimdTokens = tokenSet;
+  featureSession.cimdResult = {
+    trace: [
+      ...(pending.trace || []),
+      traceStep({
+        id: 'callback',
+        title: 'PingFederate sends the user back with a code',
+        request: { method: 'GET', url: bareUrl(config.redirectUri), params: safeParams({ code: req.query.code, state: req.query.state }) },
+      }),
+      trace,
+    ],
+    subject: identity?.subject || null,
+    issuer: identity?.issuer || null,
+    tokenType: tokenSet.tokenType,
+    completedAt: new Date(now()).toISOString(),
+  };
   return identity;
 }
 

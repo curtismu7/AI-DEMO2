@@ -50,6 +50,8 @@ function createPfAiAgentRouter({ configStore: store = configStore, fetchImpl = f
       // Safe metadata of this session's last RAR run (outcome, token type, DPoP key thumbprint);
       // never a token, code, verifier or key.
       rarResult: req.session?.pfAiAgent?.rarResult || null,
+      // The same for the last CIMD sign-in: redacted request/response trace and who signed in.
+      cimdResult: req.session?.pfAiAgent?.cimdResult || null,
     });
   });
 

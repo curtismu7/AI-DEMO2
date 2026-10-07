@@ -140,6 +140,13 @@ const RAR_EXPLAIN = {
   token: "The BFF redeems the code, proving it started the flow with the PKCE verifier. authorization_details in the response is what PingFederate actually granted. The ID token's claims say who signed in. The access and refresh tokens stay on the server and are shown only as redacted.",
 };
 
+const CIMD_EXPLAIN = {
+  metadata: "There is no pre-registered client. The client_id is this URL, and the URL serves the client's own metadata: its redirect URI, that it is a public client with no secret, and the scopes it may ask for. PingFederate fetches this document to learn who is asking.",
+  authorize: "The browser is sent to PingFederate with that URL as client_id and a PKCE challenge, so only this app can redeem the code later. login_hint pre-fills the user PingFederate already knows about.",
+  callback: "PingFederate sends the user back to the redirect URI from the metadata document, with a one-time code.",
+  token: "The BFF redeems the code with the PKCE verifier; no client secret is involved. The ID token's claims say who signed in and where. The access and refresh tokens stay on the server and are shown only as redacted.",
+};
+
 const RAR_REASONS = {
   authorization_details_refused: "the policy processor refused the transaction as out of policy",
   authorization_rejected: "the sign-in or consent was rejected",
@@ -325,6 +332,7 @@ export default function PingFederateAiAgentPage({ user }) {
   const canExchange = (supportedSession || pfSignedIn) && Boolean(status?.features?.crossDomain) && !exchangeBusy;
   const features = status?.features || { cimd: false, crossDomain: false, rar: false, rarDpop: false, ciba: false, cibaMock: false, cibaWebApprover: false };
   const rarResult = status?.rarResult || null;
+  const cimdResult = status?.cimdResult || null;
   const rarUserKeyValue = rarUserKey.trim();
   const callbackResult = queryStatus.get("cimd") || queryStatus.get("rar");
 
@@ -463,6 +471,16 @@ export default function PingFederateAiAgentPage({ user }) {
           {features.cimd
             ? <a className="pf-ai-agent__action" href="/api/pf-ai-agent/cimd/start">Start CIMD authorization</a>
             : <span className="pf-ai-agent__disabled-action">Enable PF CIMD to start authorization</span>}
+          {cimdResult?.trace?.length > 0 && (
+            <div className="pf-ai-agent__proof" data-testid="cimd-proof">
+              <h3>Proof: what was sent and what came back</h3>
+              <ul className="pf-ai-agent__proof-points">
+                <li>The client_id is a URL that serves its own metadata; nothing was registered in PingFederate beforehand.</li>
+                <li>The ID token says {cimdResult.subject} signed in at {cimdResult.issuer}.</li>
+              </ul>
+              <ProtocolTrace steps={cimdResult.trace} explain={CIMD_EXPLAIN} />
+            </div>
+          )}
         </div>
       </section>
 

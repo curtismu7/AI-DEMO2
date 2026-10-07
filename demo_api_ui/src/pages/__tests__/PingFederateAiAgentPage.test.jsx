@@ -125,6 +125,29 @@ describe("PingFederate AI Agent page", () => {
     });
   });
 
+  describe("CIMD proof", () => {
+    it("shows the metadata document, the authorize request and who signed in, and nothing before a run", async () => {
+      apiClient.get.mockResolvedValue({ data: readyStatus });
+      const { unmount } = render(<PingFederateAiAgentPage user={{ username: "demouser" }} />);
+      await screen.findByText(/Start CIMD authorization/i);
+      expect(screen.queryByTestId("cimd-proof")).not.toBeInTheDocument();
+      unmount();
+
+      apiClient.get.mockResolvedValue({ data: { ...readyStatus, cimdResult: {
+        subject: "demouser", issuer: "https://pf.example.test",
+        trace: [
+          { id: "metadata", title: "The client is a URL, and the URL serves its own metadata", request: { method: "GET", url: "https://app/cimd.json" }, response: { status: 200, body: { token_endpoint_auth_method: "none" } } },
+          { id: "authorize", title: "Send the user to sign in at PingFederate", request: { method: "GET", url: "https://pf.example.test/as/authorization.oauth2", params: { login_hint: "demouser" } } },
+        ],
+      } } });
+      render(<PingFederateAiAgentPage user={{ username: "demouser" }} />);
+      const proof = await screen.findByTestId("cimd-proof");
+      expect(proof).toHaveTextContent("demouser signed in at https://pf.example.test");
+      expect(proof).toHaveTextContent("The client is a URL, and the URL serves its own metadata");
+      expect(proof).toHaveTextContent("There is no pre-registered client");
+    });
+  });
+
   describe("CIBA human approval", () => {
     const cibaStatus = { ...readyStatus, sessionProvider: "pingfederate", features: { ...readyStatus.features, ciba: true } };
     const pendingView = (extra = {}) => ({
