@@ -57,7 +57,7 @@ export const FLOW_STEPS = [
     "expected",
     "The client asks Privilege to sign a user in and sets client_id to the web address of its document, not to an id Privilege handed out.",
     "No registration step comes first. The address is the identity, and its owner controls what is published there.",
-    "From the CIMD design. Privilege has been shown to fetch a document, not to run an authorize request that names one."
+    "From the CIMD design. Privilege has fetched documents, including ours, but no authorize request naming one has been run yet. The client page now has a Client identity switch that sends our document URL as the client_id."
   ),
   step(
     "list",
@@ -66,7 +66,7 @@ export const FLOW_STEPS = [
     "observed",
     "Privilege looks for the URL on the MCP Client Documents list. Only listed URLs are accepted, and an empty list turns the feature off.",
     "Anyone can host a file. The list is what turns that into \"only clients an admin chose\".",
-    "The tab exists and states this rule, and we added Claude's document to it. Rejecting an unlisted URL at authorize time has not been tried."
+    "The tab exists and states this rule, and we have listed both Claude's document and ours. Rejecting an unlisted URL at authorize time has not been tried."
   ),
   step(
     "fetch",
@@ -75,7 +75,7 @@ export const FLOW_STEPS = [
     "observed",
     "Privilege fetches the URL itself. Public documents are fetched centrally. Private ones are fetched by the gateway and cached for the number of hours set on the tab.",
     "Privilege learns the client's name and its allowed redirect addresses from the client's own file, with no secret exchanged.",
-    "Seen with Claude's own document: Status \"Fetched\", the name and one redirect URI. A wrong URL showed \"404 Not Found\". Our documents are live and return 200, but Privilege has not fetched one yet."
+    "Seen with Claude's document and with ours: Status \"Fetched\", the client's name and one redirect URI (ours read \"AI Demo Privilege MCP Client\"). A wrong URL showed \"404 Not Found\"."
   ),
   step(
     "signin",
@@ -93,7 +93,7 @@ export const FLOW_STEPS = [
     "expected",
     "Privilege sends the browser back to the client's redirect URI with an authorization code, and only if that address appears in the document.",
     "A code cannot be delivered to an address the client's owner did not declare.",
-    "Our redirect URI is our own choice: the BFF's /api/external-agents/callback. Whether Privilege accepts it is the main open test."
+    "Privilege read our document, which lists this client's /api/privilege-mcp/auth/callback, and reported one redirect URI. Whether it enforces that list when a sign-in arrives has not been seen."
   ),
   step(
     "exchange",
@@ -154,7 +154,7 @@ export const CAP_STEPS = [
     "observed",
     "Each of our agents publishes a document whose client_name Privilege can read. The tab shows that name once the document is fetched.",
     "An agent is something you can point at in the console, not an anonymous registration among many.",
-    "Privilege showed \"Claude\" after fetching Claude's document. Our 17 documents are served with their names on the live host."
+    "Privilege showed \"Claude\" for Claude's document and \"AI Demo Privilege MCP Client\" for ours. All 18 of our documents are served with their names on the live host; so far only the Privilege MCP client's has been listed in Privilege."
   ),
   step(
     "allowlist",
@@ -213,8 +213,8 @@ export const CAP_STEPS = [
 ];
 
 export const ASSUMPTIONS = [
-  "Only steps marked Observed were seen. Everything marked Expected follows from the CIMD design and is still to be run with our own documents.",
-  "Our redirect URI is a guess: each document points at the BFF's /api/external-agents/callback on the serving origin. If Privilege rejects it, the fix is one line in the route.",
+  "Only steps marked Observed were seen. Everything marked Expected follows from the CIMD design and is still to be run: no sign-in with a document URL has completed yet.",
+  "Privilege has read our Privilege MCP client document and accepted its redirect URI as a listing. Whether it enforces the list at authorize time, and whether the other 17 agents' shared callback suits them, is untested.",
   "Our server-side agents authenticate with client credentials and token exchange, not an interactive browser sign-in. A document that describes an authorization_code client may suit interactive MCP clients better.",
-  "The documents are public on the SE host through 17 exact paths. That list is kept in three places: the ingress, the BFF gate and a checker script.",
+  "The documents are public on the SE host through 18 exact paths. That list is kept in three places: the ingress, the BFF gate and a checker script.",
 ];

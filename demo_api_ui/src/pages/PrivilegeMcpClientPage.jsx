@@ -7,6 +7,7 @@ import { KIBANA_URL } from '../config/observabilityLinks';
 import PrivilegeA2aTab from '../features/privilegeA2aClient/PrivilegeA2aTab';
 import ToolsTable from '../components/privilege/ToolsTable';
 import PrivilegeUserApiKeysPanel from '../components/privilege/PrivilegeUserApiKeysPanel';
+import CimdClientIdentity from '../components/privilege/CimdClientIdentity';
 import JsonHighlight from '../components/shared/JsonHighlight';
 import JsonFormView from '../components/shared/JsonFormView';
 import PingIdentitySpinner from '../components/shared/PingIdentitySpinner';
@@ -1981,6 +1982,7 @@ export default function PrivilegeMcpClientPage() {
                   <input className="cur-input" value={config.scopes} onChange={(e) => setConfig({ ...config, scopes: e.target.value })} />
                 </label>
               </div>
+              {gatewayMode === 'privilege' && <CimdClientIdentity />}
               {gatewayMode !== 'direct' && (
                 <>
               <div className="cur-settings-section">

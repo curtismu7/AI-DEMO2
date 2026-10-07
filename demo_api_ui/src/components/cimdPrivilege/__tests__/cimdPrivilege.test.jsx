@@ -48,7 +48,7 @@ describe("CIMD in Privilege data", () => {
   });
 
   it("the page mixes observed and expected steps, so it cannot read as all proven or all hypothetical", () => {
-    // Privilege has not yet fetched one of our own documents, so an all-observed page would overclaim.
+    // No sign-in with a document URL has completed yet, so an all-observed page would overclaim.
     const observed = [...FLOW_STEPS, ...CAP_STEPS].filter((s) => s.status === "observed");
     const expected = [...FLOW_STEPS, ...CAP_STEPS].filter((s) => s.status === "expected");
     expect(observed.length).toBeGreaterThan(0);

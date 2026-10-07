@@ -144,6 +144,12 @@ function facadeDoorUrl(appName) { return `${PUBLIC_APP_ORIGIN()}/mcp-facade/priv
 
 const GATEWAY_MODES = ['direct', 'privilege', 'facade'];
 const DEFAULT_GATEWAY_MODE = 'privilege';
+// How the client identifies itself to a self-advertising gateway: register dynamically (RFC 7591, the default)
+// or present the URL of our client document (CIMD). The document is served by routes/cimdAgentMetadata.js and
+// lists this client's /auth/callback as its redirect URI.
+const CLIENT_IDENTITY_MODES = ['dcr', 'cimd'];
+const DEFAULT_CLIENT_IDENTITY = 'dcr';
+const CIMD_DOCUMENT_PATH = '/api/cimd/privilege/privilege-mcp-client/client-metadata.json';
 // Identifies which door a token is for. Module-level (not local to POST
 // /config, which is where this used to live) because persistPrivilegeOauth
 // also needs it: the "current" oauth slot has no door tag of its own, so
@@ -286,6 +292,7 @@ function getClientSession(req) {
         llmModel: 'llama3.2:1b',
       },
       gatewayMode: DEFAULT_GATEWAY_MODE,
+      clientIdentity: DEFAULT_CLIENT_IDENTITY,
       gatewayConfigs: modeConfigs,
       // Per-(mode+door) oauth, kept OUT of gatewayConfigs (which is echoed
       // back to the client verbatim in /state and /config responses) so a
@@ -1629,6 +1636,21 @@ function trustedCallbackOrigin(req) {
   return allowed.has(forwarded) ? forwarded : linkCallbackOrigin();
 }
 
+// Does the gateway's authorization server say it takes a client document as the client_id? Same trick as the
+// /register URL in getOrRegisterDcrClient: the AS metadata sits beside /authorize. Any failure reads as "no",
+// so the caller refuses before sending the browser to an AS that would reject the client_id.
+async function gatewayAdvertisesCimd(authorizationUri) {
+  try {
+    const metadataUrl = new URL(authorizationUri);
+    metadataUrl.pathname = metadataUrl.pathname.replace(/\/authorize$/, '/.well-known/oauth-authorization-server');
+    const response = await fetch(metadataUrl.toString(), { signal: AbortSignal.timeout(5000) });
+    if (!response.ok) return false;
+    return (await response.json()).client_id_metadata_document_supported === true;
+  } catch {
+    return false;
+  }
+}
+
 // Shared by /auth/start and /chat's inline re-auth path — discovers the auth
 // endpoints, registers a DCR client if the gateway is self-advertising, and
 // builds the PKCE authorization URL. Does not set pendingAuth.returnTo —
@@ -1650,7 +1672,20 @@ async function beginOAuthFlow(session, req, { callbackPath, callbackOrigin } = {
   // unauthenticated. This relay is server-side with a non-loopback callback and
   // needs the door's own scope, so it cannot be a dynamic client at all.
   const brokerClientId = process.env.AGENT_GATEWAY_BROKER_CLIENT_ID;
-  if (selfAdvertised && brokerClientId && isAgentGatewayBrokerAs(authorizationUri)) {
+  // CIMD: the client_id IS the URL of our client document, so there is nothing to register. Only the default
+  // /auth/callback sign-in: the facade-link flows use other callbacks, and the document lists only this one.
+  const useCimd = session.clientIdentity === 'cimd' && selfAdvertised && !callbackPath && !callbackOrigin;
+  if (useCimd) {
+    if (!await gatewayAdvertisesCimd(toInternalAs(authorizationUri))) {
+      throw new Error(
+        'This gateway does not advertise client_id_metadata_document_supported, so it cannot take a client document '
+        + 'as the client_id. Set Client identity back to Dynamic registration.',
+      );
+    }
+    clientId = `${trustedCallbackOrigin(req)}${CIMD_DOCUMENT_PATH}`;
+    // The token exchange reads dcrClientId as "the client this flow used"; there is no secret to go with it.
+    dcrClientId = clientId;
+  } else if (selfAdvertised && brokerClientId && isAgentGatewayBrokerAs(authorizationUri)) {
     clientId = brokerClientId;
     // dcrClientId is "the client this flow actually used" — the token exchange
     // reads it and falls back to session.config.clientId (the PingOne app).
@@ -1733,6 +1768,8 @@ async function beginOAuthFlow(session, req, { callbackPath, callbackOrigin } = {
     oauthState, verifier, tokenUri, redirectUri, issuer,
     dcrClientId,
     dcrClientSecret,
+    // A CIMD client is public (token_endpoint_auth_method none): PKCE proves the sign-in, and no secret is sent.
+    publicClient: useCimd,
     promptNoneAttempted,
   };
 
@@ -1752,7 +1789,9 @@ async function exchangeAuthorizationCode(pending, code, fallbackClientId) {
   // A DCR client (self-advertising gateway, see beginOAuthFlow) is unrelated
   // to the PingOne app id — the token endpoint only recognizes its own.
   tokenBody.set('client_id', pending.dcrClientId || fallbackClientId);
-  const clientSecret = pending.dcrClientSecret
+  // A public (CIMD) client sends no secret at all: the environment fallbacks below belong to other clients and
+  // would put an unrelated PingOne secret in a request to the gateway.
+  const clientSecret = pending.publicClient ? '' : pending.dcrClientSecret
     || process.env.PRIVILEGE_SSO_CLIENT_SECRET || process.env.PINGONE_MCP_GATEWAY_CLIENT_SECRET || '';
   if (clientSecret) tokenBody.set('client_secret', clientSecret);
 
@@ -1782,6 +1821,17 @@ function gatewayAppFromUrl(url) {
 // ---------------------------------------------------------------------------
 // Routes
 // ---------------------------------------------------------------------------
+
+// POST /client-identity — how the client identifies itself at the next sign-in: 'dcr' (default) or 'cimd'.
+router.post('/client-identity', express.json(), (req, res) => {
+  const session = getClientSession(req);
+  const mode = req.body && req.body.mode;
+  if (!CLIENT_IDENTITY_MODES.includes(mode)) {
+    return res.status(400).json({ error: `mode must be one of: ${CLIENT_IDENTITY_MODES.join(', ')}` });
+  }
+  session.clientIdentity = mode;
+  return res.json({ clientIdentity: session.clientIdentity });
+});
 
 // GET /state — current session state
 router.get('/state', (req, res) => {
@@ -2001,6 +2051,7 @@ router.get('/state', (req, res) => {
   res.json({
     config: session.config,
     gatewayMode: session.gatewayMode,
+    clientIdentity: session.clientIdentity,
     gatewayConfigs: session.gatewayConfigs,
     // What actually supplies the client for each mode, so an empty Client ID
     // field reads as "handled" rather than "missing". Computed here rather than
@@ -2159,6 +2210,7 @@ router.post('/config', express.json(), (req, res) => {
     ok: true,
     config: session.config,
     gatewayMode: session.gatewayMode,
+    clientIdentity: session.clientIdentity,
     gatewayConfigs: session.gatewayConfigs,
     oauth: {
       authenticated: Boolean(session.oauth.accessToken),
