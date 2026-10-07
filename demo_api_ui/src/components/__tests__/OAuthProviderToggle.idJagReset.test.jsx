@@ -28,3 +28,31 @@ test('provider switch clears pending ID-JAG state before logging out', async () 
   expect(sessionStorage.getItem(ID_JAG_PENDING_INTENT_KEY)).toBeNull();
   expect(sessionStorage.getItem('bx_id_jag_replayed')).toBeNull();
 });
+
+// Stale pre-run provider (abandoned live ID-JAG run) must never overwrite the user's toggle.
+const PRE_RUN_KEY = 'bx_id_jag_pre_run_provider';
+const configPosts = () => bffAxios.post.mock.calls.filter(([url]) => url === '/api/admin/config');
+
+test('P1 toggle is not reverted by a stale pre-run provider', async () => {
+  sessionStorage.setItem(PRE_RUN_KEY, 'pingfederate');
+  let toggled = false;
+  bffAxios.get.mockImplementation(async () => ({ data: { config: { oauth_provider: toggled ? 'pingone' : 'pingfederate' } } }));
+  bffAxios.post.mockImplementation(async (url) => {
+    if (url === '/api/admin/config') toggled = true;
+    return { data: { ok: true } };
+  });
+  render(<OAuthProviderToggle />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Toggle OAuth login provider' }));
+  await waitFor(() => expect(onLoggedOut).toHaveBeenCalledTimes(1));
+  await new Promise((r) => setTimeout(r, 0));
+  expect(configPosts().map(([, body]) => body)).toEqual([{ oauth_provider: 'pingone' }]);
+  expect(sessionStorage.getItem(PRE_RUN_KEY)).toBeNull();
+});
+
+test('reverse direction (P1 to PF) still posts only pingfederate', async () => {
+  bffAxios.get.mockResolvedValue({ data: { config: { oauth_provider: 'pingone' } } });
+  render(<OAuthProviderToggle />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Toggle OAuth login provider' }));
+  await waitFor(() => expect(onLoggedOut).toHaveBeenCalledTimes(1));
+  expect(configPosts().map(([, body]) => body)).toEqual([{ oauth_provider: 'pingfederate' }]);
+});
