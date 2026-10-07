@@ -1868,7 +1868,7 @@ export default function BankingAgent({
   }, []);
 
   // Persist open state so the panel survives a page refresh
-  const hasMountedRef = useRef(false);
+  const lastPathnameRef = useRef(location.pathname);
   useEffect(() => {
     if (isInline) return;
     try {
@@ -1880,12 +1880,15 @@ export default function BankingAgent({
   // (Agent nav button → `banking-agent-open` event, return from /config with
   // state.scrollToAgent/openAgent) re-open the panel via their own effects below.
   // Do not tie this to user/session (see REGRESSION_LOG — auth sync was resetting isOpen and closing the panel).
+  // "Route change" is judged by the pathname itself, not by "has this effect run
+  // before": the dashboard hosts the agent inline, where this effect used to
+  // return before recording a first run, so a Demo Step that navigated from there
+  // to a page with a floating agent (Step 25 → the A2A review) was taken for a
+  // first mount and the open panel landed on top of that page.
   useEffect(() => {
-    if (isInline) return;
-    if (!hasMountedRef.current) {
-      hasMountedRef.current = true;
-      return;
-    }
+    const routeChanged = lastPathnameRef.current !== location.pathname;
+    lastPathnameRef.current = location.pathname;
+    if (isInline || !routeChanged) return;
     setIsOpen(false);
     // location.pathname is the intentional trigger — fire on every route change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
