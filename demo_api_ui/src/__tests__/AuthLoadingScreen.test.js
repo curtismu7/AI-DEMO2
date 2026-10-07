@@ -31,13 +31,13 @@ describe('AuthLoadingScreen', () => {
     vi.useFakeTimers();
     try {
       const { container } = render(<AuthLoadingScreen />);
-      const tip = () => container.querySelector('.boot-skeleton__tip span').textContent;
+      const tip = () => container.querySelector('.ping-spinner__tip span').textContent;
       const first = tip();
-      expect(container.querySelector('.boot-skeleton__tip em')).toBeNull();
+      expect(container.querySelector('.ping-spinner__tip em')).toBeNull();
       act(() => { vi.advanceTimersByTime(4000); });
       expect(tip()).not.toBe(first);
       act(() => { vi.advanceTimersByTime(4000); });
-      expect(container.querySelector('.boot-skeleton__tip em')).not.toBeNull();
+      expect(container.querySelector('.ping-spinner__tip em')).not.toBeNull();
     } finally {
       vi.useRealTimers();
     }

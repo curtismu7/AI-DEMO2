@@ -4,6 +4,9 @@ import './LoadingOverlay.css';
 
 const DEFAULT_LOGO_SRC = '/branding/ping-logo.svg';
 const MIN_TIP_SIZE = 32;
+// Every stand-alone spinner draws at this size, whatever `size` a caller passes, so the
+// boot screen, the sign-in screen, the loading overlay and a modal wait are one picture.
+const STANDALONE_SIZE = 56;
 
 /**
  * Shared Ping identity loading mark.
@@ -26,11 +29,12 @@ export default function PingIdentitySpinner({
   // small one inside a button or a row, nor on a decorative one. `tip` overrides.
   const showTip = tip ?? (size >= MIN_TIP_SIZE && !isDecorative);
   const rootClassName = `ping-spinner${showTip ? ' ping-spinner--tip' : ''} ${className}`.trim();
+  const drawSize = showTip ? STANDALONE_SIZE : size;
 
   return (
     <span
       className={rootClassName}
-      style={{ '--ping-spinner-size': `${size}px` }}
+      style={{ '--ping-spinner-size': `${drawSize}px` }}
       role={isDecorative ? undefined : 'status'}
       aria-live={isDecorative ? undefined : 'polite'}
       aria-label={isDecorative ? undefined : (label || 'Loading')}

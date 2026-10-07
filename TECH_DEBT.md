@@ -18,6 +18,14 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-10-07 — The `spinner_size` setting no longer does anything
+
+**What's wrong.** Every stand-alone spinner (32px and up, or `tip` forced on) is drawn at 56px by `PingIdentitySpinner`, whatever `size` the caller passes, so the boot screen, sign-in screen, loading overlay and modal waits are one picture. That makes `spinner_size` (`/configure` → Appearance, default 88) inert: `SpinnerHost` and the Appearance preview still read and pass it, and the control still moves, but the drawn size does not change.
+
+**Why it wasn't fixed now.** Removing a stored setting touches the config catalog (`configStore.js`, `envReconcile.js`), `configService.js`, `useAppFlags.js`, the Appearance page and their tests. That is a separate, larger change than making the spinners match.
+
+**What the real fix looks like.** Drop `spinner_size` from the catalog, the flags hook and the Appearance page (and its preview), or turn it into a real "all spinners" scale that the boot screen in `index.html` also reads.
+
 ### [ ] 2026-10-06 — Agent identity sidecar phase 1 took three shortcuts
 
 **What's wrong.** `ff_agent_identity_sidecar` (agent token from `agent_token_service` `POST /v1/token`) shipped with: (1) the target to scope/audience/resource map in a `TARGETS_JSON` env var, not derived from `scope-topology.json`; (2) a TCP port on the compose network guarded by a static `x-api-key`, not a Unix socket; (3) langchain only, and client-credentials only — no RFC 8693 user delegation, no step-up/CIBA mapping.

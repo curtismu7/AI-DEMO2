@@ -51,6 +51,19 @@ describe('PingIdentitySpinner', () => {
     expect(screen.getByRole('status', { name: 'Loading accounts…' })).toBeInTheDocument();
   });
 
+  it('draws every stand-alone spinner at one size, so none looks like a different spinner', () => {
+    const size = () => document.querySelector('.ping-spinner').style.getPropertyValue('--ping-spinner-size');
+    const { rerender } = render(<PingIdentitySpinner size={88} label="Loading…" />);
+    expect(size()).toBe('56px');
+    rerender(<PingIdentitySpinner size={40} label="Loading…" />);
+    expect(size()).toBe('56px');
+    // Small and opted-out spinners keep the size their caller asked for.
+    rerender(<PingIdentitySpinner size={20} label="Applying…" />);
+    expect(size()).toBe('20px');
+    rerender(<PingIdentitySpinner size={72} label="Loading…" tip={false} />);
+    expect(size()).toBe('72px');
+  });
+
   it('leaves the tip off small, decorative or opted-out spinners', () => {
     const { rerender } = render(<PingIdentitySpinner size={20} label="Applying…" />);
     expect(document.querySelector('.ping-spinner__tip')).toBeNull();

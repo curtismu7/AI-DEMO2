@@ -38,11 +38,11 @@ describe('SpinnerHost reads its knobs from config', () => {
     document.documentElement.style.removeProperty('--spinner-accent');
   });
 
-  it('renders the shared Ping identity mark at the configured size', () => {
+  it('renders the shared Ping identity mark at the one stand-alone size', () => {
     withFlags();
     render(<SpinnerHost />);
 
-    expect(document.querySelector('.ping-spinner').style.getPropertyValue('--ping-spinner-size')).toBe('88px');
+    expect(document.querySelector('.ping-spinner').style.getPropertyValue('--ping-spinner-size')).toBe('56px');
     expect(card().className).toContain('lo-card--dark');
     expect(document.querySelector('.ping-spinner__mark')).not.toBeNull();
     // Paired with the feed-off case below: without this the toggle test would
@@ -50,11 +50,11 @@ describe('SpinnerHost reads its knobs from config', () => {
     expect(screen.getByText('seeded event')).toBeInTheDocument();
   });
 
-  it('size flows through to the spinner', () => {
+  it('ignores the spinner_size knob, so the overlay matches every other spinner', () => {
     withFlags({ spinnerSize: 120 });
     render(<SpinnerHost />);
 
-    expect(document.querySelector('.ping-spinner').style.getPropertyValue('--ping-spinner-size')).toBe('120px');
+    expect(document.querySelector('.ping-spinner').style.getPropertyValue('--ping-spinner-size')).toBe('56px');
   });
 
   it('keeps the Ping identity mark when an older variant is configured', () => {

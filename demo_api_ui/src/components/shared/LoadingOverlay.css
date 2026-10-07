@@ -86,23 +86,60 @@
   white-space: nowrap;
 }
 
-/* Stand-alone spinners (32px and up) carry a rotating tip on a line of their own. */
-.ping-spinner--tip { flex-wrap: wrap; }
-.ping-spinner__tip {
-  flex: 1 0 100%;
-  max-width: 46ch;
-  margin-top: 6px;
-  color: var(--th-text-body);
-  font-size: var(--font-size-sm);
-  line-height: 1.4;
+/* Stand-alone spinners (32px and up) are one picture everywhere: the mark, an optional
+   label, then the tip card, stacked and centred. index.html draws the same thing as
+   .boot-mark + .boot-tip; keep the two in step. */
+.ping-spinner--tip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+.ping-spinner--tip .ping-spinner__label {
+  margin-left: 0;
   white-space: normal;
 }
-.ping-spinner__tip b { color: var(--th-text); }
-/* The dark overlay card is a literal ground: pair its ink literally (rule H1). */
-.lo-card .ping-spinner__tip,
-.lo-card--dark .ping-spinner__tip { color: #cbd5e1; }
-.lo-card .ping-spinner__tip b,
-.lo-card--dark .ping-spinner__tip b { color: #ffffff; }
+/* The card carries its own ground, so literal ink/ground pairs hold on any backdrop
+   (the boot skeleton, the dark overlay, a themed page): rule H1. */
+.ping-spinner__tip {
+  display: block;
+  box-sizing: border-box;
+  width: min(320px, calc(100vw - 32px));
+  padding: 12px 14px;
+  border: 1px solid #e4e4e0;
+  border-left: 4px solid #dc2626;
+  border-radius: 8px;
+  background-color: #ffffff;
+  color: #14213d;
+  font-size: var(--font-size-sm);
+  line-height: 1.45;
+  text-align: left;
+  white-space: normal;
+}
+.ping-spinner__tip b {
+  display: block;
+  margin-bottom: 4px;
+  color: #991b1b;
+  font-size: var(--font-size-xs);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.ping-spinner__tip em {
+  display: block;
+  margin-top: 8px;
+  color: #5b6577;
+  font-size: var(--font-size-xs);
+  font-style: normal;
+}
+:root[data-theme="dark"] .ping-spinner__tip {
+  border-color: #26304a;
+  border-left-color: #ef4444;
+  background-color: #131c2e;
+  color: #e6ebf5;
+}
+:root[data-theme="dark"] .ping-spinner__tip b { color: #f87171; }
+:root[data-theme="dark"] .ping-spinner__tip em { color: #9aa6bd; }
 
 .ping-spinner--inline {
   display: inline-flex;
