@@ -1870,6 +1870,18 @@ async function _runRarExceeded(subjectToken, useCaseId, tokenChainEvents, req, a
  * @param {number} amount
  * @returns {{ from: string|null, to: string|null }}
  */
+/**
+ * HITL receipt binding. The gateway verifies against the INTROSPECTED token
+ * (userId = sub, agentId = top-level act.sub). The PingOne path's configured
+ * actor matches that; under PF the two-exchange token's act.sub is the MCP
+ * actor (nested act = agent), so bind to the token's own claims there.
+ */
+function _hitlBindingFor(token, userSub, actorClientId, isPf) {
+  if (!isPf) return { userId: userSub, agentId: actorClientId };
+  const claims = decodeJwtClaims(token)?.claims || {};
+  return { userId: claims.sub || userSub, agentId: claims.act?.sub || actorClientId };
+}
+
 function pickTransferAccounts(accounts, amount) {
   const list = Array.isArray(accounts) ? accounts.filter((a) => a && a.id != null) : [];
   if (!list.length) return { from: null, to: null };
@@ -2027,8 +2039,7 @@ async function _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, req
     // from_account_id") and the demo re-challenges instead of PERMITting.
     const challenge = await hitlClient.createChallenge({
       tool: 'create_transfer',
-      userId: userSub2,
-      agentId: actorClientId,
+      ..._hitlBindingFor(exchanged.token, userSub2, actorClientId, configStore.getOAuthProvider?.() === 'pingfederate'),
       context: { amount, from_account_id: fromAccountId, to_account_id: toAccountId, demo: 'rar-permit' },
     });
     if (challenge?.challengeId) {
@@ -2378,5 +2389,5 @@ module.exports = {
   runAttackSim: _withSession(runAttackSim),
   runIntentBindingDemo: _withSession(runIntentBindingDemo),
   _exchangeSimToken,
-  __test: { _resolveForeignAccountId, _gatewayExchangeTarget, _denyFromGateway, _nodeGatewayUrl, IMPERSONATION_TRANSFER_ARGS, pickTransferAccounts, _approvalChallengeCode, _dpopReplayVerdict, _isDpopRejection },
+  __test: { _resolveForeignAccountId, _gatewayExchangeTarget, _denyFromGateway, _nodeGatewayUrl, IMPERSONATION_TRANSFER_ARGS, pickTransferAccounts, _hitlBindingFor, _approvalChallengeCode, _dpopReplayVerdict, _isDpopRejection },
 };
