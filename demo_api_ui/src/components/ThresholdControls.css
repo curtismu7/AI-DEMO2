@@ -1,4 +1,8 @@
-/* ThresholdControls.css */
+/* ThresholdControls.css
+   The panel itself is a DraggableModal (shell, drag, resize, pop-out and theme come
+   from there). Everything here styles the CONTENT, and takes ink and ground from
+   --th-* so it follows the main menu's light/dark switch and a pop-out window's copy
+   of it. Brand navy and the accent bar stay literal on purpose (THEMING.md rule 3). */
 
 .thresh-ctrl {
   position: relative;
@@ -13,35 +17,10 @@
   filter: brightness(0.88);
 }
 
-.thresh-ctrl__panel {
-  position: fixed;
-  z-index: 9999;
-  background: #fff;
-  border: 1px solid #d1d5db;
-  border-radius: 12px;
+.thresh-ctrl__content {
   padding: 12px 14px;
-  min-width: 520px;
-  max-width: 85vw;
-  max-height: 80vh;
-  overflow-y: auto;
-  box-shadow: 0 8px 32px rgba(10, 20, 50, 0.45);
-  animation: thresh-ctrl-slide-in 0.15s ease;
-}
-
-@keyframes thresh-ctrl-slide-in {
-  from { opacity: 0; transform: translateY(-4px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-.thresh-ctrl__title {
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #64748b;
-  margin-bottom: 10px;
-  border-left: 3px solid #4169e1;
-  padding-left: 6px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
 }
 
 .thresh-ctrl__label {
@@ -49,7 +28,7 @@
   align-items: center;
   gap: 6px;
   font-size: var(--font-size-sm);
-  color: #1e293b;
+  color: var(--th-text);
   margin-bottom: 8px;
   white-space: nowrap;
 }
@@ -58,9 +37,9 @@
   width: 72px;
   padding: 4px 6px;
   border-radius: 4px;
-  border: 1px solid #94a3b8;
-  background: #f8fafc;
-  color: #1e293b;
+  border: 1px solid var(--th-border-strong);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
   font-size: var(--font-size-sm);
   text-align: right;
 }
@@ -89,7 +68,7 @@
   padding: 5px 14px;
   border-radius: 4px;
   border: none;
-  background: var(--accent, #6c8ef7);
+  background: #1e3a5f;
   color: #fff;
   font-size: var(--font-size-2xs);
   font-weight: 600;
@@ -108,16 +87,16 @@
 
 .thresh-ctrl__ok {
   font-size: var(--font-size-2xs);
-  color: #4caf50;
+  color: var(--th-status-success-text);
 }
 
 .thresh-ctrl__err {
   font-size: var(--font-size-2xs);
-  color: #f44336;
+  color: var(--th-status-error-text);
 }
 
 .thresh-ctrl__section {
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--th-border);
   padding-top: 10px;
   margin-top: 10px;
 }
@@ -145,14 +124,14 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #64748b;
+  color: var(--th-text-muted);
   border-left: 3px solid #4169e1;
   padding-left: 6px;
 }
 
 .thresh-ctrl__chevron {
   font-size: var(--font-size-3xs);
-  color: #94a3b8;
+  color: var(--th-text-faint);
 }
 
 .thresh-ctrl__checkbox {
@@ -160,7 +139,7 @@
   align-items: center;
   gap: 6px;
   font-size: var(--font-size-sm);
-  color: #1e293b;
+  color: var(--th-text);
   margin-bottom: 6px;
   cursor: pointer;
   user-select: none;
@@ -187,7 +166,7 @@
 
 .thresh-ctrl__help {
   font-size: var(--font-size-xs);
-  color: #64748b;
+  color: var(--th-text-muted);
   font-weight: normal;
   line-height: 1.3;
 }
@@ -199,10 +178,14 @@
   margin-bottom: 8px;
 }
 
+.thresh-ctrl__flag-item--spaced {
+  margin-top: 6px;
+}
+
 .thresh-ctrl__value {
   font-size: var(--font-size-base);
   font-weight: 700;
-  color: #1e293b;
+  color: var(--th-text);
   font-variant-numeric: tabular-nums;
 }
 
@@ -211,12 +194,12 @@
   margin-top: 6px;
   font-size: var(--font-size-2xs);
   font-weight: 600;
-  color: var(--accent, #6c8ef7);
-  text-decoration: none;
+  color: var(--th-text);
+  text-decoration: underline;
 }
 
 .thresh-ctrl__editlink:hover {
-  text-decoration: underline;
+  text-decoration-thickness: 2px;
 }
 
 .thresh-ctrl__flag-row {
@@ -224,7 +207,7 @@
   align-items: center;
   justify-content: space-between;
   font-size: var(--font-size-sm);
-  color: #1e293b;
+  color: var(--th-text);
 }
 
 .thresh-ctrl__flag-off {
@@ -243,19 +226,27 @@
   flex: 1;
   padding: 6px 10px;
   font-size: var(--font-size-sm);
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--th-border);
   border-radius: 6px;
-  background: #f8fafc;
-  color: #334155;
+  background: var(--th-bg-inset);
+  color: var(--th-text-body);
   cursor: pointer;
 }
 
 .thresh-ctrl__placement-btn:hover {
-  background: #f1f5f9;
-  border-color: #94a3b8;
+  background: var(--th-bg-hover);
+  border-color: var(--th-border-strong);
 }
 
-.thresh-ctrl__placement-btn--active {
+/* Small on/off pill (Response box): sized to its label, not stretched like the A/B pair. */
+.thresh-ctrl__placement-btn--compact {
+  flex: 0 0 auto;
+  padding: 2px 10px;
+  font-size: var(--font-size-2xs);
+}
+
+.thresh-ctrl__placement-btn--active,
+.thresh-ctrl__placement-btn--active:hover {
   background: #1e3a5f;
   border-color: #1e3a5f;
   color: #fff;

@@ -1,9 +1,9 @@
 // ThresholdControls.js
 // Comprehensive "Demo Controls" widget with thresholds, feature flags, MFA/consent modes.
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAgentUiMode } from '../context/AgentUiModeContext';
+import DraggableModal from './DraggableModal';
 import './ThresholdControls.css';
 
 const FLAG_LABELS = {
@@ -32,14 +32,10 @@ export default function ThresholdControls() {
   const [showMirror, setShowMirror] = useState(() => {
     try { return localStorage.getItem('ba_show_response_mirror') === '1'; } catch { return false; }
   });
-  const [panelPos, setPanelPos] = useState({ top: 0, right: 0 });
   const [confirm, setConfirm] = useState('');
   const [mfa, setMfa] = useState('');
   const [flags, setFlags] = useState([]);
   const [openSections, setOpenSections] = useState({ thresholds: true, verticalThresholds: false, agentView: true, flags: true });
-  const btnRef = useRef(null);
-  const panelRef = useRef(null);
-
   // Per-vertical thresholds
   const [verticals, setVerticals] = useState([]);
   const [selectedVertical, setSelectedVertical] = useState('');
@@ -95,27 +91,7 @@ export default function ThresholdControls() {
     if (open) loadAll();
   }, [open, loadAll]);
 
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e) => {
-      const inBtn = btnRef.current && btnRef.current.closest('.thresh-ctrl').contains(e.target);
-      const inPanel = panelRef.current && panelRef.current.contains(e.target);
-      if (!inBtn && !inPanel) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
-
-  const handleToggle = () => {
-    if (!open && btnRef.current) {
-      const rect = btnRef.current.getBoundingClientRect();
-      setPanelPos({
-        top: rect.bottom + 8,
-        right: window.innerWidth - rect.right,
-      });
-    }
-    setOpen((p) => !p);
-  };
+  const handleToggle = () => setOpen((p) => !p);
 
   const saveVerticalThresholds = async () => {
     if (!selectedVertical) return;
@@ -147,16 +123,25 @@ export default function ThresholdControls() {
     }
   };
 
-  const panel = open ? createPortal(
-    <div
-      ref={panelRef}
-      className="thresh-ctrl__panel"
-      role="dialog"
-      aria-label="Demo controls"
-      style={{ top: panelPos.top, right: panelPos.right }}
+  // The shared modal (drag, 8-way resize, pop-out, ✕, Esc) — not a hand-built portal.
+  // noBackdrop: these controls apply live, so the page behind stays visible and usable.
+  // zIndex sits above the Command Dock's FloatingPanel (100061) that can host this trigger.
+  const panel = (
+    <DraggableModal
+      isOpen={open}
+      onClose={() => setOpen(false)}
+      title="Demo Controls"
+      defaultWidth={440}
+      defaultHeight={640}
+      defaultX={Math.max(8, window.innerWidth - 456)}
+      defaultY={64}
+      minWidth={340}
+      storageKey="thresh_ctrl_modal"
+      singletonKey="demo-controls"
+      noBackdrop
+      zIndex={100062}
     >
-      <div className="thresh-ctrl__title">Demo Controls</div>
-
+    <div className="dm-scroll thresh-ctrl__content">
       {/* Agent View — placement toggle (Embedded vs Float only) */}
       <div className="thresh-ctrl__section">
         <button type="button" className="thresh-ctrl__section-toggle" onClick={() => toggleSection('agentView')}>
@@ -181,13 +166,12 @@ export default function ThresholdControls() {
                 Float only
               </button>
             </div>
-            <div className="thresh-ctrl__flag-item" style={{ marginTop: 6 }}>
+            <div className="thresh-ctrl__flag-item thresh-ctrl__flag-item--spaced">
               <div className="thresh-ctrl__flag-row">
                 <span>Response box</span>
                 <button
                   type="button"
-                  className={`thresh-ctrl__placement-btn${showMirror ? ' thresh-ctrl__placement-btn--active' : ''}`}
-                  style={{ width: 'auto', padding: '2px 10px', fontSize: 12 }}
+                  className={`thresh-ctrl__placement-btn thresh-ctrl__placement-btn--compact${showMirror ? ' thresh-ctrl__placement-btn--active' : ''}`}
                   onClick={() => {
                     const next = !showMirror;
                     setShowMirror(next);
@@ -303,53 +287,6 @@ export default function ThresholdControls() {
         </div>
       )}
 
-      {/* Agent View — placement toggle (Embedded vs Float only) */}
-      <div className="thresh-ctrl__section">
-        <button type="button" className="thresh-ctrl__section-toggle" onClick={() => toggleSection('agentView')}>
-          <span className="thresh-ctrl__section-title">Agent View</span>
-          <span className="thresh-ctrl__chevron">{openSections.agentView ? '▲' : '▼'}</span>
-        </button>
-        {openSections.agentView && (
-          <>
-            <div className="thresh-ctrl__placement-row">
-              <button
-                type="button"
-                className={`thresh-ctrl__placement-btn${placement === 'middle' ? ' thresh-ctrl__placement-btn--active' : ''}`}
-                onClick={() => setAgentUi({ placement: 'middle', fab })}
-              >
-                Embedded
-              </button>
-              <button
-                type="button"
-                className={`thresh-ctrl__placement-btn${placement === 'none' ? ' thresh-ctrl__placement-btn--active' : ''}`}
-                onClick={() => setAgentUi({ placement: 'none', fab: true })}
-              >
-                Float only
-              </button>
-            </div>
-            <div className="thresh-ctrl__flag-item" style={{ marginTop: 6 }}>
-              <div className="thresh-ctrl__flag-row">
-                <span>Response box</span>
-                <button
-                  type="button"
-                  className={`thresh-ctrl__placement-btn${showMirror ? ' thresh-ctrl__placement-btn--active' : ''}`}
-                  style={{ width: 'auto', padding: '2px 10px', fontSize: 12 }}
-                  onClick={() => {
-                    const next = !showMirror;
-                    setShowMirror(next);
-                    try { localStorage.setItem('ba_show_response_mirror', next ? '1' : '0'); } catch {}
-                    window.dispatchEvent(new CustomEvent('agent-mirror-toggle', { detail: { on: next } }));
-                  }}
-                >
-                  {showMirror ? 'On' : 'Off'}
-                </button>
-              </div>
-              <span className="thresh-ctrl__help">Mirror latest response on main page</span>
-            </div>
-          </>
-        )}
-      </div>
-
       {/* Feature Flags — important flags only, read-only (edit at /feature-flags) */}
       {flags.filter((f) => IMPORTANT_FLAG_IDS.includes(f.id)).length > 0 && (
         <div className="thresh-ctrl__section">
@@ -379,14 +316,13 @@ export default function ThresholdControls() {
           )}
         </div>
       )}
-    </div>,
-    document.body
-  ) : null;
+    </div>
+    </DraggableModal>
+  );
 
   return (
     <div className="thresh-ctrl">
       <button
-        ref={btnRef}
         type="button"
         className="thresh-ctrl__toggle dashboard-toolbar-btn"
         title="Demo: Controls (thresholds, flags, MFA/consent)"

@@ -46,8 +46,47 @@ afterEach(() => {
 
 async function openPanel() {
   fireEvent.click(screen.getByRole('button', { name: 'Controls' }));
-  await waitFor(() => screen.getByRole('dialog', { name: 'Demo controls' }));
+  await waitFor(() => screen.getByRole('dialog', { name: 'Demo Controls' }));
 }
+
+describe('ThresholdControls — shared modal shell', () => {
+  it('opens as a DraggableModal: title-bar drag target, pop-out control, 8 resize handles', async () => {
+    renderWithRouter(<ThresholdControls />);
+    await openPanel();
+    const dialog = screen.getByRole('dialog', { name: 'Demo Controls' });
+    expect(dialog.classList.contains('dm-panel')).toBe(true);
+    expect(dialog.querySelector('.dm-titlebar')).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Pop out to new window' })).toBeEnabled();
+    expect(dialog.querySelectorAll('.dm-handle')).toHaveLength(8);
+  });
+
+  it('shows the Agent View section exactly once (it was rendered twice)', async () => {
+    renderWithRouter(<ThresholdControls />);
+    await openPanel();
+    expect(screen.getAllByText('Agent View')).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Embedded' })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Float only' })).toHaveLength(1);
+  });
+
+  it('closes with the title-bar ✕ and with Escape', async () => {
+    renderWithRouter(<ThresholdControls />);
+    await openPanel();
+    fireEvent.click(screen.getByTitle('Close'));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Demo Controls' })).not.toBeInTheDocument());
+
+    await openPanel();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Demo Controls' })).not.toBeInTheDocument());
+  });
+
+  it('stays open when the page behind it is clicked (controls apply live, no backdrop)', async () => {
+    renderWithRouter(<ThresholdControls />);
+    await openPanel();
+    fireEvent.mouseDown(document.body);
+    fireEvent.click(document.body);
+    expect(screen.getByRole('dialog', { name: 'Demo Controls' })).toBeInTheDocument();
+  });
+});
 
 describe('ThresholdControls', () => {
   it('shows global thresholds as read-only text with a link to /settings, no Save button', async () => {

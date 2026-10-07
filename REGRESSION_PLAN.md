@@ -273,6 +273,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-07 — Demo Controls could not move, resize, pop out or follow dark mode, and showed Agent View twice
+
+**Files:** `demo_api_ui/src/components/ThresholdControls.js`, `ThresholdControls.css`, `__tests__/ThresholdControls.test.js`.
+
+**What was broken:** the panel was a hand-built `createPortal` dialog pinned with fixed `top`/`right` and closed on any outside click, so it had no drag, resize or pop-out. Its stylesheet was light-only (`#fff` ground, `#1e293b` ink), so it stayed white on a dark page. The whole Agent View block was rendered twice, and the Response box button stretched across its row because an inline `width:auto` lost to `flex:1`.
+
+**What changed:** the panel is a `DraggableModal` (title-bar drag, 8-way resize, pop-out that copies `data-theme`, ✕ and Esc), `noBackdrop` so the page stays usable, `zIndex` above the Command Dock panel (100061). One Agent View block. Ink, ground and lines use `--th-*`; brand navy and the accent bar stay literal; inline styles moved to classes; the active button no longer turns light on hover.
+
+**Do not break:** each control's behaviour and endpoint (`setAgentUi`, the `agent-mirror-toggle` event, `/api/config/thresholds`, the read-only flag list); every ink and ground pair at 7:1 or better in both themes (measured 9.0 to 17.9); modals use `DraggableModal`.
+
+**Verify:** `cd demo_api_ui && npx vitest run src/components/__tests__/ThresholdControls.test.js` (8 tests, all fail on the old component); `npm run test:unit && npm run build`.
+
 ### 2026-10-07 — Specialist tasks, streaming and guarded push; the task store never awaited its write
 
 **Files:** `demo_api_server/services/a2aProtocolServer.js`, `a2aAgentCardService.js`, `a2aPushGuard.js` (new), `lmdb/a2aTaskStore.lmdb.js`, `tests/a2aSpecialistTasksStreaming.test.js`; `demo_api_ui/src/pages/a2aLearningLessons.js`, `config/a2aReference.js`, `data/a2aRecordedRun.js`.
