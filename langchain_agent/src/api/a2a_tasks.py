@@ -228,3 +228,83 @@ def finish(task: dict[str, Any], state: str, artifact: Optional[dict[str, Any]],
             "parts": [{"kind": "text", "text": message}],
         }
     return task
+
+
+# ---------------------------------------------------------------- running tasks
+
+
+class TaskRun:
+    """A task running in the background, with every event it has produced.
+
+    The run belongs to the task, not to the connection that started it: a caller
+    that drops the stream does not stop the task, and any number of callers can
+    attach with ``tasks/resubscribe`` while it runs. In memory and per process:
+    after a restart a stored task that was still working cannot be rejoined.
+    """
+
+    def __init__(self, task: dict[str, Any], owner: str) -> None:
+        self.task = task
+        self.owner = owner
+        self.events: list[dict[str, Any]] = []
+        self.done = False
+        self.worker: Optional["asyncio.Task[None]"] = None
+        self._changed = asyncio.Condition()
+
+    async def publish(self, event: dict[str, Any]) -> None:
+        async with self._changed:
+            self.events.append(event)
+            self._changed.notify_all()
+
+    async def close(self) -> None:
+        async with self._changed:
+            self.done = True
+            self._changed.notify_all()
+
+    async def follow(self, start: int = 0):
+        """Yield events from index ``start``, waiting for new ones until the run closes."""
+
+        index = start
+        while True:
+            async with self._changed:
+                await self._changed.wait_for(lambda: index < len(self.events) or self.done)
+                batch = self.events[index:]
+            if not batch:
+                return
+            for event in batch:
+                yield event
+            index += len(batch)
+
+
+_runs: dict[str, TaskRun] = {}
+
+
+def start_run(task: dict[str, Any], owner: str, drive: Callable[[TaskRun], Awaitable[None]]) -> TaskRun:
+    """Run ``drive(run)`` in the background and register the run until it ends."""
+
+    run = TaskRun(task, owner)
+    _runs[task["id"]] = run
+
+    async def runner() -> None:
+        try:
+            await drive(run)
+        except Exception:
+            logger.exception("[A2A] background task run failed")
+        finally:
+            await run.close()
+            _runs.pop(task["id"], None)
+
+    run.worker = asyncio.get_running_loop().create_task(runner())
+    return run
+
+
+def get_run(task_id: str, owner: str) -> Optional[TaskRun]:
+    run = _runs.get(task_id)
+    return run if run is not None and run.owner == owner else None
+
+
+async def wait_for_run(task_id: str) -> None:
+    """Wait for a registered run to end (a no-op if it already has). Test seam."""
+
+    run = _runs.get(task_id)
+    if run is not None and run.worker is not None:
+        await run.worker

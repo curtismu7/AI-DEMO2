@@ -216,6 +216,8 @@ async def jsonrpc(request: Request) -> JSONResponse:
     method = body.get("method")
     if method == "tasks/get":
         return _tasks_get(request_id, body.get("params"), caller_key)
+    if method == "tasks/resubscribe":
+        return _resubscribe(request_id, body.get("params"), caller_key)
     if method == "tasks/pushNotificationConfig/set":
         return await _push_config_set(request_id, body.get("params"), caller_key)
     if method not in ("message/send", "message/stream"):
@@ -345,25 +347,61 @@ def _sse(request_id: Any, result: dict[str, Any]) -> str:
     return "data: " + json.dumps({"jsonrpc": "2.0", "id": request_id, "result": result}) + "\n\n"
 
 
-def _stream_task(request_id: Any, params: Any, text: str, caller_key: str) -> StreamingResponse:
-    """message/stream: the working task, then its artifact, then the final status, as server-sent events."""
+async def _drive_stream(run: a2a_tasks.TaskRun, params: Any, text: str, caller_key: str) -> None:
+    """Run the turn and publish its events. Lives in the background, independent of any connection."""
 
-    async def events():
-        task = a2a_tasks.new_task(_context_id(params))
-        a2a_tasks.task_store().save(task, caller_key)
-        yield _sse(request_id, json.loads(json.dumps(task)))
+    task = run.task
+    await run.publish(json.loads(json.dumps(task)))
+    try:
         await _run_task(task, params, text, caller_key)
-        for artifact in task["artifacts"]:
-            yield _sse(
-                request_id,
-                {"kind": "artifact-update", "taskId": task["id"], "contextId": task["contextId"], "artifact": artifact, "lastChunk": True},
-            )
-        yield _sse(
-            request_id,
-            {"kind": "status-update", "taskId": task["id"], "contextId": task["contextId"], "status": task["status"], "final": True},
+    except Exception:
+        logger.exception("[A2A] task run failed")
+        a2a_tasks.finish(task, "failed", None, "Agent execution failed")
+        a2a_tasks.task_store().save(task, caller_key)
+    for artifact in task["artifacts"]:
+        await run.publish(
+            {"kind": "artifact-update", "taskId": task["id"], "contextId": task["contextId"], "artifact": artifact, "lastChunk": True}
         )
+    await run.publish(
+        {"kind": "status-update", "taskId": task["id"], "contextId": task["contextId"], "status": task["status"], "final": True}
+    )
 
-    return StreamingResponse(events(), media_type="text/event-stream")
+
+async def _follow(request_id: Any, run: a2a_tasks.TaskRun, start: int, first: Optional[dict[str, Any]] = None):
+    if first is not None:
+        yield _sse(request_id, first)
+    async for event in run.follow(start):
+        yield _sse(request_id, event)
+
+
+def _stream_task(request_id: Any, params: Any, text: str, caller_key: str) -> StreamingResponse:
+    """message/stream: the working task, then its artifact, then the final status, as server-sent events.
+
+    The task runs in the background, so a caller that drops the stream does not stop it
+    and can rejoin with tasks/resubscribe.
+    """
+
+    task = a2a_tasks.new_task(_context_id(params))
+    a2a_tasks.task_store().save(task, caller_key)
+    run = a2a_tasks.start_run(task, caller_key, lambda r: _drive_stream(r, params, text, caller_key))
+    return StreamingResponse(_follow(request_id, run, 0), media_type="text/event-stream")
+
+
+def _resubscribe(request_id: Any, params: Any, caller_key: str):
+    """tasks/resubscribe: the task as it is now, then every later event, while it is still running."""
+
+    task_id = params.get("id") if isinstance(params, dict) else None
+    run = a2a_tasks.get_run(task_id, caller_key) if isinstance(task_id, str) else None
+    if run is None:
+        stored = a2a_tasks.task_store().get(task_id, caller_key) if isinstance(task_id, str) else None
+        if stored is None:
+            return _error(request_id, -32001, "Task not found", 404)
+        state = stored["status"]["state"]
+        if state in a2a_tasks.TERMINAL_STATES:
+            return _error(request_id, -32004, f"Task {task_id} is in a terminal state ({state}) and cannot be subscribed to", 400)
+        return _error(request_id, -32004, "Task is not running on this instance", 400)
+    snapshot = json.loads(json.dumps(run.task))
+    return StreamingResponse(_follow(request_id, run, len(run.events), snapshot), media_type="text/event-stream")
 
 
 def _tasks_get(request_id: Any, params: Any, caller_key: str) -> JSONResponse:

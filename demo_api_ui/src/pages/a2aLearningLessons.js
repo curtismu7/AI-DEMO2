@@ -153,7 +153,7 @@ export const A2A_IMPLEMENTATION_STATUS = [
   {
     id: 'reconnect',
     label: 'Reconnect to a running task',
-    state: 'next',
-    detail: 'Next implementation milestone: specialist tasks finish in seconds, so resubscribing is not yet exercised against a long-running task.',
+    state: 'supported',
+    detail: 'SubscribeToTask (specialists) and tasks/resubscribe (langchainagent) attach to a task that is still running and send the rest of its events. A caller that drops its stream no longer stops the task or loses its result. Held in memory on one instance, so a task cannot be rejoined after a restart; a finished task cannot be subscribed to.',
   },
 ];

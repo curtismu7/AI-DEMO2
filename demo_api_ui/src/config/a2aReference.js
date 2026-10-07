@@ -93,7 +93,7 @@ export const A2A_REFERENCE = {
       heading: "What this demo does not implement",
       points: [
         "Push notifications unless configured: the card sets capabilities.pushNotifications only when A2A_PUSH_ALLOWED_HOSTS names a callback host. A callback must be https, on that list and resolve to a public address, and is checked again before every send.",
-        "Long-running tasks and reconnect: specialist tasks finish in seconds, so SubscribeToTask against a running task, ListTasks and CancelTask are not exercised, and the INPUT_REQUIRED and AUTH_REQUIRED states are not used.",
+        "Long-running tasks: reconnecting to a running task is tested with a deliberately slow fake, but the real specialist and agent calls finish in seconds, so a live demo has little time to reconnect. ListTasks and CancelTask are not exercised, and the INPUT_REQUIRED and AUTH_REQUIRED states are not used.",
         "The authenticated extended card (extendedAgentCard is false) and protocol extensions (none declared).",
         "gRPC and HTTP+JSON/REST: the card advertises only the JSON-RPC binding.",
         "Other security scheme types: the card advertises only Bearer, plus an optional signed-credential scheme when ff_verified_trust_a2a is on.",

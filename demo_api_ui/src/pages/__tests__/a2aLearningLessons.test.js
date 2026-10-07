@@ -29,7 +29,7 @@ describe('latest A2A learning hub lessons', () => {
       expect.objectContaining({ id: 'stateful-tasks', state: 'supported' }),
       expect.objectContaining({ id: 'streaming', state: 'supported' }),
       expect.objectContaining({ id: 'push-notifications', state: 'supported' }),
-      expect.objectContaining({ id: 'reconnect', state: 'next' }),
+      expect.objectContaining({ id: 'reconnect', state: 'supported' }),
     ]);
   });
 });
