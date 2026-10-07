@@ -22,22 +22,24 @@ export const AGENT_MODES = [
   // Labels name the brain — Heuristic vs LLM is the separate Fallback /
   // LLM-only toggle on AgentModeSelector (ff_heuristic_enabled).
   { id: "heuristics",   label: "Heuristics",    provider: null,        pure: false },
-  // Gemini first among LLM modes: on the CPU-only SE cluster it answers in
-  // seconds while llama.cpp (gpt-oss-20b) takes minutes — lead live demos
-  // with the fast provider. Order here IS the picker order (CORE_MODE_IDS).
+  // llama.cpp leads the LLM modes: it is the demo's default agent (the local
+  // stack starts in it, AGENT_MODE in docker-compose.yml). Groq and Gemini
+  // follow as the hosted options; on the CPU-only SE cluster they answer in
+  // seconds where llama.cpp takes far longer. Order here IS the picker order
+  // (CORE_MODE_IDS).
+  { id: "llamacpp",     label: "llama.cpp",     provider: "llamacpp",  pure: true  },
+  { id: "groq",         label: "Groq",          provider: "groq",      pure: true  },
   { id: "gemini",       label: "Google Gemini", provider: "google",   pure: true  },
   // Same Gemini backend, but the call is proxied through a PingOne Privilege
   // virtual key (Privilege injects the real Google key and can deny the call
   // by policy) instead of the demo's raw GOOGLE_API_KEY — shows Privilege
   // gating a direct LLM call, not just an MCP tool call.
   { id: "privilege_llm", label: "Gemini via Privilege", provider: "privilege_llm", pure: true },
-  { id: "llamacpp",     label: "llama.cpp",     provider: "llamacpp",  pure: true  },
   { id: "mlx",          label: "MLX",           provider: "mlx",       pure: true  },
   { id: "claude",       label: "Anthropic",     provider: "anthropic", pure: true  },
   // Same idea as privilege_llm, proxied Anthropic instead of Google.
   { id: "privilege_claude", label: "Claude via Privilege", provider: "privilege_claude", pure: true },
   { id: "helix_google", label: "Helix",         provider: "helix",     pure: true  },
-  { id: "groq",         label: "Groq",          provider: "groq",      pure: true  },
 ];
 
 /** Friendly chat badge for /nl `source` (and related agent paths). */

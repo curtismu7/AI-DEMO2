@@ -2,7 +2,7 @@
 import './LlmConfig.css';
 
 /**
- * ProviderSelector — segmented pill control: Helix | LM Studio | llama.cpp | Anthropic
+ * ProviderSelector — segmented pill control: llama.cpp | Google | Helix | LM Studio | Anthropic
  *
  * Props:
  *   provider: 'helix' | 'anthropic-lmstudio' | 'llamacpp' | 'google' | 'anthropic'
@@ -29,10 +29,10 @@ export default function ProviderSelector({ provider, onSelect, helixStatus, lmst
   };
 
   const PROVIDERS = [
-    { id: 'helix',              label: 'Helix',      status: helixStatus },
-    { id: 'anthropic-lmstudio', label: 'LM Studio',  status: lmstudioStatus },
     { id: 'llamacpp',           label: 'llama.cpp',  status: llamaCppStatus },
     { id: 'google',             label: 'Google',     status: googleStatus },
+    { id: 'helix',              label: 'Helix',      status: helixStatus },
+    { id: 'anthropic-lmstudio', label: 'LM Studio',  status: lmstudioStatus },
     { id: 'anthropic',          label: 'Anthropic',  status: anthropicStatus },
   ];
 
