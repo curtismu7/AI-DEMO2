@@ -20,6 +20,7 @@ interface LearningItem {
   label: string;
   description?: string;
   icon: string;
+  demoStep?: { number: number | string; useCaseId: string };
 }
 
 type LessonStatus = "LIVE" | "LIVE / CONFIG" | "SIMULATED" | "REFERENCE";
@@ -212,6 +213,7 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         label: "Jev: Decision Model",
         description: "A fast typed-answer model for guardrails and routing: score, confidence and thresholds",
         icon: "🧠",
+        demoStep: { number: 53, useCaseId: "UC-LEARN15" },
       },
       {
         label: "MCP Server Discovery",
@@ -747,6 +749,15 @@ export default function LearningHub() {
                         <p className="learning-hub__card-description">
                           {item.description}
                         </p>
+                      )}
+                      {item.demoStep && (
+                        <Link
+                          className="learning-hub__card-step"
+                          to={`/use-cases#${item.demoStep.useCaseId}`}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          Demo step {item.demoStep.number} · /use-cases
+                        </Link>
                       )}
                     </div>
                   </button>
