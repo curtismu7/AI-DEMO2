@@ -1,9 +1,9 @@
 /**
- * UC-MUSE2 — External agent, AI Gateway lane. The same agent connects to the
+ * UC-MUSE2 — External agent, Agent Privilege lane. The same agent connects to the
  * facade's privilege-gateway door: OAuth against the durable demo broker
  * doubles as the sign-in that establishes the BFF's server-side leg to the
- * PingOne Privilege AI Gateway (ownsUpstreamAuth swaps the bearer on the
- * upstream hop). Per-user policy is enforced by the AI Gateway.
+ * PingOne Agent Privilege (ownsUpstreamAuth swaps the bearer on the
+ * upstream hop). Per-user policy is enforced by the Agent Privilege.
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
 
@@ -11,7 +11,7 @@ const NODES = [
   { id: "user", group: "user", label: "Alice (user)", sub: ["signs in once"], x: 40, y: 150, detail: "Her OAuth sign-in is what establishes the gateway leg — one login, both sides." },
   { id: "agent", group: "external", label: "Muse agent", sub: ["user's machine"], x: 340, y: 150, detail: "Same agent, different door: the facade's privilege-gateway MCP endpoint." },
   { id: "facade", group: "gateway", label: "MCP facade", sub: ["durable broker"], x: 640, y: 150, detail: "Registers the client durably and holds the upstream gateway leg server-side — client config survives gateway restarts." },
-  { id: "aigw", group: "pingone", label: "AI Gateway", sub: ["Privilege"], x: 940, y: 150, detail: "PingOne Privilege AI Gateway: per-user policy on the upstream call; the caller's bearer is replaced." },
+  { id: "aigw", group: "pingone", label: "Agent Privilege", sub: ["Privilege"], x: 940, y: 150, detail: "PingOne Agent Privilege: per-user policy on the upstream call; the caller's bearer is replaced." },
   { id: "tool", group: "resource", label: "Registered app", sub: ["Agentic App"], x: 1240, y: 150, detail: "The app registered in Privilege (e.g. banking MCP server) serves the tools." },
 ];
 
@@ -48,7 +48,7 @@ const walk = [
   {
     title: "Per-user policy", label: "Privilege decides",
     nodes: ["aigw", "tool"], edges: [3],
-    lines: [{ who: "AI Gateway", text: "Policy evaluates the human who signed in — identity travels, not just a service credential." }],
+    lines: [{ who: "Agent Privilege", text: "Policy evaluates the human who signed in — identity travels, not just a service credential." }],
     tech: [{ t: "POLICY", c: "Privilege per-user policy -> dispatch to registered Agentic App" }],
   },
   {

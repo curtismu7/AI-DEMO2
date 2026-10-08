@@ -40,7 +40,7 @@ export const DEMO_PRIMARY_USE_CASE_IDS = [
   'UC46',  // Privilege A2A access review — step 25 in the presenter sequence
   'UC47',  // Privilege A2A three-deep agent chain — live in the reel, step 26
   'UC-MUSE1', // External agent standard lane — user's agent -> door -> gateway -> Authorize
-  'UC-MUSE2', // External agent AI Gateway lane — user's agent -> facade -> Privilege AI Gateway
+  'UC-MUSE2', // External agent Agent Privilege lane — user's agent -> facade -> Agent Privilege
 ];
 
 export const DEMO_ADVANCED_USE_CASE_IDS = [];
@@ -69,7 +69,7 @@ export const DEMO_STEP_DESTINATIONS = {
   'UC-MUSE2': {
     kind: 'agent',
     label: 'Runs in your agent',
-    title: 'Same agent, AI Gateway lane: point it at /mcp-facade/privilege-gateway/mcp per docs/MUSE_RUNBOOK.md. The reel walks the credential-swap hop.',
+    title: 'Same agent, Agent Privilege lane: point it at /mcp-facade/privilege-gateway/mcp per docs/MUSE_RUNBOOK.md. The reel walks the credential-swap hop.',
   },
 };
 
