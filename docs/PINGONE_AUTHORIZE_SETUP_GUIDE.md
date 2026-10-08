@@ -20,11 +20,12 @@
 | Set `may_act` token attribute on resource servers | **Automated** — `npm run pingone:bootstrap` |
 | Set `is_delegate` token attribute on Demo API | **Automated** — `npm run pingone:bootstrap` |
 | Add PingOne Authorize service to the environment | **Manual** — PingOne Console |
-| Create Trust Framework attributes | **Manual** — PingOne Console |
-| Create authorization policies and rules | **Manual** — PingOne Console |
-| Set amount thresholds in policies | **Manual** — PingOne Console (or configStore for simulated mode) |
-| Publish policies to a decision endpoint | **Manual** — PingOne Console |
-| Set step-up advice/obligations | **Manual** — PingOne Console |
+| Create a worker application with `Identity Data Admin` role | **Manual** — PingOne Console (or reuse one) |
+| Create Trust Framework attributes | **Using Import/Export feature** — `npm run snapshot:generate`, then Authorize → Trust Framework → Import (`snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json`) |
+| Create authorization policies and rules | **Using Import/Export feature** — same snapshot (3 policies, 31 rules, the `AI Demo Policies` set) |
+| Set amount thresholds in policies | **Using Import/Export feature** — thresholds live in `snapshots/gen-authorize-snapshot.js`, regenerate the snapshot from them |
+| Publish policies to a decision endpoint | **Manual** — PingOne Console (binding a set to an endpoint is not in the snapshot) |
+| Set step-up advice/obligations | **Using Import/Export feature** — obligation codes (`HITL`, `step-up-required`, …) ship in the snapshot |
 
 ---
 
@@ -476,9 +477,17 @@ node scripts/verify-scope-configuration.js --manifest-diff
 
 ---
 
-## Part 3 — Configure PingOne Authorize (Manual)
+## Part 3 — Configure PingOne Authorize (Import/Export + Console)
 
-Everything in Part 2 was automated. **This part cannot be automated** — PingOne Authorize policies and Trust Framework attributes must be built through the PingOne Console UI. There is no public REST API for creating policies.
+Everything in Part 2 was automated. **The policies, attributes and rules are also automated** — PingOne Authorize has no public REST API for creating policies, but the console's **Import/Export** feature accepts a snapshot file, and this repo generates one from its single source of truth:
+
+```bash
+npm run snapshot:generate        # writes snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json
+```
+
+Then import it: PingOne Console → **Authorize → Trust Framework → Import** → select `snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json`. The snapshot carries the Trust Framework attributes, conditions, all policies and rules (including obligations like `HITL` and `step-up-required`) and the `AI Demo Policies` set. See `docs/LIVE-PINGONE-RUNBOOK.md` § 3 for the import caveats (unchanged versions import as silent no-ops).
+
+What remains manual in this part is only what a snapshot cannot carry: enabling decision recording, and binding the imported policy set to a decision endpoint. The Part 3.3–3.8 walk-through below is kept for readers who want to build or inspect the objects by hand.
 
 ### Step 3.1 — Find the Authorize section
 
@@ -508,7 +517,7 @@ Before writing any policies, turn on recent decision recording. This lets you se
 
 ---
 
-### Step 3.3 — Create Trust Framework attributes (manual)
+### Step 3.3 — Create Trust Framework attributes (covered by Import/Export — or by hand)
 
 Trust Framework attributes are the building blocks policies use to make decisions. Think of them as the input variables. You need to create the ones that your rules will reference.
 
