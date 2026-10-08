@@ -7,6 +7,7 @@ import JevLearningPage from "../pages/JevLearningPage";
 import PrivilegeMcpLearningPage from "../pages/PrivilegeMcpLearningPage";
 import AgentGatewayCapabilitiesPage from "../pages/AgentGatewayCapabilitiesPage";
 import AgentGatewayAuthorizationLessonPage from "../pages/AgentGatewayAuthorizationLessonPage";
+import ExternalAgentLessonPage from "../pages/ExternalAgentLessonPage";
 import LiveUseCaseWorkbenchPage from "../pages/LiveUseCaseWorkbenchPage";
 import AIAgent from "../components/AIAgent";
 import CodeExplorerPage from "../components/CodeExplorerPage";
@@ -250,6 +251,14 @@ export function AgentGatewayAuthorizationLessonPageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <AgentGatewayAuthorizationLessonPage />
+    </AppShell>
+  );
+}
+
+export function ExternalAgentLessonPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <ExternalAgentLessonPage />
     </AppShell>
   );
 }

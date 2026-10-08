@@ -51,22 +51,22 @@ test("dashboard guide lists the demo steps", () => {
   expect(screen.getByText(/Step 1 · UC24: /)).toBeTruthy();
   // UC47 and UC37 also appear in the A2A sequence, so expect both copies.
   expect(screen.getAllByText(/Step 26 · UC47: /)).toHaveLength(2);
-  expect(screen.getByText(/Step 27 · UC43: /)).toBeTruthy();
-  expect(screen.getByText(/Step 32 · UC17: /)).toBeTruthy();
+  expect(screen.getByText(/Step 29 · UC43: /)).toBeTruthy();
+  expect(screen.getByText(/Step 34 · UC17: /)).toBeTruthy();
   expect(screen.getByText(/Step 13 · ADMIN13: /)).toBeTruthy();
-  expect(screen.getAllByText(/Step 43 · UC37: /)).toHaveLength(2);
-  expect(screen.getByText(/Step 46 · UC4: /)).toBeTruthy();
+  expect(screen.getAllByText(/Step 45 · UC37: /)).toHaveLength(2);
+  expect(screen.getByText(/Step 48 · UC4: /)).toBeTruthy();
 });
 
 test("step numbers match the menu, admin included, and skip non-steps", () => {
   expect(stepLabel("UC24")).toBe("Step 1 · UC24");
-  expect(stepLabel("UC43")).toBe("Step 27 · UC43");
+  expect(stepLabel("UC43")).toBe("Step 29 · UC43");
   expect(demoStepNumber("ADMIN13")).toBe(13);
   expect(stepLabel("UC999")).toBe("UC999");
   expect(demoStepNumber("UC40")).toBe(22); // first appearance wins over its Privilege-group slot
   expect(demoStepNumber("UC2")).toBe(9); // repeated in the A2A group, keeps its script number
-  expect(demoStepNumber("UC2.6")).toBe(31);
-  expect(demoStepNumber("UC37")).toBe(43);
+  expect(demoStepNumber("UC2.6")).toBe(33);
+  expect(demoStepNumber("UC37")).toBe(45);
 });
 
 test("the requested pages each have a three-step guide", () => {
