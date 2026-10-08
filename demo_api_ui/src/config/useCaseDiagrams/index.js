@@ -37,7 +37,8 @@ export const CONFIGS = [
 ];
 
 export function getConfig(id) {
-  return CONFIGS.find((c) => c.id === String(id || "").toUpperCase()) || null;
+  const key = String(id || "").toUpperCase();
+  return CONFIGS.find((c) => c.id.toUpperCase() === key) || null;
 }
 
 /** Canonical share URL for a use-case diagram. */
