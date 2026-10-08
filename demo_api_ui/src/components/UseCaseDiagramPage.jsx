@@ -128,7 +128,7 @@ export default function UseCaseDiagramPage() {
         <div className="ucd-panel__body">
           {hop || picked ? (
             <>
-              <div className="ucd-panel__hop"><b>{panel.head}</b>{panel.lines[0]?.text ? ` — ${panel.lines[0].text}` : ""}</div>
+              <div className="ucd-panel__hop"><b>{panel.head}</b>{hop?.label ? ` — ${hop.label}` : ""}</div>
               {picked ? null : panel.lines.map((l, i) => (
                 <p key={i} className="ucd-panel__line">{l.who ? `${l.who}: ` : ""}{l.text}</p>
               ))}

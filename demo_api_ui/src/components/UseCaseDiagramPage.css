@@ -42,3 +42,11 @@
 .ucd-card__top { display: flex; justify-content: space-between; align-items: center; }
 .ucd-card__title { font-weight: 700; color: var(--th-text); }
 .ucd-card__what { color: var(--th-text-body); font-size: 12.5px; }
+
+/* Review finding 4: styled links need the sibling diagrams-index treatment —
+   no underline, visible keyboard focus. */
+.ucd-card, .ucd-next__link { text-decoration: none; }
+.ucd-card:focus-visible, .ucd-next__link:focus-visible {
+  outline: 2px solid var(--th-status-info);
+  outline-offset: 2px;
+}
