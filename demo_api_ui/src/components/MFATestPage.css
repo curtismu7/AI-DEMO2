@@ -1167,3 +1167,10 @@
   margin: 0;
   word-break: break-word;
 }
+
+.mfa-fido-meta__heading {
+  margin: 1.5rem 0 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--th-text-body);
+}

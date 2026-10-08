@@ -2079,6 +2079,9 @@ const MFATestPageContent: FC = () => {
             />
           )}
           <>
+              <h3 id="fido2-device-metadata" className="mfa-fido-meta__heading">
+                FIDO2 Device Metadata
+              </h3>
               <MFATestCard
                 title="Read FIDO2 Device Metadata"
                 method="GET"
