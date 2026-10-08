@@ -162,3 +162,40 @@ if (typeof global.ResizeObserver === "undefined") {
     disconnect() {}
   };
 }
+
+// ── Between-test isolation (cross-file DOM bleed fix, 2026-09-27) ────────────
+// Full-suite runs under a shared worker (singleFork, used to dodge the main-
+// process OOM) showed "Found multiple elements" failures that passed in
+// isolation: a test file that renders into document.body without unmounting
+// leaks its DOM into every later file in the same worker. Testing Library's
+// auto-cleanup only runs when globals or the RTL framework detects per-file
+// boundaries — not reliably under shared workers. Explicit afterEach here:
+//   1. unmount any RTL-rendered trees,
+//   2. wipe body children the framework didn't track,
+//   3. restore spies stubbed with vi.spyOn (vi.restoreAllMocks),
+//   4. clear module-level fetch/localStorage leftovers that seed later files.
+// afterEach with no active test context is a no-op outside tests, so this is
+// safe in every file.
+afterEach(async () => {
+  // 1+2. RTL's render() appends a bare <div> under <body> per call; remove
+  // those (and any other stray element) but PRESERVE #root — the Vite app
+  // mount — and script/style tags some suites assert on.
+  const body = document.body;
+  for (const node of [...body.children]) {
+    if (node.id === "root") continue;
+    if (node.tagName === "SCRIPT" || node.tagName === "STYLE" || node.tagName === "LINK") continue;
+    node.remove?.();
+  }
+  // 3. Clear call history but KEEP implementations: most suite-wide mocks are
+  // vi.fn() factories whose mockResolvedValue must survive across tests in the
+  // file. vi.restoreAllMocks() would also reset vi.fn() implementations under
+  // some Vitest versions (observed 2026-09-27: AIAgent.chips fetchAgentTools
+  // became undefined after the LLM Gateway suite ran in the same worker).
+  // Spies created with vi.spyOn keep their restore-in-place behavior via
+  // mockRestore in the rare suites that need it.
+  vi.clearAllMocks();
+  // 4. Clear localStorage between files so a test that seeds state cannot
+  // poison the next file's first render (a real flake source on
+  // bankingAgentUi* keys).
+  try { window.localStorage.clear(); } catch { /* isolatedStorage */ }
+});
