@@ -28,6 +28,14 @@ record.
 
 **RESOLVED 2026-10-07** (`worktree-agent-a3bf30261508b9964`). Neither option above: a lossless additive migration instead. `ensureDocumentSchema` adds two properties with `field` tokenization, `document_key` and `collection_key`, to the existing class (Weaviate allows adding properties), then backfills every object by PATCH-merging `document_id`/`collection_id` into them. The class's vectorizer is `none` and a merge sends no vector, so nothing is re-vectorized and nothing is dropped or re-indexed; the old properties stay for rollback. Every insert now writes the keys, and every `Equal` filter in `deleteDocument`, `replaceDocumentChunks`, `searchDocuments` and `listDocuments` uses them. The backfill is idempotent (it patches only objects whose keys differ), re-scans afterwards, and on any failure logs `key backfill INCOMPLETE ... will retry on next start` instead of continuing; there is no destructive step at all. A brand-new class is created with the key properties directly. Guarded by `demo_mcp_code_search/src/weaviateStore.migration.test.ts` (5 of 7 tests fail against the old store). The live class still needs one restart of `mcp-code-search` to run the migration; until then the filters match nothing on the old objects.
 
+### [ ] 2026-10-07 — Local PF volume still holds the pre-upgrade install
+
+**What's wrong.** The in-volume upgrade to 13.1.3 (see "Upgrading the local PF" in `scripts/pingfederate/README.md`) left the previous install on `ai-demo-pingfederate-out-classic` as `instance-13.1.2` (about 600 MB), plus `instance/server/default/data/hypersonic.fresh-13.1.3`, the empty DB the upgrade utility created before the real one was copied back. The utility's four warnings need no action: `log4j2.xml` and the customized templates came across byte-identical to the old ones, and the stock files are identical between 13.1.2 and 13.1.3, so there is nothing to merge.
+
+**Why it wasn't fixed now.** They are the rollback path.
+
+**What the real fix looks like.** Delete both from the volume once PF 13.1.3 has run clean for a while.
+
 ### [ ] 2026-10-07 — The `spinner_size` setting no longer does anything
 
 **What's wrong.** Every stand-alone spinner (32px and up, or `tip` forced on) is drawn at 56px by `PingIdentitySpinner`, whatever `size` the caller passes, so the boot screen, sign-in screen, loading overlay and modal waits are one picture. That makes `spinner_size` (`/configure` → Appearance, default 88) inert: `SpinnerHost` and the Appearance preview still read and pass it, and the control still moves, but the drawn size does not change.

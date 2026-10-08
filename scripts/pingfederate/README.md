@@ -422,3 +422,15 @@ not PingOne MFA.
 ## SSO session: sign in once, not on every authorize
 
 With PF's global authentication sessions off, every authorize request (CIMD, RAR, sign-in) re-prompts, and PF logs `no session ID was found in request`. `node scripts/pingfederate/provision-pf-sso-session.js` is a dry run; `--apply` sets `enableSessions: true` on `session/authenticationSessionPolicies/global` **and** adds a session policy (`aiDemoPfSso`) for the `aiDemoPfHtmlForm` adapter. Both are needed: the global switch alone creates no session, because PF only creates one for an authentication source that has a policy. Backup is written to the temp dir and both are read back; `--remove` undoes both. Every client of that adapter now gets SSO, and a logout in the app does not end the PF session.
+
+## Upgrading the local PF
+
+Changing the image tag does **not** upgrade PF. The server files live in the `/opt/out` volume, and the image only copies its own into a fresh volume, so a recreate on an existing volume runs the old PF (`/pf-admin-api/v1/version` shows which). Use PF's upgrade utility:
+
+1. Back up the volume, stop PF, and keep the rehearsal on a **clone** of the volume first.
+2. In a throwaway container from the new image with the volume at `/opt/out`: copy `/opt/server` to `<dir>/new/pingfederate` and the old `/opt/out/instance` to `<dir>/src/pingfederate` (the source directory **must** be named `pingfederate`), then run `<dir>/new/pingfederate/upgrade/bin/upgrade.sh <dir>/src/pingfederate --release-notes-reviewed` with `JAVA_HOME=/opt/java`.
+3. Move the old `instance` aside as `instance-<old version>` and put the new tree in its place as `instance`.
+4. **Copy `instance-<old>/server/default/data/hypersonic/` over the new one.** The utility leaves an empty `PFDefaultDB`, and our OAuth clients live there (`client.manager=...ClientManagerJdbcImpl`), so skipping this shows 0 clients.
+5. Start the container and check `/pf-admin-api/v1/version`, the client count, the deployed plugin JARs and `server.log`.
+
+Rolled out this way for 13.1.2 -> 13.1.3 on 2026-10-07 (0 errors, 4 warnings; see `TECH_DEBT.md`). Release notes: https://docs.pingidentity.com/pingfederate/13.1/release_notes/pf_release_notes.html
