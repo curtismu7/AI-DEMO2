@@ -19,9 +19,10 @@ describe('useCases catalog SoT', () => {
 
   test('contains the complete catalog including the CIAM/NHI agent lanes', () => {
     // UC43/44 and the SaaS-Embedded Website Worker UC45 are part of the CIAM/NHI catalog.
-    expect(RAW_USE_CASES).toHaveLength(75);
+    // UC-LEARN15 (Jev decision-model lesson page) takes it to 76.
+    expect(RAW_USE_CASES).toHaveLength(76);
     const ids = RAW_USE_CASES.map((u) => u.id);
-    expect(new Set(ids).size).toBe(75);
+    expect(new Set(ids).size).toBe(76);
     for (let n = 1; n <= 22; n++) expect(ids).toContain(`UC${n}`);
     expect(ids).toContain('UC23');
     expect(ids).toContain('UC24');
