@@ -57,6 +57,7 @@
 
 .sdp__result--permit { color: var(--th-status-success-text, #1d7a45); background: var(--th-status-success-bg, #dcfce7); }
 .sdp__result--hitl { color: var(--th-status-warning-text, #78350f); background: var(--th-status-warning-bg, #fef3c7); }
+.sdp__result--deny { color: var(--th-status-error-text, #b42318); background: var(--th-status-error-bg, #fee4e2); }
 
 .sdp__sub { margin: 0; font-size: 13px; color: var(--th-text-muted, #4a5872); }
 

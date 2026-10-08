@@ -11,6 +11,12 @@ describe('stepDiagrams config', () => {
     }
   });
 
+  it('exposes the next seven stories (steps 6 through 12)', () => {
+    for (const n of [6, 7, 8, 9, 10, 11, 12]) {
+      expect(stepDiagramFor(n), `step ${n}`).toBeDefined();
+    }
+  });
+
   it('keys diagrams by presenter step number and carries title + path', () => {
     const d = stepDiagramFor(5);
     expect(d.title).toBe('PAR + RAR intent verified (PERMIT)');

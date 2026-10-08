@@ -50,6 +50,13 @@ function resultFor(step) {
     3: { text: 'HITL_REQUIRED', cls: 'sdp__result--hitl' },
     4: { text: 'STEP_UP', cls: 'sdp__result--hitl' },
     5: { text: 'PERMIT', cls: 'sdp__result--permit' },
+    6: { text: 'DENY', cls: 'sdp__result--deny' },
+    7: { text: 'DENY_401', cls: 'sdp__result--deny' },
+    8: { text: 'DENY', cls: 'sdp__result--deny' },
+    9: { text: 'PERMIT', cls: 'sdp__result--permit' },
+    10: { text: 'DELEGATE_AND_EXECUTE', cls: 'sdp__result--permit' },
+    11: { text: 'PERMIT', cls: 'sdp__result--permit' },
+    12: { text: 'PERMIT', cls: 'sdp__result--permit' },
   };
   return outcomes[step] || null;
 }
