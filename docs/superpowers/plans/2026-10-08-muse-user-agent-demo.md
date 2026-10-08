@@ -60,6 +60,42 @@ Cluster state was brought current first: `mcp-server` was running an image older
 
 So the external agents become demo steps by adding UC ids to `DEMO_PRIMARY_USE_CASE_IDS` (`demoUseCaseSteps.js`) with `kind: 'agent'` destinations that **instruct the presenter to act in the external client** (like UC46's "opens page" pattern, but for an external surface): the step card says "Run this in Muse / LM Studio / ChatGPT per the runbook," while the reel walks the wire-level flow (discovery → DCR → PKCE → exchange → gateway → Authorize → tool). The audience watches the token chain on the dashboard while the agent acts on the presenter's machine — exactly the story.
 
+## Use-case coverage by agent
+
+Use cases down the side, agents across the top. ✅ = the agent runs that use case in the demo; ❌ = structurally out of scope for that surface (reason in the notes below).
+
+| Use case (demo step) | Muse app (cloud) | Muse Code (CLI) | Grok app (cloud) | Grok CLI | LM Studio | LibreChat | ChatGPT (cloud) |
+|---|---|---|---|---|---|---|---|
+| **Onboard** — RFC 9728 discovery → DCR → PKCE login (the "never seen this client" moment) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **UC-MUSE1: delegated read** — "show my balance", full RFC 8693 chain (sub=user, act=agent) on the dashboard | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Governed write + HITL** — "transfer $500", P1AZ → human approval in the dashboard → tool runs | ❌ (a) | ✅ (b) | ❌ | ✅ (b) | ✅ (b) | ✅ (b) | ❌ |
+| **UC-MUSE2: AI Gateway lane** — credential swap at the facade, per-user policy at Privilege | ❌ (c) | ✅ (c) | ❌ (c) | ✅ | ✅ (proven) | ✅ | ❌ (c) |
+| **Step-up / MFA** — login-time MFA at PingOne; policy step-up on the sensitive action | login MFA | login MFA + policy step-up | login MFA | login MFA + policy step-up | login MFA + policy step-up | login MFA + policy step-up | login MFA |
+| **Audit trail** — every call shows sub/act/tool/decision | ✅ (any call) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Deny paths** (scope refusal, service-token governance) — already proven live with curl | n/a | ✅ | n/a | ✅ | ✅ | ✅ | n/a |
+
+Notes:
+
+- **(a) Cloud read-only by design for the phone demo.** The HITL transfer is the most orchestration-heavy moment (dashboard open, approval click, agent waiting); the consumer apps demonstrate the full read-path chain, which carries the same teaching point.
+- **(b) Governed-write is a two-agent show minimum.** Muse Code leads (presenter's Mac, most reliable); Grok CLI / LM Studio / LibreChat can run it too — a runbook line each, not code.
+- **(c) Cloud agents reach lane 2 only via the SE facade exposure** (see the next section). Until that ingress lands, lane 2 is a local-client demo. ngrok is the stopgap; the permanent answer is already deployed in the cluster (nothing needs to move — only ingress paths are missing).
+
+The narrative split: **cloud agents** (Muse app, Grok, ChatGPT) tell the *"your customer's real agent, on their phone"* story against the SE cluster; **local agents** (Muse Code, Grok CLI, LM Studio, LibreChat) run the *full two-lane governance* story including HITL and the AI Gateway. Same doors, same Ping products, two demo registers.
+
+## SE facade exposure (the ngrok alternative — nothing needs to move)
+
+Verified live on the SE cluster (2026-10-08): the **facade is already deployed** in `ping-devops-cmuir`. The `demo-api-server` image ships `routes/mcpFacade.js`, and an in-cluster probe of `https://demo-api-server:3001/mcp-facade/privilege-gateway/mcp` answered a correct RFC 9728 401 challenge. Two facts make this nearly free:
+
+1. The challenge's `resource_metadata` URL is derived from the request's `Host` header (`facadeBase()` in `mcpFacade.js`) — so through a public ingress host it advertises the public host automatically. No code change.
+2. The `ai-demo-ingress` currently routes everything except `/grafana` to `frontend`, whose OAuth wall 302s `/mcp-facade/*` to a browser login an MCP client cannot complete (verified: `HTTP 302 → /api/auth/hosted-access/login?return_to=/mcp-facade/...`).
+
+What remains (ingress + env, no code):
+
+- Add ingress path rules on `ai-demo.ping-devops.com` (or a dedicated host): `/mcp-facade/` → `demo-api-server:3001` (TLS passthrough — the BFF serves TLS on 3001, port is named `https`).
+- Route `/oauth/` for the facade's AS to the broker service (`mcp-gateway`), mirroring the SE agentless deployment's proven nginx pattern (`/oauth/* is routed to mcp-gateway` — see the `facadeBase` comment in `mcpFacade.js`).
+- Point `MCP_FACADE_AGENT_GATEWAY_AS` at the in-cluster broker URL in the `demo-api-server` deployment env.
+- ngrok stays the stopgap for ad-hoc demos; this ingress is the permanent path and also unlocks the AI Gateway lane for Muse app / Grok / ChatGPT (row (c) above flips to ✅).
+
 ## Global Constraints
 
 - This plan does **not** modify `oauth-mcp`, `ping-gateway`, `mcpFacade.js` doors, token exchange, sessions, or authorization. Read-only verification of those services only.
