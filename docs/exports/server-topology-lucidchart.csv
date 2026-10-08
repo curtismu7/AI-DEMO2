@@ -78,7 +78,7 @@ HTTP · discovery registry",,,,
 27,Process,Flowchart Shapes,1,,"OpenSearch MCP
 opensearch-mcp-server
 MCP · Streamable HTTP · profile: rag",,,,
-28,Process,Flowchart Shapes,1,,"Privilege AI Gateway
+28,Process,Flowchart Shapes,1,,"Agent Privilege
 ping-mcpgw · mcpgw-nginx
 MCP · Streamable HTTP / SSE compatibility · profile: privilege",,,,
 29,Process,Flowchart Shapes,1,,"A2A main agent

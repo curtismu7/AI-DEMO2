@@ -29,7 +29,7 @@ export const DIAGRAMS_INDEX = [
     ],
   },
   {
-    section: "AI Gateway and Privilege",
+    section: "Agent Privilege and Privilege",
     items: [
       D("AI Agent Gateway", "/privilege-mcp-diagrams", "Architecture, sign-in with tool call, and auth flow."),
       D("Privilege-First Gateway", "/privilege-first-gateway", "How the gateway enforces access, in two figures."),

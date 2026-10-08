@@ -37,7 +37,7 @@ const ENFORCEMENT = [
   },
   {
     id: 'aigateway',
-    name: 'AI Gateway',
+    name: 'Agent Privilege',
     state: 'not-wired',
     willShow: 'which agents route through which gate, tool-level allow and deny',
     today: '/agent-gateway-inspector',
@@ -49,7 +49,7 @@ const ENFORCEMENT = [
     state: 'not-wired',
     willShow: 'LLM, MCP, A2A and AI Guard sub-gateway state, injected credentials',
     today: '/privilege-mcp-client',
-    todayLabel: 'AI Gateway Client',
+    todayLabel: 'Agent Privilege Client',
   },
 ];
 

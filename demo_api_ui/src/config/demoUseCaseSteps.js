@@ -113,9 +113,9 @@ export const DEMO_USE_CASE_SEARCH_TERMS = {
   UC25: ['privilege', 'enterprise managed mcp', 'id-jag', 'centralized access', 'group policy'],
   'UC-LEARN11': ['privilege', 'privilege ai', 'llm gateway', 'prompt injection'],
   'UC-TOOL3': ['privilege', 'privilege ai', 'llm gateway', 'prompt injection', 'virtual key'],
-  UC46: ['privilege', 'a2a', 'agent-to-agent', 'access review', 'anthropic', 'google', 'gemini', 'ai gateway', 'worker agent'],
+  UC46: ['privilege', 'a2a', 'agent-to-agent', 'access review', 'anthropic', 'google', 'gemini', 'agent privilege', 'worker agent'],
   UC46A: ['privilege', 'a2a', 'agent-to-agent', 'access review', 'in the agent', 'reel', 'sequence'],
-  UC47: ['privilege', 'a2a', 'agent-to-agent', 'agent chain', 'three deep', 'ai gateway', 'langchain', 'specialist', 'delegation'],
+  UC47: ['privilege', 'a2a', 'agent-to-agent', 'agent chain', 'three deep', 'agent privilege', 'langchain', 'specialist', 'delegation'],
 };
 
 /** Existing Privilege lanes grouped for the presenter, without inventing routes. */

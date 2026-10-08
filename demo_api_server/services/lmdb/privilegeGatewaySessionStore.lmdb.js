@@ -1,6 +1,6 @@
 'use strict';
 /**
- * privilegeGatewaySessionStore.lmdb.js — the façade's Privilege AI Gateway
+ * privilegeGatewaySessionStore.lmdb.js — the façade's Agent Privilege
  * sessions, persisted so a BFF container recreate does not throw them away.
  *
  * One key per Agentic App (e.g. `opensearch22`); the value is the record

@@ -51,7 +51,7 @@ afterEach(() => {
   delete global.fetch;
 });
 
-describe('AI gateway client + LLM gateway clients coexisting', () => {
+describe('Agent Privilege client + LLM gateway clients coexisting', () => {
   it('resolves each client independently with no cross-talk when run concurrently', async () => {
     process.env.AGENT_GATEWAY_URL = 'http://agent-gw.test:8080';
     process.env.PRIVILEGE_LLM_GATEWAY_URL = 'https://gw.test';

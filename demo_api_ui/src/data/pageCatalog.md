@@ -24,7 +24,7 @@ Notes: several nav labels differ from the page's own heading (recorded per page)
 - **What it teaches:** Per-vertical branding and theming of the demo; not an identity standard.
 - **What it demos:** Live re-skinning of the running app for a selected vertical, plus cloning it into a new vertical.
 
-## AI Gateway
+## Agent Privilege
 
 ### AI Guard
 - **Route:** `/ai-gateway/shadow-ai-detector` · **Auth:** public
@@ -62,7 +62,7 @@ Notes: several nav labels differ from the page's own heading (recorded per page)
 - **What it teaches:** Scope-limited agents: the gateway door's scope decides which tools the agent may call.
 - **What it demos:** Live natural-language audit queries (about 7 days of history) and the tools table for that door.
 
-### AI Gateway Guide
+### Agent Privilege Guide
 - **Route:** `/privilege-mcp-learning` · **Auth:** public
 - **What it does:** Long guide "AI Agent Gateway": overview, architecture, install, configuration, console setup, policies, troubleshooting, reference.
 - **What it teaches:** Just-in-time, least-privilege MCP access governance and how it differs from PingOne Agent Gateway token mediation.
@@ -74,7 +74,7 @@ Notes: several nav labels differ from the page's own heading (recorded per page)
 - **What it teaches:** Authentication versus authorization versus obligations; PERMIT, DENY and STEP-UP outcomes enforced by the gateway.
 - **What it demos:** Guided requests sent through the BFF, showing the returned decision and live-response capture.
 
-### AI Gateway Diagrams
+### Agent Privilege Diagrams
 - **Route:** `/privilege-mcp-diagrams` · **Auth:** public
 - **What it does:** Renders architecture and protocol flow diagrams for the AI Agent Gateway integration.
 - **What it teaches:** How the gateway applies JIT least-privilege authorization to every MCP tool call.
@@ -98,19 +98,19 @@ Notes: several nav labels differ from the page's own heading (recorded per page)
 - **What it teaches:** Authentication says who; Authorize says what that caller may do in context, with permit, deny, step-up and obligations.
 - **What it demos:** Links to the policy console (`/pingone-authorize`), a denied transfer, and intent binding.
 
-### AI Gateway · LLM
+### Agent Privilege · LLM
 - **Route:** `/ai-products/privilege-llm` · **Auth:** public
 - **What it does:** Product page "Privilege for AI — LLM protection" on controlling prompts, responses and agent actions.
 - **What it teaches:** Treat the model interaction as a security boundary; inspect, allow, block, and keep identity in view.
 - **What it demos:** Links to a blocked prompt-injection run, LLM Gateway, and the LLM request tester.
 
-### AI Gateway · A2A
+### Agent Privilege · A2A
 - **Route:** `/ai-products/privilege-a2a` · **Auth:** public
 - **What it does:** Product page "Privilege for AI — A2A protection" on agent-to-agent handoff.
 - **What it teaches:** Authenticated, policy-bound, accountable agent handoffs with the delegation context kept attached.
 - **What it demos:** Links to the A2A access review through the gateway, the three-deep agent chain (Demo Step 26), the agent-to-agent architecture tab, the A2A protocol walkthrough and the delegation chain page.
 
-### AI Gateway · MCP
+### Agent Privilege · MCP
 - **Route:** `/ai-products/privilege-mcp` · **Auth:** public
 - **What it does:** Product page "Privilege for AI — MCP protection" on protecting MCP discovery and tool invocation.
 - **What it teaches:** MCP as a real application boundary: control both tools/list and tool calls against scope and delegation.
@@ -122,7 +122,7 @@ Notes: several nav labels differ from the page's own heading (recorded per page)
 - **What it teaches:** Retrieval is a governed action: RFC 8693 delegation, the code:search scope, Agent Gateway and PingOne Authorize.
 - **What it demos:** Live code search plus a retrieval authorization flow diagram; the Demo Steps chip runs the protected retrieval.
 
-### AI Gateway Demo
+### Agent Privilege Demo
 - **Route:** `/privilege-demo` · **Auth:** public
 - **What it does:** SE presenter hub "PingOne Privilege - SE Demo Hub" listing personas, console links and an OAuth config panel.
 - **What it teaches:** How to present the shared PingOne Privilege environment (Platform Admin, Privilege Admin, End User roles).
@@ -489,9 +489,9 @@ Use cases in the registry (`demo_api_server/config/useCases.js`):
 | UC42 | Third-party search server — blocked query denied | Blocked query denied before the request leaves the perimeter. |
 | UC-TOOL1 | Protected RAG | Code retrieval where the agent cannot widen its own access to indexed source. |
 | UC-TOOL2 | Code Explorer | Ask about flows and architecture with real, current code context. |
-| UC-TOOL3 | LLM Gateway | Shows what the Privilege AI Gateway decided about an LLM call. |
+| UC-TOOL3 | LLM Gateway | Shows what the Agent Privilege decided about an LLM call. |
 | UC46 | Privilege A2A access review | Analyst asks an agent to review access via Privilege-protected tools. |
-| UC47 | Privilege A2A three-deep agent chain | Main agent, LangChain agent and a specialist, each hop checked by the AI Gateway. |
+| UC47 | Privilege A2A three-deep agent chain | Main agent, LangChain agent and a specialist, each hop checked by the Agent Privilege. |
 | UC-NHI1 | Live agent NHI inventory | One governed roster of agents authenticating through Ping, with identity state. |
 | UC-NHI2 | Agent lifecycle export (JML) | Agent join/move/leave events shaped for an IGA tool such as SailPoint. |
 | UC-LEARN1 | OAuth Academy | Interactive teacher for OAuth 2.0/2.1 and OIDC with live flows. |
@@ -681,7 +681,7 @@ Use cases in the registry (`demo_api_server/config/useCases.js`):
 - **What it teaches:** Unmanaged shadow AI agents on endpoints and cloud platforms can be found and pulled into governance.
 - **What it demos:** A simulated discovery of "cursor-shadow-session" or "vertex-batch-agent" that appears as pending on IGA for AI.
 
-### AI Gateway (Preview)
+### Agent Privilege (Preview)
 - **Route:** `/privileges-gateway-preview` (nav label is "AI Agent Gateway (Preview)"; page heading "AI Agent Gateway") · **Auth:** public
 - **What it does:** Preview view of every governed agent tool call, permitted or denied, with summary counts and a sample audit log.
 - **What it teaches:** An MCP-aware gateway provides enforcement, step-up and audit for each tool call.
@@ -723,9 +723,9 @@ Use cases in the registry (`demo_api_server/config/useCases.js`):
 - **What it teaches:** The OWASP agentic threat framework (T-numbered threats) and how this demo maps to it.
 - **What it demos:** A threat catalog mapped to demo controls; exact interactive elements unclear.
 
-### AI Gateway for AI
+### Agent Privilege for AI
 - **Route:** `/privilege-for-ai` (nav label renamed from "Privilege for AI"; page title "Privilege for AI - Hostile MCP") · **Auth:** public
-- **What it does:** A static lesson on a deliberately hostile MCP server run behind the Privilege AI Gateway; sections: threats, defense in depth, scanner, demo steps, reference.
+- **What it does:** A static lesson on a deliberately hostile MCP server run behind the Agent Privilege; sections: threats, defense in depth, scanner, demo steps, reference.
 - **What it teaches:** The gateway stops harmful actions and malicious prompts, but not poisoned tool metadata, which mcp-scanner catches at ingest.
 - **What it demos:** No live calls; concept and runbook for the hostile MCP, LibreChat, gateway log and mcp-scanner.
 ## MCP & Integrations
@@ -787,7 +787,7 @@ Use cases in the registry (`demo_api_server/config/useCases.js`):
 ### LM Studio (Mac)
 - **Route:** `/privilege-mcp-client?client=lm-studio` · **Auth:** public
 - **What it does:** Opens the Privilege MCP client page for LM Studio setup, with gateway path selection and console policy views.
-- **What it teaches:** Path choice: direct to MCP, Privilege AI Gateway, or through the façade, and what policy each applies.
+- **What it teaches:** Path choice: direct to MCP, Agent Privilege, or through the façade, and what policy each applies.
 - **What it demos:** A local Mac LM Studio client connecting to MCP doors, with sign-in and per-tool denial behavior.
 
 ## Observability
@@ -949,13 +949,13 @@ Use cases in the registry (`demo_api_server/config/useCases.js`):
 - **What it teaches:** OAuth token exchange over WebSocket MCP (Resource Server pattern) versus a vault-managed API key over HTTP REST (Backend App pattern).
 - **What it demos:** Two credential paths into demo_mcp_resource_server, drawn side by side.
 
-### AI Gateway (MM)
+### Agent Privilege (MM)
 - **Route:** `/privilege-mcp-diagrams` · **Auth:** public
-- **What it does:** "AI Agent Gateway Diagrams" (renamed AI Gateway in the nav): tabbed Mermaid diagrams of the gateway integration architecture and protocol flow.
+- **What it does:** "AI Agent Gateway Diagrams" (renamed Agent Privilege in the nav): tabbed Mermaid diagrams of the gateway integration architecture and protocol flow.
 - **What it teaches:** How the AI Agent Gateway applies just-in-time least-privilege authorization to every MCP tool call.
 - **What it demos:** Architecture and protocol-flow diagrams for the AI Agent Gateway integration.
 
-### AI Gateway Enforcement (Node)
+### Agent Privilege Enforcement (Node)
 - **Route:** `/privilege-first-gateway` · **Auth:** public
 - **What it does:** SVG target architecture "Privilege first, Agent Gateway for the rest" (nav rename of Privilege-First Gateway), routing callers through Privilege into LLM and MCP lanes.
 - **What it teaches:** Privilege owns credentials and human-governed policy; the Agent Gateway behind it keeps per-tool delegated authorization.

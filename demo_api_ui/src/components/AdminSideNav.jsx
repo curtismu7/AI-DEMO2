@@ -229,11 +229,11 @@ const isLocalHost = () =>
 
 const NAV_SECTION_LABELS = new Map([
   ["Home", "Core"],
-  ["AI Gateway", "PingOne Platform"],
+  ["Agent Privilege", "PingOne Platform"],
   ["Identity Journeys", "Separate Areas"],
 ]);
 
-const PRODUCT_CARD_GROUPS = new Set(["AI Gateway", "DaVinci", "Ping products"]);
+const PRODUCT_CARD_GROUPS = new Set(["Agent Privilege", "DaVinci", "Ping products"]);
 
 const navGroupClassName = (label) => {
   if (PRODUCT_CARD_GROUPS.has(label)) return "admin-side-nav__group--product-card";
@@ -1302,26 +1302,26 @@ export default function AdminSideNav({
     findLegacyItem("Home"),
     findLegacyItem("Security Dashboard"),
     findLegacyItem("Skin Studio"),
-    productGroup("AI Gateway", [
+    productGroup("Agent Privilege", [
       { from: "Shadow AI Detector", rename: "AI Guard" },
       "Protocol Playground",
       "AI Guard Client",
       "LLM Gateway",
       "Intent Inspector",
       "Audit Agent",
-      { from: "AI Agent Gateway Guide", rename: "AI Gateway Guide" },
+      { from: "AI Agent Gateway Guide", rename: "Agent Privilege Guide" },
       "Agent Gateway Authorization",
-      { from: "AI Agent Gateway Diagrams", rename: "AI Gateway Diagrams" },
+      { from: "AI Agent Gateway Diagrams", rename: "Agent Privilege Diagrams" },
       "Agent IAM Core",
       "Agent Gateway",
       { from: "PingOne Authorize", rename: "PingOne Authorize", path: "/ai-products/authorize" },
-      { from: "Privilege · LLM", rename: "AI Gateway · LLM" },
-      { from: "Privilege · A2A", rename: "AI Gateway · A2A" },
-      { label: "AI Gateway · A2A Review", path: "/privilege-mcp-client?view=demo&tab=a2a", icon: "lnk" },
-      { label: "AI Gateway Topologies", path: "/privilege-gateway-topologies", icon: "arc" },
-      { from: "Privilege · MCP", rename: "AI Gateway · MCP" },
+      { from: "Privilege · LLM", rename: "Agent Privilege · LLM" },
+      { from: "Privilege · A2A", rename: "Agent Privilege · A2A" },
+      { label: "Agent Privilege · A2A Review", path: "/privilege-mcp-client?view=demo&tab=a2a", icon: "lnk" },
+      { label: "Agent Privilege Topologies", path: "/privilege-gateway-topologies", icon: "arc" },
+      { from: "Privilege · MCP", rename: "Agent Privilege · MCP" },
       "Protected RAG",
-      { from: "Privilege Demo", rename: "AI Gateway Demo" },
+      { from: "Privilege Demo", rename: "Agent Privilege Demo" },
     ]),
     productGroup("DaVinci", [
       { label: "DaVinci Widget", path: "/davinci-widget" },
@@ -1410,14 +1410,14 @@ export default function AdminSideNav({
       "Intent Bypass",
       "IGA for AI",
       "Discovery",
-      { from: "AI Agent Gateway (Preview)", rename: "AI Gateway (Preview)" },
+      { from: "AI Agent Gateway (Preview)", rename: "Agent Privilege (Preview)" },
       "Platform Gaps",
       "AI Security Academy",
       "Academy Standalone Demos",
       "Agentic Trust",
       "Agent Guardrails",
       "OWASP Agent Risks",
-      { from: "Privilege for AI", rename: "AI Gateway for AI" },
+      { from: "Privilege for AI", rename: "Agent Privilege for AI" },
     ], "agt"),
     productGroup("Personal Agents", [
       "Personal Agent",
@@ -1490,8 +1490,8 @@ export default function AdminSideNav({
       "Delegated Access Proof",
       "Demo Steps Lifeline Audit",
       "Invest Dual-Auth (MM)",
-      { from: "AI Agent Gateway (MM)", rename: "AI Gateway (MM)" },
-      { from: "Privilege-First Gateway (Node)", rename: "AI Gateway Enforcement (Node)" },
+      { from: "AI Agent Gateway (MM)", rename: "Agent Privilege (MM)" },
+      { from: "Privilege-First Gateway (Node)", rename: "Agent Privilege Enforcement (Node)" },
       "Gateway vs P1AZ Enforcement (MM)",
       "Resource Server Placement (MM)",
       "Personal Agent Design (Node)",

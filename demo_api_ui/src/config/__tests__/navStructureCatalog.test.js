@@ -70,9 +70,9 @@ describe("PingOne platform navigation", () => {
     ]);
   });
 
-  it("places RAG inside AI Gateway and treats Headless Identity as a product", () => {
-    expect(group("AI Gateway").children).toContain("AI Guard");
-    expect(group("AI Gateway").children).toContain("Protected RAG");
+  it("places RAG inside Agent Privilege and treats Headless Identity as a product", () => {
+    expect(group("Agent Privilege").children).toContain("AI Guard");
+    expect(group("Agent Privilege").children).toContain("Protected RAG");
     expect(group("Ping products").children).toContain("Headless Identity / PingCLI");
   });
 

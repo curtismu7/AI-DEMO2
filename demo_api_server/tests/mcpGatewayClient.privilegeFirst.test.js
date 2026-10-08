@@ -2,7 +2,7 @@
 
 // Task 6 of docs/superpowers/plans/2026-09-08-privilege-first-gateway.md.
 //
-// ff_mcp_gateway_privilege_first puts the PingOne Privilege AI Gateway in FRONT
+// ff_mcp_gateway_privilege_first puts the PingOne Agent Privilege in FRONT
 // of whichever Agent Gateway is already selected. getMcpGatewayHttpUrl() is the
 // single chokepoint every tool-call path funnels through (see its own comment),
 // so the flag has to win THERE or the request keeps going straight to the Agent

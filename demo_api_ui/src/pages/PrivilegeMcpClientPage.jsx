@@ -22,20 +22,6 @@ import './PrivilegeMcpClientPage.css';
 
 const API_BASE = '/api/privilege-mcp';
 const SILENT_DOOR_SWITCH_KEY = 'cur_priv_silent_door_switch';
-// "Connect all doors": the gateway issues one token per app, so covering every
-// door takes one silent sign-in each, and each is a full-page redirect. The plan
-// {origin, queue} rides sessionStorage across them; the ?auth= return effect
-// pops the next door until the queue is empty, then goes back to origin.
-const CONNECT_ALL_KEY = 'cur_priv_connect_all';
-const readConnectAll = () => {
-  try { return JSON.parse(sessionStorage.getItem(CONNECT_ALL_KEY) || 'null'); } catch { return null; }
-};
-const writeConnectAll = (plan) => {
-  try {
-    if (plan) sessionStorage.setItem(CONNECT_ALL_KEY, JSON.stringify(plan));
-    else sessionStorage.removeItem(CONNECT_ALL_KEY);
-  } catch { /* session storage can be disabled */ }
-};
 const readSessionFlag = (key) => {
   try { return sessionStorage.getItem(key) === '1'; } catch { return false; }
 };
@@ -45,14 +31,6 @@ const writeSessionFlag = (key, enabled) => {
     else sessionStorage.removeItem(key);
   } catch { /* session storage can be disabled */ }
 };
-// Deep link for the "grant access" hint on a policy denial. The env must be the
-// PingOne tenant that OWNS the gateway the door points at, or the link opens a
-// console with no such Agentic App in it. Kept in step with PRIVILEGE_SSO_ENV_ID
-// / the gateway's ENV_PROXY_TOKEN tenant — 0428ba4f ("AI Agent") since the
-// 2026-09-01 rebuild onto mcpgw.ai-demo.ping-devops.com. It pointed at the
-// retired 01d89b06 tenant until then, which sent people to the wrong console.
-const PRIVILEGE_CONSOLE_URL =
-  'https://console.login.privilege.pingone.com/?env=0428ba4f-169c-436b-aff9-b230496e0e3b';
 // An empty Explorer panel reads as a failed fetch. Usually it is not: the BFF
 // only issues prompts/list or resources/list when the server advertised that
 // capability in its initialize response, so an empty panel most often means the
@@ -315,10 +293,6 @@ export default function PrivilegeMcpClientPage() {
   const [clientHints, setClientHints] = useState({});
   const [rearmError, setRearmError] = useState('');
   const [gatewayStateLoaded, setGatewayStateLoaded] = useState(false);
-  // Set by the ?auth= return effect, which runs from the mount-time closure whose
-  // selectDoor still holds the default config and no presets. The chain resumes
-  // from a later render, once /state has hydrated them.
-  const [resumeConnectAll, setResumeConnectAll] = useState(false);
   // Path switch in flight. The sessionStorage flag lets
   // the overlay survive the OAuth redirect and show again from first paint on
   // the ?auth=success return, until tools are rediscovered from the new gateway.
@@ -335,7 +309,7 @@ export default function PrivilegeMcpClientPage() {
   const [user, setUser] = useState(null);
   const [grantedScopes, setGrantedScopes] = useState([]);
   const [tools, setTools] = useState([]);
-  // Discovery goes out to the AI Gateway, which can take several seconds before
+  // Discovery goes out to the Agent Privilege, which can take several seconds before
   // it returns a tool list. Without a visible wait state the sidebar just reads
   // "No tools discovered yet" the whole time, which looks like a failure.
   const [toolsLoading, setToolsLoading] = useState(false);
@@ -354,22 +328,17 @@ export default function PrivilegeMcpClientPage() {
   const [events, setEvents] = useState([]);
   const [rawRpc, setRawRpc] = useState('{\n  "jsonrpc": "2.0",\n  "id": 1,\n  "method": "tools/list",\n  "params": {}\n}');
   const [rawRpcResult, setRawRpcResult] = useState('');
-  const [showBlockedModal, setShowBlockedModal] = useState(false);
   const [showSignInModal, setShowSignInModal] = useState(false);
   // A repeated tools/list 401 should not reopen the sign-in modal on every
   // click. Keep one prompt per app for this page visit; changing apps changes
   // the key, and the explicit Sign in control starts a fresh attempt.
   const signInPromptedForRef = useRef(null);
   // The gateway answers a policy denial with a bare "Forbidden" and writes
-  // nothing to its own log, so the modal has to assemble its own evidence:
-  // the door and identity we already know, plus a live probe of the other doors.
-  // Only the upstream error is captured here — the door is derived at RENDER
-  // time (deniedDoor, below) because refreshTools closes over `config` from the
-  // render that defined it, which on the auth=success remount is still the
-  // empty default. Storing it here printed Door "(unknown)" in every live
-  // denial; no amount of effect reordering fixes a stale closure.
+  // nothing to its own log. The band that renders it names the door from
+  // config.mcpUrl at RENDER time, not from a value captured in refreshTools'
+  // creation-render closure, which on the auth=success remount is still the
+  // empty default — storing the door here printed the wrong one.
   const [blockedDetail, setBlockedDetail] = useState(null);
-  const [doorProbe, setDoorProbe] = useState({ running: false, results: null });
   // Privilege console inventory — only populated once an auth_token is pasted.
   const [consoleToken, setConsoleToken] = useState('');
   const [consoleData, setConsoleData] = useState(null);
@@ -386,10 +355,6 @@ export default function PrivilegeMcpClientPage() {
   const [selectedPolicy, setSelectedPolicy] = useState('');
   const [consoleBusy, setConsoleBusy] = useState(false);
   const [consoleError, setConsoleError] = useState(null);
-  // Derived every render, so it reflects the config the page actually holds by
-  // the time the denial modal paints — not whatever was in scope when the 403
-  // arrived. See the blockedDetail comment above.
-  const deniedDoor = doorName(config.mcpUrl);
   // Was a blocking modal. It is now a line on the connection rail's "Gateway
   // identity" row, next to the Sign in button it is explaining — a demo that
   // has just been refused should keep its trace, tools and denial band on
@@ -757,7 +722,7 @@ export default function PrivilegeMcpClientPage() {
       // NEVER auto-retry once an attempt has already come back: by then the BFF
       // has set privilegePromptNoneFailed, so a second /auth/start drops the user
       // on a real PingOne login page they never asked for. Any `auth` param means
-      // we are returning from a round trip — hand back to the modal instead.
+      // we are returning from a round trip — hand back to the sign-in modal.
       // Use s.gatewayMode (this response), not the gatewayMode state variable —
       // this effect has an empty dep array, so that closure only ever sees the
       // mount-time value, never a fresh one.
@@ -775,10 +740,10 @@ export default function PrivilegeMcpClientPage() {
       // working. The rail's "Gateway identity" row shows a Sign in button
       // instead, and nothing leaves this page until someone presses it.
       //
-      // Returning from a round trip (?auth=...) still hands back to the modal:
-      // that redirect was user-initiated, so reporting its outcome is expected
-      // rather than surprising.
-      if (searchParams.get('auth') === 'silent_failed' && !readConnectAll()) {
+      // Returning from a round trip (?auth=...) still hands back to the sign-in
+      // modal: that redirect was user-initiated, so reporting its outcome is
+      // expected rather than surprising.
+      if (searchParams.get('auth') === 'silent_failed') {
         requestSignIn('The gateway could not reuse your existing session for this door. Sign in once to connect it.');
       } else if (s.mainAppAuthenticated && !s.oauth?.authenticated && searchParams.get('auth')) {
         requestSignIn();
@@ -807,8 +772,7 @@ export default function PrivilegeMcpClientPage() {
     const reason = searchParams.get('reason');
     if (authResult === 'success') {
       const silentDoorSwitch = readSessionFlag(SILENT_DOOR_SWITCH_KEY);
-      const connectingAll = Boolean(readConnectAll());
-      appendChat('system', connectingAll ? 'Door connected. Continuing with the rest...' : silentDoorSwitch
+      appendChat('system', silentDoorSwitch
         ? 'Connected to the selected door. Loading tools...'
         : 'OAuth completed. Press "Get MCP Tools" to discover tools.');
       api('/state').then(async (s) => {
@@ -819,23 +783,13 @@ export default function PrivilegeMcpClientPage() {
           window.dispatchEvent(new CustomEvent('userAuthenticated'));
         }
         if (s.oauth?.scope) setGrantedScopes(s.oauth.scope.split(' ').filter(Boolean));
-        // Mid-chain, discovery would be N tools/list calls nobody asked for.
-        if (connectingAll) { setResumeConnectAll(true); return; }
         if (silentDoorSwitch && s.oauth?.authenticated) await refreshTools(true);
       })
         // Manual sign-in never auto-discovers. A silent door switch is the
         // exception: the user explicitly selected this destination, so finish
         // the requested switch by discovering its tools after authorization.
-        //
-        // (History, still true of the button path: discovery must not race
-        // /state. They used to run concurrently, so a 403 arriving first was
-        // rendered against an empty config — the denial modal said Door
-        // "(unknown)" and the door probe had no presets to try, the two facts
-        // that modal exists to supply.)
         .catch(() => {})
         .finally(() => {
-          // The chain is still redirecting: keep the overlay up for the next hop.
-          if (connectingAll && readConnectAll()) return;
           if (silentDoorSwitch) writeSessionFlag(SILENT_DOOR_SWITCH_KEY, false);
           clearSwitching();
         });
@@ -844,10 +798,6 @@ export default function PrivilegeMcpClientPage() {
       // redirect) — never leave the overlay stuck.
       writeSessionFlag(SILENT_DOOR_SWITCH_KEY, false);
       clearSwitching();
-      // A door that cannot be authorised silently is skipped; any other failed
-      // return ends the chain.
-      if (authResult === 'silent_failed' && readConnectAll()) setResumeConnectAll(true);
-      else writeConnectAll(null);
     }
     if (authResult === 'error') {
       appendChat('system', `OAuth failed: ${reason ? decodeURIComponent(reason) : 'Unknown'}`);
@@ -952,7 +902,6 @@ export default function PrivilegeMcpClientPage() {
     setTools([]);
     setSelectedTool(null);
     setBlockedDetail(null);
-    setShowBlockedModal(false);
     // selectPath clears llmPath; the re-arm caller (the only forceReauth one)
     // never did, so put it back in the same tick before the hook awaits.
     const pending = selectPath(nextMode);
@@ -1161,7 +1110,6 @@ export default function PrivilegeMcpClientPage() {
         err.message?.toLowerCase().includes('does not have access')
       ) {
         setBlockedDetail({ upstream: err.message });
-        setShowBlockedModal(true);
         if (!silent) appendChat('system', 'Access blocked by policy.');
         return;
       }
@@ -1226,7 +1174,6 @@ export default function PrivilegeMcpClientPage() {
     }
     const { saved } = result;
     try {
-      setShowBlockedModal(false);
       appendChat('system', `Switched to door: ${doorName(mcpUrl) || mcpUrl}`);
       // session.oauth is a single slot keyed mode::mcpUrl (privilegeMcpClient.js
       // oauthKey), so selecting a door this session has never signed into leaves
@@ -1274,60 +1221,6 @@ export default function PrivilegeMcpClientPage() {
     } catch (err) {
       appendChat('system', `Failed to switch door: ${err.message}`);
     }
-  };
-
-  // Doors on this gateway the last probe found with no token of their own.
-  const connectableDoors = () => {
-    let origin;
-    try { origin = new URL(config.mcpUrl).origin; } catch { return []; }
-    return (doorProbe.results || []).filter((r) => {
-      try { return r.needsAuth && new URL(r.url).origin === origin; } catch { return false; }
-    }).map((r) => r.url);
-  };
-
-  const advanceConnectAll = async () => {
-    const plan = readConnectAll();
-    if (!plan) return;
-    const next = plan.queue.shift();
-    if (!next) {
-      writeConnectAll(null);
-      const back = await selectDoor(plan.origin);
-      setAuthenticated(Boolean(back.saved?.oauth?.destinationAuthenticated ?? back.saved?.oauth?.authenticated));
-      setTools([]);
-      setSelectedTool(null);
-      writeSessionFlag(SILENT_DOOR_SWITCH_KEY, false);
-      clearSwitching();
-      appendChat('system', 'All doors connected. Each now shows Switch in the Access Denied window.');
-      return;
-    }
-    writeConnectAll(plan);
-    try {
-      const result = await selectDoor(next);
-      if (!result.ok) throw result.error;
-      setSwitching(true);
-      writeSessionFlag('cur_priv_switching', true);
-      const redirected = await startAuthRedirect({ silentOnly: true });
-      if (!redirected) { writeConnectAll(null); clearSwitching(); }
-    } catch (err) {
-      writeConnectAll(null);
-      clearSwitching();
-      appendChat('system', `Connect all doors stopped at ${doorName(next) || next}: ${err.message}`);
-    }
-  };
-
-  useEffect(() => {
-    if (!resumeConnectAll || !gatewayStateLoaded) return;
-    setResumeConnectAll(false);
-    advanceConnectAll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resumeConnectAll, gatewayStateLoaded]);
-
-  const connectAllDoors = async () => {
-    const queue = connectableDoors();
-    if (queue.length === 0) return;
-    writeConnectAll({ origin: config.mcpUrl, queue });
-    setShowBlockedModal(false);
-    await advanceConnectAll();
   };
 
   // Every Privilege door we know of: what the console reports when a token is
@@ -1388,28 +1281,6 @@ export default function PrivilegeMcpClientPage() {
       try { return new URL(u).origin === origin; } catch { return false; }
     });
   };
-
-  const probeDoors = async () => {
-    const urls = knownDoors();
-    if (urls.length === 0) { setDoorProbe({ running: false, results: [] }); return; }
-    setDoorProbe({ running: true, results: null });
-    try {
-      const data = await api('/doors/probe', { method: 'POST', body: { urls } });
-      setDoorProbe({ running: false, results: data.results || [] });
-    } catch (err) {
-      setDoorProbe({ running: false, results: [], error: err.message });
-    }
-  };
-
-  // Probe as soon as the denial modal opens: the answer to "is my grant missing
-  // or am I on the wrong door?" is the first thing anyone wants, and the gateway
-  // will not say. Reset on close so a later denial re-probes rather than showing
-  // a stale verdict.
-  useEffect(() => {
-    if (showBlockedModal) probeDoors();
-    else setDoorProbe({ running: false, results: null });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showBlockedModal]);
 
   const sendChat = async () => {
     const prompt = chatInput.trim();
@@ -1610,7 +1481,7 @@ export default function PrivilegeMcpClientPage() {
           <ToolsTable tools={tools} presentMode onClose={() => setShowPresent(false)} />
         </div>
       )}
-      {/* The four modals below are DraggableModals: drag, resize, pop-out, ✕.
+      {/* The three modals below are DraggableModals: drag, resize, pop-out, ✕.
           It portals to <body>, outside .cur-ide, so each body re-opens the
           page's theme scope with .cur-dm-scope or every cur-* rule misses. */}
       <DraggableModal
@@ -1635,126 +1506,6 @@ export default function PrivilegeMcpClientPage() {
           </div>
         </div>
       </DraggableModal>
-      <DraggableModal
-        isOpen={showBlockedModal}
-        onClose={() => setShowBlockedModal(false)}
-        title="Access Denied"
-        footer={null}
-        defaultWidth={520}
-        defaultHeight={560}
-        storageKey="privilege-denied-modal"
-      >
-        {/* Built only while open: the policy lookups below read deniedDoor. */}
-        {showBlockedModal && (
-        <div className="cur-ide cur-dm-scope" data-cur-theme={pageTheme}>
-          <div className="cur-modal cur-modal--in-dm">
-            <dl className="cur-denial-facts">
-              <dt>Door</dt><dd>{deniedDoor || '(unknown)'}</dd>
-              <dt>Identity</dt><dd>{user?.email || '(unknown)'}</dd>
-              <dt>Gateway said</dt><dd><span className="cur-denial-pill">{blockedDetail?.upstream || '403 Forbidden'}</span></dd>
-            </dl>
-            {doorProbe.results?.some((r) => r.needsAuth) && (
-              <p className="cur-denial-note">
-                The gateway issues one token per app, valid for that app only, so the token you hold for one door is refused on another. "no saved token" means this page has not signed in to that door yet. Use a door to connect it; your existing gateway login is reused silently when available.
-              </p>
-            )}
-            <p className="cur-denial-note">
-              The gateway does not disclose which policy denied this — it returns a bare
-              403 and logs nothing — so the policy name below cannot be confirmed as the
-              one that blocked you.
-            </p>
-            {consoleData ? (() => {
-              const covering = (consoleData.policies || []).filter((p) => policyMentions(p, deniedDoor));
-              const naming = covering.filter((p) => policyMentions(p, user?.email));
-              return (
-                <p className="cur-denial-note">
-                  {covering.length === 0
-                    ? `No policy mentions "${deniedDoor}". That is the likeliest reason.`
-                    : `Policies mentioning "${deniedDoor}": ${covering.map((p) => p.name).join(', ')}. `
-                      + (naming.length === 0
-                        ? `None of them mention ${user?.email || 'this user'}.`
-                        : (() => {
-                          const names = naming.map((p) => p.name).join(', ');
-                          const expired = naming.filter(policyExpired);
-                          if (expired.length === naming.length) return `${names} also mention this user, and all of them have expired. That is the likeliest reason.`;
-                          if (naming.some((p) => p.notAfter)) return `${names} also mention this user${expired.length ? ` (expired: ${expired.map((p) => p.name).join(', ')})` : ''}.`;
-                          return `${names} also mention this user — check the grant has not expired.`;
-                        })())}
-                </p>
-              );
-            })() : (() => {
-              // No live token, but the last console read is persisted and already
-              // answers the question the room asks first. It cannot answer the
-              // second one (does a policy name THIS user) — only names survive.
-              const known = (doorDiscovery?.applications || []).find((a) => a.name === deniedDoor);
-              if (!known) {
-                return (
-                  <p className="cur-denial-note">
-                    Connect a console token in the Policies tab to see which policies cover this door.
-                  </p>
-                );
-              }
-              return (
-                <p className="cur-denial-note">
-                  {known.policies.length === 0
-                    ? `No policy mentioned "${deniedDoor}" at the last console read. That is the likeliest reason.`
-                    : `Policies mentioning "${deniedDoor}" at the last console read: ${known.policies.join(', ')}.`}
-                  {' '}Connect a console token in the Policies tab to check whether any of them mention you.
-                </p>
-              );
-            })()}
-            {doorProbe.running && <p className="cur-denial-note">Trying the other doors with this identity...</p>}
-            {doorProbe.results && (
-              <div className="cur-denial-probe">
-                <h4 className="cur-denial-heading">Other doors</h4>
-                {doorProbe.results.length === 0 && <p className="cur-denial-note">No other doors to try.</p>}
-                {/* The BFF already returns `error` for a failed probe; showing
-                    only the status made a 500 unreadable. 500 here is not "the
-                    server errored" — relayFailureStatus maps anything WITHOUT a
-                    4xx upstream status to 500, so it means the relay never got
-                    an HTTP answer, and the reason is only in this string. */}
-                {/* needsAuth is per-door: each gateway application has its own
-                    audience-bound token. Switching can reuse the existing IdP
-                    session silently; only a missing/expired IdP session needs
-                    an interactive sign-in. */}
-                {doorProbe.results.map((r) => (
-                  <div key={r.url} className="cur-denial-probe-row">
-                    <span className={r.ok ? 'cur-denial-ok' : (r.needsAuth ? 'cur-denial-auth' : 'cur-denial-bad')} title={r.needsAuth ? 'The gateway issues one token per app. This page has not signed in to this door yet.' : undefined}>
-                      {r.ok ? `${r.tools} tools` : (r.needsAuth ? 'no saved token' : (r.status || 'failed'))}
-                    </span>
-                    <span className="cur-denial-door">{doorName(r.url) || r.url}</span>
-                    {!r.ok && !r.needsAuth && r.error && <span className="cur-denial-probe-why" title={r.error}>{r.error}</span>}
-                    {(r.ok || r.needsAuth) && (
-                      <button className="cur-btn" onClick={() => switchDoor(r.url)}>
-                        {r.ok ? 'Switch' : 'Use this door'}
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-            <p className="cur-denial-note">
-              Grant access in the{' '}
-              <a href={PRIVILEGE_CONSOLE_URL} target="_blank" rel="noreferrer">Privilege console</a>.
-              Policies are time-boxed — an expired one fails exactly like a missing one.
-            </p>
-            <div className="cur-btn-row">
-              <button className="cur-btn" onClick={() => { setShowBlockedModal(false); refreshTools(); }}>Retry</button>
-              <button className="cur-btn" onClick={probeDoors} disabled={doorProbe.running}>
-                {doorProbe.running ? 'Probing...' : 'Try other doors'}
-              </button>
-              {gatewayMode === 'privilege' && connectableDoors().length > 0 && (
-                <button className="cur-btn" onClick={connectAllDoors}>
-                  Connect all doors ({connectableDoors().length})
-                </button>
-              )}
-              <button className="cur-btn cur-btn--primary" onClick={() => setShowBlockedModal(false)}>Dismiss</button>
-            </div>
-          </div>
-        </div>
-        )}
-      </DraggableModal>
-
       {/* Flow Topology Modal */}
       <DraggableModal
         isOpen={showFlowModal}
@@ -2092,9 +1843,8 @@ export default function PrivilegeMcpClientPage() {
       </header>
 
       {/* A policy denial is the point of this demo, so it does not live only in
-          a dismissible modal and a grey chat line — dismiss the modal and the
-          page just looks empty, which reads as "broken", not "refused". This
-          band stays up until a call actually succeeds. */}
+          a grey chat line — the page would just look empty, which reads as
+          "broken", not "refused". This band stays up until a call succeeds. */}
       {blockedDetail && (
         <section className="cur-blocked-band" role="alert" aria-label="Blocked by policy">
           <span className="cur-blocked-band__mark" aria-hidden="true">⚠️</span>
@@ -2108,9 +1858,6 @@ export default function PrivilegeMcpClientPage() {
               The tools exist — this identity is not permitted to use them.
             </div>
           </div>
-          <button className="cur-btn cur-blocked-band__btn" onClick={() => setShowBlockedModal(true)}>
-            Why?
-          </button>
         </section>
       )}
 
@@ -2364,7 +2111,7 @@ export default function PrivilegeMcpClientPage() {
               ) : <div className="cur-empty-state">No tools match &quot;{toolSearch}&quot;</div>;
             })() : toolsLoading ? (
               <div className="cur-tools-waiting">
-                <PingIdentitySpinner size={24} label="Waiting for AI Gateway tools…" />
+                <PingIdentitySpinner size={24} label="Waiting for Agent Privilege tools…" />
               </div>
             ) : blockedDetail ? (
               // Say WHY the list is empty. "No tools discovered yet" for a

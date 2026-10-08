@@ -101,7 +101,7 @@ const SERVER_INVENTORY = [
     purpose: 'Alternative MCP gateway using the real PingGateway product (ff_mcp_gateway_pinggateway).',
   },
   {
-    key: 'privilege-ai-gateway', name: 'Privilege AI Gateway', container: null,
+    key: 'privilege-ai-gateway', name: 'Agent Privilege', container: null,
     hostPort: null, internalPort: null, lang: 'PingOne Privilege (SaaS)', category: 'mcp', sourceDir: null,
     // probe:false on purpose. This is an EXTERNAL, SE-only host whose /mcp answers
     // only to an authenticated caller holding a live Privilege gateway session, so
@@ -122,7 +122,7 @@ const SERVER_INVENTORY = [
     key: 'mcp-brave', name: 'MCP Brave Search', container: 'ai-demo-mcp-brave',
     hostPort: 8897, internalPort: 8897, lang: 'Node', category: 'mcp', sourceDir: 'demo_mcp_brave', probe: true,
     candidates: candidates(env('MCP_BRAVE_BACKEND_URL'), 'http://mcp-brave:8897', 'http://localhost:8897'),
-    purpose: 'Brave News Search as MCP tools. Serves both transports: POST /mcp for Streamable HTTP clients, and GET /sse for the Privilege AI Gateway, whose discovery only speaks SSE.',
+    purpose: 'Brave News Search as MCP tools. Serves both transports: POST /mcp for Streamable HTTP clients, and GET /sse for the Agent Privilege, whose discovery only speaks SSE.',
   },
   {
     key: 'agent-service', name: 'Agent Service', container: 'ai-demo-agent-service',

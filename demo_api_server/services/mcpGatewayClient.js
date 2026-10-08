@@ -1276,7 +1276,7 @@ async function callToolViaResolvedGateway(gatewayUrl, bearerToken, tool, params 
 }
 
 /**
- * The Privilege AI Gateway's MCP URL, or '' when none is configured.
+ * The Agent Privilege's MCP URL, or '' when none is configured.
  *
  * Lifted out of getMcpGatewayHttpUrl() so the posture check (gateway.privilege_first)
  * probes EXACTLY the URL tool calls use. A second copy of this ladder in the check
@@ -1296,7 +1296,7 @@ function getPrivilegeGatewayUrl() {
 }
 
 function getMcpGatewayHttpUrl() {
-    // ff_mcp_gateway_privilege_first: put the PingOne Privilege AI Gateway in
+    // ff_mcp_gateway_privilege_first: put the PingOne Agent Privilege in
     // FRONT of whichever Agent Gateway the flags below already select. Checked
     // first on purpose — the two COMPOSE rather than compete, because what sits
     // behind Privilege is decided by the Agentic App's registered backend, not

@@ -3,17 +3,17 @@
  * @description Drives the WHOLE agentless Privilege chain in a real browser:
  *   real PingOne login -> /privilege-mcp-client -> silent auto-connect
  *   (prompt=none) -> gateway DCR -> gateway /authorize -> PingOne -> callback
- *   -> tools/list -> either tools render or the denial modal explains why.
+ *   -> tools/list -> either tools render or the denial band explains why.
  *
  * Everything below the OAuth redirect was previously only proven by curl and by
  * unit tests. This is the leg that was never watched end to end.
  *
  * It deliberately asserts the SHAPE of the outcome rather than demanding tools:
  * a Privilege policy denial is legitimate demo state (grants are time-boxed), so
- * a 403 must PASS the test while proving the modal did its job — door, identity
- * and a live probe of the other doors. What must never happen is a hang, a bare
- * "blocked per policy" with no evidence, or a bounce to a PingOne login page
- * when the app session already exists.
+ * a 403 must PASS the test while proving the band did its job — door, identity
+ * and who refused. What must never happen is a hang, a bare "blocked per policy"
+ * with no evidence, or a bounce to a PingOne login page when the app session
+ * already exists.
  *
  * SKIPPED AUTOMATICALLY when credentials are not set.
  */
@@ -25,7 +25,7 @@ const PAGE = '/privilege-mcp-client';
 
 test.describe('Privilege agentless chain (real login)', () => {
   test.skip(!requireRealLoginEnv(), 'Skipped: E2E_CUSTOMER_USERNAME not set');
-  test.setTimeout(600_000);   // three network legs, two settle windows, a door probe
+  test.setTimeout(600_000);   // three network legs, two settle windows
 
   test('signs in silently, discovers tools, and explains any denial', async ({ page }) => {
     const notes = [];
@@ -73,7 +73,7 @@ test.describe('Privilege agentless chain (real login)', () => {
       .innerText().catch(() => '(no connection block)');
     log(`connection panel:\n${conn.split('\n').slice(0, 8).join('\n')}`);
 
-    const denial = page.locator('.cur-modal', { hasText: 'Access Denied' });
+    const denial = page.locator('.cur-blocked-band', { hasText: 'Blocked by policy' });
     const signInModal = page.locator('.cur-modal', { hasText: 'Sign in to continue' });
     const signInBtn = page.locator('button', { hasText: 'Sign In with Privilege' });
     const toolCount = page.locator('.cur-sidebar-header', { hasText: 'MCP TOOLS' }).locator('.cur-scope-count');
@@ -175,37 +175,24 @@ test.describe('Privilege agentless chain (real login)', () => {
     const denied = outcome === 'denied';
 
     if (denied) {
-      log('outcome: policy denial — checking the modal actually explains it');
+      log('outcome: policy denial — checking the band actually explains it');
       const text = await denial.innerText();
-      log(`modal:\n${text}`);
+      log(`band:\n${text}`);
 
       // The whole point of the rework: a denial must carry evidence.
-      expect(text, 'modal did not name the door').toMatch(/Door/);
-      expect(text, 'modal did not name the identity').toMatch(/Identity/);
-      expect(text, 'modal did not carry the upstream error').toMatch(/Gateway said/);
-      // It must NOT claim to know which policy denied — the gateway never says.
-      expect(text, 'modal overclaimed which policy denied')
-        .toMatch(/does not disclose which policy denied/);
-
-      // The door probe runs automatically on open; give it time to land.
-      // Wait for the probe to actually FINISH. Reading while the button still
-      // says "Probing..." returned [] and proved nothing about the feature.
-      await page.locator('.cur-denial-probe-row, .cur-denial-note')
-        .filter({ hasText: /No other doors/ }).or(page.locator('.cur-denial-probe-row'))
-        .first().waitFor({ state: 'visible', timeout: 90_000 }).catch(() => {});
-      const probeRows = await page.locator('.cur-denial-probe-row').allInnerTexts().catch(() => []);
-      log(`door probe rows: ${JSON.stringify(probeRows)}`);
-      expect(probeRows.length, 'the door probe produced no rows — it never reported on the other doors')
-        .toBeGreaterThan(0);
+      expect(text, 'band did not name the door').toMatch(/on\s+\S+/);
+      expect(text, 'band did not name the identity').toMatch(/for\s+\S+/);
+      expect(text, 'band did not say who refused').toMatch(/PingOne Privilege refused/);
     } else {
       const n = await toolCount.innerText().catch(() => '0');
       log(`outcome: ${n} tools discovered`);
       expect(Number(n), 'tools panel rendered but reported zero tools').toBeGreaterThan(0);
     }
 
-    // Dismiss any modal first — its overlay intercepts every later click, and
-    // Playwright waits for "stable and enabled" until the whole test times out.
-    const dismiss = page.locator('.cur-modal button', { hasText: /^Dismiss$/ });
+    // The denial band has no overlay, but the sign-in modal still does — its
+    // overlay intercepts every later click, and Playwright waits for "stable
+    // and enabled" until the whole test times out. Close it if present.
+    const dismiss = page.locator('.cur-modal button', { hasText: /^Not now$/ });
     if (await dismiss.first().isVisible().catch(() => false)) {
       await dismiss.first().click();
       await page.locator('.cur-modal-overlay').first().waitFor({ state: 'hidden', timeout: 15_000 }).catch(() => {});

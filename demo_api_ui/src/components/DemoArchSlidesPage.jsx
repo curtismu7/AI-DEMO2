@@ -26,7 +26,7 @@ const SLIDE_ROWS = {
   "workload-agents": [
     ["Transaction token (TX JWT)", "Delegated access token: sub = user, act = agent, aud = mcp-gw; chained act for A2A", "·", "docs/TOKEN_FLOW.md"],
     ["Not Authorized / Approved", "PERMIT, DENY, STEP-UP or HITL obligation; HITL raises a consent challenge", "3009", "demo_hitl_service/"],
-    ["3rd-party MCP · 3rd-party AS", "Weather and Brave MCP (public tools); PingOne Privilege AI Gateway as the optional hosted path", "·", "mcp-weather · mcp-brave · privilege/"],
+    ["3rd-party MCP · 3rd-party AS", "Weather and Brave MCP (public tools); PingOne Agent Privilege as the optional hosted path", "·", "mcp-weather · mcp-brave · privilege/"],
   ],
   "ciba-hitl": [
     ["Not Authorized (step-up required)", "Authorize returns STEP_UP when a write tool crosses the step-up amount (default $500); the gateway refuses the call", "·", "services/authorizeObligations.js"],
@@ -49,7 +49,7 @@ const CONTROL_PLANE_ROWS = [
   ["JIT Policy · Credential Broker", "PingOne Privilege: virtual keys for LLM providers, credential brokering for MCP", "hosted", "privilege/ · docs/privilege-llm-protection.md"],
   ["Secret Stores", "Encrypted secrets.vault (AES-256-GCM, Argon2id) loaded into the config store at startup; Privilege vault; K8s secrets on the SE cluster", "·", "demo_api_server/ · se-*"],
   ["Workload IDP", "SPIRE server and agent, spiffe-helper sidecars, trust domain spiffe://bxfinance.demo", "·", "docs/SPIFFE_PLAN.md"],
-  ["AI Gateway", "LLM proxy, demo MCP gateway, A2A delegation (UC2), Privilege AI Guard", "8090 · 3005", "demo_llm_proxy/ · demo_mcp_gateway/"],
+  ["Agent Privilege", "LLM proxy, demo MCP gateway, A2A delegation (UC2), Privilege AI Guard", "8090 · 3005", "demo_llm_proxy/ · demo_mcp_gateway/"],
   ["Ping Gateway", "PingGateway (IG) as the MCP ingress PEP: introspection, Authorize decision, RFC 9728 metadata", "3036", "ping-gateway/"],
   ["Endpoint Controller", "mcp-discovery-agent: read-only host inventory of MCP candidates, never invokes tools", "·", "standalone/mcp-discovery-agent/"],
   ["Personal Agents", "LM Studio, Claude Desktop, MCP Inspector, LibreChat through the external door", "·", "docs/EXTERNAL_DOOR_MCP_FLOW.md"],

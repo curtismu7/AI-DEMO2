@@ -186,7 +186,7 @@ export default function DemoArchWorkloadScene({ variant = "topology", st }) {
           <Win x={1655} y={740} w={120} h={56} title="mcp-weather" sub="mcp-brave · public" />
           <rect x="1640" y="850" width="150" height="48" rx="8" className="das-grey-box" />
           <text x="1715" y="870" textAnchor="middle" className="das-on-red das-fs14">PingOne Privilege</text>
-          <text x="1715" y="887" textAnchor="middle" className="das-on-red das-fs11">AI Gateway · hosted</text>
+          <text x="1715" y="887" textAnchor="middle" className="das-on-red das-fs11">Agent Privilege · hosted</text>
         </>
       )}
 

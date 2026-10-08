@@ -24,7 +24,7 @@ import path from 'node:path';
 // §4 Priority 0 pass cleared the OS-keyed @media (prefers-color-scheme: dark)
 // blocks, which took seven files onto --th-* or [data-theme="dark"] with them;
 // 181 after PrivilegeMcpClientPage.css took its first --th-* tokens with the
-// AI Gateway tool-discovery spinner.
+// Agent Privilege tool-discovery spinner.
 // 181 -> 180: FeatureFlagsPage.css. It first crossed this line on one rule
 // (.ff-managed-link) — which is worth knowing, because the detector counts a
 // file as themed once it uses ANY --th-* token, so a single converted rule can

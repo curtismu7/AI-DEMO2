@@ -802,7 +802,7 @@ const FLAG_REGISTRY = [
     name:         'Privilege first: MCP',
     category:     'MCP / Agent',
     description:
-      'When **ON**, MCP tool calls enter the **PingOne Privilege AI Gateway** first, which applies its own ' +
+      'When **ON**, MCP tool calls enter the **PingOne Agent Privilege** first, which applies its own ' +
       'per-application policy and then forwards to whichever Agent Gateway its Agentic App is registered ' +
       'against — so this **composes with** the Real PingOne Agent Gateway flag rather than replacing it. ' +
       'Privilege owns the Authorization header on that hop, so the user token travels in `tx-token` ' +
@@ -822,7 +822,7 @@ const FLAG_REGISTRY = [
     description:
       'When **ON**, the BFF resolves `google` → `privilege_llm` and `anthropic` → `privilege_claude`, and ' +
       'refuses `openai` (no Privilege dispatch exists for it yet), so every cloud LLM call enters the PingOne ' +
-      'Privilege AI Gateway first and the provider API key never leaves Privilege. Requires ' +
+      'Agent Privilege first and the provider API key never leaves Privilege. Requires ' +
       '`PRIVILEGE_LLM_GATEWAY_URL` and the virtual keys. Local models (llama.cpp / MLX) and Helix are unaffected.',
     impact:
       'OFF (default) = vendor-direct as today. ON = Privilege virtual keys are the only cloud LLM path; ' +
@@ -1046,7 +1046,7 @@ const FLAG_REGISTRY = [
       'exchanges the caller\'s gateway-audience token for one audienced to that upstream ' +
       'before forwarding. When **OFF**, the original token is forwarded and the upstream ' +
       'refuses it with the **D-05** anti-bypass error — which is the point: it demonstrates ' +
-      'why a per-hop token must not skip a hop. Watch the TRACE panel on the AI Gateway ' +
+      'why a per-hop token must not skip a hop. Watch the TRACE panel on the Agent Privilege ' +
       'client page: OFF shows a `token.exchange` hop with status `skipped` followed by the ' +
       'refusal, ON shows the exchange succeeding with both audiences named.',
     impact:

@@ -12,7 +12,7 @@ export const GROUPS = {
   llm: { label: "LLM", bg: "var(--th-text-muted)" },
   team: { label: "Built by the team", bg: "var(--th-status-success)" },
   ping: { label: "Ping identity and policy", bg: "var(--th-status-warning)" },
-  priv: { label: "Privilege AI Gateway", bg: "var(--th-status-error)" },
+  priv: { label: "Agent Privilege", bg: "var(--th-status-error)" },
   ag: { label: "Agent Gateway (PingGateway)", bg: "var(--th-status-info)" },
   existing: { label: "Existing airline systems", bg: "var(--th-border-strong)" },
 };
@@ -68,7 +68,7 @@ const TEXT = {
   },
   entryDual: {
     title: "Every AI client enters through Privilege",
-    what: "Privilege AI Gateway is the single front door. It validates the token, recognises the member and the agent as a non-human identity and allows or denies on token claims such as client id, actor, scope and audience. It applies the tool allowlist for that client, adds just-in-time approval and AI guardrails, and records the session. The token passes through untouched so the actor chain survives.",
+    what: "Agent Privilege is the single front door. It validates the token, recognises the member and the agent as a non-human identity and allows or denies on token claims such as client id, actor, scope and audience. It applies the tool allowlist for that client, adds just-in-time approval and AI guardrails, and records the session. The token passes through untouched so the actor chain survives.",
     why: "Desktop agents and hosted agents both need one governed entry point that knows which human is behind each session and can pause a sensitive tool for approval. Passing the token through keeps the evidence of who delegated what intact for every later hop.",
     security:
       "Guardrails look for prompt injection, poisoned tool descriptions and data leaving in tool results before they reach the model or a tool. Per-client allowlists mean a compromised plugin only reaches the tools its identity was granted.",
@@ -211,7 +211,7 @@ const DUAL_NODES = [
   N("phone", "traveller", "Traveller's phone", ["registered MFA device", "push names the exact purchase"], 870, 0),
   N("traveller", "traveller", "Traveller", ["web browser, plain English"], 0, 200),
   N("chat", "team", "Hosted chat agent", ["registered non-human identity", "BFF holds the session", "key kept in a vault"], 290, 200),
-  N("priv", "priv", "Privilege AI Gateway", ["front door for every AI client", "claims-based allow per client", "JIT approval, guardrails, logs", "token passed through intact"], 580, 200),
+  N("priv", "priv", "Agent Privilege", ["front door for every AI client", "claims-based allow per client", "JIT approval, guardrails, logs", "token passed through intact"], 580, 200),
   N("agw", "ag", "Agent Gateway", ["PingGateway MCP module", "aud, signature, metadata", "sender-constraint check", "removed as Privilege catches up"], 870, 200),
   N("mcp", "team", "Loyalty MCP server", ["accepts only its own audience", "16 tools, its own client", "exchanges toward the facade"], 1160, 200),
   N("facade", "team", "Facade", ["checks aud and actor chain", "session minted from the token", "price re-check, cart guards"], 1160, 400),
@@ -280,9 +280,9 @@ export const DESIGNS = {
     eyebrow: "Personal agent · Privilege first",
     title: "Privilege first, Agent Gateway for the gaps",
     intro:
-      "Privilege AI Gateway is the single front door for every AI client. It identifies the agent as a non-human identity, allows or denies on token claims and passes the token through intact. PingGateway's Agent Gateway module sits behind it only for what Privilege does not do yet, and is removed duty by duty as Privilege catches up. Press Simulate to walk the arrows.",
+      "Agent Privilege is the single front door for every AI client. It identifies the agent as a non-human identity, allows or denies on token claims and passes the token through intact. PingGateway's Agent Gateway module sits behind it only for what Privilege does not do yet, and is removed duty by duty as Privilege catches up. Press Simulate to walk the arrows.",
     ariaLabel:
-      "Dual gateway design for a personal AI agent. The hosted chat agent and desktop AI apps enter through the Privilege AI Gateway, which passes the token through to the Agent Gateway. The Agent Gateway consults a policy engine and forwards to the MCP server, which exchanges for the facade and reaches the airline services. Privilege logs and gateway audit both feed the security log.",
+      "Dual gateway design for a personal AI agent. The hosted chat agent and desktop AI apps enter through the Agent Privilege, which passes the token through to the Agent Gateway. The Agent Gateway consults a policy engine and forwards to the MCP server, which exchanges for the facade and reaches the airline services. Privilege logs and gateway audit both feed the security log.",
     nodes: DUAL_NODES,
     edges: DUAL_EDGES,
     steps: DUAL_STEPS,

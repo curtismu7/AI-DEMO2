@@ -242,64 +242,14 @@ select.cur-input { cursor: pointer; }
   line-height: 1.45;
 }
 
-/* Denial evidence + console inventory (Policies tab) */
-.cur-denial-facts {
-  display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: 4px 12px;
-  margin: 0 0 10px;
-  font-size: var(--font-size-body);
-}
-.cur-denial-facts dt { color: #8b949e; }
-.cur-denial-facts dd { margin: 0; color: #ffffff; overflow-wrap: anywhere; }
-
+/* Console inventory (Policies tab) */
 .cur-denial-note {
   margin: 0 0 10px;
   font-size: var(--font-size-body);
   color: #8b949e;
   line-height: 1.5;
 }
-.cur-denial-pill {
-  display: inline-block;
-  padding: 1px 10px;
-  border-radius: 999px;
-  border: 1px solid #fcd34d;
-  background: rgba(252, 211, 77, 0.12);
-  color: #fcd34d;
-}
-.cur-denial-heading {
-  margin: 0 0 6px;
-  font-size: var(--font-size-body);
-  color: #ffffff;
-}
-.cur-denial-ok { color: #86efac; }
 .cur-denial-bad { color: #fca5a5; }
-/* "sign-in needed" is neither success nor failure — this door simply has no
-   token yet, because the gateway issues one per application. Amber so it does
-   not read as the red denial it is not. */
-.cur-denial-auth { color: #fcd34d; }
-
-.cur-denial-probe { margin-bottom: 10px; }
-.cur-denial-probe-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 0;
-  font-size: var(--font-size-body);
-}
-.cur-denial-door { color: #ffffff; font-family: var(--font-mono); }
-/* Why a door failed. Kept on one line so a long relay message cannot push the
-   door name out of view; the full text is on the title attribute. */
-.cur-denial-probe-why {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: #9aa0a6;
-  font-family: var(--font-mono);
-  font-size: var(--font-size-sm);
-}
 
 .cur-console-heading {
   margin: 16px 0 6px;
@@ -582,7 +532,7 @@ select.cur-input { cursor: pointer; }
   font-style: italic;
 }
 
-/* Tool discovery goes out to the AI Gateway — show the wait, don't leave the
+/* Tool discovery goes out to the Agent Privilege — show the wait, don't leave the
    sidebar reading "No tools discovered yet" as if it had failed. */
 .cur-tools-waiting {
   display: flex;
@@ -1693,12 +1643,6 @@ select.cur-input { cursor: pointer; }
 
 .cur-blocked-band__detail strong { color: #fff; }
 
-.cur-blocked-band__btn {
-  flex: none;
-  border-color: rgba(248, 113, 113, 0.6);
-  color: #fee2e2;
-}
-
 /* An empty tool list after a denial must say WHY — "No tools discovered yet"
    is the most misleading state on this page. */
 .cur-empty-state--blocked {
@@ -1729,7 +1673,6 @@ select.cur-input { cursor: pointer; }
 .cur-ide[data-cur-theme="light"] .cur-blocked-band__title { color: #991b1b; }
 .cur-ide[data-cur-theme="light"] .cur-blocked-band__detail { color: #7f1d1d; }
 .cur-ide[data-cur-theme="light"] .cur-blocked-band__detail strong { color: #450a0a; }
-.cur-ide[data-cur-theme="light"] .cur-blocked-band__btn { color: #7f1d1d; }
 .cur-ide[data-cur-theme="light"] .cur-empty-state--blocked { color: #b91c1c; }
 .cur-ide[data-cur-theme="light"] .cur-empty-state--blocked strong { color: #7f1d1d; }
 

@@ -4,7 +4,7 @@ import { Card, Chip } from "./demoArchPrimitives";
 
 export const CONTROL_PLANE_META = {
   subtitle: "Agentic Control Plane · reference architecture mapped to the Super Banking demo",
-  aria: "Agentic control plane reference architecture: users on the left, an agentic control plane column, an IAM core row (identity provider, fine-grained authorization, credential broker, secret stores, workload identity), an AI gateway and Ping Gateway in the middle, agents at the bottom, and MCP servers and LLM providers on the right.",
+  aria: "Agentic control plane reference architecture: users on the left, an agentic control plane column, an IAM core row (identity provider, fine-grained authorization, credential broker, secret stores, workload identity), an Agent Privilege and Ping Gateway in the middle, agents at the bottom, and MCP servers and LLM providers on the right.",
   caption: "Every block names the component that plays that role in this demo. Red lines are the control path: identity, authorization and credentials flow from the IAM core down through the gateways to the agents; the control plane column on the left watches all of it.",
   steps: [
     ["Who shows up", "Customers in the vertical apps, external MCP clients that have never talked to this system, agent builders, and the IAM and security admins. Four audiences, four trust levels."],
@@ -12,7 +12,7 @@ export const CONTROL_PLANE_META = {
     ["Fine-grained decisions", "PingOne Authorize decides PERMIT, DENY, STEP-UP or HITL for every tool call, with intent binding (PAR) and directory attributes. Helix supplies the language model that turns a prompt into an intent."],
     ["Credentials are brokered", "PingOne Privilege hands agents virtual LLM keys and brokers MCP credentials just in time, reading from the encrypted secrets.vault and its own vault. An agent never holds a provider key."],
     ["Workload identity", "SPIRE attests each agent container and issues SPIFFE JWT-SVIDs through the spiffe-helper sidecar. The SVID becomes the actor_token on the exchange."],
-    ["Enforcement at the gateways", "The AI Gateway tier (LLM proxy, MCP gateway, A2A delegation, AI Guard) and PingGateway as ingress PEP apply those decisions and credentials to every request."],
+    ["Enforcement at the gateways", "The Agent Privilege tier (LLM proxy, MCP gateway, A2A delegation, AI Guard) and PingGateway as ingress PEP apply those decisions and credentials to every request."],
     ["Agents do the work", "Personal agents (LM Studio, Claude Desktop, MCP Inspector, LibreChat) come in through the external door; enterprise agents run as the AG-UI orchestrator, A2A specialists and ephemeral autonomous runs. The discovery agent inventories what is running on the host."],
     ["Tools and models", "Custom MCP servers (banking, invest, mortgage), third-party MCP (weather, Brave, hosted PingOne MCP), a virtual MCP facade, and LLM providers from local llama.cpp to OpenAI and Anthropic via Privilege."],
     ["The control plane sees all of it", "Catalog, registry, discovery, governance and observability: /agent-registry, /mcp-tools, the shadow-AI detector, IGA access reviews (UC46), and Grafana, Jaeger and Loki."],
@@ -145,7 +145,7 @@ export default function DemoArchControlPlaneScene({ st }) {
         <line x1="500" y1="330" x2="1360" y2="330" className="das-bus" />
         <line x1="645" y1="330" x2="645" y2="400" className="das-bus" />
         <line x1="1055" y1="330" x2="1055" y2="400" className="das-bus" />
-        <Card x={345} y={400} w={600} h={175} title="AI Gateway" sub="PEP · identity from the IAM core · decisions from Authorize · credentials from Privilege">
+        <Card x={345} y={400} w={600} h={175} title="Agent Privilege" sub="PEP · identity from the IAM core · decisions from Authorize · credentials from Privilege">
           <Card x={358} y={445} w={135} h={90} title="LLM Gateway" sub="demo_llm_proxy :8090">
             <Lines x={370} y={502} items={["routing · allow-lists", "Privilege virtual key"]} />
           </Card>

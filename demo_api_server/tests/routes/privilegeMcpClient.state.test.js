@@ -32,7 +32,7 @@ describe('GET /api/privilege-mcp/state — mcpUrl default', () => {
     expect(res.body.config.mcpUrl).toBe('https://local.ping-devops.com:8623/mcp');
   });
 
-  it('defaults to the AI Gateway path when no URL override is set', async () => {
+  it('defaults to the Agent Privilege path when no URL override is set', async () => {
     // The old default named a per-owner gateway that no longer exists; the page
     // opened on a dead URL. Default mode is `privilege`, so this is its URL.
     delete process.env.PRIVILEGE_MCPGW_URL;

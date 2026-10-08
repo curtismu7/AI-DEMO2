@@ -354,7 +354,7 @@ export default function TokenChainFilmstrip() {
               )}
               <div className="tcfs-spotlight-intro-value">
                 {isChainRun
-                  ? "The Privilege AI Gateway sits between every pair of agents: it checks the caller's key, its scope and policy, and screens the message before the next agent sees it."
+                  ? "The Agent Privilege sits between every pair of agents: it checks the caller's key, its scope and policy, and screens the message before the next agent sees it."
                   : traceProvenance === "mock-id-jag"
                   ? "This replay illustrates how a sample ID-JAG grant is redeemed for an MCP access token."
                   : traceProvenance === "live-id-jag"

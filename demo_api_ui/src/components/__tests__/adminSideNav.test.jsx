@@ -75,8 +75,8 @@ const customerDiagramSearches = [
   ["Agent Onboarding Flow", "/agent-onboarding-flow"],
   ["Agent Onboarding Flow Subway", "/agent-onboarding-flow-subway"],
   ["Invest Dual-Auth", "/invest-dual-auth"],
-  ["AI Gateway Diagrams", "/privilege-mcp-diagrams"],
-  ["AI Gateway Enforcement", "/privilege-first-gateway"],
+  ["Agent Privilege Diagrams", "/privilege-mcp-diagrams"],
+  ["Agent Privilege Enforcement", "/privilege-first-gateway"],
   ["Gateway vs P1AZ Enforcement", "/gateway-enforcement-map"],
   ["Resource Server Placement", "/resource-server-placement"],
   ["Identity Journey Map", "/login-flow"],
@@ -164,7 +164,7 @@ describe("AdminSideNav — best-of-breed pass", () => {
     expect(screen.getByText("Core")).toBeInTheDocument();
     expect(screen.getByText("PingOne Platform")).toBeInTheDocument();
     expect(screen.getByText("Separate Areas")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^AI Gateway/ }).closest(".admin-side-nav__group")).toHaveClass(
+    expect(screen.getByRole("button", { name: /^Agent Privilege/ }).closest(".admin-side-nav__group")).toHaveClass(
       "admin-side-nav__group--product-card",
     );
     expect(screen.getByRole("button", { name: /^DaVinci/ }).closest(".admin-side-nav__group")).toHaveClass(
@@ -310,7 +310,7 @@ describe("AdminSideNav — best-of-breed pass", () => {
   it("searching OAuth agents surfaces the AI-Gateway Shadow AI Detector page", () => {
     renderNav();
     fireEvent.change(screen.getByLabelText(/search navigation/i), { target: { value: "oauth agents" } });
-    expect(screen.getByText("AI Gateway")).toBeInTheDocument();
+    expect(screen.getByText("Agent Privilege")).toBeInTheDocument();
     expect(screen.getByText("AI Guard").closest("a")).toHaveAttribute(
       "href",
       "/ai-gateway/shadow-ai-detector",
@@ -475,7 +475,7 @@ describe("AdminSideNav — best-of-breed pass", () => {
   // bottom — a newly added product group rendered below the operational tools, which reads
   // as missing rather than as reordered. Reported from the live demo.
   it("places a group the saved navOrder predates at its natural position, not last", async () => {
-    // A realistic stale order: no "AI Gateway", and labels from groups
+    // A realistic stale order: no "Agent Privilege", and labels from groups
     // that have since been renamed.
     const staleOrder = [
       "Home", "Dashboard", "AI Experiences", "Utilities", "Skin Studio",
@@ -501,7 +501,7 @@ describe("AdminSideNav — best-of-breed pass", () => {
       }),
     );
     renderNav();
-    await screen.findByText("AI Gateway");
+    await screen.findByText("Agent Privilege");
 
     const labels = Array.from(
       document.querySelectorAll(".admin-side-nav__label"),
@@ -510,10 +510,10 @@ describe("AdminSideNav — best-of-breed pass", () => {
 
     // It sits after Themes — its position in allNavItems — because
     // Dashboard is the nearest preceding sibling the saved order knows about.
-    expect(idx("AI Gateway")).toBeGreaterThan(-1);
-    expect(idx("AI Gateway")).toBe(idx("Skin Studio") + 1);
+    expect(idx("Agent Privilege")).toBeGreaterThan(-1);
+    expect(idx("Agent Privilege")).toBe(idx("Skin Studio") + 1);
     // And crucially NOT dumped at the bottom past everything ordered.
-    expect(idx("AI Gateway")).toBeLessThan(idx("DaVinci"));
+    expect(idx("Agent Privilege")).toBeLessThan(idx("DaVinci"));
 
     // The user's explicit ordering is still honoured for what it does contain.
     expect(idx("AI Experiences")).toBeLessThan(idx("Skin Studio"));

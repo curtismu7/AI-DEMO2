@@ -8,11 +8,11 @@ export const NAV_STRUCTURE_CATALOG = [
   { label: "Home" },
   { label: "Security Dashboard" },
   { label: "Skin Studio" },
-  { label: "AI Gateway", children: [
+  { label: "Agent Privilege", children: [
     "AI Guard", "Protocol Playground", "AI Guard Client", "LLM Gateway", "Intent Inspector", "Audit Agent",
-    "AI Gateway Guide", "Agent Gateway Authorization", "AI Gateway Diagrams", "Agent IAM Core",
-    "Agent Gateway", "PingOne Authorize", "AI Gateway · LLM", "AI Gateway · A2A", "AI Gateway · A2A Review", "AI Gateway Topologies", "AI Gateway · MCP",
-    "Protected RAG", "AI Gateway Demo",
+    "Agent Privilege Guide", "Agent Gateway Authorization", "Agent Privilege Diagrams", "Agent IAM Core",
+    "Agent Gateway", "PingOne Authorize", "Agent Privilege · LLM", "Agent Privilege · A2A", "Agent Privilege · A2A Review", "Agent Privilege Topologies", "Agent Privilege · MCP",
+    "Protected RAG", "Agent Privilege Demo",
   ] },
   { label: "DaVinci", children: [
     "DaVinci Widget", "DaVinci Login", "DaVinci SDK Login", "DaVinci Orchestration",
@@ -44,9 +44,9 @@ export const NAV_STRUCTURE_CATALOG = [
     "Agent Onboarding Flow (Node)", "Agent Onboarding Flow Subway (Node)",
     "Agent Lifecycle (guided demo)", "Delegated Commerce (guided demo)", "LangChain Agent", "Ungoverned Agent",
     "Prompt Injection", "HITL Bypass", "Indirect Injection", "Unauthorized Commitments",
-    "Scope Abuse", "Intent Bypass", "IGA for AI", "Discovery", "AI Gateway (Preview)", "Platform Gaps",
+    "Scope Abuse", "Intent Bypass", "IGA for AI", "Discovery", "Agent Privilege (Preview)", "Platform Gaps",
     "AI Security Academy", "Academy Standalone Demos", "Agentic Trust", "Agent Guardrails", "OWASP Agent Risks",
-    "AI Gateway for AI",
+    "Agent Privilege for AI",
   ] },
   { label: "Personal Agents", children: [
     "Personal Agent", "Personal Agent Clients", "Target Design", "Dual Gateway Design", "Design Review",
@@ -71,8 +71,8 @@ export const NAV_STRUCTURE_CATALOG = [
     "System Diagram (Node)", "Overview Diagram (Node)", "Token Flow (Interactive) (Node)",
     "Token Chain Architecture (Node)", "Interactive Flow (Node)", "Sequence Diagram (Node)", "Canvas Diagram (Node)",
     "Delegated Access Proof", "Demo Steps Lifeline Audit",
-    "Invest Dual-Auth (MM)", "AI Gateway (MM)",
-    "AI Gateway Enforcement (Node)", "Gateway vs P1AZ Enforcement (MM)", "Resource Server Placement (MM)",
+    "Invest Dual-Auth (MM)", "Agent Privilege (MM)",
+    "Agent Privilege Enforcement (Node)", "Gateway vs P1AZ Enforcement (MM)", "Resource Server Placement (MM)",
     "Personal Agent Design (Node)", "Personal Agent Dual Gateway (Node)", "Personal Agent Design Review",
     "CIMD in Privilege (Node)", "A2A Architecture (Node)",
   ] },

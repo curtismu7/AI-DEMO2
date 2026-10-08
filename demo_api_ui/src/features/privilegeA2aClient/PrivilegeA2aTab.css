@@ -9,8 +9,12 @@
   height: 100%;
   min-height: 0;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  overflow: hidden;
+  grid-template-rows: auto minmax(min(240px, 60vh), 1fr) auto;
+  /* The panels are the only flexible row; without a floor a short window
+     squeezes them to 0px and the conversation is invisible with no scroll
+     anywhere. A floor + tab-level scroll keeps header, panels and composer
+     reachable; tall windows still fill exactly, so nothing changes there. */
+  overflow-y: auto;
   color: var(--a2a-ink);
   background: var(--a2a-ground);
 }

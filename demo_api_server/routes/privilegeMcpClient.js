@@ -24,13 +24,13 @@ const REDACTION_RE = /\[REDACTED(?::[^\]]*)?\]/gi;
 // succeed, be refused, and be recorded, depending only on the path.
 //
 // This replaced an Agent/Agentless pair on 2026-09-02. That distinction died
-// with the per-owner gateways: there is one AI Gateway now, and the agent-mode
+// with the per-owner gateways: there is one Agent Privilege now, and the agent-mode
 // frontend it named (`*.applications.procyon.ai:8643`) has nothing behind it —
 // the page sat on "authenticated, 0 tools" forever.
 const PUBLIC_APP_ORIGIN = () => (process.env.PUBLIC_APP_URL || 'https://ai-demo.ping-devops.com').replace(/\/+$/, '');
 const PRIVILEGE_GATEWAY_HOST = 'https://mcpgw.ai-demo.ping-devops.com';
 const PRIVILEGE_APP = () => process.env.MCP_FACADE_PRIVILEGE_GATEWAY_APP || 'opensearch22';
-// Sibling Agentic Apps registered on the same AI Gateway, each with its own
+// Sibling Agentic Apps registered on the same Agent Privilege, each with its own
 // Privilege policy (console: Agentic Apps > opensearch / brave). Same
 // multiApp mechanism as PRIVILEGE_APP() above, just a fixed second and third
 // app name instead of the single configurable default.
@@ -60,11 +60,11 @@ const DEFAULT_DIRECT_PINGONE_HOSTED_MCP_URL = () => {
 };
 const DEFAULT_DIRECT_PINGONE_HOSTED_MCP_CLIENT_ID = () =>
   process.env.PINGONE_MCP_OAUTH_CLIENT_ID || '';
-// Straight at the AI Gateway: policy enforced, but the client registers with the
+// Straight at the Agent Privilege: policy enforced, but the client registers with the
 // gateway, whose registry is in memory — a restart breaks it.
 const DEFAULT_PRIVILEGE_MCP_URL = () =>
   process.env.PRIVILEGE_MCPGW_URL || `${PRIVILEGE_GATEWAY_HOST}/${PRIVILEGE_APP()}/mcp`;
-// Sibling Privilege apps — same "straight at the AI Gateway" shape, different
+// Sibling Privilege apps — same "straight at the Agent Privilege" shape, different
 // registered app (and so a different policy). Presented as a Door picker
 // option once Privilege mode is active, same idea as the direct-mode siblings.
 const DEFAULT_PRIVILEGE_OPENSEARCH_MCP_URL = () =>
@@ -341,7 +341,7 @@ function getClientSession(req) {
   // and must never be seeded into session.oauth. It is minted for the banking
   // API (aud: enduser.ping.demo); every door here wants something else —
   // the façade doors and oauth-mcp verify aud mcpgateway.ping.demo, and the
-  // Privilege AI Gateway is its own AS that only accepts a token it issued
+  // Agent Privilege is its own AS that only accepts a token it issued
   // through DCR. So it authenticates nowhere.
   //
   // Seeding it did active harm twice over (2026-09-07): the Privilege path
@@ -454,7 +454,7 @@ function sanitizeReturnTo(value) {
 }
 
 // ---------------------------------------------------------------------------
-// Agent-based AI Gateway frontends (*.applications.procyon.ai)
+// Agent-based Agent Privilege frontends (*.applications.procyon.ai)
 // The workstation's Priv Agent resolves these names to its local listener and
 // injects the device-bound identity itself, so requests must carry no
 // Authorization header and need no Privilege SSO sign-in. Inside Docker the
@@ -1940,11 +1940,11 @@ router.get('/state', (req, res) => {
       clientId: DEFAULT_DIRECT_PINGONE_HOSTED_MCP_CLIENT_ID(),
     },
     {
-      label: '2 · Privilege — direct to the AI Gateway',
+      label: '2 · Privilege — direct to the Agent Privilege',
       mode: 'privilege',
       url: DEFAULT_PRIVILEGE_MCP_URL(),
     },
-    // Sibling Privilege apps — same "straight at the AI Gateway" shape as the
+    // Sibling Privilege apps — same "straight at the Agent Privilege" shape as the
     // default above, different registered app and so a different policy.
     ...siblingApps.map((app) => ({
       label: `Privilege — ${app.name}`,
@@ -2233,13 +2233,13 @@ router.post('/config', express.json(), (req, res) => {
 });
 
 /**
- * POST /auth/start — begin the OAuth PKCE flow against the Privilege AI Gateway.
+ * POST /auth/start — begin the OAuth PKCE flow against the Agent Privilege.
  *
  * @flow privilege-ai-gateway
  * @idp pingone
- * @name Privilege AI Gateway sign-in
+ * @name Agent Privilege sign-in
  * @rfc https://datatracker.ietf.org/doc/html/rfc7591 RFC 7591 Dynamic Client Registration
- * @why The PingOne Privilege AI Gateway is its own authorization server, and it registers callers dynamically rather than from a client id you configure ahead of time: the client discovers the gateway, registers itself (RFC 7591), then runs Authorization Code with PKCE (RFC 7636). Two consequences shape everything downstream. The token it issues is OPAQUE, so there are no claims to decode — introspection is the only way to inspect it. And it is bound to ONE Agentic App: presenting a token minted for another app is refused before routing even happens, which is why each door needs its own sign-in.
+ * @why The PingOne Agent Privilege is its own authorization server, and it registers callers dynamically rather than from a client id you configure ahead of time: the client discovers the gateway, registers itself (RFC 7591), then runs Authorization Code with PKCE (RFC 7636). Two consequences shape everything downstream. The token it issues is OPAQUE, so there are no claims to decode — introspection is the only way to inspect it. And it is bound to ONE Agentic App: presenting a token minted for another app is refused before routing even happens, which is why each door needs its own sign-in.
  * @example A visitor badge that only opens one building. It proves who you are and it was issued on the spot rather than pre-arranged, but showing it at a different building gets you turned away at the door, not at the meeting room.
  * @ai An agent reaching a tool behind Privilege cannot carry one credential everywhere. It registers with the gateway, signs its user in once per application, and the gateway decides per app and per tool whether that human is allowed — before the agent's own gateway ever evaluates scopes.
  * @actor client-app
@@ -2285,7 +2285,7 @@ router.post('/auth/start', express.json(), async (req, res) => {
  * GET /auth/callback — exchange the authorization code for the gateway's token.
  *
  * @flow privilege-ai-gateway
- * @name Privilege AI Gateway sign-in
+ * @name Agent Privilege sign-in
  * @rfc https://datatracker.ietf.org/doc/html/rfc7636 RFC 7636 PKCE
  * @why The code comes back to this app, which redeems it with the PKCE verifier it kept. The flow requests offline_access so an issuer configured for refresh tokens can return one; this session keeps it server-side and rotates it when refreshing the access token.
  * @example Handing back the numbered stub from your coat check. The stub alone is useless to anyone else, and the only thing you get back is the coat — no receipt, no record you can show elsewhere.

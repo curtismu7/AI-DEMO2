@@ -296,10 +296,10 @@ test("a UC46 chat feeds pa2a events tagged access-review and builds MCP steps", 
   expect(steps.find((step) => step.id === "pa2a-1-mcp-call").lane).toBe("ANALYST-AGENT");
   expect(steps.find((step) => step.id === "pa2a-2-mcp-result").lane).toBe("MCP-TOOLS");
   expect(JSON.stringify(steps)).not.toContain("analyst specialist");
-  // Gateway steps read "AI Gateway" (the lane key stays GATEWAY); other lanes keep their own label.
+  // Gateway steps read "Agent Privilege" (the lane key stays GATEWAY); other lanes keep their own label.
   const gatewaySteps = steps.filter((step) => step.lane === "GATEWAY");
   expect(gatewaySteps.length).toBeGreaterThan(0);
-  expect(gatewaySteps.every((step) => step.laneLabel === "AI Gateway")).toBe(true);
+  expect(gatewaySteps.every((step) => step.laneLabel === "Agent Privilege")).toBe(true);
   expect(steps.filter((step) => step.lane !== "GATEWAY").every((step) => step.laneLabel === undefined)).toBe(true);
 });
 

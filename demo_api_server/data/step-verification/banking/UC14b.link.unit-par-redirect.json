@@ -6,6 +6,6 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "create_transfer",
-  "checkedAt": "2026-08-31",
+  "checkedAt": "2026-10-08",
   "verifiedBy": "src/__tests__/actorParRedirectUris.test.js"
 }

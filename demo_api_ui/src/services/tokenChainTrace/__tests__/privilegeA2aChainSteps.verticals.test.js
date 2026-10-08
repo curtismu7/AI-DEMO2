@@ -47,7 +47,7 @@ describe('buildPrivilegeA2aChainSteps with a vertical profile', () => {
     expect(labelOf('MAIN-AGENT')).toBe(agentName);
     expect(labelOf('ANALYST-AGENT')).toBe(specialistName);
     expect(labelOf('MCP-TOOLS')).toBe(`${specialistName} data tools`);
-    expect(labelOf('GATEWAY')).toBe('AI Gateway');
+    expect(labelOf('GATEWAY')).toBe('Agent Privilege');
     expect(text(named)).toContain(specialistName);
     expect(text(named)).toContain(agentName);
     expect(text(named)).not.toContain('Analyst agent');

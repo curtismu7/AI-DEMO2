@@ -16,7 +16,7 @@
  *
  * This module carries the token a human already established so the door can
  * serve callers that have no browser session — the same shape as
- * services/privilegeGatewaySession.js does for the Privilege AI Gateway leg.
+ * services/privilegeGatewaySession.js does for the Agent Privilege leg.
  *
  * THE TRADE, STATED PLAINLY. Every caller served from here acts as the human
  * who last signed in — PingOne admin tooling, at that human's roles. Per-user

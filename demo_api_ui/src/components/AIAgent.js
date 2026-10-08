@@ -8598,7 +8598,7 @@ export default function BankingAgent({
       // A run started by the step (A2A access review, agent chain) takes a few seconds and
       // streams into the reel: say it is running, then say how it ended, so a failure is not silent.
       if (opts?.run) {
-        addMessage("assistant", `${stepLabel} — running through the AI Gateway. This takes a few seconds; the reel fills as each hop arrives.`);
+        addMessage("assistant", `${stepLabel} — running through the Agent Privilege. This takes a few seconds; the reel fills as each hop arrives.`);
         setRunIndicator(`${stepLabel} — working…`);
         Promise.resolve(opts.run)
           .then((result) => addMessage(
