@@ -2,18 +2,57 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Let the demo presenter's own agent — Muse, LibreChat, LM Studio, or ChatGPT — connect to the demo and run the demo steps as the user's real agent, in two lanes: the standard flow (agent → Agent Gateway → Authorize → tool) and an AI Gateway lane (agent → MCP facade `privilege-gateway` door → PingOne Privilege AI Gateway → tool). Muse acts, Ping governs — and the story generalizes to *any* agent the customer already has.
+**Goal:** Let the demo presenter's own agent — Muse, Grok, LibreChat, LM Studio, or ChatGPT — connect to the demo and run the demo steps as the user's real agent, in two lanes: the standard flow (agent → Agent Gateway → Authorize → tool) and an AI Gateway lane (agent → MCP facade `privilege-gateway` door → PingOne Privilege AI Gateway → tool). The agent acts, Ping governs — and the story generalizes to *any* agent the customer already has.
 
 **Architecture:** The demo already has two external-agent entry points, and each maps to one lane:
 
 - **Standard lane** — the MCP external door (`docs/EXTERNAL_DOOR_MCP_FLOW.md`): RFC 9728 discovery, OAuth 2.1 AS with DCR + CIMD, PKCE, PingGateway :3036 enforcement (token exchange, P1AZ decision, HITL, step-up). Any spec-compliant MCP client walks in unregistered.
 - **AI Gateway lane** — the MCP facade's `privilege-gateway` door (`demo_api_server/routes/mcpFacade.js:240`): `/mcp-facade/privilege-gateway/<app>/mcp`. The client's OAuth (against the demo's durable broker) also establishes the BFF's server-side leg to the PingOne Privilege AI Gateway (`ownsUpstreamAuth` — the caller's bearer is replaced on the upstream hop; per-user policy enforced by the gateway). This is the proven LM Studio link (`docs/superpowers/specs/2026-09-11-lmstudio-privilege-gateway-link-design.md`), with the restart-durable client registry that door was built for.
 
-Muse/LibreChat/LM Studio/ChatGPT are all spec-compliant MCP clients with remote-server + OAuth support, so both lanes are **verify + document + diagram**, not build. The demo steps gain new use cases (UC-MUSE1 standard lane, UC-MUSE2 AI Gateway lane) authored as use-case diagram configs — external agents do NOT prevent use-case registration (see "Use-case feasibility" below).
+Muse/Grok/LibreChat/LM Studio/ChatGPT are all spec-compliant MCP clients with remote-server + OAuth support, so both lanes are **verify + document + diagram**, not build. The demo steps gain new use cases (UC-MUSE1 standard lane, UC-MUSE2 AI Gateway lane) authored as use-case diagram configs — external agents do NOT prevent use-case registration (see "Use-case feasibility" below).
 
-**Tech Stack:** Muse Code CLI (Meta, macOS: `curl -fsSL https://dev.meta.ai/install.sh | sh`), LibreChat (already in repo, `librechat/`), LM Studio (proven precedent), ChatGPT (connector MCP + OAuth), oauth-mcp external door (unchanged), MCP facade doors (unchanged), PingOne Privilege AI Gateway (SE/Privilege tenant, unchanged), demo_api_ui lesson catalog + use-case diagram configs (existing patterns).
+**Tech Stack:** Muse (Meta: consumer app iOS/Android/web/iPad + Muse Code CLI for macOS/Linux/Windows), Grok (xAI: Grok app custom connectors + Grok Bot + Grok CLI), LibreChat (already in repo, `librechat/`), LM Studio (proven precedent), ChatGPT (connector MCP + OAuth), oauth-mcp external door (unchanged), MCP facade doors (unchanged), PingOne Privilege AI Gateway (SE/Privilege tenant, unchanged), demo_api_ui lesson catalog + use-case diagram configs (existing patterns).
 
 **Spec:** the agreed in-chat design in this session (2026-10-08), extended by the user on the same day: all agents run two use cases (standard flow + AI Gateway); detailed diagrams in the docs; demo-step use cases where feasible. Companion reading: `docs/EXTERNAL_DOOR_MCP_FLOW.md`, `docs/superpowers/specs/2026-09-11-lmstudio-privilege-gateway-link-design.md`, `docs/use-case-diagram-standards.md`.
+
+## The agent families (what each product actually is)
+
+Names here are deliberately precise — two vendors ship multiple products under one brand, and the demo story differs per surface.
+
+| Product | Vendor / surface | MCP client? | Auth to custom endpoints | Runs where | Demo fit |
+|---|---|---|---|---|---|
+| **Muse** (consumer) | Meta; iOS, Android, web, iPad (launched 2026-09-08; iPad 2026-10-07) | Custom connectors to **hosted** MCP (streamable HTTP) | Muse-managed credential flow ("Sentinel" issues surrogate credentials; approvals scoped per action) | Meta cloud VM — cannot reach localhost/private DNS | The "real customer, real phone" story on the SE cluster. OAuth-discovery compatibility is the open cell |
+| **Muse Code** | Meta; macOS/Linux/Windows CLI (`curl -fsSL https://dev.meta.ai/install.sh \| sh`) | Native `mcp_servers` block, `streamable_http`, OAuth 2.1 + `muse mcp login`, `${VAR}` interpolation | Full OAuth 2.1 with browser login; token refresh automatic | Presenter's machine | Local demos, full standard-lane flow including governed write |
+| **Grok app** (consumer chat) | xAI; web/desktop/mobile apps | **Custom connectors**: Grok → Connectors → New Connector → Custom; public URL required; Streamable HTTP/SSE | OAuth if the server requires it (browser flow); xAI does not document DCR support — verify; static Bearer as fallback | xAI cloud | Strong candidate: connector UI is self-serve, same cloud-VM reachability constraint as Muse |
+| **Grok Bot** | xAI; desktop + iOS beta (SuperGrok/Cursor tiers) | Not documented as MCP-native — Bots drive a cloud computer (browser + filesystem + terminal); connectors feed the underlying Grok app | Browser sign-in / connector OAuth via the shared cloud computer | xAI cloud computer (account-scoped, shared across all of a user's Bots) | The "agent that keeps working" narrative; MCP path runs through the Grok app connector layer, not the Bot itself |
+| **Grok CLI** | xAI; terminal | Remote HTTP MCP with browser OAuth on first use; creds in `~/.grok/mcp_credentials.json` | Full OAuth browser flow | Presenter's machine | Local terminal-based demo, Muse Code's counterpart |
+| **LibreChat** | open source; in-repo `librechat/` | `mcpServers` in `librechat.yaml` (`type: streamable_http`) | Per config (headers/Bearer/OAuth where supported) | Presenter's machine or docker | The open-source/dev-agent story |
+| **LM Studio** | local app | Remote MCP connectors | OAuth browser flow (proven against our facade door 2026-09-11) | Presenter's machine | The proven precedent for both lanes |
+| **ChatGPT** | OpenAI; connectors (dev mode) | Remote MCP connectors | OAuth; **publicly reachable URL required** — local stack needs SE host or tunnel | OpenAI cloud | Same reachability constraint as Muse/Grok |
+
+**Shared constraint for all cloud-hosted agents (Muse app, Grok, ChatGPT):** the endpoint must be publicly reachable — the SE cluster host `https://cmuir-mcp.ping-devops.com` works; the local Docker stack's `api.ping.demo:3036` (an /etc/hosts entry) does not. Local demos use Muse Code / Grok CLI / LM Studio / LibreChat; cloud-agent demos run against the SE cluster.
+
+**Grok specifics worth knowing before the demo:**
+- Custom connector flow: **Grok → Connectors → New Connector → Custom**, paste the MCP URL, complete the auth flow. Server must answer on the public internet.
+- xAI's docs confirm OAuth *browser* flows happen when the server requires them (CLI docs are explicit; connector docs are implicit) but **never mention RFC 7591 DCR**. Our door advertises `registration_endpoint`, so Grok should self-register — but this is exactly the kind of claim Task 1's matrix exists to prove, not assume. Fallback if DCR is unsupported: pre-register a client, hand Grok the fixed credentials if its UI accepts them, or demo with a static Bearer minted from a pre-registered client (governance story intact; login shown out-of-band).
+- xAI's hosted **Remote MCP Tools API** (`tools:[{type:"mcp", server_url, allowed_tools, authorization}]`) is a separate developer surface — useful for the "customer builds their own agent on xAI's API" talking point, and it takes a **static bearer token**, which maps cleanly to a pre-registered client on our door.
+- **Grok Bot's shared cloud computer** (one account-scoped workspace for all of a user's Bots) is itself a governance talking point: contrast Meta's per-action scoped approvals with xAI's shared-workspace model, and show that Ping governs the *resource* side identically regardless of which agent architecture calls.
+
+## Live verification (2026-10-08, SE cluster — pre-fills part of Task 1's matrix)
+
+Cluster state was brought current first: `mcp-server` was running an image older than the array-scope fix (#984) — rolled; `ping-gateway` ConfigMaps dated Sep 11 with 4 drifted groovy filters (`p1az-decision`, `olb-token-exchange`, `jwks-token-validation`, `invest-dispatch`) — synced from repo and rolled. Post-sync door health:
+
+| Check | Result |
+|---|---|
+| RFC 9728 `/.well-known/oauth-protected-resource/mcp` | 200, correct document |
+| RFC 8414 AS metadata | 200; issuer, DCR endpoint, `client_id_metadata_document_supported: true` |
+| DCR (RFC 7591) | **Live-verified**: 3 clients registered via curl, client_id/secret minted |
+| `/authorize` | 302 → PingOne with PKCE + `resource=` bound, `max_age=1800` |
+| MCP streamable HTTP handshake | initialize → session → `tools/list` = 9 tools (curation active); requires `MCP-Protocol-Version` header |
+| Scope governance (service token) | `client_credentials` token gets `mcp:invoke read` but is **refused `accounts:read`** — `get_my_accounts` returns clean `Insufficient scope` error. User data requires the browser-login delegated-token path; the token-chain teaching point is structural, not staged |
+| `create_transfer` array-scope fix (#984) | Deployed (pod rolled past the fix) |
+
+**Open cells for Task 1** (need the real apps): Muse consumer-app connector OAuth compatibility; Grok custom-connector DCR-vs-fixed-client behavior; ChatGPT reachable-host setup; Muse Code / Grok CLI / LibreChat local runs.
 
 ## Use-case feasibility (the "does the external agent prevent this?" question)
 
@@ -51,14 +90,20 @@ So the external agents become demo steps by adding UC ids to `DEMO_PRIMARY_USE_C
 - Consumes: running local stack (`./run-docker.sh`), Muse CLI installed (`muse --version`), LM Studio installed, ChatGPT Plus/Team (connector support), LibreChat running from `librechat/`.
 - Produces: a filled verification matrix proving/disproving door↔client compatibility per lane. Tasks 2–5 assume success here; if a cell fails, stop and file the gap for that cell only.
 
-The matrix — every cell gets a row in the log:
+The matrix — every cell gets a row in the log. Cells marked ✅ are pre-verified (see "Live verification" above); the rest need the real app:
 
-| Client | Standard lane (external door :3036) | AI Gateway lane (facade `privilege-gateway` door) |
+| Client | Standard lane (external door, SE host) | AI Gateway lane (facade `privilege-gateway` door) |
 |---|---|---|
-| Muse | connect + read + governed write | connect + read |
-| LM Studio | connect + read | connect + read (proven 2026-09-11; re-verify) |
+| Door itself (curl probes) | ✅ DCR + authorize + handshake + scope governance verified | (facade probes pending) |
+| Muse (consumer app) | connect + read — **OAuth-discovery compatibility is the open question** | connect + read |
+| Muse Code (CLI, local Mac) | connect + read + governed write | connect + read |
+| Grok (app custom connector) | connect + read — **DCR-vs-fixed-client is the open question** | connect + read |
+| Grok CLI (local) | connect + read | connect + read |
+| LM Studio | connect + read (re-verify vs 2026-09-11) | connect + read (proven 2026-09-11; re-verify) |
 | LibreChat | connect + read | connect + read |
 | ChatGPT | connect + read (needs reachable host — record what works locally vs SE) | connect + read |
+
+Cloud-hosted agents (Muse app, Grok app, ChatGPT) test against `https://cmuir-mcp.ping-devops.com` only — they cannot reach the local stack. Local clients (Muse Code, Grok CLI, LM Studio, LibreChat) can test both lanes.
 
 - [ ] **Step 1: Start the local stack**
 
@@ -564,7 +609,7 @@ git add demo_api_ui/src/pages/MuseAgentLessonPage.jsx \
 git commit -m "feat: Muse user-agent lesson page in learning hub"
 ```
 
-### Task 4: Runbook (all four agents, both lanes) and drift guard
+### Task 4: Runbook (all agents, both lanes) and drift guard
 
 **Files:**
 - Create: `docs/MUSE_RUNBOOK.md` (covers Muse, LM Studio, LibreChat, ChatGPT; both lanes)
@@ -577,7 +622,7 @@ git commit -m "feat: Muse user-agent lesson page in learning hub"
 - [ ] **Step 1: Write the runbook** — `docs/MUSE_RUNBOOK.md`:
 
 ````markdown
-# External-agent demo runbook — Muse, LM Studio, LibreChat, ChatGPT
+# External-agent demo runbook — Muse, Grok, LM Studio, LibreChat, ChatGPT
 
 **Story:** "You already have an agent. Point it at our bank's MCP endpoint.
 Watch Ping govern it." The agent is the presenter's own install; every
@@ -604,7 +649,7 @@ governance surface is ours. Two lanes, same agent:
 
 ## Per-client connection notes (fill from the verification matrix)
 
-### Muse
+### Muse Code (CLI, local)
 - Install: `curl -fsSL https://dev.meta.ai/install.sh | sh`
 - Settings → mcp_servers:
 ```json
@@ -616,10 +661,37 @@ governance surface is ours. Two lanes, same agent:
 - First tool use triggers OAuth: browser opens, PingOne login, callback to 127.0.0.1.
 - Verified behaviors (from Task 1 matrix): [paste discovery URL, auth method, redirect shape observed]
 
+### Muse (consumer app — cloud)
+- Runs in Meta's cloud; **cannot reach the local stack**. Use the SE host.
+- In Muse, prompt (custom connector): "Build a custom integration. Its MCP
+  server is `https://cmuir-mcp.ping-devops.com/mcp`, transport streamable HTTP.
+  Connect, inspect the tools, request credentials through the secure credential
+  flow, and keep approval required for anything that writes or spends."
+- The OAuth browser step opens on the phone/web; whether Muse completes our
+  RFC 9728 + DCR + PKCE dance is the open matrix cell. Fallback: pre-minted
+  Bearer via the credential flow (governance intact; login out-of-band).
+- Verified behaviors: [paste]
+
 ### LM Studio
 - Connectors → Add MCP → remote URL (standard lane URL above).
 - Known quirk: LM Studio falls back to SSE on any non-`UnauthorizedError` — the
   doors answer GET deliberately, so use POST-based connect.
+- Verified behaviors: [paste]
+
+### Grok (app custom connector)
+- Grok → Connectors → New Connector → Custom → paste the MCP URL → complete
+  the auth flow (browser OAuth). Public URL required: use the SE host, not the
+  local stack.
+- If DCR is unsupported (xAI does not document it): pre-register a client via
+  `curl -X POST https://cmuir-mcp.ping-devops.com/register ...` and hand the
+  fixed client_id/secret to the connector UI, or mint a Bearer from a
+  pre-registered client and use xAI's Remote MCP API shape
+  (`authorization: "Bearer ..."`).
+- Verified behaviors: [paste]
+
+### Grok CLI (local)
+- Remote HTTP MCP with browser OAuth on first use; credentials persist in
+  `~/.grok/mcp_credentials.json`.
 - Verified behaviors: [paste]
 
 ### LibreChat
