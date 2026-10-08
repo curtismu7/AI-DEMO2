@@ -45,7 +45,8 @@
 
 /* Review finding 4: styled links need the sibling diagrams-index treatment —
    no underline, visible keyboard focus. */
-.ucd-card, .ucd-next__link { text-decoration: none; }
+.ucd-page a.ucd-card,
+.ucd-page a.ucd-next__link { text-decoration: none; }
 .ucd-card:focus-visible, .ucd-next__link:focus-visible {
   outline: 2px solid var(--th-status-info);
   outline-offset: 2px;
