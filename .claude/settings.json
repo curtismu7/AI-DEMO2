@@ -1,13 +1,4 @@
 {
-  "permissions": {
-    "allow": [
-      "Bash(scripts/sync-main-checkout.sh *)",
-      "Bash(scripts/deploy-live.sh *)",
-      "Bash(npm run ui:mode *)",
-      "Bash(npm run -s ui:mode *)",
-      "Bash(gh pr merge *)"
-    ]
-  },
   "hooks": {
     "PreToolUse": [
       {
