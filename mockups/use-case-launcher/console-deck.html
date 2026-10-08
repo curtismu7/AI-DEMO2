@@ -1,0 +1,373 @@
+<title>Console Deck</title>
+<style>
+  /* Layout: two-pane console — actor-keyed launcher on the left, diagram stage on the right */
+  :root {
+    --bg:#f6f7f9; --card:#ffffff; --inset:#f1f5f9; --band:#16325c; --band-2:#1d3f73;
+    --text:#0f172a; --body:#374151; --muted:#64748b;
+    --border:#dbe2ea; --border-strong:#c3cdd9; --hover:#eef2f7;
+    --ok:#16a34a; --ok-bg:#dcfce7; --ok-tx:#14532d;
+    --warn:#f59e0b; --warn-bg:#fef3c7; --warn-tx:#78350f;
+    --err:#dc2626; --err-bg:#fee2e2; --err-tx:#7f1d1d;
+    --info:#2563eb; --info-bg:#dbeafe; --info-tx:#1e3a8a;
+    --edge:#94a3b8; --radius:10px;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg:#0b1220; --card:#111c30; --inset:#17233c; --band:#122a4e; --band-2:#1a3763;
+    --text:#e6eefb; --body:#c3cfe0; --muted:#8ba0bb;
+    --border:#24344f; --border-strong:#31445f; --hover:#1a2740;
+    --ok:#22c55e; --ok-bg:rgba(34,197,94,.15); --ok-tx:#86efac;
+    --warn:#fbbf24; --warn-bg:rgba(245,158,11,.16); --warn-tx:#fcd34d;
+    --err:#ef4444; --err-bg:rgba(239,68,68,.17); --err-tx:#fca5a5;
+    --info:#3b82f6; --info-bg:rgba(59,130,246,.17); --info-tx:#93c5fd;
+    --edge:#55688a; color-scheme: dark;
+  } }
+  :root[data-theme="dark"] {
+    --bg:#0b1220; --card:#111c30; --inset:#17233c; --band:#122a4e; --band-2:#1a3763;
+    --text:#e6eefb; --body:#c3cfe0; --muted:#8ba0bb;
+    --border:#24344f; --border-strong:#31445f; --hover:#1a2740;
+    --ok:#22c55e; --ok-bg:rgba(34,197,94,.15); --ok-tx:#86efac;
+    --warn:#fbbf24; --warn-bg:rgba(245,158,11,.16); --warn-tx:#fcd34d;
+    --err:#ef4444; --err-bg:rgba(239,68,68,.17); --err-tx:#fca5a5;
+    --info:#3b82f6; --info-bg:rgba(59,130,246,.17); --info-tx:#93c5fd;
+    --edge:#55688a; color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    padding: 0 16px 40px;
+  }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  button, select { font: inherit; color: inherit; }
+
+  .topbar { display: flex; align-items: baseline; gap: 12px; padding: 20px 4px 16px; flex-wrap: wrap; }
+  .concept-chip {
+    border: 1px solid var(--border-strong); border-radius: 999px; padding: 3px 10px;
+    font-size: 11px; font-weight: 600; letter-spacing: .08em; color: var(--muted);
+  }
+  .topbar h1 { margin: 0; font-size: 21px; font-weight: 700; letter-spacing: -.01em; }
+  .topbar p { margin: 0; color: var(--body); font-size: 13px; max-width: 60ch; width: 100%; }
+
+  .layout { display: grid; grid-template-columns: 300px 1fr; gap: 18px; align-items: start; }
+  @media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
+
+  /* ---- left: actor-keyed launcher ---- */
+  .launcher { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 14px; }
+  .l-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .l-head h2 { margin: 0; font-size: 14px; font-weight: 700; }
+  .search {
+    width: 100%; border: 1px solid var(--border-strong); border-radius: 8px; padding: 7px 10px;
+    font-size: 13px; background: var(--inset); margin-bottom: 12px;
+  }
+  .search:focus { outline: 2px solid var(--band); outline-offset: 0; }
+  .actor {
+    margin-bottom: 14px;
+  }
+  .actor-h { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px; }
+  .actor-ic { width: 20px; height: 20px; border-radius: 6px; display: grid; place-items: center; font-size: 10px; color: #fff; }
+  .actor-n { margin-left: auto; font-size: 10.5px; font-weight: 600; color: var(--muted); background: var(--inset); border-radius: 999px; padding: 1px 7px; }
+  .uc-row {
+    display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+    background: transparent; border: 1px solid transparent; border-radius: 8px; padding: 7px 9px; cursor: pointer;
+  }
+  .uc-row:hover { background: var(--hover); }
+  .uc-row.sel { background: var(--inset); border-color: var(--border-strong); }
+  .uc-num { font-size: 12px; font-weight: 800; color: var(--muted); width: 22px; font-variant-numeric: tabular-nums; }
+  .uc-row.sel .uc-num { color: var(--band); }
+  .uc-name { font-size: 12.5px; font-weight: 600; line-height: 1.25; flex: 1; min-width: 0; }
+  .uc-verdict { font-size: 9.5px; font-weight: 700; letter-spacing: .04em; border-radius: 999px; padding: 2px 7px; flex: 0 0 auto; }
+  .v-ok { background: var(--ok-bg); color: var(--ok-tx); }
+  .v-warn { background: var(--warn-bg); color: var(--warn-tx); }
+  .v-err { background: var(--err-bg); color: var(--err-tx); }
+  .v-info { background: var(--info-bg); color: var(--info-tx); }
+  .l-foot { font-size: 11px; color: var(--muted); margin: 2px 2px 0; line-height: 1.5; }
+
+  /* ---- right: stage ---- */
+  .stage { background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; position: sticky; top: 12px; }
+  .stage-head { padding: 15px 18px 13px; border-bottom: 1px solid var(--border); }
+  .sh-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .cue {
+    background: var(--band); color: #fff; border-radius: 7px; padding: 4px 10px;
+    font-size: 11px; font-weight: 700; letter-spacing: .08em; font-variant-numeric: tabular-nums;
+  }
+  .stage-title { font-size: 16px; font-weight: 700; }
+  .stage-tags { display: flex; gap: 6px; margin-left: auto; align-items: center; }
+  .tag { font-size: 10px; font-weight: 700; letter-spacing: .05em; border: 1px solid var(--border-strong); color: var(--muted); border-radius: 999px; padding: 2px 8px; }
+  .stage-blurb { margin: 7px 0 0; font-size: 13px; color: var(--body); max-width: 68ch; }
+
+  .beat { background: var(--inset); border-top: 1px solid var(--border); padding: 11px 18px; display: flex; gap: 10px; align-items: baseline; }
+  .beat-n {
+    font-size: 10.5px; font-weight: 800; color: #fff; background: var(--band); border-radius: 6px;
+    padding: 2px 7px; font-variant-numeric: tabular-nums; flex: 0 0 auto;
+  }
+  .beat-text { font-size: 13px; color: var(--text); line-height: 1.5; min-height: 20px; }
+  .beat-text .who { color: var(--muted); font-weight: 700; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; margin-right: 6px; }
+
+  .stage-diagram { position: relative; background: var(--inset); }
+  .dots { position: absolute; inset: 0; background-image: radial-gradient(var(--edge) 1px, transparent 1px); background-size: 22px 22px; opacity: .35; }
+  .stage svg { display: block; width: 100%; height: auto; }
+
+  .controls { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 10px 14px; border-top: 1px solid var(--border); }
+  .ctl {
+    border: 1px solid var(--border-strong); background: var(--card); border-radius: 7px;
+    padding: 6px 11px; font-size: 12.5px; font-weight: 600; cursor: pointer;
+  }
+  .ctl:hover { background: var(--hover); }
+  .ctl:disabled { opacity: .45; cursor: default; }
+  .ctl-primary { background: var(--band); border-color: var(--band); color: #fff; }
+  .ctl-step { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; margin-left: 2px; }
+  .divider { width: 1px; align-self: stretch; background: var(--border); margin: 0 4px; }
+  select.ctl { padding: 5px 8px; }
+  .zoom { font-size: 12px; color: var(--muted); min-width: 44px; text-align: center; font-variant-numeric: tabular-nums; }
+  .launch { margin-left: auto; }
+  .launch .ctl { background: var(--band); border-color: var(--band); color: #fff; }
+  .launch .ctl:hover { background: var(--band-2); }
+
+  .footnote { margin: 14px 4px 0; font-size: 12px; color: var(--muted); max-width: 80ch; }
+
+  /* toast */
+  #toast {
+    position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%) translateY(8px);
+    background: var(--band); color: #fff; border-radius: 9px; padding: 9px 16px; font-size: 13px;
+    opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; max-width: 90vw;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } .dashflow { stroke-dashoffset: 0 !important; } }
+  @keyframes dashflow { to { stroke-dashoffset: -20; } }
+  .dashflow { stroke-dasharray: 7 5; animation: dashflow .8s linear infinite; }
+</style>
+
+<div class="topbar">
+  <span class="concept-chip">CONCEPT B OF 3</span>
+  <h1>Console deck</h1>
+  <p>A workmanlike two-pane console: find the step by actor on the left, watch it run on the right. Built for the SE who already knows the script and needs the right diagram in two clicks.</p>
+</div>
+
+<main class="layout">
+  <aside class="launcher" aria-label="Demo step launcher">
+    <div class="l-head">
+      <h2>Demo steps</h2>
+      <span class="tag" id="count"></span>
+    </div>
+    <input class="search" id="search" type="search" placeholder="Filter steps…" aria-label="Filter demo steps" />
+    <div id="list"></div>
+    <p class="l-foot">Grouped by who kicks off the call. Numbering matches the presenter script, left to right.</p>
+  </aside>
+
+  <section class="stage" aria-label="Diagram stage">
+    <div class="stage-head">
+      <div class="sh-top">
+        <span class="cue" id="cue">STEP 2</span>
+        <span class="stage-title" id="stage-title">Delegated access</span>
+        <span class="stage-tags">
+          <span class="verdict v-ok" id="stage-verdict">PERMIT</span>
+          <span class="tag" id="walk-tag">9 walk steps</span>
+        </span>
+        <span class="launch"><button class="ctl" id="launch">Open diagram ↗</button></span>
+      </div>
+      <p class="stage-blurb" id="stage-blurb"></p>
+    </div>
+    <div class="beat">
+      <span class="beat-n" id="beat-n">—</span>
+      <span class="beat-text" id="beat-text">Press Simulate to walk the diagram. Each beat narrates one hop — who calls whom, what travels, and what the policy says.</span>
+    </div>
+
+    <div class="stage-diagram">
+      <div class="dots"></div>
+      <svg id="dsvg" viewBox="0 0 880 250" role="img" aria-label="Diagram preview"></svg>
+    </div>
+    <div class="controls">
+      <button class="ctl ctl-primary" id="btn-play">▶ Simulate</button>
+      <button class="ctl" id="btn-pause" disabled>⏸ Pause</button>
+      <button class="ctl" id="btn-prev" disabled>← Prev</button>
+      <button class="ctl" id="btn-next" disabled>Next →</button>
+      <button class="ctl" id="btn-stop" disabled>■ Stop</button>
+      <button class="ctl" id="btn-reset">↺ Reset</button>
+      <span class="ctl-step" id="step-label">Step 0 / 9</span>
+      <span class="divider"></span>
+      <select class="ctl" id="step-ms">
+        <option>0.8s (fast)</option><option>1.5s</option><option selected>2.5s (default)</option><option>4s</option><option>6s (slow)</option>
+      </select>
+      <span class="divider"></span>
+      <button class="ctl" id="z-out">−</button><span class="zoom">100%</span><button class="" id="z-in">+</button><button class="ctl" id="z-fit">↺</button>
+    </div>
+  </section>
+</main>
+
+<p class="footnote">Concept B — same stage as Concept A, different launcher: the left pane is a live filter over the full 18-step script grouped by initiating actor, with the narrated beat panel wired to the walk step.</p>
+
+<div id="toast" role="status"></div>
+
+<script>
+const GROUPS = [
+  { key:"user", label:"User / human", ic:"U", color:"var(--info)" },
+  { key:"agent", label:"Agents & orchestrator", ic:"A", color:"var(--band)" },
+  { key:"policy", label:"Policy & token", ic:"P", color:"var(--ok)" },
+  { key:"defense", label:"Defenses & audit", ic:"D", color:"var(--err)" },
+];
+const STEPS = [
+  { id:"UC24", n:1, g:"user", actor:"User", title:"Public catalog access", verdict:"PERMIT", v:"ok", walk:4, blurb:"No token, no problem: browsing the catalog needs no identity — progressive trust starts here.",
+    beats:["User browses the public catalog — no token yet.","The agent fetches catalog data anonymously.","Gateway lets the read through: it's public.","Catalog returns — trust begins empty and grows."]},
+  { id:"UC1", n:2, g:"agent", actor:"Agent", title:"Delegated access (consent only)", verdict:"PERMIT", v:"ok", walk:9, blurb:"The agent exchanges its token for a downscoped one at the gateway, then reads accounts with delegated consent.",
+    beats:["User signs in; the agent holds the user's token.","Agent presents the token at the gateway.","Gateway checks the client (CIMD) — registered.","PingOne Authorize evaluates the request: PERMIT.","Token exchange: user token in, downscoped agent token out.","Agent calls Accounts with the downscoped token.","Accounts validates scope: accounts:read — enough.","Accounts answers with the user's account list.","Gateway logs the whole chain for audit."]},
+  { id:"UC8", n:3, g:"user", actor:"User", title:"MCP App · transfer approval", verdict:"CONSENT", v:"warn", walk:7, blurb:"A human approves the sensitive transfer in the loop — consent as a gate, not a checkbox.",
+    beats:["Agent proposes a transfer on the user's behalf.","Gateway sees the sensitive scope — pause for consent.","HITL service pages the human approver.","User sees amount, destination, and why.","User approves in the MCP App.","Consent bound to this one request, then it expires.","The transfer proceeds — with a receipt."]},
+  { id:"UC7", n:4, g:"user", actor:"User", title:"MFA step-up (HITL)", verdict:"STEP-UP", v:"warn", walk:8, blurb:"Read-only is fine; moving money trips MFA. PingOne steps the session up before the call lands.",
+    beats:["Agent asks to move money for the user.","Gateway checks the session's ACR: not enough.","Challenge goes out — PingOne runs MFA.","User answers the push / OTP.","PingOne upgrades the session's assurance level.","Retry carries the new ACR claim.","Authorize re-evaluates: PERMIT with step-up.","Transfer executes — MFA on the record."]},
+  { id:"UC14b", n:5, g:"agent", actor:"Agent", title:"PAR + RAR intent verified (PERMIT)", verdict:"PERMIT", v:"ok", walk:6, blurb:"The rich authorization request carries the intent; PingOne Authorize verifies it before the tool runs.",
+    beats:["Agent pushes a PAR with RAR details — amount, payee.","AS stores the request and returns a request_uri.","Agent authorizes against the request_uri.","Authorize compares intent to policy: matches.","Downscoped token minted, intent baked in.","Tool call executes — intent honored end to end."]},
+  { id:"UC14", n:6, g:"agent", actor:"Agent", title:"PAR + RAR intent violation (DENY)", verdict:"DENY", v:"err", walk:6, blurb:"Same RAR shape, but the intent drifts from what was registered — Authorize denies the mismatch.",
+    beats:["Agent registers intent: $200 to savings.","PAR completes, request_uri issued.","Agent later asks for $2,000 instead.","Authorize compares: amount ≠ registered intent.","DENY — the drift is the finding.","Auditor sees registered vs attempted, side by side."]},
+  { id:"UC12", n:7, g:"policy", actor:"Gateway", title:"Token theft / replay defense", verdict:"BLOCKED", v:"err", walk:6, blurb:"A stolen access token is replayed from elsewhere — DPoP binding proves possession and the replay dies.",
+    beats:["An attacker lifts a bearer token in transit.","Attacker replays it at the gateway.","Gateway demands the DPoP proof.","Attacker has no private key — proof fails.","JWT audience binding fails too.","Replay rejected and logged as an incident."]},
+  { id:"UC6", n:8, g:"policy", actor:"Gateway", title:"Authz denied", verdict:"DENY", v:"err", walk:5, blurb:"A valid token, the wrong policy: Authorize says DENY and the gateway enforces it before any tool runs.",
+    beats:["Valid token, real user, wrong request.","Gateway asks Authorize to evaluate.","Policy says: this scope never reaches this tool.","DENY comes back before the tool runs.","Nothing leaked — the deny is the feature."]},
+  { id:"UC2", n:9, g:"agent", actor:"Agent A", title:"A2A delegation", verdict:"PERMIT", v:"ok", walk:7, blurb:"One agent delegates a narrow task to another — identity and scopes travel with the task.",
+    beats:["Agent A can't do the task alone.","A2A card discovery: what can Agent B do?","Delegation request carries actor identity.","Gateway checks Agent B's registration.","Token minted for the subtask, actor tagged.","Agent B executes just that task.","Result returns to A — provenance intact."]},
+  { id:"UC2.5", n:10, g:"agent", actor:"Orchestrator", title:"A2A orchestrator learning", verdict:"LEARN", v:"info", walk:5, blurb:"The orchestrator records what the sub-agent did and learns the capability boundary.",
+    beats:["Orchestrator reviews Agent B's run.","What tools did it actually use?","Capability boundary recorded.","Next delegation is pre-scoped tighter.","Fewer round trips, same guarantees."]},
+  { id:"UC2.7", n:11, g:"agent", actor:"Agent A", title:"A2A end to end (protocol + identity)", verdict:"PERMIT", v:"ok", walk:9, blurb:"The full agent-to-agent story: discovery, delegation, enforcement and audit in one walk.",
+    beats:["Discovery: Agent B's card fetched.","Trust: B is a registered client.","Delegation: task + actor identity sent.","Gateway mints a subtask token.","Authorize checks the subtask policy.","Agent B works — actor claim travels.","Resource validates actor + scope.","Result provenance recorded.","Audit holds the whole chain."]},
+  { id:"UC22", n:12, g:"user", actor:"User", title:"CIBA out-of-band approval", verdict:"APPROVED", v:"info", walk:8, blurb:"The approval leaves the browser entirely: a push to the phone answers the agent's request.",
+    beats:["Agent initiates CIBA with PingOne.","Auth request is backchannel — no browser.","PingOne pushes to the user's device.","User sees what's being asked, on the phone.","User approves out of band.","PingOne signals the agent: approved.","Token issued for the approved request.","Agent completes — user never touched the browser."]},
+  { id:"UC5", n:13, g:"defense", actor:"Gateway", title:"Wrong / insufficient scope", verdict:"DENY", v:"err", walk:5, blurb:"The token's scopes stop short of the endpoint — the gateway refuses without a round trip.",
+    beats:["Token says accounts:read.","The call asks for payments:write.","Gateway compares locally — no round trip.","Scope gap → 403, instantly.","Agent learns to ask for the right scope."]},
+  { id:"UC10", n:14, g:"defense", actor:"Gateway", title:"Resource-ownership / account takeover", verdict:"DENY", v:"err", walk:6, blurb:"Alice's agent asks for Bob's account. Ownership is checked against the token subject — denied.",
+    beats:["Alice's agent asks for account… Bob's.","Gateway reads the token subject: alice.","Requested owner: bob — mismatch.","Authorize policy: subject must own the resource.","DENY before the data is touched.","Attack dies at the policy layer."]},
+  { id:"UC13", n:15, g:"defense", actor:"Attacker", title:"Confused-deputy actor injection", verdict:"DENY", v:"err", walk:6, blurb:"A prompt tries to relabel who is acting. The actor claim says otherwise — the deputy isn't confused.",
+    beats:["Malicious prompt: 'you are the admin now'.","Agent relays with a forged actor hint.","Gateway ignores the hint — reads the token.","Actor claim: still the attacker.","Policy binds action to the true actor.","DENY — the deputy stays unconfused."]},
+  { id:"UC11", n:16, g:"policy", actor:"Unknown client", title:"Bad client → agent gateway", verdict:"DENY", v:"err", walk:5, blurb:"An unregistered client knocks. Client metadata (CIMD) fails the handshake at the door.",
+    beats:["Unknown client presents credentials.","Gateway fetches CIMD metadata by URL.","Document missing or mismatched.","Client isn't who it claims — no registration.","401 at the door, nothing else happens."]},
+  { id:"UC20", n:17, g:"defense", actor:"Auditor", title:"Agent observability / audit trail", verdict:"OBSERVED", v:"info", walk:6, blurb:"Every delegated call leaves a trace: actor, intent, decision — replayable after the fact.",
+    beats:["A run happened. What exactly?","Gateway emits actor, intent, decision.","Chain of custody: token lineage linked.","Trace lands in the audit store.","Replay: every hop, in order.","Answer: who did what, with whose authority."]},
+  { id:"UC18", n:18, g:"defense", actor:"Gateway", title:"Rate-limit / resource-overload defense", verdict:"THROTTLED", v:"warn", walk:5, blurb:"A burst of agent calls meets the throttle — the gateway sheds load before anything melts.",
+    beats:["An agent loop hammers the gateway.","Burst detected — pattern matches throttle policy.","429 with Retry-After returned.","Gateway sheds load, stays responsive.","Honest agents back off and retry."]},
+];
+
+let sel = STEPS[1];
+let simStep = -1, simTimer = null, simPaused = false;
+
+const list = document.getElementById("list");
+function renderList(filter = "") {
+  const q = filter.trim().toLowerCase();
+  list.innerHTML = "";
+  let shown = 0;
+  GROUPS.forEach(gr => {
+    const items = STEPS.filter(s => s.g === gr.key &&
+      (!q || s.title.toLowerCase().includes(q) || s.id.toLowerCase().includes(q) || s.actor.toLowerCase().includes(q)));
+    if (!items.length) return;
+    shown += items.length;
+    const sec = document.createElement("div");
+    sec.className = "actor";
+    sec.innerHTML = `<div class="actor-h"><span class="actor-ic" style="background:${gr.color}">${gr.ic}</span>${gr.label}<span class="actor-n">${items.length}</span></div>`;
+    items.forEach(s => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "uc-row" + (s.id === sel.id ? " sel" : "");
+      b.id = `row-${s.id}`;
+      b.innerHTML = `<span class="uc-num">${s.n}</span><span class="uc-name">${s.title}</span><span class="uc-verdict v-${s.v}">${s.verdict}</span>`;
+      b.addEventListener("click", () => select(s.id));
+      sec.appendChild(b);
+    });
+    list.appendChild(sec);
+  });
+  document.getElementById("count").textContent = shown ? `${shown} steps` : "no match";
+}
+
+/* mini diagram: actor chain */
+const NODE_W = 128, NODE_H = 46;
+const xs = [16, 200, 396, 588, 742], ys = [150, 60, 150, 40, 210];
+function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;"); }
+function renderDiagram() {
+  const svg = document.getElementById("dsvg");
+  const who = ["User", "Agent", "Gateway", "PingOne", "Accounts"];
+  const pos = who.map((w, i) => ({ x: xs[i], y: ys[i] }));
+  const verdictColor = { ok:"var(--ok)", warn:"var(--warn)", err:"var(--err)", info:"var(--info)" }[sel.v];
+  let edges = "", nodes = "";
+  const nHops = who.length - 1;
+  for (let i = 0; i < nHops; i++) {
+    const a = pos[i], b = pos[i + 1];
+    const active = simStep === i;
+    const color = active ? (i === nHops - 1 ? verdictColor : "var(--info)") : "var(--edge)";
+    const w = active ? 3.5 : 1.6;
+    edges += `<path d="M ${a.x + NODE_W} ${a.y + NODE_H/2} C ${a.x + NODE_W + 80} ${a.y + NODE_H/2}, ${b.x - 80} ${b.y + NODE_H/2}, ${b.x} ${b.y + NODE_H/2}"
+      fill="none" stroke="${color}" stroke-width="${w}" ${active ? 'class="dashflow"':''} marker-end="url(#arr)"/>`;
+    if (active) edges += `<text x="${(a.x + NODE_W + b.x)/2}" y="${Math.min(a.y,b.y) + 20}" fill="${color}" font-size="11" font-weight="700" text-anchor="middle" font-family="ui-monospace, Menlo, monospace">${i === nHops - 1 ? sel.verdict : "STEP " + (simStep + 1)}</text>`;
+  }
+  who.forEach((w, i) => {
+    const p = pos[i];
+    const hot = simStep === i || simStep === i - 1;
+    nodes += `<g><rect x="${p.x}" y="${p.y}" width="${NODE_W}" height="${NODE_H}" rx="8" fill="var(--card)" stroke="${hot ? "var(--band)" : "var(--border-strong)"}" stroke-width="${hot ? 2 : 1}"/>
+      <rect x="${p.x}" y="${p.y}" width="4" height="${NODE_H}" rx="2" fill="${hot ? "var(--band)" : "var(--edge)"}"/>
+      <text x="${p.x + NODE_W/2 + 2}" y="${p.y + NODE_H/2 + 4}" text-anchor="middle" font-size="12" font-weight="600" fill="var(--text)">${esc(w)}</text></g>`;
+  });
+  svg.innerHTML = `<defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--edge)"/></marker></defs>${edges}${nodes}`;
+}
+
+function renderStage() {
+  document.getElementById("cue").textContent = `STEP ${sel.n}`;
+  document.getElementById("stage-title").textContent = sel.title;
+  const v = document.getElementById("stage-verdict");
+  v.textContent = sel.verdict; v.className = `verdict v-${sel.v}`;
+  document.getElementById("walk-tag").textContent = `${sel.walk} walk steps`;
+  document.getElementById("stage-blurb").textContent = sel.blurb;
+  document.getElementById("beat-n").textContent = "—";
+  document.getElementById("beat-text").textContent = "Press Simulate to walk the diagram. Each beat narrates one hop — who calls whom, what travels, and what the policy says.";
+  document.getElementById("step-label").textContent = `Step 0 / ${sel.walk}`;
+  document.querySelectorAll(".uc-row").forEach(r => r.classList.toggle("sel", r.id === `row-${sel.id}`));
+  document.getElementById(`row-${sel.id}`)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  stopSim(false);
+  renderDiagram();
+}
+
+function setBtns() {
+  const on = simStep >= 0;
+  const play = document.getElementById("btn-play");
+  play.textContent = simPaused ? "▶ Resume" : "▶ Simulate";
+  play.disabled = false;
+  document.getElementById("btn-pause").disabled = !on || simPaused;
+  document.getElementById("btn-prev").disabled = !on || !simPaused || simStep === 0;
+  document.getElementById("btn-next").disabled = !on || !simPaused || simStep >= sel.beats.length - 1;
+  document.getElementById("btn-stop").disabled = !on;
+  document.getElementById("step-label").textContent = `Step ${on ? simStep + 1 : 0} / ${sel.beats.length}`;
+  if (on) {
+    document.getElementById("beat-n").textContent = simStep + 1;
+    document.getElementById("beat-text").innerHTML = sel.beats[simStep];
+  } else {
+    document.getElementById("beat-n").textContent = "—";
+    document.getElementById("beat-text").textContent = "Press Simulate to walk the diagram. Each beat narrates one hop — who calls whom, what travels, and what the policy says.";
+  }
+}
+function tick() {
+  simStep++;
+  if (simStep >= sel.beats.length) { pauseSim(); simStep = sel.beats.length - 1; }
+  renderDiagram(); setBtns();
+}
+function playSim() { if (simStep >= sel.beats.length - 1) simStep = -1; simPaused = false; clearInterval(simTimer); simTimer = setInterval(tick, 1500); tick(); }
+function pauseSim() { simPaused = true; clearInterval(simTimer); setBtns(); }
+function resumeSim() { simPaused = false; clearInterval(simTimer); simTimer = setInterval(tick, 1500); setBtns(); }
+function stopSim(redraw = true) { clearInterval(simTimer); simStep = -1; simPaused = false; if (redraw) { renderDiagram(); setBtns(); } }
+
+document.getElementById("btn-play").addEventListener("click", () => (simPaused && simStep >= 0 ? resumeSim() : playSim()));
+document.getElementById("btn-pause").addEventListener("click", pauseSim);
+document.getElementById("btn-stop").addEventListener("click", () => stopSim());
+document.getElementById("btn-prev").addEventListener("click", () => { if (simStep > 0) { simStep--; renderDiagram(); setBtns(); } });
+document.getElementById("btn-next").addEventListener("click", () => { if (simStep < sel.beats.length - 1) { simStep++; renderDiagram(); setBtns(); } });
+document.getElementById("btn-reset").addEventListener("click", () => { stopSim(); toast("Diagram reset — history cleared"); });
+
+let toastTimer;
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2400);
+}
+document.getElementById("launch").addEventListener("click", () => toast(`Would open /use-case-diagrams/${sel.id}`));
+
+document.getElementById("search").addEventListener("input", (e) => renderList(e.target.value));
+
+renderList();
+renderStage();
+</script>
