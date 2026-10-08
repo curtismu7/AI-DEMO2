@@ -5,6 +5,8 @@
 .ucd-head__row1 { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .ucd-head__row1 h1 { margin: 0; font-size: 20px; }
 .ucd-cue { background: var(--th-bg-emphasis); color: var(--th-text-on-emphasis); border-radius: 7px; padding: 3px 10px; font-size: 11px; font-weight: 700; }
+.ucd-back { color: var(--th-status-info-text); font-size: 12px; font-weight: 700; text-decoration: none; }
+.ucd-back:hover { text-decoration: underline; }
 .ucd-id { color: var(--th-text-body); font-size: 12px; }
 .ucd-meta { color: var(--th-text-body); font-size: 12px; }
 .ucd-desc { color: var(--th-text-body); max-width: 90ch; }
