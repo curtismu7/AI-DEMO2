@@ -1261,6 +1261,7 @@ const MFATestPageContent: FC = () => {
       setFidoMetaStatus("passed");
     } catch (err: any) {
       const errData = err?.response?.data;
+      if (errData?.aaguid) setFidoAaguid(errData.aaguid);
       setRawFidoMeta(errData || { error: err.message });
       setFidoMeta(null);
       setFidoMetaPingoneReq(errData?.pingoneRequest);
@@ -2079,6 +2080,19 @@ const MFATestPageContent: FC = () => {
             />
           )}
           <>
+              <h3 id="fido2-device-metadata" className="mfa-fido-meta__heading">
+                FIDO2 Device Metadata
+              </h3>
+              <label className="mfa-fido-meta__lookup">
+                <span>AAGUID</span>
+                <input
+                  type="text"
+                  value={fidoAaguid || ""}
+                  onChange={(e) => setFidoAaguid(e.target.value.trim() || null)}
+                  placeholder="Blank = use your registered FIDO2 device"
+                  spellCheck={false}
+                />
+              </label>
               <MFATestCard
                 title="Read FIDO2 Device Metadata"
                 method="GET"

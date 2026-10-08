@@ -974,11 +974,26 @@ router.post('/integration/enroll-fido2-init', async (req, res) => {
   }
 });
 
+// PingOne answers 404 when the AAGUID has no FIDO Metadata Service entry, which is the
+// normal result for platform passkeys. Say that instead of "resource not found".
+function fidoMetadataErrorBody(err, aaguid) {
+  return {
+    success: false,
+    error: err.status === 404
+      ? 'No FIDO Metadata Service entry for this authenticator. Platform passkeys (Chrome, iCloud Keychain, Windows Hello) usually are not listed; try a hardware security key.'
+      : err.message,
+    aaguid,
+    pingoneRequest: err._debug && normalizePingoneRequest(err._debug.request),
+    pingoneResponse: err._debug && err._debug.response,
+  };
+}
+
 /**
  * GET /api/mfa/test/integration/fido2-metadata
  * Same as the :aaguid form, but takes the AAGUID from the user's registered FIDO2 device.
  */
 router.get('/integration/fido2-metadata', async (req, res) => {
+  let aaguid;
   try {
     const { userId } = await _resolveCredentials(req);
     const { devices } = await mfaService.listMfaDevices(userId);
@@ -988,7 +1003,7 @@ router.get('/integration/fido2-metadata', async (req, res) => {
     }
     const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     // PingOne puts the lookup ID at device.fidoDeviceMetadata.mdsIdentifier.
-    const aaguid = [device.fidoDeviceMetadata?.mdsIdentifier, device.aaguid, device.mdsIdentifier].find((v) => uuid.test(String(v || '')));
+    aaguid = [device.fidoDeviceMetadata?.mdsIdentifier, device.aaguid, device.mdsIdentifier].find((v) => uuid.test(String(v || '')));
     if (!aaguid) {
       return res.status(422).json({
         success: false,
@@ -1007,12 +1022,7 @@ router.get('/integration/fido2-metadata', async (req, res) => {
     });
   } catch (err) {
     console.error('[MFA Test Integration] GET /fido2-metadata (registered device) failed:', err.message);
-    res.status(err.status || 500).json({
-      success: false,
-      error: err.message,
-      pingoneRequest: err._debug && normalizePingoneRequest(err._debug.request),
-      pingoneResponse: err._debug && err._debug.response,
-    });
+    res.status(err.status || 500).json(fidoMetadataErrorBody(err, aaguid));
   }
 });
 
@@ -1035,12 +1045,7 @@ router.get('/integration/fido2-metadata/:aaguid', async (req, res) => {
     });
   } catch (err) {
     console.error('[MFA Test Integration] GET /fido2-metadata failed:', err.message);
-    res.status(err.status || 500).json({
-      success: false,
-      error: err.message,
-      pingoneRequest: err._debug && normalizePingoneRequest(err._debug.request),
-      pingoneResponse: err._debug && err._debug.response,
-    });
+    res.status(err.status || 500).json(fidoMetadataErrorBody(err, aaguid));
   }
 });
 

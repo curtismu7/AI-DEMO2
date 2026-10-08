@@ -1167,3 +1167,28 @@
   margin: 0;
   word-break: break-word;
 }
+
+.mfa-fido-meta__heading {
+  margin: 1.5rem 0 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--th-text-body);
+}
+
+.mfa-fido-meta__lookup {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0 0 0.75rem;
+  color: var(--th-text-body);
+}
+.mfa-fido-meta__lookup input {
+  flex: 1;
+  max-width: 28rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--th-border-strong);
+  border-radius: 6px;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font-family: var(--font-mono);
+}
