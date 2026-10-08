@@ -279,6 +279,8 @@
     "/cimd-privilege": "public",
     "/a2a-architecture": "public",
     "/diagrams": "public",
+    "/use-case-diagrams": "public",
+    "/use-case-diagrams/:ucId": "public",
     "/ping-ai-test-lab": "public",
     "/ping-products/verify-recognize": "public",
     "/pingfederate-id-jag": "public",
