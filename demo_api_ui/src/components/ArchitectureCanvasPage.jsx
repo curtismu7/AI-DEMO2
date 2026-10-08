@@ -431,7 +431,9 @@ function CanvasEditor() {
     ? 'Press Enter or click Save to rename'
     : selectedEdge
     ? 'Arrow selected — click Delete Edge (or press Backspace) to remove'
-    : 'Drag to reposition · Double-click to rename · Drag from a box’s right dot to another box’s left dot to connect · Click an arrow to select it';
+    : selectedFlow
+    ? 'Simulate walks this flow’s arrows in order — Pause/Resume, Prev/Next and Reset appear while it runs'
+    : 'Drag to reposition · Double-click to rename · Drag from a box’s right dot to another box’s left dot to connect · Click an arrow to select it · Pick a Flow above for the Simulate bar';
 
   return (
     <div className="canvas-page">

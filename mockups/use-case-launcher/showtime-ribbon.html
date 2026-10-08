@@ -1,0 +1,996 @@
+<title>Showtime Ribbon</title>
+<style>
+  /* Layout: broadcast ribbon of demo-step cards over a diagram stage with three view modes */
+  :root {
+    --bg:#f6f7f9; --card:#ffffff; --inset:#f1f5f9; --band:#16325c; --band-2:#1d3f73;
+    --brand-text:#16325c; /* band color as TEXT — must stay readable on --inset/--card */
+    --text:#0f172a; --body:#374151; --muted:#64748b;
+    --border:#dbe2ea; --border-strong:#c3cdd9; --hover:#eef2f7;
+    --ok:#16a34a; --ok-bg:#dcfce7; --ok-tx:#14532d;
+    --warn:#f59e0b; --warn-bg:#fef3c7; --warn-tx:#78350f;
+    --err:#dc2626; --err-bg:#fee2e2; --err-tx:#7f1d1d;
+    --info:#2563eb; --info-bg:#dbeafe; --info-tx:#1e3a8a;
+    --edge:#94a3b8; --radius:10px;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg:#0b1220; --card:#111c30; --inset:#17233c; --band:#122a4e; --band-2:#1a3763;
+    --brand-text:#8fb8e8;
+    --text:#e6eefb; --body:#c3cfe0; --muted:#8ba0bb;
+    --border:#24344f; --border-strong:#31445f; --hover:#1a2740;
+    --ok:#22c55e; --ok-bg:rgba(34,197,94,.15); --ok-tx:#86efac;
+    --warn:#fbbf24; --warn-bg:rgba(245,158,11,.16); --warn-tx:#fcd34d;
+    --err:#ef4444; --err-bg:rgba(239,68,68,.17); --err-tx:#fca5a5;
+    --info:#3b82f6; --info-bg:rgba(59,130,246,.17); --info-tx:#93c5fd;
+    --edge:#7d95bd; color-scheme: dark;
+  } }
+  :root[data-theme="dark"] {
+    --bg:#0b1220; --card:#111c30; --inset:#17233c; --band:#122a4e; --band-2:#1a3763;
+    --brand-text:#8fb8e8;
+    --text:#e6eefb; --body:#c3cfe0; --muted:#8ba0bb;
+    --border:#24344f; --border-strong:#31445f; --hover:#1a2740;
+    --ok:#22c55e; --ok-bg:rgba(34,197,94,.15); --ok-tx:#86efac;
+    --warn:#fbbf24; --warn-bg:rgba(245,158,11,.16); --warn-tx:#fcd34d;
+    --err:#ef4444; --err-bg:rgba(239,68,68,.17); --err-tx:#fca5a5;
+    --info:#3b82f6; --info-bg:rgba(59,130,246,.17); --info-tx:#93c5fd;
+    --edge:#7d95bd; color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    padding: 0 16px 40px;
+  }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  button, select { font: inherit; color: inherit; }
+
+  /* header band */
+  .band { background: var(--band); color:#fff; margin: 0 -16px 22px; padding: 18px 22px 20px; }
+  .eyebrow { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; opacity: .75; font-weight: 600; }
+  .band h1 { margin: 4px 0 4px; font-size: 21px; font-weight: 700; letter-spacing: -.01em; }
+  .band p { margin: 0; opacity: .8; max-width: 62ch; font-size: 13px; }
+  .concept-chip {
+    float: right; border: 1px solid rgba(255,255,255,.35); border-radius: 999px;
+    padding: 3px 10px; font-size: 11px; font-weight: 600; letter-spacing: .08em; margin-top: 2px;
+  }
+
+  /* ribbon of step cards */
+  .rail { display: flex; gap: 18px; overflow-x: auto; padding: 4px 2px 14px; }
+  .act { flex: 0 0 auto; }
+  .act-label {
+    display: flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 700;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px 2px;
+  }
+  .act-dot { width: 8px; height: 8px; border-radius: 2px; }
+  .cards { display: flex; gap: 10px; }
+  .step-card {
+    width: 188px; flex: 0 0 auto; background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 10px 12px 11px; cursor: pointer; position: relative;
+    transition: box-shadow .15s, transform .15s, border-color .15s; text-align: left;
+  }
+  .step-card:hover { border-color: var(--border-strong); box-shadow: 0 4px 14px rgba(15,23,42,.08); transform: translateY(-1px); }
+  .step-card.sel { border-color: var(--band); box-shadow: 0 0 0 2px var(--band), 0 4px 14px rgba(15,23,42,.10); }
+  .step-card .stripe { position: absolute; inset: 0 auto 0 0; width: 4px; border-radius: 3px 0 0 3px; }
+  .sc-top { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
+  .sc-num { font-size: 22px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .sc-id { font-size: 10.5px; color: var(--muted); border: 1px solid var(--border); border-radius: 5px; padding: 1px 6px; }
+  .sc-title {
+    font-size: 12.5px; font-weight: 600; line-height: 1.3; min-height: 33px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 8px;
+  }
+  .sc-foot { display: flex; align-items: center; justify-content: space-between; }
+  .sc-meta { font-size: 10.5px; color: var(--muted); }
+  .verdict { font-size: 10px; font-weight: 700; letter-spacing: .05em; border-radius: 999px; padding: 2px 8px; }
+  .v-ok { background: var(--ok-bg); color: var(--ok-tx); }
+  .v-warn { background: var(--warn-bg); color: var(--warn-tx); }
+  .v-err { background: var(--err-bg); color: var(--err-tx); }
+  .v-info { background: var(--info-bg); color: var(--info-tx); }
+  .sc-play {
+    position: absolute; right: 9px; bottom: 9px; width: 26px; height: 26px; border-radius: 50%;
+    background: var(--band); color: #fff; border: 0; display: grid; place-items: center;
+    opacity: 0; transition: opacity .15s; font-size: 10px; cursor: pointer;
+  }
+  .step-card:hover .sc-play, .step-card.sel .sc-play { opacity: 1; }
+
+  /* stage */
+  .stage { background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+  .stage-head { padding: 14px 16px 12px; border-bottom: 1px solid var(--border); }
+  .sh-row1 { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .cue {
+    background: var(--band); color: #fff; border-radius: 7px; padding: 4px 10px;
+    font-size: 11px; font-weight: 700; letter-spacing: .08em; font-variant-numeric: tabular-nums;
+    flex: 0 0 auto;
+  }
+  .stage-title { font-size: 15px; font-weight: 700; }
+  .launch {
+    margin-left: auto; background: var(--band); color: #fff; border: 0; border-radius: 8px;
+    padding: 8px 14px; font-weight: 600; font-size: 13px; cursor: pointer; flex: 0 0 auto;
+  }
+  .launch:hover { background: var(--band-2); }
+  .sh-row2 { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 9px; }
+  .meta-chip {
+    font-size: 10.5px; font-weight: 600; border: 1px solid var(--border-strong); border-radius: 999px;
+    padding: 3px 10px; color: var(--muted); font-variant-numeric: tabular-nums;
+  }
+  .meta-chip b { color: var(--text); font-weight: 700; }
+  .meta-chip.result-chip { border: 0; }
+  .sh-desc { margin: 9px 0 0; font-size: 12.5px; color: var(--body); line-height: 1.5; max-width: 88ch; }
+  .sh-value { margin: 5px 0 0; font-size: 12px; color: var(--muted); line-height: 1.5; max-width: 88ch; }
+  .sh-value b {
+    color: var(--brand-text); font-weight: 700; font-size: 10px; letter-spacing: .1em;
+    text-transform: uppercase; margin-right: 6px;
+  }
+  .sh-row2 .viewseg { margin-left: auto; }
+
+  /* view mode segmented control */
+  .viewseg { display: inline-flex; border: 1px solid var(--border-strong); border-radius: 8px; overflow: hidden; }
+  .viewseg button {
+    border: 0; background: var(--card); padding: 6px 12px; font-size: 12px; font-weight: 600;
+    color: var(--muted); cursor: pointer; border-right: 1px solid var(--border);
+  }
+  .viewseg button:last-child { border-right: 0; }
+  .viewseg button:hover { background: var(--hover); }
+  .viewseg button.on { background: var(--band); color: #fff; }
+
+  .stage-diagram { position: relative; background: var(--inset); }
+  .dots { position: absolute; inset: 0; background-image: radial-gradient(var(--edge) 1px, transparent 1px); background-size: 22px 22px; opacity: .35; pointer-events: none; }
+  .stage svg { display: block; width: 100%; height: auto; }
+  .unode { cursor: pointer; }
+  .unode rect.main { transition: stroke .12s, stroke-width .12s; }
+  .focus-hint { font-size: 13px; fill: var(--muted); font-style: italic; }
+
+  /* details panel under the diagram */
+  .detail-panel {
+    border-top: 1px solid var(--border); background: var(--inset); padding: 11px 16px;
+    display: flex; gap: 10px; align-items: baseline; min-height: 58px;
+  }
+  .dp-chip {
+    font-size: 10.5px; font-weight: 800; color: #fff; background: var(--band); border-radius: 6px;
+    padding: 2px 8px; font-variant-numeric: tabular-nums; flex: 0 0 auto; white-space: nowrap;
+  }
+  .dp-body { font-size: 13px; color: var(--text); line-height: 1.5; min-width: 0; }
+  .dp-body .who { color: var(--muted); font-weight: 700; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; margin-right: 6px; }
+  .dp-hops { margin-top: 3px; font-size: 12px; color: var(--muted); }
+  .dp-hops b { color: var(--body); font-weight: 600; }
+  .next-chip {
+    margin-left: auto; flex: 0 0 auto; border: 1px solid var(--border-strong); background: var(--card);
+    color: var(--brand-text); border-radius: 999px; padding: 4px 12px; font-size: 11.5px; font-weight: 700; cursor: pointer;
+  }
+  .next-chip:hover { background: var(--hover); border-color: var(--brand-text); }
+  /* wire-level detail rows: the API calls, tokens, A2A cards behind a hop */
+  .dp-wire { margin-top: 9px; display: grid; gap: 4px; width: 100%; }
+  .wire-row { display: flex; gap: 7px; align-items: baseline; min-width: 0; }
+  .wire-tag {
+    flex: 0 0 auto; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 9px; font-weight: 800; letter-spacing: .06em; border-radius: 4px; padding: 1px 5px;
+  }
+  .wt-api { background: var(--info-bg); color: var(--info-tx); }
+  .wt-token { background: var(--info-bg); color: var(--brand-text); border: 1px solid var(--band); }
+  .wt-a2a { background: var(--ok-bg); color: var(--ok-tx); }
+  .wt-policy { background: var(--inset); color: var(--body); border: 1px solid var(--border-strong); }
+  .wire-row code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 11px; color: var(--text); word-break: break-word; min-width: 0;
+  }
+  /* UC context line inside the details panel: step number, title, result */
+  .dp-ctx { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; width: 100%; margin-bottom: 2px; }
+  .dp-ctx-num {
+    flex: 0 0 auto; background: var(--band); color: #fff; border-radius: 6px; padding: 2px 8px;
+    font-size: 10px; font-weight: 800; letter-spacing: .07em; font-variant-numeric: tabular-nums;
+  }
+  .dp-ctx-title { font-size: 13px; font-weight: 700; color: var(--text); }
+  .dp-ctx-id { font-size: 10.5px; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .dp-ucdesc { font-size: 12.5px; color: var(--body); line-height: 1.5; width: 100%; }
+  .dp-ucvalue { font-size: 12px; color: var(--muted); line-height: 1.5; width: 100%; }
+  .dp-ucvalue b {
+    color: var(--brand-text); font-weight: 700; font-size: 10px; letter-spacing: .1em;
+    text-transform: uppercase; margin-right: 6px;
+  }
+  /* running trace during Simulate: one row per hop so far, current expanded */
+  .dp-log { display: flex; flex-direction: column; gap: 6px; width: 100%; max-height: 240px; overflow-y: auto; }
+  .dp-log-row { display: flex; gap: 9px; align-items: flex-start; padding: 5px 8px; border-radius: 8px; border: 1px solid transparent; }
+  .dp-log-row.done { opacity: .62; }
+  .dp-log-row.current { border-color: var(--border-strong); background: var(--card); opacity: 1; }
+  .dp-log-n {
+    flex: 0 0 auto; width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center;
+    background: var(--inset); color: var(--body); font-size: 10px; font-weight: 800; font-variant-numeric: tabular-nums;
+  }
+  .dp-log-row.current .dp-log-n { background: var(--band); color: #fff; }
+  .dp-log-body { min-width: 0; flex: 1; }
+  .dp-log-head { font-size: 12.5px; color: var(--text); min-width: 0; }
+  .dp-log-detail { font-size: 12px; color: var(--body); margin-top: 2px; }
+  .dp-log .dp-wire { margin-top: 5px; }
+  .sc-walked {
+    position: absolute; left: 11px; bottom: 9px; width: 16px; height: 16px; border-radius: 50%;
+    background: var(--ok-bg); color: var(--ok-tx); font-size: 10px; font-weight: 800;
+    display: grid; place-items: center;
+  }
+
+  /* layout toggle + console (two-pane) mode */
+  .layoutseg { display: inline-flex; border: 1px solid rgba(255,255,255,.45); border-radius: 8px; overflow: hidden; margin-top: 14px; }
+  .layoutseg button {
+    border: 0; background: transparent; color: #fff; opacity: .75; padding: 6px 16px;
+    font-size: 12px; font-weight: 700; cursor: pointer;
+  }
+  .layoutseg button.on { background: #fff; color: var(--brand-text); opacity: 1; }
+  main.console { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 18px; align-items: start; }
+  main.console #rail { display: none; }
+  main.console .stage { position: sticky; top: 12px; }
+  @media (max-width: 880px) { main.console { grid-template-columns: 1fr; } main.console .stage { position: static; } }
+  #sidebar { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 14px; }
+  .l-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .l-head h2 { margin: 0; font-size: 14px; font-weight: 700; }
+  .l-count { font-size: 10px; font-weight: 700; letter-spacing: .05em; border: 1px solid var(--border-strong); color: var(--muted); border-radius: 999px; padding: 2px 8px; }
+  .search {
+    width: 100%; border: 1px solid var(--border-strong); border-radius: 8px; padding: 7px 10px;
+    font-size: 13px; background: var(--inset); margin-bottom: 12px;
+  }
+  .search:focus { outline: 2px solid var(--band); outline-offset: 0; }
+  .actor { margin-bottom: 14px; }
+  .actor-h { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px; }
+  .actor-ic { width: 20px; height: 20px; border-radius: 6px; display: grid; place-items: center; font-size: 10px; color: #fff; flex: 0 0 auto; }
+  .actor-n { margin-left: auto; font-size: 10.5px; font-weight: 600; color: var(--muted); background: var(--inset); border-radius: 999px; padding: 1px 7px; }
+  .uc-row {
+    display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+    background: transparent; border: 1px solid transparent; border-radius: 8px; padding: 7px 9px; cursor: pointer;
+  }
+  .uc-row:hover { background: var(--hover); }
+  .uc-row.sel { background: var(--inset); border-color: var(--border-strong); }
+  .uc-num { font-size: 12px; font-weight: 800; color: var(--muted); width: 22px; font-variant-numeric: tabular-nums; flex: 0 0 auto; }
+  .uc-row.sel .uc-num { color: var(--brand-text); }
+  .uc-name { font-size: 12.5px; font-weight: 600; line-height: 1.25; flex: 1; min-width: 0; }
+  .uc-walked { font-size: 10px; color: var(--ok-tx); flex: 0 0 auto; }
+
+  /* shared control bar */
+  .controls { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 10px 14px; border-top: 1px solid var(--border); }
+  .ctl {
+    border: 1px solid var(--border-strong); background: var(--card); border-radius: 7px;
+    padding: 6px 11px; font-size: 12.5px; font-weight: 600; cursor: pointer;
+  }
+  .ctl:hover { background: var(--hover); }
+  .ctl:disabled { opacity: .45; cursor: default; }
+  .ctl-primary { background: var(--band); border-color: var(--band); color: #fff; }
+  .ctl-primary:hover { background: var(--band-2); }
+  .ctl-step { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; margin-left: 2px; }
+  .divider { width: 1px; align-self: stretch; background: var(--border); margin: 0 4px; }
+  select.ctl { padding: 5px 8px; }
+  .zoom { font-size: 12px; color: var(--muted); min-width: 44px; text-align: center; font-variant-numeric: tabular-nums; }
+
+  .footnote { margin: 14px 4px 0; font-size: 12px; color: var(--muted); }
+
+  /* toast */
+  #toast {
+    position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%) translateY(8px);
+    background: var(--band); color: #fff; border-radius: 9px; padding: 9px 16px; font-size: 13px;
+    opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; max-width: 90vw;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  @keyframes dotflow { to { stroke-dashoffset: -8; } }
+  /* activity = round dots travelling along the edge (tiny dash + round caps) */
+  .dashflow { stroke-dasharray: .5 7.5; stroke-linecap: round; animation: dotflow .7s linear infinite; }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+    .dashflow { stroke-dashoffset: 0 !important; }
+  }
+</style>
+
+<header class="band">
+  <span class="concept-chip">CONCEPT A · REV 2</span>
+  <div class="eyebrow">Use-case diagrams · launcher</div>
+  <h1>Showtime ribbon</h1>
+  <p>Click a card to load its diagram — the entry node lights up and its details open in the panel below. Edge details show between the nodes by default; the Focus view keeps only the selected node and its neighbours, with the details drawn on the diagram itself.</p>
+  <div class="layoutseg" role="group" aria-label="Launcher layout">
+    <button type="button" id="lay-film" class="on">▦ Filmstrip</button>
+    <button type="button" id="lay-console">☰ Console</button>
+  </div>
+</header>
+
+<main id="main">
+  <div class="rail" id="rail" aria-label="Demo steps"></div>
+
+  <section class="stage" aria-label="Diagram stage">
+    <div class="stage-head">
+      <div class="sh-row1">
+        <span class="cue" id="cue">STEP 2</span>
+        <span class="stage-title" id="stage-title">Delegated access (consent only)</span>
+        <div class="viewseg" role="group" aria-label="Diagram view">
+          <button type="button" id="vw-flow">Flow</button>
+          <button type="button" id="vw-details" class="on">Details</button>
+          <button type="button" id="vw-focus">Focus</button>
+        </div>
+        <button class="launch" id="launch">Open diagram ↗</button>
+      </div>
+      <div class="sh-row2">
+        <span class="meta-chip">Demo step <b id="meta-step">2</b></span>
+        <span class="meta-chip mono" id="meta-id">UC1</span>
+        <span class="meta-chip result-chip"><span class="verdict v-ok" id="stage-verdict">PERMIT</span></span>
+        <span class="meta-chip"><b id="meta-hops">4</b> hops</span>
+        <span class="meta-chip"><b id="meta-actors">5</b> actors</span>
+      </div>
+      <p class="sh-desc" id="stage-desc"></p>
+      <p class="sh-value"><b>Business value</b><span id="stage-value"></span></p>
+    </div>
+    <div class="stage-diagram">
+      <div class="dots"></div>
+      <svg id="dsvg" viewBox="0 0 880 260" role="img" aria-label="Diagram"></svg>
+    </div>
+    <div class="detail-panel">
+      <span class="dp-chip" id="dp-chip">—</span>
+      <span class="dp-body" id="dp-body">Click any node in the diagram to highlight it and read what happens there.</span>
+      <button class="next-chip" id="next-chip" hidden></button>
+    </div>
+    <div class="controls">
+      <button class="ctl ctl-primary" id="btn-play">▶ Simulate</button>
+      <button class="ctl" id="btn-pause" disabled>⏸ Pause</button>
+      <button class="ctl" id="btn-prev" disabled>← Prev</button>
+      <button class="ctl" id="btn-next" disabled>Next →</button>
+      <button class="ctl" id="btn-stop" disabled>■ Stop</button>
+      <button class="ctl" id="btn-reset" title="Reset the diagram and clear history">↺ Reset</button>
+      <span class="ctl-step" id="step-label">Step 0 / 4</span>
+      <span class="divider"></span>
+      <select class="ctl" id="step-ms" title="Time each step takes">
+        <option value="0.8">0.8s (fast)</option><option value="1.5">1.5s</option><option value="2.5" selected>2.5s (default)</option><option value="4">4s</option><option value="6">6s (slow)</option>
+      </select>
+      <span class="divider"></span>
+      <button class="ctl" id="z-out">−</button><span class="zoom">100%</span><button class="ctl" id="z-in">+</button><button class="ctl" id="z-fit" title="Reset zoom">↺</button>
+    </div>
+  </section>
+
+  <aside id="sidebar" hidden aria-label="Demo steps by actor">
+    <div class="l-head">
+      <h2>Demo steps</h2>
+      <span class="l-count" id="l-count">18</span>
+    </div>
+    <input class="search" id="search" type="search" placeholder="Filter steps…" aria-label="Filter demo steps" />
+    <div id="list"></div>
+  </aside>
+</main>
+
+  <p class="footnote">Concept A rev 3 — <b>Flow</b>: arrows and labels only. <b>Details</b> (default): what flows on each edge, plus click-to-inspect nodes. <b>Focus</b>: the selected node with the nodes before and after it, details drawn on the diagram. <b>Filmstrip / Console</b> toggles the launcher: script order, or grouped by who initiates the call with a live filter — same stage and data in both.</p>
+</main>
+
+<div id="toast" role="status"></div>
+
+<script>
+const ACTS = [
+  { key: "act1", label: "Act 1 · Public trust", color: "var(--info)" },
+  { key: "act2", label: "Act 2 · Delegation & policy", color: "var(--band)" },
+  { key: "act3", label: "Act 3 · Agent to agent", color: "var(--ok)" },
+  { key: "act4", label: "Act 4 · Defenses", color: "var(--err)" },
+];
+/* nd = per-node detail (same order as who), ed = per-edge [label, detail],
+   desc = demoStepGuides "what", value = demoStepGuides "businessValue" — real copy */
+const STEPS = [
+  { id:"UC24", n:1, act:"act1", title:"Public catalog access", verdict:"PERMIT", v:"ok",
+    who:["User","Agent","Catalog"],
+    nd:["Alice browses the catalog — signed out, no token.","Fetches catalog data without credentials.","Public product data — no identity required."],
+    ed:[["browse catalog","No Authorization header — nothing secret on this hop."],
+        ["GET /products","Anonymous read — the trust ladder starts at zero."]],
+    desc:"The agent answers a public branch question (Austin, Dallas, Houston, Miami or Denver) with no sign-in and no privilege escalation. The trace shows no token exchange, Agent Gateway or PingOne Authorize step.",
+    value:"Progressive trust: the agent only escalates privilege when it must, so public data is served without token exchange." },
+  { id:"UC1", n:2, act:"act2", title:"Delegated access (consent only)", verdict:"PERMIT", v:"ok",
+    who:["User","Agent","Gateway","PingOne","Accounts"],
+    nd:["Alice signed in; her agent acts for her.","Holds Alice's token, needs account data.","Checks client, then policy, then downscopes.","Exchanges the token; mints the agent token.","Serves accounts to the downscoped caller."],
+    ed:[["acts for Alice","Delegated consent — Alice's authority, explicitly granted."],
+        ["user token","Gateway validates the client (CIMD) before policy."],
+        ["token exchange · RFC 8693","User token in, downscoped agent token out."],
+        ["agent token · accounts:read","Narrowed: read-only, one user, one API."]],
+    desc:"The agent reads the signed-in user's balance on their behalf. The token-chain rail shows the user token, the RFC 8693 token exchange, the Authorize decision and the tool dispatch, with the act claim on the delegated token.",
+    value:"Every agent action is tied to the user who authorized it, giving audit teams a full chain of custody from login to tool call." },
+  { id:"UC8", n:3, act:"act2", title:"MCP App · transfer approval", verdict:"CONSENT", v:"warn",
+    who:["User","Agent","Gateway","HITL"],
+    nd:["Approves the transfer in the MCP App.","Proposes the transfer, then waits.","Pauses the call — sensitive scope needs a human.","Pages Alice; binds consent to this one request."],
+    ed:[["asks for transfer","Alice types the request into her agent."],
+        ["tool call","Transfer scope trips the HITL gate."],
+        ["consent required","Gateway holds the call — nothing executes yet."]],
+    desc:"The agent attempts a $300 checking-to-savings transfer. PingOne Authorize returns a human-in-the-loop obligation, the agent pauses and a consent modal appears. The transfer runs only after the user approves.",
+    value:"Consequential agent actions are gated on verified human consent, with an auditable, policy-triggered approval tied to the eventual tool call." },
+  { id:"UC7", n:4, act:"act2", title:"MFA step-up (HITL)", verdict:"STEP-UP", v:"warn",
+    who:["User","Agent","Gateway","PingOne"],
+    nd:["Answers the MFA challenge.","Requests the payment — read-only was fine, this isn't.","Checks the session's ACR; not enough for payments.","Runs MFA, then upgrades the session."],
+    ed:[["move funds","A sensitive action — step-up is required."],
+        ["tool call","Session ACR too low for payments."],
+        ["step-up challenge","PingOne challenges: push or OTP."]],
+    desc:"The agent attempts a $600 transfer. The amount clears the step-up threshold but not the hard deny ceiling, so Authorize returns a step-up obligation. The user completes MFA and the policy re-evaluates to PERMIT.",
+    value:"High-value actions get a proportional gate, and the threshold is a rule changed in the Authorize console without redeploying anything." },
+  { id:"UC14b", n:5, act:"act2", title:"PAR + RAR intent verified (PERMIT)", verdict:"PERMIT", v:"ok",
+    who:["Agent","Gateway","PingOne"],
+    nd:["Pushes PAR with RAR: amount, payee, intent.","Relays the registered request.","Verifies intent against policy — it matches."],
+    ed:[["PAR + RAR push","Intent registered before any token exists."],
+        ["authorize request_uri","Authorize compares the request to the registration."]],
+    desc:"The agent pushes its intent (amount and payee) to PingOne as a Pushed Authorization Request, then makes a transfer within that cap. The token chain shows the armed grant and an Intent Verified step, and the result is PERMIT.",
+    value:"Authorization is tied to the exact user intent, so the agent can only do what was explicitly approved." },
+  { id:"UC14", n:6, act:"act2", title:"PAR + RAR intent violation (pushed intent exceeded)", verdict:"DENY", v:"err",
+    who:["Agent","Gateway","PingOne"],
+    nd:["Registered $200 to savings via PAR.","Relays the later request.","Call asks $2,000 — mismatch, DENY."],
+    ed:[["PAR + RAR push","$200 to savings, on the record."],
+        ["request_uri","Authorize holds the intent of record."]],
+    desc:"Using the same PAR grant as UC14b, the agent asks for more than it pushed. PingOne Authorize compares the live request to the bound authorization_details and returns DENY.",
+    value:"An agent cannot exceed what the user explicitly approved, which limits the damage from a misbehaving or manipulated agent." },
+  { id:"UC12", n:7, act:"act2", title:"Token theft / replay defense", verdict:"BLOCKED", v:"err",
+    who:["Attacker","Gateway","PingOne"],
+    nd:["Lifts a bearer token in transit.","Demands a DPoP proof on replay.","Audience binding fails — incident logged."],
+    ed:[["replay stolen token","Same token, different hands — DPoP catches it."],
+        ["proof check","No private key, no proof — rejected."]],
+    desc:"A simulated attacker captures a DPoP-bound token's proof and replays it at the gateway. The first use is accepted, the replay is refused, and the rail shows DENY 401 (invalid_dpop_proof).",
+    value:"Two layers of replay defense with no application changes: audience binding stops a token being spent at another service, and DPoP binding stops a stolen token being replayed." },
+  { id:"UC6", n:8, act:"act2", title:"Authz denied", verdict:"DENY", v:"err",
+    who:["Agent","Gateway","PingOne"],
+    nd:["Valid token, wrong request.","Asks Authorize before any tool runs.","Policy: this scope never reaches this tool."],
+    ed:[["tool call","Token is valid — that's not the question."],
+        ["evaluate policy","Scope-to-tool mapping checked in policy."]],
+    desc:"The agent attempts a $2,500 transfer over the policy ceiling and PingOne Authorize returns DENY before the tool runs, so no money moves. The audience sees DENY in the chat and an authorize-decision step in the token chain.",
+    value:"Policy enforcement is externalized and instant: changing the deny ceiling is a rule edit, not a code change, and applies to every agent and channel." },
+  { id:"UC2", n:9, act:"act3", title:"A2A delegation", verdict:"PERMIT", v:"ok",
+    who:["Agent A","Agent B","Gateway","PingOne"],
+    nd:["Hits a capability it lacks.","Discovers its task via the A2A card.","Checks B's registration; mints a subtask token.","Tags actor identity; evaluates policy."],
+    ed:[["delegation request","Task and actor identity travel together."],
+        ["register + authenticate","B is a known client (CIMD)."],
+        ["subtask token","Narrow scope, actor claim attached."]],
+    desc:"A generalist agent hands the job to a specialist agent and the specialist's tool call returns PERMIT. The token chain shows a nested act chain: user, then the Banking Agent generalist, then the specialist, with scope narrowed at each hop.",
+    value:"Multi-agent pipelines stay governed end to end: each specialist inherits only the scope the handoff explicitly granted, visible in the token." },
+  { id:"UC2.5", n:10, act:"act3", title:"A2A Orchestrator — Interactive Learning", verdict:"LEARN", v:"info",
+    who:["Orchestrator","Agent B","Gateway"],
+    nd:["Reviews what Agent B actually did.","Ran two of five possible tools.","Fed the usage record."],
+    ed:[["inspect run","The capability boundary becomes visible."],
+        ["usage record","Next delegation is pre-scoped tighter."]],
+    desc:"The generalist agent analyzes a request, picks the best specialist and orchestrates a two-hop delegation with a narrowed nested-act token. The token chain and activity panel update as it unfolds.",
+    value:"Agents can route work they are not expert in to a specialist without hard-coded task mapping, while every hop stays governed, scope-narrowed and auditable." },
+  { id:"UC2.7", n:11, act:"act3", title:"A2A end to end (protocol + identity)", verdict:"PERMIT", v:"ok",
+    who:["Agent A","Agent B","Gateway","PingOne","Accounts"],
+    nd:["The full A2A story, start to finish.","Executes the delegated task.","Enforces at every hop.","Identity and policy throughout.","Validates actor + scope before answering."],
+    ed:[["discovery + delegation","Card fetched, task sent, identity attached."],
+        ["subtask token","Gateway mints it with the actor claim."],
+        ["policy check","Authorize evaluates the subtask scope."],
+        ["actor + scope","The resource sees exactly who is asking."]],
+    desc:"A walkthrough page shows the real Agent Card, a real 401 when a JSON-RPC call has no bearer, and, when signed in, a live 'Run the delegation' that renders every hop: two client_credentials tokens, two RFC 8693 exchanges, scope narrowing and act nesting.",
+    value:"It removes the most common confusion in agent-to-agent conversations by showing the Agent Card, the refusal and the nested act claim in one place." },
+  { id:"UC22", n:12, act:"act3", title:"CIBA out-of-band approval", verdict:"APPROVED", v:"info",
+    who:["User","Agent","PingOne"],
+    nd:["Approves on the phone — no browser.","Initiates the CIBA backchannel.","Pushes the prompt; signals the result."],
+    ed:[["asks","The request starts with the user's ask."],
+        ["CIBA backchannel","No browser redirect — PingOne pushes instead."]],
+    desc:"The agent moves a deliberately small $150 and approval is requested out-of-band on the user's own phone. The agent polls and proceeds only after the user approves. The token chain shows authorize-decision, ciba-poll, then tool-dispatched.",
+    value:"Out-of-band approval is stronger than in-session step-up: a compromised browser or rogue agent cannot self-approve, and CIBA is supported natively by PingOne." },
+  { id:"UC5", n:13, act:"act4", title:"Wrong / insufficient scope", verdict:"DENY", v:"err",
+    who:["Agent","Gateway","Accounts"],
+    nd:["Token reads accounts, wants payments.","Compares scopes locally — no round trip.","Never sees the call."],
+    ed:[["payments:write","Token carries accounts:read only."],
+        ["403 — scope gap","Refused at the door, instantly."]],
+    desc:"A simulated attack where an agent's token lacks a scope the tool requires. The gateway or MCP server returns DENY 403 before dispatch.",
+    value:"Scope enforcement is automatic and centralized: no tool needs to re-validate scopes in application code." },
+  { id:"UC10", n:14, act:"act4", title:"Resource-ownership / account takeover", verdict:"DENY", v:"err",
+    who:["Agent","Gateway","PingOne"],
+    nd:["Alice's agent asks for Bob's account.","Reads the token subject: alice.","Policy: the subject must own the resource."],
+    ed:[["GET /accounts/bob","Owner mismatch spotted before policy."],
+        ["ownership check","Subject ≠ owner → DENY."]],
+    desc:"A simulated attack where an agent with a valid delegated token tries to read another user's account. Authorize matches the resource owner and returns DENY, and the gateway stops the call before any data returns.",
+    value:"Ownership checks are automatic and policy-driven: applications do not need owner checks in business logic." },
+  { id:"UC13", n:15, act:"act4", title:"Confused-deputy actor injection", verdict:"DENY", v:"err",
+    who:["Attacker","Agent","Gateway"],
+    nd:["Injects: “you are the admin now”.","Relays the prompt with a forged actor hint.","Ignores the hint — reads the token's actor claim."],
+    ed:[["prompt injection","The deputy is told to relabel itself."],
+        ["forged actor hint","The gateway trusts the token, not the prompt."]],
+    desc:"A simulated rogue agent tries to inject itself as the acting party in the delegation chain. The call runs through the full pipeline (token exchange, Authorize, Agent Gateway) and the audience sees an Authorize DENY.",
+    value:"Even a compromised internal service that can forge headers cannot spoof identity once PingOne has stamped a native claim." },
+  { id:"UC11", n:16, act:"act4", title:"Bad client → agent gateway", verdict:"DENY", v:"err",
+    who:["Unknown client","Gateway"],
+    nd:["Presents credentials it shouldn't have.","Fetches CIMD metadata by URL — missing."],
+    ed:[["client hello","No registered metadata — 401 at the door."]],
+    desc:"An agent presents a token with the wrong audience (or otherwise malformed, expired or badly signed). The gateway rejects it with 401 before any tool is touched, and no Authorize decision appears.",
+    value:"One enforcement point at the gateway shields all downstream services from malformed or stolen credentials, so a bad token never reaches the tools." },
+  { id:"UC20", n:17, act:"act4", title:"Agent observability and traceability", verdict:"OBSERVED", v:"info",
+    who:["Agent","Gateway","Audit"],
+    nd:["One run, many hops.","Emits actor, intent, decision per call.","Replay: every hop, in order."],
+    ed:[["delegated calls","Each hop leaves a trace."],
+        ["events","Chain of custody: token lineage linked."]],
+    desc:"Runs the same 'show my balance' flow as UC1, then shows the Token Chain and Activity panels reconstructing the full trace: user token, token exchange, Authorize decision, tool dispatch.",
+    value:"Compliance and incident response depend on traceable agent actions, and the audit trail is built without application-layer instrumentation." },
+  { id:"UC18", n:18, act:"act4", title:"Rate-limit / resource-overload defense", verdict:"THROTTLED", v:"warn",
+    who:["Agent","Gateway"],
+    nd:["A loop hammers the API.","Detects the burst; sheds load."],
+    ed:[["burst","Matches throttle policy → 429 + Retry-After."]],
+    desc:"A simulated agent floods the gateway with rapid sequential tool calls, which the gateway is meant to throttle before any tool is dispatched.",
+    value:"Rate limiting at the gateway perimeter protects upstream services and LLM budgets from runaway or adversarial agents without application changes." },
+];
+
+/* wire-level details per UC: TECH[id][hopIndex] = [{t, c}] — the actual API calls,
+   token transforms, A2A card fetches and policy decisions on that hop. t = tag kind,
+   c = the wire line shown in mono. */
+const TECH = {
+  UC24: [
+    [{ t:"API", c:"GET /api/catalog?branch=austin  (no Authorization header)" }],
+    [{ t:"API", c:"200 OK · products[] — anonymous read allowed" }],
+  ],
+  UC1: [
+    [{ t:"TOKEN", c:"user AT: sub=alice, scp=accounts:read, act=absent" }],
+    [{ t:"API", c:"POST /gateway/mcp  Authorization: Bearer <user AT>" }],
+    [{ t:"TOKEN", c:"RFC 8693 exchange → agent AT: act={sub:agent, sub:alice}, scp=accounts:read" }],
+    [{ t:"API", c:"GET /api/accounts  Authorization: Bearer <agent AT> → 200 accounts[]" }],
+  ],
+  UC8: [
+    [{ t:"API", c:"POST /gateway/mcp tools/call transfer_funds amount=300" }],
+    [{ t:"POLICY", c:"Authorize obligation: human_in_the_loop required (sensitive scope)" }],
+    [{ t:"A2A", c:"HITL consent modal ← POST /hitl/consent {amount:300, state:pending}" }],
+  ],
+  UC7: [
+    [{ t:"API", c:"POST /gateway/mcp tools/call transfer_funds amount=600" }],
+    [{ t:"POLICY", c:"ACR check: session acr=1 < required acr=2 → step-up obligation" }],
+    [{ t:"API", c:"PingOne MFA: POST /mfa/challenges → push/OTP" }],
+  ],
+  UC14b: [
+    [{ t:"API", c:"POST /as/par.oauth2  authorization_details={type:transfer, amount≤200}" }],
+    [{ t:"POLICY", c:"request_uri bound · live transfer within cap → Intent Verified, PERMIT" }],
+  ],
+  UC14: [
+    [{ t:"API", c:"POST /as/par.oauth2  authorization_details={amount≤200}" }],
+    [{ t:"POLICY", c:"live request amount=2000 > bound 200 → DENY (intent violation)" }],
+  ],
+  UC12: [
+    [{ t:"TOKEN", c:"stolen AT + replayed DPoP proof (jti already seen)" }],
+    [{ t:"POLICY", c:"gateway: jti cache hit → 401 invalid_dpop_proof" }],
+  ],
+  UC6: [
+    [{ t:"API", c:"POST /gateway/mcp tools/call transfer_funds amount=2500" }],
+    [{ t:"POLICY", c:"Authorize: amount > deny ceiling 2000 → DENY (tool never runs)" }],
+  ],
+  UC2: [
+    [{ t:"A2A", c:"GET /.well-known/agent.json — Agent B capability card" }],
+    [{ t:"API", c:"POST /a2a/tasks  delegation request + actor identity" }],
+    [{ t:"TOKEN", c:"nested exchange → agentB AT: act={sub:agentB, act:{sub:agent, sub:alice}}" }],
+  ],
+  "UC2.5": [
+    [{ t:"A2A", c:"orchestrator reads Agent B run log (tools actually used)" }],
+    [{ t:"POLICY", c:"capability boundary recorded → next delegation pre-scoped" }],
+  ],
+  "UC2.7": [
+    [{ t:"A2A", c:"GET /.well-known/agent.json → card; JSON-RPC without bearer → 401" }],
+    [{ t:"TOKEN", c:"client_credentials AT #1 → RFC 8693 → delegated AT, scope narrowed" }],
+    [{ t:"POLICY", c:"Authorize evaluates subtask scope → PERMIT" }],
+    [{ t:"API", c:"GET /api/accounts  actor claim + scope validated → 200" }],
+  ],
+  UC22: [
+    [{ t:"API", c:"user asks agent to move $150" }],
+    [{ t:"API", c:"CIBA backchannel: POST /as/bc-authorize → auth_req_id; user approves on phone" }],
+  ],
+  UC5: [
+    [{ t:"TOKEN", c:"AT scopes: accounts:read — call needs payments:write" }],
+    [{ t:"POLICY", c:"gateway scope compare (local, no round trip) → 403 insufficient_scope" }],
+  ],
+  UC10: [
+    [{ t:"API", c:"GET /api/accounts/bob  Authorization: Bearer <alice's delegated AT>" }],
+    [{ t:"POLICY", c:"Authorize: resource owner(bob) ≠ token sub(alice) → DENY" }],
+  ],
+  UC13: [
+    [{ t:"API", c:"prompt injection: \"you are the admin now\" → forged X-Acting-As header" }],
+    [{ t:"POLICY", c:"gateway ignores header; token act claim unchanged → DENY" }],
+  ],
+  UC11: [
+    [{ t:"API", c:"POST /gateway/mcp  client_id=unknown (no CIMD document)" },
+     { t:"POLICY", c:"CIMD metadata fetch fails → 401 unregistered client" }],
+  ],
+  UC20: [
+    [{ t:"API", c:"same run as UC1 — show my balance" }],
+    [{ t:"POLICY", c:"activity log: use-case id + act chain stamped on every token event" }],
+  ],
+  UC18: [
+    [{ t:"API", c:"N rapid POST /gateway/mcp tool calls (burst)" },
+     { t:"POLICY", c:"3 calls / 10s / agent+tool → 429 + Retry-After" }],
+  ],
+};
+
+const rail = document.getElementById("rail");
+const byAct = {};
+STEPS.forEach(s => (byAct[s.act] = byAct[s.act] || []).push(s));
+ACTS.forEach(a => {
+  const group = document.createElement("div");
+  group.className = "act";
+  group.innerHTML = `<div class="act-label"><span class="act-dot" style="background:${a.color}"></span>${a.label}</div>`;
+  const cards = document.createElement("div");
+  cards.className = "cards";
+  byAct[a.key].forEach(s => {
+    const c = document.createElement("button");
+    c.type = "button";
+    c.className = "step-card";
+    c.id = `card-${s.id}`;
+    c.innerHTML = `
+      <span class="stripe" style="background:${a.color}"></span>
+      <div class="sc-top"><span class="sc-num">${s.n}</span><span class="sc-id mono">${s.id}</span></div>
+      <div class="sc-title">${s.title}</div>
+      <div class="sc-foot"><span class="sc-meta">${s.ed.length} hops · ${s.who.length} actors</span><span class="verdict v-${s.v}">${s.verdict}</span></div>
+      <span class="sc-play">▶</span>
+      <span class="sc-walked" title="Walked in this session" hidden>✓</span>`;
+    c.addEventListener("click", () => select(s.id));
+    cards.appendChild(c);
+  });
+  group.appendChild(cards);
+  rail.appendChild(group);
+});
+
+/* ---- stage state ---- */
+let sel = STEPS[0]; /* open on demo step 1 (UC24) */
+let view = "details";          // flow | details | focus
+let selNode = null;            // index into sel.who when a node is clicked
+let simStep = -1, simTimer = null, simPaused = false;
+let walked = new Set();        // UCs whose walkthrough has played to the end this session
+
+function select(id) {
+  const next = STEPS.find(s => s.id === id);
+  if (!next || next === sel) return;
+  sel = next;
+  selNode = 0; /* entry node rings and its details open immediately */
+  history.replaceState(null, "", `#${id}`);
+  renderStage();
+}
+
+const NW = 116, NH = 48, TOP = 30;
+function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;"); }
+function wrap(s, per) {
+  const words = String(s).split(" ");
+  const lines = [];
+  let cur = "";
+  for (const w of words) {
+    if ((cur + " " + w).trim().length > per && cur) { lines.push(cur); cur = w; }
+    else cur = (cur + " " + w).trim();
+  }
+  if (cur) lines.push(cur);
+  return lines;
+}
+/* All nodes on one row, evenly spaced. Edge details live in equal-width columns
+   in a strip below — one column per hop — so text can never collide with nodes
+   or neighbouring hops, whatever its length. */
+function layout(n) {
+  const pad = 14, span = 880 - 2 * pad - NW;
+  return Array.from({ length: n }, (_, i) =>
+    ({ x: pad + (n === 1 ? span / 2 : (span / (n - 1)) * i), y: TOP }));
+}
+
+const VCOLOR = { ok:"var(--ok)", warn:"var(--warn)", err:"var(--err)", info:"var(--info)" };
+
+const COL_CHARS = 50; /* detail text wrap width inside a 320px strip column */
+
+function renderDiagram() {
+  const svg = document.getElementById("dsvg");
+  const who = sel.who, pos = layout(who.length);
+  const nE = who.length - 1;
+  const simming = simStep >= 0;
+  const focusing = view === "focus";
+  const visible = focusing
+    ? who.map((_, i) => selNode === null || Math.abs(i - selNode) <= 1)
+    : who.map(() => true);
+  let edges = "", nodes = "";
+
+  /* detail strip: hops alternate between two rows of equal-height cells, one
+     cell per hop, so long text can never collide with nodes or neighbours */
+  const stripTop = TOP + NH + 34;
+  const cols = [];
+  for (let i = 0; i < nE; i++) {
+    if (!visible[i] || !visible[i + 1]) continue;
+    const a = pos[i], b = pos[i + 1];
+    const x1 = a.x + NW, x2 = b.x;
+    cols.push({ i, mid: (x1 + x2) / 2, x1, x2 });
+  }
+  const colW = cols.length ? (cols[cols.length - 1].x2 - cols[0].x1) / cols.length : 0;
+  const rows = [cols.filter((_, k) => k % 2 === 0), cols.filter((_, k) => k % 2 === 1)];
+  const rowTop = [stripTop, 0];
+  let rowHeights = [0, 0];
+  rows.forEach((row, r) => {
+    if (!row.length) return;
+    const maxLines = Math.max(...row.map(({ i }) => wrap(sel.ed[i][1], COL_CHARS).slice(0, 3).length));
+    rowHeights[r] = 30 + maxLines * 12.5 + 8;
+  });
+  rowTop[1] = stripTop + rowHeights[0] + (rowHeights[0] ? 8 : 0);
+  const stripBottom = rowTop[1] + rowHeights[1] + (rowHeights[1] ? 6 : 0);
+  let H = view === "flow" || !cols.length ? TOP + NH + 26 : stripBottom;
+  if (focusing && selNode === null) H = Math.max(H, TOP + NH + 70);
+  svg.setAttribute("viewBox", `0 0 880 ${Math.round(H)}`);
+
+  cols.forEach(({ i, mid, x1, x2 }) => {
+    const a = pos[i], b = pos[i + 1];
+    const active = simming && simStep === i;
+    const future = simming && simStep < i;
+    const color = active ? (i === nE - 1 ? VCOLOR[sel.v] : "var(--info)") : "var(--edge)";
+    const op = future ? .3 : 1;
+    edges += `<path d="M ${x1} ${a.y + NH / 2} C ${x1 + 60} ${a.y + NH / 2}, ${x2 - 60} ${b.y + NH / 2}, ${x2} ${b.y + NH / 2}"
+      fill="none" stroke="${color}" stroke-width="${active ? 4 : 1.6}" opacity="${op}" ${active ? 'class="dashflow"' : ""} marker-end="url(#arr)"/>`;
+    if (view === "flow") return;
+    /* hop number badge above the arrow, in the gap between the nodes */
+    edges += `<g opacity="${op}">
+      <circle cx="${mid}" cy="${a.y + NH / 2 - 20}" r="9" fill="${active ? VCOLOR[sel.v] : "var(--band)"}"/>
+      <text x="${mid}" y="${a.y + NH / 2 - 16.5}" text-anchor="middle" font-size="10" font-weight="800" fill="#fff">${i + 1}</text>
+    </g>`;
+    /* detail cell on its strip row */
+    const r = cols.findIndex(c => c.i === i) % 2;
+    const bw = Math.min(colW * 2 - 10, 320);
+    const cx = Math.max(4, Math.min(880 - 4 - bw, mid - bw / 2));
+    const cy = rowTop[r];
+    const lines = wrap(sel.ed[i][1], COL_CHARS).slice(0, 3);
+    const ch = 30 + lines.length * 12.5;
+    edges += `<g class="hopcell" data-hop="${i}" opacity="${op}" style="cursor:pointer">
+      <rect x="${cx}" y="${cy}" width="${bw}" height="${ch}" rx="7" fill="var(--card)" stroke="${active ? VCOLOR[sel.v] : "var(--border)"}" stroke-width="${active ? 2 : 1}"/>
+      <text x="${cx + 9}" y="${cy + 17}" font-size="10.5" font-weight="800" fill="${active ? VCOLOR[sel.v] : "var(--brand-text)"}">${i + 1}. ${esc(sel.ed[i][0])}</text>
+      ${lines.map((ln, li) => `<text x="${cx + 9}" y="${cy + 31 + li * 12.5}" font-size="10" fill="var(--muted)">${esc(ln)}</text>`).join("")}
+    </g>`;
+    edges += `<line x1="${mid}" y1="${cy - 10}" x2="${mid}" y2="${cy - 2}" stroke="var(--border-strong)" stroke-width="1" opacity="${op}"/>`;
+  });
+
+  who.forEach((w, i) => {
+    if (!visible[i]) return;
+    const p = pos[i];
+    const hot = (simming && (simStep === i || simStep === i - 1)) || (!simming && selNode === i);
+    nodes += `<g class="unode" data-i="${i}" role="button" tabindex="0" aria-label="${esc(w)}">
+      ${hot ? `<circle cx="${p.x + NW / 2}" cy="${p.y + NH / 2}" r="${NH / 2 + 12}" fill="none" stroke="var(--band)" stroke-width="1.5" opacity=".35"/>` : ""}
+      <rect class="main" x="${p.x}" y="${p.y}" width="${NW}" height="${NH}" rx="9" fill="var(--card)" stroke="${hot ? "var(--band)" : "var(--border-strong)"}" stroke-width="${hot ? 2.5 : 1}"/>
+      <rect x="${p.x}" y="${p.y}" width="4" height="${NH}" rx="2" fill="${hot ? "var(--band)" : "var(--edge)"}"/>
+      <text x="${p.x + NW / 2 + 2}" y="${p.y + NH / 2 + 4}" text-anchor="middle" font-size="12" font-weight="600" fill="var(--text)">${esc(w)}</text>
+    </g>`;
+  });
+
+  if (focusing && selNode === null) {
+    nodes += `<text class="focus-hint" x="440" y="${TOP + NH + 58}" text-anchor="middle">Click a node to focus on it and its neighbours.</text>`;
+  }
+
+  svg.innerHTML = `<defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--edge)"/></marker></defs>${edges}${nodes}`;
+
+  svg.querySelectorAll(".unode").forEach(g => {
+    const pick = () => selectNode(+g.dataset.i);
+    g.addEventListener("click", (e) => { e.stopPropagation(); pick(); });
+    g.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } });
+  });
+  /* click a numbered detail cell: jump to that hop, paused, both endpoints ring */
+  svg.querySelectorAll(".hopcell").forEach(g => {
+    g.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const hop = +g.dataset.hop;
+      simPaused = true; clearInterval(simTimer);
+      simStep = hop;
+      renderDiagram(); renderPanel(); setBtns();
+    });
+  });
+}
+
+function wireHtml(hopIndex) {
+  const rows = (TECH[sel.id] || [])[hopIndex] || [];
+  if (!rows.length) return "";
+  return `<div class="dp-wire">${rows.map(r =>
+    `<div class="wire-row"><span class="wire-tag wt-${r.t.toLowerCase()}">${r.t}</span><code>${esc(r.c)}</code></div>`).join("")}</div>`;
+}
+
+/* UC context block: the five header fields, rendered inside the details panel */
+function ucContext() {
+  return `<div class="dp-ctx">
+    <span class="dp-ctx-num">DEMO STEP ${sel.n}</span>
+    <span class="dp-ctx-title">${esc(sel.title)}</span>
+    <span class="dp-ctx-id">${esc(sel.id)}</span>
+    <span class="verdict v-${sel.v}">${esc(sel.verdict)}</span>
+  </div>
+  <div class="dp-ucdesc">${esc(sel.desc)}</div>
+  <div class="dp-ucvalue"><b>Business value</b>${esc(sel.value)}</div>`;
+}
+
+function renderPanel() {
+  const chip = document.getElementById("dp-chip"), body = document.getElementById("dp-body");
+  if (simStep >= 0) {
+    /* running trace: every hop so far, current one expanded and highlighted */
+    chip.textContent = `HOP ${simStep + 1} / ${sel.ed.length}`;
+    body.innerHTML = `<div class="dp-log">${sel.ed.slice(0, simStep + 1).map((e, j) => {
+      const cur = j === simStep;
+      return `<div class="dp-log-row${cur ? " current" : ""}${j < simStep ? " done" : ""}">
+        <span class="dp-log-n">${j + 1}</span>
+        <div class="dp-log-body">
+          <div class="dp-log-head"><span class="who">${esc(sel.who[j])} → ${esc(sel.who[j + 1])}</span>${esc(e[0])}</div>
+          ${cur ? `<div class="dp-log-detail">${esc(e[1])}</div>${wireHtml(j)}` : ""}
+        </div>
+      </div>`;
+    }).join("")}</div>`;
+    const log = body.querySelector(".dp-log");
+    if (log) log.scrollTop = log.scrollHeight;
+  } else if (selNode !== null) {
+    const i = selNode;
+    chip.textContent = sel.who[i].toUpperCase();
+    const hops = sel.ed
+      .map((e, j) => (j === i - 1 || j === i) ? `<b>${esc(sel.who[j])} → ${esc(sel.who[j + 1])}</b>: ${esc(e[0])}` : null)
+      .filter(Boolean);
+    body.innerHTML = ucContext() +
+      `<div class="dp-hops" style="margin-top:7px"><span class="who">node</span>${esc(sel.nd[i])}</div>` +
+      (hops.length ? `<div class="dp-hops">${hops.join(" &nbsp;·&nbsp; ")}</div>` : "") +
+      [i - 1, i].map(j => (sel.ed[j] ? wireHtml(j) : "")).join("");
+  } else {
+    chip.textContent = "—";
+    body.innerHTML = ucContext();
+  }
+}
+
+function renderStage() {
+  document.getElementById("cue").textContent = `STEP ${sel.n}`;
+  document.getElementById("stage-title").textContent = sel.title;
+  const v = document.getElementById("stage-verdict");
+  v.textContent = sel.verdict; v.className = `verdict v-${sel.v}`;
+  document.getElementById("meta-step").textContent = sel.n;
+  document.getElementById("meta-id").textContent = sel.id;
+  document.getElementById("meta-hops").textContent = sel.ed.length;
+  document.getElementById("meta-actors").textContent = sel.who.length;
+  document.getElementById("stage-desc").textContent = sel.desc;
+  document.getElementById("stage-value").textContent = sel.value;
+  document.getElementById("step-label").textContent = `Step 0 / ${sel.ed.length}`;
+  document.querySelectorAll(".step-card").forEach(c => c.classList.toggle("sel", c.id === `card-${sel.id}`));
+  document.getElementById(`card-${sel.id}`)?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
+  stopSim(false);
+  nextChip(false);
+  markWalked();
+  /* on open: entry node preselected AND hop 1 active (paused) so diagram and
+     details are visible immediately; Prev/Next work from here */
+  if (selNode === null) selNode = 0;
+  simStep = 0; simPaused = true;
+  setBtns();
+  renderDiagram();
+  renderPanel();
+}
+
+function selectNode(i) {
+  if (selNode === i) { selNode = null; } else { selNode = i; }
+  renderDiagram(); renderPanel();
+}
+
+/* card ghost tick for steps walked this session */
+function markWalked() {
+  walked.forEach(id => {
+    const t = document.querySelector(`#card-${id} .sc-walked`);
+    if (t) t.hidden = false;
+  });
+}
+
+/* "Next stop in the script" chip after a walkthrough completes */
+function nextChip(show) {
+  const chip = document.getElementById("next-chip");
+  if (!show) { chip.hidden = true; return; }
+  const next = STEPS.find(s => s.n === sel.n + 1);
+  if (!next) { chip.hidden = true; return; }
+  chip.textContent = `Next: ${next.id} · ${next.title} →`;
+  chip.onclick = () => select(next.id);
+  chip.hidden = false;
+}
+
+/* ---- simulate ---- */
+function setBtns() {
+  const on = simStep >= 0, last = sel.ed.length - 1;
+  const play = document.getElementById("btn-play");
+  const focusOff = view === "focus";
+  play.textContent = simPaused ? "▶ Resume" : "▶ Simulate";
+  play.disabled = (on && !simPaused) || focusOff;
+  play.title = focusOff ? "Switch to Flow or Details to simulate" : "";
+  document.getElementById("btn-pause").disabled = !on || simPaused;
+  document.getElementById("btn-prev").disabled = !on || !simPaused || simStep === 0;
+  document.getElementById("btn-next").disabled = !on || !simPaused || simStep >= last;
+  document.getElementById("btn-stop").disabled = !on;
+  document.getElementById("step-label").textContent = `Step ${on ? simStep + 1 : 0} / ${sel.ed.length}`;
+}
+function tick() {
+  simStep++;
+  if (simStep >= sel.ed.length) { simStep = sel.ed.length - 1; walked.add(sel.id); markWalked(); pauseSim(); nextChip(true); }
+  renderDiagram(); renderPanel(); setBtns();
+}
+function stepMs() { return parseInt(document.getElementById("step-ms").value, 10) * 1000 || 2500; }
+function playSim() {
+  if (simStep >= sel.ed.length - 1) simStep = -1;
+  simPaused = false; clearInterval(simTimer);
+  simTimer = setInterval(tick, stepMs());
+  tick();
+}
+function pauseSim() { simPaused = true; clearInterval(simTimer); setBtns(); }
+function resumeSim() { simPaused = false; clearInterval(simTimer); simTimer = setInterval(tick, stepMs()); setBtns(); }
+function stopSim(redraw = true) { clearInterval(simTimer); simStep = -1; simPaused = false; if (redraw) { renderDiagram(); renderPanel(); setBtns(); } }
+
+document.getElementById("btn-play").addEventListener("click", () => (simPaused && simStep >= 0 ? resumeSim() : playSim()));
+document.getElementById("btn-pause").addEventListener("click", pauseSim);
+document.getElementById("btn-stop").addEventListener("click", () => stopSim());
+document.getElementById("btn-prev").addEventListener("click", () => { if (simStep > 0) { simStep--; renderDiagram(); renderPanel(); setBtns(); } });
+document.getElementById("btn-next").addEventListener("click", () => { if (simStep < sel.ed.length - 1) { simStep++; renderDiagram(); renderPanel(); setBtns(); } });
+document.getElementById("btn-reset").addEventListener("click", () => { stopSim(); selNode = null; renderDiagram(); renderPanel(); toast("Diagram reset — selection and history cleared"); });
+
+/* ---- keyboard: arrows step, space toggles play/pause ---- */
+document.addEventListener("keydown", (e) => {
+  if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+  if (e.key === "ArrowRight" && simStep >= 0 && simPaused && simStep < sel.ed.length - 1) {
+    simStep++; renderDiagram(); renderPanel(); setBtns(); e.preventDefault();
+  } else if (e.key === "ArrowLeft" && simStep > 0) {
+    simStep--; renderDiagram(); renderPanel(); setBtns(); e.preventDefault();
+  } else if (e.key === " ") {
+    e.preventDefault();
+    if (simPaused && simStep >= 0) resumeSim(); else if (simStep < 0) playSim(); else pauseSim();
+  }
+});
+
+/* ---- hash deep-link: #UC7 opens that step; card clicks update the hash ---- */
+function hashId() { return (location.hash || "").replace(/^#/, "").toUpperCase(); }
+function checkHash() {
+  const id = hashId();
+  if (id && STEPS.some(s => s.id === id) && id !== sel.id) select(id);
+}
+window.addEventListener("hashchange", checkHash);
+checkHash();
+
+/* ---- view modes ---- */
+function setView(v) {
+  view = v;
+  document.getElementById("vw-flow").classList.toggle("on", v === "flow");
+  document.getElementById("vw-details").classList.toggle("on", v === "details");
+  document.getElementById("vw-focus").classList.toggle("on", v === "focus");
+  if (v === "focus" && selNode === null) selNode = 1; // land on the agent so focus isn't empty
+  stopSim(false);
+  renderDiagram(); renderPanel(); setBtns();
+}
+document.getElementById("vw-flow").addEventListener("click", () => setView("flow"));
+document.getElementById("vw-details").addEventListener("click", () => setView("details"));
+document.getElementById("vw-focus").addEventListener("click", () => setView("focus"));
+
+/* click empty canvas to deselect */
+document.getElementById("dsvg").addEventListener("click", () => { if (selNode !== null) { selNode = null; renderDiagram(); renderPanel(); } });
+
+/* ---- toast + launch ---- */
+let toastTimer;
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2400);
+}
+document.getElementById("launch").addEventListener("click", () => toast(`Would open /use-case-diagrams/${sel.id} — deep-linkable from the demo script`));
+
+/* ---- launcher layout: filmstrip (default) or console (grouped by actor + search) ---- */
+const ACTOR_GROUPS = [
+  { key:"user", label:"User / human", ic:"U", color:"var(--info)",
+    match: (s) => s.who[0] === "User" },
+  { key:"agent", label:"Agents & orchestrator", ic:"A", color:"var(--band)",
+    match: (s) => /^Agent|^Orchestrator/.test(s.who[0]) },
+  { key:"policy", label:"Policy & perimeter", ic:"P", color:"var(--ok)",
+    match: (s) => /^(Gateway|Unknown client)/.test(s.who[0]) },
+  { key:"defense", label:"Defenses & audit", ic:"D", color:"var(--err)",
+    match: (s) => /^(Attacker|Auditor)/.test(s.who[0]) },
+];
+const listEl = document.getElementById("list");
+function renderList(filter = "") {
+  const q = filter.trim().toLowerCase();
+  listEl.innerHTML = "";
+  let shown = 0;
+  ACTOR_GROUPS.forEach(gr => {
+    const items = STEPS.filter(s => gr.match(s) &&
+      (!q || s.title.toLowerCase().includes(q) || s.id.toLowerCase().includes(q) || s.n === parseInt(q, 10)));
+    if (!items.length) return;
+    shown += items.length;
+    const sec = document.createElement("div");
+    sec.className = "actor";
+    sec.innerHTML = `<div class="actor-h"><span class="actor-ic" style="background:${gr.color}">${gr.ic}</span>${gr.label}<span class="actor-n">${items.length}</span></div>`;
+    items.forEach(s => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "uc-row" + (s.id === sel.id ? " sel" : "");
+      b.id = `row-${s.id}`;
+      b.innerHTML = `<span class="uc-num">${s.n}</span><span class="uc-name">${s.title}</span>` +
+        (walked.has(s.id) ? `<span class="uc-walked">✓</span>` : "");
+      b.addEventListener("click", () => select(s.id));
+      sec.appendChild(b);
+    });
+    listEl.appendChild(sec);
+  });
+  document.getElementById("l-count").textContent = shown ? `${shown} steps` : "no match";
+}
+function setLayout(mode) {
+  const consoleMode = mode === "console";
+  document.getElementById("main").classList.toggle("console", consoleMode);
+  document.getElementById("sidebar").hidden = !consoleMode;
+  document.getElementById("lay-film").classList.toggle("on", !consoleMode);
+  document.getElementById("lay-console").classList.toggle("on", consoleMode);
+  if (consoleMode) renderList(document.getElementById("search").value);
+}
+document.getElementById("lay-film").addEventListener("click", () => setLayout("film"));
+document.getElementById("lay-console").addEventListener("click", () => setLayout("console"));
+document.getElementById("search").addEventListener("input", (e) => renderList(e.target.value));
+
+/* keep console rows' selection in sync on every select */
+const origSelect = select;
+select = function (id) { origSelect(id); renderList(document.getElementById("search").value); };
+
+renderStage();
+</script>
