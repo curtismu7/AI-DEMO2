@@ -64,4 +64,5 @@ export const DIAGRAMS_MORE = [
   D("DaVinci SDK explainer", "/davinci-sdk", "Client lifecycle sequence."),
   D("Phase 266 architecture", "/architecture/phase-266", "Phase 266 architecture, step by step."),
   D("Agent Onboarding (React Flow)", "/agent-onboarding-flow-mermaid", "Onboarding drawn in React Flow."),
+  D("Use-case diagrams", "/use-case-diagrams", "One walkthrough per demo step, deep-linkable by UC id."),
 ];
