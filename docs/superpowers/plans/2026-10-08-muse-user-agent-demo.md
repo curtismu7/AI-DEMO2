@@ -197,7 +197,7 @@ git commit -m "docs: record agent-doors verification matrix (Muse/LM Studio/Libr
 
 **Interfaces:**
 - Consumes: `PARTICIPANT_GROUPS` from `palette.js`; `validateConfig` contract from `docs/use-case-diagram-standards.md`; `DEMO_PRIMARY_USE_CASE_IDS`, `DEMO_STEP_DESTINATIONS`, `DEMO_STEP_GUIDES`, `demoStepNumber` shapes.
-- Produces: `getConfig('UC-MUSE1')` / `getConfig('UC-MUSE2')` returning valid configs; two new presenter demo steps. Task 3's training page links these diagram routes (`useCaseDiagramPath('UC-MUSE1')`).
+- Produces: `getConfig('UC-MUSE1')` / `getConfig('UC-MUSE2')` returning valid configs; two new presenter demo steps. Task 3's per-agent pages link these diagram routes (`useCaseDiagramPath('UC-MUSE1')`).
 
 - [ ] **Step 1: Write the failing config tests** (mirror `UC6.test.js` shape)
 
@@ -448,73 +448,380 @@ git add demo_api_ui/src/config/useCaseDiagrams/UC-MUSE1.js \
 git commit -m "feat: UC-MUSE1/MUSE2 external-agent lanes as demo steps + diagrams"
 ```
 
-### Task 3: Learning-hub training page (route + lesson catalog entry)
+### Task 3: Learning-hub per-agent pages (7 agents, one data module, one route)
 
 **Files:**
-- Create: `demo_api_ui/src/pages/MuseAgentLessonPage.jsx` (+ `.css` if styling diverges from an existing lesson page's stylesheet pattern)
-- Modify: `demo_api_ui/src/App.js` (route registration, near the other `*-learning` routes at `App.js:863-896`)
-- Modify: `demo_api_ui/src/learning/lessonCatalog.js` (new lesson entry)
-- Modify: `demo_api_server/config/auth-requirements.json` — only if the route is non-public; the sibling pattern (`/personal-agent`, `/learning`) is `"public"`, so most likely no change. Check, don't assume.
-- Test: `demo_api_ui/src/pages/__tests__/MuseAgentLessonPage.test.jsx`
+- Create: `demo_api_ui/src/config/externalAgents.js` (single data module: per-agent identity, setup steps, both doors' connection config, use-case coverage row, failure playbook)
+- Create: `demo_api_ui/src/pages/ExternalAgentLessonPage.jsx` (renders from the data module by `:agentId`)
+- Modify: `demo_api_ui/src/App.js` (route `/external-agents/:agentId`, near the other `*-learning` routes at `App.js:863-896`)
+- Modify: `demo_api_ui/src/learning/lessonCatalog.js` (7 lesson entries: `muse-app`, `muse-code`, `grok-app`, `grok-cli`, `lm-studio`, `librechat`, `chatgpt` — all routing to `/external-agents/<id>`)
+- Modify: `demo_api_server/config/auth-requirements.json` — only if `npm run authz:verify` demands it; sibling learning routes are `"public"`. Check, don't assume.
+- Test: `demo_api_ui/src/config/__tests__/externalAgents.test.js`
 
 **Interfaces:**
-- Consumes: `lessonCatalog` conventions (`lesson()` factory, `MATURITY_STAGES`, `PROVENANCE`, `REDACTED_RESULT`), `AppShell` routing pattern.
-- Produces: route `/muse-agent-learning`; lesson id `"muse-agent"` resolvable by `getLesson("muse-agent")`.
+- Consumes: `lessonCatalog` conventions (`lesson()` factory, `MATURITY_STAGES`, `PROVENANCE`, `REDACTED_RESULT`), `AppShell` routing, `useCaseDiagramPath` from Task 2.
+- Produces: routes `/external-agents/:agentId` for the 7 ids above; lesson ids resolvable by `getLesson(id)`; `externalAgents.js` exports `EXTERNAL_AGENTS` (array) and `getExternalAgent(id)` — Task 4's drift-guard test reads the SE host and door paths from here.
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Write the failing data-module test**
 
-```jsx
-import { render, screen } from '@testing-library/react';
-import MuseAgentLessonPage from '../MuseAgentLessonPage';
+```js
+import { describe, expect, it } from 'vitest';
+import { EXTERNAL_AGENTS, getExternalAgent } from '../externalAgents';
 import { lessonCatalog, getLesson } from '../../learning/lessonCatalog';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
-describe('MuseAgentLessonPage', () => {
-  it('registers the muse-agent lesson in the catalog', () => {
-    const entry = getLesson('muse-agent');
-    expect(entry).toBeTruthy();
-    expect(entry.title).toContain('Muse');
-    expect(entry.route).toBe('/muse-agent-learning');
+const IDS = ['muse-app', 'muse-code', 'grok-app', 'grok-cli', 'lm-studio', 'librechat', 'chatgpt'];
+
+describe('externalAgents data module', () => {
+  it('has an entry per agent id, with complete content', () => {
+    expect(EXTERNAL_AGENTS.map((a) => a.id)).toEqual(IDS);
+    for (const a of EXTERNAL_AGENTS) {
+      expect(a.name).toBeTruthy();
+      expect(a.runsWhere).toMatch(/cloud|your machine/i);
+      expect(a.setup.length).toBeGreaterThan(0);
+      expect(a.doors.standard).toContain('cmuir-mcp.ping-devops.com');
+      expect(a.coverage).toEqual(expect.arrayContaining(['onboard', 'read']));
+      expect(a.failurePlaybook.length).toBeGreaterThan(0);
+    }
   });
 
-  it('renders the connection walkthrough', () => {
-    render(<MuseAgentLessonPage />);
-    expect(screen.getByText(/api\.ping\.demo:3036\/mcp/)).toBeInTheDocument();
-    expect(screen.getByText(/privilege-gateway/i)).toBeInTheDocument();
+  it('governed-write coverage matches the plan matrix (Muse Code leads; local clients can too)', () => {
+    const canWrite = EXTERNAL_AGENTS.filter((a) => a.coverage.includes('governed-write')).map((a) => a.id);
+    expect(canWrite).toEqual(['muse-code', 'grok-cli', 'lm-studio', 'librechat']);
   });
 
-  it('renders the governance teaching points', () => {
-    render(<MuseAgentLessonPage />);
-    expect(screen.getByText(/token exchange/i)).toBeInTheDocument();
-    expect(screen.getByText(/human approval/i)).toBeInTheDocument();
+  it('every agent has a lesson-catalog entry with a matching route', () => {
+    for (const id of IDS) {
+      const lesson = getLesson(id);
+      expect(lesson, id).toBeTruthy();
+      expect(lesson.route).toBe(`/external-agents/${id}`);
+    }
   });
 
-  it('links both lane diagrams', () => {
-    render(<MuseAgentLessonPage />);
-    expect(screen.getByRole('link', { name: /standard lane \(UC-MUSE1\)/i })).toHaveAttribute('href', '/use-case-diagrams/UC-MUSE1');
-    expect(screen.getByRole('link', { name: /AI Gateway lane \(UC-MUSE2\)/i })).toHaveAttribute('href', '/use-case-diagrams/UC-MUSE2');
+  it('drift guard: door URLs in the data module match the plan doc', () => {
+    const plan = readFileSync(join(__dirname, '../../../../docs/superpowers/plans/2026-10-08-muse-user-agent-demo.md'), 'utf8');
+    expect(plan).toContain('https://cmuir-mcp.ping-devops.com');
+    expect(plan).toContain('/mcp-facade/privilege-gateway/mcp');
   });
 });
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd demo_api_ui && npx vitest run src/pages/__tests__/MuseAgentLessonPage.test.jsx`
+Run: `cd demo_api_ui && npx vitest run src/config/__tests__/externalAgents.test.js`
 Expected: FAIL — module not found.
 
-- [ ] TDD note: the catalog entry and page go in the same task because the test asserts both together; the catalog entry alone would leave the route dead and the page alone would leave `getLesson` undefined.
+- [ ] **Step 3: Create the data module**
 
-- [ ] **Step 3: Add the lesson catalog entry**
+`demo_api_ui/src/config/externalAgents.js` — one entry per agent, content sourced from the plan's "Agent families" table, runbook setup notes, and coverage matrix:
 
-In `demo_api_ui/src/learning/lessonCatalog.js`, add inside `lessonCatalog` (after the `consumer-agent` entry):
+```js
+// Single source of truth for the external-agent lesson pages. Content mirrors
+// docs/superpowers/plans/2026-10-08-muse-user-agent-demo.md (Agent families,
+// coverage matrix, runbook setup). The drift-guard test keeps them in sync.
+export const STANDARD_DOOR = 'https://cmuir-mcp.ping-devops.com/mcp';
+export const AI_GATEWAY_DOOR = '/mcp-facade/privilege-gateway/mcp';
+
+export const EXTERNAL_AGENTS = [
+  {
+    id: 'muse-app',
+    name: 'Muse (consumer app)',
+    vendor: 'Meta',
+    runsWhere: "Meta's cloud — iOS, Android, web, iPad. Cannot reach the local stack; demos against the SE host.",
+    setup: [
+      { title: 'Open Muse and ask for the connector', body: 'Prompt: "Build a custom integration. Its MCP server is https://cmuir-mcp.ping-devops.com/mcp, transport streamable HTTP. Connect, inspect the tools, request credentials through the secure credential flow, and keep approval required for anything that writes or spends."' },
+      { title: 'Complete the login', body: "The OAuth browser step opens on the phone/web. Sign in with the demo customer (PingOne). Muse's Sentinel handles credential custody — Muse never sees raw secrets." },
+      { title: 'Run the read', body: '"Show my checking account balance." Watch the dashboard token-chain panel: sub=user, act=Muse.' },
+    ],
+    doors: { standard: STANDARD_DOOR, aiGateway: null },
+    coverage: ['onboard', 'read', 'audit'],
+    stepUp: 'Login MFA only (phone demo is read-path).',
+    failurePlaybook: [
+      ['Connector cannot reach the URL', 'Meta cloud cannot resolve private DNS', 'Use the SE host, never localhost/api.ping.demo'],
+      ['OAuth step stalls', 'Discovery/PKCE compatibility is the open matrix cell', 'Fallback: pre-minted Bearer via the credential flow (governance intact; login out-of-band)'],
+    ],
+  },
+  {
+    id: 'muse-code',
+    name: 'Muse Code (CLI)',
+    vendor: 'Meta',
+    runsWhere: "Your machine — macOS/Linux/Windows. Install: curl -fsSL https://dev.meta.ai/install.sh | sh. The full two-lane agent.",
+    setup: [
+      { title: 'Install', body: 'curl -fsSL https://dev.meta.ai/install.sh | sh, then muse --version.' },
+      { title: 'Point at the standard door', body: 'Settings > mcp_servers: {"mcp_servers": {"demo-bank": {"transport": "streamable_http", "url": "https://cmuir-mcp.ping-devops.com/mcp", "mode": "optional"}}}. First tool use triggers OAuth: browser opens, PingOne login, callback to 127.0.0.1.' },
+      { title: 'Governed write', body: 'Keep the dashboard open. "Transfer $500 to savings" -> P1AZ -> HITL pending on the dashboard -> approve -> tool runs.' },
+      { title: 'Lane 2 (local BFF)', body: 'Add a second server entry with url http://localhost:3001/mcp-facade/privilege-gateway/mcp (or the https://local.ping-devops.com:4000 form) to walk the AI Gateway lane.' },
+    ],
+    doors: { standard: STANDARD_DOOR, aiGateway: AI_GATEWAY_DOOR },
+    coverage: ['onboard', 'read', 'governed-write', 'ai-gateway', 'step-up', 'audit', 'deny'],
+    stepUp: 'Login MFA + policy step-up on the sensitive action.',
+    failurePlaybook: [
+      ['demo-bank not connected', 'Stack down or TLS not trusted', 'Start the stack; trust the mkcert root CA'],
+      ['Browser login loops', 'Callback port blocked', 'Re-run the client connect'],
+      ['Tool call 401s mid-demo', 'Token expired', 'Muse auto-refreshes; if not, reconnect via /mcp'],
+    ],
+  },
+  {
+    id: 'grok-app',
+    name: 'Grok (custom connector)',
+    vendor: 'xAI',
+    runsWhere: "xAI cloud — Grok web/desktop/mobile. Public URL required; demos against the SE host.",
+    setup: [
+      { title: 'Create the connector', body: 'Grok > Connectors > New Connector > Custom. Paste the MCP URL: https://cmuir-mcp.ping-devops.com/mcp. Complete the auth flow (browser OAuth).' },
+      { title: 'If DCR is unsupported', body: 'xAI does not document RFC 7591 DCR. Fallback: pre-register a client (curl -X POST https://cmuir-mcp.ping-devops.com/register ...) and use fixed credentials if the UI accepts them, or mint a Bearer from a pre-registered client and use xAI\'s Remote MCP API shape (authorization: "Bearer ...").' },
+      { title: 'Run the read', body: '"Show my checking account balance." Token chain on the dashboard.' },
+    ],
+    doors: { standard: STANDARD_DOOR, aiGateway: null },
+    coverage: ['onboard', 'read', 'audit'],
+    stepUp: 'Login MFA only.',
+    failurePlaybook: [
+      ['Connector rejected the URL', 'Not publicly reachable', 'SE host only — local stack is unreachable from xAI cloud'],
+      ['Registration fails', 'DCR unsupported', 'Pre-registered client or static Bearer fallback'],
+    ],
+  },
+  {
+    id: 'grok-cli',
+    name: 'Grok CLI',
+    vendor: 'xAI',
+    runsWhere: 'Your machine — terminal. Remote HTTP MCP with browser OAuth on first use; credentials persist in ~/.grok/mcp_credentials.json.',
+    setup: [
+      { title: 'Add the remote server', body: 'Configure the remote MCP server with the standard-door URL. First use opens the browser for the PingOne login.' },
+      { title: 'Governed write', body: 'Same as Muse Code: dashboard open, transfer prompt, approve in the HITL panel.' },
+    ],
+    doors: { standard: STANDARD_DOOR, aiGateway: AI_GATEWAY_DOOR },
+    coverage: ['onboard', 'read', 'governed-write', 'ai-gateway', 'step-up', 'audit', 'deny'],
+    stepUp: 'Login MFA + policy step-up on the sensitive action.',
+    failurePlaybook: [
+      ['Stale credentials', 'Cached token expired', 'Delete ~/.grok/mcp_credentials.json and reconnect'],
+    ],
+  },
+  {
+    id: 'lm-studio',
+    name: 'LM Studio',
+    vendor: 'local app',
+    runsWhere: 'Your machine. The proven precedent: connected to the facade privilege-gateway door 2026-09-11.',
+    setup: [
+      { title: 'Add the connector', body: 'Connectors > Add MCP > remote URL. Standard lane: https://cmuir-mcp.ping-devops.com/mcp. Lane 2 (local): /mcp-facade/privilege-gateway/mcp on the local BFF.' },
+      { title: 'Known quirk', body: 'LM Studio falls back to SSE on any non-UnauthorizedError — the doors answer GET deliberately, so use POST-based connect.' },
+    ],
+    doors: { standard: STANDARD_DOOR, aiGateway: AI_GATEWAY_DOOR },
+    coverage: ['onboard', 'read', 'governed-write', 'ai-gateway', 'step-up', 'audit', 'deny'],
+    stepUp: 'Login MFA + policy step-up on the sensitive action.',
+    failurePlaybook: [
+      ['SSE fallback error', 'Non-401 on GET', 'Use POST-based connect; do not rely on GET /mcp'],
+    ],
+  },
+  {
+    id: 'librechat',
+    name: 'LibreChat',
+    vendor: 'open source (in-repo)',
+    runsWhere: 'Your machine or docker (librechat/ in this repo).',
+    setup: [
+      { title: 'Configure mcpServers', body: 'librechat.yaml: mcpServers: { demo-bank: { type: streamable_http, url: https://cmuir-mcp.ping-devops.com/mcp } }. Lane 2: add a second entry pointing at the facade door.' },
+      { title: 'Run the flows', body: 'Same demo script as Muse Code — read, governed write, lane 2.' },
+    ],
+    doors: { standard: STANDARD_DOOR, aiGateway: AI_GATEWAY_DOOR },
+    coverage: ['onboard', 'read', 'governed-write', 'ai-gateway', 'step-up', 'audit', 'deny'],
+    stepUp: 'Login MFA + policy step-up on the sensitive action.',
+    failurePlaybook: [
+      ['Server not listed', 'YAML syntax or transport type wrong', 'type: streamable_http exactly; check librechat logs'],
+    ],
+  },
+  {
+    id: 'chatgpt',
+    name: 'ChatGPT (connectors)',
+    vendor: 'OpenAI',
+    runsWhere: "OpenAI cloud — connector dev mode. Publicly reachable URL required; local stack needs the SE host or a tunnel.",
+    setup: [
+      { title: 'Add the MCP connector', body: 'Settings > Connectors > add the MCP URL (SE host). Complete OAuth in the browser.' },
+      { title: 'Run the read', body: '"Show my checking account balance." Token chain on the dashboard.' },
+    ],
+    doors: { standard: STANDARD_DOOR, aiGateway: null },
+    coverage: ['onboard', 'read', 'audit'],
+    stepUp: 'Login MFA only.',
+    failurePlaybook: [
+      ['Connector cannot validate the URL', 'Host not publicly reachable', 'SE host or tunnel; record what works in the verification matrix'],
+    ],
+  },
+];
+
+export function getExternalAgent(id) {
+  return EXTERNAL_AGENTS.find((a) => a.id === id) || null;
+}
+```
+
+- [ ] **Step 4: Run data tests to verify they pass**
+
+Run: `cd demo_api_ui && npx vitest run src/config/__tests__/externalAgents.test.js`
+Expected: PASS (4 tests).
+
+- [ ] **Step 5: Write the failing page test, then the page**
+
+`demo_api_ui/src/pages/__tests__/ExternalAgentLessonPage.test.jsx`:
+
+```jsx
+import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import ExternalAgentLessonPage from '../ExternalAgentLessonPage';
+import { EXTERNAL_AGENTS } from '../../config/externalAgents';
+
+describe('ExternalAgentLessonPage', () => {
+  it('renders per-agent content from the route param', () => {
+    render(
+      <MemoryRouter initialEntries={['/external-agents/muse-code']}>
+        <ExternalAgentLessonPage />
+      </MemoryRouter>
+    );
+    expect(screen.getByRole('heading', { name: /Muse Code/i })).toBeInTheDocument();
+    expect(screen.getByText(/streamable_http/i)).toBeInTheDocument();
+    expect(screen.getByText(/transfer/i)).toBeInTheDocument();
+  });
+
+  it('renders the coverage list and diagram links for every agent', () => {
+    for (const a of EXTERNAL_AGENTS) {
+      const { unmount } = render(
+        <MemoryRouter initialEntries={[`/external-agents/${a.id}`]}>
+          <ExternalAgentLessonPage />
+        </MemoryRouter>
+      );
+      expect(screen.getByRole('link', { name: /standard lane \(UC-MUSE1\)/i })).toHaveAttribute('href', '/use-case-diagrams/UC-MUSE1');
+      unmount();
+    }
+  });
+
+  it('unknown agent renders a not-found state', () => {
+    render(
+      <MemoryRouter initialEntries={['/external-agents/nope']}>
+        <ExternalAgentLessonPage />
+      </MemoryRouter>
+    );
+    expect(screen.getByText(/unknown agent/i)).toBeInTheDocument();
+  });
+});
+```
+
+Run: `cd demo_api_ui && npx vitest run src/pages/__tests__/ExternalAgentLessonPage.test.jsx`
+Expected: FAIL — module not found.
+
+`demo_api_ui/src/pages/ExternalAgentLessonPage.jsx`:
+
+```jsx
+import React from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { getExternalAgent } from '../config/externalAgents';
+import { useCaseDiagramPath } from '../config/useCaseDiagrams';
+import './AgentGatewayAuthorizationLessonPage.css';
+
+const COVERAGE_LABELS = {
+  'onboard': 'Onboard (discovery, DCR, PKCE)',
+  'read': 'UC-MUSE1 delegated read',
+  'governed-write': 'Governed write + HITL',
+  'ai-gateway': 'UC-MUSE2 AI Gateway lane',
+  'step-up': 'Step-up / MFA',
+  'audit': 'Audit trail',
+  'deny': 'Deny paths',
+};
+
+const COVERAGE_ORDER = ['onboard', 'read', 'governed-write', 'ai-gateway', 'step-up', 'audit', 'deny'];
+
+export default function ExternalAgentLessonPage() {
+  const { agentId } = useParams();
+  const agent = getExternalAgent(agentId);
+  if (!agent) {
+    return (
+      <div className="lesson-page">
+        <h1>Unknown agent</h1>
+        <p>No external agent &ldquo;{agentId}&rdquo; is configured for this demo.</p>
+      </div>
+    );
+  }
+  return (
+    <div className="lesson-page">
+      <h1>{agent.name}</h1>
+      <p className="lesson-audience">{agent.vendor} &middot; {agent.runsWhere}</p>
+      <p>
+        Walk the wire:{' '}
+        <a href={useCaseDiagramPath('UC-MUSE1')}>standard lane (UC-MUSE1)</a>
+        {' \u00b7 '}
+        <a href={useCaseDiagramPath('UC-MUSE2')}>AI Gateway lane (UC-MUSE2)</a>
+      </p>
+
+      <h2>Set it up to demo</h2>
+      <ol className="lesson-steps">
+        {agent.setup.map((s) => (
+          <li key={s.title}>
+            <h3>{s.title}</h3>
+            <p>{s.body}</p>
+          </li>
+        ))}
+      </ol>
+
+      <h2>Doors</h2>
+      <ul>
+        <li>Standard lane: <code>{agent.doors.standard}</code></li>
+        <li>
+          AI Gateway lane:{' '}
+          {agent.doors.aiGateway
+            ? <code>{agent.doors.aiGateway}</code>
+            : 'not available for this agent (cloud reachability)'}
+        </li>
+      </ul>
+
+      <h2>Use cases this agent covers</h2>
+      <ul>
+        {COVERAGE_ORDER.map((c) => (
+          <li key={c}>
+            {agent.coverage.includes(c) ? '\u2705' : '\u274c'} {COVERAGE_LABELS[c]}
+          </li>
+        ))}
+      </ul>
+      <p>Step-up: {agent.stepUp}</p>
+
+      <h2>If something breaks</h2>
+      <table>
+        <thead><tr><th>Symptom</th><th>Cause</th><th>Fix</th></tr></thead>
+        <tbody>
+          {agent.failurePlaybook.map(([symptom, cause, fix]) => (
+            <tr key={symptom}><td>{symptom}</td><td>{cause}</td><td>{fix}</td></tr>
+          ))}
+        </tbody>
+      </table>
+
+      <p><Link to="/learning">Back to the learning hub</Link></p>
+    </div>
+  );
+}
+```
+
+Run the page test again: PASS.
+
+- [ ] **Step 6: Register the route + 7 lesson entries**
+
+`demo_api_ui/src/App.js`, near the other learning routes (~line 882):
+
+```jsx
+<Route
+  path="/external-agents/:agentId"
+  element={
+    <AppShell user={user} logout={logout}>
+      <ExternalAgentLessonPage />
+    </AppShell>
+  }
+/>
+```
+plus the import near `App.js:234`.
+
+`demo_api_ui/src/learning/lessonCatalog.js` — 7 entries. The `lesson()` factory requires `run`/`evidence`/`fallback`; mirror the existing shape (from the earlier Task 3 sketch, one per agent):
 
 ```js
   lesson({
-    id: "muse-agent",
-    title: "Muse as the user's agent",
+    id: "muse-app",
+    title: "Muse (consumer app) as the user's agent",
     audience: "Sales engineers and customer architects",
     category: "Personal Agents",
-    route: "/muse-agent-learning",
-    standaloneRoute: "/muse-agent-learning",
+    route: "/external-agents/muse-app",
+    standaloneRoute: "/external-agents/muse-app",
     run: { action: "mcp-discovery", exposesRawBearerToken: false, result: REDACTED_RESULT },
     evidence: { events: ["agent-detection", "client-metadata", "consent", "tool-authentication"], result: REDACTED_RESULT },
     fallback: { provenance: PROVENANCE.SIMULATED, label: "Simulated external-agent connection" },
@@ -522,116 +829,23 @@ In `demo_api_ui/src/learning/lessonCatalog.js`, add inside `lessonCatalog` (afte
     agentCategory: "Consumer & Partner Agent",
     productRoles: ["PingOne", "Agent Gateway / Broker", "Agent Authorize"],
     talkingPoints: [
-      "The user's own agent — Muse, LM Studio, LibreChat, ChatGPT — connects to the bank's MCP endpoint; Ping governs every hop.",
-      "Two lanes, one trust layer: the Agent Gateway door (RFC 8693 chain, P1AZ, HITL) or the Privilege AI Gateway door (per-user policy, credential swap).",
-      "RFC 9728 discovery, DCR, PKCE login: any spec-compliant agent can onboard without pre-registration.",
-      "The agent pauses for human approval on sensitive actions; approval happens in the bank's surfaces, not the agent's.",
+      "The user's own agent on their phone — Meta's Muse connects to the bank's MCP endpoint; Ping governs every hop.",
+      "Sentinel keeps credentials out of the agent's hands; approvals are scoped per action.",
+      "User data requires the real delegated-token path — a service token is refused accounts:read.",
     ],
   }),
+  // ...6 more, same shape: muse-code, grok-app, grok-cli, lm-studio, librechat, chatgpt.
+  // id = the agent id; route + standaloneRoute = /external-agents/<id>;
+  // talkingPoints = 2-3 lines from the plan's agent-families table + coverage matrix.
 ```
+Author all seven entries for real (title/audience/talkingPoints per agent from the plan doc — muse-code emphasizes two lanes + governed write; grok-app the connector UI + DCR fallback; grok-cli the terminal flow; lm-studio the proven precedent; librechat the open-source story; chatgpt the reachable-host constraint).
 
-- [ ] **Step 4: Create the lesson page**
+- [ ] **Step 7: Check auth-requirements for the new route**
 
-`demo_api_ui/src/pages/MuseAgentLessonPage.jsx`:
+Run: `cd demo_api_server && npm run authz:verify 2>&1 | tail -5` (after `npm ci` if needed)
+Expected: PASS. If it demands an entry for `/external-agents/:agentId`, run the package script that regenerates `auth-requirements.json` with `"public"` (sibling pattern) and re-verify. Never hand-edit the file.
 
-```jsx
-import React from 'react';
-import { getLesson } from '../learning/lessonCatalog';
-import { useCaseDiagramPath } from '../config/useCaseDiagrams';
-import './AgentGatewayAuthorizationLessonPage.css'; // reuse existing lesson-page styling
-
-const STEPS = [
-  {
-    title: '1. The story',
-    body: 'You already have an agent — Muse, LM Studio, LibreChat, or ChatGPT. Point it at the bank’s MCP endpoint and watch Ping govern it: discovery, registration, login, token exchange, policy, human-in-the-loop, audit. The agent is yours; the trust layer is entirely Ping.',
-  },
-  {
-    title: '2. Point the agent at the bank (standard lane)',
-    body: 'Any client’s remote-MCP field: https://api.ping.demo:3036/mcp. First tool use triggers OAuth: the RFC 9728 challenge names the authorization server, the client self-registers via DCR, your browser opens for the PingOne login, the callback lands on 127.0.0.1.',
-  },
-  {
-    title: '3. Read path: token chain',
-    body: 'Account lookup → gateway validates the token minted by RFC 8693 exchange (sub: user, act: agent client id). Visible in the dashboard token-chain panel.',
-  },
-  {
-    title: '4. Governed path: HITL',
-    body: 'Funds transfer → PingOne Authorize requires human approval. The agent pauses; you approve in the bank’s dashboard — the trust boundary is Ping, not the agent.',
-  },
-  {
-    title: '5. Second lane: the AI Gateway',
-    body: 'Same agent, different door: /mcp-facade/privilege-gateway/mcp. Your OAuth sign-in doubles as the gateway-leg sign-in; the facade swaps credentials on the upstream hop and the PingOne Privilege AI Gateway enforces per-user policy.',
-  },
-  {
-    title: '6. Audit: every hop recorded',
-    body: 'Gateway audit trail shows each call: who (sub), what agent (act), which tool, decision, correlation id — in both lanes.',
-  },
-];
-
-export default function MuseAgentLessonPage() {
-  const lesson = getLesson('muse-agent');
-  return (
-    <div className="lesson-page">
-      <h1>{lesson ? lesson.title : "Muse as the user's agent"}</h1>
-      <p className="lesson-audience">
-        {lesson ? lesson.audience : 'Sales engineers and customer architects'}
-      </p>
-      <p>
-        The demo story: <strong>you already have an agent</strong>. Point it at the
-        bank&apos;s MCP endpoint and watch Ping govern it — discovery, registration,
-        login, token exchange, policy, human-in-the-loop, audit. The agent is
-        yours (Muse, LM Studio, LibreChat, ChatGPT); the trust layer is entirely Ping.
-      </p>
-      <p>
-        Walk the wire:{' '}
-        <a href={useCaseDiagramPath('UC-MUSE1')}>standard lane (UC-MUSE1)</a>
-        {' · '}
-        <a href={useCaseDiagramPath('UC-MUSE2')}>AI Gateway lane (UC-MUSE2)</a>
-      </p>
-      <ol className="lesson-steps">
-        {STEPS.map((s) => (
-          <li key={s.title}>
-            <h2>{s.title}</h2>
-            <p>{s.body}</p>
-          </li>
-        ))}
-      </ol>
-    </div>
-  );
-}
-```
-
-- [ ] **Step 5: Register the route**
-
-In `demo_api_ui/src/App.js`, near the other learning routes (~line 882):
-
-```jsx
-<Route
-  path="/muse-agent-learning"
-  element={
-    <AppShell user={user} logout={logout}>
-      <MuseAgentLessonPage />
-    </AppShell>
-  }
-/>
-```
-
-plus the import near `App.js:234`:
-
-```js
-import MuseAgentLessonPage from './pages/MuseAgentLessonPage';
-```
-
-- [ ] **Step 6: Check auth-requirements for the new route**
-
-Run: `cd demo_api_server && node -e "const r=require('./config/auth-requirements.json'); console.log(JSON.stringify(Object.entries(r).find(([k])=>JSON.stringify(k).includes('muse-agent-learning'))))"`
-Expected: no entry (check how siblings get picked up) — if `npm run authz:verify` fails after adding the route, run the package script that regenerates `auth-requirements.json` and add `/muse-agent-learning: "public"` per the sibling pattern, then re-verify.
-
-- [ ] **Step 7: Run tests to verify they pass**
-
-Run: `cd demo_api_ui && npx vitest run src/pages/__tests__/MuseAgentLessonPage.test.jsx`
-Expected: PASS.
-
-- [ ] **Step 8: Build and full unit suite**
+- [ ] **Step 8: Build + full unit suite**
 
 Run: `cd demo_api_ui && npm run build && npm run test:unit`
 Expected: build exit 0; full UI unit suite green.
@@ -639,20 +853,22 @@ Expected: build exit 0; full UI unit suite green.
 - [ ] **Step 9: Commit**
 
 ```bash
-git add demo_api_ui/src/pages/MuseAgentLessonPage.jsx \
-        demo_api_ui/src/pages/__tests__/MuseAgentLessonPage.test.jsx \
+git add demo_api_ui/src/config/externalAgents.js \
+        demo_api_ui/src/config/__tests__/externalAgents.test.js \
+        demo_api_ui/src/pages/ExternalAgentLessonPage.jsx \
+        demo_api_ui/src/pages/__tests__/ExternalAgentLessonPage.test.jsx \
         demo_api_ui/src/App.js demo_api_ui/src/learning/lessonCatalog.js
-git commit -m "feat: Muse user-agent lesson page in learning hub"
+git commit -m "feat: per-agent learning-hub pages (7 external agents) with demo setup"
 ```
 
 ### Task 4: Runbook (all agents, both lanes) and drift guard
 
 **Files:**
 - Create: `docs/MUSE_RUNBOOK.md` (covers Muse, LM Studio, LibreChat, ChatGPT; both lanes)
-- Modify: `demo_api_ui/src/pages/__tests__/MuseAgentLessonPage.test.jsx` (add drift-guard test)
+- Modify: `demo_api_ui/src/config/__tests__/externalAgents.test.js` (add runbook drift-guard test)
 
 **Interfaces:**
-- Consumes: Task 1's verification matrix (actual per-client behaviors), Task 2's UC-MUSE ids and diagram routes, Task 3's lesson entry.
+- Consumes: Task 1's verification matrix (actual per-client behaviors), Task 2's UC-MUSE ids and diagram routes, Task 3's `externalAgents.js` data module.
 - Produces: presenter runbook; a test pinning the runbook's URLs to the lesson-page copy so they can't drift apart.
 
 - [ ] **Step 1: Write the runbook** — `docs/MUSE_RUNBOOK.md`:
@@ -774,7 +990,7 @@ mcpServers:
 | HITL approval never appears | HITL service down | `docker logs` the hitl service; restart it |
 ````
 
-- [ ] **Step 2: Add the drift-guard test** — append to `demo_api_ui/src/pages/__tests__/MuseAgentLessonPage.test.jsx`:
+- [ ] **Step 2: Add the drift-guard test** — append to `demo_api_ui/src/config/__tests__/externalAgents.test.js`:
 
 ```jsx
 import { readFileSync } from 'node:fs';
@@ -784,7 +1000,7 @@ describe('runbook/lesson drift guard', () => {
   it('runbook URLs match the lesson page URLs', () => {
     const runbook = readFileSync(
       join(__dirname, '../../../../docs/MUSE_RUNBOOK.md'), 'utf8');
-    expect(runbook).toContain('https://api.ping.demo:3036/mcp');
+    expect(runbook).toContain('https://cmuir-mcp.ping-devops.com/mcp');
     expect(runbook).toContain('/mcp-facade/privilege-gateway/mcp');
     expect(runbook).toContain('UC-MUSE1');
     expect(runbook).toContain('UC-MUSE2');
@@ -794,7 +1010,7 @@ describe('runbook/lesson drift guard', () => {
 
 - [ ] **Step 3: Run tests**
 
-Run: `cd demo_api_ui && npx vitest run src/pages/__tests__/MuseAgentLessonPage.test.jsx`
+Run: `cd demo_api_ui && npx vitest run src/config/__tests__/externalAgents.test.js`
 Expected: PASS (both describes).
 
 - [ ] **Step 4: Full verification**
@@ -805,6 +1021,6 @@ Expected: unit suites pass across services.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add docs/MUSE_RUNBOOK.md demo_api_ui/src/pages/__tests__/MuseAgentLessonPage.test.jsx
+git add docs/MUSE_RUNBOOK.md demo_api_ui/src/config/__tests__/externalAgents.test.js
 git commit -m "docs: external-agent runbook (4 clients, 2 lanes) + drift guard"
 ```
