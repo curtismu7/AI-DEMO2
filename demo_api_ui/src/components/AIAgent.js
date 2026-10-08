@@ -75,6 +75,7 @@ import { useUseCaseRunContext } from "../utils/useCaseRunContext";
 import { useIdJagAgentLauncher } from "../hooks/useIdJagAgentLauncher";
 import { runsSignedOut, authLevelOf, viewerMeetsUseCaseAuth } from "../utils/useCaseAuth";
 import { PURE_LLM_MODES, PURE_LLM_LABELS, MODE_PROVIDER, sourceLabel } from "../config/agentModes";
+import { getConfig } from "../config/useCaseDiagrams";
 import AccountDetailsPanel from "./AccountDetailsPanel";
 import VerticalResult from "./VerticalResult";
 import ProductCardGrid from "./ProductCardGrid";
@@ -8403,6 +8404,9 @@ export default function BankingAgent({
       return;
     }
     const stepLabel = `Demo step ${stepNumber}: ${uc.id} — ${uc.title}`;
+    // A step's reply carries a Diagram link to its walkthrough, same affordance
+    // as the Mission Control card. No config, no link.
+    const diagramId = getConfig(uc.id)?.id || null;
     const trigger = uc.trigger || {};
     // Only the step's own auth level decides whether it may run — and "a
     // session" is not one level: an admin step asks a signed-in customer for
@@ -8502,7 +8506,7 @@ export default function BankingAgent({
       if (stepNeedsAuth) {
         signInPrompt();
       } else {
-        addMessage("assistant", `Running ${stepLabel}…`);
+        addMessage("assistant", `Running ${stepLabel}…`, null, diagramId ? { diagramId } : {});
       }
       // A chip is sent now or queued to send the moment the right login lands
       // — either way the presenter has committed the step. (Queued chips are
@@ -8515,7 +8519,7 @@ export default function BankingAgent({
 
     if (trigger.type === "edu" && trigger.panel) {
       edu?.open(trigger.panel, trigger.tab || "overview");
-      addMessage("assistant", `${stepLabel} — opened learning panel.`);
+      addMessage("assistant", `${stepLabel} — opened learning panel.`, null, diagramId ? { diagramId } : {});
       markUseCaseCompleted(uc.id);
       return;
     }
@@ -8594,11 +8598,11 @@ export default function BankingAgent({
         }
         return;
       }
-      addMessage("assistant", `${stepLabel} — opening ${trigger.path}.`);
+      addMessage("assistant", `${stepLabel} — opening ${trigger.path}.`, null, diagramId ? { diagramId } : {});
       // A run started by the step (A2A access review, agent chain) takes a few seconds and
       // streams into the reel: say it is running, then say how it ended, so a failure is not silent.
       if (opts?.run) {
-        addMessage("assistant", `${stepLabel} — running through the Agent Privilege. This takes a few seconds; the reel fills as each hop arrives.`);
+        addMessage("assistant", `${stepLabel} — running through the Agent Privilege. This takes a few seconds; the reel fills as each hop arrives.`, null, diagramId ? { diagramId } : {});
         setRunIndicator(`${stepLabel} — working…`);
         Promise.resolve(opts.run)
           .then((result) => addMessage(
@@ -8689,6 +8693,8 @@ export default function BankingAgent({
     addMessage(
       "assistant",
       `${stepLabel} — this use case has no runnable trigger in the agent.`,
+      null,
+      diagramId ? { diagramId } : {},
     );
   }
 
@@ -13725,6 +13731,22 @@ export default function BankingAgent({
                               refreshing={refreshingAirlineMessageId === msg.id && nlLoading}
                             />
                             {msg.paramHint && <ParamHintCopy hint={msg.paramHint} />}
+                            {msg.diagramId && (
+                              <a
+                                className="ba-agent-diagram-link"
+                                href={`/use-case-diagrams/${msg.diagramId}`}
+                                onClick={() => { if (!demoStepsPoppedOutRef.current) { setShowDemoSteps(false); setFloatingDemoStepsOpen(false); } }}
+                                title={`Open the ${msg.diagramId} walkthrough diagram`}
+                                data-testid={`agent-diagram-link-${msg.diagramId}`}
+                              >
+                                <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+                                  <rect x="1.5" y="1.5" width="5" height="4" rx="1" />
+                                  <rect x="9.5" y="10.5" width="5" height="4" rx="1" />
+                                  <path d="M4 5.5v4a2 2 0 0 0 2 2h3.5" />
+                                </svg>
+                                Diagram
+                              </a>
+                            )}
                             {(msg.clarifyOptions?.length > 0 || msg.amountOptions?.length > 0) && (
                               <ClarifyOptions
                                 options={msg.clarifyOptions}
