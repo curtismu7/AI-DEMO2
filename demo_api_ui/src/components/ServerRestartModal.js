@@ -45,8 +45,8 @@ export default function ServerRestartModal() {
       onClose={closeModal}
       title="Server is restarting"
       footer={footer}
-      defaultWidth={420}
-      defaultHeight={240}
+      defaultWidth={Math.min(560, window.innerWidth - 32)}
+      defaultHeight={Math.min(520, window.innerHeight - 64)}
       zIndex={9999}
       storageKey={null}
     >
