@@ -30,12 +30,18 @@ function synthesizeEvent(result) {
   const endpoint = result.request?.url || 'Unknown';
   const method = result.request?.method || 'GET';
 
+  // The mock-phone decision endpoint answers 404 PF_AI_CIBA_MOCK_DISABLED when the
+  // web approver owns the CIBA flow — a documented "not applicable", not a failure.
+  const mockDisabled = status === 404 && result.response?.body?.error === 'PF_AI_CIBA_MOCK_DISABLED';
+
   return {
     label: `${method} ${endpoint}`,
-    status: statusMap[status] || (status >= 200 && status < 300 ? 'success' : 'error'),
+    status: mockDisabled ? 'pending' : statusMap[status] || (status >= 200 && status < 300 ? 'success' : 'error'),
     // "decoded", not "signed": decodeJWT parses the token, it never verifies
     // the signature — and the demo tokens carry a placeholder one.
-    explanation: `HTTP ${status}${result.decodedToken?.isValid ? ' (decoded)' : ''}`,
+    explanation: mockDisabled
+      ? 'HTTP 404 — the mock phone is disabled; approve in the web approver instead'
+      : `HTTP ${status}${result.decodedToken?.isValid ? ' (decoded)' : ''}`,
   };
 }
 

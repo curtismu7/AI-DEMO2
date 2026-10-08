@@ -117,3 +117,39 @@ describe('ActivityPanel — sign-in prompt on 401', () => {
     expect(screen.queryByRole('link', { name: 'Sign in' })).not.toBeInTheDocument();
   });
 });
+
+describe('ActivityPanel — mock phone disabled', () => {
+  test('the mock-decision 404 renders as not-applicable, not a failure', () => {
+    render(
+      <ActivityPanel
+        results={[{
+          stepId: 'step-2',
+          request: { method: 'POST', url: '/api/pf-ai-agent/ciba/mock-decision', body: { decision: 'approve' } },
+          response: { status: 404, body: { error: 'PF_AI_CIBA_MOCK_DISABLED' } },
+        }]}
+        error={null}
+      />
+    );
+
+    const row = screen.getByRole('button', { name: /POST \/api\/pf-ai-agent\/ciba\/mock-decision\b/ });
+    expect(row.textContent).toContain('⚠️');
+    expect(row.textContent).toContain('web approver');
+    expect(row.textContent).not.toContain('❌');
+  });
+
+  test('a different 404 stays an error', () => {
+    render(
+      <ActivityPanel
+        results={[{
+          stepId: 'step-2',
+          request: { method: 'GET', url: '/api/nowhere', body: {} },
+          response: { status: 404, body: { error: 'not_found' } },
+        }]}
+        error={null}
+      />
+    );
+
+    const row = screen.getByRole('button', { name: /GET \/api\/nowhere\b/ });
+    expect(row.textContent).toContain('❌');
+  });
+});

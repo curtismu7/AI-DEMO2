@@ -17,6 +17,13 @@ jest.mock('../../services/configStore', () => ({
 }));
 jest.mock('../../data/store');
 jest.mock('../../middleware/auth');
+jest.mock('../../services/pingOneUserLookupService', () => ({
+  fetchPingOneUserById: jest.fn().mockResolvedValue({ user: null, error: 'not_found' }),
+}));
+jest.mock('../../services/oidcIdTokenValidationService', () => ({
+  validateIdToken: jest.fn().mockResolvedValue({ sub: 'test-user-id' }),
+  assertUserInfoSubjectMatches: jest.fn(),
+}));
 
 const mockOAuthService = require('../../services/oauthService');
 const mockOAuthUserService = require('../../services/oauthUserService');
@@ -24,6 +31,7 @@ const mockConfigStore = require('../../services/configStore');
 const { readPkceCookie, setPkceCookie } = require('../../services/pkceStateCookie');
 const mockDataStore = require('../../data/store');
 const mockAuth = require('../../middleware/auth');
+const { fetchPingOneUserById } = require('../../services/pingOneUserLookupService');
 
 describe('OAuth Callback Token Storage (Task 7)', () => {
   let app;
@@ -49,6 +57,18 @@ describe('OAuth Callback Token Storage (Task 7)', () => {
         oauthRedirectUri: 'https://local.ping-devops.com:4000/api/auth/oauth/user/callback',
         oauthNonce: 'current-nonce',
         oauthLoginProvider: 'pingone',
+      });
+      req.session.save((err) => res.sendStatus(err ? 500 : 204));
+    });
+
+    app.get('/__test/user-pf-login-session', (req, res) => {
+      Object.assign(req.session, {
+        oauthType: 'user',
+        oauthState: 'current-state',
+        oauthCodeVerifier: 'current-verifier',
+        oauthRedirectUri: 'https://local.ping-devops.com:4000/api/auth/oauth/user/callback',
+        oauthNonce: 'current-nonce',
+        oauthLoginProvider: 'pingfederate',
       });
       req.session.save((err) => res.sendStatus(err ? 500 : 204));
     });
@@ -87,7 +107,10 @@ describe('OAuth Callback Token Storage (Task 7)', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
+    // A test that flips the stack provider must not leak into the next one.
+    mockConfigStore.getOAuthProvider.mockReturnValue('pingone');
+
     // Setup default mocks
     mockOAuthService.exchangeCodeForToken = jest.fn().mockResolvedValue({
       access_token: 'test-oauth-access-token',
@@ -263,6 +286,55 @@ describe('OAuth Callback Token Storage (Task 7)', () => {
       'current-code', 'current-verifier',
       'https://local.ping-devops.com:4000/api/auth/oauth/user/callback',
     );
+  });
+
+  test('a completed PingOne sign-in looks the phone up from PingOne', async () => {
+    mockOAuthUserService.exchangeCodeForToken = jest.fn().mockResolvedValue({
+      access_token: 'user-access-token', expires_in: 3600, token_type: 'Bearer', id_token: 'idt',
+    });
+    mockOAuthUserService.getUserInfo = jest.fn().mockResolvedValue({
+      sub: 'test-user-id', preferred_username: 'testuser', email: 'test@example.com',
+    });
+    mockOAuthUserService.createUserFromOAuth = jest.fn().mockReturnValue({
+      username: 'testuser', email: 'test@example.com', role: 'admin',
+      oauthProvider: 'pingone', oauthId: 'test-user-id',
+    });
+    mockDataStore.getUserByUsername = jest.fn().mockReturnValue(null);
+    mockDataStore.createUser = jest.fn().mockResolvedValue({
+      id: 'user-123', username: 'testuser', role: 'admin', oauthId: 'test-user-id',
+    });
+    const agent = request.agent(app);
+    await agent.get('/__test/user-login-session').expect(204);
+
+    const response = await agent.get('/api/auth/oauth/user/callback')
+      .query({ code: 'phone-code', state: 'current-state' });
+    expect(response.headers.location).not.toContain('error=');
+    expect(fetchPingOneUserById).toHaveBeenCalledWith('test-user-id');
+  });
+
+  test('a PingFederate sign-in never calls the PingOne user API (its oauthId is a username)', async () => {
+    mockConfigStore.getOAuthProvider.mockReturnValue('pingfederate');
+    mockOAuthUserService.exchangeCodeForToken = jest.fn().mockResolvedValue({
+      access_token: 'user-access-token', expires_in: 3600, token_type: 'Bearer', id_token: 'idt',
+    });
+    mockOAuthUserService.getUserInfo = jest.fn().mockResolvedValue({
+      sub: 'test-user-id', preferred_username: 'testuser', email: 'test@example.com',
+    });
+    mockOAuthUserService.createUserFromOAuth = jest.fn().mockReturnValue({
+      username: 'testuser', email: 'test@example.com', role: 'admin',
+      oauthProvider: 'pingfederate', oauthId: 'demouser',
+    });
+    mockDataStore.getUserByUsername = jest.fn().mockReturnValue(null);
+    mockDataStore.createUser = jest.fn().mockResolvedValue({
+      id: 'user-123', username: 'testuser', role: 'admin', oauthId: 'demouser',
+    });
+    const agent = request.agent(app);
+    await agent.get('/__test/user-pf-login-session').expect(204);
+
+    const response = await agent.get('/api/auth/oauth/user/callback')
+      .query({ code: 'pf-phone-code', state: 'current-state' });
+    expect(response.headers.location).not.toContain('error=');
+    expect(fetchPingOneUserById).not.toHaveBeenCalled();
   });
 
   test('stale callback preserves the active signed PKCE cookie fallback', async () => {

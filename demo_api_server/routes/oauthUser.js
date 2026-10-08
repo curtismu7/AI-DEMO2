@@ -1235,11 +1235,17 @@ router.get('/callback', async (req, res) => {
     const authedUser = user;
     // Best-effort: pull the user's mobile phone from PingOne so the post-login
     // success modal can show it. Non-fatal — login proceeds if the lookup fails.
+    // PingOne's user API wants a UUID; a PingFederate sign-in's oauthId is a
+    // username, so only a PingOne sign-in's id is worth the call. loginProvider
+    // is what this login used ('pingone' | 'pingfederate'); the session's
+    // oauthProvider field is only set further down, so it is not readable here.
     try {
-      const pingoneUserId = authedUser?.oauthId || authedUser?.id;
-      if (pingoneUserId) {
-        const { user: p1User } = await fetchPingOneUserById(pingoneUserId);
-        if (p1User?.mobilePhone) authedUser.phone = p1User.mobilePhone;
+      if (loginProvider === 'pingone') {
+        const pingoneUserId = authedUser?.oauthId || authedUser?.id;
+        if (pingoneUserId) {
+          const { user: p1User } = await fetchPingOneUserById(pingoneUserId);
+          if (p1User?.mobilePhone) authedUser.phone = p1User.mobilePhone;
+        }
       }
     } catch (phoneErr) {
       console.warn('[oauth/user/callback] phone lookup failed (non-fatal):', phoneErr.message);
