@@ -617,7 +617,7 @@ export default function DemoStepsDropdown({
               href={stepDiagramPath(stepNumber)}
               onClick={(e) => { e.stopPropagation(); onOpenChange(false); }}
               title={`Open the step ${stepNumber} diagram`}
-              data-testid={`demo-step-diagram-link-${uc.id}`}
+              data-testid={`step-diagram-link-${uc.id}`}
             >
               <DiagramGlyph />
               Diagram
@@ -776,7 +776,7 @@ export default function DemoStepsDropdown({
                   className="ba-demo-steps-popout__diagram-open"
                   href={headerDiagram.path}
                   onClick={(e) => { e.stopPropagation(); onOpenChange(false); }}
-                  data-testid={`demo-step-diagram-open-${headerDiagram.step}`}
+                  data-testid={`steps-diagram-open-${headerDiagram.step}`}
                 >
                   <DiagramGlyph />
                   Open diagram
