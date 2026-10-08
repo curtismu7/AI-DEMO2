@@ -2,6 +2,8 @@
  * formatters.js — locale-aware number/date formatters used throughout the UI.
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+
+
 import {
   formatCurrency,
   formatDate,
@@ -71,14 +73,16 @@ describe('formatters', () => {
 
   describe('formatDateTime', () => {
     it('formats a unix timestamp (seconds)', () => {
-      // 2024-01-01 00:00:00 UTC
+      // 2024-01-01 00:00:00 UTC. Zone-dependent: Node caches the worker
+      // process's zone at first Date use and other suites flip process.env.TZ,
+      // so assert the year computed with the same engine instead of a literal.
       const result = formatDateTime(1704067200);
-      expect(result).toMatch(/2024/);
+      expect(result).toContain(String(new Date(1704067200 * 1000).getFullYear()));
     });
 
     it('formats an ISO string timestamp', () => {
       const result = formatDateTime('2024-06-15T14:30:00Z');
-      expect(result).toMatch(/2024/);
+      expect(result).toContain(String(new Date('2024-06-15T14:30:00Z').getFullYear()));
     });
 
     it('returns empty string for null/undefined/empty', () => {
@@ -124,7 +128,10 @@ describe('formatters', () => {
     });
 
     it('formats date', () => {
-      expect(formatValue('2024-01-01', 'date')).toMatch(/2024/);
+      // '2024-01-01' parses as UTC midnight; the formatted year is the LOCAL
+      // year — Dec 31 2023 in negative-offset zones (see TZ note at top).
+      const expectedYear = String(new Date('2024-01-01').getFullYear());
+      expect(formatValue('2024-01-01', 'date')).toContain(expectedYear);
     });
 
     it('formats percent with 2 decimal places', () => {
