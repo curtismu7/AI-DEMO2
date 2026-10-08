@@ -4,7 +4,8 @@ import { useExplainData } from '../hooks/useExplainData';
 import { PING_PRODUCTS } from '../utils/pingProducts';
 import { isA2aUseCase, extractA2aFacts } from '../utils/a2aFacts';
 import { DEMO_STEP_GUIDES } from '../config/demoStepGuides';
-import { stepLabel } from '../config/demoStepNumbers';
+import { demoStepNumber, stepLabel } from '../config/demoStepNumbers';
+import { stepDiagramFor, stepDiagramPath } from '../config/stepDiagrams';
 import './UseCaseExplainModal.css';
 import InlineSpinner from './shared/InlineSpinner';
 
@@ -166,6 +167,10 @@ export default function UseCaseExplainModal({ uc, open, onClose, a2aTokenEvents 
 
   if (!open || !uc) return null;
 
+  // The step diagram (stepDiagrams.js) rides where presenters already read:
+  // a thumbnail section above the narration text, linking to the full page.
+  const diagram = stepDiagramFor(demoStepNumber(uc.id));
+
   const trackLabel = uc.track
     ? uc.track.charAt(0).toUpperCase() + uc.track.slice(1)
     : '';
@@ -194,6 +199,20 @@ export default function UseCaseExplainModal({ uc, open, onClose, a2aTokenEvents 
             <h2 className="ucem__title">{uc.title}</h2>
             {trackLabel && <span className="ucem__track">{trackLabel}</span>}
           </div>
+
+          {diagram && (
+            <div className="ucem__sec ucem__diagram" data-testid="ucem-diagram">
+              <div className="ucem__diagram-head">
+                <SectionHead num="⌗">How it flows</SectionHead>
+                <a className="ucem__diagram-open" href={stepDiagramPath(diagram.step)}>
+                  Open full diagram
+                </a>
+              </div>
+              <div className="ucem__diagram-thumb">
+                <diagram.render st={() => ''} />
+              </div>
+            </div>
+          )}
 
           <div className="ucem__sec">
             <SectionHead num={1}>What this is</SectionHead>

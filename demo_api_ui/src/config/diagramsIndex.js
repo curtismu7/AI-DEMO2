@@ -52,6 +52,7 @@ export const DIAGRAMS_INDEX = [
       D("Agent Onboarding Flow", "/agent-onboarding-flow", "Onboarding simulator."),
       D("Agent Onboarding Flow Subway", "/agent-onboarding-flow-subway", "Onboarding drawn as a subway map."),
       D("Demo Steps Lifeline Audit", "/demo-steps-lifeline-audit", "Every demo step, with the step in focus ringed."),
+      D("Step Diagrams", "/step-diagrams/2", "One diagram per demo step; opens the delegated-access one."),
     ],
   },
 ];
