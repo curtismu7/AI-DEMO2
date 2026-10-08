@@ -54,8 +54,8 @@ All four remain reachable by direct URL; only the nav entries are commented out.
 ### Canvas Diagram — `/architecture/canvas`
 
 - **Component:** `demo_api_ui/src/components/ArchitectureCanvasPage.jsx`
-  (`react-konva` canvas, auto-layout via `hooks/useCanvasLayout.js`, drag /
-  multi-select / export to Mermaid + draw.io).
+  (React Flow editor, layout via `hooks/useCanvasLayout.js`, drag / rename /
+  connect / export to Mermaid + draw.io).
 - **What it shows:** an editable canvas version of the service topology with
   live service-status coloring and step-timing playback.
 - **Why hidden:** experimental editor rather than a reference diagram; overlaps

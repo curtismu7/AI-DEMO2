@@ -39,17 +39,18 @@ Below the diagram is a movie reel with one card per step. Click a card to jump t
 | Agent Onboarding Flow | https://local.ping-devops.com:4000/agent-onboarding-flow | Pick a persona (and an Admin story); each step lights the cards and links it touches |
 | Agent Onboarding Subway | https://local.ping-devops.com:4000/agent-onboarding-flow-subway | Same personas as a station line; one station per run of steps |
 | Overview | https://local.ping-devops.com:4000/architecture/overview | Pick a scenario and Simulate; the reel appears under the diagram (not in Live mode) |
+| Canvas | https://local.ping-devops.com:4000/architecture/canvas | Editable React Flow canvas: drag a box, double-click to rename, drag from a box's right dot to another's left dot to connect, click an arrow then Delete Edge. Pick a flow (AG-UI, NL, HITL) for the Play/Step bar and reel |
 | Token Flow | https://local.ping-devops.com:4000/architecture/token-flow | Sequence replaces the old PNG; 15 steps in Full Flow, other scenarios in the dropdown. Click a reel card to open that step's token card |
 
 ## Need a signed-in session (only unit-tested so far)
 
 | Report | URL | Where the diagram is |
 |---|---|---|
-| Protocol Playground | https://local.ping-devops.com:4000/protocol-playground | Pick a protocol; the sequence draws next to the steps, no Simulate bar there |
+| Protocol Playground | https://local.ping-devops.com:4000/protocol-playground | Pick a protocol; the sequence draws next to the steps, no Simulate bar there. Checked live: all 11 render with arrows; Next Step shows a response code per message |
 | DaVinci widget lesson | https://local.ping-devops.com:4000/davinci-widget | "The Flow" section |
 | OAuth Visualizer | open from the app (a panel, not a page) | Highlights the arrows for the selected step |
 | Token Exchange diagram | the floating token panel in the app | Updates live as a run happens |
 
 ## Not converted
 
-Canvas `/architecture/canvas` is still a react-konva drag-and-drop editor; it is not a stepped report.
+None. Every page in this list draws with React Flow.
