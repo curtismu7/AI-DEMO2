@@ -31,6 +31,39 @@ describe('cimdReadinessService', () => {
     expect(targets({}).documentUrl).toBeNull();
   });
 
+  describe('a local stack that signs in with the public host\'s document (PRIVILEGE_CIMD_DOCUMENT_ORIGIN)', () => {
+    const PUBLIC_DOC = 'https://public.example.test/api/cimd/privilege/privilege-mcp-client/client-metadata.json';
+    const LOCAL_ENV = { ...ENV, PRIVILEGE_CIMD_DOCUMENT_ORIGIN: 'https://public.example.test/ignored' };
+    const publicDoc = { ...goodDoc, client_id: PUBLIC_DOC, redirect_uris: ['https://public.example.test/api/privilege-mcp/auth/callback', CALLBACK] };
+
+    test('the document is read from that origin, the callback stays this app\'s own', () => {
+      expect(targets(LOCAL_ENV)).toEqual({ asMetadataUrl: AS_URL, documentUrl: PUBLIC_DOC, callbackUrl: CALLBACK });
+    });
+
+    test('passes when the public document lists this app\'s callback', async () => {
+      const fetchImpl = fetchFor({ [AS_URL]: reply(goodAs), [PUBLIC_DOC]: reply(publicDoc) });
+      const result = await runReadiness({ env: LOCAL_ENV, fetchImpl });
+      expect(result.ok).toBe(true);
+      expect(fetchImpl).not.toHaveBeenCalledWith(DOC_URL, expect.anything());
+    });
+
+    test('fails on the callback, and only that, until the public document is redeployed with it', async () => {
+      const stale = { ...publicDoc, redirect_uris: ['https://public.example.test/api/privilege-mcp/auth/callback'] };
+      const result = await runReadiness({ env: LOCAL_ENV, fetchImpl: fetchFor({ [AS_URL]: reply(goodAs), [PUBLIC_DOC]: reply(stale) }) });
+      expect(result.checks.filter((c) => !c.pass).map((c) => c.id)).toEqual(['doc_redirect']);
+    });
+
+    test('with no PUBLIC_APP_URL the callback line says so instead of printing "null"', async () => {
+      const env = { PRIVILEGE_CIMD_AS_METADATA_URL: AS_URL, PRIVILEGE_CIMD_DOCUMENT_ORIGIN: 'https://public.example.test' };
+      const result = await runReadiness({ env, fetchImpl: fetchFor({ [AS_URL]: reply(goodAs), [PUBLIC_DOC]: reply(publicDoc) }) });
+      expect(byId(result, 'doc_redirect').detail).toMatch(/PUBLIC_APP_URL is not set/);
+    });
+
+    test('a malformed origin falls back to this app\'s own', () => {
+      expect(targets({ ...ENV, PRIVILEGE_CIMD_DOCUMENT_ORIGIN: 'not a url' }).documentUrl).toBe(DOC_URL);
+    });
+  });
+
   test('everything correct passes', async () => {
     const result = await runReadiness({ env: ENV, fetchImpl: fetchFor({ [AS_URL]: reply(goodAs), [DOC_URL]: reply(goodDoc) }) });
     expect(result.ok).toBe(true);

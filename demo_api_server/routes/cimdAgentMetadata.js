@@ -76,8 +76,37 @@ const DEFAULT_REDIRECT_PATH = '/api/external-agents/callback';
 const PRIVILEGE_EXTRA_AGENTS = {
   'langchain-agent': { name: 'LangChain Banking Agent' },
   'demo-agent-service': { name: 'Demo Agent Service' },
-  'privilege-mcp-client': { name: 'AI Demo Privilege MCP Client', redirectPath: '/api/privilege-mcp/auth/callback' }
+  'privilege-mcp-client': {
+    name: 'AI Demo Privilege MCP Client',
+    redirectPath: '/api/privilege-mcp/auth/callback',
+    extraRedirectOrigins: true
+  }
 };
+
+const DEFAULT_EXTRA_REDIRECT_ORIGINS = 'https://local.ping-devops.com:4000';
+
+/**
+ * Other origins whose callback this client's document also lists. A local stack signs in with THIS document's
+ * URL as its client_id (Privilege can fetch only the public host, and only that URL is listed) while its browser
+ * returns to its own callback, so the redirect has to be on the list too. CIMD_PRIVILEGE_CLIENT_EXTRA_REDIRECT_ORIGINS
+ * is a comma list; set it to an empty value to publish only the serving origin's callback. Malformed entries
+ * are ignored.
+ */
+function extraRedirectOrigins() {
+  const raw = process.env.CIMD_PRIVILEGE_CLIENT_EXTRA_REDIRECT_ORIGINS;
+  return String(raw === undefined ? DEFAULT_EXTRA_REDIRECT_ORIGINS : raw)
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      try {
+        return new URL(entry).origin;
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean);
+}
 
 // GET /api/cimd/privilege/check — read-only readiness of CIMD sign-in to the Privilege gateway.
 // No parameters: the targets come from server config, so it cannot be aimed at another host. It is NOT in the
@@ -109,12 +138,13 @@ router.get('/privilege/:slug/client-metadata.json', (req, res) => {
   }
   const redirectPath = (extra && extra.redirectPath) || DEFAULT_REDIRECT_PATH;
   const url = canonicalDocumentUrl(req);
+  const origins = [new URL(url).origin, ...(extra && extra.extraRedirectOrigins ? extraRedirectOrigins() : [])];
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Cache-Control', 'public, max-age=300');
   return res.json({
     client_id: url,
     client_name: name,
-    redirect_uris: [`${new URL(url).origin}${redirectPath}`],
+    redirect_uris: [...new Set(origins)].map((origin) => `${origin}${redirectPath}`),
     grant_types: ['authorization_code', 'refresh_token'],
     response_types: ['code'],
     token_endpoint_auth_method: 'none'

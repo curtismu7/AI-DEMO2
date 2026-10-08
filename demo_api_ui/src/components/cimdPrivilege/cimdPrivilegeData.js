@@ -66,7 +66,7 @@ export const FLOW_STEPS = [
     "observed",
     "Privilege looks for the URL on the MCP Client Documents list. Only listed URLs are accepted, and an empty list turns the feature off.",
     "Anyone can host a file. The list is what turns that into \"only clients an admin chose\".",
-    "The tab exists and states this rule, and we have listed both Claude's document and ours. Rejecting an unlisted URL at authorize time has not been tried."
+    "Seen at authorize time: a sign-in naming a document URL that is not on the list was refused with \"This client is not approved for use here ... is not listed for this tenant\", and the message names the exact URL for an administrator to add under Settings, MCP Client Documents."
   ),
   step(
     "fetch",
@@ -163,7 +163,7 @@ export const CAP_STEPS = [
     "observed",
     "Privilege accepts only the URLs on its list. Leaving the list empty switches the feature off, and clients that do not use it register as before.",
     "Adding or removing an agent is one row, controlled by the gateway admin, not by whoever hosts a file.",
-    "Stated on the tab and visible in the edit form. Rejection of an unlisted URL has not been tried."
+    "Stated on the tab, and enforced: a local sign-in with an unlisted document URL was refused as \"not listed for this tenant\"."
   ),
   step(
     "secretless",
@@ -214,7 +214,8 @@ export const CAP_STEPS = [
 
 export const ASSUMPTIONS = [
   "Only steps marked Observed were seen. Everything marked Expected follows from the CIMD design and is still to be run: no sign-in with a document URL has completed yet.",
-  "Privilege has read our Privilege MCP client document and accepted its redirect URI as a listing. Whether it enforces the list at authorize time, and whether the other 17 agents' shared callback suits them, is untested.",
+  "Privilege has read our Privilege MCP client document and enforces the client list at authorize time. Whether it enforces the document's redirect list when a listed client signs in, and whether the other 17 agents' shared callback suits them, is untested.",
+  "A local stack cannot be listed itself: Privilege cannot fetch localhost. It signs in with the public host's document as its client_id (PRIVILEGE_CIMD_DOCUMENT_ORIGIN), and that document also lists the local callback, so the browser can still come back to your machine.",
   "Our server-side agents authenticate with client credentials and token exchange, not an interactive browser sign-in. A document that describes an authorization_code client may suit interactive MCP clients better.",
   "The documents are public on the SE host through 18 exact paths. That list is kept in three places: the ingress, the BFF gate and a checker script.",
 ];

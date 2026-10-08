@@ -1636,6 +1636,19 @@ function trustedCallbackOrigin(req) {
   return allowed.has(forwarded) ? forwarded : linkCallbackOrigin();
 }
 
+// Origin of the client document used as the client_id. Normally this app's own origin, which is the host Privilege
+// fetches the document from. A local stack sets PRIVILEGE_CIMD_DOCUMENT_ORIGIN to the public host's origin:
+// Privilege cannot fetch localhost, and only the public URL is listed. The redirect URI is a separate thing and
+// stays on this app's own callback (the public document also lists that callback).
+function cimdDocumentOrigin(req) {
+  try {
+    if (process.env.PRIVILEGE_CIMD_DOCUMENT_ORIGIN) return new URL(process.env.PRIVILEGE_CIMD_DOCUMENT_ORIGIN).origin;
+  } catch {
+    // malformed value: use this app's own origin
+  }
+  return trustedCallbackOrigin(req);
+}
+
 // Does the gateway's authorization server say it takes a client document as the client_id? Same trick as the
 // /register URL in getOrRegisterDcrClient: the AS metadata sits beside /authorize. Any failure reads as "no",
 // so the caller refuses before sending the browser to an AS that would reject the client_id.
@@ -1682,7 +1695,7 @@ async function beginOAuthFlow(session, req, { callbackPath, callbackOrigin } = {
         + 'as the client_id. Set Client identity back to Dynamic registration.',
       );
     }
-    clientId = `${trustedCallbackOrigin(req)}${CIMD_DOCUMENT_PATH}`;
+    clientId = `${cimdDocumentOrigin(req)}${CIMD_DOCUMENT_PATH}`;
     // The token exchange reads dcrClientId as "the client this flow used"; there is no secret to go with it.
     dcrClientId = clientId;
   } else if (selfAdvertised && brokerClientId && isAgentGatewayBrokerAs(authorizationUri)) {

@@ -10,7 +10,8 @@ const request = require('supertest');
 const MCP_URL = 'https://mcpgw.example.com/opensearch22/mcp';
 const BASE = 'https://mcpgw.example.com/opensearch22';
 const DOC_URL = 'https://local.ping-devops.com:4000/api/cimd/privilege/privilege-mcp-client/client-metadata.json';
-const ENV_KEYS = ['PRIVILEGE_MCP_CALLBACK_HOST', 'PUBLIC_APP_URL', 'CORS_ORIGIN', 'PINGONE_MCP_GATEWAY_CLIENT_SECRET', 'PRIVILEGE_SSO_CLIENT_SECRET'];
+const PUBLIC_DOC_URL = 'https://public.example.test/api/cimd/privilege/privilege-mcp-client/client-metadata.json';
+const ENV_KEYS = ['PRIVILEGE_MCP_CALLBACK_HOST', 'PUBLIC_APP_URL', 'CORS_ORIGIN', 'PINGONE_MCP_GATEWAY_CLIENT_SECRET', 'PRIVILEGE_SSO_CLIENT_SECRET', 'PRIVILEGE_CIMD_DOCUMENT_ORIGIN'];
 
 function buildApp() {
   jest.resetModules();
@@ -132,6 +133,39 @@ describe('privilege MCP client identity mode', () => {
     expect(body.get('client_id')).toBe(DOC_URL);
     expect(body.get('code_verifier')).toBeTruthy();
     expect(body.has('client_secret')).toBe(false);
+  });
+
+  test('a local stack signs in with the public host\'s document: client_id there, redirect still local', async () => {
+    // Privilege cannot fetch localhost and only lists the public URL. The document is the identity; the redirect is
+    // where this browser comes back to, and the public document lists that callback too.
+    process.env.PRIVILEGE_CIMD_DOCUMENT_ORIGIN = 'https://public.example.test/some/ignored/path';
+    global.fetch = gatewayFetch({ supportsCimd: true, seen });
+    const app = buildApp();
+    await configure(app);
+    await request(app).post('/api/privilege-mcp/client-identity').send({ mode: 'cimd' }).expect(200);
+
+    const start = await request(app).post('/api/privilege-mcp/auth/start').send({}).expect(200);
+    const authUrl = new URL(start.body.authUrl);
+    expect(authUrl.searchParams.get('client_id')).toBe(PUBLIC_DOC_URL);
+    expect(authUrl.searchParams.get('redirect_uri')).toBe('https://local.ping-devops.com:4000/api/privilege-mcp/auth/callback');
+
+    await request(app).get('/api/privilege-mcp/auth/callback').query({ code: 'real-code', state: authUrl.searchParams.get('state') });
+    const exchange = seen.find((s) => s.target.endsWith('/token') && String(s.options.body || '').includes('real-code'));
+    const body = new URLSearchParams(String(exchange.options.body));
+    // The token request must name the same client_id and the same redirect URI the authorize request used.
+    expect(body.get('client_id')).toBe(PUBLIC_DOC_URL);
+    expect(body.get('redirect_uri')).toBe('https://local.ping-devops.com:4000/api/privilege-mcp/auth/callback');
+    expect(body.has('client_secret')).toBe(false);
+  });
+
+  test('a malformed PRIVILEGE_CIMD_DOCUMENT_ORIGIN falls back to this app\'s own origin', async () => {
+    process.env.PRIVILEGE_CIMD_DOCUMENT_ORIGIN = 'not a url';
+    global.fetch = gatewayFetch({ supportsCimd: true, seen });
+    const app = buildApp();
+    await configure(app);
+    await request(app).post('/api/privilege-mcp/client-identity').send({ mode: 'cimd' }).expect(200);
+    const start = await request(app).post('/api/privilege-mcp/auth/start').send({}).expect(200);
+    expect(new URL(start.body.authUrl).searchParams.get('client_id')).toBe(DOC_URL);
   });
 
   test('an unknown mode is a 400 and leaves the current mode alone', async () => {

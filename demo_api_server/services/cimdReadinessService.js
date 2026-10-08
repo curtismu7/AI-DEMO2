@@ -23,12 +23,25 @@ const DEFAULT_APP = 'opensearch22';
 const DOCUMENT_SLUG = 'privilege-mcp-client';
 const CALLBACK_PATH = '/api/privilege-mcp/auth/callback';
 
+// The origin the client document is fetched from: PRIVILEGE_CIMD_DOCUMENT_ORIGIN when a local stack signs in with
+// the public host's document (see cimdDocumentOrigin in routes/privilegeMcpClient.js), otherwise this app's own.
+function documentOrigin(env, base) {
+  try {
+    if (env.PRIVILEGE_CIMD_DOCUMENT_ORIGIN) return new URL(env.PRIVILEGE_CIMD_DOCUMENT_ORIGIN).origin;
+  } catch {
+    // malformed value: use this app's own origin
+  }
+  return base;
+}
+
 function targets(env = process.env) {
   const base = String(env.PUBLIC_APP_URL || '').replace(/\/+$/, '');
+  const docBase = documentOrigin(env, base);
   const app = env.MCP_FACADE_PRIVILEGE_GATEWAY_APP || DEFAULT_APP;
   return {
     asMetadataUrl: env.PRIVILEGE_CIMD_AS_METADATA_URL || `${GATEWAY_HOST}/${app}/.well-known/oauth-authorization-server`,
-    documentUrl: base ? `${base}/api/cimd/privilege/${DOCUMENT_SLUG}/client-metadata.json` : null,
+    documentUrl: docBase ? `${docBase}/api/cimd/privilege/${DOCUMENT_SLUG}/client-metadata.json` : null,
+    // Always this app's own callback: it is where the browser returns, wherever the document is hosted.
     callbackUrl: base ? `${base}${CALLBACK_PATH}` : null
   };
 }
@@ -89,7 +102,9 @@ function documentChecks(doc, { documentUrl, callbackUrl }) {
   return [
     check('doc_fetch', 'Client document fetches', true, 'HTTP 200, JSON'),
     check('doc_client_id', 'client_id equals the document URL', body.client_id === documentUrl, body.client_id === documentUrl ? 'matches' : `document says ${body.client_id || 'nothing'}`),
-    check('doc_redirect', "Document lists this client's callback", redirects.includes(callbackUrl), redirects.includes(callbackUrl) ? callbackUrl : `callback ${callbackUrl} is not in redirect_uris`),
+    callbackUrl
+      ? check('doc_redirect', "Document lists this client's callback", redirects.includes(callbackUrl), redirects.includes(callbackUrl) ? callbackUrl : `callback ${callbackUrl} is not in redirect_uris`)
+      : check('doc_redirect', "Document lists this client's callback", false, "PUBLIC_APP_URL is not set, so this client's callback is unknown"),
     check('doc_public_client', 'Document declares a public client', auth === 'none' || auth === undefined, `token_endpoint_auth_method: ${auth === undefined ? 'absent' : auth}`),
     check('doc_grant', 'Document allows authorization_code', grants.includes('authorization_code'), grants.join(', ') || 'no grant_types')
   ];
