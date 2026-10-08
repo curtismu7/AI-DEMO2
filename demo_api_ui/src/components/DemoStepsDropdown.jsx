@@ -19,6 +19,7 @@ import {
 } from '../config/demoUseCaseSteps';
 import { getMissionControlGroup } from '../config/missionControlCatalog';
 import { demoStepLabel, demoStepNumber, stepQueryMatches } from '../config/demoStepNumbers';
+import { stepDiagramFor, stepDiagramPath } from '../config/stepDiagrams';
 import apiClient from '../services/apiClient';
 import UseCaseExplainModal from './UseCaseExplainModal';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
@@ -41,6 +42,18 @@ import {
 import InlineSpinner from './shared/InlineSpinner';
 
 const RAR_QUICK_RESULT_KEY = 'rar_intent_quick_result';
+
+/** Small flow glyph for the "Open diagram" affordance (a box-to-box hop). */
+function DiagramGlyph() {
+  return (
+    <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+      <rect x="1.5" y="1.5" width="5" height="4" rx="1" />
+      <rect x="9.5" y="10.5" width="5" height="4" rx="1" />
+      <path d="M4 5.5v4a2 2 0 0 0 2 2h3.5" />
+    </svg>
+  );
+}
+
 const DEMO_STEPS_DRAWER_OPEN_KEY = 'demo_steps_drawer_open_v1';
 const DEMO_STEPS_FLOATING_BUTTON_POS_KEY = 'demo_steps_floating_button_pos_v1';
 const DEMO_STEPS_FLOATING_BUTTON_SIZE = 48;
@@ -457,6 +470,10 @@ export default function DemoStepsDropdown({
   ).length;
   const nextPrimaryId = primarySteps.find(({ uc }) => !completedIds.has(uc.id))?.uc
     ?.id;
+  // The step the presenter is about to run: the header's "Open diagram" reads
+  // this. Data-driven from stepDiagrams.js — no entry, no button.
+  const nextPrimaryStepNumber = nextPrimaryId ? demoStepNumber(nextPrimaryId) : null;
+  const headerDiagram = stepDiagramFor(nextPrimaryStepNumber);
   const progressPct =
     primarySteps.length > 0
       ? Math.round((completedCount / primarySteps.length) * 100)
@@ -593,6 +610,18 @@ export default function DemoStepsDropdown({
             >
               {DEMO_STEP_DESTINATIONS[uc.id].label}
             </span>
+          )}
+          {stepDiagramFor(stepNumber) && (
+            <a
+              className="ba-demo-steps-popout__diagram-link"
+              href={stepDiagramPath(stepNumber)}
+              onClick={(e) => { e.stopPropagation(); onOpenChange(false); }}
+              title={`Open the step ${stepNumber} diagram`}
+              data-testid={`demo-step-diagram-link-${uc.id}`}
+            >
+              <DiagramGlyph />
+              Diagram
+            </a>
           )}
           {uc.resourceServer && (
             <span
@@ -736,6 +765,22 @@ export default function DemoStepsDropdown({
                   <i style={{ width: `${progressPct}%` }} />
                 </div>
                 <span className="ba-demo-steps-float__time">12 min</span>
+              </div>
+            )}
+            {headerDiagram && (
+              <div className="ba-demo-steps-popout__diagram-row" data-testid="demo-steps-diagram-row">
+                <span className="ba-demo-steps-popout__diagram-label">
+                  Up next · Step {demoStepLabel(nextPrimaryId)} — {headerDiagram.title}
+                </span>
+                <a
+                  className="ba-demo-steps-popout__diagram-open"
+                  href={headerDiagram.path}
+                  onClick={(e) => { e.stopPropagation(); onOpenChange(false); }}
+                  data-testid={`demo-step-diagram-open-${headerDiagram.step}`}
+                >
+                  <DiagramGlyph />
+                  Open diagram
+                </a>
               </div>
             )}
             <div className="ba-demo-steps-popout__header-actions">

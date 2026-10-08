@@ -63,6 +63,31 @@
   border-bottom: 1px solid var(--th-border);
 }
 .ucem__sec:last-child { border-bottom: none; }
+
+/* Step diagram section (stepDiagrams.js): thumbnail + link to the full page. */
+.ucem__diagram-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.ucem__diagram-open {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #1d6bf3;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.ucem__diagram-open:hover { text-decoration: underline; }
+.ucem__diagram-thumb {
+  margin-top: 0.5rem;
+  border: 1px solid var(--th-border);
+  border-radius: 10px;
+  background: var(--th-bg-card);
+  padding: 0.5rem;
+  overflow: hidden;
+}
+.ucem__diagram-thumb svg { width: 100%; height: auto; display: block; }
 .ucem__sec-h {
   display: flex;
   align-items: center;
