@@ -38,3 +38,14 @@ describe('externalAgents data module', () => {
     expect(plan).toContain('/mcp-facade/privilege-gateway/mcp');
   });
 });
+
+describe('runbook/lesson drift guard', () => {
+  it('runbook URLs match the lesson page URLs', () => {
+    const runbook = readFileSync(
+      join(__dirname, '../../../../docs/MUSE_RUNBOOK.md'), 'utf8');
+    expect(runbook).toContain('https://cmuir-mcp.ping-devops.com/mcp');
+    expect(runbook).toContain('/mcp-facade/privilege-gateway/mcp');
+    expect(runbook).toContain('UC-MUSE1');
+    expect(runbook).toContain('UC-MUSE2');
+  });
+});
