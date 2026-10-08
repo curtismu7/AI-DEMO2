@@ -248,4 +248,54 @@ describe('PF AI Agent cross-domain exchange', () => {
     })).rejects.toMatchObject({ code: 'PF_AI_ID_JAG_AUDIENCE_INVALID' });
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
+
+  test('verifies an ID-JAG without a kid header against every JWKS key (PingFederate mints these)', async () => {
+    const kidlessIdJag = jwt.sign({
+      iss: 'https://pf.example.test',
+      aud: 'https://downstream.example.test',
+      sub: 'agent-user-100',
+      scope: 'accounts:read',
+      resource: 'https://downstream.example.test/accounts',
+      exp: Math.floor(Date.now() / 1000) + 300,
+    }, privateKey, { algorithm: 'RS256' }); // no keyid — what PF 13.1.x actually sends
+    const otherKey = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
+    const otherJwk = otherKey.publicKey.export({ format: 'jwk' });
+    otherJwk.kid = 'some-other-key';
+    otherJwk.use = 'sig';
+    const fetchImpl = jest.fn()
+      .mockResolvedValueOnce(jsonResponse({ access_token: kidlessIdJag,
+        issued_token_type: 'urn:ietf:params:oauth:token-type:id-jag' }))
+      .mockResolvedValueOnce(jsonResponse({ keys: [otherJwk, jwk] }))
+      .mockResolvedValueOnce(jsonResponse({
+        access_token: 'downstream-access-token',
+        token_type: 'Bearer',
+        expires_in: 900,
+        scope: 'accounts:read',
+      }));
+    const req = { session: { oauthProvider: 'pingfederate', oauthTokens: { accessToken: 'pf-session-token' } } };
+
+    const result = await exchangeForThirdPartyAccessToken(req, {
+      subjectProvider: 'pingfederate', store: makeStore(), fetchImpl,
+    });
+    expect(result.trace[0].response.status).toBe(200);
+  });
+
+  test('still rejects an unsigned or wrong-key ID-JAG without a kid', async () => {
+    const kidlessWrongKey = jwt.sign({
+      iss: 'https://pf.example.test',
+      aud: 'https://downstream.example.test',
+      sub: 'agent-user-100',
+      exp: Math.floor(Date.now() / 1000) + 300,
+    }, crypto.generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey, { algorithm: 'RS256' });
+    const fetchImpl = jest.fn()
+      .mockResolvedValueOnce(jsonResponse({ access_token: kidlessWrongKey,
+        issued_token_type: 'urn:ietf:params:oauth:token-type:id-jag' }))
+      .mockResolvedValueOnce(jsonResponse({ keys: [jwk] }));
+    const req = { session: { oauthProvider: 'pingfederate', oauthTokens: { accessToken: 'pf-session-token' } } };
+
+    await expect(exchangeForThirdPartyAccessToken(req, {
+      subjectProvider: 'pingfederate', store: makeStore(), fetchImpl,
+    })).rejects.toMatchObject({ code: 'PF_AI_ID_JAG_SIGNATURE_INVALID' });
+    expect(fetchImpl).toHaveBeenCalledTimes(2); // downstream never called
+  });
 });

@@ -102,9 +102,11 @@ async function verifyIdJag(assertion, config, fetchImpl, responseScope = '') {
   }
   const decoded = jwt.decode(assertion, { complete: true });
   const header = decoded?.header;
-  if (!header?.kid || !ALLOWED_ALGORITHMS.has(header.alg)) {
+  // A missing kid is what PingFederate actually sends for ID-JAGs (observed on 13.1.2 and 13.1.3):
+  // RFC 7515 makes kid optional, so instead of demanding it we try every compatible JWKS key below.
+  if (!header?.alg || !ALLOWED_ALGORITHMS.has(header.alg)) {
     const seen = decoded ? `alg=${header?.alg || 'none'}, kid=${header?.kid ? 'present' : 'missing'}, typ=${header?.typ || 'none'}` : 'not a JWT (opaque token)';
-    throw oauthError('PF_AI_ID_JAG_UNSUPPORTED', `PingFederate returned an unsupported ID-JAG (${seen}); it must be a signed RS*/ES* JWT with a kid`);
+    throw oauthError('PF_AI_ID_JAG_UNSUPPORTED', `PingFederate returned an unsupported ID-JAG (${seen}); it must be a signed RS*/ES* JWT`);
   }
   let jwksResponse;
   try {
@@ -122,17 +124,26 @@ async function verifyIdJag(assertion, config, fetchImpl, responseScope = '') {
     throw oauthError('PF_AI_JWKS_FAILED', 'PingFederate signing keys were invalid');
   }
   const expectedKty = header.alg.startsWith('RS') ? 'RSA' : 'EC';
-  const jwk = jwks?.keys?.find((candidate) => candidate.kid === header.kid
+  const candidates = (jwks?.keys || []).filter((candidate) => (!header.kid || candidate.kid === header.kid)
     && candidate.kty === expectedKty && (!candidate.use || candidate.use === 'sig')
     && (!candidate.alg || candidate.alg === header.alg));
-  if (!jwk) throw oauthError('PF_AI_ID_JAG_KEY_NOT_FOUND', 'PingFederate ID-JAG signing key was not found');
+  if (!candidates.length) throw oauthError('PF_AI_ID_JAG_KEY_NOT_FOUND', 'PingFederate ID-JAG signing key was not found');
 
   let claims;
   try {
-    const key = crypto.createPublicKey({ key: jwk, format: 'jwk' });
-    claims = jwt.verify(assertion, key, {
-      algorithms: [header.alg], issuer: config.pfIssuer, audience: config.audience,
-    });
+    // With a kid there is exactly one candidate. Without one, any key that verifies the
+    // signature accepts the assertion — a forgery still fails every candidate.
+    let lastError;
+    for (const jwk of candidates) {
+      try {
+        const key = crypto.createPublicKey({ key: jwk, format: 'jwk' });
+        claims = jwt.verify(assertion, key, {
+          algorithms: [header.alg], issuer: config.pfIssuer, audience: config.audience,
+        });
+        break;
+      } catch (error) { lastError = error; }
+    }
+    if (!claims) throw lastError || new Error('no candidate verified');
   } catch (error) {
     // One code per cause, so a failed run says whether it was the key, the issuer, the audience or the clock.
     const message = String(error?.message || '');
