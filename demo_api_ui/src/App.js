@@ -39,6 +39,8 @@ import PersonalAgentReviewPage from "./components/personalAgent/PersonalAgentRev
 import CimdPrivilegePage from "./components/cimdPrivilege/CimdPrivilegePage";
 import A2aArchitecturePage from "./components/a2aArchitecture/A2aArchitecturePage";
 import DiagramsIndexPage from "./components/diagramsIndex/DiagramsIndexPage";
+import UseCaseDiagramPage from "./components/UseCaseDiagramPage";
+import UseCaseDiagramsGalleryPage from "./components/UseCaseDiagramsGalleryPage";
 import ResourceServerCheckpointPage from "./components/ResourceServerCheckpointPage";
 import DemoTrackPage from "./pages/DemoTrackPage";
 import DelegationChainValuePage from "./pages/DelegationChainValuePage";
@@ -2186,6 +2188,14 @@ function AppWithAuth() {
                             <Route
                               path="/diagrams"
                               element={<DiagramsIndexPage />}
+                            />
+                            <Route
+                              path="/use-case-diagrams"
+                              element={<UseCaseDiagramsGalleryPage />}
+                            />
+                            <Route
+                              path="/use-case-diagrams/:ucId"
+                              element={<UseCaseDiagramPage />}
                             />
                             <Route
                               path="/resource-server-checkpoint"
