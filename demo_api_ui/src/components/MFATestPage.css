@@ -1190,5 +1190,5 @@
   border-radius: 6px;
   background: var(--th-bg-inset);
   color: var(--th-text);
-  font-family: monospace;
+  font-family: var(--font-mono);
 }
