@@ -379,7 +379,7 @@
         "title": "Start the approval request",
         "description": "Start a CIBA approval request for the signed-in user at PingFederate. The client names the user and a binding message; PingFederate asks that user to approve on their own device.",
         "body": {
-          "bindingMessage": "Approve $500 transfer"
+          "bindingMessage": "Approve.500"
         },
         "expected": {}
       },
@@ -388,13 +388,13 @@
         "actor": "human-approver",
         "fromActor": "human-approver",
         "toActor": "client-app",
-        "action": "POST /api/pf-ai-agent/ciba/mock-decision",
-        "label": "POST /api/pf-ai-agent/ciba/mock-decision",
+        "action": "POST /api/pf-ai-agent/ciba/decision",
+        "label": "POST /api/pf-ai-agent/ciba/decision",
         "method": "POST",
-        "endpoint": "/api/pf-ai-agent/ciba/mock-decision",
+        "endpoint": "/api/pf-ai-agent/ciba/decision",
         "step": 2,
-        "title": "Approve on the mock phone",
-        "description": "The approver answers. Only the mock phone can be answered from here; with a real device the user taps Approve there, and this step answers 404 (pf_ai_ciba_mock_disabled).",
+        "title": "Approve (mock phone or web approver)",
+        "description": "The approver answers. The BFF routes this to whichever stand-in is live: the mock phone or the web approver behind a PingFederate authenticator. 404 only when neither is enabled.",
         "body": {
           "decision": "approve"
         },

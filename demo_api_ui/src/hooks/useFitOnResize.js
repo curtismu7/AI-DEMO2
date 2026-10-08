@@ -29,3 +29,21 @@ export function useFitOnResize(ref, fitViewOptions) {
     };
   }, [ref, fitView, fitViewOptions]);
 }
+
+/**
+ * A page that swaps the diagram's source in place (Protocol Playground picking a
+ * protocol, Token Flow switching scenario) changes the drawing's size without
+ * resizing the canvas, so the ResizeObserver never fires and the previous
+ * protocol's viewport clips the new drawing. Refit when the source changes,
+ * after React Flow has measured the new nodes.
+ */
+export function useFitOnSource(source, fitViewOptions) {
+  const { fitView } = useReactFlow();
+  useEffect(() => {
+    if (!source) return undefined;
+    // Nodes measure a frame after the source lands; fitView inside React Flow
+    // waits for measured nodes on its own, so one rAF here is enough ordering.
+    let raf = requestAnimationFrame(() => fitView(fitViewOptions));
+    return () => cancelAnimationFrame(raf);
+  }, [source, fitView, fitViewOptions]);
+}

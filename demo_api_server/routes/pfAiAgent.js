@@ -14,7 +14,7 @@ const { exchangeForThirdPartyAccessToken, cimdPingFederateToken } = require('../
 const hasUsablePfToken = (req) => Boolean(cimdPingFederateToken(req));
 const { redeemIdJag } = require('../services/pfAiAgentMockThirdPartyService');
 const { beginRar, completeRar, userLimits } = require('../services/pfAiAgentRarService');
-const { startCiba, pollCiba, mockDecideCiba } = require('../services/pfAiAgentCibaService');
+const { startCiba, pollCiba, mockDecideCiba, decideCiba } = require('../services/pfAiAgentCibaService');
 const cibaWebApprover = require('../services/pfAiAgentCibaWebApproverService');
 const pfTokenExchangeDemo = require('../services/pfTokenExchangeDemoService');
 
@@ -233,7 +233,7 @@ function createPfAiAgentRouter({ configStore: store = configStore, fetchImpl = f
    * @actor client-app
    * @to pingfederate
    * @step 1
-   * @body {"bindingMessage":"Approve $500 transfer"}
+   * @body {"bindingMessage":"Approve.500"}
    */
   router.post('/ciba/start', requireApplicationSession, async (req, res) => {
     try {
@@ -265,22 +265,40 @@ function createPfAiAgentRouter({ configStore: store = configStore, fetchImpl = f
     }
   });
 
-  // The mock phone's Approve / Deny; 404 unless PF_AI_CIBA_MOCK_ENABLED is true.
+  // The mock phone's Approve / Deny; 404 unless the mock phone is the live channel.
   /**
-   * The approver answers. Only the mock phone can be answered from here; with a real device the
-   * user taps Approve there, and this step answers 404 (pf_ai_ciba_mock_disabled).
-   *
-   * @flow ciba-hitl-pf
-   * @title Approve on the mock phone
-   * @actor human-approver
-   * @to client-app
-   * @step 2
-   * @body {"decision":"approve"}
+   * The approver answers on the mock phone. 404 when the mock phone is not the live
+   * approval channel (the web approver excludes it); the Playground's canned step
+   * uses /decision instead, which serves whichever channel is live.
    */
   router.post('/ciba/mock-decision', requireApplicationSession, (req, res) => {
     try {
       res.set('Cache-Control', 'no-store');
       return res.json(mockDecideCiba(req, req.body?.decision, { store }));
+    } catch (error) {
+      return res.status(error.httpStatus || 502).json({ error: errorCode(error, 'pf_ai_ciba_failed') });
+    }
+  });
+
+  // Channel-agnostic decision for the Protocol Playground's canned step: dispatches to the
+  // mock phone or the web approver, whichever is live (they are mutually exclusive). The
+  // flow spec executes a fixed endpoint and cannot branch on configuration.
+  /**
+   * The approver answers. The BFF routes this to whichever stand-in is live: the mock
+   * phone or the web approver behind a PingFederate authenticator. 404 only when
+   * neither is enabled.
+   *
+   * @flow ciba-hitl-pf
+   * @title Approve (mock phone or web approver)
+   * @actor human-approver
+   * @to client-app
+   * @step 2
+   * @body {"decision":"approve"}
+   */
+  router.post('/ciba/decision', requireApplicationSession, (req, res) => {
+    try {
+      res.set('Cache-Control', 'no-store');
+      return res.json(decideCiba(req, { store }));
     } catch (error) {
       return res.status(error.httpStatus || 502).json({ error: errorCode(error, 'pf_ai_ciba_failed') });
     }

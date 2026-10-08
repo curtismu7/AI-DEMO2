@@ -33,7 +33,6 @@ ENTRIES=(
   "overview          architecture-simple.mmd  ${OUT_DIR}/overview.png      2400"
   "overview-full     architecture.mmd         ${OUT_DIR}/overview2.png     2800"
   "overview-full-svg architecture.mmd         ${OUT_DIR}/overview2.svg     2800"
-  "token-flow        i4ai-ref-arch.mmd        ${OUT_DIR}/token-flow.png    2800"
   "mcp-gateway       mcp-security-gateway.mmd ${OUT_DIR}/token-flow2.png   2400"
   "ciba-stepup       ciba-stepup-sequence.mmd ${OUT_DIR}/ciba-stepup.png   2400"
 )

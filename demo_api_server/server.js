@@ -1088,6 +1088,10 @@ app.get('/api/auth/debug', async (req, res) => {
 // unauthenticated requests to the config endpoint are not blocked by the
 // authenticateToken middleware that guards the broader /api/admin/* prefix.
 app.use('/api/admin/pingcli', authenticateToken, pingcliRoutes);
+// Canvas "Ping All" — health-checks the internal Docker services for the
+// Architecture Canvas page. The mount was lost in a merge (2026-07) and the
+// route file then removed by the #2521 sweep; restored 2026-10-08.
+app.use('/api/canvas', authenticateToken, require('./routes/canvasPing'));
 app.use('/api/admin/promptfoo', authenticateToken, promptfooRoutes);
 // requireAdmin, not just authenticateToken (which the sibling pingcli/test-lab
 // mounts use): these operations list every PingOne user in the environment and

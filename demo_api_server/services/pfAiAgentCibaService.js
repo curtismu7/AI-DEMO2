@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const configStore = require('./configStore');
 const cibaService = require('./cibaService');
 const { safeParams, safeBody, bareUrl, claimsOf, step: traceStep } = require('./pfAiAgentTrace');
+const cibaWebApprover = require('./pfAiAgentCibaWebApproverService');
 const { getFeatureStatus, resolveCibaConfig, webApproverOn } = require('./pfAiAgentFeatureConfig');
 const {
   oauthError,
@@ -408,9 +409,20 @@ function mockDecideCiba(req, decision, { store = configStore, now = Date.now } =
   throw oauthError('PF_AI_CIBA_DECISION_INVALID', 'The decision must be approve or deny', 400);
 }
 
+// Channel-agnostic approval decision for the Playground's canned step: the mock phone and
+// the web approver are mutually exclusive, so the endpoint picks whichever is live instead
+// of the flow spec hardcoding one and 404ing under the other configuration.
+function decideCiba(req, { store = configStore, now = Date.now } = {}) {
+  if (cibaWebApprover.isEnabled(store)) {
+    return cibaWebApprover.decide(req, req.body?.decision, { store, now });
+  }
+  return mockDecideCiba(req, req.body?.decision, { store, now });
+}
+
 module.exports = {
   CIBA_GRANT,
   mockDecideCiba,
+  decideCiba,
   startCiba,
   pollCiba,
 };

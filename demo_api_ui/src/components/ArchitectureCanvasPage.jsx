@@ -412,6 +412,7 @@ function CanvasEditor() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: nodes.map(n => n.id) }),
       });
+      if (!res.ok) throw new Error(`ping ${res.status}`);
       const data = await res.json();
       const displayMap = {};
       (data.results || []).forEach(r => { displayMap[r.id] = r.status; });

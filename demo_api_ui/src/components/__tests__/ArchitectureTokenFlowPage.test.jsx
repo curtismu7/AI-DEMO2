@@ -1,9 +1,14 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { readFileSync } from "fs";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
 import ArchitectureTokenFlowPage from "../ArchitectureTokenFlowPage";
 
 vi.mock("../../services/apiClient", () => ({ default: { get: vi.fn().mockResolvedValue({ data: { events: [] } }) } }));
+
+const HERE = dirname(fileURLToPath(import.meta.url));
 
 describe("Token Flow page", () => {
   it("draws the steps as a React Flow sequence with a movie reel, and a reel click opens that step's token card", () => {
@@ -17,5 +22,16 @@ describe("Token Flow page", () => {
     const cards = screen.getAllByText("OAuth 2.0 PKCE login");
     fireEvent.click(cards[0]);
     expect(screen.getAllByText("Authorization Code Request").length).toBeGreaterThan(0);
+  });
+
+  it("carries no leftover of the replaced PNG overlay (imageSrc, regions config, keyword scan)", () => {
+    const src = readFileSync(join(HERE, "..", "ArchitectureTokenFlowPage.js"), "utf8");
+    expect(src).not.toMatch(/token-flow\.png/);
+    expect(src).not.toMatch(/diagram-token-flow-regions/);
+    expect(src).not.toMatch(/scanKeywords/);
+    // The regions config itself is gone from the repo.
+    expect(() => {
+      readFileSync(join(HERE, "..", "..", "config", "diagram-token-flow-regions.js"));
+    }).toThrow();
   });
 });

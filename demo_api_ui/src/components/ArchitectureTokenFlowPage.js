@@ -951,14 +951,6 @@ function mapEventToRegions(event) {
   return [];
 }
 
-function scanKeywords(text) {
-  if (!text || typeof text !== "string") return [];
-  const lower = text.toLowerCase();
-  return TOKEN_FLOW_REGIONS.filter((r) =>
-    r.keywords?.some((kw) => lower.includes(kw)),
-  ).map((r) => ({ regionId: r.id, colorClass: "active" }));
-}
-
 function buildLiveHistoryEntry(evt) {
   const m = evt.metadata || {};
   const ts = new Date(evt.timestamp || Date.now()).toLocaleTimeString([], {
@@ -1169,11 +1161,6 @@ export default function ArchitectureTokenFlowPage({ user }) {
         mapEventToRegions(evt).forEach(({ regionId, colorClass }) =>
           activateRegion(regionId, colorClass, ms),
         );
-        if (evt.tag === "agent_prompt/llm_complete" && evt.metadata?.response)
-          scanKeywords(evt.metadata.response).forEach(
-            ({ regionId, colorClass }) =>
-              activateRegion(regionId, colorClass, ms),
-          );
         if (!historical) {
           const entry = buildLiveHistoryEntry(evt);
           if (entry) {
@@ -1443,7 +1430,6 @@ export default function ArchitectureTokenFlowPage({ user }) {
       )}
       <ArchitectureDiagramPage
         title="Token Flow Diagram"
-        imageSrc="/architecture/token-flow.png"
         imageAlt="Token flow sequence: User, Web App, Chatbot, Agent (BFF in-process LangGraph), LLM, PingOne, Agent Gateway, PingOne Authorization Server, HITL Service, MCP OLB, MCP Resource Server, API Resource Server — RFC 8693 exchanges, Phase 266 credential paths, and HITL consent escalation"
         flowSource={flowSource}
         flowDriver={flowDriver}

@@ -199,7 +199,6 @@ router.get('/list', requireAdmin, (req, res) => {
   const entries = [
     { name: 'overview',       source: 'architecture-simple.mmd',  png: 'overview.png' },
     { name: 'overview-full',  source: 'architecture.mmd',         png: 'overview2.png' },
-    { name: 'token-flow',     source: 'i4ai-ref-arch.mmd',        png: 'token-flow.png' },
     { name: 'mcp-gateway',    source: 'mcp-security-gateway.mmd', png: 'token-flow2.png' },
   ];
   const result = entries.map((e) => {

@@ -17,7 +17,7 @@ import { parseSequence } from "../utils/parseSequence";
 import { markEdges, markNodes, stepEdges, useDiagramStepper } from "../hooks/useDiagramStepper";
 import DiagramReel from "./DiagramReel";
 import { buildNodeDetail, buildReelSteps } from "../utils/diagramReel";
-import { useFitOnResize } from "../hooks/useFitOnResize";
+import { useFitOnResize, useFitOnSource } from "../hooks/useFitOnResize";
 import "./SequenceFlowDiagram.css";
 
 /**
@@ -232,6 +232,7 @@ export function buildSequenceFlow(source) {
 function Inner({ source, step, active, details, driver }) {
   const ref = useRef(null);
   useFitOnResize(ref, FIT);
+  useFitOnSource(source, FIT);
   const [canvasW, setCanvasW] = useState(0);
   useEffect(() => {
     const el = ref.current;

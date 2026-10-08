@@ -2985,9 +2985,9 @@ function mermaidFromSteps(list = ALL_STEPS) {
 
 /**
  * MermaidSourceModal — overlay showing the Mermaid source two ways:
- *  - "Canonical (i4ai-ref-arch.mmd)": the repo-root source that also renders
- *    token-flow.png; fetched as a static asset from /architecture/ (no admin
- *    route — keeps /sequence-diagram anon-safe per REGRESSION_PLAN).
+ *  - "Canonical (i4ai-ref-arch.mmd)": the repo-root source; fetched as a
+ *    static asset from /architecture/ (no admin route — keeps
+ *    /sequence-diagram anon-safe per REGRESSION_PLAN).
  *  - "Generated from this page's steps": emitted from ALL_STEPS at runtime so
  *    it always matches what's drawn here.
  * Each view has a Copy button.
@@ -3130,7 +3130,7 @@ function MermaidSourceModal({ onClose }) {
           }}
         >
           {tab === "canonical"
-            ? "The repo-root sequenceDiagram source that also renders token-flow.png. This page is maintained 1:1 with it."
+            ? "The repo-root sequenceDiagram source. This page is maintained 1:1 with it."
             : "Emitted live from this page's step data — paste into mermaid.live to render."}
         </div>
         <pre
@@ -3493,11 +3493,12 @@ export default function SequenceDiagramPage() {
 
       {/* Downloads of the canonical sequence source. No .drawio for sequence
           diagrams — paste the .mmd into Lucid's Mermaid diagram-as-code editor
-          (sequenceDiagram is supported) or draw.io's Insert > Advanced > Mermaid. */}
+          (sequenceDiagram is supported) or draw.io's Insert > Advanced > Mermaid.
+          No PNG either: the old token-flow.png render was retired with the
+          PNG+overlay viewer this page replaced. */}
       <DiagramExportBar
         items={[
           { label: "Mermaid (.mmd)", href: "/architecture/i4ai-ref-arch.mmd" },
-          { label: "PNG", href: "/architecture/token-flow.png" },
         ]}
       />
 
