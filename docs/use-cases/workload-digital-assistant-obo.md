@@ -25,7 +25,7 @@ PingOne pre-registers the workload agent identity; RFC 8693 token exchange produ
 
 ## Evidence
 
-**Token chain steps:** user-token → personal-agent-lookup → mcp-exchange → tool-dispatched  
+**Token chain steps:** user-token → personal-agent-lookup → token-exchange → tool-dispatched  
 **Activity categories:** token, authorize, mcp
 
 ## Code References

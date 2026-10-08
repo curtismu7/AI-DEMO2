@@ -237,6 +237,9 @@ volumes:
   spiffe-bff-output:
     external: true
     name: ai-demo_spiffe-bff-output
+  agent-identity-sidecar-socket:
+    external: true
+    name: ai-demo_agent-identity-sidecar-socket
   ai-demo-bff-data:
     external: true
     name: ai-demo_ai-demo-bff-data

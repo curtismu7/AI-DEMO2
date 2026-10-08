@@ -21,7 +21,7 @@ A main agent calls a middle agent, which calls a specialist. Every hop goes thro
 
 ## What to Say
 
-> Run the chain and watch the reel: each hand-off stops at the gateway first. Then run the injection and the ungranted-agent variants to see a hop refused.
+> Run the chain and watch the reel: each hand-off stops at the gateway first. Then run the injection and the ungranted-agent variants to see a hop refused, and the poisoned Agent Card variant (C) to see the gateway block a reply that carries a hostile agent’s text.
 
 ## Evidence
 

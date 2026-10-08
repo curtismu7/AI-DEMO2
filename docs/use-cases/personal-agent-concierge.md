@@ -25,7 +25,7 @@ User authenticates with MFA; the pre-registered workload agent is verified; RFC 
 
 ## Evidence
 
-**Token chain steps:** user-token → personal-agent-lookup → mcp-exchange → tool-dispatched  
+**Token chain steps:** user-token → personal-agent-lookup → token-exchange → tool-dispatched  
 **Activity categories:** token, mcp
 
 ## Code References

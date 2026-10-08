@@ -25,7 +25,7 @@ PingOne provisions a distinct Website Worker identity; the BFF uses mocked CIMD 
 
 ## Evidence
 
-**Token chain steps:** user-token → personal-agent-lookup → mcp-exchange → tool-dispatched  
+**Token chain steps:** user-token → personal-agent-lookup → token-exchange → tool-dispatched  
 **Activity categories:** register, inventory, token, authorize, mcp
 
 ## Code References
