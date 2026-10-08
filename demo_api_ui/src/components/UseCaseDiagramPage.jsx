@@ -97,7 +97,11 @@ export default function UseCaseDiagramPage() {
     <main className="ucd-page">
       <header className="ucd-head">
         <div className="ucd-head__row1">
-          {stepNum != null && <span className="ucd-cue">STEP {stepNum}</span>}
+          {stepNum != null && (
+            <Link to="/dashboard" className="ucd-cue" title={`Open Mission Control — this diagram is step ${stepNum} of the demo script`}>
+              Step {stepNum} of the demo script
+            </Link>
+          )}
           <h1 data-testid="ucd-title">{guide?.title || cfg.id}</h1>
           <span className={`ucd-pill ${TONE_CLASS[cfg.result.tone]}`} data-testid="ucd-result">{cfg.result.label}</span>
           <span className="ucd-id">{cfg.id}</span>

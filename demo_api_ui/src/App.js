@@ -4,7 +4,6 @@ import {
   Route,
   BrowserRouter as Router,
   Routes,
-  useParams,
   useLocation,
   useNavigate,
 } from "react-router-dom";
@@ -31,7 +30,6 @@ import PrivilegeGatewayTopologyPage from "./components/PrivilegeGatewayTopologyP
 import InvestDualAuthDiagramPage from "./components/InvestDualAuthDiagramPage";
 import ExternalDoorDiagramPage from "./components/ExternalDoorDiagramPage";
 import DemoArchSlidesPage from "./components/DemoArchSlidesPage";
-import StepDiagramPage from "./components/StepDiagramPage";
 import DemoStepsLifelineAuditPage from "./components/DemoStepsLifelineAuditPage";
 import GatewayEnforcementMapPage from "./components/GatewayEnforcementMapPage";
 import ResourceServerPlacementPage from "./components/ResourceServerPlacementPage";
@@ -364,12 +362,6 @@ export function AgentFlowPage() {
       </p>
     </div>
   );
-}
-
-// /step-diagrams/<step number> — one diagram per demo step (stepDiagrams.js).
-function StepDiagramPageRoute() {
-  const { step } = useParams();
-  return <StepDiagramPage step={Number(step)} />;
 }
 
 function AppWithAuth() {
@@ -2125,10 +2117,6 @@ function AppWithAuth() {
                             {/* Gateway capability showcases. One component, two
                                 configs — the pages differ only in which policy
                                 the gateway enforces. */}
-                            <Route
-                              path="/step-diagrams/:step"
-                              element={<StepDiagramPageRoute />}
-                            />
                             <Route
                               path="/weather-mcp"
                               element={<McpShowcasePage capability="weather" />}

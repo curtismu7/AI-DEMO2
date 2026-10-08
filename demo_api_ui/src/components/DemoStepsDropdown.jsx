@@ -19,7 +19,7 @@ import {
 } from '../config/demoUseCaseSteps';
 import { getMissionControlGroup } from '../config/missionControlCatalog';
 import { demoStepLabel, demoStepNumber, stepQueryMatches } from '../config/demoStepNumbers';
-import { stepDiagramFor, stepDiagramPath } from '../config/stepDiagrams';
+import { getConfig, useCaseDiagramPath } from '../config/useCaseDiagrams';
 import apiClient from '../services/apiClient';
 import UseCaseExplainModal from './UseCaseExplainModal';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
@@ -471,9 +471,8 @@ export default function DemoStepsDropdown({
   const nextPrimaryId = primarySteps.find(({ uc }) => !completedIds.has(uc.id))?.uc
     ?.id;
   // The step the presenter is about to run: the header's "Open diagram" reads
-  // this. Data-driven from stepDiagrams.js — no entry, no button.
-  const nextPrimaryStepNumber = nextPrimaryId ? demoStepNumber(nextPrimaryId) : null;
-  const headerDiagram = stepDiagramFor(nextPrimaryStepNumber);
+  // this. Data-driven from useCaseDiagrams — no config, no button.
+  const headerDiagram = nextPrimaryId ? getConfig(nextPrimaryId) : null;
   const progressPct =
     primarySteps.length > 0
       ? Math.round((completedCount / primarySteps.length) * 100)
@@ -611,12 +610,12 @@ export default function DemoStepsDropdown({
               {DEMO_STEP_DESTINATIONS[uc.id].label}
             </span>
           )}
-          {stepDiagramFor(stepNumber) && (
+          {getConfig(uc.id) && (
             <a
               className="ba-demo-steps-popout__diagram-link"
-              href={stepDiagramPath(stepNumber)}
+              href={useCaseDiagramPath(uc.id)}
               onClick={(e) => { e.stopPropagation(); onOpenChange(false); }}
-              title={`Open the step ${stepNumber} diagram`}
+              title={`Open the ${uc.id} diagram`}
               data-testid={`step-diagram-link-${uc.id}`}
             >
               <DiagramGlyph />
@@ -770,13 +769,13 @@ export default function DemoStepsDropdown({
             {headerDiagram && (
               <div className="ba-demo-steps-popout__diagram-row" data-testid="demo-steps-diagram-row">
                 <span className="ba-demo-steps-popout__diagram-label">
-                  Up next · Step {demoStepLabel(nextPrimaryId)} — {headerDiagram.title}
+                  Up next · Step {demoStepLabel(nextPrimaryId)} of the demo script
                 </span>
                 <a
                   className="ba-demo-steps-popout__diagram-open"
-                  href={headerDiagram.path}
+                  href={useCaseDiagramPath(headerDiagram.id)}
                   onClick={(e) => { e.stopPropagation(); onOpenChange(false); }}
-                  data-testid={`steps-diagram-open-${headerDiagram.step}`}
+                  data-testid={`steps-diagram-open-${headerDiagram.id}`}
                 >
                   <DiagramGlyph />
                   Open diagram

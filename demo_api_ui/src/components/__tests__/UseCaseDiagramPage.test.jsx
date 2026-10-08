@@ -34,6 +34,12 @@ describe("UseCaseDiagramPage", () => {
     expect(screen.getByTestId("ucd-result").textContent).toBe("PERMIT"); // from config result
   });
 
+  it("cues the demo-script step and links back to Mission Control", () => {
+    renderAt("/use-case-diagrams/UC1");
+    const cue = screen.getByRole("link", { name: /step 2 of the demo script/i });
+    expect(cue.getAttribute("href")).toBe("/dashboard");
+  });
+
   it("opens on hop 1 active-and-paused with the entry node ringed", () => {
     renderAt("/use-case-diagrams/UC1");
     expect(screen.getByTestId("ucd-hop-label").textContent).toContain("1 / 4");

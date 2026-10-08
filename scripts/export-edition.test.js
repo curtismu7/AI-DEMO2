@@ -173,7 +173,11 @@ const GLEAN = '<img src="https://pingidentity-be.glean.com/api/v1/images?key=' +
 test('gitleaks config: a secret on the same line as the URI is still flagged', () => {
   gl(tree({ 'a.json': `{ "audience": "${AUD}" }\n` }));
   assert.throws(() => gl(tree({ 'a.json': `{ "audience": "${AUD}", "t": "${fakeToken()}" }\n` })), /gitleaks/);
-  assert.throws(() => gl(tree({ 'a.env': `X=${AUD} API_` + 'KEY=' + require('node:crypto').randomBytes(18).toString('base64url') + '\n' })), /gitleaks/);
+  // randomBytes(18) flaked once on CI ("Missing expected exception" — the
+  // runner's gitleaks scored that particular random string under the
+  // generic-api-key entropy bar). A github-pat-shaped token is a dedicated
+  // rule with no entropy judgement, so it trips deterministically.
+  assert.throws(() => gl(tree({ 'a.env': `X=${AUD} API_KEY=${fakeToken()}\n` })), /gitleaks/);
 });
 
 test('gitleaks config: a secret on the same line as an allowlisted Glean id is still flagged', () => {

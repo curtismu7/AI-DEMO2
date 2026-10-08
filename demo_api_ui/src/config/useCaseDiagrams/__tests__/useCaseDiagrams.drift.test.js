@@ -10,13 +10,9 @@ import { demoStepNumber } from "../../demoStepNumbers";
 // This list SHRINKS as diagrams are added; when it is empty, every primary
 // step has a diagram and the "all covered" test goes live. A UC may only sit
 // here if it is NOT in CONFIGS; the last two tests enforce both directions.
-const PENDING = new Set([
-  "UC24", "UC8", "UC14b", "UC14", "UC12", "UC2", "UC2.5", "UC2.7",
-  "UC22", "UC5", "UC10", "UC13", "UC11", "UC20", "UC18",
-  // later additions discovered by the ratchet on first run — real script ids
-  // whose diagrams are not authored yet (spec: 3 pilots first, rest follow)
-  "UC30", "UC31", "UC32", "UC40", "UC38", "UC-TOOL1", "UC46", "UC47",
-]);
+// 2026-10-08: the step-diagram scenes were ported to UC configs — PENDING is
+// empty and the "all covered" ratchet below is live.
+const PENDING = new Set([]);
 
 const byId = new Map(CONFIGS.map((c) => [c.id, c]));
 

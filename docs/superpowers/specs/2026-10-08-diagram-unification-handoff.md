@@ -17,8 +17,8 @@ Owner for execution: the session holding worktree `.claude/worktrees/step-diagra
 - **Spec:** `docs/superpowers/specs/2026-10-08-use-case-diagrams-design.md`; visual contract `mockups/use-case-launcher/showtime-ribbon.html`.
 - **Live in the running stack** (dev-profile UI, bind-mounted src): `https://localhost:4000/use-case-diagrams` verified.
 
-**2. Demo-step diagrams (the other session's branch — `worktree-step-diagrams`, pushed, 3 commits, based on `8d8121bd5`, NOT yet merged).**
-- **Route:** `/step-diagrams/:step` (by **presenter step number**, 2/3/4/5).
+**2. Demo-step diagrams (the other session's branch — merged in stages as #1039 and #1041, then superseded by this unification).**
+- **Route:** `/step-diagrams/:step` (by **presenter step number**, 1–26 — full primary-sequence coverage; removed by this unification).
 - **Engine:** hand-drawn SVG scenes (`StepDiagramScenes.jsx`) using the Demo arch slide primitives (`demoArchPrimitives`) with the slide player's walkthrough state.
 - **Config:** `demo_api_ui/src/config/stepDiagrams.js` — `STEP_DIAGRAMS` array of `{ step, id (UC id), title, path, meta, render }`, plus `stepDiagramFor(step)` / `stepDiagramPath(step)`.
 - **Entry points already wired:** `DemoStepsDropdown.jsx` (diagram link per step row) and `UseCaseExplainModal.jsx` (diagram link per use case).

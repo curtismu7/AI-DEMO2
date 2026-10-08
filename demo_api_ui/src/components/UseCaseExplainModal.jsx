@@ -5,7 +5,8 @@ import { PING_PRODUCTS } from '../utils/pingProducts';
 import { isA2aUseCase, extractA2aFacts } from '../utils/a2aFacts';
 import { DEMO_STEP_GUIDES } from '../config/demoStepGuides';
 import { demoStepNumber, stepLabel } from '../config/demoStepNumbers';
-import { stepDiagramFor, stepDiagramPath } from '../config/stepDiagrams';
+import { getConfig, useCaseDiagramPath } from '../config/useCaseDiagrams';
+import StaticFlowDiagram from './StaticFlowDiagram';
 import './UseCaseExplainModal.css';
 import InlineSpinner from './shared/InlineSpinner';
 
@@ -167,9 +168,9 @@ export default function UseCaseExplainModal({ uc, open, onClose, a2aTokenEvents 
 
   if (!open || !uc) return null;
 
-  // The step diagram (stepDiagrams.js) rides where presenters already read:
-  // a thumbnail section above the narration text, linking to the full page.
-  const diagram = stepDiagramFor(demoStepNumber(uc.id));
+  // The use-case diagram rides where presenters already read: a "How it
+  // flows" section above the narration text, linking to the full page.
+  const diagram = getConfig(uc.id);
 
   const trackLabel = uc.track
     ? uc.track.charAt(0).toUpperCase() + uc.track.slice(1)
@@ -204,12 +205,19 @@ export default function UseCaseExplainModal({ uc, open, onClose, a2aTokenEvents 
             <div className="ucem__sec ucem__diagram" data-testid="ucem-diagram">
               <div className="ucem__diagram-head">
                 <SectionHead num="⌗">How it flows</SectionHead>
-                <a className="ucem__diagram-open" href={stepDiagramPath(diagram.step)}>
+                <a className="ucem__diagram-open" href={useCaseDiagramPath(diagram.id)}>
                   Open full diagram
                 </a>
               </div>
               <div className="ucem__diagram-thumb">
-                <diagram.render st={() => ''} />
+                <StaticFlowDiagram
+                  NODES={diagram.NODES}
+                  EDGES={diagram.EDGES}
+                  GROUPS={diagram.GROUPS}
+                  walk={diagram.walk}
+                  testId={`ucem-diagram-${diagram.id.toLowerCase()}`}
+                  ariaLabel={`${diagram.id} diagram`}
+                />
               </div>
             </div>
           )}
