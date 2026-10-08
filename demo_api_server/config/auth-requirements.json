@@ -214,6 +214,7 @@
     "/demo-arch-slides/id-jag": "public",
     "/demo-arch-slides/control-plane": "public",
     "/demo-steps-lifeline-audit": "public",
+    "/step-diagrams/:step": "public",
     "/feature-flags": "admin",
     "/gateway-enforcement-map": "public",
     "/graphify": "public",
