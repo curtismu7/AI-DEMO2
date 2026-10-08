@@ -198,6 +198,47 @@ IDs, timestamps, and supporting detail.
   that the `UnresolvableKeyException` came from using an ID token in test data.
   A browser-level UC40 run remains unverified; the downstream
   `gw-backend-exchange: deny` hop is listed there as non-blocking.
+
+## 10. Closure — 2026-10-08 session (all §6 items resolved)
+
+Executed the §6 list to completion; every item now has measured evidence:
+
+1. **`OAuthProviderToggle.idJagReset`** — passes 3/3 on current main (fixed by
+   another session's merges; no action needed).
+2. **Remote CI green** — main's CI run completes `success`, including the
+   `Main is red (alert)` aggregate job passing (first trustworthy green
+   baseline; the 32-red history is closed).
+3. **DOM/TZ full-suite debt** — closed by two PRs:
+   - #1030 (other session, my setupTests cleanup): between-test DOM wipe +
+     `vi.clearAllMocks()` (NOT `restoreAllMocks()` — that resets `vi.fn()`
+     implementations and broke AIAgent.chips when it shared a worker) +
+     `localStorage.clear()`.
+   - #1031 (this session): the 3 remaining failures were NOT fixable by TZ
+     pins — **Node caches the timezone per worker process at the first Date
+     format**, so `process.env.TZ` changes after that are inert. Fixed the
+     assertions to compute expected labels with the same Date API the code
+     uses (TenantReadinessStrip `toLocaleTimeString()`, formatters
+     `getFullYear()` ×3). Lesson recorded: never pin TZ in these tests;
+     assert zone-agnostically.
+4. **UC40 verified by execution** (not by doc): full headless chain —
+   intent 201 → `/api/auth/logout?id_jag_handoff=1` → PF SLO (3-step form
+   chain) → `/api/auth/clear-session` (the SPA's step; skipping it yields
+   `id_jag_intent_lost`) → `login?mode=live-id-jag&return_to=…` (note
+   **`return_to`**, not `returnTo`) → PF sign-on `demouser` → callback →
+   `oauth=success` + `idJagRunIntent` → `POST /api/mcp/tool` → **200 with 24
+   token events, all 4 exchange hops ✔️, real account data** (Rewards
+   5,671.33 etc.). The earlier failure was test-data (ID token as subject
+   token), matching the later handoff's diagnosis.
+5. **Provider restored to pingone** after the UC40 window (admin API flip,
+   intent agreement verified by `npm run demo:provider-verify` — no drift).
+
+**Final measured state:** full UI suite `--pool=threads` → **771/771 files,
+6,109 passed, 0 failed, 24 skipped**; `npm run build` ✓; BFF A2A suites
+321/321; health gate **37/37 — clear to demo**.
+
+Remaining open (none from §6): browser-level UC40 click-through (the headless
+API-level run above covers the chain), and the `gw-backend-exchange: deny`
+downstream hop noted as non-blocking in the UC40 handoff.
 - **Provider state still needs a live check.** The later UC40 handoff reports
   local PingFederate config while `.demo-provider-intent.json` specifies
   `pingone`. Run `npm run demo:provider-verify` before relying on the active
