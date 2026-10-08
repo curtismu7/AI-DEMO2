@@ -52,7 +52,11 @@ describe('loadEdition', () => {
   test('wrong shape throws', () => {
     expect(() => loadEdition(tmp('{"dropUseCases":"UC40"}'))).toThrow(/dropUseCases/);
   });
-  test('the repo itself ships no edition file', () => {
-    expect(fs.existsSync(path.join(__dirname, '../../config/edition.json'))).toBe(false);
+  test('an edition file exists only in an exported edition (root .edition.json marks one)', () => {
+    // The source repo must never ship config/edition.json (it would filter the
+    // catalog there); an exported edition must (export-edition.js writes it
+    // plus the root .edition.json marker). Tying the two keeps both invariants.
+    const exported = fs.existsSync(path.join(__dirname, '../../../.edition.json'));
+    expect(fs.existsSync(path.join(__dirname, '../../config/edition.json'))).toBe(exported);
   });
 });

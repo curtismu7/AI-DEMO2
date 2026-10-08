@@ -24,6 +24,17 @@ describe('ArchitectureCanvasPage (React Flow)', () => {
     expect(reel.querySelector('.dreel-card--now')).toBe(cards[3]);
   });
 
+  test('the hint tells the user where the Simulate bar lives, in both flow states', () => {
+    const { rerender } = render(<ArchitectureCanvasPage />);
+    // All flows (default): the editing hint must point at the Flow picker — the
+    // page used to give no sign the playback controls exist behind the picker.
+    expect(screen.getByText(/Pick a Flow above for the Simulate bar/)).toBeInTheDocument();
+    // With a flow picked: the hint explains what Simulate does.
+    fireEvent.change(screen.getByLabelText('Flow'), { target: { value: 'agui' } });
+    expect(screen.getByText(/Simulate walks this flow/)).toBeInTheDocument();
+    rerender(<ArchitectureCanvasPage />);
+  });
+
   test('adding a box puts a new card on the canvas', () => {
     const { container } = render(<ArchitectureCanvasPage />);
     const before = container.querySelectorAll('.cv-card').length;

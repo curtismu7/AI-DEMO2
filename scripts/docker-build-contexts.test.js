@@ -15,6 +15,13 @@ const contractVerticals = require(path.join(
   'useCases',
 )).VERTICALS;
 
+// The two readiness-contract tests below enumerate tracked files with
+// `git ls-files`. An exported edition (scripts/export-edition.js) ships no
+// .git by design, so there is nothing to enumerate there; its content gates
+// run in export-edition.js instead.
+const inGitRepo = fs.existsSync(path.join(repoRoot, '.git'));
+const needsGit = { skip: inGitRepo ? false : 'not a git checkout (exported edition ships none by design)' };
+
 test('BFF build context includes the readiness audit helper scripts', () => {
   const outputRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-demo-bff-context-'));
   try {
@@ -206,7 +213,7 @@ const uiDockerignore = () => fs.readFileSync(
   'utf8',
 );
 
-test('readiness contract passes with only the files the UI Docker context allows', () => {
+test('readiness contract passes with only the files the UI Docker context allows', needsGit, () => {
   const result = runReadinessContractInUiContext(uiDockerignore());
   assert.equal(
     result.status,
@@ -216,7 +223,7 @@ test('readiness contract passes with only the files the UI Docker context allows
   );
 });
 
-test('that check fails when a file the contract imports leaves the allowlist', () => {
+test('that check fails when a file the contract imports leaves the allowlist', needsGit, () => {
   const rule = '!demo_api_server/utils/repositoryRoot.js';
   const dockerignore = uiDockerignore();
   assert.ok(dockerignore.includes(rule), `${rule} is no longer in the allowlist; pick another imported file`);

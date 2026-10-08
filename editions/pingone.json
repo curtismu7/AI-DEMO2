@@ -55,6 +55,11 @@
     "demo_api_server/tests/pfAiAgentCiba.test.js",
     "demo_api_server/tests/pfAiAgentMockThirdParty.test.js",
     "demo_api_server/tests/pfAiAgentRarDpop.test.js",
+    "scripts/pingfederate/oidc-profile-claims.js",
+    "scripts/pingfederate/provision-pf-oidc-profile.js",
+    "scripts/pingfederate/provision-pf-sso-session.js",
+    "demo_api_server/tests/pfOidcProfileClaims.test.js",
+    "demo_api_server/tests/pfSsoSession.test.js",
     "docs/editions/",
     "docs/superpowers/specs/2026-10-03-edition-split-design.md",
     "docs/superpowers/plans/2026-10-03-edition-split.md"
@@ -65,12 +70,15 @@
       "paths": [
         "demo_api_server/routes/pfAiAgent.js",
         "demo_api_server/services/pfAiAgentCibaService.js",
+        "demo_api_server/services/pfAiAgentCibaWebApproverService.js",
         "demo_api_server/services/pfAiAgentCimdService.js",
         "demo_api_server/services/pfAiAgentCrossDomainExchangeService.js",
         "demo_api_server/services/pfAiAgentFeatureConfig.js",
         "demo_api_server/services/pfAiAgentMockThirdPartyService.js",
         "demo_api_server/services/pfAiAgentOAuthService.js",
-        "demo_api_server/services/pfAiAgentRarService.js"
+        "demo_api_server/services/pfAiAgentRarService.js",
+        "demo_api_server/services/pfAiAgentTrace.js",
+        "demo_api_server/services/pfTokenExchangeDemoService.js"
       ]
     },
     {
@@ -87,21 +95,32 @@
       ]
     },
     {
-      "reason": "retained tests of retained provider-agnostic code (oauthUserService, startupConfigGuard, tokenIntrospection, delegatedCommerce, pf-pingone-user-gate fixture): they run in the PingOne edition and passed the export gates",
+      "reason": "retained tests of retained provider-agnostic code (oauthUserService, startupConfigGuard, tokenIntrospection, delegatedCommerce, pf-pingone-user-gate fixture) and of the kept pfAiAgent services/router (CIBA, web approver, RAR/CIMD traces, playground routes, token-exchange demo): they run in the PingOne edition and passed the export gates",
       "paths": [
         "demo_api_server/src/__tests__/oauthUserService.pingfederate.test.js",
         "demo_api_server/src/__tests__/startupConfigGuard.pingfederate.test.js",
         "demo_api_server/src/__tests__/tokenIntrospectionService.pingfederate.test.js",
+        "demo_api_server/src/__tests__/pfAiAgentCimdTrace.test.js",
+        "demo_api_server/src/__tests__/pfAiAgentLoginHint.test.js",
+        "demo_api_server/src/__tests__/pfAiAgentPlaygroundRoutes.test.js",
+        "demo_api_server/src/__tests__/pfTokenExchangeDemo.test.js",
         "demo_api_server/tests/delegatedCommercePingFederate.test.js",
-        "demo_api_server/tests/pfPingOneUserGate.test.js"
+        "demo_api_server/tests/pfPingOneUserGate.test.js",
+        "demo_api_server/tests/pfAiAgentCibaMock.test.js",
+        "demo_api_server/tests/pfAiAgentCibaProvider.test.js",
+        "demo_api_server/tests/pfAiAgentCibaTrace.test.js",
+        "demo_api_server/tests/pfAiAgentCibaWebApprover.test.js",
+        "demo_api_server/tests/pfAiAgentRarTrace.test.js"
       ]
     },
     {
-      "reason": "required by retained UI routes (routes/PublicRoutes.js, routes/EducationRoutes.js, App.js import these pages and the PF-down modal)",
+      "reason": "required by retained UI routes (routes/PublicRoutes.js, routes/EducationRoutes.js, App.js import these pages, the PF-down modal and the PF-required modal) plus the required modal's test",
       "paths": [
         "demo_api_ui/src/components/PingFederateDownModal.jsx",
         "demo_api_ui/src/components/PingFederateIdJagPage.css",
         "demo_api_ui/src/components/PingFederateIdJagPage.jsx",
+        "demo_api_ui/src/components/PingFederateRequiredModal.jsx",
+        "demo_api_ui/src/components/__tests__/PingFederateRequiredModal.test.jsx",
         "demo_api_ui/src/pages/PingFederateAiAgentPage.css",
         "demo_api_ui/src/pages/PingFederateAiAgentPage.jsx",
         "demo_api_ui/src/pages/PingFederateDavinciKitPage.css",
@@ -111,9 +130,10 @@
       ]
     },
     {
-      "reason": "required by retained oauth-mcp/src/index.ts (imports PfStep9TokenExchangeService)",
+      "reason": "required by retained oauth-mcp/src/index.ts (imports PfStep9TokenExchangeService) and by the retained dev_mcp banking-dev server (src/index.ts imports the read-only pf_get tool)",
       "paths": [
-        "oauth-mcp/src/auth/PfStep9TokenExchangeService.ts"
+        "oauth-mcp/src/auth/PfStep9TokenExchangeService.ts",
+        "dev_mcp/banking-dev/src/tools/pingfederate.ts"
       ]
     },
     {

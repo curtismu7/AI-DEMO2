@@ -11,10 +11,16 @@ const MATURITY = /^(works|needs-console-import|needs-build|flag:[a-z0-9_]+)$/;
 const UTILITY_TRACKS = ['tools', 'learn', 'nhi'];
 
 describe('useCases catalog SoT', () => {
+  // The catalog is filtered at load time by the edition file (an exported
+  // edition drops use cases, the source repo ships none). Assert counts against
+  // RAW_USE_CASES so they hold in both; edition-specific behavior is covered by
+  // useCases.edition.test.js.
+  const { RAW_USE_CASES } = require('../../config/useCases');
+
   test('contains the complete catalog including the CIAM/NHI agent lanes', () => {
     // UC43/44 and the SaaS-Embedded Website Worker UC45 are part of the CIAM/NHI catalog.
-    expect(USE_CASES).toHaveLength(75);
-    const ids = USE_CASES.map((u) => u.id);
+    expect(RAW_USE_CASES).toHaveLength(75);
+    const ids = RAW_USE_CASES.map((u) => u.id);
     expect(new Set(ids).size).toBe(75);
     for (let n = 1; n <= 22; n++) expect(ids).toContain(`UC${n}`);
     expect(ids).toContain('UC23');
@@ -36,6 +42,8 @@ describe('useCases catalog SoT', () => {
     expect(ids).toContain('UC37');
     expect(ids).toContain('UC38');
     expect(ids).toContain('UC39');
+    // UC40 is the PF AI Agent use case: in the catalog at source, dropped by the
+    // PingOne edition file when one ships (RAW_USE_CASES is unfiltered).
     expect(ids).toContain('UC40');
     expect(ids).toContain('UC46');
     expect(ids).toContain('UC47');
@@ -228,8 +236,9 @@ describe('useCases catalog SoT', () => {
   });
 
   test('listUseCases returns all catalog entries resolved for a vertical', () => {
-    expect(listUseCases('healthcare')).toHaveLength(75);
-    expect(listUseCases()).toHaveLength(75);
+    // the resolved list mirrors the (edition-filtered) catalog this tree serves
+    expect(listUseCases('healthcare')).toHaveLength(USE_CASES.length);
+    expect(listUseCases()).toHaveLength(USE_CASES.length);
   });
 
   test('only UC14 and UC15 are advanced', () => {
