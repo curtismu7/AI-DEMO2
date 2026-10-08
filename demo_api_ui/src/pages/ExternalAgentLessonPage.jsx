@@ -32,6 +32,12 @@ export default function ExternalAgentLessonPage() {
     <div className="lesson-page">
       <h1>{agent.name}</h1>
       <p className="lesson-audience">{agent.vendor} &middot; {agent.runsWhere}</p>
+      {agent.verification === 'expected' && (
+        <p className="lesson-audience" role="note">
+          ⚠️ The steps below are the expected flow, not yet app-verified — rehearse before presenting.
+          {agent.doors.standard.includes('localhost') ? '' : ' Cloud agents reach only the SE host.'}
+        </p>
+      )}
       <p>
         Walk the wire:{' '}
         <a href={useCaseDiagramPath('UC-MUSE1')}>standard lane (UC-MUSE1)</a>

@@ -21,6 +21,7 @@ describe('ExternalAgentLessonPage', () => {
     expect(screen.getByRole('heading', { name: /Muse Code/i })).toBeInTheDocument();
     expect(screen.getByText(/streamable_http/i)).toBeInTheDocument();
     expect(screen.getByText(/transfer/i)).toBeInTheDocument();
+    expect(screen.getByRole('note')).toHaveTextContent(/expected flow, not yet app-verified/i);
   });
 
   it('renders the coverage list and diagram links for every agent', () => {

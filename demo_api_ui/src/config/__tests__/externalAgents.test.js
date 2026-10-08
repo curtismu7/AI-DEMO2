@@ -24,6 +24,16 @@ describe('externalAgents data module', () => {
     expect(canWrite).toEqual(['muse-code', 'grok-cli', 'lm-studio', 'librechat']);
   });
 
+  it('every agent declares its app-side verification state (no unverified flow stated as fact)', () => {
+    for (const a of EXTERNAL_AGENTS) {
+      expect(['verified', 'expected'], a.id).toContain(a.verification);
+    }
+    // No per-client connection has been app-verified yet (matrix cells all ⏳),
+    // so nothing may claim 'verified' — LM Studio's 2026-09-11 precedent is
+    // machine-side only.
+    expect(EXTERNAL_AGENTS.every((a) => a.verification === 'expected')).toBe(true);
+  });
+
   it('every agent has a lesson-catalog entry with a matching route', () => {
     for (const id of IDS) {
       const lesson = getLesson(id);

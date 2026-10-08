@@ -8,6 +8,7 @@ export const AI_GATEWAY_DOOR = '/mcp-facade/privilege-gateway/mcp';
 export const EXTERNAL_AGENTS = [
   {
     id: 'muse-app',
+    verification: 'expected', // The connection flow below is EXPECTED, not yet app-verified — the verification matrix's app-side cells are all open. Rehearse with the runbook's pre-minted-Bearer fallback before presenting.
     name: 'Muse (consumer app)',
     vendor: 'Meta',
     runsWhere: "Meta's cloud — iOS, Android, web, iPad. Cannot reach the local stack; demos against the SE host.",
@@ -35,6 +36,7 @@ export const EXTERNAL_AGENTS = [
   },
   {
     id: 'muse-code',
+    verification: 'expected', // The connection flow below is EXPECTED, not yet app-verified — rehearse it before presenting and paste observed behavior into the verification matrix.
     name: 'Muse Code (CLI)',
     vendor: 'Meta',
     runsWhere: 'Your machine — macOS/Linux/Windows. Install: curl -fsSL https://dev.meta.ai/install.sh | sh. The full two-lane agent.',
@@ -67,6 +69,7 @@ export const EXTERNAL_AGENTS = [
   },
   {
     id: 'grok-app',
+    verification: 'expected', // The connector flow below is EXPECTED, not yet app-verified; DCR compatibility is undocumented by xAI. Rehearse with the pre-registered-client/Bearer fallback before presenting.
     name: 'Grok (custom connector)',
     vendor: 'xAI',
     runsWhere: 'xAI cloud — Grok web/desktop/mobile. Public URL required; demos against the SE host.',
@@ -94,6 +97,7 @@ export const EXTERNAL_AGENTS = [
   },
   {
     id: 'grok-cli',
+    verification: 'expected', // The connection flow below is EXPECTED, not yet app-verified — rehearse it before presenting.
     name: 'Grok CLI',
     vendor: 'xAI',
     runsWhere: 'Your machine — terminal. Remote HTTP MCP with browser OAuth on first use; credentials persist in ~/.grok/mcp_credentials.json.',
@@ -116,6 +120,7 @@ export const EXTERNAL_AGENTS = [
   },
   {
     id: 'lm-studio',
+    verification: 'expected', // The facade-door path has a 2026-09-11 precedent, but this flow is not yet re-verified on the current build — rehearse before presenting.
     name: 'LM Studio',
     vendor: 'Local app',
     runsWhere: 'Your machine. The proven precedent: connected to the facade privilege-gateway door 2026-09-11.',
@@ -138,6 +143,7 @@ export const EXTERNAL_AGENTS = [
   },
   {
     id: 'librechat',
+    verification: 'expected', // The connection flow below is EXPECTED, not yet app-verified — rehearse it before presenting.
     name: 'LibreChat',
     vendor: 'Open source (in-repo)',
     runsWhere: 'Your machine or docker (librechat/ in this repo).',
@@ -160,6 +166,7 @@ export const EXTERNAL_AGENTS = [
   },
   {
     id: 'chatgpt',
+    verification: 'expected', // The connector flow below is EXPECTED, not yet app-verified — rehearse it before presenting.
     name: 'ChatGPT (connectors)',
     vendor: 'OpenAI',
     runsWhere: 'OpenAI cloud — connector dev mode. Publicly reachable URL required; the local stack needs the SE host or a tunnel.',
