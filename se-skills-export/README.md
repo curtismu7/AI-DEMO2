@@ -17,6 +17,8 @@ Each folder in this directory is an independently installable skill package cont
 | [`pingone-mcp-connect/`](pingone-mcp-connect/) | Connect an IDE to PingOne MCP and configure its Worker app |
 | [`ping-se-cluster-deploy/`](ping-se-cluster-deploy/) | Shared Ping SE Kubernetes cluster access and deployment |
 | [`privilege-cloud-mcp-gateway/`](privilege-cloud-mcp-gateway/) | PingOne Privilege Cloud MCP gateway troubleshooting |
+| [`bedrock-agentcore-pingone/`](bedrock-agentcore-pingone/) | Agents on AWS Bedrock AgentCore Runtime using PingOne as the OAuth identity provider (M2M and user federation) |
+| [`pingone-authorize-ea-api-build/`](pingone-authorize-ea-api-build/) | Build and debug PingOne Authorize policies, attributes and AAM rules through the Early Access Admin API |
 | [`karpathy-guidelines/`](karpathy-guidelines/) | General coding-agent behavior guidelines |
 
 For a personal Claude Code installation:
