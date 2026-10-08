@@ -198,7 +198,7 @@ export default function PrivilegeMcpLearningPage() {
               <li>The same gateway fronts agents as well as MCP servers. An agent is registered as a
                 Remote Agent app and called at <code>{"https://<gateway>/<AppName>/a2a"}</code></li>
               <li>A calling agent has no browser to sign in with, so it presents an agent key from
-                AI Gateway &gt; Agent Registry. The key carries scopes (<code>llm</code>,{" "}
+                Agent Privilege &gt; Agent Registry. The key carries scopes (<code>llm</code>,{" "}
                 <code>mcp</code>, <code>a2a</code>), an allowed model and the apps it may reach</li>
               <li>The gateway checks the key, the scope and the policy on every hop, and its guardrail
                 screens agent messages and tool results</li>
@@ -267,7 +267,7 @@ export default function PrivilegeMcpLearningPage() {
                 are, but no per-tool policy is applied, nothing is denied and nothing is
                 recorded. Privilege is not in this path.</li>
               <li><strong>Put the gateway in the path.</strong> Switch Path to{" "}
-                <em>Privilege AI Gateway</em> and sign in with PingOne. Open Settings to show the
+                <em>Agent Privilege</em> and sign in with PingOne. Open Settings to show the
                 OAuth Client ID field is empty: the client registered itself and the person
                 authenticated.</li>
               <li><strong>Show least privilege.</strong> The tool list loads on its own after

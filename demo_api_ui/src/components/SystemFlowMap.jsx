@@ -70,10 +70,10 @@ export const NODES = {
   api: { name: 'Resource Server', sub: 'Backend API · banking / vertical REST' },
   db: { name: 'Data store', sub: 'SQLite · vertical dataset' },
   // A Privilege A2A chain run (UC47). Agents present agent keys, not OAuth
-  // tokens, and every hop passes the Privilege AI Gateway, which is a
+  // tokens, and every hop passes the Agent Privilege, which is a
   // different component from the Gateway PEP above.
   'pa-main': { name: 'Main agent', sub: 'Privilege A2A · its own agent key' },
-  'pa-gw': { name: 'Privilege AI Gateway', sub: 'key · scope · policy · guardrail' },
+  'pa-gw': { name: 'Agent Privilege', sub: 'key · scope · policy · guardrail' },
   'pa-middle': { name: 'LangChain agent', sub: 'Middle agent · its own agent key' },
   'pa-specialist': { name: 'Specialist agent', sub: 'Remote Agent app' },
 };
@@ -107,7 +107,7 @@ export const BANDS = [
   { id: 'model', label: 'Model · demo_llm_proxy', x: 0, y: 400, cols: 1, nodes: ['llm'] },
   // y: 470 clears the three-row backends band above it (200 + 258), which a
   // band at the model row's y: 400 overlapped.
-  { id: 'privilege', label: 'Privilege A2A · agents through the AI Gateway', x: 198, y: 470, cols: 4, nodes: ['pa-main', 'pa-gw', 'pa-middle', 'pa-specialist'] },
+  { id: 'privilege', label: 'Privilege A2A · agents through the Agent Privilege', x: 198, y: 470, cols: 4, nodes: ['pa-main', 'pa-gw', 'pa-middle', 'pa-specialist'] },
 ];
 
 // Bands before their boxes — React Flow requires a parent ahead of its children.

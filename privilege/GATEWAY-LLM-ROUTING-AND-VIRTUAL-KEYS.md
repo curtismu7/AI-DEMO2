@@ -142,6 +142,11 @@ curl https://<gateway-host>/llm/anthropic/v1/messages \
 
 The response is the provider's own, unchanged: the same JSON, the same token counts, and streaming if you asked for it.
 
+The demo's gateway client drives the same route end to end. Its Path selector has an **LLM path (prompt)** half — pick Anthropic, Google or OpenAI, and the chat prompt goes to the model through the user's Privilege virtual key, with the gateway injecting the provider key and applying the key's policy before the model sees anything:
+
+![Demo client on the LLM path](../docs/screenshots/privilege-console-setup/democlient-llm-chat.png)
+_The demo's AI Agent Gateway Client with the Anthropic LLM path selected: "Reply with the single word ok" went to the gateway's `/llm/anthropic/v1/messages` through the user's virtual key and the model answered. The transcript's trace step shows the route and the round-trip time (2232 ms)._
+
 Without the `anthropic-version` header, the Anthropic route returns Anthropic's own `400`: `anthropic-version: header is required`. The gateway does not add the header for you.
 
 ## Allowed models

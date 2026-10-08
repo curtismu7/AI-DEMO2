@@ -253,8 +253,8 @@ export function buildPrivilegeA2aChainSteps(tokenEvents) {
       id: `${event.id}${suffix}`,
       title,
       lane,
-      // The gateway lane reads "AI Gateway" on these steps (the shared lane key stays GATEWAY).
-      laneLabel: lane === PRIVILEGE_GATEWAY_LANE ? "AI Gateway" : laneNames[lane],
+      // The gateway lane reads "Agent Privilege" on these steps (the shared lane key stays GATEWAY).
+      laneLabel: lane === PRIVILEGE_GATEWAY_LANE ? "Agent Privilege" : laneNames[lane],
       status,
       detail: { facts, rfcs: A2A_REFS, tokenEvent: event, ...detail },
     });

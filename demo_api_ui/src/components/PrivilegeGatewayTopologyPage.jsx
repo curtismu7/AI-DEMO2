@@ -89,7 +89,7 @@ const A2A_SOURCE = `flowchart TB
     main["Main agent<br/>User device"]
 
     subgraph k8s["K8s cluster"]
-        subgraph gw["AI Gateway"]
+        subgraph gw["Agent Privilege"]
             gwA2A["Agent route<br/>/‹worker-app›/a2a"]
             gwLLM["Model route<br/>/llm/‹provider›"]
             gwMCP["Tool route<br/>/‹mcp-app›/mcp"]
@@ -122,7 +122,7 @@ const A2A_SOURCE = `flowchart TB
 
 const A2A_STEPS = [
   { heading: "Setup — happens once" },
-  { n: 1, text: "In the console, register the worker as a Remote Agent app and the tool server as an MCP app (Agentic Apps), then create one agent per caller (AI Gateway > Agent Registry): the main agent with the llm and a2a scopes and the worker selected, the worker agent with the llm and mcp scopes and each tool allowed. Each agent gets its own key, provider, allowed model and AIGuard settings." },
+  { n: 1, text: "In the console, register the worker as a Remote Agent app and the tool server as an MCP app (Agentic Apps), then create one agent per caller (Agent Privilege > Agent Registry): the main agent with the llm and a2a scopes and the worker selected, the worker agent with the llm and mcp scopes and each tool allowed. Each agent gets its own key, provider, allowed model and AIGuard settings." },
   { heading: "Request path — every call" },
   { n: 2, text: "The main agent calls its model through the gateway with its own agent key. The gateway checks the key and the allowed model." },
   { n: 3, text: "The main agent hands the question to the worker as an A2A message/send, addressed to the gateway, with the same agent key." },
@@ -180,7 +180,7 @@ export const TABS = [
     filename: "privilege-gateway-a2a-topology.mmd",
     steps: A2A_STEPS,
     blurb:
-      "Two agents and a tool server, with the AI Gateway between every pair. Each agent holds only its own agent key; the gateway checks that key on every model call, agent-to-agent call and tool call, and holds the real provider key itself. A longer chain works the same way: Demo Step 26 runs main agent, LangChain agent and a specialist, with the gateway between each pair.",
+      "Two agents and a tool server, with the Agent Privilege between every pair. Each agent holds only its own agent key; the gateway checks that key on every model call, agent-to-agent call and tool call, and holds the real provider key itself. A longer chain works the same way: Demo Step 26 runs main agent, LangChain agent and a specialist, with the gateway between each pair.",
   },
 ];
 

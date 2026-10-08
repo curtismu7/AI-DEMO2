@@ -3,7 +3,7 @@
 const { SERVER_INVENTORY } = require('../data/serverInventory');
 
 // 17 compose services (1f9c035c5 removed openai/mastra/pydantic agents) + 2
-// host llama tiers + the external Privilege AI Gateway (probe:false, SE-only
+// host llama tiers + the external Agent Privilege (probe:false, SE-only
 // — plan Task 9) — see docs/server-inventory-sot.md
 const EXPECTED_INVENTORY_COUNT = 21;
 

@@ -1,7 +1,6 @@
-// A policy denial is the centrepiece of this demo. It used to appear only in a
-// dismissible modal and one grey chat line, so dismissing the modal left a page
-// that looked merely empty — "broken", not "refused". These pin the parts that
-// survive a dismissal.
+// A policy denial is the centrepiece of this demo. It appears only as a
+// standing band and one grey chat line — there is no modal to dismiss — so
+// these pin the parts that keep the page reading as "refused", not "broken".
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import PrivilegeMcpClientPage from "../PrivilegeMcpClientPage";
@@ -67,61 +66,15 @@ describe("blocked-by-policy visibility", () => {
     expect(band).toHaveTextContent("demo-user@pingone.com");
   });
 
-  it("keeps the band after the details modal is dismissed", async () => {
+  it("does not open any denial modal on a 403 — the band is the whole notice", async () => {
     global.fetch = mockFetch();
     renderPage();
     fireEvent.click(await screen.findByRole("button", { name: /Get MCP Tools|Retry Tools/i }));
     await screen.findByRole("alert", { name: /blocked by policy/i });
 
-    const dismiss = screen.queryByRole("button", { name: /^Dismiss$/i });
-    if (dismiss) fireEvent.click(dismiss);
-
-    // The regression this file exists for: dismissing used to leave a page that
-    // looked empty rather than refused.
-    expect(screen.getByRole("alert", { name: /blocked by policy/i })).toBeInTheDocument();
-  });
-
-  // A door probe reported only a status. 500 there does NOT mean the server
-  // errored: relayFailureStatus maps anything without a 4xx upstream status to
-  // 500, so it means the relay never got an HTTP answer — and the reason lives
-  // only in the `error` string the BFF already returns. Without it, a row of
-  // bare 500s is unreadable, which cost a session's diagnosis.
-  it("shows WHY a probed door failed, not just its status", async () => {
-    // knownDoors() is built from presets — with none, probeDoors returns early
-    // and never calls the BFF, so this test needs other doors to exist.
-    const withDoors = {
-      ...baseState,
-      presets: [
-        { label: 'Privilege — brave', mode: 'privilege', url: 'https://mcpgw.example.com/brave/mcp' },
-        { label: 'Privilege — opensearch', mode: 'privilege', url: 'https://mcpgw.example.com/opensearch/mcp' },
-      ],
-    };
-    global.fetch = vi.fn((url) => {
-      const u = String(url);
-      if (u.endsWith("/api/privilege-mcp/state")) return Promise.resolve(jsonResponse(withDoors));
-      if (u.endsWith("/api/privilege-mcp/tools/list")) {
-        return Promise.resolve(jsonResponse({ error: "MCP request failed: 403 Forbidden" }, 403));
-      }
-      if (u.endsWith("/api/privilege-mcp/doors/probe")) {
-        return Promise.resolve(jsonResponse({
-          results: [
-            { url: "https://mcpgw.example.com/brave/mcp", ok: false, status: 500, error: "fetch failed: ECONNREFUSED" },
-            { url: "https://mcpgw.example.com/opensearch/mcp", ok: true, tools: 9 },
-          ],
-        }));
-      }
-      if (u.endsWith("/api/privilege-mcp/config")) return Promise.resolve(jsonResponse({ ok: true }));
-      return new Promise(() => {});
-    });
-    renderPage();
-    fireEvent.click(await screen.findByRole("button", { name: /Get MCP Tools|Retry Tools/i }));
-    await screen.findByRole("alert", { name: /blocked by policy/i });
-
-    fireEvent.click(await screen.findByRole("button", { name: /Try other doors/i }));
-
-    expect(await screen.findByText(/fetch failed: ECONNREFUSED/)).toBeInTheDocument();
-    // A door that worked still reports tools, not an error string.
-    expect(screen.getByText("9 tools")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Access Denied" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Why\?$/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Try other doors/i })).toBeNull();
   });
 
   it("explains the empty tool list instead of saying nothing was discovered", async () => {

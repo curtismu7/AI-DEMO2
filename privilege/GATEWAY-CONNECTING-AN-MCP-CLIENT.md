@@ -187,7 +187,13 @@ Not tested by us: Claude Desktop, Claude Code, Cursor, VS Code and ChatGPT. Each
 
 ## What the client sees once connected
 
-The client sees a normal MCP server, with a few differences that come from policy.
+The client sees a normal MCP server, with a few differences that come from policy. These were taken in the demo's own AI Gateway Client (`standalone/ai-gateway-client`), connected to the `opensearch22` app through the gateway, in light mode:
+
+![AI Gateway Client signed in, tools listed](../docs/screenshots/privilege-console-setup/gwclient-tools-list.png)
+_AI Gateway Client signed in to `opensearch22` through the gateway: the policy-granted tools on the left (ListIndexTool, SearchIndexTool, ClusterHealthTool, ExplainTool), the selected tool's form in the middle, and the gateway URL with Sign out and Refresh tools on top._
+
+![A tool call returned through the gateway](../docs/screenshots/privilege-console-setup/gwclient-tool-call-response.png)
+_ClusterHealthTool executed through the gateway: the JSON-RPC result in the Response pane and "OK in 422ms" beneath it. The backend's answer reaches the client unmodified._
 
 - **The tool list is filtered.** `tools/list` returns only the tools the user's policy grants. In one tested session the backend had nine tools and the client was shown three. The client cannot tell that others exist.
 - **A refused call is not an MCP error.** Calling a tool outside the policy returns HTTP `403 Forbidden` with no JSON-RPC body. A tool that does not exist returns exactly the same. A client may show this as a connection or transport failure, not as "permission denied".
@@ -197,6 +203,14 @@ The client sees a normal MCP server, with a few differences that come from polic
 - **An aggregate app prefixes tool names** with the server each tool comes from, so names differ from the same tool reached through its own app.
 
 A client may also log one harmless error at connect time: some clients first try a newer handshake method, `server/discover`, which older servers answer with 400, 404 or 405. The client then falls back to `initialize` and carries on.
+
+The client's Request and Relay log panes show what the gateway did with the exchange. The request the backend answered was a plain `tools/call`; the relay log keeps every hop — initialize, the tools/list round-trips, the call — with the direction, status and body of each:
+
+![The request pane](../docs/screenshots/privilege-console-setup/gwclient-request.png)
+_Request pane: the exact JSON-RPC `tools/call` for ClusterHealthTool that the client sent, and the timing line "OK in 422ms"._
+
+![The relay log](../docs/screenshots/privilege-console-setup/gwclient-relay-log.png)
+_Relay log: every message between client and gateway in order — the `client->mcp` requests and the `mcp->client` answers with status codes. The Authorization header itself is not logged._
 
 ## Common mistakes
 

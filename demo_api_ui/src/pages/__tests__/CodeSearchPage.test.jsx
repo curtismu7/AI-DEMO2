@@ -18,7 +18,7 @@ test('shows the protected RAG authorization flow and denied retrieval branch', (
 
   expect(screen.getByRole('heading', { name: 'Protected RAG' })).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: /retrieval authorization flow/i })).toBeInTheDocument();
-  expect(screen.getByText(/AI Gateway inspects the request/i)).toBeInTheDocument();
+  expect(screen.getByText(/Agent Privilege inspects the request/i)).toBeInTheDocument();
   expect(screen.getByText(/PingOne Authorize permits retrieval/i)).toBeInTheDocument();
   expect(screen.getByText(/retrieval denied/i)).toBeInTheDocument();
   expect(screen.getByText(/grounded answer with citations/i)).toBeInTheDocument();

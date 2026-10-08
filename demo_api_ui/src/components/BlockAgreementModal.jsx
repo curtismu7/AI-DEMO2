@@ -1,4 +1,4 @@
-// Interactive explainer for the Privilege AI Gateway's "Block Agreement" setting,
+// Interactive explainer for the Agent Privilege's "Block Agreement" setting,
 // recreating the console modal (off / unit / inspection) and letting the viewer
 // see how the mode merges an ML-sidecar finding with the deterministic detector
 // layer. Educational only — it does not read the live gateway config.

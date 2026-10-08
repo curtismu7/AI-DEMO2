@@ -4,7 +4,7 @@
  * Proves the Privilege-first MCP chain is actually usable, not merely configured.
  *
  * With ff_mcp_gateway_privilege_first ON, getMcpGatewayHttpUrl() sends EVERY MCP
- * tool call through the Privilege AI Gateway (mcpGatewayClient.js). That hop needs
+ * tool call through the Agent Privilege (mcpGatewayClient.js). That hop needs
  * a live Privilege gateway session, and that session lives in BFF memory — so a
  * restart, or an expiry nobody was watching, turns every tool call into an auth
  * failure that reads like a broken gateway. Plan §2.2 calls this the demo-killer:

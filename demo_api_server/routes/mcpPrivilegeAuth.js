@@ -5,7 +5,7 @@
  * (routes/mcpInspector.js, services/mcpProfileStore.js).
  *
  * One login per door, not one shared login. Confirmed live 2026-09-07 against
- * the current single AI Gateway (privilege/CURRENT-CONFIGURATION.md): each
+ * the current single Agent Privilege (privilege/CURRENT-CONFIGURATION.md): each
  * Agentic App is its OWN OAuth authorization server —
  * `https://mcpgw.ai-demo.ping-devops.com/<app>/.well-known/oauth-authorization-server`
  * returns a distinct `issuer`/`authorization_endpoint`/`token_endpoint`/

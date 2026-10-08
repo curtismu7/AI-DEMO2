@@ -23,7 +23,7 @@ const AGENT = "https://opensearch.default.applications.procyon.ai:8643/mcp";
 const AUDIT = "http://localhost:3002/mcp-facade/audit/mcp";
 
 const PRESETS = [
-  { label: "2 · Privilege — direct to the AI Gateway", mode: "privilege", url: CMUIR },
+  { label: "2 · Privilege — direct to the Agent Privilege", mode: "privilege", url: CMUIR },
   { label: "Privilege — external", mode: "privilege", url: EXTERNAL },
   { label: "1 · Direct — no Privilege in the path", mode: "direct", url: AGENT },
   { label: "Agent Gateway — PingOne audit (scope-narrowed)", mode: "privilege", url: AUDIT },
@@ -266,7 +266,7 @@ describe("titlebar door picker", () => {
     ]);
   });
 
-  it("Privilege mode (raw AI Gateway, different origin) does NOT gain Direct's plain doors", async () => {
+  it("Privilege mode (raw Agent Privilege, different origin) does NOT gain Direct's plain doors", async () => {
     const RAW_GATEWAY = "https://mcpgw.example.com";
     const FACADE_ORIGIN = "https://ai-demo.example.com";
     const OPENSEARCH22 = `${RAW_GATEWAY}/opensearch22/mcp`;
@@ -275,7 +275,7 @@ describe("titlebar door picker", () => {
       gatewayMode: "privilege",
       mcpUrl: OPENSEARCH22,
       presets: [
-        { label: "2 · Privilege — direct to the AI Gateway", mode: "privilege", url: OPENSEARCH22 },
+        { label: "2 · Privilege — direct to the Agent Privilege", mode: "privilege", url: OPENSEARCH22 },
         { label: "1 · Direct — no Privilege in the path", mode: "direct", url: OPENSEARCH_DIRECT },
       ],
     });

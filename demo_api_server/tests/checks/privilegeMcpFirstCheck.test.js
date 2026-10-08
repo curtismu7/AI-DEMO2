@@ -2,7 +2,7 @@
 
 /**
  * The demo-killer this guards (plan §2.2): with ff_mcp_gateway_privilege_first
- * ON, every MCP tool call is routed through the Privilege AI Gateway. That hop
+ * ON, every MCP tool call is routed through the Agent Privilege. That hop
  * needs a live Privilege gateway session, and the session is held in BFF memory
  * — a restart, or an expiry nobody watched, silently turns every tool call into
  * an auth failure that looks like a broken gateway rather than a missing sign-in.

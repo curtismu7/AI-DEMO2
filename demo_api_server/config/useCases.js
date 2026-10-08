@@ -1547,8 +1547,8 @@ const RAW_USE_CASES = [
     useCaseId: 'llm-gateway',
     track: 'tools',
     title: 'LLM Gateway',
-    buyerStory: 'Verify what the Privilege AI Gateway actually decided about an LLM call — the chat console classifies the outcome (denied by policy / provider refused / answered), while the raw-request tab (/llm-test) interprets nothing and shows exactly what was sent and returned.',
-    pingOneSolution: 'The PingOne Privilege AI Gateway fronts every LLM backend behind a virtual key, scanning for prompt injection, PII, and malicious content and returning a policy verdict alongside the provider response.',
+    buyerStory: 'Verify what the Agent Privilege actually decided about an LLM call — the chat console classifies the outcome (denied by policy / provider refused / answered), while the raw-request tab (/llm-test) interprets nothing and shows exactly what was sent and returned.',
+    pingOneSolution: 'The PingOne Agent Privilege fronts every LLM backend behind a virtual key, scanning for prompt injection, PII, and malicious content and returning a policy verdict alongside the provider response.',
     trigger: { type: 'link', path: '/llm-gateway', label: 'Open LLM Gateway' },
     expectedOutcome: 'GATEWAY_VERDICT',
     evidence: { tokenChain: [], activity: [] },
@@ -1561,7 +1561,7 @@ const RAW_USE_CASES = [
     owasp: { threats: [], sections: [] },
     whatToSay: 'Two tabs, one gateway: the chat console classifies what happened to a call, the raw-request tab shows the unfiltered wire traffic when the two need to be checked against each other.',
     advanced: false,
-    whatLong: 'A developer utility (not an identity scenario): the chat console tab classifies each call through the Privilege AI Gateway virtual key (denied by policy / provider refused / answered), while the raw-request tab (/llm-test) is a REST client that interprets nothing — pick a lane, edit the JSON body, send it, and read exactly what came back.',
+    whatLong: 'A developer utility (not an identity scenario): the chat console tab classifies each call through the Agent Privilege virtual key (denied by policy / provider refused / answered), while the raw-request tab (/llm-test) is a REST client that interprets nothing — pick a lane, edit the JSON body, send it, and read exactly what came back.',
     businessValue: "Lets a demo presenter or engineer confirm gateway behavior directly, rather than trusting only the chat console's interpretation of the outcome.",
     productRoles: {},
     primaryTool: null,
@@ -1628,7 +1628,7 @@ const RAW_USE_CASES = [
     track: 'tools',
     title: 'Privilege A2A three-deep agent chain',
     buyerStory: 'Platform teams want agents to hand work to other agents without losing control of who may call whom, or what crosses each hand-off.',
-    pingOneSolution: 'A main agent calls a middle agent, which calls a specialist. Every hop goes through the PingOne Privilege AI Gateway with that agent\u2019s own key, so scope, policy and guardrail are checked between each pair of agents.',
+    pingOneSolution: 'A main agent calls a middle agent, which calls a specialist. Every hop goes through the PingOne Agent Privilege with that agent\u2019s own key, so scope, policy and guardrail are checked between each pair of agents.',
     trigger: { type: 'link', path: '/dashboard', label: 'Run the agent chain' },
     // The three runs this step offers. The first is the default; the others
     // show the gateway refusing a hop. `specialist` is a delegation target the
@@ -1656,7 +1656,7 @@ const RAW_USE_CASES = [
     owasp: { threats: [], sections: [] },
     whatToSay: 'Run the chain and watch the reel: each hand-off stops at the gateway first. Then run the injection and the ungranted-agent variants to see a hop refused, and the poisoned Agent Card variant (C) to see the gateway block a reply that carries a hostile agent\u2019s text.',
     advanced: false,
-    whatLong: 'A three-deep agent-to-agent run. The main agent hands a request to the LangChain agent, which hands it to a specialist. Each hop is an A2A message/send through the PingOne Privilege AI Gateway, made with the calling agent\u2019s own key. The gateway checks the key\u2019s a2a scope, the policy for that remote agent and the guardrail, then forwards with the remote agent\u2019s configured credential. The reel shows every hop as it happens, and a refused hop carries the gateway\u2019s reason.',
+    whatLong: 'A three-deep agent-to-agent run. The main agent hands a request to the LangChain agent, which hands it to a specialist. Each hop is an A2A message/send through the PingOne Agent Privilege, made with the calling agent\u2019s own key. The gateway checks the key\u2019s a2a scope, the policy for that remote agent and the guardrail, then forwards with the remote agent\u2019s configured credential. The reel shows every hop as it happens, and a refused hop carries the gateway\u2019s reason.',
     businessValue: 'Show that agent-to-agent delegation can be governed hop by hop: each agent has its own identity and grants, the gateway sits between every pair of agents, and an unsafe or ungranted hand-off is stopped before it reaches the next agent.',
     productRoles: {
       privilege: 'Sits between every pair of agents: validates the calling agent\u2019s key, applies scope, policy and guardrail, and forwards with the remote agent\u2019s credential.',

@@ -20,7 +20,7 @@ const PROTECTED_RAG_STEPS = [
   },
   {
     title: 'Authorize retrieval',
-    detail: 'AI Gateway inspects the request, delegated identity, and code:search scope.',
+    detail: 'Agent Privilege inspects the request, delegated identity, and code:search scope.',
     tone: 'gateway',
   },
   {

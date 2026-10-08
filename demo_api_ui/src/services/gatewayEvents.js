@@ -1,4 +1,4 @@
-// The Privilege AI Gateway's own record of what it did, read for one run.
+// The Agent Privilege's own record of what it did, read for one run.
 //
 // The gateway has no "what did you decide" API. It writes a line per guardrail
 // verdict and per model call to its log, and the deployment ships those lines

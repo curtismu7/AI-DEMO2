@@ -247,7 +247,7 @@ describe('map wiring', () => {
 describe('Privilege A2A chain run', () => {
   const chainStep = (id, lane, status) => ({ id, lane, status, title: id });
 
-  it('lights the agents and the Privilege AI Gateway, and marks the refusal at the gateway', () => {
+  it('lights the agents and the Agent Privilege, and marks the refusal at the gateway', () => {
     const { nodeStates, edges, lit } = buildFlowModel([
       chainStep('pa2a-0-call', 'MAIN-AGENT', 'done'),
       chainStep('pa2a-0-gateway', 'GATEWAY', 'done'),

@@ -1,6 +1,6 @@
 'use strict';
 /**
- * Ad-hoc probe for the Privilege AI Gateway's LLM lanes
+ * Ad-hoc probe for the Agent Privilege's LLM lanes
  * (https://<gateway>/llm/<provider>/v1/...). Prints the raw HTTP status and
  * JSON body instead of the app's error-mapped text (see
  * services/privilegeLlmProxyService.js), so we can see exactly what the

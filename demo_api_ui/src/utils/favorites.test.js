@@ -31,7 +31,7 @@ describe('favorites', () => {
   });
 
   it('updates the AI Guard Client favorite in existing browser storage', () => {
-    localStorage.setItem('demo_header_favorites', JSON.stringify([{ label: 'AI Gateway Client', path: '/privilege-mcp-client' }]));
+    localStorage.setItem('demo_header_favorites', JSON.stringify([{ label: 'Agent Privilege Client', path: '/privilege-mcp-client' }]));
     localStorage.setItem('demo_header_favorites_agent_identity_academy_v1', '1');
     expect(getFavorites()[0].label).toBe('AI Guard Client');
   });

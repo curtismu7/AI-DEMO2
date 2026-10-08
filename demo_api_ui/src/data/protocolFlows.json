@@ -638,7 +638,7 @@
   },
   "privilege-ai-gateway": {
     "id": "privilege-ai-gateway",
-    "name": "Privilege AI Gateway sign-in",
+    "name": "Agent Privilege sign-in",
     "description": "Protocol flow: privilege-ai-gateway",
     "actors": [
       "client-app",
@@ -656,7 +656,7 @@
         "endpoint": "/api/privilege-mcp/auth/start",
         "step": 1,
         "title": null,
-        "description": "POST /auth/start — begin the OAuth PKCE flow against the Privilege AI Gateway.",
+        "description": "POST /auth/start — begin the OAuth PKCE flow against the Agent Privilege.",
         "body": null,
         "expected": {}
       },
@@ -681,8 +681,8 @@
     "spec": {
       "url": "https://datatracker.ietf.org/doc/html/rfc7591",
       "label": "RFC 7591 Dynamic Client Registration",
-      "title": "Privilege AI Gateway sign-in",
-      "why": "The PingOne Privilege AI Gateway is its own authorization server, and it registers callers dynamically rather than from a client id you configure ahead of time: the client discovers the gateway, registers itself (RFC 7591), then runs Authorization Code with PKCE (RFC 7636). Two consequences shape everything downstream. The token it issues is OPAQUE, so there are no claims to decode — introspection is the only way to inspect it. And it is bound to ONE Agentic App: presenting a token minted for another app is refused before routing even happens, which is why each door needs its own sign-in.",
+      "title": "Agent Privilege sign-in",
+      "why": "The PingOne Agent Privilege is its own authorization server, and it registers callers dynamically rather than from a client id you configure ahead of time: the client discovers the gateway, registers itself (RFC 7591), then runs Authorization Code with PKCE (RFC 7636). Two consequences shape everything downstream. The token it issues is OPAQUE, so there are no claims to decode — introspection is the only way to inspect it. And it is bound to ONE Agentic App: presenting a token minted for another app is refused before routing even happens, which is why each door needs its own sign-in.",
       "example": "A visitor badge that only opens one building. It proves who you are and it was issued on the spot rather than pre-arranged, but showing it at a different building gets you turned away at the door, not at the meeting room.",
       "ai": "An agent reaching a tool behind Privilege cannot carry one credential everywhere. It registers with the gateway, signs its user in once per application, and the gateway decides per app and per tool whether that human is allowed — before the agent's own gateway ever evaluates scopes."
     }

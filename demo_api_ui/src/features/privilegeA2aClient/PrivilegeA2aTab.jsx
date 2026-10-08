@@ -85,13 +85,13 @@ export default function PrivilegeA2aTab() {
       <header className="privilege-a2a__header">
         <div>
           <h2 id="privilege-a2a-title">A2A access review</h2>
-          <p>Ask about an entitlement. The main agent hands the lookup to a worker agent, which checks access data through MCP. In gateway mode every hop goes through the PingOne Privilege AI Gateway: each agent uses its own agent key, and the gateway screens the messages and the tool results.</p>
+          <p>Ask about an entitlement. The main agent hands the lookup to a worker agent, which checks access data through MCP. In gateway mode every hop goes through the PingOne Agent Privilege: each agent uses its own agent key, and the gateway screens the messages and the tool results.</p>
         </div>
         <ol className="privilege-a2a__path" aria-label="Agent request path">
           <li>Main agent</li>
-          <li>AI Gateway</li>
+          <li>Agent Privilege</li>
           <li>Worker agent</li>
-          <li>AI Gateway</li>
+          <li>Agent Privilege</li>
           <li>MCP tools</li>
         </ol>
       </header>

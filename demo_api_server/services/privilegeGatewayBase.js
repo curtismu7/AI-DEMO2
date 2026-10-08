@@ -1,6 +1,6 @@
 'use strict';
 
-// Base URL of the Privilege AI Gateway (origin plus any path prefix), without a
+// Base URL of the Agent Privilege (origin plus any path prefix), without a
 // trailing slash so an app segment can be appended cleanly. Shared by the
 // façade's privilege-gateway door (routes/mcpFacade.js) and
 // /api/privilege-mcp/facade-link (routes/privilegeMcpClient.js): the link must

@@ -2,7 +2,7 @@
 //
 // Makes NO live BFF, gateway or PingOne calls: it teaches the story of the
 // hostile MCP server (standalone/hostile-mcp-server) sitting behind the Privilege
-// AI Gateway regardless of whether the SE cluster is reachable. The live proof
+// Agent Privilege regardless of whether the SE cluster is reachable. The live proof
 // lives elsewhere (LibreChat, the gateway log, the mcp-scanner CLI); this page is
 // the concept + demo-runbook surface.
 //
@@ -57,7 +57,7 @@ const THREATS = [
 // backend. Each hop is a lane Privilege enforces on.
 const FLOW = [
   { role: "Client", name: "Agent", sub: "LibreChat · a real LLM" },
-  { role: "Privilege", name: "AI Gateway", sub: "app: libre · per-user policy", accent: true },
+  { role: "Privilege", name: "Agent Privilege", sub: "app: libre · per-user policy", accent: true },
   { role: "Backend", name: "Hostile MCP", sub: "get_weather · search_docs · create_transfer" },
 ];
 const LANES = [
@@ -85,7 +85,7 @@ export default function PrivilegeAiDemoPage() {
   return (
     <LessonLayout
       title="Privilege for AI — Hostile MCP"
-      subtitle="A deliberately hostile MCP server serves tools whose metadata carries the attack. Run it behind the Privilege AI Gateway to show what the gateway defends — and the one thing it can't, which is why defense in depth matters."
+      subtitle="A deliberately hostile MCP server serves tools whose metadata carries the attack. Run it behind the Agent Privilege to show what the gateway defends — and the one thing it can't, which is why defense in depth matters."
       sections={SECTIONS}
       storageKey="pfa-lesson-nav-width"
     >

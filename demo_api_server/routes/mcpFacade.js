@@ -63,7 +63,7 @@ const DOORS = {
     label: 'Privilege agentless',
     // The BANKING door. It was dark from 2026-09-01 to 2026-09-08: it addressed
     // cmuir-agentless-mcpgw.ping-devops.com, torn down when the estate moved to
-    // the one AI Gateway, so every call failed ENOTFOUND.
+    // the one Agent Privilege, so every call failed ENOTFOUND.
     //
     // The condition this door's own comment set for repointing — "a banking MCP
     // server registered there as its own Agentic App", explicitly NOT an
@@ -126,10 +126,10 @@ const DOORS = {
   },
   // The `agent` and `agent-cmuir` (Privilege agent-mode) doors were REMOVED
   // 2026-09-05. They pointed at *.applications.procyon.ai:8643 mesh frontends
-  // whose gateway was torn down when the estate moved to the one AI Gateway;
+  // whose gateway was torn down when the estate moved to the one Agent Privilege;
   // the names still resolve through the Priv Agent's DNS proxy while nothing
   // serves the mesh port, so they HUNG rather than failing fast — worse than
-  // no door. Restoring agent mode needs inbound mesh exposure the AI Gateway
+  // no door. Restoring agent mode needs inbound mesh exposure the Agent Privilege
   // chart does not ship (the old agent chart had an SSL-passthrough ingress),
   // and the live client path is now the `privilege-gateway` door below.
   opensearch: {
@@ -141,7 +141,7 @@ const DOORS = {
     // duplicate was uninstalled 2026-08-26, so the surviving server does NOT
     // live beside the BFF and a short name would not resolve.
     //
-    // Renamed 2026-09-01: the cm-mcpgw release is gone too. The AI Gateway chart
+    // Renamed 2026-09-01: the cm-mcpgw release is gone too. The Agent Privilege chart
     // (release agentless-mcpgw) names its objects WITHOUT a release prefix, so
     // the live service is `opensearch-mcp-server` in the same namespace.
     upstream: () => process.env.MCP_FACADE_OPENSEARCH_URL
@@ -238,9 +238,9 @@ const DOORS = {
       || 'mcpgateway.ping.demo',
   },
   'privilege-gateway': {
-    label: 'Privilege AI Gateway',
+    label: 'Agent Privilege',
     // The door that survives a gateway restart. Everything else that talks to
-    // the AI Gateway registers with the GATEWAY's authorization server, whose
+    // the Agent Privilege registers with the GATEWAY's authorization server, whose
     // client registry is in memory — so a restart forgets the client and the
     // MCP client dead-ends on "Unknown client" until someone re-adds it by
     // hand. Here the client registers with OUR broker (durable) and the gateway
