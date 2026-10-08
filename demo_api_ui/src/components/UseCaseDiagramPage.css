@@ -26,7 +26,7 @@
 
 .ucd-wire { margin-top: 8px; display: grid; gap: 4px; }
 .ucd-wire__row { display: flex; gap: 7px; align-items: baseline; min-width: 0; }
-.ucd-wire__tag { flex: 0 0 auto; font-size: 9px; font-weight: 800; border-radius: 4px; padding: 1px 5px; }
+.ucd-wire__tag { flex: 0 0 auto; font-size: var(--font-size-3xs, 10px); font-weight: 800; border-radius: 4px; padding: 1px 5px; }
 .ucd-wire__tag--api { background: var(--th-status-info-bg); color: var(--th-status-info-text); }
 .ucd-wire__tag--token { background: var(--th-status-info-bg); color: var(--th-status-info-text); border: 1px solid var(--th-border-strong); }
 .ucd-wire__tag--a2a { background: var(--th-status-success-bg); color: var(--th-status-success-text); }
