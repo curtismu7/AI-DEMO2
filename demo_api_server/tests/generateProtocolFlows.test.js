@@ -194,3 +194,25 @@ describe('buildFlowSpecs', () => {
     expect(flows.rar.steps[0].title).toBeNull();
   });
 });
+
+describe('@idp', () => {
+  const annotation = (idp) => ({
+    flowId: 'f', prose: '', actor: 'a', toActor: 'b', step: 1, ...(idp && { idp }),
+  });
+
+  test('parseFlowAnnotation reads @idp', () => {
+    expect(parseFlowAnnotation(' * @flow f\n * @idp pingfederate\n * @step 1').idp).toBe('pingfederate');
+  });
+
+  test('a flow with no @idp is provider-independent', () => {
+    expect(buildFlowSpecs([{ annotation: annotation() }]).f.idp).toBe('any');
+  });
+
+  test('a flow takes the @idp of whichever step declares it', () => {
+    const flows = buildFlowSpecs([
+      { annotation: { ...annotation('pingone'), step: 1 } },
+      { annotation: { ...annotation(), step: 2 } },
+    ]);
+    expect(flows.f.idp).toBe('pingone');
+  });
+});

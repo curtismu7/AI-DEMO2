@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import bffAxios from '../../services/bffAxios';
 import protocolFlows from '../../data/protocolFlows.json';
 import ProtocolSidebar from './ProtocolSidebar';
 import ProtocolViewer from './ProtocolViewer';
 import useDividerDrag from '../../hooks/useDividerDrag';
+import { useThemeOptional } from '../../context/ThemeContext';
 import './ProtocolPlayground.css';
 
 /** Shape ExecutionEngine.getState() returns — the viewer and activity panel read it directly. */
@@ -13,13 +15,32 @@ const EMPTY_EXECUTION_STATE = {
 };
 
 
-const ProtocolPlayground = () => {
-  // Convert protocolFlows object to array of protocol objects
-  const protocolArray = useMemo(() => Object.values(protocolFlows || {}), []);
+const IDPS = [
+  { id: 'pingone', label: 'PingOne' },
+  { id: 'pingfederate', label: 'PingFederate' },
+];
+
+const IDP_LABEL = { pingone: 'PingOne', pingfederate: 'PingFederate' };
+
+const ProtocolPlayground = ({ user = null }) => {
+  const [idp, setIdp] = useState('pingone');
+  // The BFF's live answer: which server signed this session in, and whether a PingFederate token exists.
+  const [live, setLive] = useState({ provider: null, pfSignedIn: false });
+  const allProtocols = useMemo(() => Object.values(protocolFlows || {}), []);
+  // A flow tagged for the other provider is hidden. Provider-independent ("any") flows are simulations: they show
+  // under both, except under PingFederate once the real `<id>-pf` flow exists.
+  const protocolArray = useMemo(() => {
+    const ids = new Set(allProtocols.map(p => p.id));
+    return allProtocols.filter(p => (!p.idp || p.idp === 'any'
+      ? !(idp === 'pingfederate' && ids.has(`${p.id}-pf`))
+      : p.idp === idp));
+  }, [allProtocols, idp]);
 
   const [selectedProtocol, setSelectedProtocol] = useState(null);
   const [executionState, setExecutionState] = useState(EMPTY_EXECUTION_STATE);
-  const [dark, setDark] = useState(false);
+  // The app owns the theme (`data-theme` on the root). The diagrams are drawn with --th-* tokens that flip with it,
+  // so a private copy of the switch here left them light on a dark page.
+  const { darkMode: dark, toggleDarkMode } = useThemeOptional();
   const { size: sidebarWidth, handleProps: sidebarHandleProps } = useDividerDrag({
     min: 180,
     max: 480,
@@ -27,11 +48,29 @@ const ProtocolPlayground = () => {
     storageKey: 'pp-sidebar-width',
   });
 
-  // Set first protocol as default on mount
+  // Open on the provider this session signed in with; no session or no answer keeps PingOne.
   useEffect(() => {
-    if (protocolArray && protocolArray.length > 0) {
-      setSelectedProtocol(protocolArray[0]);
-    }
+    let cancelled = false;
+    bffAxios.get('/api/pf-ai-agent/status')
+      .then(({ data }) => {
+        if (cancelled) return;
+        setLive({ provider: IDP_LABEL[data?.sessionProvider] ? data.sessionProvider : null, pfSignedIn: !!data?.pfSignedIn });
+        if (data?.sessionProvider === 'pingfederate') setIdp('pingfederate');
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  // The live session wins over the stored user record's copy of the provider.
+  const sessionProvider = live.provider || (IDP_LABEL[user?.oauthProvider] ? user.oauthProvider : null);
+  const sessionName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.username || user?.email || null;
+  const mismatch = sessionProvider && sessionProvider !== idp;
+
+
+  // Keep the selection valid for the active provider (first protocol by default).
+  useEffect(() => {
+    setSelectedProtocol(prev => protocolArray.find(p => p.id === prev?.id) || protocolArray[0] || null);
+    setExecutionState(EMPTY_EXECUTION_STATE);
   }, [protocolArray]);
 
   // Handle protocol selection - convert ID back to protocol object
@@ -54,6 +93,27 @@ const ProtocolPlayground = () => {
 
   return (
     <div className={`protocol-playground${dark ? ' dark' : ''}`}>
+      <div
+        className={`pp-sso${!sessionProvider || mismatch ? ' pp-sso--warn' : ''}`}
+        role="status"
+        aria-label="Signed-in session"
+      >
+        {sessionProvider ? (
+          <>
+            <strong>{sessionName || 'Signed in'}</strong> signed in with <strong>{IDP_LABEL[sessionProvider]} SSO</strong>
+          </>
+        ) : (
+          <strong>Not signed in</strong>
+        )}
+        {!sessionProvider && ' — sign in to run the flows that act on your session.'}
+        {mismatch && (
+          <>
+            {` ⚠️ ${IDP_LABEL[idp]} flows that act on your session (such as RFC 8693) need a ${IDP_LABEL[idp]} sign-in.`}
+            {idp === 'pingfederate' && ' The sign-in flows (PKCE, PAR, DPoP, RAR) open a PingFederate sign-in in a new tab instead.'}
+            {idp === 'pingfederate' && live.pfSignedIn && ' A PingFederate token from the CIMD page exists, which the XAA flow can use.'}
+          </>
+        )}
+      </div>
       <header className="pp-intro">
         <h1 className="pp-intro__title">Protocol Playground</h1>
         <p className="pp-intro__lede">
@@ -85,8 +145,8 @@ const ProtocolPlayground = () => {
       <div className="protocol-playground__container">
         <button
           className="pp-theme-toggle"
-          onClick={() => setDark(d => !d)}
-          title="Switch this page between light and dark"
+          onClick={toggleDarkMode}
+          title="Switch the app between light and dark"
           aria-pressed={dark}
         >
           {dark ? '☀️ Light mode' : '🌙 Dark mode'}
@@ -95,8 +155,20 @@ const ProtocolPlayground = () => {
           className="protocol-playground__sidebar"
           style={{ flex: `0 0 ${sidebarWidth}px` }}
         >
+          <div className="pp-idp-toggle" role="group" aria-label="Identity provider">
+            {IDPS.map(({ id, label }) => (
+              <button
+                key={id}
+                className={`pp-idp-toggle__btn${idp === id ? ' active' : ''}`}
+                aria-pressed={idp === id}
+                onClick={() => setIdp(id)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <ProtocolSidebar
-            protocols={protocolArray.map(p => ({ id: p.id, name: p.name }))}
+            protocols={protocolArray.map(p => ({ id: p.id, name: p.name, simulated: !p.idp || p.idp === 'any' }))}
             selectedProtocol={selectedProtocol?.id}
             onSelectProtocol={handleProtocolSelect}
           />

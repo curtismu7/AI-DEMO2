@@ -2,6 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import ProtocolPlayground from '../ProtocolPlayground';
+import { ThemeProvider } from '../../../context/ThemeContext';
 import protocolFlows from '../../../data/protocolFlows.json';
 
 // The engine is exercised by its own suite; here we only care that the
@@ -49,11 +50,20 @@ vi.mock('../../../services/executionEngine', () => ({
   },
 }));
 
+// The page asks the BFF which provider this session signed in with; a failed call keeps PingOne.
+const mockGet = vi.hoisted(() => vi.fn());
+vi.mock('../../../services/bffAxios', () => ({ default: { get: mockGet } }));
+
 const flowIds = Object.keys(protocolFlows);
+// Simulations show under both providers, except under PingFederate once a real `<id>-pf` twin exists.
+const shownFor = (idp) => flowIds.filter((id) => (protocolFlows[id].idp === 'any'
+  ? !(idp === 'pingfederate' && flowIds.includes(`${id}-pf`))
+  : protocolFlows[id].idp === idp));
 
 describe('ProtocolPlayground wiring', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGet.mockRejectedValue(new Error('no session'));
   });
 
   test('generated flows carry the fields the viewer and engine read', () => {
@@ -92,7 +102,108 @@ describe('ProtocolPlayground wiring', () => {
     // gained titles, so the count drifted with the selected flow's step count
     // rather than with the number of protocols.
     const buttons = container.querySelectorAll('.protocol-list .protocol-item');
-    expect(buttons.length).toBe(flowIds.length);
+    expect(buttons.length).toBe(shownFor('pingone').length);
+  });
+
+  test('PingFederate toggle swaps the provider-specific flows and keeps the simulations', () => {
+    render(<ProtocolPlayground />);
+    expect(screen.getByTitle('ciba-hitl')).toBeInTheDocument();
+    expect(screen.queryByTitle('ciba-hitl-pf')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'PingFederate' }));
+
+    expect(screen.getByTitle('ciba-hitl-pf')).toBeInTheDocument();
+    expect(screen.queryByTitle('ciba-hitl')).not.toBeInTheDocument();
+    // A simulation with no PingFederate twin stays, marked Simulated.
+    expect(screen.getByTitle('spiffe')).toBeInTheDocument();
+  });
+
+  test('under PingFederate a simulation gives way to its real twin', () => {
+    render(<ProtocolPlayground />);
+    expect(screen.getByTitle('dpop')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'PingFederate' }));
+
+    expect(screen.queryByTitle('dpop')).not.toBeInTheDocument();
+    expect(screen.getByTitle('dpop-pf')).toBeInTheDocument();
+  });
+
+  test('a selected flow that the toggle hides falls back to the first visible one', () => {
+    render(<ProtocolPlayground />);
+    fireEvent.click(screen.getByTitle('ciba-hitl'));
+    fireEvent.click(screen.getByRole('button', { name: 'PingFederate' }));
+
+    expect(
+      screen.getByRole('heading', { name: protocolFlows[shownFor('pingfederate')[0]].name })
+    ).toBeInTheDocument();
+  });
+
+  test('opens on PingFederate when the session signed in with it', async () => {
+    mockGet.mockResolvedValue({ data: { sessionProvider: 'pingfederate' } });
+    render(<ProtocolPlayground />);
+
+    expect(await screen.findByTitle('ciba-hitl-pf')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'PingFederate' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  describe('theme', () => {
+    afterEach(() => { document.documentElement.removeAttribute('data-theme'); window.localStorage.removeItem('ba_dark_mode'); });
+
+    test('the page follows the app theme, so the diagram tokens (--th-*) flip with it', () => {
+      window.localStorage.setItem('ba_dark_mode', 'true');
+      const { container } = render(<ThemeProvider><ProtocolPlayground /></ThemeProvider>);
+
+      expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
+      expect(container.querySelector('.protocol-playground')).toHaveClass('dark');
+    });
+
+    test('the page toggle changes the app theme, not a private copy of it', () => {
+      window.localStorage.setItem('ba_dark_mode', 'false');
+      const { container } = render(<ThemeProvider><ProtocolPlayground /></ThemeProvider>);
+      expect(container.querySelector('.protocol-playground')).not.toHaveClass('dark');
+
+      fireEvent.click(screen.getByRole('button', { name: /Dark mode/ }));
+
+      expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
+      expect(container.querySelector('.protocol-playground')).toHaveClass('dark');
+      expect(screen.getByRole('button', { name: /Light mode/ })).toBeInTheDocument();
+    });
+  });
+
+  describe('who is signed in', () => {
+    const ada = { firstName: 'Ada', lastName: 'Lovelace', username: 'ada', oauthProvider: 'pingone' };
+    const strip = () => screen.getByRole('status', { name: 'Signed-in session' });
+
+    test('names the user and PingOne when signed in with PingOne', () => {
+      render(<ProtocolPlayground user={ada} />);
+      expect(strip()).toHaveTextContent('Ada Lovelace');
+      expect(strip()).toHaveTextContent('PingOne SSO');
+    });
+
+    test('the status bar is the first thing on the page, above the intro', () => {
+      const { container } = render(<ProtocolPlayground user={ada} />);
+      expect(container.querySelector('.protocol-playground').firstElementChild).toBe(strip());
+    });
+
+    test('says so when nobody is signed in', () => {
+      render(<ProtocolPlayground />);
+      expect(strip()).toHaveTextContent('Not signed in');
+    });
+
+    test('the live session provider wins over the stored user record', async () => {
+      mockGet.mockResolvedValue({ data: { sessionProvider: 'pingfederate' } });
+      render(<ProtocolPlayground user={ada} />);
+      await waitFor(() => expect(strip()).toHaveTextContent('PingFederate'));
+    });
+
+    test('warns when the selected provider is not the one signed in', () => {
+      render(<ProtocolPlayground user={ada} />);
+      expect(screen.queryByText(/need a PingFederate sign-in/)).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'PingFederate' }));
+
+      expect(strip()).toHaveTextContent('need a PingFederate sign-in');
+    });
   });
 
   test('clicking a sidebar entry switches the viewer', () => {

@@ -23,6 +23,7 @@
 
 const express = require('express');
 const router  = express.Router();
+const configStore = require('../services/configStore');
 const { buildExtensionBlock, isEnterpriseManagedFlagOn } = require('../services/enterpriseMcpMetadata');
 
 /**
@@ -30,16 +31,24 @@ const { buildExtensionBlock, isEnterpriseManagedFlagOn } = require('../services/
  * @param {import('express').Request} req
  * @returns {object}
  */
-function buildMetadata(req) {
+function buildMetadata(req, { issuer } = {}) {
   const host = req.get('host') || null;
   const baseUrl = process.env.PUBLIC_APP_URL ||
     (host ? `${req.protocol}://${host}` : 'https://demo-api-server:3001');
 
   const envId  = process.env.PINGONE_ENVIRONMENT_ID || '';
   const region = process.env.PINGONE_REGION || 'com';
-  const asList = envId
-    ? [`https://auth.pingone.${region}/${envId}/as`]
-    : [];
+  // An explicit issuer wins; otherwise the active provider decides. In PingFederate mode the
+  // PingOne issuer is never advertised, even when PF_ISSUER is unset (then no server is named).
+  const pfMode = String(configStore.getEffective('oauth_provider') || '').trim().toLowerCase() === 'pingfederate';
+  const pfIssuer = pfMode ? String(configStore.getEffective('pf_issuer') || '').trim() : '';
+  const asList = issuer
+    ? [issuer]
+    : pfMode
+      ? (pfIssuer ? [pfIssuer] : [])
+      : envId
+        ? [`https://auth.pingone.${region}/${envId}/as`]
+        : [];
 
   const doc = {
     resource: `${baseUrl}/api`,
@@ -78,6 +87,7 @@ router.get('/', (req, res) => {
  * authorization server issues its tokens and which scopes it accepts.
  *
  * @flow resource-metadata
+ * @idp pingone
  * @rfc https://datatracker.ietf.org/doc/html/rfc9728 RFC 9728
  * @why Protected Resource Metadata (RFC 9728) lets an API publish a .well-known document declaring which authorization server issues its tokens and which scopes it accepts. Clients discover how to authorize against a resource instead of being hand-configured for it.
  * @example This is how MCP authorization bootstraps: an MCP client hits a protected server, gets a 401 pointing at the resource metadata, reads which authorization server to use, and starts the right OAuth flow — zero out-of-band setup. Like a door that lists which badge office issues the badges it accepts.
@@ -88,6 +98,28 @@ router.get('/', (req, res) => {
  */
 router.get('/metadata', (req, res) => {
   res.json(buildMetadata(req));
+});
+
+/**
+ * The same document with PingFederate as the authorization server: the issuer is the
+ * configured PF_ISSUER, so a client discovering this API is sent to PingFederate.
+ *
+ * @flow resource-metadata-pf
+ * @name Resource Metadata (PingFederate)
+ * @idp pingfederate
+ * @rfc https://datatracker.ietf.org/doc/html/rfc9728 RFC 9728
+ * @why Protected Resource Metadata (RFC 9728) lets an API publish a .well-known document declaring which authorization server issues its tokens and which scopes it accepts. Here the declared authorization server is PingFederate, so a client that discovers this API is sent to PingFederate's issuer instead of PingOne's.
+ * @example This is how MCP authorization bootstraps: an MCP client hits a protected server, gets a 401 pointing at the resource metadata, reads which authorization server to use, and starts the right OAuth flow with zero out-of-band setup.
+ * @ai Agents connect to tool servers they have never seen before. Discovery metadata is what lets that happen safely at runtime instead of via config files written by a human in advance.
+ * @title Discover the authorization server
+ * @actor client-app
+ * @to resource-server
+ * @step 1
+ */
+router.get('/metadata/pingfederate', (req, res) => {
+  const issuer = String(configStore.getEffective('pf_issuer') || '').trim();
+  if (!issuer) return res.status(503).json({ error: 'pf_issuer_not_configured' });
+  return res.json(buildMetadata(req, { issuer }));
 });
 
 /**

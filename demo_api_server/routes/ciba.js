@@ -113,6 +113,7 @@ router.get('/status', (req, res) => {
  * }
  *
  * @flow ciba-hitl
+ * @idp pingone
  * @name CIBA / HITL
  * @rfc https://openid.net/specs/openid-client-initiated-backchannel-authentication-core-1_0.html OpenID CIBA 1.0
  * @why CIBA (Client-Initiated Backchannel Authentication) decouples approval from the device where a request started: the client asks the authorization server to authenticate a user, and the user approves on their own device — a push notification or app prompt — with no browser redirect anywhere in the flow. HITL (human-in-the-loop) applies the same shape to authorization: a sensitive action pauses until a named human explicitly approves it.

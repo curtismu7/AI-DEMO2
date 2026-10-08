@@ -227,6 +227,62 @@
   font-weight: 500;
 }
 
+/* --- Identity provider toggle + simulated tag --- */
+
+.pp-idp-toggle {
+  display: flex;
+  gap: 4px;
+  padding: 0 12px 12px;
+}
+
+.pp-idp-toggle__btn {
+  flex: 1;
+  background: var(--pp-btn-bg);
+  border: 1px solid var(--pp-btn-border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: var(--font-size-2xs);
+  color: var(--pp-btn-text);
+  cursor: pointer;
+}
+
+.pp-idp-toggle__btn:hover {
+  background: var(--pp-btn-hover);
+}
+
+.pp-idp-toggle__btn.active {
+  background: var(--pp-item-active-bg);
+  border-color: var(--pp-item-active-bg);
+  color: var(--pp-item-active-text);
+  font-weight: 600;
+}
+
+.pp-sso {
+  padding: 10px 20px;
+  background: var(--pp-bg-surface);
+  border-bottom: 1px solid var(--pp-border);
+  border-left: 4px solid var(--pp-ok-text);
+  font-size: var(--font-size-body);
+  line-height: 1.4;
+  color: var(--pp-text);
+}
+
+.pp-sso--warn {
+  border-left-color: var(--pp-error-text);
+}
+
+.protocol-item__tag {
+  margin-left: 8px;
+  font-size: var(--font-size-3xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--pp-text-muted);
+}
+
+.protocol-item.active .protocol-item__tag {
+  color: var(--pp-item-active-text);
+}
+
 /* --- Viewer --- */
 
 .protocol-viewer {

@@ -79,6 +79,8 @@ function parseFlowAnnotation(jsdocComment) {
       result.example = value.trim();
     } else if (tag === 'ai') {
       result.ai = value.trim();
+    } else if (tag === 'idp') {
+      result.idp = value.trim();
     } else if (tag === 'branch') {
       if (!result.branches) result.branches = [];
       result.branches.push(value.trim());
@@ -147,6 +149,15 @@ function resolveMountPrefixes() {
     match = useRegex.exec(content);
   }
 
+  // Inline form: app.use('/api/x', require('./routes/x')) — no variable to resolve.
+  const inlineRegex = /app\.use\(\s*['"]([^'"]+)['"]\s*,\s*require\(['"]\.\/routes\/([\w-]+)['"]\)\s*\)/g;
+  match = inlineRegex.exec(content);
+  while (match !== null) {
+    const file = `${match[2]}.js`;
+    if (!prefixes[file]) prefixes[file] = match[1];
+    match = inlineRegex.exec(content);
+  }
+
   return prefixes;
 }
 
@@ -196,7 +207,7 @@ function buildFlowSpecs(routes) {
   const flows = {};
 
   for (const { annotation } of routes) {
-    const { flowId, displayName, prose, rfcUrl, rfcLabel, stepTitle, actor, toActor, step, expects, body, branches, method, endpoint, why, example, ai } = annotation;
+    const { flowId, displayName, prose, rfcUrl, rfcLabel, stepTitle, actor, toActor, step, expects, body, branches, method, endpoint, why, example, ai, idp } = annotation;
 
     if (!flows[flowId]) {
       flows[flowId] = {
@@ -206,8 +217,15 @@ function buildFlowSpecs(routes) {
         actors: [],
         steps: [],
         branches: [],
+        // Which identity provider the flow runs against: pingone | pingfederate,
+        // or any (provider-independent, a local simulation). Set by @idp.
+        idp: 'any',
         spec: null
       };
+    }
+
+    if (idp) {
+      flows[flowId].idp = idp;
     }
 
     // @name overrides the naive title-caser, which mangles acronym flow IDs

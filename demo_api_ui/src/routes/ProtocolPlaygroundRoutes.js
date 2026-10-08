@@ -8,7 +8,7 @@ import ProtocolPlayground from "../components/ProtocolPlayground/ProtocolPlaygro
 export function ProtocolPlaygroundPageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
-      <ProtocolPlayground />
+      <ProtocolPlayground user={user} />
     </AppShell>
   );
 }

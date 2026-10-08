@@ -12,6 +12,7 @@ const ACTOR_LABELS = {
   'local-mock-issuer': 'Local Mock Issuer',
   'txn-token-service': 'TTS',
   'idp-a': 'IdP-A',
+  'pingfederate': 'PingFederate',
   'workload-a': 'Workload-A'
 };
 

@@ -2236,6 +2236,7 @@ router.post('/config', express.json(), (req, res) => {
  * POST /auth/start — begin the OAuth PKCE flow against the Privilege AI Gateway.
  *
  * @flow privilege-ai-gateway
+ * @idp pingone
  * @name Privilege AI Gateway sign-in
  * @rfc https://datatracker.ietf.org/doc/html/rfc7591 RFC 7591 Dynamic Client Registration
  * @why The PingOne Privilege AI Gateway is its own authorization server, and it registers callers dynamically rather than from a client id you configure ahead of time: the client discovers the gateway, registers itself (RFC 7591), then runs Authorization Code with PKCE (RFC 7636). Two consequences shape everything downstream. The token it issues is OPAQUE, so there are no claims to decode — introspection is the only way to inspect it. And it is bound to ONE Agentic App: presenting a token minted for another app is refused before routing even happens, which is why each door needs its own sign-in.

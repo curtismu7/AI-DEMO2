@@ -106,7 +106,7 @@ async function beginCimd(req, { store = configStore, fetchImpl = fetch, now = Da
       request: { method: 'GET', url: bareUrl(redirectUrl), params: safeParams(new URL(redirectUrl).searchParams) },
     }),
   ];
-  return { redirectUrl };
+  return { redirectUrl, trace: featureSession.cimdPending.trace };
 }
 
 async function completeCimd(req, { store = configStore, fetchImpl = fetch, now = Date.now } = {}) {

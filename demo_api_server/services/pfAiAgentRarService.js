@@ -112,8 +112,9 @@ async function pushParRequest(config, metadata, values, fetchImpl) {
     nonce: values.nonce,
     code_challenge: values.challenge,
     code_challenge_method: 'S256',
-    authorization_details: JSON.stringify([values.authorizationDetail]),
   });
+  // A plain PAR run (no authorization details) pushes the same request without them.
+  if (values.authorizationDetail) body.set('authorization_details', JSON.stringify([values.authorizationDetail]));
   // The user the request names is the one who should sign in; PingFederate then does not ask who.
   if (values.loginHint) body.set('login_hint', values.loginHint);
   let response;
@@ -171,6 +172,7 @@ async function beginRar(req, {
   scenario,
   userKey: requestedUserKey,
   dpop = false,
+  authorizationDetails = true,
   store = configStore,
   dataStore = defaultDataStore,
   fetchImpl = fetch,
@@ -199,7 +201,9 @@ async function beginRar(req, {
   // spells that user "demouser" where the app's PingOne session says "demoUser": send PingFederate's spelling.
   const typedUserKey = sessionUserKey(req, requestedUserKey);
   const userKey = loginHintFor(req, typedUserKey) || typedUserKey;
-  const authorizationDetail = buildAuthorizationDetail(scenario, userKey, userLimits(userKey, dataStore));
+  const authorizationDetail = authorizationDetails
+    ? buildAuthorizationDetail(scenario, userKey, userLimits(userKey, dataStore))
+    : null;
   const metadata = await discoverPf(config, fetchImpl);
   if (!metadata.parEndpoint && !config.parEndpoint) {
     throw oauthError('PF_AI_RAR_CONFIG_INVALID', 'PF PAR is not configured', 503);
@@ -228,10 +232,11 @@ async function beginRar(req, {
     userKey,
     clientId,
     dpopKey,
+    authorizationDetails,
     trace: pushedSteps,
   };
   delete featureSession.rarResult;
-  return { redirectUrl };
+  return { redirectUrl, trace: pushedSteps };
 }
 
 function safeResult(outcome, reason, pending, identity = null, now = Date.now, tokenSet = null, laterSteps = []) {
@@ -240,7 +245,7 @@ function safeResult(outcome, reason, pending, identity = null, now = Date.now, t
     trace: [...(pending.trace || []), ...laterSteps],
     outcome,
     reason,
-    detailType: RAR_TYPE,
+    detailType: pending.authorizationDetails === false ? null : RAR_TYPE,
     scenario: pending.scenario,
     subject: identity?.subject || null,
     issuer: identity?.issuer || null,

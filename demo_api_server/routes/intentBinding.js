@@ -39,6 +39,7 @@ function classifyParPushError(message) {
  * agent's declared $100 intent cap and returns PERMIT or DENY.
  *
  * @flow rar
+ * @idp pingone
  * @name RAR
  * @rfc https://datatracker.ietf.org/doc/html/rfc9396 RFC 9396
  * @why RAR (Rich Authorization Requests) replaces coarse scopes with structured authorization_details — type, amount, account, action — so the authorization server grants exactly one described transaction, and policy can enforce the difference between what was asked and what was granted.
