@@ -2569,4 +2569,4 @@ function resolveChipUseCaseId(clientId, toolName, args, vertical) {
   return deriveUseCaseId(toolName, args, vertical);
 }
 
-module.exports = { USE_CASES, VERTICALS, getUseCase, resolveUseCase, listUseCases, deriveUseCaseId, isValidUseCaseId, getUseCaseStepUpMethod, getUseCaseGroupRequirement, resolveChipUseCaseId, READ_PRIMARY_TOOL_BY_VERTICAL, A2A_PRIMARY_TOOL_BY_VERTICAL, AMOUNT_PRIMARY_TOOL_BY_VERTICAL, SECOND_PRODUCT_TOOL_BY_VERTICAL, REQUEST_ONLY_TOOL_BY_VERTICAL, REQUEST_ONLY_NOT_APPLICABLE };
+module.exports = { USE_CASES, RAW_USE_CASES, VERTICALS, getUseCase, resolveUseCase, listUseCases, deriveUseCaseId, isValidUseCaseId, getUseCaseStepUpMethod, getUseCaseGroupRequirement, resolveChipUseCaseId, READ_PRIMARY_TOOL_BY_VERTICAL, A2A_PRIMARY_TOOL_BY_VERTICAL, AMOUNT_PRIMARY_TOOL_BY_VERTICAL, SECOND_PRODUCT_TOOL_BY_VERTICAL, REQUEST_ONLY_TOOL_BY_VERTICAL, REQUEST_ONLY_NOT_APPLICABLE };
