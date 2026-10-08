@@ -65,4 +65,26 @@ describe('GET /integration/fido2-metadata (registered device)', () => {
     expect(res.body.deviceFields).toEqual(['type', 'id']);
     expect(mfaService.getFidoDeviceMetadata).not.toHaveBeenCalled();
   });
+
+  test('a PingOne 404 (no FIDO MDS entry) says so, and keeps the AAGUID that was tried', async () => {
+    mfaService.listMfaDevices.mockResolvedValue({
+      devices: [{ type: 'FIDO2', fidoDeviceMetadata: { mdsIdentifier: MDS } }],
+    });
+    mfaService.getFidoDeviceMetadata.mockRejectedValue(Object.assign(new Error('not found'), { status: 404 }));
+
+    const res = await request(buildApp()).get('/api/mfa/test/integration/fido2-metadata');
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toMatch(/No FIDO Metadata Service entry/);
+    expect(res.body.aaguid).toBe(MDS);
+  });
+
+  test('the typed-AAGUID form gives the same message on a 404', async () => {
+    mfaService.getFidoDeviceMetadata.mockRejectedValue(Object.assign(new Error('not found'), { status: 404 }));
+
+    const res = await request(buildApp()).get(`/api/mfa/test/integration/fido2-metadata/${MDS}`);
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toMatch(/No FIDO Metadata Service entry/);
+  });
 });
