@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { PROVENANCE } from "../learning/provenance";
 import TenantReadinessStrip from "../components/learning/TenantReadinessStrip";
 
+
+
 const readySnapshot = {
   environment: {
     provenance: PROVENANCE.LIVE_CLOUD,
@@ -79,7 +81,13 @@ describe("TenantReadinessStrip", () => {
     expect(screen.getAllByText("LIVE CLOUD")).toHaveLength(2);
     expect(screen.getAllByText("LIVE LOCAL")).toHaveLength(2);
     expect(screen.getAllByText("RECORDED")).toHaveLength(2);
-    expect(screen.getByText("Checked 12:00:00 PM")).toBeInTheDocument();
+    // The label formats lastCheckedAt with toLocaleTimeString(), which uses
+    // the worker process's zone — and Node caches the zone after the first
+    // Date formatting in that process, so pinning process.env.TZ here cannot
+    // change it (other suites flip TZ; workers share the process). Compute
+    // the expected label with the same API instead of a fixed string.
+    const expected = `Checked ${new Date("2026-09-20T12:00:00.000Z").toLocaleTimeString()}`;
+    expect(screen.getByText(expected)).toBeInTheDocument();
   });
 
   it("polls readiness and replaces the displayed snapshot", async () => {
