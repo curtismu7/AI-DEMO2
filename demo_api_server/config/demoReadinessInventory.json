@@ -3,7 +3,7 @@
   "primary": [
     "UC24", "UC1", "UC8", "UC7", "UC14b", "UC14", "UC12", "UC6",
     "UC2", "UC2.5", "UC2.7", "UC22", "UC5", "UC10", "UC13", "UC11",
-    "UC20", "UC18", "UC30", "UC31", "UC32", "UC40", "UC38", "UC-TOOL1", "UC46", "UC47"
+    "UC20", "UC18", "UC30", "UC31", "UC32", "UC40", "UC38", "UC-TOOL1", "UC46", "UC47", "UC-MUSE1", "UC-MUSE2"
   ],
   "advanced": [],
   "ciam": ["UC43", "UC44", "UC45", "UC2", "UC2.6"],

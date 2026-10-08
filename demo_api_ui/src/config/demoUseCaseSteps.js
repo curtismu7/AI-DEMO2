@@ -39,6 +39,8 @@ export const DEMO_PRIMARY_USE_CASE_IDS = [
   'UC-TOOL1', // Protected RAG — code:search + PingOne Authorize
   'UC46',  // Privilege A2A access review — step 25 in the presenter sequence
   'UC47',  // Privilege A2A three-deep agent chain — live in the reel, step 26
+  'UC-MUSE1', // External agent standard lane — user's agent -> door -> gateway -> Authorize
+  'UC-MUSE2', // External agent AI Gateway lane — user's agent -> facade -> Privilege AI Gateway
 ];
 
 export const DEMO_ADVANCED_USE_CASE_IDS = [];
@@ -58,6 +60,16 @@ export const DEMO_STEP_DESTINATIONS = {
     kind: 'agent',
     label: 'Runs in agent',
     title: 'Stays in the agent and runs the access review here, with the reel and sequence view.',
+  },
+  'UC-MUSE1': {
+    kind: 'agent',
+    label: 'Runs in your agent',
+    title: "Runs in YOUR agent (Muse/LM Studio/LibreChat/ChatGPT) — follow docs/MUSE_RUNBOOK.md; the reel here walks the wire. Keep the dashboard open: the token chain shows there.",
+  },
+  'UC-MUSE2': {
+    kind: 'agent',
+    label: 'Runs in your agent',
+    title: 'Same agent, AI Gateway lane: point it at /mcp-facade/privilege-gateway/mcp per docs/MUSE_RUNBOOK.md. The reel walks the credential-swap hop.',
   },
 };
 
@@ -228,7 +240,7 @@ export const DEMO_MATURITY_GROUPS = [
     label: 'Authorize agent actions',
     shortLabel: 'Authorize',
     description: 'Apply least privilege, policy, and intent controls.',
-    useCaseIds: ['UC2', 'UC2.5', 'UC2.7', 'UC5', 'UC6', 'UC10', 'UC13', 'UC14b', 'UC14', 'UC46', 'UC47'],
+    useCaseIds: ['UC2', 'UC2.5', 'UC2.7', 'UC5', 'UC6', 'UC10', 'UC13', 'UC14b', 'UC14', 'UC46', 'UC47', 'UC-MUSE1', 'UC-MUSE2'],
   },
   {
     id: 'protect',

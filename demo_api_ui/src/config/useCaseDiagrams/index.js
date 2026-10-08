@@ -29,11 +29,13 @@ import UC38 from "./UC38";
 import UC_TOOL1 from "./UC-TOOL1";
 import UC46 from "./UC46";
 import UC47 from "./UC47";
+import UC_MUSE1 from "./UC-MUSE1";
+import UC_MUSE2 from "./UC-MUSE2";
 
 export const CONFIGS = [
   UC1, UC7, UC6, UC24, UC8, UC14b, UC14, UC12, UC2, UC2_5, UC2_7, UC22,
   UC5, UC10, UC13, UC11, UC20, UC18, UC30, UC31, UC32, UC40, UC38,
-  UC_TOOL1, UC46, UC47,
+  UC_TOOL1, UC46, UC47, UC_MUSE1, UC_MUSE2,
 ];
 
 export function getConfig(id) {
