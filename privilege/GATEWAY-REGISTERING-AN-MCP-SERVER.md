@@ -115,6 +115,9 @@ You need a gateway that is already enrolled and showing in the console, and a ba
      -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"probe","version":"0"}}}'
    ```
 2. **Open the wizard.** In the Privilege console: AI Security, then Agentic Apps, then Add Application. Choose the MCP Server tile and Integrate.
+
+   ![Agentic Apps — Add Application tiles](../docs/screenshots/privilege-console-setup/privilege-add-application-tiles.png)
+   *AI Security → Agentic Apps → Add Application: choose the MCP Server tile, then Integrate.*
 3. **Fill in the fields.**
 
    | Field | What to enter | Watch for |
@@ -124,7 +127,13 @@ You need a gateway that is already enrolled and showing in the console, and a ba
    | Auth Mode | None, unless the backend needs a credential | See Auth Mode |
    | AI Gateway | Your gateway | It is not always pre-selected. An app saved on the `Select Gateway...` placeholder reaches no gateway and produces no log lines |
    | Mesh Cluster | The cluster your gateway enrolled in |  |
+
+   ![Add MCP Application form](../docs/screenshots/privilege-console-setup/privilege-add-mcp-app-form.png)
+   *The Add MCP Application form: Application Name, MCP Server URL, Auth Mode (Static Token, User Token, OAuth, Pass Agent Token, None), optional Headers, and Mesh Cluster.*
 4. **Wait for discovery.** The gateway connects to the backend and lists its tools. The app's Tools panel fills in. An empty panel means discovery failed; policy cannot be authored until it succeeds.
+
+   ![App detail after discovery](../docs/screenshots/privilege-console-setup/privilege-app-detail.png)
+   *The app's Overview after discovery succeeded: Frontend Name, Backend Name, Auth Mode, Mesh Cluster, the generated MCP client config, and the discovered Tools.*
 5. **Write a policy.** Name the user and the tools they may call, and set its time window. See Policy.
 6. **Give clients the URL.** It is `https://<gateway-host>/<application-name>/<path>`, where `<path>` is the path the backend was registered with. Do not copy it from the console's generated client config without checking; that snippet has shown `/mcp` for an app pinned to `/sse`.
 

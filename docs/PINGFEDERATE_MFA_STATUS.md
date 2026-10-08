@@ -72,7 +72,18 @@ Enforce MFA at the same moments the app already asks for it under PingOne, and n
 
 ## How to re-check the configuration
 
-These admin API reads show the current state (basic auth as `administrator`, header `X-XSRF-Header: x`):
+Console (admin console at `https://local.ping-devops.com:9999`, or `https://localhost:9999` from the Docker host; sign in as `administrator`):
+
+![IdP Adapters](screenshots/privilege-console-setup/pf-idp-adapters.png)
+_Authentication → Integration → IdP Adapters: `aiDemoPfHtmlForm` (password-only sign-in) and `aiDemoPfP1Mfa` (PingOne MFA 3.3) — the adapter the MFA policy routes through._
+
+![Authentication Policies](screenshots/privilege-console-setup/pf-authn-policies.png)
+_Authentication → Policies: the single IdP policy "Password, plus PingOne MFA for acr_values=Multi_Factor", driven by the `AI Demo acr_values` selector._
+
+![OAuth Clients](screenshots/privilege-console-setup/pf-oauth-clients.png)
+_Applications → OAuth → Clients: the demo's clients (PKCE, CBA, CIBA, RAR/DPoP, token introspection, MCP service actor, A2A specialists)._
+
+API (basic auth as `administrator`, header `X-XSRF-Header: x`):
 
 - `GET /pf-admin-api/v1/idp/adapters/aiDemoPfP1Mfa`
 - `GET /pf-admin-api/v1/authenticationSelectors`

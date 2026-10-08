@@ -68,6 +68,9 @@ flowchart LR
 
 In the console, agents are under **AI Gateway**, **Agent Registry**. A virtual key for models and an agent are the same kind of object underneath: an agent is a key with more scopes and its own grants.
 
+![Agent Registry](../docs/screenshots/privilege-console-setup/privilege-agent-registry.png)
+_AI Security → Agent Registry: existing agent keys with their custodian, provider, scopes (`llm`, `mcp`, `a2a`), and expiry. Add Agent starts the four-step wizard._
+
 ## The four steps
 
 | Step | What you decide |

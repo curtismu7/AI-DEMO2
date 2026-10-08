@@ -82,6 +82,9 @@ A security analyst asks an agent to review someone's access. The main agent hand
 
 **If you have time.** Open the Privilege console, AI Gateway, Agent Registry, and show the two agents: different scopes (`llm` + `a2a` against `llm` + `mcp`), different allowed models, and the worker's per-tool grants.
 
+![Privilege console dashboard](../docs/screenshots/privilege-console-setup/privilege-dashboard.png)
+_Privilege console dashboard: sessions, top users, and the resource that was called (`langchainagent`), for the last 24 hours._
+
 ## Demo 2: three-deep chain
 
 One agent calls a second, which calls a third, and the gateway sits between each pair. Four runs, each about a second. About four minutes.
@@ -135,6 +138,14 @@ Pages for the architecture conversation:
 
 The side nav's AI Gateway group has AI Gateway · A2A Review (the demo tab) and AI Gateway Topologies (the diagram).
 
+The gateway's own console keeps the third record. **Activity → Session Logs** lists every MCP and A2A session with user, device, resource, and audit state; click a row for the session detail.
+
+![Session Logs](../docs/screenshots/privilege-console-setup/privilege-session-logs.png)
+_Activity → Session Logs: one row per session through the gateway, filterable by date, resource, and identity._
+
+![Session log detail](../docs/screenshots/privilege-console-setup/privilege-session-log-detail.png)
+_Session detail: user email, device, tenant, organization, resource, resource type (MCP), and audit status, with the Commands Record tab alongside._
+
 ## Set up from scratch
 
 Do it in this order. Apps come before agents, because an agent can only select apps that already exist. Our values: gateway `https://mcpgw.ai-demo.ping-devops.com`, mesh cluster `ai-demo-cmuir`, namespace `ping-devops-cmuir`, kubectl context `us`.
@@ -152,6 +163,9 @@ The cluster nodes are arm64, so build for `linux/arm64`. The LangChain agent and
 
 **2. Register the apps** (console: Agentic Apps, Add Application).
 
+![Agentic Apps list](../docs/screenshots/privilege-console-setup/privilege-agentic-apps-list.png)
+_Agentic Apps → Active Applications: the demo's MCP Servers and Remote Agents. Add Application opens the type picker; Policy on a card opens its tool grants._
+
 | App | Type | Backend URL | Path | Auth Mode |
 | --- | --- | --- | --- | --- |
 | `workeragentdemo` | Remote Agent | `http://workeragentdemo.ping-devops-cmuir.svc.cluster.local` | `/a2a` | None |
@@ -163,6 +177,9 @@ The cluster nodes are arm64, so build for `linux/arm64`. The LangChain agent and
 The worker must be a Remote Agent app, or it will not appear in an agent's Remote Agents list. `restrictedagent` exists only to be refused: select it on no agent. Turn on Discover A2A agent card once a backend is running. The static token for `langchainagent` is `PRIVILEGE_A2A_STATIC_TOKEN` in the vault.
 
 **3. Create the agents** (console: AI Gateway, Agent Registry, Add Agent).
+
+![Agent Registry](../docs/screenshots/privilege-console-setup/privilege-agent-registry.png)
+_Agent Registry: each row is an agent key — custodian, provider, scopes, expiry. Add Agent starts the wizard._
 
 | Agent | Scopes | Provider and model | May reach | Custodian |
 | --- | --- | --- | --- | --- |

@@ -438,6 +438,9 @@ or obsolete callback URLs unless another deployed application still uses them.
 ## Gateway enrollment token
 
 Generate the token from Privilege console > Gateways > Add New > Add via Docker.
+
+![Gateways page](../docs/screenshots/privilege-console-setup/privilege-gateways.png)
+*Directory > Gateways: the enrolled AI Gateway cluster (node count and status). Add New starts the enrollment-token wizard.*
 Before installation, validate the JWT payload without printing the token:
 
 - `clusterID` must be `ai-demo-cmuir`
