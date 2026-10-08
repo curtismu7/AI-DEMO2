@@ -47,6 +47,11 @@
    no underline, visible keyboard focus. */
 .ucd-page a.ucd-card,
 .ucd-page a.ucd-next__link { text-decoration: none; }
+/* The PingOne end-user-nano sheet colors `.App.end-user-nano a` (0,2,1) with
+   --bs-link-color-rgb, which dark mode sets to the same light blue as
+   --th-bg-emphasis — the cue's own color (0,1,0) loses and the pill goes
+   text-on-text. Re-assert the themed ink at equal-or-higher specificity. */
+.ucd-page a.ucd-cue { color: var(--th-text-on-emphasis); text-decoration: none; }
 .ucd-card:focus-visible, .ucd-next__link:focus-visible {
   outline: 2px solid var(--th-status-info);
   outline-offset: 2px;
