@@ -987,7 +987,8 @@ router.get('/integration/fido2-metadata', async (req, res) => {
       return res.status(404).json({ success: false, error: 'no_fido2_device', message: 'No active FIDO2 device registered.' });
     }
     const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    const aaguid = [device.aaguid, device.mdsIdentifier].find((v) => uuid.test(String(v || '')));
+    // PingOne puts the lookup ID at device.fidoDeviceMetadata.mdsIdentifier.
+    const aaguid = [device.fidoDeviceMetadata?.mdsIdentifier, device.aaguid, device.mdsIdentifier].find((v) => uuid.test(String(v || '')));
     if (!aaguid) {
       return res.status(422).json({
         success: false,
