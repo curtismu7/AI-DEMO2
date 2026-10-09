@@ -20,6 +20,42 @@ const mfaRequested = () => new URLSearchParams(window.location.search).get("sign
 const ADMIN_API = "/api/auth/oauth";
 const USER_API = "/api/auth/oauth/user";
 
+const DEVICE_LABEL = { EMAIL: "Email", SMS: "SMS", FIDO2: "Passkey", TOTP: "Authenticator app" };
+
+const deviceLabel = (d) => {
+  const kind = DEVICE_LABEL[d.type] || d.type;
+  if (d.type === "EMAIL") return `${kind} · ${d.email || ""}`;
+  if (d.type === "SMS") return `${kind} · ${d.phone || ""}`;
+  return d.nickname ? `${kind} · ${d.nickname}` : kind;
+};
+
+/**
+ * DevicePicker — the flow's offered MFA devices as a radio-style list. Picking a
+ * device submits it (POST /pi-flow/device): an OTP device re-renders the code
+ * form for that device, a FIDO2 device starts the passkey ceremony immediately.
+ * Only rendered when the flow offered more than one usable device.
+ */
+function DevicePicker({ devices, selectedDeviceId, disabled, onPick }) {
+  return (
+    <div className="pi-flow-device-picker" role="radiogroup" aria-label="Verification device">
+      {devices.map((d) => (
+        <button
+          key={d.id}
+          type="button"
+          role="radio"
+          aria-checked={d.id === selectedDeviceId}
+          className={`pi-flow-device-picker__option${d.id === selectedDeviceId ? " pi-flow-device-picker__option--selected" : ""}`}
+          disabled={disabled}
+          onClick={() => onPick(d)}
+        >
+          {deviceLabel(d)}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+
 /** Plain redirect login — the path every failure here falls back to. An MFA request keeps its MFA (the step-up route). */
 function redirectLogin(returnTo, role, force) {
   let base;
@@ -57,9 +93,16 @@ export default function PiFlowSignInModal() {
   // The device-only form's username, kept separate so switching between the
   // password and device forms never clobbers what the user typed in either.
   const [deviceUsername, setDeviceUsername] = useState("");
+  // Devices the flow offered (OTP_REQUIRED's _embedded.devices / PF's devices):
+  // [{ id, type, nickname, email, phone }]. Rendered as a picker when the flow
+  // offers more than one; a FIDO2 entry runs the passkey ceremony on pick.
+  const [devices, setDevices] = useState([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState(null);
   // "password" -> "passkey" | "otp" | "device" as the flow (or the user) asks.
   const [step, setStep] = useState("password");
   const passkeyOptionsRef = useRef(null);
+  // Lets pickDevice trigger the passkey ceremony after the passkey step renders.
+  const verifyPasskeyRef = useRef(null);
   const returnToRef = useRef(undefined);
   const roleRef = useRef("customer");
   const forceRef = useRef(false);
@@ -109,6 +152,8 @@ export default function PiFlowSignInModal() {
     setPassword("");
     setOtp("");
     setDeviceUsername("");
+    setDevices([]);
+    setSelectedDeviceId(null);
     setBusy(true);
     setOpen(true);
     openFlow(target, role);
@@ -193,7 +238,16 @@ export default function PiFlowSignInModal() {
       }
       if (res.ok && body.step === "otp") {
         setPassword("");
+        setDevices(Array.isArray(body.devices) ? body.devices : []);
+        setSelectedDeviceId(body.selectedDeviceId || null);
         setStep("otp");
+        setBusy(false);
+        return;
+      }
+      if (res.ok && body.step === "device") {
+        setDevices(Array.isArray(body.devices) ? body.devices : []);
+        setSelectedDeviceId(body.selectedDeviceId || null);
+        setStep("device");
         setBusy(false);
         return;
       }
@@ -227,6 +281,53 @@ export default function PiFlowSignInModal() {
         navigateWithOverlay(body.redirectTo, { message: "Signing in...", assign: true });
         return;
       }
+      redirectLogin(returnToRef.current, roleRef.current, forceRef.current);
+    } catch {
+      redirectLogin(returnToRef.current, roleRef.current, forceRef.current);
+    }
+  };
+
+  // The user picked a device from the picker. An OTP device moves to the code
+  // form; a FIDO2 device moves to the passkey ceremony — both via the same
+  // /pi-flow/device step, whose response routes like any other step.
+  const pickDevice = async (device) => {
+    if (busy || !device?.id) return;
+    setBusy(true);
+    setError("");
+    setSelectedDeviceId(device.id);
+    try {
+      const res = await fetch(`${apiBase()}${apiForRole()}/pi-flow/device`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deviceId: device.id }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (res.ok && body.redirectTo) {
+        navigateWithOverlay(body.redirectTo, { message: "Signing in...", assign: true });
+        return;
+      }
+      if (res.ok && body.step === "passkey") {
+        passkeyOptionsRef.current = body.publicKeyCredentialRequestOptions;
+        setStep("passkey");
+        setBusy(false);
+        // Start the ceremony immediately — the user picked a passkey to use it.
+        // verifyPasskey reads busy=false then re-sets it; invoke after a tick.
+        setTimeout(() => { verifyPasskeyRef.current?.(); }, 0);
+        return;
+      }
+      if (res.ok && body.step === "otp") {
+        setDevices(Array.isArray(body.devices) ? body.devices : devices);
+        setStep("otp");
+        setBusy(false);
+        return;
+      }
+      if (res.ok && body.step === "device") {
+        setDevices(Array.isArray(body.devices) ? body.devices : devices);
+        setBusy(false);
+        return;
+      }
+      // fallback / 409 / 5xx — the hosted page offers every method
       redirectLogin(returnToRef.current, roleRef.current, forceRef.current);
     } catch {
       redirectLogin(returnToRef.current, roleRef.current, forceRef.current);
@@ -272,6 +373,8 @@ export default function PiFlowSignInModal() {
         return;
       }
       if (res.ok && body.step === "otp") {
+        setDevices(Array.isArray(body.devices) ? body.devices : []);
+        setSelectedDeviceId(body.selectedDeviceId || null);
         setStep("otp");
         setBusy(false);
         return;
@@ -282,7 +385,8 @@ export default function PiFlowSignInModal() {
     }
   };
 
-  const verifyPasskey = async () => {    if (busy) return;
+  const verifyPasskey = async () => {
+    if (busy) return;
     setBusy(true);
     setError("");
     let assertionValue;
@@ -322,6 +426,7 @@ export default function PiFlowSignInModal() {
     }
   };
 
+  verifyPasskeyRef.current = verifyPasskey;
   if (!open) return null;
 
   const admin = roleRef.current === "admin";
@@ -360,9 +465,9 @@ export default function PiFlowSignInModal() {
             <>
               <button
                 type="submit"
-                form={step === "otp" ? "pi-flow-otp-form" : step === "device" ? "pi-flow-device-form" : "pi-flow-signin-form"}
+                form={step === "otp" ? "pi-flow-otp-form" : step === "device" && !devices.length ? "pi-flow-device-form" : "pi-flow-signin-form"}
                 className="signin-prompt__btn"
-                disabled={busy || (step === "otp" ? !otp : step === "device" ? !deviceUsername : !username || !password)}
+                disabled={busy || (step === "otp" ? !otp : step === "device" && !devices.length ? !deviceUsername : step === "device" ? false : !username || !password)}
               >
                 {busy ? "Signing in" : "Sign in"}
               </button>
@@ -395,6 +500,14 @@ export default function PiFlowSignInModal() {
             <p className="signin-modal__text">
               We sent a verification code to your registered {admin ? "admin" : ""} contact. Enter it to continue.
             </p>
+            {devices.length > 1 ? (
+              <DevicePicker
+                devices={devices}
+                selectedDeviceId={selectedDeviceId}
+                disabled={busy}
+                onPick={pickDevice}
+              />
+            ) : null}
             <label className="pi-flow-signin__label" htmlFor="pi-flow-otp">
               Verification code
             </label>
@@ -415,27 +528,38 @@ export default function PiFlowSignInModal() {
             ) : null}
           </form>
         ) : step === "device" ? (
-          <form id="pi-flow-device-form" className="pi-flow-signin__form" onSubmit={submitPasswordless}>
+          <div className="pi-flow-signin__form">
             <p className="signin-modal__text">
               We&apos;ll verify it&apos;s you with your registered device — no password needed.
             </p>
-            <label className="pi-flow-signin__label" htmlFor="pi-flow-device-username">
-              Username
-            </label>
-            <input
-              id="pi-flow-device-username"
-              className="pi-flow-signin__input"
-              type="text"
-              autoComplete="username"
-              autoFocus
-              value={deviceUsername}
-              onChange={(e) => setDeviceUsername(e.target.value)}
-            />
-            {error ? (
-              <p className="signin-modal__text" role="alert">
-                ❌ {error}
-              </p>
-            ) : null}
+            {devices.length > 0 ? (
+              <DevicePicker
+                devices={devices}
+                selectedDeviceId={selectedDeviceId}
+                disabled={busy}
+                onPick={pickDevice}
+              />
+            ) : (
+              <form id="pi-flow-device-form" onSubmit={submitPasswordless}>
+                <label className="pi-flow-signin__label" htmlFor="pi-flow-device-username">
+                  Username
+                </label>
+                <input
+                  id="pi-flow-device-username"
+                  className="pi-flow-signin__input"
+                  type="text"
+                  autoComplete="username"
+                  autoFocus
+                  value={deviceUsername}
+                  onChange={(e) => setDeviceUsername(e.target.value)}
+                />
+                {error ? (
+                  <p className="signin-modal__text" role="alert">
+                    ❌ {error}
+                  </p>
+                ) : null}
+              </form>
+            )}
             <button
               type="button"
               className="signin-prompt__btn signin-prompt__btn--ghost"
@@ -452,7 +576,7 @@ export default function PiFlowSignInModal() {
             >
               Use your password instead
             </button>
-          </form>
+          </div>
         ) : (
         <form id="pi-flow-signin-form" className="pi-flow-signin__form" onSubmit={submit}>
           <label className="pi-flow-signin__label" htmlFor="pi-flow-username">

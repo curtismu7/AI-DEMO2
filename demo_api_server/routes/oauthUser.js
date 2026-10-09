@@ -356,6 +356,11 @@ router.post('/pi-flow/otp', piFlowHandlers.handleOtpStep);
 // passkey), which the modal drives with the existing endpoints.
 router.post('/pi-flow/passwordless', piFlowHandlers.handlePasswordlessStart);
 
+// Device selection: the modal picked one of the devices the flow offered
+// (email/SMS OTP or a passkey); the flow answers OTP_REQUIRED or
+// ASSERTION_REQUIRED, which the existing endpoints drive.
+router.post('/pi-flow/device', piFlowHandlers.handleDeviceSelectStep);
+
 router.get('/login', (req, res) => {
   try {
     // A regular login must not inherit a prior step-up transaction marker.

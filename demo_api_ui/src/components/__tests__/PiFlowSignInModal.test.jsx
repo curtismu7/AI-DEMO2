@@ -383,6 +383,58 @@ describe('PiFlowSignInModal', () => {
       expect(JSON.parse(call[1].body)).toEqual({ username: 'demo' });
     });
 
+    test('OTP step with multiple devices shows the picker; picking FIDO2 posts device select and starts the ceremony', async () => {
+      const OPTIONS = { challenge: 'Y2g', rpId: 'ping-devops.com' };
+      global.fetch = vi.fn((url) => {
+        if (String(url).includes('/api/admin/config')) return ok({ config: ON });
+        if (String(url).includes('/pi-flow/device')) return ok({ step: 'passkey', publicKeyCredentialRequestOptions: OPTIONS });
+        if (String(url).includes('/pi-flow/credentials')) return ok({
+          step: 'otp',
+          selectedDeviceId: 'dev-email-1',
+          devices: [
+            { id: 'dev-email-1', type: 'EMAIL', email: 'cm****@pingidentity.com' },
+            { id: 'dev-fido-1', type: 'FIDO2', nickname: 'My Passkey' },
+          ],
+        });
+        if (String(url).includes('/oauth/user/login')) return ok({ flowId: 'f1', status: 'USERNAME_PASSWORD_REQUIRED' });
+        return ok({}, 404);
+      });
+      await mountAndClick();
+      fireEvent.change(await screen.findByLabelText('Username'), { target: { value: 'demo' } });
+      fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+      // Picker renders both devices
+      expect(await screen.findByRole('radio', { name: /Email · cm\*\*\*\*@pingidentity\.com/ })).toBeInTheDocument();
+      expect(screen.getByRole('radio', { name: /Passkey · My Passkey/ })).toBeInTheDocument();
+      // Pick the passkey → device select → ceremony starts
+      authenticateWebAuthn.mockResolvedValue({ assertionValue: { id: 'a', response: {} } });
+      fireEvent.click(screen.getByRole('radio', { name: /Passkey · My Passkey/ }));
+      await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/pi-flow/device'),
+        expect.objectContaining({ method: 'POST' }),
+      ));
+      const call = global.fetch.mock.calls.find(([u]) => String(u).includes('/pi-flow/device'));
+      expect(JSON.parse(call[1].body)).toEqual({ deviceId: 'dev-fido-1' });
+    });
+
+    test('OTP step with a single device shows no picker', async () => {
+      global.fetch = vi.fn((url) => {
+        if (String(url).includes('/api/admin/config')) return ok({ config: ON });
+        if (String(url).includes('/pi-flow/credentials')) return ok({
+          step: 'otp', selectedDeviceId: 'dev-1',
+          devices: [{ id: 'dev-1', type: 'EMAIL', email: 'x****@y.z' }],
+        });
+        if (String(url).includes('/oauth/user/login')) return ok({ flowId: 'f1' });
+        return ok({}, 404);
+      });
+      await mountAndClick();
+      fireEvent.change(await screen.findByLabelText('Username'), { target: { value: 'demo' } });
+      fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+      await screen.findByLabelText('Verification code');
+      expect(screen.queryByRole('radiogroup')).toBeNull();
+    });
+
     test('admin role posts to the admin router path', async () => {
       global.fetch = vi.fn((url) => {
         if (String(url).includes('/api/admin/config')) return ok({ config: { ...ON, PINGONE_ADMIN_AUTHORIZE_PI_FLOW: 'true' } });

@@ -138,22 +138,41 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins }) {
   }
 
   // What to do with the flow's status after a step. Steps this BFF cannot drive
-  // (device selection, policy screens) return fallback:true and the SPA restarts
-  // the ordinary redirect login — a sign-in never dead-ends here.
+  // (policy screens) return fallback:true and the SPA restarts the ordinary
+  // redirect login — a sign-in never dead-ends here.
   async function respondAfterPiFlowStep(req, res, pending, body, cookies) {
     if (body.status === 'COMPLETED') return completePiFlow(req, res, pending, cookies, body);
-    // Passkey (ASSERTION_REQUIRED) is driven for PingOne only; PF statuses differ.
-    if (pending.provider !== 'pingfederate' && body.status === 'ASSERTION_REQUIRED' && body.publicKeyCredentialRequestOptions) {
+    // Passkey (ASSERTION_REQUIRED) — both providers. PF's shape carries the same
+    // publicKeyCredentialRequestOptions; PingOne stringifies it.
+    if (body.status === 'ASSERTION_REQUIRED' && body.publicKeyCredentialRequestOptions) {
       req.session.oauthPiFlow = { ...pending, cookies };
       const options = typeof body.publicKeyCredentialRequestOptions === 'string'
         ? JSON.parse(body.publicKeyCredentialRequestOptions) : body.publicKeyCredentialRequestOptions;
       return req.session.save(() => res.json({ step: 'passkey', publicKeyCredentialRequestOptions: options }));
     }
-    // One-time passcode (SMS/email MFA): the flow asks for OTP_REQUIRED after the
-    // password when the population's policy requires it.
-    if (pending.provider !== 'pingfederate' && body.status === 'OTP_REQUIRED') {
+    // One-time passcode (SMS/email MFA). The response may carry the device list
+    // (PingOne: _embedded.devices, selectedDevice) — surfaced to the modal so it
+    // can offer a picker when more than one device exists. PF's equivalent
+    // DEVICE_SELECTION_REQUIRED carries `devices` at the top level and is a
+    // separate step (handled in the device branch below).
+    if (body.status === 'OTP_REQUIRED' || body.status === 'DEVICE_SELECTION_REQUIRED') {
       req.session.oauthPiFlow = { ...pending, cookies };
-      return req.session.save(() => res.json({ step: 'otp' }));
+      const rawDevices = body._embedded?.devices || body.devices || [];
+      const devices = rawDevices
+        .filter((d) => (d.usableStatus?.status || 'ENABLED') === 'ENABLED')
+        .map((d) => ({
+          id: d.id,
+          type: d.type,
+          nickname: d.nickname || null,
+          email: d.email || null,
+          phone: d.phone || null,
+        }));
+      return req.session.save(() => res.json({
+        step: body.status === 'OTP_REQUIRED' ? 'otp' : 'device',
+        devices,
+        selectedDeviceId: body.selectedDevice?.id || null,
+        aggregateFido2Devices: Boolean(body.aggregateFido2Devices),
+      }));
     }
     return res.json({ fallback: true, status: body.status });
   }
@@ -280,6 +299,34 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins }) {
     }
   }
 
+  // Device selection: the user picked one of the devices the flow offered
+  // (OTP_REQUIRED's _embedded.devices / DEVICE_SELECTION_REQUIRED's devices).
+  // PingOne wants application/vnd.pingidentity.device.select+json with
+  // { device: { id } }; a FIDO2 selection then returns ASSERTION_REQUIRED with
+  // the WebAuthn options, an OTP device returns a fresh OTP_REQUIRED.
+  async function handleDeviceSelectStep(req, res) {
+    const pending = openPiFlowOrReject(req, res);
+    if (!pending) return undefined;
+    const { deviceId } = req.body || {};
+    if (typeof deviceId !== 'string' || !/^[A-Za-z0-9-]{6,64}$/.test(deviceId)) {
+      return res.status(400).json({ error: 'invalid_request' });
+    }
+    const pf = pending.provider === 'pingfederate';
+    try {
+      const { step, body, cookies } = await postPiFlowStep(
+        pending,
+        pf ? 'application/json' : 'application/vnd.pingidentity.device.select+json',
+        // PF's selectDevice takes { deviceId }; PingOne nests it.
+        pf ? { deviceId } : { device: { id: deviceId } },
+      );
+      if (!step.ok) return res.status(502).json({ error: 'pi_flow_failed' });
+      return await respondAfterPiFlowStep(req, res, pending, body, cookies);
+    } catch (error) {
+      console.warn('[oauth/pi-flow] device select step failed:', error.message);
+      return res.status(502).json({ error: 'pi_flow_failed' });
+    }
+  }
+
   return {
     openPiFlow,
     postPiFlowStep,
@@ -290,6 +337,7 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins }) {
     handleAssertionStep,
     handleOtpStep,
     handlePasswordlessStart,
+    handleDeviceSelectStep,
   };
 }
 

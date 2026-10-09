@@ -2245,6 +2245,42 @@
   font-size: var(--font-size-body);
 }
 
+/* Device picker (MFA device selection): radio-style list of the devices the
+   flow offered — email/SMS/passkey. Token-driven for light and dark. */
+.pi-flow-device-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+
+.pi-flow-device-picker__option {
+  text-align: left;
+  padding: 0.55rem 0.8rem;
+  border: 1px solid var(--th-border-strong);
+  border-radius: 8px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-family: inherit;
+  font-size: var(--font-size-body);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.pi-flow-device-picker__option:hover:not(:disabled) {
+  background: var(--th-bg-hover);
+}
+
+.pi-flow-device-picker__option--selected {
+  border-color: var(--theme-accent, var(--brand-dashboard-header-start, var(--th-accent)));
+  font-weight: 700;
+}
+
+.pi-flow-device-picker__option:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 /* Full-bleed vertical-brand hero: logo + welcome copy on the vertical's own
    header gradient. Colors come from the active vertical's theme variables
    (set on :root by VerticalProvider, public even before sign-in), which each
