@@ -52,10 +52,11 @@ test("dashboard guide lists the demo steps", () => {
   // UC47 and UC37 also appear in the A2A sequence, so expect both copies.
   expect(screen.getAllByText(/Step 26 · UC47: /)).toHaveLength(2);
   expect(screen.getByText(/Step 27 · UC43: /)).toBeTruthy();
-  expect(screen.getByText(/Step 32 · UC17: /)).toBeTruthy();
+  // UC48 joined the CIAM lane (slot 30), shifting the themed groups after it.
+  expect(screen.getByText(/Step 33 · UC17: /)).toBeTruthy();
   expect(screen.getByText(/Step 13 · ADMIN13: /)).toBeTruthy();
-  expect(screen.getAllByText(/Step 43 · UC37: /)).toHaveLength(2);
-  expect(screen.getByText(/Step 46 · UC4: /)).toBeTruthy();
+  expect(screen.getAllByText(/Step 44 · UC37: /)).toHaveLength(2);
+  expect(screen.getByText(/Step 47 · UC4: /)).toBeTruthy();
 });
 
 test("step numbers match the menu, admin included, and skip non-steps", () => {
@@ -65,8 +66,8 @@ test("step numbers match the menu, admin included, and skip non-steps", () => {
   expect(stepLabel("UC999")).toBe("UC999");
   expect(demoStepNumber("UC40")).toBe(22); // first appearance wins over its Privilege-group slot
   expect(demoStepNumber("UC2")).toBe(9); // repeated in the A2A group, keeps its script number
-  expect(demoStepNumber("UC2.6")).toBe(31);
-  expect(demoStepNumber("UC37")).toBe(43);
+  expect(demoStepNumber("UC2.6")).toBe(32); // shifted +1 past UC48's new CIAM slot
+  expect(demoStepNumber("UC37")).toBe(44);
 });
 
 test("the requested pages each have a three-step guide", () => {
