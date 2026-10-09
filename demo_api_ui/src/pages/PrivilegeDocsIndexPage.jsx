@@ -312,6 +312,13 @@ const SECTIONS = [
           "A separate demo environment from scratch (own PingOne env, gateway, apps, agents): parameter table, what is verified, enrolling with the right Host IP, token and CPU traps, order of steps.",
       },
       {
+        title: "Deploying & upgrading on Kubernetes",
+        path: "privilege/PRIVILEGE-K8S-DEPLOY-UPGRADE.md",
+        pdf: true,
+        covers:
+          "Helm install/upgrade/re-enroll/teardown of an Agentless gateway: first-install sequence, the Host-IP and token-whitespace traps, extraContainers and floating-tag upgrade rules, the PV-destruction teardown deadlock, and what is verified vs from notes (2026-10-09).",
+      },
+      {
         title: "SE1 shared demo",
         path: "privilege/SE1-Privilege-Shared-Demo.md",
         covers:
@@ -390,7 +397,6 @@ const PLANNED = [
   ["Ping's reference demo, explained", "The two-agent demo (main agent, worker agent, MCP server) wired through the gateway", "Partly — needs the demo running"],
   ["Policies in depth", "Expiry, several policies adding up, groups, per-tool grants", "Partly — needs console changes"],
   ["Auth modes for MCP backends", "None, Static Token, User Token, OAuth, Pass Agent Token", "Partly — needs console changes"],
-  ["Deploying & upgrading on Kubernetes", "Helm values, enrollment token, OIDC setup, certificates, re-enrollment trap", "Mostly from notes"],
   ["Running the gateway locally", "Docker setup, nginx in front, enrollment", "Not now — local gateway isn't running"],
   ["Agent mode end to end", "The Privilege Agent on a workstation, device-bound identity, how it differs from agentless", "Partly — needs the agent paired on a Mac"],
 ];
