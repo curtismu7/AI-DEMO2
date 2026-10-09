@@ -326,6 +326,13 @@ const SECTIONS = [
           "The profile: mcpgw compose stack: start/stop, enrollment token + pingone.env + /etc/hosts + console app, the post-swap port map (settle by probing), nginx front door, verification incl. the smoke script, and the CA-wall status of the currently stopped local gateway (2026-10-09).",
       },
       {
+        title: "Workload identity for agent callers",
+        path: "privilege/WORKLOAD-IDENTITY-AGENT-CALLERS.md",
+        pdf: true,
+        covers:
+          "What Pass Agent Token demands (token-pass), the SPIFFE→PingFederate actor-token path verified live 2026-09-26, and the documented gap: no caller has yet presented a workload token to the gateway, with the experiment that would close it (2026-10-09).",
+      },
+      {
         title: "SE1 shared demo",
         path: "privilege/SE1-Privilege-Shared-Demo.md",
         covers:
@@ -399,7 +406,6 @@ const SECTIONS = [
 ];
 
 const PLANNED = [
-  ["Workload identity for agent callers", "How a caller gets the verified token that Pass Agent Token forwards", "Not yet — no caller holds one"],
   ["Red team: a hostile A2A agent", "A poisoned agent card and what Inter-Agent Abuse detection catches", "Partly — hostile agent needs registering"],
   ["Ping's reference demo, explained", "The two-agent demo (main agent, worker agent, MCP server) wired through the gateway", "Partly — needs the demo running"],
   ["Policies in depth", "Expiry, several policies adding up, groups, per-tool grants", "Partly — needs console changes"],

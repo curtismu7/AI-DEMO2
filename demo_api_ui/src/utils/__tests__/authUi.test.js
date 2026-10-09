@@ -144,6 +144,13 @@ describe('authUi', () => {
       expect(isAuthenticatedAppSurface('/setup/foo')).toBe(false);
       expect(isAuthenticatedAppSurface('/logout')).toBe(false);
     });
+
+    it('excludes the Learning Hub and its web mirror — browsable without sign-in', () => {
+      expect(isAuthenticatedAppSurface('/learning')).toBe(false);
+      expect(isAuthenticatedAppSurface('/learning/')).toBe(false);
+      expect(isAuthenticatedAppSurface('/learning-mirror')).toBe(false);
+      expect(isAuthenticatedAppSurface('/learning-mirror/token-exchange-rfc-8693.html')).toBe(false);
+    });
   });
 
   describe('notifySessionExpiredIfNeeded', () => {

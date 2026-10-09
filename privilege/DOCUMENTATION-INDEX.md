@@ -89,6 +89,7 @@ An in-app copy of this index is served at `/privilege-docs-index` in the demo UI
 | [New demo environment](NEW-DEMO-ENVIRONMENT.md) | — | A separate demo environment from scratch (own PingOne env, gateway, apps, agents): parameter table, what is verified, enrolling with the right Host IP, token and CPU traps, order of steps |
 | [Deploying & upgrading on Kubernetes](PRIVILEGE-K8S-DEPLOY-UPGRADE.md) | Drive (SE) | Helm install/upgrade/re-enroll/teardown of an Agentless gateway: first-install sequence, the Host-IP and token-whitespace traps, extraContainers and floating-tag upgrade rules, the PV-destruction teardown deadlock, and what is verified vs from notes (2026-10-09) |
 | [Running the gateway locally (Docker)](GATEWAY-LOCAL-DOCKER.md) | Drive (SE) | The `profile: mcpgw` compose stack: start/stop, enrollment token + `pingone.env` + `/etc/hosts` + console app, the post-swap port map (settle by probing), nginx front door, verification incl. the smoke script, and the CA-wall status of the currently stopped local gateway (2026-10-09) |
+| [Workload identity for agent callers](WORKLOAD-IDENTITY-AGENT-CALLERS.md) | Drive (SE) | What Pass Agent Token demands (`token-pass`), the SPIFFE→PingFederate actor-token path verified live 2026-09-26, and the documented gap: no caller has yet presented a workload token to the gateway, with the experiment that would close it (2026-10-09) |
 | [SE1 shared demo](SE1-Privilege-Shared-Demo.md) | — | Setting up the shared Privilege demo in the SE1 environment |
 | [Privilege Agent setup — Mac](SE1-Privilege-Agent-Setup-Mac.md) | — | Agent-based persona onboarding for the shared Demo Engineering environment, run on your own Mac instead of Windows 11 VMs |
 | [Demo script & setup](demo/privilege-demo-script.md) | — | The customer-facing demo script and setup (auto-generated from the use-case docs — do not hand-edit) |
@@ -117,7 +118,6 @@ An in-app copy of this index is served at `/privilege-docs-index` in the demo UI
 
 | Guide | What it covers | Testable now? |
 |---|---|---|
-| Workload identity for agent callers | How a caller gets the verified token that Pass Agent Token forwards | Not yet — no caller holds one |
 | Red team: a hostile A2A agent | A poisoned agent card and what Inter-Agent Abuse detection catches | Partly — hostile agent needs registering |
 | Ping's reference demo, explained | The two-agent demo (main agent, worker agent, MCP server) wired through the gateway | Partly — needs the demo running |
 | Policies in depth | Expiry, several policies adding up, groups, per-tool grants | Partly — needs console changes |
