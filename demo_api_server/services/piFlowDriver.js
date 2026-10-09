@@ -72,7 +72,7 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins }) {
         console.warn('[oauth/pi-flow] authorize did not open a flow: HTTP %s', r.status);
         return res.status(502).json({ error: 'pi_flow_unavailable' });
       }
-      req.session.oauthPiFlow = { flowId: flow.id, provider, startedAt: Date.now(), cookies: mergePiFlowCookies({}, r) };
+      req.session.oauthPiFlow = { flowId: flow.id, provider, startedAt: Date.now(), cookies: mergePiFlowCookies({}, r), status: flow.status };
       // PingFederate binds the flow to the authorize request's login_hint ("Username must
       // match the provided username hint"), so hand it to the SPA to prefill, as the hosted
       // login page does. PingOne does not bind it, so nothing is sent for PingOne.
@@ -187,7 +187,7 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins }) {
   }
 
   async function handleCredentialsStep(req, res) {
-    const pending = openPiFlowOrReject(req, res);
+    let pending = openPiFlowOrReject(req, res);
     if (!pending) return undefined;
     const { username, password } = req.body || {};
     if (typeof username !== 'string' || typeof password !== 'string' || !username || !password) {
@@ -195,6 +195,21 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins }) {
     }
     try {
       const pf = pending.provider === 'pingfederate';
+      // An identifier-first policy opens the flow at SIGN_ON_REQUIRED, where
+      // usernamePassword.check is rejected (wrong flow status) — identify
+      // first, then submit the password. PF never opens in this state.
+      if (!pf && pending.status === 'SIGN_ON_REQUIRED') {
+        const lookup = await postPiFlowStep(
+          pending, 'application/vnd.pingidentity.user.lookup+json', { username },
+        );
+        if (!lookup.step.ok) return res.status(502).json({ error: 'pi_flow_failed' });
+        // Identified without needing a password (device-first MFA): hand the flow
+        // to the responder right away. Only PASSWORD_REQUIRED continues below.
+        if (lookup.body.status !== 'PASSWORD_REQUIRED') {
+          return await respondAfterPiFlowStep(req, res, pending, lookup.body, lookup.cookies);
+        }
+        pending = { ...pending, cookies: lookup.cookies, status: lookup.body.status };
+      }
       const { step, body, cookies } = await postPiFlowStep(
         pending,
         pf ? 'application/vnd.pingidentity.checkUsernamePassword+json' : 'application/vnd.pingidentity.usernamePassword.check+json',

@@ -139,6 +139,41 @@ describe('customer pi.flow sign-in', () => {
     expect(res.body.error).toBe('invalid_credentials');
   });
 
+  test('identifier-first flow (SIGN_ON_REQUIRED): identifies with user.lookup, then posts the password', async () => {
+    const agent = request.agent(app);
+    fetchMock.mockResolvedValueOnce(json(200, { id: 'flow-1', status: 'SIGN_ON_REQUIRED' }, {}, ['ST=open; Path=/']));
+    await agent.get('/api/auth/oauth/user/login?pi_flow=1').expect(200);
+    fetchMock
+      .mockResolvedValueOnce(json(200, { status: 'PASSWORD_REQUIRED' }, {}, ['ST=identified; Path=/']))
+      .mockResolvedValueOnce(json(200, { status: 'OTP_REQUIRED', _embedded: { devices: [{ id: 'dev-1', type: 'SMS', phone: '***86' }] } }))
+      .mockResolvedValueOnce(json(200, { authorizeResponse: { code: 'idfirst-code' } }));
+    const res = await agent.post('/api/auth/oauth/user/pi-flow/credentials')
+      .send({ username: 'u', password: 'p' }).expect(200);
+    expect(res.body.step).toBe('otp');
+    expect(res.body.devices).toHaveLength(1);
+    const [lookupUrl, lookupInit] = fetchMock.mock.calls[1];
+    expect(lookupUrl).toMatch(/\/flows\/flow-1$/);
+    expect(lookupInit.headers['Content-Type']).toBe('application/vnd.pingidentity.user.lookup+json');
+    expect(JSON.parse(lookupInit.body)).toEqual({ username: 'u' });
+    expect(fetchMock.mock.calls[2][1].headers['Content-Type']).toBe('application/vnd.pingidentity.usernamePassword.check+json');
+    // the password step replays the cookie the lookup issued
+    expect(fetchMock.mock.calls[2][1].headers.Cookie).toBe('ST=identified');
+  });
+
+  test('identifier-first flow: user.lookup landing on OTP_REQUIRED skips the password step', async () => {
+    const agent = request.agent(app);
+    fetchMock.mockResolvedValueOnce(json(200, { id: 'flow-1', status: 'SIGN_ON_REQUIRED' }));
+    await agent.get('/api/auth/oauth/user/login?pi_flow=1').expect(200);
+    fetchMock
+      .mockResolvedValueOnce(json(200, { status: 'OTP_REQUIRED', _embedded: { devices: [] } }));
+    const res = await agent.post('/api/auth/oauth/user/pi-flow/credentials')
+      .send({ username: 'u', password: 'p' }).expect(200);
+    expect(res.body.step).toBe('otp');
+    // user.lookup only — no usernamePassword.check, no resume (flow stays open for otp.check)
+    expect(fetchMock.mock.calls[1][1].headers['Content-Type']).toBe('application/vnd.pingidentity.user.lookup+json');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   test('OTP_REQUIRED after the password returns the otp step for the modal to drive', async () => {
     const agent = request.agent(app);
     await openFlow(agent);
