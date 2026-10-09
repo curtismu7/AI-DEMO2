@@ -319,6 +319,34 @@ const SECTIONS = [
           "Helm install/upgrade/re-enroll/teardown of an Agentless gateway: first-install sequence, the Host-IP and token-whitespace traps, extraContainers and floating-tag upgrade rules, the PV-destruction teardown deadlock, and what is verified vs from notes (2026-10-09).",
       },
       {
+        title: "Running the gateway locally (Docker)",
+        path: "privilege/GATEWAY-LOCAL-DOCKER.md",
+        pdf: true,
+        covers:
+          "The profile: mcpgw compose stack: start/stop, enrollment token + pingone.env + /etc/hosts + console app, the post-swap port map (settle by probing), nginx front door, verification incl. the smoke script, and the CA-wall status of the currently stopped local gateway (2026-10-09).",
+      },
+      {
+        title: "Workload identity for agent callers",
+        path: "privilege/WORKLOAD-IDENTITY-AGENT-CALLERS.md",
+        pdf: true,
+        covers:
+          "What Pass Agent Token demands (token-pass), the SPIFFE→PingFederate actor-token path verified live 2026-09-26, and the documented gap: no caller has yet presented a workload token to the gateway, with the experiment that would close it (2026-10-09).",
+      },
+      {
+        title: "Red team: a hostile A2A agent",
+        path: "privilege/RED-TEAM-HOSTILE-A2A.md",
+        pdf: true,
+        covers:
+          "The poisoned-Agent-Card attack end to end: standalone/hostile-a2a-agent, the deployed instance, what the gateway blocked vs alerted vs passed (measured 2026-10-03/06), the three properties of an A2A block, and what the demo does not claim (2026-10-09).",
+      },
+      {
+        title: "Auth modes for MCP backends",
+        path: "privilege/AUTH-MODES-MCP-BACKENDS.md",
+        pdf: true,
+        covers:
+          "What each mode sends the backend (None, Static Token, User Token, Pass Agent Token, OAuth), the header pass-through + X-Procyon-Mcp-Cap behavior, the verified instances in this stack, the OAuth warning (breaks discovery on v1.260906), and a choosing guide (2026-10-09).",
+      },
+      {
         title: "SE1 shared demo",
         path: "privilege/SE1-Privilege-Shared-Demo.md",
         covers:
@@ -392,12 +420,8 @@ const SECTIONS = [
 ];
 
 const PLANNED = [
-  ["Workload identity for agent callers", "How a caller gets the verified token that Pass Agent Token forwards", "Not yet — no caller holds one"],
-  ["Red team: a hostile A2A agent", "A poisoned agent card and what Inter-Agent Abuse detection catches", "Partly — hostile agent needs registering"],
   ["Ping's reference demo, explained", "The two-agent demo (main agent, worker agent, MCP server) wired through the gateway", "Partly — needs the demo running"],
   ["Policies in depth", "Expiry, several policies adding up, groups, per-tool grants", "Partly — needs console changes"],
-  ["Auth modes for MCP backends", "None, Static Token, User Token, OAuth, Pass Agent Token", "Partly — needs console changes"],
-  ["Running the gateway locally", "Docker setup, nginx in front, enrollment", "Not now — local gateway isn't running"],
   ["Agent mode end to end", "The Privilege Agent on a workstation, device-bound identity, how it differs from agentless", "Partly — needs the agent paired on a Mac"],
 ];
 
