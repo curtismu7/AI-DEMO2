@@ -46,8 +46,10 @@ spec:
       labels:
         app: opensearch-mcp-server
     spec:
+      {{- with .Values.opensearchMcpServer.imagePullSecret }}
       imagePullSecrets:
-        - name: {{ .Values.opensearchMcpServer.imagePullSecret }}
+        - name: {{ . }}
+      {{- end }}
       containers:
         - name: opensearch-mcp-server
           image: {{ .Values.opensearchMcpServer.image }}
