@@ -273,6 +273,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-10-09 — Admin `generateAuthorizationUrl` rewrote `response_type` to `pi.flow` whenever the flag was on
+
+**Files:** `demo_api_server/services/oauthService.js` (`generateAuthorizationUrl`), `src/__tests__/oauthService.test.js`; new `services/piFlowDriver.js`, `tests/oauthAdminPiFlow.test.js`.
+
+**What was broken:** with `PINGONE_ADMIN_AUTHORIZE_PI_FLOW` on, every admin authorize URL — including the plain redirect login — was built with `response_type=pi.flow&response_mode=pi.flow`. PingOne rejects `response_type=pi.flow` with HTTP 400 (pi.flow is a response **mode**; the user-side service already built `code` + `response_mode=pi.flow` correctly), so a plain redirect admin login would 400 at PingOne instead of showing the hosted page.
+
+**What was fixed:** the flag alone rewrites nothing; an explicit `forcePiFlow` option opens `response_type=code&response_mode=pi.flow` (only the `?pi_flow=1` branch passes it), and a `forceLogin` option sends `prompt=login` while dropping the login hint so a different admin can sign in. The shared flow driver moved to `services/piFlowDriver.js` (used by both routers); admin `?pi_flow=1` + `POST /pi-flow/{credentials,assertion,otp}` are gated on the flag (off → 404 → SPA keeps the redirect).
+
+**Do not break:** `/callback` PKCE/nonce/session creation is untouched — a COMPLETED flow hands the browser to the unchanged callback with `?code&state`; `{fallback:true}` → redirect login preserved for every step the modal cannot drive; the login_hint default (`demoAdmin`) on the normal admin path; user-side behavior unchanged when flags are off.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/oauthAdminPiFlow.test.js tests/oauthUserPiFlow.test.js src/__tests__/oauthService.test.js tests/services/oauthService.generateAuthorizationUrl.test.js --forceExit`. Reverting only the `generateAuthorizationUrl` change makes the corrected `response_type` assertions fail.
+
 ### 2026-10-07 — PingOne test routes and the attack simulator fell back to the BFF's own client for a sidecar-managed exchanger
 
 **Files:** `demo_api_server/routes/pingoneTestRoutes.js` (five exchange branches), `services/attackSimulatorService.js` (`_exchangeSimToken`); new `src/__tests__/pingoneTestRoutes.sidecarRelay.test.js`, `attackSimulatorService.sidecarRelay.test.js`.
