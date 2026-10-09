@@ -77,7 +77,7 @@ Usage:
   ./run-pingaws.sh machine          show machine specs and which launcher fits
   ./run-pingaws.sh help
 
-Prerequisites: Docker Desktop, kubectl context `us`, gh auth, SE namespace.
+Prerequisites: Docker (OrbStack or Docker Desktop), kubectl context `us`, gh auth, SE namespace.
 
 The Agent Privilege does not install from here: gateway 1 (ping-devops-curtismuir)
 and gateway 2 (ping-devops-cmuir) are deliberate manual Helm installs
