@@ -38,7 +38,7 @@ test('Ping AWS launcher routes RAG control through the SE-safe command', () => {
   const deployRag = read('k8s/aws/deploy-rag.sh');
 
   assert.match(launcher, /rag\)\s*\n\s*exec "\$RUN_K8" se-rag "\$@"/);
-  assert.match(runK8, /se-rag\)\s+se_rag "\$\{2:-on\}"/);
+  assert.match(runK8, /se-rag\)\s+se_rag "\$\{K8_TARGET_ARGS\[1\]:-on\}"/);
   assert.match(
     runK8,
     /K8S_NAMESPACE="\$ns" bash "\$K8S_DIR\/deploy\.sh" rag off/,
