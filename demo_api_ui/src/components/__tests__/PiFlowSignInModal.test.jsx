@@ -420,33 +420,48 @@ describe('PiFlowSignInModal', () => {
       expect(missing).toEqual([]);
     });
 
-    test('every vertical that declares a logo points at a file that exists', () => {
+    test('every vertical that declares a logo points at a real file or a brand CDN URL', () => {
       const root = path.resolve(__dirname, '../../../..');
       const dir = path.join(root, 'demo_api_server/config/verticals');
       for (const id of fs.readdirSync(dir)) {
         const file = path.join(dir, id, 'manifest.json');
         if (!fs.existsSync(file)) continue;
         const logoPath = JSON.parse(fs.readFileSync(file, 'utf8')).identity?.logoPath;
-        if (logoPath) expect(fs.existsSync(path.join(root, 'demo_api_ui/public', logoPath)), `${id}: ${logoPath}`).toBe(true);
+        if (!logoPath) continue;
+        if (/^https?:\/\//.test(logoPath)) {
+          // Real-company verticals reference the Brandfetch CDN (lockup assets
+          // served by the brand), not a repo file.
+          expect(logoPath, `${id}: CDN logo`).toMatch(/^https:\/\/cdn\.brandfetch\.io\//);
+        } else {
+          expect(fs.existsSync(path.join(root, 'demo_api_ui/public', logoPath)), `${id}: ${logoPath}`).toBe(true);
+        }
       }
     });
 
-    test('every non-admin vertical declares brandCaps, and admin surfaces do not', () => {
+    test('demo verticals declare brandCaps, lockup verticals and admin surfaces do not', () => {
       const root = path.resolve(__dirname, '../../../..');
       const dir = path.join(root, 'demo_api_server/config/verticals');
+      // Lockup verticals: real companies whose Brandfetch logo carries its own
+      // wordmark — caps would print the name twice (SignInBrand suppresses it).
+      const LOCKUP = ['airlines', 'abercrombie-fitch'];
       const noCaps = [];
+      const lockupWithCaps = [];
       const adminWithCaps = [];
       for (const id of fs.readdirSync(dir)) {
         const file = path.join(dir, id, 'manifest.json');
         if (!fs.existsSync(file)) continue;
-        const caps = JSON.parse(fs.readFileSync(file, 'utf8')).identity?.brandCaps;
+        const manifest = JSON.parse(fs.readFileSync(file, 'utf8'));
+        const caps = manifest.identity?.brandCaps;
         if (['admin', 'admin-console', 'pingone-admin'].includes(id)) {
           if (caps) adminWithCaps.push(id);
+        } else if (LOCKUP.includes(id)) {
+          if (caps) lockupWithCaps.push(id);
         } else if (!caps) {
           noCaps.push(id);
         }
       }
       expect(noCaps).toEqual([]);
+      expect(lockupWithCaps).toEqual([]);
       expect(adminWithCaps).toEqual([]);
     });
   });

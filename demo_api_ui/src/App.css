@@ -2295,6 +2295,13 @@
   color: var(--brand-dashboard-header-text, var(--th-text));
 }
 
+/* On the dashboard root the bar opens the page above every layout branch —
+   keep it full-width and let the layout's own spacing take over below it. */
+.user-dashboard .pi-flow-signin__brand {
+  margin-bottom: 0;
+  border-radius: 0;
+}
+
 /* Primary button keeps the vertical's brand colour in every state — a grayed
    disabled state read as a dead button; a trimmed brand colour reads as "just
    a moment". */
