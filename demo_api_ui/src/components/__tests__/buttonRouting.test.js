@@ -212,7 +212,7 @@ function renderAt(Component, path, props = {}) {
 // ─────────────────────────────────────────────────────────────────────────────
 // DashboardQuickNav
 // ─────────────────────────────────────────────────────────────────────────────
-import DashboardQuickNav from "../DashboardQuickNav";
+import DashboardQuickNav from "../../legacy/DashboardQuickNav";
 
 describe("DashboardQuickNav", () => {
 	it("Home link points to /", () => {
