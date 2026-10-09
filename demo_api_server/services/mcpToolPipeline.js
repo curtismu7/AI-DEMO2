@@ -1020,23 +1020,6 @@ async function runMcpToolPipeline(ctx) {
         deps.emit({
             phase: 'mcp_remote_begin'
         });
-        // Walk the MCP authorization handshake before the credentialed call, so
-        // the trace shows both halves: the anonymous tools/call the gateway
-        // answers with 401 + WWW-Authenticate, then the authorized one below.
-        // Gateway path only — direct mode has no HTTP MCP endpoint to challenge.
-        // Evidence only: probeMcpChallenge never throws and its result is unused.
-        if (useGateway && gatewayHttpUrl) {
-            const challengeProbe = await require('./mcpChallengeProbe').probeMcpChallenge(req, {
-                method: 'tools/call',
-                phase: 'tools/call',
-                gatewayUrl: gatewayHttpUrl,
-                params: { name: tool },
-            });
-            if (challengeProbe.events.length) {
-                tokenEvents.push(...challengeProbe.events);
-                deps.publishTokenEventsToSse(flowTraceId, tokenEvents);
-            }
-        }
         deps.appEventLog('mcp', 'info', `MCP tool call → ${tool}`,{ tag: 'mcp/tool', metadata: { tool, gatewayUrl: useGateway ? gatewayHttpUrl : mcpUrl, via: useGateway ? 'gateway' : 'direct' } });
 
         // ── Discovery before call (MCP lifecycle) ────────────────────────────
@@ -1056,6 +1039,20 @@ async function runMcpToolPipeline(ctx) {
             && require('./configStore').getEffective('ff_mcp_discovery_before_call') !== 'false';
         if (discoveryOn) {
             try {
+                // Discovery is itself a protected request: walk its half of the
+                // dance first — the anonymous tools/list the gateway refuses with
+                // 401 + WWW-Authenticate — then the credentialed one below.
+                // Evidence only: probeMcpChallenge never throws, result unused.
+                const listProbe = await require('./mcpChallengeProbe').probeMcpChallenge(req, {
+                    method: 'tools/list',
+                    phase: 'tools/list',
+                    gatewayUrl: gatewayHttpUrl,
+                    params: {},
+                });
+                if (listProbe.events.length) {
+                    tokenEvents.push(...listProbe.events);
+                    deps.publishTokenEventsToSse(flowTraceId, tokenEvents);
+                }
                 const discovery = await deps.callToolViaGateway(gatewayHttpUrl, mcpAccessToken, tool, {}, {
                     correlationId: req.correlationId,
                     vertical: sessionVertical,
@@ -1100,6 +1097,25 @@ async function runMcpToolPipeline(ctx) {
                 // Evidence leg only. Log and move on — the authorized call below
                 // still gets the full exchange → gateway → Authorize treatment.
                 logger.warn(_CAT, `[MCP Discovery] tools/list before call failed for ${tool} (non-fatal): ${discErr.message}`);
+            }
+        }
+
+        // ── tools/call 401 dance (MCP authorization handshake) ───────────────
+        // The second half: after the discovery dance, the anonymous tools/call
+        // goes out and the gateway answers 401 + WWW-Authenticate before the
+        // authorized call below. Gateway path only — direct mode has no HTTP
+        // MCP endpoint to challenge. Evidence only: probeMcpChallenge never
+        // throws and its result is unused.
+        if (useGateway && gatewayHttpUrl) {
+            const challengeProbe = await require('./mcpChallengeProbe').probeMcpChallenge(req, {
+                method: 'tools/call',
+                phase: 'tools/call',
+                gatewayUrl: gatewayHttpUrl,
+                params: { name: tool },
+            });
+            if (challengeProbe.events.length) {
+                tokenEvents.push(...challengeProbe.events);
+                deps.publishTokenEventsToSse(flowTraceId, tokenEvents);
             }
         }
 
