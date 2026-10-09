@@ -9,6 +9,15 @@ This page is the one-screen orientation. The **full index of every Privilege art
 including Ping's SE enablement storyboards and the code paths, is
 [`PRIVILEGE-MCP.md` § Map](PRIVILEGE-MCP.md#map--every-privilege-artifact-and-what-to-read-when).
 
+![Ping's Agentic Trust Control Plane: Agent Privilege discovers and registers agents; Agent IAM Core issues scoped agent access; AI Gateway secures tools and resources; Agent Authorize authorizes each action; Agent Governance governs and audits](diagrams/agentic-trust-control-plane.png)
+
+**Where Agent Privilege sits** (Ping's Agentic Trust Control Plane): it is step 1,
+**discover and register** — the catalog of agents, language models, MCP servers, and
+the resources they can reach. Steps 2–4 issue the scoped access and enforce it
+(Agent IAM Core, AI Gateway, Agent Authorize); step 5 governs and audits (Agent
+Governance). Every guide in this folder is about operating the Privilege side of
+that plane — mostly the gateway that carries steps 3–4 for MCP traffic.
+
 > **Current deployment:** choose the dedicated
 > [`Agentless`](AGENTLESS-CONFIGURATION.md) or
 > [`Agent`](AGENT-CONFIGURATION.md) guide. The

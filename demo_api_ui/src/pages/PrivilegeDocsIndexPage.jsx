@@ -6,6 +6,25 @@ import "./PrivilegeDocsIndexPage.css";
 // doc lives (repo path vs Google Drive folder).
 const SECTIONS = [
   {
+    id: "customer-deliverables",
+    label: "Customer deliverables",
+    docs: [
+      {
+        title: "Personal Agents at United",
+        path: "docs/united/United-Personal-Agent-Security.md",
+        covers:
+          "MileagePlus members bringing their own agent (ChatGPT, coding CLIs, anything MCP-capable) and the security between: the no-BFF/no-DPoP architecture, gateway-fronted tool calls with minutes-long single-audience bearer tokens, United's as-built assistant, the gap analysis, and the recommended design. Working draft, 2026-10-09, prepared for United's AI team.",
+      },
+      {
+        title: "United 431 Request Header Size Guidance",
+        path: null,
+        pdfInRepo: "docs/united/United 431 Request Header Size Guidance.pdf",
+        covers:
+          "Investigating and mitigating HTTP 431 “Request Header Fields Too Large” in United's browser-based headless Ping SDK / DaVinci flow on the custom domain: cookie-scope and intermediary causes, five remediation options, and the HAR-capture diagnostic sequence.",
+      },
+    ],
+  },
+  {
     id: "start",
     label: "Start here",
     docs: [
@@ -372,6 +391,13 @@ const PLANNED = [
 const GITHUB_BASE = "https://github.com/cmuir_pingcorp/AI-DEMO2/blob/main/";
 const DRIVE_NOTE =
   "PDF exports of the SE guides ship through the shared Google Drive folder.";
+const ASSETS_NOTE = [
+  "privilege/design/",
+  "privilege/diagrams/",
+  "privilege/postman/",
+  "privilege/runbooks/",
+  ".claude/skills/privilege-*",
+];
 
 export default function PrivilegeDocsIndexPage() {
   const [query, setQuery] = useState("");
@@ -489,6 +515,25 @@ export default function PrivilegeDocsIndexPage() {
             </div>
           </section>
         ))}
+
+        <section className="pdi-section" aria-label="Assets in the repo">
+          <h2>Assets in the repo</h2>
+          <p className="pdi-planned-note">
+            Non-document assets living alongside the guides:{" "}
+            {ASSETS_NOTE.map((path) => (
+              <code key={path}>{path}</code>
+            )).reduce((prev, curr, i) => (
+              <span key={ASSETS_NOTE[i]}>
+                {i > 0 && " · "}
+                {curr}
+              </span>
+            ))}
+            . The diagrams folder holds the Agentic Trust Control Plane slide
+            (Agent Privilege = discover &amp; register, steps 2–5 IAM Core / AI
+            Gateway / Agent Authorize / Agent Governance) and four rendered MCP
+            flows.
+          </p>
+        </section>
 
         <section className="pdi-section" aria-label="Planned guides">
           <h2>
