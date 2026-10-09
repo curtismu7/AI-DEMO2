@@ -34,6 +34,8 @@
 #
 # Ping SE DevOps cluster (ping-dev-aws-us-east-2):
 #   Prefer: ./run-pingaws.sh [start|build|deploy|status|undeploy|update …]
+#   Explicit target (routes shared verbs at the SE cluster; local-only verbs refuse):
+#   ./run-k8.sh --target=aws [build|deploy|all|status|basic|rag|undeploy]
 #   Low-level (same behavior):
 #   ./run-k8.sh se-build      # build images + push to GHCR (needs GITHUB_OWNER)
 #   ./run-k8.sh se-deploy     # deploy to SE cluster (auto-derives your namespace)
@@ -866,7 +868,33 @@ show_help() {
 
 # Machine panel ahead of any command that builds or deploys. Skipped when
 # run-pingaws.sh already printed it before exec'ing into this script.
-case "${1:-all}" in
+# --target=aws|orbstack routes target-agnostic verbs at an explicit cluster.
+# Default (no flag) is orbstack — today's behavior, unchanged. --target=aws
+# rewrites the shared verbs (build, deploy, all, status, basic, rag, undeploy)
+# onto their se-* implementations and refuses local-only verbs, which would
+# otherwise silently run against the wrong cluster. The explicit se-*/aws-*
+# verbs are unaffected: they already name their target.
+K8_TARGET="orbstack"
+K8_TARGET_ARGS=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --target=*)
+      K8_TARGET="${1#--target=}"
+      shift
+      ;;
+    --target)
+      K8_TARGET="${2:-}"
+      shift 2
+      ;;
+    *)
+      K8_TARGET_ARGS+=("$1")
+      shift
+      ;;
+  esac
+done
+[[ "$K8_TARGET" == "aws" || "$K8_TARGET" == "orbstack" ]] \
+  || die "unknown --target '$K8_TARGET' (use aws or orbstack)"
+case "${K8_TARGET_ARGS[0]:-all}" in
   machine|specs)
     demo_machine_banner cluster
     exit 0
@@ -876,19 +904,50 @@ case "${1:-all}" in
     ;;
 esac
 
-case "${1:-all}" in
+# Local-only verbs under --target=aws: refuse and name the SE equivalent.
+refuse_local_only() {
+  local verb="$1" instead="${2:-}"
+  {
+    echo "Refusing: '$verb' is local-only (OrbStack) and has no AWS meaning."
+    [[ -n "$instead" ]] && echo "  For the SE cluster: ./run-k8.sh $instead"
+    echo "  Drop --target=aws to run it locally."
+  } >&2
+  exit 1
+}
+
+if [[ "$K8_TARGET" == "aws" ]]; then
+  case "${K8_TARGET_ARGS[0]:-all}" in
+    build)      exec "$0" se-build "${K8_TARGET_ARGS[@]:1}" ;;
+    deploy)     exec "$0" se-deploy "${K8_TARGET_ARGS[@]:1}" ;;
+    all)        exec "$0" se-all "${K8_TARGET_ARGS[@]:1}" ;;
+    status)     exec "$0" se-status "${K8_TARGET_ARGS[@]:1}" ;;
+    basic)      exec "$0" se-basic "${K8_TARGET_ARGS[@]:1}" ;;
+    rag)        exec "$0" se-rag "${K8_TARGET_ARGS[@]:1}" ;;
+    undeploy)   exec "$0" se-undeploy "${K8_TARGET_ARGS[@]:1}" ;;
+    se-*|aws-*|help|-h|--help|"") : ;;  # already target-explicit
+    forward|forward-api|forward-bg) refuse_local_only "forward" "se-status" ;;
+    stop)       refuse_local_only "stop" "se-undeploy" ;;
+    restart)    refuse_local_only "restart" "se-all" ;;
+    kill)       refuse_local_only "kill" ;;
+    destroy)    refuse_local_only "destroy" "se-undeploy" ;;
+    mode|extras|yotuo|demo-sync|sim|sim-deploy) refuse_local_only "${K8_TARGET_ARGS[0]}" ;;
+    *) : ;;  # fall through to the main case for its usage message
+  esac
+fi
+
+case "${K8_TARGET_ARGS[0]:-all}" in
   all)        check_prereqs; kill_all; build; deploy; forward ;;
   build)      build ;;
   deploy)     check_prereqs; deploy; kill_all; forward ;;
   forward)      check_prereqs; kill_all; forward ;;
   forward-api)  check_prereqs; kill_all; forward_api ;;
-  forward-bg)   check_prereqs; forward_bg "${2:-api}" ;;
+  forward-bg)   check_prereqs; forward_bg "${K8_TARGET_ARGS[1]:-api}" ;;
   kill)       kill_all ;;
   stop)       check_prereqs; stop ;;
-  mode)       check_prereqs; bash "$K8S_DIR/deploy.sh" mode "${2:-}" ;;
-  extras)     check_prereqs; extras "${2:-}" ;;
-  rag)        check_prereqs; bash "$K8S_DIR/deploy.sh" rag "${2:-on}" ;;
-  yotuo)      check_prereqs; bash "$K8S_DIR/deploy.sh" yotuo "${2:-on}" "${3:-}" ;;
+  mode)       check_prereqs; bash "$K8S_DIR/deploy.sh" mode "${K8_TARGET_ARGS[1]:-}" ;;
+  extras)     check_prereqs; extras "${K8_TARGET_ARGS[1]:-}" ;;
+  rag)        check_prereqs; bash "$K8S_DIR/deploy.sh" rag "${K8_TARGET_ARGS[1]:-on}" ;;
+  yotuo)      check_prereqs; bash "$K8S_DIR/deploy.sh" yotuo "${K8_TARGET_ARGS[1]:-on}" "${K8_TARGET_ARGS[2]:-}" ;;
   demo-sync)  check_prereqs; bash "$K8S_DIR/deploy.sh" demo-sync ;;
   status)     check_prereqs; status ;;
   restart)    check_prereqs; restart; kill_all; forward ;;
@@ -900,15 +959,15 @@ case "${1:-all}" in
   se-all)      aws_build; se_deploy ;;
   se-basic)    se_basic ;;
   se-status)   se_status ;;
-  se-rag)      se_rag "${2:-on}" ;;
-  se-undeploy) se_undeploy "${@:2}" ;;
+  se-rag)      se_rag "${K8_TARGET_ARGS[1]:-on}" ;;
+  se-undeploy) se_undeploy "${K8_TARGET_ARGS[@]:1}" ;;
   aws-build)  aws_build ;;
   aws-deploy) aws_deploy; aws_finish ;;
   aws-all)    aws_build; aws_deploy; aws_finish ;;
   aws-status) aws_status ;;
   help)       show_help ;;
   *)
-    echo "Usage: $0 {all|build|deploy|forward|forward-api|forward-bg|kill|stop|mode|extras|rag|yotuo|demo-sync|status|restart|destroy|sim|sim-deploy|se-build|se-deploy|se-all|se-basic|se-status|se-rag|se-undeploy|aws-build|aws-deploy|aws-all|aws-status|help}"
+    echo "Usage: $0 [--target=aws|orbstack] {all|build|deploy|forward|forward-api|forward-bg|kill|stop|mode|extras|rag|yotuo|demo-sync|status|restart|destroy|sim|sim-deploy|se-build|se-deploy|se-all|se-basic|se-status|se-rag|se-undeploy|aws-build|aws-deploy|aws-all|aws-status|help}"
     exit 1
     ;;
 esac
