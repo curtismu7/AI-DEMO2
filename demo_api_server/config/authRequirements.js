@@ -32,13 +32,26 @@ function authLevelForUseCaseId(id) {
 }
 
 /**
- * Auth level for an app route path. Routes are listed only where a use case
- * links to them; anything else answers with the default.
+ * Auth level for an app route path. A concrete path resolves through a
+ * declared parametrized route (`/use-case-diagrams/UC-MUSE1` under
+ * `/use-case-diagrams/:ucId`); anything unlisted answers with the default.
  * @param {string} path
  * @returns {'public'|'user'|'admin'}
  */
 function authLevelForRoute(path) {
-  return AUTH_REQUIREMENTS.routes[path] || DEFAULT_LEVEL;
+  const routes = AUTH_REQUIREMENTS.routes;
+  if (Object.hasOwn(routes, path)) return routes[path];
+  const segments = String(path).split('/');
+  for (const [pattern, level] of Object.entries(routes)) {
+    if (!pattern.includes(':')) continue;
+    const patternSegments = pattern.split('/');
+    if (patternSegments.length !== segments.length) continue;
+    const matched = patternSegments.every((seg, i) => seg.startsWith(':')
+      ? segments[i].length > 0
+      : seg === segments[i]);
+    if (matched) return level;
+  }
+  return DEFAULT_LEVEL;
 }
 
 /** @param {string} id @returns {boolean} true when the use case runs signed out. */

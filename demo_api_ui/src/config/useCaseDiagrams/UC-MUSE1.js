@@ -28,7 +28,7 @@ const walk = [
     title: "The user's agent asks", label: "Muse on Alice's Mac",
     nodes: ["user", "agent"], edges: [0],
     lines: [{ who: "Alice", text: "Show my checking balance — asked in Muse, not the bank's app." }],
-    tech: [{ t: "API", c: "Muse -> POST /mcp tools/call get_banking_account" }],
+    tech: [{ t: "API", c: "Muse -> POST /mcp tools/call get_my_accounts" }],
   },
   {
     title: "Door onboarding", label: "discover, register, log in",
@@ -59,7 +59,7 @@ const walk = [
     title: "Answer on the record", label: "chain visible",
     nodes: ["tool", "user"], edges: [4],
     lines: [{ who: "Presenter", text: "Same governance as our own agent — the trust layer never cared whose agent it was." }],
-    tech: [{ t: "POLICY", c: "audit: sub=alice act=muse tool=get_banking_account decision=PERMIT" }],
+    tech: [{ t: "POLICY", c: "audit: sub=alice act=muse tool=get_my_accounts decision=PERMIT" }],
   },
 ];
 

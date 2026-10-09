@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EXTERNAL_AGENTS, getExternalAgent } from '../externalAgents';
+import { EXTERNAL_AGENTS, getExternalAgent, STANDARD_DOOR, AI_GATEWAY_DOOR } from '../externalAgents';
 import { lessonCatalog, getLesson } from '../../learning/lessonCatalog';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -57,5 +57,14 @@ describe('runbook/lesson drift guard', () => {
     expect(runbook).toContain('/mcp-facade/privilege-gateway/mcp');
     expect(runbook).toContain('UC-MUSE1');
     expect(runbook).toContain('UC-MUSE2');
+  });
+
+  it('the door constants themselves appear verbatim in the runbook and plan', () => {
+    const runbook = readFileSync(join(__dirname, '../../../../docs/MUSE_RUNBOOK.md'), 'utf8');
+    const plan = readFileSync(join(__dirname, '../../../../docs/superpowers/plans/2026-10-08-muse-user-agent-demo.md'), 'utf8');
+    expect(runbook).toContain(STANDARD_DOOR);
+    expect(runbook).toContain(AI_GATEWAY_DOOR);
+    expect(plan).toContain(STANDARD_DOOR);
+    // A change to either constant now fails here until the docs move with it.
   });
 });
