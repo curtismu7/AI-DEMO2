@@ -103,22 +103,25 @@ echo "step: aws rag" >> "$TMP/steps.log"
 PATH="$TMP/bin:$PATH" bash "$RUN_K8" --target=aws rag on >/dev/null 2>&1 || true
 expect_log "config use-context us" "--target=aws rag routes to the SE rag path"
 
-# --- bare invocation keeps local behavior: no SE context switch ---
+# --- bare invocation defaults to Ping AWS (US SE cluster) ---
 
 echo "step: bare status" >> "$TMP/steps.log"
 : > "$RUN_K8_TARGET_LOG"
 PATH="$TMP/bin:$PATH" bash "$RUN_K8" status >/dev/null 2>&1 || true
-expect_no_log "aws/deploy.sh" "bare status must not touch the aws deploy path"
+expect_log "config use-context us" "bare status defaults to the SE cluster"
+
+# --- --target=orbstack restores the local path ---
+
+echo "step: orbstack status" >> "$TMP/steps.log"
+: > "$RUN_K8_TARGET_LOG"
+PATH="$TMP/bin:$PATH" bash "$RUN_K8" --target=orbstack status >/dev/null 2>&1 || true
+expect_no_log "config use-context us" "--target=orbstack status stays local (no SE context switch)"
 
 # --- unknown target dies ---
 
 expect_refuse --target=nowhere status "unknown --target value refused"
 
-# --- local-only verbs refuse under --target=aws ---
-
-expect_refuse --target=aws destroy "--target=aws destroy refuses"
-expect_refuse --target=aws forward "--target=aws forward refuses"
-expect_refuse --target=aws stop "--target=aws stop refuses"
+# --- unknown target dies (unchanged from the first --target round) ---
 
 echo "steps: $(cat "$TMP/steps.log" 2>/dev/null | tr "\n" " ")"
 echo "run-k8-target: $PASSING passed, $FAILED failed"

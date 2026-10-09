@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # run-k8.sh — Build, deploy, and manage the AI Demo on Kubernetes (local or AWS EKS).
 #
-# LOCAL (OrbStack / Docker Desktop):
+# LOCAL (OrbStack / Docker Desktop) — shared verbs need --target=orbstack
+# (build, deploy, all, status, basic, rag, undeploy default to the Ping SE
+# cluster); local-only verbs (forward, stop, restart, mode, extras, …) are
+# always local:
 #   ./run-k8.sh                          # kill stale procs + build images + deploy + forward
 #   ./run-k8.sh build                    # build Docker images only
 #   ./run-k8.sh deploy                   # apply manifests (no build); restarts running pods + forward
@@ -34,7 +37,7 @@
 #
 # Ping SE DevOps cluster (ping-dev-aws-us-east-2):
 #   Prefer: ./run-pingaws.sh [start|build|deploy|status|undeploy|update …]
-#   Explicit target (routes shared verbs at the SE cluster; local-only verbs refuse):
+#   Explicit target (the default; --target=orbstack restores local shared verbs):
 #   ./run-k8.sh --target=aws [build|deploy|all|status|basic|rag|undeploy]
 #   Low-level (same behavior):
 #   ./run-k8.sh se-build      # build images + push to GHCR (needs GITHUB_OWNER)
@@ -869,12 +872,13 @@ show_help() {
 # Machine panel ahead of any command that builds or deploys. Skipped when
 # run-pingaws.sh already printed it before exec'ing into this script.
 # --target=aws|orbstack routes target-agnostic verbs at an explicit cluster.
-# Default (no flag) is orbstack — today's behavior, unchanged. --target=aws
-# rewrites the shared verbs (build, deploy, all, status, basic, rag, undeploy)
-# onto their se-* implementations and refuses local-only verbs, which would
-# otherwise silently run against the wrong cluster. The explicit se-*/aws-*
-# verbs are unaffected: they already name their target.
-K8_TARGET="orbstack"
+# Default (no flag) is aws — the Ping SE cluster, matching ./run-pingaws.sh:
+# shared verbs (build, deploy, all, status, basic, rag, undeploy) run against
+# the SE cluster unless --target=orbstack says otherwise. Local-only verbs
+# (forward, stop, restart, mode, extras, …) keep their local meaning and run
+# on OrbStack as before; only the shared verbs default to AWS. The explicit
+# se-*/aws-* verbs are unaffected: they already name their target.
+K8_TARGET="aws"
 K8_TARGET_ARGS=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -904,17 +908,6 @@ case "${K8_TARGET_ARGS[0]:-all}" in
     ;;
 esac
 
-# Local-only verbs under --target=aws: refuse and name the SE equivalent.
-refuse_local_only() {
-  local verb="$1" instead="${2:-}"
-  {
-    echo "Refusing: '$verb' is local-only (OrbStack) and has no AWS meaning."
-    [[ -n "$instead" ]] && echo "  For the SE cluster: ./run-k8.sh $instead"
-    echo "  Drop --target=aws to run it locally."
-  } >&2
-  exit 1
-}
-
 if [[ "$K8_TARGET" == "aws" ]]; then
   case "${K8_TARGET_ARGS[0]:-all}" in
     build)      exec "$0" se-build "${K8_TARGET_ARGS[@]:1}" ;;
@@ -925,13 +918,10 @@ if [[ "$K8_TARGET" == "aws" ]]; then
     rag)        exec "$0" se-rag "${K8_TARGET_ARGS[@]:1}" ;;
     undeploy)   exec "$0" se-undeploy "${K8_TARGET_ARGS[@]:1}" ;;
     se-*|aws-*|help|-h|--help|"") : ;;  # already target-explicit
-    forward|forward-api|forward-bg) refuse_local_only "forward" "se-status" ;;
-    stop)       refuse_local_only "stop" "se-undeploy" ;;
-    restart)    refuse_local_only "restart" "se-all" ;;
-    kill)       refuse_local_only "kill" ;;
-    destroy)    refuse_local_only "destroy" "se-undeploy" ;;
-    mode|extras|yotuo|demo-sync|sim|sim-deploy) refuse_local_only "${K8_TARGET_ARGS[0]}" ;;
-    *) : ;;  # fall through to the main case for its usage message
+    # Local-only verbs keep their local meaning under the aws default: a
+    # no-flag `stop` or `forward` still operates on OrbStack. They are the
+    # "change the command yourself" path the aws default hands to the caller.
+    *) : ;;  # fall through to the main case (local behavior)
   esac
 fi
 
