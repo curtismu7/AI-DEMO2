@@ -1,0 +1,95 @@
+name: Heal images
+
+# A failed build-images job blocks a service forever: later merges whose diffs
+# don't touch that service never rebuild it (observed 2026-10-09 — the bff job
+# died with a transient buildx "graceful_stop" at 1e4ac9c5f, the airlines merge,
+# and no later merge retried it; SE ran on a stale BFF until hand-built).
+#
+# This workflow closes that gap: nightly, for every service in the map, compare
+# the :latest digest against the :sha-<main-tip> digest. A service whose latest
+# is missing or behind the merged commit gets rebuilt via build-images with a
+# services filter — exactly the failed job, nothing else. Self-heals within a
+# day of any failed build; a no-op when everything is current.
+
+on:
+  schedule:
+    - cron: '17 9 * * *' # 09:17 UTC — after the nightly disk maintenance window
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: heal-images
+  cancel-in-progress: false
+
+jobs:
+  heal:
+    runs-on: [self-hosted, macOS]
+    permissions:
+      contents: read
+      packages: read
+      actions: write # to dispatch build-images with the services filter
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Use a job-scoped Docker config (no keychain)
+        run: |
+          set -euo pipefail
+          cfg="$RUNNER_TEMP/docker-config"
+          mkdir -p "$cfg"
+          ln -s "$HOME/.docker/cli-plugins" "$cfg/cli-plugins"
+          echo '{"auths":{"placeholder.invalid":{}}}' > "$cfg/config.json"
+          echo "DOCKER_CONFIG=$cfg" >> "$GITHUB_ENV"
+
+      - name: Log in to GHCR
+        run: |
+          docker logout ghcr.io >/dev/null 2>&1 || true
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.repository_owner }}" --password-stdin
+
+      - name: Find services whose :latest is missing or behind main
+        id: stale
+        env:
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+          ./se-update-code.sh --print-map > map.json
+          MAIN_SHA="$(git rev-parse origin/main)"
+          stale=""
+          for row in $(node -e '
+            const m = require("./map.json");
+            for (const e of m) console.log(e.key + " " + e.ghcrImage);
+          '); do
+            key="${row%% *}"; img="${row##* }"
+            repo="ghcr.io/${OWNER}/${img}"
+            latest="$(docker buildx imagetools inspect "${repo}:latest" 2>/dev/null | awk '/^Digest:/ {print $2}')"
+            pinned="$(docker buildx imagetools inspect "${repo}:sha-${MAIN_SHA}" 2>/dev/null | awk '/^Digest:/ {print $2}')"
+            # Stale when no image was ever built for main's tip, or when
+            # :latest no longer matches it (a later failure or a manual
+            # rollback). Same digest = current; a :sha-main tag that is NEWER
+            # than :latest can only mean the promote never ran.
+            if [ -z "$pinned" ]; then
+              echo "[heal] ${key}: no image at main's sha — building" >&2
+              stale="${stale},${key}"
+            elif [ "$latest" != "$pinned" ]; then
+              echo "[heal] ${key}: :latest is not :sha-main — rebuilding" >&2
+              stale="${stale},${key}"
+            fi
+          done
+          stale="${stale#,}"
+          echo "services=${stale}" >> "$GITHUB_OUTPUT"
+          echo "[heal] stale services: ${stale:-none}" >&2
+
+      - name: Dispatch build-images for the stale subset
+        if: steps.stale.outputs.services != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SERVICES: ${{ steps.stale.outputs.services }}
+        run: |
+          gh workflow run build-images.yml \
+            --repo "${{ github.repository }}" \
+            --ref main \
+            -f services="$SERVICES"
+          echo "[heal] dispatched build-images for: $SERVICES" >&2

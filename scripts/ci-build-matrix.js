@@ -171,7 +171,7 @@ function rootDependencies(map, composeText, readFile) {
  * @param {Map<string, ((p: string) => boolean)[]>} rootDeps from rootDependencies()
  * @returns {{include: {key:string, ghcrImage:string, composeService:string, localImage:string}[]}}
  */
-function buildMatrix(map, changedPaths, rootDeps = new Map()) {
+function buildMatrix(map, changedPaths, rootDeps = new Map(), onlyServices = null) {
   const include = [];
   for (const entry of map) {
     if (!entry.sourceDir) continue;
@@ -183,6 +183,10 @@ function buildMatrix(map, changedPaths, rootDeps = new Map()) {
       (p) => p.startsWith(prefix) || matchers.some((m) => m(p)),
     );
     if (!touched) continue;
+    // Self-heal dispatch: shrink the changed-path matrix to the services the
+    // caller named (a failed build being retried). A key the map doesn't know
+    // selects nothing — an unknown name must not invent a build.
+    if (onlyServices && !onlyServices.includes(entry.key)) continue;
     // No build-context field here: the build runs through docker compose,
     // which owns the real build context and dockerfile path — those vary per
     // service and are NOT derivable from sourceDir (the BFF builds from the
@@ -198,7 +202,15 @@ function buildMatrix(map, changedPaths, rootDeps = new Map()) {
 }
 
 function main(argv) {
-  const [mapFile, changedFile] = argv;
+  const [mapFile, changedFile, filterFile] = argv;
+  // Optional third arg: a PATH to a newline/comma-separated services filter
+  // (written by the self-heal dispatcher). Absent or empty file = no filter,
+  // changed-paths rule.
+  let onlyServices = [];
+  if (filterFile && fs.existsSync(filterFile)) {
+    onlyServices = fs.readFileSync(filterFile, 'utf8')
+      .split(/[\s,]+/).map((s) => s.trim()).filter(Boolean);
+  }
   const map = JSON.parse(fs.readFileSync(mapFile, 'utf8'));
   const changedPaths = fs.readFileSync(changedFile, 'utf8')
     .split('\n').map((l) => l.trim()).filter(Boolean);
@@ -210,7 +222,8 @@ function main(argv) {
   const rootDeps = fs.existsSync(composePath)
     ? rootDependencies(map, fs.readFileSync(composePath, 'utf8'), readFile)
     : new Map();
-  const matrix = buildMatrix(map, changedPaths, rootDeps);
+  const matrix = buildMatrix(map, changedPaths, rootDeps,
+    onlyServices.length ? onlyServices : null);
   console.log(`matrix=${JSON.stringify(matrix)}`);
   console.log(`any=${matrix.include.length > 0}`);
   console.error(
