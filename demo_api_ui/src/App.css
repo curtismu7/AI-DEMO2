@@ -2272,7 +2272,7 @@
 }
 
 .pi-flow-device-picker__option--selected {
-  border-color: var(--theme-accent, var(--brand-dashboard-header-start, var(--th-accent)));
+  border-color: var(--signin-accent);
   font-weight: 700;
 }
 
