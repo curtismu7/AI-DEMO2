@@ -62,6 +62,10 @@ router.post('/pi-flow/passwordless', async (req, res) => {
   if (!adminPiFlowEnabled()) return res.status(404).json({ error: 'pi_flow_disabled' });
   return adminPiFlow.handlePasswordlessStart(req, res);
 });
+router.post('/pi-flow/device', async (req, res) => {
+  if (!adminPiFlowEnabled()) return res.status(404).json({ error: 'pi_flow_disabled' });
+  return adminPiFlow.handleDeviceSelectStep(req, res);
+});
 
 /**
  * GET /api/auth/oauth/redirect-info — implemented on app in server.js (before /api/auth mount).
@@ -196,7 +200,13 @@ router.get('/login', (req, res) => {
       // and send prompt=login (clearing the BFF session alone does not stop SSO
       // silent re-auth) — mirrors the user side.
       req.query.force === 'true' ? null : undefined,
-      { ...(req.query.force === 'true' ? { forceLogin: true } : {}), ...(piFlowLogin ? { forcePiFlow: true } : {}) },
+      {
+        ...(req.query.force === 'true' ? { forceLogin: true } : {}),
+        ...(piFlowLogin ? { forcePiFlow: true } : {}),
+        // Passwordless sign-in selects the identifier-first policy by name (see
+        // routes/oauthUser.js — the app's first-match policy is password-first).
+        ...(piFlowLogin && req.query.passwordless === '1' ? { acrValues: 'Multi_Factor' } : {}),
+      },
     ) + resourceParam;
 
     const cfg = oauthService.config || {};

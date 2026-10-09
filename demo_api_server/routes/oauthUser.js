@@ -356,6 +356,11 @@ router.post('/pi-flow/otp', piFlowHandlers.handleOtpStep);
 // passkey), which the modal drives with the existing endpoints.
 router.post('/pi-flow/passwordless', piFlowHandlers.handlePasswordlessStart);
 
+// Device selection: the modal picked one of the devices the flow offered
+// (email/SMS OTP or a passkey); the flow answers OTP_REQUIRED or
+// ASSERTION_REQUIRED, which the existing endpoints drive.
+router.post('/pi-flow/device', piFlowHandlers.handleDeviceSelectStep);
+
 router.get('/login', (req, res) => {
   try {
     // A regular login must not inherit a prior step-up transaction marker.
@@ -557,6 +562,11 @@ router.get('/login', (req, res) => {
         ...(piFlowLogin ? { forcePiFlow: true } : {}),
         // Test hook: the only acr the modal login may request, so MFA can be exercised on demand.
         ...(piFlowLogin && req.query.mfa === '1' ? { acr_values: 'Multi_Factor' } : {}),
+        // Passwordless sign-in: the device-first flow. The passwordless sign-on
+        // policy (identifier-first + MFA) is not the app's first-match policy, so
+        // selecting it needs acr_values; without it the flow opens password-first
+        // and the username-only step 409s.
+        ...(piFlowLogin && req.query.passwordless === '1' ? { acr_values: 'Multi_Factor' } : {}),
         // Not on a forced re-login: the user chose to sign in again, possibly as someone else, and PingFederate
         // locks the username field to the hint.
         ...(!forceLogin && knownLoginHint(req) ? { login_hint: knownLoginHint(req) } : {}),

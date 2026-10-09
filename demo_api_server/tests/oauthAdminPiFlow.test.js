@@ -167,10 +167,27 @@ describe('admin pi.flow sign-in', () => {
       const agent = request.agent(app);
       fetchMock.mockResolvedValueOnce(json(200, { id: 'aflow-1', status: 'USERNAME_PASSWORD_REQUIRED' }));
       await agent.get('/api/auth/oauth/login?pi_flow=1').expect(200);
-      fetchMock.mockResolvedValueOnce(json(200, { status: 'DEVICE_SELECTION_REQUIRED' }));
+      fetchMock.mockResolvedValueOnce(json(200, { status: 'PUSH_CONFIRMATION_WAITING' }));
       const res = await agent.post('/api/auth/oauth/pi-flow/credentials')
         .send({ username: 'demoAdmin', password: 'p' }).expect(200);
-      expect(res.body).toEqual({ fallback: true, status: 'DEVICE_SELECTION_REQUIRED' });
+      expect(res.body).toEqual({ fallback: true, status: 'PUSH_CONFIRMATION_WAITING' });
+    });
+
+    test('DEVICE_SELECTION_REQUIRED returns the device step with the usable device list', async () => {
+      const agent = request.agent(app);
+      fetchMock.mockResolvedValueOnce(json(200, { id: 'aflow-1', status: 'USERNAME_PASSWORD_REQUIRED' }));
+      await agent.get('/api/auth/oauth/login?pi_flow=1').expect(200);
+      fetchMock.mockResolvedValueOnce(json(200, {
+        status: 'DEVICE_SELECTION_REQUIRED',
+        devices: [
+          { id: 'adev-1', type: 'EMAIL', email: 'a****@x.com', usableStatus: { status: 'ENABLED' } },
+          { id: 'adev-2', type: 'FIDO2', nickname: 'Yubikey', usableStatus: { status: 'ENABLED' } },
+        ],
+      }));
+      const res = await agent.post('/api/auth/oauth/pi-flow/credentials')
+        .send({ username: 'demoAdmin', password: 'p' }).expect(200);
+      expect(res.body.step).toBe('device');
+      expect(res.body.devices).toHaveLength(2);
     });
 
     test('passwordless start: username.check posts to the flow and returns the device step', async () => {
@@ -180,7 +197,8 @@ describe('admin pi.flow sign-in', () => {
       fetchMock.mockResolvedValueOnce(json(200, { status: 'OTP_REQUIRED' }));
       const res = await agent.post('/api/auth/oauth/pi-flow/passwordless')
         .send({ username: 'demoAdmin' }).expect(200);
-      expect(res.body).toEqual({ step: 'otp' });
+      expect(res.body.step).toBe('otp');
+      expect(res.body.devices).toEqual([]);
       expect(fetchMock.mock.calls[1][1].headers['Content-Type'])
         .toBe('application/vnd.pingidentity.user.lookup+json');
     });

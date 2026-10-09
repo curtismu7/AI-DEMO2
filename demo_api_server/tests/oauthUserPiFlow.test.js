@@ -78,6 +78,16 @@ describe('customer pi.flow sign-in', () => {
     expect(new URL(fetchMock.mock.calls[0][0]).searchParams.get('acr_values')).toBeNull();
   });
 
+  test('passwordless=1 selects the identifier-first policy via acr_values', async () => {
+    fetchMock.mockResolvedValueOnce(json(200, { id: 'flow-1', status: 'SIGN_ON_REQUIRED' }));
+    await request.agent(app).get('/api/auth/oauth/user/login?pi_flow=1&passwordless=1').expect(200);
+    expect(new URL(fetchMock.mock.calls[0][0]).searchParams.get('acr_values')).toBe('Multi_Factor');
+    fetchMock.mockClear();
+    await openFlow(request.agent(app));
+    // The password path never asks for the policy.
+    expect(new URL(fetchMock.mock.calls[0][0]).searchParams.get('acr_values')).toBeNull();
+  });
+
   test('plain /login is still a redirect without response_mode', async () => {
     const res = await request(app).get('/api/auth/oauth/user/login').expect(302);
     expect(res.headers.location).not.toContain('response_mode=pi.flow');
@@ -129,13 +139,50 @@ describe('customer pi.flow sign-in', () => {
     expect(res.body.error).toBe('invalid_credentials');
   });
 
+  test('identifier-first flow (SIGN_ON_REQUIRED): identifies with user.lookup, then posts the password', async () => {
+    const agent = request.agent(app);
+    fetchMock.mockResolvedValueOnce(json(200, { id: 'flow-1', status: 'SIGN_ON_REQUIRED' }, {}, ['ST=open; Path=/']));
+    await agent.get('/api/auth/oauth/user/login?pi_flow=1').expect(200);
+    fetchMock
+      .mockResolvedValueOnce(json(200, { status: 'PASSWORD_REQUIRED' }, {}, ['ST=identified; Path=/']))
+      .mockResolvedValueOnce(json(200, { status: 'OTP_REQUIRED', _embedded: { devices: [{ id: 'dev-1', type: 'SMS', phone: '***86' }] } }))
+      .mockResolvedValueOnce(json(200, { authorizeResponse: { code: 'idfirst-code' } }));
+    const res = await agent.post('/api/auth/oauth/user/pi-flow/credentials')
+      .send({ username: 'u', password: 'p' }).expect(200);
+    expect(res.body.step).toBe('otp');
+    expect(res.body.devices).toHaveLength(1);
+    const [lookupUrl, lookupInit] = fetchMock.mock.calls[1];
+    expect(lookupUrl).toMatch(/\/flows\/flow-1$/);
+    expect(lookupInit.headers['Content-Type']).toBe('application/vnd.pingidentity.user.lookup+json');
+    expect(JSON.parse(lookupInit.body)).toEqual({ username: 'u' });
+    expect(fetchMock.mock.calls[2][1].headers['Content-Type']).toBe('application/vnd.pingidentity.usernamePassword.check+json');
+    // the password step replays the cookie the lookup issued
+    expect(fetchMock.mock.calls[2][1].headers.Cookie).toBe('ST=identified');
+  });
+
+  test('identifier-first flow: user.lookup landing on OTP_REQUIRED skips the password step', async () => {
+    const agent = request.agent(app);
+    fetchMock.mockResolvedValueOnce(json(200, { id: 'flow-1', status: 'SIGN_ON_REQUIRED' }));
+    await agent.get('/api/auth/oauth/user/login?pi_flow=1').expect(200);
+    fetchMock
+      .mockResolvedValueOnce(json(200, { status: 'OTP_REQUIRED', _embedded: { devices: [] } }));
+    const res = await agent.post('/api/auth/oauth/user/pi-flow/credentials')
+      .send({ username: 'u', password: 'p' }).expect(200);
+    expect(res.body.step).toBe('otp');
+    // user.lookup only — no usernamePassword.check, no resume (flow stays open for otp.check)
+    expect(fetchMock.mock.calls[1][1].headers['Content-Type']).toBe('application/vnd.pingidentity.user.lookup+json');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   test('OTP_REQUIRED after the password returns the otp step for the modal to drive', async () => {
     const agent = request.agent(app);
     await openFlow(agent);
     fetchMock.mockResolvedValueOnce(json(200, { status: 'OTP_REQUIRED' }));
     const res = await agent.post('/api/auth/oauth/user/pi-flow/credentials')
       .send({ username: 'u', password: 'p' }).expect(200);
-    expect(res.body).toEqual({ step: 'otp' });
+    expect(res.body.step).toBe('otp');
+    expect(res.body.devices).toEqual([]);
+    expect(res.body.selectedDeviceId).toBeNull();
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
@@ -324,7 +371,8 @@ describe('customer pi.flow sign-in', () => {
       fetchMock.mockResolvedValueOnce(json(200, { status: 'OTP_REQUIRED' }, {}, ['ST=after-username; Path=/']));
       const res = await agent.post('/api/auth/oauth/user/pi-flow/passwordless')
         .send({ username: 'u' }).expect(200);
-      expect(res.body).toEqual({ step: 'otp' });
+      expect(res.body.step).toBe('otp');
+      expect(res.body.devices).toEqual([]);
       const call = fetchMock.mock.calls[1];
       expect(String(call[0])).toMatch(/\/flows\/flow-1$/);
       expect(call[1].headers['Content-Type']).toBe('application/vnd.pingidentity.user.lookup+json');
@@ -378,6 +426,76 @@ describe('customer pi.flow sign-in', () => {
       fetchMock.mockClear();
       await request(app).post('/api/auth/oauth/user/pi-flow/passwordless')
         .send({ username: 'u' }).expect(409);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('device selection (device.select)', () => {
+    async function toOtpWithDevices(agent) {
+      fetchMock.mockResolvedValueOnce(json(200, { id: 'flow-1', status: 'USERNAME_PASSWORD_REQUIRED' }));
+      await agent.get('/api/auth/oauth/user/login?pi_flow=1').expect(200);
+      fetchMock.mockResolvedValueOnce(json(200, {
+        status: 'OTP_REQUIRED',
+        selectedDevice: { id: 'dev-email-1' },
+        _embedded: {
+          devices: [
+            { id: 'dev-email-1', type: 'EMAIL', email: 'cm****@pingidentity.com', usableStatus: { status: 'ENABLED' } },
+            { id: 'dev-sms-1', type: 'SMS', phone: '*******86', usableStatus: { status: 'ENABLED' } },
+            { id: 'dev-fido-1', type: 'FIDO2', nickname: 'My Passkey', usableStatus: { status: 'ENABLED' } },
+            { id: 'dev-old-1', type: 'EMAIL', email: 'x@y.z', usableStatus: { status: 'DISABLED' } },
+          ],
+        },
+      }));
+      const res = await agent.post('/api/auth/oauth/user/pi-flow/credentials')
+        .send({ username: 'u', password: 'p' }).expect(200);
+      expect(res.body.step).toBe('otp');
+      expect(res.body.devices).toHaveLength(3); // DISABLED device filtered
+      expect(res.body.selectedDeviceId).toBe('dev-email-1');
+    }
+
+    test('credentials response carries the usable device list and the selected device', async () => {
+      await toOtpWithDevices(request.agent(app));
+    });
+
+    test('picking the FIDO2 device posts device.select with the PingOne shape and returns the passkey step', async () => {
+      const agent = request.agent(app);
+      await toOtpWithDevices(agent);
+      const OPTIONS = { challenge: 'Y2g', rpId: 'ping-devops.com' };
+      fetchMock.mockResolvedValueOnce(json(200, {
+        status: 'ASSERTION_REQUIRED',
+        publicKeyCredentialRequestOptions: JSON.stringify(OPTIONS),
+      }));
+      const res = await agent.post('/api/auth/oauth/user/pi-flow/device')
+        .send({ deviceId: 'dev-fido-1' }).expect(200);
+      expect(res.body.step).toBe('passkey');
+      expect(res.body.publicKeyCredentialRequestOptions).toEqual(OPTIONS);
+      const call = fetchMock.mock.calls[fetchMock.mock.calls.length - 1];
+      expect(call[1].headers['Content-Type']).toBe('application/vnd.pingidentity.device.select+json');
+      expect(JSON.parse(call[1].body)).toEqual({ device: { id: 'dev-fido-1' } });
+    });
+
+    test('picking an OTP device returns a fresh otp step', async () => {
+      const agent = request.agent(app);
+      await toOtpWithDevices(agent);
+      fetchMock.mockResolvedValueOnce(json(200, { status: 'OTP_REQUIRED', selectedDevice: { id: 'dev-sms-1' } }));
+      const res = await agent.post('/api/auth/oauth/user/pi-flow/device')
+        .send({ deviceId: 'dev-sms-1' }).expect(200);
+      expect(res.body.step).toBe('otp');
+      expect(res.body.selectedDeviceId).toBe('dev-sms-1');
+    });
+
+    test('malformed deviceId -> 400 invalid_request without calling PingOne', async () => {
+      const agent = request.agent(app);
+      await toOtpWithDevices(agent);
+      fetchMock.mockClear();
+      await agent.post('/api/auth/oauth/user/pi-flow/device')
+        .send({ deviceId: '../../etc' }).expect(400);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    test('device select without an open flow -> 409', async () => {
+      await request(app).post('/api/auth/oauth/user/pi-flow/device')
+        .send({ deviceId: 'dev-1' }).expect(409);
       expect(fetchMock).not.toHaveBeenCalled();
     });
   });
