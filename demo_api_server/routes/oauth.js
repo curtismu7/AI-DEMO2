@@ -58,6 +58,10 @@ router.post('/pi-flow/otp', async (req, res) => {
   if (!adminPiFlowEnabled()) return res.status(404).json({ error: 'pi_flow_disabled' });
   return adminPiFlow.handleOtpStep(req, res);
 });
+router.post('/pi-flow/passwordless', async (req, res) => {
+  if (!adminPiFlowEnabled()) return res.status(404).json({ error: 'pi_flow_disabled' });
+  return adminPiFlow.handlePasswordlessStart(req, res);
+});
 
 /**
  * GET /api/auth/oauth/redirect-info — implemented on app in server.js (before /api/auth mount).
