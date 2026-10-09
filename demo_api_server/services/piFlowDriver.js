@@ -257,7 +257,10 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins }) {
     }
     try {
       const { step, body, cookies } = await postPiFlowStep(
-        pending, 'application/vnd.pingidentity.username.check+json', { username: username.trim() },
+        // user.lookup — PingOne's identifier-first action: submits the username
+        // without a password and lets the sign-on policy pick the next step
+        // (device OTP, passkey, or back to password).
+        pending, 'application/vnd.pingidentity.user.lookup+json', { username: username.trim() },
       );
       if (!step.ok) return res.status(502).json({ error: 'pi_flow_failed' });
       // A password-required policy (or any status the device steps can't serve)

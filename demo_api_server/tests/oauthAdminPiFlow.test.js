@@ -182,7 +182,7 @@ describe('admin pi.flow sign-in', () => {
         .send({ username: 'demoAdmin' }).expect(200);
       expect(res.body).toEqual({ step: 'otp' });
       expect(fetchMock.mock.calls[1][1].headers['Content-Type'])
-        .toBe('application/vnd.pingidentity.username.check+json');
+        .toBe('application/vnd.pingidentity.user.lookup+json');
     });
 
     test('passwordless start: policy requires password -> 409 passwordless_unavailable', async () => {

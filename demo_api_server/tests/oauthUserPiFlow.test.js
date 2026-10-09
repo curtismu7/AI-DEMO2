@@ -327,7 +327,7 @@ describe('customer pi.flow sign-in', () => {
       expect(res.body).toEqual({ step: 'otp' });
       const call = fetchMock.mock.calls[1];
       expect(String(call[0])).toMatch(/\/flows\/flow-1$/);
-      expect(call[1].headers['Content-Type']).toBe('application/vnd.pingidentity.username.check+json');
+      expect(call[1].headers['Content-Type']).toBe('application/vnd.pingidentity.user.lookup+json');
       expect(call[1].headers.Cookie).toBe('ST=open');
       expect(JSON.parse(call[1].body)).toEqual({ username: 'u' });
     });
