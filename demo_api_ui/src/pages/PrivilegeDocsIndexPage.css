@@ -139,7 +139,7 @@
 .pdi-fname {
   display: block;
   margin-top: 0.25rem;
-  font-family: ui-monospace, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: var(--font-size-xs);
   font-weight: 400;
   color: var(--th-text-muted);
@@ -157,7 +157,7 @@
 }
 
 .pdi-planned-note code {
-  font-family: ui-monospace, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: var(--font-size-xs);
   background: var(--th-bg-inset);
   border-radius: var(--radius-sm);
