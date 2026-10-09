@@ -37,6 +37,27 @@ const TOOLS = [
     authz: {},
   },
   {
+    // UC48 — Consumer agent booking. The CREATE write: produces a new
+    // reservation row the everyday "show my reservations" read then lists. No
+    // challengeType — the transaction policy (WRITE_TOOL_TYPE_MAP) evaluates the
+    // price before this handler runs, same shape as pay_airline_fee.
+    name: 'book_airline_flight',
+    description: 'Book a United flight for the passenger. The price is evaluated against the transaction policy before the booking is created.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        flight_number: { type: 'string', description: 'United flight number, e.g. UA502' },
+        origin: { type: 'string', description: 'Origin airport code (informational)' },
+        destination: { type: 'string', description: 'Destination airport code (informational)' },
+        amount: { type: 'number', description: 'Total ticket price in dollars' },
+        passengers: { type: 'number', description: 'Number of passengers (default 1)' },
+      },
+      required: [],
+    },
+    scopes: ['airlines:read', 'airlines:write'],
+    authz: {},
+  },
+  {
     // Phase 2 high-value write — step-up gated (scope-topology challengeType).
     name: 'cancel_airline_reservation',
     description: 'Cancel a United reservation and start the refund. Requires step-up authentication.',
@@ -154,6 +175,14 @@ const HEURISTICS = [
   // "cancel my reservation" must not fall into the generic bookings rule below.
   { re: /\b(cancel|refund)\b.*\b(reservation|booking|trip|flight)\b/i, action: 'cancel_airline_reservation' },
   { re: /\bsensitive\b.*\b(booking|bookings|reservation|reservations)\b/i, action: 'sensitive_airline_bookings' },
+  // UC48 — before the generic bookings rule: "book a flight" contains `flight`,
+  // which `my\s+flights?` would otherwise claim for the read. defaultParams
+  // carries the Storylane scenario's price ($346 = the HITL consent band) and is
+  // the AMOUNT the ladder evaluates; extractsAmount is deliberately absent — the
+  // chip says "under $800" and extracting 800 would put a non-billable figure in
+  // front of the policy. A stated "book for $500" does not re-extract either;
+  // the seeded scenario price is the demo's number.
+  { re: /\b(book|reserve)\b.*\b(flight|flights?)\b/i, action: 'book_airline_flight', defaultParams: { amount: 346 }, paramHint: 'e.g. "book a flight to Paris"' },
   // available_only defaults to true in airlinesToolHandler.ts (resource server),
   // so the seat-map chip never showed occupied seats without this — the
   // "Occupied" legend swatch + disabled seat styling could never be exercised.

@@ -36,7 +36,12 @@ describe('resolveUseCase() a2aDelegated reuse (finding #73)', () => {
 
     spy.mockClear();
     const resolved = listUseCases('banking');
-    expect(resolved).toHaveLength(USE_CASES.length);
+    // listUseCases filters entries whose `verticals` allowlist excludes the
+    // vertical (UC48 is airlines-only), so the resolved list is the catalog
+    // minus those — compare against that filtered expectation, not the raw
+    // catalog length.
+    const expected = USE_CASES.filter((u) => !u.verticals || u.verticals.includes('banking'));
+    expect(resolved).toHaveLength(expected.length);
 
     // 'banking' never has a perVertical override applied (resolveUseCase's
     // early-out covers vertical === 'banking' unconditionally), so every
@@ -47,7 +52,7 @@ describe('resolveUseCase() a2aDelegated reuse (finding #73)', () => {
     // And the resolved values must still be correct — reuse must not change
     // the output, only how it's computed.
     resolved.forEach((uc, i) => {
-      expect(uc.a2aDelegated).toBe(USE_CASES[i].a2aDelegated);
+      expect(uc.a2aDelegated).toBe(expected[i].a2aDelegated);
     });
   });
 });

@@ -57,6 +57,8 @@
 | airlines | UC41 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-09-26 |
 | airlines | UC42 | chip | unit-parse | ✅ PASS |  | 2026-09-26 |
 | airlines | UC42 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-09-26 |
+| airlines | UC48 | chip | unit-parse | ✅ PASS |  | 2026-10-08 |
+| airlines | UC48 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-10-08 |
 | airlines | UC6 | chip | unit-gate | ✅ PASS |  | 2026-09-26 |
 | airlines | UC6 | chip | unit-gate-pdp | ✅ PASS |  | 2026-09-26 |
 | airlines | UC6 | chip | unit-parse | ✅ PASS |  | 2026-09-26 |
@@ -78,7 +80,7 @@
 | banking | UC14 | attack | heuristic | ✅ PASS |  | 2026-07-22 |
 | banking | UC14 | attack | unit-prereq | ⚠️ UNPROVEN |  | 2026-09-26 |
 | banking | UC14b | link | heuristic | ✅ PASS |  | 2026-07-25 |
-| banking | UC14b | link | unit-par-redirect | ✅ PASS |  | 2026-08-31 |
+| banking | UC14b | link | unit-par-redirect | ✅ PASS |  | 2026-10-08 |
 | banking | UC14b | link | unit-prereq | ⚠️ UNPROVEN |  | 2026-09-26 |
 | banking | UC17 | chip | unit-parse | ✅ PASS |  | 2026-09-26 |
 | banking | UC17 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-09-26 |
@@ -92,7 +94,7 @@
 | banking | UC21 | chip | unit-parse | ✅ PASS |  | 2026-09-26 |
 | banking | UC21 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-09-26 |
 | banking | UC22 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-09-26 |
-| banking | UC22 | chip | unit-ref | ✅ PASS |  | 2026-09-26 |
+| banking | UC22 | chip | unit-ref | ✅ PASS |  | 2026-10-08 |
 | banking | UC24 | chip | unit-parse | ✅ PASS |  | 2026-09-26 |
 | banking | UC24 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-09-26 |
 | banking | UC25 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-09-26 |
@@ -411,7 +413,7 @@
 | pingone-admin | ADMIN6 | chip | unit-parse | ✅ PASS |  | 2026-09-26 |
 | pingone-admin | ADMIN6 | chip | unit-prereq | ✅ PASS |  | 2026-09-26 |
 | pingone-admin | ADMIN6 | chip | unit-ref | ✅ PASS |  | 2026-09-26 |
-| pingone-admin | ADMIN7 | chip | unit-parse | ✅ PASS |  | 2026-09-26 |
+| pingone-admin | ADMIN7 | chip | unit-parse | ❌ FAIL | wrong_response | 2026-10-08 |
 | pingone-admin | ADMIN7 | chip | unit-prereq | ✅ PASS |  | 2026-09-26 |
 | pingone-admin | ADMIN7 | chip | unit-ref | ✅ PASS |  | 2026-09-26 |
 | pingone-admin | ADMIN8 | chip | unit-parse | ✅ PASS |  | 2026-09-26 |
@@ -658,8 +660,8 @@
 
 ## Summary
 
-326/646 checks proven.
-320 UNPROVEN — the check ran with the runtime conditions stubbed, so it proves the catalog declares the right prerequisites and nothing more.
+326/648 checks proven (1 FAIL — not demo-ready).
+321 UNPROVEN — the check ran with the runtime conditions stubbed, so it proves the catalog declares the right prerequisites and nothing more.
 Live invoke/LLM rows: 5/5 proven.
 
 ## Proven coverage by vertical
@@ -667,13 +669,13 @@ Live invoke/LLM rows: 5/5 proven.
 | Vertical | Proven | Unproven | FAIL | Total |
 |---|---:|---:|---:|---:|
 | abercrombie-fitch | 3 | 0 | 0 | 3 |
-| airlines | 26 | 32 | 0 | 58 |
+| airlines | 27 | 33 | 0 | 60 |
 | banking | 43 | 32 | 0 | 75 |
 | government | 26 | 32 | 0 | 58 |
 | healthcare | 32 | 32 | 0 | 64 |
 | investment | 26 | 32 | 0 | 58 |
 | manufacturing | 26 | 32 | 0 | 58 |
-| pingone-admin | 37 | 0 | 0 | 37 |
+| pingone-admin | 36 | 0 | 1 | 37 |
 | retail | 29 | 32 | 0 | 61 |
 | sporting-goods | 26 | 32 | 0 | 58 |
 | university | 26 | 32 | 0 | 58 |

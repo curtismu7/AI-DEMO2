@@ -23,6 +23,7 @@ See also: [Audit Table](./audit-table.md), [Step Verification Report](./step-ver
 - [**UC43** — Consumer & Partner Agent — CIMD registration](./consumer-partner-agent-cimd-registration.md) ✅ 🛡️
 - [**UC44** — Workload Agent: OBO customer-data read](./workload-digital-assistant-obo.md) ✅ 🛡️
 - [**UC45** — SaaS-Embedded Agent — Website Worker](./saas-embedded-worker.md) ✅ 🛡️
+- [**UC48** — Consumer Agent — governed flight booking](./consumer-agent-booking.md) ✅ 🛡️
 
 ## Demo
 

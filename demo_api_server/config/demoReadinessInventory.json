@@ -6,7 +6,7 @@
     "UC20", "UC18", "UC30", "UC31", "UC32", "UC40", "UC38", "UC-TOOL1", "UC46", "UC47"
   ],
   "advanced": [],
-  "ciam": ["UC43", "UC44", "UC45", "UC2", "UC2.6"],
+  "ciam": ["UC43", "UC44", "UC45", "UC48", "UC2", "UC2.6"],
   "privilege": [
     "UC17", "UC25", "UC40", "UC-PAM-SETUP", "UC-PAM-SCRIPT", "UC-LEARN11", "UC-TOOL3"
   ],

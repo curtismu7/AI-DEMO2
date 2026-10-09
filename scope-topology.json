@@ -1642,6 +1642,10 @@
     "redeem_miles": {
       "requiredScopes": ["airlines:read", "airlines:write"],
       "surface": "gateway"
+    },
+    "book_airline_flight": {
+      "requiredScopes": ["airlines:read", "airlines:write"],
+      "surface": "gateway"
     }
   },
   "policy": {

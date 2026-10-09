@@ -72,6 +72,7 @@
 | UC43 | [Consumer & Partner Agent — CIMD registration](./consumer-partner-agent-cimd-registration.md) | foundations | ✅ works | 🛡️ T1, T9 |  |
 | UC44 | [Workload Agent: OBO customer-data read](./workload-digital-assistant-obo.md) | foundations | ✅ works | 🛡️ T1, T9, T13 |  |
 | UC45 | [SaaS-Embedded Agent — Website Worker](./saas-embedded-worker.md) | foundations | ✅ works | 🛡️ T1, T9, T13 |  |
+| UC48 | [Consumer Agent — governed flight booking](./consumer-agent-booking.md) | foundations | ✅ works | 🛡️ T1, T10 |  |
 
 ## 🚩 Flag-gated (`flag:*`)
 
@@ -99,8 +100,8 @@
 
 | Status | Count |
 |---|---|
-| ✅ Works | 63 |
+| ✅ Works | 64 |
 | 🚩 Flag-gated | 10 |
 | 📥 Needs console import | 0 |
 | 🏗️ Needs build | 2 |
-| **Total** | **75** |
+| **Total** | **76** |

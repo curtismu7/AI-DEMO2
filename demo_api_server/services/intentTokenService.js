@@ -196,6 +196,7 @@ const INTENT_TO_PERMITTED_TOOLS = {
   release_record:           ['release_record', 'view_permits'],
   // Airlines
   pay_airline_fee:          ['pay_airline_fee', 'get_airline_bookings'],
+  book_airline_flight:      ['book_airline_flight', 'get_airline_bookings', 'get_flight_status', 'check_seat_availability'],
   get_airline_bookings:     ['get_airline_bookings', 'get_flight_status', 'check_seat_availability'],
   get_flight_status:        ['get_flight_status', 'get_airline_bookings', 'check_seat_availability'],
   check_seat_availability:  ['check_seat_availability', 'get_flight_status', 'get_airline_bookings'],

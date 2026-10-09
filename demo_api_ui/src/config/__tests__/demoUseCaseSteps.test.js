@@ -50,7 +50,7 @@ describe('demoUseCaseSteps', () => {
   });
 
   it('exports the curated CIAM agent-type group in demo order', () => {
-    expect(CIAM_AGENT_TYPE_USE_CASE_IDS).toEqual(['UC43', 'UC44', 'UC45', 'UC2', 'UC2.6']);
+    expect(CIAM_AGENT_TYPE_USE_CASE_IDS).toEqual(['UC43', 'UC44', 'UC45', 'UC48', 'UC2', 'UC2.6']);
   });
 
   it('exports presenter-friendly aliases for the live lanes', () => {

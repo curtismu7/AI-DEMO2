@@ -166,7 +166,12 @@ function normalizeParsedIntent(parsed, vertical = null) {
  */
 function expectationFromUseCase(uc) {
   const chipText = uc.trigger?.type === 'chip' ? uc.trigger.text : null;
+  // A catalog entry may declare the figure the transaction policy evaluates
+  // directly (uc.policyAmount). Needed when the chip's first $N is NOT the
+  // policy figure — UC48's "under $800" is a budget cap; the ladder sees the
+  // $346 fare from the heuristic's defaultParams.
   const amount =
+    (uc.policyAmount != null ? Number(uc.policyAmount) : null) ??
     amountFromChipText(chipText) ??
     (uc.match?.amountMin != null && uc.match?.amountMax == null
       ? Number(uc.match.amountMin)

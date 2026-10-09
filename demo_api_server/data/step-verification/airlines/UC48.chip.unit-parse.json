@@ -1,0 +1,10 @@
+{
+  "vertical": "airlines",
+  "useCaseId": "UC48",
+  "triggerType": "chip",
+  "mode": "unit-parse",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "book_airline_flight",
+  "checkedAt": "2026-10-08"
+}

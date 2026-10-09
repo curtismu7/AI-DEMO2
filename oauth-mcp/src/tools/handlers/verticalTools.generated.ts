@@ -30,6 +30,7 @@ export const GENERATED_VERTICAL_TOOLS: VerticalToolDef[] = [
   {"name":"view_support_tickets","scope":"read"},
   {"name":"view_wishlist","scope":"read"},
   {"name":"list_anf_orders","scope":"read","vertical":"abercrombie-fitch"},
+  {"name":"book_airline_flight","scope":"write","vertical":"airlines","inputSchema":{"type":"object","properties":{"flight_number":{"type":"string","description":"United flight number, e.g. UA502"},"origin":{"type":"string","description":"Origin airport code (informational)"},"destination":{"type":"string","description":"Destination airport code (informational)"},"amount":{"type":"number","description":"Total ticket price in dollars"},"passengers":{"type":"number","description":"Number of passengers (default 1)"}},"required":[],"additionalProperties":false}},
   {"name":"cancel_airline_reservation","scope":"write","vertical":"airlines","inputSchema":{"type":"object","properties":{"confirmation_number":{"type":"string","description":"Reservation confirmation number"}},"required":[],"additionalProperties":false}},
   {"name":"check_seat_availability","scope":"read","vertical":"airlines","inputSchema":{"type":"object","properties":{"flight_number":{"type":"string","description":"United flight number, e.g. UA328"},"available_only":{"type":"boolean","description":"Only unoccupied seats (default true)"}},"required":[],"additionalProperties":false}},
   {"name":"get_airline_bookings","scope":"read","vertical":"airlines"},

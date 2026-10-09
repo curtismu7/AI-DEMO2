@@ -2394,6 +2394,56 @@ const RAW_USE_CASES = [
     },
     primaryTool: 'redeem_miles',
   },
+  {
+    // UC48 — Consumer agent booking (airlines-only). A consumer agent books a
+    // flight end to end: token exchange, policy-evaluated price, HITL consent on
+    // the amount, and a REAL reservations-DB write the everyday read lists back.
+    // Base entry carries a link trigger (walkthrough shape, like UC43-45) so no
+    // other vertical inherits a chip their heuristics cannot route — the chip
+    // trigger is airlines-only via perVertical, and `verticals` keeps the row out
+    // of every other vertical's catalog/dropdown entirely.
+    id: 'UC48',
+    useCaseId: 'consumer-agent-booking',
+    track: 'foundations',
+    title: 'Consumer Agent — governed flight booking',
+    buyerStory: 'A consumer agent asked to "book me a flight to Paris under $800" must prove who it acts for, accept the price policy, and pause for the human when the transaction is consequential.',
+    pingOneSolution: 'The agent exchanges the user token (RFC 8693), PingOne Authorize evaluates the booking price against the transaction policy, returns a HITL consent obligation, and only a verified human approval receipt lets the booking write reach the reservations database.',
+    trigger: { type: 'link', path: '/use-cases', label: 'Run the consumer agent booking in the agent (airlines vertical)' },
+    expectedOutcome: 'HITL_REQUIRED',
+    evidence: { tokenChain: ['user-token', 'token-exchange', 'authorize-decision', 'hitl-receipt', 'tool-dispatched'], activity: ['token', 'authorize', 'hitl', 'mcp'] },
+    codeRefs: [
+      'demo_mcp_resource_server/src/tools/airlinesToolHandler.ts',
+      'demo_mcp_resource_server/src/db/airlinesDb.ts',
+      'demo_api_server/services/mcpToolAuthorizationService.js',
+    ],
+    maturity: 'works',
+    owasp: { threats: ['T1', 'T10'], sections: ['§3.1.5', '§8'] },
+    whatToSay: 'The agent found the flight and proposed the booking — but the price had to pass the transaction policy, and the booking only ran after you approved it. Then "show my reservations" shows the trip it booked.',
+    advanced: false,
+    // Mirrors the Storylane scenario: SFO to Paris, 2 passengers, under $800.
+    // The seeded flight price of $346 lands in the HITL consent band (>= $250,
+    // < $500 step-up), so the chip demos the pause-approve-retry loop, not a DENY.
+    whatLong: 'A consumer agent is asked to book a flight from San Francisco to Paris for two passengers, under $800. The site detects the agent, the user signs in, and the agent exchanges the user authority for a delegated token with an act claim. The booking price ($346) is evaluated against the transaction policy: a HITL consent obligation comes back, the agent pauses and surfaces a consent modal, and only the human approval receipt — verified, bound to this user, agent, and tool — discharges the gate. The retry PERMITs and the booking write lands in the reservations database, where the ordinary "show my reservations" read lists it. Passkey registration and agent-permission preferences (Co-Pilot/Auto-Pilot/Read-only) are the trust setup that precedes this governed run.',
+    businessValue: 'Consumer agents can complete high-street transactions without losing human control: the price policy and consent receipt make the booking auditable end to end, and the agent cannot bypass the pause no matter how it phrases the request.',
+    productRoles: {
+      idp: 'Authenticates the user and mints the delegated token the consumer agent books with.',
+      gw: 'Validates the delegated token, the intent token, and routes the booking to the airlines resource server.',
+      authz: 'Evaluates the booking price against the transaction policy and returns the HITL consent obligation.',
+    },
+    primaryTool: 'book_airline_flight',
+    // The figure the transaction policy evaluates: the scenario fare ($346,
+    // HITL consent band), NOT the chip's "under $800" budget cap. Read by
+    // stepVerificationExpectations.expectationFromUseCase — the chip text's
+    // first $N is a cap, so the ledger needs the policy figure declared.
+    policyAmount: 346,
+    verticals: ['airlines'],
+    perVertical: {
+      airlines: {
+        trigger: { type: 'chip', text: 'book a flight from San Francisco to Paris for me under $800' },
+        whatToSay: 'The agent searched, picked a $346 fare under your $800 cap, and tried to book — the price hit the consent gate, you approved, and the booking is real: ask for your reservations and it is there.',
+      },
+    },
+  },
 ];
 
 function deepFreeze(o) {
@@ -2490,7 +2540,9 @@ function resolveUseCase(id, vertical) {
 
 /** All catalog entries resolved for a vertical. @returns {UseCase[]} */
 function listUseCases(vertical) {
-  return USE_CASES.map((u) => resolveUseCase(u.id, vertical));
+  return USE_CASES
+    .filter((u) => !u.verticals || u.verticals.includes(vertical))
+    .map((u) => resolveUseCase(u.id, vertical));
 }
 
 /**

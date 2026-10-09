@@ -116,6 +116,12 @@ describe('chip dollar amounts are canonical threshold tiers', () => {
   // with the reason: e.g. { 3000: 'UC99 demos the daily cumulative cap' }.
   const AMOUNT_EXCEPTIONS = {
     150: 'UC22 CIBA demos the trigger is agent-context + action sensitivity, not amount — deliberately below the $300 tier',
+    // UC48's $800 is the USER'S BUDGET CAP, not the transaction amount — the
+    // Storylane scenario ("book me a flight … under $800"). The figure the
+    // policy evaluates is the $346 fare (heuristic defaultParams), which lands
+    // in the HITL consent band; extracting 800 would put a non-billable number
+    // in front of the ladder.
+    800: 'UC48 consumer-agent booking — "under $800" is the user budget cap; the policy evaluates the $346 fare',
   };
 
   test('every $ amount in a chip trigger is a canonical tier or a justified exception', () => {

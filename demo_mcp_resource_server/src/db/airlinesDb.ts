@@ -340,6 +340,36 @@ export function recordFeePayment(input: FeePaymentInput): FeePayment {
 }
 
 /**
+ * Append a new booking row. Unlike cancelReservation this really does write —
+ * a new reservation IS the UC48 artifact, and appending cannot exhaust the demo
+ * (replay just adds another trip). Confirmation numbers are random 6-char codes;
+ * the PK makes a collision a thrown constraint error rather than a silent merge.
+ */
+export function createBooking(input: {
+  passengerRef: string;
+  flightNumber: string;
+  seat: string | null;
+  cabin: string | null;
+  checkedBags: number;
+}): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const confirmationNumber = Array.from(
+    { length: 6 },
+    () => chars[Math.floor(Math.random() * chars.length)],
+  ).join('');
+  const bookedAt = new Date().toISOString();
+  withDb((conn) => {
+    conn.prepare(
+      'INSERT INTO bookings (confirmation_number, passenger_ref, flight_number, seat, cabin, checked_bags, status, booked_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    ).run(
+      confirmationNumber, input.passengerRef, input.flightNumber,
+      input.seat, input.cabin, input.checkedBags, 'Confirmed', bookedAt,
+    );
+  });
+  return confirmationNumber;
+}
+
+/**
  * Redeem miles for a cabin upgrade: deduct the points AND move the booking, or
  * do neither. Mutates the booking row so the demo survives a page reload —
  * unlike cancelReservation, which deliberately stays read-only. The seed
