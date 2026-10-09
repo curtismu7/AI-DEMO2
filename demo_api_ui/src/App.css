@@ -2022,6 +2022,32 @@
   width: 100%;
 }
 
+/* ── Sidenav fully hidden (vertical-logo magic link / Ctrl+Shift+B) ──────────
+   The rail is removed entirely — display:none, not collapsed — and every
+   offset goes to zero so the content reflows full width. These overrides come
+   after the :has() rules above because the (hidden) element still matches. */
+.admin-side-nav--hidden {
+  display: none;
+}
+
+.App.sidenav-hidden .main-content:not(:has(.pai-lesson-page)),
+.App.sidenav-hidden .topnav,
+.App.sidenav-hidden .chase-top-nav,
+.App.sidenav-hidden > .footer {
+  margin-left: 0;
+  width: 100%;
+}
+
+.App.sidenav-hidden .ai-product-main {
+  margin-left: 0;
+  width: 100%;
+}
+
+.App.sidenav-hidden .main-content .main-content {
+  margin-left: 0;
+  width: 100%;
+}
+
 /* Responsive: on small screens sidebar auto-collapses to icon-only */
 @media (max-width: 768px) {
   .App:has(.admin-side-nav) .main-content:not(:has(.pai-lesson-page)),
