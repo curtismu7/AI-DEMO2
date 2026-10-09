@@ -243,6 +243,43 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins }) {
     }
   }
 
+  // Passwordless start (PingOne only): identifies the user with the username
+  // alone; the flow then asks for the device step (OTP or assertion), which the
+  // existing branches below already drive. A policy that requires the password
+  // (or any other status) 409s so the modal returns to the password form.
+  async function handlePasswordlessStart(req, res) {
+    const pending = openPiFlowOrReject(req, res);
+    if (!pending) return undefined;
+    if (pending.provider === 'pingfederate') return res.status(409).json({ error: 'pi_flow_step_unsupported' });
+    const { username } = req.body || {};
+    if (typeof username !== 'string' || !username.trim()) {
+      return res.status(400).json({ error: 'invalid_request' });
+    }
+    try {
+      const { step, body, cookies } = await postPiFlowStep(
+        // user.lookup — PingOne's identifier-first action: submits the username
+        // without a password and lets the sign-on policy pick the next step
+        // (device OTP, passkey, or back to password).
+        pending, 'application/vnd.pingidentity.user.lookup+json', { username: username.trim() },
+      );
+      if (!step.ok) return res.status(502).json({ error: 'pi_flow_failed' });
+      // A password-required policy (or any status the device steps can't serve)
+      // 409s so the modal returns to the password form with a message — the
+      // shared respondAfter fallback ({ fallback: true }) is right for the
+      // credentials path but wrong here; this step IS the alternative.
+      if (body.status !== 'OTP_REQUIRED' && body.status !== 'ASSERTION_REQUIRED' && body.status !== 'COMPLETED') {
+        return res.status(409).json({
+          error: 'passwordless_unavailable',
+          message: 'This account requires a password. Sign in with your password.',
+        });
+      }
+      return await respondAfterPiFlowStep(req, res, pending, body, cookies);
+    } catch (error) {
+      console.warn('[oauth/pi-flow] passwordless step failed:', error.message);
+      return res.status(502).json({ error: 'pi_flow_failed' });
+    }
+  }
+
   return {
     openPiFlow,
     postPiFlowStep,
@@ -252,6 +289,7 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins }) {
     handleCredentialsStep,
     handleAssertionStep,
     handleOtpStep,
+    handlePasswordlessStart,
   };
 }
 

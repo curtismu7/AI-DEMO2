@@ -89,6 +89,7 @@ describe('admin pi.flow sign-in', () => {
       expect(res.headers.location).not.toContain('response_mode=pi.flow');
       await request(app).post('/api/auth/oauth/pi-flow/credentials').send({ username: 'a', password: 'b' }).expect(404);
       await request(app).post('/api/auth/oauth/pi-flow/otp').send({ otp: '1' }).expect(404);
+      await request(app).post('/api/auth/oauth/pi-flow/passwordless').send({ username: 'a' }).expect(404);
       expect(fetchMock).not.toHaveBeenCalled();
     });
   });
@@ -170,6 +171,28 @@ describe('admin pi.flow sign-in', () => {
       const res = await agent.post('/api/auth/oauth/pi-flow/credentials')
         .send({ username: 'demoAdmin', password: 'p' }).expect(200);
       expect(res.body).toEqual({ fallback: true, status: 'DEVICE_SELECTION_REQUIRED' });
+    });
+
+    test('passwordless start: username.check posts to the flow and returns the device step', async () => {
+      const agent = request.agent(app);
+      fetchMock.mockResolvedValueOnce(json(200, { id: 'aflow-1', status: 'USERNAME_PASSWORD_REQUIRED' }));
+      await agent.get('/api/auth/oauth/login?pi_flow=1').expect(200);
+      fetchMock.mockResolvedValueOnce(json(200, { status: 'OTP_REQUIRED' }));
+      const res = await agent.post('/api/auth/oauth/pi-flow/passwordless')
+        .send({ username: 'demoAdmin' }).expect(200);
+      expect(res.body).toEqual({ step: 'otp' });
+      expect(fetchMock.mock.calls[1][1].headers['Content-Type'])
+        .toBe('application/vnd.pingidentity.user.lookup+json');
+    });
+
+    test('passwordless start: policy requires password -> 409 passwordless_unavailable', async () => {
+      const agent = request.agent(app);
+      fetchMock.mockResolvedValueOnce(json(200, { id: 'aflow-1', status: 'USERNAME_PASSWORD_REQUIRED' }));
+      await agent.get('/api/auth/oauth/login?pi_flow=1').expect(200);
+      fetchMock.mockResolvedValueOnce(json(200, { status: 'USERNAME_PASSWORD_REQUIRED' }));
+      const res = await agent.post('/api/auth/oauth/pi-flow/passwordless')
+        .send({ username: 'demoAdmin' }).expect(409);
+      expect(res.body.error).toBe('passwordless_unavailable');
     });
   });
 });

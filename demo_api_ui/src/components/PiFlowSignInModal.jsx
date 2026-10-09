@@ -54,7 +54,10 @@ export default function PiFlowSignInModal() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [otp, setOtp] = useState("");
-  // "password" -> "passkey" | "otp" as the flow asks for them.
+  // The device-only form's username, kept separate so switching between the
+  // password and device forms never clobbers what the user typed in either.
+  const [deviceUsername, setDeviceUsername] = useState("");
+  // "password" -> "passkey" | "otp" | "device" as the flow (or the user) asks.
   const [step, setStep] = useState("password");
   const passkeyOptionsRef = useRef(null);
   const returnToRef = useRef(undefined);
@@ -105,6 +108,7 @@ export default function PiFlowSignInModal() {
     setUsername("");
     setPassword("");
     setOtp("");
+    setDeviceUsername("");
     setBusy(true);
     setOpen(true);
     (async () => {
@@ -210,8 +214,56 @@ export default function PiFlowSignInModal() {
     }
   };
 
-  const verifyPasskey = async () => {
+  // Passwordless: identify with the username alone; the BFF posts username.check
+  // to the open flow and the device step (otp/passkey) takes over. A policy that
+  // requires the password 409s and we return to the password form — never a dead end.
+  const submitPasswordless = async (e) => {
+    e.preventDefault();
     if (busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetch(`${apiBase()}${apiForRole()}/pi-flow/passwordless`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: deviceUsername }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (res.status === 409 && body.error === "passwordless_unavailable") {
+        setError(body.message || "This account requires a password. Sign in with your password.");
+        setUsername(deviceUsername);
+        setStep("password");
+        setBusy(false);
+        return;
+      }
+      if (res.status === 401) {
+        setError(body.message || "Could not verify that account.");
+        setBusy(false);
+        return;
+      }
+      if (res.ok && body.redirectTo) {
+        navigateWithOverlay(body.redirectTo, { message: "Signing in...", assign: true });
+        return;
+      }
+      if (res.ok && body.step === "passkey") {
+        passkeyOptionsRef.current = body.publicKeyCredentialRequestOptions;
+        setStep("passkey");
+        setBusy(false);
+        return;
+      }
+      if (res.ok && body.step === "otp") {
+        setStep("otp");
+        setBusy(false);
+        return;
+      }
+      redirectLogin(returnToRef.current, roleRef.current, forceRef.current);
+    } catch {
+      redirectLogin(returnToRef.current, roleRef.current, forceRef.current);
+    }
+  };
+
+  const verifyPasskey = async () => {    if (busy) return;
     setBusy(true);
     setError("");
     let assertionValue;
@@ -289,9 +341,9 @@ export default function PiFlowSignInModal() {
             <>
               <button
                 type="submit"
-                form={step === "otp" ? "pi-flow-otp-form" : "pi-flow-signin-form"}
+                form={step === "otp" ? "pi-flow-otp-form" : step === "device" ? "pi-flow-device-form" : "pi-flow-signin-form"}
                 className="signin-prompt__btn"
-                disabled={busy || (step === "otp" ? !otp : !username || !password)}
+                disabled={busy || (step === "otp" ? !otp : step === "device" ? !deviceUsername : !username || !password)}
               >
                 {busy ? "Signing in" : "Sign in"}
               </button>
@@ -343,6 +395,36 @@ export default function PiFlowSignInModal() {
               </p>
             ) : null}
           </form>
+        ) : step === "device" ? (
+          <form id="pi-flow-device-form" className="pi-flow-signin__form" onSubmit={submitPasswordless}>
+            <p className="signin-modal__text">
+              We&apos;ll verify it&apos;s you with your registered device — no password needed.
+            </p>
+            <label className="pi-flow-signin__label" htmlFor="pi-flow-device-username">
+              Username
+            </label>
+            <input
+              id="pi-flow-device-username"
+              className="pi-flow-signin__input"
+              type="text"
+              autoComplete="username"
+              autoFocus
+              value={deviceUsername}
+              onChange={(e) => setDeviceUsername(e.target.value)}
+            />
+            {error ? (
+              <p className="signin-modal__text" role="alert">
+                ❌ {error}
+              </p>
+            ) : null}
+            <button
+              type="button"
+              className="signin-prompt__btn signin-prompt__btn--ghost"
+              onClick={() => { setUsername(deviceUsername); setError(""); setStep("password"); }}
+            >
+              Use your password instead
+            </button>
+          </form>
         ) : (
         <form id="pi-flow-signin-form" className="pi-flow-signin__form" onSubmit={submit}>
           <label className="pi-flow-signin__label" htmlFor="pi-flow-username">
@@ -373,6 +455,13 @@ export default function PiFlowSignInModal() {
               ❌ {error}
             </p>
           ) : null}
+          <button
+            type="button"
+            className="signin-prompt__btn signin-prompt__btn--ghost"
+            onClick={() => { setDeviceUsername(username); setError(""); setStep("device"); }}
+          >
+            Use a device instead
+          </button>
         </form>
         )}
       </div>

@@ -22,6 +22,7 @@ import UserMenu from "./UserMenu";
 import FavoritesMenu from "./FavoritesMenu";
 import VerticalSwitcher from "./VerticalSwitcher";
 import OAuthProviderToggle from "./OAuthProviderToggle";
+import ConfirmModal from "./ConfirmModal";
 import "./TopNav.css";
 
 // Curated react-icons/md set selectable per vertical via manifest identity.icon.
@@ -64,6 +65,12 @@ export default function TopNav({ user, onLogout }) {
   // The vertical logo is a magic link: click toggles the side nav fully
   // hidden/shown (same event the Ctrl+Shift+B sequence fires).
   const toggleSidenav = () => window.dispatchEvent(new CustomEvent('admin-sidenav-hidden-toggle'));
+
+  // Sign Out asks first — an accidental sign-out kills the token chain and
+  // the live demo mid-run. The modal interposes; performLogout semantics
+  // (token revocation, PingOne signoff) stay untouched behind it.
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const requestLogout = () => setShowLogoutConfirm(true);
 
   // After Run/Open from /use-cases, show a clear "← Use Cases" control in the top bar.
   const [fromUseCases, setFromUseCases] = useState(() => cameFromUseCases());
@@ -438,7 +445,7 @@ export default function TopNav({ user, onLogout }) {
 
             {/* Auth button — Sign Out only when token is confirmed active */}
             {hasActiveToken ? (
-              <button type="button" className="topnav-login-btn topnav-logout-btn" onClick={() => onLogout?.()}>
+              <button type="button" className="topnav-login-btn topnav-logout-btn" onClick={requestLogout}>
                 <MdLogout size={18} />
                 <span>Sign Out</span>
               </button>
@@ -453,13 +460,23 @@ export default function TopNav({ user, onLogout }) {
           {/* User menu — always visible, never scrolls off */}
           <UserMenu
             user={user}
-            onLogout={onLogout}
+            onLogout={requestLogout}
             isAdminView={isAdminView}
             onSwitchView={handleSwitchRole}
           />
         </div>
 
       </div>
+
+      <ConfirmModal
+        isOpen={showLogoutConfirm}
+        title="Sign out?"
+        message="This ends your session and clears the live token chain. Sign back in to continue."
+        confirmLabel="Sign Out"
+        danger
+        onConfirm={() => { setShowLogoutConfirm(false); onLogout?.(); }}
+        onCancel={() => setShowLogoutConfirm(false)}
+      />
     </header>
   );
 }
