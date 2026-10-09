@@ -29,6 +29,7 @@ import { laneLabel, isNativeIdJagTrace, isMockIdJagTrace, resolveTraceProvenance
 import { VerticalContext } from "../vertical/VerticalProvider";
 import { sequenceDiagramLabel } from "./sequenceDiagramLabels";
 import { buildA2aTokenChainSteps, buildPrivilegeA2aChainSteps } from "./TokenChainTraceRail";
+import { applyStepVisibility } from "../services/tokenChainTrace/stepVisibility";
 import TraceProvenanceBadge from "./TraceProvenanceBadge";
 import "./SequenceReelDiagram.css";
 
@@ -132,12 +133,10 @@ const writePref = (key, value) => {
   }
 };
 
-// A step only earns a row once it has actually happened. buildTraceSteps
-// returns the whole pipeline for every trace: steps with no evidence yet come
-// back "pending", and ones outside this run's path "notinpath" or "skipped".
-// This diagram has no styling for either, so drawing them showed a complete
-// flow on page load and made each new run look identical to the last.
-const HAPPENED = new Set(["done", "active", "error", "waiting"]);
+// A step only earns a row once it has actually happened — that filter is the
+// shared stepVisibility policy now (imported below). This diagram has no
+// styling for unfired hops, so drawing them showed a complete flow on page
+// load and made each new run look identical to the last.
 // Rows that exist before any run: the browser step is unconditionally done and
 // beginTrace carries sign-in across runs. Neither means a run has started.
 const SESSION_STEP_IDS = new Set(["website", "signin"]);
@@ -204,12 +203,14 @@ export default function SequenceReelDiagram({
   }, [externalSteps, snap.steps, snap.trace]);
 
   const allLifelineSteps = useMemo(() => {
-    const happened = steps.filter((step) => HAPPENED.has(step.status));
-    const failureIndex = happened.findIndex((step) => step.status === "error");
-    const visibleSteps = failureIndex === -1 ? happened : happened.slice(0, failureIndex + 1);
+    // The shared policy: fired hops only (in-flight and completed alike — the
+    // reel is a playback surface and renders no collapse chip).
+    const { visible } = applyStepVisibility(steps, snap.trace);
+    const failureIndex = visible.findIndex((step) => step.status === "error");
+    const visibleSteps = failureIndex === -1 ? visible : visible.slice(0, failureIndex + 1);
     if (!visibleSteps.some((step) => !SESSION_STEP_IDS.has(step.id))) return [];
     return deriveLifelineSteps(visibleSteps);
-  }, [steps]);
+  }, [steps, snap.trace]);
   const runId = externalRunId ?? snap.trace?.runId ?? null;
   const runProvenance = provenance || resolveTraceProvenance(snap.trace);
   const traceFinished = externalTraceFinished ?? (["ok", "error", "mock-success"].includes(snap.trace?.outcome));

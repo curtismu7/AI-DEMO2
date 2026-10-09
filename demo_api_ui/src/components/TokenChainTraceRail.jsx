@@ -219,7 +219,7 @@ export function buildA2aTokenChainSteps(tokenEvents) {
       detail: {
         narrative: event
           ? `${title} was observed in this run.`
-          : SKIPPED_STEP_REASONS[id],
+          : SKIP_REASONS[id],
         claims: event?.claims,
         ...a2aEvidence(event),
         tokenEvent: event || undefined,

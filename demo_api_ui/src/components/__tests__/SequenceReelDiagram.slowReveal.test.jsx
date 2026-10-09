@@ -36,7 +36,7 @@ let scrollIntoViewSpy;
 describe("SequenceReelDiagram slow-mode reveal", () => {
   beforeEach(() => {
     // Default: a finished run whose three steps all happened.
-    store.state = { steps: STEPS, trace: { runId: 1, outcome: "ok" } };
+    store.state = { steps: STEPS, trace: { runId: 1, outcome: "ok", startedAt: 1 } };
     store.listeners.clear();
     vi.useFakeTimers();
     // jsdom leaves this off SVG elements; the component scrolls the active step.
@@ -317,7 +317,7 @@ describe("SequenceReelDiagram slow-mode reveal", () => {
         step("api-key-swap", "GATEWAY", "skipped"),
         step("gateway", "GATEWAY", "error"),
       ],
-      trace: { runId: 1, outcome: "error" },
+      trace: { runId: 1, outcome: "error", startedAt: 1 },
     };
     const { container } = render(<SequenceReelDiagram slowMode={false} onToggleSlowMode={noop} />);
     const titles = [...container.querySelectorAll('g[role="button"] text')].map((t) => t.textContent);
@@ -334,7 +334,7 @@ describe("SequenceReelDiagram slow-mode reveal", () => {
         step("mcp", "MCP", "done", "MCP server — tool executes"),
         step("reply", "CHAT", "done", "AI Agent composes reply → chat"),
       ],
-      trace: { runId: 2, outcome: "error" },
+      trace: { runId: 2, outcome: "error", startedAt: 1 },
     };
     const { container } = render(<SequenceReelDiagram slowMode={false} onToggleSlowMode={noop} />);
     const titles = [...container.querySelectorAll('g[role="button"] text')].map((t) => t.textContent);
@@ -350,7 +350,7 @@ describe("SequenceReelDiagram slow-mode reveal", () => {
         step("llm", "HEURISTICS", "done"),
         step("reply", "HEURISTICS", "done"),
       ],
-      trace: { runId: 1, outcome: "ok" },
+      trace: { runId: 1, outcome: "ok", startedAt: 1 },
     };
     const { container } = render(<SequenceReelDiagram slowMode={false} onToggleSlowMode={noop} />);
     const headers = [...container.querySelectorAll(".srd-actor-label")].map((t) => t.textContent);
@@ -361,7 +361,7 @@ describe("SequenceReelDiagram slow-mode reveal", () => {
   it("labels agent lanes with the active vertical name", () => {
     store.state = {
       steps: [step("prompt", "CHAT", "done"), step("llm", "HEURISTICS", "done")],
-      trace: { runId: 1, outcome: "ok" },
+      trace: { runId: 1, outcome: "ok", startedAt: 1 },
     };
     const { container } = render(
       <VerticalContext.Provider value={{ pageManifest: { identity: { displayName: "United Airlines" } } }}>
@@ -420,7 +420,7 @@ describe("SequenceReelDiagram slow-mode reveal", () => {
     const { container } = render(<SequenceReelDiagram slowMode onToggleSlowMode={noop} />);
     expect(drawnSteps(container)).toBe(STEPS.length);
 
-    emit({ steps: [step("n1", "BROWSER", "done", "New run step")], trace: { runId: 2, outcome: null } });
+    emit({ steps: [step("n1", "BROWSER", "done", "New run step")], trace: { runId: 2, outcome: null, startedAt: 1 } });
     expect(drawnSteps(container)).toBe(0);
     const titles = () => [...container.querySelectorAll('g[role="button"] text')].map((t) => t.textContent);
     expect(titles()).not.toContain(STEPS[2].title);
@@ -431,7 +431,7 @@ describe("SequenceReelDiagram slow-mode reveal", () => {
   });
 
   it("keeps playing when it catches up with a run that is still going", () => {
-    store.state = { steps: STEPS, trace: { runId: 1, outcome: null } };
+    store.state = { steps: STEPS, trace: { runId: 1, outcome: null, startedAt: 1 } };
     const { container, rerender } = render(<SequenceReelDiagram slowMode={false} onToggleSlowMode={noop} />);
     rerender(<SequenceReelDiagram slowMode onToggleSlowMode={noop} />);
     tick(STEPS.length + 2);
@@ -440,11 +440,11 @@ describe("SequenceReelDiagram slow-mode reveal", () => {
     expect(btn(container, "Pause")).toBeTruthy();
     expect(btn(container, "Replay")).toBeFalsy();
 
-    emit({ steps: [...STEPS, step("s4", "MCP", "done", "Fourth")], trace: { runId: 1, outcome: null } });
+    emit({ steps: [...STEPS, step("s4", "MCP", "done", "Fourth")], trace: { runId: 1, outcome: null, startedAt: 1 } });
     tick();
     expect(drawnSteps(container)).toBe(4);
 
-    emit({ steps: [...STEPS, step("s4", "MCP", "done", "Fourth")], trace: { runId: 1, outcome: "ok" } });
+    emit({ steps: [...STEPS, step("s4", "MCP", "done", "Fourth")], trace: { runId: 1, outcome: "ok", startedAt: 1 } });
     expect(btn(container, "Replay")).toBeTruthy();
   });
 
@@ -490,7 +490,7 @@ describe("SequenceReelDiagram slow-mode reveal", () => {
         step("agent", "AGENT", "done"),
         step("authorize", "AUTHZ", "done"),
       ],
-      trace: { runId: 1, outcome: "ok" },
+      trace: { runId: 1, outcome: "ok", startedAt: 1 },
     };
     const { container } = render(<SequenceReelDiagram slowMode={false} onToggleSlowMode={noop} />);
     const rows = [...container.querySelectorAll('g[role="button"]')];
@@ -513,7 +513,7 @@ describe("SequenceReelDiagram slow-mode reveal", () => {
         step("agent", "AGENT", "done"),
         step("authorize", "AUTHZ", "done"),
       ],
-      trace: { runId: 1, outcome: "ok" },
+      trace: { runId: 1, outcome: "ok", startedAt: 1 },
     };
     const { container } = render(
       <SequenceReelDiagram slowMode={false} onToggleSlowMode={noop} onSelectStep={onSelectStep} />,
@@ -532,7 +532,7 @@ describe("SequenceReelDiagram slow-mode reveal", () => {
   const withMcpActive = (outcome) => {
     store.state = {
       steps: [step("prompt", "CHAT", "done"), step("agent", "AGENT", "done"), step("mcp", "MCP", "active")],
-      trace: { runId: 1, outcome },
+      trace: { runId: 1, outcome, startedAt: 1 },
     };
     return render(<SequenceReelDiagram slowMode={false} onToggleSlowMode={noop} />).container;
   };
@@ -565,7 +565,7 @@ describe("SequenceReelDiagram slow-mode reveal", () => {
   const renderWithSteps = () => {
     store.state = {
       steps: [step("prompt", "CHAT", "done"), step("agent", "AGENT", "done")],
-      trace: { runId: 1, outcome: "ok" },
+      trace: { runId: 1, outcome: "ok", startedAt: 1 },
     };
     return render(<SequenceReelDiagram slowMode onToggleSlowMode={noop} />).container;
   };
