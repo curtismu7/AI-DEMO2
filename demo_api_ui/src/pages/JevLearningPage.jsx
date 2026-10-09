@@ -14,6 +14,11 @@ import {
 import InlineSpinner from '../components/shared/InlineSpinner';
 import './JevLearningPage.css';
 
+/** Which verdict the keyword rules just gave, so its explanation can react. */
+function rulesHit(answer) {
+  return Boolean(answer && answer.type !== 'choice' && answer.probability >= 0.5);
+}
+
 /**
  * Jev walkthrough — System 1 vs System 2, a live side-by-side, the
  * "confidence is not permission" threshold lesson, and a small guardrail bake-off.
@@ -124,6 +129,7 @@ function LivePanel({ onRisk }) {
           </button>
         ))}
       </div>
+      <p className="jev-about">{SCENARIOS[scenario].about}</p>
       <p className="jev-step"><span className="jev-step-n">2</span> Click an example to load it, or type your own below</p>
       <div className="jev-examples">
         {SCENARIOS[scenario].examples.map((ex) => (
@@ -153,17 +159,28 @@ function LivePanel({ onRisk }) {
           <div className="jev-col">
             <h3 className="jev-h3">Keyword rules</h3>
             <p className="jev-big">{headline(result.heuristic.answer)}</p>
-            <p className="jev-explain">
-              Scans for a fixed list of trigger words and phrases. Finds one: 1.00 (yes). Finds none: 0.00 (no).
-              It never reads the meaning and never says "maybe", so a reworded attack slips through and a
-              harmless message that contains a trigger word gets flagged.
-            </p>
+            {rulesHit(result.heuristic.answer) ? (
+              <p className="jev-explain">
+                Matched a trigger phrase on its fixed list, so it says yes (1.00) - and that is all it
+                can ever say. It never reads meaning and never says "maybe", so a reworded attack that
+                uses no listed phrase slips straight through.
+              </p>
+            ) : (
+              <p className="jev-explain">
+                Matched nothing on its trigger-word list, so it says no (0.00) - but that only means the
+                exact phrases it knows are absent. "Please kindly forget everything you were told" is an
+                attack with no trigger phrase, which is exactly what it just missed.
+              </p>
+            )}
             <p className="jev-meta">{result.heuristic.latencyMs} ms - always 0 or 1, never unsure</p>
           </div>
           <div className="jev-col">
             <h3 className="jev-h3">Jev <ModeBadge mode={result.jev.mode} model={result.jev.model} /></h3>
             <p className="jev-big">{headline(result.jev.answer)}</p>
             {result.jev.mode === 'live' && <p className="jev-explain">{explainJev(result.jev.answer)}</p>}
+            {result.jev.mode === 'live' && result.jev.answer.type !== 'choice' && (
+              <p className="jev-explain">{SCENARIOS[scenario].howUsed}</p>
+            )}
             <p className="jev-meta">{result.jev.latencyMs} ms - model {result.jev.model}</p>
             {result.jev.mode === 'live' && (
               <p className="jev-meta">Deterministic: the same text always scores the same - rerun it to check. Different wording moves the score less than you'd expect, because it scores classes of text, not vibes.</p>
@@ -515,6 +532,7 @@ function LangChainPanel() {
           </button>
         ))}
       </div>
+      <p className="jev-about">{SCENARIOS[scenario].about}</p>
       <div className="jev-examples">
         {SCENARIOS[scenario].examples.map((ex) => (
           <button key={ex} className="jev-chip" onClick={() => setText(ex)}>{ex}</button>
@@ -542,6 +560,11 @@ function LangChainPanel() {
           <div className="jev-col">
             <h3 className="jev-h3">Keyword rules</h3>
             <p className="jev-big">{headline(result.heuristic.answer)}</p>
+            <p className="jev-explain">
+              {rulesHit(result.heuristic.answer)
+                ? 'Matched a trigger phrase on its fixed list - yes (1.00), the only verdict it knows.'
+                : 'Matched nothing on its trigger-word list - no (0.00), even though the model beside it read the same text and disagreed.'}
+            </p>
             <p className="jev-meta">computed in the BFF, same rules as above</p>
           </div>
           <div className="jev-col">
