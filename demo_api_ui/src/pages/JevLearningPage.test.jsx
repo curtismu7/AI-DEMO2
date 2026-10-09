@@ -195,6 +195,12 @@ describe('JevLearningPage', () => {
     expect(screen.getByText(/a 99% answer can still be wrong/)).toBeTruthy();
   });
 
+  it('the intent how-to-read note names the Hi-there confident miss and ties it to the failure-mode table', () => {
+    render(<JevLearningPage />);
+    expect(screen.getAllByText(/Watch "Hi there": Jev calls it transfer_money with 99% confidence/).length).toBe(1);
+    expect(screen.getAllByText(/a confident wrong label\. A real router treats a pick like this as one candidate/).length).toBe(1);
+  });
+
   it('bake-off omits the "no middle" note when a score lands between 0.35 and 0.65', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(reply(0.5)));
     render(<JevLearningPage />);
