@@ -11,6 +11,7 @@ import {
   POLICY_RULES,
   decide,
 } from './jevLessons';
+import InlineSpinner from '../components/shared/InlineSpinner';
 import './JevLearningPage.css';
 
 /**
@@ -140,6 +141,12 @@ function LivePanel({ onRisk }) {
       <button className="btn btn-primary" disabled={busy || !text.trim()} onClick={run}>
         {busy ? 'Deciding...' : 'Decide'}
       </button>
+      {busy && (
+        <p className="jev-waiting">
+          <InlineSpinner size="sm" label="Jev is reading the text" />
+          <span className="jev-waiting-note">a decision model, not a chat: this takes a second, longer the first time while the local model loads</span>
+        </p>
+      )}
       {error && <p className="jev-error" role="alert">{error}</p>}
       {result && (
         <div className="jev-cols">
@@ -158,6 +165,9 @@ function LivePanel({ onRisk }) {
             <p className="jev-big">{headline(result.jev.answer)}</p>
             {result.jev.mode === 'live' && <p className="jev-explain">{explainJev(result.jev.answer)}</p>}
             <p className="jev-meta">{result.jev.latencyMs} ms - model {result.jev.model}</p>
+            {result.jev.mode === 'live' && (
+              <p className="jev-meta">Deterministic: the same text always scores the same - rerun it to check. Different wording moves the score less than you'd expect, because it scores classes of text, not vibes.</p>
+            )}
             {result.jev.mode === 'simulated' && (
               <p className="jev-meta">
                 No OPENROUTER_API_KEY or JEV_ENDPOINT on the server, so this column is the same keyword rules. It says nothing about Jev.
@@ -520,6 +530,12 @@ function LangChainPanel() {
       <button className="btn btn-primary" disabled={busy || !text.trim()} onClick={run}>
         {busy ? 'Deciding...' : 'Decide'}
       </button>
+      {busy && (
+        <p className="jev-waiting">
+          <InlineSpinner size="sm" label="Jev is reading the text" />
+          <span className="jev-waiting-note">through LangChain in the agent container — a bit longer than the direct call</span>
+        </p>
+      )}
       {error && <p className="jev-error" role="alert">{error}</p>}
       {result && (
         <div className="jev-cols">
