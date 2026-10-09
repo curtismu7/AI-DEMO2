@@ -5,6 +5,12 @@
  *
  * POST /api/demo/jev/evaluate  { scenario: 'injection'|'intent'|'risk', state: string }
  *   -> { scenario, jev: {mode, model, latencyMs, answer}, heuristic: {latencyMs, answer} }
+ * POST /api/demo/jev/langchain { scenario, state }
+ *   -> { scenario, proxied, langchain: {mode, model, latency_ms, answer, usage},
+ *        heuristic: {latencyMs, answer} }
+ *   Proxies to the langchain agent's VonDecisions route (LangChain
+ *   OpenAIDecisions port of the same lesson); the heuristic baseline stays
+ *   here so bake-off numbers come from one implementation.
  * GET  /api/demo/jev/status    -> { live: boolean }
  *
  * Public means the only thing standing between a visitor and the paid key is
@@ -12,7 +18,10 @@
  */
 const express = require('express');
 const rateLimit = require('express-rate-limit');
+const axios = require('axios');
 const { evaluate, heuristic, isConfigured } = require('../services/jevService');
+const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
+const { internalSecret } = require('../utils/internalSecret');
 
 const router = express.Router();
 
@@ -25,6 +34,39 @@ const limiter = rateLimit({
 });
 
 router.get('/status', (req, res) => res.json({ live: isConfigured() }));
+
+// Same scenario lock as the service: validate here so the langchain proxy can
+// never be used as a generic POST-through to the agent container.
+const SCENARIO_KEYS = new Set(['injection', 'intent', 'risk']);
+const AGENT_TIMEOUT_MS = 65000; // the agent allows 60s for Von's cold-start weight load
+
+router.post('/langchain', limiter, async (req, res) => {
+  const { scenario, state } = req.body || {};
+  const text = String(state || '');
+  if (!SCENARIO_KEYS.has(scenario) || !text.trim()) {
+    return res.status(400).json({ error: 'invalid_request', message: 'Unknown scenario or empty state.' });
+  }
+  const t0 = Date.now();
+  const baseline = heuristic(scenario, text);
+  const heuristicMs = Date.now() - t0;
+
+  const agentUrl = process.env.LANGCHAIN_AGENT_HTTP_URL || 'http://127.0.0.1:8888';
+  try {
+    const { data } = await axios.post(
+      `${agentUrl.replace(/\/$/, '')}/jev/evaluate`,
+      { scenario, state: text },
+      {
+        timeout: AGENT_TIMEOUT_MS,
+        // the agent's :8888 middleware gate — same as routes/agentRun.js
+        headers: { 'x-internal-gateway-secret': internalSecret() },
+      }
+    );
+    return res.json({ scenario, proxied: true, langchain: data, heuristic: { latencyMs: heuristicMs, answer: baseline } });
+  } catch (err) {
+    console.error('[jev] langchain proxy failed:', normalizeAxiosError(err, { label: 'jev-langchain', timeoutMs: AGENT_TIMEOUT_MS }).message);
+    return res.status(502).json({ error: 'jev_upstream_failed', message: 'LangChain Jev did not answer; try again.' });
+  }
+});
 
 router.post('/evaluate', limiter, async (req, res) => {
   const { scenario, state } = req.body || {};

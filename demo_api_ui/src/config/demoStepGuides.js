@@ -318,6 +318,11 @@ export const DEMO_STEP_GUIDES = Object.fromEntries([
     "A content blocklist enforced at the gateway edge, before egress, instead of after the vendor has already run the query.",
     "Data-egress control sits in one place instead of being re-implemented in every tool integration, with no vendor log, no billed call and no data leaving the perimeter.",
     "Type 'search the news for bitcoin price today' (no sign-in needed). Same Brave route as UC41; run them together for the permit and deny contrast."],
+  ["UC-LEARN15", "Jev decision model — System One vs System Two",
+    "Opens the /jev-learning page: one signed-out teaching page that runs the same text through keyword rules and through Jev, a fast typed-answer decision model, side by side. The threshold sliders show one score flipping Allow, Step-up, Deny; two bake-offs score eight hand-labelled messages each; the fourth panel sends the identical question through LangChain's OpenAIDecisions client in the agent container.",
+    "A model score is one input to policy, not the verdict: the threshold lesson keeps a deterministic floor no score can lower. The LangChain panel shows the framework is plumbing — same question in, same probability out.",
+    "Fast, cheap typed judgments (guardrails, routing, risk scores) without handing the decision to prose, and a vocabulary for where deterministic rules stop and where a model helps.",
+    "Click 'Jev decision model' (opens /jev-learning; a link, not a chip). The page works signed out. The badge tells the truth about mode: Live needs the keyless local Von container (compose profile jev) or an OpenRouter key; 'Simulated - not configured' means the rules answered both columns and nothing on screen is evidence about Jev. Press Decide, drag the threshold sliders, run both bake-offs, then run the LangChain panel."],
   // Attacks & Abuse
   ["UC15", "Intent-token tampering",
     "An attack sim sends an otherwise valid intent token with a corrupted signature, which the gateway is meant to reject with 401 before any tool runs.",

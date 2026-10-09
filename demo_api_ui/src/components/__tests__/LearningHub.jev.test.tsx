@@ -46,4 +46,15 @@ describe("LearningHub Jev lesson", () => {
     });
     expect(screen.getByRole("button", { name: /jev: decision model/i })).toBeInTheDocument();
   });
+
+  it("shows the lesson's demo step number and links to the use-cases launcher", () => {
+    render(
+      <MemoryRouter initialEntries={["/learning"]}>
+        <LearningHub />
+      </MemoryRouter>,
+    );
+
+    const chip = screen.getByRole("link", { name: /demo step 53/i });
+    expect(chip).toHaveAttribute("href", "/use-cases#UC-LEARN15");
+  });
 });

@@ -7,6 +7,8 @@ import { decide, BAKEOFF, INTENT_BAKEOFF, RECORDED_RUN, guardrailReadout, intent
 // Both bake-offs now show a recorded example before a live run, so scope queries to one section.
 const guardrail = () => within(screen.getByRole('region', { name: 'Guardrail bake-off' }));
 const intent = () => within(screen.getByRole('region', { name: 'Intent-routing bake-off' }));
+// The page has two Decide buttons since the LangChain panel; the live panel is the first.
+const livePanel = () => within(screen.getByRole('region', { name: 'Same input, two deciders' }));
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -86,7 +88,7 @@ describe('JevLearningPage', () => {
   it('renders signed out and labels simulated mode as not evidence about Jev', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(reply(1, 'simulated')));
     render(<JevLearningPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Decide' }));
+    fireEvent.click(livePanel().getByRole('button', { name: 'Decide' }));
     await waitFor(() => expect(screen.getByText(/Simulated - not configured/)).toBeTruthy());
     expect(screen.getByText(/says nothing about Jev/)).toBeTruthy();
   });
@@ -94,15 +96,15 @@ describe('JevLearningPage', () => {
   it('a risk run loads its score into the threshold lesson', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(reply(0.97)));
     render(<JevLearningPage />);
-    fireEvent.click(screen.getByRole('tab', { name: 'Step-up risk' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Decide' }));
+    fireEvent.click(livePanel().getByRole('tab', { name: 'Step-up risk' }));
+    fireEvent.click(livePanel().getByRole('button', { name: 'Decide' }));
     await waitFor(() => expect(screen.getByText('0.97')).toBeTruthy());
   });
 
   it('each result box explains itself, and the Jev box quotes its score in plain words', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(reply(0.84)));
     render(<JevLearningPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Decide' }));
+    fireEvent.click(livePanel().getByRole('button', { name: 'Decide' }));
     await waitFor(() => expect(screen.getByText(/fixed list of trigger words/)).toBeTruthy());
     expect(screen.getByText(/about 84%/)).toBeTruthy();
   });
@@ -160,5 +162,45 @@ describe('JevLearningPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Run bake-off' }));
     await waitFor(() => expect(screen.getAllByText('block (0.50)')).toHaveLength(8));
     expect(screen.queryByText(/No message scored between/)).toBeNull();
+  });
+});
+
+describe('LangChain integration panel', () => {
+  const lc = () => within(screen.getByRole('region', { name: 'The same lesson through LangChain' }));
+  const lcReply = (body) => ({
+    ok: true,
+    json: async () => body,
+  });
+  const agentLive = {
+    proxied: true,
+    langchain: {
+      mode: 'live',
+      model: 'von-1.3.0',
+      latency_ms: 443,
+      answer: { type: 'noul', probability: 0.8291 },
+      usage: { input_tokens: 94, output_tokens: 1 },
+    },
+    heuristic: { latencyMs: 0, answer: { type: 'noul', probability: 1 } },
+  };
+
+  it('runs the scenario through the BFF and shows the typed answer with token usage', async () => {
+    const f = vi.fn().mockResolvedValue(lcReply(agentLive));
+    vi.stubGlobal('fetch', f);
+    render(<JevLearningPage />);
+    fireEvent.click(lc().getByRole('button', { name: 'Decide' }));
+    await waitFor(() => expect(lc().getByText('P(yes) = 0.83')).toBeTruthy());
+    expect(f.mock.calls[0][0]).toBe('/api/demo/jev/langchain');
+    expect(lc().getByText(/94 prompt · 1 completion/)).toBeTruthy();
+    expect(lc().getByText('Live: von-1.3.0')).toBeTruthy();
+    expect(lc().getByText('443 ms - through LangChain OpenAIDecisions')).toBeTruthy();
+    // the keyword baseline runs here too, in the same panel
+    expect(lc().getByText('P(yes) = 1.00')).toBeTruthy();
+  });
+
+  it('shows an inline error on failure', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 502, json: async () => ({ message: 'LangChain Jev did not answer; try again.' }) }));
+    render(<JevLearningPage />);
+    fireEvent.click(lc().getByRole('button', { name: 'Decide' }));
+    await waitFor(() => expect(lc().getByRole('alert').textContent).toMatch(/LangChain Jev did not answer/));
   });
 });

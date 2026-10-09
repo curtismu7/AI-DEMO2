@@ -254,6 +254,7 @@ class LangChainMCPApplication:
         from api.a2a_handler import public_router as a2a_public_router
         from api.codegraph_handler import router as codegraph_router
         from api.opik_handler import router as opik_router
+        from api.jev_decisions import router as jev_decisions_router
 
         app = FastAPI(title="LangChain AG-UI", docs_url=None, redoc_url=None)
         app.include_router(agui_router)
@@ -261,6 +262,7 @@ class LangChainMCPApplication:
         app.include_router(a2a_public_router)
         app.include_router(codegraph_router, prefix="/codegraph")
         app.include_router(opik_router, prefix="/opik")
+        app.include_router(jev_decisions_router)
 
         # Prometheus scrape target — unauthenticated, same posture as the
         # other MCP services' /metrics routes (monitoring/prometheus.yml
