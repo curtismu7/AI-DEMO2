@@ -1687,8 +1687,8 @@ const RAW_USE_CASES = [
     whatLong: 'An external-agent run. The presenter\u2019s own MCP client connects to the external door on the SE host (cloud agents) or the local stack (local clients). Onboarding is zero-touch: the door advertises its authorization server (RFC 9728), the client self-registers (RFC 7591 DCR), the user signs in through PingOne in a browser, and the door mints its own code for the client. Tool calls go through PingGateway, which exchanges the user token via RFC 8693 (sub=user, act=agent) and asks PingOne Authorize per call. A service-identity token is refused accounts:read \u2014 user data requires the real delegated path. Run it in YOUR agent per docs/MUSE_RUNBOOK.md; the reel on the diagram page walks the wire.',
     businessValue: 'Governance is a property of the resource, not of who wrote the agent: any spec-compliant agent is governed identically with no pre-registration and no agent-side code.',
     productRoles: {
-      'Agent Gateway / Broker': 'Enforces discovery, registration, token exchange and per-call policy on the external door.',
-      PingOne: 'Authenticates the person, mints the delegated token (sub=user, act=agent) and evaluates policy per tool call.',
+      gw: 'Enforces discovery, registration, token exchange and per-call policy on the external door.',
+      idp: 'Authenticates the person, mints the delegated token (sub=user, act=agent) and evaluates policy per tool call.',
     },
     primaryTool: null,
   },
