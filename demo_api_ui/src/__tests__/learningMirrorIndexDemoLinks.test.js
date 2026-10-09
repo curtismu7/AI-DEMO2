@@ -24,4 +24,17 @@ describe("learning-mirror/index.html master page", () => {
     expect(index).toMatch(/href="https:\/\/local\.ping-devops\.com:4000\/jev-learning"[^>]*>[^<]*<div class="lx-t">Jev: Decision Model</);
     expect(index).toMatch(/href="https:\/\/local\.ping-devops\.com:4000\/agentic-trust"[^>]*>[^<]*<div class="lx-t">Agentic Trust</);
   });
+
+  it("shows a clickable demo screenshot banner under the hero", () => {
+    // A real image of the demo (not just a button): a linked <img> inside the
+    // hero, pointing at the demo origin, with alt text and lazy loading.
+    const banner = index.match(/<a class="lx-banner"[^>]*>\s*<img [^>]*>/);
+    expect(banner).toBeTruthy();
+    expect(banner[0]).toContain('href="https://local.ping-devops.com:4000/"');
+    expect(banner[0]).toMatch(/src="[^"]+\.(png|jpg)"/);
+    expect(banner[0]).toContain('alt="');
+    expect(banner[0]).toContain('loading="lazy"');
+    const src = banner[0].match(/src="([^"]+)"/)[1];
+    expect(fs.existsSync(path.join(MIRROR, src))).toBe(true);
+  });
 });

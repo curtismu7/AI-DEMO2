@@ -111,8 +111,11 @@ function normalizeErrorCode(value) {
 
 /**
  * Routes where a 401 should surface the re-auth banner.
- * Exclude-only: public landing, logout, and setup — every other app path qualifies
- * (embedded agent hosts, use-case pages, etc.).
+ * Exclude-only: public landing, logout, setup, and the Learning Hub (in-app
+ * and web mirror) — every other app path qualifies (embedded agent hosts,
+ * use-case pages, etc.). The Hub's content is browsable signed-out; its
+ * signed-in features (Ask agent, grounding search) disable themselves
+ * instead of interrupting a guest with the sign-in modal.
  * @param {string} [pathname]
  * @returns {boolean}
  */
@@ -120,6 +123,7 @@ export function isAuthenticatedAppSurface(pathname) {
   if (pathname == null || typeof pathname !== 'string') return false;
   const p = pathname.replace(/\/$/, '') || '/';
   if (p === '/' || p === '/logout' || p.startsWith('/setup')) return false;
+  if (p === '/learning' || p.startsWith('/learning-mirror')) return false;
   return true;
 }
 
