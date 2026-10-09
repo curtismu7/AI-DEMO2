@@ -1,0 +1,85 @@
+name: Runner disk maintenance
+
+# 2026-10-09: cmuir-air hit 100% disk (460 GB) mid-"Install deps" — ENOSPC
+# killed 3 of 4 Python-suite attempts that day. Two accumulation sources,
+# both confirmed on this repo's runners the same day:
+#   1. Docker: sha-tagged images + build cache from build-images runs
+#      (the bff/server image alone is ~3.6 GB; #1054 stops FUTURE
+#      accumulation, this heals runners that already carry it).
+#   2. Git: the runner's checkout does a full `fetch-depth: 0` and every
+#      build-images run against a new merge commit packs another ~2-4 GB of
+#      objects into .git/objects — 521 packfiles / 14.9 GiB measured on
+#      cmuir-dev-mac. `git gc --prune=now` took it to 243 MB.
+# One-shot maintenance, dispatched by hand when a runner reports ENOSPC.
+# Safe to re-run and safe on a clean runner. It runs on EVERY online runner
+# in the label set on purpose: which runner picks up the next Python job is
+# unpredictable. Concurrency serializes two dispatches so two runs never
+# race each other on the same daemon.
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: runner-disk-maintenance
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  clean:
+    name: Report + reclaim disk
+    runs-on: [self-hosted, macOS]
+    timeout-minutes: 60
+    steps:
+      - name: Report before
+        run: |
+          echo "=== runner: $RUNNER_NAME ==="
+          df -h / | tail -1
+          if docker info >/dev/null 2>&1; then
+            docker system df || true
+          else
+            echo "no live docker daemon"
+          fi
+          W="$(dirname "$GITHUB_WORKSPACE")"   # .../actions-runner-work/<runner>
+          du -sh "$W"/*/AI-DEMO2/*/.git 2>/dev/null | sort -rh | head -3 || true
+
+      - name: Reclaim disk
+        run: |
+          set -euo pipefail
+          if docker info >/dev/null 2>&1; then
+            echo "=== build cache ==="
+            docker builder prune -af 2>/dev/null | tail -1 || true
+            echo "=== stopped containers + volumes ==="
+            docker container prune -f >/dev/null 2>&1 || true
+            docker volume prune -f >/dev/null 2>&1 || true
+            echo "=== dangling images ==="
+            docker image prune -af 2>/dev/null | tail -1 || true
+            # sha-tagged images from old runs: GHCR has them all, the local
+            # copy is a build leftover. Keep :latest so a re-deploy never
+            # re-pulls. rmi by REPOSITORY:TAG (see build-images.yml #1054 for
+            # why not by image ID).
+            echo "=== old sha-tagged images ==="
+            docker images 'ghcr.io/*:sha-*' --format '{{.Repository}}:{{.Tag}}' \
+              | xargs -r -n1 docker rmi 2>/dev/null | tail -2 || true
+          fi
+
+          echo "=== git gc on checkouts under the work root ==="
+          # This job's own checkout is live; skip it. Every OTHER checkout in
+          # the work root belongs to a finished job or a dead workspace.
+          W="$(dirname "$GITHUB_WORKSPACE")"
+          for g in "$W"/*/AI-DEMO2/*/.git; do
+            [ -d "$g" ] || continue
+            c="$(dirname "$g")"
+            case "$c" in "$GITHUB_WORKSPACE") continue ;; esac
+            echo "gc: $c"
+            git -C "$c" gc --prune=now --quiet 2>/dev/null || true
+          done
+          # Per-job scratch the runner normally cleans itself; leftovers
+          # after a killed job are pure loss.
+          rm -rf "$GITHUB_WORKSPACE/../_temp"/* 2>/dev/null || true
+
+      - name: Report after
+        if: always()
+        run: |
+          echo "=== runner: $RUNNER_NAME ==="
+          df -h / | tail -1
