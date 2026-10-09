@@ -14,7 +14,7 @@ const EXPECTED_IDS = [
   'UC2.5', 'UC2.7', 'UC22', 'UC5', 'UC10', 'UC13', 'UC11', 'UC20', 'UC18',
   'UC30', 'UC31', 'UC32', 'UC40', 'UC38', 'UC-TOOL1', 'UC46', 'UC47',
   'UC-MUSE1', 'UC-MUSE2',
-  'UC43', 'UC44', 'UC45', 'UC2.6',
+  'UC43', 'UC44', 'UC45', 'UC48', 'UC2.6',
   'UC17', 'UC25', 'UC-PAM-SETUP', 'UC-PAM-SCRIPT', 'UC-LEARN11', 'UC-TOOL3',
   'ADMIN1', 'ADMIN2', 'ADMIN3', 'ADMIN4', 'ADMIN5', 'ADMIN6', 'ADMIN7',
   'ADMIN8', 'ADMIN9', 'ADMIN10', 'ADMIN11', 'ADMIN12',
@@ -46,17 +46,17 @@ describe('demo readiness catalog', () => {
       useCases: sources.useCases.filter((u) => u.id !== 'UC40'),
     };
     const rows = validateDemoReadinessCatalog(edition);
-    expect(rows).toHaveLength(49);
+    expect(rows).toHaveLength(50);
     expect(rows.some((row) => row.id === 'UC40')).toBe(false);
     // no edition: UC40 absent from the backend catalog is still an error
     expect(() => validateDemoReadinessCatalog({ ...edition, dropUseCases: [] })).toThrow(/UC40 is missing from the backend use-case catalog/);
   });
 
-  test('builds the 50 executable Demo Steps entries in lane order', () => {
+  test('builds the 51 executable Demo Steps entries in lane order', () => {
     const rows = buildDemoReadinessCatalog();
 
     expect(rows.map((row) => row.id)).toEqual(EXPECTED_IDS);
-    expect(rows).toHaveLength(50);
+    expect(rows).toHaveLength(51);
     expect(rows.some((row) => row.id === 'ADMIN13')).toBe(false);
   });
 
@@ -68,8 +68,8 @@ describe('demo readiness catalog', () => {
       0,
     ), 0);
 
-    expect(runtimeGroups).toBe(188);
-    expect(coreRows).toBe(750);
+    expect(runtimeGroups).toBe(189);
+    expect(coreRows).toBe(754);
     expect(rows.find((row) => row.id === 'UC40').runtimeVerticalGroups).toHaveLength(1);
   });
 

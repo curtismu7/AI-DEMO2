@@ -85,7 +85,7 @@ try {
   const rows = checkDemoReadinessContract();
   console.log(
     `Demo readiness contract passed: ${rows.length} executable Demo Steps entries `
-    + '(28 primary, 4 CIAM, 6 Privilege, 12 Admin).',
+    + '(28 primary, 5 CIAM, 6 Privilege, 12 Admin).',
   );
   const sources = loadDemoReadinessSources();
   console.log(`${sources.featureChecks.checks.length} provider feature checks are registered separately from the ${rows.length} UI entries`);

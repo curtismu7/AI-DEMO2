@@ -129,6 +129,14 @@
         "useCaseId": "delegated-access-with-proof"
       },
       {
+        "id": "ua-book",
+        "label": "Book a flight",
+        "message": "book a flight from San Francisco to Paris for me under $800",
+        "mode": "both",
+        "tool": "book_airline_flight",
+        "useCaseId": "consumer-agent-booking"
+      },
+      {
         "id": "ua-a2a",
         "label": "Sensitive passenger record",
         "message": "show my sensitive passenger record",
@@ -141,6 +149,18 @@
   },
   "render": {
     "check_seat_availability": { "type": "seatMap" },
+    "book_airline_flight": {
+      "type": "card",
+      "title": "Flight Booked",
+      "fields": [
+        { "label": "Confirmation", "path": "confirmationNumber", "accent": true },
+        { "label": "Flight", "path": "flightNumber" },
+        { "label": "Route", "path": "route" },
+        { "label": "Departure", "path": "departureTime", "format": "date" },
+        { "label": "Passengers", "path": "passengers", "format": "count" },
+        { "label": "Total", "path": "amount", "format": "money" }
+      ]
+    },
     "get_airline_bookings": {
       "type": "table",
       "title": "Your Reservations",

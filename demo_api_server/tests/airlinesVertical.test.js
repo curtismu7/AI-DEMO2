@@ -14,7 +14,8 @@ const scopeTopology = require('../services/scopeTopology');
 const plugin = require('../config/verticals/airlines');
 const manifest = require('../config/verticals/airlines/manifest.json');
 
-/** Tools the airlines vertical gates on airlines:read (alone or with more). */
+/** Tools the airlines vertical gates on airlines:read (alone or with more).
+ *  Order mirrors manifest chips10 — the chipTools test asserts deep equality. */
 const AIRLINES_TOOLS = [
   'get_airline_bookings',      // plain read — ungated
   'cancel_airline_reservation', // Phase 2 write — step-up (MFA)
@@ -22,6 +23,7 @@ const AIRLINES_TOOLS = [
   'sensitive_airline_bookings', // Phase 2 sensitive read — HITL consent
   'get_flight_status',
   'check_seat_availability',
+  'book_airline_flight',        // UC48 consumer-agent booking — ladder decides
 ];
 /** The A2A-delegated tool. Gated on its OWN scope, never on airlines:read. */
 const A2A_TOOL = 'sensitive_passenger_record';

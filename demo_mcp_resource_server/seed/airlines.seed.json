@@ -48,6 +48,16 @@
       "gate": "C18",
       "aircraft": "Boeing 787-9",
       "status": "Scheduled"
+    },
+    {
+      "flight_number": "UA814",
+      "origin": "SFO",
+      "destination": "CDG",
+      "departure_time": "2026-09-25T15:30:00-07:00",
+      "arrival_time": "2026-09-26T11:15:00+02:00",
+      "gate": "G95",
+      "aircraft": "Boeing 787-10",
+      "status": "Scheduled"
     }
   ],
   "bookings": [

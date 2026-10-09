@@ -929,7 +929,8 @@ describe('DemoStepsDropdown — search', () => {
     // UC2 is scripted step 9 and is listed again under A2A with the same number.
     const a2a = screen.getByTestId('demo-steps-extra-a2a');
     expect(within(a2a).getByTestId('demo-extra-a2a-UC2')).toHaveTextContent('9 · UC2');
-    expect(within(a2a).getByTestId('demo-extra-a2a-UC37')).toHaveTextContent('45 · UC37');
+    // UC48 and the MUSE steps joined before it, so themed-group numbers shift.
+    expect(within(a2a).getByTestId('demo-extra-a2a-UC37')).toHaveTextContent('46 · UC37');
   });
 
   it('finds the CIAM group when searching for its group label', async () => {

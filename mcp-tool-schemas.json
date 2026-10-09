@@ -119,6 +119,35 @@
         "additionalProperties": false
       }
     },
+    "book_airline_flight": {
+      "source": "airlines",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "flight_number": {
+            "type": "string",
+            "description": "United flight number, e.g. UA502"
+          },
+          "origin": {
+            "type": "string",
+            "description": "Origin airport code (informational; the flight row is authoritative)"
+          },
+          "destination": {
+            "type": "string",
+            "description": "Destination airport code (informational; the flight row is authoritative)"
+          },
+          "amount": {
+            "type": "number",
+            "description": "Total ticket price in dollars"
+          },
+          "passengers": {
+            "type": "number",
+            "description": "Number of passengers (default 1)"
+          }
+        },
+        "required": []
+      }
+    },
     "book_appointment": {
       "source": "olb",
       "inputSchema": {

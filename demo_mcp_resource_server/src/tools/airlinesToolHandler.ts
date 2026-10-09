@@ -15,6 +15,7 @@
 import { randomUUID } from 'node:crypto';
 import {
   airlinesDatabaseName,
+  createBooking,
   getFlight,
   getPassengerRecord,
   listBookings,
@@ -128,6 +129,56 @@ function cancelReservation(args: Record<string, unknown>, subject: string): unkn
     departureTime: booking.departure_time,
     refund: { status: 'initiated', method: 'original form of payment' },
     note: 'Cancellation recorded for the demo; the reservation row is left intact so the demo can be replayed.',
+  };
+}
+
+/**
+ * UC48 — the CREATE write. Requires an explicit flight_number: a chip phrase
+ * ("book a flight to Paris") names a destination, not a row, and guessing the
+ * passenger's next flight would book a trip they never asked for. The agent
+ * resolves the flight first (search/status), then books with the number.
+ */
+function bookFlight(args: Record<string, unknown>, subject: string): unknown {
+  const amount = typeof args.amount === 'number' ? args.amount : Number(args.amount);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return { source: SOURCE, booked: false, note: 'A positive ticket price is required.' };
+  }
+  const flightNumber = typeof args.flight_number === 'string' ? args.flight_number.trim().toUpperCase() : '';
+  if (!flightNumber) {
+    return { source: SOURCE, booked: false, note: 'Name the flight to book (e.g. UA502) — search flights first.' };
+  }
+  const flight = getFlight(flightNumber);
+  if (!flight) {
+    return { source: SOURCE, booked: false, flightNumber, note: `No flight ${flightNumber} in the airlines database.` };
+  }
+  const match = resolvePassenger(subject);
+  if (!match) {
+    return { source: SOURCE, booked: false, note: 'No passenger records in the airlines database.' };
+  }
+  const passengers = Number.isFinite(Number(args.passengers)) && Number(args.passengers) > 0
+    ? Math.floor(Number(args.passengers))
+    : 1;
+
+  const confirmationNumber = createBooking({
+    passengerRef: match.passenger.passenger_ref,
+    flightNumber: flight.flight_number,
+    seat: null,
+    cabin: 'Economy',
+    checkedBags: 0,
+  });
+
+  return {
+    source: SOURCE,
+    matchedBy: match.matchedBy,
+    booked: true,
+    confirmationNumber,
+    flightNumber: flight.flight_number,
+    route: `${flight.origin} to ${flight.destination}`,
+    departureTime: flight.departure_time,
+    arrivalTime: flight.arrival_time,
+    passengers,
+    cabin: 'Economy',
+    amount,
   };
 }
 
@@ -397,6 +448,7 @@ function redeemMiles(args: Record<string, unknown>, subject: string): unknown {
 
 export const AIRLINES_TOOL_NAMES = new Set([
   'pay_airline_fee',
+  'book_airline_flight',
   'get_airline_bookings',
   'sensitive_airline_bookings',
   'cancel_airline_reservation',
@@ -415,6 +467,8 @@ function runAirlinesTool(
   switch (toolName) {
     case 'pay_airline_fee':
       return payFee(args, subject);
+    case 'book_airline_flight':
+      return bookFlight(args, subject);
     case 'get_airline_bookings':
       return getBookings(subject);
     case 'sensitive_airline_bookings':

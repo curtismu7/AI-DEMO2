@@ -1,0 +1,18 @@
+{
+  "vertical": "airlines",
+  "useCaseId": "UC48",
+  "triggerType": "chip",
+  "mode": "unit-prereq",
+  "status": "UNPROVEN",
+  "errorClass": null,
+  "primaryTool": "book_airline_flight",
+  "checkedAt": "2026-10-08",
+  "requiredFlags": [
+    "ff_mcp_gateway_pinggateway"
+  ],
+  "flagsAssumedOn": true,
+  "provesDeclaredOnly": true,
+  "flagsOffDetected": [
+    "ff_mcp_gateway_pinggateway"
+  ]
+}

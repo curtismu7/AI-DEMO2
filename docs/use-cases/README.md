@@ -23,6 +23,7 @@ See also: [Audit Table](./audit-table.md), [Step Verification Report](./step-ver
 - [**UC43** — Consumer & Partner Agent — CIMD registration](./consumer-partner-agent-cimd-registration.md) ✅ 🛡️
 - [**UC44** — Workload Agent: OBO customer-data read](./workload-digital-assistant-obo.md) ✅ 🛡️
 - [**UC45** — SaaS-Embedded Agent — Website Worker](./saas-embedded-worker.md) ✅ 🛡️
+- [**UC48** — Consumer Agent — governed flight booking](./consumer-agent-booking.md) ✅ 🛡️
 
 ## Demo
 
@@ -79,6 +80,8 @@ See also: [Audit Table](./audit-table.md), [Step Verification Report](./step-ver
 - [**UC46** — Privilege A2A access review](./privilege-a2a-access-review.md) ✅
 - [**UC46A** — Privilege A2A access review in the agent](./privilege-a2a-access-review-agent.md) ✅
 - [**UC47** — Privilege A2A three-deep agent chain](./privilege-a2a-agent-chain.md) ✅
+- [**UC-MUSE1** — Your agent, our gateway (external agent, standard lane)](./external-agent-standard-lane.md) ✅
+- [**UC-MUSE2** — Your agent, the Agent Privilege (external agent, lane 2)](./external-agent-ai-gateway-lane.md) ✅
 
 ## Learn
 
@@ -99,4 +102,5 @@ See also: [Audit Table](./audit-table.md), [Step Verification Report](./step-ver
 - [**UC-LEARN12** — PingFederate DaVinci Integration Kit](./pingfederate-davinci-integration-kit.md) ✅
 - [**UC-LEARN13** — PingFederate RAR — the authorization server refuses an out-of-policy transfer](./pingfederate-rar-processor.md) ✅
 - [**UC-LEARN14** — CIBA human approval — PingFederate or PingOne, by how you signed in](./ciba-by-signed-in-provider.md) ✅
+- [**UC-LEARN15** — Jev decision model — System One vs System Two](./jev-decision-model.md) ✅ 🛡️
 - [**UC-LEARN11** — Privilege LLM — prompt injection blocked](./privilege-llm-prompt-injection.md) ✅ 🛡️

@@ -608,15 +608,15 @@ function validateDemoReadinessCatalog(sources, { uiInventory, educationPanelIds 
     ], id)),
     ...executableAdminIds,
   ];
-  if (caseIds.length !== 50 || new Set(caseIds).size !== 50) {
-    pushIssue(issues, `Expected exactly 50 executable Demo Steps entries; found ${caseIds.length} entries (${new Set(caseIds).size} unique)`);
+  if (caseIds.length !== 51 || new Set(caseIds).size !== 51) {
+    pushIssue(issues, `Expected exactly 51 executable Demo Steps entries; found ${caseIds.length} entries (${new Set(caseIds).size} unique)`);
   }
   const ciAmCount = (inventoryConfig.ciam || []).filter((id) => !seenIn(inventoryConfig.primary, id)).length;
   const privilegeCount = (inventoryConfig.privilege || []).filter((id) => !seenIn([
     ...(inventoryConfig.primary || []), ...(inventoryConfig.ciam || []),
   ], id)).length;
-  if ((inventoryConfig.primary || []).length !== 28 || ciAmCount !== 4 || privilegeCount !== 6 || executableAdminIds.length !== 12) {
-    pushIssue(issues, `Expected lane counts 28 + 4 + 6 + 12; found ${(inventoryConfig.primary || []).length} + ${ciAmCount} + ${privilegeCount} + ${executableAdminIds.length}`);
+  if ((inventoryConfig.primary || []).length !== 28 || ciAmCount !== 5 || privilegeCount !== 6 || executableAdminIds.length !== 12) {
+    pushIssue(issues, `Expected lane counts 28 + 5 + 6 + 12; found ${(inventoryConfig.primary || []).length} + ${ciAmCount} + ${privilegeCount} + ${executableAdminIds.length}`);
   }
 
   const useCaseById = new Map(useCases.map((item) => [item.id, item]));
@@ -665,7 +665,13 @@ function validateDemoReadinessCatalog(sources, { uiInventory, educationPanelIds 
       }
     }
 
-    const behaviorVerticals = isAdmin ? [] : verticals;
+    // A `verticals` allowlist on the catalog entry narrows the row to those
+    // verticals only (UC48 ships airlines-only); every other vertical keeps the
+    // full set. isAdmin rows keep pingone-admin.
+    const rowVerticals = isAdmin
+      ? ['pingone-admin']
+      : (Array.isArray(step.verticals) && step.verticals.length ? step.verticals.filter((v) => verticals.includes(v)) : [...verticals]);
+    const behaviorVerticals = isAdmin ? [] : rowVerticals;
     const resolvedStepsByVertical = Object.fromEntries(behaviorVerticals.map((vertical) => [
       vertical,
       resolveUseCase(id, vertical) || step,
@@ -706,7 +712,6 @@ function validateDemoReadinessCatalog(sources, { uiInventory, educationPanelIds 
     const expectedBehavior = expectedBehaviorByVertical.banking
       || Object.values(expectedBehaviorByVertical)[0]
       || expectedBehaviorFor({ id, step, isAdmin, expectation });
-    const rowVerticals = isAdmin ? ['pingone-admin'] : [...verticals];
     const runtimeVerticalGroups = groupRuntimeVerticalBehaviors(
       expectedBehaviorByVertical,
       authorizationContractByVertical,
@@ -825,7 +830,7 @@ function validateDemoReadinessCatalog(sources, { uiInventory, educationPanelIds 
         ? pfExchangeContractFor({ id, flowId: providerFlows.pingfederate, profiles: sources.pingFederateProfiles })
         : null,
       auth: auth.useCases?.[id] || auth.defaultLevel || null,
-      verticals: isAdmin ? ['pingone-admin'] : [...verticals],
+      verticals: rowVerticals,
       runtimeVerticalGroups,
       executionMode: mode,
       repairability: modeConfig ? {

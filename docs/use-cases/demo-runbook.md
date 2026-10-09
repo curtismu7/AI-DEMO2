@@ -273,4 +273,5 @@
 | UC41 | `search the news for PingOne DaVinci` | `PERMIT` | An ordinary business search — no blocked term, so the gateway forwards it to the real Brave API. |
 | UC42 | `search the news for bitcoin price today` | `DENY` | Demo bank policy says no crypto research through the agent gateway. The gateway kills the query before Brave ever sees it. |
 | UC-TOOL1 | `find where the BFF performs MCP token exchange` | `PERMIT` | The answer is grounded in indexed code, but retrieval happens only after RFC 8693 delegation, code:search scope enforcement, and a PingOne Authorize PERMIT. |
+| UC48 | `book a flight from San Francisco to Paris for me under $800` | `HITL_REQUIRED` | The agent searched, picked a $346 fare under your $800 cap, and tried to book — the price hit the consent gate, you approved, and the booking is real: ask for your reservations and it is there. |
 

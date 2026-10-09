@@ -196,6 +196,10 @@ const WRITE_TOOL_TYPE_MAP = {
   // routes but the amount policy never fires: no DENY, no step-up, no consent,
   // and the demo looks correct while authorizing everything.
   pay_airline_fee: 'transfer',
+  // airlines (United) UC48 — "book a flight … under $800". Same defect class:
+  // without the entry the consumer-agent chip routes, books at any price, and
+  // every gate stays green while the HITL consent beat never runs.
+  book_airline_flight: 'transfer',
 };
 
 /**

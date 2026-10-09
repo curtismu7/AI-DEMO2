@@ -63,6 +63,8 @@ const AIRLINES_TOOLS = new Set([
   // same physical backend, same audience. Omitting it here means the gate fires,
   // the policy decides, and then the call dies on 'Unknown tool'.
   'pay_airline_fee',
+  // UC48 consumer-agent booking write — same backend, same story.
+  'book_airline_flight',
   'get_airline_bookings',
   // Phase 2 — consent-gated counterpart. Must route the same way as the plain
   // lookup, or the gate would fire and then the call would 'Unknown tool'.

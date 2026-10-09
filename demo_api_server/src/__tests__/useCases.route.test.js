@@ -12,14 +12,16 @@ function makeApp() {
 
 describe('GET /api/use-cases', () => {
   test('lists every catalog use case, defaulting to banking', async () => {
-    // The route serves the edition-filtered catalog; the count is whatever the
-    // catalog holds in this tree (the source repo ships no edition file, an
-    // exported edition may drop use cases). UC40 presence is edition-dependent.
-    const { USE_CASES } = require('../../config/useCases');
+    // The route serves the edition-filtered, vertical-resolved catalog — the
+    // count is whatever listUseCases('banking') holds in this tree (the source
+    // repo ships no edition file, an exported edition may drop use cases, and
+    // entries whose `verticals` allowlist excludes banking are absent). UC40
+    // presence is edition-dependent.
+    const { listUseCases } = require('../../config/useCases');
     const res = await request(makeApp()).get('/api/use-cases');
     expect(res.status).toBe(200);
     expect(res.body.vertical).toBe('banking');
-    expect(res.body.useCases).toHaveLength(USE_CASES.length);
+    expect(res.body.useCases).toHaveLength(listUseCases('banking').length);
     expect(res.body.useCases.some((useCase) => useCase.id === 'UC36')).toBe(false);
     expect(res.body.useCases.find((useCase) => useCase.id === 'UC46')).toMatchObject({
       auth: 'user',

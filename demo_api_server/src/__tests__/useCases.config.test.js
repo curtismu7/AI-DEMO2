@@ -20,10 +20,10 @@ describe('useCases catalog SoT', () => {
   test('contains the complete catalog including the CIAM/NHI agent lanes', () => {
     // UC43/44 and the SaaS-Embedded Website Worker UC45 are part of the CIAM/NHI catalog.
     // UC-LEARN15 (Jev decision-model lesson page) takes it to 76; the external-agent
-    // lanes UC-MUSE1/UC-MUSE2 take it to 78.
-    expect(RAW_USE_CASES).toHaveLength(78);
+    // lanes UC-MUSE1/UC-MUSE2 take it to 78; UC48 (consumer-agent booking) to 79.
+    expect(RAW_USE_CASES).toHaveLength(79);
     const ids = RAW_USE_CASES.map((u) => u.id);
-    expect(new Set(ids).size).toBe(78);
+    expect(new Set(ids).size).toBe(79);
     for (let n = 1; n <= 22; n++) expect(ids).toContain(`UC${n}`);
     expect(ids).toContain('UC23');
     expect(ids).toContain('UC24');
@@ -238,8 +238,11 @@ describe('useCases catalog SoT', () => {
   });
 
   test('listUseCases returns all catalog entries resolved for a vertical', () => {
-    // the resolved list mirrors the (edition-filtered) catalog this tree serves
-    expect(listUseCases('healthcare')).toHaveLength(USE_CASES.length);
+    // the resolved list mirrors the (edition-filtered) catalog this tree serves,
+    // minus entries whose `verticals` allowlist excludes the vertical (UC48 is
+    // airlines-only), so healthcare resolves one fewer than the raw catalog.
+    const expectedHealthcare = USE_CASES.filter((u) => !u.verticals || u.verticals.includes('healthcare'));
+    expect(listUseCases('healthcare')).toHaveLength(expectedHealthcare.length);
     expect(listUseCases()).toHaveLength(USE_CASES.length);
   });
 

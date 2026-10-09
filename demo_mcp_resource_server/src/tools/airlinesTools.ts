@@ -72,6 +72,30 @@ export const AIRLINES_TOOLS: McpToolDef[] = [
     readOnly: true,
   },
   {
+    // UC48 — Consumer agent booking. The CREATE the other writes never showed:
+    // payFee appends a ledger row, redeemMiles mutates one field — neither
+    // produces a new reservation the everyday read then lists. Scopes match the
+    // other writes; the amount ladder keys on the tool NAME via
+    // WRITE_TOOL_TYPE_MAP, so the transaction policy (deny / step-up / HITL
+    // consent) decides on the price before this handler runs at all.
+    name: 'book_airline_flight',
+    description: "Book a United flight for the authenticated passenger. The price is evaluated against the transaction policy before the booking is created.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        flight_number: { type: 'string', description: 'United flight number, e.g. UA502' },
+        origin: { type: 'string', description: 'Origin airport code (informational; the flight row is authoritative)' },
+        destination: { type: 'string', description: 'Destination airport code (informational; the flight row is authoritative)' },
+        amount: { type: 'number', description: 'Total ticket price in dollars' },
+        passengers: { type: 'number', description: 'Number of passengers (default 1)' },
+      },
+      required: [],
+    },
+    requiredScopes: ['airlines:read', 'airlines:write'],
+    readOnly: false,
+    intentHints: ['book a flight to Paris', 'reserve a flight for me', 'book a trip under $800'],
+  },
+  {
     name: 'get_airline_bookings',
     description: "List the authenticated passenger's upcoming United reservations, with flight, seat and status.",
     inputSchema: { type: 'object', properties: {}, required: [] },

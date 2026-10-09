@@ -85,6 +85,7 @@ export const CIAM_AGENT_TYPE_USE_CASE_IDS = [
   'UC43',  // Consumer & Partner Agent — mocked CIMD registration
   'UC44',  // Workload Agent: Digital Assistant — real OBO execution
   'UC45',  // SaaS-Embedded Agent — Website Worker
+  'UC48',  // Consumer Agent — governed flight booking (airlines-only; hidden elsewhere by the catalog's verticals allowlist)
   'UC2',   // Agent Network — specialist delegation
   'UC2.6', // Agent Network — mismatched actor denied
 ];
@@ -119,6 +120,7 @@ export const DEMO_USE_CASE_SEARCH_TERMS = {
   UC43: ['cimd', 'consumer agent', 'partner agent', 'agent registration', 'nhi inventory'],
   UC44: ['obo', 'digital assistant', 'workload agent', 'delegated action', 'customer attribution'],
   UC45: ['saas embedded', 'website worker', 'embedded agent', 'customer tenant', 'website identity', 'nhi'],
+  UC48: ['consumer agent', 'book a flight', 'flight booking', 'hitl', 'consent', 'airlines'],
   'UC2.6': ['a2a', 'mismatched actor', 'wrong actor', 'delegation deny'],
   'UC-PAM-SETUP': ['privilege', 'pam', 'privilege setup', 'agent onboarding', 'mfa'],
   'UC-PAM-SCRIPT': ['privilege', 'pam', 'jit access', 'approval', 'four eyes', 'session recording', 'kill switch', 'aws', 's3', 'vpc', 'kubernetes'],
