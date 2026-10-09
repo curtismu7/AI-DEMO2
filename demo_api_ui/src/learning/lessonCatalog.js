@@ -328,9 +328,9 @@ export const lessonCatalog = Object.freeze([
     fallback: { provenance: PROVENANCE.RECORDED, label: "Recorded Privilege A2A chain trace" },
     maturityStages: [MATURITY_STAGES.AUTHORIZE, MATURITY_STAGES.GOVERN],
     agentCategory: "Enterprise / Workload Agent",
-    productRoles: ["PingOne Privilege", "AI Gateway", "Agent Governance"],
+    productRoles: ["PingOne Privilege", "Agent Privilege", "Agent Governance"],
     talkingPoints: [
-      "Every agent-to-agent call goes through the Privilege AI Gateway with the caller's own agent key; no agent holds another agent's key or the model provider's key.",
+      "Every agent-to-agent call goes through the Agent Privilege with the caller's own agent key; no agent holds another agent's key or the model provider's key.",
       "The gateway decides who may call whom, screens what crosses each hand-off, and logs every hop.",
     ],
   }),

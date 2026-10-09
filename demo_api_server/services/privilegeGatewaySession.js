@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * The façade's upstream leg to the Privilege AI Gateway, one session per
+ * The façade's upstream leg to the Agent Privilege, one session per
  * Agentic App.
  *
  * WHY THIS EXISTS. Standalone MCP clients (LM Studio) register themselves with

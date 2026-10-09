@@ -37,7 +37,7 @@ const VALID_PHASES = new Set([
   // still applies, so no id_token or code ever lands in the record.
   'oauth.authorize',
   'oauth.callback',
-  // The PingOne Privilege AI Gateway leg, recorded when it fronts the Agent
+  // The PingOne Agent Privilege leg, recorded when it fronts the Agent
   // Gateway (ff_mcp_gateway_privilege_first). Deliberately narrow in what it
   // claims: Privilege is a third party and does not post hops to us, so the
   // BFF records only that the call was ROUTED through it and what came back —

@@ -1,6 +1,6 @@
 // PrivilegeFirstGatewayPage.jsx — target architecture from
 // docs/superpowers/plans/2026-09-08-privilege-first-gateway.md: the PingOne
-// Privilege AI Gateway as the first hop for LLM and MCP traffic, the Agent
+// Agent Privilege as the first hop for LLM and MCP traffic, the Agent
 // Gateway behind it, and the identity fork the plan stops at. Both figures are
 // React Flow graphs (StaticFlowDiagram) so they pan, zoom and step.
 import React from "react";
@@ -11,7 +11,7 @@ import "./PrivilegeFirstGatewayPage.css";
 
 const GROUPS = {
   caller: { label: "Callers", bg: "var(--th-border-strong)" },
-  priv: { label: "Privilege AI Gateway", bg: "var(--th-status-error)" },
+  priv: { label: "Agent Privilege", bg: "var(--th-status-error)" },
   ag: { label: "Agent Gateway", bg: "var(--th-status-info)" },
   server: { label: "MCP servers", bg: "var(--th-border-strong)" },
   ghost: { label: "Unchanged today", bg: "var(--th-text-muted)" },
@@ -81,7 +81,7 @@ export default function PrivilegeFirstGatewayPage() {
         <div className="pfg-eyebrow">AI-DEMO2 · plan 2026-09-08</div>
         <h1>Privilege first, Agent Gateway for the rest</h1>
         <p>
-          Every LLM call and every MCP tool call enters the PingOne Privilege AI Gateway before anything else.
+          Every LLM call and every MCP tool call enters the PingOne Agent Privilege before anything else.
           Privilege owns the credentials and the human-governed policy. The Agent Gateway behind it keeps doing the
           delegated, per-tool authorization it does today. Agent-to-agent calls take the same front door: each agent
           is a Remote Agent app on the gateway and is called with the caller&apos;s own agent key (see the
@@ -99,7 +99,7 @@ export default function PrivilegeFirstGatewayPage() {
           stepper={stepper}
           testId="pfg-gateway-diagram"
           height={600}
-          ariaLabel="Target architecture: callers on the left enter the Privilege AI Gateway, whose LLM lane goes to cloud providers with a virtual key and whose MCP lane goes to the Agent Gateway, which then reaches the MCP servers. Local models on port 8090 stay outside Privilege."
+          ariaLabel="Target architecture: callers on the left enter the Agent Privilege, whose LLM lane goes to cloud providers with a virtual key and whose MCP lane goes to the Agent Gateway, which then reaches the MCP servers. Local models on port 8090 stay outside Privilege."
         />
         <div className="pfg-legend">
           <span><i className="pfg-sw" />request path, as planned</span>

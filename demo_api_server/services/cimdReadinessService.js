@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * cimdReadinessService.js — read-only check that this demo can sign in to the Privilege AI Gateway by
+ * cimdReadinessService.js — read-only check that this demo can sign in to the Agent Privilege by
  * Client ID Metadata Document instead of Dynamic Client Registration.
  *
  * It answers three questions, each as pass/fail with a one-line reason:

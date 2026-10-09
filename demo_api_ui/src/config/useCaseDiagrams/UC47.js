@@ -10,7 +10,7 @@ const NODES = [
   { id: "main", group: "agent", label: "Main agent", sub: ["starts the reel"], x: 40, y: 150, detail: "Starts the chain on /dashboard; every hop streams into the movie reel." },
   { id: "lc", group: "agent", label: "LangChain agent", sub: ["hop 1"], x: 340, y: 150, detail: "Receives the first handoff through the gateway, presenting its own key." },
   { id: "spec", group: "agent", label: "Specialist", sub: ["hop 2"], x: 640, y: 150, detail: "Receives the second handoff; the gateway checked who may call whom first." },
-  { id: "pgw", group: "gateway", label: "Privilege AI Gateway", sub: ["per-hop checks"], x: 940, y: 150, detail: "Each hop: the key's a2a scope, the policy for the remote agent, the guardrail." },
+  { id: "pgw", group: "gateway", label: "Agent Privilege", sub: ["per-hop checks"], x: 940, y: 150, detail: "Each hop: the key's a2a scope, the policy for the remote agent, the guardrail." },
   ];
 
 const EDGES = [

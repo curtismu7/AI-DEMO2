@@ -97,6 +97,10 @@ export default function UseCaseDiagramPage() {
     <main className="ucd-page">
       <header className="ucd-head">
         <div className="ucd-head__row1">
+          <Link to="/dashboard" className="ucd-back" data-testid="ucd-back"
+            title="Back to the dashboard — Mission Control reopens where the demo left off">
+            ← Back to dashboard
+          </Link>
           {stepNum != null && (
             <Link to="/dashboard" className="ucd-cue" title={`Open Mission Control — this diagram is step ${stepNum} of the demo script`}>
               Step {stepNum} of the demo script

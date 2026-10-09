@@ -9,7 +9,7 @@
  * behavior untouched for it), PINGONE_PROFILE_ID (the hosted PingOne MCP
  * server, authenticated via routes/mcpPingOneAdminAuth.js's admin login rather
  * than a stored secret), and four `transport: 'privilege'` profiles — one per
- * known door on the single PingOne Privilege AI Gateway (see
+ * known door on the single PingOne Agent Privilege (see
  * privilege/CURRENT-CONFIGURATION.md) — all authenticated via
  * routes/mcpPrivilegeAuth.js's one admin login, no stored secret. Any other
  * profile dispatches through mcpTransports/*.

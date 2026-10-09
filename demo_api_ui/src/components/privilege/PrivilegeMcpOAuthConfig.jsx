@@ -92,7 +92,7 @@ export default function PrivilegeMcpOAuthConfig() {
         <dl className="poc__kv">
           <dt>Application Name</dt><dd>banking-mcp</dd>
           <dt>MCP Server URL</dt><dd>http://mcp-resource-server.ping-devops-cmuir.svc.cluster.local:8081/mcp</dd>
-          <dt>AI Gateway</dt><dd>ai-demo-cmuir &mdash; https://mcpgw.ai-demo.ping-devops.com</dd>
+          <dt>Agent Privilege</dt><dd>ai-demo-cmuir &mdash; https://mcpgw.ai-demo.ping-devops.com</dd>
           <dt>Mesh Cluster</dt><dd>ai-demo-cmuir</dd>
         </dl>
       </section>

@@ -1,4 +1,4 @@
-// The AI Gateway routes on the application name: /<door>/mcp. Our own façade
+// The Agent Privilege routes on the application name: /<door>/mcp. Our own façade
 // routes are nested one level deeper (/mcp-facade/<door>/mcp), so the first
 // segment there is always the meaningless "mcp-facade" — skip it.
 //
@@ -20,7 +20,7 @@ export function doorName(mcpUrl) {
 // The three ways to reach the same MCP server. Each says what the audience is
 // meant to notice, because the whole page is a comparison.
 //
-// This replaced an Agent/Agentless pair on 2026-09-02: there is one AI Gateway
+// This replaced an Agent/Agentless pair on 2026-09-02: there is one Agent Privilege
 // now, and the agent-mode frontend the old option named has nothing behind it.
 // The mode is authoritative — it used to be sniffed from the URL, which guessed
 // wrong the moment two paths shared a hostname, as the façade and direct doors do.
@@ -36,7 +36,7 @@ export const GATEWAY_MODES = {
   },
   privilege: {
     key: 'privilege',
-    title: 'Privilege AI Gateway',
+    title: 'Agent Privilege',
     detail: 'The gateway authenticates the user and applies per-tool policy. The client registers with the gateway, so a gateway restart breaks it.',
   },
   facade: {

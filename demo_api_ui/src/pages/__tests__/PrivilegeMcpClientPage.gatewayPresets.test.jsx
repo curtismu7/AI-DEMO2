@@ -1,6 +1,6 @@
 // demo_api_ui/src/pages/__tests__/PrivilegeMcpClientPage.gatewayPresets.test.jsx
 // The Settings modal must offer the gateway presets served by /state so the
-// operator can point the client at the agent-based AI Gateway frontend
+// operator can point the client at the agent-based Agent Privilege frontend
 // (*.applications.procyon.ai) without typing the URL by hand.
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
@@ -15,7 +15,7 @@ vi.mock("../../services/apiClient", () => ({
 
 const PRESETS = [
   { label: "Agentless gateway (nginx)", mode: "privilege", url: "https://aidemo.mcpgw.local.ping-devops.com/mcp" },
-  { label: "AI Gateway via Priv Agent", mode: "direct", url: "https://opensearch.default.applications.procyon.ai:8643/mcp" },
+  { label: "Agent Privilege via Priv Agent", mode: "direct", url: "https://opensearch.default.applications.procyon.ai:8643/mcp" },
 ];
 
 beforeEach(() => {

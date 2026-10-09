@@ -715,7 +715,7 @@ async function main(deps = {}) {
     || fb('MCP_RESOURCE_SERVER_API_KEY')
     || existingResourceEnv.MCP_RESOURCE_SERVER_API_KEY
     || crypto.randomBytes(24).toString('hex');
-  // Privilege AI Gateway Static Token for the resource server's /mcp. Opt-in, so
+  // Agent Privilege Static Token for the resource server's /mcp. Opt-in, so
   // never minted here — only carried forward, with its scopes, so a refresh (and
   // the k8s secret built from this file) does not silently drop it.
   const gatewayStaticToken = fbVault('MCP_RESOURCE_SERVER_GATEWAY_STATIC_TOKEN')

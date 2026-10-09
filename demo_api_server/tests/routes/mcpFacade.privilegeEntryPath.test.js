@@ -1,6 +1,6 @@
 'use strict';
 
-// The AI Gateway pins each Agentic App to ONE client-facing entry path, derived
+// The Agent Privilege pins each Agentic App to ONE client-facing entry path, derived
 // from the backend URL it was registered with, and answers a bare 404 on any
 // other. From the gateway log, 2026-09-08:
 //

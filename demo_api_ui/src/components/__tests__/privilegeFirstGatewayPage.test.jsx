@@ -14,7 +14,7 @@ window.ResizeObserver = window.ResizeObserver || ResizeObserverStub;
 describe("PrivilegeFirstGatewayPage", () => {
   it("renders both figures with their claims and the three switches", () => {
     render(<PrivilegeFirstGatewayPage />);
-    expect(screen.getByRole("group", { name: /callers on the left enter the Privilege AI Gateway/ })).toBeTruthy();
+    expect(screen.getByRole("group", { name: /callers on the left enter the Agent Privilege/ })).toBeTruthy();
     expect(screen.getByRole("group", { name: /identity fork on the Privilege to Agent Gateway hop/ })).toBeTruthy();
     expect(screen.getByText("ff_privilege_llm_first")).toBeTruthy();
     expect(screen.getByText("ff_mcp_gateway_privilege_first")).toBeTruthy();

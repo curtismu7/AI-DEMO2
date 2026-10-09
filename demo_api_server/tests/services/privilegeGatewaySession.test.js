@@ -1,7 +1,7 @@
 'use strict';
 
 // The façade's server-side gateway leg. See the module header for why it
-// exists: the AI Gateway keeps its DCR client registry in memory, so pointing
+// exists: the Agent Privilege keeps its DCR client registry in memory, so pointing
 // standalone MCP clients at it means a restart breaks their stored
 // registration. This holds the gateway hop instead.
 

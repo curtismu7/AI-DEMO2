@@ -48,7 +48,7 @@ describe('privilege-mcp /state — openapi2 probe preset', () => {
     expect(res.status).toBe(200);
     const preset = (res.body.presets || []).find((p) => OPENAPI2_PRESET.test(p.label || ''));
     expect(preset).toBeDefined();
-    // Straight at the AI Gateway, like every other Privilege app door. Not the
+    // Straight at the Agent Privilege, like every other Privilege app door. Not the
     // façade: the façade adds its own hop and would blur which side failed.
     expect(preset.mode).toBe('privilege');
     expect(preset.url).toMatch(/\/openapi2\/mcp$/);

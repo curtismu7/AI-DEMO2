@@ -21,7 +21,7 @@
  */
 const { isBedrockLlmEffective } = require('./bedrockPathGate');
 
-// ff_privilege_llm_first: cloud providers enter the PingOne Privilege AI Gateway
+// ff_privilege_llm_first: cloud providers enter the PingOne Agent Privilege
 // first (virtual-key lanes). The aliased names are what geminiNlIntent.js and
 // :3006's reasonOnce already dispatch. No openai alias yet — refused loudly.
 const PRIVILEGE_FIRST_ALIAS = { google: 'privilege_llm', anthropic: 'privilege_claude' };

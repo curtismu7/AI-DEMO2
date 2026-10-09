@@ -2,7 +2,7 @@
 // The page offers three paths to the same MCP server — Direct, Privilege and
 // Façade — and switching between them re-authenticates, because each has a
 // different OAuth front door. (Agent/Agentless was retired 2026-09-02: there is
-// one AI Gateway now, and agent mode's frontend had nothing behind it.)
+// one Agent Privilege now, and agent mode's frontend had nothing behind it.)
 //
 // Exception: session.oauth on the BFF is a single slot shared across modes
 // (routes/privilegeMcpClient.js POST /config), so switching back to a mode you
@@ -21,7 +21,7 @@ vi.mock("../../services/apiClient", () => ({
 }));
 
 const PRESETS = [
-  { label: "2 · Privilege — direct to the AI Gateway", mode: "privilege", url: "https://mcpgw.example.com/opensearch22/mcp" },
+  { label: "2 · Privilege — direct to the Agent Privilege", mode: "privilege", url: "https://mcpgw.example.com/opensearch22/mcp" },
   { label: "3 · Privilege — through the façade", mode: "facade", url: "https://ai-demo.example.com/mcp-facade/privilege-gateway/opensearch22/mcp" },
 ];
 

@@ -40,6 +40,13 @@ describe("UseCaseDiagramPage", () => {
     expect(cue.getAttribute("href")).toBe("/dashboard");
   });
 
+  it("always shows an explicit back-to-dashboard button in the header", () => {
+    renderAt("/use-case-diagrams/UC1");
+    const back = screen.getByTestId("ucd-back");
+    expect(back.getAttribute("href")).toBe("/dashboard");
+    expect(back.textContent).toMatch(/back to dashboard/i);
+  });
+
   it("opens on hop 1 active-and-paused with the entry node ringed", () => {
     renderAt("/use-case-diagrams/UC1");
     expect(screen.getByTestId("ucd-hop-label").textContent).toContain("1 / 4");

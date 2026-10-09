@@ -2,7 +2,7 @@
 
 // POST /doors/probe answers "my grant is denied here — does this identity work
 // anywhere else?". It used to send the CURRENT door's token to every other
-// door, but the Privilege AI Gateway binds each token to one Agentic App and
+// door, but the Agent Privilege binds each token to one Agentic App and
 // refuses it elsewhere. Measured on the live gateway 2026-09-10:
 //
 //   [mcpgw] token issued for app "opensearch22" presented on app

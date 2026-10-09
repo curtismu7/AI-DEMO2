@@ -1,6 +1,6 @@
 'use strict';
 
-// The agent-based AI Gateway publishes per-app frontends under
+// The agent-based Agent Privilege publishes per-app frontends under
 // *.applications.procyon.ai, where the workstation's Priv Agent supplies the
 // caller's identity. The relay must let those through without a Privilege SSO
 // sign-in and without an Authorization header (a PingOne bearer would only hit

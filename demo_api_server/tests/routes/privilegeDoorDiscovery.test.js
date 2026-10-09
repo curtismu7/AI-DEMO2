@@ -156,7 +156,7 @@ describe('W8 — door discovery feeds the Door picker', () => {
 
     // opensearch22 is the console's first app AND the numbered `2 ·` preset.
     expect(labels(body, 'privilege').filter((l) => l.includes('opensearch22'))).toEqual([]);
-    expect(labels(body, 'privilege')).toContain('2 · Privilege — direct to the AI Gateway');
+    expect(labels(body, 'privilege')).toContain('2 · Privilege — direct to the Agent Privilege');
   });
 
   test('doors outlive the console session that discovered them', async () => {
