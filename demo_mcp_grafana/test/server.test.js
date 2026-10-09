@@ -1,7 +1,7 @@
 'use strict';
 
 // Two things this server must not get wrong:
-//  1. Privilege's AI Gateway discovers a backend with a GET and waits for the
+//  1. Agent Privilege discovers a backend with a GET and waits for the
 //     SSE `endpoint` event. A catalog app's backend is pinned to .../mcp, so
 //     discovery has to succeed on GET /mcp or the app can never be used.
 //  2. The tool -> Grafana-API-path mapping, which is this server's only real

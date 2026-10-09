@@ -1,4 +1,4 @@
-# Privilege AI Gateway: A2A Auth Modes Compared
+# Agent Privilege: A2A Auth Modes Compared
 
 Oct 4, 2026 · @Curtis Muir
 

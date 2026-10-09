@@ -137,7 +137,7 @@ export interface GatewayConfig {
   // MCP_SERVER_RESOURCE_URI on the MCP server must equal MCP_GW_RESOURCE_URI.
   mcpServerPassthrough: boolean;
   // Privilege bridge — the Static Token configured on the Agentic App when the
-  // PingOne Privilege AI Gateway fronts this gateway. Empty disables the bridge
+  // PingOne Agent Privilege fronts this gateway. Empty disables the bridge
   // entirely; see src/auth/privilegeBridge.ts.
   privilegeBridgeSecret: string;
   // Phase 266: Path A — service API key for the api_key credential disposition (demo only)

@@ -25,7 +25,7 @@ apps and are marked ⏳. A ⛔ cell means "stop that cell; new investigation."
 | RFC 9728 + RFC 8414 | ✅ 200 both |
 | Door behavior | ✅ tokenless POST /mcp → 401 (challenge correct) |
 
-## AI Gateway lane — facade `privilege-gateway` door
+## Agent Privilege lane — facade `privilege-gateway` door
 
 ### Local stack (`https://localhost:3001`) — machine-verified 2026-10-08
 
@@ -44,7 +44,7 @@ apps and are marked ⏳. A ⛔ cell means "stop that cell; new investigation."
 
 ## Per-client cells (need the real apps)
 
-| Client | Standard lane | AI Gateway lane | Notes to capture on test |
+| Client | Standard lane | Agent Privilege lane | Notes to capture on test |
 |---|---|---|---|
 | Muse (consumer app) | ⏳ connect + read — OAuth-discovery compatibility is the open question | ⏳ (needs SE ingress) | discovery URL constructed; whether Sentinel completes DCR+PKCE; redirect shape |
 | Muse Code (CLI) | ⏳ connect + read + governed write | ⏳ | `mcp_servers` config; token-endpoint auth method; HITL pause behavior |

@@ -8,11 +8,11 @@
 
 ## Buyer Story
 
-Verify what the Privilege AI Gateway actually decided about an LLM call — the chat console classifies the outcome (denied by policy / provider refused / answered), while the raw-request tab (/llm-test) interprets nothing and shows exactly what was sent and returned.
+Verify what the Agent Privilege actually decided about an LLM call — the chat console classifies the outcome (denied by policy / provider refused / answered), while the raw-request tab (/llm-test) interprets nothing and shows exactly what was sent and returned.
 
 ## PingOne Solution
 
-The PingOne Privilege AI Gateway fronts every LLM backend behind a virtual key, scanning for prompt injection, PII, and malicious content and returning a policy verdict alongside the provider response.
+The PingOne Agent Privilege fronts every LLM backend behind a virtual key, scanning for prompt injection, PII, and malicious content and returning a policy verdict alongside the provider response.
 
 ## How to Run
 

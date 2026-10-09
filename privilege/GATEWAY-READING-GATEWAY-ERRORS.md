@@ -1,4 +1,4 @@
-# Privilege AI Gateway: Reading Gateway Errors
+# Agent Privilege: Reading Gateway Errors
 
 Oct 3, 2026 · @Curtis Muir
 

@@ -1,4 +1,4 @@
-# Privilege AI Gateway: LLM Routing and Virtual Keys
+# Agent Privilege: LLM Routing and Virtual Keys
 
 Oct 3, 2026 · @Curtis Muir
 

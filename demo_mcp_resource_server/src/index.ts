@@ -184,7 +184,7 @@ function apiKeyMatches(presented: string): boolean {
 // sub-less machine token.
 
 // Served at GET /openapi/banking-rest.json so an external OpenAPI-to-MCP
-// importer (e.g. a Privilege AI Gateway "Add OpenAPI MCP" app) can point at
+// importer (e.g. a Agent Privilege "Add OpenAPI MCP" app) can point at
 // this server's REST banking surface. Read once at startup, not per request.
 const BANKING_OPENAPI_SPEC = fs.readFileSync(
   path.join(__dirname, '..', 'openapi', 'banking-rest.openapi.json'),
@@ -493,7 +493,7 @@ function handleHttp(req: IncomingMessage, res: ServerResponse): void {
   }
 
   // Legacy HTTP+SSE transport (2024-11-05) — for ONE caller: the PingOne
-  // Privilege AI Gateway's discovery client, which opens a bare GET and waits
+  // Agent Privilege's discovery client, which opens a bare GET and waits
   // for the SSE `endpoint` event rather than POSTing `initialize` (see
   // .claude/skills/privilege-mcpgw-agent-k8s). Mirrors oauth-mcp's
   // HttpMCPTransport.ts, minus its MCP-Session-Id/protocol-version-header

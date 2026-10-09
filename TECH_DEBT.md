@@ -5126,7 +5126,7 @@ it from `process.env`.
 **Where:** `demo_api_server/routes/mcpFacade.js` doors `agentless`, `agent`,
 `agent-cmuir`; env `PRIVILEGE_AGENTLESS_MCPGW_URL_BANKING`.
 
-**What's wrong:** the Privilege estate was rebuilt as one AI Gateway
+**What's wrong:** the Privilege estate was rebuilt as one Agent Privilege
 (`mcpgw.ai-demo.ping-devops.com`, release `agentless-mcpgw` in
 `ping-devops-curtismuir`). Three doors still name torn-down infrastructure:
 `agentless` points at `cmuir-agentless-mcpgw.ping-devops.com/external/mcp`
@@ -5140,7 +5140,7 @@ the banking door needs a banking MCP server registered on the new gateway as its
 own Agentic App; only `opensearch22` exists there today, and aiming a banking
 door at an OpenSearch app would silently serve the wrong tools — worse than a
 dark door. The agent-mode path additionally needs inbound mesh exposure that the
-AI Gateway chart does not ship (the old agent chart had an SSL-passthrough
+Agent Privilege chart does not ship (the old agent chart had an SSL-passthrough
 ingress); the SE1 guide's client path does not use it.
 
 **Real fix:** register a banking Agentic App on the new gateway, then set
@@ -5181,7 +5181,7 @@ worse than no door. `PRIVILEGE_AGENT_MCPGW_URL` and
 denied-session coverage those doors carried in `mcpFacade.test.js` was
 repointed to the `agentless` door rather than dropped — that behaviour keys off
 `upstream.status === 403` and `door.label`, so it was never agent-specific.
-Restoring agent mode would need inbound mesh exposure the AI Gateway chart does
+Restoring agent mode would need inbound mesh exposure the Agent Privilege chart does
 not ship (the old agent chart had an SSL-passthrough ingress); the live client
 path is the `privilege-gateway` door.
 
@@ -5276,7 +5276,7 @@ banking" preset default to it.
 
 **Update 2026-09-09 — registered, discoverable, `tools/call` is a platform
 blocker.** `banking-mcp` is registered (MCP Server, the URL above, Auth Mode
-None, AI Gateway `ai-demo-cmuir`, Mesh Cluster `ai-demo-cmuir`) and shows all
+None, Agent Privilege `ai-demo-cmuir`, Mesh Cluster `ai-demo-cmuir`) and shows all
 33 tools including both banking ones. The repo-side scope fix landed in
 PR #2995: `banking:read` was a scope that existed in no PingOne resource and
 nowhere in `scope-topology.json`; the tools now require `read`, and a
@@ -5308,7 +5308,7 @@ validation.
 `ping-mcpgw` release was `helm uninstall`ed from `ping-devops-cmuir` and its
 install block removed from `k8s/aws/deploy.sh`, together with the
 `agentless-mcpgw` install/warn block and the `MCPGW_HOSTNAME` passthrough
-ingress (the whole Privilege gateway estate was rebuilt as a manual AI Gateway
+ingress (the whole Privilege gateway estate was rebuilt as a manual Agent Privilege
 install in `ping-devops-curtismuir`, per the SE1 instructional demo setup).
 Still on disk but no longer installed by any deploy: `k8s/helm/mcpgw`,
 `k8s/75-ping-mcpgw-deployment.yaml`, and the `mcpgw-*-ingress/certificate`
@@ -10505,7 +10505,7 @@ Topology page. Nothing generates them: `demo_api_ui/scripts/sync-topology-export
 only copies them into `public/exports`. PR #728 added two nodes (`a2amain`,
 `a2aworker`), seven edges and two request flows to
 `demo_api_ui/src/components/serverTopologyData.js`, and renamed the `privgw`
-node to Privilege AI Gateway. The CSVs still describe the topology before that.
+node to Agent Privilege. The CSVs still describe the topology before that.
 
 **Why it matters:** the page and its downloads now disagree, and the next
 topology change will widen the gap in the same silent way.

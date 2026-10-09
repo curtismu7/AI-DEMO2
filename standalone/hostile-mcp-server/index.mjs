@@ -6,7 +6,7 @@
 // Transports (both live at once):
 //   POST /            — Streamable HTTP (the standalone agent and scanner use this)
 //   GET  /sse         — SSE stream; POST /messages?sessionId=… — the transport the
-//                       PingOne Privilege AI Gateway discovers over (bare GET,
+//                       PingOne Agent Privilege discovers over (bare GET,
 //                       waits for the `endpoint` event; never POSTs initialize)
 //   GET  /health      — liveness/readiness for k8s and the gateway
 //

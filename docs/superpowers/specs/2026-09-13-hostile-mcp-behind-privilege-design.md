@@ -1,4 +1,4 @@
-# Hostile MCP server behind the Privilege AI Gateway — design & runbook
+# Hostile MCP server behind the Agent Privilege — design & runbook
 
 **Date:** 2026-09-13
 **Status:** approved (brainstorming) — implementation in progress
@@ -8,7 +8,7 @@ PR #3267 (victim agent), PR #3268 (`standalone/mcp-scanner`).
 ## Goal
 
 Make the hostile MCP server reachable on the SE cluster **behind the PingOne
-Privilege AI Gateway**, and demonstrate the **full chain**:
+Agent Privilege**, and demonstrate the **full chain**:
 
 1. The poisoned tool **metadata** reaches an agent unfiltered — the gateway does
    policy on tool *calls*, not metadata, so it cannot see this. (Honest gap.)

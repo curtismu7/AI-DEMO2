@@ -2,7 +2,7 @@
 
 Review of the code as of 2026-09-30. "Agent Gateway" here means the Node gateway in
 `demo_mcp_gateway/` (the one the A2A path and `dual_token` tools use). PingGateway (IG)
-and the PingOne Privilege AI Gateway are covered briefly at the end.
+and the PingOne Agent Privilege are covered briefly at the end.
 
 Sources read: `demo_mcp_gateway/src/{tokenValidator.ts, auth/authorizeMcpRequestCore.ts,
 auth/GatewayTokenPolicy.ts, auth/PingOneAuthorizeClient.ts, auth/toolScopes.ts,
@@ -150,7 +150,7 @@ From `gen-authorize-snapshot.js` ("DELIBERATELY NOT MODELED") and
   PingOne introspection (`01-mcp-olb.json`) or JWKS (`00-mcp-olb-jwks.json`), switched by
   `ff_mcp_gateway_jwks` / `X-Token-Validation`. Fails closed on DENY, INDETERMINATE, error,
   timeout, or unconfigured backend.
-- **PingOne Privilege AI Gateway** (Procyon / agentless MCPGW): from memory notes, not
+- **PingOne Agent Privilege** (Procyon / agentless MCPGW): from memory notes, not
   re-verified against live behavior today. Binds every token to **one Agentic App** and
   rejects it on any other; bearer check runs before routing; then a Privilege policy check
   ("policy denied <userID> access to <app>", a 403, on the federated identity). A 401 does

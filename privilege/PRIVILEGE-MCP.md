@@ -68,7 +68,7 @@ Both live outside the repo at `~/Downloads/`:
 
 | Storyboard | What it teaches |
 |---|---|
-| `priv_for_ai_image_first_se_storyboard_v2_corrected.html` | *Priv for AI Gateway: Architecture, Flows, and Troubleshooting.* Control plane vs runtime gateway, where the gateway sits in a customer network, the challenge→browser→PingOne→token→retry auth flow, why the Frontend URL is not the backend URL, why tools appear/disappear/deny, and an SE troubleshooting order (auth → routing → policy → runtime) |
+| `priv_for_ai_image_first_se_storyboard_v2_corrected.html` | *Priv for Agent Privilege: Architecture, Flows, and Troubleshooting.* Control plane vs runtime gateway, where the gateway sits in a customer network, the challenge→browser→PingOne→token→retry auth flow, why the Frontend URL is not the backend URL, why tools appear/disappear/deny, and an SE troubleshooting order (auth → routing → policy → runtime) |
 | `priv_for_ai_specialist_training.html` | The earlier 10-diagram deck. Source of the `EvaluateHost` label-strip routing model — ⚠️ **disproven on build `v1.260726`**, see §[EvaluateHost — DISPROVEN](#how-the-gateway-resolves-an-application-evaluatehost--disproven-on-this-build) |
 
 Both describe a build whose OAuth challenge flow no image we can pull has ever emitted.
@@ -962,7 +962,7 @@ FQDN, the client presents a PingOne JWT to Ping's cloud, and Privilege rejects i
 `IssuerPublicKey:[]` / `JWT signature validation failed`. Two PingOne environments,
 three clusters, and a `cyctl` detour later, that is still unfixable from this repo.
 
-Ping's own SE enablement storyboard ("Priv for AI Gateway: Architecture, Flows, and
+Ping's own SE enablement storyboard ("Priv for Agent Privilege: Architecture, Flows, and
 Troubleshooting") documents a **different topology** that does not have this problem:
 
 ```

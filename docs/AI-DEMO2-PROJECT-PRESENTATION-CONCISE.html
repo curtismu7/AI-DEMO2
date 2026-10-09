@@ -564,7 +564,7 @@ flowchart LR
       <div class="source"><a href="../demo_api_server/routes/agentRun.js">Agent run route</a><a href="../demo_api_server/services/agentMcpTokenService.js">Token exchange</a><a href="../demo_api_server/services/mcpToolPipeline.js">Tool pipeline</a></div>
     </section>
         <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>07 / Privilege AI Gateway · flow</div>
+      <div class="brand"><span class="brand-mark"></span>07 / Agent Privilege · flow</div>
       <p class="eyebrow">Privilege gateway flow</p><h2>One gateway, two MCP roles — policy applied between the sessions.</h2>
       <pre class="mermaid" id="priv-mermaid">
 flowchart LR
@@ -678,7 +678,7 @@ sequenceDiagram
         <div class="rfc-card core"><h3>Tokens and revocation</h3><p class="rfc-list"><b>RFC 7519</b> JWT · <b>RFC 7515</b> JWS signing · <b>RFC 7638</b> JWK thumbprint · <b>RFC 7009</b> token revocation · <b>RFC 7662</b> token introspection · <b>RFC 9068</b> JWT access tokens · <b>RFC 8705</b> mTLS / DPoP-bound credentials · <b>RFC 9449</b> DPoP</p></div>
         <div class="rfc-card"><h3>Advanced authorization</h3><p class="rfc-list"><b>RFC 9396</b> Rich Authorization Requests (RAR) · <b>RFC 9126</b> Pushed Authorization Requests (PAR) · <b>RFC 7591</b> dynamic client registration · <b>RFC 7521/7523</b> JWT client assertion grants · <b>RFC 8707</b> resource indicators (audience narrowing)</p></div>
         <div class="rfc-card core"><h3>Protected resources and MCP</h3><p class="rfc-list"><b>RFC 9728</b> Protected Resource Metadata — how MCP clients find OAuth servers · <b>RFC 9470</b> client-initiated backchannel authentication / 428 re-auth in HITL flows · <b>RFC 9421</b> HTTP message signatures · <b>RFC 5424</b> syslog audit events</p></div>
-        <div class="rfc-card p1az"><h3>PingOne Authorize (P1AZ)</h3><p class="rfc-list"><b>Trust framework + policy rules</b> imported via snapshot; <b>TokenActive</b> rules evaluate the actor/act token chain from the RFC 8693 exchanges · <b>Step-up MFA</b> and amount-threshold policies exercised in live flows · <code>p1az-import-generator</code> skill and <code>docs/P1AZ_TOKENACTIVE_RULE_SETUP.md</code> · Privilege AI Gateway policy runtime (slide 33) applies P1AZ decisions at the MCP boundary</p></div>
+        <div class="rfc-card p1az"><h3>PingOne Authorize (P1AZ)</h3><p class="rfc-list"><b>Trust framework + policy rules</b> imported via snapshot; <b>TokenActive</b> rules evaluate the actor/act token chain from the RFC 8693 exchanges · <b>Step-up MFA</b> and amount-threshold policies exercised in live flows · <code>p1az-import-generator</code> skill and <code>docs/P1AZ_TOKENACTIVE_RULE_SETUP.md</code> · Agent Privilege policy runtime (slide 33) applies P1AZ decisions at the MCP boundary</p></div>
         <div class="rfc-card"><h3>Where to see them</h3><p class="rfc-list">Token Chain inspector renders <b>principal/actor/audience/scopes</b> per hop · Authorize decision inspector shows P1AZ rules firing · token lab exercises <b>7662 introspection</b> and <b>7009 revocation</b> fail-closed · PAR button on the gateway console sends <b>9126</b> pushes · A2A sequence demonstrates nested <b>8693</b> exchanges</p></div>
       </div>
       <p class="small" style="margin-top:10px">Most-referenced specs by count in tracked docs: 8693 · 9728 · 7662 · 8707 · 6749 · 7009 · 9396 · 9700 · 7636 · 9449. RFC 2119/8174/6819/3749/7235 appear only in boilerplate/error text and are not claimed as implemented features.</p>

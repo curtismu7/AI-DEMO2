@@ -1,4 +1,4 @@
-# Privilege AI Gateway: Sidecar MCP Servers
+# Agent Privilege: Sidecar MCP Servers
 
 Oct 2, 2026 · @Curtis Muir
 
@@ -172,7 +172,7 @@ A running sidecar is invisible to clients until it is registered as an app and a
 4. **Add a policy.** Grant the app's tools to the users or groups that need them. Without a policy every call returns 403.
 5. **Give clients the gateway address, never the sidecar's.** Clients connect to `https://<gateway-host>/<app>/mcp`.
 
-The companion guide, Privilege AI Gateway: Registering an MCP Server, covers the console steps, sign-in and policy in full.
+The companion guide, Agent Privilege: Registering an MCP Server, covers the console steps, sign-in and policy in full.
 
 ## Verifying
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""External ML guardrail sidecar for the PingOne Privilege AI Gateway.
+"""External ML guardrail sidecar for the PingOne Agent Privilege.
 
 The gateway POSTs each governed prompt/response to /inspect as a WebhookRequest
 ({tenant, user, app_name, units:[{role, direction, text}]}) and expects a

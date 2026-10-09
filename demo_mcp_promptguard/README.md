@@ -1,7 +1,7 @@
 # demo_mcp_promptguard — External ML guardrail sidecar
 
 An HTTP server that runs a prompt-injection classifier as the **External Guardrail
-→ ML Sidecar** for the PingOne Privilege AI Gateway. Default model is ProtectAI's
+→ ML Sidecar** for the PingOne Agent Privilege. Default model is ProtectAI's
 public `deberta-v3-base-prompt-injection-v2` (no HF token needed); Meta Prompt-Guard
 works too but is gated (see build note). It runs as an `extraContainers`
 sidecar in the `agentless-mcpgw` pod (port **8086**); the gateway reaches it over

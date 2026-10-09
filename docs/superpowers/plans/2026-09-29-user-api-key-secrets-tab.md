@@ -18,7 +18,7 @@
 - Keep API key and secret reads vault-provenance-only. Neither environment variables nor LMDB may supply either value. Save only the fixed entries `PRIVILEGE_USER_API_KEY` and `PRIVILEGE_USER_API_SECRET`.
 - Never log or return raw credentials, vault passwords, encrypted token payloads, Authorization headers, or JWTs. The BFF returns a masked JWT preview only. The complete users response is rendered in current page state and is not persisted in API traffic history or browser storage.
 - Use fixed outbound paths and an HTTPS server-configured base URL. The browser supplies only Environment ID and User ID; it cannot select a host, path, method, or request body.
-- Preserve the existing AI Gateway client behavior and project emoji allowlist. The new tab is a demo-mode tab, alongside Agent Chat and Tools.
+- Preserve the existing Agent Privilege client behavior and project emoji allowlist. The new tab is a demo-mode tab, alongside Agent Chat and Tools.
 - Follow test-first steps in each implementation task. Do not use live Privilege credentials or call the external service in automated tests; inject a deterministic fetch stub.
 - After each implementation task, stage only its listed paths and create a focused commit. Do not stage `secrets.vault`, audit logs, `.env`, temp files, or unrelated changes.
 

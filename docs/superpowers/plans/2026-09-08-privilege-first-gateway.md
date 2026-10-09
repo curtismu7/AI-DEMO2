@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Every LLM call and every MCP tool call from this demo's agents enters through the PingOne Privilege AI Gateway first; Privilege owns credentials, coarse policy, approvals and recording, and hands MCP traffic on to the Agent Gateway, which keeps doing everything it does today (introspection, RFC 8693 exchange, P1AZ per-tool decisions, D-05, HITL, RAR).
+**Goal:** Every LLM call and every MCP tool call from this demo's agents enters through the PingOne Agent Privilege first; Privilege owns credentials, coarse policy, approvals and recording, and hands MCP traffic on to the Agent Gateway, which keeps doing everything it does today (introspection, RFC 8693 exchange, P1AZ per-tool decisions, D-05, HITL, RAR).
 
-**Architecture:** No new services. The Privilege AI Gateway at `https://mcpgw.ai-demo.ping-devops.com` already fronts LLM providers (`/llm/<provider>/…` virtual keys) and MCP backends (`/<AgenticApp>/mcp`). Phase 1 makes the LLM virtual-key lanes the *default* path instead of an opt-in picker item. Phase 2 registers the Agent Gateway itself as a Privilege Agentic App and repoints the BFF's single MCP chokepoint at it, behind a flag. Phase 0 is a measurement spike that decides how identity crosses the Privilege → Agent Gateway hop, because the answer is not in any doc in this repo.
+**Architecture:** No new services. The Agent Privilege at `https://mcpgw.ai-demo.ping-devops.com` already fronts LLM providers (`/llm/<provider>/…` virtual keys) and MCP backends (`/<AgenticApp>/mcp`). Phase 1 makes the LLM virtual-key lanes the *default* path instead of an opt-in picker item. Phase 2 registers the Agent Gateway itself as a Privilege Agentic App and repoints the BFF's single MCP chokepoint at it, behind a flag. Phase 0 is a measurement spike that decides how identity crosses the Privilege → Agent Gateway hop, because the answer is not in any doc in this repo.
 
 **Tech Stack:** Node >= 22 CommonJS BFF (`demo_api_server`), Jest 29.7, PingOne Privilege console (user-side), PingOne Agent Gateway (`ping-gateway/`) and the Node gateway (`demo_mcp_gateway/`, TypeScript), Docker Compose + SE K8s (`ping-devops-cmuir`, gateway in `ping-devops-curtismuir`).
 
@@ -65,7 +65,7 @@ MCP today
 | Privilege → backend hop has Auth Modes None / Static Token / OAuth; OAuth mode once carried "a real PingOne token" to `mcp-server` | `privilege/PRIVILEGE-MCP.md:524-529` |
 | Agent Gateway (Node) requires a validated bearer with `sub` for `tools/list` and `tools/call`; bridges actor identity from BFF headers `X-Act-Client-Id` / `X-May-Act-Sub` under an allowlist | `demo_mcp_gateway/src/index.ts:270-282, 539-549, 1212-1223`; `GatewayTokenPolicy.ts:44-66` |
 | Banking tools need user scope `banking:read` that only the BFF's RFC 8693 exchange produces; a machine token is denied | `privilege/CURRENT-CONFIGURATION.md` "The banking door"; `docs/TOKEN_FLOW.md` |
-| Privilege AI Gateway is **SE only**; the compose `mcpgw`/`ping-mcpgw` services are inert / profile-gated | `docker-compose.yml:815, 1771`; spec `2026-09-04-mcp-lanes…` §4.1 |
+| Agent Privilege is **SE only**; the compose `mcpgw`/`ping-mcpgw` services are inert / profile-gated | `docker-compose.yml:815, 1771`; spec `2026-09-04-mcp-lanes…` §4.1 |
 | The Privilege gateway does not relay MCP elicitation | `privilege/CURRENT-CONFIGURATION.md` (measured 2026-09-07) |
 | A 403 from Privilege is a policy answer (missing or **expired** policy), never a code bug | `privilege/CURRENT-CONFIGURATION.md` "Rules that still bite" |
 
@@ -75,7 +75,7 @@ MCP today
 Agents (BFF chat · sidecar agents · LM Studio / LibreChat)
    │
    ▼
-[1] PingOne Privilege AI Gateway   https://mcpgw.ai-demo.ping-devops.com          ← FIRST GATE
+[1] PingOne Agent Privilege   https://mcpgw.ai-demo.ping-devops.com          ← FIRST GATE
     ├─ /llm/{openai|anthropic|google}/v1/…   virtual key: provider key never leaves Privilege,
     │                                        policy deny surfaces as llm_policy_denied
     └─ /agent-gateway/mcp                    Agentic App "agent-gateway": who, which tools,
@@ -204,7 +204,7 @@ describe('ff_privilege_llm_first', () => {
     description:
       'When **ON**, the BFF resolves `google` → `privilege_llm`, `anthropic` → `privilege_claude` and refuses ' +
       '`openai` (no Privilege dispatch exists yet, see Task 2), so every cloud LLM call enters the PingOne ' +
-      'Privilege AI Gateway first and the provider API key never leaves Privilege. Requires ' +
+      'Agent Privilege first and the provider API key never leaves Privilege. Requires ' +
       '`PRIVILEGE_LLM_GATEWAY_URL` and the virtual keys. Local models (llama.cpp / MLX) are unaffected.',
     impact:       'OFF (default) = vendor-direct as today. ON = Privilege virtual keys are the only cloud LLM path; a policy denial is shown, not hidden.',
     type:         'boolean',
@@ -437,7 +437,7 @@ it('.env.example documents the Privilege-first posture', () => {
 - [ ] **Step 2: Run** → FAIL.
 - [ ] **Step 3: Implement** at the top of `getMcpGatewayHttpUrl()`:
 ```js
-    // Privilege-first: the Privilege AI Gateway is the first hop and forwards to
+    // Privilege-first: the Agent Privilege is the first hop and forwards to
     // whichever Agent Gateway its Agentic App "agent-gateway" is registered
     // against. Checked BEFORE the PingOne Agent Gateway flag so the two compose: Privilege
     // in front, PingOne Agent Gateway behind. SE only — see plan D3.
@@ -549,7 +549,7 @@ export async function resolvePrivilegeBridge(
 ### Task 9: Inventory, check, preflight
 
 **Files:**
-- Modify: `demo_api_server/data/serverInventory.js:56-90` (add the Privilege AI Gateway as a server with the `agent-gateway` app URL)
+- Modify: `demo_api_server/data/serverInventory.js:56-90` (add the Agent Privilege as a server with the `agent-gateway` app URL)
 - Create: `demo_api_server/services/checks/privilegeMcpFirstCheck.js`; register in `checks/index.js` after `gatewayMetadataCheck`
 - Modify: `scripts/lib/preflightRows.js` (Plan A's door table) — add door `agent-gateway` under the Privilege gateway
 - Test: `demo_api_server/tests/checks/privilegeMcpFirstCheck.test.js`

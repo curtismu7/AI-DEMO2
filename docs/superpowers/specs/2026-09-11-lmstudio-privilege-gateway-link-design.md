@@ -10,7 +10,7 @@
 An MCP client (LM Studio) connected to the façade's Privilege door —
 `http://localhost:3002/mcp-facade/privilege-gateway/<app>/mcp` — works without
 anyone visiting `/privilege-mcp-client`. The client's own OAuth sign-in also
-establishes the façade's upstream leg to the PingOne Privilege AI Gateway.
+establishes the façade's upstream leg to the PingOne Agent Privilege.
 
 **Done when:** with the BFF's gateway session empty, clicking Authenticate on a
 Privilege entry in LM Studio lists that app's tools, with no visit to

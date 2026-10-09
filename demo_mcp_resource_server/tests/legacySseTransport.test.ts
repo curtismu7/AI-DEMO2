@@ -2,7 +2,7 @@
 
 /**
  * Legacy HTTP+SSE transport (2024-11-05), added for ONE caller: the PingOne
- * Privilege AI Gateway's discovery client, which opens a bare GET and waits
+ * Agent Privilege's discovery client, which opens a bare GET and waits
  * for the SSE `endpoint` event rather than POSTing `initialize` (see
  * .claude/skills/privilege-mcpgw-agent-k8s). Without it, registering this
  * server as an Agentic App fails discovery entirely.

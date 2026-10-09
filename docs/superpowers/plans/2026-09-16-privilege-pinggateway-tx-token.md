@@ -10,7 +10,7 @@ caller/BFF
   tx-token:     demo user/delegation token
         |
         v
-Privilege AI Gateway
+Agent Privilege
   evaluates Authorization and its own policy
   forwards tx-token unchanged
         |

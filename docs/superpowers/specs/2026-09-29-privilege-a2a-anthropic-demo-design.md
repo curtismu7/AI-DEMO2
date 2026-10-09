@@ -135,7 +135,7 @@ main-agent URL remain configurable.
 
 - No browser-token propagation, RFC 8693 exchange, user-on-behalf-of flow, or
   change to the banking A2A protocol.
-- No changes to the static AI Gateway · A2A product explanation page or the
+- No changes to the static Agent Privilege · A2A product explanation page or the
   banking assistant's disabled Privilege A2A control.
 - No replacement of existing MCP client tabs or Privilege OAuth flows.
 - No changes to the root startup topology or deployment targets.

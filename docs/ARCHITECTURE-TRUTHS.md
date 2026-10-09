@@ -588,7 +588,7 @@ When `ff_mcp_gateway_pinggateway` is `true` (default), the system routes MCP too
 
 ## T-17 — Privilege-first is a chain, not a lane; it composes with the gateway flags rather than competing with them
 
-When `ff_mcp_gateway_privilege_first` is `true`, the **PingOne Privilege AI Gateway** is placed in **front of** whichever Agent Gateway the other flags already select. The call becomes a chain — Privilege → Agent Gateway (PingOne Agent Gateway *or* the Node gateway, per T-16) → MCP servers — not a third alternative lane beside them. `getMcpGatewayHttpUrl()` evaluates this flag **before** the PingOne Agent Gateway branch for exactly that reason: what sits behind Privilege is decided by the Agentic App's registered backend URL, not by this resolver.
+When `ff_mcp_gateway_privilege_first` is `true`, the **PingOne Agent Privilege** is placed in **front of** whichever Agent Gateway the other flags already select. The call becomes a chain — Privilege → Agent Gateway (PingOne Agent Gateway *or* the Node gateway, per T-16) → MCP servers — not a third alternative lane beside them. `getMcpGatewayHttpUrl()` evaluates this flag **before** the PingOne Agent Gateway branch for exactly that reason: what sits behind Privilege is decided by the Agentic App's registered backend URL, not by this resolver.
 
 Three consequences that surprise people:
 

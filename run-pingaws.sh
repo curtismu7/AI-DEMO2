@@ -29,7 +29,7 @@
 #
 # App: https://ai-demo.ping-devops.com
 #
-# The Privilege AI Gateway is NOT deployed here — it is a manual Helm install
+# The Agent Privilege is NOT deployed here — it is a manual Helm install
 # (pingone-privgateway-helm-main/agentless). Gateway 1 and the mcpgw-lb load
 # balancer are in ping-devops-curtismuir; gateway 2 (release agentless-mcpgw2)
 # is in ping-devops-cmuir, the same namespace as this app; the two are nodes of one
@@ -79,7 +79,7 @@ Usage:
 
 Prerequisites: Docker Desktop, kubectl context `us`, gh auth, SE namespace.
 
-The Privilege AI Gateway does not install from here: gateway 1 (ping-devops-curtismuir)
+The Agent Privilege does not install from here: gateway 1 (ping-devops-curtismuir)
 and gateway 2 (ping-devops-cmuir) are deliberate manual Helm installs
 (pingone-privgateway-helm-main/agentless), because ENV_PROXY_TOKEN is single-use and
 ~2h-lived. Once installed, `gateways` keeps their sidecars and secrets in step.

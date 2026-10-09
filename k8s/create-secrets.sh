@@ -573,7 +573,7 @@ override_privilege_urls_for_public_origin() {
   local app_name="${NS#ping-devops-}"
   local mcpgw_application="${MCPGW_APP_NAME:-$app_name}"
   # Fallback host updated 2026-09-01: the per-owner <name>-agentless-mcpgw
-  # gateways were torn down and replaced by ONE AI Gateway at
+  # gateways were torn down and replaced by ONE Agent Privilege at
   # mcpgw.ai-demo.ping-devops.com (Helm release agentless-mcpgw in
   # ping-devops-curtismuir). The path segment is the Agentic App name from the
   # Privilege console — set MCPGW_APP_NAME to it (e.g. opensearch22); the

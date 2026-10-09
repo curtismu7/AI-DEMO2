@@ -1,7 +1,7 @@
 # demo_mcp_pingone — PingOne's own MCP server, behind Privilege
 
 Runs [`pingidentity/pingone-mcp-server`](https://github.com/pingidentity/pingone-mcp-server)
-as a sidecar in the PingOne Privilege AI Gateway pod, so Privilege applies
+as a sidecar in the PingOne Agent Privilege pod, so Privilege applies
 per-tool policy to **PingOne administrative actions**.
 
 **Gateway/policy behaviors that aren't specific to this server** — policy
@@ -137,7 +137,7 @@ The demo client's **door URL** is configured separately, in
 
 ## Entry path: whichever the app is registered with
 
-The AI Gateway pins an Agentic App to ONE path, derived from how its backend was
+The Agent Privilege pins an Agentic App to ONE path, derived from how its backend was
 registered, and this applies to the CLIENT-facing URL too — not just the
 backend. An app whose backend is registered as `/sse` is reachable by clients
 only at `/<app>/sse`; `/<app>/mcp` returns a bare `404`.

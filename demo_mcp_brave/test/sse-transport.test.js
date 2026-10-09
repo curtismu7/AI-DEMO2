@@ -1,6 +1,6 @@
 'use strict';
 
-// The AI Gateway discovers a backend over the SSE transport: it GETs /sse and
+// The Agent Privilege discovers a backend over the SSE transport: it GETs /sse and
 // waits for an `endpoint` event, then POSTs JSON-RPC to the URL that event
 // names and reads the reply off the stream. Serving only POST /mcp is why this
 // server could not be registered as an Agentic App — the console reported

@@ -1,4 +1,4 @@
-// The Privilege AI Gateway's Static Token auth mode sends one fixed bearer on
+// The Agent Privilege's Static Token auth mode sends one fixed bearer on
 // every backend call. These pin the opt-in path that accepts it: off by
 // default, exact match only, and never wider than the configured scopes.
 import { decodeAndValidate, extractScopes, TokenError } from '../src/server/tokenValidator';

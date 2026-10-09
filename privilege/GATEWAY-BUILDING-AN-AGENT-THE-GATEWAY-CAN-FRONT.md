@@ -1,4 +1,4 @@
-# Privilege AI Gateway: Building an Agent the Gateway Can Front
+# Agent Privilege: Building an Agent the Gateway Can Front
 
 Oct 3, 2026 · @Curtis Muir
 
@@ -19,7 +19,7 @@ Oct 3, 2026 · @Curtis Muir
 
 ## Overview
 
-To put an agent behind the Privilege AI Gateway as a Remote Agent, the agent has to do four things:
+To put an agent behind the Agent Privilege as a Remote Agent, the agent has to do four things:
 
 1. Publish an agent card without sign-in.
 2. Answer A2A JSON-RPC on one endpoint.

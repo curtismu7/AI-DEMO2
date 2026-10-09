@@ -10,8 +10,8 @@ Below the diagram is a movie reel with one card per step. Click a card to jump t
 |---|---|---|
 | Demo Steps Lifeline Audit | https://local.ping-devops.com:4000/demo-steps-lifeline-audit | 24-step board; Simulate rings the step and shades its table row |
 | Invest Dual-Auth | https://local.ping-devops.com:4000/invest-dual-auth | Sequence with lifelines, two flows side by side, 15 steps |
-| AI Gateway (3 tabs) | https://local.ping-devops.com:4000/privilege-mcp-diagrams | Architecture, Sign-in + Tool Call (28 steps), Auth Flow (27 steps) |
-| AI Gateway Enforcement | https://local.ping-devops.com:4000/privilege-first-gateway | Two figures, the first has 11 steps |
+| Agent Privilege (3 tabs) | https://local.ping-devops.com:4000/privilege-mcp-diagrams | Architecture, Sign-in + Tool Call (28 steps), Auth Flow (27 steps) |
+| Agent Privilege Enforcement | https://local.ping-devops.com:4000/privilege-first-gateway | Two figures, the first has 11 steps |
 | Gateway vs P1AZ Enforcement | https://local.ping-devops.com:4000/gateway-enforcement-map | 12 steps |
 | Resource Server Placement | https://local.ping-devops.com:4000/resource-server-placement | 9 steps |
 | Token Chain Architecture | https://local.ping-devops.com:4000/architecture/token-chain | 36 steps |

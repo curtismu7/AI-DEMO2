@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# se-gateways.sh — keep the two Privilege AI Gateway nodes on the same sidecar list.
+# se-gateways.sh — keep the two Agent Privilege nodes on the same sidecar list.
 #
 # Gateway 1 (release agentless-mcpgw, ping-devops-curtismuir) and gateway 2 (release
 # agentless-mcpgw2, ping-devops-cmuir) are two nodes of ONE mesh cluster, and a sidecar

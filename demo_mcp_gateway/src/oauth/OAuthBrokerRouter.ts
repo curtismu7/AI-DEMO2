@@ -404,7 +404,7 @@ export class OAuthBrokerRouter {
     });
 
     // The façade's Privilege door needs a second leg the client cannot see: a
-    // sign-in to the Privilege AI Gateway, held server-side by the BFF. Park
+    // sign-in to the Agent Privilege, held server-side by the BFF. Park
     // this authorization, let the BFF do that sign-in while the browser is
     // here, and finish at /oauth/resume. See
     // docs/superpowers/specs/2026-09-11-lmstudio-privilege-gateway-link-design.md.

@@ -5,7 +5,7 @@
  * OAuth-protected MCP gateway. Drives OAuth PKCE + Dynamic Client
  * Registration against the gateway's own authorization server, then relays
  * MCP JSON-RPC (tools/list, tools/call, and the other protocol methods)
- * through it. Defaults to PingOne's Privilege AI Gateway; point it at any
+ * through it. Defaults to PingOne's Agent Privilege; point it at any
  * other self-advertising (RFC 9728/8414) MCP gateway via env vars.
  */
 require('dotenv').config();

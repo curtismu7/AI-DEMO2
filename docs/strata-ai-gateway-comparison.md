@@ -1,8 +1,8 @@
-# Strata.io vs. an AI Gateway
+# Strata.io vs. an Agent Privilege
 
 ## Detailed product comparison
 
-**Scope:** This document compares **Strata Identity’s AI Identity Gateway** at [strata.io](https://www.strata.io/) with a **model-traffic AI gateway**, using Cloudflare AI Gateway as a concrete example. “AI gateway” is a broad category, and individual products differ, so the Cloudflare column illustrates a common model gateway rather than representing every vendor.
+**Scope:** This document compares **Strata Identity’s AI Identity Gateway** at [strata.io](https://www.strata.io/) with a **model-traffic Agent Privilege**, using Cloudflare Agent Privilege as a concrete example. “Agent Privilege” is a broad category, and individual products differ, so the Cloudflare column illustrates a common model gateway rather than representing every vendor.
 
 ## Executive summary
 
@@ -11,7 +11,7 @@ Strata’s AI Identity Gateway and a model gateway both sit between applications
 - **Strata governs agent identity and access to tools, APIs, and MCP resources.** It focuses on authentication, authorization, delegated credentials, and auditing agent actions.
 - **A model gateway governs calls to AI models.** It commonly focuses on routing, provider fallbacks, rate limits, caching, spend controls, and request or response visibility.
 
-They can be complementary. A model gateway can control which model receives an inference request, while Strata can control which business systems an agent may access and what it may do there. Strata describes its product as a runtime identity and policy enforcement point for agents and MCP environments. [Strata announcement](https://www.strata.io/resources/news/strata-identity-introduces-ai-identity-gateway-and-validation-sandbox/) Cloudflare describes its gateway in terms of model request visibility, caching, rate limits, retries, and fallbacks. [Cloudflare AI Gateway overview](https://developers.cloudflare.com/ai-gateway/)
+They can be complementary. A model gateway can control which model receives an inference request, while Strata can control which business systems an agent may access and what it may do there. Strata describes its product as a runtime identity and policy enforcement point for agents and MCP environments. [Strata announcement](https://www.strata.io/resources/news/strata-identity-introduces-ai-identity-gateway-and-validation-sandbox/) Cloudflare describes its gateway in terms of model request visibility, caching, rate limits, retries, and fallbacks. [Cloudflare Agent Privilege overview](https://developers.cloudflare.com/ai-gateway/)
 
 ## What each product is for
 
@@ -25,9 +25,9 @@ The key question Strata is designed to help answer is:
 
 > **Is this agent, acting for this user or workload, allowed to invoke this tool or reach this resource right now?**
 
-### Model-traffic AI gateway
+### Model-traffic Agent Privilege
 
-A model gateway sits on the inference path between an application and one or more model providers. Cloudflare’s AI Gateway, for example, supports analytics and logs, caching, rate limiting, request retries, and model fallbacks. Its dynamic routing can select models based on request conditions and metadata. [Cloudflare AI Gateway overview](https://developers.cloudflare.com/ai-gateway/) [Cloudflare dynamic routing](https://developers.cloudflare.com/ai-gateway/features/dynamic-routing/)
+A model gateway sits on the inference path between an application and one or more model providers. Cloudflare’s Agent Privilege, for example, supports analytics and logs, caching, rate limiting, request retries, and model fallbacks. Its dynamic routing can select models based on request conditions and metadata. [Cloudflare Agent Privilege overview](https://developers.cloudflare.com/ai-gateway/) [Cloudflare dynamic routing](https://developers.cloudflare.com/ai-gateway/features/dynamic-routing/)
 
 The key question this type of gateway is designed to help answer is:
 
@@ -35,7 +35,7 @@ The key question this type of gateway is designed to help answer is:
 
 ## Side-by-side comparison
 
-| Dimension | Strata AI Identity Gateway | Model-traffic AI gateway |
+| Dimension | Strata AI Identity Gateway | Model-traffic Agent Privilege |
 |---|---|---|
 | **Primary control point** | Agent-to-tool, agent-to-API, or agent-to-MCP access | Application-to-model inference requests |
 | **Core purpose** | Enforce identity-aware authorization for agent actions | Manage model-provider traffic and operations |
@@ -48,7 +48,7 @@ The key question this type of gateway is designed to help answer is:
 | **Cost controls** | Not the central purpose of the identity gateway | Often includes request/token analytics, budgets, rate limits, or cost controls |
 | **Audit and observability** | Records agent requests, responses, and token exchanges for access auditing | Records model request outcomes, errors, usage, and cost; retention and data handling vary |
 | **Deployment emphasis** | Strata says the gateway runs in the customer’s environment, including disconnected or air-gapped environments | Deployment varies: cloud service, self-hosted proxy, edge service, or a combination |
-| **Example integration** | Agent → Strata → MCP server/API | Application → AI gateway → model provider |
+| **Example integration** | Agent → Strata → MCP server/API | Application → Agent Privilege → model provider |
 
 Cloudflare’s feature documentation gives examples of model-gateway features including cost budgets, rate limiting, dynamic routing, guardrails, DLP, and logging. Which of those are included depends on the chosen gateway and plan. [Cloudflare feature list](https://developers.cloudflare.com/ai-gateway/features/)
 
@@ -106,7 +106,7 @@ A model gateway is worth evaluating when the core problem is:
 - You need rate limits, budgets, caching, retries, or request-level controls.
 - You want provider-independent handling of model calls.
 
-Cloudflare documents these types of features for its AI Gateway, including provider/model routing, analytics, caching, rate limits, retries, and fallbacks. [Cloudflare overview](https://developers.cloudflare.com/ai-gateway/) [Cloudflare features](https://developers.cloudflare.com/ai-gateway/features/)
+Cloudflare documents these types of features for its Agent Privilege, including provider/model routing, analytics, caching, rate limits, retries, and fallbacks. [Cloudflare overview](https://developers.cloudflare.com/ai-gateway/) [Cloudflare features](https://developers.cloudflare.com/ai-gateway/features/)
 
 ## Evaluation questions
 

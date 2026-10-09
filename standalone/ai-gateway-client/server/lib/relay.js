@@ -1,7 +1,7 @@
 'use strict';
 // relay.js — OAuth PKCE + Dynamic Client Registration relay and MCP JSON-RPC
 // relay for testing an OAuth-protected MCP gateway, with PingOne's Privilege
-// AI Gateway as the documented default target.
+// Agent Privilege as the documented default target.
 //
 // Adapted from the banking demo's demo_api_server/routes/privilegeMcpClient.js.
 // Two things were cut in the adaptation, not just renamed:
@@ -58,7 +58,7 @@ const GATEWAY_MODES = ['direct', 'privilege'];
 const DEFAULT_GATEWAY_MODE = 'privilege';
 const MCP_PROTOCOL_VERSION = '2026-07-28';
 const LEGACY_MCP_PROTOCOL_VERSION = '2024-11-05';
-const MCP_CLIENT_INFO = { name: 'AI Gateway Client', version: '1.0.0' };
+const MCP_CLIENT_INFO = { name: 'Agent Privilege Client', version: '1.0.0' };
 const MCP_CLIENT_CAPABILITIES = {
   elicitation: { form: {}, url: {} },
   extensions: { 'io.modelcontextprotocol/tasks': {} },
@@ -1041,7 +1041,7 @@ router.get('/state', (req, res) => {
   ).filter((app) => app.name && app.name !== defaultApp);
 
   const presets = [
-    { label: '1 · Privilege — straight at the AI Gateway', mode: 'privilege', url: DEFAULT_PRIVILEGE_MCP_URL() },
+    { label: '1 · Privilege — straight at the Agent Privilege', mode: 'privilege', url: DEFAULT_PRIVILEGE_MCP_URL() },
     ...siblingApps.map((app) => ({ label: `Privilege — ${app.name}`, mode: 'privilege', url: app.privilegeUrl })),
     { label: '2 · Direct — no Privilege in the path', mode: 'direct', url: DEFAULT_DIRECT_MCP_URL() },
     { label: 'Direct — Brave Search', mode: 'direct', url: DEFAULT_DIRECT_BRAVE_MCP_URL() },

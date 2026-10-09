@@ -1,7 +1,7 @@
 'use strict';
 
 // The bridge's non-trivial logic is (a) the SSE endpoint handshake the Privilege
-// AI Gateway depends on, and (b) id remapping between independent sessions.
+// Agent Privilege depends on, and (b) id remapping between independent sessions.
 // Both fail silently in ways that look like a broken upstream, so both are
 // pinned here. A fake stdio child stands in for pingone-mcp-server so these
 // tests need no binary, no network and no PingOne tenant.

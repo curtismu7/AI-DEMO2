@@ -2,7 +2,7 @@
  * privilege-bridge.groovy — Task 8b: the PingGateway equivalent of
  * demo_mcp_gateway/src/auth/privilegeBridge.ts.
  *
- * WHY THIS EXISTS. When the PingOne Privilege AI Gateway fronts this gateway,
+ * WHY THIS EXISTS. When the PingOne Agent Privilege fronts this gateway,
  * the Authorization header on its backend hop is PRIVILEGE'S, not the caller's:
  * Privilege stamps the Static Token configured on the Agentic App. PingGateway
  * has no idea what that value is, so McpProtectionFilter introspects it, fails,

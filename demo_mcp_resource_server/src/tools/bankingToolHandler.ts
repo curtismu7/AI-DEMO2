@@ -5,7 +5,7 @@ import { getAccount, listAccounts } from '../db/bankingDb';
 // The banking vertical's seed data has a single subject ('demo-user'), same as
 // /invest's resolveInvestor(). Used by the static-key REST path (no per-user
 // identity) and by MCP calls whose bearer has no `sub` — a PingOne
-// client_credentials token, e.g. the Privilege AI Gateway's OAuth backend hop.
+// client_credentials token, e.g. the Agent Privilege's OAuth backend hop.
 // ponytail: machine tokens all see demo-user; map client_id -> user if a
 // per-agent view is ever needed.
 export const DEMO_BANKING_SUBJECT = 'demo-user';

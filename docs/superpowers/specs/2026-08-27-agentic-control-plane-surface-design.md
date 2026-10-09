@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-27
 **Status:** approved, not yet implemented
-**Scope:** Phase 1 only. Phase 2 (wiring P1AZ, AI Gateway, Privilege) is deliberately deferred; see [Phase 2](#phase-2--deferred).
+**Scope:** Phase 1 only. Phase 2 (wiring P1AZ, Agent Privilege, Privilege) is deliberately deferred; see [Phase 2](#phase-2--deferred).
 
 ## Why
 
@@ -155,7 +155,7 @@ All move together in one commit. `scopeDrift` is removed rather than kept alongs
 
 ## 4. Enforcement band — stubs
 
-In the source diagram, P1AZ, AI Gateway and Privilege sit in the **middle row** — outside the
+In the source diagram, P1AZ, Agent Privilege and Privilege sit in the **middle row** — outside the
 Agentic Control Plane box. The control plane's stated job is "visibility across the agent
 landscape", so enforcement services are things it **observes, not owns**. Rendering them as a
 sixth zone would misstate the architecture on the page whose purpose is to teach it.
@@ -166,7 +166,7 @@ each `not-wired`:
 | Card | Will show | Links to today |
 |---|---|---|
 | Fine-Grained Authorization | P1AZ decisions per agent, deny reasons, policy version | `/pingone-authorize` |
-| AI Gateway | which agents route through which gate, tool-level allow/deny | `/agent-gateway-inspector` |
+| Agent Privilege | which agents route through which gate, tool-level allow/deny | `/agent-gateway-inspector` |
 | Privilege | LLM / MCP / A2A / AI Guard sub-gateway state, injected credentials | `/privilege-mcp-client` |
 
 Each carries one line on what it will show, a link to where that data lives now, and a `not wired`
@@ -227,7 +227,7 @@ route and changes label only.
 
 ## Phase 2 — deferred
 
-Wiring P1AZ, AI Gateway and Privilege is a **second project with its own design pass**, and the
+Wiring P1AZ, Agent Privilege and Privilege is a **second project with its own design pass**, and the
 reason is worth stating: this spec builds a view over **identity** — who exists, what they hold,
 what happened to them. Enforcement is a different axis — what was *decided*, at which gate, on
 which call. It cuts across all five zones rather than sitting in one, and the data lives in

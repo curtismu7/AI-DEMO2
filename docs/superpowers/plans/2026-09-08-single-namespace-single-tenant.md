@@ -6,7 +6,7 @@
 
 **Architecture:** Two independent phases, executed in order. Phase 1 physically moves the `agentless-mcpgw` + `opensearch` workloads from `ping-devops-curtismuir` into `ping-devops-cmuir` by re-binding their existing EBS-backed PersistentVolumes — no data copy, no re-enrollment. Phase 2 repoints the gateway's OIDC from tenant `0428ba4f` to `01d89b06` and retires the External IdP federation that currently bridges them. Phase 1 changes no identity; Phase 2 changes no infrastructure. Keeping them separate means a failure is unambiguously attributable to one or the other.
 
-**Tech Stack:** EKS 1.35 (`us` context), Helm 3, in-tree `kubernetes.io/aws-ebs` gp2 storage, nginx-public ingress, PingOne (`01d89b06` "AI-Demo", `0428ba4f` "AI Agent"), PingOne Privilege AI Gateway (chart `agentless-mcpgw-0.1.0`).
+**Tech Stack:** EKS 1.35 (`us` context), Helm 3, in-tree `kubernetes.io/aws-ebs` gp2 storage, nginx-public ingress, PingOne (`01d89b06` "AI-Demo", `0428ba4f` "AI Agent"), PingOne Agent Privilege (chart `agentless-mcpgw-0.1.0`).
 
 **Spec:** This document. Findings were gathered live from the cluster on 2026-09-08; see "Established Facts" below.
 
@@ -22,9 +22,9 @@ would each have made a step silently no-op.
 
 ---
 
-## Revisions — evidence from the 2026-09-08 AI Gateway Client incident
+## Revisions — evidence from the 2026-09-08 Agent Privilege Client incident
 
-A `405`/`404` outage on the AI Gateway Client was debugged the same day this
+A `405`/`404` outage on the Agent Privilege Client was debugged the same day this
 plan was written. It touched the gateway, the federation and the Helm release,
 so it produced hard evidence the plan was previously guessing at.
 
@@ -51,7 +51,7 @@ not as hygiene.
 This is the trap the above appearance sets. Because the sign-on page is
 `01d89b06`, it is natural to conclude that PingOne app changes belong there.
 They do not: in a federated flow the token is issued by the tenant where the
-**client** is registered — `0428ba4f`, app `1a403855` ("AI Gateway").
+**client** is registered — `0428ba4f`, app `1a403855` ("Agent Privilege").
 `01d89b06` only authenticates the user and returns an assertion; it holds no
 OAuth client in this chain. Task 2.1 creates the replacement client in
 `01d89b06` precisely to move that role.
@@ -185,7 +185,7 @@ Both AZs have Ready nodes, so either PV can schedule after the move. The PVs car
 
 ## Prerequisites before starting (added 2026-09-08)
 
-Do not begin while the AI Gateway Client is broken. Phase 1 uninstalls the
+Do not begin while the Agent Privilege Client is broken. Phase 1 uninstalls the
 gateway and re-binds both PVs, so a pre-existing fault makes any new failure
 unattributable — and the whole value of splitting the phases is attribution.
 
@@ -249,7 +249,7 @@ Navigate to the PingOne console for environment `01d89b06-66d5-430e-9f28-6563684
 
 1. Does an `Agentic Apps` surface exist in this environment at all? (It requires the per-environment Privilege feature flag. `01d89b06` has the Agent IAM Core license and a Privilege cluster `ai-demo-mine`, so this is expected to be yes — but it has never been verified for the AGENTLESS gateway path.)
 2. Does a Mesh Cluster exist here that a gateway can enroll into, or would enrollment create one?
-3. Can an OIDC application be created here to replace `1a403855-81f6-45eb-b233-fed59abc5c73` ("AI Gateway", currently in `0428ba4f`)?
+3. Can an OIDC application be created here to replace `1a403855-81f6-45eb-b233-fed59abc5c73` ("Agent Privilege", currently in `0428ba4f`)?
 
 - [ ] **Step 3: Gate the decision**
 
@@ -708,11 +708,11 @@ Today a login to the gateway goes: gateway OIDC (`0428ba4f`) yields External IdP
 
 - [ ] **Step 1: Read the existing client's configuration**
 
-Record from `0428ba4f` application `1a403855-81f6-45eb-b233-fed59abc5c73` ("AI Gateway"): grant types, response types, redirect URIs, token endpoint auth method, and scopes.
+Record from `0428ba4f` application `1a403855-81f6-45eb-b233-fed59abc5c73` ("Agent Privilege"): grant types, response types, redirect URIs, token endpoint auth method, and scopes.
 
 - [ ] **Step 2: Create the matching application in `01d89b06`**
 
-Create an OIDC Web App named `AI Gateway` in `01d89b06` with the SAME redirect URIs — the gateway's `serverUrl` is unchanged, so its callback is unchanged. Do NOT reuse `a6219652`; that is the Privilege service client and must not be touched.
+Create an OIDC Web App named `Agent Privilege` in `01d89b06` with the SAME redirect URIs — the gateway's `serverUrl` is unchanged, so its callback is unchanged. Do NOT reuse `a6219652`; that is the Privilege service client and must not be touched.
 
 **It MUST carry the `REFRESH_TOKEN` grant and permit the `offline_access` scope.** The gateway requests `offline_access` as of Helm rev 22 (Revision 3). PingOne accepts an ungranted scope at `/authorize` without complaint and simply issues no refresh token, so a missing grant does not surface until you notice the gateway re-running its full identity dance. This repo has already lost a day to exactly that failure on a different app (`6586d3de`, PR #1181).
 
@@ -829,7 +829,7 @@ Take the `id` of the entry whose `signOnPolicy.id` is `c695564c-28bd-4d46-b97c-4
 DELETE /environments/0428ba4f-169c-436b-aff9-b230496e0e3b/applications/1a403855-81f6-45eb-b233-fed59abc5c73/signOnPolicyAssignments/{that-id}
 ```
 
-This returns the old AI Gateway app to the environment default `Single_Factor`, which is also the documented revert path. Record the id — re-creating the assignment is the rollback.
+This returns the old Agent Privilege app to the environment default `Single_Factor`, which is also the documented revert path. Record the id — re-creating the assignment is the rollback.
 
 - [ ] **Step 2: Leave the IdP and policy in place for one week**
 

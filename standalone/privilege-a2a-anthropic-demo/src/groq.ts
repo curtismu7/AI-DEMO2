@@ -7,7 +7,7 @@ import type Anthropic from '@anthropic-ai/sdk';
  * Groq speaks the OpenAI chat-completions format at
  * `<baseUrl>/chat/completions` with the key as a Bearer token.
  *
- * Unlike Anthropic and Google, the Privilege AI Gateway has no Groq provider (it answers
+ * Unlike Anthropic and Google, the Agent Privilege has no Groq provider (it answers
  * `/llm/groq` with a plain 403, like any unknown name), so these calls go DIRECT to Groq and
  * bypass the gateway: they do not appear in its records or follow its policy. The A2A and MCP
  * hops are unaffected.

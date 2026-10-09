@@ -1,7 +1,7 @@
 {
   "name": "demo-mcp-pingone",
   "version": "1.0.0",
-  "description": "HTTP/SSE bridge for pingidentity/pingone-mcp-server (stdio-only) so the PingOne Privilege AI Gateway can front it",
+  "description": "HTTP/SSE bridge for pingidentity/pingone-mcp-server (stdio-only) so the PingOne Agent Privilege can front it",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

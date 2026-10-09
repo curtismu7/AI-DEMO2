@@ -35,7 +35,7 @@
 // The token is taken from the environment only, never argv — argv is visible
 // in `ps` to every user on the box. It is never printed, logged or echoed.
 
-// The AI Gateway's own tenant, from its enrollment JWT (`tenantName`). This is
+// The Agent Privilege's own tenant, from its enrollment JWT (`tenantName`). This is
 // Privilege's PingOne environment, NOT AI-Demo's 01d89b06 — conflating the two
 // has cost sessions before.
 const DEFAULT_TENANT = '0428ba4f-169c-436b-aff9-b230496e0e3b';

@@ -8,7 +8,7 @@ import { createSuccessResult, createErrorResult } from './results';
  * On the normal chain the demo MCP gateway intercepts these by name and does
  * the credential swap (drops the OAuth bearer, calls the backend with a
  * service API key) — see demo_mcp_gateway/src/apiKeyDispatch.ts. On a
- * gateway-less hop (the Privilege/Procyon AI Gateway client talks straight to
+ * gateway-less hop (the Privilege/Procyon Agent Privilege client talks straight to
  * this server) the registry still advertises them, so this module performs the
  * same swap here: the resolved OAuth token is ignored and the backend is
  * called with X-API-Key only. Scope enforcement already happened upstream

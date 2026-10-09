@@ -1,6 +1,6 @@
 // Task 8 of docs/superpowers/plans/2026-09-08-privilege-first-gateway.md.
 //
-// With the PingOne Privilege AI Gateway in front, the Authorization header on
+// With the PingOne Agent Privilege in front, the Authorization header on
 // the backend hop belongs to Privilege: it stamps the Static Token configured
 // on the Agentic App. The caller's own transaction token arrives in tx-token, which
 // was measured surviving that hop unmodified (privilege/CURRENT-CONFIGURATION.md,

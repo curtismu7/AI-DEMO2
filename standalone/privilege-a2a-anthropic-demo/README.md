@@ -22,7 +22,7 @@ policies.
 
 ## How it works through the gateway
 
-In gateway mode every hop goes through the PingOne Privilege AI Gateway, and
+In gateway mode every hop goes through the PingOne Agent Privilege, and
 each agent presents only its own agent key:
 
 ```text
@@ -58,7 +58,7 @@ select apps that already exist.
      Mode None.
    - `mcpdemo`: type **MCP**, backend
      `http://mcpdemo.<namespace>.svc.cluster.local`, path `/mcp`, Auth Mode None.
-3. **Create the worker's agent** (AI Gateway → Agent Registry → Add Agent): scopes
+3. **Create the worker's agent** (Agent Privilege → Agent Registry → Add Agent): scopes
    `llm` + `mcp`, one allowed model, MCP Servers → `mcpdemo`, then **Configure
    Tools** and allow each tool. If the tool list is empty, save the `mcpdemo` app
    again to re-run discovery now that its backend is up.
@@ -231,7 +231,7 @@ returns each reply whole rather than token by token.
 **Groq.** Set an agent to `groq` and put a Groq key in `GROQ_API_KEY` (or
 `MAIN_AGENT_GROQ_KEY` / `WORKER_AGENT_GROQ_KEY`). Groq is called **directly**
 (`https://api.groq.com/openai/v1`, OpenAI chat-completions format, override with
-`GROQ_BASE_URL`), because the Privilege AI Gateway has no Groq provider: it answers
+`GROQ_BASE_URL`), because the Agent Privilege has no Groq provider: it answers
 `/llm/groq` with a plain `403`, like any unknown name. Those model calls therefore
 **bypass the gateway**: they are not in its records and do not follow its policy. The
 A2A and MCP hops still go through it, and the main agent's `/status` says so. The
@@ -306,7 +306,7 @@ registered in Privilege: it is a caller, not a remote agent.
 ### Run main agent on your laptop
 
 Create the main Agent Access key with `llm` and `a2a` scopes. Associate it with
-the worker app and select that app under the key's AI Gateway Remote Agents
+the worker app and select that app under the key's Agent Privilege Remote Agents
 configuration. The main process reuses `MAIN_AGENT_KEY` for its Anthropic call
 and its A2A request to the worker.
 
@@ -327,7 +327,7 @@ defaults while keeping `ANTHROPIC_BASE_URL` on Privilege.
 
 ### Provider key registration
 
-Register the Anthropic provider key in Privilege's AI Gateway Provider Keys
+Register the Anthropic provider key in Agent Privilege Provider Keys
 and associate it with the `llm/anthropic` route. This provider key stays in
 Privilege. The demo sends only the Agent Access keys above to that route.
 

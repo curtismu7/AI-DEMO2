@@ -1,6 +1,6 @@
 /**
  * legacy-sse-transport.test.ts — the 2024-11-05 HTTP+SSE transport, added for
- * one caller: the PingOne Privilege AI Gateway's discovery client, which opens
+ * one caller: the PingOne Agent Privilege's discovery client, which opens
  * a bare GET and waits for the SSE `endpoint` event instead of POSTing
  * `initialize`. Without it, registering this server as an Agentic App fails
  * with "Gateway Unreachable — Error discovering MCP server: calling

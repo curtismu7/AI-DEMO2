@@ -729,7 +729,7 @@ export class GatewayServer {
       return;
     }
 
-    // Privilege bridge. When the PingOne Privilege AI Gateway fronts this one,
+    // Privilege bridge. When the PingOne Agent Privilege fronts this one,
     // the Authorization header belongs to Privilege (the Agentic App's Static
     // Token) and the caller's own token arrives in tx-token. Swap the
     // subject in HERE, before validateInboundToken — which would reject the
