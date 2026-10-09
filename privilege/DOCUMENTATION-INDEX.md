@@ -88,6 +88,7 @@ An in-app copy of this index is served at `/privilege-docs-index` in the demo UI
 | [A2A demo & setup](A2A-DEMO-AND-SETUP-OUR-ENVIRONMENT.md) | Drive (SE) | Runbook for both A2A demos through the Agent Privilege: the pre-demo check, both demo scripts with what to say, setup from scratch with our values, symptom-to-fix table and known limits |
 | [New demo environment](NEW-DEMO-ENVIRONMENT.md) | — | A separate demo environment from scratch (own PingOne env, gateway, apps, agents): parameter table, what is verified, enrolling with the right Host IP, token and CPU traps, order of steps |
 | [Deploying & upgrading on Kubernetes](PRIVILEGE-K8S-DEPLOY-UPGRADE.md) | Drive (SE) | Helm install/upgrade/re-enroll/teardown of an Agentless gateway: first-install sequence, the Host-IP and token-whitespace traps, extraContainers and floating-tag upgrade rules, the PV-destruction teardown deadlock, and what is verified vs from notes (2026-10-09) |
+| [Running the gateway locally (Docker)](GATEWAY-LOCAL-DOCKER.md) | Drive (SE) | The `profile: mcpgw` compose stack: start/stop, enrollment token + `pingone.env` + `/etc/hosts` + console app, the post-swap port map (settle by probing), nginx front door, verification incl. the smoke script, and the CA-wall status of the currently stopped local gateway (2026-10-09) |
 | [SE1 shared demo](SE1-Privilege-Shared-Demo.md) | — | Setting up the shared Privilege demo in the SE1 environment |
 | [Privilege Agent setup — Mac](SE1-Privilege-Agent-Setup-Mac.md) | — | Agent-based persona onboarding for the shared Demo Engineering environment, run on your own Mac instead of Windows 11 VMs |
 | [Demo script & setup](demo/privilege-demo-script.md) | — | The customer-facing demo script and setup (auto-generated from the use-case docs — do not hand-edit) |
@@ -121,5 +122,4 @@ An in-app copy of this index is served at `/privilege-docs-index` in the demo UI
 | Ping's reference demo, explained | The two-agent demo (main agent, worker agent, MCP server) wired through the gateway | Partly — needs the demo running |
 | Policies in depth | Expiry, several policies adding up, groups, per-tool grants | Partly — needs console changes |
 | Auth modes for MCP backends | None, Static Token, User Token, OAuth, Pass Agent Token | Partly — needs console changes |
-| Running the gateway locally | Docker setup, nginx in front, enrollment | Not now — local gateway isn't running |
 | Agent mode end to end | The Privilege Agent on a workstation, device-bound identity, how it differs from agentless | Partly — needs the agent paired on a Mac |
