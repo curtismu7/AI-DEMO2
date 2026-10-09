@@ -378,6 +378,13 @@ const SECTIONS = [
         covers:
           "SE demo script: an agent's tools/list returns only what its policy grants — permit door, deny-by-default door, grant change, agent key, aggregate; pre-demo check and troubleshooting (every claim measured 2026-10-02…04).",
       },
+      {
+        title: "Ping's reference demo, explained",
+        path: "privilege/PINGS-REFERENCE-DEMO-EXPLAINED.md",
+        pdf: true,
+        covers:
+          "The two-agent demo (aigwdemo) from the source up: three processes, the six legs and which cross the gateway, the four ADK traps the demo solves (A2A bearer, card object, transportOptions, GatewayGemini), the seeded findings, the UI's eight detector groups, and the runbook condensed (source-verified 2026-10-09, not yet run).",
+      },
     ],
   },
   {
@@ -420,7 +427,6 @@ const SECTIONS = [
 ];
 
 const PLANNED = [
-  ["Ping's reference demo, explained", "The two-agent demo (main agent, worker agent, MCP server) wired through the gateway", "Partly — needs the demo running"],
   ["Policies in depth", "Expiry, several policies adding up, groups, per-tool grants", "Partly — needs console changes"],
   ["Agent mode end to end", "The Privilege Agent on a workstation, device-bound identity, how it differs from agentless", "Partly — needs the agent paired on a Mac"],
 ];
