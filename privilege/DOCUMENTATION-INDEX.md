@@ -91,6 +91,7 @@ An in-app copy of this index is served at `/privilege-docs-index` in the demo UI
 | [Running the gateway locally (Docker)](GATEWAY-LOCAL-DOCKER.md) | Drive (SE) | The `profile: mcpgw` compose stack: start/stop, enrollment token + `pingone.env` + `/etc/hosts` + console app, the post-swap port map (settle by probing), nginx front door, verification incl. the smoke script, and the CA-wall status of the currently stopped local gateway (2026-10-09) |
 | [Workload identity for agent callers](WORKLOAD-IDENTITY-AGENT-CALLERS.md) | Drive (SE) | What Pass Agent Token demands (`token-pass`), the SPIFFE→PingFederate actor-token path verified live 2026-09-26, and the documented gap: no caller has yet presented a workload token to the gateway, with the experiment that would close it (2026-10-09) |
 | [Red team: a hostile A2A agent](RED-TEAM-HOSTILE-A2A.md) | Drive (SE) | The poisoned-Agent-Card attack end to end: `standalone/hostile-a2a-agent`, the deployed instance, what the gateway blocked vs alerted vs passed (measured 2026-10-03/06), the three properties of an A2A block, and what the demo does not claim (2026-10-09) |
+| [Auth modes for MCP backends](AUTH-MODES-MCP-BACKENDS.md) | Drive (SE) | What each mode sends the backend (None, Static Token, User Token, Pass Agent Token, OAuth), the header pass-through + `X-Procyon-Mcp-Cap` behavior, the verified instances in this stack, the OAuth warning (breaks discovery on v1.260906), and a choosing guide (2026-10-09) |
 | [SE1 shared demo](SE1-Privilege-Shared-Demo.md) | — | Setting up the shared Privilege demo in the SE1 environment |
 | [Privilege Agent setup — Mac](SE1-Privilege-Agent-Setup-Mac.md) | — | Agent-based persona onboarding for the shared Demo Engineering environment, run on your own Mac instead of Windows 11 VMs |
 | [Demo script & setup](demo/privilege-demo-script.md) | — | The customer-facing demo script and setup (auto-generated from the use-case docs — do not hand-edit) |
@@ -121,5 +122,4 @@ An in-app copy of this index is served at `/privilege-docs-index` in the demo UI
 |---|---|---|
 | Ping's reference demo, explained | The two-agent demo (main agent, worker agent, MCP server) wired through the gateway | Partly — needs the demo running |
 | Policies in depth | Expiry, several policies adding up, groups, per-tool grants | Partly — needs console changes |
-| Auth modes for MCP backends | None, Static Token, User Token, OAuth, Pass Agent Token | Partly — needs console changes |
 | Agent mode end to end | The Privilege Agent on a workstation, device-bound identity, how it differs from agentless | Partly — needs the agent paired on a Mac |
