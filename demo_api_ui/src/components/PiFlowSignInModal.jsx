@@ -111,12 +111,20 @@ export default function PiFlowSignInModal() {
     setDeviceUsername("");
     setBusy(true);
     setOpen(true);
+    openFlow(target, role);
+  }, []);
+
+  // Opens the pi.flow on the BFF. `passwordless` selects the identifier-first
+  // sign-on policy via acr_values — the app's default policy is password-first,
+  // so the device-only flow exists only when the authorize asks for this policy.
+  const openFlow = (target, role, { passwordless = false } = {}) => {
     (async () => {
       try {
         const qs = new URLSearchParams({ pi_flow: "1" });
         if (target) qs.set("return_to", target);
         if (forceRef.current) qs.set("force", "true");
         if (mfaRequested()) qs.set("mfa", "1");
+        if (passwordless) qs.set("passwordless", "1");
         const api = role === "admin" ? ADMIN_API : USER_API;
         const res = await fetch(`${apiBase()}${api}/login?${qs}`, { credentials: "include" });
         if (!res.ok) throw new Error("pi.flow unavailable");
@@ -129,7 +137,18 @@ export default function PiFlowSignInModal() {
         redirectLogin(target, role, forceRef.current);
       }
     })();
-  }, []);
+  };
+
+  // Switching to the device step replaces the session's flow with one opened
+  // under the identifier-first policy; the old flow is abandoned (it expires).
+  const switchToDevice = () => {
+    if (busy) return;
+    setDeviceUsername(username);
+    setError("");
+    setStep("device");
+    setBusy(true);
+    openFlow(returnToRef.current, roleRef.current, { passwordless: true });
+  };
 
   useEffect(() => {
     const onSignIn = (e) => {
@@ -420,7 +439,16 @@ export default function PiFlowSignInModal() {
             <button
               type="button"
               className="signin-prompt__btn signin-prompt__btn--ghost"
-              onClick={() => { setUsername(deviceUsername); setError(""); setStep("password"); }}
+              onClick={() => {
+                if (busy) return;
+                // Back to the password form — and to the password-first flow the
+                // session originally opened (the identifier-first flow is abandoned).
+                setUsername(deviceUsername);
+                setError("");
+                setBusy(true);
+                openFlow(returnToRef.current, roleRef.current);
+                setStep("password");
+              }}
             >
               Use your password instead
             </button>
@@ -458,7 +486,7 @@ export default function PiFlowSignInModal() {
           <button
             type="button"
             className="signin-prompt__btn signin-prompt__btn--ghost"
-            onClick={() => { setDeviceUsername(username); setError(""); setStep("device"); }}
+            onClick={switchToDevice}
           >
             Use a device instead
           </button>

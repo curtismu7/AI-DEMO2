@@ -78,6 +78,16 @@ describe('customer pi.flow sign-in', () => {
     expect(new URL(fetchMock.mock.calls[0][0]).searchParams.get('acr_values')).toBeNull();
   });
 
+  test('passwordless=1 selects the identifier-first policy via acr_values', async () => {
+    fetchMock.mockResolvedValueOnce(json(200, { id: 'flow-1', status: 'SIGN_ON_REQUIRED' }));
+    await request.agent(app).get('/api/auth/oauth/user/login?pi_flow=1&passwordless=1').expect(200);
+    expect(new URL(fetchMock.mock.calls[0][0]).searchParams.get('acr_values')).toBe('Multi_Factor');
+    fetchMock.mockClear();
+    await openFlow(request.agent(app));
+    // The password path never asks for the policy.
+    expect(new URL(fetchMock.mock.calls[0][0]).searchParams.get('acr_values')).toBeNull();
+  });
+
   test('plain /login is still a redirect without response_mode', async () => {
     const res = await request(app).get('/api/auth/oauth/user/login').expect(302);
     expect(res.headers.location).not.toContain('response_mode=pi.flow');

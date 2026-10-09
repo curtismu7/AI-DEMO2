@@ -230,6 +230,13 @@ class OAuthService {
       params.set('prompt', 'login');
     }
 
+    // Passwordless (device-first) sign-in: select the identifier-first sign-on
+    // policy by name. The app's first-match policy is password-first, so the
+    // passwordless flow only exists when the authorize asks for this policy.
+    if (opts.acrValues) {
+      params.set('acr_values', opts.acrValues);
+    }
+
     if (nonce) {
       params.set('nonce', nonce);
     }
