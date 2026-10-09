@@ -315,6 +315,72 @@ describe('customer pi.flow sign-in', () => {
       .send({ username: 'u', password: 'p' }).expect(409);
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  describe('passwordless start (username-only)', () => {
+    test('posts username.check with the flow cookie; OTP_REQUIRED returns the otp step', async () => {
+      const agent = request.agent(app);
+      fetchMock.mockResolvedValueOnce(json(200, { id: 'flow-1', status: 'USERNAME_PASSWORD_REQUIRED' }, {}, ['ST=open; Path=/']));
+      await agent.get('/api/auth/oauth/user/login?pi_flow=1').expect(200);
+      fetchMock.mockResolvedValueOnce(json(200, { status: 'OTP_REQUIRED' }, {}, ['ST=after-username; Path=/']));
+      const res = await agent.post('/api/auth/oauth/user/pi-flow/passwordless')
+        .send({ username: 'u' }).expect(200);
+      expect(res.body).toEqual({ step: 'otp' });
+      const call = fetchMock.mock.calls[1];
+      expect(String(call[0])).toMatch(/\/flows\/flow-1$/);
+      expect(call[1].headers['Content-Type']).toBe('application/vnd.pingidentity.username.check+json');
+      expect(call[1].headers.Cookie).toBe('ST=open');
+      expect(JSON.parse(call[1].body)).toEqual({ username: 'u' });
+    });
+
+    test('ASSERTION_REQUIRED returns the passkey step with parsed options', async () => {
+      const agent = request.agent(app);
+      await openFlow(agent);
+      const OPTIONS = { challenge: 'Y2g', rpId: 'ping-devops.com' };
+      fetchMock.mockResolvedValueOnce(json(200, {
+        status: 'ASSERTION_REQUIRED',
+        publicKeyCredentialRequestOptions: JSON.stringify(OPTIONS),
+      }));
+      const res = await agent.post('/api/auth/oauth/user/pi-flow/passwordless')
+        .send({ username: 'u' }).expect(200);
+      expect(res.body.step).toBe('passkey');
+      expect(res.body.publicKeyCredentialRequestOptions).toEqual(OPTIONS);
+    });
+
+    test('policy requires a password -> 409 passwordless_unavailable with a message', async () => {
+      const agent = request.agent(app);
+      await openFlow(agent);
+      fetchMock.mockResolvedValueOnce(json(200, { status: 'USERNAME_PASSWORD_REQUIRED' }));
+      const res = await agent.post('/api/auth/oauth/user/pi-flow/passwordless')
+        .send({ username: 'u' }).expect(409);
+      expect(res.body.error).toBe('passwordless_unavailable');
+      expect(res.body.message).toContain('password');
+    });
+
+    test('trims the username before posting', async () => {
+      const agent = request.agent(app);
+      await openFlow(agent);
+      fetchMock.mockResolvedValueOnce(json(200, { status: 'OTP_REQUIRED' }));
+      await agent.post('/api/auth/oauth/user/pi-flow/passwordless')
+        .send({ username: '  u  ' }).expect(200);
+      expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({ username: 'u' });
+    });
+
+    test('empty username -> 400 invalid_request without calling PingOne', async () => {
+      const agent = request.agent(app);
+      await openFlow(agent);
+      fetchMock.mockClear();
+      await agent.post('/api/auth/oauth/user/pi-flow/passwordless')
+        .send({ username: '   ' }).expect(400);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    test('without an open flow -> 409 pi_flow_not_started without calling PingOne', async () => {
+      fetchMock.mockClear();
+      await request(app).post('/api/auth/oauth/user/pi-flow/passwordless')
+        .send({ username: 'u' }).expect(409);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+  });
 });
 
 // The session-token modal's sign-in: /login?mode=pi.flow returns the authorize URL as JSON

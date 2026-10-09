@@ -352,6 +352,10 @@ router.post('/pi-flow/assertion', piFlowHandlers.handleAssertionStep);
 // typed; previously this fell back to the hosted page.
 router.post('/pi-flow/otp', piFlowHandlers.handleOtpStep);
 
+// Passwordless start: username only; the flow moves to the device step (otp or
+// passkey), which the modal drives with the existing endpoints.
+router.post('/pi-flow/passwordless', piFlowHandlers.handlePasswordlessStart);
+
 router.get('/login', (req, res) => {
   try {
     // A regular login must not inherit a prior step-up transaction marker.
