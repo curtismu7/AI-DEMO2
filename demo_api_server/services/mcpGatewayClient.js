@@ -281,9 +281,17 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
         }
     }
     const isIgBase = !!pgUrl && base === pgUrl;
-    const url  = isIgBase && APIKEY_TOOLS.has(tool) ? `${base}/mcp/apikey`
-               : isIgBase && WEATHER_TOOLS.has(tool) ? `${base}/mcp/weather`
-               : isIgBase && BRAVE_TOOLS.has(tool) ? `${base}/mcp/brave`
+    // rpcMethod: 'tools/list' turns this same routing/transport into the
+    // discovery leg of the MCP lifecycle (initialize → tools/list → tools/call).
+    // Same bearer, same gateway, same audit trail — only the JSON-RPC method
+    // and params differ. The tool name is a ROUTING KEY ONLY here (the caller
+    // passes the tool it is about to invoke); discovery is catalog-wide, so
+    // tool-keyed special routes (apikey/weather/brave) must not fire — they
+    // would send tools/list at a policy door scoped to one tool family.
+    const isDiscovery = opts.rpcMethod === 'tools/list';
+    const url  = !isDiscovery && isIgBase && APIKEY_TOOLS.has(tool) ? `${base}/mcp/apikey`
+               : !isDiscovery && isIgBase && WEATHER_TOOLS.has(tool) ? `${base}/mcp/weather`
+               : !isDiscovery && isIgBase && BRAVE_TOOLS.has(tool) ? `${base}/mcp/brave`
                : `${base}/mcp`;
 
     const body = {
@@ -295,8 +303,8 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
         // one-hop transactions instead of the turn that caused them. Same class
         // of bug as the WS path's hardcoded JSON-RPC id.
         id:      opts.correlationId || getCorrelationId() || crypto.randomUUID(),
-        method:  'tools/call',
-        params:  { name: tool, arguments: params },
+        method:  isDiscovery ? 'tools/list' : 'tools/call',
+        params:  isDiscovery ? {} : { name: tool, arguments: params },
     };
     // Also ride the correlation id INSIDE params, mirroring the WS client.
     // PingGateway proxies the JSON-RPC body verbatim but does not forward the
@@ -305,7 +313,9 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     // their own single-hop transactions. params.correlationId is what
     // correlationFromMessage reads first, and IG's validator only inspects
     // params.arguments, so this is invisible to schema validation.
-    if (body.id) body.params.correlationId = String(body.id);
+    // Skipped on discovery: the WS client sends tools/list with bare {} params
+    // and the upstream handler may not tolerate extra keys there.
+    if (body.id && !isDiscovery) body.params.correlationId = String(body.id);
 
     // UC18 on PingOne Agent Gateway (IG): arm uc18-rate-limit.groovy via trusted header
     // (Demo Agent Gateway enforces limits in-process instead).
@@ -495,7 +505,9 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     }
 
     let response;
-    const maxAttempts = RETRYABLE_READ_TOOLS.has(tool) ? 2 : 1;
+    // Discovery gets the same one-shot posture as any non-retryable call:
+    // RETRYABLE_READ_TOOLS keys on tool names, and discovery passes no tool.
+    const maxAttempts = !isDiscovery && RETRYABLE_READ_TOOLS.has(tool) ? 2 : 1;
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
         // DPoP jti values are single-use. Sign inside the attempt loop so a
         // retry after a transient 502/503/504 cannot replay the first proof.

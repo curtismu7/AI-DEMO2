@@ -816,6 +816,22 @@ const FLAG_REGISTRY = [
     defaultValue: false,
   },
   {
+    id:           'ff_mcp_discovery_before_call',
+    name:         'MCP discovery before call',
+    category:     'MCP / Agent',
+    description:
+      'When **ON** (default), every gateway-routed MCP tool call first issues a real `tools/list` through ' +
+      'the same gateway — completing the MCP lifecycle the spec describes: initialize → tools/list → ' +
+      'tools/call. The Token Chain shows the discovery hop with the Authorize-filtered tool counts. ' +
+      'Discovery is evidence, not enforcement: the gateway still authorizes the tool call itself, so a ' +
+      'failed discovery never blocks the call.',
+    impact:
+      'ON (default) = one extra round trip (~100–300ms) per tool call; the Token Chain tools/list hop ' +
+      'lights up on chip runs. OFF = the call path skips discovery (pre-2026-10 behavior).',
+    type:         'boolean',
+    defaultValue: true,
+  },
+  {
     id:           'ff_privilege_llm_first',
     name:         'Privilege first: LLM',
     category:     'LLM',
