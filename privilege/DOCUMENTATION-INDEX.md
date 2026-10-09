@@ -7,6 +7,13 @@ Google Drive folder; the two PDFs that live in the repo link directly below.
 An in-app copy of this index is served at `/privilege-docs-index` in the demo UI
 (Learning Hub → Ping AI Products → Privilege Docs Index).
 
+## Customer deliverables
+
+| Document | PDF | What it covers |
+|---|---|---|
+| [Personal Agents at United](../docs/united/United-Personal-Agent-Security.md) | — | MileagePlus members bringing their own agent (ChatGPT, coding CLIs, anything MCP-capable) and the security between: the no-BFF/no-DPoP architecture, gateway-fronted tool calls with minutes-long single-audience bearer tokens, United's as-built assistant, the gap analysis, and the recommended design. Working draft, 2026-10-09, prepared for United's AI team |
+| United 431 Request Header Size Guidance | [In repo](../docs/united/United%20431%20Request%20Header%20Size%20Guidance.pdf) | Investigating and mitigating HTTP 431 "Request Header Fields Too Large" in United's browser-based headless Ping SDK / DaVinci flow on the custom domain: cookie-scope and intermediary causes, five remediation options (BFF/proxy, cookie scope, credentialed-request limits, intermediary stripping, eTLD+1 domain), and the HAR-capture diagnostic sequence |
+
 ## Start here
 
 | Document | PDF | What it covers |
@@ -98,7 +105,7 @@ An in-app copy of this index is served at `/privilege-docs-index` in the demo UI
 ## Assets in the repo
 
 `privilege/design/` gateway + tools-table design specs ·
-`privilege/diagrams/` four rendered flows (SVG/PNG) + mermaid source ·
+`privilege/diagrams/` the Agentic Trust Control Plane slide (Agent Privilege = discover & register, steps 2–5 IAM Core / AI Gateway / Agent Authorize / Agent Governance) + four rendered flows (SVG/PNG) + mermaid source ·
 `privilege/postman/` Gateway, Gateway-SE, Simple, Debug, Client-Docker/K8s collections ·
 `privilege/runbooks/` ping-mcpgw, renew-token, mcpgw-nginx ·
 `.claude/skills/privilege-*` condensed operator skills (the docs win on disagreement).
