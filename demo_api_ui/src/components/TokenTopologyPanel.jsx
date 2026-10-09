@@ -18,6 +18,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import DraggableModal from './DraggableModal';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
+import { applyStepVisibility } from '../services/tokenChainTrace/stepVisibility';
 import { MCP_STEP_IDS, laneLabel } from '../services/tokenChainTrace/buildTraceSteps';
 import { buildA2aEvidenceRows } from '../utils/a2aChainDetail';
 import { getElk } from '../utils/elkLayout';
@@ -694,21 +695,29 @@ export default function TokenTopologyPanel({ isOpen, onClose, inline = false }) 
     trace.mcpResult || trace.authorize || trace.llmDetail || trace.llmReply ||
     trace.outcome || trace.routingMode || a2aTopology,
   );
-  const topologyNodes = hasActivity ? buildObservedTopology(steps) : [];
-  const topologySignature = topologyNodes.map((node) => node.id).join('|');
-  const totalNodes = topologyNodes.length;
+  // The shared visibility policy: fired hops draw; on a completed run the
+  // others collapse behind the chip (expanding draws them ghosted — their
+  // pending/notinpath statuses already ghost via isUnfired).
+  const [showSkippedNodes, setShowSkippedNodes] = useState(false);
+  const { visible: firedSteps, skipped: skippedSteps, revealed } =
+    applyStepVisibility(steps, trace, { collapsed: !showSkippedNodes });
+  const topologyNodes = hasActivity ? buildObservedTopology(firedSteps) : [];
+  const ghostNodes = hasActivity && showSkippedNodes ? buildObservedTopology(revealed) : [];
+  const allNodes = [...topologyNodes, ...ghostNodes];
+  const topologySignature = allNodes.map((node) => node.id).join('|');
+  const totalNodes = allNodes.length;
   const visibleCount = revealCount == null ? totalNodes : Math.min(revealCount, totalNodes);
-  const visibleNodes = topologyNodes.slice(0, visibleCount);
+  const visibleNodes = allNodes.slice(0, visibleCount);
   const { spine, branch, anchorId } = partitionSpineBranch(visibleNodes);
-  const topologyPartitions = useMemo(() => partitionSpineBranch(topologyNodes), [topologySignature]);
+  const topologyPartitions = useMemo(() => partitionSpineBranch(allNodes), [topologySignature]);
   const currentId = playing && visibleNodes.length
     ? visibleNodes[visibleNodes.length - 1]?.id
-    : topologyNodes.find((node) => node.step.status === 'active')?.id;
+    : allNodes.find((node) => node.step.status === 'active')?.id;
 
   // ELK positions the whole trace once per run shape. Status updates therefore
   // repaint evidence without shifting the graph around while it is being read.
   useEffect(() => {
-    if (!topologyNodes.length) {
+    if (!allNodes.length) {
       setLayout({ signature: '', positions: {} });
       return undefined;
     }
@@ -735,7 +744,7 @@ export default function TokenTopologyPanel({ isOpen, onClose, inline = false }) 
         'elk.layered.spacing.nodeNodeBetweenLayers': '64',
         'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
       },
-      children: topologyNodes.map((node) => ({ id: node.id, width: TOPOLOGY_NODE_WIDTH, height: TOPOLOGY_NODE_HEIGHT })),
+      children: allNodes.map((node) => ({ id: node.id, width: TOPOLOGY_NODE_WIDTH, height: TOPOLOGY_NODE_HEIGHT })),
       edges,
     })).then((result) => {
       if (cancelled) return;
@@ -744,7 +753,7 @@ export default function TokenTopologyPanel({ isOpen, onClose, inline = false }) 
     }).catch((error) => {
       console.error('[TokenTopologyPanel] layout failed; using linear fallback', error);
       const branchIds = new Set(allBranch.map((node) => node.id));
-      const positions = Object.fromEntries(topologyNodes.map((node, index) => [node.id, {
+      const positions = Object.fromEntries(allNodes.map((node, index) => [node.id, {
         x: index * (TOPOLOGY_NODE_WIDTH + 80),
         y: branchIds.has(node.id) ? TOPOLOGY_NODE_HEIGHT + 72 : 0,
       }]));
@@ -782,7 +791,7 @@ export default function TokenTopologyPanel({ isOpen, onClose, inline = false }) 
     const visibleIds = new Set(visibleNodes.map((node) => node.id));
     const pairs = [];
     for (let index = 1; index < spine.length; index += 1) pairs.push([spine[index - 1], spine[index]]);
-    if (anchorId && branch.length) pairs.push([topologyNodes.find((node) => node.id === anchorId), branch[0]]);
+    if (anchorId && branch.length) pairs.push([allNodes.find((node) => node.id === anchorId), branch[0]]);
     for (let index = 1; index < branch.length; index += 1) pairs.push([branch[index - 1], branch[index]]);
     return pairs
       .filter(([source, target]) => source && target && visibleIds.has(source.id) && visibleIds.has(target.id))
@@ -796,10 +805,10 @@ export default function TokenTopologyPanel({ isOpen, onClose, inline = false }) 
         markerEnd: { type: MarkerType.ArrowClosed, color: target.step.status === 'error' ? '#f85149' : '#6e7681' },
         data: { label: edgeLabel(target), blocked: target.step.status === 'error', ghost: isUnfired(target.step) },
       }));
-  }, [visibleNodes, spine, branch, anchorId, topologyNodes]);
+  }, [visibleNodes, spine, branch, anchorId, allNodes]);
   const flowFitKey = `${trace.runId || 'run'}:${layout.signature === topologySignature ? topologySignature : ''}`;
   const selectedStep = expandedId
-    ? topologyNodes.find((node) => node.id === expandedId)?.step
+    ? allNodes.find((node) => node.id === expandedId)?.step
       || a2aNodes.find((node) => node.sourceId === expandedId)?.step
       || null
     : null;
@@ -824,6 +833,11 @@ export default function TokenTopologyPanel({ isOpen, onClose, inline = false }) 
       setPlaying(false);
     }
   }, [trace.runId]);
+  // A run that grows mid-flight (new fired hops, chip expansion) must reveal
+  // the additions — revealCount was snapshotted at the run's start.
+  useEffect(() => {
+    if (trace.runId && totalNodes > (revealCount ?? 0)) setRevealCount(totalNodes);
+  }, [totalNodes, revealCount, trace.runId]);
 
   const handlePlayPause = useCallback(() => {
     if (!totalNodes) return;
@@ -840,6 +854,21 @@ export default function TokenTopologyPanel({ isOpen, onClose, inline = false }) 
 
   const content = (
       <div className="ttp-root ttp-reel-layout" data-theme={darkMode ? 'dark' : 'light'} data-font-size={fontSize}>
+        {/* Completed runs collapse the hops that never fired behind this chip;
+            expanding draws them ghosted (their unfired statuses already style). */}
+        {skippedSteps.length > 0 && (
+          <button
+            type="button"
+            className="ttp-skipped-chip"
+            data-testid="ttp-skipped-chip"
+            aria-expanded={showSkippedNodes}
+            onClick={() => setShowSkippedNodes((v) => !v)}
+          >
+            {showSkippedNodes
+              ? `− ${skippedSteps.length} hops not in this run`
+              : `+ ${skippedSteps.length} hops not in this run`}
+          </button>
+        )}
         {/* Toolbar */}
         <div className="ttp-toolbar">
           <div className="ttp-toolbar-left">
@@ -900,7 +929,7 @@ export default function TokenTopologyPanel({ isOpen, onClose, inline = false }) 
           {showInspector && hasActivity && selectedStep ? (
             <div className={`ttp-insp-pane${inline ? ' ttp-insp-pane--inline' : ''}`} style={inline ? undefined : { width: inspWidth }}>
               {!inline && <div className="ttp-resize-handle" {...inspHandleProps} />}
-              <Inspector step={selectedStep} topologyNodes={topologyNodes} onClose={handleInspectorClose} fontSize={fontSize} setFontSize={setFontSize} />
+              <Inspector step={selectedStep} topologyNodes={allNodes} onClose={handleInspectorClose} fontSize={fontSize} setFontSize={setFontSize} />
             </div>
           ) : showInspector && hasActivity && !inline ? (
             <div className="ttp-insp-pane" style={{ width: inspWidth }}><div className="ttp-resize-handle" {...inspHandleProps} /><div className="ttp-insp-empty"><div className="ttp-insp-empty-icon">🔑</div><div className="ttp-insp-empty-text">Click a node to inspect its token details</div></div></div>
