@@ -231,3 +231,19 @@ jobs:
           docker tag "${{ matrix.localImage }}:latest" "$LATEST_URI"
           docker push "$SHA_URI"
           docker push "$LATEST_URI"
+      # Every run leaves its sha-<sha> tag of all 12 images on the runner's
+      # daemon (the bff/server image alone is ~3.6 GB). Nothing consumed them —
+      # deployments pull from GHCR — and 2026-10-09 the Air's 460 GB disk hit
+      # 100% mid-"Install deps" (ENOSPC, attempts 14/16). Keep :latest and the
+      # current run's sha tag; drop everything else, plus dangling layers.
+      # rmi by REPOSITORY:TAG, not image ID: a server image shares layers with
+      # its frontend counterpart's ID space and `rmi <id>` dies with "image is
+      # referenced in multiple repositories" when a tag pair exists.
+      - name: Prune old local images
+        if: always()
+        run: |
+          set -euo pipefail
+          docker images "ghcr.io/${{ github.repository_owner }}/*:sha-*" --format "{{.Repository}}:{{.Tag}}" \
+            | /usr/bin/grep -Fv ":sha-${{ github.sha }}" \
+            | xargs -r -n1 docker rmi || true
+          docker image prune -f >/dev/null
