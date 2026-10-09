@@ -436,7 +436,10 @@ function IntentBakeoff() {
           <p className="jev-explain">
             How to read it: <strong>Truth</strong> is what the customer is actually asking for. Each decider picks one of
             three actions, and green means its pick matches the truth. For Jev the percentage is how confident it is in
-            that pick.
+            that pick. Watch "Hi there": Jev calls it transfer_money with 99% confidence - a wrong pick, made loudly.
+            That is not a glitch in this page; it is System One's declared failure mode (see the table up top): a
+            confident wrong label. A real router treats a pick like this as one candidate, not an instruction - which is
+            what the "ask a clarifying question instead of guessing" line below is for.
           </p>
           <table className="jev-table">
             <thead>
