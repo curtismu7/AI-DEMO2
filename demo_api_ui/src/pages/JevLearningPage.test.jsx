@@ -101,6 +101,20 @@ describe('JevLearningPage', () => {
     await waitFor(() => expect(screen.getByText('0.97')).toBeTruthy());
   });
 
+  it('shows the Ping spinner while the model call is in flight', async () => {
+    // Von's first call after a cold start takes up to ~23s; with no in-flight
+    // indicator the panel reads as frozen. The spinner must be present while
+    // busy and gone once the result lands.
+    let resolveReply;
+    vi.stubGlobal('fetch', vi.fn().mockReturnValue(new Promise((resolve) => { resolveReply = resolve; })));
+    render(<JevLearningPage />);
+    fireEvent.click(livePanel().getByRole('button', { name: 'Decide' }));
+    expect(await screen.findByRole('status', { name: /Jev is reading the text/i })).toBeTruthy();
+    resolveReply(reply(0.82));
+    await waitFor(() => expect(screen.queryByRole('status', { name: /Jev is reading the text/i })).toBeNull());
+    expect(livePanel().getByText('P(yes) = 0.82')).toBeTruthy();
+  });
+
   it('each result box explains itself, and the Jev box quotes its score in plain words', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(reply(0.84)));
     render(<JevLearningPage />);

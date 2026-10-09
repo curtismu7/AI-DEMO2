@@ -36,6 +36,9 @@
 
 .jev-error { margin: 10px 0 0; color: var(--th-status-error-text); }
 
+.jev-waiting { display: flex; align-items: center; gap: 10px; margin: 12px 0 0; }
+.jev-waiting-note { color: var(--th-text-muted); font-size: var(--font-size-2xs); }
+
 .jev-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 16px; }
 .jev-col { padding: 14px; background: var(--th-bg-inset); border: 1px solid var(--th-border); border-radius: var(--radius-md); }
 
