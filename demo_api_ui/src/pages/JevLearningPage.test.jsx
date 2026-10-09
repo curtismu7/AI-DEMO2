@@ -119,8 +119,33 @@ describe('JevLearningPage', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(reply(0.84)));
     render(<JevLearningPage />);
     fireEvent.click(livePanel().getByRole('button', { name: 'Decide' }));
-    await waitFor(() => expect(screen.getByText(/fixed list of trigger words/)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/matched nothing on its trigger-word list/i)).toBeTruthy());
     expect(screen.getByText(/about 84%/)).toBeTruthy();
+  });
+
+  it('says how a service uses the score: policy thresholds, with the slider as the worked example', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(reply(0.84)));
+    render(<JevLearningPage />);
+    fireEvent.click(livePanel().getByRole('button', { name: 'Decide' }));
+    await waitFor(() => expect(screen.getAllByText(/allow below 0\.4/i).length).toBeGreaterThan(0));
+  });
+
+  it('the rules verdict flips its explanation when a trigger phrase matches', async () => {
+    const hit = { ok: true, json: async () => ({
+      jev: { mode: 'live', model: 'm', latencyMs: 5, answer: { type: 'noul', probability: 0.9 } },
+      heuristic: { latencyMs: 0, answer: { type: 'noul', probability: 1 } },
+    }) };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(hit));
+    render(<JevLearningPage />);
+    fireEvent.click(livePanel().getByRole('button', { name: 'Decide' }));
+    await waitFor(() => expect(screen.getAllByText(/matched a trigger phrase/i).length).toBeGreaterThan(0));
+  });
+
+  it('explains the scenario itself - what a prompt injection is and why these examples', () => {
+    render(<JevLearningPage />);
+    expect(screen.getAllByText(/A prompt injection is text that tries to take over the assistant/).length).toBe(2);
+    fireEvent.click(livePanel().getByRole('tab', { name: 'Step-up risk' }));
+    expect(screen.getByText(/Fraudulent transfers are urgent, oversized, or go to new payees/)).toBeTruthy();
   });
 
   it('bake-off posts every corpus message and shows an inline error on failure', async () => {
