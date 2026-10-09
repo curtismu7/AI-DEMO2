@@ -422,6 +422,10 @@ export default function AdminSideNav({
   // Path queued behind the AI Control Plane intro-gate modal (null = closed).
   const [controlPlaneIntroPath, setControlPlaneIntroPath] = useState(null);
   const [showResetModal, setShowResetModal] = useState(false);
+  // Sign Out asks first — same interpose as the topnav's; the reset-demo
+  // cleanup path keeps calling performLogout() directly (it already has its
+  // own readiness confirmation).
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [readinessJob, setReadinessJob] = useState(null);
   const [showRepairConfirm, setShowRepairConfirm] = useState(false);
   const readinessPollTimerRef = useRef(null);
@@ -1776,7 +1780,7 @@ export default function AdminSideNav({
         break;
       }
       case "logout":
-        performLogout();
+        setShowLogoutConfirm(true);
         break;
       case "reset-demo":
         setShowResetModal(true);
@@ -2437,6 +2441,15 @@ export default function AdminSideNav({
           ))}
         </div>
       </nav>
+      <ConfirmModal
+        isOpen={showLogoutConfirm}
+        title="Sign out?"
+        message="This ends your session and clears the live token chain. Sign back in to continue."
+        confirmLabel="Sign Out"
+        danger
+        onConfirm={() => { setShowLogoutConfirm(false); performLogout(); }}
+        onCancel={() => setShowLogoutConfirm(false)}
+      />
       <ConfirmModal
         isOpen={showResetModal}
         title="Reset Demo"

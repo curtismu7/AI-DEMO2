@@ -84,6 +84,23 @@ describe("TopNav Favorites dropdown", () => {
     expect(screen.getByRole("button", { name: "Sign Out" })).toBeInTheDocument();
   });
 
+  it("asks for confirmation before Sign Out, and only logs out on confirm", () => {
+    const onLogout = vi.fn();
+    render(<TopNav user={{ role: "customer", username: "demo-user" }} onLogout={onLogout} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Sign Out" }));
+    expect(screen.getByText("Sign out?")).toBeInTheDocument();
+    expect(onLogout).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onLogout).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Sign Out" }));
+    // Confirm inside the modal — two Sign Out buttons are in the DOM now.
+    fireEvent.click(screen.getAllByRole("button", { name: "Sign Out" }).pop());
+    expect(onLogout).toHaveBeenCalledTimes(1);
+  });
+
   it("renders the Ping Identity logo at the far left of the main header", () => {
     render(<TopNav user={null} onLogout={vi.fn()} />);
 
