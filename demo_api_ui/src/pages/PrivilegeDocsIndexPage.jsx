@@ -333,6 +333,13 @@ const SECTIONS = [
           "What Pass Agent Token demands (token-pass), the SPIFFE→PingFederate actor-token path verified live 2026-09-26, and the documented gap: no caller has yet presented a workload token to the gateway, with the experiment that would close it (2026-10-09).",
       },
       {
+        title: "Red team: a hostile A2A agent",
+        path: "privilege/RED-TEAM-HOSTILE-A2A.md",
+        pdf: true,
+        covers:
+          "The poisoned-Agent-Card attack end to end: standalone/hostile-a2a-agent, the deployed instance, what the gateway blocked vs alerted vs passed (measured 2026-10-03/06), the three properties of an A2A block, and what the demo does not claim (2026-10-09).",
+      },
+      {
         title: "SE1 shared demo",
         path: "privilege/SE1-Privilege-Shared-Demo.md",
         covers:
@@ -406,7 +413,6 @@ const SECTIONS = [
 ];
 
 const PLANNED = [
-  ["Red team: a hostile A2A agent", "A poisoned agent card and what Inter-Agent Abuse detection catches", "Partly — hostile agent needs registering"],
   ["Ping's reference demo, explained", "The two-agent demo (main agent, worker agent, MCP server) wired through the gateway", "Partly — needs the demo running"],
   ["Policies in depth", "Expiry, several policies adding up, groups, per-tool grants", "Partly — needs console changes"],
   ["Auth modes for MCP backends", "None, Static Token, User Token, OAuth, Pass Agent Token", "Partly — needs console changes"],
