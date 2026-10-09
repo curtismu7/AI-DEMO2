@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 import LearningHub from "../LearningHub";
@@ -54,7 +54,12 @@ describe("LearningHub Jev lesson", () => {
       </MemoryRouter>,
     );
 
-    const chip = screen.getByRole("link", { name: /demo step 53/i });
+    // The number comes from the canonical demoStepNumbers module (not hardcoded
+    // in the component), so derive the expectation rather than pinning it —
+    // renumbering the script must not break this test.
+    const card = screen.getByRole("button", { name: /jev: decision model/i });
+    const chip = within(card).getByRole("link", { name: /demo step \d+ · \/use-cases/i });
     expect(chip).toHaveAttribute("href", "/use-cases#UC-LEARN15");
+    expect(chip.textContent).not.toContain("53");
   });
 });

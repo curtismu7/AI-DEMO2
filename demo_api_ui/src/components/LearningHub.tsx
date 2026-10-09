@@ -7,6 +7,7 @@ import TokenChainTraceRail from "./TokenChainTraceRail";
 import LearningHubAgent from "./LearningHubAgent";
 import LearningHubDocuments from "./LearningHubDocuments";
 import { useThemeOptional } from "../context/ThemeContext";
+import { demoStepLabel } from "../config/demoStepNumbers";
 import "./LearningHub.css";
 
 interface LearningCategory {
@@ -20,7 +21,10 @@ interface LearningItem {
   label: string;
   description?: string;
   icon: string;
-  demoStep?: { number: number | string; useCaseId: string };
+  // useCaseId drives the deep link (/use-cases#UCid); `number` is optional and
+  // defaults to the canonical demoStepLabel for that id, so chips can't drift
+  // from demoStepNumbers.js the way the old hardcoded 53 did.
+  demoStep?: { number?: number | string; useCaseId: string };
 }
 
 type LessonStatus = "LIVE" | "LIVE / CONFIG" | "SIMULATED" | "REFERENCE";
@@ -109,6 +113,7 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         label: "Guided Demo Tour",
         description: "Interactive walkthrough of the platform",
         icon: "",
+        demoStep: { useCaseId: "UC23" },
       },
       {
         label: "Best Practices",
@@ -131,66 +136,79 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         label: "Auth Code + PKCE",
         description: "OAuth 2.0 authorization code flow with PKCE security",
         icon: "🔐",
+        demoStep: { useCaseId: "UC-LOGIN" },
       },
       {
         label: "PKCE Deep Dive",
         description: "Proof Key for Code Exchange explained",
         icon: "🔍",
+        demoStep: { useCaseId: "UC-LOGIN" },
       },
       {
         label: "CIBA (OOB)",
         description: "Client Initiated Backchannel Authentication",
         icon: "📡",
+        demoStep: { useCaseId: "UC22" },
       },
       {
         label: "Token Exchange (RFC 8693)",
         description: "Convert between different token types",
         icon: "🔄",
+        demoStep: { useCaseId: "UC1" },
       },
       {
         label: "may_act / act claims",
         description: "Delegation and actor claims in tokens",
         icon: "👥",
+        demoStep: { useCaseId: "UC3" },
       },
       {
         label: "Actor Token (Agent)",
         description: "Tokens for autonomous agents",
         icon: "🤖",
+        demoStep: { useCaseId: "UC44" },
       },
       {
         label: "Step-up MFA",
         description: "Multi-factor authentication escalation",
         icon: "🔐",
+        demoStep: { useCaseId: "UC7" },
       },
       {
         label: "Introspection (RFC 7662)",
         description: "Validate and inspect token contents",
         icon: "🔍",
+        demoStep: { useCaseId: "UC29" },
       },
       {
         label: "PingOne Authorize",
         description: "Fine-grained authorization policies",
         icon: "⚖️",
+        demoStep: { useCaseId: "UC6" },
       },
       {
         label: "PAR (RFC 9126)",
         description: "Pushed Authorization Requests",
         icon: "📄",
+        demoStep: { useCaseId: "UC14b" },
       },
       {
         label: "RAR (RFC 9396)",
         description: "Rich Authorization Requests",
         icon: "📋",
+        demoStep: { useCaseId: "UC14b" },
       },
       {
         label: "JWT Client Auth (RFC 7523)",
         description: "Secure client authentication with JWTs",
         icon: "💳",
+        demoStep: { useCaseId: "UC22" },
       },
       {
         label: "OAuth: CIMD",
         description: "Customer Identity Management with CIMD",
         icon: "👤",
+        demoStep: { useCaseId: "UC43" },
       },
     ],
   },
@@ -203,17 +221,19 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         label: "MCP Protocol",
         description: "Model Context Protocol fundamentals",
         icon: "📡",
+        demoStep: { useCaseId: "UC30" },
       },
       {
         label: "Agent-to-Agent (A2A)",
         description: "Nested-act delegation and the A2A wire protocol",
         icon: "🔗",
+        demoStep: { useCaseId: "UC2" },
       },
       {
         label: "Jev: Decision Model",
         description: "A fast typed-answer model for guardrails and routing: score, confidence and thresholds",
         icon: "🧠",
-        demoStep: { number: 53, useCaseId: "UC-LEARN15" },
+        demoStep: { useCaseId: "UC-LEARN15" },
       },
       {
         label: "MCP Server Discovery",
@@ -224,6 +244,7 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         label: "MCP: MFA Gate on Tools",
         description: "Protect sensitive tools with MFA",
         icon: "🛡️",
+        demoStep: { useCaseId: "UC38" },
       },
       {
         label: "MCP Elicitation",
@@ -249,6 +270,7 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         label: "Human-in-the-loop",
         description: "HITL flows for sensitive operations",
         icon: "👤‍💼",
+        demoStep: { useCaseId: "UC8" },
       },
       {
         label: "PingOne Agent Gateway Security",
@@ -259,11 +281,13 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         label: "Enterprise-Managed Auth (EMA)",
         description: "Zero-touch OAuth for MCP with IdP-driven provisioning",
         icon: "🏦",
+        demoStep: { useCaseId: "UC40" },
       },
       {
         label: "Agent Kill Switch",
         description: "Session-scoped revocation, active-run audit trail, and what's a concept vs. shipped",
         icon: "⚠️",
+        demoStep: { useCaseId: "UC-NHI1" },
       },
       {
         label: "Shadow AI Detector",
@@ -281,6 +305,7 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         label: "Agent IAM Core",
         description: "Agent identity, OAuth authentication, delegation, and scoped tokens",
         icon: "🔑",
+        demoStep: { useCaseId: "UC43" },
       },
       {
         label: "Agent Gateway",
@@ -291,21 +316,25 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         label: "PingOne Authorize",
         description: "Fine-grained policy decisions for agents, users, resources, and actions",
         icon: "⚖",
+        demoStep: { useCaseId: "UC6" },
       },
       {
         label: "Privilege for AI — LLM",
         description: "Protect model interactions, prompts, responses, and downstream actions",
         icon: "🧠",
+        demoStep: { useCaseId: "UC-LEARN11" },
       },
       {
         label: "Privilege for AI — A2A",
         description: "Control authenticated agent-to-agent delegation and handoffs",
         icon: "🔗",
+        demoStep: { useCaseId: "UC46" },
       },
       {
         label: "Privilege for AI — MCP",
         description: "Protect MCP discovery, tools, resources, and invocations",
         icon: "🛠",
+        demoStep: { useCaseId: "UC13" },
       },
     ],
   },
@@ -323,6 +352,7 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         label: "Intent Auth Standards",
         description: "Standards for intent-based authorization",
         icon: "✅",
+        demoStep: { useCaseId: "UC14b" },
       },
       {
         label: "IETF Standards: Agentic",
@@ -338,6 +368,7 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         label: "ID-JAG / Cross-App Access",
         description: "Identity across distributed applications",
         icon: "🔗",
+        demoStep: { useCaseId: "UC40" },
       },
       {
         label: "Architecture Diagram",
@@ -353,11 +384,13 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         label: "Sensitive Data & Disclosure",
         description: "Protecting sensitive information",
         icon: "🔐",
+        demoStep: { useCaseId: "UC16b" },
       },
       {
         label: "Gateway vs P1AZ Decision Split",
         description: "Coarse (PEP) vs fine (PDP), and the 5 rules P1AZ can't express",
         icon: "📖",
+        demoStep: { useCaseId: "UC6" },
       },
     ],
   },
@@ -387,6 +420,7 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         label: "LangChain (LCEL + LangGraph)",
         description: "LangChain ecosystem for AI applications",
         icon: "🔗",
+        demoStep: { useCaseId: "UC47" },
       },
       {
         label: "Agent Builder Landscape",
@@ -412,6 +446,7 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         label: "Vector Search & RAG (Weaviate)",
         description: "How semantic code search stores and finds embeddings",
         icon: "🧠",
+        demoStep: { useCaseId: "UC-TOOL1" },
       },
     ],
   },
@@ -439,21 +474,25 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         label: "Agentic Trust",
         description: "Building trust in AI agents",
         icon: "👥",
+        demoStep: { useCaseId: "UC37" },
       },
       {
         label: "Agent Guardrails",
         description: "How Ping keeps AI agents inside explicit guardrails",
         icon: "🛡️",
+        demoStep: { useCaseId: "UC47" },
       },
       {
         label: "OWASP Agentic",
         description: "Security for autonomous agents",
         icon: "🛡️",
+        demoStep: { useCaseId: "UC12" },
       },
       {
         label: "Gartner Machine IAM Survey",
         description: "Top 5 findings and how this demo answers them",
         icon: "📊",
+        demoStep: { useCaseId: "UC-NHI1" },
       },
     ],
   },
@@ -756,7 +795,7 @@ export default function LearningHub() {
                           to={`/use-cases#${item.demoStep.useCaseId}`}
                           onClick={(e) => e.stopPropagation()}
                         >
-                          Demo step {item.demoStep.number} · /use-cases
+                          Demo step {item.demoStep.number ?? demoStepLabel(item.demoStep.useCaseId) ?? item.demoStep.useCaseId} · /use-cases
                         </Link>
                       )}
                     </div>
