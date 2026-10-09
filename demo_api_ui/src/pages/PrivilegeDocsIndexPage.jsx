@@ -336,6 +336,13 @@ const SECTIONS = [
         covers:
           "CIMD (client metadata documents) for PingOne Privilege — flow, boundary, and client documents, with diagrams.",
       },
+      {
+        title: "MCP discovery-gating demo",
+        path: "privilege/MCP-DISCOVERY-DEMO.md",
+        pdf: true,
+        covers:
+          "SE demo script: an agent's tools/list returns only what its policy grants — permit door, deny-by-default door, grant change, agent key, aggregate; pre-demo check and troubleshooting (every claim measured 2026-10-02…04).",
+      },
     ],
   },
   {
