@@ -118,10 +118,28 @@ test("legend button opens the legend modal; inspect opens claims modal", () => {
 test("MCP tab shows the MCP panel and hides the full step list", () => {
   render(<TokenChainTraceRail />);
   openView("MCP");
-  expect(screen.getByText(/MCP server — tool executes/)).toBeInTheDocument();
+  // With no run activity the fired-only route is empty — the panel says so
+  // instead of drawing the whole fixed catalog as notinpath cards.
+  expect(screen.getByText(/No MCP tool call yet/i)).toBeInTheDocument();
   expect(screen.queryByText(/Sign-in — User Token acquired/)).not.toBeInTheDocument();
   expect(screen.queryByText(/Banking Agent composes reply/)).not.toBeInTheDocument();
-  expect(screen.getByText(/No MCP tool call yet/i)).toBeInTheDocument();
+});
+
+test("MCP tab shows the fired hops of a completed run, not the whole catalog", () => {
+  render(<TokenChainTraceRail />);
+  act(() => {
+    tokenChainTraceStore.beginTrace({ prompt: "show my balance" });
+    tokenChainTraceStore.ingestTokenEvents([
+      { id: "gw-introspection", status: "done" },
+      { id: "gw-authorize", status: "done", decision: "PERMIT" },
+    ]);
+    tokenChainTraceStore.ingestMcpResult({ tool: "get_my_accounts", result: { accounts: 2 } });
+    tokenChainTraceStore.completeTrace(true);
+  });
+  openView("MCP");
+  expect(screen.getByText(/MCP server — tool executes/)).toBeInTheDocument();
+  // A hop the run never reached stays off the tab.
+  expect(screen.queryByText(/Database — data query/)).not.toBeInTheDocument();
 });
 
 test("Classic selection persists as the emergency fallback", () => {

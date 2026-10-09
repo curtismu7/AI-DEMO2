@@ -466,6 +466,14 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false, zoom: zoomPr
   // Status counts read the unfiltered store list — visibility must not change
   // how "done" the MCP route reads.
   const mcpDone = snap.steps.filter((s) => MCP_STEP_IDS.includes(s.id) && s.status === "done").length;
+  // The MCP tab draws the fired-only route too: a completed run shows the hops
+  // the run performed, not the whole fixed MCP catalog with notinpath cards.
+  const mcpSteps = useMemo(
+    () => applyStepVisibility(
+      snap.steps.filter((s) => MCP_STEP_IDS.includes(s.id)), trace, { collapsed: true },
+    ).visible,
+    [snap.steps, trace],
+  );
   const showTrust = shouldShowTrustTab({
     ffDpop: trustFlags.ffDpop,
     ffRar: trustFlags.ffRar,
@@ -770,7 +778,7 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false, zoom: zoomPr
       ) : tab === "demo-track" ? (
         <TokenChainDemoTrackTab />
       ) : (
-        <TraceMcpPanel steps={rawSteps} trace={trace} onInspect={onInspect} useCase={proofUseCase} />
+        <TraceMcpPanel steps={mcpSteps} trace={trace} onInspect={onInspect} useCase={proofUseCase} />
       )}
 
       <ClaimDetailsModal isOpen={!!inspectType} tokenType={inspectType || "user"}

@@ -15,6 +15,7 @@ import { isFlagOn, shouldShowTrustTab } from "../utils/tokenChainTrust";
 import { useTokenChainOptional } from "../context/TokenChainContext";
 import { useProofOfEnforcementOptional } from "../context/ProofOfEnforcementContext";
 import { applyStepVisibility } from "../services/tokenChainTrace/stepVisibility";
+import { buildA2aTokenChainSteps } from "./TokenChainTraceRail";
 import TokenChainNodeRail from "./TokenChainNodeRail";
 import TokenChainPresenter from "./TokenChainPresenter";
 import StepDetailPanel from "./StepDetailPanel";
@@ -159,11 +160,22 @@ export default function TokenChainFilmstrip() {
   const traceProvenance = resolveTraceProvenance(trace);
   const classicSteps = snap.steps;
   // Same policy as the rail: Live shows fired hops (+ the chip's revealed set),
-  // Classic keeps the complete store list.
+  // Classic keeps the complete store list. Same compose as the rail's
+  // liveProjection too: A2A hops are not in buildTraceSteps output, so they
+  // splice in after the tool choice — without it a UC2 run drew no specialist
+  // hops on this surface at all.
   const steps = useMemo(() => {
     if (viewMode === "classic") return classicSteps;
+    const a2aSteps = buildA2aTokenChainSteps(trace?.tokenEvents);
+    let source = classicSteps;
+    if (a2aSteps.length) {
+      const insertAfter = source.findIndex((step) => step.id === "llm");
+      const spliced = source.slice();
+      spliced.splice(insertAfter + 1, 0, ...a2aSteps);
+      source = spliced;
+    }
     const { visible, skipped: skippedHops, revealed } =
-      applyStepVisibility(classicSteps, trace, { collapsed: !showSkipped });
+      applyStepVisibility(source, trace, { collapsed: !showSkipped });
     skippedCountRef.current = skippedHops.length;
     return [...visible, ...(showSkipped ? revealed : [])].map((step, index) => ({ ...step, num: index + 1 }));
   }, [viewMode, classicSteps, trace, showSkipped]);
@@ -196,6 +208,13 @@ export default function TokenChainFilmstrip() {
     trace.routingMode,
   );
   const mcpDone = classicSteps.filter((s) => MCP_STEP_IDS.includes(s.id) && s.status === "done").length;
+  // Same fired-only route the rail's MCP tab draws (stepVisibility policy).
+  const mcpSteps = useMemo(
+    () => applyStepVisibility(
+      classicSteps.filter((s) => MCP_STEP_IDS.includes(s.id)), trace, { collapsed: true },
+    ).visible,
+    [classicSteps, trace],
+  );
   const showTrust = shouldShowTrustTab({
     ffDpop: trustFlags.ffDpop, ffRar: trustFlags.ffRar, events: trace.tokenEvents,
   });
@@ -220,7 +239,7 @@ export default function TokenChainFilmstrip() {
   const renderView = () => {
     switch (view) {
       case "tokens": return <TraceTokenSummary tokenEvents={trace.tokenEvents} onInspect={onInspect} standalone />;
-      case "mcp": return <TraceMcpPanel steps={classicSteps} trace={trace} onInspect={onInspect} useCase={proofUseCase} />;
+      case "mcp": return <TraceMcpPanel steps={mcpSteps} trace={trace} onInspect={onInspect} useCase={proofUseCase} />;
       case "trust": return <TraceTrustPanel events={trace.tokenEvents} />;
       case "simple": return <SimpleStepper events={tokenChain?.events ?? []} />;
       case "detailed": return <DetailedStepper events={tokenChain?.events ?? []} />;

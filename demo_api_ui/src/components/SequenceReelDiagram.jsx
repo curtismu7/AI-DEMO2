@@ -205,12 +205,20 @@ export default function SequenceReelDiagram({
   const allLifelineSteps = useMemo(() => {
     // The shared policy: fired hops only (in-flight and completed alike — the
     // reel is a playback surface and renders no collapse chip).
-    const { visible } = applyStepVisibility(steps, snap.trace);
+    // The recorded-trace pages (TransactionTraceEmbedPage et al) hand the reel
+    // externalSteps and never touch the token-chain store — the store trace is
+    // EMPTY_TRACE, with no activity for the policy's gate to see. A handed-in
+    // list is by definition the hops that happened: score it against a
+    // synthetic completed trace so the embed keeps drawing.
+    const trace = Array.isArray(externalSteps)
+      ? { ...snap.trace, startedAt: snap.trace?.startedAt || 1, outcome: snap.trace?.outcome || "ok" }
+      : snap.trace;
+    const { visible } = applyStepVisibility(steps, trace);
     const failureIndex = visible.findIndex((step) => step.status === "error");
     const visibleSteps = failureIndex === -1 ? visible : visible.slice(0, failureIndex + 1);
     if (!visibleSteps.some((step) => !SESSION_STEP_IDS.has(step.id))) return [];
     return deriveLifelineSteps(visibleSteps);
-  }, [steps, snap.trace]);
+  }, [steps, externalSteps, snap.trace]);
   const runId = externalRunId ?? snap.trace?.runId ?? null;
   const runProvenance = provenance || resolveTraceProvenance(snap.trace);
   const traceFinished = externalTraceFinished ?? (["ok", "error", "mock-success"].includes(snap.trace?.outcome));

@@ -154,3 +154,20 @@ test("a Privilege A2A chain run gets its own intro, not the token-exchange one",
   expect(screen.getByText(/sits between every pair of agents/)).toBeInTheDocument();
   expect(screen.queryByText(/Token exchange means/)).not.toBeInTheDocument();
 });
+
+test("a live UC2 A2A run splices the specialist hops into the Live chain", () => {
+  render(<TokenChainFilmstrip />);
+  act(() => {
+    tokenChainTraceStore.beginTrace({ prompt: "hand off to a specialist" });
+    tokenChainTraceStore.ingestTokenEvents([
+      { id: "a2a-agent1-actor", status: "done", claims: { sub: "u1" } },
+      { id: "a2a-agent2-actor", status: "done", claims: { sub: "u2", act: { sub: "u1" } } },
+    ]);
+    tokenChainTraceStore.completeTrace(true);
+  });
+  // The A2A hops are not in buildTraceSteps output; the Live compose splices
+  // them in after the tool choice — the rail's liveProjection does, and this
+  // surface draws the same story.
+  expect(screen.getByTitle(/Generalist agent/)).toBeInTheDocument();
+  expect(screen.getByTitle(/Specialist agent/)).toBeInTheDocument();
+});
