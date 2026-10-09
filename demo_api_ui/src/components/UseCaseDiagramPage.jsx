@@ -10,7 +10,7 @@
 //
 // The open state matches the approved mock: hop 1 active and paused, entry
 // node ringed — diagram and details visible with zero clicks.
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import StaticFlowDiagram from "./StaticFlowDiagram";
 import DiagramStepBar from "./DiagramStepBar";
@@ -18,6 +18,8 @@ import { useDiagramStepper } from "../hooks/useDiagramStepper";
 import { CONFIGS, getConfig } from "../config/useCaseDiagrams";
 import { DEMO_STEP_GUIDES } from "../config/demoStepGuides";
 import { demoStepNumber } from "../config/demoStepNumbers";
+import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
+import { buildLiveUcWalk } from "../services/tokenChainTrace/ucLiveOverlay";
 import "./UseCaseDiagramPage.css";
 
 const TONE_CLASS = { ok: "ucd-pill--ok", warn: "ucd-pill--warn", err: "ucd-pill--err", info: "ucd-pill--info" };
@@ -39,7 +41,18 @@ function WireRows({ rows }) {
 export default function UseCaseDiagramPage() {
   const { ucId } = useParams();
   const cfg = getConfig(ucId);
-  const stepper = useDiagramStepper(cfg ? cfg.walk.length : 0);
+  // The trace store decides whether this page shows the curated walk or the
+  // live overlay: a run whose use-case slug matches this config's slug
+  // rebuilds the walk from the hops that run actually performed.
+  const [snap, setSnap] = useState(() => tokenChainTraceStore.getState());
+  useEffect(() => tokenChainTraceStore.subscribe(setSnap), []);
+
+  const liveWalk = useMemo(
+    () => (cfg ? buildLiveUcWalk(cfg, snap.trace, snap.steps) : null),
+    [cfg, snap.trace, snap.steps],
+  );
+  const activeWalk = liveWalk || cfg?.walk || [];
+  const stepper = useDiagramStepper(cfg ? activeWalk.length : 0);
   // the node the presenter picked on the diagram (null = panel shows the hop/UC)
   const [pickedNode, setPickedNode] = useState(null);
 
@@ -49,11 +62,13 @@ export default function UseCaseDiagramPage() {
   // Open state per the approved mock: hop 1 active and paused, entry node
   // ringed — diagram and its details are visible with zero clicks. goTo sets
   // paused=true, so Prev/Next work immediately.
+  // A run landing on (or leaving) this page is a new story: restart the walk
+  // so the stepper never points past the end of a switched walk.
   useEffect(() => {
     if (cfg) stepper.goTo(0);
     setPickedNode(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cfg?.id]);
+  }, [cfg?.id, activeWalk.length]);
 
   if (!cfg) {
     return (
@@ -69,7 +84,7 @@ export default function UseCaseDiagramPage() {
     );
   }
 
-  const hop = stepper.step >= 0 ? cfg.walk[stepper.step] : null;
+  const hop = stepper.step >= 0 ? activeWalk[stepper.step] : null;
   // panel: node pick wins, then the active hop, then the UC context
   const picked = pickedNode != null ? cfg.NODES.find((n) => n.id === pickedNode) : null;
   const panel = picked
@@ -77,11 +92,11 @@ export default function UseCaseDiagramPage() {
         chip: picked.label.toUpperCase(),
         head: picked.label,
         lines: [{ who: "", text: picked.detail || "" }],
-        tech: cfg.walk.filter((w) => w.nodes.includes(pickedNode)).flatMap((w) => w.tech),
+        tech: activeWalk.filter((w) => w.nodes.includes(pickedNode)).flatMap((w) => w.tech),
       }
     : hop
       ? {
-          chip: `HOP ${stepper.step + 1} / ${cfg.walk.length}`,
+          chip: `HOP ${stepper.step + 1} / ${activeWalk.length}`,
           head: hop.title,
           lines: hop.lines || [],
           tech: hop.tech,
@@ -90,7 +105,7 @@ export default function UseCaseDiagramPage() {
           chip: "DETAILS",
           head: guide?.title || cfg.id,
           lines: [],
-          tech: cfg.walk[0]?.tech || [],
+          tech: activeWalk[0]?.tech || [],
         };
 
   return (
@@ -108,6 +123,9 @@ export default function UseCaseDiagramPage() {
           )}
           <h1 data-testid="ucd-title">{guide?.title || cfg.id}</h1>
           <span className={`ucd-pill ${TONE_CLASS[cfg.result.tone]}`} data-testid="ucd-result">{cfg.result.label}</span>
+          <span className="ucd-pill ucd-pill--info" data-testid="ucd-mode">
+            {liveWalk ? "Live run overlay" : "Curated walkthrough"}
+          </span>
           <span className="ucd-id">{cfg.id}</span>
           <span className="ucd-meta">Demo step <b data-testid="ucd-step">{stepNum ?? "—"}</b></span>
         </div>
@@ -124,7 +142,7 @@ export default function UseCaseDiagramPage() {
         NODES={cfg.NODES}
         EDGES={cfg.EDGES}
         GROUPS={cfg.GROUPS}
-        walk={cfg.walk}
+        walk={activeWalk}
         stepper={stepper}
         onNodeClick={(node) => setPickedNode((prev) => (prev === node.id ? null : node.id))}
         testId={`ucd-${cfg.id.toLowerCase()}`}
@@ -150,7 +168,7 @@ export default function UseCaseDiagramPage() {
           )}
         </div>
         <span className="ucd-panel__step" data-testid="ucd-hop-label">
-          {stepper.step >= 0 ? `${stepper.step + 1} / ${cfg.walk.length}` : `0 / ${cfg.walk.length}`}
+          {stepper.step >= 0 ? `${stepper.step + 1} / ${activeWalk.length}` : `0 / ${activeWalk.length}`}
         </span>
       </section>
 

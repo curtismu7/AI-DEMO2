@@ -1,9 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import React from "react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import UseCaseDiagramPage from "../UseCaseDiagramPage";
 import UseCaseDiagramsGalleryPage from "../UseCaseDiagramsGalleryPage";
+import { tokenChainTraceStore } from "../../services/tokenChainTrace/tokenChainTraceStore";
 
 // @xyflow/react observes its container's size — jsdom has no ResizeObserver.
 class ResizeObserverStub {
@@ -25,6 +26,24 @@ function renderAt(path) {
 }
 
 describe("UseCaseDiagramPage", () => {
+  it("overlays the live walk when the store holds a matching UC1 run", () => {
+    act(() => {
+      tokenChainTraceStore.beginTrace({ prompt: "balance" });
+      tokenChainTraceStore.ingestTokenEvent({ id: "request_accepted", status: "done", useCaseId: "delegated-access-with-proof" });
+      tokenChainTraceStore.ingestTokenEvent({ id: "gw-authorize", status: "done", decision: "PERMIT", useCaseId: "delegated-access-with-proof" });
+      tokenChainTraceStore.completeTrace(true);
+    });
+    renderAt("/use-case-diagrams/UC1");
+    expect(screen.getByTestId("ucd-mode")).toHaveTextContent("Live run overlay");
+    act(() => tokenChainTraceStore.reset());
+  });
+
+  it("shows the curated walkthrough when the store is empty", () => {
+    act(() => tokenChainTraceStore.reset());
+    renderAt("/use-case-diagrams/UC1");
+    expect(screen.getByTestId("ucd-mode")).toHaveTextContent("Curated walkthrough");
+  });
+
   it("renders the five header fields from shared data, not config copies", () => {
     renderAt("/use-case-diagrams/UC1");
     expect(screen.getByTestId("ucd-title").textContent).toBe("Delegated access (consent only)"); // from demoStepGuides
