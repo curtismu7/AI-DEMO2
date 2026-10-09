@@ -10,13 +10,27 @@ name: Runner disk maintenance
 #      build-images run against a new merge commit packs another ~2-4 GB of
 #      objects into .git/objects — 521 packfiles / 14.9 GiB measured on
 #      cmuir-dev-mac. `git gc --prune=now` took it to 243 MB.
-# One-shot maintenance, dispatched by hand when a runner reports ENOSPC.
-# Safe to re-run and safe on a clean runner. It runs on EVERY online runner
-# in the label set on purpose: which runner picks up the next Python job is
-# unpredictable. Concurrency serializes two dispatches so two runs never
-# race each other on the same daemon.
+# build-images.yml prunes its own images after every build; this workflow
+# covers what that step cannot reach: git packs, _temp leftovers, and any
+# runner that missed a prune (killed mid-run).
+# One-shot maintenance: dispatched by hand when a runner reports ENOSPC, or
+# nightly on a schedule (below). Safe to re-run and safe on a clean runner.
+# The runners share only self-hosted/macOS labels — no name labels — so a job
+# cannot pin a runner by name; the schedule matrix of 4 is a coverage lottery
+# across idle runners instead: every night, four attempts land on whichever
+# four (not necessarily distinct) runners are idle. Idempotent cleaning makes
+# duplicates harmless; a runner that was busy misses a night and is caught by
+# the next one, or by a manual dispatch after an ENOSPC. Concurrency
+# serializes runs so two never race each other on the same daemon.
 on:
   workflow_dispatch:
+  schedule:
+    # 03:17 UTC, chosen off the hour to miss the top-of-hour CI surge.
+    # 4 slots for 4 runners; if a fifth runner is ever added, add a slot.
+    - cron: '17 3 * * *'
+    - cron: '23 3 * * *'
+    - cron: '29 3 * * *'
+    - cron: '31 3 * * *'
 
 concurrency:
   group: runner-disk-maintenance
