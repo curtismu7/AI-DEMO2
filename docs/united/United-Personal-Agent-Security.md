@@ -87,6 +87,25 @@ The Facade is itself a security control, five ways, per the 1 October walkthroug
 
 Two roadmap items from the same review: a separate clone of the .com API layer for the agentic channel, giving a blast-radius boundary so nothing on the agent path can affect united.com's operation; and 2FA/step-up on state-changing agent actions, complementing the checkout-page handoff that already keeps the human in the loop for purchase. On the token side, PingOne's transaction-token capability (user token exchanged for a transaction token with the agent embedded as actor) is coming; today's `may_act` token exchange already covers the pattern, and since DataPower already performs the exchange, the swap is Ping-token-to-Ping-token rather than new plumbing.
 
+## The demo behind this document
+
+Every control in the target architecture runs live in the Ping demo stack (the "United Airlines" vertical of the AI IAM demo at `local.ping-devops.com:4000`). The screenshots below were captured 9 October 2026 from the running system; the route under each is where United's team can run it themselves. Token-chain captures taken while signed in (delegated `sub`/`act.sub` exchange, HITL approval modal, Authorize verdicts) will be added after the customer login; the surfaces shown here are the signed-out, publicly reachable ones.
+
+| # | Demo surface | What it shows | Route |
+|---|---|---|---|
+| 1 | ![Live architecture diagram](screenshots/architecture-overview.png) | The full request path across PingOne, PingGateway, BFF vault, agents, and protected resources — the target architecture of this document running as code | `/architecture/overview` |
+| 2 | ![Agent Gateway Authorization story](screenshots/agent-gateway-authorization.png) | The one-run story: delegated identity, runtime policy, MCP enforcement, and audit evidence — PERMIT / DENY / STEP-UP in a single flow | `/agent-gateway-authorization` |
+| 3 | ![Gateway enforcement map](screenshots/gateway-enforcement-map.png) | The PEP/PDP split as an enforced, code-generated diagram: P1AZ decides business policy, the gateway enforces the five checks it can express | `/gateway-enforcement-map` |
+| 4 | ![RFC 8693 token exchange tester](screenshots/token-exchange-tester-2.png) | The live exchange tool: subject token + agent actor token in, scoped MCP token out — `sub` = member, `act.sub` = agent | `/token-exchange-tester` |
+| 5 | ![Third-party MCP at the gateway](screenshots/weather-mcp-gateway.png) | An unmodified third-party MCP server scoped at the gateway edge — the door model this document prescribes, proven with a non-Ping server | `/weather-mcp` |
+| 6 | ![A2A end to end](screenshots/a2a-protocol-learning.png) | Agent-to-agent done both ways: the RFC 8693 identity chain and the Linux Foundation wire protocol, with the real Agent Card | `/a2a-protocol-learning` |
+| 7 | ![External agent runbook](screenshots/external-agent-muse.png) | A member's own cloud agent (Muse) onboarding with zero pre-registration — discovery, DCR, PKCE, delegated read, HITL write | `/external-agents/muse-app` |
+| 8 | ![Gateway inspector](screenshots/agent-gateway-inspector-2.png) | The enforcement point itself: identify, authorize, enforce, audit — the four checks every tool call passes | `/agent-gateway-inspector` |
+| 9 | ![PingOne MCP tools](screenshots/pingone-mcp-tools.png) | The MCP tool surface the gateway fronts: balance, transactions, transfers, deposits, withdrawals, sensitive details | `/mcp-inspector` |
+| 10 | ![Jev decision model](screenshots/jev-learning.png) | System One vs System Two: fast typed verdicts for guardrails and routing beside the generative LLM | `/jev-learning` |
+| 11 | ![Learning Hub](screenshots/learning-hub-2.png) | The 60-topic training hub backing every control in this document, each topic linked to its live proof | `/learning` |
+| 12 | ![WebMCP](screenshots/webmcp.png) | The proposed browser standard for exposing tools to in-browser agents — the coming shape of the member's own agent | `/webmcp` |
+
 ## The gap, control by control
 
 What the diagram shows today| The control it misses| Why it matters  

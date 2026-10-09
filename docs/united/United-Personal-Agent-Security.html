@@ -1,332 +1,301 @@
-<h1>Personal Agents at United</h1>
-<p class="meta">MileagePlus, the customer&#8217;s own agent, and the security between them<br>Prepared for United&#8217;s AI team by Ping Identity &#183; working draft, 9 October 2026 &#183; revised after the 1 October joint architecture review (the Facade and token architecture)</p>
-
-<p>One scenario, end to end: a MileagePlus member hands a task to an AI agent they brought themselves &#8212; ChatGPT in a browser, a coding CLI, anything MCP-capable &#8212; and the task ends with United spending the member&#8217;s value: miles, a fare, a seat. This document shows the architecture that lets that work without ever trusting the agent, what United has already built toward it, and the specific controls between the two. It is a working draft for discussion with United&#8217;s AI and identity teams.</p>
-
-<h2>The scenario</h2>
-<p>The human is a <strong>customer</strong> of the enterprise, the agent is whatever they brought &#8212; ChatGPT in a browser, a mobile assistant, a coding CLI &#8212; and United controls none of it, before, during or after. The running example: a MileagePlus member asks their own agent &#8220;how many miles do I have, and can you use them for the SFO&#8211;HNL trip in March?&#8221; United&#8217;s job is to let that work without ever trusting the agent.</p>
-<p>The asymmetry that makes it safe: the member authenticates United&#8217;s door <em>from</em> the agent, but United never sees the member&#8217;s credentials and the agent never sees the member&#8217;s session. What United trusts is a token minted for one call. What it refuses is the agent&#8217;s own word about who it is.</p>
-
-<h2>Target architecture</h2>
-<figure>
-<svg viewBox="0 0 880 370" width="100%" role="img" aria-label="Consumer scenario diagram: customer agent to United door to gateway to loyalty services, with sign-in, token exchange, policy, member approval and audit">
-<defs><marker id="arr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#5b7590"/></marker></defs>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Personal Agents at United — MileagePlus and the customer's own agent</title>
 <style>
-.bd { fill:#eaf1fb; stroke:#9db4d0; stroke-width:1.2; rx:6; }
-.bc { fill:#f1f3f6; stroke:#b6bfca; stroke-width:1.2; rx:6; }
-text { font-family:-apple-system, 'Helvetica Neue', Arial, sans-serif; fill:#1a1a1a; }
-.t { font-size:12px; font-weight:600; }
-.d { font-size:10px; fill:#3d4a5c; }
-.l { font-size:9.5px; fill:#45566b; }
-.arrow { stroke:#5b7590; stroke-width:1.4; fill:none; marker-end:url(#arr); }
+:root{--ink:#1c2230;--mut:#5a6271;--ac:#6b46ff;--line:#e3e6ec;--bg:#fff;--soft:#f6f7fa;--code:#f0f1f5}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+main{max-width:860px;margin:0 auto;padding:48px 24px 96px}
+h1{font-size:2rem;line-height:1.2;margin:.2em 0 .4em}
+h2{font-size:1.35rem;margin:2em 0 .6em;padding-top:.6em;border-top:1px solid var(--line)}
+h3{font-size:1.1rem;margin:1.6em 0 .4em}
+p,li{color:#2a3040}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.92em}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:var(--soft)}
+img{max-width:100%;border:1px solid var(--line);border-radius:8px;margin:4px 0}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.88em;background:var(--code);padding:1px 5px;border-radius:4px}
+blockquote{border-left:3px solid var(--ac);margin:1em 0;padding:.2em 1em;color:var(--mut)}
+hr{border:0;border-top:1px solid var(--line);margin:2.5em 0}
 </style>
-<rect x="500" y="8" width="12" height="12" class="bc" rx="2"/><text x="517" y="18" class="l">customer&#39;s world</text>
-<rect x="625" y="8" width="12" height="12" class="bd" rx="2"/><text x="642" y="18" class="l">United&#39;s trust boundary</text>
-
-<rect x="20" y="40" width="175" height="80" class="bc" rx="6"/>
-<text x="32" y="60" class="t">Member + their agent</text>
-<text x="32" y="76" class="d">ChatGPT in a browser, Muse on</text>
-<text x="32" y="89" class="d">a phone &#8212; zero pre-registration,</text>
-<text x="32" y="102" class="d">unknown to United until it arrives</text>
-
-<rect x="255" y="40" width="185" height="80" class="bd" rx="6"/>
-<text x="267" y="60" class="t">United&#39;s MCP door</text>
-<text x="267" y="76" class="d">public URL &#183; RFC 9728 discovery</text>
-<text x="267" y="89" class="d">DCR / CIMD self-registration</text>
-<text x="267" y="102" class="d">the only path cloud agents can reach</text>
-
-<rect x="500" y="40" width="185" height="80" class="bd" rx="6"/>
-<text x="512" y="60" class="t">Agent gateway</text>
-<text x="512" y="76" class="d">PingGateway MCP module</text>
-<text x="512" y="89" class="d">aud &#183; scope validation</text>
-<text x="512" y="114" class="d">bearer tokens (no DPoP on P1)</text>
-<text x="512" y="102" class="d">tool allowlist &#183; audit per call</text>
-
-<rect x="745" y="40" width="120" height="80" class="bd" rx="6"/>
-<text x="757" y="60" class="t">Facade + Loyalty</text>
-<text x="757" y="73" class="t">MCP + services</text>
-<text x="757" y="89" class="d">one audience per token</text>
-<text x="757" y="102" class="d">Facade holds the DataPower</text>
-<text x="757" y="114" class="d">exchange; session in Redis</text>
-
-<rect x="20" y="170" width="175" height="80" class="bc" rx="6"/>
-<text x="32" y="190" class="t">Member&#39;s phone</text>
-<text x="32" y="206" class="d">HITL approval in United&#39;s app</text>
-<text x="32" y="219" class="d">&#8212; the exact redemption, never</text>
-<text x="32" y="232" class="d">in the agent &#183; timeout = denial</text>
-
-<rect x="255" y="170" width="185" height="80" class="bd" rx="6"/>
-<text x="267" y="190" class="t">Sign-in + consent</text>
-<text x="267" y="206" class="d">PingOne, browser, PKCE,</text>
-<text x="267" y="219" class="d">Agreement step names the agent</text>
-<text x="267" y="232" class="d">member session never enters the agent</text>
-
-<rect x="500" y="170" width="185" height="80" class="bd" rx="6"/>
-<text x="512" y="190" class="t">Token service</text>
-<text x="512" y="206" class="d">RFC 8693 exchange per call</text>
-<text x="512" y="219" class="d">sub = member &#183; act.sub = agent</text>
-<text x="512" y="232" class="d">one aud &#183; minutes-long lifetime</text>
-
-<rect x="745" y="170" width="120" height="80" class="bd" rx="6"/>
-<text x="757" y="190" class="t">Policy engine</text>
-<text x="757" y="206" class="d">PingOne Authorize</text>
-<text x="757" y="219" class="d">+ Protect risk</text>
-<text x="757" y="232" class="d">permit &#183; deny &#183; step-up</text>
-
-<rect x="500" y="290" width="365" height="55" class="bd" rx="6"/>
-<text x="512" y="310" class="t">Audit + SIEM</text>
-<text x="512" y="326" class="d">sub &#183; act.sub &#183; jti &#183; tool &#183; verdict &#183; approval ref &#8212; reconstructable per action</text>
-<text x="512" y="339" class="d">the agent has no write path to it</text>
-
-<line x1="195" y1="66" x2="252" y2="66" class="arrow"/>
-<text x="223" y="56" class="l" text-anchor="middle">1 discover</text>
-<line x1="195" y1="90" x2="252" y2="90" class="arrow"/>
-<text x="223" y="106" class="l" text-anchor="middle">2 register</text>
-
-<line x1="195" y1="100" x2="252" y2="192" class="arrow"/>
-<text x="148" y="150" class="l" text-anchor="middle">3 consent</text>
-<text x="148" y="161" class="l" text-anchor="middle">(browser, PKCE)</text>
-
-<path class="arrow" d="M 130 120 L 130 148 L 480 148 L 480 192 L 497 192"/>
-<text x="300" y="141" class="l" text-anchor="middle">4 exchange per call &#8212; sub = member, act = agent</text>
-
-<line x1="440" y1="66" x2="497" y2="66" class="arrow"/>
-<text x="468" y="56" class="l" text-anchor="middle">5 tool call</text>
-
-<line x1="440" y1="90" x2="497" y2="90" class="arrow"/>
-<text x="468" y="106" class="l" text-anchor="middle">+ minutes TTL</text>
-
-<line x1="685" y1="80" x2="742" y2="188" class="arrow"/>
-<text x="712" y="130" class="l" text-anchor="middle">6 decide</text>
-
-<line x1="440" y1="210" x2="497" y2="210" class="arrow"/>
-<text x="468" y="228" class="l" text-anchor="middle">session</text>
-
-<path class="arrow" d="M 780 250 L 780 272 L 110 272 L 110 253"/>
-<text x="430" y="266" class="l" text-anchor="middle">7 HITL approval (transaction-bound)</text>
-
-<line x1="685" y1="66" x2="742" y2="66" class="arrow"/>
-<text x="713" y="56" class="l" text-anchor="middle">8 permit</text>
-
-<line x1="700" y1="122" x2="700" y2="287" class="arrow"/>
-<text x="712" y="200" class="l">9 log</text>
-</svg>
-<figcaption style="font-size:9.5pt;color:#555;text-align:center;margin-top:6px;">the consumer scenario &#183; the customer&#39;s own agent meets United&#39;s door &#8212; every hop past discovery is inside United&#39;s trust boundary</figcaption>
-</figure>
-
+</head>
+<body>
+<main>
+<h1>Personal Agents at United</h1>
+<p>MileagePlus, the customer's own agent, and the security between them<br />
+Prepared for United's AI team by Ping Identity * working draft, 9 October 2026 * revised after the 1 October joint architecture review (the Facade and token architecture)</p>
+<p>One scenario, end to end: a MileagePlus member hands a task to an AI agent they brought themselves -- ChatGPT in a browser, a coding CLI, anything MCP-capable -- and the task ends with United spending the member's value: miles, a fare, a seat. This document shows the architecture that lets that work without ever trusting the agent, what United has already built toward it, and the specific controls between the two. It is a working draft for discussion with United's AI and identity teams.</p>
+<h2>The scenario</h2>
+<p>The human is a <strong>customer</strong> of the enterprise, the agent is whatever they brought -- ChatGPT in a browser, a mobile assistant, a coding CLI -- and United controls none of it, before, during or after. The running example: a MileagePlus member asks their own agent &quot;how many miles do I have, and can you use them for the SFO-HNL trip in March?&quot; United's job is to let that work without ever trusting the agent.</p>
+<p>The asymmetry that makes it safe: the member authenticates United's door <em>from</em> the agent, but United never sees the member's credentials and the agent never sees the member's session. What United trusts is a token minted for one call. What it refuses is the agent's own word about who it is.</p>
+<h2>Target architecture</h2>
+<p>customer's world United's trust boundary Member + their agent ChatGPT in a browser, Muse on a phone -- zero pre-registration, unknown to United until it arrives United's MCP door public URL * RFC 9728 discovery DCR / CIMD self-registration the only path cloud agents can reach Agent gateway PingGateway MCP module aud * scope validation bearer tokens (no DPoP on P1) tool allowlist * audit per call Facade + Loyalty MCP + services one audience per token Facade holds the DataPower exchange; session in Redis Member's phone HITL approval in United's app -- the exact redemption, never in the agent * timeout = denial Sign-in + consent PingOne, browser, PKCE, Agreement step names the agent member session never enters the agent Token service RFC 8693 exchange per call sub = member * act.sub = agent one aud * minutes-long lifetime Policy engine PingOne Authorize + Protect risk permit * deny * step-up Audit + SIEM sub * act.sub * jti * tool * verdict * approval ref -- reconstructable per action the agent has no write path to it 1 discover 2 register 3 consent (browser, PKCE) 4 exchange per call -- sub = member, act = agent 5 tool call + minutes TTL 6 decide session 7 HITL approval (transaction-bound) 8 permit 9 log the consumer scenario * the customer's own agent meets United's door -- every hop past discovery is inside United's trust boundary</p>
 <p>Hop by hop:</p>
 <ol>
-<li><p><strong>Discover.</strong> The agent reads RFC 9728 protected-resource metadata at United&#8217;s public MCP URL. No pre-registration, no human at United involved &#8212; the door advertises itself.</p></li>
-<li><p><strong>Register.</strong> The agent self-registers &#8212; DCR (RFC 7591) or CIMD &#8212; and arrives with its own client identity. United now has something to name in consent, to scope, and to kill. On PingOne today that means CIMD behind a feature flag or direct API registration &#8212; DCR is not yet available there.</p></li>
-<li><p><strong>Consent.</strong> The agent opens the member&#8217;s browser to PingOne: passkey or MFA, PKCE, and a consent screen that names <em>this agent</em> and the ceiling of what it may do (&#8220;read miles; redeem with approval&#8221;), recorded through the Agreement step. The member&#8217;s session stays in United&#8217;s realm.</p></li>
-<li><p><strong>Exchange, per call.</strong> For every tool action the agent performs RFC 8693 token exchange: <code>sub</code> = member, <code>act.sub</code> = agent, <code>aud</code> = one tool, minutes-long lifetime. The agent never holds a standing United credential.</p></li>
-<li><p><strong>Call through the gateway.</strong> The tool call reaches only PingGateway, which validates <code>aud</code> and scope against the allowlist. The token arrives as a bearer &#8212; PingOne issues no DPoP &#8212; so validation, the minutes-long TTL and the single-audience binding carry the whole load at this hop. No direct agent-to-resource path exists on the network.</p></li>
-<li><p><strong>Decide.</strong> PingOne Authorize evaluates member, agent, tool and amount; Protect scores agentic automation on the session. Verdicts: permit, deny, step-up.</p></li>
-<li><p><strong>Approve what is consequential.</strong> Redeeming miles is spending. The call pauses for human approval in United&#8217;s own surface &#8212; the member&#8217;s United app or united.com, never the agent chat. The pending action names the exact redemption; one approval, one action; timeout is denial, and the approval receipt is single-use and spendable only for that transaction. The human approves a transaction, never a session &#8212; and the approval lives in United&#8217;s product, so the member sees, in United&#8217;s branding, exactly what they are approving.</p></li>
-<li><p><strong>Permit.</strong> Only allowed calls reach the Loyalty MCP server, which accepts only its own audience. Reads (balance) ride the delegated token; writes (redemption) carry the approval. Behind it, the Facade &#8212; the only component holding DataPower credentials &#8212; performs the exchange and builds the united.com member session in Redis, keyed by a hash of the Ping token and never returned to the client.</p></li>
-<li><p><strong>Log and revoke.</strong> Gateway and authorization server write <code>sub</code>, <code>act.sub</code>, <code>jti</code> and the verdict to audit the agent cannot touch. Disabling the agent&#8217;s client registration revokes its access within one token lifetime &#8212; the member&#8217;s own session is unaffected.</p></li>
+<li>
+<p><strong>Discover.</strong> The agent reads RFC 9728 protected-resource metadata at United's public MCP URL. No pre-registration, no human at United involved -- the door advertises itself.</p>
+</li>
+<li>
+<p><strong>Register.</strong> The agent self-registers -- DCR (RFC 7591) or CIMD -- and arrives with its own client identity. United now has something to name in consent, to scope, and to kill. On PingOne today that means CIMD behind a feature flag or direct API registration -- DCR is not yet available there.</p>
+</li>
+<li>
+<p><strong>Consent.</strong> The agent opens the member's browser to PingOne: passkey or MFA, PKCE, and a consent screen that names <em>this agent</em> and the ceiling of what it may do (&quot;read miles; redeem with approval&quot;), recorded through the Agreement step. The member's session stays in United's realm.</p>
+</li>
+<li>
+<p><strong>Exchange, per call.</strong> For every tool action the agent performs RFC 8693 token exchange: <code>sub</code> = member, <code>act.sub</code> = agent, <code>aud</code> = one tool, minutes-long lifetime. The agent never holds a standing United credential.</p>
+</li>
+<li>
+<p><strong>Call through the gateway.</strong> The tool call reaches only PingGateway, which validates <code>aud</code> and scope against the allowlist. The token arrives as a bearer -- PingOne issues no DPoP -- so validation, the minutes-long TTL and the single-audience binding carry the whole load at this hop. No direct agent-to-resource path exists on the network.</p>
+</li>
+<li>
+<p><strong>Decide.</strong> PingOne Authorize evaluates member, agent, tool and amount; Protect scores agentic automation on the session. Verdicts: permit, deny, step-up.</p>
+</li>
+<li>
+<p><strong>Approve what is consequential.</strong> Redeeming miles is spending. The call pauses for human approval in United's own surface -- the member's United app or united.com, never the agent chat. The pending action names the exact redemption; one approval, one action; timeout is denial, and the approval receipt is single-use and spendable only for that transaction. The human approves a transaction, never a session -- and the approval lives in United's product, so the member sees, in United's branding, exactly what they are approving.</p>
+</li>
+<li>
+<p><strong>Permit.</strong> Only allowed calls reach the Loyalty MCP server, which accepts only its own audience. Reads (balance) ride the delegated token; writes (redemption) carry the approval. Behind it, the Facade -- the only component holding DataPower credentials -- performs the exchange and builds the united.com member session in Redis, keyed by a hash of the Ping token and never returned to the client.</p>
+</li>
+<li>
+<p><strong>Log and revoke.</strong> Gateway and authorization server write <code>sub</code>, <code>act.sub</code>, <code>jti</code> and the verdict to audit the agent cannot touch. Disabling the agent's client registration revokes its access within one token lifetime -- the member's own session is unaffected.</p>
+</li>
 </ol>
-
 <h2>No BFF, no DPoP: what carries the load instead</h2>
-<p>In this scenario United controls none of the client. There is no backend-for-frontend holding the member&#8217;s token, and PingOne issues bearer tokens only &#8212; no DPoP, no mTLS binding. Neither absence changes the door: discovery, registration, exchange, gateway validation, policy and audit are identical with or without a BFF. What the BFF provided for free is custody &#8212; the member&#8217;s token and the agent&#8217;s key in a component the model cannot reach &#8212; and without it, that sentence still has to be true. It is rebuilt with a compensating stack, all of it inside United&#8217;s boundary:</p>
+<p>In this scenario United controls none of the client. There is no backend-for-frontend holding the member's token, and PingOne issues bearer tokens only -- no DPoP, no mTLS binding. Neither absence changes the door: discovery, registration, exchange, gateway validation, policy and audit are identical with or without a BFF. What the BFF provided for free is custody -- the member's token and the agent's key in a component the model cannot reach -- and without it, that sentence still has to be true. It is rebuilt with a compensating stack, all of it inside United's boundary:</p>
 <ol>
-<li><p><strong>Minutes-long, single-audience tokens.</strong> A stolen bearer is worth minutes, not hours, and works against one service, not sixteen. This is the replacement for key binding: the window and the surface shrink until theft has little to steal.</p></li>
-<li><p><strong>Per-call exchange.</strong> Every tool action mints a fresh token via RFC 8693 with <code>sub</code> = member, <code>act.sub</code> = agent. An injected prompt can choose which tool to call, but cannot mint a token &#8212; model-context separation stops being hope and becomes the exchange.</p></li>
-<li><p><strong><code>private_key_jwt</code> for minting.</strong> The agent authenticates to the token endpoint with a key it holds, so a thief who steals tokens cannot mint more. To be explicit: this is client authentication, <em>not</em> sender constraint &#8212; a token already issued is still a bearer.</p></li>
-<li><p><strong>Confinement.</strong> The token is presentable only at the gateway; no direct agent-to-resource path exists on the network. The exposure of a bearer token is bounded by where it can be spent.</p></li>
-<li><p><strong><code>jti</code> replay detection.</strong> Every minted token carries a unique identifier; reuse of a <code>jti</code> is a theft signal feeding Protect and the SIEM.</p></li>
-<li><p><strong>Protect risk signals.</strong> PingOne Protect scores the session for agentic automation &#8212; machine-speed tool calls, unusual sequences &#8212; and feeds permit, deny and step-up verdicts.</p></li>
-<li><p><strong>HITL approval bound to the exact transaction.</strong> For anything consequential, the call pauses until a human approves in United&#8217;s own surface: the member&#8217;s United app or united.com, never the agent chat, never a generic push notification. One approval, one action; timeout is denial; the receipt is single-use and spendable only for that transaction.</p></li>
+<li>
+<p><strong>Minutes-long, single-audience tokens.</strong> A stolen bearer is worth minutes, not hours, and works against one service, not sixteen. This is the replacement for key binding: the window and the surface shrink until theft has little to steal.</p>
+</li>
+<li>
+<p><strong>Per-call exchange.</strong> Every tool action mints a fresh token via RFC 8693 with <code>sub</code> = member, <code>act.sub</code> = agent. An injected prompt can choose which tool to call, but cannot mint a token -- model-context separation stops being hope and becomes the exchange.</p>
+</li>
+<li>
+<p><strong><code>private_key_jwt</code> for minting.</strong> The agent authenticates to the token endpoint with a key it holds, so a thief who steals tokens cannot mint more. To be explicit: this is client authentication, <em>not</em> sender constraint -- a token already issued is still a bearer.</p>
+</li>
+<li>
+<p><strong>Confinement.</strong> The token is presentable only at the gateway; no direct agent-to-resource path exists on the network. The exposure of a bearer token is bounded by where it can be spent.</p>
+</li>
+<li>
+<p><strong><code>jti</code> replay detection.</strong> Every minted token carries a unique identifier; reuse of a <code>jti</code> is a theft signal feeding Protect and the SIEM.</p>
+</li>
+<li>
+<p><strong>Protect risk signals.</strong> PingOne Protect scores the session for agentic automation -- machine-speed tool calls, unusual sequences -- and feeds permit, deny and step-up verdicts.</p>
+</li>
+<li>
+<p><strong>HITL approval bound to the exact transaction.</strong> For anything consequential, the call pauses until a human approves in United's own surface: the member's United app or united.com, never the agent chat, never a generic push notification. One approval, one action; timeout is denial; the receipt is single-use and spendable only for that transaction.</p>
+</li>
 </ol>
-<p>One rule survives as absolute: <strong>the member&#8217;s token is an input to an exchange, never a credential on a tool call.</strong></p>
+<p>One rule survives as absolute: <strong>the member 's token is an input to an exchange, never a credential on a tool call.</strong></p>
 <p>How the load shifts by agent shape:</p>
-<table><thead><tr><th>Agent shape</th><th>Who plays the BFF</th><th>What changes</th></tr></thead><tbody>
-<tr><td>Native / CLI agents (Claude Code, desktop and coding assistants)</td><td>The agent itself, on the member&#8217;s own device</td><td>Loopback redirect + PKCE (RFC 8252); tokens sit on disk alongside the member&#8217;s other credentials. Marginal exposure is modest &#8212; the device already holds the member&#8217;s browser cookies &#8212; but a long-lived token on disk is the failure the exchange removes</td></tr>
-<tr><td>Browser-only assistant</td><td>Nobody &#8212; the shape to refuse</td><td>Member tokens live in the same JavaScript context that drives the model. XSS equals full token theft, and &#8220;never in model context&#8221; cannot be enforced by construction, only hoped for</td></tr>
-<tr><td>Cloud agent (ChatGPT and similar)</td><td>The provider&#8217;s backend</td><td>A BFF that is not owned and cannot be audited. Every control that matters migrates to the door: discovery, DCR, per-call exchange, gateway, approval</td></tr>
-</tbody></table>
-<p><strong>The cloud constraint is structural.</strong> ChatGPT runs in OpenAI&#8217;s cloud and can reach only United&#8217;s public door &#8212; never anything on the member&#8217;s network. What United does not get to assume in this scenario: a BFF behind the agent, DPoP on the authorization server, or a human watching the screen when the action fires. The compensating stack above is the answer to all three.</p>
-
+<table>
+<thead>
+<tr>
+<th>Agent shape</th>
+<th>Who plays the BFF</th>
+<th>What changes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Native / CLI agents (Claude Code, desktop and coding assistants)</td>
+<td>The agent itself, on the member's own device</td>
+<td>Loopback redirect + PKCE (RFC 8252); tokens sit on disk alongside the member's other credentials. Marginal exposure is modest -- the device already holds the member's browser cookies -- but a long-lived token on disk is the failure the exchange removes</td>
+</tr>
+<tr>
+<td>Browser-only assistant</td>
+<td>Nobody -- the shape to refuse</td>
+<td>Member tokens live in the same JavaScript context that drives the model. XSS equals full token theft, and &quot;never in model context&quot; cannot be enforced by construction, only hoped for</td>
+</tr>
+<tr>
+<td>Cloud agent (ChatGPT and similar)</td>
+<td>The provider's backend</td>
+<td>A BFF that is not owned and cannot be audited. Every control that matters migrates to the door: discovery, DCR, per-call exchange, gateway, approval</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The cloud constraint is structural.</strong> ChatGPT runs in OpenAI's cloud and can reach only United's public door -- never anything on the member's network. What United does not get to assume in this scenario: a BFF behind the agent, DPoP on the authorization server, or a human watching the screen when the action fires. The compensating stack above is the answer to all three.</p>
 <h2>What United has already built</h2>
-<p>The target diagram is not structure imposed from outside &#8212; United has already built the agent side. This is the MileagePlus assistant as it runs today, and it is a strong <em>agent</em> architecture. What it lacks is the <em>identity</em> architecture around it. The 1 October joint review tightened it: the DataPower token exchange now happens on the Facade, the member session lives in Redis and never returns to the client, and the only key the client ever holds is the Ping token.</p>
-<figure>
-<svg viewBox="0 0 920 485" width="100%" role="img" aria-label="As-built MileagePlus AI assistant: traveller, hosted chat agent, Claude on Bedrock, Ping sign-in, DataPower session, MileagePlus MCP server, facade, united.com services and checkout page">
-<defs><marker id="uarr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8 z" fill="#5b7590"/></marker></defs>
-<style>
-.u-box { fill:#eaf1fb; stroke:#2f6bbf; stroke-width:1.6; }
-.u-grey { fill:#f1f3f6; stroke:#b0bac4; stroke-width:1.2; }
-.u-dash { fill:#fafbfc; stroke:#9aa4ae; stroke-width:1.2; stroke-dasharray:5 4; }
-.u-amber { fill:#fff8e6; stroke:#d9a514; stroke-width:1.2; }
-.u-t { font-family:-apple-system,'Helvetica Neue',Arial,sans-serif; font-size:12px; font-weight:600; fill:#1a1a1a; }
-.u-d { font-family:-apple-system,'Helvetica Neue',Arial,sans-serif; font-size:10px; fill:#3d4a5c; }
-.u-l { font-family:-apple-system,'Helvetica Neue',Arial,sans-serif; font-size:9.5px; fill:#45566b; }
-.u-arr { stroke:#5b7590; stroke-width:1.4; fill:none; marker-end:url(#uarr); }
-.u-arr2 { stroke:#5b7590; stroke-width:1.4; fill:none; marker-end:url(#uarr); marker-start:url(#uarr); }
-.u-darr { stroke:#7d8794; stroke-width:1.3; fill:none; stroke-dasharray:5 4; marker-end:url(#uarr); }
-.u-badge { fill:#1f4e8c; }
-.u-num { font-family:-apple-system,'Helvetica Neue',Arial,sans-serif; font-size:10px; font-weight:700; fill:#fff; text-anchor:middle; }
-</style>
-
-<rect x="175" y="28" width="160" height="84" class="u-grey" rx="6"/>
-<text x="187" y="48" class="u-t">Claude (Anthropic)</text>
-<text x="187" y="64" class="u-d">on Amazon Bedrock, via the</text>
-<text x="187" y="77" class="u-d">MARS gateway</text>
-<text x="187" y="90" class="u-d">Understands the request and</text>
-<text x="187" y="103" class="u-d">decides which tools to use</text>
-
-<rect x="375" y="28" width="160" height="84" class="u-grey" rx="6"/>
-<text x="387" y="48" class="u-t">Ping sign-in</text>
-<text x="387" y="64" class="u-d">The traveller signs in with</text>
-<text x="387" y="77" class="u-d">their MileagePlus account</text>
-<text x="387" y="90" class="u-d">Issues a sign-in token</text>
-<text x="387" y="103" class="u-d">(good for about an hour)</text>
-
-<rect x="575" y="28" width="160" height="84" class="u-grey" rx="6"/>
-<text x="587" y="48" class="u-t">DataPower + session</text>
-<text x="587" y="64" class="u-d">Validates the Ping token with</text>
-<text x="587" y="77" class="u-d">Ping, returns a DataPower</text>
-<text x="587" y="90" class="u-d">token; the member session is</text>
-<text x="587" y="103" class="u-d">built from both, in Redis</text>
-
-<rect x="16" y="168" width="125" height="96" class="u-grey" rx="6"/>
-<text x="28" y="188" class="u-t">Traveller</text>
-<text x="28" y="204" class="u-d">In a web browser,</text>
-<text x="28" y="217" class="u-d">chatting in plain English:</text>
-<text x="28" y="230" class="u-d">&#8220;Nonstop ORD to LAX</text>
-<text x="28" y="243" class="u-d">next Friday morning,</text>
-<text x="28" y="256" class="u-d">aisle seat, one bag&#8221;</text>
-
-<rect x="180" y="168" width="155" height="96" class="u-box" rx="6"/>
-<text x="192" y="188" class="u-t">Hosted chat agent</text>
-<text x="192" y="204" class="u-d">The chat web page and the</text>
-<text x="192" y="217" class="u-d">server behind it</text>
-<text x="192" y="230" class="u-d">Relays between traveller,</text>
-<text x="192" y="243" class="u-d">Claude and the MCP server</text>
-<text x="192" y="256" class="u-d">Runs on a laptop today</text>
-
-<rect x="375" y="168" width="180" height="96" class="u-box" rx="6"/>
-<text x="387" y="188" class="u-t">MileagePlus MCP server</text>
-<text x="387" y="204" class="u-d">The AI&#39;s toolbox: 16 tools &#8212;</text>
-<text x="387" y="217" class="u-d">search, fares, seats, bags,</text>
-<text x="387" y="230" class="u-d">trip insurance, miles, cart,</text>
-<text x="387" y="243" class="u-d">checkout</text>
-<text x="387" y="256" class="u-d">Checks the sign-in on every call</text>
-
-<rect x="595" y="168" width="150" height="96" class="u-box" rx="6"/>
-<text x="607" y="188" class="u-t">Facade</text>
-<text x="607" y="204" class="u-d">Holds the DataPower exchange;</text>
-<text x="607" y="217" class="u-d">session stays in Redis, never</text>
-<text x="607" y="230" class="u-d">returned to the client; guards</text>
-<text x="607" y="243" class="u-d">cart change, double-adds, price</text>
-<text x="607" y="256" class="u-d">re-checks, result verification</text>
-
-<rect x="785" y="168" width="120" height="96" class="u-grey" rx="6"/>
-<text x="797" y="188" class="u-t">united.com services</text>
-<text x="797" y="204" class="u-d">The existing systems</text>
-<text x="797" y="217" class="u-d">behind the website:</text>
-<text x="797" y="230" class="u-d">shopping, cart, seats,</text>
-<text x="797" y="243" class="u-d">bags, loyalty, trip</text>
-<text x="797" y="256" class="u-d">insurance (Travel Guard)</text>
-
-<rect x="16" y="330" width="180" height="88" class="u-grey" rx="6"/>
-<text x="28" y="350" class="u-t">united.com checkout page</text>
-<text x="28" y="366" class="u-d">The traveller lands signed in,</text>
-<text x="28" y="379" class="u-d">with the booking ready,</text>
-<text x="28" y="392" class="u-d">reviews it and pays there</text>
-
-<rect x="390" y="330" width="175" height="88" class="u-dash" rx="6"/>
-<text x="402" y="350" class="u-t">Other AI apps</text>
-<text x="402" y="366" class="u-d">Claude Code, Claude Desktop</text>
-<text x="402" y="379" class="u-d">(via a plugin) and other</text>
-<text x="402" y="392" class="u-d">MCP-capable assistants</text>
-<text x="402" y="405" class="u-d">use the same MCP and tools</text>
-
-<rect x="605" y="330" width="300" height="112" class="u-amber" rx="6"/>
-<text x="617" y="350" class="u-t">Worth knowing</text>
-<text x="617" y="366" class="u-d">&#8226; The AI never sees or takes a card number. Payment</text>
-<text x="627" y="379" class="u-d">happens on united.com.</text>
-<text x="617" y="392" class="u-d">&#8226; Dev environment with test accounts; sign-in lasts</text>
-<text x="627" y="405" class="u-d">about an hour today.</text>
-<text x="617" y="418" class="u-d">&#8226; The chat agent runs on a laptop until hosting</text>
-<text x="627" y="431" class="u-d">is chosen.</text>
-
-<line x1="141" y1="215" x2="177" y2="215" class="u-arr2"/>
-<circle cx="159" cy="199" r="9" class="u-badge"/><text x="159" y="202.5" class="u-num">1</text>
-
-<line x1="335" y1="165" x2="398" y2="115" class="u-arr"/>
-<circle cx="352" cy="131" r="9" class="u-badge"/><text x="352" y="134.5" class="u-num">2</text>
-<text x="404" y="140" class="u-l">sign in</text>
-
-<line x1="257" y1="165" x2="257" y2="115" class="u-arr2"/>
-<circle cx="243" cy="140" r="9" class="u-badge"/><text x="243" y="143.5" class="u-num">3</text>
-<text x="271" y="137" class="u-l">what should I do next?</text>
-
-<line x1="338" y1="215" x2="372" y2="215" class="u-arr2"/>
-<circle cx="355" cy="199" r="9" class="u-badge"/><text x="355" y="202.5" class="u-num">4</text>
-<text x="341" y="232" class="u-l">tool calls</text>
-
-<line x1="455" y1="112" x2="570" y2="112" class="u-arr"/>
-<text x="512" y="104" class="u-l" text-anchor="middle">sign-in token</text>
-<line x1="630" y1="112" x2="512" y2="165" class="u-arr"/>
-<circle cx="568" cy="140" r="9" class="u-badge"/><text x="568" y="143.5" class="u-num">5</text>
-<text x="583" y="150" class="u-l">member session</text>
-
-<line x1="558" y1="215" x2="592" y2="215" class="u-arr2"/>
-<circle cx="575" cy="199" r="9" class="u-badge"/><text x="575" y="202.5" class="u-num">6</text>
-
-<line x1="745" y1="215" x2="782" y2="215" class="u-arr"/>
-
-<path class="u-arr" d="M 420 264 C 360 300, 250 315, 160 327"/>
-<circle cx="300" cy="296" r="9" class="u-badge"/><text x="300" y="299.5" class="u-num">7</text>
-<text x="315" y="300" class="u-l">single-use checkout link</text>
-
-<line x1="78" y1="264" x2="78" y2="327" class="u-arr"/>
-<text x="86" y="300" class="u-l">opens it</text>
-
-<line x1="477" y1="327" x2="477" y2="267" class="u-darr"/>
-
-<rect x="16" y="458" width="14" height="14" class="u-box" rx="2"/>
-<text x="36" y="469" class="u-l">Built by United&#39;s team</text>
-<rect x="392" y="458" width="14" height="14" class="u-grey" rx="2"/>
-<text x="412" y="469" class="u-l">Existing United and partner systems</text>
-<rect x="646" y="458" width="14" height="14" class="u-dash" rx="2"/>
-<text x="666" y="469" class="u-l">Other ways in to the same tools</text>
-</svg>
-<figcaption style="font-size:9.5pt;color:#555;text-align:center;margin-top:6px;">the MileagePlus AI assistant as built today &#183; dev environment &#183; per the 1 October joint architecture review</figcaption>
-</figure>
-
-<p>Credit where the design is ahead of most first-generation agent deployments: payment never enters the agent &#8212; the single-use, cart-bound checkout link on the member&#8217;s own session is exactly the transaction-bound handoff the target prescribes, and the card number is never seen. The Facade enforces real defence in depth server-side: double-add guards, price re-checks, result verification. And all AI access concentrates on one MCP door with a defined 16-tool catalogue. The enforcement opportunity exists; it is just not yet an enforcement point.</p>
+<p>The target diagram is not structure imposed from outside -- United has already built the agent side. This is the MileagePlus assistant as it runs today, and it is a strong <em>agent</em> architecture. What it lacks is the <em>identity</em> architecture around it. The 1 October joint review tightened it: the DataPower token exchange now happens on the Facade, the member session lives in Redis and never returns to the client, and the only key the client ever holds is the Ping token.</p>
+<p>Claude (Anthropic) on Amazon Bedrock, via the MARS gateway Understands the request and decides which tools to use Ping sign-in The traveller signs in with their MileagePlus account Issues a sign-in token (good for about an hour) DataPower + session Validates the Ping token with Ping, returns a DataPower token; the member session is built from both, in Redis Traveller In a web browser, chatting in plain English: &quot;Nonstop ORD to LAX next Friday morning, aisle seat, one bag&quot; Hosted chat agent The chat web page and the server behind it Relays between traveller, Claude and the MCP server Runs on a laptop today MileagePlus MCP server The AI's toolbox: 16 tools -- search, fares, seats, bags, trip insurance, miles, cart, checkout Checks the sign-in on every call Facade Holds the DataPower exchange; session stays in Redis, never returned to the client; guards cart change, double-adds, price re-checks, result verification united.com services The existing systems behind the website: shopping, cart, seats, bags, loyalty, trip insurance (Travel Guard) united.com checkout page The traveller lands signed in, with the booking ready, reviews it and pays there Other AI apps Claude Code, Claude Desktop (via a plugin) and other MCP-capable assistants use the same MCP and tools Worth knowing • The AI never sees or takes a card number. Payment happens on united.com. • Dev environment with test accounts; sign-in lasts about an hour today. • The chat agent runs on a laptop until hosting is chosen. 1 2 sign in 3 what should I do next? 4 tool calls sign-in token 5 member session 6 7 single-use checkout link opens it Built by United's team Existing United and partner systems Other ways in to the same tools the MileagePlus AI assistant as built today * dev environment * per the 1 October joint architecture review</p>
+<p>Credit where the design is ahead of most first-generation agent deployments: payment never enters the agent -- the single-use, cart-bound checkout link on the member's own session is exactly the transaction-bound handoff the target prescribes, and the card number is never seen. The Facade enforces real defence in depth server-side: double-add guards, price re-checks, result verification. And all AI access concentrates on one MCP door with a defined 16-tool catalogue. The enforcement opportunity exists; it is just not yet an enforcement point.</p>
 <p>The Facade is itself a security control, five ways, per the 1 October walkthrough:</p>
 <ol>
-<li><p><strong>It owns the DataPower exchange.</strong> Only the Facade (and MCP service as its peer inside .com) holds the DataPower client credentials that authenticate united.com infrastructure. An agent with a stolen Ping token still cannot talk to DataPower &#8212; it has neither the credentials nor the network path.</p></li>
-<li><p><strong>The session never leaves United.</strong> The DataPower session lives in united.com's Redis, keyed by a hash of the Ping token, and is never returned to the client. The only key the client ever holds is the Ping token &#8212; which is also the only thing that needs revoking on the client side.</p></li>
-<li><p><strong>Dual revocation.</strong> Every call checks both the Ping token and the .com session; revoking either cuts the agent off. The planned Facade dashboard will list authenticated sessions and Ping tokens and revoke either directly, layered on Ping's own revocation.</p></li>
-<li><p><strong>Network confinement.</strong> Only the MCP service has an internet route; the Facade is never directly exposed, and there is no path that skips the MCP door to hit the Facade or the .com APIs directly. Claude Code only ever reaches .com through this pipe.</p></li>
-<li><p><strong>Response shaping.</strong> The Facade returns simplified, conversation-sized responses instead of raw .com API payloads (a hub-to-hub flight search is 3&#8211;4 MB &#8212; larger than the model's context window). Smaller, purpose-shaped responses mean less data exposure per call and no pressure to dump raw internal contracts into model context.</p></li>
+<li>
+<p><strong>It owns the DataPower exchange.</strong> Only the Facade (and MCP service as its peer inside .com) holds the DataPower client credentials that authenticate united.com infrastructure. An agent with a stolen Ping token still cannot talk to DataPower -- it has neither the credentials nor the network path.</p>
+</li>
+<li>
+<p><strong>The session never leaves United.</strong> The DataPower session lives in united.com's Redis, keyed by a hash of the Ping token, and is never returned to the client. The only key the client ever holds is the Ping token -- which is also the only thing that needs revoking on the client side.</p>
+</li>
+<li>
+<p><strong>Dual revocation.</strong> Every call checks both the Ping token and the .com session; revoking either cuts the agent off. The planned Facade dashboard will list authenticated sessions and Ping tokens and revoke either directly, layered on Ping's own revocation.</p>
+</li>
+<li>
+<p><strong>Network confinement.</strong> Only the MCP service has an internet route; the Facade is never directly exposed, and there is no path that skips the MCP door to hit the Facade or the .com APIs directly. Claude Code only ever reaches .com through this pipe.</p>
+</li>
+<li>
+<p><strong>Response shaping.</strong> The Facade returns simplified, conversation-sized responses instead of raw .com API payloads (a hub-to-hub flight search is 3-4 MB -- larger than the model's context window). Smaller, purpose-shaped responses mean less data exposure per call and no pressure to dump raw internal contracts into model context.</p>
+</li>
 </ol>
 <p>Two roadmap items from the same review: a separate clone of the .com API layer for the agentic channel, giving a blast-radius boundary so nothing on the agent path can affect united.com's operation; and 2FA/step-up on state-changing agent actions, complementing the checkout-page handoff that already keeps the human in the loop for purchase. On the token side, PingOne's transaction-token capability (user token exchanged for a transaction token with the agent embedded as actor) is coming; today's <code>may_act</code> token exchange already covers the pattern, and since DataPower already performs the exchange, the swap is Ping-token-to-Ping-token rather than new plumbing.</p>
-
+<h2>The demo behind this document</h2>
+<p>Every control in the target architecture runs live in the Ping demo stack (the &quot;United Airlines&quot; vertical of the AI IAM demo at <code>local.ping-devops.com:4000</code>). The screenshots below were captured 9 October 2026 from the running system; the route under each is where United's team can run it themselves. Token-chain captures taken while signed in (delegated <code>sub</code>/<code>act.sub</code> exchange, HITL approval modal, Authorize verdicts) will be added after the customer login; the surfaces shown here are the signed-out, publicly reachable ones.</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Demo surface</th>
+<th>What it shows</th>
+<th>Route</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><img src="screenshots/architecture-overview.png" alt="Live architecture diagram" /></td>
+<td>The full request path across PingOne, PingGateway, BFF vault, agents, and protected resources — the target architecture of this document running as code</td>
+<td><code>/architecture/overview</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td><img src="screenshots/agent-gateway-authorization.png" alt="Agent Gateway Authorization story" /></td>
+<td>The one-run story: delegated identity, runtime policy, MCP enforcement, and audit evidence — PERMIT / DENY / STEP-UP in a single flow</td>
+<td><code>/agent-gateway-authorization</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td><img src="screenshots/gateway-enforcement-map.png" alt="Gateway enforcement map" /></td>
+<td>The PEP/PDP split as an enforced, code-generated diagram: P1AZ decides business policy, the gateway enforces the five checks it can express</td>
+<td><code>/gateway-enforcement-map</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td><img src="screenshots/token-exchange-tester-2.png" alt="RFC 8693 token exchange tester" /></td>
+<td>The live exchange tool: subject token + agent actor token in, scoped MCP token out — <code>sub</code> = member, <code>act.sub</code> = agent</td>
+<td><code>/token-exchange-tester</code></td>
+</tr>
+<tr>
+<td>5</td>
+<td><img src="screenshots/weather-mcp-gateway.png" alt="Third-party MCP at the gateway" /></td>
+<td>An unmodified third-party MCP server scoped at the gateway edge — the door model this document prescribes, proven with a non-Ping server</td>
+<td><code>/weather-mcp</code></td>
+</tr>
+<tr>
+<td>6</td>
+<td><img src="screenshots/a2a-protocol-learning.png" alt="A2A end to end" /></td>
+<td>Agent-to-agent done both ways: the RFC 8693 identity chain and the Linux Foundation wire protocol, with the real Agent Card</td>
+<td><code>/a2a-protocol-learning</code></td>
+</tr>
+<tr>
+<td>7</td>
+<td><img src="screenshots/external-agent-muse.png" alt="External agent runbook" /></td>
+<td>A member's own cloud agent (Muse) onboarding with zero pre-registration — discovery, DCR, PKCE, delegated read, HITL write</td>
+<td><code>/external-agents/muse-app</code></td>
+</tr>
+<tr>
+<td>8</td>
+<td><img src="screenshots/agent-gateway-inspector-2.png" alt="Gateway inspector" /></td>
+<td>The enforcement point itself: identify, authorize, enforce, audit — the four checks every tool call passes</td>
+<td><code>/agent-gateway-inspector</code></td>
+</tr>
+<tr>
+<td>9</td>
+<td><img src="screenshots/pingone-mcp-tools.png" alt="PingOne MCP tools" /></td>
+<td>The MCP tool surface the gateway fronts: balance, transactions, transfers, deposits, withdrawals, sensitive details</td>
+<td><code>/mcp-inspector</code></td>
+</tr>
+<tr>
+<td>10</td>
+<td><img src="screenshots/jev-learning.png" alt="Jev decision model" /></td>
+<td>System One vs System Two: fast typed verdicts for guardrails and routing beside the generative LLM</td>
+<td><code>/jev-learning</code></td>
+</tr>
+<tr>
+<td>11</td>
+<td><img src="screenshots/learning-hub-2.png" alt="Learning Hub" /></td>
+<td>The 60-topic training hub backing every control in this document, each topic linked to its live proof</td>
+<td><code>/learning</code></td>
+</tr>
+<tr>
+<td>12</td>
+<td><img src="screenshots/webmcp.png" alt="WebMCP" /></td>
+<td>The proposed browser standard for exposing tools to in-browser agents — the coming shape of the member's own agent</td>
+<td><code>/webmcp</code></td>
+</tr>
+</tbody>
+</table>
 <h2>The gap, control by control</h2>
-<table><thead><tr><th>What the diagram shows today</th><th>The control it misses</th><th>Why it matters</th></tr></thead><tbody>
-<tr><td>The MCP server &#8220;checks the sign-in on every call&#8221; &#8212; the traveller&#8217;s sign-in token is the agent&#8217;s credential</td><td>Delegation: RFC 8693 exchange producing <code>sub</code> + <code>act.sub</code></td><td>Impersonation, not delegation. Audit attributes every action to the member; a compromised agent is indistinguishable from the member</td></tr>
-<tr><td>Sign-in lasts about an hour; no key binding anywhere</td><td>Per-call exchange, one <code>aud</code> per token, sender constraint</td><td>One stolen bearer works on all 16 tools for an hour. The &#8220;no DPoP&#8221; posture accepts bearer tokens only at minutes-long lifetime behind confinement; an hour, unbound and unconfined, is the rung below that</td></tr>
-<tr><td>The agent has no identity of its own</td><td>Agent registration (DCR or CIMD), consent that names the agent, agent-scoped revocation</td><td>Nothing to consent to, nothing to kill: revoking &#8220;the agent&#8221; means revoking the member&#8217;s session, and there is nothing to disable when a laptop is lost</td></tr>
-<tr><td>Authorization is code: a sign-in check and facade guards</td><td>A policy engine (PingOne Authorize) plus risk signals (Protect) deciding member &#215; agent &#215; tool &#215; amount</td><td>Every threshold change is a deploy; no step-up verdicts; agentic automation is invisible to bot and risk scoring</td></tr>
-<tr><td>The checkout link binds only the payment</td><td>HITL or step-up approval for the other consequential actions: miles redemption, trip insurance, booking changes</td><td>The best pattern in the diagram has no equivalent for actions that spend value without a checkout page; approval fatigue is the failure mode</td></tr>
-<tr><td>No audit chain is shown</td><td><code>sub</code> + <code>act.sub</code> + <code>jti</code> audit with no agent write path</td><td>An incident cannot be reconstructed from user to agent to tool; response starts from zero</td></tr>
-<tr><td>&#8220;Other AI apps use the same MCP and tools&#8221;</td><td>The &#8220;No BFF&#8221; compensations for plugin and desktop clients</td><td>Claude Code and Claude Desktop would carry the same sign-in token in files on laptops and disks &#8212; the exact shape &#8220;No BFF&#8221; refuses, with an hour-long token making it worse</td></tr>
-</tbody></table>
-
-<p>Two of the gaps share one fix, and the diagram&#8217;s own &#8220;Worth knowing&#8221; box identifies both: the hour-long sign-in token and the laptop-hosted agent. A token service doing per-call RFC 8693 exchange replaces the standing sign-in token as the agent&#8217;s credential, shrinks every stolen token to minutes and one audience, and gives the agent an identity that can be consented to, audited and killed without touching the member&#8217;s session. That service, the policy decision, and the audit chain are the entire delta between this diagram and the target at the top of this document &#8212; and all three are capabilities of the Ping platform named throughout it.
-
+<table>
+<thead>
+<tr>
+<th>What the diagram shows today</th>
+<th>The control it misses</th>
+<th>Why it matters</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The MCP server &quot;checks the sign-in on every call&quot; -- the traveller's sign-in token is the agent's credential</td>
+<td>Delegation: RFC 8693 exchange producing <code>sub</code> + <code>act.sub</code></td>
+<td>Impersonation, not delegation. Audit attributes every action to the member; a compromised agent is indistinguishable from the member</td>
+</tr>
+<tr>
+<td>Sign-in lasts about an hour; no key binding anywhere</td>
+<td>Per-call exchange, one <code>aud</code> per token, sender constraint</td>
+<td>One stolen bearer works on all 16 tools for an hour. The &quot;no DPoP&quot; posture accepts bearer tokens only at minutes-long lifetime behind confinement; an hour, unbound and unconfined, is the rung below that</td>
+</tr>
+<tr>
+<td>The agent has no identity of its own</td>
+<td>Agent registration (DCR or CIMD), consent that names the agent, agent-scoped revocation</td>
+<td>Nothing to consent to, nothing to kill: revoking &quot;the agent&quot; means revoking the member's session, and there is nothing to disable when a laptop is lost</td>
+</tr>
+<tr>
+<td>Authorization is code: a sign-in check and facade guards</td>
+<td>A policy engine (PingOne Authorize) plus risk signals (Protect) deciding member × agent × tool × amount</td>
+<td>Every threshold change is a deploy; no step-up verdicts; agentic automation is invisible to bot and risk scoring</td>
+</tr>
+<tr>
+<td>The checkout link binds only the payment</td>
+<td>HITL or step-up approval for the other consequential actions: miles redemption, trip insurance, booking changes</td>
+<td>The best pattern in the diagram has no equivalent for actions that spend value without a checkout page; approval fatigue is the failure mode</td>
+</tr>
+<tr>
+<td>No audit chain is shown</td>
+<td><code>sub</code> + <code>act.sub</code> + <code>jti</code> audit with no agent write path</td>
+<td>An incident cannot be reconstructed from user to agent to tool; response starts from zero</td>
+</tr>
+<tr>
+<td>&quot;Other AI apps use the same MCP and tools&quot;</td>
+<td>The &quot;No BFF&quot; compensations for plugin and desktop clients</td>
+<td>Claude Code and Claude Desktop would carry the same sign-in token in files on laptops and disks -- the exact shape &quot;No BFF&quot; refuses, with an hour-long token making it worse</td>
+</tr>
+</tbody>
+</table>
+<p>Two of the gaps share one fix, and the diagram's own &quot;Worth knowing&quot; box identifies both: the hour-long sign-in token and the laptop-hosted agent. A token service doing per-call RFC 8693 exchange replaces the standing sign-in token as the agent's credential, shrinks every stolen token to minutes and one audience, and gives the agent an identity that can be consented to, audited and killed without touching the member's session. That service, the policy decision, and the audit chain are the entire delta between this diagram and the target at the top of this document -- and all three are capabilities of the Ping platform named throughout it.</p>
 <h2>The recommended design</h2>
 <p>The target architecture at the top of this document is the recommendation. Mapped to the gap table, the build is five components, each independently useful:</p>
 <ol>
-<li><p><strong>A token service doing per-call RFC 8693 exchange</strong> &#8212; the authorization server (PingOne, or PingFederate where the deployment prefers it) mints a fresh delegated token for every tool action: <code>sub</code> = member, <code>act.sub</code> = agent, one <code>aud</code>, minutes-long lifetime; <code>private_key_jwt</code> on the token endpoint so a stolen token cannot mint more. This one component closes the first three gaps: delegation instead of impersonation, a stolen bearer worth minutes instead of an hour, and a registered agent identity that can be consented to, audited and killed without touching the member&#8217;s session.</p></li>
-<li><p><strong>HITL approval bound to the exact transaction</strong> for every action that spends value without a checkout page: miles redemption, trip insurance, booking changes. The single-use, cart-bound checkout link United already built is the pattern &#8212; extend it from payment to the other consequential actions, with the approval surfaced in United&#8217;s own app or on united.com, one approval per action, timeout as denial, and a single-use receipt spendable only for that transaction.</p></li>
-<li><p><strong>A policy decision instead of code:</strong> PingOne Authorize evaluating member &#215; agent &#215; tool &#215; amount, with PingOne Protect scoring the session for agentic automation and step-up as a verdict. The Facade guards stay &#8212; defence in depth &#8212; but thresholds stop being deploys and become policy.</p></li>
-<li><p><strong>An audit chain with no agent write path:</strong> <code>sub</code> + <code>act.sub</code> + <code>jti</code> per call at the gateway and authorization server, joined to the approval receipt for consequential actions, so any incident reconstructs from member to agent to tool.</p></li>
-<li><p><strong>One MCP door with RFC 9728 discovery and DCR/CIMD registration</strong> &#8212; the same door every AI app uses. Claude Code and Claude Desktop then arrive through the same discovery, exchange and approval path as the hosted assistant, instead of carrying an hour-long sign-in token in files on laptops and disks.</p></li>
+<li>
+<p><strong>A token service doing per-call RFC 8693 exchange</strong> -- the authorization server (PingOne, or PingFederate where the deployment prefers it) mints a fresh delegated token for every tool action: <code>sub</code> = member, <code>act.sub</code> = agent, one <code>aud</code>, minutes-long lifetime; <code>private_key_jwt</code> on the token endpoint so a stolen token cannot mint more. This one component closes the first three gaps: delegation instead of impersonation, a stolen bearer worth minutes instead of an hour, and a registered agent identity that can be consented to, audited and killed without touching the member's session.</p>
+</li>
+<li>
+<p><strong>HITL approval bound to the exact transaction</strong> for every action that spends value without a checkout page: miles redemption, trip insurance, booking changes. The single-use, cart-bound checkout link United already built is the pattern -- extend it from payment to the other consequential actions, with the approval surfaced in United's own app or on united.com, one approval per action, timeout as denial, and a single-use receipt spendable only for that transaction.</p>
+</li>
+<li>
+<p><strong>A policy decision instead of code:</strong> PingOne Authorize evaluating member × agent × tool × amount, with PingOne Protect scoring the session for agentic automation and step-up as a verdict. The Facade guards stay -- defence in depth -- but thresholds stop being deploys and become policy.</p>
+</li>
+<li>
+<p><strong>An audit chain with no agent write path:</strong> <code>sub</code> + <code>act.sub</code> + <code>jti</code> per call at the gateway and authorization server, joined to the approval receipt for consequential actions, so any incident reconstructs from member to agent to tool.</p>
+</li>
+<li>
+<p><strong>One MCP door with RFC 9728 discovery and DCR/CIMD registration</strong> -- the same door every AI app uses. Claude Code and Claude Desktop then arrive through the same discovery, exchange and approval path as the hosted assistant, instead of carrying an hour-long sign-in token in files on laptops and disks.</p>
+</li>
 </ol>
 <p>Built in that order, each step pays on its own: the token service alone removes the hour-long unconfined bearer; transaction-bound approval alone makes the consequential actions safe even while tokens are still standing; the policy decision and audit chain make the governance visible and adjustable; and the door closes the side entrance other AI apps would otherwise walk through.</p>
-<p>Two open questions from the 1 October review shape the build. <strong>Agent identity at the door:</strong> the demo issues a user token only; the agents themselves need dynamically registered identities &#8212; on PingOne today that is CIMD behind a feature flag or direct API registration, with DCR to follow &#8212; provisioned and de-provisioned as members bring agents and retire them. <strong>The unmanaged-agent path:</strong> a member's own agent launched outside United's hosted chat does not ride United's pipeline, so the public MCP door and PingOne Protect's identity-level protections carry that traffic. The review also confirmed the direction aligns with Ping's own: Agent IAM Core plus token exchange plus resource management is the named fit for this scenario.</p>
+<p>Two open questions from the 1 October review shape the build. <strong>Agent identity at the door:</strong> the demo issues a user token only; the agents themselves need dynamically registered identities -- on PingOne today that is CIMD behind a feature flag or direct API registration, with DCR to follow -- provisioned and de-provisioned as members bring agents and retire them. <strong>The unmanaged-agent path:</strong> a member's own agent launched outside United's hosted chat does not ride United's pipeline, so the public MCP door and PingOne Protect's identity-level protections carry that traffic. The review also confirmed the direction aligns with Ping's own: Agent IAM Core plus token exchange plus resource management is the named fit for this scenario.</p>
+
+</main>
+</body>
+</html>

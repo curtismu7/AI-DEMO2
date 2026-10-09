@@ -91,6 +91,7 @@ An in-app copy of this index is served at `/privilege-docs-index` in the demo UI
 | [Privilege Agent setup — Mac](SE1-Privilege-Agent-Setup-Mac.md) | — | Agent-based persona onboarding for the shared Demo Engineering environment, run on your own Mac instead of Windows 11 VMs |
 | [Demo script & setup](demo/privilege-demo-script.md) | — | The customer-facing demo script and setup (auto-generated from the use-case docs — do not hand-edit) |
 | [CIMD client documents](../docs/2026-10-07-cimd-privilege-client-documents.md) | Drive (SE) | CIMD (client metadata documents) for PingOne Privilege — flow, boundary, and client documents, with diagrams |
+| [MCP discovery-gating demo](MCP-DISCOVERY-DEMO.md) | Drive (SE) | SE demo script: an agent's `tools/list` returns only what its policy grants — permit door, deny-by-default door, grant change, agent key, aggregate; pre-demo check and troubleshooting (every claim measured 2026-10-02…04) |
 
 ## Reference & records
 
