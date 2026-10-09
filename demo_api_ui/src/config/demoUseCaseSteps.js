@@ -116,6 +116,7 @@ export const DEMO_USE_CASE_SEARCH_TERMS = {
   UC46: ['privilege', 'a2a', 'agent-to-agent', 'access review', 'anthropic', 'google', 'gemini', 'agent privilege', 'worker agent'],
   UC46A: ['privilege', 'a2a', 'agent-to-agent', 'access review', 'in the agent', 'reel', 'sequence'],
   UC47: ['privilege', 'a2a', 'agent-to-agent', 'agent chain', 'three deep', 'agent privilege', 'langchain', 'specialist', 'delegation'],
+  'UC-LEARN15': ['jev', 'decision model', 'system one', 'guardrail', 'intent routing', 'confidence', 'threshold', 'bake-off', 'langchain', 'von'],
 };
 
 /** Existing Privilege lanes grouped for the presenter, without inventing routes. */
@@ -146,8 +147,8 @@ export const EXTRA_STEP_GROUPS = [
     id: 'controls',
     label: 'Controls & Policy',
     tagline: 'policy at the boundary',
-    intro: 'Entitlement, scope and tool-set controls enforced by the gateway and PingOne Authorize, including third-party search.',
-    ids: ['UC4', 'UC9', 'UC21', 'UC28', 'UC39', 'UC41', 'UC42'],
+    intro: 'Entitlement, scope and tool-set controls enforced by the gateway and PingOne Authorize, including third-party search, plus the Jev decision-model lesson on scores as one input to policy.',
+    ids: ['UC4', 'UC9', 'UC21', 'UC28', 'UC39', 'UC41', 'UC42', 'UC-LEARN15'],
   },
   {
     id: 'abuse',

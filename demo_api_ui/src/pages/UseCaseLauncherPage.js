@@ -9,7 +9,7 @@
  * flag is off; Run auto-enables required flags for signed-in launches.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import AttackAnatomyExplainer from '../components/AttackAnatomyExplainer';
 import FlagGate from '../components/FlagGate';
 import GroupMembershipToggle from '../components/GroupMembershipToggle';
@@ -778,6 +778,20 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
       });
     return () => { cancelled = true; };
   }, [vertical]);
+
+  // Deep links like /use-cases#UC-LEARN15 (Learning Hub "Demo step N" chips)
+  // point at a card that only exists after the async catalog fetch, so the
+  // browser's native anchor jump fires before the card renders. Scroll once
+  // the cards are in, same pattern as the workbench's rail focus scroll.
+  const hash = useLocation().hash;
+  useEffect(() => {
+    if (loading || !hash) return undefined;
+    const id = hash.slice(1);
+    const card = document.getElementById(id);
+    if (!card) return undefined;
+    card.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+    return undefined;
+  }, [loading, hash, useCases]);
 
   const handleRun = useCallback(async (uc) => {
     if (uc.trigger?.type !== 'chip') return;

@@ -629,6 +629,17 @@
   flex: 1;
 }
 
+.learning-hub__card-step {
+  font-size: 0.8rem;
+  color: var(--th-status-info-text);
+  text-decoration: none;
+  margin-top: 0.5rem;
+}
+
+.learning-hub__card-step:hover {
+  text-decoration: underline;
+}
+
 .learning-hub__no-results {
   text-align: center;
   padding: 3rem 1rem;
