@@ -255,6 +255,34 @@ export default function AdminSideNav({
   // because this is a standing preference, not per-tab state like the expanded
   // group below — someone who expands it should not have to do so every tab.
   const [collapsed, setCollapsed] = useState(readStoredCollapsed);
+  // Fully hidden (the vertical-logo magic link / Ctrl+Shift+B). Distinct from
+  // collapsed: hidden removes the rail entirely and the content reflows to
+  // full width. Persisted — someone who hides the rail wants it to stay hidden.
+  const [hidden, setHidden] = useState(() => {
+    try {
+      return localStorage.getItem("adminSideNav.hidden") === "1";
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    document.querySelector(".App")?.classList.toggle("sidenav-hidden", hidden);
+    return undefined;
+  }, [hidden]);
+  useEffect(() => {
+    const onHiddenToggle = () => {
+      setHidden((h) => {
+        try {
+          localStorage.setItem("adminSideNav.hidden", h ? "0" : "1");
+        } catch {
+          /* private mode — session-only */
+        }
+        return !h;
+      });
+    };
+    window.addEventListener("admin-sidenav-hidden-toggle", onHiddenToggle);
+    return () => window.removeEventListener("admin-sidenav-hidden-toggle", onHiddenToggle);
+  }, []);
   // Width now persists (it never did before convergence on useDividerDrag);
   // collapse state was already persisted separately.
   const { size: sidebarWidth, handleProps: resizeHandleProps } = useDividerDrag({
@@ -394,6 +422,10 @@ export default function AdminSideNav({
   // Path queued behind the AI Control Plane intro-gate modal (null = closed).
   const [controlPlaneIntroPath, setControlPlaneIntroPath] = useState(null);
   const [showResetModal, setShowResetModal] = useState(false);
+  // Sign Out asks first — same interpose as the topnav's; the reset-demo
+  // cleanup path keeps calling performLogout() directly (it already has its
+  // own readiness confirmation).
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [readinessJob, setReadinessJob] = useState(null);
   const [showRepairConfirm, setShowRepairConfirm] = useState(false);
   const readinessPollTimerRef = useRef(null);
@@ -1171,6 +1203,7 @@ export default function AdminSideNav({
           searchAlias: "standalone demo launcher live cloud PingOne presenter",
         },
         { label: "Learning Hub", path: "/learning", icon: "doc" },
+        { label: "Privilege Docs Index", path: "/privilege-docs-index", icon: "doc" },
         {
           label: "Learning Hub (Web Mirror)",
           icon: "doc",
@@ -1506,6 +1539,7 @@ export default function AdminSideNav({
     ], "arc"),
     productGroup("Architecture & Learning", [
       "Learning Hub",
+      "Privilege Docs Index",
       { label: "Page Catalog", path: "/page-catalog" },
       "SPIFFE → PingOne Bridge (TODO)",
       "llama-vscode Guide",
@@ -1746,7 +1780,7 @@ export default function AdminSideNav({
         break;
       }
       case "logout":
-        performLogout();
+        setShowLogoutConfirm(true);
         break;
       case "reset-demo":
         setShowResetModal(true);
@@ -2067,7 +2101,7 @@ export default function AdminSideNav({
 
   return (
     <div
-      className={`admin-side-nav ${collapsed ? "admin-side-nav--collapsed" : ""}`}
+      className={`admin-side-nav ${collapsed ? "admin-side-nav--collapsed" : ""}${hidden ? " admin-side-nav--hidden" : ""}`}
       style={collapsed ? undefined : { width: sidebarWidth }}
     >
       {/* Drag-to-resize handle */}
@@ -2407,6 +2441,15 @@ export default function AdminSideNav({
           ))}
         </div>
       </nav>
+      <ConfirmModal
+        isOpen={showLogoutConfirm}
+        title="Sign out?"
+        message="This ends your session and clears the live token chain. Sign back in to continue."
+        confirmLabel="Sign Out"
+        danger
+        onConfirm={() => { setShowLogoutConfirm(false); performLogout(); }}
+        onCancel={() => setShowLogoutConfirm(false)}
+      />
       <ConfirmModal
         isOpen={showResetModal}
         title="Reset Demo"

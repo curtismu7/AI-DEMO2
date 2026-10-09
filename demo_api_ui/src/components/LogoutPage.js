@@ -1,11 +1,12 @@
 // banking_api_ui/src/components/LogoutPage.js
-import React, { useEffect } from 'react';
+import React, { useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { navigateToCustomerOAuthForceLogin } from '../utils/authUi';
 import bffAxios from '../services/bffAxios';
 import { clearIdJagRunState, ID_JAG_PENDING_INTENT_KEY, ID_JAG_USE_CASE_ID, RUN_MODES } from '../utils/idJagRunMode';
 import { notifyError } from '../utils/appToast';
 import { navigateWithOverlay } from '../utils/navigateWithOverlay';
+import { VerticalContext } from '../vertical/VerticalProvider';
 import './LogoutPage.css';
 
 /**
@@ -14,6 +15,8 @@ import './LogoutPage.css';
  */
 export default function LogoutPage() {
   const navigate = useNavigate();
+  const identity = useContext(VerticalContext)?.pageManifest?.identity;
+  const brandName = identity?.headerTitle || identity?.displayName || '';
 
   useEffect(() => {
     let cancelled = false;
@@ -67,9 +70,13 @@ export default function LogoutPage() {
 
         <div className="logout-split">
           <div className="logout-left">
-            <div className="logout-mark" aria-hidden="true">
-              🔐
-            </div>
+            {identity?.logoPath ? (
+              <img className="logout-logo" src={identity.logoPath} alt={identity.logoAlt || brandName} />
+            ) : (
+              <div className="logout-mark" aria-hidden="true">
+                🔐
+              </div>
+            )}
             <h1 className="logout-hello">You&apos;re signed out</h1>
             <p className="logout-via">Session ended through PingOne</p>
             <div className="logout-secure" aria-hidden="true">

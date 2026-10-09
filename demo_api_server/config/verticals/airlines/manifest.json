@@ -4,10 +4,10 @@
   "identity": {
     "displayName": "United Airlines",
     "headerTitle": "United Airlines",
-    "documentTitle": "United Airlines · PingOne AI IAM Core",
-    "logoAlt": "United Airlines logo",
+    "documentTitle": "United Airlines \u00b7 PingOne AI IAM Core",
+    "logoAlt": "United Airlines",
     "tagline": "Good Leads The Way",
-    "logoPath": "/branding/united-airlines-logo.svg"
+    "logoPath": "https://cdn.brandfetch.io/idmlRiz-2q/theme/light/logo.svg"
   },
   "theme": {
     "cssVars": {
@@ -26,10 +26,20 @@
   "terminology": {
     "account": "Reservation",
     "accounts": "Reservations",
-    "accountTypes": ["Economy", "Economy Plus", "United First", "United Polaris"],
+    "accountTypes": [
+      "Economy",
+      "Economy Plus",
+      "United First",
+      "United Polaris"
+    ],
     "transaction": "Flight",
     "transactions": "Flights",
-    "transactionTypes": ["Booking", "Seat Change", "Bag Added", "Cancellation"],
+    "transactionTypes": [
+      "Booking",
+      "Seat Change",
+      "Bag Added",
+      "Cancellation"
+    ],
     "balance": "MileagePlus Balance",
     "agent": "Travel Agent",
     "dashboard": "My Trips",
@@ -56,15 +66,24 @@
       "sensitive_passenger_record": "premiumTier"
     },
     "userMemberships": {
-      "demoUser": ["privileged", "premiumTier"],
-      "demoAdmin": ["privileged", "premiumTier"],
-      "demoDelegate": ["privileged", "premiumTier"]
+      "demoUser": [
+        "privileged",
+        "premiumTier"
+      ],
+      "demoAdmin": [
+        "privileged",
+        "premiumTier"
+      ],
+      "demoDelegate": [
+        "privileged",
+        "premiumTier"
+      ]
     }
   },
   "agent": {
     "persona": "Skyline",
     "greeting": "Hi {name}! I'm Skyline, your United travel agent. I can pull up your reservations, check a flight's status and gate, and show you the seat map. What would you like to look at?",
-    "systemPromptFlavor": "You are Skyline, a United Airlines travel agent. Help passengers view their reservations, check flight status and gate information, and see seat availability. Use airline language: accounts are reservations, transactions are flights, balance is the MileagePlus balance. Be concise and factual — every answer comes from the airline's reservation system, so never invent a flight, seat, or confirmation number."
+    "systemPromptFlavor": "You are Skyline, a United Airlines travel agent. Help passengers view their reservations, check flight status and gate information, and see seat availability. Use airline language: accounts are reservations, transactions are flights, balance is the MileagePlus balance. Be concise and factual \u2014 every answer comes from the airline's reservation system, so never invent a flight, seat, or confirmation number."
   },
   "hero": {
     "imageUrl": "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=1200&h=600&fit=crop",
@@ -73,9 +92,18 @@
   "dashboard": {
     "kind": "airlines",
     "chips": [
-      { "key": "balance", "label": "MileagePlus Balance" },
-      { "key": "accounts", "label": "My Reservations" },
-      { "key": "transactions", "label": "My Flights" }
+      {
+        "key": "balance",
+        "label": "MileagePlus Balance"
+      },
+      {
+        "key": "accounts",
+        "label": "My Reservations"
+      },
+      {
+        "key": "transactions",
+        "label": "My Flights"
+      }
     ],
     "chips10": [
       {
@@ -88,7 +116,7 @@
       },
       {
         "id": "ua5",
-        "label": "🔑 Cancel a reservation",
+        "label": "\ud83d\udd11 Cancel a reservation",
         "message": "cancel my reservation and refund it",
         "mode": "both",
         "challenge": "step_up",
@@ -105,7 +133,7 @@
       },
       {
         "id": "ua4",
-        "label": "🔐 Sensitive reservations",
+        "label": "\ud83d\udd10 Sensitive reservations",
         "message": "access my sensitive airline bookings",
         "mode": "both",
         "challenge": "consent",
@@ -148,119 +176,323 @@
     ]
   },
   "render": {
-    "check_seat_availability": { "type": "seatMap" },
+    "check_seat_availability": {
+      "type": "seatMap"
+    },
     "book_airline_flight": {
       "type": "card",
       "title": "Flight Booked",
       "fields": [
-        { "label": "Confirmation", "path": "confirmationNumber", "accent": true },
-        { "label": "Flight", "path": "flightNumber" },
-        { "label": "Route", "path": "route" },
-        { "label": "Departure", "path": "departureTime", "format": "date" },
-        { "label": "Passengers", "path": "passengers", "format": "count" },
-        { "label": "Total", "path": "amount", "format": "money" }
+        {
+          "label": "Confirmation",
+          "path": "confirmationNumber",
+          "accent": true
+        },
+        {
+          "label": "Flight",
+          "path": "flightNumber"
+        },
+        {
+          "label": "Route",
+          "path": "route"
+        },
+        {
+          "label": "Departure",
+          "path": "departureTime",
+          "format": "date"
+        },
+        {
+          "label": "Passengers",
+          "path": "passengers",
+          "format": "count"
+        },
+        {
+          "label": "Total",
+          "path": "amount",
+          "format": "money"
+        }
       ]
     },
     "get_airline_bookings": {
       "type": "table",
       "title": "Your Reservations",
       "columns": [
-        { "label": "Confirmation", "path": "confirmationNumber" },
-        { "label": "Flight", "path": "flightNumber" },
-        { "label": "Route", "path": "route" },
-        { "label": "Departure", "path": "departureTime", "format": "date" },
-        { "label": "Gate", "path": "gate" },
-        { "label": "Seat", "path": "seat" },
-        { "label": "Cabin", "path": "cabin" },
-        { "label": "Status", "path": "status" }
+        {
+          "label": "Confirmation",
+          "path": "confirmationNumber"
+        },
+        {
+          "label": "Flight",
+          "path": "flightNumber"
+        },
+        {
+          "label": "Route",
+          "path": "route"
+        },
+        {
+          "label": "Departure",
+          "path": "departureTime",
+          "format": "date"
+        },
+        {
+          "label": "Gate",
+          "path": "gate"
+        },
+        {
+          "label": "Seat",
+          "path": "seat"
+        },
+        {
+          "label": "Cabin",
+          "path": "cabin"
+        },
+        {
+          "label": "Status",
+          "path": "status"
+        }
       ]
     },
     "sensitive_airline_bookings": {
       "type": "table",
       "title": "Reservations (sensitive)",
       "columns": [
-        { "label": "Confirmation", "path": "confirmationNumber" },
-        { "label": "Flight", "path": "flightNumber" },
-        { "label": "Route", "path": "route" },
-        { "label": "Departure", "path": "departureTime", "format": "date" },
-        { "label": "Seat", "path": "seat" },
-        { "label": "Cabin", "path": "cabin" },
-        { "label": "Status", "path": "status" }
+        {
+          "label": "Confirmation",
+          "path": "confirmationNumber"
+        },
+        {
+          "label": "Flight",
+          "path": "flightNumber"
+        },
+        {
+          "label": "Route",
+          "path": "route"
+        },
+        {
+          "label": "Departure",
+          "path": "departureTime",
+          "format": "date"
+        },
+        {
+          "label": "Seat",
+          "path": "seat"
+        },
+        {
+          "label": "Cabin",
+          "path": "cabin"
+        },
+        {
+          "label": "Status",
+          "path": "status"
+        }
       ]
     },
     "get_flight_status": {
       "type": "card",
       "title": "Flight Status",
       "fields": [
-        { "label": "Flight", "path": "flightNumber", "accent": true },
-        { "label": "Route", "path": "route" },
-        { "label": "Departure", "path": "departureTime", "format": "date" },
-        { "label": "Arrival", "path": "arrivalTime", "format": "date" },
-        { "label": "Gate", "path": "gate" },
-        { "label": "Aircraft", "path": "aircraft" },
-        { "label": "Status", "path": "status" }
+        {
+          "label": "Flight",
+          "path": "flightNumber",
+          "accent": true
+        },
+        {
+          "label": "Route",
+          "path": "route"
+        },
+        {
+          "label": "Departure",
+          "path": "departureTime",
+          "format": "date"
+        },
+        {
+          "label": "Arrival",
+          "path": "arrivalTime",
+          "format": "date"
+        },
+        {
+          "label": "Gate",
+          "path": "gate"
+        },
+        {
+          "label": "Aircraft",
+          "path": "aircraft"
+        },
+        {
+          "label": "Status",
+          "path": "status"
+        }
       ]
     },
     "get_loyalty_status": {
       "type": "card",
       "title": "MileagePlus Status",
       "fields": [
-        { "label": "Passenger", "path": "name" },
-        { "label": "Tier", "path": "loyaltyTier", "accent": true },
-        { "label": "Points", "path": "loyaltyPoints", "format": "count" },
-        { "label": "Passenger ref", "path": "passengerRef" }
+        {
+          "label": "Passenger",
+          "path": "name"
+        },
+        {
+          "label": "Tier",
+          "path": "loyaltyTier",
+          "accent": true
+        },
+        {
+          "label": "Points",
+          "path": "loyaltyPoints",
+          "format": "count"
+        },
+        {
+          "label": "Passenger ref",
+          "path": "passengerRef"
+        }
       ]
     },
     "redeem_miles": {
       "type": "card",
       "title": "Miles Redemption",
       "fields": [
-        { "label": "Confirmation", "path": "confirmationNumber" },
-        { "label": "Flight", "path": "flightNumber" },
-        { "label": "Route", "path": "route" },
-        { "label": "Upgraded to", "path": "upgradedToCabin", "accent": true },
-        { "label": "Previous cabin", "path": "previousCabin" },
-        { "label": "Points redeemed", "path": "pointsRedeemed", "format": "count" },
-        { "label": "Points remaining", "path": "pointsRemaining", "format": "count" }
+        {
+          "label": "Confirmation",
+          "path": "confirmationNumber"
+        },
+        {
+          "label": "Flight",
+          "path": "flightNumber"
+        },
+        {
+          "label": "Route",
+          "path": "route"
+        },
+        {
+          "label": "Upgraded to",
+          "path": "upgradedToCabin",
+          "accent": true
+        },
+        {
+          "label": "Previous cabin",
+          "path": "previousCabin"
+        },
+        {
+          "label": "Points redeemed",
+          "path": "pointsRedeemed",
+          "format": "count"
+        },
+        {
+          "label": "Points remaining",
+          "path": "pointsRemaining",
+          "format": "count"
+        }
       ]
     },
     "pay_airline_fee": {
       "type": "card",
       "title": "Fee Payment",
       "fields": [
-        { "label": "Amount", "path": "amount", "format": "money", "accent": true },
-        { "label": "Fee type", "path": "feeType" },
-        { "label": "Confirmation", "path": "confirmationNumber" },
-        { "label": "Receipt", "path": "receiptId" },
-        { "label": "Paid at", "path": "paidAt", "format": "date" }
+        {
+          "label": "Amount",
+          "path": "amount",
+          "format": "money",
+          "accent": true
+        },
+        {
+          "label": "Fee type",
+          "path": "feeType"
+        },
+        {
+          "label": "Confirmation",
+          "path": "confirmationNumber"
+        },
+        {
+          "label": "Receipt",
+          "path": "receiptId"
+        },
+        {
+          "label": "Paid at",
+          "path": "paidAt",
+          "format": "date"
+        }
       ]
     },
     "cancel_airline_reservation": {
       "type": "card",
       "title": "Reservation Cancelled",
       "fields": [
-        { "label": "Confirmation", "path": "confirmationNumber" },
-        { "label": "Flight", "path": "flightNumber" },
-        { "label": "Route", "path": "route" },
-        { "label": "Departure", "path": "departureTime", "format": "date" },
-        { "label": "Refund", "path": "refund.status", "accent": true },
-        { "label": "Refund method", "path": "refund.method" }
+        {
+          "label": "Confirmation",
+          "path": "confirmationNumber"
+        },
+        {
+          "label": "Flight",
+          "path": "flightNumber"
+        },
+        {
+          "label": "Route",
+          "path": "route"
+        },
+        {
+          "label": "Departure",
+          "path": "departureTime",
+          "format": "date"
+        },
+        {
+          "label": "Refund",
+          "path": "refund.status",
+          "accent": true
+        },
+        {
+          "label": "Refund method",
+          "path": "refund.method"
+        }
       ]
     },
     "sensitive_passenger_record": {
       "type": "fieldList",
       "title": "Passenger Record (PII)",
       "fields": [
-        { "label": "Name", "path": "name", "accent": true },
-        { "label": "Passenger ref", "path": "passengerRef" },
-        { "label": "Date of birth", "path": "dateOfBirth", "format": "date" },
-        { "label": "Passport", "path": "passportNumber" },
-        { "label": "Known traveler", "path": "knownTravelerNumber" },
-        { "label": "Loyalty tier", "path": "loyalty.tier" },
-        { "label": "Loyalty points", "path": "loyalty.points", "format": "count" },
-        { "label": "Loyalty account", "path": "loyalty.accountNumber" },
-        { "label": "Card", "path": "paymentCard.brand" },
-        { "label": "Card last 4", "path": "paymentCard.last4" }
+        {
+          "label": "Name",
+          "path": "name",
+          "accent": true
+        },
+        {
+          "label": "Passenger ref",
+          "path": "passengerRef"
+        },
+        {
+          "label": "Date of birth",
+          "path": "dateOfBirth",
+          "format": "date"
+        },
+        {
+          "label": "Passport",
+          "path": "passportNumber"
+        },
+        {
+          "label": "Known traveler",
+          "path": "knownTravelerNumber"
+        },
+        {
+          "label": "Loyalty tier",
+          "path": "loyalty.tier"
+        },
+        {
+          "label": "Loyalty points",
+          "path": "loyalty.points",
+          "format": "count"
+        },
+        {
+          "label": "Loyalty account",
+          "path": "loyalty.accountNumber"
+        },
+        {
+          "label": "Card",
+          "path": "paymentCard.brand"
+        },
+        {
+          "label": "Card last 4",
+          "path": "paymentCard.last4"
+        }
       ]
     }
   },

@@ -890,6 +890,15 @@ body > .banking-agent-float-root .banking-agent-panel {
   align-items: center;
   gap: 10px;
 }
+/* Vertical's logo beside the assistant title — same asset the sign-in bar
+   shows (identity.logoPath), so the agent surface matches the login brand. */
+.ba-brand-logo {
+  height: 22px;
+  width: auto;
+  max-width: 60px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
 .ba-status-dot {
   width: 9px;
   height: 9px;

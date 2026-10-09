@@ -1,6 +1,6 @@
 // banking_api_ui/src/components/ChaseTopNav.js
 import React, { useState } from 'react';
-import BrandLogo from './BrandLogo';
+import BrandLogo from '../components/BrandLogo';
 import TRiSMTrainingPanel from './TRiSMTrainingPanel';
 import { useIndustryBranding } from '../context/IndustryBrandingContext';
 import './ChaseTopNav.css';

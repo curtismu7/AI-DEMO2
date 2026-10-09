@@ -253,3 +253,57 @@ test('topology export CSV changes rebuild the frontend image', () => {
   assert.deepStrictEqual(keysFor('docs/exports/server-topology-lucidchart.csv'), ['bff', 'frontend']);
   assert.deepStrictEqual(keysFor('docs/exports/server-topology-details.csv'), ['bff', 'frontend']);
 });
+
+test('a services filter intersects the built matrix (self-heal dispatch)', () => {
+  // The nightly heal workflow dispatches build-images with a services list;
+  // the filter must shrink an all-services matrix to just those keys, not
+  // extend it, and an unknown key must not invent a build.
+  const m = buildMatrix(MAP, ['demo_api_server/server.js', 'demo_api_ui/src/App.js'], new Map(), ['frontend']);
+  assert.deepStrictEqual(m.include.map((e) => e.key), ['frontend']);
+
+  const none = buildMatrix(MAP, ['demo_llm_proxy/router.js'], new Map(), ['frontend']);
+  assert.deepStrictEqual(none.include, []);
+
+  const unknown = buildMatrix(MAP, ['demo_api_server/server.js'], new Map(), ['notakey']);
+  assert.deepStrictEqual(unknown.include, []);
+});
+
+test('main() reads the services filter from a FILE PATH (the workflow contract)', () => {
+  // build-images.yml writes the dispatch input to services-filter.txt and
+  // passes the PATH. main() must read the file, not treat the path as a list —
+  // the first cut parsed the path string as keys and silently built nothing.
+  const fs = require('fs');
+  const os = require('os');
+  const path = require('path');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'matrix-filter-'));
+  const mapFile = path.join(dir, 'map.json');
+  const changedFile = path.join(dir, 'changed.txt');
+  const filterFile = path.join(dir, 'services-filter.txt');
+  fs.writeFileSync(mapFile, JSON.stringify(MAP));
+  fs.writeFileSync(changedFile, 'demo_api_server/server.js\ndemo_api_ui/src/App.js\n');
+  fs.writeFileSync(filterFile, 'frontend\n');
+
+  const { main } = require('./ci-build-matrix');
+  const out = [];
+  const origLog = console.log;
+  console.log = (l) => out.push(l);
+  try {
+    main([mapFile, changedFile, filterFile]);
+  } finally {
+    console.log = origLog;
+  }
+  const matrix = out.find((l) => l.startsWith('matrix='));
+  assert.ok(matrix.includes('"frontend"'), matrix);
+  assert.ok(!matrix.includes('"bff"'), `bff must be filtered out: ${matrix}`);
+
+  // No filter file = unchanged behavior.
+  const out2 = [];
+  console.log = (l) => out2.push(l);
+  try {
+    main([mapFile, changedFile]);
+  } finally {
+    console.log = origLog;
+  }
+  assert.ok(out2.join('\n').includes('"bff"'));
+  fs.rmSync(dir, { recursive: true, force: true });
+});

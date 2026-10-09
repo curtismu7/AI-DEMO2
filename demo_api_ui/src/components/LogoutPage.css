@@ -97,6 +97,17 @@
   font-size: var(--font-size-h2);
 }
 
+/* Vertical logo in place of the glyph — same slot, lockup-safe height. Renders
+   unfiltered on the vertical's own header gradient, like the dashboard brand
+   bar does. */
+.logout-logo {
+  height: 30px;
+  width: auto;
+  max-width: 150px;
+  object-fit: contain;
+  align-self: flex-start;
+}
+
 .logout-hello {
   font-size: 19px;
   font-weight: 800;

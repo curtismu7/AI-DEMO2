@@ -12,6 +12,15 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    # Optional subset rebuild for the self-heal dispatcher (build-images-heal):
+    # a newline/comma-separated list of service keys. Empty = unchanged
+    # changed-paths behavior.
+    inputs:
+      services:
+        description: 'Service keys to rebuild (empty = diff-driven)'
+        required: false
+        default: ''
+        type: string
 
 concurrency:
   group: build-images-${{ github.sha }}
@@ -71,7 +80,16 @@ jobs:
         id: matrix
         run: |
           ./se-update-code.sh --print-map > map.json
-          node scripts/ci-build-matrix.js map.json changed.txt >> "$GITHUB_OUTPUT"
+          # Self-heal dispatch: when a services subset is named, it INTERSECTS
+          # the changed-path matrix (ci-build-matrix treats an empty filter as
+          # no filter). The heal workflow passes the file path; a push run
+          # passes nothing and diffs as before.
+          FILTER_ARG=""
+          if [ -n "${{ inputs.services }}" ]; then
+            printf '%s\n' "${{ inputs.services }}" | tr ',' '\n' > services-filter.txt
+            FILTER_ARG="services-filter.txt"
+          fi
+          node scripts/ci-build-matrix.js map.json changed.txt $FILTER_ARG >> "$GITHUB_OUTPUT"
 
       # A GHCR push needs two independent things, and either one missing gives
       # the IDENTICAL "denied: permission_denied: write_package": the source

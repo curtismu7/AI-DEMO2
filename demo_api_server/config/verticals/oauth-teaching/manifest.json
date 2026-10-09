@@ -3,6 +3,7 @@
   "schemaVersion": 3,
   "identity": {
     "displayName": "OAuth Academy",
+    "brandCaps": "OAUTH ACADEMY",
     "headerTitle": "OAuth Academy",
     "documentTitle": "OAuth Academy · PingOne AI Demo",
     "tagline": "Interactive OAuth 2.0 / 2.1 + OIDC Learning",

@@ -151,12 +151,17 @@ describe('generateAuthorizationUrl', () => {
     expect(parse(url).params.response_mode).toBeUndefined();
   });
 
-  test('uses response_type=pi.flow and response_mode=pi.flow when authorizeUsesPiFlow', () => {
+  test('flag alone does not rewrite the URL; forcePiFlow adds response_mode=pi.flow with response_type=code', () => {
+    // pi.flow is a response_MODE — PingOne answers response_type=pi.flow with 400
+    // (same lesson as the user-side oauthUserService). The admin URL only opens a
+    // flow when the caller explicitly passes forcePiFlow.
     makeService({ authorizeUsesPiFlow: true });
     try {
-      const url = svcSingleton.generateAuthorizationUrl('st', 'cv', MOCK_CONFIG.redirectUri);
-      const p = parse(url).params;
-      expect(p.response_type).toBe('pi.flow');
+      const plain = parse(svcSingleton.generateAuthorizationUrl('st', 'cv', MOCK_CONFIG.redirectUri)).params;
+      expect(plain.response_type).toBe('code');
+      expect(plain.response_mode).toBeUndefined();
+      const p = parse(svcSingleton.generateAuthorizationUrl('st', 'cv', MOCK_CONFIG.redirectUri, null, undefined, { forcePiFlow: true })).params;
+      expect(p.response_type).toBe('code');
       expect(p.response_mode).toBe('pi.flow');
       expect(p.code_challenge_method).toBe('S256');
     } finally {

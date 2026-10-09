@@ -1038,6 +1038,71 @@ async function runMcpToolPipeline(ctx) {
             }
         }
         deps.appEventLog('mcp', 'info', `MCP tool call → ${tool}`,{ tag: 'mcp/tool', metadata: { tool, gatewayUrl: useGateway ? gatewayHttpUrl : mcpUrl, via: useGateway ? 'gateway' : 'direct' } });
+
+        // ── Discovery before call (MCP lifecycle) ────────────────────────────
+        // A real MCP client walks initialize → tools/list → tools/call. The
+        // chip/agent path historically jumped straight to tools/call —
+        // authorization is per-call at the gateway, so nothing was unsafe, but
+        // the run never LOOKED like the protocol it claims to implement: the
+        // Token Chain's tools-list hop read "notinpath" on every chip run
+        // (UC1/UC8, observed live 2026-10-08). Issue the discovery leg for real
+        // through the same gateway transport the call uses. Best-effort: a
+        // discovery failure must never block the tool call — the gateway's
+        // per-call Authorize decision is the enforcement point, and the
+        // launcher's /api/demo-agent/tools route remains the caller-facing
+        // discovery surface. Gated by ff_mcp_discovery_before_call (default on)
+        // so a presenter can drop the extra round trip (~100-300ms) mid-demo.
+        const discoveryOn = useGateway && !!mcpAccessToken
+            && require('./configStore').getEffective('ff_mcp_discovery_before_call') !== 'false';
+        if (discoveryOn) {
+            try {
+                const discovery = await deps.callToolViaGateway(gatewayHttpUrl, mcpAccessToken, tool, {}, {
+                    correlationId: req.correlationId,
+                    vertical: sessionVertical,
+                    useCaseId: ctx.useCaseId,
+                    rpcMethod: 'tools/list',
+                });
+                // Real protocol evidence the gateway produced on this leg: the
+                // initialize handshake it performed upstream before answering
+                // (same header the tool-call leg reports it on).
+                const dh = discovery?.gwMcpHandshake;
+                if (dh && dh.initialize) {
+                    tokenEvents.push(deps.buildTokenEvent(
+                        'mcp-initialize', 'MCP handshake — initialize (by the gateway)', 'active', null,
+                        `The Agent Gateway opened the MCP session upstream (protocol ${dh.initialize.protocolVersion || '?'}) to answer this discovery request.`,
+                        { rfc: 'MCP 2025-11-25 §Lifecycle', performedBy: 'agent-gateway', negotiatedVersion: dh.initialize.protocolVersion || null, serverInfo: dh.initialize.serverInfo || null, response: dh.initialize }));
+                    if (dh.initialized) {
+                        tokenEvents.push(deps.buildTokenEvent(
+                            'mcp-initialized', 'MCP handshake — notifications/initialized (by the gateway)', 'active', null,
+                            'The gateway confirmed the negotiated session upstream before listing tools.',
+                            { rfc: 'MCP 2025-11-25 §Lifecycle', performedBy: 'agent-gateway', sessionId: dh.sessionId || null }));
+                    }
+                }
+                const tools = Array.isArray(discovery?.result?.tools) ? discovery.result.tools : null;
+                if (tools) {
+                    const denied = Array.isArray(discovery.result?._meta?.deniedTools) ? discovery.result._meta.deniedTools : [];
+                    // Type-shaped (not id-shaped) — the exact vocabulary
+                    // buildTraceSteps' existing `tools-list` hop matches via
+                    // findEventByType, so the UI card lights up unchanged.
+                    tokenEvents.push({
+                        type: 'tools_list_success',
+                        timestamp: new Date().toISOString(),
+                        vertical: sessionVertical || '(global)',
+                        permittedCount: tools.length,
+                        deniedCount: denied.length,
+                        toolNames: tools.map((t) => t && t.name).filter(Boolean),
+                        explanation: `tools/list through the gateway before the call: ${tools.length} tool(s) permitted, ${denied.length} filtered by policy.`,
+                        ...(dh ? { mcpHandshake: { negotiatedVersion: dh.initialize.protocolVersion || null, serverInfo: dh.initialize.serverInfo || null, initialized: !!dh.initialized } } : {}),
+                    });
+                }
+                deps.publishTokenEventsToSse(flowTraceId, tokenEvents);
+            } catch (discErr) {
+                // Evidence leg only. Log and move on — the authorized call below
+                // still gets the full exchange → gateway → Authorize treatment.
+                logger.warn(_CAT, `[MCP Discovery] tools/list before call failed for ${tool} (non-fatal): ${discErr.message}`);
+            }
+        }
+
         let result;
         let gwAuditTrail = null;
         let gwMcpHandshake = null;

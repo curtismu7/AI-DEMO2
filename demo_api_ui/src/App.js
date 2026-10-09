@@ -27,6 +27,7 @@ import AgentOnboardingMermaidPage from "./components/AgentOnboardingMermaidPage"
 import McpGatewayOauthFlowPage from "./components/McpGatewayOauthFlowPage";
 import PrivilegeMcpDiagramPage from "./components/PrivilegeMcpDiagramPage";
 import PrivilegeGatewayTopologyPage from "./components/PrivilegeGatewayTopologyPage";
+import PrivilegeDocsIndexPage from "./pages/PrivilegeDocsIndexPage";
 import InvestDualAuthDiagramPage from "./components/InvestDualAuthDiagramPage";
 import ExternalDoorDiagramPage from "./components/ExternalDoorDiagramPage";
 import DemoArchSlidesPage from "./components/DemoArchSlidesPage";
@@ -483,6 +484,18 @@ function AppWithAuth() {
     const onOpen = () => setShowTokenChain(true);
     window.addEventListener('floating-token-chain-open', onOpen);
     return () => window.removeEventListener('floating-token-chain-open', onOpen);
+  }, []);
+  // Ctrl+Shift+B — the keyboard twin of the vertical-logo magic link: fully
+  // hide / bring back the side nav (AdminSideNav listens for this event).
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.ctrlKey && e.shiftKey && (e.key === 'B' || e.key === 'b')) {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent('admin-sidenav-hidden-toggle'));
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, []);
 
   // Post-login success modal. `?oauth=success` is captured on the first render
@@ -2108,6 +2121,10 @@ function AppWithAuth() {
                             <Route
                               path="/privilege-mcp-diagrams"
                               element={<PrivilegeMcpDiagramPage />}
+                            />
+                            <Route
+                              path="/privilege-docs-index"
+                              element={<PrivilegeDocsIndexPage />}
                             />
                             <Route
                               path="/privilege-gateway-topologies"

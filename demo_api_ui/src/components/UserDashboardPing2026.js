@@ -8,6 +8,7 @@ import React, {
   useState,
 } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import SignInBrand from "./SignInBrand";
 import { useAgentUiMode } from "../context/AgentUiModeContext";
 import { useCurrentUserTokenEvent } from "../hooks/useCurrentUserTokenEvent";
 import apiClient from "../services/apiClient";
@@ -4015,6 +4016,9 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
       data-refined-surface="customer"
       data-rd-v2
     >
+      {/* Brand bar — the same logo + caps + name block the sign-in modal shows,
+          at the very top of every dashboard layout. */}
+      <SignInBrand />
       {/* ── Token | (split: agent + banking columns) | classic: banking + float reserve ── */}
       {agentPlacement === "middle" ? (
         <div

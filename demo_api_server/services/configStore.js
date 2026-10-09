@@ -427,6 +427,7 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   ff_use_cases_launcher:     { public: true, default: 'true'  }, // Use-Case Launcher page at /use-cases (A5)
   ff_error_classification_enabled: { public: true, default: 'true' }, // Comprehensive auth error classification + auto-retry transient errors
   ff_dpop:                   { public: true, default: 'false' }, // DPoP (Demonstration of Proof-of-Possession) for token requests (RFC 9449)
+  ff_mcp_discovery_before_call: { public: true, default: 'true' }, // MCP lifecycle: real tools/list through the gateway before every tools/call (default on; off drops the extra round trip)
   ff_private_key_jwt_token_exchange: { public: true, default: 'false' }, // BFF authenticates to token endpoint with signed JWT (RFC 7523) instead of client_secret
   ff_rfc9470_challenge:      { public: true, default: 'true'  }, // RFC 9470 step-up challenge support in authorization
   hitl_consent_mfa_mode:     { public: true, default: 'device_picker' }, // HITL consent MFA: 'device_picker' (SMS/email/passkey list, only at/above the
@@ -1160,6 +1161,7 @@ const ENV_FALLBACK_MAP = {
   ff_prompt_injection_guard:       ['FF_PROMPT_INJECTION_GUARD'],
   ff_jit_credentials:              ['FF_JIT_CREDENTIALS'],
   ff_mcp_gateway_pinggateway:      ['FF_MCP_GATEWAY_PINGGATEWAY'],
+  ff_mcp_discovery_before_call:    ['FF_MCP_DISCOVERY_BEFORE_CALL'],
   ff_privilege_llm_first:          ['FF_PRIVILEGE_LLM_FIRST'],
   ff_mcp_gateway_privilege_first:  ['FF_MCP_GATEWAY_PRIVILEGE_FIRST'],
   ff_mcp_gateway_jwks:             ['FF_MCP_GATEWAY_JWKS'],

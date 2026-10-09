@@ -14,7 +14,7 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import ChaseTopNav from "../components/ChaseTopNav";
+import ChaseTopNav from "./ChaseTopNav";
 
 // ── Mock heavy child components ───────────────────────────────────────────────
 vi.mock("../components/BrandLogo", () => ({ default: () => (
@@ -22,7 +22,7 @@ vi.mock("../components/BrandLogo", () => ({ default: () => (
 ) }));
 
 vi.mock(
-  "../components/TRiSMTrainingPanel",
+  "./TRiSMTrainingPanel",
   () => ({
     default: function TRiSMTrainingPanel({ isOpen, onClose }) {
       return isOpen ? (
@@ -40,7 +40,7 @@ vi.mock("../context/IndustryBrandingContext", () => ({
 }));
 
 // ── CSS import (no-op in Jest) ────────────────────────────────────────────────
-vi.mock("../components/ChaseTopNav.css", () => ({}), { virtual: true });
+vi.mock("./ChaseTopNav.css", () => ({}), { virtual: true });
 
 describe("ChaseTopNav", () => {
   // ── Brand area ──────────────────────────────────────────────────────────────

@@ -9,15 +9,15 @@
 import React from "react";
 import { act, render, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import bffAxios from "../../services/bffAxios";
-import { getCachedJson } from "../../services/cachedStatusService";
-import SessionExpiryTimer from "../SessionExpiryTimer";
+import bffAxios from "../services/bffAxios";
+import { getCachedJson } from "../services/cachedStatusService";
+import SessionExpiryTimer from "./SessionExpiryTimer";
 
-vi.mock("../../services/bffAxios", () => ({
+vi.mock("../services/bffAxios", () => ({
   __esModule: true,
   default: { get: vi.fn(), post: vi.fn(() => Promise.resolve({ data: {} })) },
 }));
-vi.mock("../../services/cachedStatusService", () => ({
+vi.mock("../services/cachedStatusService", () => ({
   getCachedJson: vi.fn(),
 }));
 

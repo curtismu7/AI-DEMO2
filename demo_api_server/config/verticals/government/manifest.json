@@ -4,6 +4,7 @@
   "identity": {
     "displayName": "CivicPermit",
     "headerTitle": "CivicPermit",
+    "brandCaps": "CIVICPERMIT",
     "documentTitle": "CivicPermit · PingOne AI IAM Core",
     "logoAlt": "CivicPermit logo",
     "tagline": "AI-Powered Citizen Permitting Demo",

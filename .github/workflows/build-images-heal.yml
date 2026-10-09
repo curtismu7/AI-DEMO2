@@ -1,0 +1,108 @@
+name: Heal images
+
+# A failed build-images job blocks a service forever: later merges whose diffs
+# don't touch that service never rebuild it (observed 2026-10-09 — the bff job
+# died with a transient buildx "graceful_stop" at 1e4ac9c5f, the airlines merge,
+# and no later merge retried it; SE ran on a stale BFF until hand-built).
+#
+# This workflow closes that gap. The signal is the run history itself: a
+# build-images job is named after its service key, so a service is stale
+# exactly when its most recent build attempt did not succeed. The detection
+# logic lives in scripts/ci-heal-stale.js and is unit-tested there. (An
+# earlier draft diffed GHCR tag digests instead; it IFS-split its key/image
+# pairs and compared against main's tip, which flagged every service the tip's
+# merge didn't touch — a nightly rebuild of everything.)
+#
+# A service whose latest attempt failed gets rebuilt via build-images with a
+# services filter — exactly the failed job, nothing else. Self-heals within a
+# day of any failed build; a no-op when everything is current.
+
+on:
+  schedule:
+    - cron: '17 9 * * *' # 09:17 UTC — after the nightly disk maintenance window
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: heal-images
+  cancel-in-progress: false
+
+jobs:
+  heal:
+    runs-on: [self-hosted, macOS]
+    permissions:
+      contents: read
+      actions: write # to dispatch build-images with the services filter
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Find services whose latest build attempt failed
+        id: stale
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          ./se-update-code.sh --print-map > map.json
+          # The run history is the signal: a build-images job is named after its
+          # service key, so a service is stale exactly when its most recent
+          # completed attempt did not succeed (scripts/ci-heal-stale.js).
+          # gh run list cannot return job lists, so this fetches each run's
+          # jobs by id, newest-first — the exact shape staleServices consumes.
+          # All gh invocations go through execFileSync with array args: no
+          # shell, no jq quoting to break.
+          node -e '
+            const { execFileSync } = require("child_process");
+            const fs = require("fs");
+            const { staleServices } = require("./scripts/ci-heal-stale.js");
+            const repo = process.env.GITHUB_REPOSITORY;
+            const ids = execFileSync("gh", ["run", "list", "--repo", repo,
+              "--workflow", "build-images.yml", "--limit", "200",
+              "--status", "completed", "--json", "databaseId",
+              "--jq", ".[].databaseId"], { encoding: "utf8" })
+              .split("\n").filter(Boolean);
+            // ponytail: 200 sequential API calls (~1 min, nightly); there is
+            // no batched jobs endpoint to paginate instead.
+            const gh = (args) => execFileSync("gh", args, { encoding: "utf8" });
+            // A transient TLS/API blip across 200 calls is a when, not an if;
+            // execFileSync throws on it. Retry thrice, then skip the run:
+            // its stale data stands in for one night, a crash heals nothing.
+            const jobs = (id) => {
+              for (let attempt = 1; ; attempt++) {
+                try {
+                  return JSON.parse(gh(["api",
+                    `repos/${repo}/actions/runs/${id}/jobs?per_page=100`]))
+                    .jobs.map((j) => ({ name: j.name, conclusion: j.conclusion }));
+                } catch (err) {
+                  if (attempt >= 3) {
+                    console.error(`[heal] run ${id}: jobs fetch failed after ` +
+                      `${attempt} tries — skipping (${String(err).split("\n")[0]})`);
+                    return null;
+                  }
+                  execFileSync("sleep", ["2"]);
+                }
+              }
+            };
+            const runs = ids.map(jobs).filter(Boolean);
+            const keys = JSON.parse(fs.readFileSync("map.json", "utf8"))
+              .map((e) => e.key);
+            const stale = staleServices(runs, keys);
+            fs.appendFileSync(process.env.GITHUB_OUTPUT,
+              `services=${stale.join(",")}\n`);
+            console.error("[heal] stale services: " + (stale.join(",") || "none"));
+          '
+
+      - name: Dispatch build-images for the stale subset
+        if: steps.stale.outputs.services != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SERVICES: ${{ steps.stale.outputs.services }}
+        run: |
+          gh workflow run build-images.yml \
+            --repo "${{ github.repository }}" \
+            --ref main \
+            -f services="$SERVICES"
+          echo "[heal] dispatched build-images for: $SERVICES" >&2

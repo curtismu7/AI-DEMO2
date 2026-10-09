@@ -32,6 +32,7 @@ export default function UserMenu({ user, onLogout, isAdminView = false, onSwitch
   }, []);
 
   const handleLogout = () => {
+    // Close the menu first so the dropdown doesn't overlay the confirmation.
     closeMenu();
     onLogout();
   };

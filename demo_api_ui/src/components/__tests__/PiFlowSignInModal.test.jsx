@@ -8,7 +8,7 @@ import path from 'node:path';
 import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import PiFlowSignInModal from '../PiFlowSignInModal';
 import { VerticalContext } from '../../vertical/VerticalProvider';
-import { navigateToCustomerOAuthLogin } from '../../utils/authUi';
+import { navigateToCustomerOAuthLogin, navigateToCustomerOAuthForceLogin, navigateToAdminOAuthLogin } from '../../utils/authUi';
 import { authenticateWebAuthn } from '../../utils/passkeyCeremony';
 
 vi.mock('../../utils/passkeyCeremony', () => ({ authenticateWebAuthn: vi.fn() }));
@@ -99,13 +99,37 @@ describe('PiFlowSignInModal', () => {
     mockBff({
       config: ON,
       login: () => ok({ flowId: 'f1' }),
-      credentials: () => ok({ fallback: true, status: 'OTP_REQUIRED' }),
+      credentials: () => ok({ fallback: true, status: 'DEVICE_SELECTION_REQUIRED' }),
     });
     await mountAndClick();
     fireEvent.change(await screen.findByLabelText('Username'), { target: { value: 'demo' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } });
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
     await waitFor(() => expect(window.location.href).toContain('/api/auth/oauth/user/login?return_to=%2Fdashboard'));
+  });
+
+  test('OTP_REQUIRED after the password: shows the code input and posts it to /pi-flow/otp', async () => {
+    mockBff({
+      config: ON,
+      login: () => ok({ flowId: 'f1' }),
+      credentials: () => ok({ step: 'otp' }),
+      assertion: () => ok({ redirectTo: 'https://app.test/api/auth/oauth/user/callback?code=c&state=s' }),
+    });
+    // Intercept the OTP step (not covered by mockBff) while keeping the spy.
+    const inner = global.fetch;
+    global.fetch = vi.fn((url, init) => {
+      if (String(url).includes('/pi-flow/otp')) return ok({ redirectTo: 'https://app.test/api/auth/oauth/user/callback?code=c&state=s' });
+      return inner(url, init);
+    });
+    await mountAndClick();
+    fireEvent.change(await screen.findByLabelText('Username'), { target: { value: 'demo' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    fireEvent.change(await screen.findByLabelText('Verification code'), { target: { value: '123456' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith('https://app.test/api/auth/oauth/user/callback?code=c&state=s'));
+    const otpCall = global.fetch.mock.calls.find(([u]) => String(u).includes('/pi-flow/otp'));
+    expect(JSON.parse(otpCall[1].body)).toEqual({ otp: '123456' });
   });
 
   test('BFF cannot open the flow: redirect login, no form left behind', async () => {
@@ -128,6 +152,21 @@ describe('PiFlowSignInModal', () => {
     await mountAndClick();
     await screen.findByLabelText('Username');
     expect(global.fetch.mock.calls.some(([u]) => String(u).includes('/login?') && String(u).includes('mfa=1'))).toBe(true);
+  });
+
+  test('force re-auth opens the modal and sends force=true alongside pi_flow=1', async () => {
+    mockBff({ config: ON, login: () => ok({ flowId: 'f1' }), credentials: () => ok({ redirectTo: 'https://app.test/api/auth/oauth/user/callback?code=c&state=s' }) });
+    render(<PiFlowSignInModal />);
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/admin/config'), expect.anything()));
+    await act(async () => { await Promise.resolve(); });
+    await act(async () => { navigateToCustomerOAuthForceLogin('/dashboard'); });
+    fireEvent.change(await screen.findByLabelText('Username'), { target: { value: 'demo' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith('https://app.test/api/auth/oauth/user/callback?code=c&state=s'));
+    const loginCall = global.fetch.mock.calls.find(([u]) => String(u).includes('/oauth/user/login'));
+    expect(String(loginCall[0])).toContain('pi_flow=1');
+    expect(String(loginCall[0])).toContain('force=true');
   });
 
   test('?signin=mfa on PingFederate goes straight to the hosted step-up login (no second password page)', async () => {
@@ -243,6 +282,159 @@ describe('PiFlowSignInModal', () => {
     });
   });
 
+  describe('admin pi.flow', () => {
+    const ADMIN_ON = { ...ON, PINGONE_ADMIN_AUTHORIZE_PI_FLOW: 'true' };
+
+    function mockAdminBff({ config, login, credentials }) {
+      global.fetch = vi.fn((url) => {
+        if (String(url).includes('/api/admin/config')) return ok({ config });
+        if (String(url).includes('/pi-flow/credentials')) return credentials();
+        if (String(url).includes('/oauth/login')) return login();
+        return ok({}, 404);
+      });
+    }
+
+    async function mountAndClickAdmin() {
+      render(<PiFlowSignInModal />);
+      await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/admin/config'), expect.anything()));
+      await act(async () => { await Promise.resolve(); });
+      await act(async () => { navigateToAdminOAuthLogin('/admin'); });
+    }
+
+    test('admin flag on: opens the modal on the admin route and posts admin credentials', async () => {
+      mockAdminBff({
+        config: ADMIN_ON,
+        login: () => ok({ flowId: 'fa', status: 'USERNAME_PASSWORD_REQUIRED' }),
+        credentials: () => ok({ redirectTo: 'https://app.test/api/auth/oauth/callback?code=c&state=s' }),
+      });
+      await mountAndClickAdmin();
+      fireEvent.change(await screen.findByLabelText('Username'), { target: { value: 'demoAdmin' } });
+      fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+      await waitFor(() => expect(assign).toHaveBeenCalledWith('https://app.test/api/auth/oauth/callback?code=c&state=s'));
+      expect(document.querySelector('.pi-flow-signin--admin')).not.toBeNull();
+    });
+
+    test('admin flag off: navigateToAdminOAuthLogin keeps the plain redirect', async () => {
+      mockAdminBff({
+        config: ON,
+        login: () => ok({}),
+        credentials: () => ok({}),
+      });
+      await mountAndClickAdmin();
+      await waitFor(() => expect(window.location.href).toContain('/api/auth/oauth/login?return_to=%2Fadmin'));
+      expect(screen.queryByLabelText('Username')).toBeNull();
+    });
+
+    test('customer flag on but admin flag off: customer modal still works', async () => {
+      // mockBff serves the customer route (/oauth/user/login); config ON leaves
+      // the admin flag unset, so only the customer dispatch may open the modal.
+      mockBff({
+        config: ON,
+        login: () => ok({ flowId: 'f1' }),
+        credentials: () => ok({}),
+      });
+      render(<PiFlowSignInModal />);
+      await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/admin/config'), expect.anything()));
+      // Fetch -> res.json() -> setState takes more than one microtask hop; flush
+      // until the config chain has settled before dispatching.
+      await act(async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); });
+      await act(async () => { navigateToCustomerOAuthLogin('/dashboard'); });
+      expect(await screen.findByLabelText('Username')).toBeInTheDocument();
+    });
+  });
+
+  describe('passwordless (device step)', () => {
+    function mockPasswordlessBff({ passwordless }) {
+      global.fetch = vi.fn((url) => {
+        if (String(url).includes('/api/admin/config')) return ok({ config: ON });
+        if (String(url).includes('/pi-flow/passwordless')) return passwordless();
+        if (String(url).includes('/oauth/user/login')) return ok({ flowId: 'f1', status: 'USERNAME_PASSWORD_REQUIRED' });
+        return ok({}, 404);
+      });
+    }
+
+    async function toDeviceStep() {
+      await mountAndClick();
+      fireEvent.click(await screen.findByRole('button', { name: 'Use a device instead' }));
+      return screen.findByLabelText('Username');
+    }
+
+    test('the password form offers "Use a device instead"; switching shows the device form', async () => {
+      mockPasswordlessBff({ passwordless: () => ok({}) });
+      await toDeviceStep();
+      expect(screen.getByRole('button', { name: 'Use your password instead' })).toBeInTheDocument();
+      expect(screen.queryByLabelText('Password')).toBeNull();
+    });
+
+    test('device submit posts only the username to /pi-flow/passwordless; OTP_REQUIRED moves to the code form', async () => {
+      mockPasswordlessBff({ passwordless: () => ok({ step: 'otp' }) });
+      const usernameInput = await toDeviceStep();
+      fireEvent.change(usernameInput, { target: { value: 'demo' } });
+      const submit = screen.getAllByRole('button', { name: 'Sign in' }).pop();
+      fireEvent.click(submit);
+      fireEvent.change(await screen.findByLabelText('Verification code'), { target: { value: '123456' } });
+      const call = global.fetch.mock.calls.find(([u]) => String(u).includes('/pi-flow/passwordless'));
+      expect(String(call[0])).toContain('/api/auth/oauth/user/pi-flow/passwordless');
+      expect(JSON.parse(call[1].body)).toEqual({ username: 'demo' });
+    });
+
+    test('admin role posts to the admin router path', async () => {
+      global.fetch = vi.fn((url) => {
+        if (String(url).includes('/api/admin/config')) return ok({ config: { ...ON, PINGONE_ADMIN_AUTHORIZE_PI_FLOW: 'true' } });
+        if (String(url).includes('/pi-flow/passwordless')) return ok({ step: 'otp' });
+        if (String(url).includes('/oauth/login')) return ok({ flowId: 'fa', status: 'USERNAME_PASSWORD_REQUIRED' });
+        return ok({}, 404);
+      });
+      render(<PiFlowSignInModal />);
+      await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/admin/config'), expect.anything()));
+      await act(async () => { await Promise.resolve(); });
+      await act(async () => { navigateToAdminOAuthLogin('/admin'); });
+      fireEvent.click(await screen.findByRole('button', { name: 'Use a device instead' }));
+      fireEvent.change(await screen.findByLabelText('Username'), { target: { value: 'demoAdmin' } });
+      fireEvent.click(screen.getAllByRole('button', { name: 'Sign in' }).pop());
+      await waitFor(() => {
+        const call = global.fetch.mock.calls.find(([u]) => String(u).includes('/pi-flow/passwordless'));
+        expect(String(call[0])).toContain('/api/auth/oauth/pi-flow/passwordless');
+      });
+    });
+
+    test('409 passwordless_unavailable shows the message and returns to the password form', async () => {
+      mockPasswordlessBff({ passwordless: () => ok({ error: 'passwordless_unavailable', message: 'This account requires a password. Sign in with your password.' }, 409) });
+      const usernameInput = await toDeviceStep();
+      fireEvent.change(usernameInput, { target: { value: 'demo' } });
+      fireEvent.click(screen.getAllByRole('button', { name: 'Sign in' }).pop());
+      expect(await screen.findByText(/This account requires a password/)).toBeInTheDocument();
+      expect(screen.getByLabelText('Password')).toBeInTheDocument();
+      // The typed username survives the round trip.
+      expect(screen.getByLabelText('Username')).toHaveValue('demo');
+    });
+
+    test('"Use your password instead" switches back, preserving username and password', async () => {
+      mockPasswordlessBff({ passwordless: () => ok({}) });
+      await mountAndClick();
+      fireEvent.change(await screen.findByLabelText('Username'), { target: { value: 'demo' } });
+      fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Use a device instead' }));
+      await screen.findByRole('button', { name: 'Use your password instead' });
+      fireEvent.click(screen.getByRole('button', { name: 'Use your password instead' }));
+      expect(await screen.findByLabelText('Password')).toHaveValue('pw');
+      expect(screen.getByLabelText('Username')).toHaveValue('demo');
+    });
+
+    test('ignores a second submit while busy', async () => {
+      let release;
+      mockPasswordlessBff({ passwordless: () => new Promise((r) => { release = r; }) });
+      const usernameInput = await toDeviceStep();
+      fireEvent.change(usernameInput, { target: { value: 'demo' } });
+      const submit = screen.getAllByRole('button', { name: 'Sign in' }).pop();
+      fireEvent.click(submit);
+      fireEvent.click(submit);
+      expect(global.fetch.mock.calls.filter(([u]) => String(u).includes('/pi-flow/passwordless'))).toHaveLength(1);
+      release(ok({ step: 'otp' }));
+    });
+  });
+
   describe('vertical branding', () => {
     const open = () => ({
       config: ON,
@@ -256,6 +448,23 @@ describe('PiFlowSignInModal', () => {
       expect(await screen.findByText('PingOne Admin')).toBeInTheDocument();
       // alt="" on purpose: the name is printed beside it, so the image is decorative.
       expect(document.querySelector('.pi-flow-signin__logo')).toHaveAttribute('src', '/branding/ping-logo.svg');
+    });
+
+    test('brandCaps renders as the bold caps segment before the full name', async () => {
+      mockBff(open());
+      await mountAndClick({ displayName: 'United Airlines', brandCaps: 'UNITED', logoPath: '/branding/united-airlines-logo.svg' });
+      expect(await screen.findByText('United Airlines')).toBeInTheDocument();
+      const caps = document.querySelector('.pi-flow-signin__brand-caps');
+      expect(caps).not.toBeNull();
+      expect(caps).toHaveTextContent('UNITED');
+      expect(caps.parentElement).toHaveTextContent('United Airlines');
+    });
+
+    test('no brandCaps: the bar shows the name alone, no empty caps segment', async () => {
+      mockBff(open());
+      await mountAndClick({ displayName: 'Some Vertical' });
+      expect(await screen.findByText('Some Vertical')).toBeInTheDocument();
+      expect(document.querySelector('.pi-flow-signin__brand-caps')).toBeNull();
     });
 
     test('headerTitle wins over displayName, like the top nav', async () => {
@@ -272,11 +481,13 @@ describe('PiFlowSignInModal', () => {
       expect(document.querySelector('.pi-flow-signin__logo')).toBeNull();
     });
 
-    test('no vertical provider (or no identity): no header, form still works', async () => {
+    test('no vertical provider (or no identity): welcome hero without a logo, form still works', async () => {
       mockBff(open());
       await mountAndClick();
       expect(await screen.findByLabelText('Username')).toBeInTheDocument();
-      expect(document.querySelector('.pi-flow-signin__brand')).toBeNull();
+      expect(document.querySelector('.pi-flow-signin__hero')).not.toBeNull();
+      expect(document.querySelector('.pi-flow-signin__logo')).toBeNull();
+      expect(screen.getByText('Welcome back')).toBeInTheDocument();
     });
 
     test('the PingOne Admin vertical is wired to the Ping logo, and the file exists', () => {
@@ -300,15 +511,49 @@ describe('PiFlowSignInModal', () => {
       expect(missing).toEqual([]);
     });
 
-    test('every vertical that declares a logo points at a file that exists', () => {
+    test('every vertical that declares a logo points at a real file or a brand CDN URL', () => {
       const root = path.resolve(__dirname, '../../../..');
       const dir = path.join(root, 'demo_api_server/config/verticals');
       for (const id of fs.readdirSync(dir)) {
         const file = path.join(dir, id, 'manifest.json');
         if (!fs.existsSync(file)) continue;
         const logoPath = JSON.parse(fs.readFileSync(file, 'utf8')).identity?.logoPath;
-        if (logoPath) expect(fs.existsSync(path.join(root, 'demo_api_ui/public', logoPath)), `${id}: ${logoPath}`).toBe(true);
+        if (!logoPath) continue;
+        if (/^https?:\/\//.test(logoPath)) {
+          // Real-company verticals reference the Brandfetch CDN (lockup assets
+          // served by the brand), not a repo file.
+          expect(logoPath, `${id}: CDN logo`).toMatch(/^https:\/\/cdn\.brandfetch\.io\//);
+        } else {
+          expect(fs.existsSync(path.join(root, 'demo_api_ui/public', logoPath)), `${id}: ${logoPath}`).toBe(true);
+        }
       }
+    });
+
+    test('demo verticals declare brandCaps, lockup verticals and admin surfaces do not', () => {
+      const root = path.resolve(__dirname, '../../../..');
+      const dir = path.join(root, 'demo_api_server/config/verticals');
+      // Lockup verticals: real companies whose Brandfetch logo carries its own
+      // wordmark — caps would print the name twice (SignInBrand suppresses it).
+      const LOCKUP = ['airlines', 'abercrombie-fitch'];
+      const noCaps = [];
+      const lockupWithCaps = [];
+      const adminWithCaps = [];
+      for (const id of fs.readdirSync(dir)) {
+        const file = path.join(dir, id, 'manifest.json');
+        if (!fs.existsSync(file)) continue;
+        const manifest = JSON.parse(fs.readFileSync(file, 'utf8'));
+        const caps = manifest.identity?.brandCaps;
+        if (['admin', 'admin-console', 'pingone-admin'].includes(id)) {
+          if (caps) adminWithCaps.push(id);
+        } else if (LOCKUP.includes(id)) {
+          if (caps) lockupWithCaps.push(id);
+        } else if (!caps) {
+          noCaps.push(id);
+        }
+      }
+      expect(noCaps).toEqual([]);
+      expect(lockupWithCaps).toEqual([]);
+      expect(adminWithCaps).toEqual([]);
     });
   });
 });

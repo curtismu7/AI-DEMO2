@@ -22,6 +22,7 @@ import UserMenu from "./UserMenu";
 import FavoritesMenu from "./FavoritesMenu";
 import VerticalSwitcher from "./VerticalSwitcher";
 import OAuthProviderToggle from "./OAuthProviderToggle";
+import ConfirmModal from "./ConfirmModal";
 import "./TopNav.css";
 
 // Curated react-icons/md set selectable per vertical via manifest identity.icon.
@@ -48,6 +49,28 @@ export default function TopNav({ user, onLogout }) {
   const brandName = (identity && (identity.headerTitle || identity.displayName)) || 'AI Demo';
   // Per-vertical brand icon (manifest identity.icon); unknown/absent → bank icon.
   const BrandIcon = (identity && BRAND_ICONS[identity.icon]) || MdAccountBalance;
+  // Ping-branded surfaces keep the Ping Identity mark; a customer vertical's
+  // page shows only that vertical's brand. Admin/setup routes are Ping surfaces
+  // regardless of the active vertical.
+  const PING_SURFACE_VERTICALS = ['admin', 'admin-console', 'pingone-admin', 'oauth-teaching', 'a2a'];
+  const onPingSurfaceRoute =
+    location.pathname.startsWith('/admin') ||
+    location.pathname.startsWith('/setup') ||
+    location.pathname.startsWith('/pingone');
+  const showPingMark =
+    onPingSurfaceRoute ||
+    !pageManifest ||
+    PING_SURFACE_VERTICALS.includes(pageManifest?.id) ||
+    !identity?.logoPath;
+  // The vertical logo is a magic link: click toggles the side nav fully
+  // hidden/shown (same event the Ctrl+Shift+B sequence fires).
+  const toggleSidenav = () => window.dispatchEvent(new CustomEvent('admin-sidenav-hidden-toggle'));
+
+  // Sign Out asks first — an accidental sign-out kills the token chain and
+  // the live demo mid-run. The modal interposes; performLogout semantics
+  // (token revocation, PingOne signoff) stay untouched behind it.
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const requestLogout = () => setShowLogoutConfirm(true);
 
   // After Run/Open from /use-cases, show a clear "← Use Cases" control in the top bar.
   const [fromUseCases, setFromUseCases] = useState(() => cameFromUseCases());
@@ -134,20 +157,28 @@ export default function TopNav({ user, onLogout }) {
     <header className="topnav">
       <div className="topnav-container">
 
-        {/* Left: Brand */}
+        {/* Left: Brand — Ping mark on Ping surfaces, vertical logo elsewhere.
+            On a customer vertical the logo doubles as the sidenav magic link. */}
         <div className="topnav-left">
-          <div className="topnav-ping-identity" aria-label="Ping Identity">
-            <img
-              src="/assets/ping-identity-logo.png"
-              alt="Ping Identity"
-              className="topnav-ping-identity-logo"
-            />
-          </div>
+          {showPingMark ? (
+            <div className="topnav-ping-identity" aria-label="Ping Identity">
+              <img
+                src="/assets/ping-identity-logo.png"
+                alt="Ping Identity"
+                className="topnav-ping-identity-logo"
+              />
+            </div>
+          ) : null}
           <button
             type="button"
             className="topnav-brand"
-            onClick={() => navigate(user?.role === 'admin' ? '/admin' : '/dashboard')}
-            aria-label="Go to dashboard"
+            onClick={showPingMark
+              ? () => navigate(user?.role === 'admin' ? '/admin' : '/dashboard')
+              : toggleSidenav}
+            title={showPingMark
+              ? 'Go to dashboard'
+              : 'Toggle side navigation (Ctrl+Shift+B)'}
+            aria-label={showPingMark ? 'Go to dashboard' : 'Toggle side navigation'}
           >
             {identity?.logoPath
               ? <img src={identity.logoPath} alt={identity.logoAlt || brandName} className="topnav-brand-logo" />
@@ -414,7 +445,7 @@ export default function TopNav({ user, onLogout }) {
 
             {/* Auth button — Sign Out only when token is confirmed active */}
             {hasActiveToken ? (
-              <button type="button" className="topnav-login-btn topnav-logout-btn" onClick={() => onLogout?.()}>
+              <button type="button" className="topnav-login-btn topnav-logout-btn" onClick={requestLogout}>
                 <MdLogout size={18} />
                 <span>Sign Out</span>
               </button>
@@ -429,13 +460,23 @@ export default function TopNav({ user, onLogout }) {
           {/* User menu — always visible, never scrolls off */}
           <UserMenu
             user={user}
-            onLogout={onLogout}
+            onLogout={requestLogout}
             isAdminView={isAdminView}
             onSwitchView={handleSwitchRole}
           />
         </div>
 
       </div>
+
+      <ConfirmModal
+        isOpen={showLogoutConfirm}
+        title="Sign out?"
+        message="This ends your session and clears the live token chain. Sign back in to continue."
+        confirmLabel="Sign Out"
+        danger
+        onConfirm={() => { setShowLogoutConfirm(false); onLogout?.(); }}
+        onCancel={() => setShowLogoutConfirm(false)}
+      />
     </header>
   );
 }

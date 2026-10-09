@@ -340,6 +340,12 @@ export function setPiFlowSignInAvailable(value) {
   piFlowSignInAvailable = Boolean(value);
 }
 
+let adminPiFlowSignInAvailable = false;
+/** Set by PiFlowSignInModal when the BFF reports admin pi.flow enabled. */
+export function setAdminPiFlowSignInAvailable(value) {
+  adminPiFlowSignInAvailable = Boolean(value);
+}
+
 /**
  * Redirect to customer (end-user) OAuth Backend-for-Frontend (BFF) route.
  * @param {string} [returnTo] - app path to land on after login (BFF `return_to`).
@@ -387,6 +393,13 @@ export function navigateToCustomerOAuthForceLogin(returnTo) {
 
   // force=true is already in the query, so return_to joins with &.
   const suffix = destination ? `&return_to=${encodeURIComponent(destination)}` : '';
+  // The modal can drive a forced re-auth too (prompt=login is sent server-side);
+  // fall back to the redirect when it is not available or does not handle it.
+  if (piFlowSignInAvailable && typeof window !== 'undefined') {
+    const detail = { returnTo: destination, force: true, handled: false };
+    window.dispatchEvent(new CustomEvent(PI_FLOW_SIGNIN_EVENT, { detail }));
+    if (detail.handled) return;
+  }
   navigateWithOverlay(`${apiUrl}/api/auth/oauth/user/login?force=true${suffix}`, { message: 'Signing in...' });
 }
 
@@ -402,6 +415,14 @@ export function navigateToAdminOAuthLogin(returnTo) {
   if (!destination && typeof window !== 'undefined') {
     const currentPath = window.location.pathname;
     destination = currentPath === '/' ? '/dashboard' : currentPath;
+  }
+
+  // Same redirect-free path as the customer sign-in when PiFlowSignInModal has
+  // admin pi.flow available (setAdminPiFlowSignInAvailable); otherwise redirect.
+  if (adminPiFlowSignInAvailable && typeof window !== 'undefined') {
+    const detail = { returnTo: destination, role: 'admin', handled: false };
+    window.dispatchEvent(new CustomEvent(PI_FLOW_SIGNIN_EVENT, { detail }));
+    if (detail.handled) return;
   }
 
   const suffix = destination ? `?return_to=${encodeURIComponent(destination)}` : '';

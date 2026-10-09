@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import DashboardQuickNav from "../DashboardQuickNav";
+import DashboardQuickNav from "./DashboardQuickNav";
 
 /**
  * The stack height is owned by CSS: `--quick-nav-stack-height` resolves to

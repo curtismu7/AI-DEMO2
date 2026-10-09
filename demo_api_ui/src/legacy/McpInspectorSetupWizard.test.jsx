@@ -6,7 +6,7 @@ import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import McpInspectorSetupWizard from '../McpInspectorSetupWizard';
+import McpInspectorSetupWizard from './McpInspectorSetupWizard';
 
 const STORAGE_KEY = 'mcpInspectorWizard.v1';
 
