@@ -359,6 +359,23 @@ describe('PiFlowSignInModal', () => {
       expect(document.querySelector('.pi-flow-signin__logo')).toHaveAttribute('src', '/branding/ping-logo.svg');
     });
 
+    test('brandCaps renders as the bold caps segment before the full name', async () => {
+      mockBff(open());
+      await mountAndClick({ displayName: 'United Airlines', brandCaps: 'UNITED', logoPath: '/branding/united-airlines-logo.svg' });
+      expect(await screen.findByText('United Airlines')).toBeInTheDocument();
+      const caps = document.querySelector('.pi-flow-signin__brand-caps');
+      expect(caps).not.toBeNull();
+      expect(caps).toHaveTextContent('UNITED');
+      expect(caps.parentElement).toHaveTextContent('United Airlines');
+    });
+
+    test('no brandCaps: the bar shows the name alone, no empty caps segment', async () => {
+      mockBff(open());
+      await mountAndClick({ displayName: 'Some Vertical' });
+      expect(await screen.findByText('Some Vertical')).toBeInTheDocument();
+      expect(document.querySelector('.pi-flow-signin__brand-caps')).toBeNull();
+    });
+
     test('headerTitle wins over displayName, like the top nav', async () => {
       mockBff(open());
       await mountAndClick({ displayName: 'Super Sports', headerTitle: 'Super Sports Pro' });
@@ -412,6 +429,25 @@ describe('PiFlowSignInModal', () => {
         const logoPath = JSON.parse(fs.readFileSync(file, 'utf8')).identity?.logoPath;
         if (logoPath) expect(fs.existsSync(path.join(root, 'demo_api_ui/public', logoPath)), `${id}: ${logoPath}`).toBe(true);
       }
+    });
+
+    test('every non-admin vertical declares brandCaps, and admin surfaces do not', () => {
+      const root = path.resolve(__dirname, '../../../..');
+      const dir = path.join(root, 'demo_api_server/config/verticals');
+      const noCaps = [];
+      const adminWithCaps = [];
+      for (const id of fs.readdirSync(dir)) {
+        const file = path.join(dir, id, 'manifest.json');
+        if (!fs.existsSync(file)) continue;
+        const caps = JSON.parse(fs.readFileSync(file, 'utf8')).identity?.brandCaps;
+        if (['admin', 'admin-console', 'pingone-admin'].includes(id)) {
+          if (caps) adminWithCaps.push(id);
+        } else if (!caps) {
+          noCaps.push(id);
+        }
+      }
+      expect(noCaps).toEqual([]);
+      expect(adminWithCaps).toEqual([]);
     });
   });
 });

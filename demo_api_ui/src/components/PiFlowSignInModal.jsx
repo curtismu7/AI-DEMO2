@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import DraggableModal from "./DraggableModal";
 import { ForgotPasswordLink } from "./ForgotPasswordFlow";
 import {
@@ -8,7 +8,7 @@ import {
 } from "../utils/authUi";
 import { navigateWithOverlay } from "../utils/navigateWithOverlay";
 import { authenticateWebAuthn } from "../utils/passkeyCeremony";
-import { VerticalContext } from "../vertical/VerticalProvider";
+import SignInBrand from "./SignInBrand";
 
 const apiBase = () =>
   process.env.REACT_APP_API_URL ||
@@ -48,11 +48,6 @@ function redirectLogin(returnTo, role, force) {
  * flow) falls back to that redirect login.
  */
 export default function PiFlowSignInModal() {
-  // The context directly, not useVertical(): this mounts above the pages that
-  // need a Router, and signed-out visitors still get identity + theme from
-  // /api/verticals/me, which is all the header needs.
-  const identity = useContext(VerticalContext)?.pageManifest?.identity;
-  const brandName = identity?.headerTitle || identity?.displayName || "";
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -314,19 +309,7 @@ export default function PiFlowSignInModal() {
       }
     >
       <div className="dm-scroll">
-        <div className="pi-flow-signin__hero">
-          {identity?.logoPath ? (
-            <img
-              className="pi-flow-signin__logo"
-              src={identity.logoPath}
-              alt={identity.logoAlt || ""}
-            />
-          ) : null}
-          <div className="pi-flow-signin__hero-text">
-            <p className="pi-flow-signin__welcome">{welcome}</p>
-            {brandName ? <p className="pi-flow-signin__brand-name">{brandName}</p> : null}
-          </div>
-        </div>
+        <SignInBrand welcome={welcome} />
         {step === "passkey" ? (
           <div className="pi-flow-signin__form">
             <p className="signin-modal__text">Verify it is you with your passkey.</p>

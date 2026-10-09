@@ -1,5 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="United Airlines">
-  <rect x="1" y="1" width="62" height="62" rx="13" fill="#fff" stroke="#002244" stroke-width="2"/>
-  <polygon points="10,30 54,12 40,52 30,38" fill="#002244"/>
-  <polygon points="30,38 54,12 34,32" fill="#1414D2"/>
+  <!-- United: globe + tail on the navy header color; the "UNITED" caps label in
+       the sign-in hero bar (identity.brandCaps) carries the wordmark. -->
+  <rect width="64" height="64" rx="14" fill="#002244"/>
+  <circle cx="32" cy="30" r="14.5" fill="none" stroke="#ffffff" stroke-width="2.4"/>
+  <ellipse cx="32" cy="30" rx="6" ry="14.5" fill="none" stroke="#8fb0e8" stroke-width="1.5"/>
+  <path d="M18 30h28M20.5 24.5h23M20.5 35.5h23" stroke="#8fb0e8" stroke-width="1.5" fill="none"/>
+  <path d="M21.5 40 L46.5 21.5 L39 42 Z" fill="#3b6ff0" opacity="0.92"/>
 </svg>
