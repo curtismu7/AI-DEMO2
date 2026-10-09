@@ -1,0 +1,182 @@
+/* demo_api_ui/src/pages/PrivilegeDocsIndexPage.css
+ *
+ * --th-* tokens only (they flip under :root[data-theme="dark"]); no dark block,
+ * no prefers-color-scheme. Font sizes come from the --font-size-* scale.
+ * Mirrors the token conventions of JevLearningPage.css / A2AProtocolLearningPage.css.
+ */
+
+.pdi-page {
+  min-height: 100vh;
+  background: var(--th-bg-page);
+  color: var(--th-text-body);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+}
+
+.pdi-header {
+  padding: 2rem 3rem 1.5rem;
+  border-bottom: 1px solid var(--th-border);
+  background: var(--th-bg-band);
+  color: var(--th-text-invert);
+}
+
+.pdi-header-inner {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+.pdi-eyebrow {
+  margin: 0 0 0.5rem;
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--th-text-invert);
+  opacity: 0.75;
+}
+
+.pdi-header h1 {
+  margin: 0 0 0.5rem;
+  font-size: var(--font-size-h1);
+}
+
+.pdi-sub {
+  margin: 0;
+  max-width: 78ch;
+  font-size: var(--font-size-sm);
+  opacity: 0.85;
+}
+
+.pdi-body {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3rem;
+}
+
+.pdi-search input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+}
+
+.pdi-search input:focus-visible {
+  outline: 2px solid var(--th-bg-emphasis);
+  outline-offset: 1px;
+}
+
+.pdi-section h2 {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 2rem 0 0.75rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--th-border);
+  font-size: var(--font-size-h3);
+  color: var(--th-text);
+}
+
+.pdi-count {
+  font-size: var(--font-size-xs);
+  font-weight: 400;
+  color: var(--th-text-muted);
+}
+
+.pdi-tablewrap {
+  overflow-x: auto;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  background: var(--th-bg-card);
+}
+
+.pdi-tablewrap table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 640px;
+}
+
+.pdi-tablewrap th,
+.pdi-tablewrap td {
+  padding: 0.65rem 0.9rem;
+  border-bottom: 1px solid var(--th-border);
+  vertical-align: top;
+  text-align: left;
+  font-size: var(--font-size-sm);
+}
+
+.pdi-tablewrap thead th {
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--th-text-muted);
+  background: var(--th-bg-inset);
+}
+
+.pdi-tablewrap tbody th[scope="row"] {
+  font-weight: 600;
+  color: var(--th-text);
+  width: 30%;
+  min-width: 0;
+}
+
+.pdi-tablewrap tbody tr:last-child th,
+.pdi-tablewrap tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.pdi-tablewrap a {
+  color: var(--th-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.pdi-tablewrap a:hover {
+  color: var(--th-text-body);
+}
+
+.pdi-fname {
+  display: block;
+  margin-top: 0.25rem;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: var(--font-size-xs);
+  font-weight: 400;
+  color: var(--th-text-muted);
+  word-break: break-all;
+}
+
+.pdi-none {
+  color: var(--th-text-muted);
+}
+
+.pdi-planned-note {
+  margin: 0 0 0.75rem;
+  font-size: var(--font-size-sm);
+  color: var(--th-text-muted);
+}
+
+.pdi-planned-note code {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: var(--font-size-xs);
+  background: var(--th-bg-inset);
+  border-radius: var(--radius-sm);
+  padding: 0.1rem 0.35rem;
+}
+
+.pdi-empty {
+  margin: 2rem 0;
+  color: var(--th-text-muted);
+}
+
+.pdi-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

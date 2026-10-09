@@ -1171,6 +1171,7 @@ export default function AdminSideNav({
           searchAlias: "standalone demo launcher live cloud PingOne presenter",
         },
         { label: "Learning Hub", path: "/learning", icon: "doc" },
+        { label: "Privilege Docs Index", path: "/privilege-docs-index", icon: "doc" },
         {
           label: "Learning Hub (Web Mirror)",
           icon: "doc",
@@ -1506,6 +1507,7 @@ export default function AdminSideNav({
     ], "arc"),
     productGroup("Architecture & Learning", [
       "Learning Hub",
+      "Privilege Docs Index",
       { label: "Page Catalog", path: "/page-catalog" },
       "SPIFFE → PingOne Bridge (TODO)",
       "llama-vscode Guide",
