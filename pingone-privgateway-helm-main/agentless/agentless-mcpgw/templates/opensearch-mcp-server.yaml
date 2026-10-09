@@ -1,4 +1,14 @@
-{{- if .Values.opensearchMcpServer.enabled }}
+{{- /* The Service renders whenever the adapter exists in ANY form — standalone
+      (opensearchMcpServer.enabled) or as a gateway-pod sidecar (extraContainers).
+      It always selects the GATEWAY pod on the sidecar's port 9900 so the
+      console's registered backend URL (http://opensearch-mcp-server:9900/mcp)
+      keeps resolving to a live listener across both layouts. */ -}}
+{{- $standalone := .Values.opensearchMcpServer.enabled }}
+{{- $sidecar := false }}
+{{- range .Values.extraContainers }}
+{{- if eq .name "opensearch-mcp-server" }}{{- $sidecar = true }}{{- end }}
+{{- end }}
+{{- if or $standalone $sidecar }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -9,12 +19,14 @@ metadata:
 spec:
   type: ClusterIP
   selector:
-    app: opensearch-mcp-server
+    app: {{ include "agentless-mcpgw.name" . }}
   ports:
     - name: http
-      port: 80
+      port: 9900
       targetPort: 9900
 ---
+{{- end }}
+{{- if $standalone }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
