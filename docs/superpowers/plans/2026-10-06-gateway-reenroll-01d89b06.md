@@ -8,7 +8,7 @@
 
 ## Why the OIDC-only repoint failed (measured 2026-10-06)
 
-`agentless-mcpgw` (Helm rev 65) was pointed at a new "AI Gateway" OIDC app in `01d89b06`
+`agentless-mcpgw` (Helm rev 65) was pointed at a new "Agent Privilege" OIDC app in `01d89b06`
 (`f03578d3-c068-4448-a5fd-d27c5fc9df44`, secret in the vault as
 `PRIVILEGE_GATEWAY_OIDC_CLIENT_SECRET`). Login worked and skipped the federation hop, but every call to
 `opensearch22` was refused:

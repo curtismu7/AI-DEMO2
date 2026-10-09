@@ -158,7 +158,7 @@ Secret from the same newline-free source.
 |---|---|
 | Privilege application | `mcp-grafana` (created from the console's **Add Grafana** catalog wizard) |
 | MCP client URL | `https://mcpgw.ai-demo.ping-devops.com/mcp-grafana/mcp` |
-| AI Gateway | `ai-demo-cmuir — https://mcpgw.ai-demo.ping-devops.com` |
+| Agent Privilege | `ai-demo-cmuir — https://mcpgw.ai-demo.ping-devops.com` |
 | Backend Name | `http://localhost:8081/mcp` — edited off the 8080 default, see below |
 | Auth Mode | None |
 | Server | `demo_mcp_grafana/`, image `ghcr.io/cmuir_pingcorp/ai-demo-mcp-grafana:latest` |
@@ -264,7 +264,7 @@ This is the actual, real root cause of every "unauthorized"/broken-login
 symptom hit while wiring this up — **not** a reappearance of the historical
 "PingOne token wall" documented in the `privilege-cloud-mcp` skill (see that
 skill's "Read this first" section — item 0 already says OAuth is run with the
-AI Gateway in the field; the skill's own memory note now flags the "token
+Agent Privilege in the field; the skill's own memory note now flags the "token
 wall" table as stale as of this date).
 
 `kubectl get secret agentless-mcpgw-oidc-config -n ping-devops-cmuir -o
@@ -440,7 +440,7 @@ or obsolete callback URLs unless another deployed application still uses them.
 Generate the token from Privilege console > Gateways > Add New > Add via Docker.
 
 ![Gateways page](../docs/screenshots/privilege-console-setup/privilege-gateways.png)
-*Directory > Gateways: the enrolled AI Gateway cluster (node count and status). Add New starts the enrollment-token wizard.*
+*Directory > Gateways: the enrolled Agent Privilege cluster (node count and status). Add New starts the enrollment-token wizard.*
 Before installation, validate the JWT payload without printing the token:
 
 - `clusterID` must be `ai-demo-cmuir`

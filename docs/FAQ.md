@@ -149,7 +149,7 @@ Never leave these on after a demo.
 | `ff_rar` | OFF | Intent binding (UC14, UC14b). The amount cap also needs the `RarMaxAmount` rule imported into PingOne Authorize. |
 | `ff_dpop` | OFF | Binds tokens to a key for the replay demo (UC12). |
 | `ff_mcp_gateway_jwks` | OFF | ON validates tokens locally with JWKS instead of introspection. It's faster but can't see revoked tokens. |
-| `ff_mcp_gateway_privilege_first` | OFF | Puts the PingOne Privilege AI Gateway in front of the Agent Gateway. SE cluster only. |
+| `ff_mcp_gateway_privilege_first` | OFF | Puts the PingOne Agent Privilege in front of the Agent Gateway. SE cluster only. |
 | `ff_knowledge_grounding` | OFF | Grounds the agent's answers in the citable facts in `graphify-out/banking-domain.kb.json`. |
 
 ### "I flipped the flag and nothing changed"
@@ -187,7 +187,7 @@ The mapping comes from the code, and the app names were checked against the envi
 | Claude Code's banking-gateway login fails | Claude Code - Banking Gateway | `GATEWAY_OAUTH_BROKER_PINGONE_CLIENT_ID` (pinned in `docker-compose.yml`) |
 | Grafana's PingOne sign-in fails (local admin still works) | Demo AI App - Grafana Login | `GRAFANA_PINGONE_CLIENT_ID` (default pinned in `docker-compose.yml`) |
 | A Management API call fails | Check `PINGONE_MGMT_*` / `PINGONE_MANAGEMENT_*` first. If those are unset, the call uses Demo AI App - Admin Login **before** the worker. | See `pingone_mgmt_client_id` in `services/configStore.js` |
-| Privilege AI Gateway sign-in fails with `invalid_client` | The gateway's OIDC client in the Privilege tenant (`0428ba4f`), not this environment | `PRIVILEGE_SSO_CLIENT_ID`; the vault holds the real secret |
+| Agent Privilege sign-in fails with `invalid_client` | The gateway's OIDC client in the Privilege tenant (`0428ba4f`), not this environment | `PRIVILEGE_SSO_CLIENT_ID`; the vault holds the real secret |
 
 ### Every app the demo uses
 
@@ -211,7 +211,7 @@ The mapping comes from the code, and the app names were checked against the envi
 | Demo AI App - Fraud Watch Agent, Demo AI App - Balance Sweep Agent | Autonomous agent identities (client credentials) | `PINGONE_FRAUD_WATCH_AGENT_*`, `PINGONE_BALANCE_SWEEP_AGENT_*` | Privilege banking backend experiments |
 | Demo AI App - MCP Server Client | Banking MCP server identity; no runtime use found | none | — |
 | Demo AI App - MCP External Client | Federation hop for external MCP client doors, per `docs/superpowers/plans/2026-08-23-external-door-token-chain-bridge.md`; no code reference found | — | — |
-| Demo AI App - Privilege Tenant Federation | The identity provider behind Privilege AI Gateway sign-in | none in this repo | Privilege gateway federation |
+| Demo AI App - Privilege Tenant Federation | The identity provider behind Agent Privilege sign-in | none in this repo | Privilege gateway federation |
 
 Apps you can usually ignore when debugging the demo:
 

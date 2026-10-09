@@ -788,7 +788,7 @@ const ENFORCEMENT = [
   },
   {
     id: 'aigateway',
-    name: 'AI Gateway',
+    name: 'Agent Privilege',
     state: 'not-wired',
     willShow: 'which agents route through which gate, tool-level allow and deny',
     today: '/agent-gateway-inspector',

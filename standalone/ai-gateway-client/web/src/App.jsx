@@ -182,7 +182,7 @@ export default function App() {
 
   if (!state) return <div style={{ padding: 20 }}>Loading…</div>;
 
-  const doorLabel = state.gatewayMode === 'privilege' ? 'Privilege — straight at the AI Gateway' : 'Direct — no Privilege in the path';
+  const doorLabel = state.gatewayMode === 'privilege' ? 'Privilege — straight at the Agent Privilege' : 'Direct — no Privilege in the path';
 
   const left = (
     <div className="tool-tree">
@@ -260,7 +260,7 @@ export default function App() {
 
   return (
     <InspectorShell
-      title="AI Gateway Client"
+      title="Agent Privilege Client"
       statusOn={state.oauth.authenticated}
       statusText={doorLabel}
       left={left}

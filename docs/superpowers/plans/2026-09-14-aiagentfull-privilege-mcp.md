@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a second chat widget, `AIAgentFull` (full duplicate of the existing `BankingAgent` component in `AIAgent.js`), selectable per route, that additionally routes MCP tool calls through the PingOne Privilege AI Gateway when the demo operator picks "Via Privilege Gateway" — without touching `AIAgent.js` or the protected `mcpToolPipeline.js`.
+**Goal:** Add a second chat widget, `AIAgentFull` (full duplicate of the existing `BankingAgent` component in `AIAgent.js`), selectable per route, that additionally routes MCP tool calls through the PingOne Agent Privilege when the demo operator picks "Via Privilege Gateway" — without touching `AIAgent.js` or the protected `mcpToolPipeline.js`.
 
 **Architecture:** A new `useMcpToolTransport(transport)` hook returns a `callMcpTool`-signature-compatible dispatcher that calls either the existing direct path (`demoAgentService.callMcpTool`) or a new standalone Privilege path (`privilegeMcpService.callMcpToolViaPrivilege`, hitting the already-working `/api/privilege-mcp-simple/tools/call`). `AIAgentFull.js` is a byte-for-byte duplicate of `AIAgent.js` (renamed) with three additions: transport state, one line invoking the hook (which shadows the module-level `callMcpTool` import for the rest of the component body via normal JS lexical scoping — no other line in the ~12.7k-line body changes), and two small UI controls (transport picker + a disabled "Privilege A2A — coming later" stub). A route allowlist in `embeddedAgentFabVisibility.js` plus a 3-line change in `App.js` pick which component mounts.
 
@@ -82,7 +82,7 @@ import apiClient from './apiClient';
 
 /**
  * Calls an MCP tool through the standalone, machine-callable PingOne
- * Privilege AI Gateway endpoint (client_credentials, no browser session —
+ * Agent Privilege endpoint (client_credentials, no browser session —
  * demo_api_server/routes/privilegeMcpSimple.js) instead of the banking
  * demo's session-scoped /api/mcp/tool pipeline. This path does NOT run the
  * banking consent/HITL/kill-switch layer — only Privilege's own policy
@@ -186,7 +186,7 @@ import { callMcpToolViaPrivilege } from '../services/privilegeMcpService';
 
 /**
  * Returns a callMcpTool-signature-compatible dispatcher that routes through
- * the standalone Privilege AI Gateway instead of the direct BFF pipeline
+ * the standalone Agent Privilege instead of the direct BFF pipeline
  * when transport is "privilege". Designed to shadow the module-level
  * `callMcpTool` import inside a component body via a same-named local
  * const, so existing call sites need no changes.

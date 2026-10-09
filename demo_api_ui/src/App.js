@@ -232,6 +232,7 @@ import PublicRoutes, {
   PrivilegeMcpLearningPageRoute,
   AgentGatewayCapabilitiesPageRoute,
   AgentGatewayAuthorizationLessonPageRoute,
+  ExternalAgentLessonPageRoute,
   OAuthAcademyPageRoute,
   PrivilegeDemoPageRoute,
   EnterpriseMcpDemoPageRoute,
@@ -894,6 +895,12 @@ function AppWithAuth() {
                   path="/agent-gateway-authorization"
                   element={
                     <AgentGatewayAuthorizationLessonPageRoute user={user} logout={logout} />
+                  }
+                />
+                <Route
+                  path="/external-agents/:agentId"
+                  element={
+                    <ExternalAgentLessonPageRoute user={user} logout={logout} />
                   }
                 />
                 <Route

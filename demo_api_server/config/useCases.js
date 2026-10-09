@@ -1664,6 +1664,61 @@ const RAW_USE_CASES = [
     },
     primaryTool: null,
   },
+  {
+    id: 'UC-MUSE1',
+    useCaseId: 'external-agent-standard-lane',
+    track: 'tools',
+    title: 'Your agent, our gateway (external agent, standard lane)',
+    buyerStory: 'Customers already run their own agents \u2014 Muse, Grok, LM Studio, LibreChat, ChatGPT \u2014 and want to use them against their bank without handing over credentials or losing protection.',
+    pingOneSolution: 'The agent connects to the bank\u2019s MCP external door: RFC 9728 discovery, RFC 7591 DCR self-registration, PKCE login in the user\u2019s browser, then a delegated token (sub=user, act=agent) through PingGateway and PingOne Authorize on every tool call.',
+    trigger: { type: 'link', path: '/use-case-diagrams/UC-MUSE1', label: 'Open the standard-lane walkthrough' },
+    expectedOutcome: 'PERMIT',
+    evidence: { tokenChain: ['user-token', 'token-exchange', 'gateway-permit', 'tool-dispatched'], activity: ['token', 'mcp'] },
+    codeRefs: [
+      'oauth-mcp/src/oauth/OAuthRouter.ts',
+      'ping-gateway/scripts/groovy/p1az-decision.groovy',
+      'docs/EXTERNAL_DOOR_MCP_FLOW.md',
+      'docs/MUSE_RUNBOOK.md',
+    ],
+    maturity: 'works',
+    owasp: { threats: [], sections: [] },
+    whatToSay: 'Point your own agent at the bank\u2019s MCP endpoint and watch Ping govern it: the agent onboards itself (discovery, DCR, PKCE login) and every call runs with a delegated token \u2014 sub=user, act=agent \u2014 audited end to end.',
+    advanced: false,
+    whatLong: 'An external-agent run. The presenter\u2019s own MCP client connects to the external door on the SE host (cloud agents) or the local stack (local clients). Onboarding is zero-touch: the door advertises its authorization server (RFC 9728), the client self-registers (RFC 7591 DCR), the user signs in through PingOne in a browser, and the door mints its own code for the client. Tool calls go through PingGateway, which exchanges the user token via RFC 8693 (sub=user, act=agent) and asks PingOne Authorize per call. A service-identity token is refused accounts:read \u2014 user data requires the real delegated path. Run it in YOUR agent per docs/MUSE_RUNBOOK.md; the reel on the diagram page walks the wire.',
+    businessValue: 'Governance is a property of the resource, not of who wrote the agent: any spec-compliant agent is governed identically with no pre-registration and no agent-side code.',
+    productRoles: {
+      gw: 'Enforces discovery, registration, token exchange and per-call policy on the external door.',
+      idp: 'Authenticates the person, mints the delegated token (sub=user, act=agent) and evaluates policy per tool call.',
+    },
+    primaryTool: null,
+  },
+  {
+    id: 'UC-MUSE2',
+    useCaseId: 'external-agent-ai-gateway-lane',
+    track: 'tools',
+    title: 'Your agent, the Agent Privilege (external agent, lane 2)',
+    buyerStory: 'Teams running PingOne Privilege want the same external-agent story through the Agent Privilege: the user\u2019s own agent, governed by per-user policy at the gateway rather than per-call token exchange.',
+    pingOneSolution: 'The agent connects to the facade\u2019s privilege-gateway door: OAuth against the demo\u2019s durable broker doubles as the sign-in that raises the BFF\u2019s server-side leg to the Agent Privilege, which swaps the caller\u2019s bearer for the operator\u2019s token on the upstream hop (ownsUpstreamAuth) and enforces per-user policy.',
+    trigger: { type: 'link', path: '/use-case-diagrams/UC-MUSE2', label: 'Open the AI-Gateway-lane walkthrough' },
+    expectedOutcome: 'PERMIT',
+    evidence: { tokenChain: ['user-token', 'privilege-gateway-leg', 'credential-swap', 'tool-dispatched'], activity: ['token', 'mcp'] },
+    codeRefs: [
+      'demo_api_server/routes/mcpFacade.js',
+      'demo_api_server/services/privilegeGatewaySession.js',
+      'docs/superpowers/specs/2026-09-11-lmstudio-privilege-gateway-link-design.md',
+    ],
+    maturity: 'works',
+    owasp: { threats: [], sections: [] },
+    whatToSay: 'Same agent, other door: the facade registers the client durably, your sign-in raises the gateway leg server-side, and the Agent Privilege swaps credentials and enforces per-user policy on the way up.',
+    advanced: false,
+    whatLong: 'The second lane of the external-agent story. The client registers with the demo\u2019s durable OAuth broker (restart-proof), and the browser sign-in establishes the BFF\u2019s privilegeGatewaySession. The facade replaces the caller\u2019s bearer with the operator\u2019s gateway token on the upstream hop (ownsUpstreamAuth \u2014 anonymous traffic never rides the operator session), and the PingOne Agent Privilege evaluates per-user policy before dispatching to the registered Agentic App. Local clients only until the SE facade ingress lands (see the plan\u2019s SE facade exposure section).',
+    businessValue: 'Whichever Ping gateway the customer runs \u2014 Agent Gateway or Agent Privilege \u2014 the external agent is governed identically; one agent, two doors, one trust layer.',
+    productRoles: {
+      privilege: 'Enforces per-user policy on the upstream call and dispatches to the registered Agentic App.',
+      bff: 'Registers clients durably, holds the gateway leg server-side, and swaps credentials on the upstream hop.',
+    },
+    primaryTool: null,
+  },
 
   // --- NHI GOVERNANCE --- (link-type cards; AI Control Plane's own pages own the actual behavior)
   {
@@ -2024,6 +2079,34 @@ const RAW_USE_CASES = [
     advanced: false,
     whatLong: 'A CIBA lesson that follows the signed-in provider. The BFF keeps the auth_req_id server-side and the browser only sees the state. For PingFederate the approval is a mock phone (or, when switched on, a stand-in PingFederate authenticator); for PingOne it is a real PingOne MFA device, so the PingOne user needs an enrolled device and an email address.',
     businessValue: 'Show the same human-approval control on whichever authorization server the customer runs, without changing the agent or the page.',
+    productRoles: {},
+    primaryTool: null,
+  },
+  {
+    id: 'UC-LEARN15',
+    useCaseId: 'jev-decision-model',
+    track: 'learn',
+    title: 'Jev decision model — System One vs System Two',
+    buyerStory: 'An agent needs fast, typed judgments — block this text, route this request, score this risk — and a generative LLM is seconds and prose for what should be milliseconds and a number.',
+    pingOneSolution: 'Jev (TypeSafe) answers typed questions with a typed answer — a choice, a confidence, or a P(yes) — so the demo pairs a keyword baseline with the model and shows where confidence becomes (and never becomes) permission.',
+    // Link, not a chip: a teaching page, not an agent turn. Same shape as
+    // UC2.7's protocol walkthrough.
+    trigger: { type: 'link', path: '/jev-learning' },
+    expectedOutcome: 'GUIDED_LEARNING',
+    evidence: { tokenChain: [], activity: [] },
+    codeRefs: [
+      'demo_api_ui/src/pages/JevLearningPage.jsx',
+      'demo_api_ui/src/pages/jevLessons.js',
+      'demo_api_server/services/jevService.js',
+      'demo_api_server/routes/jev.js',
+      'langchain_agent/src/api/jev_decisions.py',
+    ],
+    maturity: 'works',
+    owasp: { threats: ['T5'], sections: ['§4.2.3'] },
+    whatToSay: 'Same input, two deciders: fixed rules vs a decision model that reads meaning. A model score is one input to policy — the threshold lesson shows the same score flipping Allow, Step-up, Deny. The last panel runs the identical question through LangChain\'s OpenAIDecisions client to show the framework is plumbing, not a second opinion.',
+    advanced: false,
+    whatLong: 'A decision-model lesson on one page, signed out. The live panel runs the same text through keyword rules and through Jev side by side; the badge says which mode ran (Live, Recorded, or Simulated - not configured, meaning the rules answered both columns and nothing about Jev is evidence). Live answers need the keyless local Von container (compose profile jev) or an OpenRouter key. The threshold sliders show a fixed score flipping policy outcomes; the two bake-offs score eight hand-labelled messages each as a teaching illustration, not a benchmark; the LangChain panel sends the identical question through langchain_openai.decisions.OpenAIDecisions in the agent container, translated onto the same Von model.',
+    businessValue: 'Shows where deterministic rules stop and where a model helps, without letting the model become the verdict: guardrail scores feed policy that keeps a deterministic floor no score can lower.',
     productRoles: {},
     primaryTool: null,
   },
@@ -2540,8 +2623,10 @@ function resolveUseCase(id, vertical) {
 
 /** All catalog entries resolved for a vertical. @returns {UseCase[]} */
 function listUseCases(vertical) {
+  // No vertical = the whole catalog, allowlists included — callers that omit a
+  // vertical want the unfiltered set, not "everything except the narrowed rows".
   return USE_CASES
-    .filter((u) => !u.verticals || u.verticals.includes(vertical))
+    .filter((u) => !vertical || !u.verticals || u.verticals.includes(vertical))
     .map((u) => resolveUseCase(u.id, vertical));
 }
 

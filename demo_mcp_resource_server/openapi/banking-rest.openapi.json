@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Banking REST (backend-app pattern)",
-    "description": "Plain REST mirror of this server's list_banking_accounts / get_banking_account MCP tools, gated by a shared X-API-Key instead of an OAuth bearer. Served at /openapi/banking-rest.json so an OpenAPI-to-MCP importer (e.g. a Privilege AI Gateway 'Add OpenAPI MCP' app) can turn these into tools.",
+    "description": "Plain REST mirror of this server's list_banking_accounts / get_banking_account MCP tools, gated by a shared X-API-Key instead of an OAuth bearer. Served at /openapi/banking-rest.json so an OpenAPI-to-MCP importer (e.g. a Agent Privilege 'Add OpenAPI MCP' app) can turn these into tools.",
     "version": "1.0.0"
   },
   "servers": [

@@ -444,6 +444,109 @@ function IntentBakeoff() {
   );
 }
 
+/** Same scenario, but the call goes through LangChain's OpenAIDecisions client
+ * (beta) inside the agent container, translated onto the Von backend. The
+ * heuristic baseline is computed in the BFF either way, so this panel's
+ * "Keyword rules" number always matches the panel above. */
+function LangChainPanel() {
+  const [scenario, setScenario] = useState('injection');
+  const [text, setText] = useState(SCENARIOS.injection.examples[0]);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const pick = (key) => {
+    setScenario(key);
+    setText(SCENARIOS[key].examples[0]);
+    setResult(null);
+    setError('');
+  };
+
+  const run = useCallback(async () => {
+    setBusy(true);
+    setError('');
+    try {
+      const res = await fetch('/api/demo/jev/langchain', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scenario, state: text }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.message || `HTTP ${res.status}`);
+      setResult(body);
+    } catch (e) {
+      setResult(null);
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }, [scenario, text]);
+
+  return (
+    <section className="jev-card" aria-labelledby="jev-lc">
+      <h2 id="jev-lc" className="jev-h2">The same lesson through LangChain</h2>
+      <p className="jev-lead">
+        The panel above calls the decision model directly. This one sends the identical question
+        through <strong>LangChain&apos;s OpenAIDecisions client</strong> (beta) running in the agent
+        container, which speaks the OpenAI Decisions dialect — typed questions, typed answers, token
+        counts, tracing — while a thin adapter translates onto the same Von model. Same question in,
+        same probability out: the framework is plumbing, not a second opinion.
+      </p>
+      <div className="jev-tabs" role="tablist">
+        {Object.entries(SCENARIOS).map(([key, s]) => (
+          <button
+            key={key}
+            role="tab"
+            aria-selected={scenario === key}
+            className={`jev-tab${scenario === key ? ' jev-tab--on' : ''}`}
+            onClick={() => pick(key)}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
+      <div className="jev-examples">
+        {SCENARIOS[scenario].examples.map((ex) => (
+          <button key={ex} className="jev-chip" onClick={() => setText(ex)}>{ex}</button>
+        ))}
+      </div>
+      <textarea
+        className="jev-input"
+        aria-label="Text to judge through LangChain"
+        value={text}
+        maxLength={2000}
+        onChange={(e) => setText(e.target.value)}
+      />
+      <button className="btn btn-primary" disabled={busy || !text.trim()} onClick={run}>
+        {busy ? 'Deciding...' : 'Decide'}
+      </button>
+      {error && <p className="jev-error" role="alert">{error}</p>}
+      {result && (
+        <div className="jev-cols">
+          <div className="jev-col">
+            <h3 className="jev-h3">Keyword rules</h3>
+            <p className="jev-big">{headline(result.heuristic.answer)}</p>
+            <p className="jev-meta">computed in the BFF, same rules as above</p>
+          </div>
+          <div className="jev-col">
+            <h3 className="jev-h3">LangChain <ModeBadge mode={result.langchain?.mode} model={result.langchain?.model} /></h3>
+            <p className="jev-big">{result.langchain ? headline(result.langchain.answer) : '—'}</p>
+            {result.langchain && <p className="jev-explain">{explainJev(result.langchain.answer)}</p>}
+            {result.langchain?.usage && (
+              <p className="jev-meta">
+                {result.langchain.usage.input_tokens} prompt · {result.langchain.usage.output_tokens} completion
+              </p>
+            )}
+            {result.langchain && (
+              <p className="jev-meta">{result.langchain.latency_ms} ms - through LangChain OpenAIDecisions</p>
+            )}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function JevLearningPage() {
   const [risk, setRisk] = useState(0.62);
   return (
@@ -472,6 +575,7 @@ export default function JevLearningPage() {
       <ThresholdLesson probability={risk} setProbability={setRisk} />
       <Bakeoff />
       <IntentBakeoff />
+      <LangChainPanel />
     </div>
   );
 }

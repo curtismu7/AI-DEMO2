@@ -52,22 +52,23 @@ test("dashboard guide lists the demo steps", () => {
   // UC47 and UC37 also appear in the A2A sequence, so expect both copies.
   expect(screen.getAllByText(/Step 26 · UC47: /)).toHaveLength(2);
   expect(screen.getByText(/Step 27 · UC43: /)).toBeTruthy();
-  // UC48 joined the CIAM lane (slot 30), shifting the themed groups after it.
-  expect(screen.getByText(/Step 33 · UC17: /)).toBeTruthy();
+  expect(screen.getByText(/Step 29 · UC43: /)).toBeTruthy();
+  // UC48 and the MUSE steps joined before the themed groups, shifting them.
+  expect(screen.getByText(/Step 34 · UC17: /)).toBeTruthy();
   expect(screen.getByText(/Step 13 · ADMIN13: /)).toBeTruthy();
-  expect(screen.getAllByText(/Step 44 · UC37: /)).toHaveLength(2);
-  expect(screen.getByText(/Step 47 · UC4: /)).toBeTruthy();
+  expect(screen.getAllByText(/Step 45 · UC37: /)).toHaveLength(2);
+  expect(screen.getByText(/Step 48 · UC4: /)).toBeTruthy();
 });
 
 test("step numbers match the menu, admin included, and skip non-steps", () => {
   expect(stepLabel("UC24")).toBe("Step 1 · UC24");
-  expect(stepLabel("UC43")).toBe("Step 27 · UC43");
+  expect(stepLabel("UC43")).toBe("Step 29 · UC43");
   expect(demoStepNumber("ADMIN13")).toBe(13);
   expect(stepLabel("UC999")).toBe("UC999");
   expect(demoStepNumber("UC40")).toBe(22); // first appearance wins over its Privilege-group slot
   expect(demoStepNumber("UC2")).toBe(9); // repeated in the A2A group, keeps its script number
-  expect(demoStepNumber("UC2.6")).toBe(32); // shifted +1 past UC48's new CIAM slot
-  expect(demoStepNumber("UC37")).toBe(44);
+  expect(demoStepNumber("UC2.6")).toBe(33); // past UC48's CIAM slot and the MUSE steps
+  expect(demoStepNumber("UC37")).toBe(45);
 });
 
 test("the requested pages each have a three-step guide", () => {
@@ -121,11 +122,26 @@ test("the header button is absent on routes with no guide", () => {
 });
 
 test("the standalone learning pages each have a three-step guide", () => {
-  for (const r of ["/jev-learning", "/a2a-protocol-learning", "/intent-binding-learning", "/privilege-mcp-learning",
+  for (const r of ["/a2a-protocol-learning", "/intent-binding-learning", "/privilege-mcp-learning",
     "/oauth-academy", "/learning", "/academy/demos", "/davinci-widget"]) {
     expect(PAGE_GUIDES[r]?.walkthrough, r).toHaveLength(3);
     expect(PAGE_GUIDES[r].talkingPoints, r).toHaveLength(3);
   }
+});
+
+test("the Jev page guide covers all four panels including the LangChain one", () => {
+  // /jev-learning grew a fourth walkthrough step when the LangChain panel
+  // landed (page + demo step UC-LEARN15); the pinned-at-three list above
+  // deliberately excludes it.
+  expect(PAGE_GUIDES["/jev-learning"].walkthrough).toHaveLength(4);
+  expect(PAGE_GUIDES["/jev-learning"].talkingPoints).toHaveLength(3);
+  const walk = PAGE_GUIDES["/jev-learning"].walkthrough.map((s) => s.title);
+  expect(walk).toEqual([
+    "Frame System One vs System Two",
+    "Run both deciders on the same text",
+    "Show that confidence is not permission, then the bake-offs",
+    "Close with the LangChain panel",
+  ]);
 });
 
 test("the dashboard guide leads with the A2A sequence, every step known", () => {

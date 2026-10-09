@@ -739,7 +739,7 @@ Create `scripts/lib/preflightRows.js`:
  * Pure decision logic for the MCP door preflight (scripts/check-mcp-preflight.js).
  * Split out so it can be tested without a network.
  *
- * The load-bearing judgement is what a 401 means. The Privilege AI Gateway
+ * The load-bearing judgement is what a 401 means. The Agent Privilege
  * answers 401 BEFORE it routes, so a nonexistent app name returns 401 exactly
  * like a real one — verified live 2026-09-04. An unauthenticated probe can
  * therefore prove DNS, TLS and reachability, and nothing about authorization.
@@ -869,7 +869,7 @@ const TARGETS = {
 // by design (TECH_DEBT.md 2026-09-01) and would be permanently red.
 const FACADE_DOORS = ['agent-gateway', 'opensearch', 'brave', 'banking', 'privilege-gateway'];
 
-// Agentic Apps registered on the AI Gateway. Hardcoded here on purpose for now:
+// Agentic Apps registered on the Agent Privilege. Hardcoded here on purpose for now:
 // Plan B (W8) replaces this with the console inventory, and this list is what
 // that change is measured against.
 const GATEWAY_APPS = ['opensearch22', 'opensearch', 'brave'];

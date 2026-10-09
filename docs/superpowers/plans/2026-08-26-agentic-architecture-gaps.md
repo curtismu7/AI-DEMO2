@@ -13,10 +13,10 @@ actually runs, and scope only the boxes that are genuinely ours to build.
 
 ## 0. The two framing decisions
 
-**AI Gateway *is* PingOne Privilege.** Not a box to build, not a product to buy alongside
+**Agent Privilege *is* PingOne Privilege.** Not a box to build, not a product to buy alongside
 Privilege — it is what Privilege is now called. All four sub-gateways (LLM, MCP, A2A, AI Guard)
-are its features. The repo already reflects this: the nav entry reads "AI Gateway Client", and
-the string "AI Gateway" appears nowhere else in the codebase except as the Privilege product
+are its features. The repo already reflects this: the nav entry reads "Agent Privilege Client", and
+the string "Agent Privilege" appears nowhere else in the codebase except as the Privilege product
 name (`demo_api_server/routes/privilegeMcpClient.js`,
 `demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`).
 

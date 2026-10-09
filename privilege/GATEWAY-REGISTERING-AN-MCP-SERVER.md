@@ -1,4 +1,4 @@
-# Privilege AI Gateway: Registering an MCP Server
+# Agent Privilege: Registering an MCP Server
 
 Oct 2, 2026 · Curtis Muir
 
@@ -22,7 +22,7 @@ Oct 2, 2026 · Curtis Muir
 
 ## Overview
 
-Registering an MCP server on the Privilege AI Gateway means creating an Agentic App in the Privilege console that tells the gateway which backend to front. Clients then call the gateway, the gateway signs the user in, checks policy, records the session, and forwards what it permits to your server.
+Registering an MCP server on the Agent Privilege means creating an Agentic App in the Privilege console that tells the gateway which backend to front. Clients then call the gateway, the gateway signs the user in, checks policy, records the session, and forwards what it permits to your server.
 
 Three things must exist before a client call succeeds: the app, a successful tool discovery by the gateway, and an unexpired policy naming the caller. A new app has no policy, so it denies everything until one is written.
 
@@ -125,7 +125,7 @@ You need a gateway that is already enrolled and showing in the console, and a ba
    | Application Name | A short lowercase name | It becomes the first path segment of the client URL, and it cannot be edited later. Renaming creates a second app |
    | MCP Server URL (shown elsewhere as Backend Name) | The backend URL as the gateway reaches it, including its path | The path you choose becomes the client-facing path. See the next section |
    | Auth Mode | None, unless the backend needs a credential | See Auth Mode |
-   | AI Gateway | Your gateway | It is not always pre-selected. An app saved on the `Select Gateway...` placeholder reaches no gateway and produces no log lines |
+   | Agent Privilege | Your gateway | It is not always pre-selected. An app saved on the `Select Gateway...` placeholder reaches no gateway and produces no log lines |
    | Mesh Cluster | The cluster your gateway enrolled in |  |
 
    ![Add MCP Application form](../docs/screenshots/privilege-console-setup/privilege-add-mcp-app-form.png)
@@ -203,7 +203,7 @@ The wizard offers several kinds of app, and they are wired differently. This gui
 | MCP Server | Any URL the gateway can reach, editable | Your own MCP server | Gets its own path. The entry-path rules above apply |
 | Catalog app (for example Grafana, Brave) | Fixed to `http://localhost:<port>/mcp` | The connector, as a sidecar container beside the gateway | Adding it in the console deploys nothing. The console's Configuration panel stores values on the app record and does not pass them to your container |
 | OpenAPI MCP | An adapter that turns an OpenAPI spec into tools | Depends on packaging | The hosted adapter image did not discover tools for us; running the same adapter ourselves and registering it as an MCP Server app did |
-| MCP Aggregate | None of its own; combines other registered servers | Nothing extra | Tool names are prefixed with the server name. Reachable through the AI Gateway only |
+| MCP Aggregate | None of its own; combines other registered servers | Nothing extra | Tool names are prefixed with the server name. Reachable through the Agent Privilege only |
 
 Two traps with catalog apps: every one defaults to `localhost:8080`, so a second app on the same port silently returns the first one's tools; and the port in the console has to match the sidecar's real port, which nothing checks for you.
 
@@ -295,7 +295,7 @@ What this taught us:
 | --- | --- | --- |
 | Tools panel empty, console says `Gateway Unreachable` or `calling "initialize": Unauthorized` | Discovery failed. Wrong path for this build, wrong hostname, backend demanding a credential, or an expired policy reported misleadingly | Read the gateway log for the real line; test the backend URL from where the gateway runs |
 | Tools panel shows tools, but calls fail | The panel can be showing cached tools from an earlier discovery | Look for `keeping the N tools already discovered` in the log |
-| App saved, nothing happens, no log lines | AI Gateway left on `Select Gateway...` | Edit the app and select the gateway. It can revert on some edits |
+| App saved, nothing happens, no log lines | Agent Privilege left on `Select Gateway...` | Edit the app and select the gateway. It can revert on some edits |
 | 401 without a token, 404 with one | The client is calling a path other than the app's pinned entry path | Call the registered path, or re-register the backend on the path clients use |
 | Every call 403, immediately, with no backend hop | No policy on this app, or it expired | Write or renew the policy |
 | 403 after narrowing a policy did nothing | An older, broader policy still applies; policies add up | Delete the older policy |

@@ -463,7 +463,7 @@ read the configured host. A new browser origin must be added to ALL of:
 
 **What changed:** The agent's three typing dots are replaced by the dancing red Ping P (`PingIdentitySpinner`, via the shared `AgentWorkingMark`), so every wait in the agent looks the same; the unused `.ba-typing-*` CSS is deleted. While `opts.run` is pending the agent also renders `AgentRunIndicator`: the same mark beside "Demo step 25A — working…", cleared when the run settles (success, failure or thrown error). It is a separate `runIndicator` state, so Send is not disabled. A failed run posts one short line via `utils/a2aRunFailureMessage.js`; a 429 / quota / rate-limit error gets a plain explanation (the provider is refusing requests until its quota resets) and says to switch the model by setting `MAIN_AGENT_PROVIDER` in the standalone A2A agent's `.env` and restarting the main agent, and that the chat's LLM picker does not drive this run.
 
-**Do not break:** the "running through the AI Gateway" and "run complete" / "the run failed" messages from the earlier change still post; `opts.keepTrace` still skips the trace reset; no new inline colour or font-size (the label uses `--font-size-sm`).
+**Do not break:** the "running through the Agent Privilege" and "run complete" / "the run failed" messages from the earlier change still post; `opts.keepTrace` still skips the trace reset; no new inline colour or font-size (the label uses `--font-size-sm`).
 
 **Verify:** `cd demo_api_ui && ./node_modules/.bin/vitest run src/components/__tests__/AgentRunIndicator.test.jsx`; `npm run build`. The `AIAgent.js` wiring has no unit test (component too heavy); confirm with a live click on 25A.
 
@@ -515,13 +515,13 @@ read the configured host. A new browser origin must be added to ALL of:
 
 **Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/a2aDemoProfile.test.js tests/privilegeA2aClientRoute.test.js --forceExit`; `npm run authz:verify`.
 
-### 2026-10-05 — A2A runs looked stuck or failed silently; the gateway lane now reads "AI Gateway"
+### 2026-10-05 — A2A runs looked stuck or failed silently; the gateway lane now reads "Agent Privilege"
 
 **Files:** `demo_api_ui/src/utils/privilegeA2aChainRun.js`, `components/DemoStepsDropdown.jsx`, `components/AIAgent.js`, `services/tokenChainTrace/privilegeA2aChainSteps.js`, `components/TokenChainNodeRail.jsx`, `components/StepDetailPanel.jsx`, tests.
 
 **What was broken:** Step 25A and the Step 26 chain start a run that takes several seconds and shows nothing in the agent transcript while it runs; a failed run (HTTP error, error frame) also showed nothing, so the page looked stuck. The red GATEWAY lane label did not say which gateway.
 
-**What changed:** `runPrivilegeA2aChatRun` now resolves `{ ok, answer?, error? }` (it still throws on HTTP/transport failure). The dropdown hands the run's promise to the agent as `opts.run` for 25A and the chain; the agent's link branch posts a "running through the AI Gateway" message, then "run complete" or "the run failed:" plus the reason. A2A gateway steps carry `laneLabel: "AI Gateway"`, which the reel card and the detail header show; the lane key stays `GATEWAY`, so other flows keep their label.
+**What changed:** `runPrivilegeA2aChatRun` now resolves `{ ok, answer?, error? }` (it still throws on HTTP/transport failure). The dropdown hands the run's promise to the agent as `opts.run` for 25A and the chain; the agent's link branch posts a "running through the Agent Privilege" message, then "run complete" or "the run failed:" plus the reason. A2A gateway steps carry `laneLabel: "Agent Privilege"`, which the reel card and the detail header show; the lane key stays `GATEWAY`, so other flows keep their label.
 
 **Do not break:** `opts.keepTrace` still skips the trace reset; UC46 (Step 25) still opens its route; non-A2A gateway steps still read "GATEWAY"; Step 26 keeps its number.
 
@@ -3520,7 +3520,7 @@ decisions remain server-side.
 
 **Verify:** `cd demo_api_ui && npm run build`.
 
-### 2026-09-23 — Client path switch changed the selected AI Gateway app
+### 2026-09-23 — Client path switch changed the selected Agent Privilege app
 
 **Files changed:** `demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`.
 
@@ -4683,7 +4683,7 @@ tests/test_a2a_handler.py tests/test_token_validator_path_a.py`. After deploymen
 Privilege Backend URL must be
 `http://langchain-agent.ping-devops-cmuir.svc.cluster.local:8888`; Agent Card
 discovery through `/langchainagent/a2a/.well-known/agent-card.json` must return
-200 with a valid AI Gateway key.
+200 with a valid Agent Privilege key.
 
 ### 2026-09-14 — Weather MCP: an uncached lookup no longer 502s at PingGateway's 10-second socket timeout
 
@@ -7288,7 +7288,7 @@ Door under them failed, in three different-looking ways with two root causes.
    `session.oauth.accessToken` from the main banking app's user token
    (`req.session.oauthTokens.accessToken`, `aud: enduser.ping.demo`). No door on
    this page accepts that audience — the façade doors and `oauth-mcp` verify
-   `mcpgateway.ping.demo`, and the Privilege AI Gateway is its own AS that only
+   `mcpgateway.ping.demo`, and the Agent Privilege is its own AS that only
    accepts a token it minted through DCR. So the Privilege path 401'd
    `"Bearer token required"` on every door. It also **suppressed its own fix**:
    `/state` reports `authenticated: Boolean(session.oauth.accessToken)`, so the
@@ -7404,7 +7404,7 @@ trimmed.
   parse and that the Groovy still selects its separator; it is wired into
   `npm run hygiene:check`.
 - This script has exactly ONE consumer, `ping-gateway/config/routes/00-mcp-external-door.json`
-  (`Host: cmuir-mcp.ping-devops.com`). The AI Gateway client page
+  (`Host: cmuir-mcp.ping-devops.com`). The Agent Privilege client page
   (`/privilege-mcp-client`) and the façade doors do not go through it — keep it
   that way rather than generalising this script across routes.
 - It must stay a response-header rewrite and must NOT become
@@ -7512,12 +7512,12 @@ would break a client rather than help a human.
 
 **Verify:** `cd demo_api_server && CI=true npx jest tests/routes/docsAdminRedirect.test.js tests/routes/openapiFromRoutes.test.js --forceExit` — 2 suites, 30 tests; UI `cd demo_api_ui && npm run build` (exit 0) and the component suite (208 files, 1525 passed).
 
-### 2026-09-05 — Banking MCP server could not be discovered by the Privilege AI Gateway (no legacy SSE transport)
+### 2026-09-05 — Banking MCP server could not be discovered by the Agent Privilege (no legacy SSE transport)
 
 **Files changed:** `oauth-mcp/src/server/HttpMCPTransport.ts`,
 `oauth-mcp/tests/legacy-sse-transport.test.ts` (new).
 
-**What was broken:** the rebuilt Privilege AI Gateway's discovery client opens a bare
+**What was broken:** the rebuilt Agent Privilege's discovery client opens a bare
 GET and waits for the SSE `endpoint` event; it does not POST `initialize` (this changed
 with the 2026-09-01/02 rebuild — the older estate did POST, which is why the 2026-08-03
 entry below is about the POST handshake). `oauth-mcp` serves only Streamable HTTP on

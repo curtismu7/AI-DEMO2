@@ -22,13 +22,13 @@ for tool calls. Privilege A2A is stubbed for a later phase.
 - It does **not** have any way to route MCP tool calls
   (`demoAgentService.callMcpTool` → `POST /api/mcp/tool` →
   `demo_api_server/services/mcpToolPipeline.js`) through the PingOne Privilege
-  AI Gateway. `mcpToolPipeline.js` is the protected core of the banking demo —
+  Agent Privilege. `mcpToolPipeline.js` is the protected core of the banking demo —
   RFC 8693 token exchange, the PingOne Authorize gate, the kill-switch, HITL
   challenges, introspection — `REGRESSION_PLAN.md` §1 territory.
 - A separate, already-working, standalone endpoint
   `POST /api/privilege-mcp-simple/tools/call`
   (`demo_api_server/routes/privilegeMcpSimple.js`) exercises the same MCP
-  server through the Privilege AI Gateway using its own `client_credentials`
+  server through the Agent Privilege using its own `client_credentials`
   grant — no browser session, and none of the banking consent/HITL/kill-switch
   layer.
 - Privilege A2A is out of scope for this plan — deferred.

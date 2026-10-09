@@ -64,6 +64,15 @@ describe('auth-requirements SoT', () => {
     expect(authLevelForRoute('/no/such/route')).toBe('user');
   });
 
+  // A concrete URL resolves through a declared parametrized route, so a use
+  // case linking to it is governed by that route's level, not the default.
+  test('a concrete path matches a declared :param route shape', () => {
+    expect(authLevelForRoute('/use-case-diagrams/UC-MUSE1')).toBe('public');
+    expect(authLevelForRoute('/external-agents/muse-code')).toBe('public');
+    // Segment count must agree — an extra segment is a different route.
+    expect(authLevelForRoute('/external-agents/muse-code/extra')).toBe('user');
+  });
+
   test('MCP discovery is available to any signed-in user', () => {
     expect(authLevelForRoute('/mcp-discovery')).toBe('user');
   });

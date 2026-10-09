@@ -2,18 +2,18 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Let the demo presenter's own agent — Muse, Grok, LibreChat, LM Studio, or ChatGPT — connect to the demo and run the demo steps as the user's real agent, in two lanes: the standard flow (agent → Agent Gateway → Authorize → tool) and an AI Gateway lane (agent → MCP facade `privilege-gateway` door → PingOne Privilege AI Gateway → tool). The agent acts, Ping governs — and the story generalizes to *any* agent the customer already has.
+**Goal:** Let the demo presenter's own agent — Muse, Grok, LibreChat, LM Studio, or ChatGPT — connect to the demo and run the demo steps as the user's real agent, in two lanes: the standard flow (agent → Agent Gateway → Authorize → tool) and an Agent Privilege lane (agent → MCP facade `privilege-gateway` door → PingOne Agent Privilege → tool). The agent acts, Ping governs — and the story generalizes to *any* agent the customer already has.
 
 **Architecture:** The demo already has two external-agent entry points, and each maps to one lane:
 
 - **Standard lane** — the MCP external door (`docs/EXTERNAL_DOOR_MCP_FLOW.md`): RFC 9728 discovery, OAuth 2.1 AS with DCR + CIMD, PKCE, PingGateway :3036 enforcement (token exchange, P1AZ decision, HITL, step-up). Any spec-compliant MCP client walks in unregistered.
-- **AI Gateway lane** — the MCP facade's `privilege-gateway` door (`demo_api_server/routes/mcpFacade.js:240`): `/mcp-facade/privilege-gateway/<app>/mcp`. The client's OAuth (against the demo's durable broker) also establishes the BFF's server-side leg to the PingOne Privilege AI Gateway (`ownsUpstreamAuth` — the caller's bearer is replaced on the upstream hop; per-user policy enforced by the gateway). This is the proven LM Studio link (`docs/superpowers/specs/2026-09-11-lmstudio-privilege-gateway-link-design.md`), with the restart-durable client registry that door was built for.
+- **Agent Privilege lane** — the MCP facade's `privilege-gateway` door (`demo_api_server/routes/mcpFacade.js:240`): `/mcp-facade/privilege-gateway/<app>/mcp`. The client's OAuth (against the demo's durable broker) also establishes the BFF's server-side leg to the PingOne Agent Privilege (`ownsUpstreamAuth` — the caller's bearer is replaced on the upstream hop; per-user policy enforced by the gateway). This is the proven LM Studio link (`docs/superpowers/specs/2026-09-11-lmstudio-privilege-gateway-link-design.md`), with the restart-durable client registry that door was built for.
 
-Muse/Grok/LibreChat/LM Studio/ChatGPT are all spec-compliant MCP clients with remote-server + OAuth support, so both lanes are **verify + document + diagram**, not build. The demo steps gain new use cases (UC-MUSE1 standard lane, UC-MUSE2 AI Gateway lane) authored as use-case diagram configs — external agents do NOT prevent use-case registration (see "Use-case feasibility" below).
+Muse/Grok/LibreChat/LM Studio/ChatGPT are all spec-compliant MCP clients with remote-server + OAuth support, so both lanes are **verify + document + diagram**, not build. The demo steps gain new use cases (UC-MUSE1 standard lane, UC-MUSE2 Agent Privilege lane) authored as use-case diagram configs — external agents do NOT prevent use-case registration (see "Use-case feasibility" below).
 
-**Tech Stack:** Muse (Meta: consumer app iOS/Android/web/iPad + Muse Code CLI for macOS/Linux/Windows), Grok (xAI: Grok app custom connectors + Grok Bot + Grok CLI), LibreChat (already in repo, `librechat/`), LM Studio (proven precedent), ChatGPT (connector MCP + OAuth), oauth-mcp external door (unchanged), MCP facade doors (unchanged), PingOne Privilege AI Gateway (SE/Privilege tenant, unchanged), demo_api_ui lesson catalog + use-case diagram configs (existing patterns).
+**Tech Stack:** Muse (Meta: consumer app iOS/Android/web/iPad + Muse Code CLI for macOS/Linux/Windows), Grok (xAI: Grok app custom connectors + Grok Bot + Grok CLI), LibreChat (already in repo, `librechat/`), LM Studio (proven precedent), ChatGPT (connector MCP + OAuth), oauth-mcp external door (unchanged), MCP facade doors (unchanged), PingOne Agent Privilege (SE/Privilege tenant, unchanged), demo_api_ui lesson catalog + use-case diagram configs (existing patterns).
 
-**Spec:** the agreed in-chat design in this session (2026-10-08), extended by the user on the same day: all agents run two use cases (standard flow + AI Gateway); detailed diagrams in the docs; demo-step use cases where feasible. Companion reading: `docs/EXTERNAL_DOOR_MCP_FLOW.md`, `docs/superpowers/specs/2026-09-11-lmstudio-privilege-gateway-link-design.md`, `docs/use-case-diagram-standards.md`.
+**Spec:** the agreed in-chat design in this session (2026-10-08), extended by the user on the same day: all agents run two use cases (standard flow + Agent Privilege); detailed diagrams in the docs; demo-step use cases where feasible. Companion reading: `docs/EXTERNAL_DOOR_MCP_FLOW.md`, `docs/superpowers/specs/2026-09-11-lmstudio-privilege-gateway-link-design.md`, `docs/use-case-diagram-standards.md`.
 
 ## The agent families (what each product actually is)
 
@@ -69,7 +69,7 @@ Use cases down the side, agents across the top. ✅ = the agent runs that use ca
 | **Onboard** — RFC 9728 discovery → DCR → PKCE login (the "never seen this client" moment) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **UC-MUSE1: delegated read** — "show my balance", full RFC 8693 chain (sub=user, act=agent) on the dashboard | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **Governed write + HITL** — "transfer $500", P1AZ → human approval in the dashboard → tool runs | ❌ (a) | ✅ (b) | ❌ | ✅ (b) | ✅ (b) | ✅ (b) | ❌ |
-| **UC-MUSE2: AI Gateway lane** — credential swap at the facade, per-user policy at Privilege | ❌ (c) | ✅ (c) | ❌ (c) | ✅ | ✅ (proven) | ✅ | ❌ (c) |
+| **UC-MUSE2: Agent Privilege lane** — credential swap at the facade, per-user policy at Privilege | ❌ (c) | ✅ (c) | ❌ (c) | ✅ | ✅ (proven) | ✅ | ❌ (c) |
 | **Step-up / MFA** — login-time MFA at PingOne; policy step-up on the sensitive action | login MFA | login MFA + policy step-up | login MFA | login MFA + policy step-up | login MFA + policy step-up | login MFA + policy step-up | login MFA |
 | **Audit trail** — every call shows sub/act/tool/decision | ✅ (any call) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **Deny paths** (scope refusal, service-token governance) — already proven live with curl | n/a | ✅ | n/a | ✅ | ✅ | ✅ | n/a |
@@ -80,7 +80,7 @@ Notes:
 - **(b) Governed-write is a two-agent show minimum.** Muse Code leads (presenter's Mac, most reliable); Grok CLI / LM Studio / LibreChat can run it too — a runbook line each, not code.
 - **(c) Cloud agents reach lane 2 only via the SE facade exposure** (see the next section). Until that ingress lands, lane 2 is a local-client demo. ngrok is the stopgap; the permanent answer is already deployed in the cluster (nothing needs to move — only ingress paths are missing).
 
-The narrative split: **cloud agents** (Muse app, Grok, ChatGPT) tell the *"your customer's real agent, on their phone"* story against the SE cluster; **local agents** (Muse Code, Grok CLI, LM Studio, LibreChat) run the *full two-lane governance* story including HITL and the AI Gateway. Same doors, same Ping products, two demo registers.
+The narrative split: **cloud agents** (Muse app, Grok, ChatGPT) tell the *"your customer's real agent, on their phone"* story against the SE cluster; **local agents** (Muse Code, Grok CLI, LM Studio, LibreChat) run the *full two-lane governance* story including HITL and the Agent Privilege. Same doors, same Ping products, two demo registers.
 
 ## SE facade exposure (the ngrok alternative — nothing needs to move)
 
@@ -94,7 +94,7 @@ What remains (ingress + env, no code):
 - Add ingress path rules on `ai-demo.ping-devops.com` (or a dedicated host): `/mcp-facade/` → `demo-api-server:3001` (TLS passthrough — the BFF serves TLS on 3001, port is named `https`).
 - Route `/oauth/` for the facade's AS to the broker service (`mcp-gateway`), mirroring the SE agentless deployment's proven nginx pattern (`/oauth/* is routed to mcp-gateway` — see the `facadeBase` comment in `mcpFacade.js`).
 - Point `MCP_FACADE_AGENT_GATEWAY_AS` at the in-cluster broker URL in the `demo-api-server` deployment env.
-- ngrok stays the stopgap for ad-hoc demos; this ingress is the permanent path and also unlocks the AI Gateway lane for Muse app / Grok / ChatGPT (row (c) above flips to ✅).
+- ngrok stays the stopgap for ad-hoc demos; this ingress is the permanent path and also unlocks the Agent Privilege lane for Muse app / Grok / ChatGPT (row (c) above flips to ✅).
 
 ## Global Constraints
 
@@ -102,7 +102,7 @@ What remains (ingress + env, no code):
 - `demo_api_server/config/auth-requirements.json` is generated — the plan touches it only through the package script `npm run authz:verify` if topology/auth routes change; never hand-edit (AGENTS.md rule).
 - UI changes require `cd demo_api_ui && npm run build` to pass; preserve the project emoji allowlist.
 - The canonical local browser origin is `local.ping-devops.com:4000`; no hardcoded `localhost` OAuth redirects.
-- Deployment policy: local Docker only. The Privilege AI Gateway lane additionally requires the Privilege tenant wiring (SE cluster credentials); locally it degrades to the facade's local broker with the gateway leg unconfigured — the runbook says which lane runs where.
+- Deployment policy: local Docker only. The Agent Privilege lane additionally requires the Privilege tenant wiring (SE cluster credentials); locally it degrades to the facade's local broker with the gateway leg unconfigured — the runbook says which lane runs where.
 - Diagram configs follow `docs/use-case-diagram-standards.md` exactly: palette groups only, x-grid 40/340/640/940/1240, walk covers every edge exactly once, `tech[]` tags only `API|TOKEN|A2A|POLICY`, `c ≤ 90` chars.
 - Node >= 22 for Node services; run `npm ci` in a service before testing it.
 - Muse is the presenter's install (Meta build); LibreChat ships in-repo; LM Studio and ChatGPT are presenter-side installs. We never pin any of them in the repo.
@@ -111,8 +111,8 @@ What remains (ingress + env, no code):
 
 1. **Muse's OAuth discovery URL shape** — Muse must construct `/.well-known/oauth-protected-resource/mcp` (path-inserted, per RFC 9728 §3.1), not the bare document. The door's bug history shows clients getting this wrong die in discovery. Expect: a failed discovery is client-side misconfiguration, not a door defect — Task 1's verification log pins it per client.
 2. **Per-client OAuth quirks** — LM Studio historically fell back to SSE on any non-`UnauthorizedError` (the facade's deliberate 405); ChatGPT connectors require a publicly-reachable URL (local demo needs the SE host or a tunnel); Muse/LibreChat are expected clean. Expect: the verification matrix (Task 1) records what each client actually sends — discovery URL, auth method, redirect shape — so demos aren't surprises.
-3. **AI Gateway lane restart durability** — the `privilege-gateway` door's client registers with the durable demo broker, but the BFF's upstream gateway leg is session-held (`privilegeGatewaySession`); a BFF recreate mid-demo drops it. Expect: the runbook's failure playbook includes "re-authenticate the door" as the first response, and the verification matrix proves re-auth works without touching client config (the door's design goal).
-4. **HITL visibility in both lanes** — when an agent's tool call triggers human approval, the approval surfaces in the demo web UI, not in the agent's terminal. Expect: the runbook tells the presenter to keep the dashboard open; the training page calls this out ("the agent pauses; the human approves elsewhere"). Standard lane: HITL via PingGateway/P1AZ. AI Gateway lane: policy denial surfaces as the gateway's own decision — verify which and record it.
+3. **Agent Privilege lane restart durability** — the `privilege-gateway` door's client registers with the durable demo broker, but the BFF's upstream gateway leg is session-held (`privilegeGatewaySession`); a BFF recreate mid-demo drops it. Expect: the runbook's failure playbook includes "re-authenticate the door" as the first response, and the verification matrix proves re-auth works without touching client config (the door's design goal).
+4. **HITL visibility in both lanes** — when an agent's tool call triggers human approval, the approval surfaces in the demo web UI, not in the agent's terminal. Expect: the runbook tells the presenter to keep the dashboard open; the training page calls this out ("the agent pauses; the human approves elsewhere"). Standard lane: HITL via PingGateway/P1AZ. Agent Privilege lane: policy denial surfaces as the gateway's own decision — verify which and record it.
 5. **Diagram drift ratchet** — new UC ids in `DEMO_PRIMARY_USE_CASE_IDS` without authored configs fail `useCaseDiagrams.drift.test.js` (PENDING is empty and live). Expect: config + guides entry + diagram land in the same task; the ratchet test is the gate.
 
 ---
@@ -128,7 +128,7 @@ What remains (ingress + env, no code):
 
 The matrix — every cell gets a row in the log. Cells marked ✅ are pre-verified (see "Live verification" above); the rest need the real app:
 
-| Client | Standard lane (external door, SE host) | AI Gateway lane (facade `privilege-gateway` door) |
+| Client | Standard lane (external door, SE host) | Agent Privilege lane (facade `privilege-gateway` door) |
 |---|---|---|
 | Door itself (curl probes) | ✅ DCR + authorize + handshake + scope governance verified | (facade probes pending) |
 | Muse (consumer app) | connect + read — **OAuth-discovery compatibility is the open question** | connect + read |
@@ -162,7 +162,7 @@ Expected: external door returns the RFC 9728 + RFC 8414 documents from `EXTERNAL
 Standard lane (same config for every client — it's their native remote-MCP URL field):
 `https://api.ping.demo:3036/mcp` (Muse `mcp_servers` block with `transport: "streamable_http"`, `mode: "optional"`; LM Studio/LibreChat/ChatGPT: their remote-MCP connector UI).
 
-AI Gateway lane: `http://localhost:3001/mcp-facade/privilege-gateway/mcp` (or `https://local.ping-devops.com:4000/mcp-facade/privilege-gateway/mcp` for TLS-strict clients — record which works per client).
+Agent Privilege lane: `http://localhost:3001/mcp-facade/privilege-gateway/mcp` (or `https://local.ping-devops.com:4000/mcp-facade/privilege-gateway/mcp` for TLS-strict clients — record which works per client).
 
 - [ ] **Step 4: Connect + OAuth per client, per lane; record the wire behavior**
 
@@ -188,7 +188,7 @@ git commit -m "docs: record agent-doors verification matrix (Muse/LM Studio/Libr
 
 **Files:**
 - Create: `demo_api_ui/src/config/useCaseDiagrams/UC-MUSE1.js` (standard lane)
-- Create: `demo_api_ui/src/config/useCaseDiagrams/UC-MUSE2.js` (AI Gateway lane)
+- Create: `demo_api_ui/src/config/useCaseDiagrams/UC-MUSE2.js` (Agent Privilege lane)
 - Create: `demo_api_ui/src/config/useCaseDiagrams/__tests__/UC-MUSE1.test.js`
 - Create: `demo_api_ui/src/config/useCaseDiagrams/__tests__/UC-MUSE2.test.js`
 - Modify: `demo_api_ui/src/config/useCaseDiagrams/index.js` (register both)
@@ -266,7 +266,7 @@ const walk = [
     title: "The user's agent asks", label: "Muse on Alice's Mac",
     nodes: ["user", "agent"], edges: [0],
     lines: [{ who: "Alice", text: "Show my checking balance — asked in Muse, not the bank's app." }],
-    tech: [{ t: "API", c: "Muse -> POST /mcp tools/call get_banking_account" }],
+    tech: [{ t: "API", c: "Muse -> POST /mcp tools/call get_my_accounts" }],
   },
   {
     title: "Door onboarding", label: "Discover, register, log in",
@@ -297,7 +297,7 @@ const walk = [
     title: "Answer on the record", label: "Chain visible",
     nodes: ["tool", "user"], edges: [4],
     lines: [{ who: "Presenter", text: "Same governance as our own agent — because the trust layer never cared whose agent it was." }],
-    tech: [{ t: "POLICY", c: "audit: sub=alice act=muse tool=get_banking_account decision=PERMIT" }],
+    tech: [{ t: "POLICY", c: "audit: sub=alice act=muse tool=get_my_accounts decision=PERMIT" }],
   },
 ];
 
@@ -311,17 +311,17 @@ export default {
 };
 ```
 
-- [ ] **Step 4: Author UC-MUSE2 (AI Gateway lane diagram)**
+- [ ] **Step 4: Author UC-MUSE2 (Agent Privilege lane diagram)**
 
 `demo_api_ui/src/config/useCaseDiagrams/UC-MUSE2.js` — same actor, second lane via the facade's `privilege-gateway` door:
 
 ```js
 /**
- * UC-MUSE2 — External agent, AI Gateway lane. The same agent connects to the
+ * UC-MUSE2 — External agent, Agent Privilege lane. The same agent connects to the
  * facade's privilege-gateway door: OAuth against the durable demo broker
  * doubles as the sign-in that establishes the BFF's server-side leg to the
- * PingOne Privilege AI Gateway (ownsUpstreamAuth swaps the bearer on the
- * upstream hop). Per-user policy is enforced by the AI Gateway.
+ * PingOne Agent Privilege (ownsUpstreamAuth swaps the bearer on the
+ * upstream hop). Per-user policy is enforced by the Agent Privilege.
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
 
@@ -329,7 +329,7 @@ const NODES = [
   { id: "user", group: "user", label: "Alice (user)", sub: ["signs in once"], x: 40, y: 150, detail: "Her OAuth sign-in is what establishes the gateway leg — one login, both sides." },
   { id: "agent", group: "external", label: "Muse agent", sub: ["user's machine"], x: 340, y: 150, detail: "Same agent, different door: the facade's privilege-gateway MCP endpoint." },
   { id: "facade", group: "gateway", label: "MCP facade", sub: ["durable broker"], x: 640, y: 150, detail: "Registers the client durably and holds the upstream gateway leg server-side — client config survives gateway restarts." },
-  { id: "aigw", group: "pingone", label: "AI Gateway", sub: ["Privilege"], x: 940, y: 150, detail: "PingOne Privilege AI Gateway: per-user policy on the upstream call; the caller's bearer is replaced." },
+  { id: "aigw", group: "pingone", label: "Agent Privilege", sub: ["Privilege"], x: 940, y: 150, detail: "PingOne Agent Privilege: per-user policy on the upstream call; the caller's bearer is replaced." },
   { id: "tool", group: "resource", label: "Registered app", sub: ["Agentic App"], x: 1240, y: 150, detail: "The app registered in Privilege (e.g. banking MCP server) serves the tools." },
 ];
 
@@ -366,7 +366,7 @@ const walk = [
   {
     title: "Per-user policy", label: "Privilege decides",
     nodes: ["aigw", "tool"], edges: [3],
-    lines: [{ who: "AI Gateway", text: "Policy evaluates the human who signed in — identity travels, not just a service credential." }],
+    lines: [{ who: "Agent Privilege", text: "Policy evaluates the human who signed in — identity travels, not just a service credential." }],
     tech: [{ t: "POLICY", c: "Privilege per-user policy -> dispatch to registered Agentic App" }],
   },
   {
@@ -406,7 +406,7 @@ and append both to `CONFIGS`.
 
 ```js
   'UC-MUSE1', // External agent standard lane — user's agent -> door -> gateway -> Authorize
-  'UC-MUSE2', // External agent AI Gateway lane — user's agent -> facade -> Privilege AI Gateway
+  'UC-MUSE2', // External agent Agent Privilege lane — user's agent -> facade -> Agent Privilege
 ```
 and add destinations:
 
@@ -419,12 +419,12 @@ and add destinations:
   UC_MUSE2: {
     kind: 'agent',
     label: 'Runs in your agent',
-    title: 'Same agent, AI Gateway lane: point it at /mcp-facade/privilege-gateway/mcp per docs/MUSE_RUNBOOK.md. The reel walks the credential-swap hop.',
+    title: 'Same agent, Agent Privilege lane: point it at /mcp-facade/privilege-gateway/mcp per docs/MUSE_RUNBOOK.md. The reel walks the credential-swap hop.',
   },
 ```
 Note: match the exact export shape used by the existing `DEMO_STEP_DESTINATIONS` entries (UC46/UC46A) — key style there is the bare UC id (`UC46:`); use `UC-MUSE1:` / `UC-MUSE2:` quoted keys for these hyphenated ids.
 
-`demo_api_ui/src/config/demoStepGuides.js` — add `UC-MUSE1` / `UC-MUSE2` entries mirroring an existing external-agent guide (title, description, business value; the diagram page imports these). Keep titles ≤ a sentence, e.g. `"Your agent, our gateway"` and `"Your agent, the AI Gateway"`.
+`demo_api_ui/src/config/demoStepGuides.js` — add `UC-MUSE1` / `UC-MUSE2` entries mirroring an existing external-agent guide (title, description, business value; the diagram page imports these). Keep titles ≤ a sentence, e.g. `"Your agent, our gateway"` and `"Your agent, the Agent Privilege"`.
 
 - [ ] **Step 7: Run the drift ratchet**
 
@@ -551,7 +551,7 @@ export const EXTERNAL_AGENTS = [
       { title: 'Install', body: 'curl -fsSL https://dev.meta.ai/install.sh | sh, then muse --version.' },
       { title: 'Point at the standard door', body: 'Settings > mcp_servers: {"mcp_servers": {"demo-bank": {"transport": "streamable_http", "url": "https://cmuir-mcp.ping-devops.com/mcp", "mode": "optional"}}}. First tool use triggers OAuth: browser opens, PingOne login, callback to 127.0.0.1.' },
       { title: 'Governed write', body: 'Keep the dashboard open. "Transfer $500 to savings" -> P1AZ -> HITL pending on the dashboard -> approve -> tool runs.' },
-      { title: 'Lane 2 (local BFF)', body: 'Add a second server entry with url http://localhost:3001/mcp-facade/privilege-gateway/mcp (or the https://local.ping-devops.com:4000 form) to walk the AI Gateway lane.' },
+      { title: 'Lane 2 (local BFF)', body: 'Add a second server entry with url http://localhost:3001/mcp-facade/privilege-gateway/mcp (or the https://local.ping-devops.com:4000 form) to walk the Agent Privilege lane.' },
     ],
     doors: { standard: STANDARD_DOOR, aiGateway: AI_GATEWAY_DOOR },
     coverage: ['onboard', 'read', 'governed-write', 'ai-gateway', 'step-up', 'audit', 'deny'],
@@ -717,7 +717,7 @@ const COVERAGE_LABELS = {
   'onboard': 'Onboard (discovery, DCR, PKCE)',
   'read': 'UC-MUSE1 delegated read',
   'governed-write': 'Governed write + HITL',
-  'ai-gateway': 'UC-MUSE2 AI Gateway lane',
+  'ai-gateway': 'UC-MUSE2 Agent Privilege lane',
   'step-up': 'Step-up / MFA',
   'audit': 'Audit trail',
   'deny': 'Deny paths',
@@ -744,7 +744,7 @@ export default function ExternalAgentLessonPage() {
         Walk the wire:{' '}
         <a href={useCaseDiagramPath('UC-MUSE1')}>standard lane (UC-MUSE1)</a>
         {' \u00b7 '}
-        <a href={useCaseDiagramPath('UC-MUSE2')}>AI Gateway lane (UC-MUSE2)</a>
+        <a href={useCaseDiagramPath('UC-MUSE2')}>Agent Privilege lane (UC-MUSE2)</a>
       </p>
 
       <h2>Set it up to demo</h2>
@@ -761,7 +761,7 @@ export default function ExternalAgentLessonPage() {
       <ul>
         <li>Standard lane: <code>{agent.doors.standard}</code></li>
         <li>
-          AI Gateway lane:{' '}
+          Agent Privilege lane:{' '}
           {agent.doors.aiGateway
             ? <code>{agent.doors.aiGateway}</code>
             : 'not available for this agent (cloud reachability)'}
@@ -881,20 +881,20 @@ Watch Ping govern it." The agent is the presenter's own install; every
 governance surface is ours. Two lanes, same agent:
 
 - **Standard lane** — agent → external door (:3036) → PingGateway → PingOne Authorize → tool
-- **AI Gateway lane** — agent → facade `privilege-gateway` door → PingOne Privilege AI Gateway → registered app
+- **Agent Privilege lane** — agent → facade `privilege-gateway` door → PingOne Agent Privilege → registered app
 
 ## The two doors
 
 | Lane | URL (any MCP client's remote-server field) | Governed by |
 |---|---|---|
 | Standard | `https://api.ping.demo:3036/mcp` | PingGateway + PingOne Authorize (RFC 8693 chain, P1AZ, HITL, step-up) |
-| AI Gateway | `http://localhost:3001/mcp-facade/privilege-gateway/mcp` (TLS-strict clients: `https://local.ping-devops.com:4000/mcp-facade/privilege-gateway/mcp`) | PingOne Privilege AI Gateway (per-user policy; credential swapped at the facade) |
+| Agent Privilege | `http://localhost:3001/mcp-facade/privilege-gateway/mcp` (TLS-strict clients: `https://local.ping-devops.com:4000/mcp-facade/privilege-gateway/mcp`) | PingOne Agent Privilege (per-user policy; credential swapped at the facade) |
 
 ## Before the demo (once)
 
 1. Stack up: `./run-docker.sh` (OrbStack, not Docker Desktop)
 2. Sanity: `curl -s https://api.ping.demo:3036/.well-known/oauth-protected-resource/mcp` returns the RFC 9728 document.
-3. Standard lane works from the local stack as-is. AI Gateway lane needs the
+3. Standard lane works from the local stack as-is. Agent Privilege lane needs the
    Privilege tenant wiring (SE credentials) — without it the door's broker
    still runs but the upstream leg is unconfigured; know which lane you're
    demoing before you're on stage.
@@ -967,7 +967,7 @@ mcpServers:
 | Onboard | first tool use in any client | Browser opens: PingOne login → consent | Browser |
 | Read (UC-MUSE1) | "Show my checking account balance" | Token chain: RFC 8693 exchange (sub=user, act=agent) → gateway → tool | Dashboard token-chain panel |
 | Governed write (Muse only) | "Transfer $500 to savings" | P1AZ evaluates → HITL pending → approve in dashboard → tool runs | Dashboard HITL panel |
-| Lane 2 (UC-MUSE2) | Same read, pointed at the privilege-gateway door | Credential swap at the facade; per-user policy at the AI Gateway | Dashboard + Privilege console |
+| Lane 2 (UC-MUSE2) | Same read, pointed at the privilege-gateway door | Credential swap at the facade; per-user policy at the Agent Privilege | Dashboard + Privilege console |
 | Step-up | Trigger MFA step-up case | Agent paused until MFA completes | Dashboard step-up surface |
 | Audit | Any call | Correlation id, decision, sub/act in the audit trail | Dashboard audit panel |
 
@@ -975,7 +975,7 @@ mcpServers:
 
 - "Any spec-compliant agent works — we didn't pre-register any of them. DCR did it live."
 - "The agent has no keys of its own. Its authority is minted per call by RFC 8693."
-- "Two lanes, one trust layer: our gateway or the AI Gateway — the external agent is governed either way."
+- "Two lanes, one trust layer: our gateway or the Agent Privilege — the external agent is governed either way."
 - "When the action is sensitive, the agent stops. The human approves in the bank's UI — the trust boundary is Ping, not the agent."
 - "Kill the agent's token in Agent Governance and the same tool call is denied — governance outlives the agent."
 
@@ -985,7 +985,7 @@ mcpServers:
 |---|---|---|
 | Client shows not connected | Stack down or TLS not trusted | `./run-docker.sh`; trust mkcert root CA |
 | Browser login loops | Callback port blocked | Re-run the client's OAuth (LM Studio: remove + re-add connector) |
-| AI Gateway lane 503 after BFF restart | Gateway leg dropped with the session | Re-authenticate the door from the client (config unchanged — by design) |
+| Agent Privilege lane 503 after BFF restart | Gateway leg dropped with the session | Re-authenticate the door from the client (config unchanged — by design) |
 | Tool call 401s mid-demo | Token expired | Clients auto-refresh; if not, reconnect the connector |
 | HITL approval never appears | HITL service down | `docker logs` the hitl service; restart it |
 ````

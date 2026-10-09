@@ -73,7 +73,7 @@ The façade's upstream relay logic (OAuth session management, `tools/list`/`tool
 
 ### 3.3 The façade's own upstream identity — Judgment call
 
-The façade must be reachable whenever LibreChat is, independent of whether anyone has the AI Gateway client page (`/privilege-mcp-client`) open in a browser — so it cannot piggyback on that page's per-browser-session OAuth token the way today's proof did.
+The façade must be reachable whenever LibreChat is, independent of whether anyone has the Agent Privilege client page (`/privilege-mcp-client`) open in a browser — so it cannot piggyback on that page's per-browser-session OAuth token the way today's proof did.
 
 - **Agent-mode door:** no identity to manage — the Priv Agent's mTLS listener IS the identity, same as today.
 - **Agentless door:** the façade owns a **persisted, server-side Privilege OAuth session**, established by a one-time interactive admin login (mirroring this repo's existing pattern of "log in once, tokens persisted server-side, refreshed automatically" rather than inventing a new auth model) and refreshed on its own. This is new code, but a small, well-understood shape — not a new *kind* of thing in this repo.
@@ -117,7 +117,7 @@ Agent-mode drops the `token.exchange` hop (no OAuth) but keeps the other four.
 ## 6. Error handling
 
 - **Façade unreachable / gateway down:** LibreChat sees the same connection failure it would talking to the real gateway directly — no new failure mode, the façade is a thin relay.
-- **Gateway denies the call (policy lapsed, as currently observed on the Priv Agent door):** the façade still emits `gateway.authorize` with `decision: deny` and passes the real 403 through unchanged; the reel shows exactly where it stopped, same as the AI Gateway client page does today.
+- **Gateway denies the call (policy lapsed, as currently observed on the Priv Agent door):** the façade still emits `gateway.authorize` with `decision: deny` and passes the real 403 through unchanged; the reel shows exactly where it stopped, same as the Agent Privilege client page does today.
 - **Artifact fence not emitted:** not an error — §5.4's fallback link covers it. Measured, not silently assumed (§7).
 - **`reel_url` requested for a correlationId with no ledger record yet** (a race right after the call): the embed view shows a "waiting for the first hop" state rather than a 404, since the façade's `response` hop can lag the artifact rendering by a beat.
 
@@ -133,5 +133,5 @@ Extends `demo_api_ui/tests/e2e/librechat-mcp-servers.real.spec.js` (already cove
 
 - Exact name/location for the new façade service, and whether it's Dockerized standalone or run alongside `librechat/docker-compose.yml`.
 - Polling interval vs. SSE for the embed view's live updates (§4).
-- The façade's one-time admin-login UX for its persisted agentless OAuth session (§3.3) — likely a small addition to the existing AI Gateway client page rather than a new page.
+- The façade's one-time admin-login UX for its persisted agentless OAuth session (§3.3) — likely a small addition to the existing Agent Privilege client page rather than a new page.
 - Measured artifact-fence compliance rate (§7) and whether the system instruction needs iteration once real numbers exist.

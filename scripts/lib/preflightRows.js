@@ -4,7 +4,7 @@
  * Pure decision logic for the MCP door preflight (scripts/check-mcp-preflight.js).
  * Split out so it can be tested without a network.
  *
- * The load-bearing judgement is what a 401 means. The Privilege AI Gateway
+ * The load-bearing judgement is what a 401 means. The Agent Privilege
  * answers 401 BEFORE it routes, so a nonexistent app name returns 401 exactly
  * like a real one. An unauthenticated probe can therefore prove DNS, TLS and
  * reachability, and nothing about authorization. `auth` is its own state for

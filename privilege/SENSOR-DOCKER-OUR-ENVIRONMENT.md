@@ -130,7 +130,7 @@ Both answered a tokenless `initialize` with 200 from inside the network today. R
 
 ### Privilege console
 
-These are console objects and cannot be read or changed from the repo: the gateway registration in mesh cluster `ai-demo-mine`, one Agentic App per backend (type MCP Server, Auth Mode None, AI Gateway selected), and a policy on each app naming the user. Policies are time-boxed.
+These are console objects and cannot be read or changed from the repo: the gateway registration in mesh cluster `ai-demo-mine`, one Agentic App per backend (type MCP Server, Auth Mode None, Agent Privilege selected), and a policy on each app naming the user. Policies are time-boxed.
 
 ### Pointing the BFF at the local gateway
 
@@ -248,7 +248,7 @@ Measured 2026-10-01: steps 1 to 5 pass for the gateway, front door and both back
 | Backend answers 401 `Bearer token required` | Auth Mode None forwards no bearer and the backend demands one | Use the `:8081` listener with `MCP_AUTH_DISABLED=true`, or Auth Mode Static Token |
 | BFF call lands in the SE cluster instead of local Docker | `PRIVILEGE_MCPGW_URL` holds the SE URL | Set it to the local front door |
 | BFF cannot resolve the front door host | Name exists only in the host's `/etc/hosts` | Add it to the `mcpgw-nginx` network aliases |
-| App saved but produces no gateway log lines | Console left AI Gateway on `Select Gateway...` | Reselect the gateway on the app |
+| App saved but produces no gateway log lines | Console left Agent Privilege on `Select Gateway...` | Reselect the gateway on the app |
 | LibreChat doors fail with `No OAuth metadata ... localhost:3005` | `librechat` restarted without its `oauth-loopback` sidecar | Restart the sidecar after LibreChat |
 | Steady 404 and 503 noise in BFF and LLM logs from the Docker gateway address | The Privilege desktop agent on the Mac scans local LLM ports about every 30 s | Ignore; it is a separate product from the sensor |
 

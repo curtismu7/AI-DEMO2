@@ -1,7 +1,7 @@
 {
   "name": "demo-mcp-banking-rest",
   "version": "1.0.0",
-  "description": "REST proxy fronting demo_mcp_resource_server's /banking endpoints — Privilege AI Gateway OpenAPI MCP app",
+  "description": "REST proxy fronting demo_mcp_resource_server's /banking endpoints — Agent Privilege OpenAPI MCP app",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

@@ -1,4 +1,4 @@
-# Privilege AI Gateway: Guardrails for A2A
+# Agent Privilege: Guardrails for A2A
 
 Oct 3, 2026 · @Curtis Muir
 

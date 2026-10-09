@@ -21,7 +21,10 @@ function demoPrimaryUseCaseIds() {
   );
   const block = src.match(/export const DEMO_PRIMARY_USE_CASE_IDS = \[([\s\S]*?)\];/);
   if (!block) throw new Error('DEMO_PRIMARY_USE_CASE_IDS not found in demoUseCaseSteps.js');
-  return block[1].match(/'([^']+)'/g).map((s) => s.replace(/'/g, ''));
+  // Only read the id at the start of a line — a naive /'([^']+)'/ also matches
+  // the halves of an apostrophe inside a trailing // comment (e.g. "user's
+  // agent"), turning comment text into phantom ids.
+  return (block[1].match(/^\s*'([^']+)'/gm) || []).map((s) => s.replace(/'/g, '').trim());
 }
 
 describe('airlines use-case catalog', () => {

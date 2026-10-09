@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # scripts/gateway-verdict-feed.sh — live guardrail-verdict feed from the Privilege
-# AI Gateway (Procyon / cyonproxy), for demoing Alert/Sanitize decisions that the
+# Agent Privilege (Procyon / cyonproxy), for demoing Alert/Sanitize decisions that the
 # LLM response never shows the caller.
 #
 # WHY THIS EXISTS: on the /llm/<provider>/v1/chat/completions path the gateway

@@ -1,4 +1,4 @@
-# Privilege AI Gateway: Aggregate Apps
+# Agent Privilege: Aggregate Apps
 
 Oct 4, 2026 · @Curtis Muir
 
@@ -78,7 +78,7 @@ In the console an aggregate is an application of type **MCP Aggregate**. It has 
 
 Two points from when the tested one was created:
 
-- **It is reachable through the AI Gateway only.** It is not published to the device agent.
+- **It is reachable through the Agent Privilege only.** It is not published to the device agent.
 - **Members are other registered MCP Server apps.** Register and test each one on its own first.
 
 The form itself was not walked through for this guide.

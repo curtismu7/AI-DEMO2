@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. Also load the `verify-ai-demo2` and `regression-guard` skills before running tests or touching auth code.
 
-**Goal:** An MCP client's own OAuth sign-in to the façade's Privilege door also establishes the façade's upstream session to the PingOne Privilege AI Gateway, so nobody has to visit `/privilege-mcp-client`.
+**Goal:** An MCP client's own OAuth sign-in to the façade's Privilege door also establishes the façade's upstream session to the PingOne Agent Privilege, so nobody has to visit `/privilege-mcp-client`.
 
 **Architecture:** The broker (`demo_mcp_gateway` OAuthBrokerRouter) keeps the client's `resource`; after its PingOne hop, for a `…/mcp-facade/privilege-gateway/<app>/mcp` resource it parks the authorization and sends the browser to a new BFF route that runs the existing gateway sign-in for that app, stores the token per app (persisted in LMDB), and returns the browser to the broker's new `/oauth/resume`. The façade door answers 401 (instead of 503) when an app has no gateway session, so clients re-authenticate on expiry.
 
@@ -231,7 +231,7 @@ Create `demo_api_server/services/lmdb/privilegeGatewaySessionStore.lmdb.js`:
 ```js
 'use strict';
 /**
- * privilegeGatewaySessionStore.lmdb.js — the façade's Privilege AI Gateway
+ * privilegeGatewaySessionStore.lmdb.js — the façade's Agent Privilege
  * sessions, persisted so a BFF container recreate does not throw them away.
  *
  * One key per Agentic App (e.g. `opensearch22`); the value is the record
@@ -270,7 +270,7 @@ Replace the whole of `demo_api_server/services/privilegeGatewaySession.js` with:
 'use strict';
 
 /**
- * The façade's upstream leg to the Privilege AI Gateway, one session per
+ * The façade's upstream leg to the Agent Privilege, one session per
  * Agentic App.
  *
  * WHY THIS EXISTS. Standalone MCP clients (LM Studio) register themselves with
@@ -1401,7 +1401,7 @@ Add after the `IssuedCode` interface:
 
 ```ts
 /** An authorization parked mid-flight while the BFF signs the browser in to
- *  the Privilege AI Gateway — everything /oauth/resume needs to issue the
+ *  the Agent Privilege — everything /oauth/resume needs to issue the
  *  broker's own code once the browser comes back. */
 export interface ResumableAuthorization {
   id: string;
@@ -1492,7 +1492,7 @@ In `handleCallback`, insert immediately before `const ownCode = this.tokenStore.
 
 ```ts
     // The façade's Privilege door needs a second leg the client cannot see: a
-    // sign-in to the Privilege AI Gateway, held server-side by the BFF. Park
+    // sign-in to the Agent Privilege, held server-side by the BFF. Park
     // this authorization, let the BFF do that sign-in while the browser is
     // here, and finish at /oauth/resume. See
     // docs/superpowers/specs/2026-09-11-lmstudio-privilege-gateway-link-design.md.
@@ -1596,7 +1596,7 @@ After the line `      BFF_BROKER_PROMPT_URL: "https://demo-api-server:3001/mcp-f
 
 ```yaml
       # Privilege-door gateway link: after its own PingOne hop, the broker sends
-      # the browser here so the BFF signs it in to the Privilege AI Gateway for
+      # the browser here so the BFF signs it in to the Agent Privilege for
       # the requested app, then back to /oauth/resume. Browser-facing on purpose
       # (it is a redirect, and the BFF session cookie lives on this host).
       # Unset = no chaining. See

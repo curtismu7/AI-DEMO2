@@ -47,6 +47,8 @@
 | UC46 | [Privilege A2A access review](./privilege-a2a-access-review.md) | tools | ✅ works |  |  |
 | UC46A | [Privilege A2A access review in the agent](./privilege-a2a-access-review-agent.md) | tools | ✅ works |  |  |
 | UC47 | [Privilege A2A three-deep agent chain](./privilege-a2a-agent-chain.md) | tools | ✅ works |  |  |
+| UC-MUSE1 | [Your agent, our gateway (external agent, standard lane)](./external-agent-standard-lane.md) | tools | ✅ works |  |  |
+| UC-MUSE2 | [Your agent, the Agent Privilege (external agent, lane 2)](./external-agent-ai-gateway-lane.md) | tools | ✅ works |  |  |
 | UC-NHI1 | [Live agent NHI inventory](./nhi-inventory.md) | nhi | ✅ works |  |  |
 | UC-NHI2 | [Agent lifecycle export (JML)](./nhi-lifecycle-export.md) | nhi | ✅ works |  |  |
 | UC-LEARN1 | [OAuth Academy](./oauth-academy.md) | learn | ✅ works |  |  |
@@ -64,6 +66,7 @@
 | UC-LEARN12 | [PingFederate DaVinci Integration Kit](./pingfederate-davinci-integration-kit.md) | learn | ✅ works |  |  |
 | UC-LEARN13 | [PingFederate RAR — the authorization server refuses an out-of-policy transfer](./pingfederate-rar-processor.md) | learn | ✅ works |  |  |
 | UC-LEARN14 | [CIBA human approval — PingFederate or PingOne, by how you signed in](./ciba-by-signed-in-provider.md) | learn | ✅ works |  |  |
+| UC-LEARN15 | [Jev decision model — System One vs System Two](./jev-decision-model.md) | learn | ✅ works | 🛡️ T5 |  |
 | UC-LEARN11 | [Privilege LLM — prompt injection blocked](./privilege-llm-prompt-injection.md) | learn | ✅ works | 🛡️ T5 |  |
 | UC-LOGIN | [PingOne login (OIDC + PKCE)](./pingone-person-login.md) | demo | ✅ works | 🛡️ T3 |  |
 | UC-LOGIN-PF | [PingFederate login (OIDC + PKCE)](./pingfederate-person-login.md) | demo | ✅ works | 🛡️ T3 |  |
@@ -100,8 +103,8 @@
 
 | Status | Count |
 |---|---|
-| ✅ Works | 64 |
+| ✅ Works | 67 |
 | 🚩 Flag-gated | 10 |
 | 📥 Needs console import | 0 |
 | 🏗️ Needs build | 2 |
-| **Total** | **76** |
+| **Total** | **79** |

@@ -1,4 +1,4 @@
-# AI Gateway Client live integration tests
+# Agent Privilege Client live integration tests
 
 The default `npm test` suite stays local and offline. Live Gateway checks are opt-in and use explicit fixture URLs; they never change Gateway applications, identities, or policies.
 

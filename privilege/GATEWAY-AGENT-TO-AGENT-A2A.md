@@ -1,4 +1,4 @@
-# Privilege AI Gateway: Agent-to-Agent (A2A)
+# Agent Privilege: Agent-to-Agent (A2A)
 
 Updated 4 October 2026 · Curtis Muir
 
@@ -21,7 +21,7 @@ Updated 4 October 2026 · Curtis Muir
 
 ## Overview
 
-The Privilege AI Gateway can front an A2A agent the same way it fronts an MCP server. A caller identifies itself at the gateway, a person by signing in and an agent with a key, the gateway checks policy, and the call goes on to the remote agent with whatever credential the app's Auth Mode sends. The caller's gateway sign-in token is never passed on.
+The Agent Privilege can front an A2A agent the same way it fronts an MCP server. A caller identifies itself at the gateway, a person by signing in and an agent with a key, the gateway checks policy, and the call goes on to the remote agent with whatever credential the app's Auth Mode sends. The caller's gateway sign-in token is never passed on.
 
 In the console this is a **Remote Agent** application. It sits beside MCP Server applications and uses the same per-app sign-in, policy and logging.
 
@@ -89,7 +89,7 @@ Not tested: Pass Agent Token with a caller that holds a workload identity, and t
 ```mermaid
 flowchart TD
   caller["Caller: an agent or a person<br/>POST /app/a2a/jsonrpc with a token or key"] --> c1
-  subgraph gw["Privilege AI Gateway"]
+  subgraph gw["Agent Privilege"]
     c1{"1. Signed in at this app?<br/>or a valid agent key"} -- yes --> c2{"2. Policy covers this user and app?"}
     c2 -- yes --> c3{"3. Auth mode satisfied?<br/>Pass Agent Token needs a workload token"}
   end
@@ -191,7 +191,7 @@ Keys are scoped by kind of access: `llm`, `mcp` or `a2a`, and by app. A key made
 
 Unlike a policy refusal, this 403 says why. So a calling agent needs a key that is scoped for `a2a` access to the specific Remote Agent app.
 
-**Setting up a calling agent.** In the console a caller is an **Agent**, found under AI Gateway, Agent Registry, and created in four steps:
+**Setting up a calling agent.** In the console a caller is an **Agent**, found under Agent Privilege, Agent Registry, and created in four steps:
 
 | Step | What you set |
 | --- | --- |
@@ -310,7 +310,7 @@ A two-agent build needs three kinds of console object, and two of them have simi
 | --- | --- | --- |
 | Remote Agent app | Agentic Apps, Add Application, type Remote Agent | The route to the worker agent's backend, entry path `/a2a` |
 | MCP Server app | Agentic Apps, Add Application, type MCP | The route to the tool server's backend, entry path `/mcp` |
-| Agent | AI Gateway, Agent Registry, Add Agent | One caller's key: its scopes, provider, allowed models and the apps it may reach |
+| Agent | Agent Privilege, Agent Registry, Add Agent | One caller's key: its scopes, provider, allowed models and the apps it may reach |
 
 **Order of work.** Tested on 4 October 2026 with a main agent, a worker agent and one MCP server.
 

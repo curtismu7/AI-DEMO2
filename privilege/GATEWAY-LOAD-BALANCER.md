@@ -1,4 +1,4 @@
-# Privilege AI Gateway: load balancer and second gateway
+# Agent Privilege: load balancer and second gateway
 
 Status: both gateways in rotation as two nodes of ONE mesh cluster (`ai-demo-cmuir`); one
 app registration serves both, and each node serves every app on its own. Both share one
@@ -542,7 +542,7 @@ The older runbook commands in sections 6 and 7 that edit `mcpgw-lb.yaml` and run
 > design below was the state before that was found; read section 0 first.
 
 We want one public URL, `https://mcpgw.ai-demo.ping-devops.com`, served by two
-Privilege AI Gateways so we can show failover and "1 + 1" to customers.
+Agent Privileges so we can show failover and "1 + 1" to customers.
 
 What we built and proved:
 

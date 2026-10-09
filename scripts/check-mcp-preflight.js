@@ -49,7 +49,7 @@ const TARGETS = {
 // by design and would be permanently red.
 const FACADE_DOORS = ['agent-gateway', 'opensearch', 'brave', 'banking', 'privilege-gateway'];
 
-// Agentic Apps registered on the AI Gateway. Hardcoded here on purpose for now:
+// Agentic Apps registered on the Agent Privilege. Hardcoded here on purpose for now:
 // Plan B (W8) replaces this with the console inventory, and this list is what
 // that change is measured against.
 // `agent-gateway` here is the Agentic App registered in Task 5 of the

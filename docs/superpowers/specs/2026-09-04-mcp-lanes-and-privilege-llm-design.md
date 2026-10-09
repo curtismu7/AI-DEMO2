@@ -3,7 +3,7 @@
 **Date:** 2026-09-04
 **Status:** design, awaiting approval
 **Goal:** make the three MCP connection lanes demoable and bulletproof in *both*
-clients (the web AI Gateway Client page and LM Studio) on *both* targets (local
+clients (the web Agent Privilege Client page and LM Studio) on *both* targets (local
 Docker and the SE cluster), and add a Privilege LLM protection panel to the
 gateway client page.
 
@@ -12,7 +12,7 @@ gateway client page.
 ## 1. Problem statement
 
 The user reports the three MCP lanes "fighting each other", and has never seen
-the façade work in LM Studio or in the AI Gateway Client. Separately, the user
+the façade work in LM Studio or in the Agent Privilege Client. Separately, the user
 wants Privilege LLM protection — a virtual API key through which Privilege calls
 Anthropic / OpenAI / Google — surfaced on the gateway client page, believing the
 Anthropic side was set up but possibly never finished.
@@ -35,7 +35,7 @@ than probe-derived, it says so.
 | SE advertises a correct, publicly reachable authorization server | all three doors return `authorization_servers: ["https://ai-demo.ping-devops.com"]` |
 | That AS is real | `GET https://ai-demo.ping-devops.com/.well-known/oauth-authorization-server` → 200, with `authorization_endpoint`, `token_endpoint`, `registration_endpoint` (RFC 7591 DCR) and `scopes_supported` including `mcp:invoke` and `audit:read` |
 | The public-URL patch mechanism exists and works | `service-topology.json` marks `MCP_FACADE_AGENT_GATEWAY_AS`, `MCP_FACADE_REEL_BASE`, `PUBLIC_APP_URL` as `"public"`; live `ai-demo-config` configmap carries `https://ai-demo.ping-devops.com` for each |
-| The Privilege AI Gateway is up | `GET https://mcpgw.ai-demo.ping-devops.com/opensearch22/mcp` → 401 (alive, demanding auth) |
+| The Agent Privilege is up | `GET https://mcpgw.ai-demo.ping-devops.com/opensearch22/mcp` → 401 (alive, demanding auth) |
 | Privilege LLM protection is built and merged | PRs #2732 (Gemini) and #2740 (Claude); [`services/privilegeLlmProxyService.js`](../../../demo_api_server/services/privilegeLlmProxyService.js), header records live verification 2026-09-03 |
 | Its secrets are live on SE | `ai-demo-secrets` contains `PRIVILEGE_LLM_GATEWAY_URL`, `PRIVILEGE_LLM_VIRTUAL_KEY_ANTHROPIC`, `PRIVILEGE_LLM_VIRTUAL_KEY_GOOGLE` |
 | Local Docker can complete the OAuth dance | `docker-compose.yml` publishes `mcp-gateway` as `3005:3005`, so the default `MCP_FACADE_AGENT_GATEWAY_AS=http://localhost:3005` is reachable from a host-side LM Studio |
@@ -51,7 +51,7 @@ nobody re-investigates them:
 ### 2.2 Finding 1 — the gateway session is the demo-killer
 
 [`services/privilegeGatewaySession.js`](../../../demo_api_server/services/privilegeGatewaySession.js)
-holds the façade's upstream leg to the Privilege AI Gateway **in memory, as a
+holds the façade's upstream leg to the Agent Privilege **in memory, as a
 single shared session**. Its own header explains why a service credential is
 impossible: the gateway publishes only `authorization_code` and `refresh_token`
 grants — no `client_credentials` — so a gateway token can only be minted by a
@@ -198,7 +198,7 @@ Called out explicitly because deployment differences are where this demo breaks.
 | | Local Docker | SE K8s |
 |---|---|---|
 | App services | `docker-compose.yml`, one shared stack | namespace `ping-devops-cmuir` |
-| Privilege AI Gateway | not present (SE only) | namespace **`ping-devops-curtismuir`** |
+| Agent Privilege | not present (SE only) | namespace **`ping-devops-curtismuir`** |
 | OpenSearch MCP server | port-forward or absent | `ping-devops-curtismuir` |
 | Public host | `local.ping-devops.com:4000` / `localhost` | `ai-demo.ping-devops.com` |
 | Façade reachable at | `:3001` (TLS) and `:3002` (plain HTTP) | `/mcp-facade/` via nginx configmap |
@@ -253,7 +253,7 @@ silently kills that door. The preflight (W1) must probe it rather than assume.
    `/mcp-facade/...` during a rollout is indistinguishable from a broken door.
    Preflight must report pod readiness alongside the HTTP probe so a red line
    can be attributed correctly.
-6. **The AI Gateway's DCR registry is in memory.** Restarting
+6. **The Agent Privilege's DCR registry is in memory.** Restarting
    `agentless-mcpgw` invalidates every registered client; standalone MCP clients
    must be removed and re-added, and the BFF's gateway session must be re-armed.
 7. **Backends register with `/sse`, never `/mcp`.** The gateway's discovery
@@ -312,7 +312,7 @@ data as JSON, so the page (W2) and the CLI share one implementation.
 BFF boot if a refresh token is still valid. This only helps if the token
 outlives the process, which it does not today — so it is likely dropped.
 
-### W3 — Register banking as an Agentic App on the AI Gateway
+### W3 — Register banking as an Agentic App on the Agent Privilege
 
 Console work, then config:
 
@@ -508,7 +508,7 @@ and read it, or check `${PIPESTATUS[0]}`.
 - Changing any frozen LLM setting (resident tiers, `LLAMACPP_MAX_TOKENS`,
   `REASON_LOOP_TIMEOUT_MS`, `reasoning_effort`). None of this work requires it.
 - The `agent` and `agent-cmuir` façade doors. They need inbound mesh exposure
-  the AI Gateway chart does not ship. They stay dark; W4 removes them from the
+  the Agent Privilege chart does not ship. They stay dark; W4 removes them from the
   LM Studio config rather than fixing them.
 - LibreChat. It shares the façade and should keep working, but proving it is not
   part of this deliverable.

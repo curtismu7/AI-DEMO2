@@ -52,7 +52,7 @@ Console, Gateways, Add New, the **AI GW** tab (not the VM wizard: its env file c
 | --- | --- |
 | Cluster ID | your cluster name |
 | **Host IP** | **`<service>.<namespace>.svc.cluster.local` of this node** |
-| AI Gateway Server URL | `https://<gateway host>` |
+| Agent Privilege Server URL | `https://<gateway host>` |
 | OIDC Client ID / Secret | from step 2 |
 | OIDC Auth / Token / User URL | from step 2 |
 | User ID Claim | leave blank |

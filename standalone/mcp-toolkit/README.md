@@ -46,4 +46,4 @@ To update later, re-run `npm run install:all` — it `git pull`s each repo inste
 ## Notes
 
 - Each tool works completely on its own — clone just the one you want if you don't need all three.
-- All three default to Ping's public AI Demo infrastructure (Privilege AI Gateway, its façade, and its PingOne environment) so everything works with zero configuration; each tool's own README explains how to point it at your own environment instead.
+- All three default to Ping's public AI Demo infrastructure (Agent Privilege, its façade, and its PingOne environment) so everything works with zero configuration; each tool's own README explains how to point it at your own environment instead.

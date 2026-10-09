@@ -176,7 +176,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   // --- SSE transport -------------------------------------------------------
-  // Privilege's AI Gateway discovers a backend by issuing a GET and waiting for
+  // Agent Privilege discovers a backend by issuing a GET and waiting for
   // the SSE `endpoint` event; it never POSTs initialize. A server that answers
   // only POST /mcp registers but reports `calling "initialize": Unauthorized`
   // and keeps an empty tool list — see demo_mcp_brave, which hit exactly that.

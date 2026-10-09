@@ -17,7 +17,7 @@ Every diagram page plays the same way:
 |---|---|---|
 | Step state (Simulate, Pause, Next, Prev, Reset) | `hooks/useDiagramStepper.js` | the single source of "which step" |
 | Control bar | `components/DiagramStepBar.jsx` on `diagram/DiagramControls` | stays the control surface |
-| Diagram renderers | `StaticFlowDiagram`, `SequenceFlowDiagram`, `FlowchartFlowDiagram`, AI Gateway graphs, Token Chain | each already takes a step index |
+| Diagram renderers | `StaticFlowDiagram`, `SequenceFlowDiagram`, `FlowchartFlowDiagram`, Agent Privilege graphs, Token Chain | each already takes a step index |
 | Live movie reel | `TokenChainFilmstrip`, `ReelDock` (dashboard) | visual language to match; built for live traces, not static steps |
 | Step detail sheet | `StepDetailPanel` | pattern for a details row; shape is trace-specific |
 | Per-page node details | `RSP_DETAILS`, `AOM_DETAILS`, `EXT_DOOR_DETAILS`, `NODE_DETAILS`, `personalAgentData.js` | text for the details row already exists per page |
@@ -36,7 +36,7 @@ Each renderer already produces, per step, a caption (`edgeCaptions`). Add a smal
 
 - StaticFlow pages: `from`/`to`/`label` come from `EDGES`; `detail` is assembled from the page's existing per-node details map (source node and target node) plus the edge label.
 - Sequence diagrams: one step per message; `detail.body` is the message text, `from`/`to` are the lifelines.
-- Flowcharts / AI Gateway graphs / Token Chain: same, from the edge list.
+- Flowcharts / Agent Privilege graphs / Token Chain: same, from the edge list.
 
 A helper `buildReelSteps({ nodes, edges, details })` returns the array. Pages without details still get a reel (caption only, no details row).
 
@@ -67,7 +67,7 @@ Done for edges. Remaining: nodes. Proposed: the node at each end of the arrow in
 
 1. `buildReelSteps` + `DiagramReel` (no details) and wire into `StaticFlowDiagram` and `SequenceFlowDiagram` (these two cover most pages). Unit tests for ordering and click-to-step.
 2. Details row + node click, fed from the existing per-page details maps. Unit tests for open/close and "canvas height unchanged when details open".
-3. Wire the remaining renderers: `FlowchartFlowDiagram`, AI Gateway graphs, Token Chain.
+3. Wire the remaining renderers: `FlowchartFlowDiagram`, Agent Privilege graphs, Token Chain.
 4. Shared node ring across renderers; Reset refits the view.
 5. Pages that keep their own simulators (Overview, Agent Onboarding Flow / Subway, Sequence Diagram, Token Flow, Canvas) are out of scope until they move to React Flow; list them in the page catalog as the exceptions.
 
@@ -82,8 +82,8 @@ Done for edges. Remaining: nodes. Proposed: the node at each end of the arrow in
 ## Decisions (answered 2026-10-07)
 
 1. **Reel vs caption:** keep both. The caption stays in the control bar (accessible live region); the reel sits under the diagram.
-2. **Thin diagrams:** short details are written by hand where a page had none: Phase 266 (4 nodes added to its map), Invest participants, AI Gateway Architecture nodes and Sign-in sequence participants. Pages with node text of their own reuse it; the rest fall back to the node's own lines.
+2. **Thin diagrams:** short details are written by hand where a page had none: Phase 266 (4 nodes added to its map), Invest participants, Agent Privilege Architecture nodes and Sign-in sequence participants. Pages with node text of their own reuse it; the rest fall back to the node's own lines.
 3. **Long reels:** one horizontally scrolling strip that follows the current card. On sequence diagrams the reel sits above the canvas (the drawing is as tall as the sequence), on every other diagram it sits below.
 4. **Personal Agent pages:** keep the long "Step by step" write-up, add the reel above it.
 
-Built as: `utils/diagramReel.js` (`buildReelSteps`, `buildNodeDetail`), `components/DiagramReel.jsx`, `markNodes` and `goTo` in `hooks/useDiagramStepper.js`, the shared `dstep-hot` ring, and a `diagram:refit` event Reset sends so every canvas returns to its fitted view. `StaticFlowDiagram` takes `stepper` (page-owned walkthrough) and `details`; sequences, flowcharts, the AI Gateway graphs and Token Chain wire the same pieces.
+Built as: `utils/diagramReel.js` (`buildReelSteps`, `buildNodeDetail`), `components/DiagramReel.jsx`, `markNodes` and `goTo` in `hooks/useDiagramStepper.js`, the shared `dstep-hot` ring, and a `diagram:refit` event Reset sends so every canvas returns to its fitted view. `StaticFlowDiagram` takes `stepper` (page-owned walkthrough) and `details`; sequences, flowcharts, the Agent Privilege graphs and Token Chain wire the same pieces.

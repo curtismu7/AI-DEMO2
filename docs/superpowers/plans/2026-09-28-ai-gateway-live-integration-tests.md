@@ -1,8 +1,8 @@
-# Live AI Gateway Integration Tests Implementation Plan
+# Live Agent Privilege Integration Tests Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:executing-plans` or `superpowers:subagent-driven-development` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add an explicitly invoked integration suite that verifies the AI Gateway Client against real, preconfigured MCP Gateway doors using a short-lived test identity.
+**Goal:** Add an explicitly invoked integration suite that verifies the Agent Privilege Client against real, preconfigured MCP Gateway doors using a short-lived test identity.
 
 **Architecture:** Keep the existing mock-backed `node:test` suite as the default fast check. Add a separate integration suite under `server/integration/` that starts the existing relay locally and checks allowed access, policy denial, filtered tools, and aggregate namespaces against explicitly configured staging URLs. The ordinary live command accepts separate door-scoped bearer tokens; an interactive variant signs in to each app audience with the relay's existing PKCE/DCR flow and keeps both access tokens in process memory, with no token export or persistence.
 
@@ -202,4 +202,4 @@ Live metadata discovery showed the allowed and denied app URLs advertise distinc
 
 ## Separate Follow-up: NHI Agent Enforcement
 
-NHI Agent Enforcement is not a route or identity-management feature in the standalone AI Gateway Client. A follow-up plan should first identify the supported NHI test-token issuance flow and policy API, provision a disposable NHI test principal, and define a harmless allowed/denied action. Do not claim this MCP integration suite proves NHI enforcement merely because it accepts a bearer token minted for an agent.
+NHI Agent Enforcement is not a route or identity-management feature in the standalone Agent Privilege Client. A follow-up plan should first identify the supported NHI test-token issuance flow and policy API, provision a disposable NHI test principal, and define a harmless allowed/denied action. Do not claim this MCP integration suite proves NHI enforcement merely because it accepts a bearer token minted for an agent.

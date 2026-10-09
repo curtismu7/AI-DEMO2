@@ -5,7 +5,7 @@ Verified 2026-09-08. **Update 2026-10-04: there are now two gateway nodes of one
 `ping-devops-cmuir`. The table below describes gateway 1; see
 [GATEWAY-LOAD-BALANCER.md](GATEWAY-LOAD-BALANCER.md) section 00 for the current layout.**
 The Agentless/Agent split below the fold is history: the per-owner gateways were torn down on
-2026-09-01 and replaced by a single AI Gateway (the product's own new name for
+2026-09-01 and replaced by a single Agent Privilege (the product's own new name for
 what this repo called "agentless").
 
 ## The current deployment
@@ -66,7 +66,7 @@ what this repo called "agentless").
 - **The Privilege gateway is in a different namespace from the demo.**
   `agentless-mcpgw` runs in **`ping-devops-curtismuir`**; the demo runs in
   **`ping-devops-cmuir`**. Searching only the demo namespace yields a confident
-  and false "the Privilege AI Gateway is not deployed". This is the
+  and false "the Agent Privilege is not deployed". This is the
   `cmuir` vs `curtismuir` trap from the setup notes, inverted.
 - **`svc.cluster.local` is the backend, not a client URL.** It resolves only
   inside the cluster; a client pointed there hangs. Clients use the client URL
@@ -117,7 +117,7 @@ what this repo called "agentless").
 | App | Type | Backend | Status |
 | --- | --- | --- | --- |
 | `opensearch22` | MCP Server (subdomain) | `http://opensearch-mcp-server.ping-devops-curtismuir.svc.cluster.local/mcp` | Working end-to-end 2026-09-08 — client path `/opensearch22/mcp` (calls logged 200/202/200 after the `/mcp` re-registration). **Deliberate known-good fixture:** policy carries a **3-month** time-box so this door always answers 200, giving the demo one connection that is never transient. It is also the default (`MCP_FACADE_PRIVILEGE_GATEWAY_APP` falls back to `opensearch22`). The box still expires — when this door starts 403ing, that is the renewal coming due, not a regression |
-| `aggregate` | **MCP Aggregate** | no backend of its own — aggregates the `opensearch` (9 tools) and `banking-mcp` (33 tools) servers, tool names prefixed `<server>__` | Created 2026-09-14; client path `/aggregate/mcp` answers 401 with protected-resource metadata (probed 2026-09-14). Console notes it is **reachable through the AI Gateway only** — not published to the device agent, so no agent/agentless mode. Its "AI Gateway" field was still "Select Gateway..." at creation, yet the door answers. Offered by the AI Gateway Client, `/privilege-mcp-client` (Privilege and Façade), LibreChat (`privilege-aggregate`, `aggregate-privilege-gateway`) and LM Studio (`MCP Privilege-Aggregate`). Full sign-in + `tools/list` through it not yet recorded |
+| `aggregate` | **MCP Aggregate** | no backend of its own — aggregates the `opensearch` (9 tools) and `banking-mcp` (33 tools) servers, tool names prefixed `<server>__` | Created 2026-09-14; client path `/aggregate/mcp` answers 401 with protected-resource metadata (probed 2026-09-14). Console notes it is **reachable through the Agent Privilege only** — not published to the device agent, so no agent/agentless mode. Its "Agent Privilege" field was still "Select Gateway..." at creation, yet the door answers. Offered by the Agent Privilege Client, `/privilege-mcp-client` (Privilege and Façade), LibreChat (`privilege-aggregate`, `aggregate-privilege-gateway`) and LM Studio (`MCP Privilege-Aggregate`). Full sign-in + `tools/list` through it not yet recorded |
 | `opensearch` | MCP Server (subdomain) | same, older duplicate registration | **Was dead from 2026-09-08 to 2026-09-10, now fixed.** When `opensearch22` was re-registered on `/mcp`, this twin was left on `/sse`, so its entry path stayed pinned there and every client call to `/opensearch/mcp` answered a bare `404` — `[mcpgw] rejecting /mcp on app opensearch: outside entry path "/sse"`. This row claimed "Working" the whole time and cost a debugging session. Re-registered on `/mcp` 2026-09-10. **Its policy is now deliberately left OFF, so it always answers 403** — the known-deny twin of `opensearch22`, so the demo can show "the chain works" and "enforcement is real" back to back. Do NOT attach a policy here and do not report the 403 as broken: there is not even a policy to go and fix. A posture check that treats any 403 as failure is wrong about this door |
 | `agent-gateway` | MCP Server (subdomain) | `http://ping-gateway.ping-devops-cmuir.svc.cluster.local:8080/mcp` — the **real PingGateway**, cross-namespace from this gateway | Registered 2026-09-10 for the privilege-first MCP chain (`ff_mcp_gateway_privilege_first`). Needs Task 8b's `privilege-bridge.groovy` on PingGateway plus `MCP_GW_PRIVILEGE_BRIDGE_SECRET` equal to this app's Static Token — both in place and probe-verified 2026-09-10. **Its policy time-box expired**, so the door 403s until renewed; see "A 403 here is an expired policy" below |
 | `pingone-mcp-server-2` | MCP Server (subdomain) | unrelated, pre-existing app kept for its own purpose | Not part of this demo — see the note below, this is NOT the demo's PingOne MCP |
@@ -295,7 +295,7 @@ performs. Register it in the console as:
 | Application Name | `banking-mcp` |
 | MCP Server URL | `http://mcp-resource-server.ping-devops-cmuir.svc.cluster.local:8081/mcp` |
 | Auth Mode | None — see "The call hop is a platform blocker" below; OAuth was tried first and made things worse, not better |
-| AI Gateway | `ai-demo-cmuir — https://mcpgw.ai-demo.ping-devops.com` — a field the console does not always default; an app saved with the `Select Gateway…` placeholder never reaches any node and produces zero gateway-log activity, indistinguishable from a silent create failure |
+| Agent Privilege | `ai-demo-cmuir — https://mcpgw.ai-demo.ping-devops.com` — a field the console does not always default; an app saved with the `Select Gateway…` placeholder never reaches any node and produces zero gateway-log activity, indistinguishable from a silent create failure |
 | Mesh Cluster | `ai-demo-cmuir` |
 
 `/mcp`, not `/sse` — that server answers `GET /mcp -> 404`, so an `/sse`
@@ -376,7 +376,7 @@ front door trusts only a token it minted or a console session, never a
 PingOne-issued JWKS-signed token.
 
 **Where this leaves the door:** discovery works and a policy can be authored
-(33 tools visible, `banking-mcp` on Auth Mode None, AI Gateway
+(33 tools visible, `banking-mcp` on Auth Mode None, Agent Privilege
 `ai-demo-cmuir` — reselect it if it reverts to the `Select Gateway…`
 placeholder, which happens on some edits). `tools/call` is blocked at the
 gateway's public entry point for any caller, ours or otherwise, and is not

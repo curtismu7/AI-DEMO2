@@ -1,4 +1,4 @@
-# Privilege AI Gateway: AIGuard (Runtime Protection)
+# Agent Privilege: AIGuard (Runtime Protection)
 
 Oct 8, 2026 · @Curtis Muir
 

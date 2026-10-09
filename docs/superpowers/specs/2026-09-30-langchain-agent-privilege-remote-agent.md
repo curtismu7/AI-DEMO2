@@ -33,7 +33,7 @@ console (see below).
   ```json
   {
     "name": "langchainagent",
-    "description": "LangChain MCP agent exposed through PingOne Privilege AI Gateway.",
+    "description": "LangChain MCP agent exposed through PingOne Agent Privilege.",
     "protocolVersion": "0.3.0",
     "preferredTransport": "JSONRPC",
     "skills": [{"id": "langchainagent-chat", "name": "LangChain agent chat", ...}],

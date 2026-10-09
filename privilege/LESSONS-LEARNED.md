@@ -1,8 +1,8 @@
-# Privilege AI Gateway — lessons learned
+# Agent Privilege — lessons learned
 
 Non-obvious, repeat-cost behavior discovered building and operating PingOne
 Privilege across this demo — the `pingone-admin-local` Agentic App
-(`demo_mcp_pingone/`) and its predecessors, the agentless AI Gateway on the SE
+(`demo_mcp_pingone/`) and its predecessors, the agentless Agent Privilege on the SE
 cluster, the PingOne clients and tenants behind both, and the Privilege agent
 that runs on the laptop. Every entry below cost real debugging time at least
 once — some of them twice, because the first fix didn't stick. This is a
@@ -107,7 +107,7 @@ before assuming a policy edit didn't take.
 
 ### One app, one client-facing path — set by whatever the backend was registered with, and it can silently flip
 
-The AI Gateway pins each Agentic App to exactly one path (`/mcp` or `/sse`),
+The Agent Privilege pins each Agentic App to exactly one path (`/mcp` or `/sse`),
 derived from the app's Backend Name at registration time. Editing Backend Name
 in the console **changes the client-facing path for every caller** — this
 project watched it flip from `/sse` to `/mcp` mid-session on 2026-09-08 from a
@@ -224,7 +224,7 @@ sitting on the operator's own machine.
 
 Everything above was learned authoring policy and running the gateway. This
 section is the mirror image: what a brand-new, previously-unseen client
-discovers hitting the AI Gateway cold, extracted while building
+discovers hitting the Agent Privilege cold, extracted while building
 [`ai-gateway-client`](https://github.com/cmuir_pingcorp/ai-gateway-client) — a
 standalone OAuth PKCE + DCR test client with no BFF, no session, no worker
 credentials, verified against the real public gateway
@@ -252,7 +252,7 @@ an `authorization_endpoint` to redirect a browser to. A client that stops
 after the first 401 concludes the door is broken rather than merely
 unauthenticated.
 
-### DCR against the AI Gateway works cold, from a client it has never seen, no prior setup — verified live
+### DCR against the Agent Privilege works cold, from a client it has never seen, no prior setup — verified live
 
 `POST /<app>/register` with no client secret and
 `token_endpoint_auth_method: "none"` returns a real, usable `client_id` in
@@ -341,19 +341,19 @@ like it should be simple but the diff keeps growing, checking whether the
 growth is in that essential core or in this-repo's-own plumbing is worth
 doing before assuming the gateway itself got more complicated.
 
-### Privilege Cloud needs a header the agentless AI Gateway doesn't — same product name, different requirement
+### Privilege Cloud needs a header the agentless Agent Privilege doesn't — same product name, different requirement
 
 `privilege.pingone.com` and `*.applications.privilege.pingone.com` (Privilege
 Cloud, the SaaS product) require `x-procyon-session-id` on **every** MCP
 request, not just the console API — `demo_api_server/routes/
 privilegeMcpClient.js:560-563` mints one `crypto.randomUUID()` per session and
 attaches it to every relay call and to the discovery probe alike
-(`:1120-1121`). The agentless AI Gateway this demo actually runs against
+(`:1120-1121`). The agentless Agent Privilege this demo actually runs against
 (`mcpgw.ai-demo.ping-devops.com`) needs no such header — it's a different
 deployment of the same product family, and code that special-cases one by
 hostname (as this file does) will silently do nothing for the other. Don't
 assume a header requirement transfers between "Privilege Cloud" and "the
-agentless AI Gateway" without checking which one you're actually pointed at.
+agentless Agent Privilege" without checking which one you're actually pointed at.
 
 ### The console API's real credential is a browser cookie — the header that looks like a session token isn't one
 
@@ -606,7 +606,7 @@ default failure mode here.
 
 Proven live 2026-09-03. The agentless gateway authenticates against PingOne env
 **`0428ba4f`** — live name "**AI Agent**", *not* "Privilege Agent" as the skill doc
-said — with `oidc.clientId` `1a403855-...` ("AI Gateway"). `0428ba4f` and the main
+said — with `oidc.clientId` `1a403855-...` ("Agent Privilege"). `0428ba4f` and the main
 demo tenant `01d89b06` are in the same org, and **nobody knew the users in
 `0428ba4f`**, which is why an OIDC External IdP now federates it back to the main
 tenant.

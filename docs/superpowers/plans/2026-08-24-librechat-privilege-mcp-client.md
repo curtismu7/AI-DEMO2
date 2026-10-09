@@ -239,7 +239,7 @@ Task 5 was proven against.)
 
 ### Default MCP servers (added 2026-08-24, after Task 5)
 
-The file now declares the same three doors the AI Gateway client page
+The file now declares the same three doors the Agent Privilege client page
 (`/privilege-mcp-client`) offers, so LibreChat can demo each without editing
 config:
 
@@ -247,7 +247,7 @@ config:
 |---|---|---|---|---|
 | `aidemo-mcp` | this repo's banking `mcp-server` | `http://host.docker.internal:8080/mcp` | none — the local stack runs `MCP_AUTH_DISABLED=true`; an admin `apiKey` block is declared only so LibreChat's startup probe does not flag the server's RFC 9728 metadata as "OAuth Required" (it would then refuse the flow: metadata names `localhost:8080`, not the Docker alias) | ✅ "Ran get_my_accounts in aidemo-mcp" → 4 accounts (2026-08-24 21:49) |
 | `opensearch-direct` | `cm-mcpgw-opensearch-mcp-server` (K8s ns `ping-devops-curtismuir`), no Privilege | `http://host.docker.internal:9900/mcp`, fed by `kubectl --context us -n ping-devops-curtismuir port-forward svc/cm-mcpgw-opensearch-mcp-server 9900:80` on the Mac — the Service is ClusterIP-only and deliberately gets no public ingress (the MCP server is unauthenticated) | none | ✅ 9 tools listed at startup (`ListIndexTool`, `ClusterHealthTool`, …); see the Playwright spec below |
-| `opensearch-privilege-agent` | `cm-mcpgw-opensearch-mcp-server` (K8s ns `ping-devops-curtismuir`) via the AI Gateway | `https://opensearch.default.applications.procyon.ai:8643/mcp` — the Mac-local Priv Agent listener, aliased to the host in `docker-compose.yml` `extra_hosts` so SNI/Host carry the Frontend Name; its procyon `TenantRoot` CA is trusted via `NODE_EXTRA_CA_CERTS=/app/procyon-tenant-root.crt` | none — the agent is the identity | reaches the gateway; currently `403 User b1645e7b… doesn't have access to MCP app opensearch` = the time-boxed Privilege policy has lapsed (re-author it in the console: Agentic Apps → opensearch → Policy) |
+| `opensearch-privilege-agent` | `cm-mcpgw-opensearch-mcp-server` (K8s ns `ping-devops-curtismuir`) via the Agent Privilege | `https://opensearch.default.applications.procyon.ai:8643/mcp` — the Mac-local Priv Agent listener, aliased to the host in `docker-compose.yml` `extra_hosts` so SNI/Host carry the Frontend Name; its procyon `TenantRoot` CA is trusted via `NODE_EXTRA_CA_CERTS=/app/procyon-tenant-root.crt` | none — the agent is the identity | reaches the gateway; currently `403 User b1645e7b… doesn't have access to MCP app opensearch` = the time-boxed Privilege policy has lapsed (re-author it in the console: Agentic Apps → opensearch → Policy) |
 | `privilege-agentless` | banking `mcp-server` via the `external` Agentless application | `https://cmuir-agentless-mcpgw.ping-devops.com/external/mcp` | LibreChat native OAuth (DCR + PKCE) → PingOne | ✅ Task 5 |
 
 **Automated check:** `demo_api_ui/tests/e2e/librechat-mcp-servers.real.spec.js`

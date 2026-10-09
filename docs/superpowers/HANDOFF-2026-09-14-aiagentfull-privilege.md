@@ -16,7 +16,7 @@ at Task 1, using the plan file below.
 
 A new React component `AIAgentFull` (duplicate of the existing `AIAgent.js`,
 which stays untouched) that adds a selectable "MCP transport" — Direct vs. Via
-the PingOne Privilege AI Gateway — for tool calls, plus a disabled "Privilege
+the PingOne Agent Privilege — for tool calls, plus a disabled "Privilege
 A2A — coming later" stub. Demo Steps and the Privilege LLM lane needed **no
 new code** — both already exist in `AIAgent.js` today and come along for free
 in the duplicate. A per-route allowlist decides whether `AIAgent` or

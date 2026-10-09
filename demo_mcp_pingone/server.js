@@ -3,7 +3,7 @@
  *
  * The upstream server (github.com/pingidentity/pingone-mcp-server, Go) speaks
  * stdio ONLY — `run` has no --port/--http/--sse flag, and its Docker guidance is
- * a one-shot `docker run -i --rm`. PingOne Privilege's AI Gateway discovers a
+ * a one-shot `docker run -i --rm`. PingOne Agent Privilege discovers a
  * backend by issuing a GET and waiting for an SSE `endpoint` event, so it can
  * never reach a stdio process. This bridge closes that gap: it owns ONE
  * long-lived stdio child and exposes it over both transports the estate uses.
@@ -273,7 +273,7 @@ async function dispatch(rpc) {
       },
     };
   }
-  // The AI Gateway issues `server/discover` to enumerate a backend's tools for
+  // The Agent Privilege issues `server/discover` to enumerate a backend's tools for
   // policy. It is a GATEWAY method, not MCP — the upstream binary answers
   // `JSON RPC not handled: "server/discover" unsupported`, and forwarding that
   // error breaks the gateway session for every subsequent call. Answer it here
@@ -313,7 +313,7 @@ const server = http.createServer(async (req, res) => {
     return send(res, 200, { ok: true, childAlive: !!child, sseSessions: sseSessions.size });
   }
 
-  // --- SSE transport: what the Privilege AI Gateway actually speaks ---------
+  // --- SSE transport: what the Agent Privilege actually speaks ---------
   // It issues a bare GET and waits for the `endpoint` event; it never POSTs
   // initialize. /mcp answers on GET too because apps added from the Privilege
   // MCP catalog pin their backend to .../mcp and the field cannot be edited.

@@ -3,7 +3,7 @@
 **Scope:** which macOS-capable MCP clients (commercial, open source, and our own) can act as the "front door" into AI-DEMO2's MCP servers across **both** required paths:
 
 1. **Agent Gateway path** — the repo's own Node `demo_mcp_gateway` (or its PingOne Agent Gateway/IG variant), which fronts `oauth-mcp` / `demo_mcp_resource_server`.
-2. **Privilege path** — PingOne Privilege Cloud's MCP Gateway ("mcpgw" / AI Gateway), agent-mode or agentless-mode.
+2. **Privilege path** — PingOne Privilege Cloud's MCP Gateway ("mcpgw" / Agent Privilege), agent-mode or agentless-mode.
 
 ## TL;DR
 

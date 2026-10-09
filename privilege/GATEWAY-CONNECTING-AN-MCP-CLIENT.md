@@ -1,4 +1,4 @@
-# Privilege AI Gateway: Connecting an MCP Client
+# Agent Privilege: Connecting an MCP Client
 
 Oct 3, 2026 · @Curtis Muir
 
@@ -187,10 +187,10 @@ Not tested by us: Claude Desktop, Claude Code, Cursor, VS Code and ChatGPT. Each
 
 ## What the client sees once connected
 
-The client sees a normal MCP server, with a few differences that come from policy. These were taken in the demo's own AI Gateway Client (`standalone/ai-gateway-client`), connected to the `opensearch22` app through the gateway, in light mode:
+The client sees a normal MCP server, with a few differences that come from policy. These were taken in the demo's own Agent Privilege Client (`standalone/ai-gateway-client`), connected to the `opensearch22` app through the gateway, in light mode:
 
-![AI Gateway Client signed in, tools listed](../docs/screenshots/privilege-console-setup/gwclient-tools-list.png)
-_AI Gateway Client signed in to `opensearch22` through the gateway: the policy-granted tools on the left (ListIndexTool, SearchIndexTool, ClusterHealthTool, ExplainTool), the selected tool's form in the middle, and the gateway URL with Sign out and Refresh tools on top._
+![Agent Privilege Client signed in, tools listed](../docs/screenshots/privilege-console-setup/gwclient-tools-list.png)
+_Agent Privilege Client signed in to `opensearch22` through the gateway: the policy-granted tools on the left (ListIndexTool, SearchIndexTool, ClusterHealthTool, ExplainTool), the selected tool's form in the middle, and the gateway URL with Sign out and Refresh tools on top._
 
 ![A tool call returned through the gateway](../docs/screenshots/privilege-console-setup/gwclient-tool-call-response.png)
 _ClusterHealthTool executed through the gateway: the JSON-RPC result in the Response pane and "OK in 422ms" beneath it. The backend's answer reaches the client unmodified._
@@ -227,4 +227,4 @@ _Relay log: every message between client and gateway in order — the `client->m
 | A tool call shows as a transport error | The gateway answered 403 with no JSON-RPC body | Treat a 403 on a tool call as "not permitted" |
 | A desktop client refuses to connect at all | It does not trust the gateway's certificate | Put a publicly trusted certificate on the gateway |
 
-The companion guide, Privilege AI Gateway: Reading Gateway Errors, shows how the admin finds the exact reason in the gateway log.
+The companion guide, Agent Privilege: Reading Gateway Errors, shows how the admin finds the exact reason in the gateway log.

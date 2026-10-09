@@ -1,11 +1,13 @@
 # Core dependencies
 # LLM providers: Helix (default, via helix_llm.py using httpx) and LM Studio.
-# langchain-openai is used only for LM Studio (OpenAI-compatible local endpoint); no cloud key required.
+# langchain-openai is used for LM Studio (OpenAI-compatible local endpoint) and
+# the beta decisions module (src/api/jev_decisions.py, Jev lesson) — no cloud key required.
 langchain>=1.3.0,<2.0.0
 langchain-core>=1.4.0,<2.0.0
 # LangGraph — stateful agent runtime with MemorySaver checkpointer
 langgraph>=1.2.0,<2.0.0
-langchain-openai>=1.3.0,<2.0.0     # OpenAI-compatible local endpoints: LM Studio (provider="lmstudio") and llama.cpp (provider="llamacpp")
+# >=1.7.0: first version with langchain_openai.decisions (OpenAIDecisions, beta)
+langchain-openai>=1.7.0,<2.0.0     # OpenAI-compatible local endpoints: LM Studio (provider="lmstudio") and llama.cpp (provider="llamacpp"); decisions for the Jev lesson
 langchain-anthropic>=1.4.0,<2.0.0  # LM Studio Anthropic-compatible endpoint (provider="anthropic-lmstudio")
 pydantic>=2.0.0,<3.0.0
 fastapi>=0.100.0

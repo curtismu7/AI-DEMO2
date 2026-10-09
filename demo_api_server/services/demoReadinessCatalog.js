@@ -89,6 +89,18 @@ function routePath(path) {
   return pathname.replace(/\/$/, '') || '/';
 }
 
+/**
+ * Segment-wise match of a concrete path against a route pattern containing
+ * `:param` segments. Lengths must agree; literal segments compare exactly;
+ * a `:param` pattern segment matches any non-empty segment.
+ */
+function segmentsMatch(patternSegments, pathSegments) {
+  if (patternSegments.length !== pathSegments.length) return false;
+  return patternSegments.every((seg, i) => seg.startsWith(':')
+    ? pathSegments[i].length > 0
+    : seg === pathSegments[i]);
+}
+
 function routeSearchParams(path) {
   const query = String(path || '').split('?', 2)[1]?.split('#', 1)[0] || '';
   return Object.fromEntries(new URLSearchParams(query).entries());
@@ -596,15 +608,15 @@ function validateDemoReadinessCatalog(sources, { uiInventory, educationPanelIds 
     ], id)),
     ...executableAdminIds,
   ];
-  if (caseIds.length !== 49 || new Set(caseIds).size !== 49) {
-    pushIssue(issues, `Expected exactly 49 executable Demo Steps entries; found ${caseIds.length} entries (${new Set(caseIds).size} unique)`);
+  if (caseIds.length !== 51 || new Set(caseIds).size !== 51) {
+    pushIssue(issues, `Expected exactly 51 executable Demo Steps entries; found ${caseIds.length} entries (${new Set(caseIds).size} unique)`);
   }
   const ciAmCount = (inventoryConfig.ciam || []).filter((id) => !seenIn(inventoryConfig.primary, id)).length;
   const privilegeCount = (inventoryConfig.privilege || []).filter((id) => !seenIn([
     ...(inventoryConfig.primary || []), ...(inventoryConfig.ciam || []),
   ], id)).length;
-  if ((inventoryConfig.primary || []).length !== 26 || ciAmCount !== 5 || privilegeCount !== 6 || executableAdminIds.length !== 12) {
-    pushIssue(issues, `Expected lane counts 26 + 5 + 6 + 12; found ${(inventoryConfig.primary || []).length} + ${ciAmCount} + ${privilegeCount} + ${executableAdminIds.length}`);
+  if ((inventoryConfig.primary || []).length !== 28 || ciAmCount !== 5 || privilegeCount !== 6 || executableAdminIds.length !== 12) {
+    pushIssue(issues, `Expected lane counts 28 + 5 + 6 + 12; found ${(inventoryConfig.primary || []).length} + ${ciAmCount} + ${privilegeCount} + ${executableAdminIds.length}`);
   }
 
   const useCaseById = new Map(useCases.map((item) => [item.id, item]));
@@ -739,7 +751,14 @@ function validateDemoReadinessCatalog(sources, { uiInventory, educationPanelIds 
       }
 
       if (behavior?.kind === 'page-load') {
-        if (!behavior.pathname || !Object.hasOwn(auth.routes || {}, behavior.pathname)) {
+        // A concrete path is covered when the auth contract names it exactly
+        // OR names a parametrized route whose shape it matches (e.g.
+        // /use-case-diagrams/UC-MUSE1 under /use-case-diagrams/:ucId) — the
+        // same lookup authLevelForRoute callers do, expressed over keys.
+        const routeCovered = (p) => Object.hasOwn(auth.routes || {}, p)
+          || Object.keys(auth.routes || {}).some((key) => key.includes(':')
+            && segmentsMatch(key.split('/'), p.split('/')));
+        if (!behavior.pathname || !routeCovered(behavior.pathname)) {
           pushIssue(issues, `${id} page route ${behavior.pathname || '(missing)'} is absent from the auth route contract`);
         }
       }

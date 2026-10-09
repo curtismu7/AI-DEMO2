@@ -45,14 +45,14 @@ mcpServers:
   # 2026-08-25: /mcp-facade/agentless/.well-known/oauth-protected-resource
   # -> 200).
 
-  # 1. OpenSearch through the Privilege AI Gateway. This was the `agent`
+  # 1. OpenSearch through the Agent Privilege. This was the `agent`
   #    door (Priv Agent mode) until 2026-09-05, when it was deleted — its
   #    mesh frontend still resolved through the Priv Agent's DNS proxy
   #    while nothing served the port, so it hung instead of failing. That
   #    also settles the "UNVERIFIED" note this comment used to carry about
   #    whether an in-cluster facade could reach the Mac-local Priv Agent:
   #    the question is moot, nothing routes that way any more. The facade
-  #    holds the AI Gateway leg server-side
+  #    holds the Agent Privilege leg server-side
   #    (services/privilegeGatewaySession.js) — sign in once at
   #    /privilege-mcp-client after a gateway restart.
   opensearch-privilege-gateway:

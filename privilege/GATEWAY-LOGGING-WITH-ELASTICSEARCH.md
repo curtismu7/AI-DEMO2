@@ -1,4 +1,4 @@
-# Privilege AI Gateway: Logging and Monitoring with Elasticsearch
+# Agent Privilege: Logging and Monitoring with Elasticsearch
 
 Oct 3, 2026 · @Curtis Muir
 

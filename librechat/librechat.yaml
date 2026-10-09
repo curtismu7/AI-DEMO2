@@ -109,7 +109,7 @@ endpoints:
       titleModel: 'demo-llm-proxy'
 
     - name: 'PingOne Privilege (OpenAI)'
-      # The PingOne Privilege AI Gateway's OpenAI lane (ping-devops-curtismuir).
+      # The PingOne Agent Privilege's OpenAI lane (ping-devops-curtismuir).
       # The key is a Privilege virtual key, not an OpenAI key: the gateway
       # injects the provider credential and enforces this key's model
       # allowlist and spend caps. Measured 2026-09-13: gpt-4o-mini and gpt-4o
@@ -180,7 +180,7 @@ mcpServers:
     url: 'http://host.docker.internal:9900/mcp'
     timeout: 60000
 
-  # 2. Through the recording façade to the Privilege AI Gateway's opensearch22
+  # 2. Through the recording façade to the Agent Privilege's opensearch22
   #    app. The façade holds the Privilege leg server-side
   #    (services/privilegeGatewaySession.js) — sign in once at
   #    /privilege-mcp-client after a gateway restart — and records the trace.
@@ -191,7 +191,7 @@ mcpServers:
     url: 'https://api.ping.demo:3001/mcp-facade/privilege-gateway/opensearch22/mcp'
     timeout: 60000
 
-  # 3. Straight to the Privilege AI Gateway's opensearch22 app. LibreChat signs
+  # 3. Straight to the Agent Privilege's opensearch22 app. LibreChat signs
   #    in against the gateway's own OAuth server
   #    (https://mcpgw.ai-demo.ping-devops.com/opensearch22); public host, so no
   #    allowedAddresses entry and no sidecar.
@@ -203,7 +203,7 @@ mcpServers:
 
   # 6. The Privilege `aggregate` app (type MCP Aggregate): opensearch (9 tools)
   #    and banking-mcp (33 tools) behind one URL, tool names prefixed
-  #    `<server>__`. Reachable through the AI Gateway only. 42 tools is more
+  #    `<server>__`. Reachable through the Agent Privilege only. 42 tools is more
   #    schema than the gpt-oss tier holds — select a few from an Agent.
   privilege-aggregate:
     type: streamable-http

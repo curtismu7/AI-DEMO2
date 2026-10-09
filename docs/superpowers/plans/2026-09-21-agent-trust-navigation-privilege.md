@@ -51,9 +51,9 @@
 - Modify: `demo_api_ui/src/config/navPagePaths.js` only if labels change there
 - Test: existing navigation tests plus targeted side-nav tests if present
 
-- [x] Rename customer-facing groups without changing their IDs or paths: `Demos` → `Agent Trust Journey`, `AI Flows` → `Agent Lifecycle & Flows`, `AI-Gateway` → `Agent Security & Enforcement`, `Monitoring` → `Evidence & Audit`, `Telemetry` → `Runtime Observability`, `Learn & Present` → `Learn & Architecture`.
+- [x] Rename customer-facing groups without changing their IDs or paths: `Demos` → `Agent Trust Journey`, `AI Flows` → `Agent Lifecycle & Flows`, `Agent Privilege` → `Agent Security & Enforcement`, `Monitoring` → `Evidence & Audit`, `Telemetry` → `Runtime Observability`, `Learn & Present` → `Learn & Architecture`.
 - [x] Consolidate or relabel overlapping MCP entries as `MCP & Agent Gateways` while preserving each child path.
-- [x] Add a first-class `Privilege & JIT Access` group containing existing Privilege demo, MCP gateway, AI gateway, learning, diagram, and preview routes.
+- [x] Add a first-class `Privilege & JIT Access` group containing existing Privilege demo, MCP gateway, Agent Privilege, learning, diagram, and preview routes.
 - [x] Add agent-type naming where existing routes support it: Employee Agents, Consumer & Partner Agents, Workload Agents, and SaaS-Embedded Agents (preview/future where no live route exists).
 - [x] Update auto-expand section IDs/path mappings if labels change, without breaking persisted expansion state.
 - [x] Run side-nav tests, `npm run authz:verify`, and `npm run topology:verify` if route/catalog surfaces are affected.

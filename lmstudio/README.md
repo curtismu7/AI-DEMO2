@@ -1,7 +1,7 @@
 # LM Studio — default MCP servers
 
 `mcp.json` is the canonical `~/.lmstudio/mcp.json` for this demo: the same doors the
-AI Gateway client page (`/privilege-mcp-client`) offers, plus the Agent Gateway.
+Agent Privilege client page (`/privilege-mcp-client`) offers, plus the Agent Gateway.
 
 ```bash
 cp lmstudio/mcp.json ~/.lmstudio/mcp.json   # then restart LM Studio
@@ -47,17 +47,17 @@ first and the model makes the subsequent native MCP call.
 | entry (shown as `mcp/<entry>` in LM Studio) | door | auth |
 |---|---|---|
 | `MCP Direct-Banking` | our banking MCP server (`oauth-mcp`) on the SE cluster | LM Studio's native OAuth (RFC 9728 → DCR → PKCE) |
-| `MCP Agentless-Banking` | **DARK since 2026-09-01 — expect it to fail, nothing is wrong.** Was the Privilege **agentless** gateway, `external` app (banking tools; see `privilege/AGENTLESS-CONFIGURATION.md`), through the **SE-hosted** recording façade. Its gateway was torn down when the estate moved to the one AI Gateway at `mcpgw.ai-demo.ping-devops.com`, and `cmuir-agentless-mcpgw.ping-devops.com` is now NXDOMAIN, so the door answers `502 {"error":"upstream_unavailable"}`. Relighting it needs a **banking** MCP server registered on the new gateway as its own Agentic App — only `opensearch22` exists today, and pointing a banking door at an OpenSearch app would silently serve the wrong tools. Once that app exists, set `MCP_FACADE_AGENTLESS_URL` (and `MCP_FACADE_AGENTLESS_AS`); see `demo_api_server/routes/mcpFacade.js` | n/a while dark |
-| `MCP Privilege-OpenSearch` | OpenSearch MCP **through the Privilege AI Gateway** (`agentless-mcpgw`, app `opensearch22`), through the **local** recording façade. Replaced `MCP Agent-OpenSearch` on 2026-09-05: agent mode's mesh frontend still resolves but nothing serves it, so that door hung and was deleted | the façade holds the gateway leg, and LM Studio's own **Authenticate** signs it in (a browser tab passes through). Expect it about hourly: the gateway issues no refresh token |
-| `MCP Privilege-Aggregate` | the Privilege AI Gateway's `aggregate` app (type **MCP Aggregate**): `opensearch` (9 tools) and `banking-mcp` (33 tools) behind one URL, names prefixed `<server>__`, through the **local** recording façade. 42 tools overflows a small model — pick a few | same as `MCP Privilege-OpenSearch` |
+| `MCP Agentless-Banking` | **DARK since 2026-09-01 — expect it to fail, nothing is wrong.** Was the Privilege **agentless** gateway, `external` app (banking tools; see `privilege/AGENTLESS-CONFIGURATION.md`), through the **SE-hosted** recording façade. Its gateway was torn down when the estate moved to the one Agent Privilege at `mcpgw.ai-demo.ping-devops.com`, and `cmuir-agentless-mcpgw.ping-devops.com` is now NXDOMAIN, so the door answers `502 {"error":"upstream_unavailable"}`. Relighting it needs a **banking** MCP server registered on the new gateway as its own Agentic App — only `opensearch22` exists today, and pointing a banking door at an OpenSearch app would silently serve the wrong tools. Once that app exists, set `MCP_FACADE_AGENTLESS_URL` (and `MCP_FACADE_AGENTLESS_AS`); see `demo_api_server/routes/mcpFacade.js` | n/a while dark |
+| `MCP Privilege-OpenSearch` | OpenSearch MCP **through the Agent Privilege** (`agentless-mcpgw`, app `opensearch22`), through the **local** recording façade. Replaced `MCP Agent-OpenSearch` on 2026-09-05: agent mode's mesh frontend still resolves but nothing serves it, so that door hung and was deleted | the façade holds the gateway leg, and LM Studio's own **Authenticate** signs it in (a browser tab passes through). Expect it about hourly: the gateway issues no refresh token |
+| `MCP Privilege-Aggregate` | the Agent Privilege's `aggregate` app (type **MCP Aggregate**): `opensearch` (9 tools) and `banking-mcp` (33 tools) behind one URL, names prefixed `<server>__`, through the **local** recording façade. 42 tools overflows a small model — pick a few | same as `MCP Privilege-OpenSearch` |
 | `MCP Direct-OpenSearch` | the same OpenSearch MCP server (`opensearch-mcp-server` in K8s), **bypassing Privilege** | none — needs a port-forward first (below) |
 | `MCP AgentGateway-Banking` | this repo's Agent Gateway (`demo_mcp_gateway`, deployed to the SE cluster), through the **SE-hosted** recording façade | native OAuth via the gateway's broker (PR #2353, real Let's Encrypt cert) → PingOne login |
-| `MCP Privilege-Grafana` | Grafana's read API **through the Privilege AI Gateway** (`agentless-mcpgw`, catalog app `mcp-grafana`), served by the `demo_mcp_grafana` sidecar in the gateway pod on port 8081. Direct to the gateway, not through the façade, so there is no movie reel for it | native OAuth (RFC 9728 → DCR → PKCE) against Privilege's AS, then PingOne login |
+| `MCP Privilege-Grafana` | Grafana's read API **through the Agent Privilege** (`agentless-mcpgw`, catalog app `mcp-grafana`), served by the `demo_mcp_grafana` sidecar in the gateway pod on port 8081. Direct to the gateway, not through the façade, so there is no movie reel for it | native OAuth (RFC 9728 → DCR → PKCE) against Privilege's AS, then PingOne login |
 | `MCP PingOne-Admin` | the hosted PingOne MCP server (Management API surface, not banking), through the **local** recording façade's `pingone-admin` door | broker OAuth (RFC 9728 → DCR → PKCE) against the demo's own AS. What reaches PingOne is a **delegated** PKCE token, never a worker one: the caller's own `x-pingone-admin-token` when it sends one, otherwise the shared operator session, which is off unless `MCP_FACADE_PINGONE_ADMIN_SHARED_SESSION=true` (see `demo_api_server/services/pingoneAdminSession.js`) |
 
 Every door but the last talks to the SE cluster (`ping-devops-cmuir` namespace,
 `ai-demo.ping-devops.com`) — the two OpenSearch doors reach it via a local hop
-(the AI Gateway for `MCP Privilege-OpenSearch`, a `kubectl port-forward` for `MCP
+(the Agent Privilege for `MCP Privilege-OpenSearch`, a `kubectl port-forward` for `MCP
 Direct-OpenSearch`) because their upstream has no public ingress; the three
 banking/gateway doors go straight to it, as does `MCP Privilege-Grafana` (whose
 gateway lives in `ping-devops-curtismuir`, one namespace over from the Grafana it
@@ -82,7 +82,7 @@ route through the façade for another reason go through the BFF's recording faç
 AgentGateway-Banking` and `MCP Agentless-Banking` at `https://ai-demo.ping-devops.com/mcp-facade/<door>/mcp`
 (the SE deployment); `MCP Privilege-OpenSearch` and `MCP PingOne-Admin` at
 `http://localhost:3002/mcp-facade/<door>/mcp` (local only — `MCP Privilege-OpenSearch`
-because the façade holds the AI Gateway leg in memory on this BFF; `MCP PingOne-Admin`
+because the façade holds the Agent Privilege leg in memory on this BFF; `MCP PingOne-Admin`
 because the delegated admin session it can fall back to lives on this BFF too,
 unverified on the SE deployment). It relays every call unchanged, records the hops on
 the transaction ledger, and appends one extra block to every tool result:

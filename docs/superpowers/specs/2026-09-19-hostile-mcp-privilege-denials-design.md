@@ -11,7 +11,7 @@ place:
 
 1. Hostile tool, resource, or prompt content reaches an agent.
 2. The content induces a consequential MCP tool call.
-3. The same call is sent through the PingOne Privilege AI Gateway.
+3. The same call is sent through the PingOne Agent Privilege.
 4. Privilege denies the call and the UI presents the denial as the security
    backstop.
 

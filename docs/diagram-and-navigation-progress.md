@@ -4,10 +4,10 @@ Use this checklist to track the PingOne platform navigation and use-case diagram
 
 ## Navigation foundation
 
-- [x] Create a single AI Gateway group.
-- [x] Move Protected RAG into AI Gateway.
-- [x] Rename the user-facing Privilege terminology to AI Gateway.
-- [x] Place AI Guard inside AI Gateway.
+- [x] Create a single Agent Privilege group.
+- [x] Move Protected RAG into Agent Privilege.
+- [x] Rename the user-facing Privilege terminology to Agent Privilege.
+- [x] Place AI Guard inside Agent Privilege.
 - [x] Create one DaVinci group for widget, login, SDK, and orchestration experiences.
 - [x] Place Headless Identity / PingCLI under PingOne Products.
 - [x] Keep Identity Journeys separate from PingOne Products.
@@ -26,7 +26,7 @@ Use this checklist to track the PingOne platform navigation and use-case diagram
 - [x] Keep System Flow in Observability.
 - [x] Keep generic token/platform/deployment diagrams in Architecture & Learning.
 - [x] Keep DaVinci orchestration content in DaVinci.
-- [x] Keep AI Gateway enforcement and Protected RAG content in AI Gateway.
+- [x] Keep Agent Privilege enforcement and Protected RAG content in Agent Privilege.
 
 ## Diagram build backlog
 
@@ -57,9 +57,9 @@ Build diagrams around the use case they explain, not around the implementation t
   - [x] Deny / step-up branch
   - [x] Live tenant and recorded-path links
 
-- [x] Protected RAG authorization flow (`/code-search`, owned by AI Gateway)
+- [x] Protected RAG authorization flow (`/code-search`, owned by Agent Privilege)
   - [x] User or agent request
-  - [x] AI Gateway retrieval authorization
+  - [x] Agent Privilege retrieval authorization
   - [x] Document/search boundary
   - [x] Grounded response and citations
   - [x] Denied retrieval path

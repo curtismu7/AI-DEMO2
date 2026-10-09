@@ -1,4 +1,4 @@
-# Privilege AI Gateway: Guardrails and the External Detector
+# Agent Privilege: Guardrails and the External Detector
 
 Oct 3, 2026 · @Curtis Muir
 

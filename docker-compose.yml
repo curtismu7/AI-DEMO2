@@ -1021,7 +1021,7 @@ services:
       ENTERPRISE_IDP_JWKS_URL: "${ENTERPRISE_IDP_JWKS_URL:-https://demo-api-server:3001/api/enterprise-idp/jwks}"
       DEMO_API_BASE_URL: "https://demo-api-server:3001"
       # api_key feature tools (show_mortgage/show_health_record/...) executed by
-      # this server itself on gateway-less hops (Privilege/Procyon AI Gateway
+      # this server itself on gateway-less hops (Privilege/Procyon Agent Privilege
       # client → mcp-server direct) — same credential swap the demo mcp-gateway
       # does on the normal chain. Mirrors mcp-gateway's values below.
       API_RESOURCE_SERVER_URL: "http://api-resource-server:8082"
@@ -1466,7 +1466,7 @@ services:
       # Unreachable → the broker falls back to `login` (never to silent reuse).
       BFF_BROKER_PROMPT_URL: "https://demo-api-server:3001/mcp-facade/broker-prompt"
       # Privilege-door gateway link: after its own PingOne hop, the broker sends
-      # the browser here so the BFF signs it in to the Privilege AI Gateway for
+      # the browser here so the BFF signs it in to the Agent Privilege for
       # the requested app, then back to /oauth/resume. Browser-facing on purpose
       # (it is a redirect, and the BFF session cookie lives on this host).
       # Unset = no chaining. See

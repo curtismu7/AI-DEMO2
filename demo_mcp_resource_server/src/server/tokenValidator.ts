@@ -65,7 +65,7 @@ async function getJwksKeySetFor(iss: string | undefined) {
   return getJwksKeySet();
 }
 
-// Privilege AI Gateway "Static Token" auth mode sends one fixed bearer on every
+// Agent Privilege "Static Token" auth mode sends one fixed bearer on every
 // backend call. It is not a JWT and names no user, so it is treated like a
 // sub-less machine token limited to MCP_RESOURCE_SERVER_GATEWAY_STATIC_SCOPES
 // (default: none). Off unless a token of at least 32 characters is configured.

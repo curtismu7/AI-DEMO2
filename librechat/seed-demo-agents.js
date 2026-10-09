@@ -160,8 +160,8 @@ const AGENTS = [
   // policy-restricted catalog with only three tools.
   ...[
     ['OpenSearch22 · Direct', 'OpenSearch · Direct', 'opensearch-direct', 'No Privilege in front: the OpenSearch MCP server over the Mac port-forward.', false, false],
-    ['OpenSearch (all tools) · Privilege', 'OpenSearch · via Privilege', 'opensearch-privilege-gateway', 'All OpenSearch tools through the recording façade to the Privilege AI Gateway.', false, true],
-    ['OpenSearch22 · Privilege', 'OpenSearch · Privilege opensearch22', 'privilege-opensearch22', 'Three policy-approved tools straight through the Privilege AI Gateway opensearch22 app.', true, false],
+    ['OpenSearch (all tools) · Privilege', 'OpenSearch · via Privilege', 'opensearch-privilege-gateway', 'All OpenSearch tools through the recording façade to the Agent Privilege.', false, true],
+    ['OpenSearch22 · Privilege', 'OpenSearch · Privilege opensearch22', 'privilege-opensearch22', 'Three policy-approved tools straight through the Agent Privilege opensearch22 app.', true, false],
   ].map(([name, previousName, server, description, restricted, showFacadeTrace]) => ({
     name,
     previousNames: [previousName],
@@ -202,7 +202,7 @@ const AGENTS = [
   {
     name: 'Privilege Aggregate',
     server: 'privilege-aggregate',
-    description: 'One Privilege AI Gateway app aggregating the OpenSearch and banking MCP servers.',
+    description: 'One Agent Privilege app aggregating the OpenSearch and banking MCP servers.',
     instructions: 'You are a demo assistant behind one aggregated MCP app. Call opensearch__ClusterHealthTool for cluster health, opensearch__ListIndexTool for indices, banking-mcp__list_banking_accounts for accounts and banking-mcp__get_banking_account for one account. Keep answers short.',
     tools: ['opensearch__ClusterHealthTool', 'opensearch__ListIndexTool', 'banking-mcp__list_banking_accounts', 'banking-mcp__get_banking_account'],
     conversation_starters: [

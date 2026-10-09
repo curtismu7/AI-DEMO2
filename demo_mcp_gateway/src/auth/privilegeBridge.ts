@@ -1,6 +1,6 @@
 /**
  * privilegeBridge — accept a call that arrived through the PingOne Privilege
- * AI Gateway.
+ * Agent Privilege.
  *
  * WHY THIS EXISTS. When Privilege fronts this gateway, the Authorization header
  * on its backend hop is Privilege's, not the caller's: it stamps the Static

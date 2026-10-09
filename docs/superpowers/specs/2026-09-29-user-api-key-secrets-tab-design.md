@@ -6,7 +6,7 @@
 
 ## Goal
 
-Add a **User API Key & Secrets** tab to the AI Gateway client. It guides the
+Add a **User API Key & Secrets** tab to the Agent Privilege client. It guides the
 operator through the user API key token flow from the User API Key & Secret
 Management PDF, runs the equivalent requests, and displays the Privilege users
 response.
@@ -21,7 +21,7 @@ and saved credentials are shown only as partially masked previews.
 
 ### In scope
 
-- Add a third demo tab titled **User API Key & Secrets** to the AI Gateway
+- Add a third demo tab titled **User API Key & Secrets** to the Agent Privilege
   client, alongside its existing Agent Chat and Tools tabs.
 - Provide Environment ID and User ID (UUID) inputs. Use namespace `default` and
   TTL `3600`, matching the supplied Go demo.

@@ -26,7 +26,7 @@ through AI Guard.
 Use a local-first presenter setup: the app and BFF run in the local OrbStack
 stack, LM Studio runs as a desktop client, and LibreChat runs in its existing
 standalone Compose stack. All three reach the same OpenSearch MCP backend and
-the same hosted Privilege AI Gateway apps. Preserve each client’s native
+the same hosted Agent Privilege apps. Preserve each client’s native
 interaction style, but label the three access states identically in the docs.
 
 Deliver two documentation layers:

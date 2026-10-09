@@ -46,7 +46,7 @@ Transports (both live at once) and endpoints:
 
 - `POST /`  — Streamable HTTP (the standalone agent and scanner use this).
 - `GET /sse` + `POST /messages?sessionId=…` — SSE, the transport the PingOne
-  Privilege AI Gateway discovers over (see the k8s section below).
+  Agent Privilege discovers over (see the k8s section below).
 - `GET /health` — `{ ok, tools }` for k8s and the gateway.
 
 Then point any real MCP client at the URL and look at its `tools/list`:
@@ -131,7 +131,7 @@ npm test
 - `agent.test.js` — the poison reaches the model verbatim, and when the model
   acts on it we correctly call it "landed" (runs offline; the LLM is injected).
 
-## Behind the Privilege AI Gateway (SE k8s)
+## Behind the Agent Privilege (SE k8s)
 
 `k8s/deployment.yaml` runs this as its own Deployment + Service in
 `ping-devops-curtismuir`, so the Privilege gateway can front it as a custom

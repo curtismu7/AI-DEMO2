@@ -13,11 +13,11 @@ describe('demo readiness build contract', () => {
       { cwd: repoRoot, encoding: 'utf8' },
     );
 
-    expect(output).toContain('49 executable Demo Steps entries');
-    expect(output).toContain('(26 primary, 5 CIAM, 6 Privilege, 12 Admin)');
+    expect(output).toContain('51 executable Demo Steps entries');
+    expect(output).toContain('(28 primary, 5 CIAM, 6 Privilege, 12 Admin)');
     expect(output).toContain('20 provider feature checks are registered separately');
-    expect(output).toContain('187 behavior/authorization groups; 746 core rows');
-    expect(output).toContain('60 registered provider-feature rows; 810 current rows');
+    expect(output).toContain('189 behavior/authorization groups; 754 core rows');
+    expect(output).toContain('60 registered provider-feature rows; 818 current rows');
     expect(output).toContain('UI, BFF, and readiness prerequisite flags match for every case and vertical.');
   });
 });

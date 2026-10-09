@@ -1,6 +1,6 @@
-# AI Gateway Client
+# Agent Privilege Client
 
-A local, no-login test client for an OAuth-protected [MCP](https://modelcontextprotocol.io) gateway — the kind that authenticates callers itself (OAuth Authorization Code + PKCE, with Dynamic Client Registration for callers it's never seen before) rather than trusting a static API key. Defaults to [PingOne's Privilege AI Gateway](https://www.pingidentity.com), which works out of the box against the public Ping AI Demo instance with zero setup.
+A local, no-login test client for an OAuth-protected [MCP](https://modelcontextprotocol.io) gateway — the kind that authenticates callers itself (OAuth Authorization Code + PKCE, with Dynamic Client Registration for callers it's never seen before) rather than trusting a static API key. Defaults to [PingOne's Agent Privilege](https://www.pingidentity.com), which works out of the box against the public Ping AI Demo instance with zero setup.
 
 It shows the same tool call through two paths — **straight at the gateway** (Privilege mode, policy enforced) and **no gateway in the path at all** (Direct mode) — so you can see exactly what the gateway adds: the same call succeeding, being refused, or being logged, depending only on which door you went through. Both doors default to the public Ping AI Demo instance and work with zero setup; point either at your own MCP server/gateway when you're ready.
 
@@ -34,7 +34,7 @@ Then open http://127.0.0.1:3910. It defaults to the **Privilege** door on the pu
 
 ## Config
 
-Copy `server/.env.example` to `server/.env`. Nothing is required to try either door against the public demo — set `PRIVILEGE_GATEWAY_HOST` (and friends) to point Privilege mode at your own Privilege AI Gateway, or `DIRECT_MCP_URL` to point Direct mode at any other MCP server you run.
+Copy `server/.env.example` to `server/.env`. Nothing is required to try either door against the public demo — set `PRIVILEGE_GATEWAY_HOST` (and friends) to point Privilege mode at your own Agent Privilege, or `DIRECT_MCP_URL` to point Direct mode at any other MCP server you run.
 
 ### Live integration tests
 

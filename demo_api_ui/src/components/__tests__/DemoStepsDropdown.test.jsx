@@ -166,9 +166,10 @@ describe('DemoStepsDropdown', () => {
     expect(screen.getAllByTestId('demo-step-UC46')[0]).toContainElement(pages[0]);
     expect(screen.getAllByTestId('demo-step-UC46A')[0]).toContainElement(agents[0]);
 
-    // Only these two steps carry a destination marker.
+    // Only these four steps carry a destination marker: the A2A pair and the
+    // two external-agent steps (which run in the presenter's own agent).
     const ids = new Set(screen.getAllByTestId(/^step-destination-/).map((el) => el.getAttribute('data-testid')));
-    expect([...ids].sort()).toEqual(['step-destination-UC46', 'step-destination-UC46A']);
+    expect([...ids].sort()).toEqual(['step-destination-UC-MUSE1', 'step-destination-UC-MUSE2', 'step-destination-UC46', 'step-destination-UC46A']);
   });
 
   it('starts the Privilege A2A agent chain from step 26 and still hands the step to the page', async () => {
@@ -928,8 +929,8 @@ describe('DemoStepsDropdown — search', () => {
     // UC2 is scripted step 9 and is listed again under A2A with the same number.
     const a2a = screen.getByTestId('demo-steps-extra-a2a');
     expect(within(a2a).getByTestId('demo-extra-a2a-UC2')).toHaveTextContent('9 · UC2');
-    // UC48 joined the CIAM lane, so themed-group numbers after it shift by one.
-    expect(within(a2a).getByTestId('demo-extra-a2a-UC37')).toHaveTextContent('44 · UC37');
+    // UC48 and the MUSE steps joined before it, so themed-group numbers shift.
+    expect(within(a2a).getByTestId('demo-extra-a2a-UC37')).toHaveTextContent('45 · UC37');
   });
 
   it('finds the CIAM group when searching for its group label', async () => {

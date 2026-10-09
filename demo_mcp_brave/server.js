@@ -144,7 +144,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   // --- SSE transport -------------------------------------------------------
-  // PingOne Privilege's AI Gateway discovers a backend by issuing a GET and
+  // PingOne Agent Privilege discovers a backend by issuing a GET and
   // waiting for the SSE `endpoint` event; it never POSTs initialize. Serving
   // only POST /mcp is why this server could not be registered as an Agentic App
   // — the console reported `calling "initialize": Unauthorized` and the app's

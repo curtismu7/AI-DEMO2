@@ -53,7 +53,7 @@ export interface IssuedCode {
 }
 
 /** An authorization parked mid-flight while the BFF signs the browser in to
- *  the Privilege AI Gateway — everything /oauth/resume needs to issue the
+ *  the Agent Privilege — everything /oauth/resume needs to issue the
  *  broker's own code once the browser comes back. */
 export interface ResumableAuthorization {
   id: string;

@@ -2,7 +2,7 @@
 
 4 October 2026 · Curtis Muir
 
-This is the runbook for our environment: two agent-to-agent demos that run through the PingOne Privilege AI Gateway, how to present them, and how to rebuild the setup. Every step here was run on 4 October 2026.
+This is the runbook for our environment: two agent-to-agent demos that run through the PingOne Agent Privilege, how to present them, and how to rebuild the setup. Every step here was run on 4 October 2026.
 
 ## Contents
 
@@ -17,7 +17,7 @@ This is the runbook for our environment: two agent-to-agent demos that run throu
 
 ## What the demo shows
 
-Agents call each other and their tools only through the Privilege AI Gateway, each with its own agent key. There are two flows, and both run live.
+Agents call each other and their tools only through the Agent Privilege, each with its own agent key. There are two flows, and both run live.
 
 | Flow | Path | Demo Step |
 | --- | --- | --- |
@@ -26,13 +26,13 @@ Agents call each other and their tools only through the Privilege AI Gateway, ea
 
 ```mermaid
 flowchart LR
-  M[Main agent] -->|main key| G1[AI Gateway]
+  M[Main agent] -->|main key| G1[Agent Privilege]
   G1 --> W[Worker agent]
-  W -->|worker key| G2[AI Gateway]
+  W -->|worker key| G2[Agent Privilege]
   G2 --> T[MCP tools]
-  M -->|main key| G3[AI Gateway]
+  M -->|main key| G3[Agent Privilege]
   G3 --> L[LangChain agent]
-  L -->|its own key| G4[AI Gateway]
+  L -->|its own key| G4[Agent Privilege]
   G4 --> S[Specialist]
 ```
 
@@ -70,7 +70,7 @@ Then do one dry run of each demo before the audience arrives. A model call can t
 
 A security analyst asks an agent to review someone's access. The main agent hands the lookup to a worker agent, which reads the access data through MCP tools. About three minutes.
 
-**Open it.** Demo steps, step 25 (UC46), or the side-nav entry AI Gateway · A2A Review. Both land on the A2A tab of the gateway client. The path across the top reads Main agent, AI Gateway, Worker agent, AI Gateway, MCP tools.
+**Open it.** Demo steps, step 25 (UC46), or the side-nav entry Agent Privilege · A2A Review. Both land on the A2A tab of the gateway client. The path across the top reads Main agent, Agent Privilege, Worker agent, Agent Privilege, MCP tools.
 
 | Step | Type this | What happens | What to say |
 | --- | --- | --- | --- |
@@ -80,7 +80,7 @@ A security analyst asks an agent to review someone's access. The main agent hand
 
 **Why step 3 works.** The MCP server runs with `MCP_DEMO_INJECTION=true`, which plants the hidden instruction in Dave's record only. The gateway's log shows `aiguard: blocked mcp response … category=malicious_content`, and the write tool `open_ticket` is never called.
 
-**If you have time.** Open the Privilege console, AI Gateway, Agent Registry, and show the two agents: different scopes (`llm` + `a2a` against `llm` + `mcp`), different allowed models, and the worker's per-tool grants.
+**If you have time.** Open the Privilege console, Agent Privilege, Agent Registry, and show the two agents: different scopes (`llm` + `a2a` against `llm` + `mcp`), different allowed models, and the worker's per-tool grants.
 
 ![Privilege console dashboard](../docs/screenshots/privilege-console-setup/privilege-dashboard.png)
 _Privilege console dashboard: sessions, top users, and the resource that was called (`langchainagent`), for the last 24 hours._
@@ -136,7 +136,7 @@ Pages for the architecture conversation:
 | Privilege for AI, A2A | `/ai-products/privilege-a2a` | The product story, with links to both demos |
 | Academy lesson | `/academy/journey?step=privilege-a2a` | A three-step lesson. It explains A2A; it does not run it |
 
-The side nav's AI Gateway group has AI Gateway · A2A Review (the demo tab) and AI Gateway Topologies (the diagram).
+The side nav's Agent Privilege group has Agent Privilege · A2A Review (the demo tab) and Agent Privilege Topologies (the diagram).
 
 The gateway's own console keeps the third record. **Activity → Session Logs** lists every MCP and A2A session with user, device, resource, and audit state; click a row for the session detail.
 
@@ -176,7 +176,7 @@ _Agentic Apps → Active Applications: the demo's MCP Servers and Remote Agents.
 
 The worker must be a Remote Agent app, or it will not appear in an agent's Remote Agents list. `restrictedagent` exists only to be refused: select it on no agent. Turn on Discover A2A agent card once a backend is running. The static token for `langchainagent` is `PRIVILEGE_A2A_STATIC_TOKEN` in the vault.
 
-**3. Create the agents** (console: AI Gateway, Agent Registry, Add Agent).
+**3. Create the agents** (console: Agent Privilege, Agent Registry, Add Agent).
 
 ![Agent Registry](../docs/screenshots/privilege-console-setup/privilege-agent-registry.png)
 _Agent Registry: each row is an agent key — custodian, provider, scopes, expiry. Add Agent starts the wizard._
