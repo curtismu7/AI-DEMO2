@@ -1,13 +1,14 @@
-import { useCallback, useContext, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import DraggableModal from "./DraggableModal";
 import { ForgotPasswordLink } from "./ForgotPasswordFlow";
 import {
   PI_FLOW_SIGNIN_EVENT,
   setPiFlowSignInAvailable,
+  setAdminPiFlowSignInAvailable,
 } from "../utils/authUi";
 import { navigateWithOverlay } from "../utils/navigateWithOverlay";
 import { authenticateWebAuthn } from "../utils/passkeyCeremony";
-import { VerticalContext } from "../vertical/VerticalProvider";
+import SignInBrand from "./SignInBrand";
 
 const apiBase = () =>
   process.env.REACT_APP_API_URL ||
@@ -16,41 +17,49 @@ const apiBase = () =>
 /** Test hook: any page opened with ?signin=mfa asks this sign-in for MFA. */
 const mfaRequested = () => new URLSearchParams(window.location.search).get("signin") === "mfa";
 
+const ADMIN_API = "/api/auth/oauth";
+const USER_API = "/api/auth/oauth/user";
+
 /** Plain redirect login — the path every failure here falls back to. An MFA request keeps its MFA (the step-up route). */
-function redirectLogin(returnTo) {
-  const suffix = returnTo ? `?return_to=${encodeURIComponent(returnTo)}` : "";
-  navigateWithOverlay(`${apiBase()}/api/auth/oauth/user/${mfaRequested() ? "stepup" : "login"}${suffix}`, {
+function redirectLogin(returnTo, role, force) {
+  let base;
+  if (role === "admin") base = `${ADMIN_API}/login`;
+  else if (mfaRequested()) base = `${USER_API}/stepup`;
+  else base = force ? `${USER_API}/login?force=true` : `${USER_API}/login`;
+  const sep = base.includes("?") ? "&" : "?";
+  const suffix = returnTo ? `${sep}return_to=${encodeURIComponent(returnTo)}` : "";
+  navigateWithOverlay(`${apiBase()}${base}${suffix}`, {
     message: "Signing in...",
   });
 }
 
 /**
- * Redirect-free customer sign-in (PingOne pi.flow). The BFF opens the flow
- * (GET /login?pi_flow=1), this form posts the password to it, and on success the
- * browser goes straight to the BFF callback — no PingOne hosted page.
+ * Redirect-free sign-in (PingOne / PingFederate pi.flow), customer and admin.
+ * The BFF opens the flow (GET .../login?pi_flow=1), this form posts the password
+ * to it, and on success the browser goes straight to the BFF callback — no
+ * hosted login page.
  *
  * Mounted once in App. It enables itself only when the BFF reports
- * PINGONE_USER_AUTHORIZE_PI_FLOW on AND the provider is PingOne or PingFederate; otherwise
- * navigateToCustomerOAuthLogin keeps doing the ordinary redirect.
- * After the password, a passkey (ASSERTION_REQUIRED) step is driven here too.
- * Anything else (SMS/email codes, a policy screen, an error opening the flow)
- * falls back to that redirect login.
+ * PINGONE_USER_AUTHORIZE_PI_FLOW (and, for the admin role,
+ * PINGONE_ADMIN_AUTHORIZE_PI_FLOW) on and the provider is PingOne or
+ * PingFederate; otherwise the redirect login stays as it was.
+ * After the password, a passkey (ASSERTION_REQUIRED) or OTP step is driven here
+ * too. Anything else (device selection, a policy screen, an error opening the
+ * flow) falls back to that redirect login.
  */
 export default function PiFlowSignInModal() {
-  // The context directly, not useVertical(): this mounts above the pages that
-  // need a Router, and signed-out visitors still get identity + theme from
-  // /api/verticals/me, which is all the header needs.
-  const identity = useContext(VerticalContext)?.pageManifest?.identity;
-  const brandName = identity?.headerTitle || identity?.displayName || "";
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  // "password" -> "passkey" when the flow asks for a passkey assertion.
+  const [otp, setOtp] = useState("");
+  // "password" -> "passkey" | "otp" as the flow asks for them.
   const [step, setStep] = useState("password");
   const passkeyOptionsRef = useRef(null);
   const returnToRef = useRef(undefined);
+  const roleRef = useRef("customer");
+  const forceRef = useRef(false);
   const providerRef = useRef("pingone");
 
   useEffect(() => {
@@ -59,60 +68,75 @@ export default function PiFlowSignInModal() {
       try {
         const res = await fetch(`${apiBase()}/api/admin/config`, { credentials: "include" });
         const cfg = (await res.json())?.config || {};
-        const on = ["true", "1"].includes(String(cfg.PINGONE_USER_AUTHORIZE_PI_FLOW).toLowerCase());
         // Both providers the BFF can drive (PingOne, PingFederate); anything else keeps the redirect.
         const provider = cfg.oauth_provider || "pingone";
         providerRef.current = provider;
-        if (!cancelled) setPiFlowSignInAvailable(on && (provider === "pingone" || provider === "pingfederate"));
+        const drivable = provider === "pingone" || provider === "pingfederate";
+        const userOn = ["true", "1"].includes(String(cfg.PINGONE_USER_AUTHORIZE_PI_FLOW).toLowerCase());
+        const adminOn = ["true", "1"].includes(String(cfg.PINGONE_ADMIN_AUTHORIZE_PI_FLOW).toLowerCase());
+        if (!cancelled) {
+          setPiFlowSignInAvailable(userOn && drivable);
+          setAdminPiFlowSignInAvailable(adminOn && drivable);
+        }
       } catch {
         /* keep the redirect login */
       }
     })();
     return () => {
       cancelled = true;
-      setPiFlowSignInAvailable(false);
     };
   }, []);
 
-  const begin = useCallback(async (target) => {
-    returnToRef.current = target;
+  const begin = useCallback((detail) => {
+    const target = detail.returnTo;
+    const role = detail.role === "admin" ? "admin" : "customer";
     // PF's MFA steps are not driven in the modal yet: go straight to the hosted step-up login rather than
     // asking for the password here and then again there.
     if (mfaRequested() && providerRef.current === "pingfederate") {
-      redirectLogin(target);
+      redirectLogin(target, role, detail.force);
       return;
     }
+    returnToRef.current = target;
+    roleRef.current = role;
+    forceRef.current = Boolean(detail.force);
     setStep("password");
     passkeyOptionsRef.current = null;
     setError("");
     setUsername("");
     setPassword("");
+    setOtp("");
     setBusy(true);
     setOpen(true);
-    try {
-      const qs = new URLSearchParams({ pi_flow: "1" });
-      if (target) qs.set("return_to", target);
-      if (mfaRequested()) qs.set("mfa", "1");
-      const res = await fetch(`${apiBase()}/api/auth/oauth/user/login?${qs}`, { credentials: "include" });
-      if (!res.ok) throw new Error("pi.flow unavailable");
-      // PingFederate locks the flow to a username hint; prefill it like the hosted page does.
-      const flow = await res.json().catch(() => ({}));
-      if (flow && typeof flow.usernameHint === "string") setUsername(flow.usernameHint);
-      setBusy(false);
-    } catch {
-      setOpen(false);
-      redirectLogin(target);
-    }
+    (async () => {
+      try {
+        const qs = new URLSearchParams({ pi_flow: "1" });
+        if (target) qs.set("return_to", target);
+        if (forceRef.current) qs.set("force", "true");
+        if (mfaRequested()) qs.set("mfa", "1");
+        const api = role === "admin" ? ADMIN_API : USER_API;
+        const res = await fetch(`${apiBase()}${api}/login?${qs}`, { credentials: "include" });
+        if (!res.ok) throw new Error("pi.flow unavailable");
+        // PingFederate locks the flow to a username hint; prefill it like the hosted page does.
+        const flow = await res.json().catch(() => ({}));
+        if (flow && typeof flow.usernameHint === "string") setUsername(flow.usernameHint);
+        setBusy(false);
+      } catch {
+        setOpen(false);
+        redirectLogin(target, role, forceRef.current);
+      }
+    })();
   }, []);
 
   useEffect(() => {
     const onSignIn = (e) => {
       e.detail.handled = true;
-      begin(e.detail.returnTo);
+      begin(e.detail);
     };
     window.addEventListener(PI_FLOW_SIGNIN_EVENT, onSignIn);
     return () => window.removeEventListener(PI_FLOW_SIGNIN_EVENT, onSignIn);
   }, [begin]);
+
+  const apiForRole = () => (roleRef.current === "admin" ? ADMIN_API : USER_API);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -120,7 +144,7 @@ export default function PiFlowSignInModal() {
     setBusy(true);
     setError("");
     try {
-      const res = await fetch(`${apiBase()}/api/auth/oauth/user/pi-flow/credentials`, {
+      const res = await fetch(`${apiBase()}${apiForRole()}/pi-flow/credentials`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -144,10 +168,45 @@ export default function PiFlowSignInModal() {
         setBusy(false);
         return;
       }
-      // fallback:true (another MFA method or screen), 409 (flow expired), 5xx
-      redirectLogin(returnToRef.current);
+      if (res.ok && body.step === "otp") {
+        setPassword("");
+        setStep("otp");
+        setBusy(false);
+        return;
+      }
+      // fallback:true (device selection, a policy screen), 409 (flow expired), 5xx
+      redirectLogin(returnToRef.current, roleRef.current, forceRef.current);
     } catch {
-      redirectLogin(returnToRef.current);
+      redirectLogin(returnToRef.current, roleRef.current, forceRef.current);
+    }
+  };
+
+  const submitOtp = async (e) => {
+    e.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetch(`${apiBase()}${apiForRole()}/pi-flow/otp`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ otp }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (res.status === 401) {
+        setOtp("");
+        setError(body.message || "That code is not valid. Check it and try again.");
+        setBusy(false);
+        return;
+      }
+      if (res.ok && body.redirectTo) {
+        navigateWithOverlay(body.redirectTo, { message: "Signing in...", assign: true });
+        return;
+      }
+      redirectLogin(returnToRef.current, roleRef.current, forceRef.current);
+    } catch {
+      redirectLogin(returnToRef.current, roleRef.current, forceRef.current);
     }
   };
 
@@ -170,7 +229,7 @@ export default function PiFlowSignInModal() {
       return;
     }
     try {
-      const res = await fetch(`${apiBase()}/api/auth/oauth/user/pi-flow/assertion`, {
+      const res = await fetch(`${apiBase()}${apiForRole()}/pi-flow/assertion`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -186,23 +245,26 @@ export default function PiFlowSignInModal() {
         navigateWithOverlay(body.redirectTo, { message: "Signing in...", assign: true });
         return;
       }
-      redirectLogin(returnToRef.current);
+      redirectLogin(returnToRef.current, roleRef.current, forceRef.current);
     } catch {
-      redirectLogin(returnToRef.current);
+      redirectLogin(returnToRef.current, roleRef.current, forceRef.current);
     }
   };
 
   if (!open) return null;
+
+  const admin = roleRef.current === "admin";
+  const welcome = admin ? "Administrator sign in" : "Welcome back";
 
   return (
     <DraggableModal
       isOpen
       onClose={() => setOpen(false)}
       title="Sign in"
-      className="signin-modal pi-flow-signin"
-      defaultWidth={420}
-      defaultHeight={410}
-      minHeight={320}
+      className={`signin-modal pi-flow-signin${admin ? " pi-flow-signin--admin" : ""}`}
+      defaultWidth={440}
+      defaultHeight={470}
+      minHeight={360}
       footer={
         <div className="signin-modal__actions">
           {step === "passkey" ? (
@@ -210,7 +272,7 @@ export default function PiFlowSignInModal() {
               <button
                 type="button"
                 className="signin-prompt__btn signin-prompt__btn--ghost"
-                onClick={() => redirectLogin(returnToRef.current)}
+                onClick={() => redirectLogin(returnToRef.current, roleRef.current, forceRef.current)}
               >
                 Use another method
               </button>
@@ -227,13 +289,13 @@ export default function PiFlowSignInModal() {
             <>
               <button
                 type="submit"
-                form="pi-flow-signin-form"
+                form={step === "otp" ? "pi-flow-otp-form" : "pi-flow-signin-form"}
                 className="signin-prompt__btn"
-                disabled={busy || !username || !password}
+                disabled={busy || (step === "otp" ? !otp : !username || !password)}
               >
                 {busy ? "Signing in" : "Sign in"}
               </button>
-              <ForgotPasswordLink />
+              {step !== "otp" && <ForgotPasswordLink />}
             </>
           )}
           <button
@@ -247,18 +309,7 @@ export default function PiFlowSignInModal() {
       }
     >
       <div className="dm-scroll">
-        {identity?.logoPath || brandName ? (
-          <div className="pi-flow-signin__brand">
-            {identity?.logoPath ? (
-              <img
-                className="pi-flow-signin__logo"
-                src={identity.logoPath}
-                alt={identity.logoAlt || ""}
-              />
-            ) : null}
-            {brandName ? <span className="pi-flow-signin__brand-name">{brandName}</span> : null}
-          </div>
-        ) : null}
+        <SignInBrand welcome={welcome} />
         {step === "passkey" ? (
           <div className="pi-flow-signin__form">
             <p className="signin-modal__text">Verify it is you with your passkey.</p>
@@ -268,6 +319,30 @@ export default function PiFlowSignInModal() {
               </p>
             ) : null}
           </div>
+        ) : step === "otp" ? (
+          <form id="pi-flow-otp-form" className="pi-flow-signin__form" onSubmit={submitOtp}>
+            <p className="signin-modal__text">
+              We sent a verification code to your registered {admin ? "admin" : ""} contact. Enter it to continue.
+            </p>
+            <label className="pi-flow-signin__label" htmlFor="pi-flow-otp">
+              Verification code
+            </label>
+            <input
+              id="pi-flow-otp"
+              className="pi-flow-signin__input"
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              autoFocus
+              value={otp}
+              onChange={(e) => setOtp(e.target.value)}
+            />
+            {error ? (
+              <p className="signin-modal__text" role="alert">
+                ❌ {error}
+              </p>
+            ) : null}
+          </form>
         ) : (
         <form id="pi-flow-signin-form" className="pi-flow-signin__form" onSubmit={submit}>
           <label className="pi-flow-signin__label" htmlFor="pi-flow-username">
@@ -298,9 +373,6 @@ export default function PiFlowSignInModal() {
               ❌ {error}
             </p>
           ) : null}
-          <p className="signin-modal__hint">
-            No hosted login page: this sign-in runs as a pi.flow.
-          </p>
         </form>
         )}
       </div>

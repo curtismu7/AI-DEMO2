@@ -218,7 +218,12 @@ export function VerticalEditorPage() {
         return;
       }
       const edited = JSON.parse(editorValue);
-      if (body.logoPath) edited.identity = { ...edited.identity, logoPath: body.logoPath };
+      if (body.logoPath) {
+        edited.identity = { ...edited.identity, logoPath: body.logoPath };
+        // A Brandfetch logo is a lockup carrying its own wordmark; the caps
+        // label in the sign-in bar would double it.
+        if (edited.identity.brandCaps) delete edited.identity.brandCaps;
+      }
       if (body.primary) {
         const cssVars = cssVarsFromBrand(body.primary, body.accent || body.primary);
         if (body.fontName) {

@@ -28,11 +28,36 @@ const posthog = require('../services/posthog');
 const archEmit = require('../services/archEventEmitter');
 const { terminateAllUserSessions } = require('../services/pingOneSessionService');
 const { sanitizePostLoginReturnPath } = require('./oauthUser');
+const { makePiFlowHandlers, piFlowProvider } = require('../services/piFlowDriver');
+const { KNOWN_REDIRECT_ORIGINS } = require('../services/knownRedirectOrigins');
 const { loadHostedAccessPolicy, evaluateHostedIdentity, coherentHostedIdentityClaims, stampHostedAccessApproval, clearHostedAccessApproval } = require('../services/hostedAccessPolicy');
 const { startLoginAudit, resumeLoginAudit, finishLoginAudit } = require('../services/authAccessAuditService');
 const { sendAccessRestricted } = require('../middleware/hostedAccessGate');
 
 const _isProd = () => !!(process.env.REPL_ID || process.env.REPLIT_DEPLOYMENT || process.env.NODE_ENV === 'production');
+
+// --- Redirect-free (pi.flow) admin sign-in ----------------------------------
+// Mirrors the user side in routes/oauthUser.js: /login?pi_flow=1 returns flow
+// JSON instead of a 302; the SPA posts credentials/assertion/otp to these
+// endpoints; a COMPLETED flow hands the browser to the UNCHANGED /callback with
+// ?code&state. Gated by PINGONE_ADMIN_AUTHORIZE_PI_FLOW (default off — requires
+// the PingOne ADMIN app to allow response_mode=pi.flow).
+const adminPiFlow = makePiFlowHandlers({ providerConfig: oauthConfig, knownRedirectOrigins: KNOWN_REDIRECT_ORIGINS });
+const adminPiFlowEnabled = () => oauthConfig.authorizeUsesPiFlow
+  && ['pingone', 'pingfederate'].includes(configStore.getOAuthProvider?.() || 'pingone');
+
+router.post('/pi-flow/credentials', async (req, res) => {
+  if (!adminPiFlowEnabled()) return res.status(404).json({ error: 'pi_flow_disabled' });
+  return adminPiFlow.handleCredentialsStep(req, res);
+});
+router.post('/pi-flow/assertion', async (req, res) => {
+  if (!adminPiFlowEnabled()) return res.status(404).json({ error: 'pi_flow_disabled' });
+  return adminPiFlow.handleAssertionStep(req, res);
+});
+router.post('/pi-flow/otp', async (req, res) => {
+  if (!adminPiFlowEnabled()) return res.status(404).json({ error: 'pi_flow_disabled' });
+  return adminPiFlow.handleOtpStep(req, res);
+});
 
 /**
  * GET /api/auth/oauth/redirect-info — implemented on app in server.js (before /api/auth mount).
@@ -69,6 +94,12 @@ router.get('/login', (req, res) => {
       // resurrect the customer identity on a different Vercel instance.
       clearAuthCookie(res, _isProd());
     }
+
+    // Opt-in redirect-free admin sign-in: the SPA asks for ?pi_flow=1 and gets
+    // flow JSON back instead of a 302. Off unless PINGONE_ADMIN_AUTHORIZE_PI_FLOW
+    // is on AND the provider can be driven; the SPA falls back to the plain
+    // redirect login when this returns 404/502.
+    const piFlowLogin = req.query.pi_flow === '1' && adminPiFlowEnabled();
 
     // Generate state parameter for CSRF protection
     const state = oauthService.generateState();
@@ -155,7 +186,14 @@ router.get('/login', (req, res) => {
       );
     }
     
-    const authUrl = oauthService.generateAuthorizationUrl(state, codeVerifier, redirectUri, nonce) + resourceParam;
+    const authUrl = oauthService.generateAuthorizationUrl(
+      state, codeVerifier, redirectUri, nonce,
+      // Force re-auth must drop the login hint so a different admin can sign in,
+      // and send prompt=login (clearing the BFF session alone does not stop SSO
+      // silent re-auth) — mirrors the user side.
+      req.query.force === 'true' ? null : undefined,
+      { ...(req.query.force === 'true' ? { forceLogin: true } : {}), ...(piFlowLogin ? { forcePiFlow: true } : {}) },
+    ) + resourceParam;
 
     const cfg = oauthService.config || {};
     console.debug('[oauth/login] client_id=%s redirect_uri=%s env_id=%s authorize_pi.flow=%s',
@@ -176,6 +214,9 @@ router.get('/login', (req, res) => {
         console.error('[oauth] Session save error before redirect:', err?.stack || String(err));
         finishLoginAudit(req, { outcome: 'failure', reasonCode: 'session_persist_failed' });
         return res.status(500).json({ error: 'Failed to initiate OAuth login' });
+      }
+      if (piFlowLogin) {
+        return adminPiFlow.openPiFlow(req, res, authUrl, piFlowProvider());
       }
       res.redirect(authUrl);
     });

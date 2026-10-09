@@ -1,7 +1,5 @@
 'use strict';
 
-const fs = require('node:fs');
-const path = require('node:path');
 
 const { A2A_SPECIALISTS, specialistForVertical, verticalsWithSpecialist } = require('../config/a2aSpecialists');
 const { VERTICALS, listUseCases, resolveUseCase } = require('../config/useCases');
@@ -26,11 +24,10 @@ describe('Abercrombie & Fitch vertical clone', () => {
     const manifest = verticalManifest.resolver.resolve(VERTICAL);
     expect(manifest.identity).toMatchObject({
       displayName: 'Abercrombie & Fitch',
-      logoPath: '/branding/abercrombie-fitch-logo.svg',
+      // Real-company verticals reference the Brandfetch CDN lockup rather than
+      // a repo-hosted tile (the asset the brand itself serves).
+      logoPath: 'https://cdn.brandfetch.io/idkYPWBxQ8/theme/dark/logo.svg',
     });
-    expect(
-      fs.existsSync(path.join(__dirname, '..', '..', 'demo_api_ui', 'public', manifest.identity.logoPath)),
-    ).toBe(true);
     expect(verticalManifest.list().map((entry) => entry.id)).toContain(VERTICAL);
     expect(verticalManifest.resolver.resolve('retail').identity.displayName).toBe('Great Buy');
   });

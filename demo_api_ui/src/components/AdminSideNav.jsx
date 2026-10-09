@@ -255,6 +255,34 @@ export default function AdminSideNav({
   // because this is a standing preference, not per-tab state like the expanded
   // group below — someone who expands it should not have to do so every tab.
   const [collapsed, setCollapsed] = useState(readStoredCollapsed);
+  // Fully hidden (the vertical-logo magic link / Ctrl+Shift+B). Distinct from
+  // collapsed: hidden removes the rail entirely and the content reflows to
+  // full width. Persisted — someone who hides the rail wants it to stay hidden.
+  const [hidden, setHidden] = useState(() => {
+    try {
+      return localStorage.getItem("adminSideNav.hidden") === "1";
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    document.querySelector(".App")?.classList.toggle("sidenav-hidden", hidden);
+    return undefined;
+  }, [hidden]);
+  useEffect(() => {
+    const onHiddenToggle = () => {
+      setHidden((h) => {
+        try {
+          localStorage.setItem("adminSideNav.hidden", h ? "0" : "1");
+        } catch {
+          /* private mode — session-only */
+        }
+        return !h;
+      });
+    };
+    window.addEventListener("admin-sidenav-hidden-toggle", onHiddenToggle);
+    return () => window.removeEventListener("admin-sidenav-hidden-toggle", onHiddenToggle);
+  }, []);
   // Width now persists (it never did before convergence on useDividerDrag);
   // collapse state was already persisted separately.
   const { size: sidebarWidth, handleProps: resizeHandleProps } = useDividerDrag({
@@ -2069,7 +2097,7 @@ export default function AdminSideNav({
 
   return (
     <div
-      className={`admin-side-nav ${collapsed ? "admin-side-nav--collapsed" : ""}`}
+      className={`admin-side-nav ${collapsed ? "admin-side-nav--collapsed" : ""}${hidden ? " admin-side-nav--hidden" : ""}`}
       style={collapsed ? undefined : { width: sidebarWidth }}
     >
       {/* Drag-to-resize handle */}

@@ -115,6 +115,9 @@ const ManifestSchema = z.object({
   identity: z.object({
     displayName: z.string().min(1),
     headerTitle: z.string().optional(),
+    // Short all-caps label for the sign-in hero bar (e.g. "UNITED" before
+    // "United Airlines"). Absent → the bar shows the display name alone.
+    brandCaps: z.string().optional(),
     documentTitle: z.string().optional(),
     logoAlt: z.string().optional(),
     tagline: z.string().optional(),

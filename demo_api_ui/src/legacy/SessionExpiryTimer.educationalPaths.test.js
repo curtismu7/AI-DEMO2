@@ -14,10 +14,10 @@
 import React from "react";
 import { render } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import bffAxios from "../../services/bffAxios";
-import SessionExpiryTimer from "../SessionExpiryTimer";
+import bffAxios from "../services/bffAxios";
+import SessionExpiryTimer from "./SessionExpiryTimer";
 
-vi.mock("../../services/bffAxios", () => ({
+vi.mock("../services/bffAxios", () => ({
   __esModule: true,
   default: {
     get: vi.fn(() => Promise.resolve({ data: { tokenEvents: [] } })),

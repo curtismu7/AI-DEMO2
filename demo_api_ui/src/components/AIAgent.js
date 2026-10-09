@@ -10289,6 +10289,13 @@ export default function BankingAgent({
           >
             <div className="ba-header-top">
               <div className="ba-header-left">
+                {pageManifest?.identity?.logoPath && !isConfigEmbeddedFocus ? (
+                  <img
+                    className="ba-brand-logo"
+                    src={pageManifest.identity.logoPath}
+                    alt=""
+                  />
+                ) : null}
                 <span className="ba-status-dot" />
                 <div>
                   <div className="ba-title">

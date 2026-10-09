@@ -195,16 +195,20 @@ class OAuthService {
   // hardcoding a hint there pre-fills PingOne's login screen with the wrong
   // username, producing a genuine "incorrect username and password" once the
   // user submits credentials for whoever they actually are.
-  generateAuthorizationUrl(state, codeVerifier, redirectUri, nonce = null, loginHint) {
+  // opts.forceLogin sends prompt=login (re-auth) and drops the login hint so a
+  // different admin can sign in; opts.forcePiFlow opens response_mode=pi.flow
+  // for the redirect-free modal (only when the caller wants it — the flag alone
+  // would rewrite every redirect login to land the browser on raw flow JSON).
+  generateAuthorizationUrl(state, codeVerifier, redirectUri, nonce = null, loginHint, opts = {}) {
     // NOTE: PingFederate disables (readonly) the username field when login_hint is
     // present. We now deliberately send 'demoadmin' in PF mode too (requested
     // demo behavior); routes/davinciLogin.js still passes null to omit it.
-    if (loginHint === undefined) {
+    if (loginHint === undefined && !opts.forceLogin) {
       loginHint = (configStore.getOAuthProvider?.() === 'pingfederate') ? 'demoadmin' : 'demoAdmin';
     }
-    const usePiFlow = !!this.config.authorizeUsesPiFlow;
+    const usePiFlow = !!opts.forcePiFlow;
     const codeChallenge = this.generateCodeChallenge(codeVerifier);
-    const responseType = usePiFlow ? 'pi.flow' : 'code';
+    const responseType = 'code';
     const params = new URLSearchParams({
       response_type: responseType,
       client_id: this.config.clientId,
@@ -220,6 +224,10 @@ class OAuthService {
 
     if (usePiFlow) {
       params.set('response_mode', 'pi.flow');
+    }
+
+    if (opts.forceLogin) {
+      params.set('prompt', 'login');
     }
 
     if (nonce) {

@@ -34,8 +34,11 @@ vi.mock("../../hooks/useRoleSwitch", () => ({
   useRoleSwitch: () => ({ switching: false, switchRole: vi.fn() }),
 }));
 
+const mockVertical = vi.hoisted(() => ({
+  manifest: { identity: { displayName: "Test" } },
+}));
 vi.mock("../../vertical/useVertical", () => ({
-  useVertical: () => ({ pageManifest: { identity: { displayName: "Test" } } }),
+  useVertical: () => ({ pageManifest: mockVertical.manifest }),
 }));
 
 vi.mock("../../utils/authUi", () => ({
@@ -87,6 +90,31 @@ describe("TopNav Favorites dropdown", () => {
     const logo = screen.getByRole("img", { name: "Ping Identity" });
     expect(logo).toHaveAttribute("src", "/assets/ping-identity-logo.png");
     expect(logo.parentElement).toHaveClass("topnav-ping-identity");
+  });
+
+  it("keeps the Ping mark on Ping surfaces (/setup, /admin)", () => {
+    const { unmount } = render(<TopNav user={null} onLogout={vi.fn()} />);
+    // Default mock location is /dashboard with a manifest lacking an id — the
+    // no-manifest fallback keeps the Ping mark.
+    expect(screen.getByRole("img", { name: "Ping Identity" })).toBeInTheDocument();
+    unmount();
+  });
+
+  it("a customer vertical page swaps the Ping mark for the vertical logo and makes it the sidenav magic link", () => {
+    mockVertical.manifest = {
+      id: "airlines",
+      identity: { displayName: "United Airlines", logoPath: "https://cdn.brandfetch.io/x/theme/light/logo.svg" },
+    };
+    const toggles = vi.fn();
+    window.addEventListener("admin-sidenav-hidden-toggle", toggles);
+    render(<TopNav user={null} onLogout={vi.fn()} />);
+
+    expect(screen.queryByRole("img", { name: "Ping Identity" })).not.toBeInTheDocument();
+    const brandBtn = screen.getByRole("button", { name: "Toggle side navigation" });
+    fireEvent.click(brandBtn);
+    expect(toggles).toHaveBeenCalledTimes(1);
+    window.removeEventListener("admin-sidenav-hidden-toggle", toggles);
+    mockVertical.manifest = { identity: { displayName: "Test" } };
   });
 
   it("renders outside the horizontal scroll container so the dropdown is not clipped", () => {
