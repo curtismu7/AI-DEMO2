@@ -93,6 +93,13 @@ const SelfServicePage = () => {
     if (!data.lastName?.trim()) errors.lastName = 'Last name is required';
     if (!data.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
       errors.email = 'Valid email is required';
+    } else if (data.email.includes('+')) {
+      errors.email = 'Plus-addressing is not supported — use your base @pingidentity.com or @pingone.com address';
+    } else if (!/@(pingidentity\.com|pingone\.com)$/i.test(data.email)) {
+      errors.email = 'Email must be @pingidentity.com or @pingone.com';
+    }
+    if (!data.phone?.trim()) {
+      errors.phone = 'Phone is required — it is enrolled as an MFA device for passwordless sign-in';
     }
     if (!data.username?.trim()) errors.username = 'Username is required';
     if (!data.password || data.password.length < 8) {
@@ -396,11 +403,11 @@ const SelfServicePage = () => {
                   </div>
                 </div>
 
-                {/* Phone (Optional) */}
+                {/* Phone (required — enrolled as an MFA device) */}
                 <div className="ssp-form-section">
-                  <h3>Contact Information (Optional)</h3>
+                  <h3>Contact Information</h3>
                   <div className="ssp-form-group">
-                    <label>Phone Number</label>
+                    <label>Phone Number *</label>
                     <input
                       type="tel"
                       className="ssp-input"
@@ -408,6 +415,9 @@ const SelfServicePage = () => {
                       onChange={(e) => handleInputChange('phone', e.target.value)}
                       placeholder="+1-555-0100"
                     />
+                    {formErrors.phone && (
+                      <div className="ssp-error-text">{formErrors.phone}</div>
+                    )}
                   </div>
                 </div>
 
