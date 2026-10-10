@@ -600,7 +600,11 @@
 
 /* V2: Hero section with warm background and serif headline */
 [data-rd-v2] .landing-hero {
-  background: transparent !important;
+  /* V2 transparentizes the base hero ground but keeps the brand-hub arcs
+     pattern (it sits on the page surface, not the hero's own fill). */
+  background:
+    url('/branding/pattern-arcs.jpg') right top / 720px auto no-repeat,
+    transparent !important;
   border-bottom: 1px solid var(--rd2-line-1, #e4e4e0) !important;
   padding: 96px 32px 88px !important;
 }
