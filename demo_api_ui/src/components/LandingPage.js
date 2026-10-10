@@ -252,6 +252,13 @@ export default function LandingPage({ user, hasTopNav }) {
               No parallel identity stacks. No secret sprawl. Just a unified
               identity control plane built for the agentic enterprise.
             </p>
+            {/* Closing line adapted from the Ping brand hub boilerplate
+                (brand.pingidentity.com/hub/39 → Written Guidelines → Boilerplate) */}
+            <p className="landing-callout-body landing-callout-boilerplate">
+              At Ping Identity, we make it possible to trust every digital
+              moment — across customers, employees, partners, and non-human
+              identities. With Ping, all digital experiences start with trust.
+            </p>
           </div>
         </section>
 
