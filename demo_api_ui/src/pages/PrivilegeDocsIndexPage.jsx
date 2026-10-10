@@ -392,6 +392,13 @@ const SECTIONS = [
         covers:
           "What tool policies do when there is more than one: the union model (create adds, expiry silently subtracts, delete subtracts identically, edit-down does nothing), discovery-gating and why the client never sees denied, the four indistinguishable 403s, groups (documented, not reproduced), per-app scope, and when a policy problem isn't one — every step measured live 2026-10-10.",
       },
+      {
+        title: "Agent mode end to end",
+        path: "privilege/AGENT-MODE-END-TO-END.md",
+        pdf: true,
+        covers:
+          "The Privilege Agent on a Mac, measured: device-bound identity in the Secure Enclave, pairing and re-pairing order, the local console, the cloud frontend's 403 gate — and the reframe: the agent is an identity anchor, not an MCP transport (cm-mcpgw is gone; MCP runs through the agentless gateways). Paired live 2026-10-10.",
+      },
     ],
   },
   {
@@ -433,9 +440,7 @@ const SECTIONS = [
   },
 ];
 
-const PLANNED = [
-  ["Agent mode end to end", "The Privilege Agent on a workstation, device-bound identity, how it differs from agentless", "Partly — needs the agent paired on a Mac"],
-];
+const PLANNED = [];
 
 const GITHUB_BASE = "https://github.com/cmuir_pingcorp/AI-DEMO2/blob/main/";
 const DRIVE_NOTE =
