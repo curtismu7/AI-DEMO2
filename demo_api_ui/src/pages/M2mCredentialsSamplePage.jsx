@@ -91,7 +91,7 @@ export default function M2mCredentialsSamplePage() {
   return (
     <div className="m2m-sample">
       <div className="m2m-sample-header">
-        <img src="/branding/ping-logo.svg" alt="Ping Identity" />
+        <img src="/branding/ping-logo.png" alt="Ping Identity" />
       </div>
 
       <div className="m2m-sample-body">

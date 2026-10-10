@@ -117,9 +117,8 @@ export function LessonLayout({
     <PrintExcludeContext.Provider value={printExclude}>
       <div className={`lesson-page${pageClassName ? ` ${pageClassName}` : ""}`}>
         <header className="lesson-header">
-          {/* A text wordmark, not an image: the repo's branding/ping-logo.svg
-              is a placeholder "P" badge, not Ping Identity's logo, and a
-              customer handout must not pass one off as the other. */}
+          {/* A text wordmark, not an image: printed handouts need a compact
+              wordmark line, not the square mark. */}
           <div className="lesson-print-brand">
             <strong className="lesson-print-wordmark">Ping Identity</strong>
             <span>pingidentity.com</span>

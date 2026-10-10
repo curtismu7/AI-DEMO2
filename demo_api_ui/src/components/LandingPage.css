@@ -31,7 +31,7 @@
   --lp-navy-2: #334155;
   --lp-accent: #0369a1;
   --lp-accent-hover: #0284c7;
-  --lp-destructive: #dc2626;
+  --lp-destructive: #d20e0f;
   --lp-shadow-sm:
     0 1px 3px rgba(2, 6, 23, 0.08), 0 1px 2px rgba(2, 6, 23, 0.06);
   --lp-shadow-md:
@@ -231,14 +231,14 @@
   line-height: 1.4;
 }
 .hero-cta-primary {
-  background: linear-gradient(180deg, #dc2626 0%, #b91c1c 100%);
+  background: linear-gradient(180deg, #d20e0f 0%, #aa0005 100%);
   color: var(--th-text-invert);
-  border-color: #7f1d1d;
+  border-color: #7c0003;
   box-shadow: var(--lp-shadow-sm);
 }
 .hero-cta-primary:hover {
-  background: linear-gradient(180deg, #b91c1c 0%, #991b1b 100%);
-  border-color: #7f1d1d;
+  background: linear-gradient(180deg, #aa0005 0%, #8f0004 100%);
+  border-color: #7c0003;
   box-shadow: var(--lp-shadow-md);
 }
 .hero-cta-secondary {
@@ -700,7 +700,9 @@
 }
 
 .landing-callout-lead em {
-  font-style: italic;
+  /* Brand rule: avoid italics for emphasis — heavier weight instead */
+  font-style: normal;
+  font-weight: 700;
   color: var(--rd2-accent-text, #ffffff);
 }
 
@@ -714,6 +716,15 @@
 
 .landing-callout-body:last-child {
   margin-bottom: 0;
+}
+
+/* Brand-hub boilerplate closing line — slightly quieter than the lead copy */
+.landing-callout-boilerplate {
+  font-size: 13.5px;
+  opacity: 0.88;
+  max-width: 620px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 @media (max-width: 640px) {

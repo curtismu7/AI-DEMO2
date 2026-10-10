@@ -137,7 +137,9 @@
   color: var(--rd2-ink-1);
 }
 [data-rd-v2] .ud-hero__greet em {
-  font-style: italic;
+  /* Brand rule: avoid italics for emphasis — heavier weight instead */
+  font-style: normal;
+  font-weight: 600;
   color: var(--rd2-accent);
 }
 [data-rd-v2] .ud-hero__balance-band {

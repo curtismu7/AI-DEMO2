@@ -510,10 +510,10 @@ describe('PiFlowSignInModal', () => {
 
     test('shows the active vertical logo and name in the header', async () => {
       mockBff(open());
-      await mountAndClick({ displayName: 'PingOne Admin', logoPath: '/branding/ping-logo.svg' });
+      await mountAndClick({ displayName: 'PingOne Admin', logoPath: '/branding/ping-logo.png' });
       expect(await screen.findByText('PingOne Admin')).toBeInTheDocument();
       // alt="" on purpose: the name is printed beside it, so the image is decorative.
-      expect(document.querySelector('.pi-flow-signin__logo')).toHaveAttribute('src', '/branding/ping-logo.svg');
+      expect(document.querySelector('.pi-flow-signin__logo')).toHaveAttribute('src', '/branding/ping-logo.png');
     });
 
     test('brandCaps renders as the bold caps segment before the full name', async () => {
@@ -561,7 +561,7 @@ describe('PiFlowSignInModal', () => {
       const manifest = JSON.parse(
         fs.readFileSync(path.join(root, 'demo_api_server/config/verticals/pingone-admin/manifest.json'), 'utf8'),
       );
-      expect(manifest.identity.logoPath).toBe('/branding/ping-logo.svg');
+      expect(manifest.identity.logoPath).toBe('/branding/ping-logo.png');
       expect(fs.existsSync(path.join(root, 'demo_api_ui/public', manifest.identity.logoPath))).toBe(true);
     });
 
