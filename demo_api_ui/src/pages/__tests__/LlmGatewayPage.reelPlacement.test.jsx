@@ -1,5 +1,6 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import LlmGatewayPage from "../LlmGatewayPage";
+import { MemoryRouter } from "react-router-dom";
 
 // The reel sits in ONE place: the full-width band under the header. Each Send
 // replaces the displayed run; response equality lives in run status, and the
@@ -48,7 +49,7 @@ async function ask(text) {
 describe("reel placement", () => {
   it("draws the band under the header once a call has happened", async () => {
     mockFetch(answered);
-    render(<LlmGatewayPage />);
+    render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
     await ask("capital of France?");
     await waitFor(() => expect(document.querySelector(".lgw-reelband")).toBeTruthy());
     expect(document.querySelector(".lgw-reelband")).toHaveTextContent(/Privilege/);
@@ -56,7 +57,7 @@ describe("reel placement", () => {
 
   it("draws exactly one reel after a call — the band, not a second copy under the reply", async () => {
     mockFetch(answered);
-    render(<LlmGatewayPage />);
+    render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
     await ask("capital of France?");
     await screen.findByText("Paris.");
     expect(document.querySelectorAll(".lgw-reel")).toHaveLength(1);
@@ -65,7 +66,7 @@ describe("reel placement", () => {
 
   it("the band is present at rest, so the reel does not appear from nothing", async () => {
     mockFetch(answered);
-    render(<LlmGatewayPage />);
+    render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
     await screen.findByPlaceholderText(/ask/i);
     const band = document.querySelector(".lgw-reelband");
     expect(band).toBeTruthy();
@@ -76,7 +77,7 @@ describe("reel placement", () => {
 
   it("the Last Decision panel no longer carries a third copy", async () => {
     mockFetch(answered);
-    render(<LlmGatewayPage />);
+    render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
     await ask("capital of France?");
     const dec = await screen.findByTestId("lgw-decision");
     expect(dec.querySelector(".lgw-reel")).toBeNull();

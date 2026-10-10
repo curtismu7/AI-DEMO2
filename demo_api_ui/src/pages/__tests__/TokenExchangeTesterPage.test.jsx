@@ -6,6 +6,7 @@ import React from 'react';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import TokenExchangeTesterPage from '../TokenExchangeTesterPage';
+import { PI_FLOW_SIGNIN_EVENT } from '../../utils/authUi';
 
 vi.mock('../../components/shared/JsonHighlight', () => ({
   default: ({ value }) => <pre data-testid="json">{JSON.stringify(value)}</pre>,
@@ -37,10 +38,7 @@ describe('TokenExchangeTesterPage', () => {
     await waitFor(() => {
       expect(screen.getByText(/Log in to get user token/i)).toBeTruthy();
     });
-    expect(screen.getByRole('link', { name: /Customer Sign In/i })).toHaveAttribute(
-      'href',
-      expect.stringContaining('/api/auth/oauth/user/login')
-    );
+    expect(screen.getByRole('button', { name: /Customer Sign In/i })).toBeTruthy();
   });
 
   it('does not flash "Please log in first" for a logged-in user while the readiness fetch is still in flight', async () => {
@@ -107,5 +105,32 @@ describe('TokenExchangeTesterPage', () => {
     const runBtn = screen.getByRole('button', { name: /Run 2-Exchange/i });
     expect(runBtn).toBeDisabled();
     expect(screen.getByText(/Required for 2-exchange/i)).toBeTruthy();
+  });
+});
+
+// ─── Sign-in CTA routes through the pi.flow modal ────────────────────────────
+describe('TokenExchangeTesterPage sign-in trigger', () => {
+  test('the Customer Sign In CTA opens the modal, not a redirect', async () => {
+    const handled = vi.fn((e) => { e.detail.handled = true; });
+    const assign = vi.fn();
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { origin: 'https://app.test', pathname: '/token-exchange-tester', href: '', assign },
+    });
+    window.addEventListener(PI_FLOW_SIGNIN_EVENT, handled);
+    global.fetch = vi.fn(async (url) => {
+      if (String(url).includes('session-preview')) {
+        return { ok: false, status: 401, json: async () => ({}) };
+      }
+      if (String(url).includes('agent-cc-preview')) {
+        return { ok: true, json: async () => ({ tokenEvents: [] }) };
+      }
+      return { ok: false, json: async () => ({}) };
+    });
+    render(<TokenExchangeTesterPage />);
+    fireEvent.click(await screen.findByRole('button', { name: /customer sign in/i }));
+    expect(handled).toHaveBeenCalled();
+    expect(window.location.href).toBe('');
+    window.removeEventListener(PI_FLOW_SIGNIN_EVENT, handled);
   });
 });

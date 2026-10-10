@@ -179,6 +179,8 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         label: "Introspection (RFC 7662)",
         description: "Validate and inspect token contents",
         icon: "🔍",
+        // UC29 fails the token validation CLOSED (the live validation outage);
+        // it is the closest live evidence for token validation.
         demoStep: { useCaseId: "UC29" },
       },
       {
@@ -203,6 +205,8 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         label: "JWT Client Auth (RFC 7523)",
         description: "Secure client authentication with JWTs",
         icon: "💳",
+        // No dedicated private_key_jwt run exists; UC22 (CIBA) is where the
+        // demo exercises signed client assertions. Primary action is the lab.
         demoStep: { useCaseId: "UC22" },
       },
       {
@@ -288,7 +292,9 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         label: "Agent Kill Switch",
         description: "Session-scoped revocation, active-run audit trail, and what's a concept vs. shipped",
         icon: "⚠️",
-        demoStep: { useCaseId: "UC-NHI1" },
+        // UC-NHI2 is the lifecycle/revocation export — the closest live
+        // evidence for kill-switch behavior. UC-NHI1 is inventory only.
+        demoStep: { useCaseId: "UC-NHI2" },
       },
       {
         label: "Shadow AI Detector",
@@ -335,7 +341,9 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         label: "Privilege for AI — MCP",
         description: "Protect MCP discovery, tools, resources, and invocations",
         icon: "🛠",
-        demoStep: { useCaseId: "UC13" },
+        // UC17 = JIT/ephemeral credentials, the MCP-privilege live run; UC13 is
+        // the confused-deputy attack, a different story.
+        demoStep: { useCaseId: "UC17" },
       },
     ],
   },
@@ -568,8 +576,7 @@ export default function LearningHub() {
       "Token Chain (edu)": () => navigate("/architecture/token-chain"),
       "Sensitive Data & Disclosure": () =>
         openEdu(EDU.SENSITIVE_DATA, "least-data"),
-      "Gateway vs P1AZ Decision Split": () =>
-        navigate("/gateway-enforcement-map"),
+      "Gateway vs P1AZ Decision Split": () => navigate("/gateway-enforcement-map"),
     },
     "project-reference": {
       "Server Capabilities": () => navigate("/architecture/server-topology"),

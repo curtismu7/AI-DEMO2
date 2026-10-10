@@ -50,11 +50,11 @@
   flex: none;
 }
 
-.pgt-swatch--cloud  { background: #f5d4d5; border: 1px solid #b3282d; }
+.pgt-swatch--cloud  { background: #f5d4d5; border: 1px solid #d20e0f; }
 .pgt-swatch--device { background: #d5e2f2; border: 1px solid #3d6ea5; }
 .pgt-swatch--k8s    { background: #d2ecdf; border: 1px solid #2e8b6a; }
 .pgt-swatch--mcp    { background: #e3dbf3; border: 1px solid #6b4fa5; }
-.pgt-swatch--step   { background: #b3282d; border: 1px solid #e4636a; border-radius: 50%; }
+.pgt-swatch--step   { background: #d20e0f; border: 1px solid #e4636a; border-radius: 50%; }
 
 .pgt-steps {
   list-style: none;
@@ -82,7 +82,7 @@
 }
 
 .pgt-steps__n {
-  background: #b3282d;
+  background: #d20e0f;
   color: #ffffff;
   font-weight: 700;
   font-size: var(--font-size-sm);
@@ -109,5 +109,5 @@
 }
 
 :root[data-theme="light"] .pmd-page.pgt-page .pmd-error {
-  color: #b3282d;
+  color: #d20e0f;
 }

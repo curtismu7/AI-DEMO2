@@ -9,6 +9,7 @@ import { tokenChainTraceStore } from "../../services/tokenChainTrace/tokenChainT
 vi.mock("../../components/TokenChainFilmstrip", () => ({ default: () => <div data-testid="filmstrip" /> }));
 
 import EnterpriseMcpDemoPage from "../EnterpriseMcpDemoPage";
+import { PI_FLOW_SIGNIN_EVENT } from "../../utils/authUi";
 
 describe("EnterpriseMcpDemoPage", () => {
   beforeEach(() => {
@@ -60,9 +61,13 @@ describe("EnterpriseMcpDemoPage", () => {
       expect(alert).toHaveTextContent(/PingFederate/i);
       expect(alert).toHaveTextContent(/P1\/PF/);
       expect(alert).toHaveTextContent(/run.*again/i);
-      expect(screen.getByRole("link", { name: /sign in as admin/i })).toHaveAttribute(
-        "href", "/api/auth/oauth/login?return_to=%2Fpingfederate-id-jag%2Fdemo"
-      );
+      // The admin sign-in opens the branded pi.flow modal.
+      const handled = vi.fn((e) => { e.detail.handled = true; });
+      window.addEventListener(PI_FLOW_SIGNIN_EVENT, handled);
+      fireEvent.click(screen.getByRole("button", { name: /sign in as admin/i }));
+      expect(handled).toHaveBeenCalled();
+      expect(handled.mock.calls[0][0].detail.returnTo).toBe("/pingfederate-id-jag/demo");
+      window.removeEventListener(PI_FLOW_SIGNIN_EVENT, handled);
     } finally {
       window.history.replaceState({}, "", previousUrl);
     }

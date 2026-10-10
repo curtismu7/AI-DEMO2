@@ -11,9 +11,19 @@ import { useTokenChainOptional } from '../context/TokenChainContext';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
 import InlineSpinner from '../components/shared/InlineSpinner';
 
-const SKINS = ['privilege', 'claude', 'claude-terminal', 'gpt', 'gemini'];
-const SKIN_LABELS = { privilege: 'Privilege', claude: 'Claude', 'claude-terminal': 'Terminal', gpt: 'ChatGPT', gemini: 'Gemini' };
-const SKIN_DOT_COLORS = { privilege: '#0073e6', claude: '#d97941', 'claude-terminal': '#ffb454', gpt: '#10a37f', gemini: '#4285f4' };
+const SKINS = ['privilege', 'claude', 'claude-terminal', 'gpt', 'gemini', 'cua'];
+const SKIN_LABELS = { privilege: 'Privilege', claude: 'Claude', 'claude-terminal': 'Terminal', gpt: 'ChatGPT', gemini: 'Gemini', cua: 'Computer Use' };
+const SKIN_DOT_COLORS = { privilege: '#0073e6', claude: '#d97941', 'claude-terminal': '#ffb454', gpt: '#10a37f', gemini: '#4285f4', cua: '#7c3aed' };
+
+// Scripted CUA session (coverage plan row: present a computer-use agent without
+// driving a real browser). Each step is a labeled observe/act pair that rides the
+// SAME /api/agent/invoke path as freeform chat, so the gateway/token chain fires
+// on the rail exactly as it does for the MCP skins. Simulated — the labels say so.
+const CUA_SCRIPT = [
+  { step: 1, act: 'observe', prompt: '[CUA step 1 · observe] read the account summary screen' },
+  { step: 2, act: 'act', prompt: '[CUA step 2 · act] click the miles balance tile' },
+  { step: 3, act: 'observe', prompt: '[CUA step 3 · observe] read the confirmation banner' },
+];
 
 const INITIAL_MESSAGES = [
   { role: 'agent', text: "Hello! I'm your digital assistant. I can access your MileagePlus account and help manage your upcoming flights. What would you like to do today?" },
@@ -180,6 +190,14 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
         { role: 'agent', text: error.message || 'The digital assistant could not complete the request.' },
       ]))
   }, []);
+
+  // Scripted CUA run: the same invoke path as handleSend, each step labeled as a
+  // computer-use action, sequenced so the token chain shows the full path.
+  const runCuaScript = useCallback(() => {
+    CUA_SCRIPT.forEach((step, index) => {
+      setTimeout(() => handleSend(step.prompt), index * 900);
+    });
+  }, [handleSend]);
 
   function handlePopOut() {
     const url = `/personal-agent/client?skin=${activeSkin}&theme=${theme}`;
@@ -369,14 +387,41 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
               </div>
             </div>
           ) : (
-            <AgentClientSkin
-              skin={activeSkin}
-              theme={theme}
-              messages={messages}
-              onSend={handleSend}
-              showPopOutButton={false}
-              onPopOut={handlePopOut}
-            />
+            activeSkin === 'cua' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderBottom: '1px solid var(--border, #2e3347)' }}>
+                  <button
+                    type="button"
+                    onClick={runCuaScript}
+                    style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid #7c3aed', background: 'rgba(124,58,237,0.14)', color: 'var(--th-text)', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
+                  >
+                    Run scripted session
+                  </button>
+                  <span style={{ fontSize: 11, color: 'var(--th-text-muted)' }}>
+                    Simulated — a real CUA drives a browser; this walks the same actions through the demo's governed agent path, so the token chain on the rail is the real one.
+                  </span>
+                </div>
+                <div style={{ flex: 1, minHeight: 0 }}>
+                  <AgentClientSkin
+                    skin={activeSkin}
+                    theme={theme}
+                    messages={messages}
+                    onSend={handleSend}
+                    showPopOutButton={false}
+                    onPopOut={handlePopOut}
+                  />
+                </div>
+              </div>
+            ) : (
+              <AgentClientSkin
+                skin={activeSkin}
+                theme={theme}
+                messages={messages}
+                onSend={handleSend}
+                showPopOutButton={false}
+                onPopOut={handlePopOut}
+              />
+            )
           )}
         </div>
 

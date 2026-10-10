@@ -467,11 +467,14 @@ describe("runLesson observations", () => {
     expect(isObservationActionSupported("threat-defense")).toBe(false);
     expect(isObservationActionSupported("product-map")).toBe(false);
     expect(canObserveLesson("delegation")).toBe(true);
-    expect(canObserveLesson("threat-defense")).toBe(false);
+    expect(canObserveLesson("threat-defense")).toBe(true);
+    expect(canObserveLesson("multi-party-delegation")).toBe(true);
     expect(canObserveLesson("product-map")).toBe(false);
     expect(canObserveLesson("product-map", "privilege-status")).toBe(true);
     expect(canObserveLesson("login", "davinci-session-status")).toBe(true);
     expect(canObserveLesson("lifecycle", "audit-evidence")).toBe(true);
+    expect(canObserveLesson("threat-defense", "audit-evidence")).toBe(true);
+    expect(canObserveLesson("multi-party-delegation", "authorize-decision")).toBe(true);
   });
 
   it("normalizes nested PingOne denials and CIBA/audit token-chain evidence", async () => {
@@ -694,7 +697,9 @@ describe("runLesson observations", () => {
   });
 
   it("returns provenance-free not-run when no safe live endpoint exists", async () => {
-    const observed = await runLesson("threat-defense", {});
+    // threat-defense now observes through the audit evidence, so the not-run
+    // specimen is a real lesson asked for an unsupported observation action.
+    const observed = await runLesson("delegation", { action: "login" });
 
     expect(apiClient.get).not.toHaveBeenCalled();
     expect(observed).toMatchObject({

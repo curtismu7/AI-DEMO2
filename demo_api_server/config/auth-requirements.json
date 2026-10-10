@@ -104,7 +104,11 @@
     "ADMIN10": "admin",
     "ADMIN11": "admin",
     "ADMIN12": "admin",
-    "ADMIN13": "admin"
+    "ADMIN13": "admin",
+    "UC-LEARN16": "public",
+    "UC-LEARN17": "admin",
+    "UC-LEARN18": "user",
+    "UC-LEARN19": "admin"
   },
   "routes": {
     "/": "public",
@@ -281,6 +285,7 @@
     "/personal-agent-review": "public",
     "/cimd-privilege": "public",
     "/a2a-architecture": "public",
+    "/demo-map": "public",
     "/diagrams": "public",
     "/use-case-diagrams": "public",
     "/use-case-diagrams/:ucId": "public",

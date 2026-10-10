@@ -6,6 +6,7 @@ import apiClient from '../services/apiClient';
 import { notifyError } from '../utils/appToast';
 import { formatAxiosError } from '../utils/formatAxiosError';
 import { getCalls, subscribe as subscribeMcpCalls, appendMcpCall } from '../services/mcpCallStore';
+import { openMcpFlowSse } from '../services/mcpFlowSseClient';
 
 const API_CALL_POLL_MS = 3000;
 
@@ -137,6 +138,20 @@ export function useInspectorSource(sourceKey) {
   const [selectedProfileId, setSelectedProfileId] = useState('');
   const [defaultProfileId, setDefaultProfileId] = useState('');
   const [paramDefaults, setParamDefaults] = useState({});
+
+  // Elicitation mid-call: the gateway can answer a tools/call with an
+  // elicitation/create request (P1AZ ELICITATION obligation) while the invoke
+  // POST is still in flight. The invoke route relays it over the flow SSE
+  // channel the page opened for this call; the card posts the answer to
+  // /api/mcp/elicit/response, which unblocks the in-flight POST.
+  const [pendingElicitation, setPendingElicitation] = useState(null);
+  const elicitationTraceRef = useRef(null);
+  useEffect(() => () => { // close SSE if the hook unmounts mid-call
+    if (elicitationTraceRef.current) {
+      elicitationTraceRef.current();
+      elicitationTraceRef.current = null;
+    }
+  }, []);
 
   // Subscribe to call history
   useEffect(() => {
@@ -279,6 +294,27 @@ export function useInspectorSource(sourceKey) {
     setBusy(true);
     const t0 = Date.now();
 
+    // Open the flow SSE channel before posting: the elicitation (if the gateway
+    // sends one) arrives while this POST is in flight. Crypto.randomUUID keeps
+    // the trace id unguessable; the route re-binds it to this session anyway.
+    let closeSse = null;
+    let traceIdRefValue = null;
+    if (config.mode !== 'calls' && typeof crypto !== 'undefined' && crypto.randomUUID) {
+      const traceId = crypto.randomUUID();
+      traceIdRefValue = traceId;
+      closeSse = openMcpFlowSse(traceId, (data) => {
+        if (data && data.phase === 'elicitation_requested') {
+          setPendingElicitation({
+            elicitationId: String(data.elicitationId ?? ''),
+            mode: data.mode || 'form',
+            message: data.message || 'The MCP server needs your confirmation.',
+            requestedSchema: data.requestedSchema || null,
+          });
+        }
+      });
+      elicitationTraceRef.current = closeSse;
+    }
+
     try {
       const params = {};
       for (const [key, schema] of Object.entries(props)) {
@@ -289,6 +325,7 @@ export function useInspectorSource(sourceKey) {
       const payload = {
         [config.paramsKey]: toolName,
         params,
+        ...(closeSse ? { flowTraceId: traceIdRefValue } : {}),
         // Multi-server sources (Gateway Showcase) must say WHICH server the
         // selected tool belongs to — the same tool name could exist on both.
         ...(config.serverKey && selectedTool[config.serverKey]
@@ -323,8 +360,29 @@ export function useInspectorSource(sourceKey) {
       });
     } finally {
       setBusy(false);
+      setPendingElicitation(null);
+      if (closeSse) {
+        closeSse();
+        elicitationTraceRef.current = null;
+      }
     }
   }, [selectedTool, paramValues, config, mode, selectedProfileId, defaultProfileId]);
+
+  /** Answer a pending elicitation — unblocks the in-flight invoke POST. */
+  const answerElicitation = useCallback(async (action, content) => {
+    const pending = pendingElicitation;
+    if (!pending) return;
+    setPendingElicitation(null);
+    try {
+      await apiClient.post('/api/mcp/elicit/response', {
+        elicitationId: pending.elicitationId,
+        action,
+        ...(action === 'accept' && content ? { content } : {}),
+      });
+    } catch (e) {
+      notifyError(formatAxiosError(e, 'Failed to deliver the elicitation response'));
+    }
+  }, [pendingElicitation]);
 
   const schemaProps = useMemo(() => {
     if (!selectedTool) return {};
@@ -421,6 +479,8 @@ export function useInspectorSource(sourceKey) {
     setOutputTab,
     setSelectedProfileId,
     handleExecute,
+    pendingElicitation,
+    answerElicitation,
     loadTools,
     loadProfiles,
   };

@@ -10,15 +10,16 @@ const SECTIONS = [
     label: "Customer deliverables",
     docs: [
       {
-        title: "Personal Agents at United",
-        path: "docs/united/United-Personal-Agent-Security.md",
+        title: "On users' personal agent design",
+        path: "docs/personal-agent/On-Users-Personal-Agent-Design.md",
+        pdfInRepo: "docs/personal-agent/On-Users-Personal-Agent-Design.pdf",
         covers:
-          "MileagePlus members bringing their own agent (ChatGPT, coding CLIs, anything MCP-capable) and the security between: the no-BFF/no-DPoP architecture, gateway-fronted tool calls with minutes-long single-audience bearer tokens, United's as-built assistant, the gap analysis, and the recommended design. Working draft, 2026-10-09, prepared for United's AI team.",
+          "The personal-agent security architecture, built on United's MileagePlus review: members bringing their own agent (ChatGPT, coding CLIs, anything MCP-capable) and the security between — the no-BFF/no-DPoP architecture, gateway-fronted tool calls with minutes-long single-audience bearer tokens, the as-built assistant, the gap analysis, and the recommended design. Top of page maps the design to Agent Privilege and links the demo surfaces and diagrams.",
       },
       {
         title: "United 431 Request Header Size Guidance",
         path: null,
-        pdfInRepo: "docs/united/United 431 Request Header Size Guidance.pdf",
+        pdfInRepo: "docs/personal-agent/United 431 Request Header Size Guidance.pdf",
         covers:
           "Investigating and mitigating HTTP 431 “Request Header Fields Too Large” in United's browser-based headless Ping SDK / DaVinci flow on the custom domain: cookie-scope and intermediary causes, five remediation options, and the HAR-capture diagnostic sequence.",
       },
@@ -62,7 +63,7 @@ const SECTIONS = [
         title: "Agent configuration",
         path: "privilege/AGENT-CONFIGURATION.md",
         covers:
-          "Operating the Agent-authenticated OpenSearch deployment in ping-devops-curtismuir.",
+          "⚠️ Stale-bannered 2026-10-10: describes the removed cm-mcpgw deployment — kept for the console-side operating method. Current state in Agent mode end to end.",
       },
       {
         title: "Current configuration index",
@@ -392,6 +393,13 @@ const SECTIONS = [
         covers:
           "What tool policies do when there is more than one: the union model (create adds, expiry silently subtracts, delete subtracts identically, edit-down does nothing), discovery-gating and why the client never sees denied, the four indistinguishable 403s, groups (documented, not reproduced), per-app scope, and when a policy problem isn't one — every step measured live 2026-10-10.",
       },
+      {
+        title: "Agent mode end to end",
+        path: "privilege/AGENT-MODE-END-TO-END.md",
+        pdf: true,
+        covers:
+          "The Privilege Agent on a Mac, measured: device-bound identity in the Secure Enclave, pairing and re-pairing order, the local console, the cloud frontend's 403 gate — and the reframe: the agent is an identity anchor, not an MCP transport (cm-mcpgw is gone; MCP runs through the agentless gateways). Paired live 2026-10-10.",
+      },
     ],
   },
   {
@@ -433,9 +441,7 @@ const SECTIONS = [
   },
 ];
 
-const PLANNED = [
-  ["Agent mode end to end", "The Privilege Agent on a workstation, device-bound identity, how it differs from agentless", "Partly — needs the agent paired on a Mac"],
-];
+const PLANNED = [];
 
 const GITHUB_BASE = "https://github.com/cmuir_pingcorp/AI-DEMO2/blob/main/";
 const DRIVE_NOTE =

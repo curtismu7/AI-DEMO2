@@ -8,6 +8,7 @@ import {
   useNavigate,
 } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
+import { initSignInService } from "./utils/signInService";
 import { MdSwapHoriz } from "react-icons/md";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -32,6 +33,7 @@ import InvestDualAuthDiagramPage from "./components/InvestDualAuthDiagramPage";
 import ExternalDoorDiagramPage from "./components/ExternalDoorDiagramPage";
 import DemoArchSlidesPage from "./components/DemoArchSlidesPage";
 import DemoStepsLifelineAuditPage from "./components/DemoStepsLifelineAuditPage";
+import DemoMapPage from "./components/DemoMapPage";
 import GatewayEnforcementMapPage from "./components/GatewayEnforcementMapPage";
 import ResourceServerPlacementPage from "./components/ResourceServerPlacementPage";
 import PrivilegeFirstGatewayPage from "./components/PrivilegeFirstGatewayPage";
@@ -389,6 +391,9 @@ function AppWithAuth() {
   const { downServers, markAllUp, dismissForSession } = useServerHealthCheck();
   useOAuthUrlCleanup();
   const navigate = useNavigate();
+
+  // Warm the sign-in service's cached availability before any CTA can click.
+  useEffect(() => { initSignInService(); }, []);
 
   // Kill-switch modal state lives here, not in whatever page/component
   // triggers it, because a successful kill destroys the session — which
@@ -2176,6 +2181,10 @@ function AppWithAuth() {
                             <Route
                               path="/demo-steps-lifeline-audit"
                               element={<DemoStepsLifelineAuditPage />}
+                            />
+                            <Route
+                              path="/demo-map"
+                              element={<DemoMapPage />}
                             />
                             <Route
                               path="/gateway-enforcement-map"

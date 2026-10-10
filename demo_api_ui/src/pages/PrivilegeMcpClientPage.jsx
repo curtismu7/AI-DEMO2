@@ -1,7 +1,7 @@
 // demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx
 // Cursor-IDE-styled MCP client for PingOne Privilege MCP Gateway.
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useLocation, useSearchParams, useNavigate } from 'react-router-dom';
+import { useLocation, useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { FootprintSkinPicker } from '../components/aiFootprintMocks/FootprintSkinPicker';
 import { KIBANA_URL } from '../config/observabilityLinks';
 import PrivilegeA2aTab from '../features/privilegeA2aClient/PrivilegeA2aTab';
@@ -1821,6 +1821,11 @@ export default function PrivilegeMcpClientPage() {
           </button>
           <button className="cur-flow-trigger" onClick={clearActivity} title="Clear chat, events, and results for a fresh demo">Clear</button>
           <button className="cur-flow-trigger" onClick={() => setShowGuide(true)} title="Learning Guide">Guide</button>
+          {/* This client is the live surface for the privilege demo steps; these
+              links put it back in the story — the step that runs here, and the
+              diagrams that draw it. */}
+          <Link className="cur-flow-trigger" to="/use-cases#UC17" title="The JIT credentials demo step that runs here">Demo step</Link>
+          <Link className="cur-flow-trigger" to="/use-case-diagrams/UC46" title="Privilege A2A access review diagram">Diagram</Link>
           <a className="cur-flow-trigger" href={KIBANA_URL} target="_blank" rel="noopener noreferrer" title="Open Privilege SIEM logs in Kibana">Logs</a>
           <button className="cur-flow-trigger cur-settings-gear" onClick={() => setShowSettings(true)} title="Settings">Settings</button>
           <button className="cur-flow-trigger" onClick={() => setShowFlowModal(true)}>Flow</button>

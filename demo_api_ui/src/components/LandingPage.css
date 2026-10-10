@@ -170,10 +170,17 @@
 
 /* ========== Hero Section ========== */
 .landing-hero {
-  background: var(--lp-surface);
+  /* Brand-hub arcs pattern (public/branding/pattern-arcs.jpg) anchored to the
+     top-right, over the surface color — whisper-light texture, never noise. */
+  background:
+    url('/branding/pattern-arcs.jpg') right top / 720px auto no-repeat,
+    var(--lp-surface);
   border-bottom: 1px solid var(--lp-border);
   padding: 96px 32px 88px;
   text-align: center;
+}
+@media (max-width: 720px) {
+  .landing-hero { background-image: none; }
 }
 .landing-hero-content {
   max-width: 720px;
@@ -593,7 +600,14 @@
 
 /* V2: Hero section with warm background and serif headline */
 [data-rd-v2] .landing-hero {
-  background: transparent !important;
+  /* V2 transparentizes the base hero ground but keeps the brand-hub arcs
+     pattern (it sits on the page surface, not the hero's own fill).
+     multiply makes the JPEG's white ground disappear into the surface —
+     no rectangular seam. */
+  background:
+    url('/branding/pattern-arcs.jpg') right top / 720px auto no-repeat,
+    transparent !important;
+  background-blend-mode: multiply;
   border-bottom: 1px solid var(--rd2-line-1, #e4e4e0) !important;
   padding: 96px 32px 88px !important;
 }

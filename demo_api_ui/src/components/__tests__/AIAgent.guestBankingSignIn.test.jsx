@@ -104,6 +104,7 @@ vi.mock("../../hooks/useAgentState", () => ({
 }));
 
 import AIAgent from "../AIAgent";
+import { PI_FLOW_SIGNIN_EVENT } from "../../utils/authUi";
 
 const PROMPT = "What is my account balance?";
 
@@ -191,13 +192,16 @@ describe("signed-out visitor types a banking prompt on the guest-chat surface", 
     // Nothing has redirected yet.
     expect(adminConfigCalls()).toHaveLength(0);
 
+    const handled = vi.fn((e) => { e.detail.handled = true; });
+    window.addEventListener(PI_FLOW_SIGNIN_EVENT, handled);
     await act(async () => {
       btn.click();
-      await new Promise((r) => setTimeout(r, 50));
+      await new Promise((r) => setTimeout(r, 250));
     });
 
-    // The customer login path is the one that reads /api/admin/config.
-    expect(adminConfigCalls().length).toBeGreaterThan(0);
+    // The sign-in opens the branded pi.flow modal (no redirect).
+    expect(handled).toHaveBeenCalled();
+    window.removeEventListener(PI_FLOW_SIGNIN_EVENT, handled);
     // The queued question is still there for the replay after sign-in.
     expect(sessionStorage.getItem("bx_agent_pending_nl")).toBe(PROMPT);
   });

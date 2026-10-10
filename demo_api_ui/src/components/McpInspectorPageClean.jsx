@@ -579,7 +579,43 @@ function McpInspectorPageClean() {
                   </>
                 ) : source.busy ? (
                   <div style={{ color: 'var(--inspector-text-secondary)', padding: '20px', display: 'grid', placeItems: 'center', gap: '12px' }}>
-                    <PingIdentitySpinner size={72} label="Calling…" />
+                    {source.pendingElicitation ? (
+                      <div
+                        data-testid="elicitation-card"
+                        style={{
+                          width: '100%', maxWidth: 420, border: '1px solid #d97706', borderRadius: 8,
+                          padding: '14px 16px', background: 'rgba(217,119,6,0.07)', textAlign: 'left',
+                        }}
+                      >
+                        <p style={{ margin: '0 0 6px', fontWeight: 700, fontSize: '0.85rem' }}>
+                          ✋ MCP server elicitation
+                        </p>
+                        <p style={{ margin: '0 0 10px', fontSize: '0.8rem', color: 'var(--inspector-text-secondary)' }}>
+                          {source.pendingElicitation.message}
+                        </p>
+                        <p style={{ margin: '0 0 12px', fontSize: '0.72rem', color: 'var(--inspector-text-tertiary)' }}>
+                          elicitation/create &middot; mode: {source.pendingElicitation.mode} &middot; the tools/call is paused until you answer
+                        </p>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button
+                            type="button"
+                            onClick={() => source.answerElicitation('accept', { confirm: true })}
+                            style={{ padding: '5px 14px', borderRadius: 6, border: '1px solid #16a34a', background: 'rgba(22,163,74,0.12)', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer' }}
+                          >
+                            Confirm
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => source.answerElicitation('decline')}
+                            style={{ padding: '5px 14px', borderRadius: 6, border: '1px solid #dc2626', background: 'rgba(220,38,38,0.08)', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer' }}
+                          >
+                            Decline
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <PingIdentitySpinner size={72} label="Calling…" />
+                    )}
                   </div>
                 ) : (
                   <div style={{ color: 'var(--inspector-text-secondary)', padding: '20px', textAlign: 'center' }}>

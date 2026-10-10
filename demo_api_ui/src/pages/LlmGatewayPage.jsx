@@ -18,6 +18,7 @@ import { useThemeOptional } from '../context/ThemeContext';
 import useDividerDrag from '../hooks/useDividerDrag';
 import { ATTACK_CATEGORIES, GUARDRAIL_ATTACKS } from '../config/guardrailAttackCatalog';
 import { KIBANA_URL } from '../config/observabilityLinks';
+import { Link } from 'react-router-dom';
 import BlockAgreementModal from '../components/BlockAgreementModal';
 import LlmGatewayReel from './LlmGatewayReel';
 import PromptGuardControlPanel from './PromptGuardControlPanel';
@@ -680,6 +681,11 @@ export default function LlmGatewayPage() {
         </div>
         <div className="lgw-bar__side">
           {gatewayUrl ? <code className="lgw-origin">{gatewayUrl}</code> : null}
+          {/* This page IS UC-LEARN11's live surface; the reverse links put it
+              back in the demo story — raw counterpart, demo step, diagram. */}
+          <Link className="lgw-theme" to="/llm-test" title="Same provider with no Privilege gateway in the path — the ungoverned counterpart">LLM Test (unguarded)</Link>
+          <Link className="lgw-theme" to="/use-cases#UC-LEARN11" title="Open the demo step this page runs">Demo step</Link>
+          <Link className="lgw-theme" to="/use-case-diagrams/UC-LEARN11" title="Open the use-case diagram for this run">Diagram</Link>
           <button
             type="button"
             className="lgw-theme"

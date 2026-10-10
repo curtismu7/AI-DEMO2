@@ -1,4 +1,5 @@
 import React from 'react';
+import { PI_FLOW_SIGNIN_EVENT } from '../../utils/authUi';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { VerticalContext } from '../VerticalProvider';
@@ -113,5 +114,27 @@ describe('VerticalEditorPage', () => {
     await screen.findByTestId('monaco');
     fireEvent.click(screen.getByText('+ Clone vertical'));
     expect(screen.getByText(/Clone vertical from banking/)).toBeInTheDocument();
+  });
+});
+
+// ─── Sign-in trigger routes through the pi.flow modal ────────────────────────
+// A 401 from a Brandfetch lookup opens the branded modal (openAdminSignIn);
+// it never redirects straight to a BFF login endpoint.
+describe('VerticalEditorPage sign-in trigger', () => {
+  test('a 401 from Brandfetch opens the modal, not a redirect', async () => {
+    const handled = vi.fn((e) => { e.detail.handled = true; });
+    const assign = vi.fn();
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { origin: 'https://app.test', pathname: '/admin/verticals', href: '', assign },
+    });
+    window.addEventListener(PI_FLOW_SIGNIN_EVENT, handled);
+    global.fetch = vi.fn(() => Promise.resolve({ ok: false, status: 401, json: async () => ({}) }));
+    render(tree({ pageManifest: MIN('v1') }));
+    fireEvent.change(screen.getByPlaceholderText(/domain \(e\.g\./i), { target: { value: 'pingidentity.com' } });
+    fireEvent.click(screen.getByRole('button', { name: /fetch from brandfetch/i }));
+    await waitFor(() => expect(handled).toHaveBeenCalled());
+    expect(window.location.href).toBe('');
+    window.removeEventListener(PI_FLOW_SIGNIN_EVENT, handled);
   });
 });
