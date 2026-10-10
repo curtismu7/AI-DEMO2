@@ -106,7 +106,7 @@ describe('DemoStepsDropdown', () => {
     expect(screen.getByTestId('demo-steps-trigger')).toHaveTextContent(/Demo steps/);
   });
 
-  it('places UC46 at step 25 in the numbered primary Demo Steps sequence', async () => {
+  it('places UC46 at step 26 in the numbered primary Demo Steps sequence', async () => {
     const onSelect = vi.fn();
     render(
       <DemoStepsDropdown
@@ -119,33 +119,33 @@ describe('DemoStepsDropdown', () => {
     fireEvent.click(await screen.findByTestId('demo-step-UC46'));
 
     expect(onSelect.mock.calls[0][0].id).toBe('UC46');
-    expect(onSelect.mock.calls[0][1]).toBe(25);
+    expect(onSelect.mock.calls[0][1]).toBe(26);
   });
 
-  it('Step 25A runs the access review in the agent right after Step 25; Step 25 still opens the route', async () => {
+  it('Step 26A runs the access review in the agent right after Step 26; Step 26 still opens the route', async () => {
     const onSelect = vi.fn();
     render(<DemoStepsDropdown open onOpenChange={() => {}} onSelect={onSelect} />);
 
     const ids = (await screen.findAllByTestId(/^demo-step-UC4[67]A?$/)).map((el) => el.getAttribute('data-testid'));
     expect(ids).toEqual(['demo-step-UC46', 'demo-step-UC46A', 'demo-step-UC47']);
-    expect(screen.getByTestId('demo-step-UC46A')).toHaveTextContent('25A · UC46A');
-    expect(screen.getByTestId('demo-step-UC47')).toHaveTextContent('26 · UC47');
+    expect(screen.getByTestId('demo-step-UC46A')).toHaveTextContent('26A · UC46A');
+    expect(screen.getByTestId('demo-step-UC47')).toHaveTextContent('27 · UC47');
 
     fireEvent.click(screen.getByTestId('demo-step-UC46'));
     expect(runPrivilegeA2aChatRun).not.toHaveBeenCalled();
     expect(onSelect.mock.calls[0][0].id).toBe('UC46');
-    expect(onSelect.mock.calls[0][1]).toBe(25);
+    expect(onSelect.mock.calls[0][1]).toBe(26);
 
     fireEvent.click(screen.getByTestId('demo-step-UC46A'));
     await waitFor(() => expect(runPrivilegeA2aChatRun).toHaveBeenCalledWith({ message: 'Review access on prod-db-primary.', profile: null }));
     const [uc, step, opts] = onSelect.mock.calls[1];
     expect(uc.id).toBe('UC46A');
-    expect(step).toBe(25);
+    expect(step).toBe(26);
     // The run is handed to the agent so it can say it is running and how it ended.
     expect(opts).toEqual({ keepTrace: true, run: expect.any(Promise) });
   });
 
-  it('marks Step 25 as opening a page and 25A as running in the agent, on every copy of the row, and no other row', async () => {
+  it('marks Step 26 as opening a page and 26A as running in the agent, on every copy of the row, and no other row', async () => {
     render(<DemoStepsDropdown open onOpenChange={() => {}} onSelect={() => {}} />);
     await screen.findAllByTestId('demo-step-UC46');
 
@@ -155,7 +155,7 @@ describe('DemoStepsDropdown', () => {
     for (const badge of pages) {
       expect(badge).toHaveTextContent('Opens page');
       expect(badge.className).toContain('dest-badge--page');
-      expect(badge.getAttribute('title')).toMatch(/A2A page.*leaves the agent.*use 25A/);
+      expect(badge.getAttribute('title')).toMatch(/A2A page.*leaves the agent.*use 26A/);
     }
     const agents = screen.getAllByTestId('step-destination-UC46A');
     for (const badge of agents) {
@@ -172,7 +172,7 @@ describe('DemoStepsDropdown', () => {
     expect([...ids].sort()).toEqual(['step-destination-UC-MUSE1', 'step-destination-UC-MUSE2', 'step-destination-UC46', 'step-destination-UC46A']);
   });
 
-  it('starts the Privilege A2A agent chain from step 26 and still hands the step to the page', async () => {
+  it('starts the Privilege A2A agent chain from step 27 and still hands the step to the page', async () => {
     const onSelect = vi.fn();
     render(
       <DemoStepsDropdown
@@ -190,7 +190,7 @@ describe('DemoStepsDropdown', () => {
       profile: null,
     }));
     expect(onSelect.mock.calls[0][0].id).toBe('UC47');
-    expect(onSelect.mock.calls[0][1]).toBe(26);
+    expect(onSelect.mock.calls[0][1]).toBe(27);
     expect(onSelect.mock.calls[0][2]).toEqual({ run: expect.any(Promise) });
 
     fireEvent.click(screen.getByTestId('chain-run-denied'));
@@ -227,12 +227,12 @@ describe('DemoStepsDropdown', () => {
       ));
     });
 
-    it('Step 25A runs question 1; the extra buttons run questions 2 and 3', async () => {
+    it('Step 26A runs question 1; the extra buttons run questions 2 and 3', async () => {
       const onSelect = vi.fn();
       render(<DemoStepsDropdown open onOpenChange={() => {}} onSelect={onSelect} />);
       fireEvent.click(await screen.findByTestId('demo-step-UC46A'));
       await waitFor(() => expect(runPrivilegeA2aChatRun).toHaveBeenLastCalledWith({ message: 'Q one?', profile }));
-      expect(onSelect.mock.calls[0][1]).toBe(25);
+      expect(onSelect.mock.calls[0][1]).toBe(26);
       expect(onSelect.mock.calls[0][2]).toEqual({ keepTrace: true, run: expect.any(Promise) });
 
       fireEvent.click(screen.getByTestId('review-question-2'));
@@ -241,12 +241,12 @@ describe('DemoStepsDropdown', () => {
       await waitFor(() => expect(runPrivilegeA2aChatRun).toHaveBeenLastCalledWith({ message: 'Q three?', profile }));
     });
 
-    it('Step 26 allowed and denied runs ask question 1 with the real specialist keys', async () => {
+    it('Step 27 allowed and denied runs ask question 1 with the real specialist keys', async () => {
       const onSelect = vi.fn();
       render(<DemoStepsDropdown open onOpenChange={() => {}} onSelect={onSelect} />);
       fireEvent.click(await screen.findByTestId('demo-step-UC47'));
       await waitFor(() => expect(startPrivilegeA2aChainRun).toHaveBeenLastCalledWith({ message: 'Q one?', specialist: 'refunds', profile }));
-      expect(onSelect.mock.calls[0][1]).toBe(26);
+      expect(onSelect.mock.calls[0][1]).toBe(27);
       fireEvent.click(screen.getByTestId('chain-run-denied'));
       await waitFor(() => expect(startPrivilegeA2aChainRun).toHaveBeenLastCalledWith({ message: 'Q one?', specialist: 'restricted', profile }));
     });
@@ -497,7 +497,7 @@ describe('DemoStepsDropdown', () => {
     // to a single 5-column grid (#826); nothing is gated behind a toggle.
     const items = screen.getAllByTestId(/^demo-step-/);
     expect(items.map((el) => el.getAttribute('data-testid'))).toEqual(
-      // A lettered sub-step (25A) renders right after its parent.
+      // A lettered sub-step (26A) renders right after its parent.
       DEMO_USE_CASE_IDS.flatMap((id) => (DEMO_SUB_STEP_IDS[id] ? [id, DEMO_SUB_STEP_IDS[id]] : [id]))
         .map((id) => `demo-step-${id}`),
     );
@@ -784,18 +784,18 @@ describe('DemoStepsDropdown — search', () => {
       return screen.getAllByTestId(/^demo-step-/).map((el) => el.getAttribute('data-testid'));
     };
 
-    it('"25a" finds Step 25A only', async () => {
-      expect(await search('25a')).toEqual(['demo-step-UC46A']);
+    it('"26a" finds Step 26A only', async () => {
+      expect(await search('26a')).toEqual(['demo-step-UC46A']);
     });
 
-    it('"25" finds Step 25 and its lettered sub-step 25A', async () => {
-      const shown = await search('25');
+    it('"26" finds Step 26 and its lettered sub-step 26A', async () => {
+      const shown = await search('26');
       expect(shown).toEqual(expect.arrayContaining(['demo-step-UC46', 'demo-step-UC46A']));
       expect(shown).not.toContain('demo-step-UC47');
     });
 
-    it('"step 26" and "#26" find Step 26 by number, not by id', async () => {
-      for (const value of ['step 26', '#26']) {
+    it('"step 27" and "#27" find Step 27 by number, not by id', async () => {
+      for (const value of ['step 27', '#27']) {
         const shown = await search(value);
         expect(shown).toContain('demo-step-UC47');
         expect(shown).not.toContain('demo-step-UC46');
@@ -930,7 +930,7 @@ describe('DemoStepsDropdown — search', () => {
     const a2a = screen.getByTestId('demo-steps-extra-a2a');
     expect(within(a2a).getByTestId('demo-extra-a2a-UC2')).toHaveTextContent('9 · UC2');
     // UC48 and the MUSE steps joined before it, so themed-group numbers shift.
-    expect(within(a2a).getByTestId('demo-extra-a2a-UC37')).toHaveTextContent('46 · UC37');
+    expect(within(a2a).getByTestId('demo-extra-a2a-UC37')).toHaveTextContent('47 · UC37');
   });
 
   it('finds the CIAM group when searching for its group label', async () => {
@@ -1129,11 +1129,10 @@ describe('DemoStepsDropdown — step rail numbering', () => {
       'aria-label',
       'Explain step 9: UC2 — Title for UC2',
     );
-    // UC29 left the script (not demonstrable on this deployment), so UC32
-    // moved up from 22 to 21.
+    // UC29 rejoined the script at 19 (2026-10-09), so UC32 sits at 22 again.
     expect(screen.getByTestId('demo-explain-UC32')).toHaveAttribute(
       'aria-label',
-      'Explain step 21: UC32 — Title for UC32',
+      'Explain step 22: UC32 — Title for UC32',
     );
   });
 });

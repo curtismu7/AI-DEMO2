@@ -32,9 +32,9 @@ describe("stepQueryMatches", () => {
     expect(stepQueryMatches("step", step25)).toBe(false);
   });
 
-  it("agrees with the numbering: 25A shares 25, Step 26 is untouched", () => {
-    expect(demoStepNumber("UC46A")).toBe(25);
-    expect(demoStepLabel("UC46A")).toBe("25A");
-    expect(demoStepNumber("UC47")).toBe(26);
+  it("agrees with the numbering: 26A shares 26, Step 27 is untouched", () => {
+    expect(demoStepNumber("UC46A")).toBe(26);
+    expect(demoStepLabel("UC46A")).toBe("26A");
+    expect(demoStepNumber("UC47")).toBe(27);
   });
 });

@@ -74,6 +74,7 @@ const stubConfig: GatewayConfig = {
   rateLimitMaxRequests: 20,
   rateLimitWindowMs: 60000,
   introspectionSimDown: false,
+  jwksSimDown: false,
 } as unknown as GatewayConfig;
 
 function makeToken(aud: string | string[]): string {

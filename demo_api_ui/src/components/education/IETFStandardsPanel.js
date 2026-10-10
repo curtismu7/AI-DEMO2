@@ -36,6 +36,7 @@ function StandardCard({
   statusIcon,
   gap,
   ietfLink,
+  demoLink,
 }) {
   return (
     <div
@@ -100,6 +101,19 @@ function StandardCard({
             style={{ color: "#4f46e5", textDecoration: "none" }}
           >
             IETF Draft ↗
+          </a>
+        </p>
+      )}
+
+      {demoLink && (
+        <p style={{ margin: "0", fontSize: "0.82rem" }}>
+          <a
+            href={demoLink.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: "#166534", textDecoration: "none", fontWeight: 600 }}
+          >
+            See it in the demo: {demoLink.label} ↗
           </a>
         </p>
       )}
@@ -299,6 +313,7 @@ export default function IETFStandardsPanel({ isOpen, onClose, initialTabId }) {
             statusIcon="✅"
             gap="No current gap — used in agent OAuth client flows"
             ietfLink="https://datatracker.ietf.org/doc/draft-ietf-oauth-rfc7523bis/"
+            demoLink={{ label: "client-auth lab (RFC 7523)", href: "/learning-lab/jwt-client-auth" }}
           />
           <p
             style={{
@@ -336,6 +351,7 @@ export default function IETFStandardsPanel({ isOpen, onClose, initialTabId }) {
             statusIcon="⚠️"
             gap="act claims form a chain, but cross-domain delegation is not demonstrated"
             ietfLink="https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-chaining/"
+            demoLink={{ label: "ID-JAG issue → redeem → call (UC40)", href: "/demo/enterprise-mcp" }}
           />
           <p
             style={{
@@ -375,6 +391,7 @@ export default function IETFStandardsPanel({ isOpen, onClose, initialTabId }) {
             statusIcon="✅"
             gap="None — CIBA HITL flow is fully implemented"
             ietfLink="https://datatracker.ietf.org/doc/draft-parecki-oauth-jwt-grant-interaction-response/"
+            demoLink={{ label: "CIBA out-of-band approval (UC22)", href: "/use-cases/live" }}
           />
           <p
             style={{
@@ -413,6 +430,7 @@ export default function IETFStandardsPanel({ isOpen, onClose, initialTabId }) {
             statusIcon="⚠️"
             gap="Agent identity via OAuth is implemented; WIMSE workload identity binding is not"
             ietfLink="https://datatracker.ietf.org/doc/draft-klrc-aiagent-auth/"
+            demoLink={{ label: "agent registration + delegation chain (UC43)", href: "/agent-builder" }}
           />
           <p
             style={{
@@ -505,6 +523,7 @@ export default function IETFStandardsPanel({ isOpen, onClose, initialTabId }) {
             statusIcon="⚠️"
             gap="The A2A delegation chain (services/a2aDelegationService.js) now attempts to issue an SD-JWT credential via a DaVinci flow (services/verifiedTrustService.js) at chain start, behind ff_verified_trust_a2a. No DaVinci flow is configured on this tenant yet, so issuance currently fails with NOT_CONFIGURED and the code fails open — the bearer-token chain still completes normally. What's built: the client, the fail-open wiring, and the Agent Card capability declaration. What's missing: the DaVinci flow itself, plus a wallet/OID4VP verification step at the receiving side."
             ietfLink="https://datatracker.ietf.org/doc/draft-ietf-oauth-sd-jwt-vc/"
+            demoLink={{ label: "A2A chain with SD-JWT assertion (UC37)", href: "/agentic-trust" }}
           />
           <p
             style={{

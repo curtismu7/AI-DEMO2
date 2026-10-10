@@ -238,6 +238,12 @@ export interface GatewayConfig {
   /** Sliding window duration in ms. Default 60000. */
   rateLimitWindowMs: number;
   introspectionSimDown: boolean;
+  /**
+   * UC29 outage sim: forces JWKS signature verification (the validation backend
+   * on this gateway — introspection cannot work multi-issuer) to fail closed as
+   * if the JWKS endpoint were unreachable. Runtime-toggleable via /admin/config.
+   */
+  jwksSimDown: boolean;
 }
 
 const DEV_BYPASS = process.env.MCP_GW_DEV_BYPASS === 'true';
@@ -463,6 +469,7 @@ export function loadConfig(): GatewayConfig {
     rateLimitMaxRequests: parseInt(process.env.GATEWAY_RATE_LIMIT_MAX_REQUESTS ?? '20', 10) || 20,
     rateLimitWindowMs: parseInt(process.env.GATEWAY_RATE_LIMIT_WINDOW_MS ?? '60000', 10) || 60000,
     introspectionSimDown: process.env.GATEWAY_SIM_INTROSPECTION_DOWN === 'true',
+    jwksSimDown: process.env.GATEWAY_SIM_JWKS_DOWN === 'true',
   };
 }
 

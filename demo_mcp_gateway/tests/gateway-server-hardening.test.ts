@@ -84,6 +84,7 @@ const stubConfig: GatewayConfig = {
   rateLimitMaxRequests: 20,
   rateLimitWindowMs: 60000,
   introspectionSimDown: false,
+  jwksSimDown: false,
 } as unknown as GatewayConfig;
 
 // Distinct `sub` → distinct token string → distinct per-caller scope, which is

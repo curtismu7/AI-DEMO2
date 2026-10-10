@@ -21,6 +21,7 @@ import UC13 from "./UC13";
 import UC11 from "./UC11";
 import UC20 from "./UC20";
 import UC18 from "./UC18";
+import UC29 from "./UC29";
 import UC30 from "./UC30";
 import UC31 from "./UC31";
 import UC32 from "./UC32";
@@ -34,7 +35,7 @@ import UC_MUSE2 from "./UC-MUSE2";
 
 export const CONFIGS = [
   UC1, UC7, UC6, UC24, UC8, UC14b, UC14, UC12, UC2, UC2_5, UC2_7, UC22,
-  UC5, UC10, UC13, UC11, UC20, UC18, UC30, UC31, UC32, UC40, UC38,
+  UC5, UC10, UC13, UC11, UC20, UC18, UC29, UC30, UC31, UC32, UC40, UC38,
   UC_TOOL1, UC46, UC47, UC_MUSE1, UC_MUSE2,
 ];
 
