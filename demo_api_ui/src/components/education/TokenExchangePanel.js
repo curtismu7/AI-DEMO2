@@ -433,13 +433,20 @@ fetch(MCP_SERVER_URL, {
               lineHeight: '1.5',
             }}>
               <p style={{ margin: '0 0 8px 0' }}>
-                In a delegated token, the identity chain follows this pattern:
+                In a delegated token, the identity chain follows this pattern (RFC 8693 §4.1):
               </p>
               <ul style={{ margin: '0 0 8px 0', paddingLeft: '16px' }}>
-                <li><strong>sub</strong> = the human user (who the token is for)</li>
-                <li><strong>act.sub</strong> = the AI agent (who is acting on behalf of the user)</li>
-                <li><strong>act.act.sub</strong> = the MCP server (2-exchange only)</li>
+                <li><strong>sub</strong> = the human user (who the token is for) — stays top-level, never an actor</li>
+                <li><strong>act.sub</strong> = the current actor (the AI agent acting on behalf of the user)</li>
+                <li><strong>act.act.sub</strong> = the actor <em>before</em> them — only in multi-hop (A2A) chains, where each nested <code>act</code> is one hop back in delegation history</li>
               </ul>
+              <p style={{ margin: '0 0 8px 0' }}>
+                The outermost <code>act</code> is always the current actor; the resource server
+                authorizes on <code>sub</code> + that outermost actor only — earlier hops are audit
+                history. This nested-object shape is what every major implementer mints (Auth0's
+                on-behalf-of exchange auto-maintains it, capped at 5 hops); Entra, Okta, and AWS
+                skip <code>act</code> entirely in favor of per-hop identity claims.
+              </p>
               <p style={{ margin: 0, fontStyle: 'italic' }}>
                 This creates a verifiable audit trail showing exactly who authorized whom to act on their behalf.
               </p>

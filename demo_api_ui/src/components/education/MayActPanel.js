@@ -133,6 +133,37 @@ export default function MayActPanel({ isOpen, onClose, initialTabId }) {
             institutions use it to let AI agents and automation tools act on behalf of customers without
             compromising security.
           </p>
+          <h3>How other vendors handle the act claim</h3>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem', marginBottom: '0.75rem' }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid #e5e7eb', textAlign: 'left' }}>
+                <th style={{ padding: '6px 8px' }}>Vendor</th>
+                <th style={{ padding: '6px 8px' }}>Actor representation</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                ['Ping (PingOne / PingFederate)', 'RFC 8693 act object — nested for multi-hop chains (this demo); PF can also emit act as a string (e.g. a SPIFFE workload id) when server-side expressions are off'],
+                ['Auth0 (OBO Token Exchange)', 'RFC 8693 act object, auto-maintained across exchanges, capped at 5 nested levels — the closest peer to this demo\'s A2A chain'],
+                ['Microsoft Entra Agent ID', 'No act claim — proprietary xms_act_fct / xms_sub_fct facet claims plus azp (the calling agent), per-hop on-behalf-of exchanges'],
+                ['Okta', 'No act claim — exchanged tokens carry sub (the user) plus cid (the calling client); cross-app delegation uses XAA / ID-JAG instead'],
+                ['AWS', 'No act claim — role chaining preserves one immutable SourceIdentity string (the originating principal) across every hop'],
+              ].map(([vendor, how], i) => (
+                <tr key={vendor} style={{ borderBottom: '1px solid #f3f4f6', background: i % 2 ? '#f9fafb' : 'white' }}>
+                  <td style={{ padding: '6px 8px', fontWeight: 600, whiteSpace: 'nowrap' }}>{vendor}</td>
+                  <td style={{ padding: '6px 8px' }}>{how}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p style={{ fontSize: '0.82rem', color: '#374151', background: 'rgba(99,102,241,0.08)', borderLeft: '3px solid #6366f1', padding: '8px 12px', borderRadius: 4 }}>
+            The takeaway: <strong>every implementer that emits <code>act</code> uses the nested-object
+            shape</strong> — outermost <code>act.sub</code> is the current actor, each nested{' '}
+            <code>act</code> is the actor before them. The vendors without <code>act</code> flatten to
+            per-hop identity claims instead. No major vendor mints <code>act</code> as an array, and
+            under RFC 8693 a resource server must authorize only on the top-level claims plus the{' '}
+            <em>current</em> (outermost) actor — the earlier hops are audit history, not authorization inputs.
+          </p>
         </>
       ),
     },
@@ -205,7 +236,7 @@ export default function MayActPanel({ isOpen, onClose, initialTabId }) {
       content: (
         <>
           <h3 style={{ marginTop: 0 }}>Where <code>act</code> claim and token exchange appear in code</h3>
-          <EduImplIntro repoPath="banking_api_server/services/agentMcpTokenService.js">
+          <EduImplIntro repoPath="demo_api_server/services/agentMcpTokenService.js">
             Sanitized claims feed the Token Chain UI; exchange uses the real JWT from session.
           </EduImplIntro>
           <pre className="edu-code">{SNIP_MAY_ACT_SANITIZE}</pre>

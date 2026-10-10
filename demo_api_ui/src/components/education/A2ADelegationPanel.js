@@ -84,6 +84,20 @@ export default function A2ADelegationPanel({ isOpen, onClose, initialTabId }) {
             <code>act&#123;specialist, act&#123;generalist&#125;&#125;</code>. The resource server sees the{' '}
             <em>whole</em> chain of agents that acted on your behalf.
           </Callout>
+          <Callout color="#6366f1" bg="rgba(99,102,241,0.08)">
+            <strong>This nested shape is the standard — not a Ping-specific invention.</strong>{' '}
+            RFC 8693 §4.1 defines <code>act</code> as a nested object (outermost = current actor,
+            each nested <code>act</code> = one hop back), and it is what other vendors emit too:
+            <strong> Auth0</strong>'s on-behalf-of token exchange auto-maintains the nested chain
+            across exchanges, capped at 5 hops. <strong>Microsoft Entra Agent ID</strong>,{' '}
+            <strong>Okta</strong>, and <strong>AWS</strong> don't emit <code>act</code> at all —
+            they use per-hop identity claims instead (Entra's <code>xms_act_fct</code> facets +
+            on-behalf-of exchanges, Okta's <code>cid</code> per hop, AWS's immutable{' '}
+            <code>SourceIdentity</code> across role chaining). No implementer mints <code>act</code>{' '}
+            as an array, and under the RFC only the top-level claims plus the <em>current</em>{' '}
+            (outermost) actor may drive an authorization decision — the chain history is audit
+            evidence, not policy input.
+          </Callout>
           <Callout color="#0f766e" bg="rgba(15,118,110,0.08)">
             <strong>Keep the metadata separate.</strong> The Agent identity names the non-human
             identity, the Agent runtime names the process or framework, and the Agent Card
