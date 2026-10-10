@@ -3,8 +3,8 @@ import DraggableModal from '../DraggableModal';
 import JSONViewer from './JSONViewer';
 import TokenChainEventCard, { StatusBadge } from './TokenChainEventCard';
 import TokenInspector from './TokenInspector';
+import { openSignIn } from '../../utils/signInService';
 
-const LOGIN_URL = '/api/auth/oauth/user/login?return_to=/protocol-playground';
 
 const TAB_LABELS = { token: 'Token', request: 'Request', response: 'Response' };
 
@@ -176,7 +176,7 @@ export default function ActivityPanel({ results, error, dark = false }) {
           {needsSignIn && (
             <>
               {' '}
-              <a className="activity-error__signin" href={LOGIN_URL}>Sign in</a>
+              <button type="button" className="activity-error__signin" onClick={() => openSignIn({ returnTo: "/protocol-playground" })}>Sign in</button>
             </>
           )}
         </div>

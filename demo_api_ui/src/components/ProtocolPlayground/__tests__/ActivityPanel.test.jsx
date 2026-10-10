@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, within } from '@testing-library/react';
-import { describe, test, expect } from 'vitest';
+import { describe, test, expect, vi } from 'vitest';
+import { PI_FLOW_SIGNIN_EVENT } from '../../../utils/authUi';
 import ActivityPanel from '../ActivityPanel';
 
 const hop = (n, extra = {}) => ({
@@ -82,7 +83,13 @@ describe('ActivityPanel — compact token chain', () => {
 });
 
 describe('ActivityPanel — sign-in prompt on 401', () => {
-  test('shows a Sign in link when a step result is a 401', () => {
+  test('shows a Sign in button that opens the pi.flow modal when a step result is a 401', () => {
+    const handled = vi.fn((e) => { e.detail.handled = true; });
+    window.addEventListener(PI_FLOW_SIGNIN_EVENT, handled);
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { origin: 'https://app.test', pathname: '/protocol-playground', href: '', assign: vi.fn() },
+    });
     render(
       <ActivityPanel
         results={[{ stepId: 'step-1', response: { status: 401, body: {} } }]}
@@ -90,9 +97,13 @@ describe('ActivityPanel — sign-in prompt on 401', () => {
       />
     );
 
-    const link = screen.getByRole('link', { name: 'Sign in' });
-    expect(link).toBeInTheDocument();
-    expect(link.getAttribute('href')).toBe('/api/auth/oauth/user/login?return_to=/protocol-playground');
+    const btn = screen.getByRole('button', { name: 'Sign in' });
+    expect(btn).toBeInTheDocument();
+    fireEvent.click(btn);
+    expect(handled).toHaveBeenCalled();
+    expect(handled.mock.calls[0][0].detail.returnTo).toBe('/protocol-playground');
+    expect(window.location.href).toBe('');
+    window.removeEventListener(PI_FLOW_SIGNIN_EVENT, handled);
   });
 
   test('does not show a Sign in link for a non-401 error', () => {

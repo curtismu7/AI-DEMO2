@@ -8,6 +8,7 @@ import { EDU } from "../components/education/educationIds";
 import { useEducationUIOptional } from "../context/EducationUIContext";
 import { useThemeOptional } from "../context/ThemeContext";
 import { requestLiveIdJagRun, requestMockIdJagReplay, RUN_MODES } from "../utils/idJagRunMode";
+import { openAdminSignIn } from "../utils/signInService";
 import "./EnterpriseMcpDemoPage.css";
 
 const DEMO_CHIP = "show my balance";
@@ -18,7 +19,7 @@ const FAILURE_MESSAGES = {
     <>
       <strong>PingOne is selected.</strong> Live ID-JAG requires PingFederate.
       Select PF with the top-bar P1/PF switch, then run the demo again.
-      If the switch requires admin access, <a href="/api/auth/oauth/login?return_to=%2Fpingfederate-id-jag%2Fdemo">sign in as admin</a> first.
+      If the switch requires admin access, <button type="button" className="idjag-admin-signin" onClick={() => openAdminSignIn({ returnTo: "/pingfederate-id-jag/demo" })}>sign in as admin</button> first.
     </>
   ),
   id_jag_provider_mismatch: (

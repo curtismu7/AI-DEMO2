@@ -5,6 +5,7 @@ vi.mock('../services/apiClient', () => ({ default: { get: vi.fn(), post: vi.fn()
 
 import apiClient from '../services/apiClient';
 import PingFederateDownModal from './PingFederateDownModal';
+import { PI_FLOW_SIGNIN_EVENT } from '../utils/authUi';
 
 const realLocation = window.location;
 
@@ -37,24 +38,30 @@ describe('PingFederateDownModal', () => {
     expect(screen.queryByText('PingFederate is not responding')).toBeNull();
   });
 
-  it('Start PingFederate starts it, waits until it answers, then goes to sign-in', async () => {
+  it('Start PingFederate starts it, waits until it answers, then opens the sign-in modal', async () => {
     openOnPfDown();
     apiClient.post.mockResolvedValue({ data: { ok: true } });
     apiClient.get.mockResolvedValue({ data: { down: false } });
+    const handled = vi.fn((e) => { e.detail.handled = true; });
+    window.addEventListener(PI_FLOW_SIGNIN_EVENT, handled);
     render(<PingFederateDownModal />);
     fireEvent.click(screen.getByRole('button', { name: 'Start PingFederate' }));
-    await waitFor(() => expect(window.location.href).toBe('/api/auth/oauth/user/login'));
+    await waitFor(() => expect(handled).toHaveBeenCalled());
     expect(apiClient.post).toHaveBeenCalledWith('/api/auth/pingfederate/start');
     expect(apiClient.get).toHaveBeenCalledWith('/api/auth/pingfederate/status');
+    window.removeEventListener(PI_FLOW_SIGNIN_EVENT, handled);
   });
 
-  it('Sign in with PingOne switches the provider, then goes to sign-in', async () => {
+  it('Sign in with PingOne switches the provider, then opens the sign-in modal', async () => {
     openOnPfDown();
     apiClient.post.mockResolvedValue({ data: { ok: true } });
+    const handled = vi.fn((e) => { e.detail.handled = true; });
+    window.addEventListener(PI_FLOW_SIGNIN_EVENT, handled);
     render(<PingFederateDownModal />);
     fireEvent.click(screen.getByRole('button', { name: 'Sign in with PingOne' }));
-    await waitFor(() => expect(window.location.href).toBe('/api/auth/oauth/user/login'));
+    await waitFor(() => expect(handled).toHaveBeenCalled());
     expect(apiClient.post).toHaveBeenCalledWith('/api/auth/pingfederate/use-pingone');
+    window.removeEventListener(PI_FLOW_SIGNIN_EVENT, handled);
   });
 
   it('shows the server message and stays put when starting fails', async () => {

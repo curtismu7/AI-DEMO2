@@ -7,6 +7,7 @@ import { format } from 'date-fns';
 import { notifySuccess, notifyError, notifyWarning, notifyInfo } from '../utils/appToast';
 import axios from 'axios';
 import apiClient from '../services/apiClient';
+import { openSignIn } from '../utils/signInService';
 import { fetchDemoScenario, saveDemoScenario } from '../services/demoScenarioService';
 import { performLogout } from '../services/logout';
 import { AGENT_MCP_SCOPE_CATALOG, DEFAULT_AGENT_MCP_ALLOWED_SCOPES } from '../config/agentMcpScopes';
@@ -531,7 +532,7 @@ export default function DemoSetupPanel() {
             <div className="demo-data-agent-auth-detail">
               <p className="demo-data-hint"><strong>Teaching:</strong> customer leaves briefly to sign in at PingOne and returns with a short-lived token the backend can use.</p>
               <div className="demo-data-actions demo-data-actions--wrap">
-                <a className="demo-data-btn primary" href="/api/auth/oauth/user/login">Go to PingOne customer sign-in</a>
+                <button type="button" className="demo-data-btn primary" onClick={() => openSignIn({ returnTo: "/configure" })}>Go to PingOne customer sign-in</button>
               </div>
             </div>
           )}

@@ -8,6 +8,7 @@ import { cssVarsFromBrand } from '../../config/themeZones';
 import { useThemeOptional } from '../../context/ThemeContext';
 import './VerticalEditorPage.css';
 import InlineSpinner from '../../components/shared/InlineSpinner';
+import { openAdminSignIn } from '../../utils/signInService';
 
 const PROTECTED = new Set(['banking', 'admin-console']);
 const ID_RE = /^[a-z][a-z0-9-]*$/;
@@ -210,7 +211,7 @@ export function VerticalEditorPage() {
       });
       const body = await res.json().catch(() => ({}));
       if (res.status === 401 || res.status === 403) {
-        window.location.href = '/api/auth/oauth/login';
+        openAdminSignIn({ returnTo: '/admin-editor' });
         return;
       }
       if (!res.ok) {

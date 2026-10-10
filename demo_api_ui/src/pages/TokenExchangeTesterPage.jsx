@@ -4,8 +4,9 @@ import './TokenExchangeTesterPage.css';
 import JsonHighlight from '../components/shared/JsonHighlight';
 import InlineSpinner from '../components/shared/InlineSpinner';
 import { useThemeOptional } from '../context/ThemeContext';
+import { openSignIn } from '../utils/signInService';
 
-const LOGIN_URL = '/api/auth/oauth/user/login?return_to=/token-exchange-tester';
+const RETURN_TO = '/token-exchange-tester';
 
 /**
  * Summarize a token-event claims object for the readiness / step cards.
@@ -131,7 +132,7 @@ export default function TokenExchangeTesterPage() {
   const handleExchange = async (e) => {
     e.preventDefault();
     if (!hasSession) {
-      window.location.href = LOGIN_URL;
+      openSignIn({ returnTo: RETURN_TO });
       return;
     }
     if (mode === 'double' && !agentOk) {
@@ -166,7 +167,7 @@ export default function TokenExchangeTesterPage() {
       const data = await response.json();
 
       if (response.status === 401 || data.code === 'login_required') {
-        window.location.href = data.loginUrl || LOGIN_URL;
+        openSignIn({ returnTo: RETURN_TO });
         return;
       }
 
@@ -263,9 +264,9 @@ export default function TokenExchangeTesterPage() {
           <div className="tet-ready-card__meta">{userReady.label || '—'}</div>
           {userReady.claims && renderClaims(userReady.claims)}
           {userReady.status === 'missing' && (
-            <a className="tet-btn tet-btn--secondary" href={LOGIN_URL}>
+            <button type="button" className="tet-btn tet-btn--secondary" onClick={() => openSignIn({ returnTo: RETURN_TO })}>
               Log in to get user token
-            </a>
+            </button>
           )}
         </div>
         <div className={`tet-ready-card ${
@@ -293,7 +294,7 @@ export default function TokenExchangeTesterPage() {
       ) : !hasSession ? (
         <div className="tet-no-session">
           Please log in first to test token exchange.{' '}
-          <a href={LOGIN_URL}>Customer Sign In</a>
+          <button type="button" className="tet-btn tet-btn--secondary tet-btn--inline" onClick={() => openSignIn({ returnTo: RETURN_TO })}>Customer Sign In</button>
         </div>
       ) : (
         <div className="tet-grid" style={{ '--tet-left-w': `${leftWidth}px` }}>

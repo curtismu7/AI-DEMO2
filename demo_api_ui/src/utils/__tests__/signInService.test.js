@@ -60,3 +60,45 @@ describe('signInService', () => {
     expect(window.location.href).toContain('/api/auth/oauth/user/login');
   });
 });
+
+describe('sign-in guardrail', () => {
+  test('no source outside the exceptions redirects to a BFF login endpoint', async () => {
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const root = path.resolve(import.meta.dirname, '../../..');
+    const exceptions = ['utils/authUi.js', 'utils/signInService.js', 'components/PiFlowSignInModal.jsx', 'hooks/useAuth.js', 'components/LogoutPage.js', 'pages/SdkLoginPage.jsx', 'components/sdk-login/EmbeddedSignInForm.jsx', 'lib/embeddedPiFlow.js', 'pages/PersonalAgentStudioPage.jsx'];
+    const offenders = [];
+    const walk = (dir) => {
+      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (e.name === '__tests__' || e.name === 'node_modules') continue;
+        const p = path.join(dir, e.name);
+        if (e.isDirectory()) walk(p);
+        else if (/\.(js|jsx)$/.test(e.name)) {
+          // Test files live outside __tests__ too (component twins); they mock
+          // redirects and prove nothing about production.
+          if (/\.test\.(js|jsx)$/.test(e.name)) continue;
+          const rel = path.relative(root, p);
+          if (exceptions.some((x) => rel.endsWith(x))) continue;
+          const text = fs.readFileSync(p, 'utf8');
+          // The literal must BE the BFF route (login/login-trace is not), or
+          // start with it as a URL — a `?` or quote follows.
+          if (/["'`]\/api\/auth\/oauth(\/user)?\/(login|stepup)(["'`?])|["'`]\/api\/auth\/reauth["'`]/.test(text)) offenders.push(rel);
+        }
+      }
+    };
+    walk(path.join(root, 'src'));
+    expect(offenders).toEqual([]);
+  });
+});
+
+// These components' sign-in triggers route through openSignIn like every other
+// page (de-bypassed in the Task 9 fix pass the census initially missed).
+const EXTRA_DE_BYPASS = [
+  'components/AdminRequiredModal.jsx',
+  'components/DemoSetupPanel.js',
+  'components/OASDemoPage.jsx',
+  'components/PingOneTestPage.jsx',
+  'components/ProtocolPlayground/ActivityPanel.jsx',
+  'pages/EnterpriseMcpDemoPage.jsx',
+  'pages/PrivilegeDemoPage.jsx',
+];
