@@ -6,7 +6,7 @@
   border: 1px solid var(--th-border);
   padding: 1.5rem;
   margin: 1rem 0;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: "Montserrat", system-ui, -apple-system, sans-serif;
 }
 
 .pingone-audit-header {

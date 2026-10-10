@@ -6,7 +6,7 @@
   height: 100%;
   background: #0d1117;
   color: #ffffff;
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: "Montserrat", 'Inter', system-ui, sans-serif;
   font-size: var(--font-size-sm);
   overflow: hidden;
 }

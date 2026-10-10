@@ -25,10 +25,10 @@
   --rd-accent:       var(--theme-accent, #1b3a6b);
   --rd-accent-soft:  color-mix(in srgb, var(--rd-accent) 9%, var(--rd-surface));
 
-  /* Type */
-  --rd-font-display: "Fraunces", Georgia, serif;
-  --rd-font-figure:  "Newsreader", Georgia, serif;
-  --rd-font-body:    "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  /* Type — Montserrat is the Ping brand font (brand.pingidentity.com) */
+  --rd-font-display: "Montserrat", Georgia, serif;
+  --rd-font-figure:  "Montserrat", Georgia, serif;
+  --rd-font-body:    "Montserrat", ui-sans-serif, system-ui, sans-serif;
   --rd-font-mono:    "IBM Plex Mono", ui-monospace, monospace;
 
   --rd-radius:    4px;

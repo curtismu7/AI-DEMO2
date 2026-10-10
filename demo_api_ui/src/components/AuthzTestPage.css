@@ -214,7 +214,7 @@
   margin: 0 auto;
   padding: 24px 24px 48px;
   box-sizing: border-box;
-  font-family: var(--font-sans, "Inter", system-ui, sans-serif);
+  font-family: var(--font-sans, "Montserrat", system-ui, sans-serif);
   color: var(--color-text, #1a1a2e);
 }
 

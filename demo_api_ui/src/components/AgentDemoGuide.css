@@ -26,8 +26,7 @@
   flex-direction: column;
   animation: slideUp 0.3s ease-out;
   z-index: 10001;
-  font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu",
+  font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu",
     "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
 }
 
@@ -286,8 +285,7 @@
   border: 1px solid var(--th-border);
   padding: 4px 8px;
   border-radius: 4px;
-  font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
+  font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
     Cantarell, sans-serif;
   font-size: 0.75rem;
   color: #059669;
@@ -345,8 +343,7 @@
   border: 1px solid #bbf7d0;
   border-radius: 6px;
   padding: 8px 12px;
-  font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
+  font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
     Cantarell, sans-serif;
   font-size: 0.85rem;
   color: #059669;
