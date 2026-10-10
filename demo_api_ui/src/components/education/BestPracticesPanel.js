@@ -4,6 +4,8 @@ import EducationDrawer from '../shared/EducationDrawer';
 import { useEducationUI } from '../../context/EducationUIContext';
 import { EDU } from './educationIds';
 import { EduImplIntro, SNIP_RESOLVE_MCP_TOKEN, SNIP_CIBA_INITIATE } from './educationImplementationSnippets';
+import { PRACTICE_ENFORCEMENT } from '../../config/bestPracticeEnforcement';
+import { stepLabel } from '../../config/demoStepNumbers';
 
 // ─── Shared sub-components ────────────────────────────────────────────────────
 
@@ -59,6 +61,29 @@ function EduLink({ label, panelId, tabId, onClick }) {
     >
       {label} ↗
     </button>
+  );
+}
+
+/** Enforcement table: the attack/controls use cases that prove a practice. */
+function EnforcementCard({ practiceId }) {
+  const block = PRACTICE_ENFORCEMENT[practiceId];
+  if (!block) return null;
+  return (
+    <PracticeCard icon="🛡️" title="Where the demo enforces this">
+      {block.intro}
+      <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 8, fontSize: '0.78rem' }}>
+        <tbody>
+          {block.rows.map((row) => (
+            <tr key={row.uc}>
+              <td style={{ padding: '4px 8px 4px 0', whiteSpace: 'nowrap', fontWeight: 700, color: '#0369a1' }} data-enforced-uc={row.uc}>
+                {stepLabel(row.uc)}
+              </td>
+              <td style={{ padding: '4px 0', color: '#374151' }}>{row.proves}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </PracticeCard>
   );
 }
 
@@ -201,6 +226,8 @@ export default function BestPracticesPanel({ isOpen, onClose, initialTabId }) {
             refresh cycle.
           </PracticeCard>
 
+          <EnforcementCard practiceId="know" />
+
           <h4>How AI Demo implements this</h4>
           <ul style={{ paddingLeft: 20, lineHeight: 1.8 }}>
             <ImplRow status="done" label="Dedicated agent OAuth client" detail="AGENT_OAUTH_CLIENT_ID env, oauthService.getAgentClientCredentialsToken()" />
@@ -257,6 +284,8 @@ ws.initialize({
 })
 // act claim inside agentToken:
 //   { "sub": "user-abc123", "act": { "client_id": "bx-agent" } }`}</pre>
+
+          <EnforcementCard practiceId="detect" />
 
           <h4>How AI Demo implements this</h4>
           <ul style={{ paddingLeft: 20, lineHeight: 1.8 }}>
@@ -324,6 +353,8 @@ scope=accounts:read
   "scope":  "accounts:read"
 }`}</pre>
 
+          <EnforcementCard practiceId="delegate" />
+
           <h4>How AI Demo implements this</h4>
           <ul style={{ paddingLeft: 20, lineHeight: 1.8 }}>
             <ImplRow status="done" label="RFC 8693 always enforced" detail="mcp_resource_uri required or 503 thrown; no bypass possible" />
@@ -388,6 +419,8 @@ MCP_TOOL_SCOPES = {
 if (!isToolPermittedByAgentPolicy(toolScopes, agentAllowedSet)) {
   throw { code: 'agent_mcp_scope_denied', httpStatus: 403 };
 }`}</pre>
+
+          <EnforcementCard practiceId="privilege" />
 
           <h4>How AI Demo implements this</h4>
           <ul style={{ paddingLeft: 20, lineHeight: 1.8 }}>
@@ -456,6 +489,8 @@ POST /token { grant_type: urn:openid:params:grant-type:ciba, auth_req_id }
 // After approval, exchange yields a token with:
 //   sub = user, act = { client_id: "bx-agent" }
 // The transfer executes with that token — audit trail complete.`}</pre>
+
+          <EnforcementCard practiceId="hitl" />
 
           <h4>How AI Demo implements this</h4>
           <ul style={{ paddingLeft: 20, lineHeight: 1.8 }}>
