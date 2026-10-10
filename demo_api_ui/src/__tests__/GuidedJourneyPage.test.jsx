@@ -323,7 +323,7 @@ describe("GuidedJourneyPage", () => {
       screen.getByRole("heading", { level: 2, name: "PingOne Authorize" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Go to dashboard" }),
+      screen.getByRole("button", { name: "Demo Summary" }),
     ).toBeInTheDocument();
   });
 });
