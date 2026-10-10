@@ -2,6 +2,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 import LearningHub from "../LearningHub";
+import { SessionTokenProvider } from "../../context/SessionTokenContext";
 
 vi.mock("../../context/ThemeContext", () => ({
   useThemeOptional: () => ({ darkMode: false, toggleDarkMode: vi.fn() }),
@@ -23,10 +24,12 @@ function LocationProbe() {
 describe("LearningHub Agent Gateway lesson", () => {
   it("lists and opens the live Agent Gateway Authorization story", () => {
     render(
-      <MemoryRouter initialEntries={["/learning"]}>
-        <LearningHub />
-        <LocationProbe />
-      </MemoryRouter>,
+      <SessionTokenProvider>
+        <MemoryRouter initialEntries={["/learning"]}>
+          <LearningHub />
+          <LocationProbe />
+        </MemoryRouter>
+      </SessionTokenProvider>,
     );
 
     expect(screen.getByRole("button", { name: /agent gateway authorization/i })).toBeInTheDocument();
@@ -38,9 +41,11 @@ describe("LearningHub Agent Gateway lesson", () => {
 
   it("finds the story through Learning Hub search", () => {
     render(
-      <MemoryRouter initialEntries={["/learning"]}>
-        <LearningHub />
-      </MemoryRouter>,
+      <SessionTokenProvider>
+        <MemoryRouter initialEntries={["/learning"]}>
+          <LearningHub />
+        </MemoryRouter>
+      </SessionTokenProvider>,
     );
 
     fireEvent.change(screen.getByRole("textbox", { name: /search learning topics/i }), {
