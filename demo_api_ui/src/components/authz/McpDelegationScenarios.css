@@ -13,7 +13,7 @@
 .mds-result-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
 .mds-flag { font-size: var(--font-size-xs); font-weight: 700; padding: 1px 8px; border-radius: 999px; }
 .mds-flag--stepup { background: #fef6e7; color: #b54708; }
-.mds-flag--consent { background: #eef2ff; color: #4338ca; }
+.mds-flag--consent { background: #fee2e2; color: #aa0005; }
 .mds-statements { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
 .mds-stmt { font-size: var(--font-size-xs); background: #f1f5f9; color: #334155; padding: 2px 6px; border-radius: 4px; font-family: var(--font-mono); }
 .mds-error { color: #b42318; font-size: 0.8125rem; margin-top: 8px; }

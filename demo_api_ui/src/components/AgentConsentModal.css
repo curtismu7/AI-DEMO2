@@ -30,8 +30,8 @@
   align-items: center;
   gap: 9px;
   padding: 8px 16px;
-  background: #eef2ff;
-  border-bottom: 1px solid #c7d2fe;
+  background: #fee2e2;
+  border-bottom: 1px solid #fca5a5;
   font-size: 0.76rem;
   color: #1e293b;
   flex-shrink: 0;
@@ -41,8 +41,8 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #4f46e5;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.18);
+  background: #d20e0f;
+  box-shadow: 0 0 0 3px rgba(210, 14, 15, 0.18);
   flex-shrink: 0;
 }
 .acm-hitl-badge__label {
@@ -50,7 +50,7 @@
   letter-spacing: 0.01em;
 }
 .acm-hitl-badge__label strong {
-  color: #312e81;
+  color: #7f1d1d;
   font-weight: 700;
 }
 

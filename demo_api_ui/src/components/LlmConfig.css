@@ -330,12 +330,12 @@
   border: none;
 }
 .cfg-btn--green:hover:not(:disabled) { background: #047857; }
-.cfg-btn--purple {
-  background: #5b21b6;
+.cfg-btn--red {
+  background: #d20e0f;
   color: var(--th-text-invert);
   border: none;
 }
-.cfg-btn--purple:hover:not(:disabled) { background: #6d28d9; }
+.cfg-btn--red:hover:not(:disabled) { background: #aa0005; }
 .cfg-btn--secondary {
   background: var(--th-bg-inset);
   color: var(--th-text-body);
@@ -416,8 +416,8 @@
 /* ── Download progress box ──────────────────────────────────── */
 .cfg-progress-box {
   padding: 0.875rem 1rem;
-  background: #f5f3ff;
-  border: 1px solid #ddd6fe;
+  background: #fee2e2;
+  border: 1px solid #fecaca;
   border-radius: 10px;
   margin-top: 1rem;
 }
@@ -425,7 +425,7 @@
   margin: 0 0 0.4rem;
   font-size: 0.82rem;
   font-weight: 700;
-  color: #5b21b6;
+  color: #d20e0f;
 }
 .cfg-progress-track {
   height: 6px;
@@ -436,7 +436,7 @@
 }
 .cfg-progress-fill {
   height: 100%;
-  background: #7c3aed;
+  background: #d20e0f;
   border-radius: 3px;
   transition: width 0.3s ease;
 }

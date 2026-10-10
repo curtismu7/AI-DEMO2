@@ -55,7 +55,7 @@ const SPINNER_QUIPS = [
 
 const SPINNER_COLORS = [
   'var(--brand-navy)', // blue
-  '#7c3aed', // violet
+  '#d20e0f', // ping red
   '#059669', // emerald
   '#dc2626', // red
   '#d97706', // amber

@@ -42,7 +42,7 @@ import "./ReactFlowPocPage.css";
 // ─── Layer palette (color-coded planes) ─────────────────────────────────────
 
 const LAYERS = {
-  identity: { label: "PingOne / Identity", color: "#7c3aed" },
+  identity: { label: "PingOne / Identity", color: "#d20e0f" },
   security: { label: "Security / Policy", color: "#dc2626" },
   runtime: { label: "Runtime / BFF", color: "#004687" },
   vault: { label: "Vault", color: "#ca8a04" },
@@ -56,7 +56,7 @@ const OUTCOMES = {
   permit: { label: "PERMIT", color: "#16a34a" },
   deny: { label: "DENY", color: "#dc2626" },
   indeterminate: { label: "INDETERMINATE", color: "#d97706" },
-  hitl: { label: "HITL", color: "#7c3aed" },
+  hitl: { label: "HITL", color: "#d20e0f" },
 };
 
 // Per-step wire narrative: one line per hop, styled after the reference
@@ -120,7 +120,7 @@ const INVARIANTS = [
   },
   {
     title: "HITL gate",
-    color: "#7c3aed",
+    color: "#d20e0f",
     text: "High-value or ambiguous requests raise a 428 challenge; the flow pauses until a human approves or denies from the UI.",
   },
 ];
@@ -199,10 +199,10 @@ const LAYER_ICONS = {
 };
 
 const PLANE_TINTS = {
-  "plane-browser": "#7c3aed",
+  "plane-browser": "#d20e0f",
   "plane-runtime": "#004687",
-  "plane-pingone": "#7c3aed",
-  "plane-oidc": "#7c3aed",
+  "plane-pingone": "#d20e0f",
+  "plane-oidc": "#d20e0f",
   "plane-mcp": "#0e7490",
   "plane-resource": "#15803d",
 };

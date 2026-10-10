@@ -159,11 +159,11 @@
   background: transparent;
 }
 .dm-scroll::-webkit-scrollbar-thumb {
-  background: rgba(99, 102, 241, 0.35);
+  background: rgba(210, 14, 15, 0.35);
   border-radius: 2px;
 }
 .dm-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(99, 102, 241, 0.6);
+  background: rgba(210, 14, 15, 0.6);
 }
 
 /* ── Footer ────────────────────────────────────────────────────────────── */

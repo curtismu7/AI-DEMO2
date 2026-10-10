@@ -6,9 +6,9 @@
 
 /* ── Layout ──────────────────────────────────────────────────────────────── */
 .oauth-academy-page {
-  --oa-accent: #4f46e5;
-  --oa-accent-hover: #4338ca;
-  --oa-accent-muted: rgba(79, 70, 229, 0.1);
+  --oa-accent: #d20e0f;
+  --oa-accent-hover: #aa0005;
+  --oa-accent-muted: rgba(210, 14, 15, 0.1);
   display: flex;
   flex-direction: column;
   height: 100%;

@@ -69,13 +69,13 @@
 .activity-records-page__action--register { background: var(--brand-navy); }
 .activity-records-page__action--transfer_money { background: #d97706; }
 .activity-records-page__action--check_balance,
-.activity-records-page__action--api_root { background: #7c3aed; }
+.activity-records-page__action--api_root { background: #d20e0f; }
 .activity-records-page__action--get_transactions,
 .activity-records-page__action--get_current_user { background: #0891b2; }
 .activity-records-page__action--create_user { background: #65a30d; }
 .activity-records-page__action--update_user { background: #ea580c; }
 .activity-records-page__action--delete_user { background: #dc2626; }
-.activity-records-page__action--admin_access { background: #4f46e5; }
+.activity-records-page__action--admin_access { background: #d20e0f; }
 .activity-records-page__action--view_activity_logs { background: #db2777; }
 .activity-records-page__action--unknown {
   background: var(--th-text-faint);

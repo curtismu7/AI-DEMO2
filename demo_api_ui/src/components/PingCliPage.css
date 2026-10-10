@@ -650,7 +650,7 @@
 .pingcli-terminal-body .j-key  { color: #7dd3fc; }
 .pingcli-terminal-body .j-str  { color: #86efac; }
 .pingcli-terminal-body .j-num  { color: #fca5a5; }
-.pingcli-terminal-body .j-bool { color: #d8b4fe; }
+.pingcli-terminal-body .j-bool { color: #fca5a5; }
 .pingcli-terminal-body .j-null { color: var(--th-text-faint); font-style: italic; }
 
 /* Monaco editor inside the terminal pane */
@@ -829,5 +829,5 @@
 .pingcli-editor-code .j-key  { color: #7dd3fc; }
 .pingcli-editor-code .j-str  { color: #86efac; }
 .pingcli-editor-code .j-num  { color: #fca5a5; }
-.pingcli-editor-code .j-bool { color: #d8b4fe; }
+.pingcli-editor-code .j-bool { color: #fca5a5; }
 .pingcli-editor-code .j-null { color: var(--th-text-faint); font-style: italic; }

@@ -250,8 +250,8 @@
 }
 .tctr-lane--pingone { background: #dbeafe; color: #1e40af; }
 .tctr-lane--chat { background: #fce7f3; color: #9d174d; }
-.tctr-lane--agent { background: #e9d5ff; color: #7e22ce; }
-.tctr-lane--llm { background: #ede9fe; color: #5b21b6; }
+.tctr-lane--agent { background: #fee2e2; color: #aa0005; }
+.tctr-lane--llm { background: #fee2e2; color: #d20e0f; }
 .tctr-lane--heuristics { background: #ffedd5; color: #9a3412; }
 .tctr-lane--bff { background: var(--th-bg-inset); color: var(--th-text); }
 .tctr-lane--authz { background: #fef3c7; color: #78350f; }
@@ -328,7 +328,7 @@
    stayed on the dark card and Agent measured 2.44:1. Dark values reuse this
    file's existing --lane palette so the actors read the same in both themes. */
 .tctr-kv-k--user  { color: #831843; }
-.tctr-kv-k--agent { color: #581c87; }
+.tctr-kv-k--agent { color: #7f1d1d; }
 .tctr-kv-k--mcp   { color: #065f46; }
 .tctr-kv-v { font-family: var(--font-mono); font-size: var(--font-size-2xs); word-break: break-all; }
 .tctr-kv-v--json {
@@ -336,7 +336,7 @@
   border-radius: 6px; background: var(--th-bg-inset); line-height: 1.5; white-space: pre-wrap; word-break: break-word;
 }
 .tctr-rfc {
-  display: inline-block; background: #e0e7ff; color: #3730a3; border-radius: 4px;
+  display: inline-block; background: #fecaca; color: #3730a3; border-radius: 4px;
   font-size: var(--font-size-xs); font-weight: 700; padding: 1px 5px; margin: 4px 3px 0 0;
 }
 .tctr-decision { border-radius: 6px; padding: 6px 9px; font-size: 12.5px; font-weight: 700; margin: 4px 0; }
@@ -392,12 +392,12 @@
 /* Token cards in the summary */
 .tctr-tok { border: 1px solid; border-left-width: 4px; border-radius: 7px; padding: 8px 10px; margin-bottom: 8px; }
 .tctr-tok--user { background: #fce7f3; border-color: #f472b6; }
-.tctr-tok--agent { background: #e9d5ff; border-color: #c084fc; }
+.tctr-tok--agent { background: #fee2e2; border-color: #f87171; }
 .tctr-tok--mcp { background: #d1fae5; border-color: #34d399; }
 .tctr-tok-head { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
 .tctr-tok-name { font-weight: 700; }
 .tctr-tok--user .tctr-tok-name { color: #be185d; }
-.tctr-tok--agent .tctr-tok-name { color: #7e22ce; }
+.tctr-tok--agent .tctr-tok-name { color: #aa0005; }
 .tctr-tok--mcp .tctr-tok-name { color: #047857; }
 .tctr-tok-role { font-size: 11.5px; color: var(--th-text-muted); background: rgba(255, 255, 255, 0.6); padding: 1px 6px; border-radius: 4px; }
 .tctr-tok-claims { font-family: var(--font-mono); font-size: var(--font-size-2xs); color: var(--th-text); line-height: 1.5; }
@@ -544,14 +544,14 @@
 :root[data-theme="dark"] .tctr .tctr-lane--pingone   { background: rgba(30, 64, 175, 0.4);  color: #93c5fd; }
 
 :root[data-theme="dark"] .tctr .tctr-kv-k--user  { color: #f9a8d4; }
-:root[data-theme="dark"] .tctr .tctr-kv-k--agent { color: #d8b4fe; }
+:root[data-theme="dark"] .tctr .tctr-kv-k--agent { color: #fca5a5; }
 :root[data-theme="dark"] .tctr .tctr-kv-k--mcp   { color: #6ee7b7; }
 
 :root[data-theme="dark"] .tctr .tctr-lane--chat      { background: rgba(157, 23, 77, 0.35); color: #f9a8d4; }
 
-:root[data-theme="dark"] .tctr .tctr-lane--agent     { background: rgba(126, 34, 206, 0.35); color: #d8b4fe; }
+:root[data-theme="dark"] .tctr .tctr-lane--agent     { background: rgba(210, 14, 15, 0.35); color: #fca5a5; }
 
-:root[data-theme="dark"] .tctr .tctr-lane--llm       { background: rgba(91, 33, 182, 0.35); color: #c4b5fd; }
+:root[data-theme="dark"] .tctr .tctr-lane--llm       { background: rgba(170, 0, 5, 0.35); color: #fca5a5; }
 
 :root[data-theme="dark"] .tctr .tctr-lane--heuristics{ background: rgba(154, 52, 18, 0.35); color: #fdba74; }
 
@@ -584,7 +584,7 @@
 /* Token cards */
 :root[data-theme="dark"] .tctr .tctr-tok--user  { background: rgba(244, 114, 182, 0.12); border-color: #f472b6; }
 
-:root[data-theme="dark"] .tctr .tctr-tok--agent { background: rgba(192, 132, 252, 0.12); border-color: #c084fc; }
+:root[data-theme="dark"] .tctr .tctr-tok--agent { background: rgba(192, 132, 252, 0.12); border-color: #f87171; }
 
 :root[data-theme="dark"] .tctr .tctr-tok--mcp   { background: rgba(52, 211, 153, 0.12);  border-color: #34d399; }
 
@@ -599,7 +599,7 @@
 :root[data-theme="dark"] .tctr .tctr-decision--step_up { background: rgba(217, 119, 6, 0.15); color: #fcd34d; border-color: rgba(252, 211, 77, 0.4); }
 
 /* RFC reference tags */
-:root[data-theme="dark"] .tctr .tctr-rfc { background: rgba(55, 48, 163, 0.35); color: #a5b4fc; }
+:root[data-theme="dark"] .tctr .tctr-rfc { background: rgba(55, 48, 163, 0.35); color: #fca5a5; }
 
 /* Scope diff chips */
 :root[data-theme="dark"] .tctr .tctr-sc       { background: #1e293b; }

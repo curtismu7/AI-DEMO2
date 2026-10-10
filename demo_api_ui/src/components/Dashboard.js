@@ -906,12 +906,12 @@ const getActionColor = (action) => {
     LOGIN: "#10b981",
     REGISTER: "var(--brand-navy)",
     TRANSFER_MONEY: "#f59e0b",
-    CHECK_BALANCE: "#8b5cf6",
+    CHECK_BALANCE: "#d20e0f",
     GET_TRANSACTIONS: "#06b6d4",
     CREATE_USER: "#84cc16",
     UPDATE_USER: "#f97316",
     DELETE_USER: "#ef4444",
-    ADMIN_ACCESS: "#6366f1",
+    ADMIN_ACCESS: "#d20e0f",
     VIEW_ACTIVITY_LOGS: "#ec4899",
   };
 

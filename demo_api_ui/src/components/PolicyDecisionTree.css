@@ -66,9 +66,9 @@
 }
 
 .p1dt-decision-banner--consent {
-  background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%);
-  border-color: #c4b5fd;
-  color: #4c1d95;
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  border-color: #fca5a5;
+  color: #7f1d1d;
 }
 
 .p1dt-decision-banner--indeterminate {
@@ -174,7 +174,7 @@
 .p1dt-overall--deny { background: #fee2e2; color: #991b1b; }
 .p1dt-overall--step_up,
 .p1dt-overall--indeterminate { background: #fef9c3; color: #854d0e; }
-.p1dt-overall--consent { background: #ede9fe; color: #6b21a8; }
+.p1dt-overall--consent { background: #fee2e2; color: #aa0005; }
 
 .p1dt-timing {
   font-size: var(--font-size-xs);
@@ -361,7 +361,7 @@
 .p1dt-status--permit { background: #166534; color: var(--th-text-invert); }
 .p1dt-status--deny { background: #991b1b; color: var(--th-text-invert); }
 .p1dt-status--step_up { background: #92400e; color: var(--th-text-invert); }
-.p1dt-status--consent { background: #5b21b6; color: var(--th-text-invert); }
+.p1dt-status--consent { background: #aa0005; color: var(--th-text-invert); }
 .p1dt-status--na { background: var(--th-bg-hover); color: var(--th-text-faint); font-size: var(--font-size-3xs); }
 .p1dt-status--set { background: #3730a3; color: var(--th-text-invert); }
 

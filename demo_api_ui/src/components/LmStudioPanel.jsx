@@ -314,7 +314,7 @@ export default function LmStudioPanel() {
           )}
           <button
             type="button"
-            className="cfg-btn cfg-btn--purple"
+            className="cfg-btn cfg-btn--red"
             onClick={handleDownload}
             disabled={downloading || loading}
           >

@@ -221,8 +221,8 @@
 
 .rsp-account-badge.checking { color: var(--th-status-info-text); background: var(--th-status-info-bg); }
 .rsp-account-badge.savings { color: var(--th-status-success-text); background: var(--th-status-success-bg); }
-/* .investment stays literal purple — no semantic status token covers it. */
-.rsp-account-badge.investment { background: #3b1f4a; color: #c084fc; }
+/* .investment keeps its red badge — no semantic status token covers it. */
+.rsp-account-badge.investment { background: #3d0e0f; color: #f87171; }
 .rsp-account-badge.car_loan,
 .rsp-account-badge.mortgage { color: var(--th-status-error-text); background: var(--th-status-error-bg); }
 
@@ -314,7 +314,7 @@
 /* Deliberately literal — a subtle indigo accent distinguishing the ID token
    panel from its siblings; no semantic status token covers this hue. */
 .rsp-id-token-panel {
-  border-color: #312e81;
+  border-color: #7f1d1d;
 }
 
 /* ID Token + Resource Server Info paired side by side to cut vertical whitespace. */
@@ -444,18 +444,18 @@
   margin-bottom: 8px;
 }
 
-/* May Act claim box — deliberately literal purple, no semantic status token
+/* May Act claim box — red family, no semantic status token
    covers this hue (kept distinct from the blue "act" box on purpose). */
 .rsp-may-act-box {
   margin-top: 8px;
   padding: 12px;
-  border-left: 3px solid #a855f7;
-  background: rgba(168, 85, 247, 0.08);
+  border-left: 3px solid #d20e0f;
+  background: rgba(210, 14, 15, 0.08);
   border-radius: 0 8px 8px 0;
 }
 
 .rsp-may-act-box .rsp-act-header {
-  color: #c084fc;
+  color: #f87171;
 }
 
 /* Resource Server Info box */

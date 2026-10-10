@@ -127,7 +127,7 @@
 }
 
 .oas-flow-step--spec     { border-color: #93c5fd; background: #eff6ff; }
-.oas-flow-step--ai       { border-color: #a5b4fc; background: #eef2ff; }
+.oas-flow-step--ai       { border-color: #fca5a5; background: #fee2e2; }
 .oas-flow-step--scope    { border-color: #fcd34d; background: #fffbeb; }
 .oas-flow-step--gateway  { border-color: #6ee7b7; background: #ecfdf5; }
 .oas-flow-step--call     { border-color: #86efac; background: #f0fdf4; }

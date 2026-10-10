@@ -15,8 +15,8 @@ export const HERO_VARIANTS = {
     label: 'Protected RAG',
   },
   'oauth-academy': {
-    backgroundColor: '#6366f1',
-    backgroundEndColor: '#4f46e5',
+    backgroundColor: '#d20e0f',
+    backgroundEndColor: '#aa0005',
     label: 'OAuth Academy',
   },
   graphify: {

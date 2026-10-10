@@ -25,7 +25,7 @@ const P266_PATHS = [
 ];
 
 const MERMAID_SOURCE = `flowchart TB
-    classDef user fill:#e0e7ff,stroke:#3730a3,color:#1e1b4b,stroke-width:2px
+    classDef user fill:#fecaca,stroke:#3730a3,color:#7f1d1d,stroke-width:2px
     classDef bff fill:#dbeafe,stroke:#1e40af,color:#1e3a8a,stroke-width:2px
     classDef gw fill:#fef3c7,stroke:#b45309,color:#78350f,stroke-width:3px
     classDef as fill:#fce7f3,stroke:#9d174d,color:#831843,stroke-width:2px

@@ -39,7 +39,7 @@ const GROUPS = {
   exchange: { label: 'TOKEN EXCHANGE', bg: '#2fbf50', border: '#1e7e34', ink: '#020617' },
   gateway: { label: 'GATEWAY', bg: '#f57c00', border: '#d66b00', ink: '#020617' },
   authz: { label: '✅ AUTHORIZATION', bg: '#991b1b', border: '#a02830' },
-  mcps: { label: 'MCP SERVERS', bg: '#5b21b6', border: '#4a276a' },
+  mcps: { label: 'MCP SERVERS', bg: '#aa0005', border: '#4a276a' },
   resources: { label: 'RESOURCES', bg: '#17a2b8', border: '#0e5968', ink: '#020617' },
   safety: { label: 'SAFETY', bg: '#ffc107', border: '#d9a308', ink: '#020617' },
 };

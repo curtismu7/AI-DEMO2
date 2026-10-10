@@ -51,7 +51,7 @@ const EDGE_DASH = {
 // node.cluster; unknown clusters fall back to slate.
 const CLUSTER_COLORS = {
   Core: { fill: "#1e293b", stroke: "#64748b", hover: "#94a3b8" },
-  "Agent Runtime": { fill: "#1a0a2e", stroke: "#c084fc", hover: "#d8b4fe" },
+  "Agent Runtime": { fill: "#1a0a2e", stroke: "#f87171", hover: "#fca5a5" },
   Gateway: { fill: "#0d2e2b", stroke: "#14b8a6", hover: "#2dd4bf" },
   "MCP Servers": { fill: "#0f2920", stroke: "#10b981", hover: "#34d399" },
   Ping: { fill: "#1e3a5f", stroke: "#3b82f6", hover: "#60a5fa" },

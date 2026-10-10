@@ -2425,10 +2425,10 @@ pre.tcd-jwt-dump.jh-dark {
   width: calc(100% - 20px);
   margin: 10px;
   padding: 10px 12px;
-  border: 2px solid #6d28d9;
+  border: 2px solid #aa0005;
   border-radius: 9px;
-  background: #f5f3ff;
-  color: #2e1065;
+  background: #fee2e2;
+  color: #7f1d1d;
   text-align: left;
   cursor: pointer;
 }
@@ -2437,7 +2437,7 @@ pre.tcd-jwt-dump.jh-dark {
 .tcd-a2a-chip__state {
   padding: 3px 7px;
   border-radius: 999px;
-  background: #5b21b6;
+  background: #aa0005;
   color: var(--th-text-invert);
   font-size: 10px;
   font-weight: 800;
@@ -2476,7 +2476,7 @@ pre.tcd-jwt-dump.jh-dark {
   background: var(--th-bg-card);
   color: var(--th-text);
 }
-.tcd-a2a-path strong { color: #312e81; }
+.tcd-a2a-path strong { color: #7f1d1d; }
 
 /* Client-auth method chip: how the BFF authenticated to the token endpoint for
    this step. The JWKS (private_key_jwt) variant is emphasized in green to show
@@ -2540,9 +2540,9 @@ pre.tcd-jwt-dump.jh-dark {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  background: #eef2ff;
+  background: #fee2e2;
   color: #3730a3;
-  border: 1px solid #c7d2fe;
+  border: 1px solid #fca5a5;
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -2552,7 +2552,7 @@ pre.tcd-jwt-dump.jh-dark {
   cursor: pointer;
 }
 .tcd-specref-pill:hover {
-  background: #e0e7ff;
+  background: #fecaca;
 }
 .tcd-specref-unknown {
   background: #fef3c7;

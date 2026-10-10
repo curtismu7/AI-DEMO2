@@ -495,22 +495,22 @@ export default function UserTransactions({ user }) {
         }
 
         .btn-primary {
-          background: #4f46e5;
+          background: #d20e0f;
           color: white;
         }
 
         .btn-primary:hover {
-          background: #4338ca;
+          background: #aa0005;
         }
 
         .user-transactions .btn.btn-outline {
           background: transparent;
           color: var(--th-text);
-          border: 1px solid #4f46e5;
+          border: 1px solid #d20e0f;
         }
 
         .user-transactions .btn.btn-outline:hover {
-          background: #4f46e5;
+          background: #d20e0f;
           color: white;
         }
 

@@ -7,7 +7,7 @@ import '../styles/TokenChainRedesign.css';
  * Collapsed/expandable Token Exchange Mode section showing:
  * - Summary line: emoji, token count, badge
  * - Expandable table: 4 columns (Token Type, Full Name, Issued By, RFC 8693 Role)
- * - Token type badges with colors (User=Pink, Agent=Purple, MCP=Green)
+ * - Token type badges with colors (User=Pink, Agent=Ping Red, MCP=Green)
  *
  * @param {Object} props
  * @param {Array<{type, name, issuedBy, rfc8693Role}>} props.tokens - Token objects to display

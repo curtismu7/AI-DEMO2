@@ -99,9 +99,9 @@ function TokenFlowDiagram() {
         <FlowRow
           left={<div style={{ width: '180px' }} />}
           arrow="── User Token (subject_token) ──→"
-          arrowColor="#a78bfa"
+          arrowColor="#fca5a5"
           note="Token Exchange Request"
-          right={<Box label="PingOne" icon="🔐" color="#2d1b69" border="#8b5cf6" note="Validates grants + issues MCP Token" />}
+          right={<Box label="PingOne" icon="🔐" color="#2d1b69" border="#d20e0f" note="Validates grants + issues MCP Token" />}
         />
         <ConnectorDown right />
 

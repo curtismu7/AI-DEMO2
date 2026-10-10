@@ -115,7 +115,7 @@
 	text-transform: uppercase;
 	letter-spacing: 0.03em;
 }
-.grd-badge--ws   { background: #e0e7ff; color: #3b3f9c; }
+.grd-badge--ws   { background: #fecaca; color: #3b3f9c; }
 .grd-badge--http { background: #dcf0ec; color: #1d6b5e; }
 
 .grd-field { display: flex; flex-direction: column; gap: 2px; margin-bottom: 5px; }

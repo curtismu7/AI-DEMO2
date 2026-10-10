@@ -161,11 +161,11 @@
 }
 
 .emt-token-row--agent {
-  background: rgba(168, 85, 247, 0.04); /* Agent token highlight */
+  background: rgba(210, 14, 15, 0.04); /* Agent token highlight */
 }
 
 .emt-token-row--agent .emt-tokens-col-name {
-  color: #a855f7;
+  color: #d20e0f;
   font-weight: 600;
 }
 

@@ -23,9 +23,9 @@ export default function OboPanel({ isOpen, onClose, initialTabId }) {
       onClick={() => open(panelId, tabId)}
       style={{
         display: 'inline-block',
-        background: 'rgba(99,102,241,0.08)',
-        border: '1px solid rgba(99,102,241,0.35)',
-        color: '#4338ca',
+        background: 'rgba(210, 14, 15,0.08)',
+        border: '1px solid rgba(210, 14, 15,0.35)',
+        color: '#aa0005',
         borderRadius: 6,
         padding: '6px 10px',
         margin: '4px 6px 4px 0',
@@ -62,8 +62,8 @@ export default function OboPanel({ isOpen, onClose, initialTabId }) {
           </ul>
           <p
             style={{
-              background: 'rgba(99,102,241,0.08)',
-              borderLeft: '3px solid #6366f1',
+              background: 'rgba(210, 14, 15,0.08)',
+              borderLeft: '3px solid #d20e0f',
               padding: '8px 12px',
               borderRadius: 4,
             }}
@@ -197,8 +197,8 @@ export default function OboPanel({ isOpen, onClose, initialTabId }) {
           </ol>
           <div
             style={{
-              background: 'rgba(99,102,241,0.08)',
-              borderLeft: '3px solid #6366f1',
+              background: 'rgba(210, 14, 15,0.08)',
+              borderLeft: '3px solid #d20e0f',
               padding: '8px 12px',
               borderRadius: 4,
             }}

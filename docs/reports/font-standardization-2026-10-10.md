@@ -57,6 +57,6 @@ Resolved along the way:
 1. ~~**Commit**~~ → #1087–#1106, all merged.
 2. ~~**Ping logo**~~ → official 2026 Square Primary committed as `public/branding/ping-logo.png` (PNG, not the placeholder SVG, which was deleted); favicons regenerated; used by spinner, boot screen, PiFlow modal, pingone-admin manifest.
 3. ~~**Weight 800 unused**~~ → now in use (App.css, OAuthProviderToggle.css); kept in the font link.
-4. ~~**Purple Accent `#680754`**~~ → deliberately unused per product decision (portal reserves it as sparse emphasis; we don't need it).
+4. ~~**Purple Accent `#680754`**~~ → deliberately unused per product decision (portal reserves it as sparse emphasis; we don't need it). 2026-10-10 follow-up: the user extended this to the whole violet/indigo family — every purple across the UI was swept to Ping Red (`#d20e0f`/`#aa0005` + red tints); only the fake-tenant presets (FunnyBank etc.) keep purple so demo tenants don't read as Ping.
 
 No open items.

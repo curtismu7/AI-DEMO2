@@ -50,6 +50,10 @@
 .squeue__title { font-size: 0.82rem; font-weight: 600; color: var(--th-text); }
 .squeue__meta { grid-column: 1; font-size: 0.72rem; color: var(--th-text-muted); }
 .squeue__status {
+  /* Definite column, not just row: with an auto column, grid auto-placement
+     seats this definite-row item in col 1 BEFORE the auto-flow title, inverting
+     the row (status left, title squeezed right). */
+  grid-column: 2;
   grid-row: 1 / span 2;
   align-self: center;
   font-size: 0.68rem;

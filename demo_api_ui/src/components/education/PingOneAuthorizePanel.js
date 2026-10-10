@@ -381,8 +381,8 @@ function AuthorizePolicyEducationDiagram() {
           <text x="48" y="204" fill="#14532d" fontSize="11" fontWeight="600">2. AUD — audience = resource URL</text>
           <text x="48" y="218" fill="#475569" fontSize="9">Token was minted for this API or MCP resource (prevents wrong-audience replay)</text>
 
-          <rect x="36" y="232" width="348" height="42" rx="6" fill="#faf5ff" stroke="#d8b4fe" />
-          <text x="48" y="252" fill="#581c87" fontSize="11" fontWeight="600">3. act — delegation (MCP / exchange layer)</text>
+          <rect x="36" y="232" width="348" height="42" rx="6" fill="#faf5ff" stroke="#fca5a5" />
+          <text x="48" y="252" fill="#7f1d1d" fontSize="11" fontWeight="600">3. act — delegation (MCP / exchange layer)</text>
           <text x="48" y="266" fill="#475569" fontSize="9">Who performed token exchange on behalf of sub (e.g. act.client_id, act.sub)</text>
 
           <rect x="36" y="280" width="348" height="40" rx="6" fill="#fff7ed" stroke="#fdba74" />

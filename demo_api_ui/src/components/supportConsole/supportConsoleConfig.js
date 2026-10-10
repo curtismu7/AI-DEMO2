@@ -174,7 +174,7 @@ export const CONFIGS = {
   },
   workforce: {
     id: 'workforce', name: 'Workforce Ops', short: 'Workforce', icon: 'WF',
-    theme: { accent: '#7c3aed', accent2: '#4c1d95', tint: '#f5f0ff' },
+    theme: { accent: '#d20e0f', accent2: '#7f1d1d', tint: '#f5f0ff' },
     lookupPath: '/api/admin/workforce/lookup',
     identityActions: [],
     caseSource: { path: '/api/admin/workforce/cases' },
@@ -195,7 +195,10 @@ export const CONFIGS = {
       { id: 'expenses', slice: 'expenses', label: 'Expenses', icon: 'EX', title: (r) => r.description || 'Expense', sub: (r) => money(Number(r.amount)), actions: ['Approve', 'Deny'] },
       { id: 'tickets', slice: 'tickets', label: 'IT Tickets', icon: 'TK', title: (r) => r.subject || 'Ticket', sub: (r) => r.priority || '', actions: ['Resolve'] },
       { id: 'trainings', slice: 'trainings', label: 'Training', icon: 'TR', title: (r) => r.title || 'Training', sub: (r) => r.dueDate || '', actions: ['Complete'] },
-      { id: 'pto', slice: 'pto', label: 'PTO', icon: 'PT', title: (r) => r.kind || 'PTO', sub: (r) => r.range || '', actions: [] },
+      // pto is omitted: the seed stores it as a balances object ({balance,
+      // sickLeave, accruedYtd}), not an array — this adapter's stats do
+      // data[slice].length, which rendered literal "undefined" in the summary
+      // and an always-empty card here.
       { id: 'benefits', slice: 'benefits', label: 'Benefits', icon: 'BN', title: (r) => r.name || 'Benefit', sub: (r) => r.enrollmentStatus || '', actions: [] },
     ]),
   },
@@ -205,7 +208,7 @@ export const CONFIGS = {
   // each) and only ever array-valued slices — an object slice renders nothing.
   university: {
     id: 'university', name: 'University Ops', short: 'University', icon: 'UV',
-    theme: { accent: '#7c3aed', accent2: '#4c1d95', tint: '#f5f0ff' },
+    theme: { accent: '#d20e0f', accent2: '#7f1d1d', tint: '#f5f0ff' },
     lookupPath: '/api/admin/university/lookup',
     lookupPlaceholder: 'Look up a student by name, email, or id…',
     identityActions: [],

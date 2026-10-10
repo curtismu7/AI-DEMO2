@@ -4,20 +4,20 @@
    inherited from :root[data-theme="dark"] redefining them and there is no
    prefers-color-scheme block here.
 
-   --ff-accent is page-scoped on purpose. The purple focus/hover accent has no
+   --ff-accent is page-scoped on purpose. The red focus/hover accent has no
    --th-* equivalent, and inventing a global token for one page's chrome would
    be worse than declaring it here — but it still has to be declared PER THEME,
    because a single value cannot carry a focus ring on both grounds. */
 :root {
-  --ff-accent: #5b21b6; /* #7c3aed was 5.7:1 on its tint */
-  --ff-accent-soft: #f1ebfd;
-  --ff-accent-ring: rgba(124, 58, 237, 0.28);
+  --ff-accent: #aa0005; /* Ping Red gradient end — #d20e0f was only ~4.8:1 on the tint */
+  --ff-accent-soft: #fdeaea;
+  --ff-accent-ring: rgba(170, 0, 5, 0.28);
 }
 
 :root[data-theme="dark"] {
-  --ff-accent: #ddd6fe; /* #a78bfa was 5.5:1 on its tint */
-  --ff-accent-soft: #2a2143;
-  --ff-accent-ring: rgba(167, 139, 250, 0.35);
+  --ff-accent: #fecaca; /* light red tint, ~17:1 on the dark soft bg */
+  --ff-accent-soft: #2e1011;
+  --ff-accent-ring: rgba(210, 14, 15, 0.35);
 }
 
 /* ── Page header extras ──────────────────────────────────────────────────── */

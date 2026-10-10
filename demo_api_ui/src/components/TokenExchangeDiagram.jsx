@@ -36,10 +36,10 @@ const isDone = (step) => step && (step.status === 'done' || step.status === 'err
 const PALETTES = {
   dark: {
     user:    { fill: '#0c2040', color: '#7dd3fc', stroke: '#2563eb' },
-    agent:   { fill: '#1a1535', color: '#c4b5fd', stroke: '#7c3aed' },
+    agent:   { fill: '#250909', color: '#fca5a5', stroke: '#d20e0f' },
     exchange:{ fill: '#231700', color: '#fbbf24', stroke: '#b45309' },
     issued:  { fill: '#0a2418', color: '#6ee7b7', stroke: '#059669' },
-    authzOk: { fill: '#0f1a2e', color: '#a5b4fc', stroke: '#4f46e5' },
+    authzOk: { fill: '#0f1a2e', color: '#fca5a5', stroke: '#d20e0f' },
     authzDn: { fill: '#2d0a0a', color: '#fca5a5', stroke: '#dc2626' },
     authzHold: { fill: '#2b2408', color: '#fde68a', stroke: '#d29922' },
     gateway: { fill: '#071a0f', color: '#86efac', stroke: '#16a34a' },
@@ -52,10 +52,10 @@ const PALETTES = {
   },
   light: {
     user:    { fill: '#eff6ff', color: '#1e3a8a', stroke: '#2563eb' },
-    agent:   { fill: '#f5f3ff', color: '#4c1d95', stroke: '#7c3aed' },
+    agent:   { fill: '#fee2e2', color: '#7f1d1d', stroke: '#d20e0f' },
     exchange:{ fill: '#fffbeb', color: '#78350f', stroke: '#b45309' },
     issued:  { fill: '#ecfdf5', color: '#065f46', stroke: '#059669' },
-    authzOk: { fill: '#eef2ff', color: '#3730a3', stroke: '#4f46e5' },
+    authzOk: { fill: '#fee2e2', color: '#3730a3', stroke: '#d20e0f' },
     authzDn: { fill: '#fef2f2', color: '#991b1b', stroke: '#dc2626' },
     authzHold: { fill: '#fffbeb', color: '#92400e', stroke: '#d29922' },
     gateway: { fill: '#f0fdf4', color: '#14532d', stroke: '#16a34a' },

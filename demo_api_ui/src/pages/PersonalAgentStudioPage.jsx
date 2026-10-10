@@ -13,7 +13,7 @@ import InlineSpinner from '../components/shared/InlineSpinner';
 
 const SKINS = ['privilege', 'claude', 'claude-terminal', 'gpt', 'gemini', 'cua'];
 const SKIN_LABELS = { privilege: 'Privilege', claude: 'Claude', 'claude-terminal': 'Terminal', gpt: 'ChatGPT', gemini: 'Gemini', cua: 'Computer Use' };
-const SKIN_DOT_COLORS = { privilege: '#0073e6', claude: '#d97941', 'claude-terminal': '#ffb454', gpt: '#10a37f', gemini: '#4285f4', cua: '#7c3aed' };
+const SKIN_DOT_COLORS = { privilege: '#0073e6', claude: '#d97941', 'claude-terminal': '#ffb454', gpt: '#10a37f', gemini: '#4285f4', cua: '#d20e0f' };
 
 // Scripted CUA session (coverage plan row: present a computer-use agent without
 // driving a real browser). Each step is a labeled observe/act pair that rides the
@@ -393,7 +393,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
                   <button
                     type="button"
                     onClick={runCuaScript}
-                    style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid #7c3aed', background: 'rgba(124,58,237,0.14)', color: 'var(--th-text)', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
+                    style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid #d20e0f', background: 'rgba(210, 14, 15,0.14)', color: 'var(--th-text)', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
                   >
                     Run scripted session
                   </button>

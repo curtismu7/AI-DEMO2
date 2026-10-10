@@ -14,7 +14,7 @@ const MIN_H = 180;
 const HS    = 8; // handle size px
 
 const ACCENT = {
-  oauth: 'var(--brand-blue)', exchange: '#7c3aed', permit: '#16a34a',
+  oauth: 'var(--brand-blue)', exchange: '#d20e0f', permit: '#16a34a',
   hitl: '#d97706', idtoken: '#0891b2', mcp: '#475569', error: '#dc2626',
 };
 const URN_SHORT = {

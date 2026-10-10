@@ -7,7 +7,7 @@ import '../styles/TokenChainRedesign.css';
  *
  * Renders a 3-column grid of token types with color swatches:
  * - User Token: Customer access token from PingOne (Pink gradient)
- * - Agent Token: BFF-delegated token via RFC 8693 (Purple gradient)
+ * - Agent Token: BFF-delegated token via RFC 8693 (Ping Red gradient)
  * - MCP Token: Resource-scoped access token (Green gradient)
  *
  * Props:

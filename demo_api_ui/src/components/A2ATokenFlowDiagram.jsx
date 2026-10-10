@@ -30,7 +30,7 @@ import './A2ATokenFlowDiagram.css';
  */
 
 const ACTORS = {
-  user: { label: 'User', sub: 'signed-in customer (subject)', color: '#7c3aed', icon: '👤' },
+  user: { label: 'User', sub: 'signed-in customer (subject)', color: '#d20e0f', icon: '👤' },
   generalist: { label: 'Generalist Agent 1', sub: 'Banking Agent (BFF)', color: '#004687', icon: '🤖' },
   pingone: { label: 'PingOne', sub: 'token mint + Authorize', color: '#dc2626', icon: '🔐' },
   specialist: { label: 'Specialist Agent 2', sub: 'narrow-scope specialist', color: '#b45309', icon: '🤖' },

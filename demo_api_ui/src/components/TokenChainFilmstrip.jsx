@@ -78,7 +78,7 @@ function readStoredViewMode() {
 // shown empty (no fabricated claims/tokens) purely so the strip isn't blank.
 const PREVIEW_STAGES = [
   { id: "signin", label: "Sign-in", color: "#f472b6", bg: "rgba(244,114,182,0.14)" },
-  { id: "agent", label: "Banking Agent", color: "#c084fc", bg: "rgba(192,132,252,0.14)" },
+  { id: "agent", label: "Banking Agent", color: "#f87171", bg: "rgba(192,132,252,0.14)" },
   { id: "exchange", label: "Token Exchange", color: "#60a5fa", bg: "rgba(96,165,250,0.14)" },
   { id: "authorize", label: "Authorize", color: "#fbbf24", bg: "rgba(251,191,36,0.14)" },
   { id: "mcp", label: "MCP", color: "#34d399", bg: "rgba(52,211,153,0.14)" },

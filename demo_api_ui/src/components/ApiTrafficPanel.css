@@ -363,8 +363,8 @@
   font-size: var(--font-size-xs);
 }
 .api-method-badge--TOKEN-XCHG {
-  background: #3b0764;
-  color: #d8b4fe;
+  background: #7f1d1d;
+  color: #fca5a5;
   min-width: 56px;
   font-size: var(--font-size-xs);
 }
@@ -385,7 +385,7 @@
   font-size: var(--font-size-xs);
 }
 .api-method-badge--TOKEN-INTRO {
-  background: #312e81;
+  background: #7f1d1d;
   color: #ffffff;
   min-width: 68px;
   font-size: var(--font-size-xs);
@@ -417,8 +417,8 @@
   color: #ffffff;
 }
 .api-status-badge--tok {
-  background: #1e1b4b;
-  color: #a5b4fc;
+  background: #7f1d1d;
+  color: #fca5a5;
 }
 .api-status-badge--skip {
   background: #451a03;
@@ -718,7 +718,7 @@ pre.api-json {
   vertical-align: top;
 }
 .api-claims-td--claim code {
-  color: #a5b4fc;
+  color: #fca5a5;
   font-family: inherit;
 }
 .api-claims-td--value .api-claims-val {

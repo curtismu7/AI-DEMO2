@@ -14,7 +14,7 @@ function Section({ title, children }) {
   );
 }
 
-function Note({ children, color = '#6366f1' }) {
+function Note({ children, color = '#d20e0f' }) {
   return (
     <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderLeft: `3px solid ${color}`, borderRadius: 6, padding: '10px 14px', margin: '0.75rem 0', fontSize: '0.84rem', color: '#475569', lineHeight: 1.55 }}>
       {children}

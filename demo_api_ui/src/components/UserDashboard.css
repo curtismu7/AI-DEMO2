@@ -1034,7 +1034,7 @@
 
 .token-payload-hint {
   border: none;
-  background: #e0e7ff;
+  background: #fecaca;
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.88rem;
@@ -2822,8 +2822,8 @@
 }
 
 .user-dashboard--2026 .ud-insight-strip {
-  background: rgba(91, 33, 182, 0.06);
-  border: 1px solid rgba(91, 33, 182, 0.12);
+  background: rgba(170, 0, 5, 0.06);
+  border: 1px solid rgba(170, 0, 5, 0.12);
 }
 
 .ud-insight-strip__text {

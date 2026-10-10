@@ -13,11 +13,11 @@ import React, { useMemo } from "react";
 import "./ReactFlowSequenceDiagram.css";
 
 const PARTICIPANTS = [
-  { id: "user", label: "User", color: "#7c3aed" },
+  { id: "user", label: "User", color: "#d20e0f" },
   { id: "ui", label: "React UI", color: "#004687" },
   { id: "bff", label: "BFF", color: "#004687" },
   { id: "vault", label: "Vault", color: "#ca8a04" },
-  { id: "pingone", label: "PingOne OIDC", color: "#7c3aed" },
+  { id: "pingone", label: "PingOne OIDC", color: "#d20e0f" },
   { id: "agent", label: "Agent", color: "#004687" },
   { id: "gateway", label: "MCP Gateway", color: "#0e7490" },
   { id: "authorize", label: "P1 Authorize", color: "#dc2626" },
@@ -59,7 +59,7 @@ export default function ReactFlowSequenceDiagram({
     permit: "#16a34a",
     deny: "#dc2626",
     indeterminate: "#d97706",
-    hitl: "#7c3aed",
+    hitl: "#d20e0f",
   };
 
   const height =

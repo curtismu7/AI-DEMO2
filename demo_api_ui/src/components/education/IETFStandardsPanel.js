@@ -98,7 +98,7 @@ function StandardCard({
             href={ietfLink}
             target="_blank"
             rel="noopener noreferrer"
-            style={{ color: "#4f46e5", textDecoration: "none" }}
+            style={{ color: "#d20e0f", textDecoration: "none" }}
           >
             IETF Draft ↗
           </a>
@@ -218,7 +218,7 @@ function IDCGuardrailsTable() {
               <td
                 style={{
                   padding: "8px 10px",
-                  color: "#4f46e5",
+                  color: "#d20e0f",
                   fontWeight: 600,
                 }}
               >

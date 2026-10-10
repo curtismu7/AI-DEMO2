@@ -8,8 +8,8 @@ function Section({ title, role, children }) {
       <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 6 }}>
         <h3 style={{ margin: 0, fontSize: "0.97rem", fontWeight: 700 }}>{title}</h3>
         <span style={{
-          fontSize: "0.68rem", fontWeight: 600, color: "#6366f1",
-          background: "#eef2ff", border: "1px solid #c7d2fe",
+          fontSize: "0.68rem", fontWeight: 600, color: "#d20e0f",
+          background: "#fee2e2", border: "1px solid #fca5a5",
           borderRadius: 99, padding: "1px 8px", whiteSpace: "nowrap",
         }}>{role}</span>
       </div>

@@ -255,7 +255,7 @@ export default function LlamaCppPanel() {
                       {!tier.present && !tier.skipDownload && (
                         <button
                           type="button"
-                          className="cfg-btn cfg-btn--purple"
+                          className="cfg-btn cfg-btn--red"
                           style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
                           onClick={() => handleDownloadTier(tier)}
                           disabled={isDownloading || Boolean(downloadJobId)}

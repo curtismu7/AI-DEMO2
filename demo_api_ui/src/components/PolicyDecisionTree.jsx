@@ -348,7 +348,7 @@ export default function PolicyDecisionTree({ policies, result, floating = false 
       <div className="p1dt-legend">
         <span className="p1dt-legend-item"><span className="p1dt-legend-dot p1dt-legend-dot--path" /> Execution path (highlighted + animated)</span>
         <span className="p1dt-legend-item"><span className="p1dt-legend-dot" style={{ background: "#e5e7eb" }} /> N/A — collapsed by default</span>
-        <span className="p1dt-legend-item"><span className="p1dt-legend-dot" style={{ background: "#6366f1" }} /> Policy set / policy on path</span>
+        <span className="p1dt-legend-item"><span className="p1dt-legend-dot" style={{ background: "#d20e0f" }} /> Policy set / policy on path</span>
         <span className="p1dt-legend-item">Number badge = statements mapped to that rule</span>
       </div>
     </div>

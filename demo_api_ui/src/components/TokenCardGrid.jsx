@@ -1,7 +1,7 @@
 /**
  * TokenCardGrid — 3-column card grid for User/Agent/MCP tokens
  * - Responsive: 3 cols (desktop) → 2 cols (tablet) → 1 col (mobile)
- * - Color-coded borders: User pink, Agent purple, MCP green
+ * - Color-coded borders: User pink, Agent Ping Red, MCP green
  * - Shows abbreviated claims on each card
  * - "Inspect" buttons open claims modal
  */
@@ -19,7 +19,7 @@ const TOKEN_TYPES = {
   agent: {
     id: 'agent',
     label: 'Agent Token',
-    color: '#9333ea', // purple
+    color: '#d20e0f', // ping red
     icon: '🤖',
     description: 'BFF-delegated MCP token (RFC 8693 §4)',
   },

@@ -1,6 +1,6 @@
 /**
  * TokenCardGrid.css — 3-column responsive grid for token cards
- * Color-coded: User pink (#ec4899), Agent purple (#9333ea), MCP green (#10b981)
+ * Color-coded: User pink (#ec4899), Agent purple (#d20e0f), MCP green (#10b981)
  */
 
 /* Container & Grid */
@@ -60,7 +60,7 @@
 }
 
 .tcg-card[data-token-type="agent"] .tcg-card__header {
-  border-left-color: #9333ea;
+  border-left-color: #d20e0f;
 }
 
 .tcg-card[data-token-type="mcp"] .tcg-card__header {

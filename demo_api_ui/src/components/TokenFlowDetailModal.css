@@ -261,13 +261,13 @@
   flex-shrink: 0;
   font-family: var(--font-mono);
 }
-.tfd-badge-PINGONE  { color: #e879f9; background: rgba(232,121,249,.1); }
+.tfd-badge-PINGONE  { color: #f87171; background: rgba(248, 113, 113,.1); }
 .tfd-badge-CHAT     { color: #60a5fa; background: rgba(96,165,250,.1); }
-.tfd-badge-AGENT    { color: #a78bfa; background: rgba(167,139,250,.1); }
+.tfd-badge-AGENT    { color: #fca5a5; background: rgba(210, 14, 15,.1); }
 .tfd-badge-BFF      { color: #94a3b8; background: rgba(148,163,184,.1); }
 .tfd-badge-AUTHZ    { color: #fb923c; background: rgba(251,146,60,.1); }
 .tfd-badge-HEURISTICS { color: #fb923c; background: rgba(251,146,60,.1); }
-.tfd-badge-LLM      { color: #a78bfa; background: rgba(167,139,250,.1); }
+.tfd-badge-LLM      { color: #fca5a5; background: rgba(210, 14, 15,.1); }
 .tfd-badge-GATEWAY  { color: #34d399; background: rgba(52,211,153,.1); }
 .tfd-badge-MCP      { color: #fbbf24; background: rgba(251,191,36,.1); }
 .tfd-badge-API      { color: #94a3b8; background: rgba(148,163,184,.1); }

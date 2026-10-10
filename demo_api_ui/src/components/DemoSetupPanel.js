@@ -826,7 +826,7 @@ export default function DemoSetupPanel() {
         {/* ── Feature flags redirect callout ───────────────────────────────── */}
         <section className="section demo-data-section" aria-labelledby="demo-setup-flags-link-heading">
           <h2 className="demo-data-section__heading" id="demo-setup-flags-link-heading">Feature Flag Controls</h2>
-          <div className="demo-data-static-notice" style={{ borderColor: '#6366f1', background: '#eef2ff' }}>
+          <div className="demo-data-static-notice" style={{ borderColor: '#d20e0f', background: '#fee2e2' }}>
             <span className="demo-data-static-notice__icon">⚠️</span>
             <div style={{ flex: 1 }}>
               <strong>PingOne Authorize, Token Exchange, Step-Up, HITL, MCP, and WebMCP flags</strong>

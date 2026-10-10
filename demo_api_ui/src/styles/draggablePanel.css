@@ -37,11 +37,11 @@
   background: linear-gradient(
     135deg,
     transparent 40%,
-    rgba(99, 102, 241, 0.75) 40%,
-    rgba(99, 102, 241, 0.75) 55%,
+    rgba(210, 14, 15, 0.75) 40%,
+    rgba(210, 14, 15, 0.75) 55%,
     transparent 55%,
     transparent 65%,
-    rgba(99, 102, 241, 0.5) 65%
+    rgba(210, 14, 15, 0.5) 65%
   );
 }
 
@@ -65,8 +65,8 @@
 }
 
 .drp-resize-handle:hover {
-  background: rgba(99, 102, 241, 0.8);
-  border-color: rgba(99, 102, 241, 1);
+  background: rgba(210, 14, 15, 0.8);
+  border-color: rgba(210, 14, 15, 1);
   opacity: 1;
 }
 

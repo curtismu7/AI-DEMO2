@@ -20,7 +20,7 @@ function Section({ title, children }) {
 
 function Note({ children }) {
   return (
-    <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderLeft: '3px solid #6366f1', borderRadius: 6, padding: '10px 14px', margin: '0.75rem 0', fontSize: '0.84rem', color: '#475569', lineHeight: 1.55 }}>
+    <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderLeft: '3px solid #d20e0f', borderRadius: 6, padding: '10px 14px', margin: '0.75rem 0', fontSize: '0.84rem', color: '#475569', lineHeight: 1.55 }}>
       {children}
     </div>
   );
@@ -48,9 +48,9 @@ function CrossLink({ panelId, tabId, children }) {
       onClick={() => open(panelId, tabId)}
       style={{
         display: 'inline-block',
-        background: 'rgba(99,102,241,0.08)',
-        border: '1px solid rgba(99,102,241,0.35)',
-        color: '#4338ca',
+        background: 'rgba(210, 14, 15,0.08)',
+        border: '1px solid rgba(210, 14, 15,0.35)',
+        color: '#aa0005',
         borderRadius: 6,
         padding: '6px 10px',
         margin: '4px 6px 4px 0',

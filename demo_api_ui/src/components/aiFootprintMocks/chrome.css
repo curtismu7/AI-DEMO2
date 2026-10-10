@@ -548,7 +548,7 @@
 
 .afm-saas--zendesk { --brand: #03363d; --accent: #17494d; --rail: #fff; }
 .afm-saas--glean { --brand: #0b1f33; --accent: #3b82f6; --rail: #0f172a; color: #ffffff; background: #020617; border-color: #1e293b; }
-.afm-saas--generic { --brand: #4f46e5; --accent: #6366f1; --rail: #fff; }
+.afm-saas--generic { --brand: #d20e0f; --accent: #d20e0f; --rail: #fff; }
 
 .afm-saas-top {
   height: 40px;

@@ -13,12 +13,12 @@ import PingIdentitySpinner from './shared/PingIdentitySpinner';
 const ACCOUNT_TYPE_BADGE_COLORS = {
   checking: 'var(--brand-navy)',
   savings: 'var(--v2-badge-savings, #10b981)',
-  investment: 'var(--v2-badge-investment, #8b5cf6)',
+  investment: 'var(--v2-badge-investment, #d20e0f)',
   money_market: 'var(--v2-badge-money-market, #06b6d4)',
   credit: 'var(--v2-badge-credit, #f59e0b)',
   credit_card: 'var(--v2-badge-credit, #f59e0b)',
   car_loan: 'var(--v2-badge-loan, #ec4899)',
-  mortgage: 'var(--v2-badge-mortgage, #6366f1)',
+  mortgage: 'var(--v2-badge-mortgage, #d20e0f)',
 };
 
 // Accounts never get an updatedAt from the data layer, so "latest update" is creation date.

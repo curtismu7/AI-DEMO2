@@ -25,8 +25,8 @@
   --p1-border: rgba(39, 123, 165, 0.2);
   --p1-text: #0f172a;
   --p1-text-secondary: #666666;
-  --p1-indigo-deep: #312e81;
-  --p1-indigo-mid: #4338ca;
+  --p1-red-deep: #7f1d1d;
+  --p1-red-mid: #aa0005;
 
   min-height: 100vh;
   background: linear-gradient(165deg, #f5fafd 0%, #eef6fb 45%, #e4f0f8 100%);
@@ -165,7 +165,7 @@
 
 /* ── Checklist card ─────────────────────────────────────── */
 .config-page__card--steps {
-  border-color: rgba(99, 102, 241, 0.25);
+  border-color: rgba(210, 14, 15, 0.25);
   background: linear-gradient(
     180deg,
     var(--brand-light-gray) 0%,
@@ -193,20 +193,20 @@
 
 /* ── PingOne redirect URIs card ─────────────────────────── */
 .config-page__card--redirect {
-  border-color: rgba(99, 102, 241, 0.35);
-  background: linear-gradient(165deg, #eef2ff 0%, #e0e7ff 55%, #dbeafe 100%);
+  border-color: rgba(210, 14, 15, 0.35);
+  background: linear-gradient(165deg, #fee2e2 0%, #fecaca 55%, #dbeafe 100%);
   box-shadow:
     0 2px 8px rgba(67, 56, 202, 0.12),
-    0 12px 32px rgba(99, 102, 241, 0.1);
+    0 12px 32px rgba(210, 14, 15, 0.1);
 }
 
 .config-page__card--redirect .card-title {
-  color: var(--p1-indigo-deep);
+  color: var(--p1-red-deep);
 }
 
 .config-page__redirect-lede {
   font-size: 0.85rem;
-  color: var(--p1-indigo-deep);
+  color: var(--p1-red-deep);
   margin: 0;
   line-height: 1.55;
 }
@@ -215,14 +215,14 @@
   margin: 0 0 1rem 0;
   padding-left: 1.25rem;
   font-size: 0.85rem;
-  color: var(--p1-indigo-deep);
+  color: var(--p1-red-deep);
   line-height: 1.6;
 }
 
 .config-page__redirect-label {
   font-weight: 600;
   font-size: 0.8rem;
-  color: var(--p1-indigo-deep);
+  color: var(--p1-red-deep);
   margin-bottom: 0.35rem;
 }
 
@@ -232,14 +232,14 @@
   padding: 0.55rem 0.7rem;
   background: rgba(255, 255, 255, 0.92);
   border-radius: 8px;
-  border: 1px solid #c7d2fe;
+  border: 1px solid #fca5a5;
   word-break: break-word;
   overflow-wrap: break-word;
 }
 
 .config-page__redirect-foot {
   font-size: 0.75rem;
-  color: var(--p1-indigo-mid);
+  color: var(--p1-red-mid);
   margin-top: 1rem;
   margin-bottom: 0;
 }
@@ -570,8 +570,8 @@
 }
 
 .config-page__path-card--indigo {
-  background: linear-gradient(180deg, #eef2ff 0%, #e0e7ff 100%);
-  border-color: #c7d2fe;
+  background: linear-gradient(180deg, #fee2e2 0%, #fecaca 100%);
+  border-color: #fca5a5;
 }
 
 .config-page__path-card--green {
@@ -598,7 +598,7 @@
 }
 
 .config-page__path-card--indigo .config-page__path-desc {
-  color: #4338ca;
+  color: #aa0005;
 }
 .config-page__path-card--green .config-page__path-desc {
   color: #166534;
@@ -612,7 +612,7 @@
 }
 
 .config-page__path-card--indigo .config-page__path-steps {
-  color: #312e81;
+  color: #7f1d1d;
 }
 .config-page__path-card--green .config-page__path-steps {
   color: #14532d;
@@ -644,7 +644,7 @@
 }
 
 .config-page__path-card--indigo .config-page__env-val {
-  color: #4338ca;
+  color: #aa0005;
 }
 .config-page__path-card--green .config-page__env-val {
   color: #166534;

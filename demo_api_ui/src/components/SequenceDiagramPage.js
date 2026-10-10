@@ -17,7 +17,7 @@ import SequenceFlowDiagram from "./SequenceFlowDiagram";
 
 const FLOW_ACCENT = {
   oauth: "#2563eb",
-  exchange: "#7c3aed",
+  exchange: "#d20e0f",
   permit: "#16a34a",
   hitl: "#d97706",
   idtoken: "#0891b2",
@@ -526,7 +526,7 @@ function StepInfoPanel({
         {activeStep.rulesEvaluated && activeStep.rulesEvaluated.length > 0 && (
           <StepDetailSection
             title="Policy rules checked"
-            accent="#7c3aed"
+            accent="#d20e0f"
             defaultOpen={true}
           >
             <div
