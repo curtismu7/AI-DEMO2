@@ -38,7 +38,9 @@ Raw feedback from the board for ai-demo.ping-devops.com, triaged into work items
 - URL: https://ai-demo.ping-devops.com/settings
 - Audit every option on the page end-to-end.
 
-### E4. `/delegation` — real demo-user login flow
+### E4. `/delegation` — real demo-user login flow — FIXED (partial)
+- Backend provisioning + credential card shipped 2026-07-12 (PingOne user creation, DEMO_PASSWORD, email notification).
+- Gap closed 2026-10-10: delegate-facing `DelegatedAccessPanel` on `/dashboard` — the logged-in delegate now sees who granted them access, the scopes, and the grant date (`GET /api/delegation/granted-to-me`). Renders nothing when the viewer holds no delegations.
 - Create a user in PingOne with a password.
 - Show a message to the demo user with those credentials so they can log in and see delegation.
 - URL: https://ai-demo.ping-devops.com/delegation
