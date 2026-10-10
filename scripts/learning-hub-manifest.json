@@ -20,9 +20,9 @@
       "drawer": ".ciba-drawer",
       "skipTabs": ["▶ Try It"]
     },
-    { "file": "token-exchange-rfc-8693.html", "title": "Token Exchange (RFC 8693)", "card": "Token Exchange (RFC 8693)" },
+    { "file": "token-exchange-rfc-8693.html", "title": "Token Exchange (RFC 8693)", "card": "Token Exchange (RFC 8693)", "skip": "card now routes to /architecture/token-flow (no education drawer to capture); the last captured page is kept" },
     { "file": "may-act-act-claims.html", "title": "may_act / act claims", "card": "may_act / act claims" },
-    { "file": "actor-token-agent.html", "title": "Actor Token (Agent)", "card": "Actor Token (Agent)" },
+    { "file": "actor-token-agent.html", "title": "Actor Token (Agent)", "card": "Actor Token (Agent)", "skip": "card now routes to /architecture/token-chain (no education drawer to capture); the last captured page is kept" },
     { "file": "step-up-mfa.html", "title": "Step-up MFA", "card": "Step-up MFA", "skip": "now an interactive lab at /learning-lab/step-up (no education drawer to capture); the last captured page is kept" },
     { "file": "introspection-rfc-7662.html", "title": "Introspection (RFC 7662)", "card": "Introspection (RFC 7662)" },
     { "file": "pingone-authorize.html", "title": "PingOne Authorize", "card": "PingOne Authorize" },
@@ -34,8 +34,7 @@
       "title": "OAuth: CIMD",
       "card": "OAuth: CIMD",
       "drawer": ".cimd-drawer",
-      "skipTabs": ["▶ Simulate"]
-    },
+      "skipTabs": ["▶ Simulate"], "skip": "card now routes to /cimd-privilege (no education drawer to capture); the last captured page is kept" },
 
     { "file": "mcp-protocol.html", "title": "MCP Protocol", "card": "MCP Protocol" },
     {
@@ -43,8 +42,7 @@
       "title": "MCP Server Discovery",
       "card": "MCP Server Discovery",
       "tabs": ["Available tools", "Server discovery", "Live inspector"],
-      "intro": "<p style=\"font-size: 0.85rem; color: rgb(71, 85, 105); margin: 0 0 1rem;\">This page focuses on how MCP servers advertise themselves and their tools. For the full handshake, message format, and transport details, see <a href=\"mcp-protocol.html\">MCP Protocol</a>.</p>"
-    },
+      "intro": "<p style=\"font-size: 0.85rem; color: rgb(71, 85, 105); margin: 0 0 1rem;\">This page focuses on how MCP servers advertise themselves and their tools. For the full handshake, message format, and transport details, see <a href=\"mcp-protocol.html\">MCP Protocol</a>.</p>", "skip": "card now routes to /mcp-discovery (no education drawer to capture); the last captured page is kept" },
     {
       "file": "mcp-mfa-gate-on-tools.html",
       "title": "MCP: MFA Gate on Tools",
@@ -53,8 +51,8 @@
       "intro": "<p style=\"font-size: 0.85rem; color: rgb(71, 85, 105); margin: 0 0 1rem;\">This page focuses on how MFA/step-up gates protect tool discovery and tool calls. For the full handshake, message format, and transport details, see <a href=\"mcp-protocol.html\">MCP Protocol</a>.</p>"
     },
     { "file": "mcp-elicitation.html", "title": "MCP Elicitation", "card": "MCP Elicitation" },
-    { "file": "agent-gateway.html", "title": "Agent Gateway", "card": "Agent Gateway" },
-    { "file": "computer-use-agent-cua.html", "title": "Computer Use Agent (CUA)", "card": "Computer Use Agent (CUA)" },
+    { "file": "agent-gateway.html", "title": "Agent Gateway", "card": "Agent Gateway", "skip": "card now routes to /agent-gateway-authorization (no education drawer to capture); the last captured page is kept" },
+    { "file": "computer-use-agent-cua.html", "title": "Computer Use Agent (CUA)", "card": "Computer Use Agent (CUA)", "skip": "card now routes to /personal-agent-design (no education drawer to capture); the last captured page is kept" },
     { "file": "human-in-the-loop.html", "title": "Human-in-the-loop", "card": "Human-in-the-loop" },
     { "file": "ping-agent-gateway-security.html", "title": "Ping Agent Gateway Security", "card": "PingOne Agent Gateway Security" },
 
@@ -62,11 +60,11 @@
     { "file": "intent-auth-standards.html", "title": "Intent Auth Standards", "card": "Intent Auth Standards" },
     { "file": "ietf-standards-agentic.html", "title": "IETF Standards: Agentic", "card": "IETF Standards: Agentic" },
     { "file": "id-jag-cross-app-access.html", "title": "ID-JAG / Cross-App Access", "card": "ID-JAG / Cross-App Access" },
-    { "file": "architecture-diagram.html", "title": "Architecture Diagram", "card": "Architecture Diagram" },
-    { "file": "token-chain-edu.html", "title": "Token Chain (edu)", "card": "Token Chain (edu)" },
+    { "file": "architecture-diagram.html", "title": "Architecture Diagram", "card": "Architecture Diagram", "skip": "card now routes to /architecture/system (no education drawer to capture); the last captured page is kept" },
+    { "file": "token-chain-edu.html", "title": "Token Chain (edu)", "card": "Token Chain (edu)", "skip": "card now routes to /architecture/token-chain (no education drawer to capture); the last captured page is kept" },
     { "file": "sensitive-data-disclosure.html", "title": "Sensitive Data & Disclosure", "card": "Sensitive Data & Disclosure" },
 
-    { "file": "server-capabilities.html", "title": "Server Capabilities", "card": "Server Capabilities" },
+    { "file": "server-capabilities.html", "title": "Server Capabilities", "card": "Server Capabilities", "skip": "card now routes to /architecture/server-topology (no education drawer to capture); the last captured page is kept" },
     { "file": "agent-tech-comparison.html", "title": "Agent Tech Comparison", "card": "Agent Tech Comparison" },
 
     { "file": "langchain-lcel-langgraph.html", "title": "LangChain (LCEL + LangGraph)", "card": "LangChain (LCEL + LangGraph)" },
@@ -76,11 +74,11 @@
     { "file": "ai-primer.html", "title": "AI Primer", "card": "AI Primer" },
 
     { "file": "glean-pingone.html", "title": "Glean + PingOne", "card": "Glean + PingOne" },
-    { "file": "authzen.html", "title": "AuthZEN", "card": "AuthZEN" },
+    { "file": "authzen.html", "title": "AuthZEN", "card": "AuthZEN", "skip": "card now routes to /pingone-authorize?tab=guided (no education drawer to capture); the last captured page is kept" },
 
     { "file": "agent-kill-switch.html", "title": "Agent Kill Switch", "card": "Agent Kill Switch" },
     { "file": "spiffe-svid-workload-identity.html", "title": "SPIFFE / SVID Workload Identity", "card": "SPIFFE / SVID Workload Identity" },
-    { "file": "gateway-vs-p1az-decision-split.html", "title": "Gateway vs P1AZ Decision Split", "card": "Gateway vs P1AZ Decision Split" },
+    { "file": "gateway-vs-p1az-decision-split.html", "title": "Gateway vs P1AZ Decision Split", "card": "Gateway vs P1AZ Decision Split", "skip": "card now routes to /gateway-enforcement-map (no education drawer to capture); the last captured page is kept" },
     { "file": "vector-search-rag-weaviate.html", "title": "Vector Search & RAG (Weaviate)", "card": "Vector Search & RAG (Weaviate)" }
   ]
 }

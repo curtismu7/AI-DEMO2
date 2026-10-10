@@ -172,13 +172,18 @@ function composePage(entry, sections) {
     .join("");
   const tocLabel = `On this page — ${sections.length} section${sections.length === 1 ? "" : "s"}`;
   const body = (entry.intro || "") + sections.map((s) => s.html).join("\n");
+  // The "Run it in the demo" card wiring: demo-links.js reads data-demo-topic
+  // off <body> and injects the card. The exporter used to rely on a hand
+  // patch (426bb153a) that every re-capture silently wiped — breaking the
+  // learningMirrorDemoLinks contract test — so the template emits both now.
+  const topic = entry.file.replace(/\.html$/, "");
   return `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${escapeHtml(title)} — AI Demo Learning Hub</title>
 <link rel="stylesheet" href="assets/app.css">
 <link rel="stylesheet" href="assets/snapshot.css">
-</head><body>
+</head><body data-demo-topic="${escapeHtml(topic)}">
 <div class="snap-top"><a href="index.html">← Learning Hub</a><span class="crumb">/ ${escapeHtml(title)}</span></div>
 <div class="edu-drawer snap-drawer">
 <div class="snap-title">${escapeHtml(title)}</div>
@@ -188,7 +193,7 @@ ${body}
 </div></div>
 <div class="snap-foot">The AI Demo Learning Hub · <a href="index.html">back to index</a></div>
 ${BACK_TO_TOP_BLOCK}
-</body></html>`;
+<script src="demo-links.js" defer></script></body></html>`;
 }
 
 function normalize(html) {
